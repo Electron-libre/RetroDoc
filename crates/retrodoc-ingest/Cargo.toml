@@ -1,0 +1,16 @@
+[package]
+name = "retrodoc-ingest"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+retrodoc-core.workspace = true
+ignore.workspace = true
+git2.workspace = true
+chrono.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+tempfile = "3"

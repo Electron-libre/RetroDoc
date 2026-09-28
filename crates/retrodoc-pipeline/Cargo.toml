@@ -1,0 +1,12 @@
+[package]
+name = "retrodoc-pipeline"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+retrodoc-core.workspace = true
+retrodoc-ingest.workspace = true
+retrodoc-llm.workspace = true
+thiserror.workspace = true
+tracing.workspace = true

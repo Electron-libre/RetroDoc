@@ -1,0 +1,10 @@
+[package]
+name = "retrodoc-llm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+retrodoc-core.workspace = true
+async-trait.workspace = true
+thiserror.workspace = true

@@ -1,0 +1,17 @@
+[package]
+name = "retrodoc-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "retrodoc"
+path = "src/main.rs"
+
+[dependencies]
+retrodoc-core.workspace = true
+retrodoc-ingest.workspace = true
+clap.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
