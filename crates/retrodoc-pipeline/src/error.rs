@@ -20,4 +20,18 @@ pub enum PipelineError {
     },
     #[error("could not serialize the repo map cache: {0}")]
     CacheSerialize(#[from] serde_json::Error),
+    #[error("domains.yaml unreadable/unwritable at {path}: {source}")]
+    DomainsIo {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("could not serialize domains.yaml: {0}")]
+    DomainsSerialize(#[from] serde_yaml::Error),
+    #[error("could not parse the domain clustering LLM response as JSON: {source}\n--- raw response ---\n{raw}")]
+    DomainParse {
+        raw: String,
+        #[source]
+        source: serde_json::Error,
+    },
 }

@@ -4,11 +4,12 @@ use anyhow::Context;
 use retrodoc_core::config::Config;
 use retrodoc_ingest::{FileKind, IngestResult};
 use retrodoc_llm::OpenRouterProvider;
-use retrodoc_pipeline::RepoMap;
+use retrodoc_pipeline::{CoverageReport, DomainMap, RepoMap};
 
-/// Current pipeline stage (PLAN.md §5, "repo map" phase): ingestion +
-/// bottom-up repo map. The following steps (domains, features, use cases,
-/// diagrams, confidence, writing to `docs/`) arrive in later roadmap phases.
+/// Current pipeline stage (PLAN.md §5, "domains" phase): ingestion +
+/// bottom-up repo map + domain/sub-domain clustering. The following steps
+/// (features, use cases, diagrams, confidence, writing to `docs/`) arrive in
+/// later roadmap phases.
 pub async fn run(path: &Path) -> anyhow::Result<()> {
     let repo_root = path
         .canonicalize()
@@ -39,8 +40,19 @@ pub async fn run(path: &Path) -> anyhow::Result<()> {
         map.files.len(),
         map.modules.len()
     );
+
+    println!("\nClustering into functional domains…");
+    let (domain_map, coverage) =
+        retrodoc_pipeline::build_domains(&repo_root, &map, &ingest.existing_docs, &llm)
+            .await
+            .context("failed to build the domain clustering")?;
+
+    print_domain_map(&domain_map);
+    print_coverage_report(&coverage);
+
+    println!("\nDomains saved to .retrodoc/cache/domains.yaml.");
     println!(
-        "Rest of the pipeline (domains, features, use cases, diagrams, confidence, writing) not implemented yet — see PLAN.md §5."
+        "Rest of the pipeline (features, use cases, diagrams, confidence, writing) not implemented yet — see PLAN.md §5."
     );
 
     Ok(())
@@ -71,5 +83,52 @@ fn print_repo_map(map: &RepoMap) {
     println!("\nFiles:");
     for file in &map.files {
         println!("  {}: {}", file.path.display(), file.role_summary);
+    }
+}
+
+fn print_domain_map(map: &DomainMap) {
+    println!("\nDomains:");
+    for domain in &map.domains {
+        println!(
+            "  {} ({}): {} file(s) directly, {} sub-domain(s)",
+            domain.name,
+            domain.slug,
+            domain.paths.len(),
+            domain.sub_domains.len()
+        );
+        for sub in &domain.sub_domains {
+            println!(
+                "    {} ({}): {} file(s)",
+                sub.name,
+                sub.slug,
+                sub.paths.len()
+            );
+        }
+    }
+}
+
+fn print_coverage_report(report: &CoverageReport) {
+    if report.is_clean() {
+        println!("\nCoverage: 100% of source files assigned, no overlap.");
+        return;
+    }
+    println!("\nCoverage issues found (repaired automatically):");
+    if !report.uncovered.is_empty() {
+        println!(
+            "  {} file(s) unassigned by the LLM, bucketed into \"uncategorized\".",
+            report.uncovered.len()
+        );
+    }
+    if !report.overlapping.is_empty() {
+        println!(
+            "  {} file(s) assigned to more than one domain, kept only the first.",
+            report.overlapping.len()
+        );
+    }
+    if !report.unknown.is_empty() {
+        println!(
+            "  {} unknown path(s) cited by the LLM, dropped.",
+            report.unknown.len()
+        );
     }
 }
