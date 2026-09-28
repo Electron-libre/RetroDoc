@@ -6,6 +6,12 @@
 //! the final rendering model populated once features/use cases are attached
 //! in later roadmap phases.
 //!
+//! The LLM is given `repo_map.modules` (one line per directory), not a flat
+//! per-file listing: a flat listing doesn't scale (tens of thousands of
+//! tokens on a repo with thousands of files). [`expand_to_files`] then
+//! mechanically resolves each file to its most-specific assigned ancestor
+//! directory (no extra LLM call) before coverage repairs run.
+//!
 //! Coverage is enforced by construction rather than by failing the whole
 //! run, mirroring `repo_map`'s "skip an unreadable file rather than abort"
 //! resilience: an LLM clustering is asked for, not guaranteed, so
@@ -30,21 +36,26 @@ use retrodoc_llm::{ChatMessage, CompletionRequest, LlmProvider, Role};
 use serde::{Deserialize, Serialize};
 
 use crate::error::PipelineError;
-use crate::repo_map::RepoMap;
+use crate::repo_map::{FileSummary, RepoMap};
 
 const DOMAINS_RELATIVE_PATH: &str = ".retrodoc/cache/domains.yaml";
 const UNCATEGORIZED_SLUG: &str = "uncategorized";
 
-const DOMAIN_CLUSTERING_SYSTEM_PROMPT: &str = "You are analyzing a software repository to identify \
-its functional (business) domains, not its technical/folder structure. Given per-file and \
-per-module role summaries, and hints from any existing documentation, group every listed file into \
-a small set of functional domains, optionally split into sub-domains when a domain is large enough \
-to warrant it. Every file path given to you MUST appear in exactly one domain (or one of its \
-sub-domains), copied verbatim. Reply with ONLY a single JSON object, no prose and no Markdown code \
-fence, matching this shape: {\"domains\":[{\"slug\":\"kebab-case\",\"name\":\"...\",\"description\":\
+const DOMAIN_CLUSTERING_SYSTEM_PROMPT: &str =
+    "You are analyzing a software repository to identify \
+its functional (business) domains, not its technical/folder structure. Given per-module (folder) \
+role summaries, and hints from any existing documentation, group every listed module into a small \
+set of functional domains, optionally split into sub-domains when a domain is large enough to \
+warrant it. Every module path given to you MUST appear in exactly one domain (or one of its \
+sub-domains), copied verbatim; copy the root module's path as \"\" (empty string), never \".\" or \
+\"/\". A parent module and one of its child modules may be assigned to different domains: a file \
+belongs to whichever of its assigned ancestor modules is most specific (deepest), so it's fine to \
+carve a sub-directory out into its own domain while leaving the parent's remaining files under the \
+parent's domain. Reply with ONLY a single JSON object, no prose and no Markdown code fence, \
+matching this shape: {\"domains\":[{\"slug\":\"kebab-case\",\"name\":\"...\",\"description\":\
 \"...\",\"paths\":[\"...\"],\"sub_domains\":[{\"slug\":\"...\",\"name\":\"...\",\"description\":\
-\"...\",\"paths\":[\"...\"]}]}]}. A domain's `paths` holds only the files not better placed in one \
-of its `sub_domains`.";
+\"...\",\"paths\":[\"...\"]}]}]}. A domain's `paths` holds only the modules not better placed in \
+one of its `sub_domains`.";
 
 /// Intermediate clustering artifact (PLAN.md §2 step 3): a business-oriented
 /// domain/sub-domain breakdown of the repo, with every known source file
@@ -167,7 +178,8 @@ pub async fn build_domains(
         })
         .await?;
 
-    let mut map = parse_domain_map(&response.content)?;
+    let map = parse_domain_map(&response.content)?;
+    let mut map = expand_to_files(map, &repo_map.files);
     let report = enforce_coverage(&mut map, &all_paths);
 
     if !report.unknown.is_empty() {
@@ -194,6 +206,107 @@ pub async fn build_domains(
 
     map.save(repo_root)?;
     Ok((map, report))
+}
+
+/// One directory the LLM assigned to a domain (or sub-domain), with its
+/// depth precomputed for longest-prefix-match resolution.
+struct DirAssignment {
+    dir: PathBuf,
+    depth: usize,
+    domain_idx: usize,
+    sub_domain_idx: Option<usize>,
+}
+
+/// Flattens every directory `map` assigned (domain `paths` first, then each
+/// domain's `sub_domains` `paths`, in order) into a list of
+/// [`DirAssignment`]s for [`resolve_target`].
+fn collect_dir_assignments(map: &DomainMap) -> Vec<DirAssignment> {
+    let mut assignments = Vec::new();
+    for (domain_idx, domain) in map.domains.iter().enumerate() {
+        for dir in &domain.paths {
+            assignments.push(DirAssignment {
+                dir: dir.clone(),
+                depth: dir.components().count(),
+                domain_idx,
+                sub_domain_idx: None,
+            });
+        }
+        for (sub_domain_idx, sub) in domain.sub_domains.iter().enumerate() {
+            for dir in &sub.paths {
+                assignments.push(DirAssignment {
+                    dir: dir.clone(),
+                    depth: dir.components().count(),
+                    domain_idx,
+                    sub_domain_idx: Some(sub_domain_idx),
+                });
+            }
+        }
+    }
+    assignments
+}
+
+/// Picks the assigned directory that is the deepest (most specific) ancestor
+/// of `file_path`, i.e. the longest-prefix match. Ties (only possible when
+/// the LLM assigned the same directory twice) resolve to the first
+/// occurrence in `assignments`.
+fn resolve_target<'a>(
+    assignments: &'a [DirAssignment],
+    file_path: &Path,
+) -> Option<&'a DirAssignment> {
+    let mut best: Option<&DirAssignment> = None;
+    for candidate in assignments.iter().filter(|a| file_path.starts_with(&a.dir)) {
+        if best.is_none_or(|b| candidate.depth > b.depth) {
+            best = Some(candidate);
+        }
+    }
+    best
+}
+
+/// Mechanically expands a module/directory-level clustering into a
+/// file-level one: each file is routed to its most-specific assigned
+/// ancestor directory (see module docs). Directory assignments that match no
+/// real file become domains/sub-domains with empty `paths`, which is
+/// harmless. A file matched by no assigned directory is left unassigned;
+/// the caller's subsequent [`enforce_coverage`] call buckets it into
+/// "uncategorized" exactly as it would a file an LLM forgot under the old
+/// flat per-file scheme.
+fn expand_to_files(map: DomainMap, files: &[FileSummary]) -> DomainMap {
+    let assignments = collect_dir_assignments(&map);
+
+    let mut expanded = DomainMap {
+        domains: map
+            .domains
+            .into_iter()
+            .map(|domain| DomainCluster {
+                paths: Vec::new(),
+                sub_domains: domain
+                    .sub_domains
+                    .into_iter()
+                    .map(|sub| SubDomainCluster {
+                        paths: Vec::new(),
+                        ..sub
+                    })
+                    .collect(),
+                ..domain
+            })
+            .collect(),
+    };
+
+    for file in files {
+        let Some(target) = resolve_target(&assignments, &file.path) else {
+            continue;
+        };
+        match target.sub_domain_idx {
+            Some(sub_idx) => expanded.domains[target.domain_idx].sub_domains[sub_idx]
+                .paths
+                .push(file.path.clone()),
+            None => expanded.domains[target.domain_idx]
+                .paths
+                .push(file.path.clone()),
+        }
+    }
+
+    expanded
 }
 
 /// Enforces 100% coverage and no overlap on `map` in place (see module
@@ -280,16 +393,15 @@ fn clustering_prompt(repo_map: &RepoMap, existing_docs: &[ExistingDoc]) -> Strin
     let _ = writeln!(prompt, "Modules:");
     for module in &repo_map.modules {
         let label = if module.path.as_os_str().is_empty() {
-            ".".to_string()
+            String::new()
         } else {
             module.path.display().to_string()
         };
-        let _ = writeln!(prompt, "- {label}: {}", module.role_summary);
-    }
-
-    let _ = writeln!(prompt, "\nFiles:");
-    for file in &repo_map.files {
-        let _ = writeln!(prompt, "- {}: {}", file.path.display(), file.role_summary);
+        let _ = writeln!(
+            prompt,
+            "- \"{label}\" ({} files): {}",
+            module.file_count, module.role_summary
+        );
     }
 
     if !existing_docs.is_empty() {
@@ -477,7 +589,7 @@ mod tests {
         let provider = CannedProvider {
             response: r#"```json
             {"domains":[{"slug":"billing","name":"Billing","description":"Handles invoices.",
-            "paths":["a.rs","b.rs"],"sub_domains":[]}]}
+            "paths":[""],"sub_domains":[]}]}
             ```"#
                 .to_string(),
         };
@@ -523,7 +635,7 @@ mod tests {
 
         let clustering_provider = CannedProvider {
             response: r#"{"domains":[{"slug":"core","name":"Core","description":"d",
-            "paths":["a.rs"],"sub_domains":[]}]}"#
+            "paths":[""],"sub_domains":[]}]}"#
                 .to_string(),
         };
         let (map, report) = build_domains(dir.path(), &repo_map, &[], &clustering_provider)
@@ -532,5 +644,123 @@ mod tests {
 
         assert!(report.is_clean());
         assert_eq!(map.domains[0].paths, vec![PathBuf::from("a.rs")]);
+    }
+
+    fn domain_with_dirs(slug: &str, dirs: &[&str]) -> DomainCluster {
+        DomainCluster {
+            slug: slug.to_string(),
+            name: slug.to_string(),
+            description: "d".to_string(),
+            paths: dirs.iter().map(PathBuf::from).collect(),
+            sub_domains: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn expand_to_files_resolves_longest_prefix_match() {
+        let map = DomainMap {
+            domains: vec![
+                domain_with_dirs("backend", &["src"]),
+                domain_with_dirs("frontend", &["src/ui"]),
+            ],
+        };
+        let files = vec![
+            file_summary("src/main.rs"),
+            file_summary("src/ui/button.rs"),
+        ];
+
+        let expanded = expand_to_files(map, &files);
+
+        assert_eq!(
+            expanded.domains[0].paths,
+            vec![PathBuf::from("src/main.rs")]
+        );
+        assert_eq!(
+            expanded.domains[1].paths,
+            vec![PathBuf::from("src/ui/button.rs")]
+        );
+    }
+
+    #[test]
+    fn expand_to_files_uses_root_as_fallback_only_when_nothing_more_specific_wins() {
+        let map = DomainMap {
+            domains: vec![
+                domain_with_dirs("core", &[""]),
+                domain_with_dirs("docs", &["docs"]),
+            ],
+        };
+        let files = vec![file_summary("lib.rs"), file_summary("docs/helper.rs")];
+
+        let expanded = expand_to_files(map, &files);
+
+        assert_eq!(expanded.domains[0].paths, vec![PathBuf::from("lib.rs")]);
+        assert_eq!(
+            expanded.domains[1].paths,
+            vec![PathBuf::from("docs/helper.rs")]
+        );
+    }
+
+    #[test]
+    fn expand_to_files_tolerates_a_directory_matching_no_real_file() {
+        let map = DomainMap {
+            domains: vec![
+                domain_with_dirs("ghost-hunters", &["ghost/dir"]),
+                domain_with_dirs("real", &["src"]),
+            ],
+        };
+        let files = vec![file_summary("src/main.rs")];
+
+        let expanded = expand_to_files(map, &files);
+
+        assert!(expanded.domains[0].paths.is_empty());
+        assert_eq!(
+            expanded.domains[1].paths,
+            vec![PathBuf::from("src/main.rs")]
+        );
+    }
+
+    #[test]
+    fn expand_to_files_resolves_duplicate_directory_claim_to_the_first_domain() {
+        let map = DomainMap {
+            domains: vec![
+                domain_with_dirs("first", &["src"]),
+                domain_with_dirs("second", &["src"]),
+            ],
+        };
+        let files = vec![file_summary("src/main.rs")];
+
+        let expanded = expand_to_files(map, &files);
+
+        assert_eq!(
+            expanded.domains[0].paths,
+            vec![PathBuf::from("src/main.rs")]
+        );
+        assert!(expanded.domains[1].paths.is_empty());
+    }
+
+    #[test]
+    fn clustering_prompt_renders_root_module_as_empty_string_not_dot() {
+        let repo_map = RepoMap {
+            files: vec![],
+            modules: vec![
+                ModuleSummary {
+                    path: PathBuf::new(),
+                    role_summary: "root".to_string(),
+                    file_count: 3,
+                },
+                ModuleSummary {
+                    path: PathBuf::from("src"),
+                    role_summary: "source".to_string(),
+                    file_count: 2,
+                },
+            ],
+        };
+
+        let prompt = clustering_prompt(&repo_map, &[]);
+
+        assert!(prompt.contains("- \"\" "));
+        assert!(!prompt
+            .lines()
+            .any(|l| l.trim() == "- ." || l.trim().starts_with("- .:")));
     }
 }
