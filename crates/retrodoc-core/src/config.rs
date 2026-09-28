@@ -36,6 +36,15 @@ pub struct LlmConfig {
     /// `OpenRouter` model to use (e.g. "anthropic/claude-sonnet-4.5").
     #[serde(default = "LlmConfig::default_model")]
     pub model: String,
+    /// Overrides the chat-completions endpoint `OpenRouterProvider` calls.
+    /// Unset: `OpenRouter`'s own endpoint. Set: any server speaking the
+    /// same OpenAI-compatible chat-completions wire format — e.g. a local
+    /// Ollama/LM Studio/llama.cpp instance — since `OpenRouterProvider`'s
+    /// request/response shapes are that same protocol, not `OpenRouter`-
+    /// specific. Still not "multi-provider support" (out of scope for v1,
+    /// PLAN.md §1): the auth model and client stay `OpenRouterProvider`'s.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base_url: Option<String>,
 }
 
 impl LlmConfig {
@@ -56,6 +65,7 @@ impl Default for LlmConfig {
             provider: Self::default_provider(),
             api_key_env: Self::default_api_key_env(),
             model: Self::default_model(),
+            base_url: None,
         }
     }
 }

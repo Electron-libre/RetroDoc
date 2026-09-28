@@ -112,7 +112,9 @@ pub struct OpenRouterProvider {
 
 impl OpenRouterProvider {
     /// Builds the provider from the config, reading the API key from the
-    /// environment variable named by `llm.api_key_env`.
+    /// environment variable named by `llm.api_key_env`. Calls `OpenRouter`
+    /// unless `llm.base_url` overrides the endpoint (e.g. to point at a
+    /// local OpenAI-compatible server instead).
     ///
     /// # Errors
     ///
@@ -124,11 +126,15 @@ impl OpenRouterProvider {
         }
         let api_key = std::env::var(&config.api_key_env)
             .map_err(|_| LlmError::MissingApiKey(config.api_key_env.clone()))?;
+        let endpoint = config
+            .base_url
+            .clone()
+            .unwrap_or_else(|| OPENROUTER_ENDPOINT.to_string());
         Ok(Self {
             client: reqwest::Client::new(),
             api_key,
             default_model: config.model.clone(),
-            endpoint: OPENROUTER_ENDPOINT.to_string(),
+            endpoint,
         })
     }
 
@@ -243,6 +249,7 @@ mod tests {
             provider: "openrouter".to_string(),
             api_key_env: "RETRODOC_TEST_MISSING_KEY_VAR".to_string(),
             model: "anthropic/claude-sonnet-4.5".to_string(),
+            base_url: None,
         };
         std::env::remove_var(&config.api_key_env);
         let result = OpenRouterProvider::from_config(&config);
@@ -255,9 +262,41 @@ mod tests {
             provider: "openai".to_string(),
             api_key_env: "X".to_string(),
             model: "gpt-4o".to_string(),
+            base_url: None,
         };
         let result = OpenRouterProvider::from_config(&config);
         assert!(matches!(result, Err(LlmError::UnsupportedProvider(p)) if p == "openai"));
+    }
+
+    #[test]
+    fn base_url_override_is_used_instead_of_openrouters_endpoint() {
+        let config = LlmConfig {
+            provider: "openrouter".to_string(),
+            api_key_env: "RETRODOC_TEST_BASE_URL_KEY_VAR".to_string(),
+            model: "llama3.2:3b".to_string(),
+            base_url: Some("http://localhost:11434/v1/chat/completions".to_string()),
+        };
+        std::env::set_var(&config.api_key_env, "unused-for-local-servers");
+        let provider = OpenRouterProvider::from_config(&config).unwrap();
+        assert_eq!(
+            provider.endpoint,
+            "http://localhost:11434/v1/chat/completions"
+        );
+        std::env::remove_var(&config.api_key_env);
+    }
+
+    #[test]
+    fn no_base_url_override_defaults_to_openrouter() {
+        let config = LlmConfig {
+            provider: "openrouter".to_string(),
+            api_key_env: "RETRODOC_TEST_DEFAULT_ENDPOINT_KEY_VAR".to_string(),
+            model: "anthropic/claude-sonnet-4.5".to_string(),
+            base_url: None,
+        };
+        std::env::set_var(&config.api_key_env, "unused");
+        let provider = OpenRouterProvider::from_config(&config).unwrap();
+        assert_eq!(provider.endpoint, OPENROUTER_ENDPOINT);
+        std::env::remove_var(&config.api_key_env);
     }
 
     #[test]
