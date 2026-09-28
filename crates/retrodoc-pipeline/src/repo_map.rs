@@ -211,7 +211,12 @@ async fn summarize_module(
     let mut listing = String::new();
     for file in own_files {
         // `write!` on a `String` can't fail.
-        let _ = writeln!(listing, "- file {}: {}", file.path.display(), file.role_summary);
+        let _ = writeln!(
+            listing,
+            "- file {}: {}",
+            file.path.display(),
+            file.role_summary
+        );
     }
     for module in child_modules {
         let _ = writeln!(
@@ -303,8 +308,7 @@ async fn build_module_summaries(
         // Saturated at `u32::MAX`: never reached in practice (no repo with
         // billions of files).
         let own_file_count = u32::try_from(own_files.len()).unwrap_or(u32::MAX);
-        let file_count =
-            own_file_count + child_modules.iter().map(|m| m.file_count).sum::<u32>();
+        let file_count = own_file_count + child_modules.iter().map(|m| m.file_count).sum::<u32>();
         let role_summary = summarize_module(llm, &dir, &own_files, &child_modules).await?;
 
         computed.insert(

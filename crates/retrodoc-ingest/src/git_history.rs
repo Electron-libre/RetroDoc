@@ -54,15 +54,15 @@ pub fn collect_history(repo_root: &Path) -> Result<HashMap<PathBuf, FileHistory>
 
         let diff = repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&tree), None)?;
         let author = commit.author();
-        let author_label = author
-            .name()
-            .map_or_else(|| author.email().unwrap_or("unknown").to_string(), str::to_string);
+        let author_label = author.name().map_or_else(
+            || author.email().unwrap_or("unknown").to_string(),
+            str::to_string,
+        );
         let when = git_time_to_utc(commit.time());
 
         diff.foreach(
             &mut |delta, _progress| {
-                let Some(path) = delta.new_file().path().or_else(|| delta.old_file().path())
-                else {
+                let Some(path) = delta.new_file().path().or_else(|| delta.old_file().path()) else {
                     return true;
                 };
                 let entry = history.entry(path.to_path_buf()).or_default();

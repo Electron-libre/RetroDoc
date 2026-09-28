@@ -180,9 +180,7 @@ impl LlmProvider for OpenRouterProvider {
                     let status = response.status();
                     if status.is_success() {
                         let parsed: ApiResponse = response.json().await.map_err(|source| {
-                            LlmError::InvalidResponse(format!(
-                                "unreadable response body: {source}"
-                            ))
+                            LlmError::InvalidResponse(format!("unreadable response body: {source}"))
                         })?;
                         let content = parsed
                             .choices

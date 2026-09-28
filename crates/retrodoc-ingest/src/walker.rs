@@ -127,7 +127,10 @@ mod tests {
         fs::write(root.join("README.md"), "# hi").unwrap();
 
         let entries = walk_repo(root, &["*.lock".to_string()]).unwrap();
-        let paths: Vec<_> = entries.iter().map(|e| e.path.to_string_lossy().to_string()).collect();
+        let paths: Vec<_> = entries
+            .iter()
+            .map(|e| e.path.to_string_lossy().to_string())
+            .collect();
 
         assert!(paths.contains(&"main.rs".to_string()));
         assert!(paths.contains(&"README.md".to_string()));

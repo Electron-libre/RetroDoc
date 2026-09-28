@@ -9,9 +9,8 @@ pub fn run(path: &Path) -> anyhow::Result<()> {
         .canonicalize()
         .with_context(|| format!("path not found: {}", path.display()))?;
 
-    let config = Config::load(&repo_root).with_context(|| {
-        "config not found — run `retrodoc init` first".to_string()
-    })?;
+    let config = Config::load(&repo_root)
+        .with_context(|| "config not found — run `retrodoc init` first".to_string())?;
 
     let result = retrodoc_ingest::run(&repo_root, &config.ingest)
         .with_context(|| format!("ingestion of {} failed", repo_root.display()))?;

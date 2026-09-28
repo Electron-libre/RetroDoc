@@ -49,12 +49,19 @@ fn is_markdown(path: &Path) -> bool {
     )
 }
 
-fn push_doc(repo_root: &Path, abs_path: &Path, docs: &mut Vec<ExistingDoc>) -> Result<(), IngestError> {
+fn push_doc(
+    repo_root: &Path,
+    abs_path: &Path,
+    docs: &mut Vec<ExistingDoc>,
+) -> Result<(), IngestError> {
     let content = std::fs::read_to_string(abs_path).map_err(|source| IngestError::Read {
         path: abs_path.to_path_buf(),
         source,
     })?;
-    let relative = abs_path.strip_prefix(repo_root).unwrap_or(abs_path).to_path_buf();
+    let relative = abs_path
+        .strip_prefix(repo_root)
+        .unwrap_or(abs_path)
+        .to_path_buf();
     docs.push(ExistingDoc {
         path: relative,
         content,
@@ -104,8 +111,12 @@ mod tests {
         fs::write(root.join("docs/sub/b.md"), "# b").unwrap();
         fs::write(root.join("docs/ignore.txt"), "not markdown").unwrap();
 
-        let docs = load_existing_docs(root, &["README.md".to_string(), "docs".to_string()]).unwrap();
-        let paths: Vec<_> = docs.iter().map(|d| d.path.to_string_lossy().to_string()).collect();
+        let docs =
+            load_existing_docs(root, &["README.md".to_string(), "docs".to_string()]).unwrap();
+        let paths: Vec<_> = docs
+            .iter()
+            .map(|d| d.path.to_string_lossy().to_string())
+            .collect();
 
         assert!(paths.contains(&"README.md".to_string()));
         assert!(paths.contains(&"docs/a.md".to_string()));
