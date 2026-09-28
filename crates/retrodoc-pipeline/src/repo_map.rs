@@ -9,6 +9,7 @@
 //! folder (empty `path`) thus carries a summary aggregating the whole repo.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use retrodoc_ingest::{FileEntry, FileHistory, FileKind, IngestResult};
@@ -60,6 +61,11 @@ pub struct RepoMap {
 /// file (with a content-hash cache), then each module bottom-up. Files that
 /// aren't readable as UTF-8 or aren't readable at all are skipped (logged
 /// warning) rather than failing the whole run.
+///
+/// # Errors
+///
+/// Returns an error if an LLM call fails or the cache can't be saved to
+/// disk.
 pub async fn build_repo_map(
     repo_root: &Path,
     ingest: &IngestResult,
@@ -96,8 +102,8 @@ pub async fn build_repo_map(
         files.push(FileSummary {
             path: entry.path.clone(),
             role_summary,
-            commit_count: history.map(|h| h.commit_count).unwrap_or(0),
-            author_count: history.map(|h| h.authors.len() as u32).unwrap_or(0),
+            commit_count: history.map_or(0, |h| h.commit_count),
+            author_count: history.map_or(0, author_count),
         });
     }
 
@@ -127,6 +133,12 @@ fn truncate_chars(content: &str, max_chars: usize) -> String {
     format!("{truncated}\n… (truncated)")
 }
 
+/// Number of distinct authors, saturated at `u32::MAX` (never reached in
+/// practice — a repo doesn't have billions of authors).
+fn author_count(history: &FileHistory) -> u32 {
+    u32::try_from(history.authors.len()).unwrap_or(u32::MAX)
+}
+
 fn history_line(history: Option<&FileHistory>) -> String {
     match history {
         Some(h) if h.commit_count > 0 => format!(
@@ -134,8 +146,7 @@ fn history_line(history: Option<&FileHistory>) -> String {
             h.commit_count,
             h.authors.len(),
             h.last_commit_at
-                .map(|d| d.date_naive().to_string())
-                .unwrap_or_else(|| "unknown".to_string())
+                .map_or_else(|| "unknown".to_string(), |d| d.date_naive().to_string())
         ),
         _ => "no git history (file not versioned or never committed)".to_string(),
     }
@@ -187,18 +198,16 @@ async fn summarize_module(
 
     let mut listing = String::new();
     for file in own_files {
-        listing.push_str(&format!(
-            "- file {}: {}\n",
-            file.path.display(),
-            file.role_summary
-        ));
+        // `write!` on a `String` can't fail.
+        let _ = writeln!(listing, "- file {}: {}", file.path.display(), file.role_summary);
     }
     for module in child_modules {
-        listing.push_str(&format!(
-            "- sub-module {}: {}\n",
+        let _ = writeln!(
+            listing,
+            "- sub-module {}: {}",
             module.path.display(),
             module.role_summary
-        ));
+        );
     }
 
     let prompt = format!("Folder: {dir_label}\n\nSummarized content:\n{listing}");
@@ -279,8 +288,11 @@ async fn build_module_summaries(
             continue;
         }
 
+        // Saturated at `u32::MAX`: never reached in practice (no repo with
+        // billions of files).
+        let own_file_count = u32::try_from(own_files.len()).unwrap_or(u32::MAX);
         let file_count =
-            own_files.len() as u32 + child_modules.iter().map(|m| m.file_count).sum::<u32>();
+            own_file_count + child_modules.iter().map(|m| m.file_count).sum::<u32>();
         let role_summary = summarize_module(llm, &dir, &own_files, &child_modules).await?;
 
         computed.insert(

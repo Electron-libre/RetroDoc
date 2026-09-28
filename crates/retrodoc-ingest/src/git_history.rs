@@ -25,6 +25,11 @@ fn git_time_to_utc(time: git2::Time) -> Option<DateTime<Utc>> {
 
 /// Rebuilds, for each file touched in `HEAD`'s history, the commit count,
 /// authors, and first/last modification dates.
+///
+/// # Errors
+///
+/// Returns an error if the repo can't be opened or reading the history
+/// fails (corrupted repo, disk access).
 pub fn collect_history(repo_root: &Path) -> Result<HashMap<PathBuf, FileHistory>, IngestError> {
     let repo = Repository::open(repo_root)?;
     let mut history: HashMap<PathBuf, FileHistory> = HashMap::new();
@@ -51,8 +56,7 @@ pub fn collect_history(repo_root: &Path) -> Result<HashMap<PathBuf, FileHistory>
         let author = commit.author();
         let author_label = author
             .name()
-            .map(str::to_string)
-            .unwrap_or_else(|| author.email().unwrap_or("unknown").to_string());
+            .map_or_else(|| author.email().unwrap_or("unknown").to_string(), str::to_string);
         let when = git_time_to_utc(commit.time());
 
         diff.foreach(
@@ -101,7 +105,7 @@ mod tests {
             .env("GIT_COMMITTER_EMAIL", "test@example.com")
             .status()
             .expect("git command failed to run");
-        assert!(status.success(), "git {:?} failed", args);
+        assert!(status.success(), "git {args:?} failed");
     }
 
     #[test]

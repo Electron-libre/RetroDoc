@@ -1,7 +1,7 @@
 //! `retrodoc.toml` configuration.
 //!
 //! The file lives at the root of the analyzed repo and describes the LLM
-//! provider (OpenRouter in v1) as well as the ingestion settings (paths
+//! provider (`OpenRouter` in v1) as well as the ingestion settings (paths
 //! ignored in addition to `.gitignore`, doc output folder).
 
 use std::fs;
@@ -33,7 +33,7 @@ pub struct LlmConfig {
     /// itself: this file is versioned alongside the analyzed repo).
     #[serde(default = "LlmConfig::default_api_key_env")]
     pub api_key_env: String,
-    /// OpenRouter model to use (e.g. "anthropic/claude-sonnet-4.5").
+    /// `OpenRouter` model to use (e.g. "anthropic/claude-sonnet-4.5").
     #[serde(default = "LlmConfig::default_model")]
     pub model: String,
 }
@@ -130,6 +130,11 @@ pub enum ConfigError {
 
 impl Config {
     /// Loads the config from `<repo_root>/retrodoc.toml`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the file is missing, unreadable, or its TOML
+    /// content is invalid.
     pub fn load(repo_root: &Path) -> Result<Self, ConfigError> {
         let path = repo_root.join(CONFIG_FILE_NAME);
         if !path.exists() {
@@ -145,6 +150,11 @@ impl Config {
 
     /// Writes the default config to `<repo_root>/retrodoc.toml`.
     /// Fails if the file already exists (see `force` on the CLI side to overwrite).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the file already exists without `force`, or if
+    /// writing to disk fails.
     pub fn write_default(repo_root: &Path, force: bool) -> Result<Self, ConfigError> {
         let path = repo_root.join(CONFIG_FILE_NAME);
         if path.exists() && !force {

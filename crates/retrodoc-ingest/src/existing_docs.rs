@@ -16,6 +16,11 @@ pub struct ExistingDoc {
 
 /// Resolves `existing_docs_paths` (files or folders, relative to the repo
 /// root) into a list of loaded Markdown documents.
+///
+/// # Errors
+///
+/// Returns an error if a configured file or folder exists but is unreadable
+/// (permissions, invalid encoding).
 pub fn load_existing_docs(
     repo_root: &Path,
     existing_docs_paths: &[String],

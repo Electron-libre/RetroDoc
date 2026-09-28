@@ -31,6 +31,7 @@ struct CacheEntry {
 }
 
 /// Content hash used as the cache key (PLAN.md §4).
+#[must_use]
 pub fn hash_content(content: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(content.as_bytes());
@@ -40,6 +41,7 @@ pub fn hash_content(content: &str) -> String {
 impl RepoMapCache {
     /// Loads the cache from `<repo_root>/.retrodoc/cache/repo-map.json`.
     /// Missing or unreadable: empty cache, not an error (first run).
+    #[must_use]
     pub fn load(repo_root: &Path) -> Self {
         let path = repo_root.join(CACHE_RELATIVE_PATH);
         std::fs::read_to_string(&path)
@@ -48,6 +50,10 @@ impl RepoMapCache {
             .unwrap_or_default()
     }
 
+    /// # Errors
+    ///
+    /// Returns an error if the `.retrodoc/cache/` folder can't be created,
+    /// or if writing the cache file fails.
     pub fn save(&self, repo_root: &Path) -> Result<(), PipelineError> {
         let path = repo_root.join(CACHE_RELATIVE_PATH);
         if let Some(parent) = path.parent() {
@@ -63,6 +69,7 @@ impl RepoMapCache {
 
     /// Cached summary for `path`, if it still matches `content_hash` (file
     /// unchanged since the last run).
+    #[must_use]
     pub fn get(&self, path: &Path, content_hash: &str) -> Option<&str> {
         self.entries
             .get(path)

@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 
-/// RetroDoc — catch up on a project's documentation debt with AI agents.
+/// `RetroDoc` — catch up on a project's documentation debt with AI agents.
 #[derive(Debug, Parser)]
 #[command(name = "retrodoc", version, about, long_about = None)]
 struct Cli {
@@ -59,6 +59,9 @@ async fn main() -> anyhow::Result<()> {
         Command::Init { path, force } => commands::init::run(&path, force),
         Command::Scan { path } => commands::scan::run(&path),
         Command::Generate { path } => commands::generate::run(&path).await,
-        Command::Report { path } => commands::not_implemented("report", &path),
+        Command::Report { path } => {
+            commands::not_implemented("report", &path);
+            Ok(())
+        }
     }
 }

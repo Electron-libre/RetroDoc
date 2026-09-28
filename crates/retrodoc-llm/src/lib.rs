@@ -1,8 +1,8 @@
-//! `retrodoc-llm`: LLM provider abstraction (`LlmProvider`), so RetroDoc
-//! isn't locked to OpenRouter (PLAN.md §1). Only OpenRouter is implemented
-//! in v1. The real HTTP call (PLAN.md §4: "retry, rate-limit") is wired up
-//! here, at the "repo map" phase — the first pipeline step to consume an
-//! LLM.
+//! `retrodoc-llm`: LLM provider abstraction (`LlmProvider`), so `RetroDoc`
+//! isn't locked to `OpenRouter` (PLAN.md §1). Only `OpenRouter` is
+//! implemented in v1. The real HTTP call (PLAN.md §4: "retry, rate-limit")
+//! is wired up here, at the "repo map" phase — the first pipeline step to
+//! consume an LLM.
 
 use std::time::Duration;
 
@@ -65,7 +65,7 @@ pub enum LlmError {
 }
 
 /// Contract shared by every LLM provider, so other providers than
-/// OpenRouter can be added without touching the rest of the pipeline.
+/// `OpenRouter` can be added without touching the rest of the pipeline.
 #[async_trait]
 pub trait LlmProvider: Send + Sync {
     async fn complete(&self, request: CompletionRequest) -> Result<CompletionResponse, LlmError>;
@@ -102,7 +102,7 @@ struct ApiResponseMessage {
     content: String,
 }
 
-/// OpenRouter provider (https://openrouter.ai).
+/// `OpenRouter` provider (<https://openrouter.ai>).
 pub struct OpenRouterProvider {
     client: reqwest::Client,
     api_key: String,
@@ -113,6 +113,11 @@ pub struct OpenRouterProvider {
 impl OpenRouterProvider {
     /// Builds the provider from the config, reading the API key from the
     /// environment variable named by `llm.api_key_env`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `config.provider` isn't `"openrouter"`, or if
+    /// the API key's environment variable is not set.
     pub fn from_config(config: &LlmConfig) -> Result<Self, LlmError> {
         if config.provider != "openrouter" {
             return Err(LlmError::UnsupportedProvider(config.provider.clone()));

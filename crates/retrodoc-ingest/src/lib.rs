@@ -27,6 +27,7 @@ pub struct IngestResult {
 }
 
 impl IngestResult {
+    #[must_use]
     pub fn history_for(&self, path: &Path) -> Option<&FileHistory> {
         self.history_by_path.get(path)
     }
@@ -34,6 +35,11 @@ impl IngestResult {
 
 /// Runs the full ingestion (files + git history + existing docs) on the
 /// repo located at `repo_root`.
+///
+/// # Errors
+///
+/// Returns an error if walking the repo, reading the git history, or
+/// loading existing Markdown docs fails.
 pub fn run(repo_root: &Path, config: &IngestConfig) -> Result<IngestResult, IngestError> {
     let files = walker::walk_repo(repo_root, &config.extra_ignore)?;
     let history_by_path = git_history::collect_history(repo_root)?;

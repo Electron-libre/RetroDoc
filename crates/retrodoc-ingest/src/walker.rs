@@ -38,6 +38,11 @@ pub struct FileEntry {
 
 /// Walks `repo_root` respecting `.gitignore`, `.ignore`, and the extra
 /// patterns supplied (gitignore syntax, e.g. `"*.lock"`, `"vendor/"`).
+///
+/// # Errors
+///
+/// Returns an error if `repo_root` doesn't exist, an exclusion pattern is
+/// invalid, or walking the repo fails.
 pub fn walk_repo(repo_root: &Path, extra_ignore: &[String]) -> Result<Vec<FileEntry>, IngestError> {
     if !repo_root.exists() {
         return Err(IngestError::InvalidRepo(repo_root.to_path_buf()));
@@ -83,12 +88,12 @@ pub fn walk_repo(repo_root: &Path, extra_ignore: &[String]) -> Result<Vec<FileEn
     for result in walker {
         let entry = result?;
         let path = entry.path();
-        let is_file = entry.file_type().map(|t| t.is_file()).unwrap_or(false);
+        let is_file = entry.file_type().is_some_and(|t| t.is_file());
         if !is_file {
             continue;
         }
         let relative = path.strip_prefix(repo_root).unwrap_or(path).to_path_buf();
-        let size_bytes = entry.metadata().map(|m| m.len()).unwrap_or(0);
+        let size_bytes = entry.metadata().map_or(0, |m| m.len());
         entries.push(FileEntry {
             kind: FileKind::from_path(&relative),
             path: relative,

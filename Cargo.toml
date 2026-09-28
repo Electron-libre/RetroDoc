@@ -37,3 +37,6 @@ retrodoc-ingest = { path = "crates/retrodoc-ingest" }
 retrodoc-llm = { path = "crates/retrodoc-llm" }
 retrodoc-pipeline = { path = "crates/retrodoc-pipeline" }
 retrodoc-render = { path = "crates/retrodoc-render" }
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
