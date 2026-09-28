@@ -30,7 +30,9 @@ enum Command {
         #[arg(long, default_value = ".")]
         path: PathBuf,
     },
-    /// Generates the functional documentation. Not implemented yet.
+    /// Builds the repo map (LLM summaries per file/module) and prints it.
+    /// The rest of the pipeline (domains, features, ...) is not
+    /// implemented yet — see PLAN.md §5.
     Generate {
         #[arg(long, default_value = ".")]
         path: PathBuf,
@@ -42,7 +44,8 @@ enum Command {
     },
 }
 
-fn main() -> anyhow::Result<()> {
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -55,7 +58,7 @@ fn main() -> anyhow::Result<()> {
     match cli.command {
         Command::Init { path, force } => commands::init::run(&path, force),
         Command::Scan { path } => commands::scan::run(&path),
-        Command::Generate { path } => commands::not_implemented("generate", &path),
+        Command::Generate { path } => commands::generate::run(&path).await,
         Command::Report { path } => commands::not_implemented("report", &path),
     }
 }
