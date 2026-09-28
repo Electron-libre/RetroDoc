@@ -95,7 +95,18 @@ pub async fn build_repo_map(
 
         let role_summary = match cache.get(&entry.path, &hash) {
             Some(cached) => cached.to_string(),
-            None => summarize_file(llm, entry, &content, history).await?,
+            None => match summarize_file(llm, entry, &content, history).await {
+                Ok(summary) => summary,
+                Err(err) => {
+                    // A transient failure partway through a long file list
+                    // shouldn't discard the summaries already computed in
+                    // this run: best-effort save before propagating (a
+                    // rerun then only has to redo the files not yet
+                    // cached, not the whole list).
+                    let _ = cache.save(repo_root);
+                    return Err(err);
+                }
+            },
         };
         cache.put(&entry.path, &hash, &role_summary);
 
@@ -107,8 +118,9 @@ pub async fn build_repo_map(
         });
     }
 
-    // Save as soon as files are processed: a failure further down the
-    // pipeline shouldn't lose the summarization work already done.
+    // Save once the whole file loop succeeds too (belt and suspenders): a
+    // failure further down the pipeline (module summaries) shouldn't lose
+    // the file-level work already done.
     cache.save(repo_root)?;
 
     let modules = build_module_summaries(llm, &files).await?;
@@ -419,5 +431,63 @@ mod tests {
         // File summaries are served from the cache (unchanged content):
         // only the 3 modules, which aren't cached, trigger a new LLM call.
         assert_eq!(calls_after_second_run - calls_after_first_run, 3);
+    }
+
+    /// Fake provider that succeeds its first `succeed_calls` completions,
+    /// then fails every one after that — simulates a provider that turns
+    /// flaky partway through a long file list (e.g. a rate limit hit deep
+    /// into the run).
+    struct FailAfterNProvider {
+        succeed_calls: usize,
+        calls: AtomicUsize,
+    }
+
+    #[async_trait]
+    impl LlmProvider for FailAfterNProvider {
+        async fn complete(
+            &self,
+            _request: CompletionRequest,
+        ) -> Result<CompletionResponse, LlmError> {
+            let call_index = self.calls.fetch_add(1, Ordering::SeqCst);
+            if call_index < self.succeed_calls {
+                Ok(CompletionResponse {
+                    content: format!("summary #{call_index}"),
+                    model: "test-model".to_string(),
+                })
+            } else {
+                Err(LlmError::Transport("simulated failure".to_string()))
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn a_failure_partway_through_the_file_loop_keeps_earlier_summaries_cached() {
+        let dir = tempfile::tempdir().unwrap();
+        let ingest = ingest_with_nested_files(dir.path());
+        // Only the first file summarization call succeeds; the second one
+        // (and the run as a whole) fails.
+        let provider = FailAfterNProvider {
+            succeed_calls: 1,
+            calls: AtomicUsize::new(0),
+        };
+
+        let result = build_repo_map(dir.path(), &ingest, &provider).await;
+        assert!(result.is_err());
+
+        // The summary computed before the failure was still persisted to
+        // disk, not discarded along with the run.
+        let cache = RepoMapCache::load(dir.path());
+        let cached_paths: Vec<_> = [Path::new("a/b/x.rs"), Path::new("a/y.rs")]
+            .into_iter()
+            .filter(|p| {
+                cache
+                    .get(
+                        p,
+                        &hash_content(&std::fs::read_to_string(dir.path().join(p)).unwrap()),
+                    )
+                    .is_some()
+            })
+            .collect();
+        assert_eq!(cached_paths.len(), 1);
     }
 }
