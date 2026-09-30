@@ -15,6 +15,15 @@ const OPENROUTER_ENDPOINT: &str = "https://openrouter.ai/api/v1/chat/completions
 /// (429 / 5xx) — PLAN.md §4 "retry, rate-limit".
 const MAX_RETRIES: u32 = 3;
 const RETRY_BASE_DELAY: Duration = Duration::from_millis(500);
+/// Per-request HTTP timeout. `OpenRouter` always responds well within this,
+/// but a local `llm.base_url` override (a small quantized model) can
+/// degenerate into a runaway generation loop that never reaches a stop
+/// token; without a client-side bound the call hangs indefinitely instead
+/// of surfacing an error the existing retry loop can act on.
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
+/// Upper bound on `max_tokens` sent with every request, for the same
+/// reason: caps how long a runaway generation can run server-side too.
+const MAX_COMPLETION_TOKENS: u32 = 8192;
 
 #[derive(Debug, Clone)]
 pub struct ChatMessage {
@@ -83,6 +92,7 @@ struct ApiMessage<'a> {
 struct ApiRequest<'a> {
     model: &'a str,
     messages: Vec<ApiMessage<'a>>,
+    max_tokens: u32,
 }
 
 #[derive(Debug, Deserialize)]
@@ -118,8 +128,9 @@ impl OpenRouterProvider {
     ///
     /// # Errors
     ///
-    /// Returns an error if `config.provider` isn't `"openrouter"`, or if
-    /// the API key's environment variable is not set.
+    /// Returns an error if `config.provider` isn't `"openrouter"`, if the
+    /// API key's environment variable is not set, or if the underlying
+    /// HTTP client can't be built.
     pub fn from_config(config: &LlmConfig) -> Result<Self, LlmError> {
         if config.provider != "openrouter" {
             return Err(LlmError::UnsupportedProvider(config.provider.clone()));
@@ -130,8 +141,12 @@ impl OpenRouterProvider {
             .base_url
             .clone()
             .unwrap_or_else(|| OPENROUTER_ENDPOINT.to_string());
+        let client = reqwest::Client::builder()
+            .timeout(REQUEST_TIMEOUT)
+            .build()
+            .map_err(|source| LlmError::Transport(source.to_string()))?;
         Ok(Self {
-            client: reqwest::Client::new(),
+            client,
             api_key,
             default_model: config.model.clone(),
             endpoint,
@@ -163,7 +178,11 @@ impl LlmProvider for OpenRouterProvider {
                 content: &m.content,
             })
             .collect();
-        let body = ApiRequest { model, messages };
+        let body = ApiRequest {
+            model,
+            messages,
+            max_tokens: MAX_COMPLETION_TOKENS,
+        };
 
         let mut attempt = 0;
         loop {
@@ -350,5 +369,49 @@ mod tests {
 
         assert_eq!(response.content, "hello");
         assert_eq!(response.model, "anthropic/claude-sonnet-4.5");
+    }
+
+    #[tokio::test]
+    async fn complete_caps_max_tokens_to_guard_against_a_runaway_local_model() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            use std::io::{Read, Write};
+            if let Ok((mut stream, _)) = listener.accept() {
+                let mut buf = [0u8; 4096];
+                let n = stream.read(&mut buf).unwrap_or(0);
+                let _ = tx.send(String::from_utf8_lossy(&buf[..n]).to_string());
+                let payload =
+                    r#"{"model":"m","choices":[{"message":{"role":"assistant","content":"ok"}}]}"#;
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{payload}",
+                    payload.len()
+                );
+                let _ = stream.write_all(response.as_bytes());
+            }
+        });
+
+        let provider = OpenRouterProvider {
+            client: reqwest::Client::new(),
+            api_key: "test-key".to_string(),
+            default_model: "m".to_string(),
+            endpoint: String::new(),
+        }
+        .with_endpoint(format!("http://{addr}"));
+
+        provider
+            .complete(CompletionRequest {
+                messages: vec![ChatMessage {
+                    role: Role::User,
+                    content: "hi".to_string(),
+                }],
+                model: None,
+            })
+            .await
+            .unwrap();
+
+        let request = rx.recv().unwrap();
+        assert!(request.contains(&format!("\"max_tokens\":{MAX_COMPLETION_TOKENS}")));
     }
 }

@@ -21,7 +21,7 @@ connectors, automatic PRs, multi-provider LLM.
 ```
 1. Ingestion       → repo walker (respects .gitignore) + parsing of existing .md files + git log per path
 2. Repo map        → bottom-up summary per file/module (probable role, enriched with commit frequency/authors)
-3. Domains         → LLM clustering of the repo map + existing docs → domains.yaml (intermediate, validated: 100% code coverage, no overlap)
+3. Domains         → LLM clustering of the repo map's directory-level summaries + existing docs (files resolved to domains by longest-prefix path match) → domains.yaml (intermediate, validated: 100% code coverage, no overlap)
 4. Features        → per domain, grounded on the associated code chunks
 5. Use cases       → per feature, steps + actors/actions, grounded on real code (handlers, routes, UI, DB)
 6. Diagrams        → Mermaid (flowchart/sequenceDiagram) per use case
