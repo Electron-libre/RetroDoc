@@ -2,14 +2,16 @@ use std::path::Path;
 
 use anyhow::Context;
 use retrodoc_core::config::Config;
+use retrodoc_core::model::{Feature, UseCase};
 use retrodoc_ingest::{FileKind, IngestResult};
 use retrodoc_llm::OpenRouterProvider;
 use retrodoc_pipeline::{CoverageReport, DomainMap, RepoMap};
 
-/// Current pipeline stage (PLAN.md §5, "domains" phase): ingestion +
-/// bottom-up repo map + domain/sub-domain clustering. The following steps
-/// (features, use cases, diagrams, confidence, writing to `docs/`) arrive in
-/// later roadmap phases.
+/// Current pipeline stage (PLAN.md §5, "features → use cases" phase).
+///
+/// Runs ingestion, the bottom-up repo map, domain/sub-domain clustering,
+/// then features and use cases with Mermaid diagrams. The following steps
+/// (confidence, writing to `docs/`) arrive in later roadmap phases.
 pub async fn run(path: &Path) -> anyhow::Result<()> {
     let repo_root = path
         .canonicalize()
@@ -51,9 +53,32 @@ pub async fn run(path: &Path) -> anyhow::Result<()> {
     print_coverage_report(&coverage);
 
     println!("\nDomains saved to .retrodoc/cache/domains.yaml.");
+
+    println!("\nDeriving features…");
+    let features = retrodoc_pipeline::build_features(&repo_root, &domain_map, &map, &llm)
+        .await
+        .context("failed to derive the features")?;
+
     println!(
-        "Rest of the pipeline (features, use cases, diagrams, confidence, writing) not implemented yet — see PLAN.md §5."
+        "Deriving use cases ({} feature(s), one LLM call each)…",
+        features.len()
     );
+    let mut use_cases = retrodoc_pipeline::build_use_cases(&repo_root, &features, &llm)
+        .await
+        .context("failed to derive the use cases")?;
+    retrodoc_pipeline::attach_diagrams(&mut use_cases);
+    // Persist again now that the diagrams are attached.
+    retrodoc_pipeline::save_use_cases(&repo_root, &use_cases)
+        .context("failed to save the use cases")?;
+
+    print_features(&features, &use_cases);
+
+    println!(
+        "\n{} feature(s) saved to .retrodoc/cache/features.yaml, {} use case(s) to .retrodoc/cache/use-cases.yaml.",
+        features.len(),
+        use_cases.len()
+    );
+    println!("Rest of the pipeline (confidence, writing) not implemented yet — see PLAN.md §5.");
 
     Ok(())
 }
@@ -103,6 +128,19 @@ fn print_domain_map(map: &DomainMap) {
                 sub.slug,
                 sub.paths.len()
             );
+        }
+    }
+}
+
+fn print_features(features: &[Feature], use_cases: &[UseCase]) {
+    println!("\nFeatures:");
+    for feature in features {
+        println!(
+            "  {}/{} — {}",
+            feature.domain_slug, feature.slug, feature.name
+        );
+        for use_case in use_cases.iter().filter(|u| u.feature_slug == feature.slug) {
+            println!("    - {} ({} step(s))", use_case.name, use_case.steps.len());
         }
     }
 }

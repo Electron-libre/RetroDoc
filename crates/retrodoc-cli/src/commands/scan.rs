@@ -25,11 +25,16 @@ pub fn run(path: &Path) -> anyhow::Result<()> {
         .iter()
         .filter(|f| f.kind == FileKind::Markdown)
         .count();
-    let other_count = result.files.len() - source_count - markdown_count;
+    let test_count = result
+        .files
+        .iter()
+        .filter(|f| f.kind == FileKind::Test)
+        .count();
+    let other_count = result.files.len() - source_count - markdown_count - test_count;
 
     println!("Repo: {}", repo_root.display());
     println!(
-        "Files: {} (source: {source_count}, markdown: {markdown_count}, other: {other_count})",
+        "Files: {} (source: {source_count}, test: {test_count}, markdown: {markdown_count}, other: {other_count})",
         result.files.len()
     );
     println!(

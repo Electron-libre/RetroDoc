@@ -28,10 +28,16 @@ pub enum PipelineError {
     },
     #[error("could not serialize domains.yaml: {0}")]
     DomainsSerialize(#[from] serde_yaml::Error),
-    #[error("could not parse the domain clustering LLM response as JSON: {source}\n--- raw response ---\n{raw}")]
-    DomainParse {
+    #[error("could not parse an LLM response as JSON: {source}\n--- raw response ---\n{raw}")]
+    ResponseParse {
         raw: String,
         #[source]
         source: serde_json::Error,
+    },
+    #[error("intermediate artifact unreadable/unwritable at {path}: {source}")]
+    ArtifactIo {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
     },
 }

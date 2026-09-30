@@ -93,6 +93,8 @@ struct ApiRequest<'a> {
     model: &'a str,
     messages: Vec<ApiMessage<'a>>,
     max_tokens: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reasoning_effort: Option<&'a str>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -105,6 +107,8 @@ struct ApiResponse {
 #[derive(Debug, Deserialize)]
 struct ApiChoice {
     message: ApiResponseMessage,
+    #[serde(default)]
+    finish_reason: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -118,6 +122,7 @@ pub struct OpenRouterProvider {
     api_key: String,
     default_model: String,
     endpoint: String,
+    reasoning_effort: Option<String>,
 }
 
 impl OpenRouterProvider {
@@ -150,6 +155,7 @@ impl OpenRouterProvider {
             api_key,
             default_model: config.model.clone(),
             endpoint,
+            reasoning_effort: config.reasoning_effort.clone(),
         })
     }
 
@@ -182,6 +188,7 @@ impl LlmProvider for OpenRouterProvider {
             model,
             messages,
             max_tokens: MAX_COMPLETION_TOKENS,
+            reasoning_effort: self.reasoning_effort.as_deref(),
         };
 
         let mut attempt = 0;
@@ -201,14 +208,22 @@ impl LlmProvider for OpenRouterProvider {
                         let parsed: ApiResponse = response.json().await.map_err(|source| {
                             LlmError::InvalidResponse(format!("unreadable response body: {source}"))
                         })?;
-                        let content = parsed
-                            .choices
-                            .into_iter()
-                            .next()
-                            .map(|c| c.message.content)
-                            .ok_or_else(|| {
-                                LlmError::InvalidResponse("no choice in the response".to_string())
-                            })?;
+                        let choice = parsed.choices.into_iter().next().ok_or_else(|| {
+                            LlmError::InvalidResponse("no choice in the response".to_string())
+                        })?;
+                        if choice.finish_reason.as_deref() == Some("length") {
+                            // Cut off by the token limit: either our
+                            // `max_tokens` cap or, on a local server, its
+                            // context window (Ollama defaults to 4096
+                            // tokens, prompt included). The JSON the passes
+                            // expect will then be incomplete.
+                            tracing::warn!(
+                                model,
+                                "response truncated (finish_reason=length): raise the server's \
+                                 context length or shrink the prompt"
+                            );
+                        }
+                        let content = choice.message.content;
                         let model = if parsed.model.is_empty() {
                             model.to_string()
                         } else {
@@ -267,6 +282,7 @@ mod tests {
             api_key_env: "RETRODOC_TEST_MISSING_KEY_VAR".to_string(),
             model: "anthropic/claude-sonnet-4.5".to_string(),
             base_url: None,
+            reasoning_effort: None,
         };
         std::env::remove_var(&config.api_key_env);
         let result = OpenRouterProvider::from_config(&config);
@@ -280,6 +296,7 @@ mod tests {
             api_key_env: "X".to_string(),
             model: "gpt-4o".to_string(),
             base_url: None,
+            reasoning_effort: None,
         };
         let result = OpenRouterProvider::from_config(&config);
         assert!(matches!(result, Err(LlmError::UnsupportedProvider(p)) if p == "openai"));
@@ -292,6 +309,7 @@ mod tests {
             api_key_env: "RETRODOC_TEST_BASE_URL_KEY_VAR".to_string(),
             model: "llama3.2:3b".to_string(),
             base_url: Some("http://localhost:11434/v1/chat/completions".to_string()),
+            reasoning_effort: None,
         };
         std::env::set_var(&config.api_key_env, "unused-for-local-servers");
         let provider = OpenRouterProvider::from_config(&config).unwrap();
@@ -309,6 +327,7 @@ mod tests {
             api_key_env: "RETRODOC_TEST_DEFAULT_ENDPOINT_KEY_VAR".to_string(),
             model: "anthropic/claude-sonnet-4.5".to_string(),
             base_url: None,
+            reasoning_effort: None,
         };
         std::env::set_var(&config.api_key_env, "unused");
         let provider = OpenRouterProvider::from_config(&config).unwrap();
@@ -353,6 +372,7 @@ mod tests {
             api_key: "test-key".to_string(),
             default_model: "anthropic/claude-sonnet-4.5".to_string(),
             endpoint: String::new(),
+            reasoning_effort: None,
         }
         .with_endpoint(format!("http://{addr}"));
 
@@ -397,6 +417,7 @@ mod tests {
             api_key: "test-key".to_string(),
             default_model: "m".to_string(),
             endpoint: String::new(),
+            reasoning_effort: None,
         }
         .with_endpoint(format!("http://{addr}"));
 
@@ -413,5 +434,51 @@ mod tests {
 
         let request = rx.recv().unwrap();
         assert!(request.contains(&format!("\"max_tokens\":{MAX_COMPLETION_TOKENS}")));
+    }
+
+    #[tokio::test]
+    async fn reasoning_effort_is_sent_only_when_configured() {
+        for (effort, expected) in [(Some("none"), true), (None, false)] {
+            let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            let addr = listener.local_addr().unwrap();
+            let (tx, rx) = std::sync::mpsc::channel();
+            std::thread::spawn(move || {
+                use std::io::{Read, Write};
+                if let Ok((mut stream, _)) = listener.accept() {
+                    let mut buf = [0u8; 4096];
+                    let n = stream.read(&mut buf).unwrap_or(0);
+                    let _ = tx.send(String::from_utf8_lossy(&buf[..n]).to_string());
+                    let payload = r#"{"model":"m","choices":[{"message":{"role":"assistant","content":"ok"}}]}"#;
+                    let response = format!(
+                        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{payload}",
+                        payload.len()
+                    );
+                    let _ = stream.write_all(response.as_bytes());
+                }
+            });
+
+            let provider = OpenRouterProvider {
+                client: reqwest::Client::new(),
+                api_key: "test-key".to_string(),
+                default_model: "m".to_string(),
+                endpoint: String::new(),
+                reasoning_effort: effort.map(str::to_string),
+            }
+            .with_endpoint(format!("http://{addr}"));
+
+            provider
+                .complete(CompletionRequest {
+                    messages: vec![ChatMessage {
+                        role: Role::User,
+                        content: "hi".to_string(),
+                    }],
+                    model: None,
+                })
+                .await
+                .unwrap();
+
+            let request = rx.recv().unwrap();
+            assert_eq!(request.contains("\"reasoning_effort\":\"none\""), expected);
+        }
     }
 }

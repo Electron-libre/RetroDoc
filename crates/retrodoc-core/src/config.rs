@@ -45,6 +45,12 @@ pub struct LlmConfig {
     /// PLAN.md §1): the auth model and client stay `OpenRouterProvider`'s.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub base_url: Option<String>,
+    /// Sent as `reasoning_effort` with every request when set (e.g.
+    /// `"none"`, `"low"`). Lets a "thinking" model (Qwen3, …) skip its
+    /// internal reasoning, which is far too slow for `RetroDoc`'s many short
+    /// structured calls. Unset: nothing is sent, the server's default applies.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_effort: Option<String>,
 }
 
 impl LlmConfig {
@@ -66,6 +72,7 @@ impl Default for LlmConfig {
             api_key_env: Self::default_api_key_env(),
             model: Self::default_model(),
             base_url: None,
+            reasoning_effort: None,
         }
     }
 }

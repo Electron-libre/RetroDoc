@@ -4,14 +4,22 @@
 //! Roadmap phase 2 (PLAN.md §5): repo map — bottom-up summaries per
 //! file/module, enriched with git history ([`repo_map`]). Roadmap phase 3:
 //! domain/sub-domain clustering of the repo map, with coverage validation
-//! ([`domains`]). The features → use cases → diagrams → confidence passes
-//! arrive in later roadmap phases.
+//! ([`domains`]). Roadmap phase 4: features ([`features`]) → use cases
+//! ([`use_cases`]) → Mermaid diagrams ([`diagrams`]). The confidence pass
+//! arrives in a later roadmap phase.
 
 pub mod cache;
+pub mod diagrams;
 pub mod domains;
 pub mod error;
+pub mod features;
 pub mod repo_map;
+mod response;
+pub mod use_cases;
 
+pub use diagrams::{attach_diagrams, sequence_diagram};
 pub use domains::{build_domains, CoverageReport, DomainCluster, DomainMap, SubDomainCluster};
 pub use error::PipelineError;
+pub use features::{build_features, load_features};
 pub use repo_map::{build_repo_map, FileSummary, ModuleSummary, RepoMap};
+pub use use_cases::{build_use_cases, load_use_cases, save_use_cases};

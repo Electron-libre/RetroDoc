@@ -37,9 +37,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::PipelineError;
 use crate::repo_map::{FileSummary, RepoMap};
+use crate::response::parse_json_response;
 
 const DOMAINS_RELATIVE_PATH: &str = ".retrodoc/cache/domains.yaml";
-const UNCATEGORIZED_SLUG: &str = "uncategorized";
+pub(crate) const UNCATEGORIZED_SLUG: &str = "uncategorized";
 
 const DOMAIN_CLUSTERING_SYSTEM_PROMPT: &str =
     "You are analyzing a software repository to identify \
@@ -178,7 +179,7 @@ pub async fn build_domains(
         })
         .await?;
 
-    let map = parse_domain_map(&response.content)?;
+    let map: DomainMap = parse_json_response(&response.content)?;
     let mut map = expand_to_files(map, &repo_map.files);
     let report = enforce_coverage(&mut map, &all_paths);
 
@@ -422,26 +423,6 @@ fn clustering_prompt(repo_map: &RepoMap, existing_docs: &[ExistingDoc]) -> Strin
     prompt
 }
 
-fn parse_domain_map(raw: &str) -> Result<DomainMap, PipelineError> {
-    let json = strip_code_fence(raw);
-    serde_json::from_str(json).map_err(|source| PipelineError::DomainParse {
-        raw: raw.to_string(),
-        source,
-    })
-}
-
-/// LLMs sometimes wrap JSON answers in a `json` code fence despite
-/// instructions not to; tolerate it rather than failing the whole pass on
-/// formatting.
-fn strip_code_fence(raw: &str) -> &str {
-    let trimmed = raw.trim();
-    let Some(after_open) = trimmed.strip_prefix("```") else {
-        return trimmed;
-    };
-    let after_open = after_open.strip_prefix("json").unwrap_or(after_open);
-    after_open.strip_suffix("```").unwrap_or(after_open).trim()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -494,13 +475,6 @@ mod tests {
             commit_count: 1,
             author_count: 1,
         }
-    }
-
-    #[test]
-    fn strip_code_fence_tolerates_markdown_fence() {
-        assert_eq!(strip_code_fence("{\"a\":1}"), "{\"a\":1}");
-        assert_eq!(strip_code_fence("```json\n{\"a\":1}\n```"), "{\"a\":1}");
-        assert_eq!(strip_code_fence("```\n{\"a\":1}\n```"), "{\"a\":1}");
     }
 
     #[test]

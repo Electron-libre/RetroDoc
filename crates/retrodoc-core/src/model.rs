@@ -2,8 +2,8 @@
 //!
 //! These types are the shared vocabulary between the `retrodoc-pipeline`
 //! crate (which produces them) and `retrodoc-render` (which serializes them
-//! to Markdown). They are not populated yet in phase 1 (foundation):
-//! clustering and generation arrive in later roadmap phases.
+//! to Markdown). Populated progressively by the roadmap phases:
+//! features and use cases since phase 4, confidence scores from phase 5.
 
 use serde::{Deserialize, Serialize};
 
@@ -36,7 +36,9 @@ pub struct Domain {
     pub name: String,
     pub description: String,
     pub sub_domains: Vec<SubDomain>,
-    pub confidence: ConfidenceScore,
+    /// `None` until the confidence pass (roadmap phase 5) has scored it.
+    #[serde(default)]
+    pub confidence: Option<ConfidenceScore>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,7 +46,9 @@ pub struct SubDomain {
     pub slug: Slug,
     pub name: String,
     pub description: String,
-    pub confidence: ConfidenceScore,
+    /// `None` until the confidence pass (roadmap phase 5) has scored it.
+    #[serde(default)]
+    pub confidence: Option<ConfidenceScore>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -54,7 +58,13 @@ pub struct Feature {
     pub sub_domain_slug: Option<Slug>,
     pub name: String,
     pub description: String,
-    pub confidence: ConfidenceScore,
+    /// Source files (repo-relative) this feature is grounded on; the code
+    /// its use cases are derived from.
+    #[serde(default)]
+    pub source_paths: Vec<String>,
+    /// `None` until the confidence pass (roadmap phase 5) has scored it.
+    #[serde(default)]
+    pub confidence: Option<ConfidenceScore>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -66,7 +76,9 @@ pub struct UseCase {
     pub steps: Vec<Step>,
     /// Mermaid diagram (flowchart/sequenceDiagram) illustrating the process.
     pub diagram_mermaid: Option<String>,
-    pub confidence: ConfidenceScore,
+    /// `None` until the confidence pass (roadmap phase 5) has scored it.
+    #[serde(default)]
+    pub confidence: Option<ConfidenceScore>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

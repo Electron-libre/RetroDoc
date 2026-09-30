@@ -12,8 +12,15 @@ use crate::error::IngestError;
 pub enum FileKind {
     Markdown,
     Source,
+    /// Source code that is a test (by directory or file name): kept out of
+    /// the functional pipeline, where test scaffolding and expected-failure
+    /// fixtures would otherwise be documented as product behavior.
+    Test,
     Other,
 }
+
+/// Directory names that mark everything below them as tests.
+const TEST_DIRS: &[&str] = &["tests", "test", "spec", "specs", "__tests__", "e2e"];
 
 impl FileKind {
     fn from_path(path: &Path) -> Self {
@@ -22,10 +29,38 @@ impl FileKind {
             Some(
                 "rs" | "ts" | "tsx" | "js" | "jsx" | "py" | "go" | "java" | "kt" | "rb" | "php"
                 | "c" | "h" | "cpp" | "hpp" | "cs" | "swift" | "scala" | "sql",
-            ) => FileKind::Source,
+            ) => {
+                if is_test_path(path) {
+                    FileKind::Test
+                } else {
+                    FileKind::Source
+                }
+            }
             _ => FileKind::Other,
         }
     }
+}
+
+/// Heuristic test detection on a repo-relative path: a test directory
+/// anywhere in it, or a conventional test file name (`foo_test.go`,
+/// `foo.spec.ts`, `test_foo.py`, `foo_spec.rb`).
+fn is_test_path(path: &Path) -> bool {
+    let in_test_dir = path
+        .parent()
+        .into_iter()
+        .flat_map(Path::components)
+        .any(|c| TEST_DIRS.contains(&c.as_os_str().to_string_lossy().to_lowercase().as_str()));
+    if in_test_dir {
+        return true;
+    }
+    let stem = path
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_lowercase())
+        .unwrap_or_default();
+    ["_test", "_spec", ".test", ".spec"]
+        .iter()
+        .any(|suffix| stem.ends_with(suffix))
+        || stem.starts_with("test_")
 }
 
 #[derive(Debug, Clone)]
@@ -156,5 +191,41 @@ mod tests {
         assert_eq!(kind_of("lib.rs"), Some(FileKind::Source));
         assert_eq!(kind_of("notes.md"), Some(FileKind::Markdown));
         assert_eq!(kind_of("data.bin"), Some(FileKind::Other));
+    }
+
+    #[test]
+    fn classifies_tests_apart_from_source() {
+        for test in [
+            "tests/api.rs",
+            "tests/trybuild/fail/x.rs",
+            "src/__tests__/a.ts",
+            "spec/models/user_spec.rb",
+            "pkg/handler_test.go",
+            "web/app.spec.ts",
+            "tools/test_parser.py",
+        ] {
+            assert_eq!(
+                FileKind::from_path(Path::new(test)),
+                FileKind::Test,
+                "{test}"
+            );
+        }
+        for source in [
+            "src/lib.rs",
+            "src/testing_utils.rs",
+            "app/latest.py",
+            "src/contest/a.rs",
+        ] {
+            assert_eq!(
+                FileKind::from_path(Path::new(source)),
+                FileKind::Source,
+                "{source}"
+            );
+        }
+        // Non-code files under a test dir stay non-code.
+        assert_eq!(
+            FileKind::from_path(Path::new("tests/test_api.yml")),
+            FileKind::Other
+        );
     }
 }
