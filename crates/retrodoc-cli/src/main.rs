@@ -30,14 +30,15 @@ enum Command {
         #[arg(long, default_value = ".")]
         path: PathBuf,
     },
-    /// Builds the repo map (LLM summaries per file/module) and prints it.
-    /// The rest of the pipeline (domains, features, ...) is not
-    /// implemented yet — see PLAN.md §5.
+    /// Runs the pipeline (repo map, domains, features, use cases,
+    /// confidence) and saves the intermediate artifacts under
+    /// `.retrodoc/cache/`. Writing to `docs/` is not implemented yet.
     Generate {
         #[arg(long, default_value = ".")]
         path: PathBuf,
     },
-    /// Shows the documentation coverage report. Not implemented yet.
+    /// Shows the documentation debt report (confidence per domain, weak
+    /// sections) from the last `generate` run, without calling the LLM.
     Report {
         #[arg(long, default_value = ".")]
         path: PathBuf,
@@ -59,9 +60,6 @@ async fn main() -> anyhow::Result<()> {
         Command::Init { path, force } => commands::init::run(&path, force),
         Command::Scan { path } => commands::scan::run(&path),
         Command::Generate { path } => commands::generate::run(&path).await,
-        Command::Report { path } => {
-            commands::not_implemented("report", &path);
-            Ok(())
-        }
+        Command::Report { path } => commands::report::run(&path),
     }
 }

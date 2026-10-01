@@ -2,16 +2,16 @@ use std::path::Path;
 
 use anyhow::Context;
 use retrodoc_core::config::Config;
-use retrodoc_core::model::{Feature, UseCase};
+use retrodoc_core::model::{ConfidenceScore, Feature, UseCase};
 use retrodoc_ingest::{FileKind, IngestResult};
 use retrodoc_llm::OpenRouterProvider;
 use retrodoc_pipeline::{CoverageReport, DomainMap, RepoMap};
 
-/// Current pipeline stage (PLAN.md §5, "features → use cases" phase).
+/// Current pipeline stage (PLAN.md §5, "confidence score" phase).
 ///
 /// Runs ingestion, the bottom-up repo map, domain/sub-domain clustering,
-/// then features and use cases with Mermaid diagrams. The following steps
-/// (confidence, writing to `docs/`) arrive in later roadmap phases.
+/// then features and use cases with Mermaid diagrams, and finally the
+/// confidence cross-check. Writing to `docs/` arrives in the next phase.
 pub async fn run(path: &Path) -> anyhow::Result<()> {
     let repo_root = path
         .canonicalize()
@@ -71,6 +71,12 @@ pub async fn run(path: &Path) -> anyhow::Result<()> {
     retrodoc_pipeline::save_use_cases(&repo_root, &use_cases)
         .context("failed to save the use cases")?;
 
+    let mut features = features;
+    println!("\nCross-checking use cases against the code (confidence)…");
+    retrodoc_pipeline::score_confidence(&repo_root, &mut features, &mut use_cases, &llm)
+        .await
+        .context("failed to score the confidence")?;
+
     print_features(&features, &use_cases);
 
     println!(
@@ -78,7 +84,8 @@ pub async fn run(path: &Path) -> anyhow::Result<()> {
         features.len(),
         use_cases.len()
     );
-    println!("Rest of the pipeline (confidence, writing) not implemented yet — see PLAN.md §5.");
+    println!("Run `retrodoc report` for the documentation debt report.");
+    println!("Writing to `docs/` is not implemented yet — see PLAN.md §5.");
 
     Ok(())
 }
@@ -136,13 +143,28 @@ fn print_features(features: &[Feature], use_cases: &[UseCase]) {
     println!("\nFeatures:");
     for feature in features {
         println!(
-            "  {}/{} — {}",
-            feature.domain_slug, feature.slug, feature.name
+            "  {}/{} — {} [{}]",
+            feature.domain_slug,
+            feature.slug,
+            feature.name,
+            confidence_label(feature.confidence.as_ref())
         );
         for use_case in use_cases.iter().filter(|u| u.feature_slug == feature.slug) {
-            println!("    - {} ({} step(s))", use_case.name, use_case.steps.len());
+            println!(
+                "    - {} ({} step(s)) [{}]",
+                use_case.name,
+                use_case.steps.len(),
+                confidence_label(use_case.confidence.as_ref())
+            );
         }
     }
+}
+
+fn confidence_label(score: Option<&ConfidenceScore>) -> String {
+    score.map_or_else(
+        || "not scored".to_string(),
+        |c| format!("{:.0}%", c.value * 100.0),
+    )
 }
 
 fn print_coverage_report(report: &CoverageReport) {

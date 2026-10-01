@@ -65,7 +65,13 @@ pub fn load_features(repo_root: &Path) -> Option<Vec<Feature>> {
     serde_yaml::from_str(&raw).ok()
 }
 
-fn save_features(repo_root: &Path, features: &[Feature]) -> Result<(), PipelineError> {
+/// Persists `features` as `.retrodoc/cache/features.yaml`; also used to
+/// re-save once confidence scores are attached.
+///
+/// # Errors
+///
+/// Returns an error if the file can't be written or serialization fails.
+pub fn save_features(repo_root: &Path, features: &[Feature]) -> Result<(), PipelineError> {
     let path = repo_root.join(FEATURES_RELATIVE_PATH);
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|source| PipelineError::ArtifactIo {

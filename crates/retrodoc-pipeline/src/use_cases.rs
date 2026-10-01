@@ -246,7 +246,7 @@ fn use_cases_prompt(repo_root: &Path, feature: &Feature) -> (String, BTreeSet<St
 
 /// Prefixes each line with its 1-based number (so the LLM can cite line
 /// ranges) and stops once `max_chars` are reached.
-fn numbered_excerpt(content: &str, max_chars: usize) -> String {
+pub(crate) fn numbered_excerpt(content: &str, max_chars: usize) -> String {
     let mut out = String::new();
     for (n, line) in content.lines().enumerate() {
         if out.len() >= max_chars {
