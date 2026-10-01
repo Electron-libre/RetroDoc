@@ -69,7 +69,8 @@ fn verdict_value(verdict: &str) -> f32 {
     }
 }
 
-/// Scores every use case, then every feature, and persists both artifacts
+/// Scores every use case not scored yet (reused use cases keep their score
+/// from the last run), then every feature, and persists both artifacts
 /// (`use-cases.yaml`, `features.yaml`) with their `confidence` filled in.
 ///
 /// # Errors
@@ -81,7 +82,7 @@ pub async fn score_confidence(
     use_cases: &mut [UseCase],
     llm: &dyn LlmProvider,
 ) -> Result<(), PipelineError> {
-    for use_case in use_cases.iter_mut() {
+    for use_case in use_cases.iter_mut().filter(|u| u.confidence.is_none()) {
         use_case.confidence = score_use_case(repo_root, use_case, llm).await?;
     }
     for feature in features.iter_mut() {

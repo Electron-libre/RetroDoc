@@ -31,11 +31,28 @@ enum Command {
         path: PathBuf,
     },
     /// Runs the pipeline (repo map, domains, features, use cases,
-    /// confidence) and saves the intermediate artifacts under
-    /// `.retrodoc/cache/`. Writing to `docs/` is not implemented yet.
+    /// confidence), saves the intermediate artifacts under
+    /// `.retrodoc/cache/` and writes the docs. Units unchanged since the
+    /// last run are not sent to the LLM again.
     Generate {
         #[arg(long, default_value = ".")]
         path: PathBuf,
+        /// Preview the docs (files and diffs) without writing them. The
+        /// intermediate artifacts in `.retrodoc/cache/` are still updated.
+        #[arg(long)]
+        dry_run: bool,
+        /// Ignore the caches and redo every LLM pass from scratch.
+        #[arg(long)]
+        force: bool,
+    },
+    /// Writes the docs from the artifacts of the last `generate` run,
+    /// without calling the LLM.
+    Render {
+        #[arg(long, default_value = ".")]
+        path: PathBuf,
+        /// Preview the docs (files and diffs) without writing them.
+        #[arg(long)]
+        dry_run: bool,
     },
     /// Shows the documentation debt report (confidence per domain, weak
     /// sections) from the last `generate` run, without calling the LLM.
@@ -59,7 +76,12 @@ async fn main() -> anyhow::Result<()> {
     match cli.command {
         Command::Init { path, force } => commands::init::run(&path, force),
         Command::Scan { path } => commands::scan::run(&path),
-        Command::Generate { path } => commands::generate::run(&path).await,
+        Command::Generate {
+            path,
+            dry_run,
+            force,
+        } => commands::generate::run(&path, dry_run, force).await,
+        Command::Render { path, dry_run } => commands::render::run(&path, dry_run),
         Command::Report { path } => commands::report::run(&path),
     }
 }

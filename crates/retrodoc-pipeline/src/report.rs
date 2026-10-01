@@ -9,12 +9,11 @@ use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::path::PathBuf;
 
-use retrodoc_core::model::{Feature, UseCase};
+use retrodoc_core::model::{
+    ConfidenceScore, Domain, Feature, SubDomain, UseCase, LOW_CONFIDENCE_THRESHOLD,
+};
 
 use crate::domains::{DomainMap, UNCATEGORIZED_SLUG};
-
-/// Sections scoring below this are listed as documentation debt.
-pub const LOW_CONFIDENCE_THRESHOLD: f32 = 0.5;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct DomainDebt {
@@ -52,6 +51,40 @@ fn mean(values: impl Iterator<Item = f32>) -> Option<f32> {
     let (sum, n) = values.fold((0.0_f32, 0_u32), |(s, n), v| (s + v, n + 1));
     #[allow(clippy::cast_precision_loss)]
     (n > 0).then(|| sum / n as f32)
+}
+
+/// Converts the clustering into the rendering model: the "uncategorized"
+/// bucket is left out (it belongs to the coverage report), and each domain /
+/// sub-domain carries the mean confidence of its features.
+#[must_use]
+pub fn domain_models(map: &DomainMap, features: &[Feature]) -> Vec<Domain> {
+    map.domains
+        .iter()
+        .filter(|d| d.slug != UNCATEGORIZED_SLUG)
+        .map(|d| Domain {
+            slug: d.slug.clone(),
+            name: d.name.clone(),
+            description: d.description.clone(),
+            sub_domains: d
+                .sub_domains
+                .iter()
+                .map(|s| SubDomain {
+                    slug: s.slug.clone(),
+                    name: s.name.clone(),
+                    description: s.description.clone(),
+                    confidence: mean_confidence(features.iter().filter(|f| {
+                        f.domain_slug == d.slug && f.sub_domain_slug.as_deref() == Some(&s.slug)
+                    })),
+                })
+                .collect(),
+            confidence: mean_confidence(features.iter().filter(|f| f.domain_slug == d.slug)),
+        })
+        .collect()
+}
+
+fn mean_confidence<'a>(features: impl Iterator<Item = &'a Feature>) -> Option<ConfidenceScore> {
+    mean(features.filter_map(|f| f.confidence.as_ref().map(|c| c.value)))
+        .map(|v| ConfidenceScore::new(v, None))
 }
 
 /// Builds the report from the pipeline artifacts.
@@ -221,8 +254,6 @@ impl DebtReport {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    use retrodoc_core::model::ConfidenceScore;
 
     use crate::domains::DomainCluster;
 

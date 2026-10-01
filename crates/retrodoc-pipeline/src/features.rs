@@ -22,6 +22,7 @@ use serde::Deserialize;
 
 use crate::domains::{DomainMap, UNCATEGORIZED_SLUG};
 use crate::error::PipelineError;
+use crate::fingerprints::{fingerprint, Fingerprints};
 use crate::repo_map::{FileSummary, RepoMap};
 use crate::response::complete_json;
 
@@ -86,6 +87,11 @@ pub fn save_features(repo_root: &Path, features: &[Feature]) -> Result<(), Pipel
 /// Derives the features of every domain/sub-domain in `domains` and
 /// persists them to `.retrodoc/cache/features.yaml`.
 ///
+/// Incremental: a unit whose files and file summaries are unchanged since
+/// the last run keeps the features saved then, without an LLM call. The
+/// domain's name and description are deliberately not part of the
+/// fingerprint, so a re-worded clustering doesn't invalidate everything.
+///
 /// # Errors
 ///
 /// Returns an error if an LLM call fails or the artifact can't be saved.
@@ -100,6 +106,10 @@ pub async fn build_features(
         .iter()
         .map(|f| (f.path.as_path(), f))
         .collect();
+
+    let previous = load_features(repo_root).unwrap_or_default();
+    let mut prints = Fingerprints::load(repo_root);
+    let known_units = std::mem::take(&mut prints.features);
 
     let mut features: Vec<Feature> = Vec::new();
     for domain in &domains.domains {
@@ -120,6 +130,27 @@ pub async fn build_features(
                 .iter()
                 .filter_map(|p| summaries.get(p.as_path()).copied())
                 .collect();
+
+            let unit_key = format!("{}/{}", domain.slug, sub_slug.unwrap_or("-"));
+            let unit_print = fingerprint(paths.iter().map(|p| {
+                let summary = summaries.get(p.as_path()).map_or("", |f| &f.role_summary);
+                format!("{}\n{summary}", p.display())
+            }));
+            if known_units.get(&unit_key) == Some(&unit_print) {
+                let kept: Vec<&Feature> = previous
+                    .iter()
+                    .filter(|f| {
+                        f.domain_slug == domain.slug && f.sub_domain_slug.as_deref() == sub_slug
+                    })
+                    .collect();
+                if !kept.is_empty() {
+                    tracing::info!(unit = %unit_key, "features unchanged, reused");
+                    features.extend(kept.into_iter().cloned());
+                    prints.features.insert(unit_key, unit_print);
+                    continue;
+                }
+            }
+            let produced_before = features.len();
             let prompt = features_prompt(&domain.name, &domain.description, sub_name, &unit_files);
             let what = format!("features of {}/{}", domain.slug, sub_slug.unwrap_or("-"));
             let Some(raw) =
@@ -160,9 +191,13 @@ pub async fn build_features(
                     confidence: None,
                 });
             }
+            if features.len() > produced_before {
+                prints.features.insert(unit_key, unit_print);
+            }
         }
     }
 
+    prints.save(repo_root)?;
     save_features(repo_root, &features)?;
     Ok(features)
 }
@@ -383,5 +418,61 @@ mod tests {
             .unwrap();
 
         assert!(features.is_empty());
+    }
+
+    struct CountingProvider {
+        calls: std::sync::atomic::AtomicUsize,
+    }
+
+    #[async_trait]
+    impl LlmProvider for CountingProvider {
+        async fn complete(&self, _: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+            self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Ok(CompletionResponse {
+                content:
+                    r#"{"features":[{"slug":"f","name":"F","description":"d","files":["a.rs"]}]}"#
+                        .to_string(),
+                model: "test-model".to_string(),
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn rerun_reuses_unchanged_units_and_redoes_changed_ones() {
+        let dir = tempfile::tempdir().unwrap();
+        let domains = DomainMap {
+            domains: vec![domain("billing", &["a.rs"], Vec::new())],
+        };
+        let map = |summary: &str| RepoMap {
+            files: vec![FileSummary {
+                role_summary: summary.to_string(),
+                ..file_summary("a.rs")
+            }],
+            modules: Vec::new(),
+        };
+        let provider = CountingProvider {
+            calls: std::sync::atomic::AtomicUsize::new(0),
+        };
+        let calls = || provider.calls.load(std::sync::atomic::Ordering::SeqCst);
+
+        build_features(dir.path(), &domains, &map("v1"), &provider)
+            .await
+            .unwrap();
+        assert_eq!(calls(), 1);
+
+        let again = build_features(dir.path(), &domains, &map("v1"), &provider)
+            .await
+            .unwrap();
+        assert_eq!(calls(), 1, "unchanged unit must not call the LLM");
+        assert_eq!(again.len(), 1);
+
+        build_features(dir.path(), &domains, &map("v2"), &provider)
+            .await
+            .unwrap();
+        assert_eq!(
+            calls(),
+            2,
+            "a changed file summary must invalidate the unit"
+        );
     }
 }

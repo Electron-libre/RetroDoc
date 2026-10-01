@@ -11,8 +11,9 @@ use retrodoc_pipeline::{CoverageReport, DomainMap, RepoMap};
 ///
 /// Runs ingestion, the bottom-up repo map, domain/sub-domain clustering,
 /// then features and use cases with Mermaid diagrams, and finally the
-/// confidence cross-check. Writing to `docs/` arrives in the next phase.
-pub async fn run(path: &Path) -> anyhow::Result<()> {
+/// confidence cross-check, and writes the docs (or previews them with
+/// `dry_run`). `force` wipes the caches first so nothing is reused.
+pub async fn run(path: &Path, dry_run: bool, force: bool) -> anyhow::Result<()> {
     let repo_root = path
         .canonicalize()
         .with_context(|| format!("path not found: {}", path.display()))?;
@@ -20,8 +21,13 @@ pub async fn run(path: &Path) -> anyhow::Result<()> {
     let config = Config::load(&repo_root)
         .with_context(|| "config not found — run `retrodoc init` first".to_string())?;
 
-    let ingest = retrodoc_ingest::run(&repo_root, &config.ingest)
+    if force {
+        clear_caches(&repo_root)?;
+    }
+
+    let mut ingest = retrodoc_ingest::run(&repo_root, &config.ingest)
         .with_context(|| format!("ingestion of {} failed", repo_root.display()))?;
+    ingest.existing_docs = super::docs::without_generated(ingest.existing_docs, &config);
 
     let llm = OpenRouterProvider::from_config(&config.llm)
         .context("could not initialize the LLM provider (missing API key?)")?;
@@ -85,8 +91,28 @@ pub async fn run(path: &Path) -> anyhow::Result<()> {
         use_cases.len()
     );
     println!("Run `retrodoc report` for the documentation debt report.");
-    println!("Writing to `docs/` is not implemented yet — see PLAN.md §5.");
 
+    super::docs::publish(&repo_root, &config, dry_run)
+}
+
+/// Removes the cached results of the LLM passes (not `domains.yaml`, which
+/// is recomputed on every run anyway).
+fn clear_caches(repo_root: &Path) -> anyhow::Result<()> {
+    for name in [
+        "repo-map.json",
+        "fingerprints.json",
+        "features.yaml",
+        "use-cases.yaml",
+    ] {
+        let file = repo_root.join(".retrodoc/cache").join(name);
+        match std::fs::remove_file(&file) {
+            Ok(()) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => {
+                return Err(e).with_context(|| format!("could not remove {}", file.display()))
+            }
+        }
+    }
     Ok(())
 }
 

@@ -10,3 +10,9 @@ workspace = true
 [dependencies]
 retrodoc-core.workspace = true
 thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+similar.workspace = true
+
+[dev-dependencies]
+tempfile = "3"

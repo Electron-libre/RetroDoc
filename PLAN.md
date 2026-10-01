@@ -42,7 +42,7 @@ docs/
       README.md                    # domain overview + sub-domains, confidence
       <sub-domain>/
         <feature>.md                # list of use cases
-        use-cases/<use-case>.md    # steps, actors, Mermaid diagram, confidence
+        use-cases/<feature>/<use-case>.md    # steps, actors, Mermaid diagram, confidence
   _retrodoc/
     coverage-report.md             # identified gaps, low-confidence sections
     run-metadata.json              # model used, date, analyzed commit

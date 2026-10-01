@@ -15,6 +15,7 @@ pub mod diagrams;
 pub mod domains;
 pub mod error;
 pub mod features;
+mod fingerprints;
 pub mod repo_map;
 pub mod report;
 mod response;
@@ -26,5 +27,5 @@ pub use domains::{build_domains, CoverageReport, DomainCluster, DomainMap, SubDo
 pub use error::PipelineError;
 pub use features::{build_features, load_features, save_features};
 pub use repo_map::{build_repo_map, FileSummary, ModuleSummary, RepoMap};
-pub use report::{build_report, DebtReport};
+pub use report::{build_report, domain_models, DebtReport};
 pub use use_cases::{build_use_cases, load_use_cases, save_use_cases};

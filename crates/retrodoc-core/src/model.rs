@@ -26,6 +26,10 @@ impl ConfidenceScore {
     }
 }
 
+/// Sections scoring below this are flagged as documentation debt, in the
+/// coverage report and in the rendered docs.
+pub const LOW_CONFIDENCE_THRESHOLD: f32 = 0.5;
+
 /// Stable, human-readable identifier (slug) used for file names and
 /// cross-document links.
 pub type Slug = String;

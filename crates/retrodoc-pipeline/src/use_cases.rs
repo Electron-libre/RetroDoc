@@ -17,8 +17,10 @@ use retrodoc_core::model::{Actor, ActorKind, Feature, SourceRef, Step, UseCase};
 use retrodoc_llm::LlmProvider;
 use serde::Deserialize;
 
+use crate::cache::hash_content;
 use crate::error::PipelineError;
 use crate::features::unique_slug;
+use crate::fingerprints::{fingerprint, Fingerprints};
 use crate::response::complete_json;
 
 const USE_CASES_RELATIVE_PATH: &str = ".retrodoc/cache/use-cases.yaml";
@@ -115,6 +117,10 @@ pub fn save_use_cases(repo_root: &Path, use_cases: &[UseCase]) -> Result<(), Pip
 /// and persists them to `.retrodoc/cache/use-cases.yaml`. Diagrams are not
 /// attached here (see [`crate::diagrams`]).
 ///
+/// Incremental: a feature whose text and file contents are unchanged since
+/// the last run keeps its saved use cases (diagram and confidence included),
+/// without an LLM call.
+///
 /// # Errors
 ///
 /// Returns an error if an LLM call fails or the artifact can't be saved.
@@ -123,9 +129,28 @@ pub async fn build_use_cases(
     features: &[Feature],
     llm: &dyn LlmProvider,
 ) -> Result<Vec<UseCase>, PipelineError> {
+    let previous = load_use_cases(repo_root).unwrap_or_default();
+    let mut prints = Fingerprints::load(repo_root);
+    let known = std::mem::take(&mut prints.use_cases);
+
     let mut use_cases: Vec<UseCase> = Vec::new();
 
     for feature in features {
+        let key = format!("{}/{}", feature.domain_slug, feature.slug);
+        let print = feature_fingerprint(repo_root, feature);
+        if known.get(&key) == Some(&print) {
+            let kept: Vec<&UseCase> = previous
+                .iter()
+                .filter(|u| u.feature_slug == feature.slug)
+                .collect();
+            if !kept.is_empty() {
+                tracing::info!(feature = %key, "use cases unchanged, reused");
+                use_cases.extend(kept.into_iter().cloned());
+                prints.use_cases.insert(key, print);
+                continue;
+            }
+        }
+        let produced_before = use_cases.len();
         let (prompt, cited_files) = use_cases_prompt(repo_root, feature);
         if cited_files.is_empty() {
             tracing::warn!(feature = %feature.slug, "feature skipped: none of its files is readable");
@@ -164,10 +189,32 @@ pub async fn build_use_cases(
                 confidence: None,
             });
         }
+        if use_cases.len() > produced_before {
+            prints.use_cases.insert(key, print);
+        }
     }
 
+    prints.save(repo_root)?;
     save_use_cases(repo_root, &use_cases)?;
     Ok(use_cases)
+}
+
+/// Hash of everything the feature's use cases are derived from: its text and
+/// the content of its files (an unreadable file hashes as such, so it
+/// invalidates when it becomes readable).
+fn feature_fingerprint(repo_root: &Path, feature: &Feature) -> String {
+    let files = feature.source_paths.iter().map(|path| {
+        let content = std::fs::read(repo_root.join(path)).map_or_else(
+            |_| "unreadable".to_string(),
+            |bytes| hash_content(&String::from_utf8_lossy(&bytes)),
+        );
+        format!("{path}\n{content}")
+    });
+    fingerprint(
+        [feature.name.clone(), feature.description.clone()]
+            .into_iter()
+            .chain(files),
+    )
 }
 
 /// Numbers steps from 1 (skipping incomplete ones) and keeps only the source
@@ -398,5 +445,56 @@ mod tests {
         assert!(is_human(&steps[0].actor));
         assert_eq!(steps[0].source_refs.len(), 1);
         assert_eq!(steps[0].source_refs[0].path, "a.rs");
+    }
+
+    struct CountingProvider {
+        calls: std::sync::atomic::AtomicUsize,
+    }
+
+    #[async_trait]
+    impl LlmProvider for CountingProvider {
+        async fn complete(&self, _: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+            self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Ok(CompletionResponse {
+                content: r#"{"use_cases":[{"slug":"u","name":"U","description":"d","steps":[
+                {"description":"s","actor":{"name":"A","kind":"human"},"action":"act",
+                 "source_refs":[{"path":"a.rs"}]}]}]}"#
+                    .to_string(),
+                model: "test-model".to_string(),
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn rerun_reuses_use_cases_until_a_file_changes() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("a.rs"), "fn a() {}").unwrap();
+        let features = vec![feature("pay", &["a.rs"])];
+        let provider = CountingProvider {
+            calls: std::sync::atomic::AtomicUsize::new(0),
+        };
+        let calls = || provider.calls.load(std::sync::atomic::Ordering::SeqCst);
+
+        let mut first = build_use_cases(dir.path(), &features, &provider)
+            .await
+            .unwrap();
+        assert_eq!(calls(), 1);
+        // Scored use cases keep their score when reused.
+        first[0].confidence = Some(retrodoc_core::model::ConfidenceScore::new(0.9, None));
+        save_use_cases(dir.path(), &first).unwrap();
+
+        let again = build_use_cases(dir.path(), &features, &provider)
+            .await
+            .unwrap();
+        assert_eq!(calls(), 1, "unchanged feature must not call the LLM");
+        assert_eq!(again.len(), 1);
+        assert!(again[0].confidence.is_some());
+
+        std::fs::write(dir.path().join("a.rs"), "fn a() { changed }").unwrap();
+        let redone = build_use_cases(dir.path(), &features, &provider)
+            .await
+            .unwrap();
+        assert_eq!(calls(), 2, "a changed file must invalidate the feature");
+        assert!(redone[0].confidence.is_none());
     }
 }

@@ -23,6 +23,15 @@ fn git_time_to_utc(time: git2::Time) -> Option<DateTime<Utc>> {
     Utc.timestamp_opt(time.seconds(), 0).single()
 }
 
+/// Hash of the commit `HEAD` points to; `None` for a repo without commits
+/// (or not a repo).
+#[must_use]
+pub fn head_commit(repo_root: &Path) -> Option<String> {
+    let repo = Repository::open(repo_root).ok()?;
+    let head = repo.head().ok()?.peel_to_commit().ok()?;
+    Some(head.id().to_string())
+}
+
 /// Rebuilds, for each file touched in `HEAD`'s history, the commit count,
 /// authors, and first/last modification dates.
 ///
