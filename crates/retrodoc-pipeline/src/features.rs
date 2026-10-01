@@ -143,7 +143,13 @@ pub async fn build_features(
                         f.domain_slug == domain.slug && f.sub_domain_slug.as_deref() == sub_slug
                     })
                     .collect();
-                if !kept.is_empty() {
+                // Slugs are unique across domains (use cases refer to their
+                // feature by slug alone): a reused slug taken meanwhile by a
+                // newly derived feature forces a fresh derivation.
+                let collides = kept
+                    .iter()
+                    .any(|k| features.iter().any(|f| f.slug == k.slug));
+                if !kept.is_empty() && !collides {
                     tracing::info!(unit = %unit_key, "features unchanged, reused");
                     features.extend(kept.into_iter().cloned());
                     prints.features.insert(unit_key, unit_print);
@@ -174,13 +180,7 @@ pub async fn build_features(
                     );
                     continue;
                 }
-                let slug = unique_slug(
-                    &raw_feature.slug,
-                    features
-                        .iter()
-                        .filter(|f| f.domain_slug == domain.slug)
-                        .map(|f| f.slug.as_str()),
-                );
+                let slug = unique_slug(&raw_feature.slug, features.iter().map(|f| f.slug.as_str()));
                 features.push(Feature {
                     slug,
                     domain_slug: domain.slug.clone(),
@@ -474,5 +474,35 @@ mod tests {
             2,
             "a changed file summary must invalidate the unit"
         );
+    }
+
+    #[tokio::test]
+    async fn feature_slugs_are_unique_across_domains() {
+        let dir = tempfile::tempdir().unwrap();
+        let repo_map = RepoMap {
+            files: vec![file_summary("a.rs"), file_summary("b.rs")],
+            modules: Vec::new(),
+        };
+        let domains = DomainMap {
+            domains: vec![
+                domain("billing", &["a.rs"], Vec::new()),
+                domain("shipping", &["b.rs"], Vec::new()),
+            ],
+        };
+        // Both domains get the same answer, hence the same "export" slug.
+        let provider = CannedProvider {
+            response: r#"{"features":[{"slug":"export","name":"Export","description":"d",
+            "files":["a.rs","b.rs"]}]}"#
+                .to_string(),
+        };
+
+        let features = build_features(dir.path(), &domains, &repo_map, &provider)
+            .await
+            .unwrap();
+
+        assert_eq!(features.len(), 2);
+        assert_eq!(features[0].slug, "export");
+        assert_eq!(features[1].slug, "export-2");
+        assert_eq!(features[1].domain_slug, "shipping");
     }
 }
