@@ -156,14 +156,30 @@ pub async fn build_use_cases(
             tracing::warn!(feature = %feature.slug, "feature skipped: none of its files is readable");
             continue;
         }
-        let Some(raw) = complete_json::<RawUseCases>(
-            llm,
-            USE_CASES_SYSTEM_PROMPT,
-            &prompt,
-            &format!("use cases of {}", feature.slug),
-        )
-        .await?
-        else {
+        // An answer without any use case (missing or empty `use_cases`) is as
+        // useless as an unparseable one: ask once more.
+        let mut answer = None;
+        for attempt in 1..=2 {
+            let raw = complete_json::<RawUseCases>(
+                llm,
+                USE_CASES_SYSTEM_PROMPT,
+                &prompt,
+                &format!("use cases of {}", feature.slug),
+            )
+            .await?;
+            match raw {
+                Some(raw) if raw.use_cases.is_empty() => tracing::warn!(
+                    feature = %feature.slug,
+                    attempt,
+                    "LLM answered with no use case"
+                ),
+                other => {
+                    answer = other;
+                    break;
+                }
+            }
+        }
+        let Some(raw) = answer else {
             continue;
         };
 
@@ -234,11 +250,11 @@ fn ground_steps(raw_steps: Vec<RawStep>, allowed: &BTreeSet<String>) -> Vec<Step
             let source_refs = refs
                 .into_iter()
                 .filter_map(|r| {
-                    let path = r.path?;
-                    if !allowed.contains(&path) {
-                        tracing::warn!(path = %path, "step reference dropped: file not in the feature");
+                    let cited = r.path?;
+                    let Some(path) = resolve_cited_path(&cited, allowed) else {
+                        tracing::warn!(path = %cited, "step reference dropped: file not in the feature");
                         return None;
-                    }
+                    };
                     Some(SourceRef {
                         path,
                         start_line: r.start_line,
@@ -262,6 +278,23 @@ fn ground_steps(raw_steps: Vec<RawStep>, allowed: &BTreeSet<String>) -> Vec<Step
             }
         })
         .collect()
+}
+
+/// Maps a path cited by the LLM to the feature file it designates: an exact
+/// match, or a unique file the citation is a path suffix of (or the other way
+/// round). Models often shorten `crate/src/a.rs` to `src/a.rs`.
+fn resolve_cited_path(cited: &str, allowed: &BTreeSet<String>) -> Option<String> {
+    let cited = cited.trim().trim_start_matches("./");
+    if allowed.contains(cited) {
+        return Some(cited.to_string());
+    }
+    let mut matches = allowed.iter().filter(|file| {
+        file.ends_with(&format!("/{cited}")) || cited.ends_with(&format!("/{file}"))
+    });
+    match (matches.next(), matches.next()) {
+        (Some(only), None) => Some(only.clone()),
+        _ => None,
+    }
 }
 
 /// Builds the user prompt for `feature` from the code of its files, within
@@ -342,6 +375,24 @@ mod tests {
             source_paths: paths.iter().map(ToString::to_string).collect(),
             confidence: None,
         }
+    }
+
+    #[test]
+    fn cited_paths_resolve_to_a_unique_feature_file() {
+        let allowed: BTreeSet<String> = ["m/src/schema.rs", "m/src/spec.rs", "x/src/spec.rs"]
+            .map(String::from)
+            .into();
+        let resolve = |c| resolve_cited_path(c, &allowed);
+        assert_eq!(
+            resolve("m/src/schema.rs").as_deref(),
+            Some("m/src/schema.rs")
+        );
+        assert_eq!(
+            resolve("./src/schema.rs").as_deref(),
+            Some("m/src/schema.rs")
+        );
+        assert_eq!(resolve("src/spec.rs"), None); // ambiguous
+        assert_eq!(resolve("src/other.rs"), None);
     }
 
     #[test]

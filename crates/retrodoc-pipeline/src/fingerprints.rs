@@ -19,6 +19,10 @@ const FINGERPRINTS_RELATIVE_PATH: &str = ".retrodoc/cache/fingerprints.json";
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub(crate) struct Fingerprints {
+    /// Domains pass: hash of the clustering input (file paths and summaries,
+    /// existing docs). Equal to the last run's: `domains.yaml` is reused.
+    #[serde(default)]
+    pub domains: Option<String>,
     /// Features pass: `<domain>/<sub-domain or ->` → hash of the unit's files
     /// and their summaries.
     #[serde(default)]
