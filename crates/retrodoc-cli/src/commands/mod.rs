@@ -1,4 +1,5 @@
 pub mod docs;
+pub mod entry_points;
 pub mod generate;
 pub mod glossary;
 pub mod init;

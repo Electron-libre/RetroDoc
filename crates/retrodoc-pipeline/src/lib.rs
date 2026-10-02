@@ -9,12 +9,14 @@
 //! confidence scoring ([`confidence`]) and the documentation debt report
 //! ([`report`]). Roadmap phase 7 (PLAN.md §7.1), step 1: stack identification
 //! and file role rules ([`roles`]); step 2: models and glossary
-//! ([`glossary`]).
+//! ([`glossary`]); step 3: entry points and outputs
+//! ([`entry_points`]).
 
 pub mod cache;
 pub mod confidence;
 pub mod diagrams;
 pub mod domains;
+pub mod entry_points;
 pub mod error;
 pub mod features;
 mod fingerprints;
@@ -29,6 +31,9 @@ pub mod use_cases;
 pub use confidence::score_confidence;
 pub use diagrams::{attach_diagrams, sequence_diagram};
 pub use domains::{build_domains, CoverageReport, DomainCluster, DomainMap, SubDomainCluster};
+pub use entry_points::{
+    build_entry_points, EntryKind, EntryPoint, EntryPoints, Output, OutputKind,
+};
 pub use error::PipelineError;
 pub use features::{build_features, load_features, save_features};
 pub use glossary::{build_glossary, Entity, Glossary, MergedEntity};

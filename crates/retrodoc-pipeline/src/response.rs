@@ -73,13 +73,23 @@ pub(crate) async fn complete_json<T: DeserializeOwned>(
             .await?;
         match parse_json_response(&response.content) {
             Ok(parsed) => return Ok(Some(parsed)),
-            Err(err) => tracing::warn!(
-                what,
-                attempt,
-                error = %err,
-                "unparseable LLM response{}",
-                if attempt < ATTEMPTS { ", retrying" } else { ", skipped" }
-            ),
+            Err(err) => {
+                // The error's Display embeds the whole raw answer: keep the
+                // warning short and leave the raw text to the debug level.
+                let reason = match &err {
+                    PipelineError::ResponseParse { source, .. } => source.to_string(),
+                    other => other.to_string(),
+                };
+                tracing::debug!(what, raw = %response.content, "unparseable LLM response (raw)");
+                tracing::warn!(
+                    what,
+                    attempt,
+                    error = %reason,
+                    answer_chars = response.content.chars().count(),
+                    "unparseable LLM response{}",
+                    if attempt < ATTEMPTS { ", retrying" } else { ", skipped" }
+                );
+            }
         }
     }
     Ok(None)

@@ -70,6 +70,13 @@ enum Command {
         #[arg(long)]
         force: bool,
     },
+    /// Reads the entry points (routes, commands, jobs, public API…) and
+    /// their outputs from the files classified `entrypoint`, and saves
+    /// `.retrodoc/cache/entry-points.yaml`. Needs `retrodoc roles` first.
+    EntryPoints {
+        #[arg(long, default_value = ".")]
+        path: PathBuf,
+    },
     /// Reads the business entities (names, attributes, associations) of the
     /// files classified `model` and the vocabulary of the tests, and saves
     /// `.retrodoc/cache/glossary.yaml`. Needs `retrodoc roles` first.
@@ -100,6 +107,7 @@ async fn main() -> anyhow::Result<()> {
         } => commands::generate::run(&path, dry_run, force).await,
         Command::Render { path, dry_run } => commands::render::run(&path, dry_run),
         Command::Report { path } => commands::report::run(&path),
+        Command::EntryPoints { path } => commands::entry_points::run(&path).await,
         Command::Glossary { path } => commands::glossary::run(&path).await,
         Command::Roles { path, force } => commands::roles::run(&path, force).await,
     }

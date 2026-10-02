@@ -332,7 +332,7 @@ pub async fn build_glossary(
 
 /// Groups files so that each batch holds about [`BATCH_CHARS`] of code
 /// (at least one file).
-fn batches(files: &[(PathBuf, String, String)]) -> Vec<&[(PathBuf, String, String)]> {
+pub(crate) fn batches(files: &[(PathBuf, String, String)]) -> Vec<&[(PathBuf, String, String)]> {
     let mut out = Vec::new();
     let mut start = 0;
     let mut size = 0;
