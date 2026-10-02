@@ -189,15 +189,15 @@ struct ResponseEntry {
 ///
 /// # Errors
 ///
-/// Returns an error if a file can't be read, an LLM call fails (nothing is
-/// saved then), or the inventory can't be saved.
+/// Returns an error if a file can't be read, an LLM call fails (the batches
+/// already read stay saved), or the inventory can't be saved.
 pub async fn build_entry_points(
     repo_root: &Path,
     roles: &RoleMap,
     llm: &dyn LlmProvider,
 ) -> Result<EntryPoints, PipelineError> {
     let previous = EntryPoints::load(repo_root).unwrap_or_default();
-    let mut files: BTreeMap<PathBuf, EntryFile> = BTreeMap::new();
+    let mut inventory = EntryPoints::default();
     let mut pending: Vec<(PathBuf, String, String)> = Vec::new();
 
     for path in roles.files_with(FileRole::EntryPoint) {
@@ -205,7 +205,7 @@ pub async fn build_entry_points(
         let hash = hash_content(&content);
         match previous.files.get(path) {
             Some(saved) if saved.content_hash == hash => {
-                files.insert(path.to_path_buf(), saved.clone());
+                inventory.files.insert(path.to_path_buf(), saved.clone());
             }
             _ => pending.push((
                 path.to_path_buf(),
@@ -265,7 +265,7 @@ pub async fn build_entry_points(
             let entry_points = found
                 .remove(path.to_string_lossy().as_ref())
                 .unwrap_or_default();
-            files.insert(
+            inventory.files.insert(
                 path.clone(),
                 EntryFile {
                     content_hash: hash.clone(),
@@ -273,9 +273,11 @@ pub async fn build_entry_points(
                 },
             );
         }
+        // Saved after every batch: a failure later in a long run (a call
+        // timing out) must not lose the batches already read.
+        inventory.save(repo_root)?;
     }
 
-    let inventory = EntryPoints { files };
     inventory.save(repo_root)?;
     Ok(inventory)
 }
@@ -391,5 +393,50 @@ mod tests {
         assert!(
             prompts[1].contains("users_controller") && !prompts[1].contains("contracts_controller")
         );
+    }
+
+    /// Answers the first call, then fails like a timed-out connection.
+    struct FailsAfterFirst(Mutex<u32>);
+
+    #[async_trait]
+    impl LlmProvider for FailsAfterFirst {
+        async fn complete(
+            &self,
+            _request: CompletionRequest,
+        ) -> Result<CompletionResponse, LlmError> {
+            let mut calls = self.0.lock().unwrap();
+            *calls += 1;
+            if *calls > 1 {
+                return Err(LlmError::Transport("timed out".to_string()));
+            }
+            Ok(CompletionResponse {
+                content: r#"{"entry_points":[{"file":"a.rb","kind":"job","name":"AJob"}]}"#
+                    .to_string(),
+                model: "m".to_string(),
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn a_failure_in_a_later_batch_keeps_the_earlier_ones_saved() {
+        let dir = tempfile::tempdir().unwrap();
+        let names = ["a.rb", "b.rb", "c.rb"];
+        for name in names {
+            // 5,000 chars each: two files fill a batch, the third starts another.
+            std::fs::write(dir.path().join(name), "x".repeat(MAX_ENTRY_FILE_CHARS)).unwrap();
+        }
+        let roles = RoleMap {
+            roles: names
+                .iter()
+                .map(|n| (PathBuf::from(n), FileRole::EntryPoint))
+                .collect(),
+        };
+
+        let result = build_entry_points(dir.path(), &roles, &FailsAfterFirst(Mutex::new(0))).await;
+
+        assert!(result.is_err());
+        let saved = EntryPoints::load(dir.path()).expect("first batch saved");
+        assert_eq!(saved.files.len(), 2);
+        assert_eq!(saved.iter().count(), 1);
     }
 }

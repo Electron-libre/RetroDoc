@@ -232,15 +232,18 @@ struct ResponseEntity {
 ///
 /// # Errors
 ///
-/// Returns an error if a file can't be read, an LLM call fails (nothing is
-/// saved then), or the glossary can't be saved.
+/// Returns an error if a file can't be read, an LLM call fails (the batches
+/// already read stay saved), or the glossary can't be saved.
 pub async fn build_glossary(
     repo_root: &Path,
     roles: &RoleMap,
     llm: &dyn LlmProvider,
 ) -> Result<Glossary, PipelineError> {
     let previous = Glossary::load(repo_root).unwrap_or_default();
-    let mut models: BTreeMap<PathBuf, ModelFile> = BTreeMap::new();
+    let mut glossary = Glossary {
+        models: BTreeMap::new(),
+        tests: previous.tests.clone(),
+    };
     let mut pending: Vec<(PathBuf, String, String)> = Vec::new();
 
     for path in roles.files_with(FileRole::Model) {
@@ -248,7 +251,7 @@ pub async fn build_glossary(
         let hash = hash_content(&content);
         match previous.models.get(path) {
             Some(saved) if saved.content_hash == hash => {
-                models.insert(path.to_path_buf(), saved.clone());
+                glossary.models.insert(path.to_path_buf(), saved.clone());
             }
             _ => pending.push((
                 path.to_path_buf(),
@@ -304,7 +307,7 @@ pub async fn build_glossary(
             let entities = found
                 .remove(path.to_string_lossy().as_ref())
                 .unwrap_or_default();
-            models.insert(
+            glossary.models.insert(
                 path.clone(),
                 ModelFile {
                     content_hash: hash.clone(),
@@ -312,6 +315,9 @@ pub async fn build_glossary(
                 },
             );
         }
+        // Saved after every batch: a failure later in a long run (a call
+        // timing out) must not lose the batches already read.
+        glossary.save(repo_root)?;
     }
 
     let mut tests = Vec::new();
@@ -325,7 +331,7 @@ pub async fn build_glossary(
         }
     }
 
-    let glossary = Glossary { models, tests };
+    glossary.tests = tests;
     glossary.save(repo_root)?;
     Ok(glossary)
 }
