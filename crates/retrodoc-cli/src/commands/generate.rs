@@ -35,6 +35,17 @@ pub async fn run(path: &Path, dry_run: bool, force: bool) -> anyhow::Result<()> 
     );
 
     let (surface, entry_points) = build_surface(&repo_root, &ingest, &llm, force).await?;
+    println!("Identifying the business actors…");
+    let source_files: Vec<_> = ingest
+        .files
+        .iter()
+        .filter(|f| f.kind == FileKind::Source)
+        .map(|f| f.path.clone())
+        .collect();
+    let actors = retrodoc_pipeline::build_actors(&repo_root, &source_files, &surface, &llm, force)
+        .await
+        .context("failed to identify the actors")?;
+    println!("{} actor(s) identified.", actors.actors.len());
 
     println!(
         "Building the repo map ({} source file(s) to summarize)…",
@@ -80,10 +91,16 @@ pub async fn run(path: &Path, dry_run: bool, force: bool) -> anyhow::Result<()> 
             .filter(|f| f.kind == FileKind::Source)
             .map(|f| f.path.as_path()),
     );
-    let mut use_cases =
-        retrodoc_pipeline::build_use_cases(&repo_root, &features, &entry_points, &code_index, &llm)
-            .await
-            .context("failed to derive the use cases")?;
+    let mut use_cases = retrodoc_pipeline::build_use_cases(
+        &repo_root,
+        &features,
+        &entry_points,
+        &code_index,
+        &actors,
+        &llm,
+    )
+    .await
+    .context("failed to derive the use cases")?;
     retrodoc_pipeline::attach_diagrams(&mut use_cases);
     // Persist again now that the diagrams are attached.
     retrodoc_pipeline::save_use_cases(&repo_root, &use_cases)
@@ -155,6 +172,7 @@ fn clear_caches(repo_root: &Path) -> anyhow::Result<()> {
         "repo-map.json",
         "glossary.yaml",
         "entry-points.yaml",
+        "actors.yaml",
         "fingerprints.json",
         "features.yaml",
         "use-cases.yaml",

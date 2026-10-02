@@ -13,6 +13,7 @@
 //! ([`entry_points`]); step 4: the [`surface`] that domains are
 //! clustered from.
 
+pub mod actors;
 pub mod cache;
 pub mod confidence;
 pub mod diagrams;
@@ -31,6 +32,7 @@ pub mod slices;
 pub mod surface;
 pub mod use_cases;
 
+pub use actors::{authorization_files, build_actors, Actors, BusinessActor};
 pub use confidence::score_confidence;
 pub use diagrams::{attach_diagrams, sequence_diagram};
 pub use domains::{build_domains, CoverageReport, DomainCluster, DomainMap, SubDomainCluster};

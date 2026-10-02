@@ -266,6 +266,7 @@ mod tests {
     fn use_case(feature: &str, steps: Vec<Step>) -> UseCase {
         UseCase {
             entry_points: Vec::new(),
+            primary_actor: None,
             slug: "u".to_string(),
             feature_slug: feature.to_string(),
             name: "U".to_string(),

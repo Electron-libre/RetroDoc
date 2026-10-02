@@ -70,6 +70,7 @@ flowchart LR
     gloss["glossary"] -->|LLM| glossyaml["glossary.yaml"]
     rolesyaml -.->|required by| gloss
     ep["entry-points"] -->|LLM| epyaml["entry-points.yaml"]
+    act["actors"] -->|LLM| actyaml["actors.yaml"]
     rolesyaml -.->|required by| ep
     surf["surface"] -->|reads, no LLM| epyaml
     glossyaml --> surf
@@ -109,7 +110,7 @@ What each pass hands to the next, and where it is saved:
 | 2 | `repo_map.rs` | source files + history | file and directory summaries | `repo-map.json` |
 | 3 | `domains.rs` | directory summaries + doc titles + the surface (entities, entry points by resource) | `DomainMap` (every source file in exactly one domain) | `domains.yaml` |
 | 4 | `features.rs` | one domain + its files' summaries | `Feature`s grounded on a validated subset of files | `features.yaml` |
-| 5 | `use_cases.rs` | one feature + its entry points + the code they run (`slices.rs`), else its files' excerpts | `UseCase`s with steps and actors | `use-cases.yaml` |
+| 5 | `use_cases.rs` | one feature + its entry points + the code they run (`slices.rs`) + the business actors (`actors.rs`), else its files' excerpts | `UseCase`s with steps and actors | `use-cases.yaml` |
 | 6 | `diagrams.rs` | use case steps | Mermaid text attached to each use case | `use-cases.yaml` |
 | 7 | `confidence.rs` | use case + the code its steps cite | scores on use cases and features | `features.yaml`, `use-cases.yaml` |
 | 8 | `report.rs` + `retrodoc-render` | all of the above | Markdown files + debt report | — (written to `docs/`) |
@@ -205,7 +206,8 @@ Guarantees:
 │   ├── fingerprints.json          #   what the incremental re-run compares against
 │   ├── roles.yaml                 #   (phase 7) glob → role rules, hand-editable
 │   ├── glossary.yaml              #   (phase 7) business entities, also its own cache
-│   └── entry-points.yaml          #   (phase 7) routes/commands/jobs + outputs, also its own cache
+│   ├── entry-points.yaml          #   (phase 7) routes/commands/jobs + outputs, also its own cache
+│   └── actors.yaml                #   (phase 7) business actors, reused while its input hash is unchanged
 └── docs/                          # output dir (`output.docs_dir`)
     ├── functional/<domain>/…      #   README per domain, feature pages, use-case pages
     └── _retrodoc/

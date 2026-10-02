@@ -129,6 +129,7 @@ mod tests {
     fn attach_diagrams_fills_every_use_case() {
         let mut use_cases = vec![UseCase {
             entry_points: Vec::new(),
+            primary_actor: None,
             slug: "u".to_string(),
             feature_slug: "f".to_string(),
             name: "U".to_string(),

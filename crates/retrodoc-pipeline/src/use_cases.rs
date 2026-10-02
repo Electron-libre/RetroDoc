@@ -17,6 +17,7 @@ use retrodoc_core::model::{Actor, ActorKind, Feature, SourceRef, Step, UseCase};
 use retrodoc_llm::LlmProvider;
 use serde::Deserialize;
 
+use crate::actors::Actors;
 use crate::cache::hash_content;
 use crate::entry_points::{EntryPoint, EntryPoints};
 use crate::error::PipelineError;
@@ -47,6 +48,15 @@ the trigger to the observable outputs, grounded on that code. Add to each use ca
 `entry_points` array with the names of the entry points it covers, copied verbatim from the list. \
 Prefer business wording (what happens to the contract, the company, the user) over method names.";
 
+/// Added to the system prompt when the application's business actors are
+/// known: they are listed in the prompt and must be used by name.
+const ACTORS_ADDENDUM: &str = " The prompt lists the application's known actors. Name each human \
+actor with one of them, copied verbatim, choosing the one that fits the step. Name a software \
+actor after the real component or external system involved (e.g. an e-signature provider, a mail \
+service), and use \"System\" only for the application itself. Give each use case a \
+`primary_actor`: the known human actor who triggers it, and begin its steps with the step in \
+which that actor acts (submits the request, opens the page, confirms).";
+
 const USE_CASES_SYSTEM_PROMPT: &str = "You are documenting a software project from a functional \
 point of view. Given a feature and the source code implementing it, describe its use cases: \
 concrete scenarios in which an actor achieves a goal with this feature. For each use case give \
@@ -75,6 +85,8 @@ struct RawUseCase {
     steps: Vec<RawStep>,
     #[serde(default)]
     entry_points: Vec<String>,
+    #[serde(default)]
+    primary_actor: Option<String>,
 }
 
 /// Steps are parsed leniently: small models emit empty objects, steps
@@ -147,6 +159,7 @@ pub async fn build_use_cases(
     features: &[Feature],
     entry_points: &EntryPoints,
     index: &CodeIndex,
+    actors: &Actors,
     llm: &dyn LlmProvider,
 ) -> Result<Vec<UseCase>, PipelineError> {
     let previous = load_use_cases(repo_root).unwrap_or_default();
@@ -159,7 +172,7 @@ pub async fn build_use_cases(
     for feature in features {
         let key = format!("{}/{}", feature.domain_slug, feature.slug);
         let input = FeatureInput::new(repo_root, feature, entry_points, index);
-        let print = feature_fingerprint(repo_root, feature, &input);
+        let print = feature_fingerprint(repo_root, feature, &input, actors);
         if known.get(&key) == Some(&print) {
             let kept: Vec<&UseCase> = previous
                 .iter()
@@ -175,16 +188,18 @@ pub async fn build_use_cases(
         }
         let produced_before = use_cases.len();
         progress.begin(&key);
-        let (prompt, cited_files) = use_cases_prompt(repo_root, feature, &input);
+        let (prompt, cited_files) = use_cases_prompt(repo_root, feature, &input, actors);
         if cited_files.is_empty() {
             tracing::warn!(feature = %feature.slug, "feature skipped: none of its files is readable");
             continue;
         }
-        let system_prompt = if input.entries.is_empty() {
-            USE_CASES_SYSTEM_PROMPT.to_string()
-        } else {
-            format!("{USE_CASES_SYSTEM_PROMPT}{ENTRY_POINTS_ADDENDUM}")
-        };
+        let mut system_prompt = USE_CASES_SYSTEM_PROMPT.to_string();
+        if !input.entries.is_empty() {
+            system_prompt.push_str(ENTRY_POINTS_ADDENDUM);
+        }
+        if !actors.is_empty() {
+            system_prompt.push_str(ACTORS_ADDENDUM);
+        }
         // An answer without any use case (missing or empty `use_cases`) is as
         // useless as an unparseable one: ask once more.
         let mut answer = None;
@@ -229,8 +244,13 @@ pub async fn build_use_cases(
                 feature_slug: feature.slug.clone(),
                 name: raw_use_case.name,
                 description: raw_use_case.description,
-                steps: ground_steps(raw_use_case.steps, &cited_files),
+                steps: ground_steps(raw_use_case.steps, &cited_files, actors),
                 entry_points: known_entry_points(&raw_use_case.entry_points, &input.entries),
+                primary_actor: raw_use_case
+                    .primary_actor
+                    .as_deref()
+                    .and_then(|name| actors.canonical(name))
+                    .map(|actor| actor.name.clone()),
                 diagram_mermaid: None,
                 confidence: None,
             });
@@ -248,7 +268,12 @@ pub async fn build_use_cases(
 /// Hash of everything the feature's use cases are derived from: its text and
 /// the content of its files (an unreadable file hashes as such, so it
 /// invalidates when it becomes readable).
-fn feature_fingerprint(repo_root: &Path, feature: &Feature, input: &FeatureInput) -> String {
+fn feature_fingerprint(
+    repo_root: &Path,
+    feature: &Feature,
+    input: &FeatureInput,
+    actors: &Actors,
+) -> String {
     let files = input.files.iter().map(|path| {
         let content = std::fs::read(repo_root.join(path)).map_or_else(
             |_| "unreadable".to_string(),
@@ -272,6 +297,7 @@ fn feature_fingerprint(repo_root: &Path, feature: &Feature, input: &FeatureInput
                     outputs.join("|")
                 )
             }))
+            .chain(actors.fingerprint_parts())
             .chain(files),
     )
 }
@@ -279,7 +305,7 @@ fn feature_fingerprint(repo_root: &Path, feature: &Feature, input: &FeatureInput
 /// Numbers steps from 1 (skipping incomplete ones) and keeps only the source
 /// references that point to a file actually shown to the LLM for this
 /// feature.
-fn ground_steps(raw_steps: Vec<RawStep>, allowed: &BTreeSet<String>) -> Vec<Step> {
+fn ground_steps(raw_steps: Vec<RawStep>, allowed: &BTreeSet<String>, actors: &Actors) -> Vec<Step> {
     let complete = raw_steps.into_iter().filter_map(|raw| {
         let (Some(actor), Some(action)) = (raw.actor, raw.action) else {
             tracing::warn!("step dropped: no actor or no action");
@@ -308,19 +334,37 @@ fn ground_steps(raw_steps: Vec<RawStep>, allowed: &BTreeSet<String>) -> Vec<Step
             Step {
                 order,
                 description,
-                actor: Actor {
-                    name: actor.name,
-                    kind: if actor.kind.eq_ignore_ascii_case("human") {
-                        ActorKind::Human
-                    } else {
-                        ActorKind::System
-                    },
-                },
+                actor: resolve_actor(&actor, actors),
+
                 action,
                 source_refs,
             }
         })
         .collect()
+}
+
+/// The step's actor as the known list spells it (name and kind), when the
+/// LLM named a known one. A human actor outside a non-empty list is kept but
+/// reported: the list is the vocabulary the use cases should use.
+fn resolve_actor(raw: &RawActor, actors: &Actors) -> Actor {
+    if let Some(known) = actors.canonical(&raw.name) {
+        return Actor {
+            name: known.name.clone(),
+            kind: known.kind,
+        };
+    }
+    let kind = if raw.kind.eq_ignore_ascii_case("human") {
+        ActorKind::Human
+    } else {
+        ActorKind::System
+    };
+    if kind == ActorKind::Human && !actors.is_empty() {
+        tracing::warn!(actor = %raw.name, "human actor outside the known actors");
+    }
+    Actor {
+        name: raw.name.clone(),
+        kind,
+    }
 }
 
 /// Maps a path cited by the LLM to the feature file it designates: an exact
@@ -410,8 +454,12 @@ fn use_cases_prompt(
     repo_root: &Path,
     feature: &Feature,
     input: &FeatureInput,
+    actors: &Actors,
 ) -> (String, BTreeSet<String>) {
     let mut prompt = format!("Feature: {} — {}\n", feature.name, feature.description);
+    if !actors.is_empty() {
+        let _ = write!(prompt, "\nKnown actors:\n{}", actors.prompt_section());
+    }
     if !input.entries.is_empty() {
         prompt.push_str("\nEntry points:\n");
         for (file, entry) in &input.entries {
@@ -558,6 +606,7 @@ mod tests {
             &[feature("payment", &["a.rs"])],
             &EntryPoints::default(),
             &CodeIndex::default(),
+            &Actors::default(),
             &provider,
         )
         .await
@@ -595,6 +644,7 @@ mod tests {
             ],
             &EntryPoints::default(),
             &CodeIndex::default(),
+            &Actors::default(),
             &provider,
         )
         .await
@@ -628,6 +678,7 @@ mod tests {
             &[feature("f", &["a.rs"])],
             &EntryPoints::default(),
             &CodeIndex::default(),
+            &Actors::default(),
             &provider,
         )
         .await
@@ -675,6 +726,7 @@ mod tests {
             &features,
             &EntryPoints::default(),
             &CodeIndex::default(),
+            &Actors::default(),
             &provider,
         )
         .await
@@ -689,6 +741,7 @@ mod tests {
             &features,
             &EntryPoints::default(),
             &CodeIndex::default(),
+            &Actors::default(),
             &provider,
         )
         .await
@@ -703,6 +756,7 @@ mod tests {
             &features,
             &EntryPoints::default(),
             &CodeIndex::default(),
+            &Actors::default(),
             &provider,
         )
         .await
@@ -791,9 +845,16 @@ mod tests {
         // The feature only lists the controller: the signer is outside it.
         let features = [feature("signing", &["app/contracts_controller.rb"])];
 
-        let use_cases = build_use_cases(root, &features, &entry_points, &index, &provider)
-            .await
-            .unwrap();
+        let use_cases = build_use_cases(
+            root,
+            &features,
+            &entry_points,
+            &index,
+            &Actors::default(),
+            &provider,
+        )
+        .await
+        .unwrap();
 
         let prompts = provider.prompts.lock().unwrap();
         assert!(prompts[0].0.contains("entry_points"));
@@ -810,5 +871,68 @@ mod tests {
             use_cases[0].steps[0].source_refs[0].path,
             "app/contract_signer.rb"
         );
+    }
+
+    #[tokio::test]
+    async fn known_actors_reach_the_prompt_and_name_the_steps() {
+        use crate::actors::BusinessActor;
+
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("a.rs"), "fn a() {}\n").unwrap();
+        let actors = Actors {
+            input_hash: String::new(),
+            actors: vec![
+                BusinessActor {
+                    name: "Signatory".to_string(),
+                    kind: ActorKind::Human,
+                    description: "Signs contracts".to_string(),
+                    evidence: Vec::new(),
+                },
+                BusinessActor {
+                    name: "E-signature provider".to_string(),
+                    kind: ActorKind::System,
+                    description: "Collects signatures".to_string(),
+                    evidence: Vec::new(),
+                },
+            ],
+        };
+        let provider = RecordingProvider {
+            response: r#"{"use_cases":[{"slug":"sign","name":"Sign","description":"d","primary_actor":"SIGNATORY","steps":[
+              {"description":"s1","actor":{"name":"signatory","kind":"system"},"action":"signs"},
+              {"description":"s2","actor":{"name":"e-signature PROVIDER","kind":"human"},"action":"records"},
+              {"description":"s3","actor":{"name":"Developer","kind":"human"},"action":"reads"}]}]}"#
+                .to_string(),
+            prompts: std::sync::Mutex::new(Vec::new()),
+        };
+
+        let use_cases = build_use_cases(
+            dir.path(),
+            &[feature("signing", &["a.rs"])],
+            &EntryPoints::default(),
+            &CodeIndex::default(),
+            &actors,
+            &provider,
+        )
+        .await
+        .unwrap();
+
+        let prompts = provider.prompts.lock().unwrap();
+        assert!(prompts[0].0.contains("known actors"));
+        assert!(prompts[0]
+            .1
+            .contains("- Signatory (human): Signs contracts"));
+        let steps = &use_cases[0].steps;
+        // Known actors take the list's spelling *and* kind; others are kept as given.
+        assert_eq!(
+            (steps[0].actor.name.as_str(), steps[0].actor.kind),
+            ("Signatory", ActorKind::Human)
+        );
+        assert_eq!(
+            (steps[1].actor.name.as_str(), steps[1].actor.kind),
+            ("E-signature provider", ActorKind::System)
+        );
+        assert_eq!(steps[2].actor.name, "Developer");
+        // The primary actor must be a known one, spelled as in the list.
+        assert_eq!(use_cases[0].primary_actor.as_deref(), Some("Signatory"));
     }
 }

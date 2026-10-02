@@ -1,3 +1,4 @@
+pub mod actors;
 pub mod docs;
 pub mod entry_points;
 pub mod generate;

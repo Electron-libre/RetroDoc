@@ -83,6 +83,10 @@ pub struct UseCase {
     /// feature has no known entry point.
     #[serde(default)]
     pub entry_points: Vec<String>,
+    /// The business actor who triggers the use case, as named in the actors
+    /// list (`actors.yaml`). `None` when no actor is known.
+    #[serde(default)]
+    pub primary_actor: Option<String>,
     /// Mermaid diagram (flowchart/sequenceDiagram) illustrating the process.
     pub diagram_mermaid: Option<String>,
     /// `None` until the confidence pass (roadmap phase 5) has scored it.

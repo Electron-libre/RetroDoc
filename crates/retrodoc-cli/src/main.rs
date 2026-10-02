@@ -60,6 +60,17 @@ enum Command {
         #[arg(long, default_value = ".")]
         path: PathBuf,
     },
+    /// Identifies the business actors (who uses the application, in business
+    /// terms) from the authorization code and the user-like entities, and
+    /// saves `.retrodoc/cache/actors.yaml`. Uses the glossary and entry
+    /// points of the earlier commands when present.
+    Actors {
+        #[arg(long, default_value = ".")]
+        path: PathBuf,
+        /// Ignore the saved list and identify the actors again.
+        #[arg(long)]
+        force: bool,
+    },
     /// Prints the application surface (entities, entry points by resource)
     /// as the domain clustering receives it. No LLM call; needs the
     /// artifacts of `retrodoc glossary` and `retrodoc entry-points`.
@@ -116,6 +127,7 @@ async fn main() -> anyhow::Result<()> {
         Command::Report { path } => commands::report::run(&path),
         Command::EntryPoints { path } => commands::entry_points::run(&path).await,
         Command::Glossary { path } => commands::glossary::run(&path).await,
+        Command::Actors { path, force } => commands::actors::run(&path, force).await,
         Command::Surface { path } => commands::surface::run(&path),
         Command::Roles { path, force } => commands::roles::run(&path, force).await,
     }

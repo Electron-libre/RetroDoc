@@ -217,7 +217,15 @@ Steps, each shippable and checkable on the Rails test repo:
      feature) — but all actors are "System" and the wording is still technical (4c, 4d). The slice heuristic on
      real data: the model named after the controller comes first, with some noise from same-named files
      (`lib/s_pdf/...`) and hop 2; no call tracing. Not run end to end (needs the full repo map).
-   - 4c business actors, 4d two output levels, 4e vocabulary criterion: open.
+   - **4c — business actors: implemented** (`actors.rs`, `retrodoc actors`, `UseCase.primary_actor`). The Rails test repo, real
+     local LLM, ~1 min: 7 actors from `ability.rb` and the policies (Contract Manager, Folder Viewer, Signatory,
+     External Document Provider…). On the hand-built signatories feature, the use case now reads "Contract Manager
+     assigns or changes the person responsible for signing a contract", primary actor Contract Manager, step 1
+     "submits PATCH request". Still technical: the remaining steps are system steps ("System — checks
+     authorization"), and a purely technical use case (phone format validation) is still produced — the
+     business-level narrative (4d) and the vocabulary criterion (4e) are meant to handle that. Actors are global
+     (not proposed per domain as first sketched).
+   - 4d two output levels, 4e vocabulary criterion: open.
 
 Validation: re-run on the Rails test repo and autoroute; compare actors, domain names and use-case titles by hand
 (a reader who doesn't know the code should be able to say what the product does).
