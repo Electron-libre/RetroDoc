@@ -196,6 +196,15 @@ Steps, each shippable and checkable on the Rails test repo:
    lists each entry point (kind, name, verb, resource, description) with its observable outputs. Saved as
    `.retrodoc/cache/entry-points.yaml`, which doubles as the cache (per-file content hash). The same entry
    point can appear twice (route in a routes file, action in its controller); linking them is left to step 4.
+   Smoke test on the Rails test repo (143 `entrypoint` files, `qwen3.6:35b-a3b`, ~40 min over three attempts):
+   469 entry points (465 HTTP routes, 2 webhooks), 18 files without any; outputs are rich (434 responses, 188
+   db writes, 20 emails, 18 events, 17 files, 13 external calls). Lessons: (1) a routes file asked for one entry
+   per route overflows the 8,192-token answer and the 120 s client timeout (retries restart the generation) —
+   the prompt now asks one entry per resource/namespace for routing files, and `llm.timeout_secs` makes the
+   timeout configurable; (2) batches are now saved one by one, so a failed run resumes. **Known gap:** files
+   are cut at 5,000 chars, so a large controller (`contracts_controller.rb` is 34 KB) is seen at ~15% and most
+   of its actions are missed — long files should be split into chunks. No jobs/mailers either in this run
+   (the role rules of that run classified them `infra`).
 4. Rewire domains, then use cases, on the surface; then actors, two output levels, vocabulary criterion.
 
 Validation: re-run on the Rails test repo and autoroute; compare actors, domain names and use-case titles by hand
