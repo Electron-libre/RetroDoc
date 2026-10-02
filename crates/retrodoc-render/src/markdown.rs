@@ -141,15 +141,20 @@ fn link(from: &Path, to: &Path) -> String {
 }
 
 fn confidence_line(score: Option<&ConfidenceScore>) -> String {
+    score_line("Confidence", score)
+}
+
+/// `**<label>:** ⚠️ 40% — why`, the flag when below the threshold.
+fn score_line(label: &str, score: Option<&ConfidenceScore>) -> String {
     let Some(score) = score else {
-        return "**Confidence:** not scored".to_string();
+        return format!("**{label}:** not scored");
     };
     let flag = if score.value < LOW_CONFIDENCE_THRESHOLD {
         "⚠️ "
     } else {
         ""
     };
-    let mut line = format!("**Confidence:** {flag}{:.0}%", score.value * 100.0);
+    let mut line = format!("**{label}:** {flag}{:.0}%", score.value * 100.0);
     if let Some(why) = score.rationale.as_deref().filter(|r| !r.trim().is_empty()) {
         let _ = write!(
             line,
@@ -260,6 +265,13 @@ fn use_case_page(feature: &Feature, use_case: &UseCase) -> String {
     );
     let _ = writeln!(md, "{}\n", use_case.description.trim());
     let _ = writeln!(md, "{}\n", confidence_line(use_case.confidence.as_ref()));
+    if use_case.business_language.is_some() {
+        let _ = writeln!(
+            md,
+            "{}\n",
+            score_line("Business language", use_case.business_language.as_ref())
+        );
+    }
     if let Some(actor) = &use_case.primary_actor {
         let _ = writeln!(md, "**Primary actor:** {actor}\n");
     }
@@ -397,6 +409,7 @@ mod tests {
             entry_points: Vec::new(),
             primary_actor: None,
             narrative: None,
+            business_language: None,
             slug: "pay-by-card".to_string(),
             feature_slug: "pay-invoice".to_string(),
             name: "Pay by card".to_string(),
@@ -480,6 +493,19 @@ mod tests {
         assert!(page.contains("<summary>Technical details (1 step)</summary>"));
         assert!(page.contains("### Steps") && page.contains("### Diagram"));
         assert!(page.trim_end().ends_with("</details>"));
+        // The business-language score is shown next to the confidence, flagged when low.
+        assert!(!page.contains("Business language"));
+        u[0].business_language = Some(ConfidenceScore::new(
+            0.3,
+            "names no business entity".to_string(),
+        ));
+        let files = render(&d, &f, &u, "r", &meta()).unwrap();
+        let scored = &files
+            .iter()
+            .find(|f| f.path.ends_with("pay-by-card.md"))
+            .unwrap()
+            .content;
+        assert!(scored.contains("**Business language:** ⚠️ 30% — names no business entity"));
         // Without a narrative the steps stay in the open, unfolded.
         let (d, f, u) = sample();
         let files = render(&d, &f, &u, "r", &meta()).unwrap();

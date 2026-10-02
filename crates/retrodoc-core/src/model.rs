@@ -93,6 +93,11 @@ pub struct UseCase {
     /// level existed.
     #[serde(default)]
     pub narrative: Option<String>,
+    /// How business-level the use case reads (0.0 = code talk, 1.0 = business
+    /// language), next to `confidence`, which says how well the code supports
+    /// it. `None` until the vocabulary pass has scored it.
+    #[serde(default)]
+    pub business_language: Option<ConfidenceScore>,
     /// Mermaid diagram (flowchart/sequenceDiagram) illustrating the process.
     pub diagram_mermaid: Option<String>,
     /// `None` until the confidence pass (roadmap phase 5) has scored it.

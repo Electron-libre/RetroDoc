@@ -96,20 +96,22 @@ pub async fn run(path: &Path, dry_run: bool, force: bool) -> anyhow::Result<()> 
             .filter(|f| f.kind == FileKind::Source)
             .map(|f| f.path.as_path()),
     );
-    let mut use_cases = retrodoc_pipeline::build_use_cases(
-        &repo_root,
-        &features,
-        &UseCaseContext {
-            entry_points,
-            index: code_index,
-            actors,
-            vocabulary: surface.vocabulary(VOCABULARY_SIZE),
-        },
-        &llm,
-    )
-    .await
-    .context("failed to derive the use cases")?;
+    let context = UseCaseContext {
+        entry_points,
+        index: code_index,
+        actors,
+        vocabulary: surface.vocabulary(VOCABULARY_SIZE),
+    };
+    let mut use_cases = retrodoc_pipeline::build_use_cases(&repo_root, &features, &context, &llm)
+        .await
+        .context("failed to derive the use cases")?;
     retrodoc_pipeline::attach_diagrams(&mut use_cases);
+    // Deterministic, so recomputed every run: does each use case read as business?
+    retrodoc_pipeline::score_business_language(
+        &mut use_cases,
+        &surface.vocabulary(usize::MAX),
+        &context.actors,
+    );
     // Persist again now that the diagrams are attached.
     retrodoc_pipeline::save_use_cases(&repo_root, &use_cases)
         .context("failed to save the use cases")?;

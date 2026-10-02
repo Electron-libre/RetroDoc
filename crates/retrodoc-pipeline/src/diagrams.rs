@@ -131,6 +131,7 @@ mod tests {
             entry_points: Vec::new(),
             primary_actor: None,
             narrative: None,
+            business_language: None,
             slug: "u".to_string(),
             feature_slug: "f".to_string(),
             name: "U".to_string(),

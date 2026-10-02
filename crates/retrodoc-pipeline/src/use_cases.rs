@@ -285,6 +285,7 @@ pub async fn build_use_cases(
                 name: raw_use_case.name,
                 description: raw_use_case.description,
                 steps: ground_steps(raw_use_case.steps, &cited_files, actors),
+                business_language: None,
                 entry_points: known_entry_points(&raw_use_case.entry_points, &input.entries),
                 narrative: raw_use_case
                     .narrative

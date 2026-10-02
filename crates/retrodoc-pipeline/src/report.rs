@@ -36,10 +36,15 @@ pub struct WeakSection {
 pub struct DebtReport {
     /// Mean confidence over all scored use cases.
     pub overall: Option<f32>,
+    /// Mean business-language score over the scored use cases.
+    pub overall_business: Option<f32>,
     /// Least trusted domain first; unscored ones last.
     pub domains: Vec<DomainDebt>,
     /// Use cases and features below the threshold, lowest score first.
     pub weak_sections: Vec<WeakSection>,
+    /// Use cases whose business-language score is below the threshold (they
+    /// read like code, or like an internal helper), lowest first.
+    pub technical_use_cases: Vec<WeakSection>,
     /// Use cases the confidence pass could not score.
     pub unscored_use_cases: Vec<String>,
     /// Source files the clustering could not place in a domain: code with no
@@ -87,18 +92,12 @@ fn mean_confidence<'a>(features: impl Iterator<Item = &'a Feature>) -> Option<Co
         .map(|v| ConfidenceScore::new(v, None))
 }
 
-/// Builds the report from the pipeline artifacts.
-#[must_use]
-pub fn build_report(
-    domains: &DomainMap,
+/// Per-domain figures, least trusted domain first (unscored ones last).
+fn domain_debts(
     features: &[Feature],
     use_cases: &[UseCase],
-) -> DebtReport {
-    let feature_domain: BTreeMap<&str, &str> = features
-        .iter()
-        .map(|f| (f.slug.as_str(), f.domain_slug.as_str()))
-        .collect();
-
+    feature_domain: &BTreeMap<&str, &str>,
+) -> Vec<DomainDebt> {
     let mut per_domain: BTreeMap<&str, DomainDebt> = BTreeMap::new();
     for feature in features {
         let entry = per_domain
@@ -134,15 +133,41 @@ pub fn build_report(
         (None, Some(_)) => std::cmp::Ordering::Greater,
         (None, None) => a.slug.cmp(&b.slug),
     });
+    domain_debts
+}
+
+/// Builds the report from the pipeline artifacts.
+#[must_use]
+pub fn build_report(
+    domains: &DomainMap,
+    features: &[Feature],
+    use_cases: &[UseCase],
+) -> DebtReport {
+    let feature_domain: BTreeMap<&str, &str> = features
+        .iter()
+        .map(|f| (f.slug.as_str(), f.domain_slug.as_str()))
+        .collect();
+
+    let domain_debts = domain_debts(features, use_cases, &feature_domain);
 
     let mut weak_sections: Vec<WeakSection> = Vec::new();
     let mut unscored_use_cases = Vec::new();
+    let mut technical_use_cases: Vec<WeakSection> = Vec::new();
     for use_case in use_cases {
         let domain = feature_domain
             .get(use_case.feature_slug.as_str())
             .copied()
             .unwrap_or("?");
         let label = format!("{domain}/{}/{}", use_case.feature_slug, use_case.slug);
+        if let Some(b) = &use_case.business_language {
+            if b.value < LOW_CONFIDENCE_THRESHOLD {
+                technical_use_cases.push(WeakSection {
+                    label: label.clone(),
+                    score: b.value,
+                    rationale: b.rationale.clone(),
+                });
+            }
+        }
         match &use_case.confidence {
             Some(c) if c.value < LOW_CONFIDENCE_THRESHOLD => weak_sections.push(WeakSection {
                 label,
@@ -169,6 +194,7 @@ pub fn build_report(
         }
     }
     weak_sections.sort_by(|a, b| a.score.total_cmp(&b.score).then(a.label.cmp(&b.label)));
+    technical_use_cases.sort_by(|a, b| a.score.total_cmp(&b.score).then(a.label.cmp(&b.label)));
 
     let uncategorized_files = domains
         .domains
@@ -183,8 +209,14 @@ pub fn build_report(
                 .iter()
                 .filter_map(|u| u.confidence.as_ref().map(|c| c.value)),
         ),
+        overall_business: mean(
+            use_cases
+                .iter()
+                .filter_map(|u| u.business_language.as_ref().map(|c| c.value)),
+        ),
         domains: domain_debts,
         weak_sections,
+        technical_use_cases,
         unscored_use_cases,
         uncategorized_files,
     }
@@ -203,6 +235,13 @@ impl DebtReport {
     pub fn to_markdown(&self) -> String {
         let mut md = String::from("# Documentation coverage report\n\n");
         let _ = writeln!(md, "Overall confidence: **{}**\n", percent(self.overall));
+        if self.overall_business.is_some() {
+            let _ = writeln!(
+                md,
+                "Overall business language: **{}**\n",
+                percent(self.overall_business)
+            );
+        }
 
         md.push_str(
             "## Domains\n\n| Domain | Features | Use cases | Confidence |\n|---|---|---|---|\n",
@@ -232,6 +271,21 @@ impl DebtReport {
                 let _ = write!(md, ": {why}");
             }
             md.push('\n');
+        }
+
+        if !self.technical_use_cases.is_empty() {
+            let _ = write!(
+                md,
+                "\n## Technical-sounding use cases (business language below {:.0}%)\n\n",
+                LOW_CONFIDENCE_THRESHOLD * 100.0
+            );
+            for w in &self.technical_use_cases {
+                let _ = write!(md, "- `{}` — {}", w.label, percent(Some(w.score)));
+                if let Some(why) = &w.rationale {
+                    let _ = write!(md, ": {why}");
+                }
+                md.push('\n');
+            }
         }
 
         if !self.unscored_use_cases.is_empty() {
@@ -274,6 +328,7 @@ mod tests {
             entry_points: Vec::new(),
             primary_actor: None,
             narrative: None,
+            business_language: None,
             slug: slug.to_string(),
             feature_slug: feature.to_string(),
             name: slug.to_string(),
@@ -331,5 +386,36 @@ mod tests {
         assert!(md.contains("Overall confidence: **55%**"));
         assert!(md.contains("`billing/pay/pay-invoice` — 20%: because"));
         assert!(md.contains("`x.rs`"));
+    }
+
+    #[test]
+    fn technical_sounding_use_cases_get_their_own_section() {
+        let mut readable = use_case("readable", "pay", Some(0.9));
+        readable.business_language = Some(ConfidenceScore::new(0.9, None));
+        let mut technical = use_case("helper", "pay", Some(0.9));
+        technical.business_language = Some(ConfidenceScore::new(
+            0.2,
+            "code-level wording in the narrative: controller".to_string(),
+        ));
+        let features = [feature("pay", "billing", Some(0.9))];
+
+        let report = build_report(&DomainMap::default(), &features, &[readable, technical]);
+
+        assert_eq!(report.technical_use_cases.len(), 1);
+        assert_eq!(report.technical_use_cases[0].label, "billing/pay/helper");
+        assert!((report.overall_business.unwrap() - 0.55).abs() < 1e-6);
+        let md = report.to_markdown();
+        assert!(md.contains("Overall business language: **55%**"));
+        assert!(md.contains("## Technical-sounding use cases (business language below 50%)"));
+        assert!(md.contains(
+            "`billing/pay/helper` — 20%: code-level wording in the narrative: controller"
+        ));
+        // Not scored (older artifacts): no business section at all.
+        let plain = build_report(
+            &DomainMap::default(),
+            &features,
+            &[use_case("a", "pay", Some(0.9))],
+        );
+        assert!(!plain.to_markdown().contains("business language"));
     }
 }

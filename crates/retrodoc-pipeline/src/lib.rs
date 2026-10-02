@@ -31,6 +31,7 @@ pub mod roles;
 pub mod slices;
 pub mod surface;
 pub mod use_cases;
+pub mod vocabulary;
 
 pub use actors::{authorization_files, build_actors, Actors, BusinessActor};
 pub use confidence::score_confidence;
@@ -48,3 +49,4 @@ pub use roles::{identify_roles, FileRole, RoleMap, RoleRule, RoleRules};
 pub use slices::CodeIndex;
 pub use surface::{Resource, Surface};
 pub use use_cases::{build_use_cases, load_use_cases, save_use_cases, UseCaseContext};
+pub use vocabulary::score_business_language;

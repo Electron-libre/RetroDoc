@@ -67,9 +67,10 @@ docs/
 6. **Writing & CLI ergonomics** (dry-run, idempotence, incremental re-run)
 7. **Business-level documentation** (see §7.1): the output must read as functional/business documentation,
    not as a paraphrase of the code. Built on a new "surface extraction" foundation (file roles, models and
-   glossary, entry points and outputs) that also bounds what is sent to the LLM. In progress: steps 1–3
-   (roles, glossary, entry points) are implemented as standalone commands; rewiring `generate` (step 4) is
-   not started.
+   glossary, entry points and outputs) that also bounds what is sent to the LLM. Implemented end to end in
+   code (steps 1–4e: surface, actors, narrative, business-language score), each step checked on the real Rails test repo
+   data piece by piece; a full `generate` run on a real repo is still missing (blocked on phase 8: the repo
+   map of a large repo is out of reach locally).
 8. **Scalability & cost control** (see §7.2): bring a run on a large repo (thousands of files) within
    reach, including on limited/local LLM resources. In progress: progress reporting and the LLM heartbeat
    are delivered; the rest is not started.
@@ -234,7 +235,15 @@ Steps, each shippable and checkable on the Rails test repo:
      ongoing signature transactions … are immediately canceled. Finally, relevant parties are notified…".
      The narrative is not checked against the code (the confidence pass still scores the steps only) — that is
      what 4e is for.
-   - 4e vocabulary criterion: open.
+   - **4e — business-language criterion: implemented** (`vocabulary.rs`, `UseCase.business_language`). A
+     deterministic score (no LLM call, recomputed every run) next to the confidence: 0 without a narrative; −0.15
+     per code-level token in it (identifiers, paths, calls, HTTP verbs, unknown multi-word class names, words like
+     "controller"/"params"), capped at −0.6; −0.3 if it names no known entity or actor; −0.2 when actors are known
+     but the use case has neither entry point nor primary actor (an internal helper). Shown on the use case page
+     and in the debt report ("Technical-sounding use cases", below 50%). On the Rails test repo: the real signatories
+     narrative scores 100%, a hand-written code-level one 40% with the offending words listed. It is a hint, not a
+     verdict: it cannot tell a bland narrative from a good one, only that it speaks code or names nothing of the
+     business. An LLM judge could complement it later if this proves too coarse.
 
 Validation: re-run on the Rails test repo and autoroute; compare actors, domain names and use-case titles by hand
 (a reader who doesn't know the code should be able to say what the product does).

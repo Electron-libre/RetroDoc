@@ -179,7 +179,7 @@ struct RawActor {
 
 /// Words of an identifier, split on non-alphanumerics and on lower→upper
 /// case changes, lowercased.
-fn words(identifier: &str) -> Vec<String> {
+pub(crate) fn words(identifier: &str) -> Vec<String> {
     let mut words = Vec::new();
     let mut current = String::new();
     let mut previous_lower = false;
