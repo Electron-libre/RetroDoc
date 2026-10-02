@@ -60,6 +60,16 @@ enum Command {
         #[arg(long, default_value = ".")]
         path: PathBuf,
     },
+    /// Identifies the stack and assigns a role (entrypoint, model, logic…)
+    /// to every file, from one LLM call over the file tree. The rules are
+    /// saved in `.retrodoc/cache/roles.yaml` and can be edited by hand.
+    Roles {
+        #[arg(long, default_value = ".")]
+        path: PathBuf,
+        /// Ignore the saved rules and identify them again.
+        #[arg(long)]
+        force: bool,
+    },
 }
 
 #[tokio::main]
@@ -83,5 +93,6 @@ async fn main() -> anyhow::Result<()> {
         } => commands::generate::run(&path, dry_run, force).await,
         Command::Render { path, dry_run } => commands::render::run(&path, dry_run),
         Command::Report { path } => commands::report::run(&path),
+        Command::Roles { path, force } => commands::roles::run(&path, force).await,
     }
 }

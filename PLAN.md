@@ -168,6 +168,12 @@ limits before tuning prompts.
 Steps, each shippable and checkable on the Rails test repo:
 1. Technology identification and file role rules (one LLM call on the tree), applied mechanically, with the
    distribution report. Shows how many files are relevant before any per-file LLM call.
+   **Implemented** (`roles.rs`, `retrodoc roles [--force]`, rules in `.retrodoc/cache/roles.yaml`).
+   Smoke test on the full Rails test repo (4,181 files, `qwen3.6:35b-a3b`, ~1m30 per call): ~92% of files
+   get a role (~350 unclassified: dotfiles, `Rakefile`, coffee scripts), but two runs disagree on
+   borderline folders (mailers/jobs entrypoint vs infra, presenters logic vs view) and one run out of five
+   returned unparseable JSON twice — hence the saved, editable rules. autoroute not tried yet. Not done: the second pass over unmatched files (they stay `unclassified`) and
+   wiring the roles into `generate`.
 2. Models and glossary inventory.
 3. Entry points and outputs inventory.
 4. Rewire domains, then use cases, on the surface; then actors, two output levels, vocabulary criterion.
