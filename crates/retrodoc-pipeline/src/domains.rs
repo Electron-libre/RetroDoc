@@ -771,7 +771,7 @@ mod tests {
         let repo_map_provider = CannedProvider {
             response: "a summary".to_string(),
         };
-        let repo_map = build_repo_map(dir.path(), &ingest, &repo_map_provider)
+        let repo_map = build_repo_map(dir.path(), &ingest, &repo_map_provider, 1)
             .await
             .unwrap();
 

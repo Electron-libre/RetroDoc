@@ -66,19 +66,7 @@ pub async fn run(
         .context("failed to identify the actors")?;
     println!("{} actor(s) identified.", actors.actors.len());
 
-    let estimate = retrodoc_pipeline::estimate_repo_map(&repo_root, &ingest);
-    println!(
-        "Building the repo map: {} source file(s), {} file call(s) + {} directory call(s) expected \
-         (~{}k chars to send; the later passes cost about one call per domain unit, feature and use case).",
-        estimate.files,
-        estimate.files_to_summarize,
-        estimate.directories_to_summarize,
-        estimate.chars_to_send / 1000
-    );
-
-    let map = retrodoc_pipeline::build_repo_map(&repo_root, &ingest, &llm)
-        .await
-        .context("failed to build the repo map")?;
+    let map = build_map(&repo_root, &ingest, &llm, config.llm.concurrency).await?;
 
     print_repo_map(&map);
 
@@ -331,4 +319,25 @@ async fn run_confidence(
             Ok(())
         }
     }
+}
+
+/// Sizes the repo map pass from the caches, then runs it.
+async fn build_map(
+    repo_root: &Path,
+    ingest: &IngestResult,
+    llm: &dyn LlmProvider,
+    concurrency: Option<usize>,
+) -> anyhow::Result<RepoMap> {
+    let estimate = retrodoc_pipeline::estimate_repo_map(repo_root, ingest);
+    println!(
+        "Building the repo map: {} source file(s), {} file call(s) + {} directory call(s) expected \
+         (~{}k chars to send; the later passes cost about one call per domain unit, feature and use case).",
+        estimate.files,
+        estimate.files_to_summarize,
+        estimate.directories_to_summarize,
+        estimate.chars_to_send / 1000
+    );
+    retrodoc_pipeline::build_repo_map(repo_root, ingest, llm, concurrency.unwrap_or(1))
+        .await
+        .context("failed to build the repo map")
 }

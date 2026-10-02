@@ -395,6 +395,7 @@ mod tests {
             base_url: None,
             reasoning_effort: None,
             timeout_secs: None,
+            concurrency: None,
         };
         std::env::remove_var(&config.api_key_env);
         let result = OpenRouterProvider::from_config(&config);
@@ -410,6 +411,7 @@ mod tests {
             base_url: None,
             reasoning_effort: None,
             timeout_secs: None,
+            concurrency: None,
         };
         let result = OpenRouterProvider::from_config(&config);
         assert!(matches!(result, Err(LlmError::UnsupportedProvider(p)) if p == "openai"));
@@ -424,6 +426,7 @@ mod tests {
             base_url: Some("http://localhost:11434/v1/chat/completions".to_string()),
             reasoning_effort: None,
             timeout_secs: None,
+            concurrency: None,
         };
         std::env::set_var(&config.api_key_env, "unused-for-local-servers");
         let provider = OpenRouterProvider::from_config(&config).unwrap();
@@ -443,6 +446,7 @@ mod tests {
             base_url: None,
             reasoning_effort: None,
             timeout_secs: None,
+            concurrency: None,
         };
         std::env::set_var(&config.api_key_env, "unused");
         let provider = OpenRouterProvider::from_config(&config).unwrap();

@@ -8,10 +8,12 @@
 //! direct files and already-summarized sub-folders, deepest first. The root
 //! folder (empty `path`) thus carries a summary aggregating the whole repo.
 
+use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
+use futures_util::stream::{self, StreamExt};
 use retrodoc_ingest::{FileEntry, FileHistory, FileKind, IngestResult};
 use retrodoc_llm::{ChatMessage, CompletionRequest, LlmProvider, Role};
 use serde::{Deserialize, Serialize};
@@ -71,22 +73,23 @@ pub async fn build_repo_map(
     repo_root: &Path,
     ingest: &IngestResult,
     llm: &dyn LlmProvider,
+    concurrency: usize,
 ) -> Result<RepoMap, PipelineError> {
     let mut cache = RepoMapCache::load(repo_root);
-    let mut files = Vec::new();
-    let mut progress = Progress::new(
+    let concurrency = concurrency.max(1);
+    let progress = RefCell::new(Progress::new(
         "repo map",
         ingest
             .files
             .iter()
             .filter(|f| f.kind == FileKind::Source)
             .count(),
-    );
+    ));
 
-    for entry in &ingest.files {
-        if entry.kind != FileKind::Source {
-            continue;
-        }
+    // Read everything first: cached summaries are served right away, the
+    // others are summarized `concurrency` at a time.
+    let mut loaded: Vec<Loaded> = Vec::new();
+    for entry in ingest.files.iter().filter(|f| f.kind == FileKind::Source) {
         let content = match read_file_lossy(repo_root, &entry.path) {
             Ok(content) => content,
             Err(err) => {
@@ -95,21 +98,50 @@ pub async fn build_repo_map(
                     error = %err,
                     "file skipped in the repo map (could not read it)"
                 );
-                progress.skip();
+                progress.borrow_mut().skip();
                 continue;
             }
         };
-
         let hash = hash_content(&content);
-        let history = ingest.history_for(&entry.path);
+        let summary = cache.get(&entry.path, &hash).map(str::to_string);
+        if summary.is_some() {
+            progress.borrow_mut().skip();
+        }
+        loaded.push(Loaded {
+            entry,
+            content,
+            hash,
+            summary,
+        });
+    }
 
-        let role_summary = if let Some(cached) = cache.get(&entry.path, &hash) {
-            progress.skip();
-            cached.to_string()
-        } else {
-            progress.begin(&entry.path.display().to_string());
-            match summarize_file(llm, entry, &content, history).await {
-                Ok(summary) => summary,
+    let pending: Vec<usize> = (0..loaded.len())
+        .filter(|&i| loaded[i].summary.is_none())
+        .collect();
+    let mut results: BTreeMap<usize, String> = BTreeMap::new();
+    {
+        let jobs = pending.iter().map(|&i| {
+            let file = &loaded[i];
+            let progress = &progress;
+            async move {
+                progress
+                    .borrow()
+                    .start(&file.entry.path.display().to_string());
+                let history = ingest.history_for(&file.entry.path);
+                (
+                    i,
+                    summarize_file(llm, file.entry, &file.content, history).await,
+                )
+            }
+        });
+        let mut stream = stream::iter(jobs).buffer_unordered(concurrency);
+        while let Some((i, result)) = stream.next().await {
+            match result {
+                Ok(summary) => {
+                    cache.put(&loaded[i].entry.path, &loaded[i].hash, &summary);
+                    results.insert(i, summary);
+                    progress.borrow_mut().finish();
+                }
                 Err(err) => {
                     // A transient failure partway through a long file list
                     // shouldn't discard the summaries already computed in
@@ -120,28 +152,45 @@ pub async fn build_repo_map(
                     return Err(err);
                 }
             }
-        };
-        cache.put(&entry.path, &hash, &role_summary);
-
-        files.push(FileSummary {
-            path: entry.path.clone(),
-            role_summary,
-            commit_count: history.map_or(0, |h| h.commit_count),
-            author_count: history.map_or(0, author_count),
-        });
+        }
     }
+
+    let files: Vec<FileSummary> = loaded
+        .iter()
+        .enumerate()
+        .map(|(i, file)| {
+            let history = ingest.history_for(&file.entry.path);
+            FileSummary {
+                path: file.entry.path.clone(),
+                role_summary: results
+                    .remove(&i)
+                    .or_else(|| file.summary.clone())
+                    .unwrap_or_default(),
+                commit_count: history.map_or(0, |h| h.commit_count),
+                author_count: history.map_or(0, author_count),
+            }
+        })
+        .collect();
 
     // Save once the whole file loop succeeds too (belt and suspenders): a
     // failure further down the pipeline (module summaries) shouldn't lose
     // the file-level work already done.
     cache.save(repo_root)?;
 
-    let modules = build_module_summaries(llm, &files, &mut cache).await;
+    let modules = build_module_summaries(llm, &files, &mut cache, concurrency).await;
     // Saved even when a module call failed: the folders done so far are kept.
     cache.save(repo_root)?;
     let modules = modules?;
 
     Ok(RepoMap { files, modules })
+}
+
+/// A source file read for the repo map, with its cached summary if any.
+struct Loaded<'a> {
+    entry: &'a FileEntry,
+    content: String,
+    hash: String,
+    summary: Option<String>,
 }
 
 /// What the repo map pass is about to send to the LLM, worked out from the
@@ -335,6 +384,51 @@ async fn summarize_module(llm: &dyn LlmProvider, prompt: String) -> Result<Strin
     Ok(response.content.trim().to_string())
 }
 
+/// A folder summary to obtain: from the cache, or from the LLM.
+struct ModuleJob {
+    dir: PathBuf,
+    file_count: u32,
+    prompt: String,
+    input_hash: String,
+    summary: Option<String>,
+}
+
+/// Asks the LLM for the folders of one level not served by the cache,
+/// `concurrency` at a time, and records the answers in `todo` and the cache.
+async fn summarize_level(
+    llm: &dyn LlmProvider,
+    todo: &mut [ModuleJob],
+    progress: &RefCell<Progress>,
+    cache: &mut RepoMapCache,
+    concurrency: usize,
+) -> Result<(), PipelineError> {
+    let jobs: Vec<_> = todo
+        .iter()
+        .enumerate()
+        .filter(|(_, job)| job.summary.is_none())
+        .map(|(i, job)| {
+            let prompt = job.prompt.clone();
+            let label = format!("{}/", job.dir.display());
+            async move {
+                progress.borrow().start(&label);
+                (i, summarize_module(llm, prompt).await)
+            }
+        })
+        .collect();
+    let mut stream = stream::iter(jobs).buffer_unordered(concurrency);
+    let mut done: Vec<(usize, String)> = Vec::new();
+    while let Some((i, result)) = stream.next().await {
+        done.push((i, result?));
+        progress.borrow_mut().finish();
+    }
+    drop(stream);
+    for (i, summary) in done {
+        cache.put_module(&todo[i].dir, &todo[i].input_hash, &summary);
+        todo[i].summary = Some(summary);
+    }
+    Ok(())
+}
+
 /// Synthesizes a per-folder summary, deepest to shallowest, feeding each
 /// parent with the already-computed summaries of its direct children
 /// (files + sub-modules).
@@ -342,6 +436,7 @@ async fn build_module_summaries(
     llm: &dyn LlmProvider,
     files: &[FileSummary],
     cache: &mut RepoMapCache,
+    concurrency: usize,
 ) -> Result<Vec<ModuleSummary>, PipelineError> {
     let mut dirs: BTreeSet<PathBuf> = BTreeSet::new();
     for file in files {
@@ -380,45 +475,57 @@ async fn build_module_summaries(
     ordered.sort_by_key(|d| std::cmp::Reverse(d.components().count()));
 
     let mut computed: BTreeMap<PathBuf, ModuleSummary> = BTreeMap::new();
-    let mut progress = Progress::new("directory summaries", ordered.len());
-    for dir in ordered {
-        let own_files = files_by_dir.get(&dir).cloned().unwrap_or_default();
-        let child_modules: Vec<&ModuleSummary> = children_by_dir
-            .get(&dir)
-            .into_iter()
-            .flatten()
-            .filter_map(|child| computed.get(child))
-            .collect();
+    let progress = RefCell::new(Progress::new("directory summaries", ordered.len()));
+    // Folders of the same depth don't depend on each other: each level runs
+    // `concurrency` calls at a time, and only needs the deeper levels done.
+    for level in ordered.chunk_by(|a, b| a.components().count() == b.components().count()) {
+        let mut todo: Vec<ModuleJob> = Vec::new();
+        for dir in level {
+            let own_files = files_by_dir.get(dir).cloned().unwrap_or_default();
+            let child_modules: Vec<&ModuleSummary> = children_by_dir
+                .get(dir)
+                .into_iter()
+                .flatten()
+                .filter_map(|child| computed.get(child))
+                .collect();
 
-        if own_files.is_empty() && child_modules.is_empty() {
-            progress.skip();
-            continue;
+            if own_files.is_empty() && child_modules.is_empty() {
+                progress.borrow_mut().skip();
+                continue;
+            }
+
+            // Saturated at `u32::MAX`: never reached in practice (no repo
+            // with billions of files).
+            let own_file_count = u32::try_from(own_files.len()).unwrap_or(u32::MAX);
+            let file_count =
+                own_file_count + child_modules.iter().map(|m| m.file_count).sum::<u32>();
+            let prompt = module_prompt(dir, &own_files, &child_modules);
+            let input_hash = hash_content(&prompt);
+            let cached = cache.get_module(dir, &input_hash).map(str::to_string);
+            if cached.is_some() {
+                progress.borrow_mut().skip();
+            }
+            todo.push(ModuleJob {
+                dir: dir.clone(),
+                file_count,
+                prompt,
+                input_hash,
+                summary: cached,
+            });
         }
 
-        // Saturated at `u32::MAX`: never reached in practice (no repo with
-        // billions of files).
-        let own_file_count = u32::try_from(own_files.len()).unwrap_or(u32::MAX);
-        let file_count = own_file_count + child_modules.iter().map(|m| m.file_count).sum::<u32>();
-        let prompt = module_prompt(&dir, &own_files, &child_modules);
-        let input_hash = hash_content(&prompt);
-        let role_summary = if let Some(cached) = cache.get_module(&dir, &input_hash) {
-            progress.skip();
-            cached.to_string()
-        } else {
-            progress.begin(&format!("{}/", dir.display()));
-            let summary = summarize_module(llm, prompt).await?;
-            cache.put_module(&dir, &input_hash, &summary);
-            summary
-        };
+        summarize_level(llm, &mut todo, &progress, cache, concurrency).await?;
 
-        computed.insert(
-            dir.clone(),
-            ModuleSummary {
-                path: dir,
-                role_summary,
-                file_count,
-            },
-        );
+        for job in todo {
+            computed.insert(
+                job.dir.clone(),
+                ModuleSummary {
+                    path: job.dir,
+                    role_summary: job.summary.unwrap_or_default(),
+                    file_count: job.file_count,
+                },
+            );
+        }
     }
 
     Ok(computed.into_values().collect())
@@ -494,7 +601,7 @@ mod tests {
             calls: AtomicUsize::new(0),
         };
 
-        let map = build_repo_map(dir.path(), &ingest, &provider)
+        let map = build_repo_map(dir.path(), &ingest, &provider, 1)
             .await
             .unwrap();
 
@@ -522,7 +629,7 @@ mod tests {
 
         let first = estimate_repo_map(dir.path(), &ingest);
         assert_eq!((first.files, first.calls()), (2, 5));
-        build_repo_map(dir.path(), &ingest, &provider)
+        build_repo_map(dir.path(), &ingest, &provider, 1)
             .await
             .unwrap();
         assert_eq!(provider.calls.load(Ordering::SeqCst), first.calls());
@@ -533,6 +640,55 @@ mod tests {
         assert_eq!(estimate_repo_map(dir.path(), &ingest).calls(), 3);
     }
 
+    /// Records the highest number of calls in flight at the same time.
+    struct PeakProvider {
+        in_flight: AtomicUsize,
+        peak: AtomicUsize,
+    }
+
+    #[async_trait]
+    impl LlmProvider for PeakProvider {
+        async fn complete(&self, _: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+            let now = self.in_flight.fetch_add(1, Ordering::SeqCst) + 1;
+            self.peak.fetch_max(now, Ordering::SeqCst);
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+            self.in_flight.fetch_sub(1, Ordering::SeqCst);
+            Ok(CompletionResponse {
+                content: "summary".to_string(),
+                model: "test-model".to_string(),
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn summaries_run_concurrently_up_to_the_limit_and_keep_their_order() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut ingest = ingest_with_nested_files(dir.path());
+        for name in ["c", "d", "e"] {
+            std::fs::write(dir.path().join(format!("a/{name}.rs")), name).unwrap();
+            ingest.files.push(FileEntry {
+                path: PathBuf::from(format!("a/{name}.rs")),
+                kind: FileKind::Source,
+                size_bytes: 1,
+            });
+        }
+        let provider = PeakProvider {
+            in_flight: AtomicUsize::new(0),
+            peak: AtomicUsize::new(0),
+        };
+
+        let map = build_repo_map(dir.path(), &ingest, &provider, 3)
+            .await
+            .unwrap();
+
+        assert_eq!(provider.peak.load(Ordering::SeqCst), 3);
+        let paths: Vec<_> = map.files.iter().map(|f| f.path.clone()).collect();
+        let expected: Vec<_> = ingest.files.iter().map(|f| f.path.clone()).collect();
+        assert_eq!(paths, expected);
+        assert!(map.files.iter().all(|f| f.role_summary == "summary"));
+        assert_eq!(map.modules.len(), 3);
+    }
+
     #[tokio::test]
     async fn unchanged_files_are_not_re_summarized_on_second_run() {
         let dir = tempfile::tempdir().unwrap();
@@ -541,14 +697,14 @@ mod tests {
             calls: AtomicUsize::new(0),
         };
 
-        build_repo_map(dir.path(), &ingest, &provider)
+        build_repo_map(dir.path(), &ingest, &provider, 1)
             .await
             .unwrap();
         // 2 files + 3 modules ("a/b", "a", root "") = 5 calls on the first run.
         let calls_after_first_run = provider.calls.load(Ordering::SeqCst);
         assert_eq!(calls_after_first_run, 5);
 
-        build_repo_map(dir.path(), &ingest, &provider)
+        build_repo_map(dir.path(), &ingest, &provider, 1)
             .await
             .unwrap();
         let calls_after_second_run = provider.calls.load(Ordering::SeqCst);
@@ -574,13 +730,13 @@ mod tests {
             succeed_calls: usize::MAX,
             calls: AtomicUsize::new(0),
         };
-        build_repo_map(dir.path(), &ingest, &provider)
+        build_repo_map(dir.path(), &ingest, &provider, 1)
             .await
             .unwrap();
         let first = provider.calls.load(Ordering::SeqCst);
 
         std::fs::write(dir.path().join("a/b/x.rs"), "fn x2() {}").unwrap();
-        build_repo_map(dir.path(), &ingest, &provider)
+        build_repo_map(dir.path(), &ingest, &provider, 1)
             .await
             .unwrap();
         // Each answer is unique, so a new x.rs summary changes its parents'
@@ -626,7 +782,7 @@ mod tests {
             calls: AtomicUsize::new(0),
         };
 
-        let result = build_repo_map(dir.path(), &ingest, &provider).await;
+        let result = build_repo_map(dir.path(), &ingest, &provider, 1).await;
         assert!(result.is_err());
 
         // The summary computed before the failure was still persisted to

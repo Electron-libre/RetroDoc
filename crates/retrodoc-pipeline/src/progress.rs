@@ -41,6 +41,20 @@ impl Progress {
         self.current = Some(Instant::now());
     }
 
+    /// Logs a unit that starts while others may be in flight (concurrent
+    /// passes); pair it with [`Progress::finish`] when it completes.
+    pub fn start(&self, item: &str) {
+        tracing::info!("{}", self.line(item, self.started.elapsed()));
+    }
+
+    /// Counts a unit started with [`Progress::start`] as complete. The ETA
+    /// then rests on wall-clock time, so it accounts for the parallelism.
+    pub fn finish(&mut self) {
+        self.done += 1;
+        self.processed += 1;
+        self.processed_time = self.started.elapsed();
+    }
+
     /// Counts a unit that needed no work (cache hit, nothing to do).
     pub fn skip(&mut self) {
         self.finish_current();

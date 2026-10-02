@@ -74,7 +74,7 @@ docs/
 8. **Scalability & cost control** (see §7.2): bring a run on a large repo (thousands of files) within
    reach, including on limited/local LLM resources. In progress: delivered are progress reporting, the LLM
    heartbeat, the directory-summary cache (item 6), `--no-confidence`/`--confidence-sample` (item 3) and item 5
-   (call estimate for the repo map pass, resumable features/use cases); items 1, 2 and 4 remain.
+   (call estimate for the repo map pass, resumable features/use cases); item 4 (`llm.concurrency`, repo map only); items 1 and 2 remain.
 9. **Ask the documentation** (see §7.3): a question-answering agent (`retrodoc ask` / `chat`) grounded on
    the generated artifacts, the collected docs, the git history and, when needed, the code. Not started;
    comes after phases 7 and 8, since answer quality is bounded by the quality of the generated docs.
@@ -266,7 +266,10 @@ Directions:
 2. Batch calls: several small files per summary request, several use cases per confidence request.
 3. ~~Confidence pass optional or sampled~~ — **delivered**: `generate --no-confidence` skips it, `--confidence-sample N`
    scores at most N unscored use cases (evenly spread; a later run scores N more). Unscored items show up in the report.
-4. Configurable concurrency (little gain on a single local model, large on OpenRouter).
+4. ~~Configurable concurrency~~ — **delivered for the repo map**: `llm.concurrency` (default 1) bounds the calls in
+   flight for file summaries and, level by level (same depth), directory summaries. The other passes stay
+   sequential (features/use cases share slug state and fingerprints; glossary/entry points batch serially) —
+   next candidates once measured on OpenRouter.
 5. ~~Estimated call count before running, resumable interrupted run~~ — **delivered**: `generate` prints the
    repo map pass's expected calls and characters up front (`estimate_repo_map`, from the caches; exact on a first
    run, a lower bound for directories afterwards; the later passes depend on its output, so they are not

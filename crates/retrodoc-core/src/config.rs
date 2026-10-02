@@ -57,6 +57,12 @@ pub struct LlmConfig {
     /// generation on a timeout, so too small a value never succeeds.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub timeout_secs: Option<u64>,
+    /// Maximum number of LLM calls in flight at once for the passes that
+    /// can run them in parallel (file and directory summaries). Unset: 1.
+    /// A single local model gains little; a hosted one (`OpenRouter`) a lot,
+    /// within its rate limits (429s are retried with backoff).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub concurrency: Option<usize>,
 }
 
 impl LlmConfig {
@@ -80,6 +86,7 @@ impl Default for LlmConfig {
             base_url: None,
             reasoning_effort: None,
             timeout_secs: None,
+            concurrency: None,
         }
     }
 }

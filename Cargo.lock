@@ -1161,6 +1161,7 @@ name = "retrodoc-pipeline"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "futures-util",
  "globset",
  "retrodoc-core",
  "retrodoc-ingest",
