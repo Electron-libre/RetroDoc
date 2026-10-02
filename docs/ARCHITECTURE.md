@@ -69,10 +69,12 @@ flowchart LR
     roles["roles"] -->|LLM, 1 call| rolesyaml["roles.yaml"]
     gloss["glossary"] -->|LLM| glossyaml["glossary.yaml"]
     rolesyaml -.->|required by| gloss
+    ep["entry-points"] -->|LLM| epyaml["entry-points.yaml"]
+    rolesyaml -.->|required by| ep
 ```
 
 - `generate` is the main command; `render` and `report` replay the *last* `generate` without any LLM call.
-- `roles` and `glossary` (phase 7) are **standalone for now**: `generate` does not use their output yet.
+- `roles`, `glossary` and `entry-points` (phase 7) are **standalone for now**: `generate` does not use their output yet.
 - "Ask the documentation" (phase 9) is planned in `PLAN.md` but not implemented.
 
 ## 4. The `generate` pipeline
@@ -199,7 +201,8 @@ Guarantees:
 │   ├── use-cases.yaml             #   use cases, steps, diagrams (+ confidence)
 │   ├── fingerprints.json          #   what the incremental re-run compares against
 │   ├── roles.yaml                 #   (phase 7) glob → role rules, hand-editable
-│   └── glossary.yaml              #   (phase 7) business entities, also its own cache
+│   ├── glossary.yaml              #   (phase 7) business entities, also its own cache
+│   └── entry-points.yaml          #   (phase 7) routes/commands/jobs + outputs, also its own cache
 └── docs/                          # output dir (`output.docs_dir`)
     ├── functional/<domain>/…      #   README per domain, feature pages, use-case pages
     └── _retrodoc/
@@ -214,7 +217,7 @@ be added later without touching the pipeline.
 
 ```mermaid
 flowchart LR
-    passes["pipeline passes<br/>(repo_map, domains, features,<br/>use_cases, confidence, roles, glossary)"] --> trait["trait LlmProvider"]
+    passes["pipeline passes<br/>(repo_map, domains, features,<br/>use_cases, confidence, roles, glossary,<br/>entry_points)"] --> trait["trait LlmProvider"]
     trait --> or["OpenRouterProvider<br/>HTTP + exponential-backoff retry"]
     trait -.-> fake["test fakes<br/>(e.g. CountingProvider)"]
     or --> ep[("OpenRouter, or any server speaking the<br/>OpenAI chat-completions format<br/>via llm.base_url (e.g. local Ollama)")]

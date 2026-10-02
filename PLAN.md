@@ -50,7 +50,7 @@ docs/
 
 ## 4. Technical architecture (Rust, workspace)
 
-- `retrodoc-cli` — binary, `clap` (`init`, `scan`, `generate`, `report`)
+- `retrodoc-cli` — binary, `clap` (`init`, `scan`, `generate`, `render`, `report`, `roles`, `glossary`, `entry-points`)
 - `retrodoc-core` — domain model (Domain, Feature, UseCase, Step, Actor, ConfidenceScore)
 - `retrodoc-ingest` — walker (`ignore`), history (`git2`), Markdown parsing
 - `retrodoc-llm` — provider abstraction + OpenRouter implementation (chat completion, retry, rate-limit)
@@ -67,9 +67,12 @@ docs/
 6. **Writing & CLI ergonomics** (dry-run, idempotence, incremental re-run)
 7. **Business-level documentation** (see §7.1): the output must read as functional/business documentation,
    not as a paraphrase of the code. Built on a new "surface extraction" foundation (file roles, models and
-   glossary, entry points and outputs) that also bounds what is sent to the LLM. Not started.
+   glossary, entry points and outputs) that also bounds what is sent to the LLM. In progress: steps 1–3
+   (roles, glossary, entry points) are implemented as standalone commands; rewiring `generate` (step 4) is
+   not started.
 8. **Scalability & cost control** (see §7.2): bring a run on a large repo (thousands of files) within
-   reach, including on limited/local LLM resources. Not started.
+   reach, including on limited/local LLM resources. In progress: progress reporting and the LLM heartbeat
+   are delivered; the rest is not started.
 9. **Ask the documentation** (see §7.3): a question-answering agent (`retrodoc ask` / `chat`) grounded on
    the generated artifacts, the collected docs, the git history and, when needed, the code. Not started;
    comes after phases 7 and 8, since answer quality is bounded by the quality of the generated docs.
@@ -188,7 +191,11 @@ Steps, each shippable and checkable on the Rails test repo:
    after the entity, e.g. `company.rb`; 301 → 234 entities on the Rails test repo, `Contract` merged from 13 files); and `app/models/actions/*` are action/form
    objects the role rules call `model`, so some "entities" are really behaviours. Not done: verbs (step 3), existing docs/commit
    messages as glossary sources.
-3. Entry points and outputs inventory.
+3. Entry points and outputs inventory. **Implemented** (`entry_points.rs`, `retrodoc entry-points`, needs
+   `retrodoc roles` first): the LLM reads only `entrypoint`-role files, several small files per call, and
+   lists each entry point (kind, name, verb, resource, description) with its observable outputs. Saved as
+   `.retrodoc/cache/entry-points.yaml`, which doubles as the cache (per-file content hash). The same entry
+   point can appear twice (route in a routes file, action in its controller); linking them is left to step 4.
 4. Rewire domains, then use cases, on the surface; then actors, two output levels, vocabulary criterion.
 
 Validation: re-run on the Rails test repo and autoroute; compare actors, domain names and use-case titles by hand
@@ -199,6 +206,10 @@ Validation: re-run on the Rails test repo and autoroute; compare actors, domain 
 Observed: the cost is linear in LLM calls — one per file, per directory, per domain unit, per feature, per
 use case, plus one **per use case** for confidence (about a third of all calls). 26 files already took 31
 min locally; the ~2,300-file Rails test repo is out of reach in this form.
+
+Delivered: progress reporting for long passes (`progress.rs`: one log line per unit with rank, %, elapsed
+and ETA) and `HeartbeatProvider` (logs "still waiting for the LLM" every 30 s), to tell a slow call from a
+stuck run.
 
 Directions:
 1. Bound the depth by default: spend LLM calls on what matters, roll the rest up at directory level.
