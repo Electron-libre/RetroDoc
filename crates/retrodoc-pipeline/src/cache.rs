@@ -94,6 +94,12 @@ impl RepoMapCache {
             .map(|entry| entry.role_summary.as_str())
     }
 
+    /// Whether a summary is cached for the folder `dir`, whatever its input.
+    #[must_use]
+    pub fn has_module(&self, dir: &Path) -> bool {
+        self.modules.contains_key(dir)
+    }
+
     pub fn put_module(&mut self, dir: &Path, input_hash: &str, role_summary: &str) {
         self.modules.insert(
             dir.to_path_buf(),

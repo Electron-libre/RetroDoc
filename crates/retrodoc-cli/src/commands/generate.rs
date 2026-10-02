@@ -66,9 +66,14 @@ pub async fn run(
         .context("failed to identify the actors")?;
     println!("{} actor(s) identified.", actors.actors.len());
 
+    let estimate = retrodoc_pipeline::estimate_repo_map(&repo_root, &ingest);
     println!(
-        "Building the repo map ({} source file(s) to summarize)…",
-        source_file_count(&ingest)
+        "Building the repo map: {} source file(s), {} file call(s) + {} directory call(s) expected \
+         (~{}k chars to send; the later passes cost about one call per domain unit, feature and use case).",
+        estimate.files,
+        estimate.files_to_summarize,
+        estimate.directories_to_summarize,
+        estimate.chars_to_send / 1000
     );
 
     let map = retrodoc_pipeline::build_repo_map(&repo_root, &ingest, &llm)
@@ -208,14 +213,6 @@ fn clear_caches(repo_root: &Path) -> anyhow::Result<()> {
         }
     }
     Ok(())
-}
-
-fn source_file_count(ingest: &IngestResult) -> usize {
-    ingest
-        .files
-        .iter()
-        .filter(|f| f.kind == FileKind::Source)
-        .count()
 }
 
 fn print_repo_map(map: &RepoMap) {

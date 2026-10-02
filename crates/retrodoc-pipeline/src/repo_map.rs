@@ -144,6 +144,74 @@ pub async fn build_repo_map(
     Ok(RepoMap { files, modules })
 }
 
+/// What the repo map pass is about to send to the LLM, worked out from the
+/// caches without any call (see [`estimate_repo_map`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RepoMapEstimate {
+    /// Readable source files.
+    pub files: usize,
+    /// Files without an up-to-date cached summary: one call each.
+    pub files_to_summarize: usize,
+    /// Characters of those files that will be sent (after truncation).
+    pub chars_to_send: usize,
+    /// Folders holding source files, sub-folders included.
+    pub directories: usize,
+    /// Folders to summarize: a changed file invalidates its ancestors, a
+    /// folder never summarized is new. A lower bound (a changed summary can
+    /// invalidate more of them), exact on a first run.
+    pub directories_to_summarize: usize,
+}
+
+impl RepoMapEstimate {
+    /// LLM calls of the pass.
+    #[must_use]
+    pub fn calls(&self) -> usize {
+        self.files_to_summarize + self.directories_to_summarize
+    }
+}
+
+/// Estimates the repo map pass from the caches, so a long run can be sized
+/// before it starts. Later passes depend on its output (one call per domain
+/// unit, per feature, per use case and per scored use case).
+#[must_use]
+pub fn estimate_repo_map(repo_root: &Path, ingest: &IngestResult) -> RepoMapEstimate {
+    let cache = RepoMapCache::load(repo_root);
+    let mut estimate = RepoMapEstimate {
+        files: 0,
+        files_to_summarize: 0,
+        chars_to_send: 0,
+        directories: 0,
+        directories_to_summarize: 0,
+    };
+    let mut dirs: BTreeSet<PathBuf> = BTreeSet::new();
+    let mut dirty: BTreeSet<PathBuf> = BTreeSet::new();
+    for entry in ingest.files.iter().filter(|f| f.kind == FileKind::Source) {
+        let Ok(content) = read_file_lossy(repo_root, &entry.path) else {
+            continue;
+        };
+        estimate.files += 1;
+        let cached = cache.get(&entry.path, &hash_content(&content)).is_some();
+        if !cached {
+            estimate.files_to_summarize += 1;
+            estimate.chars_to_send += content.chars().count().min(MAX_FILE_CHARS);
+        }
+        if let Some(parent) = entry.path.parent() {
+            for ancestor in parent.ancestors() {
+                dirs.insert(ancestor.to_path_buf());
+                if !cached {
+                    dirty.insert(ancestor.to_path_buf());
+                }
+            }
+        }
+    }
+    estimate.directories = dirs.len();
+    estimate.directories_to_summarize = dirs
+        .iter()
+        .filter(|d| dirty.contains(*d) || !cache.has_module(d))
+        .count();
+    estimate
+}
+
 pub(crate) fn read_file_lossy(repo_root: &Path, relative: &Path) -> Result<String, PipelineError> {
     let abs = repo_root.join(relative);
     let bytes = std::fs::read(&abs).map_err(|source| PipelineError::Read {
@@ -442,6 +510,27 @@ mod tests {
             .find(|m| m.path == Path::new("a"))
             .unwrap();
         assert_eq!(module_a.file_count, 2);
+    }
+
+    #[tokio::test]
+    async fn the_estimate_matches_the_calls_of_a_first_run_and_of_a_rerun() {
+        let dir = tempfile::tempdir().unwrap();
+        let ingest = ingest_with_nested_files(dir.path());
+        let provider = CountingProvider {
+            calls: AtomicUsize::new(0),
+        };
+
+        let first = estimate_repo_map(dir.path(), &ingest);
+        assert_eq!((first.files, first.calls()), (2, 5));
+        build_repo_map(dir.path(), &ingest, &provider)
+            .await
+            .unwrap();
+        assert_eq!(provider.calls.load(Ordering::SeqCst), first.calls());
+
+        assert_eq!(estimate_repo_map(dir.path(), &ingest).calls(), 0);
+        std::fs::write(dir.path().join("a/y.rs"), "fn y2() {}").unwrap();
+        // y.rs, then "a" and the root; "a/b" is untouched.
+        assert_eq!(estimate_repo_map(dir.path(), &ingest).calls(), 3);
     }
 
     #[tokio::test]

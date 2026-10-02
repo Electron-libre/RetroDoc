@@ -177,20 +177,22 @@ pub async fn build_features(
             progress.begin(&unit_key);
             let prompt = features_prompt(&domain.name, &domain.description, sub_name, &unit_files);
             let what = format!("features of {}/{}", domain.slug, sub_slug.unwrap_or("-"));
-            let Some(raw) =
-                complete_json::<RawFeatures>(llm, FEATURES_SYSTEM_PROMPT, &prompt, &what).await?
-            else {
-                continue;
-            };
+            let raw =
+                match complete_json::<RawFeatures>(llm, FEATURES_SYSTEM_PROMPT, &prompt, &what)
+                    .await
+                {
+                    Ok(Some(raw)) => raw,
+                    Ok(None) => continue,
+                    Err(err) => {
+                        // Keep the units done so far, so a rerun resumes here.
+                        save_partial(repo_root, features, &previous, prints, &known_units);
+                        return Err(err);
+                    }
+                };
 
             let known: BTreeSet<&PathBuf> = paths.iter().collect();
             for raw_feature in raw.features {
-                let files: Vec<String> = raw_feature
-                    .files
-                    .iter()
-                    .filter(|f| known.contains(f))
-                    .map(|f| f.display().to_string())
-                    .collect();
+                let files = known_files(&raw_feature.files, &known);
                 if files.is_empty() {
                     tracing::warn!(
                         feature = %raw_feature.slug,
@@ -218,6 +220,47 @@ pub async fn build_features(
     prints.save(repo_root)?;
     save_features(repo_root, &features)?;
     Ok(features)
+}
+
+/// The cited files that belong to the unit, as strings.
+fn known_files(cited: &[PathBuf], known: &BTreeSet<&PathBuf>) -> Vec<String> {
+    cited
+        .iter()
+        .filter(|f| known.contains(f))
+        .map(|f| f.display().to_string())
+        .collect()
+}
+
+/// Best-effort save after a failure: the units not reached yet keep their
+/// previous features and fingerprints (instead of being lost), so a rerun
+/// resumes where this one stopped.
+fn save_partial(
+    repo_root: &Path,
+    mut features: Vec<Feature>,
+    previous: &[Feature],
+    mut prints: Fingerprints,
+    known_units: &BTreeMap<String, String>,
+) {
+    for old in previous {
+        let reached = features
+            .iter()
+            .any(|f| f.domain_slug == old.domain_slug && f.sub_domain_slug == old.sub_domain_slug);
+        let slug_taken = features.iter().any(|f| f.slug == old.slug);
+        if reached || slug_taken {
+            continue;
+        }
+        let unit_key = format!(
+            "{}/{}",
+            old.domain_slug,
+            old.sub_domain_slug.as_deref().unwrap_or("-")
+        );
+        if let Some(print) = known_units.get(&unit_key) {
+            prints.features.insert(unit_key, print.clone());
+        }
+        features.push(old.clone());
+    }
+    let _ = prints.save(repo_root);
+    let _ = save_features(repo_root, &features);
 }
 
 fn features_prompt(
@@ -522,5 +565,63 @@ mod tests {
         assert_eq!(features[0].slug, "export");
         assert_eq!(features[1].slug, "export-2");
         assert_eq!(features[1].domain_slug, "shipping");
+    }
+
+    /// Answers the first `succeed` calls, then fails; counts its calls.
+    struct FlakyProvider {
+        succeed: usize,
+        calls: std::sync::atomic::AtomicUsize,
+    }
+
+    #[async_trait]
+    impl LlmProvider for FlakyProvider {
+        async fn complete(&self, _: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+            let n = self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            if n < self.succeed {
+                Ok(CompletionResponse {
+                    content: format!(
+                        r#"{{"features":[{{"slug":"f{n}","name":"F","description":"d","files":["{}"]}}]}}"#,
+                        if n == 0 { "a.rs" } else { "b.rs" }
+                    ),
+                    model: "test-model".to_string(),
+                })
+            } else {
+                Err(LlmError::Transport("down".to_string()))
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn a_failed_run_keeps_the_units_done_and_the_rerun_resumes() {
+        let dir = tempfile::tempdir().unwrap();
+        let repo_map = RepoMap {
+            files: vec![file_summary("a.rs"), file_summary("b.rs")],
+            modules: Vec::new(),
+        };
+        let domains = DomainMap {
+            domains: vec![
+                domain("one", &["a.rs"], Vec::new()),
+                domain("two", &["b.rs"], Vec::new()),
+            ],
+        };
+        let flaky = FlakyProvider {
+            succeed: 1,
+            calls: std::sync::atomic::AtomicUsize::new(0),
+        };
+        assert!(build_features(dir.path(), &domains, &repo_map, &flaky)
+            .await
+            .is_err());
+        assert_eq!(load_features(dir.path()).unwrap().len(), 1);
+
+        let healthy = FlakyProvider {
+            succeed: usize::MAX,
+            calls: std::sync::atomic::AtomicUsize::new(1),
+        };
+        let features = build_features(dir.path(), &domains, &repo_map, &healthy)
+            .await
+            .unwrap();
+        assert_eq!(features.len(), 2);
+        // Only the second domain was sent to the LLM again.
+        assert_eq!(healthy.calls.load(std::sync::atomic::Ordering::SeqCst), 2);
     }
 }

@@ -72,8 +72,9 @@ docs/
    data piece by piece; a full `generate` run on a real repo is still missing (blocked on phase 8: the repo
    map of a large repo is out of reach locally).
 8. **Scalability & cost control** (see §7.2): bring a run on a large repo (thousands of files) within
-   reach, including on limited/local LLM resources. In progress: progress reporting and the LLM heartbeat
-   and the LLM heartbeat are delivered, plus the directory-summary cache (item 6) and `--no-confidence`/`--confidence-sample` (item 3); items 1, 2, 4, 5 remain.
+   reach, including on limited/local LLM resources. In progress: delivered are progress reporting, the LLM
+   heartbeat, the directory-summary cache (item 6), `--no-confidence`/`--confidence-sample` (item 3) and item 5
+   (call estimate for the repo map pass, resumable features/use cases); items 1, 2 and 4 remain.
 9. **Ask the documentation** (see §7.3): a question-answering agent (`retrodoc ask` / `chat`) grounded on
    the generated artifacts, the collected docs, the git history and, when needed, the code. Not started;
    comes after phases 7 and 8, since answer quality is bounded by the quality of the generated docs.
@@ -266,8 +267,11 @@ Directions:
 3. ~~Confidence pass optional or sampled~~ — **delivered**: `generate --no-confidence` skips it, `--confidence-sample N`
    scores at most N unscored use cases (evenly spread; a later run scores N more). Unscored items show up in the report.
 4. Configurable concurrency (little gain on a single local model, large on OpenRouter).
-5. Print an estimated call/token count before running, and make an interrupted run resumable (the file
-   summaries are already cached; features/use cases are only saved at the end of each pass).
+5. ~~Estimated call count before running, resumable interrupted run~~ — **delivered**: `generate` prints the
+   repo map pass's expected calls and characters up front (`estimate_repo_map`, from the caches; exact on a first
+   run, a lower bound for directories afterwards; the later passes depend on its output, so they are not
+   estimated). A failed LLM call in the features or use cases pass now saves the units done so far (unreached
+   units keep their previous results), so the rerun resumes there.
 6. ~~Directory summaries regenerated on every run~~ — **delivered**: cached in `repo-map.json` by the hash of
    the listing sent to the LLM (children's summaries), so a changed file only invalidates its folder and
    ancestors (unit-tested, not yet measured on a large repo).

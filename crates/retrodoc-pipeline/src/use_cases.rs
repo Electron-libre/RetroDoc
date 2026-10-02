@@ -236,7 +236,7 @@ pub async fn build_use_cases(
     let mut use_cases: Vec<UseCase> = Vec::new();
     let mut progress = Progress::new("use cases", features.len());
 
-    for feature in features {
+    for (position, feature) in features.iter().enumerate() {
         let key = format!("{}/{}", feature.domain_slug, feature.slug);
         let input = FeatureInput::new(repo_root, feature, entry_points, index);
         let print = feature_fingerprint(repo_root, feature, &input, actors, vocabulary);
@@ -262,7 +262,20 @@ pub async fn build_use_cases(
             continue;
         }
         let system_prompt = system_prompt(!input.entries.is_empty(), !actors.is_empty());
-        let answer = ask_use_cases(llm, &system_prompt, &prompt, &feature.slug).await?;
+        let answer = match ask_use_cases(llm, &system_prompt, &prompt, &feature.slug).await {
+            Ok(answer) => answer,
+            Err(err) => {
+                save_partial(
+                    repo_root,
+                    use_cases,
+                    &previous,
+                    prints,
+                    &known,
+                    &features[position..],
+                );
+                return Err(err);
+            }
+        };
         let Some(raw) = answer else {
             continue;
         };
@@ -308,6 +321,33 @@ pub async fn build_use_cases(
     prints.save(repo_root)?;
     save_use_cases(repo_root, &use_cases)?;
     Ok(use_cases)
+}
+
+/// Best-effort save after a failure: the `unreached` features keep their
+/// previous use cases and fingerprints, so a rerun resumes where this one
+/// stopped.
+fn save_partial(
+    repo_root: &Path,
+    mut use_cases: Vec<UseCase>,
+    previous: &[UseCase],
+    mut prints: Fingerprints,
+    known: &std::collections::BTreeMap<String, String>,
+    unreached: &[Feature],
+) {
+    for feature in unreached {
+        let key = format!("{}/{}", feature.domain_slug, feature.slug);
+        if let Some(print) = known.get(&key) {
+            prints.use_cases.insert(key, print.clone());
+        }
+        use_cases.extend(
+            previous
+                .iter()
+                .filter(|u| u.feature_slug == feature.slug)
+                .cloned(),
+        );
+    }
+    let _ = prints.save(repo_root);
+    let _ = save_use_cases(repo_root, &use_cases);
 }
 
 /// Hash of everything the feature's use cases are derived from: its text and
@@ -971,5 +1011,58 @@ mod tests {
             Some("A signatory signs the contract.")
         );
         assert!(prompts[0].0.contains("`narrative`"));
+    }
+
+    /// Answers the first `succeed` calls, then fails; counts its calls.
+    struct FlakyProvider {
+        succeed: usize,
+        calls: std::sync::atomic::AtomicUsize,
+    }
+
+    #[async_trait]
+    impl LlmProvider for FlakyProvider {
+        async fn complete(&self, _: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+            let n = self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            if n < self.succeed {
+                Ok(CompletionResponse {
+                    content: format!(
+                        r#"{{"use_cases":[{{"slug":"uc{n}","name":"U","description":"d","steps":[
+                        {{"description":"s","actor":{{"name":"A","kind":"human"}},"action":"x","source_refs":[]}}]}}]}}"#
+                    ),
+                    model: "test-model".to_string(),
+                })
+            } else {
+                Err(LlmError::Transport("down".to_string()))
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn a_failed_run_keeps_the_features_done_and_the_rerun_resumes() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("a.rs"), "fn a() {}\n").unwrap();
+        std::fs::write(dir.path().join("b.rs"), "fn b() {}\n").unwrap();
+        let features = [feature("one", &["a.rs"]), feature("two", &["b.rs"])];
+        let context = UseCaseContext::default();
+
+        let flaky = FlakyProvider {
+            succeed: 1,
+            calls: std::sync::atomic::AtomicUsize::new(0),
+        };
+        assert!(build_use_cases(dir.path(), &features, &context, &flaky)
+            .await
+            .is_err());
+        assert_eq!(load_use_cases(dir.path()).unwrap().len(), 1);
+
+        let healthy = FlakyProvider {
+            succeed: usize::MAX,
+            calls: std::sync::atomic::AtomicUsize::new(1),
+        };
+        let use_cases = build_use_cases(dir.path(), &features, &context, &healthy)
+            .await
+            .unwrap();
+        assert_eq!(use_cases.len(), 2);
+        // Only the second feature was sent to the LLM again.
+        assert_eq!(healthy.calls.load(std::sync::atomic::Ordering::SeqCst), 2);
     }
 }
