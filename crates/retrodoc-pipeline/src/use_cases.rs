@@ -21,6 +21,7 @@ use crate::cache::hash_content;
 use crate::error::PipelineError;
 use crate::features::unique_slug;
 use crate::fingerprints::{fingerprint, Fingerprints};
+use crate::progress::Progress;
 use crate::response::complete_json;
 
 const USE_CASES_RELATIVE_PATH: &str = ".retrodoc/cache/use-cases.yaml";
@@ -134,6 +135,7 @@ pub async fn build_use_cases(
     let known = std::mem::take(&mut prints.use_cases);
 
     let mut use_cases: Vec<UseCase> = Vec::new();
+    let mut progress = Progress::new("use cases", features.len());
 
     for feature in features {
         let key = format!("{}/{}", feature.domain_slug, feature.slug);
@@ -147,10 +149,12 @@ pub async fn build_use_cases(
                 tracing::info!(feature = %key, "use cases unchanged, reused");
                 use_cases.extend(kept.into_iter().cloned());
                 prints.use_cases.insert(key, print);
+                progress.skip();
                 continue;
             }
         }
         let produced_before = use_cases.len();
+        progress.begin(&key);
         let (prompt, cited_files) = use_cases_prompt(repo_root, feature);
         if cited_files.is_empty() {
             tracing::warn!(feature = %feature.slug, "feature skipped: none of its files is readable");

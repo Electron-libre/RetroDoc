@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::cache::{hash_content, RepoMapCache};
 use crate::error::PipelineError;
+use crate::progress::Progress;
 
 /// Files larger than this are truncated before being sent to the LLM, to
 /// stay within a reasonable token budget (PLAN.md §6 "cost/volume").
@@ -73,6 +74,14 @@ pub async fn build_repo_map(
 ) -> Result<RepoMap, PipelineError> {
     let mut cache = RepoMapCache::load(repo_root);
     let mut files = Vec::new();
+    let mut progress = Progress::new(
+        "repo map",
+        ingest
+            .files
+            .iter()
+            .filter(|f| f.kind == FileKind::Source)
+            .count(),
+    );
 
     for entry in &ingest.files {
         if entry.kind != FileKind::Source {
@@ -86,6 +95,7 @@ pub async fn build_repo_map(
                     error = %err,
                     "file skipped in the repo map (could not read it)"
                 );
+                progress.skip();
                 continue;
             }
         };
@@ -93,9 +103,12 @@ pub async fn build_repo_map(
         let hash = hash_content(&content);
         let history = ingest.history_for(&entry.path);
 
-        let role_summary = match cache.get(&entry.path, &hash) {
-            Some(cached) => cached.to_string(),
-            None => match summarize_file(llm, entry, &content, history).await {
+        let role_summary = if let Some(cached) = cache.get(&entry.path, &hash) {
+            progress.skip();
+            cached.to_string()
+        } else {
+            progress.begin(&entry.path.display().to_string());
+            match summarize_file(llm, entry, &content, history).await {
                 Ok(summary) => summary,
                 Err(err) => {
                     // A transient failure partway through a long file list
@@ -106,7 +119,7 @@ pub async fn build_repo_map(
                     let _ = cache.save(repo_root);
                     return Err(err);
                 }
-            },
+            }
         };
         cache.put(&entry.path, &hash, &role_summary);
 
@@ -292,6 +305,7 @@ async fn build_module_summaries(
     ordered.sort_by_key(|d| std::cmp::Reverse(d.components().count()));
 
     let mut computed: BTreeMap<PathBuf, ModuleSummary> = BTreeMap::new();
+    let mut progress = Progress::new("directory summaries", ordered.len());
     for dir in ordered {
         let own_files = files_by_dir.get(&dir).cloned().unwrap_or_default();
         let child_modules: Vec<&ModuleSummary> = children_by_dir
@@ -302,6 +316,7 @@ async fn build_module_summaries(
             .collect();
 
         if own_files.is_empty() && child_modules.is_empty() {
+            progress.skip();
             continue;
         }
 
@@ -309,6 +324,7 @@ async fn build_module_summaries(
         // billions of files).
         let own_file_count = u32::try_from(own_files.len()).unwrap_or(u32::MAX);
         let file_count = own_file_count + child_modules.iter().map(|m| m.file_count).sum::<u32>();
+        progress.begin(&format!("{}/", dir.display()));
         let role_summary = summarize_module(llm, &dir, &own_files, &child_modules).await?;
 
         computed.insert(

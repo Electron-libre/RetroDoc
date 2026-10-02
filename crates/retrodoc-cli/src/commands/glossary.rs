@@ -2,7 +2,7 @@ use std::path::Path;
 
 use anyhow::Context;
 use retrodoc_core::config::Config;
-use retrodoc_llm::OpenRouterProvider;
+use retrodoc_llm::{HeartbeatProvider, OpenRouterProvider};
 use retrodoc_pipeline::{FileRole, RoleRules};
 
 /// Reads the business entities of the files classified `model` (using the
@@ -22,8 +22,10 @@ pub async fn run(path: &Path) -> anyhow::Result<()> {
     let role_map = rules.classify(&ingest.files);
     let model_files = role_map.files_with(FileRole::Model).len();
 
-    let llm = OpenRouterProvider::from_config(&config.llm)
-        .context("could not initialize the LLM provider (missing API key?)")?;
+    let llm = HeartbeatProvider::new(
+        OpenRouterProvider::from_config(&config.llm)
+            .context("could not initialize the LLM provider (missing API key?)")?,
+    );
     println!("Reading entities from {model_files} model file(s)…");
     let glossary = retrodoc_pipeline::build_glossary(&repo_root, &role_map, &llm)
         .await

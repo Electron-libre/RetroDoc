@@ -19,6 +19,7 @@ pub mod error;
 pub mod features;
 mod fingerprints;
 pub mod glossary;
+mod progress;
 pub mod repo_map;
 pub mod report;
 mod response;

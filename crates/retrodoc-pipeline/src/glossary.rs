@@ -23,6 +23,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::cache::hash_content;
 use crate::error::PipelineError;
+use crate::progress::Progress;
 use crate::repo_map::{read_file_lossy, truncate_chars};
 use crate::response::complete_json;
 use crate::roles::{FileRole, RoleMap};
@@ -257,7 +258,14 @@ pub async fn build_glossary(
         }
     }
 
-    for batch in batches(&pending) {
+    let batches = batches(&pending);
+    let mut progress = Progress::new("glossary", batches.len());
+    for batch in batches {
+        progress.begin(&format!(
+            "{} model file(s), from {}",
+            batch.len(),
+            batch[0].0.display()
+        ));
         let mut prompt = String::from("Model files:\n");
         for (path, _, content) in batch {
             let _ = write!(prompt, "\n--- {} ---\n{content}\n", path.display());

@@ -2,7 +2,7 @@ use std::path::Path;
 
 use anyhow::Context;
 use retrodoc_core::config::Config;
-use retrodoc_llm::OpenRouterProvider;
+use retrodoc_llm::{HeartbeatProvider, OpenRouterProvider};
 use retrodoc_pipeline::{FileRole, RoleRules};
 
 const UNCLASSIFIED_SAMPLE: usize = 20;
@@ -24,8 +24,10 @@ pub async fn run(path: &Path, force: bool) -> anyhow::Result<()> {
     let rules = if saved {
         RoleRules::load(&repo_root).unwrap_or_default()
     } else {
-        let llm = OpenRouterProvider::from_config(&config.llm)
-            .context("could not initialize the LLM provider (missing API key?)")?;
+        let llm = HeartbeatProvider::new(
+            OpenRouterProvider::from_config(&config.llm)
+                .context("could not initialize the LLM provider (missing API key?)")?,
+        );
         retrodoc_pipeline::identify_roles(&repo_root, &ingest, &llm, force)
             .await
             .context("failed to identify the file roles")?

@@ -4,7 +4,7 @@ use anyhow::Context;
 use retrodoc_core::config::Config;
 use retrodoc_core::model::{ConfidenceScore, Feature, UseCase};
 use retrodoc_ingest::{FileKind, IngestResult};
-use retrodoc_llm::OpenRouterProvider;
+use retrodoc_llm::{HeartbeatProvider, OpenRouterProvider};
 use retrodoc_pipeline::{CoverageReport, DomainMap, RepoMap};
 
 /// Current pipeline stage (PLAN.md §5, "confidence score" phase).
@@ -29,8 +29,10 @@ pub async fn run(path: &Path, dry_run: bool, force: bool) -> anyhow::Result<()> 
         .with_context(|| format!("ingestion of {} failed", repo_root.display()))?;
     ingest.existing_docs = super::docs::without_generated(ingest.existing_docs, &config);
 
-    let llm = OpenRouterProvider::from_config(&config.llm)
-        .context("could not initialize the LLM provider (missing API key?)")?;
+    let llm = HeartbeatProvider::new(
+        OpenRouterProvider::from_config(&config.llm)
+            .context("could not initialize the LLM provider (missing API key?)")?,
+    );
 
     println!(
         "Building the repo map ({} source file(s) to summarize)…",

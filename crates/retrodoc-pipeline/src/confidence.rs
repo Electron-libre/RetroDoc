@@ -25,6 +25,7 @@ use serde::Deserialize;
 
 use crate::error::PipelineError;
 use crate::features::save_features;
+use crate::progress::Progress;
 use crate::response::complete_json;
 use crate::use_cases::{numbered_excerpt, save_use_cases};
 
@@ -82,7 +83,10 @@ pub async fn score_confidence(
     use_cases: &mut [UseCase],
     llm: &dyn LlmProvider,
 ) -> Result<(), PipelineError> {
+    let pending = use_cases.iter().filter(|u| u.confidence.is_none()).count();
+    let mut progress = Progress::new("confidence", pending);
     for use_case in use_cases.iter_mut().filter(|u| u.confidence.is_none()) {
+        progress.begin(&use_case.name);
         use_case.confidence = score_use_case(repo_root, use_case, llm).await?;
     }
     for feature in features.iter_mut() {

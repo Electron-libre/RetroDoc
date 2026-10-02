@@ -23,6 +23,7 @@ use serde::Deserialize;
 use crate::domains::{DomainMap, UNCATEGORIZED_SLUG};
 use crate::error::PipelineError;
 use crate::fingerprints::{fingerprint, Fingerprints};
+use crate::progress::Progress;
 use crate::repo_map::{FileSummary, RepoMap};
 use crate::response::complete_json;
 
@@ -84,6 +85,19 @@ pub fn save_features(repo_root: &Path, features: &[Feature]) -> Result<(), Pipel
     std::fs::write(&path, raw).map_err(|source| PipelineError::ArtifactIo { path, source })
 }
 
+/// Number of domain/sub-domain units the pass goes through (progress total).
+fn unit_count(domains: &DomainMap) -> usize {
+    domains
+        .domains
+        .iter()
+        .filter(|d| d.slug != UNCATEGORIZED_SLUG)
+        .map(|d| {
+            usize::from(!d.paths.is_empty())
+                + d.sub_domains.iter().filter(|s| !s.paths.is_empty()).count()
+        })
+        .sum()
+}
+
 /// Derives the features of every domain/sub-domain in `domains` and
 /// persists them to `.retrodoc/cache/features.yaml`.
 ///
@@ -110,6 +124,8 @@ pub async fn build_features(
     let previous = load_features(repo_root).unwrap_or_default();
     let mut prints = Fingerprints::load(repo_root);
     let known_units = std::mem::take(&mut prints.features);
+
+    let mut progress = Progress::new("features", unit_count(domains));
 
     let mut features: Vec<Feature> = Vec::new();
     for domain in &domains.domains {
@@ -153,10 +169,12 @@ pub async fn build_features(
                     tracing::info!(unit = %unit_key, "features unchanged, reused");
                     features.extend(kept.into_iter().cloned());
                     prints.features.insert(unit_key, unit_print);
+                    progress.skip();
                     continue;
                 }
             }
             let produced_before = features.len();
+            progress.begin(&unit_key);
             let prompt = features_prompt(&domain.name, &domain.description, sub_name, &unit_files);
             let what = format!("features of {}/{}", domain.slug, sub_slug.unwrap_or("-"));
             let Some(raw) =
