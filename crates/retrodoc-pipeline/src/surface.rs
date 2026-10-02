@@ -93,6 +93,17 @@ impl Surface {
         self.entities.is_empty() && self.resources.is_empty()
     }
 
+    /// Names of the best connected entities: the application's own business
+    /// vocabulary, for prompts that should speak it.
+    #[must_use]
+    pub fn vocabulary(&self, max: usize) -> Vec<String> {
+        self.entities
+            .iter()
+            .take(max)
+            .map(|e| e.name.clone())
+            .collect()
+    }
+
     /// Everything that feeds [`Self::prompt_section`], one string per item,
     /// to hash: a changed surface must invalidate the passes built on it.
     pub fn fingerprint_parts(&self) -> impl Iterator<Item = String> + '_ {

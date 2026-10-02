@@ -272,7 +272,28 @@ fn use_case_page(feature: &Feature, use_case: &UseCase) -> String {
         let _ = writeln!(md, "**Triggered by:** {}\n", names.join(", "));
     }
 
-    md.push_str("## Steps\n\n");
+    // Two levels: the business narrative first, the technical steps and
+    // diagram folded below it. Without a narrative (older artifacts) the
+    // steps stay in the open, as they were.
+    let narrative = use_case
+        .narrative
+        .as_deref()
+        .map(str::trim)
+        .filter(|n| !n.is_empty());
+    let (steps_heading, diagram_heading) = if let Some(narrative) = narrative {
+        let _ = write!(md, "## What happens\n\n{narrative}\n\n");
+        let _ = write!(
+            md,
+            "<details>\n<summary>Technical details ({} step{})</summary>\n\n",
+            use_case.steps.len(),
+            if use_case.steps.len() == 1 { "" } else { "s" }
+        );
+        ("### Steps", "### Diagram")
+    } else {
+        ("## Steps", "## Diagram")
+    };
+
+    let _ = write!(md, "{steps_heading}\n\n");
     for step in &use_case.steps {
         md.push_str(&step_item(step));
     }
@@ -280,9 +301,12 @@ fn use_case_page(feature: &Feature, use_case: &UseCase) -> String {
     if let Some(diagram) = &use_case.diagram_mermaid {
         let _ = write!(
             md,
-            "\n## Diagram\n\n```mermaid\n{}\n```\n",
+            "\n{diagram_heading}\n\n```mermaid\n{}\n```\n",
             diagram.trim_end()
         );
+    }
+    if narrative.is_some() {
+        md.push_str("\n</details>\n");
     }
     trim_end(&md)
 }
@@ -372,6 +396,7 @@ mod tests {
         let use_cases = vec![UseCase {
             entry_points: Vec::new(),
             primary_actor: None,
+            narrative: None,
             slug: "pay-by-card".to_string(),
             feature_slug: "pay-invoice".to_string(),
             name: "Pay by card".to_string(),
@@ -434,6 +459,36 @@ mod tests {
         assert!(use_case.contains("1. **Customer** (human) — submit. Submit the form"));
         assert!(use_case.contains("`src/pay.rs:3-9`"));
         assert!(use_case.contains("```mermaid\nsequenceDiagram"));
+    }
+
+    #[test]
+    fn a_narrative_comes_first_and_folds_the_technical_steps() {
+        let (d, f, mut u) = sample();
+        u[0].narrative = Some("A customer pays an invoice by card.".to_string());
+        let files = render(&d, &f, &u, "r", &meta()).unwrap();
+        let page = &files
+            .iter()
+            .find(|f| f.path.ends_with("pay-by-card.md"))
+            .unwrap()
+            .content;
+
+        let narrative = page.find("## What happens").unwrap();
+        let details = page.find("<details>").unwrap();
+        let step = page.find("1. **Customer**").unwrap();
+        assert!(narrative < details && details < step);
+        assert!(page.contains("A customer pays an invoice by card."));
+        assert!(page.contains("<summary>Technical details (1 step)</summary>"));
+        assert!(page.contains("### Steps") && page.contains("### Diagram"));
+        assert!(page.trim_end().ends_with("</details>"));
+        // Without a narrative the steps stay in the open, unfolded.
+        let (d, f, u) = sample();
+        let files = render(&d, &f, &u, "r", &meta()).unwrap();
+        let page = &files
+            .iter()
+            .find(|f| f.path.ends_with("pay-by-card.md"))
+            .unwrap()
+            .content;
+        assert!(page.contains("## Steps") && !page.contains("<details>"));
     }
 
     #[test]

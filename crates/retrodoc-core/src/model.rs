@@ -87,6 +87,12 @@ pub struct UseCase {
     /// list (`actors.yaml`). `None` when no actor is known.
     #[serde(default)]
     pub primary_actor: Option<String>,
+    /// Business-level account of the use case: who does what and why, in the
+    /// application's own vocabulary, without code-level detail. The steps
+    /// below are the technical level. `None` on artifacts from before this
+    /// level existed.
+    #[serde(default)]
+    pub narrative: Option<String>,
     /// Mermaid diagram (flowchart/sequenceDiagram) illustrating the process.
     pub diagram_mermaid: Option<String>,
     /// `None` until the confidence pass (roadmap phase 5) has scored it.

@@ -273,6 +273,7 @@ mod tests {
         UseCase {
             entry_points: Vec::new(),
             primary_actor: None,
+            narrative: None,
             slug: slug.to_string(),
             feature_slug: feature.to_string(),
             name: slug.to_string(),

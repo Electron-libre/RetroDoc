@@ -5,7 +5,12 @@ use retrodoc_core::config::Config;
 use retrodoc_core::model::{ConfidenceScore, Feature, UseCase};
 use retrodoc_ingest::{FileKind, IngestResult};
 use retrodoc_llm::{HeartbeatProvider, LlmProvider, OpenRouterProvider};
-use retrodoc_pipeline::{CodeIndex, CoverageReport, DomainMap, EntryPoints, RepoMap, Surface};
+use retrodoc_pipeline::{
+    CodeIndex, CoverageReport, DomainMap, EntryPoints, RepoMap, Surface, UseCaseContext,
+};
+
+/// Number of main entity names given to the use cases as business vocabulary.
+const VOCABULARY_SIZE: usize = 40;
 
 /// Current pipeline stage (PLAN.md §5, "confidence score" phase).
 ///
@@ -94,9 +99,12 @@ pub async fn run(path: &Path, dry_run: bool, force: bool) -> anyhow::Result<()> 
     let mut use_cases = retrodoc_pipeline::build_use_cases(
         &repo_root,
         &features,
-        &entry_points,
-        &code_index,
-        &actors,
+        &UseCaseContext {
+            entry_points,
+            index: code_index,
+            actors,
+            vocabulary: surface.vocabulary(VOCABULARY_SIZE),
+        },
         &llm,
     )
     .await

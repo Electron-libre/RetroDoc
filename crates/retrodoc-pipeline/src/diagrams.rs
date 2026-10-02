@@ -130,6 +130,7 @@ mod tests {
         let mut use_cases = vec![UseCase {
             entry_points: Vec::new(),
             primary_actor: None,
+            narrative: None,
             slug: "u".to_string(),
             feature_slug: "f".to_string(),
             name: "U".to_string(),

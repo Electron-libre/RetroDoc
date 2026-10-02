@@ -47,4 +47,4 @@ pub use report::{build_report, domain_models, DebtReport};
 pub use roles::{identify_roles, FileRole, RoleMap, RoleRule, RoleRules};
 pub use slices::CodeIndex;
 pub use surface::{Resource, Surface};
-pub use use_cases::{build_use_cases, load_use_cases, save_use_cases};
+pub use use_cases::{build_use_cases, load_use_cases, save_use_cases, UseCaseContext};

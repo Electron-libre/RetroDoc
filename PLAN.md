@@ -42,7 +42,7 @@ docs/
       README.md                    # domain overview + sub-domains, confidence
       <sub-domain>/
         <feature>.md                # list of use cases
-        use-cases/<feature>/<use-case>.md    # steps, actors, Mermaid diagram, confidence
+        use-cases/<feature>/<use-case>.md    # business narrative, then (folded) steps, actors, Mermaid diagram, confidence
   _retrodoc/
     coverage-report.md             # identified gaps, low-confidence sections
     run-metadata.json              # model used, date, analyzed commit
@@ -225,7 +225,16 @@ Steps, each shippable and checkable on the Rails test repo:
      authorization"), and a purely technical use case (phone format validation) is still produced — the
      business-level narrative (4d) and the vocabulary criterion (4e) are meant to handle that. Actors are global
      (not proposed per domain as first sketched).
-   - 4d two output levels, 4e vocabulary criterion: open.
+   - **4d — two output levels: implemented.** Each use case has a `narrative` (2-4 sentences: who does what and
+     why, which business objects change, the observable result; no class/method/file/HTTP detail), asked in the
+     same LLM call as the steps, with the application's main entity names given as vocabulary
+     (`UseCaseContext.vocabulary`). The use case page shows it under "What happens" and folds the technical steps
+     and the diagram in a `<details>` block; artifacts without a narrative render as before. On the signatories
+     feature: "The Contract Manager initiates a change for the person assigned to sign a specific contract…
+     ongoing signature transactions … are immediately canceled. Finally, relevant parties are notified…".
+     The narrative is not checked against the code (the confidence pass still scores the steps only) — that is
+     what 4e is for.
+   - 4e vocabulary criterion: open.
 
 Validation: re-run on the Rails test repo and autoroute; compare actors, domain names and use-case titles by hand
 (a reader who doesn't know the code should be able to say what the product does).

@@ -57,6 +57,14 @@ service), and use \"System\" only for the application itself. Give each use case
 `primary_actor`: the known human actor who triggers it, and begin its steps with the step in \
 which that actor acts (submits the request, opens the page, confirms).";
 
+/// Asks for the business-level account of each use case, next to its
+/// technical steps (the two output levels).
+const NARRATIVE_ADDENDUM: &str = " Also give each use case a `narrative`: two to four sentences \
+for a reader who does not know the code, saying who does what and why, which business objects are \
+created or changed, and what the observable result is. Use the application's business vocabulary \
+(its entities and actors) and do not mention classes, methods, files or HTTP details; those belong \
+in the steps.";
+
 const USE_CASES_SYSTEM_PROMPT: &str = "You are documenting a software project from a functional \
 point of view. Given a feature and the source code implementing it, describe its use cases: \
 concrete scenarios in which an actor achieves a goal with this feature. For each use case give \
@@ -87,6 +95,8 @@ struct RawUseCase {
     entry_points: Vec<String>,
     #[serde(default)]
     primary_actor: Option<String>,
+    #[serde(default)]
+    narrative: Option<String>,
 }
 
 /// Steps are parsed leniently: small models emit empty objects, steps
@@ -143,6 +153,59 @@ pub fn save_use_cases(repo_root: &Path, use_cases: &[UseCase]) -> Result<(), Pip
     std::fs::write(&path, raw).map_err(|source| PipelineError::ArtifactIo { path, source })
 }
 
+/// Asks the LLM for the use cases of a feature. An answer without any use
+/// case (missing or empty `use_cases`) is as useless as an unparseable one:
+/// it is asked once more.
+async fn ask_use_cases(
+    llm: &dyn LlmProvider,
+    system_prompt: &str,
+    prompt: &str,
+    feature_slug: &str,
+) -> Result<Option<RawUseCases>, PipelineError> {
+    for attempt in 1..=2 {
+        let raw = complete_json::<RawUseCases>(
+            llm,
+            system_prompt,
+            prompt,
+            &format!("use cases of {feature_slug}"),
+        )
+        .await?;
+        match raw {
+            Some(raw) if raw.use_cases.is_empty() => {
+                tracing::warn!(feature = %feature_slug, attempt, "LLM answered with no use case");
+            }
+            other => return Ok(other),
+        }
+    }
+    Ok(None)
+}
+
+/// The system prompt: the base, the narrative request, and the parts that
+/// only apply when the feature has entry points / the actors are known.
+fn system_prompt(has_entry_points: bool, has_actors: bool) -> String {
+    let mut prompt = format!("{USE_CASES_SYSTEM_PROMPT}{NARRATIVE_ADDENDUM}");
+    if has_entry_points {
+        prompt.push_str(ENTRY_POINTS_ADDENDUM);
+    }
+    if has_actors {
+        prompt.push_str(ACTORS_ADDENDUM);
+    }
+    prompt
+}
+
+/// Everything besides the features and the LLM that the pass draws on: the
+/// entry points and the code index (what the use cases start from and the
+/// code they run), the business actors and the business vocabulary (what
+/// they are told in).
+#[derive(Debug, Clone, Default)]
+pub struct UseCaseContext {
+    pub entry_points: EntryPoints,
+    pub index: CodeIndex,
+    pub actors: Actors,
+    /// Names of the application's main entities.
+    pub vocabulary: Vec<String>,
+}
+
 /// Derives the use cases of every feature from the code it is grounded on
 /// and persists them to `.retrodoc/cache/use-cases.yaml`. Diagrams are not
 /// attached here (see [`crate::diagrams`]).
@@ -157,11 +220,15 @@ pub fn save_use_cases(repo_root: &Path, use_cases: &[UseCase]) -> Result<(), Pip
 pub async fn build_use_cases(
     repo_root: &Path,
     features: &[Feature],
-    entry_points: &EntryPoints,
-    index: &CodeIndex,
-    actors: &Actors,
+    context: &UseCaseContext,
     llm: &dyn LlmProvider,
 ) -> Result<Vec<UseCase>, PipelineError> {
+    let UseCaseContext {
+        entry_points,
+        index,
+        actors,
+        vocabulary,
+    } = context;
     let previous = load_use_cases(repo_root).unwrap_or_default();
     let mut prints = Fingerprints::load(repo_root);
     let known = std::mem::take(&mut prints.use_cases);
@@ -172,7 +239,7 @@ pub async fn build_use_cases(
     for feature in features {
         let key = format!("{}/{}", feature.domain_slug, feature.slug);
         let input = FeatureInput::new(repo_root, feature, entry_points, index);
-        let print = feature_fingerprint(repo_root, feature, &input, actors);
+        let print = feature_fingerprint(repo_root, feature, &input, actors, vocabulary);
         if known.get(&key) == Some(&print) {
             let kept: Vec<&UseCase> = previous
                 .iter()
@@ -188,41 +255,14 @@ pub async fn build_use_cases(
         }
         let produced_before = use_cases.len();
         progress.begin(&key);
-        let (prompt, cited_files) = use_cases_prompt(repo_root, feature, &input, actors);
+        let (prompt, cited_files) =
+            use_cases_prompt(repo_root, feature, &input, actors, vocabulary);
         if cited_files.is_empty() {
             tracing::warn!(feature = %feature.slug, "feature skipped: none of its files is readable");
             continue;
         }
-        let mut system_prompt = USE_CASES_SYSTEM_PROMPT.to_string();
-        if !input.entries.is_empty() {
-            system_prompt.push_str(ENTRY_POINTS_ADDENDUM);
-        }
-        if !actors.is_empty() {
-            system_prompt.push_str(ACTORS_ADDENDUM);
-        }
-        // An answer without any use case (missing or empty `use_cases`) is as
-        // useless as an unparseable one: ask once more.
-        let mut answer = None;
-        for attempt in 1..=2 {
-            let raw = complete_json::<RawUseCases>(
-                llm,
-                &system_prompt,
-                &prompt,
-                &format!("use cases of {}", feature.slug),
-            )
-            .await?;
-            match raw {
-                Some(raw) if raw.use_cases.is_empty() => tracing::warn!(
-                    feature = %feature.slug,
-                    attempt,
-                    "LLM answered with no use case"
-                ),
-                other => {
-                    answer = other;
-                    break;
-                }
-            }
-        }
+        let system_prompt = system_prompt(!input.entries.is_empty(), !actors.is_empty());
+        let answer = ask_use_cases(llm, &system_prompt, &prompt, &feature.slug).await?;
         let Some(raw) = answer else {
             continue;
         };
@@ -246,6 +286,10 @@ pub async fn build_use_cases(
                 description: raw_use_case.description,
                 steps: ground_steps(raw_use_case.steps, &cited_files, actors),
                 entry_points: known_entry_points(&raw_use_case.entry_points, &input.entries),
+                narrative: raw_use_case
+                    .narrative
+                    .map(|n| n.trim().to_string())
+                    .filter(|n| !n.is_empty()),
                 primary_actor: raw_use_case
                     .primary_actor
                     .as_deref()
@@ -273,6 +317,7 @@ fn feature_fingerprint(
     feature: &Feature,
     input: &FeatureInput,
     actors: &Actors,
+    vocabulary: &[String],
 ) -> String {
     let files = input.files.iter().map(|path| {
         let content = std::fs::read(repo_root.join(path)).map_or_else(
@@ -298,6 +343,10 @@ fn feature_fingerprint(
                 )
             }))
             .chain(actors.fingerprint_parts())
+            .chain(std::iter::once(format!(
+                "vocabulary {}",
+                vocabulary.join(",")
+            )))
             .chain(files),
     )
 }
@@ -455,8 +504,16 @@ fn use_cases_prompt(
     feature: &Feature,
     input: &FeatureInput,
     actors: &Actors,
+    vocabulary: &[String],
 ) -> (String, BTreeSet<String>) {
     let mut prompt = format!("Feature: {} — {}\n", feature.name, feature.description);
+    if !vocabulary.is_empty() {
+        let _ = write!(
+            prompt,
+            "\nBusiness vocabulary (main entities): {}\n",
+            vocabulary.join(", ")
+        );
+    }
     if !actors.is_empty() {
         let _ = write!(prompt, "\nKnown actors:\n{}", actors.prompt_section());
     }
@@ -604,9 +661,7 @@ mod tests {
         let use_cases = build_use_cases(
             dir.path(),
             &[feature("payment", &["a.rs"])],
-            &EntryPoints::default(),
-            &CodeIndex::default(),
-            &Actors::default(),
+            &UseCaseContext::default(),
             &provider,
         )
         .await
@@ -642,9 +697,7 @@ mod tests {
                 feature("missing", &["nope.rs"]),
                 feature("garbled", &["a.rs"]),
             ],
-            &EntryPoints::default(),
-            &CodeIndex::default(),
-            &Actors::default(),
+            &UseCaseContext::default(),
             &provider,
         )
         .await
@@ -676,9 +729,7 @@ mod tests {
         let use_cases = build_use_cases(
             dir.path(),
             &[feature("f", &["a.rs"])],
-            &EntryPoints::default(),
-            &CodeIndex::default(),
-            &Actors::default(),
+            &UseCaseContext::default(),
             &provider,
         )
         .await
@@ -721,46 +772,26 @@ mod tests {
         };
         let calls = || provider.calls.load(std::sync::atomic::Ordering::SeqCst);
 
-        let mut first = build_use_cases(
-            dir.path(),
-            &features,
-            &EntryPoints::default(),
-            &CodeIndex::default(),
-            &Actors::default(),
-            &provider,
-        )
-        .await
-        .unwrap();
+        let mut first =
+            build_use_cases(dir.path(), &features, &UseCaseContext::default(), &provider)
+                .await
+                .unwrap();
         assert_eq!(calls(), 1);
         // Scored use cases keep their score when reused.
         first[0].confidence = Some(retrodoc_core::model::ConfidenceScore::new(0.9, None));
         save_use_cases(dir.path(), &first).unwrap();
 
-        let again = build_use_cases(
-            dir.path(),
-            &features,
-            &EntryPoints::default(),
-            &CodeIndex::default(),
-            &Actors::default(),
-            &provider,
-        )
-        .await
-        .unwrap();
+        let again = build_use_cases(dir.path(), &features, &UseCaseContext::default(), &provider)
+            .await
+            .unwrap();
         assert_eq!(calls(), 1, "unchanged feature must not call the LLM");
         assert_eq!(again.len(), 1);
         assert!(again[0].confidence.is_some());
 
         std::fs::write(dir.path().join("a.rs"), "fn a() { changed }").unwrap();
-        let redone = build_use_cases(
-            dir.path(),
-            &features,
-            &EntryPoints::default(),
-            &CodeIndex::default(),
-            &Actors::default(),
-            &provider,
-        )
-        .await
-        .unwrap();
+        let redone = build_use_cases(dir.path(), &features, &UseCaseContext::default(), &provider)
+            .await
+            .unwrap();
         assert_eq!(calls(), 2, "a changed file must invalidate the feature");
         assert!(redone[0].confidence.is_none());
     }
@@ -845,16 +876,14 @@ mod tests {
         // The feature only lists the controller: the signer is outside it.
         let features = [feature("signing", &["app/contracts_controller.rb"])];
 
-        let use_cases = build_use_cases(
-            root,
-            &features,
-            &entry_points,
-            &index,
-            &Actors::default(),
-            &provider,
-        )
-        .await
-        .unwrap();
+        let context = UseCaseContext {
+            entry_points,
+            index,
+            ..UseCaseContext::default()
+        };
+        let use_cases = build_use_cases(root, &features, &context, &provider)
+            .await
+            .unwrap();
 
         let prompts = provider.prompts.lock().unwrap();
         assert!(prompts[0].0.contains("entry_points"));
@@ -897,7 +926,7 @@ mod tests {
             ],
         };
         let provider = RecordingProvider {
-            response: r#"{"use_cases":[{"slug":"sign","name":"Sign","description":"d","primary_actor":"SIGNATORY","steps":[
+            response: r#"{"use_cases":[{"slug":"sign","name":"Sign","description":"d","primary_actor":"SIGNATORY","narrative":"  A signatory signs the contract.  ","steps":[
               {"description":"s1","actor":{"name":"signatory","kind":"system"},"action":"signs"},
               {"description":"s2","actor":{"name":"e-signature PROVIDER","kind":"human"},"action":"records"},
               {"description":"s3","actor":{"name":"Developer","kind":"human"},"action":"reads"}]}]}"#
@@ -908,9 +937,10 @@ mod tests {
         let use_cases = build_use_cases(
             dir.path(),
             &[feature("signing", &["a.rs"])],
-            &EntryPoints::default(),
-            &CodeIndex::default(),
-            &actors,
+            &UseCaseContext {
+                actors,
+                ..UseCaseContext::default()
+            },
             &provider,
         )
         .await
@@ -934,5 +964,11 @@ mod tests {
         assert_eq!(steps[2].actor.name, "Developer");
         // The primary actor must be a known one, spelled as in the list.
         assert_eq!(use_cases[0].primary_actor.as_deref(), Some("Signatory"));
+        // The narrative is stored trimmed; the prompt asks for it and for the vocabulary.
+        assert_eq!(
+            use_cases[0].narrative.as_deref(),
+            Some("A signatory signs the contract.")
+        );
+        assert!(prompts[0].0.contains("`narrative`"));
     }
 }
