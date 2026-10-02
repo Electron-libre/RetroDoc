@@ -50,8 +50,13 @@ impl Progress {
     /// Counts a unit started with [`Progress::start`] as complete. The ETA
     /// then rests on wall-clock time, so it accounts for the parallelism.
     pub fn finish(&mut self) {
-        self.done += 1;
-        self.processed += 1;
+        self.finish_many(1);
+    }
+
+    /// Same, for a unit that covered `n` items (a batch).
+    pub fn finish_many(&mut self, n: usize) {
+        self.done += n;
+        self.processed += n;
         self.processed_time = self.started.elapsed();
     }
 

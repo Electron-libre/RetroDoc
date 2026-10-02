@@ -74,7 +74,7 @@ docs/
 8. **Scalability & cost control** (see §7.2): bring a run on a large repo (thousands of files) within
    reach, including on limited/local LLM resources. In progress: delivered are progress reporting, the LLM
    heartbeat, the directory-summary cache (item 6), `--no-confidence`/`--confidence-sample` (item 3) and item 5
-   (call estimate for the repo map pass, resumable features/use cases); item 4 (`llm.concurrency`, repo map only); items 1 and 2 remain.
+   (call estimate for the repo map pass, resumable features/use cases); item 4 (`llm.concurrency`, repo map only) and item 2 for file summaries (`llm.batch_chars`); item 1 and batched confidence remain.
 9. **Ask the documentation** (see §7.3): a question-answering agent (`retrodoc ask` / `chat`) grounded on
    the generated artifacts, the collected docs, the git history and, when needed, the code. Not started;
    comes after phases 7 and 8, since answer quality is bounded by the quality of the generated docs.
@@ -263,7 +263,11 @@ Directions:
 1. Bound the depth by default: spend LLM calls on what matters, roll the rest up at directory level.
    Largely delivered by phase 7's surface extraction (file roles, entry-point slices); what remains is
    ranking inside a role (most-changed, most central files).
-2. Batch calls: several small files per summary request, several use cases per confidence request.
+2. Batch calls — **delivered for file summaries**: small files (≤ ¼ of `llm.batch_chars`, default 6000; 0 disables)
+   are summarized together, up to 8 files / `batch_chars` per request, answered as JSON; a file the answer
+   misses falls back to its own request. Not done: several use cases per confidence request (use
+   `--confidence-sample` meanwhile). Quality of batched summaries vs one-by-one is not yet compared on a real
+   model.
 3. ~~Confidence pass optional or sampled~~ — **delivered**: `generate --no-confidence` skips it, `--confidence-sample N`
    scores at most N unscored use cases (evenly spread; a later run scores N more). Unscored items show up in the report.
 4. ~~Configurable concurrency~~ — **delivered for the repo map**: `llm.concurrency` (default 1) bounds the calls in

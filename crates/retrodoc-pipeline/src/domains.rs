@@ -553,7 +553,7 @@ mod tests {
     use retrodoc_ingest::{FileEntry, FileKind, IngestResult};
     use retrodoc_llm::{CompletionResponse, LlmError};
 
-    use crate::repo_map::{build_repo_map, FileSummary, ModuleSummary};
+    use crate::repo_map::{build_repo_map, FileSummary, ModuleSummary, RepoMapOptions};
 
     /// Fake provider that always answers a fixed clustering response, to
     /// test parsing + coverage enforcement without depending on the
@@ -771,9 +771,14 @@ mod tests {
         let repo_map_provider = CannedProvider {
             response: "a summary".to_string(),
         };
-        let repo_map = build_repo_map(dir.path(), &ingest, &repo_map_provider, 1)
-            .await
-            .unwrap();
+        let repo_map = build_repo_map(
+            dir.path(),
+            &ingest,
+            &repo_map_provider,
+            RepoMapOptions::default(),
+        )
+        .await
+        .unwrap();
 
         let clustering_provider = CannedProvider {
             response: r#"{"domains":[{"slug":"core","name":"Core","description":"d",

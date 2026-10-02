@@ -21,6 +21,7 @@ use serde::{Deserialize, Serialize};
 use crate::cache::{hash_content, RepoMapCache};
 use crate::error::PipelineError;
 use crate::progress::Progress;
+use crate::response::complete_json;
 
 /// Files larger than this are truncated before being sent to the LLM, to
 /// stay within a reasonable token budget (PLAN.md §6 "cost/volume").
@@ -60,6 +61,61 @@ pub struct RepoMap {
     pub modules: Vec<ModuleSummary>,
 }
 
+/// A batch holds at most this many files.
+const MAX_BATCH_FILES: usize = 8;
+
+/// How the repo map pass talks to the LLM.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RepoMapOptions {
+    /// Calls in flight at once (at least 1).
+    pub concurrency: usize,
+    /// Small files are summarized together, up to this many characters per
+    /// request; a file over a quarter of it goes alone. 0: one call per file.
+    pub batch_chars: usize,
+}
+
+impl Default for RepoMapOptions {
+    /// Sequential, one call per file.
+    fn default() -> Self {
+        Self {
+            concurrency: 1,
+            batch_chars: 0,
+        }
+    }
+}
+
+/// Groups consecutive files (`(index, chars)`, in tree order) into batches
+/// of at most [`MAX_BATCH_FILES`] files and `batch_chars` characters in
+/// total; a file over `batch_chars / 4` is never batched.
+fn plan_batches(files: &[(usize, usize)], batch_chars: usize) -> Vec<Vec<usize>> {
+    let big = batch_chars / 4;
+    let mut batches: Vec<Vec<usize>> = Vec::new();
+    let mut current: Vec<usize> = Vec::new();
+    let mut current_chars = 0;
+    for &(index, chars) in files {
+        if batch_chars == 0 || chars > big {
+            if !current.is_empty() {
+                batches.push(std::mem::take(&mut current));
+                current_chars = 0;
+            }
+            batches.push(vec![index]);
+            continue;
+        }
+        if !current.is_empty()
+            && (current.len() >= MAX_BATCH_FILES || current_chars + chars > batch_chars)
+        {
+            batches.push(std::mem::take(&mut current));
+            current_chars = 0;
+        }
+        current.push(index);
+        current_chars += chars;
+    }
+    if !current.is_empty() {
+        batches.push(current);
+    }
+    batches
+}
+
 /// Builds the repo map from the ingestion result: summarizes each source
 /// file (with a content-hash cache), then each module bottom-up. Files that
 /// aren't readable as UTF-8 or aren't readable at all are skipped (logged
@@ -73,10 +129,10 @@ pub async fn build_repo_map(
     repo_root: &Path,
     ingest: &IngestResult,
     llm: &dyn LlmProvider,
-    concurrency: usize,
+    options: RepoMapOptions,
 ) -> Result<RepoMap, PipelineError> {
     let mut cache = RepoMapCache::load(repo_root);
-    let concurrency = concurrency.max(1);
+    let concurrency = options.concurrency.max(1);
     let progress = RefCell::new(Progress::new(
         "repo map",
         ingest
@@ -115,32 +171,35 @@ pub async fn build_repo_map(
         });
     }
 
-    let pending: Vec<usize> = (0..loaded.len())
+    let sizes: Vec<(usize, usize)> = (0..loaded.len())
         .filter(|&i| loaded[i].summary.is_none())
+        .map(|i| (i, loaded[i].content.chars().count().min(MAX_FILE_CHARS)))
         .collect();
+    let batches = plan_batches(&sizes, options.batch_chars);
     let mut results: BTreeMap<usize, String> = BTreeMap::new();
     {
-        let jobs = pending.iter().map(|&i| {
-            let file = &loaded[i];
+        let jobs = batches.iter().map(|batch| {
             let progress = &progress;
+            let loaded = &loaded;
             async move {
-                progress
-                    .borrow()
-                    .start(&file.entry.path.display().to_string());
-                let history = ingest.history_for(&file.entry.path);
-                (
-                    i,
-                    summarize_file(llm, file.entry, &file.content, history).await,
-                )
+                let first = loaded[batch[0]].entry.path.display().to_string();
+                progress.borrow().start(&if batch.len() > 1 {
+                    format!("{first} and {} more", batch.len() - 1)
+                } else {
+                    first
+                });
+                summarize_files(llm, ingest, loaded, batch).await
             }
         });
         let mut stream = stream::iter(jobs).buffer_unordered(concurrency);
-        while let Some((i, result)) = stream.next().await {
+        while let Some(result) = stream.next().await {
             match result {
-                Ok(summary) => {
-                    cache.put(&loaded[i].entry.path, &loaded[i].hash, &summary);
-                    results.insert(i, summary);
-                    progress.borrow_mut().finish();
+                Ok(summaries) => {
+                    progress.borrow_mut().finish_many(summaries.len());
+                    for (i, summary) in summaries {
+                        cache.put(&loaded[i].entry.path, &loaded[i].hash, &summary);
+                        results.insert(i, summary);
+                    }
                 }
                 Err(err) => {
                     // A transient failure partway through a long file list
@@ -199,8 +258,10 @@ struct Loaded<'a> {
 pub struct RepoMapEstimate {
     /// Readable source files.
     pub files: usize,
-    /// Files without an up-to-date cached summary: one call each.
+    /// Files without an up-to-date cached summary.
     pub files_to_summarize: usize,
+    /// LLM calls for those files (fewer when small files are batched).
+    pub file_calls: usize,
     /// Characters of those files that will be sent (after truncation).
     pub chars_to_send: usize,
     /// Folders holding source files, sub-folders included.
@@ -215,7 +276,7 @@ impl RepoMapEstimate {
     /// LLM calls of the pass.
     #[must_use]
     pub fn calls(&self) -> usize {
-        self.files_to_summarize + self.directories_to_summarize
+        self.file_calls + self.directories_to_summarize
     }
 }
 
@@ -223,17 +284,23 @@ impl RepoMapEstimate {
 /// before it starts. Later passes depend on its output (one call per domain
 /// unit, per feature, per use case and per scored use case).
 #[must_use]
-pub fn estimate_repo_map(repo_root: &Path, ingest: &IngestResult) -> RepoMapEstimate {
+pub fn estimate_repo_map(
+    repo_root: &Path,
+    ingest: &IngestResult,
+    batch_chars: usize,
+) -> RepoMapEstimate {
     let cache = RepoMapCache::load(repo_root);
     let mut estimate = RepoMapEstimate {
         files: 0,
         files_to_summarize: 0,
+        file_calls: 0,
         chars_to_send: 0,
         directories: 0,
         directories_to_summarize: 0,
     };
     let mut dirs: BTreeSet<PathBuf> = BTreeSet::new();
     let mut dirty: BTreeSet<PathBuf> = BTreeSet::new();
+    let mut sizes: Vec<(usize, usize)> = Vec::new();
     for entry in ingest.files.iter().filter(|f| f.kind == FileKind::Source) {
         let Ok(content) = read_file_lossy(repo_root, &entry.path) else {
             continue;
@@ -241,8 +308,10 @@ pub fn estimate_repo_map(repo_root: &Path, ingest: &IngestResult) -> RepoMapEsti
         estimate.files += 1;
         let cached = cache.get(&entry.path, &hash_content(&content)).is_some();
         if !cached {
+            let chars = content.chars().count().min(MAX_FILE_CHARS);
+            sizes.push((estimate.files_to_summarize, chars));
             estimate.files_to_summarize += 1;
-            estimate.chars_to_send += content.chars().count().min(MAX_FILE_CHARS);
+            estimate.chars_to_send += chars;
         }
         if let Some(parent) = entry.path.parent() {
             for ancestor in parent.ancestors() {
@@ -253,6 +322,7 @@ pub fn estimate_repo_map(repo_root: &Path, ingest: &IngestResult) -> RepoMapEsti
             }
         }
     }
+    estimate.file_calls = plan_batches(&sizes, batch_chars).len();
     estimate.directories = dirs.len();
     estimate.directories_to_summarize = dirs
         .iter()
@@ -295,6 +365,72 @@ fn history_line(history: Option<&FileHistory>) -> String {
         ),
         _ => "no git history (file not versioned or never committed)".to_string(),
     }
+}
+
+const BATCH_SUMMARY_SYSTEM_PROMPT: &str = "You summarize in one or two concise sentences the \
+probable role of each of several source code files, based on its path, its git history, and its \
+content. Reply with only a JSON object of the form {\"summaries\": [{\"path\": \"<the path as \
+given>\", \"summary\": \"<the summary, in English, no Markdown>\"}]}, one entry per file.";
+
+#[derive(Deserialize)]
+struct RawBatch {
+    #[serde(default)]
+    summaries: Vec<RawFileSummary>,
+}
+
+#[derive(Deserialize)]
+struct RawFileSummary {
+    path: String,
+    summary: String,
+}
+
+/// Summarizes the `batch` files (indices into `loaded`): one request for
+/// several small files, one per file otherwise. A file the batched answer
+/// misses (or an unparseable answer) falls back to its own request.
+async fn summarize_files(
+    llm: &dyn LlmProvider,
+    ingest: &IngestResult,
+    loaded: &[Loaded<'_>],
+    batch: &[usize],
+) -> Result<Vec<(usize, String)>, PipelineError> {
+    let mut answers: BTreeMap<String, String> = BTreeMap::new();
+    if batch.len() > 1 {
+        let mut prompt = String::new();
+        for &i in batch {
+            let file = &loaded[i];
+            let _ = write!(
+                prompt,
+                "File: {}\nHistory: {}\n\nContent:\n```\n{}\n```\n\n",
+                file.entry.path.display(),
+                history_line(ingest.history_for(&file.entry.path)),
+                truncate_chars(&file.content, MAX_FILE_CHARS)
+            );
+        }
+        let what = format!("summaries of {} files", batch.len());
+        if let Some(raw) =
+            complete_json::<RawBatch>(llm, BATCH_SUMMARY_SYSTEM_PROMPT, &prompt, &what).await?
+        {
+            for item in raw.summaries {
+                let summary = item.summary.trim().to_string();
+                if !summary.is_empty() {
+                    answers.insert(item.path, summary);
+                }
+            }
+        }
+    }
+    let mut summaries = Vec::new();
+    for &i in batch {
+        let file = &loaded[i];
+        let summary = if let Some(summary) = answers.remove(&file.entry.path.display().to_string())
+        {
+            summary
+        } else {
+            let history = ingest.history_for(&file.entry.path);
+            summarize_file(llm, file.entry, &file.content, history).await?
+        };
+        summaries.push((i, summary));
+    }
+    Ok(summaries)
 }
 
 async fn summarize_file(
@@ -601,7 +737,7 @@ mod tests {
             calls: AtomicUsize::new(0),
         };
 
-        let map = build_repo_map(dir.path(), &ingest, &provider, 1)
+        let map = build_repo_map(dir.path(), &ingest, &provider, RepoMapOptions::default())
             .await
             .unwrap();
 
@@ -627,17 +763,17 @@ mod tests {
             calls: AtomicUsize::new(0),
         };
 
-        let first = estimate_repo_map(dir.path(), &ingest);
+        let first = estimate_repo_map(dir.path(), &ingest, 0);
         assert_eq!((first.files, first.calls()), (2, 5));
-        build_repo_map(dir.path(), &ingest, &provider, 1)
+        build_repo_map(dir.path(), &ingest, &provider, RepoMapOptions::default())
             .await
             .unwrap();
         assert_eq!(provider.calls.load(Ordering::SeqCst), first.calls());
 
-        assert_eq!(estimate_repo_map(dir.path(), &ingest).calls(), 0);
+        assert_eq!(estimate_repo_map(dir.path(), &ingest, 0).calls(), 0);
         std::fs::write(dir.path().join("a/y.rs"), "fn y2() {}").unwrap();
         // y.rs, then "a" and the root; "a/b" is untouched.
-        assert_eq!(estimate_repo_map(dir.path(), &ingest).calls(), 3);
+        assert_eq!(estimate_repo_map(dir.path(), &ingest, 0).calls(), 3);
     }
 
     /// Records the highest number of calls in flight at the same time.
@@ -677,9 +813,17 @@ mod tests {
             peak: AtomicUsize::new(0),
         };
 
-        let map = build_repo_map(dir.path(), &ingest, &provider, 3)
-            .await
-            .unwrap();
+        let map = build_repo_map(
+            dir.path(),
+            &ingest,
+            &provider,
+            RepoMapOptions {
+                concurrency: 3,
+                batch_chars: 0,
+            },
+        )
+        .await
+        .unwrap();
 
         assert_eq!(provider.peak.load(Ordering::SeqCst), 3);
         let paths: Vec<_> = map.files.iter().map(|f| f.path.clone()).collect();
@@ -687,6 +831,77 @@ mod tests {
         assert_eq!(paths, expected);
         assert!(map.files.iter().all(|f| f.role_summary == "summary"));
         assert_eq!(map.modules.len(), 3);
+    }
+
+    #[test]
+    fn plan_batches_groups_small_files_and_isolates_big_ones() {
+        // 4000 chars per request: a file over 1000 is never batched.
+        let files = [(0, 100), (1, 200), (2, 2000), (3, 300), (4, 900), (5, 900)];
+        assert_eq!(
+            plan_batches(&files, 4000),
+            vec![vec![0, 1], vec![2], vec![3, 4, 5]]
+        );
+        let many: Vec<_> = (0..10).map(|i| (i, 10)).collect();
+        assert_eq!(plan_batches(&many, 4000).len(), 2); // 8 + 2
+        assert_eq!(plan_batches(&many, 0).len(), 10); // batching off
+    }
+
+    /// Answers a batched request with a summary for the first file only
+    /// (the rest must fall back to their own request), counts its calls.
+    struct BatchProvider {
+        calls: AtomicUsize,
+    }
+
+    #[async_trait]
+    impl LlmProvider for BatchProvider {
+        async fn complete(
+            &self,
+            request: CompletionRequest,
+        ) -> Result<CompletionResponse, LlmError> {
+            self.calls.fetch_add(1, Ordering::SeqCst);
+            let system = &request.messages[0].content;
+            let content = if system.contains("\"summaries\"") {
+                r#"{"summaries":[{"path":"a/b/x.rs","summary":"batched x"}]}"#.to_string()
+            } else {
+                "single".to_string()
+            };
+            Ok(CompletionResponse {
+                content,
+                model: "test-model".to_string(),
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn small_files_share_a_request_and_missing_ones_fall_back() {
+        let dir = tempfile::tempdir().unwrap();
+        let ingest = ingest_with_nested_files(dir.path());
+        let provider = BatchProvider {
+            calls: AtomicUsize::new(0),
+        };
+        let options = RepoMapOptions {
+            concurrency: 1,
+            batch_chars: 4000,
+        };
+        let estimate = estimate_repo_map(dir.path(), &ingest, options.batch_chars);
+        assert_eq!(estimate.file_calls, 1);
+
+        let map = build_repo_map(dir.path(), &ingest, &provider, options)
+            .await
+            .unwrap();
+
+        let summary_of = |p: &str| {
+            map.files
+                .iter()
+                .find(|f| f.path == Path::new(p))
+                .unwrap()
+                .role_summary
+                .clone()
+        };
+        assert_eq!(summary_of("a/b/x.rs"), "batched x");
+        assert_eq!(summary_of("a/y.rs"), "single");
+        // 1 batched request + 1 fallback for y.rs + 3 folders.
+        assert_eq!(provider.calls.load(Ordering::SeqCst), 5);
     }
 
     #[tokio::test]
@@ -697,14 +912,14 @@ mod tests {
             calls: AtomicUsize::new(0),
         };
 
-        build_repo_map(dir.path(), &ingest, &provider, 1)
+        build_repo_map(dir.path(), &ingest, &provider, RepoMapOptions::default())
             .await
             .unwrap();
         // 2 files + 3 modules ("a/b", "a", root "") = 5 calls on the first run.
         let calls_after_first_run = provider.calls.load(Ordering::SeqCst);
         assert_eq!(calls_after_first_run, 5);
 
-        build_repo_map(dir.path(), &ingest, &provider, 1)
+        build_repo_map(dir.path(), &ingest, &provider, RepoMapOptions::default())
             .await
             .unwrap();
         let calls_after_second_run = provider.calls.load(Ordering::SeqCst);
@@ -730,13 +945,13 @@ mod tests {
             succeed_calls: usize::MAX,
             calls: AtomicUsize::new(0),
         };
-        build_repo_map(dir.path(), &ingest, &provider, 1)
+        build_repo_map(dir.path(), &ingest, &provider, RepoMapOptions::default())
             .await
             .unwrap();
         let first = provider.calls.load(Ordering::SeqCst);
 
         std::fs::write(dir.path().join("a/b/x.rs"), "fn x2() {}").unwrap();
-        build_repo_map(dir.path(), &ingest, &provider, 1)
+        build_repo_map(dir.path(), &ingest, &provider, RepoMapOptions::default())
             .await
             .unwrap();
         // Each answer is unique, so a new x.rs summary changes its parents'
@@ -782,7 +997,8 @@ mod tests {
             calls: AtomicUsize::new(0),
         };
 
-        let result = build_repo_map(dir.path(), &ingest, &provider, 1).await;
+        let result =
+            build_repo_map(dir.path(), &ingest, &provider, RepoMapOptions::default()).await;
         assert!(result.is_err());
 
         // The summary computed before the failure was still persisted to

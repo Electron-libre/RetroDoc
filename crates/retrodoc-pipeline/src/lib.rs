@@ -45,6 +45,7 @@ pub use features::{build_features, load_features, save_features};
 pub use glossary::{build_glossary, Entity, Glossary, MergedEntity};
 pub use repo_map::{
     build_repo_map, estimate_repo_map, FileSummary, ModuleSummary, RepoMap, RepoMapEstimate,
+    RepoMapOptions,
 };
 pub use report::{build_report, domain_models, DebtReport};
 pub use roles::{identify_roles, FileRole, RoleMap, RoleRule, RoleRules};

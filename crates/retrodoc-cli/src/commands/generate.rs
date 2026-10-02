@@ -1,12 +1,13 @@
 use std::path::Path;
 
 use anyhow::Context;
-use retrodoc_core::config::Config;
+use retrodoc_core::config::{Config, LlmConfig, DEFAULT_BATCH_CHARS};
 use retrodoc_core::model::{ConfidenceScore, Feature, UseCase};
 use retrodoc_ingest::{FileKind, IngestResult};
 use retrodoc_llm::{HeartbeatProvider, LlmProvider, OpenRouterProvider};
 use retrodoc_pipeline::{
-    CodeIndex, CoverageReport, DomainMap, EntryPoints, RepoMap, Surface, UseCaseContext,
+    CodeIndex, CoverageReport, DomainMap, EntryPoints, RepoMap, RepoMapOptions, Surface,
+    UseCaseContext,
 };
 
 /// Number of main entity names given to the use cases as business vocabulary.
@@ -66,7 +67,7 @@ pub async fn run(
         .context("failed to identify the actors")?;
     println!("{} actor(s) identified.", actors.actors.len());
 
-    let map = build_map(&repo_root, &ingest, &llm, config.llm.concurrency).await?;
+    let map = build_map(&repo_root, &ingest, &llm, &config.llm).await?;
 
     print_repo_map(&map);
 
@@ -326,18 +327,22 @@ async fn build_map(
     repo_root: &Path,
     ingest: &IngestResult,
     llm: &dyn LlmProvider,
-    concurrency: Option<usize>,
+    config: &LlmConfig,
 ) -> anyhow::Result<RepoMap> {
-    let estimate = retrodoc_pipeline::estimate_repo_map(repo_root, ingest);
+    let options = RepoMapOptions {
+        concurrency: config.concurrency.unwrap_or(1),
+        batch_chars: config.batch_chars.unwrap_or(DEFAULT_BATCH_CHARS),
+    };
+    let estimate = retrodoc_pipeline::estimate_repo_map(repo_root, ingest, options.batch_chars);
     println!(
         "Building the repo map: {} source file(s), {} file call(s) + {} directory call(s) expected \
          (~{}k chars to send; the later passes cost about one call per domain unit, feature and use case).",
         estimate.files,
-        estimate.files_to_summarize,
+        estimate.file_calls,
         estimate.directories_to_summarize,
         estimate.chars_to_send / 1000
     );
-    retrodoc_pipeline::build_repo_map(repo_root, ingest, llm, concurrency.unwrap_or(1))
+    retrodoc_pipeline::build_repo_map(repo_root, ingest, llm, options)
         .await
         .context("failed to build the repo map")
 }

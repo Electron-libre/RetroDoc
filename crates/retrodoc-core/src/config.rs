@@ -11,6 +11,9 @@ use serde::{Deserialize, Serialize};
 
 pub const CONFIG_FILE_NAME: &str = "retrodoc.toml";
 
+/// Default `llm.batch_chars`.
+pub const DEFAULT_BATCH_CHARS: usize = 6000;
+
 /// Default model proposed at init. Can be changed in `retrodoc.toml`.
 pub const DEFAULT_MODEL: &str = "anthropic/claude-sonnet-4.5";
 
@@ -63,6 +66,11 @@ pub struct LlmConfig {
     /// within its rate limits (429s are retried with backoff).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub concurrency: Option<usize>,
+    /// Characters per request when several small files are summarized
+    /// together (see [`DEFAULT_BATCH_CHARS`]); 0 disables batching. A small
+    /// local model may summarize better one file at a time.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub batch_chars: Option<usize>,
 }
 
 impl LlmConfig {
@@ -87,6 +95,7 @@ impl Default for LlmConfig {
             reasoning_effort: None,
             timeout_secs: None,
             concurrency: None,
+            batch_chars: None,
         }
     }
 }
