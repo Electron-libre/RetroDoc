@@ -73,7 +73,7 @@ docs/
    map of a large repo is out of reach locally).
 8. **Scalability & cost control** (see §7.2): bring a run on a large repo (thousands of files) within
    reach, including on limited/local LLM resources. In progress: progress reporting and the LLM heartbeat
-   and the LLM heartbeat are delivered, plus the directory-summary cache (item 6); items 1–5 remain.
+   and the LLM heartbeat are delivered, plus the directory-summary cache (item 6) and `--no-confidence`/`--confidence-sample` (item 3); items 1, 2, 4, 5 remain.
 9. **Ask the documentation** (see §7.3): a question-answering agent (`retrodoc ask` / `chat`) grounded on
    the generated artifacts, the collected docs, the git history and, when needed, the code. Not started;
    comes after phases 7 and 8, since answer quality is bounded by the quality of the generated docs.
@@ -263,7 +263,8 @@ Directions:
    Largely delivered by phase 7's surface extraction (file roles, entry-point slices); what remains is
    ranking inside a role (most-changed, most central files).
 2. Batch calls: several small files per summary request, several use cases per confidence request.
-3. Make the confidence pass optional or sampled (`--no-confidence`, `--confidence-sample`).
+3. ~~Confidence pass optional or sampled~~ — **delivered**: `generate --no-confidence` skips it, `--confidence-sample N`
+   scores at most N unscored use cases (evenly spread; a later run scores N more). Unscored items show up in the report.
 4. Configurable concurrency (little gain on a single local model, large on OpenRouter).
 5. Print an estimated call/token count before running, and make an interrupted run resumable (the file
    summaries are already cached; features/use cases are only saved at the end of each pass).

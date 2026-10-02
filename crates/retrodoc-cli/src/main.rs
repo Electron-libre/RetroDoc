@@ -44,6 +44,14 @@ enum Command {
         /// Ignore the caches and redo every LLM pass from scratch.
         #[arg(long)]
         force: bool,
+        /// Skip the confidence pass (about a third of the LLM calls): use
+        /// cases and features stay unscored.
+        #[arg(long, conflicts_with = "confidence_sample")]
+        no_confidence: bool,
+        /// Score at most N use cases not scored yet, evenly spread; the
+        /// others stay unscored (a later run scores N more).
+        #[arg(long, value_name = "N")]
+        confidence_sample: Option<usize>,
     },
     /// Writes the docs from the artifacts of the last `generate` run,
     /// without calling the LLM.
@@ -122,7 +130,16 @@ async fn main() -> anyhow::Result<()> {
             path,
             dry_run,
             force,
-        } => commands::generate::run(&path, dry_run, force).await,
+            no_confidence,
+            confidence_sample,
+        } => {
+            let confidence = if no_confidence {
+                commands::generate::Confidence::Skip
+            } else {
+                commands::generate::Confidence::Sample(confidence_sample)
+            };
+            commands::generate::run(&path, dry_run, force, confidence).await
+        }
         Command::Render { path, dry_run } => commands::render::run(&path, dry_run),
         Command::Report { path } => commands::report::run(&path),
         Command::EntryPoints { path } => commands::entry_points::run(&path).await,

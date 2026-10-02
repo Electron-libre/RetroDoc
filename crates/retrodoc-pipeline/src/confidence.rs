@@ -71,7 +71,8 @@ fn verdict_value(verdict: &str) -> f32 {
 }
 
 /// Scores every use case not scored yet (reused use cases keep their score
-/// from the last run), then every feature, and persists both artifacts
+/// from the last run) — or only `sample` of them, evenly spread over the
+/// pending ones, the others staying unscored (`None`) — then every feature, and persists both artifacts
 /// (`use-cases.yaml`, `features.yaml`) with their `confidence` filled in.
 ///
 /// # Errors
@@ -82,10 +83,21 @@ pub async fn score_confidence(
     features: &mut [Feature],
     use_cases: &mut [UseCase],
     llm: &dyn LlmProvider,
+    sample: Option<usize>,
 ) -> Result<(), PipelineError> {
     let pending = use_cases.iter().filter(|u| u.confidence.is_none()).count();
-    let mut progress = Progress::new("confidence", pending);
-    for use_case in use_cases.iter_mut().filter(|u| u.confidence.is_none()) {
+    let chosen = sample.map_or(pending, |n| n.min(pending));
+    let mut progress = Progress::new("confidence", chosen);
+    for (seen, use_case) in use_cases
+        .iter_mut()
+        .filter(|u| u.confidence.is_none())
+        .enumerate()
+    {
+        // Picks `chosen` of the `pending` ranks, evenly spaced.
+        let picked = seen * chosen / pending.max(1) != (seen + 1) * chosen / pending.max(1);
+        if !picked {
+            continue;
+        }
         progress.begin(&use_case.name);
         use_case.confidence = score_use_case(repo_root, use_case, llm).await?;
     }
@@ -307,7 +319,7 @@ mod tests {
             vec![step(1, Some("a.rs")), step(2, None), step(3, Some("a.rs"))],
         )];
 
-        score_confidence(dir.path(), &mut features, &mut use_cases, &provider)
+        score_confidence(dir.path(), &mut features, &mut use_cases, &provider, None)
             .await
             .unwrap();
 
@@ -342,6 +354,7 @@ mod tests {
             &mut features,
             &mut use_cases,
             &CannedProvider("nope"),
+            None,
         )
         .await
         .unwrap();
@@ -352,5 +365,33 @@ mod tests {
         let fc = features[0].confidence.as_ref().unwrap();
         assert_eq!(fc.value, 0.0);
         assert_eq!(fc.rationale.as_deref(), Some("1 of 2 use case(s) scored"));
+    }
+
+    #[tokio::test]
+    async fn a_sample_scores_only_that_many_use_cases() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("a.rs"), "fn a() {}\n").unwrap();
+        let provider = CannedProvider(r#"{"steps":[{"order":1,"verdict":"supported"}]}"#);
+        let mut features = vec![feature("f")];
+        let mut use_cases: Vec<UseCase> = (0..6)
+            .map(|_| use_case("f", vec![step(1, Some("a.rs"))]))
+            .collect();
+
+        score_confidence(
+            dir.path(),
+            &mut features,
+            &mut use_cases,
+            &provider,
+            Some(2),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(
+            use_cases.iter().filter(|u| u.confidence.is_some()).count(),
+            2
+        );
+        let fc = features[0].confidence.as_ref().unwrap();
+        assert_eq!(fc.rationale.as_deref(), Some("2 of 6 use case(s) scored"));
     }
 }

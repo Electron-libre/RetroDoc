@@ -12,13 +12,27 @@ use retrodoc_pipeline::{
 /// Number of main entity names given to the use cases as business vocabulary.
 const VOCABULARY_SIZE: usize = 40;
 
+/// What the confidence pass does in this run.
+#[derive(Debug, Clone, Copy)]
+pub enum Confidence {
+    /// Not run at all.
+    Skip,
+    /// Run, on at most this many unscored use cases (`None`: all of them).
+    Sample(Option<usize>),
+}
+
 /// Current pipeline stage (PLAN.md §5, "confidence score" phase).
 ///
 /// Runs ingestion, the bottom-up repo map, domain/sub-domain clustering,
 /// then features and use cases with Mermaid diagrams, and finally the
 /// confidence cross-check, and writes the docs (or previews them with
 /// `dry_run`). `force` wipes the caches first so nothing is reused.
-pub async fn run(path: &Path, dry_run: bool, force: bool) -> anyhow::Result<()> {
+pub async fn run(
+    path: &Path,
+    dry_run: bool,
+    force: bool,
+    confidence: Confidence,
+) -> anyhow::Result<()> {
     let repo_root = path
         .canonicalize()
         .with_context(|| format!("path not found: {}", path.display()))?;
@@ -117,10 +131,7 @@ pub async fn run(path: &Path, dry_run: bool, force: bool) -> anyhow::Result<()> 
         .context("failed to save the use cases")?;
 
     let mut features = features;
-    println!("\nCross-checking use cases against the code (confidence)…");
-    retrodoc_pipeline::score_confidence(&repo_root, &mut features, &mut use_cases, &llm)
-        .await
-        .context("failed to score the confidence")?;
+    run_confidence(&repo_root, &mut features, &mut use_cases, &llm, confidence).await?;
 
     print_features(&features, &use_cases);
 
@@ -299,5 +310,28 @@ fn print_coverage_report(report: &CoverageReport) {
             "  {} unknown path(s) cited by the LLM, dropped.",
             report.unknown.len()
         );
+    }
+}
+
+async fn run_confidence(
+    repo_root: &Path,
+    features: &mut [Feature],
+    use_cases: &mut [UseCase],
+    llm: &dyn LlmProvider,
+    confidence: Confidence,
+) -> anyhow::Result<()> {
+    match confidence {
+        Confidence::Sample(sample) => {
+            println!("\nCross-checking use cases against the code (confidence)…");
+            retrodoc_pipeline::score_confidence(repo_root, features, use_cases, llm, sample)
+                .await
+                .context("failed to score the confidence")
+        }
+        Confidence::Skip => {
+            println!(
+                "\nConfidence pass skipped (--no-confidence): unscored use cases stay unscored."
+            );
+            Ok(())
+        }
     }
 }
