@@ -37,8 +37,10 @@ const MAX_ENTRY_FILE_CHARS: usize = 5_000;
 const ENTRY_POINTS_SYSTEM_PROMPT: &str = "You are inventorying the entry points of a software \
 application from the files that define them: HTTP routes and controller actions, CLI commands, \
 background jobs and schedulers, message consumers, webhooks, or, for a library, its public API. \
-List the entry points defined in each file (for a routes file, the routes with their HTTP verb \
-and resource). For each give: `kind` (http_route, cli_command, job, consumer, webhook, \
+List the entry points defined in each file. For a routing file (route declarations) give one \
+entry per resource or namespace, with the main actions as the verb (e.g. \"list, show, create\"), \
+not one per route: the controllers list the individual actions. At most 30 entry points per file. \
+For each give: `kind` (http_route, cli_command, job, consumer, webhook, \
 public_api or other); `name` as a reader would say it (e.g. \"POST /contracts/:id/sign\" or \
 \"SendReminderJob\"); `verb`, the action in business words (e.g. \"sign\"); `resource`, the \
 business object it acts on (e.g. \"contract\"); `description`, one sentence on what it does for \
