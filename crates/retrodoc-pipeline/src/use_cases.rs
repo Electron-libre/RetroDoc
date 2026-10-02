@@ -11,18 +11,20 @@
 
 use std::collections::BTreeSet;
 use std::fmt::Write as _;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use retrodoc_core::model::{Actor, ActorKind, Feature, SourceRef, Step, UseCase};
 use retrodoc_llm::LlmProvider;
 use serde::Deserialize;
 
 use crate::cache::hash_content;
+use crate::entry_points::{EntryPoint, EntryPoints};
 use crate::error::PipelineError;
 use crate::features::unique_slug;
 use crate::fingerprints::{fingerprint, Fingerprints};
 use crate::progress::Progress;
 use crate::response::complete_json;
+use crate::slices::CodeIndex;
 
 const USE_CASES_RELATIVE_PATH: &str = ".retrodoc/cache/use-cases.yaml";
 
@@ -31,6 +33,19 @@ const USE_CASES_RELATIVE_PATH: &str = ".retrodoc/cache/use-cases.yaml";
 /// prompt, and so can't be cited.
 const MAX_CHARS_PER_FILE: usize = 4000;
 const MAX_CHARS_PER_PROMPT: usize = 30_000;
+
+/// How far from an entry point's file the code it runs is followed, and how
+/// many files are kept (see [`CodeIndex::slice`]).
+const SLICE_DEPTH: usize = 2;
+const MAX_SLICE_FILES: usize = 8;
+
+/// Added to the system prompt when the feature has known entry points.
+const ENTRY_POINTS_ADDENDUM: &str = " The prompt lists the feature's entry points with their \
+observable outputs, then the files that define them and the files those reference. Build each use \
+case around one entry point, or a few closely related ones: the actor's goal, then the steps from \
+the trigger to the observable outputs, grounded on that code. Add to each use case an \
+`entry_points` array with the names of the entry points it covers, copied verbatim from the list. \
+Prefer business wording (what happens to the contract, the company, the user) over method names.";
 
 const USE_CASES_SYSTEM_PROMPT: &str = "You are documenting a software project from a functional \
 point of view. Given a feature and the source code implementing it, describe its use cases: \
@@ -58,6 +73,8 @@ struct RawUseCase {
     description: String,
     #[serde(default)]
     steps: Vec<RawStep>,
+    #[serde(default)]
+    entry_points: Vec<String>,
 }
 
 /// Steps are parsed leniently: small models emit empty objects, steps
@@ -128,6 +145,8 @@ pub fn save_use_cases(repo_root: &Path, use_cases: &[UseCase]) -> Result<(), Pip
 pub async fn build_use_cases(
     repo_root: &Path,
     features: &[Feature],
+    entry_points: &EntryPoints,
+    index: &CodeIndex,
     llm: &dyn LlmProvider,
 ) -> Result<Vec<UseCase>, PipelineError> {
     let previous = load_use_cases(repo_root).unwrap_or_default();
@@ -139,7 +158,8 @@ pub async fn build_use_cases(
 
     for feature in features {
         let key = format!("{}/{}", feature.domain_slug, feature.slug);
-        let print = feature_fingerprint(repo_root, feature);
+        let input = FeatureInput::new(repo_root, feature, entry_points, index);
+        let print = feature_fingerprint(repo_root, feature, &input);
         if known.get(&key) == Some(&print) {
             let kept: Vec<&UseCase> = previous
                 .iter()
@@ -155,18 +175,23 @@ pub async fn build_use_cases(
         }
         let produced_before = use_cases.len();
         progress.begin(&key);
-        let (prompt, cited_files) = use_cases_prompt(repo_root, feature);
+        let (prompt, cited_files) = use_cases_prompt(repo_root, feature, &input);
         if cited_files.is_empty() {
             tracing::warn!(feature = %feature.slug, "feature skipped: none of its files is readable");
             continue;
         }
+        let system_prompt = if input.entries.is_empty() {
+            USE_CASES_SYSTEM_PROMPT.to_string()
+        } else {
+            format!("{USE_CASES_SYSTEM_PROMPT}{ENTRY_POINTS_ADDENDUM}")
+        };
         // An answer without any use case (missing or empty `use_cases`) is as
         // useless as an unparseable one: ask once more.
         let mut answer = None;
         for attempt in 1..=2 {
             let raw = complete_json::<RawUseCases>(
                 llm,
-                USE_CASES_SYSTEM_PROMPT,
+                &system_prompt,
                 &prompt,
                 &format!("use cases of {}", feature.slug),
             )
@@ -205,6 +230,7 @@ pub async fn build_use_cases(
                 name: raw_use_case.name,
                 description: raw_use_case.description,
                 steps: ground_steps(raw_use_case.steps, &cited_files),
+                entry_points: known_entry_points(&raw_use_case.entry_points, &input.entries),
                 diagram_mermaid: None,
                 confidence: None,
             });
@@ -222,8 +248,8 @@ pub async fn build_use_cases(
 /// Hash of everything the feature's use cases are derived from: its text and
 /// the content of its files (an unreadable file hashes as such, so it
 /// invalidates when it becomes readable).
-fn feature_fingerprint(repo_root: &Path, feature: &Feature) -> String {
-    let files = feature.source_paths.iter().map(|path| {
+fn feature_fingerprint(repo_root: &Path, feature: &Feature, input: &FeatureInput) -> String {
+    let files = input.files.iter().map(|path| {
         let content = std::fs::read(repo_root.join(path)).map_or_else(
             |_| "unreadable".to_string(),
             |bytes| hash_content(&String::from_utf8_lossy(&bytes)),
@@ -233,6 +259,19 @@ fn feature_fingerprint(repo_root: &Path, feature: &Feature) -> String {
     fingerprint(
         [feature.name.clone(), feature.description.clone()]
             .into_iter()
+            .chain(input.entries.iter().map(|(_, entry)| {
+                let outputs: Vec<&str> = entry
+                    .outputs
+                    .iter()
+                    .map(|o| o.description.as_str())
+                    .collect();
+                format!(
+                    "entry {}\n{}\n{}",
+                    entry.name,
+                    entry.description,
+                    outputs.join("|")
+                )
+            }))
             .chain(files),
     )
 }
@@ -301,17 +340,104 @@ pub(crate) fn resolve_cited_path(cited: &str, allowed: &BTreeSet<String>) -> Opt
     }
 }
 
+/// What a feature's use cases are derived from: its entry points and the
+/// files shown to the LLM. A feature with entry points shows the files that
+/// define them and the code they run (a [`CodeIndex::slice`]); without any,
+/// all the feature's files, as before.
+struct FeatureInput {
+    /// Entry points defined in the feature's files, with their file.
+    entries: Vec<(PathBuf, EntryPoint)>,
+    files: Vec<String>,
+}
+
+impl FeatureInput {
+    fn new(
+        repo_root: &Path,
+        feature: &Feature,
+        entry_points: &EntryPoints,
+        index: &CodeIndex,
+    ) -> Self {
+        let entries: Vec<(PathBuf, EntryPoint)> = entry_points
+            .iter()
+            .filter(|(file, _)| feature.source_paths.iter().any(|p| Path::new(p) == *file))
+            .map(|(file, entry)| (file.to_path_buf(), entry.clone()))
+            .collect();
+        if entries.is_empty() {
+            return Self {
+                entries,
+                files: feature.source_paths.clone(),
+            };
+        }
+        let mut starts: Vec<PathBuf> = Vec::new();
+        for (file, _) in &entries {
+            if !starts.contains(file) {
+                starts.push(file.clone());
+            }
+        }
+        let slice = index.slice(repo_root, &starts, SLICE_DEPTH, MAX_SLICE_FILES);
+        let files = starts
+            .iter()
+            .chain(&slice)
+            .map(|p| p.to_string_lossy().into_owned())
+            .collect();
+        Self { entries, files }
+    }
+}
+
+/// The entry point names of an answer that designate a known entry point
+/// (exact, else case-insensitive), as the inventory spells them.
+fn known_entry_points(cited: &[String], entries: &[(PathBuf, EntryPoint)]) -> Vec<String> {
+    let mut known: Vec<String> = Vec::new();
+    for name in cited {
+        let found = entries
+            .iter()
+            .map(|(_, entry)| entry.name.as_str())
+            .find(|n| *n == name || n.eq_ignore_ascii_case(name.trim()));
+        match found {
+            Some(found) if !known.iter().any(|k| k == found) => known.push(found.to_string()),
+            Some(_) => {}
+            None => {
+                tracing::warn!(entry_point = %name, "use case cites an unknown entry point, dropped");
+            }
+        }
+    }
+    known
+}
+
 /// Builds the user prompt for `feature` from the code of its files, within
 /// the prompt budget. Returns it with the set of files actually included.
-fn use_cases_prompt(repo_root: &Path, feature: &Feature) -> (String, BTreeSet<String>) {
-    let mut prompt = format!(
-        "Feature: {} — {}\n\nSource files:\n",
-        feature.name, feature.description
-    );
+fn use_cases_prompt(
+    repo_root: &Path,
+    feature: &Feature,
+    input: &FeatureInput,
+) -> (String, BTreeSet<String>) {
+    let mut prompt = format!("Feature: {} — {}\n", feature.name, feature.description);
+    if !input.entries.is_empty() {
+        prompt.push_str("\nEntry points:\n");
+        for (file, entry) in &input.entries {
+            let _ = write!(
+                prompt,
+                "- {} ({}): {}",
+                entry.name,
+                file.display(),
+                entry.description
+            );
+            let outputs: Vec<String> = entry
+                .outputs
+                .iter()
+                .map(|o| format!("{:?} {}", o.kind, o.description))
+                .collect();
+            if !outputs.is_empty() {
+                let _ = write!(prompt, " → outputs: {}", outputs.join("; "));
+            }
+            prompt.push('\n');
+        }
+    }
+    prompt.push_str("\nSource files:\n");
     let mut included = BTreeSet::new();
     let mut budget = MAX_CHARS_PER_PROMPT;
 
-    for path in &feature.source_paths {
+    for path in &input.files {
         if budget == 0 {
             break;
         }
@@ -427,9 +553,15 @@ mod tests {
             .to_string(),
         };
 
-        let use_cases = build_use_cases(dir.path(), &[feature("payment", &["a.rs"])], &provider)
-            .await
-            .unwrap();
+        let use_cases = build_use_cases(
+            dir.path(),
+            &[feature("payment", &["a.rs"])],
+            &EntryPoints::default(),
+            &CodeIndex::default(),
+            &provider,
+        )
+        .await
+        .unwrap();
 
         assert_eq!(use_cases.len(), 1);
         let uc = &use_cases[0];
@@ -461,6 +593,8 @@ mod tests {
                 feature("missing", &["nope.rs"]),
                 feature("garbled", &["a.rs"]),
             ],
+            &EntryPoints::default(),
+            &CodeIndex::default(),
             &provider,
         )
         .await
@@ -489,9 +623,15 @@ mod tests {
                 .to_string(),
         };
 
-        let use_cases = build_use_cases(dir.path(), &[feature("f", &["a.rs"])], &provider)
-            .await
-            .unwrap();
+        let use_cases = build_use_cases(
+            dir.path(),
+            &[feature("f", &["a.rs"])],
+            &EntryPoints::default(),
+            &CodeIndex::default(),
+            &provider,
+        )
+        .await
+        .unwrap();
 
         assert_eq!(use_cases.len(), 1);
         let steps = &use_cases[0].steps;
@@ -530,26 +670,145 @@ mod tests {
         };
         let calls = || provider.calls.load(std::sync::atomic::Ordering::SeqCst);
 
-        let mut first = build_use_cases(dir.path(), &features, &provider)
-            .await
-            .unwrap();
+        let mut first = build_use_cases(
+            dir.path(),
+            &features,
+            &EntryPoints::default(),
+            &CodeIndex::default(),
+            &provider,
+        )
+        .await
+        .unwrap();
         assert_eq!(calls(), 1);
         // Scored use cases keep their score when reused.
         first[0].confidence = Some(retrodoc_core::model::ConfidenceScore::new(0.9, None));
         save_use_cases(dir.path(), &first).unwrap();
 
-        let again = build_use_cases(dir.path(), &features, &provider)
-            .await
-            .unwrap();
+        let again = build_use_cases(
+            dir.path(),
+            &features,
+            &EntryPoints::default(),
+            &CodeIndex::default(),
+            &provider,
+        )
+        .await
+        .unwrap();
         assert_eq!(calls(), 1, "unchanged feature must not call the LLM");
         assert_eq!(again.len(), 1);
         assert!(again[0].confidence.is_some());
 
         std::fs::write(dir.path().join("a.rs"), "fn a() { changed }").unwrap();
-        let redone = build_use_cases(dir.path(), &features, &provider)
-            .await
-            .unwrap();
+        let redone = build_use_cases(
+            dir.path(),
+            &features,
+            &EntryPoints::default(),
+            &CodeIndex::default(),
+            &provider,
+        )
+        .await
+        .unwrap();
         assert_eq!(calls(), 2, "a changed file must invalidate the feature");
         assert!(redone[0].confidence.is_none());
+    }
+
+    /// Answers a fixed use case and records the prompts it receives.
+    struct RecordingProvider {
+        response: String,
+        prompts: std::sync::Mutex<Vec<(String, String)>>,
+    }
+
+    #[async_trait]
+    impl LlmProvider for RecordingProvider {
+        async fn complete(
+            &self,
+            request: CompletionRequest,
+        ) -> Result<CompletionResponse, LlmError> {
+            self.prompts.lock().unwrap().push((
+                request.messages[0].content.clone(),
+                request.messages[1].content.clone(),
+            ));
+            Ok(CompletionResponse {
+                content: self.response.clone(),
+                model: "m".to_string(),
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn a_feature_with_entry_points_gets_them_and_the_code_they_run() {
+        use crate::entry_points::{EntryFile, EntryKind, Output, OutputKind};
+        use std::collections::BTreeMap;
+
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        for (path, content) in [
+            (
+                "app/contracts_controller.rb",
+                "def sign\n  ContractSigner.call\nend\n",
+            ),
+            ("app/contract_signer.rb", "class ContractSigner\nend\n"),
+            ("app/unrelated.rb", "class Unrelated\nend\n"),
+        ] {
+            std::fs::create_dir_all(root.join("app")).unwrap();
+            std::fs::write(root.join(path), content).unwrap();
+        }
+        let entry_points = EntryPoints {
+            files: BTreeMap::from([(
+                PathBuf::from("app/contracts_controller.rb"),
+                EntryFile {
+                    content_hash: String::new(),
+                    entry_points: vec![EntryPoint {
+                        kind: EntryKind::HttpRoute,
+                        name: "POST /contracts/:id/sign".to_string(),
+                        verb: "sign".to_string(),
+                        resource: "contract".to_string(),
+                        description: "A signatory signs".to_string(),
+                        outputs: vec![Output {
+                            kind: OutputKind::Email,
+                            description: "confirmation sent".to_string(),
+                        }],
+                    }],
+                },
+            )]),
+        };
+        let index = CodeIndex::new(
+            [
+                "app/contracts_controller.rb",
+                "app/contract_signer.rb",
+                "app/unrelated.rb",
+            ]
+            .iter()
+            .map(Path::new),
+        );
+        let provider = RecordingProvider {
+            response: r#"{"use_cases":[{"slug":"sign","name":"Sign a contract","description":"d",
+              "entry_points":["post /contracts/:id/sign","GET /ghost"],
+              "steps":[{"description":"s","actor":{"name":"Signatory","kind":"human"},
+                "action":"signs","source_refs":[{"path":"app/contract_signer.rb"}]}]}]}"#
+                .to_string(),
+            prompts: std::sync::Mutex::new(Vec::new()),
+        };
+        // The feature only lists the controller: the signer is outside it.
+        let features = [feature("signing", &["app/contracts_controller.rb"])];
+
+        let use_cases = build_use_cases(root, &features, &entry_points, &index, &provider)
+            .await
+            .unwrap();
+
+        let prompts = provider.prompts.lock().unwrap();
+        assert!(prompts[0].0.contains("entry_points"));
+        assert!(prompts[0].1.contains(
+            "- POST /contracts/:id/sign (app/contracts_controller.rb): A signatory signs"
+        ));
+        assert!(prompts[0].1.contains("Email confirmation sent"));
+        assert!(prompts[0].1.contains("=== app/contract_signer.rb ==="));
+        assert!(!prompts[0].1.contains("unrelated.rb"));
+        // Known entry points are kept as the inventory spells them, unknown dropped;
+        // a step may cite code reached through the entry point.
+        assert_eq!(use_cases[0].entry_points, vec!["POST /contracts/:id/sign"]);
+        assert_eq!(
+            use_cases[0].steps[0].source_refs[0].path,
+            "app/contract_signer.rb"
+        );
     }
 }

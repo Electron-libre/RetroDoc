@@ -60,6 +60,13 @@ enum Command {
         #[arg(long, default_value = ".")]
         path: PathBuf,
     },
+    /// Prints the application surface (entities, entry points by resource)
+    /// as the domain clustering receives it. No LLM call; needs the
+    /// artifacts of `retrodoc glossary` and `retrodoc entry-points`.
+    Surface {
+        #[arg(long, default_value = ".")]
+        path: PathBuf,
+    },
     /// Identifies the stack and assigns a role (entrypoint, model, logic…)
     /// to every file, from one LLM call over the file tree. The rules are
     /// saved in `.retrodoc/cache/roles.yaml` and can be edited by hand.
@@ -109,6 +116,7 @@ async fn main() -> anyhow::Result<()> {
         Command::Report { path } => commands::report::run(&path),
         Command::EntryPoints { path } => commands::entry_points::run(&path).await,
         Command::Glossary { path } => commands::glossary::run(&path).await,
+        Command::Surface { path } => commands::surface::run(&path),
         Command::Roles { path, force } => commands::roles::run(&path, force).await,
     }
 }

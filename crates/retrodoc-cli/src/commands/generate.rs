@@ -4,8 +4,8 @@ use anyhow::Context;
 use retrodoc_core::config::Config;
 use retrodoc_core::model::{ConfidenceScore, Feature, UseCase};
 use retrodoc_ingest::{FileKind, IngestResult};
-use retrodoc_llm::{HeartbeatProvider, OpenRouterProvider};
-use retrodoc_pipeline::{CoverageReport, DomainMap, RepoMap};
+use retrodoc_llm::{HeartbeatProvider, LlmProvider, OpenRouterProvider};
+use retrodoc_pipeline::{CodeIndex, CoverageReport, DomainMap, EntryPoints, RepoMap, Surface};
 
 /// Current pipeline stage (PLAN.md §5, "confidence score" phase).
 ///
@@ -34,6 +34,8 @@ pub async fn run(path: &Path, dry_run: bool, force: bool) -> anyhow::Result<()> 
             .context("could not initialize the LLM provider (missing API key?)")?,
     );
 
+    let (surface, entry_points) = build_surface(&repo_root, &ingest, &llm, force).await?;
+
     println!(
         "Building the repo map ({} source file(s) to summarize)…",
         source_file_count(&ingest)
@@ -53,7 +55,7 @@ pub async fn run(path: &Path, dry_run: bool, force: bool) -> anyhow::Result<()> 
 
     println!("\nClustering into functional domains…");
     let (domain_map, coverage) =
-        retrodoc_pipeline::build_domains(&repo_root, &map, &ingest.existing_docs, &llm)
+        retrodoc_pipeline::build_domains(&repo_root, &map, &ingest.existing_docs, &surface, &llm)
             .await
             .context("failed to build the domain clustering")?;
 
@@ -71,9 +73,17 @@ pub async fn run(path: &Path, dry_run: bool, force: bool) -> anyhow::Result<()> 
         "Deriving use cases ({} feature(s), one LLM call each)…",
         features.len()
     );
-    let mut use_cases = retrodoc_pipeline::build_use_cases(&repo_root, &features, &llm)
-        .await
-        .context("failed to derive the use cases")?;
+    let code_index = CodeIndex::new(
+        ingest
+            .files
+            .iter()
+            .filter(|f| f.kind == FileKind::Source)
+            .map(|f| f.path.as_path()),
+    );
+    let mut use_cases =
+        retrodoc_pipeline::build_use_cases(&repo_root, &features, &entry_points, &code_index, &llm)
+            .await
+            .context("failed to derive the use cases")?;
     retrodoc_pipeline::attach_diagrams(&mut use_cases);
     // Persist again now that the diagrams are attached.
     retrodoc_pipeline::save_use_cases(&repo_root, &use_cases)
@@ -97,11 +107,54 @@ pub async fn run(path: &Path, dry_run: bool, force: bool) -> anyhow::Result<()> 
     super::docs::publish(&repo_root, &config, dry_run)
 }
 
+/// Identifies the file roles, then reads the entities and the entry points
+/// from the files of those roles: the application surface the domains are
+/// clustered from. Each pass is incremental. If no role rules can be
+/// identified the surface is empty and the domains fall back to the
+/// directory summaries alone.
+async fn build_surface(
+    repo_root: &Path,
+    ingest: &IngestResult,
+    llm: &dyn LlmProvider,
+    force: bool,
+) -> anyhow::Result<(Surface, EntryPoints)> {
+    println!("Identifying the stack and the file roles…");
+    let rules = retrodoc_pipeline::identify_roles(repo_root, ingest, llm, force)
+        .await
+        .context("failed to identify the file roles")?;
+    if rules.rules.is_empty() {
+        tracing::warn!("no file role rules identified, domains are clustered without the surface");
+        return Ok((Surface::default(), EntryPoints::default()));
+    }
+    let role_map = rules.classify(&ingest.files);
+    println!("Stack: {}", rules.stack);
+
+    println!("Reading the business entities…");
+    let glossary = retrodoc_pipeline::build_glossary(repo_root, &role_map, llm)
+        .await
+        .context("failed to build the glossary")?;
+    println!("Reading the entry points…");
+    let entry_points = retrodoc_pipeline::build_entry_points(repo_root, &role_map, llm)
+        .await
+        .context("failed to build the entry points inventory")?;
+
+    let surface = Surface::new(&glossary, &entry_points);
+    println!(
+        "Surface: {} entit(ies), {} resource(s) with entry points.",
+        surface.entities.len(),
+        surface.resources.len()
+    );
+    Ok((surface, entry_points))
+}
+
 /// Removes the cached results of the LLM passes (not `domains.yaml`, which
-/// is recomputed on every run anyway).
+/// is recomputed on every run anyway, nor the hand-editable `roles.yaml`;
+/// `retrodoc roles --force` re-identifies the latter).
 fn clear_caches(repo_root: &Path) -> anyhow::Result<()> {
     for name in [
         "repo-map.json",
+        "glossary.yaml",
+        "entry-points.yaml",
         "fingerprints.json",
         "features.yaml",
         "use-cases.yaml",

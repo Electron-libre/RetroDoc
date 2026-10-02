@@ -78,6 +78,11 @@ pub struct UseCase {
     pub name: String,
     pub description: String,
     pub steps: Vec<Step>,
+    /// Names of the entry points (routes, commands, jobs…) this use case is
+    /// triggered by, copied from the entry points inventory. Empty when the
+    /// feature has no known entry point.
+    #[serde(default)]
+    pub entry_points: Vec<String>,
     /// Mermaid diagram (flowchart/sequenceDiagram) illustrating the process.
     pub diagram_mermaid: Option<String>,
     /// `None` until the confidence pass (roadmap phase 5) has scored it.

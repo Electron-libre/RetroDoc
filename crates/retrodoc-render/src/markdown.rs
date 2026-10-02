@@ -260,6 +260,14 @@ fn use_case_page(feature: &Feature, use_case: &UseCase) -> String {
     );
     let _ = writeln!(md, "{}\n", use_case.description.trim());
     let _ = writeln!(md, "{}\n", confidence_line(use_case.confidence.as_ref()));
+    if !use_case.entry_points.is_empty() {
+        let names: Vec<String> = use_case
+            .entry_points
+            .iter()
+            .map(|n| format!("`{n}`"))
+            .collect();
+        let _ = writeln!(md, "**Triggered by:** {}\n", names.join(", "));
+    }
 
     md.push_str("## Steps\n\n");
     for step in &use_case.steps {
@@ -359,6 +367,7 @@ mod tests {
             },
         ];
         let use_cases = vec![UseCase {
+            entry_points: Vec::new(),
             slug: "pay-by-card".to_string(),
             feature_slug: "pay-invoice".to_string(),
             name: "Pay by card".to_string(),

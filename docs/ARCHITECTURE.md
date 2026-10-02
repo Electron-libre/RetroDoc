@@ -71,10 +71,12 @@ flowchart LR
     rolesyaml -.->|required by| gloss
     ep["entry-points"] -->|LLM| epyaml["entry-points.yaml"]
     rolesyaml -.->|required by| ep
+    surf["surface"] -->|reads, no LLM| epyaml
+    glossyaml --> surf
 ```
 
 - `generate` is the main command; `render` and `report` replay the *last* `generate` without any LLM call.
-- `roles`, `glossary` and `entry-points` (phase 7) are **standalone for now**: `generate` does not use their output yet.
+- `roles`, `glossary` and `entry-points` (phase 7) are also run, incrementally, by `generate` as its "surface" step; the standalone commands let you run and inspect each one. `surface` prints what the domain clustering receives from them (no LLM).
 - "Ask the documentation" (phase 9) is planned in `PLAN.md` but not implemented.
 
 ## 4. The `generate` pipeline
@@ -84,15 +86,16 @@ This is the core flow. Blue-ish steps call the LLM; the others are deterministic
 ```mermaid
 flowchart TD
     A["1. Ingestion<br/>files + git history + existing docs"]:::det
+    S["1b. Surface<br/>file roles, entities (glossary),<br/>entry points + outputs"]:::llm
     B["2. Repo map<br/>summary per file, then per directory<br/>(bottom-up)"]:::llm
-    C["3. Domains<br/>cluster directory summaries into<br/>domains / sub-domains<br/>+ mechanical file expansion<br/>+ coverage repair"]:::llm
+    C["3. Domains<br/>cluster directory summaries into<br/>domains / sub-domains,<br/>named from the surface<br/>+ mechanical file expansion<br/>+ coverage repair"]:::llm
     D["4. Features<br/>one call per domain / sub-domain"]:::llm
     E["5. Use cases<br/>one call per feature<br/>(steps + actors, from real code)"]:::llm
     F["6. Diagrams<br/>Mermaid sequenceDiagram<br/>from the steps"]:::det
     G["7. Confidence<br/>one call per use case: is each step<br/>supported by the code it cites?"]:::llm
     H["8. Publish<br/>render → plan (diff) → apply"]:::det
 
-    A --> B --> C --> D --> E --> F --> G --> H
+    A --> S --> B --> C --> D --> E --> F --> G --> H
 
     classDef llm fill:#dbeafe,stroke:#2563eb,color:#000
     classDef det fill:#f3f4f6,stroke:#6b7280,color:#000
@@ -104,9 +107,9 @@ What each pass hands to the next, and where it is saved:
 |---|---|---|---|---|
 | 1 | ingest (`retrodoc-ingest`) | repo path | files, history, existing docs | — (recomputed) |
 | 2 | `repo_map.rs` | source files + history | file and directory summaries | `repo-map.json` |
-| 3 | `domains.rs` | directory summaries + doc titles | `DomainMap` (every source file in exactly one domain) | `domains.yaml` |
+| 3 | `domains.rs` | directory summaries + doc titles + the surface (entities, entry points by resource) | `DomainMap` (every source file in exactly one domain) | `domains.yaml` |
 | 4 | `features.rs` | one domain + its files' summaries | `Feature`s grounded on a validated subset of files | `features.yaml` |
-| 5 | `use_cases.rs` | one feature + numbered code excerpts | `UseCase`s with steps and actors | `use-cases.yaml` |
+| 5 | `use_cases.rs` | one feature + its entry points + the code they run (`slices.rs`), else its files' excerpts | `UseCase`s with steps and actors | `use-cases.yaml` |
 | 6 | `diagrams.rs` | use case steps | Mermaid text attached to each use case | `use-cases.yaml` |
 | 7 | `confidence.rs` | use case + the code its steps cite | scores on use cases and features | `features.yaml`, `use-cases.yaml` |
 | 8 | `report.rs` + `retrodoc-render` | all of the above | Markdown files + debt report | — (written to `docs/`) |

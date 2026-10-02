@@ -10,7 +10,8 @@
 //! ([`report`]). Roadmap phase 7 (PLAN.md §7.1), step 1: stack identification
 //! and file role rules ([`roles`]); step 2: models and glossary
 //! ([`glossary`]); step 3: entry points and outputs
-//! ([`entry_points`]).
+//! ([`entry_points`]); step 4: the [`surface`] that domains are
+//! clustered from.
 
 pub mod cache;
 pub mod confidence;
@@ -26,6 +27,8 @@ pub mod repo_map;
 pub mod report;
 mod response;
 pub mod roles;
+pub mod slices;
+pub mod surface;
 pub mod use_cases;
 
 pub use confidence::score_confidence;
@@ -40,4 +43,6 @@ pub use glossary::{build_glossary, Entity, Glossary, MergedEntity};
 pub use repo_map::{build_repo_map, FileSummary, ModuleSummary, RepoMap};
 pub use report::{build_report, domain_models, DebtReport};
 pub use roles::{identify_roles, FileRole, RoleMap, RoleRule, RoleRules};
+pub use slices::CodeIndex;
+pub use surface::{Resource, Surface};
 pub use use_cases::{build_use_cases, load_use_cases, save_use_cases};

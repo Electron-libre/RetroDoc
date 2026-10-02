@@ -271,6 +271,7 @@ mod tests {
 
     fn use_case(slug: &str, feature: &str, score: Option<f32>) -> UseCase {
         UseCase {
+            entry_points: Vec::new(),
             slug: slug.to_string(),
             feature_slug: feature.to_string(),
             name: slug.to_string(),

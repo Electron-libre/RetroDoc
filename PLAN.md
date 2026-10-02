@@ -206,6 +206,18 @@ Steps, each shippable and checkable on the Rails test repo:
    of its actions are missed — long files should be split into chunks. No jobs/mailers either in this run
    (the role rules of that run classified them `infra`).
 4. Rewire domains, then use cases, on the surface; then actors, two output levels, vocabulary criterion.
+   - **4a — domains: implemented** (`surface.rs`, `retrodoc surface`, `generate` runs the surface passes first).
+     The clustering prompt gets the best connected entities and the entry points by resource, with a rule to
+     name domains after business concepts; layer-named domains are flagged. Unit-tested with a fake provider;
+     not run end to end on the Rails test repo (the repo map of 2,300 files is out of reach locally until phase 8), only the
+     surface itself was checked on real data (234 entities, 223 resources).
+   - **4b — use cases from entry points: implemented** (`slices.rs`, `UseCase.entry_points`). Checked on one
+     hand-built feature of the Rails test repo (`signatories_controller.rb`, real local LLM): the use case is tied to
+     `PATCH /signatories/:id` and its steps cite the service it runs (`signatories/modify_user.rb`, outside the
+     feature) — but all actors are "System" and the wording is still technical (4c, 4d). The slice heuristic on
+     real data: the model named after the controller comes first, with some noise from same-named files
+     (`lib/s_pdf/...`) and hop 2; no call tracing. Not run end to end (needs the full repo map).
+   - 4c business actors, 4d two output levels, 4e vocabulary criterion: open.
 
 Validation: re-run on the Rails test repo and autoroute; compare actors, domain names and use-case titles by hand
 (a reader who doesn't know the code should be able to say what the product does).
