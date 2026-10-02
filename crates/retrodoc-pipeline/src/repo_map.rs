@@ -128,7 +128,7 @@ pub async fn build_repo_map(
     Ok(RepoMap { files, modules })
 }
 
-fn read_file_lossy(repo_root: &Path, relative: &Path) -> Result<String, PipelineError> {
+pub(crate) fn read_file_lossy(repo_root: &Path, relative: &Path) -> Result<String, PipelineError> {
     let abs = repo_root.join(relative);
     let bytes = std::fs::read(&abs).map_err(|source| PipelineError::Read {
         path: relative.to_path_buf(),
@@ -137,7 +137,7 @@ fn read_file_lossy(repo_root: &Path, relative: &Path) -> Result<String, Pipeline
     Ok(String::from_utf8_lossy(&bytes).into_owned())
 }
 
-fn truncate_chars(content: &str, max_chars: usize) -> String {
+pub(crate) fn truncate_chars(content: &str, max_chars: usize) -> String {
     if content.chars().count() <= max_chars {
         return content.to_string();
     }

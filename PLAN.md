@@ -174,7 +174,20 @@ Steps, each shippable and checkable on the Rails test repo:
    borderline folders (mailers/jobs entrypoint vs infra, presenters logic vs view) and one run out of five
    returned unparseable JSON twice — hence the saved, editable rules. autoroute not tried yet. Not done: the second pass over unmatched files (they stay `unclassified`) and
    wiring the roles into `generate`.
-2. Models and glossary inventory.
+2. Models and glossary inventory. **Implemented** (`glossary.rs`, `retrodoc glossary`, needs `retrodoc roles`
+   first): the LLM reads only `model`-role files, in batches of ~12k chars, and returns entities (name,
+   description, attributes, associations); test descriptions (`describe`/`context`/`it`/`test` strings,
+   `def test_*`) are extracted mechanically from `test`-role files. Saved as `.retrodoc/cache/glossary.yaml`,
+   which doubles as the cache (per-file content hash).
+   Smoke test on the full Rails test repo (443 model files, `qwen3.6:35b-a3b`, 24 min): 301 entities,
+   190 files without entity (mostly technical classes, plausible), 5,352 test phrases from 521 test files, 4
+   entities dropped for an unknown file. Business names come out well (Contract, Company, Worksite,
+   FormContract, associations included), but: the LLM also lists *referenced* classes as entities of the
+   file that mentions them (`Company`, `User` under `actions/company_user_actions.rb`), so the same entity
+   can appear under several files — fixed by `Glossary::merged_entities` (merge by name, home entry = the file named
+   after the entity, e.g. `company.rb`; 301 → 234 entities on the Rails test repo, `Contract` merged from 13 files); and `app/models/actions/*` are action/form
+   objects the role rules call `model`, so some "entities" are really behaviours. Not done: verbs (step 3), existing docs/commit
+   messages as glossary sources.
 3. Entry points and outputs inventory.
 4. Rewire domains, then use cases, on the surface; then actors, two output levels, vocabulary criterion.
 

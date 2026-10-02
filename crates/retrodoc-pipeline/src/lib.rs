@@ -8,7 +8,8 @@
 //! ([`use_cases`]) → Mermaid diagrams ([`diagrams`]). Roadmap phase 5:
 //! confidence scoring ([`confidence`]) and the documentation debt report
 //! ([`report`]). Roadmap phase 7 (PLAN.md §7.1), step 1: stack identification
-//! and file role rules ([`roles`]).
+//! and file role rules ([`roles`]); step 2: models and glossary
+//! ([`glossary`]).
 
 pub mod cache;
 pub mod confidence;
@@ -17,6 +18,7 @@ pub mod domains;
 pub mod error;
 pub mod features;
 mod fingerprints;
+pub mod glossary;
 pub mod repo_map;
 pub mod report;
 mod response;
@@ -28,6 +30,7 @@ pub use diagrams::{attach_diagrams, sequence_diagram};
 pub use domains::{build_domains, CoverageReport, DomainCluster, DomainMap, SubDomainCluster};
 pub use error::PipelineError;
 pub use features::{build_features, load_features, save_features};
+pub use glossary::{build_glossary, Entity, Glossary, MergedEntity};
 pub use repo_map::{build_repo_map, FileSummary, ModuleSummary, RepoMap};
 pub use report::{build_report, domain_models, DebtReport};
 pub use roles::{identify_roles, FileRole, RoleMap, RoleRule, RoleRules};

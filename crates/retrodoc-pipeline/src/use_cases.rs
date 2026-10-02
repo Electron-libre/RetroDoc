@@ -283,7 +283,7 @@ fn ground_steps(raw_steps: Vec<RawStep>, allowed: &BTreeSet<String>) -> Vec<Step
 /// Maps a path cited by the LLM to the feature file it designates: an exact
 /// match, or a unique file the citation is a path suffix of (or the other way
 /// round). Models often shorten `crate/src/a.rs` to `src/a.rs`.
-fn resolve_cited_path(cited: &str, allowed: &BTreeSet<String>) -> Option<String> {
+pub(crate) fn resolve_cited_path(cited: &str, allowed: &BTreeSet<String>) -> Option<String> {
     let cited = cited.trim().trim_start_matches("./");
     if allowed.contains(cited) {
         return Some(cited.to_string());

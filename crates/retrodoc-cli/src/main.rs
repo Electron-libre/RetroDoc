@@ -70,6 +70,13 @@ enum Command {
         #[arg(long)]
         force: bool,
     },
+    /// Reads the business entities (names, attributes, associations) of the
+    /// files classified `model` and the vocabulary of the tests, and saves
+    /// `.retrodoc/cache/glossary.yaml`. Needs `retrodoc roles` first.
+    Glossary {
+        #[arg(long, default_value = ".")]
+        path: PathBuf,
+    },
 }
 
 #[tokio::main]
@@ -93,6 +100,7 @@ async fn main() -> anyhow::Result<()> {
         } => commands::generate::run(&path, dry_run, force).await,
         Command::Render { path, dry_run } => commands::render::run(&path, dry_run),
         Command::Report { path } => commands::report::run(&path),
+        Command::Glossary { path } => commands::glossary::run(&path).await,
         Command::Roles { path, force } => commands::roles::run(&path, force).await,
     }
 }
