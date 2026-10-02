@@ -73,7 +73,7 @@ docs/
    map of a large repo is out of reach locally).
 8. **Scalability & cost control** (see §7.2): bring a run on a large repo (thousands of files) within
    reach, including on limited/local LLM resources. In progress: progress reporting and the LLM heartbeat
-   are delivered; the rest is not started.
+   and the LLM heartbeat are delivered, plus the directory-summary cache (item 6); items 1–5 remain.
 9. **Ask the documentation** (see §7.3): a question-answering agent (`retrodoc ask` / `chat`) grounded on
    the generated artifacts, the collected docs, the git history and, when needed, the code. Not started;
    comes after phases 7 and 8, since answer quality is bounded by the quality of the generated docs.
@@ -267,8 +267,9 @@ Directions:
 4. Configurable concurrency (little gain on a single local model, large on OpenRouter).
 5. Print an estimated call/token count before running, and make an interrupted run resumable (the file
    summaries are already cached; features/use cases are only saved at the end of each pass).
-6. Directory summaries are still regenerated on every run (cheap on small repos, not on large ones):
-   cache them by the hash of their children's summaries.
+6. ~~Directory summaries regenerated on every run~~ — **delivered**: cached in `repo-map.json` by the hash of
+   the listing sent to the LLM (children's summaries), so a changed file only invalidates its folder and
+   ancestors (unit-tested, not yet measured on a large repo).
 
 Validation: measure calls and wall time before/after on the Rails test repo `app/presenters/` (baseline above), then
 on a larger sparse-checkout (e.g. `app/models` + `app/services`).

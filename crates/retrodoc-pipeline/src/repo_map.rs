@@ -136,7 +136,10 @@ pub async fn build_repo_map(
     // the file-level work already done.
     cache.save(repo_root)?;
 
-    let modules = build_module_summaries(llm, &files).await?;
+    let modules = build_module_summaries(llm, &files, &mut cache).await;
+    // Saved even when a module call failed: the folders done so far are kept.
+    cache.save(repo_root)?;
+    let modules = modules?;
 
     Ok(RepoMap { files, modules })
 }
@@ -209,12 +212,13 @@ async fn summarize_file(
     Ok(response.content.trim().to_string())
 }
 
-async fn summarize_module(
-    llm: &dyn LlmProvider,
+/// The user prompt of a folder summary. Its hash is the cache key: it holds
+/// everything the answer depends on.
+fn module_prompt(
     dir: &Path,
     own_files: &[&FileSummary],
     child_modules: &[&ModuleSummary],
-) -> Result<String, PipelineError> {
+) -> String {
     let dir_label = if dir.as_os_str().is_empty() {
         "repo root".to_string()
     } else {
@@ -240,8 +244,10 @@ async fn summarize_module(
         );
     }
 
-    let prompt = format!("Folder: {dir_label}\n\nSummarized content:\n{listing}");
+    format!("Folder: {dir_label}\n\nSummarized content:\n{listing}")
+}
 
+async fn summarize_module(llm: &dyn LlmProvider, prompt: String) -> Result<String, PipelineError> {
     let response = llm
         .complete(CompletionRequest {
             messages: vec![
@@ -267,6 +273,7 @@ async fn summarize_module(
 async fn build_module_summaries(
     llm: &dyn LlmProvider,
     files: &[FileSummary],
+    cache: &mut RepoMapCache,
 ) -> Result<Vec<ModuleSummary>, PipelineError> {
     let mut dirs: BTreeSet<PathBuf> = BTreeSet::new();
     for file in files {
@@ -324,8 +331,17 @@ async fn build_module_summaries(
         // billions of files).
         let own_file_count = u32::try_from(own_files.len()).unwrap_or(u32::MAX);
         let file_count = own_file_count + child_modules.iter().map(|m| m.file_count).sum::<u32>();
-        progress.begin(&format!("{}/", dir.display()));
-        let role_summary = summarize_module(llm, &dir, &own_files, &child_modules).await?;
+        let prompt = module_prompt(&dir, &own_files, &child_modules);
+        let input_hash = hash_content(&prompt);
+        let role_summary = if let Some(cached) = cache.get_module(&dir, &input_hash) {
+            progress.skip();
+            cached.to_string()
+        } else {
+            progress.begin(&format!("{}/", dir.display()));
+            let summary = summarize_module(llm, prompt).await?;
+            cache.put_module(&dir, &input_hash, &summary);
+            summary
+        };
 
         computed.insert(
             dir.clone(),
@@ -448,9 +464,39 @@ mod tests {
             .unwrap();
         let calls_after_second_run = provider.calls.load(Ordering::SeqCst);
 
-        // File summaries are served from the cache (unchanged content):
-        // only the 3 modules, which aren't cached, trigger a new LLM call.
-        assert_eq!(calls_after_second_run - calls_after_first_run, 3);
+        // File and module summaries are both served from the cache
+        // (unchanged content, hence unchanged module listings).
+        assert_eq!(calls_after_second_run, calls_after_first_run);
+    }
+
+    #[tokio::test]
+    async fn a_changed_file_only_invalidates_its_folder_and_ancestors() {
+        let dir = tempfile::tempdir().unwrap();
+        let ingest = ingest_with_nested_files(dir.path());
+        std::fs::create_dir_all(dir.path().join("c")).unwrap();
+        std::fs::write(dir.path().join("c/z.rs"), "fn z() {}").unwrap();
+        let mut ingest = ingest;
+        ingest.files.push(FileEntry {
+            path: PathBuf::from("c/z.rs"),
+            kind: FileKind::Source,
+            size_bytes: 9,
+        });
+        let provider = FailAfterNProvider {
+            succeed_calls: usize::MAX,
+            calls: AtomicUsize::new(0),
+        };
+        build_repo_map(dir.path(), &ingest, &provider)
+            .await
+            .unwrap();
+        let first = provider.calls.load(Ordering::SeqCst);
+
+        std::fs::write(dir.path().join("a/b/x.rs"), "fn x2() {}").unwrap();
+        build_repo_map(dir.path(), &ingest, &provider)
+            .await
+            .unwrap();
+        // Each answer is unique, so a new x.rs summary changes its parents'
+        // listings: x.rs, then "a/b", "a" and the root; "c" is untouched.
+        assert_eq!(provider.calls.load(Ordering::SeqCst) - first, 4);
     }
 
     /// Fake provider that succeeds its first `succeed_calls` completions,

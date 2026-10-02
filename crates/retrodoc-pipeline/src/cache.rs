@@ -3,10 +3,9 @@
 //! Key = SHA-256 hash of the file content, as planned in PLAN.md §4
 //! (`.retrodoc/cache/`).
 //!
-//! Full formalization of the incremental cache (transitive invalidation via
-//! `domains.yaml`) is left to the "domains" phase (PLAN.md §2 step 3): here,
-//! only the file level is cached — module summaries are cheap (one per
-//! folder) and recomputed on every run.
+//! Module (folder) summaries are cached too (phase 8): the key is the hash of
+//! the exact listing sent to the LLM, i.e. of the children's summaries, so a
+//! changed file invalidates its folder and every ancestor, and nothing else.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -22,6 +21,14 @@ const CACHE_RELATIVE_PATH: &str = ".retrodoc/cache/repo-map.json";
 pub struct RepoMapCache {
     #[serde(default)]
     entries: BTreeMap<PathBuf, CacheEntry>,
+    #[serde(default)]
+    modules: BTreeMap<PathBuf, ModuleCacheEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ModuleCacheEntry {
+    input_hash: String,
+    role_summary: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -75,6 +82,26 @@ impl RepoMapCache {
             .get(path)
             .filter(|entry| entry.content_hash == content_hash)
             .map(|entry| entry.role_summary.as_str())
+    }
+
+    /// Cached summary for the folder `dir`, if `input_hash` (hash of what
+    /// was sent to the LLM) is unchanged since the last run.
+    #[must_use]
+    pub fn get_module(&self, dir: &Path, input_hash: &str) -> Option<&str> {
+        self.modules
+            .get(dir)
+            .filter(|entry| entry.input_hash == input_hash)
+            .map(|entry| entry.role_summary.as_str())
+    }
+
+    pub fn put_module(&mut self, dir: &Path, input_hash: &str, role_summary: &str) {
+        self.modules.insert(
+            dir.to_path_buf(),
+            ModuleCacheEntry {
+                input_hash: input_hash.to_string(),
+                role_summary: role_summary.to_string(),
+            },
+        );
     }
 
     pub fn put(&mut self, path: &Path, content_hash: &str, role_summary: &str) {
