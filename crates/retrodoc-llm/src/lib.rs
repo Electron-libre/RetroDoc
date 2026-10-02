@@ -15,12 +15,12 @@ const OPENROUTER_ENDPOINT: &str = "https://openrouter.ai/api/v1/chat/completions
 /// (429 / 5xx) — PLAN.md §4 "retry, rate-limit".
 const MAX_RETRIES: u32 = 3;
 const RETRY_BASE_DELAY: Duration = Duration::from_millis(500);
-/// Per-request HTTP timeout. `OpenRouter` always responds well within this,
+/// Default per-request HTTP timeout (`llm.timeout_secs` overrides it). `OpenRouter` always responds well within this,
 /// but a local `llm.base_url` override (a small quantized model) can
 /// degenerate into a runaway generation loop that never reaches a stop
 /// token; without a client-side bound the call hangs indefinitely instead
 /// of surfacing an error the existing retry loop can act on.
-const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
+const DEFAULT_REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
 /// Upper bound on `max_tokens` sent with every request, for the same
 /// reason: caps how long a runaway generation can run server-side too.
 const MAX_COMPLETION_TOKENS: u32 = 8192;
@@ -199,7 +199,7 @@ impl OpenRouterProvider {
             .clone()
             .unwrap_or_else(|| OPENROUTER_ENDPOINT.to_string());
         let client = reqwest::Client::builder()
-            .timeout(REQUEST_TIMEOUT)
+            .timeout(request_timeout(config))
             .build()
             .map_err(|source| LlmError::Transport(source.to_string()))?;
         Ok(Self {
@@ -216,6 +216,13 @@ impl OpenRouterProvider {
         self.endpoint = endpoint.into();
         self
     }
+}
+
+/// Per-request timeout: `llm.timeout_secs`, else [`DEFAULT_REQUEST_TIMEOUT`].
+fn request_timeout(config: &LlmConfig) -> Duration {
+    config
+        .timeout_secs
+        .map_or(DEFAULT_REQUEST_TIMEOUT, Duration::from_secs)
 }
 
 /// An HTTP status deserves a retry if it signals a transient error on the
@@ -387,6 +394,7 @@ mod tests {
             model: "anthropic/claude-sonnet-4.5".to_string(),
             base_url: None,
             reasoning_effort: None,
+            timeout_secs: None,
         };
         std::env::remove_var(&config.api_key_env);
         let result = OpenRouterProvider::from_config(&config);
@@ -401,6 +409,7 @@ mod tests {
             model: "gpt-4o".to_string(),
             base_url: None,
             reasoning_effort: None,
+            timeout_secs: None,
         };
         let result = OpenRouterProvider::from_config(&config);
         assert!(matches!(result, Err(LlmError::UnsupportedProvider(p)) if p == "openai"));
@@ -414,6 +423,7 @@ mod tests {
             model: "llama3.2:3b".to_string(),
             base_url: Some("http://localhost:11434/v1/chat/completions".to_string()),
             reasoning_effort: None,
+            timeout_secs: None,
         };
         std::env::set_var(&config.api_key_env, "unused-for-local-servers");
         let provider = OpenRouterProvider::from_config(&config).unwrap();
@@ -432,6 +442,7 @@ mod tests {
             model: "anthropic/claude-sonnet-4.5".to_string(),
             base_url: None,
             reasoning_effort: None,
+            timeout_secs: None,
         };
         std::env::set_var(&config.api_key_env, "unused");
         let provider = OpenRouterProvider::from_config(&config).unwrap();
@@ -584,5 +595,13 @@ mod tests {
             let request = rx.recv().unwrap();
             assert_eq!(request.contains("\"reasoning_effort\":\"none\""), expected);
         }
+    }
+
+    #[test]
+    fn timeout_defaults_to_two_minutes_and_follows_the_config() {
+        let mut config = LlmConfig::default();
+        assert_eq!(request_timeout(&config), Duration::from_secs(120));
+        config.timeout_secs = Some(600);
+        assert_eq!(request_timeout(&config), Duration::from_secs(600));
     }
 }

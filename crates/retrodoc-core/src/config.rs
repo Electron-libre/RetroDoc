@@ -51,6 +51,12 @@ pub struct LlmConfig {
     /// structured calls. Unset: nothing is sent, the server's default applies.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reasoning_effort: Option<String>,
+    /// Per-request HTTP timeout in seconds. Unset: 120. A slow local model
+    /// producing a long structured answer (several thousand tokens at a few
+    /// tokens per second) needs more; the retry loop restarts the whole
+    /// generation on a timeout, so too small a value never succeeds.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timeout_secs: Option<u64>,
 }
 
 impl LlmConfig {
@@ -73,6 +79,7 @@ impl Default for LlmConfig {
             model: Self::default_model(),
             base_url: None,
             reasoning_effort: None,
+            timeout_secs: None,
         }
     }
 }
