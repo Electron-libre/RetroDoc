@@ -66,9 +66,13 @@ docs/
 5. **Confidence score** + documentation debt report
 6. **Writing & CLI ergonomics** (dry-run, idempotence, incremental re-run)
 7. **Business-level documentation** (see §7.1): the output must read as functional/business documentation,
-   not as a paraphrase of the code. Not started.
+   not as a paraphrase of the code. Built on a new "surface extraction" foundation (file roles, models and
+   glossary, entry points and outputs) that also bounds what is sent to the LLM. Not started.
 8. **Scalability & cost control** (see §7.2): bring a run on a large repo (thousands of files) within
    reach, including on limited/local LLM resources. Not started.
+9. **Ask the documentation** (see §7.3): a question-answering agent (`retrodoc ask` / `chat`) grounded on
+   the generated artifacts, the collected docs, the git history and, when needed, the code. Not started;
+   comes after phases 7 and 8, since answer quality is bounded by the quality of the generated docs.
 
 ## 6. Identified risks
 
@@ -117,17 +121,56 @@ Causes identified in the current design:
   (no models, routes, tests, glossary).
 - The confidence pass rewards closeness to the code, which favors literal paraphrase over business meaning.
 
-Directions, most valuable first:
-1. Two output levels: a business narrative (who does what, why, with which vocabulary), still grounded on
-   files but not on a line-by-line paraphrase; the technical detail (steps, code refs) kept below/folded.
-2. Richer inputs: model/entity names, routes, migrations and **tests** (they often name business
-   behaviours), a glossary extracted from existing docs and from commit messages/ticket references.
-3. Business actors proposed at the domain stage and imposed on use cases (instead of free-form
-   `human`/`system`).
-4. A check on the vocabulary itself ("is this business language?") as a criterion next to confidence, and
-   domain naming that avoids layer names (presentation, infrastructure, utils).
-5. Caveat: part of the quality is bounded by the local model. Re-run the same prompts with a stronger model
-   to tell prompt problems from model limits before tuning prompts.
+Direction (decided 2026-10-01): sending every file to the LLM is brutal and starts from the wrong end —
+it climbs from code to business. The inputs and outputs of the application and its models *are* the
+business, expressed in code. Phase 7 therefore starts with a mostly deterministic **surface extraction**
+pass, placed between ingestion and the repo map, and rewires the LLM passes on top of it.
+
+Surface extraction:
+1. **Technology and role identification by the LLM, from the file tree.** No per-ecosystem adapters: one
+   LLM call over the tree (paths, plus manifest files such as `Cargo.toml`/`Gemfile`/`package.json`) first
+   identifies the stack and conventions, then says where the entry points, models/entities, business logic,
+   views, infra, config and tests live, as path patterns (globs) with a role each. Those rules are applied
+   mechanically to every file (longest match wins; unmatched files go to a second pass over just those
+   paths, or to "unclassified"). Output: a role per file, the rules (cached, reviewable, hand-editable in
+   `.retrodoc/cache/`), and a distribution report. Names and signatures are only sent for ambiguous cases.
+2. **Models and glossary.** Entity names, attributes and associations give the nouns; public methods and
+   route actions give the verbs. Existing docs and commit messages complete the glossary. **Tests** are a
+   third vocabulary source (their descriptions often name business behaviours).
+3. **Entry points** (HTTP routes, CLI commands, jobs/cron, message consumers, webhooks) — each is a
+   use-case candidate, with a verb and a resource — and **outputs** (responses, emails, generated files,
+   emitted events, external API calls, DB writes), the observable effects of a use case.
+4. Extraction of models, entry points and outputs is also LLM-driven, but scoped by the role rules: the
+   LLM reads only the files classified as model/entrypoint, never the whole repo. A library crate
+   (autoroute) has no application I/O: its public API is the entry point, so the surface model must allow
+   several kinds of surface.
+
+Rewiring the existing passes on the surface:
+5. **Domains** are clustered from models and vocabulary, not from directory summaries; layer names
+   (presentation, infrastructure, utils) are forbidden as domain names.
+6. **Use cases** start from an entry point; the LLM receives the slice of code it traverses (controller →
+   service → model, found by referenced identifiers), not the whole feature. **Actors** are business roles
+   proposed at the domain stage and derived from authentication/authorization (roles, policies) when
+   present, instead of free-form `human`/`system`.
+7. Files outside every slice are summarized cheaply or only listed in the debt report.
+8. **Two output levels**: a business narrative (who does what, why, with which vocabulary), grounded on
+   files but not a line-by-line paraphrase; technical steps and code refs kept below/folded.
+9. A **business-vocabulary criterion** ("is this business language?") next to confidence, so the
+   confidence pass stops favouring literal paraphrase. Done last, once there is content to measure.
+
+Caveats: the role rules depend on the LLM recognizing the stack from the tree alone (hence the manifest
+files, and the cached/editable rules as a safety net). The vocabulary is a hint to validate, not a truth (fat Rails models vs. logic in services; a
+method name can be technical, e.g. `format_for_ui`). Static call tracing is hard in dynamic languages: a
+heuristic on referenced identifiers is the starting point. Part of the quality is bounded by the local
+model: re-run the same prompts with a stronger model (OpenRouter) to tell prompt problems from model
+limits before tuning prompts.
+
+Steps, each shippable and checkable on the Rails test repo:
+1. Technology identification and file role rules (one LLM call on the tree), applied mechanically, with the
+   distribution report. Shows how many files are relevant before any per-file LLM call.
+2. Models and glossary inventory.
+3. Entry points and outputs inventory.
+4. Rewire domains, then use cases, on the surface; then actors, two output levels, vocabulary criterion.
 
 Validation: re-run on the Rails test repo and autoroute; compare actors, domain names and use-case titles by hand
 (a reader who doesn't know the code should be able to say what the product does).
@@ -139,8 +182,9 @@ use case, plus one **per use case** for confidence (about a third of all calls).
 min locally; the ~2,300-file Rails test repo is out of reach in this form.
 
 Directions:
-1. Bound the depth by default: spend LLM calls on what matters (most-changed, most central, most
-   business-relevant files), roll the rest up at directory level.
+1. Bound the depth by default: spend LLM calls on what matters, roll the rest up at directory level.
+   Largely delivered by phase 7's surface extraction (file roles, entry-point slices); what remains is
+   ranking inside a role (most-changed, most central files).
 2. Batch calls: several small files per summary request, several use cases per confidence request.
 3. Make the confidence pass optional or sampled (`--no-confidence`, `--confidence-sample`).
 4. Configurable concurrency (little gain on a single local model, large on OpenRouter).
@@ -152,7 +196,63 @@ Directions:
 Validation: measure calls and wall time before/after on the Rails test repo `app/presenters/` (baseline above), then
 on a larger sparse-checkout (e.g. `app/models` + `app/services`).
 
-### 7.3 Smaller open items
+### 7.3 Phase 9 — ask the documentation (open)
+
+Idea (2026-10-02): once the documentation is built, the ideal consumer is an agent that can be questioned
+about how the application works ("what happens when a contract is signed?", "who can cancel a
+subscription?"), answering from the generated docs, the collected docs and, when needed, the code.
+
+This is where retrieval belongs. The generation pipeline is exhaustive and deterministic (100% of files
+covered, fingerprint-based incremental re-run), so a general RAG layer there would add state and
+non-determinism for no gain. Question answering is the opposite: open-ended questions over a corpus too big
+for one context, so retrieval is the core of the feature.
+
+Design: hierarchical navigation by an agent with tools, rather than a flat chunk index.
+1. Route by structure: domains → features (from `domains.yaml`/`features.yaml` and the repo map summaries)
+   to find the relevant zone.
+2. Read the use cases and steps of that zone; they already cite files.
+3. Go down to the code (and git history) only when the question is technical or the docs are uncertain.
+
+Tools given to the agent (names indicative): `list_domains`, `get_feature`, `get_use_case`, `search_docs`,
+`read_source`, `git_log`. The LLM navigates; no embeddings at the start.
+
+Index: BM25 (e.g. `tantivy`) over the generated artifacts and the collected Markdown docs (small corpus,
+rebuilt in seconds), plus the surface-extraction glossary from phase 7 for query-vocabulary matching. Code
+search is lexical (identifiers match well) over function-level chunks. Embeddings only if the lexical
+search fails on business vocabulary that differs from the code's; measured, not assumed.
+
+Requirements:
+- **Cite sources**: every answer lists the features, use cases and files it relied on, so it is checkable.
+- **Use confidence**: if the answer rests on a section below the threshold (50%), say so and verify against
+  the code instead of repeating the doc.
+- **Freshness**: compare the fingerprints of the cited files with the current tree; warn when the docs are
+  older than the code, and fall back to reading the code.
+- **Say "not documented"** rather than guess when nothing relevant is found; such misses can feed the
+  documentation debt report.
+
+Technical impact:
+- `LlmProvider` has no tool calling today (`complete` takes plain text messages and returns text). It must
+  be extended (OpenAI-compatible `tools`/`tool_calls`, which OpenRouter supports, though not every model
+  does), or the agent loop can use a JSON-action protocol on top of `complete` as a fallback for local
+  models. Decide when starting.
+- New crate `retrodoc-agent` (tool loop, retrieval, prompts), depending on `retrodoc-llm`,
+  `retrodoc-core` and `retrodoc-ingest`; new CLI commands `ask "<question>"` and an interactive `chat`.
+  Read-only: no write to the target repo. Tested with a fake provider and scripted tool calls, like the
+  pipeline passes.
+
+Risks: the agent repeats the errors of the generated docs with confidence, hence the dependency on phases 7
+and 8 and on the confidence score; the context budget of a local model limits the number of tool round
+trips; answers are hard to evaluate automatically, so start with a small hand-written question set per
+smoke-test repo (the Rails test repo, autoroute) and compare answers with and without code access.
+
+Steps, each shippable:
+1. Read-only retrieval tools + BM25 index over the artifacts and collected docs, exposed as a debug
+   command (`retrodoc search`) to judge retrieval quality without any LLM.
+2. Tool calling support in `retrodoc-llm` (or the JSON-action fallback).
+3. `retrodoc ask` with citations, confidence and freshness warnings.
+4. Interactive `chat` with conversation memory; code and git history tools.
+
+### 7.4 Smaller open items
 
 - `.erb` view templates are not classified as `Source` by the walker (1,253 files on the Rails test repo).
 - Retry on an empty/invalid LLM answer fixes symptoms; the underlying causes (context length, truncated

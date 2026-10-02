@@ -18,6 +18,8 @@ The rest of this document describes the long-term product vision; the sections n
 * Identify missing documentation
 * Write missing technical documentation
 * Write missing functional documentation
+* Answer questions about how the application works, from the documentation (generated and collected),
+  the change history and, when needed, the code
 
 
 ## Inputs
@@ -34,6 +36,7 @@ Markdown + Mermaid or SVG format
 * Technical documentation
 * Functional documentation
 * C4 diagrams
+* Answers to questions about the application, with cited sources (CLI `ask` / `chat`)
 
 ## Prerequisites
 
@@ -57,6 +60,21 @@ Markdown + Mermaid or SVG format
 * Link the component to its domain, sub-domain, and use case.
 * Document the deployment process.
 * Document the APIs.
+
+### Ask the documentation
+
+Once the documentation is built, the most useful way to consume it is to question it: an agent answers
+questions about how the application works ("what happens when a contract is signed?", "who can cancel a
+subscription?").
+
+* Navigate the structure (domains, features, use cases) to find the relevant zone, instead of searching a
+  flat pile of text.
+* Rely on the generated documentation, the collected documents and the change history; go down to the
+  code only when the question is technical or the documentation is uncertain.
+* Cite the features, use cases and files behind every answer, so it can be checked.
+* Use the confidence scores: flag answers that rest on low-confidence sections, and warn when the code has
+  changed since the documentation was generated.
+* Admit when something is not documented, and feed those gaps back into the documentation debt report.
 
 ## Technologies
 
