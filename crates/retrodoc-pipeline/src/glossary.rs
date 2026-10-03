@@ -22,16 +22,18 @@ use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
 use crate::cache::hash_content;
+use crate::chunks::file_chunks;
 use crate::error::PipelineError;
 use crate::progress::Progress;
-use crate::repo_map::{read_file_lossy, truncate_chars};
+use crate::repo_map::read_file_lossy;
 use crate::response::complete_json;
 use crate::roles::{FileRole, RoleMap};
 use crate::use_cases::resolve_cited_path;
 
 const GLOSSARY_RELATIVE_PATH: &str = ".retrodoc/cache/glossary.yaml";
 
-/// Per-file cut, so one huge model can't crowd out the others in a batch.
+/// A longer model file is read in several chunks of about this size, so one
+/// huge model can't crowd out the others in a batch.
 const MAX_MODEL_FILE_CHARS: usize = 4_000;
 /// Characters of model code per LLM call.
 const BATCH_CHARS: usize = 12_000;
@@ -244,7 +246,13 @@ pub async fn build_glossary(
         models: BTreeMap::new(),
         tests: previous.tests.clone(),
     };
+    // One item per chunk of a changed file: (path, file hash, chunk text).
     let mut pending: Vec<(PathBuf, String, String)> = Vec::new();
+    // Chunks of a file not yet answered, and the entities found in the
+    // answered ones: a file is saved only once all its chunks are read, so
+    // an unusable answer leaves it to be retried whole next run.
+    let mut remaining: BTreeMap<PathBuf, usize> = BTreeMap::new();
+    let mut partial: BTreeMap<PathBuf, Vec<Entity>> = BTreeMap::new();
 
     for path in roles.files_with(FileRole::Model) {
         let content = read_file_lossy(repo_root, path)?;
@@ -253,11 +261,13 @@ pub async fn build_glossary(
             Some(saved) if saved.content_hash == hash => {
                 glossary.models.insert(path.to_path_buf(), saved.clone());
             }
-            _ => pending.push((
-                path.to_path_buf(),
-                hash,
-                truncate_chars(&content, MAX_MODEL_FILE_CHARS),
-            )),
+            _ => {
+                let chunks = file_chunks(path, &content, MAX_MODEL_FILE_CHARS, "glossary");
+                remaining.insert(path.to_path_buf(), chunks.len());
+                for chunk in chunks {
+                    pending.push((path.to_path_buf(), hash.clone(), chunk));
+                }
+            }
         }
     }
 
@@ -286,7 +296,7 @@ pub async fn build_glossary(
             .collect();
         let mut found: BTreeMap<String, Vec<Entity>> = BTreeMap::new();
         for item in response.entities {
-            let target = if batch.len() == 1 {
+            let target = if allowed.len() == 1 {
                 allowed.iter().next().cloned()
             } else {
                 resolve_cited_path(&item.file, &allowed)
@@ -304,16 +314,22 @@ pub async fn build_glossary(
             }
         }
         for (path, hash, _) in batch {
-            let entities = found
-                .remove(path.to_string_lossy().as_ref())
-                .unwrap_or_default();
-            glossary.models.insert(
-                path.clone(),
-                ModelFile {
-                    content_hash: hash.clone(),
-                    entities,
-                },
-            );
+            let key = path.to_string_lossy();
+            if let Some(entities) = found.remove(key.as_ref()) {
+                partial.entry(path.clone()).or_default().extend(entities);
+            }
+            let left = remaining.entry(path.clone()).or_insert(1);
+            *left -= 1;
+            if *left == 0 {
+                let entities = merge_chunk_entities(partial.remove(path).unwrap_or_default());
+                glossary.models.insert(
+                    path.clone(),
+                    ModelFile {
+                        content_hash: hash.clone(),
+                        entities,
+                    },
+                );
+            }
         }
         // Saved after every batch: a failure later in a long run (a call
         // timing out) must not lose the batches already read.
@@ -334,6 +350,33 @@ pub async fn build_glossary(
     glossary.tests = tests;
     glossary.save(repo_root)?;
     Ok(glossary)
+}
+
+/// Merges the entities seen in several chunks of one file: a class cut in two
+/// is reported twice, its description kept from the first part and its
+/// attributes and associations united.
+fn merge_chunk_entities(entities: Vec<Entity>) -> Vec<Entity> {
+    let mut merged: Vec<Entity> = Vec::new();
+    for entity in entities {
+        let Some(known) = merged.iter_mut().find(|e| e.name == entity.name) else {
+            merged.push(entity);
+            continue;
+        };
+        if known.description.is_empty() {
+            known.description = entity.description;
+        }
+        for attribute in entity.attributes {
+            if !known.attributes.contains(&attribute) {
+                known.attributes.push(attribute);
+            }
+        }
+        for association in entity.associations {
+            if !known.associations.contains(&association) {
+                known.associations.push(association);
+            }
+        }
+    }
+    merged
 }
 
 /// Groups files so that each batch holds about [`BATCH_CHARS`] of code
@@ -616,5 +659,45 @@ RSpec.describe Contract do
         let prompts = llm.prompts.lock().unwrap();
         assert_eq!(prompts.len(), 2);
         assert!(prompts[1].contains("company.rb") && !prompts[1].contains("contract.rb"));
+    }
+
+    #[test]
+    fn entities_of_a_class_cut_in_two_are_merged() {
+        let entity = |attributes: &[&str], target: &str| Entity {
+            name: "Contract".to_string(),
+            description: String::new(),
+            attributes: attributes.iter().map(ToString::to_string).collect(),
+            associations: vec![Association {
+                kind: "has_many".to_string(),
+                target: target.to_string(),
+            }],
+        };
+        let merged = merge_chunk_entities(vec![
+            entity(&["title"], "Signatory"),
+            entity(&["title", "status"], "Folder"),
+        ]);
+        assert_eq!(merged.len(), 1);
+        assert_eq!(merged[0].attributes, vec!["title", "status"]);
+        assert_eq!(merged[0].associations.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn a_long_model_file_is_read_in_chunks_and_its_entity_saved_once() {
+        let dir = tempfile::tempdir().unwrap();
+        let method = "def sign\n  work\nend\n\n";
+        let repeats = MAX_MODEL_FILE_CHARS * 4 / method.len();
+        std::fs::write(dir.path().join("contract.rb"), method.repeat(repeats)).unwrap();
+        let roles = roles(&[("contract.rb", FileRole::Model)]);
+        let llm = ScriptedProvider {
+            response: r#"{"entities":[{"file":"contract.rb","name":"Contract"}]}"#.to_string(),
+            prompts: Mutex::new(Vec::new()),
+        };
+
+        let glossary = build_glossary(dir.path(), &roles, &llm).await.unwrap();
+
+        let prompts = llm.prompts.lock().unwrap();
+        assert!(prompts.len() >= 2, "several parts, several calls");
+        assert!(prompts[0].contains("(part 1/"));
+        assert_eq!(glossary.entities().count(), 1);
     }
 }

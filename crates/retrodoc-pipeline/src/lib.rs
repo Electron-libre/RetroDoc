@@ -15,6 +15,7 @@
 
 pub mod actors;
 pub mod cache;
+mod chunks;
 pub mod confidence;
 pub mod diagrams;
 pub mod domains;

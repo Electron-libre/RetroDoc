@@ -208,7 +208,7 @@ Steps, each shippable and checkable on the Rails test repo:
    of its actions were missed. Long files are now split into chunks of ~5,000 chars (on line boundaries, preferably
    before a blank line), sent as "(part i/n)", at most 8 chunks per file (the rest is logged as unread); a file is
    saved only once all its chunks are answered and its entry points are deduplicated by name. Unit-tested, not
-   re-run on the Rails test repo. The other passes (glossary 4,000, actors 3,000, use cases/confidence 4,000 per file) still truncate. No jobs/mailers either in this run
+   re-run on the Rails test repo. The glossary chunks its model files the same way (`chunks.rs`; an entity seen in several chunks is merged). The other passes (actors 3,000, use cases/confidence 4,000 per file) still truncate. No jobs/mailers either in this run
    (the role rules of that run classified them `infra`).
 4. Rewire domains, then use cases, on the surface; then actors, two output levels, vocabulary criterion.
    - **4a — domains: implemented** (`surface.rs`, `retrodoc surface`, `generate` runs the surface passes first).
@@ -365,5 +365,5 @@ Steps, each shippable:
 - `.erb` view templates are not classified as `Source` by the walker (1,253 files on the Rails test repo).
 - Retry on an empty/invalid LLM answer fixes symptoms; the underlying causes (context length, truncated
   JSON) depend on the server config — see the local LLM setup notes.
-- Truncation: the entry points pass now chunks long files; `MAX_CHARS_PER_FILE` (4,000) in the use cases/confidence
-  passes, the glossary and the repo map still cut long files, so late code can never be cited there.
+- Truncation: the entry points and glossary passes now chunk long files; `MAX_CHARS_PER_FILE` (4,000) in the use cases/confidence
+  passes and the repo map still cut long files, so late code can never be cited there.
