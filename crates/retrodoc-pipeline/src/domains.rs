@@ -35,6 +35,7 @@ use retrodoc_ingest::ExistingDoc;
 use retrodoc_llm::{ChatMessage, CompletionRequest, LlmProvider, Role};
 use serde::{Deserialize, Serialize};
 
+use crate::artifact::{load_yaml, save_yaml};
 use crate::error::PipelineError;
 use crate::fingerprints::{fingerprint, Fingerprints};
 use crate::repo_map::{FileSummary, RepoMap};
@@ -162,15 +163,7 @@ impl DomainMap {
     /// Returns an error if `.retrodoc/cache/` can't be created, the file
     /// can't be written, or serialization to YAML fails.
     pub fn save(&self, repo_root: &Path) -> Result<(), PipelineError> {
-        let path = repo_root.join(DOMAINS_RELATIVE_PATH);
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).map_err(|source| PipelineError::DomainsIo {
-                path: path.clone(),
-                source,
-            })?;
-        }
-        let raw = serde_yaml::to_string(self)?;
-        std::fs::write(&path, raw).map_err(|source| PipelineError::DomainsIo { path, source })?;
+        save_yaml(&repo_root.join(DOMAINS_RELATIVE_PATH), self)?;
         Ok(())
     }
 
@@ -178,9 +171,7 @@ impl DomainMap {
     /// `None` (first run), not an error.
     #[must_use]
     pub fn load(repo_root: &Path) -> Option<Self> {
-        let path = repo_root.join(DOMAINS_RELATIVE_PATH);
-        let raw = std::fs::read_to_string(path).ok()?;
-        serde_yaml::from_str(&raw).ok()
+        load_yaml(&repo_root.join(DOMAINS_RELATIVE_PATH))
     }
 }
 

@@ -18,6 +18,7 @@ use retrodoc_ingest::{FileEntry, FileHistory, FileKind, IngestResult};
 use retrodoc_llm::{ChatMessage, CompletionRequest, LlmProvider, Role};
 use serde::{Deserialize, Serialize};
 
+use crate::artifact::warn_on_error;
 use crate::cache::{hash_content, RepoMapCache};
 use crate::error::PipelineError;
 use crate::progress::Progress;
@@ -207,7 +208,7 @@ pub async fn build_repo_map(
                     // this run: best-effort save before propagating (a
                     // rerun then only has to redo the files not yet
                     // cached, not the whole list).
-                    let _ = cache.save(repo_root);
+                    warn_on_error(cache.save(repo_root));
                     return Err(err);
                 }
             }

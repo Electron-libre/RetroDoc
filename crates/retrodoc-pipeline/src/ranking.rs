@@ -16,6 +16,7 @@ use std::path::{Path, PathBuf};
 use retrodoc_ingest::{FileKind, IngestResult};
 use serde::{Deserialize, Serialize};
 
+use crate::artifact::{load_yaml, save_yaml};
 use crate::error::PipelineError;
 use crate::repo_map::read_file_lossy;
 use crate::roles::{FileRole, RoleMap};
@@ -43,23 +44,14 @@ impl Scope {
     /// Missing or unreadable: `None`.
     #[must_use]
     pub fn load(repo_root: &Path) -> Option<Self> {
-        let raw = std::fs::read_to_string(repo_root.join(SCOPE_RELATIVE_PATH)).ok()?;
-        serde_yaml::from_str(&raw).ok()
+        load_yaml(&repo_root.join(SCOPE_RELATIVE_PATH))
     }
 
     /// # Errors
     ///
     /// Returns an error if the file can't be written.
     pub fn save(&self, repo_root: &Path) -> Result<(), PipelineError> {
-        let path = repo_root.join(SCOPE_RELATIVE_PATH);
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).map_err(|source| PipelineError::Cache {
-                path: path.clone(),
-                source,
-            })?;
-        }
-        std::fs::write(&path, serde_yaml::to_string(self)?)
-            .map_err(|source| PipelineError::Cache { path, source })
+        save_yaml(&repo_root.join(SCOPE_RELATIVE_PATH), self)
     }
 
     /// Removes the saved scope (no budget in this run).

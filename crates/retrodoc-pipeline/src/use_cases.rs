@@ -18,6 +18,7 @@ use retrodoc_llm::LlmProvider;
 use serde::Deserialize;
 
 use crate::actors::Actors;
+use crate::artifact::{load_yaml, save_yaml, warn_on_error};
 use crate::cache::hash_content;
 use crate::chunks::{Focus, Splitter};
 use crate::entry_points::{EntryPoint, EntryPoints};
@@ -133,8 +134,7 @@ struct RawSourceRef {
 /// (first run), not an error.
 #[must_use]
 pub fn load_use_cases(repo_root: &Path) -> Option<Vec<UseCase>> {
-    let raw = std::fs::read_to_string(repo_root.join(USE_CASES_RELATIVE_PATH)).ok()?;
-    serde_yaml::from_str(&raw).ok()
+    load_yaml(&repo_root.join(USE_CASES_RELATIVE_PATH))
 }
 
 /// Persists `use_cases` as `.retrodoc/cache/use-cases.yaml`; also used to
@@ -144,15 +144,7 @@ pub fn load_use_cases(repo_root: &Path) -> Option<Vec<UseCase>> {
 ///
 /// Returns an error if the file can't be written or serialization fails.
 pub fn save_use_cases(repo_root: &Path, use_cases: &[UseCase]) -> Result<(), PipelineError> {
-    let path = repo_root.join(USE_CASES_RELATIVE_PATH);
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|source| PipelineError::ArtifactIo {
-            path: path.clone(),
-            source,
-        })?;
-    }
-    let raw = serde_yaml::to_string(use_cases)?;
-    std::fs::write(&path, raw).map_err(|source| PipelineError::ArtifactIo { path, source })
+    save_yaml(&repo_root.join(USE_CASES_RELATIVE_PATH), use_cases)
 }
 
 /// Asks the LLM for the use cases of a feature. An answer without any use
@@ -349,8 +341,8 @@ fn save_partial(
                 .cloned(),
         );
     }
-    let _ = prints.save(repo_root);
-    let _ = save_use_cases(repo_root, &use_cases);
+    warn_on_error(prints.save(repo_root));
+    warn_on_error(save_use_cases(repo_root, &use_cases));
 }
 
 /// Hash of everything the feature's use cases are derived from: its text and

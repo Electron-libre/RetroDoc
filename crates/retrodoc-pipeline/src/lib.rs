@@ -14,6 +14,7 @@
 //! clustered from.
 
 pub mod actors;
+mod artifact;
 pub mod cache;
 mod chunk_check;
 pub mod chunks;

@@ -20,6 +20,7 @@ use retrodoc_core::model::Feature;
 use retrodoc_llm::LlmProvider;
 use serde::Deserialize;
 
+use crate::artifact::{load_yaml, save_yaml, warn_on_error};
 use crate::domains::{DomainMap, UNCATEGORIZED_SLUG};
 use crate::error::PipelineError;
 use crate::fingerprints::{fingerprint, Fingerprints};
@@ -63,8 +64,7 @@ struct RawFeature {
 /// (first run), not an error.
 #[must_use]
 pub fn load_features(repo_root: &Path) -> Option<Vec<Feature>> {
-    let raw = std::fs::read_to_string(repo_root.join(FEATURES_RELATIVE_PATH)).ok()?;
-    serde_yaml::from_str(&raw).ok()
+    load_yaml(&repo_root.join(FEATURES_RELATIVE_PATH))
 }
 
 /// Persists `features` as `.retrodoc/cache/features.yaml`; also used to
@@ -74,15 +74,7 @@ pub fn load_features(repo_root: &Path) -> Option<Vec<Feature>> {
 ///
 /// Returns an error if the file can't be written or serialization fails.
 pub fn save_features(repo_root: &Path, features: &[Feature]) -> Result<(), PipelineError> {
-    let path = repo_root.join(FEATURES_RELATIVE_PATH);
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|source| PipelineError::ArtifactIo {
-            path: path.clone(),
-            source,
-        })?;
-    }
-    let raw = serde_yaml::to_string(features)?;
-    std::fs::write(&path, raw).map_err(|source| PipelineError::ArtifactIo { path, source })
+    save_yaml(&repo_root.join(FEATURES_RELATIVE_PATH), features)
 }
 
 /// Number of domain/sub-domain units the pass goes through (progress total).
@@ -259,8 +251,8 @@ fn save_partial(
         }
         features.push(old.clone());
     }
-    let _ = prints.save(repo_root);
-    let _ = save_features(repo_root, &features);
+    warn_on_error(prints.save(repo_root));
+    warn_on_error(save_features(repo_root, &features));
 }
 
 fn features_prompt(

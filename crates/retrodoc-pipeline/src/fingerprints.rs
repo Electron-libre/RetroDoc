@@ -12,6 +12,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
+use crate::artifact::{load_json, save_json};
 use crate::cache::hash_content;
 use crate::error::PipelineError;
 
@@ -36,22 +37,11 @@ pub(crate) struct Fingerprints {
 impl Fingerprints {
     /// Missing or unreadable: empty (first run), not an error.
     pub fn load(repo_root: &Path) -> Self {
-        std::fs::read_to_string(repo_root.join(FINGERPRINTS_RELATIVE_PATH))
-            .ok()
-            .and_then(|raw| serde_json::from_str(&raw).ok())
-            .unwrap_or_default()
+        load_json(&repo_root.join(FINGERPRINTS_RELATIVE_PATH)).unwrap_or_default()
     }
 
     pub fn save(&self, repo_root: &Path) -> Result<(), PipelineError> {
-        let path = repo_root.join(FINGERPRINTS_RELATIVE_PATH);
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).map_err(|source| PipelineError::Cache {
-                path: path.clone(),
-                source,
-            })?;
-        }
-        let raw = serde_json::to_string_pretty(self)?;
-        std::fs::write(&path, raw).map_err(|source| PipelineError::Cache { path, source })
+        save_json(&repo_root.join(FINGERPRINTS_RELATIVE_PATH), self)
     }
 }
 

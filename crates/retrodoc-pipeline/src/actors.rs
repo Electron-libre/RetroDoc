@@ -17,6 +17,7 @@ use retrodoc_core::model::ActorKind;
 use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
+use crate::artifact::{load_yaml, save_yaml};
 use crate::cache::hash_content;
 use crate::error::PipelineError;
 use crate::fingerprints::fingerprint;
@@ -102,8 +103,7 @@ impl Actors {
     /// Missing or unreadable: `None` (first run).
     #[must_use]
     pub fn load(repo_root: &Path) -> Option<Self> {
-        let raw = std::fs::read_to_string(repo_root.join(ACTORS_RELATIVE_PATH)).ok()?;
-        serde_yaml::from_str(&raw).ok()
+        load_yaml(&repo_root.join(ACTORS_RELATIVE_PATH))
     }
 
     /// # Errors
@@ -111,15 +111,7 @@ impl Actors {
     /// Returns an error if the cache folder or file can't be written, or
     /// serialization fails.
     pub fn save(&self, repo_root: &Path) -> Result<(), PipelineError> {
-        let path = repo_root.join(ACTORS_RELATIVE_PATH);
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).map_err(|source| PipelineError::ArtifactIo {
-                path: path.clone(),
-                source,
-            })?;
-        }
-        let raw = serde_yaml::to_string(self)?;
-        std::fs::write(&path, raw).map_err(|source| PipelineError::ArtifactIo { path, source })
+        save_yaml(&repo_root.join(ACTORS_RELATIVE_PATH), self)
     }
 
     #[must_use]
