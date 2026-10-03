@@ -18,7 +18,10 @@ pub fn publish(repo_root: &Path, config: &Config, dry_run: bool) -> anyhow::Resu
     };
     let domains = DomainMap::load(repo_root).unwrap_or_default();
 
-    let report = retrodoc_pipeline::build_report(&domains, &features, &use_cases);
+    let mut report = retrodoc_pipeline::build_report(&domains, &features, &use_cases);
+    report.skipped_files = retrodoc_pipeline::Scope::load(repo_root)
+        .map(|s| s.skipped)
+        .unwrap_or_default();
     let metadata = RunMetadata {
         model: config.llm.model.clone(),
         commit: retrodoc_ingest::git_history::head_commit(repo_root),

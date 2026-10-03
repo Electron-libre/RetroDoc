@@ -50,7 +50,13 @@ pub struct DebtReport {
     /// Source files the clustering could not place in a domain: code with no
     /// documentation at all.
     pub uncategorized_files: Vec<PathBuf>,
+    /// Source files left out by the file budget (`--max-files`): not
+    /// analysed at all. Filled by the caller from the saved `Scope`.
+    pub skipped_files: Vec<PathBuf>,
 }
+
+/// Skipped files listed in the Markdown report (the rest is only counted).
+const MAX_LISTED_SKIPPED: usize = 50;
 
 fn mean(values: impl Iterator<Item = f32>) -> Option<f32> {
     let (sum, n) = values.fold((0.0_f32, 0_u32), |(s, n), v| (s + v, n + 1));
@@ -219,6 +225,7 @@ pub fn build_report(
         technical_use_cases,
         unscored_use_cases,
         uncategorized_files,
+        skipped_files: Vec::new(),
     }
 }
 
@@ -301,6 +308,24 @@ impl DebtReport {
                 let _ = writeln!(md, "- `{}`", path.display());
             }
         }
+        if !self.skipped_files.is_empty() {
+            let _ = write!(
+                md,
+                "\n## Not analysed (file budget)\n\n{} source file(s) were left out, the least \
+                 important by role, history and references (full list in `.retrodoc/cache/scope.yaml`):\n\n",
+                self.skipped_files.len()
+            );
+            for path in self.skipped_files.iter().take(MAX_LISTED_SKIPPED) {
+                let _ = writeln!(md, "- `{}`", path.display());
+            }
+            if self.skipped_files.len() > MAX_LISTED_SKIPPED {
+                let _ = writeln!(
+                    md,
+                    "- … and {} more",
+                    self.skipped_files.len() - MAX_LISTED_SKIPPED
+                );
+            }
+        }
         md
     }
 }
@@ -381,6 +406,13 @@ mod tests {
         assert_eq!(labels, ["auth/orphan", "billing/pay/pay-invoice"]);
         assert_eq!(report.unscored_use_cases, ["auth/login/mystery"]);
         assert_eq!(report.uncategorized_files, [PathBuf::from("x.rs")]);
+
+        let mut report = report;
+        report.skipped_files = vec![PathBuf::from("left.rs")];
+        assert!(report
+            .to_markdown()
+            .contains("## Not analysed (file budget)"));
+        assert!(report.to_markdown().contains("`left.rs`"));
 
         let md = report.to_markdown();
         assert!(md.contains("Overall confidence: **55%**"));

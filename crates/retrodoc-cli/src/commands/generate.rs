@@ -6,8 +6,8 @@ use retrodoc_core::model::{ConfidenceScore, Feature, UseCase};
 use retrodoc_ingest::{FileKind, IngestResult};
 use retrodoc_llm::{HeartbeatProvider, LlmProvider, OpenRouterProvider};
 use retrodoc_pipeline::{
-    CodeIndex, CoverageReport, DomainMap, EntryPoints, RepoMap, RepoMapOptions, Surface,
-    UseCaseContext,
+    CodeIndex, CoverageReport, DomainMap, EntryPoints, RepoMap, RepoMapOptions, RoleMap, Scope,
+    Surface, UseCaseContext,
 };
 
 /// Number of main entity names given to the use cases as business vocabulary.
@@ -33,6 +33,7 @@ pub async fn run(
     dry_run: bool,
     force: bool,
     confidence: Confidence,
+    max_files: Option<usize>,
 ) -> anyhow::Result<()> {
     let repo_root = path
         .canonicalize()
@@ -54,7 +55,7 @@ pub async fn run(
             .context("could not initialize the LLM provider (missing API key?)")?,
     );
 
-    let (surface, entry_points) = build_surface(&repo_root, &ingest, &llm, force).await?;
+    let (surface, entry_points, role_map) = build_surface(&repo_root, &ingest, &llm, force).await?;
     println!("Identifying the business actors…");
     let source_files: Vec<_> = ingest
         .files
@@ -66,6 +67,13 @@ pub async fn run(
         .await
         .context("failed to identify the actors")?;
     println!("{} actor(s) identified.", actors.actors.len());
+
+    apply_scope(
+        &repo_root,
+        &mut ingest,
+        role_map.as_ref(),
+        max_files.or(config.ingest.max_files),
+    )?;
 
     let map = build_map(&repo_root, &ingest, &llm, &config.llm).await?;
 
@@ -149,14 +157,14 @@ async fn build_surface(
     ingest: &IngestResult,
     llm: &dyn LlmProvider,
     force: bool,
-) -> anyhow::Result<(Surface, EntryPoints)> {
+) -> anyhow::Result<(Surface, EntryPoints, Option<RoleMap>)> {
     println!("Identifying the stack and the file roles…");
     let rules = retrodoc_pipeline::identify_roles(repo_root, ingest, llm, force)
         .await
         .context("failed to identify the file roles")?;
     if rules.rules.is_empty() {
         tracing::warn!("no file role rules identified, domains are clustered without the surface");
-        return Ok((Surface::default(), EntryPoints::default()));
+        return Ok((Surface::default(), EntryPoints::default(), None));
     }
     let role_map = rules.classify(&ingest.files);
     println!("Stack: {}", rules.stack);
@@ -176,7 +184,33 @@ async fn build_surface(
         surface.entities.len(),
         surface.resources.len()
     );
-    Ok((surface, entry_points))
+    Ok((surface, entry_points, Some(role_map)))
+}
+
+/// Keeps the best ranked source files when a budget is set (the others
+/// leave `ingest` and are saved in `scope.yaml` for the report).
+fn apply_scope(
+    repo_root: &Path,
+    ingest: &mut IngestResult,
+    roles: Option<&RoleMap>,
+    max_files: Option<usize>,
+) -> anyhow::Result<()> {
+    let Some(max_files) = max_files else {
+        Scope::clear(repo_root);
+        return Ok(());
+    };
+    let scope = retrodoc_pipeline::apply_budget(repo_root, ingest, roles, max_files);
+    scope.save(repo_root).context("failed to save the scope")?;
+    if scope.skipped.is_empty() {
+        println!("Budget of {max_files} file(s): every source file is analysed.");
+    } else {
+        println!(
+            "Budget of {max_files} file(s): {} analysed, {} left out (best ranked by role, history and references first; listed in the report).",
+            scope.analysed,
+            scope.skipped.len()
+        );
+    }
+    Ok(())
 }
 
 /// Removes the cached results of the LLM passes (not `domains.yaml`, which

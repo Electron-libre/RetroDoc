@@ -50,7 +50,7 @@ docs/
 
 ## 4. Technical architecture (Rust, workspace)
 
-- `retrodoc-cli` — binary, `clap` (`init`, `scan`, `generate`, `render`, `report`, `roles`, `glossary`, `entry-points`)
+- `retrodoc-cli` — binary, `clap` (`init`, `scan`, `generate`, `render`, `report`, `roles`, `glossary`, `entry-points`, `actors`, `surface`)
 - `retrodoc-core` — domain model (Domain, Feature, UseCase, Step, Actor, ConfidenceScore)
 - `retrodoc-ingest` — walker (`ignore`), history (`git2`), Markdown parsing
 - `retrodoc-llm` — provider abstraction + OpenRouter implementation (chat completion, retry, rate-limit)
@@ -74,7 +74,7 @@ docs/
 8. **Scalability & cost control** (see §7.2): bring a run on a large repo (thousands of files) within
    reach, including on limited/local LLM resources. In progress: delivered are progress reporting, the LLM
    heartbeat, the directory-summary cache (item 6), `--no-confidence`/`--confidence-sample` (item 3) and item 5
-   (call estimate for the repo map pass, resumable features/use cases); item 4 (`llm.concurrency`, repo map only) and item 2 for file summaries (`llm.batch_chars`); item 1 and batched confidence remain.
+   (call estimate for the repo map pass, resumable features/use cases); item 4 (`llm.concurrency`, repo map only) and item 2 (`llm.batch_chars`, batched confidence); item 1 (`--max-files`, opt-in) — all six directions are now delivered.
 9. **Ask the documentation** (see §7.3): a question-answering agent (`retrodoc ask` / `chat`) grounded on
    the generated artifacts, the collected docs, the git history and, when needed, the code. Not started;
    comes after phases 7 and 8, since answer quality is bounded by the quality of the generated docs.
@@ -260,13 +260,17 @@ and ETA) and `HeartbeatProvider` (logs "still waiting for the LLM" every 30 s), 
 stuck run.
 
 Directions:
-1. Bound the depth by default: spend LLM calls on what matters, roll the rest up at directory level.
-   Largely delivered by phase 7's surface extraction (file roles, entry-point slices); what remains is
-   ranking inside a role (most-changed, most central files).
+1. ~~Bound the depth~~ — **delivered as an opt-in budget**: `generate --max-files N` (or `ingest.max_files`) keeps
+   the N best-ranked source files (`ranking.rs`: role weight × (1 + ln(1+commits) + ln(1+files mentioning its
+   name)), no LLM call, 80 ms for 325 files) and drops the rest before the repo map; they are listed in
+   `.retrodoc/cache/scope.yaml` and in the report ("Not analysed (file budget)"). Phase 7's surface extraction
+   already bounds the glossary and entry-point passes by role. Checked on the Rails test repo services/policies/controllers:
+   contracts/folders/worksites controllers on top, front-end configs last; base classes (`application_controller`)
+   rank high because everything mentions them — not damped yet. Not yet run through a full `generate`.
 2. Batch calls — **delivered for file summaries**: small files (≤ ¼ of `llm.batch_chars`, default 6000; 0 disables)
    are summarized together, up to 8 files / `batch_chars` per request, answered as JSON; a file the answer
-   misses falls back to its own request. Not done: several use cases per confidence request (use
-   `--confidence-sample` meanwhile). Quality of batched summaries vs one-by-one is not yet compared on a real
+   misses falls back to its own request. Confidence is batched too: up to 5 use cases of the same feature share one request (code shown once); a use case
+   the answer misses falls back to its own request. Quality of batched summaries vs one-by-one is not yet compared on a real
    model.
 3. ~~Confidence pass optional or sampled~~ — **delivered**: `generate --no-confidence` skips it, `--confidence-sample N`
    scores at most N unscored use cases (evenly spread; a later run scores N more). Unscored items show up in the report.
@@ -282,6 +286,17 @@ Directions:
 6. ~~Directory summaries regenerated on every run~~ — **delivered**: cached in `repo-map.json` by the hash of
    the listing sent to the LLM (children's summaries), so a changed file only invalidates its folder and
    ancestors (unit-tested, not yet measured on a large repo).
+
+First full `generate` on a real repo (2026-10-02, the Rails test repo, sparse-checkout `app/services` +
+`app/policies` + `app/controllers`: 325 source files; `qwen3.6:35b-a3b`, `concurrency = 2`, default batching):
+completed in about 2h20 (the progress log was lost, so per-pass timings are not recorded). The estimate announced
+201 file calls + 89 directory calls for 325 files (batching: ~38% fewer file calls); the repo map pass was at 67% after
+11 min. Result: 7 domains, 77 features, 183 use cases, overall confidence 80%, business language 75%, 269 doc files.
+Quality: domains are business-flavoured (`contract-lifecycle`, `e-signature-integration`, `organizational-management`)
+except `api-integration-layer`; 13 features ended with no use case (answers unparseable twice, or nothing derivable);
+the SSO/Keycloak/user-sync use cases read as internal helpers (flagged by the business-language score); some narratives
+leak column/class names (`from_company`, `companiesfolder`). Unverified: whether `concurrency = 2` gained anything,
+since Ollama has no `OLLAMA_NUM_PARALLEL` set.
 
 Validation: measure calls and wall time before/after on the Rails test repo `app/presenters/` (baseline above), then
 on a larger sparse-checkout (e.g. `app/models` + `app/services`).

@@ -21,7 +21,10 @@ pub fn run(path: &Path) -> anyhow::Result<()> {
     }
     let domains = DomainMap::load(&repo_root).unwrap_or_default();
 
-    let report = retrodoc_pipeline::build_report(&domains, &features, &use_cases);
+    let mut report = retrodoc_pipeline::build_report(&domains, &features, &use_cases);
+    report.skipped_files = retrodoc_pipeline::Scope::load(&repo_root)
+        .map(|s| s.skipped)
+        .unwrap_or_default();
     print!("{}", report.to_markdown());
     Ok(())
 }

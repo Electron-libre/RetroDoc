@@ -52,6 +52,11 @@ enum Command {
         /// others stay unscored (a later run scores N more).
         #[arg(long, value_name = "N")]
         confidence_sample: Option<usize>,
+        /// Analyse at most N source files: the best ranked by role, git
+        /// history and references; the rest is listed in the report.
+        /// Overrides `ingest.max_files`.
+        #[arg(long, value_name = "N")]
+        max_files: Option<usize>,
     },
     /// Writes the docs from the artifacts of the last `generate` run,
     /// without calling the LLM.
@@ -132,13 +137,14 @@ async fn main() -> anyhow::Result<()> {
             force,
             no_confidence,
             confidence_sample,
+            max_files,
         } => {
             let confidence = if no_confidence {
                 commands::generate::Confidence::Skip
             } else {
                 commands::generate::Confidence::Sample(confidence_sample)
             };
-            commands::generate::run(&path, dry_run, force, confidence).await
+            commands::generate::run(&path, dry_run, force, confidence, max_files).await
         }
         Command::Render { path, dry_run } => commands::render::run(&path, dry_run),
         Command::Report { path } => commands::report::run(&path),

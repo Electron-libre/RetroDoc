@@ -108,6 +108,12 @@ pub struct IngestConfig {
     /// Existing Markdown documentation folders to take as input.
     #[serde(default = "IngestConfig::default_existing_docs_paths")]
     pub existing_docs_paths: Vec<String>,
+    /// Analyse at most this many source files (`generate --max-files`
+    /// overrides): the best ranked by file role, git history and how many
+    /// files mention them; the rest is left out and listed in the report.
+    /// Unset: every source file.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_files: Option<usize>,
 }
 
 impl IngestConfig {
@@ -121,6 +127,7 @@ impl Default for IngestConfig {
         Self {
             extra_ignore: Vec::new(),
             existing_docs_paths: Self::default_existing_docs_paths(),
+            max_files: None,
         }
     }
 }

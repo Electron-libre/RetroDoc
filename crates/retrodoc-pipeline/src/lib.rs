@@ -24,6 +24,7 @@ pub mod features;
 mod fingerprints;
 pub mod glossary;
 mod progress;
+pub mod ranking;
 pub mod repo_map;
 pub mod report;
 mod response;
@@ -43,6 +44,7 @@ pub use entry_points::{
 pub use error::PipelineError;
 pub use features::{build_features, load_features, save_features};
 pub use glossary::{build_glossary, Entity, Glossary, MergedEntity};
+pub use ranking::{apply_budget, rank_files, Scope};
 pub use repo_map::{
     build_repo_map, estimate_repo_map, FileSummary, ModuleSummary, RepoMap, RepoMapEstimate,
     RepoMapOptions,

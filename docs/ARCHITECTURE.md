@@ -88,15 +88,16 @@ This is the core flow. Blue-ish steps call the LLM; the others are deterministic
 flowchart TD
     A["1. Ingestion<br/>files + git history + existing docs"]:::det
     S["1b. Surface<br/>file roles, entities (glossary),<br/>entry points + outputs"]:::llm
-    B["2. Repo map<br/>summary per file, then per directory<br/>(bottom-up)"]:::llm
+    K["1c. File budget (optional, --max-files)<br/>keep the best-ranked source files:<br/>role × git churn × references"]:::det
+    B["2. Repo map<br/>summary per file (small files batched),<br/>then per directory (bottom-up)"]:::llm
     C["3. Domains<br/>cluster directory summaries into<br/>domains / sub-domains,<br/>named from the surface<br/>+ mechanical file expansion<br/>+ coverage repair"]:::llm
     D["4. Features<br/>one call per domain / sub-domain"]:::llm
     E["5. Use cases<br/>one call per feature<br/>(steps + actors, from real code)"]:::llm
     F["6. Diagrams<br/>Mermaid sequenceDiagram<br/>from the steps"]:::det
-    G["7. Confidence<br/>one call per use case: is each step<br/>supported by the code it cites?"]:::llm
+    G["7. Confidence (optional, can be sampled)<br/>use cases of a feature share a call: is each step<br/>supported by the code it cites?"]:::llm
     H["8. Publish<br/>render → plan (diff) → apply"]:::det
 
-    A --> S --> B --> C --> D --> E --> F --> G --> H
+    A --> S --> K --> B --> C --> D --> E --> F --> G --> H
 
     classDef llm fill:#dbeafe,stroke:#2563eb,color:#000
     classDef det fill:#f3f4f6,stroke:#6b7280,color:#000
@@ -107,6 +108,7 @@ What each pass hands to the next, and where it is saved:
 | # | Pass (module) | Input | Output | Saved in `.retrodoc/cache/` |
 |---|---|---|---|---|
 | 1 | ingest (`retrodoc-ingest`) | repo path | files, history, existing docs | — (recomputed) |
+| 1c | `ranking.rs` (only with a budget) | source files + roles + history + references | the N best-ranked files; the rest is left out | `scope.yaml` |
 | 2 | `repo_map.rs` | source files + history | file and directory summaries | `repo-map.json` |
 | 3 | `domains.rs` | directory summaries + doc titles + the surface (entities, entry points by resource) | `DomainMap` (every source file in exactly one domain) | `domains.yaml` |
 | 4 | `features.rs` | one domain + its files' summaries | `Feature`s grounded on a validated subset of files | `features.yaml` |
@@ -153,7 +155,11 @@ flowchart TD
     p2 -- yes --> r2["reuse file summary"]
     p2 -- no --> c2["LLM: summarize file"]
 
-    redo --> p3["Domains: always recomputed"]
+    redo --> pd{"Directory listing<br/>(children's summaries) unchanged?"}
+    pd -- yes --> rd2["reuse directory summary"]
+    pd -- no --> cd2["LLM: summarize directory"]
+
+    redo --> p3["Domains: reused if their input<br/>hash is unchanged"]
 
     redo --> p4{"Domain's files and<br/>summaries unchanged?"}
     p4 -- yes --> r4["reuse features"]
@@ -168,8 +174,13 @@ flowchart TD
     p7 -- no --> c7["LLM: score"]
 ```
 
-Directory summaries and `domains.yaml` are cheap enough to always recompute. Note that domain clustering
-is not fully deterministic across runs, which can invalidate downstream fingerprints (see `PLAN.md` §7).
+Directory summaries are keyed by the hash of what was sent to the LLM (their children's summaries), so a
+changed file only invalidates its folder and ancestors. Domain clustering is not deterministic, so
+`domains.yaml` is reused while its input hash is unchanged (otherwise downstream fingerprints would be
+invalidated, see `PLAN.md` §7). If an LLM call fails mid-pass, the features and use cases pass save what is
+done, so the next run resumes there. `generate` prints the repo map pass's expected calls up front; the
+`llm.concurrency` and `llm.batch_chars` settings and the `--no-confidence` / `--confidence-sample` /
+`--max-files` flags bound the cost of a run.
 
 ## 6. Publishing the docs (no LLM)
 
@@ -205,6 +216,7 @@ Guarantees:
 │   ├── features.yaml              #   features (+ confidence)
 │   ├── use-cases.yaml             #   use cases, steps, diagrams (+ confidence)
 │   ├── fingerprints.json          #   what the incremental re-run compares against
+│   ├── scope.yaml                 #   files left out by the budget (`--max-files`), listed in the report
 │   ├── roles.yaml                 #   (phase 7) glob → role rules, hand-editable
 │   ├── glossary.yaml              #   (phase 7) business entities, also its own cache
 │   ├── entry-points.yaml          #   (phase 7) routes/commands/jobs + outputs, also its own cache
