@@ -74,7 +74,7 @@ docs/
 8. **Scalability & cost control** (see §7.2): bring a run on a large repo (thousands of files) within
    reach, including on limited/local LLM resources. In progress: delivered are progress reporting, the LLM
    heartbeat, the directory-summary cache (item 6), `--no-confidence`/`--confidence-sample` (item 3) and item 5
-   (call estimate for the repo map pass, resumable features/use cases); item 4 (`llm.concurrency`, repo map only) and item 2 (`llm.batch_chars`, batched confidence); item 1 (`--max-files`, opt-in) — all six directions are now delivered.
+   (call estimate for the repo map pass, resumable features/use cases); item 4 (`llm.concurrency`, repo map only) and item 2 (`llm.batch_chars`, batched confidence); item 1 (`--max-files`, opt-in) — all six directions are now delivered; token and cost accounting (item 7) is open.
 9. **Ask the documentation** (see §7.3): a question-answering agent (`retrodoc ask` / `chat`) grounded on
    the generated artifacts, the collected docs, the git history and, when needed, the code. Not started;
    comes after phases 7 and 8, since answer quality is bounded by the quality of the generated docs.
@@ -288,6 +288,17 @@ Directions:
 6. ~~Directory summaries regenerated on every run~~ — **delivered**: cached in `repo-map.json` by the hash of
    the listing sent to the LLM (children's summaries), so a changed file only invalidates its folder and
    ancestors (unit-tested, not yet measured on a large repo).
+
+7. **Token and cost accounting** — open. Nothing counts tokens today: `CompletionResponse` only carries `content` and
+   `model`, and the client ignores the `usage` field (`prompt_tokens`, `completion_tokens`) that OpenRouter, Gemini
+   and Ollama all return. Step 1: read it and sum it per pass and per model (a wrapper provider like
+   `HeartbeatProvider`), then print a recap at the end of `generate` (calls, tokens in/out, duration per pass; the
+   per-pass timings of the 2026-10-02 Rails test repo run were lost with its log). Optional `llm.price_per_mtok_in/out` in
+   `retrodoc.toml` for a dollar figure (no prices hard-coded). Step 2, once real measurements exist: a pre-run
+   estimate for the whole pipeline. `estimate_repo_map` already gives calls and characters for the repo map (~4
+   characters per token); the later passes depend on earlier outputs, so extrapolate with measured ratios (the Rails test repo:
+   325 files gave 77 features and 183 use cases, ~0.24 and ~0.56 per file). Output tokens (use case JSON, up to 8,192
+   per call) are the hardest to predict; an estimate made before any measurement can be off by 2-3x.
 
 First full `generate` on a real repo (2026-10-02, the Rails test repo, sparse-checkout `app/services` +
 `app/policies` + `app/controllers`: 325 source files; `qwen3.6:35b-a3b`, `concurrency = 2`, default batching):
