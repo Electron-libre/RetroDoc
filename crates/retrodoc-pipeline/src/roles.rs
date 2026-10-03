@@ -21,7 +21,8 @@ use retrodoc_ingest::{FileEntry, FileKind, IngestResult};
 use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
-use crate::chunks::ChunkBoundary;
+use crate::chunk_check::verify_boundaries;
+use crate::chunks::{ChunkBoundary, REGEX_SYNTAX_HELP};
 use crate::error::PipelineError;
 use crate::response::complete_json;
 
@@ -277,16 +278,18 @@ pub async fn identify_roles(
         }
     }
 
+    let system_prompt = format!("{ROLES_SYSTEM_PROMPT} {REGEX_SYNTAX_HELP}");
     let Some(response) =
-        complete_json::<RolesResponse>(llm, ROLES_SYSTEM_PROMPT, &prompt, "file role rules")
-            .await?
+        complete_json::<RolesResponse>(llm, &system_prompt, &prompt, "file role rules").await?
     else {
         return Ok(RoleRules::default());
     };
+    let chunk_boundaries =
+        verify_boundaries(repo_root, &ingest.files, llm, response.chunk_boundaries).await?;
     let rules = RoleRules {
         stack: response.stack,
         rules: response.rules,
-        chunk_boundaries: response.chunk_boundaries,
+        chunk_boundaries,
     };
     rules.save(repo_root)?;
     Ok(rules)

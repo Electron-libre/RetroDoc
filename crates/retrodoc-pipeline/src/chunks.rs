@@ -18,6 +18,16 @@ use serde::{Deserialize, Serialize};
 /// already 8 calls): the rest is logged as not read.
 const MAX_CHUNKS_PER_FILE: usize = 8;
 
+/// What the LLM is told about the regex dialect of [`ChunkBoundary::pattern`]
+/// (models happily write lookaheads, which the `regex` crate rejects).
+pub(crate) const REGEX_SYNTAX_HELP: &str = "Regex syntax: the Rust `regex` crate (RE2-like). \
+Supported: `^`, `$`, `.`, `\\s`, `\\w`, `\\d`, `\\b`, character classes `[...]`, groups `(...)` and \
+non-capturing groups `(?:...)`, alternation `|`, quantifiers `*`, `+`, `?`, `{n,m}` (and lazy `*?`). \
+NOT supported, the pattern would be rejected: lookahead and lookbehind (`(?=`, `(?!`, `(?<=`, \
+`(?<!`), backreferences (`\\1`), atomic groups and possessive quantifiers. The pattern is matched \
+against ONE line at a time (it never contains a newline), so anchor it with `^`. It is written \
+inside a JSON string, so every backslash must be doubled (`\\\\s` for `\\s`).";
+
 /// Where the units of a language start, as identified by the LLM.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ChunkBoundary {
