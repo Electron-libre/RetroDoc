@@ -241,6 +241,18 @@ fn omitted(out: &mut String, from: u32, to: u32) {
     let _ = writeln!(out, "     … (lines {from}-{to} omitted)");
 }
 
+/// `path` without the "(part i/n)" marker a model sometimes copies after the
+/// file name it was shown (`config/routes.rb (part 1/2)`).
+pub(crate) fn strip_part_marker(path: &str) -> &str {
+    let path = path.trim();
+    match path.rsplit_once('(') {
+        Some((name, marker)) if marker.starts_with("part ") && marker.trim_end().ends_with(')') => {
+            name.trim_end()
+        }
+        _ => path,
+    }
+}
+
 /// Cuts `content` into chunks of about `max_chars`, on line boundaries. When
 /// a chunk is full it is cut, if possible in its second half, before the last
 /// line matching `boundary` (the start of a unit), else after the last blank
@@ -431,5 +443,16 @@ mod tests {
         assert!(head.contains("def action_1\n"));
         assert!(!head.contains("def target_a"));
         assert!(head.trim_end().ends_with("omitted)"));
+    }
+
+    #[test]
+    fn a_copied_part_marker_is_stripped_from_a_cited_path() {
+        assert_eq!(
+            strip_part_marker("config/routes.rb (part 1/2)"),
+            "config/routes.rb"
+        );
+        assert_eq!(strip_part_marker(" a/b.rb "), "a/b.rb");
+        assert_eq!(strip_part_marker("a/(part)/b.rb"), "a/(part)/b.rb");
+        assert_eq!(strip_part_marker("a/b(1).rb"), "a/b(1).rb");
     }
 }

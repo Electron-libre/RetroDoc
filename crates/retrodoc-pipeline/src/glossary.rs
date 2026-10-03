@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::artifact::{load_yaml, save_yaml};
 use crate::cache::hash_content;
-use crate::chunks::Splitter;
+use crate::chunks::{strip_part_marker, Splitter};
 use crate::error::PipelineError;
 use crate::naming::normalize;
 use crate::progress::Progress;
@@ -166,7 +166,7 @@ fn attribute_entities(
         let target = if allowed.len() == 1 {
             allowed.iter().next().cloned()
         } else {
-            resolve_cited_path(&item.file, &allowed)
+            resolve_cited_path(strip_part_marker(&item.file), &allowed)
         };
         match target {
             Some(file) if !item.entity.name.trim().is_empty() => {

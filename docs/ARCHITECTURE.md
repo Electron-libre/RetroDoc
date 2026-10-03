@@ -109,10 +109,10 @@ What each pass hands to the next, and where it is saved:
 |---|---|---|---|---|
 | 1 | ingest (`retrodoc-ingest`) | repo path | files, history, existing docs | — (recomputed) |
 | 1c | `ranking.rs` (only with a budget) | source files + roles + history + references | the N best-ranked files; the rest is left out | `scope.yaml` |
-| 2 | `repo_map.rs` | source files + history | file and directory summaries | `repo-map.json` |
-| 3 | `domains.rs` | directory summaries + doc titles + the surface (entities, entry points by resource) | `DomainMap` (every source file in exactly one domain) | `domains.yaml` |
+| 2 | `repo_map/` | source files + history | file and directory summaries | `repo-map.json` |
+| 3 | `domains/` | directory summaries + doc titles + the surface (entities, entry points by resource) | `DomainMap` (every source file in exactly one domain) | `domains.yaml` |
 | 4 | `features.rs` | one domain + its files' summaries | `Feature`s grounded on a validated subset of files | `features.yaml` |
-| 5 | `use_cases.rs` | one feature + its entry points + the code they run (`slices.rs`) + the business actors (`actors.rs`), else its files' excerpts | `UseCase`s with steps and actors | `use-cases.yaml` |
+| 5 | `use_cases/` | one feature + its entry points + the code they run (`slices.rs`) + the business actors (`actors.rs`), else its files' excerpts | `UseCase`s with steps and actors | `use-cases.yaml` |
 | 6 | `diagrams.rs` | use case steps (the technical level; each use case also carries a business `narrative`) | Mermaid text attached to each use case | `use-cases.yaml` |
 | 6b | `vocabulary.rs` | use case narrative + entity/actor names | business-language score on each use case (no LLM) | `use-cases.yaml` |
 | 7 | `confidence.rs` | use case + the code its steps cite | scores on use cases and features | `features.yaml`, `use-cases.yaml` |
