@@ -19,12 +19,14 @@ use serde::Deserialize;
 
 use crate::actors::Actors;
 use crate::cache::hash_content;
+use crate::chunks::{Focus, Splitter};
 use crate::entry_points::{EntryPoint, EntryPoints};
 use crate::error::PipelineError;
 use crate::features::unique_slug;
 use crate::fingerprints::{fingerprint, Fingerprints};
 use crate::progress::Progress;
 use crate::response::complete_json;
+use crate::roles::load_splitter;
 use crate::slices::CodeIndex;
 
 const USE_CASES_RELATIVE_PATH: &str = ".retrodoc/cache/use-cases.yaml";
@@ -232,6 +234,7 @@ pub async fn build_use_cases(
     let previous = load_use_cases(repo_root).unwrap_or_default();
     let mut prints = Fingerprints::load(repo_root);
     let known = std::mem::take(&mut prints.use_cases);
+    let splitter = load_splitter(repo_root);
 
     let mut use_cases: Vec<UseCase> = Vec::new();
     let mut progress = Progress::new("use cases", features.len());
@@ -256,7 +259,7 @@ pub async fn build_use_cases(
         let produced_before = use_cases.len();
         progress.begin(&key);
         let (prompt, cited_files) =
-            use_cases_prompt(repo_root, feature, &input, actors, vocabulary);
+            use_cases_prompt(repo_root, feature, &input, actors, vocabulary, &splitter);
         if cited_files.is_empty() {
             tracing::warn!(feature = %feature.slug, "feature skipped: none of its files is readable");
             continue;
@@ -546,7 +549,9 @@ fn use_cases_prompt(
     input: &FeatureInput,
     actors: &Actors,
     vocabulary: &[String],
+    splitter: &Splitter,
 ) -> (String, BTreeSet<String>) {
+    let focus = focus_for(feature, &input.entries);
     let mut prompt = format!("Feature: {} — {}\n", feature.name, feature.description);
     if !vocabulary.is_empty() {
         let _ = write!(
@@ -592,12 +597,54 @@ fn use_cases_prompt(
             continue;
         };
         let content = String::from_utf8_lossy(&bytes);
-        let excerpt = numbered_excerpt(&content, MAX_CHARS_PER_FILE.min(budget));
+        let excerpt = splitter.excerpt(
+            Path::new(path),
+            &content,
+            MAX_CHARS_PER_FILE.min(budget),
+            &focus,
+        );
         budget = budget.saturating_sub(excerpt.len());
         let _ = write!(prompt, "\n=== {path} ===\n{excerpt}\n");
         included.insert(path.clone());
     }
     (prompt, included)
+}
+
+/// What a long file's excerpt should favour for `feature`: the identifiers
+/// its entry points are named after (`send_contract` in `POST
+/// /contracts/:id/send_contract`), then the words of its own text.
+fn focus_for(feature: &Feature, entries: &[(PathBuf, EntryPoint)]) -> Focus {
+    /// Too common to point at any code.
+    const NOISE: &[&str] = &["post", "patch", "delete", "head", "implied", "callback"];
+    let tokens = |text: &str, min_len: usize| -> Vec<String> {
+        text.split(|c: char| !(c.is_alphanumeric() || c == '_'))
+            .filter(|w| w.len() >= min_len)
+            .map(str::to_lowercase)
+            .filter(|w| !NOISE.contains(&w.as_str()))
+            .collect()
+    };
+    let mut terms: Vec<String> = Vec::new();
+    for (_, entry) in entries {
+        for term in tokens(&entry.name, 4)
+            .into_iter()
+            .chain(tokens(&entry.verb, 4))
+        {
+            if !terms.contains(&term) {
+                terms.push(term);
+            }
+        }
+    }
+    let mut words: Vec<String> = Vec::new();
+    for word in tokens(&format!("{} {}", feature.name, feature.description), 5) {
+        if !terms.contains(&word) && !words.contains(&word) {
+            words.push(word);
+        }
+    }
+    Focus {
+        terms,
+        words,
+        lines: Vec::new(),
+    }
 }
 
 /// Prefixes each line with its 1-based number (so the LLM can cite line
@@ -1064,5 +1111,68 @@ mod tests {
         assert_eq!(use_cases.len(), 2);
         // Only the second feature was sent to the LLM again.
         assert_eq!(healthy.calls.load(std::sync::atomic::Ordering::SeqCst), 2);
+    }
+
+    #[tokio::test]
+    async fn a_long_controller_is_shown_around_the_actions_of_its_entry_points() {
+        use crate::entry_points::{EntryFile, EntryKind};
+        use std::collections::BTreeMap;
+        use std::fmt::Write as _;
+
+        let dir = tempfile::tempdir().unwrap();
+        let mut code = String::from("class ContractsController\n\n");
+        for i in 1..=60 {
+            let name = if i == 55 {
+                "send_contract".to_string()
+            } else {
+                format!("action_{i}")
+            };
+            let _ = writeln!(code, "  def {name}");
+            for step in 1..=8 {
+                let _ = writeln!(code, "    work_{i}_{step}");
+            }
+            let _ = writeln!(code, "  end\n");
+        }
+        std::fs::write(dir.path().join("contracts_controller.rb"), &code).unwrap();
+        let entry_points = EntryPoints {
+            files: BTreeMap::from([(
+                PathBuf::from("contracts_controller.rb"),
+                EntryFile {
+                    content_hash: String::new(),
+                    entry_points: vec![EntryPoint {
+                        kind: EntryKind::HttpRoute,
+                        name: "POST /contracts/:id/send_contract".to_string(),
+                        verb: "send".to_string(),
+                        resource: "contract".to_string(),
+                        description: "Sends the contract".to_string(),
+                        outputs: Vec::new(),
+                    }],
+                },
+            )]),
+        };
+        let context = UseCaseContext {
+            entry_points,
+            index: CodeIndex::new([Path::new("contracts_controller.rb")]),
+            ..UseCaseContext::default()
+        };
+        let provider = RecordingProvider {
+            response: r#"{"use_cases":[]}"#.to_string(),
+            prompts: std::sync::Mutex::new(Vec::new()),
+        };
+        let features = [feature("sending", &["contracts_controller.rb"])];
+
+        build_use_cases(dir.path(), &features, &context, &provider)
+            .await
+            .unwrap();
+
+        let prompts = provider.prompts.lock().unwrap();
+        let prompt = &prompts[0].1;
+        assert!(prompt.contains("def send_contract"), "the action is shown");
+        assert!(
+            prompt.contains("class ContractsController"),
+            "so is the header"
+        );
+        assert!(prompt.contains("omitted)"));
+        assert!(!prompt.contains("def action_20"));
     }
 }

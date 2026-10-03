@@ -1,6 +1,12 @@
 //! Cutting long files into chunks for the passes that read whole files
 //! (entry points, glossary), instead of silently truncating them.
 //!
+//! The use cases and confidence passes send the code to the LLM as a numbered
+//! excerpt: for a long file it is no longer its first characters but the
+//! chunks that matter ([`Splitter::excerpt`]): the first chunk (the header),
+//! then the ones naming what the feature is about or holding the lines a step
+//! cites ([`Focus`]), with absolute line numbers and the omitted ranges marked.
+//!
 //! Where to cut depends on the language, so it is not hard-coded: the role
 //! identification pass (`roles.rs`) asks the LLM, along with the stack, for
 //! one regex per language matching the line that *starts* a module, class or
@@ -9,10 +15,13 @@
 //! falls back to a blank line, then to any line, when there is none (no rule
 //! for the extension, invalid regex, dense code).
 
+use std::fmt::Write as _;
 use std::path::Path;
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+
+use crate::use_cases::numbered_excerpt;
 
 /// A file longer than this many chunks is cut there (a 40 KB controller is
 /// already 8 calls): the rest is logged as not read.
@@ -27,6 +36,36 @@ NOT supported, the pattern would be rejected: lookahead and lookbehind (`(?=`, `
 `(?<!`), backreferences (`\\1`), atomic groups and possessive quantifiers. The pattern is matched \
 against ONE line at a time (it never contains a newline), so anchor it with `^`. It is written \
 inside a JSON string, so every backslash must be doubled (`\\\\s` for `\\s`).";
+
+/// Size of the chunks an excerpt is assembled from: small enough to pick one
+/// method out of a large controller.
+const EXCERPT_CHUNK_CHARS: usize = 1_200;
+
+/// What an excerpt of a long file should favour (nothing: its beginning).
+#[derive(Debug, Default)]
+pub(crate) struct Focus {
+    /// Identifiers likely to name the code of interest (entry point and
+    /// action names): a strong signal. Lowercase.
+    pub terms: Vec<String>,
+    /// Plain words of the feature's text: a weak signal. Lowercase.
+    pub words: Vec<String>,
+    /// 1-based inclusive line ranges the code is known to be cited at.
+    pub lines: Vec<(u32, u32)>,
+}
+
+impl Focus {
+    /// Score of a chunk spanning lines `first..=last`: holding a cited line
+    /// outweighs any number of matched names, a name outweighs a word.
+    fn score(&self, text: &str, first: u32, last: u32) -> u32 {
+        let lower = text.to_lowercase();
+        let cited = self.lines.iter().any(|(a, b)| *a <= last && *b >= first);
+        let count = |list: &[String]| {
+            u32::try_from(list.iter().filter(|t| lower.contains(t.as_str())).count())
+                .unwrap_or(u32::MAX)
+        };
+        u32::from(cited) * 100_000 + count(&self.terms) * 100 + count(&self.words)
+    }
+}
 
 /// Where the units of a language start, as identified by the LLM.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -108,6 +147,98 @@ impl Splitter {
         }
         chunks
     }
+}
+
+/// One chunk of a file rendered for an excerpt.
+struct Piece {
+    text: String,
+    first: u32,
+    last: u32,
+    score: u32,
+}
+
+impl Splitter {
+    /// `content` with numbered lines, within about `max_chars`. A file that
+    /// fits is given whole; otherwise the first chunk and the best scoring
+    /// ones for `focus` (best first, while the budget allows), in file order,
+    /// with a marker for each omitted range of lines.
+    pub(crate) fn excerpt(
+        &self,
+        path: &Path,
+        content: &str,
+        max_chars: usize,
+        focus: &Focus,
+    ) -> String {
+        let whole = numbered_excerpt(content, usize::MAX);
+        if whole.len() <= max_chars {
+            return whole;
+        }
+        let pieces = self.pieces(path, content, focus);
+        let total_lines = pieces.last().map_or(0, |p| p.last);
+
+        let mut order: Vec<usize> = (1..pieces.len()).collect();
+        order.sort_by_key(|&i| (std::cmp::Reverse(pieces[i].score), i));
+        order.insert(0, 0);
+        let mut chosen = vec![false; pieces.len()];
+        let mut used = 0;
+        for i in order {
+            if used + pieces[i].text.len() <= max_chars {
+                chosen[i] = true;
+                used += pieces[i].text.len();
+            }
+        }
+
+        let mut out = String::new();
+        let mut shown_to = 0;
+        for (piece, _) in pieces.iter().zip(&chosen).filter(|(_, c)| **c) {
+            if piece.first > shown_to + 1 {
+                omitted(&mut out, shown_to + 1, piece.first - 1);
+            }
+            out.push_str(&piece.text);
+            shown_to = piece.last;
+        }
+        if out.is_empty() {
+            out = whole.chars().take(max_chars).collect();
+        } else if shown_to < total_lines {
+            omitted(&mut out, shown_to + 1, total_lines);
+        }
+        out
+    }
+
+    /// The chunks of `content`, numbered with absolute line numbers.
+    fn pieces(&self, path: &Path, content: &str, focus: &Focus) -> Vec<Piece> {
+        let mut pieces: Vec<Piece> = Vec::new();
+        let mut next_line = 1_u32;
+        let mut continues = false;
+        for chunk in split_chunks(content, EXCERPT_CHUNK_CHARS, self.boundary_for(path)) {
+            let first = next_line;
+            let mut text = String::new();
+            for (i, line) in chunk.split_inclusive('\n').enumerate() {
+                let line = line.trim_end_matches(['\r', '\n']);
+                if i == 0 && continues {
+                    // The rest of a very long line cut by the chunker.
+                    let _ = writeln!(text, "     | {line}");
+                } else {
+                    let _ = writeln!(text, "{next_line:>4} | {line}");
+                    next_line += 1;
+                }
+            }
+            continues = !chunk.ends_with('\n');
+            let last = next_line - 1;
+            let score = focus.score(&chunk, first, last);
+            pieces.push(Piece {
+                text,
+                first,
+                last,
+                score,
+            });
+        }
+        pieces
+    }
+}
+
+fn omitted(out: &mut String, from: u32, to: u32) {
+    let _ = writeln!(out, "     … (lines {from}-{to} omitted)");
 }
 
 /// Cuts `content` into chunks of about `max_chars`, on line boundaries. When
@@ -231,5 +362,74 @@ mod tests {
         let chunks = splitter.file_chunks(Path::new("a.rb"), &content, 10, "test");
         assert_eq!(chunks.len(), MAX_CHUNKS_PER_FILE);
         assert!(chunks[0].starts_with("(part 1/8)"));
+    }
+
+    /// 40 methods of 11 lines; `target_a` is the 30th (line 321), `target_b`
+    /// the 12th (line 123).
+    fn controller() -> String {
+        let mut content = String::from("class C\n");
+        for i in 1..=40 {
+            let name = match i {
+                30 => "target_a".to_string(),
+                12 => "target_b".to_string(),
+                _ => format!("action_{i}"),
+            };
+            let _ = writeln!(content, "  def {name}");
+            for step in 1..=8 {
+                let _ = writeln!(content, "    work_{i}_{step}");
+            }
+            content.push_str("  end\n\n");
+        }
+        content.push_str("end\n");
+        content
+    }
+
+    fn ruby() -> Splitter {
+        Splitter::new(&[ChunkBoundary {
+            extensions: vec!["rb".to_string()],
+            pattern: r"^\s*def\s".to_string(),
+        }])
+    }
+
+    #[test]
+    fn a_file_that_fits_is_given_whole_and_numbered() {
+        let out = ruby().excerpt(Path::new("a.rb"), "x\ny\n", 1_000, &Focus::default());
+        assert_eq!(out, "   1 | x\n   2 | y\n");
+    }
+
+    #[test]
+    fn a_long_file_shows_its_header_and_the_chunks_naming_the_focus() {
+        let content = controller();
+        let focus = Focus {
+            terms: vec!["target_a".to_string()],
+            ..Focus::default()
+        };
+
+        let out = ruby().excerpt(Path::new("c.rb"), &content, 4_000, &focus);
+
+        assert!(out.len() <= 4_200, "{}", out.len());
+        assert!(out.contains("| class C"), "header kept");
+        assert!(out.contains("def target_a"), "the focused method is shown");
+        assert!(!out.contains("def target_b"));
+        let line = out.lines().find(|l| l.contains("def target_a")).unwrap();
+        assert!(line.trim_start().starts_with("321 |"), "{line}");
+        assert!(out.contains("omitted)"));
+    }
+
+    #[test]
+    fn cited_lines_outweigh_names_and_no_focus_keeps_the_beginning() {
+        let content = controller();
+        let cited = Focus {
+            terms: vec!["target_a".to_string()],
+            lines: vec![(123, 125)],
+            ..Focus::default()
+        };
+        let out = ruby().excerpt(Path::new("c.rb"), &content, 4_000, &cited);
+        assert!(out.contains("def target_b"), "{out}");
+
+        let head = ruby().excerpt(Path::new("c.rb"), &content, 4_000, &Focus::default());
+        assert!(head.contains("def action_1\n"));
+        assert!(!head.contains("def target_a"));
+        assert!(head.trim_end().ends_with("omitted)"));
     }
 }

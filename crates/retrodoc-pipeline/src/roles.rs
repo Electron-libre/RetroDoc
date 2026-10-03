@@ -22,7 +22,7 @@ use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
 use crate::chunk_check::verify_boundaries;
-use crate::chunks::{ChunkBoundary, REGEX_SYNTAX_HELP};
+use crate::chunks::{ChunkBoundary, Splitter, REGEX_SYNTAX_HELP};
 use crate::error::PipelineError;
 use crate::response::complete_json;
 
@@ -229,6 +229,14 @@ impl RoleRules {
             chunk_boundaries: self.chunk_boundaries.clone(),
         }
     }
+}
+
+/// The chunk splitter of the repo, from its saved `roles.yaml` (blank-line
+/// fallback when there is none or it predates `chunk_boundaries`).
+pub(crate) fn load_splitter(repo_root: &Path) -> Splitter {
+    RoleRules::load(repo_root).map_or_else(Splitter::default, |rules| {
+        Splitter::new(&rules.chunk_boundaries)
+    })
 }
 
 /// Count of non-wildcard characters: longer literal patterns are more specific.

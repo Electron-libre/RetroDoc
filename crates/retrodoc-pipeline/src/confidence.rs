@@ -23,11 +23,13 @@ use retrodoc_core::model::{ConfidenceScore, Feature, UseCase};
 use retrodoc_llm::LlmProvider;
 use serde::Deserialize;
 
+use crate::chunks::{Focus, Splitter};
 use crate::error::PipelineError;
 use crate::features::save_features;
 use crate::progress::Progress;
 use crate::response::complete_json;
-use crate::use_cases::{numbered_excerpt, save_use_cases};
+use crate::roles::load_splitter;
+use crate::use_cases::save_use_cases;
 
 /// Highest score a step without any source reference can get.
 const UNGROUNDED_STEP_CAP: f32 = 0.25;
@@ -101,6 +103,7 @@ pub async fn score_confidence(
     llm: &dyn LlmProvider,
     sample: Option<usize>,
 ) -> Result<(), PipelineError> {
+    let splitter = load_splitter(repo_root);
     let pending: Vec<usize> = (0..use_cases.len())
         .filter(|&i| use_cases[i].confidence.is_none())
         .collect();
@@ -137,7 +140,7 @@ pub async fn score_confidence(
             label
         });
         let members: Vec<&UseCase> = group.iter().map(|&i| &use_cases[i]).collect();
-        let scores = score_group(repo_root, &members, llm).await?;
+        let scores = score_group(repo_root, &splitter, &members, llm).await?;
         for (&i, score) in group.iter().zip(scores) {
             use_cases[i].confidence = score;
         }
@@ -155,13 +158,14 @@ pub async fn score_confidence(
 /// batched answer misses falls back to its own request.
 async fn score_group(
     repo_root: &Path,
+    splitter: &Splitter,
     group: &[&UseCase],
     llm: &dyn LlmProvider,
 ) -> Result<Vec<Option<ConfidenceScore>>, PipelineError> {
     let live: Vec<&UseCase> = group
         .iter()
         .copied()
-        .filter(|u| !confidence_prompt(repo_root, u).1.is_empty())
+        .filter(|u| !confidence_prompt(repo_root, splitter, u).1.is_empty())
         .collect();
     let mut answers: BTreeMap<&str, Vec<RawVerdict>> = BTreeMap::new();
     let raw = if live.len() > 1 {
@@ -169,7 +173,7 @@ async fn score_group(
         complete_json::<RawBatchVerdicts>(
             llm,
             CONFIDENCE_SYSTEM_PROMPT,
-            &batch_prompt(repo_root, &live),
+            &batch_prompt(repo_root, splitter, &live),
             &what,
         )
         .await?
@@ -187,7 +191,7 @@ async fn score_group(
     for use_case in group {
         scores.push(match answers.remove(use_case.slug.as_str()) {
             Some(steps) => Some(combine(use_case, &steps)),
-            None => score_use_case(repo_root, use_case, llm).await?,
+            None => score_use_case(repo_root, splitter, use_case, llm).await?,
         });
     }
     Ok(scores)
@@ -195,10 +199,11 @@ async fn score_group(
 
 async fn score_use_case(
     repo_root: &Path,
+    splitter: &Splitter,
     use_case: &UseCase,
     llm: &dyn LlmProvider,
 ) -> Result<Option<ConfidenceScore>, PipelineError> {
-    let (prompt, readable) = confidence_prompt(repo_root, use_case);
+    let (prompt, readable) = confidence_prompt(repo_root, splitter, use_case);
     if readable.is_empty() {
         return Ok(Some(ConfidenceScore::new(
             0.0,
@@ -302,21 +307,48 @@ fn cited_paths<'a>(use_cases: &[&'a UseCase]) -> BTreeSet<&'a str> {
         .collect()
 }
 
-/// Appends numbered excerpts of `paths` to `prompt` within the prompt
-/// budget; returns the files actually included.
-fn append_code(repo_root: &Path, paths: BTreeSet<&str>, prompt: &mut String) -> BTreeSet<String> {
+/// The lines of `path` that the steps of `use_cases` cite (a reference
+/// without a range cites no line in particular).
+fn cited_lines(use_cases: &[&UseCase], path: &str) -> Vec<(u32, u32)> {
+    use_cases
+        .iter()
+        .flat_map(|u| u.steps.iter())
+        .flat_map(|s| s.source_refs.iter())
+        .filter(|r| r.path == path)
+        .filter_map(|r| {
+            let start = r.start_line.or(r.end_line)?;
+            Some((start, r.end_line.unwrap_or(start).max(start)))
+        })
+        .collect()
+}
+
+/// Appends numbered excerpts of the files `use_cases` cite to `prompt`
+/// within the prompt budget; a long file is shown around the cited lines.
+/// Returns the files actually included.
+fn append_code(
+    repo_root: &Path,
+    splitter: &Splitter,
+    use_cases: &[&UseCase],
+    prompt: &mut String,
+) -> BTreeSet<String> {
     let mut included = BTreeSet::new();
     let mut budget = MAX_CHARS_PER_PROMPT;
-    for path in paths {
+    for path in cited_paths(use_cases) {
         if budget == 0 {
             break;
         }
         let Ok(bytes) = std::fs::read(repo_root.join(path)) else {
             continue;
         };
-        let excerpt = numbered_excerpt(
+        let focus = Focus {
+            lines: cited_lines(use_cases, path),
+            ..Focus::default()
+        };
+        let excerpt = splitter.excerpt(
+            Path::new(path),
             &String::from_utf8_lossy(&bytes),
             MAX_CHARS_PER_FILE.min(budget),
+            &focus,
         );
         budget = budget.saturating_sub(excerpt.len());
         let _ = write!(prompt, "\n=== {path} ===\n{excerpt}\n");
@@ -327,20 +359,24 @@ fn append_code(repo_root: &Path, paths: BTreeSet<&str>, prompt: &mut String) -> 
 
 /// Prompt with the steps and the code they cite; also returns the files
 /// actually included.
-fn confidence_prompt(repo_root: &Path, use_case: &UseCase) -> (String, BTreeSet<String>) {
+fn confidence_prompt(
+    repo_root: &Path,
+    splitter: &Splitter,
+    use_case: &UseCase,
+) -> (String, BTreeSet<String>) {
     let mut prompt = format!(
         "Use case: {} — {}\n\nSteps:\n{}",
         use_case.name,
         use_case.description,
         steps_text(use_case)
     );
-    let included = append_code(repo_root, cited_paths(&[use_case]), &mut prompt);
+    let included = append_code(repo_root, splitter, &[use_case], &mut prompt);
     (prompt, included)
 }
 
 /// Prompt for several use cases of a feature: each one's steps, then the
 /// code they cite, once. The answer is one verdict list per use case slug.
-fn batch_prompt(repo_root: &Path, use_cases: &[&UseCase]) -> String {
+fn batch_prompt(repo_root: &Path, splitter: &Splitter, use_cases: &[&UseCase]) -> String {
     let mut prompt = String::from(
         "Several use cases are checked against the same code. Reply with ONLY a JSON object \
          {\"use_cases\":[{\"slug\":\"...\",\"steps\":[{\"order\":1,\"verdict\":\"...\",\
@@ -356,7 +392,7 @@ fn batch_prompt(repo_root: &Path, use_cases: &[&UseCase]) -> String {
             steps_text(use_case)
         );
     }
-    append_code(repo_root, cited_paths(use_cases), &mut prompt);
+    append_code(repo_root, splitter, use_cases, &mut prompt);
     prompt
 }
 
@@ -567,5 +603,58 @@ mod tests {
         assert_eq!((value(0), value(1), value(2)), (1.0, 0.5, 0.0));
         // One batched request, one fallback for u3.
         assert_eq!(provider.0.load(std::sync::atomic::Ordering::SeqCst), 2);
+    }
+
+    /// Answers a fixed verdict and keeps the prompts it receives.
+    struct PromptSpy(std::sync::Mutex<Vec<String>>);
+
+    #[async_trait]
+    impl LlmProvider for PromptSpy {
+        async fn complete(
+            &self,
+            request: CompletionRequest,
+        ) -> Result<CompletionResponse, LlmError> {
+            self.0
+                .lock()
+                .unwrap()
+                .push(request.messages[1].content.clone());
+            Ok(CompletionResponse {
+                content: r#"{"steps":[{"order":1,"verdict":"supported"}]}"#.to_string(),
+                model: "m".to_string(),
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn a_long_cited_file_is_shown_around_the_cited_lines() {
+        use std::fmt::Write as _;
+
+        let dir = tempfile::tempdir().unwrap();
+        let mut code = String::new();
+        for i in 1..=60 {
+            let _ = writeln!(code, "def action_{i}");
+            for step in 1..=8 {
+                let _ = writeln!(code, "  work_{i}_{step}");
+            }
+            let _ = writeln!(code, "end\n");
+        }
+        std::fs::write(dir.path().join("big.rb"), &code).unwrap();
+        // `def action_50` is at line 1 + 49 * 11.
+        let line = 1 + 49 * 11;
+        let mut cited = step(1, Some("big.rb"));
+        cited.source_refs[0].start_line = Some(line);
+        cited.source_refs[0].end_line = Some(line + 5);
+        let mut features = vec![feature("f")];
+        let mut use_cases = vec![use_case("f", vec![cited])];
+        let spy = PromptSpy(std::sync::Mutex::new(Vec::new()));
+
+        score_confidence(dir.path(), &mut features, &mut use_cases, &spy, None)
+            .await
+            .unwrap();
+
+        let prompts = spy.0.lock().unwrap();
+        assert!(prompts[0].contains("def action_50"), "cited code is shown");
+        assert!(prompts[0].contains("omitted)"));
+        assert!(!prompts[0].contains("def action_30"));
     }
 }
