@@ -15,6 +15,9 @@ const OPENROUTER_ENDPOINT: &str = "https://openrouter.ai/api/v1/chat/completions
 /// (429 / 5xx) — PLAN.md §4 "retry, rate-limit".
 const MAX_RETRIES: u32 = 3;
 const RETRY_BASE_DELAY: Duration = Duration::from_millis(500);
+/// Longest wait the provider may ask for (`Retry-After`, `retryDelay`) that
+/// is still honored; beyond it the error is returned (e.g. a daily quota).
+const MAX_SERVER_RETRY_DELAY: Duration = Duration::from_secs(120);
 /// Default per-request HTTP timeout (`llm.timeout_secs` overrides it). `OpenRouter` always responds well within this,
 /// but a local `llm.base_url` override (a small quantized model) can
 /// degenerate into a runaway generation loop that never reaches a stop
@@ -225,6 +228,27 @@ fn request_timeout(config: &LlmConfig) -> Duration {
         .map_or(DEFAULT_REQUEST_TIMEOUT, Duration::from_secs)
 }
 
+/// How long the provider asks to wait before retrying: the `Retry-After`
+/// header (seconds), else the `retryDelay` field of a Google-style error body
+/// (`"retryDelay": "43s"`). A second is added so the retry lands after the
+/// quota window rather than on its edge.
+fn server_retry_delay(retry_after: Option<&str>, body: &str) -> Option<Duration> {
+    let seconds = retry_after
+        .and_then(|v| v.trim().parse::<f64>().ok())
+        .or_else(|| {
+            let rest = &body[body.find("retryDelay")? + "retryDelay".len()..];
+            let rest = &rest[rest.find(|c: char| c.is_ascii_digit())?..];
+            let number: String = rest
+                .chars()
+                .take_while(|c| c.is_ascii_digit() || *c == '.')
+                .collect();
+            rest[number.len()..]
+                .starts_with('s')
+                .then(|| number.parse::<f64>().ok())?
+        })?;
+    (seconds.is_finite() && seconds >= 0.0).then(|| Duration::from_secs_f64(seconds + 1.0))
+}
+
 /// An HTTP status deserves a retry if it signals a transient error on the
 /// provider's side: rate-limit (429) or server error (5xx).
 fn is_retryable_status(status: reqwest::StatusCode) -> bool {
@@ -291,22 +315,35 @@ impl LlmProvider for OpenRouterProvider {
                         return Ok(CompletionResponse { content, model });
                     }
 
-                    if is_retryable_status(status) && attempt < MAX_RETRIES {
-                        attempt += 1;
-                        let delay = RETRY_BASE_DELAY * 2u32.pow(attempt - 1);
-                        tracing::warn!(
-                            status = %status,
-                            attempt,
-                            "transient OpenRouter response, retrying in {delay:?}"
-                        );
-                        tokio::time::sleep(delay).await;
-                        continue;
-                    }
-
+                    let retry_after = response
+                        .headers()
+                        .get(reqwest::header::RETRY_AFTER)
+                        .and_then(|v| v.to_str().ok())
+                        .map(str::to_string);
                     let text = response
                         .text()
                         .await
                         .unwrap_or_else(|_| "<unreadable body>".to_string());
+
+                    if is_retryable_status(status) && attempt < MAX_RETRIES {
+                        let server_delay = server_retry_delay(retry_after.as_deref(), &text);
+                        // A wait too long to be worth it (a daily quota, say)
+                        // is an error, not a pause.
+                        if server_delay.is_none_or(|d| d <= MAX_SERVER_RETRY_DELAY) {
+                            attempt += 1;
+                            let backoff = RETRY_BASE_DELAY * 2u32.pow(attempt - 1);
+                            let delay = server_delay.map_or(backoff, |d| d.max(backoff));
+                            tracing::warn!(
+                                status = %status,
+                                attempt,
+                                server_requested = server_delay.is_some(),
+                                "transient OpenRouter response, retrying in {delay:?}"
+                            );
+                            tokio::time::sleep(delay).await;
+                            continue;
+                        }
+                    }
+
                     return Err(LlmError::InvalidResponse(format!(
                         "HTTP status {status}: {text}"
                     )));
@@ -459,6 +496,26 @@ mod tests {
     }
 
     #[test]
+    fn server_retry_delay_reads_the_header_then_the_google_body() {
+        let body = r#"{"error":{"details":[{"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay": "43s"}]}}"#;
+        assert_eq!(
+            server_retry_delay(Some("5"), body),
+            Some(Duration::from_secs(6))
+        );
+        assert_eq!(
+            server_retry_delay(None, body),
+            Some(Duration::from_secs(44))
+        );
+        assert_eq!(
+            server_retry_delay(None, r#""retryDelay":"1.5s""#),
+            Some(Duration::from_millis(2500))
+        );
+        assert_eq!(server_retry_delay(None, "Too Many Requests"), None);
+        assert_eq!(server_retry_delay(None, r#""retryDelay":"soon""#), None);
+        assert_eq!(server_retry_delay(Some("tomorrow"), "{}"), None);
+    }
+
+    #[test]
     fn retryable_statuses_are_429_and_5xx() {
         assert!(is_retryable_status(reqwest::StatusCode::TOO_MANY_REQUESTS));
         assert!(is_retryable_status(
@@ -512,6 +569,57 @@ mod tests {
 
         assert_eq!(response.content, "hello");
         assert_eq!(response.model, "anthropic/claude-sonnet-4.5");
+    }
+
+    #[tokio::test]
+    async fn complete_waits_for_the_delay_the_server_asks_for_on_a_429() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        std::thread::spawn(move || {
+            use std::io::{Read, Write};
+            for round in 0..2 {
+                let Ok((mut stream, _)) = listener.accept() else {
+                    return;
+                };
+                let mut buf = [0u8; 4096];
+                let _ = stream.read(&mut buf);
+                let response = if round == 0 {
+                    "HTTP/1.1 429 Too Many Requests\r\nRetry-After: 1\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_string()
+                } else {
+                    let payload = r#"{"model":"m","choices":[{"message":{"role":"assistant","content":"ok"}}]}"#;
+                    format!(
+                        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{payload}",
+                        payload.len()
+                    )
+                };
+                let _ = stream.write_all(response.as_bytes());
+            }
+        });
+
+        let provider = OpenRouterProvider {
+            client: reqwest::Client::new(),
+            api_key: "test-key".to_string(),
+            default_model: "m".to_string(),
+            endpoint: String::new(),
+            reasoning_effort: None,
+        }
+        .with_endpoint(format!("http://{addr}"));
+
+        let started = std::time::Instant::now();
+        let response = provider
+            .complete(CompletionRequest {
+                messages: vec![ChatMessage {
+                    role: Role::User,
+                    content: "hi".to_string(),
+                }],
+                model: None,
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(response.content, "ok");
+        // Retry-After: 1 plus the one-second margin, well above the 500 ms backoff.
+        assert!(started.elapsed() >= Duration::from_secs(2));
     }
 
     #[tokio::test]
