@@ -55,7 +55,8 @@ pub async fn run(
             .context("could not initialize the LLM provider (missing API key?)")?,
     );
 
-    let (surface, entry_points, role_map) = build_surface(&repo_root, &ingest, &llm, force).await?;
+    let (surface, entry_points, role_map) =
+        build_surface(&repo_root, &mut ingest, &llm, force).await?;
     let actors = identify_actors(&repo_root, &ingest, &surface, &llm, force).await?;
 
     apply_scope(
@@ -196,7 +197,7 @@ async fn derive_use_cases(
 /// directory summaries alone.
 async fn build_surface(
     repo_root: &Path,
-    ingest: &IngestResult,
+    ingest: &mut IngestResult,
     llm: &dyn LlmProvider,
     force: bool,
 ) -> anyhow::Result<(Surface, EntryPoints, Option<RoleMap>)> {
@@ -204,6 +205,10 @@ async fn build_surface(
     let rules = retrodoc_pipeline::identify_roles(repo_root, ingest, llm, force)
         .await
         .context("failed to identify the file roles")?;
+    let promoted = rules.promote_sources(&mut ingest.files);
+    if promoted > 0 {
+        println!("{promoted} file(s) of the identified languages added to the source files.");
+    }
     if rules.rules.is_empty() {
         tracing::warn!("no file role rules identified, domains are clustered without the surface");
         return Ok((Surface::default(), EntryPoints::default(), None));

@@ -58,8 +58,10 @@ HTTP clients, deployment, CI), \"config\" (settings, manifests, lockfiles), \"te
 root, e.g. \"app/models/**\" or \"**/*.erb\"; when several rules match a file the most specific \
 pattern wins, so broad fallbacks are fine. Reply with ONLY a single JSON object, no prose and no \
 Markdown code fence, matching this shape: {\"stack\":\"one sentence\",\"rules\":[{\"pattern\":\
-\"...\",\"role\":\"model\"}],\"chunk_boundaries\":[{\"extensions\":[\"rb\"],\"pattern\":\"...\"}]}. \
-`chunk_boundaries` is used to cut long source files without splitting a unit: for each programming \
+\"...\",\"role\":\"model\"}],\"source_extensions\":[\"rb\"],\"chunk_boundaries\":[{\"extensions\":[\"rb\"],\"pattern\":\"...\"}]}. \
+`source_extensions` lists the file extensions (without the dot) of the programming languages the \
+repository's own code is written in, so that every source file is found; not templates, markup, \
+data or assets. `chunk_boundaries` is used to cut long source files without splitting a unit: for each programming \
 language of the repository give its `extensions` and a `pattern`, a Rust-syntax regular expression \
 matching a line that STARTS a module, class or function/method definition (never the line that ends \
 it; the match is tried on one line at a time, indentation allowed). Be thorough: allow every \
@@ -116,6 +118,11 @@ pub struct RoleRule {
 pub struct RoleRules {
     pub stack: String,
     pub rules: Vec<RoleRule>,
+    /// Extensions of the repo's programming languages, as identified by the
+    /// LLM: completes the walker's built-in list (see
+    /// [`RoleRules::promote_sources`]). Absent from an older `roles.yaml`.
+    #[serde(default)]
+    pub source_extensions: Vec<String>,
     /// Where the units of each language start, for chunking long files.
     /// Absent from a `roles.yaml` written before this existed (`roles
     /// --force` regenerates it): chunks then fall back to blank lines.
@@ -165,6 +172,13 @@ impl RoleRules {
     /// serialization fails.
     pub fn save(&self, repo_root: &Path) -> Result<(), PipelineError> {
         save_yaml(&repo_root.join(ROLES_RELATIVE_PATH), self)
+    }
+
+    /// Marks as source the files of the languages the LLM identified but the
+    /// walker's built-in extension list doesn't know. Run it before any pass
+    /// that selects `FileKind::Source`. Returns the number of files promoted.
+    pub fn promote_sources(&self, files: &mut [FileEntry]) -> usize {
+        retrodoc_ingest::promote_to_source(files, &self.source_extensions)
     }
 
     /// Applies the rules to `files`. [`FileKind::Test`] and
@@ -246,6 +260,8 @@ struct RolesResponse {
     #[serde(default)]
     rules: Vec<RoleRule>,
     #[serde(default)]
+    source_extensions: Vec<String>,
+    #[serde(default)]
     chunk_boundaries: Vec<ChunkBoundary>,
 }
 
@@ -289,6 +305,7 @@ pub async fn identify_roles(
     let rules = RoleRules {
         stack: response.stack,
         rules: response.rules,
+        source_extensions: response.source_extensions,
         chunk_boundaries,
     };
     rules.save(repo_root)?;
@@ -403,6 +420,24 @@ mod tests {
                 .collect(),
             ..RoleRules::default()
         }
+    }
+
+    #[test]
+    fn promotes_files_of_identified_languages() {
+        let mut files = vec![
+            entry("lib/a.ex", FileKind::Other),
+            entry("app/show.html.erb", FileKind::Other),
+        ];
+        let rules = RoleRules {
+            source_extensions: vec!["ex".to_string()],
+            ..RoleRules::default()
+        };
+        assert_eq!(rules.promote_sources(&mut files), 1);
+        assert_eq!(files[0].kind, FileKind::Source);
+        assert_eq!(files[1].kind, FileKind::Other);
+        // An older roles.yaml has no such key: nothing is promoted.
+        let old: RoleRules = serde_yaml::from_str("stack: x\nrules: []\n").unwrap();
+        assert!(old.source_extensions.is_empty());
     }
 
     #[test]

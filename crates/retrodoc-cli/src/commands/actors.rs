@@ -5,7 +5,7 @@ use retrodoc_core::config::Config;
 use retrodoc_core::model::ActorKind;
 use retrodoc_ingest::FileKind;
 use retrodoc_llm::{HeartbeatProvider, OpenRouterProvider};
-use retrodoc_pipeline::{EntryPoints, Glossary, Surface};
+use retrodoc_pipeline::{EntryPoints, Glossary, RoleRules, Surface};
 
 /// Identifies the business actors (who uses the application, in business
 /// terms) from the authorization code and the user-like entities, saves
@@ -18,8 +18,11 @@ pub async fn run(path: &Path, force: bool) -> anyhow::Result<()> {
         .with_context(|| format!("path not found: {}", path.display()))?;
     let config = Config::load(&repo_root)
         .with_context(|| "config not found — run `retrodoc init` first".to_string())?;
-    let ingest = retrodoc_ingest::run(&repo_root, &config.ingest)
+    let mut ingest = retrodoc_ingest::run(&repo_root, &config.ingest)
         .with_context(|| format!("ingestion of {} failed", repo_root.display()))?;
+    if let Some(rules) = RoleRules::load(&repo_root) {
+        rules.promote_sources(&mut ingest.files);
+    }
     let source_files: Vec<_> = ingest
         .files
         .iter()

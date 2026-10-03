@@ -41,6 +41,36 @@ impl FileKind {
     }
 }
 
+/// Turns the [`FileKind::Other`] files whose extension is in `extensions`
+/// (with or without the dot, case-insensitive) into [`FileKind::Source`], or
+/// [`FileKind::Test`] by the usual test-path heuristic. The built-in list of
+/// [`FileKind::from_path`] only knows common languages; this lets the stack
+/// identification add the others. Returns the number of files promoted.
+pub fn promote_to_source(files: &mut [FileEntry], extensions: &[String]) -> usize {
+    let wanted: Vec<String> = extensions
+        .iter()
+        .map(|e| e.trim().trim_start_matches('.').to_lowercase())
+        .filter(|e| !e.is_empty())
+        .collect();
+    let mut promoted = 0;
+    for file in files.iter_mut().filter(|f| f.kind == FileKind::Other) {
+        let matches = file
+            .path
+            .extension()
+            .and_then(|e| e.to_str())
+            .is_some_and(|e| wanted.contains(&e.to_lowercase()));
+        if matches {
+            file.kind = if is_test_path(&file.path) {
+                FileKind::Test
+            } else {
+                FileKind::Source
+            };
+            promoted += 1;
+        }
+    }
+    promoted
+}
+
 /// Heuristic test detection on a repo-relative path: a test directory
 /// anywhere in it, or a conventional test file name (`foo_test.go`,
 /// `foo.spec.ts`, `test_foo.py`, `foo_spec.rb`).
@@ -191,6 +221,35 @@ mod tests {
         assert_eq!(kind_of("lib.rs"), Some(FileKind::Source));
         assert_eq!(kind_of("notes.md"), Some(FileKind::Markdown));
         assert_eq!(kind_of("data.bin"), Some(FileKind::Other));
+    }
+
+    #[test]
+    fn promotes_listed_extensions_to_source() {
+        let entry = |path: &str, kind| FileEntry {
+            path: PathBuf::from(path),
+            kind,
+            size_bytes: 0,
+        };
+        let mut files = vec![
+            entry("lib/a.ex", FileKind::Other),
+            entry("test/a_test.ex", FileKind::Other),
+            entry("web/b.EXS", FileKind::Other),
+            entry("app/show.html.erb", FileKind::Other),
+            entry("lib/c.rs", FileKind::Source),
+        ];
+        let promoted = promote_to_source(&mut files, &[".ex".into(), "exs".into(), " ".into()]);
+        let kinds: Vec<_> = files.iter().map(|f| f.kind).collect();
+        assert_eq!(promoted, 3);
+        assert_eq!(
+            kinds,
+            vec![
+                FileKind::Source,
+                FileKind::Test,
+                FileKind::Source,
+                FileKind::Other,
+                FileKind::Source
+            ]
+        );
     }
 
     #[test]

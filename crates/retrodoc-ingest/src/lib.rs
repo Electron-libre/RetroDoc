@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 pub use error::IngestError;
 pub use existing_docs::ExistingDoc;
 pub use git_history::FileHistory;
-pub use walker::{FileEntry, FileKind};
+pub use walker::{promote_to_source, FileEntry, FileKind};
 
 use retrodoc_core::config::IngestConfig;
 
