@@ -1,0 +1,305 @@
+//! Use cases pass (PLAN.md §2 step 5, roadmap phase 4): for each feature,
+//! one LLM call reads the actual code of the feature's files and describes
+//! its use cases as ordered steps, each with an actor, an action and the
+//! code locations it is grounded on. Saved as the intermediate
+//! `.retrodoc/cache/use-cases.yaml` artifact.
+//!
+//! Grounding is enforced rather than trusted: a step's source reference to a
+//! file outside the feature is dropped, and steps are renumbered from 1 in
+//! the order given. As in the features pass, a malformed answer for one
+//! feature is logged and that feature skipped.
+
+use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Write as _;
+use std::path::{Path, PathBuf};
+
+use retrodoc_core::model::{Actor, ActorKind, Feature, SourceRef, Step, UseCase};
+use retrodoc_llm::LlmProvider;
+use serde::Deserialize;
+
+use crate::actors::Actors;
+use crate::artifact::{load_yaml, save_yaml, warn_on_error};
+use crate::cache::hash_content;
+use crate::chunks::{Focus, Splitter};
+use crate::entry_points::{EntryPoint, EntryPoints};
+use crate::error::PipelineError;
+use crate::features::unique_slug;
+use crate::fingerprints::{fingerprint, Fingerprints};
+use crate::progress::Progress;
+use crate::response::complete_json;
+use crate::roles::load_splitter;
+use crate::slices::CodeIndex;
+
+mod grounding;
+mod prompt;
+#[cfg(test)]
+mod tests;
+
+use self::grounding::{grounded_use_cases, RawUseCases};
+pub(crate) use self::grounding::{is_human, resolve_cited_path};
+pub(crate) use self::prompt::numbered_excerpt;
+use self::prompt::{system_prompt, use_cases_prompt};
+
+const USE_CASES_RELATIVE_PATH: &str = ".retrodoc/cache/use-cases.yaml";
+
+/// How far from an entry point's file the code it runs is followed, and how
+/// many files are kept (see [`CodeIndex::slice`]).
+const SLICE_DEPTH: usize = 2;
+const MAX_SLICE_FILES: usize = 8;
+
+/// Loads a previously saved `use-cases.yaml`. Missing or unreadable: `None`
+/// (first run), not an error.
+#[must_use]
+pub fn load_use_cases(repo_root: &Path) -> Option<Vec<UseCase>> {
+    load_yaml(&repo_root.join(USE_CASES_RELATIVE_PATH))
+}
+
+/// Persists `use_cases` as `.retrodoc/cache/use-cases.yaml`; also used to
+/// re-save once diagrams are attached.
+///
+/// # Errors
+///
+/// Returns an error if the file can't be written or serialization fails.
+pub fn save_use_cases(repo_root: &Path, use_cases: &[UseCase]) -> Result<(), PipelineError> {
+    save_yaml(&repo_root.join(USE_CASES_RELATIVE_PATH), use_cases)
+}
+
+/// Asks the LLM for the use cases of a feature. An answer without any use
+/// case (missing or empty `use_cases`) is as useless as an unparseable one:
+/// it is asked once more.
+async fn ask_use_cases(
+    llm: &dyn LlmProvider,
+    system_prompt: &str,
+    prompt: &str,
+    feature_slug: &str,
+) -> Result<Option<RawUseCases>, PipelineError> {
+    for attempt in 1..=2 {
+        let raw = complete_json::<RawUseCases>(
+            llm,
+            system_prompt,
+            prompt,
+            &format!("use cases of {feature_slug}"),
+        )
+        .await?;
+        match raw {
+            Some(raw) if raw.use_cases.is_empty() => {
+                tracing::warn!(feature = %feature_slug, attempt, "LLM answered with no use case");
+            }
+            other => return Ok(other),
+        }
+    }
+    Ok(None)
+}
+
+/// Everything besides the features and the LLM that the pass draws on: the
+/// entry points and the code index (what the use cases start from and the
+/// code they run), the business actors and the business vocabulary (what
+/// they are told in).
+#[derive(Debug, Clone, Default)]
+pub struct UseCaseContext {
+    pub entry_points: EntryPoints,
+    pub index: CodeIndex,
+    pub actors: Actors,
+    /// Names of the application's main entities.
+    pub vocabulary: Vec<String>,
+}
+
+/// Derives the use cases of every feature from the code it is grounded on
+/// and persists them to `.retrodoc/cache/use-cases.yaml`. Diagrams are not
+/// attached here (see [`crate::diagrams`]).
+///
+/// Incremental: a feature whose text and file contents are unchanged since
+/// the last run keeps its saved use cases (diagram and confidence included),
+/// without an LLM call.
+///
+/// # Errors
+///
+/// Returns an error if an LLM call fails or the artifact can't be saved.
+pub async fn build_use_cases(
+    repo_root: &Path,
+    features: &[Feature],
+    context: &UseCaseContext,
+    llm: &dyn LlmProvider,
+) -> Result<Vec<UseCase>, PipelineError> {
+    let UseCaseContext {
+        entry_points,
+        index,
+        actors,
+        vocabulary,
+    } = context;
+    let previous = load_use_cases(repo_root).unwrap_or_default();
+    let mut prints = Fingerprints::load(repo_root);
+    let known = std::mem::take(&mut prints.use_cases);
+    let splitter = load_splitter(repo_root);
+
+    let mut use_cases: Vec<UseCase> = Vec::new();
+    let mut progress = Progress::new("use cases", features.len());
+
+    for (position, feature) in features.iter().enumerate() {
+        let key = format!("{}/{}", feature.domain_slug, feature.slug);
+        let input = FeatureInput::new(repo_root, feature, entry_points, index);
+        let print = feature_fingerprint(repo_root, feature, &input, actors, vocabulary);
+        if known.get(&key) == Some(&print) {
+            let kept: Vec<UseCase> = previous
+                .iter()
+                .filter(|u| u.feature_slug == feature.slug)
+                .cloned()
+                .collect();
+            if !kept.is_empty() {
+                tracing::info!(feature = %key, "use cases unchanged, reused");
+                use_cases.extend(kept);
+                prints.use_cases.insert(key, print);
+                progress.skip();
+                continue;
+            }
+        }
+        progress.begin(&key);
+        let (prompt, cited_files) =
+            use_cases_prompt(repo_root, feature, &input, actors, vocabulary, &splitter);
+        if cited_files.is_empty() {
+            tracing::warn!(feature = %feature.slug, "feature skipped: none of its files is readable");
+            continue;
+        }
+        let system_prompt = system_prompt(!input.entries.is_empty(), !actors.is_empty());
+        let answer = match ask_use_cases(llm, &system_prompt, &prompt, &feature.slug).await {
+            Ok(answer) => answer,
+            Err(err) => {
+                save_partial(
+                    repo_root,
+                    use_cases,
+                    &previous,
+                    prints,
+                    &known,
+                    &features[position..],
+                );
+                return Err(err);
+            }
+        };
+        let Some(raw) = answer else {
+            continue;
+        };
+
+        let produced = grounded_use_cases(raw, feature, &use_cases, &input, &cited_files, actors);
+        if !produced.is_empty() {
+            prints.use_cases.insert(key, print);
+        }
+        use_cases.extend(produced);
+    }
+
+    prints.save(repo_root)?;
+    save_use_cases(repo_root, &use_cases)?;
+    Ok(use_cases)
+}
+
+/// Best-effort save after a failure: the `unreached` features keep their
+/// previous use cases and fingerprints, so a rerun resumes where this one
+/// stopped.
+fn save_partial(
+    repo_root: &Path,
+    mut use_cases: Vec<UseCase>,
+    previous: &[UseCase],
+    mut prints: Fingerprints,
+    known: &BTreeMap<String, String>,
+    unreached: &[Feature],
+) {
+    for feature in unreached {
+        let key = format!("{}/{}", feature.domain_slug, feature.slug);
+        if let Some(print) = known.get(&key) {
+            prints.use_cases.insert(key, print.clone());
+        }
+        use_cases.extend(
+            previous
+                .iter()
+                .filter(|u| u.feature_slug == feature.slug)
+                .cloned(),
+        );
+    }
+    warn_on_error(prints.save(repo_root));
+    warn_on_error(save_use_cases(repo_root, &use_cases));
+}
+
+/// Hash of everything the feature's use cases are derived from: its text and
+/// the content of its files (an unreadable file hashes as such, so it
+/// invalidates when it becomes readable).
+fn feature_fingerprint(
+    repo_root: &Path,
+    feature: &Feature,
+    input: &FeatureInput,
+    actors: &Actors,
+    vocabulary: &[String],
+) -> String {
+    let files = input.files.iter().map(|path| {
+        let content = std::fs::read(repo_root.join(path)).map_or_else(
+            |_| "unreadable".to_string(),
+            |bytes| hash_content(&String::from_utf8_lossy(&bytes)),
+        );
+        format!("{path}\n{content}")
+    });
+    fingerprint(
+        [feature.name.clone(), feature.description.clone()]
+            .into_iter()
+            .chain(input.entries.iter().map(|(_, entry)| {
+                let outputs: Vec<&str> = entry
+                    .outputs
+                    .iter()
+                    .map(|o| o.description.as_str())
+                    .collect();
+                format!(
+                    "entry {}\n{}\n{}",
+                    entry.name,
+                    entry.description,
+                    outputs.join("|")
+                )
+            }))
+            .chain(actors.fingerprint_parts())
+            .chain(std::iter::once(format!(
+                "vocabulary {}",
+                vocabulary.join(",")
+            )))
+            .chain(files),
+    )
+}
+
+/// What a feature's use cases are derived from: its entry points and the
+/// files shown to the LLM. A feature with entry points shows the files that
+/// define them and the code they run (a [`CodeIndex::slice`]); without any,
+/// all the feature's files, as before.
+struct FeatureInput {
+    /// Entry points defined in the feature's files, with their file.
+    entries: Vec<(PathBuf, EntryPoint)>,
+    files: Vec<String>,
+}
+
+impl FeatureInput {
+    fn new(
+        repo_root: &Path,
+        feature: &Feature,
+        entry_points: &EntryPoints,
+        index: &CodeIndex,
+    ) -> Self {
+        let entries: Vec<(PathBuf, EntryPoint)> = entry_points
+            .iter()
+            .filter(|(file, _)| feature.source_paths.iter().any(|p| Path::new(p) == *file))
+            .map(|(file, entry)| (file.to_path_buf(), entry.clone()))
+            .collect();
+        if entries.is_empty() {
+            return Self {
+                entries,
+                files: feature.source_paths.clone(),
+            };
+        }
+        let mut starts: Vec<PathBuf> = Vec::new();
+        for (file, _) in &entries {
+            if !starts.contains(file) {
+                starts.push(file.clone());
+            }
+        }
+        let slice = index.slice(repo_root, &starts, SLICE_DEPTH, MAX_SLICE_FILES);
+        let files = starts
+            .iter()
+            .chain(&slice)
+            .map(|p| p.to_string_lossy().into_owned())
+            .collect();
+        Self { entries, files }
+    }
+}

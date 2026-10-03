@@ -1,0 +1,459 @@
+use super::*;
+use retrodoc_llm::CompletionRequest;
+use std::collections::HashMap;
+
+use async_trait::async_trait;
+use retrodoc_ingest::{FileEntry, FileKind, IngestResult};
+use retrodoc_llm::{CompletionResponse, LlmError};
+
+use crate::repo_map::{build_repo_map, FileSummary, ModuleSummary, RepoMapOptions};
+
+/// Fake provider that always answers a fixed clustering response, to
+/// test parsing + coverage enforcement without depending on the
+/// network.
+struct CannedProvider {
+    response: String,
+}
+
+#[async_trait]
+impl LlmProvider for CannedProvider {
+    async fn complete(&self, _request: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+        Ok(CompletionResponse {
+            content: self.response.clone(),
+            model: "test-model".to_string(),
+        })
+    }
+}
+
+/// Provider that panics if called, to assert a fast path never reaches
+/// the LLM.
+struct PanicProvider;
+
+#[async_trait]
+impl LlmProvider for PanicProvider {
+    async fn complete(&self, _request: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+        panic!("LLM should not have been called");
+    }
+}
+
+fn file_summary(path: &str) -> FileSummary {
+    FileSummary {
+        path: PathBuf::from(path),
+        role_summary: format!("role of {path}"),
+        commit_count: 1,
+        author_count: 1,
+    }
+}
+
+#[test]
+fn enforce_coverage_dedupes_overlap_drops_unknown_and_buckets_uncovered() {
+    let mut map = DomainMap {
+        domains: vec![DomainCluster {
+            slug: "billing".to_string(),
+            name: "Billing".to_string(),
+            description: "d".to_string(),
+            paths: vec![PathBuf::from("a.rs"), PathBuf::from("ghost.rs")],
+            sub_domains: vec![SubDomainCluster {
+                slug: "invoices".to_string(),
+                name: "Invoices".to_string(),
+                description: "d".to_string(),
+                // "a.rs" is a duplicate (already claimed above).
+                paths: vec![PathBuf::from("a.rs")],
+            }],
+        }],
+    };
+    let all_paths = vec![PathBuf::from("a.rs"), PathBuf::from("b.rs")];
+
+    let report = enforce_coverage(&mut map, &all_paths);
+
+    assert_eq!(report.overlapping, vec![PathBuf::from("a.rs")]);
+    assert_eq!(report.unknown, vec![PathBuf::from("ghost.rs")]);
+    assert_eq!(report.uncovered, vec![PathBuf::from("b.rs")]);
+    assert!(!report.is_clean());
+
+    // "b.rs" landed in the synthetic uncategorized domain.
+    let uncategorized = map
+        .domains
+        .iter()
+        .find(|d| d.slug == UNCATEGORIZED_SLUG)
+        .unwrap();
+    assert_eq!(uncategorized.paths, vec![PathBuf::from("b.rs")]);
+
+    // "a.rs" only appears once in the repaired map.
+    let billing = &map.domains[0];
+    assert_eq!(billing.paths, vec![PathBuf::from("a.rs")]);
+    assert!(billing.sub_domains[0].paths.is_empty());
+}
+
+#[test]
+fn clean_map_reports_nothing() {
+    let mut map = DomainMap {
+        domains: vec![DomainCluster {
+            slug: "billing".to_string(),
+            name: "Billing".to_string(),
+            description: "d".to_string(),
+            paths: vec![PathBuf::from("a.rs")],
+            sub_domains: vec![],
+        }],
+    };
+    let all_paths = vec![PathBuf::from("a.rs")];
+
+    let report = enforce_coverage(&mut map, &all_paths);
+
+    assert!(report.is_clean());
+    assert!(!map.domains.iter().any(|d| d.slug == UNCATEGORIZED_SLUG));
+}
+
+#[tokio::test]
+async fn build_domains_skips_the_llm_when_there_are_no_files() {
+    let dir = tempfile::tempdir().unwrap();
+    let repo_map = RepoMap::default();
+
+    let (map, report) = build_domains(
+        dir.path(),
+        &repo_map,
+        &[],
+        &Surface::default(),
+        &PanicProvider,
+    )
+    .await
+    .unwrap();
+
+    assert!(map.domains.is_empty());
+    assert!(report.is_clean());
+}
+
+#[tokio::test]
+async fn build_domains_parses_response_and_persists_the_artifact() {
+    let dir = tempfile::tempdir().unwrap();
+    let repo_map = RepoMap {
+        files: vec![file_summary("a.rs"), file_summary("b.rs")],
+        modules: vec![ModuleSummary {
+            path: PathBuf::new(),
+            role_summary: "root".to_string(),
+            file_count: 2,
+        }],
+    };
+    let provider = CannedProvider {
+        response: r#"```json
+        {"domains":[{"slug":"billing","name":"Billing","description":"Handles invoices.",
+        "paths":[""],"sub_domains":[]}]}
+        ```"#
+            .to_string(),
+    };
+
+    let (map, report) = build_domains(dir.path(), &repo_map, &[], &Surface::default(), &provider)
+        .await
+        .unwrap();
+
+    assert!(report.is_clean());
+    assert_eq!(map.domains.len(), 1);
+    assert_eq!(map.domains[0].slug, "billing");
+    assert_eq!(
+        map.domains[0].paths,
+        vec![PathBuf::from("a.rs"), PathBuf::from("b.rs")]
+    );
+
+    let reloaded = DomainMap::load(dir.path()).unwrap();
+    assert_eq!(reloaded.domains.len(), 1);
+    assert_eq!(reloaded.domains[0].slug, "billing");
+}
+
+#[tokio::test]
+async fn build_domains_reuses_the_saved_clustering_when_the_input_is_unchanged() {
+    let dir = tempfile::tempdir().unwrap();
+    let repo_map = RepoMap {
+        files: vec![file_summary("a.rs")],
+        modules: vec![],
+    };
+    let provider = CannedProvider {
+        response: r#"{"domains":[{"slug":"billing","name":"Billing","description":"d",
+        "paths":["a.rs"],"sub_domains":[]}]}"#
+            .to_string(),
+    };
+    build_domains(dir.path(), &repo_map, &[], &Surface::default(), &provider)
+        .await
+        .unwrap();
+
+    // Same input: the LLM must not be called again.
+    let (map, _) = build_domains(
+        dir.path(),
+        &repo_map,
+        &[],
+        &Surface::default(),
+        &PanicProvider,
+    )
+    .await
+    .unwrap();
+    assert_eq!(map.domains[0].slug, "billing");
+
+    // Changed input: it is.
+    let changed = RepoMap {
+        files: vec![file_summary("a.rs"), file_summary("b.rs")],
+        modules: vec![],
+    };
+    let (map, _) = build_domains(dir.path(), &changed, &[], &Surface::default(), &provider)
+        .await
+        .unwrap();
+    assert_eq!(map.domains[0].paths.len(), 1); // canned answer, b.rs uncovered
+    assert!(map.domains.iter().any(|d| d.slug == UNCATEGORIZED_SLUG));
+}
+
+#[tokio::test]
+async fn build_domains_works_end_to_end_with_a_real_repo_map() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.rs"), "fn a() {}").unwrap();
+
+    let ingest = IngestResult {
+        files: vec![FileEntry {
+            path: PathBuf::from("a.rs"),
+            kind: FileKind::Source,
+            size_bytes: 9,
+        }],
+        history_by_path: HashMap::new(),
+        existing_docs: Vec::new(),
+    };
+
+    let repo_map_provider = CannedProvider {
+        response: "a summary".to_string(),
+    };
+    let repo_map = build_repo_map(
+        dir.path(),
+        &ingest,
+        &repo_map_provider,
+        RepoMapOptions::default(),
+    )
+    .await
+    .unwrap();
+
+    let clustering_provider = CannedProvider {
+        response: r#"{"domains":[{"slug":"core","name":"Core","description":"d",
+        "paths":[""],"sub_domains":[]}]}"#
+            .to_string(),
+    };
+    let (map, report) = build_domains(
+        dir.path(),
+        &repo_map,
+        &[],
+        &Surface::default(),
+        &clustering_provider,
+    )
+    .await
+    .unwrap();
+
+    assert!(report.is_clean());
+    assert_eq!(map.domains[0].paths, vec![PathBuf::from("a.rs")]);
+}
+
+fn domain_with_dirs(slug: &str, dirs: &[&str]) -> DomainCluster {
+    DomainCluster {
+        slug: slug.to_string(),
+        name: slug.to_string(),
+        description: "d".to_string(),
+        paths: dirs.iter().map(PathBuf::from).collect(),
+        sub_domains: Vec::new(),
+    }
+}
+
+#[test]
+fn expand_to_files_resolves_longest_prefix_match() {
+    let map = DomainMap {
+        domains: vec![
+            domain_with_dirs("backend", &["src"]),
+            domain_with_dirs("frontend", &["src/ui"]),
+        ],
+    };
+    let files = vec![
+        file_summary("src/main.rs"),
+        file_summary("src/ui/button.rs"),
+    ];
+
+    let expanded = expand_to_files(map, &files);
+
+    assert_eq!(
+        expanded.domains[0].paths,
+        vec![PathBuf::from("src/main.rs")]
+    );
+    assert_eq!(
+        expanded.domains[1].paths,
+        vec![PathBuf::from("src/ui/button.rs")]
+    );
+}
+
+#[test]
+fn expand_to_files_uses_root_as_fallback_only_when_nothing_more_specific_wins() {
+    let map = DomainMap {
+        domains: vec![
+            domain_with_dirs("core", &[""]),
+            domain_with_dirs("docs", &["docs"]),
+        ],
+    };
+    let files = vec![file_summary("lib.rs"), file_summary("docs/helper.rs")];
+
+    let expanded = expand_to_files(map, &files);
+
+    assert_eq!(expanded.domains[0].paths, vec![PathBuf::from("lib.rs")]);
+    assert_eq!(
+        expanded.domains[1].paths,
+        vec![PathBuf::from("docs/helper.rs")]
+    );
+}
+
+#[test]
+fn expand_to_files_tolerates_a_directory_matching_no_real_file() {
+    let map = DomainMap {
+        domains: vec![
+            domain_with_dirs("ghost-hunters", &["ghost/dir"]),
+            domain_with_dirs("real", &["src"]),
+        ],
+    };
+    let files = vec![file_summary("src/main.rs")];
+
+    let expanded = expand_to_files(map, &files);
+
+    assert!(expanded.domains[0].paths.is_empty());
+    assert_eq!(
+        expanded.domains[1].paths,
+        vec![PathBuf::from("src/main.rs")]
+    );
+}
+
+#[test]
+fn expand_to_files_resolves_duplicate_directory_claim_to_the_first_domain() {
+    let map = DomainMap {
+        domains: vec![
+            domain_with_dirs("first", &["src"]),
+            domain_with_dirs("second", &["src"]),
+        ],
+    };
+    let files = vec![file_summary("src/main.rs")];
+
+    let expanded = expand_to_files(map, &files);
+
+    assert_eq!(
+        expanded.domains[0].paths,
+        vec![PathBuf::from("src/main.rs")]
+    );
+    assert!(expanded.domains[1].paths.is_empty());
+}
+
+#[test]
+fn clustering_prompt_renders_root_module_as_empty_string_not_dot() {
+    let repo_map = RepoMap {
+        files: vec![],
+        modules: vec![
+            ModuleSummary {
+                path: PathBuf::new(),
+                role_summary: "root".to_string(),
+                file_count: 3,
+            },
+            ModuleSummary {
+                path: PathBuf::from("src"),
+                role_summary: "source".to_string(),
+                file_count: 2,
+            },
+        ],
+    };
+
+    let prompt = clustering_prompt(&repo_map, &[], &Surface::default());
+
+    assert!(prompt.contains("- \"\" "));
+    assert!(!prompt
+        .lines()
+        .any(|l| l.trim() == "- ." || l.trim().starts_with("- .:")));
+}
+
+#[test]
+fn flags_domains_named_after_a_technical_layer() {
+    let cluster = |slug: &str| DomainCluster {
+        slug: slug.to_string(),
+        name: slug.to_string(),
+        description: String::new(),
+        paths: Vec::new(),
+        sub_domains: Vec::new(),
+    };
+    let map = DomainMap {
+        domains: vec![
+            cluster("presentation-layer"),
+            cluster("contract-signing"),
+            cluster("services"),
+            cluster("uncategorized"),
+        ],
+    };
+    assert_eq!(
+        layer_named_domains(&map),
+        vec!["presentation-layer", "services"]
+    );
+}
+
+/// Records the prompts it receives.
+struct RecordingProvider {
+    prompts: std::sync::Mutex<Vec<(String, String)>>,
+}
+
+#[async_trait]
+impl LlmProvider for RecordingProvider {
+    async fn complete(&self, request: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+        self.prompts.lock().unwrap().push((
+            request.messages[0].content.clone(),
+            request.messages[1].content.clone(),
+        ));
+        Ok(CompletionResponse {
+            content: r#"{"domains":[{"slug":"contracts","name":"Contracts","description":"d","paths":[""]}]}"#
+                .to_string(),
+            model: "m".to_string(),
+        })
+    }
+}
+
+#[tokio::test]
+async fn the_surface_reaches_the_prompt_and_invalidates_the_saved_clustering() {
+    use crate::entry_points::EntryPoints;
+    use crate::glossary::{Entity, Glossary, ModelFile};
+
+    let dir = tempfile::tempdir().unwrap();
+    let repo_map = RepoMap {
+        files: vec![file_summary("a.rs")],
+        modules: vec![ModuleSummary {
+            path: PathBuf::new(),
+            role_summary: "root".to_string(),
+            file_count: 1,
+        }],
+    };
+    let glossary = Glossary {
+        models: std::collections::BTreeMap::from([(
+            PathBuf::from("a.rs"),
+            ModelFile {
+                content_hash: String::new(),
+                entities: vec![Entity {
+                    name: "Contract".to_string(),
+                    description: "An agreement".to_string(),
+                    attributes: Vec::new(),
+                    associations: Vec::new(),
+                }],
+            },
+        )]),
+        tests: Vec::new(),
+    };
+    let surface = Surface::new(&glossary, &EntryPoints::default());
+    let provider = RecordingProvider {
+        prompts: std::sync::Mutex::new(Vec::new()),
+    };
+
+    // Without a surface: the plain prompt. With one: entities + naming rule.
+    build_domains(dir.path(), &repo_map, &[], &Surface::default(), &provider)
+        .await
+        .unwrap();
+    build_domains(dir.path(), &repo_map, &[], &surface, &provider)
+        .await
+        .unwrap();
+
+    let prompts = provider.prompts.lock().unwrap();
+    assert_eq!(prompts.len(), 2, "a new surface must recompute the domains");
+    assert!(!prompts[0].0.contains("technical layer"));
+    assert!(!prompts[0].1.contains("Business entities"));
+    assert!(prompts[1]
+        .0
+        .contains("Never name a domain after a technical layer"));
+    assert!(prompts[1].1.contains("- Contract (a.rs): An agreement"));
+}
