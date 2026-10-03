@@ -203,9 +203,12 @@ Steps, each shippable and checkable on the Rails test repo:
    db writes, 20 emails, 18 events, 17 files, 13 external calls). Lessons: (1) a routes file asked for one entry
    per route overflows the 8,192-token answer and the 120 s client timeout (retries restart the generation) —
    the prompt now asks one entry per resource/namespace for routing files, and `llm.timeout_secs` makes the
-   timeout configurable; (2) batches are now saved one by one, so a failed run resumes. **Known gap:** files
-   are cut at 5,000 chars, so a large controller (`contracts_controller.rb` is 34 KB) is seen at ~15% and most
-   of its actions are missed — long files should be split into chunks. No jobs/mailers either in this run
+   timeout configurable; (2) batches are now saved one by one, so a failed run resumes. **Known gap, fixed afterwards:** files
+   were cut at 5,000 chars, so a large controller (`contracts_controller.rb` is 34 KB) was seen at ~15% and most
+   of its actions were missed. Long files are now split into chunks of ~5,000 chars (on line boundaries, preferably
+   before a blank line), sent as "(part i/n)", at most 8 chunks per file (the rest is logged as unread); a file is
+   saved only once all its chunks are answered and its entry points are deduplicated by name. Unit-tested, not
+   re-run on the Rails test repo. The other passes (glossary 4,000, actors 3,000, use cases/confidence 4,000 per file) still truncate. No jobs/mailers either in this run
    (the role rules of that run classified them `infra`).
 4. Rewire domains, then use cases, on the surface; then actors, two output levels, vocabulary criterion.
    - **4a — domains: implemented** (`surface.rs`, `retrodoc surface`, `generate` runs the surface passes first).
@@ -362,4 +365,5 @@ Steps, each shippable:
 - `.erb` view templates are not classified as `Source` by the walker (1,253 files on the Rails test repo).
 - Retry on an empty/invalid LLM answer fixes symptoms; the underlying causes (context length, truncated
   JSON) depend on the server config — see the local LLM setup notes.
-- Truncation: `MAX_CHARS_PER_FILE` (4,000) silently cuts long files, so late code can never be cited.
+- Truncation: the entry points pass now chunks long files; `MAX_CHARS_PER_FILE` (4,000) in the use cases/confidence
+  passes, the glossary and the repo map still cut long files, so late code can never be cited there.

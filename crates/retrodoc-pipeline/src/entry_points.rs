@@ -24,7 +24,7 @@ use crate::cache::hash_content;
 use crate::error::PipelineError;
 use crate::glossary::batches;
 use crate::progress::Progress;
-use crate::repo_map::{read_file_lossy, truncate_chars};
+use crate::repo_map::read_file_lossy;
 use crate::response::complete_json;
 use crate::roles::{FileRole, RoleMap};
 use crate::use_cases::resolve_cited_path;
@@ -32,12 +32,18 @@ use crate::use_cases::resolve_cited_path;
 const ENTRY_POINTS_RELATIVE_PATH: &str = ".retrodoc/cache/entry-points.yaml";
 
 /// Entry point files carry many small actions: a bit more room than models.
+/// A longer file is read in several chunks of about this size.
 const MAX_ENTRY_FILE_CHARS: usize = 5_000;
+
+/// A file longer than this many chunks is cut there (a 40 KB controller is
+/// already 8 calls): the rest is logged as not read.
+const MAX_CHUNKS_PER_FILE: usize = 8;
 
 const ENTRY_POINTS_SYSTEM_PROMPT: &str = "You are inventorying the entry points of a software \
 application from the files that define them: HTTP routes and controller actions, CLI commands, \
 background jobs and schedulers, message consumers, webhooks, or, for a library, its public API. \
-List the entry points defined in each file. For a routing file (route declarations) give one \
+List the entry points defined in each file. A long file is given in several parts (marked \"part i/n\"): list only the entry points \
+visible in the part. For a routing file (route declarations) give one \
 entry per resource or namespace, with the main actions as the verb (e.g. \"list, show, create\"), \
 not one per route: the controllers list the individual actions. At most 30 entry points per file. \
 For each give: `kind` (http_route, cli_command, job, consumer, webhook, \
@@ -200,7 +206,13 @@ pub async fn build_entry_points(
 ) -> Result<EntryPoints, PipelineError> {
     let previous = EntryPoints::load(repo_root).unwrap_or_default();
     let mut inventory = EntryPoints::default();
+    // One item per chunk of a changed file: (path, file hash, chunk text).
     let mut pending: Vec<(PathBuf, String, String)> = Vec::new();
+    // Chunks of a file not yet answered, and what was found in the answered
+    // ones: a file is saved only once all its chunks are read, so an
+    // unusable answer leaves it to be retried whole next run.
+    let mut remaining: BTreeMap<PathBuf, usize> = BTreeMap::new();
+    let mut partial: BTreeMap<PathBuf, Vec<EntryPoint>> = BTreeMap::new();
 
     for path in roles.files_with(FileRole::EntryPoint) {
         let content = read_file_lossy(repo_root, path)?;
@@ -209,11 +221,13 @@ pub async fn build_entry_points(
             Some(saved) if saved.content_hash == hash => {
                 inventory.files.insert(path.to_path_buf(), saved.clone());
             }
-            _ => pending.push((
-                path.to_path_buf(),
-                hash,
-                truncate_chars(&content, MAX_ENTRY_FILE_CHARS),
-            )),
+            _ => {
+                let chunks = file_chunks(path, &content);
+                remaining.insert(path.to_path_buf(), chunks.len());
+                for chunk in chunks {
+                    pending.push((path.to_path_buf(), hash.clone(), chunk));
+                }
+            }
         }
     }
 
@@ -246,7 +260,7 @@ pub async fn build_entry_points(
             .collect();
         let mut found: BTreeMap<String, Vec<EntryPoint>> = BTreeMap::new();
         for item in response.entry_points {
-            let target = if batch.len() == 1 {
+            let target = if allowed.len() == 1 {
                 allowed.iter().next().cloned()
             } else {
                 resolve_cited_path(&item.file, &allowed)
@@ -264,16 +278,27 @@ pub async fn build_entry_points(
             }
         }
         for (path, hash, _) in batch {
-            let entry_points = found
-                .remove(path.to_string_lossy().as_ref())
-                .unwrap_or_default();
-            inventory.files.insert(
-                path.clone(),
-                EntryFile {
-                    content_hash: hash.clone(),
-                    entry_points,
-                },
-            );
+            let key = path.to_string_lossy();
+            if let Some(entry_points) = found.remove(key.as_ref()) {
+                partial
+                    .entry(path.clone())
+                    .or_default()
+                    .extend(entry_points);
+            }
+            let left = remaining.entry(path.clone()).or_insert(1);
+            *left -= 1;
+            if *left == 0 {
+                let mut entry_points = partial.remove(path).unwrap_or_default();
+                let mut seen = BTreeSet::new();
+                entry_points.retain(|e| seen.insert(e.name.clone()));
+                inventory.files.insert(
+                    path.clone(),
+                    EntryFile {
+                        content_hash: hash.clone(),
+                        entry_points,
+                    },
+                );
+            }
         }
         // Saved after every batch: a failure later in a long run (a call
         // timing out) must not lose the batches already read.
@@ -282,6 +307,68 @@ pub async fn build_entry_points(
 
     inventory.save(repo_root)?;
     Ok(inventory)
+}
+
+/// The texts sent for one file: its chunks, each marked "(part i/n)" when
+/// there are several, the end dropped (with a warning) past
+/// [`MAX_CHUNKS_PER_FILE`].
+fn file_chunks(path: &Path, content: &str) -> Vec<String> {
+    let mut chunks = split_chunks(content, MAX_ENTRY_FILE_CHARS);
+    if chunks.len() > MAX_CHUNKS_PER_FILE {
+        tracing::warn!(
+            file = %path.display(),
+            chunks = chunks.len(),
+            "file too long for the entry points pass, the end is not read"
+        );
+        chunks.truncate(MAX_CHUNKS_PER_FILE);
+    }
+    let total = chunks.len();
+    if total > 1 {
+        for (i, chunk) in chunks.iter_mut().enumerate() {
+            *chunk = format!("(part {}/{total})\n{chunk}", i + 1);
+        }
+    }
+    chunks
+}
+
+/// Cuts `content` into chunks of about `max_chars`, on line boundaries and
+/// preferably before a blank line (so a method is not split from its `def`).
+/// A single line longer than `max_chars` is cut by characters.
+pub(crate) fn split_chunks(content: &str, max_chars: usize) -> Vec<String> {
+    let mut chunks = Vec::new();
+    let mut current = String::new();
+    let mut current_len = 0;
+    for line in content.split_inclusive('\n') {
+        let len = line.chars().count();
+        if current_len > 0 && current_len + len > max_chars {
+            if let Some(pos) = current
+                .rfind("\n\n")
+                .filter(|pos| pos + 2 > current.len() / 2)
+            {
+                let rest = current.split_off(pos + 2);
+                chunks.push(std::mem::replace(&mut current, rest));
+                current_len = current.chars().count();
+            } else {
+                chunks.push(std::mem::take(&mut current));
+                current_len = 0;
+            }
+        }
+        if len > max_chars {
+            if !current.is_empty() {
+                chunks.push(std::mem::take(&mut current));
+                current_len = 0;
+            }
+            let chars: Vec<char> = line.chars().collect();
+            chunks.extend(chars.chunks(max_chars).map(|piece| piece.iter().collect()));
+            continue;
+        }
+        current.push_str(line);
+        current_len += len;
+    }
+    if !current.is_empty() {
+        chunks.push(current);
+    }
+    chunks
 }
 
 #[cfg(test)]
@@ -440,5 +527,51 @@ mod tests {
         let saved = EntryPoints::load(dir.path()).expect("first batch saved");
         assert_eq!(saved.files.len(), 2);
         assert_eq!(saved.iter().count(), 1);
+    }
+
+    #[test]
+    fn short_content_is_one_chunk_and_long_content_loses_nothing() {
+        assert_eq!(split_chunks("def a; end\n", 100), vec!["def a; end\n"]);
+        assert!(split_chunks("", 100).is_empty());
+
+        let method = "def action\n  work\nend\n\n";
+        let content = method.repeat(10);
+        let chunks = split_chunks(&content, 70);
+        assert!(chunks.len() > 1);
+        assert_eq!(chunks.concat(), content);
+        // Cut between methods, never inside one.
+        assert!(chunks.iter().all(|c| c.starts_with("def action")));
+
+        let one_line = "y".repeat(25);
+        let chunks = split_chunks(&one_line, 10);
+        assert_eq!(chunks.concat(), one_line);
+        assert_eq!(chunks.len(), 3);
+    }
+
+    #[tokio::test]
+    async fn a_long_file_is_read_in_chunks_and_saved_once_all_are_read() {
+        let dir = tempfile::tempdir().unwrap();
+        let method = "def action\n  work\nend\n\n";
+        let repeats = MAX_ENTRY_FILE_CHARS * 4 / method.len();
+        std::fs::write(dir.path().join("big.rb"), method.repeat(repeats)).unwrap();
+        let roles = RoleMap {
+            roles: [(PathBuf::from("big.rb"), FileRole::EntryPoint)]
+                .into_iter()
+                .collect(),
+        };
+        let llm = ScriptedProvider {
+            response: r#"{"entry_points":[{"file":"big.rb","kind":"http_route","name":"GET /a"}]}"#
+                .to_string(),
+            prompts: Mutex::new(Vec::new()),
+        };
+
+        let inventory = build_entry_points(dir.path(), &roles, &llm).await.unwrap();
+
+        let prompts = llm.prompts.lock().unwrap();
+        assert!(prompts.len() >= 2, "several parts, several calls");
+        assert!(prompts[0].contains("(part 1/"));
+        assert!(prompts[1].contains("(part 3/"));
+        // The same entry point seen in every part is kept once.
+        assert_eq!(inventory.iter().count(), 1);
     }
 }
