@@ -26,6 +26,7 @@ pub mod error;
 pub mod features;
 mod fingerprints;
 pub mod glossary;
+mod naming;
 mod progress;
 pub mod ranking;
 pub mod repo_map;

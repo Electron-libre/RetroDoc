@@ -25,6 +25,7 @@ use crate::artifact::{load_yaml, save_yaml};
 use crate::cache::hash_content;
 use crate::chunks::Splitter;
 use crate::error::PipelineError;
+use crate::naming::normalize;
 use crate::progress::Progress;
 use crate::repo_map::read_file_lossy;
 use crate::response::complete_json;
@@ -147,13 +148,6 @@ pub struct MergedEntity {
     pub associations: Vec<Association>,
     /// Files that mention the entity, the home file first.
     pub files: Vec<PathBuf>,
-}
-
-fn normalize(text: &str) -> String {
-    text.chars()
-        .filter(|c| c.is_alphanumeric())
-        .flat_map(char::to_lowercase)
-        .collect()
 }
 
 fn merge_group(group: &[(&Path, &Entity)]) -> MergedEntity {

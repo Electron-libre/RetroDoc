@@ -15,6 +15,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
+use crate::naming::normalize;
 use crate::repo_map::read_file_lossy;
 
 /// A name shared by more files than this designates none of them.
@@ -26,19 +27,6 @@ const DESIGNATED_PER_NAME: usize = 2;
 #[derive(Debug, Clone, Default)]
 pub struct CodeIndex {
     by_name: BTreeMap<String, Vec<PathBuf>>,
-}
-
-/// `ContractSigner`, `contract_signer`, `contract-signers` → `contractsigner`.
-fn normalize(identifier: &str) -> String {
-    let lower: String = identifier
-        .chars()
-        .filter(|c| c.is_alphanumeric())
-        .flat_map(char::to_lowercase)
-        .collect();
-    match lower.strip_suffix('s') {
-        Some(singular) if singular.len() > 3 => singular.to_string(),
-        _ => lower,
-    }
 }
 
 /// Number of leading directories two paths have in common.

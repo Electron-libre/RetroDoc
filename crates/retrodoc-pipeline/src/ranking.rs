@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::artifact::{load_yaml, save_yaml};
 use crate::error::PipelineError;
+use crate::naming::normalize;
 use crate::repo_map::read_file_lossy;
 use crate::roles::{FileRole, RoleMap};
 
@@ -74,17 +75,6 @@ fn role_weight(role: Option<FileRole>) -> f32 {
 fn normalized_stem(path: &Path) -> String {
     let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
     normalize(stem)
-}
-
-fn normalize(name: &str) -> String {
-    let lower: String = name
-        .chars()
-        .filter(|c| c.is_alphanumeric())
-        .flat_map(char::to_lowercase)
-        .collect();
-    lower
-        .strip_suffix('s')
-        .map_or(lower.clone(), str::to_string)
 }
 
 /// Normalized identifiers of a text.
