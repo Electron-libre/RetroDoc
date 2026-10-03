@@ -22,7 +22,7 @@ use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
 use crate::cache::hash_content;
-use crate::chunks::file_chunks;
+use crate::chunks::Splitter;
 use crate::error::PipelineError;
 use crate::progress::Progress;
 use crate::repo_map::read_file_lossy;
@@ -246,6 +246,7 @@ pub async fn build_glossary(
         models: BTreeMap::new(),
         tests: previous.tests.clone(),
     };
+    let splitter = Splitter::new(&roles.chunk_boundaries);
     // One item per chunk of a changed file: (path, file hash, chunk text).
     let mut pending: Vec<(PathBuf, String, String)> = Vec::new();
     // Chunks of a file not yet answered, and the entities found in the
@@ -262,7 +263,7 @@ pub async fn build_glossary(
                 glossary.models.insert(path.to_path_buf(), saved.clone());
             }
             _ => {
-                let chunks = file_chunks(path, &content, MAX_MODEL_FILE_CHARS, "glossary");
+                let chunks = splitter.file_chunks(path, &content, MAX_MODEL_FILE_CHARS, "glossary");
                 remaining.insert(path.to_path_buf(), chunks.len());
                 for chunk in chunks {
                     pending.push((path.to_path_buf(), hash.clone(), chunk));
@@ -336,6 +337,17 @@ pub async fn build_glossary(
         glossary.save(repo_root)?;
     }
 
+    let tests = test_vocabulary(repo_root, roles)?;
+    glossary.tests = tests;
+    glossary.save(repo_root)?;
+    Ok(glossary)
+}
+
+/// The test phrases of every file classified [`FileRole::Test`] that has any.
+fn test_vocabulary(
+    repo_root: &Path,
+    roles: &RoleMap,
+) -> Result<Vec<TestVocabulary>, PipelineError> {
     let mut tests = Vec::new();
     for path in roles.files_with(FileRole::Test) {
         let phrases = test_phrases(&read_file_lossy(repo_root, path)?);
@@ -346,10 +358,7 @@ pub async fn build_glossary(
             });
         }
     }
-
-    glossary.tests = tests;
-    glossary.save(repo_root)?;
-    Ok(glossary)
+    Ok(tests)
 }
 
 /// Merges the entities seen in several chunks of one file: a class cut in two
@@ -491,6 +500,7 @@ mod tests {
                 .iter()
                 .map(|(p, r)| (PathBuf::from(p), *r))
                 .collect(),
+            ..RoleMap::default()
         }
     }
 

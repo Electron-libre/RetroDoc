@@ -47,6 +47,21 @@ pub async fn run(path: &Path, force: bool) -> anyhow::Result<()> {
         println!("  {:<12} {}", rule.role.label(), rule.pattern);
     }
 
+    if rules.chunk_boundaries.is_empty() {
+        println!(
+            "\nChunk boundaries: none (long files are cut at blank lines; `--force` to identify them)"
+        );
+    } else {
+        println!("\nChunk boundaries (where a unit starts, used to cut long files):");
+        for boundary in &rules.chunk_boundaries {
+            println!(
+                "  {:<12} {}",
+                boundary.extensions.join(","),
+                boundary.pattern
+            );
+        }
+    }
+
     let map = rules.classify(&ingest.files);
     println!("\nDistribution ({} file(s)):", map.roles.len());
     for (role, count) in map.distribution() {

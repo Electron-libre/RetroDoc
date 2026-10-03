@@ -18,6 +18,7 @@ serde_json.workspace = true
 serde_yaml.workspace = true
 sha2.workspace = true
 globset.workspace = true
+regex.workspace = true
 futures-util.workspace = true
 
 [dev-dependencies]

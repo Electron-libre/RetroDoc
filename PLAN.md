@@ -207,7 +207,7 @@ Steps, each shippable and checkable on the Rails test repo:
    were cut at 5,000 chars, so a large controller (`contracts_controller.rb` is 34 KB) was seen at ~15% and most
    of its actions were missed. Long files are now split into chunks of ~5,000 chars (on line boundaries, preferably
    before a blank line), sent as "(part i/n)", at most 8 chunks per file (the rest is logged as unread); a file is
-   saved only once all its chunks are answered and its entry points are deduplicated by name. Unit-tested, not
+   saved only once all its chunks are answered and its entry points are deduplicated by name. Where to cut is not hard-coded per language: the roles call also returns `chunk_boundaries` (per language: extensions + a regex matching the line that *starts* a module/class/function, saved in `roles.yaml`, editable); the chunker cuts before the last such line in the second half of a chunk, else after a blank line, else at any line (old `roles.yaml` without the field: `retrodoc roles --force`). Unit-tested, not
    re-run on the Rails test repo. The glossary chunks its model files the same way (`chunks.rs`; an entity seen in several chunks is merged). The other passes (actors 3,000, use cases/confidence 4,000 per file) still truncate. No jobs/mailers either in this run
    (the role rules of that run classified them `infra`).
 4. Rewire domains, then use cases, on the surface; then actors, two output levels, vocabulary criterion.

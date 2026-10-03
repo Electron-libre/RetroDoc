@@ -21,6 +21,7 @@ use retrodoc_ingest::{FileEntry, FileKind, IngestResult};
 use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
+use crate::chunks::ChunkBoundary;
 use crate::error::PipelineError;
 use crate::response::complete_json;
 
@@ -55,7 +56,15 @@ HTTP clients, deployment, CI), \"config\" (settings, manifests, lockfiles), \"te
 root, e.g. \"app/models/**\" or \"**/*.erb\"; when several rules match a file the most specific \
 pattern wins, so broad fallbacks are fine. Reply with ONLY a single JSON object, no prose and no \
 Markdown code fence, matching this shape: {\"stack\":\"one sentence\",\"rules\":[{\"pattern\":\
-\"...\",\"role\":\"model\"}]}.";
+\"...\",\"role\":\"model\"}],\"chunk_boundaries\":[{\"extensions\":[\"rb\"],\"pattern\":\"...\"}]}. \
+`chunk_boundaries` is used to cut long source files without splitting a unit: for each programming \
+language of the repository give its `extensions` and a `pattern`, a Rust-syntax regular expression \
+matching a line that STARTS a module, class or function/method definition (never the line that ends \
+it; the match is tried on one line at a time, indentation allowed). Be thorough: allow every \
+modifier that can precede the keyword (visibility such as `pub(crate)`, `public static`, `export \
+default`, `async`, `unsafe`, `abstract`...), and also match the decorator, attribute or annotation \
+lines that sit right before a definition (`#[derive(..)]`, `@Override`, `@app.route(..)`), so a cut \
+never separates them from it. For example Ruby: \"^\\\\s*(class|module|def)\\\\s\".";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -105,12 +114,19 @@ pub struct RoleRule {
 pub struct RoleRules {
     pub stack: String,
     pub rules: Vec<RoleRule>,
+    /// Where the units of each language start, for chunking long files.
+    /// Absent from a `roles.yaml` written before this existed (`roles
+    /// --force` regenerates it): chunks then fall back to blank lines.
+    #[serde(default)]
+    pub chunk_boundaries: Vec<ChunkBoundary>,
 }
 
 /// A role per file, with the rules that produced it.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct RoleMap {
     pub roles: BTreeMap<PathBuf, FileRole>,
+    /// Copied from [`RoleRules::chunk_boundaries`].
+    pub chunk_boundaries: Vec<ChunkBoundary>,
 }
 
 impl RoleMap {
@@ -207,7 +223,10 @@ impl RoleRules {
                 (file.path.clone(), role)
             })
             .collect();
-        RoleMap { roles }
+        RoleMap {
+            roles,
+            chunk_boundaries: self.chunk_boundaries.clone(),
+        }
     }
 }
 
@@ -225,6 +244,8 @@ struct RolesResponse {
     stack: String,
     #[serde(default)]
     rules: Vec<RoleRule>,
+    #[serde(default)]
+    chunk_boundaries: Vec<ChunkBoundary>,
 }
 
 /// Returns the role rules for the repo: the saved `roles.yaml` if there is
@@ -265,6 +286,7 @@ pub async fn identify_roles(
     let rules = RoleRules {
         stack: response.stack,
         rules: response.rules,
+        chunk_boundaries: response.chunk_boundaries,
     };
     rules.save(repo_root)?;
     Ok(rules)
@@ -376,6 +398,7 @@ mod tests {
                     role: *role,
                 })
                 .collect(),
+            ..RoleRules::default()
         }
     }
 
@@ -460,7 +483,8 @@ mod tests {
         };
         let llm = CountingProvider {
             response: r#"```json
-{"stack":"Rust library","rules":[{"pattern":"src/**","role":"logic"}]}
+{"stack":"Rust library","rules":[{"pattern":"src/**","role":"logic"}],
+"chunk_boundaries":[{"extensions":["rs"],"pattern":"^\\s*(pub )?fn "}]}
 ```"#
                 .to_string(),
             calls: AtomicUsize::new(0),
@@ -474,6 +498,11 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(second.rules.len(), 1);
+        // The chunk boundaries survive the save and reload, and travel with the map.
+        assert_eq!(second.chunk_boundaries.len(), 1);
+        assert_eq!(second.chunk_boundaries[0].pattern, r"^\s*(pub )?fn ");
+        let map = second.classify(&ingest.files);
+        assert_eq!(map.chunk_boundaries, second.chunk_boundaries);
         assert_eq!(llm.calls.load(Ordering::SeqCst), 1);
 
         identify_roles(dir.path(), &ingest, &llm, true)

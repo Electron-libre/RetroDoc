@@ -21,7 +21,7 @@ use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
 use crate::cache::hash_content;
-use crate::chunks::file_chunks;
+use crate::chunks::Splitter;
 use crate::error::PipelineError;
 use crate::glossary::batches;
 use crate::progress::Progress;
@@ -203,6 +203,7 @@ pub async fn build_entry_points(
 ) -> Result<EntryPoints, PipelineError> {
     let previous = EntryPoints::load(repo_root).unwrap_or_default();
     let mut inventory = EntryPoints::default();
+    let splitter = Splitter::new(&roles.chunk_boundaries);
     // One item per chunk of a changed file: (path, file hash, chunk text).
     let mut pending: Vec<(PathBuf, String, String)> = Vec::new();
     // Chunks of a file not yet answered, and what was found in the answered
@@ -219,7 +220,8 @@ pub async fn build_entry_points(
                 inventory.files.insert(path.to_path_buf(), saved.clone());
             }
             _ => {
-                let chunks = file_chunks(path, &content, MAX_ENTRY_FILE_CHARS, "entry points");
+                let chunks =
+                    splitter.file_chunks(path, &content, MAX_ENTRY_FILE_CHARS, "entry points");
                 remaining.insert(path.to_path_buf(), chunks.len());
                 for chunk in chunks {
                     pending.push((path.to_path_buf(), hash.clone(), chunk));
@@ -377,6 +379,7 @@ mod tests {
             .into_iter()
             .map(|(p, r)| (PathBuf::from(p), r))
             .collect(),
+            ..RoleMap::default()
         };
         let llm = ScriptedProvider {
             response: r#"{"entry_points":[
@@ -454,6 +457,7 @@ mod tests {
                 .iter()
                 .map(|n| (PathBuf::from(n), FileRole::EntryPoint))
                 .collect(),
+            ..RoleMap::default()
         };
 
         let result = build_entry_points(dir.path(), &roles, &FailsAfterFirst(Mutex::new(0))).await;
@@ -474,6 +478,7 @@ mod tests {
             roles: [(PathBuf::from("big.rb"), FileRole::EntryPoint)]
                 .into_iter()
                 .collect(),
+            ..RoleMap::default()
         };
         let llm = ScriptedProvider {
             response: r#"{"entry_points":[{"file":"big.rb","kind":"http_route","name":"GET /a"}]}"#

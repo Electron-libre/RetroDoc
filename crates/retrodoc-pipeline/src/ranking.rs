@@ -254,6 +254,7 @@ mod tests {
                 (PathBuf::from("a.rb"), FileRole::Config),
                 (PathBuf::from("b.rb"), FileRole::Logic),
             ]),
+            ..RoleMap::default()
         };
         let ranked = rank_files(dir.path(), &ing, Some(&roles));
         assert_eq!(ranked[0].0, PathBuf::from("b.rb"));
