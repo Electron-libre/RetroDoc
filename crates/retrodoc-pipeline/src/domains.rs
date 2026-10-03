@@ -32,14 +32,14 @@ use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use retrodoc_ingest::ExistingDoc;
-use retrodoc_llm::{ChatMessage, CompletionRequest, LlmProvider, Role};
+use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
 use crate::artifact::{load_yaml, save_yaml};
 use crate::error::PipelineError;
 use crate::fingerprints::{fingerprint, Fingerprints};
 use crate::repo_map::{FileSummary, RepoMap};
-use crate::response::parse_json_response;
+use crate::response::{complete_text, parse_json_response};
 use crate::surface::Surface;
 
 const DOMAINS_RELATIVE_PATH: &str = ".retrodoc/cache/domains.yaml";
@@ -216,23 +216,9 @@ pub async fn build_domains(
     } else {
         format!("{DOMAIN_CLUSTERING_SYSTEM_PROMPT}{BUSINESS_NAMING_ADDENDUM}")
     };
-    let response = llm
-        .complete(CompletionRequest {
-            messages: vec![
-                ChatMessage {
-                    role: Role::System,
-                    content: system_prompt,
-                },
-                ChatMessage {
-                    role: Role::User,
-                    content: prompt,
-                },
-            ],
-            model: None,
-        })
-        .await?;
+    let response = complete_text(llm, &system_prompt, &prompt).await?;
 
-    let map: DomainMap = parse_json_response(&response.content)?;
+    let map: DomainMap = parse_json_response(&response)?;
     let mut map = expand_to_files(map, &repo_map.files);
     let report = enforce_coverage(&mut map, &all_paths);
 
@@ -538,6 +524,7 @@ fn clustering_prompt(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use retrodoc_llm::CompletionRequest;
     use std::collections::HashMap;
 
     use async_trait::async_trait;

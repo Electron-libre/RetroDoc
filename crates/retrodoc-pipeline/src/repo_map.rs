@@ -15,14 +15,14 @@ use std::path::{Path, PathBuf};
 
 use futures_util::stream::{self, StreamExt};
 use retrodoc_ingest::{FileEntry, FileHistory, FileKind, IngestResult};
-use retrodoc_llm::{ChatMessage, CompletionRequest, LlmProvider, Role};
+use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
 use crate::artifact::warn_on_error;
 use crate::cache::{hash_content, RepoMapCache};
 use crate::error::PipelineError;
 use crate::progress::Progress;
-use crate::response::complete_json;
+use crate::response::{complete_json, complete_text};
 
 /// Files larger than this are truncated before being sent to the LLM, to
 /// stay within a reasonable token budget (PLAN.md §6 "cost/volume").
@@ -447,23 +447,8 @@ async fn summarize_file(
         truncate_chars(content, MAX_FILE_CHARS)
     );
 
-    let response = llm
-        .complete(CompletionRequest {
-            messages: vec![
-                ChatMessage {
-                    role: Role::System,
-                    content: FILE_SUMMARY_SYSTEM_PROMPT.to_string(),
-                },
-                ChatMessage {
-                    role: Role::User,
-                    content: prompt,
-                },
-            ],
-            model: None,
-        })
-        .await?;
-
-    Ok(response.content.trim().to_string())
+    let response = complete_text(llm, FILE_SUMMARY_SYSTEM_PROMPT, &prompt).await?;
+    Ok(response.trim().to_string())
 }
 
 /// The user prompt of a folder summary. Its hash is the cache key: it holds
@@ -502,23 +487,8 @@ fn module_prompt(
 }
 
 async fn summarize_module(llm: &dyn LlmProvider, prompt: String) -> Result<String, PipelineError> {
-    let response = llm
-        .complete(CompletionRequest {
-            messages: vec![
-                ChatMessage {
-                    role: Role::System,
-                    content: MODULE_SUMMARY_SYSTEM_PROMPT.to_string(),
-                },
-                ChatMessage {
-                    role: Role::User,
-                    content: prompt,
-                },
-            ],
-            model: None,
-        })
-        .await?;
-
-    Ok(response.content.trim().to_string())
+    let response = complete_text(llm, MODULE_SUMMARY_SYSTEM_PROMPT, &prompt).await?;
+    Ok(response.trim().to_string())
 }
 
 /// A folder summary to obtain: from the cache, or from the LLM.
@@ -671,6 +641,7 @@ async fn build_module_summaries(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use retrodoc_llm::{CompletionRequest, Role};
     use std::collections::HashMap;
     use std::sync::atomic::{AtomicUsize, Ordering};
 

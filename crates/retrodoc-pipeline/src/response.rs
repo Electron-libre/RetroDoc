@@ -40,6 +40,34 @@ pub(crate) fn strip_code_fence(raw: &str) -> &str {
     trimmed.find('{').map_or(trimmed, |start| &trimmed[start..])
 }
 
+/// One system + user exchange with the default model, answer as is.
+///
+/// # Errors
+///
+/// Returns an error if the LLM call fails.
+pub(crate) async fn complete_text(
+    llm: &dyn LlmProvider,
+    system_prompt: &str,
+    user_prompt: &str,
+) -> Result<String, PipelineError> {
+    let response = llm
+        .complete(CompletionRequest {
+            messages: vec![
+                ChatMessage {
+                    role: Role::System,
+                    content: system_prompt.to_string(),
+                },
+                ChatMessage {
+                    role: Role::User,
+                    content: user_prompt.to_string(),
+                },
+            ],
+            model: None,
+        })
+        .await?;
+    Ok(response.content)
+}
+
 /// Asks the LLM for a JSON answer and parses it, retrying once if the
 /// answer can't be parsed. `Ok(None)` means both attempts were unparseable
 /// (logged as a warning for `what`): the caller skips that unit instead of
@@ -56,22 +84,8 @@ pub(crate) async fn complete_json<T: DeserializeOwned>(
 ) -> Result<Option<T>, PipelineError> {
     const ATTEMPTS: u32 = 2;
     for attempt in 1..=ATTEMPTS {
-        let response = llm
-            .complete(CompletionRequest {
-                messages: vec![
-                    ChatMessage {
-                        role: Role::System,
-                        content: system_prompt.to_string(),
-                    },
-                    ChatMessage {
-                        role: Role::User,
-                        content: user_prompt.to_string(),
-                    },
-                ],
-                model: None,
-            })
-            .await?;
-        match parse_json_response(&response.content) {
+        let response = complete_text(llm, system_prompt, user_prompt).await?;
+        match parse_json_response(&response) {
             Ok(parsed) => return Ok(Some(parsed)),
             Err(err) => {
                 // The error's Display embeds the whole raw answer: keep the
@@ -80,12 +94,12 @@ pub(crate) async fn complete_json<T: DeserializeOwned>(
                     PipelineError::ResponseParse { source, .. } => source.to_string(),
                     other => other.to_string(),
                 };
-                tracing::debug!(what, raw = %response.content, "unparseable LLM response (raw)");
+                tracing::debug!(what, raw = %response, "unparseable LLM response (raw)");
                 tracing::warn!(
                     what,
                     attempt,
                     error = %reason,
-                    answer_chars = response.content.chars().count(),
+                    answer_chars = response.chars().count(),
                     "unparseable LLM response{}",
                     if attempt < ATTEMPTS { ", retrying" } else { ", skipped" }
                 );
