@@ -14,7 +14,7 @@
 //! Not covered yet: the verbs (public methods, route actions), which belong
 //! with the entry points inventory (step 3).
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
@@ -299,34 +299,44 @@ pub async fn build_glossary(
             batch.len(),
             batch[0].0.display()
         ));
-        let mut prompt = String::from("Model files:\n");
-        for (path, _, content) in batch {
-            let _ = write!(prompt, "\n--- {} ---\n{content}\n", path.display());
-        }
-        let Some(response) =
-            complete_json::<GlossaryResponse>(llm, GLOSSARY_SYSTEM_PROMPT, &prompt, "glossary")
-                .await?
-        else {
-            continue;
-        };
-
-        let mut found = attribute_entities(response, batch);
-        for (path, hash, _) in batch {
-            let key = path.to_string_lossy();
-            if let Some(entities) = found.remove(key.as_ref()) {
-                partial.entry(path.clone()).or_default().extend(entities);
+        let mut queue: VecDeque<&[(PathBuf, String, String)]> = VecDeque::from([batch]);
+        while let Some(group) = queue.pop_front() {
+            let mut prompt = String::from("Model files:\n");
+            for (path, _, content) in group {
+                let _ = write!(prompt, "\n--- {} ---\n{content}\n", path.display());
             }
-            let left = remaining.entry(path.clone()).or_insert(1);
-            *left -= 1;
-            if *left == 0 {
-                let entities = merge_chunk_entities(partial.remove(path).unwrap_or_default());
-                glossary.models.insert(
-                    path.clone(),
-                    ModelFile {
-                        content_hash: hash.clone(),
-                        entities,
-                    },
-                );
+            let Some(response) =
+                complete_json::<GlossaryResponse>(llm, GLOSSARY_SYSTEM_PROMPT, &prompt, "glossary")
+                    .await?
+            else {
+                if group.len() > 1 {
+                    tracing::warn!(
+                        items = group.len(),
+                        "unusable answer for a batch, retrying its files one by one"
+                    );
+                    queue.extend(group.chunks(1));
+                }
+                continue;
+            };
+
+            let mut found = attribute_entities(response, group);
+            for (path, hash, _) in group {
+                let key = path.to_string_lossy();
+                if let Some(entities) = found.remove(key.as_ref()) {
+                    partial.entry(path.clone()).or_default().extend(entities);
+                }
+                let left = remaining.entry(path.clone()).or_insert(1);
+                *left -= 1;
+                if *left == 0 {
+                    let entities = merge_chunk_entities(partial.remove(path).unwrap_or_default());
+                    glossary.models.insert(
+                        path.clone(),
+                        ModelFile {
+                            content_hash: hash.clone(),
+                            entities,
+                        },
+                    );
+                }
             }
         }
         // Saved after every batch: a failure later in a long run (a call
@@ -706,5 +716,42 @@ RSpec.describe Contract do
         assert!(prompts.len() >= 2, "several parts, several calls");
         assert!(prompts[0].contains("(part 1/"));
         assert_eq!(glossary.entities().count(), 1);
+    }
+
+    /// Refuses (not JSON) any prompt holding several files, answers for a single one.
+    struct OnlyOneFileAtATime;
+
+    #[async_trait]
+    impl LlmProvider for OnlyOneFileAtATime {
+        async fn complete(
+            &self,
+            request: CompletionRequest,
+        ) -> Result<CompletionResponse, LlmError> {
+            let content = if request.messages[1].content.matches("\n--- ").count() > 1 {
+                "too long, cut".to_string()
+            } else {
+                r#"{"entities":[{"file":"x","name":"Thing"}]}"#.to_string()
+            };
+            Ok(CompletionResponse {
+                content,
+                model: "m".to_string(),
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn a_batch_that_cannot_be_answered_is_retried_file_by_file() {
+        let dir = tempfile::tempdir().unwrap();
+        for name in ["a.rb", "b.rb"] {
+            std::fs::write(dir.path().join(name), "class Thing; end").unwrap();
+        }
+        let roles = roles(&[("a.rb", FileRole::Model), ("b.rb", FileRole::Model)]);
+
+        let glossary = build_glossary(dir.path(), &roles, &OnlyOneFileAtATime)
+            .await
+            .unwrap();
+
+        assert_eq!(glossary.models.len(), 2);
+        assert_eq!(glossary.entities().count(), 2);
     }
 }

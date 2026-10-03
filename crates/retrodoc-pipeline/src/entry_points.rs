@@ -13,7 +13,7 @@
 //! routes file, the action in its controller); linking them is left to the
 //! use-case rewiring (step 4), which traces the code from an entry point.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
@@ -230,65 +230,53 @@ pub async fn build_entry_points(
             batch.len(),
             batch[0].0.display()
         ));
-        let mut prompt = String::from("Files:\n");
-        for (path, _, content) in batch {
-            let _ = write!(prompt, "\n--- {} ---\n{content}\n", path.display());
-        }
-        let Some(response) = complete_json::<EntryPointsResponse>(
-            llm,
-            ENTRY_POINTS_SYSTEM_PROMPT,
-            &prompt,
-            "entry points",
-        )
-        .await?
-        else {
-            continue;
-        };
-
-        let allowed: BTreeSet<String> = batch
-            .iter()
-            .map(|(path, _, _)| path.to_string_lossy().into_owned())
-            .collect();
-        let mut found: BTreeMap<String, Vec<EntryPoint>> = BTreeMap::new();
-        for item in response.entry_points {
-            let target = if allowed.len() == 1 {
-                allowed.iter().next().cloned()
-            } else {
-                resolve_cited_path(strip_part_marker(&item.file), &allowed)
-            };
-            match target {
-                Some(file) if !item.entry.name.trim().is_empty() => {
-                    found.entry(file).or_default().push(item.entry);
+        let mut queue: VecDeque<&[(PathBuf, String, String)]> = VecDeque::from([batch]);
+        while let Some(group) = queue.pop_front() {
+            let mut prompt = String::from("Files:\n");
+            for (path, _, content) in group {
+                let _ = write!(prompt, "\n--- {} ---\n{content}\n", path.display());
+            }
+            let Some(response) = complete_json::<EntryPointsResponse>(
+                llm,
+                ENTRY_POINTS_SYSTEM_PROMPT,
+                &prompt,
+                "entry points",
+            )
+            .await?
+            else {
+                if group.len() > 1 {
+                    tracing::warn!(
+                        items = group.len(),
+                        "unusable answer for a batch, retrying its files one by one"
+                    );
+                    queue.extend(group.chunks(1));
                 }
-                Some(_) => {}
-                None => tracing::warn!(
-                    file = %item.file,
-                    entry_point = %item.entry.name,
-                    "entry point attributed to an unknown file, dropped"
-                ),
-            }
-        }
-        for (path, hash, _) in batch {
-            let key = path.to_string_lossy();
-            if let Some(entry_points) = found.remove(key.as_ref()) {
-                partial
-                    .entry(path.clone())
-                    .or_default()
-                    .extend(entry_points);
-            }
-            let left = remaining.entry(path.clone()).or_insert(1);
-            *left -= 1;
-            if *left == 0 {
-                let mut entry_points = partial.remove(path).unwrap_or_default();
-                let mut seen = BTreeSet::new();
-                entry_points.retain(|e| seen.insert(e.name.clone()));
-                inventory.files.insert(
-                    path.clone(),
-                    EntryFile {
-                        content_hash: hash.clone(),
-                        entry_points,
-                    },
-                );
+                continue;
+            };
+
+            let mut found = attribute_entry_points(response, group);
+            for (path, hash, _) in group {
+                let key = path.to_string_lossy();
+                if let Some(entry_points) = found.remove(key.as_ref()) {
+                    partial
+                        .entry(path.clone())
+                        .or_default()
+                        .extend(entry_points);
+                }
+                let left = remaining.entry(path.clone()).or_insert(1);
+                *left -= 1;
+                if *left == 0 {
+                    let mut entry_points = partial.remove(path).unwrap_or_default();
+                    let mut seen = BTreeSet::new();
+                    entry_points.retain(|e| seen.insert(e.name.clone()));
+                    inventory.files.insert(
+                        path.clone(),
+                        EntryFile {
+                            content_hash: hash.clone(),
+                            entry_points,
+                        },
+                    );
+                }
             }
         }
         // Saved after every batch: a failure later in a long run (a call
@@ -298,6 +286,38 @@ pub async fn build_entry_points(
 
     inventory.save(repo_root)?;
     Ok(inventory)
+}
+
+/// The entry points of an answer, by the file of `group` each belongs to (an
+/// entry point of an unknown file is dropped, with a warning).
+fn attribute_entry_points(
+    response: EntryPointsResponse,
+    group: &[(PathBuf, String, String)],
+) -> BTreeMap<String, Vec<EntryPoint>> {
+    let allowed: BTreeSet<String> = group
+        .iter()
+        .map(|(path, _, _)| path.to_string_lossy().into_owned())
+        .collect();
+    let mut found: BTreeMap<String, Vec<EntryPoint>> = BTreeMap::new();
+    for item in response.entry_points {
+        let target = if allowed.len() == 1 {
+            allowed.iter().next().cloned()
+        } else {
+            resolve_cited_path(strip_part_marker(&item.file), &allowed)
+        };
+        match target {
+            Some(file) if !item.entry.name.trim().is_empty() => {
+                found.entry(file).or_default().push(item.entry);
+            }
+            Some(_) => {}
+            None => tracing::warn!(
+                file = %item.file,
+                entry_point = %item.entry.name,
+                "entry point attributed to an unknown file, dropped"
+            ),
+        }
+    }
+    found
 }
 
 #[cfg(test)]
@@ -486,5 +506,54 @@ mod tests {
         assert!(prompts[1].contains("(part 3/"));
         // The same entry point seen in every part is kept once.
         assert_eq!(inventory.iter().count(), 1);
+    }
+
+    /// Refuses (not JSON) any prompt holding several files, answers for a single one.
+    struct OnlyOneFileAtATime {
+        calls: Mutex<u32>,
+    }
+
+    #[async_trait]
+    impl LlmProvider for OnlyOneFileAtATime {
+        async fn complete(
+            &self,
+            request: CompletionRequest,
+        ) -> Result<CompletionResponse, LlmError> {
+            *self.calls.lock().unwrap() += 1;
+            let content = if request.messages[1].content.matches("\n--- ").count() > 1 {
+                "too long, cut".to_string()
+            } else {
+                r#"{"entry_points":[{"file":"x","kind":"job","name":"AJob"}]}"#.to_string()
+            };
+            Ok(CompletionResponse {
+                content,
+                model: "m".to_string(),
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn a_batch_that_cannot_be_answered_is_retried_file_by_file() {
+        let dir = tempfile::tempdir().unwrap();
+        for name in ["a.rb", "b.rb"] {
+            std::fs::write(dir.path().join(name), "def run; end").unwrap();
+        }
+        let roles = RoleMap {
+            roles: ["a.rb", "b.rb"]
+                .iter()
+                .map(|n| (PathBuf::from(n), FileRole::EntryPoint))
+                .collect(),
+            ..RoleMap::default()
+        };
+        let llm = OnlyOneFileAtATime {
+            calls: Mutex::new(0),
+        };
+
+        let inventory = build_entry_points(dir.path(), &roles, &llm).await.unwrap();
+
+        // Both files are in one batch: two failed attempts, then one call each.
+        assert_eq!(*llm.calls.lock().unwrap(), 4);
+        assert_eq!(inventory.files.len(), 2);
+        assert_eq!(inventory.iter().count(), 2);
     }
 }
