@@ -9,7 +9,7 @@
 //! the order given. As in the features pass, a malformed answer for one
 //! feature is logged and that feature skipped.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
@@ -236,19 +236,19 @@ pub async fn build_use_cases(
         let input = FeatureInput::new(repo_root, feature, entry_points, index);
         let print = feature_fingerprint(repo_root, feature, &input, actors, vocabulary);
         if known.get(&key) == Some(&print) {
-            let kept: Vec<&UseCase> = previous
+            let kept: Vec<UseCase> = previous
                 .iter()
                 .filter(|u| u.feature_slug == feature.slug)
+                .cloned()
                 .collect();
             if !kept.is_empty() {
                 tracing::info!(feature = %key, "use cases unchanged, reused");
-                use_cases.extend(kept.into_iter().cloned());
+                use_cases.extend(kept);
                 prints.use_cases.insert(key, print);
                 progress.skip();
                 continue;
             }
         }
-        let produced_before = use_cases.len();
         progress.begin(&key);
         let (prompt, cited_files) =
             use_cases_prompt(repo_root, feature, &input, actors, vocabulary, &splitter);
@@ -275,47 +275,64 @@ pub async fn build_use_cases(
             continue;
         };
 
-        for raw_use_case in raw.use_cases {
-            if raw_use_case.steps.is_empty() {
-                tracing::warn!(use_case = %raw_use_case.slug, "use case dropped: no steps");
-                continue;
-            }
-            let slug = unique_slug(
-                &raw_use_case.slug,
-                use_cases
-                    .iter()
-                    .filter(|u| u.feature_slug == feature.slug)
-                    .map(|u| u.slug.as_str()),
-            );
-            use_cases.push(UseCase {
-                slug,
-                feature_slug: feature.slug.clone(),
-                name: raw_use_case.name,
-                description: raw_use_case.description,
-                steps: ground_steps(raw_use_case.steps, &cited_files, actors),
-                business_language: None,
-                entry_points: known_entry_points(&raw_use_case.entry_points, &input.entries),
-                narrative: raw_use_case
-                    .narrative
-                    .map(|n| n.trim().to_string())
-                    .filter(|n| !n.is_empty()),
-                primary_actor: raw_use_case
-                    .primary_actor
-                    .as_deref()
-                    .and_then(|name| actors.canonical(name))
-                    .map(|actor| actor.name.clone()),
-                diagram_mermaid: None,
-                confidence: None,
-            });
-        }
-        if use_cases.len() > produced_before {
+        let produced = grounded_use_cases(raw, feature, &use_cases, &input, &cited_files, actors);
+        if !produced.is_empty() {
             prints.use_cases.insert(key, print);
         }
+        use_cases.extend(produced);
     }
 
     prints.save(repo_root)?;
     save_use_cases(repo_root, &use_cases)?;
     Ok(use_cases)
+}
+
+/// The LLM's use cases of `feature` turned into [`UseCase`]s: those without
+/// steps are dropped, slugs made unique among the feature's `existing` ones
+/// and each other, steps grounded on the `cited_files`, and entry points and
+/// primary actor kept only when known.
+fn grounded_use_cases(
+    raw: RawUseCases,
+    feature: &Feature,
+    existing: &[UseCase],
+    input: &FeatureInput,
+    cited_files: &BTreeSet<String>,
+    actors: &Actors,
+) -> Vec<UseCase> {
+    let mut produced: Vec<UseCase> = Vec::new();
+    for raw_use_case in raw.use_cases {
+        if raw_use_case.steps.is_empty() {
+            tracing::warn!(use_case = %raw_use_case.slug, "use case dropped: no steps");
+            continue;
+        }
+        let taken = existing
+            .iter()
+            .chain(&produced)
+            .filter(|u| u.feature_slug == feature.slug)
+            .map(|u| u.slug.as_str());
+        let slug = unique_slug(&raw_use_case.slug, taken);
+        produced.push(UseCase {
+            slug,
+            feature_slug: feature.slug.clone(),
+            name: raw_use_case.name,
+            description: raw_use_case.description,
+            steps: ground_steps(raw_use_case.steps, cited_files, actors),
+            business_language: None,
+            entry_points: known_entry_points(&raw_use_case.entry_points, &input.entries),
+            narrative: raw_use_case
+                .narrative
+                .map(|n| n.trim().to_string())
+                .filter(|n| !n.is_empty()),
+            primary_actor: raw_use_case
+                .primary_actor
+                .as_deref()
+                .and_then(|name| actors.canonical(name))
+                .map(|actor| actor.name.clone()),
+            diagram_mermaid: None,
+            confidence: None,
+        });
+    }
+    produced
 }
 
 /// Best-effort save after a failure: the `unreached` features keep their
@@ -326,7 +343,7 @@ fn save_partial(
     mut use_cases: Vec<UseCase>,
     previous: &[UseCase],
     mut prints: Fingerprints,
-    known: &std::collections::BTreeMap<String, String>,
+    known: &BTreeMap<String, String>,
     unreached: &[Feature],
 ) {
     for feature in unreached {
@@ -902,7 +919,6 @@ mod tests {
     #[tokio::test]
     async fn a_feature_with_entry_points_gets_them_and_the_code_they_run() {
         use crate::entry_points::{EntryFile, EntryKind, Output, OutputKind};
-        use std::collections::BTreeMap;
 
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path();
@@ -1108,7 +1124,6 @@ mod tests {
     #[tokio::test]
     async fn a_long_controller_is_shown_around_the_actions_of_its_entry_points() {
         use crate::entry_points::{EntryFile, EntryKind};
-        use std::collections::BTreeMap;
         use std::fmt::Write as _;
 
         let dir = tempfile::tempdir().unwrap();

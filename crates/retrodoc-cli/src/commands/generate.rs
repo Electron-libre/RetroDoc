@@ -6,8 +6,8 @@ use retrodoc_core::model::{ConfidenceScore, Feature, UseCase};
 use retrodoc_ingest::{FileKind, IngestResult};
 use retrodoc_llm::{HeartbeatProvider, LlmProvider, OpenRouterProvider};
 use retrodoc_pipeline::{
-    CodeIndex, CoverageReport, DomainMap, EntryPoints, RepoMap, RepoMapOptions, RoleMap, Scope,
-    Surface, UseCaseContext,
+    Actors, CodeIndex, CoverageReport, DomainMap, EntryPoints, RepoMap, RepoMapOptions, RoleMap,
+    Scope, Surface, UseCaseContext,
 };
 
 /// Number of main entity names given to the use cases as business vocabulary.
@@ -56,17 +56,7 @@ pub async fn run(
     );
 
     let (surface, entry_points, role_map) = build_surface(&repo_root, &ingest, &llm, force).await?;
-    println!("Identifying the business actors…");
-    let source_files: Vec<_> = ingest
-        .files
-        .iter()
-        .filter(|f| f.kind == FileKind::Source)
-        .map(|f| f.path.clone())
-        .collect();
-    let actors = retrodoc_pipeline::build_actors(&repo_root, &source_files, &surface, &llm, force)
-        .await
-        .context("failed to identify the actors")?;
-    println!("{} actor(s) identified.", actors.actors.len());
+    let actors = identify_actors(&repo_root, &ingest, &surface, &llm, force).await?;
 
     apply_scope(
         &repo_root,
@@ -85,52 +75,23 @@ pub async fn run(
         map.modules.len()
     );
 
-    println!("\nClustering into functional domains…");
-    let (domain_map, coverage) =
-        retrodoc_pipeline::build_domains(&repo_root, &map, &ingest.existing_docs, &surface, &llm)
-            .await
-            .context("failed to build the domain clustering")?;
-
-    print_domain_map(&domain_map);
-    print_coverage_report(&coverage);
-
-    println!("\nDomains saved to .retrodoc/cache/domains.yaml.");
+    let domain_map = cluster_domains(&repo_root, &map, &ingest, &surface, &llm).await?;
 
     println!("\nDeriving features…");
     let features = retrodoc_pipeline::build_features(&repo_root, &domain_map, &map, &llm)
         .await
         .context("failed to derive the features")?;
 
-    println!(
-        "Deriving use cases ({} feature(s), one LLM call each)…",
-        features.len()
-    );
-    let code_index = CodeIndex::new(
-        ingest
-            .files
-            .iter()
-            .filter(|f| f.kind == FileKind::Source)
-            .map(|f| f.path.as_path()),
-    );
-    let context = UseCaseContext {
+    let mut use_cases = derive_use_cases(
+        &repo_root,
+        &ingest,
+        &features,
         entry_points,
-        index: code_index,
         actors,
-        vocabulary: surface.vocabulary(VOCABULARY_SIZE),
-    };
-    let mut use_cases = retrodoc_pipeline::build_use_cases(&repo_root, &features, &context, &llm)
-        .await
-        .context("failed to derive the use cases")?;
-    retrodoc_pipeline::attach_diagrams(&mut use_cases);
-    // Deterministic, so recomputed every run: does each use case read as business?
-    retrodoc_pipeline::score_business_language(
-        &mut use_cases,
-        &surface.vocabulary(usize::MAX),
-        &context.actors,
-    );
-    // Persist again now that the diagrams are attached.
-    retrodoc_pipeline::save_use_cases(&repo_root, &use_cases)
-        .context("failed to save the use cases")?;
+        &surface,
+        &llm,
+    )
+    .await?;
 
     let mut features = features;
     run_confidence(&repo_root, &mut features, &mut use_cases, &llm, confidence).await?;
@@ -145,6 +106,87 @@ pub async fn run(
     println!("Run `retrodoc report` for the documentation debt report.");
 
     super::docs::publish(&repo_root, &config, dry_run)
+}
+
+fn source_paths(ingest: &IngestResult) -> impl Iterator<Item = &Path> {
+    ingest
+        .files
+        .iter()
+        .filter(|f| f.kind == FileKind::Source)
+        .map(|f| f.path.as_path())
+}
+
+async fn identify_actors(
+    repo_root: &Path,
+    ingest: &IngestResult,
+    surface: &Surface,
+    llm: &dyn LlmProvider,
+    force: bool,
+) -> anyhow::Result<Actors> {
+    println!("Identifying the business actors…");
+    let source_files: Vec<_> = source_paths(ingest).map(Path::to_path_buf).collect();
+    let actors = retrodoc_pipeline::build_actors(repo_root, &source_files, surface, llm, force)
+        .await
+        .context("failed to identify the actors")?;
+    println!("{} actor(s) identified.", actors.actors.len());
+    Ok(actors)
+}
+
+async fn cluster_domains(
+    repo_root: &Path,
+    map: &RepoMap,
+    ingest: &IngestResult,
+    surface: &Surface,
+    llm: &dyn LlmProvider,
+) -> anyhow::Result<DomainMap> {
+    println!("\nClustering into functional domains…");
+    let (domain_map, coverage) =
+        retrodoc_pipeline::build_domains(repo_root, map, &ingest.existing_docs, surface, llm)
+            .await
+            .context("failed to build the domain clustering")?;
+
+    print_domain_map(&domain_map);
+    print_coverage_report(&coverage);
+
+    println!("\nDomains saved to .retrodoc/cache/domains.yaml.");
+    Ok(domain_map)
+}
+
+/// Use cases of the features, with their diagrams and business-language
+/// score, saved.
+async fn derive_use_cases(
+    repo_root: &Path,
+    ingest: &IngestResult,
+    features: &[Feature],
+    entry_points: EntryPoints,
+    actors: Actors,
+    surface: &Surface,
+    llm: &dyn LlmProvider,
+) -> anyhow::Result<Vec<UseCase>> {
+    println!(
+        "Deriving use cases ({} feature(s), one LLM call each)…",
+        features.len()
+    );
+    let context = UseCaseContext {
+        entry_points,
+        index: CodeIndex::new(source_paths(ingest)),
+        actors,
+        vocabulary: surface.vocabulary(VOCABULARY_SIZE),
+    };
+    let mut use_cases = retrodoc_pipeline::build_use_cases(repo_root, features, &context, llm)
+        .await
+        .context("failed to derive the use cases")?;
+    retrodoc_pipeline::attach_diagrams(&mut use_cases);
+    // Deterministic, so recomputed every run: does each use case read as business?
+    retrodoc_pipeline::score_business_language(
+        &mut use_cases,
+        &surface.vocabulary(usize::MAX),
+        &context.actors,
+    );
+    // Persist again now that the diagrams are attached.
+    retrodoc_pipeline::save_use_cases(repo_root, &use_cases)
+        .context("failed to save the use cases")?;
+    Ok(use_cases)
 }
 
 /// Identifies the file roles, then reads the entities and the entry points

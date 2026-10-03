@@ -21,7 +21,7 @@ use retrodoc_llm::LlmProvider;
 use serde::Deserialize;
 
 use crate::artifact::{load_yaml, save_yaml, warn_on_error};
-use crate::domains::{DomainMap, UNCATEGORIZED_SLUG};
+use crate::domains::{DomainCluster, DomainMap, UNCATEGORIZED_SLUG};
 use crate::error::PipelineError;
 use crate::fingerprints::{fingerprint, Fingerprints};
 use crate::progress::Progress;
@@ -77,19 +77,6 @@ pub fn save_features(repo_root: &Path, features: &[Feature]) -> Result<(), Pipel
     save_yaml(&repo_root.join(FEATURES_RELATIVE_PATH), features)
 }
 
-/// Number of domain/sub-domain units the pass goes through (progress total).
-fn unit_count(domains: &DomainMap) -> usize {
-    domains
-        .domains
-        .iter()
-        .filter(|d| d.slug != UNCATEGORIZED_SLUG)
-        .map(|d| {
-            usize::from(!d.paths.is_empty())
-                + d.sub_domains.iter().filter(|s| !s.paths.is_empty()).count()
-        })
-        .sum()
-}
-
 /// Derives the features of every domain/sub-domain in `domains` and
 /// persists them to `.retrodoc/cache/features.yaml`.
 ///
@@ -117,101 +104,142 @@ pub async fn build_features(
     let mut prints = Fingerprints::load(repo_root);
     let known_units = std::mem::take(&mut prints.features);
 
-    let mut progress = Progress::new("features", unit_count(domains));
+    let mut progress = Progress::new("features", units(domains).count());
 
     let mut features: Vec<Feature> = Vec::new();
-    for domain in &domains.domains {
-        if domain.slug == UNCATEGORIZED_SLUG {
-            continue;
-        }
-        let units = std::iter::once((None, "", &domain.paths)).chain(
-            domain
-                .sub_domains
-                .iter()
-                .map(|sub| (Some(sub.slug.as_str()), sub.name.as_str(), &sub.paths)),
-        );
-        for (sub_slug, sub_name, paths) in units {
-            if paths.is_empty() {
+    for unit in units(domains) {
+        let unit_key = unit_key(&unit.domain.slug, unit.sub_slug);
+        let unit_print = fingerprint(unit.paths.iter().map(|p| {
+            let summary = summaries.get(p.as_path()).map_or("", |f| &f.role_summary);
+            format!("{}\n{summary}", p.display())
+        }));
+        if known_units.get(&unit_key) == Some(&unit_print) {
+            if let Some(kept) = reusable(&previous, &features, &unit) {
+                tracing::info!(unit = %unit_key, "features unchanged, reused");
+                features.extend(kept);
+                prints.features.insert(unit_key, unit_print);
+                progress.skip();
                 continue;
             }
-            let unit_files: Vec<&FileSummary> = paths
-                .iter()
-                .filter_map(|p| summaries.get(p.as_path()).copied())
-                .collect();
-
-            let unit_key = format!("{}/{}", domain.slug, sub_slug.unwrap_or("-"));
-            let unit_print = fingerprint(paths.iter().map(|p| {
-                let summary = summaries.get(p.as_path()).map_or("", |f| &f.role_summary);
-                format!("{}\n{summary}", p.display())
-            }));
-            if known_units.get(&unit_key) == Some(&unit_print) {
-                let kept: Vec<&Feature> = previous
-                    .iter()
-                    .filter(|f| {
-                        f.domain_slug == domain.slug && f.sub_domain_slug.as_deref() == sub_slug
-                    })
-                    .collect();
-                // Slugs are unique across domains (use cases refer to their
-                // feature by slug alone): a reused slug taken meanwhile by a
-                // newly derived feature forces a fresh derivation.
-                let collides = kept
-                    .iter()
-                    .any(|k| features.iter().any(|f| f.slug == k.slug));
-                if !kept.is_empty() && !collides {
-                    tracing::info!(unit = %unit_key, "features unchanged, reused");
-                    features.extend(kept.into_iter().cloned());
-                    prints.features.insert(unit_key, unit_print);
-                    progress.skip();
-                    continue;
-                }
-            }
-            let produced_before = features.len();
-            progress.begin(&unit_key);
-            let prompt = features_prompt(&domain.name, &domain.description, sub_name, &unit_files);
-            let what = format!("features of {}/{}", domain.slug, sub_slug.unwrap_or("-"));
-            let raw =
-                match complete_json::<RawFeatures>(llm, FEATURES_SYSTEM_PROMPT, &prompt, &what)
-                    .await
-                {
-                    Ok(Some(raw)) => raw,
-                    Ok(None) => continue,
-                    Err(err) => {
-                        // Keep the units done so far, so a rerun resumes here.
-                        save_partial(repo_root, features, &previous, prints, &known_units);
-                        return Err(err);
-                    }
-                };
-
-            let known: BTreeSet<&PathBuf> = paths.iter().collect();
-            for raw_feature in raw.features {
-                let files = known_files(&raw_feature.files, &known);
-                if files.is_empty() {
-                    tracing::warn!(
-                        feature = %raw_feature.slug,
-                        "feature dropped: it cites no file from its domain"
-                    );
-                    continue;
-                }
-                let slug = unique_slug(&raw_feature.slug, features.iter().map(|f| f.slug.as_str()));
-                features.push(Feature {
-                    slug,
-                    domain_slug: domain.slug.clone(),
-                    sub_domain_slug: sub_slug.map(str::to_string),
-                    name: raw_feature.name,
-                    description: raw_feature.description,
-                    source_paths: files,
-                    confidence: None,
-                });
-            }
-            if features.len() > produced_before {
-                prints.features.insert(unit_key, unit_print);
-            }
         }
+        progress.begin(&unit_key);
+        let unit_files: Vec<&FileSummary> = unit
+            .paths
+            .iter()
+            .filter_map(|p| summaries.get(p.as_path()).copied())
+            .collect();
+        let prompt = features_prompt(
+            &unit.domain.name,
+            &unit.domain.description,
+            unit.sub_name,
+            &unit_files,
+        );
+        let what = format!("features of {unit_key}");
+        let raw =
+            match complete_json::<RawFeatures>(llm, FEATURES_SYSTEM_PROMPT, &prompt, &what).await {
+                Ok(Some(raw)) => raw,
+                Ok(None) => continue,
+                Err(err) => {
+                    // Keep the units done so far, so a rerun resumes here.
+                    save_partial(repo_root, features, &previous, prints, &known_units);
+                    return Err(err);
+                }
+            };
+
+        let produced = validated_features(raw, &unit, &features);
+        if !produced.is_empty() {
+            prints.features.insert(unit_key, unit_print);
+        }
+        features.extend(produced);
     }
 
     prints.save(repo_root)?;
     save_features(repo_root, &features)?;
     Ok(features)
+}
+
+/// A domain, or one of its sub-domains, as the unit of work of the pass.
+struct Unit<'a> {
+    domain: &'a DomainCluster,
+    sub_slug: Option<&'a str>,
+    sub_name: &'a str,
+    paths: &'a [PathBuf],
+}
+
+/// The units to go through: each domain's own files, then each sub-domain's
+/// (the "uncategorized" domain and empty units are skipped).
+fn units(domains: &DomainMap) -> impl Iterator<Item = Unit<'_>> {
+    domains
+        .domains
+        .iter()
+        .filter(|d| d.slug != UNCATEGORIZED_SLUG)
+        .flat_map(|domain| {
+            let own = Unit {
+                domain,
+                sub_slug: None,
+                sub_name: "",
+                paths: &domain.paths,
+            };
+            let subs = domain.sub_domains.iter().map(move |sub| Unit {
+                domain,
+                sub_slug: Some(sub.slug.as_str()),
+                sub_name: sub.name.as_str(),
+                paths: &sub.paths,
+            });
+            std::iter::once(own).chain(subs)
+        })
+        .filter(|unit| !unit.paths.is_empty())
+}
+
+/// Key of a unit in the fingerprints and the progress line.
+fn unit_key(domain_slug: &str, sub_slug: Option<&str>) -> String {
+    format!("{domain_slug}/{}", sub_slug.unwrap_or("-"))
+}
+
+/// The previous features of an unchanged unit, unless there are none or one
+/// of their slugs was taken meanwhile by a newly derived feature (slugs are
+/// unique across domains, use cases refer to their feature by slug alone):
+/// that forces a fresh derivation.
+fn reusable(previous: &[Feature], features: &[Feature], unit: &Unit<'_>) -> Option<Vec<Feature>> {
+    let kept: Vec<&Feature> = previous
+        .iter()
+        .filter(|f| {
+            f.domain_slug == unit.domain.slug && f.sub_domain_slug.as_deref() == unit.sub_slug
+        })
+        .collect();
+    let collides = kept
+        .iter()
+        .any(|k| features.iter().any(|f| f.slug == k.slug));
+    (!kept.is_empty() && !collides).then(|| kept.into_iter().cloned().collect())
+}
+
+/// The LLM's features turned into [`Feature`]s: those citing no file of the
+/// unit are dropped, slugs made unique against `existing` and each other.
+fn validated_features(raw: RawFeatures, unit: &Unit<'_>, existing: &[Feature]) -> Vec<Feature> {
+    let known: BTreeSet<&PathBuf> = unit.paths.iter().collect();
+    let mut produced: Vec<Feature> = Vec::new();
+    for raw_feature in raw.features {
+        let files = known_files(&raw_feature.files, &known);
+        if files.is_empty() {
+            tracing::warn!(
+                feature = %raw_feature.slug,
+                "feature dropped: it cites no file from its domain"
+            );
+            continue;
+        }
+        let taken = existing.iter().chain(&produced).map(|f| f.slug.as_str());
+        let slug = unique_slug(&raw_feature.slug, taken);
+        produced.push(Feature {
+            slug,
+            domain_slug: unit.domain.slug.clone(),
+            sub_domain_slug: unit.sub_slug.map(str::to_string),
+            name: raw_feature.name,
+            description: raw_feature.description,
+            source_paths: files,
+            confidence: None,
+        });
+    }
+    produced
 }
 
 /// The cited files that belong to the unit, as strings.
@@ -241,11 +269,7 @@ fn save_partial(
         if reached || slug_taken {
             continue;
         }
-        let unit_key = format!(
-            "{}/{}",
-            old.domain_slug,
-            old.sub_domain_slug.as_deref().unwrap_or("-")
-        );
+        let unit_key = unit_key(&old.domain_slug, old.sub_domain_slug.as_deref());
         if let Some(print) = known_units.get(&unit_key) {
             prints.features.insert(unit_key, print.clone());
         }

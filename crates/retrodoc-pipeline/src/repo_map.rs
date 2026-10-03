@@ -143,8 +143,44 @@ pub async fn build_repo_map(
             .count(),
     ));
 
-    // Read everything first: cached summaries are served right away, the
-    // others are summarized `concurrency` at a time.
+    let loaded = load_sources(repo_root, ingest, &cache, &progress);
+
+    let sizes: Vec<(usize, usize)> = (0..loaded.len())
+        .filter(|&i| loaded[i].summary.is_none())
+        .map(|i| (i, loaded[i].content.chars().count().min(MAX_FILE_CHARS)))
+        .collect();
+    let batches = plan_batches(&sizes, options.batch_chars);
+    let pass = FilePass {
+        llm,
+        ingest,
+        concurrency,
+        progress: &progress,
+    };
+    let mut results = summarize_pending(&pass, &loaded, &batches, &mut cache, repo_root).await?;
+
+    let files = file_summaries(ingest, &loaded, &mut results);
+
+    // Save once the whole file loop succeeds too (belt and suspenders): a
+    // failure further down the pipeline (module summaries) shouldn't lose
+    // the file-level work already done.
+    cache.save(repo_root)?;
+
+    let modules = build_module_summaries(llm, &files, &mut cache, concurrency).await;
+    // Saved even when a module call failed: the folders done so far are kept.
+    cache.save(repo_root)?;
+    let modules = modules?;
+
+    Ok(RepoMap { files, modules })
+}
+
+/// Reads every source file first: cached summaries are served right away
+/// (and counted as skipped), unreadable files are left out with a warning.
+fn load_sources<'a>(
+    repo_root: &Path,
+    ingest: &'a IngestResult,
+    cache: &RepoMapCache,
+    progress: &RefCell<Progress>,
+) -> Vec<Loaded<'a>> {
     let mut loaded: Vec<Loaded> = Vec::new();
     for entry in ingest.files.iter().filter(|f| f.kind == FileKind::Source) {
         let content = match read_file_lossy(repo_root, &entry.path) {
@@ -171,51 +207,67 @@ pub async fn build_repo_map(
             summary,
         });
     }
+    loaded
+}
 
-    let sizes: Vec<(usize, usize)> = (0..loaded.len())
-        .filter(|&i| loaded[i].summary.is_none())
-        .map(|i| (i, loaded[i].content.chars().count().min(MAX_FILE_CHARS)))
-        .collect();
-    let batches = plan_batches(&sizes, options.batch_chars);
+/// Summarizes the files without a cached summary, `concurrency` batches at a
+/// time, and records each summary in the cache. Returns them by index in
+/// `loaded`.
+async fn summarize_pending(
+    pass: &FilePass<'_>,
+    loaded: &[Loaded<'_>],
+    batches: &[Vec<usize>],
+    cache: &mut RepoMapCache,
+    repo_root: &Path,
+) -> Result<BTreeMap<usize, String>, PipelineError> {
+    let FilePass {
+        llm,
+        ingest,
+        concurrency,
+        progress,
+    } = *pass;
     let mut results: BTreeMap<usize, String> = BTreeMap::new();
-    {
-        let jobs = batches.iter().map(|batch| {
-            let progress = &progress;
-            let loaded = &loaded;
-            async move {
-                let first = loaded[batch[0]].entry.path.display().to_string();
-                progress.borrow().start(&if batch.len() > 1 {
-                    format!("{first} and {} more", batch.len() - 1)
-                } else {
-                    first
-                });
-                summarize_files(llm, ingest, loaded, batch).await
-            }
+    let jobs = batches.iter().map(|batch| async move {
+        let first = loaded[batch[0]].entry.path.display().to_string();
+        progress.borrow().start(&if batch.len() > 1 {
+            format!("{first} and {} more", batch.len() - 1)
+        } else {
+            first
         });
-        let mut stream = stream::iter(jobs).buffer_unordered(concurrency);
-        while let Some(result) = stream.next().await {
-            match result {
-                Ok(summaries) => {
-                    progress.borrow_mut().finish_many(summaries.len());
-                    for (i, summary) in summaries {
-                        cache.put(&loaded[i].entry.path, &loaded[i].hash, &summary);
-                        results.insert(i, summary);
-                    }
+        summarize_files(llm, ingest, loaded, batch).await
+    });
+    let mut stream = stream::iter(jobs).buffer_unordered(concurrency);
+    while let Some(result) = stream.next().await {
+        match result {
+            Ok(summaries) => {
+                progress.borrow_mut().finish_many(summaries.len());
+                for (i, summary) in summaries {
+                    cache.put(&loaded[i].entry.path, &loaded[i].hash, &summary);
+                    results.insert(i, summary);
                 }
-                Err(err) => {
-                    // A transient failure partway through a long file list
-                    // shouldn't discard the summaries already computed in
-                    // this run: best-effort save before propagating (a
-                    // rerun then only has to redo the files not yet
-                    // cached, not the whole list).
-                    warn_on_error(cache.save(repo_root));
-                    return Err(err);
-                }
+            }
+            Err(err) => {
+                // A transient failure partway through a long file list
+                // shouldn't discard the summaries already computed in
+                // this run: best-effort save before propagating (a
+                // rerun then only has to redo the files not yet
+                // cached, not the whole list).
+                warn_on_error(cache.save(repo_root));
+                return Err(err);
             }
         }
     }
+    Ok(results)
+}
 
-    let files: Vec<FileSummary> = loaded
+/// The file entries of the repo map: fresh summary, else the cached one,
+/// with the git history counts.
+fn file_summaries(
+    ingest: &IngestResult,
+    loaded: &[Loaded<'_>],
+    results: &mut BTreeMap<usize, String>,
+) -> Vec<FileSummary> {
+    loaded
         .iter()
         .enumerate()
         .map(|(i, file)| {
@@ -230,19 +282,16 @@ pub async fn build_repo_map(
                 author_count: history.map_or(0, author_count),
             }
         })
-        .collect();
+        .collect()
+}
 
-    // Save once the whole file loop succeeds too (belt and suspenders): a
-    // failure further down the pipeline (module summaries) shouldn't lose
-    // the file-level work already done.
-    cache.save(repo_root)?;
-
-    let modules = build_module_summaries(llm, &files, &mut cache, concurrency).await;
-    // Saved even when a module call failed: the folders done so far are kept.
-    cache.save(repo_root)?;
-    let modules = modules?;
-
-    Ok(RepoMap { files, modules })
+/// What the file summaries are asked with.
+#[derive(Clone, Copy)]
+struct FilePass<'a> {
+    llm: &'a dyn LlmProvider,
+    ingest: &'a IngestResult,
+    concurrency: usize,
+    progress: &'a RefCell<Progress>,
 }
 
 /// A source file read for the repo map, with its cached summary if any.

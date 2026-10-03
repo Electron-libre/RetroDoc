@@ -150,6 +150,39 @@ pub struct MergedEntity {
     pub files: Vec<PathBuf>,
 }
 
+/// The entities of an answer by file. A batch of a single file needs no
+/// citation; otherwise the cited path must resolve to a file of the batch,
+/// and nameless entities are ignored.
+fn attribute_entities(
+    response: GlossaryResponse,
+    batch: &[(PathBuf, String, String)],
+) -> BTreeMap<String, Vec<Entity>> {
+    let allowed: BTreeSet<String> = batch
+        .iter()
+        .map(|(path, _, _)| path.to_string_lossy().into_owned())
+        .collect();
+    let mut found: BTreeMap<String, Vec<Entity>> = BTreeMap::new();
+    for item in response.entities {
+        let target = if allowed.len() == 1 {
+            allowed.iter().next().cloned()
+        } else {
+            resolve_cited_path(&item.file, &allowed)
+        };
+        match target {
+            Some(file) if !item.entity.name.trim().is_empty() => {
+                found.entry(file).or_default().push(item.entity);
+            }
+            Some(_) => {}
+            None => tracing::warn!(
+                file = %item.file,
+                entity = %item.entity.name,
+                "entity attributed to an unknown file, dropped"
+            ),
+        }
+    }
+    found
+}
+
 fn merge_group(group: &[(&Path, &Entity)]) -> MergedEntity {
     let richness = |entity: &Entity| {
         (
@@ -277,29 +310,7 @@ pub async fn build_glossary(
             continue;
         };
 
-        let allowed: BTreeSet<String> = batch
-            .iter()
-            .map(|(path, _, _)| path.to_string_lossy().into_owned())
-            .collect();
-        let mut found: BTreeMap<String, Vec<Entity>> = BTreeMap::new();
-        for item in response.entities {
-            let target = if allowed.len() == 1 {
-                allowed.iter().next().cloned()
-            } else {
-                resolve_cited_path(&item.file, &allowed)
-            };
-            match target {
-                Some(file) if !item.entity.name.trim().is_empty() => {
-                    found.entry(file).or_default().push(item.entity);
-                }
-                Some(_) => {}
-                None => tracing::warn!(
-                    file = %item.file,
-                    entity = %item.entity.name,
-                    "entity attributed to an unknown file, dropped"
-                ),
-            }
-        }
+        let mut found = attribute_entities(response, batch);
         for (path, hash, _) in batch {
             let key = path.to_string_lossy();
             if let Some(entities) = found.remove(key.as_ref()) {
