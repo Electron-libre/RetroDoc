@@ -20,6 +20,11 @@ test-harness:
     rust-script .claude/hooks/test_hooks.rs
     rust-script .claude/skills/test_skills.rs
     rust-script .claude/skills/commit-message/test_commit_check.rs
+    rust-script .claude/skills/smoke-test/test_smoke.rs
+
+# Smoke test on a real repo with the local LLM (see .claude/skills/smoke-test/SKILL.md). Slow.
+smoke *args:
+    rust-script .claude/skills/smoke-test/smoke.rs run {{args}}
 
 # Validate a commit message against AGENTS.md (default: HEAD).
 check-commit rev="HEAD":

@@ -53,6 +53,7 @@ Skills in `.claude/skills/` (structure checked by `.claude/skills/test_skills.rs
   docs, review, human validation, tracking, commit). Architecture decisions go to `docs/adr/`.
 - `commit-message`: procedure to write a commit message per `AGENTS.md`, validated by `commit_check.rs`
   (`just check-commit` checks `HEAD`).
+- `smoke-test`: end-to-end run on a real repo with the local Ollama and a verdict (`just smoke <repo>`).
 - `update-docs`: checklist to keep the documentation in sync after a change.
 
 ## Architecture
@@ -132,6 +133,8 @@ retrodoc-cli ──> retrodoc-render ──> retrodoc-core
 
 ### Conventions specific to this codebase
 
+- Repositories used for smoke tests may be confidential: never name them, nor quote their paths or code, in
+  committed files (docs, `PLAN.md`, `issues/`, commit messages). Describe them generically.
 - Everything is in English: doc comments, user-facing CLI/error strings, commit messages, and `PLAN.md`/
   `PRODUCT.md`. Don't reintroduce French — an earlier revision of this repo was French throughout and its
   history was rewritten to English (see `backup-fr-history` if you ever need the old wording for reference).
