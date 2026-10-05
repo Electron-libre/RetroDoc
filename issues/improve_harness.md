@@ -35,8 +35,9 @@ Pour chaque issue voici ce qui doit être fait:
 
 ## Plan (validé)
 
-1. [x] Hooks : `cargo fmt` après édition, clippy bloquant à l'arrêt (`.claude/hooks/`, `.claude/settings.json`) — en attente de review humaine
-2. [ ] Skill `issue-workflow` (boucle de l'issue, arrêts de validation, suivi dans l'issue)
+1. [x] Hooks : `cargo fmt` après édition, clippy bloquant à l'arrêt (`.claude/hooks/`, `.claude/settings.json`) — commit 64910f1
+2. [x] Skill `issue-workflow` (boucle de l'issue, arrêts de validation, suivi dans l'issue) + `docs/adr/` — en attente de review humaine
+2b. [x] Scripts en `rust-script` (hooks + tests) et `justfile` (`just check`, `just test-harness`) — ajouté à la demande de l'utilisateur, en attente de review humaine
 3. [ ] Skill `commit-message` (règles `AGENTS.md`, sans attribution)
 4. [ ] Skill `smoke-test` (the Rails test repo, Ollama local, Gemini)
 5. [ ] Nettoyage des permissions (`settings.json` partagé vs `settings.local.json`)
@@ -45,6 +46,7 @@ Pour chaque issue voici ce qui doit être fait:
 
 * Skills en anglais ; l'agent parle français avec l'utilisateur.
 * L'agent peut committer, mais seulement après validation de la review humaine d'un livrable.
+* Scripts du harness en Rust (`rust-script`), commandes de dev dans un `justfile` (pas de bash).
 * ADR dans `docs/adr/`.
 * Clippy en échec : l'agent corrige (hook Stop, une seule relance pour éviter la boucle).
-* Point ouvert : `~/.gitignore` ignore `.claude/` → le harness n'est pas versionné dans ce dépôt.
+* `.claude/` (hors `settings.local.json`) et `issues/` sont versionnés dans le dépôt.

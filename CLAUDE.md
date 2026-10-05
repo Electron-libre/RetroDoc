@@ -23,7 +23,11 @@ cargo test -p retrodoc-pipeline         # run one crate's tests
 cargo test -p retrodoc-pipeline repo_map::tests::builds_bottom_up  # run a single test
 cargo clippy --workspace --all-targets  # lint (see Lints below — must be warning-free)
 cargo fmt --all                         # format
+just check                              # fmt + clippy -D warnings + tests in one go
+just test-harness                       # test the agent hooks and skills (needs rust-script)
 ```
+
+Scripts and dev commands are `just` recipes (`justfile`) and `rust-script` files, not bash.
 
 Registry note: this environment has no direct network access to `crates.io` (plain HTTP is blocked), but
 `cargo build`/`cargo test`/`cargo clippy` work fine without `--offline` — cargo reaches the registry through
@@ -39,10 +43,15 @@ OPENROUTER_API_KEY=... cargo run -p retrodoc-cli -- generate --path <target-repo
 
 ## Agent harness
 
-Hooks in `.claude/settings.json` (scripts in `.claude/hooks/`, tested by `.claude/hooks/test-hooks.sh`):
-- `format-rust.sh` (PostToolUse on Edit/Write): runs `cargo fmt --all` after a `.rs` file is edited.
-- `clippy-gate.sh` (Stop): if `.rs` files changed, runs `cargo clippy --workspace --all-targets -- -D warnings`;
+Hooks in `.claude/settings.json` (`rust-script` files in `.claude/hooks/`, tested by `test_hooks.rs`):
+- `format_rust.rs` (PostToolUse on Edit/Write): runs `cargo fmt --all` after a `.rs` file is edited.
+- `clippy_gate.rs` (Stop): if `.rs` files changed, runs `cargo clippy --workspace --all-targets -- -D warnings`;
   on failure the output goes back to the agent, which must fix the code before finishing.
+
+Skills in `.claude/skills/` (structure checked by `.claude/skills/test_skills.rs`):
+- `issue-workflow`: how to work an `issues/*.md` file (reformulate, plan, then per deliverable test, code,
+  docs, review, human validation, tracking, commit). Architecture decisions go to `docs/adr/`.
+- `update-docs`: checklist to keep the documentation in sync after a change.
 
 ## Architecture
 
