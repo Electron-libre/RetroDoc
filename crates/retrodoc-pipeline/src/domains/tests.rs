@@ -21,6 +21,7 @@ impl LlmProvider for CannedProvider {
         Ok(CompletionResponse {
             content: self.response.clone(),
             model: "test-model".to_string(),
+            ..Default::default()
         })
     }
 }
@@ -402,6 +403,7 @@ impl LlmProvider for RecordingProvider {
             content: r#"{"domains":[{"slug":"contracts","name":"Contracts","description":"d","paths":[""]}]}"#
                 .to_string(),
             model: "m".to_string(),
+            ..Default::default()
         })
     }
 }

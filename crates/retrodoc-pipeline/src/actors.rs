@@ -365,6 +365,7 @@ mod tests {
             Ok(CompletionResponse {
                 content: self.response.clone(),
                 model: "m".to_string(),
+                ..Default::default()
             })
         }
     }

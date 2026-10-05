@@ -364,6 +364,7 @@ mod tests {
             Ok(CompletionResponse {
                 content: self.response.clone(),
                 model: "test-model".to_string(),
+                ..Default::default()
             })
         }
     }
@@ -510,6 +511,7 @@ mod tests {
                     r#"{"features":[{"slug":"f","name":"F","description":"d","files":["a.rs"]}]}"#
                         .to_string(),
                 model: "test-model".to_string(),
+                ..Default::default()
             })
         }
     }
@@ -600,6 +602,7 @@ mod tests {
                         if n == 0 { "a.rs" } else { "b.rs" }
                     ),
                     model: "test-model".to_string(),
+                    ..Default::default()
                 })
             } else {
                 Err(LlmError::Transport("down".to_string()))

@@ -159,6 +159,7 @@ mod tests {
             Ok(retrodoc_llm::CompletionResponse {
                 content: self.responses[i.min(self.responses.len() - 1)].to_string(),
                 model: "test-model".to_string(),
+                ..Default::default()
             })
         }
     }

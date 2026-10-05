@@ -10,6 +10,9 @@ use async_trait::async_trait;
 use retrodoc_core::config::LlmConfig;
 use serde::{Deserialize, Serialize};
 
+mod usage;
+pub use usage::Usage;
+
 const OPENROUTER_ENDPOINT: &str = "https://openrouter.ai/api/v1/chat/completions";
 /// Number of extra attempts after the initial call, on transient errors
 /// (429 / 5xx) — PLAN.md §4 "retry, rate-limit".
@@ -58,10 +61,13 @@ pub struct CompletionRequest {
     pub model: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct CompletionResponse {
     pub content: String,
     pub model: String,
+    /// Tokens the server billed for this call, when it says so. `None` when
+    /// the server sends no (or an incomplete) `usage` block: never estimated.
+    pub usage: Option<Usage>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -157,6 +163,8 @@ struct ApiResponse {
     #[serde(default)]
     model: String,
     choices: Vec<ApiChoice>,
+    #[serde(default)]
+    usage: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -312,7 +320,12 @@ impl LlmProvider for OpenRouterProvider {
                         } else {
                             parsed.model
                         };
-                        return Ok(CompletionResponse { content, model });
+                        let usage = usage::parse(parsed.usage);
+                        return Ok(CompletionResponse {
+                            content,
+                            model,
+                            usage,
+                        });
                     }
 
                     let retry_after = response
@@ -383,6 +396,7 @@ mod tests {
             Ok(CompletionResponse {
                 content: "done".to_string(),
                 model: "m".to_string(),
+                ..Default::default()
             })
         }
     }
@@ -569,6 +583,60 @@ mod tests {
 
         assert_eq!(response.content, "hello");
         assert_eq!(response.model, "anthropic/claude-sonnet-4.5");
+        // The server sent no `usage`: nothing is invented.
+        assert_eq!(response.usage, None);
+    }
+
+    /// Serves `payload` once and returns the provider's answer.
+    async fn complete_with_payload(payload: &'static str) -> CompletionResponse {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        std::thread::spawn(move || {
+            use std::io::{Read, Write};
+            if let Ok((mut stream, _)) = listener.accept() {
+                let mut buf = [0u8; 4096];
+                let _ = stream.read(&mut buf);
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{payload}",
+                    payload.len()
+                );
+                let _ = stream.write_all(response.as_bytes());
+            }
+        });
+        let provider = OpenRouterProvider {
+            client: reqwest::Client::new(),
+            api_key: "test-key".to_string(),
+            default_model: "m".to_string(),
+            endpoint: String::new(),
+            reasoning_effort: None,
+        }
+        .with_endpoint(format!("http://{addr}"));
+        provider.complete(request()).await.unwrap()
+    }
+
+    #[tokio::test]
+    async fn complete_reads_the_usage_the_server_reports() {
+        let response = complete_with_payload(
+            r#"{"model":"m","choices":[{"message":{"role":"assistant","content":"ok"}}],"usage":{"prompt_tokens":120,"completion_tokens":35,"total_tokens":155}}"#,
+        )
+        .await;
+        assert_eq!(
+            response.usage,
+            Some(Usage {
+                prompt_tokens: 120,
+                completion_tokens: 35
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn a_malformed_usage_does_not_cost_the_answer() {
+        let response = complete_with_payload(
+            r#"{"model":"m","choices":[{"message":{"role":"assistant","content":"ok"}}],"usage":{"prompt_tokens":12.5,"completion_tokens":-3}}"#,
+        )
+        .await;
+        assert_eq!(response.content, "ok");
+        assert_eq!(response.usage, None);
     }
 
     #[tokio::test]

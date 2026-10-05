@@ -497,6 +497,7 @@ mod tests {
             Ok(CompletionResponse {
                 content: self.response.clone(),
                 model: "test-model".to_string(),
+                ..Default::default()
             })
         }
     }
@@ -735,6 +736,7 @@ RSpec.describe Contract do
             Ok(CompletionResponse {
                 content,
                 model: "m".to_string(),
+                ..Default::default()
             })
         }
     }

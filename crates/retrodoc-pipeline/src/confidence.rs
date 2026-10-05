@@ -413,6 +413,7 @@ mod tests {
             Ok(CompletionResponse {
                 content: self.0.to_string(),
                 model: "test-model".to_string(),
+                ..Default::default()
             })
         }
     }
@@ -576,6 +577,7 @@ mod tests {
             Ok(CompletionResponse {
                 content: content.to_string(),
                 model: "test-model".to_string(),
+                ..Default::default()
             })
         }
     }
@@ -621,6 +623,7 @@ mod tests {
             Ok(CompletionResponse {
                 content: r#"{"steps":[{"order":1,"verdict":"supported"}]}"#.to_string(),
                 model: "m".to_string(),
+                ..Default::default()
             })
         }
     }

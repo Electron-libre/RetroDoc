@@ -13,6 +13,7 @@ impl LlmProvider for CannedProvider {
         Ok(CompletionResponse {
             content: self.response.clone(),
             model: "test-model".to_string(),
+            ..Default::default()
         })
     }
 }
@@ -175,6 +176,7 @@ impl LlmProvider for CountingProvider {
              "source_refs":[{"path":"a.rs"}]}]}]}"#
                 .to_string(),
             model: "test-model".to_string(),
+            ..Default::default()
         })
     }
 }
@@ -228,6 +230,7 @@ impl LlmProvider for RecordingProvider {
         Ok(CompletionResponse {
             content: self.response.clone(),
             model: "m".to_string(),
+            ..Default::default()
         })
     }
 }
@@ -401,6 +404,7 @@ impl LlmProvider for FlakyProvider {
                     {{"description":"s","actor":{{"name":"A","kind":"human"}},"action":"x","source_refs":[]}}]}}]}}"#
                 ),
                 model: "test-model".to_string(),
+                ..Default::default()
             })
         } else {
             Err(LlmError::Transport("down".to_string()))

@@ -29,6 +29,7 @@ impl LlmProvider for CountingProvider {
         Ok(CompletionResponse {
             content: format!("summary of: {first_line}"),
             model: "test-model".to_string(),
+            ..Default::default()
         })
     }
 }
@@ -119,6 +120,7 @@ impl LlmProvider for PeakProvider {
         Ok(CompletionResponse {
             content: "summary".to_string(),
             model: "test-model".to_string(),
+            ..Default::default()
         })
     }
 }
@@ -192,6 +194,7 @@ impl LlmProvider for BatchProvider {
         Ok(CompletionResponse {
             content,
             model: "test-model".to_string(),
+            ..Default::default()
         })
     }
 }
@@ -300,6 +303,7 @@ impl LlmProvider for FailAfterNProvider {
             Ok(CompletionResponse {
                 content: format!("summary #{call_index}"),
                 model: "test-model".to_string(),
+                ..Default::default()
             })
         } else {
             Err(LlmError::Transport("simulated failure".to_string()))

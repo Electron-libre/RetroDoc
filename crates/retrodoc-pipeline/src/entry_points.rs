@@ -347,6 +347,7 @@ mod tests {
             Ok(CompletionResponse {
                 content: self.response.clone(),
                 model: "test-model".to_string(),
+                ..Default::default()
             })
         }
     }
@@ -452,6 +453,7 @@ mod tests {
                 content: r#"{"entry_points":[{"file":"a.rb","kind":"job","name":"AJob"}]}"#
                     .to_string(),
                 model: "m".to_string(),
+                ..Default::default()
             })
         }
     }
@@ -528,6 +530,7 @@ mod tests {
             Ok(CompletionResponse {
                 content,
                 model: "m".to_string(),
+                ..Default::default()
             })
         }
     }

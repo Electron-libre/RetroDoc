@@ -386,6 +386,7 @@ let x = module.exports;
             Ok(CompletionResponse {
                 content: format!(r#"{{"pattern":{:?}}}"#, self.fix),
                 model: "m".to_string(),
+                ..Default::default()
             })
         }
     }
