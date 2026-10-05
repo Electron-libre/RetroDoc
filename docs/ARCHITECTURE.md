@@ -250,3 +250,4 @@ flowchart LR
 | Change the generated Markdown | `crates/retrodoc-render/src/markdown.rs` |
 | Add a CLI command | `crates/retrodoc-cli/src/commands/` + `main.rs` |
 | Change config options | `crates/retrodoc-core/src/config.rs` |
+| Understand why a design choice was made | `docs/adr/` (ADRs 0001–0014 were written retroactively from the history) |
