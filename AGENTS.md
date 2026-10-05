@@ -14,7 +14,7 @@ Follow the Conventional Commits format:
 
 ### Subject line
 
-- 50 characters maximum, including type and scope.
+- 72 characters maximum, including type and scope (shorter is better).
 - Format `<type>(<scope>): <description>`: no space before the colon, one space after.
 - Lowercase description, no trailing period.
 - Imperative present tense, so that it completes the sentence "If applied, this commit will…"

@@ -43,10 +43,10 @@ stands (next unchecked deliverable) and continue at step 3. Otherwise start at s
 6. **Human review (STOP)**: summarize what was done, what was verified and **what was not** (state it
    plainly), decisions needed. Wait for the user's validation. Don't commit before it.
 7. **Track**: tick the deliverable in the issue's `# Suivi` and note decisions or follow-ups.
-8. **Commit**: after validation, prepare the message following `AGENTS.md` (Conventional Commits, subject
-   ≤ 50 chars, English, no attribution lines of any kind), commit only the files of this deliverable
-   (never `git add -A`; leave unrelated or personal files such as `settings.local.json`), and report the hash.
-   If the user wants to commit themselves, output just the message.
+8. **Commit**: after validation, run `skill:commit-message` (message per `AGENTS.md`, validated by its
+   checker). Commit only the files of this deliverable (never `git add -A`; leave unrelated or personal
+   files such as `settings.local.json`) and report the hash. If the user wants to commit themselves, output
+   just the message.
 
 Then move to the next deliverable. Don't chain into it without saying so if the user asked to stop.
 

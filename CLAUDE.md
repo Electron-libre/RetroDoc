@@ -51,6 +51,8 @@ Hooks in `.claude/settings.json` (`rust-script` files in `.claude/hooks/`, teste
 Skills in `.claude/skills/` (structure checked by `.claude/skills/test_skills.rs`):
 - `issue-workflow`: how to work an `issues/*.md` file (reformulate, plan, then per deliverable test, code,
   docs, review, human validation, tracking, commit). Architecture decisions go to `docs/adr/`.
+- `commit-message`: procedure to write a commit message per `AGENTS.md`, validated by `commit_check.rs`
+  (`just check-commit` checks `HEAD`).
 - `update-docs`: checklist to keep the documentation in sync after a change.
 
 ## Architecture

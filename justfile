@@ -19,3 +19,8 @@ test:
 test-harness:
     rust-script .claude/hooks/test_hooks.rs
     rust-script .claude/skills/test_skills.rs
+    rust-script .claude/skills/commit-message/test_commit_check.rs
+
+# Validate a commit message against AGENTS.md (default: HEAD).
+check-commit rev="HEAD":
+    git log -1 --format=%B {{rev}} | rust-script .claude/skills/commit-message/commit_check.rs

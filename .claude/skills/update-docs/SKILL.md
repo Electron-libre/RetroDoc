@@ -75,4 +75,4 @@ Finish with a short table: document → updated / n/a (reason) → what changed.
 you could not verify or deliberately left alone.
 
 Don't commit unless asked. When asked, follow `AGENTS.md` (`docs(<scope>): <description>`, subject
-50 characters max, no AI attribution).
+72 characters max, no AI attribution).
