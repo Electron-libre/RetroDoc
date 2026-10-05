@@ -21,6 +21,7 @@ test-harness:
     rust-script .claude/skills/test_skills.rs
     rust-script .claude/skills/commit-message/test_commit_check.rs
     rust-script .claude/skills/smoke-test/test_smoke.rs
+    rust-script .claude/test_settings.rs
 
 # Smoke test on a real repo with the local LLM (see .claude/skills/smoke-test/SKILL.md). Slow.
 smoke *args:

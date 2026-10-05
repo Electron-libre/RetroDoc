@@ -35,12 +35,12 @@ Pour chaque issue voici ce qui doit être fait:
 
 ## Plan (validé)
 
-1. [x] Hooks : `cargo fmt` après édition, clippy bloquant à l'arrêt (`.claude/hooks/`, `.claude/settings.json`) — commit 64910f1
-2. [x] Skill `issue-workflow` (boucle de l'issue, arrêts de validation, suivi dans l'issue) + `docs/adr/` — en attente de review humaine
-2b. [x] Scripts en `rust-script` (hooks + tests) et `justfile` (`just check`, `just test-harness`) — ajouté à la demande de l'utilisateur, en attente de review humaine
+1. [x] Hooks : `cargo fmt` après édition, clippy bloquant à l'arrêt (`.claude/hooks/`, `.claude/settings.json`) — commit 6099318
+2. [x] Skill `issue-workflow` (boucle de l'issue, arrêts de validation, suivi dans l'issue) + `docs/adr/` — validé
+2b. [x] Scripts en `rust-script` (hooks + tests) et `justfile` (`just check`, `just test-harness`) — ajouté à la demande de l'utilisateur, validé
 3. [x] Skill `commit-message` (règles `AGENTS.md`, sans attribution) + vérificateur `commit_check.rs` — validé
-4. [x] Skill `smoke-test` (Ollama local, dépôt cible en paramètre, verdict automatique) — en attente de review humaine
-5. [ ] Nettoyage des permissions (`settings.json` partagé vs `settings.local.json`)
+4. [x] Skill `smoke-test` (Ollama local, dépôt cible en paramètre, verdict automatique) — validé
+5. [x] Nettoyage des permissions : liste partagée dans `settings.json`, `settings.local.json` nettoyé et ignoré par git, test `.claude/test_settings.rs` — en attente de review humaine
 
 ## Décisions
 
