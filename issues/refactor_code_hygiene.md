@@ -1,118 +1,114 @@
-# Refactorisations d'hygiène, de maintenabilité et de lisibilité
+# Hygiene, maintainability and readability refactorings
 
-# Objectif
+# Goal
 
-Réduire la duplication et les fichiers trop gros relevés lors d'une passe de revue sur tout le dépôt, sans
-changer aucun comportement : les tests existants, `cargo clippy` (pedantic) et un second `generate` à 0 fichier
-écrit doivent rester verts après chaque livrable.
+Reduce the duplication and oversized files found during a review pass over the whole repo, without changing
+any behavior: the existing tests, `cargo clippy` (pedantic) and a second `generate` writing 0 files must stay
+green after each deliverable.
 
-# Constat
+# Findings
 
-État de santé : `cargo clippy --workspace --all-targets` est sans warning, les `#[allow]` sont rares et
-justifiés (7, tous `cast_precision_loss`/`float_cmp` commentés ou locaux), pas de `todo!`/`dbg!`, pas de
-`println!` hors du CLI, `unwrap`/`expect` cantonnés aux modules de tests. Le socle est sain ; les points
-ci-dessous sont de la dette de structure, par ordre décroissant d'intérêt.
+Health status: `cargo clippy --workspace --all-targets` has no warning, `#[allow]`s are rare and justified
+(7, all `cast_precision_loss`/`float_cmp`, commented or local), no `todo!`/`dbg!`, no `println!` outside the
+CLI, `unwrap`/`expect` confined to test modules. The foundation is sound; the points below are structural
+debt, in decreasing order of interest.
 
-1. **Boucle de lecture par lots dupliquée** (`glossary.rs` ~l.296-345, `entry_points.rs` ~l.225-285). Même
-   algorithme copié : lots de fichiers → prompt `--- path ---` → `complete_json` → repli fichier par fichier
-   si le lot est inutilisable → attribution par fichier → comptage des chunks restants → fusion → sauvegarde
-   après chaque lot. Seuls changent le type de réponse, le prompt système et la fusion. `entry_points.rs`
-   importe en plus `batches` depuis `glossary.rs` (couplage entre deux passes sœurs). Toute correction (ex. le
-   repli, la sauvegarde partielle) doit aujourd'hui être faite deux fois. Les tests sont dupliqués aussi
-   (`OnlyOneFileAtATime`, `ScriptedProvider` dans les deux).
-2. **Préambule des commandes CLI copié 7 fois** (`glossary`, `actors`, `entry_points`, `roles`, `surface`,
-   `scan`, `generate`) : `canonicalize` + `Config::load` + `retrodoc_ingest::run` avec les mêmes messages
-   `context(...)`, et la collecte des `source_files` (`FileKind::Source`) qui existe en deux versions
-   (`generate::source_paths` et le bloc inline de `actors.rs`). Les messages d'erreur sont identiques à
-   l'octet près, donc faciles à diverger.
-3. **Chemins `.retrodoc/cache/*.{yaml,json}` éparpillés** : une constante `*_RELATIVE_PATH` par module (13),
-   chacun avec son couple `load`/`save` de même forme (`artifact::load_yaml` + `join`), plus des littéraux
-   dans les messages du CLI (`generate.rs`, `glossary.rs`, `actors.rs`, `entry_points.rs`, `roles.rs`) et la
-   liste de fichiers de `clear_caches`. Renommer un artefact oblige à toucher tous ces endroits, et
-   `clear_caches` peut oublier un artefact sans que rien ne le signale (déjà vrai pour `scope.yaml`, à
-   vérifier voulu).
-4. **`OpenRouterProvider::complete` fait ~112 lignes avec 5 niveaux d'imbrication** (`retrodoc-llm/src/lib.rs`
-   l.269-380) : construction de la requête, boucle de retry, décodage de la réponse, avertissement de
-   troncature, calcul du délai y sont mêlés. `lib.rs` (793 lignes) regroupe aussi types publics, décorateur
-   `HeartbeatProvider`, client HTTP et tests.
-5. **`generate::run` orchestre 11 passes à la suite avec des `println!` et des `tracker.set_pass` entrelacés**
-   (`generate.rs`, 441 lignes dont ~140 d'affichage). Les `set_pass`/`end_pass` manuels sont faciles à oublier
-   (un oubli attribue les tokens à la mauvaise passe) ; l'affichage (`print_*`) est mélangé à l'orchestration.
-6. **Fakes de `LlmProvider` recopiés dans les tests** : 28 implémentations (`CannedProvider` ×4,
-   `CountingProvider` ×4, `ScriptedProvider` ×3, `FlakyProvider` ×2, `RecordingProvider` ×2…), la plupart de
-   10 à 30 lignes qui ne diffèrent que par la réponse renvoyée.
-7. **Gros fichiers mêlant types, logique et tests** : `glossary.rs` (759), `confidence.rs` (663),
-   `features.rs` (646), `entry_points.rs` (562), `roles.rs` (552), `markdown.rs` (535). Les modules
-   `repo_map/`, `domains/` et `use_cases/` ont déjà le bon découpage (`mod.rs` + `tests.rs`) ; il n'est pas
-   appliqué ailleurs, les tests représentant 40 à 60 % de ces fichiers.
-8. **Constantes de taille sans lien** : une trentaine de `MAX_*_CHARS` / `MAX_*` locaux aux passes
+1. **Duplicated batched read loop** (`glossary.rs` ~l.296-345, `entry_points.rs` ~l.225-285). The same
+   algorithm copied: batches of files → `--- path ---` prompt → `complete_json` → file-by-file fallback if
+   the batch is unusable → per-file attribution → count of remaining chunks → merge → save after each batch.
+   Only the response type, the system prompt and the merge differ. `entry_points.rs` also imports `batches`
+   from `glossary.rs` (coupling between two sibling passes). Any fix (e.g. the fallback, the partial save)
+   currently has to be made twice. The tests are duplicated too (`OnlyOneFileAtATime`, `ScriptedProvider` in
+   both).
+2. **CLI command preamble copied 7 times** (`glossary`, `actors`, `entry_points`, `roles`, `surface`,
+   `scan`, `generate`): `canonicalize` + `Config::load` + `retrodoc_ingest::run` with the same `context(...)`
+   messages, and the collection of `source_files` (`FileKind::Source`) which exists in two versions
+   (`generate::source_paths` and the inline block of `actors.rs`). The error messages are byte-for-byte
+   identical, so easy to diverge.
+3. **`.retrodoc/cache/*.{yaml,json}` paths scattered**: one `*_RELATIVE_PATH` constant per module (13), each
+   with its `load`/`save` pair of the same shape (`artifact::load_yaml` + `join`), plus literals in the CLI
+   messages (`generate.rs`, `glossary.rs`, `actors.rs`, `entry_points.rs`, `roles.rs`) and the file list of
+   `clear_caches`. Renaming an artifact means touching all these places, and `clear_caches` can forget an
+   artifact without anything signaling it (already true for `scope.yaml`, to check whether intended).
+4. **`OpenRouterProvider::complete` is ~112 lines with 5 levels of nesting** (`retrodoc-llm/src/lib.rs`
+   l.269-380): request construction, retry loop, response decoding, truncation warning and delay computation
+   are mixed. `lib.rs` (793 lines) also groups public types, the `HeartbeatProvider` decorator, the HTTP
+   client and tests.
+5. **`generate::run` orchestrates 11 passes in a row with interleaved `println!`s and `tracker.set_pass`
+   calls** (`generate.rs`, 441 lines of which ~140 are display). Manual `set_pass`/`end_pass` are easy to
+   forget (a miss attributes the tokens to the wrong pass); the display (`print_*`) is mixed with the
+   orchestration.
+6. **`LlmProvider` fakes copied in tests**: 28 implementations (`CannedProvider` ×4, `CountingProvider` ×4,
+   `ScriptedProvider` ×3, `FlakyProvider` ×2, `RecordingProvider` ×2…), most of them 10 to 30 lines that only
+   differ by the response returned.
+7. **Large files mixing types, logic and tests**: `glossary.rs` (759), `confidence.rs` (663),
+   `features.rs` (646), `entry_points.rs` (562), `roles.rs` (552), `markdown.rs` (535). The `repo_map/`,
+   `domains/` and `use_cases/` modules already have the right split (`mod.rs` + `tests.rs`); it is not
+   applied elsewhere, tests making up 40 to 60% of these files.
+8. **Unrelated size constants**: about thirty `MAX_*_CHARS` / `MAX_*` local to the passes
    (`MAX_FILE_CHARS` 6000, `MAX_MODEL_FILE_CHARS` 4000, `MAX_ENTRY_FILE_CHARS` 5000, `BATCH_CHARS` 12000…),
-   les unes avec `_`, les autres sans (`6000`, `4_000`). Pas un défaut en soi, mais le style de littéraux est
-   incohérent et la raison des valeurs n'est pas toujours documentée.
+   some with `_` separators, others without (`6000`, `4_000`). Not a defect in itself, but the literal style
+   is inconsistent and the reason for the values is not always documented.
 
-# Moyen
+# Approach
 
-Un livrable par point, dans cet ordre, chacun avec son commit `refactor(...)` et sans changement de
-comportement :
+One deliverable per point, in this order, each with its `refactor(...)` commit and no behavior change:
 
-1. **Lecture par lots commune** : extraire dans le pipeline (module `batched_read.rs`, par exemple) un pilote
-   générique paramétré par le prompt système, la fonction d'attribution et la fusion ; y déplacer `batches`.
-   `glossary` et `entry_points` ne gardent que leur schéma et leur fusion. Mutualiser les fakes de test
-   correspondants. Vérifier que `a_batch_that_cannot_be_answered_is_retried_file_by_file` et la sauvegarde partielle
-   passent inchangés.
-2. **Contexte de commande CLI** : une structure `Workspace { repo_root, config }` (`commands/context.rs`) avec
-   `open(path)` (canonicalize + config, mêmes messages) et des méthodes `ingest()` / `source_files()`. Les 7
-   commandes l'utilisent ; supprimer `source_paths` et le bloc inline.
-3. **Artefacts** : un module `artifacts` exposant les noms de fichiers en un seul endroit (enum ou constantes),
-   utilisé par les `load`/`save`, par `clear_caches` (liste dérivée plutôt que recopiée) et par les messages
-   du CLI. Décider explicitement si `scope.yaml`/`roles.yaml`/`usage.json` sont conservés par `--force` et le
-   consigner dans le doc de la fonction.
-4. **`OpenRouterProvider::complete`** : extraire `build_request`, `decode_success` (choix, troncature, usage)
-   et `retry_delay(attempt, server_delay)` ; l'erreur réseau et le statut retryable partagent le calcul du
-   backoff. Éclater `lib.rs` en `types.rs`, `heartbeat.rs`, `openrouter.rs` en gardant les ré-exports (l'API
-   publique ne change pas).
-5. **`generate::run`** : extraire l'affichage dans `commands/generate/report.rs` (ou `print.rs`) et
-   introduire un petit garde `tracker.pass("roles")` qui appelle `end_pass` au drop, pour que les passes
-   non-LLM ne volent plus de tokens par oubli. Au passage, `run` prend 6 paramètres : regrouper
-   `dry_run/force/confidence/max_files` dans une `GenerateOptions`.
-6. **Fakes de test** : un module `testing` (`#[cfg(test)]`, ou une feature `test-support` de `retrodoc-llm` si
-   les crates en ont besoin) avec `Scripted` (liste de réponses), `Recording` (prompts reçus) et `Counting`
-   (compteur d'appels) ; migrer les fakes triviaux, garder les fakes spécifiques (`PeakProvider`,
-   `SlowProvider`) en place.
-7. **Fichiers volumineux** : passer `glossary`, `confidence`, `features`, `entry_points`, `roles` en
-   `dir/mod.rs + tests.rs` comme `repo_map/`. Pur déplacement, un commit par fichier, `git mv` pour garder
-   l'historique lisible. Ne pas toucher `markdown.rs` avant d'avoir décidé si les tests restent à côté.
-8. **Constantes** : uniformiser les littéraux (`6_000`, tout avec séparateur) et ajouter un commentaire
-   « pourquoi cette valeur » aux constantes qui n'en ont pas. Pas de centralisation dans un seul fichier
-   (chaque borne appartient à sa passe).
+1. **Shared batched read**: extract into the pipeline (a `batched_read.rs` module, for example) a generic
+   driver parameterized by the system prompt, the attribution function and the merge; move `batches` there.
+   `glossary` and `entry_points` keep only their schema and their merge. Share the corresponding test fakes.
+   Check that `a_batch_that_cannot_be_answered_is_retried_file_by_file` and the partial save pass unchanged.
+2. **CLI command context**: a `Workspace { repo_root, config }` struct (`commands/context.rs`) with
+   `open(path)` (canonicalize + config, same messages) and `ingest()` / `source_files()` methods. The 7
+   commands use it; remove `source_paths` and the inline block.
+3. **Artifacts**: an `artifacts` module exposing the file names in a single place (enum or constants), used
+   by `load`/`save`, by `clear_caches` (list derived rather than copied) and by the CLI messages. Explicitly
+   decide whether `scope.yaml`/`roles.yaml`/`usage.json` are kept by `--force` and record it in the
+   function's doc.
+4. **`OpenRouterProvider::complete`**: extract `build_request`, `decode_success` (choices, truncation,
+   usage) and `retry_delay(attempt, server_delay)`; the network error and the retryable status share the
+   backoff computation. Split `lib.rs` into `types.rs`, `heartbeat.rs`, `openrouter.rs` keeping the re-exports
+   (the public API does not change).
+5. **`generate::run`**: extract the display into `commands/generate/report.rs` (or `print.rs`) and
+   introduce a small guard `tracker.pass("roles")` that calls `end_pass` on drop, so that non-LLM passes no
+   longer steal tokens by omission. While at it, `run` takes 6 parameters: group
+   `dry_run/force/confidence/max_files` into a `GenerateOptions`.
+6. **Test fakes**: a `testing` module (`#[cfg(test)]`, or a `test-support` feature of `retrodoc-llm` if the
+   crates need it) with `Scripted` (list of responses), `Recording` (received prompts) and `Counting` (call
+   counter); migrate the trivial fakes, keep the specific fakes (`PeakProvider`, `SlowProvider`) in place.
+7. **Large files**: turn `glossary`, `confidence`, `features`, `entry_points`, `roles` into
+   `dir/mod.rs + tests.rs` like `repo_map/`. Pure move, one commit per file, `git mv` to keep the history
+   readable. Do not touch `markdown.rs` before deciding whether the tests stay alongside.
+8. **Constants**: make the literals uniform (`6_000`, all with separators) and add a "why this value" comment
+   to the constants that lack one. No centralization in a single file (each bound belongs to its pass).
 
-Hors périmètre : toute évolution fonctionnelle, tout changement de format des artefacts ou du schéma des
-prompts (les fingerprints invalideraient les caches), et l'ADR 0006 qui reste valable. Si le livrable 3 ou 4
-change une décision d'architecture, l'ajouter dans `docs/adr/`.
+Out of scope: any functional change, any change of artifact format or prompt schema (the fingerprints would
+invalidate the caches), and ADR 0006 which remains valid. If deliverable 3 or 4 changes an architecture
+decision, add it to `docs/adr/`.
 
 # Resources
 
 * `crates/retrodoc-pipeline/src/glossary.rs`, `crates/retrodoc-pipeline/src/entry_points.rs` (point 1)
-* `crates/retrodoc-cli/src/commands/` (points 2 et 5), `generate.rs` en particulier
-* `crates/retrodoc-pipeline/src/artifact.rs` et les constantes `*_RELATIVE_PATH` (point 3)
+* `crates/retrodoc-cli/src/commands/` (points 2 and 5), `generate.rs` in particular
+* `crates/retrodoc-pipeline/src/artifact.rs` and the `*_RELATIVE_PATH` constants (point 3)
 * `crates/retrodoc-llm/src/lib.rs` (point 4)
-* `crates/retrodoc-pipeline/src/repo_map/` : le modèle de découpage à reproduire (point 7)
-* ADR `0001` (crates à sens unique), `0005` (fingerprints, à ne pas invalider), `0012` (résilience des requêtes)
-* `just check` pour la validation de chaque livrable
+* `crates/retrodoc-pipeline/src/repo_map/`: the split model to reproduce (point 7)
+* ADR `0001` (one-way crates), `0005` (fingerprints, not to be invalidated), `0012` (request resilience)
+* `just check` to validate each deliverable
 
-# Suivi
+# Tracking
 
-1. [x] Lecture par lots commune (`batched_read.rs`, `glossary` + `entry_points`)
-2. [x] Contexte de commande CLI (`Workspace`)
-3. [x] Module d'artefacts (noms centralisés, `clear_caches` dérivé)
-4. [x] `OpenRouterProvider::complete` découpé, `lib.rs` éclaté
-5. [x] `generate::run` : affichage extrait, garde de passe, `GenerateOptions`
-6. [x] Fakes de test mutualisés
-7. [x] Gros fichiers en `dir/mod.rs` + `tests.rs`
-8. [x] Constantes : littéraux uniformisés, raisons documentées
+1. [x] Shared batched read (`batched_read.rs`, `glossary` + `entry_points`)
+2. [x] CLI command context (`Workspace`)
+3. [x] Artifacts module (names centralized, `clear_caches` derived)
+4. [x] `OpenRouterProvider::complete` split, `lib.rs` broken up
+5. [x] `generate::run`: display extracted, pass guard, `GenerateOptions`
+6. [x] Shared test fakes
+7. [x] Large files as `dir/mod.rs` + `tests.rs`
+8. [x] Constants: literals made uniform, reasons documented
 
-## Décisions
+## Decisions
 
-* Le pilote du livrable 1 est `pub(crate)` dans `crates/retrodoc-pipeline/src/batched_read.rs`.
-* Fakes de test (livrable 6) : module `#[cfg(test)]` interne au crate pipeline, pas de feature `test-support`.
-* `--force` garde son comportement actuel (`roles.yaml`, `usage.json`, `scope.yaml` conservés) ; on le documente sans le changer.
+* The deliverable 1 driver is `pub(crate)` in `crates/retrodoc-pipeline/src/batched_read.rs`.
+* Test fakes (deliverable 6): `#[cfg(test)]` module internal to the pipeline crate, no `test-support` feature.
+* `--force` keeps its current behavior (`roles.yaml`, `usage.json`, `scope.yaml` kept); it is documented without being changed.

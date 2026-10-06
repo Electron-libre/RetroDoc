@@ -1,39 +1,38 @@
-# Smoke test : faux « concluant » et rerun qui appelle encore le LLM
+# Smoke test: false "conclusive" and a rerun that still calls the LLM
 
-# Objectif
+# Goal
 
-Rendre le verdict du smoke test fiable : il ne doit plus déclarer « concluant » un run dont les logs contiennent
-des WARN, et il doit vérifier que le second `generate` ne fait aucun appel LLM, ce qui est maintenant mesurable.
+Make the smoke test verdict reliable: it must no longer declare "conclusive" a run whose logs contain WARNs,
+and it must check that the second `generate` makes no LLM call, which is now measurable.
 
-# Constat
+# Findings
 
-Smoke test du suivi des tokens (petit dépôt Rust de 17 fichiers, `qwen3.6:35b-a3b` local) : verdict
-`SMOKE TEST CONCLUSIVE: ... no warning ...`, alors que les deux logs contiennent des lignes WARN (chunk_check,
-actors, réponse JSON non parsable, « LLM answered with no use case »).
+Token tracking smoke test (small Rust repo of 17 files, local `qwen3.6:35b-a3b`): verdict
+`SMOKE TEST CONCLUSIVE: ... no warning ...`, although both logs contain WARN lines (chunk_check, actors,
+unparseable JSON response, "LLM answered with no use case").
 
-* Cause : `evaluate` (`.claude/skills/smoke-test/smoke.rs`) filtre les lignes contenant `" WARN "`. Le
-  subscriber `tracing` écrit des codes couleur ANSI même quand stderr est redirigé vers un fichier : le niveau
-  est suivi d'un code d'échappement, pas d'un espace, donc rien ne correspond.
-* Le critère 3 (« second run = 0 fichier écrit ») ne voit pas que le second run a fait 2 appels LLM
-  (`use-cases`, 922 tokens en entrée). Depuis `d91bde4`, `.retrodoc/cache/usage.json` donne le nombre d'appels
-  par run.
+* Cause: `evaluate` (`.claude/skills/smoke-test/smoke.rs`) filters lines containing `" WARN "`. The `tracing`
+  subscriber writes ANSI color codes even when stderr is redirected to a file: the level is followed by an
+  escape code, not a space, so nothing matches.
+* Criterion 3 ("second run = 0 files written") does not see that the second run made 2 LLM calls
+  (`use-cases`, 922 input tokens). Since `d91bde4`, `.retrodoc/cache/usage.json` gives the number of calls per
+  run.
 
-# Moyen
+# Approach
 
-* Retirer les séquences ANSI avant de filtrer (ou désactiver les couleurs du subscriber quand stderr n'est pas un
-  terminal, ce qui sert aussi à lire les logs). Un test (`test_smoke.rs`) avec une ligne colorée doit échouer
-  avant le correctif.
-* Ajouter un critère : le second run n'a fait aucun appel LLM (lire la dernière entrée de `usage.json`, ou la
-  ligne `LLM usage:` du log). Décider si c'est bloquant ou seulement signalé tant que
-  `issues/smoke_empty_feature_retry.md` n'est pas traitée.
+* Strip ANSI sequences before filtering (or disable the subscriber's colors when stderr is not a terminal,
+  which also helps reading the logs). A test (`test_smoke.rs`) with a colored line must fail before the fix.
+* Add a criterion: the second run made no LLM call (read the last entry of `usage.json`, or the `LLM usage:`
+  line of the log). Decide whether it is blocking or only reported until `issues/smoke_empty_feature_retry.md`
+  is handled.
 
 # Resources
 
-* `.claude/skills/smoke-test/smoke.rs`, `test_smoke.rs`, `SKILL.md` (critères « Conclusive means »)
-* `crates/retrodoc-pipeline/src/usage_log.rs` (format de `usage.json`)
-* `crates/retrodoc-cli/src/main.rs` (initialisation de `tracing_subscriber`)
+* `.claude/skills/smoke-test/smoke.rs`, `test_smoke.rs`, `SKILL.md` ("Conclusive means" criteria)
+* `crates/retrodoc-pipeline/src/usage_log.rs` (`usage.json` format)
+* `crates/retrodoc-cli/src/main.rs` (`tracing_subscriber` initialization)
 
 # Hints
 
-* Ne jamais nommer les dépôts de test confidentiels dans les fichiers commités (chiffres seulement).
-* Les tests du harness sont en Rust (`rust-script`), lancés par `just test-harness`.
+* Never name confidential test repos in committed files (numbers only).
+* Harness tests are in Rust (`rust-script`), run by `just test-harness`.

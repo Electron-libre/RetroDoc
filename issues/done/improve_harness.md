@@ -1,54 +1,54 @@
 # Improve Harness
 
-# Objectif 
+# Goal
 
-Fiabiliser l'autonomie de l'agent de code, limiter la répétition d'instructions dans les prompts
+Make the coding agent more autonomous and reduce the repetition of instructions in prompts.
 
-# Moyen
+# Approach
 
-Complèter le harness du dépot avec des skills et hooks.
+Complete the repo's harness with skills and hooks.
 
 # Resources
 
-Historique des conversations avec l'agent de code et commits.
-Fichiers de documentation du dépot
+History of the conversations with the coding agent and commits.
+The repo's documentation files.
 
 # Hints
 
-Je vais donner les instructions a l'agent avec des fichiers comme celui-ci (document courrant).
+I will give the agent instructions with files like this one (the current document).
 
-Pour chaque issue voici ce qui doit être fait:
+For each issue, this is what must be done:
 
-* Reformuler le besoin et valider la compréhension avec l'utilisateur
-* Une fois la compréhension validée préparer un plan d'action en plusieurs livrables.
-* Pour chaque livrable:
-* * Rassembler les informations nécessaires, demander les informations manquantes
-* * Ecrire un test de comportement ou end-to-end pour valider le livrable.
-* * Ecrire le code pour implémenter le livrable
-* * Mettre a jour la documentation du dépot, les décisions d'architecture, diagrammes, etc.
-* * Faire une review du code et de la documentation.
-* * Soumettre a l'utilisateur pour une review humaine.
-* * Mettre a jour l'issue pour suivre le progrès.
-* * Préparer le message de commit.
+* Reformulate the need and validate the understanding with the user
+* Once the understanding is validated, prepare an action plan in several deliverables.
+* For each deliverable:
+* * Gather the necessary information, ask for the missing information
+* * Write a behavior or end-to-end test to validate the deliverable.
+* * Write the code that implements the deliverable
+* * Update the repo's documentation, architecture decisions, diagrams, etc.
+* * Review the code and the documentation.
+* * Submit to the user for a human review.
+* * Update the issue to track progress.
+* * Prepare the commit message.
 
-# Suivi
+# Tracking
 
-## Plan (validé)
+## Plan (validated)
 
-1. [x] Hooks : `cargo fmt` après édition, clippy bloquant à l'arrêt (`.claude/hooks/`, `.claude/settings.json`) — commit 6099318
-2. [x] Skill `issue-workflow` (boucle de l'issue, arrêts de validation, suivi dans l'issue) + `docs/adr/` — validé
-2b. [x] Scripts en `rust-script` (hooks + tests) et `justfile` (`just check`, `just test-harness`) — ajouté à la demande de l'utilisateur, validé
-3. [x] Skill `commit-message` (règles `AGENTS.md`, sans attribution) + vérificateur `commit_check.rs` — validé
-4. [x] Skill `smoke-test` (Ollama local, dépôt cible en paramètre, verdict automatique) — validé
-5. [x] Nettoyage des permissions : liste partagée dans `settings.json`, `settings.local.json` nettoyé et ignoré par git, test `.claude/test_settings.rs` — en attente de review humaine
+1. [x] Hooks: `cargo fmt` after an edit, blocking clippy at stop (`.claude/hooks/`, `.claude/settings.json`) — commit 6099318
+2. [x] `issue-workflow` skill (issue loop, validation stops, tracking in the issue) + `docs/adr/` — validated
+2b. [x] Scripts in `rust-script` (hooks + tests) and `justfile` (`just check`, `just test-harness`) — added at the user's request, validated
+3. [x] `commit-message` skill (`AGENTS.md` rules, no attribution) + `commit_check.rs` checker — validated
+4. [x] `smoke-test` skill (local Ollama, target repo as a parameter, automatic verdict) — validated
+5. [x] Permissions cleanup: shared list in `settings.json`, `settings.local.json` cleaned and git-ignored, `.claude/test_settings.rs` test — awaiting human review
 
-## Décisions
+## Decisions
 
-* Skills en anglais ; l'agent parle français avec l'utilisateur.
-* L'agent peut committer, mais seulement après validation de la review humaine d'un livrable.
-* Scripts du harness en Rust (`rust-script`), commandes de dev dans un `justfile` (pas de bash).
-* Sujet de commit : 72 caractères maximum (`AGENTS.md` assoupli, conforme à la pratique réelle).
-* Dépôts de test confidentiels (client) : jamais nommés dans les fichiers versionnés ; cible du smoke test passée en paramètre. LLM par défaut : Ollama local.
-* ADR dans `docs/adr/`.
-* Clippy en échec : l'agent corrige (hook Stop, une seule relance pour éviter la boucle).
-* `.claude/` (hors `settings.local.json`) et `issues/` sont versionnés dans le dépôt.
+* Skills in English; the agent speaks French with the user.
+* The agent may commit, but only after the human review of a deliverable is validated.
+* Harness scripts in Rust (`rust-script`), dev commands in a `justfile` (no bash).
+* Commit subject: 72 characters maximum (`AGENTS.md` relaxed, in line with actual practice).
+* Confidential test repos (client): never named in versioned files; smoke test target passed as a parameter. Default LLM: local Ollama.
+* ADRs in `docs/adr/`.
+* Clippy failing: the agent fixes it (Stop hook, a single rerun to avoid the loop).
+* `.claude/` (except `settings.local.json`) and `issues/` are versioned in the repo.

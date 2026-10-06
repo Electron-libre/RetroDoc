@@ -1,9 +1,9 @@
 # Issues rules
 
-# Objectif
+# Goal
 
-Quand l'agent termine une issue il doit déplacer le fichier de celle-ci dans le répertoire "done" sur accord de l'utilisateur.
+When the agent finishes an issue it must move the issue file to the "done" directory, with the user's agreement.
 
-# Moyen
+# Approach
 
-Utiliser l'automatisation et le harness.
+Use automation and the harness.

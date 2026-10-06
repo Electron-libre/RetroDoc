@@ -1,41 +1,40 @@
-# Une feature sans use case est réessayée à chaque run
+# A feature with no use case is retried on every run
 
-# Objectif
+# Goal
 
-Qu'un rerun sur un dépôt inchangé ne rappelle pas le LLM pour une feature dont il a déjà répondu « aucun use
-case », ou que ce retour soit un choix explicite et documenté.
+Make a rerun on an unchanged repo not call the LLM again for a feature it already answered "no use case"
+for, or make that retry an explicit, documented choice.
 
-# Constat
+# Findings
 
-Smoke test du suivi des tokens (petit dépôt Rust de 17 fichiers) : une feature (sur 6) reçoit « LLM answered
-with no use case » aux deux tentatives, à chaque `generate`. Elle n'a aucun use case (confiance 0 % au rapport)
-et n'est pas mémorisée comme « traitée » : le second run refait 2 appels (922 tokens en entrée, 20 en sortie)
-alors que tout le reste est réutilisé. Le recap de tokens le rend visible (`LLM usage` du second run).
+Token tracking smoke test (small Rust repo of 17 files): one feature (out of 6) gets "LLM answered with no
+use case" on both attempts, on every `generate`. It has no use case (0% confidence in the report) and is not
+remembered as "processed": the second run makes 2 calls again (922 input tokens, 20 output tokens) while
+everything else is reused. The token recap makes it visible (`LLM usage` of the second run).
 
-Le retry d'une unité en échec est voulu (ADR 0005 : reprise), mais ici le LLM a répondu proprement, ce n'est pas
-une panne. Le résultat est le même à chaque run tant que le modèle et l'entrée ne changent pas.
+Retrying a failed unit is intended (ADR 0005: resume), but here the LLM answered cleanly, it is not an
+outage. The result is the same on every run as long as the model and the input do not change.
 
-# Moyen
+# Approach
 
-À trancher d'abord, avant de coder :
-* soit mémoriser « aucun use case » dans le cache de la passe (avec l'empreinte d'entrée), donc un rerun l'évite,
-  et `--force` ou un changement d'entrée le relance ;
-* soit garder le retry (le modèle peut répondre autrement) et l'écrire dans l'ADR 0005 et `PLAN.md`.
+To be decided first, before coding:
+* either remember "no use case" in the pass cache (with the input fingerprint), so a rerun skips it, and
+  `--force` or an input change reruns it;
+* or keep the retry (the model may answer differently) and write it down in ADR 0005 and `PLAN.md`.
 
-La première option a un coût : une réponse vide due à un mauvais tirage du modèle serait figée jusqu'à
-`--force`. Voir aussi `issues/lenient_use_case_parsing.md`, qui traite les réponses rejetées par le parseur
-(cause différente, même symptôme côté rapport).
+The first option has a cost: an empty answer caused by a bad model draw would be frozen until `--force`.
+See also `issues/lenient_use_case_parsing.md`, which deals with responses rejected by the parser (different
+cause, same symptom in the report).
 
 # Resources
 
-* `crates/retrodoc-pipeline/src/use_cases/` (cache par feature, `LLM answered with no use case`)
+* `crates/retrodoc-pipeline/src/use_cases/` (per-feature cache, `LLM answered with no use case`)
 * `crates/retrodoc-pipeline/src/fingerprints.rs`, `cache.rs`
 * ADR `0005` (incremental re-run, fingerprints and resume)
-* `.retrodoc/cache/usage.json` pour mesurer les appels d'un rerun
+* `.retrodoc/cache/usage.json` to measure the calls of a rerun
 
 # Hints
 
-* Reproduire avec un faux `LlmProvider` qui répond une liste vide de use cases (voir `CountingProvider` dans
-  `repo_map/tests.rs`) : le second appel de `build_use_cases` ne doit pas appeler le provider si l'option 1 est
-  retenue.
-* Ne jamais nommer les dépôts de test confidentiels dans les fichiers commités (chiffres seulement).
+* Reproduce with a fake `LlmProvider` that answers an empty list of use cases (see `CountingProvider` in
+  `repo_map/tests.rs`): if option 1 is chosen, the second `build_use_cases` call must not call the provider.
+* Never name confidential test repos in committed files (numbers only).

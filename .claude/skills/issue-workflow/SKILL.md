@@ -10,7 +10,7 @@ commits stay in English). Never skip a validation stop: they are what makes the 
 
 ## 0. Resume or start
 
-Read the issue file. If it has a `# Suivi` section, the issue is already planned: summarize where it
+Read the issue file. If it has a `# Tracking` section, the issue is already planned: summarize where it
 stands (next unchecked deliverable) and continue at step 3. Otherwise start at step 1.
 
 ## 1. Reformulate and validate (STOP)
@@ -25,8 +25,8 @@ stands (next unchecked deliverable) and continue at step 3. Otherwise start at s
 - Split the work into small deliverables, each independently testable and committable, ordered by value
   and dependency. Give your recommended order and why.
 - For each: what it does, how it will be verified.
-- **Stop and wait for the user to validate the plan.** Then write it in the issue under `# Suivi`
-  (checklist `1. [ ] …`, plus a `## Décisions` list for the answers given).
+- **Stop and wait for the user to validate the plan.** Then write it in the issue under `# Tracking`
+  (checklist `1. [ ] …`, plus a `## Decisions` list for the answers given).
 
 ## 3. For each deliverable, in order
 
@@ -42,7 +42,7 @@ stands (next unchecked deliverable) and continue at step 3. Otherwise start at s
    on the diff; reread the docs you changed. Fix what the review finds.
 6. **Human review (STOP)**: summarize what was done, what was verified and **what was not** (state it
    plainly), decisions needed. Wait for the user's validation. Don't commit before it.
-7. **Track**: tick the deliverable in the issue's `# Suivi` and note decisions or follow-ups.
+7. **Track**: tick the deliverable in the issue's `# Tracking` and note decisions or follow-ups.
 8. **Commit**: after validation, run `skill:commit-message` (message per `AGENTS.md`, validated by its
    checker). Commit only the files of this deliverable (never `git add -A`; leave unrelated or personal
    files such as `settings.local.json`) and report the hash. If the user wants to commit themselves, output
