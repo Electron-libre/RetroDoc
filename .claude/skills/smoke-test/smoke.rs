@@ -11,7 +11,7 @@
 use std::fs::{self, File};
 use std::net::{TcpStream, ToSocketAddrs};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Command;
 use std::time::Duration;
 
 const DEFAULT_MODEL: &str = "qwen3.6:35b-a3b";
