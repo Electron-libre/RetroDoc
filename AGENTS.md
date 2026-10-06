@@ -38,7 +38,7 @@ Use one of:
 ### Scope
 
 - The crate or area touched, without the `retrodoc-` prefix:
-  `core`, `ingest`, `llm`, `pipeline`, `render`, `cli`, or `docs`.
+  `core`, `ingest`, `llm`, `pipeline`, `render`, `mcp`, `cli`, or `docs`.
 - Omit the scope (`fix: …`) when the change spans the whole workspace.
 
 ### Body (optional)

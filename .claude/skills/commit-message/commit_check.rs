@@ -7,7 +7,9 @@
 use std::io::Read;
 
 const TYPES: [&str; 9] = ["feat", "fix", "refactor", "docs", "test", "perf", "build", "ci", "chore"];
-const SCOPES: [&str; 7] = ["core", "ingest", "llm", "pipeline", "render", "cli", "docs"];
+const SCOPES: [&str; 8] = [
+    "core", "ingest", "llm", "pipeline", "render", "mcp", "cli", "docs",
+];
 const ATTRIBUTION: [&str; 3] = ["co-authored-by", "generated with", "noreply@anthropic.com"];
 
 fn is_emoji(c: char) -> bool {
