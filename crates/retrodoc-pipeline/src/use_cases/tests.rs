@@ -325,6 +325,70 @@ async fn known_actors_reach_the_prompt_and_name_the_steps() {
     assert!(prompts[0].0.contains("`narrative`"));
 }
 
+/// A text field the model returns as an object (typically `primary_actor` copied from the
+/// shape of a step's `actor`) costs that field, not the feature, and without a retry.
+#[tokio::test]
+async fn text_fields_given_as_objects_do_not_reject_the_answer() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.rs"), "fn a() {}\n").unwrap();
+    let provider = FakeLlm::answering(
+        r#"{"use_cases":[{"slug":"sign","name":"Sign",
+          "description":{"text":"Signs a contract."},
+          "primary_actor":{"name":"Signatory","kind":"human"},
+          "narrative":{},
+          "steps":[{"description":"s1","actor":{"name":"Signatory","kind":"human"},
+                    "action":{"name":"signs","detail":"on the page"}}]}]}"#,
+    );
+
+    let use_cases = build_use_cases(
+        dir.path(),
+        &[feature("signing", &["a.rs"])],
+        &UseCaseContext::default(),
+        &provider,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(provider.calls(), 1, "no retry");
+    assert_eq!(use_cases.len(), 1);
+    assert_eq!(use_cases[0].description, "Signs a contract.");
+    assert_eq!(use_cases[0].narrative, None, "an empty object is no text");
+    assert_eq!(use_cases[0].steps.len(), 1);
+}
+
+#[test]
+fn lenient_text_accepts_strings_and_objects() {
+    use super::grounding::RawUseCase;
+    let parse = |json: &str| -> RawUseCase { serde_json::from_str(json).unwrap() };
+    let base = r#""slug":"s","name":"n""#;
+
+    let string = parse(&format!(r#"{{{base},"primary_actor":"Signatory"}}"#));
+    assert_eq!(string.primary_actor.as_deref(), Some("Signatory"));
+
+    let named = parse(&format!(
+        r#"{{{base},"primary_actor":{{"name":"Signatory","kind":"human"}}}}"#
+    ));
+    assert_eq!(named.primary_actor.as_deref(), Some("Signatory"));
+
+    let unnamed = parse(&format!(
+        r#"{{{base},"primary_actor":{{"role":"Admin","level":3}}}}"#
+    ));
+    assert_eq!(
+        unnamed.primary_actor.as_deref(),
+        Some("Admin"),
+        "string values joined, others dropped"
+    );
+
+    let kind_only = parse(&format!(r#"{{{base},"primary_actor":{{"kind":"human"}}}}"#));
+    assert_eq!(kind_only.primary_actor, None, "a kind is not a name");
+
+    let unusable = parse(&format!(
+        r#"{{{base},"primary_actor":{{"level":3}},"narrative":null}}"#
+    ));
+    assert_eq!(unusable.primary_actor, None);
+    assert_eq!(unusable.narrative, None);
+}
+
 /// The answer of the call of rank `n`: one use case named after it.
 fn use_case_reply(n: usize) -> String {
     format!(

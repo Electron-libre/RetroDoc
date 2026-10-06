@@ -10,15 +10,15 @@ pub(super) struct RawUseCases {
 pub(super) struct RawUseCase {
     pub(super) slug: String,
     pub(super) name: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "lenient_text")]
     pub(super) description: String,
     #[serde(default)]
     pub(super) steps: Vec<RawStep>,
     #[serde(default)]
     pub(super) entry_points: Vec<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "lenient_text")]
     pub(super) primary_actor: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "lenient_text")]
     pub(super) narrative: Option<String>,
 }
 
@@ -28,12 +28,67 @@ pub(super) struct RawUseCase {
 /// whole answer.
 #[derive(Debug, Deserialize)]
 pub(super) struct RawStep {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "lenient_text")]
     pub(super) description: String,
     pub(super) actor: Option<RawActor>,
+    #[serde(default, deserialize_with = "lenient_text")]
     pub(super) action: Option<String>,
     #[serde(default)]
     pub(super) source_refs: Vec<RawSourceRef>,
+}
+
+/// A text field read as a string, or as an object turned into text: the
+/// `name` it carries, else its string values joined (not `kind`/`type`). Models copy the
+/// `{"name", "kind"}` shape of a step's actor into `primary_actor`; that costs
+/// the field's shape, not the whole feature. Anything else (a number, an
+/// object without text) is no text.
+fn lenient_text<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: FromText,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    let text = match &value {
+        serde_json::Value::String(text) => Some(text.clone()),
+        serde_json::Value::Object(map) => {
+            let text = if let Some(serde_json::Value::String(name)) = map.get("name") {
+                Some(name.clone())
+            } else {
+                // `kind` and `type` label an actor, they are not its text.
+                let joined: Vec<&str> = map
+                    .iter()
+                    .filter(|(key, _)| !matches!(key.as_str(), "kind" | "type"))
+                    .filter_map(|(_, value)| value.as_str())
+                    .collect();
+                (!joined.is_empty()).then_some(joined.join(" "))
+            };
+            tracing::debug!(?text, "text field given as an object, converted to text");
+            text
+        }
+        serde_json::Value::Null => None,
+        other => {
+            tracing::debug!(%other, "text field of an unexpected type, ignored");
+            None
+        }
+    };
+    Ok(T::from_text(text))
+}
+
+/// What a lenient text field is built from: the text, if any.
+trait FromText {
+    fn from_text(text: Option<String>) -> Self;
+}
+
+impl FromText for String {
+    fn from_text(text: Option<String>) -> Self {
+        text.unwrap_or_default()
+    }
+}
+
+impl FromText for Option<String> {
+    fn from_text(text: Option<String>) -> Self {
+        text
+    }
 }
 
 #[derive(Debug, Deserialize)]

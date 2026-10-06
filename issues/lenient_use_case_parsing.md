@@ -57,12 +57,12 @@ response. A malformed field must cost that field, not the feature.
 
 ## Plan (to be validated)
 
-1. [ ] **Diagnosis**: get the raw response of a failing feature, identify the field and the shape (object with
+1. [x] **Diagnosis** (the field is `primary_actor`, returned as an object `{name, kind}`, the shape of a step's `actor`; the prompt only says "the known human actor", so the model copies the neighbouring shape; systematic on the failing features, same error positions in all WARNs): get the raw response of a failing feature, identify the field and the shape (object with
    which keys), and deduce whether it is an isolated or a systematic case. Record the shape (without
    confidential content) in this issue.
-2. [ ] **Behavior test**: fake provider that returns a response with this field as an object; the feature
+2. [x] **Behavior test**: fake provider that returns a response with this field as an object; the feature
    must get its use cases, without a retry.
-3. [ ] **Lenient deserialization** for this field (string or object), with `debug!`; tests for the string,
+3. [x] **Lenient deserialization** for this field (string or object), with `debug!`; tests for the string,
    object, and unusable object cases.
 4. [ ] **Second smoke test** on the same subset: measure the number of WARNs and whether the second run writes
    0 files; record the numbers here and in `PLAN.md` §7.

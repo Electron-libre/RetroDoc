@@ -6,7 +6,9 @@
 //!
 //! Grounding is enforced rather than trusted: a step's source reference to a
 //! file outside the feature is dropped, and steps are renumbered from 1 in
-//! the order given. As in the features pass, a malformed answer for one
+//! the order given. Text fields (`description`, `primary_actor`, `narrative`,
+//! a step's `action`) accept an object too, turned into text (its `name`, else
+//! its string values), so a wrong shape costs the field, not the feature. As in the features pass, a malformed answer for one
 //! feature is logged and that feature skipped.
 
 use std::collections::{BTreeMap, BTreeSet};
