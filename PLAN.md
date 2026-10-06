@@ -390,9 +390,9 @@ Steps, each shippable:
 1. Read-only retrieval tools + BM25 index over the artifacts and collected docs, exposed as a debug
    command (`retrodoc search`) to judge retrieval quality without any LLM. **Implemented** (`retrodoc-mcp`,
    hand-written BM25; the glossary is indexed too); checked on the `delivery_router` smoke repo: right use case found, but no synonym matching and no relevance threshold (an undocumented topic still returns entries sharing a common word).
-   The MCP server (`retrodoc mcp`, five tools, answers in Markdown with confidence and cited files) is also
+   The MCP server (`retrodoc mcp`, seven tools, answers in Markdown with confidence and cited files) is also
    **implemented**; its stop-word and half-of-the-words filter does not fix that case with two-word queries.
-   Freshness warnings are implemented too (current hash of each cited file against `repo-map.json`; after a `generate` that failed past the repo map the cache is ahead of the docs, so a changed file looks fresh until the next successful run). `read_source`/`git_log` are still open (`issues/mcp_server.md`).
+   Freshness warnings are implemented too (current hash of each cited file against `repo-map.json`; after a `generate` that failed past the repo map the cache is ahead of the docs, so a changed file looks fresh until the next successful run). `read_source` and `git_log` are implemented as well, limited to the files the docs cite (no `..`, no symlink at all, no binary or very large file, long lines cut, no author names, merge commits left out).
 2. Tool calling support in `retrodoc-llm` (or the JSON-action fallback).
 3. `retrodoc ask` with citations, confidence and freshness warnings.
 4. Interactive `chat` with conversation memory; code and git history tools.

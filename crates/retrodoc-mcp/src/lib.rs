@@ -13,6 +13,7 @@ pub mod corpus;
 pub mod freshness;
 pub mod search;
 pub mod server;
+pub mod source;
 pub mod tools;
 
 pub use corpus::{build_entries, Entry, EntryKind};

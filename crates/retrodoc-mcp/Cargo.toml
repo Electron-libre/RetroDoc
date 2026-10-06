@@ -15,9 +15,10 @@ rmcp.workspace = true
 schemars.workspace = true
 serde.workspace = true
 thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
 
 [dev-dependencies]
 rmcp = { workspace = true, features = ["client"] }
 serde_json.workspace = true
 tempfile = "3"
-tokio.workspace = true

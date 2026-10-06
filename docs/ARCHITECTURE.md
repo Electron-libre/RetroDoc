@@ -57,7 +57,7 @@ flowchart TD
 | `retrodoc-llm` | Talks to the model. `LlmProvider` is a trait; the only implementation is `OpenRouterProvider` (HTTP, retry with backoff on 429/5xx). `UsageProvider` wraps it to count calls and tokens per pass. |
 | `retrodoc-pipeline` | The brain: one module per pass, plus caches, fingerprints and the debt report. |
 | `retrodoc-render` | Turns the result into Markdown files, compares with disk, writes only what changed. |
-| `retrodoc-mcp` | Read-only access to the generated docs for LLM agents, without any LLM call. The BM25 search behind `retrodoc search` and the MCP server (`retrodoc mcp`, `rmcp`, stdio) with its five read-only tools. |
+| `retrodoc-mcp` | Read-only access to the generated docs for LLM agents, without any LLM call. The BM25 search behind `retrodoc search` and the MCP server (`retrodoc mcp`, `rmcp`, stdio) with its seven read-only tools. |
 | `retrodoc-cli` | The `retrodoc` binary: parses arguments and wires the crates together. |
 
 ## 3. The commands
@@ -86,7 +86,7 @@ flowchart LR
 
 - `generate` is the main command; `render` and `report` replay the *last* `generate` without any LLM call.
 - `roles`, `glossary` and `entry-points` (phase 7) are also run, incrementally, by `generate` as its "surface" step; the standalone commands let you run and inspect each one. `surface` prints what the domain clustering receives from them (no LLM).
-- `search "<query>"` ranks the generated docs and the collected docs lexically (no LLM). `mcp` serves them to a coding agent over stdio (`list_domains`, `get_domain`, `get_feature`, `get_use_case`, `search_docs`; no LLM, the agent reasons): the first form of "ask the documentation" (phase 9, `PLAN.md` §7.3). Answers warn when a cited file changed since generation (its hash against the one in `repo-map.json`); code/git tools are not implemented yet.
+- `search "<query>"` ranks the generated docs and the collected docs lexically (no LLM). `mcp` serves them to a coding agent over stdio (`list_domains`, `get_domain`, `get_feature`, `get_use_case`, `search_docs`, plus `read_source` and `git_log` on the files the docs cite; no LLM, the agent reasons): the first form of "ask the documentation" (phase 9, `PLAN.md` §7.3). Answers warn when a cited file changed since generation (its hash against the one in `repo-map.json`); the code and git tools refuse any file the docs don't cite and anything outside the repo root.
 
 ## 4. The `generate` pipeline
 

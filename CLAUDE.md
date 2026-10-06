@@ -75,7 +75,7 @@ retrodoc-cli ──> retrodoc-mcp ──> retrodoc-pipeline, retrodoc-ingest, re
   tests are detected by directory or file-name convention and kept out of the pipeline, which only
   consumes `Source`), one-pass
   git history per file via `git2` revwalk+diff (`git_history.rs`, not a `git log` per file — matters for
-  perf on large repos), existing Markdown docs (`existing_docs.rs`). `run()` combines all three into an
+  perf on large repos; `file_log` is the exception, the recent commits of one file for the MCP `git_log`), existing Markdown docs (`existing_docs.rs`). `run()` combines all three into an
   `IngestResult`.
 - **retrodoc-llm** (`types.rs`, `heartbeat.rs`, `openrouter.rs`, `usage.rs`): `LlmProvider` trait abstraction (kept provider-agnostic even though only OpenRouter is
   implemented in v1) + `OpenRouterProvider`, a real `reqwest` HTTP client with exponential-backoff retry on
@@ -137,16 +137,19 @@ retrodoc-cli ──> retrodoc-mcp ──> retrodoc-pipeline, retrodoc-ingest, re
   `_retrodoc/run-metadata.json` has a timestamp that is ignored when it's the only change, so reruns are no-ops. `functional/llms.txt` (`agent_index`) is the `llms.txt`-style entry point for agents that don't
   run the MCP server: domains and features with links and confidence, how to read them and a pointer to `retrodoc mcp`.
   The CLI drops generated docs (`functional/`, `_retrodoc/`) from the ingested existing docs.
-- **retrodoc-mcp** (`bm25.rs`, `corpus.rs`, `search.rs`, `freshness.rs`, `tools.rs`, `server.rs`): read-only access to the generated docs
+- **retrodoc-mcp** (`bm25.rs`, `corpus.rs`, `search.rs`, `freshness.rs`, `source.rs`, `tools.rs`, `server.rs`): read-only access to the generated docs
   for LLM agents, with no LLM call (see `issues/mcp_server.md`). `SearchIndex` ranks (hand-written BM25, title counted
   three times, stop words in English and French dropped, at least half of the query words must match) one `Entry` per
   domain, sub-domain, feature, use case, glossary concept and collected Markdown doc, each with its id, confidence and
-  cited files. `Docs` (`Docs::load` reads `.retrodoc/cache/` + the collected docs) answers the five tools in Markdown
-  (`list_domains`, `get_domain`, `get_feature`, `get_use_case`, `search_docs`): ids to reuse, confidence (flagged below
+  cited files. `Docs` (`Docs::load` reads `.retrodoc/cache/` + the collected docs) answers the seven tools in Markdown
+  (`list_domains`, `get_domain`, `get_feature`, `get_use_case`, `search_docs`, `read_source`, `git_log`): ids to reuse, confidence (flagged below
   50%), cited files, a stale warning when a cited file no longer matches the hash `generate` recorded in `repo-map.json`
   (`Freshness`, checked at every call; files without a recorded hash are not judged), and "Not documented" as a normal answer for an unknown id or an empty search. `server.rs` puts them
-  behind the `rmcp` SDK (`serve_stdio`); tested end to end with an `rmcp` client over an in-memory pipe. Not written yet:
-  `read_source`/`git_log`.
+  behind the `rmcp` SDK (`serve_stdio`); tested end to end with an `rmcp` client over an in-memory pipe. `source.rs` (`SourceAccess`) backs `read_source` (a
+  window of lines, 200 by default, 400 at most) and `git_log` (hash, date, subject, no author): only files the docs
+  cite, never an absolute path, a `..`, a path that is or goes through a symlink (even inside the repo), a binary or a
+  file over 1 MiB; a line over 400 characters is cut. `git_log` leaves merge commits out. The two tools run in
+  `spawn_blocking`.
 - **retrodoc-cli**: `clap` subcommands (`init`, `scan`, `generate`, `render`, `report`, `roles`, `glossary`,
   `entry-points`, `actors`, `surface`, `search`, `mcp`). `generate` runs the whole pipeline then writes the docs (`--dry-run` previews, `--force`
   ignores caches, `--no-confidence` / `--confidence-sample N` / `--max-files N` bound the cost, see the pipeline bullet); `render` writes/previews the docs from the cached artifacts (no LLM call); `report` prints

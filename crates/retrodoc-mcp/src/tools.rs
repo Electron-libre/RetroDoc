@@ -15,6 +15,7 @@ use retrodoc_pipeline::{domain_models, DomainMap, Glossary};
 use crate::corpus::build_entries;
 use crate::freshness::{FileState, Freshness};
 use crate::search::SearchIndex;
+use crate::source::SourceAccess;
 
 /// The generated documentation, loaded once: the typed artifacts the tools
 /// navigate and the search index over them.
@@ -24,6 +25,7 @@ pub struct Docs {
     use_cases: Vec<UseCase>,
     index: SearchIndex,
     freshness: Option<Freshness>,
+    source: Option<SourceAccess>,
 }
 
 impl Docs {
@@ -44,7 +46,23 @@ impl Docs {
             use_cases,
             index,
             freshness: None,
+            source: None,
         }
+    }
+
+    /// Lets `read_source` and `git_log` reach the files the docs cite, under
+    /// `repo_root`.
+    #[must_use]
+    pub fn with_source_access(mut self, repo_root: &Path) -> Self {
+        let features = self.features.iter().flat_map(|f| f.source_paths.iter());
+        let steps = self
+            .use_cases
+            .iter()
+            .flat_map(|u| &u.steps)
+            .flat_map(|s| s.source_refs.iter().map(|r| &r.path));
+        let cited: Vec<String> = features.chain(steps).cloned().collect();
+        self.source = Some(SourceAccess::new(repo_root, cited));
+        self
     }
 
     /// Makes the answers warn when the code they cite changed since the docs
@@ -72,7 +90,8 @@ impl Docs {
                 &glossary,
                 docs,
             )
-            .with_freshness(Freshness::load(repo_root)),
+            .with_freshness(Freshness::load(repo_root))
+            .with_source_access(repo_root),
         )
     }
 
@@ -271,6 +290,38 @@ impl Docs {
         out
     }
 
+    /// A window of a file the docs cite, to check a claim against the code
+    /// (`start_line` and `end_line` are 1-based and inclusive).
+    #[must_use]
+    pub fn read_source(
+        &self,
+        path: &str,
+        start_line: Option<usize>,
+        end_line: Option<usize>,
+    ) -> String {
+        let Some(source) = &self.source else {
+            return NO_SOURCE_ACCESS.into();
+        };
+        match source.read_source(path, start_line, end_line) {
+            Ok(excerpt) => {
+                let notice = self.stale_notice([path.strip_prefix("./").unwrap_or(path)]);
+                format!("{}\n{notice}\n{}", excerpt.header, excerpt.body)
+            }
+            Err(reason) => format!("{reason}\n"),
+        }
+    }
+
+    /// The recent commits that changed a file the docs cite.
+    #[must_use]
+    pub fn git_log(&self, path: &str, limit: usize) -> String {
+        let Some(source) = &self.source else {
+            return NO_SOURCE_ACCESS.into();
+        };
+        source
+            .git_log(path, limit)
+            .unwrap_or_else(|reason| format!("{reason}\n"))
+    }
+
     /// The best `limit` matches for `query`, or "Not documented".
     #[must_use]
     pub fn search_docs(&self, query: &str, limit: usize) -> String {
@@ -368,6 +419,9 @@ impl Docs {
         out
     }
 }
+
+const NO_SOURCE_ACCESS: &str =
+    "Not available: this server has no access to the repository's code.\n";
 
 /// Characters of a description shown in a list or a search hit.
 const SNIPPET_CHARS: usize = 160;
@@ -669,5 +723,48 @@ mod tests {
         assert!(!docs()
             .get_use_case("pay-invoice/pay-by-card")
             .contains("tale"));
+    }
+
+    #[test]
+    fn the_cited_code_can_be_read_through_the_docs_and_nothing_else() {
+        let (dir, docs) = docs_over_a_generated_repo();
+        let docs = docs.with_source_access(dir.path());
+        let out = docs.read_source("app/invoice.rb", None, None);
+        assert!(
+            out.starts_with("# `app/invoice.rb` (lines 1-1 of 1)"),
+            "{out}"
+        );
+        assert!(out.contains("   1 | content of app/invoice.rb"), "{out}");
+        assert!(!out.contains("Stale"), "{out}");
+        std::fs::write(dir.path().join("README.md"), "docs").unwrap();
+        assert!(docs
+            .read_source("README.md", None, None)
+            .starts_with("Not available:"));
+        assert!(docs
+            .read_source("../x", None, None)
+            .starts_with("Not available:"));
+        assert!(docs.git_log("README.md", 5).starts_with("Not available:"));
+    }
+
+    #[test]
+    fn a_file_read_after_it_changed_carries_the_stale_notice() {
+        let (dir, docs) = docs_over_a_generated_repo();
+        let docs = docs.with_source_access(dir.path());
+        std::fs::write(dir.path().join("app/mailer.rb"), "edited").unwrap();
+        let out = docs.read_source("app/mailer.rb", None, None);
+        assert!(out.contains("⚠ Stale"), "{out}");
+        assert!(out.contains("   1 | edited"), "{out}");
+    }
+
+    #[test]
+    fn without_access_to_the_repository_the_code_tools_say_so() {
+        let out = docs().read_source("app/invoice.rb", None, None);
+        assert!(
+            out.starts_with("Not available: this server has no access"),
+            "{out}"
+        );
+        assert!(docs()
+            .git_log("app/invoice.rb", 5)
+            .starts_with("Not available:"));
     }
 }

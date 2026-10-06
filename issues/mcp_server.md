@@ -71,8 +71,13 @@ rather than guessing.
    Tried by a headless Claude Code agent after editing a cited file of the `delivery_router` smoke repo: it
    reported the docs as stale. Follow-ups: `issues/stale_docs_after_failed_generate.md` (false "fresh" after a
    `generate` that failed past the repo map) and `issues/mcp_freshness_cost.md` (files re-read at every call).
-4. [ ] Code and git tools: `read_source` and `git_log`, limited to the repo root and to the files cited by the
+4. [x] Code and git tools: `read_source` and `git_log`, limited to the repo root and to the files cited by the
    docs. Verified on a temporary git repo, including attempts to leave the scope (`../`).
+   Verified on temporary git repos (scope escapes: `..`, absolute path, symlinks, uncited file, binary, large
+   file, long line, merge commits) and by a headless Claude Code agent on the `delivery_router` smoke repo,
+   which read the cited code and history and got the exact refusals. Limits: an agent cannot check what the
+   docs do not cite (it wanted the rider code that holds the real calculation); renames are not followed
+   (`issues/git_log_follow_renames.md`); the history walk is not bounded on a large repo.
 5. [x] Static agent index: `generate` writes an `llms.txt`-style index or an `AGENTS.md` section in the docs,
    deterministic so reruns stay no-ops. Verified by an idempotent render test. Can be moved before 3 and 4.
    Written as `functional/llms.txt` (decision: the fully generated area, no `AGENTS.md` section since it would
@@ -103,4 +108,8 @@ rather than guessing.
   without a recorded hash (docs, skipped files) are not judged. Known limit: after a `generate` that failed
   once the repo map was done, the cache is ahead of the docs and a changed file looks fresh until the next
   successful `generate`.
+* Code access (deliverable 4): `read_source(path, start_line?, end_line?)` and `git_log(path, limit?)` take
+  only files cited by the docs (a feature's source paths or a step's source refs), never an id. `git_log` shows
+  short hash, date and subject, no author name. Refused: absolute paths, `..`, anything that resolves
+  outside the repo root (symlinks included), binary and very large files. Reads are windowed by lines.
 

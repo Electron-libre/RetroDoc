@@ -7,7 +7,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, TimeZone, Utc};
-use git2::{Repository, Sort};
+use git2::{DiffOptions, Repository, Sort};
 
 use crate::error::IngestError;
 
@@ -98,6 +98,74 @@ pub fn collect_history(repo_root: &Path) -> Result<HashMap<PathBuf, FileHistory>
     Ok(history)
 }
 
+/// A commit of a file's history, as shown to an agent: no author.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CommitSummary {
+    /// First 8 characters of the commit hash.
+    pub short_id: String,
+    pub committed_at: Option<DateTime<Utc>>,
+    /// First line of the message.
+    pub subject: String,
+}
+
+/// The `limit` most recent commits of `HEAD`'s history that changed the file
+/// `path` (relative to the repo root, taken literally, no glob), newest
+/// first, merge commits left out. A file that was renamed is followed no
+/// further than its current name; an unknown file or a repo without commits gives an empty list.
+///
+/// # Errors
+///
+/// Returns an error if the repo can't be opened or reading the history
+/// fails.
+pub fn file_log(
+    repo_root: &Path,
+    path: &Path,
+    limit: usize,
+) -> Result<Vec<CommitSummary>, IngestError> {
+    let repo = Repository::open(repo_root)?;
+    let mut log = Vec::new();
+    let mut revwalk = repo.revwalk()?;
+    // Topological first: commits made within the same second keep their order.
+    revwalk.set_sorting(Sort::TOPOLOGICAL | Sort::TIME)?;
+    if limit == 0 || revwalk.push_head().is_err() {
+        return Ok(log);
+    }
+    let mut options = DiffOptions::new();
+    options.pathspec(path).disable_pathspec_match(true);
+
+    for oid in revwalk {
+        let commit = repo.find_commit(oid?)?;
+        // The commits a merge brings in are walked on their own: the merge
+        // itself is not a change of the file (as in `git log --no-merges`).
+        if commit.parent_count() > 1 {
+            continue;
+        }
+        let tree = commit.tree()?;
+        let parent_tree = if commit.parent_count() > 0 {
+            Some(commit.parent(0)?.tree()?)
+        } else {
+            None
+        };
+        let diff = repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&tree), Some(&mut options))?;
+        if diff.deltas().len() == 0 {
+            continue;
+        }
+        log.push(CommitSummary {
+            short_id: commit.id().to_string().chars().take(8).collect(),
+            committed_at: git_time_to_utc(commit.time()),
+            subject: commit
+                .message()
+                .and_then(|m| m.lines().next())
+                .unwrap_or_default()
+                .to_string(),
+        });
+        if log.len() == limit {
+            break;
+        }
+    }
+    Ok(log)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -147,5 +215,90 @@ mod tests {
         run_git(root, &["init", "-q"]);
         let history = collect_history(root).unwrap();
         assert!(history.is_empty());
+    }
+
+    fn commit_file(root: &Path, name: &str, content: &str, message: &str) {
+        fs::write(root.join(name), content).unwrap();
+        run_git(root, &["add", "."]);
+        run_git(root, &["commit", "-q", "-m", message]);
+    }
+
+    #[test]
+    fn the_log_of_a_file_lists_its_commits_newest_first_up_to_the_limit() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        run_git(root, &["init", "-q"]);
+        commit_file(root, "a.txt", "1", "add a\n\nlong body");
+        commit_file(root, "b.txt", "1", "add b");
+        commit_file(root, "a.txt", "2", "change a");
+        commit_file(root, "a.txt", "3", "change a again");
+
+        let log = file_log(root, Path::new("a.txt"), 10).unwrap();
+        let subjects: Vec<&str> = log.iter().map(|c| c.subject.as_str()).collect();
+        assert_eq!(subjects, ["change a again", "change a", "add a"]);
+        assert_eq!(log[0].short_id.len(), 8);
+        assert!(log[0].committed_at.is_some());
+
+        let log = file_log(root, Path::new("a.txt"), 2).unwrap();
+        assert_eq!(log.len(), 2);
+        let log = file_log(root, Path::new("b.txt"), 10).unwrap();
+        assert_eq!(log.len(), 1);
+    }
+
+    #[test]
+    fn an_unknown_file_or_a_repo_without_commit_has_an_empty_log() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        run_git(root, &["init", "-q"]);
+        assert_eq!(file_log(root, Path::new("a.txt"), 5).unwrap(), vec![]);
+        commit_file(root, "a.txt", "1", "add a");
+        assert_eq!(file_log(root, Path::new("nope.txt"), 5).unwrap(), vec![]);
+    }
+
+    #[test]
+    fn the_path_is_literal_so_a_glob_character_matches_only_that_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        run_git(root, &["init", "-q"]);
+        commit_file(root, "[id].tsx", "1", "add the page");
+        commit_file(root, "i.tsx", "1", "add another page");
+        let log = file_log(root, Path::new("[id].tsx"), 5).unwrap();
+        assert_eq!(log.len(), 1);
+        assert_eq!(log[0].subject, "add the page");
+        let log = file_log(root, Path::new("*.tsx"), 5).unwrap();
+        assert_eq!(log, vec![]);
+    }
+
+    #[test]
+    fn a_directory_without_repo_is_an_error() {
+        let dir = tempfile::tempdir().unwrap();
+        assert!(file_log(dir.path(), Path::new("a.txt"), 5).is_err());
+    }
+
+    #[test]
+    fn a_merge_commit_is_not_listed_as_a_change_of_the_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        run_git(root, &["init", "-q", "-b", "main"]);
+        commit_file(root, "a.txt", "1", "add a");
+        run_git(root, &["checkout", "-q", "-b", "feature"]);
+        commit_file(root, "a.txt", "2", "change a on the branch");
+        run_git(root, &["checkout", "-q", "main"]);
+        commit_file(root, "b.txt", "1", "add b on main");
+        run_git(
+            root,
+            &[
+                "merge",
+                "-q",
+                "--no-ff",
+                "feature",
+                "-m",
+                "Merge branch feature",
+            ],
+        );
+
+        let log = file_log(root, Path::new("a.txt"), 10).unwrap();
+        let subjects: Vec<&str> = log.iter().map(|c| c.subject.as_str()).collect();
+        assert_eq!(subjects, ["change a on the branch", "add a"]);
     }
 }

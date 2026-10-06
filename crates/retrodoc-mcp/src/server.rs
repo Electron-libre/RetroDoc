@@ -9,6 +9,7 @@ use rmcp::{tool, tool_handler, tool_router, ServerHandler, ServiceExt};
 use schemars::JsonSchema;
 use serde::Deserialize;
 
+use crate::source::DEFAULT_LOG;
 use crate::tools::Docs;
 
 /// Hits returned by `search_docs` when the agent gives no limit, and the most
@@ -36,6 +37,24 @@ struct IdParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
+struct SourceParams {
+    /// A file cited by the docs, relative to the repository root (e.g. `app/invoice.rb`).
+    path: String,
+    /// First line to show, 1-based (default 1).
+    start_line: Option<usize>,
+    /// Last line to show, inclusive (default: 200 lines from `start_line`, at most 400).
+    end_line: Option<usize>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+struct LogParams {
+    /// A file cited by the docs, relative to the repository root.
+    path: String,
+    /// Maximum number of commits (default 10, at most 50).
+    limit: Option<usize>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 struct SearchParams {
     /// What to look for, in the application's own words.
     query: String,
@@ -50,6 +69,14 @@ impl DocsServer {
             docs: Arc::new(docs),
         }
     }
+}
+
+/// Runs file and git work off the async threads, so that a slow history walk
+/// doesn't keep the server from answering other requests.
+async fn blocking(work: impl FnOnce() -> String + Send + 'static) -> String {
+    tokio::task::spawn_blocking(work)
+        .await
+        .unwrap_or_else(|_| "Not available: the request could not be completed.\n".to_string())
 }
 
 #[tool_router]
@@ -88,6 +115,35 @@ impl DocsServer {
     }
 
     #[tool(
+        description = "Show lines of a source file that the docs cite, with line numbers, to \
+                       check a claim against the code. Only cited files can be read; use the \
+                       paths given by get_feature and get_use_case."
+    )]
+    async fn read_source(
+        &self,
+        Parameters(SourceParams {
+            path,
+            start_line,
+            end_line,
+        }): Parameters<SourceParams>,
+    ) -> String {
+        let docs = Arc::clone(&self.docs);
+        blocking(move || docs.read_source(&path, start_line, end_line)).await
+    }
+
+    #[tool(
+        description = "Show the recent commits (hash, date, subject) that changed a source file \
+                       the docs cite, to see how and why a behavior evolved. Only cited files."
+    )]
+    async fn git_log(
+        &self,
+        Parameters(LogParams { path, limit }): Parameters<LogParams>,
+    ) -> String {
+        let docs = Arc::clone(&self.docs);
+        blocking(move || docs.git_log(&path, limit.unwrap_or(DEFAULT_LOG))).await
+    }
+
+    #[tool(
         description = "Search the generated documentation and the project's own docs with the \
                        words of a question. Answers `Not documented` when nothing matches: say so \
                        rather than guess."
@@ -108,7 +164,7 @@ impl DocsServer {
     instructions = "Functional documentation of an application, generated from its code and \
                     history. Browse with list_domains, get_domain, get_feature and get_use_case, \
                     or use search_docs. Each answer carries a confidence score and the files it \
-                    cites; \"Not documented\" means the docs say nothing about it."
+                    cites, and read_source and git_log show that code and its history; \"Not documented\" means the docs say nothing about it."
 )]
 impl ServerHandler for DocsServer {}
 
@@ -188,7 +244,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn the_client_discovers_the_five_tools_and_server_identity() {
+    async fn the_client_discovers_the_seven_tools_and_server_identity() {
         let client = connect().await;
         let tools = client.list_all_tools().await.unwrap();
         let names: BTreeSet<String> = tools.iter().map(|t| t.name.to_string()).collect();
@@ -200,7 +256,9 @@ mod tests {
                     "get_domain",
                     "get_feature",
                     "get_use_case",
-                    "search_docs"
+                    "search_docs",
+                    "read_source",
+                    "git_log"
                 ]
                 .map(String::from)
             )
@@ -238,6 +296,21 @@ mod tests {
         )
         .await
         .contains("Pay an invoice"));
+        client.cancel().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn the_code_tools_are_wired_and_refuse_without_repository_access() {
+        let client = connect().await;
+        let read = call(
+            &client,
+            "read_source",
+            json!({"path": "app/invoice.rb", "start_line": 1}),
+        )
+        .await;
+        assert!(read.starts_with("Not available:"), "{read}");
+        let log = call(&client, "git_log", json!({"path": "app/invoice.rb"})).await;
+        assert!(log.starts_with("Not available:"), "{log}");
         client.cancel().await.unwrap();
     }
 
