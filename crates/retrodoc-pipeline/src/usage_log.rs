@@ -309,7 +309,7 @@ mod tests {
         let path = Artifact::Usage.path(dir.path());
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::fs::write(&path, "not json").unwrap();
-        assert!(load_history(dir.path()).is_empty());
+        assert_eq!(load_history(dir.path()), Vec::<RunUsage>::new());
 
         for i in 0..KEPT_RUNS + 3 {
             let run = RunUsage::new("roles", &format!("run-{i}"), &report());

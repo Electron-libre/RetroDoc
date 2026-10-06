@@ -322,7 +322,7 @@ mod tests {
             split_chunks("def a; end\n", 100, None),
             vec!["def a; end\n"]
         );
-        assert!(split_chunks("", 100, None).is_empty());
+        assert_eq!(split_chunks("", 100, None), Vec::<String>::new());
 
         let one_line = "y".repeat(25);
         let chunks = split_chunks(&one_line, 10, None);

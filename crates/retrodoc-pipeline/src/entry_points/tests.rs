@@ -12,7 +12,7 @@ fn unknown_kinds_parse_as_other_and_missing_fields_default() {
     let entry = &parsed.entry_points[0].entry;
     assert_eq!(entry.kind, EntryKind::Other);
     assert_eq!(entry.outputs[0].kind, OutputKind::Other);
-    assert!(entry.verb.is_empty());
+    assert_eq!(entry.verb, "");
 }
 
 #[tokio::test]

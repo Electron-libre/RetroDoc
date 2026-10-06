@@ -39,7 +39,7 @@ fn promotes_files_of_identified_languages() {
     assert_eq!(files[1].kind, FileKind::Other);
     // An older roles.yaml has no such key: nothing is promoted.
     let old: RoleRules = serde_yaml::from_str("stack: x\nrules: []\n").unwrap();
-    assert!(old.source_extensions.is_empty());
+    assert_eq!(old.source_extensions, Vec::<String>::new());
 }
 
 #[test]

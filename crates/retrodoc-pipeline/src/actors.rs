@@ -438,6 +438,6 @@ mod tests {
         .await
         .unwrap();
         assert!(actors.is_empty());
-        assert!(llm.prompts().is_empty());
+        assert_eq!(llm.prompts(), Vec::<String>::new());
     }
 }

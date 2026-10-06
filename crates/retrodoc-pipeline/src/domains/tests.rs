@@ -58,7 +58,7 @@ fn enforce_coverage_dedupes_overlap_drops_unknown_and_buckets_uncovered() {
     // "a.rs" only appears once in the repaired map.
     let billing = &map.domains[0];
     assert_eq!(billing.paths, vec![PathBuf::from("a.rs")]);
-    assert!(billing.sub_domains[0].paths.is_empty());
+    assert_eq!(billing.sub_domains[0].paths, Vec::<PathBuf>::new());
 }
 
 #[test]
@@ -282,7 +282,7 @@ fn expand_to_files_tolerates_a_directory_matching_no_real_file() {
 
     let expanded = expand_to_files(map, &files);
 
-    assert!(expanded.domains[0].paths.is_empty());
+    assert_eq!(expanded.domains[0].paths, Vec::<PathBuf>::new());
     assert_eq!(
         expanded.domains[1].paths,
         vec![PathBuf::from("src/main.rs")]
@@ -305,7 +305,7 @@ fn expand_to_files_resolves_duplicate_directory_claim_to_the_first_domain() {
         expanded.domains[0].paths,
         vec![PathBuf::from("src/main.rs")]
     );
-    assert!(expanded.domains[1].paths.is_empty());
+    assert_eq!(expanded.domains[1].paths, Vec::<PathBuf>::new());
 }
 
 #[test]
