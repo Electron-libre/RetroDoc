@@ -95,7 +95,7 @@ impl Progress {
     }
 }
 
-fn format_duration(duration: Duration) -> String {
+pub(crate) fn format_duration(duration: Duration) -> String {
     let secs = duration.as_secs();
     match secs {
         0..=59 => format!("{secs}s"),

@@ -2,14 +2,14 @@ use std::path::Path;
 
 use anyhow::Context;
 use retrodoc_core::config::Config;
-use retrodoc_llm::{HeartbeatProvider, OpenRouterProvider};
+use retrodoc_llm::UsageTracker;
 use retrodoc_pipeline::{FileRole, RoleRules};
 
 /// Reads the business entities of the files classified `model` (using the
 /// rules from `retrodoc roles`) and the vocabulary of the tests, saves
 /// `.retrodoc/cache/glossary.yaml` and prints a summary. Unchanged model
 /// files are not sent to the LLM again.
-pub async fn run(path: &Path) -> anyhow::Result<()> {
+pub async fn run(path: &Path, tracker: &UsageTracker) -> anyhow::Result<()> {
     let repo_root = path
         .canonicalize()
         .with_context(|| format!("path not found: {}", path.display()))?;
@@ -22,10 +22,8 @@ pub async fn run(path: &Path) -> anyhow::Result<()> {
     let role_map = rules.classify(&ingest.files);
     let model_files = role_map.files_with(FileRole::Model).len();
 
-    let llm = HeartbeatProvider::new(
-        OpenRouterProvider::from_config(&config.llm)
-            .context("could not initialize the LLM provider (missing API key?)")?,
-    );
+    let llm = super::usage::provider(&config.llm, tracker)?;
+    tracker.set_pass("glossary");
     println!("Reading entities from {model_files} model file(s)…");
     let glossary = retrodoc_pipeline::build_glossary(&repo_root, &role_map, &llm)
         .await

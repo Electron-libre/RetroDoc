@@ -4,7 +4,7 @@ use anyhow::Context;
 use retrodoc_core::config::{Config, LlmConfig, DEFAULT_BATCH_CHARS};
 use retrodoc_core::model::{ConfidenceScore, Feature, UseCase};
 use retrodoc_ingest::{FileKind, IngestResult};
-use retrodoc_llm::{HeartbeatProvider, LlmProvider, OpenRouterProvider};
+use retrodoc_llm::{LlmProvider, UsageTracker};
 use retrodoc_pipeline::{
     Actors, CodeIndex, CoverageReport, DomainMap, EntryPoints, RepoMap, RepoMapOptions, RoleMap,
     Scope, Surface, UseCaseContext,
@@ -34,6 +34,7 @@ pub async fn run(
     force: bool,
     confidence: Confidence,
     max_files: Option<usize>,
+    tracker: &UsageTracker,
 ) -> anyhow::Result<()> {
     let repo_root = path
         .canonicalize()
@@ -50,15 +51,15 @@ pub async fn run(
         .with_context(|| format!("ingestion of {} failed", repo_root.display()))?;
     ingest.existing_docs = super::docs::without_generated(ingest.existing_docs, &config);
 
-    let llm = HeartbeatProvider::new(
-        OpenRouterProvider::from_config(&config.llm)
-            .context("could not initialize the LLM provider (missing API key?)")?,
-    );
+    let llm = super::usage::provider(&config.llm, tracker)?;
 
     let (surface, entry_points, role_map) =
-        build_surface(&repo_root, &mut ingest, &llm, force).await?;
+        build_surface(&repo_root, &mut ingest, &llm, force, tracker).await?;
+    tracker.set_pass("actors");
     let actors = identify_actors(&repo_root, &ingest, &surface, &llm, force).await?;
 
+    // Ranking the files is not an LLM pass either.
+    tracker.end_pass();
     apply_scope(
         &repo_root,
         &mut ingest,
@@ -66,6 +67,7 @@ pub async fn run(
         max_files.or(config.ingest.max_files),
     )?;
 
+    tracker.set_pass("repo-map");
     let map = build_map(&repo_root, &ingest, &llm, &config.llm).await?;
 
     print_repo_map(&map);
@@ -76,13 +78,16 @@ pub async fn run(
         map.modules.len()
     );
 
+    tracker.set_pass("domains");
     let domain_map = cluster_domains(&repo_root, &map, &ingest, &surface, &llm).await?;
 
+    tracker.set_pass("features");
     println!("\nDeriving features…");
     let features = retrodoc_pipeline::build_features(&repo_root, &domain_map, &map, &llm)
         .await
         .context("failed to derive the features")?;
 
+    tracker.set_pass("use-cases");
     let mut use_cases = derive_use_cases(
         &repo_root,
         &ingest,
@@ -95,8 +100,11 @@ pub async fn run(
     .await?;
 
     let mut features = features;
+    tracker.set_pass("confidence");
     run_confidence(&repo_root, &mut features, &mut use_cases, &llm, confidence).await?;
 
+    // Rendering is not an LLM pass: don't bill its time to the last one.
+    tracker.end_pass();
     print_features(&features, &use_cases);
 
     println!(
@@ -200,7 +208,9 @@ async fn build_surface(
     ingest: &mut IngestResult,
     llm: &dyn LlmProvider,
     force: bool,
+    tracker: &UsageTracker,
 ) -> anyhow::Result<(Surface, EntryPoints, Option<RoleMap>)> {
+    tracker.set_pass("roles");
     println!("Identifying the stack and the file roles…");
     let rules = retrodoc_pipeline::identify_roles(repo_root, ingest, llm, force)
         .await
@@ -216,10 +226,12 @@ async fn build_surface(
     let role_map = rules.classify(&ingest.files);
     println!("Stack: {}", rules.stack);
 
+    tracker.set_pass("glossary");
     println!("Reading the business entities…");
     let glossary = retrodoc_pipeline::build_glossary(repo_root, &role_map, llm)
         .await
         .context("failed to build the glossary")?;
+    tracker.set_pass("entry-points");
     println!("Reading the entry points…");
     let entry_points = retrodoc_pipeline::build_entry_points(repo_root, &role_map, llm)
         .await

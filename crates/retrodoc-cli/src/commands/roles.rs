@@ -2,7 +2,7 @@ use std::path::Path;
 
 use anyhow::Context;
 use retrodoc_core::config::Config;
-use retrodoc_llm::{HeartbeatProvider, OpenRouterProvider};
+use retrodoc_llm::UsageTracker;
 use retrodoc_pipeline::{FileRole, RoleRules};
 
 const UNCLASSIFIED_SAMPLE: usize = 20;
@@ -10,7 +10,7 @@ const UNCLASSIFIED_SAMPLE: usize = 20;
 /// Identifies the stack and the file role rules (one LLM call, or the saved
 /// `.retrodoc/cache/roles.yaml`), applies them and prints the distribution.
 /// `force` ignores the saved rules and asks the LLM again.
-pub async fn run(path: &Path, force: bool) -> anyhow::Result<()> {
+pub async fn run(path: &Path, force: bool, tracker: &UsageTracker) -> anyhow::Result<()> {
     let repo_root = path
         .canonicalize()
         .with_context(|| format!("path not found: {}", path.display()))?;
@@ -24,10 +24,8 @@ pub async fn run(path: &Path, force: bool) -> anyhow::Result<()> {
     let rules = if saved {
         RoleRules::load(&repo_root).unwrap_or_default()
     } else {
-        let llm = HeartbeatProvider::new(
-            OpenRouterProvider::from_config(&config.llm)
-                .context("could not initialize the LLM provider (missing API key?)")?,
-        );
+        let llm = super::usage::provider(&config.llm, tracker)?;
+        tracker.set_pass("roles");
         retrodoc_pipeline::identify_roles(&repo_root, &ingest, &llm, force)
             .await
             .context("failed to identify the file roles")?

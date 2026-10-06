@@ -9,3 +9,4 @@ pub mod report;
 pub mod roles;
 pub mod scan;
 pub mod surface;
+pub mod usage;

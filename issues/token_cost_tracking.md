@@ -41,12 +41,13 @@ la fin de `generate`.
    incomplet ou malformé donne `None` sans faire échouer la réponse.
 2. [x] **Agrégation par passe** : `UsageTracker` partagé (passe courante via `set_pass`) + `UsageProvider<P>`
    qui cumule appels, tokens in/out, durée, appels sans `usage`, par passe et par modèle. Test avec un faux
-   provider, dont un cas concurrent et un cas sans `usage`. Pas encore branché dans la CLI (livrable 3).
+   provider, dont un cas concurrent et un cas sans `usage`. Branché dans la CLI au livrable 3.
    Limite : les appels en échec et les retries internes d'`OpenRouterProvider` ne sont pas comptés, donc les
    tokens sont une borne basse avec un serveur instable (à documenter au livrable 5).
-3. [ ] **Récapitulatif** à la fin de `generate` et de chaque commande autonome (`roles`, `glossary`,
-   `entry-points`, `actors`, `surface` si elle appelle le LLM) : tableau par passe + total. Détail écrit dans
-   `.retrodoc/cache/usage.json` (historique des derniers runs), pas dans `run-metadata.json`.
+3. [x] **Récapitulatif** à la fin de `generate` et de chaque commande autonome qui appelle le LLM (`roles`,
+   `glossary`, `entry-points`, `actors` ; `surface` n'appelle pas le LLM) : tableau par passe + total. Détail
+   écrit dans `.retrodoc/cache/usage.json` (20 derniers runs, champ `command`), pas dans `run-metadata.json`.
+   Un run sans appel n'est pas enregistré ; une commande en échec montre ce qu'elle a dépensé.
 4. [ ] **Prix optionnels** : `llm.price_per_mtok_in/out` dans `retrodoc.toml`, montant dans le recap.
 5. [ ] **Docs** : `PLAN.md` §7.2 item 7, `CLAUDE.md`, `docs/ARCHITECTURE.md`, ADR si une décision le mérite.
 
@@ -55,6 +56,7 @@ la fin de `generate`.
 * Le recap n'est **pas** écrit dans `_retrodoc/run-metadata.json` (il changerait à chaque run et casserait
   l'idempotence du rendu) mais dans `.retrodoc/cache/usage.json`.
 * Un recap pour chaque commande qui appelle le LLM, pas seulement `generate`.
+* Historique de `usage.json` : 20 derniers runs.
 
 ## Hors périmètre (issue suivante)
 

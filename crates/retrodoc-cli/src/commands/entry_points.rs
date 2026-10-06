@@ -2,14 +2,14 @@ use std::path::Path;
 
 use anyhow::Context;
 use retrodoc_core::config::Config;
-use retrodoc_llm::{HeartbeatProvider, OpenRouterProvider};
+use retrodoc_llm::UsageTracker;
 use retrodoc_pipeline::{FileRole, RoleRules};
 
 /// Reads the entry points (routes, commands, jobs, public API…) and their
 /// outputs from the files classified `entrypoint` (using the rules from
 /// `retrodoc roles`), saves `.retrodoc/cache/entry-points.yaml` and prints a
 /// summary. Unchanged files are not sent to the LLM again.
-pub async fn run(path: &Path) -> anyhow::Result<()> {
+pub async fn run(path: &Path, tracker: &UsageTracker) -> anyhow::Result<()> {
     let repo_root = path
         .canonicalize()
         .with_context(|| format!("path not found: {}", path.display()))?;
@@ -22,10 +22,8 @@ pub async fn run(path: &Path) -> anyhow::Result<()> {
     let role_map = rules.classify(&ingest.files);
     let files = role_map.files_with(FileRole::EntryPoint).len();
 
-    let llm = HeartbeatProvider::new(
-        OpenRouterProvider::from_config(&config.llm)
-            .context("could not initialize the LLM provider (missing API key?)")?,
-    );
+    let llm = super::usage::provider(&config.llm, tracker)?;
+    tracker.set_pass("entry-points");
     println!("Reading entry points from {files} file(s)…");
     let inventory = retrodoc_pipeline::build_entry_points(&repo_root, &role_map, &llm)
         .await

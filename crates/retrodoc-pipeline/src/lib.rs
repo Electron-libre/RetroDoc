@@ -35,6 +35,7 @@ mod response;
 pub mod roles;
 pub mod slices;
 pub mod surface;
+pub mod usage_log;
 pub mod use_cases;
 pub mod vocabulary;
 

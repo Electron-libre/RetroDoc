@@ -4,7 +4,7 @@ use anyhow::Context;
 use retrodoc_core::config::Config;
 use retrodoc_core::model::ActorKind;
 use retrodoc_ingest::FileKind;
-use retrodoc_llm::{HeartbeatProvider, OpenRouterProvider};
+use retrodoc_llm::UsageTracker;
 use retrodoc_pipeline::{EntryPoints, Glossary, RoleRules, Surface};
 
 /// Identifies the business actors (who uses the application, in business
@@ -12,7 +12,7 @@ use retrodoc_pipeline::{EntryPoints, Glossary, RoleRules, Surface};
 /// `.retrodoc/cache/actors.yaml` and prints them. The glossary and entry
 /// points from the earlier commands are used when present. `force` ignores
 /// the saved list.
-pub async fn run(path: &Path, force: bool) -> anyhow::Result<()> {
+pub async fn run(path: &Path, force: bool, tracker: &UsageTracker) -> anyhow::Result<()> {
     let repo_root = path
         .canonicalize()
         .with_context(|| format!("path not found: {}", path.display()))?;
@@ -34,10 +34,8 @@ pub async fn run(path: &Path, force: bool) -> anyhow::Result<()> {
         &EntryPoints::load(&repo_root).unwrap_or_default(),
     );
 
-    let llm = HeartbeatProvider::new(
-        OpenRouterProvider::from_config(&config.llm)
-            .context("could not initialize the LLM provider (missing API key?)")?,
-    );
+    let llm = super::usage::provider(&config.llm, tracker)?;
+    tracker.set_pass("actors");
     let candidates = retrodoc_pipeline::authorization_files(&source_files);
     println!(
         "Identifying the actors ({} authorization file(s), {} entit(ies) known)…",

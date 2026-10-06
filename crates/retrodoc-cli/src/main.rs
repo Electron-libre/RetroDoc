@@ -3,6 +3,7 @@ mod commands;
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
+use retrodoc_llm::UsageTracker;
 
 /// `RetroDoc` — catch up on a project's documentation debt with AI agents.
 #[derive(Debug, Parser)]
@@ -117,6 +118,21 @@ enum Command {
     },
 }
 
+impl Command {
+    /// The commands that call the LLM, with the name and repo path their
+    /// usage recap is filed under.
+    fn counted(&self) -> Option<(&'static str, PathBuf)> {
+        match self {
+            Command::Generate { path, .. } => Some(("generate", path.clone())),
+            Command::Roles { path, .. } => Some(("roles", path.clone())),
+            Command::Glossary { path } => Some(("glossary", path.clone())),
+            Command::EntryPoints { path } => Some(("entry-points", path.clone())),
+            Command::Actors { path, .. } => Some(("actors", path.clone())),
+            _ => None,
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
@@ -128,7 +144,9 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let cli = Cli::parse();
-    match cli.command {
+    let tracker = UsageTracker::new();
+    let counted = cli.command.counted();
+    let result = match cli.command {
         Command::Init { path, force } => commands::init::run(&path, force),
         Command::Scan { path } => commands::scan::run(&path),
         Command::Generate {
@@ -144,14 +162,18 @@ async fn main() -> anyhow::Result<()> {
             } else {
                 commands::generate::Confidence::Sample(confidence_sample)
             };
-            commands::generate::run(&path, dry_run, force, confidence, max_files).await
+            commands::generate::run(&path, dry_run, force, confidence, max_files, &tracker).await
         }
         Command::Render { path, dry_run } => commands::render::run(&path, dry_run),
         Command::Report { path } => commands::report::run(&path),
-        Command::EntryPoints { path } => commands::entry_points::run(&path).await,
-        Command::Glossary { path } => commands::glossary::run(&path).await,
-        Command::Actors { path, force } => commands::actors::run(&path, force).await,
+        Command::EntryPoints { path } => commands::entry_points::run(&path, &tracker).await,
+        Command::Glossary { path } => commands::glossary::run(&path, &tracker).await,
+        Command::Actors { path, force } => commands::actors::run(&path, force, &tracker).await,
         Command::Surface { path } => commands::surface::run(&path),
-        Command::Roles { path, force } => commands::roles::run(&path, force).await,
+        Command::Roles { path, force } => commands::roles::run(&path, force, &tracker).await,
+    };
+    if let Some((name, path)) = counted {
+        commands::usage::finish(&path, name, &tracker, result.is_ok());
     }
+    result
 }

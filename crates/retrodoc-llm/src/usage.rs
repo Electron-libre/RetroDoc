@@ -198,6 +198,13 @@ impl UsageTracker {
         self.lock().enter(name, Instant::now());
     }
 
+    /// Closes the current pass: the time that follows (writing the docs, say)
+    /// belongs to none, and calls recorded after it go to
+    /// [`UNLABELLED_PASS`].
+    pub fn end_pass(&self) {
+        self.lock().close_current(Instant::now());
+    }
+
     /// Counts one answered call in the current pass.
     pub fn record(&self, model: &str, usage: Option<Usage>) {
         let mut inner = self.lock();
@@ -408,6 +415,17 @@ mod tests {
         // Reading the report does not close the open pass.
         tokio::time::sleep(Duration::from_secs(1)).await;
         assert_eq!(tracker.report().passes[0].wall, Duration::from_secs(7));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn an_ended_pass_stops_its_clock() {
+        let tracker = UsageTracker::new();
+        tracker.set_pass("a");
+        tokio::time::sleep(Duration::from_secs(3)).await;
+        tracker.end_pass();
+        tokio::time::sleep(Duration::from_secs(10)).await;
+
+        assert_eq!(tracker.report().passes[0].wall, Duration::from_secs(3));
     }
 
     #[tokio::test(start_paused = true)]
