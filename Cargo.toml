@@ -5,6 +5,7 @@ members = [
     "crates/retrodoc-core",
     "crates/retrodoc-ingest",
     "crates/retrodoc-llm",
+    "crates/retrodoc-mcp",
     "crates/retrodoc-pipeline",
     "crates/retrodoc-render",
 ]
@@ -40,6 +41,7 @@ futures-util = { version = "0.3", default-features = false, features = ["std"] }
 retrodoc-core = { path = "crates/retrodoc-core" }
 retrodoc-ingest = { path = "crates/retrodoc-ingest" }
 retrodoc-llm = { path = "crates/retrodoc-llm" }
+retrodoc-mcp = { path = "crates/retrodoc-mcp" }
 retrodoc-pipeline = { path = "crates/retrodoc-pipeline" }
 retrodoc-render = { path = "crates/retrodoc-render" }
 

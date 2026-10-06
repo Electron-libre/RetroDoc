@@ -8,6 +8,7 @@ pub mod render;
 pub mod report;
 pub mod roles;
 pub mod scan;
+pub mod search;
 pub mod surface;
 pub mod usage;
 pub mod workspace;

@@ -1123,6 +1123,7 @@ dependencies = [
  "retrodoc-core",
  "retrodoc-ingest",
  "retrodoc-llm",
+ "retrodoc-mcp",
  "retrodoc-pipeline",
  "retrodoc-render",
  "tempfile",
@@ -1167,6 +1168,16 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "retrodoc-mcp"
+version = "0.1.0"
+dependencies = [
+ "retrodoc-core",
+ "retrodoc-ingest",
+ "retrodoc-pipeline",
+ "tempfile",
 ]
 
 [[package]]

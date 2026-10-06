@@ -58,13 +58,14 @@ Skills in `.claude/skills/` (structure checked by `.claude/skills/test_skills.rs
 
 ## Architecture
 
-Cargo workspace, six crates under `crates/`, dependency direction flows one way (no cycles):
+Cargo workspace, seven crates under `crates/`, dependency direction flows one way (no cycles):
 
 ```
 retrodoc-cli ──> retrodoc-pipeline ──> retrodoc-ingest ──> retrodoc-core
              ──> retrodoc-llm      ──────────────────────> retrodoc-core
              ──> retrodoc-ingest
 retrodoc-cli ──> retrodoc-render ──> retrodoc-core
+retrodoc-cli ──> retrodoc-mcp ──> retrodoc-pipeline, retrodoc-ingest, retrodoc-core
 ```
 
 - **retrodoc-core**: shared domain model (`Domain`/`Feature`/`UseCase`/`Step`/`ConfidenceScore` in
@@ -135,10 +136,14 @@ retrodoc-cli ──> retrodoc-render ──> retrodoc-core
   stale files under `functional/` reported but never deleted), `WritePlan::apply()` writes only what differs.
   `_retrodoc/run-metadata.json` has a timestamp that is ignored when it's the only change, so reruns are no-ops.
   The CLI drops generated docs (`functional/`, `_retrodoc/`) from the ingested existing docs.
+- **retrodoc-mcp** (`bm25.rs`, `corpus.rs`, `search.rs`): read-only access to the generated docs for LLM agents, with no
+  LLM call (see `issues/mcp_server.md`). So far the lexical search: `SearchIndex` ranks (hand-written BM25, title
+  counted three times) one `Entry` per domain, sub-domain, feature, use case, glossary concept and collected Markdown
+  doc, each with its id, confidence and cited files. The MCP tools and server are not written yet.
 - **retrodoc-cli**: `clap` subcommands (`init`, `scan`, `generate`, `render`, `report`, `roles`, `glossary`,
-  `entry-points`, `actors`, `surface`). `generate` runs the whole pipeline then writes the docs (`--dry-run` previews, `--force`
+  `entry-points`, `actors`, `surface`, `search`). `generate` runs the whole pipeline then writes the docs (`--dry-run` previews, `--force`
   ignores caches, `--no-confidence` / `--confidence-sample N` / `--max-files N` bound the cost, see the pipeline bullet); `render` writes/previews the docs from the cached artifacts (no LLM call); `report` prints
-  the debt report (no LLM call); `roles`, `glossary`, `entry-points`, `actors` and `surface` are the standalone phase 7 commands above. `main` is `#[tokio::main]` since `generate` awaits the pipeline. Logs (`tracing`) go to stdout, in color only on a terminal: a redirected log is plain text. `commands/workspace.rs` is the common start of the commands: `repo_root`, `Workspace::open` (root + `retrodoc.toml`), `Workspace::ingest`, `source_paths`.
+  the debt report (no LLM call); `roles`, `glossary`, `entry-points`, `actors` and `surface` are the standalone phase 7 commands above; `search "<query>"` prints the best matches of the lexical search (no LLM call, needs a `generate` run). `main` is `#[tokio::main]` since `generate` awaits the pipeline. Logs (`tracing`) go to stdout, in color only on a terminal: a redirected log is plain text. `commands/workspace.rs` is the common start of the commands: `repo_root`, `Workspace::open` (root + `retrodoc.toml`), `Workspace::ingest`, `source_paths`.
 
 ### Conventions specific to this codebase
 

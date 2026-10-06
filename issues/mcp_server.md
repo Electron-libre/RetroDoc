@@ -46,10 +46,16 @@ rather than guessing.
 
 # Tracking
 
-1. [ ] Index and search: BM25 over the generated artifacts (domains, features, use cases) and the collected
+1. [x] Index and search: BM25 over the generated artifacts (domains, features, use cases) and the collected
    Markdown docs, exposed by the debug command `retrodoc search "<query>"` (no LLM). Decide the crate
    (`retrodoc-mcp` or `retrodoc-agent`). Verified by tests on artifacts in a `tempdir()`, then retrieval
    quality judged on a smoke-test repo.
+   Smoke test on `delivery_router` (small Ruby repo, 18 entries): navigation and cited files work, a
+   business question finds the right use case. Limits seen, for deliverable 2: no synonym matching
+   ("driver" vs "rider"), and no relevance threshold, so "cancel a delivery" (undocumented) still returns
+   entries sharing "delivery"; "not documented" only fires when no word matches. Consider stop words and
+   requiring most query words to match. The smoke verdict was FAIL on two pipeline warnings unrelated to
+   this deliverable (6 files left uncategorized, one feature answered "no use case" once).
 2. [ ] MCP server over stdio: `retrodoc mcp --path <repo>` with `list_domains`, `get_domain`, `get_feature`,
    `get_use_case`, `search_docs`. Answers cite their sources, carry the confidence and say "not documented"
    when nothing is found. Verified by tool tests and an end-to-end test with an MCP client (`initialize`,
@@ -70,3 +76,6 @@ rather than guessing.
 * First version serves the generated docs only; code access in deliverable 4.
 * Static agent entry point generated with the docs (deliverable 5).
 * `PLAN.md` §7.3 and `PRODUCT.md` updated on 2026-10-06 to reflect the MCP approach.
+* Crate `retrodoc-mcp` (index and, later, server); BM25 written by hand, no `tantivy` (small corpus, no dependency).
+* Indexed corpus (deliverable 1): domains, features, use cases, collected Markdown docs and the glossary.
+  Entry points and actors left out for now.

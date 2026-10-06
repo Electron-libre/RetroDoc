@@ -1,0 +1,16 @@
+[package]
+name = "retrodoc-mcp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+retrodoc-core.workspace = true
+retrodoc-ingest.workspace = true
+retrodoc-pipeline.workspace = true
+
+[dev-dependencies]
+tempfile = "3"

@@ -86,6 +86,18 @@ enum Command {
         #[arg(long)]
         force: bool,
     },
+    /// Searches the generated documentation (domains, features, use cases,
+    /// glossary) and the collected docs, lexically, from the artifacts of the
+    /// last `generate` run. No LLM call: shows what the MCP server will find.
+    Search {
+        /// What to look for, in the application's own words.
+        query: String,
+        #[arg(long, default_value = ".")]
+        path: PathBuf,
+        /// Maximum number of results.
+        #[arg(long, default_value_t = 10)]
+        limit: usize,
+    },
     /// Prints the application surface (entities, entry points by resource)
     /// as the domain clustering receives it. No LLM call; needs the
     /// artifacts of `retrodoc glossary` and `retrodoc entry-points`.
@@ -178,6 +190,7 @@ async fn main() -> anyhow::Result<()> {
         Command::EntryPoints { path } => commands::entry_points::run(&path, &tracker).await,
         Command::Glossary { path } => commands::glossary::run(&path, &tracker).await,
         Command::Actors { path, force } => commands::actors::run(&path, force, &tracker).await,
+        Command::Search { query, path, limit } => commands::search::run(&path, &query, limit),
         Command::Surface { path } => commands::surface::run(&path),
         Command::Roles { path, force } => commands::roles::run(&path, force, &tracker).await,
     };
