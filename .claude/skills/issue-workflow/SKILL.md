@@ -10,7 +10,10 @@ commits stay in English). Never skip a validation stop: they are what makes the 
 
 ## 0. Resume or start
 
-Read the issue file. If it has a `# Tracking` section, the issue is already planned: summarize where it
+Read the issue file. Name the thread after the issue: its title is the first `# ` heading of the file
+(e.g. `# Improve Harness`). Run `/rename <title>` if you can; if you can't (a skill can't type a slash
+command), give the user the exact `/rename <title>` line to paste, once, at the start. Do this on resume
+too, since a resumed thread may still carry another name. If it has a `# Tracking` section, the issue is already planned: summarize where it
 stands (next unchecked deliverable) and continue at step 3. Otherwise start at step 1.
 
 ## 1. Reformulate and validate (STOP)
