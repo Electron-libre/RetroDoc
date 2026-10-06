@@ -49,7 +49,7 @@ flowchart TD
 |---|---|
 | `retrodoc-core` | Shared vocabulary: `Domain`, `Feature`, `UseCase`, `Step`, `ConfidenceScore`, and the `retrodoc.toml` config. |
 | `retrodoc-ingest` | Reads the repo: files (honouring `.gitignore`, classified `Source`/`Test`/`Markdown`/`Other`), git history in one pass, existing docs. |
-| `retrodoc-llm` | Talks to the model. `LlmProvider` is a trait; the only implementation is `OpenRouterProvider` (HTTP, retry with backoff on 429/5xx). |
+| `retrodoc-llm` | Talks to the model. `LlmProvider` is a trait; the only implementation is `OpenRouterProvider` (HTTP, retry with backoff on 429/5xx). `UsageProvider` wraps it to count calls and tokens per pass. |
 | `retrodoc-pipeline` | The brain: one module per pass, plus caches, fingerprints and the debt report. |
 | `retrodoc-render` | Turns the result into Markdown files, compares with disk, writes only what changed. |
 | `retrodoc-cli` | The `retrodoc` binary: parses arguments and wires the crates together. |
@@ -220,7 +220,8 @@ Guarantees:
 │   ├── roles.yaml                 #   (phase 7) glob → role rules, hand-editable
 │   ├── glossary.yaml              #   (phase 7) business entities, also its own cache
 │   ├── entry-points.yaml          #   (phase 7) routes/commands/jobs + outputs, also its own cache
-│   └── actors.yaml                #   (phase 7) business actors, reused while its input hash is unchanged
+│   ├── actors.yaml                #   (phase 7) business actors, reused while its input hash is unchanged
+│   └── usage.json                 #   calls, tokens and time per pass of the last 20 runs (see ADR 0015)
 └── docs/                          # output dir (`output.docs_dir`)
     ├── functional/<domain>/…      #   README per domain, feature pages, use-case pages
     └── _retrodoc/
@@ -237,6 +238,7 @@ be added later without touching the pipeline.
 flowchart LR
     passes["pipeline passes<br/>(repo_map, domains, features,<br/>use_cases, confidence, roles, glossary,<br/>entry_points)"] --> trait["trait LlmProvider"]
     trait --> or["OpenRouterProvider<br/>HTTP + exponential-backoff retry"]
+    trait -.->|wrappers| wrap["HeartbeatProvider<br/>UsageProvider (tokens per pass)"]
     trait -.-> fake["test fakes<br/>(e.g. CountingProvider)"]
     or --> ep[("OpenRouter, or any server speaking the<br/>OpenAI chat-completions format<br/>via llm.base_url (e.g. local Ollama)")]
 ```
@@ -250,4 +252,4 @@ flowchart LR
 | Change the generated Markdown | `crates/retrodoc-render/src/markdown.rs` |
 | Add a CLI command | `crates/retrodoc-cli/src/commands/` + `main.rs` |
 | Change config options | `crates/retrodoc-core/src/config.rs` |
-| Understand why a design choice was made | `docs/adr/` (ADRs 0001–0014 were written retroactively from the history) |
+| Understand why a design choice was made | `docs/adr/` (ADRs 0001–0014 were written retroactively from the history; 0015 was written with the change) |

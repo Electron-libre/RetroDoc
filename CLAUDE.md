@@ -80,7 +80,10 @@ retrodoc-cli ──> retrodoc-render ──> retrodoc-core
   implemented in v1) + `OpenRouterProvider`, a real `reqwest` HTTP client with exponential-backoff retry on
   429/5xx that honors the delay the server asks for (`Retry-After`, Google's `retryDelay`; up to 120 s, a longer
   one is an error). Per-request HTTP timeout is 120 s unless `llm.timeout_secs` is set (a slow local
-  model writing a long JSON answer needs more; a timeout restarts the whole generation on retry).
+  model writing a long JSON answer needs more; a timeout restarts the whole generation on retry). `CompletionResponse.usage`
+  is the optional token count the server reports (`usage.rs`: a missing or malformed block is `None`, never estimated);
+  `UsageProvider` + `UsageTracker` count answered calls and tokens per pass and per model (concurrency-safe; the CLI names
+  the pass with `set_pass`). Failed attempts and internal retries are not counted.
 - **retrodoc-pipeline**: orchestrates the multi-pass generation pipeline of `PLAN.md` §2, one module per
   pass. The `//!` doc of each module is the reference for what the pass does and why; this is only the map.
   `generate` runs them in this order: surface (roles → glossary → entry points), actors, file budget, repo
@@ -108,7 +111,8 @@ retrodoc-cli ──> retrodoc-render ──> retrodoc-core
   unreadable file is a first run, not an error), `response.rs` (`complete_text`, and `complete_json` with
   lenient parsing and one retry; an unparseable unit is skipped with a warning), `fingerprints.rs` and
   `cache.rs` (incremental re-run), `progress.rs` (one `tracing::info!` line per unit with ETA), `naming.rs`
-  (the single `normalize` used to match names across passes), `error.rs`.
+  (the single `normalize` used to match names across passes), `usage_log.rs` (the end-of-run recap text and the
+  history of the last 20 runs in `.retrodoc/cache/usage.json`), `error.rs`.
 
   Behaviors that span passes:
   - **Incremental re-run**: each pass skips a unit whose input fingerprint is unchanged and reuses its saved
@@ -119,6 +123,10 @@ retrodoc-cli ──> retrodoc-render ──> retrodoc-core
   - **Cost control**: `llm.concurrency` (default 1) parallelizes file and directory summaries,
     `llm.batch_chars` (default 6000, 0 = off) batches small files, and `generate` prints
     `estimate_repo_map`'s expected calls first.
+  - **Token accounting**: `generate`, `roles`, `glossary`, `entry-points` and `actors` end with a recap of calls, tokens
+    and time per pass (tokens only, no prices) and append the run to `.retrodoc/cache/usage.json`; kept apart from the
+    rendered docs so reruns stay no-ops, and left alone by `generate --force`. `commands/usage.rs` builds the provider
+    the five commands share.
   - `retrodoc_llm::HeartbeatProvider` (wrapped around the provider in the CLI) logs "still waiting for the
     LLM (Ns)" every 30 s, to tell a slow call from a stuck run.
 - **retrodoc-render**: writes the Markdown/Mermaid output to the docs dir (`output.docs_dir`). `render()` builds

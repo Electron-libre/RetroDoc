@@ -48,8 +48,8 @@ la fin de `generate`.
    `glossary`, `entry-points`, `actors` ; `surface` n'appelle pas le LLM) : tableau par passe + total. Détail
    écrit dans `.retrodoc/cache/usage.json` (20 derniers runs, champ `command`), pas dans `run-metadata.json`.
    Un run sans appel n'est pas enregistré ; une commande en échec montre ce qu'elle a dépensé.
-4. [ ] **Prix optionnels** : `llm.price_per_mtok_in/out` dans `retrodoc.toml`, montant dans le recap.
-5. [ ] **Docs** : `PLAN.md` §7.2 item 7, `CLAUDE.md`, `docs/ARCHITECTURE.md`, ADR si une décision le mérite.
+4. [~] **Prix optionnels** : abandonné (voir Décisions). Le recap ne donne que des tokens.
+5. [x] **Docs** : `PLAN.md` §7.2 item 7, `CLAUDE.md`, `docs/ARCHITECTURE.md`, ADR `0015`.
 
 ## Décisions
 
@@ -57,6 +57,15 @@ la fin de `generate`.
   l'idempotence du rendu) mais dans `.retrodoc/cache/usage.json`.
 * Un recap pour chaque commande qui appelle le LLM, pas seulement `generate`.
 * Historique de `usage.json` : 20 derniers runs.
+* Pas de prix ni de montant : on ne suit que le coût en tokens (livrable 4 abandonné, pas de
+  `llm.price_per_mtok_in/out`). Le montant se calcule à la main à partir des tokens et du tarif du fournisseur.
+
+## Smoke test
+
+Petit dépôt Rust (17 fichiers, `qwen3.6:35b-a3b` local) : recap et `usage.json` corrects (37 appels, 22 881
+tokens en entrée, 7 830 en sortie, 4m34s au premier run), rendu idempotent (0 fichier au second run). Le verdict
+« concluant » du script est un faux positif (WARN non détectés à cause des codes ANSI) et le second run a fait
+2 appels LLM : suivis dans `issues/smoke_test_false_positive.md` et `issues/smoke_empty_feature_retry.md`.
 
 ## Hors périmètre (issue suivante)
 
