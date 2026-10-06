@@ -112,3 +112,15 @@ decision, add it to `docs/adr/`.
 * The deliverable 1 driver is `pub(crate)` in `crates/retrodoc-pipeline/src/batched_read.rs`.
 * Test fakes (deliverable 6): `#[cfg(test)]` module internal to the pipeline crate, no `test-support` feature.
 * `--force` keeps its current behavior (`roles.yaml`, `usage.json`, `scope.yaml` kept); it is documented without being changed.
+
+## Clôture
+
+* Les 8 livrables sont faits (12 commits). `just check` et `just test-harness` passent à chaque livrable.
+* **Pas de smoke test de bout en bout.** Un essai sur un gros dépôt Rails a été arrêté par la limite de temps
+  pendant la passe repo map (49 %, ~41 min), avant le second `generate`. Le critère « second `generate` = 0
+  fichier écrit » n'a donc pas été revérifié après ces refactorisations. À faire sur un petit dépôt au
+  prochain smoke test.
+* Reste volontairement non fusionné : les bornes `4_000` / `30_000` caractères définies à la fois dans
+  `confidence` et dans `use_cases/prompt.rs`.
+* Changement noté au livrable 5 : le temps entre deux passes n'est plus compté dans la passe précédente du
+  récap d'usage.
