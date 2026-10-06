@@ -76,7 +76,7 @@ retrodoc-cli ──> retrodoc-render ──> retrodoc-core
   git history per file via `git2` revwalk+diff (`git_history.rs`, not a `git log` per file — matters for
   perf on large repos), existing Markdown docs (`existing_docs.rs`). `run()` combines all three into an
   `IngestResult`.
-- **retrodoc-llm**: `LlmProvider` trait abstraction (kept provider-agnostic even though only OpenRouter is
+- **retrodoc-llm** (`types.rs`, `heartbeat.rs`, `openrouter.rs`, `usage.rs`): `LlmProvider` trait abstraction (kept provider-agnostic even though only OpenRouter is
   implemented in v1) + `OpenRouterProvider`, a real `reqwest` HTTP client with exponential-backoff retry on
   429/5xx that honors the delay the server asks for (`Retry-After`, Google's `retryDelay`; up to 120 s, a longer
   one is an error). Per-request HTTP timeout is 120 s unless `llm.timeout_secs` is set (a slow local
