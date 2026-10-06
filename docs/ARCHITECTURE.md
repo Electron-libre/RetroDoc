@@ -252,13 +252,44 @@ flowchart LR
     or --> ep[("OpenRouter, or any server speaking the<br/>OpenAI chat-completions format<br/>via llm.base_url (e.g. local Ollama)")]
 ```
 
-## 9. Where to go next
+## 9. Serving the docs to agents (MCP)
+
+A coding agent can query the generated docs instead of reading them all. `retrodoc mcp` is a read-only MCP
+server over stdio that calls no LLM: the agent reasons, the server only looks things up. Why it is built
+this way: [ADR 0016](adr/0016-read-only-llm-free-mcp-server-for-agents.md).
+
+```mermaid
+flowchart LR
+    agent(["coding agent<br/>(Claude Code, Cursor…)"]) <-->|"MCP over stdio"| srv["retrodoc mcp"]
+    subgraph tools["seven read-only tools"]
+        nav["list_domains, get_domain,<br/>get_feature, get_use_case"]
+        srch["search_docs<br/>(BM25, stop words)"]
+        code["read_source, git_log<br/>(cited files only)"]
+    end
+    srv --> tools
+    nav --> art[(".retrodoc/cache/<br/>features, use-cases, domains,<br/>glossary + collected .md")]
+    srch --> art
+    code --> repo[("the repo: cited files<br/>and their git history")]
+    art -.->|"hash of each cited file<br/>vs repo-map.json, at each call"| fresh["stale warning"]
+    fresh -.-> nav
+```
+
+- Answers are Markdown with the id to follow, the confidence (flagged below 50%) and the cited files;
+  an unknown id or an empty search is "Not documented", never an error.
+- `read_source` and `git_log` reach only files the docs cite, and refuse `..`, absolute paths, symbolic links,
+  binary and very large files.
+- For agents that don't run the server, `render()` also writes `functional/llms.txt`, an index of the domains and
+  features with links and confidence.
+- stdout carries the protocol, so the logs of `retrodoc mcp` go to stderr.
+
+## 10. Where to go next
 
 | I want to… | Look at |
 |---|---|
 | Know what is planned / out of scope | `PLAN.md` §5–§7 |
 | Add or change a pipeline pass | `crates/retrodoc-pipeline/src/` (follow the existing pass + its fake-provider test) |
 | Change the generated Markdown | `crates/retrodoc-render/src/markdown.rs` |
+| Change what an agent can ask (MCP tools, search, code access) | `crates/retrodoc-mcp/src/` (`tools.rs` the answers, `server.rs` the wiring, `source.rs` the code access scope) |
 | Add a CLI command | `crates/retrodoc-cli/src/commands/` + `main.rs` |
 | Change config options | `crates/retrodoc-core/src/config.rs` |
-| Understand why a design choice was made | `docs/adr/` (ADRs 0001–0014 were written retroactively from the history; 0015 was written with the change) |
+| Understand why a design choice was made | `docs/adr/` (ADRs 0001–0014 were written retroactively from the history; 0015 and 0016 were written with the change) |

@@ -84,8 +84,11 @@ rather than guessing.
    live outside the docs dir). Lists domains and features with links and confidence, how to read them and a
    pointer to `retrodoc mcp`; no use cases, to stay short. Not tried with an agent that has no server: it has to
    be told where the file is.
-6. [ ] ADR (MCP server, LLM-free, lexical retrieval) and `docs/ARCHITECTURE.md` update; other docs updated
+6. [x] ADR (MCP server, LLM-free, lexical retrieval) and `docs/ARCHITECTURE.md` update; other docs updated
    with each deliverable through `update-docs`.
+   ADR `0016` written, with a new section 9 in `docs/ARCHITECTURE.md` (diagram of the server); the other docs
+   were updated with each deliverable. Follow-ups, each its own issue: `issues/stale_docs_after_failed_generate.md`,
+   `issues/mcp_freshness_cost.md`, `issues/git_log_follow_renames.md`.
 
 ## Decisions
 

@@ -113,8 +113,8 @@ Rust module of the `retrodoc-pipeline` crate with its rationale in its `//!` doc
 [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md), and the design decisions are recorded in
 [docs/adr/](./docs/adr).
 
-The workspace has six crates with one-way dependencies: `retrodoc-cli`, `retrodoc-pipeline`,
-`retrodoc-ingest`, `retrodoc-llm`, `retrodoc-render`, `retrodoc-core`.
+The workspace has seven crates with one-way dependencies: `retrodoc-cli`, `retrodoc-pipeline`,
+`retrodoc-ingest`, `retrodoc-llm`, `retrodoc-render`, `retrodoc-mcp`, `retrodoc-core`.
 
 ## Development
 
