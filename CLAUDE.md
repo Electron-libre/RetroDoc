@@ -118,7 +118,7 @@ retrodoc-cli ──> retrodoc-render ──> retrodoc-core
   Behaviors that span passes:
   - **Incremental re-run**: each pass skips a unit whose input fingerprint is unchanged and reuses its saved
     result (features per domain unit, use cases per feature, summaries per file hash, directory summaries per
-    listing hash, domains per clustering input). `generate --force` wipes the caches.
+    listing hash, domains per clustering input; a feature answered "no use case" twice cleanly is remembered too). `generate --force` wipes the caches.
   - **Resumable**: an LLM failure in the features or use cases pass saves the units done so far; the repo map
     saves its cache. A rerun resumes there.
   - **Cost control**: `llm.concurrency` (default 1) parallelizes file and directory summaries,

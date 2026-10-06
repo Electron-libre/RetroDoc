@@ -38,3 +38,16 @@ cause, same symptom in the report).
 * Reproduce with a fake `LlmProvider` that answers an empty list of use cases (see `CountingProvider` in
   `repo_map/tests.rs`): if option 1 is chosen, the second `build_use_cases` call must not call the provider.
 * Never name confidential test repos in committed files (numbers only).
+
+# Tracking
+
+1. [x] Remember "no use case" in the use cases pass cache (fingerprint without saved use case); a rerun
+   skips it, `--force` or an input change reruns it. Tests in `use_cases/tests.rs`; ADR 0005 updated.
+
+## Decisions
+
+* Option 1, restricted: only a reliable empty answer (both attempts parsed and empty) is remembered;
+  unparseable answers and LLM errors are still retried.
+* A feature whose use cases are all dropped by grounding is remembered too (same input, same result).
+* The report is unchanged (the feature stays at 0% confidence).
+* No new ADR: a paragraph in the Consequences of ADR 0005.

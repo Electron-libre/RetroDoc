@@ -300,8 +300,8 @@ Directions:
    prices: the recap gives tokens only, the amount is up to the reader (ADR 0015). Unit-tested, and smoke-tested on
    a small Rust repository (17 files, `qwen3.6:35b-a3b` locally): the first `generate` made 37 calls for 22,881 tokens
    in and 7,830 out in 4m34s (use cases 8 calls and 1m57s, repo map 13 calls); the rerun was a no-op for the docs but
-   still made 2 calls (a feature for which the LLM answers "no use case" is retried on every run, which the recap now
-   makes visible). Not yet measured on a large repo. Step 2, once real measurements exist (the saved history
+   still made 2 calls (a feature for which the LLM answers "no use case" was retried on every run, which the recap made
+   visible; since then a clean empty answer is remembered, see ADR 0005). Not yet measured on a large repo. Step 2, once real measurements exist (the saved history
    provides them): a pre-run estimate for the whole pipeline. `estimate_repo_map` already gives calls and characters for the repo map (~4
    characters per token); the later passes depend on earlier outputs, so extrapolate with measured ratios (the Rails test repo:
    325 files gave 77 features and 183 use cases, ~0.24 and ~0.56 per file). Output tokens (use case JSON, up to 8,192

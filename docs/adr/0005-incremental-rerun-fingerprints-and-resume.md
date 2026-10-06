@@ -27,3 +27,8 @@ so a rerun resumes. `generate --force` wipes the caches; `--dry-run` previews. A
 A no-op rerun costs no LLM call and renders no diff. Any new pass must define its fingerprint, and
 changing a prompt does not invalidate caches by itself (use `--force`). Saving after each call writes
 more often but loses nothing on failure.
+
+A feature the LLM answered "no use case" for, cleanly on both attempts, is remembered like any other result
+(its fingerprint is saved without use cases), so a rerun on an unchanged input does not ask again. The
+cost: a bad model draw stays frozen until the input changes or `generate --force`. Unparseable answers and
+LLM errors are not remembered and stay retried (resume).

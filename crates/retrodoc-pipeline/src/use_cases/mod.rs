@@ -64,6 +64,17 @@ pub fn save_use_cases(repo_root: &Path, use_cases: &[UseCase]) -> Result<(), Pip
     save_yaml(&Artifact::UseCases.path(repo_root), use_cases)
 }
 
+/// What the LLM said about a feature's use cases.
+enum Answer {
+    Use(RawUseCases),
+    /// Two clean answers without any use case: the feature has none, as far as
+    /// the model can tell, so asking again on the same input is pointless.
+    Empty,
+    /// Unparseable, or empty once and unparseable the other time: worth a retry
+    /// on the next run.
+    Unusable,
+}
+
 /// Asks the LLM for the use cases of a feature. An answer without any use
 /// case (missing or empty `use_cases`) is as useless as an unparseable one:
 /// it is asked once more.
@@ -72,7 +83,8 @@ async fn ask_use_cases(
     system_prompt: &str,
     prompt: &str,
     feature_slug: &str,
-) -> Result<Option<RawUseCases>, PipelineError> {
+) -> Result<Answer, PipelineError> {
+    let mut empty_answers = 0;
     for attempt in 1..=2 {
         let raw = complete_json::<RawUseCases>(
             llm,
@@ -83,12 +95,18 @@ async fn ask_use_cases(
         .await?;
         match raw {
             Some(raw) if raw.use_cases.is_empty() => {
+                empty_answers += 1;
                 tracing::warn!(feature = %feature_slug, attempt, "LLM answered with no use case");
             }
-            other => return Ok(other),
+            Some(raw) => return Ok(Answer::Use(raw)),
+            None => {}
         }
     }
-    Ok(None)
+    Ok(if empty_answers == 2 {
+        Answer::Empty
+    } else {
+        Answer::Unusable
+    })
 }
 
 /// Everything besides the features and the LLM that the pass draws on: the
@@ -110,7 +128,9 @@ pub struct UseCaseContext {
 ///
 /// Incremental: a feature whose text and file contents are unchanged since
 /// the last run keeps its saved use cases (diagram and confidence included),
-/// without an LLM call.
+/// without an LLM call. That includes a feature the LLM reliably answered
+/// "no use case" for (twice, cleanly); `generate --force` or a change of input
+/// asks again, and an unparseable answer is always retried.
 ///
 /// # Errors
 ///
@@ -127,9 +147,15 @@ pub async fn build_use_cases(
         actors,
         vocabulary,
     } = context;
-    let previous = load_use_cases(repo_root).unwrap_or_default();
+    let saved = load_use_cases(repo_root);
     let mut prints = Fingerprints::load(repo_root);
-    let known = std::mem::take(&mut prints.use_cases);
+    // Without the saved use cases, a fingerprint can't tell "none" from "lost".
+    let known = if saved.is_some() {
+        std::mem::take(&mut prints.use_cases)
+    } else {
+        BTreeMap::new()
+    };
+    let previous = saved.unwrap_or_default();
     let splitter = load_splitter(repo_root);
 
     let mut use_cases: Vec<UseCase> = Vec::new();
@@ -145,13 +171,12 @@ pub async fn build_use_cases(
                 .filter(|u| u.feature_slug == feature.slug)
                 .cloned()
                 .collect();
-            if !kept.is_empty() {
-                tracing::info!(feature = %key, "use cases unchanged, reused");
-                use_cases.extend(kept);
-                prints.use_cases.insert(key, print);
-                progress.skip();
-                continue;
-            }
+            // A saved fingerprint without use cases is a remembered "none".
+            tracing::info!(feature = %key, "use cases unchanged, reused");
+            use_cases.extend(kept);
+            prints.use_cases.insert(key, print);
+            progress.skip();
+            continue;
         }
         progress.begin(&key);
         let (prompt, cited_files) =
@@ -175,19 +200,21 @@ pub async fn build_use_cases(
                 return Err(err);
             }
         };
-        let Some(raw) = answer else {
-            continue;
+        let produced = match answer {
+            Answer::Use(raw) => {
+                grounded_use_cases(raw, feature, &use_cases, &input, &cited_files, actors)
+            }
+            Answer::Empty => Vec::new(),
+            Answer::Unusable => continue,
         };
-
-        let produced = grounded_use_cases(raw, feature, &use_cases, &input, &cited_files, actors);
-        if !produced.is_empty() {
-            prints.use_cases.insert(key, print);
-        }
+        prints.use_cases.insert(key, print);
         use_cases.extend(produced);
     }
 
-    prints.save(repo_root)?;
+    // Use cases first: a fingerprint without its use cases would freeze a
+    // feature as "none".
     save_use_cases(repo_root, &use_cases)?;
+    prints.save(repo_root)?;
     Ok(use_cases)
 }
 
@@ -214,8 +241,8 @@ fn save_partial(
                 .cloned(),
         );
     }
-    warn_on_error(prints.save(repo_root));
     warn_on_error(save_use_cases(repo_root, &use_cases));
+    warn_on_error(prints.save(repo_root));
 }
 
 /// Hash of everything the feature's use cases are derived from: its text and

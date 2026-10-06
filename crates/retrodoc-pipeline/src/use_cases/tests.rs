@@ -178,6 +178,92 @@ async fn rerun_reuses_use_cases_until_a_file_changes() {
 }
 
 #[tokio::test]
+async fn a_clean_empty_answer_is_remembered_until_the_feature_changes() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.rs"), "fn a() {}").unwrap();
+    let features = vec![feature("idle", &["a.rs"])];
+    let provider = FakeLlm::answering(r#"{"use_cases":[]}"#);
+    let context = UseCaseContext::default();
+    let run = || build_use_cases(dir.path(), &features, &context, &provider);
+
+    assert!(run().await.unwrap().is_empty());
+    assert_eq!(provider.calls(), 2, "an empty answer is asked once more");
+
+    assert!(run().await.unwrap().is_empty());
+    assert_eq!(
+        provider.calls(),
+        2,
+        "unchanged feature must not call the LLM"
+    );
+
+    std::fs::write(dir.path().join("a.rs"), "fn a() { changed }").unwrap();
+    run().await.unwrap();
+    assert_eq!(
+        provider.calls(),
+        4,
+        "a changed file must invalidate the feature"
+    );
+}
+
+#[tokio::test]
+async fn lost_saved_use_cases_are_asked_again_despite_the_fingerprints() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.rs"), "fn a() {}").unwrap();
+    let features = vec![feature("idle", &["a.rs"])];
+    let provider = FakeLlm::answering(r#"{"use_cases":[]}"#);
+    let context = UseCaseContext::default();
+
+    build_use_cases(dir.path(), &features, &context, &provider)
+        .await
+        .unwrap();
+    std::fs::remove_file(Artifact::UseCases.path(dir.path())).unwrap();
+    build_use_cases(dir.path(), &features, &context, &provider)
+        .await
+        .unwrap();
+    assert_eq!(provider.calls(), 4, "no saved use cases: nothing to trust");
+}
+
+#[tokio::test]
+async fn use_cases_all_dropped_by_grounding_are_remembered() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.rs"), "fn a() {}").unwrap();
+    let features = vec![feature("idle", &["a.rs"])];
+    // The only use case has no step, so grounding drops it.
+    let provider = FakeLlm::answering(
+        r#"{"use_cases":[{"slug":"u","name":"U","description":"d","steps":[]}]}"#,
+    );
+    let context = UseCaseContext::default();
+    let run = || build_use_cases(dir.path(), &features, &context, &provider);
+
+    assert!(run().await.unwrap().is_empty());
+    assert_eq!(provider.calls(), 1);
+    assert!(run().await.unwrap().is_empty());
+    assert_eq!(
+        provider.calls(),
+        1,
+        "same input, same result: not asked again"
+    );
+}
+
+#[tokio::test]
+async fn an_empty_answer_followed_by_a_garbled_one_is_retried_on_rerun() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.rs"), "fn a() {}").unwrap();
+    let features = vec![feature("flaky", &["a.rs"])];
+    let provider = FakeLlm::answering("not json");
+    let context = UseCaseContext::default();
+    let run = || build_use_cases(dir.path(), &features, &context, &provider);
+
+    run().await.unwrap();
+    let first = provider.calls();
+    run().await.unwrap();
+    assert!(
+        provider.calls() > first,
+        "an unparseable answer is not remembered"
+    );
+}
+
+#[tokio::test]
 async fn a_feature_with_entry_points_gets_them_and_the_code_they_run() {
     use crate::entry_points::{EntryFile, EntryKind, Output, OutputKind};
 
