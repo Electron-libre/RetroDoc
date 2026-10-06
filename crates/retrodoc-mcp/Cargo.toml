@@ -11,6 +11,13 @@ workspace = true
 retrodoc-core.workspace = true
 retrodoc-ingest.workspace = true
 retrodoc-pipeline.workspace = true
+rmcp.workspace = true
+schemars.workspace = true
+serde.workspace = true
+thiserror.workspace = true
 
 [dev-dependencies]
+rmcp = { workspace = true, features = ["client"] }
+serde_json.workspace = true
 tempfile = "3"
+tokio.workspace = true

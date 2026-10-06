@@ -56,10 +56,16 @@ rather than guessing.
    entries sharing "delivery"; "not documented" only fires when no word matches. Consider stop words and
    requiring most query words to match. The smoke verdict was FAIL on two pipeline warnings unrelated to
    this deliverable (6 files left uncategorized, one feature answered "no use case" once).
-2. [ ] MCP server over stdio: `retrodoc mcp --path <repo>` with `list_domains`, `get_domain`, `get_feature`,
+2. [x] MCP server over stdio: `retrodoc mcp --path <repo>` with `list_domains`, `get_domain`, `get_feature`,
    `get_use_case`, `search_docs`. Answers cite their sources, carry the confidence and say "not documented"
    when nothing is found. Verified by tool tests and an end-to-end test with an MCP client (`initialize`,
    `tools/list`, `tools/call`).
+   Tested end to end with an `rmcp` client over an in-memory pipe and with the real binary on stdin/stdout.
+   Tried by a headless Claude Code agent (file tools disabled) on the `delivery_router` smoke repo: tools
+   discovered, answers cite confidence and files, an undocumented topic (cancellation) is reported as such.
+   Limits seen: with two-word queries one common word is enough to match, so the agent gets off-topic
+   hits and needs extra searches (10 to 13 calls on open questions); synonyms are bridged by the agent, not
+   by the index. Idea if calls matter: show the steps of the use cases in `get_feature`.
 3. [ ] Freshness: answers warn when the cited files changed since generation (fingerprints). Verified by a
    test that modifies a file after generation.
 4. [ ] Code and git tools: `read_source` and `git_log`, limited to the repo root and to the files cited by the
@@ -79,3 +85,10 @@ rather than guessing.
 * Crate `retrodoc-mcp` (index and, later, server); BM25 written by hand, no `tantivy` (small corpus, no dependency).
 * Indexed corpus (deliverable 1): domains, features, use cases, collected Markdown docs and the glossary.
   Entry points and actors left out for now.
+* Relevance (deliverable 2): drop stop words (English and French) from the query and require at least half
+  of the remaining words (rounded up) to match an entry, for `search_docs` and `retrodoc search`. Known
+  limit: with two words, one match is enough, so "cancel a delivery" still returns entries sharing "delivery".
+* Tool answers are readable Markdown, not JSON (the reader is an LLM); an unknown id answers "not documented"
+  as a normal result, not a protocol error.
+* Logs go to stderr for `retrodoc mcp`: stdout carries the protocol.
+

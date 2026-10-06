@@ -29,7 +29,7 @@ flowchart TD
     cli["<b>retrodoc-cli</b><br/>commands (clap)"]
     pipe["<b>retrodoc-pipeline</b><br/>LLM passes, caches, report"]
     render["<b>retrodoc-render</b><br/>Markdown/Mermaid files,<br/>diff, idempotent write"]
-    mcp["<b>retrodoc-mcp</b><br/>lexical search over<br/>the generated docs"]
+    mcp["<b>retrodoc-mcp</b><br/>MCP server + lexical search<br/>over the generated docs"]
     ingest["<b>retrodoc-ingest</b><br/>walker, git history,<br/>existing docs"]
     llm["<b>retrodoc-llm</b><br/>LlmProvider trait +<br/>OpenRouter client"]
     core["<b>retrodoc-core</b><br/>domain model + config"]
@@ -57,7 +57,7 @@ flowchart TD
 | `retrodoc-llm` | Talks to the model. `LlmProvider` is a trait; the only implementation is `OpenRouterProvider` (HTTP, retry with backoff on 429/5xx). `UsageProvider` wraps it to count calls and tokens per pass. |
 | `retrodoc-pipeline` | The brain: one module per pass, plus caches, fingerprints and the debt report. |
 | `retrodoc-render` | Turns the result into Markdown files, compares with disk, writes only what changed. |
-| `retrodoc-mcp` | Read-only access to the generated docs for LLM agents, without any LLM call. For now the BM25 search behind `retrodoc search`; the MCP server comes next. |
+| `retrodoc-mcp` | Read-only access to the generated docs for LLM agents, without any LLM call. The BM25 search behind `retrodoc search` and the MCP server (`retrodoc mcp`, `rmcp`, stdio) with its five read-only tools. |
 | `retrodoc-cli` | The `retrodoc` binary: parses arguments and wires the crates together. |
 
 ## 3. The commands
@@ -81,11 +81,12 @@ flowchart LR
     surf["surface"] -->|reads, no LLM| epyaml
     glossyaml --> surf
     srch["search"] -->|reads, no LLM| art
+    mcpcmd["mcp"] -->|serves, no LLM| art
 ```
 
 - `generate` is the main command; `render` and `report` replay the *last* `generate` without any LLM call.
 - `roles`, `glossary` and `entry-points` (phase 7) are also run, incrementally, by `generate` as its "surface" step; the standalone commands let you run and inspect each one. `surface` prints what the domain clustering receives from them (no LLM).
-- `search "<query>"` ranks the generated docs and the collected docs lexically (no LLM): the first step of "ask the documentation" (phase 9, `PLAN.md` §7.3), whose MCP server is not implemented yet.
+- `search "<query>"` ranks the generated docs and the collected docs lexically (no LLM). `mcp` serves them to a coding agent over stdio (`list_domains`, `get_domain`, `get_feature`, `get_use_case`, `search_docs`; no LLM, the agent reasons): the first form of "ask the documentation" (phase 9, `PLAN.md` §7.3). Freshness warnings and code/git tools are not implemented yet.
 
 ## 4. The `generate` pipeline
 

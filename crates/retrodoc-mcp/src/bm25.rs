@@ -2,7 +2,8 @@
 //! no persistence and no dependency. Lexical only (no embeddings): identifiers
 //! and domain words match, a paraphrase does not.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::sync::OnceLock;
 
 /// Lowercase words of `text`, accents folded, split on anything that is not
 /// a letter or a digit and inside `camelCase` words, with a trailing plural
@@ -52,6 +53,21 @@ fn push_word(tokens: &mut Vec<String>, word: &mut String) {
     tokens.push(token);
 }
 
+/// Words that say nothing about a topic, in English and French, as they
+/// would be written in a question.
+const STOP_WORDS: &str = "a an the of to in on for and or is are was were be by with from at as it \
+    this that these those what who whom how when where which why can could should would do does did \
+    i we you my your our their there have has had not no \
+    le la les un une des du de et ou est sont etait en au aux pour par sur dans avec que qui quoi \
+    comment quand ou ce cet cette ces se sa son ses ne pas peut peuvent quel quelle quels quelles";
+
+/// [`STOP_WORDS`] in the form [`tokenize`] gives them (accents folded, plural
+/// `s` dropped).
+fn stop_words() -> &'static HashSet<String> {
+    static WORDS: OnceLock<HashSet<String>> = OnceLock::new();
+    WORDS.get_or_init(|| tokenize(STOP_WORDS).into_iter().collect())
+}
+
 const K1: f32 = 1.2;
 const B: f32 = 0.75;
 
@@ -92,18 +108,24 @@ impl Bm25 {
         }
     }
 
-    /// The documents sharing at least one word with `query`, best first,
-    /// with their score; ties keep document order.
+    /// The documents matching at least half (rounded up) of the words of
+    /// `query`, stop words left out, best first, with their score; ties keep
+    /// document order. A query made only of stop words finds nothing.
     #[must_use]
     #[allow(clippy::cast_precision_loss)]
     pub fn search(&self, query: &str) -> Vec<(usize, f32)> {
         let total = self.lengths.len() as f32;
-        let mut terms = tokenize(query);
+        let mut terms: Vec<String> = tokenize(query)
+            .into_iter()
+            .filter(|t| !stop_words().contains(t))
+            .collect();
         terms.sort();
         terms.dedup();
-        let mut scores: HashMap<usize, f32> = HashMap::new();
-        for term in terms {
-            let Some(postings) = self.postings.get(&term) else {
+        let needed = terms.len().div_ceil(2);
+        // Per document: how many query words it has, and its score.
+        let mut found: HashMap<usize, (usize, f32)> = HashMap::new();
+        for term in &terms {
+            let Some(postings) = self.postings.get(term) else {
                 continue;
             };
             let containing = postings.len() as f32;
@@ -111,11 +133,16 @@ impl Bm25 {
             for &(doc, count) in postings {
                 let tf = count as f32;
                 let length = self.lengths[doc] as f32 / self.average_length;
-                *scores.entry(doc).or_default() +=
-                    idf * tf * (K1 + 1.0) / (tf + K1 * (1.0 - B + B * length));
+                let entry = found.entry(doc).or_default();
+                entry.0 += 1;
+                entry.1 += idf * tf * (K1 + 1.0) / (tf + K1 * (1.0 - B + B * length));
             }
         }
-        let mut ranked: Vec<(usize, f32)> = scores.into_iter().collect();
+        let mut ranked: Vec<(usize, f32)> = found
+            .into_iter()
+            .filter(|(_, (matched, _))| *matched >= needed)
+            .map(|(doc, (_, score))| (doc, score))
+            .collect();
         ranked.sort_by(|a, b| b.1.total_cmp(&a.1).then(a.0.cmp(&b.0)));
         ranked
     }
@@ -178,6 +205,31 @@ mod tests {
         let bm25 = index(&["alpha beta"]);
         assert_eq!(bm25.search("gamma"), Vec::<(usize, f32)>::new());
         assert_eq!(bm25.search(""), Vec::<(usize, f32)>::new());
+    }
+
+    #[test]
+    fn stop_words_in_either_language_do_not_make_a_match() {
+        let bm25 = index(&[
+            "refund policy",
+            "what is the weather",
+            "le délai de paiement",
+        ]);
+        let found = |q: &str| bm25.search(q).iter().map(|h| h.0).collect::<Vec<_>>();
+        assert_eq!(found("what is the refund"), [0]);
+        assert_eq!(found("quel est le délai"), [2]);
+        assert_eq!(found("what is the"), Vec::<usize>::new());
+    }
+
+    #[test]
+    fn at_least_half_of_the_query_words_must_match() {
+        let bm25 = index(&["alpha", "alpha beta", "alpha beta gamma delta"]);
+        let found = |q: &str| bm25.search(q).iter().map(|h| h.0).collect::<Vec<_>>();
+        // 4 words: 2 needed.
+        assert_eq!(found("alpha beta gamma delta"), [2, 1]);
+        // 3 words: 2 needed (rounded up).
+        assert_eq!(found("alpha beta zeta"), [1, 2]);
+        // 2 words: 1 is enough.
+        assert_eq!(found("alpha zeta"), [0, 1, 2]);
     }
 
     #[test]

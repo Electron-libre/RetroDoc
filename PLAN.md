@@ -50,13 +50,13 @@ docs/
 
 ## 4. Technical architecture (Rust, workspace)
 
-- `retrodoc-cli` — binary, `clap` (`init`, `scan`, `generate`, `render`, `report`, `roles`, `glossary`, `entry-points`, `actors`, `surface`, `search`)
+- `retrodoc-cli` — binary, `clap` (`init`, `scan`, `generate`, `render`, `report`, `roles`, `glossary`, `entry-points`, `actors`, `surface`, `search`, `mcp`)
 - `retrodoc-core` — domain model (Domain, Feature, UseCase, Step, Actor, ConfidenceScore)
 - `retrodoc-ingest` — walker (`ignore`), history (`git2`), Markdown parsing
 - `retrodoc-llm` — provider abstraction + OpenRouter implementation (chat completion, retry, rate-limit)
 - `retrodoc-pipeline` — multi-pass orchestration + incremental cache (`.retrodoc/cache/`, key = content hash)
 - `retrodoc-render` — Markdown/Mermaid writing, diff preview
-- `retrodoc-mcp` — read-only, LLM-free access to the generated docs for agents (BM25 search, later the MCP server)
+- `retrodoc-mcp` — read-only, LLM-free access to the generated docs for agents (BM25 search, MCP server over stdio)
 
 ## 5. Indicative roadmap
 
@@ -389,6 +389,9 @@ Steps, each shippable:
 1. Read-only retrieval tools + BM25 index over the artifacts and collected docs, exposed as a debug
    command (`retrodoc search`) to judge retrieval quality without any LLM. **Implemented** (`retrodoc-mcp`,
    hand-written BM25; the glossary is indexed too); checked on the `delivery_router` smoke repo: right use case found, but no synonym matching and no relevance threshold (an undocumented topic still returns entries sharing a common word).
+   The MCP server (`retrodoc mcp`, five tools, answers in Markdown with confidence and cited files) is also
+   **implemented**; its stop-word and half-of-the-words filter does not fix that case with two-word queries.
+   Freshness warnings and `read_source`/`git_log` are still open (`issues/mcp_server.md`).
 2. Tool calling support in `retrodoc-llm` (or the JSON-action fallback).
 3. `retrodoc ask` with citations, confidence and freshness warnings.
 4. Interactive `chat` with conversation memory; code and git history tools.

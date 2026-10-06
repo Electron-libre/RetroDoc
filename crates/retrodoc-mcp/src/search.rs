@@ -1,13 +1,8 @@
 //! Lexical search over the [`Entry`] list: BM25 with the title counted
 //! three times, so a name beats a passing mention.
 
-use std::path::Path;
-
-use retrodoc_ingest::existing_docs::ExistingDoc;
-use retrodoc_pipeline::{domain_models, DomainMap, Glossary};
-
 use crate::bm25::Bm25;
-use crate::corpus::{build_entries, Entry};
+use crate::corpus::Entry;
 
 const TITLE_WEIGHT: usize = 3;
 
@@ -37,24 +32,6 @@ impl SearchIndex {
             .collect();
         let bm25 = Bm25::new(&texts);
         Self { entries, bm25 }
-    }
-
-    /// Indexes what the last `generate` saved under `.retrodoc/cache/` plus
-    /// the collected `docs`. `None` before a first `generate` (no features
-    /// saved); use cases not saved yet count as none.
-    #[must_use]
-    pub fn load(repo_root: &Path, docs: &[ExistingDoc]) -> Option<Self> {
-        let features = retrodoc_pipeline::load_features(repo_root)?;
-        let use_cases = retrodoc_pipeline::load_use_cases(repo_root).unwrap_or_default();
-        let map = DomainMap::load(repo_root).unwrap_or_default();
-        let glossary = Glossary::load(repo_root).unwrap_or_default();
-        Some(Self::new(build_entries(
-            &domain_models(&map, &features),
-            &features,
-            &use_cases,
-            &glossary,
-            docs,
-        )))
     }
 
     #[must_use]
@@ -87,10 +64,11 @@ impl SearchIndex {
 mod tests {
     use std::path::PathBuf;
 
-    use retrodoc_core::model::ConfidenceScore;
-    use retrodoc_pipeline::{Artifact, DomainCluster};
+    use retrodoc_ingest::existing_docs::ExistingDoc;
+    use retrodoc_pipeline::Glossary;
 
     use super::*;
+    use crate::corpus::build_entries;
     use crate::corpus::fixtures::*;
     use crate::corpus::EntryKind;
 
@@ -139,57 +117,5 @@ mod tests {
         let index = index();
         assert_eq!(index.search("invoice", 1).len(), 1);
         assert!(index.search("zzzz", 5).is_empty());
-    }
-
-    #[test]
-    fn nothing_is_loaded_before_a_first_generate() {
-        let dir = tempfile::tempdir().unwrap();
-        assert!(SearchIndex::load(dir.path(), &[]).is_none());
-    }
-
-    #[test]
-    fn saved_features_are_searchable_before_any_use_case_exists() {
-        let dir = tempfile::tempdir().unwrap();
-        retrodoc_pipeline::save_features(
-            dir.path(),
-            &[feature("pay-invoice", "Pay an invoice", "x")],
-        )
-        .unwrap();
-        let index = SearchIndex::load(dir.path(), &[]).unwrap();
-        assert_eq!(index.search("invoice", 5).len(), 1);
-    }
-
-    #[test]
-    fn the_saved_artifacts_are_loaded_and_searched() {
-        let dir = tempfile::tempdir().unwrap();
-        let mut feature = feature("pay-invoice", "Pay an invoice", "Settle what is due");
-        feature.confidence = Some(ConfidenceScore::new(0.7, None));
-        retrodoc_pipeline::save_features(dir.path(), &[feature]).unwrap();
-        retrodoc_pipeline::save_use_cases(
-            dir.path(),
-            &[use_case("pay-by-card", "pay-invoice", "Pay by card", "x")],
-        )
-        .unwrap();
-        DomainMap {
-            domains: vec![DomainCluster {
-                slug: "billing".into(),
-                name: "Billing".into(),
-                description: "Invoices".into(),
-                paths: vec![],
-                sub_domains: vec![],
-            }],
-        }
-        .save(dir.path())
-        .unwrap();
-        assert!(Artifact::Features.path(dir.path()).exists());
-
-        let index = SearchIndex::load(dir.path(), &[]).unwrap();
-        let hits = index.search("invoice", 10);
-        let feature = hits
-            .iter()
-            .find(|h| h.entry.kind == EntryKind::Feature)
-            .unwrap();
-        assert_eq!(feature.entry.confidence, Some(0.7));
-        assert_eq!(index.len(), 3);
     }
 }

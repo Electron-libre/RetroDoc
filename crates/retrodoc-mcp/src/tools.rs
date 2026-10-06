@@ -1,0 +1,548 @@
+//! The five read-only tools of the MCP server as plain functions over the
+//! generated docs, answering in Markdown (the reader is an LLM). Every answer
+//! gives the id to reuse, the confidence and the files it rests on; an
+//! unknown id or an empty search answers "Not documented" as a normal result.
+
+use std::fmt::Write as _;
+use std::path::Path;
+
+use retrodoc_core::model::{
+    ConfidenceScore, Domain, Feature, SourceRef, UseCase, LOW_CONFIDENCE_THRESHOLD,
+};
+use retrodoc_ingest::existing_docs::ExistingDoc;
+use retrodoc_pipeline::{domain_models, DomainMap, Glossary};
+
+use crate::corpus::build_entries;
+use crate::search::SearchIndex;
+
+/// The generated documentation, loaded once: the typed artifacts the tools
+/// navigate and the search index over them.
+pub struct Docs {
+    domains: Vec<Domain>,
+    features: Vec<Feature>,
+    use_cases: Vec<UseCase>,
+    index: SearchIndex,
+}
+
+impl Docs {
+    #[must_use]
+    pub fn new(
+        domains: Vec<Domain>,
+        features: Vec<Feature>,
+        use_cases: Vec<UseCase>,
+        glossary: &Glossary,
+        docs: &[ExistingDoc],
+    ) -> Self {
+        let index = SearchIndex::new(build_entries(
+            &domains, &features, &use_cases, glossary, docs,
+        ));
+        Self {
+            domains,
+            features,
+            use_cases,
+            index,
+        }
+    }
+
+    /// Reads what the last `generate` saved under `.retrodoc/cache/` plus the
+    /// collected `docs`. `None` before a first `generate` (no features saved);
+    /// use cases not saved yet count as none.
+    #[must_use]
+    pub fn load(repo_root: &Path, docs: &[ExistingDoc]) -> Option<Self> {
+        let features = retrodoc_pipeline::load_features(repo_root)?;
+        let use_cases = retrodoc_pipeline::load_use_cases(repo_root).unwrap_or_default();
+        let map = DomainMap::load(repo_root).unwrap_or_default();
+        let glossary = Glossary::load(repo_root).unwrap_or_default();
+        Some(Self::new(
+            domain_models(&map, &features),
+            features,
+            use_cases,
+            &glossary,
+            docs,
+        ))
+    }
+
+    #[must_use]
+    pub fn index(&self) -> &SearchIndex {
+        &self.index
+    }
+
+    /// Every domain and sub-domain, with the number of features.
+    #[must_use]
+    pub fn list_domains(&self) -> String {
+        if self.domains.is_empty() {
+            return "Not documented: no domain was generated.\n".into();
+        }
+        let mut out = String::from("# Domains\n\n");
+        for domain in &self.domains {
+            let count = self
+                .features
+                .iter()
+                .filter(|f| f.domain_slug == domain.slug)
+                .count();
+            let _ = writeln!(
+                out,
+                "- `{}` — {}: {} ({}, {count} feature(s))",
+                domain.slug,
+                domain.name,
+                one_line(&domain.description),
+                confidence_short(domain.confidence.as_ref()),
+            );
+            for sub in &domain.sub_domains {
+                let _ = writeln!(
+                    out,
+                    "  - `{}/{}` — {}: {}",
+                    domain.slug,
+                    sub.slug,
+                    sub.name,
+                    one_line(&sub.description)
+                );
+            }
+        }
+        out.push_str("\nUse `get_domain` with an id to see its features.\n");
+        out
+    }
+
+    /// A domain (`billing`) or sub-domain (`billing/payment`) and its features.
+    #[must_use]
+    pub fn get_domain(&self, id: &str) -> String {
+        let (domain_slug, sub_slug) = match id.split_once('/') {
+            Some((d, s)) => (d, Some(s)),
+            None => (id, None),
+        };
+        let Some(domain) = self.domains.iter().find(|d| d.slug == domain_slug) else {
+            return self.unknown("domain", id, "list_domains");
+        };
+        let (name, description, confidence) = match sub_slug {
+            None => (
+                &domain.name,
+                &domain.description,
+                domain.confidence.as_ref(),
+            ),
+            Some(slug) => match domain.sub_domains.iter().find(|s| s.slug == slug) {
+                Some(sub) => (&sub.name, &sub.description, sub.confidence.as_ref()),
+                None => return self.unknown("domain", id, "list_domains"),
+            },
+        };
+        let mut out = format!(
+            "# {name} (`{id}`)\n\n{description}\n\n{}\n",
+            confidence_line(confidence)
+        );
+        let features: Vec<&Feature> = self
+            .features
+            .iter()
+            .filter(|f| f.domain_slug == domain_slug)
+            .filter(|f| sub_slug.is_none_or(|s| f.sub_domain_slug.as_deref() == Some(s)))
+            .collect();
+        if features.is_empty() {
+            out.push_str("\nNo feature documented here.\n");
+            return out;
+        }
+        out.push_str("\n## Features\n\n");
+        for feature in features {
+            let _ = writeln!(
+                out,
+                "- `{}` — {}: {} ({})",
+                feature_id(feature),
+                feature.name,
+                one_line(&feature.description),
+                confidence_short(feature.confidence.as_ref()),
+            );
+        }
+        out.push_str("\nUse `get_feature` with an id to see its use cases.\n");
+        out
+    }
+
+    /// A feature, by its id (`billing/pay-invoice`) or its slug alone, with
+    /// its use cases and the files it is grounded on.
+    #[must_use]
+    pub fn get_feature(&self, id: &str) -> String {
+        let slug = last_segment(id);
+        let Some(feature) = self.features.iter().find(|f| f.slug == slug) else {
+            return self.unknown("feature", id, "get_domain");
+        };
+        let mut out = format!(
+            "# {} (`{}`)\n\n{}\n\n{}\n",
+            feature.name,
+            feature_id(feature),
+            feature.description,
+            confidence_line(feature.confidence.as_ref())
+        );
+        out.push_str(&sources_section(
+            "Grounded on",
+            feature.source_paths.iter().map(String::as_str),
+        ));
+        let use_cases: Vec<&UseCase> = self
+            .use_cases
+            .iter()
+            .filter(|u| u.feature_slug == feature.slug)
+            .collect();
+        if use_cases.is_empty() {
+            out.push_str("\nNo use case documented for this feature.\n");
+            return out;
+        }
+        out.push_str("\n## Use cases\n\n");
+        for use_case in use_cases {
+            let _ = writeln!(
+                out,
+                "- `{}/{}` — {}: {} ({})",
+                feature_id(feature),
+                use_case.slug,
+                use_case.name,
+                one_line(&use_case.description),
+                confidence_short(use_case.confidence.as_ref()),
+            );
+        }
+        out.push_str("\nUse `get_use_case` with an id to see the steps.\n");
+        out
+    }
+
+    /// A use case, by its id (`billing/pay-invoice/pay-by-card`) or the last
+    /// two segments, with its business narrative, steps and cited code.
+    #[must_use]
+    pub fn get_use_case(&self, id: &str) -> String {
+        let mut segments = id.rsplit('/');
+        let slug = segments.next().unwrap_or_default();
+        let feature_slug = segments.next();
+        let found = self
+            .use_cases
+            .iter()
+            .find(|u| u.slug == slug && feature_slug.is_none_or(|f| u.feature_slug == f));
+        let Some(use_case) = found else {
+            return self.unknown("use case", id, "get_feature");
+        };
+        let parent = self
+            .features
+            .iter()
+            .find(|f| f.slug == use_case.feature_slug)
+            .map_or_else(|| use_case.feature_slug.clone(), feature_id);
+        let mut out = format!(
+            "# {} (`{parent}/{}`)\n\n{}\n",
+            use_case.name,
+            use_case.slug,
+            confidence_line(use_case.confidence.as_ref())
+        );
+        if let Some(narrative) = &use_case.narrative {
+            let _ = writeln!(out, "\n{narrative}");
+        }
+        if !use_case.description.is_empty() {
+            let _ = writeln!(out, "\n{}", use_case.description);
+        }
+        if let Some(actor) = &use_case.primary_actor {
+            let _ = writeln!(out, "\nPrimary actor: {actor}");
+        }
+        if !use_case.entry_points.is_empty() {
+            let _ = writeln!(out, "Triggered by: {}", use_case.entry_points.join(", "));
+        }
+        out.push_str("\n## Steps\n\n");
+        for step in &use_case.steps {
+            let cited: Vec<String> = step.source_refs.iter().map(location).collect();
+            let cited = if cited.is_empty() {
+                " (no code cited)".to_string()
+            } else {
+                format!(" ({})", cited.join(", "))
+            };
+            let _ = writeln!(
+                out,
+                "{}. {} — {}: {}{cited}",
+                step.order, step.actor.name, step.action, step.description
+            );
+        }
+        out
+    }
+
+    /// The best `limit` matches for `query`, or "Not documented".
+    #[must_use]
+    pub fn search_docs(&self, query: &str, limit: usize) -> String {
+        let hits = self.index.search(query, limit);
+        if hits.is_empty() {
+            return format!(
+                "Not documented: nothing among {} entries matches `{query}`. \
+                 Try other words, or `list_domains` to browse.\n",
+                self.index.len()
+            );
+        }
+        let mut out = format!("# Results for `{query}`\n\n");
+        for hit in hits {
+            let entry = hit.entry;
+            let _ = writeln!(
+                out,
+                "- [{}] {} (`{}`, {})",
+                entry.kind.label(),
+                entry.title,
+                entry.id,
+                confidence_short(
+                    entry
+                        .confidence
+                        .map(|v| ConfidenceScore::new(v, None))
+                        .as_ref()
+                ),
+            );
+            if let Some(line) = entry
+                .text
+                .lines()
+                .find(|l| *l != entry.title && !l.starts_with('#'))
+            {
+                let _ = writeln!(out, "  {}", truncate(line, SNIPPET_CHARS));
+            }
+            if !entry.sources.is_empty() {
+                let _ = writeln!(out, "  files: {}", entry.sources.join(", "));
+            }
+        }
+        out
+    }
+
+    fn unknown(&self, what: &str, id: &str, browse_with: &str) -> String {
+        let mut out = format!("Not documented: no {what} `{id}`.");
+        if what == "domain" {
+            let known: Vec<&str> = self.domains.iter().map(|d| d.slug.as_str()).collect();
+            let _ = write!(out, " Known domains: {}.", known.join(", "));
+        }
+        let _ = writeln!(
+            out,
+            " Use `{browse_with}` or `search_docs` to find the right id."
+        );
+        out
+    }
+}
+
+/// Characters of a description shown in a list or a search hit.
+const SNIPPET_CHARS: usize = 160;
+
+fn feature_id(feature: &Feature) -> String {
+    match &feature.sub_domain_slug {
+        Some(sub) => format!("{}/{sub}/{}", feature.domain_slug, feature.slug),
+        None => format!("{}/{}", feature.domain_slug, feature.slug),
+    }
+}
+
+fn last_segment(id: &str) -> &str {
+    id.rsplit('/').next().unwrap_or(id)
+}
+
+fn truncate(text: &str, max: usize) -> String {
+    if text.chars().count() <= max {
+        return text.to_string();
+    }
+    let cut: String = text.chars().take(max).collect();
+    format!("{cut}…")
+}
+
+fn one_line(text: &str) -> String {
+    truncate(
+        text.lines().next().unwrap_or_default().trim(),
+        SNIPPET_CHARS,
+    )
+}
+
+fn percent(value: f32) -> String {
+    format!("{:.0}%", value * 100.0)
+}
+
+/// `confidence 80%`, `confidence 30% (low)` or `not scored`.
+fn confidence_short(score: Option<&ConfidenceScore>) -> String {
+    match score {
+        None => "not scored".into(),
+        Some(s) if s.value < LOW_CONFIDENCE_THRESHOLD => {
+            format!("confidence {} (low)", percent(s.value))
+        }
+        Some(s) => format!("confidence {}", percent(s.value)),
+    }
+}
+
+/// The full line of a detail answer, with the rationale and, when low, the
+/// advice to check the code.
+fn confidence_line(score: Option<&ConfidenceScore>) -> String {
+    let Some(score) = score else {
+        return "Confidence: not scored — treat as unverified.".into();
+    };
+    let mut line = format!("Confidence: {}", percent(score.value));
+    if let Some(rationale) = &score.rationale {
+        let _ = write!(line, " ({rationale})");
+    }
+    if score.value < LOW_CONFIDENCE_THRESHOLD {
+        line.push_str(" — low: verify against the code before relying on it.");
+    }
+    line
+}
+
+fn sources_section<'a>(title: &str, paths: impl Iterator<Item = &'a str>) -> String {
+    let paths: Vec<&str> = paths.collect();
+    if paths.is_empty() {
+        return String::new();
+    }
+    format!("\n{title}: {}\n", paths.join(", "))
+}
+
+fn location(source: &SourceRef) -> String {
+    match (source.start_line, source.end_line) {
+        (Some(start), Some(end)) if start != end => format!("`{}:{start}-{end}`", source.path),
+        (Some(line), _) => format!("`{}:{line}`", source.path),
+        _ => format!("`{}`", source.path),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use retrodoc_core::model::ConfidenceScore;
+
+    use super::*;
+    use crate::corpus::fixtures::*;
+
+    fn docs() -> Docs {
+        let mut weak = use_case(
+            "pay-late",
+            "pay-invoice",
+            "Pay late",
+            "Settled after the due date",
+        );
+        weak.confidence = Some(ConfidenceScore::new(
+            0.3,
+            "no code found for step 2".to_string(),
+        ));
+        Docs::new(
+            vec![domain("billing", "Billing", "Invoices and payments")],
+            vec![
+                feature("pay-invoice", "Pay an invoice", "Settle what is due"),
+                feature("cancel-plan", "Cancel a plan", "Stop a subscription"),
+            ],
+            vec![
+                use_case(
+                    "pay-by-card",
+                    "pay-invoice",
+                    "Pay by card",
+                    "The accountant settles it",
+                ),
+                weak,
+            ],
+            &Glossary::default(),
+            &[],
+        )
+    }
+
+    #[test]
+    fn domains_are_listed_with_their_sub_domains_and_feature_counts() {
+        let out = docs().list_domains();
+        assert!(out.contains(
+            "- `billing` — Billing: Invoices and payments (confidence 80%, 2 feature(s))"
+        ));
+        assert!(out.contains("  - `billing/payment` — Payment: Collecting the money"));
+    }
+
+    #[test]
+    fn a_domain_lists_its_features_with_ids_to_follow() {
+        let out = docs().get_domain("billing");
+        assert!(out.starts_with("# Billing (`billing`)"));
+        assert!(out.contains("`billing/pay-invoice` — Pay an invoice"));
+        assert!(out.contains("`billing/cancel-plan`"));
+    }
+
+    #[test]
+    fn a_sub_domain_without_feature_says_so() {
+        let out = docs().get_domain("billing/payment");
+        assert!(out.contains("Collecting the money"));
+        assert!(out.contains("No feature documented here."));
+    }
+
+    #[test]
+    fn a_feature_shows_its_use_cases_and_cited_files() {
+        let out = docs().get_feature("billing/pay-invoice");
+        assert!(out.contains("Grounded on: app/invoice.rb"));
+        assert!(out.contains("`billing/pay-invoice/pay-by-card` — Pay by card"));
+        assert!(out.contains("Pay late"));
+        assert!(docs()
+            .get_feature("pay-invoice")
+            .contains("# Pay an invoice"));
+        assert!(docs()
+            .get_feature("cancel-plan")
+            .contains("No use case documented"));
+    }
+
+    #[test]
+    fn a_use_case_gives_narrative_steps_actor_and_code() {
+        let out = docs().get_use_case("billing/pay-invoice/pay-by-card");
+        assert!(out.contains("The accountant settles it"));
+        assert!(out.contains("Primary actor: Accountant"));
+        assert!(out.contains("Triggered by: POST /invoices/:id/pay"));
+        assert!(out.contains("1. Accountant — records: Checks the amount (`app/invoice.rb`)"));
+        assert!(out.contains("Confidence: 90%"));
+        assert!(!out.contains("verify against the code"));
+    }
+
+    #[test]
+    fn a_low_confidence_answer_tells_the_agent_to_check_the_code() {
+        let out = docs().get_use_case("pay-invoice/pay-late");
+        assert!(out
+            .contains("Confidence: 30% (no code found for step 2) — low: verify against the code"));
+        assert!(docs()
+            .get_feature("pay-invoice")
+            .contains("confidence 30% (low)"));
+    }
+
+    #[test]
+    fn an_unknown_id_is_not_documented_and_points_to_the_way_out() {
+        let docs = docs();
+        let out = docs.get_domain("shipping");
+        assert!(out.starts_with("Not documented: no domain `shipping`."));
+        assert!(out.contains("Known domains: billing."));
+        assert!(docs
+            .get_feature("x")
+            .contains("Not documented: no feature `x`"));
+        assert!(docs
+            .get_use_case("billing/pay-invoice/nope")
+            .contains("Not documented: no use case"));
+        assert!(docs
+            .get_use_case("cancel-plan/pay-by-card")
+            .contains("Not documented"));
+    }
+
+    #[test]
+    fn a_search_lists_ids_confidence_and_files_or_says_not_documented() {
+        let docs = docs();
+        let out = docs.search_docs("cancel subscription", 5);
+        assert!(out.contains("- [feature] Cancel a plan (`billing/cancel-plan`, not scored)"));
+        let out = docs.search_docs("zzzz", 5);
+        assert!(out.starts_with("Not documented: nothing among"));
+    }
+
+    #[test]
+    fn nothing_is_loaded_before_a_first_generate() {
+        let dir = tempfile::tempdir().unwrap();
+        assert!(Docs::load(dir.path(), &[]).is_none());
+    }
+
+    #[test]
+    fn the_saved_artifacts_are_loaded_and_navigable() {
+        let dir = tempfile::tempdir().unwrap();
+        retrodoc_pipeline::save_features(
+            dir.path(),
+            &[feature(
+                "pay-invoice",
+                "Pay an invoice",
+                "Settle what is due",
+            )],
+        )
+        .unwrap();
+        retrodoc_pipeline::save_use_cases(
+            dir.path(),
+            &[use_case("pay-by-card", "pay-invoice", "Pay by card", "x")],
+        )
+        .unwrap();
+        DomainMap {
+            domains: vec![retrodoc_pipeline::DomainCluster {
+                slug: "billing".into(),
+                name: "Billing".into(),
+                description: "Invoices".into(),
+                paths: vec![],
+                sub_domains: vec![],
+            }],
+        }
+        .save(dir.path())
+        .unwrap();
+
+        let docs = Docs::load(dir.path(), &[]).unwrap();
+        assert!(docs.get_domain("billing").contains("`billing/pay-invoice`"));
+        assert!(docs.get_use_case("pay-by-card").contains("Pay by card"));
+        assert_eq!(docs.index().len(), 3);
+    }
+}

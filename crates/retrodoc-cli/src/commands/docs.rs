@@ -71,3 +71,16 @@ pub fn without_generated(
         .filter(|d| !generated.iter().any(|g| d.path.starts_with(g)))
         .collect()
 }
+
+/// The generated docs the `search` and `mcp` commands answer from: the
+/// artifacts of the last `generate` run and the project's own Markdown docs.
+pub fn load_docs(workspace: &super::workspace::Workspace) -> anyhow::Result<retrodoc_mcp::Docs> {
+    let docs = retrodoc_ingest::existing_docs::load_existing_docs(
+        &workspace.repo_root,
+        &workspace.config.ingest.existing_docs_paths,
+    )
+    .context("could not read the existing docs")?;
+    let docs = without_generated(docs, &workspace.config);
+    retrodoc_mcp::Docs::load(&workspace.repo_root, &docs)
+        .context("no features/use cases found — run `retrodoc generate` first")
+}

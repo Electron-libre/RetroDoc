@@ -65,6 +65,8 @@ During development, replace `retrodoc` with `cargo run -p retrodoc-cli --`.
 | `generate` | Run the whole pipeline and write the docs (`--dry-run`, `--force`, `--no-confidence`, `--confidence-sample N`, `--max-files N`) |
 | `render` | Write the docs from the cached artifacts of the last run, no LLM call |
 | `report` | Print the documentation debt report, no LLM call |
+| `mcp` | Serve the generated docs to LLM agents (Claude Code, Cursor…) as a read-only MCP server over stdio, no LLM call. Point the agent at `retrodoc mcp --path <repo>` |
+| `search` | Search the generated docs lexically, no LLM call (what the MCP server's `search_docs` finds) |
 | `roles`, `glossary`, `entry-points`, `actors`, `surface` | Run or inspect one early pipeline stage on its own |
 
 Run `retrodoc <command> --help` for the details.

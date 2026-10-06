@@ -5,6 +5,7 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 use retrodoc_llm::UsageTracker;
+use tracing_subscriber::fmt::writer::BoxMakeWriter;
 
 /// `RetroDoc` — catch up on a project's documentation debt with AI agents.
 #[derive(Debug, Parser)]
@@ -98,6 +99,14 @@ enum Command {
         #[arg(long, default_value_t = 10)]
         limit: usize,
     },
+    /// Serves the generated documentation to LLM agents (Claude Code, Cursor…)
+    /// as an MCP server over stdin/stdout. Read-only, no LLM call, needs a
+    /// `generate` run. Configure the agent to launch `retrodoc mcp --path
+    /// <repo>`.
+    Mcp {
+        #[arg(long, default_value = ".")]
+        path: PathBuf,
+    },
     /// Prints the application surface (entities, entry points by resource)
     /// as the domain clustering receives it. No LLM call; needs the
     /// artifacts of `retrodoc glossary` and `retrodoc entry-points`.
@@ -148,17 +157,30 @@ impl Command {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let cli = Cli::parse();
+    // The logs go to stdout (plain text when redirected to a file or a pipe: saved logs, smoke
+    // test), except for `mcp`, whose stdout carries the protocol.
+    let logs_to_stderr = matches!(cli.command, Command::Mcp { .. });
+    let ansi = if logs_to_stderr {
+        std::io::stderr().is_terminal()
+    } else {
+        std::io::stdout().is_terminal()
+    };
+    let writer = if logs_to_stderr {
+        BoxMakeWriter::new(std::io::stderr)
+    } else {
+        BoxMakeWriter::new(std::io::stdout)
+    };
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
         )
         .without_time()
-        // The logs go to stdout: plain text when redirected to a file or a pipe (saved logs, smoke test).
-        .with_ansi(std::io::stdout().is_terminal())
+        .with_writer(writer)
+        .with_ansi(ansi)
         .init();
 
-    let cli = Cli::parse();
     let tracker = UsageTracker::new();
     let counted = cli.command.counted();
     let result = match cli.command {
@@ -190,6 +212,7 @@ async fn main() -> anyhow::Result<()> {
         Command::EntryPoints { path } => commands::entry_points::run(&path, &tracker).await,
         Command::Glossary { path } => commands::glossary::run(&path, &tracker).await,
         Command::Actors { path, force } => commands::actors::run(&path, force, &tracker).await,
+        Command::Mcp { path } => commands::mcp::run(&path).await,
         Command::Search { query, path, limit } => commands::search::run(&path, &query, limit),
         Command::Surface { path } => commands::surface::run(&path),
         Command::Roles { path, force } => commands::roles::run(&path, force, &tracker).await,

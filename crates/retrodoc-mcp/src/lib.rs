@@ -3,13 +3,18 @@
 //! calls one: the crate reads the artifacts saved by `generate` and the
 //! collected Markdown docs, and answers from them deterministically.
 //!
-//! Delivered so far: the lexical search ([`SearchIndex`]), which the
-//! `retrodoc search` command exposes to judge retrieval quality; the MCP
-//! tools and server come next.
+//! [`Docs`] holds the loaded artifacts and answers the five tools in
+//! Markdown; [`serve_stdio`] puts them behind an MCP server (`retrodoc mcp`).
+//! The lexical search ([`SearchIndex`]) is also exposed alone by `retrodoc
+//! search`, to judge retrieval quality.
 
 pub mod bm25;
 pub mod corpus;
 pub mod search;
+pub mod server;
+pub mod tools;
 
 pub use corpus::{build_entries, Entry, EntryKind};
 pub use search::{Hit, SearchIndex};
+pub use server::{serve_stdio, DocsServer, McpError};
+pub use tools::Docs;

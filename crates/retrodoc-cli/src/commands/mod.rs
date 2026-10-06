@@ -4,6 +4,7 @@ pub mod entry_points;
 pub mod generate;
 pub mod glossary;
 pub mod init;
+pub mod mcp;
 pub mod render;
 pub mod report;
 pub mod roles;

@@ -1,8 +1,6 @@
 use std::path::Path;
 
-use anyhow::Context;
-use retrodoc_mcp::SearchIndex;
-
+use super::docs::load_docs;
 use super::workspace::Workspace;
 
 /// Characters of the matched text shown under each hit.
@@ -14,14 +12,8 @@ const SNIPPET_CHARS: usize = 160;
 /// the MCP server will have.
 pub fn run(path: &Path, query: &str, limit: usize) -> anyhow::Result<()> {
     let workspace = Workspace::open(path)?;
-    let docs = retrodoc_ingest::existing_docs::load_existing_docs(
-        &workspace.repo_root,
-        &workspace.config.ingest.existing_docs_paths,
-    )
-    .context("could not read the existing docs")?;
-    let docs = super::docs::without_generated(docs, &workspace.config);
-    let index = SearchIndex::load(&workspace.repo_root, &docs)
-        .context("no features/use cases found — run `retrodoc generate` first")?;
+    let docs = load_docs(&workspace)?;
+    let index = docs.index();
 
     let hits = index.search(query, limit);
     if hits.is_empty() {
