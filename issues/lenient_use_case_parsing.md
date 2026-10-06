@@ -64,9 +64,9 @@ response. A malformed field must cost that field, not the feature.
    must get its use cases, without a retry.
 3. [x] **Lenient deserialization** for this field (string or object), with `debug!`; tests for the string,
    object, and unusable object cases.
-4. [ ] **Second smoke test** on the same subset: measure the number of WARNs and whether the second run writes
+4. [x] **Second smoke test** (a small Ruby gem: conclusive, no WARN, rerun writes 0 files and calls no LLM. Rails clone: the feature that failed on every attempt with `primary_actor` as an object, rerun from an empty cache entry, answered in 1 call with no WARN and no retry; the first rerun had not proved it, the model had answered correctly on its 2nd attempt. One sample only, the model is not deterministic.) on the same subset: measure the number of WARNs and whether the second run writes
    0 files; record the numbers here and in `PLAN.md` §7.
-5. [ ] **Docs**: `PLAN.md` §7 (smoke test result), ADR `0006` if the leniency rule changes, doc of the
+5. [x] **Docs**: `PLAN.md` §7 (smoke test result), ADR `0006` if the leniency rule changes, doc of the
    `use_cases` module.
 
 ## Out of scope

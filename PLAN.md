@@ -110,6 +110,14 @@ Already fixed (same session, commit `5543f28` and following):
   `resolve_cited_path` now accepts a unique suffix match.
 - **Empty LLM answer silently accepted.** A feature could end up with no use case and no warning; an
   answer with zero use cases is now logged and retried once.
+- **Use case answers rejected for a text field given as an object.** On a small Rails repo, about 7 of 35
+  features hit `invalid type: map, expected a string`: the model returned `primary_actor` as a
+  `{name, kind}` object, copying the shape of a step's `actor`, and the strict parse dropped the whole feature.
+  `description`, `primary_actor`, `narrative` and a step's `action` now accept an object, turned into text
+  (its `name`, else its string values but `kind`/`type`; `debug!` logs it). Rerun of a feature that failed
+  on every attempt: 1 call, no warning, no retry; the full first-run WARN count was not re-measured, and the
+  model is not deterministic, so this is one sample. Truncated JSON (`finish_reason=length`) is a separate
+  problem, not covered.
 
 ### 7.1 Phase 7 — business-level documentation (open)
 
