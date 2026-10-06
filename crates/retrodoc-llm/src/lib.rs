@@ -11,7 +11,9 @@ use retrodoc_core::config::LlmConfig;
 use serde::{Deserialize, Serialize};
 
 mod usage;
-pub use usage::Usage;
+pub use usage::{
+    CallTotals, PassUsage, Usage, UsageProvider, UsageReport, UsageTracker, UNLABELLED_PASS,
+};
 
 const OPENROUTER_ENDPOINT: &str = "https://openrouter.ai/api/v1/chat/completions";
 /// Number of extra attempts after the initial call, on transient errors

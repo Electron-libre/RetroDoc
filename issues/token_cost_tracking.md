@@ -39,9 +39,11 @@ la fin de `generate`.
 1. [x] **Capture** : `CompletionResponse` porte un `usage` optionnel ; `OpenRouterProvider` le lit. Test sur
    des réponses JSON avec et sans `usage`. Code dans `crates/retrodoc-llm/src/usage.rs` ; un `usage` absent,
    incomplet ou malformé donne `None` sans faire échouer la réponse.
-2. [ ] **Agrégation par passe** : `UsageTracker` partagé (passe courante via `set_pass`) + `UsageProvider<P>`
+2. [x] **Agrégation par passe** : `UsageTracker` partagé (passe courante via `set_pass`) + `UsageProvider<P>`
    qui cumule appels, tokens in/out, durée, appels sans `usage`, par passe et par modèle. Test avec un faux
-   provider, dont un cas concurrent et un cas sans `usage`.
+   provider, dont un cas concurrent et un cas sans `usage`. Pas encore branché dans la CLI (livrable 3).
+   Limite : les appels en échec et les retries internes d'`OpenRouterProvider` ne sont pas comptés, donc les
+   tokens sont une borne basse avec un serveur instable (à documenter au livrable 5).
 3. [ ] **Récapitulatif** à la fin de `generate` et de chaque commande autonome (`roles`, `glossary`,
    `entry-points`, `actors`, `surface` si elle appelle le LLM) : tableau par passe + total. Détail écrit dans
    `.retrodoc/cache/usage.json` (historique des derniers runs), pas dans `run-metadata.json`.
