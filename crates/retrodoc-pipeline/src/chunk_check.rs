@@ -298,10 +298,7 @@ async fn ask_fix(
 mod tests {
     use super::*;
 
-    use std::sync::atomic::{AtomicUsize, Ordering};
-
-    use async_trait::async_trait;
-    use retrodoc_llm::{CompletionRequest, CompletionResponse, LlmError};
+    use crate::testing::FakeLlm;
 
     const RUST: &str = "#[derive(Debug)]
 struct A;
@@ -370,27 +367,6 @@ let x = module.exports;
         assert!(sloppy.problem.unwrap().contains("empty alternative"));
     }
 
-    /// First answer is `bad`, then `good` for the fix call.
-    struct FixProvider {
-        fix: &'static str,
-        calls: AtomicUsize,
-    }
-
-    #[async_trait]
-    impl LlmProvider for FixProvider {
-        async fn complete(
-            &self,
-            _request: CompletionRequest,
-        ) -> Result<CompletionResponse, LlmError> {
-            self.calls.fetch_add(1, Ordering::SeqCst);
-            Ok(CompletionResponse {
-                content: format!(r#"{{"pattern":{:?}}}"#, self.fix),
-                model: "m".to_string(),
-                ..Default::default()
-            })
-        }
-    }
-
     fn rust_repo() -> (tempfile::TempDir, Vec<FileEntry>) {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("a.rs"), RUST).unwrap();
@@ -413,31 +389,25 @@ let x = module.exports;
     async fn a_weak_regex_is_fixed_by_one_more_call_and_a_good_one_is_left_alone() {
         let (dir, files) = rust_repo();
         let fix = r"^\s*(#\[|(pub(\(\w+\))?\s+)?(async\s+)?(fn|struct|impl)\s)";
-        let llm = FixProvider {
-            fix,
-            calls: AtomicUsize::new(0),
-        };
+        let llm = FakeLlm::answering(format!(r#"{{"pattern":{fix:?}}}"#));
 
         let out = verify_boundaries(dir.path(), &files, &llm, vec![boundary(r"^\s*fn\s")])
             .await
             .unwrap();
         assert_eq!(out[0].pattern, fix);
-        assert_eq!(llm.calls.load(Ordering::SeqCst), 1);
+        assert_eq!(llm.calls(), 1);
 
         let out = verify_boundaries(dir.path(), &files, &llm, vec![boundary(fix)])
             .await
             .unwrap();
         assert_eq!(out[0].pattern, fix);
-        assert_eq!(llm.calls.load(Ordering::SeqCst), 1);
+        assert_eq!(llm.calls(), 1);
     }
 
     #[tokio::test]
     async fn a_rule_that_stays_bad_is_dropped_and_an_uncheckable_one_kept() {
         let (dir, files) = rust_repo();
-        let llm = FixProvider {
-            fix: "zzz",
-            calls: AtomicUsize::new(0),
-        };
+        let llm = FakeLlm::answering(r#"{"pattern":"zzz"}"#);
         let other = ChunkBoundary {
             extensions: vec!["lisp".to_string()],
             pattern: "^\\(defun".to_string(),

@@ -1,40 +1,15 @@
 use super::*;
-use retrodoc_llm::CompletionRequest;
 use std::collections::HashMap;
 
-use async_trait::async_trait;
 use retrodoc_ingest::{FileEntry, FileKind, IngestResult};
-use retrodoc_llm::{CompletionResponse, LlmError};
 
 use crate::repo_map::{build_repo_map, FileSummary, ModuleSummary, RepoMapOptions};
+use crate::testing::FakeLlm;
 
-/// Fake provider that always answers a fixed clustering response, to
-/// test parsing + coverage enforcement without depending on the
-/// network.
-struct CannedProvider {
-    response: String,
-}
-
-#[async_trait]
-impl LlmProvider for CannedProvider {
-    async fn complete(&self, _request: CompletionRequest) -> Result<CompletionResponse, LlmError> {
-        Ok(CompletionResponse {
-            content: self.response.clone(),
-            model: "test-model".to_string(),
-            ..Default::default()
-        })
-    }
-}
-
-/// Provider that panics if called, to assert a fast path never reaches
+/// A provider that panics if called, to assert a fast path never reaches
 /// the LLM.
-struct PanicProvider;
-
-#[async_trait]
-impl LlmProvider for PanicProvider {
-    async fn complete(&self, _request: CompletionRequest) -> Result<CompletionResponse, LlmError> {
-        panic!("LLM should not have been called");
-    }
+fn never_called() -> FakeLlm {
+    FakeLlm::replying(|_, _| panic!("LLM should not have been called"))
 }
 
 fn file_summary(path: &str) -> FileSummary {
@@ -115,7 +90,7 @@ async fn build_domains_skips_the_llm_when_there_are_no_files() {
         &repo_map,
         &[],
         &Surface::default(),
-        &PanicProvider,
+        &never_called(),
     )
     .await
     .unwrap();
@@ -135,13 +110,12 @@ async fn build_domains_parses_response_and_persists_the_artifact() {
             file_count: 2,
         }],
     };
-    let provider = CannedProvider {
-        response: r#"```json
+    let provider = FakeLlm::answering(
+        r#"```json
         {"domains":[{"slug":"billing","name":"Billing","description":"Handles invoices.",
         "paths":[""],"sub_domains":[]}]}
-        ```"#
-            .to_string(),
-    };
+        ```"#,
+    );
 
     let (map, report) = build_domains(dir.path(), &repo_map, &[], &Surface::default(), &provider)
         .await
@@ -167,11 +141,10 @@ async fn build_domains_reuses_the_saved_clustering_when_the_input_is_unchanged()
         files: vec![file_summary("a.rs")],
         modules: vec![],
     };
-    let provider = CannedProvider {
-        response: r#"{"domains":[{"slug":"billing","name":"Billing","description":"d",
-        "paths":["a.rs"],"sub_domains":[]}]}"#
-            .to_string(),
-    };
+    let provider = FakeLlm::answering(
+        r#"{"domains":[{"slug":"billing","name":"Billing","description":"d",
+        "paths":["a.rs"],"sub_domains":[]}]}"#,
+    );
     build_domains(dir.path(), &repo_map, &[], &Surface::default(), &provider)
         .await
         .unwrap();
@@ -182,7 +155,7 @@ async fn build_domains_reuses_the_saved_clustering_when_the_input_is_unchanged()
         &repo_map,
         &[],
         &Surface::default(),
-        &PanicProvider,
+        &never_called(),
     )
     .await
     .unwrap();
@@ -215,9 +188,7 @@ async fn build_domains_works_end_to_end_with_a_real_repo_map() {
         existing_docs: Vec::new(),
     };
 
-    let repo_map_provider = CannedProvider {
-        response: "a summary".to_string(),
-    };
+    let repo_map_provider = FakeLlm::answering("a summary");
     let repo_map = build_repo_map(
         dir.path(),
         &ingest,
@@ -227,11 +198,10 @@ async fn build_domains_works_end_to_end_with_a_real_repo_map() {
     .await
     .unwrap();
 
-    let clustering_provider = CannedProvider {
-        response: r#"{"domains":[{"slug":"core","name":"Core","description":"d",
-        "paths":[""],"sub_domains":[]}]}"#
-            .to_string(),
-    };
+    let clustering_provider = FakeLlm::answering(
+        r#"{"domains":[{"slug":"core","name":"Core","description":"d",
+        "paths":[""],"sub_domains":[]}]}"#,
+    );
     let (map, report) = build_domains(
         dir.path(),
         &repo_map,
@@ -387,27 +357,6 @@ fn flags_domains_named_after_a_technical_layer() {
     );
 }
 
-/// Records the prompts it receives.
-struct RecordingProvider {
-    prompts: std::sync::Mutex<Vec<(String, String)>>,
-}
-
-#[async_trait]
-impl LlmProvider for RecordingProvider {
-    async fn complete(&self, request: CompletionRequest) -> Result<CompletionResponse, LlmError> {
-        self.prompts.lock().unwrap().push((
-            request.messages[0].content.clone(),
-            request.messages[1].content.clone(),
-        ));
-        Ok(CompletionResponse {
-            content: r#"{"domains":[{"slug":"contracts","name":"Contracts","description":"d","paths":[""]}]}"#
-                .to_string(),
-            model: "m".to_string(),
-            ..Default::default()
-        })
-    }
-}
-
 #[tokio::test]
 async fn the_surface_reaches_the_prompt_and_invalidates_the_saved_clustering() {
     use crate::entry_points::EntryPoints;
@@ -438,9 +387,9 @@ async fn the_surface_reaches_the_prompt_and_invalidates_the_saved_clustering() {
         tests: Vec::new(),
     };
     let surface = Surface::new(&glossary, &EntryPoints::default());
-    let provider = RecordingProvider {
-        prompts: std::sync::Mutex::new(Vec::new()),
-    };
+    let provider = FakeLlm::answering(
+        r#"{"domains":[{"slug":"contracts","name":"Contracts","description":"d","paths":[""]}]}"#,
+    );
 
     // Without a surface: the plain prompt. With one: entities + naming rule.
     build_domains(dir.path(), &repo_map, &[], &Surface::default(), &provider)
@@ -450,7 +399,7 @@ async fn the_surface_reaches_the_prompt_and_invalidates_the_saved_clustering() {
         .await
         .unwrap();
 
-    let prompts = provider.prompts.lock().unwrap();
+    let prompts = provider.prompt_pairs();
     assert_eq!(prompts.len(), 2, "a new surface must recompute the domains");
     assert!(!prompts[0].0.contains("technical layer"));
     assert!(!prompts[0].1.contains("Business entities"));

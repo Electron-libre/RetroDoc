@@ -151,7 +151,7 @@ retrodoc-cli ──> retrodoc-render ──> retrodoc-core
   crate opts in via `[lints] workspace = true`). Any new `pub fn` returning `Result` needs a `# Errors` doc
   section; getters with no side effects need `#[must_use]`. Keep clippy warning-free before committing.
 - Pipeline code that calls an `LlmProvider` is tested with a fake in-`#[cfg(test)]` implementation of the
-  trait (see `CountingProvider` in `repo_map/tests.rs`) rather than hitting the network — follow that pattern for
+  trait (`FakeLlm` in `testing.rs`: canned or scripted answers, call count, recorded prompts) rather than hitting the network — follow that pattern for
   new pipeline passes instead of adding integration tests that need `OPENROUTER_API_KEY`.
 - Filesystem-touching tests use `tempfile::tempdir()` and, where git history matters, actually run `git
   init`/`git commit` in the tempdir (see `git_history.rs` and `walker.rs` tests) rather than mocking `git2`.

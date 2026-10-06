@@ -375,29 +375,7 @@ fn render_tree(files: &[FileEntry]) -> String {
 mod tests {
     use super::*;
 
-    use async_trait::async_trait;
-    use retrodoc_llm::{CompletionRequest, CompletionResponse, LlmError};
-    use std::sync::atomic::{AtomicUsize, Ordering};
-
-    struct CountingProvider {
-        response: String,
-        calls: AtomicUsize,
-    }
-
-    #[async_trait]
-    impl LlmProvider for CountingProvider {
-        async fn complete(
-            &self,
-            _request: CompletionRequest,
-        ) -> Result<CompletionResponse, LlmError> {
-            self.calls.fetch_add(1, Ordering::SeqCst);
-            Ok(CompletionResponse {
-                content: self.response.clone(),
-                model: "test-model".to_string(),
-                ..Default::default()
-            })
-        }
-    }
+    use crate::testing::FakeLlm;
 
     fn entry(path: &str, kind: FileKind) -> FileEntry {
         FileEntry {
@@ -518,14 +496,12 @@ mod tests {
             history_by_path: std::collections::HashMap::new(),
             existing_docs: Vec::new(),
         };
-        let llm = CountingProvider {
-            response: r#"```json
+        let llm = FakeLlm::answering(
+            r#"```json
 {"stack":"Rust library","rules":[{"pattern":"src/**","role":"logic"}],
 "chunk_boundaries":[{"extensions":["rs"],"pattern":"^\\s*(pub )?fn "}]}
-```"#
-                .to_string(),
-            calls: AtomicUsize::new(0),
-        };
+```"#,
+        );
 
         let first = identify_roles(dir.path(), &ingest, &llm, false)
             .await
@@ -540,11 +516,11 @@ mod tests {
         assert_eq!(second.chunk_boundaries[0].pattern, r"^\s*(pub )?fn ");
         let map = second.classify(&ingest.files);
         assert_eq!(map.chunk_boundaries, second.chunk_boundaries);
-        assert_eq!(llm.calls.load(Ordering::SeqCst), 1);
+        assert_eq!(llm.calls(), 1);
 
         identify_roles(dir.path(), &ingest, &llm, true)
             .await
             .unwrap();
-        assert_eq!(llm.calls.load(Ordering::SeqCst), 2);
+        assert_eq!(llm.calls(), 2);
     }
 }

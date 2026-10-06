@@ -239,7 +239,7 @@ flowchart LR
     passes["pipeline passes<br/>(repo_map, domains, features,<br/>use_cases, confidence, roles, glossary,<br/>entry_points)"] --> trait["trait LlmProvider"]
     trait --> or["OpenRouterProvider<br/>HTTP + exponential-backoff retry"]
     trait -.->|wrappers| wrap["HeartbeatProvider<br/>UsageProvider (tokens per pass)"]
-    trait -.-> fake["test fakes<br/>(e.g. CountingProvider)"]
+    trait -.-> fake["test fakes<br/>(FakeLlm)"]
     or --> ep[("OpenRouter, or any server speaking the<br/>OpenAI chat-completions format<br/>via llm.base_url (e.g. local Ollama)")]
 ```
 

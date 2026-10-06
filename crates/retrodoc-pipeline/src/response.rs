@@ -115,6 +115,8 @@ mod tests {
 
     use serde::Deserialize;
 
+    use crate::testing::FakeLlm;
+
     #[derive(Debug, Deserialize, PartialEq)]
     struct Answer {
         n: u32,
@@ -143,50 +145,23 @@ mod tests {
         assert!(parse_json_response::<Answer>("I cannot do that").is_err());
     }
 
-    /// Answers with each canned response in turn, counting calls.
-    struct SequenceProvider {
-        responses: Vec<&'static str>,
-        calls: std::sync::atomic::AtomicUsize,
-    }
-
-    #[async_trait::async_trait]
-    impl LlmProvider for SequenceProvider {
-        async fn complete(
-            &self,
-            _: CompletionRequest,
-        ) -> Result<retrodoc_llm::CompletionResponse, retrodoc_llm::LlmError> {
-            let i = self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            Ok(retrodoc_llm::CompletionResponse {
-                content: self.responses[i.min(self.responses.len() - 1)].to_string(),
-                model: "test-model".to_string(),
-                ..Default::default()
-            })
-        }
-    }
-
     #[tokio::test]
     async fn complete_json_retries_once_then_succeeds() {
-        let provider = SequenceProvider {
-            responses: vec!["garbage", "{\"n\":5}"],
-            calls: 0.into(),
-        };
+        let provider = FakeLlm::sequence(&["garbage", "{\"n\":5}"]);
         let got = complete_json::<Answer>(&provider, "s", "u", "test")
             .await
             .unwrap();
         assert_eq!(got, Some(Answer { n: 5 }));
-        assert_eq!(provider.calls.load(std::sync::atomic::Ordering::SeqCst), 2);
+        assert_eq!(provider.calls(), 2);
     }
 
     #[tokio::test]
     async fn complete_json_gives_up_after_two_attempts() {
-        let provider = SequenceProvider {
-            responses: vec!["garbage"],
-            calls: 0.into(),
-        };
+        let provider = FakeLlm::answering("garbage");
         let got = complete_json::<Answer>(&provider, "s", "u", "test")
             .await
             .unwrap();
         assert_eq!(got, None);
-        assert_eq!(provider.calls.load(std::sync::atomic::Ordering::SeqCst), 2);
+        assert_eq!(provider.calls(), 2);
     }
 }

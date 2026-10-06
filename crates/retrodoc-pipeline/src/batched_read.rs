@@ -145,11 +145,9 @@ fn batches(files: &[PendingChunk]) -> Vec<&[PendingChunk]> {
 mod tests {
     use super::*;
 
-    use std::sync::Mutex;
-
-    use async_trait::async_trait;
-    use retrodoc_llm::{CompletionRequest, CompletionResponse, LlmError};
     use serde::Deserialize;
+
+    use crate::testing::FakeLlm;
 
     #[test]
     fn batches_respect_the_char_budget() {
@@ -171,34 +169,19 @@ mod tests {
 
     /// Answers `{"files":[...]}` with the files of the prompt, but refuses
     /// (not JSON) a prompt holding several files when `picky`.
-    struct Echo {
-        picky: bool,
-        calls: Mutex<usize>,
-    }
-
-    #[async_trait]
-    impl LlmProvider for Echo {
-        async fn complete(
-            &self,
-            request: CompletionRequest,
-        ) -> Result<CompletionResponse, LlmError> {
-            *self.calls.lock().unwrap() += 1;
-            let prompt = &request.messages[1].content;
-            let files: Vec<&str> = prompt
+    fn echo(picky: bool) -> FakeLlm {
+        FakeLlm::replying(move |_, request| {
+            let files: Vec<&str> = request.messages[1]
+                .content
                 .lines()
                 .filter_map(|l| l.strip_prefix("--- ")?.strip_suffix(" ---"))
                 .collect();
-            let content = if self.picky && files.len() > 1 {
+            Ok(if picky && files.len() > 1 {
                 "too long, cut".to_string()
             } else {
                 format!("{{\"files\":{}}}", serde_json::to_string(&files).unwrap())
-            };
-            Ok(CompletionResponse {
-                content,
-                model: "m".to_string(),
-                ..Default::default()
             })
-        }
+        })
     }
 
     #[derive(Default)]
@@ -234,17 +217,14 @@ mod tests {
 
     #[tokio::test]
     async fn a_file_is_finished_once_all_its_chunks_are_read() {
-        let llm = Echo {
-            picky: false,
-            calls: Mutex::new(0),
-        };
+        let llm = echo(false);
         let pending = vec![chunk("a", "one"), chunk("a", "two"), chunk("b", "three")];
         let mut state = State::default();
 
         spec().run(&llm, &pending, &mut state).await.unwrap();
 
         // One batch, one call; each chunk of `a` yields one item.
-        assert_eq!(*llm.calls.lock().unwrap(), 1);
+        assert_eq!(llm.calls(), 1);
         assert_eq!(state.done.len(), 2);
         assert!(state.done.contains(&("b".to_string(), 1)));
         assert!(state.done.contains(&("a".to_string(), 2)));
@@ -252,26 +232,20 @@ mod tests {
 
     #[tokio::test]
     async fn an_unusable_batch_is_retried_file_by_file() {
-        let llm = Echo {
-            picky: true,
-            calls: Mutex::new(0),
-        };
+        let llm = echo(true);
         let pending = vec![chunk("a", "one"), chunk("b", "two")];
         let mut state = State::default();
 
         spec().run(&llm, &pending, &mut state).await.unwrap();
 
         // The batch is tried twice (`complete_json` retries once), then each file once.
-        assert_eq!(*llm.calls.lock().unwrap(), 4);
+        assert_eq!(llm.calls(), 4);
         assert_eq!(state.done.len(), 2);
     }
 
     #[tokio::test]
     async fn the_state_is_checkpointed_after_every_batch() {
-        let llm = Echo {
-            picky: false,
-            calls: Mutex::new(0),
-        };
+        let llm = echo(false);
         let big = "x".repeat(BATCH_CHARS);
         let pending = vec![chunk("a", &big), chunk("b", &big)];
         let mut state = State::default();
@@ -287,6 +261,6 @@ mod tests {
 
         // The first checkpoint fails: the second batch is never read.
         assert!(result.is_err());
-        assert_eq!(*llm.calls.lock().unwrap(), 1);
+        assert_eq!(llm.calls(), 1);
     }
 }

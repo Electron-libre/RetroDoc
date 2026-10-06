@@ -404,33 +404,7 @@ fn quoted_argument(line: &str, keyword: &str) -> Option<String> {
 mod tests {
     use super::*;
 
-    use std::sync::Mutex;
-
-    use async_trait::async_trait;
-    use retrodoc_llm::{CompletionRequest, CompletionResponse, LlmError};
-
-    struct ScriptedProvider {
-        response: String,
-        prompts: Mutex<Vec<String>>,
-    }
-
-    #[async_trait]
-    impl LlmProvider for ScriptedProvider {
-        async fn complete(
-            &self,
-            request: CompletionRequest,
-        ) -> Result<CompletionResponse, LlmError> {
-            self.prompts
-                .lock()
-                .unwrap()
-                .push(request.messages[1].content.clone());
-            Ok(CompletionResponse {
-                content: self.response.clone(),
-                model: "test-model".to_string(),
-                ..Default::default()
-            })
-        }
-    }
+    use crate::testing::FakeLlm;
 
     fn roles(entries: &[(&str, FileRole)]) -> RoleMap {
         RoleMap {
@@ -555,15 +529,13 @@ RSpec.describe Contract do
             ("app/models/company.rb", FileRole::Model),
             ("spec/contract_spec.rb", FileRole::Test),
         ]);
-        let llm = ScriptedProvider {
-            response: r#"{"entities":[
+        let llm = FakeLlm::answering(
+            r#"{"entities":[
                 {"file":"models/contract.rb","name":"Contract","description":"An agreement",
                  "attributes":["signed_at"],"associations":[{"kind":"belongs_to","target":"Company"}]},
                 {"file":"app/models/company.rb","name":"Company"},
-                {"file":"nowhere.rb","name":"Ghost"}]}"#
-                .to_string(),
-            prompts: Mutex::new(Vec::new()),
-        };
+                {"file":"nowhere.rb","name":"Ghost"}]}"#,
+        );
 
         let glossary = build_glossary(dir.path(), &roles, &llm).await.unwrap();
         let entities: Vec<_> = glossary
@@ -578,11 +550,11 @@ RSpec.describe Contract do
             ]
         );
         assert_eq!(glossary.phrase_count(), 1);
-        assert_eq!(llm.prompts.lock().unwrap().len(), 1);
+        assert_eq!(llm.prompts().len(), 1);
 
         // Second run: nothing changed, no call.
         build_glossary(dir.path(), &roles, &llm).await.unwrap();
-        assert_eq!(llm.prompts.lock().unwrap().len(), 1);
+        assert_eq!(llm.prompts().len(), 1);
 
         // A changed file is the only one sent again.
         std::fs::write(
@@ -591,7 +563,7 @@ RSpec.describe Contract do
         )
         .unwrap();
         build_glossary(dir.path(), &roles, &llm).await.unwrap();
-        let prompts = llm.prompts.lock().unwrap();
+        let prompts = llm.prompts();
         assert_eq!(prompts.len(), 2);
         assert!(prompts[1].contains("company.rb") && !prompts[1].contains("contract.rb"));
     }
@@ -623,39 +595,14 @@ RSpec.describe Contract do
         let repeats = MAX_MODEL_FILE_CHARS * 4 / method.len();
         std::fs::write(dir.path().join("contract.rb"), method.repeat(repeats)).unwrap();
         let roles = roles(&[("contract.rb", FileRole::Model)]);
-        let llm = ScriptedProvider {
-            response: r#"{"entities":[{"file":"contract.rb","name":"Contract"}]}"#.to_string(),
-            prompts: Mutex::new(Vec::new()),
-        };
+        let llm = FakeLlm::answering(r#"{"entities":[{"file":"contract.rb","name":"Contract"}]}"#);
 
         let glossary = build_glossary(dir.path(), &roles, &llm).await.unwrap();
 
-        let prompts = llm.prompts.lock().unwrap();
+        let prompts = llm.prompts();
         assert!(prompts.len() >= 2, "several parts, several calls");
         assert!(prompts[0].contains("(part 1/"));
         assert_eq!(glossary.entities().count(), 1);
-    }
-
-    /// Refuses (not JSON) any prompt holding several files, answers for a single one.
-    struct OnlyOneFileAtATime;
-
-    #[async_trait]
-    impl LlmProvider for OnlyOneFileAtATime {
-        async fn complete(
-            &self,
-            request: CompletionRequest,
-        ) -> Result<CompletionResponse, LlmError> {
-            let content = if request.messages[1].content.matches("\n--- ").count() > 1 {
-                "too long, cut".to_string()
-            } else {
-                r#"{"entities":[{"file":"x","name":"Thing"}]}"#.to_string()
-            };
-            Ok(CompletionResponse {
-                content,
-                model: "m".to_string(),
-                ..Default::default()
-            })
-        }
     }
 
     #[tokio::test]
@@ -666,9 +613,21 @@ RSpec.describe Contract do
         }
         let roles = roles(&[("a.rb", FileRole::Model), ("b.rb", FileRole::Model)]);
 
-        let glossary = build_glossary(dir.path(), &roles, &OnlyOneFileAtATime)
-            .await
-            .unwrap();
+        let glossary = build_glossary(
+            dir.path(),
+            &roles,
+            &FakeLlm::replying(|_, request| {
+                Ok(
+                    if request.messages[1].content.matches("\n--- ").count() > 1 {
+                        "too long, cut".to_string()
+                    } else {
+                        r#"{"entities":[{"file":"x","name":"Thing"}]}"#.to_string()
+                    },
+                )
+            }),
+        )
+        .await
+        .unwrap();
 
         assert_eq!(glossary.models.len(), 2);
         assert_eq!(glossary.entities().count(), 2);

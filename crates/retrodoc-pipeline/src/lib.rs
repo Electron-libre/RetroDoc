@@ -36,6 +36,8 @@ mod response;
 pub mod roles;
 pub mod slices;
 pub mod surface;
+#[cfg(test)]
+mod testing;
 pub mod usage_log;
 pub mod use_cases;
 pub mod vocabulary;

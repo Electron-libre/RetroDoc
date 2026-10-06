@@ -269,33 +269,7 @@ fn attribute_entry_points(
 mod tests {
     use super::*;
 
-    use std::sync::Mutex;
-
-    use async_trait::async_trait;
-    use retrodoc_llm::{CompletionRequest, CompletionResponse, LlmError};
-
-    struct ScriptedProvider {
-        response: String,
-        prompts: Mutex<Vec<String>>,
-    }
-
-    #[async_trait]
-    impl LlmProvider for ScriptedProvider {
-        async fn complete(
-            &self,
-            request: CompletionRequest,
-        ) -> Result<CompletionResponse, LlmError> {
-            self.prompts
-                .lock()
-                .unwrap()
-                .push(request.messages[1].content.clone());
-            Ok(CompletionResponse {
-                content: self.response.clone(),
-                model: "test-model".to_string(),
-                ..Default::default()
-            })
-        }
-    }
+    use crate::testing::FakeLlm;
 
     #[test]
     fn unknown_kinds_parse_as_other_and_missing_fields_default() {
@@ -339,17 +313,15 @@ mod tests {
             .collect(),
             ..RoleMap::default()
         };
-        let llm = ScriptedProvider {
-            response: r#"{"entry_points":[
+        let llm = FakeLlm::answering(
+            r#"{"entry_points":[
                 {"file":"controllers/contracts_controller.rb","kind":"http_route",
                  "name":"POST /contracts/:id/sign","verb":"sign","resource":"contract",
                  "description":"A signatory signs a contract",
                  "outputs":[{"kind":"email","description":"confirmation to the parties"},
                             {"kind":"db_write","description":"contract marked signed"}]},
-                {"file":"nowhere.rb","kind":"job","name":"Ghost"}]}"#
-                .to_string(),
-            prompts: Mutex::new(Vec::new()),
-        };
+                {"file":"nowhere.rb","kind":"job","name":"Ghost"}]}"#,
+        );
 
         let inventory = build_entry_points(dir.path(), &roles, &llm).await.unwrap();
         let all: Vec<_> = inventory.iter().collect();
@@ -361,11 +333,11 @@ mod tests {
         assert_eq!(all[0].1.outputs.len(), 2);
         assert_eq!(inventory.distribution()[&EntryKind::HttpRoute], 1);
         // The model file is never sent.
-        assert!(!llm.prompts.lock().unwrap()[0].contains("user.rb"));
-        assert_eq!(llm.prompts.lock().unwrap().len(), 1);
+        assert!(!llm.prompts()[0].contains("user.rb"));
+        assert_eq!(llm.prompts().len(), 1);
 
         build_entry_points(dir.path(), &roles, &llm).await.unwrap();
-        assert_eq!(llm.prompts.lock().unwrap().len(), 1);
+        assert_eq!(llm.prompts().len(), 1);
 
         std::fs::write(
             dir.path().join("app/controllers/users_controller.rb"),
@@ -373,34 +345,11 @@ mod tests {
         )
         .unwrap();
         build_entry_points(dir.path(), &roles, &llm).await.unwrap();
-        let prompts = llm.prompts.lock().unwrap();
+        let prompts = llm.prompts();
         assert_eq!(prompts.len(), 2);
         assert!(
             prompts[1].contains("users_controller") && !prompts[1].contains("contracts_controller")
         );
-    }
-
-    /// Answers the first call, then fails like a timed-out connection.
-    struct FailsAfterFirst(Mutex<u32>);
-
-    #[async_trait]
-    impl LlmProvider for FailsAfterFirst {
-        async fn complete(
-            &self,
-            _request: CompletionRequest,
-        ) -> Result<CompletionResponse, LlmError> {
-            let mut calls = self.0.lock().unwrap();
-            *calls += 1;
-            if *calls > 1 {
-                return Err(LlmError::Transport("timed out".to_string()));
-            }
-            Ok(CompletionResponse {
-                content: r#"{"entry_points":[{"file":"a.rb","kind":"job","name":"AJob"}]}"#
-                    .to_string(),
-                model: "m".to_string(),
-                ..Default::default()
-            })
-        }
     }
 
     #[tokio::test]
@@ -419,7 +368,14 @@ mod tests {
             ..RoleMap::default()
         };
 
-        let result = build_entry_points(dir.path(), &roles, &FailsAfterFirst(Mutex::new(0))).await;
+        let result = build_entry_points(
+            dir.path(),
+            &roles,
+            &FakeLlm::failing_after(1, |_| {
+                r#"{"entry_points":[{"file":"a.rb","kind":"job","name":"AJob"}]}"#.to_string()
+            }),
+        )
+        .await;
 
         assert!(result.is_err());
         let saved = EntryPoints::load(dir.path()).expect("first batch saved");
@@ -439,45 +395,18 @@ mod tests {
                 .collect(),
             ..RoleMap::default()
         };
-        let llm = ScriptedProvider {
-            response: r#"{"entry_points":[{"file":"big.rb","kind":"http_route","name":"GET /a"}]}"#
-                .to_string(),
-            prompts: Mutex::new(Vec::new()),
-        };
+        let llm = FakeLlm::answering(
+            r#"{"entry_points":[{"file":"big.rb","kind":"http_route","name":"GET /a"}]}"#,
+        );
 
         let inventory = build_entry_points(dir.path(), &roles, &llm).await.unwrap();
 
-        let prompts = llm.prompts.lock().unwrap();
+        let prompts = llm.prompts();
         assert!(prompts.len() >= 2, "several parts, several calls");
         assert!(prompts[0].contains("(part 1/"));
         assert!(prompts[1].contains("(part 3/"));
         // The same entry point seen in every part is kept once.
         assert_eq!(inventory.iter().count(), 1);
-    }
-
-    /// Refuses (not JSON) any prompt holding several files, answers for a single one.
-    struct OnlyOneFileAtATime {
-        calls: Mutex<u32>,
-    }
-
-    #[async_trait]
-    impl LlmProvider for OnlyOneFileAtATime {
-        async fn complete(
-            &self,
-            request: CompletionRequest,
-        ) -> Result<CompletionResponse, LlmError> {
-            *self.calls.lock().unwrap() += 1;
-            let content = if request.messages[1].content.matches("\n--- ").count() > 1 {
-                "too long, cut".to_string()
-            } else {
-                r#"{"entry_points":[{"file":"x","kind":"job","name":"AJob"}]}"#.to_string()
-            };
-            Ok(CompletionResponse {
-                content,
-                model: "m".to_string(),
-                ..Default::default()
-            })
-        }
     }
 
     #[tokio::test]
@@ -493,14 +422,20 @@ mod tests {
                 .collect(),
             ..RoleMap::default()
         };
-        let llm = OnlyOneFileAtATime {
-            calls: Mutex::new(0),
-        };
+        let llm = FakeLlm::replying(|_, request| {
+            Ok(
+                if request.messages[1].content.matches("\n--- ").count() > 1 {
+                    "too long, cut".to_string()
+                } else {
+                    r#"{"entry_points":[{"file":"x","kind":"job","name":"AJob"}]}"#.to_string()
+                },
+            )
+        });
 
         let inventory = build_entry_points(dir.path(), &roles, &llm).await.unwrap();
 
         // Both files are in one batch: two failed attempts, then one call each.
-        assert_eq!(*llm.calls.lock().unwrap(), 4);
+        assert_eq!(llm.calls(), 4);
         assert_eq!(inventory.files.len(), 2);
         assert_eq!(inventory.iter().count(), 2);
     }

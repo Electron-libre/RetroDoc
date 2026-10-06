@@ -1,22 +1,6 @@
 use super::*;
 
-use async_trait::async_trait;
-use retrodoc_llm::{CompletionRequest, CompletionResponse, LlmError};
-
-struct CannedProvider {
-    response: String,
-}
-
-#[async_trait]
-impl LlmProvider for CannedProvider {
-    async fn complete(&self, _: CompletionRequest) -> Result<CompletionResponse, LlmError> {
-        Ok(CompletionResponse {
-            content: self.response.clone(),
-            model: "test-model".to_string(),
-            ..Default::default()
-        })
-    }
-}
+use crate::testing::FakeLlm;
 
 fn feature(slug: &str, paths: &[&str]) -> Feature {
     Feature {
@@ -62,8 +46,8 @@ fn numbered_excerpt_numbers_lines_and_truncates() {
 async fn build_use_cases_renumbers_steps_and_drops_ungrounded_refs() {
     let dir = tempfile::tempdir().unwrap();
     std::fs::write(dir.path().join("a.rs"), "fn a() {}\n").unwrap();
-    let provider = CannedProvider {
-        response: r#"{"use_cases":[
+    let provider = FakeLlm::answering(
+        r#"{"use_cases":[
           {"slug":"Pay invoice","name":"Pay invoice","description":"d","steps":[
             {"description":"s1","actor":{"name":"Customer","kind":"human"},
              "action":"submits payment",
@@ -72,9 +56,8 @@ async fn build_use_cases_renumbers_steps_and_drops_ungrounded_refs() {
             {"description":"s2","actor":{"name":"API","kind":"system"},
              "action":"records payment","source_refs":[]}]},
           {"slug":"empty","name":"Empty","description":"d","steps":[]}
-        ]}"#
-        .to_string(),
-    };
+        ]}"#,
+    );
 
     let use_cases = build_use_cases(
         dir.path(),
@@ -105,9 +88,7 @@ async fn build_use_cases_renumbers_steps_and_drops_ungrounded_refs() {
 async fn build_use_cases_skips_features_without_readable_files_and_bad_answers() {
     let dir = tempfile::tempdir().unwrap();
     std::fs::write(dir.path().join("a.rs"), "fn a() {}\n").unwrap();
-    let provider = CannedProvider {
-        response: "not json".to_string(),
-    };
+    let provider = FakeLlm::answering("not json");
 
     let use_cases = build_use_cases(
         dir.path(),
@@ -130,8 +111,8 @@ async fn build_use_cases_tolerates_sloppy_steps_and_references() {
     std::fs::write(dir.path().join("a.rs"), "fn a() {}\n").unwrap();
     // Two fenced blocks (only the first counts), an empty step, a step
     // without actor, a note instead of a reference, a free-form actor kind.
-    let provider = CannedProvider {
-        response: r#"```json
+    let provider = FakeLlm::answering(
+        r#"```json
         {"use_cases":[{"slug":"u","name":"U","description":"d","steps":[
           {},
           {"description":"no actor","action":"x"},
@@ -140,9 +121,8 @@ async fn build_use_cases_tolerates_sloppy_steps_and_references() {
         ```
         ```json
         {"use_cases":[]}
-        ```"#
-            .to_string(),
-    };
+        ```"#,
+    );
 
     let use_cases = build_use_cases(
         dir.path(),
@@ -162,34 +142,17 @@ async fn build_use_cases_tolerates_sloppy_steps_and_references() {
     assert_eq!(steps[0].source_refs[0].path, "a.rs");
 }
 
-struct CountingProvider {
-    calls: std::sync::atomic::AtomicUsize,
-}
-
-#[async_trait]
-impl LlmProvider for CountingProvider {
-    async fn complete(&self, _: CompletionRequest) -> Result<CompletionResponse, LlmError> {
-        self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        Ok(CompletionResponse {
-            content: r#"{"use_cases":[{"slug":"u","name":"U","description":"d","steps":[
-            {"description":"s","actor":{"name":"A","kind":"human"},"action":"act",
-             "source_refs":[{"path":"a.rs"}]}]}]}"#
-                .to_string(),
-            model: "test-model".to_string(),
-            ..Default::default()
-        })
-    }
-}
-
 #[tokio::test]
 async fn rerun_reuses_use_cases_until_a_file_changes() {
     let dir = tempfile::tempdir().unwrap();
     std::fs::write(dir.path().join("a.rs"), "fn a() {}").unwrap();
     let features = vec![feature("pay", &["a.rs"])];
-    let provider = CountingProvider {
-        calls: std::sync::atomic::AtomicUsize::new(0),
-    };
-    let calls = || provider.calls.load(std::sync::atomic::Ordering::SeqCst);
+    let provider = FakeLlm::answering(
+        r#"{"use_cases":[{"slug":"u","name":"U","description":"d","steps":[
+            {"description":"s","actor":{"name":"A","kind":"human"},"action":"act",
+             "source_refs":[{"path":"a.rs"}]}]}]}"#,
+    );
+    let calls = || provider.calls();
 
     let mut first = build_use_cases(dir.path(), &features, &UseCaseContext::default(), &provider)
         .await
@@ -212,27 +175,6 @@ async fn rerun_reuses_use_cases_until_a_file_changes() {
         .unwrap();
     assert_eq!(calls(), 2, "a changed file must invalidate the feature");
     assert!(redone[0].confidence.is_none());
-}
-
-/// Answers a fixed use case and records the prompts it receives.
-struct RecordingProvider {
-    response: String,
-    prompts: std::sync::Mutex<Vec<(String, String)>>,
-}
-
-#[async_trait]
-impl LlmProvider for RecordingProvider {
-    async fn complete(&self, request: CompletionRequest) -> Result<CompletionResponse, LlmError> {
-        self.prompts.lock().unwrap().push((
-            request.messages[0].content.clone(),
-            request.messages[1].content.clone(),
-        ));
-        Ok(CompletionResponse {
-            content: self.response.clone(),
-            model: "m".to_string(),
-            ..Default::default()
-        })
-    }
 }
 
 #[tokio::test]
@@ -280,14 +222,12 @@ async fn a_feature_with_entry_points_gets_them_and_the_code_they_run() {
         .iter()
         .map(Path::new),
     );
-    let provider = RecordingProvider {
-        response: r#"{"use_cases":[{"slug":"sign","name":"Sign a contract","description":"d",
+    let provider = FakeLlm::answering(
+        r#"{"use_cases":[{"slug":"sign","name":"Sign a contract","description":"d",
           "entry_points":["post /contracts/:id/sign","GET /ghost"],
           "steps":[{"description":"s","actor":{"name":"Signatory","kind":"human"},
-            "action":"signs","source_refs":[{"path":"app/contract_signer.rb"}]}]}]}"#
-            .to_string(),
-        prompts: std::sync::Mutex::new(Vec::new()),
-    };
+            "action":"signs","source_refs":[{"path":"app/contract_signer.rb"}]}]}]}"#,
+    );
     // The feature only lists the controller: the signer is outside it.
     let features = [feature("signing", &["app/contracts_controller.rb"])];
 
@@ -300,7 +240,7 @@ async fn a_feature_with_entry_points_gets_them_and_the_code_they_run() {
         .await
         .unwrap();
 
-    let prompts = provider.prompts.lock().unwrap();
+    let prompts = provider.prompt_pairs();
     assert!(prompts[0].0.contains("entry_points"));
     assert!(prompts[0]
         .1
@@ -340,14 +280,12 @@ async fn known_actors_reach_the_prompt_and_name_the_steps() {
             },
         ],
     };
-    let provider = RecordingProvider {
-        response: r#"{"use_cases":[{"slug":"sign","name":"Sign","description":"d","primary_actor":"SIGNATORY","narrative":"  A signatory signs the contract.  ","steps":[
+    let provider = FakeLlm::answering(
+        r#"{"use_cases":[{"slug":"sign","name":"Sign","description":"d","primary_actor":"SIGNATORY","narrative":"  A signatory signs the contract.  ","steps":[
           {"description":"s1","actor":{"name":"signatory","kind":"system"},"action":"signs"},
           {"description":"s2","actor":{"name":"e-signature PROVIDER","kind":"human"},"action":"records"},
-          {"description":"s3","actor":{"name":"Developer","kind":"human"},"action":"reads"}]}]}"#
-            .to_string(),
-        prompts: std::sync::Mutex::new(Vec::new()),
-    };
+          {"description":"s3","actor":{"name":"Developer","kind":"human"},"action":"reads"}]}]}"#,
+    );
 
     let use_cases = build_use_cases(
         dir.path(),
@@ -361,7 +299,7 @@ async fn known_actors_reach_the_prompt_and_name_the_steps() {
     .await
     .unwrap();
 
-    let prompts = provider.prompts.lock().unwrap();
+    let prompts = provider.prompt_pairs();
     assert!(prompts[0].0.contains("known actors"));
     assert!(prompts[0]
         .1
@@ -387,29 +325,12 @@ async fn known_actors_reach_the_prompt_and_name_the_steps() {
     assert!(prompts[0].0.contains("`narrative`"));
 }
 
-/// Answers the first `succeed` calls, then fails; counts its calls.
-struct FlakyProvider {
-    succeed: usize,
-    calls: std::sync::atomic::AtomicUsize,
-}
-
-#[async_trait]
-impl LlmProvider for FlakyProvider {
-    async fn complete(&self, _: CompletionRequest) -> Result<CompletionResponse, LlmError> {
-        let n = self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        if n < self.succeed {
-            Ok(CompletionResponse {
-                content: format!(
-                    r#"{{"use_cases":[{{"slug":"uc{n}","name":"U","description":"d","steps":[
-                    {{"description":"s","actor":{{"name":"A","kind":"human"}},"action":"x","source_refs":[]}}]}}]}}"#
-                ),
-                model: "test-model".to_string(),
-                ..Default::default()
-            })
-        } else {
-            Err(LlmError::Transport("down".to_string()))
-        }
-    }
+/// The answer of the call of rank `n`: one use case named after it.
+fn use_case_reply(n: usize) -> String {
+    format!(
+        r#"{{"use_cases":[{{"slug":"uc{n}","name":"U","description":"d","steps":[
+        {{"description":"s","actor":{{"name":"A","kind":"human"}},"action":"x","source_refs":[]}}]}}]}}"#
+    )
 }
 
 #[tokio::test]
@@ -420,25 +341,20 @@ async fn a_failed_run_keeps_the_features_done_and_the_rerun_resumes() {
     let features = [feature("one", &["a.rs"]), feature("two", &["b.rs"])];
     let context = UseCaseContext::default();
 
-    let flaky = FlakyProvider {
-        succeed: 1,
-        calls: std::sync::atomic::AtomicUsize::new(0),
-    };
+    let flaky = FakeLlm::failing_after(1, use_case_reply);
     assert!(build_use_cases(dir.path(), &features, &context, &flaky)
         .await
         .is_err());
     assert_eq!(load_use_cases(dir.path()).unwrap().len(), 1);
 
-    let healthy = FlakyProvider {
-        succeed: usize::MAX,
-        calls: std::sync::atomic::AtomicUsize::new(1),
-    };
+    // The first feature is cached: the second one is the call of rank 1.
+    let healthy = FakeLlm::replying(|n, _| Ok(use_case_reply(n + 1)));
     let use_cases = build_use_cases(dir.path(), &features, &context, &healthy)
         .await
         .unwrap();
     assert_eq!(use_cases.len(), 2);
     // Only the second feature was sent to the LLM again.
-    assert_eq!(healthy.calls.load(std::sync::atomic::Ordering::SeqCst), 2);
+    assert_eq!(healthy.calls(), 1);
 }
 
 #[tokio::test]
@@ -482,17 +398,14 @@ async fn a_long_controller_is_shown_around_the_actions_of_its_entry_points() {
         index: CodeIndex::new([Path::new("contracts_controller.rb")]),
         ..UseCaseContext::default()
     };
-    let provider = RecordingProvider {
-        response: r#"{"use_cases":[]}"#.to_string(),
-        prompts: std::sync::Mutex::new(Vec::new()),
-    };
+    let provider = FakeLlm::answering(r#"{"use_cases":[]}"#);
     let features = [feature("sending", &["contracts_controller.rb"])];
 
     build_use_cases(dir.path(), &features, &context, &provider)
         .await
         .unwrap();
 
-    let prompts = provider.prompts.lock().unwrap();
+    let prompts = provider.prompt_pairs();
     let prompt = &prompts[0].1;
     assert!(prompt.contains("def send_contract"), "the action is shown");
     assert!(

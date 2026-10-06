@@ -401,22 +401,8 @@ fn batch_prompt(repo_root: &Path, splitter: &Splitter, use_cases: &[&UseCase]) -
 mod tests {
     use super::*;
 
-    use async_trait::async_trait;
+    use crate::testing::FakeLlm;
     use retrodoc_core::model::{Actor, ActorKind, SourceRef, Step};
-    use retrodoc_llm::{CompletionRequest, CompletionResponse, LlmError};
-
-    struct CannedProvider(&'static str);
-
-    #[async_trait]
-    impl LlmProvider for CannedProvider {
-        async fn complete(&self, _: CompletionRequest) -> Result<CompletionResponse, LlmError> {
-            Ok(CompletionResponse {
-                content: self.0.to_string(),
-                model: "test-model".to_string(),
-                ..Default::default()
-            })
-        }
-    }
 
     fn step(order: u32, path: Option<&str>) -> Step {
         Step {
@@ -470,7 +456,7 @@ mod tests {
     async fn scores_steps_caps_ungrounded_ones_and_aggregates_to_the_feature() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("a.rs"), "fn a() {}\n").unwrap();
-        let provider = CannedProvider(
+        let provider = FakeLlm::answering(
             r#"{"steps":[
               {"order":1,"verdict":"supported"},
               {"order":2,"verdict":"supported"},
@@ -516,7 +502,7 @@ mod tests {
             dir.path(),
             &mut features,
             &mut use_cases,
-            &CannedProvider("nope"),
+            &FakeLlm::answering("nope"),
             None,
         )
         .await
@@ -534,7 +520,7 @@ mod tests {
     async fn a_sample_scores_only_that_many_use_cases() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("a.rs"), "fn a() {}\n").unwrap();
-        let provider = CannedProvider(r#"{"steps":[{"order":1,"verdict":"supported"}]}"#);
+        let provider = FakeLlm::answering(r#"{"steps":[{"order":1,"verdict":"supported"}]}"#);
         let mut features = vec![feature("f")];
         let mut use_cases: Vec<UseCase> = (0..6)
             .map(|_| use_case("f", vec![step(1, Some("a.rs"))]))
@@ -558,35 +544,24 @@ mod tests {
         assert_eq!(fc.rationale.as_deref(), Some("2 of 6 use case(s) scored"));
     }
 
-    /// Answers batched requests with a verdict for `u1` and `u2` only, any
-    /// other with a lone verdict list; counts its calls.
-    struct BatchProvider(std::sync::atomic::AtomicUsize);
-
-    #[async_trait]
-    impl LlmProvider for BatchProvider {
-        async fn complete(&self, r: CompletionRequest) -> Result<CompletionResponse, LlmError> {
-            self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            let batched = r.messages[1].content.starts_with("Several use cases");
-            let content = if batched {
-                r#"{"use_cases":[
-                  {"slug":"u1","steps":[{"order":1,"verdict":"supported"}]},
-                  {"slug":"u2","steps":[{"order":1,"verdict":"partial","rationale":"vague"}]}]}"#
-            } else {
-                r#"{"steps":[{"order":1,"verdict":"unsupported","rationale":"none"}]}"#
-            };
-            Ok(CompletionResponse {
-                content: content.to_string(),
-                model: "test-model".to_string(),
-                ..Default::default()
-            })
-        }
-    }
-
     #[tokio::test]
     async fn use_cases_of_a_feature_share_a_request_and_missing_ones_fall_back() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("a.rs"), "fn a() {}\n").unwrap();
-        let provider = BatchProvider(std::sync::atomic::AtomicUsize::new(0));
+        let provider = FakeLlm::replying(|_, request| {
+            // Batched requests get a verdict for `u1` and `u2` only, any
+            // other a lone verdict list.
+            Ok(
+                if request.messages[1].content.starts_with("Several use cases") {
+                    r#"{"use_cases":[
+                  {"slug":"u1","steps":[{"order":1,"verdict":"supported"}]},
+                  {"slug":"u2","steps":[{"order":1,"verdict":"partial","rationale":"vague"}]}]}"#
+                } else {
+                    r#"{"steps":[{"order":1,"verdict":"unsupported","rationale":"none"}]}"#
+                }
+                .to_string(),
+            )
+        });
         let mut features = vec![feature("f")];
         let mut use_cases: Vec<UseCase> = ["u1", "u2", "u3"]
             .iter()
@@ -604,28 +579,7 @@ mod tests {
         let value = |i: usize| use_cases[i].confidence.as_ref().unwrap().value;
         assert_eq!((value(0), value(1), value(2)), (1.0, 0.5, 0.0));
         // One batched request, one fallback for u3.
-        assert_eq!(provider.0.load(std::sync::atomic::Ordering::SeqCst), 2);
-    }
-
-    /// Answers a fixed verdict and keeps the prompts it receives.
-    struct PromptSpy(std::sync::Mutex<Vec<String>>);
-
-    #[async_trait]
-    impl LlmProvider for PromptSpy {
-        async fn complete(
-            &self,
-            request: CompletionRequest,
-        ) -> Result<CompletionResponse, LlmError> {
-            self.0
-                .lock()
-                .unwrap()
-                .push(request.messages[1].content.clone());
-            Ok(CompletionResponse {
-                content: r#"{"steps":[{"order":1,"verdict":"supported"}]}"#.to_string(),
-                model: "m".to_string(),
-                ..Default::default()
-            })
-        }
+        assert_eq!(provider.calls(), 2);
     }
 
     #[tokio::test]
@@ -649,13 +603,13 @@ mod tests {
         cited.source_refs[0].end_line = Some(line + 5);
         let mut features = vec![feature("f")];
         let mut use_cases = vec![use_case("f", vec![cited])];
-        let spy = PromptSpy(std::sync::Mutex::new(Vec::new()));
+        let spy = FakeLlm::answering(r#"{"steps":[{"order":1,"verdict":"supported"}]}"#);
 
         score_confidence(dir.path(), &mut features, &mut use_cases, &spy, None)
             .await
             .unwrap();
 
-        let prompts = spy.0.lock().unwrap();
+        let prompts = spy.prompts();
         assert!(prompts[0].contains("def action_50"), "cited code is shown");
         assert!(prompts[0].contains("omitted)"));
         assert!(!prompts[0].contains("def action_30"));

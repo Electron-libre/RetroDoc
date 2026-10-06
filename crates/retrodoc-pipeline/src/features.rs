@@ -347,25 +347,8 @@ pub(crate) fn unique_slug<'a>(raw: &str, taken: impl Iterator<Item = &'a str>) -
 mod tests {
     use super::*;
 
-    use async_trait::async_trait;
-    use retrodoc_llm::{CompletionRequest, CompletionResponse, LlmError};
-
     use crate::domains::{DomainCluster, SubDomainCluster};
-
-    struct CannedProvider {
-        response: String,
-    }
-
-    #[async_trait]
-    impl LlmProvider for CannedProvider {
-        async fn complete(&self, _: CompletionRequest) -> Result<CompletionResponse, LlmError> {
-            Ok(CompletionResponse {
-                content: self.response.clone(),
-                model: "test-model".to_string(),
-                ..Default::default()
-            })
-        }
-    }
+    use crate::testing::FakeLlm;
 
     fn file_summary(path: &str) -> FileSummary {
         FileSummary {
@@ -415,16 +398,15 @@ mod tests {
         };
         // Second feature cites only a hallucinated file → dropped; the
         // first one's hallucinated file is filtered out.
-        let provider = CannedProvider {
-            response: r#"```json
+        let provider = FakeLlm::answering(
+            r#"```json
             {"features":[
               {"slug":"Invoice Creation","name":"Invoice creation","description":"d",
                "files":["a.rs","ghost.rs"]},
               {"slug":"phantom","name":"Phantom","description":"d","files":["ghost.rs"]}
             ]}
-            ```"#
-                .to_string(),
-        };
+            ```"#,
+        );
 
         let features = build_features(dir.path(), &domains, &repo_map, &provider)
             .await
@@ -457,11 +439,10 @@ mod tests {
             domains: vec![domain("billing", &["a.rs"], vec![sub])],
         };
         // Same answer for both units → the second "export" gets a suffix.
-        let provider = CannedProvider {
-            response: r#"{"features":[{"slug":"export","name":"Export","description":"d",
-            "files":["a.rs","b.rs"]}]}"#
-                .to_string(),
-        };
+        let provider = FakeLlm::answering(
+            r#"{"features":[{"slug":"export","name":"Export","description":"d",
+            "files":["a.rs","b.rs"]}]}"#,
+        );
 
         let features = build_features(dir.path(), &domains, &repo_map, &provider)
             .await
@@ -485,33 +466,13 @@ mod tests {
         let domains = DomainMap {
             domains: vec![domain("billing", &["a.rs"], Vec::new())],
         };
-        let provider = CannedProvider {
-            response: "I cannot do that".to_string(),
-        };
+        let provider = FakeLlm::answering("I cannot do that");
 
         let features = build_features(dir.path(), &domains, &repo_map, &provider)
             .await
             .unwrap();
 
         assert!(features.is_empty());
-    }
-
-    struct CountingProvider {
-        calls: std::sync::atomic::AtomicUsize,
-    }
-
-    #[async_trait]
-    impl LlmProvider for CountingProvider {
-        async fn complete(&self, _: CompletionRequest) -> Result<CompletionResponse, LlmError> {
-            self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            Ok(CompletionResponse {
-                content:
-                    r#"{"features":[{"slug":"f","name":"F","description":"d","files":["a.rs"]}]}"#
-                        .to_string(),
-                model: "test-model".to_string(),
-                ..Default::default()
-            })
-        }
     }
 
     #[tokio::test]
@@ -527,10 +488,10 @@ mod tests {
             }],
             modules: Vec::new(),
         };
-        let provider = CountingProvider {
-            calls: std::sync::atomic::AtomicUsize::new(0),
-        };
-        let calls = || provider.calls.load(std::sync::atomic::Ordering::SeqCst);
+        let provider = FakeLlm::answering(
+            r#"{"features":[{"slug":"f","name":"F","description":"d","files":["a.rs"]}]}"#,
+        );
+        let calls = || provider.calls();
 
         build_features(dir.path(), &domains, &map("v1"), &provider)
             .await
@@ -567,11 +528,10 @@ mod tests {
             ],
         };
         // Both domains get the same answer, hence the same "export" slug.
-        let provider = CannedProvider {
-            response: r#"{"features":[{"slug":"export","name":"Export","description":"d",
-            "files":["a.rs","b.rs"]}]}"#
-                .to_string(),
-        };
+        let provider = FakeLlm::answering(
+            r#"{"features":[{"slug":"export","name":"Export","description":"d",
+            "files":["a.rs","b.rs"]}]}"#,
+        );
 
         let features = build_features(dir.path(), &domains, &repo_map, &provider)
             .await
@@ -583,29 +543,12 @@ mod tests {
         assert_eq!(features[1].domain_slug, "shipping");
     }
 
-    /// Answers the first `succeed` calls, then fails; counts its calls.
-    struct FlakyProvider {
-        succeed: usize,
-        calls: std::sync::atomic::AtomicUsize,
-    }
-
-    #[async_trait]
-    impl LlmProvider for FlakyProvider {
-        async fn complete(&self, _: CompletionRequest) -> Result<CompletionResponse, LlmError> {
-            let n = self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            if n < self.succeed {
-                Ok(CompletionResponse {
-                    content: format!(
-                        r#"{{"features":[{{"slug":"f{n}","name":"F","description":"d","files":["{}"]}}]}}"#,
-                        if n == 0 { "a.rs" } else { "b.rs" }
-                    ),
-                    model: "test-model".to_string(),
-                    ..Default::default()
-                })
-            } else {
-                Err(LlmError::Transport("down".to_string()))
-            }
-        }
+    /// The answer of the call of rank `n`: one feature on `a.rs`, then `b.rs`.
+    fn feature_reply(n: usize) -> String {
+        format!(
+            r#"{{"features":[{{"slug":"f{n}","name":"F","description":"d","files":["{}"]}}]}}"#,
+            if n == 0 { "a.rs" } else { "b.rs" }
+        )
     }
 
     #[tokio::test]
@@ -621,24 +564,19 @@ mod tests {
                 domain("two", &["b.rs"], Vec::new()),
             ],
         };
-        let flaky = FlakyProvider {
-            succeed: 1,
-            calls: std::sync::atomic::AtomicUsize::new(0),
-        };
+        let flaky = FakeLlm::failing_after(1, feature_reply);
         assert!(build_features(dir.path(), &domains, &repo_map, &flaky)
             .await
             .is_err());
         assert_eq!(load_features(dir.path()).unwrap().len(), 1);
 
-        let healthy = FlakyProvider {
-            succeed: usize::MAX,
-            calls: std::sync::atomic::AtomicUsize::new(1),
-        };
+        // The first domain is cached: the second one is the call of rank 1.
+        let healthy = FakeLlm::replying(|n, _| Ok(feature_reply(n + 1)));
         let features = build_features(dir.path(), &domains, &repo_map, &healthy)
             .await
             .unwrap();
         assert_eq!(features.len(), 2);
         // Only the second domain was sent to the LLM again.
-        assert_eq!(healthy.calls.load(std::sync::atomic::Ordering::SeqCst), 2);
+        assert_eq!(healthy.calls(), 1);
     }
 }

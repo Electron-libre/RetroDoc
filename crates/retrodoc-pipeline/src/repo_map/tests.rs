@@ -7,31 +7,21 @@ use async_trait::async_trait;
 use retrodoc_ingest::{FileEntry, FileKind, IngestResult};
 use retrodoc_llm::{CompletionResponse, LlmError};
 
-/// Fake provider that counts its calls and returns a deterministic
-/// summary, to test bottom-up aggregation and the cache without
-/// depending on the network.
-struct CountingProvider {
-    calls: AtomicUsize,
-}
+use crate::testing::FakeLlm;
 
-#[async_trait]
-impl LlmProvider for CountingProvider {
-    async fn complete(&self, request: CompletionRequest) -> Result<CompletionResponse, LlmError> {
-        self.calls.fetch_add(1, Ordering::SeqCst);
-        let last_user_message = request
+/// Answers a summary derived from the first line of the prompt, so that a
+/// changed file gives a different summary.
+fn counting_provider() -> FakeLlm {
+    FakeLlm::replying(|_, request| {
+        let first_line = request
             .messages
             .iter()
             .rev()
             .find(|m| m.role == Role::User)
-            .map(|m| m.content.clone())
-            .unwrap_or_default();
-        let first_line = last_user_message.lines().next().unwrap_or("").to_string();
-        Ok(CompletionResponse {
-            content: format!("summary of: {first_line}"),
-            model: "test-model".to_string(),
-            ..Default::default()
-        })
-    }
+            .and_then(|m| m.content.lines().next())
+            .unwrap_or("");
+        Ok(format!("summary of: {first_line}"))
+    })
 }
 
 fn ingest_with_nested_files(root: &Path) -> IngestResult {
@@ -61,9 +51,7 @@ fn ingest_with_nested_files(root: &Path) -> IngestResult {
 async fn builds_bottom_up_modules_for_nested_directories() {
     let dir = tempfile::tempdir().unwrap();
     let ingest = ingest_with_nested_files(dir.path());
-    let provider = CountingProvider {
-        calls: AtomicUsize::new(0),
-    };
+    let provider = counting_provider();
 
     let map = build_repo_map(dir.path(), &ingest, &provider, RepoMapOptions::default())
         .await
@@ -87,16 +75,14 @@ async fn builds_bottom_up_modules_for_nested_directories() {
 async fn the_estimate_matches_the_calls_of_a_first_run_and_of_a_rerun() {
     let dir = tempfile::tempdir().unwrap();
     let ingest = ingest_with_nested_files(dir.path());
-    let provider = CountingProvider {
-        calls: AtomicUsize::new(0),
-    };
+    let provider = counting_provider();
 
     let first = estimate_repo_map(dir.path(), &ingest, 0);
     assert_eq!((first.files, first.calls()), (2, 5));
     build_repo_map(dir.path(), &ingest, &provider, RepoMapOptions::default())
         .await
         .unwrap();
-    assert_eq!(provider.calls.load(Ordering::SeqCst), first.calls());
+    assert_eq!(provider.calls(), first.calls());
 
     assert_eq!(estimate_repo_map(dir.path(), &ingest, 0).calls(), 0);
     std::fs::write(dir.path().join("a/y.rs"), "fn y2() {}").unwrap();
@@ -175,37 +161,19 @@ fn plan_batches_groups_small_files_and_isolates_big_ones() {
     assert_eq!(plan_batches(&many, 0).len(), 10); // batching off
 }
 
-/// Answers a batched request with a summary for the first file only
-/// (the rest must fall back to their own request), counts its calls.
-struct BatchProvider {
-    calls: AtomicUsize,
-}
-
-#[async_trait]
-impl LlmProvider for BatchProvider {
-    async fn complete(&self, request: CompletionRequest) -> Result<CompletionResponse, LlmError> {
-        self.calls.fetch_add(1, Ordering::SeqCst);
-        let system = &request.messages[0].content;
-        let content = if system.contains("\"summaries\"") {
-            r#"{"summaries":[{"path":"a/b/x.rs","summary":"batched x"}]}"#.to_string()
-        } else {
-            "single".to_string()
-        };
-        Ok(CompletionResponse {
-            content,
-            model: "test-model".to_string(),
-            ..Default::default()
-        })
-    }
-}
-
 #[tokio::test]
 async fn small_files_share_a_request_and_missing_ones_fall_back() {
     let dir = tempfile::tempdir().unwrap();
     let ingest = ingest_with_nested_files(dir.path());
-    let provider = BatchProvider {
-        calls: AtomicUsize::new(0),
-    };
+    let provider = FakeLlm::replying(|_, request| {
+        // A batched request is answered for the first file only: the rest
+        // must fall back to their own request.
+        Ok(if request.messages[0].content.contains("\"summaries\"") {
+            r#"{"summaries":[{"path":"a/b/x.rs","summary":"batched x"}]}"#.to_string()
+        } else {
+            "single".to_string()
+        })
+    });
     let options = RepoMapOptions {
         concurrency: 1,
         batch_chars: 4000,
@@ -228,28 +196,26 @@ async fn small_files_share_a_request_and_missing_ones_fall_back() {
     assert_eq!(summary_of("a/b/x.rs"), "batched x");
     assert_eq!(summary_of("a/y.rs"), "single");
     // 1 batched request + 1 fallback for y.rs + 3 folders.
-    assert_eq!(provider.calls.load(Ordering::SeqCst), 5);
+    assert_eq!(provider.calls(), 5);
 }
 
 #[tokio::test]
 async fn unchanged_files_are_not_re_summarized_on_second_run() {
     let dir = tempfile::tempdir().unwrap();
     let ingest = ingest_with_nested_files(dir.path());
-    let provider = CountingProvider {
-        calls: AtomicUsize::new(0),
-    };
+    let provider = counting_provider();
 
     build_repo_map(dir.path(), &ingest, &provider, RepoMapOptions::default())
         .await
         .unwrap();
     // 2 files + 3 modules ("a/b", "a", root "") = 5 calls on the first run.
-    let calls_after_first_run = provider.calls.load(Ordering::SeqCst);
+    let calls_after_first_run = provider.calls();
     assert_eq!(calls_after_first_run, 5);
 
     build_repo_map(dir.path(), &ingest, &provider, RepoMapOptions::default())
         .await
         .unwrap();
-    let calls_after_second_run = provider.calls.load(Ordering::SeqCst);
+    let calls_after_second_run = provider.calls();
 
     // File and module summaries are both served from the cache
     // (unchanged content, hence unchanged module listings).
@@ -268,14 +234,11 @@ async fn a_changed_file_only_invalidates_its_folder_and_ancestors() {
         kind: FileKind::Source,
         size_bytes: 9,
     });
-    let provider = FailAfterNProvider {
-        succeed_calls: usize::MAX,
-        calls: AtomicUsize::new(0),
-    };
+    let provider = FakeLlm::replying(|n, _| Ok(format!("summary #{n}")));
     build_repo_map(dir.path(), &ingest, &provider, RepoMapOptions::default())
         .await
         .unwrap();
-    let first = provider.calls.load(Ordering::SeqCst);
+    let first = provider.calls();
 
     std::fs::write(dir.path().join("a/b/x.rs"), "fn x2() {}").unwrap();
     build_repo_map(dir.path(), &ingest, &provider, RepoMapOptions::default())
@@ -283,32 +246,7 @@ async fn a_changed_file_only_invalidates_its_folder_and_ancestors() {
         .unwrap();
     // Each answer is unique, so a new x.rs summary changes its parents'
     // listings: x.rs, then "a/b", "a" and the root; "c" is untouched.
-    assert_eq!(provider.calls.load(Ordering::SeqCst) - first, 4);
-}
-
-/// Fake provider that succeeds its first `succeed_calls` completions,
-/// then fails every one after that — simulates a provider that turns
-/// flaky partway through a long file list (e.g. a rate limit hit deep
-/// into the run).
-struct FailAfterNProvider {
-    succeed_calls: usize,
-    calls: AtomicUsize,
-}
-
-#[async_trait]
-impl LlmProvider for FailAfterNProvider {
-    async fn complete(&self, _request: CompletionRequest) -> Result<CompletionResponse, LlmError> {
-        let call_index = self.calls.fetch_add(1, Ordering::SeqCst);
-        if call_index < self.succeed_calls {
-            Ok(CompletionResponse {
-                content: format!("summary #{call_index}"),
-                model: "test-model".to_string(),
-                ..Default::default()
-            })
-        } else {
-            Err(LlmError::Transport("simulated failure".to_string()))
-        }
-    }
+    assert_eq!(provider.calls() - first, 4);
 }
 
 #[tokio::test]
@@ -317,10 +255,7 @@ async fn a_failure_partway_through_the_file_loop_keeps_earlier_summaries_cached(
     let ingest = ingest_with_nested_files(dir.path());
     // Only the first file summarization call succeeds; the second one
     // (and the run as a whole) fails.
-    let provider = FailAfterNProvider {
-        succeed_calls: 1,
-        calls: AtomicUsize::new(0),
-    };
+    let provider = FakeLlm::failing_after(1, |n| format!("summary #{n}"));
 
     let result = build_repo_map(dir.path(), &ingest, &provider, RepoMapOptions::default()).await;
     assert!(result.is_err());

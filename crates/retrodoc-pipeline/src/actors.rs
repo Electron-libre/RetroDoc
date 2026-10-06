@@ -340,33 +340,7 @@ pub async fn build_actors(
 mod tests {
     use super::*;
 
-    use std::sync::Mutex;
-
-    use async_trait::async_trait;
-    use retrodoc_llm::{CompletionRequest, CompletionResponse, LlmError};
-
-    struct ScriptedProvider {
-        response: String,
-        prompts: Mutex<Vec<String>>,
-    }
-
-    #[async_trait]
-    impl LlmProvider for ScriptedProvider {
-        async fn complete(
-            &self,
-            request: CompletionRequest,
-        ) -> Result<CompletionResponse, LlmError> {
-            self.prompts
-                .lock()
-                .unwrap()
-                .push(request.messages[1].content.clone());
-            Ok(CompletionResponse {
-                content: self.response.clone(),
-                model: "m".to_string(),
-                ..Default::default()
-            })
-        }
-    }
+    use crate::testing::FakeLlm;
 
     fn paths(list: &[&str]) -> Vec<PathBuf> {
         list.iter().map(PathBuf::from).collect()
@@ -410,15 +384,13 @@ mod tests {
         )
         .unwrap();
         let files = paths(&["app/ability.rb", "app/other.rb"]);
-        let llm = ScriptedProvider {
-            response: r#"{"actors":[
+        let llm = FakeLlm::answering(
+            r#"{"actors":[
                 {"name":"Contract manager","kind":"human","description":"Manages contracts","evidence":["app/ability.rb"]},
                 {"name":"contract MANAGER","kind":"human"},
                 {"name":"E-signature provider","kind":"system","description":"Signs"},
-                {"name":" ","kind":"human"}]}"#
-                .to_string(),
-            prompts: Mutex::new(Vec::new()),
-        };
+                {"name":" ","kind":"human"}]}"#,
+        );
 
         let actors = build_actors(dir.path(), &files, &Surface::default(), &llm, false)
             .await
@@ -429,32 +401,29 @@ mod tests {
             "Contract manager"
         );
         assert_eq!(actors.actors[1].kind, ActorKind::System);
-        assert!(llm.prompts.lock().unwrap()[0].contains("--- app/ability.rb ---"));
+        assert!(llm.prompts()[0].contains("--- app/ability.rb ---"));
 
         build_actors(dir.path(), &files, &Surface::default(), &llm, false)
             .await
             .unwrap();
-        assert_eq!(llm.prompts.lock().unwrap().len(), 1);
+        assert_eq!(llm.prompts().len(), 1);
 
         std::fs::write(dir.path().join("app/ability.rb"), "can :cancel, Contract").unwrap();
         build_actors(dir.path(), &files, &Surface::default(), &llm, false)
             .await
             .unwrap();
-        assert_eq!(llm.prompts.lock().unwrap().len(), 2);
+        assert_eq!(llm.prompts().len(), 2);
 
         build_actors(dir.path(), &files, &Surface::default(), &llm, true)
             .await
             .unwrap();
-        assert_eq!(llm.prompts.lock().unwrap().len(), 3);
+        assert_eq!(llm.prompts().len(), 3);
     }
 
     #[tokio::test]
     async fn without_authorization_code_or_user_entities_the_llm_is_not_asked() {
         let dir = tempfile::tempdir().unwrap();
-        let llm = ScriptedProvider {
-            response: String::new(),
-            prompts: Mutex::new(Vec::new()),
-        };
+        let llm = FakeLlm::answering("");
         let actors = build_actors(
             dir.path(),
             &paths(&["a.rb"]),
@@ -465,6 +434,6 @@ mod tests {
         .await
         .unwrap();
         assert!(actors.is_empty());
-        assert!(llm.prompts.lock().unwrap().is_empty());
+        assert!(llm.prompts().is_empty());
     }
 }
