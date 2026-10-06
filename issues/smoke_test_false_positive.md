@@ -36,3 +36,20 @@ unparseable JSON response, "LLM answered with no use case").
 
 * Never name confidential test repos in committed files (numbers only).
 * Harness tests are in Rust (`rust-script`), run by `just test-harness`.
+
+# Tracking
+
+1. [x] **ANSI-proof verdict** (`smoke.rs`): `evaluate` strips ANSI sequences before looking for ` WARN `; a
+   `test_smoke.rs` case with a colored WARN line fails before the fix.
+2. [ ] **No colors when stderr is not a terminal** (`main.rs`: `.with_ansi(stderr.is_terminal())`); a test
+   checks that redirected logs contain no escape code; one line in the docs.
+3. [ ] **Blocking "second run made no LLM call" criterion**: `evaluate` takes the path of `usage.json`, sums the
+   `calls` of the last `generate` entry and fails above 0 (message names the passes); a missing or unreadable
+   file is a failure; `run` passes `<clone>/.retrodoc/cache/usage.json`; tests for 0 calls, 2 calls, missing
+   file; `SKILL.md` "Conclusive means" updated (fails until `smoke_empty_feature_retry.md` is handled).
+
+## Decisions
+
+* Both fixes for the false positive: strip ANSI in the script and disable colors when stderr is not a terminal.
+* The "no LLM call on the second run" criterion is blocking.
+* Source of the measure: `usage.json` (not the log).

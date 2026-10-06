@@ -49,6 +49,12 @@ fn main() {
             "warning",
         ),
         (
+            "colored warning (tracing writes ANSI codes to a redirected stderr)",
+            evaluate(&format!("\x1b[33m WARN\x1b[0m \x1b[2mretrodoc\x1b[0m: unit skipped\n{GOOD_RUN1}"), GOOD_RUN2, GOOD_REPORT),
+            false,
+            "warning",
+        ),
+        (
             "second run rewrote files",
             evaluate(GOOD_RUN1, "3 file(s) written to docs.\n", GOOD_REPORT),
             false,

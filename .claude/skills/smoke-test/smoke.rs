@@ -17,6 +17,25 @@ use std::time::Duration;
 const DEFAULT_MODEL: &str = "qwen3.6:35b-a3b";
 const DEFAULT_BASE_URL: &str = "http://localhost:11435/v1/chat/completions";
 
+/// `line` without its ANSI escape sequences (`ESC [ … letter`), which `tracing` writes around the level.
+fn strip_ansi(line: &str) -> String {
+    let mut out = String::with_capacity(line.len());
+    let mut chars = line.chars();
+    while let Some(c) = chars.next() {
+        if c == '\x1b' {
+            // Skip `[`, parameters and intermediates, up to the final letter.
+            for end in chars.by_ref() {
+                if end.is_ascii_alphabetic() {
+                    break;
+                }
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
 /// The smoke test is conclusive when every returned list is empty.
 fn evaluate(run1: &str, run2: &str, report: &str) -> Vec<String> {
     let mut problems = Vec::new();
@@ -30,7 +49,8 @@ fn evaluate(run1: &str, run2: &str, report: &str) -> Vec<String> {
         problems.push("report is empty".into());
     }
     for (name, log) in [("first", run1), ("second", run2)] {
-        let warnings: Vec<&str> = log.lines().filter(|l| l.contains(" WARN ")).collect();
+        let warnings: Vec<String> =
+            log.lines().map(strip_ansi).filter(|l| l.contains(" WARN ")).collect();
         if !warnings.is_empty() {
             problems.push(format!("{} warning(s) in the {name} run, e.g. {}", warnings.len(), warnings[0].trim()));
         }
