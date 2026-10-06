@@ -8,7 +8,7 @@
 //! cites ([`Focus`]), with absolute line numbers and the omitted ranges marked.
 //!
 //! Where to cut depends on the language, so it is not hard-coded: the role
-//! identification pass (`roles.rs`) asks the LLM, along with the stack, for
+//! identification pass (`roles/`) asks the LLM, along with the stack, for
 //! one regex per language matching the line that *starts* a module, class or
 //! function ([`ChunkBoundary`]), saved in the hand-editable `roles.yaml`. The
 //! chunker cuts before the last such line in the second half of a chunk, and

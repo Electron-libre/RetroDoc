@@ -173,13 +173,13 @@ limits before tuning prompts.
 Steps, each shippable and checkable on the Rails test repo:
 1. Technology identification and file role rules (one LLM call on the tree), applied mechanically, with the
    distribution report. Shows how many files are relevant before any per-file LLM call.
-   **Implemented** (`roles.rs`, `retrodoc roles [--force]`, rules in `.retrodoc/cache/roles.yaml`).
+   **Implemented** (`roles/`, `retrodoc roles [--force]`, rules in `.retrodoc/cache/roles.yaml`).
    Smoke test on the full Rails test repo (4,181 files, `qwen3.6:35b-a3b`, ~1m30 per call): ~92% of files
    get a role (~350 unclassified: dotfiles, `Rakefile`, coffee scripts), but two runs disagree on
    borderline folders (mailers/jobs entrypoint vs infra, presenters logic vs view) and one run out of five
    returned unparseable JSON twice — hence the saved, editable rules. autoroute not tried yet. Not done: the second pass over unmatched files (they stay `unclassified`) and
    wiring the roles into `generate`.
-2. Models and glossary inventory. **Implemented** (`glossary.rs`, `retrodoc glossary`, needs `retrodoc roles`
+2. Models and glossary inventory. **Implemented** (`glossary/`, `retrodoc glossary`, needs `retrodoc roles`
    first): the LLM reads only `model`-role files, in batches of ~12k chars, and returns entities (name,
    description, attributes, associations); test descriptions (`describe`/`context`/`it`/`test` strings,
    `def test_*`) are extracted mechanically from `test`-role files. Saved as `.retrodoc/cache/glossary.yaml`,
@@ -193,7 +193,7 @@ Steps, each shippable and checkable on the Rails test repo:
    after the entity, e.g. `company.rb`; 301 → 234 entities on the Rails test repo, `Contract` merged from 13 files); and `app/models/actions/*` are action/form
    objects the role rules call `model`, so some "entities" are really behaviours. Not done: verbs (step 3), existing docs/commit
    messages as glossary sources.
-3. Entry points and outputs inventory. **Implemented** (`entry_points.rs`, `retrodoc entry-points`, needs
+3. Entry points and outputs inventory. **Implemented** (`entry_points/`, `retrodoc entry-points`, needs
    `retrodoc roles` first): the LLM reads only `entrypoint`-role files, several small files per call, and
    lists each entry point (kind, name, verb, resource, description) with its observable outputs. Saved as
    `.retrodoc/cache/entry-points.yaml`, which doubles as the cache (per-file content hash). The same entry

@@ -91,20 +91,20 @@ retrodoc-cli ──> retrodoc-render ──> retrodoc-core
 
   | Module | Role |
   |---|---|
-  | `roles.rs` | One LLM call over the file tree + manifests: stack, glob rules `pattern -> role`, `source_extensions` (languages the walker doesn't know, promoted to `Source`), plus per-language `chunk_boundaries`. `roles.yaml` is hand-editable and reused unless `retrodoc roles --force`; `RoleRules::classify` applies it mechanically. |
+  | `roles/` | One LLM call over the file tree + manifests: stack, glob rules `pattern -> role`, `source_extensions` (languages the walker doesn't know, promoted to `Source`), plus per-language `chunk_boundaries`. `roles.yaml` is hand-editable and reused unless `retrodoc roles --force`; `RoleRules::classify` applies it mechanically. |
   | `chunks.rs`, `chunk_check.rs` | Cut long files before a boundary regex (else a blank line); `Splitter::excerpt` for the use cases/confidence passes; `chunk_check` verifies the LLM's regexes on the real files and asks for a fix. |
-  | `glossary.rs` | Entities from `model`-role files (LLM, batched by characters), test-block descriptions from `test`-role files (mechanical). |
-  | `entry_points.rs` | Entry points (`http_route`, `cli_command`, `job`…) with their outputs, from `entrypoint`-role files. |
+  | `glossary/` | Entities from `model`-role files (LLM, batched by characters), test-block descriptions from `test`-role files (mechanical). |
+  | `entry_points/` | Entry points (`http_route`, `cli_command`, `job`…) with their outputs, from `entrypoint`-role files. |
   | `surface.rs` | `Surface::new(glossary, entry_points)`: the capped prompt section that domain clustering starts from (business concepts, never layers). |
   | `actors.rs` | Business actors from authorization code + user-like entities; `retrodoc actors [--force]`. |
   | `ranking.rs` | Optional file budget (`--max-files` / `ingest.max_files`): role × churn × references; the rest becomes `FileKind::Other` (`scope.yaml`). |
   | `repo_map/` | File summaries (LLM + git history, cached by content hash, optionally batched/concurrent), then directory summaries bottom-up. |
   | `domains/` | One call clusters directory summaries + doc titles + surface into `DomainMap`; `coverage.rs` enforces 100% coverage by construction (uncategorized bucket, first assignment wins, hallucinated paths dropped). |
-  | `features.rs` | One call per domain/sub-domain unit (not "uncategorized"), features grounded on a validated subset of its files. |
+  | `features/` | One call per domain/sub-domain unit (not "uncategorized"), features grounded on a validated subset of its files. |
   | `use_cases/`, `slices.rs` | One call per feature with numbered code excerpts, entry points and the code they run (`CodeIndex::slice`); steps, actors, `narrative`, `primary_actor`; citations are validated. |
   | `diagrams.rs` | Deterministic Mermaid `sequenceDiagram` per use case, no LLM. |
   | `vocabulary.rs` | Deterministic `business_language` score per use case, recomputed each run. |
-  | `confidence.rs` | LLM verdict per step against the cited code; score capped for ungrounded steps (`--no-confidence`, `--confidence-sample N`). |
+  | `confidence/` | LLM verdict per step against the cited code; score capped for ungrounded steps (`--no-confidence`, `--confidence-sample N`). |
   | `report.rs` | Documentation debt report from the saved artifacts (`retrodoc report`, no LLM). |
 
   Cross-cutting pieces: `batched_read.rs` (the loop of the glossary and entry points passes: files in
