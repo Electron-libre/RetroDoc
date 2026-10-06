@@ -332,6 +332,12 @@ covered, fingerprint-based incremental re-run), so a general RAG layer there wou
 non-determinism for no gain. Question answering is the opposite: open-ended questions over a corpus too big
 for one context, so retrieval is the core of the feature.
 
+Update (2026-10-06): the first consumer is an external agent through a **local MCP server** (stdio,
+`retrodoc mcp`, official `rmcp` SDK), see `issues/mcp_server.md`. The calling agent is the LLM, so the server
+is deterministic and LLM-free: steps 1 and 3 below become MCP tools, step 2 (tool calling in `retrodoc-llm`)
+is not needed for it, and the internal `ask`/`chat` remain optional later. A static agent index
+(`llms.txt`-style) is also generated with the docs.
+
 Design: hierarchical navigation by an agent with tools, rather than a flat chunk index.
 1. Route by structure: domains → features (from `domains.yaml`/`features.yaml` and the repo map summaries)
    to find the relevant zone.

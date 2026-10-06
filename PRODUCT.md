@@ -76,6 +76,14 @@ subscription?").
   changed since the documentation was generated.
 * Admit when something is not documented, and feed those gaps back into the documentation debt report.
 
+#### For LLM agents (MCP)
+
+The documentation is also meant to be read by other agents, such as coding agents. RetroDoc exposes it
+through a local MCP server: read-only tools to list domains, open a feature or use case, and search the
+documentation (lexical search, no embeddings unless measured as necessary). The server needs no LLM of its
+own, since the calling agent does the reasoning. A static index for agents (`llms.txt`-style or an
+`AGENTS.md` section) is generated next to the docs for tools that don't run the server.
+
 ## Technologies
 
 * CLI
