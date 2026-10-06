@@ -120,6 +120,8 @@ just check          # fmt + clippy -D warnings + tests
 just test-harness   # test the agent hooks and skills (needs rust-script)
 ```
 
+CI (`.github/workflows/ci.yml`) runs the same checks plus the harness tests, and validates the commit messages of pull requests.
+
 Commit messages follow Conventional Commits, see [AGENTS.md](./AGENTS.md). Agent-specific guidance is in
 [CLAUDE.md](./CLAUDE.md).
 
