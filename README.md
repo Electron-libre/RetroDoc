@@ -16,6 +16,7 @@ Mermaid sequence diagram and a confidence score. It also tells you where the doc
 ```
 docs/
   functional/
+    llms.txt                             # index for agents: domains, features, confidence
     <domain>/
       README.md                          # domain overview, confidence
       <sub-domain>/

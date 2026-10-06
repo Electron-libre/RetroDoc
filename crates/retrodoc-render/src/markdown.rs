@@ -1,6 +1,7 @@
 //! Markdown/Mermaid rendering of the domain model (PLAN.md §3 layout):
 //!
 //! ```text
+//! functional/llms.txt
 //! functional/<domain>/README.md
 //! functional/<domain>[/<sub-domain>]/<feature>.md
 //! functional/<domain>[/<sub-domain>]/use-cases/<feature>/<use-case>.md
@@ -18,7 +19,10 @@ use retrodoc_core::model::{
     ConfidenceScore, Domain, Feature, Step, UseCase, LOW_CONFIDENCE_THRESHOLD,
 };
 
-use crate::{RenderedFile, RunMetadata, COVERAGE_REPORT_PATH, FUNCTIONAL_DIR, METADATA_PATH};
+use crate::{
+    RenderedFile, RunMetadata, AGENT_INDEX_PATH, COVERAGE_REPORT_PATH, FUNCTIONAL_DIR,
+    METADATA_PATH,
+};
 
 /// Renders every file of the docs, paths relative to the docs dir. Pure and
 /// deterministic: the same artifacts always give the same bytes (the run
@@ -63,6 +67,10 @@ pub fn render(
         }
     }
 
+    files.push(RenderedFile {
+        path: PathBuf::from(AGENT_INDEX_PATH),
+        content: agent_index(domains, features),
+    });
     files.push(RenderedFile {
         path: PathBuf::from(COVERAGE_REPORT_PATH),
         content: coverage_report.to_string(),
@@ -170,6 +178,83 @@ fn short_confidence(score: Option<&ConfidenceScore>) -> String {
         || "not scored".to_string(),
         |c| format!("{:.0}%", c.value * 100.0),
     )
+}
+
+/// The `llms.txt`-style entry point for agents that don't run the MCP server.
+fn agent_index(domains: &[Domain], features: &[Feature]) -> String {
+    let index = Path::new(AGENT_INDEX_PATH);
+    let one_line = |text: &str| text.split_whitespace().collect::<Vec<_>>().join(" ");
+    // `(⚠️ 30%)` below the threshold, so a weak page is visible before opening it.
+    let score = |score: Option<&ConfidenceScore>| match score {
+        Some(c) if c.value < LOW_CONFIDENCE_THRESHOLD => format!("⚠️ {:.0}%", c.value * 100.0),
+        other => short_confidence(other),
+    };
+    let feature_item = |md: &mut String, indent: &str, f: &Feature| {
+        let _ = writeln!(
+            md,
+            "{indent}- [{}]({}) ({}): {}",
+            f.name,
+            link(index, &feature_path(f)),
+            score(f.confidence.as_ref()),
+            one_line(&f.description)
+        );
+    };
+
+    let mut md = String::from(
+        "# Functional documentation\n\n\
+         > What the application does, in business terms: domains, features and use cases derived \
+         from its code and history by RetroDoc. Every page carries a confidence score; below 50% \
+         (⚠️) the page is not backed by the code and must be checked against it.\n\n\
+         ## How to read it\n\n\
+         - Go from a domain to its features, then to their use cases: each page links to the next \
+         level and lists the source files it rests on.\n\
+         - The pages are generated and date from the last `retrodoc generate` run (see the \
+         [run metadata](../_retrodoc/run-metadata.json)): check the cited files if the code has \
+         changed since.\n\
+         - An agent that can run commands gets the same documentation, with a warning when the \
+         cited code changed, from the MCP server: `retrodoc mcp --path <repo>`.\n\n\
+         ## Domains\n\n",
+    );
+    if domains.is_empty() {
+        md.push_str("No domain documented yet.\n");
+    }
+    for domain in domains {
+        let _ = writeln!(
+            md,
+            "- [{}]({}) ({}): {}",
+            domain.name,
+            link(index, &domain_readme_path(&domain.slug)),
+            score(domain.confidence.as_ref()),
+            one_line(&domain.description)
+        );
+        let own: Vec<&Feature> = features
+            .iter()
+            .filter(|f| f.domain_slug == domain.slug)
+            .collect();
+        let in_sub = |f: &Feature| {
+            f.sub_domain_slug
+                .as_ref()
+                .is_some_and(|s| domain.sub_domains.iter().any(|d| &d.slug == s))
+        };
+        for f in own.iter().filter(|f| !in_sub(f)) {
+            feature_item(&mut md, "  ", f);
+        }
+        for sub in &domain.sub_domains {
+            let _ = writeln!(md, "  - {}: {}", sub.name, one_line(&sub.description));
+            for f in own
+                .iter()
+                .filter(|f| f.sub_domain_slug.as_deref() == Some(sub.slug.as_str()))
+            {
+                feature_item(&mut md, "    ", f);
+            }
+        }
+    }
+    md.push_str(
+        "\n## Optional\n\n\
+         - [Documentation debt report](../_retrodoc/coverage-report.md): the sections with a low \
+         confidence and the code that no domain covers\n",
+    );
+    md
 }
 
 fn domain_page(domain: &Domain, features: &[&Feature]) -> String {
@@ -446,6 +531,7 @@ mod tests {
                 "functional/billing/payment/pay-invoice.md",
                 "functional/billing/payment/use-cases/pay-invoice/pay-by-card.md",
                 "functional/billing/list.md",
+                "functional/llms.txt",
                 "_retrodoc/coverage-report.md",
                 "_retrodoc/run-metadata.json",
             ]
@@ -515,6 +601,61 @@ mod tests {
             .unwrap()
             .content;
         assert!(page.contains("## Steps") && !page.contains("<details>"));
+    }
+
+    fn index_of(files: &[RenderedFile]) -> &str {
+        &files
+            .iter()
+            .find(|f| f.path == Path::new(AGENT_INDEX_PATH))
+            .unwrap()
+            .content
+    }
+
+    #[test]
+    fn the_agent_index_lists_domains_and_features_with_links_and_confidence() {
+        let (d, f, u) = sample();
+        let files = render(&d, &f, &u, "r", &meta()).unwrap();
+        let index = index_of(&files);
+        assert!(index.starts_with("# Functional documentation\n"), "{index}");
+        assert!(
+            index.contains("- [Billing](billing/README.md) (80%): Invoices."),
+            "{index}"
+        );
+        assert!(
+            index.contains(
+                "[Pay an invoice](billing/payment/pay-invoice.md) (⚠️ 30%): Customers pay."
+            ),
+            "{index}"
+        );
+        assert!(
+            index.contains("[List](billing/list.md) (not scored): Listing."),
+            "{index}"
+        );
+        assert!(
+            index.contains("(../_retrodoc/coverage-report.md)"),
+            "{index}"
+        );
+        assert!(index.contains("retrodoc mcp --path"), "{index}");
+    }
+
+    #[test]
+    fn a_domain_without_feature_is_still_listed_and_no_domain_gives_a_clear_index() {
+        let (d, _, _) = sample();
+        let index = agent_index(&d, &[]);
+        assert!(index.contains("- [Billing](billing/README.md)"), "{index}");
+        let empty = agent_index(&[], &[]);
+        assert!(empty.contains("No domain documented yet."), "{empty}");
+    }
+
+    #[test]
+    fn a_rerun_on_unchanged_artifacts_rewrites_nothing_including_the_index() {
+        let (d, f, u) = sample();
+        let dir = tempfile::tempdir().unwrap();
+        let first = crate::plan(dir.path(), render(&d, &f, &u, "r", &meta()).unwrap()).unwrap();
+        first.apply(dir.path()).unwrap();
+        assert!(dir.path().join(AGENT_INDEX_PATH).exists());
+        let second = crate::plan(dir.path(), render(&d, &f, &u, "r", &meta()).unwrap()).unwrap();
+        assert_eq!(second.change_count(), 0);
     }
 
     #[test]

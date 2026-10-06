@@ -22,6 +22,8 @@ pub const FUNCTIONAL_DIR: &str = "functional";
 /// the docs dir. Neither it nor [`FUNCTIONAL_DIR`] must be fed back as
 /// existing documentation on the next run.
 pub const META_DIR: &str = "_retrodoc";
+/// Path of the index for agents (`llms.txt` style), relative to the docs dir.
+pub const AGENT_INDEX_PATH: &str = "functional/llms.txt";
 /// Path of the run metadata, relative to the docs dir.
 pub const METADATA_PATH: &str = "_retrodoc/run-metadata.json";
 /// Path of the coverage report, relative to the docs dir.

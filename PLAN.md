@@ -38,6 +38,7 @@ touches files modified since the last run).
 ```
 docs/
   functional/
+    llms.txt                       # index for agents (llms.txt style): domains, features, confidence, how to read
     <domain>/
       README.md                    # domain overview + sub-domains, confidence
       <sub-domain>/

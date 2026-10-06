@@ -73,8 +73,12 @@ rather than guessing.
    `generate` that failed past the repo map) and `issues/mcp_freshness_cost.md` (files re-read at every call).
 4. [ ] Code and git tools: `read_source` and `git_log`, limited to the repo root and to the files cited by the
    docs. Verified on a temporary git repo, including attempts to leave the scope (`../`).
-5. [ ] Static agent index: `generate` writes an `llms.txt`-style index or an `AGENTS.md` section in the docs,
+5. [x] Static agent index: `generate` writes an `llms.txt`-style index or an `AGENTS.md` section in the docs,
    deterministic so reruns stay no-ops. Verified by an idempotent render test. Can be moved before 3 and 4.
+   Written as `functional/llms.txt` (decision: the fully generated area, no `AGENTS.md` section since it would
+   live outside the docs dir). Lists domains and features with links and confidence, how to read them and a
+   pointer to `retrodoc mcp`; no use cases, to stay short. Not tried with an agent that has no server: it has to
+   be told where the file is.
 6. [ ] ADR (MCP server, LLM-free, lexical retrieval) and `docs/ARCHITECTURE.md` update; other docs updated
    with each deliverable through `update-docs`.
 
