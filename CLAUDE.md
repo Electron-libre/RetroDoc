@@ -138,7 +138,7 @@ retrodoc-cli ──> retrodoc-render ──> retrodoc-core
 - **retrodoc-cli**: `clap` subcommands (`init`, `scan`, `generate`, `render`, `report`, `roles`, `glossary`,
   `entry-points`, `actors`, `surface`). `generate` runs the whole pipeline then writes the docs (`--dry-run` previews, `--force`
   ignores caches, `--no-confidence` / `--confidence-sample N` / `--max-files N` bound the cost, see the pipeline bullet); `render` writes/previews the docs from the cached artifacts (no LLM call); `report` prints
-  the debt report (no LLM call); `roles`, `glossary`, `entry-points`, `actors` and `surface` are the standalone phase 7 commands above. `main` is `#[tokio::main]` since `generate` awaits the pipeline.
+  the debt report (no LLM call); `roles`, `glossary`, `entry-points`, `actors` and `surface` are the standalone phase 7 commands above. `main` is `#[tokio::main]` since `generate` awaits the pipeline. `commands/workspace.rs` is the common start of the commands: `repo_root`, `Workspace::open` (root + `retrodoc.toml`), `Workspace::ingest`, `source_paths`.
 
 ### Conventions specific to this codebase
 

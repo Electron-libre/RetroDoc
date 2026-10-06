@@ -103,7 +103,7 @@ change une décision d'architecture, l'ajouter dans `docs/adr/`.
 # Suivi
 
 1. [x] Lecture par lots commune (`batched_read.rs`, `glossary` + `entry_points`)
-2. [ ] Contexte de commande CLI (`Workspace`)
+2. [x] Contexte de commande CLI (`Workspace`)
 3. [ ] Module d'artefacts (noms centralisés, `clear_caches` dérivé)
 4. [ ] `OpenRouterProvider::complete` découpé, `lib.rs` éclaté
 5. [ ] `generate::run` : affichage extrait, garde de passe, `GenerateOptions`

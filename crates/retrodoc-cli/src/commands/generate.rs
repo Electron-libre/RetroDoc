@@ -1,14 +1,16 @@
 use std::path::Path;
 
 use anyhow::Context;
-use retrodoc_core::config::{Config, LlmConfig, DEFAULT_BATCH_CHARS};
+use retrodoc_core::config::{LlmConfig, DEFAULT_BATCH_CHARS};
 use retrodoc_core::model::{ConfidenceScore, Feature, UseCase};
-use retrodoc_ingest::{FileKind, IngestResult};
+use retrodoc_ingest::IngestResult;
 use retrodoc_llm::{LlmProvider, UsageTracker};
 use retrodoc_pipeline::{
     Actors, CodeIndex, CoverageReport, DomainMap, EntryPoints, RepoMap, RepoMapOptions, RoleMap,
     Scope, Surface, UseCaseContext,
 };
+
+use super::workspace::{source_paths, Workspace};
 
 /// Number of main entity names given to the use cases as business vocabulary.
 const VOCABULARY_SIZE: usize = 40;
@@ -36,39 +38,35 @@ pub async fn run(
     max_files: Option<usize>,
     tracker: &UsageTracker,
 ) -> anyhow::Result<()> {
-    let repo_root = path
-        .canonicalize()
-        .with_context(|| format!("path not found: {}", path.display()))?;
-
-    let config = Config::load(&repo_root)
-        .with_context(|| "config not found — run `retrodoc init` first".to_string())?;
+    let workspace = Workspace::open(path)?;
+    let repo_root = &workspace.repo_root;
+    let config = &workspace.config;
 
     if force {
-        clear_caches(&repo_root)?;
+        clear_caches(repo_root)?;
     }
 
-    let mut ingest = retrodoc_ingest::run(&repo_root, &config.ingest)
-        .with_context(|| format!("ingestion of {} failed", repo_root.display()))?;
-    ingest.existing_docs = super::docs::without_generated(ingest.existing_docs, &config);
+    let mut ingest = workspace.ingest()?;
+    ingest.existing_docs = super::docs::without_generated(ingest.existing_docs, config);
 
     let llm = super::usage::provider(&config.llm, tracker)?;
 
     let (surface, entry_points, role_map) =
-        build_surface(&repo_root, &mut ingest, &llm, force, tracker).await?;
+        build_surface(repo_root, &mut ingest, &llm, force, tracker).await?;
     tracker.set_pass("actors");
-    let actors = identify_actors(&repo_root, &ingest, &surface, &llm, force).await?;
+    let actors = identify_actors(repo_root, &ingest, &surface, &llm, force).await?;
 
     // Ranking the files is not an LLM pass either.
     tracker.end_pass();
     apply_scope(
-        &repo_root,
+        repo_root,
         &mut ingest,
         role_map.as_ref(),
         max_files.or(config.ingest.max_files),
     )?;
 
     tracker.set_pass("repo-map");
-    let map = build_map(&repo_root, &ingest, &llm, &config.llm).await?;
+    let map = build_map(repo_root, &ingest, &llm, &config.llm).await?;
 
     print_repo_map(&map);
 
@@ -79,17 +77,17 @@ pub async fn run(
     );
 
     tracker.set_pass("domains");
-    let domain_map = cluster_domains(&repo_root, &map, &ingest, &surface, &llm).await?;
+    let domain_map = cluster_domains(repo_root, &map, &ingest, &surface, &llm).await?;
 
     tracker.set_pass("features");
     println!("\nDeriving features…");
-    let features = retrodoc_pipeline::build_features(&repo_root, &domain_map, &map, &llm)
+    let features = retrodoc_pipeline::build_features(repo_root, &domain_map, &map, &llm)
         .await
         .context("failed to derive the features")?;
 
     tracker.set_pass("use-cases");
     let mut use_cases = derive_use_cases(
-        &repo_root,
+        repo_root,
         &ingest,
         &features,
         entry_points,
@@ -101,7 +99,7 @@ pub async fn run(
 
     let mut features = features;
     tracker.set_pass("confidence");
-    run_confidence(&repo_root, &mut features, &mut use_cases, &llm, confidence).await?;
+    run_confidence(repo_root, &mut features, &mut use_cases, &llm, confidence).await?;
 
     // Rendering is not an LLM pass: don't bill its time to the last one.
     tracker.end_pass();
@@ -114,15 +112,7 @@ pub async fn run(
     );
     println!("Run `retrodoc report` for the documentation debt report.");
 
-    super::docs::publish(&repo_root, &config, dry_run)
-}
-
-fn source_paths(ingest: &IngestResult) -> impl Iterator<Item = &Path> {
-    ingest
-        .files
-        .iter()
-        .filter(|f| f.kind == FileKind::Source)
-        .map(|f| f.path.as_path())
+    super::docs::publish(repo_root, config, dry_run)
 }
 
 async fn identify_actors(

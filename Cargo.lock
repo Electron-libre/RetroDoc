@@ -1125,6 +1125,7 @@ dependencies = [
  "retrodoc-llm",
  "retrodoc-pipeline",
  "retrodoc-render",
+ "tempfile",
  "tokio",
  "tracing",
  "tracing-subscriber",

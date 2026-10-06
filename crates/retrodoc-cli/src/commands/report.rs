@@ -1,14 +1,13 @@
 use std::path::Path;
 
-use anyhow::Context;
 use retrodoc_pipeline::DomainMap;
+
+use super::workspace::repo_root;
 
 /// Prints the documentation debt report from the artifacts saved by the last
 /// `generate` run (`.retrodoc/cache/`); makes no LLM call.
 pub fn run(path: &Path) -> anyhow::Result<()> {
-    let repo_root = path
-        .canonicalize()
-        .with_context(|| format!("path not found: {}", path.display()))?;
+    let repo_root = repo_root(path)?;
 
     let (Some(features), Some(use_cases)) = (
         retrodoc_pipeline::load_features(&repo_root),

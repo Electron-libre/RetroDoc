@@ -1,19 +1,14 @@
 use std::path::Path;
 
-use anyhow::Context;
-use retrodoc_core::config::Config;
 use retrodoc_ingest::FileKind;
 
+use super::workspace::Workspace;
+
 pub fn run(path: &Path) -> anyhow::Result<()> {
-    let repo_root = path
-        .canonicalize()
-        .with_context(|| format!("path not found: {}", path.display()))?;
+    let workspace = Workspace::open(path)?;
+    let repo_root = &workspace.repo_root;
 
-    let config = Config::load(&repo_root)
-        .with_context(|| "config not found — run `retrodoc init` first".to_string())?;
-
-    let result = retrodoc_ingest::run(&repo_root, &config.ingest)
-        .with_context(|| format!("ingestion of {} failed", repo_root.display()))?;
+    let result = workspace.ingest()?;
 
     let source_count = result
         .files

@@ -1,9 +1,10 @@
 use std::path::Path;
 
 use anyhow::Context;
-use retrodoc_core::config::Config;
 use retrodoc_llm::UsageTracker;
 use retrodoc_pipeline::{FileRole, RoleRules};
+
+use super::workspace::Workspace;
 
 const UNCLASSIFIED_SAMPLE: usize = 20;
 
@@ -11,22 +12,19 @@ const UNCLASSIFIED_SAMPLE: usize = 20;
 /// `.retrodoc/cache/roles.yaml`), applies them and prints the distribution.
 /// `force` ignores the saved rules and asks the LLM again.
 pub async fn run(path: &Path, force: bool, tracker: &UsageTracker) -> anyhow::Result<()> {
-    let repo_root = path
-        .canonicalize()
-        .with_context(|| format!("path not found: {}", path.display()))?;
-    let config = Config::load(&repo_root)
-        .with_context(|| "config not found — run `retrodoc init` first".to_string())?;
-    let mut ingest = retrodoc_ingest::run(&repo_root, &config.ingest)
-        .with_context(|| format!("ingestion of {} failed", repo_root.display()))?;
-    ingest.existing_docs = super::docs::without_generated(ingest.existing_docs, &config);
+    let workspace = Workspace::open(path)?;
+    let repo_root = &workspace.repo_root;
+    let config = &workspace.config;
+    let mut ingest = workspace.ingest()?;
+    ingest.existing_docs = super::docs::without_generated(ingest.existing_docs, config);
 
-    let saved = !force && RoleRules::load(&repo_root).is_some();
+    let saved = !force && RoleRules::load(repo_root).is_some();
     let rules = if saved {
-        RoleRules::load(&repo_root).unwrap_or_default()
+        RoleRules::load(repo_root).unwrap_or_default()
     } else {
         let llm = super::usage::provider(&config.llm, tracker)?;
         tracker.set_pass("roles");
-        retrodoc_pipeline::identify_roles(&repo_root, &ingest, &llm, force)
+        retrodoc_pipeline::identify_roles(repo_root, &ingest, &llm, force)
             .await
             .context("failed to identify the file roles")?
     };

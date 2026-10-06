@@ -1,11 +1,11 @@
 use std::path::Path;
 
 use anyhow::Context;
-use retrodoc_core::config::Config;
 use retrodoc_core::model::ActorKind;
-use retrodoc_ingest::FileKind;
 use retrodoc_llm::UsageTracker;
 use retrodoc_pipeline::{EntryPoints, Glossary, RoleRules, Surface};
+
+use super::workspace::{source_paths, Workspace};
 
 /// Identifies the business actors (who uses the application, in business
 /// terms) from the authorization code and the user-like entities, saves
@@ -13,25 +13,17 @@ use retrodoc_pipeline::{EntryPoints, Glossary, RoleRules, Surface};
 /// points from the earlier commands are used when present. `force` ignores
 /// the saved list.
 pub async fn run(path: &Path, force: bool, tracker: &UsageTracker) -> anyhow::Result<()> {
-    let repo_root = path
-        .canonicalize()
-        .with_context(|| format!("path not found: {}", path.display()))?;
-    let config = Config::load(&repo_root)
-        .with_context(|| "config not found — run `retrodoc init` first".to_string())?;
-    let mut ingest = retrodoc_ingest::run(&repo_root, &config.ingest)
-        .with_context(|| format!("ingestion of {} failed", repo_root.display()))?;
-    if let Some(rules) = RoleRules::load(&repo_root) {
+    let workspace = Workspace::open(path)?;
+    let repo_root = &workspace.repo_root;
+    let config = &workspace.config;
+    let mut ingest = workspace.ingest()?;
+    if let Some(rules) = RoleRules::load(repo_root) {
         rules.promote_sources(&mut ingest.files);
     }
-    let source_files: Vec<_> = ingest
-        .files
-        .iter()
-        .filter(|f| f.kind == FileKind::Source)
-        .map(|f| f.path.clone())
-        .collect();
+    let source_files: Vec<_> = source_paths(&ingest).map(Path::to_path_buf).collect();
     let surface = Surface::new(
-        &Glossary::load(&repo_root).unwrap_or_default(),
-        &EntryPoints::load(&repo_root).unwrap_or_default(),
+        &Glossary::load(repo_root).unwrap_or_default(),
+        &EntryPoints::load(repo_root).unwrap_or_default(),
     );
 
     let llm = super::usage::provider(&config.llm, tracker)?;
@@ -42,7 +34,7 @@ pub async fn run(path: &Path, force: bool, tracker: &UsageTracker) -> anyhow::Re
         candidates.len(),
         surface.entities.len()
     );
-    let actors = retrodoc_pipeline::build_actors(&repo_root, &source_files, &surface, &llm, force)
+    let actors = retrodoc_pipeline::build_actors(repo_root, &source_files, &surface, &llm, force)
         .await
         .context("failed to identify the actors")?;
 
