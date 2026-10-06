@@ -39,10 +39,12 @@ const MANIFESTS: &[&str] = &[
     "build.gradle",
     "composer.json",
 ];
+/// Characters kept of each manifest sent to the LLM.
 const MAX_MANIFEST_CHARS: usize = 1_500;
 /// Directory lines sent to the LLM (shallowest first); deeper ones are
 /// summed up in a trailing note.
 const MAX_TREE_DIRS: usize = 300;
+/// File names given as a sample for each directory of the tree.
 const SAMPLE_FILES_PER_DIR: usize = 4;
 
 const ROLES_SYSTEM_PROMPT: &str = "You are analyzing the file tree of a software repository. \

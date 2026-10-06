@@ -37,7 +37,9 @@ const UNGROUNDED_STEP_CAP: f32 = 0.25;
 /// Use cases of a feature judged in one request.
 const MAX_USE_CASES_PER_REQUEST: usize = 5;
 
-const MAX_CHARS_PER_FILE: usize = 4000;
+/// Characters shown of each cited file.
+const MAX_CHARS_PER_FILE: usize = 4_000;
+/// Characters of code in one request; the cited files share it.
 const MAX_CHARS_PER_PROMPT: usize = 30_000;
 
 const CONFIDENCE_SYSTEM_PROMPT: &str = "You are fact-checking documentation against source code. \

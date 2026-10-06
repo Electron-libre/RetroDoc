@@ -25,9 +25,13 @@ use crate::repo_map::{read_file_lossy, truncate_chars};
 use crate::response::complete_json;
 use crate::surface::Surface;
 
+/// Authorization files sent to the LLM.
 const MAX_AUTH_FILES: usize = 12;
+/// Characters kept of each authorization file.
 const MAX_AUTH_FILE_CHARS: usize = 3_000;
+/// User-like entities listed in the prompt.
 const MAX_USER_ENTITIES: usize = 15;
+/// Attributes shown for each of those entities.
 const MAX_ATTRIBUTES_SHOWN: usize = 8;
 
 /// File name words that mark authorization code, most telling first.

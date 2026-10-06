@@ -41,7 +41,9 @@ const MAX_BREADTH: f64 = 0.4;
 const MAX_SAMPLE_LINES: usize = 50_000;
 /// Cap on the expected lines gathered per rule.
 const MAX_EXPECTED_LINES: usize = 3_000;
+/// Lines the regex misses, given back to the LLM as examples when it is asked for a fix.
 const MISSED_EXAMPLES: usize = 8;
+/// Characters kept of each of those example lines.
 const MAX_EXAMPLE_CHARS: usize = 120;
 
 const FIX_SYSTEM_PROMPT: &str = "You write a regular expression (Rust regex syntax, tried on one \

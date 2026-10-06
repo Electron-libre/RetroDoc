@@ -26,7 +26,7 @@ const MAX_SERVER_RETRY_DELAY: Duration = Duration::from_secs(120);
 const DEFAULT_REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
 /// Upper bound on `max_tokens` sent with every request, for the same
 /// reason: caps how long a runaway generation can run server-side too.
-const MAX_COMPLETION_TOKENS: u32 = 8192;
+const MAX_COMPLETION_TOKENS: u32 = 8_192;
 
 // --- OpenRouter API formats (OpenAI-compatible chat completions) ---
 

@@ -32,7 +32,7 @@ use self::summarize::{build_module_summaries, summarize_files};
 
 /// Files larger than this are truncated before being sent to the LLM, to
 /// stay within a reasonable token budget (PLAN.md §6 "cost/volume").
-const MAX_FILE_CHARS: usize = 6000;
+const MAX_FILE_CHARS: usize = 6_000;
 
 /// Summary of a file's probable role, enriched with its git history.
 #[derive(Debug, Clone, Serialize, Deserialize)]

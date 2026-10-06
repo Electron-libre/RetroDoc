@@ -6,6 +6,7 @@ use retrodoc_pipeline::{Artifact, FileRole, RoleRules};
 
 use super::workspace::Workspace;
 
+/// Unclassified files listed after the distribution.
 const UNCLASSIFIED_SAMPLE: usize = 20;
 
 /// Identifies the stack and the file role rules (one LLM call, or the saved

@@ -24,10 +24,15 @@ use retrodoc_core::model::{ConfidenceScore, UseCase};
 
 use crate::actors::{words, Actors};
 
+/// Score removed for each code-level word found in the narrative.
 const LEAK_PENALTY: f32 = 0.15;
+/// Most that the code-level words together can remove.
 const MAX_LEAK_PENALTY: f32 = 0.6;
+/// Removed when the narrative names no known entity or actor.
 const NO_VOCABULARY_PENALTY: f32 = 0.3;
+/// Removed when a use case has neither an entry point nor a primary actor.
 const NO_TRIGGER_PENALTY: f32 = 0.2;
+/// Code-level words quoted in the reason shown to the reader.
 const MAX_LEAKS_REPORTED: usize = 4;
 
 /// Lowercase words that talk about the implementation, not the business.

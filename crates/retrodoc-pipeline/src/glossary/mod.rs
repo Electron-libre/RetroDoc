@@ -33,7 +33,9 @@ use crate::use_cases::resolve_cited_path;
 /// A longer model file is read in several chunks of about this size, so one
 /// huge model can't crowd out the others in a batch.
 const MAX_MODEL_FILE_CHARS: usize = 4_000;
+/// Test phrases kept per test file.
 const MAX_PHRASES_PER_TEST_FILE: usize = 30;
+/// Characters kept of each test phrase.
 const MAX_PHRASE_CHARS: usize = 160;
 
 const GLOSSARY_SYSTEM_PROMPT: &str = "You are extracting the business entities from the model \

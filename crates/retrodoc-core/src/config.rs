@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 pub const CONFIG_FILE_NAME: &str = "retrodoc.toml";
 
 /// Default `llm.batch_chars`.
-pub const DEFAULT_BATCH_CHARS: usize = 6000;
+pub const DEFAULT_BATCH_CHARS: usize = 6_000;
 
 /// Default model proposed at init. Can be changed in `retrodoc.toml`.
 pub const DEFAULT_MODEL: &str = "anthropic/claude-sonnet-4.5";

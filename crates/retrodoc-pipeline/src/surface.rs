@@ -17,8 +17,11 @@ use crate::glossary::{Glossary, MergedEntity};
 const MAX_PROMPT_ENTITIES: usize = 80;
 /// Resources listed in a prompt, the most exposed first.
 const MAX_PROMPT_RESOURCES: usize = 40;
+/// Characters kept of an entity description in the prompt.
 const MAX_DESCRIPTION_CHARS: usize = 120;
+/// Associations shown per entity.
 const MAX_ASSOCIATIONS_SHOWN: usize = 3;
+/// Verbs shown per resource.
 const MAX_VERBS_SHOWN: usize = 6;
 
 /// A business object the entry points act on, with what can be done to it.

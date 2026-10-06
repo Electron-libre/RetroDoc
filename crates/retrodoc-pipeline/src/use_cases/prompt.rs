@@ -3,8 +3,9 @@ use super::*;
 /// Per-file truncation and overall budget of code sent for one feature
 /// (PLAN.md §6 "cost/volume"); files beyond the budget are left out of the
 /// prompt, and so can't be cited.
-pub(super) const MAX_CHARS_PER_FILE: usize = 4000;
+pub(super) const MAX_CHARS_PER_FILE: usize = 4_000;
 
+/// Characters of code in one request; the cited files share it.
 pub(super) const MAX_CHARS_PER_PROMPT: usize = 30_000;
 
 /// Added to the system prompt when the feature has known entry points.
