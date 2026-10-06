@@ -8,7 +8,7 @@
 
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::entry_points::EntryPoints;
 use crate::glossary::{Glossary, MergedEntity};
@@ -23,6 +23,12 @@ const MAX_DESCRIPTION_CHARS: usize = 120;
 const MAX_ASSOCIATIONS_SHOWN: usize = 3;
 /// Verbs shown per resource.
 const MAX_VERBS_SHOWN: usize = 6;
+
+/// The module (parent directory) of a file, `""` at the repository root.
+fn module_of(file: &Path) -> String {
+    file.parent()
+        .map_or(String::new(), |d| d.display().to_string())
+}
 
 /// A business object the entry points act on, with what can be done to it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -134,8 +140,10 @@ impl Surface {
     }
 
     /// The prompt view: the best connected entities, then the most exposed
-    /// resources, with the files they live in so that a module can be placed
-    /// next to the concept it serves.
+    /// resources, with the module (directory) they live in so that a module can
+    /// be placed next to the concept it serves. Never a file path: the
+    /// clustering prompt asks for module paths, and shown file paths made the
+    /// model answer with files instead.
     #[must_use]
     pub fn prompt_section(&self) -> String {
         let mut out = String::new();
@@ -154,11 +162,8 @@ impl Surface {
                     .map(|a| format!("{} {}", a.kind, a.target))
                     .collect::<Vec<_>>()
                     .join(", ");
-                let home = entity
-                    .files
-                    .first()
-                    .map_or(String::new(), |f| f.display().to_string());
-                let _ = write!(out, "- {} ({home}): {description}", entity.name);
+                let home = entity.files.first().map_or(String::new(), |f| module_of(f));
+                let _ = write!(out, "- {} (in \"{home}\"): {description}", entity.name);
                 if !associations.is_empty() {
                     let _ = write!(out, " [{associations}]");
                 }
@@ -179,16 +184,21 @@ impl Surface {
                     .cloned()
                     .collect::<Vec<_>>()
                     .join(", ");
-                let files = resource
-                    .files
+                let mut modules: Vec<String> = Vec::new();
+                for module in resource.files.iter().map(|f| module_of(f)) {
+                    if !modules.contains(&module) {
+                        modules.push(module);
+                    }
+                }
+                let modules = modules
                     .iter()
                     .take(2)
-                    .map(|f| f.display().to_string())
+                    .map(|m| format!("\"{m}\""))
                     .collect::<Vec<_>>()
                     .join(", ");
                 let _ = writeln!(
                     out,
-                    "- {}: {} entry point(s) — {verbs}; in {files}",
+                    "- {}: {} entry point(s) — {verbs}; in {modules}",
                     resource.name, resource.entry_count
                 );
             }
@@ -286,12 +296,11 @@ mod tests {
     #[test]
     fn prompt_section_lists_entities_and_resources() {
         let section = surface().prompt_section();
-        assert!(section.contains(
-            "- Contract (app/models/contract.rb): Contract description [has_many Signatory]"
-        ));
-        assert!(section.contains(
-            "- contract: 2 entry point(s) — sign, show, view; in app/controllers/contracts_controller.rb"
-        ));
+        assert!(section
+            .contains("- Contract (in \"app/models\"): Contract description [has_many Signatory]"));
+        assert!(section
+            .contains("- contract: 2 entry point(s) — sign, show, view; in \"app/controllers\""));
+        assert!(!section.contains(".rb"), "no file path in the section");
     }
 
     #[test]

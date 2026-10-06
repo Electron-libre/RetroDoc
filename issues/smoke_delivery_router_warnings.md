@@ -78,3 +78,18 @@ both attempts fail, and look at why the retry returned an ungrounded use case wi
 * The model answers differently each time, so judge a fix on several runs, not on one.
 * After the fix, run `just smoke ~/Code/delivery_router` and check that the report no longer lists
   `rider.rb` and `router.rb` as undocumented.
+
+# Tracking
+
+1. [x] Surface section of the clustering prompt without file paths (entity + containing module, same for resources)
+2. [ ] LLM repair of the files left unassigned by the clustering, before the "uncategorized" bucket (validated, cached, ADR 0004 updated)
+3. [ ] Use cases pass: `WARN` only when both attempts fail
+4. [ ] Validation: `just smoke ~/Code/delivery_router` + 20 replays of the clustering prompt
+5. [ ] Conditional: ungrounded use case scored 100% (only if still present after 4)
+
+## Decisions
+
+* Repair by one small LLM call (unassigned files with their summaries + the domains found), not by mechanical inheritance.
+* The "retry the clustering once" candidate is dropped in favor of the repair call; reconsidered only if the smoke test still shows incomplete answers.
+* The smoke test may run on the local Ollama.
+* Deliverable 5 is handled only if the smoke test shows the problem persists.

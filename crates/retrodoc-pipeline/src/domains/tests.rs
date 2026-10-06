@@ -406,5 +406,5 @@ async fn the_surface_reaches_the_prompt_and_invalidates_the_saved_clustering() {
     assert!(prompts[1]
         .0
         .contains("Never name a domain after a technical layer"));
-    assert!(prompts[1].1.contains("- Contract (a.rs): An agreement"));
+    assert!(prompts[1].1.contains("- Contract (in \"\"): An agreement"));
 }
