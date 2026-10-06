@@ -2,7 +2,7 @@ use std::path::Path;
 
 use anyhow::Context;
 use retrodoc_llm::UsageTracker;
-use retrodoc_pipeline::{FileRole, RoleRules};
+use retrodoc_pipeline::{Artifact, FileRole, RoleRules};
 
 use super::workspace::Workspace;
 
@@ -52,6 +52,6 @@ pub async fn run(path: &Path, tracker: &UsageTracker) -> anyhow::Result<()> {
             }
         );
     }
-    println!("\nSaved to .retrodoc/cache/entry-points.yaml.");
+    println!("\nSaved to {}.", Artifact::EntryPoints.relative_path());
     Ok(())
 }

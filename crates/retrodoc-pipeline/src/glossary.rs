@@ -20,7 +20,7 @@ use std::path::{Path, PathBuf};
 use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
-use crate::artifact::{load_yaml, save_yaml};
+use crate::artifact::{load_yaml, save_yaml, Artifact};
 use crate::batched_read::{group_paths, BatchedRead, PendingChunk};
 use crate::cache::hash_content;
 use crate::chunks::{strip_part_marker, Splitter};
@@ -29,8 +29,6 @@ use crate::naming::normalize;
 use crate::repo_map::read_file_lossy;
 use crate::roles::{FileRole, RoleMap};
 use crate::use_cases::resolve_cited_path;
-
-const GLOSSARY_RELATIVE_PATH: &str = ".retrodoc/cache/glossary.yaml";
 
 /// A longer model file is read in several chunks of about this size, so one
 /// huge model can't crowd out the others in a batch.
@@ -90,7 +88,7 @@ impl Glossary {
     /// Missing or unreadable: `None` (first run).
     #[must_use]
     pub fn load(repo_root: &Path) -> Option<Self> {
-        load_yaml(&repo_root.join(GLOSSARY_RELATIVE_PATH))
+        load_yaml(&Artifact::Glossary.path(repo_root))
     }
 
     /// # Errors
@@ -98,7 +96,7 @@ impl Glossary {
     /// Returns an error if the cache folder or file can't be written, or
     /// serialization fails.
     pub fn save(&self, repo_root: &Path) -> Result<(), PipelineError> {
-        save_yaml(&repo_root.join(GLOSSARY_RELATIVE_PATH), self)
+        save_yaml(&Artifact::Glossary.path(repo_root), self)
     }
 
     /// Every entity with the file it was read from, in path order.

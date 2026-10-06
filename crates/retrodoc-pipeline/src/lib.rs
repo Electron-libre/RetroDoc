@@ -41,6 +41,7 @@ pub mod use_cases;
 pub mod vocabulary;
 
 pub use actors::{authorization_files, build_actors, Actors, BusinessActor};
+pub use artifact::Artifact;
 pub use confidence::score_confidence;
 pub use diagrams::{attach_diagrams, sequence_diagram};
 pub use domains::{build_domains, CoverageReport, DomainCluster, DomainMap, SubDomainCluster};

@@ -17,15 +17,13 @@ use retrodoc_core::model::ActorKind;
 use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
-use crate::artifact::{load_yaml, save_yaml};
+use crate::artifact::{load_yaml, save_yaml, Artifact};
 use crate::cache::hash_content;
 use crate::error::PipelineError;
 use crate::fingerprints::fingerprint;
 use crate::repo_map::{read_file_lossy, truncate_chars};
 use crate::response::complete_json;
 use crate::surface::Surface;
-
-const ACTORS_RELATIVE_PATH: &str = ".retrodoc/cache/actors.yaml";
 
 const MAX_AUTH_FILES: usize = 12;
 const MAX_AUTH_FILE_CHARS: usize = 3_000;
@@ -103,7 +101,7 @@ impl Actors {
     /// Missing or unreadable: `None` (first run).
     #[must_use]
     pub fn load(repo_root: &Path) -> Option<Self> {
-        load_yaml(&repo_root.join(ACTORS_RELATIVE_PATH))
+        load_yaml(&Artifact::Actors.path(repo_root))
     }
 
     /// # Errors
@@ -111,7 +109,7 @@ impl Actors {
     /// Returns an error if the cache folder or file can't be written, or
     /// serialization fails.
     pub fn save(&self, repo_root: &Path) -> Result<(), PipelineError> {
-        save_yaml(&repo_root.join(ACTORS_RELATIVE_PATH), self)
+        save_yaml(&Artifact::Actors.path(repo_root), self)
     }
 
     #[must_use]

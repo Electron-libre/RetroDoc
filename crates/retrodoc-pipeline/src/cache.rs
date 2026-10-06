@@ -13,10 +13,8 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::artifact::{load_json, save_json};
+use crate::artifact::{load_json, save_json, Artifact};
 use crate::error::PipelineError;
-
-const CACHE_RELATIVE_PATH: &str = ".retrodoc/cache/repo-map.json";
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct RepoMapCache {
@@ -51,7 +49,7 @@ impl RepoMapCache {
     /// Missing or unreadable: empty cache, not an error (first run).
     #[must_use]
     pub fn load(repo_root: &Path) -> Self {
-        load_json(&repo_root.join(CACHE_RELATIVE_PATH)).unwrap_or_default()
+        load_json(&Artifact::RepoMap.path(repo_root)).unwrap_or_default()
     }
 
     /// # Errors
@@ -59,7 +57,7 @@ impl RepoMapCache {
     /// Returns an error if the `.retrodoc/cache/` folder can't be created,
     /// or if writing the cache file fails.
     pub fn save(&self, repo_root: &Path) -> Result<(), PipelineError> {
-        save_json(&repo_root.join(CACHE_RELATIVE_PATH), self)?;
+        save_json(&Artifact::RepoMap.path(repo_root), self)?;
         Ok(())
     }
 

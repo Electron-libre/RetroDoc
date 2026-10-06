@@ -18,7 +18,7 @@ use retrodoc_llm::LlmProvider;
 use serde::Deserialize;
 
 use crate::actors::Actors;
-use crate::artifact::{load_yaml, save_yaml, warn_on_error};
+use crate::artifact::{load_yaml, save_yaml, warn_on_error, Artifact};
 use crate::cache::hash_content;
 use crate::chunks::{Focus, Splitter};
 use crate::entry_points::{EntryPoint, EntryPoints};
@@ -40,8 +40,6 @@ pub(crate) use self::grounding::{is_human, resolve_cited_path};
 pub(crate) use self::prompt::numbered_excerpt;
 use self::prompt::{system_prompt, use_cases_prompt};
 
-const USE_CASES_RELATIVE_PATH: &str = ".retrodoc/cache/use-cases.yaml";
-
 /// How far from an entry point's file the code it runs is followed, and how
 /// many files are kept (see [`CodeIndex::slice`]).
 const SLICE_DEPTH: usize = 2;
@@ -51,7 +49,7 @@ const MAX_SLICE_FILES: usize = 8;
 /// (first run), not an error.
 #[must_use]
 pub fn load_use_cases(repo_root: &Path) -> Option<Vec<UseCase>> {
-    load_yaml(&repo_root.join(USE_CASES_RELATIVE_PATH))
+    load_yaml(&Artifact::UseCases.path(repo_root))
 }
 
 /// Persists `use_cases` as `.retrodoc/cache/use-cases.yaml`; also used to
@@ -61,7 +59,7 @@ pub fn load_use_cases(repo_root: &Path) -> Option<Vec<UseCase>> {
 ///
 /// Returns an error if the file can't be written or serialization fails.
 pub fn save_use_cases(repo_root: &Path, use_cases: &[UseCase]) -> Result<(), PipelineError> {
-    save_yaml(&repo_root.join(USE_CASES_RELATIVE_PATH), use_cases)
+    save_yaml(&Artifact::UseCases.path(repo_root), use_cases)
 }
 
 /// Asks the LLM for the use cases of a feature. An answer without any use

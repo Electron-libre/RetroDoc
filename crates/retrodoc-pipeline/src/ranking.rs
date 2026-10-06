@@ -16,13 +16,12 @@ use std::path::{Path, PathBuf};
 use retrodoc_ingest::{FileKind, IngestResult};
 use serde::{Deserialize, Serialize};
 
-use crate::artifact::{load_yaml, save_yaml};
+use crate::artifact::{load_yaml, save_yaml, Artifact};
 use crate::error::PipelineError;
 use crate::naming::normalize;
 use crate::repo_map::read_file_lossy;
 use crate::roles::{FileRole, RoleMap};
 
-const SCOPE_RELATIVE_PATH: &str = ".retrodoc/cache/scope.yaml";
 /// A file name shared by more files than this designates none of them.
 const MAX_SHARED_NAME: usize = 3;
 /// Shortest identifier counted as a possible reference to a file.
@@ -45,19 +44,19 @@ impl Scope {
     /// Missing or unreadable: `None`.
     #[must_use]
     pub fn load(repo_root: &Path) -> Option<Self> {
-        load_yaml(&repo_root.join(SCOPE_RELATIVE_PATH))
+        load_yaml(&Artifact::Scope.path(repo_root))
     }
 
     /// # Errors
     ///
     /// Returns an error if the file can't be written.
     pub fn save(&self, repo_root: &Path) -> Result<(), PipelineError> {
-        save_yaml(&repo_root.join(SCOPE_RELATIVE_PATH), self)
+        save_yaml(&Artifact::Scope.path(repo_root), self)
     }
 
     /// Removes the saved scope (no budget in this run).
     pub fn clear(repo_root: &Path) {
-        let _ = std::fs::remove_file(repo_root.join(SCOPE_RELATIVE_PATH));
+        let _ = std::fs::remove_file(Artifact::Scope.path(repo_root));
     }
 }
 

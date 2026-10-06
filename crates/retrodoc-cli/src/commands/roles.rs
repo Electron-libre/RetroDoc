@@ -2,7 +2,7 @@ use std::path::Path;
 
 use anyhow::Context;
 use retrodoc_llm::UsageTracker;
-use retrodoc_pipeline::{FileRole, RoleRules};
+use retrodoc_pipeline::{Artifact, FileRole, RoleRules};
 
 use super::workspace::Workspace;
 
@@ -36,8 +36,9 @@ pub async fn run(path: &Path, force: bool, tracker: &UsageTracker) -> anyhow::Re
     }
     println!("Stack: {}", rules.stack);
     println!(
-        "\nRules ({}, .retrodoc/cache/roles.yaml — editable):",
-        if saved { "reused" } else { "identified" }
+        "\nRules ({}, {} — editable):",
+        if saved { "reused" } else { "identified" },
+        Artifact::Roles.relative_path()
     );
     for rule in &rules.rules {
         println!("  {:<12} {}", rule.role.label(), rule.pattern);

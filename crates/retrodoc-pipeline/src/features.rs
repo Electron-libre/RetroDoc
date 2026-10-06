@@ -20,15 +20,13 @@ use retrodoc_core::model::Feature;
 use retrodoc_llm::LlmProvider;
 use serde::Deserialize;
 
-use crate::artifact::{load_yaml, save_yaml, warn_on_error};
+use crate::artifact::{load_yaml, save_yaml, warn_on_error, Artifact};
 use crate::domains::{DomainCluster, DomainMap, UNCATEGORIZED_SLUG};
 use crate::error::PipelineError;
 use crate::fingerprints::{fingerprint, Fingerprints};
 use crate::progress::Progress;
 use crate::repo_map::{FileSummary, RepoMap};
 use crate::response::complete_json;
-
-const FEATURES_RELATIVE_PATH: &str = ".retrodoc/cache/features.yaml";
 
 /// Upper bound on files listed in one features prompt (PLAN.md §6
 /// "cost/volume"). When a unit has more, the most-modified files are kept:
@@ -64,7 +62,7 @@ struct RawFeature {
 /// (first run), not an error.
 #[must_use]
 pub fn load_features(repo_root: &Path) -> Option<Vec<Feature>> {
-    load_yaml(&repo_root.join(FEATURES_RELATIVE_PATH))
+    load_yaml(&Artifact::Features.path(repo_root))
 }
 
 /// Persists `features` as `.retrodoc/cache/features.yaml`; also used to
@@ -74,7 +72,7 @@ pub fn load_features(repo_root: &Path) -> Option<Vec<Feature>> {
 ///
 /// Returns an error if the file can't be written or serialization fails.
 pub fn save_features(repo_root: &Path, features: &[Feature]) -> Result<(), PipelineError> {
-    save_yaml(&repo_root.join(FEATURES_RELATIVE_PATH), features)
+    save_yaml(&Artifact::Features.path(repo_root), features)
 }
 
 /// Derives the features of every domain/sub-domain in `domains` and

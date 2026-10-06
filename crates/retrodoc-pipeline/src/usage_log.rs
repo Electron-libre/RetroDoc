@@ -17,11 +17,10 @@ use std::time::Duration;
 use retrodoc_llm::{CallTotals, UsageReport};
 use serde::{Deserialize, Serialize};
 
-use crate::artifact;
+use crate::artifact::{self, Artifact};
 use crate::error::PipelineError;
 use crate::progress::format_duration;
 
-const USAGE_RELATIVE_PATH: &str = ".retrodoc/cache/usage.json";
 /// Runs kept in the history, the oldest dropped first.
 pub const KEPT_RUNS: usize = 20;
 
@@ -94,7 +93,7 @@ struct History {
 /// The saved runs, oldest first. Missing or unreadable: none.
 #[must_use]
 pub fn load_history(repo_root: &Path) -> Vec<RunUsage> {
-    artifact::load_json::<History>(&repo_root.join(USAGE_RELATIVE_PATH))
+    artifact::load_json::<History>(&Artifact::Usage.path(repo_root))
         .unwrap_or_default()
         .runs
 }
@@ -110,7 +109,7 @@ pub fn record_run(repo_root: &Path, run: RunUsage) -> Result<(), PipelineError> 
     if runs.len() > KEPT_RUNS {
         runs.drain(..runs.len() - KEPT_RUNS);
     }
-    artifact::save_json(&repo_root.join(USAGE_RELATIVE_PATH), &History { runs })
+    artifact::save_json(&Artifact::Usage.path(repo_root), &History { runs })
 }
 
 /// `12400` → `12,400`.
@@ -307,7 +306,7 @@ mod tests {
     #[test]
     fn the_history_keeps_the_last_runs_and_survives_an_unreadable_file() {
         let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join(USAGE_RELATIVE_PATH);
+        let path = Artifact::Usage.path(dir.path());
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::fs::write(&path, "not json").unwrap();
         assert!(load_history(dir.path()).is_empty());

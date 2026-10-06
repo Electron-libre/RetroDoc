@@ -2,12 +2,94 @@
 //! place for the "create the folder, serialize, write" sequence and for the
 //! "missing or unreadable is a first run, not an error" rule.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 use crate::error::PipelineError;
+
+/// Where the artifacts live, relative to the repo root.
+const CACHE_DIR: &str = ".retrodoc/cache";
+
+/// Every file the passes save under `.retrodoc/cache/`: the one place that
+/// knows their names.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Artifact {
+    RepoMap,
+    Fingerprints,
+    Roles,
+    Glossary,
+    EntryPoints,
+    Actors,
+    Scope,
+    Domains,
+    Features,
+    UseCases,
+    Usage,
+}
+
+impl Artifact {
+    pub const ALL: [Artifact; 11] = [
+        Artifact::RepoMap,
+        Artifact::Fingerprints,
+        Artifact::Roles,
+        Artifact::Glossary,
+        Artifact::EntryPoints,
+        Artifact::Actors,
+        Artifact::Scope,
+        Artifact::Domains,
+        Artifact::Features,
+        Artifact::UseCases,
+        Artifact::Usage,
+    ];
+
+    #[must_use]
+    pub fn file_name(self) -> &'static str {
+        match self {
+            Artifact::RepoMap => "repo-map.json",
+            Artifact::Fingerprints => "fingerprints.json",
+            Artifact::Roles => "roles.yaml",
+            Artifact::Glossary => "glossary.yaml",
+            Artifact::EntryPoints => "entry-points.yaml",
+            Artifact::Actors => "actors.yaml",
+            Artifact::Scope => "scope.yaml",
+            Artifact::Domains => "domains.yaml",
+            Artifact::Features => "features.yaml",
+            Artifact::UseCases => "use-cases.yaml",
+            Artifact::Usage => "usage.json",
+        }
+    }
+
+    /// The path as shown to the user, from the repo root.
+    #[must_use]
+    pub fn relative_path(self) -> String {
+        format!("{CACHE_DIR}/{}", self.file_name())
+    }
+
+    #[must_use]
+    pub fn path(self, repo_root: &Path) -> PathBuf {
+        repo_root.join(CACHE_DIR).join(self.file_name())
+    }
+
+    /// Whether `generate --force` removes it. The others are not results to
+    /// redo: `roles.yaml` is hand-editable (`retrodoc roles --force`
+    /// identifies it again), `usage.json` is the history of the runs, and
+    /// `domains.yaml` and `scope.yaml` are recomputed on every run anyway.
+    #[must_use]
+    pub fn cleared_by_force(self) -> bool {
+        match self {
+            Artifact::RepoMap
+            | Artifact::Fingerprints
+            | Artifact::Glossary
+            | Artifact::EntryPoints
+            | Artifact::Actors
+            | Artifact::Features
+            | Artifact::UseCases => true,
+            Artifact::Roles | Artifact::Scope | Artifact::Domains | Artifact::Usage => false,
+        }
+    }
+}
 
 /// Missing or unreadable (or no longer matching the type): `None`.
 pub(crate) fn load_yaml<T: DeserializeOwned>(path: &Path) -> Option<T> {
@@ -56,6 +138,35 @@ fn write(path: &Path, raw: &str) -> Result<(), PipelineError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn artifacts_have_distinct_names_under_the_cache_dir() {
+        let names: std::collections::BTreeSet<_> =
+            Artifact::ALL.iter().map(|a| a.file_name()).collect();
+        assert_eq!(names.len(), Artifact::ALL.len());
+        let root = Path::new("/repo");
+        assert_eq!(
+            Artifact::Glossary.path(root),
+            Path::new("/repo/.retrodoc/cache/glossary.yaml")
+        );
+        assert_eq!(
+            Artifact::UseCases.relative_path(),
+            ".retrodoc/cache/use-cases.yaml"
+        );
+    }
+
+    #[test]
+    fn force_clears_the_results_of_the_llm_passes_only() {
+        let kept: Vec<_> = Artifact::ALL
+            .iter()
+            .filter(|a| !a.cleared_by_force())
+            .map(|a| a.file_name())
+            .collect();
+        assert_eq!(
+            kept,
+            ["roles.yaml", "scope.yaml", "domains.yaml", "usage.json"]
+        );
+    }
 
     #[test]
     fn saves_create_the_folder_and_loads_read_back() {

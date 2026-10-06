@@ -35,7 +35,7 @@ use retrodoc_ingest::ExistingDoc;
 use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
-use crate::artifact::{load_yaml, save_yaml};
+use crate::artifact::{load_yaml, save_yaml, Artifact};
 use crate::error::PipelineError;
 use crate::fingerprints::{fingerprint, Fingerprints};
 use crate::repo_map::{FileSummary, RepoMap};
@@ -53,7 +53,6 @@ use self::prompt::{
     DOMAIN_CLUSTERING_SYSTEM_PROMPT,
 };
 
-const DOMAINS_RELATIVE_PATH: &str = ".retrodoc/cache/domains.yaml";
 pub(crate) const UNCATEGORIZED_SLUG: &str = "uncategorized";
 
 /// Intermediate clustering artifact (PLAN.md §2 step 3): a business-oriented
@@ -117,7 +116,7 @@ impl DomainMap {
     /// Returns an error if `.retrodoc/cache/` can't be created, the file
     /// can't be written, or serialization to YAML fails.
     pub fn save(&self, repo_root: &Path) -> Result<(), PipelineError> {
-        save_yaml(&repo_root.join(DOMAINS_RELATIVE_PATH), self)?;
+        save_yaml(&Artifact::Domains.path(repo_root), self)?;
         Ok(())
     }
 
@@ -125,7 +124,7 @@ impl DomainMap {
     /// `None` (first run), not an error.
     #[must_use]
     pub fn load(repo_root: &Path) -> Option<Self> {
-        load_yaml(&repo_root.join(DOMAINS_RELATIVE_PATH))
+        load_yaml(&Artifact::Domains.path(repo_root))
     }
 }
 

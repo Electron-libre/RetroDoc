@@ -12,11 +12,9 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
-use crate::artifact::{load_json, save_json};
+use crate::artifact::{load_json, save_json, Artifact};
 use crate::cache::hash_content;
 use crate::error::PipelineError;
-
-const FINGERPRINTS_RELATIVE_PATH: &str = ".retrodoc/cache/fingerprints.json";
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub(crate) struct Fingerprints {
@@ -37,11 +35,11 @@ pub(crate) struct Fingerprints {
 impl Fingerprints {
     /// Missing or unreadable: empty (first run), not an error.
     pub fn load(repo_root: &Path) -> Self {
-        load_json(&repo_root.join(FINGERPRINTS_RELATIVE_PATH)).unwrap_or_default()
+        load_json(&Artifact::Fingerprints.path(repo_root)).unwrap_or_default()
     }
 
     pub fn save(&self, repo_root: &Path) -> Result<(), PipelineError> {
-        save_json(&repo_root.join(FINGERPRINTS_RELATIVE_PATH), self)
+        save_json(&Artifact::Fingerprints.path(repo_root), self)
     }
 }
 

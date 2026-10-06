@@ -19,7 +19,7 @@ use std::path::{Path, PathBuf};
 use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
-use crate::artifact::{load_yaml, save_yaml};
+use crate::artifact::{load_yaml, save_yaml, Artifact};
 use crate::batched_read::{group_paths, BatchedRead, PendingChunk};
 use crate::cache::hash_content;
 use crate::chunks::{strip_part_marker, Splitter};
@@ -27,8 +27,6 @@ use crate::error::PipelineError;
 use crate::repo_map::read_file_lossy;
 use crate::roles::{FileRole, RoleMap};
 use crate::use_cases::resolve_cited_path;
-
-const ENTRY_POINTS_RELATIVE_PATH: &str = ".retrodoc/cache/entry-points.yaml";
 
 /// Entry point files carry many small actions: a bit more room than models.
 /// A longer file is read in several chunks of about this size.
@@ -133,7 +131,7 @@ impl EntryPoints {
     /// Missing or unreadable: `None` (first run).
     #[must_use]
     pub fn load(repo_root: &Path) -> Option<Self> {
-        load_yaml(&repo_root.join(ENTRY_POINTS_RELATIVE_PATH))
+        load_yaml(&Artifact::EntryPoints.path(repo_root))
     }
 
     /// # Errors
@@ -141,7 +139,7 @@ impl EntryPoints {
     /// Returns an error if the cache folder or file can't be written, or
     /// serialization fails.
     pub fn save(&self, repo_root: &Path) -> Result<(), PipelineError> {
-        save_yaml(&repo_root.join(ENTRY_POINTS_RELATIVE_PATH), self)
+        save_yaml(&Artifact::EntryPoints.path(repo_root), self)
     }
 
     /// Every entry point with the file it was read from, in path order.

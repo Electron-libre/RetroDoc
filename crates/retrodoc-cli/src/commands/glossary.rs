@@ -2,7 +2,7 @@ use std::path::Path;
 
 use anyhow::Context;
 use retrodoc_llm::UsageTracker;
-use retrodoc_pipeline::{FileRole, RoleRules};
+use retrodoc_pipeline::{Artifact, FileRole, RoleRules};
 
 use super::workspace::Workspace;
 
@@ -66,6 +66,6 @@ pub async fn run(path: &Path, tracker: &UsageTracker) -> anyhow::Result<()> {
         glossary.phrase_count(),
         glossary.tests.len()
     );
-    println!("Saved to .retrodoc/cache/glossary.yaml.");
+    println!("Saved to {}.", Artifact::Glossary.relative_path());
     Ok(())
 }

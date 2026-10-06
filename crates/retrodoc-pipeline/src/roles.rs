@@ -21,13 +21,11 @@ use retrodoc_ingest::{FileEntry, FileKind, IngestResult};
 use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
-use crate::artifact::{load_yaml, save_yaml};
+use crate::artifact::{load_yaml, save_yaml, Artifact};
 use crate::chunk_check::verify_boundaries;
 use crate::chunks::{ChunkBoundary, Splitter, REGEX_SYNTAX_HELP};
 use crate::error::PipelineError;
 use crate::response::complete_json;
-
-const ROLES_RELATIVE_PATH: &str = ".retrodoc/cache/roles.yaml";
 
 /// Manifest files read at the repo root to help recognize the stack.
 const MANIFESTS: &[&str] = &[
@@ -163,7 +161,7 @@ impl RoleRules {
     /// Loads `.retrodoc/cache/roles.yaml`. Missing or unreadable: `None`.
     #[must_use]
     pub fn load(repo_root: &Path) -> Option<Self> {
-        load_yaml(&repo_root.join(ROLES_RELATIVE_PATH))
+        load_yaml(&Artifact::Roles.path(repo_root))
     }
 
     /// # Errors
@@ -171,7 +169,7 @@ impl RoleRules {
     /// Returns an error if the cache folder or file can't be written, or
     /// serialization fails.
     pub fn save(&self, repo_root: &Path) -> Result<(), PipelineError> {
-        save_yaml(&repo_root.join(ROLES_RELATIVE_PATH), self)
+        save_yaml(&Artifact::Roles.path(repo_root), self)
     }
 
     /// Marks as source the files of the languages the LLM identified but the

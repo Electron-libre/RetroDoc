@@ -3,7 +3,7 @@ use std::path::Path;
 use anyhow::Context;
 use retrodoc_core::model::ActorKind;
 use retrodoc_llm::UsageTracker;
-use retrodoc_pipeline::{EntryPoints, Glossary, RoleRules, Surface};
+use retrodoc_pipeline::{Artifact, EntryPoints, Glossary, RoleRules, Surface};
 
 use super::workspace::{source_paths, Workspace};
 
@@ -50,6 +50,6 @@ pub async fn run(path: &Path, force: bool, tracker: &UsageTracker) -> anyhow::Re
             println!("    from: {}", actor.evidence.join(", "));
         }
     }
-    println!("\nSaved to .retrodoc/cache/actors.yaml.");
+    println!("\nSaved to {}.", Artifact::Actors.relative_path());
     Ok(())
 }

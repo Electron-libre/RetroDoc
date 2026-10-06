@@ -6,8 +6,8 @@ use retrodoc_core::model::{ConfidenceScore, Feature, UseCase};
 use retrodoc_ingest::IngestResult;
 use retrodoc_llm::{LlmProvider, UsageTracker};
 use retrodoc_pipeline::{
-    Actors, CodeIndex, CoverageReport, DomainMap, EntryPoints, RepoMap, RepoMapOptions, RoleMap,
-    Scope, Surface, UseCaseContext,
+    Actors, Artifact, CodeIndex, CoverageReport, DomainMap, EntryPoints, RepoMap, RepoMapOptions,
+    RoleMap, Scope, Surface, UseCaseContext,
 };
 
 use super::workspace::{source_paths, Workspace};
@@ -71,9 +71,10 @@ pub async fn run(
     print_repo_map(&map);
 
     println!(
-        "\nRepo map built ({} file(s), {} module(s)), cached in .retrodoc/cache/repo-map.json.",
+        "\nRepo map built ({} file(s), {} module(s)), cached in {}.",
         map.files.len(),
-        map.modules.len()
+        map.modules.len(),
+        Artifact::RepoMap.relative_path()
     );
 
     tracker.set_pass("domains");
@@ -106,9 +107,11 @@ pub async fn run(
     print_features(&features, &use_cases);
 
     println!(
-        "\n{} feature(s) saved to .retrodoc/cache/features.yaml, {} use case(s) to .retrodoc/cache/use-cases.yaml.",
+        "\n{} feature(s) saved to {}, {} use case(s) to {}.",
         features.len(),
-        use_cases.len()
+        Artifact::Features.relative_path(),
+        use_cases.len(),
+        Artifact::UseCases.relative_path()
     );
     println!("Run `retrodoc report` for the documentation debt report.");
 
@@ -147,7 +150,7 @@ async fn cluster_domains(
     print_domain_map(&domain_map);
     print_coverage_report(&coverage);
 
-    println!("\nDomains saved to .retrodoc/cache/domains.yaml.");
+    println!("\nDomains saved to {}.", Artifact::Domains.relative_path());
     Ok(domain_map)
 }
 
@@ -262,20 +265,14 @@ fn apply_scope(
     Ok(())
 }
 
-/// Removes the cached results of the LLM passes (not `domains.yaml`, which
-/// is recomputed on every run anyway, nor the hand-editable `roles.yaml`;
-/// `retrodoc roles --force` re-identifies the latter).
+/// Removes the cached results of the LLM passes (see
+/// [`Artifact::cleared_by_force`] for what is kept and why).
 fn clear_caches(repo_root: &Path) -> anyhow::Result<()> {
-    for name in [
-        "repo-map.json",
-        "glossary.yaml",
-        "entry-points.yaml",
-        "actors.yaml",
-        "fingerprints.json",
-        "features.yaml",
-        "use-cases.yaml",
-    ] {
-        let file = repo_root.join(".retrodoc/cache").join(name);
+    for artifact in Artifact::ALL {
+        if !artifact.cleared_by_force() {
+            continue;
+        }
+        let file = artifact.path(repo_root);
         match std::fs::remove_file(&file) {
             Ok(()) => {}
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
