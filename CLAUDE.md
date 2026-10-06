@@ -136,15 +136,16 @@ retrodoc-cli ──> retrodoc-mcp ──> retrodoc-pipeline, retrodoc-ingest, re
   stale files under `functional/` reported but never deleted), `WritePlan::apply()` writes only what differs.
   `_retrodoc/run-metadata.json` has a timestamp that is ignored when it's the only change, so reruns are no-ops.
   The CLI drops generated docs (`functional/`, `_retrodoc/`) from the ingested existing docs.
-- **retrodoc-mcp** (`bm25.rs`, `corpus.rs`, `search.rs`, `tools.rs`, `server.rs`): read-only access to the generated docs
+- **retrodoc-mcp** (`bm25.rs`, `corpus.rs`, `search.rs`, `freshness.rs`, `tools.rs`, `server.rs`): read-only access to the generated docs
   for LLM agents, with no LLM call (see `issues/mcp_server.md`). `SearchIndex` ranks (hand-written BM25, title counted
   three times, stop words in English and French dropped, at least half of the query words must match) one `Entry` per
   domain, sub-domain, feature, use case, glossary concept and collected Markdown doc, each with its id, confidence and
   cited files. `Docs` (`Docs::load` reads `.retrodoc/cache/` + the collected docs) answers the five tools in Markdown
   (`list_domains`, `get_domain`, `get_feature`, `get_use_case`, `search_docs`): ids to reuse, confidence (flagged below
-  50%), cited files, and "Not documented" as a normal answer for an unknown id or an empty search. `server.rs` puts them
+  50%), cited files, a stale warning when a cited file no longer matches the hash `generate` recorded in `repo-map.json`
+  (`Freshness`, checked at every call; files without a recorded hash are not judged), and "Not documented" as a normal answer for an unknown id or an empty search. `server.rs` puts them
   behind the `rmcp` SDK (`serve_stdio`); tested end to end with an `rmcp` client over an in-memory pipe. Not written yet:
-  freshness warnings, `read_source`/`git_log`.
+  `read_source`/`git_log`.
 - **retrodoc-cli**: `clap` subcommands (`init`, `scan`, `generate`, `render`, `report`, `roles`, `glossary`,
   `entry-points`, `actors`, `surface`, `search`, `mcp`). `generate` runs the whole pipeline then writes the docs (`--dry-run` previews, `--force`
   ignores caches, `--no-confidence` / `--confidence-sample N` / `--max-files N` bound the cost, see the pipeline bullet); `render` writes/previews the docs from the cached artifacts (no LLM call); `report` prints

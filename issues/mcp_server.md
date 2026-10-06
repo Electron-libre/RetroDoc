@@ -66,8 +66,11 @@ rather than guessing.
    Limits seen: with two-word queries one common word is enough to match, so the agent gets off-topic
    hits and needs extra searches (10 to 13 calls on open questions); synonyms are bridged by the agent, not
    by the index. Idea if calls matter: show the steps of the use cases in `get_feature`.
-3. [ ] Freshness: answers warn when the cited files changed since generation (fingerprints). Verified by a
+3. [x] Freshness: answers warn when the cited files changed since generation (fingerprints). Verified by a
    test that modifies a file after generation.
+   Tried by a headless Claude Code agent after editing a cited file of the `delivery_router` smoke repo: it
+   reported the docs as stale. Follow-ups: `issues/stale_docs_after_failed_generate.md` (false "fresh" after a
+   `generate` that failed past the repo map) and `issues/mcp_freshness_cost.md` (files re-read at every call).
 4. [ ] Code and git tools: `read_source` and `git_log`, limited to the repo root and to the files cited by the
    docs. Verified on a temporary git repo, including attempts to leave the scope (`../`).
 5. [ ] Static agent index: `generate` writes an `llms.txt`-style index or an `AGENTS.md` section in the docs,
@@ -91,4 +94,9 @@ rather than guessing.
 * Tool answers are readable Markdown, not JSON (the reader is an LLM); an unknown id answers "not documented"
   as a normal result, not a protocol error.
 * Logs go to stderr for `retrodoc mcp`: stdout carries the protocol.
+* Freshness (deliverable 3): compare the current hash of each cited file with the one in `repo-map.json` (written
+  by the last `generate`), at every call; no pipeline change. Names the modified and deleted files; files
+  without a recorded hash (docs, skipped files) are not judged. Known limit: after a `generate` that failed
+  once the repo map was done, the cache is ahead of the docs and a changed file looks fresh until the next
+  successful `generate`.
 

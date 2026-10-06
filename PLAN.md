@@ -365,7 +365,7 @@ Requirements:
 - **Cite sources**: every answer lists the features, use cases and files it relied on, so it is checkable.
 - **Use confidence**: if the answer rests on a section below the threshold (50%), say so and verify against
   the code instead of repeating the doc.
-- **Freshness**: compare the fingerprints of the cited files with the current tree; warn when the docs are
+- **Freshness**: compare the hashes the last `generate` recorded for the cited files with the current tree; warn when the docs are
   older than the code, and fall back to reading the code.
 - **Say "not documented"** rather than guess when nothing relevant is found; such misses can feed the
   documentation debt report.
@@ -391,7 +391,7 @@ Steps, each shippable:
    hand-written BM25; the glossary is indexed too); checked on the `delivery_router` smoke repo: right use case found, but no synonym matching and no relevance threshold (an undocumented topic still returns entries sharing a common word).
    The MCP server (`retrodoc mcp`, five tools, answers in Markdown with confidence and cited files) is also
    **implemented**; its stop-word and half-of-the-words filter does not fix that case with two-word queries.
-   Freshness warnings and `read_source`/`git_log` are still open (`issues/mcp_server.md`).
+   Freshness warnings are implemented too (current hash of each cited file against `repo-map.json`; after a `generate` that failed past the repo map the cache is ahead of the docs, so a changed file looks fresh until the next successful run). `read_source`/`git_log` are still open (`issues/mcp_server.md`).
 2. Tool calling support in `retrodoc-llm` (or the JSON-action fallback).
 3. `retrodoc ask` with citations, confidence and freshness warnings.
 4. Interactive `chat` with conversation memory; code and git history tools.

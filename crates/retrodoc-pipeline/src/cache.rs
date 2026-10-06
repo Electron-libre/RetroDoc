@@ -71,6 +71,14 @@ impl RepoMapCache {
             .map(|entry| entry.role_summary.as_str())
     }
 
+    /// Content hash recorded for `path` by the last run that summarized it.
+    #[must_use]
+    pub fn content_hash(&self, path: &Path) -> Option<&str> {
+        self.entries
+            .get(path)
+            .map(|entry| entry.content_hash.as_str())
+    }
+
     /// Cached summary for the folder `dir`, if `input_hash` (hash of what
     /// was sent to the LLM) is unchanged since the last run.
     #[must_use]
@@ -111,6 +119,16 @@ impl RepoMapCache {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_recorded_hash_of_a_file_is_readable_whatever_it_is() {
+        let mut cache = RepoMapCache::default();
+        cache.put(Path::new("a.rs"), "hash1", "summary");
+        assert_eq!(cache.content_hash(Path::new("a.rs")), Some("hash1"));
+        cache.put(Path::new("a.rs"), "hash2", "summary");
+        assert_eq!(cache.content_hash(Path::new("a.rs")), Some("hash2"));
+        assert_eq!(cache.content_hash(Path::new("b.rs")), None);
+    }
 
     #[test]
     fn round_trips_through_disk() {

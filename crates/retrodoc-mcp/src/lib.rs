@@ -10,6 +10,7 @@
 
 pub mod bm25;
 pub mod corpus;
+pub mod freshness;
 pub mod search;
 pub mod server;
 pub mod tools;

@@ -13,6 +13,7 @@ use retrodoc_ingest::existing_docs::ExistingDoc;
 use retrodoc_pipeline::{domain_models, DomainMap, Glossary};
 
 use crate::corpus::build_entries;
+use crate::freshness::{FileState, Freshness};
 use crate::search::SearchIndex;
 
 /// The generated documentation, loaded once: the typed artifacts the tools
@@ -22,6 +23,7 @@ pub struct Docs {
     features: Vec<Feature>,
     use_cases: Vec<UseCase>,
     index: SearchIndex,
+    freshness: Option<Freshness>,
 }
 
 impl Docs {
@@ -41,7 +43,16 @@ impl Docs {
             features,
             use_cases,
             index,
+            freshness: None,
         }
+    }
+
+    /// Makes the answers warn when the code they cite changed since the docs
+    /// were generated.
+    #[must_use]
+    pub fn with_freshness(mut self, freshness: Freshness) -> Self {
+        self.freshness = Some(freshness);
+        self
     }
 
     /// Reads what the last `generate` saved under `.retrodoc/cache/` plus the
@@ -53,13 +64,16 @@ impl Docs {
         let use_cases = retrodoc_pipeline::load_use_cases(repo_root).unwrap_or_default();
         let map = DomainMap::load(repo_root).unwrap_or_default();
         let glossary = Glossary::load(repo_root).unwrap_or_default();
-        Some(Self::new(
-            domain_models(&map, &features),
-            features,
-            use_cases,
-            &glossary,
-            docs,
-        ))
+        Some(
+            Self::new(
+                domain_models(&map, &features),
+                features,
+                use_cases,
+                &glossary,
+                docs,
+            )
+            .with_freshness(Freshness::load(repo_root)),
+        )
     }
 
     #[must_use]
@@ -168,6 +182,7 @@ impl Docs {
             feature.description,
             confidence_line(feature.confidence.as_ref())
         );
+        out.push_str(&self.stale_notice(feature.source_paths.iter().map(String::as_str)));
         out.push_str(&sources_section(
             "Grounded on",
             feature.source_paths.iter().map(String::as_str),
@@ -222,6 +237,11 @@ impl Docs {
             use_case.slug,
             confidence_line(use_case.confidence.as_ref())
         );
+        let cited = use_case
+            .steps
+            .iter()
+            .flat_map(|step| step.source_refs.iter().map(|r| r.path.as_str()));
+        out.push_str(&self.stale_notice(cited));
         if let Some(narrative) = &use_case.narrative {
             let _ = writeln!(out, "\n{narrative}");
         }
@@ -288,8 +308,51 @@ impl Docs {
             if !entry.sources.is_empty() {
                 let _ = writeln!(out, "  files: {}", entry.sources.join(", "));
             }
+            let stale = self.stale_files(entry.sources.iter().map(String::as_str));
+            if !stale.is_empty() {
+                let _ = writeln!(out, "  ⚠ stale: {}", stale.join(", "));
+            }
         }
         out
+    }
+
+    /// The cited files that changed since generation, as `` `path` (modified) ``.
+    fn stale_files<'a>(&self, paths: impl IntoIterator<Item = &'a str>) -> Vec<String> {
+        let Some(freshness) = &self.freshness else {
+            return Vec::new();
+        };
+        let mut seen = Vec::new();
+        let paths = paths.into_iter().filter(|p| {
+            let new = !seen.contains(p);
+            seen.push(p);
+            new
+        });
+        freshness
+            .stale(paths)
+            .into_iter()
+            .map(|(path, state)| {
+                let what = if state == FileState::Deleted {
+                    "deleted"
+                } else {
+                    "modified"
+                };
+                format!("`{path}` ({what})")
+            })
+            .collect()
+    }
+
+    /// A warning paragraph when code cited by an answer changed since the
+    /// docs were generated; empty otherwise.
+    fn stale_notice<'a>(&self, paths: impl IntoIterator<Item = &'a str>) -> String {
+        let stale = self.stale_files(paths);
+        if stale.is_empty() {
+            return String::new();
+        }
+        format!(
+            "\n⚠ Stale: the code cited here changed since these docs were generated: {}. \
+             Verify against the current code before relying on this.\n",
+            stale.join(", ")
+        )
     }
 
     fn unknown(&self, what: &str, id: &str, browse_with: &str) -> String {
@@ -544,5 +607,67 @@ mod tests {
         assert!(docs.get_domain("billing").contains("`billing/pay-invoice`"));
         assert!(docs.get_use_case("pay-by-card").contains("Pay by card"));
         assert_eq!(docs.index().len(), 3);
+    }
+
+    /// The docs of `docs()` over a repo where `generate` recorded the hashes
+    /// of the two files they cite.
+    fn docs_over_a_generated_repo() -> (tempfile::TempDir, Docs) {
+        let dir = tempfile::tempdir().unwrap();
+        let mut cache = retrodoc_pipeline::cache::RepoMapCache::default();
+        for name in ["app/invoice.rb", "app/mailer.rb"] {
+            let path = dir.path().join(name);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(&path, format!("content of {name}")).unwrap();
+            cache.put(
+                std::path::Path::new(name),
+                &retrodoc_pipeline::cache::hash_content(&format!("content of {name}")),
+                "summary",
+            );
+        }
+        cache.save(dir.path()).unwrap();
+        let docs = docs().with_freshness(Freshness::load(dir.path()));
+        (dir, docs)
+    }
+
+    #[test]
+    fn untouched_code_gives_answers_without_warning() {
+        let (_dir, docs) = docs_over_a_generated_repo();
+        for out in [
+            docs.get_feature("pay-invoice"),
+            docs.get_use_case("billing/pay-invoice/pay-by-card"),
+            docs.search_docs("settle invoice", 5),
+        ] {
+            assert!(!out.contains("tale"), "{out}");
+        }
+    }
+
+    #[test]
+    fn a_use_case_warns_about_the_cited_files_that_changed_and_only_those() {
+        let (dir, docs) = docs_over_a_generated_repo();
+        std::fs::write(dir.path().join("app/mailer.rb"), "edited").unwrap();
+        let out = docs.get_use_case("billing/pay-invoice/pay-by-card");
+        assert!(out.contains("⚠ Stale"), "{out}");
+        assert!(out.contains("`app/mailer.rb` (modified)"), "{out}");
+        assert!(!out.contains("`app/invoice.rb` (modified)"), "{out}");
+        // The feature cites only the file that did not change.
+        assert!(!docs.get_feature("pay-invoice").contains("Stale"));
+    }
+
+    #[test]
+    fn a_feature_and_a_search_hit_warn_about_a_deleted_file() {
+        let (dir, docs) = docs_over_a_generated_repo();
+        std::fs::remove_file(dir.path().join("app/invoice.rb")).unwrap();
+        let out = docs.get_feature("pay-invoice");
+        assert!(out.contains("⚠ Stale"), "{out}");
+        assert!(out.contains("`app/invoice.rb` (deleted)"), "{out}");
+        let out = docs.search_docs("settle invoice", 5);
+        assert!(out.contains("⚠ stale: `app/invoice.rb` (deleted)"), "{out}");
+    }
+
+    #[test]
+    fn docs_loaded_without_a_recorded_state_never_warn() {
+        assert!(!docs()
+            .get_use_case("pay-invoice/pay-by-card")
+            .contains("tale"));
     }
 }
