@@ -1,6 +1,6 @@
 ---
 name: smoke-test
-description: Run RetroDoc end to end on a real repository with the local Ollama LLM and judge whether the run is conclusive (generate finishes, no warning, rerun is a no-op, report produced). Use when asked for a smoke test, to validate a pipeline change on a real repo, or to reproduce a field failure.
+description: Run RetroDoc end to end on a real repository with the local Ollama LLM and judge whether the run is conclusive (generate finishes, no warning, rerun is a no-op that calls no LLM, report produced). Use when asked for a smoke test, to validate a pipeline change on a real repo, or to reproduce a field failure.
 ---
 
 # Smoke test on a real repository
@@ -47,10 +47,14 @@ into `/tmp` (the original is never touched, uncommitted changes are not tested);
 1. `generate` ends with "N file(s) written" (reached the render step) and exits 0;
 2. no `WARN` line in either run (an unparseable unit that was skipped shows up as a warning);
 3. the second `generate` prints "0 file(s) written" (caches and render are idempotent);
-4. `report` exits 0 and is not empty.
+4. the second `generate` made no LLM call: the last `generate` entry of `.retrodoc/cache/usage.json` in the
+   clone has 0 calls in every pass (a missing or unreadable file fails too). This criterion is blocking and
+   fails today on a feature the LLM answers "no use case" for, until `issues/smoke_empty_feature_retry.md`
+   is handled;
+5. `report` exits 0 and is not empty.
 
 `just smoke` prints `SMOKE TEST CONCLUSIVE` or one `FAIL - …` per broken criterion. To judge logs from a
-manual run: `rust-script .claude/skills/smoke-test/smoke.rs evaluate <run1> <run2> <report>`.
+manual run: `rust-script .claude/skills/smoke-test/smoke.rs evaluate <run1> <run2> <report> <usage.json>`.
 
 ## After the run
 

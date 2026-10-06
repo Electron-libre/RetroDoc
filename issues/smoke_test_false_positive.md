@@ -43,7 +43,7 @@ unparseable JSON response, "LLM answered with no use case").
    `test_smoke.rs` case with a colored WARN line fails before the fix.
 2. [x] **No colors when the logs are not on a terminal** (`main.rs`: `.with_ansi(stdout.is_terminal())`, `tracing` logs to stdout, not stderr); a test
    checks that redirected logs contain no escape code; one line in the docs.
-3. [ ] **Blocking "second run made no LLM call" criterion**: `evaluate` takes the path of `usage.json`, sums the
+3. [x] **Blocking "second run made no LLM call" criterion**: `evaluate` takes the path of `usage.json`, sums the
    `calls` of the last `generate` entry and fails above 0 (message names the passes); a missing or unreadable
    file is a failure; `run` passes `<clone>/.retrodoc/cache/usage.json`; tests for 0 calls, 2 calls, missing
    file; `SKILL.md` "Conclusive means" updated (fails until `smoke_empty_feature_retry.md` is handled).

@@ -4,7 +4,8 @@
 //! - `smoke.rs run <repo> [--model M] [--base-url U]`: clones `<repo>` (committed HEAD only, the
 //!   original is never touched) into /tmp, points it at the local LLM, runs `generate` twice and
 //!   `report`, then prints the verdict.
-//! - `smoke.rs evaluate <run1.log> <run2.log> <report.txt>`: only the verdict, from saved logs.
+//! - `smoke.rs evaluate <run1.log> <run2.log> <report.txt> <usage.json>`: only the verdict, from saved
+//!   logs and the `.retrodoc/cache/usage.json` of the clone.
 //!
 //! Usage: `just smoke <repo>`. A run takes minutes to hours: start it in the background.
 
@@ -36,8 +37,68 @@ fn strip_ansi(line: &str) -> String {
     out
 }
 
-/// The smoke test is conclusive when every returned list is empty.
-fn evaluate(run1: &str, run2: &str, report: &str) -> Vec<String> {
+/// Every `"key": value` of `json` as `(position, value)`, the value being a string or a number. Enough
+/// for `usage.json` (written by serde, no nesting trick), and keeps the script free of dependencies.
+fn values(json: &str, key: &str) -> Vec<(usize, String)> {
+    let needle = format!("\"{key}\"");
+    let mut found = Vec::new();
+    for (at, _) in json.match_indices(&needle) {
+        let rest = json[at + needle.len()..].trim_start();
+        let Some(rest) = rest.strip_prefix(':') else { continue };
+        let rest = rest.trim_start();
+        let value = match rest.strip_prefix('"') {
+            Some(quoted) => quoted.split('"').next().unwrap_or_default(),
+            None => rest.split(|c: char| !c.is_ascii_digit()).next().unwrap_or_default(),
+        };
+        found.push((at, value.to_string()));
+    }
+    found
+}
+
+/// LLM calls per pass of the last `generate` recorded in `usage.json` (the second run of the smoke test).
+fn last_generate_calls(usage: &str) -> Result<Vec<(String, u64)>, String> {
+    let commands = values(usage, "command");
+    let Some(last) = commands.iter().rposition(|(_, c)| c == "generate") else {
+        return Err("no `generate` run in it".into());
+    };
+    let start = commands[last].0;
+    let end = commands.get(last + 1).map_or(usage.len(), |(at, _)| *at);
+    let run = &usage[start..end];
+    let mut events: Vec<(usize, bool, String)> = values(run, "name").into_iter().map(|(at, v)| (at, true, v)).collect();
+    events.extend(values(run, "calls").into_iter().map(|(at, v)| (at, false, v)));
+    events.sort_by_key(|(at, ..)| *at);
+
+    let mut passes: Vec<(String, u64)> = Vec::new();
+    for (_, is_name, value) in events {
+        if is_name {
+            passes.push((value, 0));
+        } else {
+            let calls = value.parse::<u64>().map_err(|_| format!("`calls` is not a number: {value:?}"))?;
+            passes.last_mut().ok_or("`calls` before any pass name")?.1 += calls;
+        }
+    }
+    Ok(passes)
+}
+
+/// Problem with the LLM calls of the second run, if any. `usage` is the content of `usage.json`, `None`
+/// when the file does not exist: without it the criterion can't be checked, which is a failure too.
+fn rerun_calls_problem(usage: Option<&str>) -> Option<String> {
+    let Some(usage) = usage else {
+        return Some("usage.json not found: can't check that the second run made no LLM call".into());
+    };
+    match last_generate_calls(usage) {
+        Err(why) => Some(format!("usage.json is unreadable ({why}): can't check that the second run made no LLM call")),
+        Ok(passes) => {
+            let called: Vec<String> = passes.iter().filter(|(_, n)| *n > 0).map(|(name, n)| format!("{name}: {n}")).collect();
+            let total: u64 = passes.iter().map(|(_, n)| n).sum();
+            (total > 0).then(|| format!("second run made {total} LLM call(s) ({}), it should reuse everything", called.join(", ")))
+        }
+    }
+}
+
+/// The smoke test is conclusive when every returned list is empty. `usage` is the content of the
+/// `.retrodoc/cache/usage.json` of the target, `None` when it does not exist.
+fn evaluate(run1: &str, run2: &str, report: &str, usage: Option<&str>) -> Vec<String> {
     let mut problems = Vec::new();
     if !run1.contains("file(s) written to") {
         problems.push("first run did not reach the render step (generate failed or stopped)".into());
@@ -48,6 +109,7 @@ fn evaluate(run1: &str, run2: &str, report: &str) -> Vec<String> {
     if report.trim().is_empty() {
         problems.push("report is empty".into());
     }
+    problems.extend(rerun_calls_problem(usage));
     for (name, log) in [("first", run1), ("second", run2)] {
         let warnings: Vec<String> =
             log.lines().map(strip_ansi).filter(|l| l.contains(" WARN ")).collect();
@@ -60,7 +122,7 @@ fn evaluate(run1: &str, run2: &str, report: &str) -> Vec<String> {
 
 fn verdict(problems: &[String]) -> i32 {
     if problems.is_empty() {
-        println!("SMOKE TEST CONCLUSIVE: generate finished, no warning, rerun is a no-op, report produced");
+        println!("SMOKE TEST CONCLUSIVE: generate finished, no warning, rerun is a no-op and calls no LLM, report produced");
         return 0;
     }
     for p in problems {
@@ -148,7 +210,8 @@ fn run(args: &[String]) -> i32 {
     let okr = retrodoc(&["report"], &rep);
 
     let read = |p: &Path| fs::read_to_string(p).unwrap_or_default();
-    let mut problems = evaluate(&read(&log1), &read(&log2), &read(&rep));
+    let usage = fs::read_to_string(clone.join(".retrodoc/cache/usage.json")).ok();
+    let mut problems = evaluate(&read(&log1), &read(&log2), &read(&rep), usage.as_deref());
     for (ok, what) in [(ok1, "first generate"), (ok2, "second generate"), (okr, "report")] {
         if !ok {
             problems.insert(0, format!("{what} exited with an error (see the logs)"));
@@ -160,12 +223,14 @@ fn run(args: &[String]) -> i32 {
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let code = match args.first().map(String::as_str) {
-        Some("evaluate") if args.len() == 4 => {
+        Some("evaluate") if args.len() == 5 => {
             let read = |i: usize| fs::read_to_string(&args[i]).unwrap_or_else(|e| die(&format!("{}: {e}", args[i])));
-            verdict(&evaluate(&read(1), &read(2), &read(3)))
+            // A missing usage.json is a verdict (a failure), not a usage error.
+            let usage = fs::read_to_string(&args[4]).ok();
+            verdict(&evaluate(&read(1), &read(2), &read(3), usage.as_deref()))
         }
         Some("run") => run(&args[1..]),
-        _ => die("usage: smoke.rs run <repo> | smoke.rs evaluate <run1> <run2> <report>"),
+        _ => die("usage: smoke.rs run <repo> | smoke.rs evaluate <run1> <run2> <report> <usage.json>"),
     };
     std::process::exit(code);
 }
