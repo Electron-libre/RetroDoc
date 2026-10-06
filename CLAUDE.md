@@ -83,7 +83,7 @@ retrodoc-cli ──> retrodoc-render ──> retrodoc-core
   model writing a long JSON answer needs more; a timeout restarts the whole generation on retry). `CompletionResponse.usage`
   is the optional token count the server reports (`usage.rs`: a missing or malformed block is `None`, never estimated);
   `UsageProvider` + `UsageTracker` count answered calls and tokens per pass and per model (concurrency-safe; the CLI names
-  the pass with `set_pass`). Failed attempts and internal retries are not counted.
+  the pass with `set_pass`, or `in_pass`, which closes it when the work ends). Failed attempts and internal retries are not counted.
 - **retrodoc-pipeline**: orchestrates the multi-pass generation pipeline of `PLAN.md` §2, one module per
   pass. The `//!` doc of each module is the reference for what the pass does and why; this is only the map.
   `generate` runs them in this order: surface (roles → glossary → entry points), actors, file budget, repo

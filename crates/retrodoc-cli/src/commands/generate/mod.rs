@@ -2,13 +2,15 @@ use std::path::Path;
 
 use anyhow::Context;
 use retrodoc_core::config::{LlmConfig, DEFAULT_BATCH_CHARS};
-use retrodoc_core::model::{ConfidenceScore, Feature, UseCase};
+use retrodoc_core::model::{Feature, UseCase};
 use retrodoc_ingest::IngestResult;
 use retrodoc_llm::{LlmProvider, UsageTracker};
 use retrodoc_pipeline::{
-    Actors, Artifact, CodeIndex, CoverageReport, DomainMap, EntryPoints, RepoMap, RepoMapOptions,
-    RoleMap, Scope, Surface, UseCaseContext,
+    Actors, Artifact, CodeIndex, DomainMap, EntryPoints, RepoMap, RepoMapOptions, RoleMap, Scope,
+    Surface, UseCaseContext,
 };
+
+mod print;
 
 use super::workspace::{source_paths, Workspace};
 
@@ -24,6 +26,18 @@ pub enum Confidence {
     Sample(Option<usize>),
 }
 
+/// What the user asked of a `generate` run.
+#[derive(Debug, Clone, Copy)]
+pub struct GenerateOptions {
+    /// Preview the docs instead of writing them.
+    pub dry_run: bool,
+    /// Wipe the caches first so nothing is reused.
+    pub force: bool,
+    pub confidence: Confidence,
+    /// Budget of source files (overrides `ingest.max_files`).
+    pub max_files: Option<usize>,
+}
+
 /// Current pipeline stage (PLAN.md §5, "confidence score" phase).
 ///
 /// Runs ingestion, the bottom-up repo map, domain/sub-domain clustering,
@@ -32,12 +46,15 @@ pub enum Confidence {
 /// `dry_run`). `force` wipes the caches first so nothing is reused.
 pub async fn run(
     path: &Path,
-    dry_run: bool,
-    force: bool,
-    confidence: Confidence,
-    max_files: Option<usize>,
+    options: &GenerateOptions,
     tracker: &UsageTracker,
 ) -> anyhow::Result<()> {
+    let GenerateOptions {
+        dry_run,
+        force,
+        confidence,
+        max_files,
+    } = *options;
     let workspace = Workspace::open(path)?;
     let repo_root = &workspace.repo_root;
     let config = &workspace.config;
@@ -53,11 +70,13 @@ pub async fn run(
 
     let (surface, entry_points, role_map) =
         build_surface(repo_root, &mut ingest, &llm, force, tracker).await?;
-    tracker.set_pass("actors");
-    let actors = identify_actors(repo_root, &ingest, &surface, &llm, force).await?;
+    let actors = tracker
+        .in_pass(
+            "actors",
+            identify_actors(repo_root, &ingest, &surface, &llm, force),
+        )
+        .await?;
 
-    // Ranking the files is not an LLM pass either.
-    tracker.end_pass();
     apply_scope(
         repo_root,
         &mut ingest,
@@ -65,10 +84,11 @@ pub async fn run(
         max_files.or(config.ingest.max_files),
     )?;
 
-    tracker.set_pass("repo-map");
-    let map = build_map(repo_root, &ingest, &llm, &config.llm).await?;
+    let map = tracker
+        .in_pass("repo-map", build_map(repo_root, &ingest, &llm, &config.llm))
+        .await?;
 
-    print_repo_map(&map);
+    print::repo_map(&map);
 
     println!(
         "\nRepo map built ({} file(s), {} module(s)), cached in {}.",
@@ -77,34 +97,45 @@ pub async fn run(
         Artifact::RepoMap.relative_path()
     );
 
-    tracker.set_pass("domains");
-    let domain_map = cluster_domains(repo_root, &map, &ingest, &surface, &llm).await?;
+    let domain_map = tracker
+        .in_pass(
+            "domains",
+            cluster_domains(repo_root, &map, &ingest, &surface, &llm),
+        )
+        .await?;
 
-    tracker.set_pass("features");
     println!("\nDeriving features…");
-    let features = retrodoc_pipeline::build_features(repo_root, &domain_map, &map, &llm)
+    let mut features = tracker
+        .in_pass(
+            "features",
+            retrodoc_pipeline::build_features(repo_root, &domain_map, &map, &llm),
+        )
         .await
         .context("failed to derive the features")?;
 
-    tracker.set_pass("use-cases");
-    let mut use_cases = derive_use_cases(
-        repo_root,
-        &ingest,
-        &features,
-        entry_points,
-        actors,
-        &surface,
-        &llm,
-    )
-    .await?;
+    let mut use_cases = tracker
+        .in_pass(
+            "use-cases",
+            derive_use_cases(
+                repo_root,
+                &ingest,
+                &features,
+                entry_points,
+                actors,
+                &surface,
+                &llm,
+            ),
+        )
+        .await?;
 
-    let mut features = features;
-    tracker.set_pass("confidence");
-    run_confidence(repo_root, &mut features, &mut use_cases, &llm, confidence).await?;
+    tracker
+        .in_pass(
+            "confidence",
+            run_confidence(repo_root, &mut features, &mut use_cases, &llm, confidence),
+        )
+        .await?;
 
-    // Rendering is not an LLM pass: don't bill its time to the last one.
-    tracker.end_pass();
-    print_features(&features, &use_cases);
+    print::features(&features, &use_cases);
 
     println!(
         "\n{} feature(s) saved to {}, {} use case(s) to {}.",
@@ -147,8 +178,8 @@ async fn cluster_domains(
             .await
             .context("failed to build the domain clustering")?;
 
-    print_domain_map(&domain_map);
-    print_coverage_report(&coverage);
+    print::domain_map(&domain_map);
+    print::coverage_report(&coverage);
 
     println!("\nDomains saved to {}.", Artifact::Domains.relative_path());
     Ok(domain_map)
@@ -203,9 +234,12 @@ async fn build_surface(
     force: bool,
     tracker: &UsageTracker,
 ) -> anyhow::Result<(Surface, EntryPoints, Option<RoleMap>)> {
-    tracker.set_pass("roles");
     println!("Identifying the stack and the file roles…");
-    let rules = retrodoc_pipeline::identify_roles(repo_root, ingest, llm, force)
+    let rules = tracker
+        .in_pass(
+            "roles",
+            retrodoc_pipeline::identify_roles(repo_root, ingest, llm, force),
+        )
         .await
         .context("failed to identify the file roles")?;
     let promoted = rules.promote_sources(&mut ingest.files);
@@ -219,14 +253,20 @@ async fn build_surface(
     let role_map = rules.classify(&ingest.files);
     println!("Stack: {}", rules.stack);
 
-    tracker.set_pass("glossary");
     println!("Reading the business entities…");
-    let glossary = retrodoc_pipeline::build_glossary(repo_root, &role_map, llm)
+    let glossary = tracker
+        .in_pass(
+            "glossary",
+            retrodoc_pipeline::build_glossary(repo_root, &role_map, llm),
+        )
         .await
         .context("failed to build the glossary")?;
-    tracker.set_pass("entry-points");
     println!("Reading the entry points…");
-    let entry_points = retrodoc_pipeline::build_entry_points(repo_root, &role_map, llm)
+    let entry_points = tracker
+        .in_pass(
+            "entry-points",
+            retrodoc_pipeline::build_entry_points(repo_root, &role_map, llm),
+        )
         .await
         .context("failed to build the entry points inventory")?;
 
@@ -282,101 +322,6 @@ fn clear_caches(repo_root: &Path) -> anyhow::Result<()> {
         }
     }
     Ok(())
-}
-
-fn print_repo_map(map: &RepoMap) {
-    println!("\nModules:");
-    for module in &map.modules {
-        let label = if module.path.as_os_str().is_empty() {
-            ".".to_string()
-        } else {
-            module.path.display().to_string()
-        };
-        println!(
-            "  {label} ({} file(s)): {}",
-            module.file_count, module.role_summary
-        );
-    }
-
-    println!("\nFiles:");
-    for file in &map.files {
-        println!("  {}: {}", file.path.display(), file.role_summary);
-    }
-}
-
-fn print_domain_map(map: &DomainMap) {
-    println!("\nDomains:");
-    for domain in &map.domains {
-        println!(
-            "  {} ({}): {} file(s) directly, {} sub-domain(s)",
-            domain.name,
-            domain.slug,
-            domain.paths.len(),
-            domain.sub_domains.len()
-        );
-        for sub in &domain.sub_domains {
-            println!(
-                "    {} ({}): {} file(s)",
-                sub.name,
-                sub.slug,
-                sub.paths.len()
-            );
-        }
-    }
-}
-
-fn print_features(features: &[Feature], use_cases: &[UseCase]) {
-    println!("\nFeatures:");
-    for feature in features {
-        println!(
-            "  {}/{} — {} [{}]",
-            feature.domain_slug,
-            feature.slug,
-            feature.name,
-            confidence_label(feature.confidence.as_ref())
-        );
-        for use_case in use_cases.iter().filter(|u| u.feature_slug == feature.slug) {
-            println!(
-                "    - {} ({} step(s)) [{}]",
-                use_case.name,
-                use_case.steps.len(),
-                confidence_label(use_case.confidence.as_ref())
-            );
-        }
-    }
-}
-
-fn confidence_label(score: Option<&ConfidenceScore>) -> String {
-    score.map_or_else(
-        || "not scored".to_string(),
-        |c| format!("{:.0}%", c.value * 100.0),
-    )
-}
-
-fn print_coverage_report(report: &CoverageReport) {
-    if report.is_clean() {
-        println!("\nCoverage: 100% of source files assigned, no overlap.");
-        return;
-    }
-    println!("\nCoverage issues found (repaired automatically):");
-    if !report.uncovered.is_empty() {
-        println!(
-            "  {} file(s) unassigned by the LLM, bucketed into \"uncategorized\".",
-            report.uncovered.len()
-        );
-    }
-    if !report.overlapping.is_empty() {
-        println!(
-            "  {} file(s) assigned to more than one domain, kept only the first.",
-            report.overlapping.len()
-        );
-    }
-    if !report.unknown.is_empty() {
-        println!(
-            "  {} unknown path(s) cited by the LLM, dropped.",
-            report.unknown.len()
-        );
-    }
 }
 
 async fn run_confidence(

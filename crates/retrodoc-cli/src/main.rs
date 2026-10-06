@@ -162,7 +162,13 @@ async fn main() -> anyhow::Result<()> {
             } else {
                 commands::generate::Confidence::Sample(confidence_sample)
             };
-            commands::generate::run(&path, dry_run, force, confidence, max_files, &tracker).await
+            let options = commands::generate::GenerateOptions {
+                dry_run,
+                force,
+                confidence,
+                max_files,
+            };
+            commands::generate::run(&path, &options, &tracker).await
         }
         Command::Render { path, dry_run } => commands::render::run(&path, dry_run),
         Command::Report { path } => commands::report::run(&path),

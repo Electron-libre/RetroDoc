@@ -10,6 +10,7 @@
 //! server is flaky.
 
 use std::collections::BTreeMap;
+use std::future::Future;
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
@@ -203,6 +204,15 @@ impl UsageTracker {
     /// [`UNLABELLED_PASS`].
     pub fn end_pass(&self) {
         self.lock().close_current(Instant::now());
+    }
+
+    /// Runs `work` as the pass `name`, and closes the pass when it ends, so
+    /// whatever follows (printing, writing the docs) is billed to none.
+    pub async fn in_pass<T>(&self, name: &str, work: impl Future<Output = T>) -> T {
+        self.set_pass(name);
+        let result = work.await;
+        self.end_pass();
+        result
     }
 
     /// Counts one answered call in the current pass.
@@ -426,6 +436,30 @@ mod tests {
         tokio::time::sleep(Duration::from_secs(10)).await;
 
         assert_eq!(tracker.report().passes[0].wall, Duration::from_secs(3));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_pass_run_with_in_pass_is_closed_when_its_work_ends() {
+        let tracker = UsageTracker::new();
+        let provider = UsageProvider::new(FakeProvider::answering("m", 1, 1), tracker.clone());
+
+        tracker
+            .in_pass("a", async {
+                tokio::time::sleep(Duration::from_secs(3)).await;
+                provider.complete(request()).await.unwrap();
+            })
+            .await;
+        tokio::time::sleep(Duration::from_secs(10)).await;
+        provider.complete(request()).await.unwrap();
+
+        let report = tracker.report();
+        assert_eq!(report.passes[0].name, "a");
+        // The 10 s that follow are not in it (the paused clock may add a tick).
+        assert!(report.passes[0].wall >= Duration::from_secs(3));
+        assert!(report.passes[0].wall < Duration::from_secs(4));
+        assert_eq!(report.passes[0].total(), totals(1, 0, 1, 1));
+        // A call outside any pass is not billed to the last one.
+        assert_eq!(report.passes[1].name, UNLABELLED_PASS);
     }
 
     #[tokio::test(start_paused = true)]

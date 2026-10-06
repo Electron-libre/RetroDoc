@@ -106,7 +106,7 @@ change une décision d'architecture, l'ajouter dans `docs/adr/`.
 2. [x] Contexte de commande CLI (`Workspace`)
 3. [x] Module d'artefacts (noms centralisés, `clear_caches` dérivé)
 4. [x] `OpenRouterProvider::complete` découpé, `lib.rs` éclaté
-5. [ ] `generate::run` : affichage extrait, garde de passe, `GenerateOptions`
+5. [x] `generate::run` : affichage extrait, garde de passe, `GenerateOptions`
 6. [ ] Fakes de test mutualisés
 7. [ ] Gros fichiers en `dir/mod.rs` + `tests.rs`
 8. [ ] Constantes : littéraux uniformisés, raisons documentées
