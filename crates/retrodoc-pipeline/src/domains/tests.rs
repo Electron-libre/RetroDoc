@@ -408,3 +408,146 @@ async fn the_surface_reaches_the_prompt_and_invalidates_the_saved_clustering() {
         .contains("Never name a domain after a technical layer"));
     assert!(prompts[1].1.contains("- Contract (in \"\"): An agreement"));
 }
+
+/// The clustering the smoke test on a small Ruby repo got: three
+/// sub-domains on single files, no folder.
+const SINGLE_FILES_CLUSTERING: &str = r#"{"domains":[
+    {"slug":"delivery","name":"Delivery","description":"Delivers orders.","paths":[],
+     "sub_domains":[
+        {"slug":"orders","name":"Orders","description":"Orders.","paths":["lib/order.rb"]},
+        {"slug":"customers","name":"Customers","description":"Customers.","paths":["lib/customer.rb"]}]}]}"#;
+
+fn lib_repo_map() -> RepoMap {
+    RepoMap {
+        files: ["order", "customer", "rider", "router"]
+            .iter()
+            .map(|name| file_summary(&format!("lib/{name}.rb")))
+            .collect(),
+        modules: vec![ModuleSummary {
+            path: PathBuf::from("lib"),
+            role_summary: "the application".to_string(),
+            file_count: 4,
+        }],
+    }
+}
+
+fn paths_of(domain: &DomainCluster) -> Vec<&str> {
+    domain.paths.iter().map(|p| p.to_str().unwrap()).collect()
+}
+
+#[tokio::test]
+async fn files_left_unassigned_are_placed_by_a_second_call() {
+    let dir = tempfile::tempdir().unwrap();
+    let provider = FakeLlm::sequence(&[
+        SINGLE_FILES_CLUSTERING,
+        r#"{"assignments":[
+            {"path":"lib/rider.rb","domain":"delivery","sub_domain":null},
+            {"path":"lib/router.rb","domain":"delivery","sub_domain":"orders"}]}"#,
+    ]);
+
+    let (map, report) = build_domains(
+        dir.path(),
+        &lib_repo_map(),
+        &[],
+        &Surface::default(),
+        &provider,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(provider.calls(), 2);
+    assert!(report.is_clean(), "{report:?}");
+    assert!(!map.domains.iter().any(|d| d.slug == UNCATEGORIZED_SLUG));
+    let delivery = &map.domains[0];
+    assert_eq!(paths_of(delivery), vec!["lib/rider.rb"]);
+    assert_eq!(
+        delivery.sub_domains[0].paths,
+        vec![
+            PathBuf::from("lib/order.rb"),
+            PathBuf::from("lib/router.rb")
+        ]
+    );
+    let prompt = &provider.prompts()[1];
+    assert!(prompt.contains("lib/rider.rb: role of lib/rider.rb"));
+    assert!(!prompt.contains("lib/order.rb"), "only the unplaced files");
+}
+
+#[tokio::test]
+async fn invalid_placements_are_ignored_and_the_rest_is_bucketed() {
+    let dir = tempfile::tempdir().unwrap();
+    let provider = FakeLlm::sequence(&[
+        SINGLE_FILES_CLUSTERING,
+        r#"{"assignments":[
+            {"path":"lib/ghost.rb","domain":"delivery"},
+            {"path":"lib/order.rb","domain":"delivery"},
+            {"path":"lib/rider.rb","domain":"no-such-domain"},
+            {"path":"lib/router.rb","domain":"delivery","sub_domain":"no-such-sub"}]}"#,
+    ]);
+
+    let (map, report) = build_domains(
+        dir.path(),
+        &lib_repo_map(),
+        &[],
+        &Surface::default(),
+        &provider,
+    )
+    .await
+    .unwrap();
+
+    // A bad sub-domain falls back to the domain; an unknown domain, an
+    // invented file and an already placed file change nothing.
+    assert_eq!(paths_of(&map.domains[0]), vec!["lib/router.rb"]);
+    assert_eq!(
+        map.domains[0].sub_domains[0].paths,
+        vec![PathBuf::from("lib/order.rb")]
+    );
+    assert_eq!(report.uncovered, vec![PathBuf::from("lib/rider.rb")]);
+    let uncategorized = map
+        .domains
+        .iter()
+        .find(|d| d.slug == UNCATEGORIZED_SLUG)
+        .unwrap();
+    assert_eq!(paths_of(uncategorized), vec!["lib/rider.rb"]);
+}
+
+#[tokio::test]
+async fn an_unusable_placement_answer_leaves_the_files_uncategorized() {
+    let dir = tempfile::tempdir().unwrap();
+    let provider = FakeLlm::sequence(&[SINGLE_FILES_CLUSTERING, "no idea"]);
+
+    let (map, report) = build_domains(
+        dir.path(),
+        &lib_repo_map(),
+        &[],
+        &Surface::default(),
+        &provider,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(provider.calls(), 3, "clustering + placement and its retry");
+    assert_eq!(report.uncovered.len(), 2);
+    assert!(map.domains.iter().any(|d| d.slug == UNCATEGORIZED_SLUG));
+}
+
+#[tokio::test]
+async fn no_placement_call_when_the_clustering_covers_every_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let provider = FakeLlm::answering(
+        r#"{"domains":[{"slug":"delivery","name":"Delivery","description":"d",
+            "paths":["lib"],"sub_domains":[]}]}"#,
+    );
+
+    let (_, report) = build_domains(
+        dir.path(),
+        &lib_repo_map(),
+        &[],
+        &Surface::default(),
+        &provider,
+    )
+    .await
+    .unwrap();
+
+    assert!(report.is_clean());
+    assert_eq!(provider.calls(), 1);
+}

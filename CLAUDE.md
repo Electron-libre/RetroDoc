@@ -100,7 +100,7 @@ retrodoc-cli ──> retrodoc-mcp ──> retrodoc-pipeline, retrodoc-ingest, re
   | `actors.rs` | Business actors from authorization code + user-like entities; `retrodoc actors [--force]`. |
   | `ranking.rs` | Optional file budget (`--max-files` / `ingest.max_files`): role × churn × references; the rest becomes `FileKind::Other` (`scope.yaml`). |
   | `repo_map/` | File summaries (LLM + git history, cached by content hash, optionally batched/concurrent), then directory summaries bottom-up. |
-  | `domains/` | One call clusters directory summaries + doc titles + surface into `DomainMap`; `coverage.rs` enforces 100% coverage by construction (uncategorized bucket, first assignment wins, hallucinated paths dropped). |
+  | `domains/` | One call clusters directory summaries + doc titles + surface into `DomainMap`; `repair.rs` places the files it left unassigned with one small extra call; `coverage.rs` enforces 100% coverage by construction (uncategorized bucket, first assignment wins, hallucinated paths dropped). |
   | `features/` | One call per domain/sub-domain unit (not "uncategorized"), features grounded on a validated subset of its files. |
   | `use_cases/`, `slices.rs` | One call per feature with numbered code excerpts, entry points and the code they run (`CodeIndex::slice`); steps, actors, `narrative`, `primary_actor`; citations are validated. |
   | `diagrams.rs` | Deterministic Mermaid `sequenceDiagram` per use case, no LLM. |

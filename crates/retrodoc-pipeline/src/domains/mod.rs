@@ -17,8 +17,12 @@
 //! resilience: an LLM clustering is asked for, not guaranteed, so
 //! [`enforce_coverage`] repairs a slightly imperfect response instead of
 //! erroring out of `generate` entirely.
-//! - A source file the LLM never assigned anywhere is bucketed into a
-//!   synthetic "uncategorized" domain (100% coverage, PLAN.md §2 step 3).
+//! - A source file the clustering left unassigned is first placed by a second,
+//!   small LLM call (its summary and the domains found; see `repair`): a
+//!   directory the model skipped or answered with single files would
+//!   otherwise leave whole folders undocumented. What that call can't place
+//!   is bucketed into a synthetic "uncategorized" domain (100% coverage,
+//!   PLAN.md §2 step 3).
 //! - A file assigned to more than one domain/sub-domain keeps only its
 //!   first assignment (no overlap, PLAN.md §2 step 3).
 //! - A path the LLM cited that doesn't match any known file (hallucinated)
@@ -44,6 +48,7 @@ use crate::surface::Surface;
 
 mod coverage;
 mod prompt;
+mod repair;
 #[cfg(test)]
 mod tests;
 
@@ -52,6 +57,7 @@ use self::prompt::{
     clustering_fingerprint, clustering_prompt, layer_named_domains, BUSINESS_NAMING_ADDENDUM,
     DOMAIN_CLUSTERING_SYSTEM_PROMPT,
 };
+use self::repair::{assign_unplaced_files, unassigned_files};
 
 pub(crate) const UNCATEGORIZED_SLUG: &str = "uncategorized";
 
@@ -173,6 +179,15 @@ pub async fn build_domains(
 
     let map: DomainMap = parse_json_response(&response)?;
     let mut map = expand_to_files(map, &repo_map.files);
+    let unplaced = unassigned_files(&map, &repo_map.files);
+    if !unplaced.is_empty() {
+        let placed = assign_unplaced_files(&mut map, &unplaced, llm).await?;
+        tracing::info!(
+            placed,
+            asked = unplaced.len(),
+            "placed files the clustering left unassigned"
+        );
+    }
     let report = enforce_coverage(&mut map, &all_paths);
 
     if !report.unknown.is_empty() {

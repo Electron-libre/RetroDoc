@@ -98,7 +98,7 @@ flowchart TD
     S["1b. Surface<br/>file roles, entities (glossary),<br/>entry points + outputs"]:::llm
     K["1c. File budget (optional, --max-files)<br/>keep the best-ranked source files:<br/>role × git churn × references"]:::det
     B["2. Repo map<br/>summary per file (small files batched),<br/>then per directory (bottom-up)"]:::llm
-    C["3. Domains<br/>cluster directory summaries into<br/>domains / sub-domains,<br/>named from the surface<br/>+ mechanical file expansion<br/>+ coverage repair"]:::llm
+    C["3. Domains<br/>cluster directory summaries into<br/>domains / sub-domains,<br/>named from the surface<br/>+ mechanical file expansion<br/>+ LLM placement of unassigned files<br/>+ coverage repair"]:::llm
     D["4. Features<br/>one call per domain / sub-domain"]:::llm
     E["5. Use cases<br/>one call per feature<br/>(steps + actors, from real code)"]:::llm
     F["6. Diagrams<br/>Mermaid sequenceDiagram<br/>from the steps"]:::det
@@ -128,8 +128,9 @@ What each pass hands to the next, and where it is saved:
 
 ### Safety nets built into the passes
 
-- **Domains coverage is enforced by construction.** If the LLM forgets a file it goes into a synthetic
-  "uncategorized" domain; a file assigned twice keeps the first assignment; invented paths are dropped.
+- **Domains coverage is enforced by construction.** A file the clustering forgot is first placed by one small
+  extra LLM call ([ADR 0017](adr/0017-place-unassigned-files-before-the-uncategorized-bucket.md)); if that
+  fails too it goes into a synthetic "uncategorized" domain; a file assigned twice keeps the first assignment; invented paths are dropped.
   The run is never failed for this, and the repairs are reported (`CoverageReport`).
 - **Lenient JSON.** LLM answers are parsed leniently (first JSON value, code fences tolerated). An
   unparseable answer is retried once, then that single unit is skipped with a warning instead of
@@ -292,4 +293,4 @@ flowchart LR
 | Change what an agent can ask (MCP tools, search, code access) | `crates/retrodoc-mcp/src/` (`tools.rs` the answers, `server.rs` the wiring, `source.rs` the code access scope) |
 | Add a CLI command | `crates/retrodoc-cli/src/commands/` + `main.rs` |
 | Change config options | `crates/retrodoc-core/src/config.rs` |
-| Understand why a design choice was made | `docs/adr/` (ADRs 0001–0014 were written retroactively from the history; 0015 and 0016 were written with the change) |
+| Understand why a design choice was made | `docs/adr/` (ADRs 0001–0014 were written retroactively from the history; 0015 to 0017 were written with the change) |
