@@ -107,7 +107,8 @@ retrodoc-cli ──> retrodoc-render ──> retrodoc-core
   | `confidence.rs` | LLM verdict per step against the cited code; score capped for ungrounded steps (`--no-confidence`, `--confidence-sample N`). |
   | `report.rs` | Documentation debt report from the saved artifacts (`retrodoc report`, no LLM). |
 
-  Cross-cutting pieces: `artifact.rs` (load/save of everything under `.retrodoc/cache/`; a missing or
+  Cross-cutting pieces: `batched_read.rs` (the loop of the glossary and entry points passes: files in
+  batches of ~12k chars, an unusable batch retried file by file, a checkpoint after each batch), `artifact.rs` (load/save of everything under `.retrodoc/cache/`; a missing or
   unreadable file is a first run, not an error), `response.rs` (`complete_text`, and `complete_json` with
   lenient parsing and one retry; an unparseable unit is skipped with a warning), `fingerprints.rs` and
   `cache.rs` (incremental re-run), `progress.rs` (one `tracing::info!` line per unit with ETA), `naming.rs`

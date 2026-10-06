@@ -14,21 +14,19 @@
 //! Not covered yet: the verbs (public methods, route actions), which belong
 //! with the entry points inventory (step 3).
 
-use std::collections::{BTreeMap, BTreeSet, VecDeque};
-use std::fmt::Write as _;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
 use crate::artifact::{load_yaml, save_yaml};
+use crate::batched_read::{group_paths, BatchedRead, PendingChunk};
 use crate::cache::hash_content;
 use crate::chunks::{strip_part_marker, Splitter};
 use crate::error::PipelineError;
 use crate::naming::normalize;
-use crate::progress::Progress;
 use crate::repo_map::read_file_lossy;
-use crate::response::complete_json;
 use crate::roles::{FileRole, RoleMap};
 use crate::use_cases::resolve_cited_path;
 
@@ -37,8 +35,6 @@ const GLOSSARY_RELATIVE_PATH: &str = ".retrodoc/cache/glossary.yaml";
 /// A longer model file is read in several chunks of about this size, so one
 /// huge model can't crowd out the others in a batch.
 const MAX_MODEL_FILE_CHARS: usize = 4_000;
-/// Characters of model code per LLM call.
-const BATCH_CHARS: usize = 12_000;
 const MAX_PHRASES_PER_TEST_FILE: usize = 30;
 const MAX_PHRASE_CHARS: usize = 160;
 
@@ -155,12 +151,9 @@ pub struct MergedEntity {
 /// and nameless entities are ignored.
 fn attribute_entities(
     response: GlossaryResponse,
-    batch: &[(PathBuf, String, String)],
+    batch: &[PendingChunk],
 ) -> BTreeMap<String, Vec<Entity>> {
-    let allowed: BTreeSet<String> = batch
-        .iter()
-        .map(|(path, _, _)| path.to_string_lossy().into_owned())
-        .collect();
+    let allowed = group_paths(batch);
     let mut found: BTreeMap<String, Vec<Entity>> = BTreeMap::new();
     for item in response.entities {
         let target = if allowed.len() == 1 {
@@ -267,13 +260,7 @@ pub async fn build_glossary(
     };
     let splitter = Splitter::new(&roles.chunk_boundaries);
     // One item per chunk of a changed file: (path, file hash, chunk text).
-    let mut pending: Vec<(PathBuf, String, String)> = Vec::new();
-    // Chunks of a file not yet answered, and the entities found in the
-    // answered ones: a file is saved only once all its chunks are read, so
-    // an unusable answer leaves it to be retried whole next run.
-    let mut remaining: BTreeMap<PathBuf, usize> = BTreeMap::new();
-    let mut partial: BTreeMap<PathBuf, Vec<Entity>> = BTreeMap::new();
-
+    let mut pending: Vec<PendingChunk> = Vec::new();
     for path in roles.files_with(FileRole::Model) {
         let content = read_file_lossy(repo_root, path)?;
         let hash = hash_content(&content);
@@ -283,7 +270,6 @@ pub async fn build_glossary(
             }
             _ => {
                 let chunks = splitter.file_chunks(path, &content, MAX_MODEL_FILE_CHARS, "glossary");
-                remaining.insert(path.to_path_buf(), chunks.len());
                 for chunk in chunks {
                     pending.push((path.to_path_buf(), hash.clone(), chunk));
                 }
@@ -291,58 +277,25 @@ pub async fn build_glossary(
         }
     }
 
-    let batches = batches(&pending);
-    let mut progress = Progress::new("glossary", batches.len());
-    for batch in batches {
-        progress.begin(&format!(
-            "{} model file(s), from {}",
-            batch.len(),
-            batch[0].0.display()
-        ));
-        let mut queue: VecDeque<&[(PathBuf, String, String)]> = VecDeque::from([batch]);
-        while let Some(group) = queue.pop_front() {
-            let mut prompt = String::from("Model files:\n");
-            for (path, _, content) in group {
-                let _ = write!(prompt, "\n--- {} ---\n{content}\n", path.display());
-            }
-            let Some(response) =
-                complete_json::<GlossaryResponse>(llm, GLOSSARY_SYSTEM_PROMPT, &prompt, "glossary")
-                    .await?
-            else {
-                if group.len() > 1 {
-                    tracing::warn!(
-                        items = group.len(),
-                        "unusable answer for a batch, retrying its files one by one"
-                    );
-                    queue.extend(group.chunks(1));
-                }
-                continue;
-            };
-
-            let mut found = attribute_entities(response, group);
-            for (path, hash, _) in group {
-                let key = path.to_string_lossy();
-                if let Some(entities) = found.remove(key.as_ref()) {
-                    partial.entry(path.clone()).or_default().extend(entities);
-                }
-                let left = remaining.entry(path.clone()).or_insert(1);
-                *left -= 1;
-                if *left == 0 {
-                    let entities = merge_chunk_entities(partial.remove(path).unwrap_or_default());
-                    glossary.models.insert(
-                        path.clone(),
-                        ModelFile {
-                            content_hash: hash.clone(),
-                            entities,
-                        },
-                    );
-                }
-            }
-        }
-        // Saved after every batch: a failure later in a long run (a call
-        // timing out) must not lose the batches already read.
-        glossary.save(repo_root)?;
+    BatchedRead {
+        pass: "glossary",
+        unit: "model file(s)",
+        system_prompt: GLOSSARY_SYSTEM_PROMPT,
+        header: "Model files:\n",
+        attribute: attribute_entities,
+        finish: |glossary: &mut Glossary, path, hash, entities| {
+            glossary.models.insert(
+                path.to_path_buf(),
+                ModelFile {
+                    content_hash: hash.to_string(),
+                    entities: merge_chunk_entities(entities),
+                },
+            );
+        },
+        checkpoint: &|glossary: &Glossary| glossary.save(repo_root),
     }
+    .run(llm, &pending, &mut glossary)
+    .await?;
 
     let tests = test_vocabulary(repo_root, roles)?;
     glossary.tests = tests;
@@ -393,27 +346,6 @@ fn merge_chunk_entities(entities: Vec<Entity>) -> Vec<Entity> {
         }
     }
     merged
-}
-
-/// Groups files so that each batch holds about [`BATCH_CHARS`] of code
-/// (at least one file).
-pub(crate) fn batches(files: &[(PathBuf, String, String)]) -> Vec<&[(PathBuf, String, String)]> {
-    let mut out = Vec::new();
-    let mut start = 0;
-    let mut size = 0;
-    for (i, (_, _, content)) in files.iter().enumerate() {
-        let len = content.chars().count();
-        if i > start && size + len > BATCH_CHARS {
-            out.push(&files[start..i]);
-            start = i;
-            size = 0;
-        }
-        size += len;
-    }
-    if start < files.len() {
-        out.push(&files[start..]);
-    }
-    out
 }
 
 /// Block keywords whose first string argument describes a behaviour, across
@@ -598,19 +530,6 @@ RSpec.describe Contract do
             ]
         );
         assert_eq!(merged[1].name, "User");
-    }
-
-    #[test]
-    fn batches_respect_the_char_budget() {
-        let file = |n: &str, len: usize| (PathBuf::from(n), String::new(), "x".repeat(len));
-        let files = vec![
-            file("a", 7_000),
-            file("b", 7_000),
-            file("c", 100),
-            file("d", 20_000),
-        ];
-        let sizes: Vec<usize> = batches(&files).iter().map(|b| b.len()).collect();
-        assert_eq!(sizes, vec![1, 2, 1]);
     }
 
     #[tokio::test]

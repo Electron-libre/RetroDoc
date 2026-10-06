@@ -15,6 +15,7 @@
 
 pub mod actors;
 mod artifact;
+mod batched_read;
 pub mod cache;
 mod chunk_check;
 pub mod chunks;
