@@ -35,7 +35,7 @@ docs/
 
 ## Install
 
-RetroDoc is a Rust workspace; build it with a recent stable toolchain.
+RetroDoc is a Rust workspace; the toolchain is pinned in `rust-toolchain.toml` (rustup installs it on first build), bump it deliberately.
 
 ```sh
 git clone <this repo> && cd RetroDoc
