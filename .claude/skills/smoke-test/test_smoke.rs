@@ -26,7 +26,12 @@ fn main() {
             .args(["run1", "run2", "report"].map(|n| tmp.join(n)))
             .output()
             .expect("rust-script must be installed");
-        (out.status.success(), String::from_utf8_lossy(&out.stdout).into_owned())
+        let text = format!(
+            "{}{}",
+            String::from_utf8_lossy(&out.stdout),
+            String::from_utf8_lossy(&out.stderr)
+        );
+        (out.status.success(), text)
     };
 
     let cases: Vec<(&str, (bool, String), bool, &str)> = vec![
