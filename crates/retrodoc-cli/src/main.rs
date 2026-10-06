@@ -1,5 +1,6 @@
 mod commands;
 
+use std::io::IsTerminal;
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
@@ -141,6 +142,8 @@ async fn main() -> anyhow::Result<()> {
                 .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
         )
         .without_time()
+        // The logs go to stdout: plain text when redirected to a file or a pipe (saved logs, smoke test).
+        .with_ansi(std::io::stdout().is_terminal())
         .init();
 
     let cli = Cli::parse();
