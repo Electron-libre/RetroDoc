@@ -47,10 +47,9 @@ into `/tmp` (the original is never touched, uncommitted changes are not tested);
 1. `generate` ends with "N file(s) written" (reached the render step) and exits 0;
 2. no `WARN` line in either run (an unparseable unit that was skipped shows up as a warning);
 3. the second `generate` prints "0 file(s) written" (caches and render are idempotent);
-4. the second `generate` made no LLM call: the last `generate` entry of `.retrodoc/cache/usage.json` in the
-   clone has 0 calls in every pass (a missing or unreadable file fails too). This criterion is blocking and
-   fails today on a feature the LLM answers "no use case" for, until `issues/smoke_empty_feature_retry.md`
-   is handled;
+4. the second `generate` made no LLM call: its recap says `LLM usage: no call` (a run without any call is not
+   saved in `usage.json`, so the recap is the proof; a missing recap fails too). When it did call, the last
+   `generate` entry of `.retrodoc/cache/usage.json` names the passes. This criterion is blocking;
 5. `report` exits 0 and is not empty.
 
 `just smoke` prints `SMOKE TEST CONCLUSIVE` or one `FAIL - …` per broken criterion. To judge logs from a

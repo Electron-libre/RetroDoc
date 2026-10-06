@@ -7,15 +7,17 @@ use std::path::Path;
 use std::process::Command;
 
 const GOOD_RUN1: &str = "Features:\n  ...\n\n12 file(s) written to docs.\n";
-const GOOD_RUN2: &str = "No change.\n\n0 file(s) written to docs.\n";
+const GOOD_RUN2: &str = "No change.\n\n0 file(s) written to docs.\n\nLLM usage: no call (everything was reused from the cache).\n";
+/// A second run that spent tokens: the recap line `generate` prints.
+const CALLING_RUN2: &str = "0 file(s) written to docs.\n\nLLM usage: 2 call(s), 922 tokens in, 20 tokens out, 3s.\n";
 const GOOD_REPORT: &str = "# Documentation debt report\n\n6 use cases\n";
 
-/// `usage.json` as the CLI writes it: the first `generate` called the LLM, the second did not.
+/// `usage.json` as the CLI writes it: the first `generate` called the LLM, the second did not (a run
+/// without any call is not saved).
 const GOOD_USAGE: &str = r#"{"runs": [
   {"command": "generate", "finished_at": "t1", "wall_ms": 9, "passes": [
     {"name": "roles", "wall_ms": 1, "models": [{"model": "m", "calls": 1, "calls_without_usage": 0, "prompt_tokens": 10, "completion_tokens": 5}]},
-    {"name": "use-cases", "wall_ms": 1, "models": [{"model": "m", "calls": 6, "calls_without_usage": 0, "prompt_tokens": 10, "completion_tokens": 5}]}]},
-  {"command": "generate", "finished_at": "t2", "wall_ms": 1, "passes": []}]}"#;
+    {"name": "use-cases", "wall_ms": 1, "models": [{"model": "m", "calls": 6, "calls_without_usage": 0, "prompt_tokens": 10, "completion_tokens": 5}]}]}]}"#;
 
 /// The second `generate` asked the LLM again for a feature, in the `use-cases` pass.
 const RERUN_USAGE: &str = r#"{"runs": [
@@ -81,23 +83,24 @@ fn main() {
             "second run",
         ),
         (
-            "second run called the LLM again",
-            evaluate(GOOD_RUN1, GOOD_RUN2, GOOD_REPORT, Some(RERUN_USAGE)),
+            "second run called the LLM again (passes named from usage.json)",
+            evaluate(GOOD_RUN1, CALLING_RUN2, GOOD_REPORT, Some(RERUN_USAGE)),
             false,
-            "use-cases",
+            "use-cases: 2",
         ),
         (
-            "usage.json is missing",
-            evaluate(GOOD_RUN1, GOOD_RUN2, GOOD_REPORT, None),
+            "second run called the LLM again, usage.json missing",
+            evaluate(GOOD_RUN1, CALLING_RUN2, GOOD_REPORT, None),
             false,
-            "usage.json",
+            "called the LLM",
         ),
         (
-            "usage.json is unreadable",
-            evaluate(GOOD_RUN1, GOOD_RUN2, GOOD_REPORT, Some("not json")),
+            "second run printed no recap",
+            evaluate(GOOD_RUN1, "0 file(s) written to docs.\n", GOOD_REPORT, Some(GOOD_USAGE)),
             false,
-            "usage.json",
+            "recap",
         ),
+        ("usage.json missing is fine when the recap says no call", evaluate(GOOD_RUN1, GOOD_RUN2, GOOD_REPORT, None), true, ""),
         ("empty report", evaluate(GOOD_RUN1, GOOD_RUN2, "  \n", Some(GOOD_USAGE)), false, "report"),
     ];
 

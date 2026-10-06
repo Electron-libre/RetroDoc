@@ -55,7 +55,7 @@ fn values(json: &str, key: &str) -> Vec<(usize, String)> {
     found
 }
 
-/// LLM calls per pass of the last `generate` recorded in `usage.json` (the second run of the smoke test).
+/// LLM calls per pass of the last `generate` recorded in `usage.json` (when the second run called the LLM, it is that one).
 fn last_generate_calls(usage: &str) -> Result<Vec<(String, u64)>, String> {
     let commands = values(usage, "command");
     let Some(last) = commands.iter().rposition(|(_, c)| c == "generate") else {
@@ -80,24 +80,27 @@ fn last_generate_calls(usage: &str) -> Result<Vec<(String, u64)>, String> {
     Ok(passes)
 }
 
-/// Problem with the LLM calls of the second run, if any. `usage` is the content of `usage.json`, `None`
-/// when the file does not exist: without it the criterion can't be checked, which is a failure too.
-fn rerun_calls_problem(usage: Option<&str>) -> Option<String> {
-    let Some(usage) = usage else {
-        return Some("usage.json not found: can't check that the second run made no LLM call".into());
+/// Problem with the LLM calls of the second run, if any. The recap `generate` prints at the end tells:
+/// `usage.json` can't, since a run without any call is not saved there. When the second run did call
+/// the LLM, `usage` (the content of `usage.json`, `None` if absent) names the passes that did.
+fn rerun_calls_problem(run2: &str, usage: Option<&str>) -> Option<String> {
+    let recap = run2.lines().map(strip_ansi).find(|l| l.starts_with("LLM usage:"));
+    let Some(recap) = recap else {
+        return Some("second run printed no LLM usage recap: can't check that it made no LLM call".into());
     };
-    match last_generate_calls(usage) {
-        Err(why) => Some(format!("usage.json is unreadable ({why}): can't check that the second run made no LLM call")),
-        Ok(passes) => {
-            let called: Vec<String> = passes.iter().filter(|(_, n)| *n > 0).map(|(name, n)| format!("{name}: {n}")).collect();
-            let total: u64 = passes.iter().map(|(_, n)| n).sum();
-            (total > 0).then(|| format!("second run made {total} LLM call(s) ({}), it should reuse everything", called.join(", ")))
-        }
+    if recap.starts_with("LLM usage: no call") {
+        return None;
     }
+    let detail = usage
+        .and_then(|u| last_generate_calls(u).ok())
+        .map(|passes| passes.iter().filter(|(_, n)| *n > 0).map(|(name, n)| format!("{name}: {n}")).collect::<Vec<_>>().join(", "))
+        .filter(|d| !d.is_empty())
+        .map_or_else(String::new, |d| format!(" ({d})"));
+    Some(format!("second run called the LLM, it should reuse everything: {}{detail}", recap.trim()))
 }
 
 /// The smoke test is conclusive when every returned list is empty. `usage` is the content of the
-/// `.retrodoc/cache/usage.json` of the target, `None` when it does not exist.
+/// `.retrodoc/cache/usage.json` of the target, `None` when it does not exist (only used to detail a failure).
 fn evaluate(run1: &str, run2: &str, report: &str, usage: Option<&str>) -> Vec<String> {
     let mut problems = Vec::new();
     if !run1.contains("file(s) written to") {
@@ -109,7 +112,7 @@ fn evaluate(run1: &str, run2: &str, report: &str, usage: Option<&str>) -> Vec<St
     if report.trim().is_empty() {
         problems.push("report is empty".into());
     }
-    problems.extend(rerun_calls_problem(usage));
+    problems.extend(rerun_calls_problem(run2, usage));
     for (name, log) in [("first", run1), ("second", run2)] {
         let warnings: Vec<String> =
             log.lines().map(strip_ansi).filter(|l| l.contains(" WARN ")).collect();
@@ -225,7 +228,7 @@ fn main() {
     let code = match args.first().map(String::as_str) {
         Some("evaluate") if args.len() == 5 => {
             let read = |i: usize| fs::read_to_string(&args[i]).unwrap_or_else(|e| die(&format!("{}: {e}", args[i])));
-            // A missing usage.json is a verdict (a failure), not a usage error.
+            // A missing usage.json is fine: it only details a failure.
             let usage = fs::read_to_string(&args[4]).ok();
             verdict(&evaluate(&read(1), &read(2), &read(3), usage.as_deref()))
         }
