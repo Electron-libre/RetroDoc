@@ -87,6 +87,25 @@ enum Command {
         #[arg(long)]
         force: bool,
     },
+    /// Measures the docs of the last `generate` run against a hand-written
+    /// reference: sizes, business-language and confidence scores, cost, and
+    /// recall and precision of domains and features. No LLM call unless
+    /// `--judge`, which asks the model to pair what the names alone leave
+    /// unmatched and to rate the narratives (see `issues/quality_benchmark.md`).
+    Benchmark {
+        /// Repository whose last run is measured (a clone, not the original).
+        #[arg(long, default_value = ".")]
+        path: PathBuf,
+        /// The reference, e.g. `benchmark/<repo>/reference.yaml`.
+        #[arg(long)]
+        reference: PathBuf,
+        /// The hand-written pairs (default: `matches.yaml` next to the reference).
+        #[arg(long)]
+        matches: Option<PathBuf>,
+        /// Also call the LLM judge.
+        #[arg(long)]
+        judge: bool,
+    },
     /// Searches the generated documentation (domains, features, use cases,
     /// glossary) and the collected docs, lexically, from the artifacts of the
     /// last `generate` run. No LLM call: shows what the MCP server will find.
@@ -150,6 +169,9 @@ impl Command {
             Command::Glossary { path } => Some(("glossary", path.clone())),
             Command::EntryPoints { path } => Some(("entry-points", path.clone())),
             Command::Actors { path, .. } => Some(("actors", path.clone())),
+            Command::Benchmark {
+                path, judge: true, ..
+            } => Some(("benchmark", path.clone())),
             _ => None,
         }
     }
@@ -212,6 +234,19 @@ async fn main() -> anyhow::Result<()> {
         Command::EntryPoints { path } => commands::entry_points::run(&path, &tracker).await,
         Command::Glossary { path } => commands::glossary::run(&path, &tracker).await,
         Command::Actors { path, force } => commands::actors::run(&path, force, &tracker).await,
+        Command::Benchmark {
+            path,
+            reference,
+            matches,
+            judge,
+        } => {
+            let options = commands::benchmark::BenchmarkOptions {
+                reference,
+                matches,
+                judge,
+            };
+            commands::benchmark::run(&path, &options, &tracker).await
+        }
         Command::Mcp { path } => commands::mcp::run(&path).await,
         Command::Search { query, path, limit } => commands::search::run(&path, &query, limit),
         Command::Surface { path } => commands::surface::run(&path),

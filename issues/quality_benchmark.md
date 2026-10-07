@@ -46,7 +46,7 @@ measure before and after each step.
 
 1. [x] Reference format (`benchmark/<repo>/reference.yaml`) and deterministic metrics collected from a run's artifacts and `usage.json`
 2. [x] Matching file (`matches.yaml`, manual, takes precedence) and recall/precision of domains and features
-3. [ ] LLM judge, as a `retrodoc benchmark` subcommand: proposes matches for what `matches.yaml` leaves out, rates narratives as business language
+3. [x] LLM judge, as a `retrodoc benchmark` subcommand: proposes matches for what `matches.yaml` leaves out, rates narratives as business language
 4. [ ] Orchestration: `just benchmark <repo>`, N runs with user docs hidden then shown, table with mean and spread, comparison with the previous run
 5. [ ] References (`delivery_router` drafted by the agent and corrected by the user, then `linkding`), first real runs, `quality-benchmark` skill, docs
 
@@ -58,3 +58,5 @@ measure before and after each step.
 * The judge lives in the CLI as `retrodoc benchmark`, to reuse the provider and `FakeLlm`.
 * The agent drafts the `delivery_router` reference, the user corrects it. The `linkding` reference is not written without the user's review.
 * Start with 1 run per configuration to validate the mechanics, then 3 (spread to report).
+* The judge uses the model of the clone's `retrodoc.toml` (the generating one). A `--judge-model` option is left for later, if comparing judges becomes useful.
+* The `--judge` path of `retrodoc benchmark` is not exercised end to end yet (only the modules are tested with `FakeLlm`): check it on the first real run (deliverable 5).
