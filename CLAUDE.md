@@ -99,7 +99,7 @@ retrodoc-cli ──> retrodoc-mcp ──> retrodoc-pipeline, retrodoc-ingest, re
   | `glossary/` | Entities from `model`-role files (LLM, batched by characters; if none gives an entity, from up to 30 `logic` then `entrypoint` files, ADR 0018), test-block descriptions from `test`-role files (mechanical). |
   | `entry_points/` | Entry points (`http_route`, `cli_command`, `job`…) with their outputs, from `entrypoint`-role files. |
   | `surface.rs` | `Surface::new(glossary, entry_points)`: the capped prompt section that domain clustering starts from (business concepts, never layers); `missing_entities_notice` is the `info` line `generate` logs when source files exist but no entity was found. |
-  | `actors.rs` | Business actors from authorization code + user-like entities; `retrodoc actors [--force]`. |
+  | `actors.rs` | Business actors from authorization code + the glossary entities (the LLM keeps those that stand for someone); `retrodoc actors [--force]`. |
   | `ranking.rs` | Optional file budget (`--max-files` / `ingest.max_files`): role × churn × references; the rest becomes `FileKind::Other` (`scope.yaml`). |
   | `repo_map/` | File summaries (LLM + git history, cached by content hash, optionally batched/concurrent), then directory summaries bottom-up. |
   | `domains/` | One call clusters directory summaries + doc titles + surface into `DomainMap`; `repair.rs` places the files it left unassigned with one small extra call; `coverage.rs` enforces 100% coverage by construction (uncategorized bucket, first assignment wins, hallucinated paths dropped). |

@@ -12,7 +12,7 @@ confidence score (0007) favours literal paraphrase. The output must read as func
 ## Decision
 
 - **Actors** are business roles derived by a dedicated pass (`retrodoc actors`) from authorization code
-  and user-like entities, saved in `actors.yaml`, reused unless the input changes or `--force`;
+  and the glossary entities, saved in `actors.yaml`, reused unless the input changes or `--force`;
   use cases take their `primary_actor` from it.
 - **Two output levels**: each use case gets a short business `narrative` (rendered first), prompted with
   the top 40 application entities as vocabulary; the technical steps are folded into a `<details>` block

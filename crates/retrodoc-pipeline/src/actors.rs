@@ -2,12 +2,12 @@
 //! in business terms ("contract manager", "signatory", "e-signature
 //! provider") rather than "Developer" or "System". They are derived from the
 //! authorization code (abilities, policies, roles, permissions: the files
-//! whose name says so) and from the user-like entities of the glossary, in
+//! whose name says so) and from the entities of the glossary, in
 //! one LLM call, saved as `.retrodoc/cache/actors.yaml`. The use cases pass
 //! then names its actors from this list.
 //!
 //! The list is reused while its inputs (the content of those files and the
-//! user-like entities) are unchanged.
+//! entities) are unchanged.
 
 use std::collections::BTreeSet;
 use std::fmt::Write as _;
@@ -29,8 +29,8 @@ use crate::surface::Surface;
 const MAX_AUTH_FILES: usize = 12;
 /// Characters kept of each authorization file.
 const MAX_AUTH_FILE_CHARS: usize = 3_000;
-/// User-like entities listed in the prompt.
-const MAX_USER_ENTITIES: usize = 15;
+/// Entities listed in the prompt, the best connected first.
+const MAX_ENTITIES: usize = 25;
 /// Attributes shown for each of those entities.
 const MAX_ATTRIBUTES_SHOWN: usize = 8;
 
@@ -53,26 +53,10 @@ const AUTH_WORDS: &[&str] = &[
     "guard",
 ];
 
-/// Entity name words that mark someone who acts in the application.
-const USER_WORDS: &[&str] = &[
-    "user",
-    "role",
-    "profile",
-    "account",
-    "member",
-    "admin",
-    "customer",
-    "client",
-    "partner",
-    "signatory",
-    "operator",
-    "employee",
-    "technician",
-];
-
 const ACTORS_SYSTEM_PROMPT: &str = "You are identifying the actors of a software application, in \
 business terms. From its authorization code (abilities, policies, roles, permissions) and its \
-user-related entities, list who uses it or acts on it: the roles a person can have (e.g. \"Contract \
+business entities (most are things, not people: keep only those that stand for someone who acts, \
+e.g. a rider, a customer, a member), list who uses it or acts on it: the roles a person can have (e.g. \"Contract \
 manager\", \"Signatory\", \"Subcontractor administrator\"), and the external systems that call it \
 or that it depends on to act (e.g. \"E-signature provider\"). Name each actor as the business \
 would, not as the code does (not \"User\", \"Admin class\" or \"System\"). For each give a `name`, \
@@ -221,21 +205,15 @@ pub fn authorization_files(source_files: &[PathBuf]) -> Vec<PathBuf> {
         .collect()
 }
 
-/// Entities that look like someone acting in the application, as prompt
-/// lines with their main attributes (a `role` or `admin` column is telling).
-fn user_entity_lines(surface: &Surface) -> Vec<String> {
+/// The business entities, as prompt lines with their main attributes (a
+/// `role` or `admin` column is telling). None is filtered out by name: a
+/// "rider" or a "courier" is an actor as much as a "user", and only the LLM
+/// can tell which entities stand for someone.
+fn entity_lines(surface: &Surface) -> Vec<String> {
     surface
         .entities
         .iter()
-        .filter(|e| {
-            words(&e.name)
-                .iter()
-                .any(|w| USER_WORDS.contains(&w.as_str()))
-                || e.attributes.iter().any(|a| {
-                    a.to_lowercase().contains("role") || a.to_lowercase().contains("admin")
-                })
-        })
-        .take(MAX_USER_ENTITIES)
+        .take(MAX_ENTITIES)
         .map(|e| {
             let attributes: Vec<&str> = e
                 .attributes
@@ -254,7 +232,7 @@ fn user_entity_lines(surface: &Surface) -> Vec<String> {
 }
 
 /// Identifies the business actors of the application. Reuses the saved list
-/// when the authorization files and the user-like entities are unchanged
+/// when the authorization files and the entities are unchanged
 /// (and `force` is false); an unusable answer yields an empty list, not
 /// saved, with a warning.
 ///
@@ -278,9 +256,9 @@ pub async fn build_actors(
             }
         }
     }
-    let entity_lines = user_entity_lines(surface);
+    let entity_lines = entity_lines(surface);
     if contents.is_empty() && entity_lines.is_empty() {
-        tracing::info!("no authorization code nor user-like entity found, no actors identified");
+        tracing::info!("no authorization code nor entity found, no actors identified");
         return Ok(Actors::default());
     }
 
@@ -299,7 +277,7 @@ pub async fn build_actors(
 
     let mut prompt = String::new();
     if !entity_lines.is_empty() {
-        prompt.push_str("User-related entities:\n");
+        prompt.push_str("Business entities (keep those that stand for someone who acts):\n");
         for line in &entity_lines {
             let _ = writeln!(prompt, "{line}");
         }
@@ -422,6 +400,32 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(llm.prompts().len(), 3);
+    }
+
+    #[tokio::test]
+    async fn every_entity_is_offered_not_only_those_named_like_a_user() {
+        let dir = tempfile::tempdir().unwrap();
+        let entity = |name: &str| crate::glossary::MergedEntity {
+            name: name.to_string(),
+            description: format!("The {name}"),
+            attributes: vec!["speed".to_string()],
+            associations: Vec::new(),
+            files: Vec::new(),
+        };
+        let surface = Surface {
+            entities: vec![entity("Rider"), entity("Order")],
+            resources: Vec::new(),
+        };
+        let llm = FakeLlm::answering(
+            r#"{"actors":[{"name":"Rider","kind":"human","description":"Delivers"}]}"#,
+        );
+        let actors = build_actors(dir.path(), &paths(&["a.rb"]), &surface, &llm, false)
+            .await
+            .unwrap();
+        assert_eq!(actors.actors.len(), 1);
+        let prompt = &llm.prompts()[0];
+        assert!(prompt.contains("- Rider: The Rider"));
+        assert!(prompt.contains("- Order: The Order"));
     }
 
     #[tokio::test]

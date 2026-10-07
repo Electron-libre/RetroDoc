@@ -8,7 +8,7 @@ use retrodoc_pipeline::{Artifact, EntryPoints, Glossary, RoleRules, Surface};
 use super::workspace::{source_paths, Workspace};
 
 /// Identifies the business actors (who uses the application, in business
-/// terms) from the authorization code and the user-like entities, saves
+/// terms) from the authorization code and the entities, saves
 /// `.retrodoc/cache/actors.yaml` and prints them. The glossary and entry
 /// points from the earlier commands are used when present. `force` ignores
 /// the saved list.

@@ -77,7 +77,7 @@ enum Command {
         path: PathBuf,
     },
     /// Identifies the business actors (who uses the application, in business
-    /// terms) from the authorization code and the user-like entities, and
+    /// terms) from the authorization code and the entities, and
     /// saves `.retrodoc/cache/actors.yaml`. Uses the glossary and entry
     /// points of the earlier commands when present.
     Actors {
