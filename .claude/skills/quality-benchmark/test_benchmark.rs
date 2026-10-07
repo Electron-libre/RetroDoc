@@ -9,8 +9,9 @@ use std::process::Command;
 
 const REFERENCE: &str = "repository: https://github.com/example/shop.git\ncommit: \"abc123\"  # pinned\npurpose: Sells things.\ndomains: []\n";
 
-/// What `retrodoc init` writes (`toml::to_string_pretty` of the default config), reduced.
-const TOML: &str = "[llm]\nmodel = \"x/y\"\nbase_url = \"http://other\"\n\n[ingest]\nextra_ignore = []\nexisting_docs_paths = [\"docs\", \"README.md\"]\n";
+/// What `retrodoc init` writes (`toml::to_string_pretty` of the default config), reduced: the array of
+/// existing docs is spread over several lines.
+const TOML: &str = "[llm]\nmodel = \"x/y\"\nbase_url = \"http://other\"\n\n[ingest]\nextra_ignore = []\nexisting_docs_paths = [\n    \"docs\",\n    \"README.md\",\n]\n\n[output]\ndocs_dir = \"docs\"\n";
 
 fn main() {
     let dir = Path::new(file!()).parent().unwrap();
@@ -50,12 +51,13 @@ fn main() {
     check(
         "points [llm] at the server and hides the existing docs",
         ok && out.contains("[llm]\nmodel = \"m1\"\nbase_url = \"http://localhost:1/v1\"\nreasoning_effort = \"none\"")
-            && out.contains("existing_docs_paths = []")
+            && out.contains("existing_docs_paths = []\n\n[output]")
+            && !out.contains("README.md")
             && !out.contains("x/y")
             && !out.contains("http://other"),
     );
     let (ok, out) = call(&["patch-config", &toml, "m1", "http://localhost:1/v1", "false"]);
-    check("keeps the existing docs when shown", ok && out.contains("existing_docs_paths = [\"docs\", \"README.md\"]"));
+    check("keeps the existing docs when shown", ok && out.contains("existing_docs_paths = [\n    \"docs\",\n    \"README.md\",\n]"));
 
     let root = tmp.join("benchmarks");
     for (stamp, table) in [("100", true), ("200", true), ("250", false), ("300", true)] {

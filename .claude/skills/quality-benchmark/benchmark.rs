@@ -42,17 +42,24 @@ fn reference_field(yaml: &str, key: &str) -> Option<String> {
 /// `retrodoc.toml` with `[llm]` pointed at the local server and, when `hide_docs`, no existing docs
 /// read as input (the repository's README and docs would give the answer away).
 fn patch_config(toml: &str, model: &str, base_url: &str, hide_docs: bool) -> String {
-    let kept: Vec<String> = toml
-        .lines()
-        .filter(|l| !["model =", "base_url =", "reasoning_effort ="].iter().any(|k| l.starts_with(k)))
-        .map(|l| {
-            if hide_docs && l.starts_with("existing_docs_paths =") {
-                "existing_docs_paths = []".to_string()
-            } else {
-                l.to_string()
-            }
-        })
-        .collect();
+    let mut kept: Vec<String> = Vec::new();
+    // Lines of an `existing_docs_paths` array being dropped (it can span several lines).
+    let mut dropping = false;
+    for line in toml.lines() {
+        if dropping {
+            dropping = !line.trim_start().starts_with(']');
+            continue;
+        }
+        if ["model =", "base_url =", "reasoning_effort ="].iter().any(|k| line.starts_with(k)) {
+            continue;
+        }
+        if hide_docs && line.starts_with("existing_docs_paths =") {
+            kept.push("existing_docs_paths = []".to_string());
+            dropping = !line.contains(']');
+        } else {
+            kept.push(line.to_string());
+        }
+    }
     kept.join("\n").replacen(
         "[llm]",
         &format!("[llm]\nmodel = \"{model}\"\nbase_url = \"{base_url}\"\nreasoning_effort = \"none\""),
