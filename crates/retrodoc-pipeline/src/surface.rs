@@ -102,6 +102,15 @@ impl Surface {
         self.entities.is_empty() && self.resources.is_empty()
     }
 
+    /// The line to log when the clustering gets no entity although the
+    /// repository has `source_files`: no `model` file gave one, so the
+    /// business hints the surface is meant to carry are missing.
+    #[must_use]
+    pub fn missing_entities_notice(&self, source_files: usize) -> Option<&'static str> {
+        (self.entities.is_empty() && source_files > 0)
+            .then_some("no model file gave an entity, the clustering gets no business hints")
+    }
+
     /// Names of the best connected entities: the application's own business
     /// vocabulary, for prompts that should speak it.
     #[must_use]
@@ -242,6 +251,31 @@ mod tests {
             description: String::new(),
             outputs: Vec::new(),
         }
+    }
+
+    #[test]
+    fn warns_about_missing_business_hints_only_with_source_files_and_no_entity() {
+        let empty = Surface::default();
+        let notice = empty.missing_entities_notice(9).expect("a notice");
+        assert!(notice.contains("no business hints"), "{notice}");
+        assert_eq!(empty.missing_entities_notice(0), None);
+        assert_eq!(surface().missing_entities_notice(9), None);
+    }
+
+    #[test]
+    fn entry_points_alone_do_not_hide_the_missing_entities() {
+        let entry_points = EntryPoints {
+            files: BTreeMap::from([(
+                PathBuf::from("app/routes.rb"),
+                EntryFile {
+                    content_hash: String::new(),
+                    entry_points: vec![entry("GET /users", "list", "user")],
+                },
+            )]),
+        };
+        let surface = Surface::new(&Glossary::default(), &entry_points);
+        assert!(!surface.is_empty());
+        assert!(surface.missing_entities_notice(3).is_some());
     }
 
     fn surface() -> Surface {

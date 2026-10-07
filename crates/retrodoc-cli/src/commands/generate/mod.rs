@@ -271,6 +271,9 @@ async fn build_surface(
         .context("failed to build the entry points inventory")?;
 
     let surface = Surface::new(&glossary, &entry_points);
+    if let Some(notice) = surface.missing_entities_notice(source_paths(ingest).count()) {
+        tracing::info!("{notice}");
+    }
     println!(
         "Surface: {} entit(ies), {} resource(s) with entry points.",
         surface.entities.len(),
