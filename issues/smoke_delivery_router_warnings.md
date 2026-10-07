@@ -85,8 +85,8 @@ both attempts fail, and look at why the retry returned an ungrounded use case wi
 2. [x] LLM repair of the files left unassigned by the clustering, before the "uncategorized" bucket (validated, cached, ADR 0004 updated)
 3. [x] Use cases pass: `WARN` only when both attempts fail
 3b. [x] Actors pass: "no actors identified" is an `info`, not a `WARN` (a small library has none; it failed the smoke test on every run)
-4. [ ] Validation: `just smoke ~/Code/delivery_router` + 20 replays of the clustering prompt
-5. [ ] Conditional: ungrounded use case scored 100% (only if still present after 4)
+4. [x] Validation: `just smoke ~/Code/delivery_router` + 20 replays of the clustering prompt
+5. [x] Conditional: ungrounded use case scored 100% (not reproduced in the two validation runs; not addressed)
 
 ## Decisions
 
@@ -95,3 +95,16 @@ both attempts fail, and look at why the retry returned an ungrounded use case wi
 * The smoke test may run on the local Ollama.
 * The actors "nothing found" line goes to `info` (decided after two smoke runs where it was the only constant warning).
 * Deliverable 5 is handled only if the smoke test shows the problem persists.
+
+## Validation (2026-10-07)
+
+* Two smoke runs: neither the "unassigned" nor the "no use case" warning came back, no file in
+  "uncategorized", `rider.rb` and `router.rb` documented. The verdict was still FAIL on other warnings: `actors`
+  (now `info`), `chunk_check` and `roles` (one run only, model variance), and one unparseable JSON recovered by
+  its retry (intended). `just smoke` was not rerun after the `actors` change.
+* 20 replays of the clustering prompt with the new surface section: 0 unassigned out of 20. The replay ran on a
+  copy of the clone with a hand-written glossary of 5 entities, because the real run's surface was empty (the
+  roles pass classified no `model` file that time). Not compared with the old prompt in the same session.
+* The LLM repair of deliverable 2 never triggered on the real model: it is covered by unit tests only.
+* Open: the roles pass can classify no file as `model` on this repo (empty surface, hence a weaker clustering);
+  not investigated.
