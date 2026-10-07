@@ -24,6 +24,13 @@ the surface is empty and the clustering loses the business hints it is meant to 
   the 5 empty ones, 4 have no `model` rule at all and 1 has `model` rules for `lib/**/models/*.rb` and
   `*_repository.rb`, which match nothing: counting `model` rules is not enough, what counts is the files they
   match. The repo has 9 source files under `lib/`.
+* Final smoke test (`delivery_router`, same model, after ADR 0018): the roles pass gave a `model` rule that
+  matched files, so the fallback was not exercised in that run (3 entities from the model files). The run was
+  not conclusive on the "no warning" criterion for two warnings of the use cases pass that have nothing to do
+  with the glossary: a human actor outside the known actors (the actors pass had found one actor) and a JSON
+  answer with a duplicate `steps` field (the retry succeeded). The rerun was a no-op without any LLM call.
+  The fallback itself was checked on the saved `roles.yaml` of two baseline runs (`entrypoint` and `logic`
+  classes), through `retrodoc glossary` alone. Tracked in `issues/use_cases_smoke_warnings.md`.
 
 # Approach
 
@@ -53,8 +60,8 @@ what the other answers look like. Then, candidates (can be combined):
 1. [x] Baseline: replay the roles pass about 10 times on `delivery_router` (local Ollama) and note how often a `model` rule appears, in Findings.
 2. [x] Make the empty surface visible: an `info` line when the glossary has no entity although the repo has source files (tests with `FakeLlm`).
 3. [x] Fall back on `logic` then `entrypoint` files when no `model` file gave an entity: bounded budget, same hash cache (tests with `FakeLlm`).
-4. [ ] Prompt: a class holding domain data and rules is a `model` even outside an ORM; re-measure (about 10 runs) and compare with the baseline.
-5. [ ] Docs (`update-docs`, ADR 0008 follow-up if the fallback is an architecture decision), final smoke test, ask whether to close the issue.
+4. [-] Skipped (see Decisions): Prompt: a class holding domain data and rules is a `model` even outside an ORM; re-measure (about 10 runs) and compare with the baseline.
+5. [x] Docs (`update-docs`, ADR 0008 follow-up if the fallback is an architecture decision), final smoke test, ask whether to close the issue.
 
 ## Decisions
 
@@ -62,3 +69,4 @@ what the other answers look like. Then, candidates (can be combined):
 * The unknown-role rule that comes back on each run because `roles.yaml` is reused is out of scope.
 * Measure: about 10 runs before and after the prompt change.
 * The fallback reads `entrypoint` files too (after the `logic` ones, 30 files at most): 3 of the 5 empty baseline runs class the whole `lib/` tree as `entrypoint`. ADR 0018.
+* Deliverable 4 (roles prompt tweak and re-measure) is skipped: tuning the roles pass keeps the assumption that the business sits in a layer. The follow-up is `issues/locate_business_files.md`.
