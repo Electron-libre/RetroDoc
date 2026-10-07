@@ -48,7 +48,10 @@ measure before and after each step.
 2. [x] Matching file (`matches.yaml`, manual, takes precedence) and recall/precision of domains and features
 3. [x] LLM judge, as a `retrodoc benchmark` subcommand: proposes matches for what `matches.yaml` leaves out, rates narratives as business language
 4. [x] Orchestration: `just benchmark <repo>`, N runs with user docs hidden then shown, table with mean and spread, comparison with the previous run
-5. [ ] References (`delivery_router` drafted by the agent and corrected by the user, then `linkding`), first real runs, `quality-benchmark` skill, docs
+5. [x] References (`delivery_router` drafted by the agent and corrected by the user, then `linkding`), first real runs, `quality-benchmark` skill, docs
+   * done: both references and `delivery_router` pairs committed, skill and docs written, `just benchmark` run end to end on `delivery_router` (3 runs per series)
+   * done too: baseline of `delivery_router` and audit of the judge's pairs (see Baseline)
+   * left, outside this checklist: first `linkding` measure (too slow for the 2 h background limit, see Decisions)
 
 ## Decisions
 
@@ -62,3 +65,26 @@ measure before and after each step.
 * The `--judge` path of `retrodoc benchmark` is not exercised end to end yet (only the modules are tested with `FakeLlm`): check it on the first real run (deliverable 5).
 * Aggregation lives in Rust (`retrodoc benchmark-table`, tested with `cargo test`); the `just benchmark` script (`.claude/skills/quality-benchmark/`) only orchestrates. Clones are kept in `/tmp` for inspection, with no automatic cleanup.
 * `benchmark.rs run` has not run end to end yet (no reference to give it): check it on the first real run (deliverable 5).
+* `linkding`: its reference is committed but not measured yet. One `generate` of the 442 files took about 1h40 locally (the run was stopped by the 2 h background limit at 85% of the use cases pass), so a benchmark needs a terminal without limit, or a faster model (`--model`, `--base-url`). Only `delivery_router` is benchmarked for now.
+* The judged figures are the main ones, the strict ones an audited floor (the model renames domains and features on every run, so hand-written pairs only cover part of a run); an audit of a sample of the judge's pairs follows each benchmark (see the skill).
+
+## Baseline
+
+`delivery_router` at its pinned commit, local `qwen3.6:35b-a3b`, 3 runs per series, before the redesign of ADRs 0019 to 0023 (mean and range):
+
+| Figure | docs hidden | docs shown |
+|---|---|---|
+| Features recall, audited | 29% (12-38%) | 38% (38-38%) |
+| Features precision, audited | 43% (20-60%) | 62% (50-75%) |
+| Domains recall, audited | 67% (50-100%) | 50% (50-50%) |
+| Domains precision, audited | 89% (67-100%) | 100% (100-100%) |
+| Domains recall, judged | 67% (50-100%) | 50% (50-50%) |
+| Features recall, judged | 46% (38-50%) | 46% (38-50%) |
+| Features precision, judged | 76% (67-80%) | 74% (67-80%) |
+| Narratives in business language (judge) | 54% (22-71%) | 54% (38-62%) |
+| Business-language score (deterministic) | 88% (74-96%) | 93% (91-97%) |
+| LLM calls | 23 (21-25) | 21 (19-24) |
+
+* "Audited": the judge's pairs of the six runs were read against the descriptions of the reference (not the code) and the right ones copied to `matches.yaml`. Of 23 feature pairs, 10 were wrong (43%) and 3 were re-paired by hand; the 7 domain pairs held. The judge therefore overstates feature figures: recall by 8 to 17 points, precision by 12 to 33. The audit was done by the same family of model that wrote the code, from descriptions only: a human spot check of `matches.yaml` is still due.
+* The spread is as large as most of the changes seen between single runs (a first benchmark with one run showed +50 points of domain precision that three runs do not confirm): never conclude from one run.
+* The two measures of business language disagree (judge about 54%, deterministic score 88 to 93%): to settle by reading narratives by hand.

@@ -6,6 +6,20 @@
 domains:
   - generated: Order Assignment and Rider Matching
     reference: Order dispatch
+  - generated: Delivery Orchestration Core
+    reference: Order dispatch
+  - generated: Delivery Order Management
+    reference: Order dispatch
+  - generated: Routing Optimization Engine
+    reference: Rider routing
+  - generated: Delivery Routing and Order Assignment
+    reference: Order dispatch
+  - generated: Delivery Routing System
+    reference: Order dispatch
+  - generated: Delivery Routing and Execution
+    reference: Rider routing
+  - generated: Delivery Logistics and Routing
+    reference: Order dispatch
 features:
   - generated: Time Estimation
     reference: Estimate a delivery time
@@ -19,3 +33,38 @@ features:
     reference: Locate customers, restaurants and riders
   - generated: Entity Definition and Location Services
     reference: Locate customers, restaurants and riders
+  # Audit of the judge's pairs on the six runs of the first 3-run benchmark (a generated item that
+  # covers the whole system is paired with one of the two reference domains, the first it describes).
+  - generated: Core Entity Modeling
+    reference: Locate customers, restaurants and riders
+  - generated: Manage Customer and Location Data
+    reference: Locate customers, restaurants and riders
+  - generated: Track and Assign Rider
+    reference: Choose the fastest rider
+  - generated: Coordinate Delivery System
+    reference: Place an order
+  - generated: Optimal Order Assignment
+    reference: Choose the fastest rider
+  - generated: Rider Management
+    reference: Choose the fastest rider
+  - generated: Location Services
+    reference: Locate customers, restaurants and riders
+  - generated: Manage Core Domain Entities
+    reference: Locate customers, restaurants and riders
+  - generated: Process Delivery Orders
+    reference: Place an order
+  - generated: Optimize Rider Assignment
+    reference: Choose the fastest rider
+  - generated: Geographic Positioning and Distance Calculation
+    reference: Locate customers, restaurants and riders
+  - generated: Order Management and Routing
+    reference: Place an order
+  - generated: Rider Assignment Optimization
+    reference: Choose the fastest rider
+  # The judge paired these with another item; read again, these are the right ones.
+  - generated: Order-Rider Matching Orchestration
+    reference: Place an order
+  - generated: Rider Provisioning and Assignment
+    reference: Choose the fastest rider
+  - generated: Route Optimization
+    reference: Place an order
