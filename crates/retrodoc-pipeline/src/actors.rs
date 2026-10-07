@@ -280,7 +280,7 @@ pub async fn build_actors(
     }
     let entity_lines = user_entity_lines(surface);
     if contents.is_empty() && entity_lines.is_empty() {
-        tracing::warn!("no authorization code nor user-like entity found, no actors identified");
+        tracing::info!("no authorization code nor user-like entity found, no actors identified");
         return Ok(Actors::default());
     }
 

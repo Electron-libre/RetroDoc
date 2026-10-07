@@ -84,6 +84,7 @@ both attempts fail, and look at why the retry returned an ungrounded use case wi
 1. [x] Surface section of the clustering prompt without file paths (entity + containing module, same for resources)
 2. [x] LLM repair of the files left unassigned by the clustering, before the "uncategorized" bucket (validated, cached, ADR 0004 updated)
 3. [x] Use cases pass: `WARN` only when both attempts fail
+3b. [x] Actors pass: "no actors identified" is an `info`, not a `WARN` (a small library has none; it failed the smoke test on every run)
 4. [ ] Validation: `just smoke ~/Code/delivery_router` + 20 replays of the clustering prompt
 5. [ ] Conditional: ungrounded use case scored 100% (only if still present after 4)
 
@@ -92,4 +93,5 @@ both attempts fail, and look at why the retry returned an ungrounded use case wi
 * Repair by one small LLM call (unassigned files with their summaries + the domains found), not by mechanical inheritance.
 * The "retry the clustering once" candidate is dropped in favor of the repair call; reconsidered only if the smoke test still shows incomplete answers.
 * The smoke test may run on the local Ollama.
+* The actors "nothing found" line goes to `info` (decided after two smoke runs where it was the only constant warning).
 * Deliverable 5 is handled only if the smoke test shows the problem persists.
