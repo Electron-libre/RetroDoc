@@ -1,0 +1,68 @@
+repository: https://github.com/Electron-libre/delivery_router
+commit: 9c466a0da2ed5f45d70e50208545813b55dca1a0
+purpose: >-
+  Dispatches food delivery orders to riders: each new order from a customer to a restaurant goes to
+  the rider who can deliver it fastest, and is refused when it could not arrive within an hour.
+  It also tells each rider the stops to make and each customer how long their delivery will take.
+actors:
+  - Customer
+  - Restaurant
+  - Rider
+  - Dispatcher
+domains:
+  - name: Order dispatch
+    description: Taking orders and deciding who delivers them, or refusing them.
+    features:
+      - name: Place an order
+        description: >-
+          A customer orders from a restaurant; the order is given to the rider with the shortest
+          delivery time and accepted only if it arrives in under an hour.
+        use_cases:
+          - Place an order that can be delivered in time
+          - Refuse an order that would take an hour or more
+          - Refuse an order from an unknown customer or for an unknown restaurant
+      - name: Cancel a customer's order
+        description: Forget the order of a customer, for instance when they no longer want it.
+        use_cases:
+          - Clear the order of a customer
+      - name: Tell a customer their delivery time
+        description: Give the time a customer will wait for the order they placed.
+        use_cases:
+          - Look up the delivery time of a customer's order
+  - name: Rider routing
+    description: >-
+      Working out how long deliveries take and which stops each rider makes, from where customers,
+      restaurants and riders are and how fast the riders go.
+    features:
+      - name: Choose the fastest rider
+        description: Among all riders, pick the one who delivers a given order in the shortest time.
+        use_cases:
+          - Assign an order to the fastest rider
+      - name: Estimate a delivery time
+        description: >-
+          Time for a rider to reach the restaurant (the food is not ready before its cooking time)
+          plus the ride from the restaurant to the customer.
+        use_cases:
+          - Estimate how long a delivery takes for a rider
+      - name: Give a rider their route
+        description: List the stops of a rider, the restaurant then the customer of each order they carry.
+        use_cases:
+          - Get the route of a rider
+      - name: Locate customers, restaurants and riders
+        description: >-
+          Customers, restaurants and riders are points on a map; restaurants have a cooking time and
+          riders a speed.
+        use_cases:
+          - Register the customers, restaurants and riders of a service area
+      - name: Measure distance and travel time
+        description: Straight-line distance in kilometres between two places and the minutes a rider needs for it.
+        use_cases:
+          - Compute the distance between a rider and a restaurant
+          - Compute the travel time of a rider to a place
+rules:
+  - A delivery that would take 60 minutes or more is refused.
+  - An order is refused with a reason when the customer or the restaurant is unknown.
+  - A rider does not leave the restaurant before the food is cooked, even if they arrive earlier.
+  - The rider chosen for an order is the one with the shortest delivery time.
+  - A customer has one current order; ordering again replaces it.
+  - Travel time is the straight-line distance divided by the rider's speed.
