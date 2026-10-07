@@ -106,5 +106,7 @@ both attempts fail, and look at why the retry returned an ungrounded use case wi
   copy of the clone with a hand-written glossary of 5 entities, because the real run's surface was empty (the
   roles pass classified no `model` file that time). Not compared with the old prompt in the same session.
 * The LLM repair of deliverable 2 never triggered on the real model: it is covered by unit tests only.
+* Third smoke run, after the `actors` change: SMOKE TEST CONCLUSIVE (no `WARN` in either run, rerun is a no-op
+  without LLM call, report produced, nothing in "uncategorized"). The repair call did not trigger in that run either.
 * Open: the roles pass can classify no file as `model` on this repo (empty surface, hence a weaker clustering);
   not investigated.
