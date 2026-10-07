@@ -51,8 +51,8 @@ what the other answers look like. Then, candidates (can be combined):
 # Tracking
 
 1. [x] Baseline: replay the roles pass about 10 times on `delivery_router` (local Ollama) and note how often a `model` rule appears, in Findings.
-2. [ ] Make the empty surface visible: an `info` line when the glossary has no entity although the repo has source files (tests with `FakeLlm`).
-3. [ ] Fall back on `logic` files when no `model` file gave an entity: bounded budget, same hash cache (tests with `FakeLlm`).
+2. [x] Make the empty surface visible: an `info` line when the glossary has no entity although the repo has source files (tests with `FakeLlm`).
+3. [x] Fall back on `logic` then `entrypoint` files when no `model` file gave an entity: bounded budget, same hash cache (tests with `FakeLlm`).
 4. [ ] Prompt: a class holding domain data and rules is a `model` even outside an ORM; re-measure (about 10 runs) and compare with the baseline.
 5. [ ] Docs (`update-docs`, ADR 0008 follow-up if the fallback is an architecture decision), final smoke test, ask whether to close the issue.
 
@@ -61,3 +61,4 @@ what the other answers look like. Then, candidates (can be combined):
 * Scope: the four candidates of the Approach (prompt, fallback, visibility, measure).
 * The unknown-role rule that comes back on each run because `roles.yaml` is reused is out of scope.
 * Measure: about 10 runs before and after the prompt change.
+* The fallback reads `entrypoint` files too (after the `logic` ones, 30 files at most): 3 of the 5 empty baseline runs class the whole `lib/` tree as `entrypoint`. ADR 0018.

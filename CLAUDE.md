@@ -96,7 +96,7 @@ retrodoc-cli ──> retrodoc-mcp ──> retrodoc-pipeline, retrodoc-ingest, re
   |---|---|
   | `roles/` | One LLM call over the file tree + manifests: stack, glob rules `pattern -> role`, `source_extensions` (languages the walker doesn't know, promoted to `Source`), plus per-language `chunk_boundaries`. `roles.yaml` is hand-editable and reused unless `retrodoc roles --force`; `RoleRules::classify` applies it mechanically. |
   | `chunks.rs`, `chunk_check.rs` | Cut long files before a boundary regex (else a blank line); `Splitter::excerpt` for the use cases/confidence passes; `chunk_check` verifies the LLM's regexes on the real files and asks for a fix. |
-  | `glossary/` | Entities from `model`-role files (LLM, batched by characters), test-block descriptions from `test`-role files (mechanical). |
+  | `glossary/` | Entities from `model`-role files (LLM, batched by characters; if none gives an entity, from up to 30 `logic` then `entrypoint` files, ADR 0018), test-block descriptions from `test`-role files (mechanical). |
   | `entry_points/` | Entry points (`http_route`, `cli_command`, `job`…) with their outputs, from `entrypoint`-role files. |
   | `surface.rs` | `Surface::new(glossary, entry_points)`: the capped prompt section that domain clustering starts from (business concepts, never layers); `missing_entities_notice` is the `info` line `generate` logs when source files exist but no entity was found. |
   | `actors.rs` | Business actors from authorization code + user-like entities; `retrodoc actors [--force]`. |

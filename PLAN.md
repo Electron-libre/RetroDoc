@@ -194,6 +194,9 @@ Steps, each shippable and checkable on the Rails test repo:
    description, attributes, associations); test descriptions (`describe`/`context`/`it`/`test` strings,
    `def test_*`) are extracted mechanically from `test`-role files. Saved as `.retrodoc/cache/glossary.yaml`,
    which doubles as the cache (per-file content hash).
+   When no `model` file gives an entity (the roles pass found none, which happened in half of 10 runs on a small
+   Ruby library of plain classes), up to 30 `logic` then `entrypoint` files are read instead (ADR 0018), and `generate`
+   logs when the surface still has no entity.
    Smoke test on the full Rails test repo (443 model files, `qwen3.6:35b-a3b`, 24 min): 301 entities,
    190 files without entity (mostly technical classes, plausible), 5,352 test phrases from 521 test files, 4
    entities dropped for an unknown file. Business names come out well (Contract, Company, Worksite,

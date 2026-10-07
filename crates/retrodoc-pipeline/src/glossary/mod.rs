@@ -7,6 +7,11 @@
 //! the descriptions of `describe`/`context`/`it`-style blocks, extracted
 //! mechanically from the files classified as [`FileRole::Test`].
 //!
+//! The roles pass sometimes finds no model file (a repository of plain
+//! domain classes, no `models/` folder). Then the `logic` files, then the
+//! `entrypoint` ones, are read instead, a bounded number of them, with a
+//! prompt that keeps only business classes (ADR 0018).
+//!
 //! The result is `.retrodoc/cache/glossary.yaml`, which doubles as the cache:
 //! a model file whose content hash is unchanged is not sent again. The
 //! vocabulary is a hint to validate, not a truth (PLAN.md §7.1 caveats).
@@ -33,6 +38,9 @@ use crate::use_cases::resolve_cited_path;
 /// A longer model file is read in several chunks of about this size, so one
 /// huge model can't crowd out the others in a batch.
 const MAX_MODEL_FILE_CHARS: usize = 4_000;
+/// Files of role `logic`, then `entrypoint` (the public API of a library is
+/// plain domain classes), read when no model file gave an entity.
+const FALLBACK_MAX_FILES: usize = 30;
 /// Test phrases kept per test file.
 const MAX_PHRASES_PER_TEST_FILE: usize = 30;
 /// Characters kept of each test phrase.
@@ -46,6 +54,20 @@ every column) and its associations to other entities. Reply with ONLY a single J
 prose and no Markdown code fence, matching this shape: {\"entities\":[{\"file\":\"path as given\",\
 \"name\":\"...\",\"description\":\"...\",\"attributes\":[\"...\"],\"associations\":[{\"kind\":\
 \"has_many\",\"target\":\"...\"}]}]}. Use the file paths exactly as given.";
+
+/// Same answer shape as [`GLOSSARY_SYSTEM_PROMPT`], for files that were not
+/// recognized as models: most of them are services, collections or helpers.
+const FALLBACK_SYSTEM_PROMPT: &str = "You are looking for the business entities in the source \
+files of a software application that has no obvious model files. An entity is a plain class \
+(or struct, or module) that holds business data and rules, such as a customer, an order or a \
+contract; skip services, routers, collections of entities, helpers, mixins and anything \
+purely technical. A file can hold no entity: then list none for it. For each entity give its \
+name, one sentence on what it represents for the business, its main attributes (business \
+meaning, not every field) and its associations to other entities. Reply with ONLY a single JSON \
+object, no prose and no Markdown code fence, matching this shape: {\"entities\":[{\"file\":\
+\"path as given\",\"name\":\"...\",\"description\":\"...\",\"attributes\":[\"...\"],\
+\"associations\":[{\"kind\":\"has_many\",\"target\":\"...\"}]}]}. Use the file paths exactly \
+as given.";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Association {
@@ -259,48 +281,108 @@ pub async fn build_glossary(
         tests: previous.tests.clone(),
     };
     let splitter = Splitter::new(&roles.chunk_boundaries);
-    // One item per chunk of a changed file: (path, file hash, chunk text).
-    let mut pending: Vec<PendingChunk> = Vec::new();
-    for path in roles.files_with(FileRole::Model) {
-        let content = read_file_lossy(repo_root, path)?;
-        let hash = hash_content(&content);
-        match previous.models.get(path) {
-            Some(saved) if saved.content_hash == hash => {
-                glossary.models.insert(path.to_path_buf(), saved.clone());
-            }
-            _ => {
-                let chunks = splitter.file_chunks(path, &content, MAX_MODEL_FILE_CHARS, "glossary");
-                for chunk in chunks {
-                    pending.push((path.to_path_buf(), hash.clone(), chunk));
-                }
-            }
-        }
-    }
+    let reader = EntityReader {
+        repo_root,
+        previous: &previous,
+        splitter: &splitter,
+        llm,
+    };
+    reader
+        .read(
+            roles.files_with(FileRole::Model),
+            GLOSSARY_SYSTEM_PROMPT,
+            "Model files:\n",
+            "model file(s)",
+            &mut glossary,
+        )
+        .await?;
 
-    BatchedRead {
-        pass: "glossary",
-        unit: "model file(s)",
-        system_prompt: GLOSSARY_SYSTEM_PROMPT,
-        header: "Model files:\n",
-        attribute: attribute_entities,
-        finish: |glossary: &mut Glossary, path, hash, entities| {
-            glossary.models.insert(
-                path.to_path_buf(),
-                ModelFile {
-                    content_hash: hash.to_string(),
-                    entities: merge_chunk_entities(entities),
-                },
-            );
-        },
-        checkpoint: &|glossary: &Glossary| glossary.save(repo_root),
+    // No model file gave an entity (none was recognized, or none holds a
+    // business class): look in the logic files, then the entrypoint ones (a
+    // library's code is often all "public API"), a bounded number of them.
+    if glossary.entities().next().is_none() {
+        let mut candidates = Vec::new();
+        for role in [FileRole::Logic, FileRole::EntryPoint] {
+            let mut files = roles.files_with(role);
+            files.sort_unstable();
+            candidates.extend(files);
+        }
+        candidates.truncate(FALLBACK_MAX_FILES);
+        reader
+            .read(
+                candidates,
+                FALLBACK_SYSTEM_PROMPT,
+                "Source files:\n",
+                "fallback file(s)",
+                &mut glossary,
+            )
+            .await?;
     }
-    .run(llm, &pending, &mut glossary)
-    .await?;
 
     let tests = test_vocabulary(repo_root, roles)?;
     glossary.tests = tests;
     glossary.save(repo_root)?;
     Ok(glossary)
+}
+
+/// Reads the entities of a set of files: the ones whose content hash is
+/// unchanged come from the previous glossary, the others go to the LLM.
+struct EntityReader<'a> {
+    repo_root: &'a Path,
+    previous: &'a Glossary,
+    splitter: &'a Splitter,
+    llm: &'a dyn LlmProvider,
+}
+
+impl EntityReader<'_> {
+    async fn read(
+        &self,
+        paths: Vec<&Path>,
+        system_prompt: &'static str,
+        header: &'static str,
+        unit: &'static str,
+        glossary: &mut Glossary,
+    ) -> Result<(), PipelineError> {
+        // One item per chunk of a changed file: (path, file hash, chunk text).
+        let mut pending: Vec<PendingChunk> = Vec::new();
+        for path in paths {
+            let content = read_file_lossy(self.repo_root, path)?;
+            let hash = hash_content(&content);
+            match self.previous.models.get(path) {
+                Some(saved) if saved.content_hash == hash => {
+                    glossary.models.insert(path.to_path_buf(), saved.clone());
+                }
+                _ => {
+                    let chunks =
+                        self.splitter
+                            .file_chunks(path, &content, MAX_MODEL_FILE_CHARS, "glossary");
+                    for chunk in chunks {
+                        pending.push((path.to_path_buf(), hash.clone(), chunk));
+                    }
+                }
+            }
+        }
+
+        BatchedRead {
+            pass: "glossary",
+            unit,
+            system_prompt,
+            header,
+            attribute: attribute_entities,
+            finish: |glossary: &mut Glossary, path, hash, entities| {
+                glossary.models.insert(
+                    path.to_path_buf(),
+                    ModelFile {
+                        content_hash: hash.to_string(),
+                        entities: merge_chunk_entities(entities),
+                    },
+                );
+            },
+            checkpoint: &|glossary: &Glossary| glossary.save(self.repo_root),
+        }
+        .run(self.llm, &pending, glossary)
+        .await
+    }
 }
 
 /// The test phrases of every file classified [`FileRole::Test`] that has any.

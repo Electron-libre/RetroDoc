@@ -228,3 +228,146 @@ async fn a_batch_that_cannot_be_answered_is_retried_file_by_file() {
     assert_eq!(glossary.models.len(), 2);
     assert_eq!(glossary.entities().count(), 2);
 }
+
+fn write_files(dir: &Path, names: &[String]) {
+    for name in names {
+        std::fs::write(dir.join(name), "class Thing; end").unwrap();
+    }
+}
+
+#[tokio::test]
+async fn logic_files_are_read_when_no_model_file_gave_an_entity() {
+    let dir = tempfile::tempdir().unwrap();
+    write_files(
+        dir.path(),
+        &["order.rb".to_string(), "router.rb".to_string()],
+    );
+    let roles = roles(&[
+        ("order.rb", FileRole::Logic),
+        ("router.rb", FileRole::Logic),
+    ]);
+    let llm = FakeLlm::answering(r#"{"entities":[{"file":"order.rb","name":"Order"}]}"#);
+
+    let glossary = build_glossary(dir.path(), &roles, &llm).await.unwrap();
+
+    let names: Vec<_> = glossary.entities().map(|(_, e)| e.name.as_str()).collect();
+    assert_eq!(names, vec!["Order"]);
+    assert_eq!(glossary.models.len(), 2, "router.rb is remembered as empty");
+    let pairs = llm.prompt_pairs();
+    assert_eq!(pairs.len(), 1);
+    assert!(
+        pairs[0].0.contains("no obvious model files"),
+        "{}",
+        pairs[0].0
+    );
+}
+
+#[tokio::test]
+async fn logic_files_are_left_alone_when_a_model_file_gave_an_entity() {
+    let dir = tempfile::tempdir().unwrap();
+    write_files(
+        dir.path(),
+        &["customer.rb".to_string(), "router.rb".to_string()],
+    );
+    let roles = roles(&[
+        ("customer.rb", FileRole::Model),
+        ("router.rb", FileRole::Logic),
+    ]);
+    let llm = FakeLlm::answering(r#"{"entities":[{"file":"customer.rb","name":"Customer"}]}"#);
+
+    let glossary = build_glossary(dir.path(), &roles, &llm).await.unwrap();
+
+    assert_eq!(llm.calls(), 1);
+    assert_eq!(glossary.models.len(), 1);
+    assert!(!llm.prompts()[0].contains("router.rb"));
+}
+
+#[tokio::test]
+async fn the_fallback_reads_a_bounded_number_of_logic_files_in_path_order() {
+    let dir = tempfile::tempdir().unwrap();
+    let names: Vec<String> = (0..FALLBACK_MAX_FILES + 5)
+        .map(|n| format!("f{n:03}.rb"))
+        .collect();
+    write_files(dir.path(), &names);
+    let entries: Vec<(&str, FileRole)> = names
+        .iter()
+        .map(|n| (n.as_str(), FileRole::Logic))
+        .collect();
+    let llm = FakeLlm::answering(r#"{"entities":[]}"#);
+
+    let glossary = build_glossary(dir.path(), &roles(&entries), &llm)
+        .await
+        .unwrap();
+
+    assert_eq!(glossary.models.len(), FALLBACK_MAX_FILES);
+    let sent = llm.prompts().join("\n");
+    assert!(sent.contains("f000.rb"));
+    assert!(sent.contains(&format!("f{:03}.rb", FALLBACK_MAX_FILES - 1)));
+    assert!(!sent.contains(&format!("f{FALLBACK_MAX_FILES:03}.rb")));
+}
+
+#[tokio::test]
+async fn the_fallback_is_not_asked_again_while_files_are_unchanged() {
+    let dir = tempfile::tempdir().unwrap();
+    write_files(
+        dir.path(),
+        &["order.rb".to_string(), "router.rb".to_string()],
+    );
+    let roles = roles(&[
+        ("order.rb", FileRole::Logic),
+        ("router.rb", FileRole::Logic),
+    ]);
+    let llm = FakeLlm::answering(r#"{"entities":[{"file":"order.rb","name":"Order"}]}"#);
+
+    build_glossary(dir.path(), &roles, &llm).await.unwrap();
+    let calls = llm.calls();
+    let glossary = build_glossary(dir.path(), &roles, &llm).await.unwrap();
+
+    assert_eq!(llm.calls(), calls, "the saved answers are reused");
+    assert_eq!(glossary.entities().count(), 1);
+}
+
+#[tokio::test]
+async fn the_fallback_also_reads_entrypoint_files_after_the_logic_ones() {
+    let dir = tempfile::tempdir().unwrap();
+    let logic: Vec<String> = (0..FALLBACK_MAX_FILES - 1)
+        .map(|n| format!("logic{n:03}.rb"))
+        .collect();
+    let mut names = logic.clone();
+    names.extend(["a_api.rb".to_string(), "b_api.rb".to_string()]);
+    write_files(dir.path(), &names);
+    let mut entries: Vec<(&str, FileRole)> = logic
+        .iter()
+        .map(|n| (n.as_str(), FileRole::Logic))
+        .collect();
+    entries.extend([
+        ("a_api.rb", FileRole::EntryPoint),
+        ("b_api.rb", FileRole::EntryPoint),
+    ]);
+    let llm = FakeLlm::answering(r#"{"entities":[]}"#);
+
+    let glossary = build_glossary(dir.path(), &roles(&entries), &llm)
+        .await
+        .unwrap();
+
+    assert_eq!(glossary.models.len(), FALLBACK_MAX_FILES);
+    assert!(glossary.models.contains_key(Path::new("a_api.rb")));
+    assert!(!glossary.models.contains_key(Path::new("b_api.rb")));
+}
+
+#[tokio::test]
+async fn a_repo_whose_code_is_all_entrypoint_still_gets_its_entities() {
+    let dir = tempfile::tempdir().unwrap();
+    write_files(dir.path(), &["order.rb".to_string()]);
+    let llm = FakeLlm::answering(r#"{"entities":[{"file":"order.rb","name":"Order"}]}"#);
+
+    let glossary = build_glossary(
+        dir.path(),
+        &roles(&[("order.rb", FileRole::EntryPoint)]),
+        &llm,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(glossary.entities().count(), 1);
+}
