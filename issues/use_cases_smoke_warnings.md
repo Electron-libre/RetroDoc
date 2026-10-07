@@ -41,3 +41,15 @@ First measure: run the smoke test several times and count how often each warning
 * The model answers differently each time: judge on several runs, not one.
 * A warning that disappears by luck on one run is not a fix.
 * The logs and the clone of a smoke run live in `/tmp`, never commit them.
+
+# Tracking
+
+1. [x] Lenient parsing accepts a duplicated field (keeps the last), `response.rs`
+2. [ ] Measure both warnings over 3 smoke runs of `delivery_router`, then agree on the verdict for the actor warning
+3. [ ] Actor outside the known actors: fix the actors pass if the actor is real, else lower the warning to `info`; end with 3 smoke runs without `WARN`
+
+## Decisions
+
+* Measure with 3 smoke runs.
+* Duplicate field: keep the last one.
+* Actor warning: if the actor is real, improve the actors pass; if it is noise, lower the warning to `info` and keep the actor as is.

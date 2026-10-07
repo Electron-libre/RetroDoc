@@ -132,7 +132,7 @@ What each pass hands to the next, and where it is saved:
   extra LLM call ([ADR 0017](adr/0017-place-unassigned-files-before-the-uncategorized-bucket.md)); if that
   fails too it goes into a synthetic "uncategorized" domain; a file assigned twice keeps the first assignment; invented paths are dropped.
   The run is never failed for this, and the repairs are reported (`CoverageReport`).
-- **Lenient JSON.** LLM answers are parsed leniently (first JSON value, code fences tolerated). An
+- **Lenient JSON.** LLM answers are parsed leniently (first JSON value, code fences tolerated, a repeated field keeps its last value). An
   unparseable answer is retried once, then that single unit is skipped with a warning instead of
   aborting the run (`response.rs`).
 - **Grounding.** Source references to files outside the feature are dropped; a use case that cites no

@@ -2,8 +2,9 @@
 //!
 //! Small or local models often fail to follow "reply with ONLY a JSON
 //! object": they add prose, wrap the answer in code fences, emit several
-//! fenced blocks, or append trailing text. The helpers here accept the first
-//! JSON value found, and [`complete_json`] retries once before giving up.
+//! fenced blocks, append trailing text, or repeat a field. The helpers here
+//! accept the first JSON value found and the last of a repeated field, and
+//! [`complete_json`] retries once before giving up.
 
 use retrodoc_llm::{ChatMessage, CompletionRequest, LlmProvider, Role};
 use serde::de::DeserializeOwned;
@@ -11,13 +12,28 @@ use serde::de::DeserializeOwned;
 use crate::error::PipelineError;
 
 /// Parses the first JSON value of type `T` found in an LLM answer,
-/// tolerating code fences, surrounding prose and trailing content.
+/// tolerating code fences, surrounding prose and trailing content, and a
+/// field written twice in the same object (the last one wins).
 pub(crate) fn parse_json_response<T: DeserializeOwned>(raw: &str) -> Result<T, PipelineError> {
     let json = strip_code_fence(raw);
     serde_json::Deserializer::from_str(json)
         .into_iter::<T>()
         .next()
         .unwrap_or_else(|| serde_json::from_str(json))
+        .or_else(|err| {
+            // `serde_json` rejects a duplicated field when deserializing
+            // straight into a struct, but a `Value` keeps the last one.
+            if !err.to_string().contains("duplicate field") {
+                return Err(err);
+            }
+            let value = serde_json::Deserializer::from_str(json)
+                .into_iter::<serde_json::Value>()
+                .next()
+                .ok_or_else(|| {
+                    <serde_json::Error as serde::de::Error>::custom("no JSON value")
+                })??;
+            serde_json::from_value(value)
+        })
         .map_err(|source| PipelineError::ResponseParse {
             raw: raw.to_string(),
             source,
@@ -138,6 +154,22 @@ mod tests {
     fn tolerates_an_unclosed_fence() {
         let raw = "```json\n{\"n\":4}";
         assert_eq!(parse_json_response::<Answer>(raw).unwrap(), Answer { n: 4 });
+    }
+
+    #[test]
+    fn keeps_the_last_of_a_duplicated_field() {
+        let raw = "{\"n\":1,\"n\":2}";
+        assert_eq!(parse_json_response::<Answer>(raw).unwrap(), Answer { n: 2 });
+    }
+
+    #[tokio::test]
+    async fn complete_json_does_not_retry_on_a_duplicated_field() {
+        let provider = FakeLlm::answering("{\"n\":1,\"n\":2}");
+        let got = complete_json::<Answer>(&provider, "s", "u", "test")
+            .await
+            .unwrap();
+        assert_eq!(got, Some(Answer { n: 2 }));
+        assert_eq!(provider.calls(), 1);
     }
 
     #[test]
