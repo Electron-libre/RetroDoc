@@ -109,7 +109,7 @@ retrodoc-cli ──> retrodoc-mcp ──> retrodoc-pipeline, retrodoc-ingest, re
   | `vocabulary.rs` | Deterministic `business_language` score per use case, recomputed each run. |
   | `confidence/` | LLM verdict per step against the cited code; score capped for ungrounded steps (`--no-confidence`, `--confidence-sample N`). |
   | `report.rs` | Documentation debt report from the saved artifacts (`retrodoc report`, no LLM). |
-  | `benchmark/` | Quality benchmark (`issues/quality_benchmark.md`, in progress): `Reference` (hand-written `benchmark/<repo>/reference.yaml`, checked on load) and `RunMetrics` (sizes, mean business-language and confidence scores, cost of the last `generate`, read from `.retrodoc/cache/`, no LLM). Matching and the judge come next. |
+  | `benchmark/` | Quality benchmark (`issues/quality_benchmark.md`, in progress): `Reference` (hand-written `benchmark/<repo>/reference.yaml`, checked on load) and `RunMetrics` (sizes, mean business-language and confidence scores, cost of the last `generate`, read from `.retrodoc/cache/`, no LLM). `Matches` (hand-written `matches.yaml`, wins over the normalized-name match) and `compare` (recall and precision of domains and features, with what is left unmatched). The judge comes next. |
 
   Cross-cutting pieces: `batched_read.rs` (the loop of the glossary and entry points passes: files in
   batches of ~12k chars, an unusable batch retried file by file, a checkpoint after each batch), `artifact.rs` (`Artifact`: the names of everything under `.retrodoc/cache/` and which `generate --force` clears; load/save of those files; a missing or

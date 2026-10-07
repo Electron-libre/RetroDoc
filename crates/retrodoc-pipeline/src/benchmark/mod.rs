@@ -2,10 +2,13 @@
 //! against a hand-written reference instead of only checking that `generate` ends without a warning.
 //!
 //! - [`reference`]: the hand-written reference of one repository (`benchmark/<repo>/reference.yaml`).
+//! - [`matching`]: generated vs reference names (hand-written `matches.yaml` first), recall and precision.
 //! - [`metrics`]: the figures read from the artifacts of a run (`.retrodoc/cache/`), with no LLM call.
 
+pub mod matching;
 pub mod metrics;
 pub mod reference;
 
+pub use matching::{compare, Comparison, Matches, Pair, Score};
 pub use metrics::{Cost, RunMetrics};
 pub use reference::{Reference, ReferenceDomain, ReferenceFeature};
