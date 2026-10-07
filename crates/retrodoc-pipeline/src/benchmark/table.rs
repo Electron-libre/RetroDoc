@@ -140,8 +140,16 @@ pub fn table(current: &[Series], previous: Option<&[Series]>) -> String {
         }
         out.push('\n');
     }
+    out.push_str(READING_NOTE);
     out
 }
+
+/// Printed under the tables: the model renames domains and features on every run, so pairs written
+/// by hand only cover part of what a run generates.
+const READING_NOTE: &str = "Recall and precision without a suffix count only the pairs written in \
+`matches.yaml` and names that are equal: an audited floor, which rises as the judge's pairs are \
+checked and copied there. The `(judged)` figures add the judge's proposals and are the main ones; \
+the judge shares the biases of the model that wrote the docs, so audit a sample of its pairs.\n";
 
 #[derive(Clone, Copy)]
 enum Kind {
@@ -452,6 +460,17 @@ mod tests {
             !text.contains("other"),
             "only the series of this benchmark are shown: {text}"
         );
+    }
+
+    #[test]
+    fn says_which_figures_are_the_main_ones() {
+        let text = table(&[series("hidden", vec![report(0.5, 6, 10, true)])], None);
+
+        assert!(
+            text.contains("`(judged)` figures add the judge's proposals and are the main ones"),
+            "the table must say how to read recall and precision: {text}"
+        );
+        assert!(text.contains("floor"), "{text}");
     }
 
     #[test]

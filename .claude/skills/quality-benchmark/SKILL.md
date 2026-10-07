@@ -31,11 +31,31 @@ benchmark of the same repository.
 
 ## Reading the table
 
-- **recall / precision** (no suffix): hand-written pairs and equal names only: the strict reading.
-- **(judged)**: with the LLM judge's proposals added. The judge shares the biases of the model that
-  generated the docs: read its pairs in `<clone>/.retrodoc/benchmark/judge.yaml`, correct them and copy
-  the right ones to `matches.yaml`; they are then in the strict figures too.
-- A change smaller than the range between runs is noise, not progress.
+The model renames domains and features on every run, so pairs written by hand cover only part of what
+a later run generates. The figures are therefore read like this:
+
+- **(judged)** figures: the hand-written pairs, equal names, **and the LLM judge's proposals**. They are
+  the main figures. The judge shares the biases of the model that generated the docs, hence the audit
+  below.
+- **no suffix** (strict): the hand-written pairs and equal names only. An audited floor, which rises as
+  verified pairs are added to `matches.yaml`.
+- A change smaller than the range between runs is noise, not progress. One run is a sample, not a
+  measure: use `--runs 3` at least before concluding.
+
+## Audit (after each benchmark)
+
+1. Pick one run out of three per series and read the judge's pairs in
+   `/tmp/retrodoc-benchmark-<repo>/clones-<timestamp>/<series>-<n>/.retrodoc/benchmark/judge.yaml`
+   (they are also the ones the table counted in `(judged)`).
+2. For each pair, check it against `reference.yaml` (descriptions included, not only the names): same
+   business capability, or not? Count the false ones: that is the error rate of the judge, to report
+   next to the table.
+3. Copy the pairs you checked and find right into `benchmark/<repo>/matches.yaml` (the pairs of a
+   `domains:` and a `features:` list: `generated` is the model's name, `reference` a name of
+   `reference.yaml`). Never copy a pair you did not check. A pair naming an unknown reference name
+   makes the next run fail on purpose.
+4. A narrative the judge rated as technical is worth reading too: if the rating is wrong, say so in the
+   report; there is no file to correct it.
 
 ## After the run
 
