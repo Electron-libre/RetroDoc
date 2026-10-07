@@ -22,6 +22,8 @@ pub enum PipelineError {
     JsonSerialize(#[from] serde_json::Error),
     #[error("could not serialize an artifact to YAML: {0}")]
     YamlSerialize(#[from] serde_yaml::Error),
+    #[error("benchmark reference {path} is unusable: {reason}")]
+    InvalidReference { path: PathBuf, reason: String },
     #[error("artifact unreadable/unwritable at {path}: {source}")]
     ArtifactIo {
         path: PathBuf,

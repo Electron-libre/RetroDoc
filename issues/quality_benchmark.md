@@ -41,3 +41,20 @@ measure before and after each step.
 * Don't commit the clones or the run logs; keep the references (small YAML or Markdown) in the repository.
 * Repositories used for smoke tests may be confidential: only public ones go into the benchmark.
 * A judge LLM shares the biases of the generating one: keep part of the scoring manual, at least at first.
+
+# Tracking
+
+1. [x] Reference format (`benchmark/<repo>/reference.yaml`) and deterministic metrics collected from a run's artifacts and `usage.json`
+2. [ ] Matching file (`matches.yaml`, manual, takes precedence) and recall/precision of domains and features
+3. [ ] LLM judge, as a `retrodoc benchmark` subcommand: proposes matches for what `matches.yaml` leaves out, rates narratives as business language
+4. [ ] Orchestration: `just benchmark <repo>`, N runs with user docs hidden then shown, table with mean and spread, comparison with the previous run
+5. [ ] References (`delivery_router` drafted by the agent and corrected by the user, then `linkding`), first real runs, `quality-benchmark` skill, docs
+
+## Decisions
+
+* Repositories: `delivery_router` and `linkding` (public ones only, commit pinned when the reference is written). Not `errbit` (instrumentation component) nor `popcorn-nantes` (static site).
+* LLM: the local one (`qwen3.6:35b-a3b`, see the smoke-test skill).
+* Judge: an LLM with the reference in its prompt; `matches.yaml` (manual) takes precedence over it.
+* The judge lives in the CLI as `retrodoc benchmark`, to reuse the provider and `FakeLlm`.
+* The agent drafts the `delivery_router` reference, the user corrects it. The `linkding` reference is not written without the user's review.
+* Start with 1 run per configuration to validate the mechanics, then 3 (spread to report).
