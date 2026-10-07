@@ -83,7 +83,7 @@ both attempts fail, and look at why the retry returned an ungrounded use case wi
 
 1. [x] Surface section of the clustering prompt without file paths (entity + containing module, same for resources)
 2. [x] LLM repair of the files left unassigned by the clustering, before the "uncategorized" bucket (validated, cached, ADR 0004 updated)
-3. [ ] Use cases pass: `WARN` only when both attempts fail
+3. [x] Use cases pass: `WARN` only when both attempts fail
 4. [ ] Validation: `just smoke ~/Code/delivery_router` + 20 replays of the clustering prompt
 5. [ ] Conditional: ungrounded use case scored 100% (only if still present after 4)
 

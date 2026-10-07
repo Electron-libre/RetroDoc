@@ -96,13 +96,15 @@ async fn ask_use_cases(
         match raw {
             Some(raw) if raw.use_cases.is_empty() => {
                 empty_answers += 1;
-                tracing::warn!(feature = %feature_slug, attempt, "LLM answered with no use case");
+                // Only worth a warning once the second answer confirms it.
+                tracing::debug!(feature = %feature_slug, attempt, "LLM answered with no use case");
             }
             Some(raw) => return Ok(Answer::Use(raw)),
             None => {}
         }
     }
     Ok(if empty_answers == 2 {
+        tracing::warn!(feature = %feature_slug, "LLM answered twice with no use case");
         Answer::Empty
     } else {
         Answer::Unusable

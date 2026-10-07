@@ -111,7 +111,7 @@ Already fixed (same session, commit `5543f28` and following):
   match dropped the reference and the confidence pass scored the use case 0 ("no readable code cited").
   `resolve_cited_path` now accepts a unique suffix match.
 - **Empty LLM answer silently accepted.** A feature could end up with no use case and no warning; an
-  answer with zero use cases is now logged and retried once.
+  answer with zero use cases is now retried once, and a warning is logged only when the second answer is empty too (a first empty answer the retry recovers is a `debug` line).
 - **Use case answers rejected for a text field given as an object.** On a small Rails repo, about 7 of 35
   features hit `invalid type: map, expected a string`: the model returned `primary_actor` as a
   `{name, kind}` object, copying the shape of a step's `actor`, and the strict parse dropped the whole feature.

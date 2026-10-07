@@ -565,3 +565,24 @@ async fn a_long_controller_is_shown_around_the_actions_of_its_entry_points() {
     assert!(prompt.contains("omitted)"));
     assert!(!prompt.contains("def action_20"));
 }
+
+#[tokio::test]
+async fn a_first_empty_answer_recovered_by_the_retry_gives_its_use_case() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.rs"), "fn a() {}\n").unwrap();
+    let features = vec![feature("late", &["a.rs"])];
+    let provider = FakeLlm::sequence(&[
+        r#"{"use_cases":[]}"#,
+        r#"{"use_cases":[{"slug":"do-it","name":"Do it","description":"d","steps":[
+            {"description":"s1","actor":{"name":"Customer","kind":"human"},
+             "action":"does it","source_refs":[]}]}]}"#,
+    ]);
+
+    let use_cases = build_use_cases(dir.path(), &features, &UseCaseContext::default(), &provider)
+        .await
+        .unwrap();
+
+    assert_eq!(provider.calls(), 2);
+    assert_eq!(use_cases.len(), 1);
+    assert_eq!(use_cases[0].slug, "do-it");
+}
