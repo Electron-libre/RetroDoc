@@ -1,0 +1,21 @@
+# Pairs checked by hand from the judge's proposals of two runs, and the ones left out on purpose.
+# `generated` is a name the model produced in a run, `reference` a name of reference.yaml.
+# Left out on purpose, judged too far apart:
+#   Delivery Routing Core        -> Order dispatch
+#   Delivery Service API         -> Tell a customer their delivery time
+domains:
+  - generated: Order Assignment and Rider Matching
+    reference: Order dispatch
+features:
+  - generated: Time Estimation
+    reference: Estimate a delivery time
+  - generated: Route Optimization and Time Estimation
+    reference: Estimate a delivery time
+  - generated: Rider Assignment
+    reference: Choose the fastest rider
+  - generated: Rider Assignment and Selection
+    reference: Choose the fastest rider
+  - generated: Location Tracking
+    reference: Locate customers, restaurants and riders
+  - generated: Entity Definition and Location Services
+    reference: Locate customers, restaurants and riders

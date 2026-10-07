@@ -1,0 +1,144 @@
+repository: https://github.com/sissbruecker/linkding
+commit: 27b7303baf41bb28babc610ac8eaa486e1ddfab5
+purpose: >-
+  linkding is a self-hosted bookmark manager: people save links, organise them with tags, find them
+  again with a search language, and keep copies of the pages. It can be shared with other users or
+  guests and plugged into browsers and third-party apps through extensions and a REST API.
+actors:
+  - User
+  - Guest
+  - Administrator
+  - Third-party application
+  - Browser extension
+  - Internet Archive
+domains:
+  - name: Bookmark management
+    description: Saving links and keeping the collection tidy.
+    features:
+      - name: Save a bookmark
+        description: >-
+          Add a URL with optional title, description, notes and tags; the title, description and
+          icon of the page are filled in automatically when not given.
+        use_cases:
+          - Add a bookmark from the web interface
+          - Add a bookmark from the browser extension or the bookmarklet
+          - Have the title and description of the page fetched automatically
+      - name: Edit and delete bookmarks
+        description: Change the details of a bookmark, delete it, or edit or delete many at once.
+        use_cases:
+          - Edit a bookmark
+          - Bulk edit bookmarks
+      - name: Read it later
+        description: Mark a bookmark as to read, and mark it as read afterwards.
+        use_cases:
+          - Mark a bookmark to read later
+      - name: Archive a bookmark
+        description: Move a bookmark out of the main list without deleting it, and bring it back.
+        use_cases:
+          - Archive a bookmark
+          - Unarchive a bookmark
+      - name: Write notes on a bookmark
+        description: Attach Markdown notes to a bookmark.
+        use_cases:
+          - Add a Markdown note to a bookmark
+      - name: Import and export bookmarks
+        description: Bring bookmarks from, or take them to, another tool in the Netscape HTML format.
+        use_cases:
+          - Import bookmarks from a browser
+          - Export all bookmarks
+  - name: Organisation and search
+    description: Finding bookmarks again.
+    features:
+      - name: Tag bookmarks
+        description: Label bookmarks with tags, and see or manage the tags in use.
+        use_cases:
+          - Tag a bookmark
+          - Delete unused tags
+      - name: Tag automatically
+        description: >-
+          Rules of the profile map a URL pattern (host, path, query, fragment) to tags that are added
+          when a bookmark is created or updated.
+        use_cases:
+          - Define an auto tagging rule
+          - See the tags a rule will add before saving
+      - name: Search bookmarks
+        description: >-
+          Search words, phrases and tags with and, or, not and parentheses over the title,
+          description, notes and URL.
+        use_cases:
+          - Search with several words and a tag
+          - Search with a boolean expression
+  - name: Sharing
+    description: Letting other people see bookmarks.
+    features:
+      - name: Share bookmarks
+        description: Make bookmarks visible to other users of the instance or to guests who are not signed in.
+        use_cases:
+          - Share a bookmark with other users
+          - Browse the shared bookmarks as a guest
+  - name: Page archiving
+    description: Keeping a copy of the bookmarked pages.
+    features:
+      - name: Archive a page as an HTML snapshot
+        description: >-
+          A snapshot of the page is created when a bookmark is added (server-side), or uploaded from the
+          SingleFile browser extension.
+        use_cases:
+          - Create a snapshot automatically when saving a bookmark
+          - Upload a snapshot from the SingleFile extension
+      - name: Save a PDF
+        description: When the bookmarked URL is a PDF, the file is downloaded and kept with the bookmark.
+        use_cases:
+          - Bookmark a link to a PDF
+      - name: Snapshot on the Internet Archive
+        description: Ask the Wayback Machine to save the page in the background.
+        use_cases:
+          - Create a Wayback Machine snapshot of a bookmark
+  - name: Accounts and administration
+    description: Who can sign in and what they can configure.
+    features:
+      - name: Sign in
+        description: >-
+          Sign in with a username and password, with single sign-on (OIDC) or behind an authentication proxy.
+        use_cases:
+          - Sign in with a password
+          - Sign in through single sign-on
+      - name: Manage users
+        description: An administrator adds and deletes users, changes passwords and grants staff status.
+        use_cases:
+          - Add a user
+      - name: Configure a profile
+        description: Each user sets display, search and sharing preferences and gets an API token.
+        use_cases:
+          - Get an API token
+          - Change the settings of a profile
+      - name: Administer data
+        description: Staff use the admin app for raw access to users, bookmarks and tags, with bulk actions.
+        use_cases:
+          - Bulk archive bookmarks of a user from the admin app
+  - name: Integrations
+    description: Using linkding from other tools.
+    features:
+      - name: Use the REST API
+        description: Third-party applications read and write bookmarks and tags with a token.
+        use_cases:
+          - List bookmarks through the API
+          - Create a bookmark through the API
+      - name: Use the browser extensions
+        description: Firefox and Chrome extensions save the current page with tags, and show tags to be added.
+        use_cases:
+          - Save the current page from the extension
+      - name: Install as an app
+        description: linkding can be installed as a Progressive Web App.
+        use_cases:
+          - Install linkding as a PWA
+rules:
+  - A search with several terms and no operator needs all of them to match (and is assumed).
+  - A tag is searched with a leading #, unless the lax tag search mode is on.
+  - An auto tagging rule without a subdomain matches every subdomain of the host; one with a subdomain only matches it.
+  - An auto tagging rule with a path matches that path and its subpaths; with query parameters, all must be present with their values.
+  - Deleting a tag does not delete the bookmarks that carry it.
+  - A URL that points to a host on an internal network is not loaded for metadata or snapshots, unless the host is allowed.
+  - Uploading a snapshot for a URL that has no bookmark creates the bookmark; otherwise the snapshot is added to the existing one.
+  - A bookmarked URL that is a PDF is downloaded instead of being turned into an HTML snapshot.
+  - A superuser created without a password can only sign in through an authentication proxy.
