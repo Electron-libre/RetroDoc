@@ -14,6 +14,8 @@ pub struct BenchmarkOptions {
     pub matches: Option<PathBuf>,
     /// Also ask the LLM judge for pairs and a rating of the narratives.
     pub judge: bool,
+    /// Also write the figures of the run as JSON, for `benchmark-table`.
+    pub out: Option<PathBuf>,
 }
 
 /// Prints the figures of the last `generate` run in `path` and its scores against the reference.
@@ -74,12 +76,36 @@ pub async fn run(
         "{}",
         benchmark::summary(&metrics, &comparison, judged.as_ref().map(|(c, j)| (c, j)))
     );
-    if judged.is_some() {
+    if let Some(out) = &options.out {
+        let report = benchmark::RunReport::new(metrics, comparison, judged);
+        if let Some(parent) = out.parent() {
+            std::fs::create_dir_all(parent)
+                .with_context(|| format!("could not create {}", parent.display()))?;
+        }
+        std::fs::write(out, serde_json::to_string_pretty(&report)?)
+            .with_context(|| format!("could not write {}", out.display()))?;
+    }
+    if options.judge {
         println!(
             "\nThe judge's pairs are in {}: correct them and copy the right ones to {}.",
             benchmark::Judgement::path(&repo_root).display(),
             matches_path.display()
         );
     }
+    Ok(())
+}
+
+/// Prints the Markdown table of the benchmark saved in `dir` (`<dir>/<series>/*.json`, written by
+/// `retrodoc benchmark --out`), with the change against `previous` when given. No LLM call.
+pub fn table(dir: &Path, previous: Option<&Path>) -> anyhow::Result<()> {
+    let current = benchmark::load_series(dir)?;
+    if current.iter().all(|series| series.runs.is_empty()) {
+        anyhow::bail!(
+            "no run found in {}: expected <series>/<run>.json files",
+            dir.display()
+        );
+    }
+    let previous = previous.map(benchmark::load_series).transpose()?;
+    print!("{}", benchmark::table(&current, previous.as_deref()));
     Ok(())
 }

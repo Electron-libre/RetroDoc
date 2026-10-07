@@ -47,7 +47,7 @@ measure before and after each step.
 1. [x] Reference format (`benchmark/<repo>/reference.yaml`) and deterministic metrics collected from a run's artifacts and `usage.json`
 2. [x] Matching file (`matches.yaml`, manual, takes precedence) and recall/precision of domains and features
 3. [x] LLM judge, as a `retrodoc benchmark` subcommand: proposes matches for what `matches.yaml` leaves out, rates narratives as business language
-4. [ ] Orchestration: `just benchmark <repo>`, N runs with user docs hidden then shown, table with mean and spread, comparison with the previous run
+4. [x] Orchestration: `just benchmark <repo>`, N runs with user docs hidden then shown, table with mean and spread, comparison with the previous run
 5. [ ] References (`delivery_router` drafted by the agent and corrected by the user, then `linkding`), first real runs, `quality-benchmark` skill, docs
 
 ## Decisions
@@ -60,3 +60,5 @@ measure before and after each step.
 * Start with 1 run per configuration to validate the mechanics, then 3 (spread to report).
 * The judge uses the model of the clone's `retrodoc.toml` (the generating one). A `--judge-model` option is left for later, if comparing judges becomes useful.
 * The `--judge` path of `retrodoc benchmark` is not exercised end to end yet (only the modules are tested with `FakeLlm`): check it on the first real run (deliverable 5).
+* Aggregation lives in Rust (`retrodoc benchmark-table`, tested with `cargo test`); the `just benchmark` script (`.claude/skills/quality-benchmark/`) only orchestrates. Clones are kept in `/tmp` for inspection, with no automatic cleanup.
+* `benchmark.rs run` has not run end to end yet (no reference to give it): check it on the first real run (deliverable 5).

@@ -105,6 +105,19 @@ enum Command {
         /// Also call the LLM judge.
         #[arg(long)]
         judge: bool,
+        /// Also write the figures of the run as JSON (for `benchmark-table`).
+        #[arg(long)]
+        out: Option<PathBuf>,
+    },
+    /// Prints the table that compares benchmark runs: mean, range and count
+    /// of each figure per series (e.g. user docs hidden or shown), and the
+    /// change against a previous benchmark. Reads `<dir>/<series>/*.json`
+    /// written by `retrodoc benchmark --out`. No LLM call.
+    BenchmarkTable {
+        dir: PathBuf,
+        /// A previous benchmark directory, to show the change.
+        #[arg(long)]
+        previous: Option<PathBuf>,
     },
     /// Searches the generated documentation (domains, features, use cases,
     /// glossary) and the collected docs, lexically, from the artifacts of the
@@ -239,13 +252,18 @@ async fn main() -> anyhow::Result<()> {
             reference,
             matches,
             judge,
+            out,
         } => {
             let options = commands::benchmark::BenchmarkOptions {
                 reference,
                 matches,
                 judge,
+                out,
             };
             commands::benchmark::run(&path, &options, &tracker).await
+        }
+        Command::BenchmarkTable { dir, previous } => {
+            commands::benchmark::table(&dir, previous.as_deref())
         }
         Command::Mcp { path } => commands::mcp::run(&path).await,
         Command::Search { query, path, limit } => commands::search::run(&path, &query, limit),

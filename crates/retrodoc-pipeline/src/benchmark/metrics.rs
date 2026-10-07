@@ -5,6 +5,7 @@
 use std::path::Path;
 
 use retrodoc_core::model::{Feature, UseCase};
+use serde::{Deserialize, Serialize};
 
 use crate::domains::{DomainMap, UNCATEGORIZED_SLUG};
 use crate::features::load_features;
@@ -12,7 +13,7 @@ use crate::usage_log::{load_history, RunUsage};
 use crate::use_cases::load_use_cases;
 
 /// What the last `generate` of the clone cost.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Cost {
     pub calls: u64,
     pub prompt_tokens: u64,
@@ -45,7 +46,7 @@ impl Cost {
 }
 
 /// The deterministic figures of one run.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RunMetrics {
     /// Domains, without the "uncategorized" bucket.
     pub domains: usize,

@@ -36,7 +36,7 @@ pub struct Pair {
 }
 
 /// How well the generated items cover the reference ones, and what is left to read by hand.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Score {
     /// `None` when the reference is empty.
     pub recall: Option<f32>,
@@ -137,7 +137,7 @@ pub fn score(
 }
 
 /// Domains and features of one run against the reference.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Comparison {
     pub domains: Score,
     pub features: Score,

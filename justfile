@@ -21,6 +21,7 @@ test-harness:
     rust-script .claude/skills/test_skills.rs
     rust-script .claude/skills/commit-message/test_commit_check.rs
     rust-script .claude/skills/smoke-test/test_smoke.rs
+    rust-script .claude/skills/quality-benchmark/test_benchmark.rs
     rust-script .claude/skills/issue-workflow/test_close_issue.rs
     rust-script .claude/skills/create-issue/test_check_issue.rs
     rust-script .claude/test_settings.rs
@@ -28,6 +29,10 @@ test-harness:
 # Smoke test on a real repo with the local LLM (see .claude/skills/smoke-test/SKILL.md). Slow.
 smoke *args:
     rust-script .claude/skills/smoke-test/smoke.rs run {{args}}
+
+# Quality benchmark on a public repo against its hand-written reference (see .claude/skills/quality-benchmark/SKILL.md). Slow.
+benchmark *args:
+    rust-script .claude/skills/quality-benchmark/benchmark.rs run {{args}}
 
 # Validate a commit message against AGENTS.md (default: HEAD).
 check-commit rev="HEAD":
