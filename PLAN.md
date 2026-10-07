@@ -33,6 +33,10 @@ Step 3 (`domains.yaml`) is a structured intermediate artifact, not a final file 
 be rerun without redoing the clustering, and it's the basis for the incremental cache (rerun only what
 touches files modified since the last run).
 
+This is the pipeline as implemented. Phase 10 (§7.5) redesigns it: a product brief from the non-code
+evidence comes first, and domains and features are built from the entry points and entities, with the
+coverage invariant moved from files to behaviours (the LLM repo map becomes optional).
+
 ## 3. Expected output
 
 ```
@@ -78,8 +82,15 @@ docs/
    heartbeat, the directory-summary cache (item 6), `--no-confidence`/`--confidence-sample` (item 3) and item 5
    (call estimate for the repo map pass, resumable features/use cases); item 4 (`llm.concurrency`, repo map only) and item 2 (`llm.batch_chars`, batched confidence); item 1 (`--max-files`, opt-in) — all six directions are now delivered; token accounting (item 7) is delivered for its first step (a recap of calls and tokens per pass), the pre-run estimate of the whole pipeline is still open.
 9. **Ask the documentation** (see §7.3): a question-answering agent (`retrodoc ask` / `chat`) grounded on
-   the generated artifacts, the collected docs, the git history and, when needed, the code. Not started;
-   comes after phases 7 and 8, since answer quality is bounded by the quality of the generated docs.
+   the generated artifacts, the collected docs, the git history and, when needed, the code. In progress:
+   the first consumer, a read-only MCP server for external agents (`retrodoc search`, `retrodoc mcp`), is
+   delivered; the internal `ask` / `chat` agent is not started. Answer quality is bounded by the quality of
+   the generated docs (phases 7, 8 and 10).
+10. **Top-down redesign** (see §7.5, decided 2026-10-07, ADRs 0019 to 0023): understand the product first
+    from the non-code evidence, cover behaviours instead of files, make business rules part of the model,
+    read the code structure with tree-sitter, ask for structured outputs with a model per pass, and
+    reconcile the generated docs with the existing ones in the debt report. Not started; it takes over the
+    open business-level work of phase 7 and the scaling work of phase 8.
 
 ## 6. Identified risks
 
@@ -90,7 +101,9 @@ docs/
 - The default OpenRouter model choice (quality vs. cost) is still to be settled at implementation time.
 - **Both risks above materialized in the first real smoke tests** (§7): the generated docs are mostly
   technical and the run time does not scale. They are now the priority work, ahead of new features
-  (phases 7 and 8).
+  (phases 7 and 8, then the redesign of phase 10).
+- With behaviours as the coverage unit (phase 10), a behaviour the entry point pass misses is a use case
+  missing from the docs: the debt report must list the files reached by no entry point.
 
 ## 7. Smoke-test findings and next work (2026-10-01)
 
@@ -413,3 +426,41 @@ Steps, each shippable:
 - Retry on an empty/invalid LLM answer fixes symptoms; the underlying causes (context length, truncated
   JSON) depend on the server config — see the local LLM setup notes.
 - Truncation: the entry points and glossary passes chunk long files and the use cases/confidence passes show the relevant chunks of a long file; the actors pass and the repo map still cut long files.
+
+### 7.5 Phase 10 — top-down redesign (open)
+
+Review of 2026-10-07: the pipeline climbs from the code to the business and its cost grows with the file
+count. Findings from the code: the existing docs reach one prompt as their first line only, commit
+messages are not collected, the test descriptions are extracted but read by no LLM pass, schema, i18n and
+`.feature` files are not sources, the features pass sees only file summaries, the model has no place for
+business rules, and the debt report never compares with the existing docs. The cost comes from the "every
+file in a domain" invariant (ADR 0004): every file and directory is summarized, and a file is read by the
+LLM in up to five passes.
+
+Decisions (accepted ADRs):
+- [0019](docs/adr/0019-product-brief-and-non-code-evidence-first.md): collect the non-code signals
+  mechanically and write an editable product brief (`product.yaml`) that frames every later prompt; each
+  unit retrieves its relevant doc sections, commits and test phrases with BM25.
+- [0020](docs/adr/0020-cover-behaviours-not-files.md) (supersedes 0004): every entry point belongs to one
+  use case; domains and features are built from entry points and entities; files reached by no behaviour
+  are reported as technical support; the LLM repo map becomes optional; confidence is mostly
+  deterministic.
+- [0021](docs/adr/0021-business-rules-as-a-model-object.md): `BusinessRule` in the model, with its
+  evidence in code, tests and docs.
+- [0022](docs/adr/0022-tree-sitter-for-code-structure.md) (supersedes 0013 for the languages it covers):
+  definitions, signatures and references from tree-sitter.
+- [0023](docs/adr/0023-structured-outputs-and-a-model-per-pass.md): JSON schema in the request, and an
+  optional model per pass.
+
+Steps, in order, one issue each:
+1. `issues/quality_benchmark.md`: a reproducible measure of the docs' quality, before any other step.
+2. `issues/product_brief.md` (then `issues/locate_business_files.md`, which takes the brief as input).
+3. `issues/structured_llm_outputs.md` and `issues/model_per_pass.md`.
+4. `issues/behaviour_coverage_domains.md`: the pivot, shipped in steps, the old path kept behind a setting
+   until the benchmark favours the new one.
+5. `issues/tree_sitter_structure.md`.
+6. `issues/business_rules.md`.
+7. `issues/docs_reconciliation_debt_report.md`.
+
+Expected: a cost that grows with the business surface (entry points, entities, use cases), not with the
+repository. That is an estimate, to be measured with step 1 and `usage.json`.

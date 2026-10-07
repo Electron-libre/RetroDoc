@@ -1,6 +1,6 @@
 # 0004. Cluster domains by directory, enforce coverage by construction
 
-Status: Accepted
+Status: Superseded by 0020
 
 _Retroactive ADR, reconstructed from the history (69227bd, 6d57850; 2026-09-28)._
 

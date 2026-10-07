@@ -1,6 +1,6 @@
 # 0013. Chunk long files with LLM-proposed boundaries, verified mechanically
 
-Status: Accepted
+Status: Superseded by 0022 for the languages tree-sitter covers (stays in force for the others)
 
 _Retroactive ADR, reconstructed from the history (f232c74, 1a1b5a4, ea32938, c4f2847, c22388a; 2026-10-03)._
 
