@@ -20,6 +20,19 @@ get them from the roles pass, which sees the file tree and the manifests and not
   same assumption: it picks files by path, not by how likely they are to hold the business.
 * Roles are a layer vocabulary (`entrypoint`, `model`, `logic`, `view`, `infra`, ...). `CLAUDE.md` and ADR
   0008 want domains named from business concepts, never layers; the input is still chosen by layer.
+* Measure of 2026-10-08 (deliverable 1; `retrodoc roles --force` five times per repository, local Ollama,
+  `qwen3.6:35b-a3b`, no saved brief; the business files were listed by hand beforehand):
+  * `delivery_router` (8 business files out of 9 under `lib/`): `model` matched them in 2 runs of 5 (8/8);
+    in the 3 others the files were `entrypoint` (2 runs) or `logic` (1 run), so the glossary relied on the
+    ADR 0018 fallback.
+  * linkding (a Django app, 13 hand-listed business files: `models.py`, `queries.py`, `validators.py`,
+    8 services): `models.py` was classed `model` in 2 runs of 5 (recall 1/13); in the 3 others the rule
+    pointed to a `bookmarks/models/` directory that does not exist. The services were `logic` in every run
+    but `queries.py` and `validators.py` never were. `bookmarks/migrations/**` was `model` in all 5 runs
+    (about 54 files): the glossary reads the migrations and, in 3 runs of 5, not the models file.
+  * So the `model` role has a recall of 0.0 to 1.0 on a small library and at most 1/13 on a real app, with
+    the migrations as its main noise. The decision that matters is the location of the business, and the
+    role vocabulary does not carry it.
 
 # Approach
 
@@ -57,3 +70,19 @@ Then, candidates (can be combined):
   not on `delivery_router` alone (it is tiny and every file is business).
 * Don't edit `roles.yaml` by hand to make a run pass (smoke test rule).
 * The pass must not become one more call per file: bound its input, as the file budget does.
+
+# Tracking
+
+1. [x] Measure the current `model` role: hand-listed business files vs the roles pass, 5 runs each on `delivery_router` and linkding (recall, precision, variance); record the figures in Findings.
+2. [ ] `business_files/` module: `BusinessMap` (path or directory, reason, rank), prompt over a bounded input (tree, stack, brief, cheap evidence), hallucinated paths dropped, editable `business-files.yaml` with the `roles.yaml` reuse rules. Tested with `FakeLlm`, including the prompt size bound on a large tree.
+3. [ ] `retrodoc business-files [--force]` and wiring in `generate` (after the brief, before the glossary; token recap). Tested: order, no LLM call on the second run.
+4. [ ] The glossary reads the `BusinessMap` (directories expanded to bounded `Source` files) instead of the `model` role; the ADR 0018 fallback stays for now. Tests: existing glossary tests adapted, a repo with no `model` role.
+5. [ ] Validate on real repositories: smoke test on `delivery_router`, quality benchmark on linkding (3 runs, before/after). Success: better recall of business files than the `model` role and a non-empty glossary on every run; otherwise rework the evidence before going on.
+6. [ ] Remove the ADR 0018 fallback, write ADR 0025 (supersedes 0018), update `CLAUDE.md`, `PLAN.md`, `docs/ARCHITECTURE.md`; offer to close the issue.
+
+## Decisions
+
+* Repositories: `delivery_router` and linkding (public clone in `/tmp/retrodoc-benchmark-linkding`).
+* The new pass complements `roles` (which keeps the mechanical classification); `model` stops being the glossary's source.
+* The entry points keep the `entrypoint` role for now; revisit only if the measure shows a gap. The actors pass reads authorization code, not roles, so it is unaffected.
+* The ADR 0018 fallback is removed only after real-repository validation (deliverable 6).
