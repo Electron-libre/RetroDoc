@@ -47,7 +47,7 @@ fn main() {
     check("a missing field is an error", !ok);
 
     let toml = write("retrodoc.toml", TOML);
-    let (ok, out) = call(&["patch-config", &toml, "m1", "http://localhost:1/v1", "true"]);
+    let (ok, out) = call(&["patch-config", &toml, "local", "m1", "http://localhost:1/v1", "true"]);
     check(
         "points [llm] at the server and hides the existing docs",
         ok && out.contains("[llm]\nmodel = \"m1\"\nbase_url = \"http://localhost:1/v1\"\nreasoning_effort = \"none\"")
@@ -56,8 +56,16 @@ fn main() {
             && !out.contains("x/y")
             && !out.contains("http://other"),
     );
-    let (ok, out) = call(&["patch-config", &toml, "m1", "http://localhost:1/v1", "false"]);
+    let (ok, out) = call(&["patch-config", &toml, "local", "m1", "http://localhost:1/v1", "false"]);
     check("keeps the existing docs when shown", ok && out.contains("existing_docs_paths = [\n    \"docs\",\n    \"README.md\",\n]"));
+
+    let (ok, out) = call(&["patch-config", &toml, "deepseek", "deepseek-chat", "-", "false"]);
+    check(
+        "points [llm] at a hosted provider without base_url or reasoning_effort",
+        ok && out.contains("[llm]\nprovider = \"deepseek\"\nmodel = \"deepseek-chat\"")
+            && !out.contains("base_url")
+            && !out.contains("reasoning_effort"),
+    );
 
     let root = tmp.join("benchmarks");
     for (stamp, table) in [("100", true), ("200", true), ("250", false), ("300", true)] {
