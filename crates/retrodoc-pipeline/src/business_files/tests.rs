@@ -379,3 +379,19 @@ async fn an_out_of_date_file_survives_a_failing_llm() {
 
     assert_eq!(map.entries, first.entries);
 }
+
+#[tokio::test]
+async fn files_written_by_generate_do_not_make_the_map_out_of_date() {
+    let (dir, mut ingest) = library();
+    let llm = FakeLlm::answering(answer(&[("lib/shop/order.rb", "an order")]));
+    infer(&dir, &ingest, &llm, false).await;
+
+    ingest
+        .files
+        .push(file("docs/functional/shop.md", FileKind::Markdown));
+    ingest.files.push(file("retrodoc.toml", FileKind::Other));
+    ingest.files.push(file("spec/line_spec.rb", FileKind::Test));
+    infer(&dir, &ingest, &llm, false).await;
+
+    assert_eq!(llm.calls(), 1);
+}

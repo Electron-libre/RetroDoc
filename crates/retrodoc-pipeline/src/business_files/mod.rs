@@ -33,7 +33,6 @@ use crate::cache::hash_content;
 use crate::error::PipelineError;
 use crate::response::complete_json;
 use crate::roles::{render_tree, MANIFESTS, MAX_MANIFEST_CHARS};
-use crate::sources::tree_shape_hash;
 
 /// Entries kept from the LLM's answer.
 const MAX_ENTRIES: usize = 40;
@@ -58,7 +57,11 @@ changed file names), the titles of the docs and the words of the tests. Answer a
 most important first, of at most 40 files or directories (a directory ends with `/`), each with \
 a short reason. Prefer one directory to many files when all of them hold business. Leave out \
 what is technical: migrations (history, not the current schema), HTTP clients, framework \
-configuration, templates, assets, generated code, pure plumbing. Use only paths of the tree. \
+configuration and settings, templates, assets, generated code, pure plumbing, and the \
+presentation layers (views, controllers, serializers, API routes, front-end components) unless a \
+file there itself decides or computes something the business cares about. Never answer tests, nor \
+the root folder or a whole source tree: name the folders or files that carry the business. Use \
+only paths of the tree. \
 Reply with ONLY a single JSON object, no prose and no Markdown code fence, matching this shape: \
 {\"business\":[{\"path\":\"lib/shop/order.rb\",\"reason\":\"an order and its total\"},\
 {\"path\":\"lib/shop/pricing/\",\"reason\":\"discount rules\"}]}.";
@@ -177,7 +180,7 @@ pub async fn infer_business_files(
     llm: &dyn LlmProvider,
     force: bool,
 ) -> Result<BusinessMap, PipelineError> {
-    let tree_hash = tree_shape_hash(ingest);
+    let tree_hash = source_shape_hash(ingest);
     let brief_hash = brief.fingerprint();
     let mut stale = None;
     if !force {
@@ -400,6 +403,27 @@ fn test_vocabulary(repo_root: &Path, ingest: &IngestResult) -> Vec<String> {
         }
     }
     phrases
+}
+
+/// The shape of the source tree: which extensions sit in which folder, not
+/// how many files. Only source files count: the docs `generate` writes, the
+/// config `init` adds and the tests are no reason to ask again.
+fn source_shape_hash(ingest: &IngestResult) -> String {
+    let shapes: BTreeSet<String> = ingest
+        .files
+        .iter()
+        .filter(|file| file.kind == FileKind::Source)
+        .map(|file| {
+            let dir = file.path.parent().unwrap_or(Path::new(""));
+            let ext = file
+                .path
+                .extension()
+                .map(|e| e.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            format!("{}|{ext}", dir.display())
+        })
+        .collect();
+    hash_content(&shapes.into_iter().collect::<Vec<_>>().join("\n"))
 }
 
 fn hash_entries(entries: &[BusinessEntry]) -> String {
