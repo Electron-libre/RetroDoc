@@ -120,6 +120,7 @@ async fn identifies_once_then_reuses_saved_rules() {
         files: vec![entry("src/lib.rs", FileKind::Source)],
         history_by_path: std::collections::HashMap::new(),
         existing_docs: Vec::new(),
+        commits: Vec::new(),
     };
     let llm = FakeLlm::answering(
         r#"```json

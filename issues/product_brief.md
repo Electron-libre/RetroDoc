@@ -53,9 +53,10 @@ editable `.retrodoc/cache/product.yaml`, and feed the brief to the later prompts
 
 1. [x] Signals: doc sections (`Signal` type, headings split, root `*.md` included)
 2. [x] Signals: commit subjects in the existing revwalk (no merges or bots, deduplicated, Conventional Commits first)
-3. [ ] Signals, in two commits:
+3. [ ] Signals, in three commits (stack-agnostic: no file location or format is hard-coded for one framework):
    * 3a. [x] manifests, tree two levels deep, `.feature`, test descriptions
-   * 3b. [ ] schema and migrations, i18n, and `signals` wired into `IngestResult`/`run()`
+   * 3b. [x] schema, migrations and i18n readers driven by a `SourceMap` (rules `kind + glob + format`), with a deterministic content-sniffing fallback; `signals` wired into `IngestResult`/`collect`; tested on several stacks (Rails, Django/Alembic, Flyway, i18next, gettext, Java properties)
+   * 3c. [ ] LLM inference of the `SourceMap` (`signal-sources.yaml`, hand-editable, rules checked against the real files), before the brief
 4. [ ] Brief: bounded sample, LLM pass, `product.yaml` (fingerprint reuse, hand edit kept, validated citations)
 5. [ ] `retrodoc brief [--force]` command, with a signal-volume diagnostic; measure on the Rails test repository
 6. [ ] Inject the brief in the prompts and fingerprints: 6a roles, glossary, entry points, actors; 6b domains, features, use cases
@@ -68,4 +69,5 @@ editable `.retrodoc/cache/product.yaml`, and feed the brief to the later prompts
 * The BM25 moves from `retrodoc-mcp` to `retrodoc-pipeline` (no new crate, ADR 0001 direction kept).
 * The brief runs first in `generate`, before roles, with its own signals (tree, manifests, docs, commits...).
 * The brief uses the same model as the other passes (no wait for `issues/model_per_pass.md`).
+* RetroDoc targets any stack (user's repeated requirement): the readers know formats, never framework locations. A `SourceMap` says which files to read in which format, inferred by content sniffing first (3b) then by one LLM call (3c), saved and hand-editable like `roles.yaml`.
 * Root-level `*.md` files (README, CHANGELOG...) are read as doc signals; the default `existing_docs_paths` is unchanged.

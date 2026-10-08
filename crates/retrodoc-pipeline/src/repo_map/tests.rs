@@ -44,6 +44,7 @@ fn ingest_with_nested_files(root: &Path) -> IngestResult {
         ],
         history_by_path: HashMap::new(),
         existing_docs: Vec::new(),
+        commits: Vec::new(),
     }
 }
 

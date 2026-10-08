@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 
 pub use error::IngestError;
 pub use existing_docs::ExistingDoc;
-pub use git_history::FileHistory;
+pub use git_history::{CommitSubject, FileHistory};
 pub use signals::{Signal, SignalKind};
 pub use walker::{promote_to_source, FileEntry, FileKind};
 
@@ -26,6 +26,9 @@ pub struct IngestResult {
     pub files: Vec<FileEntry>,
     pub history_by_path: HashMap<PathBuf, FileHistory>,
     pub existing_docs: Vec<ExistingDoc>,
+    /// Subjects of the non-merge commits, newest first (read by the same walk
+    /// as `history_by_path`).
+    pub commits: Vec<CommitSubject>,
 }
 
 impl IngestResult {
@@ -44,12 +47,16 @@ impl IngestResult {
 /// loading existing Markdown docs fails.
 pub fn run(repo_root: &Path, config: &IngestConfig) -> Result<IngestResult, IngestError> {
     let files = walker::walk_repo(repo_root, &config.extra_ignore)?;
-    let history_by_path = git_history::collect_history(repo_root)?;
+    let git_history::HistoryScan {
+        files: history_by_path,
+        commits,
+    } = git_history::scan_history(repo_root)?;
     let existing_docs = existing_docs::load_existing_docs(repo_root, &config.existing_docs_paths)?;
 
     Ok(IngestResult {
         files,
         history_by_path,
         existing_docs,
+        commits,
     })
 }

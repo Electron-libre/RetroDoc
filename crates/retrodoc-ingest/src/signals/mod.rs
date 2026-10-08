@@ -5,18 +5,25 @@
 use std::path::Path;
 
 mod files;
+mod i18n;
 mod manifest;
+mod schema;
+mod sources;
 mod test_phrases;
 mod tree;
 
 pub use files::{feature_scenarios, test_descriptions};
+pub use i18n::i18n_texts;
 pub use manifest::manifest_metadata;
+pub use schema::{migration_names, schema_tables};
+pub use sources::{language_code, path_language, SourceFormat, SourceKind, SourceMap, SourceRule};
 pub use test_phrases::test_phrases;
 pub use tree::tree_overview;
 
 use crate::error::IngestError;
 use crate::existing_docs::{self, ExistingDoc};
 use crate::git_history::CommitSubject;
+use crate::IngestResult;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SignalKind {
@@ -32,6 +39,12 @@ pub enum SignalKind {
     FeatureScenarios,
     /// The described blocks of a test file.
     TestDescriptions,
+    /// Tables and columns of a schema file.
+    Schema,
+    /// The migrations, named in words.
+    Migrations,
+    /// Texts of a translation file.
+    I18n,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -41,6 +54,34 @@ pub struct Signal {
     pub origin: String,
     /// The heading line followed by the body of the section.
     pub text: String,
+}
+
+/// Every signal of a repository (`sources` says where its schema, migrations
+/// and translations are, see [`SourceMap::sniff`]), in the order docs, commits, manifests, tree,
+/// Gherkin features, test descriptions, schema, migrations, translations.
+/// The existing docs are taken from `ingest` as they are (the caller drops the
+/// generated ones) and the root Markdown files are added to them.
+///
+/// # Errors
+///
+/// Returns an error if the root folder is unreadable.
+pub fn collect(
+    repo_root: &Path,
+    ingest: &IngestResult,
+    sources: &SourceMap,
+) -> Result<Vec<Signal>, IngestError> {
+    let mut docs = ingest.existing_docs.clone();
+    docs.extend(root_markdown(repo_root)?);
+    let mut signals = doc_sections(&docs);
+    signals.extend(commit_subjects(&ingest.commits));
+    signals.extend(manifest_metadata(repo_root));
+    signals.extend(tree_overview(&ingest.files));
+    signals.extend(feature_scenarios(repo_root, &ingest.files));
+    signals.extend(test_descriptions(repo_root, &ingest.files));
+    signals.extend(schema_tables(repo_root, &ingest.files, sources));
+    signals.extend(migration_names(&ingest.files, sources));
+    signals.extend(i18n_texts(repo_root, &ingest.files, sources));
+    Ok(signals)
 }
 
 /// The Markdown files at the root of the repo (README, CHANGELOG...), read
@@ -282,6 +323,59 @@ mod tests {
         let signals = doc_sections(&[doc("a.md", "# Setup\n```sh\n# install\nmake\n```\nDone.\n")]);
         assert_eq!(signals.len(), 1);
         assert!(signals[0].text.contains("# install"));
+    }
+
+    #[test]
+    fn collects_every_kind_of_signal_of_a_repo() {
+        use std::process::Command;
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        fs::write(root.join("README.md"), "# Shop\nSells things.\n").unwrap();
+        fs::write(root.join("package.json"), r#"{"name":"shop"}"#).unwrap();
+        fs::create_dir_all(root.join("config/locales")).unwrap();
+        fs::write(
+            root.join("config/locales/en.yml"),
+            "en:\n  cart:\n    title: Cart\n",
+        )
+        .unwrap();
+        for args in [
+            vec!["init", "-q"],
+            vec!["add", "."],
+            vec!["commit", "-q", "-m", "Add the shop"],
+        ] {
+            let status = Command::new("git")
+                .args(&args)
+                .current_dir(root)
+                .env("GIT_AUTHOR_NAME", "A")
+                .env("GIT_AUTHOR_EMAIL", "a@example.com")
+                .env("GIT_COMMITTER_NAME", "A")
+                .env("GIT_COMMITTER_EMAIL", "a@example.com")
+                .status()
+                .unwrap();
+            assert!(status.success());
+        }
+        let config = retrodoc_core::config::IngestConfig::default();
+        let ingest = crate::run(root, &config).unwrap();
+        let sources = SourceMap::sniff(root, &ingest.files);
+        let signals = collect(root, &ingest, &sources).unwrap();
+        let kinds: std::collections::HashSet<_> = signals.iter().map(|s| s.kind).collect();
+        for kind in [
+            SignalKind::DocSection,
+            SignalKind::CommitSubject,
+            SignalKind::Manifest,
+            SignalKind::Tree,
+            SignalKind::I18n,
+        ] {
+            assert!(kinds.contains(&kind), "missing {kind:?}");
+        }
+        // README.md is both an existing doc and a root file: counted once.
+        assert_eq!(
+            signals
+                .iter()
+                .filter(|s| s.origin.starts_with("README.md"))
+                .count(),
+            1
+        );
     }
 
     fn commit(id: &str, author: &str, subject: &str) -> CommitSubject {

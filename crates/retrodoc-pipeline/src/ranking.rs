@@ -189,6 +189,7 @@ mod tests {
             files: entries,
             history_by_path: HashMap::new(),
             existing_docs: Vec::new(),
+            commits: Vec::new(),
         }
     }
 

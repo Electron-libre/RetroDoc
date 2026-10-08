@@ -186,6 +186,7 @@ async fn build_domains_works_end_to_end_with_a_real_repo_map() {
         }],
         history_by_path: HashMap::new(),
         existing_docs: Vec::new(),
+        commits: Vec::new(),
     };
 
     let repo_map_provider = FakeLlm::answering("a summary");
