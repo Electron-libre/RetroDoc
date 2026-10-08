@@ -19,6 +19,7 @@ pub enum Artifact {
     RepoMap,
     Fingerprints,
     Roles,
+    SignalSources,
     Glossary,
     EntryPoints,
     Actors,
@@ -30,10 +31,11 @@ pub enum Artifact {
 }
 
 impl Artifact {
-    pub const ALL: [Artifact; 11] = [
+    pub const ALL: [Artifact; 12] = [
         Artifact::RepoMap,
         Artifact::Fingerprints,
         Artifact::Roles,
+        Artifact::SignalSources,
         Artifact::Glossary,
         Artifact::EntryPoints,
         Artifact::Actors,
@@ -50,6 +52,7 @@ impl Artifact {
             Artifact::RepoMap => "repo-map.json",
             Artifact::Fingerprints => "fingerprints.json",
             Artifact::Roles => "roles.yaml",
+            Artifact::SignalSources => "signal-sources.yaml",
             Artifact::Glossary => "glossary.yaml",
             Artifact::EntryPoints => "entry-points.yaml",
             Artifact::Actors => "actors.yaml",
@@ -73,7 +76,7 @@ impl Artifact {
     }
 
     /// Whether `generate --force` removes it. The others are not results to
-    /// redo: `roles.yaml` is hand-editable (`retrodoc roles --force`
+    /// redo: `roles.yaml` and `signal-sources.yaml` are hand-editable (`retrodoc roles --force`
     /// identifies it again), `usage.json` is the history of the runs, and
     /// `domains.yaml` and `scope.yaml` are recomputed on every run anyway.
     #[must_use]
@@ -86,7 +89,11 @@ impl Artifact {
             | Artifact::Actors
             | Artifact::Features
             | Artifact::UseCases => true,
-            Artifact::Roles | Artifact::Scope | Artifact::Domains | Artifact::Usage => false,
+            Artifact::Roles
+            | Artifact::SignalSources
+            | Artifact::Scope
+            | Artifact::Domains
+            | Artifact::Usage => false,
         }
     }
 }
@@ -164,7 +171,13 @@ mod tests {
             .collect();
         assert_eq!(
             kept,
-            ["roles.yaml", "scope.yaml", "domains.yaml", "usage.json"]
+            [
+                "roles.yaml",
+                "signal-sources.yaml",
+                "scope.yaml",
+                "domains.yaml",
+                "usage.json"
+            ]
         );
     }
 

@@ -16,13 +16,16 @@ pub use files::{feature_scenarios, test_descriptions};
 pub use i18n::i18n_texts;
 pub use manifest::manifest_metadata;
 pub use schema::{migration_names, schema_tables};
-pub use sources::{language_code, path_language, SourceFormat, SourceKind, SourceMap, SourceRule};
+pub use sources::{
+    escape_glob, language_code, path_language, SourceFormat, SourceKind, SourceMap, SourceRule,
+};
 pub use test_phrases::test_phrases;
 pub use tree::tree_overview;
 
 use crate::error::IngestError;
 use crate::existing_docs::{self, ExistingDoc};
 use crate::git_history::CommitSubject;
+use crate::walker::FileEntry;
 use crate::IngestResult;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -54,6 +57,36 @@ pub struct Signal {
     pub origin: String,
     /// The heading line followed by the body of the section.
     pub text: String,
+}
+
+/// What a source rule gives on the real files.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RuleCheck {
+    /// Files the glob selects.
+    pub matched: usize,
+    /// Readable entries those files give (tables, migrations, translation
+    /// files): zero when the format is the wrong one for them.
+    pub usable: usize,
+}
+
+/// Tries one rule alone on `files`, to tell a rule that selects nothing, or
+/// files it can't read, from a good one.
+#[must_use]
+pub fn check_rule(repo_root: &Path, files: &[FileEntry], rule: &SourceRule) -> RuleCheck {
+    let alone = SourceMap {
+        rules: vec![rule.clone()],
+    };
+    let usable = match rule.kind {
+        SourceKind::Schema => schema_tables(repo_root, files, &alone).len(),
+        SourceKind::Migrations => {
+            migration_names(files, &alone).map_or(0, |signal| signal.text.lines().count())
+        }
+        SourceKind::I18n => i18n_texts(repo_root, files, &alone).len(),
+    };
+    RuleCheck {
+        matched: alone.files(rule.kind, files).len(),
+        usable,
+    }
 }
 
 /// Every signal of a repository (`sources` says where its schema, migrations

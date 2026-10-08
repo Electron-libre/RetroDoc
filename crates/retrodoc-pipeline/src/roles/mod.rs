@@ -28,7 +28,7 @@ use crate::error::PipelineError;
 use crate::response::complete_json;
 
 /// Manifest files read at the repo root to help recognize the stack.
-const MANIFESTS: &[&str] = &[
+pub(crate) const MANIFESTS: &[&str] = &[
     "Cargo.toml",
     "Gemfile",
     "package.json",
@@ -40,7 +40,7 @@ const MANIFESTS: &[&str] = &[
     "composer.json",
 ];
 /// Characters kept of each manifest sent to the LLM.
-const MAX_MANIFEST_CHARS: usize = 1_500;
+pub(crate) const MAX_MANIFEST_CHARS: usize = 1_500;
 /// Directory lines sent to the LLM (shallowest first); deeper ones are
 /// summed up in a trailing note.
 const MAX_TREE_DIRS: usize = 300;
@@ -314,7 +314,7 @@ pub async fn identify_roles(
 
 /// Compact tree for the prompt: per directory, its file count, extension
 /// histogram and a few sample names, so thousands of files stay in budget.
-fn render_tree(files: &[FileEntry]) -> String {
+pub(crate) fn render_tree(files: &[FileEntry]) -> String {
     struct Dir<'a> {
         count: usize,
         extensions: BTreeMap<String, usize>,

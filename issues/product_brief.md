@@ -53,10 +53,10 @@ editable `.retrodoc/cache/product.yaml`, and feed the brief to the later prompts
 
 1. [x] Signals: doc sections (`Signal` type, headings split, root `*.md` included)
 2. [x] Signals: commit subjects in the existing revwalk (no merges or bots, deduplicated, Conventional Commits first)
-3. [ ] Signals, in three commits (stack-agnostic: no file location or format is hard-coded for one framework):
+3. [x] Signals, in three commits (stack-agnostic: no file location or format is hard-coded for one framework):
    * 3a. [x] manifests, tree two levels deep, `.feature`, test descriptions
    * 3b. [x] schema, migrations and i18n readers driven by a `SourceMap` (rules `kind + glob + format`), with a deterministic content-sniffing fallback; `signals` wired into `IngestResult`/`collect`; tested on several stacks (Rails, Django/Alembic, Flyway, i18next, gettext, Java properties)
-   * 3c. [ ] LLM inference of the `SourceMap` (`signal-sources.yaml`, hand-editable, rules checked against the real files), before the brief
+   * 3c. [x] LLM inference of the `SourceMap` (`signal-sources.yaml`, hand-editable, rules checked against the real files), before the brief
 4. [ ] Brief: bounded sample, LLM pass, `product.yaml` (fingerprint reuse, hand edit kept, validated citations)
 5. [ ] `retrodoc brief [--force]` command, with a signal-volume diagnostic; measure on the Rails test repository
 6. [ ] Inject the brief in the prompts and fingerprints: 6a roles, glossary, entry points, actors; 6b domains, features, use cases

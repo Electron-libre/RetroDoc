@@ -55,6 +55,12 @@ pub struct SourceMap {
     pub rules: Vec<SourceRule>,
 }
 
+/// Escapes the glob characters of a path, so a rule can name exactly one file.
+#[must_use]
+pub fn escape_glob(path: &str) -> String {
+    globset::escape(path)
+}
+
 /// Files bigger than this are not read to be sniffed.
 const MAX_SNIFFED_BYTES: u64 = 2_000_000;
 
