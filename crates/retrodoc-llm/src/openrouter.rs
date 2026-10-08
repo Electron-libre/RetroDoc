@@ -11,6 +11,11 @@ use crate::usage;
 use crate::{CompletionRequest, CompletionResponse, LlmError, LlmProvider};
 
 const OPENROUTER_ENDPOINT: &str = "https://openrouter.ai/api/v1/chat/completions";
+/// Endpoint of the `DeepSeek` API, which speaks the same chat-completions format.
+const DEEPSEEK_ENDPOINT: &str = "https://api.deepseek.com/chat/completions";
+/// API key variable of `openrouter`, the default of `llm.api_key_env`.
+const OPENROUTER_KEY_ENV: &str = "OPENROUTER_API_KEY";
+const DEEPSEEK_KEY_ENV: &str = "DEEPSEEK_API_KEY";
 /// Number of extra attempts after the initial call, on transient errors
 /// (429 / 5xx) — PLAN.md §4 "retry, rate-limit".
 const MAX_RETRIES: u32 = 3;
@@ -77,25 +82,32 @@ pub struct OpenRouterProvider {
 
 impl OpenRouterProvider {
     /// Builds the provider from the config, reading the API key from the
-    /// environment variable named by `llm.api_key_env`. Calls `OpenRouter`
-    /// unless `llm.base_url` overrides the endpoint (e.g. to point at a
-    /// local OpenAI-compatible server instead).
+    /// environment variable named by `llm.api_key_env` (for `deepseek`, left
+    /// at its `OpenRouter` default, `DEEPSEEK_API_KEY`). Calls the endpoint of
+    /// `llm.provider` (`openrouter` or `deepseek`, the same wire format)
+    /// unless `llm.base_url` overrides it (e.g. to point at a local
+    /// OpenAI-compatible server instead).
     ///
     /// # Errors
     ///
-    /// Returns an error if `config.provider` isn't `"openrouter"`, if the
+    /// Returns an error if `config.provider` isn't `"openrouter"` or `"deepseek"`, if the
     /// API key's environment variable is not set, or if the underlying
     /// HTTP client can't be built.
     pub fn from_config(config: &LlmConfig) -> Result<Self, LlmError> {
-        if config.provider != "openrouter" {
-            return Err(LlmError::UnsupportedProvider(config.provider.clone()));
-        }
-        let api_key = std::env::var(&config.api_key_env)
-            .map_err(|_| LlmError::MissingApiKey(config.api_key_env.clone()))?;
+        let (default_endpoint, key_env) = match config.provider.as_str() {
+            "openrouter" => (OPENROUTER_ENDPOINT, config.api_key_env.as_str()),
+            "deepseek" if config.api_key_env == OPENROUTER_KEY_ENV => {
+                (DEEPSEEK_ENDPOINT, DEEPSEEK_KEY_ENV)
+            }
+            "deepseek" => (DEEPSEEK_ENDPOINT, config.api_key_env.as_str()),
+            other => return Err(LlmError::UnsupportedProvider(other.to_string())),
+        };
+        let api_key =
+            std::env::var(key_env).map_err(|_| LlmError::MissingApiKey(key_env.to_string()))?;
         let endpoint = config
             .base_url
             .clone()
-            .unwrap_or_else(|| OPENROUTER_ENDPOINT.to_string());
+            .unwrap_or_else(|| default_endpoint.to_string());
         let client = reqwest::Client::builder()
             .timeout(request_timeout(config))
             .build()
@@ -390,6 +402,22 @@ mod tests {
             "http://localhost:11434/v1/chat/completions"
         );
         std::env::remove_var(&config.api_key_env);
+    }
+
+    #[test]
+    fn deepseek_uses_its_endpoint_and_key_variable() {
+        let config = LlmConfig {
+            provider: "deepseek".to_string(),
+            model: "deepseek-chat".to_string(),
+            ..LlmConfig::default()
+        };
+        std::env::remove_var(DEEPSEEK_KEY_ENV);
+        let missing = OpenRouterProvider::from_config(&config);
+        assert!(matches!(missing, Err(LlmError::MissingApiKey(v)) if v == DEEPSEEK_KEY_ENV));
+        std::env::set_var(DEEPSEEK_KEY_ENV, "unused");
+        let provider = OpenRouterProvider::from_config(&config).unwrap();
+        assert_eq!(provider.endpoint, DEEPSEEK_ENDPOINT);
+        std::env::remove_var(DEEPSEEK_KEY_ENV);
     }
 
     #[test]

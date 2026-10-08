@@ -52,7 +52,7 @@ pub enum LlmError {
     Transport(String),
     #[error("invalid response from the LLM provider: {0}")]
     InvalidResponse(String),
-    #[error("LLM provider \"{0}\" is not supported in v1 (only openrouter is)")]
+    #[error("LLM provider \"{0}\" is not supported (openrouter and deepseek are)")]
     UnsupportedProvider(String),
 }
 

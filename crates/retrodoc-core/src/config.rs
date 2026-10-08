@@ -29,7 +29,8 @@ pub struct Config {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LlmConfig {
-    /// LLM provider. Only "openrouter" is supported in v1.
+    /// LLM provider: "openrouter" (default) or "deepseek" (its own API; the key
+    /// is then read from `DEEPSEEK_API_KEY` unless `api_key_env` names another).
     #[serde(default = "LlmConfig::default_provider")]
     pub provider: String,
     /// Name of the environment variable holding the API key (never the key
