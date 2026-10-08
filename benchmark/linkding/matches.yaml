@@ -1,0 +1,59 @@
+# Pairs checked by hand from the judge's proposals of the first two runs (docs hidden, docs shown).
+# `generated` is a name the model produced in a run, `reference` a name of reference.yaml.
+# Left out on purpose, judged wrong:
+#   Application Documentation (domain) -> Organisation and search  (it is the project's own docs site)
+#   RSS/Atom Feed Syndication          -> Share bookmarks          (feeds are not in the reference)
+#   System Administration (domain)     -> Accounts and administration (its files are the Django settings modules)
+domains:
+  - generated: Core Bookmarking Service
+    reference: Bookmark management
+  - generated: User and Access Management
+    reference: Accounts and administration
+  - generated: API and Integration
+    reference: Integrations
+features:
+  - generated: Core Bookmark Management
+    reference: Save a bookmark
+  - generated: Bookmark Import and Export
+    reference: Import and export bookmarks
+  - generated: Tagging System
+    reference: Tag bookmarks
+  - generated: Advanced Bookmark Search
+    reference: Search bookmarks
+  - generated: Sharing and Access Control
+    reference: Share bookmarks
+  - generated: Authentication and Access Control
+    reference: Sign in
+  - generated: User Profile and Application Settings
+    reference: Configure a profile
+  - generated: Administrative Interface and Task Inspection
+    reference: Administer data
+  - generated: Bookmark Management API
+    reference: Use the REST API
+  - generated: Web App Integration and Discovery
+    reference: Install as an app
+  - generated: Bookmark Creation and Organization
+    reference: Save a bookmark
+  - generated: Search and Filtering
+    reference: Search bookmarks
+  - generated: Website Metadata and Asset Storage
+    reference: Archive a page as an HTML snapshot
+  - generated: Data Import and Export
+    reference: Import and export bookmarks
+  - generated: Web Archive Integration
+    reference: Snapshot on the Internet Archive
+  - generated: Tag Management
+    reference: Tag bookmarks
+  - generated: User Preference Management
+    reference: Configure a profile
+  - generated: API Authentication
+    reference: Use the REST API
+  - generated: API Token Management
+    reference: Configure a profile
+  - generated: Admin Interface for Bookmarks
+    reference: Administer data
+  # The judge paired these with another item; read again, these are the right ones.
+  - generated: Content Archiving
+    reference: Archive a page as an HTML snapshot
+  - generated: Web Metadata Enrichment
+    reference: Save a bookmark
