@@ -13,6 +13,8 @@ pub(crate) const SAMPLE_BUDGET: usize = 20_000;
 const MAX_PER_SIGNAL: usize = 1_500;
 /// A signal is not squeezed below this (when its kind has budget for it).
 const MIN_PER_SIGNAL: usize = 150;
+/// Characters of the titles of the sections, kept out of the budget.
+const TITLES_RESERVE: usize = 400;
 
 /// The kinds in the order of the prompt, with their title and their share of
 /// the budget (in percent; what a kind doesn't need goes to the others).
@@ -56,7 +58,7 @@ impl Sample {
             .iter()
             .map(|g| {
                 g.iter()
-                    .map(|s| s.text.chars().count().min(MAX_PER_SIGNAL))
+                    .map(|s| s.text.chars().count().min(MAX_PER_SIGNAL) + header_len(s))
                     .sum()
             })
             .collect();
@@ -65,6 +67,7 @@ impl Sample {
         let commits = KINDS
             .iter()
             .position(|(kind, ..)| *kind == SignalKind::CommitSubject);
+        let budget = budget.saturating_sub(TITLES_RESERVE);
         let commit_share = commits.map_or(0, |i| budget * KINDS[i].2 / 100);
         let mut others = demands.clone();
         if let Some(i) = commits {
@@ -137,7 +140,13 @@ fn allocate(demands: &[usize], total: usize) -> Vec<usize> {
     budgets
 }
 
-/// The signals that fit in `budget`, each with its text squeezed to a slice.
+/// What a signal costs besides its text: its id and origin line.
+fn header_len(signal: &Signal) -> usize {
+    signal.origin.chars().count() + 8
+}
+
+/// The signals that fit in `budget` (header lines included), each with its
+/// text squeezed to a slice.
 fn pick<'a>(group: &[&'a Signal], budget: usize) -> Vec<(&'a Signal, String)> {
     if group.is_empty() || budget == 0 {
         return Vec::new();
@@ -146,9 +155,12 @@ fn pick<'a>(group: &[&'a Signal], budget: usize) -> Vec<(&'a Signal, String)> {
     let mut left = budget;
     let mut picked = Vec::new();
     for signal in group {
-        let text = squeeze(&signal.text, slice.min(left));
-        let used = text.chars().count();
-        if used == 0 || used > left {
+        let Some(room) = left.checked_sub(header_len(signal)) else {
+            break;
+        };
+        let text = squeeze(&signal.text, slice.min(room));
+        let used = text.chars().count() + header_len(signal);
+        if text.is_empty() || used > left {
             break;
         }
         left -= used;

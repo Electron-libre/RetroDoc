@@ -1,5 +1,6 @@
 pub mod actors;
 pub mod benchmark;
+pub mod brief;
 pub mod docs;
 pub mod entry_points;
 pub mod generate;

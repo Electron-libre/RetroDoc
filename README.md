@@ -69,6 +69,7 @@ During development, replace `retrodoc` with `cargo run -p retrodoc-cli --`.
 | `report` | Print the documentation debt report, no LLM call |
 | `mcp` | Serve the generated docs to LLM agents (Claude Code, Cursor…) as a read-only MCP server over stdio, no LLM call. Point the agent at `retrodoc mcp --path <repo>` |
 | `search` | Search the generated docs lexically, no LLM call (what the MCP server's `search_docs` finds) |
+| `brief` | Write the product brief (what the application does, for whom, its main objects and capabilities) from docs, commits, manifests, schema, translations and tests (`--force`, `--signals` to only count the evidence, no LLM call) |
 | `roles`, `glossary`, `entry-points`, `actors`, `surface` | Run or inspect one early pipeline stage on its own |
 
 Run `retrodoc <command> --help` for the details.
@@ -104,7 +105,7 @@ docs_dir = "docs"
 ```
 
 Intermediate artifacts (file roles, glossary, entry points, domains, features, use cases…) are plain
-YAML under `.retrodoc/cache/`. `roles.yaml` is meant to be edited by hand when the LLM misclassifies files.
+YAML under `.retrodoc/cache/`. `roles.yaml`, `signal-sources.yaml` and `product.yaml` are meant to be edited by hand when the LLM gets them wrong.
 
 ## How it works
 

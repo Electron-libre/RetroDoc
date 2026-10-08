@@ -33,21 +33,24 @@ const MAX_OBJECTS: usize = 25;
 const MAX_CAPABILITIES: usize = 30;
 const MAX_EXTERNAL: usize = 12;
 const MAX_QUESTIONS: usize = 10;
-/// Characters kept of a claim.
+/// Characters kept of a claim, and of the purpose (cut at a word).
 const MAX_CLAIM_CHARS: usize = 300;
+const MAX_PURPOSE_CHARS: usize = 600;
 
 const SYSTEM_PROMPT: &str = "You are writing the product brief of a software application, from \
 evidence that is not its code: documentation, commit subjects, manifests, database schema, texts \
 shown to users, test descriptions and behaviour scenarios. Each piece of evidence has an id like \
 [S12]. Write in business language, for someone who has never seen the code: say what the \
 application is for and what people can do with it, not how it is built. Every claim must rest on \
-evidence: cite the ids in `signals`. Never invent: what the evidence does not settle goes to \
-`open_questions`. Reply with ONLY a single JSON object, no prose and no Markdown code fence, \
-matching this shape: {\"purpose\":{\"text\":\"one or two sentences\",\"signals\":[\"S1\"]},\
+evidence: cite at least one id in `signals`, and leave out a claim you cannot cite. Never invent: \
+what the evidence does not settle goes to `open_questions`. Every entry of `users`, `objects`, \
+`capabilities` and `external_systems` is an object with `text` and `signals`, never a bare \
+string. Reply with ONLY a single JSON object, no prose and no Markdown code fence, matching this \
+shape: {\"purpose\":{\"text\":\"one or two sentences\",\"signals\":[\"S1\"]},\
 \"users\":[{\"text\":\"who uses it or acts on it, with their goal\",\"signals\":[\"S2\"]}],\
-\"objects\":[{\"text\":\"a main business object and what it stands for\",\"signals\":[]}],\
-\"capabilities\":[{\"text\":\"something users can do, as a verb phrase\",\"signals\":[]}],\
-\"external_systems\":[{\"text\":\"a third-party service it talks to\",\"signals\":[]}],\
+\"objects\":[{\"text\":\"a main business object and what it stands for\",\"signals\":[\"S3\"]}],\
+\"capabilities\":[{\"text\":\"something users can do, as a verb phrase\",\"signals\":[\"S4\",\"S7\"]}],\
+\"external_systems\":[{\"text\":\"a third-party service it talks to\",\"signals\":[\"S5\"]}],\
 \"open_questions\":[\"what the evidence leaves unclear\"]}. Leave a list empty rather than guess.";
 
 /// One statement of the brief and the signals it rests on (their origins,
@@ -164,6 +167,12 @@ impl ProductBrief {
     }
 }
 
+/// Characters of evidence the LLM would be sent for these signals.
+#[must_use]
+pub fn sample_chars(signals: &[Signal]) -> usize {
+    Sample::build(signals, SAMPLE_BUDGET).text.chars().count()
+}
+
 /// Writes (or reuses) the product brief from the signals of the repository.
 /// Returns `None` when there is no signal at all, or when the LLM gave no
 /// parseable answer (a warning says so; nothing is saved). `force` writes it
@@ -254,7 +263,7 @@ impl RawBrief {
             content_hash: String::new(),
             purpose: self
                 .purpose
-                .and_then(|c| resolve_claim(c, sample))
+                .and_then(|c| resolve_claim(c, sample, MAX_PURPOSE_CHARS))
                 .unwrap_or_default(),
             users: resolve_claims(self.users, sample, MAX_USERS),
             objects: resolve_claims(self.objects, sample, MAX_OBJECTS),
@@ -274,7 +283,7 @@ impl RawBrief {
 fn resolve_claims(raw: Vec<RawClaim>, sample: &Sample, max: usize) -> Vec<Claim> {
     let mut seen = BTreeSet::new();
     raw.into_iter()
-        .filter_map(|claim| resolve_claim(claim, sample))
+        .filter_map(|claim| resolve_claim(claim, sample, MAX_CLAIM_CHARS))
         .filter(|claim| seen.insert(claim.text.to_lowercase()))
         .take(max)
         .collect()
@@ -282,18 +291,15 @@ fn resolve_claims(raw: Vec<RawClaim>, sample: &Sample, max: usize) -> Vec<Claim>
 
 /// The claim with its citations resolved to origins (unknown ids dropped,
 /// the same origin once). `None` for an empty text.
-fn resolve_claim(raw: RawClaim, sample: &Sample) -> Option<Claim> {
+fn resolve_claim(raw: RawClaim, sample: &Sample, max_chars: usize) -> Option<Claim> {
     let (text, ids) = match raw {
         RawClaim::Text(text) => (text, Vec::new()),
         RawClaim::Full { text, signals } => (text, signals),
     };
-    let text: String = text
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-        .chars()
-        .take(MAX_CLAIM_CHARS)
-        .collect();
+    let text = cut_at_word(
+        &text.split_whitespace().collect::<Vec<_>>().join(" "),
+        max_chars,
+    );
     if text.is_empty() {
         return None;
     }
@@ -307,6 +313,16 @@ fn resolve_claim(raw: RawClaim, sample: &Sample) -> Option<Claim> {
         }
     }
     Some(Claim { text, sources })
+}
+
+/// `text` cut before a word within `max` characters, `…` marking the cut.
+fn cut_at_word(text: &str, max: usize) -> String {
+    if text.chars().count() <= max {
+        return text.to_string();
+    }
+    let cut: String = text.chars().take(max.saturating_sub(1)).collect();
+    let cut = cut.rsplit_once(' ').map_or(cut.as_str(), |(head, _)| head);
+    format!("{}…", cut.trim_end_matches([',', ';', ':', ' ']))
 }
 
 #[cfg(test)]

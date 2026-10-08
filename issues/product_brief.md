@@ -58,7 +58,7 @@ editable `.retrodoc/cache/product.yaml`, and feed the brief to the later prompts
    * 3b. [x] schema, migrations and i18n readers driven by a `SourceMap` (rules `kind + glob + format`), with a deterministic content-sniffing fallback; `signals` wired into `IngestResult`/`collect`; tested on several stacks (Rails, Django/Alembic, Flyway, i18next, gettext, Java properties)
    * 3c. [x] LLM inference of the `SourceMap` (`signal-sources.yaml`, hand-editable, rules checked against the real files), before the brief
 4. [x] Brief: bounded sample, LLM pass, `product.yaml` (fingerprint reuse, hand edit kept, validated citations)
-5. [ ] `retrodoc brief [--force]` command, with a signal-volume diagnostic; measure on the Rails test repository
+5. [x] `retrodoc brief [--force]` command, with a signal-volume diagnostic; measure on the Rails test repository
 6. [ ] Inject the brief in the prompts and fingerprints: 6a roles, glossary, entry points, actors; 6b domains, features, use cases
 7. [ ] Move the BM25 to `retrodoc-pipeline` and retrieve per unit for features and use cases
 8. [ ] Benchmark before and after (ask before running: real cost), final docs and ADR 0019 update
@@ -71,3 +71,32 @@ editable `.retrodoc/cache/product.yaml`, and feed the brief to the later prompts
 * The brief uses the same model as the other passes (no wait for `issues/model_per_pass.md`).
 * RetroDoc targets any stack (user's repeated requirement): the readers know formats, never framework locations. A `SourceMap` says which files to read in which format, inferred by content sniffing first (3b) then by one LLM call (3c), saved and hand-editable like `roles.yaml`.
 * Root-level `*.md` files (README, CHANGELOG...) are read as doc signals; the default `existing_docs_paths` is unchanged.
+
+## Measures (deliverable 5)
+
+On a throwaway full clone of the Rails test repository (about 7,500 commits), `retrodoc brief --signals`:
+
+| Kind | Signals | Characters |
+|---|---|---|
+| Commit subjects | 7,543 | 339,000 |
+| Test descriptions | 521 | 164,000 |
+| Translations (one language) | 43 | 30,000 |
+| Documentation sections | 24 | 8,000 |
+| Schema | 1 | 15,000 |
+| Others (manifests, tree, migrations) | 4 | 4,300 |
+| Total | 8,136 | 560,000 |
+
+The sample sent to the LLM is 18,600 characters (budget 20,000, headers included): the signals are 30 times
+bigger than what a 32k-context model can read, so the sampling is needed, not a detail.
+
+First real run (local `qwen3.6:35b-a3b`, 32k context): the sources pass costs 2 calls (25,600 tokens in, a rule
+for an empty schema file was sent back, then dropped), the brief 1 call (5,500 tokens in, 0.9 to 1k out, about 40 s).
+The brief reads as a correct business summary of the application (purpose, four kinds of users, central objects,
+two external services). What did not work:
+
+* The purpose was cut mid-sentence by the 300-character cap: raised to 600 and cut at a word.
+* The model answers `capabilities` as bare strings in 3 runs of 3 even when told to give objects with signals,
+  so they all read "unsupported". Handled as designed (kept and flagged); to compare with another model in
+  deliverable 8, and a mechanical grounding of uncited claims is a possible follow-up.
+* Citations lean on test descriptions and translation files, which are the biggest kinds of evidence after the
+  commits; docs are few on this repository.

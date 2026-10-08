@@ -47,7 +47,7 @@ pub mod vocabulary;
 
 pub use actors::{authorization_files, build_actors, Actors, BusinessActor};
 pub use artifact::Artifact;
-pub use brief::{build_brief, Claim, ProductBrief};
+pub use brief::{build_brief, sample_chars, Claim, ProductBrief};
 pub use confidence::score_confidence;
 pub use diagrams::{attach_diagrams, sequence_diagram};
 pub use domains::{build_domains, CoverageReport, DomainCluster, DomainMap, SubDomainCluster};
@@ -65,7 +65,7 @@ pub use repo_map::{
 pub use report::{build_report, domain_models, DebtReport};
 pub use roles::{identify_roles, FileRole, RoleMap, RoleRule, RoleRules};
 pub use slices::CodeIndex;
-pub use sources::{infer_sources, SourceMapFile};
+pub use sources::{infer_sources, saved_or_sniffed, SourceMapFile};
 pub use surface::{Resource, Surface};
 pub use use_cases::{build_use_cases, load_use_cases, save_use_cases, UseCaseContext};
 pub use vocabulary::score_business_language;

@@ -156,6 +156,22 @@ enum Command {
         #[arg(long)]
         force: bool,
     },
+    /// Writes the product brief (what the application does, for whom, its
+    /// main business objects and capabilities) from the non-code evidence:
+    /// docs, commits, manifests, schema, translations, tests. Saved in
+    /// `.retrodoc/cache/product.yaml`, editable by hand.
+    Brief {
+        #[arg(long, default_value = ".")]
+        path: PathBuf,
+        /// Write the brief again (and locate the schema and translations
+        /// again), edits included.
+        #[arg(long)]
+        force: bool,
+        /// Only print how much evidence the repository gives, per kind. No
+        /// LLM call.
+        #[arg(long)]
+        signals: bool,
+    },
     /// Reads the entry points (routes, commands, jobs, public API…) and
     /// their outputs from the files classified `entrypoint`, and saves
     /// `.retrodoc/cache/entry-points.yaml`. Needs `retrodoc roles` first.
@@ -179,6 +195,7 @@ impl Command {
         match self {
             Command::Generate { path, .. } => Some(("generate", path.clone())),
             Command::Roles { path, .. } => Some(("roles", path.clone())),
+            Command::Brief { path, .. } => Some(("brief", path.clone())),
             Command::Glossary { path } => Some(("glossary", path.clone())),
             Command::EntryPoints { path } => Some(("entry-points", path.clone())),
             Command::Actors { path, .. } => Some(("actors", path.clone())),
@@ -271,6 +288,11 @@ async fn main() -> anyhow::Result<()> {
         Command::Search { query, path, limit } => commands::search::run(&path, &query, limit),
         Command::Surface { path } => commands::surface::run(&path),
         Command::Roles { path, force } => commands::roles::run(&path, force, &tracker).await,
+        Command::Brief {
+            path,
+            force,
+            signals,
+        } => commands::brief::run(&path, force, signals, &tracker).await,
     };
     if let Some((name, path)) = counted {
         commands::usage::finish(&path, name, &tracker, result.is_ok());

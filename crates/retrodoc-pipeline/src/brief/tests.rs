@@ -287,3 +287,9 @@ async fn the_prompt_section_carries_the_words_not_the_citations() {
     assert_eq!(ProductBrief::default().prompt_section(), "");
     assert_eq!(ProductBrief::default().fingerprint(), "");
 }
+
+#[test]
+fn a_long_text_is_cut_at_a_word() {
+    assert_eq!(cut_at_word("short", 10), "short");
+    assert_eq!(cut_at_word("one two three four", 12), "one two…");
+}

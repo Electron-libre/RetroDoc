@@ -92,6 +92,16 @@ impl SourceMapFile {
     }
 }
 
+/// The saved sources when `signal-sources.yaml` can be read, otherwise the
+/// sniffed ones: what to use when no LLM call is wanted.
+#[must_use]
+pub fn saved_or_sniffed(repo_root: &Path, files: &[retrodoc_ingest::FileEntry]) -> SourceMap {
+    SourceMapFile::load(repo_root).map_or_else(
+        || SourceMap::sniff(repo_root, files),
+        |saved| SourceMap { rules: saved.rules },
+    )
+}
+
 /// Returns the sources of the repo: the saved `signal-sources.yaml` when it
 /// was edited, or is current; otherwise the rules the LLM infers (see the
 /// module doc), saved for next time. `force` infers again whatever the file

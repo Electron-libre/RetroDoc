@@ -250,3 +250,17 @@ async fn unknown_kinds_and_formats_are_ignored() {
     assert_eq!(llm.calls(), 1);
     assert_eq!(map.files(SourceKind::I18n, &ingest.files).len(), 2);
 }
+
+#[tokio::test]
+async fn without_an_llm_the_saved_sources_or_else_the_sniffed_ones_are_used() {
+    let (dir, ingest) = repo(&custom_stack());
+    assert_eq!(
+        saved_or_sniffed(dir.path(), &ingest.files),
+        SourceMap::sniff(dir.path(), &ingest.files)
+    );
+    let llm = FakeLlm::answering(rules_answer(&[("i18n", "texts/*.yml", "yaml")]));
+    let inferred = infer_sources(dir.path(), &ingest, &llm, false)
+        .await
+        .unwrap();
+    assert_eq!(saved_or_sniffed(dir.path(), &ingest.files), inferred);
+}

@@ -73,6 +73,7 @@ flowchart LR
     rep["report"] -->|reads, no LLM| art
     rep --> debt["debt report<br/>(stdout)"]
     roles["roles"] -->|LLM, 1 call| rolesyaml["roles.yaml"]
+    brief["brief"] -->|LLM, 2-3 calls| prodyaml["product.yaml<br/>signal-sources.yaml"]
     gloss["glossary"] -->|LLM| glossyaml["glossary.yaml"]
     rolesyaml -.->|required by| gloss
     ep["entry-points"] -->|LLM| epyaml["entry-points.yaml"]
@@ -87,6 +88,7 @@ flowchart LR
 
 - `generate` is the main command; `render` and `report` replay the *last* `generate` without any LLM call.
 - `roles`, `glossary` and `entry-points` (phase 7) are also run, incrementally, by `generate` as its "surface" step; the standalone commands let you run and inspect each one. `surface` prints what the domain clustering receives from them (no LLM).
+- `brief` (ADR 0019) first locates where the schema, migrations and translations are (content sniffing, then one LLM call whose rules are checked on the real files), gathers the non-code evidence of the repo (docs, commit subjects, manifests, tree, schema, translations, tests, `.feature` files) and writes the product brief from a bounded sample of it, each claim citing its sources. `--signals` only prints the volume of evidence (no LLM). Not run by `generate` yet.
 - `benchmark` scores the last run against a hand-written reference (`benchmark/<repo>/reference.yaml`, pairs in `matches.yaml`): sizes, scores, cost, recall and precision of domains and features. With `--judge` the LLM pairs what the names leave unmatched and rates the narratives; its verdicts go to `.retrodoc/benchmark/judge.yaml` and never override the hand-written pairs. `benchmark-table` puts the saved runs of several configurations side by side (mean, range, change against a previous benchmark); `just benchmark` runs the whole loop on a pinned public repository.
 - `search "<query>"` ranks the generated docs and the collected docs lexically (no LLM). `mcp` serves them to a coding agent over stdio (`list_domains`, `get_domain`, `get_feature`, `get_use_case`, `search_docs`, plus `read_source` and `git_log` on the files the docs cite; no LLM, the agent reasons): the first form of "ask the documentation" (phase 9, `PLAN.md` §7.3). Answers warn when a cited file changed since generation (its hash against the one in `repo-map.json`); the code and git tools refuse any file the docs don't cite and anything outside the repo root.
 
@@ -229,6 +231,8 @@ Guarantees:
 │   ├── fingerprints.json          #   what the incremental re-run compares against
 │   ├── scope.yaml                 #   files left out by the budget (`--max-files`), listed in the report
 │   ├── roles.yaml                 #   (phase 7) glob → role rules, hand-editable
+│   ├── signal-sources.yaml        #   where the schema, migrations and translations are, hand-editable
+│   ├── product.yaml               #   product brief (ADR 0019), hand-editable
 │   ├── glossary.yaml              #   (phase 7) business entities, also its own cache
 │   ├── entry-points.yaml          #   (phase 7) routes/commands/jobs + outputs, also its own cache
 │   ├── actors.yaml                #   (phase 7) business actors, reused while its input hash is unchanged
