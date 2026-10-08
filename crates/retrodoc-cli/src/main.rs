@@ -191,7 +191,8 @@ enum Command {
         path: PathBuf,
     },
     /// Reads the business entities (names, attributes, associations) of the
-    /// files classified `model` and the vocabulary of the tests, and saves
+    /// files located by `retrodoc business-files` (else those classified
+    /// `model`) and the vocabulary of the tests, and saves
     /// `.retrodoc/cache/glossary.yaml`. Needs `retrodoc roles` first.
     Glossary {
         #[arg(long, default_value = ".")]

@@ -271,14 +271,16 @@ async fn build_surface(
     let role_map = rules.classify(&ingest.files);
     println!("Stack: {}", rules.stack);
 
-    super::business_files::locate(repo_root, ingest, &rules.stack, brief, llm, force, tracker)
-        .await?;
+    let business =
+        super::business_files::locate(repo_root, ingest, &rules.stack, brief, llm, force, tracker)
+            .await?;
+    let business_files = business.files(&ingest.files);
 
     println!("Reading the business entities…");
     let glossary = tracker
         .in_pass(
             "glossary",
-            retrodoc_pipeline::build_glossary(repo_root, &role_map, brief, llm),
+            retrodoc_pipeline::build_glossary(repo_root, &role_map, &business_files, brief, llm),
         )
         .await
         .context("failed to build the glossary")?;

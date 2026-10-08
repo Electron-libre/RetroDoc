@@ -109,7 +109,7 @@ async fn reads_entities_once_and_reuses_them_while_files_are_unchanged() {
                 {"file":"nowhere.rb","name":"Ghost"}]}"#,
     );
 
-    let glossary = build_glossary(dir.path(), &roles, &ProductBrief::default(), &llm)
+    let glossary = build_glossary(dir.path(), &roles, &[], &ProductBrief::default(), &llm)
         .await
         .unwrap();
     let entities: Vec<_> = glossary
@@ -127,7 +127,7 @@ async fn reads_entities_once_and_reuses_them_while_files_are_unchanged() {
     assert_eq!(llm.prompts().len(), 1);
 
     // Second run: nothing changed, no call.
-    build_glossary(dir.path(), &roles, &ProductBrief::default(), &llm)
+    build_glossary(dir.path(), &roles, &[], &ProductBrief::default(), &llm)
         .await
         .unwrap();
     assert_eq!(llm.prompts().len(), 1);
@@ -138,7 +138,7 @@ async fn reads_entities_once_and_reuses_them_while_files_are_unchanged() {
         "class Company; x; end",
     )
     .unwrap();
-    build_glossary(dir.path(), &roles, &ProductBrief::default(), &llm)
+    build_glossary(dir.path(), &roles, &[], &ProductBrief::default(), &llm)
         .await
         .unwrap();
     let prompts = llm.prompts();
@@ -175,7 +175,7 @@ async fn a_long_model_file_is_read_in_chunks_and_its_entity_saved_once() {
     let roles = roles(&[("contract.rb", FileRole::Model)]);
     let llm = FakeLlm::answering(r#"{"entities":[{"file":"contract.rb","name":"Contract"}]}"#);
 
-    let glossary = build_glossary(dir.path(), &roles, &ProductBrief::default(), &llm)
+    let glossary = build_glossary(dir.path(), &roles, &[], &ProductBrief::default(), &llm)
         .await
         .unwrap();
 
@@ -196,6 +196,7 @@ async fn a_batch_that_cannot_be_answered_is_retried_file_by_file() {
     let glossary = build_glossary(
         dir.path(),
         &roles,
+        &[],
         &ProductBrief::default(),
         &FakeLlm::replying(|_, request| {
             Ok(
@@ -233,7 +234,7 @@ async fn logic_files_are_read_when_no_model_file_gave_an_entity() {
     ]);
     let llm = FakeLlm::answering(r#"{"entities":[{"file":"order.rb","name":"Order"}]}"#);
 
-    let glossary = build_glossary(dir.path(), &roles, &ProductBrief::default(), &llm)
+    let glossary = build_glossary(dir.path(), &roles, &[], &ProductBrief::default(), &llm)
         .await
         .unwrap();
 
@@ -262,7 +263,7 @@ async fn logic_files_are_left_alone_when_a_model_file_gave_an_entity() {
     ]);
     let llm = FakeLlm::answering(r#"{"entities":[{"file":"customer.rb","name":"Customer"}]}"#);
 
-    let glossary = build_glossary(dir.path(), &roles, &ProductBrief::default(), &llm)
+    let glossary = build_glossary(dir.path(), &roles, &[], &ProductBrief::default(), &llm)
         .await
         .unwrap();
 
@@ -284,9 +285,15 @@ async fn the_fallback_reads_a_bounded_number_of_logic_files_in_path_order() {
         .collect();
     let llm = FakeLlm::answering(r#"{"entities":[]}"#);
 
-    let glossary = build_glossary(dir.path(), &roles(&entries), &ProductBrief::default(), &llm)
-        .await
-        .unwrap();
+    let glossary = build_glossary(
+        dir.path(),
+        &roles(&entries),
+        &[],
+        &ProductBrief::default(),
+        &llm,
+    )
+    .await
+    .unwrap();
 
     assert_eq!(glossary.models.len(), FALLBACK_MAX_FILES);
     let sent = llm.prompts().join("\n");
@@ -308,11 +315,11 @@ async fn the_fallback_is_not_asked_again_while_files_are_unchanged() {
     ]);
     let llm = FakeLlm::answering(r#"{"entities":[{"file":"order.rb","name":"Order"}]}"#);
 
-    build_glossary(dir.path(), &roles, &ProductBrief::default(), &llm)
+    build_glossary(dir.path(), &roles, &[], &ProductBrief::default(), &llm)
         .await
         .unwrap();
     let calls = llm.calls();
-    let glossary = build_glossary(dir.path(), &roles, &ProductBrief::default(), &llm)
+    let glossary = build_glossary(dir.path(), &roles, &[], &ProductBrief::default(), &llm)
         .await
         .unwrap();
 
@@ -339,9 +346,15 @@ async fn the_fallback_also_reads_entrypoint_files_after_the_logic_ones() {
     ]);
     let llm = FakeLlm::answering(r#"{"entities":[]}"#);
 
-    let glossary = build_glossary(dir.path(), &roles(&entries), &ProductBrief::default(), &llm)
-        .await
-        .unwrap();
+    let glossary = build_glossary(
+        dir.path(),
+        &roles(&entries),
+        &[],
+        &ProductBrief::default(),
+        &llm,
+    )
+    .await
+    .unwrap();
 
     assert_eq!(glossary.models.len(), FALLBACK_MAX_FILES);
     assert!(glossary.models.contains_key(Path::new("a_api.rb")));
@@ -357,6 +370,7 @@ async fn a_repo_whose_code_is_all_entrypoint_still_gets_its_entities() {
     let glossary = build_glossary(
         dir.path(),
         &roles(&[("order.rb", FileRole::EntryPoint)]),
+        &[],
         &ProductBrief::default(),
         &llm,
     )
@@ -374,7 +388,7 @@ async fn the_brief_heads_the_prompt_and_a_changed_brief_reads_the_files_again() 
     let llm = FakeLlm::answering(r#"{"entities":[{"file":"order.rb","name":"Order"}]}"#);
     let brief = crate::testing::brief("Sells things to buyers.");
 
-    build_glossary(dir.path(), &roles, &brief, &llm)
+    build_glossary(dir.path(), &roles, &[], &brief, &llm)
         .await
         .unwrap();
     let prompt = &llm.prompts()[0];
@@ -384,14 +398,73 @@ async fn the_brief_heads_the_prompt_and_a_changed_brief_reads_the_files_again() 
     );
     assert!(prompt.find("Purpose: Sells things").unwrap() < prompt.find("Model files:").unwrap());
 
-    build_glossary(dir.path(), &roles, &brief, &llm)
+    build_glossary(dir.path(), &roles, &[], &brief, &llm)
         .await
         .unwrap();
     assert_eq!(llm.calls(), 1);
 
     let other = crate::testing::brief("Rents things to renters.");
-    build_glossary(dir.path(), &roles, &other, &llm)
+    build_glossary(dir.path(), &roles, &[], &other, &llm)
         .await
         .unwrap();
     assert_eq!(llm.calls(), 2);
+}
+
+#[tokio::test]
+async fn the_business_files_are_read_instead_of_the_model_role() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(dir.path().join("migrations")).unwrap();
+    std::fs::write(dir.path().join("migrations/0001.py"), "create_table").unwrap();
+    std::fs::write(dir.path().join("pricing.py"), "def price(order): ...").unwrap();
+    let roles = roles(&[
+        ("migrations/0001.py", FileRole::Model),
+        ("pricing.py", FileRole::Logic),
+    ]);
+    let llm = FakeLlm::answering(
+        r#"{"entities":[{"file":"pricing.py","name":"Price","description":"What an order costs"}]}"#,
+    );
+
+    let glossary = build_glossary(
+        dir.path(),
+        &roles,
+        &[PathBuf::from("pricing.py")],
+        &ProductBrief::default(),
+        &llm,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(glossary.entities().count(), 1);
+    let sent = llm.prompts().join("\n");
+    assert!(sent.contains("pricing.py"), "{sent}");
+    assert!(!sent.contains("0001.py"), "{sent}");
+}
+
+#[tokio::test]
+async fn business_files_without_an_entity_leave_the_fallback_a_chance() {
+    let dir = tempfile::tempdir().unwrap();
+    write_files(
+        dir.path(),
+        &["rules.rb".to_string(), "order.rb".to_string()],
+    );
+    let roles = roles(&[("order.rb", FileRole::Logic), ("rules.rb", FileRole::Logic)]);
+    let llm = FakeLlm::replying(|_, request| {
+        Ok(if request.messages[1].content.contains("Business files") {
+            r#"{"entities":[]}"#.to_string()
+        } else {
+            r#"{"entities":[{"file":"order.rb","name":"Order"}]}"#.to_string()
+        })
+    });
+
+    let glossary = build_glossary(
+        dir.path(),
+        &roles,
+        &[PathBuf::from("rules.rb")],
+        &ProductBrief::default(),
+        &llm,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(glossary.entities().count(), 1);
 }

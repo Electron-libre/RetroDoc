@@ -76,7 +76,7 @@ Then, candidates (can be combined):
 1. [x] Measure the current `model` role: hand-listed business files vs the roles pass, 5 runs each on `delivery_router` and linkding (recall, precision, variance); record the figures in Findings.
 2. [x] `business_files/` module: `BusinessMap` (path or directory, reason, rank), prompt over a bounded input (tree, stack, brief, cheap evidence), hallucinated paths dropped, editable `business-files.yaml` with the `roles.yaml` reuse rules. Tested with `FakeLlm`, including the prompt size bound on a large tree.
 3. [x] `retrodoc business-files [--force]` and wiring in `generate` (after the brief, before the glossary; token recap). Tested: order, no LLM call on the second run.
-4. [ ] The glossary reads the `BusinessMap` (directories expanded to bounded `Source` files) instead of the `model` role; the ADR 0018 fallback stays for now. Tests: existing glossary tests adapted, a repo with no `model` role.
+4. [x] The glossary reads the `BusinessMap` (directories expanded to bounded `Source` files) instead of the `model` role; the ADR 0018 fallback stays for now. Tests: existing glossary tests adapted, a repo with no `model` role.
 5. [ ] Validate on real repositories: smoke test on `delivery_router`, quality benchmark on linkding (3 runs, before/after). Success: better recall of business files than the `model` role and a non-empty glossary on every run; otherwise rework the evidence before going on.
 6. [ ] Remove the ADR 0018 fallback, write ADR 0025 (supersedes 0018), update `CLAUDE.md`, `PLAN.md`, `docs/ARCHITECTURE.md`; offer to close the issue.
 

@@ -2,12 +2,13 @@ use std::path::Path;
 
 use anyhow::Context;
 use retrodoc_llm::UsageTracker;
-use retrodoc_pipeline::{Artifact, FileRole, RoleRules};
+use retrodoc_pipeline::{Artifact, BusinessMap, FileRole, RoleRules};
 
 use super::workspace::Workspace;
 
-/// Reads the business entities of the files classified `model` (using the
-/// rules from `retrodoc roles`) and the vocabulary of the tests, saves
+/// Reads the business entities of the files `retrodoc business-files` located
+/// (else those classified `model` by the rules of `retrodoc roles`) and the
+/// vocabulary of the tests, saves
 /// `.retrodoc/cache/glossary.yaml` and prints a summary. Unchanged model
 /// files are not sent to the LLM again.
 pub async fn run(path: &Path, tracker: &UsageTracker) -> anyhow::Result<()> {
@@ -18,14 +19,22 @@ pub async fn run(path: &Path, tracker: &UsageTracker) -> anyhow::Result<()> {
         .context("no file role rules found — run `retrodoc roles` first")?;
     let ingest = workspace.ingest()?;
     let role_map = rules.classify(&ingest.files);
-    let model_files = role_map.files_with(FileRole::Model).len();
+    let business_files = BusinessMap::load(repo_root)
+        .map(|map| map.files(&ingest.files))
+        .unwrap_or_default();
+    let to_read = if business_files.is_empty() {
+        role_map.files_with(FileRole::Model).len()
+    } else {
+        business_files.len()
+    };
 
     let llm = super::usage::provider(&config.llm, tracker)?;
     tracker.set_pass("glossary");
-    println!("Reading entities from {model_files} model file(s)…");
+    println!("Reading entities from {to_read} file(s)…");
     let glossary = retrodoc_pipeline::build_glossary(
         repo_root,
         &role_map,
+        &business_files,
         &super::brief::saved(repo_root),
         &llm,
     )

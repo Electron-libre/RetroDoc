@@ -1,14 +1,17 @@
 //! Models and glossary inventory (PLAN.md §7.1, phase 7 step 2).
 //!
 //! The entities of the application (names, attributes, associations) are the
-//! nouns of the business. They are read by the LLM from the files the role
-//! rules classified as [`FileRole::Model`] only, several small files per call
+//! nouns of the business. They are read by the LLM from the files the
+//! business-files pass located (`business_files`: models, but also plain
+//! domain classes and services), or, when there is none, from the files the
+//! role rules classified as [`FileRole::Model`], several small files per call
 //! and cached by content hash. The vocabulary of the tests is a third source:
 //! the descriptions of `describe`/`context`/`it`-style blocks, extracted
 //! mechanically from the files classified as [`FileRole::Test`].
 //!
-//! The roles pass sometimes finds no model file (a repository of plain
-//! domain classes, no `models/` folder). Then the `logic` files, then the
+//! Without a business list the roles pass sometimes finds no model file (a repository of plain
+//! domain classes, no `models/` folder). Then, as when the files read give
+//! no entity at all, the `logic` files, then the
 //! `entrypoint` ones, are read instead, a bounded number of them, with a
 //! prompt that keeps only business classes (ADR 0018).
 //!
@@ -270,6 +273,7 @@ struct ResponseEntity {
 pub async fn build_glossary(
     repo_root: &Path,
     roles: &RoleMap,
+    business: &[PathBuf],
     brief: &ProductBrief,
     llm: &dyn LlmProvider,
 ) -> Result<Glossary, PipelineError> {
@@ -286,17 +290,31 @@ pub async fn build_glossary(
         splitter: &splitter,
         llm,
     };
-    reader
-        .read(
-            roles.files_with(FileRole::Model),
-            GLOSSARY_SYSTEM_PROMPT,
-            &format!("{}Model files:\n", brief.prompt_head()),
-            "model file(s)",
-            &mut glossary,
-        )
-        .await?;
+    if business.is_empty() {
+        reader
+            .read(
+                roles.files_with(FileRole::Model),
+                GLOSSARY_SYSTEM_PROMPT,
+                &format!("{}Model files:\n", brief.prompt_head()),
+                "model file(s)",
+                &mut glossary,
+            )
+            .await?;
+    } else {
+        // Where the business lives, located by its own pass: services and
+        // plain domain classes as much as models.
+        reader
+            .read(
+                business.iter().map(PathBuf::as_path).collect(),
+                FALLBACK_SYSTEM_PROMPT,
+                &format!("{}Business files:\n", brief.prompt_head()),
+                "business file(s)",
+                &mut glossary,
+            )
+            .await?;
+    }
 
-    // No model file gave an entity (none was recognized, or none holds a
+    // No file gave an entity (no model was recognized, or none holds a
     // business class): look in the logic files, then the entrypoint ones (a
     // library's code is often all "public API"), a bounded number of them.
     if glossary.entities().next().is_none() {

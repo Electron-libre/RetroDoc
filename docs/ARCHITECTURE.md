@@ -77,6 +77,7 @@ flowchart LR
     biz["business-files"] -->|LLM, 1 call| bizyaml["business-files.yaml"]
     gloss["glossary"] -->|LLM| glossyaml["glossary.yaml"]
     rolesyaml -.->|required by| gloss
+    bizyaml -.->|read by| gloss
     ep["entry-points"] -->|LLM| epyaml["entry-points.yaml"]
     act["actors"] -->|LLM| actyaml["actors.yaml"]
     rolesyaml -.->|required by| ep
