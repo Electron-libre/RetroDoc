@@ -59,6 +59,10 @@ pub struct RunMetrics {
     pub narrative_share: Option<f32>,
     /// Mean `business_language` score over the scored use cases.
     pub business_language: Option<f32>,
+    /// Share of the scored use cases whose `business_language` score is exactly 1 (no code term at
+    /// all). The mean saturates near 1; this share still moves. `None` in a run saved before it existed.
+    #[serde(default)]
+    pub fully_business: Option<f32>,
     /// Mean confidence over the scored use cases.
     pub confidence: Option<f32>,
     /// `None` when `usage.json` holds no `generate` run.
@@ -94,6 +98,13 @@ impl RunMetrics {
                     .iter()
                     .filter_map(|u| u.business_language.as_ref().map(|s| s.value)),
             ),
+            fully_business: {
+                let scores: Vec<f32> = use_cases
+                    .iter()
+                    .filter_map(|u| u.business_language.as_ref().map(|s| s.value))
+                    .collect();
+                share(scores.iter().filter(|v| **v >= 0.999).count(), scores.len())
+            },
             confidence: mean(
                 use_cases
                     .iter()
@@ -241,6 +252,7 @@ mod tests {
         assert_eq!(metrics.features, 3);
         assert_eq!(metrics.use_cases, 4);
         assert_eq!(metrics.uncategorized_files, 2);
+        assert_eq!(metrics.fully_business, Some(0.0));
         assert_eq!(metrics.narrative_share, Some(0.5));
         assert!((metrics.business_language.unwrap() - 0.6).abs() < 1e-6);
         assert!((metrics.confidence.unwrap() - 0.7).abs() < 1e-6);
@@ -272,5 +284,32 @@ mod tests {
         assert_eq!(metrics.business_language, None);
         assert_eq!(metrics.confidence, None);
         assert_eq!(metrics.cost, None);
+    }
+
+    #[test]
+    fn counts_the_use_cases_scored_exactly_one() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        save_yaml(
+            &Artifact::Domains.path(root),
+            &DomainMap {
+                domains: vec![cluster("billing", &["a.rb"], 0)],
+            },
+        )
+        .unwrap();
+        save_use_cases(
+            root,
+            &[
+                use_case(true, Some(1.0), None),
+                use_case(true, Some(1.0), None),
+                use_case(true, Some(0.85), None),
+                use_case(true, None, None),
+            ],
+        )
+        .unwrap();
+
+        let metrics = RunMetrics::collect(root).unwrap();
+
+        assert!((metrics.fully_business.unwrap() - 2.0 / 3.0).abs() < 1e-6);
     }
 }

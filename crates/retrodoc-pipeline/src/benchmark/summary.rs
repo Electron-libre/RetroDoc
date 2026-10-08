@@ -57,10 +57,11 @@ pub fn summary(
     );
     let _ = writeln!(
         out,
-        "Use cases: {} with a narrative, business-language score {}, confidence {}",
+        "Use cases: {} with a narrative, business-language score {}, confidence {}, {} at score 1",
         percent(metrics.narrative_share),
         percent(metrics.business_language),
-        percent(metrics.confidence)
+        percent(metrics.confidence),
+        percent(metrics.fully_business)
     );
     if let Some(cost) = metrics.cost {
         let _ = writeln!(
@@ -128,6 +129,7 @@ mod tests {
             uncategorized_files: 2,
             narrative_share: Some(0.5),
             business_language: Some(0.6),
+            fully_business: Some(0.5),
             confidence: None,
             cost,
         }

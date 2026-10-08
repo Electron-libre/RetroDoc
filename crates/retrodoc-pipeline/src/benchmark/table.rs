@@ -267,6 +267,11 @@ const FIGURES: &[Figure] = &[
         value: |r| share(r.metrics.business_language),
     },
     Figure {
+        label: "Use cases fully in business language (score 1)",
+        kind: Kind::Percent,
+        value: |r| share(r.metrics.fully_business),
+    },
+    Figure {
         label: "Domains",
         kind: Kind::Count,
         value: |r| Some(count(r.metrics.domains)),
@@ -354,6 +359,7 @@ mod tests {
                 uncategorized_files: 0,
                 narrative_share: Some(1.0),
                 business_language: Some(0.5),
+                fully_business: Some(0.25),
                 confidence: None,
                 cost: Some(Cost {
                     calls,
