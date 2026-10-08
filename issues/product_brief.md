@@ -48,3 +48,22 @@ editable `.retrodoc/cache/product.yaml`, and feed the brief to the later prompts
 * Keep the brief prompt within a 32k-context local model: the signals are sampled, never pasted whole.
 * The history must stay one revwalk (`CLAUDE.md`: no `git log` per file).
 * Merge and bot commits (dependency bumps) are noise for the brief.
+
+# Tracking
+
+1. [x] Signals: doc sections (`Signal` type, headings split, root `*.md` included)
+2. [ ] Signals: commit subjects in the existing revwalk (no merges or bots, deduplicated, Conventional Commits first)
+3. [ ] Signals: manifests, tree two levels deep, schema and migrations, i18n, `.feature`, test descriptions
+4. [ ] Brief: bounded sample, LLM pass, `product.yaml` (fingerprint reuse, hand edit kept, validated citations)
+5. [ ] `retrodoc brief [--force]` command, with a signal-volume diagnostic; measure on the Rails test repository
+6. [ ] Inject the brief in the prompts and fingerprints: 6a roles, glossary, entry points, actors; 6b domains, features, use cases
+7. [ ] Move the BM25 to `retrodoc-pipeline` and retrieve per unit for features and use cases
+8. [ ] Benchmark before and after (ask before running: real cost), final docs and ADR 0019 update
+
+## Decisions
+
+* One commit per deliverable; the BM25 retrieval (7) comes last and may become its own issue if it grows.
+* The BM25 moves from `retrodoc-mcp` to `retrodoc-pipeline` (no new crate, ADR 0001 direction kept).
+* The brief runs first in `generate`, before roles, with its own signals (tree, manifests, docs, commits...).
+* The brief uses the same model as the other passes (no wait for `issues/model_per_pass.md`).
+* Root-level `*.md` files (README, CHANGELOG...) are read as doc signals; the default `existing_docs_paths` is unchanged.

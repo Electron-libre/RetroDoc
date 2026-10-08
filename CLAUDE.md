@@ -81,7 +81,7 @@ retrodoc-cli ──> retrodoc-mcp ──> retrodoc-pipeline, retrodoc-ingest, re
   tests are detected by directory or file-name convention and kept out of the pipeline, which only
   consumes `Source`), one-pass
   git history per file via `git2` revwalk+diff (`git_history.rs`, not a `git log` per file — matters for
-  perf on large repos; `file_log` is the exception, the recent commits of one file for the MCP `git_log`), existing Markdown docs (`existing_docs.rs`). `run()` combines all three into an
+  perf on large repos; `file_log` is the exception, the recent commits of one file for the MCP `git_log`), existing Markdown docs (`existing_docs.rs`), and the signals of the product brief (`signals.rs`: `Signal` with a citable origin; doc sections cut at headings, root `*.md` included; more readers follow, ADR 0019; not part of `run()` yet). `run()` combines all three into an
   `IngestResult`.
 - **retrodoc-llm** (`types.rs`, `heartbeat.rs`, `openrouter.rs`, `usage.rs`): `LlmProvider` trait abstraction (kept provider-agnostic) + `OpenRouterProvider`, which serves
   `provider = "openrouter"` and `"deepseek"` (same chat-completions format, own endpoint and key variable; ADR 0024), a real `reqwest` HTTP client with exponential-backoff retry on

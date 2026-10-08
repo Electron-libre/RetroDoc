@@ -7,6 +7,7 @@
 pub mod error;
 pub mod existing_docs;
 pub mod git_history;
+pub mod signals;
 pub mod walker;
 
 use std::collections::HashMap;
@@ -15,6 +16,7 @@ use std::path::{Path, PathBuf};
 pub use error::IngestError;
 pub use existing_docs::ExistingDoc;
 pub use git_history::FileHistory;
+pub use signals::{Signal, SignalKind};
 pub use walker::{promote_to_source, FileEntry, FileKind};
 
 use retrodoc_core::config::IngestConfig;
