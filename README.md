@@ -70,7 +70,7 @@ During development, replace `retrodoc` with `cargo run -p retrodoc-cli --`.
 | `mcp` | Serve the generated docs to LLM agents (Claude Code, Cursor…) as a read-only MCP server over stdio, no LLM call. Point the agent at `retrodoc mcp --path <repo>` |
 | `search` | Search the generated docs lexically, no LLM call (what the MCP server's `search_docs` finds) |
 | `brief` | Write the product brief (what the application does, for whom, its main objects and capabilities) from docs, commits, manifests, schema, translations and tests (`--force`, `--signals` to only count the evidence, no LLM call) |
-| `roles`, `glossary`, `entry-points`, `actors`, `surface` | Run or inspect one early pipeline stage on its own |
+| `roles`, `business-files`, `glossary`, `entry-points`, `actors`, `surface` | Run or inspect one early pipeline stage on its own |
 
 Run `retrodoc <command> --help` for the details.
 

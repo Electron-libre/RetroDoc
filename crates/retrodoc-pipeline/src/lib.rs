@@ -51,6 +51,7 @@ pub use actors::{authorization_files, build_actors, Actors, BusinessActor};
 pub use artifact::Artifact;
 pub use bm25::Bm25;
 pub use brief::{build_brief, sample_chars, Claim, Evidence, ProductBrief};
+pub use business_files::{infer_business_files, BusinessEntry, BusinessMap};
 pub use confidence::score_confidence;
 pub use diagrams::{attach_diagrams, sequence_diagram};
 pub use domains::{build_domains, CoverageReport, DomainCluster, DomainMap, SubDomainCluster};

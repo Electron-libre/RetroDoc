@@ -55,7 +55,7 @@ docs/
 
 ## 4. Technical architecture (Rust, workspace)
 
-- `retrodoc-cli` — binary, `clap` (`init`, `scan`, `generate`, `render`, `report`, `roles`, `brief`, `glossary`, `entry-points`, `actors`, `surface`, `benchmark`, `benchmark-table`, `search`, `mcp`)
+- `retrodoc-cli` — binary, `clap` (`init`, `scan`, `generate`, `render`, `report`, `roles`, `brief`, `business-files`, `glossary`, `entry-points`, `actors`, `surface`, `benchmark`, `benchmark-table`, `search`, `mcp`)
 - `retrodoc-core` — domain model (Domain, Feature, UseCase, Step, Actor, ConfidenceScore)
 - `retrodoc-ingest` — walker (`ignore`), history (`git2`), Markdown parsing
 - `retrodoc-llm` — provider abstraction + OpenRouter/DeepSeek implementation (chat completion, retry, rate-limit)

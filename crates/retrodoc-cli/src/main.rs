@@ -172,6 +172,17 @@ enum Command {
         #[arg(long)]
         signals: bool,
     },
+    /// Locates where the business lives (the files and directories that
+    /// hold the domain data and rules) from one LLM call over the tree, the
+    /// stack, the product brief and cheap evidence. Saved in
+    /// `.retrodoc/cache/business-files.yaml`, editable by hand.
+    BusinessFiles {
+        #[arg(long, default_value = ".")]
+        path: PathBuf,
+        /// Ask again, edits included.
+        #[arg(long)]
+        force: bool,
+    },
     /// Reads the entry points (routes, commands, jobs, public API…) and
     /// their outputs from the files classified `entrypoint`, and saves
     /// `.retrodoc/cache/entry-points.yaml`. Needs `retrodoc roles` first.
@@ -196,6 +207,7 @@ impl Command {
             Command::Generate { path, .. } => Some(("generate", path.clone())),
             Command::Roles { path, .. } => Some(("roles", path.clone())),
             Command::Brief { path, .. } => Some(("brief", path.clone())),
+            Command::BusinessFiles { path, .. } => Some(("business-files", path.clone())),
             Command::Glossary { path } => Some(("glossary", path.clone())),
             Command::EntryPoints { path } => Some(("entry-points", path.clone())),
             Command::Actors { path, .. } => Some(("actors", path.clone())),
@@ -293,6 +305,9 @@ async fn main() -> anyhow::Result<()> {
             force,
             signals,
         } => commands::brief::run(&path, force, signals, &tracker).await,
+        Command::BusinessFiles { path, force } => {
+            commands::business_files::run(&path, force, &tracker).await
+        }
     };
     if let Some((name, path)) = counted {
         commands::usage::finish(&path, name, &tracker, result.is_ok());

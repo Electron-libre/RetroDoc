@@ -271,6 +271,9 @@ async fn build_surface(
     let role_map = rules.classify(&ingest.files);
     println!("Stack: {}", rules.stack);
 
+    super::business_files::locate(repo_root, ingest, &rules.stack, brief, llm, force, tracker)
+        .await?;
+
     println!("Reading the business entities…");
     let glossary = tracker
         .in_pass(
