@@ -209,7 +209,11 @@ pub async fn rate_narratives(
 const RATE_SYSTEM_PROMPT: &str = "You are reading short descriptions of what users do with a \
 software application. For each numbered one, say whether it is written in business language: who \
 does what and why, in the words of the application's users, with no class, function, table, \
-route or framework terms. Reply with ONLY a single JSON object, no prose and no Markdown code \
+route or framework terms. The names of the application's own business objects (a Bookmark, an \
+API token, a Tag), a mention of an API client or of an exported file, and the plain description of \
+what the screen shows are business language; technical mechanisms (queues, migrations, caches, \
+database or framework internals) and developer tooling (build, test, deployment scripts) are not. \
+Reply with ONLY a single JSON object, no prose and no Markdown code \
 fence, matching this shape: {\"ratings\":[{\"id\":1,\"business\":true}]}.";
 
 #[derive(Debug, Deserialize)]
