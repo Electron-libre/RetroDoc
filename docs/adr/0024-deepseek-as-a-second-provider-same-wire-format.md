@@ -4,7 +4,7 @@ Status: Accepted
 
 ## Context
 
-ADR 0002 made OpenRouter the only provider. The quality benchmark (`issues/benchmark_spread_and_judge_bias.md`)
+ADR 0002 made OpenRouter the only provider. The quality benchmark (`issues/done/benchmark_spread_and_judge_bias.md`)
 needs many runs of a hosted model: on the local model one `linkding` run takes about two hours, and
 OpenRouter adds a layer between the user and the model they want. The DeepSeek API speaks the same
 chat-completions format.
