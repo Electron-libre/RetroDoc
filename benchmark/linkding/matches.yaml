@@ -4,6 +4,9 @@
 #   Application Documentation (domain) -> Organisation and search  (it is the project's own docs site)
 #   RSS/Atom Feed Syndication          -> Share bookmarks          (feeds are not in the reference)
 #   System Administration (domain)     -> Accounts and administration (its files are the Django settings modules)
+#   Administration & Maintenance, Application Platform (domains) -> Accounts and administration (backups, wiring, migrations)
+#   Quality Assurance, Project Operations (domains) -> Organisation and search, Integrations (tests and build scripts)
+#   Bookmark Details Modal, Bookmark Browsing, Bundle Management/Preview, Global Site Settings, RSS/Atom Feeds: no reference feature fits
 domains:
   - generated: Core Bookmarking Service
     reference: Bookmark management
@@ -56,4 +59,120 @@ features:
   - generated: Content Archiving
     reference: Archive a page as an HTML snapshot
   - generated: Web Metadata Enrichment
+    reference: Save a bookmark
+  # Audited from the DeepSeek benchmark (3 runs per series): hidden-1 and shown-1. Where the judge's pair was wrong
+  # and one reference feature clearly fits, that one is listed.
+  - generated: Bookmark Creation and Management
+    reference: Save a bookmark
+  - generated: Tags and Bundles
+    reference: Tag bookmarks
+  - generated: Bookmark Search and Filtering
+    reference: Search bookmarks
+  - generated: Global Settings and User Profiles
+    reference: Configure a profile
+  - generated: Admin and Bulk Actions
+    reference: Administer data
+  - generated: Remote User Authentication
+    reference: Sign in
+  - generated: Bookmark CRUD
+    reference: Use the REST API
+  - generated: Bookmark Actions
+    reference: Use the REST API
+  - generated: Asset API
+    reference: Use the REST API
+  - generated: Tag API
+    reference: Use the REST API
+  - generated: Bundle API
+    reference: Use the REST API
+  - generated: Bookmark Management
+    reference: Edit and delete bookmarks
+  - generated: Bookmark Import
+    reference: Import and export bookmarks
+  - generated: Bookmark Export
+    reference: Import and export bookmarks
+  - generated: Bookmark Search
+    reference: Search bookmarks
+  - generated: Auto Tagging
+    reference: Tag automatically
+  - generated: Bookmark Snapshot Assets
+    reference: Archive a page as an HTML snapshot
+  - generated: Favicon and Preview Enrichment
+    reference: Save a bookmark
+  - generated: Wayback Machine Archiving
+    reference: Snapshot on the Internet Archive
+  - generated: Web Metadata Extraction
+    reference: Save a bookmark
+  - generated: Bookmark Mutations
+    reference: Edit and delete bookmarks
+  - generated: Bookmark Access Control
+    reference: Share bookmarks
+  - generated: User Settings
+    reference: Configure a profile
+  - generated: Authentication
+    reference: Sign in
+  - generated: PWA Manifest
+    reference: Install as an app
+  - generated: Bookmark Search & Autocomplete
+    reference: Search bookmarks
+  - generated: Tag Autocomplete
+    reference: Tag bookmarks
+  - generated: Bookmarklet Capture
+    reference: Save a bookmark
+  - generated: Developer Settings Panel
+    reference: Configure a profile
+  - generated: Bookmark Tags
+    reference: Tag bookmarks
+  - generated: User Profile & Preferences
+    reference: Configure a profile
+  - generated: Bookmark Assets & Snapshots
+    reference: Archive a page as an HTML snapshot
+  - generated: API Tokens
+    reference: Configure a profile
+  - generated: Import Bookmark File (Netscape)
+    reference: Import and export bookmarks
+  - generated: Bulk Edit Across Pages
+    reference: Edit and delete bookmarks
+  - generated: New Bookmark Form
+    reference: Save a bookmark
+  - generated: Edit Bookmark Form
+    reference: Edit and delete bookmarks
+  - generated: Bookmark Notes Toggle
+    reference: Write notes on a bookmark
+  - generated: Side Panel Collapse Setting
+    reference: Configure a profile
+  - generated: General Settings
+    reference: Configure a profile
+  - generated: Integration API Tokens
+    reference: Configure a profile
+  - generated: Bookmark saving and management
+    reference: Save a bookmark
+  - generated: Save and edit bookmarks
+    reference: Save a bookmark
+  - generated: Bulk edit bookmarks
+    reference: Edit and delete bookmarks
+  - generated: Archive bookmarks
+    reference: Archive a bookmark
+  - generated: Bookmark notes toggle
+    reference: Write notes on a bookmark
+  - generated: Import bookmarks
+    reference: Import and export bookmarks
+  - generated: Export bookmarks
+    reference: Import and export bookmarks
+  - generated: Netscape Bookmark Import
+    reference: Import and export bookmarks
+  - generated: Authentication and API tokens
+    reference: Sign in
+  - generated: Integrations and API tokens
+    reference: Configure a profile
+  - generated: User and global settings
+    reference: Configure a profile
+  - generated: General settings
+    reference: Configure a profile
+  - generated: Bookmark search and filtering
+    reference: Search bookmarks
+  - generated: Progressive web app support
+    reference: Install as an app
+  - generated: Store and serve snapshot assets
+    reference: Archive a page as an HTML snapshot
+  - generated: Bookmarklet
     reference: Save a bookmark
