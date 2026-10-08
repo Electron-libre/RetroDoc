@@ -1,6 +1,6 @@
 # 0018. Read the logic and entrypoint files when no model file gives an entity
 
-Status: Accepted (refines 0008, which stays in force)
+Status: Superseded by 0025
 
 ## Context
 

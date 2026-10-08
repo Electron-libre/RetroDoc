@@ -203,13 +203,13 @@ Steps, each shippable and checkable on the Rails test repo:
    returned unparseable JSON twice — hence the saved, editable rules. autoroute not tried yet. Not done: the second pass over unmatched files (they stay `unclassified`) and
    wiring the roles into `generate`.
 2. Models and glossary inventory. **Implemented** (`glossary/`, `retrodoc glossary`, needs `retrodoc roles`
-   first): the LLM reads only `model`-role files, in batches of ~12k chars, and returns entities (name,
+   first): the LLM reads the business files (formerly only `model`-role files), in batches of ~12k chars, and returns entities (name,
    description, attributes, associations); test descriptions (`describe`/`context`/`it`/`test` strings,
    `def test_*`) are extracted mechanically from `test`-role files. Saved as `.retrodoc/cache/glossary.yaml`,
    which doubles as the cache (per-file content hash).
-   When no `model` file gives an entity (the roles pass found none, which happened in half of 10 runs on a small
-   Ruby library of plain classes), up to 30 `logic` then `entrypoint` files are read instead (ADR 0018), and `generate`
-   logs when the surface still has no entity.
+   The files read are the ones the business-files pass located (`business_files/`, `retrodoc business-files`,
+   ADR 0025), not the `model` role (used only when there is no list), and `generate` logs when the surface still
+   has no entity. The ADR 0018 fallback on `logic`/`entrypoint` files is gone.
    Smoke test on the full Rails test repo (443 model files, `qwen3.6:35b-a3b`, 24 min): 301 entities,
    190 files without entity (mostly technical classes, plausible), 5,352 test phrases from 521 test files, 4
    entities dropped for an unknown file. Business names come out well (Contract, Company, Worksite,

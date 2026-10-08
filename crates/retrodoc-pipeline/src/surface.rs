@@ -108,7 +108,7 @@ impl Surface {
     #[must_use]
     pub fn missing_entities_notice(&self, source_files: usize) -> Option<&'static str> {
         (self.entities.is_empty() && source_files > 0)
-            .then_some("no model file gave an entity, the clustering gets no business hints")
+            .then_some("no entity was found, the clustering gets no business hints")
     }
 
     /// Names of the best connected entities: the application's own business

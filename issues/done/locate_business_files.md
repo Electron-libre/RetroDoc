@@ -93,7 +93,7 @@ Then, candidates (can be combined):
 3. [x] `retrodoc business-files [--force]` and wiring in `generate` (after the brief, before the glossary; token recap). Tested: order, no LLM call on the second run.
 4. [x] The glossary reads the `BusinessMap` (directories expanded to bounded `Source` files) instead of the `model` role; the ADR 0018 fallback stays for now. Tests: existing glossary tests adapted, a repo with no `model` role.
 5. [x] Validate on real repositories: smoke test on `delivery_router`, quality benchmark on linkding (3 runs, before/after). Success: better recall of business files than the `model` role and a non-empty glossary on every run; otherwise rework the evidence before going on.
-6. [ ] Remove the ADR 0018 fallback, write ADR 0025 (supersedes 0018), update `CLAUDE.md`, `PLAN.md`, `docs/ARCHITECTURE.md`; offer to close the issue.
+6. [x] Remove the ADR 0018 fallback, write ADR 0025 (supersedes 0018), update `CLAUDE.md`, `PLAN.md`, `docs/ARCHITECTURE.md`; offer to close the issue.
 
 ## Decisions
 

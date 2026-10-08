@@ -9,11 +9,11 @@
 //! the descriptions of `describe`/`context`/`it`-style blocks, extracted
 //! mechanically from the files classified as [`FileRole::Test`].
 //!
-//! Without a business list the roles pass sometimes finds no model file (a repository of plain
-//! domain classes, no `models/` folder). Then, as when the files read give
-//! no entity at all, the `logic` files, then the
-//! `entrypoint` ones, are read instead, a bounded number of them, with a
-//! prompt that keeps only business classes (ADR 0018).
+//! The roles pass often finds no model file (a repository of plain domain
+//! classes, no `models/` folder) or takes the migrations for models; that is
+//! why the business-files pass exists (ADR 0025, which replaced the ADR 0018
+//! fallback on `logic` and `entrypoint` files). With no business list and no
+//! model file the glossary is empty, and `generate` says so.
 //!
 //! The result is `.retrodoc/cache/glossary.yaml`, which doubles as the cache:
 //! a model file whose content hash is unchanged is not sent again. The
@@ -42,9 +42,6 @@ use crate::use_cases::resolve_cited_path;
 /// A longer model file is read in several chunks of about this size, so one
 /// huge model can't crowd out the others in a batch.
 const MAX_MODEL_FILE_CHARS: usize = 4_000;
-/// Files of role `logic`, then `entrypoint` (the public API of a library is
-/// plain domain classes), read when no model file gave an entity.
-const FALLBACK_MAX_FILES: usize = 30;
 
 const GLOSSARY_SYSTEM_PROMPT: &str = "You are extracting the business entities from the model \
 files of a software application. For each entity (a business concept such as a contract, a \
@@ -55,10 +52,11 @@ prose and no Markdown code fence, matching this shape: {\"entities\":[{\"file\":
 \"name\":\"...\",\"description\":\"...\",\"attributes\":[\"...\"],\"associations\":[{\"kind\":\
 \"has_many\",\"target\":\"...\"}]}]}. Use the file paths exactly as given.";
 
-/// Same answer shape as [`GLOSSARY_SYSTEM_PROMPT`], for files that were not
-/// recognized as models: most of them are services, collections or helpers.
-const FALLBACK_SYSTEM_PROMPT: &str = "You are looking for the business entities in the source \
-files of a software application that has no obvious model files. An entity is a plain class \
+/// Same answer shape as [`GLOSSARY_SYSTEM_PROMPT`], for the files the
+/// business-files pass located: some are plain domain classes, others
+/// services, collections or helpers.
+const BUSINESS_SYSTEM_PROMPT: &str = "You are looking for the business entities in the source \
+files of a software application, located as holding its business. An entity is a plain class \
 (or struct, or module) that holds business data and rules, such as a customer, an order or a \
 contract; skip services, routers, collections of entities, helpers, mixins and anything \
 purely technical. A file can hold no entity: then list none for it. For each entity give its \
@@ -306,31 +304,9 @@ pub async fn build_glossary(
         reader
             .read(
                 business.iter().map(PathBuf::as_path).collect(),
-                FALLBACK_SYSTEM_PROMPT,
+                BUSINESS_SYSTEM_PROMPT,
                 &format!("{}Business files:\n", brief.prompt_head()),
                 "business file(s)",
-                &mut glossary,
-            )
-            .await?;
-    }
-
-    // No file gave an entity (no model was recognized, or none holds a
-    // business class): look in the logic files, then the entrypoint ones (a
-    // library's code is often all "public API"), a bounded number of them.
-    if glossary.entities().next().is_none() {
-        let mut candidates = Vec::new();
-        for role in [FileRole::Logic, FileRole::EntryPoint] {
-            let mut files = roles.files_with(role);
-            files.sort_unstable();
-            candidates.extend(files);
-        }
-        candidates.truncate(FALLBACK_MAX_FILES);
-        reader
-            .read(
-                candidates,
-                FALLBACK_SYSTEM_PROMPT,
-                &format!("{}Source files:\n", brief.prompt_head()),
-                "fallback file(s)",
                 &mut glossary,
             )
             .await?;
