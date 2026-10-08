@@ -6,11 +6,14 @@ use std::path::Path;
 
 use crate::error::IngestError;
 use crate::existing_docs::{self, ExistingDoc};
+use crate::git_history::CommitSubject;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SignalKind {
     /// A section of a Markdown document (README, changelog, `docs/`).
     DocSection,
+    /// The subject of a commit.
+    CommitSubject,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -132,6 +135,92 @@ fn fence_marker(line: &str) -> Option<(char, usize)> {
     (len >= 3).then_some((marker, len))
 }
 
+/// Turns commit subjects (newest first) into signals, origin `commit:<id>`.
+/// Merges, bot commits and dependency bumps are noise and dropped, repeated
+/// subjects kept once (the newest). When most subjects follow Conventional
+/// Commits, `feat` comes first, then `fix`, then the rest, each group newest
+/// first.
+#[must_use]
+pub fn commit_subjects(commits: &[CommitSubject]) -> Vec<Signal> {
+    let mut seen = std::collections::HashSet::new();
+    let mut kept: Vec<&CommitSubject> = commits
+        .iter()
+        .filter(|c| !is_noise_commit(c))
+        .filter(|c| {
+            seen.insert(
+                c.subject
+                    .to_lowercase()
+                    .split_whitespace()
+                    .collect::<Vec<_>>()
+                    .join(" "),
+            )
+        })
+        .collect();
+    let conventional = kept
+        .iter()
+        .filter(|c| conventional_type(&c.subject).is_some())
+        .count();
+    if conventional * 10 >= kept.len() * 3 && !kept.is_empty() {
+        kept.sort_by_key(|c| match conventional_type(&c.subject) {
+            Some("feat") => 0,
+            Some("fix") => 1,
+            _ => 2,
+        });
+    }
+    kept.into_iter()
+        .map(|c| Signal {
+            kind: SignalKind::CommitSubject,
+            origin: format!("commit:{}", c.short_id),
+            text: c.subject.clone(),
+        })
+        .collect()
+}
+
+fn is_noise_commit(commit: &CommitSubject) -> bool {
+    let subject = commit.subject.to_lowercase();
+    let author = commit.author.to_lowercase();
+    subject.is_empty()
+        || ["[bot]", "dependabot", "renovate"]
+            .iter()
+            .any(|bot| author.contains(bot))
+        || [
+            "merge pull request",
+            "merge branch",
+            "merge remote-tracking",
+            "update dependency",
+            "update dependencies",
+            "deps:",
+        ]
+        .iter()
+        .any(|prefix| subject.starts_with(prefix))
+        || (subject.starts_with("bump ") && subject.contains(" from "))
+        || matches!(
+            conventional_type(&subject),
+            Some("chore" | "build") if subject.contains("(deps") || subject.contains(": bump ")
+        )
+}
+
+/// The type of a Conventional Commits subject (`feat(api)!: ...` gives
+/// `feat`), `None` for any other subject.
+fn conventional_type(subject: &str) -> Option<&str> {
+    let (head, rest) = subject.split_once(':')?;
+    if !rest.starts_with(' ') {
+        return None;
+    }
+    let head = head.strip_suffix('!').unwrap_or(head);
+    let kind = head.split_once('(').map_or(
+        head,
+        |(kind, scope)| {
+            if scope.ends_with(')') {
+                kind
+            } else {
+                ""
+            }
+        },
+    );
+    (!kind.is_empty() && kind.chars().all(|c| c.is_ascii_lowercase())).then_some(kind)
+}
+
 fn is_heading(line: &str) -> bool {
     let hashes = line.chars().take_while(|c| *c == '#').count();
     (1..=6).contains(&hashes) && line[hashes..].starts_with(' ')
@@ -175,6 +264,76 @@ mod tests {
         let signals = doc_sections(&[doc("a.md", "# Setup\n```sh\n# install\nmake\n```\nDone.\n")]);
         assert_eq!(signals.len(), 1);
         assert!(signals[0].text.contains("# install"));
+    }
+
+    fn commit(id: &str, author: &str, subject: &str) -> CommitSubject {
+        CommitSubject {
+            short_id: id.to_string(),
+            author: author.to_string(),
+            subject: subject.to_string(),
+        }
+    }
+
+    fn texts(signals: &[Signal]) -> Vec<&str> {
+        signals.iter().map(|s| s.text.as_str()).collect()
+    }
+
+    #[test]
+    fn noise_commits_and_repeats_are_dropped() {
+        let signals = commit_subjects(&[
+            commit("a1", "Ann", "Add invoices"),
+            commit("a2", "dependabot[bot]", "Update lodash"),
+            commit("a3", "Ann", "Bump serde from 1.0.1 to 1.0.2"),
+            commit("a4", "Ann", "Merge pull request #4 from x/y"),
+            commit("a5", "Ann", "add  INVOICES"),
+            commit("a6", "Ann", "Fix the login"),
+            commit("a7", "Ann", ""),
+            commit("a8", "Ann", "Bump invoice limit to 500"),
+            commit("a9", "Ann", "Merge duplicate accounts"),
+        ]);
+        assert_eq!(
+            texts(&signals),
+            [
+                "Add invoices",
+                "Fix the login",
+                "Bump invoice limit to 500",
+                "Merge duplicate accounts"
+            ]
+        );
+        assert_eq!(signals[0].origin, "commit:a1");
+        assert_eq!(signals[0].kind, SignalKind::CommitSubject);
+    }
+
+    #[test]
+    fn conventional_commits_put_feat_then_fix_first() {
+        let signals = commit_subjects(&[
+            commit("1", "Ann", "docs: explain setup"),
+            commit("2", "Ann", "fix(api): reject empty orders"),
+            commit("3", "Ann", "feat!: add refunds"),
+            commit("4", "Ann", "chore(deps): bump tokio"),
+            commit("5", "Ann", "feat(ui): add dark mode"),
+        ]);
+        assert_eq!(
+            texts(&signals),
+            [
+                "feat!: add refunds",
+                "feat(ui): add dark mode",
+                "fix(api): reject empty orders",
+                "docs: explain setup"
+            ]
+        );
+    }
+
+    #[test]
+    fn free_form_subjects_keep_their_order() {
+        let signals = commit_subjects(&[
+            commit("1", "Ann", "Fix typo: in readme"),
+            commit("2", "Ann", "Add feature x"),
+            commit("3", "Ann", "Rework the cart"),
+            commit("4", "Ann", "Update the home page"),
+            commit("5", "Ann", "feat: one conventional among many"),
+        ]);
+        assert_eq!(signals[0].text, "Fix typo: in readme");
     }
 
     #[test]

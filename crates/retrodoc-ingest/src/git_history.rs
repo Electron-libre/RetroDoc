@@ -32,6 +32,25 @@ pub fn head_commit(repo_root: &Path) -> Option<String> {
     Some(head.id().to_string())
 }
 
+/// The subject of a commit and who wrote it, as read by the one revwalk of
+/// the history; the raw material of the commit signals.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CommitSubject {
+    /// First 8 characters of the commit hash.
+    pub short_id: String,
+    pub author: String,
+    /// First line of the message.
+    pub subject: String,
+}
+
+/// What the single walk over `HEAD`'s history gives.
+#[derive(Debug, Clone, Default)]
+pub struct HistoryScan {
+    pub files: HashMap<PathBuf, FileHistory>,
+    /// Newest first, merge commits left out.
+    pub commits: Vec<CommitSubject>,
+}
+
 /// Rebuilds, for each file touched in `HEAD`'s history, the commit count,
 /// authors, and first/last modification dates.
 ///
@@ -40,15 +59,27 @@ pub fn head_commit(repo_root: &Path) -> Option<String> {
 /// Returns an error if the repo can't be opened or reading the history
 /// fails (corrupted repo, disk access).
 pub fn collect_history(repo_root: &Path) -> Result<HashMap<PathBuf, FileHistory>, IngestError> {
+    Ok(scan_history(repo_root)?.files)
+}
+
+/// The same single walk as [`collect_history`], which also keeps the subject
+/// of each commit (merges left out).
+///
+/// # Errors
+///
+/// Returns an error if the repo can't be opened or reading the history
+/// fails (corrupted repo, disk access).
+pub fn scan_history(repo_root: &Path) -> Result<HistoryScan, IngestError> {
     let repo = Repository::open(repo_root)?;
     let mut history: HashMap<PathBuf, FileHistory> = HashMap::new();
+    let mut commits = Vec::new();
 
     let mut revwalk = repo.revwalk()?;
     revwalk.set_sorting(Sort::TIME)?;
     match revwalk.push_head() {
         Ok(()) => {}
         // Repo with no commits (just initialized): empty history, not an error.
-        Err(_) => return Ok(history),
+        Err(_) => return Ok(HistoryScan::default()),
     }
 
     for oid in revwalk {
@@ -68,6 +99,18 @@ pub fn collect_history(repo_root: &Path) -> Result<HashMap<PathBuf, FileHistory>
             str::to_string,
         );
         let when = git_time_to_utc(commit.time());
+        if commit.parent_count() <= 1 {
+            commits.push(CommitSubject {
+                short_id: commit.id().to_string().chars().take(8).collect(),
+                author: author_label.clone(),
+                subject: commit
+                    .message()
+                    .and_then(|m| m.lines().next())
+                    .unwrap_or_default()
+                    .trim()
+                    .to_string(),
+            });
+        }
 
         diff.foreach(
             &mut |delta, _progress| {
@@ -95,7 +138,10 @@ pub fn collect_history(repo_root: &Path) -> Result<HashMap<PathBuf, FileHistory>
         )?;
     }
 
-    Ok(history)
+    Ok(HistoryScan {
+        files: history,
+        commits,
+    })
 }
 
 /// A commit of a file's history, as shown to an agent: no author.
@@ -206,6 +252,30 @@ mod tests {
 
         let b = history.get(Path::new("b.txt")).unwrap();
         assert_eq!(b.commit_count, 1);
+    }
+
+    #[test]
+    fn the_scan_keeps_commit_subjects_newest_first_without_merges() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        run_git(root, &["init", "-q", "-b", "main"]);
+        commit_file(root, "a.txt", "1", "add a\n\nlong body");
+        run_git(root, &["checkout", "-q", "-b", "feature"]);
+        commit_file(root, "a.txt", "2", "change a on the branch");
+        run_git(root, &["checkout", "-q", "main"]);
+        commit_file(root, "b.txt", "1", "add b");
+        run_git(
+            root,
+            &["merge", "-q", "--no-ff", "feature", "-m", "Merge feature"],
+        );
+
+        let scan = scan_history(root).unwrap();
+        let mut subjects: Vec<&str> = scan.commits.iter().map(|c| c.subject.as_str()).collect();
+        subjects.sort_unstable();
+        assert_eq!(subjects, ["add a", "add b", "change a on the branch"]);
+        assert_eq!(scan.commits[0].author, "Test Author");
+        assert_eq!(scan.commits[0].short_id.len(), 8);
+        assert_eq!(scan.files.len(), collect_history(root).unwrap().len());
     }
 
     #[test]
