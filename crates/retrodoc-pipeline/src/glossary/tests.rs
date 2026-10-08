@@ -13,30 +13,6 @@ fn roles(entries: &[(&str, FileRole)]) -> RoleMap {
 }
 
 #[test]
-fn extracts_test_descriptions() {
-    let content = r##"
-RSpec.describe Contract do
-  describe "#sign" do
-    context 'when the signatory is a partner' do
-      it "marks the contract as signed" do
-  items.each { }
-  it("rejects an expired token", () => {})
-  it "marks the contract as signed" do
-  def test_cancel_subscription_twice
-"##;
-    assert_eq!(
-        test_phrases(content),
-        vec![
-            "#sign",
-            "when the signatory is a partner",
-            "marks the contract as signed",
-            "rejects an expired token",
-            "cancel subscription twice",
-        ]
-    );
-}
-
-#[test]
 fn merges_entities_listed_under_several_files() {
     let entity =
         |name: &str, description: &str, attributes: &[&str], target: Option<&str>| Entity {

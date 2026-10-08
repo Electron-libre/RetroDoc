@@ -4,6 +4,16 @@
 
 use std::path::Path;
 
+mod files;
+mod manifest;
+mod test_phrases;
+mod tree;
+
+pub use files::{feature_scenarios, test_descriptions};
+pub use manifest::manifest_metadata;
+pub use test_phrases::test_phrases;
+pub use tree::tree_overview;
+
 use crate::error::IngestError;
 use crate::existing_docs::{self, ExistingDoc};
 use crate::git_history::CommitSubject;
@@ -14,6 +24,14 @@ pub enum SignalKind {
     DocSection,
     /// The subject of a commit.
     CommitSubject,
+    /// Name, description and dependencies of a root manifest.
+    Manifest,
+    /// The directories two levels deep, with file counts.
+    Tree,
+    /// Feature, rule and scenario titles of a Gherkin file.
+    FeatureScenarios,
+    /// The described blocks of a test file.
+    TestDescriptions,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

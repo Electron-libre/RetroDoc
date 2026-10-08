@@ -53,7 +53,9 @@ editable `.retrodoc/cache/product.yaml`, and feed the brief to the later prompts
 
 1. [x] Signals: doc sections (`Signal` type, headings split, root `*.md` included)
 2. [x] Signals: commit subjects in the existing revwalk (no merges or bots, deduplicated, Conventional Commits first)
-3. [ ] Signals: manifests, tree two levels deep, schema and migrations, i18n, `.feature`, test descriptions
+3. [ ] Signals, in two commits:
+   * 3a. [x] manifests, tree two levels deep, `.feature`, test descriptions
+   * 3b. [ ] schema and migrations, i18n, and `signals` wired into `IngestResult`/`run()`
 4. [ ] Brief: bounded sample, LLM pass, `product.yaml` (fingerprint reuse, hand edit kept, validated citations)
 5. [ ] `retrodoc brief [--force]` command, with a signal-volume diagnostic; measure on the Rails test repository
 6. [ ] Inject the brief in the prompts and fingerprints: 6a roles, glossary, entry points, actors; 6b domains, features, use cases

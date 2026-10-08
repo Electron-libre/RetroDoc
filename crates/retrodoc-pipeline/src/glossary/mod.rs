@@ -19,9 +19,10 @@
 //! Not covered yet: the verbs (public methods, route actions), which belong
 //! with the entry points inventory (step 3).
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use retrodoc_ingest::signals::test_phrases;
 use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
@@ -41,10 +42,6 @@ const MAX_MODEL_FILE_CHARS: usize = 4_000;
 /// Files of role `logic`, then `entrypoint` (the public API of a library is
 /// plain domain classes), read when no model file gave an entity.
 const FALLBACK_MAX_FILES: usize = 30;
-/// Test phrases kept per test file.
-const MAX_PHRASES_PER_TEST_FILE: usize = 30;
-/// Characters kept of each test phrase.
-const MAX_PHRASE_CHARS: usize = 160;
 
 const GLOSSARY_SYSTEM_PROMPT: &str = "You are extracting the business entities from the model \
 files of a software application. For each entity (a business concept such as a contract, a \
@@ -428,60 +425,6 @@ fn merge_chunk_entities(entities: Vec<Entity>) -> Vec<Entity> {
         }
     }
     merged
-}
-
-/// Block keywords whose first string argument describes a behaviour, across
-/// the `RSpec` / Jest / Mocha / Cucumber-like families.
-const TEST_KEYWORDS: &[&str] = &[
-    "describe", "context", "it", "scenario", "feature", "specify", "test", "example",
-];
-
-/// Descriptions of the test blocks of a file (`it "signs a contract" do`,
-/// `test('rejects an expired token', …)`) and the words of `def test_foo_bar`
-/// style names, deduplicated, in file order.
-fn test_phrases(content: &str) -> Vec<String> {
-    let mut seen = BTreeSet::new();
-    let mut phrases = Vec::new();
-    for line in content.lines() {
-        if phrases.len() >= MAX_PHRASES_PER_TEST_FILE {
-            break;
-        }
-        let line = line.trim();
-        let phrase = if let Some(name) = line.strip_prefix("def test_") {
-            let name: String = name
-                .chars()
-                .take_while(|c| c.is_alphanumeric() || *c == '_')
-                .collect();
-            Some(name.replace('_', " "))
-        } else {
-            TEST_KEYWORDS
-                .iter()
-                .find_map(|keyword| quoted_argument(line, keyword))
-        };
-        if let Some(phrase) = phrase {
-            let phrase: String = phrase.trim().chars().take(MAX_PHRASE_CHARS).collect();
-            if !phrase.is_empty() && seen.insert(phrase.clone()) {
-                phrases.push(phrase);
-            }
-        }
-    }
-    phrases
-}
-
-/// The quoted string right after `keyword` (`it "x"`, `it("x"`, `it 'x'`).
-fn quoted_argument(line: &str, keyword: &str) -> Option<String> {
-    let rest = line.strip_prefix(keyword)?;
-    let rest = rest.strip_prefix('(').unwrap_or(rest).trim_start();
-    // A keyword followed directly by a letter is another word (`items`).
-    if rest.len() == line.len() - keyword.len() && !line[keyword.len()..].starts_with(' ') {
-        return None;
-    }
-    let quote = rest
-        .chars()
-        .next()
-        .filter(|c| matches!(c, '"' | '\'' | '`'))?;
-    let body = &rest[1..];
-    body.find(quote).map(|end| body[..end].to_string())
 }
 
 #[cfg(test)]

@@ -13,6 +13,8 @@ ignore.workspace = true
 git2.workspace = true
 chrono.workspace = true
 thiserror.workspace = true
+serde_json.workspace = true
+toml.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
