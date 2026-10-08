@@ -79,12 +79,14 @@ pub fn saved(repo_root: &Path) -> ProductBrief {
 /// The brief `generate` frames its passes with: the saved one as it is
 /// (edited or not, it is refreshed by `retrodoc brief`, not behind the back
 /// of every other pass), otherwise one written now from the signals of the
-/// repository. Empty when there is no evidence or no usable answer. With it
-/// come the signals, searched for the extracts closest to a feature.
+/// repository. Empty when there is no evidence or no usable answer. With
+/// `with_evidence` (`brief.evidence`) come the signals, searched for the
+/// extracts closest to a unit; otherwise the evidence is empty.
 pub async fn for_generate(
     repo_root: &Path,
     ingest: &IngestResult,
     llm: &dyn LlmProvider,
+    with_evidence: bool,
     tracker: &UsageTracker,
 ) -> anyhow::Result<(ProductBrief, Evidence)> {
     let saved_brief = Artifact::Product.path(repo_root).exists();
@@ -111,12 +113,22 @@ pub async fn for_generate(
                 tracing::warn!("signals not collected, no extracts for the units: {err}");
                 Evidence::default()
             },
-            |all| Evidence::new(&all),
+            |all| {
+                if with_evidence {
+                    Evidence::new(&all)
+                } else {
+                    Evidence::default()
+                }
+            },
         );
         return Ok((saved(repo_root), evidence));
     }
     let all = collected.context("could not collect the signals")?;
-    let evidence = Evidence::new(&all);
+    let evidence = if with_evidence {
+        Evidence::new(&all)
+    } else {
+        Evidence::default()
+    };
     let brief = tracker
         .in_pass(
             "brief",
@@ -312,12 +324,41 @@ mod tests {
             commits: Vec::new(),
         };
 
-        let (used, _) = for_generate(dir.path(), &ingest, &NoCall, &UsageTracker::new())
+        let (used, _) = for_generate(dir.path(), &ingest, &NoCall, false, &UsageTracker::new())
             .await
             .unwrap();
 
         assert_eq!(used.purpose.text, "Sells things.");
         assert_eq!(saved(dir.path()), used);
+    }
+
+    #[tokio::test]
+    async fn the_extracts_of_each_unit_are_kept_only_when_asked() {
+        let dir = tempfile::tempdir().unwrap();
+        ProductBrief {
+            purpose: claim("Sells things.", &["README.md"]),
+            ..ProductBrief::default()
+        }
+        .save(dir.path())
+        .unwrap();
+        let ingest = retrodoc_ingest::IngestResult {
+            files: Vec::new(),
+            history_by_path: std::collections::HashMap::new(),
+            existing_docs: vec![retrodoc_ingest::existing_docs::ExistingDoc {
+                path: "README.md".into(),
+                content: "# Refunds\nA buyer asks a refund of a paid order.\n".to_string(),
+            }],
+            commits: Vec::new(),
+        };
+        let (root, ingest) = (dir.path(), &ingest);
+        let section = |with| async move {
+            let (_, evidence) = for_generate(root, ingest, &NoCall, with, &UsageTracker::new())
+                .await
+                .unwrap();
+            evidence.section("refund order")
+        };
+        assert_eq!(section(false).await, "");
+        assert!(section(true).await.contains("A buyer asks a refund"));
     }
 
     #[test]

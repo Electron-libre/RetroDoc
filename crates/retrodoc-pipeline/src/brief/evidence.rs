@@ -30,8 +30,8 @@ const POOLS: &[(&str, &[SignalKind], usize)] = &[
 struct Pool {
     title: &'static str,
     budget: usize,
-    /// Origin and text, in the order of the index.
-    extracts: Vec<(String, String)>,
+    /// Text of each signal, in the order of the index.
+    extracts: Vec<String>,
     index: Bm25,
 }
 
@@ -47,18 +47,18 @@ impl Evidence {
         let pools = POOLS
             .iter()
             .filter_map(|(title, kinds, budget)| {
-                let extracts: Vec<(String, String)> = signals
-                    .iter()
-                    .filter(|s| kinds.contains(&s.kind))
-                    .map(|s| (s.origin.clone(), s.text.clone()))
-                    .collect();
-                if extracts.is_empty() {
+                let found: Vec<&Signal> =
+                    signals.iter().filter(|s| kinds.contains(&s.kind)).collect();
+                if found.is_empty() {
                     return None;
                 }
-                let texts: Vec<String> = extracts
+                // The origin is searched (a file name says what it is about)
+                // but never shown: the LLM would cite it as a source file.
+                let texts: Vec<String> = found
                     .iter()
-                    .map(|(origin, text)| format!("{origin} {text}"))
+                    .map(|s| format!("{} {}", s.origin, s.text))
                     .collect();
+                let extracts = found.iter().map(|s| s.text.clone()).collect();
                 Some(Pool {
                     title,
                     budget: *budget,
@@ -79,8 +79,8 @@ impl Evidence {
             let mut left = pool.budget;
             let mut lines = String::new();
             for (doc, _) in pool.index.search_any(query) {
-                let (origin, text) = &pool.extracts[doc];
-                let line = format!("[{origin}] {}\n", cut_at_word(text, MAX_PER_EXTRACT));
+                let text = &pool.extracts[doc];
+                let line = format!("- {}\n", cut_at_word(text, MAX_PER_EXTRACT));
                 let cost = line.chars().count();
                 if cost > left {
                     continue;
@@ -97,7 +97,8 @@ impl Evidence {
         }
         format!(
             "Project evidence closest to this unit (documentation, tests and commit history; \
-             it may be partly unrelated, never describe what the code does not show):\n{body}\n"
+             they are not source files, never cite them, and they may be partly unrelated: never \
+             describe what the code does not show):\n{body}\n"
         )
     }
 }
@@ -137,18 +138,23 @@ mod tests {
     }
 
     #[test]
-    fn the_closest_extracts_of_each_kind_come_with_their_origin() {
+    fn the_closest_extracts_of_each_kind_are_shown_without_their_origin() {
         let section = evidence().section("Refund of an order: refund_controller.rb");
         assert!(
-            section.contains("== Documentation ==\n[README.md#Refunds]"),
+            section.contains("== Documentation ==\n- A buyer asks a refund"),
+            "{section}"
+        );
+        assert!(!section.contains("README.md"), "{section}");
+        assert!(
+            section.contains("== Tests ==\n- refunds a paid order"),
             "{section}"
         );
         assert!(
-            section.contains("== Tests ==\n[spec/refund_spec.rb]"),
+            section.contains("== Commits ==\n- feat: add refunds"),
             "{section}"
         );
         assert!(
-            section.contains("== Commits ==\n[commit:aaa] feat: add refunds"),
+            !section.contains("spec/") && !section.contains("commit:"),
             "{section}"
         );
         assert!(!section.contains("Install"), "{section}");
@@ -176,8 +182,8 @@ mod tests {
             .collect();
         let section = Evidence::new(&many).section("refund");
         assert!(section.chars().count() < 1_200, "{}", section.len());
-        assert!(section.contains("commit:0"), "{section}");
-        assert!(!section.contains("commit:99"), "{section}");
+        assert!(section.contains("- fix: refund"), "{section}");
+        assert!(section.lines().count() < 20, "{section}");
     }
 
     #[test]
@@ -190,7 +196,7 @@ mod tests {
             signal(SignalKind::DocSection, "d.md", "refund policy"),
         ])
         .section("refund");
-        assert!(section.contains("[d.md] refund policy"), "{section}");
+        assert!(section.contains("- refund policy"), "{section}");
     }
 
     #[test]

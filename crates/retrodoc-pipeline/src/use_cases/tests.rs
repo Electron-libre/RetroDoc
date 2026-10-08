@@ -661,7 +661,10 @@ async fn the_evidence_closest_to_a_feature_is_in_its_prompt_and_in_its_fingerpri
     .await
     .unwrap();
     let prompt = provider.prompt_pairs().remove(0).1;
-    assert!(prompt.contains("[README.md#Reminders]"), "{prompt}");
+    assert!(
+        prompt.contains("A reminder is sent when a payment is late."),
+        "{prompt}"
+    );
     assert!(prompt.find("Project evidence").unwrap() < prompt.find("Source files:").unwrap());
 
     build_use_cases(

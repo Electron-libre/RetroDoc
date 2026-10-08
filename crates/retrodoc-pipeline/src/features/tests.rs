@@ -425,7 +425,7 @@ async fn the_evidence_closest_to_a_unit_is_in_its_prompt_and_moves_only_its_fing
         .find(|p| p.contains("billing/invoice.rs"))
         .unwrap();
     assert!(
-        billing.contains("[docs/billing.md#Invoices]"),
+        billing.contains("An invoice is sent to the customer."),
         "{}",
         billing
     );

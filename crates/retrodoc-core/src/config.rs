@@ -25,6 +25,19 @@ pub struct Config {
     pub ingest: IngestConfig,
     #[serde(default)]
     pub output: OutputConfig,
+    #[serde(default)]
+    pub brief: BriefConfig,
+}
+
+/// How the product brief (ADR 0019) is used.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct BriefConfig {
+    /// Also give the features and use cases passes, per unit, the few doc
+    /// sections, test descriptions and commit subjects closest to it. Off by
+    /// default: the benchmarks (see `issues/product_brief.md`) showed fewer
+    /// features with it and no gain, to be tried again later.
+    #[serde(default)]
+    pub evidence: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -248,5 +261,14 @@ mod tests {
         assert_eq!(parsed.llm.model, "openai/gpt-4o");
         assert_eq!(parsed.llm.provider, "openrouter");
         assert_eq!(parsed.output.docs_dir, "docs");
+    }
+
+    #[test]
+    fn the_evidence_of_each_unit_is_off_unless_asked() {
+        assert!(!Config::default().brief.evidence);
+        let parsed: Config = toml::from_str("[brief]\nevidence = true").unwrap();
+        assert!(parsed.brief.evidence);
+        let none: Config = toml::from_str("").unwrap();
+        assert!(!none.brief.evidence);
     }
 }

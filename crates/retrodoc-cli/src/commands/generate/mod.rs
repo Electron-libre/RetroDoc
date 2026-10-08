@@ -68,7 +68,9 @@ pub async fn run(
 
     let llm = super::usage::provider(&config.llm, tracker)?;
 
-    let (brief, evidence) = super::brief::for_generate(repo_root, &ingest, &llm, tracker).await?;
+    let (brief, evidence) =
+        super::brief::for_generate(repo_root, &ingest, &llm, config.brief.evidence, tracker)
+            .await?;
 
     let (surface, entry_points, role_map) =
         build_surface(repo_root, &mut ingest, &brief, &llm, force, tracker).await?;
