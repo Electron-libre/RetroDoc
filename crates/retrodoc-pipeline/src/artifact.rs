@@ -21,6 +21,7 @@ pub enum Artifact {
     Roles,
     SignalSources,
     Product,
+    BusinessFiles,
     Glossary,
     EntryPoints,
     Actors,
@@ -32,12 +33,13 @@ pub enum Artifact {
 }
 
 impl Artifact {
-    pub const ALL: [Artifact; 13] = [
+    pub const ALL: [Artifact; 14] = [
         Artifact::RepoMap,
         Artifact::Fingerprints,
         Artifact::Roles,
         Artifact::SignalSources,
         Artifact::Product,
+        Artifact::BusinessFiles,
         Artifact::Glossary,
         Artifact::EntryPoints,
         Artifact::Actors,
@@ -56,6 +58,7 @@ impl Artifact {
             Artifact::Roles => "roles.yaml",
             Artifact::SignalSources => "signal-sources.yaml",
             Artifact::Product => "product.yaml",
+            Artifact::BusinessFiles => "business-files.yaml",
             Artifact::Glossary => "glossary.yaml",
             Artifact::EntryPoints => "entry-points.yaml",
             Artifact::Actors => "actors.yaml",
@@ -79,7 +82,7 @@ impl Artifact {
     }
 
     /// Whether `generate --force` removes it. The others are not results to
-    /// redo: `roles.yaml`, `signal-sources.yaml` and `product.yaml` are hand-editable (`retrodoc roles --force`
+    /// redo: `roles.yaml`, `signal-sources.yaml`, `product.yaml` and `business-files.yaml` are hand-editable (`retrodoc roles --force`
     /// identifies it again), `usage.json` is the history of the runs, and
     /// `domains.yaml` and `scope.yaml` are recomputed on every run anyway.
     #[must_use]
@@ -95,6 +98,7 @@ impl Artifact {
             Artifact::Roles
             | Artifact::SignalSources
             | Artifact::Product
+            | Artifact::BusinessFiles
             | Artifact::Scope
             | Artifact::Domains
             | Artifact::Usage => false,
@@ -179,6 +183,7 @@ mod tests {
                 "roles.yaml",
                 "signal-sources.yaml",
                 "product.yaml",
+                "business-files.yaml",
                 "scope.yaml",
                 "domains.yaml",
                 "usage.json"

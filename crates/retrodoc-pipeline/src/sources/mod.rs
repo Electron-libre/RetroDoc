@@ -347,7 +347,7 @@ fn hash_rules(rules: &[SourceRule]) -> String {
 
 /// The shape of the tree: which kinds of file sit in which folder, not how
 /// many, so adding a file doesn't make the rules out of date.
-fn tree_shape_hash(ingest: &IngestResult) -> String {
+pub(crate) fn tree_shape_hash(ingest: &IngestResult) -> String {
     let shapes: BTreeSet<String> = ingest
         .files
         .iter()

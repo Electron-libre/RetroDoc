@@ -19,6 +19,7 @@ mod batched_read;
 pub mod benchmark;
 pub mod bm25;
 pub mod brief;
+pub mod business_files;
 pub mod cache;
 mod chunk_check;
 pub mod chunks;

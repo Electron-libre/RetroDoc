@@ -233,6 +233,7 @@ Guarantees:
 │   ├── roles.yaml                 #   (phase 7) glob → role rules, hand-editable
 │   ├── signal-sources.yaml        #   where the schema, migrations and translations are, hand-editable
 │   ├── product.yaml               #   product brief (ADR 0019), hand-editable
+│   ├── business-files.yaml        #   ranked files and directories that hold the business, hand-editable
 │   ├── glossary.yaml              #   (phase 7) business entities, also its own cache
 │   ├── entry-points.yaml          #   (phase 7) routes/commands/jobs + outputs, also its own cache
 │   ├── actors.yaml                #   (phase 7) business actors, reused while its input hash is unchanged
