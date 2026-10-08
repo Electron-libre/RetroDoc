@@ -62,12 +62,14 @@ editable `.retrodoc/cache/product.yaml`, and feed the brief to the later prompts
 6. [x] Inject the brief in the prompts and fingerprints, in two commits:
    * 6a. [x] `generate` writes or reuses the brief first; roles, glossary, entry points, actors read it
    * 6b. [x] domains, features, use cases read it
-7. [ ] BM25 retrieval per unit, in two commits:
+7. [x] BM25 retrieval per unit, in two commits:
    * 7a. [x] move the BM25 to `retrodoc-pipeline`, `retrodoc-mcp` uses it from there (structural, tests unchanged)
-   * 7b. [ ] index of the signals, retrieval per unit for features and use cases (budget, fingerprint)
+   * 7b. [x] index of the signals, retrieval per unit for features and use cases (budget, fingerprint)
 8. [ ] Benchmark before and after (ask before running: real cost), final docs and ADR 0019 update
 
 ## Decisions
+
+* Retrieval per unit (7b): `brief::Evidence` indexes doc sections, test descriptions/scenarios and commit subjects (schema, migrations, i18n, manifests and tree stay the brief's); query = names, description and file stems of the unit; budget 1,200 (docs) + 900 (tests) + 900 (commits) characters, 400 per extract; the extracts are in the unit's fingerprint (a related new commit redoes that unit only). `Bm25::search_any` drops the half-of-the-words rule, which a long query would never meet.
 
 * One commit per deliverable; the BM25 retrieval (7) comes last and may become its own issue if it grows.
 * The BM25 moves from `retrodoc-mcp` to `retrodoc-pipeline` (no new crate, ADR 0001 direction kept).

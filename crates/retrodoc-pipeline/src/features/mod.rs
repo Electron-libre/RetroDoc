@@ -21,7 +21,7 @@ use retrodoc_llm::LlmProvider;
 use serde::Deserialize;
 
 use crate::artifact::{load_yaml, save_yaml, warn_on_error, Artifact};
-use crate::brief::ProductBrief;
+use crate::brief::{Evidence, ProductBrief};
 use crate::domains::{DomainCluster, DomainMap, UNCATEGORIZED_SLUG};
 use crate::error::PipelineError;
 use crate::fingerprints::{fingerprint, Fingerprints};
@@ -92,6 +92,7 @@ pub async fn build_features(
     domains: &DomainMap,
     repo_map: &RepoMap,
     brief: &ProductBrief,
+    evidence: &Evidence,
     llm: &dyn LlmProvider,
 ) -> Result<Vec<Feature>, PipelineError> {
     let summaries: BTreeMap<&Path, &FileSummary> = repo_map
@@ -109,6 +110,7 @@ pub async fn build_features(
     let mut features: Vec<Feature> = Vec::new();
     for unit in units(domains) {
         let unit_key = unit_key(&unit.domain.slug, unit.sub_slug);
+        let close = evidence.section(&unit_query(&unit));
         let unit_print = fingerprint(
             unit.paths
                 .iter()
@@ -116,7 +118,8 @@ pub async fn build_features(
                     let summary = summaries.get(p.as_path()).map_or("", |f| &f.role_summary);
                     format!("{}\n{summary}", p.display())
                 })
-                .chain((!brief.fingerprint().is_empty()).then(|| brief.fingerprint())),
+                .chain((!brief.fingerprint().is_empty()).then(|| brief.fingerprint()))
+                .chain((!close.is_empty()).then(|| close.clone())),
         );
         if known_units.get(&unit_key) == Some(&unit_print) {
             if let Some(kept) = reusable(&previous, &features, &unit) {
@@ -138,6 +141,7 @@ pub async fn build_features(
             &unit.domain.name,
             &unit.domain.description,
             unit.sub_name,
+            &close,
             &unit_files,
         );
         let what = format!("features of {unit_key}");
@@ -195,6 +199,19 @@ fn units(domains: &DomainMap) -> impl Iterator<Item = Unit<'_>> {
             std::iter::once(own).chain(subs)
         })
         .filter(|unit| !unit.paths.is_empty())
+}
+
+/// What the evidence closest to a unit is searched with: its names and
+/// description, and its files (without their extension).
+fn unit_query(unit: &Unit<'_>) -> String {
+    let mut query = format!(
+        "{} {} {}",
+        unit.domain.name, unit.domain.description, unit.sub_name
+    );
+    for path in unit.paths {
+        let _ = write!(query, " {}", path.with_extension("").display());
+    }
+    query
 }
 
 /// Key of a unit in the fingerprints and the progress line.
@@ -290,6 +307,7 @@ fn features_prompt(
     domain_name: &str,
     domain_description: &str,
     sub_domain_name: &str,
+    evidence: &str,
     files: &[&FileSummary],
 ) -> String {
     let mut prompt = format!(
@@ -298,6 +316,9 @@ fn features_prompt(
     );
     if !sub_domain_name.is_empty() {
         let _ = writeln!(prompt, "Sub-domain: {sub_domain_name}");
+    }
+    if !evidence.is_empty() {
+        let _ = write!(prompt, "\n{evidence}");
     }
 
     let mut ranked: Vec<&&FileSummary> = files.iter().collect();

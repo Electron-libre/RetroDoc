@@ -62,17 +62,30 @@ pub(super) fn system_prompt(has_entry_points: bool, has_actors: bool) -> String 
     prompt
 }
 
+/// What frames the prompt of a feature besides the feature itself.
+pub(super) struct Framing<'a> {
+    pub actors: &'a Actors,
+    pub vocabulary: &'a [String],
+    pub brief: &'a ProductBrief,
+    /// The extracts of the project closest to the feature (may be empty).
+    pub evidence: &'a str,
+}
+
 /// Builds the user prompt for `feature` from the code of its files, within
 /// the prompt budget. Returns it with the set of files actually included.
 pub(super) fn use_cases_prompt(
     repo_root: &Path,
     feature: &Feature,
     input: &FeatureInput,
-    actors: &Actors,
-    vocabulary: &[String],
-    brief: &ProductBrief,
+    framing: &Framing<'_>,
     splitter: &Splitter,
 ) -> (String, BTreeSet<String>) {
+    let Framing {
+        actors,
+        vocabulary,
+        brief,
+        evidence,
+    } = *framing;
     let focus = focus_for(feature, &input.entries);
     let mut prompt = format!(
         "{}Feature: {} — {}\n",
@@ -80,6 +93,9 @@ pub(super) fn use_cases_prompt(
         feature.name,
         feature.description
     );
+    if !evidence.is_empty() {
+        let _ = write!(prompt, "\n{evidence}");
+    }
     if !vocabulary.is_empty() {
         let _ = write!(
             prompt,

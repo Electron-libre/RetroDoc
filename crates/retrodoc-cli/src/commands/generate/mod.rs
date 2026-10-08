@@ -68,7 +68,7 @@ pub async fn run(
 
     let llm = super::usage::provider(&config.llm, tracker)?;
 
-    let brief = super::brief::for_generate(repo_root, &ingest, &llm, tracker).await?;
+    let (brief, evidence) = super::brief::for_generate(repo_root, &ingest, &llm, tracker).await?;
 
     let (surface, entry_points, role_map) =
         build_surface(repo_root, &mut ingest, &brief, &llm, force, tracker).await?;
@@ -110,7 +110,14 @@ pub async fn run(
     let mut features = tracker
         .in_pass(
             "features",
-            retrodoc_pipeline::build_features(repo_root, &domain_map, &map, &brief, &llm),
+            retrodoc_pipeline::build_features(
+                repo_root,
+                &domain_map,
+                &map,
+                &brief,
+                &evidence,
+                &llm,
+            ),
         )
         .await
         .context("failed to derive the features")?;
@@ -127,6 +134,7 @@ pub async fn run(
                     actors,
                     vocabulary: surface.vocabulary(VOCABULARY_SIZE),
                     brief,
+                    evidence,
                 },
                 &surface,
                 &llm,

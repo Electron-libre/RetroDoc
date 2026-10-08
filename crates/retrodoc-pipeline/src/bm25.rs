@@ -72,6 +72,7 @@ const K1: f32 = 1.2;
 const B: f32 = 0.75;
 
 /// BM25 index; document `i` is the `i`-th text given to [`Bm25::new`].
+#[derive(Debug, Clone)]
 pub struct Bm25 {
     /// Word -> (document, occurrences in it).
     postings: HashMap<String, Vec<(usize, u32)>>,
@@ -112,8 +113,20 @@ impl Bm25 {
     /// `query`, stop words left out, best first, with their score; ties keep
     /// document order. A query made only of stop words finds nothing.
     #[must_use]
-    #[allow(clippy::cast_precision_loss)]
     pub fn search(&self, query: &str) -> Vec<(usize, f32)> {
+        self.rank(query, true)
+    }
+
+    /// Like [`Bm25::search`] without the half-of-the-words rule: any document
+    /// sharing a word with `query` is returned, so a long query (a name, a
+    /// description, a list of files) still finds the closest documents.
+    #[must_use]
+    pub fn search_any(&self, query: &str) -> Vec<(usize, f32)> {
+        self.rank(query, false)
+    }
+
+    #[allow(clippy::cast_precision_loss)]
+    fn rank(&self, query: &str, half_must_match: bool) -> Vec<(usize, f32)> {
         let total = self.lengths.len() as f32;
         let mut terms: Vec<String> = tokenize(query)
             .into_iter()
@@ -121,7 +134,11 @@ impl Bm25 {
             .collect();
         terms.sort();
         terms.dedup();
-        let needed = terms.len().div_ceil(2);
+        let needed = if half_must_match {
+            terms.len().div_ceil(2)
+        } else {
+            1
+        };
         // Per document: how many query words it has, and its score.
         let mut found: HashMap<usize, (usize, f32)> = HashMap::new();
         for term in &terms {
@@ -230,6 +247,18 @@ mod tests {
         assert_eq!(found("alpha beta zeta"), [1, 2]);
         // 2 words: 1 is enough.
         assert_eq!(found("alpha zeta"), [0, 1, 2]);
+    }
+
+    #[test]
+    fn search_any_needs_a_single_shared_word() {
+        let bm25 = index(&["alpha", "beta gamma"]);
+        let found = |q: &str| bm25.search_any(q).iter().map(|h| h.0).collect::<Vec<_>>();
+        assert_eq!(found("alpha one two three four five"), [0]);
+        assert_eq!(
+            bm25.search("alpha one two three four five"),
+            Vec::<(usize, f32)>::new()
+        );
+        assert_eq!(found("what is the"), Vec::<usize>::new());
     }
 
     #[test]

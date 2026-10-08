@@ -21,7 +21,7 @@ use serde::Deserialize;
 
 use crate::actors::Actors;
 use crate::artifact::{load_yaml, save_yaml, warn_on_error, Artifact};
-use crate::brief::ProductBrief;
+use crate::brief::{Evidence, ProductBrief};
 use crate::cache::hash_content;
 use crate::chunks::{Focus, Splitter};
 use crate::entry_points::{EntryPoint, EntryPoints};
@@ -41,7 +41,7 @@ mod tests;
 use self::grounding::{grounded_use_cases, RawUseCases};
 pub(crate) use self::grounding::{is_human, resolve_cited_path};
 pub(crate) use self::prompt::numbered_excerpt;
-use self::prompt::{system_prompt, use_cases_prompt};
+use self::prompt::{system_prompt, use_cases_prompt, Framing};
 
 /// How far from an entry point's file the code it runs is followed, and how
 /// many files are kept (see [`CodeIndex::slice`]).
@@ -125,6 +125,8 @@ pub struct UseCaseContext {
     pub vocabulary: Vec<String>,
     /// The product brief that frames every prompt (empty: none).
     pub brief: ProductBrief,
+    /// The signals the closest extracts of a feature are taken from (empty: none).
+    pub evidence: Evidence,
 }
 
 /// Derives the use cases of every feature from the code it is grounded on
@@ -152,6 +154,7 @@ pub async fn build_use_cases(
         actors,
         vocabulary,
         brief,
+        evidence,
     } = context;
     let saved = load_use_cases(repo_root);
     let mut prints = Fingerprints::load(repo_root);
@@ -170,7 +173,10 @@ pub async fn build_use_cases(
     for (position, feature) in features.iter().enumerate() {
         let key = format!("{}/{}", feature.domain_slug, feature.slug);
         let input = FeatureInput::new(repo_root, feature, entry_points, index);
-        let print = feature_fingerprint(repo_root, feature, &input, actors, vocabulary, brief);
+        let close = evidence.section(&feature_query(feature, &input));
+        let print = feature_fingerprint(
+            repo_root, feature, &input, actors, vocabulary, brief, &close,
+        );
         if known.get(&key) == Some(&print) {
             let kept: Vec<UseCase> = previous
                 .iter()
@@ -186,7 +192,16 @@ pub async fn build_use_cases(
         }
         progress.begin(&key);
         let (prompt, cited_files) = use_cases_prompt(
-            repo_root, feature, &input, actors, vocabulary, brief, &splitter,
+            repo_root,
+            feature,
+            &input,
+            &Framing {
+                actors,
+                vocabulary,
+                brief,
+                evidence: &close,
+            },
+            &splitter,
         );
         if cited_files.is_empty() {
             tracing::warn!(feature = %feature.slug, "feature skipped: none of its files is readable");
@@ -262,6 +277,7 @@ fn feature_fingerprint(
     actors: &Actors,
     vocabulary: &[String],
     brief: &ProductBrief,
+    evidence: &str,
 ) -> String {
     let files = input.files.iter().map(|path| {
         let content = std::fs::read(repo_root.join(path)).map_or_else(
@@ -292,8 +308,22 @@ fn feature_fingerprint(
                 vocabulary.join(",")
             )))
             .chain(files)
-            .chain((!brief.fingerprint().is_empty()).then(|| brief.fingerprint())),
+            .chain((!brief.fingerprint().is_empty()).then(|| brief.fingerprint()))
+            .chain((!evidence.is_empty()).then(|| evidence.to_string())),
     )
+}
+
+/// What the evidence closest to a feature is searched with: its text, its
+/// entry points and its files (without their extension).
+fn feature_query(feature: &Feature, input: &FeatureInput) -> String {
+    let mut query = format!("{} {}", feature.name, feature.description);
+    for (_, entry) in &input.entries {
+        let _ = write!(query, " {} {}", entry.name, entry.description);
+    }
+    for path in &input.files {
+        let _ = write!(query, " {}", Path::new(path).with_extension("").display());
+    }
+    query
 }
 
 /// What a feature's use cases are derived from: its entry points and the

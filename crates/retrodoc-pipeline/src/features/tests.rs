@@ -1,5 +1,6 @@
 use super::*;
 
+use crate::brief::Evidence;
 use crate::domains::{DomainCluster, SubDomainCluster};
 use crate::testing::FakeLlm;
 
@@ -66,6 +67,7 @@ async fn build_features_grounds_features_on_known_files_and_persists() {
         &domains,
         &repo_map,
         &ProductBrief::default(),
+        &Evidence::default(),
         &provider,
     )
     .await
@@ -108,6 +110,7 @@ async fn build_features_covers_sub_domains_and_dedupes_slugs() {
         &domains,
         &repo_map,
         &ProductBrief::default(),
+        &Evidence::default(),
         &provider,
     )
     .await
@@ -138,6 +141,7 @@ async fn build_features_skips_a_unit_with_an_unparseable_response() {
         &domains,
         &repo_map,
         &ProductBrief::default(),
+        &Evidence::default(),
         &provider,
     )
     .await
@@ -169,6 +173,7 @@ async fn rerun_reuses_unchanged_units_and_redoes_changed_ones() {
         &domains,
         &map("v1"),
         &ProductBrief::default(),
+        &Evidence::default(),
         &provider,
     )
     .await
@@ -180,6 +185,7 @@ async fn rerun_reuses_unchanged_units_and_redoes_changed_ones() {
         &domains,
         &map("v1"),
         &ProductBrief::default(),
+        &Evidence::default(),
         &provider,
     )
     .await
@@ -192,6 +198,7 @@ async fn rerun_reuses_unchanged_units_and_redoes_changed_ones() {
         &domains,
         &map("v2"),
         &ProductBrief::default(),
+        &Evidence::default(),
         &provider,
     )
     .await
@@ -227,6 +234,7 @@ async fn feature_slugs_are_unique_across_domains() {
         &domains,
         &repo_map,
         &ProductBrief::default(),
+        &Evidence::default(),
         &provider,
     )
     .await
@@ -265,6 +273,7 @@ async fn a_failed_run_keeps_the_units_done_and_the_rerun_resumes() {
         &domains,
         &repo_map,
         &ProductBrief::default(),
+        &Evidence::default(),
         &flaky
     )
     .await
@@ -278,6 +287,7 @@ async fn a_failed_run_keeps_the_units_done_and_the_rerun_resumes() {
         &domains,
         &repo_map,
         &ProductBrief::default(),
+        &Evidence::default(),
         &healthy,
     )
     .await
@@ -302,9 +312,16 @@ async fn the_brief_heads_the_prompt_and_a_changed_brief_derives_again() {
     );
     let brief = crate::testing::brief("Sells things.");
 
-    build_features(dir.path(), &domains, &repo_map, &brief, &provider)
-        .await
-        .unwrap();
+    build_features(
+        dir.path(),
+        &domains,
+        &repo_map,
+        &brief,
+        &Evidence::default(),
+        &provider,
+    )
+    .await
+    .unwrap();
     let prompt = provider.prompts().remove(0);
     assert!(
         prompt.starts_with("Product brief of the application"),
@@ -312,14 +329,121 @@ async fn the_brief_heads_the_prompt_and_a_changed_brief_derives_again() {
     );
     assert!(prompt.find("Purpose: Sells things.").unwrap() < prompt.find("Domain:").unwrap());
 
-    build_features(dir.path(), &domains, &repo_map, &brief, &provider)
-        .await
-        .unwrap();
+    build_features(
+        dir.path(),
+        &domains,
+        &repo_map,
+        &brief,
+        &Evidence::default(),
+        &provider,
+    )
+    .await
+    .unwrap();
     assert_eq!(provider.calls(), 1);
 
     let other = crate::testing::brief("Rents things.");
-    build_features(dir.path(), &domains, &repo_map, &other, &provider)
-        .await
-        .unwrap();
+    build_features(
+        dir.path(),
+        &domains,
+        &repo_map,
+        &other,
+        &Evidence::default(),
+        &provider,
+    )
+    .await
+    .unwrap();
     assert_eq!(provider.calls(), 2);
+}
+
+fn evidence_of(signals: &[(retrodoc_ingest::signals::SignalKind, &str, &str)]) -> Evidence {
+    let signals: Vec<_> = signals
+        .iter()
+        .map(|(kind, origin, text)| retrodoc_ingest::signals::Signal {
+            kind: *kind,
+            origin: (*origin).to_string(),
+            text: (*text).to_string(),
+        })
+        .collect();
+    Evidence::new(&signals)
+}
+
+#[tokio::test]
+async fn the_evidence_closest_to_a_unit_is_in_its_prompt_and_moves_only_its_fingerprint() {
+    use retrodoc_ingest::signals::SignalKind::{CommitSubject, DocSection};
+    let dir = tempfile::tempdir().unwrap();
+    let repo_map = RepoMap {
+        files: vec![
+            file_summary("billing/invoice.rs"),
+            file_summary("auth/login.rs"),
+        ],
+        modules: Vec::new(),
+    };
+    let domains = DomainMap {
+        domains: vec![
+            domain("billing", &["billing/invoice.rs"], Vec::new()),
+            domain("auth", &["auth/login.rs"], Vec::new()),
+        ],
+    };
+    let provider = FakeLlm::replying(|_, request| {
+        let file = if request.messages[1].content.contains("billing/invoice.rs") {
+            "billing/invoice.rs"
+        } else {
+            "auth/login.rs"
+        };
+        Ok(format!(
+            r#"{{"features":[{{"slug":"f-{}","name":"F","description":"d","files":["{file}"]}}]}}"#,
+            file.len()
+        ))
+    });
+    let run = |evidence: Evidence| {
+        let (dir, domains, repo_map, provider) = (&dir, &domains, &repo_map, &provider);
+        async move {
+            build_features(
+                dir.path(),
+                domains,
+                repo_map,
+                &ProductBrief::default(),
+                &evidence,
+                provider,
+            )
+            .await
+            .unwrap()
+        }
+    };
+    let invoices = (
+        DocSection,
+        "docs/billing.md#Invoices",
+        "An invoice is sent to the customer.",
+    );
+    let before = evidence_of(&[invoices]);
+
+    run(before.clone()).await;
+    assert_eq!(provider.calls(), 2);
+    let prompts = provider.prompts();
+    let billing = prompts
+        .iter()
+        .find(|p| p.contains("billing/invoice.rs"))
+        .unwrap();
+    assert!(
+        billing.contains("[docs/billing.md#Invoices]"),
+        "{}",
+        billing
+    );
+    let auth = prompts
+        .iter()
+        .find(|p| p.contains("auth/login.rs"))
+        .unwrap();
+    assert!(!auth.contains("Project evidence"), "{}", auth);
+
+    // The same evidence: nothing is asked again.
+    run(before).await;
+    assert_eq!(provider.calls(), 2);
+
+    // A commit close to billing only derives billing again.
+    let after = evidence_of(&[
+        invoices,
+        (CommitSubject, "commit:abc", "fix: invoice rounding"),
+    ]);
+    run(after).await;
+    assert_eq!(provider.calls(), 3);
 }

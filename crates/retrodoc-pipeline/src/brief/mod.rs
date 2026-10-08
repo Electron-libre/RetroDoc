@@ -11,6 +11,7 @@
 //! changed by hand is kept as is, an untouched one is reused while the
 //! sample is the same (commits left out: they come all the time).
 
+mod evidence;
 mod sample;
 
 use std::collections::BTreeSet;
@@ -25,6 +26,7 @@ use crate::artifact::{load_yaml, save_yaml, Artifact};
 use crate::cache::hash_content;
 use crate::error::PipelineError;
 use crate::response::complete_json;
+pub use evidence::Evidence;
 use sample::{Sample, SAMPLE_BUDGET};
 
 /// Entries kept per list of the brief.

@@ -7,7 +7,7 @@ use retrodoc_ingest::signals::{self, Signal};
 use retrodoc_ingest::IngestResult;
 use retrodoc_llm::LlmProvider;
 use retrodoc_llm::UsageTracker;
-use retrodoc_pipeline::{Artifact, Claim, ProductBrief};
+use retrodoc_pipeline::{Artifact, Claim, Evidence, ProductBrief};
 
 use super::workspace::Workspace;
 
@@ -79,26 +79,44 @@ pub fn saved(repo_root: &Path) -> ProductBrief {
 /// The brief `generate` frames its passes with: the saved one as it is
 /// (edited or not, it is refreshed by `retrodoc brief`, not behind the back
 /// of every other pass), otherwise one written now from the signals of the
-/// repository. Empty when there is no evidence or no usable answer.
+/// repository. Empty when there is no evidence or no usable answer. With it
+/// come the signals, searched for the extracts closest to a feature.
 pub async fn for_generate(
     repo_root: &Path,
     ingest: &IngestResult,
     llm: &dyn LlmProvider,
     tracker: &UsageTracker,
-) -> anyhow::Result<ProductBrief> {
-    if Artifact::Product.path(repo_root).exists() {
-        return Ok(saved(repo_root));
+) -> anyhow::Result<(ProductBrief, Evidence)> {
+    let saved_brief = Artifact::Product.path(repo_root).exists();
+    if !saved_brief {
+        println!("Writing the product brief…");
     }
-    println!("Writing the product brief…");
-    let sources = tracker
-        .in_pass(
-            "sources",
-            retrodoc_pipeline::infer_sources(repo_root, ingest, llm, false),
-        )
-        .await
-        .context("failed to locate the schema and translations")?;
-    let all =
-        signals::collect(repo_root, ingest, &sources).context("could not collect the signals")?;
+    let sources = if saved_brief {
+        retrodoc_pipeline::saved_or_sniffed(repo_root, &ingest.files)
+    } else {
+        tracker
+            .in_pass(
+                "sources",
+                retrodoc_pipeline::infer_sources(repo_root, ingest, llm, false),
+            )
+            .await
+            .context("failed to locate the schema and translations")?
+    };
+    let collected = signals::collect(repo_root, ingest, &sources);
+    if saved_brief {
+        // The signals only feed the extracts of the units: the saved brief
+        // doesn't need them.
+        let evidence = collected.map_or_else(
+            |err| {
+                tracing::warn!("signals not collected, no extracts for the units: {err}");
+                Evidence::default()
+            },
+            |all| Evidence::new(&all),
+        );
+        return Ok((saved(repo_root), evidence));
+    }
+    let all = collected.context("could not collect the signals")?;
+    let evidence = Evidence::new(&all);
     let brief = tracker
         .in_pass(
             "brief",
@@ -106,7 +124,7 @@ pub async fn for_generate(
         )
         .await
         .context("failed to write the product brief")?;
-    Ok(brief.unwrap_or_default())
+    Ok((brief.unwrap_or_default(), evidence))
 }
 
 /// The brief as printed: each claim with where it comes from, `(unsupported)`
@@ -294,7 +312,7 @@ mod tests {
             commits: Vec::new(),
         };
 
-        let used = for_generate(dir.path(), &ingest, &NoCall, &UsageTracker::new())
+        let (used, _) = for_generate(dir.path(), &ingest, &NoCall, &UsageTracker::new())
             .await
             .unwrap();
 

@@ -1,5 +1,6 @@
 use super::*;
 
+use crate::brief::Evidence;
 use crate::testing::FakeLlm;
 
 fn feature(slug: &str, paths: &[&str]) -> Feature {
@@ -620,5 +621,82 @@ async fn the_brief_heads_the_prompt_and_a_changed_brief_derives_again() {
     build_use_cases(dir.path(), &features, &with("Rents things."), &provider)
         .await
         .unwrap();
+    assert_eq!(provider.calls(), 2);
+}
+
+#[tokio::test]
+async fn the_evidence_closest_to_a_feature_is_in_its_prompt_and_in_its_fingerprint() {
+    use retrodoc_ingest::signals::{Signal, SignalKind};
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.rs"), "fn a() {}").unwrap();
+    let mut late = feature("late", &["a.rs"]);
+    late.name = "Late payment reminders".to_string();
+    let features = vec![late];
+    let provider = FakeLlm::answering(
+        r#"{"use_cases":[{"slug":"u","name":"U","description":"d","steps":[
+            {"description":"s","actor":{"name":"A","kind":"human"},"action":"act",
+             "source_refs":[{"path":"a.rs"}]}]}]}"#,
+    );
+    let signal = |kind, origin: &str, text: &str| Signal {
+        kind,
+        origin: origin.to_string(),
+        text: text.to_string(),
+    };
+    let reminders = signal(
+        SignalKind::DocSection,
+        "README.md#Reminders",
+        "A reminder is sent when a payment is late.",
+    );
+    let with = |signals: &[Signal]| UseCaseContext {
+        evidence: Evidence::new(signals),
+        ..UseCaseContext::default()
+    };
+
+    build_use_cases(
+        dir.path(),
+        &features,
+        &with(std::slice::from_ref(&reminders)),
+        &provider,
+    )
+    .await
+    .unwrap();
+    let prompt = provider.prompt_pairs().remove(0).1;
+    assert!(prompt.contains("[README.md#Reminders]"), "{prompt}");
+    assert!(prompt.find("Project evidence").unwrap() < prompt.find("Source files:").unwrap());
+
+    build_use_cases(
+        dir.path(),
+        &features,
+        &with(std::slice::from_ref(&reminders)),
+        &provider,
+    )
+    .await
+    .unwrap();
+    assert_eq!(provider.calls(), 1);
+
+    let unrelated = signal(SignalKind::CommitSubject, "commit:1", "chore: bump ruby");
+    build_use_cases(
+        dir.path(),
+        &features,
+        &with(&[reminders.clone(), unrelated]),
+        &provider,
+    )
+    .await
+    .unwrap();
+    assert_eq!(provider.calls(), 1, "an unrelated signal changes nothing");
+
+    let related = signal(
+        SignalKind::CommitSubject,
+        "commit:2",
+        "fix: late payment reminder",
+    );
+    build_use_cases(
+        dir.path(),
+        &features,
+        &with(&[reminders, related]),
+        &provider,
+    )
+    .await
+    .unwrap();
     assert_eq!(provider.calls(), 2);
 }
