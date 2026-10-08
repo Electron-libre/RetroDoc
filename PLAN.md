@@ -440,7 +440,8 @@ LLM in up to five passes.
 Decisions (accepted ADRs):
 - [0019](docs/adr/0019-product-brief-and-non-code-evidence-first.md): collect the non-code signals
   mechanically and write an editable product brief (`product.yaml`) that frames every later prompt; each
-  unit retrieves its relevant doc sections, commits and test phrases with BM25.
+  unit retrieves its relevant doc sections, commits and test phrases with BM25. The retrieval per unit is built but off by default (`brief.evidence`) since the
+  benchmarks did not show a gain; to be tried again in `issues/brief_injection_experiments.md`.
 - [0020](docs/adr/0020-cover-behaviours-not-files.md) (supersedes 0004): every entry point belongs to one
   use case; domains and features are built from entry points and entities; files reached by no behaviour
   are reported as technical support; the LLM repo map becomes optional; confidence is mostly
