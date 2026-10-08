@@ -17,6 +17,7 @@ pub mod actors;
 mod artifact;
 mod batched_read;
 pub mod benchmark;
+pub mod bm25;
 pub mod brief;
 pub mod cache;
 mod chunk_check;
@@ -47,6 +48,7 @@ pub mod vocabulary;
 
 pub use actors::{authorization_files, build_actors, Actors, BusinessActor};
 pub use artifact::Artifact;
+pub use bm25::Bm25;
 pub use brief::{build_brief, sample_chars, Claim, ProductBrief};
 pub use confidence::score_confidence;
 pub use diagrams::{attach_diagrams, sequence_diagram};

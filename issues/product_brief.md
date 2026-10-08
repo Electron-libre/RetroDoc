@@ -40,7 +40,7 @@ editable `.retrodoc/cache/product.yaml`, and feed the brief to the later prompts
 * ADR `0019`, ADR `0008`, ADR `0001` (crate direction, for where the BM25 goes)
 * `crates/retrodoc-ingest/src/` (`existing_docs.rs`, `git_history.rs`, `walker.rs`)
 * `crates/retrodoc-pipeline/src/roles/` (the editable-artifact pattern), `surface.rs`, `domains/prompt.rs`
-* `crates/retrodoc-mcp/src/bm25.rs`
+* `crates/retrodoc-pipeline/src/bm25.rs` (moved from `retrodoc-mcp`)
 * `issues/locate_business_files.md` (takes the brief as input)
 
 # Hints
@@ -62,7 +62,9 @@ editable `.retrodoc/cache/product.yaml`, and feed the brief to the later prompts
 6. [x] Inject the brief in the prompts and fingerprints, in two commits:
    * 6a. [x] `generate` writes or reuses the brief first; roles, glossary, entry points, actors read it
    * 6b. [x] domains, features, use cases read it
-7. [ ] Move the BM25 to `retrodoc-pipeline` and retrieve per unit for features and use cases
+7. [ ] BM25 retrieval per unit, in two commits:
+   * 7a. [x] move the BM25 to `retrodoc-pipeline`, `retrodoc-mcp` uses it from there (structural, tests unchanged)
+   * 7b. [ ] index of the signals, retrieval per unit for features and use cases (budget, fingerprint)
 8. [ ] Benchmark before and after (ask before running: real cost), final docs and ADR 0019 update
 
 ## Decisions

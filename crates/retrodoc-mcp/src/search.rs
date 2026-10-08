@@ -1,8 +1,8 @@
 //! Lexical search over the [`Entry`] list: BM25 with the title counted
 //! three times, so a name beats a passing mention.
 
-use crate::bm25::Bm25;
 use crate::corpus::Entry;
+use retrodoc_pipeline::Bm25;
 
 const TITLE_WEIGHT: usize = 3;
 

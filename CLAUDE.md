@@ -146,8 +146,8 @@ retrodoc-cli ──> retrodoc-mcp ──> retrodoc-pipeline, retrodoc-ingest, re
   `_retrodoc/run-metadata.json` has a timestamp that is ignored when it's the only change, so reruns are no-ops. `functional/llms.txt` (`agent_index`) is the `llms.txt`-style entry point for agents that don't
   run the MCP server: domains and features with links and confidence, how to read them and a pointer to `retrodoc mcp`.
   The CLI drops generated docs (`functional/`, `_retrodoc/`) from the ingested existing docs.
-- **retrodoc-mcp** (`bm25.rs`, `corpus.rs`, `search.rs`, `freshness.rs`, `source.rs`, `tools.rs`, `server.rs`): read-only access to the generated docs
-  for LLM agents, with no LLM call (see `issues/mcp_server.md`). `SearchIndex` ranks (hand-written BM25, title counted
+- **retrodoc-mcp** (`corpus.rs`, `search.rs`, `freshness.rs`, `source.rs`, `tools.rs`, `server.rs`): read-only access to the generated docs
+  for LLM agents, with no LLM call (see `issues/mcp_server.md`). `SearchIndex` ranks (the hand-written BM25 of `retrodoc-pipeline`'s `bm25.rs`, shared with the pipeline, title counted
   three times, stop words in English and French dropped, at least half of the query words must match) one `Entry` per
   domain, sub-domain, feature, use case, glossary concept and collected Markdown doc, each with its id, confidence and
   cited files. `Docs` (`Docs::load` reads `.retrodoc/cache/` + the collected docs) answers the seven tools in Markdown
