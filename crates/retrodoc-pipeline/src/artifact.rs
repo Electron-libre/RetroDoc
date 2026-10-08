@@ -20,6 +20,7 @@ pub enum Artifact {
     Fingerprints,
     Roles,
     SignalSources,
+    Product,
     Glossary,
     EntryPoints,
     Actors,
@@ -31,11 +32,12 @@ pub enum Artifact {
 }
 
 impl Artifact {
-    pub const ALL: [Artifact; 12] = [
+    pub const ALL: [Artifact; 13] = [
         Artifact::RepoMap,
         Artifact::Fingerprints,
         Artifact::Roles,
         Artifact::SignalSources,
+        Artifact::Product,
         Artifact::Glossary,
         Artifact::EntryPoints,
         Artifact::Actors,
@@ -53,6 +55,7 @@ impl Artifact {
             Artifact::Fingerprints => "fingerprints.json",
             Artifact::Roles => "roles.yaml",
             Artifact::SignalSources => "signal-sources.yaml",
+            Artifact::Product => "product.yaml",
             Artifact::Glossary => "glossary.yaml",
             Artifact::EntryPoints => "entry-points.yaml",
             Artifact::Actors => "actors.yaml",
@@ -76,7 +79,7 @@ impl Artifact {
     }
 
     /// Whether `generate --force` removes it. The others are not results to
-    /// redo: `roles.yaml` and `signal-sources.yaml` are hand-editable (`retrodoc roles --force`
+    /// redo: `roles.yaml`, `signal-sources.yaml` and `product.yaml` are hand-editable (`retrodoc roles --force`
     /// identifies it again), `usage.json` is the history of the runs, and
     /// `domains.yaml` and `scope.yaml` are recomputed on every run anyway.
     #[must_use]
@@ -91,6 +94,7 @@ impl Artifact {
             | Artifact::UseCases => true,
             Artifact::Roles
             | Artifact::SignalSources
+            | Artifact::Product
             | Artifact::Scope
             | Artifact::Domains
             | Artifact::Usage => false,
@@ -174,6 +178,7 @@ mod tests {
             [
                 "roles.yaml",
                 "signal-sources.yaml",
+                "product.yaml",
                 "scope.yaml",
                 "domains.yaml",
                 "usage.json"

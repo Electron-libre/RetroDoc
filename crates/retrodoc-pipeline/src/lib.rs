@@ -17,6 +17,7 @@ pub mod actors;
 mod artifact;
 mod batched_read;
 pub mod benchmark;
+pub mod brief;
 pub mod cache;
 mod chunk_check;
 pub mod chunks;
@@ -46,6 +47,7 @@ pub mod vocabulary;
 
 pub use actors::{authorization_files, build_actors, Actors, BusinessActor};
 pub use artifact::Artifact;
+pub use brief::{build_brief, Claim, ProductBrief};
 pub use confidence::score_confidence;
 pub use diagrams::{attach_diagrams, sequence_diagram};
 pub use domains::{build_domains, CoverageReport, DomainCluster, DomainMap, SubDomainCluster};
