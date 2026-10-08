@@ -16,6 +16,8 @@ domains, features, a sample of use cases and rules, the pinned commit) and the h
 just benchmark benchmark/<repo>/reference.yaml                 # 1 run per series
 just benchmark benchmark/<repo>/reference.yaml --runs 3        # the spread needs 3 at least
 just benchmark <reference> --model <m> --base-url <u>          # another model or server
+just benchmark <reference> --provider deepseek --runs 3 --no-confidence   # hosted: key in .env, about $0.30 per linkding run
+just benchmark <reference> --series hidden                     # one series only
 ```
 
 It takes minutes to hours per run (2 series × N runs), so launch it with `run_in_background` and read
@@ -37,6 +39,8 @@ a later run generates. The figures are therefore read like this:
 - **(judged)** figures: the hand-written pairs, equal names, **and the LLM judge's proposals**. They are
   the main figures. The judge shares the biases of the model that generated the docs, hence the audit
   below.
+- **Narratives in business language (judge)** and **use cases fully in business language (score 1)**: the
+  two measures to follow. The mean of the deterministic score saturates near 95% and hides differences.
 - **no suffix** (strict): the hand-written pairs and equal names only. An audited floor, which rises as
   verified pairs are added to `matches.yaml`.
 - A change smaller than the range between runs is noise, not progress. One run is a sample, not a

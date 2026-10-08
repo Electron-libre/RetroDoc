@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 RetroDoc is a Rust CLI that uses LLM agents to catch up on a software project's documentation debt.
 v1 (MVP) scope: **functional documentation only**, from a **local Git repo** (code + commit history +
-existing Markdown docs), using **OpenRouter** as the only LLM provider. See `PRODUCT.md` for the long-term
+existing Markdown docs), using **OpenRouter** or the **DeepSeek** API as LLM provider (same wire format). See `PRODUCT.md` for the long-term
 product vision and `PLAN.md` for the v1 architecture, pipeline stages, and roadmap — read `PLAN.md` before
 starting new work, it's the source of truth for what each roadmap phase covers and what's still out of
 scope for v1 (technical/C4 docs, GitHub/GitLab/Jira connectors, multi-provider LLM).
@@ -40,6 +40,9 @@ cargo run -p retrodoc-cli -- init --path <target-repo>
 cargo run -p retrodoc-cli -- scan --path <target-repo>
 OPENROUTER_API_KEY=... cargo run -p retrodoc-cli -- generate --path <target-repo>
 ```
+
+API keys may live in a git-ignored `.env` (read by the CLI at startup, `dotenvy`; variables already set win).
+With `provider = "deepseek"` in `retrodoc.toml` the key is `DEEPSEEK_API_KEY`.
 
 ## Agent harness
 
@@ -80,8 +83,8 @@ retrodoc-cli ──> retrodoc-mcp ──> retrodoc-pipeline, retrodoc-ingest, re
   git history per file via `git2` revwalk+diff (`git_history.rs`, not a `git log` per file — matters for
   perf on large repos; `file_log` is the exception, the recent commits of one file for the MCP `git_log`), existing Markdown docs (`existing_docs.rs`). `run()` combines all three into an
   `IngestResult`.
-- **retrodoc-llm** (`types.rs`, `heartbeat.rs`, `openrouter.rs`, `usage.rs`): `LlmProvider` trait abstraction (kept provider-agnostic even though only OpenRouter is
-  implemented in v1) + `OpenRouterProvider`, a real `reqwest` HTTP client with exponential-backoff retry on
+- **retrodoc-llm** (`types.rs`, `heartbeat.rs`, `openrouter.rs`, `usage.rs`): `LlmProvider` trait abstraction (kept provider-agnostic) + `OpenRouterProvider`, which serves
+  `provider = "openrouter"` and `"deepseek"` (same chat-completions format, own endpoint and key variable; ADR 0024), a real `reqwest` HTTP client with exponential-backoff retry on
   429/5xx that honors the delay the server asks for (`Retry-After`, Google's `retryDelay`; up to 120 s, a longer
   one is an error). Per-request HTTP timeout is 120 s unless `llm.timeout_secs` is set (a slow local
   model writing a long JSON answer needs more; a timeout restarts the whole generation on retry). `CompletionResponse.usage`
@@ -110,7 +113,7 @@ retrodoc-cli ──> retrodoc-mcp ──> retrodoc-pipeline, retrodoc-ingest, re
   | `vocabulary.rs` | Deterministic `business_language` score per use case, recomputed each run. |
   | `confidence/` | LLM verdict per step against the cited code; score capped for ungrounded steps (`--no-confidence`, `--confidence-sample N`). |
   | `report.rs` | Documentation debt report from the saved artifacts (`retrodoc report`, no LLM). |
-  | `benchmark/` | Quality benchmark (`issues/quality_benchmark.md`, in progress): `Reference` (hand-written `benchmark/<repo>/reference.yaml`, checked on load) and `RunMetrics` (sizes, mean business-language and confidence scores, cost of the last `generate`, read from `.retrodoc/cache/`, no LLM). `Matches` (hand-written `matches.yaml`, wins over the normalized-name match) and `compare` (recall and precision of domains and features, with what is left unmatched). `judge` (LLM proposals for what is left unmatched, rating of narratives; never overrides `matches.yaml`) and `summary` (the text `retrodoc benchmark` prints) and `table` (`RunReport` per run, series per configuration, mean/range/change table). |
+  | `benchmark/` | Quality benchmark (`issues/done/quality_benchmark.md`, `issues/benchmark_spread_and_judge_bias.md`): `Reference` (hand-written `benchmark/<repo>/reference.yaml`, checked on load) and `RunMetrics` (sizes, mean business-language score and the share of use cases at score 1, mean confidence, cost of the last `generate`, read from `.retrodoc/cache/`, no LLM). `Matches` (hand-written `matches.yaml`, wins over the normalized-name match) and `compare` (recall and precision of domains and features, with what is left unmatched). `judge` (LLM proposals for what is left unmatched, rating of narratives; never overrides `matches.yaml`) and `summary` (the text `retrodoc benchmark` prints) and `table` (`RunReport` per run, series per configuration, mean/range/change table). |
 
   Cross-cutting pieces: `batched_read.rs` (the loop of the glossary and entry points passes: files in
   batches of ~12k chars, an unusable batch retried file by file, a checkpoint after each batch), `artifact.rs` (`Artifact`: the names of everything under `.retrodoc/cache/` and which `generate --force` clears; load/save of those files; a missing or

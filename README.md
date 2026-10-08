@@ -7,7 +7,8 @@ RetroDoc reads a local Git repository (code, commit history, existing Markdown d
 Mermaid sequence diagram and a confidence score. It also tells you where the documentation debt is.
 
 > **Status: v1 (MVP).** Functional documentation only, local Git repos only, [OpenRouter](https://openrouter.ai)
-> as the LLM provider (any OpenAI-compatible endpoint, such as a local Ollama, works through `base_url`).
+> or the [DeepSeek](https://platform.deepseek.com) API as the LLM provider (any OpenAI-compatible endpoint, such as a
+> local Ollama, works through `base_url`).
 > Technical/C4 docs, GitHub/GitLab/Jira connectors and multi-provider support are future work, see
 > [PRODUCT.md](./PRODUCT.md) for the vision and [PLAN.md](./PLAN.md) for the roadmap.
 
@@ -46,7 +47,7 @@ cargo build --release          # binary: target/release/retrodoc
 ## Quick start
 
 ```sh
-export OPENROUTER_API_KEY=...
+export OPENROUTER_API_KEY=...     # or DEEPSEEK_API_KEY with provider = "deepseek"; a .env file works too
 
 retrodoc init     --path <target-repo>   # creates retrodoc.toml
 retrodoc scan     --path <target-repo>   # files + history + existing docs, no LLM, nothing written
@@ -84,7 +85,7 @@ verification pass, and `llm.concurrency` / `llm.batch_chars` parallelize and bat
 
 ```toml
 [llm]
-provider = "openrouter"
+provider = "openrouter"             # or "deepseek" (model "deepseek-chat", key in DEEPSEEK_API_KEY)
 api_key_env = "OPENROUTER_API_KEY"   # name of the variable, never the key itself
 model = "anthropic/claude-sonnet-4.5"
 # base_url = "http://localhost:11434/v1/chat/completions"   # any OpenAI-compatible server

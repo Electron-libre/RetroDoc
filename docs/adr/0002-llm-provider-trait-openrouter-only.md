@@ -1,6 +1,6 @@
 # 0002. `LlmProvider` trait, OpenRouter as the only provider
 
-Status: Accepted
+Status: Superseded by 0024
 
 _Retroactive ADR, reconstructed from the history (71b8e98, 86068f5, c664ac1; 2026-09-28 to 2026-09-30)._
 

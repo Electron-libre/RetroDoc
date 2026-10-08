@@ -9,7 +9,7 @@ This document details the first version (MVP) of RetroDoc. The long-term scope i
 |---|---|
 | Scope | Functional documentation only (domains → features → use cases → steps/actors → process diagrams) |
 | Input | Local Git repo (code + commit history) + existing Markdown documents supplied as input |
-| LLM | OpenRouter, via an abstraction interface (`trait LlmProvider`) so the model choice isn't locked in |
+| LLM | OpenRouter (or the DeepSeek API, same format), via an abstraction interface (`trait LlmProvider`) so the model choice isn't locked in |
 | Output | Markdown + Mermaid files written directly into `docs/` of the analyzed repo |
 | Reliability | Each generated section carries a **confidence score**, aggregated into a coverage report |
 
@@ -58,7 +58,7 @@ docs/
 - `retrodoc-cli` — binary, `clap` (`init`, `scan`, `generate`, `render`, `report`, `roles`, `glossary`, `entry-points`, `actors`, `surface`, `benchmark`, `benchmark-table`, `search`, `mcp`)
 - `retrodoc-core` — domain model (Domain, Feature, UseCase, Step, Actor, ConfidenceScore)
 - `retrodoc-ingest` — walker (`ignore`), history (`git2`), Markdown parsing
-- `retrodoc-llm` — provider abstraction + OpenRouter implementation (chat completion, retry, rate-limit)
+- `retrodoc-llm` — provider abstraction + OpenRouter/DeepSeek implementation (chat completion, retry, rate-limit)
 - `retrodoc-pipeline` — multi-pass orchestration + incremental cache (`.retrodoc/cache/`, key = content hash)
 - `retrodoc-render` — Markdown/Mermaid writing, diff preview
 - `retrodoc-mcp` — read-only, LLM-free access to the generated docs for agents (BM25 search, MCP server over stdio)

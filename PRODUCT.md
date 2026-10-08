@@ -7,7 +7,7 @@ Catch up on a software project's documentation debt by putting AI agents to work
 ## v1 scope (MVP)
 
 v1 is limited to **functional documentation**, starting from a **local Git repo** (code + history +
-existing Markdown documents), with **OpenRouter** as the LLM provider. The detailed plan and architecture
+existing Markdown documents), with **OpenRouter** (or the DeepSeek API) as the LLM provider. The detailed plan and architecture
 are in [PLAN.md](./PLAN.md).
 
 The rest of this document describes the long-term product vision; the sections not covered by v1

@@ -14,7 +14,7 @@ cases → diagrams, each with a **confidence score** telling how well the code s
 flowchart LR
     repo[("Local Git repo<br/>code + history + .md")] --> rd{{RetroDoc}}
     cfg["retrodoc.toml"] --> rd
-    llm(["LLM<br/>(OpenRouter, or any<br/>compatible server)"]) <--> rd
+    llm(["LLM<br/>(OpenRouter, DeepSeek, or any<br/>compatible server)"]) <--> rd
     rd --> docs["docs/functional/…<br/>Markdown + Mermaid"]
     rd --> rep["docs/_retrodoc/<br/>coverage-report.md"]
     rd --> cache[(".retrodoc/cache/<br/>intermediate artifacts")]
@@ -54,7 +54,7 @@ flowchart TD
 |---|---|
 | `retrodoc-core` | Shared vocabulary: `Domain`, `Feature`, `UseCase`, `Step`, `ConfidenceScore`, and the `retrodoc.toml` config. |
 | `retrodoc-ingest` | Reads the repo: files (honouring `.gitignore`, classified `Source`/`Test`/`Markdown`/`Other`), git history in one pass, existing docs. |
-| `retrodoc-llm` | Talks to the model. `LlmProvider` is a trait; the only implementation is `OpenRouterProvider` (HTTP, retry with backoff on 429/5xx). `UsageProvider` wraps it to count calls and tokens per pass. |
+| `retrodoc-llm` | Talks to the model. `LlmProvider` is a trait; the implementation is `OpenRouterProvider`, for `openrouter` and `deepseek` (HTTP, retry with backoff on 429/5xx). `UsageProvider` wraps it to count calls and tokens per pass. |
 | `retrodoc-pipeline` | The brain: one module per pass, plus caches, fingerprints and the debt report. |
 | `retrodoc-render` | Turns the result into Markdown files, compares with disk, writes only what changed. |
 | `retrodoc-mcp` | Read-only access to the generated docs for LLM agents, without any LLM call. The BM25 search behind `retrodoc search` and the MCP server (`retrodoc mcp`, `rmcp`, stdio) with its seven read-only tools. |
@@ -252,7 +252,7 @@ flowchart LR
     trait --> or["OpenRouterProvider<br/>HTTP + exponential-backoff retry"]
     trait -.->|wrappers| wrap["HeartbeatProvider<br/>UsageProvider (tokens per pass)"]
     trait -.-> fake["test fakes<br/>(FakeLlm)"]
-    or --> ep[("OpenRouter, or any server speaking the<br/>OpenAI chat-completions format<br/>via llm.base_url (e.g. local Ollama)")]
+    or --> ep[("OpenRouter, DeepSeek, or any server speaking the<br/>OpenAI chat-completions format<br/>via llm.base_url (e.g. local Ollama)")]
 ```
 
 ## 9. Serving the docs to agents (MCP)
@@ -295,4 +295,4 @@ flowchart LR
 | Change what an agent can ask (MCP tools, search, code access) | `crates/retrodoc-mcp/src/` (`tools.rs` the answers, `server.rs` the wiring, `source.rs` the code access scope) |
 | Add a CLI command | `crates/retrodoc-cli/src/commands/` + `main.rs` |
 | Change config options | `crates/retrodoc-core/src/config.rs` |
-| Understand why a design choice was made | `docs/adr/` (ADRs 0001–0014 were written retroactively from the history; 0015 to 0018 were written with the change; 0019 to 0023 decide the redesign of `PLAN.md` §7.5 ahead of its implementation) |
+| Understand why a design choice was made | `docs/adr/` (ADRs 0001–0014 were written retroactively from the history; 0015 to 0018 were written with the change; 0019 to 0023 decide the redesign of `PLAN.md` §7.5 ahead of its implementation; 0024 adds DeepSeek as a provider) |
