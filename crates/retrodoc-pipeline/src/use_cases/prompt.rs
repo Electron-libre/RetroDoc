@@ -70,10 +70,16 @@ pub(super) fn use_cases_prompt(
     input: &FeatureInput,
     actors: &Actors,
     vocabulary: &[String],
+    brief: &ProductBrief,
     splitter: &Splitter,
 ) -> (String, BTreeSet<String>) {
     let focus = focus_for(feature, &input.entries);
-    let mut prompt = format!("Feature: {} — {}\n", feature.name, feature.description);
+    let mut prompt = format!(
+        "{}Feature: {} — {}\n",
+        brief.prompt_head(),
+        feature.name,
+        feature.description
+    );
     if !vocabulary.is_empty() {
         let _ = write!(
             prompt,

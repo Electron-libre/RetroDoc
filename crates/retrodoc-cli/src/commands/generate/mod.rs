@@ -102,7 +102,7 @@ pub async fn run(
     let domain_map = tracker
         .in_pass(
             "domains",
-            cluster_domains(repo_root, &map, &ingest, &surface, &llm),
+            cluster_domains(repo_root, &map, &ingest, &surface, &brief, &llm),
         )
         .await?;
 
@@ -110,7 +110,7 @@ pub async fn run(
     let mut features = tracker
         .in_pass(
             "features",
-            retrodoc_pipeline::build_features(repo_root, &domain_map, &map, &llm),
+            retrodoc_pipeline::build_features(repo_root, &domain_map, &map, &brief, &llm),
         )
         .await
         .context("failed to derive the features")?;
@@ -120,10 +120,14 @@ pub async fn run(
             "use-cases",
             derive_use_cases(
                 repo_root,
-                &ingest,
                 &features,
-                entry_points,
-                actors,
+                UseCaseContext {
+                    entry_points,
+                    index: CodeIndex::new(source_paths(&ingest)),
+                    actors,
+                    vocabulary: surface.vocabulary(VOCABULARY_SIZE),
+                    brief,
+                },
                 &surface,
                 &llm,
             ),
@@ -174,13 +178,20 @@ async fn cluster_domains(
     map: &RepoMap,
     ingest: &IngestResult,
     surface: &Surface,
+    brief: &ProductBrief,
     llm: &dyn LlmProvider,
 ) -> anyhow::Result<DomainMap> {
     println!("\nClustering into functional domains…");
-    let (domain_map, coverage) =
-        retrodoc_pipeline::build_domains(repo_root, map, &ingest.existing_docs, surface, llm)
-            .await
-            .context("failed to build the domain clustering")?;
+    let (domain_map, coverage) = retrodoc_pipeline::build_domains(
+        repo_root,
+        map,
+        &ingest.existing_docs,
+        surface,
+        brief,
+        llm,
+    )
+    .await
+    .context("failed to build the domain clustering")?;
 
     print::domain_map(&domain_map);
     print::coverage_report(&coverage);
@@ -193,10 +204,8 @@ async fn cluster_domains(
 /// score, saved.
 async fn derive_use_cases(
     repo_root: &Path,
-    ingest: &IngestResult,
     features: &[Feature],
-    entry_points: EntryPoints,
-    actors: Actors,
+    context: UseCaseContext,
     surface: &Surface,
     llm: &dyn LlmProvider,
 ) -> anyhow::Result<Vec<UseCase>> {
@@ -204,12 +213,6 @@ async fn derive_use_cases(
         "Deriving use cases ({} feature(s), one LLM call each)…",
         features.len()
     );
-    let context = UseCaseContext {
-        entry_points,
-        index: CodeIndex::new(source_paths(ingest)),
-        actors,
-        vocabulary: surface.vocabulary(VOCABULARY_SIZE),
-    };
     let mut use_cases = retrodoc_pipeline::build_use_cases(repo_root, features, &context, llm)
         .await
         .context("failed to derive the use cases")?;

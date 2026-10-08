@@ -65,6 +65,7 @@ pub(super) fn clustering_fingerprint(
     repo_map: &RepoMap,
     existing_docs: &[ExistingDoc],
     surface: &Surface,
+    brief: &ProductBrief,
 ) -> String {
     let files = repo_map
         .files
@@ -73,7 +74,12 @@ pub(super) fn clustering_fingerprint(
     let docs = existing_docs
         .iter()
         .map(|d| format!("{}\n{}", d.path.display(), d.content));
-    fingerprint(files.chain(docs).chain(surface.fingerprint_parts()))
+    fingerprint(
+        files
+            .chain(docs)
+            .chain(surface.fingerprint_parts())
+            .chain((!brief.fingerprint().is_empty()).then(|| brief.fingerprint())),
+    )
 }
 
 /// Slugs of the domains and sub-domains whose name is made only of layer
@@ -103,8 +109,9 @@ pub(super) fn clustering_prompt(
     repo_map: &RepoMap,
     existing_docs: &[ExistingDoc],
     surface: &Surface,
+    brief: &ProductBrief,
 ) -> String {
-    let mut prompt = String::new();
+    let mut prompt = brief.prompt_head();
     if !surface.is_empty() {
         prompt.push_str(&surface.prompt_section());
         prompt.push('\n');

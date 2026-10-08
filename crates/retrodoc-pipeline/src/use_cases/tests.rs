@@ -586,3 +586,39 @@ async fn a_first_empty_answer_recovered_by_the_retry_gives_its_use_case() {
     assert_eq!(use_cases.len(), 1);
     assert_eq!(use_cases[0].slug, "do-it");
 }
+
+#[tokio::test]
+async fn the_brief_heads_the_prompt_and_a_changed_brief_derives_again() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.rs"), "fn a() {}").unwrap();
+    let features = vec![feature("idle", &["a.rs"])];
+    let provider = FakeLlm::answering(
+        r#"{"use_cases":[{"slug":"u","name":"U","description":"d","steps":[
+            {"description":"s","actor":{"name":"A","kind":"human"},"action":"act",
+             "source_refs":[{"path":"a.rs"}]}]}]}"#,
+    );
+    let with = |purpose: &str| UseCaseContext {
+        brief: crate::testing::brief(purpose),
+        ..UseCaseContext::default()
+    };
+
+    build_use_cases(dir.path(), &features, &with("Sells things."), &provider)
+        .await
+        .unwrap();
+    let prompt = provider.prompt_pairs().remove(0).1;
+    assert!(
+        prompt.starts_with("Product brief of the application"),
+        "{prompt}"
+    );
+    assert!(prompt.find("Purpose: Sells things.").unwrap() < prompt.find("Feature:").unwrap());
+
+    build_use_cases(dir.path(), &features, &with("Sells things."), &provider)
+        .await
+        .unwrap();
+    assert_eq!(provider.calls(), 1);
+
+    build_use_cases(dir.path(), &features, &with("Rents things."), &provider)
+        .await
+        .unwrap();
+    assert_eq!(provider.calls(), 2);
+}

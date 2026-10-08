@@ -59,9 +59,9 @@ editable `.retrodoc/cache/product.yaml`, and feed the brief to the later prompts
    * 3c. [x] LLM inference of the `SourceMap` (`signal-sources.yaml`, hand-editable, rules checked against the real files), before the brief
 4. [x] Brief: bounded sample, LLM pass, `product.yaml` (fingerprint reuse, hand edit kept, validated citations)
 5. [x] `retrodoc brief [--force]` command, with a signal-volume diagnostic; measure on the Rails test repository
-6. [ ] Inject the brief in the prompts and fingerprints, in two commits:
+6. [x] Inject the brief in the prompts and fingerprints, in two commits:
    * 6a. [x] `generate` writes or reuses the brief first; roles, glossary, entry points, actors read it
-   * 6b. [ ] domains, features, use cases read it
+   * 6b. [x] domains, features, use cases read it
 7. [ ] Move the BM25 to `retrodoc-pipeline` and retrieve per unit for features and use cases
 8. [ ] Benchmark before and after (ask before running: real cost), final docs and ADR 0019 update
 
@@ -73,6 +73,7 @@ editable `.retrodoc/cache/product.yaml`, and feed the brief to the later prompts
 * The brief uses the same model as the other passes (no wait for `issues/model_per_pass.md`).
 * RetroDoc targets any stack (user's repeated requirement): the readers know formats, never framework locations. A `SourceMap` says which files to read in which format, inferred by content sniffing first (3b) then by one LLM call (3c), saved and hand-editable like `roles.yaml`.
 * `generate` uses a saved brief as it is (edited or not) and only writes one when there is none; `retrodoc brief [--force]` refreshes it. Otherwise any new test or doc would change the sample and invalidate every pass. `roles.yaml` is not invalidated by a new brief (only the passes with a fingerprint are).
+* To check on the benchmark (8): in one smoke run on a small Ruby gem, the use cases named an actor absent from the known actors twice with the brief, never without it (one run each, non-deterministic model); the brief mentions that actor in prose.
 * Root-level `*.md` files (README, CHANGELOG...) are read as doc signals; the default `existing_docs_paths` is unchanged.
 
 ## Measures (deliverable 5)

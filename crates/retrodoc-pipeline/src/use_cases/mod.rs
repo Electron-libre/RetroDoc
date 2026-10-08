@@ -21,6 +21,7 @@ use serde::Deserialize;
 
 use crate::actors::Actors;
 use crate::artifact::{load_yaml, save_yaml, warn_on_error, Artifact};
+use crate::brief::ProductBrief;
 use crate::cache::hash_content;
 use crate::chunks::{Focus, Splitter};
 use crate::entry_points::{EntryPoint, EntryPoints};
@@ -122,6 +123,8 @@ pub struct UseCaseContext {
     pub actors: Actors,
     /// Names of the application's main entities.
     pub vocabulary: Vec<String>,
+    /// The product brief that frames every prompt (empty: none).
+    pub brief: ProductBrief,
 }
 
 /// Derives the use cases of every feature from the code it is grounded on
@@ -148,6 +151,7 @@ pub async fn build_use_cases(
         index,
         actors,
         vocabulary,
+        brief,
     } = context;
     let saved = load_use_cases(repo_root);
     let mut prints = Fingerprints::load(repo_root);
@@ -166,7 +170,7 @@ pub async fn build_use_cases(
     for (position, feature) in features.iter().enumerate() {
         let key = format!("{}/{}", feature.domain_slug, feature.slug);
         let input = FeatureInput::new(repo_root, feature, entry_points, index);
-        let print = feature_fingerprint(repo_root, feature, &input, actors, vocabulary);
+        let print = feature_fingerprint(repo_root, feature, &input, actors, vocabulary, brief);
         if known.get(&key) == Some(&print) {
             let kept: Vec<UseCase> = previous
                 .iter()
@@ -181,8 +185,9 @@ pub async fn build_use_cases(
             continue;
         }
         progress.begin(&key);
-        let (prompt, cited_files) =
-            use_cases_prompt(repo_root, feature, &input, actors, vocabulary, &splitter);
+        let (prompt, cited_files) = use_cases_prompt(
+            repo_root, feature, &input, actors, vocabulary, brief, &splitter,
+        );
         if cited_files.is_empty() {
             tracing::warn!(feature = %feature.slug, "feature skipped: none of its files is readable");
             continue;
@@ -256,6 +261,7 @@ fn feature_fingerprint(
     input: &FeatureInput,
     actors: &Actors,
     vocabulary: &[String],
+    brief: &ProductBrief,
 ) -> String {
     let files = input.files.iter().map(|path| {
         let content = std::fs::read(repo_root.join(path)).map_or_else(
@@ -285,7 +291,8 @@ fn feature_fingerprint(
                 "vocabulary {}",
                 vocabulary.join(",")
             )))
-            .chain(files),
+            .chain(files)
+            .chain((!brief.fingerprint().is_empty()).then(|| brief.fingerprint())),
     )
 }
 

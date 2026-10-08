@@ -21,6 +21,7 @@ use retrodoc_llm::LlmProvider;
 use serde::Deserialize;
 
 use crate::artifact::{load_yaml, save_yaml, warn_on_error, Artifact};
+use crate::brief::ProductBrief;
 use crate::domains::{DomainCluster, DomainMap, UNCATEGORIZED_SLUG};
 use crate::error::PipelineError;
 use crate::fingerprints::{fingerprint, Fingerprints};
@@ -90,6 +91,7 @@ pub async fn build_features(
     repo_root: &Path,
     domains: &DomainMap,
     repo_map: &RepoMap,
+    brief: &ProductBrief,
     llm: &dyn LlmProvider,
 ) -> Result<Vec<Feature>, PipelineError> {
     let summaries: BTreeMap<&Path, &FileSummary> = repo_map
@@ -107,10 +109,15 @@ pub async fn build_features(
     let mut features: Vec<Feature> = Vec::new();
     for unit in units(domains) {
         let unit_key = unit_key(&unit.domain.slug, unit.sub_slug);
-        let unit_print = fingerprint(unit.paths.iter().map(|p| {
-            let summary = summaries.get(p.as_path()).map_or("", |f| &f.role_summary);
-            format!("{}\n{summary}", p.display())
-        }));
+        let unit_print = fingerprint(
+            unit.paths
+                .iter()
+                .map(|p| {
+                    let summary = summaries.get(p.as_path()).map_or("", |f| &f.role_summary);
+                    format!("{}\n{summary}", p.display())
+                })
+                .chain((!brief.fingerprint().is_empty()).then(|| brief.fingerprint())),
+        );
         if known_units.get(&unit_key) == Some(&unit_print) {
             if let Some(kept) = reusable(&previous, &features, &unit) {
                 tracing::info!(unit = %unit_key, "features unchanged, reused");
@@ -127,6 +134,7 @@ pub async fn build_features(
             .filter_map(|p| summaries.get(p.as_path()).copied())
             .collect();
         let prompt = features_prompt(
+            brief,
             &unit.domain.name,
             &unit.domain.description,
             unit.sub_name,
@@ -278,12 +286,16 @@ fn save_partial(
 }
 
 fn features_prompt(
+    brief: &ProductBrief,
     domain_name: &str,
     domain_description: &str,
     sub_domain_name: &str,
     files: &[&FileSummary],
 ) -> String {
-    let mut prompt = format!("Domain: {domain_name} — {domain_description}\n");
+    let mut prompt = format!(
+        "{}Domain: {domain_name} — {domain_description}\n",
+        brief.prompt_head()
+    );
     if !sub_domain_name.is_empty() {
         let _ = writeln!(prompt, "Sub-domain: {sub_domain_name}");
     }

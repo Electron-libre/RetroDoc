@@ -40,6 +40,7 @@ use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
 use crate::artifact::{load_yaml, save_yaml, Artifact};
+use crate::brief::ProductBrief;
 use crate::error::PipelineError;
 use crate::fingerprints::{fingerprint, Fingerprints};
 use crate::repo_map::{FileSummary, RepoMap};
@@ -147,6 +148,7 @@ pub async fn build_domains(
     repo_map: &RepoMap,
     existing_docs: &[ExistingDoc],
     surface: &Surface,
+    brief: &ProductBrief,
     llm: &dyn LlmProvider,
 ) -> Result<(DomainMap, CoverageReport), PipelineError> {
     let all_paths: Vec<PathBuf> = repo_map.files.iter().map(|f| f.path.clone()).collect();
@@ -161,7 +163,7 @@ pub async fn build_domains(
     // fingerprint (keyed by domain slug). Keep the saved one while the input
     // (files, file summaries, existing docs) is unchanged.
     let mut prints = Fingerprints::load(repo_root);
-    let input_print = clustering_fingerprint(repo_map, existing_docs, surface);
+    let input_print = clustering_fingerprint(repo_map, existing_docs, surface, brief);
     if prints.domains.as_ref() == Some(&input_print) {
         if let Some(saved) = DomainMap::load(repo_root).filter(|m| !m.domains.is_empty()) {
             tracing::info!("domains unchanged, reused");
@@ -169,7 +171,7 @@ pub async fn build_domains(
         }
     }
 
-    let prompt = clustering_prompt(repo_map, existing_docs, surface);
+    let prompt = clustering_prompt(repo_map, existing_docs, surface, brief);
     let system_prompt = if surface.is_empty() {
         DOMAIN_CLUSTERING_SYSTEM_PROMPT.to_string()
     } else {

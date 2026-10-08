@@ -90,6 +90,7 @@ async fn build_domains_skips_the_llm_when_there_are_no_files() {
         &repo_map,
         &[],
         &Surface::default(),
+        &ProductBrief::default(),
         &never_called(),
     )
     .await
@@ -117,9 +118,16 @@ async fn build_domains_parses_response_and_persists_the_artifact() {
         ```"#,
     );
 
-    let (map, report) = build_domains(dir.path(), &repo_map, &[], &Surface::default(), &provider)
-        .await
-        .unwrap();
+    let (map, report) = build_domains(
+        dir.path(),
+        &repo_map,
+        &[],
+        &Surface::default(),
+        &ProductBrief::default(),
+        &provider,
+    )
+    .await
+    .unwrap();
 
     assert!(report.is_clean());
     assert_eq!(map.domains.len(), 1);
@@ -145,9 +153,16 @@ async fn build_domains_reuses_the_saved_clustering_when_the_input_is_unchanged()
         r#"{"domains":[{"slug":"billing","name":"Billing","description":"d",
         "paths":["a.rs"],"sub_domains":[]}]}"#,
     );
-    build_domains(dir.path(), &repo_map, &[], &Surface::default(), &provider)
-        .await
-        .unwrap();
+    build_domains(
+        dir.path(),
+        &repo_map,
+        &[],
+        &Surface::default(),
+        &ProductBrief::default(),
+        &provider,
+    )
+    .await
+    .unwrap();
 
     // Same input: the LLM must not be called again.
     let (map, _) = build_domains(
@@ -155,6 +170,7 @@ async fn build_domains_reuses_the_saved_clustering_when_the_input_is_unchanged()
         &repo_map,
         &[],
         &Surface::default(),
+        &ProductBrief::default(),
         &never_called(),
     )
     .await
@@ -166,9 +182,16 @@ async fn build_domains_reuses_the_saved_clustering_when_the_input_is_unchanged()
         files: vec![file_summary("a.rs"), file_summary("b.rs")],
         modules: vec![],
     };
-    let (map, _) = build_domains(dir.path(), &changed, &[], &Surface::default(), &provider)
-        .await
-        .unwrap();
+    let (map, _) = build_domains(
+        dir.path(),
+        &changed,
+        &[],
+        &Surface::default(),
+        &ProductBrief::default(),
+        &provider,
+    )
+    .await
+    .unwrap();
     assert_eq!(map.domains[0].paths.len(), 1); // canned answer, b.rs uncovered
     assert!(map.domains.iter().any(|d| d.slug == UNCATEGORIZED_SLUG));
 }
@@ -208,6 +231,7 @@ async fn build_domains_works_end_to_end_with_a_real_repo_map() {
         &repo_map,
         &[],
         &Surface::default(),
+        &ProductBrief::default(),
         &clustering_provider,
     )
     .await
@@ -327,7 +351,12 @@ fn clustering_prompt_renders_root_module_as_empty_string_not_dot() {
         ],
     };
 
-    let prompt = clustering_prompt(&repo_map, &[], &Surface::default());
+    let prompt = clustering_prompt(
+        &repo_map,
+        &[],
+        &Surface::default(),
+        &ProductBrief::default(),
+    );
 
     assert!(prompt.contains("- \"\" "));
     assert!(!prompt
@@ -393,12 +422,26 @@ async fn the_surface_reaches_the_prompt_and_invalidates_the_saved_clustering() {
     );
 
     // Without a surface: the plain prompt. With one: entities + naming rule.
-    build_domains(dir.path(), &repo_map, &[], &Surface::default(), &provider)
-        .await
-        .unwrap();
-    build_domains(dir.path(), &repo_map, &[], &surface, &provider)
-        .await
-        .unwrap();
+    build_domains(
+        dir.path(),
+        &repo_map,
+        &[],
+        &Surface::default(),
+        &ProductBrief::default(),
+        &provider,
+    )
+    .await
+    .unwrap();
+    build_domains(
+        dir.path(),
+        &repo_map,
+        &[],
+        &surface,
+        &ProductBrief::default(),
+        &provider,
+    )
+    .await
+    .unwrap();
 
     let prompts = provider.prompt_pairs();
     assert_eq!(prompts.len(), 2, "a new surface must recompute the domains");
@@ -451,6 +494,7 @@ async fn files_left_unassigned_are_placed_by_a_second_call() {
         &lib_repo_map(),
         &[],
         &Surface::default(),
+        &ProductBrief::default(),
         &provider,
     )
     .await
@@ -490,6 +534,7 @@ async fn invalid_placements_are_ignored_and_the_rest_is_bucketed() {
         &lib_repo_map(),
         &[],
         &Surface::default(),
+        &ProductBrief::default(),
         &provider,
     )
     .await
@@ -521,6 +566,7 @@ async fn an_unusable_placement_answer_leaves_the_files_uncategorized() {
         &lib_repo_map(),
         &[],
         &Surface::default(),
+        &ProductBrief::default(),
         &provider,
     )
     .await
@@ -544,6 +590,7 @@ async fn no_placement_call_when_the_clustering_covers_every_file() {
         &lib_repo_map(),
         &[],
         &Surface::default(),
+        &ProductBrief::default(),
         &provider,
     )
     .await
@@ -551,4 +598,59 @@ async fn no_placement_call_when_the_clustering_covers_every_file() {
 
     assert!(report.is_clean());
     assert_eq!(provider.calls(), 1);
+}
+
+#[tokio::test]
+async fn the_brief_heads_the_clustering_prompt_and_a_changed_brief_clusters_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let repo_map = RepoMap {
+        files: vec![file_summary("a.rs")],
+        modules: vec![],
+    };
+    let provider = FakeLlm::answering(
+        r#"{"domains":[{"slug":"billing","name":"Billing","description":"d",
+        "paths":["a.rs"],"sub_domains":[]}]}"#,
+    );
+    let brief = crate::testing::brief("Sells things.");
+
+    build_domains(
+        dir.path(),
+        &repo_map,
+        &[],
+        &Surface::default(),
+        &brief,
+        &provider,
+    )
+    .await
+    .unwrap();
+    let prompt = provider.prompts().remove(0);
+    assert!(
+        prompt.starts_with("Product brief of the application"),
+        "{prompt}"
+    );
+
+    build_domains(
+        dir.path(),
+        &repo_map,
+        &[],
+        &Surface::default(),
+        &brief,
+        &provider,
+    )
+    .await
+    .unwrap();
+    assert_eq!(provider.calls(), 1);
+
+    let other = crate::testing::brief("Rents things.");
+    build_domains(
+        dir.path(),
+        &repo_map,
+        &[],
+        &Surface::default(),
+        &other,
+        &provider,
+    )
+    .await
+    .unwrap();
+    assert_eq!(provider.calls(), 2);
 }

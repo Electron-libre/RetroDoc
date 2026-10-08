@@ -61,9 +61,15 @@ async fn build_features_grounds_features_on_known_files_and_persists() {
             ```"#,
     );
 
-    let features = build_features(dir.path(), &domains, &repo_map, &provider)
-        .await
-        .unwrap();
+    let features = build_features(
+        dir.path(),
+        &domains,
+        &repo_map,
+        &ProductBrief::default(),
+        &provider,
+    )
+    .await
+    .unwrap();
 
     assert_eq!(features.len(), 1);
     assert_eq!(features[0].slug, "invoice-creation");
@@ -97,9 +103,15 @@ async fn build_features_covers_sub_domains_and_dedupes_slugs() {
             "files":["a.rs","b.rs"]}]}"#,
     );
 
-    let features = build_features(dir.path(), &domains, &repo_map, &provider)
-        .await
-        .unwrap();
+    let features = build_features(
+        dir.path(),
+        &domains,
+        &repo_map,
+        &ProductBrief::default(),
+        &provider,
+    )
+    .await
+    .unwrap();
 
     assert_eq!(features.len(), 2);
     assert_eq!(features[0].slug, "export");
@@ -121,9 +133,15 @@ async fn build_features_skips_a_unit_with_an_unparseable_response() {
     };
     let provider = FakeLlm::answering("I cannot do that");
 
-    let features = build_features(dir.path(), &domains, &repo_map, &provider)
-        .await
-        .unwrap();
+    let features = build_features(
+        dir.path(),
+        &domains,
+        &repo_map,
+        &ProductBrief::default(),
+        &provider,
+    )
+    .await
+    .unwrap();
 
     assert!(features.is_empty());
 }
@@ -146,20 +164,38 @@ async fn rerun_reuses_unchanged_units_and_redoes_changed_ones() {
     );
     let calls = || provider.calls();
 
-    build_features(dir.path(), &domains, &map("v1"), &provider)
-        .await
-        .unwrap();
+    build_features(
+        dir.path(),
+        &domains,
+        &map("v1"),
+        &ProductBrief::default(),
+        &provider,
+    )
+    .await
+    .unwrap();
     assert_eq!(calls(), 1);
 
-    let again = build_features(dir.path(), &domains, &map("v1"), &provider)
-        .await
-        .unwrap();
+    let again = build_features(
+        dir.path(),
+        &domains,
+        &map("v1"),
+        &ProductBrief::default(),
+        &provider,
+    )
+    .await
+    .unwrap();
     assert_eq!(calls(), 1, "unchanged unit must not call the LLM");
     assert_eq!(again.len(), 1);
 
-    build_features(dir.path(), &domains, &map("v2"), &provider)
-        .await
-        .unwrap();
+    build_features(
+        dir.path(),
+        &domains,
+        &map("v2"),
+        &ProductBrief::default(),
+        &provider,
+    )
+    .await
+    .unwrap();
     assert_eq!(
         calls(),
         2,
@@ -186,9 +222,15 @@ async fn feature_slugs_are_unique_across_domains() {
             "files":["a.rs","b.rs"]}]}"#,
     );
 
-    let features = build_features(dir.path(), &domains, &repo_map, &provider)
-        .await
-        .unwrap();
+    let features = build_features(
+        dir.path(),
+        &domains,
+        &repo_map,
+        &ProductBrief::default(),
+        &provider,
+    )
+    .await
+    .unwrap();
 
     assert_eq!(features.len(), 2);
     assert_eq!(features[0].slug, "export");
@@ -218,17 +260,66 @@ async fn a_failed_run_keeps_the_units_done_and_the_rerun_resumes() {
         ],
     };
     let flaky = FakeLlm::failing_after(1, feature_reply);
-    assert!(build_features(dir.path(), &domains, &repo_map, &flaky)
-        .await
-        .is_err());
+    assert!(build_features(
+        dir.path(),
+        &domains,
+        &repo_map,
+        &ProductBrief::default(),
+        &flaky
+    )
+    .await
+    .is_err());
     assert_eq!(load_features(dir.path()).unwrap().len(), 1);
 
     // The first domain is cached: the second one is the call of rank 1.
     let healthy = FakeLlm::replying(|n, _| Ok(feature_reply(n + 1)));
-    let features = build_features(dir.path(), &domains, &repo_map, &healthy)
-        .await
-        .unwrap();
+    let features = build_features(
+        dir.path(),
+        &domains,
+        &repo_map,
+        &ProductBrief::default(),
+        &healthy,
+    )
+    .await
+    .unwrap();
     assert_eq!(features.len(), 2);
     // Only the second domain was sent to the LLM again.
     assert_eq!(healthy.calls(), 1);
+}
+
+#[tokio::test]
+async fn the_brief_heads_the_prompt_and_a_changed_brief_derives_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let repo_map = RepoMap {
+        files: vec![file_summary("a.rs")],
+        modules: Vec::new(),
+    };
+    let domains = DomainMap {
+        domains: vec![domain("billing", &["a.rs"], Vec::new())],
+    };
+    let provider = FakeLlm::answering(
+        r#"{"features":[{"slug":"f","name":"F","description":"d","files":["a.rs"]}]}"#,
+    );
+    let brief = crate::testing::brief("Sells things.");
+
+    build_features(dir.path(), &domains, &repo_map, &brief, &provider)
+        .await
+        .unwrap();
+    let prompt = provider.prompts().remove(0);
+    assert!(
+        prompt.starts_with("Product brief of the application"),
+        "{prompt}"
+    );
+    assert!(prompt.find("Purpose: Sells things.").unwrap() < prompt.find("Domain:").unwrap());
+
+    build_features(dir.path(), &domains, &repo_map, &brief, &provider)
+        .await
+        .unwrap();
+    assert_eq!(provider.calls(), 1);
+
+    let other = crate::testing::brief("Rents things.");
+    build_features(dir.path(), &domains, &repo_map, &other, &provider)
+        .await
+        .unwrap();
+    assert_eq!(provider.calls(), 2);
 }
