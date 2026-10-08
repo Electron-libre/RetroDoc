@@ -40,7 +40,7 @@ Then, candidates (can be combined):
    mechanical classification (tests, config, docs) and leave the business location to the new pass.
 4. Cost: one call over a bounded input per run, cached like `roles.yaml`; check the prompt size on a large
    repository (the tree alone may not fit).
-5. Take the product brief of ADR 0019 (`issues/product_brief.md`) as input: its main business objects and
+5. Take the product brief of ADR 0019 (`issues/done/product_brief.md`) as input: its main business objects and
    capabilities say what to look for, so this pass comes after it.
 
 # Resources
@@ -49,7 +49,7 @@ Then, candidates (can be combined):
 * `crates/retrodoc-pipeline/src/glossary/`, `entry_points/`, `actors.rs`, `surface.rs`
 * ADR `0008` (surface extraction), ADR `0018` (glossary fallback), `issues/roles_no_model_files.md`
 * `PLAN.md` §7.1 (phase 7, business-level documentation)
-* ADRs `0019` (product brief first) and `0020` (cover behaviours, not files), `issues/product_brief.md`
+* ADRs `0019` (product brief first) and `0020` (cover behaviours, not files), `issues/done/product_brief.md`
 
 # Hints
 

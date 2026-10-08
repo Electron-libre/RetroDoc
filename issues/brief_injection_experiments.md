@@ -2,7 +2,7 @@
 
 # Goal
 
-The benchmarks of `issues/product_brief.md` (deliverable 8) did not show that the brief improves the generated
+The benchmarks of `issues/done/product_brief.md` (deliverable 8) did not show that the brief improves the generated
 docs, and the per-unit evidence made the features pass produce fewer features. The brief is on, the evidence
 is off by default (`brief.evidence` in `retrodoc.toml`). Find out, with a stable pipeline and a steadier
 measure, whether and how the global frame should be injected, then keep the best setting as the default.
@@ -37,7 +37,7 @@ measure, whether and how the global frame should be injected, then keep the best
 
 # Resources
 
-* `issues/product_brief.md` (Decisions and Measures), ADR 0019
+* `issues/done/product_brief.md` (Decisions and Measures), ADR 0019
 * `crates/retrodoc-pipeline/src/brief/evidence.rs`, `features/mod.rs`, `use_cases/mod.rs`
 * `benchmark/delivery_router/`, `benchmark/linkding/`, `skill:quality-benchmark`
 

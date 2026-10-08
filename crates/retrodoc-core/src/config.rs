@@ -34,7 +34,7 @@ pub struct Config {
 pub struct BriefConfig {
     /// Also give the features and use cases passes, per unit, the few doc
     /// sections, test descriptions and commit subjects closest to it. Off by
-    /// default: the benchmarks (see `issues/product_brief.md`) showed fewer
+    /// default: the benchmarks (see `issues/done/product_brief.md`) showed fewer
     /// features with it and no gain, to be tried again later.
     #[serde(default)]
     pub evidence: bool,

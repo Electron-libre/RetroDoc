@@ -24,7 +24,7 @@ technical support.
 1. Measure first on `delivery_router` and a sparse checkout of the Rails test repository: share of files
    reached by an entry point slice or holding an entity, calls and time per pass (`usage.json`).
 2. Domains from the surface: cluster entities and entry points grouped by resource, framed by the product
-   brief (`issues/product_brief.md`); attach files deterministically from slices and entity homes.
+   brief (`issues/done/product_brief.md`); attach files deterministically from slices and entity homes.
 3. Features from entry points: one call per domain over its entry points (verb, resource, outputs) and
    entities; use cases keep their per-entry-point slices.
 4. Coverage of entry points by construction (place, then uncategorized), reported; files reached by

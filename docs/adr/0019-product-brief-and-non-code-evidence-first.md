@@ -54,10 +54,10 @@ every unit), and keeping the docs as titles only (the current state, which loses
   graph (ADR 0001).
 * The brief fingerprint becomes an input of the downstream fingerprints: editing the brief invalidates the
   passes that used it, as it should.
-* Measured on 2026-10-08 (`issues/product_brief.md`): the brief alone is neutral on coverage and slightly
+* Measured on 2026-10-08 (`issues/done/product_brief.md`): the brief alone is neutral on coverage and slightly
   better in business language with a local model; the retrieval per unit made the features pass produce about
   20% fewer features with no gain. It is therefore off by default (`brief.evidence`) and to be tried again
   once the product is stable (`issues/brief_injection_experiments.md`).
-* Follow-up issues: `issues/quality_benchmark.md` (to measure the gain), `issues/product_brief.md`,
+* Follow-up issues: `issues/quality_benchmark.md` (to measure the gain), `issues/done/product_brief.md`,
   `issues/brief_injection_experiments.md`, `issues/docs_reconciliation_debt_report.md`, `issues/locate_business_files.md` (takes the brief as
   input).

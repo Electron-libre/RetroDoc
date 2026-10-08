@@ -15,7 +15,7 @@ undocumented or contradicted, with the doc sections behind the verdict.
 
 # Approach
 
-1. Doc sections as units (from `issues/product_brief.md`), indexed with the shared BM25.
+1. Doc sections as units (from `issues/done/product_brief.md`), indexed with the shared BM25.
 2. Per generated item, retrieve the best matching sections; deterministic verdict when nothing matches
    (undocumented), a small batched LLM call to tell "covers" from "contradicts" when something does.
 3. Report: coverage of the existing docs per domain, the undocumented items ranked by importance (entry
