@@ -61,6 +61,15 @@ measure to trust, and a human check of the audited pairs.
   language, it agrees with the reading on 36 of 40 (28 of 40 before) and the 4 left are narratives it
   finds business and the reader technical. Weighted by the share of each score, about 79% of that run's
   narratives are in business language, close to the judge's 81% for the full run.
+* Re-measure with the corrected narrative prompt and the new share of use cases at score 1, on the same
+  clones (no new generation, 3 runs per series): narratives in business language by the judge are now
+  85% (82 to 87) `hidden` and 83% (82 to 84) `shown` on `linkding`, against 70% (58 to 81) and 77% (66 to
+  85) before; 89% and 97% on `delivery_router`, against 80% and 88%. The range between runs is much
+  narrower, so the old spread was partly the prompt's. The share of use cases at score 1 is 77% and 78%
+  on `linkding`, 98% and 100% on `delivery_router`: close to the hand-read estimate (79%) where the mean
+  score says 95% and 100%. The judge of pairs, run again on the same docs, moved judged domain recall by
+  up to 6 points and gave ranges as wide as 17% to 50% on a series: the pair judge is noisy even with the
+  documentation unchanged, which is one more reason to widen `matches.yaml`.
 
 # Approach
 
