@@ -23,9 +23,14 @@ pub async fn run(path: &Path, tracker: &UsageTracker) -> anyhow::Result<()> {
     let llm = super::usage::provider(&config.llm, tracker)?;
     tracker.set_pass("glossary");
     println!("Reading entities from {model_files} model file(s)…");
-    let glossary = retrodoc_pipeline::build_glossary(repo_root, &role_map, &llm)
-        .await
-        .context("failed to build the glossary")?;
+    let glossary = retrodoc_pipeline::build_glossary(
+        repo_root,
+        &role_map,
+        &super::brief::saved(repo_root),
+        &llm,
+    )
+    .await
+    .context("failed to build the glossary")?;
 
     let entities = glossary.merged_entities();
     println!(

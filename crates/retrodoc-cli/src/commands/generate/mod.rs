@@ -6,8 +6,8 @@ use retrodoc_core::model::{Feature, UseCase};
 use retrodoc_ingest::IngestResult;
 use retrodoc_llm::{LlmProvider, UsageTracker};
 use retrodoc_pipeline::{
-    Actors, Artifact, CodeIndex, DomainMap, EntryPoints, RepoMap, RepoMapOptions, RoleMap, Scope,
-    Surface, UseCaseContext,
+    Actors, Artifact, CodeIndex, DomainMap, EntryPoints, ProductBrief, RepoMap, RepoMapOptions,
+    RoleMap, Scope, Surface, UseCaseContext,
 };
 
 mod print;
@@ -68,12 +68,14 @@ pub async fn run(
 
     let llm = super::usage::provider(&config.llm, tracker)?;
 
+    let brief = super::brief::for_generate(repo_root, &ingest, &llm, tracker).await?;
+
     let (surface, entry_points, role_map) =
-        build_surface(repo_root, &mut ingest, &llm, force, tracker).await?;
+        build_surface(repo_root, &mut ingest, &brief, &llm, force, tracker).await?;
     let actors = tracker
         .in_pass(
             "actors",
-            identify_actors(repo_root, &ingest, &surface, &llm, force),
+            identify_actors(repo_root, &ingest, &surface, &brief, &llm, force),
         )
         .await?;
 
@@ -153,14 +155,16 @@ async fn identify_actors(
     repo_root: &Path,
     ingest: &IngestResult,
     surface: &Surface,
+    brief: &ProductBrief,
     llm: &dyn LlmProvider,
     force: bool,
 ) -> anyhow::Result<Actors> {
     println!("Identifying the business actors…");
     let source_files: Vec<_> = source_paths(ingest).map(Path::to_path_buf).collect();
-    let actors = retrodoc_pipeline::build_actors(repo_root, &source_files, surface, llm, force)
-        .await
-        .context("failed to identify the actors")?;
+    let actors =
+        retrodoc_pipeline::build_actors(repo_root, &source_files, surface, brief, llm, force)
+            .await
+            .context("failed to identify the actors")?;
     println!("{} actor(s) identified.", actors.actors.len());
     Ok(actors)
 }
@@ -230,6 +234,7 @@ async fn derive_use_cases(
 async fn build_surface(
     repo_root: &Path,
     ingest: &mut IngestResult,
+    brief: &ProductBrief,
     llm: &dyn LlmProvider,
     force: bool,
     tracker: &UsageTracker,
@@ -238,7 +243,7 @@ async fn build_surface(
     let rules = tracker
         .in_pass(
             "roles",
-            retrodoc_pipeline::identify_roles(repo_root, ingest, llm, force),
+            retrodoc_pipeline::identify_roles(repo_root, ingest, brief, llm, force),
         )
         .await
         .context("failed to identify the file roles")?;
@@ -257,7 +262,7 @@ async fn build_surface(
     let glossary = tracker
         .in_pass(
             "glossary",
-            retrodoc_pipeline::build_glossary(repo_root, &role_map, llm),
+            retrodoc_pipeline::build_glossary(repo_root, &role_map, brief, llm),
         )
         .await
         .context("failed to build the glossary")?;
@@ -265,7 +270,7 @@ async fn build_surface(
     let entry_points = tracker
         .in_pass(
             "entry-points",
-            retrodoc_pipeline::build_entry_points(repo_root, &role_map, llm),
+            retrodoc_pipeline::build_entry_points(repo_root, &role_map, brief, llm),
         )
         .await
         .context("failed to build the entry points inventory")?;

@@ -34,9 +34,16 @@ pub async fn run(path: &Path, force: bool, tracker: &UsageTracker) -> anyhow::Re
         candidates.len(),
         surface.entities.len()
     );
-    let actors = retrodoc_pipeline::build_actors(repo_root, &source_files, &surface, &llm, force)
-        .await
-        .context("failed to identify the actors")?;
+    let actors = retrodoc_pipeline::build_actors(
+        repo_root,
+        &source_files,
+        &surface,
+        &super::brief::saved(repo_root),
+        &llm,
+        force,
+    )
+    .await
+    .context("failed to identify the actors")?;
 
     println!("\nActors ({}):", actors.actors.len());
     for actor in &actors.actors {

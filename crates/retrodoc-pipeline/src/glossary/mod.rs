@@ -28,7 +28,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::artifact::{load_yaml, save_yaml, Artifact};
 use crate::batched_read::{group_paths, BatchedRead, PendingChunk};
-use crate::cache::hash_content;
+use crate::brief::ProductBrief;
 use crate::chunks::{strip_part_marker, Splitter};
 use crate::error::PipelineError;
 use crate::naming::normalize;
@@ -270,6 +270,7 @@ struct ResponseEntity {
 pub async fn build_glossary(
     repo_root: &Path,
     roles: &RoleMap,
+    brief: &ProductBrief,
     llm: &dyn LlmProvider,
 ) -> Result<Glossary, PipelineError> {
     let previous = Glossary::load(repo_root).unwrap_or_default();
@@ -280,6 +281,7 @@ pub async fn build_glossary(
     let splitter = Splitter::new(&roles.chunk_boundaries);
     let reader = EntityReader {
         repo_root,
+        brief,
         previous: &previous,
         splitter: &splitter,
         llm,
@@ -288,7 +290,7 @@ pub async fn build_glossary(
         .read(
             roles.files_with(FileRole::Model),
             GLOSSARY_SYSTEM_PROMPT,
-            "Model files:\n",
+            &format!("{}Model files:\n", brief.prompt_head()),
             "model file(s)",
             &mut glossary,
         )
@@ -309,7 +311,7 @@ pub async fn build_glossary(
             .read(
                 candidates,
                 FALLBACK_SYSTEM_PROMPT,
-                "Source files:\n",
+                &format!("{}Source files:\n", brief.prompt_head()),
                 "fallback file(s)",
                 &mut glossary,
             )
@@ -326,6 +328,7 @@ pub async fn build_glossary(
 /// unchanged come from the previous glossary, the others go to the LLM.
 struct EntityReader<'a> {
     repo_root: &'a Path,
+    brief: &'a ProductBrief,
     previous: &'a Glossary,
     splitter: &'a Splitter,
     llm: &'a dyn LlmProvider,
@@ -336,7 +339,7 @@ impl EntityReader<'_> {
         &self,
         paths: Vec<&Path>,
         system_prompt: &'static str,
-        header: &'static str,
+        header: &str,
         unit: &'static str,
         glossary: &mut Glossary,
     ) -> Result<(), PipelineError> {
@@ -344,7 +347,7 @@ impl EntityReader<'_> {
         let mut pending: Vec<PendingChunk> = Vec::new();
         for path in paths {
             let content = read_file_lossy(self.repo_root, path)?;
-            let hash = hash_content(&content);
+            let hash = self.brief.hash_with(&content);
             match self.previous.models.get(path) {
                 Some(saved) if saved.content_hash == hash => {
                     glossary.models.insert(path.to_path_buf(), saved.clone());

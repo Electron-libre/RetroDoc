@@ -34,7 +34,7 @@ pub(crate) struct BatchedRead<'a, R, T, S> {
     pub unit: &'static str,
     pub system_prompt: &'static str,
     /// First line of the user prompt, before the files.
-    pub header: &'static str,
+    pub header: &'a str,
     /// What the answer found, by the file of the batch it belongs to.
     pub attribute: fn(R, &[PendingChunk]) -> BTreeMap<String, Vec<T>>,
     /// All the chunks of a file are read: record what was found in it.

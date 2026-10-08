@@ -18,6 +18,7 @@ use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
 use crate::artifact::{load_yaml, save_yaml, Artifact};
+use crate::brief::ProductBrief;
 use crate::cache::hash_content;
 use crate::error::PipelineError;
 use crate::fingerprints::fingerprint;
@@ -243,6 +244,7 @@ pub async fn build_actors(
     repo_root: &Path,
     source_files: &[PathBuf],
     surface: &Surface,
+    brief: &ProductBrief,
     llm: &dyn LlmProvider,
     force: bool,
 ) -> Result<Actors, PipelineError> {
@@ -266,7 +268,8 @@ pub async fn build_actors(
         contents
             .iter()
             .map(|(path, content)| format!("{}\n{}", path.display(), hash_content(content)))
-            .chain(entity_lines.iter().cloned()),
+            .chain(entity_lines.iter().cloned())
+            .chain((!brief.fingerprint().is_empty()).then(|| brief.fingerprint())),
     );
     if !force {
         if let Some(saved) = Actors::load(repo_root).filter(|a| a.input_hash == input_hash) {
@@ -275,7 +278,7 @@ pub async fn build_actors(
         }
     }
 
-    let mut prompt = String::new();
+    let mut prompt = brief.prompt_head();
     if !entity_lines.is_empty() {
         prompt.push_str("Business entities (keep those that stand for someone who acts):\n");
         for line in &entity_lines {
@@ -374,9 +377,16 @@ mod tests {
                 {"name":" ","kind":"human"}]}"#,
         );
 
-        let actors = build_actors(dir.path(), &files, &Surface::default(), &llm, false)
-            .await
-            .unwrap();
+        let actors = build_actors(
+            dir.path(),
+            &files,
+            &Surface::default(),
+            &ProductBrief::default(),
+            &llm,
+            false,
+        )
+        .await
+        .unwrap();
         assert_eq!(actors.actors.len(), 2);
         assert_eq!(
             actors.canonical(" contract manager ").unwrap().name,
@@ -385,20 +395,41 @@ mod tests {
         assert_eq!(actors.actors[1].kind, ActorKind::System);
         assert!(llm.prompts()[0].contains("--- app/ability.rb ---"));
 
-        build_actors(dir.path(), &files, &Surface::default(), &llm, false)
-            .await
-            .unwrap();
+        build_actors(
+            dir.path(),
+            &files,
+            &Surface::default(),
+            &ProductBrief::default(),
+            &llm,
+            false,
+        )
+        .await
+        .unwrap();
         assert_eq!(llm.prompts().len(), 1);
 
         std::fs::write(dir.path().join("app/ability.rb"), "can :cancel, Contract").unwrap();
-        build_actors(dir.path(), &files, &Surface::default(), &llm, false)
-            .await
-            .unwrap();
+        build_actors(
+            dir.path(),
+            &files,
+            &Surface::default(),
+            &ProductBrief::default(),
+            &llm,
+            false,
+        )
+        .await
+        .unwrap();
         assert_eq!(llm.prompts().len(), 2);
 
-        build_actors(dir.path(), &files, &Surface::default(), &llm, true)
-            .await
-            .unwrap();
+        build_actors(
+            dir.path(),
+            &files,
+            &Surface::default(),
+            &ProductBrief::default(),
+            &llm,
+            true,
+        )
+        .await
+        .unwrap();
         assert_eq!(llm.prompts().len(), 3);
     }
 
@@ -419,9 +450,16 @@ mod tests {
         let llm = FakeLlm::answering(
             r#"{"actors":[{"name":"Rider","kind":"human","description":"Delivers"}]}"#,
         );
-        let actors = build_actors(dir.path(), &paths(&["a.rb"]), &surface, &llm, false)
-            .await
-            .unwrap();
+        let actors = build_actors(
+            dir.path(),
+            &paths(&["a.rb"]),
+            &surface,
+            &ProductBrief::default(),
+            &llm,
+            false,
+        )
+        .await
+        .unwrap();
         assert_eq!(actors.actors.len(), 1);
         let prompt = &llm.prompts()[0];
         assert!(prompt.contains("- Rider: The Rider"));
@@ -436,6 +474,7 @@ mod tests {
             dir.path(),
             &paths(&["a.rb"]),
             &Surface::default(),
+            &ProductBrief::default(),
             &llm,
             false,
         )
@@ -443,5 +482,35 @@ mod tests {
         .unwrap();
         assert!(actors.is_empty());
         assert_eq!(llm.prompts(), Vec::<String>::new());
+    }
+
+    #[tokio::test]
+    async fn the_brief_heads_the_prompt_and_a_changed_brief_asks_again() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("app")).unwrap();
+        std::fs::write(dir.path().join("app/ability.rb"), "can :sign, Contract").unwrap();
+        let files = paths(&["app/ability.rb"]);
+        let llm = FakeLlm::answering(r#"{"actors":[{"name":"Manager","kind":"human"}]}"#);
+        let brief = crate::testing::brief("Sells things to buyers.");
+
+        build_actors(dir.path(), &files, &Surface::default(), &brief, &llm, false)
+            .await
+            .unwrap();
+        let prompt = &llm.prompts()[0];
+        assert!(
+            prompt.starts_with("Product brief of the application"),
+            "{prompt}"
+        );
+
+        build_actors(dir.path(), &files, &Surface::default(), &brief, &llm, false)
+            .await
+            .unwrap();
+        assert_eq!(llm.calls(), 1);
+
+        let other = crate::testing::brief("Rents things to renters.");
+        build_actors(dir.path(), &files, &Surface::default(), &other, &llm, false)
+            .await
+            .unwrap();
+        assert_eq!(llm.calls(), 2);
     }
 }

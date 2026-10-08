@@ -154,6 +154,31 @@ impl ProductBrief {
         )
     }
 
+    /// The section followed by a blank line, to put at the head of a prompt;
+    /// empty for an empty brief.
+    #[must_use]
+    pub fn prompt_head(&self) -> String {
+        let section = self.prompt_section();
+        if section.is_empty() {
+            section
+        } else {
+            format!("{section}\n")
+        }
+    }
+
+    /// Hash of a unit of input (a file) as read under this brief: the plain
+    /// hash of the content for an empty brief, so caches written before the
+    /// brief existed stay valid; otherwise it also depends on the brief.
+    #[must_use]
+    pub fn hash_with(&self, content: &str) -> String {
+        let fingerprint = self.fingerprint();
+        if fingerprint.is_empty() {
+            hash_content(content)
+        } else {
+            hash_content(&format!("{fingerprint}\0{content}"))
+        }
+    }
+
     /// What the passes that read the brief put in their own fingerprint, so
     /// that editing it redoes them. Empty for an empty brief.
     #[must_use]

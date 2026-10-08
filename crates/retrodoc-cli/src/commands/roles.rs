@@ -25,9 +25,15 @@ pub async fn run(path: &Path, force: bool, tracker: &UsageTracker) -> anyhow::Re
     } else {
         let llm = super::usage::provider(&config.llm, tracker)?;
         tracker.set_pass("roles");
-        retrodoc_pipeline::identify_roles(repo_root, &ingest, &llm, force)
-            .await
-            .context("failed to identify the file roles")?
+        retrodoc_pipeline::identify_roles(
+            repo_root,
+            &ingest,
+            &super::brief::saved(repo_root),
+            &llm,
+            force,
+        )
+        .await
+        .context("failed to identify the file roles")?
     };
 
     if rules.rules.is_empty() {

@@ -109,7 +109,9 @@ async fn reads_entities_once_and_reuses_them_while_files_are_unchanged() {
                 {"file":"nowhere.rb","name":"Ghost"}]}"#,
     );
 
-    let glossary = build_glossary(dir.path(), &roles, &llm).await.unwrap();
+    let glossary = build_glossary(dir.path(), &roles, &ProductBrief::default(), &llm)
+        .await
+        .unwrap();
     let entities: Vec<_> = glossary
         .entities()
         .map(|(p, e)| (p.to_string_lossy().into_owned(), e.name.clone()))
@@ -125,7 +127,9 @@ async fn reads_entities_once_and_reuses_them_while_files_are_unchanged() {
     assert_eq!(llm.prompts().len(), 1);
 
     // Second run: nothing changed, no call.
-    build_glossary(dir.path(), &roles, &llm).await.unwrap();
+    build_glossary(dir.path(), &roles, &ProductBrief::default(), &llm)
+        .await
+        .unwrap();
     assert_eq!(llm.prompts().len(), 1);
 
     // A changed file is the only one sent again.
@@ -134,7 +138,9 @@ async fn reads_entities_once_and_reuses_them_while_files_are_unchanged() {
         "class Company; x; end",
     )
     .unwrap();
-    build_glossary(dir.path(), &roles, &llm).await.unwrap();
+    build_glossary(dir.path(), &roles, &ProductBrief::default(), &llm)
+        .await
+        .unwrap();
     let prompts = llm.prompts();
     assert_eq!(prompts.len(), 2);
     assert!(prompts[1].contains("company.rb") && !prompts[1].contains("contract.rb"));
@@ -169,7 +175,9 @@ async fn a_long_model_file_is_read_in_chunks_and_its_entity_saved_once() {
     let roles = roles(&[("contract.rb", FileRole::Model)]);
     let llm = FakeLlm::answering(r#"{"entities":[{"file":"contract.rb","name":"Contract"}]}"#);
 
-    let glossary = build_glossary(dir.path(), &roles, &llm).await.unwrap();
+    let glossary = build_glossary(dir.path(), &roles, &ProductBrief::default(), &llm)
+        .await
+        .unwrap();
 
     let prompts = llm.prompts();
     assert!(prompts.len() >= 2, "several parts, several calls");
@@ -188,6 +196,7 @@ async fn a_batch_that_cannot_be_answered_is_retried_file_by_file() {
     let glossary = build_glossary(
         dir.path(),
         &roles,
+        &ProductBrief::default(),
         &FakeLlm::replying(|_, request| {
             Ok(
                 if request.messages[1].content.matches("\n--- ").count() > 1 {
@@ -224,7 +233,9 @@ async fn logic_files_are_read_when_no_model_file_gave_an_entity() {
     ]);
     let llm = FakeLlm::answering(r#"{"entities":[{"file":"order.rb","name":"Order"}]}"#);
 
-    let glossary = build_glossary(dir.path(), &roles, &llm).await.unwrap();
+    let glossary = build_glossary(dir.path(), &roles, &ProductBrief::default(), &llm)
+        .await
+        .unwrap();
 
     let names: Vec<_> = glossary.entities().map(|(_, e)| e.name.as_str()).collect();
     assert_eq!(names, vec!["Order"]);
@@ -251,7 +262,9 @@ async fn logic_files_are_left_alone_when_a_model_file_gave_an_entity() {
     ]);
     let llm = FakeLlm::answering(r#"{"entities":[{"file":"customer.rb","name":"Customer"}]}"#);
 
-    let glossary = build_glossary(dir.path(), &roles, &llm).await.unwrap();
+    let glossary = build_glossary(dir.path(), &roles, &ProductBrief::default(), &llm)
+        .await
+        .unwrap();
 
     assert_eq!(llm.calls(), 1);
     assert_eq!(glossary.models.len(), 1);
@@ -271,7 +284,7 @@ async fn the_fallback_reads_a_bounded_number_of_logic_files_in_path_order() {
         .collect();
     let llm = FakeLlm::answering(r#"{"entities":[]}"#);
 
-    let glossary = build_glossary(dir.path(), &roles(&entries), &llm)
+    let glossary = build_glossary(dir.path(), &roles(&entries), &ProductBrief::default(), &llm)
         .await
         .unwrap();
 
@@ -295,9 +308,13 @@ async fn the_fallback_is_not_asked_again_while_files_are_unchanged() {
     ]);
     let llm = FakeLlm::answering(r#"{"entities":[{"file":"order.rb","name":"Order"}]}"#);
 
-    build_glossary(dir.path(), &roles, &llm).await.unwrap();
+    build_glossary(dir.path(), &roles, &ProductBrief::default(), &llm)
+        .await
+        .unwrap();
     let calls = llm.calls();
-    let glossary = build_glossary(dir.path(), &roles, &llm).await.unwrap();
+    let glossary = build_glossary(dir.path(), &roles, &ProductBrief::default(), &llm)
+        .await
+        .unwrap();
 
     assert_eq!(llm.calls(), calls, "the saved answers are reused");
     assert_eq!(glossary.entities().count(), 1);
@@ -322,7 +339,7 @@ async fn the_fallback_also_reads_entrypoint_files_after_the_logic_ones() {
     ]);
     let llm = FakeLlm::answering(r#"{"entities":[]}"#);
 
-    let glossary = build_glossary(dir.path(), &roles(&entries), &llm)
+    let glossary = build_glossary(dir.path(), &roles(&entries), &ProductBrief::default(), &llm)
         .await
         .unwrap();
 
@@ -340,10 +357,41 @@ async fn a_repo_whose_code_is_all_entrypoint_still_gets_its_entities() {
     let glossary = build_glossary(
         dir.path(),
         &roles(&[("order.rb", FileRole::EntryPoint)]),
+        &ProductBrief::default(),
         &llm,
     )
     .await
     .unwrap();
 
     assert_eq!(glossary.entities().count(), 1);
+}
+
+#[tokio::test]
+async fn the_brief_heads_the_prompt_and_a_changed_brief_reads_the_files_again() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("order.rb"), "class Order; end").unwrap();
+    let roles = roles(&[("order.rb", FileRole::Model)]);
+    let llm = FakeLlm::answering(r#"{"entities":[{"file":"order.rb","name":"Order"}]}"#);
+    let brief = crate::testing::brief("Sells things to buyers.");
+
+    build_glossary(dir.path(), &roles, &brief, &llm)
+        .await
+        .unwrap();
+    let prompt = &llm.prompts()[0];
+    assert!(
+        prompt.starts_with("Product brief of the application"),
+        "{prompt}"
+    );
+    assert!(prompt.find("Purpose: Sells things").unwrap() < prompt.find("Model files:").unwrap());
+
+    build_glossary(dir.path(), &roles, &brief, &llm)
+        .await
+        .unwrap();
+    assert_eq!(llm.calls(), 1);
+
+    let other = crate::testing::brief("Rents things to renters.");
+    build_glossary(dir.path(), &roles, &other, &llm)
+        .await
+        .unwrap();
+    assert_eq!(llm.calls(), 2);
 }

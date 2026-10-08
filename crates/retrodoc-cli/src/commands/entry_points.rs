@@ -23,9 +23,14 @@ pub async fn run(path: &Path, tracker: &UsageTracker) -> anyhow::Result<()> {
     let llm = super::usage::provider(&config.llm, tracker)?;
     tracker.set_pass("entry-points");
     println!("Reading entry points from {files} file(s)…");
-    let inventory = retrodoc_pipeline::build_entry_points(repo_root, &role_map, &llm)
-        .await
-        .context("failed to build the entry points inventory")?;
+    let inventory = retrodoc_pipeline::build_entry_points(
+        repo_root,
+        &role_map,
+        &super::brief::saved(repo_root),
+        &llm,
+    )
+    .await
+    .context("failed to build the entry points inventory")?;
 
     println!("\nEntry points:");
     for (kind, count) in inventory.distribution() {

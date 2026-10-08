@@ -129,11 +129,11 @@ async fn identifies_once_then_reuses_saved_rules() {
 ```"#,
     );
 
-    let first = identify_roles(dir.path(), &ingest, &llm, false)
+    let first = identify_roles(dir.path(), &ingest, &ProductBrief::default(), &llm, false)
         .await
         .unwrap();
     assert_eq!(first.stack, "Rust library");
-    let second = identify_roles(dir.path(), &ingest, &llm, false)
+    let second = identify_roles(dir.path(), &ingest, &ProductBrief::default(), &llm, false)
         .await
         .unwrap();
     assert_eq!(second.rules.len(), 1);
@@ -144,8 +144,39 @@ async fn identifies_once_then_reuses_saved_rules() {
     assert_eq!(map.chunk_boundaries, second.chunk_boundaries);
     assert_eq!(llm.calls(), 1);
 
-    identify_roles(dir.path(), &ingest, &llm, true)
+    identify_roles(dir.path(), &ingest, &ProductBrief::default(), &llm, true)
         .await
         .unwrap();
     assert_eq!(llm.calls(), 2);
+}
+
+#[tokio::test]
+async fn the_brief_heads_the_prompt_but_does_not_redo_saved_rules() {
+    let dir = tempfile::tempdir().unwrap();
+    let ingest = IngestResult {
+        files: vec![entry("src/lib.rs", FileKind::Source)],
+        history_by_path: std::collections::HashMap::new(),
+        existing_docs: Vec::new(),
+        commits: Vec::new(),
+    };
+    let llm =
+        FakeLlm::answering(r#"{"stack":"Rust","rules":[{"pattern":"src/**","role":"logic"}]}"#);
+    let brief = crate::testing::brief("Sells things to buyers.");
+
+    identify_roles(dir.path(), &ingest, &brief, &llm, false)
+        .await
+        .unwrap();
+    let prompt = &llm.prompts()[0];
+    assert!(
+        prompt.starts_with("Product brief of the application"),
+        "{prompt}"
+    );
+    assert!(prompt.find("Purpose:").unwrap() < prompt.find("File tree").unwrap());
+
+    // A different brief does not make the saved rules out of date.
+    let other = crate::testing::brief("Rents things to renters.");
+    identify_roles(dir.path(), &ingest, &other, &llm, false)
+        .await
+        .unwrap();
+    assert_eq!(llm.calls(), 1);
 }

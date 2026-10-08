@@ -22,6 +22,7 @@ use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
 use crate::artifact::{load_yaml, save_yaml, Artifact};
+use crate::brief::ProductBrief;
 use crate::chunk_check::verify_boundaries;
 use crate::chunks::{ChunkBoundary, Splitter, REGEX_SYNTAX_HELP};
 use crate::error::PipelineError;
@@ -265,7 +266,8 @@ struct RolesResponse {
     chunk_boundaries: Vec<ChunkBoundary>,
 }
 
-/// Returns the role rules for the repo: the saved `roles.yaml` if there is
+/// Returns the role rules for the repo (`brief` heads the prompt, it is not part
+/// of any fingerprint: the rules are reused as saved): the saved `roles.yaml` if there is
 /// one (and `force` is false), otherwise the result of one LLM call over the
 /// file tree, saved for next time. An unparseable answer yields empty rules
 /// (every file unclassified) with a warning, and is not saved.
@@ -276,6 +278,7 @@ struct RolesResponse {
 pub async fn identify_roles(
     repo_root: &Path,
     ingest: &IngestResult,
+    brief: &ProductBrief,
     llm: &dyn LlmProvider,
     force: bool,
 ) -> Result<RoleRules, PipelineError> {
@@ -285,7 +288,8 @@ pub async fn identify_roles(
         }
     }
 
-    let mut prompt = String::from("File tree (one line per directory):\n");
+    let mut prompt = brief.prompt_head();
+    prompt.push_str("File tree (one line per directory):\n");
     prompt.push_str(&render_tree(&ingest.files));
     for name in MANIFESTS {
         if let Ok(content) = std::fs::read_to_string(repo_root.join(name)) {

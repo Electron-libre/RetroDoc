@@ -4,6 +4,8 @@ use std::path::Path;
 
 use anyhow::Context;
 use retrodoc_ingest::signals::{self, Signal};
+use retrodoc_ingest::IngestResult;
+use retrodoc_llm::LlmProvider;
 use retrodoc_llm::UsageTracker;
 use retrodoc_pipeline::{Artifact, Claim, ProductBrief};
 
@@ -58,6 +60,53 @@ pub async fn run(
     };
     print!("{}", render_brief(&brief));
     Ok(())
+}
+
+/// The saved product brief, or an empty one (the passes then run as they did
+/// without it): what the standalone commands read. A file that can't be read
+/// is reported and not used.
+pub fn saved(repo_root: &Path) -> ProductBrief {
+    let loaded = ProductBrief::load(repo_root);
+    if loaded.is_none() && Artifact::Product.path(repo_root).exists() {
+        tracing::warn!(
+            "{} can't be read, running without the product brief",
+            Artifact::Product.relative_path()
+        );
+    }
+    loaded.unwrap_or_default()
+}
+
+/// The brief `generate` frames its passes with: the saved one as it is
+/// (edited or not, it is refreshed by `retrodoc brief`, not behind the back
+/// of every other pass), otherwise one written now from the signals of the
+/// repository. Empty when there is no evidence or no usable answer.
+pub async fn for_generate(
+    repo_root: &Path,
+    ingest: &IngestResult,
+    llm: &dyn LlmProvider,
+    tracker: &UsageTracker,
+) -> anyhow::Result<ProductBrief> {
+    if Artifact::Product.path(repo_root).exists() {
+        return Ok(saved(repo_root));
+    }
+    println!("Writing the product brief…");
+    let sources = tracker
+        .in_pass(
+            "sources",
+            retrodoc_pipeline::infer_sources(repo_root, ingest, llm, false),
+        )
+        .await
+        .context("failed to locate the schema and translations")?;
+    let all =
+        signals::collect(repo_root, ingest, &sources).context("could not collect the signals")?;
+    let brief = tracker
+        .in_pass(
+            "brief",
+            retrodoc_pipeline::build_brief(repo_root, &all, llm, false),
+        )
+        .await
+        .context("failed to write the product brief")?;
+    Ok(brief.unwrap_or_default())
 }
 
 /// The brief as printed: each claim with where it comes from, `(unsupported)`
@@ -214,5 +263,52 @@ mod tests {
         let tracker = UsageTracker::new();
         run(dir.path(), false, true, &tracker).await.unwrap();
         assert_eq!(tracker.report().total().calls, 0);
+    }
+
+    struct NoCall;
+
+    #[async_trait::async_trait]
+    impl LlmProvider for NoCall {
+        async fn complete(
+            &self,
+            _: retrodoc_llm::CompletionRequest,
+        ) -> Result<retrodoc_llm::CompletionResponse, retrodoc_llm::LlmError> {
+            panic!("the saved brief must be used without asking the LLM");
+        }
+    }
+
+    #[tokio::test]
+    async fn generate_uses_the_saved_brief_as_it_is() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut brief = ProductBrief {
+            purpose: claim("Sells things.", &["README.md"]),
+            ..ProductBrief::default()
+        };
+        // An edit makes it differ from what was written: still used.
+        brief.content_hash = "written-before-the-edit".to_string();
+        brief.save(dir.path()).unwrap();
+        let ingest = retrodoc_ingest::IngestResult {
+            files: Vec::new(),
+            history_by_path: std::collections::HashMap::new(),
+            existing_docs: Vec::new(),
+            commits: Vec::new(),
+        };
+
+        let used = for_generate(dir.path(), &ingest, &NoCall, &UsageTracker::new())
+            .await
+            .unwrap();
+
+        assert_eq!(used.purpose.text, "Sells things.");
+        assert_eq!(saved(dir.path()), used);
+    }
+
+    #[test]
+    fn a_missing_or_unreadable_brief_is_an_empty_one() {
+        let dir = tempfile::tempdir().unwrap();
+        assert_eq!(saved(dir.path()), ProductBrief::default());
+        let path = Artifact::Product.path(dir.path());
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, "purpose: [oops").unwrap();
+        assert_eq!(saved(dir.path()), ProductBrief::default());
     }
 }

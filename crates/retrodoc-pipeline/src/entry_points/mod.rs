@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::artifact::{load_yaml, save_yaml, Artifact};
 use crate::batched_read::{group_paths, BatchedRead, PendingChunk};
-use crate::cache::hash_content;
+use crate::brief::ProductBrief;
 use crate::chunks::{strip_part_marker, Splitter};
 use crate::error::PipelineError;
 use crate::repo_map::read_file_lossy;
@@ -186,6 +186,7 @@ struct ResponseEntry {
 pub async fn build_entry_points(
     repo_root: &Path,
     roles: &RoleMap,
+    brief: &ProductBrief,
     llm: &dyn LlmProvider,
 ) -> Result<EntryPoints, PipelineError> {
     let previous = EntryPoints::load(repo_root).unwrap_or_default();
@@ -195,7 +196,7 @@ pub async fn build_entry_points(
     let mut pending: Vec<PendingChunk> = Vec::new();
     for path in roles.files_with(FileRole::EntryPoint) {
         let content = read_file_lossy(repo_root, path)?;
-        let hash = hash_content(&content);
+        let hash = brief.hash_with(&content);
         match previous.files.get(path) {
             Some(saved) if saved.content_hash == hash => {
                 inventory.files.insert(path.to_path_buf(), saved.clone());
@@ -214,7 +215,7 @@ pub async fn build_entry_points(
         pass: "entry points",
         unit: "file(s)",
         system_prompt: ENTRY_POINTS_SYSTEM_PROMPT,
-        header: "Files:\n",
+        header: &format!("{}Files:\n", brief.prompt_head()),
         attribute: attribute_entry_points,
         finish: |inventory: &mut EntryPoints, path, hash, mut entry_points| {
             let mut seen = BTreeSet::new();

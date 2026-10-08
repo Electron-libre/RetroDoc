@@ -98,6 +98,17 @@ impl LlmProvider for FakeLlm {
     }
 }
 
+/// A brief with only a purpose, to check that a pass reads it.
+pub(crate) fn brief(purpose: &str) -> crate::brief::ProductBrief {
+    crate::brief::ProductBrief {
+        purpose: crate::brief::Claim {
+            text: purpose.to_string(),
+            sources: Vec::new(),
+        },
+        ..crate::brief::ProductBrief::default()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
