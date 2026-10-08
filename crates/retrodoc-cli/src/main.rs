@@ -192,6 +192,8 @@ impl Command {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // API keys may live in a `.env` (current directory or a parent); variables already set win.
+    let _ = dotenvy::dotenv();
     let cli = Cli::parse();
     // The logs go to stdout (plain text when redirected to a file or a pipe: saved logs, smoke
     // test), except for `mcp`, whose stdout carries the protocol.
