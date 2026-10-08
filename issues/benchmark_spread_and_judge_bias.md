@@ -36,6 +36,11 @@ measure to trust, and a human check of the audited pairs.
   and the connection test. `linkding`: 222 to 283 calls, 0.46 to 0.57 M tokens in, 0.12 to 0.19 M out,
   10 to 14 minutes per run (instead of about 2 hours locally), so about 70 minutes for the six runs.
   These runs are the new baseline: they are not comparable with the local model's.
+* Real cost on the DeepSeek console for the whole session: $2.20, 1,990 requests, 4.89 M tokens, that is
+  the seven `delivery_router` runs and the connection test ($0.12), seven `linkding` runs (one alone,
+  then three per series) and the judge's re-rating of the narrative sample. So about $0.30 per
+  `linkding` run and about $1.8 for the six runs of a full benchmark, less than the $1.2 to $2.4 guessed
+  from third-party prices.
 * Spread of `linkding` (mean, min to max over 3 runs, `hidden` / `shown`): judged domain recall
   39% (33 to 50) / 56% (50 to 67); judged feature recall 65% (25 to 90) / 55% (15 to 85); judged feature
   precision 41% (5 to 67) / 27% (6 to 43); features generated 90 (67 to 110) / 77 (66 to 88). A change
