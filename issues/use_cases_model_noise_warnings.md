@@ -21,6 +21,16 @@ them cheaply (lenient parsing, one more retry, a repair step) or to decide which
 * The second `generate` of each run had no warning.
 * The warnings differ from one run to the next: random, not a single defect.
 
+# Update (2026-10-09): what the schema settled
+
+`issues/structured_llm_outputs.md` measured six runs on the same repository. With the JSON schema, the
+unparseable answers went from 6 (one unit skipped) to 0, so points 1 and 2 below (unparseable JSON, a
+verdict skipped twice) are settled for a server that accepts the schema; keep the lenient parsing for
+those that do not. What stays is the semantic noise, which a schema cannot prevent: a use case citing an
+entry point that does not exist (`use case cites an unknown entry point, dropped`, with values like
+`orders`, `rider`, or a path with a line number) and a business path that does not exist. The goal now is
+points 3 and 4, plus these entry-point references.
+
 # Approach
 
 First measure: count each kind over several runs, and check whether a truncated answer comes from the
@@ -30,7 +40,7 @@ output limit (`finish_reason=length`) or from the model.
    (cut object, trailing comma, a missing value), or raise the retries for a unit whose answer is cut.
 2. Confidence verdict skipped twice: decide whether a skipped sample should be a warning, and whether the
    unit deserves a third attempt.
-3. Invented step paths: try to resolve a near-miss path (closest file of the feature) before dropping the
+3. Invented step paths and entry points: try to resolve a near-miss path (closest file of the feature) before dropping the
    reference; keep the warning only for what can't be resolved.
 4. Chunk boundary: decide whether a first-try 0% coverage is worth a `WARN` when the fix succeeds (an `info`).
 

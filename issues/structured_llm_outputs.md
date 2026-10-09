@@ -45,7 +45,9 @@ retries and skipped units.
 3. [x] Count retries and skipped units per pass in the end-of-run recap; write the measurement protocol
    (setting off vs on, same repo and model, several runs, narratives, truncations). The runs are made by
    the user.
-4. [ ] Shorten the prompts that spell out the JSON shape, pass by pass, only if the measurement shows a gain.
+4. [-] Not done: shorten the prompts that spell out the JSON shape, pass by pass, only if the measurement shows a gain. The measurement shows no gain
+   to chase (the schema already removes the unparseable answers; the prompts also say what each field
+   means), so the prompts stay as they are.
 5. [ ] Docs along the way (`update-docs`): ADR 0023 (or a new ADR), `CLAUDE.md`, `PLAN.md`, config doc;
    update `issues/use_cases_model_noise_warnings.md` and propose closing it only if justified.
 
@@ -56,6 +58,8 @@ retries and skipped units.
 * The smoke runs for the measurement are made by the user, not by the agent.
 * `schemars` is accepted as a dependency.
 * Order: 1, 2, 3, then 4 after the user's measurement.
+* Deliverable 4 is left out (2026-10-09): no gain shown. `issues/use_cases_model_noise_warnings.md` stays open for
+  the invented references only.
 
 ## Measurement protocol
 
