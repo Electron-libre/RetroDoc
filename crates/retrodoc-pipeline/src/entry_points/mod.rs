@@ -45,8 +45,11 @@ public_api or other); `name` as a reader would say it (e.g. \"POST /contracts/:i
 \"SendReminderJob\"); `verb`, the action in business words (e.g. \"sign\"); `resource`, the \
 business object it acts on (e.g. \"contract\"); `description`, one sentence on what it does for \
 the user or the business; and `outputs`, its observable effects, each with a `kind` (response, \
-email, file, event, external_call, db_write or other) and a short `description`. Skip purely \
-technical helpers. Reply with ONLY a single JSON object, no prose and no Markdown code fence, \
+email, file, event, external_call, db_write or other) and a short `description`. An entry point \
+is what a user, a scheduler or another system triggers from outside the application. A function \
+only called by other code of the application (a service, a query, a form, a serializer or a \
+helper) is not one, even when it is public: skip it. A library is the exception: its public API \
+is its entry points, so list the methods a user of the library calls. Reply with ONLY a single JSON object, no prose and no Markdown code fence, \
 matching this shape: {\"entry_points\":[{\"file\":\"path as given\",\"kind\":\"http_route\",\
 \"name\":\"...\",\"verb\":\"...\",\"resource\":\"...\",\"description\":\"...\",\"outputs\":\
 [{\"kind\":\"email\",\"description\":\"...\"}]}]}. Use the file paths exactly as given.";

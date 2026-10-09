@@ -298,3 +298,28 @@ async fn business_files_are_read_next_to_the_entrypoint_files_without_reading_on
     assert_eq!(prompt.matches("lib/router.rb").count(), 1);
     assert!(prompt.contains("lib/order.rb") && !prompt.contains("helper.rb"));
 }
+
+#[tokio::test]
+async fn the_prompt_leaves_out_what_only_the_application_itself_calls_but_keeps_a_librarys_api() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.rb"), "def call; end").unwrap();
+    let roles = RoleMap {
+        roles: [(PathBuf::from("a.rb"), FileRole::EntryPoint)].into(),
+        ..RoleMap::default()
+    };
+    let llm = FakeLlm::answering(r#"{"entry_points":[]}"#);
+
+    build_entry_points(dir.path(), &roles, &[], &ProductBrief::default(), &llm)
+        .await
+        .unwrap();
+
+    let (system, _) = &llm.prompt_pairs()[0];
+    assert!(
+        system.contains("only called by other code of the application"),
+        "a service, query or form helper is not an entry point: {system}"
+    );
+    assert!(
+        system.contains("methods a user of the library calls"),
+        "the public API of a library still is: {system}"
+    );
+}
