@@ -1,7 +1,7 @@
 //! What `generate` prints about each pass once it is done.
 
 use retrodoc_core::model::{ConfidenceScore, Feature, UseCase};
-use retrodoc_pipeline::{CoverageReport, DomainMap, RepoMap};
+use retrodoc_pipeline::{Artifact, CoverageReport, DomainMap, RepoMap};
 
 pub(super) fn repo_map(map: &RepoMap) {
     println!("\nModules:");
@@ -96,4 +96,13 @@ pub(super) fn coverage_report(report: &CoverageReport) {
             report.unknown.len()
         );
     }
+}
+
+pub(super) fn saved(features: usize, use_cases: usize) {
+    println!(
+        "\n{features} feature(s) saved to {}, {use_cases} use case(s) to {}.",
+        Artifact::Features.relative_path(),
+        Artifact::UseCases.relative_path()
+    );
+    println!("Run `retrodoc report` for the documentation debt report.");
 }

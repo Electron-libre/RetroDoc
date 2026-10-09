@@ -17,6 +17,7 @@ const CACHE_DIR: &str = ".retrodoc/cache";
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Artifact {
     RepoMap,
+    SourceHashes,
     Fingerprints,
     Roles,
     SignalSources,
@@ -33,8 +34,9 @@ pub enum Artifact {
 }
 
 impl Artifact {
-    pub const ALL: [Artifact; 14] = [
+    pub const ALL: [Artifact; 15] = [
         Artifact::RepoMap,
+        Artifact::SourceHashes,
         Artifact::Fingerprints,
         Artifact::Roles,
         Artifact::SignalSources,
@@ -54,6 +56,7 @@ impl Artifact {
     pub fn file_name(self) -> &'static str {
         match self {
             Artifact::RepoMap => "repo-map.json",
+            Artifact::SourceHashes => "source-hashes.json",
             Artifact::Fingerprints => "fingerprints.json",
             Artifact::Roles => "roles.yaml",
             Artifact::SignalSources => "signal-sources.yaml",
@@ -89,6 +92,7 @@ impl Artifact {
     pub fn cleared_by_force(self) -> bool {
         match self {
             Artifact::RepoMap
+            | Artifact::SourceHashes
             | Artifact::Fingerprints
             | Artifact::Glossary
             | Artifact::EntryPoints

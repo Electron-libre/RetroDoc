@@ -39,6 +39,7 @@ pub mod report;
 mod response;
 pub mod roles;
 pub mod slices;
+pub mod source_hashes;
 pub mod sources;
 pub mod surface;
 #[cfg(test)]
@@ -69,6 +70,7 @@ pub use repo_map::{
 pub use report::{build_report, domain_models, DebtReport};
 pub use roles::{identify_roles, FileRole, RoleMap, RoleRule, RoleRules};
 pub use slices::CodeIndex;
+pub use source_hashes::SourceHashes;
 pub use sources::{infer_sources, saved_or_sniffed, SourceMapFile};
 pub use surface::{Resource, Surface};
 pub use use_cases::{build_use_cases, load_use_cases, save_use_cases, UseCaseContext};

@@ -37,3 +37,18 @@ Then pick the least invasive fix. Candidates:
 * A new artifact must go through `Artifact` (name, `generate --force` behavior) and the `update-docs` checklist.
 * Existing generated repos have no such artifact: a rerun of `generate` (no LLM call when nothing changed)
   should be enough to write it, and `Freshness` should keep working, with `Unknown`, until then.
+
+# Tracking
+
+1. [x] `source-hashes.json` artifact and `Freshness` reads it (reproduction test first; no file = `Unknown`)
+2. [x] `generate` captures the hashes before the repo map and saves them only after a successful run; `--force` clears them
+3. [x] Docs (`update-docs` checklist: `CLAUDE.md`, `PLAN.md` §7.3, `issues/mcp_server.md`, doc comments)
+
+## Decisions
+
+* Option 1 of the Approach (the hashes are recorded when the docs are produced, not by the repo map).
+* The artifact holds the hash of every source file of the repo map (not only the cited ones).
+* Hashes are read before the repo map pass and written only once the whole run succeeded, so an edit made
+  during the run reads as modified (the safe side).
+* `generate --force` clears it; until a run ends, every file is `Unknown`.
+* Named `source-hashes.json` (not `sources.json`, too close to `signal-sources.yaml`).

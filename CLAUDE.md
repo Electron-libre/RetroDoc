@@ -123,7 +123,7 @@ retrodoc-cli ──> retrodoc-mcp ──> retrodoc-pipeline, retrodoc-ingest, re
   batches of ~12k chars, an unusable batch retried file by file, a checkpoint after each batch), `artifact.rs` (`Artifact`: the names of everything under `.retrodoc/cache/` and which `generate --force` clears; load/save of those files; a missing or
   unreadable file is a first run, not an error), `response.rs` (`complete_text`, and `complete_json` with
   the `schemars` schema of its answer type sent as `response_format`, `response_schema` making it strict — every raw answer type derives `JsonSchema`; lenient parsing (fences, prose, a repeated field keeps its last value) and one retry; an unparseable unit is skipped with a warning), `fingerprints.rs` and
-  `cache.rs` (incremental re-run), `progress.rs` (one `tracing::info!` line per unit with ETA), `naming.rs`
+  `cache.rs` (incremental re-run), `source_hashes.rs` (`source-hashes.json`: the hash of each source file at the last complete `generate`, what MCP freshness compares against), `progress.rs` (one `tracing::info!` line per unit with ETA), `naming.rs`
   (the single `normalize` used to match names across passes), `usage_log.rs` (the end-of-run recap text and the
   history of the last 20 runs in `.retrodoc/cache/usage.json`), `error.rs`.
 
@@ -155,7 +155,7 @@ retrodoc-cli ──> retrodoc-mcp ──> retrodoc-pipeline, retrodoc-ingest, re
   domain, sub-domain, feature, use case, glossary concept and collected Markdown doc, each with its id, confidence and
   cited files. `Docs` (`Docs::load` reads `.retrodoc/cache/` + the collected docs) answers the seven tools in Markdown
   (`list_domains`, `get_domain`, `get_feature`, `get_use_case`, `search_docs`, `read_source`, `git_log`): ids to reuse, confidence (flagged below
-  50%), cited files, a stale warning when a cited file no longer matches the hash `generate` recorded in `repo-map.json`
+  50%), cited files, a stale warning when a cited file no longer matches the hash recorded in `source-hashes.json` (`SourceHashes`, written only by a `generate` that went through every pass, hashes read before the repo map)
   (`Freshness`, checked at every call; files without a recorded hash are not judged), and "Not documented" as a normal answer for an unknown id or an empty search. `server.rs` puts them
   behind the `rmcp` SDK (`serve_stdio`); tested end to end with an `rmcp` client over an in-memory pipe. `source.rs` (`SourceAccess`) backs `read_source` (a
   window of lines, 200 by default, 400 at most) and `git_log` (hash, date, subject, no author): only files the docs

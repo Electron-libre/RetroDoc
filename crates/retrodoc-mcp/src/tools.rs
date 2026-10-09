@@ -667,15 +667,14 @@ mod tests {
     /// of the two files they cite.
     fn docs_over_a_generated_repo() -> (tempfile::TempDir, Docs) {
         let dir = tempfile::tempdir().unwrap();
-        let mut cache = retrodoc_pipeline::cache::RepoMapCache::default();
+        let mut cache = retrodoc_pipeline::SourceHashes::default();
         for name in ["app/invoice.rb", "app/mailer.rb"] {
             let path = dir.path().join(name);
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();
             std::fs::write(&path, format!("content of {name}")).unwrap();
             cache.put(
-                std::path::Path::new(name),
+                name,
                 &retrodoc_pipeline::cache::hash_content(&format!("content of {name}")),
-                "summary",
             );
         }
         cache.save(dir.path()).unwrap();

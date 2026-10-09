@@ -408,7 +408,7 @@ Steps, each shippable:
    hand-written BM25; the glossary is indexed too); checked on the `delivery_router` smoke repo: right use case found, but no synonym matching and no relevance threshold (an undocumented topic still returns entries sharing a common word).
    The MCP server (`retrodoc mcp`, seven tools, answers in Markdown with confidence and cited files) is also
    **implemented**; its stop-word and half-of-the-words filter does not fix that case with two-word queries.
-   Freshness warnings are implemented too (current hash of each cited file against `repo-map.json`; after a `generate` that failed past the repo map the cache is ahead of the docs, so a changed file looks fresh until the next successful run). `read_source` and `git_log` are implemented as well, limited to the files the docs cite (no `..`, no symlink at all, no binary or very large file, long lines cut, no author names, merge commits left out).
+   Freshness warnings are implemented too (current hash of each cited file against `source-hashes.json`, which only a `generate` that went through every pass writes, so a run that failed after the repo map leaves it describing the docs still on disk; until the first complete run after upgrading, files are not judged). `read_source` and `git_log` are implemented as well, limited to the files the docs cite (no `..`, no symlink at all, no binary or very large file, long lines cut, no author names, merge commits left out).
 2. Tool calling support in `retrodoc-llm` (or the JSON-action fallback).
 3. `retrodoc ask` with citations, confidence and freshness warnings.
 4. Interactive `chat` with conversation memory; code and git history tools.

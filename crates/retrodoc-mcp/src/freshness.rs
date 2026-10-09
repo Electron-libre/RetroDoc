@@ -1,11 +1,13 @@
 //! Whether the code the docs cite is still the code they were generated from:
 //! the current hash of each cited file against the one the last `generate`
-//! recorded in `repo-map.json`, checked at every call so a long-running
+//! recorded in `source-hashes.json` (written once a run has gone through every
+//! pass, unlike the repo map cache), checked at every call so a long-running
 //! server notices an edit made meanwhile.
 
 use std::path::{Path, PathBuf};
 
-use retrodoc_pipeline::cache::{hash_content, RepoMapCache};
+use retrodoc_pipeline::cache::hash_content;
+use retrodoc_pipeline::SourceHashes;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FileState {
@@ -19,27 +21,27 @@ pub enum FileState {
 
 pub struct Freshness {
     repo_root: PathBuf,
-    recorded: RepoMapCache,
+    recorded: SourceHashes,
 }
 
 impl Freshness {
-    /// Reads the hashes recorded by the last `generate`; with none (never
+    /// Reads the hashes recorded by the last complete `generate`; with none (never
     /// generated) every file is [`FileState::Unknown`].
     #[must_use]
     pub fn load(repo_root: &Path) -> Self {
         Self {
             repo_root: repo_root.to_path_buf(),
-            recorded: RepoMapCache::load(repo_root),
+            recorded: SourceHashes::load(repo_root),
         }
     }
 
     #[must_use]
     pub fn state(&self, path: &str) -> FileState {
-        let Some(recorded) = self.recorded.content_hash(Path::new(path)) else {
+        let Some(recorded) = self.recorded.get(path) else {
             return FileState::Unknown;
         };
         match std::fs::read(self.repo_root.join(path)) {
-            // Hashed as the repo map does: lossy UTF-8.
+            // Hashed as the repo map does (`SourceHashes::capture`): lossy UTF-8.
             Ok(bytes) if hash_content(&String::from_utf8_lossy(&bytes)) == recorded => {
                 FileState::Fresh
             }
@@ -69,11 +71,11 @@ mod tests {
     /// recorded, as `generate` leaves them.
     fn generated_repo() -> tempfile::TempDir {
         let dir = tempfile::tempdir().unwrap();
-        let mut cache = RepoMapCache::default();
+        let mut cache = SourceHashes::default();
         for name in ["a.rb", "b.rb", "c.rb"] {
             let content = format!("content of {name}");
             std::fs::write(dir.path().join(name), &content).unwrap();
-            cache.put(Path::new(name), &hash_content(&content), "summary");
+            cache.put(name, &hash_content(&content));
         }
         cache.save(dir.path()).unwrap();
         dir
@@ -118,6 +120,23 @@ mod tests {
         assert_eq!(
             Freshness::load(dir.path()).state("a.rb"),
             FileState::Unknown
+        );
+    }
+
+    #[test]
+    fn a_repo_map_updated_by_a_failed_run_does_not_make_an_edit_look_fresh() {
+        use retrodoc_pipeline::cache::RepoMapCache;
+        let dir = generated_repo();
+        // The next `generate` edits the file, rebuilds the repo map (which
+        // records the new hash), then fails before the docs are rewritten:
+        // `source-hashes.json` is left as the last complete run wrote it.
+        std::fs::write(dir.path().join("a.rb"), "edited").unwrap();
+        let mut repo_map = RepoMapCache::default();
+        repo_map.put(Path::new("a.rb"), &hash_content("edited"), "summary");
+        repo_map.save(dir.path()).unwrap();
+        assert_eq!(
+            Freshness::load(dir.path()).state("a.rb"),
+            FileState::Modified
         );
     }
 }

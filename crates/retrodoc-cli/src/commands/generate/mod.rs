@@ -7,7 +7,7 @@ use retrodoc_ingest::IngestResult;
 use retrodoc_llm::UsageTracker;
 use retrodoc_pipeline::{
     Actors, Artifact, CodeIndex, DomainMap, EntryPoints, ProductBrief, RepoMap, RepoMapOptions,
-    RoleMap, Scope, Surface, UseCaseContext,
+    RoleMap, Scope, SourceHashes, Surface, UseCaseContext,
 };
 
 mod print;
@@ -105,6 +105,10 @@ pub async fn run(
         max_files.or(config.ingest.max_files),
     )?;
 
+    // Read before the repo map: a file edited during the run then reads as
+    // modified later, never as fresh.
+    let source_hashes = SourceHashes::capture(repo_root, &ingest);
+
     let map = tracker
         .in_pass("repo-map", build_map(repo_root, &ingest, &llm, &config.llm))
         .await?;
@@ -168,16 +172,13 @@ pub async fn run(
         )
         .await?;
 
-    print::features(&features, &use_cases);
+    // Only a run that went through every pass says which code the docs describe.
+    source_hashes
+        .save(repo_root)
+        .context("could not save the source hashes")?;
 
-    println!(
-        "\n{} feature(s) saved to {}, {} use case(s) to {}.",
-        features.len(),
-        Artifact::Features.relative_path(),
-        use_cases.len(),
-        Artifact::UseCases.relative_path()
-    );
-    println!("Run `retrodoc report` for the documentation debt report.");
+    print::features(&features, &use_cases);
+    print::saved(features.len(), use_cases.len());
 
     super::docs::publish(repo_root, config, dry_run)
 }
