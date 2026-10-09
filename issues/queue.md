@@ -4,7 +4,6 @@ Open issues in the order to work on them: the first is the next one. Read by `ju
 `just close-issue` removes a line, `skill:create-issue` inserts one at its rank, `skill:prioritize-issues`
 re-ranks the whole list. Line format: `- [<file stem>](<file stem>.md) - <why here>`.
 
-- [json_object_fallback_for_deepseek](json_object_fallback_for_deepseek.md) - small, starts with a measure that may close it as not worth it
 - [git_log_follow_renames](git_log_follow_renames.md) - small, self-contained MCP fix
 - [business_files_for_entry_points_and_actors](business_files_for_entry_points_and_actors.md) - behaviour_coverage_domains builds on entry points: check that pass is reliable first
 - [behaviour_coverage_domains](behaviour_coverage_domains.md) - the pivot of phase 10 (ADR 0020), before tree_sitter_structure as in PLAN.md 7.5; shipped in steps

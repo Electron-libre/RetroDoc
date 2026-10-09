@@ -55,3 +55,40 @@ If they are not rare:
   fields: the lenient parsing and the retry stay.
 * A 400 unrelated to `response_format` (prompt too long) must still not be blamed on the format: keep the
   rule "only if the next request works is the format refused".
+
+# Tracking
+
+1. [x] Measure DeepSeek as it behaves today (no code): `generate --force --no-confidence` on
+   `delivery_router`, one run first, then up to two more if the first costs under $0.10; stop at 3 runs
+   or $0.30 in total. Table in this issue; decision: close as not worth it, or go on to 2.
+2. [-] Fallback chain (not done: step 1 found no gain) `json_schema` -> `json_object` -> plain (only if 1 justifies it): test with the fake
+   server first, then the second refusal flag and the word "JSON" in the request.
+3. [-] Docs (ADR 0023, `CLAUDE.md`) and a new DeepSeek run to compare before / after (only if 2).
+
+## Decisions
+
+* The agent runs the measurements itself, capped at $0.30 in total without asking again.
+* No new setting: `llm.structured_output` stays a boolean, the detection is automatic.
+* Go on past step 1 only if at least one run in three skips a unit, or there is more than one
+  unparseable answer per run on average.
+
+## Measurement (2026-10-09, `delivery_router` HEAD in a clone, `deepseek-chat`, `generate --force --no-confidence`, `concurrency = 4`)
+
+| Run | Calls | Tokens in / out | Time | Unparseable (skipped) | WARN |
+|---|---|---|---|---|---|
+| 1 | 20 | 30,330 / 16,042 | 1m06 | 0 | 1 |
+| 2 | 21 | 26,398 / 12,743 | 59s | 0 | 1 |
+| 3 | 20 | 23,430 / 11,132 | 51s | 0 | 1 |
+
+* The only `WARN` of each run is "the server refused the JSON schema": one wasted call per run, then plain
+  requests. The recap shows no `unparseable` and no `skipped` row, in any pass.
+* About 80k tokens in and 40k out for the three runs together.
+* Below the threshold of the decisions (a skipped unit in one run out of three, or more than one
+  unparseable answer per run): `json_object` would fix a problem DeepSeek does not have on this
+  repository. Limits: one small repository, 3 runs, no confidence pass; `linkding` (larger answers, more
+  units) was not run.
+
+## Conclusion
+
+Not worth it for now: deliverables 2 and 3 are left out. Reopen if a larger repository on DeepSeek shows
+unparseable answers or skipped units.
