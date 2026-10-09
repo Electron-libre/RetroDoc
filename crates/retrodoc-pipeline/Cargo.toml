@@ -31,3 +31,7 @@ tracing-subscriber.workspace = true
 [[example]]
 name = "entry_points_replay"
 test = true
+
+[[example]]
+name = "behaviour_baseline"
+test = true
