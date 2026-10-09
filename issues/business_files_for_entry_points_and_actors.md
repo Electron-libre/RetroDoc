@@ -42,3 +42,78 @@ Then, candidates (can be combined):
 * The model answers differently each time: judge on several runs and on repositories of different shapes.
 * Don't edit `roles.yaml` or `business-files.yaml` by hand to make a run pass (smoke test rule).
 * Do not add a call per file.
+
+# Tracking
+
+1. [x] Hand-made reference: the real entry points and actors of `delivery_router` and linkding, read from
+   the code and checked by the user (`benchmark/<repo>/entry-points.yaml`, committed: both repositories are public).
+2. [x] Offline comparison of the saved runs (no LLM call): a cargo example (`entry_points_replay`, to reuse
+   `RoleRules::classify` as it is) reads `entry-points.yaml`,
+   `actors.yaml` and `roles.yaml` of the runs kept in the temp directory, and reports recall, precision, count and spread
+   per repository and per model, plus the files read; for the runs with a `business-files.yaml`, what
+   the business list would add or miss. Table and decision in this issue: keep as is, or go on to 3.
+3. [ ] Try the simplest candidate that answers the gap found (only if 2 shows one): test with the fake
+   provider, code, docs, then 3 local Ollama runs per repository against the reference.
+
+## Decisions
+
+* The old runs are the baseline: no new LLM call for the measure.
+* The reference is written by the agent from the code and validated by the user.
+* Results are shown per model, never mixed.
+* No paid call without asking.
+* The tool is a cargo example of `retrodoc-pipeline`, not a `rust-script`: it applies the real `RoleRules::classify`
+  and `BusinessMap::files` to the real tree instead of a copy of them.
+* The references are committed under `benchmark/<repo>/entry-points.yaml` (public repositories).
+
+## Offline measurement (2026-10-09, 63 saved runs of `delivery_router`, 31 of linkding, no LLM call)
+
+`cargo run -q -p retrodoc-pipeline --example entry_points_replay -- benchmark/<repo>/entry-points.yaml <checkout at the
+benchmark commit> /tmp`. The input tables apply the saved `roles.yaml` / `business-files.yaml` to the real tree; the
+pass tables read the saved `entry-points.yaml` / `actors.yaml`. Values are mean (min-max). "Reference files" are the
+files where the entry points live (5 for `delivery_router`, 16 for linkding), "outside" the share of the files read
+that are not in that list. Samples of the same model are put together, whatever the pipeline version.
+
+`delivery_router` (library):
+
+| Model | Input to the entry points pass | Samples | Reference files read | Files read |
+|---|---|---|---|---|
+| deepseek-chat | `entrypoint` role | 19 | 31% (0-100%) | 2.3 (0-9) |
+| local qwen3.6 | `entrypoint` role | 29 | 29% (0-100%) | 2.3 (0-9) |
+| local qwen3.6 | business list | 8 | 82% (80-100%) | 7.8 (5-9) |
+| local qwen3.6 | role + business list | 8 | 95% (80-100%) | 8.4 (5-9) |
+
+| Model | Entry points pass, as run | Runs | Entries | Groups found (of 8) | Reference files read |
+|---|---|---|---|---|---|
+| deepseek-chat | | 19 | 4.5 (0-23) | 25% (0-100%) | 31% |
+| local qwen3.6 | | 28 | 2.8 (0-21) | 11% (0-62%) | 29% |
+
+* The pass reads on average a third of the files where the five entry points of the gem live, and often none
+  (0 entries in a good part of the runs). The three constructors (`Customer.new`, `Restaurant.new`,
+  `Rider.new`) are never found by any run.
+* The business list reads 82% of them (8 samples, one model), and 95% together with the role.
+* Actors: 91% (deepseek) and 82% (local) of the three reference actors, 0.3 to 0.4 actor outside the reference.
+
+linkding (Django):
+
+| Model | Input to the entry points pass | Samples | Reference files read | Files read | Outside |
+|---|---|---|---|---|---|
+| deepseek-chat | `entrypoint` role | 7 | 89% (81-94%) | 29.9 | 52% |
+| local qwen3.6 | `entrypoint` role | 9 | 86% (81-100%) | 29.1 | 52% |
+| local qwen3.6 | business list | 1 | 19% | 11 | 73% |
+| any (loose files) | business list | 10 | 47% (6-94%) | 29.6 (10-60) | 77% |
+| local qwen3.6 | role + business list | 1 | 100% | 49 | 67% |
+
+* Entry points pass: 94% to 98% of the 14 groups found, about 100 to 130 entries.
+* Actors: 51% (deepseek) and 40% (local) of the five reference actors; never the administrator (deepseek) or
+  the feed reader (local), and 2 actors outside the reference per deepseek run.
+
+Limits: the references are mine (groups of routes, not one line per route) and linkding's `files` leaves out the
+management commands and the background tasks, which are entry points too (part of the "outside" share is
+legitimate); the samples mix pipeline versions; only one linkding run has both a role and a business list; the
+actors pass does not read its files by role, so this measure says nothing on candidate 3 beyond the numbers above.
+
+Reading: the gap is real on a library (candidate 1 and 2 would help: the business list reaches the files the
+role misses), and absent on a Django application where the role already reads 86% to 89% of the reference files
+and the business list alone is a poor entry point input (19% to 47%). For the actors, the missing ones
+(administrator, feed reader) come from code the authorization files do not hold, which the business list would
+not add either.
