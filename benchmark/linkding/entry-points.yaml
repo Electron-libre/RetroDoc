@@ -1,6 +1,6 @@
 # Hand-made reference of the entry points and actors of the repository of `reference.yaml`, read from
-# `bookmarks/urls.py` and `bookmarks/api/routes.py`. Entry points are grouped by resource: a run covers a
-# group when one of its entry points matches. Used by
+# `bookmarks/urls.py` and `bookmarks/api/routes.py`, plus the background tasks and the management commands.
+# Entry points are grouped by resource: a run covers a group when one of its entry points matches. Used by
 # `cargo run -p retrodoc-pipeline --example entry_points_replay`.
 repo: linkding
 # Where the entry points live: a pass that does not read these files cannot find them.
@@ -21,6 +21,15 @@ files:
   - bookmarks/views/root.py
   - bookmarks/feeds.py
   - bookmarks/admin.py
+  - bookmarks/services/tasks.py
+  - bookmarks/management/commands/backup.py
+  - bookmarks/management/commands/create_initial_superuser.py
+  - bookmarks/management/commands/enable_wal.py
+  - bookmarks/management/commands/ensure_superuser.py
+  - bookmarks/management/commands/full_backup.py
+  - bookmarks/management/commands/generate_secret_key.py
+  - bookmarks/management/commands/import_netscape.py
+  - bookmarks/management/commands/migrate_tasks.py
 # `matches`: regex (case-insensitive) on "<name> <verb> <resource>" of an entry point found by a run.
 entry_points:
   - { label: "bookmarks: list, create, edit, delete", matches: "bookmark" }

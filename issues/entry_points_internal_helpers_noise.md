@@ -56,3 +56,33 @@ Then, candidates (can be combined):
   `roles` and `business-files`, one pass with and one without the change).
 * Do not edit `roles.yaml` or `business-files.yaml` by hand to make a run pass.
 * Do not add a call per file.
+
+# Tracking
+
+1. [x] Complete the linkding reference with the background tasks and the management commands, replay the 3
+   runs made after the business files joined the pass, and note the share of entries outside the reference
+   as the baseline (no LLM call).
+2. [ ] Prompt (candidate 1 only): test that locks the wording, change of `ENTRY_POINTS_SYSTEM_PROMPT`, then 3
+   paired local runs per repository on the same inputs as before (`roles` and business list kept, only the pass
+   replayed). Success: fewer entries outside the reference on linkding without fewer groups or reference files
+   read, and the public methods of `delivery_router` still found.
+3. [ ] Only if 2 is not enough: bring candidates 2 and 3 back to the user (not planned now).
+
+## Decisions
+
+* Start with the prompt alone: filtering by role is left out until the prompt is measured, since it would
+  lose the real background tasks (`services/tasks.py`).
+* The measure replays the pass on the inputs of the previous paired runs, locally.
+* No paid call without asking.
+
+## Baseline (2026-10-09, linkding reference completed with `services/tasks.py` and the 8 management commands: 25 files)
+
+Replay (`entry_points_replay`) of the 3 paired runs of `issues/done/business_files_for_entry_points_and_actors.md`:
+
+| Pass | Entries per run | Groups found | Entries in reference files | Reference files read |
+|---|---|---|---|---|
+| role only (before) | 78 (25-110) | 79% (64-86%) | 87% (75-100%) | 69% (36-88%) |
+| role + business files (now) | 136 (111-168) | 86% (79-93%) | 65% (50-81%) | 80% (56-92%) |
+
+So the noise to bring down is the 35% of entries outside the reference files (21, 45 and 84 entries in the three
+runs), against 13% before the business files joined the pass.
