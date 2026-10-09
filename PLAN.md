@@ -456,7 +456,7 @@ Decisions (accepted ADRs):
 Steps, in order, one issue each:
 1. `issues/quality_benchmark.md`: a reproducible measure of the docs' quality, before any other step.
 2. `issues/done/product_brief.md` (then `issues/locate_business_files.md`, which takes the brief as input).
-3. `issues/done/structured_llm_outputs.md` and `issues/model_per_pass.md`.
+3. `issues/done/structured_llm_outputs.md` and `issues/done/model_per_pass.md`.
 4. `issues/behaviour_coverage_domains.md`: the pivot, shipped in steps, the old path kept behind a setting
    until the benchmark favours the new one.
 5. `issues/tree_sitter_structure.md`.

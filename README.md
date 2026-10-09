@@ -96,6 +96,13 @@ model = "anthropic/claude-sonnet-4.5"
 # batch_chars = 6000          # 0 disables batching
 # structured_output = true    # ask the server for schema-constrained JSON answers (false: never)
 
+# A pass can use another model or server: `[llm.passes.<name>]` takes the keys above and falls back to
+# `[llm]` for the rest. Names: sources, brief, roles, business-files, glossary, entry-points, actors,
+# repo-map, domains, features, use-cases, confidence, benchmark judge.
+# [llm.passes.domains]
+# model = "anthropic/claude-sonnet-4.5"
+# base_url = ""               # empty: the provider's own endpoint instead of [llm]'s base_url
+
 [ingest]
 extra_ignore = []                              # in addition to .gitignore
 existing_docs_paths = ["docs", "README.md"]    # Markdown taken as input
@@ -104,6 +111,14 @@ existing_docs_paths = ["docs", "README.md"]    # Markdown taken as input
 [output]
 docs_dir = "docs"
 ```
+
+A pass whose model changes is redone on the next run (the model is part of what its cache is compared
+with); the first run after upgrading to this behavior redoes every pass once. `roles.yaml`,
+`signal-sources.yaml`, `business-files.yaml` and `product.yaml` are the exception: they stay until `--force`.
+A suggested split, **not benchmarked yet**: the strong model on `brief`, `domains` and `features`, which
+frame everything else, and a cheap or local one in `[llm]` for the many extraction calls (`repo-map`,
+`glossary`, `entry-points`, `actors`, `confidence`). Measure it against one model for all with
+`just benchmark` (the `quality-benchmark` skill: quality and cost, which the recap splits per pass and model).
 
 Intermediate artifacts (file roles, glossary, entry points, domains, features, use cases…) are plain
 YAML under `.retrodoc/cache/`. `roles.yaml`, `signal-sources.yaml` and `product.yaml` are meant to be edited by hand when the LLM gets them wrong.

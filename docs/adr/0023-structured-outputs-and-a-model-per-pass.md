@@ -39,10 +39,26 @@ already carries them, ADR 0002).
   for the rest of the run (one warning); otherwise the original error is returned.
 * The lenient parsing and the retry stay: a schema does not stop a cut answer, and a server may ignore it.
 
+### As built, the model per pass (`issues/done/model_per_pass.md`)
+
+* `[llm.passes.<name>]` holds the keys of `[llm]`, all optional (`LlmConfig::for_pass`); the names are
+  the ones `UsageTracker` counts (`config::PASS_NAMES`), and an unknown name or key is a config error.
+  `batch_chars` is read for `repo-map` only. A pass that changes `provider` without `api_key_env` takes the
+  key variable of that provider; an empty `base_url` drops the global one.
+* The CLI builds one provider per distinct configuration (`PassProviders`), shared by the passes with equal
+  settings, all opened before the first call so a missing key names its pass.
+* The model is part of the fingerprint of each LLM pass (`LlmProvider::model`): domains, features, use
+  cases, actors, the glossary and entry points file hashes, the repo map cache, and the model that scored
+  the use cases for the confidence pass. The hand-editable `roles`, `sources`, `business-files` and `brief`
+  are not redone on a model change (`--force` does). The first run after this change redoes every pass.
+* The split to use (strong model on brief, domains and features, cheap or local on the extractions) is
+  a suggestion, not yet measured with the quality benchmark.
+
 ## Consequences
 
 * Fewer retries and skipped units, so fewer calls and less lost documentation.
 * The schemas must follow the Rust types of the raw answers; deriving them (for example with `schemars`)
   avoids drift.
 * Prompts can be shorter: the shape no longer needs to be spelled out in prose.
-* Follow-up issues: `issues/done/structured_llm_outputs.md`, `issues/model_per_pass.md`.
+* Follow-up issues: `issues/done/structured_llm_outputs.md`, `issues/done/model_per_pass.md`; measuring a split
+  with `issues/quality_benchmark.md` is still to do.

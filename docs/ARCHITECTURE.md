@@ -189,6 +189,8 @@ flowchart TD
     p7 -- no --> c7["LLM: score"]
 ```
 
+The model of the pass is part of every one of these comparisons: ask a pass for another model and its
+units are redone (the hand-editable roles, sources, business files and brief are only redone with `--force`).
 Directory summaries are keyed by the hash of what was sent to the LLM (their children's summaries), so a
 changed file only invalidates its folder and ancestors. Domain clustering is not deterministic, so
 `domains.yaml` is reused while its input hash is unchanged (otherwise downstream fingerprints would be
@@ -255,12 +257,18 @@ be added later without touching the pipeline.
 
 ```mermaid
 flowchart LR
-    passes["pipeline passes<br/>(repo_map, domains, features,<br/>use_cases, confidence, roles, glossary,<br/>entry_points)"] --> trait["trait LlmProvider"]
+    passes["pipeline passes<br/>(repo_map, domains, features,<br/>use_cases, confidence, roles, glossary,<br/>entry_points)"] -->|"one provider per pass<br/>([llm.passes.name] over [llm])"| trait["trait LlmProvider"]
     trait --> or["OpenRouterProvider<br/>HTTP + exponential-backoff retry"]
     trait -.->|wrappers| wrap["HeartbeatProvider<br/>UsageProvider (tokens per pass)"]
     trait -.-> fake["test fakes<br/>(FakeLlm)"]
     or --> ep[("OpenRouter, DeepSeek, or any server speaking the<br/>OpenAI chat-completions format<br/>via llm.base_url (e.g. local Ollama)")]
 ```
+
+Each pass gets its own provider: `[llm.passes.<name>]` in `retrodoc.toml` changes the model, server or key
+of one pass and falls back to `[llm]` for the rest, so a strong model can frame the documentation (brief,
+domains, features) while a cheap or local one does the many extractions. Passes with equal settings share
+one provider. The model is part of each pass's fingerprint (§5), so changing it redoes the pass. See
+[ADR 0023](adr/0023-structured-outputs-and-a-model-per-pass.md).
 
 ## 9. Serving the docs to agents (MCP)
 

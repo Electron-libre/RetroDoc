@@ -90,7 +90,7 @@ retrodoc-cli ──> retrodoc-mcp ──> retrodoc-pipeline, retrodoc-ingest, re
   one is an error). Per-request HTTP timeout is 120 s unless `llm.timeout_secs` is set (a slow local
   model writing a long JSON answer needs more; a timeout restarts the whole generation on retry). `CompletionRequest.json_schema` is the optional shape of a JSON answer, sent as a strict `response_format` (plus OpenRouter's `require_parameters` on its real endpoint) unless `llm.structured_output = false`; a 400/404/422 is sent again without it, and if that works the schema is left out for the rest of the run (ADR 0023). `CompletionResponse.usage`
   is the optional token count the server reports (`usage.rs`: a missing or malformed block is `None`, never estimated);
-  `UsageProvider` + `UsageTracker` count answered calls and tokens per pass and per model (concurrency-safe; the CLI names
+  `LlmProvider::model()` is the model a provider asks for when a request names none (empty by default): passes put it in their fingerprints. `UsageProvider` + `UsageTracker` count answered calls and tokens per pass and per model (concurrency-safe; the CLI names
   the pass with `set_pass`, or `in_pass`, which closes it when the work ends). Failed attempts and internal retries are not counted.
 - **retrodoc-pipeline**: orchestrates the multi-pass generation pipeline of `PLAN.md` §2, one module per
   pass. The `//!` doc of each module is the reference for what the pass does and why; this is only the map.
@@ -130,7 +130,8 @@ retrodoc-cli ──> retrodoc-mcp ──> retrodoc-pipeline, retrodoc-ingest, re
   Behaviors that span passes:
   - **Incremental re-run**: each pass skips a unit whose input fingerprint is unchanged and reuses its saved
     result (features per domain unit, use cases per feature, summaries per file hash, directory summaries per
-    listing hash, domains per clustering input; a feature answered "no use case" twice cleanly is remembered too). `generate --force` wipes the caches.
+    listing hash, domains per clustering input; a feature answered "no use case" twice cleanly is remembered too). `generate --force` wipes the caches. The model of the pass (`LlmProvider::model`, `fingerprints::model_part` / `hash_for_model`) is part of what is compared, so another model redoes the pass: domains, features, use cases and actors fingerprints, glossary and entry points file hashes, the `model` of the repo map cache (not in `content_hash`, which the MCP freshness check reads), and `confidence_model` in `fingerprints.json` (another model clears the scores and scores them again, within `--confidence-sample`). The hand-editable `roles`, `sources`, `business-files` and `brief` stay until `--force`.
+  - **Model per pass** (ADR 0023): `[llm.passes.<name>]` (`PassLlmConfig`, the keys of `[llm]`, names in `config::PASS_NAMES`, unknown name or key = config error) overrides `[llm]` for one pass: `LlmConfig::for_pass`. A pass that changes `provider` without `api_key_env` takes that provider's key variable; an empty `base_url` drops the global one; `batch_chars` is read for `repo-map` only. The CLI's `PassProviders::open` builds one provider per distinct configuration (shared between passes with equal settings, opened before any call so a missing key names its pass), `get(pass)` hands it out.
   - **Resumable**: an LLM failure in the features or use cases pass saves the units done so far; the repo map
     saves its cache. A rerun resumes there.
   - **Cost control**: `llm.concurrency` (default 1) parallelizes file and directory summaries,
@@ -138,8 +139,8 @@ retrodoc-cli ──> retrodoc-mcp ──> retrodoc-pipeline, retrodoc-ingest, re
     `estimate_repo_map`'s expected calls first.
   - **Token accounting**: `generate`, `roles`, `glossary`, `entry-points` and `actors` end with a recap of calls, tokens
     and time per pass, plus the answers a pass could not parse and the units it skipped (`LlmProvider::note_unparseable_answer`, sent by `complete_json`; tokens only, no prices) and append the run to `.retrodoc/cache/usage.json`; kept apart from the
-    rendered docs so reruns stay no-ops, and left alone by `generate --force`. `commands/usage.rs` builds the provider
-    the five commands share.
+    rendered docs so reruns stay no-ops, and left alone by `generate --force`. `commands/usage.rs` builds the providers
+    (`PassProviders`, `pass_provider`) the commands use.
   - `retrodoc_llm::HeartbeatProvider` (wrapped around the provider in the CLI) logs "still waiting for the
     LLM (Ns)" every 30 s, to tell a slow call from a stuck run.
 - **retrodoc-render**: writes the Markdown/Mermaid output to the docs dir (`output.docs_dir`). `render()` builds
