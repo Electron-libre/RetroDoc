@@ -79,4 +79,12 @@ pub trait LlmProvider: Send + Sync {
     /// asking again). Providers that count things override it; the wrappers
     /// pass it on.
     fn note_unparseable_answer(&self, _skipped: bool) {}
+
+    /// The model this provider asks for when a request names none. The
+    /// passes put it in the fingerprint of their cached results, so a new
+    /// model redoes them (ADR 0023). Empty when the provider has no fixed one.
+    #[allow(clippy::unnecessary_literal_bound)] // implementations return a borrowed field
+    fn model(&self) -> &str {
+        ""
+    }
 }

@@ -4,12 +4,15 @@
 //! LLM again. Stored in `.retrodoc/cache/fingerprints.json`.
 //!
 //! Each pass replaces its own map with the keys seen during the run, so
-//! entries of vanished units are pruned. Changing the model or the prompts
-//! does not invalidate anything: `retrodoc generate --force` wipes the caches.
+//! entries of vanished units are pruned. The model of the pass is part of
+//! what is hashed, so asking a pass for another model redoes it; changing the
+//! prompts does not invalidate anything: `retrodoc generate --force` wipes
+//! the caches.
 
 use std::collections::BTreeMap;
 use std::path::Path;
 
+use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
 use crate::artifact::{load_json, save_json, Artifact};
@@ -41,6 +44,12 @@ impl Fingerprints {
     pub fn save(&self, repo_root: &Path) -> Result<(), PipelineError> {
         save_json(&Artifact::Fingerprints.path(repo_root), self)
     }
+}
+
+/// The part of a fingerprint that says which model derived the result: a
+/// pass asked to use another model redoes its units (ADR 0023).
+pub(crate) fn model_part(llm: &dyn LlmProvider) -> String {
+    format!("model {}", llm.model())
 }
 
 /// Hash of `parts`, unambiguous regardless of how they are split.

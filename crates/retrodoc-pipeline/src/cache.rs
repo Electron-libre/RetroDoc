@@ -22,6 +22,10 @@ pub struct RepoMapCache {
     entries: BTreeMap<PathBuf, CacheEntry>,
     #[serde(default)]
     modules: BTreeMap<PathBuf, ModuleCacheEntry>,
+    /// The model that wrote the summaries. Another model redoes them all
+    /// (ADR 0023); a cache saved before this field existed has none.
+    #[serde(default)]
+    model: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -50,6 +54,19 @@ impl RepoMapCache {
     #[must_use]
     pub fn load(repo_root: &Path) -> Self {
         load_json(&Artifact::RepoMap.path(repo_root)).unwrap_or_default()
+    }
+
+    /// The cache as `model` can use it: the summaries written by another
+    /// model are left out, since asking for a new model means new summaries.
+    #[must_use]
+    pub fn for_model(self, model: &str) -> Self {
+        if self.model == model {
+            return self;
+        }
+        Self {
+            model: model.to_string(),
+            ..Self::default()
+        }
     }
 
     /// # Errors

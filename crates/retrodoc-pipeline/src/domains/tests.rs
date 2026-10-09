@@ -654,3 +654,36 @@ async fn the_brief_heads_the_clustering_prompt_and_a_changed_brief_clusters_agai
     .unwrap();
     assert_eq!(provider.calls(), 2);
 }
+
+#[tokio::test]
+async fn another_model_clusters_the_same_input_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let repo_map = RepoMap {
+        files: vec![file_summary("a.rs")],
+        modules: vec![],
+    };
+    let answer = r#"{"domains":[{"slug":"billing","name":"Billing","description":"d",
+        "paths":["a.rs"],"sub_domains":[]}]}"#;
+    let run = |provider: FakeLlm| {
+        let (root, repo_map) = (dir.path().to_path_buf(), repo_map.clone());
+        async move {
+            build_domains(
+                &root,
+                &repo_map,
+                &[],
+                &Surface::default(),
+                &ProductBrief::default(),
+                &provider,
+            )
+            .await
+            .unwrap();
+            provider.calls()
+        }
+    };
+    assert_eq!(run(FakeLlm::answering(answer).with_model("local")).await, 1);
+    assert_eq!(run(FakeLlm::answering(answer).with_model("local")).await, 0);
+    assert_eq!(
+        run(FakeLlm::answering(answer).with_model("strong")).await,
+        1
+    );
+}

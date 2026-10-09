@@ -703,3 +703,26 @@ async fn the_evidence_closest_to_a_feature_is_in_its_prompt_and_in_its_fingerpri
     .unwrap();
     assert_eq!(provider.calls(), 2);
 }
+
+#[tokio::test]
+async fn another_model_derives_the_unchanged_features_again() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.rs"), "fn a() {}").unwrap();
+    let features = vec![feature("pay", &["a.rs"])];
+    let answer = r#"{"use_cases":[{"slug":"u","name":"U","description":"d","steps":[
+        {"description":"s","actor":{"name":"A","kind":"human"},"action":"act",
+         "source_refs":[{"path":"a.rs"}]}]}]}"#;
+    let run = |model: &'static str| {
+        let provider = FakeLlm::answering(answer).with_model(model);
+        let (root, features) = (dir.path().to_path_buf(), features.clone());
+        async move {
+            build_use_cases(&root, &features, &UseCaseContext::default(), &provider)
+                .await
+                .unwrap();
+            provider.calls()
+        }
+    };
+    assert_eq!(run("local").await, 1);
+    assert_eq!(run("local").await, 0);
+    assert_eq!(run("strong").await, 1);
+}

@@ -27,7 +27,7 @@ use crate::chunks::{Focus, Splitter};
 use crate::entry_points::{EntryPoint, EntryPoints};
 use crate::error::PipelineError;
 use crate::features::unique_slug;
-use crate::fingerprints::{fingerprint, Fingerprints};
+use crate::fingerprints::{fingerprint, model_part, Fingerprints};
 use crate::progress::Progress;
 use crate::response::complete_json;
 use crate::roles::load_splitter;
@@ -174,9 +174,13 @@ pub async fn build_use_cases(
         let key = format!("{}/{}", feature.domain_slug, feature.slug);
         let input = FeatureInput::new(repo_root, feature, entry_points, index);
         let close = evidence.section(&feature_query(feature, &input));
-        let print = feature_fingerprint(
-            repo_root, feature, &input, actors, vocabulary, brief, &close,
-        );
+        let framing = Framing {
+            actors,
+            vocabulary,
+            brief,
+            evidence: &close,
+        };
+        let print = feature_fingerprint(repo_root, feature, &input, &framing, llm);
         if known.get(&key) == Some(&print) {
             let kept: Vec<UseCase> = previous
                 .iter()
@@ -191,18 +195,8 @@ pub async fn build_use_cases(
             continue;
         }
         progress.begin(&key);
-        let (prompt, cited_files) = use_cases_prompt(
-            repo_root,
-            feature,
-            &input,
-            &Framing {
-                actors,
-                vocabulary,
-                brief,
-                evidence: &close,
-            },
-            &splitter,
-        );
+        let (prompt, cited_files) =
+            use_cases_prompt(repo_root, feature, &input, &framing, &splitter);
         if cited_files.is_empty() {
             tracing::warn!(feature = %feature.slug, "feature skipped: none of its files is readable");
             continue;
@@ -274,11 +268,15 @@ fn feature_fingerprint(
     repo_root: &Path,
     feature: &Feature,
     input: &FeatureInput,
-    actors: &Actors,
-    vocabulary: &[String],
-    brief: &ProductBrief,
-    evidence: &str,
+    framing: &Framing,
+    llm: &dyn LlmProvider,
 ) -> String {
+    let Framing {
+        actors,
+        vocabulary,
+        brief,
+        evidence,
+    } = *framing;
     let files = input.files.iter().map(|path| {
         let content = std::fs::read(repo_root.join(path)).map_or_else(
             |_| "unreadable".to_string(),
@@ -309,7 +307,8 @@ fn feature_fingerprint(
             )))
             .chain(files)
             .chain((!brief.fingerprint().is_empty()).then(|| brief.fingerprint()))
-            .chain((!evidence.is_empty()).then(|| evidence.to_string())),
+            .chain((!evidence.is_empty()).then(|| evidence.to_string()))
+            .chain(std::iter::once(model_part(llm))),
     )
 }
 

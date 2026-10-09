@@ -78,17 +78,23 @@ async fn the_estimate_matches_the_calls_of_a_first_run_and_of_a_rerun() {
     let ingest = ingest_with_nested_files(dir.path());
     let provider = counting_provider();
 
-    let first = estimate_repo_map(dir.path(), &ingest, 0);
+    let first = estimate_repo_map(dir.path(), &ingest, 0, "test-model");
     assert_eq!((first.files, first.calls()), (2, 5));
     build_repo_map(dir.path(), &ingest, &provider, RepoMapOptions::default())
         .await
         .unwrap();
     assert_eq!(provider.calls(), first.calls());
 
-    assert_eq!(estimate_repo_map(dir.path(), &ingest, 0).calls(), 0);
+    assert_eq!(
+        estimate_repo_map(dir.path(), &ingest, 0, "test-model").calls(),
+        0
+    );
     std::fs::write(dir.path().join("a/y.rs"), "fn y2() {}").unwrap();
     // y.rs, then "a" and the root; "a/b" is untouched.
-    assert_eq!(estimate_repo_map(dir.path(), &ingest, 0).calls(), 3);
+    assert_eq!(
+        estimate_repo_map(dir.path(), &ingest, 0, "test-model").calls(),
+        3
+    );
 }
 
 /// Records the highest number of calls in flight at the same time.
@@ -179,7 +185,7 @@ async fn small_files_share_a_request_and_missing_ones_fall_back() {
         concurrency: 1,
         batch_chars: 4000,
     };
-    let estimate = estimate_repo_map(dir.path(), &ingest, options.batch_chars);
+    let estimate = estimate_repo_map(dir.path(), &ingest, options.batch_chars, "test-model");
     assert_eq!(estimate.file_calls, 1);
 
     let map = build_repo_map(dir.path(), &ingest, &provider, options)
@@ -276,4 +282,36 @@ async fn a_failure_partway_through_the_file_loop_keeps_earlier_summaries_cached(
         })
         .collect();
     assert_eq!(cached_paths.len(), 1);
+}
+
+#[tokio::test]
+async fn another_model_summarizes_everything_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let ingest = ingest_with_nested_files(dir.path());
+    let first = counting_provider().with_model("local");
+    build_repo_map(dir.path(), &ingest, &first, RepoMapOptions::default())
+        .await
+        .unwrap();
+    assert_eq!(first.calls(), 5);
+    assert_eq!(
+        estimate_repo_map(dir.path(), &ingest, 0, "local").calls(),
+        0
+    );
+    assert_eq!(
+        estimate_repo_map(dir.path(), &ingest, 0, "strong").calls(),
+        5
+    );
+
+    let strong = counting_provider().with_model("strong");
+    build_repo_map(dir.path(), &ingest, &strong, RepoMapOptions::default())
+        .await
+        .unwrap();
+    assert_eq!(strong.calls(), 5);
+
+    // The same model again finds everything in the cache.
+    let again = counting_provider().with_model("strong");
+    build_repo_map(dir.path(), &ingest, &again, RepoMapOptions::default())
+        .await
+        .unwrap();
+    assert_eq!(again.calls(), 0);
 }

@@ -42,7 +42,7 @@ use serde::{Deserialize, Serialize};
 use crate::artifact::{load_yaml, save_yaml, Artifact};
 use crate::brief::ProductBrief;
 use crate::error::PipelineError;
-use crate::fingerprints::{fingerprint, Fingerprints};
+use crate::fingerprints::{fingerprint, model_part, Fingerprints};
 use crate::repo_map::{FileSummary, RepoMap};
 use crate::response::{complete_text, parse_json_response};
 use crate::surface::Surface;
@@ -163,7 +163,8 @@ pub async fn build_domains(
     // fingerprint (keyed by domain slug). Keep the saved one while the input
     // (files, file summaries, existing docs) is unchanged.
     let mut prints = Fingerprints::load(repo_root);
-    let input_print = clustering_fingerprint(repo_map, existing_docs, surface, brief);
+    let input_print =
+        clustering_fingerprint(repo_map, existing_docs, surface, brief, model_part(llm));
     if prints.domains.as_ref() == Some(&input_print) {
         if let Some(saved) = DomainMap::load(repo_root).filter(|m| !m.domains.is_empty()) {
             tracing::info!("domains unchanged, reused");

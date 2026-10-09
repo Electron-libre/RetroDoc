@@ -42,7 +42,7 @@ fn git(dir: &std::path::Path, args: &[&str]) {
 }
 
 #[test]
-fn a_pass_calls_its_own_server_and_the_recap_names_its_model() {
+fn a_pass_calls_its_own_server_and_not_the_default_one() {
     let (default_url, default_hits) = server("default-model");
     let (roles_url, roles_hits) = server("roles-model");
     let dir = tempfile::tempdir().unwrap();

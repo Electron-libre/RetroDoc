@@ -301,6 +301,10 @@ impl LlmProvider for OpenRouterProvider {
             Err(failure) => Err(failure.into_error()),
         }
     }
+
+    fn model(&self) -> &str {
+        &self.default_model
+    }
 }
 
 /// Reads a successful response: the first choice, and the usage if reported.

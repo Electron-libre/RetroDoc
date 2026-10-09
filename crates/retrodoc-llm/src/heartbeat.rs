@@ -60,6 +60,10 @@ impl<P: LlmProvider> LlmProvider for HeartbeatProvider<P> {
     fn note_unparseable_answer(&self, skipped: bool) {
         self.inner.note_unparseable_answer(skipped);
     }
+
+    fn model(&self) -> &str {
+        self.inner.model()
+    }
 }
 
 #[cfg(test)]

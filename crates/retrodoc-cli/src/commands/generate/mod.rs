@@ -443,7 +443,12 @@ async fn build_map(
         concurrency: config.concurrency.unwrap_or(1),
         batch_chars: config.batch_chars.unwrap_or(DEFAULT_BATCH_CHARS),
     };
-    let estimate = retrodoc_pipeline::estimate_repo_map(repo_root, ingest, options.batch_chars);
+    let estimate = retrodoc_pipeline::estimate_repo_map(
+        repo_root,
+        ingest,
+        options.batch_chars,
+        llm.get("repo-map")?.model(),
+    );
     println!(
         "Building the repo map: {} source file(s), {} file call(s) + {} directory call(s) expected \
          (~{}k chars to send; the later passes cost about one call per domain unit, feature and use case).",

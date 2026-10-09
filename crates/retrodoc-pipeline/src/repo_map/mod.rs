@@ -129,7 +129,7 @@ pub async fn build_repo_map(
     llm: &dyn LlmProvider,
     options: RepoMapOptions,
 ) -> Result<RepoMap, PipelineError> {
-    let mut cache = RepoMapCache::load(repo_root);
+    let mut cache = RepoMapCache::load(repo_root).for_model(llm.model());
     let concurrency = options.concurrency.max(1);
     let progress = RefCell::new(Progress::new(
         "repo map",
@@ -335,8 +335,9 @@ pub fn estimate_repo_map(
     repo_root: &Path,
     ingest: &IngestResult,
     batch_chars: usize,
+    model: &str,
 ) -> RepoMapEstimate {
-    let cache = RepoMapCache::load(repo_root);
+    let cache = RepoMapCache::load(repo_root).for_model(model);
     let mut estimate = RepoMapEstimate {
         files: 0,
         files_to_summarize: 0,

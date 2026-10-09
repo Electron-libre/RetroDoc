@@ -24,7 +24,7 @@ use crate::artifact::{load_yaml, save_yaml, warn_on_error, Artifact};
 use crate::brief::{Evidence, ProductBrief};
 use crate::domains::{DomainCluster, DomainMap, UNCATEGORIZED_SLUG};
 use crate::error::PipelineError;
-use crate::fingerprints::{fingerprint, Fingerprints};
+use crate::fingerprints::{fingerprint, model_part, Fingerprints};
 use crate::progress::Progress;
 use crate::repo_map::{FileSummary, RepoMap};
 use crate::response::complete_json;
@@ -119,7 +119,8 @@ pub async fn build_features(
                     format!("{}\n{summary}", p.display())
                 })
                 .chain((!brief.fingerprint().is_empty()).then(|| brief.fingerprint()))
-                .chain((!close.is_empty()).then(|| close.clone())),
+                .chain((!close.is_empty()).then(|| close.clone()))
+                .chain(std::iter::once(model_part(llm))),
         );
         if known_units.get(&unit_key) == Some(&unit_print) {
             if let Some(kept) = reusable(&previous, &features, &unit) {

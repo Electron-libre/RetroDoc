@@ -447,3 +447,36 @@ async fn the_evidence_closest_to_a_unit_is_in_its_prompt_and_moves_only_its_fing
     run(after).await;
     assert_eq!(provider.calls(), 3);
 }
+
+#[tokio::test]
+async fn another_model_derives_the_unchanged_units_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let domains = DomainMap {
+        domains: vec![domain("billing", &["a.rs"], Vec::new())],
+    };
+    let map = RepoMap {
+        files: vec![file_summary("a.rs")],
+        modules: Vec::new(),
+    };
+    let answer = r#"{"features":[{"slug":"f","name":"F","description":"d","files":["a.rs"]}]}"#;
+    let run = |model: &'static str| {
+        let provider = FakeLlm::answering(answer).with_model(model);
+        let (root, domains, map) = (dir.path().to_path_buf(), domains.clone(), map.clone());
+        async move {
+            build_features(
+                &root,
+                &domains,
+                &map,
+                &ProductBrief::default(),
+                &Evidence::default(),
+                &provider,
+            )
+            .await
+            .unwrap();
+            provider.calls()
+        }
+    };
+    assert_eq!(run("local").await, 1);
+    assert_eq!(run("local").await, 0);
+    assert_eq!(run("strong").await, 1);
+}

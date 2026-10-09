@@ -16,6 +16,7 @@ pub(crate) struct FakeLlm {
     calls: AtomicUsize,
     prompts: Mutex<Vec<(String, String)>>,
     schemas: Mutex<Vec<Option<serde_json::Value>>>,
+    model: String,
 }
 
 impl FakeLlm {
@@ -40,7 +41,14 @@ impl FakeLlm {
             calls: AtomicUsize::new(0),
             prompts: Mutex::new(Vec::new()),
             schemas: Mutex::new(Vec::new()),
+            model: "test-model".to_string(),
         }
+    }
+
+    /// The model it says it uses.
+    pub fn with_model(mut self, model: &str) -> Self {
+        self.model = model.to_string();
+        self
     }
 
     /// Answers `reply` to the first `succeed` calls, then fails like a
@@ -103,9 +111,13 @@ impl LlmProvider for FakeLlm {
         let content = (self.reply)(n, &request)?;
         Ok(CompletionResponse {
             content,
-            model: "test-model".to_string(),
+            model: self.model.clone(),
             ..Default::default()
         })
+    }
+
+    fn model(&self) -> &str {
+        &self.model
     }
 }
 

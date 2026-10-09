@@ -66,6 +66,7 @@ pub(super) fn clustering_fingerprint(
     existing_docs: &[ExistingDoc],
     surface: &Surface,
     brief: &ProductBrief,
+    model: String,
 ) -> String {
     let files = repo_map
         .files
@@ -78,7 +79,8 @@ pub(super) fn clustering_fingerprint(
         files
             .chain(docs)
             .chain(surface.fingerprint_parts())
-            .chain((!brief.fingerprint().is_empty()).then(|| brief.fingerprint())),
+            .chain((!brief.fingerprint().is_empty()).then(|| brief.fingerprint()))
+            .chain(std::iter::once(model)),
     )
 }
 

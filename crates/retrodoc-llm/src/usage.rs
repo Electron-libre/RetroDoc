@@ -285,6 +285,10 @@ impl<P: LlmProvider> LlmProvider for UsageProvider<P> {
         self.tracker.record_unparseable(skipped);
         self.inner.note_unparseable_answer(skipped);
     }
+
+    fn model(&self) -> &str {
+        self.inner.model()
+    }
 }
 
 #[cfg(test)]
