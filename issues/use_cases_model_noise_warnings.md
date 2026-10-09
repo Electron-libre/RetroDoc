@@ -57,3 +57,39 @@ output limit (`finish_reason=length`) or from the model.
 * The model answers differently each time: judge on several runs, not one.
 * Don't hide a real problem by lowering a warning: a skipped unit is lost documentation.
 * The logs and the clone of a smoke run live in `/tmp`, never commit them.
+
+# Tracking
+
+1. [x] Measure the warnings: existing logs, then 2 smoke runs; counts per kind in the issue.
+2. [x] Chunk boundary: the "misses definitions, asking the LLM to fix it" message becomes `info`; `warn` stays
+   for a boundary dropped.
+3. [ ] Human actor outside the known actors: tolerant resolution to a known actor, else keep it with an `info`.
+4. [ ] Unknown entry points: tell the model in the prompt that `entry_points` may stay empty and that no
+   name may be invented; a cited name that is no known entry point is logged at `info` (the use case is kept).
+5. [-] Invented step paths: dropped, the measured cases are real files of another feature, not near misses.
+6. [ ] Measure again (2 smoke runs) and compare with step 1.
+
+## Decisions
+
+* Measure first on the existing logs, then 2 smoke runs.
+* The human actor warning is in scope.
+* An unresolved reference stays a `warn` (a lost reference is a lost piece of documentation).
+* After the measure: the unknown entry points are inventions, not near misses, so the fix is in the prompt and
+  the log level is `info` (the use case is kept); the step paths are not resolved by proximity.
+* A tolerant resolution (actor) applies only to a unique match, never to an ambiguous one.
+
+## Measure before the changes (2026-10-09, `delivery_router`, local Ollama, 3 first runs)
+
+Second runs had no warning in all three.
+
+| Warning | Run A | Run B | Run C (first of the day) |
+|---|---|---|---|
+| `use case cites an unknown entry point` | 11 | 5 | 1 |
+| `step reference dropped: file not in the feature` | 0 | 2 | 0 |
+| `human actor outside the known actors` | 0 | 0 | 1 |
+| `chunk boundary misses definitions` | 0 | 0 | 0 |
+
+What the unknown entry points are: actor names (`Customer`, `System`, `Rider`), a whole sentence
+describing a step, or an HTTP-like path (`/orders`, `/route`) in a repository that is a library whose only
+entry point is `DeliveryRouter.new`. None is a near miss of a real name: a tolerant match would resolve
+none of them. The two dropped step paths name a real file of the repository, which belongs to another feature.

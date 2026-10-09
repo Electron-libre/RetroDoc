@@ -1,11 +1,13 @@
 //! A fake [`LlmProvider`] for the tests of the passes, so that none of them
 //! needs a network, nor its own copy of the same few lines.
 
+use std::io;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use retrodoc_llm::{CompletionRequest, CompletionResponse, LlmError, LlmProvider};
+use tracing_subscriber::fmt::MakeWriter;
 
 type Reply = Box<dyn Fn(usize, &CompletionRequest) -> Result<String, LlmError> + Send + Sync>;
 
@@ -187,4 +189,45 @@ mod tests {
         // A failed call is still a call received.
         assert_eq!(llm.calls(), 2);
     }
+}
+
+/// What a pass logged while a test ran, as plain text (one line per event,
+/// with its level), to check which events are warnings.
+#[derive(Clone, Default)]
+pub(crate) struct LogBuffer(Arc<Mutex<Vec<u8>>>);
+
+impl LogBuffer {
+    pub fn text(&self) -> String {
+        String::from_utf8_lossy(&self.0.lock().unwrap()).into_owned()
+    }
+}
+
+impl io::Write for LogBuffer {
+    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        self.0.lock().unwrap().extend_from_slice(bytes);
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+impl MakeWriter<'_> for LogBuffer {
+    type Writer = LogBuffer;
+
+    fn make_writer(&self) -> Self::Writer {
+        self.clone()
+    }
+}
+
+/// Captures the logs of the current thread until the guard is dropped: use
+/// it in a test on the default single-threaded runtime of `#[tokio::test]`.
+pub(crate) fn capture_logs() -> (LogBuffer, tracing::subscriber::DefaultGuard) {
+    let buffer = LogBuffer::default();
+    let subscriber = tracing_subscriber::fmt()
+        .with_writer(buffer.clone())
+        .with_ansi(false)
+        .finish();
+    (buffer, tracing::subscriber::set_default(subscriber))
 }

@@ -197,7 +197,7 @@ pub(crate) async fn verify_boundaries(
             if best.ratio >= GOOD_COVERAGE {
                 break;
             }
-            tracing::warn!(
+            tracing::info!(
                 extensions = ?boundary.extensions,
                 pattern = %boundary.pattern,
                 coverage = format!("{:.0}%", best.ratio * 100.0),
@@ -404,6 +404,37 @@ let x = module.exports;
             .unwrap();
         assert_eq!(out[0].pattern, fix);
         assert_eq!(llm.calls(), 1);
+    }
+
+    #[tokio::test]
+    async fn a_weak_regex_that_is_fixed_is_no_warning() {
+        let (logs, _guard) = crate::testing::capture_logs();
+        let (dir, files) = rust_repo();
+        let fix = r"^\s*(#\[|(pub(\(\w+\))?\s+)?(async\s+)?(fn|struct|impl)\s)";
+        let llm = FakeLlm::answering(format!(r#"{{"pattern":{fix:?}}}"#));
+
+        verify_boundaries(dir.path(), &files, &llm, vec![boundary(r"^\s*fn\s")])
+            .await
+            .unwrap();
+
+        let logs = logs.text();
+        assert!(logs.contains("chunk boundary misses definitions"), "{logs}");
+        assert!(!logs.contains("WARN"), "{logs}");
+    }
+
+    #[tokio::test]
+    async fn a_rule_that_is_dropped_is_a_warning() {
+        let (logs, _guard) = crate::testing::capture_logs();
+        let (dir, files) = rust_repo();
+        let llm = FakeLlm::answering(r#"{"pattern":"zzz"}"#);
+
+        verify_boundaries(dir.path(), &files, &llm, vec![boundary("nothing")])
+            .await
+            .unwrap();
+
+        let logs = logs.text();
+        assert!(logs.contains("WARN"), "{logs}");
+        assert!(logs.contains("chunk boundary dropped"), "{logs}");
     }
 
     #[tokio::test]
