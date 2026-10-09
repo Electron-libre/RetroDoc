@@ -27,6 +27,7 @@ just check                              # fmt + clippy -D warnings + tests in on
 just test-harness                       # test the agent hooks and skills (needs rust-script)
 just probe-schema <ollama|deepseek|gemini|openrouter>   # one HTTP call: does the server reject, ignore or obey a strict JSON schema
 cargo run -q -p retrodoc-pipeline --example entry_points_replay -- benchmark/<repo>/entry-points.yaml <checkout> <runs dir>   # saved runs vs a hand-made entry points/actors reference (no LLM)
+cargo run -q -p retrodoc-pipeline --example behaviour_baseline -- <run dir>...   # share of source files a behaviour reaches and calls/minutes per pass of saved runs (no LLM)
 ```
 
 Scripts and dev commands are `just` recipes (`justfile`) and `rust-script` files, not bash.
@@ -113,7 +114,7 @@ retrodoc-cli ──> retrodoc-mcp ──> retrodoc-pipeline, retrodoc-ingest, re
   | `actors.rs` | Business actors from authorization code + the glossary entities (the LLM keeps those that stand for someone); `retrodoc actors [--force]`. |
   | `ranking.rs` | Optional file budget (`--max-files` / `ingest.max_files`): role × churn × references; the rest becomes `FileKind::Other` (`scope.yaml`). |
   | `repo_map/` | File summaries (LLM + git history, cached by content hash, optionally batched/concurrent), then directory summaries bottom-up. |
-  | `domains/` | One call clusters directory summaries + doc titles + surface into `DomainMap`; `repair.rs` places the files it left unassigned with one small extra call; `coverage.rs` enforces 100% coverage by construction (uncategorized bucket, first assignment wins, hallucinated paths dropped). |
+  | `domains/` | One call clusters directory summaries + doc titles + surface into `DomainMap`; `repair.rs` places the files it left unassigned with one small extra call; `coverage.rs` enforces 100% coverage by construction (uncategorized bucket, first assignment wins, hallucinated paths dropped). `from_surface.rs` (`build_domains_from_surface`, ADR 0020) is the other path, with `[pipeline] domains_from = "surface"` in `retrodoc.toml` (default `files`; `PipelineConfig` in `config.rs`): one call groups the resources (entry points by resource) and the entities into flat domains (`DomainCluster.resources` / `entities`), names resolved with `naming::normalize`, first placement wins, unknown names dropped, the rest in `uncategorized`, files attached from the entry-point files and the entity home files; reused while the surface, the brief and the model are the same. In that mode `generate` builds no repo map and, until the features come from the entry points (`issues/behaviour_coverage_domains.md`, deliverable 3), saves `domains.yaml` and stops with an error. |
   | `features/` | One call per domain/sub-domain unit (not "uncategorized"), features grounded on a validated subset of its files. |
   | `use_cases/`, `slices.rs` | One call per feature with numbered code excerpts, entry points and the code they run (`CodeIndex::slice`); steps, actors, `narrative`, `primary_actor`; citations are validated. |
   | `diagrams.rs` | Deterministic Mermaid `sequenceDiagram` per use case, no LLM. |

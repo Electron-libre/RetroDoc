@@ -59,7 +59,7 @@ default stays `files` (the old path) until deliverable 6.
 1. [x] Measure the old path (step 1): an example that reads the saved caches and gives, per repository, the share
    of source files reached by an entry point slice or holding an entity, and the calls and time per pass
    (repo map and domains included). Table in this issue. No LLM call.
-2. [ ] The setting and the domains from the surface (step 2): `[pipeline] domains_from` in `retrodoc-core`; in
+2. [x] The setting and the domains from the surface (step 2; done, waiting for the user's review): `[pipeline] domains_from` in `retrodoc-core`; in
    `surface` mode `generate` builds no LLM repo map; one call groups the resources (entry points by resource)
    and the entities into domains, framed by the brief; files are attached mechanically. The unit assigned is
    the resource, not the file.
@@ -82,6 +82,8 @@ default stays `files` (the old path) until deliverable 6.
 * Setting `[pipeline] domains_from = "files" | "surface"`, default `files` until deliverable 6.
 * In `surface` mode the LLM repo map is not built (no pass of the new path reads it).
 * Entry points are assigned by resource, not by file: a file can carry several domains.
+* Until deliverable 3, `domains_from = "surface"` saves `domains.yaml` and `generate` stops with an error (the
+  features pass still reads the repo map the mode does not build). Domains are flat in that mode.
 * No paid run without asking.
 * Follow-up to queue at deliverable 6: the time of a run is in the use cases and confidence passes (73 + 17 of
   118 minutes locally), not in the repo map; an issue on the cost per use case (batching, fewer or shorter
@@ -128,3 +130,19 @@ Per pass of two linkding runs (calls / minutes / tokens in):
 Consequence for the next deliverables: the cost gain to expect from skipping the repo map is in calls and
 tokens; a gain in time needs the use cases and confidence passes to cost less, which the new path does not
 change by itself. The comparison of deliverable 6 should report both.
+
+## Domains from the surface, on real data (2026-10-09, local `qwen3.6:35b-a3b`, `generate --force`, `domains_from = "surface"`)
+
+* `generate` stops after the domains as planned, with no repo map: 8 calls on `delivery_router` and 37 on
+  linkding, none for the repo map (14 min on linkding, 8 of them for the entry points, 3 for the glossary).
+* First prompt: the model cited verbs and method names as resources (`add_order`, `import`, `manage`,
+  `view`...), 35 of linkding's 36 resources fell into "uncategorized" and 4 of `delivery_router`'s 2 were
+  invented. The listing showed each resource with its verbs; the model copied the verbs.
+* Prompt tightened (names quoted, "never an action, a method or an endpoint"), same inputs, domains redone:
+  `delivery_router` 2 domains (order management, route assignment) with its 2 resources and 4 entities placed;
+  linkding 5 domains (bookmarks, organization and classification, user profile, system configuration and data,
+  API access) with 25 of 36 resources and 16 of 17 entities placed, 11 resources and 1 entity left in
+  "uncategorized" (deliverable 4 places them with a small call).
+* One run per repository and prompt: these figures say it works, not how stable it is.
+* The prompt text is not part of the domains fingerprint (as everywhere): after changing it the saved
+  `domains.yaml` has to be removed.

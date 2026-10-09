@@ -458,7 +458,8 @@ Steps, in order, one issue each:
 2. `issues/done/product_brief.md` (then `issues/locate_business_files.md`, which takes the brief as input).
 3. `issues/done/structured_llm_outputs.md` and `issues/done/model_per_pass.md`.
 4. `issues/behaviour_coverage_domains.md`: the pivot, shipped in steps, the old path kept behind a setting
-   until the benchmark favours the new one.
+   (`[pipeline] domains_from`) until the benchmark favours the new one. In progress: the old path is measured
+   and the domains can be built from the surface; the features from the entry points are next.
 5. `issues/tree_sitter_structure.md`.
 6. `issues/business_rules.md`.
 7. `issues/docs_reconciliation_debt_report.md`.

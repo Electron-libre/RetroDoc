@@ -194,7 +194,8 @@ units are redone (the hand-editable roles, sources, business files and brief are
 Directory summaries are keyed by the hash of what was sent to the LLM (their children's summaries), so a
 changed file only invalidates its folder and ancestors. Domain clustering is not deterministic, so
 `domains.yaml` is reused while its input hash is unchanged (otherwise downstream fingerprints would be
-invalidated, see `PLAN.md` §7). If an LLM call fails mid-pass, the features and use cases pass save what is
+invalidated, see `PLAN.md` §7); with `[pipeline] domains_from = "surface"` that hash is the surface (entities
+and resources), the brief and the model, not the file summaries. If an LLM call fails mid-pass, the features and use cases pass save what is
 done, so the next run resumes there. `generate` prints the repo map pass's expected calls up front; the
 `llm.concurrency` and `llm.batch_chars` settings and the `--no-confidence` / `--confidence-sample` /
 `--max-files` flags bound the cost of a run.

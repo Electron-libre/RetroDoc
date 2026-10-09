@@ -110,6 +110,9 @@ existing_docs_paths = ["docs", "README.md"]    # Markdown taken as input
 
 [output]
 docs_dir = "docs"
+
+[pipeline]
+domains_from = "files"    # "files": domains from the file summaries; "surface": from the entities and entry points (in progress: it stops after the domains)
 ```
 
 A pass whose model changes is redone on the next run (the model is part of what its cache is compared
