@@ -23,7 +23,7 @@ them cheaply (lenient parsing, one more retry, a repair step) or to decide which
 
 # Update (2026-10-09): what the schema settled
 
-`issues/structured_llm_outputs.md` measured six runs on the same repository. With the JSON schema, the
+`issues/done/structured_llm_outputs.md` measured six runs on the same repository. With the JSON schema, the
 unparseable answers went from 6 (one unit skipped) to 0, so points 1 and 2 below (unparseable JSON, a
 verdict skipped twice) are settled for a server that accepts the schema; keep the lenient parsing for
 those that do not. What stays is the semantic noise, which a schema cannot prevent: a use case citing an

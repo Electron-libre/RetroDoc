@@ -27,7 +27,7 @@ for the first, are both waste.
 Rejected: a second provider implementation to get structured outputs (the OpenAI-compatible format
 already carries them, ADR 0002).
 
-### As built (`issues/structured_llm_outputs.md`)
+### As built (`issues/done/structured_llm_outputs.md`)
 
 * `complete_json` derives the schema of its answer type with `schemars` and sends it as a strict
   `response_format`. Strict mode wants every property required and no `default`, `oneOf` or extra
@@ -45,4 +45,4 @@ already carries them, ADR 0002).
 * The schemas must follow the Rust types of the raw answers; deriving them (for example with `schemars`)
   avoids drift.
 * Prompts can be shorter: the shape no longer needs to be spelled out in prose.
-* Follow-up issues: `issues/structured_llm_outputs.md`, `issues/model_per_pass.md`.
+* Follow-up issues: `issues/done/structured_llm_outputs.md`, `issues/model_per_pass.md`.
