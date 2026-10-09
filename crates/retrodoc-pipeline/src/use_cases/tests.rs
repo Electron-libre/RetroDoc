@@ -11,6 +11,7 @@ fn feature(slug: &str, paths: &[&str]) -> Feature {
         name: slug.to_string(),
         description: "d".to_string(),
         source_paths: paths.iter().map(ToString::to_string).collect(),
+        entry_points: Vec::new(),
         confidence: None,
     }
 }
@@ -348,6 +349,52 @@ async fn a_feature_with_entry_points_gets_them_and_the_code_they_run() {
         use_cases[0].steps[0].source_refs[0].path,
         "app/contract_signer.rb"
     );
+}
+
+#[tokio::test]
+async fn features_from_the_surface_get_only_their_own_entry_points_even_in_a_shared_file() {
+    use crate::entry_points::{EntryFile, EntryKind};
+
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    std::fs::write(root.join("api.rb"), "def a\nend\n").unwrap();
+    let entry = |name: &str| EntryPoint {
+        kind: EntryKind::HttpRoute,
+        name: name.to_string(),
+        verb: "get".to_string(),
+        resource: "thing".to_string(),
+        description: format!("does {name}"),
+        outputs: Vec::new(),
+    };
+    let entry_points = EntryPoints {
+        files: BTreeMap::from([(
+            PathBuf::from("api.rb"),
+            EntryFile {
+                content_hash: String::new(),
+                entry_points: vec![entry("GET /orders"), entry("GET /routes")],
+            },
+        )]),
+    };
+    let mut orders = feature("orders", &["api.rb"]);
+    orders.entry_points = vec!["api.rb#GET /orders".to_string()];
+    let mut routes = feature("routes", &["api.rb"]);
+    routes.entry_points = vec!["api.rb#GET /routes".to_string()];
+    let provider = FakeLlm::answering(r#"{"use_cases":[]}"#);
+    let context = UseCaseContext {
+        entry_points,
+        index: CodeIndex::new(["api.rb"].iter().map(Path::new)),
+        ..UseCaseContext::default()
+    };
+
+    build_use_cases(root, &[orders, routes], &context, &provider)
+        .await
+        .unwrap();
+
+    let prompts = provider.prompt_pairs();
+    assert!(prompts[0].1.contains("- GET /orders (api.rb)"));
+    assert!(!prompts[0].1.contains("GET /routes"));
+    assert!(prompts[2].1.contains("- GET /routes (api.rb)"));
+    assert!(!prompts[2].1.contains("GET /orders"));
 }
 
 #[tokio::test]

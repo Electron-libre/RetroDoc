@@ -66,6 +66,11 @@ pub struct Feature {
     /// its use cases are derived from.
     #[serde(default)]
     pub source_paths: Vec<String>,
+    /// Entry points (`<file>#<name>`) this feature groups, when the features come from the
+    /// surface (`domains_from = "surface"`); each has one use case. Empty for features built
+    /// from files, and absent from old `features.yaml`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub entry_points: Vec<String>,
     /// `None` until the confidence pass (roadmap phase 5) has scored it.
     #[serde(default)]
     pub confidence: Option<ConfidenceScore>,

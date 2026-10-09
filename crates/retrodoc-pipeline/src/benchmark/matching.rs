@@ -339,6 +339,7 @@ mod tests {
             name: name.to_string(),
             description: String::new(),
             source_paths: vec![],
+            entry_points: Vec::new(),
             confidence: None,
         };
         save_features(root, &[feature("Checkout"), feature("Newsletter")]).unwrap();

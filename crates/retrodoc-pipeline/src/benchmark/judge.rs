@@ -505,6 +505,7 @@ mod tests {
                 name: "Checkout".to_string(),
                 description: "Paying".to_string(),
                 source_paths: vec![],
+                entry_points: Vec::new(),
                 confidence: None,
             }],
         )

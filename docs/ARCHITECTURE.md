@@ -195,7 +195,8 @@ Directory summaries are keyed by the hash of what was sent to the LLM (their chi
 changed file only invalidates its folder and ancestors. Domain clustering is not deterministic, so
 `domains.yaml` is reused while its input hash is unchanged (otherwise downstream fingerprints would be
 invalidated, see `PLAN.md` §7); with `[pipeline] domains_from = "surface"` that hash is the surface (entities
-and resources), the brief and the model, not the file summaries. If an LLM call fails mid-pass, the features and use cases pass save what is
+and resources), the brief and the model, not the file summaries. In that mode the features are one call per domain over its
+entry points (keyed on them and the domain's entities) and the use cases read those entry points. If an LLM call fails mid-pass, the features and use cases pass save what is
 done, so the next run resumes there. `generate` prints the repo map pass's expected calls up front; the
 `llm.concurrency` and `llm.batch_chars` settings and the `--no-confidence` / `--confidence-sample` /
 `--max-files` flags bound the cost of a run.

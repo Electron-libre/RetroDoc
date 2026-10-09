@@ -63,7 +63,9 @@ pub use entry_points::{
     build_entry_points, EntryKind, EntryPoint, EntryPoints, Output, OutputKind,
 };
 pub use error::PipelineError;
-pub use features::{build_features, load_features, save_features};
+pub use features::{
+    build_features, build_features_from_surface, entry_point_id, load_features, save_features,
+};
 pub use glossary::{build_glossary, Entity, Glossary, MergedEntity};
 pub use ranking::{apply_budget, rank_files, Scope};
 pub use repo_map::{

@@ -26,7 +26,7 @@ use crate::cache::hash_content;
 use crate::chunks::{Focus, Splitter};
 use crate::entry_points::{EntryPoint, EntryPoints};
 use crate::error::PipelineError;
-use crate::features::unique_slug;
+use crate::features::{entry_point_id, unique_slug};
 use crate::fingerprints::{fingerprint, model_part, Fingerprints};
 use crate::progress::Progress;
 use crate::response::complete_json;
@@ -330,7 +330,7 @@ fn feature_query(feature: &Feature, input: &FeatureInput) -> String {
 /// define them and the code they run (a [`CodeIndex::slice`]); without any,
 /// all the feature's files, as before.
 struct FeatureInput {
-    /// Entry points defined in the feature's files, with their file.
+    /// The feature's entry points (those it lists, else those defined in its files), with their file.
     entries: Vec<(PathBuf, EntryPoint)>,
     files: Vec<String>,
 }
@@ -344,7 +344,14 @@ impl FeatureInput {
     ) -> Self {
         let entries: Vec<(PathBuf, EntryPoint)> = entry_points
             .iter()
-            .filter(|(file, _)| feature.source_paths.iter().any(|p| Path::new(p) == *file))
+            .filter(|(file, entry)| {
+                if feature.entry_points.is_empty() {
+                    feature.source_paths.iter().any(|p| Path::new(p) == *file)
+                } else {
+                    // A feature from the surface owns its entry points, not all those of its files.
+                    feature.entry_points.contains(&entry_point_id(file, entry))
+                }
+            })
             .map(|(file, entry)| (file.to_path_buf(), entry.clone()))
             .collect();
         if entries.is_empty() {

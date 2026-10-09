@@ -19,6 +19,7 @@ fn generated_repo() -> tempfile::TempDir {
         name: "Pay an invoice".into(),
         description: "Settle what is due".into(),
         source_paths: vec!["app/invoice.rb".into()],
+        entry_points: Vec::new(),
         confidence: None,
     };
     retrodoc_pipeline::save_features(dir.path(), &[feature]).unwrap();

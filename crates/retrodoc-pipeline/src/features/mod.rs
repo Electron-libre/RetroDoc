@@ -23,11 +23,15 @@ use serde::Deserialize;
 use crate::artifact::{load_yaml, save_yaml, warn_on_error, Artifact};
 use crate::brief::{Evidence, ProductBrief};
 use crate::domains::{DomainCluster, DomainMap, UNCATEGORIZED_SLUG};
+use crate::entry_points::{EntryPoint, EntryPoints};
 use crate::error::PipelineError;
 use crate::fingerprints::{fingerprint, model_part, Fingerprints};
 use crate::progress::Progress;
 use crate::repo_map::{FileSummary, RepoMap};
 use crate::response::complete_json;
+
+mod from_surface;
+pub use self::from_surface::{build_features_from_surface, entry_point_id};
 
 /// Upper bound on files listed in one features prompt (PLAN.md §6
 /// "cost/volume"). When a unit has more, the most-modified files are kept:
@@ -260,6 +264,7 @@ fn validated_features(raw: RawFeatures, unit: &Unit<'_>, existing: &[Feature]) -
             name: raw_feature.name,
             description: raw_feature.description,
             source_paths: files,
+            entry_points: Vec::new(),
             confidence: None,
         });
     }

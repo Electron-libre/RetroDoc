@@ -6,8 +6,8 @@ use retrodoc_core::model::{Feature, UseCase};
 use retrodoc_ingest::IngestResult;
 use retrodoc_llm::UsageTracker;
 use retrodoc_pipeline::{
-    Actors, Artifact, CodeIndex, DomainMap, EntryPoints, ProductBrief, RepoMap, RepoMapOptions,
-    RoleMap, Scope, SourceHashes, Surface, UseCaseContext,
+    Actors, Artifact, CodeIndex, DomainMap, EntryPoints, Evidence, ProductBrief, RepoMap,
+    RepoMapOptions, RoleMap, Scope, SourceHashes, Surface, UseCaseContext,
 };
 
 mod print;
@@ -98,10 +98,6 @@ pub async fn run(
         )
         .await?;
 
-    if config.pipeline.domains_from == DomainsFrom::Surface {
-        return surface_domains_only(repo_root, &surface, &brief, &llm, tracker).await;
-    }
-
     apply_scope(
         repo_root,
         &mut ingest,
@@ -113,41 +109,30 @@ pub async fn run(
     // modified later, never as fresh.
     let source_hashes = SourceHashes::capture(repo_root, &ingest);
 
-    let map = tracker
-        .in_pass("repo-map", build_map(repo_root, &ingest, &llm, &config.llm))
-        .await?;
-
-    print::repo_map(&map);
-
-    println!(
-        "\nRepo map built ({} file(s), {} module(s)), cached in {}.",
-        map.files.len(),
-        map.modules.len(),
-        Artifact::RepoMap.relative_path()
-    );
-
-    let domain_map = tracker
-        .in_pass(
-            "domains",
-            cluster_domains(repo_root, &map, &ingest, &surface, &brief, &llm),
+    let mut features = if config.pipeline.domains_from == DomainsFrom::Surface {
+        features_from_surface(
+            repo_root,
+            &surface,
+            &entry_points,
+            &brief,
+            &evidence,
+            &llm,
+            tracker,
         )
-        .await?;
-
-    println!("\nDeriving features…");
-    let mut features = tracker
-        .in_pass(
-            "features",
-            retrodoc_pipeline::build_features(
-                repo_root,
-                &domain_map,
-                &map,
-                &brief,
-                &evidence,
-                llm.get("features")?.as_ref(),
-            ),
+        .await?
+    } else {
+        features_from_files(
+            repo_root,
+            &ingest,
+            &surface,
+            &brief,
+            &evidence,
+            &llm,
+            &config.llm,
+            tracker,
         )
-        .await
-        .context("failed to derive the features")?;
+        .await?
+    };
 
     let mut use_cases = tracker
         .in_pass(
@@ -211,15 +196,17 @@ async fn identify_actors(
     Ok(actors)
 }
 
-/// The `surface` mode so far: the domains are built and saved, then `generate` stops, since the passes
-/// after them still read the repo map this mode does not build.
-async fn surface_domains_only(
+/// The `surface` path: the domains from the entities and resources, then the features from the
+/// entry points of each domain. No repo map is built.
+async fn features_from_surface(
     repo_root: &Path,
     surface: &Surface,
+    entry_points: &EntryPoints,
     brief: &ProductBrief,
+    evidence: &Evidence,
     llm: &PassProviders,
     tracker: &UsageTracker,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<Vec<Feature>> {
     let domain_map = tracker
         .in_pass(
             "domains",
@@ -227,11 +214,72 @@ async fn surface_domains_only(
         )
         .await?;
     print::surface_domains(&domain_map);
-    anyhow::bail!(
-        "domains_from = \"surface\": the domains are saved in {}, but the features from the \
-         entry points are not available yet; set domains_from = \"files\" to generate the docs",
-        Artifact::Domains.relative_path()
-    )
+
+    println!("\nDeriving features from the entry points…");
+    tracker
+        .in_pass(
+            "features",
+            retrodoc_pipeline::build_features_from_surface(
+                repo_root,
+                &domain_map,
+                entry_points,
+                surface,
+                brief,
+                evidence,
+                llm.get("features")?.as_ref(),
+            ),
+        )
+        .await
+        .context("failed to derive the features from the entry points")
+}
+
+/// The `files` path: the repo map, the domains clustered from it, then the features of each domain.
+#[allow(clippy::too_many_arguments)]
+async fn features_from_files(
+    repo_root: &Path,
+    ingest: &IngestResult,
+    surface: &Surface,
+    brief: &ProductBrief,
+    evidence: &Evidence,
+    llm: &PassProviders,
+    llm_config: &LlmConfig,
+    tracker: &UsageTracker,
+) -> anyhow::Result<Vec<Feature>> {
+    let map = tracker
+        .in_pass("repo-map", build_map(repo_root, ingest, llm, llm_config))
+        .await?;
+
+    print::repo_map(&map);
+
+    println!(
+        "\nRepo map built ({} file(s), {} module(s)), cached in {}.",
+        map.files.len(),
+        map.modules.len(),
+        Artifact::RepoMap.relative_path()
+    );
+
+    let domain_map = tracker
+        .in_pass(
+            "domains",
+            cluster_domains(repo_root, &map, ingest, surface, brief, llm),
+        )
+        .await?;
+
+    println!("\nDeriving features…");
+    tracker
+        .in_pass(
+            "features",
+            retrodoc_pipeline::build_features(
+                repo_root,
+                &domain_map,
+                &map,
+                brief,
+                evidence,
+                llm.get("features")?.as_ref(),
+            ),
+        )
+        .await
+        .context("failed to derive the features")
 }
 
 async fn cluster_domains_from_surface(

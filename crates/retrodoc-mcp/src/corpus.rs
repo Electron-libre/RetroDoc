@@ -226,6 +226,7 @@ pub(crate) mod fixtures {
             name: name.into(),
             description: description.into(),
             source_paths: vec!["app/invoice.rb".into()],
+            entry_points: Vec::new(),
             confidence: None,
         }
     }

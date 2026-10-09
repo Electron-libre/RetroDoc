@@ -47,6 +47,7 @@ fn feature(slug: &str) -> Feature {
         name: slug.to_string(),
         description: "d".to_string(),
         source_paths: vec![],
+        entry_points: Vec::new(),
         confidence: None,
     }
 }

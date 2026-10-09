@@ -478,6 +478,7 @@ mod tests {
                 name: "Pay an invoice".to_string(),
                 description: "Customers pay.".to_string(),
                 source_paths: vec!["src/pay.rs".to_string()],
+                entry_points: Vec::new(),
                 confidence: Some(ConfidenceScore::new(0.3, "weak".to_string())),
             },
             Feature {
@@ -487,6 +488,7 @@ mod tests {
                 name: "List".to_string(),
                 description: "Listing.".to_string(),
                 source_paths: vec![],
+                entry_points: Vec::new(),
                 confidence: None,
             },
         ];

@@ -63,7 +63,7 @@ default stays `files` (the old path) until deliverable 6.
    `surface` mode `generate` builds no LLM repo map; one call groups the resources (entry points by resource)
    and the entities into domains, framed by the brief; files are attached mechanically. The unit assigned is
    the resource, not the file.
-3. [ ] Features from the entry points (step 3): one call per domain over its entry points and entities;
+3. [x] Features from the entry points (step 3): one call per domain over its entry points and entities;
    `Feature` gets an `entry_points` field (absent from old `features.yaml`); the use cases pass reads those
    entry points when present, so an entry point has one use case.
 4. [ ] Coverage of the entry points by construction (step 4): unplaced ones go through a small call, then an
@@ -82,8 +82,10 @@ default stays `files` (the old path) until deliverable 6.
 * Setting `[pipeline] domains_from = "files" | "surface"`, default `files` until deliverable 6.
 * In `surface` mode the LLM repo map is not built (no pass of the new path reads it).
 * Entry points are assigned by resource, not by file: a file can carry several domains.
-* Until deliverable 3, `domains_from = "surface"` saves `domains.yaml` and `generate` stops with an error (the
-  features pass still reads the repo map the mode does not build). Domains are flat in that mode.
+* Domains are flat in `surface` mode. Entry points are cited by id `<file>#<name>`; a feature of that mode
+  lists them in `Feature.entry_points` and its `source_paths` are the files of those entry points only (no
+  entity files). The use cases pass reads exactly those entry points. Entry points no feature claimed are
+  only logged until deliverable 4.
 * No paid run without asking.
 * Follow-up to queue at deliverable 6: the time of a run is in the use cases and confidence passes (73 + 17 of
   118 minutes locally), not in the repo map; an issue on the cost per use case (batching, fewer or shorter

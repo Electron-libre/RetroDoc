@@ -169,6 +169,7 @@ mod tests {
             name: slug.to_string(),
             description: String::new(),
             source_paths: vec![],
+            entry_points: Vec::new(),
             confidence: None,
         }
     }
