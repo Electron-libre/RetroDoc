@@ -4,6 +4,7 @@ Open issues in the order to work on them: the first is the next one. Read by `ju
 `just close-issue` removes a line, `skill:create-issue` inserts one at its rank, `skill:prioritize-issues`
 re-ranks the whole list. Line format: `- [<file stem>](<file stem>.md) - <why here>`.
 
+- [entry_points_internal_helpers_noise](entry_points_internal_helpers_noise.md) - small prompt fix; behaviour_coverage_domains builds domains from entry points, so internal helpers listed there would become use cases
 - [behaviour_coverage_domains](behaviour_coverage_domains.md) - the pivot of phase 10 (ADR 0020), before tree_sitter_structure as in PLAN.md 7.5; shipped in steps
 - [tree_sitter_structure](tree_sitter_structure.md) - structure map for the optional repo map of the behaviour issue; fewer chunking warnings
 - [business_rules](business_rules.md) - ADR 0021, uses bounded entry points and structural detection from tree-sitter
