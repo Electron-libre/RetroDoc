@@ -60,4 +60,7 @@ Then move to the next deliverable. Don't chain into it without saying so if the 
 - If something blocks you, say what and propose one recommendation; don't enumerate every option.
 - When the issue is fully done, mark it in the issue and say what, if anything, remains. Then **ask the
   user whether to close it**; on their agreement run `just close-issue issues/<name>.md` (moves it to
-  `issues/done/`, see `issues/issues_rules.md`) and include the move in the final commit. Never move it unasked.
+  `issues/done/`, it also drops the issue from `issues/queue.md`) and include the
+  move in the final commit. Never move it unasked.
+- To know which issue comes next, run `just next-issue` (first entry of `issues/queue.md`) instead of reading
+  the issue files. Reordering the queue is the user's call (`skill:prioritize-issues`).

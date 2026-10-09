@@ -43,4 +43,17 @@ fn main() {
         std::process::exit(1);
     }
     println!("moved {} -> {}", issue.display(), target.display());
+    // Drop the issue from the queue so `next_issue.rs` never offers a closed one.
+    let queue = dir.join("queue.md");
+    if let Ok(text) = std::fs::read_to_string(&queue) {
+        let stem = Path::new(name).file_stem().and_then(|s| s.to_str()).unwrap_or_default();
+        let kept: Vec<&str> = text
+            .lines()
+            .filter(|l| !l.trim().starts_with(&format!("- [{stem}](")))
+            .collect();
+        if kept.len() != text.lines().count() {
+            std::fs::write(&queue, kept.join("\n") + "\n").expect("queue is writable");
+            println!("removed {stem} from {}", queue.display());
+        }
+    }
 }

@@ -57,6 +57,8 @@ Skills in `.claude/skills/` (structure checked by `.claude/skills/test_skills.rs
   docs, review, human validation, tracking, commit). Architecture decisions go to `docs/adr/`.
 - `create-issue`: write a new `issues/*.md` with the template (Goal, Findings, Approach, Resources, Hints), validated by
   `check_issue.rs` (`just check-issue issues/<name>.md`).
+- `prioritize-issues`: re-rank `issues/queue.md` (the ordered list of open issues; `just next-issue` prints the first)
+  from the roadmap, ADRs, history and each issue, with a validation stop.
 - `commit-message`: procedure to write a commit message per `AGENTS.md`, validated by `commit_check.rs`
   (`just check-commit` checks `HEAD`).
 - `smoke-test`: end-to-end run on a real repo with the local Ollama and a verdict (`just smoke <repo>`).

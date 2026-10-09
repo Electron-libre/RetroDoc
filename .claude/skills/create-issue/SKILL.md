@@ -45,5 +45,11 @@ This skill writes it; `check_issue.rs` enforces the mechanical rules. Don't impl
    just check-issue issues/<name>.md
    ```
 
-5. **Deliver**: give the path and a two-line summary. Don't commit unless asked (then
+5. **Queue**: a new issue has a priority, so rank it. Read `issues/queue.md` and the issues around the
+   candidate places, then insert `- [<stem>](<stem>.md) - <why here>` at the rank that value and dependencies
+   justify (not by reflex at the end; the "why" names what it comes after or unblocks). Say the rank and the
+   reason to the user, who can move it. If the new issue changes the case for others, say so and suggest
+   `skill:prioritize-issues` rather than silently reshuffling. Run `just next-issue` and check it reports
+   no drift.
+6. **Deliver**: give the path and a two-line summary. Don't commit unless asked (then
    `skill:commit-message`), and offer to start `skill:issue-workflow` on it.

@@ -23,6 +23,7 @@ test-harness:
     rust-script .claude/skills/smoke-test/test_smoke.rs
     rust-script .claude/skills/quality-benchmark/test_benchmark.rs
     rust-script .claude/skills/issue-workflow/test_close_issue.rs
+    rust-script .claude/skills/issue-workflow/test_next_issue.rs
     rust-script .claude/skills/create-issue/test_check_issue.rs
     rust-script .claude/test_settings.rs
 
@@ -45,6 +46,10 @@ check-commit rev="HEAD":
 # Move a finished issue to issues/done/ (only after the user agreed).
 close-issue issue:
     rust-script .claude/skills/issue-workflow/close_issue.rs {{issue}}
+
+# Which issue to work on next (first entry of issues/queue.md) and drift between the queue and the files.
+next-issue:
+    rust-script .claude/skills/issue-workflow/next_issue.rs
 
 # Validate a new issue file against the create-issue template.
 check-issue issue:
