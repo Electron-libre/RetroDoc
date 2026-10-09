@@ -228,13 +228,13 @@ pub async fn infer_business_files(
     Ok(map)
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct Response {
     #[serde(default)]
     business: Vec<RawEntry>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct RawEntry {
     #[serde(default)]
     path: String,

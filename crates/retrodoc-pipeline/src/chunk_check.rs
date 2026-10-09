@@ -62,7 +62,7 @@ static DEFINITION: LazyLock<Regex> = LazyLock::new(|| {
     .expect("valid probe regex")
 });
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct PatternResponse {
     pattern: String,
 }

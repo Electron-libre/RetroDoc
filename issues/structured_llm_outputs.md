@@ -40,7 +40,7 @@ retries and skipped units.
 1. [x] The provider sends a schema: optional `json_schema` on `CompletionRequest`, `response_format` in
    `openrouter.rs`, `llm.structured_output` setting (default `true`), fallback to the plain request when the
    server rejects it (remembered for the rest of the run).
-2. [ ] `complete_json` sends the schema derived (`schemars`) from the raw answer type; derive it on every
+2. [x] `complete_json` sends the schema derived (`schemars`) from the raw answer type; derive it on every
    raw answer type, keep the lenient parsing and the retry.
 3. [ ] Count retries and skipped units per pass in the end-of-run recap; write the measurement protocol
    (setting off vs on, same repo and model, several runs, narratives, truncations). The runs are made by

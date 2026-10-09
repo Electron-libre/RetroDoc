@@ -27,6 +27,18 @@ for the first, are both waste.
 Rejected: a second provider implementation to get structured outputs (the OpenAI-compatible format
 already carries them, ADR 0002).
 
+### As built (`issues/structured_llm_outputs.md`)
+
+* `complete_json` derives the schema of its answer type with `schemars` and sends it as a strict
+  `response_format`. Strict mode wants every property required and no `default`, `oneOf` or extra
+  property: `response_schema` rewrites the schema that way, so a `#[serde(default)]` field is still always
+  asked for while the Rust type keeps accepting its absence.
+* `llm.structured_output = false` never sends it. On the real OpenRouter endpoint the request also carries
+  `require_parameters`, so the routing skips servers that would ignore the schema.
+* A 400, 404 or 422 is sent again without the schema. Only if that works is the schema blamed and left out
+  for the rest of the run (one warning); otherwise the original error is returned.
+* The lenient parsing and the retry stay: a schema does not stop a cut answer, and a server may ignore it.
+
 ## Consequences
 
 * Fewer retries and skipped units, so fewer calls and less lost documentation.

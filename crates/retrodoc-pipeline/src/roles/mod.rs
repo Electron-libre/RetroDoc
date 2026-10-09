@@ -71,7 +71,9 @@ default`, `async`, `unsafe`, `abstract`...), and also match the decorator, attri
 lines that sit right before a definition (`#[derive(..)]`, `@Override`, `@app.route(..)`), so a cut \
 never separates them from it. For example Ruby: \"^\\\\s*(class|module|def)\\\\s\".";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, schemars::JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum FileRole {
     #[serde(rename = "entrypoint", alias = "entry_point")]
@@ -107,7 +109,7 @@ impl FileRole {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct RoleRule {
     pub pattern: String,
     pub role: FileRole,
@@ -254,7 +256,7 @@ fn specificity(pattern: &str) -> usize {
         .count()
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct RolesResponse {
     #[serde(default)]
     stack: String,

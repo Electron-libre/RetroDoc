@@ -15,6 +15,7 @@ pub(crate) struct FakeLlm {
     reply: Reply,
     calls: AtomicUsize,
     prompts: Mutex<Vec<(String, String)>>,
+    schemas: Mutex<Vec<Option<serde_json::Value>>>,
 }
 
 impl FakeLlm {
@@ -38,6 +39,7 @@ impl FakeLlm {
             reply: Box::new(reply),
             calls: AtomicUsize::new(0),
             prompts: Mutex::new(Vec::new()),
+            schemas: Mutex::new(Vec::new()),
         }
     }
 
@@ -71,6 +73,11 @@ impl FakeLlm {
             .collect()
     }
 
+    /// The JSON schema each call received asked for, if any.
+    pub fn schemas(&self) -> Vec<Option<serde_json::Value>> {
+        self.schemas.lock().unwrap().clone()
+    }
+
     /// The (system, user) prompts of each call received.
     pub fn prompt_pairs(&self) -> Vec<(String, String)> {
         self.prompts.lock().unwrap().clone()
@@ -89,6 +96,10 @@ impl LlmProvider for FakeLlm {
                 .unwrap_or_default()
         };
         self.prompts.lock().unwrap().push((prompt(0), prompt(1)));
+        self.schemas
+            .lock()
+            .unwrap()
+            .push(request.json_schema.as_ref().map(|s| s.schema.clone()));
         let content = (self.reply)(n, &request)?;
         Ok(CompletionResponse {
             content,

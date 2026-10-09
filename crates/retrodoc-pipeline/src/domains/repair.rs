@@ -15,13 +15,13 @@ your answer if no domain fits it. Reply with ONLY a single JSON object, no prose
 code fence, matching this shape: {\"assignments\":[{\"path\":\"...\",\"domain\":\"slug\",\
 \"sub_domain\":\"slug or null\"}]}.";
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct RepairAnswer {
     #[serde(default)]
     assignments: Vec<Assignment>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct Assignment {
     path: PathBuf,
     domain: String,

@@ -29,7 +29,7 @@ pub struct Matches {
 }
 
 /// A generated name and the reference name it stands for.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Pair {
     pub generated: String,
     pub reference: String,

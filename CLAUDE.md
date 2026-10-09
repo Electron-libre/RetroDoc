@@ -121,7 +121,7 @@ retrodoc-cli ──> retrodoc-mcp ──> retrodoc-pipeline, retrodoc-ingest, re
   Cross-cutting pieces: `batched_read.rs` (the loop of the glossary and entry points passes: files in
   batches of ~12k chars, an unusable batch retried file by file, a checkpoint after each batch), `artifact.rs` (`Artifact`: the names of everything under `.retrodoc/cache/` and which `generate --force` clears; load/save of those files; a missing or
   unreadable file is a first run, not an error), `response.rs` (`complete_text`, and `complete_json` with
-  lenient parsing (fences, prose, a repeated field keeps its last value) and one retry; an unparseable unit is skipped with a warning), `fingerprints.rs` and
+  the `schemars` schema of its answer type sent as `response_format`, `response_schema` making it strict — every raw answer type derives `JsonSchema`; lenient parsing (fences, prose, a repeated field keeps its last value) and one retry; an unparseable unit is skipped with a warning), `fingerprints.rs` and
   `cache.rs` (incremental re-run), `progress.rs` (one `tracing::info!` line per unit with ETA), `naming.rs`
   (the single `normalize` used to match names across passes), `usage_log.rs` (the end-of-run recap text and the
   history of the last 20 runs in `.retrodoc/cache/usage.json`), `error.rs`.

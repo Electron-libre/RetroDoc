@@ -6,7 +6,8 @@
 //! accept the first JSON value found and the last of a repeated field, and
 //! [`complete_json`] retries once before giving up.
 
-use retrodoc_llm::{ChatMessage, CompletionRequest, LlmProvider, Role};
+use retrodoc_llm::{ChatMessage, CompletionRequest, LlmProvider, ResponseSchema, Role};
+use schemars::{generate::SchemaSettings, JsonSchema};
 use serde::de::DeserializeOwned;
 
 use crate::error::PipelineError;
@@ -66,6 +67,15 @@ pub(crate) async fn complete_text(
     system_prompt: &str,
     user_prompt: &str,
 ) -> Result<String, PipelineError> {
+    complete_with_schema(llm, system_prompt, user_prompt, None).await
+}
+
+async fn complete_with_schema(
+    llm: &dyn LlmProvider,
+    system_prompt: &str,
+    user_prompt: &str,
+    json_schema: Option<&ResponseSchema>,
+) -> Result<String, PipelineError> {
     let response = llm
         .complete(CompletionRequest {
             messages: vec![
@@ -79,10 +89,69 @@ pub(crate) async fn complete_text(
                 },
             ],
             model: None,
-            json_schema: None,
+            json_schema: json_schema.cloned(),
         })
         .await?;
     Ok(response.content)
+}
+
+/// The schema of the answer type `T`, in the shape strict structured outputs
+/// accept: subschemas inline, every property required (a field with a
+/// `#[serde(default)]` is still always asked for), no extra property, no
+/// `default` and `anyOf` in place of `oneOf`.
+pub(crate) fn response_schema<T: JsonSchema>() -> ResponseSchema {
+    let generator = SchemaSettings::draft2020_12()
+        .with(|s| s.inline_subschemas = true)
+        .into_generator();
+    let mut schema = generator.into_root_schema_for::<T>().to_value();
+    if let Some(root) = schema.as_object_mut() {
+        root.remove("$schema");
+    }
+    make_strict(&mut schema);
+    let name: String = T::schema_name()
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    ResponseSchema { name, schema }
+}
+
+fn make_strict(value: &mut serde_json::Value) {
+    match value {
+        serde_json::Value::Object(map) => {
+            if let Some(serde_json::Value::Object(properties)) = map.get("properties") {
+                let required: Vec<serde_json::Value> = properties
+                    .keys()
+                    .map(|k| serde_json::Value::String(k.clone()))
+                    .collect();
+                map.insert("required".to_string(), required.into());
+                map.insert("additionalProperties".to_string(), false.into());
+            }
+            // Strict mode takes neither `default` nor `oneOf`, only `anyOf`.
+            map.remove("default");
+            if let Some(one_of) = map.remove("oneOf") {
+                map.insert("anyOf".to_string(), one_of);
+            }
+            for (key, child) in map.iter_mut() {
+                if key == "properties" {
+                    // Its keys are field names, not keywords: only the schemas
+                    // they hold are visited.
+                    if let serde_json::Value::Object(fields) = child {
+                        fields.values_mut().for_each(make_strict);
+                    }
+                } else {
+                    make_strict(child);
+                }
+            }
+        }
+        serde_json::Value::Array(items) => items.iter_mut().for_each(make_strict),
+        _ => {}
+    }
 }
 
 /// Asks the LLM for a JSON answer and parses it, retrying once if the
@@ -93,15 +162,16 @@ pub(crate) async fn complete_text(
 /// # Errors
 ///
 /// Returns an error only if the LLM call itself fails.
-pub(crate) async fn complete_json<T: DeserializeOwned>(
+pub(crate) async fn complete_json<T: DeserializeOwned + JsonSchema>(
     llm: &dyn LlmProvider,
     system_prompt: &str,
     user_prompt: &str,
     what: &str,
 ) -> Result<Option<T>, PipelineError> {
     const ATTEMPTS: u32 = 2;
+    let schema = response_schema::<T>();
     for attempt in 1..=ATTEMPTS {
-        let response = complete_text(llm, system_prompt, user_prompt).await?;
+        let response = complete_with_schema(llm, system_prompt, user_prompt, Some(&schema)).await?;
         match parse_json_response(&response) {
             Ok(parsed) => return Ok(Some(parsed)),
             Err(err) => {
@@ -134,7 +204,7 @@ mod tests {
 
     use crate::testing::FakeLlm;
 
-    #[derive(Debug, Deserialize, PartialEq)]
+    #[derive(Debug, Deserialize, PartialEq, schemars::JsonSchema)]
     struct Answer {
         n: u32,
     }
@@ -196,5 +266,65 @@ mod tests {
             .unwrap();
         assert_eq!(got, None);
         assert_eq!(provider.calls(), 2);
+    }
+
+    #[derive(Debug, Deserialize, schemars::JsonSchema)]
+    #[allow(dead_code)] // only its schema is read
+    struct Nested {
+        label: String,
+        #[serde(default)]
+        tags: Vec<String>,
+        #[serde(default)]
+        note: Option<String>,
+        #[serde(default)]
+        items: Vec<Answer>,
+    }
+
+    #[tokio::test]
+    async fn complete_json_sends_the_schema_of_the_answer_type() {
+        let provider = FakeLlm::answering("{\"n\":1}");
+        complete_json::<Answer>(&provider, "s", "u", "test")
+            .await
+            .unwrap();
+        let schemas = provider.schemas();
+        let schema = schemas[0].as_ref().expect("a schema is sent");
+        assert_eq!(schema["properties"]["n"]["type"], "integer");
+    }
+
+    #[tokio::test]
+    async fn a_retry_sends_the_schema_again() {
+        let provider = FakeLlm::sequence(&["not json", "{\"n\":1}"]);
+        complete_json::<Answer>(&provider, "s", "u", "test")
+            .await
+            .unwrap();
+        assert!(provider.schemas().iter().all(Option::is_some));
+        assert_eq!(provider.schemas().len(), 2);
+    }
+
+    #[test]
+    fn the_schema_is_strict_and_self_contained() {
+        let schema = response_schema::<Nested>();
+        assert_eq!(schema.name, "Nested");
+        let text = schema.schema.to_string();
+        assert!(
+            !text.contains("$ref") && !text.contains("$schema"),
+            "{text}"
+        );
+
+        // Defaulted fields are asked for too, and nothing else is allowed.
+        let root = &schema.schema;
+        assert_eq!(root["additionalProperties"], false);
+        let mut required: Vec<&str> = root["required"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap())
+            .collect();
+        required.sort_unstable();
+        assert_eq!(required, ["items", "label", "note", "tags"]);
+        // The nested object is strict as well.
+        let item = &root["properties"]["items"]["items"];
+        assert_eq!(item["additionalProperties"], false);
+        assert_eq!(item["required"], serde_json::json!(["n"]));
     }
 }

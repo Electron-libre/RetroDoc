@@ -145,7 +145,7 @@ several generated items may share one reference item. Copy the names exactly as 
 with ONLY a single JSON object, no prose and no Markdown code fence, matching this shape: \
 {\"matches\":[{\"generated\":\"...\",\"reference\":\"...\"}]}.";
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct RawMatches {
     #[serde(default)]
     matches: Vec<Pair>,
@@ -216,13 +216,13 @@ database or framework internals) and developer tooling (build, test, deployment 
 Reply with ONLY a single JSON object, no prose and no Markdown code \
 fence, matching this shape: {\"ratings\":[{\"id\":1,\"business\":true}]}.";
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct RawRatings {
     #[serde(default)]
     ratings: Vec<RawRating>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct RawRating {
     id: usize,
     business: bool,

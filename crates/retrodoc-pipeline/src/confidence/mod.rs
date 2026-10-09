@@ -53,26 +53,26 @@ JSON. Reply with ONLY a single JSON object, no prose and no Markdown code fence,
 shape: {\"steps\":[{\"order\":1,\"verdict\":\"supported|partial|unsupported\",\
 \"rationale\":\"...\"}]}.";
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct RawVerdicts {
     #[serde(default)]
     steps: Vec<RawVerdict>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct RawBatchVerdicts {
     #[serde(default)]
     use_cases: Vec<RawUseCaseVerdicts>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct RawUseCaseVerdicts {
     slug: String,
     #[serde(default)]
     steps: Vec<RawVerdict>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
 struct RawVerdict {
     order: u32,
     #[serde(default)]

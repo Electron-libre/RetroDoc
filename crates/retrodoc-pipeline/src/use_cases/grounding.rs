@@ -1,12 +1,12 @@
 use super::*;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub(super) struct RawUseCases {
     #[serde(default)]
     pub(super) use_cases: Vec<RawUseCase>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub(super) struct RawUseCase {
     pub(super) slug: String,
     pub(super) name: String,
@@ -26,7 +26,7 @@ pub(super) struct RawUseCase {
 /// without an actor, or "references" that are just notes. Incomplete steps
 /// are dropped and incomplete references ignored, rather than rejecting the
 /// whole answer.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub(super) struct RawStep {
     #[serde(default, deserialize_with = "lenient_text")]
     pub(super) description: String,
@@ -91,14 +91,14 @@ impl FromText for Option<String> {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub(super) struct RawActor {
     pub(super) name: String,
     #[serde(default)]
     pub(super) kind: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub(super) struct RawSourceRef {
     pub(super) path: Option<String>,
     pub(super) start_line: Option<u32>,

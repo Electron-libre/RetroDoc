@@ -17,13 +17,13 @@ probable role of each of several source code files, based on its path, its git h
 content. Reply with only a JSON object of the form {\"summaries\": [{\"path\": \"<the path as \
 given>\", \"summary\": \"<the summary, in English, no Markdown>\"}]}, one entry per file.";
 
-#[derive(Deserialize)]
+#[derive(Deserialize, schemars::JsonSchema)]
 pub(super) struct RawBatch {
     #[serde(default)]
     pub(super) summaries: Vec<RawFileSummary>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, schemars::JsonSchema)]
 pub(super) struct RawFileSummary {
     pub(super) path: String,
     pub(super) summary: String,

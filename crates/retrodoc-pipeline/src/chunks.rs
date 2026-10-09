@@ -68,7 +68,7 @@ impl Focus {
 }
 
 /// Where the units of a language start, as identified by the LLM.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct ChunkBoundary {
     /// File extensions the rule applies to, with or without the dot.
     #[serde(default)]

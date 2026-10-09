@@ -43,13 +43,13 @@ support several features. Reply with ONLY a single JSON object, no prose and no 
 fence, matching this shape: {\"features\":[{\"slug\":\"kebab-case\",\"name\":\"...\",\
 \"description\":\"one or two sentences\",\"files\":[\"...\"]}]}.";
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct RawFeatures {
     #[serde(default)]
     features: Vec<RawFeature>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct RawFeature {
     slug: String,
     name: String,

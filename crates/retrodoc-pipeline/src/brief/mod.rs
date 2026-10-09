@@ -255,7 +255,7 @@ pub async fn build_brief(
 }
 
 /// A claim as the LLM writes it: a bare string or `{text, signals}`.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
 enum RawClaim {
     Text(String),
@@ -267,7 +267,7 @@ enum RawClaim {
     },
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, schemars::JsonSchema)]
 struct RawBrief {
     #[serde(default)]
     purpose: Option<RawClaim>,

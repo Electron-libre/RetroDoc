@@ -50,7 +50,9 @@ matching this shape: {\"entry_points\":[{\"file\":\"path as given\",\"kind\":\"h
 \"name\":\"...\",\"verb\":\"...\",\"resource\":\"...\",\"description\":\"...\",\"outputs\":\
 [{\"kind\":\"email\",\"description\":\"...\"}]}]}. Use the file paths exactly as given.";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, schemars::JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum EntryKind {
     HttpRoute,
@@ -79,7 +81,7 @@ impl EntryKind {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum OutputKind {
     Response,
@@ -93,14 +95,14 @@ pub enum OutputKind {
     Other,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Output {
     pub kind: OutputKind,
     #[serde(default)]
     pub description: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct EntryPoint {
     pub kind: EntryKind,
     pub name: String,
@@ -160,13 +162,13 @@ impl EntryPoints {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct EntryPointsResponse {
     #[serde(default)]
     entry_points: Vec<ResponseEntry>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct ResponseEntry {
     #[serde(default)]
     file: String,

@@ -139,13 +139,13 @@ impl Actors {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct RawActors {
     #[serde(default)]
     actors: Vec<RawActor>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct RawActor {
     name: String,
     #[serde(default)]

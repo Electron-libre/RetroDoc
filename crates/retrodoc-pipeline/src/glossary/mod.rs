@@ -67,13 +67,13 @@ object, no prose and no Markdown code fence, matching this shape: {\"entities\":
 \"associations\":[{\"kind\":\"has_many\",\"target\":\"...\"}]}]}. Use the file paths exactly \
 as given.";
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Association {
     pub kind: String,
     pub target: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Entity {
     pub name: String,
     #[serde(default)]
@@ -245,13 +245,13 @@ fn merge_group(group: &[(&Path, &Entity)]) -> MergedEntity {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct GlossaryResponse {
     #[serde(default)]
     entities: Vec<ResponseEntity>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct ResponseEntity {
     #[serde(default)]
     file: String,

@@ -216,13 +216,13 @@ async fn ask(
     Ok(Some(good))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct Response {
     #[serde(default)]
     rules: Vec<RawRule>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct RawRule {
     #[serde(default)]
     kind: String,

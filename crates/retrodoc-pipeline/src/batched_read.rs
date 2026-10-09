@@ -43,7 +43,7 @@ pub(crate) struct BatchedRead<'a, R, T, S> {
     pub checkpoint: &'a dyn Fn(&S) -> Result<(), PipelineError>,
 }
 
-impl<R: DeserializeOwned, T, S> BatchedRead<'_, R, T, S> {
+impl<R: DeserializeOwned + schemars::JsonSchema, T, S> BatchedRead<'_, R, T, S> {
     /// Reads `pending` batch by batch, feeding `state`.
     ///
     /// # Errors
@@ -162,7 +162,7 @@ mod tests {
         assert_eq!(sizes, vec![1, 2, 1]);
     }
 
-    #[derive(Deserialize)]
+    #[derive(Deserialize, schemars::JsonSchema)]
     struct Answer {
         files: Vec<String>,
     }
