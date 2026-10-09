@@ -5,10 +5,10 @@ use std::path::Path;
 use anyhow::Context;
 use retrodoc_ingest::signals::{self, Signal};
 use retrodoc_ingest::IngestResult;
-use retrodoc_llm::LlmProvider;
 use retrodoc_llm::UsageTracker;
 use retrodoc_pipeline::{Artifact, Claim, Evidence, ProductBrief};
 
+use super::usage::PassProviders;
 use super::workspace::Workspace;
 
 /// Origins shown after a claim.
@@ -42,17 +42,23 @@ pub async fn run(
         return Ok(());
     }
 
-    let llm = super::usage::provider(&config.llm, tracker)?;
+    let providers = super::usage::PassProviders::open(&config.llm, tracker, &["sources", "brief"])?;
     tracker.set_pass("sources");
-    let sources = retrodoc_pipeline::infer_sources(repo_root, &ingest, &llm, force)
-        .await
-        .context("failed to locate the schema and translations")?;
+    let sources = retrodoc_pipeline::infer_sources(
+        repo_root,
+        &ingest,
+        providers.get("sources")?.as_ref(),
+        force,
+    )
+    .await
+    .context("failed to locate the schema and translations")?;
     let all =
         signals::collect(repo_root, &ingest, &sources).context("could not collect the signals")?;
     tracker.set_pass("brief");
-    let brief = retrodoc_pipeline::build_brief(repo_root, &all, &llm, force)
-        .await
-        .context("failed to write the product brief")?;
+    let brief =
+        retrodoc_pipeline::build_brief(repo_root, &all, providers.get("brief")?.as_ref(), force)
+            .await
+            .context("failed to write the product brief")?;
     let Some(brief) = brief else {
         anyhow::bail!(
             "no product brief (no signal, or the LLM answer was unusable, see the warnings above)"
@@ -85,7 +91,7 @@ pub fn saved(repo_root: &Path) -> ProductBrief {
 pub async fn for_generate(
     repo_root: &Path,
     ingest: &IngestResult,
-    llm: &dyn LlmProvider,
+    providers: &PassProviders,
     with_evidence: bool,
     tracker: &UsageTracker,
 ) -> anyhow::Result<(ProductBrief, Evidence)> {
@@ -99,7 +105,12 @@ pub async fn for_generate(
         tracker
             .in_pass(
                 "sources",
-                retrodoc_pipeline::infer_sources(repo_root, ingest, llm, false),
+                retrodoc_pipeline::infer_sources(
+                    repo_root,
+                    ingest,
+                    providers.get("sources")?.as_ref(),
+                    false,
+                ),
             )
             .await
             .context("failed to locate the schema and translations")?
@@ -132,7 +143,12 @@ pub async fn for_generate(
     let brief = tracker
         .in_pass(
             "brief",
-            retrodoc_pipeline::build_brief(repo_root, &all, llm, false),
+            retrodoc_pipeline::build_brief(
+                repo_root,
+                &all,
+                providers.get("brief")?.as_ref(),
+                false,
+            ),
         )
         .await
         .context("failed to write the product brief")?;
@@ -297,8 +313,13 @@ mod tests {
 
     struct NoCall;
 
+    fn no_call() -> PassProviders {
+        let no_call: std::sync::Arc<dyn retrodoc_llm::LlmProvider> = std::sync::Arc::new(NoCall);
+        PassProviders::from_providers(vec![("sources", no_call.clone()), ("brief", no_call)])
+    }
+
     #[async_trait::async_trait]
-    impl LlmProvider for NoCall {
+    impl retrodoc_llm::LlmProvider for NoCall {
         async fn complete(
             &self,
             _: retrodoc_llm::CompletionRequest,
@@ -324,7 +345,7 @@ mod tests {
             commits: Vec::new(),
         };
 
-        let (used, _) = for_generate(dir.path(), &ingest, &NoCall, false, &UsageTracker::new())
+        let (used, _) = for_generate(dir.path(), &ingest, &no_call(), false, &UsageTracker::new())
             .await
             .unwrap();
 
@@ -352,7 +373,7 @@ mod tests {
         };
         let (root, ingest) = (dir.path(), &ingest);
         let section = |with| async move {
-            let (_, evidence) = for_generate(root, ingest, &NoCall, with, &UsageTracker::new())
+            let (_, evidence) = for_generate(root, ingest, &no_call(), with, &UsageTracker::new())
                 .await
                 .unwrap();
             evidence.section("refund order")

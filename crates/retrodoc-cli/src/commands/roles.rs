@@ -23,13 +23,13 @@ pub async fn run(path: &Path, force: bool, tracker: &UsageTracker) -> anyhow::Re
     let rules = if saved {
         RoleRules::load(repo_root).unwrap_or_default()
     } else {
-        let llm = super::usage::provider(&config.llm, tracker)?;
+        let llm = super::usage::pass_provider(&config.llm, tracker, "roles")?;
         tracker.set_pass("roles");
         retrodoc_pipeline::identify_roles(
             repo_root,
             &ingest,
             &super::brief::saved(repo_root),
-            &llm,
+            llm.as_ref(),
             force,
         )
         .await

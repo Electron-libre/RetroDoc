@@ -28,7 +28,7 @@ pub async fn run(path: &Path, tracker: &UsageTracker) -> anyhow::Result<()> {
         business_files.len()
     };
 
-    let llm = super::usage::provider(&config.llm, tracker)?;
+    let llm = super::usage::pass_provider(&config.llm, tracker, "glossary")?;
     tracker.set_pass("glossary");
     println!("Reading entities from {to_read} file(s)…");
     let glossary = retrodoc_pipeline::build_glossary(
@@ -36,7 +36,7 @@ pub async fn run(path: &Path, tracker: &UsageTracker) -> anyhow::Result<()> {
         &role_map,
         &business_files,
         &super::brief::saved(repo_root),
-        &llm,
+        llm.as_ref(),
     )
     .await
     .context("failed to build the glossary")?;

@@ -53,12 +53,18 @@ pub async fn run(
 
     let judged = if options.judge {
         let workspace = Workspace::open(&repo_root)?;
-        let llm = super::usage::provider(&workspace.config.llm, tracker)?;
+        let llm = super::usage::pass_provider(&workspace.config.llm, tracker, "benchmark judge")?;
         tracker.set_pass("benchmark judge");
-        let judgement = benchmark::judge(&llm, &repo_root, &reference, &matches, &matches_path)
-            .await
-            .context("the judge failed")?
-            .context("no domains found, nothing to judge")?;
+        let judgement = benchmark::judge(
+            llm.as_ref(),
+            &repo_root,
+            &reference,
+            &matches,
+            &matches_path,
+        )
+        .await
+        .context("the judge failed")?
+        .context("no domains found, nothing to judge")?;
         judgement.save(&repo_root)?;
         let with_judge = benchmark::compare(
             &repo_root,

@@ -20,14 +20,14 @@ pub async fn run(path: &Path, tracker: &UsageTracker) -> anyhow::Result<()> {
     let role_map = rules.classify(&ingest.files);
     let files = role_map.files_with(FileRole::EntryPoint).len();
 
-    let llm = super::usage::provider(&config.llm, tracker)?;
+    let llm = super::usage::pass_provider(&config.llm, tracker, "entry-points")?;
     tracker.set_pass("entry-points");
     println!("Reading entry points from {files} file(s)…");
     let inventory = retrodoc_pipeline::build_entry_points(
         repo_root,
         &role_map,
         &super::brief::saved(repo_root),
-        &llm,
+        llm.as_ref(),
     )
     .await
     .context("failed to build the entry points inventory")?;

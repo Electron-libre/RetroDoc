@@ -4,7 +4,7 @@ use anyhow::Context;
 use retrodoc_core::config::{LlmConfig, DEFAULT_BATCH_CHARS};
 use retrodoc_core::model::{Feature, UseCase};
 use retrodoc_ingest::IngestResult;
-use retrodoc_llm::{LlmProvider, UsageTracker};
+use retrodoc_llm::UsageTracker;
 use retrodoc_pipeline::{
     Actors, Artifact, CodeIndex, DomainMap, EntryPoints, ProductBrief, RepoMap, RepoMapOptions,
     RoleMap, Scope, Surface, UseCaseContext,
@@ -12,10 +12,27 @@ use retrodoc_pipeline::{
 
 mod print;
 
+use super::usage::PassProviders;
 use super::workspace::{source_paths, Workspace};
 
 /// Number of main entity names given to the use cases as business vocabulary.
 const VOCABULARY_SIZE: usize = 40;
+
+/// The passes `generate` runs, each with its own LLM settings.
+const GENERATE_PASSES: &[&str] = &[
+    "sources",
+    "brief",
+    "roles",
+    "business-files",
+    "glossary",
+    "entry-points",
+    "actors",
+    "repo-map",
+    "domains",
+    "features",
+    "use-cases",
+    "confidence",
+];
 
 /// What the confidence pass does in this run.
 #[derive(Debug, Clone, Copy)]
@@ -66,7 +83,7 @@ pub async fn run(
     let mut ingest = workspace.ingest()?;
     ingest.existing_docs = super::docs::without_generated(ingest.existing_docs, config);
 
-    let llm = super::usage::provider(&config.llm, tracker)?;
+    let llm = PassProviders::open(&config.llm, tracker, GENERATE_PASSES)?;
 
     let (brief, evidence) =
         super::brief::for_generate(repo_root, &ingest, &llm, config.brief.evidence, tracker)
@@ -118,7 +135,7 @@ pub async fn run(
                 &map,
                 &brief,
                 &evidence,
-                &llm,
+                llm.get("features")?.as_ref(),
             ),
         )
         .await
@@ -170,15 +187,21 @@ async fn identify_actors(
     ingest: &IngestResult,
     surface: &Surface,
     brief: &ProductBrief,
-    llm: &dyn LlmProvider,
+    llm: &PassProviders,
     force: bool,
 ) -> anyhow::Result<Actors> {
     println!("Identifying the business actors…");
     let source_files: Vec<_> = source_paths(ingest).map(Path::to_path_buf).collect();
-    let actors =
-        retrodoc_pipeline::build_actors(repo_root, &source_files, surface, brief, llm, force)
-            .await
-            .context("failed to identify the actors")?;
+    let actors = retrodoc_pipeline::build_actors(
+        repo_root,
+        &source_files,
+        surface,
+        brief,
+        llm.get("actors")?.as_ref(),
+        force,
+    )
+    .await
+    .context("failed to identify the actors")?;
     println!("{} actor(s) identified.", actors.actors.len());
     Ok(actors)
 }
@@ -189,7 +212,7 @@ async fn cluster_domains(
     ingest: &IngestResult,
     surface: &Surface,
     brief: &ProductBrief,
-    llm: &dyn LlmProvider,
+    llm: &PassProviders,
 ) -> anyhow::Result<DomainMap> {
     println!("\nClustering into functional domains…");
     let (domain_map, coverage) = retrodoc_pipeline::build_domains(
@@ -198,7 +221,7 @@ async fn cluster_domains(
         &ingest.existing_docs,
         surface,
         brief,
-        llm,
+        llm.get("domains")?.as_ref(),
     )
     .await
     .context("failed to build the domain clustering")?;
@@ -217,15 +240,20 @@ async fn derive_use_cases(
     features: &[Feature],
     context: UseCaseContext,
     surface: &Surface,
-    llm: &dyn LlmProvider,
+    llm: &PassProviders,
 ) -> anyhow::Result<Vec<UseCase>> {
     println!(
         "Deriving use cases ({} feature(s), one LLM call each)…",
         features.len()
     );
-    let mut use_cases = retrodoc_pipeline::build_use_cases(repo_root, features, &context, llm)
-        .await
-        .context("failed to derive the use cases")?;
+    let mut use_cases = retrodoc_pipeline::build_use_cases(
+        repo_root,
+        features,
+        &context,
+        llm.get("use-cases")?.as_ref(),
+    )
+    .await
+    .context("failed to derive the use cases")?;
     retrodoc_pipeline::attach_diagrams(&mut use_cases);
     // Deterministic, so recomputed every run: does each use case read as business?
     retrodoc_pipeline::score_business_language(
@@ -248,7 +276,7 @@ async fn build_surface(
     repo_root: &Path,
     ingest: &mut IngestResult,
     brief: &ProductBrief,
-    llm: &dyn LlmProvider,
+    llm: &PassProviders,
     force: bool,
     tracker: &UsageTracker,
 ) -> anyhow::Result<(Surface, EntryPoints, Option<RoleMap>)> {
@@ -256,7 +284,13 @@ async fn build_surface(
     let rules = tracker
         .in_pass(
             "roles",
-            retrodoc_pipeline::identify_roles(repo_root, ingest, brief, llm, force),
+            retrodoc_pipeline::identify_roles(
+                repo_root,
+                ingest,
+                brief,
+                llm.get("roles")?.as_ref(),
+                force,
+            ),
         )
         .await
         .context("failed to identify the file roles")?;
@@ -271,16 +305,29 @@ async fn build_surface(
     let role_map = rules.classify(&ingest.files);
     println!("Stack: {}", rules.stack);
 
-    let business =
-        super::business_files::locate(repo_root, ingest, &rules.stack, brief, llm, force, tracker)
-            .await?;
+    let business = super::business_files::locate(
+        repo_root,
+        ingest,
+        &rules.stack,
+        brief,
+        llm.get("business-files")?.as_ref(),
+        force,
+        tracker,
+    )
+    .await?;
     let business_files = business.files(&ingest.files);
 
     println!("Reading the business entities…");
     let glossary = tracker
         .in_pass(
             "glossary",
-            retrodoc_pipeline::build_glossary(repo_root, &role_map, &business_files, brief, llm),
+            retrodoc_pipeline::build_glossary(
+                repo_root,
+                &role_map,
+                &business_files,
+                brief,
+                llm.get("glossary")?.as_ref(),
+            ),
         )
         .await
         .context("failed to build the glossary")?;
@@ -288,7 +335,12 @@ async fn build_surface(
     let entry_points = tracker
         .in_pass(
             "entry-points",
-            retrodoc_pipeline::build_entry_points(repo_root, &role_map, brief, llm),
+            retrodoc_pipeline::build_entry_points(
+                repo_root,
+                &role_map,
+                brief,
+                llm.get("entry-points")?.as_ref(),
+            ),
         )
         .await
         .context("failed to build the entry points inventory")?;
@@ -354,15 +406,21 @@ async fn run_confidence(
     repo_root: &Path,
     features: &mut [Feature],
     use_cases: &mut [UseCase],
-    llm: &dyn LlmProvider,
+    llm: &PassProviders,
     confidence: Confidence,
 ) -> anyhow::Result<()> {
     match confidence {
         Confidence::Sample(sample) => {
             println!("\nCross-checking use cases against the code (confidence)…");
-            retrodoc_pipeline::score_confidence(repo_root, features, use_cases, llm, sample)
-                .await
-                .context("failed to score the confidence")
+            retrodoc_pipeline::score_confidence(
+                repo_root,
+                features,
+                use_cases,
+                llm.get("confidence")?.as_ref(),
+                sample,
+            )
+            .await
+            .context("failed to score the confidence")
         }
         Confidence::Skip => {
             println!(
@@ -377,9 +435,10 @@ async fn run_confidence(
 async fn build_map(
     repo_root: &Path,
     ingest: &IngestResult,
-    llm: &dyn LlmProvider,
+    llm: &PassProviders,
     config: &LlmConfig,
 ) -> anyhow::Result<RepoMap> {
+    let config = &config.for_pass("repo-map");
     let options = RepoMapOptions {
         concurrency: config.concurrency.unwrap_or(1),
         batch_chars: config.batch_chars.unwrap_or(DEFAULT_BATCH_CHARS),
@@ -393,7 +452,7 @@ async fn build_map(
         estimate.directories_to_summarize,
         estimate.chars_to_send / 1000
     );
-    retrodoc_pipeline::build_repo_map(repo_root, ingest, llm, options)
+    retrodoc_pipeline::build_repo_map(repo_root, ingest, llm.get("repo-map")?.as_ref(), options)
         .await
         .context("failed to build the repo map")
 }

@@ -59,7 +59,7 @@ pub struct BriefConfig {
     pub evidence: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LlmConfig {
     /// LLM provider: "openrouter" (default) or "deepseek" (its own API; the key
     /// is then read from `DEEPSEEK_API_KEY` unless `api_key_env` names another).
@@ -118,7 +118,7 @@ pub struct LlmConfig {
 /// `[llm.passes.<name>]`: the keys of `[llm]`, each optional, that one pass
 /// changes. Spend a strong model on the few framing passes and a cheap or
 /// local one on the many extraction passes.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PassLlmConfig {
     pub provider: Option<String>,

@@ -26,7 +26,7 @@ pub async fn run(path: &Path, force: bool, tracker: &UsageTracker) -> anyhow::Re
         &EntryPoints::load(repo_root).unwrap_or_default(),
     );
 
-    let llm = super::usage::provider(&config.llm, tracker)?;
+    let llm = super::usage::pass_provider(&config.llm, tracker, "actors")?;
     tracker.set_pass("actors");
     let candidates = retrodoc_pipeline::authorization_files(&source_files);
     println!(
@@ -39,7 +39,7 @@ pub async fn run(path: &Path, force: bool, tracker: &UsageTracker) -> anyhow::Re
         &source_files,
         &surface,
         &super::brief::saved(repo_root),
-        &llm,
+        llm.as_ref(),
         force,
     )
     .await

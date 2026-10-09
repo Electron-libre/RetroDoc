@@ -35,8 +35,8 @@ default.
 # Tracking
 
 1. [x] Config `[llm.passes.<name>]` in `retrodoc-core`: `PassLlmConfig`, `LlmConfig::for_pass`, unknown pass name rejected.
-2. [ ] One provider per distinct configuration in the CLI (`PassProviders::for_pass`), missing key reported with the pass name.
-3. [ ] Wire each pass (generate and the standalone commands) to its provider; the recap shows the split.
+2. [x] One provider per distinct configuration in the CLI (`PassProviders::for_pass`), missing key reported with the pass name.
+3. [x] Wire each pass (generate and the standalone commands) to its provider; the recap shows the split.
 4. [ ] Include the model in the fingerprint of each pass so a model change invalidates its cache.
 5. [ ] Docs: ADR 0023 "As built" or a new ADR, `CLAUDE.md`, `PLAN.md`, `docs/ARCHITECTURE.md`, recommended split and how to measure it.
 

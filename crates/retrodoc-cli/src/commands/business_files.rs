@@ -23,9 +23,18 @@ pub async fn run(path: &Path, force: bool, tracker: &UsageTracker) -> anyhow::Re
     }
     let stack = rules.map(|r| r.stack).unwrap_or_default();
 
-    let llm = super::usage::provider(&config.llm, tracker)?;
+    let llm = super::usage::pass_provider(&config.llm, tracker, "business-files")?;
     let brief = super::brief::saved(repo_root);
-    let map = locate(repo_root, &ingest, &stack, &brief, &llm, force, tracker).await?;
+    let map = locate(
+        repo_root,
+        &ingest,
+        &stack,
+        &brief,
+        llm.as_ref(),
+        force,
+        tracker,
+    )
+    .await?;
     if map.is_empty() {
         anyhow::bail!(
             "no business file located (the LLM answer was unusable, see the warnings above) — try again"
