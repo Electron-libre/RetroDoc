@@ -41,3 +41,23 @@ Then, candidates:
 
 * Translations and schema files are often not `FileKind::Source` (YAML, SQL), so the business-files fix does
   not apply as is: the shape must include the kinds the rules read.
+
+# Tracking
+
+1. [x] Leave the generated docs (`<docs_dir>/functional`, `<docs_dir>/_retrodoc`) out of `ingest.files` in
+   `Workspace::ingest`, so every pass that hashes or shows the tree ignores them; tests in `workspace.rs` and
+   on `infer_sources`.
+2. [x] Reproduce on `delivery_router` (`generate`, then `retrodoc brief`): no `sources` call in the recap.
+3. [x] Docs (`update-docs`), `just check`, `just test-harness`, code review.
+
+## Decisions
+
+* Filter in `Workspace::ingest` (all commands), not in `infer_sources`; `tree_shape_hash` stays as is.
+* Same two directories as `without_generated` (the rest of `docs_dir` is the project's own docs).
+* Manual reproduction on a real repo is wanted, besides the unit test.
+
+## Follow-ups
+
+* Reproduced without the fix: `generate` then `retrodoc brief` made 2 LLM calls; with it, none.
+* The smoke run ended `FAIL` on 2 warnings of the first run (e.g. `human actor outside the known actors`,
+  `use_cases::grounding`), unrelated to this change.

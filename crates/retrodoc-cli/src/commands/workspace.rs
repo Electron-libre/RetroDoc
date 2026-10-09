@@ -30,10 +30,26 @@ impl Workspace {
     }
 
     /// Walks the repo: files, git history and existing Markdown docs.
+    /// The docs `generate` wrote are left out of the files, so a run that
+    /// wrote them doesn't change the tree the passes saw before it.
     pub fn ingest(&self) -> anyhow::Result<IngestResult> {
-        retrodoc_ingest::run(&self.repo_root, &self.config.ingest)
-            .with_context(|| format!("ingestion of {} failed", self.repo_root.display()))
+        let mut ingest = retrodoc_ingest::run(&self.repo_root, &self.config.ingest)
+            .with_context(|| format!("ingestion of {} failed", self.repo_root.display()))?;
+        let generated = generated_dirs(&self.config);
+        ingest
+            .files
+            .retain(|file| !generated.iter().any(|dir| file.path.starts_with(dir)));
+        Ok(ingest)
     }
+}
+
+/// The directories `RetroDoc` writes its docs into, relative to the repo root.
+pub fn generated_dirs(config: &Config) -> [PathBuf; 2] {
+    let docs_dir = Path::new(&config.output.docs_dir);
+    [
+        docs_dir.join(retrodoc_render::FUNCTIONAL_DIR),
+        docs_dir.join(retrodoc_render::META_DIR),
+    ]
 }
 
 /// The paths of the files classified as source.
@@ -96,5 +112,29 @@ mod tests {
             source_paths(&ingest).collect::<Vec<_>>(),
             [Path::new("main.rs")]
         );
+    }
+
+    #[test]
+    fn the_docs_generate_wrote_are_not_among_the_files() {
+        let dir = tempfile::tempdir().unwrap();
+        Config::write_default(dir.path(), false).unwrap();
+        std::fs::write(dir.path().join("main.rs"), "fn main() {}").unwrap();
+        let docs = dir.path().join("docs");
+        std::fs::create_dir_all(docs.join("functional")).unwrap();
+        std::fs::create_dir_all(docs.join("_retrodoc")).unwrap();
+        std::fs::write(docs.join("functional/a.md"), "# A").unwrap();
+        std::fs::write(docs.join("_retrodoc/run-metadata.json"), "{}").unwrap();
+        std::fs::write(docs.join("guide.md"), "# Guide").unwrap();
+        git(dir.path(), &["init", "-q"]);
+        git(dir.path(), &["add", "."]);
+        git(dir.path(), &["commit", "-q", "-m", "init"]);
+
+        let ingest = Workspace::open(dir.path()).unwrap().ingest().unwrap();
+
+        let paths: Vec<_> = ingest.files.iter().map(|f| f.path.as_path()).collect();
+        assert!(paths.contains(&Path::new("main.rs")));
+        assert!(paths.contains(&Path::new("docs/guide.md")));
+        assert!(!paths.iter().any(|p| p.starts_with("docs/functional")));
+        assert!(!paths.iter().any(|p| p.starts_with("docs/_retrodoc")));
     }
 }
