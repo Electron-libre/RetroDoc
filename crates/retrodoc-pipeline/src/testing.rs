@@ -122,6 +122,7 @@ mod tests {
         CompletionRequest {
             messages: vec![message(Role::System, system), message(Role::User, user)],
             model: None,
+            json_schema: None,
         }
     }
 

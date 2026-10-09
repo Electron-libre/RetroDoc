@@ -310,6 +310,7 @@ mod tests {
         CompletionRequest {
             messages: Vec::new(),
             model: None,
+            json_schema: None,
         }
     }
 

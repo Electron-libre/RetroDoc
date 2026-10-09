@@ -85,6 +85,11 @@ pub struct LlmConfig {
     /// local model may summarize better one file at a time.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub batch_chars: Option<usize>,
+    /// Ask the server to constrain JSON answers to a schema (`response_format`).
+    /// Unset: `true`. A server that rejects it is detected (the request is sent
+    /// again without the schema); `false` never sends it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub structured_output: Option<bool>,
 }
 
 impl LlmConfig {
@@ -110,6 +115,7 @@ impl Default for LlmConfig {
             timeout_secs: None,
             concurrency: None,
             batch_chars: None,
+            structured_output: None,
         }
     }
 }

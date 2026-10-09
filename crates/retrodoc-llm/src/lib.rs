@@ -11,7 +11,9 @@ mod usage;
 
 pub use heartbeat::{HeartbeatProvider, DEFAULT_HEARTBEAT};
 pub use openrouter::OpenRouterProvider;
-pub use types::{ChatMessage, CompletionRequest, CompletionResponse, LlmError, LlmProvider, Role};
+pub use types::{
+    ChatMessage, CompletionRequest, CompletionResponse, LlmError, LlmProvider, ResponseSchema, Role,
+};
 pub use usage::{
     CallTotals, PassUsage, Usage, UsageProvider, UsageReport, UsageTracker, UNLABELLED_PASS,
 };

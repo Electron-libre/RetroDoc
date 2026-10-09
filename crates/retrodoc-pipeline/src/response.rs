@@ -79,6 +79,7 @@ pub(crate) async fn complete_text(
                 },
             ],
             model: None,
+            json_schema: None,
         })
         .await?;
     Ok(response.content)

@@ -94,6 +94,7 @@ model = "anthropic/claude-sonnet-4.5"
 # timeout_secs = 120
 # concurrency = 1
 # batch_chars = 6000          # 0 disables batching
+# structured_output = true    # ask the server for schema-constrained JSON answers (false: never)
 
 [ingest]
 extra_ignore = []                              # in addition to .gitignore

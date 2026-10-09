@@ -34,3 +34,25 @@ retries and skipped units.
 
 * A schema does not prevent a cut answer (`finish_reason=length`): truncation stays a separate cause.
 * Constrained decoding can lower the quality of some models' text fields: check the narratives too.
+
+# Tracking
+
+1. [x] The provider sends a schema: optional `json_schema` on `CompletionRequest`, `response_format` in
+   `openrouter.rs`, `llm.structured_output` setting (default `true`), fallback to the plain request when the
+   server rejects it (remembered for the rest of the run).
+2. [ ] `complete_json` sends the schema derived (`schemars`) from the raw answer type; derive it on every
+   raw answer type, keep the lenient parsing and the retry.
+3. [ ] Count retries and skipped units per pass in the end-of-run recap; write the measurement protocol
+   (setting off vs on, same repo and model, several runs, narratives, truncations). The runs are made by
+   the user.
+4. [ ] Shorten the prompts that spell out the JSON shape, pass by pass, only if the measurement shows a gain.
+5. [ ] Docs along the way (`update-docs`): ADR 0023 (or a new ADR), `CLAUDE.md`, `PLAN.md`, config doc;
+   update `issues/use_cases_model_noise_warnings.md` and propose closing it only if justified.
+
+## Decisions
+
+* `llm.structured_output` defaults to `true`; a rejected request falls back to the plain one automatically
+  (also the answer for DeepSeek if it lacks `json_schema`, no dedicated `json_object` mode).
+* The smoke runs for the measurement are made by the user, not by the agent.
+* `schemars` is accepted as a dependency.
+* Order: 1, 2, 3, then 4 after the user's measurement.

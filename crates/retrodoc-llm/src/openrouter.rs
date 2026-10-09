@@ -1,6 +1,7 @@
 //! The `OpenRouter` provider (OpenAI-compatible chat completions): the HTTP
 //! call, its retries and the decoding of the answer.
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -8,7 +9,7 @@ use retrodoc_core::config::LlmConfig;
 use serde::{Deserialize, Serialize};
 
 use crate::usage;
-use crate::{CompletionRequest, CompletionResponse, LlmError, LlmProvider};
+use crate::{CompletionRequest, CompletionResponse, LlmError, LlmProvider, ResponseSchema};
 
 const OPENROUTER_ENDPOINT: &str = "https://openrouter.ai/api/v1/chat/completions";
 /// Endpoint of the `DeepSeek` API, which speaks the same chat-completions format.
@@ -48,6 +49,30 @@ struct ApiRequest<'a> {
     max_tokens: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
     reasoning_effort: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    response_format: Option<ApiResponseFormat<'a>>,
+    /// `OpenRouter` routing preferences, sent with a schema only.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    provider: Option<ApiProviderPreferences>,
+}
+
+#[derive(Debug, Serialize)]
+struct ApiResponseFormat<'a> {
+    #[serde(rename = "type")]
+    kind: &'static str,
+    json_schema: ApiJsonSchema<'a>,
+}
+
+#[derive(Debug, Serialize)]
+struct ApiJsonSchema<'a> {
+    name: &'a str,
+    strict: bool,
+    schema: &'a serde_json::Value,
+}
+
+#[derive(Debug, Serialize)]
+struct ApiProviderPreferences {
+    require_parameters: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -78,6 +103,14 @@ pub struct OpenRouterProvider {
     default_model: String,
     endpoint: String,
     reasoning_effort: Option<String>,
+    /// `llm.structured_output`: send the schema of a request that has one.
+    structured_output: bool,
+    /// Ask `OpenRouter` to route only to servers that honor every parameter
+    /// (the real endpoint, not a `base_url` override).
+    require_parameters: bool,
+    /// Set once a server refused the schema and accepted the plain request:
+    /// the schema is not sent again.
+    schema_refused: AtomicBool,
 }
 
 impl OpenRouterProvider {
@@ -108,6 +141,7 @@ impl OpenRouterProvider {
             .base_url
             .clone()
             .unwrap_or_else(|| default_endpoint.to_string());
+        let require_parameters = config.provider == "openrouter" && config.base_url.is_none();
         let client = reqwest::Client::builder()
             .timeout(request_timeout(config))
             .build()
@@ -118,6 +152,9 @@ impl OpenRouterProvider {
             default_model: config.model.clone(),
             endpoint,
             reasoning_effort: config.reasoning_effort.clone(),
+            structured_output: config.structured_output.unwrap_or(true),
+            require_parameters,
+            schema_refused: AtomicBool::new(false),
         })
     }
 
@@ -125,6 +162,81 @@ impl OpenRouterProvider {
     fn with_endpoint(mut self, endpoint: impl Into<String>) -> Self {
         self.endpoint = endpoint.into();
         self
+    }
+}
+
+impl OpenRouterProvider {
+    /// The schema to send with this request, unless the setting is off or a
+    /// server already refused it.
+    fn schema_to_send<'a>(&self, request: &'a CompletionRequest) -> Option<&'a ResponseSchema> {
+        if !self.structured_output || self.schema_refused.load(Ordering::Relaxed) {
+            return None;
+        }
+        request.json_schema.as_ref()
+    }
+
+    /// Sends the request (with the retries on transient errors) and decodes
+    /// the answer.
+    async fn send(
+        &self,
+        request: &CompletionRequest,
+        schema: Option<&ResponseSchema>,
+    ) -> Result<CompletionResponse, Failure> {
+        let model = request.model.as_deref().unwrap_or(&self.default_model);
+        let body = ApiRequest {
+            model,
+            messages: request
+                .messages
+                .iter()
+                .map(|m| ApiMessage {
+                    role: m.role.as_api_str(),
+                    content: &m.content,
+                })
+                .collect(),
+            max_tokens: MAX_COMPLETION_TOKENS,
+            reasoning_effort: self.reasoning_effort.as_deref(),
+            response_format: schema.map(|s| ApiResponseFormat {
+                kind: "json_schema",
+                json_schema: ApiJsonSchema {
+                    name: &s.name,
+                    strict: true,
+                    schema: &s.schema,
+                },
+            }),
+            provider: (schema.is_some() && self.require_parameters).then_some(
+                ApiProviderPreferences {
+                    require_parameters: true,
+                },
+            ),
+        };
+
+        let mut attempt = 0;
+        loop {
+            let result = self
+                .client
+                .post(&self.endpoint)
+                .bearer_auth(&self.api_key)
+                .json(&body)
+                .send()
+                .await;
+            let failure = match result {
+                Ok(response) if response.status().is_success() => {
+                    return decode_success(response, model)
+                        .await
+                        .map_err(Failure::Decode);
+                }
+                Ok(response) => Failure::from_response(response).await,
+                Err(source) => Failure::Network(source),
+            };
+
+            if attempt >= MAX_RETRIES || !failure.is_transient() {
+                return Err(failure);
+            }
+            attempt += 1;
+            let delay = retry_delay(attempt, failure.server_delay());
+            failure.warn(attempt, delay);
+            tokio::time::sleep(delay).await;
+        }
     }
 }
 
@@ -165,45 +277,28 @@ fn is_retryable_status(status: reqwest::StatusCode) -> bool {
 #[async_trait]
 impl LlmProvider for OpenRouterProvider {
     async fn complete(&self, request: CompletionRequest) -> Result<CompletionResponse, LlmError> {
-        let model = request.model.as_deref().unwrap_or(&self.default_model);
-        let body = ApiRequest {
-            model,
-            messages: request
-                .messages
-                .iter()
-                .map(|m| ApiMessage {
-                    role: m.role.as_api_str(),
-                    content: &m.content,
-                })
-                .collect(),
-            max_tokens: MAX_COMPLETION_TOKENS,
-            reasoning_effort: self.reasoning_effort.as_deref(),
+        let Some(schema) = self.schema_to_send(&request) else {
+            return self.send(&request, None).await.map_err(Failure::into_error);
         };
-
-        let mut attempt = 0;
-        loop {
-            let result = self
-                .client
-                .post(&self.endpoint)
-                .bearer_auth(&self.api_key)
-                .json(&body)
-                .send()
-                .await;
-            let failure = match result {
-                Ok(response) if response.status().is_success() => {
-                    return decode_success(response, model).await;
+        match self.send(&request, Some(schema)).await {
+            Ok(response) => Ok(response),
+            Err(failure) if failure.may_be_a_refused_schema() => {
+                // The server may not know `response_format` (or this model
+                // not support it). Try again plain; only if that works is the
+                // schema the culprit and left out for the rest of the run.
+                let response = self
+                    .send(&request, None)
+                    .await
+                    .map_err(|_| failure.into_error())?;
+                if !self.schema_refused.swap(true, Ordering::Relaxed) {
+                    tracing::warn!(
+                        "the server refused the JSON schema (response_format); \
+                         continuing without it (set llm.structured_output = false to silence)"
+                    );
                 }
-                Ok(response) => Failure::from_response(response).await,
-                Err(source) => Failure::Network(source),
-            };
-
-            if attempt >= MAX_RETRIES || !failure.is_transient() {
-                return Err(failure.into_error());
+                Ok(response)
             }
-            attempt += 1;
-            let delay = retry_delay(attempt, failure.server_delay());
-            failure.warn(attempt, delay);
-            tokio::time::sleep(delay).await;
+            Err(failure) => Err(failure.into_error()),
         }
     }
 }
@@ -255,9 +350,21 @@ enum Failure {
     },
     /// The request did not complete.
     Network(reqwest::Error),
+    /// The server answered successfully but the body is unusable.
+    Decode(LlmError),
 }
 
 impl Failure {
+    /// A client error that a schema the server cannot handle would explain:
+    /// bad request, not found (no endpoint with the parameter), unprocessable.
+    fn may_be_a_refused_schema(&self) -> bool {
+        matches!(
+            self,
+            Failure::Http { status, .. }
+                if [400, 404, 422].contains(&status.as_u16())
+        )
+    }
+
     async fn from_response(response: reqwest::Response) -> Self {
         let status = response.status();
         let retry_after = response
@@ -283,6 +390,7 @@ impl Failure {
     fn is_transient(&self) -> bool {
         match self {
             Failure::Network(_) => true,
+            Failure::Decode(_) => false,
             Failure::Http {
                 status,
                 server_delay,
@@ -297,7 +405,7 @@ impl Failure {
     fn server_delay(&self) -> Option<Duration> {
         match self {
             Failure::Http { server_delay, .. } => *server_delay,
-            Failure::Network(_) => None,
+            Failure::Network(_) | Failure::Decode(_) => None,
         }
     }
 
@@ -318,6 +426,7 @@ impl Failure {
                 attempt,
                 "OpenRouter network failure, retrying in {delay:?}"
             ),
+            Failure::Decode(_) => {}
         }
     }
 
@@ -327,6 +436,7 @@ impl Failure {
                 LlmError::InvalidResponse(format!("HTTP status {status}: {body}"))
             }
             Failure::Network(source) => LlmError::Transport(source.to_string()),
+            Failure::Decode(err) => err,
         }
     }
 }
@@ -347,6 +457,7 @@ mod tests {
         CompletionRequest {
             messages: Vec::new(),
             model: None,
+            json_schema: None,
         }
     }
 
@@ -361,6 +472,7 @@ mod tests {
             timeout_secs: None,
             concurrency: None,
             batch_chars: None,
+            structured_output: None,
         };
         std::env::remove_var(&config.api_key_env);
         let result = OpenRouterProvider::from_config(&config);
@@ -378,6 +490,7 @@ mod tests {
             timeout_secs: None,
             concurrency: None,
             batch_chars: None,
+            structured_output: None,
         };
         let result = OpenRouterProvider::from_config(&config);
         assert!(matches!(result, Err(LlmError::UnsupportedProvider(p)) if p == "openai"));
@@ -394,6 +507,7 @@ mod tests {
             timeout_secs: None,
             concurrency: None,
             batch_chars: None,
+            structured_output: None,
         };
         std::env::set_var(&config.api_key_env, "unused-for-local-servers");
         let provider = OpenRouterProvider::from_config(&config).unwrap();
@@ -431,6 +545,7 @@ mod tests {
             timeout_secs: None,
             concurrency: None,
             batch_chars: None,
+            structured_output: None,
         };
         std::env::set_var(&config.api_key_env, "unused");
         let provider = OpenRouterProvider::from_config(&config).unwrap();
@@ -510,6 +625,9 @@ mod tests {
             default_model: "anthropic/claude-sonnet-4.5".to_string(),
             endpoint: String::new(),
             reasoning_effort: None,
+            structured_output: true,
+            require_parameters: false,
+            schema_refused: AtomicBool::new(false),
         }
         .with_endpoint(format!("http://{addr}"));
 
@@ -520,6 +638,7 @@ mod tests {
                     content: "hi".to_string(),
                 }],
                 model: None,
+                json_schema: None,
             })
             .await
             .unwrap();
@@ -552,6 +671,9 @@ mod tests {
             default_model: "m".to_string(),
             endpoint: String::new(),
             reasoning_effort: None,
+            structured_output: true,
+            require_parameters: false,
+            schema_refused: AtomicBool::new(false),
         }
         .with_endpoint(format!("http://{addr}"));
         provider.complete(request()).await.unwrap()
@@ -613,6 +735,9 @@ mod tests {
             default_model: "m".to_string(),
             endpoint: String::new(),
             reasoning_effort: None,
+            structured_output: true,
+            require_parameters: false,
+            schema_refused: AtomicBool::new(false),
         }
         .with_endpoint(format!("http://{addr}"));
 
@@ -624,6 +749,7 @@ mod tests {
                     content: "hi".to_string(),
                 }],
                 model: None,
+                json_schema: None,
             })
             .await
             .unwrap();
@@ -660,6 +786,9 @@ mod tests {
             default_model: "m".to_string(),
             endpoint: String::new(),
             reasoning_effort: None,
+            structured_output: true,
+            require_parameters: false,
+            schema_refused: AtomicBool::new(false),
         }
         .with_endpoint(format!("http://{addr}"));
 
@@ -670,6 +799,7 @@ mod tests {
                     content: "hi".to_string(),
                 }],
                 model: None,
+                json_schema: None,
             })
             .await
             .unwrap();
@@ -705,6 +835,9 @@ mod tests {
                 default_model: "m".to_string(),
                 endpoint: String::new(),
                 reasoning_effort: effort.map(str::to_string),
+                structured_output: true,
+                require_parameters: false,
+                schema_refused: AtomicBool::new(false),
             }
             .with_endpoint(format!("http://{addr}"));
 
@@ -715,6 +848,7 @@ mod tests {
                         content: "hi".to_string(),
                     }],
                     model: None,
+                    json_schema: None,
                 })
                 .await
                 .unwrap();
@@ -722,6 +856,120 @@ mod tests {
             let request = rx.recv().unwrap();
             assert_eq!(request.contains("\"reasoning_effort\":\"none\""), expected);
         }
+    }
+
+    /// Serves the given raw HTTP responses in order, one per connection, and
+    /// returns the requests received.
+    fn serve(responses: Vec<String>) -> (String, std::sync::mpsc::Receiver<String>) {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            use std::io::{Read, Write};
+            for payload in responses {
+                let Ok((mut stream, _)) = listener.accept() else {
+                    return;
+                };
+                let mut buf = [0u8; 8192];
+                let n = stream.read(&mut buf).unwrap_or(0);
+                let _ = tx.send(String::from_utf8_lossy(&buf[..n]).to_string());
+                let _ = stream.write_all(payload.as_bytes());
+            }
+        });
+        (format!("http://{addr}"), rx)
+    }
+
+    fn http(status: &str, body: &str) -> String {
+        format!(
+            "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        )
+    }
+
+    const OK_BODY: &str =
+        r#"{"model":"m","choices":[{"message":{"role":"assistant","content":"{}"}}]}"#;
+
+    fn schema_request() -> CompletionRequest {
+        CompletionRequest {
+            json_schema: Some(ResponseSchema {
+                name: "answer".to_string(),
+                schema: serde_json::json!({"type": "object"}),
+            }),
+            ..request()
+        }
+    }
+
+    fn schema_provider(endpoint: &str, structured_output: bool) -> OpenRouterProvider {
+        OpenRouterProvider {
+            client: reqwest::Client::new(),
+            api_key: "test-key".to_string(),
+            default_model: "m".to_string(),
+            endpoint: String::new(),
+            reasoning_effort: None,
+            structured_output,
+            require_parameters: true,
+            schema_refused: AtomicBool::new(false),
+        }
+        .with_endpoint(endpoint)
+    }
+
+    #[tokio::test]
+    async fn the_schema_is_sent_as_a_strict_response_format() {
+        let (url, rx) = serve(vec![http("200 OK", OK_BODY)]);
+        schema_provider(&url, true)
+            .complete(schema_request())
+            .await
+            .unwrap();
+        let sent = rx.recv().unwrap();
+        assert!(sent.contains("\"response_format\":{\"type\":\"json_schema\""));
+        assert!(sent.contains("\"name\":\"answer\",\"strict\":true"));
+        assert!(sent.contains("\"require_parameters\":true"));
+    }
+
+    #[tokio::test]
+    async fn no_schema_is_sent_when_the_setting_is_off_or_the_request_has_none() {
+        for (structured_output, request) in [(false, schema_request()), (true, request())] {
+            let (url, rx) = serve(vec![http("200 OK", OK_BODY)]);
+            schema_provider(&url, structured_output)
+                .complete(request)
+                .await
+                .unwrap();
+            let sent = rx.recv().unwrap();
+            assert!(!sent.contains("response_format"));
+            assert!(!sent.contains("require_parameters"));
+        }
+    }
+
+    #[tokio::test]
+    async fn a_refused_schema_falls_back_to_the_plain_request_and_is_remembered() {
+        let (url, rx) = serve(vec![
+            http(
+                "400 Bad Request",
+                r#"{"error":"unknown field response_format"}"#,
+            ),
+            http("200 OK", OK_BODY),
+            http("200 OK", OK_BODY),
+        ]);
+        let provider = schema_provider(&url, true);
+        provider.complete(schema_request()).await.unwrap();
+        provider.complete(schema_request()).await.unwrap();
+        let sent: Vec<String> = rx.try_iter().collect();
+        assert_eq!(sent.len(), 3);
+        assert!(sent[0].contains("response_format"));
+        assert!(!sent[1].contains("response_format"));
+        assert!(!sent[2].contains("response_format"));
+    }
+
+    #[tokio::test]
+    async fn a_client_error_that_the_plain_request_shares_is_not_blamed_on_the_schema() {
+        let refusal = http("400 Bad Request", r#"{"error":"prompt too long"}"#);
+        let (url, rx) = serve(vec![refusal.clone(), refusal, http("200 OK", OK_BODY)]);
+        let provider = schema_provider(&url, true);
+        let err = provider.complete(schema_request()).await.unwrap_err();
+        assert!(err.to_string().contains("prompt too long"));
+        provider.complete(schema_request()).await.unwrap();
+        let sent: Vec<String> = rx.try_iter().collect();
+        assert!(sent[2].contains("response_format"));
     }
 
     #[test]

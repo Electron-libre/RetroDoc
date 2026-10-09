@@ -33,6 +33,18 @@ pub struct CompletionRequest {
     pub messages: Vec<ChatMessage>,
     /// Model to use; overrides the one from the config if present.
     pub model: Option<String>,
+    /// Shape of the JSON answer the caller expects. A provider that supports
+    /// it asks the server to constrain the answer to it; the caller still
+    /// parses leniently, as the schema may be ignored or refused.
+    pub json_schema: Option<ResponseSchema>,
+}
+
+/// A JSON schema the answer should follow (sent as `response_format`).
+#[derive(Debug, Clone)]
+pub struct ResponseSchema {
+    /// Name of the schema (letters, digits, `_` and `-`).
+    pub name: String,
+    pub schema: serde_json::Value,
 }
 
 #[derive(Debug, Clone, Default)]
