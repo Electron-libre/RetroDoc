@@ -25,6 +25,7 @@ cargo clippy --workspace --all-targets  # lint (see Lints below — must be warn
 cargo fmt --all                         # format
 just check                              # fmt + clippy -D warnings + tests in one go
 just test-harness                       # test the agent hooks and skills (needs rust-script)
+just probe-schema <ollama|deepseek|gemini|openrouter>   # one HTTP call: does the server reject, ignore or obey a strict JSON schema
 ```
 
 Scripts and dev commands are `just` recipes (`justfile`) and `rust-script` files, not bash.

@@ -26,6 +26,10 @@ test-harness:
     rust-script .claude/skills/create-issue/test_check_issue.rs
     rust-script .claude/test_settings.rs
 
+# One HTTP call: does a server reject, ignore or obey a strict JSON schema? (ollama|deepseek|gemini|openrouter)
+probe-schema *args:
+    cargo run -q -p retrodoc-llm --example schema_probe -- {{args}}
+
 # Smoke test on a real repo with the local LLM (see .claude/skills/smoke-test/SKILL.md). Slow.
 smoke *args:
     rust-script .claude/skills/smoke-test/smoke.rs run {{args}}
