@@ -76,3 +76,36 @@ unit when it was the second. The runs are made by the user.
    narrative ratings and the business-language score, since constrained decoding can flatten text fields.
 6. Report a table (before / after: unparseable, skipped, calls, tokens, time, WARN, narrative rating)
    in this issue. The runs differ at random, so read the trend over the runs, not one run.
+
+## Measurement (2026-10-09, `delivery_router` HEAD, local Ollama, `qwen3.6:35b-a3b`, `reasoning_effort = "none"`)
+
+Six `generate --force` runs, interleaved (off, on, off, on, off, on). The judge of the benchmark ran
+afterwards on the same six runs without a schema, so only the generation differs.
+
+| Run | Calls | Tokens in / out | Time | Unparseable (skipped) | WARN |
+|---|---|---|---|---|---|
+| off-1 | 26 | 25,831 / 11,065 | 6m22 | 1 (0) | 1 |
+| off-2 | 37 | 41,924 / 18,732 | 11m11 | 4 (1) | 5 |
+| off-3 | 27 | 24,686 / 11,908 | 7m10 | 1 (0) | 2 |
+| on-1 | 29 | 21,032 / 14,544 | 7m59 | 0 | 4 |
+| on-2 | 27 | 23,523 / 10,792 | 6m54 | 0 | 6 |
+| on-3 | 24 | 21,994 / 10,531 | 5m26 | 0 | 1 |
+
+* No `finish_reason=length`, no "server refused the JSON schema": Ollama accepted the schema.
+* Unparseable answers: 6 without the schema (one unit skipped), 0 with it. Mean 30 calls / 8m14 without,
+  27 calls / 6m46 with; the spread between runs (26 to 37 calls) is as large as the gap.
+* The WARN lines do not drop (8 without, 11 with): with the schema the remaining ones are
+  semantic (a use case citing an entry point that does not exist, a business path that does not exist),
+  which a schema cannot prevent. This is the part of `use_cases_model_noise_warnings.md` that stays open
+  (invented step and entry-point references).
+
+Quality (benchmark judge, 3 runs per series): narratives in business language 34% (14 to 57) without the
+schema, 49% (40 to 55) with it; use cases at score 1 54% (14 to 76) and 69% (53 to 100); domains the same.
+No degradation of the text fields is visible. Judged feature recall and precision look worse with the
+schema (38% / 50% against 54% / 87%), but this comes from one run (on-2, 0% matched): judging the same
+generated docs three more times gave 38%, 50% and 62% recall (3, 4 and 5 pairs). It is noise of the judge,
+not of the generation. The judge also failed to parse its own answer once (`null` where a string was
+expected), with the schema turned off for it.
+
+Limits: 3 runs per series, one repository, one model, the judge's pairs not audited, the "docs hidden"
+series not run, and no hosted server (OpenRouter, Gemini, DeepSeek) tried.
