@@ -139,4 +139,48 @@ mod tests {
             FileState::Modified
         );
     }
+
+    /// Cost of the check, for `issues/mcp_freshness_cost.md`. Not part of the
+    /// suite; run it optimized, the hash is slow in a debug build:
+    /// `FRESHNESS_FILE_KB=20 cargo test -p retrodoc-mcp --release cost_of_the_check -- --ignored --nocapture`
+    #[test]
+    #[ignore = "measurement, not a check"]
+    fn cost_of_the_check() {
+        let kb: usize = std::env::var("FRESHNESS_FILE_KB")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(20);
+        let dir = tempfile::tempdir().unwrap();
+        let mut recorded = SourceHashes::default();
+        let names: Vec<String> = (0..2000).map(|i| format!("f{i}.rb")).collect();
+        for (i, name) in names.iter().enumerate() {
+            let content = format!("{i} {}", "x".repeat(kb * 1024));
+            std::fs::write(dir.path().join(name), &content).unwrap();
+            recorded.put(name, &hash_content(&content));
+        }
+        recorded.save(dir.path()).unwrap();
+        let freshness = Freshness::load(dir.path());
+        println!("files of {kb} KiB");
+        // A feature citing n files (get_feature), a search with `hits` hits of
+        // 5 cited files each (search_docs), each hit checked on its own.
+        for (label, calls, per_call) in [
+            ("get_feature, 5 files", 1, 5),
+            ("get_feature, 50 files", 1, 50),
+            ("search_docs, 10 hits x 5 files", 10, 5),
+            ("search_docs, 20 hits x 20 files", 20, 20),
+        ] {
+            let start = std::time::Instant::now();
+            for call in 0..calls {
+                let first = call * per_call;
+                let paths = names[first..first + per_call].iter().map(String::as_str);
+                assert_eq!(freshness.stale(paths), vec![]);
+            }
+            println!(
+                "{label}: {} file(s), {} KiB hashed, {:.2} ms",
+                calls * per_call,
+                calls * per_call * kb,
+                start.elapsed().as_secs_f64() * 1000.0
+            );
+        }
+    }
 }
