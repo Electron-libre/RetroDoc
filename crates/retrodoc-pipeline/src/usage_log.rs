@@ -40,6 +40,11 @@ pub struct PassRecord {
     pub name: String,
     pub wall_ms: u64,
     pub models: Vec<ModelRecord>,
+    /// Answers the pass could not parse, and among them those it gave up on.
+    #[serde(default)]
+    pub unparseable: u64,
+    #[serde(default)]
+    pub skipped: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -68,6 +73,8 @@ impl RunUsage {
                 .map(|pass| PassRecord {
                     name: pass.name.clone(),
                     wall_ms: millis(pass.wall),
+                    unparseable: pass.unparseable,
+                    skipped: pass.skipped,
                     models: pass
                         .models
                         .iter()
@@ -144,7 +151,7 @@ pub fn recap(report: &UsageReport) -> String {
     let rows: Vec<_> = report
         .passes
         .iter()
-        .filter(|pass| pass.total().calls > 0)
+        .filter(|pass| pass.total().calls > 0 || pass.unparseable > 0)
         .collect();
     let name_width = rows.iter().map(|p| p.name.len()).max().unwrap_or(0);
     for pass in rows {
@@ -158,6 +165,15 @@ pub fn recap(report: &UsageReport) -> String {
             thousands(t.completion_tokens),
             format_duration(pass.wall),
         );
+        if pass.unparseable > 0 {
+            let _ = writeln!(
+                out,
+                "  {:<name_width$}  {} unparseable answer(s), {} skipped",
+                "",
+                thousands(pass.unparseable),
+                thousands(pass.skipped),
+            );
+        }
     }
 
     let mut models: BTreeMap<&str, CallTotals> = BTreeMap::new();
@@ -215,6 +231,8 @@ mod tests {
                     )
                 })
                 .collect(),
+            unparseable: 0,
+            skipped: 0,
         }
     }
 
@@ -252,6 +270,47 @@ mod tests {
         // One model: no per-model section; every call reported its tokens.
         assert!(!text.contains("By model"), "{text}");
         assert!(!text.contains("lower bound"), "{text}");
+    }
+
+    #[test]
+    fn recap_shows_the_unparseable_answers_of_a_pass() {
+        let mut flaky = pass("features", 5, &[("m", 4, 0, 10, 10)]);
+        flaky.unparseable = 3;
+        flaky.skipped = 1;
+        let text = recap(&UsageReport {
+            passes: vec![flaky, pass("glossary", 5, &[("m", 2, 0, 10, 10)])],
+        });
+        assert!(
+            text.contains("3 unparseable answer(s), 1 skipped"),
+            "{text}"
+        );
+        assert_eq!(text.matches("unparseable").count(), 1, "{text}");
+    }
+
+    #[test]
+    fn the_counts_are_saved_and_an_old_history_without_them_still_loads() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut flaky = pass("features", 1, &[("m", 1, 0, 1, 1)]);
+        flaky.unparseable = 2;
+        flaky.skipped = 1;
+        let run = RunUsage::new(
+            "generate",
+            "2026-10-09T00:00:00Z",
+            &UsageReport {
+                passes: vec![flaky],
+            },
+        );
+        record_run(dir.path(), run).unwrap();
+        let back = load_history(dir.path());
+        assert_eq!(
+            (back[0].passes[0].unparseable, back[0].passes[0].skipped),
+            (2, 1)
+        );
+
+        let old = r#"{"runs":[{"command":"generate","finished_at":"x","wall_ms":1,"passes":[{"name":"p","wall_ms":1,"models":[]}]}]}"#;
+        let path = dir.path().join(".retrodoc/cache/usage.json");
+        std::fs::write(&path, old).unwrap();
+        assert_eq!(load_history(dir.path())[0].passes[0].unparseable, 0);
     }
 
     #[test]

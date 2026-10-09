@@ -100,6 +100,10 @@ pub struct PassUsage {
     pub name: String,
     pub wall: Duration,
     pub models: BTreeMap<String, CallTotals>,
+    /// Answers the pass could not parse (each one costs a retry, or a unit).
+    pub unparseable: u64,
+    /// Among `unparseable`, those after which the pass gave up on the unit.
+    pub skipped: u64,
 }
 
 impl PassUsage {
@@ -108,6 +112,8 @@ impl PassUsage {
             name: name.to_string(),
             wall: Duration::ZERO,
             models: BTreeMap::new(),
+            unparseable: 0,
+            skipped: 0,
         }
     }
 
@@ -229,6 +235,18 @@ impl UsageTracker {
             .record(usage);
     }
 
+    /// Counts one unparseable answer in the current pass.
+    pub fn record_unparseable(&self, skipped: bool) {
+        let mut inner = self.lock();
+        let index = match inner.current {
+            Some((index, _)) => index,
+            None => inner.enter(UNLABELLED_PASS, Instant::now()),
+        };
+        let pass = &mut inner.passes[index];
+        pass.unparseable += 1;
+        pass.skipped += u64::from(skipped);
+    }
+
     /// What was counted so far; the open pass is measured up to now.
     #[must_use]
     pub fn report(&self) -> UsageReport {
@@ -261,6 +279,11 @@ impl<P: LlmProvider> LlmProvider for UsageProvider<P> {
         let response = self.inner.complete(request).await?;
         self.tracker.record(&response.model, response.usage);
         Ok(response)
+    }
+
+    fn note_unparseable_answer(&self, skipped: bool) {
+        self.tracker.record_unparseable(skipped);
+        self.inner.note_unparseable_answer(skipped);
     }
 }
 
@@ -516,5 +539,26 @@ mod tests {
         ] {
             assert_eq!(parse(json), None, "{json}");
         }
+    }
+
+    #[tokio::test]
+    async fn unparseable_answers_are_counted_in_the_current_pass_through_the_wrapper() {
+        let tracker = UsageTracker::new();
+        let provider = UsageProvider::new(FakeProvider::answering("m", 1, 1), tracker.clone());
+        tracker.set_pass("features");
+        provider.note_unparseable_answer(false);
+        provider.note_unparseable_answer(true);
+        tracker.set_pass("use cases");
+        provider.note_unparseable_answer(false);
+
+        let report = tracker.report();
+        assert_eq!(
+            (report.passes[0].unparseable, report.passes[0].skipped),
+            (2, 1)
+        );
+        assert_eq!(
+            (report.passes[1].unparseable, report.passes[1].skipped),
+            (1, 0)
+        );
     }
 }

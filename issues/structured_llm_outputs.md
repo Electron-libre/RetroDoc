@@ -42,7 +42,7 @@ retries and skipped units.
    server rejects it (remembered for the rest of the run).
 2. [x] `complete_json` sends the schema derived (`schemars`) from the raw answer type; derive it on every
    raw answer type, keep the lenient parsing and the retry.
-3. [ ] Count retries and skipped units per pass in the end-of-run recap; write the measurement protocol
+3. [x] Count retries and skipped units per pass in the end-of-run recap; write the measurement protocol
    (setting off vs on, same repo and model, several runs, narratives, truncations). The runs are made by
    the user.
 4. [ ] Shorten the prompts that spell out the JSON shape, pass by pass, only if the measurement shows a gain.
@@ -56,3 +56,23 @@ retries and skipped units.
 * The smoke runs for the measurement are made by the user, not by the agent.
 * `schemars` is accepted as a dependency.
 * Order: 1, 2, 3, then 4 after the user's measurement.
+
+## Measurement protocol
+
+The recap at the end of `generate` (and `.retrodoc/cache/usage.json`, last 20 runs, per pass:
+`unparseable`, `skipped`, calls, tokens) gives the counts: an unparseable answer is one retry, or a skipped
+unit when it was the second. The runs are made by the user.
+
+1. Same repo (`delivery_router`), same model and server (`qwen3.6:35b-a3b`, `reasoning_effort = "none"`),
+   same commit, `generate --force` each time, logs kept (`| tee run.log`).
+2. Baseline: `structured_output = false` under `[llm]`, at least 3 runs. Then `structured_output = true`
+   (the default), at least 3 runs.
+3. Per run, note: the recap rows `unparseable` / `skipped` per pass, the total calls and tokens, the wall
+   time, the number of `WARN` lines (`grep -c WARN run.log`), and the `response truncated
+   (finish_reason=length)` warnings, kept apart: the schema does not remove them.
+4. Look for `the server refused the JSON schema`: if present, the server does not support it and the
+   second series measured nothing.
+5. Narratives: run the `quality-benchmark` skill (`--judge`) on one run of each series and compare the
+   narrative ratings and the business-language score, since constrained decoding can flatten text fields.
+6. Report a table (before / after: unparseable, skipped, calls, tokens, time, WARN, narrative rating)
+   in this issue. The runs differ at random, so read the trend over the runs, not one run.

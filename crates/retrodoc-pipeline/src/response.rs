@@ -181,6 +181,7 @@ pub(crate) async fn complete_json<T: DeserializeOwned + JsonSchema>(
                     PipelineError::ResponseParse { source, .. } => source.to_string(),
                     other => other.to_string(),
                 };
+                llm.note_unparseable_answer(attempt == ATTEMPTS);
                 tracing::debug!(what, raw = %response, "unparseable LLM response (raw)");
                 tracing::warn!(
                     what,
@@ -326,5 +327,59 @@ mod tests {
         let item = &root["properties"]["items"]["items"];
         assert_eq!(item["additionalProperties"], false);
         assert_eq!(item["required"], serde_json::json!(["n"]));
+    }
+
+    #[tokio::test]
+    async fn complete_json_tells_the_provider_about_unparseable_answers() {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        use std::sync::Arc;
+
+        struct Noting {
+            inner: FakeLlm,
+            unparseable: Arc<AtomicU64>,
+            skipped: Arc<AtomicU64>,
+        }
+        #[async_trait::async_trait]
+        impl LlmProvider for Noting {
+            async fn complete(
+                &self,
+                request: CompletionRequest,
+            ) -> Result<retrodoc_llm::CompletionResponse, retrodoc_llm::LlmError> {
+                self.inner.complete(request).await
+            }
+            fn note_unparseable_answer(&self, skipped: bool) {
+                self.unparseable.fetch_add(1, Ordering::SeqCst);
+                self.skipped.fetch_add(u64::from(skipped), Ordering::SeqCst);
+            }
+        }
+
+        let (unparseable, skipped) = (Arc::new(AtomicU64::new(0)), Arc::new(AtomicU64::new(0)));
+        let make = |texts: &[&str]| Noting {
+            inner: FakeLlm::sequence(texts),
+            unparseable: unparseable.clone(),
+            skipped: skipped.clone(),
+        };
+        // One bad answer then a good one: a retry, nothing skipped.
+        complete_json::<Answer>(&make(&["no", "{\"n\":1}"]), "s", "u", "t")
+            .await
+            .unwrap();
+        assert_eq!(
+            (
+                unparseable.load(Ordering::SeqCst),
+                skipped.load(Ordering::SeqCst)
+            ),
+            (1, 0)
+        );
+        // Two bad answers: the unit is skipped.
+        complete_json::<Answer>(&make(&["no", "no"]), "s", "u", "t")
+            .await
+            .unwrap();
+        assert_eq!(
+            (
+                unparseable.load(Ordering::SeqCst),
+                skipped.load(Ordering::SeqCst)
+            ),
+            (3, 1)
+        );
     }
 }

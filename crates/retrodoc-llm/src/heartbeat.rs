@@ -56,6 +56,10 @@ impl<P: LlmProvider> LlmProvider for HeartbeatProvider<P> {
             }
         }
     }
+
+    fn note_unparseable_answer(&self, skipped: bool) {
+        self.inner.note_unparseable_answer(skipped);
+    }
 }
 
 #[cfg(test)]

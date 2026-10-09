@@ -136,7 +136,7 @@ retrodoc-cli ──> retrodoc-mcp ──> retrodoc-pipeline, retrodoc-ingest, re
     `llm.batch_chars` (default 6000, 0 = off) batches small files, and `generate` prints
     `estimate_repo_map`'s expected calls first.
   - **Token accounting**: `generate`, `roles`, `glossary`, `entry-points` and `actors` end with a recap of calls, tokens
-    and time per pass (tokens only, no prices) and append the run to `.retrodoc/cache/usage.json`; kept apart from the
+    and time per pass, plus the answers a pass could not parse and the units it skipped (`LlmProvider::note_unparseable_answer`, sent by `complete_json`; tokens only, no prices) and append the run to `.retrodoc/cache/usage.json`; kept apart from the
     rendered docs so reruns stay no-ops, and left alone by `generate --force`. `commands/usage.rs` builds the provider
     the five commands share.
   - `retrodoc_llm::HeartbeatProvider` (wrapped around the provider in the CLI) logs "still waiting for the

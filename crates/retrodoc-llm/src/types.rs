@@ -73,4 +73,10 @@ pub enum LlmError {
 #[async_trait]
 pub trait LlmProvider: Send + Sync {
     async fn complete(&self, request: CompletionRequest) -> Result<CompletionResponse, LlmError>;
+
+    /// Tells the provider that the answer it just gave could not be parsed
+    /// by the caller (`skipped`: the caller gave up on that unit instead of
+    /// asking again). Providers that count things override it; the wrappers
+    /// pass it on.
+    fn note_unparseable_answer(&self, _skipped: bool) {}
 }

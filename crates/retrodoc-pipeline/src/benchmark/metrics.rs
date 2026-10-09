@@ -198,6 +198,8 @@ mod tests {
                 .map(|name| PassRecord {
                     name: (*name).to_string(),
                     wall_ms: 1,
+                    unparseable: 0,
+                    skipped: 0,
                     models: vec![ModelRecord {
                         model: "m".to_string(),
                         calls,
