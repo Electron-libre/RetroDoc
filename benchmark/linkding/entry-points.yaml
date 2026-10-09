@@ -1,0 +1,46 @@
+# Hand-made reference of the entry points and actors of the repository of `reference.yaml`, read from
+# `bookmarks/urls.py` and `bookmarks/api/routes.py`. Entry points are grouped by resource: a run covers a
+# group when one of its entry points matches. Used by
+# `cargo run -p retrodoc-pipeline --example entry_points_replay`.
+repo: linkding
+# Where the entry points live: a pass that does not read these files cannot find them.
+files:
+  - bookmarks/urls.py
+  - bookmarks/api/routes.py
+  - bookmarks/views/bookmarks.py
+  - bookmarks/views/assets.py
+  - bookmarks/views/bundles.py
+  - bookmarks/views/tags.py
+  - bookmarks/views/settings.py
+  - bookmarks/views/toasts.py
+  - bookmarks/views/auth.py
+  - bookmarks/views/health.py
+  - bookmarks/views/manifest.py
+  - bookmarks/views/opensearch.py
+  - bookmarks/views/custom_css.py
+  - bookmarks/views/root.py
+  - bookmarks/feeds.py
+  - bookmarks/admin.py
+# `matches`: regex (case-insensitive) on "<name> <verb> <resource>" of an entry point found by a run.
+entry_points:
+  - { label: "bookmarks: list, create, edit, delete", matches: "bookmark" }
+  - { label: "bookmarks: archive and unarchive", matches: "archiv" }
+  - { label: "bookmarks: shared", matches: "shar" }
+  - { label: "bookmark assets", matches: "asset" }
+  - { label: "bundles", matches: "bundle" }
+  - { label: "tags", matches: "tag" }
+  - { label: "settings", matches: "setting|preference" }
+  - { label: "import and export", matches: "import|export" }
+  - { label: "API tokens", matches: "token" }
+  - { label: "feeds", matches: "feed|rss" }
+  - { label: "login, logout, password", matches: "login|logout|password|auth" }
+  - { label: "admin site", matches: "admin" }
+  - { label: "user profile", matches: "profile" }
+  - { label: "health, manifest, opensearch, custom css", matches: "health|manifest|opensearch|custom.?css" }
+# `matches`: regex (case-insensitive) on the name of an actor found by a run.
+actors:
+  - { name: user, matches: "^(registered |logged.in |authenticated )?(user|owner|member)" }
+  - { name: anonymous visitor, matches: "anonymous|visitor|guest|public|unauthenticated" }
+  - { name: administrator, matches: "admin|superuser|staff" }
+  - { name: api client, matches: "api|client|token|integration|extension" }
+  - { name: feed reader, matches: "feed|rss|reader" }

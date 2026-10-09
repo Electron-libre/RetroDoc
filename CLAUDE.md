@@ -26,6 +26,7 @@ cargo fmt --all                         # format
 just check                              # fmt + clippy -D warnings + tests in one go
 just test-harness                       # test the agent hooks and skills (needs rust-script)
 just probe-schema <ollama|deepseek|gemini|openrouter>   # one HTTP call: does the server reject, ignore or obey a strict JSON schema
+cargo run -q -p retrodoc-pipeline --example entry_points_replay -- benchmark/<repo>/entry-points.yaml <checkout> <runs dir>   # saved runs vs a hand-made entry points/actors reference (no LLM)
 ```
 
 Scripts and dev commands are `just` recipes (`justfile`) and `rust-script` files, not bash.

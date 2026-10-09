@@ -1,0 +1,26 @@
+# Hand-made reference of the entry points and actors of the repository of `reference.yaml`, read from
+# `lib/` (a library: its public API is its entry points, ADR 0008). Used by
+# `cargo run -p retrodoc-pipeline --example entry_points_replay`.
+repo: delivery_router
+# Where the entry points live: a pass that does not read these files cannot find them.
+files:
+  - lib/delivery_router.rb
+  - lib/delivery_router/router.rb
+  - lib/delivery_router/customer.rb
+  - lib/delivery_router/restaurant.rb
+  - lib/delivery_router/rider.rb
+# `matches`: regex (case-insensitive) on "<name> <verb> <resource>" of an entry point found by a run.
+entry_points:
+  - { label: "DeliveryRouter.new builds a router", matches: "(deliveryrouter|router)(\\.new|#initialize)" }
+  - { label: "Router#add_order", matches: "add_order" }
+  - { label: "Router#clear_orders", matches: "clear_orders" }
+  - { label: "Router#delivery_time", matches: "router#delivery_time" }
+  - { label: "Router#route", matches: "router#route\\b" }
+  - { label: "Customer.new", matches: "customer(\\.new|#initialize)" }
+  - { label: "Restaurant.new", matches: "restaurant(\\.new|#initialize)" }
+  - { label: "Rider.new", matches: "rider(\\.new|#initialize)" }
+# `matches`: regex (case-insensitive) on the name of an actor found by a run.
+actors:
+  - { name: customer, matches: "customer" }
+  - { name: restaurant, matches: "restaurant" }
+  - { name: rider, matches: "rider" }
