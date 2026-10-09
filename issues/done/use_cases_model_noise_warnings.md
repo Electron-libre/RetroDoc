@@ -67,7 +67,7 @@ output limit (`finish_reason=length`) or from the model.
 4. [x] Unknown entry points: tell the model in the prompt that `entry_points` may stay empty and that no
    name may be invented; a cited name that is no known entry point is logged at `info` (the use case is kept).
 5. [-] Invented step paths: dropped, the measured cases are real files of another feature, not near misses.
-6. [ ] Measure again (2 smoke runs) and compare with step 1.
+6. [x] Measure again (2 smoke runs) and compare with step 1.
 
 ## Decisions
 
@@ -93,3 +93,26 @@ What the unknown entry points are: actor names (`Customer`, `System`, `Rider`), 
 describing a step, or an HTTP-like path (`/orders`, `/route`) in a repository that is a library whose only
 entry point is `DeliveryRouter.new`. None is a near miss of a real name: a tolerant match would resolve
 none of them. The two dropped step paths name a real file of the repository, which belongs to another feature.
+
+## Measure after the changes (2026-10-09, same repository and model, 2 first runs)
+
+Second runs: no warning, no LLM call, in both.
+
+| Kind | Before (A / B / C) | After (D / E) |
+|---|---|---|
+| unknown entry point, as `WARN` | 11 / 5 / 1 | 0 / 0 (now `info`: 8 / 5 lines) |
+| step reference dropped | 0 / 2 / 0 | 0 / 0 |
+| human actor outside the known actors, as `WARN` | 0 / 0 / 1 | 0 / 0 |
+| chunk boundary misses definitions | 0 / 0 / 0 | 0 / 0 |
+| `ignoring business path …: no such source` | 0 / 0 / 0 | 1 / 0 |
+| `dropping source rule …: none can be read in that format` | 0 / 0 / 0 | 0 / 2 |
+| `use case dropped: no steps` | 0 / 0 / 0 | 0 / 2 |
+
+Both runs still fail the "no warning" criterion, on warnings that this issue did not target (and
+that did not appear in the first three runs: the model varies from one run to the next).
+
+* The prompt did not stop the model from citing names that are no entry point (8 and 5 `info` lines
+  against 11 and 5 warnings before): the gain is the log level, not fewer inventions.
+* New to handle, each a candidate for another issue: a business path that does not exist, source rules
+  the checker drops (a bad rule is sent back once, then dropped), and a use case with no steps (dropped;
+  the feature gets none from that answer).
