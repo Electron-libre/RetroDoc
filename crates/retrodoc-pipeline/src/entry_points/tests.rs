@@ -54,7 +54,7 @@ async fn reads_entry_points_once_and_reuses_them_while_files_are_unchanged() {
                 {"file":"nowhere.rb","kind":"job","name":"Ghost"}]}"#,
     );
 
-    let inventory = build_entry_points(dir.path(), &roles, &ProductBrief::default(), &llm)
+    let inventory = build_entry_points(dir.path(), &roles, &[], &ProductBrief::default(), &llm)
         .await
         .unwrap();
     let all: Vec<_> = inventory.iter().collect();
@@ -69,7 +69,7 @@ async fn reads_entry_points_once_and_reuses_them_while_files_are_unchanged() {
     assert!(!llm.prompts()[0].contains("user.rb"));
     assert_eq!(llm.prompts().len(), 1);
 
-    build_entry_points(dir.path(), &roles, &ProductBrief::default(), &llm)
+    build_entry_points(dir.path(), &roles, &[], &ProductBrief::default(), &llm)
         .await
         .unwrap();
     assert_eq!(llm.prompts().len(), 1);
@@ -79,7 +79,7 @@ async fn reads_entry_points_once_and_reuses_them_while_files_are_unchanged() {
         "def show; x; end",
     )
     .unwrap();
-    build_entry_points(dir.path(), &roles, &ProductBrief::default(), &llm)
+    build_entry_points(dir.path(), &roles, &[], &ProductBrief::default(), &llm)
         .await
         .unwrap();
     let prompts = llm.prompts();
@@ -108,6 +108,7 @@ async fn a_failure_in_a_later_batch_keeps_the_earlier_ones_saved() {
     let result = build_entry_points(
         dir.path(),
         &roles,
+        &[],
         &ProductBrief::default(),
         &FakeLlm::failing_after(1, |_| {
             r#"{"entry_points":[{"file":"a.rb","kind":"job","name":"AJob"}]}"#.to_string()
@@ -137,7 +138,7 @@ async fn a_long_file_is_read_in_chunks_and_saved_once_all_are_read() {
         r#"{"entry_points":[{"file":"big.rb","kind":"http_route","name":"GET /a"}]}"#,
     );
 
-    let inventory = build_entry_points(dir.path(), &roles, &ProductBrief::default(), &llm)
+    let inventory = build_entry_points(dir.path(), &roles, &[], &ProductBrief::default(), &llm)
         .await
         .unwrap();
 
@@ -172,7 +173,7 @@ async fn a_batch_that_cannot_be_answered_is_retried_file_by_file() {
         )
     });
 
-    let inventory = build_entry_points(dir.path(), &roles, &ProductBrief::default(), &llm)
+    let inventory = build_entry_points(dir.path(), &roles, &[], &ProductBrief::default(), &llm)
         .await
         .unwrap();
 
@@ -196,7 +197,7 @@ async fn the_brief_heads_the_prompt_and_a_changed_brief_reads_the_files_again() 
         FakeLlm::answering(r#"{"entry_points":[{"file":"a.rb","kind":"job","name":"AJob"}]}"#);
     let brief = crate::testing::brief("Sells things to buyers.");
 
-    build_entry_points(dir.path(), &roles, &brief, &llm)
+    build_entry_points(dir.path(), &roles, &[], &brief, &llm)
         .await
         .unwrap();
     let prompt = &llm.prompts()[0];
@@ -206,13 +207,13 @@ async fn the_brief_heads_the_prompt_and_a_changed_brief_reads_the_files_again() 
     );
     assert!(prompt.find("Purpose: Sells things").unwrap() < prompt.find("Files:").unwrap());
 
-    build_entry_points(dir.path(), &roles, &brief, &llm)
+    build_entry_points(dir.path(), &roles, &[], &brief, &llm)
         .await
         .unwrap();
     assert_eq!(llm.calls(), 1);
 
     let other = crate::testing::brief("Rents things to renters.");
-    build_entry_points(dir.path(), &roles, &other, &llm)
+    build_entry_points(dir.path(), &roles, &[], &other, &llm)
         .await
         .unwrap();
     assert_eq!(llm.calls(), 2);
@@ -241,10 +242,59 @@ async fn another_model_reads_the_unchanged_files_again() {
     let mut calls = Vec::new();
     for model in ["local", "local", "strong"] {
         let llm = FakeLlm::answering(answer).with_model(model);
-        build_entry_points(dir.path(), &roles, &ProductBrief::default(), &llm)
+        build_entry_points(dir.path(), &roles, &[], &ProductBrief::default(), &llm)
             .await
             .unwrap();
         calls.push(llm.calls());
     }
     assert_eq!(calls, [1, 0, 1]);
+}
+
+#[tokio::test]
+async fn business_files_are_read_next_to_the_entrypoint_files_without_reading_one_twice() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(dir.path().join("lib")).unwrap();
+    for file in ["router.rb", "order.rb", "helper.rb"] {
+        std::fs::write(dir.path().join("lib").join(file), "def call; end").unwrap();
+    }
+    let roles = RoleMap {
+        roles: [
+            ("lib/router.rb", FileRole::EntryPoint),
+            ("lib/order.rb", FileRole::Model),
+            ("lib/helper.rb", FileRole::Logic),
+        ]
+        .into_iter()
+        .map(|(p, r)| (PathBuf::from(p), r))
+        .collect(),
+        ..RoleMap::default()
+    };
+    // The router is in both lists; the helper is in neither.
+    let business = [
+        PathBuf::from("lib/order.rb"),
+        PathBuf::from("lib/router.rb"),
+    ];
+    let llm = FakeLlm::answering(
+        r#"{"entry_points":[
+                {"file":"lib/router.rb","kind":"public_api","name":"Router#route"},
+                {"file":"lib/order.rb","kind":"public_api","name":"Order.new"}]}"#,
+    );
+
+    let inventory = build_entry_points(
+        dir.path(),
+        &roles,
+        &business,
+        &ProductBrief::default(),
+        &llm,
+    )
+    .await
+    .unwrap();
+
+    let files: Vec<_> = inventory.iter().map(|(file, _)| file).collect();
+    assert_eq!(
+        files,
+        [Path::new("lib/order.rb"), Path::new("lib/router.rb")]
+    );
+    let prompt = &llm.prompts()[0];
+    assert_eq!(prompt.matches("lib/router.rb").count(), 1);
+    assert!(prompt.contains("lib/order.rb") && !prompt.contains("helper.rb"));
 }

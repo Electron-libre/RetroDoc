@@ -37,6 +37,7 @@ runs, so the glossary of such an application holds presentation classes (precisi
 hand-made list); the prompt was tightened once on the same repository, so these figures are not an
 independent test. No quality benchmark of the final documents was run. If the pass fails and no model file is
 recognized, the glossary is empty and `generate` logs it; fix by editing or forcing `business-files.yaml`. The
-entry points still read the `entrypoint` role, and the actors read authorization code: the same question may
-be asked of them later. The tree-shape hash of `sources/` counts the generated docs, like the first version of
+entry points read the files of that list next to the `entrypoint` role (`issues/business_files_for_entry_points_and_actors.md`:
+the role alone read a third of the files holding the public API of a library; the list adds files and calls on
+a web application); the actors still read authorization code: the same question may be asked of them later. The tree-shape hash of `sources/` counts the generated docs, like the first version of
 this pass did; not fixed here.

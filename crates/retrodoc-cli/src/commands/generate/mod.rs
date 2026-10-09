@@ -339,6 +339,7 @@ async fn build_surface(
             retrodoc_pipeline::build_entry_points(
                 repo_root,
                 &role_map,
+                &business_files,
                 brief,
                 llm.get("entry-points")?.as_ref(),
             ),

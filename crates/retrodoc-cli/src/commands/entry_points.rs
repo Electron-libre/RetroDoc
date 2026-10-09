@@ -1,8 +1,9 @@
-use std::path::Path;
+use std::collections::BTreeSet;
+use std::path::{Path, PathBuf};
 
 use anyhow::Context;
 use retrodoc_llm::UsageTracker;
-use retrodoc_pipeline::{Artifact, FileRole, RoleRules};
+use retrodoc_pipeline::{Artifact, BusinessMap, FileRole, RoleRules};
 
 use super::workspace::Workspace;
 
@@ -18,7 +19,15 @@ pub async fn run(path: &Path, tracker: &UsageTracker) -> anyhow::Result<()> {
         .context("no file role rules found — run `retrodoc roles` first")?;
     let ingest = workspace.ingest()?;
     let role_map = rules.classify(&ingest.files);
-    let files = role_map.files_with(FileRole::EntryPoint).len();
+    let business_files = BusinessMap::load(repo_root)
+        .map(|map| map.files(&ingest.files))
+        .unwrap_or_default();
+    let files = role_map
+        .files_with(FileRole::EntryPoint)
+        .into_iter()
+        .chain(business_files.iter().map(PathBuf::as_path))
+        .collect::<BTreeSet<_>>()
+        .len();
 
     let llm = super::usage::pass_provider(&config.llm, tracker, "entry-points")?;
     tracker.set_pass("entry-points");
@@ -26,6 +35,7 @@ pub async fn run(path: &Path, tracker: &UsageTracker) -> anyhow::Result<()> {
     let inventory = retrodoc_pipeline::build_entry_points(
         repo_root,
         &role_map,
+        &business_files,
         &super::brief::saved(repo_root),
         llm.as_ref(),
     )

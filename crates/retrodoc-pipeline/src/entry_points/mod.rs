@@ -178,7 +178,9 @@ struct ResponseEntry {
 }
 
 /// Builds the entry points inventory from the files classified
-/// [`FileRole::EntryPoint`]. Only files new or changed since the saved
+/// [`FileRole::EntryPoint`] and the `business` files (where the business
+/// lives, see `business_files`; a file in both is read once: the role alone
+/// misses the public API of a library). Only files new or changed since the saved
 /// inventory go to the LLM, in batches; a batch whose answer is unusable is
 /// skipped with a warning and its files are retried next run.
 ///
@@ -189,6 +191,7 @@ struct ResponseEntry {
 pub async fn build_entry_points(
     repo_root: &Path,
     roles: &RoleMap,
+    business: &[PathBuf],
     brief: &ProductBrief,
     llm: &dyn LlmProvider,
 ) -> Result<EntryPoints, PipelineError> {
@@ -197,7 +200,12 @@ pub async fn build_entry_points(
     let splitter = Splitter::new(&roles.chunk_boundaries);
     // One item per chunk of a changed file: (path, file hash, chunk text).
     let mut pending: Vec<PendingChunk> = Vec::new();
-    for path in roles.files_with(FileRole::EntryPoint) {
+    let to_read: BTreeSet<&Path> = roles
+        .files_with(FileRole::EntryPoint)
+        .into_iter()
+        .chain(business.iter().map(PathBuf::as_path))
+        .collect();
+    for path in to_read {
         let content = read_file_lossy(repo_root, path)?;
         let hash = hash_for_model(&brief.hash_with(&content), llm);
         match previous.files.get(path) {
