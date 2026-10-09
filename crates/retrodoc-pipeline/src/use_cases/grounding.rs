@@ -256,7 +256,7 @@ pub(super) fn known_entry_points(
             Some(found) if !known.iter().any(|k| k == found) => known.push(found.to_string()),
             Some(_) => {}
             None => {
-                tracing::warn!(entry_point = %name, "use case cites an unknown entry point, dropped");
+                tracing::info!(entry_point = %name, "use case cites an unknown entry point, dropped");
             }
         }
     }

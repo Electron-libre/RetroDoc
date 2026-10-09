@@ -281,6 +281,7 @@ async fn a_feature_with_entry_points_gets_them_and_the_code_they_run() {
         std::fs::create_dir_all(root.join("app")).unwrap();
         std::fs::write(root.join(path), content).unwrap();
     }
+    let (logs, _guard) = crate::testing::capture_logs();
     let entry_points = EntryPoints {
         files: BTreeMap::from([(
             PathBuf::from("app/contracts_controller.rb"),
@@ -329,6 +330,7 @@ async fn a_feature_with_entry_points_gets_them_and_the_code_they_run() {
 
     let prompts = provider.prompt_pairs();
     assert!(prompts[0].0.contains("entry_points"));
+    assert!(prompts[0].0.contains("may be empty"), "{}", prompts[0].0);
     assert!(prompts[0]
         .1
         .contains("- POST /contracts/:id/sign (app/contracts_controller.rb): A signatory signs"));
@@ -338,6 +340,10 @@ async fn a_feature_with_entry_points_gets_them_and_the_code_they_run() {
     // Known entry points are kept as the inventory spells them, unknown dropped;
     // a step may cite code reached through the entry point.
     assert_eq!(use_cases[0].entry_points, vec!["POST /contracts/:id/sign"]);
+    // A name that is no entry point costs nothing but the name: not a warning.
+    let logs = logs.text();
+    assert!(logs.contains("unknown entry point"), "{logs}");
+    assert!(!logs.contains("WARN"), "{logs}");
     assert_eq!(
         use_cases[0].steps[0].source_refs[0].path,
         "app/contract_signer.rb"

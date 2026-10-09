@@ -14,7 +14,8 @@ pub(super) const ENTRY_POINTS_ADDENDUM: &str =
 observable outputs, then the files that define them and the files those reference. Build each use \
 case around one entry point, or a few closely related ones: the actor's goal, then the steps from \
 the trigger to the observable outputs, grounded on that code. Add to each use case an \
-`entry_points` array with the names of the entry points it covers, copied verbatim from the list. \
+`entry_points` array with the names of the entry points it covers, copied verbatim from the list; the array may be empty when none of them fits, and a name that is \
+not in the list (an actor, a sentence, a URL) must never be put there. \
 Prefer business wording (what happens to the contract, the company, the user) over method names.";
 
 /// Added to the system prompt when the application's business actors are
