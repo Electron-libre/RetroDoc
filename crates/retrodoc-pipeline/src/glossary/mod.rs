@@ -34,6 +34,7 @@ use crate::batched_read::{group_paths, BatchedRead, PendingChunk};
 use crate::brief::ProductBrief;
 use crate::chunks::{strip_part_marker, Splitter};
 use crate::error::PipelineError;
+use crate::fingerprints::hash_for_model;
 use crate::naming::normalize;
 use crate::repo_map::read_file_lossy;
 use crate::roles::{FileRole, RoleMap};
@@ -341,7 +342,7 @@ impl EntityReader<'_> {
         let mut pending: Vec<PendingChunk> = Vec::new();
         for path in paths {
             let content = read_file_lossy(self.repo_root, path)?;
-            let hash = self.brief.hash_with(&content);
+            let hash = hash_for_model(&self.brief.hash_with(&content), self.llm);
             match self.previous.models.get(path) {
                 Some(saved) if saved.content_hash == hash => {
                     glossary.models.insert(path.to_path_buf(), saved.clone());

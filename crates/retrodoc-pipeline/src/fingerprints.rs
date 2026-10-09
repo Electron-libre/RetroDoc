@@ -33,6 +33,10 @@ pub(crate) struct Fingerprints {
     /// of the content of its files.
     #[serde(default)]
     pub use_cases: BTreeMap<String, String>,
+    /// Confidence pass: the model that scored the saved use cases. Another
+    /// model scores them all again.
+    #[serde(default)]
+    pub confidence_model: Option<String>,
 }
 
 impl Fingerprints {
@@ -50,6 +54,11 @@ impl Fingerprints {
 /// pass asked to use another model redoes its units (ADR 0023).
 pub(crate) fn model_part(llm: &dyn LlmProvider) -> String {
     format!("model {}", llm.model())
+}
+
+/// `hash` (of a unit of input) made dependent on the model of the pass.
+pub(crate) fn hash_for_model(hash: &str, llm: &dyn LlmProvider) -> String {
+    hash_content(&format!("{}\0{hash}", model_part(llm)))
 }
 
 /// Hash of `parts`, unambiguous regardless of how they are split.

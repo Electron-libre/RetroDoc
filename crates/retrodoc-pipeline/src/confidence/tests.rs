@@ -213,3 +213,22 @@ async fn a_long_cited_file_is_shown_around_the_cited_lines() {
     assert!(prompts[0].contains("omitted)"));
     assert!(!prompts[0].contains("def action_30"));
 }
+
+#[tokio::test]
+async fn another_model_scores_the_scored_use_cases_again() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.rs"), "fn a() {}\n").unwrap();
+    let answer = r#"{"steps":[{"order":1,"verdict":"supported"}]}"#;
+    let mut features = vec![feature("f")];
+    let mut use_cases = vec![use_case("f", vec![step(1, Some("a.rs"))])];
+    let mut calls = Vec::new();
+    for model in ["local", "local", "strong"] {
+        let provider = FakeLlm::answering(answer).with_model(model);
+        score_confidence(dir.path(), &mut features, &mut use_cases, &provider, None)
+            .await
+            .unwrap();
+        calls.push(provider.calls());
+    }
+    assert_eq!(calls, [1, 0, 1]);
+    assert!(use_cases[0].confidence.is_some());
+}

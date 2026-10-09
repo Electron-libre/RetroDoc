@@ -217,3 +217,34 @@ async fn the_brief_heads_the_prompt_and_a_changed_brief_reads_the_files_again() 
         .unwrap();
     assert_eq!(llm.calls(), 2);
 }
+
+#[tokio::test]
+async fn another_model_reads_the_unchanged_files_again() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(dir.path().join("app/controllers")).unwrap();
+    std::fs::write(
+        dir.path().join("app/controllers/users_controller.rb"),
+        "def show; end",
+    )
+    .unwrap();
+    let roles = RoleMap {
+        roles: [(
+            PathBuf::from("app/controllers/users_controller.rb"),
+            FileRole::EntryPoint,
+        )]
+        .into_iter()
+        .collect(),
+        ..RoleMap::default()
+    };
+    let answer = r#"{"entry_points":[{"file":"app/controllers/users_controller.rb",
+        "kind":"http_route","name":"GET /users/:id"}]}"#;
+    let mut calls = Vec::new();
+    for model in ["local", "local", "strong"] {
+        let llm = FakeLlm::answering(answer).with_model(model);
+        build_entry_points(dir.path(), &roles, &ProductBrief::default(), &llm)
+            .await
+            .unwrap();
+        calls.push(llm.calls());
+    }
+    assert_eq!(calls, [1, 0, 1]);
+}

@@ -21,7 +21,7 @@ use crate::artifact::{load_yaml, save_yaml, Artifact};
 use crate::brief::ProductBrief;
 use crate::cache::hash_content;
 use crate::error::PipelineError;
-use crate::fingerprints::fingerprint;
+use crate::fingerprints::{fingerprint, model_part};
 use crate::repo_map::{read_file_lossy, truncate_chars};
 use crate::response::complete_json;
 use crate::surface::Surface;
@@ -269,7 +269,8 @@ pub async fn build_actors(
             .iter()
             .map(|(path, content)| format!("{}\n{}", path.display(), hash_content(content)))
             .chain(entity_lines.iter().cloned())
-            .chain((!brief.fingerprint().is_empty()).then(|| brief.fingerprint())),
+            .chain((!brief.fingerprint().is_empty()).then(|| brief.fingerprint()))
+            .chain(std::iter::once(model_part(llm))),
     );
     if !force {
         if let Some(saved) = Actors::load(repo_root).filter(|a| a.input_hash == input_hash) {
@@ -512,5 +513,30 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(llm.calls(), 2);
+    }
+
+    #[tokio::test]
+    async fn another_model_identifies_the_actors_again() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("app")).unwrap();
+        std::fs::write(dir.path().join("app/ability.rb"), "can :sign, Contract").unwrap();
+        let files = paths(&["app/ability.rb"]);
+        let answer = r#"{"actors":[{"name":"Manager","kind":"human"}]}"#;
+        let mut calls = Vec::new();
+        for model in ["local", "local", "strong"] {
+            let llm = FakeLlm::answering(answer).with_model(model);
+            build_actors(
+                dir.path(),
+                &files,
+                &Surface::default(),
+                &ProductBrief::default(),
+                &llm,
+                false,
+            )
+            .await
+            .unwrap();
+            calls.push(llm.calls());
+        }
+        assert_eq!(calls, [1, 0, 1]);
     }
 }

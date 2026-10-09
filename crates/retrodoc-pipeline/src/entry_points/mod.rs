@@ -24,6 +24,7 @@ use crate::batched_read::{group_paths, BatchedRead, PendingChunk};
 use crate::brief::ProductBrief;
 use crate::chunks::{strip_part_marker, Splitter};
 use crate::error::PipelineError;
+use crate::fingerprints::hash_for_model;
 use crate::repo_map::read_file_lossy;
 use crate::roles::{FileRole, RoleMap};
 use crate::use_cases::resolve_cited_path;
@@ -198,7 +199,7 @@ pub async fn build_entry_points(
     let mut pending: Vec<PendingChunk> = Vec::new();
     for path in roles.files_with(FileRole::EntryPoint) {
         let content = read_file_lossy(repo_root, path)?;
-        let hash = brief.hash_with(&content);
+        let hash = hash_for_model(&brief.hash_with(&content), llm);
         match previous.files.get(path) {
             Some(saved) if saved.content_hash == hash => {
                 inventory.files.insert(path.to_path_buf(), saved.clone());

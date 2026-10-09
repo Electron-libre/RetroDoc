@@ -37,7 +37,7 @@ default.
 1. [x] Config `[llm.passes.<name>]` in `retrodoc-core`: `PassLlmConfig`, `LlmConfig::for_pass`, unknown pass name rejected.
 2. [x] One provider per distinct configuration in the CLI (`PassProviders::for_pass`), missing key reported with the pass name.
 3. [x] Wire each pass (generate and the standalone commands) to its provider; the recap shows the split.
-4. [ ] Include the model in the fingerprint of each pass so a model change invalidates its cache.
+4. [x] Include the model in the fingerprint of each pass so a model change invalidates its cache.
 5. [ ] Docs: ADR 0023 "As built" or a new ADR, `CLAUDE.md`, `PLAN.md`, `docs/ARCHITECTURE.md`, recommended split and how to measure it.
 
 ## Decisions
@@ -48,3 +48,13 @@ default.
 * `sources` and `business-files` have their own pass key, falling back to `[llm]`.
 * This issue delivers the mechanism and the recommended split; the real benchmark run with a hosted
   strong model is out of scope here.
+
+## Notes
+
+* The model of a pass is in the fingerprint of domains, features, use cases and actors, in the hash of
+  each glossary and entry points file, and in the repo map cache (`model` field). The confidence pass
+  keeps the model that scored in `fingerprints.json`; another model clears the scores and scores them
+  again, within `--confidence-sample` if set (the rest stays unscored until a later run).
+* `roles`, `sources`, `business-files` and `brief` are hand-editable and keep today's behavior (kept
+  until `--force`).
+* The first run after this change redoes every pass once (no model in the saved fingerprints).

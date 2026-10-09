@@ -26,6 +26,7 @@ use serde::Deserialize;
 use crate::chunks::{Focus, Splitter};
 use crate::error::PipelineError;
 use crate::features::save_features;
+use crate::fingerprints::Fingerprints;
 use crate::progress::Progress;
 use crate::response::complete_json;
 use crate::roles::load_splitter;
@@ -106,6 +107,13 @@ pub async fn score_confidence(
     sample: Option<usize>,
 ) -> Result<(), PipelineError> {
     let splitter = load_splitter(repo_root);
+    // Scores given by another model are not kept: it scores them again.
+    let mut prints = Fingerprints::load(repo_root);
+    if prints.confidence_model.as_deref() != Some(llm.model()) {
+        for use_case in use_cases.iter_mut() {
+            use_case.confidence = None;
+        }
+    }
     let pending: Vec<usize> = (0..use_cases.len())
         .filter(|&i| use_cases[i].confidence.is_none())
         .collect();
@@ -152,7 +160,9 @@ pub async fn score_confidence(
         feature.confidence = feature_confidence(feature, use_cases);
     }
     save_use_cases(repo_root, use_cases)?;
-    save_features(repo_root, features)
+    save_features(repo_root, features)?;
+    prints.confidence_model = Some(llm.model().to_string());
+    prints.save(repo_root)
 }
 
 /// Scores use cases of one feature: one request for all of them when

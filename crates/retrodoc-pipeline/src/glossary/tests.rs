@@ -274,3 +274,25 @@ async fn the_business_files_are_read_instead_of_the_model_role() {
     assert!(sent.contains("pricing.py"), "{sent}");
     assert!(!sent.contains("0001.py"), "{sent}");
 }
+
+#[tokio::test]
+async fn another_model_reads_the_unchanged_files_again() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(dir.path().join("app/models")).unwrap();
+    std::fs::write(
+        dir.path().join("app/models/company.rb"),
+        "class Company; end",
+    )
+    .unwrap();
+    let roles = roles(&[("app/models/company.rb", FileRole::Model)]);
+    let answer = r#"{"entities":[{"file":"app/models/company.rb","name":"Company"}]}"#;
+    let mut calls = Vec::new();
+    for model in ["local", "local", "strong"] {
+        let llm = FakeLlm::answering(answer).with_model(model);
+        build_glossary(dir.path(), &roles, &[], &ProductBrief::default(), &llm)
+            .await
+            .unwrap();
+        calls.push(llm.calls());
+    }
+    assert_eq!(calls, [1, 0, 1]);
+}
