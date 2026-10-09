@@ -31,3 +31,20 @@ default.
 # Hints
 
 * A pass whose model changes must invalidate its cached results: include the model in its fingerprint.
+
+# Tracking
+
+1. [x] Config `[llm.passes.<name>]` in `retrodoc-core`: `PassLlmConfig`, `LlmConfig::for_pass`, unknown pass name rejected.
+2. [ ] One provider per distinct configuration in the CLI (`PassProviders::for_pass`), missing key reported with the pass name.
+3. [ ] Wire each pass (generate and the standalone commands) to its provider; the recap shows the split.
+4. [ ] Include the model in the fingerprint of each pass so a model change invalidates its cache.
+5. [ ] Docs: ADR 0023 "As built" or a new ADR, `CLAUDE.md`, `PLAN.md`, `docs/ARCHITECTURE.md`, recommended split and how to measure it.
+
+## Decisions
+
+* `[llm.passes.<name>]` accepts every key of `[llm]` (including `provider`, `reasoning_effort`,
+  `structured_output`); `batch_chars` only applies to `repo-map`.
+* An unknown pass name is a config error that lists the valid names.
+* `sources` and `business-files` have their own pass key, falling back to `[llm]`.
+* This issue delivers the mechanism and the recommended split; the real benchmark run with a hosted
+  strong model is out of scope here.

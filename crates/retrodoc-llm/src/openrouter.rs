@@ -473,6 +473,7 @@ mod tests {
             concurrency: None,
             batch_chars: None,
             structured_output: None,
+            passes: std::collections::BTreeMap::new(),
         };
         std::env::remove_var(&config.api_key_env);
         let result = OpenRouterProvider::from_config(&config);
@@ -491,6 +492,7 @@ mod tests {
             concurrency: None,
             batch_chars: None,
             structured_output: None,
+            passes: std::collections::BTreeMap::new(),
         };
         let result = OpenRouterProvider::from_config(&config);
         assert!(matches!(result, Err(LlmError::UnsupportedProvider(p)) if p == "openai"));
@@ -508,6 +510,7 @@ mod tests {
             concurrency: None,
             batch_chars: None,
             structured_output: None,
+            passes: std::collections::BTreeMap::new(),
         };
         std::env::set_var(&config.api_key_env, "unused-for-local-servers");
         let provider = OpenRouterProvider::from_config(&config).unwrap();
@@ -546,6 +549,7 @@ mod tests {
             concurrency: None,
             batch_chars: None,
             structured_output: None,
+            passes: std::collections::BTreeMap::new(),
         };
         std::env::set_var(&config.api_key_env, "unused");
         let provider = OpenRouterProvider::from_config(&config).unwrap();

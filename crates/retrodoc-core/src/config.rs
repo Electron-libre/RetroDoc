@@ -4,6 +4,7 @@
 //! provider (`OpenRouter` in v1) as well as the ingestion settings (paths
 //! ignored in addition to `.gitignore`, doc output folder).
 
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
@@ -16,6 +17,24 @@ pub const DEFAULT_BATCH_CHARS: usize = 6_000;
 
 /// Default model proposed at init. Can be changed in `retrodoc.toml`.
 pub const DEFAULT_MODEL: &str = "anthropic/claude-sonnet-4.5";
+
+/// The passes that can have their own `[llm.passes.<name>]` section: the
+/// names `UsageTracker` counts them under.
+pub const PASS_NAMES: &[&str] = &[
+    "sources",
+    "brief",
+    "roles",
+    "business-files",
+    "glossary",
+    "entry-points",
+    "actors",
+    "repo-map",
+    "domains",
+    "features",
+    "use-cases",
+    "confidence",
+    "benchmark judge",
+];
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Config {
@@ -90,6 +109,84 @@ pub struct LlmConfig {
     /// again without the schema); `false` never sends it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub structured_output: Option<bool>,
+    /// Settings of single passes (`[llm.passes.<name>]`, names in
+    /// [`PASS_NAMES`]), each key falling back to this section (ADR 0023).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub passes: BTreeMap<String, PassLlmConfig>,
+}
+
+/// `[llm.passes.<name>]`: the keys of `[llm]`, each optional, that one pass
+/// changes. Spend a strong model on the few framing passes and a cheap or
+/// local one on the many extraction passes.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PassLlmConfig {
+    pub provider: Option<String>,
+    pub api_key_env: Option<String>,
+    pub model: Option<String>,
+    /// An empty string drops the `[llm]` `base_url`: the provider's own
+    /// endpoint is used.
+    pub base_url: Option<String>,
+    pub reasoning_effort: Option<String>,
+    pub timeout_secs: Option<u64>,
+    pub concurrency: Option<usize>,
+    /// Only read for `repo-map`, the one pass that batches files.
+    pub batch_chars: Option<usize>,
+    pub structured_output: Option<bool>,
+}
+
+impl LlmConfig {
+    /// The settings of the pass `name`: `[llm]` with the keys of
+    /// `[llm.passes.<name>]` on top. A pass that changes `provider` without
+    /// naming `api_key_env` uses the key variable of that provider, not the
+    /// inherited one. The result has no `passes` of its own.
+    #[must_use]
+    pub fn for_pass(&self, name: &str) -> LlmConfig {
+        let mut config = LlmConfig {
+            passes: BTreeMap::new(),
+            ..self.clone()
+        };
+        let Some(pass) = self.passes.get(name) else {
+            return config;
+        };
+        if let Some(provider) = &pass.provider {
+            config.provider.clone_from(provider);
+            if pass.api_key_env.is_none() {
+                config.api_key_env = Self::default_api_key_env();
+            }
+        }
+        if let Some(value) = &pass.api_key_env {
+            config.api_key_env.clone_from(value);
+        }
+        if let Some(value) = &pass.model {
+            config.model.clone_from(value);
+        }
+        match pass.base_url.as_deref() {
+            Some("") => config.base_url = None,
+            Some(url) => config.base_url = Some(url.to_string()),
+            None => {}
+        }
+        if pass.reasoning_effort.is_some() {
+            config.reasoning_effort.clone_from(&pass.reasoning_effort);
+        }
+        config.timeout_secs = pass.timeout_secs.or(config.timeout_secs);
+        config.concurrency = pass.concurrency.or(config.concurrency);
+        config.structured_output = pass.structured_output.or(config.structured_output);
+        // Only the repo map batches files: other passes keep `[llm]`'s value.
+        if name == "repo-map" {
+            config.batch_chars = pass.batch_chars.or(config.batch_chars);
+        }
+        config
+    }
+
+    /// The names under `[llm.passes]` that are no pass.
+    fn unknown_passes(&self) -> Vec<&str> {
+        self.passes
+            .keys()
+            .map(String::as_str)
+            .filter(|name| !PASS_NAMES.contains(name))
+            .collect()
+    }
 }
 
 impl LlmConfig {
@@ -116,6 +213,7 @@ impl Default for LlmConfig {
             concurrency: None,
             batch_chars: None,
             structured_output: None,
+            passes: BTreeMap::new(),
         }
     }
 }
@@ -191,6 +289,8 @@ pub enum ConfigError {
     },
     #[error("invalid TOML config: {0}")]
     Parse(#[from] toml::de::Error),
+    #[error("unknown pass in [llm.passes]: {}; valid names: {}", .0.join(", "), PASS_NAMES.join(", "))]
+    UnknownPass(Vec<String>),
     #[error("could not serialize TOML: {0}")]
     Serialize(#[from] toml::ser::Error),
 }
@@ -212,6 +312,12 @@ impl Config {
             source,
         })?;
         let config: Config = toml::from_str(&raw)?;
+        let unknown = config.llm.unknown_passes();
+        if !unknown.is_empty() {
+            return Err(ConfigError::UnknownPass(
+                unknown.into_iter().map(str::to_string).collect(),
+            ));
+        }
         Ok(config)
     }
 
@@ -276,5 +382,81 @@ mod tests {
         assert!(parsed.brief.evidence);
         let none: Config = toml::from_str("").unwrap();
         assert!(!none.brief.evidence);
+    }
+
+    #[test]
+    fn a_pass_overrides_only_the_keys_it_names() {
+        let raw = r#"
+            [llm]
+            model = "local"
+            base_url = "http://localhost:11434/v1"
+            concurrency = 2
+            batch_chars = 1000
+
+            [llm.passes.domains]
+            model = "strong"
+            base_url = ""
+            timeout_secs = 600
+
+            [llm.passes.repo-map]
+            batch_chars = 0
+            concurrency = 8
+        "#;
+        let llm = toml::from_str::<Config>(raw).unwrap().llm;
+        let domains = llm.for_pass("domains");
+        assert_eq!(domains.model, "strong");
+        assert_eq!(domains.base_url, None);
+        assert_eq!(domains.timeout_secs, Some(600));
+        assert_eq!(domains.concurrency, Some(2));
+        assert_eq!(domains.batch_chars, Some(1000));
+        assert!(domains.passes.is_empty());
+        let map = llm.for_pass("repo-map");
+        assert_eq!(map.model, "local");
+        assert_eq!(map.base_url.as_deref(), Some("http://localhost:11434/v1"));
+        assert_eq!((map.concurrency, map.batch_chars), (Some(8), Some(0)));
+        // A pass without a section, and `batch_chars` set on another pass, change nothing.
+        assert_eq!(llm.for_pass("glossary").model, "local");
+        let other: Config = toml::from_str("[llm.passes.glossary]\nbatch_chars = 5").unwrap();
+        assert_eq!(other.llm.for_pass("glossary").batch_chars, None);
+    }
+
+    #[test]
+    fn a_pass_changing_the_provider_takes_its_key_variable() {
+        let raw = r#"
+            [llm.passes.brief]
+            provider = "deepseek"
+            [llm.passes.roles]
+            provider = "deepseek"
+            api_key_env = "MY_KEY"
+        "#;
+        let llm = toml::from_str::<Config>(raw).unwrap().llm;
+        assert_eq!(llm.for_pass("brief").api_key_env, "OPENROUTER_API_KEY");
+        assert_eq!(llm.for_pass("brief").provider, "deepseek");
+        assert_eq!(llm.for_pass("roles").api_key_env, "MY_KEY");
+    }
+
+    #[test]
+    fn an_unknown_pass_or_key_is_a_config_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let write = |raw: &str| fs::write(dir.path().join(CONFIG_FILE_NAME), raw).unwrap();
+        write("[llm.passes.domain]\nmodel = \"x\"");
+        let error = Config::load(dir.path()).unwrap_err().to_string();
+        assert!(
+            error.contains("domain") && error.contains("use-cases"),
+            "{error}"
+        );
+        write("[llm.passes.domains]\nmodle = \"x\"");
+        assert!(matches!(
+            Config::load(dir.path()),
+            Err(ConfigError::Parse(_))
+        ));
+        write("[llm.passes.domains]\nmodel = \"x\"");
+        assert!(Config::load(dir.path()).is_ok());
+    }
+
+    #[test]
+    fn a_config_without_passes_serializes_none() {
+        let raw = toml::to_string_pretty(&Config::default()).unwrap();
+        assert!(!raw.contains("passes"), "{raw}");
     }
 }
