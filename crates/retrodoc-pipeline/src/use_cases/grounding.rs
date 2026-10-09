@@ -200,7 +200,8 @@ pub(super) fn ground_steps(
 
 /// The step's actor as the known list spells it (name and kind), when the
 /// LLM named a known one. A human actor outside a non-empty list is kept but
-/// reported: the list is the vocabulary the use cases should use.
+/// logged at `info`: the list is the vocabulary the use cases should use, but
+/// the step is not lost.
 pub(super) fn resolve_actor(raw: &RawActor, actors: &Actors) -> Actor {
     if let Some(known) = actors.canonical(&raw.name) {
         return Actor {
@@ -214,7 +215,7 @@ pub(super) fn resolve_actor(raw: &RawActor, actors: &Actors) -> Actor {
         ActorKind::System
     };
     if kind == ActorKind::Human && !actors.is_empty() {
-        tracing::warn!(actor = %raw.name, "human actor outside the known actors");
+        tracing::info!(actor = %raw.name, "human actor outside the known actors");
     }
     Actor {
         name: raw.name.clone(),

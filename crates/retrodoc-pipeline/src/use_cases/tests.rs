@@ -412,6 +412,52 @@ async fn known_actors_reach_the_prompt_and_name_the_steps() {
     assert!(prompts[0].0.contains("`narrative`"));
 }
 
+#[tokio::test]
+async fn a_human_actor_outside_the_known_list_is_kept_and_only_an_info() {
+    use crate::actors::BusinessActor;
+
+    let (logs, _guard) = crate::testing::capture_logs();
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.rs"), "fn a() {}\n").unwrap();
+    let actors = Actors {
+        input_hash: String::new(),
+        actors: vec![BusinessActor {
+            name: "Rider".to_string(),
+            kind: ActorKind::Human,
+            description: "Delivers".to_string(),
+            evidence: Vec::new(),
+        }],
+    };
+    let provider = FakeLlm::answering(
+        r#"{"use_cases":[{"slug":"ride","name":"Ride","description":"d","steps":[
+          {"description":"s1","actor":{"name":"riders","kind":"human"},"action":"rides"},
+          {"description":"s2","actor":{"name":"Developer","kind":"human"},"action":"reads"}]}]}"#,
+    );
+
+    let use_cases = build_use_cases(
+        dir.path(),
+        &[feature("riding", &["a.rs"])],
+        &UseCaseContext {
+            actors,
+            ..UseCaseContext::default()
+        },
+        &provider,
+    )
+    .await
+    .unwrap();
+
+    let steps = &use_cases[0].steps;
+    // A plural or a separator is the same actor; a stranger is kept as given.
+    assert_eq!(steps[0].actor.name, "Rider");
+    assert_eq!(steps[1].actor.name, "Developer");
+    let logs = logs.text();
+    assert!(
+        logs.contains("human actor outside the known actors"),
+        "{logs}"
+    );
+    assert!(!logs.contains("WARN"), "{logs}");
+}
+
 /// A text field the model returns as an object (typically `primary_actor` copied from the
 /// shape of a step's `actor`) costs that field, not the feature, and without a retry.
 #[tokio::test]

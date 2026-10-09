@@ -63,7 +63,7 @@ output limit (`finish_reason=length`) or from the model.
 1. [x] Measure the warnings: existing logs, then 2 smoke runs; counts per kind in the issue.
 2. [x] Chunk boundary: the "misses definitions, asking the LLM to fix it" message becomes `info`; `warn` stays
    for a boundary dropped.
-3. [ ] Human actor outside the known actors: tolerant resolution to a known actor, else keep it with an `info`.
+3. [x] Human actor outside the known actors: tolerant resolution to a known actor, else keep it with an `info`.
 4. [ ] Unknown entry points: tell the model in the prompt that `entry_points` may stay empty and that no
    name may be invented; a cited name that is no known entry point is logged at `info` (the use case is kept).
 5. [-] Invented step paths: dropped, the measured cases are real files of another feature, not near misses.

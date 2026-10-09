@@ -22,6 +22,7 @@ use crate::brief::ProductBrief;
 use crate::cache::hash_content;
 use crate::error::PipelineError;
 use crate::fingerprints::{fingerprint, model_part};
+use crate::naming::normalize;
 use crate::repo_map::{read_file_lossy, truncate_chars};
 use crate::response::complete_json;
 use crate::surface::Surface;
@@ -106,14 +107,25 @@ impl Actors {
         self.actors.is_empty()
     }
 
-    /// The known actor `name` designates (case-insensitive), as spelled in
-    /// the list.
+    /// The known actor `name` designates, as spelled in the list: the same
+    /// name up to case, else up to separators and a plural, when only one
+    /// actor matches.
     #[must_use]
     pub fn canonical(&self, name: &str) -> Option<&BusinessActor> {
         let name = name.trim();
-        self.actors
+        if let Some(exact) = self
+            .actors
             .iter()
             .find(|a| a.name.eq_ignore_ascii_case(name))
+        {
+            return Some(exact);
+        }
+        let wanted = normalize(name);
+        let mut close = self.actors.iter().filter(|a| normalize(&a.name) == wanted);
+        match (close.next(), close.next()) {
+            (Some(only), None) if !wanted.is_empty() => Some(only),
+            _ => None,
+        }
     }
 
     /// The list as a prompt section.
@@ -393,6 +405,11 @@ mod tests {
             actors.canonical(" contract manager ").unwrap().name,
             "Contract manager"
         );
+        assert_eq!(
+            actors.canonical("contract_managers").unwrap().name,
+            "Contract manager"
+        );
+        assert!(actors.canonical("manager").is_none());
         assert_eq!(actors.actors[1].kind, ActorKind::System);
         assert!(llm.prompts()[0].contains("--- app/ability.rb ---"));
 
