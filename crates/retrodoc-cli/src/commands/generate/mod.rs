@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use anyhow::Context;
-use retrodoc_core::config::{LlmConfig, DEFAULT_BATCH_CHARS};
+use retrodoc_core::config::{DomainsFrom, LlmConfig, DEFAULT_BATCH_CHARS};
 use retrodoc_core::model::{Feature, UseCase};
 use retrodoc_ingest::IngestResult;
 use retrodoc_llm::UsageTracker;
@@ -97,6 +97,10 @@ pub async fn run(
             identify_actors(repo_root, &ingest, &surface, &brief, &llm, force),
         )
         .await?;
+
+    if config.pipeline.domains_from == DomainsFrom::Surface {
+        return surface_domains_only(repo_root, &surface, &brief, &llm, tracker).await;
+    }
 
     apply_scope(
         repo_root,
@@ -205,6 +209,46 @@ async fn identify_actors(
     .context("failed to identify the actors")?;
     println!("{} actor(s) identified.", actors.actors.len());
     Ok(actors)
+}
+
+/// The `surface` mode so far: the domains are built and saved, then `generate` stops, since the passes
+/// after them still read the repo map this mode does not build.
+async fn surface_domains_only(
+    repo_root: &Path,
+    surface: &Surface,
+    brief: &ProductBrief,
+    llm: &PassProviders,
+    tracker: &UsageTracker,
+) -> anyhow::Result<()> {
+    let domain_map = tracker
+        .in_pass(
+            "domains",
+            cluster_domains_from_surface(repo_root, surface, brief, llm),
+        )
+        .await?;
+    print::surface_domains(&domain_map);
+    anyhow::bail!(
+        "domains_from = \"surface\": the domains are saved in {}, but the features from the \
+         entry points are not available yet; set domains_from = \"files\" to generate the docs",
+        Artifact::Domains.relative_path()
+    )
+}
+
+async fn cluster_domains_from_surface(
+    repo_root: &Path,
+    surface: &Surface,
+    brief: &ProductBrief,
+    llm: &PassProviders,
+) -> anyhow::Result<DomainMap> {
+    println!("\nClustering the resources and entities into functional domains…");
+    retrodoc_pipeline::build_domains_from_surface(
+        repo_root,
+        surface,
+        brief,
+        llm.get("domains")?.as_ref(),
+    )
+    .await
+    .context("failed to build the domains from the surface")
 }
 
 async fn cluster_domains(

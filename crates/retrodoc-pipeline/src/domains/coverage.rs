@@ -180,5 +180,6 @@ pub(super) fn uncategorized_domain(paths: Vec<PathBuf>) -> DomainCluster {
             .to_string(),
         paths,
         sub_domains: Vec::new(),
+        ..DomainCluster::default()
     }
 }

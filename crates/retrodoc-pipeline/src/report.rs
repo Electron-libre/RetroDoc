@@ -373,6 +373,7 @@ mod tests {
                 description: String::new(),
                 paths: vec![PathBuf::from("x.rs")],
                 sub_domains: vec![],
+                ..DomainCluster::default()
             }],
         };
         let features = vec![

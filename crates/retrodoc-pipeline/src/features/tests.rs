@@ -20,6 +20,7 @@ fn domain(slug: &str, paths: &[&str], subs: Vec<SubDomainCluster>) -> DomainClus
         description: "d".to_string(),
         paths: paths.iter().map(PathBuf::from).collect(),
         sub_domains: subs,
+        ..DomainCluster::default()
     }
 }
 

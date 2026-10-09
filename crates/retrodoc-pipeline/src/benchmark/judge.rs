@@ -492,6 +492,7 @@ mod tests {
                 description: "Invoices".to_string(),
                 paths: vec![],
                 sub_domains: vec![],
+                ..DomainCluster::default()
             }],
         };
         save_yaml(&Artifact::Domains.path(root), &map).unwrap();

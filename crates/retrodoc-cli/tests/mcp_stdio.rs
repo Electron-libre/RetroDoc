@@ -29,6 +29,7 @@ fn generated_repo() -> tempfile::TempDir {
             description: "Invoices and payments".into(),
             paths: vec![],
             sub_domains: vec![],
+            ..DomainCluster::default()
         }],
     }
     .save(dir.path())

@@ -157,6 +157,7 @@ mod tests {
                     paths: vec![],
                 })
                 .collect(),
+            ..DomainCluster::default()
         }
     }
 

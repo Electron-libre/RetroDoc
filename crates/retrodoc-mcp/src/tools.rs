@@ -652,6 +652,7 @@ mod tests {
                 description: "Invoices".into(),
                 paths: vec![],
                 sub_domains: vec![],
+                ..retrodoc_pipeline::DomainCluster::default()
             }],
         }
         .save(dir.path())

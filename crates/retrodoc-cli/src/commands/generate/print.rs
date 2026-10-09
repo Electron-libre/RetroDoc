@@ -23,6 +23,21 @@ pub(super) fn repo_map(map: &RepoMap) {
     }
 }
 
+/// The domains built from the surface: what each holds.
+pub(super) fn surface_domains(map: &DomainMap) {
+    println!("\nDomains:");
+    for domain in &map.domains {
+        println!(
+            "  {} ({}): {} resource(s), {} entit(ies), {} file(s)",
+            domain.name,
+            domain.slug,
+            domain.resources.len(),
+            domain.entities.len(),
+            domain.paths.len()
+        );
+    }
+}
+
 pub(super) fn domain_map(map: &DomainMap) {
     println!("\nDomains:");
     for domain in &map.domains {

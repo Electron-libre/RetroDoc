@@ -48,6 +48,7 @@ use crate::response::{complete_text, parse_json_response};
 use crate::surface::Surface;
 
 mod coverage;
+mod from_surface;
 mod prompt;
 mod repair;
 #[cfg(test)]
@@ -60,6 +61,8 @@ use self::prompt::{
 };
 use self::repair::{assign_unplaced_files, unassigned_files};
 
+pub use self::from_surface::build_domains_from_surface;
+
 pub(crate) const UNCATEGORIZED_SLUG: &str = "uncategorized";
 
 /// Intermediate clustering artifact (PLAN.md §2 step 3): a business-oriented
@@ -70,7 +73,7 @@ pub struct DomainMap {
     pub domains: Vec<DomainCluster>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct DomainCluster {
     pub slug: String,
     pub name: String,
@@ -81,6 +84,13 @@ pub struct DomainCluster {
     pub paths: Vec<PathBuf>,
     #[serde(default)]
     pub sub_domains: Vec<SubDomainCluster>,
+    /// Domains built from the surface (`domains_from = "surface"`): the
+    /// resources (entry points grouped by resource) and the entities placed
+    /// here. Empty for domains built from the files.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub resources: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub entities: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

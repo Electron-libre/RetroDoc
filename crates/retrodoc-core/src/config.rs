@@ -46,6 +46,27 @@ pub struct Config {
     pub output: OutputConfig,
     #[serde(default)]
     pub brief: BriefConfig,
+    #[serde(default)]
+    pub pipeline: PipelineConfig,
+}
+
+/// `[pipeline]`: which path `generate` takes (ADR 0020).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PipelineConfig {
+    /// What the domains are built from. `files` (default): the LLM summaries of
+    /// the files and directories (ADR 0004). `surface`: the entities and the
+    /// entry points grouped by resource (ADR 0020), with no repo map.
+    #[serde(default)]
+    pub domains_from: DomainsFrom,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DomainsFrom {
+    #[default]
+    Files,
+    Surface,
 }
 
 /// How the product brief (ADR 0019) is used.
@@ -373,6 +394,25 @@ mod tests {
         assert_eq!(parsed.llm.model, "openai/gpt-4o");
         assert_eq!(parsed.llm.provider, "openrouter");
         assert_eq!(parsed.output.docs_dir, "docs");
+    }
+
+    #[test]
+    fn the_domains_come_from_the_files_unless_the_surface_is_asked() {
+        assert_eq!(Config::default().pipeline.domains_from, DomainsFrom::Files);
+        let none: Config = toml::from_str("[llm]\nmodel = \"m\"").unwrap();
+        assert_eq!(none.pipeline.domains_from, DomainsFrom::Files);
+        let surface: Config = toml::from_str("[pipeline]\ndomains_from = \"surface\"").unwrap();
+        assert_eq!(surface.pipeline.domains_from, DomainsFrom::Surface);
+        // Kept when the config is written back.
+        let raw = toml::to_string_pretty(&surface).unwrap();
+        let again: Config = toml::from_str(&raw).unwrap();
+        assert_eq!(again.pipeline.domains_from, DomainsFrom::Surface);
+    }
+
+    #[test]
+    fn an_unknown_domains_from_or_pipeline_key_is_a_config_error() {
+        assert!(toml::from_str::<Config>("[pipeline]\ndomains_from = \"magic\"").is_err());
+        assert!(toml::from_str::<Config>("[pipeline]\ndomain_from = \"surface\"").is_err());
     }
 
     #[test]
