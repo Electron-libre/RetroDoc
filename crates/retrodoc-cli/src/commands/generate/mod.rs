@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::Context;
 use retrodoc_core::config::{DomainsFrom, LlmConfig, DEFAULT_BATCH_CHARS};
@@ -112,6 +112,7 @@ pub async fn run(
     let mut features = if config.pipeline.domains_from == DomainsFrom::Surface {
         features_from_surface(
             repo_root,
+            &ingest,
             &surface,
             &entry_points,
             &brief,
@@ -198,8 +199,10 @@ async fn identify_actors(
 
 /// The `surface` path: the domains from the entities and resources, then the features from the
 /// entry points of each domain. No repo map is built.
+#[allow(clippy::too_many_arguments)]
 async fn features_from_surface(
     repo_root: &Path,
+    ingest: &IngestResult,
     surface: &Surface,
     entry_points: &EntryPoints,
     brief: &ProductBrief,
@@ -216,7 +219,7 @@ async fn features_from_surface(
     print::surface_domains(&domain_map);
 
     println!("\nDeriving features from the entry points…");
-    tracker
+    let features = tracker
         .in_pass(
             "features",
             retrodoc_pipeline::build_features_from_surface(
@@ -230,7 +233,19 @@ async fn features_from_surface(
             ),
         )
         .await
-        .context("failed to derive the features from the entry points")
+        .context("failed to derive the features from the entry points")?;
+
+    let sources: Vec<PathBuf> = source_paths(ingest).map(Path::to_path_buf).collect();
+    let coverage = retrodoc_pipeline::save_technical_support(
+        repo_root,
+        &sources,
+        entry_points,
+        &features,
+        surface,
+    )
+    .context("could not save the behaviour coverage")?;
+    print::behaviour_coverage(&coverage, sources.len());
+    Ok(features)
 }
 
 /// The `files` path: the repo map, the domains clustered from it, then the features of each domain.

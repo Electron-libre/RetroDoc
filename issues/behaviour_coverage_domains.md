@@ -66,7 +66,7 @@ default stays `files` (the old path) until deliverable 6.
 3. [x] Features from the entry points (step 3): one call per domain over its entry points and entities;
    `Feature` gets an `entry_points` field (absent from old `features.yaml`); the use cases pass reads those
    entry points when present, so an entry point has one use case.
-4. [ ] Coverage of the entry points by construction (step 4): unplaced ones go through a small call, then an
+4. [x] Coverage of the entry points by construction (step 4): unplaced ones go through a small call, then an
    uncategorized bucket; unknown names dropped, first assignment wins; the files reached by no behaviour are
    listed as technical support in the debt report and in `_retrodoc/coverage-report.md`.
 5. [ ] Incremental re-run (step 8): domains and features fingerprints rest on the entry points and entities of
@@ -86,6 +86,10 @@ default stays `files` (the old path) until deliverable 6.
   lists them in `Feature.entry_points` and its `source_paths` are the files of those entry points only (no
   entity files). The use cases pass reads exactly those entry points. Entry points no feature claimed are
   only logged until deliverable 4.
+* Entry points no feature holds go through one placement call per batch of 60 (existing features only), then
+  stay in `behaviour-coverage.yaml` (`unplaced_entry_points`) and the report; they get no use case. The files
+  reached by no behaviour (`technical_support`) are computed by `generate` after the features. Both are
+  written only by a `surface` run.
 * No paid run without asking.
 * Follow-up to queue at deliverable 6: the time of a run is in the use cases and confidence passes (73 + 17 of
   118 minutes locally), not in the repo map; an issue on the cost per use case (batching, fewer or shorter

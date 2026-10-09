@@ -30,11 +30,12 @@ pub enum Artifact {
     Domains,
     Features,
     UseCases,
+    BehaviourCoverage,
     Usage,
 }
 
 impl Artifact {
-    pub const ALL: [Artifact; 15] = [
+    pub const ALL: [Artifact; 16] = [
         Artifact::RepoMap,
         Artifact::SourceHashes,
         Artifact::Fingerprints,
@@ -49,6 +50,7 @@ impl Artifact {
         Artifact::Domains,
         Artifact::Features,
         Artifact::UseCases,
+        Artifact::BehaviourCoverage,
         Artifact::Usage,
     ];
 
@@ -69,6 +71,7 @@ impl Artifact {
             Artifact::Domains => "domains.yaml",
             Artifact::Features => "features.yaml",
             Artifact::UseCases => "use-cases.yaml",
+            Artifact::BehaviourCoverage => "behaviour-coverage.yaml",
             Artifact::Usage => "usage.json",
         }
     }
@@ -98,7 +101,8 @@ impl Artifact {
             | Artifact::EntryPoints
             | Artifact::Actors
             | Artifact::Features
-            | Artifact::UseCases => true,
+            | Artifact::UseCases
+            | Artifact::BehaviourCoverage => true,
             Artifact::Roles
             | Artifact::SignalSources
             | Artifact::Product

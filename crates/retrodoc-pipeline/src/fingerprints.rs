@@ -33,6 +33,10 @@ pub(crate) struct Fingerprints {
     /// of the content of its files.
     #[serde(default)]
     pub use_cases: BTreeMap<String, String>,
+    /// Features pass, surface mode: hash of what the placement of the entry points no feature claimed
+    /// was asked with (`None`: nothing was left to place).
+    #[serde(default)]
+    pub entry_point_placement: Option<String>,
     /// Confidence pass: the model that scored the saved use cases. Another
     /// model scores them all again.
     #[serde(default)]

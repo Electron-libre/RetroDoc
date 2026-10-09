@@ -24,6 +24,7 @@ pub fn run(path: &Path) -> anyhow::Result<()> {
     report.skipped_files = retrodoc_pipeline::Scope::load(&repo_root)
         .map(|s| s.skipped)
         .unwrap_or_default();
+    report.with_behaviour_coverage(retrodoc_pipeline::BehaviourCoverage::load(&repo_root));
     print!("{}", report.to_markdown());
     Ok(())
 }

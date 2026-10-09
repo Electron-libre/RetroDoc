@@ -1,5 +1,6 @@
 use super::*;
 
+use crate::behaviour_coverage::BehaviourCoverage;
 use crate::entry_points::{EntryFile, EntryKind};
 use crate::testing::FakeLlm;
 use retrodoc_llm::{CompletionRequest, LlmError};
@@ -103,8 +104,15 @@ async fn groups_the_entry_points_of_each_domain_and_skips_uncategorized() {
 
     assert_eq!(
         llm.calls(),
-        2,
-        "one call per domain, none for uncategorized"
+        3,
+        "one call per domain, none for uncategorized, then one to place `GET /ping` (held only by \
+         the uncategorized domain; this canned answer places nothing)"
+    );
+    assert_eq!(
+        BehaviourCoverage::load(dir.path())
+            .unwrap()
+            .unplaced_entry_points,
+        vec!["misc.rb#GET /ping"]
     );
     assert_eq!(features.len(), 2);
     assert_eq!(features[0].slug, "place-order");
@@ -196,4 +204,93 @@ async fn the_prompt_shows_ids_and_only_the_entry_points_of_the_domain() {
     assert!(prompts[0].contains("orders.rb#GET /orders"));
     assert!(!prompts[0].contains("GET /routes"));
     assert!(prompts[1].contains("orders.rb#GET /routes"));
+}
+
+/// Routes domain answered by feature `routes`; the order domain claims only `GET /orders`.
+fn one_left_out(n: usize, request: &CompletionRequest) -> String {
+    let prompt = &request.messages.last().unwrap().content;
+    if prompt.contains("Entry points to place") {
+        r#"{"placements":[{"entry_point":"orders.rb#POST /orders","feature":"orders"},
+            {"entry_point":"misc.rb#GET /ping","feature":"ghost"},
+            {"entry_point":"nowhere#x","feature":"orders"}]}"#
+            .to_string()
+    } else if n == 0 {
+        r#"{"features":[{"slug":"orders","name":"O","description":"d",
+            "entry_points":["orders.rb#GET /orders"]}]}"#
+            .to_string()
+    } else {
+        r#"{"features":[{"slug":"routes","name":"R","description":"d",
+            "entry_points":["orders.rb#GET /routes"]}]}"#
+            .to_string()
+    }
+}
+
+#[tokio::test]
+async fn the_entry_points_no_feature_claimed_are_placed_or_listed_as_unplaced() {
+    let dir = tempfile::tempdir().unwrap();
+    let (domains, entries) = fixture();
+    let llm = FakeLlm::replying(|n, r| Ok(one_left_out(n, r)));
+
+    let features = run(dir.path(), &domains, &entries, &llm).await;
+
+    // 2 domain calls + 1 placement call; `GET /ping` (the uncategorized domain) and
+    // `POST /orders` were left out; the ghost feature and the unknown id are dropped.
+    assert_eq!(llm.calls(), 3);
+    assert_eq!(
+        features[0].entry_points,
+        vec!["orders.rb#GET /orders", "orders.rb#POST /orders"]
+    );
+    let coverage = BehaviourCoverage::load(dir.path()).unwrap();
+    assert_eq!(coverage.unplaced_entry_points, vec!["misc.rb#GET /ping"]);
+    // The placement is saved with the features.
+    let saved = load_features(dir.path()).unwrap();
+    assert_eq!(saved[0].entry_points.len(), 2);
+}
+
+#[tokio::test]
+async fn a_rerun_makes_no_placement_call_and_keeps_the_unplaced_list() {
+    let dir = tempfile::tempdir().unwrap();
+    let (domains, entries) = fixture();
+    run(
+        dir.path(),
+        &domains,
+        &entries,
+        &FakeLlm::replying(|n, r| Ok(one_left_out(n, r))),
+    )
+    .await;
+
+    let again = FakeLlm::replying(|n, r| Ok(one_left_out(n, r)));
+    let features = run(dir.path(), &domains, &entries, &again).await;
+
+    assert_eq!(again.calls(), 0);
+    assert_eq!(features[0].entry_points.len(), 2);
+    assert_eq!(
+        BehaviourCoverage::load(dir.path())
+            .unwrap()
+            .unplaced_entry_points,
+        vec!["misc.rb#GET /ping"]
+    );
+}
+
+#[tokio::test]
+async fn with_every_entry_point_claimed_there_is_no_placement_call() {
+    let dir = tempfile::tempdir().unwrap();
+    let domains = DomainMap {
+        domains: vec![domain("orders", &["order"])],
+    };
+    let entries = entry_points(&[("orders.rb", vec![entry("GET /orders", "order")])]);
+    let llm = FakeLlm::answering(
+        r#"{"features":[{"slug":"o","name":"O","description":"d",
+            "entry_points":["orders.rb#GET /orders"]}]}"#,
+    );
+
+    run(dir.path(), &domains, &entries, &llm).await;
+
+    assert_eq!(llm.calls(), 1);
+    assert_eq!(
+        BehaviourCoverage::load(dir.path())
+            .unwrap()
+            .unplaced_entry_points,
+        Vec::<String>::new()
+    );
 }

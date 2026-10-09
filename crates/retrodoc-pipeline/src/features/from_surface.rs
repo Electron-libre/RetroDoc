@@ -10,6 +10,7 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
+use self::repair::place_unclaimed;
 use super::*;
 use crate::naming::normalize;
 use crate::surface::Surface;
@@ -128,8 +129,22 @@ pub async fn build_features_from_surface(
         features.extend(produced);
     }
 
+    // Saved before the placement call: a failure there keeps the units done.
     prints.save(repo_root)?;
     save_features(repo_root, &features)?;
+    let placed = place_unclaimed(
+        repo_root,
+        &mut features,
+        entry_points,
+        brief,
+        &mut prints,
+        llm,
+    )
+    .await?;
+    prints.save(repo_root)?;
+    if placed {
+        save_features(repo_root, &features)?;
+    }
     Ok(features)
 }
 
@@ -345,5 +360,6 @@ fn place_entry_points(
     produced
 }
 
+mod repair;
 #[cfg(test)]
 mod tests;

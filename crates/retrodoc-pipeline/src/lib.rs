@@ -16,6 +16,7 @@
 pub mod actors;
 mod artifact;
 mod batched_read;
+pub mod behaviour_coverage;
 pub mod benchmark;
 pub mod bm25;
 pub mod brief;
@@ -50,6 +51,7 @@ pub mod vocabulary;
 
 pub use actors::{authorization_files, build_actors, Actors, BusinessActor};
 pub use artifact::Artifact;
+pub use behaviour_coverage::{save_technical_support, BehaviourCoverage};
 pub use bm25::Bm25;
 pub use brief::{build_brief, sample_chars, Claim, Evidence, ProductBrief};
 pub use business_files::{infer_business_files, BusinessEntry, BusinessMap};

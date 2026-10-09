@@ -22,6 +22,7 @@ pub fn publish(repo_root: &Path, config: &Config, dry_run: bool) -> anyhow::Resu
     report.skipped_files = retrodoc_pipeline::Scope::load(repo_root)
         .map(|s| s.skipped)
         .unwrap_or_default();
+    report.with_behaviour_coverage(retrodoc_pipeline::BehaviourCoverage::load(repo_root));
     let metadata = RunMetadata {
         model: config.llm.model.clone(),
         commit: retrodoc_ingest::git_history::head_commit(repo_root),

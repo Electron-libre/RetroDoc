@@ -13,6 +13,7 @@ use retrodoc_core::model::{
     ConfidenceScore, Domain, Feature, SubDomain, UseCase, LOW_CONFIDENCE_THRESHOLD,
 };
 
+use crate::behaviour_coverage::BehaviourCoverage;
 use crate::domains::{DomainMap, UNCATEGORIZED_SLUG};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -53,10 +54,18 @@ pub struct DebtReport {
     /// Source files left out by the file budget (`--max-files`): not
     /// analysed at all. Filled by the caller from the saved `Scope`.
     pub skipped_files: Vec<PathBuf>,
+    /// Entry points (`<file>#<name>`) no feature holds. Filled by the caller from the saved
+    /// `BehaviourCoverage`.
+    pub unplaced_entry_points: Vec<String>,
+    /// Source files reached by no behaviour: no entry point of a feature, no code run by one, no
+    /// entity. Filled by the caller like `unplaced_entry_points`.
+    pub technical_support: Vec<PathBuf>,
 }
 
 /// Skipped files listed in the Markdown report (the rest is only counted).
 const MAX_LISTED_SKIPPED: usize = 50;
+/// Technical support files listed in the Markdown report (the rest is only counted).
+const MAX_LISTED_SUPPORT: usize = 50;
 
 fn mean(values: impl Iterator<Item = f32>) -> Option<f32> {
     let (sum, n) = values.fold((0.0_f32, 0_u32), |(s, n), v| (s + v, n + 1));
@@ -226,6 +235,8 @@ pub fn build_report(
         unscored_use_cases,
         uncategorized_files,
         skipped_files: Vec::new(),
+        unplaced_entry_points: Vec::new(),
+        technical_support: Vec::new(),
     }
 }
 
@@ -237,6 +248,46 @@ fn percent(value: Option<f32>) -> String {
 }
 
 impl DebtReport {
+    /// Adds what the behaviours leave out, from the saved coverage of a `surface` run.
+    pub fn with_behaviour_coverage(&mut self, coverage: Option<BehaviourCoverage>) {
+        if let Some(coverage) = coverage {
+            self.unplaced_entry_points = coverage.unplaced_entry_points;
+            self.technical_support = coverage.technical_support;
+        }
+    }
+
+    /// The sections on what the behaviours leave out (`surface` runs only).
+    fn write_behaviour_sections(&self, md: &mut String) {
+        if !self.unplaced_entry_points.is_empty() {
+            md.push_str(
+                "\n## Entry points without a feature\n\nNo feature holds these entry points, so \
+                 their behaviour is not documented:\n\n",
+            );
+            for id in &self.unplaced_entry_points {
+                let _ = writeln!(md, "- `{id}`");
+            }
+        }
+        if !self.technical_support.is_empty() {
+            let _ = write!(
+                md,
+                "\n## Technical support (reached by no behaviour)\n\n{} source file(s) hold no \
+                 entry point of a feature, are not run by one and mention no entity; they are \
+                 absent from the functional docs:\n\n",
+                self.technical_support.len()
+            );
+            for path in self.technical_support.iter().take(MAX_LISTED_SUPPORT) {
+                let _ = writeln!(md, "- `{}`", path.display());
+            }
+            if self.technical_support.len() > MAX_LISTED_SUPPORT {
+                let _ = writeln!(
+                    md,
+                    "- … and {} more",
+                    self.technical_support.len() - MAX_LISTED_SUPPORT
+                );
+            }
+        }
+    }
+
     /// Renders the report as Markdown (`docs/_retrodoc/coverage-report.md`).
     #[must_use]
     pub fn to_markdown(&self) -> String {
@@ -308,6 +359,7 @@ impl DebtReport {
                 let _ = writeln!(md, "- `{}`", path.display());
             }
         }
+        self.write_behaviour_sections(&mut md);
         if !self.skipped_files.is_empty() {
             let _ = write!(
                 md,
@@ -363,6 +415,24 @@ mod tests {
             diagram_mermaid: None,
             confidence: score.map(|s| ConfidenceScore::new(s, "because".to_string())),
         }
+    }
+
+    #[test]
+    fn the_behaviour_coverage_lists_unplaced_entry_points_and_technical_support() {
+        let mut report = build_report(&DomainMap::default(), &[], &[]);
+        assert!(!report.to_markdown().contains("Technical support"));
+
+        report.with_behaviour_coverage(Some(BehaviourCoverage {
+            unplaced_entry_points: vec!["a.rb#GET /a".to_string()],
+            technical_support: vec![PathBuf::from("helper.rb")],
+        }));
+
+        let md = report.to_markdown();
+        assert!(md.contains("## Entry points without a feature"), "{md}");
+        assert!(md.contains("`a.rb#GET /a`"));
+        assert!(md.contains("## Technical support (reached by no behaviour)"));
+        assert!(md.contains("1 source file(s)"));
+        assert!(md.contains("`helper.rb`"));
     }
 
     #[test]

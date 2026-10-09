@@ -460,7 +460,8 @@ Steps, in order, one issue each:
 4. `issues/behaviour_coverage_domains.md`: the pivot, shipped in steps, the old path kept behind a setting
    (`[pipeline] domains_from`) until the benchmark favours the new one. In progress: the old path is measured,
    the domains and the features can be built from the surface (`generate` runs end to end in that mode); the
-   coverage of the entry points by construction is next.
+   entry points no feature holds are placed by a small call or listed in the coverage report, as are the files
+   reached by no behaviour; the incremental re-run check and the benchmark comparison are next.
 5. `issues/tree_sitter_structure.md`.
 6. `issues/business_rules.md`.
 7. `issues/docs_reconciliation_debt_report.md`.

@@ -1,7 +1,7 @@
 //! What `generate` prints about each pass once it is done.
 
 use retrodoc_core::model::{ConfidenceScore, Feature, UseCase};
-use retrodoc_pipeline::{Artifact, CoverageReport, DomainMap, RepoMap};
+use retrodoc_pipeline::{Artifact, BehaviourCoverage, CoverageReport, DomainMap, RepoMap};
 
 pub(super) fn repo_map(map: &RepoMap) {
     println!("\nModules:");
@@ -120,4 +120,14 @@ pub(super) fn saved(features: usize, use_cases: usize) {
         Artifact::UseCases.relative_path()
     );
     println!("Run `retrodoc report` for the documentation debt report.");
+}
+
+pub(super) fn behaviour_coverage(coverage: &BehaviourCoverage, source_files: usize) {
+    println!(
+        "\nBehaviour coverage: {} entry point(s) without a feature, {} of {} source file(s) reached \
+         by no behaviour (technical support, listed in the coverage report).",
+        coverage.unplaced_entry_points.len(),
+        coverage.technical_support.len(),
+        source_files
+    );
 }
