@@ -198,7 +198,7 @@ invalidated, see `PLAN.md` §7); with `[pipeline] domains_from = "surface"` that
 and resources), the brief and the model, not the file summaries. In that mode the features are one call per domain over its
 entry points (keyed on them and the domain's entities) and the use cases read those entry points. If an LLM call fails mid-pass, the features and use cases pass save what is
 done, so the next run resumes there. `generate` prints the repo map pass's expected calls up front; the
-`llm.concurrency` and `llm.batch_chars` settings and the `--no-confidence` / `--confidence-sample` /
+`llm.concurrency` (repo map and use cases) and `llm.batch_chars` settings and the `--no-confidence` / `--confidence-sample` /
 `--max-files` flags bound the cost of a run.
 
 ## 6. Publishing the docs (no LLM)

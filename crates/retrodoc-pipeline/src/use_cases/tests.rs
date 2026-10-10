@@ -825,3 +825,145 @@ async fn another_model_derives_the_unchanged_features_again() {
     assert_eq!(run("local").await, 0);
     assert_eq!(run("strong").await, 1);
 }
+
+/// A provider that answers one use case named after the feature of the prompt, after a short wait,
+/// and remembers how many calls were in flight at once. It fails on the feature named `fail_on`.
+struct Probe {
+    in_flight: std::sync::atomic::AtomicUsize,
+    most: std::sync::atomic::AtomicUsize,
+    fail_on: Option<&'static str>,
+}
+
+impl Probe {
+    fn new(fail_on: Option<&'static str>) -> Self {
+        Self {
+            in_flight: std::sync::atomic::AtomicUsize::new(0),
+            most: std::sync::atomic::AtomicUsize::new(0),
+            fail_on,
+        }
+    }
+
+    fn most_in_flight(&self) -> usize {
+        self.most.load(std::sync::atomic::Ordering::SeqCst)
+    }
+}
+
+#[async_trait::async_trait]
+impl retrodoc_llm::LlmProvider for Probe {
+    async fn complete(
+        &self,
+        request: retrodoc_llm::CompletionRequest,
+    ) -> Result<retrodoc_llm::CompletionResponse, retrodoc_llm::LlmError> {
+        use std::sync::atomic::Ordering::SeqCst;
+        let prompt = &request.messages[1].content;
+        let feature = prompt
+            .split("Feature: ")
+            .nth(1)
+            .and_then(|rest| rest.split(' ').next())
+            .unwrap_or("?")
+            .to_string();
+        let now = self.in_flight.fetch_add(1, SeqCst) + 1;
+        self.most.fetch_max(now, SeqCst);
+        tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+        self.in_flight.fetch_sub(1, SeqCst);
+        if self.fail_on == Some(feature.as_str()) {
+            return Err(retrodoc_llm::LlmError::Transport("down".to_string()));
+        }
+        Ok(retrodoc_llm::CompletionResponse {
+            content: format!(
+                r#"{{"use_cases":[{{"slug":"uc","name":"Use case of {feature}","description":"d","steps":[
+                {{"description":"s","actor":{{"name":"A","kind":"human"}},"action":"x","source_refs":[]}}]}}]}}"#
+            ),
+            ..Default::default()
+        })
+    }
+
+    fn model(&self) -> &'static str {
+        "probe"
+    }
+}
+
+fn features_with_files(dir: &Path, names: &[&str]) -> Vec<Feature> {
+    names
+        .iter()
+        .map(|name| {
+            std::fs::write(
+                dir.join(format!("{name}.rs")),
+                format!("fn {name}() {{}}\n"),
+            )
+            .unwrap();
+            feature(name, &[&format!("{name}.rs")])
+        })
+        .collect()
+}
+
+#[tokio::test]
+async fn use_cases_asked_in_parallel_come_out_in_the_order_of_the_features() {
+    let names = ["one", "two", "three", "four", "five", "six"];
+    let mut runs = Vec::new();
+    for concurrency in [1, 3] {
+        let dir = tempfile::tempdir().unwrap();
+        let features = features_with_files(dir.path(), &names);
+        let context = UseCaseContext {
+            concurrency,
+            ..UseCaseContext::default()
+        };
+        let probe = Probe::new(None);
+        let use_cases = build_use_cases(dir.path(), &features, &context, &probe)
+            .await
+            .unwrap();
+        let summary: Vec<(String, String)> = use_cases
+            .iter()
+            .map(|u| (u.slug.clone(), u.name.clone()))
+            .collect();
+        runs.push((summary, probe.most_in_flight()));
+    }
+
+    // The same use cases in the order of the features.
+    assert_eq!(runs[0].0, runs[1].0);
+    let order: Vec<&str> = runs[1].0.iter().map(|(_, name)| name.as_str()).collect();
+    assert_eq!(
+        order,
+        [
+            "Use case of one",
+            "Use case of two",
+            "Use case of three",
+            "Use case of four",
+            "Use case of five",
+            "Use case of six"
+        ]
+    );
+    assert_eq!(runs[0].1, 1, "sequential by default");
+    assert!((2..=3).contains(&runs[1].1), "in flight: {}", runs[1].1);
+}
+
+#[tokio::test]
+async fn a_failure_among_parallel_calls_keeps_the_features_before_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let features = features_with_files(dir.path(), &["one", "two", "three", "four"]);
+    let context = UseCaseContext {
+        concurrency: 3,
+        ..UseCaseContext::default()
+    };
+
+    let flaky = Probe::new(Some("three"));
+    assert!(build_use_cases(dir.path(), &features, &context, &flaky)
+        .await
+        .is_err());
+    let saved = load_use_cases(dir.path()).unwrap();
+    assert_eq!(
+        saved
+            .iter()
+            .map(|u| u.feature_slug.as_str())
+            .collect::<Vec<_>>(),
+        ["one", "two"]
+    );
+
+    // The rerun only asks for the two features that were not kept.
+    let healthy = FakeLlm::replying(|n, _| Ok(use_case_reply(n + 10))).with_model("probe");
+    let use_cases = build_use_cases(dir.path(), &features, &context, &healthy)
+        .await
+        .unwrap();
+    assert_eq!(use_cases.len(), 4);
+    assert_eq!(healthy.calls(), 2);
+}

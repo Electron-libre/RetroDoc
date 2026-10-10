@@ -148,6 +148,7 @@ pub async fn run(
                     vocabulary: surface.vocabulary(VOCABULARY_SIZE),
                     brief,
                     evidence,
+                    concurrency: config.llm.for_pass("use-cases").concurrency.unwrap_or(1),
                 },
                 &surface,
                 &llm,

@@ -78,7 +78,7 @@ Run `retrodoc <command> --help` for the details.
 
 `generate` prints the expected number of repo-map LLM calls before it starts. To bound a run:
 `--max-files N` keeps only the best-ranked files, `--no-confidence` / `--confidence-sample N` limit the
-verification pass, and `llm.concurrency` / `llm.batch_chars` parallelize and batch the summaries.
+verification pass, and `llm.concurrency` / `llm.batch_chars` parallelize and batch the summaries (`llm.concurrency` also the use cases).
 
 ## Configuration
 

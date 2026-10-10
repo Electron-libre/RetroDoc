@@ -139,7 +139,7 @@ retrodoc-cli ──> retrodoc-mcp ──> retrodoc-pipeline, retrodoc-ingest, re
   - **Model per pass** (ADR 0023): `[llm.passes.<name>]` (`PassLlmConfig`, the keys of `[llm]`, names in `config::PASS_NAMES`, unknown name or key = config error) overrides `[llm]` for one pass: `LlmConfig::for_pass`. A pass that changes `provider` without `api_key_env` takes that provider's key variable; an empty `base_url` drops the global one; `batch_chars` is read for `repo-map` only. The CLI's `PassProviders::open` builds one provider per distinct configuration (shared between passes with equal settings, opened before any call so a missing key names its pass), `get(pass)` hands it out.
   - **Resumable**: an LLM failure in the features or use cases pass saves the units done so far; the repo map
     saves its cache. A rerun resumes there.
-  - **Cost control**: `llm.concurrency` (default 1) parallelizes file and directory summaries,
+  - **Cost control**: `llm.concurrency` (default 1) parallelizes file and directory summaries and the use cases pass (requests go out that many at a time, the answers are used in the order of the features, so the result is the same as one at a time; a failure keeps the features before it),
     `llm.batch_chars` (default 6000, 0 = off) batches small files, and `generate` prints
     `estimate_repo_map`'s expected calls first.
   - **Token accounting**: `generate`, `roles`, `glossary`, `entry-points` and `actors` end with a recap of calls, tokens

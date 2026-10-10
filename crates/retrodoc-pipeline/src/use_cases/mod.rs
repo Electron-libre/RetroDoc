@@ -15,6 +15,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
+use futures_util::stream::{self, StreamExt};
 use retrodoc_core::model::{Actor, ActorKind, Feature, SourceRef, Step, UseCase};
 use retrodoc_llm::LlmProvider;
 use serde::Deserialize;
@@ -127,6 +128,9 @@ pub struct UseCaseContext {
     pub brief: ProductBrief,
     /// The signals the closest extracts of a feature are taken from (empty: none).
     pub evidence: Evidence,
+    /// Features asked at once (`0` and `1`: one at a time). The answers are used in the order of
+    /// the features, so the result does not depend on it.
+    pub concurrency: usize,
 }
 
 /// Derives the use cases of every feature from the code it is grounded on
@@ -149,12 +153,9 @@ pub async fn build_use_cases(
     llm: &dyn LlmProvider,
 ) -> Result<Vec<UseCase>, PipelineError> {
     let UseCaseContext {
-        entry_points,
-        index,
         actors,
-        vocabulary,
-        brief,
-        evidence,
+        concurrency,
+        ..
     } = context;
     let saved = load_use_cases(repo_root);
     let mut prints = Fingerprints::load(repo_root);
@@ -170,68 +171,167 @@ pub async fn build_use_cases(
     let mut use_cases: Vec<UseCase> = Vec::new();
     let mut progress = Progress::new("use cases", features.len());
 
-    for (position, feature) in features.iter().enumerate() {
-        let key = format!("{}/{}", feature.domain_slug, feature.slug);
-        let input = FeatureInput::new(repo_root, feature, entry_points, index);
-        let close = evidence.section(&feature_query(feature, &input));
-        let framing = Framing {
-            actors,
-            vocabulary,
-            brief,
-            evidence: &close,
-        };
-        let print = feature_fingerprint(repo_root, feature, &input, &framing, llm);
-        if known.get(&key) == Some(&print) {
-            let kept: Vec<UseCase> = previous
-                .iter()
-                .filter(|u| u.feature_slug == feature.slug)
-                .cloned()
-                .collect();
-            // A saved fingerprint without use cases is a remembered "none".
-            tracing::info!(feature = %key, "use cases unchanged, reused");
-            use_cases.extend(kept);
-            prints.use_cases.insert(key, print);
-            progress.skip();
-            continue;
-        }
-        progress.begin(&key);
-        let (prompt, cited_files) =
-            use_cases_prompt(repo_root, feature, &input, &framing, &splitter);
-        if cited_files.is_empty() {
-            tracing::warn!(feature = %feature.slug, "feature skipped: none of its files is readable");
-            continue;
-        }
-        let system_prompt = system_prompt(!input.entries.is_empty(), !actors.is_empty());
-        let answer = match ask_use_cases(llm, &system_prompt, &prompt, &feature.slug).await {
-            Ok(answer) => answer,
-            Err(err) => {
-                save_partial(
-                    repo_root,
-                    use_cases,
-                    &previous,
-                    prints,
-                    &known,
-                    &features[position..],
-                );
-                return Err(err);
+    let items = plan_items(repo_root, features, context, &known, &splitter, llm);
+
+    // The calls go out `concurrency` at a time but the answers come back in the order of the
+    // features, and the slugs are made unique in that order: the result is the sequential one.
+    let mut answers = stream::iter(items)
+        .map(|item| async move {
+            let answer = match &item.plan {
+                Plan::Ask {
+                    system_prompt,
+                    prompt,
+                    ..
+                } => Some(ask_use_cases(llm, system_prompt, prompt, &item.feature.slug).await),
+                Plan::Reuse | Plan::Unreadable => None,
+            };
+            (item, answer)
+        })
+        .buffered((*concurrency).max(1));
+
+    while let Some((item, answer)) = answers.next().await {
+        let Item {
+            position,
+            feature,
+            key,
+            print,
+            input,
+            plan,
+        } = item;
+        match plan {
+            Plan::Reuse => {
+                let kept: Vec<UseCase> = previous
+                    .iter()
+                    .filter(|u| u.feature_slug == feature.slug)
+                    .cloned()
+                    .collect();
+                // A saved fingerprint without use cases is a remembered "none".
+                tracing::info!(feature = %key, "use cases unchanged, reused");
+                use_cases.extend(kept);
+                prints.use_cases.insert(key, print);
+                progress.skip();
             }
-        };
-        let produced = match answer {
-            Answer::Use(raw) => {
-                grounded_use_cases(raw, feature, &use_cases, &input, &cited_files, actors)
+            Plan::Unreadable => {
+                progress.begin(&key);
+                tracing::warn!(feature = %feature.slug, "feature skipped: none of its files is readable");
             }
-            Answer::Empty => Vec::new(),
-            Answer::Unusable => continue,
-        };
-        prints.use_cases.insert(key, print);
-        use_cases.extend(produced);
+            Plan::Ask { cited_files, .. } => {
+                progress.begin(&key);
+                let answer = match answer.unwrap_or(Ok(Answer::Unusable)) {
+                    Ok(answer) => answer,
+                    Err(err) => {
+                        save_partial(
+                            repo_root,
+                            use_cases,
+                            &previous,
+                            prints,
+                            &known,
+                            &features[position..],
+                        );
+                        return Err(err);
+                    }
+                };
+                let produced = match answer {
+                    Answer::Use(raw) => {
+                        grounded_use_cases(raw, feature, &use_cases, &input, &cited_files, actors)
+                    }
+                    Answer::Empty => Vec::new(),
+                    Answer::Unusable => continue,
+                };
+                prints.use_cases.insert(key, print);
+                use_cases.extend(produced);
+            }
+        }
     }
+    drop(answers);
 
     // Use cases first: a fingerprint without its use cases would freeze a
     // feature as "none".
     save_use_cases(repo_root, &use_cases)?;
     prints.save(repo_root)?;
     Ok(use_cases)
+}
+
+/// What each feature needs, decided before any call: nothing (unchanged since the last run), or a
+/// request.
+fn plan_items<'a>(
+    repo_root: &Path,
+    features: &'a [Feature],
+    context: &UseCaseContext,
+    known: &BTreeMap<String, String>,
+    splitter: &Splitter,
+    llm: &dyn LlmProvider,
+) -> Vec<Item<'a>> {
+    let UseCaseContext {
+        entry_points,
+        index,
+        actors,
+        vocabulary,
+        brief,
+        evidence,
+        ..
+    } = context;
+    features
+        .iter()
+        .enumerate()
+        .map(|(position, feature)| {
+            let key = format!("{}/{}", feature.domain_slug, feature.slug);
+            let input = FeatureInput::new(repo_root, feature, entry_points, index);
+            let close = evidence.section(&feature_query(feature, &input));
+            let framing = Framing {
+                actors,
+                vocabulary,
+                brief,
+                evidence: &close,
+            };
+            let print = feature_fingerprint(repo_root, feature, &input, &framing, llm);
+            let plan = if known.get(&key) == Some(&print) {
+                Plan::Reuse
+            } else {
+                let (prompt, cited_files) =
+                    use_cases_prompt(repo_root, feature, &input, &framing, splitter);
+                if cited_files.is_empty() {
+                    Plan::Unreadable
+                } else {
+                    Plan::Ask {
+                        system_prompt: system_prompt(!input.entries.is_empty(), !actors.is_empty()),
+                        prompt,
+                        cited_files,
+                    }
+                }
+            };
+            Item {
+                position,
+                feature,
+                key,
+                print,
+                input,
+                plan,
+            }
+        })
+        .collect()
+}
+
+/// One feature of the pass: what it is derived from and what is done about it.
+struct Item<'a> {
+    position: usize,
+    feature: &'a Feature,
+    key: String,
+    print: String,
+    input: FeatureInput,
+    plan: Plan,
+}
+
+enum Plan {
+    /// Unchanged since the last run: its saved use cases are kept.
+    Reuse,
+    /// None of its files can be read: nothing to ask.
+    Unreadable,
+    Ask {
+        system_prompt: String,
+        prompt: String,
+        cited_files: BTreeSet<String>,
+    },
 }
 
 /// Best-effort save after a failure: the `unreached` features keep their

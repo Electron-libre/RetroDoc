@@ -115,7 +115,7 @@ pub struct LlmConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub timeout_secs: Option<u64>,
     /// Maximum number of LLM calls in flight at once for the passes that
-    /// can run them in parallel (file and directory summaries). Unset: 1.
+    /// can run them in parallel (file and directory summaries, use cases). Unset: 1.
     /// A single local model gains little; a hosted one (`OpenRouter`) a lot,
     /// within its rate limits (429s are retried with backoff).
     #[serde(default, skip_serializing_if = "Option::is_none")]
