@@ -71,7 +71,7 @@ default stays `files` (the old path) until deliverable 6.
    listed as technical support in the debt report and in `_retrodoc/coverage-report.md`.
 5. [x] Incremental re-run (step 8): domains and features fingerprints rest on the entry points and entities of
    the unit; an unchanged run makes no call.
-6. [ ] Compare and decide (step 9): quality benchmark and calls/time per pass, `files` against `surface`, on
+6. [x] Compare and decide (step 9): quality benchmark and calls/time per pass, `files` against `surface`, on
    linkding and `delivery_router`; decision on the default; ADR 0020, `PLAN.md`, `CLAUDE.md`; follow-up issues
    for the deterministic repo map, the single read per file and the deterministic confidence.
 
@@ -98,6 +98,10 @@ default stays `files` (the old path) until deliverable 6.
   domain answered with no usable feature was never remembered (asked once more), and a re-derived domain
   left entry points in two features (the owning domain keeps them). One repository, one run each: it says
   the path works, not how stable it is.
+* Default of `domains_from` stays `files` (user, 2026-10-10): `surface` is documented as the path for large
+  applications, the decision rests on `issues/surface_domains_default_decision.md`. Follow-ups queued:
+  `use_cases_cost_per_call`, `deterministic_confidence_checks`, `single_read_per_business_file`; the
+  deterministic repo map is `tree_sitter_structure`.
 * No paid run without asking.
 * Follow-up to queue at deliverable 6: the time of a run is in the use cases and confidence passes (73 + 17 of
   118 minutes locally), not in the repo map; an issue on the cost per use case (batching, fewer or shorter
@@ -144,6 +148,38 @@ Per pass of two linkding runs (calls / minutes / tokens in):
 Consequence for the next deliverables: the cost gain to expect from skipping the repo map is in calls and
 tokens; a gain in time needs the use cases and confidence passes to cost less, which the new path does not
 change by itself. The comparison of deliverable 6 should report both.
+
+## Comparison `files` against `surface` (2026-10-10, series `hidden`, 3 runs of `surface`)
+
+`just benchmark <reference> --series hidden --runs 3 --domains-from surface`. The `files` figures are the last
+benchmark of the same repository and model (3 runs for `delivery_router`; the 4 deepseek runs of the baseline above
+for linkding); "judged" = hand-written pairs plus the judge's. Linkding was run with `--no-confidence`, as the
+`files` deepseek runs. Mean (range of the `surface` runs).
+
+| Repository / model | Path | Calls | Time | Domains rec./prec. (judged) | Features rec./prec. (judged) | Narratives in business language |
+|---|---|---|---|---|---|---|
+| linkding, deepseek-chat | `files` | 222-283 | 9.7-14.4 min | 33-39% / 41-75% | 65% / 23-41% | 70-85% |
+| linkding, deepseek-chat | `surface` | 110 (95-135) | 6.4 min (5.6-7.8) | 56% / 88% | 62% (25-80) / 34% (14-44) | 87% (85-90) |
+| `delivery_router`, deepseek-chat | `files` | 22 | 52 s | 50% / 100% | 71% / 96% | 66% |
+| `delivery_router`, deepseek-chat | `surface` | 29 (26-31) | 67 s | 83% / 89% | 38% (12-88) / 45% (14-100) | 71% (39-100) |
+| `delivery_router`, local qwen3.6 | `files` | 24 | 6.8 min | 50% / 100% | 38% / 73% | 29% |
+| `delivery_router`, local qwen3.6 | `surface` | 28 (23-33) | 9.0 min (6.4-11.9) | 100% / 69% | 50% (25-75) / 57% (29-83) | 28% (0-44) |
+
+* On linkding (178 source files) `surface` makes 55% fewer calls and takes about 45% less time, with no loss in
+  judged feature recall and a higher domain precision and narrative rate. The saving is in calls and in the repo
+  map (no summary of the 135 files); the time saved is the repo map and fewer features and use cases per call
+  than the old clustering produced (44 features, 128 use cases, against 42 and 122).
+* On `delivery_router` (9 files, a library) the `surface` features are worse on deepseek (precision 45% against
+  96%) and the spread is as large as the gap (12% to 88% recall between runs): three runs cannot tell. The path
+  there depends on the entry points found (the baseline above: 44% to 100% of files reached).
+* Not measured: linkding with the local model (86-118 min per run, not authorised), the `shown` series, the
+  confidence pass on linkding (`--no-confidence`), a second large repository.
+* Audit of the judge, linkding `surface` run 1, as the skill asks: 26 pairs (4 domains, 22 features) checked
+  against `reference.yaml`, none false; many generated features map to the same reference feature (7 admin
+  and API features onto 2), which favours recall. The pairs were not copied to `matches.yaml` (it would move the
+  strict figures of later benchmarks).
+* Caveat: "Previous" in the benchmark tables is the last benchmark of the repository whatever its model or path;
+  the table above is compared like with like by hand.
 
 ## Domains from the surface, on real data (2026-10-09, local `qwen3.6:35b-a3b`, `generate --force`, `domains_from = "surface"`)
 

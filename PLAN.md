@@ -461,7 +461,10 @@ Steps, in order, one issue each:
    (`[pipeline] domains_from`) until the benchmark favours the new one. In progress: the old path is measured,
    the domains and the features can be built from the surface (`generate` runs end to end in that mode); the
    entry points no feature holds are placed by a small call or listed in the coverage report, as are the files
-   reached by no behaviour; the incremental re-run check and the benchmark comparison are next.
+   reached by no behaviour. Benchmark of 2026-10-10: on a 178-file application `surface` makes 55% fewer calls
+   and takes about 45% less time at par quality; on a 9-file library its features are worse. The default stays
+   `files` until `issues/surface_domains_default_decision.md`; the cost of the use cases pass, the deterministic
+   confidence and the single read per file are queued as their own issues.
 5. `issues/tree_sitter_structure.md`.
 6. `issues/business_rules.md`.
 7. `issues/docs_reconciliation_debt_report.md`.

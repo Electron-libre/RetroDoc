@@ -67,6 +67,12 @@ fn main() {
             && !out.contains("reasoning_effort"),
     );
 
+    let with_pipeline = write("with-pipeline.toml", &format!("{TOML}\n[pipeline]\ndomains_from = \"files\"\n"));
+    let (ok, out) = call(&["patch-config", &with_pipeline, "local", "m1", "http://localhost:1/v1", "false", "surface"]);
+    check("sets domains_from when asked", ok && out.contains("domains_from = \"surface\"") && !out.contains("\"files\""));
+    let (ok, out) = call(&["patch-config", &with_pipeline, "local", "m1", "http://localhost:1/v1", "false"]);
+    check("leaves domains_from alone by default", ok && out.contains("domains_from = \"files\""));
+
     let root = tmp.join("benchmarks");
     for (stamp, table) in [("100", true), ("200", true), ("250", false), ("300", true)] {
         let folder = root.join(stamp);

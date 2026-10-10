@@ -2,12 +2,12 @@
 //! Quality benchmark of `retrodoc generate` on a public repository, against a hand-written reference.
 //!
 //! - `benchmark.rs run <reference.yaml> [--runs N] [--model M] [--base-url U] [--provider deepseek]
-//!   [--series hidden|shown] [--no-confidence]`: clones the repository
+//!   [--series hidden|shown] [--no-confidence] [--domains-from files|surface]`: clones the repository
 //!   of the reference at its pinned commit, then for each of the two series (`hidden`: the repo's own
 //!   docs left out of the input; `shown`: with them) runs `generate` and `retrodoc benchmark --judge`
 //!   N times in fresh clones, and prints the table (with the change against the previous benchmark).
 //! - `benchmark.rs reference-field <reference.yaml> <key>`: a top-level scalar of the reference.
-//! - `benchmark.rs patch-config <retrodoc.toml> <provider> <model> <base-url> <hide-docs: true|false>`: points
+//! - `benchmark.rs patch-config <retrodoc.toml> <provider> <model> <base-url> <hide-docs: true|false> [domains-from: files|surface]`: points
 //!   `[llm]` at the local server (`provider` `local`) or at the hosted API of `provider` (`deepseek`; the key
 //!   comes from `DEEPSEEK_API_KEY`, in the environment or in the `.env` of the project) and, when asked,
 //!   empties `existing_docs_paths`.
@@ -73,6 +73,11 @@ fn patch_config(toml: &str, provider: &str, model: &str, base_url: &str, hide_do
     kept.join("\n").replacen("[llm]", &llm, 1)
 }
 
+/// `toml` with `[pipeline] domains_from` set to `mode` (ADR 0020; `init` writes `files`).
+fn set_domains_from(toml: &str, mode: &str) -> String {
+    toml.replacen("domains_from = \"files\"", &format!("domains_from = \"{mode}\""), 1)
+}
+
 /// The benchmark directory of `root` that comes just before `current` (names are seconds since the
 /// epoch) and has a `table.md`.
 fn previous(root: &Path, current: &Path) -> Option<PathBuf> {
@@ -118,6 +123,10 @@ fn run(args: &[String]) -> i32 {
         die("--series must be `hidden` or `shown`");
     }
     let no_confidence = args.iter().any(|a| a == "--no-confidence");
+    let domains_from = option("--domains-from", "files");
+    if !["files", "surface"].contains(&domains_from.as_str()) {
+        die("--domains-from must be `files` or `surface`");
+    }
     let runs: u32 = option("--runs", "1").parse().unwrap_or_else(|_| die("--runs must be a number"));
     if runs == 0 {
         die("--runs must be at least 1");
@@ -193,7 +202,8 @@ fn run(args: &[String]) -> i32 {
             }
             let toml_path = clone.join("retrodoc.toml");
             let toml = fs::read_to_string(&toml_path).unwrap();
-            fs::write(&toml_path, patch_config(&toml, &provider, &model, &base_url, hide_docs)).unwrap();
+            let patched = patch_config(&toml, &provider, &model, &base_url, hide_docs);
+            fs::write(&toml_path, set_domains_from(&patched, &domains_from)).unwrap();
             let generate: &[&str] = if no_confidence { &["generate", "--no-confidence"] } else { &["generate"] };
             if !retrodoc(generate, &clone, &log) {
                 println!("FAIL - {series} {n}: generate failed (see {})", log.display());
@@ -248,9 +258,10 @@ fn main() {
                 None => 1,
             }
         }
-        Some("patch-config") if args.len() == 6 => {
+        Some("patch-config") if args.len() == 6 || args.len() == 7 => {
             let toml = fs::read_to_string(&args[1]).unwrap_or_else(|e| die(&format!("{}: {e}", args[1])));
-            print!("{}", patch_config(&toml, &args[2], &args[3], &args[4], args[5] == "true"));
+            let patched = patch_config(&toml, &args[2], &args[3], &args[4], args[5] == "true");
+            print!("{}", args.get(6).map_or(patched.clone(), |mode| set_domains_from(&patched, mode)));
             0
         }
         Some("previous") if args.len() == 3 => match previous(Path::new(&args[1]), Path::new(&args[2])) {

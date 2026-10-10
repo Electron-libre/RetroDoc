@@ -18,6 +18,7 @@ just benchmark benchmark/<repo>/reference.yaml --runs 3        # the spread need
 just benchmark <reference> --model <m> --base-url <u>          # another model or server
 just benchmark <reference> --provider deepseek --runs 3 --no-confidence   # hosted: key in .env, about $0.30 per linkding run
 just benchmark <reference> --series hidden                     # one series only
+just benchmark <reference> --domains-from surface              # the new path of ADR 0020 (default: files)
 ```
 
 It takes minutes to hours per run (2 series × N runs), so launch it with `run_in_background` and read
