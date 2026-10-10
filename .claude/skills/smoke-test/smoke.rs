@@ -1,7 +1,7 @@
 #!/usr/bin/env rust-script
 //! Smoke test of `retrodoc generate` against a real repository with a local LLM.
 //!
-//! - `smoke.rs run <repo> [--model M] [--base-url U]`: clones `<repo>` (committed HEAD only, the
+//! - `smoke.rs run <repo> [--model M] [--base-url U] [--domains-from files|surface]`: clones `<repo>` (committed HEAD only, the
 //!   original is never touched) into /tmp, points it at the local LLM, runs `generate` twice and
 //!   `report`, then prints the verdict.
 //! - `smoke.rs evaluate <run1.log> <run2.log> <report.txt> <usage.json>`: only the verdict, from saved
@@ -144,7 +144,7 @@ fn die(message: &str) -> ! {
 }
 
 fn run(args: &[String]) -> i32 {
-    let Some(target) = args.first() else { die("usage: smoke.rs run <repo> [--model M] [--base-url U]") };
+    let Some(target) = args.first() else { die("usage: smoke.rs run <repo> [--model M] [--base-url U] [--domains-from files|surface]") };
     let option = |name: &str, default: &str| {
         args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).cloned().unwrap_or(default.into())
     };
@@ -203,6 +203,15 @@ fn run(args: &[String]) -> i32 {
         &format!("[llm]\nmodel = \"{model}\"\nbase_url = \"{base_url}\"\nreasoning_effort = \"none\""),
         1,
     );
+    // `--domains-from surface` tries the new path of ADR 0020 (default: the config as `init` wrote it).
+    let patched = match option("--domains-from", "").as_str() {
+        "" => patched,
+        mode => patched.replacen(
+            "domains_from = \"files\"",
+            &format!("domains_from = \"{mode}\""),
+            1,
+        ),
+    };
     fs::write(&toml_path, patched).unwrap();
 
     println!("clone: {} | logs: {} {}", clone.display(), log1.display(), log2.display());

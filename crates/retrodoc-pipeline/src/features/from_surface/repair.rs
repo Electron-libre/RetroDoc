@@ -13,7 +13,8 @@ const MAX_FEATURES_SHOWN: usize = 150;
 const PLACEMENT_SYSTEM_PROMPT: &str = "You are completing the functional (business) documentation \
 of a software project. Some entry points (what users and systems can do) were left out of its \
 features. For each entry point listed, pick the existing feature it belongs to, from the ones \
-given. Copy the entry point id and the feature slug verbatim. Leave an entry point out of your \
+given. Copy the entry point's short id (E1, E2…, the first word of its line) and the feature slug \
+verbatim. Leave an entry point out of your \
 answer if no feature fits it; never invent a feature. Reply with ONLY a single JSON object, no \
 prose and no Markdown code fence, matching this shape: \
 {\"placements\":[{\"entry_point\":\"id\",\"feature\":\"slug\"}]}.";
@@ -89,7 +90,7 @@ fn placement_prompt(
         );
     }
     prompt.push_str("\nEntry points to place:\n");
-    for u in batch {
+    for (position, u) in batch.iter().enumerate() {
         let description: String = u
             .point
             .description
@@ -98,9 +99,11 @@ fn placement_prompt(
             .collect();
         let _ = writeln!(
             prompt,
-            "- {} — {} {} on \"{}\": {description}",
-            u.id,
+            "- {} — {} \"{}\" ({}): {} on \"{}\": {description}",
+            tag(position),
             u.point.kind.label(),
+            u.point.name,
+            u.file.display(),
             u.point.verb,
             u.point.resource
         );
@@ -160,7 +163,10 @@ pub(super) async fn place_unclaimed(
         let Some(raw) = raw else { continue };
         for placement in raw.placements {
             let id = placement.entry_point.trim();
-            let Some(entry) = batch.iter().find(|u| u.id == id) else {
+            let found = tag_position(id, batch.len())
+                .and_then(|p| batch.get(p))
+                .or_else(|| batch.iter().find(|u| u.id == id));
+            let Some(entry) = found else {
                 tracing::warn!(entry_point = %id, "placement of an entry point not asked for, dropped");
                 continue;
             };

@@ -200,10 +200,13 @@ async fn the_prompt_shows_ids_and_only_the_entry_points_of_the_domain() {
 
     run(dir.path(), &domains, &entries, &llm).await;
 
+    // Each domain is asked twice, since the canned answer holds no feature.
     let prompts = llm.prompts();
-    assert!(prompts[0].contains("orders.rb#GET /orders"));
+    assert!(prompts[0].contains("E1 — "));
+    assert!(prompts[0].contains("\"GET /orders\" (orders.rb)"));
+    assert!(prompts[0].contains("(orders.rb)"));
     assert!(!prompts[0].contains("GET /routes"));
-    assert!(prompts[1].contains("orders.rb#GET /routes"));
+    assert!(prompts[2].contains("\"GET /routes\" (orders.rb)"));
 }
 
 /// Routes domain answered by feature `routes`; the order domain claims only `GET /orders`.
@@ -293,4 +296,126 @@ async fn with_every_entry_point_claimed_there_is_no_placement_call() {
             .unplaced_entry_points,
         Vec::<String>::new()
     );
+}
+
+#[tokio::test]
+async fn a_bare_entry_point_name_resolves_when_it_is_unique_in_the_domain() {
+    let dir = tempfile::tempdir().unwrap();
+    let domains = DomainMap {
+        domains: vec![domain("orders", &["order"])],
+    };
+    let entries = entry_points(&[(
+        "orders.rb",
+        vec![entry("#add_order", "order"), entry("#clear", "order")],
+    )]);
+    // The model dropped the file prefix, and the leading `#` of one name.
+    let llm = FakeLlm::answering(
+        r##"{"features":[{"slug":"o","name":"O","description":"d",
+            "entry_points":["#add_order","clear"]}]}"##,
+    );
+
+    let features = run(dir.path(), &domains, &entries, &llm).await;
+
+    assert_eq!(
+        features[0].entry_points,
+        vec!["orders.rb##add_order", "orders.rb##clear"]
+    );
+}
+
+#[tokio::test]
+async fn a_domain_answered_with_no_usable_feature_is_asked_once_more() {
+    let dir = tempfile::tempdir().unwrap();
+    let domains = DomainMap {
+        domains: vec![domain("orders", &["order"])],
+    };
+    let entries = entry_points(&[("orders.rb", vec![entry("GET /orders", "order")])]);
+    let llm = FakeLlm::replying(|n, _| {
+        Ok(if n == 0 {
+            r#"{"features":[{"slug":"o","name":"O","description":"d","entry_points":["ghost"]}]}"#
+        } else {
+            r#"{"features":[{"slug":"o","name":"O","description":"d",
+                "entry_points":["orders.rb#GET /orders"]}]}"#
+        }
+        .to_string())
+    });
+
+    let features = run(dir.path(), &domains, &entries, &llm).await;
+
+    assert_eq!(llm.calls(), 2);
+    assert_eq!(features.len(), 1);
+}
+
+#[test]
+fn an_entry_point_held_by_two_features_stays_with_the_domain_that_owns_it() {
+    let (domains, entries) = fixture();
+    let units: Vec<(&DomainCluster, Vec<Entry<'_>>)> = domains
+        .domains
+        .iter()
+        .map(|d| (d, domain_entries(d, &entries)))
+        .collect();
+    let held = |slug: &str, domain: &str, ids: &[&str]| Feature {
+        slug: slug.to_string(),
+        domain_slug: domain.to_string(),
+        sub_domain_slug: None,
+        name: slug.to_string(),
+        description: "d".to_string(),
+        source_paths: vec!["stale.rb".to_string()],
+        entry_points: ids.iter().map(ToString::to_string).collect(),
+        confidence: None,
+    };
+    // `POST /orders` was placed in the routing feature, for lack of a feature in its own domain;
+    // the order domain claims it now. A routing feature left with nothing is dropped.
+    let mut features = vec![
+        held(
+            "routes",
+            "routing",
+            &["orders.rb#GET /routes", "orders.rb#POST /orders"],
+        ),
+        held("only-order", "routing", &["orders.rb#GET /orders"]),
+        held(
+            "orders",
+            "orders",
+            &["orders.rb#GET /orders", "orders.rb#POST /orders"],
+        ),
+    ];
+
+    settle_duplicates(&mut features, &units);
+
+    let summary: Vec<(&str, &[String])> = features
+        .iter()
+        .map(|f| (f.slug.as_str(), f.entry_points.as_slice()))
+        .collect();
+    assert_eq!(
+        summary,
+        [
+            ("routes", &["orders.rb#GET /routes".to_string()][..]),
+            (
+                "orders",
+                &[
+                    "orders.rb#GET /orders".to_string(),
+                    "orders.rb#POST /orders".to_string()
+                ][..]
+            ),
+        ]
+    );
+    assert_eq!(features[0].source_paths, vec!["orders.rb"]);
+}
+
+#[tokio::test]
+async fn short_tags_stand_for_the_entry_points_of_a_domain() {
+    let dir = tempfile::tempdir().unwrap();
+    let (domains, entries) = fixture();
+    let only_orders = DomainMap {
+        domains: vec![domains.domains[0].clone()],
+    };
+    let llm = FakeLlm::answering(
+        r#"{"features":[{"slug":"a","name":"A","description":"d","entry_points":["E2","e9"]},
+            {"slug":"b","name":"B","description":"d","entry_points":["E1"]}]}"#,
+    );
+
+    let features = run(dir.path(), &only_orders, &entries, &llm).await;
+
+    // `E2` is the second entry point of the domain; `e9` does not exist.
+    assert_eq!(features[0].entry_points, vec!["orders.rb#POST /orders"]);
+    assert_eq!(features[1].entry_points, vec!["orders.rb#GET /orders"]);
 }

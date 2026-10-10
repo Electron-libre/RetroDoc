@@ -7,7 +7,7 @@
 //! The first placement of an entry point wins, an id the domain does not know is dropped, a feature
 //! left with no entry point is dropped. An entry point no feature claimed is only logged for now.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use self::repair::place_unclaimed;
@@ -24,8 +24,8 @@ functional (business) point of view. Given a functional domain, its business ent
 entry points (what users and systems can do: routes, commands, jobs, public API), group the entry \
 points into the user-facing features of the domain: capabilities a user or an external system \
 would recognize, not technical layers. Every feature must list at least one entry point, and an \
-entry point goes in exactly one feature. Entry points are cited by their id (the text before the \
-dash), copied verbatim from the list. Reply with ONLY a single JSON object, no prose and no \
+entry point goes in exactly one feature. Entry points are cited by their short id (E1, E2…, the \
+first word of each line of the list), copied verbatim. Reply with ONLY a single JSON object, no prose and no \
 Markdown code fence, matching this shape: {\"features\":[{\"slug\":\"kebab-case\",\"name\":\"...\",\
 \"description\":\"one or two sentences\",\"entry_points\":[\"...\"]}]}.";
 
@@ -50,6 +50,18 @@ struct Entry<'a> {
     id: String,
     file: &'a Path,
     point: &'a EntryPoint,
+}
+
+/// The short tag the prompts show for the entry point at `position` of a list (`E1`, `E2`…): the
+/// model copies it reliably, where it garbles `<file>#<name>`.
+pub(super) fn tag(position: usize) -> String {
+    format!("E{}", position + 1)
+}
+
+/// The position a tag cited by the model stands for, if it is one of `len`.
+pub(super) fn tag_position(cited: &str, len: usize) -> Option<usize> {
+    let number: usize = cited.trim().strip_prefix(['E', 'e'])?.parse().ok()?;
+    (1..=len).contains(&number).then(|| number - 1)
 }
 
 /// The id of an entry point: its file and its name, unique by construction.
@@ -107,28 +119,36 @@ pub async fn build_features_from_surface(
         progress.begin(&key);
         let prompt = surface_features_prompt(domain, entries, surface, brief, &close);
         let what = format!("features of {key}");
-        let raw = match complete_json::<RawSurfaceFeatures>(
-            llm,
-            SURFACE_FEATURES_SYSTEM_PROMPT,
-            &prompt,
-            &what,
-        )
-        .await
-        {
-            Ok(Some(raw)) => raw,
-            Ok(None) => continue,
-            Err(err) => {
-                save_partial(repo_root, features, &previous, prints, &known_units);
-                return Err(err);
+        // An answer with no usable feature (ids copied wrongly) is asked once more.
+        let mut produced: Vec<Feature> = Vec::new();
+        for _ in 0..2 {
+            let raw = match complete_json::<RawSurfaceFeatures>(
+                llm,
+                SURFACE_FEATURES_SYSTEM_PROMPT,
+                &prompt,
+                &what,
+            )
+            .await
+            {
+                Ok(Some(raw)) => raw,
+                Ok(None) => continue,
+                Err(err) => {
+                    save_partial(repo_root, features, &previous, prints, &known_units);
+                    return Err(err);
+                }
+            };
+            produced = place_entry_points(raw, domain, entries, &features);
+            if !produced.is_empty() {
+                break;
             }
-        };
-        let produced = place_entry_points(raw, domain, entries, &features);
+        }
         if !produced.is_empty() {
             prints.features.insert(key, print);
         }
         features.extend(produced);
     }
 
+    settle_duplicates(&mut features, &units);
     // Saved before the placement call: a failure there keeps the units done.
     prints.save(repo_root)?;
     save_features(repo_root, &features)?;
@@ -244,7 +264,7 @@ fn surface_features_prompt(
         }
     }
     prompt.push_str("\nEntry points:\n");
-    for e in entries.iter().take(MAX_ENTRIES_PER_PROMPT) {
+    for (position, e) in entries.iter().enumerate().take(MAX_ENTRIES_PER_PROMPT) {
         let description: String = e
             .point
             .description
@@ -260,9 +280,11 @@ fn surface_features_prompt(
             .collect();
         let _ = write!(
             prompt,
-            "- {} — {} {} on \"{}\": {description}",
-            e.id,
+            "- {} — {} \"{}\" ({}): {} on \"{}\": {description}",
+            tag(position),
             e.point.kind.label(),
+            e.point.name,
+            e.file.display(),
             e.point.verb,
             e.point.resource
         );
@@ -298,6 +320,68 @@ fn reusable_for(
     (!kept.is_empty() && !collides).then(|| kept.into_iter().cloned().collect())
 }
 
+/// The entry point a feature cites: by tag, else by id, else by its name alone when that is unambiguous in the
+/// domain (the model often drops the file), with or without the leading `#` or `.` of a method.
+fn resolve<'a, 'b>(entries: &'b [Entry<'a>], cited: &str) -> Option<&'b Entry<'a>> {
+    if let Some(found) = tag_position(cited, entries.len()).and_then(|p| entries.get(p)) {
+        return Some(found);
+    }
+    if let Some(found) = entries.iter().find(|e| e.id == cited) {
+        return Some(found);
+    }
+    let bare = |name: &str| name.trim_start_matches(['#', '.']).to_string();
+    let wanted = bare(cited);
+    let mut matching = entries.iter().filter(|e| bare(&e.point.name) == wanted);
+    let found = matching.next()?;
+    matching.next().is_none().then_some(found)
+}
+
+/// Keeps an entry point in one feature. A feature that survived from a previous run can hold an
+/// entry point the placement call had put there for lack of a feature in its own domain; when that
+/// domain now claims it, the domain's feature keeps it. The files of a feature that lost entry
+/// points follow, and one left with none is dropped.
+fn settle_duplicates(features: &mut Vec<Feature>, units: &[(&DomainCluster, Vec<Entry<'_>>)]) {
+    let mut holders: BTreeMap<String, Vec<usize>> = BTreeMap::new();
+    for (position, feature) in features.iter().enumerate() {
+        for id in &feature.entry_points {
+            holders.entry(id.clone()).or_default().push(position);
+        }
+    }
+    let mut changed: BTreeSet<usize> = BTreeSet::new();
+    for (id, positions) in holders.into_iter().filter(|(_, p)| p.len() > 1) {
+        let owner = |position: usize| {
+            units.iter().any(|(domain, entries)| {
+                domain.slug == features[position].domain_slug && entries.iter().any(|e| e.id == id)
+            })
+        };
+        let keep = positions
+            .iter()
+            .copied()
+            .find(|p| owner(*p))
+            .unwrap_or(positions[0]);
+        for position in positions.into_iter().filter(|p| *p != keep) {
+            features[position].entry_points.retain(|e| *e != id);
+            changed.insert(position);
+        }
+    }
+    for position in &changed {
+        let feature = &mut features[*position];
+        feature.source_paths = feature
+            .entry_points
+            .iter()
+            .filter_map(|id| id.split_once('#').map(|(file, _)| file.to_string()))
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect();
+    }
+    let mut position = 0;
+    features.retain(|f| {
+        let keep = !f.entry_points.is_empty() || !changed.contains(&position);
+        position += 1;
+        keep
+    });
+}
+
 /// The model's features turned into [`Feature`]s: ids the domain does not know are dropped, the
 /// first placement of an entry point wins, a feature with none left is dropped, slugs are made
 /// unique against `existing` and each other.
@@ -313,7 +397,7 @@ fn place_entry_points(
         let mut ids: Vec<String> = Vec::new();
         for cited in &raw_feature.entry_points {
             let cited = cited.trim();
-            match entries.iter().find(|e| e.id == cited) {
+            match resolve(entries, cited) {
                 None => tracing::warn!(
                     feature = %raw_feature.slug,
                     entry_point = %cited,
@@ -324,9 +408,10 @@ fn place_entry_points(
             }
         }
         if ids.is_empty() {
-            tracing::warn!(
+            // An id the domain does not know was reported above; here the ids were all taken.
+            tracing::info!(
                 feature = %raw_feature.slug,
-                "feature dropped: it groups no entry point of its domain"
+                "feature dropped: it groups no entry point still free in its domain"
             );
             continue;
         }

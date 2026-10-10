@@ -69,7 +69,7 @@ default stays `files` (the old path) until deliverable 6.
 4. [x] Coverage of the entry points by construction (step 4): unplaced ones go through a small call, then an
    uncategorized bucket; unknown names dropped, first assignment wins; the files reached by no behaviour are
    listed as technical support in the debt report and in `_retrodoc/coverage-report.md`.
-5. [ ] Incremental re-run (step 8): domains and features fingerprints rest on the entry points and entities of
+5. [x] Incremental re-run (step 8): domains and features fingerprints rest on the entry points and entities of
    the unit; an unchanged run makes no call.
 6. [ ] Compare and decide (step 9): quality benchmark and calls/time per pass, `files` against `surface`, on
    linkding and `delivery_router`; decision on the default; ADR 0020, `PLAN.md`, `CLAUDE.md`; follow-up issues
@@ -90,6 +90,14 @@ default stays `files` (the old path) until deliverable 6.
   stay in `behaviour-coverage.yaml` (`unplaced_entry_points`) and the report; they get no use case. The files
   reached by no behaviour (`technical_support`) are computed by `generate` after the features. Both are
   written only by a `surface` run.
+* Smoke test of the `surface` path (2026-10-10, local `qwen3.6:35b-a3b`, `just smoke <repo> --domains-from
+  surface`, a 9-file library): `generate` reaches the render step (8 features, 23 use cases, 28 calls, 12
+  minutes), every entry point is in a feature, no file is technical support, and the second `generate` writes
+  nothing and makes no LLM call. The first runs found three faults, fixed: the model cites `<file>#<name>`
+  ids wrongly (the prompts now show short tags `E1`.., the old ids and a unique bare name still resolve), a
+  domain answered with no usable feature was never remembered (asked once more), and a re-derived domain
+  left entry points in two features (the owning domain keeps them). One repository, one run each: it says
+  the path works, not how stable it is.
 * No paid run without asking.
 * Follow-up to queue at deliverable 6: the time of a run is in the use cases and confidence passes (73 + 17 of
   118 minutes locally), not in the repo map; an issue on the cost per use case (batching, fewer or shorter

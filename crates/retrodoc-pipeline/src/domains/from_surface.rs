@@ -203,7 +203,8 @@ fn place(raw: RawSurfaceDomains, surface: &Surface) -> DomainMap {
         .filter(|e| free_entities.contains(&normalize(&e.name)))
         .collect();
     if !left_resources.is_empty() || !left_entities.is_empty() {
-        tracing::warn!(
+        // Not a loss: the features pass places the entry points of these resources.
+        tracing::info!(
             resources = left_resources.len(),
             entities = left_entities.len(),
             "the domains left resources or entities out, bucketed into \"{UNCATEGORIZED_SLUG}\""

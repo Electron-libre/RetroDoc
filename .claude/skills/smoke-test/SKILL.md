@@ -20,6 +20,7 @@ Logs and the clone stay in `/tmp`.
 ```sh
 just smoke <path-to-target-repo>              # defaults below
 just smoke <repo> --model <m> --base-url <u>  # another model or server
+just smoke <repo> --domains-from surface      # the new path of ADR 0020 (default: the config as init wrote it)
 ```
 
 It takes minutes to hours, so launch it with `run_in_background` and read the logs
