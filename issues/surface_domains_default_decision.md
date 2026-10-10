@@ -17,6 +17,12 @@ until that gap is understood and a second large repository agrees.
 * The path depends on the entry points found: on `delivery_router` the share of files reached swings between
   44% and 100% from run to run on the old path too.
 
+* Reading of the three weak `delivery_router` deepseek runs (2026-10-10): the entry points pass finds 13 to 21
+  entry points depending on the run, including constructors (`Customer.new`, `Order.new`) and the methods of
+  internal collections, not only the public API of the library (the router's `add_order`, `clear_orders`,
+  `delivery_time`, `route`). The features then follow the classes ("Customer creation", "Rider management")
+  instead of the capabilities of the reference. The gap comes from the entry points pass, not from the grouping.
+
 # Approach
 
 1. Find why the library does worse: read the entry points, domains and features of the three weak runs
@@ -36,3 +42,10 @@ until that gap is understood and a second large repository agrees.
 * "Previous" in the benchmark table is the last benchmark of the repository whatever its model or path:
   compare like with like by hand.
 * The local linkding run takes 1 to 2 hours; paid runs need an explicit go.
+
+# Decisions
+
+* Parked (user, 2026-10-10): this is an optimization. The default stays `files`; `surface` stays opt-in.
+* Not done: fixing the entry points of a library (no dedicated issue either), a second public application,
+  paid runs (the extra benchmark of linkding with confidence and the `shown` series costs about $5-6),
+  local runs of linkding.
