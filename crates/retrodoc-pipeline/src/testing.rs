@@ -19,6 +19,10 @@ pub(crate) struct FakeLlm {
     prompts: Mutex<Vec<(String, String)>>,
     schemas: Mutex<Vec<Option<serde_json::Value>>>,
     model: String,
+    /// How long a call takes (none: it answers at once), to make calls overlap.
+    delay: Option<std::time::Duration>,
+    in_flight: AtomicUsize,
+    most_in_flight: AtomicUsize,
 }
 
 impl FakeLlm {
@@ -44,7 +48,21 @@ impl FakeLlm {
             prompts: Mutex::new(Vec::new()),
             schemas: Mutex::new(Vec::new()),
             model: "test-model".to_string(),
+            delay: None,
+            in_flight: AtomicUsize::new(0),
+            most_in_flight: AtomicUsize::new(0),
         }
+    }
+
+    /// Makes each call wait, so that calls asked together are in flight together.
+    pub fn with_delay(mut self, delay: std::time::Duration) -> Self {
+        self.delay = Some(delay);
+        self
+    }
+
+    /// The most calls that were in flight at once.
+    pub fn most_in_flight(&self) -> usize {
+        self.most_in_flight.load(Ordering::SeqCst)
     }
 
     /// The model it says it uses.
@@ -98,6 +116,12 @@ impl FakeLlm {
 impl LlmProvider for FakeLlm {
     async fn complete(&self, request: CompletionRequest) -> Result<CompletionResponse, LlmError> {
         let n = self.calls.fetch_add(1, Ordering::SeqCst);
+        let now = self.in_flight.fetch_add(1, Ordering::SeqCst) + 1;
+        self.most_in_flight.fetch_max(now, Ordering::SeqCst);
+        if let Some(delay) = self.delay {
+            tokio::time::sleep(delay).await;
+        }
+        self.in_flight.fetch_sub(1, Ordering::SeqCst);
         let prompt = |i: usize| {
             request
                 .messages

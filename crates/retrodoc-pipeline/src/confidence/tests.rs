@@ -2,6 +2,7 @@ use super::*;
 
 use crate::testing::FakeLlm;
 use retrodoc_core::model::{Actor, ActorKind, SourceRef, Step};
+use std::path::Path;
 
 fn step(order: u32, path: Option<&str>) -> Step {
     Step {
@@ -68,9 +69,16 @@ async fn scores_steps_caps_ungrounded_ones_and_aggregates_to_the_feature() {
         vec![step(1, Some("a.rs")), step(2, None), step(3, Some("a.rs"))],
     )];
 
-    score_confidence(dir.path(), &mut features, &mut use_cases, &provider, None)
-        .await
-        .unwrap();
+    score_confidence(
+        dir.path(),
+        &mut features,
+        &mut use_cases,
+        &provider,
+        None,
+        1,
+    )
+    .await
+    .unwrap();
 
     // (1.0 + 0.25 + 0.0) / 3
     let uc = use_cases[0].confidence.as_ref().unwrap();
@@ -104,6 +112,7 @@ async fn no_readable_code_scores_zero_and_bad_answer_stays_unscored() {
         &mut use_cases,
         &FakeLlm::answering("nope"),
         None,
+        1,
     )
     .await
     .unwrap();
@@ -132,6 +141,7 @@ async fn a_sample_scores_only_that_many_use_cases() {
         &mut use_cases,
         &provider,
         Some(2),
+        1,
     )
     .await
     .unwrap();
@@ -172,9 +182,16 @@ async fn use_cases_of_a_feature_share_a_request_and_missing_ones_fall_back() {
         })
         .collect();
 
-    score_confidence(dir.path(), &mut features, &mut use_cases, &provider, None)
-        .await
-        .unwrap();
+    score_confidence(
+        dir.path(),
+        &mut features,
+        &mut use_cases,
+        &provider,
+        None,
+        1,
+    )
+    .await
+    .unwrap();
 
     let value = |i: usize| use_cases[i].confidence.as_ref().unwrap().value;
     assert_eq!((value(0), value(1), value(2)), (1.0, 0.5, 0.0));
@@ -205,7 +222,7 @@ async fn a_long_cited_file_is_shown_around_the_cited_lines() {
     let mut use_cases = vec![use_case("f", vec![cited])];
     let spy = FakeLlm::answering(r#"{"steps":[{"order":1,"verdict":"supported"}]}"#);
 
-    score_confidence(dir.path(), &mut features, &mut use_cases, &spy, None)
+    score_confidence(dir.path(), &mut features, &mut use_cases, &spy, None, 1)
         .await
         .unwrap();
 
@@ -225,11 +242,100 @@ async fn another_model_scores_the_scored_use_cases_again() {
     let mut calls = Vec::new();
     for model in ["local", "local", "strong"] {
         let provider = FakeLlm::answering(answer).with_model(model);
-        score_confidence(dir.path(), &mut features, &mut use_cases, &provider, None)
-            .await
-            .unwrap();
+        score_confidence(
+            dir.path(),
+            &mut features,
+            &mut use_cases,
+            &provider,
+            None,
+            1,
+        )
+        .await
+        .unwrap();
         calls.push(provider.calls());
     }
     assert_eq!(calls, [1, 0, 1]);
     assert!(use_cases[0].confidence.is_some());
+}
+
+/// A verdict per call: every step supported, except for the feature named `weak` (partial).
+fn verdicts_by_feature(weak: &'static str) -> FakeLlm {
+    FakeLlm::replying(move |_, request| {
+        let verdict = if request.messages[1].content.contains(weak) {
+            "partial"
+        } else {
+            "supported"
+        };
+        Ok(format!(
+            r#"{{"steps":[{{"order":1,"verdict":"{verdict}"}}]}}"#
+        ))
+    })
+    .with_delay(std::time::Duration::from_millis(30))
+}
+
+fn four_features(dir: &Path) -> (Vec<Feature>, Vec<UseCase>) {
+    std::fs::write(dir.join("a.rs"), "fn a() {}\n").unwrap();
+    let names = ["one", "two", "three", "four"];
+    let features = names.iter().map(|n| feature(n)).collect();
+    let use_cases = names
+        .iter()
+        .map(|n| {
+            let mut u = use_case(n, vec![step(1, Some("a.rs"))]);
+            u.name = format!("Use case of {n}");
+            u
+        })
+        .collect();
+    (features, use_cases)
+}
+
+#[tokio::test]
+async fn use_cases_scored_in_parallel_get_the_scores_of_a_sequential_run() {
+    let mut runs = Vec::new();
+    for concurrency in [1, 3] {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut features, mut use_cases) = four_features(dir.path());
+        let provider = verdicts_by_feature("three");
+
+        score_confidence(
+            dir.path(),
+            &mut features,
+            &mut use_cases,
+            &provider,
+            None,
+            concurrency,
+        )
+        .await
+        .unwrap();
+
+        let scores: Vec<f32> = use_cases
+            .iter()
+            .map(|u| u.confidence.as_ref().unwrap().value)
+            .collect();
+        runs.push((scores, provider.most_in_flight()));
+    }
+
+    assert_eq!(runs[0].0, [1.0, 1.0, 0.5, 1.0]);
+    assert_eq!(runs[0].0, runs[1].0);
+    assert_eq!(runs[0].1, 1);
+    assert!((2..=3).contains(&runs[1].1), "in flight: {}", runs[1].1);
+}
+
+#[tokio::test]
+async fn a_failure_among_parallel_scores_leaves_the_earlier_use_cases_scored() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut features, mut use_cases) = four_features(dir.path());
+    let flaky = FakeLlm::replying(|n, _| {
+        if n == 2 {
+            Err(retrodoc_llm::LlmError::Transport("down".to_string()))
+        } else {
+            Ok(r#"{"steps":[{"order":1,"verdict":"supported"}]}"#.to_string())
+        }
+    })
+    .with_delay(std::time::Duration::from_millis(30));
+
+    let result = score_confidence(dir.path(), &mut features, &mut use_cases, &flaky, None, 3).await;
+
+    assert!(result.is_err());
+    let scored: Vec<bool> = use_cases.iter().map(|u| u.confidence.is_some()).collect();
+    assert_eq!(scored, [true, true, false, false]);
 }

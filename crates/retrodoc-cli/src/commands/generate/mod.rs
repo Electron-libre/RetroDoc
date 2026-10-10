@@ -159,7 +159,14 @@ pub async fn run(
     tracker
         .in_pass(
             "confidence",
-            run_confidence(repo_root, &mut features, &mut use_cases, &llm, confidence),
+            run_confidence(
+                repo_root,
+                &mut features,
+                &mut use_cases,
+                &llm,
+                confidence,
+                config.llm.for_pass("confidence").concurrency.unwrap_or(1),
+            ),
         )
         .await?;
 
@@ -518,6 +525,7 @@ async fn run_confidence(
     use_cases: &mut [UseCase],
     llm: &PassProviders,
     confidence: Confidence,
+    concurrency: usize,
 ) -> anyhow::Result<()> {
     match confidence {
         Confidence::Sample(sample) => {
@@ -528,6 +536,7 @@ async fn run_confidence(
                 use_cases,
                 llm.get("confidence")?.as_ref(),
                 sample,
+                concurrency,
             )
             .await
             .context("failed to score the confidence")

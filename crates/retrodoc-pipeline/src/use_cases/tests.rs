@@ -826,61 +826,26 @@ async fn another_model_derives_the_unchanged_features_again() {
     assert_eq!(run("strong").await, 1);
 }
 
-/// A provider that answers one use case named after the feature of the prompt, after a short wait,
-/// and remembers how many calls were in flight at once. It fails on the feature named `fail_on`.
-struct Probe {
-    in_flight: std::sync::atomic::AtomicUsize,
-    most: std::sync::atomic::AtomicUsize,
-    fail_on: Option<&'static str>,
-}
-
-impl Probe {
-    fn new(fail_on: Option<&'static str>) -> Self {
-        Self {
-            in_flight: std::sync::atomic::AtomicUsize::new(0),
-            most: std::sync::atomic::AtomicUsize::new(0),
-            fail_on,
-        }
-    }
-
-    fn most_in_flight(&self) -> usize {
-        self.most.load(std::sync::atomic::Ordering::SeqCst)
-    }
-}
-
-#[async_trait::async_trait]
-impl retrodoc_llm::LlmProvider for Probe {
-    async fn complete(
-        &self,
-        request: retrodoc_llm::CompletionRequest,
-    ) -> Result<retrodoc_llm::CompletionResponse, retrodoc_llm::LlmError> {
-        use std::sync::atomic::Ordering::SeqCst;
-        let prompt = &request.messages[1].content;
-        let feature = prompt
+/// A provider that answers one use case named after the feature of the prompt, after a short wait
+/// (so that parallel calls overlap), and fails on the feature named `fail_on`.
+fn probe(fail_on: Option<&'static str>) -> FakeLlm {
+    FakeLlm::replying(move |_, request| {
+        let feature = request.messages[1]
+            .content
             .split("Feature: ")
             .nth(1)
             .and_then(|rest| rest.split(' ').next())
             .unwrap_or("?")
             .to_string();
-        let now = self.in_flight.fetch_add(1, SeqCst) + 1;
-        self.most.fetch_max(now, SeqCst);
-        tokio::time::sleep(std::time::Duration::from_millis(30)).await;
-        self.in_flight.fetch_sub(1, SeqCst);
-        if self.fail_on == Some(feature.as_str()) {
+        if fail_on == Some(feature.as_str()) {
             return Err(retrodoc_llm::LlmError::Transport("down".to_string()));
         }
-        Ok(retrodoc_llm::CompletionResponse {
-            content: format!(
-                r#"{{"use_cases":[{{"slug":"uc","name":"Use case of {feature}","description":"d","steps":[
-                {{"description":"s","actor":{{"name":"A","kind":"human"}},"action":"x","source_refs":[]}}]}}]}}"#
-            ),
-            ..Default::default()
-        })
-    }
-
-    fn model(&self) -> &'static str {
-        "probe"
-    }
+        Ok(format!(
+            r#"{{"use_cases":[{{"slug":"uc","name":"Use case of {feature}","description":"d","steps":[
+            {{"description":"s","actor":{{"name":"A","kind":"human"}},"action":"x","source_refs":[]}}]}}]}}"#
+        ))
+    })
+    .with_delay(std::time::Duration::from_millis(30))
 }
 
 fn features_with_files(dir: &Path, names: &[&str]) -> Vec<Feature> {
@@ -908,7 +873,7 @@ async fn use_cases_asked_in_parallel_come_out_in_the_order_of_the_features() {
             concurrency,
             ..UseCaseContext::default()
         };
-        let probe = Probe::new(None);
+        let probe = probe(None);
         let use_cases = build_use_cases(dir.path(), &features, &context, &probe)
             .await
             .unwrap();
@@ -946,7 +911,7 @@ async fn a_failure_among_parallel_calls_keeps_the_features_before_it() {
         ..UseCaseContext::default()
     };
 
-    let flaky = Probe::new(Some("three"));
+    let flaky = probe(Some("three"));
     assert!(build_use_cases(dir.path(), &features, &context, &flaky)
         .await
         .is_err());
@@ -960,7 +925,7 @@ async fn a_failure_among_parallel_calls_keeps_the_features_before_it() {
     );
 
     // The rerun only asks for the two features that were not kept.
-    let healthy = FakeLlm::replying(|n, _| Ok(use_case_reply(n + 10))).with_model("probe");
+    let healthy = FakeLlm::replying(|n, _| Ok(use_case_reply(n + 10))).with_model("test-model");
     let use_cases = build_use_cases(dir.path(), &features, &context, &healthy)
         .await
         .unwrap();

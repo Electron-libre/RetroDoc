@@ -19,6 +19,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::path::Path;
 
+use futures_util::stream::{self, StreamExt};
 use retrodoc_core::model::{ConfidenceScore, Feature, UseCase};
 use retrodoc_llm::LlmProvider;
 use serde::Deserialize;
@@ -94,7 +95,8 @@ fn verdict_value(verdict: &str) -> f32 {
 /// Scores every use case not scored yet (reused use cases keep their score
 /// from the last run) — or only `sample` of them, evenly spread over the
 /// pending ones, the others staying unscored (`None`) — then every feature, and persists both artifacts
-/// (`use-cases.yaml`, `features.yaml`) with their `confidence` filled in.
+/// (`use-cases.yaml`, `features.yaml`) with their `confidence` filled in. `concurrency` groups of use
+/// cases are checked at a time; the scores are the same as one at a time.
 ///
 /// # Errors
 ///
@@ -105,6 +107,7 @@ pub async fn score_confidence(
     use_cases: &mut [UseCase],
     llm: &dyn LlmProvider,
     sample: Option<usize>,
+    concurrency: usize,
 ) -> Result<(), PipelineError> {
     let splitter = load_splitter(repo_root);
     // Scores given by another model are not kept: it scores them again.
@@ -142,20 +145,33 @@ pub async fn score_confidence(
     }
 
     let mut progress = Progress::new("confidence", chosen.len());
-    for group in groups {
+    // The groups are checked `concurrency` at a time and their scores written in order.
+    let splitter = &splitter;
+    let jobs: Vec<Vec<UseCase>> = groups
+        .iter()
+        .map(|group| group.iter().map(|&i| use_cases[i].clone()).collect())
+        .collect();
+    let mut results = stream::iter(jobs)
+        .map(|owned| async move {
+            let members: Vec<&UseCase> = owned.iter().collect();
+            score_group(repo_root, splitter, &members, llm).await
+        })
+        .buffered(concurrency.max(1));
+    let mut done = groups.iter();
+    while let Some(scores) = results.next().await {
+        let Some(group) = done.next() else { break };
         let label = use_cases[group[0]].name.clone();
         progress.start(&if group.len() > 1 {
             format!("{label} and {} more", group.len() - 1)
         } else {
             label
         });
-        let members: Vec<&UseCase> = group.iter().map(|&i| &use_cases[i]).collect();
-        let scores = score_group(repo_root, &splitter, &members, llm).await?;
-        for (&i, score) in group.iter().zip(scores) {
+        for (&i, score) in group.iter().zip(scores?) {
             use_cases[i].confidence = score;
         }
         progress.finish_many(group.len());
     }
+    drop(results);
     for feature in features.iter_mut() {
         feature.confidence = feature_confidence(feature, use_cases);
     }

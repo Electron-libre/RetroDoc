@@ -4,7 +4,6 @@ Open issues in the order to work on them: the first is the next one. Read by `ju
 `just close-issue` removes a line, `skill:create-issue` inserts one at its rank, `skill:prioritize-issues`
 re-ranks the whole list. Line format: `- [<file stem>](<file stem>.md) - <why here>`.
 
-- [use_cases_cost_per_call](use_cases_cost_per_call.md) - the time of a run is in the use cases pass (73 of 118 minutes locally), which the pivot does not change
 - [deterministic_confidence_checks](deterministic_confidence_checks.md) - second largest cost after the use cases; step 7 of ADR 0020
 - [tree_sitter_structure](tree_sitter_structure.md) - structure map for the optional repo map of the behaviour issue; fewer chunking warnings
 - [single_read_per_business_file](single_read_per_business_file.md) - step 6 of ADR 0020; before business_rules, which adds rules to the same reading
