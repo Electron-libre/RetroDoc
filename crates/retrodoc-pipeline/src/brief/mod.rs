@@ -26,7 +26,7 @@ use crate::artifact::{load_yaml, save_yaml, Artifact};
 use crate::cache::hash_content;
 use crate::error::PipelineError;
 use crate::response::complete_json;
-pub use evidence::Evidence;
+pub use evidence::{Evidence, Extract, ExtractKind};
 use sample::{Sample, SAMPLE_BUDGET};
 
 /// Entries kept per list of the brief.

@@ -414,7 +414,7 @@ fn feature_fingerprint(
 
 /// What the evidence closest to a feature is searched with: its text, its
 /// entry points and its files (without their extension).
-fn feature_query(feature: &Feature, input: &FeatureInput) -> String {
+pub(crate) fn feature_query(feature: &Feature, input: &FeatureInput) -> String {
     let mut query = format!("{} {}", feature.name, feature.description);
     for (_, entry) in &input.entries {
         let _ = write!(query, " {} {}", entry.name, entry.description);
@@ -429,14 +429,14 @@ fn feature_query(feature: &Feature, input: &FeatureInput) -> String {
 /// files shown to the LLM. A feature with entry points shows the files that
 /// define them and the code they run (a [`CodeIndex::slice`]); without any,
 /// all the feature's files, as before.
-struct FeatureInput {
+pub(crate) struct FeatureInput {
     /// The feature's entry points (those it lists, else those defined in its files), with their file.
-    entries: Vec<(PathBuf, EntryPoint)>,
-    files: Vec<String>,
+    pub(crate) entries: Vec<(PathBuf, EntryPoint)>,
+    pub(crate) files: Vec<String>,
 }
 
 impl FeatureInput {
-    fn new(
+    pub(crate) fn new(
         repo_root: &Path,
         feature: &Feature,
         entry_points: &EntryPoints,

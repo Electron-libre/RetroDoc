@@ -29,10 +29,50 @@ const POOLS: &[(&str, &[SignalKind], usize)] = &[
 #[derive(Debug, Clone)]
 struct Pool {
     title: &'static str,
+    kinds: &'static [SignalKind],
     budget: usize,
+    /// Origin of each signal, in the order of the index.
+    origins: Vec<String>,
     /// Text of each signal, in the order of the index.
     extracts: Vec<String>,
     index: Bm25,
+}
+
+impl Pool {
+    /// The signals closest to `query`, best first, those that fit in the budget: their position
+    /// and their text cut at [`MAX_PER_EXTRACT`].
+    fn closest(&self, query: &str) -> Vec<(usize, String)> {
+        let mut left = self.budget;
+        let mut hits = Vec::new();
+        for (doc, _) in self.index.search_any(query) {
+            let text = cut_at_word(&self.extracts[doc], MAX_PER_EXTRACT);
+            // The cost of the line `- <text>\n` of the prompt section.
+            let cost = text.chars().count() + 3;
+            if cost > left {
+                continue;
+            }
+            left -= cost;
+            hits.push((doc, text));
+        }
+        hits
+    }
+}
+
+/// Where an [`Extract`] comes from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExtractKind {
+    /// A section of an existing document; the origin is `path#Heading`.
+    Doc,
+    /// The test descriptions of a file (or the scenarios of a Gherkin file); the origin is its path.
+    Test,
+}
+
+/// One piece of evidence with its origin, for a prompt that must tell where each comes from.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Extract {
+    pub kind: ExtractKind,
+    pub origin: String,
+    pub text: String,
 }
 
 /// The searchable signals. Empty (the default) retrieves nothing.
@@ -59,9 +99,12 @@ impl Evidence {
                     .map(|s| format!("{} {}", s.origin, s.text))
                     .collect();
                 let extracts = found.iter().map(|s| s.text.clone()).collect();
+                let origins = found.iter().map(|s| s.origin.clone()).collect();
                 Some(Pool {
                     title,
+                    kinds,
                     budget: *budget,
+                    origins,
                     index: Bm25::new(&texts),
                     extracts,
                 })
@@ -76,17 +119,9 @@ impl Evidence {
     pub fn section(&self, query: &str) -> String {
         let mut body = String::new();
         for pool in &self.pools {
-            let mut left = pool.budget;
             let mut lines = String::new();
-            for (doc, _) in pool.index.search_any(query) {
-                let text = &pool.extracts[doc];
-                let line = format!("- {}\n", cut_at_word(text, MAX_PER_EXTRACT));
-                let cost = line.chars().count();
-                if cost > left {
-                    continue;
-                }
-                left -= cost;
-                lines.push_str(&line);
+            for (_, text) in pool.closest(query) {
+                let _ = writeln!(lines, "- {text}");
             }
             if !lines.is_empty() {
                 let _ = write!(body, "== {} ==\n{lines}", pool.title);
@@ -100,6 +135,33 @@ impl Evidence {
              they are not source files, never cite them, and they may be partly unrelated: never \
              describe what the code does not show):\n{body}\n"
         )
+    }
+}
+
+impl Evidence {
+    /// The documentation sections and test descriptions closest to `query`, with their origin,
+    /// best first within each kind and within the same budgets as [`Self::section`]. Commit
+    /// subjects have no file to cite and are left out.
+    #[must_use]
+    pub fn extracts(&self, query: &str) -> Vec<Extract> {
+        let mut found = Vec::new();
+        for pool in &self.pools {
+            let kind = if pool.kinds.contains(&SignalKind::DocSection) {
+                ExtractKind::Doc
+            } else if pool.kinds.contains(&SignalKind::TestDescriptions) {
+                ExtractKind::Test
+            } else {
+                continue;
+            };
+            for (doc, text) in pool.closest(query) {
+                found.push(Extract {
+                    kind,
+                    origin: pool.origins[doc].clone(),
+                    text,
+                });
+            }
+        }
+        found
     }
 }
 
@@ -197,6 +259,22 @@ mod tests {
         ])
         .section("refund");
         assert!(section.contains("- refund policy"), "{section}");
+    }
+
+    #[test]
+    fn extracts_keep_their_origin_and_leave_commits_out() {
+        let found = evidence().extracts("Refund of an order: refund_controller.rb");
+        let origins: Vec<(ExtractKind, &str)> =
+            found.iter().map(|e| (e.kind, e.origin.as_str())).collect();
+        assert_eq!(
+            origins,
+            [
+                (ExtractKind::Doc, "README.md#Refunds"),
+                (ExtractKind::Test, "spec/refund_spec.rb"),
+            ]
+        );
+        assert_eq!(found[1].text, "refunds a paid order");
+        assert_eq!(Evidence::default().extracts("refund"), []);
     }
 
     #[test]
