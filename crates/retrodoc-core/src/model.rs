@@ -141,3 +141,123 @@ pub struct SourceRef {
     pub start_line: Option<u32>,
     pub end_line: Option<u32>,
 }
+
+/// What a business rule constrains (ADR 0021).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RuleKind {
+    /// A value or an input that is accepted or refused.
+    Validation,
+    /// Who may or may not do something.
+    Permission,
+    /// The states an object can move through, and when.
+    StateTransition,
+    /// A bound: a maximum, a minimum, a quota, a deadline.
+    Limit,
+    /// How an amount, a choice or a date is worked out.
+    Computation,
+}
+
+/// What backs a rule: code, a test description or a doc section.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum RuleEvidence {
+    Code {
+        #[serde(flatten)]
+        source: SourceRef,
+    },
+    /// A test description that states the behaviour, with the file it comes from.
+    Test { phrase: String, path: String },
+    /// A section of an existing doc, with its file and heading.
+    Doc { path: String, heading: String },
+}
+
+/// A rule of the business — what is allowed, refused, limited, and in which
+/// states — stated in business language with its evidence (ADR 0021).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BusinessRule {
+    /// Stable id (`<feature-slug>-<n>`), reused by renderers and the MCP server.
+    pub slug: Slug,
+    /// The rule in the application's own vocabulary.
+    pub statement: String,
+    pub kind: RuleKind,
+    /// Glossary entities the rule applies to.
+    #[serde(default)]
+    pub entities: Vec<String>,
+    /// Slugs of the use cases the rule applies to.
+    #[serde(default)]
+    pub use_cases: Vec<Slug>,
+    #[serde(default)]
+    pub evidence: Vec<RuleEvidence>,
+    /// `None` until the rules pass has scored it.
+    #[serde(default)]
+    pub confidence: Option<ConfidenceScore>,
+}
+
+impl BusinessRule {
+    /// Whether a test phrase or a doc section backs the rule next to the code.
+    #[must_use]
+    pub fn has_corroboration(&self) -> bool {
+        self.evidence
+            .iter()
+            .any(|e| matches!(e, RuleEvidence::Test { .. } | RuleEvidence::Doc { .. }))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn rule() -> BusinessRule {
+        BusinessRule {
+            slug: "orders-1".into(),
+            statement: "An order whose delivery would take an hour or more is refused.".into(),
+            kind: RuleKind::Limit,
+            entities: vec!["Order".into()],
+            use_cases: vec!["place-an-order".into()],
+            evidence: vec![RuleEvidence::Code {
+                source: SourceRef {
+                    path: "lib/router.rb".into(),
+                    start_line: Some(12),
+                    end_line: Some(18),
+                },
+            }],
+            confidence: Some(ConfidenceScore::new(0.6, None)),
+        }
+    }
+
+    #[test]
+    fn rule_round_trips_through_json() {
+        let mut r = rule();
+        r.evidence.push(RuleEvidence::Test {
+            phrase: "refuses an order that takes 60 minutes".into(),
+            path: "spec/router_spec.rb".into(),
+        });
+        r.evidence.push(RuleEvidence::Doc {
+            path: "README.md".into(),
+            heading: "Limits".into(),
+        });
+        let json = serde_json::to_string(&r).unwrap();
+        assert_eq!(serde_json::from_str::<BusinessRule>(&json).unwrap(), r);
+    }
+
+    #[test]
+    fn rule_reads_with_only_the_required_fields() {
+        let r: BusinessRule =
+            serde_json::from_str(r#"{"slug":"a-1","statement":"s","kind":"state_transition"}"#)
+                .unwrap();
+        assert_eq!(r.kind, RuleKind::StateTransition);
+        assert!(r.evidence.is_empty() && r.confidence.is_none());
+    }
+
+    #[test]
+    fn only_tests_and_docs_corroborate() {
+        let mut r = rule();
+        assert!(!r.has_corroboration());
+        r.evidence.push(RuleEvidence::Doc {
+            path: "README.md".into(),
+            heading: "Limits".into(),
+        });
+        assert!(r.has_corroboration());
+    }
+}

@@ -79,7 +79,7 @@ retrodoc-cli ──> retrodoc-render ──> retrodoc-core
 retrodoc-cli ──> retrodoc-mcp ──> retrodoc-pipeline, retrodoc-ingest, retrodoc-core
 ```
 
-- **retrodoc-core**: shared domain model (`Domain`/`Feature`/`UseCase`/`Step`/`ConfidenceScore` in
+- **retrodoc-core**: shared domain model (`Domain`/`Feature`/`UseCase`/`Step`/`ConfidenceScore`/`BusinessRule` (ADR 0021, not produced by any pass yet) in
   `model.rs` — populated starting the "domains" phase, still empty in v1 so far) and `retrodoc.toml`
   config (`config.rs`).
 - **retrodoc-ingest**: reads the target repo — file walker respecting `.gitignore` (`walker.rs`; classifies files as `Source`/`Test`/`Markdown`/`Other` —
