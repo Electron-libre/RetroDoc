@@ -3,10 +3,10 @@ use super::*;
 /// Per-file truncation and overall budget of code sent for one feature
 /// (PLAN.md §6 "cost/volume"); files beyond the budget are left out of the
 /// prompt, and so can't be cited.
-pub(super) const MAX_CHARS_PER_FILE: usize = 4_000;
+pub(crate) const MAX_CHARS_PER_FILE: usize = 4_000;
 
 /// Characters of code in one request; the cited files share it.
-pub(super) const MAX_CHARS_PER_PROMPT: usize = 30_000;
+pub(crate) const MAX_CHARS_PER_PROMPT: usize = 30_000;
 
 /// Added to the system prompt when the feature has known entry points.
 pub(super) const ENTRY_POINTS_ADDENDUM: &str =
@@ -157,7 +157,7 @@ pub(super) fn use_cases_prompt(
 /// What a long file's excerpt should favour for `feature`: the identifiers
 /// its entry points are named after (`send_contract` in `POST
 /// /contracts/:id/send_contract`), then the words of its own text.
-pub(super) fn focus_for(feature: &Feature, entries: &[(PathBuf, EntryPoint)]) -> Focus {
+pub(crate) fn focus_for(feature: &Feature, entries: &[(PathBuf, EntryPoint)]) -> Focus {
     /// Too common to point at any code.
     const NOISE: &[&str] = &["post", "patch", "delete", "head", "implied", "callback"];
     let tokens = |text: &str, min_len: usize| -> Vec<String> {

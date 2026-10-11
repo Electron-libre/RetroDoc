@@ -32,6 +32,7 @@ pub const PASS_NAMES: &[&str] = &[
     "domains",
     "features",
     "use-cases",
+    "rules",
     "confidence",
     "benchmark judge",
 ];
@@ -70,6 +71,10 @@ pub struct PipelineConfig {
     /// on its own, as before.
     #[serde(default = "default_true")]
     pub business_read: bool,
+    /// `generate` states the business rules of each feature after its use cases (one LLM call per
+    /// feature, ADR 0021). Off by default until validated on real repositories.
+    #[serde(default)]
+    pub rules: bool,
 }
 
 fn default_true() -> bool {
@@ -82,6 +87,7 @@ impl Default for PipelineConfig {
             domains_from: DomainsFrom::default(),
             body_lines: None,
             business_read: true,
+            rules: false,
         }
     }
 }
@@ -419,6 +425,16 @@ mod tests {
         assert_eq!(parsed.llm.model, "openai/gpt-4o");
         assert_eq!(parsed.llm.provider, "openrouter");
         assert_eq!(parsed.output.docs_dir, "docs");
+    }
+
+    #[test]
+    fn the_rules_pass_is_off_unless_asked_and_has_its_own_llm_section() {
+        assert!(!Config::default().pipeline.rules);
+        let on: Config =
+            toml::from_str("[pipeline]\nrules = true\n[llm.passes.rules]\nmodel = \"big\"")
+                .unwrap();
+        assert!(on.pipeline.rules);
+        assert_eq!(on.llm.for_pass("rules").model, "big");
     }
 
     #[test]

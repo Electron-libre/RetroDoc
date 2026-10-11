@@ -41,7 +41,9 @@ mod tests;
 
 use self::grounding::{grounded_use_cases, RawUseCases};
 pub(crate) use self::grounding::{is_human, resolve_cited_path};
-pub(crate) use self::prompt::numbered_excerpt;
+pub(crate) use self::prompt::{
+    focus_for, numbered_excerpt, MAX_CHARS_PER_FILE, MAX_CHARS_PER_PROMPT,
+};
 use self::prompt::{system_prompt, use_cases_prompt, Framing};
 
 /// How far from an entry point's file the code it runs is followed, and how

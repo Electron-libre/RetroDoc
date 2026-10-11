@@ -33,6 +33,9 @@ pub(crate) struct Fingerprints {
     /// of the content of its files.
     #[serde(default)]
     pub use_cases: BTreeMap<String, String>,
+    /// Rules pass: `<domain>/<feature>` → hash of the feature's text, code, evidence and use cases.
+    #[serde(default)]
+    pub rules: BTreeMap<String, String>,
     /// Features pass, surface mode: hash of what the placement of the entry points no feature claimed
     /// was asked with (`None`: nothing was left to place).
     #[serde(default)]

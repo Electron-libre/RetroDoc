@@ -31,6 +31,7 @@ const GENERATE_PASSES: &[&str] = &[
     "domains",
     "features",
     "use-cases",
+    "rules",
     "confidence",
 ];
 
@@ -135,26 +136,26 @@ pub async fn run(
         .await?
     };
 
+    let context = UseCaseContext {
+        entry_points,
+        index: CodeIndex::new(source_paths(&ingest)),
+        actors,
+        vocabulary: surface.vocabulary(VOCABULARY_SIZE),
+        brief,
+        evidence,
+        concurrency: config.llm.for_pass("use-cases").concurrency.unwrap_or(1),
+    };
     let mut use_cases = tracker
         .in_pass(
             "use-cases",
-            derive_use_cases(
-                repo_root,
-                &features,
-                UseCaseContext {
-                    entry_points,
-                    index: CodeIndex::new(source_paths(&ingest)),
-                    actors,
-                    vocabulary: surface.vocabulary(VOCABULARY_SIZE),
-                    brief,
-                    evidence,
-                    concurrency: config.llm.for_pass("use-cases").concurrency.unwrap_or(1),
-                },
-                &surface,
-                &llm,
-            ),
+            derive_use_cases(repo_root, &features, &context, &surface, &llm),
         )
         .await?;
+
+    derive_rules(
+        repo_root, config, &features, &use_cases, context, &llm, tracker,
+    )
+    .await?;
 
     tracker
         .in_pass(
@@ -354,7 +355,7 @@ async fn cluster_domains(
 async fn derive_use_cases(
     repo_root: &Path,
     features: &[Feature],
-    context: UseCaseContext,
+    context: &UseCaseContext,
     surface: &Surface,
     llm: &PassProviders,
 ) -> anyhow::Result<Vec<UseCase>> {
@@ -365,7 +366,7 @@ async fn derive_use_cases(
     let mut use_cases = retrodoc_pipeline::build_use_cases(
         repo_root,
         features,
-        &context,
+        context,
         llm.get("use-cases")?.as_ref(),
     )
     .await
@@ -381,6 +382,48 @@ async fn derive_use_cases(
     retrodoc_pipeline::save_use_cases(repo_root, &use_cases)
         .context("failed to save the use cases")?;
     Ok(use_cases)
+}
+
+/// The business rules of the features, saved; nothing unless `[pipeline] rules` is on.
+async fn derive_rules(
+    repo_root: &Path,
+    config: &Config,
+    features: &[Feature],
+    use_cases: &[UseCase],
+    context: UseCaseContext,
+    llm: &PassProviders,
+    tracker: &UsageTracker,
+) -> anyhow::Result<()> {
+    if !config.pipeline.rules {
+        return Ok(());
+    }
+    let context = UseCaseContext {
+        concurrency: config.llm.for_pass("rules").concurrency.unwrap_or(1),
+        ..context
+    };
+    println!(
+        "Stating the business rules ({} feature(s), one LLM call each)…",
+        features.len()
+    );
+    let rules = tracker
+        .in_pass(
+            "rules",
+            retrodoc_pipeline::build_rules(
+                repo_root,
+                features,
+                use_cases,
+                &context,
+                llm.get("rules")?.as_ref(),
+            ),
+        )
+        .await
+        .context("failed to state the business rules")?;
+    println!(
+        "{} business rule(s) saved to {}.",
+        rules.len(),
+        Artifact::Rules.relative_path()
+    );
+    Ok(())
 }
 
 /// Identifies the file roles, then reads the entities and the entry points
