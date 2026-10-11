@@ -53,7 +53,8 @@ pub async fn run(path: &Path, force: bool, tracker: &UsageTracker) -> anyhow::Re
 
     if rules.chunk_boundaries.is_empty() {
         println!(
-            "\nChunk boundaries: none (long files are cut at blank lines; `--force` to identify them)"
+            "\nChunk boundaries: none (languages parsed with tree-sitter are cut at their definitions, \
+             the others at blank lines; `--force` to identify them)"
         );
     } else {
         println!("\nChunk boundaries (where a unit starts, used to cut long files):");

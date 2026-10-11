@@ -41,7 +41,7 @@ behaviour-based pipeline (`issues/behaviour_coverage_domains.md`) can rank and s
 # Tracking
 
 1. [x] Structure module in `retrodoc-ingest`: per file, definitions (name, kind, line range, signature) and references, for Ruby, Rust, JavaScript, TypeScript and Python behind one cargo feature per language (all on by default); build time and binary size measured before and after.
-2. [ ] Chunking by parse: `Splitter` cuts at definition boundaries for the covered languages; `roles` no longer asks for `chunk_boundaries` for them and `chunk_check` skips them; the regex path stays for the others. Calls and warnings of chunking counted before and after on `delivery_router` and the Rails test repository.
+2. [x] Chunking by parse: `Splitter` cuts at definition boundaries for the covered languages; `roles` no longer asks for `chunk_boundaries` for them and `chunk_check` skips them; the regex path stays for the others. Calls and warnings of chunking counted before and after on `delivery_router` and the Rails test repository.
 3. [ ] Parsed references in `ranking.rs` and `slices.rs`, lexical fallback kept; slices compared with the lexical ones on the Rails test repository. Decide with the user after the figures of step 2.
 4. [ ] Signature-only views for the entry points and glossary prompts; characters saved measured. Decide with the user after step 3.
 5. [ ] Docs (`update-docs`) and an ADR recording the measured results (ADR 0022 is accepted and immutable).
@@ -55,3 +55,4 @@ behaviour-based pipeline (`issues/behaviour_coverage_domains.md`) can rank and s
 * A saved `roles.yaml` with `chunk_boundaries` stays valid; covered languages simply stop using them.
 * Step 1 measured: the grammars and tree-sitter build in about 9 s in release (72 s CPU); the binary size is measured at step 2, once the code is used (the linker drops it before).
 * Known: the `tags.scm` queries give calls as references, not types or constants; the TypeScript query is completed with the JavaScript one and classes/enums.
+* Step 2 measured (`roles --force`, local qwen3.6): on a small Ruby gem, 1 roles call and no chunk boundary to check (before: the Ruby regex checked at 100%); on the Rails test repository, 1 roles call and no check, no warning, no fix call (before: Ruby 98%, JS/TS regex at 0% on the first try, 1 warning and 1 fix call). Release binary 21.29 MB -> 28.72 MB (+7.4 MB, +35%) with the five grammars; the grammars build in about 9 s. Not measured: the quality of the chunks in a full `generate`; the "file too long" warnings (more than 8 chunks) are unchanged.

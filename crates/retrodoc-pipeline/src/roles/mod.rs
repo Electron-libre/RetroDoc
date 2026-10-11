@@ -300,7 +300,11 @@ pub async fn identify_roles(
         }
     }
 
-    let system_prompt = format!("{ROLES_SYSTEM_PROMPT} {REGEX_SYNTAX_HELP}");
+    let system_prompt = format!(
+        "{ROLES_SYSTEM_PROMPT} Do not give `chunk_boundaries` for the extensions {}: those \
+         languages are parsed, not cut with a regex. {REGEX_SYNTAX_HELP}",
+        retrodoc_ingest::structure::supported_extensions().join(", ")
+    );
     let Some(response) =
         complete_json::<RolesResponse>(llm, &system_prompt, &prompt, "file role rules").await?
     else {

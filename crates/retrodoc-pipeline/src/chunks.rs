@@ -7,6 +7,10 @@
 //! then the ones naming what the feature is about or holding the lines a step
 //! cites ([`Focus`]), with absolute line numbers and the omitted ranges marked.
 //!
+//! For the languages tree-sitter reads (`retrodoc_ingest::structure`: Ruby, Rust, JavaScript, TypeScript,
+//! Python) a file is cut before the definitions it really contains, with the comment and decorator lines
+//! right above them (ADR 0022). For the others:
+//!
 //! Where to cut depends on the language, so it is not hard-coded: the role
 //! identification pass (`roles/`) asks the LLM, along with the stack, for
 //! one regex per language matching the line that *starts* a module, class or
@@ -15,6 +19,7 @@
 //! falls back to a blank line, then to any line, when there is none (no rule
 //! for the extension, invalid regex, dense code).
 
+use std::collections::BTreeSet;
 use std::fmt::Write as _;
 use std::path::Path;
 
@@ -78,6 +83,52 @@ pub struct ChunkBoundary {
     pub pattern: String,
 }
 
+/// Where a unit may start, for the chunker.
+pub(crate) enum Boundary<'a> {
+    /// A line matching the regex of the language (proposed by the LLM).
+    Regex(&'a Regex),
+    /// The 1-based lines the parser found definitions on.
+    Starts(BTreeSet<u32>),
+}
+
+impl Boundary<'_> {
+    fn starts_unit(&self, line_number: u32, line: &str) -> bool {
+        match self {
+            Boundary::Regex(regex) => regex.is_match(line),
+            Boundary::Starts(starts) => starts.contains(&line_number),
+        }
+    }
+}
+
+/// The lines where the definitions of `content` start, from a real parse, each moved up over the
+/// comment, attribute and decorator lines right above it. `None` when the language is not parsed or the
+/// file holds no definition.
+fn parsed_starts(path: &Path, content: &str) -> Option<BTreeSet<u32>> {
+    let structure = retrodoc_ingest::structure::parse(path, content)?;
+    if structure.definitions.is_empty() {
+        return None;
+    }
+    let lines: Vec<&str> = content.lines().collect();
+    let attached = |line: &str| {
+        let line = line.trim_start();
+        ["#", "//", "/*", "*", "@"]
+            .iter()
+            .any(|p| line.starts_with(p))
+    };
+    let starts = structure
+        .definitions
+        .iter()
+        .map(|d| {
+            let mut start = d.start_line;
+            while start > 1 && lines.get(start as usize - 2).is_some_and(|l| attached(l)) {
+                start -= 1;
+            }
+            start
+        })
+        .collect();
+    Some(starts)
+}
+
 /// The compiled [`ChunkBoundary`] rules of a repo.
 #[derive(Debug, Default)]
 pub(crate) struct Splitter {
@@ -111,12 +162,17 @@ impl Splitter {
         Splitter { rules }
     }
 
-    fn boundary_for(&self, path: &Path) -> Option<&Regex> {
+    /// The parsed definitions of the file when its language is read by tree-sitter, else the
+    /// regex rule of its extension.
+    fn boundary_for(&self, path: &Path, content: &str) -> Option<Boundary<'_>> {
+        if let Some(starts) = parsed_starts(path, content) {
+            return Some(Boundary::Starts(starts));
+        }
         let extension = path.extension()?.to_string_lossy().to_lowercase();
         self.rules
             .iter()
             .find(|(extensions, _)| extensions.contains(&extension))
-            .map(|(_, regex)| regex)
+            .map(|(_, regex)| Boundary::Regex(regex))
     }
 
     /// The texts sent for one file by `pass`: its chunks of about
@@ -129,7 +185,11 @@ impl Splitter {
         max_chars: usize,
         pass: &str,
     ) -> Vec<String> {
-        let mut chunks = split_chunks(content, max_chars, self.boundary_for(path));
+        let mut chunks = split_chunks(
+            content,
+            max_chars,
+            self.boundary_for(path, content).as_ref(),
+        );
         if chunks.len() > MAX_CHUNKS_PER_FILE {
             tracing::warn!(
                 file = %path.display(),
@@ -210,7 +270,11 @@ impl Splitter {
         let mut pieces: Vec<Piece> = Vec::new();
         let mut next_line = 1_u32;
         let mut continues = false;
-        for chunk in split_chunks(content, EXCERPT_CHUNK_CHARS, self.boundary_for(path)) {
+        for chunk in split_chunks(
+            content,
+            EXCERPT_CHUNK_CHARS,
+            self.boundary_for(path, content).as_ref(),
+        ) {
             let first = next_line;
             let mut text = String::new();
             for (i, line) in chunk.split_inclusive('\n').enumerate() {
@@ -255,12 +319,12 @@ pub(crate) fn strip_part_marker(path: &str) -> &str {
 
 /// Cuts `content` into chunks of about `max_chars`, on line boundaries. When
 /// a chunk is full it is cut, if possible in its second half, before the last
-/// line matching `boundary` (the start of a unit), else after the last blank
+/// line `boundary` says starts a unit, else after the last blank
 /// line. A single line longer than `max_chars` is cut by characters.
 pub(crate) fn split_chunks(
     content: &str,
     max_chars: usize,
-    boundary: Option<&Regex>,
+    boundary: Option<&Boundary>,
 ) -> Vec<String> {
     let mut chunks = Vec::new();
     let mut current = String::new();
@@ -268,7 +332,8 @@ pub(crate) fn split_chunks(
     // Byte offsets in `current` where a cut is allowed.
     let mut unit_cut: Option<usize> = None;
     let mut blank_cut: Option<usize> = None;
-    for line in content.split_inclusive('\n') {
+    for (index, line) in content.split_inclusive('\n').enumerate() {
+        let line_number = u32::try_from(index + 1).unwrap_or(u32::MAX);
         let len = line.chars().count();
         if current_len > 0 && current_len + len > max_chars {
             let half = current.len() / 2;
@@ -297,7 +362,7 @@ pub(crate) fn split_chunks(
             chunks.extend(chars.chunks(max_chars).map(|piece| piece.iter().collect()));
             continue;
         }
-        if !current.is_empty() && boundary.is_some_and(|b| b.is_match(line)) {
+        if !current.is_empty() && boundary.is_some_and(|b| b.starts_unit(line_number, line)) {
             unit_cut = Some(current.len());
         }
         current.push_str(line);
@@ -344,10 +409,56 @@ mod tests {
         // Brace language, no blank line between functions.
         let content = "func a() {\n  work()\n}\n".repeat(10);
         let boundary = Regex::new(r"^func ").unwrap();
-        let chunks = split_chunks(&content, 70, Some(&boundary));
+        let chunks = split_chunks(&content, 70, Some(&Boundary::Regex(&boundary)));
         assert!(chunks.len() > 1);
         assert_eq!(chunks.concat(), content);
         assert!(chunks.iter().all(|c| c.starts_with("func a")));
+    }
+
+    #[test]
+    fn a_parsed_file_is_cut_before_its_definitions_with_the_attributes_above() {
+        // No regex rule at all: the parser finds the functions, and the attribute and
+        // comment above each stay with it.
+        let content = "/// Adds.\n#[inline]\npub fn add(a: u32, b: u32) -> u32 {\n    let sum = a + b;\n    sum\n}\n".repeat(8);
+        let splitter = Splitter::new(&[]);
+        let chunks = splitter.file_chunks(Path::new("src/lib.rs"), &content, 180, "test");
+        assert!(chunks.len() > 1);
+        let body: Vec<String> = chunks
+            .iter()
+            .map(|c| c.split_once('\n').unwrap().1.to_string())
+            .collect();
+        assert_eq!(body.concat(), content);
+        assert!(body
+            .iter()
+            .all(|c| c.starts_with("/// Adds.\n#[inline]\npub fn add")));
+    }
+
+    #[test]
+    fn a_ruby_file_is_cut_between_its_methods() {
+        let content = "class Report\n".to_string()
+            + &"  def run\n    work\n    more_work\n  end\n".repeat(10)
+            + "end\n";
+        let splitter = Splitter::new(&[]);
+        let chunks = splitter.file_chunks(Path::new("app/report.rb"), &content, 120, "test");
+        assert!(chunks.len() > 2);
+        assert!(chunks[1..]
+            .iter()
+            .all(|c| c.split_once('\n').unwrap().1.starts_with("  def run")));
+    }
+
+    #[test]
+    fn a_parsed_file_without_definition_falls_back_to_the_rule_then_blank_lines() {
+        let content = "puts 1\n\nputs 2\n\n".repeat(20);
+        let splitter = Splitter::new(&[]);
+        let chunks = splitter.file_chunks(Path::new("script.rb"), &content, 60, "test");
+        assert!(chunks.len() > 1);
+        let body: Vec<&str> = chunks
+            .iter()
+            .map(|c| c.split_once('\n').unwrap().1)
+            .collect();
+        assert_eq!(body.concat(), content);
+        // Cut after a blank line, as without any parse.
+        assert!(body[..body.len() - 1].iter().all(|c| c.ends_with("\n\n")));
     }
 
     #[test]
@@ -362,9 +473,9 @@ mod tests {
                 pattern: "^func ".to_string(),
             },
         ]);
-        assert!(splitter.boundary_for(Path::new("a/main.go")).is_some());
-        assert!(splitter.boundary_for(Path::new("a/main.rb")).is_none());
-        assert!(splitter.boundary_for(Path::new("Makefile")).is_none());
+        assert!(splitter.boundary_for(Path::new("a/main.go"), "").is_some());
+        assert!(splitter.boundary_for(Path::new("a/main.rb"), "").is_none());
+        assert!(splitter.boundary_for(Path::new("Makefile"), "").is_none());
     }
 
     #[test]

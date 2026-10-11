@@ -158,6 +158,34 @@ pub fn is_supported(path: &Path) -> bool {
     Lang::of(path).is_some()
 }
 
+/// Whether files with this extension (with or without the dot, any case) can be parsed.
+#[must_use]
+pub fn is_supported_extension(extension: &str) -> bool {
+    Lang::of(Path::new(&format!(
+        "x.{}",
+        extension.trim_start_matches('.')
+    )))
+    .is_some()
+}
+
+/// The extensions of the languages this build can parse, without the dot.
+#[must_use]
+pub fn supported_extensions() -> Vec<&'static str> {
+    [
+        #[cfg(feature = "ruby")]
+        &["rb", "rake", "gemspec"][..],
+        #[cfg(feature = "rust")]
+        &["rs"][..],
+        #[cfg(feature = "javascript")]
+        &["js", "jsx", "mjs", "cjs"][..],
+        #[cfg(feature = "typescript")]
+        &["ts", "mts", "cts", "tsx"][..],
+        #[cfg(feature = "python")]
+        &["py"][..],
+    ]
+    .concat()
+}
+
 /// The definitions and references of `source`, read as the language `path`'s extension names. `None` for
 /// a language without a grammar here or a source the parser gives up on; a file with syntax errors still
 /// gives what could be read.
@@ -289,6 +317,15 @@ mod tests {
         has(&found, "Basket", "class", (1, 3));
         has(&found, "add", "function", (2, 3));
         has(&found, "checkout", "function", (5, 6));
+    }
+
+    #[test]
+    fn extensions_are_matched_with_or_without_the_dot_in_any_case() {
+        assert_eq!(is_supported_extension(".RB"), cfg!(feature = "ruby"));
+        assert!(!is_supported_extension("zig"));
+        for ext in supported_extensions() {
+            assert!(is_supported_extension(ext), "{ext}");
+        }
     }
 
     #[test]

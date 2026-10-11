@@ -182,6 +182,13 @@ pub(crate) async fn verify_boundaries(
 ) -> Result<Vec<ChunkBoundary>, PipelineError> {
     let mut verified = Vec::new();
     for mut boundary in proposed {
+        // The parser cuts those languages: no regex to check, no call to fix it.
+        boundary
+            .extensions
+            .retain(|e| !retrodoc_ingest::structure::is_supported_extension(e));
+        if boundary.extensions.is_empty() {
+            continue;
+        }
         let contents = sample_contents(repo_root, files, &boundary.extensions);
         let expected = expected_lines(contents.iter().map(String::as_str));
         let lines = sample_lines(contents.iter().map(String::as_str));
@@ -369,11 +376,12 @@ let x = module.exports;
         assert!(sloppy.problem.unwrap().contains("empty alternative"));
     }
 
+    /// Rust-looking code in a language tree-sitter does not read here, so its regex is checked.
     fn rust_repo() -> (tempfile::TempDir, Vec<FileEntry>) {
         let dir = tempfile::tempdir().unwrap();
-        std::fs::write(dir.path().join("a.rs"), RUST).unwrap();
+        std::fs::write(dir.path().join("a.zig"), RUST).unwrap();
         let files = vec![FileEntry {
-            path: "a.rs".into(),
+            path: "a.zig".into(),
             kind: FileKind::Source,
             size_bytes: 10,
         }];
@@ -382,7 +390,7 @@ let x = module.exports;
 
     fn boundary(pattern: &str) -> ChunkBoundary {
         ChunkBoundary {
-            extensions: vec!["rs".to_string()],
+            extensions: vec!["zig".to_string()],
             pattern: pattern.to_string(),
         }
     }
@@ -435,6 +443,28 @@ let x = module.exports;
         let logs = logs.text();
         assert!(logs.contains("WARN"), "{logs}");
         assert!(logs.contains("chunk boundary dropped"), "{logs}");
+    }
+
+    #[tokio::test]
+    async fn a_language_the_parser_reads_is_not_checked_and_costs_no_call() {
+        let (dir, files) = rust_repo();
+        let llm = FakeLlm::answering(r#"{"pattern":"zzz"}"#);
+        let parsed = ChunkBoundary {
+            extensions: vec![".rb".to_string(), "RS".to_string()],
+            pattern: "nothing".to_string(),
+        };
+        let mixed = ChunkBoundary {
+            extensions: vec!["rb".to_string(), "zig".to_string()],
+            pattern: r"^\s*(#\[|(pub(\(\w+\))?\s+)?(async\s+)?(fn|struct|impl)\s)".to_string(),
+        };
+
+        let out = verify_boundaries(dir.path(), &files, &llm, vec![parsed, mixed])
+            .await
+            .unwrap();
+
+        assert_eq!(llm.calls(), 0);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].extensions, vec!["zig"]);
     }
 
     #[tokio::test]

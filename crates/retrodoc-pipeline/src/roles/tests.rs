@@ -113,9 +113,8 @@ fn tree_is_compact_and_bounded() {
 }
 
 #[tokio::test]
-async fn identifies_once_then_reuses_saved_rules() {
+async fn parsed_languages_get_no_boundary_rule_and_the_prompt_says_so() {
     let dir = tempfile::tempdir().unwrap();
-    std::fs::write(dir.path().join("Cargo.toml"), "[package]").unwrap();
     let ingest = IngestResult {
         files: vec![entry("src/lib.rs", FileKind::Source)],
         history_by_path: std::collections::HashMap::new(),
@@ -123,16 +122,41 @@ async fn identifies_once_then_reuses_saved_rules() {
         commits: Vec::new(),
     };
     let llm = FakeLlm::answering(
+        r#"{"stack":"Rust","rules":[],
+"chunk_boundaries":[{"extensions":["rs"],"pattern":"^\\s*fn "}]}"#,
+    );
+
+    let rules = identify_roles(dir.path(), &ingest, &ProductBrief::default(), &llm, false)
+        .await
+        .unwrap();
+
+    assert_eq!(rules.chunk_boundaries, Vec::<ChunkBoundary>::new());
+    assert_eq!(llm.calls(), 1, "no call to check or fix the rule");
+    let system = &llm.system_prompts()[0];
+    assert!(system.contains("Do not give `chunk_boundaries` for the extensions rb"));
+}
+
+#[tokio::test]
+async fn identifies_once_then_reuses_saved_rules() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("Cargo.toml"), "[package]").unwrap();
+    let ingest = IngestResult {
+        files: vec![entry("src/lib.zig", FileKind::Source)],
+        history_by_path: std::collections::HashMap::new(),
+        existing_docs: Vec::new(),
+        commits: Vec::new(),
+    };
+    let llm = FakeLlm::answering(
         r#"```json
-{"stack":"Rust library","rules":[{"pattern":"src/**","role":"logic"}],
-"chunk_boundaries":[{"extensions":["rs"],"pattern":"^\\s*(pub )?fn "}]}
+{"stack":"Zig library","rules":[{"pattern":"src/**","role":"logic"}],
+"chunk_boundaries":[{"extensions":["zig"],"pattern":"^\\s*(pub )?fn "}]}
 ```"#,
     );
 
     let first = identify_roles(dir.path(), &ingest, &ProductBrief::default(), &llm, false)
         .await
         .unwrap();
-    assert_eq!(first.stack, "Rust library");
+    assert_eq!(first.stack, "Zig library");
     let second = identify_roles(dir.path(), &ingest, &ProductBrief::default(), &llm, false)
         .await
         .unwrap();

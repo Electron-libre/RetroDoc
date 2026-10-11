@@ -101,6 +101,16 @@ impl FakeLlm {
             .collect()
     }
 
+    /// The system prompt of each call received.
+    pub fn system_prompts(&self) -> Vec<String> {
+        self.prompts
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|(system, _)| system.clone())
+            .collect()
+    }
+
     /// The JSON schema each call received asked for, if any.
     pub fn schemas(&self) -> Vec<Option<serde_json::Value>> {
         self.schemas.lock().unwrap().clone()
