@@ -170,7 +170,7 @@ pub struct MergedEntity {
 /// The entities of an answer by file. A batch of a single file needs no
 /// citation; otherwise the cited path must resolve to a file of the batch,
 /// and nameless entities are ignored.
-fn attribute_entities(
+pub(crate) fn attribute_entities(
     response: GlossaryResponse,
     batch: &[PendingChunk],
 ) -> BTreeMap<String, Vec<Entity>> {
@@ -247,13 +247,13 @@ fn merge_group(group: &[(&Path, &Entity)]) -> MergedEntity {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
-struct GlossaryResponse {
+pub(crate) struct GlossaryResponse {
     #[serde(default)]
-    entities: Vec<ResponseEntity>,
+    pub(crate) entities: Vec<ResponseEntity>,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
-struct ResponseEntity {
+pub(crate) struct ResponseEntity {
     #[serde(default)]
     file: String,
     #[serde(flatten)]
@@ -404,7 +404,7 @@ fn test_vocabulary(
 /// Merges the entities seen in several chunks of one file: a class cut in two
 /// is reported twice, its description kept from the first part and its
 /// attributes and associations united.
-fn merge_chunk_entities(entities: Vec<Entity>) -> Vec<Entity> {
+pub(crate) fn merge_chunk_entities(entities: Vec<Entity>) -> Vec<Entity> {
     let mut merged: Vec<Entity> = Vec::new();
     for entity in entities {
         let Some(known) = merged.iter_mut().find(|e| e.name == entity.name) else {

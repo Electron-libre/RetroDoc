@@ -435,6 +435,25 @@ async fn build_surface(
     .await?;
     let business_files = business.files(&ingest.files);
 
+    // One reading of the business files for both passes below, which then read the rest.
+    if config.pipeline.business_read {
+        println!("Reading the business files once for the entities and the entry points…");
+        tracker
+            .in_pass(
+                "business-read",
+                retrodoc_pipeline::read_business_files(
+                    repo_root,
+                    &role_map,
+                    &business_files,
+                    brief,
+                    llm.get("glossary")?.as_ref(),
+                    llm.get("entry-points")?.as_ref(),
+                ),
+            )
+            .await
+            .context("failed to read the business files")?;
+    }
+
     println!("Reading the business entities…");
     let glossary = tracker
         .in_pass(

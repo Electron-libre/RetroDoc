@@ -191,6 +191,15 @@ enum Command {
         #[arg(long, default_value = ".")]
         path: PathBuf,
     },
+    /// Reads the business files located by `retrodoc business-files` once for
+    /// both the entities and the entry points, and saves
+    /// `.retrodoc/cache/glossary.yaml` and `.retrodoc/cache/entry-points.yaml`
+    /// (what `generate` does before those two passes). Needs `retrodoc roles`
+    /// and `retrodoc business-files` first.
+    BusinessRead {
+        #[arg(long, default_value = ".")]
+        path: PathBuf,
+    },
     /// Reads the business entities (names, attributes, associations) of the
     /// files located by `retrodoc business-files` (else those classified
     /// `model`) and the vocabulary of the tests, and saves
@@ -210,6 +219,7 @@ impl Command {
             Command::Roles { path, .. } => Some(("roles", path.clone())),
             Command::Brief { path, .. } => Some(("brief", path.clone())),
             Command::BusinessFiles { path, .. } => Some(("business-files", path.clone())),
+            Command::BusinessRead { path } => Some(("business-read", path.clone())),
             Command::Glossary { path } => Some(("glossary", path.clone())),
             Command::EntryPoints { path } => Some(("entry-points", path.clone())),
             Command::Actors { path, .. } => Some(("actors", path.clone())),
@@ -278,6 +288,7 @@ async fn main() -> anyhow::Result<()> {
         Command::Render { path, dry_run } => commands::render::run(&path, dry_run),
         Command::Report { path } => commands::report::run(&path),
         Command::EntryPoints { path } => commands::entry_points::run(&path, &tracker).await,
+        Command::BusinessRead { path } => commands::business_read::run(&path, &tracker).await,
         Command::Glossary { path } => commands::glossary::run(&path, &tracker).await,
         Command::Actors { path, force } => commands::actors::run(&path, force, &tracker).await,
         Command::Benchmark {

@@ -31,7 +31,7 @@ use crate::use_cases::resolve_cited_path;
 
 /// Entry point files carry many small actions: a bit more room than models.
 /// A longer file is read in several chunks of about this size.
-const MAX_ENTRY_FILE_CHARS: usize = 5_000;
+pub(crate) const MAX_ENTRY_FILE_CHARS: usize = 5_000;
 
 const ENTRY_POINTS_SYSTEM_PROMPT: &str = "You are inventorying the entry points of a software \
 application from the files that define them: HTTP routes and controller actions, CLI commands, \
@@ -167,13 +167,13 @@ impl EntryPoints {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
-struct EntryPointsResponse {
+pub(crate) struct EntryPointsResponse {
     #[serde(default)]
-    entry_points: Vec<ResponseEntry>,
+    pub(crate) entry_points: Vec<ResponseEntry>,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
-struct ResponseEntry {
+pub(crate) struct ResponseEntry {
     #[serde(default)]
     file: String,
     #[serde(flatten)]
@@ -253,7 +253,7 @@ pub async fn build_entry_points(
 
 /// The entry points of an answer, by the file of `group` each belongs to (an
 /// entry point of an unknown file is dropped, with a warning).
-fn attribute_entry_points(
+pub(crate) fn attribute_entry_points(
     response: EntryPointsResponse,
     group: &[PendingChunk],
 ) -> BTreeMap<String, Vec<EntryPoint>> {

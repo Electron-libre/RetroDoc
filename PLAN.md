@@ -55,7 +55,7 @@ docs/
 
 ## 4. Technical architecture (Rust, workspace)
 
-- `retrodoc-cli` — binary, `clap` (`init`, `scan`, `generate`, `render`, `report`, `roles`, `brief`, `business-files`, `glossary`, `entry-points`, `actors`, `surface`, `benchmark`, `benchmark-table`, `search`, `mcp`)
+- `retrodoc-cli` — binary, `clap` (`init`, `scan`, `generate`, `render`, `report`, `roles`, `brief`, `business-files`, `business-read`, `glossary`, `entry-points`, `actors`, `surface`, `benchmark`, `benchmark-table`, `search`, `mcp`)
 - `retrodoc-core` — domain model (Domain, Feature, UseCase, Step, Actor, ConfidenceScore)
 - `retrodoc-ingest` — walker (`ignore`), history (`git2`), Markdown parsing
 - `retrodoc-llm` — provider abstraction + OpenRouter/DeepSeek implementation (chat completion, retry, rate-limit)
@@ -457,6 +457,8 @@ Decisions (accepted ADRs):
   the steps mechanically and asks the LLM only about the doubtful ones.
 - [0027](docs/adr/0027-parse-to-cut-long-files-and-opt-in-short-bodies.md): long files of the five parsed
   languages are cut at their definitions; `[pipeline] body_lines` (opt-in) shortens method bodies for the reading passes.
+- [0028](docs/adr/0028-read-the-business-files-once-for-entities-and-entry-points.md): `generate` reads the business
+  files once for the glossary and the entry points (`[pipeline] business_read`, on by default).
 
 Steps, in order, one issue each:
 1. `issues/quality_benchmark.md`: a reproducible measure of the docs' quality, before any other step.

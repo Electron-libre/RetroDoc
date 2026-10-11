@@ -51,7 +51,7 @@ pub struct Config {
 }
 
 /// `[pipeline]`: which path `generate` takes (ADR 0020).
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PipelineConfig {
     /// What the domains are built from. `files` (default): the LLM summaries of
@@ -65,6 +65,25 @@ pub struct PipelineConfig {
     /// omitted. Absent (default): files are read whole.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub body_lines: Option<usize>,
+    /// `generate` reads the business files once for the glossary and the entry
+    /// points (one call answers both, ADR 0028). `false`: each pass reads them
+    /// on its own, as before.
+    #[serde(default = "default_true")]
+    pub business_read: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+impl Default for PipelineConfig {
+    fn default() -> Self {
+        Self {
+            domains_from: DomainsFrom::default(),
+            body_lines: None,
+            business_read: true,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -409,6 +428,10 @@ mod tests {
         assert_eq!(none.pipeline.domains_from, DomainsFrom::Files);
         let lines: Config = toml::from_str("[pipeline]\nbody_lines = 5").unwrap();
         assert_eq!(lines.pipeline.body_lines, Some(5));
+        assert!(Config::default().pipeline.business_read);
+        let off: Config = toml::from_str("[pipeline]\nbusiness_read = false").unwrap();
+        assert!(!off.pipeline.business_read);
+        assert!(lines.pipeline.business_read);
         assert_eq!(Config::default().pipeline.body_lines, None);
         let surface: Config = toml::from_str("[pipeline]\ndomains_from = \"surface\"").unwrap();
         assert_eq!(surface.pipeline.domains_from, DomainsFrom::Surface);
