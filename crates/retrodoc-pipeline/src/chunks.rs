@@ -109,11 +109,15 @@ fn parsed_starts(path: &Path, content: &str) -> Option<BTreeSet<u32>> {
         return None;
     }
     let lines: Vec<&str> = content.lines().collect();
+    // `@name` above a definition is a decorator or an annotation, except in Ruby, where it is an
+    // instance variable.
+    let ruby = path
+        .extension()
+        .is_some_and(|e| matches!(e.to_str(), Some("rb" | "rake" | "gemspec")));
     let attached = |line: &str| {
         let line = line.trim_start();
-        ["#", "//", "/*", "*", "@"]
-            .iter()
-            .any(|p| line.starts_with(p))
+        ["#", "//", "/*", "*"].iter().any(|p| line.starts_with(p))
+            || (!ruby && line.starts_with('@'))
     };
     let starts = structure
         .definitions
@@ -377,9 +381,15 @@ fn omitted(out: &mut String, from: u32, to: u32) {
 }
 
 /// `path` without the "(part i/n)" marker a model sometimes copies after the
-/// file name it was shown (`config/routes.rb (part 1/2)`).
+/// file name it was shown (`config/routes.rb (part 1/2)`), nor the `--- path ---`
+/// frame of the header the file was given under.
 pub(crate) fn strip_part_marker(path: &str) -> &str {
     let path = path.trim();
+    let path = if path.starts_with("---") {
+        path.trim_matches(|c: char| c == '-' || c.is_whitespace())
+    } else {
+        path
+    };
     match path.rsplit_once('(') {
         Some((name, marker)) if marker.starts_with("part ") && marker.trim_end().ends_with(')') => {
             name.trim_end()
@@ -502,6 +512,18 @@ mod tests {
         assert!(body
             .iter()
             .all(|c| c.starts_with("/// Adds.\n#[inline]\npub fn add")));
+    }
+
+    #[test]
+    fn an_at_sign_above_a_definition_is_a_decorator_except_in_ruby() {
+        let python = "import os\n@cache\ndef f():\n    return 1\n";
+        assert_eq!(
+            parsed_starts(Path::new("a.py"), python).unwrap(),
+            BTreeSet::from([2])
+        );
+        let ruby = "class A\n  @count = 0\n  def f\n    1\n  end\nend\n";
+        let starts = parsed_starts(Path::new("a.rb"), ruby).unwrap();
+        assert!(starts.contains(&3) && !starts.contains(&2), "{starts:?}");
     }
 
     #[test]
@@ -673,6 +695,11 @@ mod tests {
             "config/routes.rb"
         );
         assert_eq!(strip_part_marker(" a/b.rb "), "a/b.rb");
+        assert_eq!(
+            strip_part_marker("--- bookmarks/views/auth.py ---"),
+            "bookmarks/views/auth.py"
+        );
+        assert_eq!(strip_part_marker("-a/b-c.rb"), "-a/b-c.rb");
         assert_eq!(strip_part_marker("a/(part)/b.rb"), "a/(part)/b.rb");
         assert_eq!(strip_part_marker("a/b(1).rb"), "a/b(1).rb");
     }

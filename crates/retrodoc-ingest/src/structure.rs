@@ -205,8 +205,14 @@ pub fn parse(path: &Path, source: &str) -> Option<Structure> {
     };
     let mut structure = Structure::default();
     for tag in tags.flatten() {
-        let name = source.get(tag.name_range.clone())?.to_string();
+        // A tag whose range is not on text boundaries is skipped, not the whole file.
+        let Some(name) = source.get(tag.name_range.clone()).map(str::to_string) else {
+            continue;
+        };
         if tag.is_definition {
+            let Some(text) = source.get(tag.range.clone()) else {
+                continue;
+            };
             // `range` is the whole definition; `span` is only the line of its name.
             let start_line = line_at(tag.range.start);
             let last_byte = tag.range.end.saturating_sub(1).max(tag.range.start);
@@ -215,7 +221,7 @@ pub fn parse(path: &Path, source: &str) -> Option<Structure> {
                 kind: config.syntax_type_name(tag.syntax_type_id).to_string(),
                 start_line,
                 end_line: line_at(last_byte).max(start_line),
-                signature: signature(source.get(tag.range.clone())?),
+                signature: signature(text),
             });
         } else {
             let line = line_at(tag.name_range.start);
