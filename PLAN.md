@@ -453,6 +453,10 @@ Decisions (accepted ADRs):
   definitions, signatures and references from tree-sitter.
 - [0023](docs/adr/0023-structured-outputs-and-a-model-per-pass.md): JSON schema in the request, and an
   optional model per pass.
+- [0026](docs/adr/0026-check-use-case-steps-mechanically-before-asking-the-llm.md): the confidence pass checks
+  the steps mechanically and asks the LLM only about the doubtful ones.
+- [0027](docs/adr/0027-parse-to-cut-long-files-and-opt-in-short-bodies.md): long files of the five parsed
+  languages are cut at their definitions; `[pipeline] body_lines` (opt-in) shortens method bodies for the reading passes.
 
 Steps, in order, one issue each:
 1. `issues/quality_benchmark.md`: a reproducible measure of the docs' quality, before any other step.
@@ -466,7 +470,7 @@ Steps, in order, one issue each:
    and takes about 45% less time at par quality; on a 9-file library its features are worse. The default stays
    `files` until `issues/surface_domains_default_decision.md`; the cost of the use cases pass, the deterministic
    confidence and the single read per file are queued as their own issues.
-5. `issues/tree_sitter_structure.md`.
+5. `issues/done/tree_sitter_structure.md`: long files cut at parsed definitions for five languages, short method bodies as an option (ADR 0027); the parsed references moved to `issues/parsed_references_for_ranking_and_slices.md`.
 6. `issues/business_rules.md`.
 7. `issues/docs_reconciliation_debt_report.md`.
 

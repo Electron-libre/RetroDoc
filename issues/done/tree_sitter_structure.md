@@ -42,9 +42,9 @@ behaviour-based pipeline (`issues/behaviour_coverage_domains.md`) can rank and s
 
 1. [x] Structure module in `retrodoc-ingest`: per file, definitions (name, kind, line range, signature) and references, for Ruby, Rust, JavaScript, TypeScript and Python behind one cargo feature per language (all on by default); build time and binary size measured before and after.
 2. [x] Chunking by parse: `Splitter` cuts at definition boundaries for the covered languages; `roles` no longer asks for `chunk_boundaries` for them and `chunk_check` skips them; the regex path stays for the others. Calls and warnings of chunking counted before and after on `delivery_router` and the Rails test repository.
-3. [ ] Parsed references in `ranking.rs` and `slices.rs`, lexical fallback kept; slices compared with the lexical ones on the Rails test repository. Decide with the user after the figures of step 2.
+3. [-] (moved to `issues/parsed_references_for_ranking_and_slices.md`, user, 2026-10-11) Parsed references in `ranking.rs` and `slices.rs`, lexical fallback kept; slices compared with the lexical ones on the Rails test repository. Decide with the user after the figures of step 2.
 4. [x] Signature-only views (built as the opt-in `[pipeline] body_lines`, default unchanged) for the entry points and glossary prompts; characters saved measured. Decide with the user after step 3.
-5. [ ] Docs (`update-docs`) and an ADR recording the measured results (ADR 0022 is accepted and immutable).
+5. [x] Docs (`update-docs`) and an ADR recording the measured results (ADR 0022 is accepted and immutable).
 
 ## Decisions
 
