@@ -16,12 +16,13 @@ use std::fmt::Write as _;
 use std::path::{Component, Path, PathBuf};
 
 use retrodoc_core::model::{
-    ConfidenceScore, Domain, Feature, Step, UseCase, LOW_CONFIDENCE_THRESHOLD,
+    BusinessRule, ConfidenceScore, Domain, Feature, Step, UseCase, LOW_CONFIDENCE_THRESHOLD,
 };
 
+use crate::rules::{domain_section, index_page, rules_section};
 use crate::{
     RenderedFile, RunMetadata, AGENT_INDEX_PATH, COVERAGE_REPORT_PATH, FUNCTIONAL_DIR,
-    METADATA_PATH,
+    METADATA_PATH, RULES_INDEX_PATH,
 };
 
 /// Renders every file of the docs, paths relative to the docs dir. Pure and
@@ -38,6 +39,30 @@ pub fn render(
     coverage_report: &str,
     metadata: &RunMetadata,
 ) -> Result<Vec<RenderedFile>, crate::RenderError> {
+    render_with_rules(domains, features, use_cases, &[], coverage_report, metadata)
+}
+
+/// [`render`] with the business rules: on the pages of their feature, use cases and domain, and in
+/// an index by entity. Without rules the files are the same as [`render`]'s.
+///
+/// # Errors
+///
+/// Returns an error if the run metadata can't be serialized.
+pub fn render_with_rules(
+    domains: &[Domain],
+    features: &[Feature],
+    use_cases: &[UseCase],
+    rules: &[BusinessRule],
+    coverage_report: &str,
+    metadata: &RunMetadata,
+) -> Result<Vec<RenderedFile>, crate::RenderError> {
+    // A rule of a feature that no longer exists would be on no page.
+    let rules: Vec<BusinessRule> = rules
+        .iter()
+        .filter(|r| features.iter().any(|f| r.belongs_to_feature(&f.slug)))
+        .cloned()
+        .collect();
+    let rules = rules.as_slice();
     let mut files = Vec::new();
 
     for domain in domains {
@@ -47,29 +72,44 @@ pub fn render(
             .collect();
         files.push(RenderedFile {
             path: domain_readme_path(&domain.slug),
-            content: domain_page(domain, &domain_features),
+            content: domain_page(domain, &domain_features, rules),
         });
         for feature in domain_features {
             let own: Vec<&UseCase> = use_cases
                 .iter()
                 .filter(|u| u.feature_slug == feature.slug)
                 .collect();
+            let own_rules: Vec<&BusinessRule> = rules
+                .iter()
+                .filter(|r| r.belongs_to_feature(&feature.slug))
+                .collect();
             files.push(RenderedFile {
                 path: feature_path(feature),
-                content: feature_page(feature, &own),
+                content: feature_page(feature, &own, &own_rules),
             });
-            for use_case in own {
+            for use_case in &own {
+                let applying: Vec<&BusinessRule> = own_rules
+                    .iter()
+                    .copied()
+                    .filter(|r| r.use_cases.contains(&use_case.slug))
+                    .collect();
                 files.push(RenderedFile {
                     path: use_case_path(feature, use_case),
-                    content: use_case_page(feature, use_case),
+                    content: use_case_page(feature, use_case, &applying),
                 });
             }
         }
     }
 
+    if !rules.is_empty() {
+        files.push(RenderedFile {
+            path: PathBuf::from(RULES_INDEX_PATH),
+            content: index_page(rules, features, Path::new(RULES_INDEX_PATH)),
+        });
+    }
     files.push(RenderedFile {
         path: PathBuf::from(AGENT_INDEX_PATH),
-        content: agent_index(domains, features),
+        content: agent_index(domains, features, rules.len()),
     });
     files.push(RenderedFile {
         path: PathBuf::from(COVERAGE_REPORT_PATH),
@@ -119,11 +159,11 @@ fn container(feature: &Feature) -> PathBuf {
     }
 }
 
-fn feature_path(feature: &Feature) -> PathBuf {
+pub(crate) fn feature_path(feature: &Feature) -> PathBuf {
     container(feature).join(format!("{}.md", segment(&feature.slug)))
 }
 
-fn use_case_path(feature: &Feature, use_case: &UseCase) -> PathBuf {
+pub(crate) fn use_case_path(feature: &Feature, use_case: &UseCase) -> PathBuf {
     container(feature)
         .join("use-cases")
         .join(segment(&feature.slug))
@@ -131,7 +171,7 @@ fn use_case_path(feature: &Feature, use_case: &UseCase) -> PathBuf {
 }
 
 /// Relative Markdown link target from the file `from` to the file `to`.
-fn link(from: &Path, to: &Path) -> String {
+pub(crate) fn link(from: &Path, to: &Path) -> String {
     let from_dir: Vec<Component> = from
         .parent()
         .unwrap_or(Path::new(""))
@@ -181,7 +221,7 @@ fn short_confidence(score: Option<&ConfidenceScore>) -> String {
 }
 
 /// The `llms.txt`-style entry point for agents that don't run the MCP server.
-fn agent_index(domains: &[Domain], features: &[Feature]) -> String {
+fn agent_index(domains: &[Domain], features: &[Feature], rule_count: usize) -> String {
     let index = Path::new(AGENT_INDEX_PATH);
     let one_line = |text: &str| text.split_whitespace().collect::<Vec<_>>().join(" ");
     // `(⚠️ 30%)` below the threshold, so a weak page is visible before opening it.
@@ -249,6 +289,15 @@ fn agent_index(domains: &[Domain], features: &[Feature]) -> String {
             }
         }
     }
+    if rule_count > 0 {
+        let _ = write!(
+            md,
+            "\n## Business rules\n\n- [Business rules by entity]({}): {rule_count} rule(s) on what is \
+             allowed, refused, limited and in which states, each with its evidence; they are also on \
+             the pages of their feature, use cases and domain\n",
+            link(index, Path::new(RULES_INDEX_PATH))
+        );
+    }
     md.push_str(
         "\n## Optional\n\n\
          - [Documentation debt report](../_retrodoc/coverage-report.md): the sections with a low \
@@ -257,7 +306,7 @@ fn agent_index(domains: &[Domain], features: &[Feature]) -> String {
     md
 }
 
-fn domain_page(domain: &Domain, features: &[&Feature]) -> String {
+fn domain_page(domain: &Domain, features: &[&Feature], rules: &[BusinessRule]) -> String {
     let readme = domain_readme_path(&domain.slug);
     let mut md = format!("# {}\n\n{}\n\n", domain.name, domain.description.trim());
     let _ = writeln!(md, "{}\n", confidence_line(domain.confidence.as_ref()));
@@ -301,10 +350,20 @@ fn domain_page(domain: &Domain, features: &[&Feature]) -> String {
             md.push('\n');
         }
     }
+    let own: Vec<(&Feature, &BusinessRule)> = features
+        .iter()
+        .flat_map(|f| {
+            rules
+                .iter()
+                .filter(|r| r.belongs_to_feature(&f.slug))
+                .map(move |r| (*f, r))
+        })
+        .collect();
+    md.push_str(&domain_section(&own, &readme));
     trim_end(&md)
 }
 
-fn feature_page(feature: &Feature, use_cases: &[&UseCase]) -> String {
+fn feature_page(feature: &Feature, use_cases: &[&UseCase], rules: &[&BusinessRule]) -> String {
     let path = feature_path(feature);
     let mut md = format!("# {}\n\n", feature.name);
     let _ = writeln!(
@@ -330,6 +389,11 @@ fn feature_page(feature: &Feature, use_cases: &[&UseCase]) -> String {
         );
     }
 
+    if !rules.is_empty() {
+        md.push('\n');
+        md.push_str(&rules_section(rules, &path, feature, use_cases));
+    }
+
     if !feature.source_paths.is_empty() {
         md.push_str("\n## Source files\n\n");
         for p in &feature.source_paths {
@@ -339,7 +403,7 @@ fn feature_page(feature: &Feature, use_cases: &[&UseCase]) -> String {
     trim_end(&md)
 }
 
-fn use_case_page(feature: &Feature, use_case: &UseCase) -> String {
+fn use_case_page(feature: &Feature, use_case: &UseCase, rules: &[&BusinessRule]) -> String {
     let path = use_case_path(feature, use_case);
     let mut md = format!("# {}\n\n", use_case.name);
     let _ = writeln!(
@@ -379,6 +443,7 @@ fn use_case_page(feature: &Feature, use_case: &UseCase) -> String {
         .filter(|n| !n.is_empty());
     let (steps_heading, diagram_heading) = if let Some(narrative) = narrative {
         let _ = write!(md, "## What happens\n\n{narrative}\n\n");
+        md.push_str(&rules_section(rules, &path, feature, &[]));
         let _ = write!(
             md,
             "<details>\n<summary>Technical details ({} step{})</summary>\n\n",
@@ -387,6 +452,7 @@ fn use_case_page(feature: &Feature, use_case: &UseCase) -> String {
         );
         ("### Steps", "### Diagram")
     } else {
+        md.push_str(&rules_section(rules, &path, feature, &[]));
         ("## Steps", "## Diagram")
     };
 
@@ -643,9 +709,9 @@ mod tests {
     #[test]
     fn a_domain_without_feature_is_still_listed_and_no_domain_gives_a_clear_index() {
         let (d, _, _) = sample();
-        let index = agent_index(&d, &[]);
+        let index = agent_index(&d, &[], 0);
         assert!(index.contains("- [Billing](billing/README.md)"), "{index}");
-        let empty = agent_index(&[], &[]);
+        let empty = agent_index(&[], &[], 0);
         assert!(empty.contains("No domain documented yet."), "{empty}");
     }
 
@@ -674,5 +740,184 @@ mod tests {
         assert_eq!(segment("../../etc"), "etc");
         assert_eq!(segment("A b/c"), "a-b-c");
         assert_eq!(segment(".."), "unnamed");
+    }
+
+    fn rules() -> Vec<BusinessRule> {
+        use retrodoc_core::model::{RuleEvidence, RuleKind};
+        vec![
+            BusinessRule {
+                slug: "pay-invoice-1".to_string(),
+                statement: "An invoice already paid\ncannot be paid again.".to_string(),
+                kind: RuleKind::StateTransition,
+                entities: vec!["Invoice".to_string()],
+                use_cases: vec!["pay-by-card".to_string()],
+                evidence: vec![
+                    RuleEvidence::Code {
+                        source: SourceRef {
+                            path: "src/pay.rs".to_string(),
+                            start_line: Some(3),
+                            end_line: Some(9),
+                        },
+                    },
+                    RuleEvidence::Test {
+                        phrase: "refuses a second payment".to_string(),
+                        path: "spec/pay_spec.rb".to_string(),
+                    },
+                    RuleEvidence::Doc {
+                        path: "README.md".to_string(),
+                        heading: "Payments".to_string(),
+                    },
+                ],
+                confidence: Some(ConfidenceScore::new(0.85, None)),
+            },
+            BusinessRule {
+                slug: "pay-invoice-2".to_string(),
+                statement: "A payment above the limit is refused.".to_string(),
+                kind: RuleKind::Limit,
+                entities: vec!["Invoice".to_string(), "Payment".to_string()],
+                use_cases: Vec::new(),
+                evidence: vec![RuleEvidence::Code {
+                    source: SourceRef {
+                        path: "src/pay.rs".to_string(),
+                        start_line: None,
+                        end_line: None,
+                    },
+                }],
+                confidence: Some(ConfidenceScore::new(0.4, None)),
+            },
+            BusinessRule {
+                slug: "list-1".to_string(),
+                statement: "Only open invoices are listed.".to_string(),
+                kind: RuleKind::Validation,
+                entities: Vec::new(),
+                use_cases: Vec::new(),
+                evidence: Vec::new(),
+                confidence: None,
+            },
+        ]
+    }
+
+    #[test]
+    fn rules_are_on_the_pages_of_their_feature_use_cases_and_domain() {
+        let (d, f, u) = sample();
+        let files = render_with_rules(&d, &f, &u, &rules(), "r", &meta()).unwrap();
+        let content = |p: &str| {
+            files
+                .iter()
+                .find(|f| f.path.display().to_string() == p)
+                .unwrap_or_else(|| panic!("{p} missing"))
+                .content
+                .clone()
+        };
+
+        let feature = content("functional/billing/payment/pay-invoice.md");
+        assert!(feature.contains("## Business rules\n\n- An invoice already paid cannot be paid again. (State transition, 85%)"), "{feature}");
+        assert!(
+            feature.contains("  - Use cases: [Pay by card](use-cases/pay-invoice/pay-by-card.md)"),
+            "{feature}"
+        );
+        assert!(feature.contains("  - Code: `src/pay.rs:3-9`"), "{feature}");
+        assert!(
+            feature.contains("  - Test: \"refuses a second payment\" (`spec/pay_spec.rb`)"),
+            "{feature}"
+        );
+        assert!(
+            feature.contains("  - Documentation: `README.md`, section \"Payments\""),
+            "{feature}"
+        );
+        assert!(feature.contains("(Limit, ⚠️ 40%)"), "{feature}");
+        assert!(
+            feature.contains("  - Entities: Invoice, Payment"),
+            "{feature}"
+        );
+        assert!(!feature.contains("Only open invoices"), "{feature}");
+
+        let use_case = content("functional/billing/payment/use-cases/pay-invoice/pay-by-card.md");
+        assert!(use_case.contains("## Business rules"), "{use_case}");
+        assert!(use_case.contains("cannot be paid again"), "{use_case}");
+        assert!(!use_case.contains("above the limit"), "{use_case}");
+
+        let domain = content("functional/billing/README.md");
+        assert!(domain.contains("## Business rules"), "{domain}");
+        assert!(domain.contains("- A payment above the limit is refused. (Limit, ⚠️ 40%) — [Pay an invoice](payment/pay-invoice.md)"), "{domain}");
+        assert!(
+            domain.contains(
+                "Only open invoices are listed. (Validation, not scored) — [List](list.md)"
+            ),
+            "{domain}"
+        );
+    }
+
+    #[test]
+    fn the_rules_index_groups_by_entity_and_the_agent_index_points_to_it() {
+        let (d, f, u) = sample();
+        let files = render_with_rules(&d, &f, &u, &rules(), "r", &meta()).unwrap();
+        let content = |p: &str| {
+            files
+                .iter()
+                .find(|f| f.path.display().to_string() == p)
+                .unwrap()
+                .content
+                .clone()
+        };
+        let index = content("functional/rules.md");
+        let invoice = index.find("## Invoice").unwrap();
+        let payment = index.find("## Payment").unwrap();
+        let other = index.find("## Other rules").unwrap();
+        assert!(invoice < payment && payment < other, "{index}");
+        assert!(index.contains("3 rule(s)"), "{index}");
+        assert!(
+            index.contains("— [Pay an invoice](billing/payment/pay-invoice.md)"),
+            "{index}"
+        );
+        assert!(
+            index.contains(
+                "Only open invoices are listed. (Validation, not scored) — [List](billing/list.md)"
+            ),
+            "{index}"
+        );
+        assert_eq!(index.matches("A payment above the limit").count(), 2);
+
+        let agents = content("functional/llms.txt");
+        assert!(
+            agents.contains("[Business rules by entity](rules.md): 3 rule(s)"),
+            "{agents}"
+        );
+    }
+
+    #[test]
+    fn a_rule_of_a_vanished_feature_is_neither_counted_nor_indexed() {
+        let (d, f, u) = sample();
+        let mut all = rules();
+        all[2].slug = "gone-1".to_string();
+        let files = render_with_rules(&d, &f, &u, &all, "r", &meta()).unwrap();
+        let text: String = files.iter().map(|f| f.content.as_str()).collect();
+        assert!(!text.contains("Only open invoices"), "{text}");
+        assert!(text.contains("2 rule(s)"), "{text}");
+    }
+
+    #[test]
+    fn without_rules_the_docs_are_those_of_render() {
+        let (d, f, u) = sample();
+        let plain = render(&d, &f, &u, "r", &meta()).unwrap();
+        assert_eq!(
+            render_with_rules(&d, &f, &u, &[], "r", &meta()).unwrap(),
+            plain
+        );
+        assert!(plain.iter().all(|f| !f.content.contains("Business rules")));
+        assert!(plain.iter().all(|f| !f.path.ends_with("rules.md")));
+    }
+
+    #[test]
+    fn rules_render_deterministically_and_a_rerun_is_a_no_op() {
+        let (d, f, u) = sample();
+        let dir = tempfile::tempdir().unwrap();
+        let files = || render_with_rules(&d, &f, &u, &rules(), "r", &meta()).unwrap();
+        assert_eq!(files(), files());
+        crate::plan(dir.path(), files())
+            .unwrap()
+            .apply(dir.path())
+            .unwrap();
+        assert_eq!(crate::plan(dir.path(), files()).unwrap().change_count(), 0);
     }
 }

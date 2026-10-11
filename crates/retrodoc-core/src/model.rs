@@ -195,6 +195,16 @@ pub struct BusinessRule {
 }
 
 impl BusinessRule {
+    /// Whether this is one of the rules of the feature `feature_slug`: the slug is
+    /// `<feature-slug>-<number>`.
+    #[must_use]
+    pub fn belongs_to_feature(&self, feature_slug: &str) -> bool {
+        self.slug
+            .strip_prefix(feature_slug)
+            .and_then(|rest| rest.strip_prefix('-'))
+            .is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()))
+    }
+
     /// Whether a test phrase or a doc section backs the rule next to the code.
     #[must_use]
     pub fn has_corroboration(&self) -> bool {
@@ -248,6 +258,19 @@ mod tests {
                 .unwrap();
         assert_eq!(r.kind, RuleKind::StateTransition);
         assert!(r.evidence.is_empty() && r.confidence.is_none());
+    }
+
+    #[test]
+    fn a_rule_belongs_to_the_feature_whose_slug_and_number_it_carries() {
+        let mut r = rule();
+        r.slug = "orders-12".into();
+        assert!(r.belongs_to_feature("orders"));
+        r.slug = "orders-new-1".into();
+        assert!(!r.belongs_to_feature("orders"));
+        r.slug = "orders-".into();
+        assert!(!r.belongs_to_feature("orders"));
+        r.slug = "orders".into();
+        assert!(!r.belongs_to_feature("orders"));
     }
 
     #[test]

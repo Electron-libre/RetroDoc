@@ -80,14 +80,6 @@ fn parse_kind(raw: &str) -> Option<RuleKind> {
     }
 }
 
-/// Whether `rule` is one of the rules of the feature `slug` (`<slug>-<number>`).
-pub(super) fn belongs_to(rule: &BusinessRule, slug: &str) -> bool {
-    rule.slug
-        .strip_prefix(slug)
-        .and_then(|rest| rest.strip_prefix('-'))
-        .is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()))
-}
-
 /// Number of lines of a file, read once.
 struct LineCounts<'a> {
     repo_root: &'a Path,

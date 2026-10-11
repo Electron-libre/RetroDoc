@@ -28,10 +28,18 @@ pub fn publish(repo_root: &Path, config: &Config, dry_run: bool) -> anyhow::Resu
         commit: retrodoc_ingest::git_history::head_commit(repo_root),
         generated_at: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
     };
-    let files = retrodoc_render::render(
+    let rules = retrodoc_pipeline::load_rules(repo_root).unwrap_or_default();
+    if rules.is_empty() && retrodoc_pipeline::Artifact::Rules.path(repo_root).exists() {
+        tracing::warn!(
+            "{} could not be read or holds no rule: the docs are written without rules",
+            retrodoc_pipeline::Artifact::Rules.relative_path()
+        );
+    }
+    let files = retrodoc_render::render_with_rules(
         &retrodoc_pipeline::domain_models(&domains, &features),
         &features,
         &use_cases,
+        &rules,
         &report.to_markdown(),
         &metadata,
     )?;

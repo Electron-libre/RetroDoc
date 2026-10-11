@@ -8,8 +8,9 @@
 
 mod markdown;
 mod plan;
+mod rules;
 
-pub use markdown::render;
+pub use markdown::{render, render_with_rules};
 pub use plan::{plan, FileStatus, PlannedFile, WritePlan};
 
 use std::path::PathBuf;
@@ -24,6 +25,8 @@ pub const FUNCTIONAL_DIR: &str = "functional";
 pub const META_DIR: &str = "_retrodoc";
 /// Path of the index for agents (`llms.txt` style), relative to the docs dir.
 pub const AGENT_INDEX_PATH: &str = "functional/llms.txt";
+/// Path of the business rules grouped by entity, relative to the docs dir.
+pub const RULES_INDEX_PATH: &str = "functional/rules.md";
 /// Path of the run metadata, relative to the docs dir.
 pub const METADATA_PATH: &str = "_retrodoc/run-metadata.json";
 /// Path of the coverage report, relative to the docs dir.

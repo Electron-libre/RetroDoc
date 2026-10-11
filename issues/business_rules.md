@@ -74,7 +74,7 @@ Read by hand on `delivery_router` (Ruby, 194 lines of code) and linkding (Python
 2. [x] `BusinessRule` model in `retrodoc-core` (serde round trip).
 3. [x] Evidence gathering per feature (slices, glossary entities, `Evidence`), no hard-coded selectors.
 4. [x] Rules pass: LLM statement in business terms, validated citations, confidence from the evidence, `rules.yaml`, fingerprint, `[pipeline] rules` (off by default), pass name.
-5. [ ] Rendering on entity and use case pages, per domain, `llms.txt`.
+5. [x] Rendering on entity and use case pages, per domain, `llms.txt`.
 6. [ ] MCP: rules in `get_feature`, `get_use_case`, `get_domain` and `search_docs` (no new tool).
 7. [ ] Debt report: count the rules no existing doc mentions.
 8. [ ] Smoke test on `delivery_router` (local Ollama), run on linkding if allowed; compare with the hand list.

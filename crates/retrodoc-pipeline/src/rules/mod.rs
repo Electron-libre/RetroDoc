@@ -35,7 +35,7 @@ mod prompt;
 #[cfg(test)]
 mod tests;
 
-use self::grounding::{belongs_to, grounded_rules, RawRules};
+use self::grounding::{grounded_rules, RawRules};
 pub use self::input::RuleInput;
 use self::prompt::{rules_prompt, RULES_SYSTEM_PROMPT};
 
@@ -173,7 +173,7 @@ pub async fn build_rules(
 fn kept(previous: &[BusinessRule], slug: &str) -> Vec<BusinessRule> {
     previous
         .iter()
-        .filter(|r| belongs_to(r, slug))
+        .filter(|r| r.belongs_to_feature(slug))
         .cloned()
         .collect()
 }
@@ -189,7 +189,7 @@ fn save_partial(
     rules.extend(
         previous
             .iter()
-            .filter(|r| remaining.iter().any(|f| belongs_to(r, &f.slug)))
+            .filter(|r| remaining.iter().any(|f| r.belongs_to_feature(&f.slug)))
             .cloned(),
     );
     warn_on_error(save_rules(repo_root, &rules));

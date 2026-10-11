@@ -260,23 +260,6 @@ async fn a_failing_call_keeps_the_previous_rules_of_the_features_not_reached() {
     assert_eq!(load_rules(dir.path()).unwrap().len(), 1);
 }
 
-#[test]
-fn a_rule_belongs_to_the_feature_whose_slug_and_number_it_carries() {
-    let rule = |slug: &str| BusinessRule {
-        slug: slug.into(),
-        statement: "s".into(),
-        kind: RuleKind::Limit,
-        entities: Vec::new(),
-        use_cases: Vec::new(),
-        evidence: Vec::new(),
-        confidence: None,
-    };
-    assert!(belongs_to(&rule("orders-12"), "orders"));
-    assert!(!belongs_to(&rule("orders-new-1"), "orders"));
-    assert!(!belongs_to(&rule("orders-"), "orders"));
-    assert!(!belongs_to(&rule("orders"), "orders"));
-}
-
 #[tokio::test]
 async fn an_unparseable_answer_keeps_the_saved_rules_of_the_feature() {
     let dir = repo();

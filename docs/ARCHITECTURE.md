@@ -251,6 +251,7 @@ Guarantees:
 └── docs/                          # output dir (`output.docs_dir`)
     ├── functional/llms.txt        #   index for agents that don't run the MCP server
     ├── functional/<domain>/…      #   README per domain, feature pages, use-case pages
+    ├── functional/rules.md        #   (with `[pipeline] rules`) business rules by entity; also on the feature, use case and domain pages
     └── _retrodoc/
         ├── coverage-report.md     #   documentation debt report
         └── run-metadata.json      #   model, commit, timestamp
