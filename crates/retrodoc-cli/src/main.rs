@@ -47,12 +47,13 @@ enum Command {
         /// Ignore the caches and redo every LLM pass from scratch.
         #[arg(long)]
         force: bool,
-        /// Skip the confidence pass (about a third of the LLM calls): use
+        /// Skip the confidence pass: use
         /// cases and features stay unscored.
         #[arg(long, conflicts_with = "confidence_sample")]
         no_confidence: bool,
-        /// Score at most N use cases not scored yet, evenly spread; the
-        /// others stay unscored (a later run scores N more).
+        /// Also ask the LLM about N use cases whose steps all pass the
+        /// mechanical checks, evenly spread, as a second opinion; the other
+        /// use cases are scored by the checks alone.
         #[arg(long, value_name = "N")]
         confidence_sample: Option<usize>,
         /// Analyse at most N source files: the best ranked by role, git

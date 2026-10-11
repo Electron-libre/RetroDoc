@@ -108,7 +108,7 @@ flowchart TD
     D["4. Features<br/>one call per domain / sub-domain"]:::llm
     E["5. Use cases<br/>one call per feature<br/>(steps + actors, from real code)"]:::llm
     F["6. Diagrams<br/>Mermaid sequenceDiagram<br/>from the steps"]:::det
-    G["7. Confidence (optional, can be sampled)<br/>use cases of a feature share a call: is each step<br/>supported by the code it cites?"]:::llm
+    G["7. Confidence (optional)<br/>mechanical checks, then one call per feature<br/>for the doubtful steps only"]:::llm
     H["8. Publish<br/>render → plan (diff) → apply"]:::det
 
     A --> S --> K --> B --> C --> D --> E --> F --> G --> H
@@ -148,12 +148,13 @@ What each pass hands to the next, and where it is saved:
 
 ```mermaid
 flowchart LR
-    s["Each step gets a verdict:<br/>supported / partial / unsupported"] --> u["Use case score =<br/>mean of its steps<br/>(steps citing no code capped at 0.25)"]
+    c["Mechanical checks per step:<br/>pass = supported, code missing = unsupported,<br/>doubtful = asked to the LLM"] --> s["Each doubtful step gets a verdict:<br/>supported / partial / unsupported"]
+    s --> u["Use case score =<br/>mean of its steps<br/>(steps citing no code capped at 0.25)"]
     u --> f["Feature score =<br/>mean of its use cases<br/>(0 if it has none)"]
     f --> r["Debt report:<br/>per-domain confidence,<br/>sections below 50%"]
 ```
 
-An unparseable verdict leaves the use case **unscored** (`None`), which the report lists separately.
+Only the doubtful steps are sent to the LLM ([ADR 0026](adr/0026-check-use-case-steps-mechanically-before-asking-the-llm.md)); `--confidence-sample` adds a second opinion on use cases that pass every check. An unparseable verdict leaves the use case **unscored** (`None`), which the report lists separately.
 
 ## 5. Incremental re-run
 

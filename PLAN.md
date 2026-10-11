@@ -302,6 +302,7 @@ Directions:
    model.
 3. ~~Confidence pass optional or sampled~~ — **delivered**: `generate --no-confidence` skips it, `--confidence-sample N`
    scores at most N unscored use cases (evenly spread; a later run scores N more). Unscored items show up in the report.
+   Since ADR 0026 the checks are mechanical first and `--confidence-sample N` asks the LLM for a second opinion on N use cases that pass them.
 4. ~~Configurable concurrency~~ — **delivered for the repo map**: `llm.concurrency` (default 1) bounds the calls in
    flight for file summaries and, level by level (same depth), directory summaries. The other passes stay
    sequential (features/use cases share slug state and fingerprints; glossary/entry points batch serially) —
