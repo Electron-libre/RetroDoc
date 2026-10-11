@@ -33,7 +33,7 @@ doubtful steps (ADR 0020 step 7).
 # Tracking
 
 1. [x] Deterministic checks of one step (`confidence/checks.rs`, pure): `Pass` / `Doubtful` / `Broken`; cited lines exist, named identifiers (heuristic extraction from `action` + `description`) appear at the cited lines, named entities appear in the slice; entity names passed in from the saved glossary.
-2. [ ] Wire the checks into `score_confidence`: `Pass` is supported and `Broken` unsupported without a call, only `Doubtful` steps go to the LLM, `--confidence-sample` gives a second full LLM opinion on fully passing use cases, mechanical scores recomputed every run, `confidence_model` clears LLM scores only.
+2. [x] Wire the checks into `score_confidence`: `Pass` is supported and `Broken` unsupported without a call, only `Doubtful` steps go to the LLM, `--confidence-sample` gives a second full LLM opinion on fully passing use cases, mechanical scores recomputed every run, `confidence_model` clears LLM scores only.
 3. [ ] Agreement measure (`confidence_agreement` example, no LLM): deterministic vs saved LLM score per use case on saved runs (use-case level, since per-step verdicts are not saved).
 4. [ ] Docs (`update-docs`) and a short ADR extending 0020.
 
@@ -44,3 +44,4 @@ doubtful steps (ADR 0020 step 7).
 * `--confidence-sample N` keeps its meaning and applies to fully passing use cases, which get a second LLM opinion.
 * An ungrounded step (no reference) is capped at `UNGROUNDED_STEP_CAP` without a call (`StepCheck::Ungrounded`).
 * A mechanical score is recomputed on every run (free, code may have changed), so it needs no fingerprint.
+* Mechanical scores are given only to use cases without a score (not recomputed every run): a recompute would overwrite the second opinions of `--confidence-sample` and break the no-op rerun. A changed model clears every score, mechanical ones are redone for free. `score_confidence` reads the entity names from the saved glossary itself (signature unchanged).

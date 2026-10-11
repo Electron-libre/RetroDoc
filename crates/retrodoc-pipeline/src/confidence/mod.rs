@@ -4,7 +4,12 @@
 //! step (`supported`, `partial`, `unsupported`), which is turned into a
 //! [`ConfidenceScore`].
 //!
-//! Scoring is deliberately not left to the model alone:
+//! Scoring is deliberately not left to the model alone. Each step is first
+//! checked mechanically ([`checks`]: the cited lines exist, the identifiers
+//! and entities it names are in the cited code). A step that passes is
+//! supported and one whose cited code is not there is unsupported, both
+//! without asking; only the doubtful steps go to the model, plus the whole
+//! of `--confidence-sample` use cases that pass, for a second opinion. Then:
 //! - a step citing no code is capped at [`UNGROUNDED_STEP_CAP`], whatever the
 //!   verdict;
 //! - a use case whose steps cite no readable code at all is scored 0 without
@@ -24,17 +29,18 @@ use retrodoc_core::model::{ConfidenceScore, Feature, UseCase};
 use retrodoc_llm::LlmProvider;
 use serde::Deserialize;
 
-#[allow(dead_code)] // wired in by the next deliverable
 mod checks;
 
 use crate::chunks::{Focus, Splitter};
 use crate::error::PipelineError;
 use crate::features::save_features;
 use crate::fingerprints::Fingerprints;
+use crate::glossary::Glossary;
 use crate::progress::Progress;
 use crate::response::complete_json;
 use crate::roles::load_splitter;
 use crate::use_cases::save_use_cases;
+use checks::{check_step, StepCheck};
 
 /// Highest score a step without any source reference can get.
 const UNGROUNDED_STEP_CAP: f32 = 0.25;
@@ -95,9 +101,22 @@ fn verdict_value(verdict: &str) -> f32 {
     }
 }
 
+/// `count` of `items`, evenly spaced.
+fn evenly_spaced(items: &[usize], count: usize) -> Vec<usize> {
+    let count = count.min(items.len());
+    let total = items.len().max(1);
+    items
+        .iter()
+        .enumerate()
+        .filter(|(rank, _)| rank * count / total != (rank + 1) * count / total)
+        .map(|(_, &i)| i)
+        .collect()
+}
+
 /// Scores every use case not scored yet (reused use cases keep their score
-/// from the last run) — or only `sample` of them, evenly spread over the
-/// pending ones, the others staying unscored (`None`) — then every feature, and persists both artifacts
+/// from the last run): by the mechanical checks where they settle every step,
+/// by the model for the doubtful steps, and for `sample` of the use cases that
+/// pass every check, evenly spread, as a second opinion. Then every feature, and persists both artifacts
 /// (`use-cases.yaml`, `features.yaml`) with their `confidence` filled in. `concurrency` groups of use
 /// cases are checked at a time; the scores are the same as one at a time.
 ///
@@ -120,18 +139,51 @@ pub async fn score_confidence(
             use_case.confidence = None;
         }
     }
+    let entities: Vec<String> = Glossary::load(repo_root)
+        .map(|g| g.entities().map(|(_, e)| e.name.clone()).collect())
+        .unwrap_or_default();
     let pending: Vec<usize> = (0..use_cases.len())
         .filter(|&i| use_cases[i].confidence.is_none())
         .collect();
-    let chosen_count = sample.map_or(pending.len(), |n| n.min(pending.len()));
-    // Picks `chosen_count` of the pending ranks, evenly spaced.
-    let total = pending.len().max(1);
-    let chosen: Vec<usize> = pending
-        .iter()
-        .enumerate()
-        .filter(|(rank, _)| rank * chosen_count / total != (rank + 1) * chosen_count / total)
-        .map(|(_, &i)| i)
-        .collect();
+    // What the checks say of each pending use case; those that pass fully
+    // are the ones a sample may send for a second opinion.
+    let mut checked: Vec<(usize, Vec<StepCheck>)> = Vec::new();
+    let mut passing: Vec<usize> = Vec::new();
+    for &i in &pending {
+        let (_, readable) = confidence_prompt(repo_root, &splitter, &use_cases[i]);
+        if readable.is_empty() {
+            use_cases[i].confidence = Some(ConfidenceScore::new(
+                0.0,
+                "no readable code cited by any step".to_string(),
+            ));
+            continue;
+        }
+        let checks: Vec<StepCheck> = use_cases[i]
+            .steps
+            .iter()
+            .map(|s| check_step(repo_root, s, &entities))
+            .collect();
+        if checks.iter().all(|c| *c == StepCheck::Pass) {
+            passing.push(i);
+        }
+        checked.push((i, checks));
+    }
+    let second_opinion = evenly_spaced(&passing, sample.unwrap_or(0));
+    let mut chosen: Vec<usize> = Vec::new();
+    let mut jobs_checks: Vec<Vec<StepCheck>> = Vec::new();
+    for (i, mut checks) in checked {
+        if second_opinion.contains(&i) {
+            checks = vec![StepCheck::Doubtful("second opinion".to_string()); checks.len()];
+        }
+        if checks.iter().any(|c| matches!(c, StepCheck::Doubtful(_))) {
+            chosen.push(i);
+            jobs_checks.push(checks);
+        } else {
+            use_cases[i].confidence = Some(combine(&use_cases[i], &[], &checks));
+        }
+    }
+    let checks_of: BTreeMap<usize, Vec<StepCheck>> =
+        chosen.iter().copied().zip(jobs_checks).collect();
 
     // A feature's use cases mostly cite the same code: they share a request.
     let mut groups: Vec<Vec<usize>> = Vec::new();
@@ -150,15 +202,17 @@ pub async fn score_confidence(
     let mut progress = Progress::new("confidence", chosen.len());
     // The groups are checked `concurrency` at a time and their scores written in order.
     let splitter = &splitter;
-    let jobs: Vec<Vec<UseCase>> = groups
+    let jobs: Vec<Vec<(UseCase, Vec<StepCheck>)>> = groups
         .iter()
-        .map(|group| group.iter().map(|&i| use_cases[i].clone()).collect())
+        .map(|group| {
+            group
+                .iter()
+                .map(|&i| (use_cases[i].clone(), checks_of[&i].clone()))
+                .collect()
+        })
         .collect();
     let mut results = stream::iter(jobs)
-        .map(|owned| async move {
-            let members: Vec<&UseCase> = owned.iter().collect();
-            score_group(repo_root, splitter, &members, llm).await
-        })
+        .map(|owned| async move { score_group(repo_root, splitter, &owned, llm).await })
         .buffered(concurrency.max(1));
     let mut done = groups.iter();
     while let Some(scores) = results.next().await {
@@ -184,27 +238,25 @@ pub async fn score_confidence(
     prints.save(repo_root)
 }
 
-/// Scores use cases of one feature: one request for all of them when
-/// several have readable code, one per use case otherwise. A use case the
-/// batched answer misses falls back to its own request.
+/// Asks the model about the doubtful steps of the use cases of one feature:
+/// one request for all of them when several, one per use case otherwise. A
+/// use case the batched answer misses falls back to its own request.
 async fn score_group(
     repo_root: &Path,
     splitter: &Splitter,
-    group: &[&UseCase],
+    group: &[(UseCase, Vec<StepCheck>)],
     llm: &dyn LlmProvider,
 ) -> Result<Vec<Option<ConfidenceScore>>, PipelineError> {
-    let live: Vec<&UseCase> = group
-        .iter()
-        .copied()
-        .filter(|u| !confidence_prompt(repo_root, splitter, u).1.is_empty())
-        .collect();
+    // Only the steps the checks left open are shown, with the code they cite.
+    let asked: Vec<UseCase> = group.iter().map(|(u, c)| doubtful_part(u, c)).collect();
+    let asked: Vec<&UseCase> = asked.iter().collect();
     let mut answers: BTreeMap<&str, Vec<RawVerdict>> = BTreeMap::new();
-    let raw = if live.len() > 1 {
-        let what = format!("confidence of {} use cases", live.len());
+    let raw = if asked.len() > 1 {
+        let what = format!("confidence of {} use cases", asked.len());
         complete_json::<RawBatchVerdicts>(
             llm,
             CONFIDENCE_SYSTEM_PROMPT,
-            &batch_prompt(repo_root, splitter, &live),
+            &batch_prompt(repo_root, splitter, &asked),
             &what,
         )
         .await?
@@ -213,34 +265,43 @@ async fn score_group(
     };
     if let Some(raw) = &raw {
         for item in &raw.use_cases {
-            if let Some(u) = live.iter().find(|u| u.slug == item.slug) {
+            if let Some(u) = asked.iter().find(|u| u.slug == item.slug) {
                 answers.insert(&u.slug, item.steps.clone());
             }
         }
     }
     let mut scores = Vec::new();
-    for use_case in group {
+    for ((use_case, checks), part) in group.iter().zip(&asked) {
         scores.push(match answers.remove(use_case.slug.as_str()) {
-            Some(steps) => Some(combine(use_case, &steps)),
-            None => score_use_case(repo_root, splitter, use_case, llm).await?,
+            Some(steps) => Some(combine(use_case, &steps, checks)),
+            None => score_use_case(repo_root, splitter, use_case, part, checks, llm).await?,
         });
     }
     Ok(scores)
+}
+
+/// The use case reduced to the steps the checks left doubtful.
+fn doubtful_part(use_case: &UseCase, checks: &[StepCheck]) -> UseCase {
+    let mut part = use_case.clone();
+    part.steps = use_case
+        .steps
+        .iter()
+        .zip(checks)
+        .filter(|(_, c)| matches!(c, StepCheck::Doubtful(_)))
+        .map(|(s, _)| s.clone())
+        .collect();
+    part
 }
 
 async fn score_use_case(
     repo_root: &Path,
     splitter: &Splitter,
     use_case: &UseCase,
+    part: &UseCase,
+    checks: &[StepCheck],
     llm: &dyn LlmProvider,
 ) -> Result<Option<ConfidenceScore>, PipelineError> {
-    let (prompt, readable) = confidence_prompt(repo_root, splitter, use_case);
-    if readable.is_empty() {
-        return Ok(Some(ConfidenceScore::new(
-            0.0,
-            "no readable code cited by any step".to_string(),
-        )));
-    }
+    let (prompt, _) = confidence_prompt(repo_root, splitter, part);
     let Some(raw) = complete_json::<RawVerdicts>(
         llm,
         CONFIDENCE_SYSTEM_PROMPT,
@@ -251,25 +312,31 @@ async fn score_use_case(
     else {
         return Ok(None);
     };
-    Ok(Some(combine(use_case, &raw.steps)))
+    Ok(Some(combine(use_case, &raw.steps, checks)))
 }
 
-/// Turns the per-step verdicts into the use case score (mean of the step
-/// values, ungrounded steps capped) with a rationale naming the weak steps.
-fn combine(use_case: &UseCase, verdicts: &[RawVerdict]) -> ConfidenceScore {
+/// Turns the checks and the model's verdicts on the doubtful steps into the
+/// use case score (mean of the step values, ungrounded steps capped) with a
+/// rationale naming the weak steps.
+fn combine(use_case: &UseCase, verdicts: &[RawVerdict], checks: &[StepCheck]) -> ConfidenceScore {
     let by_order: BTreeMap<u32, &RawVerdict> = verdicts.iter().map(|v| (v.order, v)).collect();
     let mut total = 0.0_f32;
     let mut weak: Vec<String> = Vec::new();
-    for step in &use_case.steps {
-        let verdict = by_order.get(&step.order);
-        let mut value = verdict.map_or(0.0, |v| verdict_value(&v.verdict));
-        let mut note = verdict
-            .map_or("not assessed", |v| v.rationale.trim())
-            .to_string();
-        if step.source_refs.is_empty() && value > UNGROUNDED_STEP_CAP {
-            value = UNGROUNDED_STEP_CAP;
-            note = "cites no code".to_string();
-        }
+    for (step, check) in use_case.steps.iter().zip(checks) {
+        let (value, note) = match check {
+            StepCheck::Pass => (1.0, String::new()),
+            StepCheck::Ungrounded => (UNGROUNDED_STEP_CAP, "cites no code".to_string()),
+            StepCheck::Broken(why) => (0.0, why.clone()),
+            StepCheck::Doubtful(_) => {
+                let verdict = by_order.get(&step.order);
+                (
+                    verdict.map_or(0.0, |v| verdict_value(&v.verdict)),
+                    verdict
+                        .map_or("not assessed", |v| v.rationale.trim())
+                        .to_string(),
+                )
+            }
+        };
         total += value;
         if value < 1.0 {
             weak.push(if note.is_empty() {

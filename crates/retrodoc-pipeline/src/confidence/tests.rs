@@ -12,7 +12,8 @@ fn step(order: u32, path: Option<&str>) -> Step {
             name: "API".to_string(),
             kind: ActorKind::System,
         },
-        action: "does".to_string(),
+        // Names something the test files do not contain: the checks leave it to the model.
+        action: "calls missing_fn".to_string(),
         source_refs: path
             .map(|p| SourceRef {
                 path: p.to_string(),
@@ -125,14 +126,84 @@ async fn no_readable_code_scores_zero_and_bad_answer_stays_unscored() {
     assert_eq!(fc.rationale.as_deref(), Some("1 of 2 use case(s) scored"));
 }
 
+/// A step the checks settle alone: it names `a` and cites the line that holds it.
+fn passing_step() -> Step {
+    let mut s = step(1, Some("a.rs"));
+    s.action = "calls `a`".to_string();
+    s.source_refs[0].start_line = Some(1);
+    s.source_refs[0].end_line = Some(1);
+    s
+}
+
 #[tokio::test]
-async fn a_sample_scores_only_that_many_use_cases() {
+async fn steps_that_pass_the_checks_are_scored_without_the_model() {
     let dir = tempfile::tempdir().unwrap();
     std::fs::write(dir.path().join("a.rs"), "fn a() {}\n").unwrap();
-    let provider = FakeLlm::answering(r#"{"steps":[{"order":1,"verdict":"supported"}]}"#);
+    let provider = FakeLlm::answering("unused");
+    let mut features = vec![feature("f")];
+    let mut broken = step(2, Some("a.rs"));
+    broken.source_refs[0].start_line = Some(40);
+    let mut use_cases = vec![
+        use_case("f", vec![passing_step()]),
+        use_case("f", vec![passing_step(), broken, step(3, Some("a.rs"))]),
+    ];
+    use_cases[1].steps[2].action = "calls `a`".to_string();
+
+    score_confidence(
+        dir.path(),
+        &mut features,
+        &mut use_cases,
+        &provider,
+        None,
+        1,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(provider.calls(), 0);
+    assert_eq!(use_cases[0].confidence.as_ref().unwrap().value, 1.0);
+    let mixed = use_cases[1].confidence.as_ref().unwrap();
+    // Passing step 1, broken step 2 (no line 40), step 3 passes: 2/3.
+    assert!((mixed.value - 2.0 / 3.0).abs() < 1e-6);
+    assert!(mixed.rationale.as_deref().unwrap().contains("step 2"));
+}
+
+#[tokio::test]
+async fn only_the_doubtful_steps_are_sent_to_the_model() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.rs"), "fn a() {}\n").unwrap();
+    let provider = FakeLlm::answering(r#"{"steps":[{"order":2,"verdict":"partial"}]}"#);
+    let mut features = vec![feature("f")];
+    let mut doubtful = step(2, Some("a.rs"));
+    doubtful.action = "calls missing_fn".to_string();
+    let mut use_cases = vec![use_case("f", vec![passing_step(), doubtful])];
+
+    score_confidence(
+        dir.path(),
+        &mut features,
+        &mut use_cases,
+        &provider,
+        None,
+        1,
+    )
+    .await
+    .unwrap();
+
+    let prompt = &provider.prompts()[0];
+    assert!(prompt.contains("2. ") && prompt.contains("missing_fn"));
+    assert!(!prompt.contains("1. "));
+    // (1.0 + 0.5) / 2
+    assert_eq!(use_cases[0].confidence.as_ref().unwrap().value, 0.75);
+}
+
+#[tokio::test]
+async fn a_sample_gives_a_second_opinion_on_that_many_passing_use_cases() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.rs"), "fn a() {}\n").unwrap();
+    let provider = FakeLlm::answering(r#"{"steps":[{"order":1,"verdict":"partial"}]}"#);
     let mut features = vec![feature("f")];
     let mut use_cases: Vec<UseCase> = (0..6)
-        .map(|_| use_case("f", vec![step(1, Some("a.rs"))]))
+        .map(|_| use_case("f", vec![passing_step()]))
         .collect();
 
     score_confidence(
@@ -146,12 +217,25 @@ async fn a_sample_scores_only_that_many_use_cases() {
     .await
     .unwrap();
 
-    assert_eq!(
-        use_cases.iter().filter(|u| u.confidence.is_some()).count(),
-        2
-    );
-    let fc = features[0].confidence.as_ref().unwrap();
-    assert_eq!(fc.rationale.as_deref(), Some("2 of 6 use case(s) scored"));
+    // Every use case is scored; the two sampled ones got the model's opinion.
+    let values: Vec<f32> = use_cases
+        .iter()
+        .map(|u| u.confidence.as_ref().unwrap().value)
+        .collect();
+    assert_eq!(values.iter().filter(|v| **v == 0.5).count(), 2);
+    assert_eq!(values.iter().filter(|v| **v == 1.0).count(), 4);
+    let again = FakeLlm::answering("unused");
+    score_confidence(
+        dir.path(),
+        &mut features,
+        &mut use_cases,
+        &again,
+        Some(2),
+        1,
+    )
+    .await
+    .unwrap();
+    assert_eq!(again.calls(), 0, "a rerun is a no-op");
 }
 
 #[tokio::test]
