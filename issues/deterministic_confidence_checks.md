@@ -29,3 +29,18 @@ doubtful steps (ADR 0020 step 7).
 
 * The fingerprint of the confidence model (`confidence_model`) must keep clearing the scores when the model
   changes; a purely deterministic score has no model.
+
+# Tracking
+
+1. [x] Deterministic checks of one step (`confidence/checks.rs`, pure): `Pass` / `Doubtful` / `Broken`; cited lines exist, named identifiers (heuristic extraction from `action` + `description`) appear at the cited lines, named entities appear in the slice; entity names passed in from the saved glossary.
+2. [ ] Wire the checks into `score_confidence`: `Pass` is supported and `Broken` unsupported without a call, only `Doubtful` steps go to the LLM, `--confidence-sample` gives a second full LLM opinion on fully passing use cases, mechanical scores recomputed every run, `confidence_model` clears LLM scores only.
+3. [ ] Agreement measure (`confidence_agreement` example, no LLM): deterministic vs saved LLM score per use case on saved runs (use-case level, since per-step verdicts are not saved).
+4. [ ] Docs (`update-docs`) and a short ADR extending 0020.
+
+## Decisions
+
+* Identifiers a step names: extracted by heuristic from its text (backticks, `snake_case`, `CamelCase`, `foo()`); no new structured field (it would change the model and invalidate caches).
+* The deterministic check filters: a fully passing step is `supported` without an LLM; unreadable cited file or lines out of range is `unsupported` without an LLM (a fact); everything else goes to the LLM.
+* `--confidence-sample N` keeps its meaning and applies to fully passing use cases, which get a second LLM opinion.
+* An ungrounded step (no reference) is capped at `UNGROUNDED_STEP_CAP` without a call (`StepCheck::Ungrounded`).
+* A mechanical score is recomputed on every run (free, code may have changed), so it needs no fingerprint.

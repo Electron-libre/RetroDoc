@@ -24,6 +24,9 @@ use retrodoc_core::model::{ConfidenceScore, Feature, UseCase};
 use retrodoc_llm::LlmProvider;
 use serde::Deserialize;
 
+#[allow(dead_code)] // wired in by the next deliverable
+mod checks;
+
 use crate::chunks::{Focus, Splitter};
 use crate::error::PipelineError;
 use crate::features::save_features;
