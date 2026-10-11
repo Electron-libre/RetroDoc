@@ -55,7 +55,7 @@ pub use behaviour_coverage::{save_technical_support, BehaviourCoverage};
 pub use bm25::Bm25;
 pub use brief::{build_brief, sample_chars, Claim, Evidence, ProductBrief};
 pub use business_files::{infer_business_files, BusinessEntry, BusinessMap};
-pub use confidence::score_confidence;
+pub use confidence::{mechanical_score, score_confidence, StepTally};
 pub use diagrams::{attach_diagrams, sequence_diagram};
 pub use domains::{
     build_domains, build_domains_from_surface, CoverageReport, DomainCluster, DomainMap,

@@ -423,3 +423,19 @@ async fn a_failure_among_parallel_scores_leaves_the_earlier_use_cases_scored() {
     let scored: Vec<bool> = use_cases.iter().map(|u| u.confidence.is_some()).collect();
     assert_eq!(scored, [true, true, false, false]);
 }
+
+#[test]
+fn mechanical_score_is_known_only_when_no_step_is_doubtful() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.rs"), "fn a() {}\n").unwrap();
+
+    let settled = use_case("f", vec![passing_step()]);
+    let (tally, score) = mechanical_score(dir.path(), &settled, &[]);
+    assert_eq!((tally.passing, tally.doubtful), (1, 0));
+    assert_eq!(score.unwrap().value, 1.0);
+
+    let open = use_case("f", vec![passing_step(), step(2, Some("a.rs"))]);
+    let (tally, score) = mechanical_score(dir.path(), &open, &[]);
+    assert_eq!((tally.passing, tally.doubtful), (1, 1));
+    assert!(score.is_none());
+}

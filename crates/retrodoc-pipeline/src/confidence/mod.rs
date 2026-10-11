@@ -101,6 +101,43 @@ fn verdict_value(verdict: &str) -> f32 {
     }
 }
 
+/// How the mechanical checks judge the steps of one use case, for tools that
+/// compare them with a model's verdict (`examples/confidence_agreement.rs`).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct StepTally {
+    pub passing: usize,
+    pub ungrounded: usize,
+    pub doubtful: usize,
+    pub broken: usize,
+}
+
+/// Checks the steps of `use_case` without a model. The score is `Some` when
+/// the checks settle every step (what `score_confidence` would give without
+/// asking), `None` when a doubtful step is left to the model.
+#[must_use]
+pub fn mechanical_score(
+    repo_root: &Path,
+    use_case: &UseCase,
+    entities: &[String],
+) -> (StepTally, Option<ConfidenceScore>) {
+    let checks: Vec<StepCheck> = use_case
+        .steps
+        .iter()
+        .map(|s| check_step(repo_root, s, entities))
+        .collect();
+    let mut tally = StepTally::default();
+    for check in &checks {
+        match check {
+            StepCheck::Pass => tally.passing += 1,
+            StepCheck::Ungrounded => tally.ungrounded += 1,
+            StepCheck::Doubtful(_) => tally.doubtful += 1,
+            StepCheck::Broken(_) => tally.broken += 1,
+        }
+    }
+    let score = (tally.doubtful == 0).then(|| combine(use_case, &[], &checks));
+    (tally, score)
+}
+
 /// `count` of `items`, evenly spaced.
 fn evenly_spaced(items: &[usize], count: usize) -> Vec<usize> {
     let count = count.min(items.len());

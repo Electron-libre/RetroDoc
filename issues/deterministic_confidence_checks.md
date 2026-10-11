@@ -13,6 +13,8 @@ doubtful steps (ADR 0020 step 7).
 * A step cites code locations and names identifiers and entities; grounding already drops references to files
   outside the feature (`use_cases/grounding.rs`).
 
+* Agreement measured on `delivery_router` (13 use cases, local qwen3.6, `confidence_agreement` example, second opinions from `--confidence-sample 1000`): 9 use cases (69%) settled by the checks alone, all on the same side of the 50% flag as the model, mean gap 0.12 (the model is stricter: `partial` where the code does not show a detail); 93% of steps pass, 7% doubtful, 0% broken. The confidence pass made 3 calls instead of 8. One small repository: not a proof on large or badly cited ones; the comparison is per use case because step verdicts are not saved.
+
 # Approach
 
 1. Checks without an LLM: the cited lines exist, the identifiers a step names appear at those lines, the
@@ -34,7 +36,7 @@ doubtful steps (ADR 0020 step 7).
 
 1. [x] Deterministic checks of one step (`confidence/checks.rs`, pure): `Pass` / `Doubtful` / `Broken`; cited lines exist, named identifiers (heuristic extraction from `action` + `description`) appear at the cited lines, named entities appear in the slice; entity names passed in from the saved glossary.
 2. [x] Wire the checks into `score_confidence`: `Pass` is supported and `Broken` unsupported without a call, only `Doubtful` steps go to the LLM, `--confidence-sample` gives a second full LLM opinion on fully passing use cases, mechanical scores recomputed every run, `confidence_model` clears LLM scores only.
-3. [ ] Agreement measure (`confidence_agreement` example, no LLM): deterministic vs saved LLM score per use case on saved runs (use-case level, since per-step verdicts are not saved).
+3. [x] Agreement measure (`confidence_agreement` example, no LLM): deterministic vs saved LLM score per use case on saved runs (use-case level, since per-step verdicts are not saved).
 4. [ ] Docs (`update-docs`) and a short ADR extending 0020.
 
 ## Decisions
