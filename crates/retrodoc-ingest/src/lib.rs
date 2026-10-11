@@ -8,6 +8,7 @@ pub mod error;
 pub mod existing_docs;
 pub mod git_history;
 pub mod signals;
+pub mod structure;
 pub mod walker;
 
 use std::collections::HashMap;

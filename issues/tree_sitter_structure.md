@@ -37,3 +37,21 @@ behaviour-based pipeline (`issues/behaviour_coverage_domains.md`) can rank and s
 * Dynamic languages (Ruby metaprogramming, Rails conventions) hide references a parser can't see: keep
   the lexical fallback for slices.
 * Don't drop the regex path: some repositories use languages without a grammar.
+
+# Tracking
+
+1. [x] Structure module in `retrodoc-ingest`: per file, definitions (name, kind, line range, signature) and references, for Ruby, Rust, JavaScript, TypeScript and Python behind one cargo feature per language (all on by default); build time and binary size measured before and after.
+2. [ ] Chunking by parse: `Splitter` cuts at definition boundaries for the covered languages; `roles` no longer asks for `chunk_boundaries` for them and `chunk_check` skips them; the regex path stays for the others. Calls and warnings of chunking counted before and after on `delivery_router` and the Rails test repository.
+3. [ ] Parsed references in `ranking.rs` and `slices.rs`, lexical fallback kept; slices compared with the lexical ones on the Rails test repository. Decide with the user after the figures of step 2.
+4. [ ] Signature-only views for the entry points and glossary prompts; characters saved measured. Decide with the user after step 3.
+5. [ ] Docs (`update-docs`) and an ADR recording the measured results (ADR 0022 is accepted and immutable).
+
+## Decisions
+
+* All five languages of the issue (Ruby, Rust, JavaScript, TypeScript, Python) from the start, features on by default: build cost is not a reason to restrict the set.
+* The module lives in `retrodoc-ingest` (repository reading, no LLM, below `retrodoc-pipeline`).
+* Order: chunking first (most visible: fewer calls and warnings), then references, then signature views; steps 3 and 4 go on only after the figures of the previous step.
+* Measure on `delivery_router` and the Rails test repository with the local Ollama, as for a smoke test; criteria: calls and warnings of chunking, prompt characters, slices compared.
+* A saved `roles.yaml` with `chunk_boundaries` stays valid; covered languages simply stop using them.
+* Step 1 measured: the grammars and tree-sitter build in about 9 s in release (72 s CPU); the binary size is measured at step 2, once the code is used (the linker drops it before).
+* Known: the `tags.scm` queries give calls as references, not types or constants; the TypeScript query is completed with the JavaScript one and classes/enums.

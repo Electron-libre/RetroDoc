@@ -17,6 +17,13 @@ license = "MIT"
 repository = "https://github.com/cedricbrancourt/retrodoc"
 
 [workspace.dependencies]
+tree-sitter = "0.27"
+tree-sitter-tags = "0.27"
+tree-sitter-ruby = "0.23"
+tree-sitter-rust = "0.24"
+tree-sitter-javascript = "0.25"
+tree-sitter-typescript = "0.23"
+tree-sitter-python = "0.25"
 anyhow = "1"
 thiserror = "1"
 serde = { version = "1", features = ["derive"] }

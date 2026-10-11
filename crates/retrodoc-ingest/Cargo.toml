@@ -7,7 +7,22 @@ license.workspace = true
 [lints]
 workspace = true
 
+[features]
+default = ["ruby", "rust", "javascript", "typescript", "python"]
+ruby = ["dep:tree-sitter-ruby"]
+rust = ["dep:tree-sitter-rust"]
+javascript = ["dep:tree-sitter-javascript"]
+typescript = ["dep:tree-sitter-typescript", "dep:tree-sitter-javascript"]
+python = ["dep:tree-sitter-python"]
+
 [dependencies]
+tree-sitter.workspace = true
+tree-sitter-tags.workspace = true
+tree-sitter-ruby = { workspace = true, optional = true }
+tree-sitter-rust = { workspace = true, optional = true }
+tree-sitter-javascript = { workspace = true, optional = true }
+tree-sitter-typescript = { workspace = true, optional = true }
+tree-sitter-python = { workspace = true, optional = true }
 retrodoc-core.workspace = true
 ignore.workspace = true
 git2.workspace = true
