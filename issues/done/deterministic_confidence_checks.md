@@ -47,3 +47,13 @@ doubtful steps (ADR 0020 step 7).
 * An ungrounded step (no reference) is capped at `UNGROUNDED_STEP_CAP` without a call (`StepCheck::Ungrounded`).
 * A mechanical score is recomputed on every run (free, code may have changed), so it needs no fingerprint.
 * Mechanical scores are given only to use cases without a score (not recomputed every run): a recompute would overwrite the second opinions of `--confidence-sample` and break the no-op rerun. A changed model clears every score, mechanical ones are redone for free. `score_confidence` reads the entity names from the saved glossary itself (signature unchanged).
+
+# Correction after review
+
+* A review found that a step naming no identifier and no entity passed the checks because its cited lines
+  exist. It is now `Doubtful` ("names no identifier or entity to check"). Measured again on
+  `delivery_router` (13 use cases, 75 steps, local qwen3.6): 80% of the steps pass, 20% are doubtful, none
+  broken; 6 of 13 use cases (46%) are settled by the checks, all on the same side of the 50% flag as the
+  model's second opinion, mean gap 0.25; the default run makes 4 confidence calls (5 with
+  `--confidence-sample 1000`) instead of 8. The figures above (69%, 93%, 3 calls, gap 0.12) were too
+  optimistic.

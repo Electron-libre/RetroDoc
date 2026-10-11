@@ -26,7 +26,8 @@ pub(super) enum StepCheck {
 
 /// Checks `step` against the files and lines it cites: they exist, the
 /// identifiers its text names appear at the cited lines, and the `entities`
-/// it names appear in the cited files.
+/// it names appear in the cited files. A step that names none of either has
+/// nothing to check and stays doubtful.
 pub(super) fn check_step(repo_root: &Path, step: &Step, entities: &[String]) -> StepCheck {
     if step.source_refs.is_empty() {
         return StepCheck::Ungrounded;
@@ -56,20 +57,25 @@ pub(super) fn check_step(repo_root: &Path, step: &Step, entities: &[String]) -> 
     let cited = cited.to_lowercase();
     let files = files.to_lowercase();
     let step_text = format!("{} {}", step.action, step.description);
-    if let Some(missing) = identifiers(&step_text)
-        .into_iter()
-        .find(|id| !cited.contains(&id.to_lowercase()))
-    {
+    let named = identifiers(&step_text);
+    if let Some(missing) = named.iter().find(|id| !cited.contains(&id.to_lowercase())) {
         return StepCheck::Doubtful(format!("`{missing}` is not at the cited lines"));
     }
     let lowered = step_text.to_lowercase();
-    if let Some(missing) = entities
+    let entities_named: Vec<&String> = entities
         .iter()
         .filter(|e| e.chars().count() >= MIN_ENTITY_CHARS)
         .filter(|e| lowered.contains(&e.to_lowercase()))
+        .collect();
+    if let Some(missing) = entities_named
+        .iter()
         .find(|e| !files.contains(&e.to_lowercase()))
     {
         return StepCheck::Doubtful(format!("entity {missing} is not in the cited files"));
+    }
+    // Cited lines that exist prove nothing about a step that names no code and no entity.
+    if named.is_empty() && entities_named.is_empty() {
+        return StepCheck::Doubtful("names no identifier or entity to check".to_string());
     }
     StepCheck::Pass
 }
@@ -171,6 +177,19 @@ mod tests {
         let dir = repo();
         let s = step("Calls create_invoice", vec![("a.rs", Some(1), Some(1))]);
         assert_eq!(check_step(dir.path(), &s, &[]), StepCheck::Pass);
+    }
+
+    #[test]
+    fn a_step_naming_nothing_to_check_is_doubtful_even_with_real_lines() {
+        let dir = repo();
+        let s = step(
+            "Sends the order to the kitchen",
+            vec![("a.rs", Some(1), Some(1))],
+        );
+        assert!(matches!(
+            check_step(dir.path(), &s, &["Payment".to_string()]),
+            StepCheck::Doubtful(_)
+        ));
     }
 
     #[test]
