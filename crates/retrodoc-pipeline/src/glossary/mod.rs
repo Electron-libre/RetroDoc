@@ -281,7 +281,7 @@ pub async fn build_glossary(
         models: BTreeMap::new(),
         tests: previous.tests.clone(),
     };
-    let splitter = Splitter::new(&roles.chunk_boundaries);
+    let splitter = Splitter::new(&roles.chunk_boundaries).with_body_lines(roles.body_lines);
     let reader = EntityReader {
         repo_root,
         brief,
@@ -342,7 +342,10 @@ impl EntityReader<'_> {
         let mut pending: Vec<PendingChunk> = Vec::new();
         for path in paths {
             let content = read_file_lossy(self.repo_root, path)?;
-            let hash = hash_for_model(&self.brief.hash_with(&content), self.llm);
+            let hash = hash_for_model(
+                &self.brief.hash_with(&self.splitter.keyed(&content)),
+                self.llm,
+            );
             match self.previous.models.get(path) {
                 Some(saved) if saved.content_hash == hash => {
                     glossary.models.insert(path.to_path_buf(), saved.clone());

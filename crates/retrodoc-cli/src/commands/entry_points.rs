@@ -18,7 +18,8 @@ pub async fn run(path: &Path, tracker: &UsageTracker) -> anyhow::Result<()> {
     let rules = RoleRules::load(repo_root)
         .context("no file role rules found — run `retrodoc roles` first")?;
     let ingest = workspace.ingest()?;
-    let role_map = rules.classify(&ingest.files);
+    let mut role_map = rules.classify(&ingest.files);
+    role_map.body_lines = config.pipeline.body_lines;
     let business_files = BusinessMap::load(repo_root)
         .map(|map| map.files(&ingest.files))
         .unwrap_or_default();

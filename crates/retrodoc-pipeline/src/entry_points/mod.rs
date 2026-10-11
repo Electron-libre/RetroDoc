@@ -200,7 +200,7 @@ pub async fn build_entry_points(
 ) -> Result<EntryPoints, PipelineError> {
     let previous = EntryPoints::load(repo_root).unwrap_or_default();
     let mut inventory = EntryPoints::default();
-    let splitter = Splitter::new(&roles.chunk_boundaries);
+    let splitter = Splitter::new(&roles.chunk_boundaries).with_body_lines(roles.body_lines);
     // One item per chunk of a changed file: (path, file hash, chunk text).
     let mut pending: Vec<PendingChunk> = Vec::new();
     let to_read: BTreeSet<&Path> = roles
@@ -210,7 +210,7 @@ pub async fn build_entry_points(
         .collect();
     for path in to_read {
         let content = read_file_lossy(repo_root, path)?;
-        let hash = hash_for_model(&brief.hash_with(&content), llm);
+        let hash = hash_for_model(&brief.hash_with(&splitter.keyed(&content)), llm);
         match previous.files.get(path) {
             Some(saved) if saved.content_hash == hash => {
                 inventory.files.insert(path.to_path_buf(), saved.clone());

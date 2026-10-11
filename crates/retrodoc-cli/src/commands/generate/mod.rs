@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::Context;
-use retrodoc_core::config::{DomainsFrom, LlmConfig, DEFAULT_BATCH_CHARS};
+use retrodoc_core::config::{Config, DomainsFrom, LlmConfig, DEFAULT_BATCH_CHARS};
 use retrodoc_core::model::{Feature, UseCase};
 use retrodoc_ingest::IngestResult;
 use retrodoc_llm::UsageTracker;
@@ -90,7 +90,7 @@ pub async fn run(
             .await?;
 
     let (surface, entry_points, role_map) =
-        build_surface(repo_root, &mut ingest, &brief, &llm, force, tracker).await?;
+        build_surface(repo_root, &mut ingest, &brief, &llm, force, config, tracker).await?;
     let actors = tracker
         .in_pass(
             "actors",
@@ -394,6 +394,7 @@ async fn build_surface(
     brief: &ProductBrief,
     llm: &PassProviders,
     force: bool,
+    config: &Config,
     tracker: &UsageTracker,
 ) -> anyhow::Result<(Surface, EntryPoints, Option<RoleMap>)> {
     println!("Identifying the stack and the file roles…");
@@ -418,7 +419,8 @@ async fn build_surface(
         tracing::warn!("no file role rules identified, domains are clustered without the surface");
         return Ok((Surface::default(), EntryPoints::default(), None));
     }
-    let role_map = rules.classify(&ingest.files);
+    let mut role_map = rules.classify(&ingest.files);
+    role_map.body_lines = config.pipeline.body_lines;
     println!("Stack: {}", rules.stack);
 
     let business = super::business_files::locate(

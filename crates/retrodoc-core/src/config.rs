@@ -59,6 +59,12 @@ pub struct PipelineConfig {
     /// entry points grouped by resource (ADR 0020), with no repo map.
     #[serde(default)]
     pub domains_from: DomainsFrom,
+    /// Experimental (ADR 0022): the entry points and glossary passes read, of
+    /// each method or function of a language tree-sitter parses, only its
+    /// signature and the first N lines of its body; the rest is marked as
+    /// omitted. Absent (default): files are read whole.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub body_lines: Option<usize>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -401,6 +407,9 @@ mod tests {
         assert_eq!(Config::default().pipeline.domains_from, DomainsFrom::Files);
         let none: Config = toml::from_str("[llm]\nmodel = \"m\"").unwrap();
         assert_eq!(none.pipeline.domains_from, DomainsFrom::Files);
+        let lines: Config = toml::from_str("[pipeline]\nbody_lines = 5").unwrap();
+        assert_eq!(lines.pipeline.body_lines, Some(5));
+        assert_eq!(Config::default().pipeline.body_lines, None);
         let surface: Config = toml::from_str("[pipeline]\ndomains_from = \"surface\"").unwrap();
         assert_eq!(surface.pipeline.domains_from, DomainsFrom::Surface);
         // Kept when the config is written back.

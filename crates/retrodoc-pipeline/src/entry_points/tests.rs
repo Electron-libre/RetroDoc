@@ -323,3 +323,40 @@ async fn the_prompt_leaves_out_what_only_the_application_itself_calls_but_keeps_
         "the public API of a library still is: {system}"
     );
 }
+
+#[tokio::test]
+async fn a_shorter_view_of_the_bodies_reads_the_files_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let body = "    step_1\n    step_2\n    step_3\n    step_4\n    step_5\n    step_6\n    step_7\n    step_8\n";
+    std::fs::write(
+        dir.path().join("a_controller.rb"),
+        format!("class AController\n  def sign\n{body}  end\nend\n"),
+    )
+    .unwrap();
+    let mut roles = RoleMap {
+        roles: [(PathBuf::from("a_controller.rb"), FileRole::EntryPoint)]
+            .into_iter()
+            .collect(),
+        ..RoleMap::default()
+    };
+    let llm = FakeLlm::answering(r#"{"entry_points":[]}"#);
+    let brief = ProductBrief::default();
+
+    build_entry_points(dir.path(), &roles, &[], &brief, &llm)
+        .await
+        .unwrap();
+    build_entry_points(dir.path(), &roles, &[], &brief, &llm)
+        .await
+        .unwrap();
+    assert_eq!(llm.calls(), 1, "unchanged: reused");
+    assert!(llm.prompts()[0].contains("step_8"));
+
+    roles.body_lines = Some(2);
+    build_entry_points(dir.path(), &roles, &[], &brief, &llm)
+        .await
+        .unwrap();
+    assert_eq!(llm.calls(), 2, "another view: read again");
+    let prompt = &llm.prompts()[1];
+    assert!(prompt.contains("step_2") && !prompt.contains("step_8"));
+    assert!(prompt.contains("lines omitted"));
+}
