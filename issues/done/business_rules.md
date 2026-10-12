@@ -78,6 +78,29 @@ same code with a prompt sentence tried and then reverted).
 * An earlier run showed a `WARN` for an invalid chunk boundary regex written by the roles LLM; it comes
   from the roles pass, not from this one.
 
+**linkding, DeepSeek (`deepseek-chat`), `--no-confidence`, concurrency 4, 2026-10-12**
+* 66 features, 649 rules (about 10 per feature) in 1m54s, 75 calls: 500k tokens in, 76k out. Use cases:
+  437k in, 133k out; the whole run 1.18M in, 242k out, 8m03s. The rules pass is about 42% of the input
+  tokens of a run. In money, with the prices I remember for `deepseek-chat` (not recorded by the
+  project; to check), about 0.2 $ for the pass and 0.6 $ for the run, more than the 0.05 to 0.10 $
+  estimated before the run.
+* 199 rules (31%) backed by a test or a doc too (185 at 0.7, 14 at 0.85); 450 by code alone (0.4). By
+  domain: 509 in the main one, 70 in `testing-and-quality`, 44 administration, 26 documentation.
+* Defect found and fixed: the server refused the strict JSON schema, and 10 answers did not parse
+  (`docs`, `tests` or `entities` given as objects or as a bare id where a string was asked), one feature
+  was lost. The raw answer types are now lenient (an element of the wrong shape costs the element). The
+  rerun asked the lost feature alone (1 call) and got 4 more rules (653).
+* The rerun made no other call. The debt report lists 275 of 653 rules as mentioned in no existing doc
+  (the project has docs, so the criterion is not trivial; not checked by hand).
+* Quality, on a sample of 25: the permission and ownership rules are right and useful ("a bookmark can
+  only be deleted by its owner", tags unique per user ignoring case, a duplicate URL refused when
+  editing). Noise: user interface behaviour ("pressing n starts adding a bookmark"), rules of the
+  end-to-end test features (70, "the browser session is authenticated as the test user"), and kinds that
+  fall back on `computation` (201) and `state_transition` (177). Duplicates across features are fewer
+  than feared: 38 near-identical pairs among 649.
+* One test of `chunk_check` failed once in eight runs of the suite and not again in six more; not
+  reproduced, probably a flake of the log capture in `testing.rs`, not looked into.
+
 # Resources
 
 * ADR `0021`, ADR `0019` (evidence), ADR `0020` (bounding)
@@ -99,7 +122,7 @@ same code with a prompt sentence tried and then reverted).
 5. [x] Rendering on entity and use case pages, per domain, `llms.txt`.
 6. [x] MCP: rules in `get_feature`, `get_use_case`, `get_domain` and `search_docs` (no new tool).
 7. [x] Debt report: count the rules no existing doc mentions.
-8. [ ] Smoke test on `delivery_router` (local Ollama: done, see Findings), run on linkding with DeepSeek (cost and figures to add); compare with the hand list.
+8. [x] Smoke test on `delivery_router` (local Ollama) and run on linkding with DeepSeek: figures in Findings.
 
 ## Decisions
 

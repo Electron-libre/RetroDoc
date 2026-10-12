@@ -295,3 +295,26 @@ async fn a_repeated_statement_is_kept_once_with_the_copy_that_has_valid_code() {
         RuleEvidence::Code { source } if source.start_line == Some(2)
     ));
 }
+
+#[test]
+fn a_hosted_model_s_odd_shapes_cost_the_element_not_the_answer() {
+    let raw: grounding::RawRules = serde_json::from_str(
+        r#"{"rules":[{"statement":"s","kind":"limit",
+            "entities":[{"name":"Order"},"Rider",3],
+            "use_cases":{"slug":"place-an-order"},
+            "code":[{"path":"lib/router.rb"}],
+            "tests":["T2",{"id":"T1","phrase":"refuses an order"},7],
+            "docs":[{"id":"D1"},"D2",null]}]}"#,
+    )
+    .unwrap();
+    let r = &raw.rules[0];
+    assert_eq!(r.entities, ["Order", "Rider"]);
+    assert_eq!(r.use_cases, ["place-an-order"]);
+    assert_eq!(r.docs, ["D1", "D2"]);
+    let tests: Vec<(&str, &str)> = r
+        .tests
+        .iter()
+        .map(|t| (t.id.as_str(), t.phrase.as_str()))
+        .collect();
+    assert_eq!(tests, [("T2", ""), ("T1", "refuses an order")]);
+}

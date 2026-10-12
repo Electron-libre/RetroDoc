@@ -31,7 +31,7 @@ step 6), so the input tokens of these passes drop and the two results come from 
 
 * A bigger answer per call can lose entry points: check the recall with `entry_points_replay` on the
   hand-made reference before and after.
-* `issues/business_rules.md` will add rules to the same reading: leave room for them in the answer type.
+* `issues/done/business_rules.md` will add rules to the same reading: leave room for them in the answer type.
 
 # Tracking
 

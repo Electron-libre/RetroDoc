@@ -473,7 +473,7 @@ Steps, in order, one issue each:
    `files` until `issues/surface_domains_default_decision.md`; the cost of the use cases pass, the deterministic
    confidence and the single read per file are queued as their own issues.
 5. `issues/done/tree_sitter_structure.md`: long files cut at parsed definitions for five languages, short method bodies as an option (ADR 0027); the parsed references moved to `issues/parsed_references_for_ranking_and_slices.md`.
-6. `issues/business_rules.md`.
+6. `issues/done/business_rules.md`.
 7. `issues/docs_reconciliation_debt_report.md`.
 
 Expected: a cost that grows with the business surface (entry points, entities, use cases), not with the

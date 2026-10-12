@@ -29,16 +29,77 @@ pub(super) struct RawRule {
     pub(super) statement: String,
     #[serde(default)]
     pub(super) kind: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "lenient_names")]
+    #[schemars(with = "Vec<String>")]
     pub(super) entities: Vec<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "lenient_names")]
+    #[schemars(with = "Vec<String>")]
     pub(super) use_cases: Vec<String>,
     #[serde(default)]
     pub(super) code: Vec<RawCode>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "lenient_tests")]
+    #[schemars(with = "Vec<RawTest>")]
     pub(super) tests: Vec<RawTest>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "lenient_names")]
+    #[schemars(with = "Vec<String>")]
     pub(super) docs: Vec<String>,
+}
+
+/// A list of names read leniently: a hosted model often answers `{"id": "D1"}` or `{"name": ...}`
+/// where a string is asked. An element is its string, else the first text among its `id`, `name`
+/// and `slug`; anything else is skipped, so a wrong shape costs the element, not the feature.
+fn lenient_names<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = Option::<serde_json::Value>::deserialize(deserializer)?;
+    let items = match value {
+        Some(serde_json::Value::Array(items)) => items,
+        Some(single @ (serde_json::Value::String(_) | serde_json::Value::Object(_))) => {
+            vec![single]
+        }
+        _ => Vec::new(),
+    };
+    Ok(items.iter().filter_map(name_of).collect())
+}
+
+fn name_of(value: &serde_json::Value) -> Option<String> {
+    match value {
+        serde_json::Value::String(text) => Some(text.clone()),
+        serde_json::Value::Object(map) => ["id", "name", "slug"]
+            .iter()
+            .find_map(|key| map.get(*key).and_then(serde_json::Value::as_str))
+            .map(str::to_string),
+        _ => None,
+    }
+}
+
+/// The cited tests: `{"id", "phrase"}` objects, or a bare id (which quotes nothing, so it backs
+/// nothing but does not spoil the answer).
+fn lenient_tests<'de, D>(deserializer: D) -> Result<Vec<RawTest>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = Option::<serde_json::Value>::deserialize(deserializer)?;
+    let items = match value {
+        Some(serde_json::Value::Array(items)) => items,
+        Some(single @ (serde_json::Value::String(_) | serde_json::Value::Object(_))) => {
+            vec![single]
+        }
+        _ => Vec::new(),
+    };
+    Ok(items
+        .iter()
+        .filter_map(|item| {
+            let id = name_of(item)?;
+            let phrase = item
+                .get("phrase")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or_default()
+                .to_string();
+            Some(RawTest { id, phrase })
+        })
+        .collect())
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]

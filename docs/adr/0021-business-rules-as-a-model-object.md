@@ -37,4 +37,4 @@ against the docs).
 * The debt report can count the rules that no doc mentions.
 * The candidate detection is language-dependent; it starts with the languages of the smoke repositories
   and degrades to the LLM reading the slice.
-* Follow-up issue: `issues/business_rules.md`.
+* Follow-up issue: `issues/done/business_rules.md`.

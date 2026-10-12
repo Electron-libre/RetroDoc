@@ -1,4 +1,4 @@
-//! Business rules pass (ADR 0021, `issues/business_rules.md`): what is allowed, refused, limited,
+//! Business rules pass (ADR 0021, `issues/done/business_rules.md`): what is allowed, refused, limited,
 //! and in which states, stated in business language with its evidence. Saved as
 //! `.retrodoc/cache/rules.yaml`.
 //!
