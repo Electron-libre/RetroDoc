@@ -21,13 +21,13 @@ Work through the steps in order and report the result of each one. Don't skip a 
 
 | Change | Update |
 |---|---|
-| New/renamed/removed CLI command or flag | `CLAUDE.md` (Commands + `retrodoc-cli` bullet), `docs/ARCHITECTURE.md` §3 (commands), `PLAN.md` §4 (`retrodoc-cli` list) |
-| New pipeline pass or changed pass behavior | `CLAUDE.md` (`retrodoc-pipeline` bullet), `docs/ARCHITECTURE.md` §4 (pipeline, safety nets, confidence) and §5 (incremental re-run) if caching changed, `PLAN.md` §2 |
-| New artifact or cache file under `.retrodoc/` | `CLAUDE.md`, `docs/ARCHITECTURE.md` §7 (what lands on disk) |
-| Output files written to the docs dir | `docs/ARCHITECTURE.md` §6, `PLAN.md` §3 (expected output), `CLAUDE.md` (`retrodoc-render` bullet) |
+| New/renamed/removed CLI command or flag | `CLAUDE.md` (Commands), `docs/crates/render-mcp-cli.md`, `docs/ARCHITECTURE.md` §3 (commands), `PLAN.md` §4 (`retrodoc-cli` list) |
+| New pipeline pass or changed pass behavior | `docs/crates/pipeline.md`, `docs/ARCHITECTURE.md` §4 (pipeline, safety nets, confidence) and §5 (incremental re-run) if caching changed, `PLAN.md` §2 |
+| New artifact or cache file under `.retrodoc/` | `docs/crates/`, `docs/ARCHITECTURE.md` §7 (what lands on disk) |
+| Output files written to the docs dir | `docs/ARCHITECTURE.md` §6, `PLAN.md` §3 (expected output), `docs/crates/render-mcp-cli.md` |
 | New/changed `retrodoc.toml` key | `retrodoc-core` doc comments in `config.rs`, the default file written by `Config::write_default` (used by `retrodoc init`), any doc showing a sample config |
-| New crate, moved module, changed dependency direction | `CLAUDE.md` architecture diagram + bullets, `docs/ARCHITECTURE.md` §2, `PLAN.md` §4 |
-| LLM provider / boundary change | `docs/ARCHITECTURE.md` §8, `CLAUDE.md` (`retrodoc-llm` bullet), `PLAN.md` scope and risks if v1 limits move |
+| New crate, moved module, changed dependency direction | `CLAUDE.md` architecture diagram + crate map, `docs/crates/`, `docs/ARCHITECTURE.md` §2, `PLAN.md` §4 |
+| LLM provider / boundary change | `docs/ARCHITECTURE.md` §8, `docs/crates/llm.md`, `PLAN.md` scope and risks if v1 limits move |
 | Roadmap phase started, finished, or re-scoped | `PLAN.md` §5 (remove "Not started" / add status) and the matching §7.x section, `CLAUDE.md` if it lists what is implemented |
 | New or changed convention (lint, tests, commit format, language) | `CLAUDE.md` "Conventions", `AGENTS.md` for commit rules |
 | Product-level scope change (new connector, doc type) | `PRODUCT.md`, `PLAN.md` §1 scope |
@@ -44,9 +44,9 @@ rg -n "<name>" CLAUDE.md PLAN.md PRODUCT.md AGENTS.md docs/
 
 Also compare these lists against the code, since they drift first:
 
-- Subcommands in `crates/retrodoc-cli/src/main.rs` and `commands/` vs. the command lists in `CLAUDE.md`,
+- Subcommands in `crates/retrodoc-cli/src/main.rs` and `commands/` vs. the command lists in `CLAUDE.md` and `docs/crates/`,
   `docs/ARCHITECTURE.md` §3 and `PLAN.md` §4.
-- Modules in `crates/retrodoc-pipeline/src/` vs. the passes described in `CLAUDE.md` and
+- Modules in `crates/retrodoc-pipeline/src/` vs. the passes described in `docs/crates/pipeline.md` and
   `docs/ARCHITECTURE.md`.
 - Phase statuses in `PLAN.md` §5 vs. `git log` (done phases must not say "Not started").
 - Cross-references (`§N`, relative links, file paths) still resolve after any heading or file rename.

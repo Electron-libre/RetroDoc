@@ -1,0 +1,28 @@
+# Crates: render, mcp and cli
+
+Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and §9.
+
+- **retrodoc-render**: writes the Markdown/Mermaid output to the docs dir (`output.docs_dir`). `render()` builds
+  the files in memory (deterministic), `plan()` compares them with the disk (created/updated + unified diff,
+  stale files under `functional/` reported but never deleted), `WritePlan::apply()` writes only what differs.
+  `_retrodoc/run-metadata.json` has a timestamp that is ignored when it's the only change, so reruns are no-ops. `functional/llms.txt` (`agent_index`) is the `llms.txt`-style entry point for agents that don't
+  run the MCP server: domains and features with links and confidence, how to read them and a pointer to `retrodoc mcp`.
+  The CLI drops generated docs (`functional/`, `_retrodoc/`) from the ingested existing docs.
+- **retrodoc-mcp** (`corpus.rs`, `search.rs`, `freshness.rs`, `source.rs`, `tools.rs`, `server.rs`): read-only access to the generated docs
+  for LLM agents, with no LLM call (see `issues/done/mcp_server.md`). `SearchIndex` ranks (the hand-written BM25 of `retrodoc-pipeline`'s `bm25.rs`, shared with the pipeline, title counted
+  three times, stop words in English and French dropped, at least half of the query words must match) one `Entry` per
+  domain, sub-domain, feature, use case, glossary concept and collected Markdown doc, each with its id, confidence and
+  cited files. `Docs` (`Docs::load` reads `.retrodoc/cache/`, business rules included, + the collected docs) answers the seven tools in Markdown
+  (`list_domains`, `get_domain`, `get_feature`, `get_use_case`, `search_docs`, `read_source`, `git_log`): ids to reuse, confidence (flagged below
+  50%), cited files, a stale warning when a cited file no longer matches the hash recorded in `source-hashes.json` (`SourceHashes`, written only by a `generate` that went through every pass, hashes read before the repo map)
+  (`Freshness`, checked at every call; files without a recorded hash are not judged), and "Not documented" as a normal answer for an unknown id or an empty search. `server.rs` puts them
+  behind the `rmcp` SDK (`serve_stdio`); tested end to end with an `rmcp` client over an in-memory pipe. `source.rs` (`SourceAccess`) backs `read_source` (a
+  window of lines, 200 by default, 400 at most) and `git_log` (hash, date, subject, no author): only files the docs
+  cite, never an absolute path, a `..`, a path that is or goes through a symlink (even inside the repo), a binary or a
+  file over 1 MiB; a line over 400 characters is cut. `git_log` leaves merge commits out. The two tools run in
+  `spawn_blocking`.
+- **retrodoc-cli**: `clap` subcommands (`init`, `scan`, `generate`, `render`, `report`, `roles`, `brief`, `glossary`,
+  `entry-points`, `business-read`, `actors`, `surface`, `benchmark`, `benchmark-table`, `search`, `mcp`). `generate` runs the whole pipeline then writes the docs (`--dry-run` previews, `--force`
+  ignores caches, `--no-confidence` / `--confidence-sample N` / `--max-files N` bound the cost, see the pipeline bullet); `render` writes/previews the docs from the cached artifacts (no LLM call); `report` prints
+  the debt report (no LLM call); `business-files [--force]` locates where the business lives (`business-files.yaml`); `brief [--force] [--signals]` locates the schema and translations (`signal-sources.yaml`), then writes and prints the product brief with where each claim comes from (`--signals`: only how much evidence there is per kind and the sample size, no LLM call); `roles`, `glossary`, `entry-points`, `actors` and `surface` are the standalone phase 7 commands above; `benchmark --reference <file> [--matches <file>] [--judge] [--out <json>]` prints the figures of the last run and its recall/precision against a hand-written reference (no LLM call; `--judge` asks the model for pairs and a narrative rating, saved in `.retrodoc/benchmark/judge.yaml`, outside the cache so `generate --force` leaves it; `--out` saves the figures as JSON); `benchmark-table <dir> [--previous <dir>]` tabulates saved runs (mean, range, change; no LLM call); `search "<query>"` prints the best matches of the lexical search and `mcp` serves the docs to an agent over stdio (neither calls the LLM; both need a `generate` run). `main` is `#[tokio::main]` since `generate` awaits the pipeline. Logs (`tracing`) go to stdout, in color only on a terminal: a redirected log is plain text; `mcp` logs to stderr because its stdout carries the protocol. `commands/workspace.rs` is the common start of the commands: `repo_root`, `Workspace::open` (root + `retrodoc.toml`), `Workspace::ingest` (the docs `generate` writes, `<docs_dir>/functional` and `<docs_dir>/_retrodoc`, are left out of `files`, so they never change the tree shape a pass hashed), `source_paths`.
+

@@ -1,0 +1,13 @@
+# Crates: core and ingest
+
+Detail moved out of `CLAUDE.md`. Overview of all crates: `docs/ARCHITECTURE.md` §2.
+
+- **retrodoc-core**: shared domain model (`Domain`/`Feature`/`UseCase`/`Step`/`ConfidenceScore`/`BusinessRule` (ADR 0021, filled by the `rules` pass)
+  in `model.rs`) and `retrodoc.toml`
+  config (`config.rs`).
+- **retrodoc-ingest**: reads the target repo — file walker respecting `.gitignore` (`walker.rs`; classifies files as `Source`/`Test`/`Markdown`/`Other` —
+  tests are detected by directory or file-name convention and kept out of the pipeline, which only
+  consumes `Source`), one-pass
+  git history per file via `git2` revwalk+diff (`git_history.rs`, not a `git log` per file — matters for
+  perf on large repos; `file_log` is the exception, the recent commits of one file for the MCP `git_log`), existing Markdown docs (`existing_docs.rs`), and the signals of the product brief (`signals.rs`: `Signal` with a citable origin; doc sections cut at headings, root `*.md` included; commit subjects from `git_history::scan_history`, the same one revwalk as `collect_history`, without merges, bots and dependency bumps, `feat`/`fix` first in a Conventional Commits repo; root manifest metadata, the tree two levels deep, Gherkin `.feature` titles and test descriptions (`test_phrases`, shared with the glossary), schema tables, migration names and translated texts (one language), read by format (SQL DDL, `ActiveRecord` schema, YAML/JSON/properties/gettext) from the files a `SourceMap` selects (rules `kind + glob + format`; `SourceMap::sniff` guesses them from file content on any stack, no location is hard-coded; `retrodoc-pipeline`'s `sources` replaces it with an LLM-inferred, editable one); `signals::collect(repo_root, &ingest, &sources)` gathers them all, with `IngestResult.commits` coming from the same walk as the history; ADR 0019). `structure.rs` (ADR 0022) parses a source file with tree-sitter and returns its definitions (name, kind, line range, signature) and references, for Ruby, Rust, JavaScript, TypeScript/TSX and Python (one cargo feature per language, all on by default; the grammars' `tags.scm` queries; `None` for any other file, which keeps the lexical paths); `retrodoc-pipeline`'s `Splitter` cuts those languages at the parsed definitions. `run()` combines the three into an
+  `IngestResult`.
