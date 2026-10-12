@@ -43,3 +43,35 @@ and gives the evidence the parked decision on `domains_from` is waiting for.
 * Never name the application, nor quote its paths or code, in a committed file.
 * A paid run needs an explicit go from the user, with the estimate.
 * One run is one sample: it validates the direction and finds defects, it does not compare two settings.
+
+# Tracking
+
+1. [x] Preparation without LLM call: clone in `/tmp`, config, `scan`, reading sample fixed.
+2. [ ] The paid run: `generate`, rerun, `report`, verdict of the smoke-test criteria, `behaviour_baseline`;
+   figures per pass written here.
+3. [ ] Reading with the user on the fixed sample; the reading written here, generically.
+4. [ ] Each defect to an issue or a line of an existing one; result given to
+   `issues/surface_domains_default_decision.md` and `PLAN.md` §7.6.
+
+## Decisions
+
+* (user, 2026-10-12) The private Rails application of the earlier smoke tests, at its committed `HEAD`:
+  1,661 source files, 670 test files (`scan`).
+* (user, 2026-10-12) Hosted model (DeepSeek), `surface`, rules off, one run. A ceiling of $15 was refused as
+  far too much at this stage; the order of magnitude accepted is $1 to $2.
+* The smoke script only targets the local server: the same steps are run by hand and judged with
+  `smoke.rs evaluate`.
+
+## Reading sample (fixed before the run)
+
+* every domain name;
+* 20 use cases: the list sorted by identifier, one every `N / 20`, starting at the first;
+* the entry points no feature holds, and the technical support list (the first 30 of each if longer);
+* no rules (the pass is off).
+
+## Findings while preparing
+
+* `--max-files` does not bound the `surface` path: `generate` applies the budget after the surface passes
+  (roles, business files, glossary, entry points) and the actors, and the features of the `surface` path are
+  built from every entry point, kept file or not. The budget only removes files from the code slices the use
+  cases read and from the coverage figures. To record as a defect (deliverable 4).
