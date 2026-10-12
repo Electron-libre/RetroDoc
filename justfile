@@ -43,7 +43,7 @@ benchmark *args:
 check-commit rev="HEAD":
     git log -1 --format=%B {{rev}} | rust-script .claude/skills/commit-message/commit_check.rs
 
-# Move a finished issue to issues/done/ (only after the user agreed).
+# Move a finished issue to issues/done/ and repoint the documents that cite it (only after the user agreed). `--relink` repairs old references.
 close-issue issue:
     rust-script .claude/skills/issue-workflow/close_issue.rs {{issue}}
 
