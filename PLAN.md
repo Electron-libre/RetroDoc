@@ -33,9 +33,13 @@ Step 3 (`domains.yaml`) is a structured intermediate artifact, not a final file 
 be rerun without redoing the clustering, and it's the basis for the incremental cache (rerun only what
 touches files modified since the last run).
 
-This is the pipeline as implemented. Phase 10 (§7.5) redesigns it: a product brief from the non-code
-evidence comes first, and domains and features are built from the entry points and entities, with the
-coverage invariant moved from files to behaviours (the LLM repo map becomes optional).
+This is the default path (`[pipeline] domains_from = "files"`), with what phases 7 and 10 added around it: a
+product brief from the non-code evidence comes first, then the surface (roles, business files, entities,
+entry points) and the actors; the confidence checks are mechanical first; business rules are an optional
+pass after the use cases. Phase 10 (§7.5) also built a second path (`domains_from = "surface"`): domains and
+features from the entry points and entities, no LLM repo map, the coverage invariant moved from files to
+behaviours. Both exist until one is chosen (§7.6). The order `generate` runs today is in
+`docs/crates/pipeline.md`.
 
 ## 3. Expected output
 
@@ -75,8 +79,8 @@ docs/
    not as a paraphrase of the code. Built on a new "surface extraction" foundation (file roles, models and
    glossary, entry points and outputs) that also bounds what is sent to the LLM. Implemented end to end in
    code (steps 1–4e: surface, actors, narrative, business-language score), each step checked on the real Rails test repo
-   data piece by piece; a full `generate` run on a real repo is still missing (blocked on phase 8: the repo
-   map of a large repo is out of reach locally).
+   data piece by piece. The only full `generate` on a part of that repo is of 2026-10-02 (§7.2, 325 files), before
+   the redesign of phase 10; the next one is `issues/validate_on_large_application.md`.
 8. **Scalability & cost control** (see §7.2): bring a run on a large repo (thousands of files) within
    reach, including on limited/local LLM resources. In progress: delivered are progress reporting, the LLM
    heartbeat, the directory-summary cache (item 6), `--no-confidence`/`--confidence-sample` (item 3) and item 5
@@ -89,8 +93,11 @@ docs/
 10. **Top-down redesign** (see §7.5, decided 2026-10-07, ADRs 0019 to 0023): understand the product first
     from the non-code evidence, cover behaviours instead of files, make business rules part of the model,
     read the code structure with tree-sitter, ask for structured outputs with a model per pass, and
-    reconcile the generated docs with the existing ones in the debt report. Not started; it takes over the
-    open business-level work of phase 7 and the scaling work of phase 8.
+    reconcile the generated docs with the existing ones in the debt report. It takes over the open
+    business-level work of phase 7 and the scaling work of phase 8. Steps 1 to 6 of §7.5 are delivered (benchmark,
+    brief, business files, structured outputs, model per pass, the `surface` path, tree-sitter chunking,
+    mechanical confidence, single read of the business files, business rules); open: the reconciliation with
+    the existing docs (step 7), the default path, and the follow-ups of the review of 2026-10-12 (§7.6).
 
 ## 6. Identified risks
 
@@ -104,6 +111,10 @@ docs/
   (phases 7 and 8, then the redesign of phase 10).
 - With behaviours as the coverage unit (phase 10), a behaviour the entry point pass misses is a use case
   missing from the docs: the debt report must list the files reached by no entry point.
+- Review of 2026-10-12 (§7.6): the measures are noisy (the spread between runs is as large as most effects,
+  the LLM judge is wrong on a large share of its pairs, the references are not yet checked by a human), the
+  redesign is not validated on a large application, and two pipeline paths plus several experimental
+  settings are maintained at once.
 
 ## 7. Smoke-test findings and next work (2026-10-01)
 
@@ -478,3 +489,49 @@ Steps, in order, one issue each:
 
 Expected: a cost that grows with the business surface (entry points, entities, use cases), not with the
 repository. That is an estimate, to be measured with step 1 and `usage.json`.
+
+Follow-up of step 6: the rules are stated per feature, so some are duplicated, and storage plumbing comes out
+as rules (`issues/rules_deduplication_and_noise.md`); the pass stays off by default.
+
+### 7.6 Project review of 2026-10-12
+
+A review of the whole project after the redesign (234 commits, about 38k lines of Rust, 28 ADRs).
+
+Holds: the one-way crates, the YAML artifacts, the incremental re-run, and the move from files to behaviours
+(ADR 0020), which is what makes the cost follow the business surface. The measuring tools (benchmark, replays
+without LLM, token recap per pass) are what let the changes below be decided on figures.
+
+Measured since the baseline of §7.5 step 1 (details in the closed issues):
+
+| Change | Figure |
+|---|---|
+| `surface` against `files`, linkding, deepseek | 110 calls and 6.4 min against 222-283 and 9.7-14.4; judged domain recall / precision 56% / 88% against 33-39% / 41-75%; judged feature recall at par (62% against 65%), precision 34% against 23-41%; narratives in business language 87% against 70-85% |
+| `surface` against `files`, a 9-file library | features worse (judged precision 45% against 96% with deepseek): the entry points pass lists constructors and internal collections |
+| Strict JSON schema | unparseable answers 6 to 0 over the measured runs |
+| Mechanical confidence checks | 4 confidence calls instead of 8 on `delivery_router` |
+| Single read of the business files | 36% fewer calls and 33% fewer input tokens for the two reading passes on linkding |
+| Business rules, linkding, deepseek | 649 rules for 66 features, 450 backed by code alone; the pass is about 42% of the input tokens of the run (1.18M in, 242k out) |
+
+Not reached yet:
+- No complete run on a large application since 2026-10-02; on the cache of an older run of one, 36% of the
+  source files are reached by a behaviour.
+- Feature precision stays low on the application benchmark, and the judge overstates it (by 12 to 33 points on
+  the audited runs).
+- Run-to-run spread: 13 to 21 entry points on the 9-file library, 64 against 96 between two identical runs
+  of the entry points pass on linkding; the requests set no sampling temperature.
+- The use cases and the rules read the same code: about 80% of the input tokens of a run with the rules on.
+- Two paths (`files`, `surface`) and several experimental settings (`body_lines`, `brief.evidence`, `rules`)
+  are maintained together.
+
+Next work, in the order of `issues/queue.md`:
+1. `issues/validate_on_large_application.md`: one complete run on a large application, read by the user.
+2. `issues/sampling_temperature_for_steadier_runs.md` and `issues/benchmark_passes_on_fixed_inputs.md`: a steadier
+   and cheaper measure, with references a human has checked.
+3. `issues/rules_deduplication_and_noise.md`, `issues/one_code_reading_for_use_cases_and_rules.md` and
+   `issues/shorter_use_case_answers.md`: quality of the rules, then the tokens of the two largest passes.
+4. `issues/settle_experimental_settings.md`, `issues/surface_domains_default_decision.md`,
+   `issues/single_pipeline_path.md`, then `issues/pass_runner_and_run_context.md`: fewer options, one path, then
+   the refactoring of what stays.
+
+This plan's §7.1 to §7.3 are a dated log of findings; the current behaviour is in `docs/crates/` and
+`docs/ARCHITECTURE.md`.
