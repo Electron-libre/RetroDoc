@@ -82,19 +82,65 @@ pub fn saved(repo_root: &Path) -> ProductBrief {
     loaded.unwrap_or_default()
 }
 
+/// Which passes get the closest extracts of the signals (the others get none).
+#[derive(Debug, Clone, Copy, Default)]
+pub struct EvidenceFor {
+    /// The features and use cases passes (`brief.evidence`, off by default).
+    pub units: bool,
+    /// The rules pass (`[pipeline] rules`): a rule backed by a test or a doc needs them.
+    pub rules: bool,
+}
+
+impl EvidenceFor {
+    #[must_use]
+    pub fn of(config: &retrodoc_core::config::Config) -> Self {
+        Self {
+            units: config.brief.evidence,
+            rules: config.pipeline.rules,
+        }
+    }
+}
+
+/// The extracts of the signals each pass is given.
+#[derive(Debug, Clone, Default)]
+pub struct GenerateEvidence {
+    pub units: Evidence,
+    pub rules: Evidence,
+}
+
+impl GenerateEvidence {
+    fn new(signals: &[signals::Signal], wanted: EvidenceFor) -> Self {
+        if !wanted.units && !wanted.rules {
+            return Self::default();
+        }
+        let all = Evidence::new(signals);
+        Self {
+            units: if wanted.units {
+                all.clone()
+            } else {
+                Evidence::default()
+            },
+            rules: if wanted.rules {
+                all
+            } else {
+                Evidence::default()
+            },
+        }
+    }
+}
+
 /// The brief `generate` frames its passes with: the saved one as it is
 /// (edited or not, it is refreshed by `retrodoc brief`, not behind the back
 /// of every other pass), otherwise one written now from the signals of the
-/// repository. Empty when there is no evidence or no usable answer. With
-/// `with_evidence` (`brief.evidence`) come the signals, searched for the
-/// extracts closest to a unit; otherwise the evidence is empty.
+/// repository. Empty when there is no evidence or no usable answer. For the passes `with_evidence`
+/// names come the signals, searched for the extracts closest to a unit; the others get none.
 pub async fn for_generate(
     repo_root: &Path,
     ingest: &IngestResult,
     providers: &PassProviders,
-    with_evidence: bool,
+    with_evidence: EvidenceFor,
     tracker: &UsageTracker,
-) -> anyhow::Result<(ProductBrief, Evidence)> {
+) -> anyhow::Result<(ProductBrief, GenerateEvidence)> {
     let saved_brief = Artifact::Product.path(repo_root).exists();
     if !saved_brief {
         println!("Writing the product brief…");
@@ -122,24 +168,14 @@ pub async fn for_generate(
         let evidence = collected.map_or_else(
             |err| {
                 tracing::warn!("signals not collected, no extracts for the units: {err}");
-                Evidence::default()
+                GenerateEvidence::default()
             },
-            |all| {
-                if with_evidence {
-                    Evidence::new(&all)
-                } else {
-                    Evidence::default()
-                }
-            },
+            |all| GenerateEvidence::new(&all, with_evidence),
         );
         return Ok((saved(repo_root), evidence));
     }
     let all = collected.context("could not collect the signals")?;
-    let evidence = if with_evidence {
-        Evidence::new(&all)
-    } else {
-        Evidence::default()
-    };
+    let evidence = GenerateEvidence::new(&all, with_evidence);
     let brief = tracker
         .in_pass(
             "brief",
@@ -345,9 +381,15 @@ mod tests {
             commits: Vec::new(),
         };
 
-        let (used, _) = for_generate(dir.path(), &ingest, &no_call(), false, &UsageTracker::new())
-            .await
-            .unwrap();
+        let (used, _) = for_generate(
+            dir.path(),
+            &ingest,
+            &no_call(),
+            EvidenceFor::default(),
+            &UsageTracker::new(),
+        )
+        .await
+        .unwrap();
 
         assert_eq!(used.purpose.text, "Sells things.");
         assert_eq!(saved(dir.path()), used);
@@ -372,14 +414,23 @@ mod tests {
             commits: Vec::new(),
         };
         let (root, ingest) = (dir.path(), &ingest);
-        let section = |with| async move {
-            let (_, evidence) = for_generate(root, ingest, &no_call(), with, &UsageTracker::new())
-                .await
-                .unwrap();
-            evidence.section("refund order")
+        let sections = |units, rules| async move {
+            let wanted = EvidenceFor { units, rules };
+            let (_, evidence) =
+                for_generate(root, ingest, &no_call(), wanted, &UsageTracker::new())
+                    .await
+                    .unwrap();
+            (
+                evidence.units.section("refund order"),
+                evidence.rules.section("refund order"),
+            )
         };
-        assert_eq!(section(false).await, "");
-        assert!(section(true).await.contains("A buyer asks a refund"));
+        assert_eq!(sections(false, false).await, (String::new(), String::new()));
+        let (units, rules) = sections(true, false).await;
+        assert!(units.contains("A buyer asks a refund") && rules.is_empty());
+        // The rules get their extracts without changing the prompts of the features.
+        let (units, rules) = sections(false, true).await;
+        assert!(units.is_empty() && rules.contains("A buyer asks a refund"));
     }
 
     #[test]

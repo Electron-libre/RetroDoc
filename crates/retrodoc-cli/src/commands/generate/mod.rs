@@ -86,9 +86,10 @@ pub async fn run(
 
     let llm = PassProviders::open(&config.llm, tracker, GENERATE_PASSES)?;
 
+    let wanted = super::brief::EvidenceFor::of(config);
     let (brief, evidence) =
-        super::brief::for_generate(repo_root, &ingest, &llm, config.brief.evidence, tracker)
-            .await?;
+        super::brief::for_generate(repo_root, &ingest, &llm, wanted, tracker).await?;
+    let (evidence, rules_evidence) = (evidence.units, evidence.rules);
 
     let (surface, entry_points, role_map) =
         build_surface(repo_root, &mut ingest, &brief, &llm, force, config, tracker).await?;
@@ -143,6 +144,7 @@ pub async fn run(
         vocabulary: surface.vocabulary(VOCABULARY_SIZE),
         brief,
         evidence,
+        rule_evidence: rules_evidence,
         concurrency: config.llm.for_pass("use-cases").concurrency.unwrap_or(1),
     };
     let mut use_cases = tracker

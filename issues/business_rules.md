@@ -56,6 +56,28 @@ Read by hand on `delivery_router` (Ruby, 194 lines of code) and linkding (Python
 * Constants and settings with a business name (`delivery_too_long`, `LD_SNAPSHOT_PDF_MAX_SIZE`) are worth stating only when a guard uses them.
 * The Rails test repository was not read in this measure; its natures (validations, policies, state machines) are the ones ADR 0021 lists and stay to check at the smoke test.
 
+## Smoke test (deliverable 8)
+
+`just smoke ../delivery_router --rules`, local Ollama, `qwen3.6:35b-a3b` (the third run below is the
+same code with a prompt sentence tried and then reverted).
+
+* First run: 21 rules, 9 calls, 1m41s; rerun reused every feature, no call. Every rule had a confidence of
+  0.4: the extracts of tests and docs only existed with `brief.evidence = true` (off by default). Fixed:
+  `UseCaseContext.rule_evidence`, filled when `[pipeline] rules` is on, apart from the evidence of the
+  features and use cases (their prompts do not change).
+* With the fix: `SMOKE TEST CONCLUSIVE` (no warning, rerun a no-op with no call, report produced). 28 rules,
+  5 calls, 1m54s, 8 of them backed by a test too (0.7). The expected rules are there: unknown customer or
+  restaurant refused, the 60-minute limit, the fastest rider chosen, the delivery time computation.
+* Not solved, to measure on a larger repository before acting: (1) the same rule is stated by several
+  features (the 60-minute limit twice, the delivery time formula three times): no deduplication across
+  features; (2) plumbing is stated as rules ("an order is stored by the customer id", "a rider is
+  retrieved by id"); one prompt sentence asking to leave storage and retrieval out did not change the
+  count (30 rules) on this small repository, so it was not kept; (3) the debt report lists all 28 rules
+  as mentioned in no doc, true here (the only doc is a README that does not state them), so the
+  criterion is not validated against a project with real docs.
+* An earlier run showed a `WARN` for an invalid chunk boundary regex written by the roles LLM; it comes
+  from the roles pass, not from this one.
+
 # Resources
 
 * ADR `0021`, ADR `0019` (evidence), ADR `0020` (bounding)
@@ -77,7 +99,7 @@ Read by hand on `delivery_router` (Ruby, 194 lines of code) and linkding (Python
 5. [x] Rendering on entity and use case pages, per domain, `llms.txt`.
 6. [x] MCP: rules in `get_feature`, `get_use_case`, `get_domain` and `search_docs` (no new tool).
 7. [x] Debt report: count the rules no existing doc mentions.
-8. [ ] Smoke test on `delivery_router` (local Ollama), run on linkding if allowed; compare with the hand list.
+8. [ ] Smoke test on `delivery_router` (local Ollama: done, see Findings), run on linkding with DeepSeek (cost and figures to add); compare with the hand list.
 
 ## Decisions
 

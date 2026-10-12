@@ -130,6 +130,9 @@ pub struct UseCaseContext {
     pub brief: ProductBrief,
     /// The signals the closest extracts of a feature are taken from (empty: none).
     pub evidence: Evidence,
+    /// The signals the rules pass takes the closest extracts of a feature from (empty: none). Not
+    /// `evidence`: the rules need them even when the features and use cases are not given any.
+    pub rule_evidence: Evidence,
     /// Features asked at once (`0` and `1`: one at a time). The answers are used in the order of
     /// the features, so the result does not depend on it.
     pub concurrency: usize,

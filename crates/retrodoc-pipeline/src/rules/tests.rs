@@ -66,7 +66,7 @@ fn context() -> UseCaseContext {
         },
         index: CodeIndex::new([Path::new("lib/router.rb")]),
         vocabulary: vec!["Order".into(), "Rider".into()],
-        evidence: Evidence::new(&[
+        rule_evidence: Evidence::new(&[
             signal(
                 SignalKind::TestDescriptions,
                 "spec/router_spec.rb",

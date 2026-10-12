@@ -56,7 +56,9 @@ impl RuleInput {
     #[must_use]
     pub fn new(repo_root: &Path, feature: &Feature, context: &UseCaseContext) -> Self {
         let input = FeatureInput::new(repo_root, feature, &context.entry_points, &context.index);
-        let evidence = context.evidence.extracts(&feature_query(feature, &input));
+        let evidence = context
+            .rule_evidence
+            .extracts(&feature_query(feature, &input));
         let mut text = format!("{} {}", feature.name, feature.description);
         for path in &input.files {
             if let Ok(bytes) = std::fs::read(repo_root.join(path)) {
@@ -168,7 +170,7 @@ mod tests {
                 .map(Path::new),
             ),
             vocabulary: vec!["Order".into(), "Ledger".into(), "Invoice".into()],
-            evidence: Evidence::new(&[
+            rule_evidence: Evidence::new(&[
                 signal(
                     SignalKind::TestDescriptions,
                     "spec/refund_spec.rb",
