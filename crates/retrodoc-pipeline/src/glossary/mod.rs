@@ -22,14 +22,14 @@
 //! Not covered yet: the verbs (public methods, route actions), which belong
 //! with the entry points inventory (step 3).
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use retrodoc_ingest::signals::test_phrases;
 use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
-use crate::artifact::{load_yaml, save_yaml, Artifact};
+use crate::artifact::{load_yaml, save_yaml, Artifact, Retention};
 use crate::batched_read::{group_paths, BatchedRead, PendingChunk};
 use crate::brief::ProductBrief;
 use crate::chunks::{strip_part_marker, Splitter};
@@ -275,12 +275,22 @@ pub async fn build_glossary(
     business: &[PathBuf],
     brief: &ProductBrief,
     llm: &dyn LlmProvider,
+    keep: Retention,
 ) -> Result<Glossary, PipelineError> {
     let previous = Glossary::load(repo_root).unwrap_or_default();
     let mut glossary = Glossary {
         models: BTreeMap::new(),
         tests: previous.tests.clone(),
     };
+    let to_read = files_to_read(roles, business);
+    if keep == Retention::Others {
+        let read: BTreeSet<&Path> = to_read.iter().copied().collect();
+        for (path, saved) in &previous.models {
+            if !read.contains(path.as_path()) && repo_root.join(path).is_file() {
+                glossary.models.insert(path.clone(), saved.clone());
+            }
+        }
+    }
     let splitter = Splitter::new(&roles.chunk_boundaries).with_body_lines(roles.body_lines);
     let reader = EntityReader {
         repo_root,
@@ -289,34 +299,41 @@ pub async fn build_glossary(
         splitter: &splitter,
         llm,
     };
-    if business.is_empty() {
-        reader
-            .read(
-                roles.files_with(FileRole::Model),
-                GLOSSARY_SYSTEM_PROMPT,
-                &format!("{}Model files:\n", brief.prompt_head()),
-                "model file(s)",
-                &mut glossary,
-            )
-            .await?;
+    let (prompt, header, unit) = if business.is_empty() {
+        (GLOSSARY_SYSTEM_PROMPT, "Model files:\n", "model file(s)")
     } else {
         // Where the business lives, located by its own pass: services and
         // plain domain classes as much as models.
-        reader
-            .read(
-                business.iter().map(PathBuf::as_path).collect(),
-                BUSINESS_SYSTEM_PROMPT,
-                &format!("{}Business files:\n", brief.prompt_head()),
-                "business file(s)",
-                &mut glossary,
-            )
-            .await?;
-    }
+        (
+            BUSINESS_SYSTEM_PROMPT,
+            "Business files:\n",
+            "business file(s)",
+        )
+    };
+    reader
+        .read(
+            to_read,
+            prompt,
+            &format!("{}{header}", brief.prompt_head()),
+            unit,
+            &mut glossary,
+        )
+        .await?;
 
     let tests = test_vocabulary(repo_root, roles)?;
     glossary.tests = tests;
     glossary.save(repo_root)?;
     Ok(glossary)
+}
+
+/// The files the glossary reads: the business files when there are some, else the files of the
+/// `model` role.
+fn files_to_read<'a>(roles: &'a RoleMap, business: &'a [PathBuf]) -> Vec<&'a Path> {
+    if business.is_empty() {
+        roles.files_with(FileRole::Model)
+    } else {
+        business.iter().map(PathBuf::as_path).collect()
+    }
 }
 
 /// Reads the entities of a set of files: the ones whose content hash is

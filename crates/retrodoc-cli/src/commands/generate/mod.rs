@@ -509,6 +509,7 @@ async fn build_surface(
                 &business_files,
                 brief,
                 llm.get("glossary")?.as_ref(),
+                retrodoc_pipeline::Retention::OnlyRead,
             ),
         )
         .await
@@ -523,6 +524,7 @@ async fn build_surface(
                 &business_files,
                 brief,
                 llm.get("entry-points")?.as_ref(),
+                retrodoc_pipeline::Retention::OnlyRead,
             ),
         )
         .await

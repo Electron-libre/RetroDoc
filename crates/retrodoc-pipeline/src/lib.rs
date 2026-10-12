@@ -53,7 +53,7 @@ pub mod use_cases;
 pub mod vocabulary;
 
 pub use actors::{authorization_files, build_actors, Actors, BusinessActor};
-pub use artifact::Artifact;
+pub use artifact::{Artifact, Retention};
 pub use behaviour_coverage::{save_technical_support, BehaviourCoverage};
 pub use bm25::Bm25;
 pub use brief::{build_brief, sample_chars, Claim, Evidence, ProductBrief};

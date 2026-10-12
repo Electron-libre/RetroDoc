@@ -12,6 +12,17 @@ use crate::error::PipelineError;
 /// Where the artifacts live, relative to the repo root.
 const CACHE_DIR: &str = ".retrodoc/cache";
 
+/// What a reading pass (glossary, entry points) does with the saved entries of the files it is not
+/// given this time.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Retention {
+    /// Only the files read now stay: the inventory follows the files it is asked about.
+    OnlyRead,
+    /// The saved entries of the other files that still exist stay: a repository read in several
+    /// runs, a slice at a time.
+    Others,
+}
+
 /// Every file the passes save under `.retrodoc/cache/`: the one place that
 /// knows their names.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

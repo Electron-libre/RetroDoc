@@ -69,10 +69,26 @@ and how many the cap drops (no LLM call needed: `business-files.yaml` and the fi
 3c. [x] Large contexts split: a context of more than 150 files is split by one more call into sub-contexts
    (groups and sub-folders partitioned, nothing lost), since a run is one context. Reason: the central
    context of the application regroups several sub-domains (editing, signing, amending…), user's remark.
-4. [ ] Reading per context: the glossary and the entry points read the files of the run's contexts,
-   `MAX_FILES` removed; `generate --context <name>`, else the next contexts not done within a budget.
-5. [ ] Domains, features and use cases per context on the `surface` path: a context is a domain, its
-   fingerprints do not depend on the others; the docs gather the contexts done, the report lists the rest.
+4. Reading and documenting per context (plan validated by the user, 2026-10-13). The code showed four couplings
+   that would lose the work of earlier runs: the readers (entry points, glossary) rebuild their inventory from
+   the files of the run only; the use cases fingerprint holds the global actors and the global top entities;
+   the actors are recomputed from every entity; the `surface` domains pick entry points by resource name.
+   * 4a. [x] Additive readers: glossary, entry points and the joint reading keep the entries of the files
+     outside the run. Test: two readings on two sets of files give the union and the second does not read the
+     first again.
+   * 4b. [ ] The slice of a run, with no LLM call: the contexts (named with `--context`, else the next ones
+     not done within a budget of files, a context never cut), the files read for a context (roles entry point,
+     model and logic, plus the files its entry points reference at depth 1), and the done state of a context
+     (kept in `fingerprints.json` when its whole chain finished).
+   * 4c. [ ] Domains, features, use cases and rules per context: `[pipeline] domains_from = "contexts"`, a
+     context is a domain with no LLM call, its entry points are those of its files, its vocabulary is its
+     own, the actors are computed once then frozen (editable, `retrodoc actors --force`), the artifacts of the
+     other contexts are kept as they are. Test: context A then B, A is neither redone nor changed and the
+     second run makes no call for A.
+   * 4d. [ ] `generate` wiring: `--context`, `--max-files` becomes the reading budget of a run in this mode
+     (default 150), the `business-files` pass is skipped, the docs gather the contexts done, the report lists
+     the contexts left. Real run on `delivery_router` locally, then on the large application (cost to agree).
+5. (merged into 4)
 6. [ ] Real validation (the reading stage on one context of the large application, a `surface` benchmark
    on `linkding`; paid runs with the user's go) and the docs.
 
@@ -100,6 +116,9 @@ and how many the cap drops (no LLM call needed: `business-files.yaml` and the fi
   the map (the local one sent half of the files to the support).
 * (user, 2026-10-12) The largest context (472 files) is the hub of the business and holds many different
   sub-domains: it must be split into sub-contexts (3c). Orphans: no persistent placement (3b).
+* (user, 2026-10-13) Plan of step 4: `domains_from = "contexts"` is a new explicit value; the actors are frozen after
+  the first run; the `business-files` pass is skipped in this mode; `--max-files` is the reading budget of a
+  run (a context is never cut), default 150.
 * If the measure of deliverable 1 shows a poor split before reading, stop and go back to the user before
   any production code.
 

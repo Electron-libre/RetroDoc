@@ -38,6 +38,7 @@ pub async fn run(path: &Path, tracker: &UsageTracker) -> anyhow::Result<()> {
         &business_files,
         &super::brief::saved(repo_root),
         llm.as_ref(),
+        retrodoc_pipeline::Retention::OnlyRead,
     )
     .await
     .context("failed to build the glossary")?;

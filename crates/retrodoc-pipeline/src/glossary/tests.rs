@@ -1,4 +1,5 @@
 use super::*;
+use crate::artifact::Retention;
 
 use crate::testing::FakeLlm;
 
@@ -109,9 +110,16 @@ async fn reads_entities_once_and_reuses_them_while_files_are_unchanged() {
                 {"file":"nowhere.rb","name":"Ghost"}]}"#,
     );
 
-    let glossary = build_glossary(dir.path(), &roles, &[], &ProductBrief::default(), &llm)
-        .await
-        .unwrap();
+    let glossary = build_glossary(
+        dir.path(),
+        &roles,
+        &[],
+        &ProductBrief::default(),
+        &llm,
+        Retention::OnlyRead,
+    )
+    .await
+    .unwrap();
     let entities: Vec<_> = glossary
         .entities()
         .map(|(p, e)| (p.to_string_lossy().into_owned(), e.name.clone()))
@@ -127,9 +135,16 @@ async fn reads_entities_once_and_reuses_them_while_files_are_unchanged() {
     assert_eq!(llm.prompts().len(), 1);
 
     // Second run: nothing changed, no call.
-    build_glossary(dir.path(), &roles, &[], &ProductBrief::default(), &llm)
-        .await
-        .unwrap();
+    build_glossary(
+        dir.path(),
+        &roles,
+        &[],
+        &ProductBrief::default(),
+        &llm,
+        Retention::OnlyRead,
+    )
+    .await
+    .unwrap();
     assert_eq!(llm.prompts().len(), 1);
 
     // A changed file is the only one sent again.
@@ -138,9 +153,16 @@ async fn reads_entities_once_and_reuses_them_while_files_are_unchanged() {
         "class Company; x; end",
     )
     .unwrap();
-    build_glossary(dir.path(), &roles, &[], &ProductBrief::default(), &llm)
-        .await
-        .unwrap();
+    build_glossary(
+        dir.path(),
+        &roles,
+        &[],
+        &ProductBrief::default(),
+        &llm,
+        Retention::OnlyRead,
+    )
+    .await
+    .unwrap();
     let prompts = llm.prompts();
     assert_eq!(prompts.len(), 2);
     assert!(prompts[1].contains("company.rb") && !prompts[1].contains("contract.rb"));
@@ -175,9 +197,16 @@ async fn a_long_model_file_is_read_in_chunks_and_its_entity_saved_once() {
     let roles = roles(&[("contract.rb", FileRole::Model)]);
     let llm = FakeLlm::answering(r#"{"entities":[{"file":"contract.rb","name":"Contract"}]}"#);
 
-    let glossary = build_glossary(dir.path(), &roles, &[], &ProductBrief::default(), &llm)
-        .await
-        .unwrap();
+    let glossary = build_glossary(
+        dir.path(),
+        &roles,
+        &[],
+        &ProductBrief::default(),
+        &llm,
+        Retention::OnlyRead,
+    )
+    .await
+    .unwrap();
 
     let prompts = llm.prompts();
     assert!(prompts.len() >= 2, "several parts, several calls");
@@ -207,6 +236,7 @@ async fn a_batch_that_cannot_be_answered_is_retried_file_by_file() {
                 },
             )
         }),
+        Retention::OnlyRead,
     )
     .await
     .unwrap();
@@ -223,7 +253,7 @@ async fn the_brief_heads_the_prompt_and_a_changed_brief_reads_the_files_again() 
     let llm = FakeLlm::answering(r#"{"entities":[{"file":"order.rb","name":"Order"}]}"#);
     let brief = crate::testing::brief("Sells things to buyers.");
 
-    build_glossary(dir.path(), &roles, &[], &brief, &llm)
+    build_glossary(dir.path(), &roles, &[], &brief, &llm, Retention::OnlyRead)
         .await
         .unwrap();
     let prompt = &llm.prompts()[0];
@@ -233,13 +263,13 @@ async fn the_brief_heads_the_prompt_and_a_changed_brief_reads_the_files_again() 
     );
     assert!(prompt.find("Purpose: Sells things").unwrap() < prompt.find("Model files:").unwrap());
 
-    build_glossary(dir.path(), &roles, &[], &brief, &llm)
+    build_glossary(dir.path(), &roles, &[], &brief, &llm, Retention::OnlyRead)
         .await
         .unwrap();
     assert_eq!(llm.calls(), 1);
 
     let other = crate::testing::brief("Rents things to renters.");
-    build_glossary(dir.path(), &roles, &[], &other, &llm)
+    build_glossary(dir.path(), &roles, &[], &other, &llm, Retention::OnlyRead)
         .await
         .unwrap();
     assert_eq!(llm.calls(), 2);
@@ -265,6 +295,7 @@ async fn the_business_files_are_read_instead_of_the_model_role() {
         &[PathBuf::from("pricing.py")],
         &ProductBrief::default(),
         &llm,
+        Retention::OnlyRead,
     )
     .await
     .unwrap();
@@ -289,9 +320,16 @@ async fn another_model_reads_the_unchanged_files_again() {
     let mut calls = Vec::new();
     for model in ["local", "local", "strong"] {
         let llm = FakeLlm::answering(answer).with_model(model);
-        build_glossary(dir.path(), &roles, &[], &ProductBrief::default(), &llm)
-            .await
-            .unwrap();
+        build_glossary(
+            dir.path(),
+            &roles,
+            &[],
+            &ProductBrief::default(),
+            &llm,
+            Retention::OnlyRead,
+        )
+        .await
+        .unwrap();
         calls.push(llm.calls());
     }
     assert_eq!(calls, [1, 0, 1]);

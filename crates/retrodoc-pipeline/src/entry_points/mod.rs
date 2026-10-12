@@ -19,7 +19,7 @@ use std::path::{Path, PathBuf};
 use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
-use crate::artifact::{load_yaml, save_yaml, Artifact};
+use crate::artifact::{load_yaml, save_yaml, Artifact, Retention};
 use crate::batched_read::{group_paths, BatchedRead, PendingChunk};
 use crate::brief::ProductBrief;
 use crate::chunks::{strip_part_marker, Splitter};
@@ -197,6 +197,7 @@ pub async fn build_entry_points(
     business: &[PathBuf],
     brief: &ProductBrief,
     llm: &dyn LlmProvider,
+    keep: Retention,
 ) -> Result<EntryPoints, PipelineError> {
     let previous = EntryPoints::load(repo_root).unwrap_or_default();
     let mut inventory = EntryPoints::default();
@@ -208,6 +209,14 @@ pub async fn build_entry_points(
         .into_iter()
         .chain(business.iter().map(PathBuf::as_path))
         .collect();
+    if keep == Retention::Others {
+        // Seeded first, so that the checkpoints and the final save hold them too.
+        for (path, saved) in &previous.files {
+            if !to_read.contains(path.as_path()) && repo_root.join(path).is_file() {
+                inventory.files.insert(path.clone(), saved.clone());
+            }
+        }
+    }
     for path in to_read {
         let content = read_file_lossy(repo_root, path)?;
         let hash = hash_for_model(&brief.hash_with(&splitter.keyed(&content)), llm);

@@ -1,4 +1,5 @@
 use super::*;
+use crate::artifact::Retention;
 
 use crate::testing::FakeLlm;
 
@@ -54,9 +55,16 @@ async fn reads_entry_points_once_and_reuses_them_while_files_are_unchanged() {
                 {"file":"nowhere.rb","kind":"job","name":"Ghost"}]}"#,
     );
 
-    let inventory = build_entry_points(dir.path(), &roles, &[], &ProductBrief::default(), &llm)
-        .await
-        .unwrap();
+    let inventory = build_entry_points(
+        dir.path(),
+        &roles,
+        &[],
+        &ProductBrief::default(),
+        &llm,
+        Retention::OnlyRead,
+    )
+    .await
+    .unwrap();
     let all: Vec<_> = inventory.iter().collect();
     assert_eq!(all.len(), 1);
     assert_eq!(
@@ -69,9 +77,16 @@ async fn reads_entry_points_once_and_reuses_them_while_files_are_unchanged() {
     assert!(!llm.prompts()[0].contains("user.rb"));
     assert_eq!(llm.prompts().len(), 1);
 
-    build_entry_points(dir.path(), &roles, &[], &ProductBrief::default(), &llm)
-        .await
-        .unwrap();
+    build_entry_points(
+        dir.path(),
+        &roles,
+        &[],
+        &ProductBrief::default(),
+        &llm,
+        Retention::OnlyRead,
+    )
+    .await
+    .unwrap();
     assert_eq!(llm.prompts().len(), 1);
 
     std::fs::write(
@@ -79,9 +94,16 @@ async fn reads_entry_points_once_and_reuses_them_while_files_are_unchanged() {
         "def show; x; end",
     )
     .unwrap();
-    build_entry_points(dir.path(), &roles, &[], &ProductBrief::default(), &llm)
-        .await
-        .unwrap();
+    build_entry_points(
+        dir.path(),
+        &roles,
+        &[],
+        &ProductBrief::default(),
+        &llm,
+        Retention::OnlyRead,
+    )
+    .await
+    .unwrap();
     let prompts = llm.prompts();
     assert_eq!(prompts.len(), 2);
     assert!(
@@ -113,6 +135,7 @@ async fn a_failure_in_a_later_batch_keeps_the_earlier_ones_saved() {
         &FakeLlm::failing_after(1, |_| {
             r#"{"entry_points":[{"file":"a.rb","kind":"job","name":"AJob"}]}"#.to_string()
         }),
+        Retention::OnlyRead,
     )
     .await;
 
@@ -138,9 +161,16 @@ async fn a_long_file_is_read_in_chunks_and_saved_once_all_are_read() {
         r#"{"entry_points":[{"file":"big.rb","kind":"http_route","name":"GET /a"}]}"#,
     );
 
-    let inventory = build_entry_points(dir.path(), &roles, &[], &ProductBrief::default(), &llm)
-        .await
-        .unwrap();
+    let inventory = build_entry_points(
+        dir.path(),
+        &roles,
+        &[],
+        &ProductBrief::default(),
+        &llm,
+        Retention::OnlyRead,
+    )
+    .await
+    .unwrap();
 
     let prompts = llm.prompts();
     assert!(prompts.len() >= 2, "several parts, several calls");
@@ -173,9 +203,16 @@ async fn a_batch_that_cannot_be_answered_is_retried_file_by_file() {
         )
     });
 
-    let inventory = build_entry_points(dir.path(), &roles, &[], &ProductBrief::default(), &llm)
-        .await
-        .unwrap();
+    let inventory = build_entry_points(
+        dir.path(),
+        &roles,
+        &[],
+        &ProductBrief::default(),
+        &llm,
+        Retention::OnlyRead,
+    )
+    .await
+    .unwrap();
 
     // Both files are in one batch: two failed attempts, then one call each.
     assert_eq!(llm.calls(), 4);
@@ -197,7 +234,7 @@ async fn the_brief_heads_the_prompt_and_a_changed_brief_reads_the_files_again() 
         FakeLlm::answering(r#"{"entry_points":[{"file":"a.rb","kind":"job","name":"AJob"}]}"#);
     let brief = crate::testing::brief("Sells things to buyers.");
 
-    build_entry_points(dir.path(), &roles, &[], &brief, &llm)
+    build_entry_points(dir.path(), &roles, &[], &brief, &llm, Retention::OnlyRead)
         .await
         .unwrap();
     let prompt = &llm.prompts()[0];
@@ -207,13 +244,13 @@ async fn the_brief_heads_the_prompt_and_a_changed_brief_reads_the_files_again() 
     );
     assert!(prompt.find("Purpose: Sells things").unwrap() < prompt.find("Files:").unwrap());
 
-    build_entry_points(dir.path(), &roles, &[], &brief, &llm)
+    build_entry_points(dir.path(), &roles, &[], &brief, &llm, Retention::OnlyRead)
         .await
         .unwrap();
     assert_eq!(llm.calls(), 1);
 
     let other = crate::testing::brief("Rents things to renters.");
-    build_entry_points(dir.path(), &roles, &[], &other, &llm)
+    build_entry_points(dir.path(), &roles, &[], &other, &llm, Retention::OnlyRead)
         .await
         .unwrap();
     assert_eq!(llm.calls(), 2);
@@ -242,9 +279,16 @@ async fn another_model_reads_the_unchanged_files_again() {
     let mut calls = Vec::new();
     for model in ["local", "local", "strong"] {
         let llm = FakeLlm::answering(answer).with_model(model);
-        build_entry_points(dir.path(), &roles, &[], &ProductBrief::default(), &llm)
-            .await
-            .unwrap();
+        build_entry_points(
+            dir.path(),
+            &roles,
+            &[],
+            &ProductBrief::default(),
+            &llm,
+            Retention::OnlyRead,
+        )
+        .await
+        .unwrap();
         calls.push(llm.calls());
     }
     assert_eq!(calls, [1, 0, 1]);
@@ -285,6 +329,7 @@ async fn business_files_are_read_next_to_the_entrypoint_files_without_reading_on
         &business,
         &ProductBrief::default(),
         &llm,
+        Retention::OnlyRead,
     )
     .await
     .unwrap();
@@ -309,9 +354,16 @@ async fn the_prompt_leaves_out_what_only_the_application_itself_calls_but_keeps_
     };
     let llm = FakeLlm::answering(r#"{"entry_points":[]}"#);
 
-    build_entry_points(dir.path(), &roles, &[], &ProductBrief::default(), &llm)
-        .await
-        .unwrap();
+    build_entry_points(
+        dir.path(),
+        &roles,
+        &[],
+        &ProductBrief::default(),
+        &llm,
+        Retention::OnlyRead,
+    )
+    .await
+    .unwrap();
 
     let (system, _) = &llm.prompt_pairs()[0];
     assert!(
@@ -342,17 +394,17 @@ async fn a_shorter_view_of_the_bodies_reads_the_files_again() {
     let llm = FakeLlm::answering(r#"{"entry_points":[]}"#);
     let brief = ProductBrief::default();
 
-    build_entry_points(dir.path(), &roles, &[], &brief, &llm)
+    build_entry_points(dir.path(), &roles, &[], &brief, &llm, Retention::OnlyRead)
         .await
         .unwrap();
-    build_entry_points(dir.path(), &roles, &[], &brief, &llm)
+    build_entry_points(dir.path(), &roles, &[], &brief, &llm, Retention::OnlyRead)
         .await
         .unwrap();
     assert_eq!(llm.calls(), 1, "unchanged: reused");
     assert!(llm.prompts()[0].contains("step_8"));
 
     roles.body_lines = Some(2);
-    build_entry_points(dir.path(), &roles, &[], &brief, &llm)
+    build_entry_points(dir.path(), &roles, &[], &brief, &llm, Retention::OnlyRead)
         .await
         .unwrap();
     assert_eq!(llm.calls(), 2, "another view: read again");
