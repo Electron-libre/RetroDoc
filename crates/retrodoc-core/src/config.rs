@@ -25,6 +25,7 @@ pub const PASS_NAMES: &[&str] = &[
     "brief",
     "roles",
     "business-files",
+    "contexts",
     "glossary",
     "entry-points",
     "actors",

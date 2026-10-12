@@ -26,6 +26,7 @@ pub mod cache;
 mod chunk_check;
 pub mod chunks;
 pub mod confidence;
+pub mod contexts;
 pub mod diagrams;
 pub mod domains;
 pub mod entry_points;
@@ -59,6 +60,10 @@ pub use brief::{build_brief, sample_chars, Claim, Evidence, ProductBrief};
 pub use business_files::{infer_business_files, BusinessEntry, BusinessMap};
 pub use business_read::read_business_files;
 pub use confidence::{mechanical_score, score_confidence, StepTally};
+pub use contexts::{
+    build_context_map, contexts_of, mechanical_groups, name_words, BoundedContext, ContextMap,
+    Groups, Resolved, ResolvedContext,
+};
 pub use diagrams::{attach_diagrams, sequence_diagram};
 pub use domains::{
     build_domains, build_domains_from_surface, CoverageReport, DomainCluster, DomainMap,

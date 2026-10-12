@@ -60,8 +60,11 @@ and how many the cap drops (no LLM call needed: `business-files.yaml` and the fi
    contexts be built from the names? Contexts, sizes, share of source files covered, shared files, files in none.
 2. [x] No work lost on interruption: one test per pass of the `surface` path (the fake LLM fails midway,
    the rerun redoes only what was missing), passes fixed where needed, a manual kill on `delivery_router`.
-3. [ ] The map of the contexts: pass, `retrodoc contexts`, `contexts.yaml` (stable, editable, a shared
-   file in one context), with its ADR.
+3. [x] The map of the contexts: pass, `retrodoc contexts`, `contexts.yaml` (stable, editable, a shared
+   file in one context), with its ADR 0029. Measured on the large application with a local and the hosted model.
+3b. [ ] Orphan files placed without the answer: a source file in no context (32% on the large application
+   with the hosted model) joins the context whose files reference it or are referenced by it (`slices.rs`),
+   else stays in the support; measured with no LLM call first.
 4. [ ] Reading per context: the glossary and the entry points read the files of the run's contexts,
    `MAX_FILES` removed; `generate --context <name>`, else the next contexts not done within a budget.
 5. [ ] Domains, features and use cases per context on the `surface` path: a context is a domain, its
@@ -88,6 +91,9 @@ and how many the cap drops (no LLM call needed: `business-files.yaml` and the fi
   5 use cases: the rerun made 7 calls and the next one none. Not done: the features of the `files` path still
   save on a failure only; the record of domains reached, for a domain answered empty at the moment of a kill
   (the rerun keeps its previous features).
+* (user, 2026-10-12, after the first maps) A deliverable 3b is added before the reading depends on the map:
+  the orphan files are placed by references, not left to the answer. The hosted model is the reference for
+  the map (the local one sent half of the files to the support).
 * If the measure of deliverable 1 shows a poor split before reading, stop and go back to the user before
   any production code.
 
@@ -96,11 +102,13 @@ and how many the cap drops (no LLM call needed: `business-files.yaml` and the fi
 `cargo run -q -p retrodoc-pipeline --example context_map_measure -- [--names] <run dir>...`: one context per
 entry point file name (the words that repeat a directory left out), the other source files joined by their
 name or a directory of the same name, then the slices of the files of each context (depth 2, 8 files).
+Figures after the review of deliverable 3, which made a generic stem (`index`, `urls`, `mod`…) take the name
+of its folder and `statuses` meet `status`.
 
 | Repository | Source files | Entry point files | Contexts | Covered (names) | In several | Size p50 / p90 / max | Covered (+ slices) | In several | Size p50 / p90 / max |
 |---|---|---|---|---|---|---|---|---|---|
-| the large Rails application | 1,676 | 190 | 140 | 56% | 11% | 3 / 21 / 111 | 68% | 35% | 21 / 81 / 320 |
-| `linkding` | 176 | 27 | 27 | 97% | 22% | 1 / 3 / 163 | 98% | 40% | 9 / 16 / 166 |
+| the large Rails application | 1,676 | 190 | 140 | 60% | 11% | 3 / 22 / 111 | 70% | 36% | 21 / 92 / 320 |
+| `linkding` | 176 | 27 | 26 | 97% | 20% | 1 / 3 / 163 | 98% | 37% | 9 / 16 / 166 |
 | `delivery_router` | 9 | 1 | 1 | 100% | 0% | 9 / 9 / 9 | 100% | 0% | 9 / 9 / 9 |
 
 * On the Rails application the names give real vertical slices: most of the 15 largest contexts are named
@@ -119,3 +127,30 @@ name or a directory of the same name, then the slices of the files of each conte
   the files in no context placed. That is the case for one LLM call over the mechanical groups (names,
   sizes, sample of file names, the brief), with the files following mechanically, as the domains of the
   `surface` path are built today from resources.
+
+## First map of the large application (deliverable 3, 2026-10-12, local `qwen3.6:35b-a3b`, one call each)
+
+`retrodoc contexts` on the 1,676 source files, 190 entry point files, 140 mechanical groups (7.4k to 8.6k
+tokens in, 1.2k to 2.5k out, 1 to 1.5 min):
+
+| Prompt | Contexts | Largest context | Files in the support |
+|---|---|---|---|
+| first | 21 (6 merged by the model, 15 forgotten groups kept as contexts) | 444 files | 731 (44%) |
+| support limited to what no context uses, big layer folders listed by sub-folder | 19 (4 forgotten groups) | 403 files | 871 (52%) |
+
+* The merged contexts read as business areas (contracts, companies, users and identity, notifications and
+  documents, administration). The model also names the leftovers of the mechanical step as contexts, which a
+  person can merge.
+* The support is too large in both: the model sends whole layer folders (workflows, models, services,
+  components, jobs) and about 60 to 87 groups, most of them one job or one endpoint of a business operation,
+  to the support, against the instruction. The tighter prompt did not help; this is one local model without
+  reasoning and two samples, not a verdict on the design.
+* The same call on the hosted model (`deepseek-chat`, 9.6k tokens in, 1.9k out, 10 s, about $0.004): 18
+  contexts that read as business areas (contracts, companies, users, documents, notifications, worksites,
+  signatures, settings…), the largest 472 files, and 533 files (32%) in the support, which is mostly what it
+  should be (migrations, seeds, assets, UI components, helpers, concerns, serializers) plus orphan files of
+  policies, presenters, forms and facades that no name reaches. It cites 112 groups twice (the first
+  placement is kept). So the weak link of the local runs was the model, not the design.
+* Still to do before the reading depends on the map: place the orphans without the answer (a file
+  referenced by the files of one context joins it, with the slices of `slices.rs`), and look at the 472-file
+  context with the user, who knows whether it is one context.

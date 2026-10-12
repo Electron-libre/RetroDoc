@@ -94,7 +94,7 @@ of the crate you are about to touch. High-level view: `docs/ARCHITECTURE.md`. De
 - **retrodoc-render**: writes the Markdown/Mermaid docs, deterministic and idempotent. → `docs/crates/render-mcp-cli.md`
 - **retrodoc-mcp**: read-only, LLM-free MCP server over the generated docs. → `docs/crates/render-mcp-cli.md`
 - **retrodoc-cli**: `clap` subcommands (`init`, `scan`, `generate`, `render`, `report`, `roles`, `brief`, `glossary`,
-  `entry-points`, `business-read`, `business-files`, `actors`, `surface`, `benchmark`, `benchmark-table`, `search`,
+  `entry-points`, `business-read`, `business-files`, `contexts`, `actors`, `surface`, `benchmark`, `benchmark-table`, `search`,
   `mcp`); logs go to stdout (stderr for `mcp`). → `docs/crates/render-mcp-cli.md`
 
 ### Conventions specific to this codebase

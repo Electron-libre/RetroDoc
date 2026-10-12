@@ -184,6 +184,18 @@ enum Command {
         #[arg(long)]
         force: bool,
     },
+    /// Maps the bounded contexts (vertical slices: entry points, models,
+    /// services and rules of one business concept) from the names of the
+    /// entry point files and one LLM call. Saved in
+    /// `.retrodoc/cache/contexts.yaml`, editable by hand. Needs
+    /// `retrodoc roles` first.
+    Contexts {
+        #[arg(long, default_value = ".")]
+        path: PathBuf,
+        /// Ask again, edits included.
+        #[arg(long)]
+        force: bool,
+    },
     /// Reads the entry points (routes, commands, jobs, public API…) and
     /// their outputs from the files classified `entrypoint`, and saves
     /// `.retrodoc/cache/entry-points.yaml`. Needs `retrodoc roles` first.
@@ -219,6 +231,7 @@ impl Command {
             Command::Roles { path, .. } => Some(("roles", path.clone())),
             Command::Brief { path, .. } => Some(("brief", path.clone())),
             Command::BusinessFiles { path, .. } => Some(("business-files", path.clone())),
+            Command::Contexts { path, .. } => Some(("contexts", path.clone())),
             Command::BusinessRead { path } => Some(("business-read", path.clone())),
             Command::Glossary { path } => Some(("glossary", path.clone())),
             Command::EntryPoints { path } => Some(("entry-points", path.clone())),
@@ -321,6 +334,7 @@ async fn main() -> anyhow::Result<()> {
         Command::BusinessFiles { path, force } => {
             commands::business_files::run(&path, force, &tracker).await
         }
+        Command::Contexts { path, force } => commands::contexts::run(&path, force, &tracker).await,
     };
     if let Some((name, path)) = counted {
         commands::usage::finish(&path, name, &tracker, result.is_ok());

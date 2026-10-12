@@ -19,7 +19,7 @@ use std::path::{Path, PathBuf};
 
 use retrodoc_ingest::walker::walk_repo;
 use retrodoc_ingest::{FileEntry, FileKind};
-use retrodoc_pipeline::{CodeIndex, FileRole, RoleRules};
+use retrodoc_pipeline::{contexts_of, name_words, CodeIndex, FileRole, RoleRules};
 
 /// As in the use cases pass.
 const SLICE_DEPTH: usize = 2;
@@ -28,85 +28,6 @@ const MAX_SLICE_FILES: usize = 8;
 const NAMES_SHOWN: usize = 15;
 /// Leading directories that name a folder in the list of the files in no context.
 const FOLDER_DEPTH: usize = 2;
-
-/// Lowercase singular words of a file or directory name (`CompaniesContracts`, `companies_contracts`
-/// → `company`, `contract`).
-fn words(name: &str) -> Vec<String> {
-    let mut out: Vec<String> = Vec::new();
-    let mut current = String::new();
-    let mut previous_lower = false;
-    for c in name.chars() {
-        if !c.is_alphanumeric() || (c.is_uppercase() && previous_lower) {
-            out.push(std::mem::take(&mut current));
-        }
-        if c.is_alphanumeric() {
-            current.extend(c.to_lowercase());
-        }
-        previous_lower = c.is_lowercase();
-    }
-    out.push(current);
-    out.into_iter()
-        .filter(|w| !w.is_empty())
-        .map(|w| singular(&w))
-        .collect()
-}
-
-fn singular(word: &str) -> String {
-    if let Some(stem) = word.strip_suffix("ies") {
-        if stem.len() > 1 {
-            return format!("{stem}y");
-        }
-    }
-    match word.strip_suffix('s') {
-        Some(stem) if stem.len() > 3 => stem.to_string(),
-        _ => word.to_string(),
-    }
-}
-
-/// The words of each directory above `file`, the nearest last.
-fn directories(file: &Path) -> Vec<Vec<String>> {
-    file.parent()
-        .map(|dir| {
-            dir.components()
-                .map(|c| words(&c.as_os_str().to_string_lossy()))
-                .collect()
-        })
-        .unwrap_or_default()
-}
-
-/// The words of the name of `file` that do not repeat one of its directories; all of them when none is left.
-fn name_words(file: &Path) -> Vec<String> {
-    let stem = file
-        .file_stem()
-        .map(|s| words(&s.to_string_lossy()))
-        .unwrap_or_default();
-    let layers: BTreeSet<String> = directories(file).into_iter().flatten().collect();
-    let kept: Vec<String> = stem
-        .iter()
-        .filter(|w| !layers.contains(*w))
-        .cloned()
-        .collect();
-    if kept.is_empty() {
-        stem
-    } else {
-        kept
-    }
-}
-
-/// The contexts `file` joins by its name or its directories: the longest names that match.
-fn contexts_of(file: &Path, contexts: &BTreeSet<Vec<String>>) -> Vec<Vec<String>> {
-    let name = name_words(file);
-    let mut matches: Vec<Vec<String>> = (1..=name.len())
-        .map(|n| name[..n].to_vec())
-        .chain(directories(file))
-        .filter(|candidate| contexts.contains(candidate))
-        .collect();
-    let longest = matches.iter().map(Vec::len).max().unwrap_or(0);
-    matches.retain(|m| m.len() == longest);
-    matches.sort();
-    matches.dedup();
-    matches
-}
 
 /// What one way of building the contexts gives.
 struct Split {
@@ -264,46 +185,5 @@ fn main() {
             Some(line) => println!("{line}"),
             None => eprintln!("{dir}: no .retrodoc/cache/roles.yaml"),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn named(names: &[&[&str]]) -> BTreeSet<Vec<String>> {
-        names
-            .iter()
-            .map(|n| n.iter().map(ToString::to_string).collect())
-            .collect()
-    }
-
-    #[test]
-    fn a_name_loses_the_words_of_its_directories() {
-        assert_eq!(
-            name_words(Path::new("app/controllers/contracts_controller.rb")),
-            ["contract"]
-        );
-        assert_eq!(
-            name_words(Path::new("app/policies/CompanyContractPolicy.rb")),
-            ["company", "contract"]
-        );
-        assert_eq!(
-            name_words(Path::new("bookmarks/bookmarks.py")),
-            ["bookmark"]
-        );
-    }
-
-    #[test]
-    fn a_file_joins_the_longest_context_its_name_or_directory_gives() {
-        let contexts = named(&[&["contract"], &["company", "contract"], &["folder"]]);
-        let of = |path: &str| contexts_of(Path::new(path), &contexts);
-        assert_eq!(of("app/models/contract_signer.rb"), [["contract"]]);
-        assert_eq!(
-            of("app/policies/company_contract_policy.rb"),
-            [["company", "contract"]]
-        );
-        assert_eq!(of("app/services/folders/duplicate.rb"), [["folder"]]);
-        assert_eq!(of("lib/pdf/renderer.rb"), Vec::<Vec<String>>::new());
     }
 }

@@ -23,6 +23,7 @@ pub enum Artifact {
     SignalSources,
     Product,
     BusinessFiles,
+    Contexts,
     Glossary,
     EntryPoints,
     Actors,
@@ -36,7 +37,7 @@ pub enum Artifact {
 }
 
 impl Artifact {
-    pub const ALL: [Artifact; 17] = [
+    pub const ALL: [Artifact; 18] = [
         Artifact::RepoMap,
         Artifact::SourceHashes,
         Artifact::Fingerprints,
@@ -44,6 +45,7 @@ impl Artifact {
         Artifact::SignalSources,
         Artifact::Product,
         Artifact::BusinessFiles,
+        Artifact::Contexts,
         Artifact::Glossary,
         Artifact::EntryPoints,
         Artifact::Actors,
@@ -66,6 +68,7 @@ impl Artifact {
             Artifact::SignalSources => "signal-sources.yaml",
             Artifact::Product => "product.yaml",
             Artifact::BusinessFiles => "business-files.yaml",
+            Artifact::Contexts => "contexts.yaml",
             Artifact::Glossary => "glossary.yaml",
             Artifact::EntryPoints => "entry-points.yaml",
             Artifact::Actors => "actors.yaml",
@@ -91,7 +94,7 @@ impl Artifact {
     }
 
     /// Whether `generate --force` removes it. The others are not results to
-    /// redo: `roles.yaml`, `signal-sources.yaml`, `product.yaml` and `business-files.yaml` are hand-editable (`retrodoc roles --force`
+    /// redo: `roles.yaml`, `signal-sources.yaml`, `product.yaml`, `business-files.yaml` and `contexts.yaml` are hand-editable (`retrodoc roles --force`
     /// identifies it again), `usage.json` is the history of the runs, and
     /// `domains.yaml` and `scope.yaml` are recomputed on every run anyway.
     #[must_use]
@@ -111,6 +114,7 @@ impl Artifact {
             | Artifact::SignalSources
             | Artifact::Product
             | Artifact::BusinessFiles
+            | Artifact::Contexts
             | Artifact::Scope
             | Artifact::Domains
             | Artifact::Usage => false,
@@ -225,6 +229,7 @@ mod tests {
                 "signal-sources.yaml",
                 "product.yaml",
                 "business-files.yaml",
+                "contexts.yaml",
                 "scope.yaml",
                 "domains.yaml",
                 "usage.json"

@@ -70,7 +70,7 @@ During development, replace `retrodoc` with `cargo run -p retrodoc-cli --`.
 | `mcp` | Serve the generated docs to LLM agents (Claude Code, Cursor…) as a read-only MCP server over stdio, no LLM call. Point the agent at `retrodoc mcp --path <repo>` |
 | `search` | Search the generated docs lexically, no LLM call (what the MCP server's `search_docs` finds) |
 | `brief` | Write the product brief (what the application does, for whom, its main objects and capabilities) from docs, commits, manifests, schema, translations and tests (`--force`, `--signals` to only count the evidence, no LLM call) |
-| `roles`, `business-files`, `glossary`, `entry-points`, `actors`, `surface` | Run or inspect one early pipeline stage on its own |
+| `roles`, `business-files`, `contexts`, `glossary`, `entry-points`, `actors`, `surface` | Run or inspect one early pipeline stage on its own |
 
 Run `retrodoc <command> --help` for the details.
 
@@ -97,7 +97,7 @@ model = "anthropic/claude-sonnet-4.5"
 # structured_output = true    # ask the server for schema-constrained JSON answers (false: never)
 
 # A pass can use another model or server: `[llm.passes.<name>]` takes the keys above and falls back to
-# `[llm]` for the rest. Names: sources, brief, roles, business-files, glossary, entry-points, actors,
+# `[llm]` for the rest. Names: sources, brief, roles, business-files, contexts, glossary, entry-points, actors,
 # repo-map, domains, features, use-cases, confidence, benchmark judge.
 # [llm.passes.domains]
 # model = "anthropic/claude-sonnet-4.5"
@@ -117,7 +117,7 @@ domains_from = "files"    # "files": domains from the file summaries; "surface":
 
 A pass whose model changes is redone on the next run (the model is part of what its cache is compared
 with); the first run after upgrading to this behavior redoes every pass once. `roles.yaml`,
-`signal-sources.yaml`, `business-files.yaml` and `product.yaml` are the exception: they stay until `--force`.
+`signal-sources.yaml`, `business-files.yaml`, `contexts.yaml` and `product.yaml` are the exception: they stay until `--force`.
 A suggested split, **not benchmarked yet**: the strong model on `brief`, `domains` and `features`, which
 frame everything else, and a cheap or local one in `[llm]` for the many extraction calls (`repo-map`,
 `glossary`, `entry-points`, `actors`, `confidence`). Measure it against one model for all with
