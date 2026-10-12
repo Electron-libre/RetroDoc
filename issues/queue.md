@@ -4,7 +4,8 @@ Open issues in the order to work on them: the first is the next one. Read by `ju
 `just close-issue` removes a line, `skill:create-issue` inserts one at its rank, `skill:prioritize-issues`
 re-ranks the whole list. Line format: `- [<file stem>](<file stem>.md) - <why here>`.
 
-- [validate_on_large_application](validate_on_large_application.md) - project review of 2026-10-12: first, it says whether the redesign reaches the goal on the real target, and feeds `surface_domains_default_decision`; needs the user's go (model, scope, cost)
+- [business_files_cap_on_large_application](business_files_cap_on_large_application.md) - found by `validate_on_large_application` (2026-10-12): the glossary of a large application comes from the first 60 business files in path order; first, since the validation run is paused until it is fixed
+- [validate_on_large_application](validate_on_large_application.md) - project review of 2026-10-12: it says whether the redesign reaches the goal on the real target, and feeds `surface_domains_default_decision`; paused (user, 2026-10-12) after its reading stage, resumes once `business_files_cap_on_large_application` is done
 - [sampling_temperature_for_steadier_runs](sampling_temperature_for_steadier_runs.md) - small, and before every issue that measures: a smaller spread makes each later comparison cheaper
 - [rules_deduplication_and_noise](rules_deduplication_and_noise.md) - follow-up of business_rules (smoke test, 2026-10-12): the rules must be stated once and be business ones before the docs are reconciled with them
 - [benchmark_passes_on_fixed_inputs](benchmark_passes_on_fixed_inputs.md) - after the rules work in progress, before the issues that compare settings (`measure_model_split_per_pass`, `brief_injection_experiments`, `settle_experimental_settings`), which need this measure
