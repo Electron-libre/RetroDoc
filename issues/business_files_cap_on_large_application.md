@@ -1,12 +1,14 @@
-# Read the business files of a large application beyond the first 60
+# Document a large application in several complementary runs, one bounded context at a time
 
 # Goal
-On a large application the glossary must come from the business files the pass located, not from the
-first 60 of them in path order. Today `BusinessFiles::files` truncates at 60 files after expanding the
-located folders, so the entities, the vocabulary and, on the `surface` path, the domains of a whole
-application rest on an arbitrary corner of its first folder. The expected outcome: the files read are
-chosen on purpose within a budget that follows the size of the application, and what is left out is
-counted and reported.
+A large application must be documented in several runs: a run can stop (budget reached, interruption,
+failure) and the next one goes on without redoing or paying again what is done, and each run covers a
+vertical slice of the application, a bounded context with its entry points, models, services and rules up
+to its features and use cases, not one layer. The docs are usable context by context and grow run after
+run. This replaces the fix first asked for here: `BusinessFiles::files` truncates at 60 files after
+expanding the located folders, so the entities, the vocabulary and, on the `surface` path, the domains of
+a whole application rest on an arbitrary corner of its first folder. With a budget per context that cap
+goes away.
 
 # Findings (reading stage of 2026-10-12, a private Rails application, hosted DeepSeek model)
 * 1,661 source files. The business files pass named 38 folders and files (models, workflows, services,
@@ -51,3 +53,64 @@ and how many the cap drops (no LLM call needed: `business-files.yaml` and the fi
   redoes the reading once.
 * Rerunning the reading on the large application costs a few cents on the hosted model; it still needs the
   user's go.
+
+# Tracking
+
+1. [x] Measure without LLM (an example, on the large application and on `linkding`): can the map of the
+   contexts be built from the names? Contexts, sizes, share of source files covered, shared files, files in none.
+2. [ ] No work lost on interruption: one test per pass of the `surface` path (the fake LLM fails midway,
+   the rerun redoes only what was missing), passes fixed where needed, a manual kill on `delivery_router`.
+3. [ ] The map of the contexts: pass, `retrodoc contexts`, `contexts.yaml` (stable, editable, a shared
+   file in one context), with its ADR.
+4. [ ] Reading per context: the glossary and the entry points read the files of the run's contexts,
+   `MAX_FILES` removed; `generate --context <name>`, else the next contexts not done within a budget.
+5. [ ] Domains, features and use cases per context on the `surface` path: a context is a domain, its
+   fingerprints do not depend on the others; the docs gather the contexts done, the report lists the rest.
+6. [ ] Real validation (the reading stage on one context of the large application, a `surface` benchmark
+   on `linkding`; paid runs with the user's go) and the docs.
+
+## Decisions
+
+* (user, 2026-10-12) Two requirements reframe the issue: RetroDoc must run in several times without losing
+  work done, and the runs must be complementary along a vertical slice (a bounded context), not a layer.
+* (user, 2026-10-12) The slice of a run: named by the user, or the next contexts not done, in the order of
+  the map, within a budget.
+* (user, 2026-10-12) A context becomes a domain of the docs on the `surface` path: the map replaces the
+  domains pass there (ADR to write; touches `issues/single_pipeline_path.md`).
+* (user, 2026-10-12) A file shared by several contexts is read once and belongs to one context; the others
+  refer to it.
+* (user, 2026-10-12) This issue is widened rather than a second one opened. Out of scope: the `files`
+  path, the default of `domains_from`, the paused validation run.
+* (user, 2026-10-12, after the measure) The map is built in two steps: mechanical groups from the names, then
+  one LLM call that names them, drops the technical ones, merges the pairs and places the files left out.
+* If the measure of deliverable 1 shows a poor split before reading, stop and go back to the user before
+  any production code.
+
+## Measure of the map from the names (deliverable 1, 2026-10-12, no LLM)
+
+`cargo run -q -p retrodoc-pipeline --example context_map_measure -- [--names] <run dir>...`: one context per
+entry point file name (the words that repeat a directory left out), the other source files joined by their
+name or a directory of the same name, then the slices of the files of each context (depth 2, 8 files).
+
+| Repository | Source files | Entry point files | Contexts | Covered (names) | In several | Size p50 / p90 / max | Covered (+ slices) | In several | Size p50 / p90 / max |
+|---|---|---|---|---|---|---|---|---|---|
+| the large Rails application | 1,676 | 190 | 140 | 56% | 11% | 3 / 21 / 111 | 68% | 35% | 21 / 81 / 320 |
+| `linkding` | 176 | 27 | 27 | 97% | 22% | 1 / 3 / 163 | 98% | 40% | 9 / 16 / 166 |
+| `delivery_router` | 9 | 1 | 1 | 100% | 0% | 9 / 9 / 9 | 100% | 0% | 9 / 9 / 9 |
+
+* On the Rails application the names give real vertical slices: most of the 15 largest contexts are named
+  after a business object and gather its controllers, models, services and policies (20 to 111 files by
+  name). They also give contexts named after a technical word (a namespace, a base class, a verb): 5 of
+  the 15 largest. Pairs that are one business context come out as two (an object and its join with another).
+* The names alone leave 44% of the source files in no context; with the slices 32%, at the price of a
+  third of the files in several contexts and a largest context of 320 files. The files in no context are
+  mostly a workflow folder organised by its own vocabulary (154), models (94), view components (76) and
+  migrations (55).
+* On `linkding` (Django: one package named after the main object, files named after their layer) the
+  names say nothing: 163 of the 176 files join one context through the name of the package.
+* A library with one entry point file is one context.
+* So the names are good evidence on a stack that names files after the business object, and not a map by
+  themselves: the technical names must be dropped, the pairs merged, the layer-named stacks handled, and
+  the files in no context placed. That is the case for one LLM call over the mechanical groups (names,
+  sizes, sample of file names, the brief), with the files following mechanically, as the domains of the
+  `surface` path are built today from resources.
