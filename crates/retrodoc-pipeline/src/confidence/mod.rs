@@ -31,6 +31,7 @@ use serde::Deserialize;
 
 mod checks;
 
+use crate::artifact::warn_on_error;
 use crate::chunks::{Focus, Splitter};
 use crate::error::PipelineError;
 use crate::features::save_features;
@@ -222,19 +223,7 @@ pub async fn score_confidence(
     let checks_of: BTreeMap<usize, Vec<StepCheck>> =
         chosen.iter().copied().zip(jobs_checks).collect();
 
-    // A feature's use cases mostly cite the same code: they share a request.
-    let mut groups: Vec<Vec<usize>> = Vec::new();
-    for &i in &chosen {
-        match groups.last_mut() {
-            Some(group)
-                if group.len() < MAX_USE_CASES_PER_REQUEST
-                    && use_cases[group[0]].feature_slug == use_cases[i].feature_slug =>
-            {
-                group.push(i);
-            }
-            _ => groups.push(vec![i]),
-        }
-    }
+    let groups = request_groups(&chosen, use_cases);
 
     let mut progress = Progress::new("confidence", chosen.len());
     // The groups are checked `concurrency` at a time and their scores written in order.
@@ -264,6 +253,7 @@ pub async fn score_confidence(
             use_cases[i].confidence = score;
         }
         progress.finish_many(group.len());
+        save_scores(repo_root, use_cases, &mut prints, llm);
     }
     drop(results);
     for feature in features.iter_mut() {
@@ -273,6 +263,37 @@ pub async fn score_confidence(
     save_features(repo_root, features)?;
     prints.confidence_model = Some(llm.model().to_string());
     prints.save(repo_root)
+}
+
+/// The `chosen` use cases by request: a feature's use cases mostly cite the same code, so they
+/// share one.
+fn request_groups(chosen: &[usize], use_cases: &[UseCase]) -> Vec<Vec<usize>> {
+    let mut groups: Vec<Vec<usize>> = Vec::new();
+    for &i in chosen {
+        match groups.last_mut() {
+            Some(group)
+                if group.len() < MAX_USE_CASES_PER_REQUEST
+                    && use_cases[group[0]].feature_slug == use_cases[i].feature_slug =>
+            {
+                group.push(i);
+            }
+            _ => groups.push(vec![i]),
+        }
+    }
+    groups
+}
+
+/// Best-effort save after each answer: a run killed later loses the call in flight, nothing more.
+/// The model goes with the scores, or the next run would take them for another model's.
+fn save_scores(
+    repo_root: &Path,
+    use_cases: &[UseCase],
+    prints: &mut Fingerprints,
+    llm: &dyn LlmProvider,
+) {
+    prints.confidence_model = Some(llm.model().to_string());
+    warn_on_error(save_use_cases(repo_root, use_cases));
+    warn_on_error(prints.save(repo_root));
 }
 
 /// Asks the model about the doubtful steps of the use cases of one feature:

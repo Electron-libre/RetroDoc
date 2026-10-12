@@ -23,6 +23,10 @@ pub(crate) struct FakeLlm {
     delay: Option<std::time::Duration>,
     in_flight: AtomicUsize,
     most_in_flight: AtomicUsize,
+    /// Calls from this rank on never answer.
+    hang_from: Option<usize>,
+    /// A call is waiting for an answer that never comes.
+    hanging: std::sync::atomic::AtomicBool,
 }
 
 impl FakeLlm {
@@ -51,7 +55,20 @@ impl FakeLlm {
             delay: None,
             in_flight: AtomicUsize::new(0),
             most_in_flight: AtomicUsize::new(0),
+            hang_from: None,
+            hanging: std::sync::atomic::AtomicBool::new(false),
         }
+    }
+
+    /// Answers `reply` to the first `succeed` calls, then never answers: with [`killed`], a run
+    /// stopped while it waits for the LLM.
+    pub fn hanging_after(
+        succeed: usize,
+        reply: impl Fn(usize) -> String + Send + Sync + 'static,
+    ) -> Self {
+        let mut llm = Self::replying(move |n, _| Ok(reply(n)));
+        llm.hang_from = Some(succeed);
+        llm
     }
 
     /// Makes each call wait, so that calls asked together are in flight together.
@@ -126,6 +143,10 @@ impl FakeLlm {
 impl LlmProvider for FakeLlm {
     async fn complete(&self, request: CompletionRequest) -> Result<CompletionResponse, LlmError> {
         let n = self.calls.fetch_add(1, Ordering::SeqCst);
+        if self.hang_from.is_some_and(|from| n >= from) {
+            self.hanging.store(true, Ordering::SeqCst);
+            std::future::pending::<()>().await;
+        }
         let now = self.in_flight.fetch_add(1, Ordering::SeqCst) + 1;
         self.most_in_flight.fetch_max(now, Ordering::SeqCst);
         if let Some(delay) = self.delay {
@@ -154,6 +175,24 @@ impl LlmProvider for FakeLlm {
 
     fn model(&self) -> &str {
         &self.model
+    }
+}
+
+/// Runs `pass` until its LLM (see [`FakeLlm::hanging_after`]) is waiting for an answer that never
+/// comes, then drops it as a kill of the process would: nothing runs after the last call answered,
+/// no error path either. What the disk holds afterwards is what the next run starts from. It waits
+/// for the call itself, not for a delay, so a slow machine cannot cut the pass short.
+pub(crate) async fn killed<T>(pass: impl std::future::Future<Output = T>, llm: &FakeLlm) {
+    let waiting = async {
+        while !llm.hanging.load(Ordering::SeqCst) {
+            tokio::task::yield_now().await;
+        }
+    };
+    let guard = tokio::time::sleep(std::time::Duration::from_secs(30));
+    tokio::select! {
+        _ = pass => panic!("the pass ended instead of waiting for the LLM"),
+        () = waiting => {}
+        () = guard => panic!("the LLM was never asked a call it leaves unanswered"),
     }
 }
 

@@ -146,6 +146,14 @@ pub async fn build_features_from_surface(
             prints.features.insert(key, print);
         }
         features.extend(produced);
+        // After each domain: a run killed later loses the call in flight, nothing more.
+        save_partial(
+            repo_root,
+            features.clone(),
+            &previous,
+            prints.clone(),
+            &known_units,
+        );
     }
 
     settle_duplicates(&mut features, &units);

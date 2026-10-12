@@ -1,7 +1,7 @@
 use super::*;
 
 use crate::brief::Evidence;
-use crate::testing::FakeLlm;
+use crate::testing::{killed, FakeLlm};
 
 fn feature(slug: &str, paths: &[&str]) -> Feature {
     Feature {
@@ -605,6 +605,38 @@ async fn a_failed_run_keeps_the_features_done_and_the_rerun_resumes() {
     assert_eq!(use_cases.len(), 2);
     // Only the second feature was sent to the LLM again.
     assert_eq!(healthy.calls(), 1);
+}
+
+#[tokio::test]
+async fn a_killed_run_keeps_the_features_done_and_the_rerun_resumes() {
+    let dir = tempfile::tempdir().unwrap();
+    for name in ["a.rs", "b.rs", "c.rs"] {
+        std::fs::write(dir.path().join(name), format!("fn {name}() {{}}\n")).unwrap();
+    }
+    let features = [
+        feature("one", &["a.rs"]),
+        feature("two", &["b.rs"]),
+        feature("three", &["c.rs"]),
+    ];
+    let context = UseCaseContext::default();
+
+    let stuck = FakeLlm::hanging_after(1, use_case_reply);
+    killed(
+        build_use_cases(dir.path(), &features, &context, &stuck),
+        &stuck,
+    )
+    .await;
+    let saved = load_use_cases(dir.path()).expect("the use cases of the feature done are on disk");
+    assert_eq!(saved.len(), 1);
+    assert_eq!(saved[0].feature_slug, "one");
+
+    let healthy = FakeLlm::replying(|n, _| Ok(use_case_reply(n + 1)));
+    let use_cases = build_use_cases(dir.path(), &features, &context, &healthy)
+        .await
+        .unwrap();
+    assert_eq!(use_cases.len(), 3);
+    // Only the two features the killed run had not finished were sent to the LLM.
+    assert_eq!(healthy.calls(), 2);
 }
 
 #[tokio::test]

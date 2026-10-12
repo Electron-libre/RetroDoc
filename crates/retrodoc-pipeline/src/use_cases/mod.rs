@@ -227,9 +227,9 @@ pub async fn build_use_cases(
                     Err(err) => {
                         save_partial(
                             repo_root,
-                            use_cases,
+                            &use_cases,
                             &previous,
-                            prints,
+                            &prints,
                             &known,
                             &features[position..],
                         );
@@ -245,6 +245,15 @@ pub async fn build_use_cases(
                 };
                 prints.use_cases.insert(key, print);
                 use_cases.extend(produced);
+                // After each answer: a run killed later loses the call in flight, nothing more.
+                save_partial(
+                    repo_root,
+                    &use_cases,
+                    &previous,
+                    &prints,
+                    &known,
+                    &features[position + 1..],
+                );
             }
         }
     }
@@ -339,17 +348,19 @@ enum Plan {
     },
 }
 
-/// Best-effort save after a failure: the `unreached` features keep their
-/// previous use cases and fingerprints, so a rerun resumes where this one
-/// stopped.
+/// Best-effort save of a run in progress or failed: the `unreached` features
+/// keep their previous use cases and fingerprints, so a rerun resumes where
+/// this one stopped.
 fn save_partial(
     repo_root: &Path,
-    mut use_cases: Vec<UseCase>,
+    done: &[UseCase],
     previous: &[UseCase],
-    mut prints: Fingerprints,
+    prints: &Fingerprints,
     known: &BTreeMap<String, String>,
     unreached: &[Feature],
 ) {
+    let mut use_cases = done.to_vec();
+    let mut prints = prints.clone();
     for feature in unreached {
         let key = format!("{}/{}", feature.domain_slug, feature.slug);
         if let Some(print) = known.get(&key) {

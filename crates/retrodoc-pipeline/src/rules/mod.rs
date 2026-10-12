@@ -107,6 +107,17 @@ pub async fn build_rules(
         })
         .buffered(context.concurrency.max(1));
 
+    // What a rerun starts from when the features from the rank `from` on are not done.
+    let checkpoint = |rules: &[BusinessRule], prints: &Fingerprints, from: usize| {
+        save_partial(
+            repo_root,
+            rules,
+            &previous,
+            &features[from..],
+            prints,
+            &known,
+        );
+    };
     let mut rules: Vec<BusinessRule> = Vec::new();
     let mut position = 0;
     while let Some((item, answer)) = answers.next().await {
@@ -135,13 +146,7 @@ pub async fn build_rules(
                 progress.begin(&key);
                 match answer.unwrap_or(Ok(None)) {
                     Err(err) => {
-                        save_partial(
-                            repo_root,
-                            rules,
-                            &previous,
-                            &features[position - 1..],
-                            &prints,
-                        );
+                        checkpoint(&rules, &prints, position - 1);
                         return Err(err);
                     }
                     // Unparseable: the saved rules stay, and it is asked again on the next run.
@@ -158,6 +163,8 @@ pub async fn build_rules(
                         prints.rules.insert(key, print);
                     }
                 }
+                // After each answer: a run killed later loses the call in flight, nothing more.
+                checkpoint(&rules, &prints, position);
             }
         }
     }
@@ -178,22 +185,37 @@ fn kept(previous: &[BusinessRule], slug: &str) -> Vec<BusinessRule> {
         .collect()
 }
 
-/// After a failed call: the rules done so far and the previous ones of the features not reached.
+/// Best-effort save of a run in progress or failed: the rules done so far, and the previous rules
+/// and fingerprints of the features not reached, so a rerun resumes where this one stopped.
 fn save_partial(
     repo_root: &Path,
-    mut rules: Vec<BusinessRule>,
+    done: &[BusinessRule],
     previous: &[BusinessRule],
     remaining: &[Feature],
     prints: &Fingerprints,
+    known: &BTreeMap<String, String>,
 ) {
+    let mut rules = done.to_vec();
     rules.extend(
         previous
             .iter()
             .filter(|r| remaining.iter().any(|f| r.belongs_to_feature(&f.slug)))
             .cloned(),
     );
+    let mut prints = prints.clone();
+    for feature in remaining {
+        let key = feature_key(feature);
+        if let Some(print) = known.get(&key) {
+            prints.rules.insert(key, print.clone());
+        }
+    }
     warn_on_error(save_rules(repo_root, &rules));
     warn_on_error(prints.save(repo_root));
+}
+
+/// The key of a feature in the fingerprints of the pass.
+fn feature_key(feature: &Feature) -> String {
+    format!("{}/{}", feature.domain_slug, feature.slug)
 }
 
 /// One feature of the pass: what it is derived from and what is done about it.
@@ -226,7 +248,7 @@ fn plan_item<'a>(
     splitter: &Splitter,
     llm: &dyn LlmProvider,
 ) -> Item<'a> {
-    let key = format!("{}/{}", feature.domain_slug, feature.slug);
+    let key = feature_key(feature);
     let input = RuleInput::new(repo_root, feature, context);
     let own: Vec<&UseCase> = use_cases
         .iter()

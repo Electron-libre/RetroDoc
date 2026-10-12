@@ -19,7 +19,7 @@ use crate::artifact::{load_json, save_json, Artifact};
 use crate::cache::hash_content;
 use crate::error::PipelineError;
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub(crate) struct Fingerprints {
     /// Domains pass: hash of the clustering input (file paths and summaries,
     /// existing docs). Equal to the last run's: `domains.yaml` is reused.

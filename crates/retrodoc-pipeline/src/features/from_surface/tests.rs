@@ -2,7 +2,7 @@ use super::*;
 
 use crate::behaviour_coverage::BehaviourCoverage;
 use crate::entry_points::{EntryFile, EntryKind};
-use crate::testing::FakeLlm;
+use crate::testing::{killed, FakeLlm};
 use retrodoc_llm::{CompletionRequest, LlmError};
 
 fn entry(name: &str, resource: &str) -> EntryPoint {
@@ -418,4 +418,43 @@ async fn short_tags_stand_for_the_entry_points_of_a_domain() {
     // `E2` is the second entry point of the domain; `e9` does not exist.
     assert_eq!(features[0].entry_points, vec!["orders.rb#POST /orders"]);
     assert_eq!(features[1].entry_points, vec!["orders.rb#GET /orders"]);
+}
+
+#[tokio::test]
+async fn a_killed_run_keeps_the_domains_done_and_the_rerun_resumes() {
+    let dir = tempfile::tempdir().unwrap();
+    let (domains, entries) = fixture();
+    let stuck = FakeLlm::hanging_after(1, |_| {
+        r#"{"features":[{"slug":"orders","name":"O","description":"d",
+            "entry_points":["orders.rb#GET /orders","orders.rb#POST /orders"]}]}"#
+            .to_string()
+    });
+    killed(
+        build_features_from_surface(
+            dir.path(),
+            &domains,
+            &entries,
+            &Surface::default(),
+            &ProductBrief::default(),
+            &Evidence::default(),
+            &stuck,
+        ),
+        &stuck,
+    )
+    .await;
+    let saved = load_features(dir.path()).expect("the features of the domain done are on disk");
+    assert_eq!(saved.len(), 1);
+    assert_eq!(saved[0].domain_slug, "orders");
+
+    let healthy = FakeLlm::answering(
+        r#"{"features":[{"slug":"routes","name":"R","description":"d",
+            "entry_points":["orders.rb#GET /routes"]}]}"#,
+    );
+    let features = run(dir.path(), &domains, &entries, &healthy).await;
+    assert_eq!(features.len(), 2);
+    assert_eq!(
+        healthy.calls(),
+        2,
+        "the routing domain, then the placement of `GET /ping`: the orders domain is not asked again"
+    );
 }

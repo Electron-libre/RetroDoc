@@ -1,6 +1,7 @@
 use super::*;
 
-use crate::testing::FakeLlm;
+use crate::testing::{killed, FakeLlm};
+use crate::use_cases::load_use_cases;
 use retrodoc_core::model::{Actor, ActorKind, SourceRef, Step};
 use std::path::Path;
 
@@ -438,4 +439,28 @@ fn mechanical_score_is_known_only_when_no_step_is_doubtful() {
     let (tally, score) = mechanical_score(dir.path(), &open, &[]);
     assert_eq!((tally.passing, tally.doubtful), (1, 1));
     assert!(score.is_none());
+}
+
+#[tokio::test]
+async fn a_killed_run_keeps_the_scores_given_and_the_rerun_scores_the_rest() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut features, mut use_cases) = four_features(dir.path());
+    let supported = |_: usize| r#"{"steps":[{"order":1,"verdict":"supported"}]}"#.to_string();
+
+    let stuck = FakeLlm::hanging_after(2, supported);
+    killed(
+        score_confidence(dir.path(), &mut features, &mut use_cases, &stuck, None, 1),
+        &stuck,
+    )
+    .await;
+    let mut saved = load_use_cases(dir.path()).expect("the use cases scored are on disk");
+    let scored: Vec<bool> = saved.iter().map(|u| u.confidence.is_some()).collect();
+    assert_eq!(scored, [true, true, false, false]);
+
+    let healthy = FakeLlm::replying(move |n, _| Ok(supported(n)));
+    score_confidence(dir.path(), &mut features, &mut saved, &healthy, None, 1)
+        .await
+        .unwrap();
+    assert_eq!(healthy.calls(), 2, "only the two use cases left unscored");
+    assert!(saved.iter().all(|u| u.confidence.is_some()));
 }

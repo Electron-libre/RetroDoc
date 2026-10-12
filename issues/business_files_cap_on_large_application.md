@@ -58,7 +58,7 @@ and how many the cap drops (no LLM call needed: `business-files.yaml` and the fi
 
 1. [x] Measure without LLM (an example, on the large application and on `linkding`): can the map of the
    contexts be built from the names? Contexts, sizes, share of source files covered, shared files, files in none.
-2. [ ] No work lost on interruption: one test per pass of the `surface` path (the fake LLM fails midway,
+2. [x] No work lost on interruption: one test per pass of the `surface` path (the fake LLM fails midway,
    the rerun redoes only what was missing), passes fixed where needed, a manual kill on `delivery_router`.
 3. [ ] The map of the contexts: pass, `retrodoc contexts`, `contexts.yaml` (stable, editable, a shared
    file in one context), with its ADR.
@@ -83,6 +83,11 @@ and how many the cap drops (no LLM call needed: `business-files.yaml` and the fi
   path, the default of `domains_from`, the paused validation run.
 * (user, 2026-10-12, after the measure) The map is built in two steps: mechanical groups from the names, then
   one LLM call that names them, drops the technical ones, merges the pairs and places the files left out.
+* Deliverable 2 (2026-10-12): every pass of the `surface` path saves after each answer, artifacts are written
+  beside, synced then renamed. Checked by a kill -9 of `generate` on `delivery_router` (local model) after 2 of
+  5 use cases: the rerun made 7 calls and the next one none. Not done: the features of the `files` path still
+  save on a failure only; the record of domains reached, for a domain answered empty at the moment of a kill
+  (the rerun keeps its previous features).
 * If the measure of deliverable 1 shows a poor split before reading, stop and go back to the user before
   any production code.
 

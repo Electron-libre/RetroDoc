@@ -8,7 +8,7 @@ use super::*;
 use crate::brief::Evidence;
 use crate::entry_points::{EntryFile, EntryKind, EntryPoint, EntryPoints};
 use crate::slices::CodeIndex;
-use crate::testing::FakeLlm;
+use crate::testing::{killed, FakeLlm};
 
 const ROUTER: &str = "def add_order\n  return :refused if time >= 60\n  accept\nend\n";
 
@@ -317,4 +317,29 @@ fn a_hosted_model_s_odd_shapes_cost_the_element_not_the_answer() {
         .map(|t| (t.id.as_str(), t.phrase.as_str()))
         .collect();
     assert_eq!(tests, [("T2", ""), ("T1", "refuses an order")]);
+}
+
+#[tokio::test]
+async fn a_killed_run_keeps_the_rules_of_the_features_done_and_the_rerun_resumes() {
+    let dir = repo();
+    let second = Feature {
+        slug: "second".to_string(),
+        ..feature()
+    };
+    let features = [feature(), second];
+
+    let stuck = FakeLlm::hanging_after(1, |_| answer(LIMIT));
+    killed(
+        build_rules(dir.path(), &features, &[use_case()], &context(), &stuck),
+        &stuck,
+    )
+    .await;
+    let saved = load_rules(dir.path()).expect("the rules of the feature done are on disk");
+    assert_eq!(saved.len(), 1);
+
+    let healthy = FakeLlm::answering(answer(LIMIT));
+    build_rules(dir.path(), &features, &[use_case()], &context(), &healthy)
+        .await
+        .unwrap();
+    assert_eq!(healthy.calls(), 1, "only the second feature is asked");
 }

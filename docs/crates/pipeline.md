@@ -46,8 +46,12 @@ Behaviors that span passes:
   result (features per domain unit, use cases per feature, summaries per file hash, directory summaries per
   listing hash, domains per clustering input; a feature answered "no use case" twice cleanly is remembered too). `generate --force` wipes the caches. The model of the pass (`LlmProvider::model`, `fingerprints::model_part` / `hash_for_model`) is part of what is compared, so another model redoes the pass: domains, features, use cases and actors fingerprints, glossary and entry points file hashes, the `model` of the repo map cache (not in `content_hash`, which the MCP freshness check reads), and `confidence_model` in `fingerprints.json` (another model clears the scores and scores them again, within `--confidence-sample`). The hand-editable `roles`, `sources`, `business-files` and `brief` stay until `--force`.
 - **Model per pass** (ADR 0023): `[llm.passes.<name>]` (`PassLlmConfig`, the keys of `[llm]`, names in `config::PASS_NAMES`, unknown name or key = config error) overrides `[llm]` for one pass: `LlmConfig::for_pass`. A pass that changes `provider` without `api_key_env` takes that provider's key variable; an empty `base_url` drops the global one; `batch_chars` is read for `repo-map` only. The CLI's `PassProviders::open` builds one provider per distinct configuration (shared between passes with equal settings, opened before any call so a missing key names its pass), `get(pass)` hands it out.
-- **Resumable**: an LLM failure in the features or use cases pass saves the units done so far; the repo map
-  saves its cache. A rerun resumes there.
+- **Resumable**: every pass saves after each answer or batch (the readings, the repo map, the features of
+  the `surface` path per domain, the use cases and the rules per feature, the confidence scores per request;
+  the units not reached keep their previous results and fingerprints), and an artifact is written beside
+  then renamed (`artifact::write`). A run that fails or is killed loses the call in flight; the rerun
+  resumes there. The features of the `files` path are saved on an LLM failure only. Tested with
+  `FakeLlm::hanging_after` and `testing::killed`.
 - **Cost control**: `llm.concurrency` (default 1) parallelizes file and directory summaries and the use cases and confidence passes (requests go out that many at a time, the answers are used in the order of the features or use cases, so the result is the same as one at a time; a failure keeps the units before it),
   `llm.batch_chars` (default 6000, 0 = off) batches small files, and `generate` prints
   `estimate_repo_map`'s expected calls first.

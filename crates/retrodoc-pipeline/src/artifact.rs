@@ -159,12 +159,41 @@ fn write(path: &Path, raw: &str) -> Result<(), PipelineError> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(io_error)?;
     }
-    std::fs::write(path, raw).map_err(io_error)
+    // Written beside, synced, then renamed: a run killed during the write leaves the previous file
+    // whole, never half of the new one, and a crash of the machine does not leave the new name on
+    // data that never reached the disk.
+    let mut name = path.file_name().unwrap_or_default().to_os_string();
+    name.push(".tmp");
+    let beside = path.with_file_name(name);
+    let written = std::fs::File::create(&beside).and_then(|mut file| {
+        std::io::Write::write_all(&mut file, raw.as_bytes())?;
+        file.sync_all()
+    });
+    let moved = written.and_then(|()| std::fs::rename(&beside, path));
+    if moved.is_err() {
+        let _ = std::fs::remove_file(&beside);
+    }
+    moved.map_err(io_error)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_save_replaces_the_file_and_leaves_nothing_beside_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("cache/thing.yaml");
+        save_yaml(&path, &vec!["first"]).unwrap();
+        save_yaml(&path, &vec!["second"]).unwrap();
+
+        assert_eq!(load_yaml::<Vec<String>>(&path).unwrap(), ["second"]);
+        let names: Vec<_> = std::fs::read_dir(dir.path().join("cache"))
+            .unwrap()
+            .map(|e| e.unwrap().file_name())
+            .collect();
+        assert_eq!(names, ["thing.yaml"]);
+    }
 
     #[test]
     fn artifacts_have_distinct_names_under_the_cache_dir() {
