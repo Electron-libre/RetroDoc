@@ -1,4 +1,4 @@
-//! The five read-only tools of the MCP server as plain functions over the
+//! The read-only tools of the MCP server as plain functions over the
 //! generated docs, answering in Markdown (the reader is an LLM). Every answer
 //! gives the id to reuse, the confidence and the files it rests on; an
 //! unknown id or an empty search answers "Not documented" as a normal result.
@@ -7,12 +7,13 @@ use std::fmt::Write as _;
 use std::path::Path;
 
 use retrodoc_core::model::{
-    ConfidenceScore, Domain, Feature, SourceRef, UseCase, LOW_CONFIDENCE_THRESHOLD,
+    BusinessRule, ConfidenceScore, Domain, Feature, RuleEvidence, RuleKind, SourceRef, UseCase,
+    LOW_CONFIDENCE_THRESHOLD,
 };
 use retrodoc_ingest::existing_docs::ExistingDoc;
 use retrodoc_pipeline::{domain_models, DomainMap, Glossary};
 
-use crate::corpus::build_entries;
+use crate::corpus::{build_entries, rule_entries, EntryKind};
 use crate::freshness::{FileState, Freshness};
 use crate::search::SearchIndex;
 use crate::source::SourceAccess;
@@ -23,6 +24,7 @@ pub struct Docs {
     domains: Vec<Domain>,
     features: Vec<Feature>,
     use_cases: Vec<UseCase>,
+    rules: Vec<BusinessRule>,
     index: SearchIndex,
     freshness: Option<Freshness>,
     source: Option<SourceAccess>,
@@ -44,10 +46,22 @@ impl Docs {
             domains,
             features,
             use_cases,
+            rules: Vec::new(),
             index,
             freshness: None,
             source: None,
         }
+    }
+
+    /// Adds the business rules: they appear in `get_feature`, `get_use_case` and `get_domain`, are
+    /// found by `search_docs`, and the code they cite can be read.
+    #[must_use]
+    pub fn with_rules(mut self, rules: Vec<BusinessRule>) -> Self {
+        let mut entries = self.index.entries().to_vec();
+        entries.extend(rule_entries(&rules, &self.features));
+        self.index = SearchIndex::new(entries);
+        self.rules = rules;
+        self
     }
 
     /// Lets `read_source` and `git_log` reach the files the docs cite, under
@@ -60,7 +74,15 @@ impl Docs {
             .iter()
             .flat_map(|u| &u.steps)
             .flat_map(|s| s.source_refs.iter().map(|r| &r.path));
-        let cited: Vec<String> = features.chain(steps).cloned().collect();
+        let code = self
+            .rules
+            .iter()
+            .flat_map(|r| &r.evidence)
+            .filter_map(|e| match e {
+                RuleEvidence::Code { source } => Some(&source.path),
+                _ => None,
+            });
+        let cited: Vec<String> = features.chain(steps).chain(code).cloned().collect();
         self.source = Some(SourceAccess::new(repo_root, cited));
         self
     }
@@ -82,6 +104,7 @@ impl Docs {
         let use_cases = retrodoc_pipeline::load_use_cases(repo_root).unwrap_or_default();
         let map = DomainMap::load(repo_root).unwrap_or_default();
         let glossary = Glossary::load(repo_root).unwrap_or_default();
+        let rules = retrodoc_pipeline::load_rules(repo_root).unwrap_or_default();
         Some(
             Self::new(
                 domain_models(&map, &features),
@@ -90,6 +113,7 @@ impl Docs {
                 &glossary,
                 docs,
             )
+            .with_rules(rules)
             .with_freshness(Freshness::load(repo_root))
             .with_source_access(repo_root),
         )
@@ -171,6 +195,11 @@ impl Docs {
             out.push_str("\nNo feature documented here.\n");
             return out;
         }
+        let rules: Vec<&BusinessRule> = self
+            .rules
+            .iter()
+            .filter(|r| features.iter().any(|f| r.belongs_to_feature(&f.slug)))
+            .collect();
         out.push_str("\n## Features\n\n");
         for feature in features {
             let _ = writeln!(
@@ -183,6 +212,13 @@ impl Docs {
             );
         }
         out.push_str("\nUse `get_feature` with an id to see its use cases.\n");
+        if !rules.is_empty() {
+            out.push_str("\n## Business rules\n\n");
+            for rule in rules {
+                let _ = writeln!(out, "{}", rule_item(rule));
+            }
+            out.push_str("\nUse `get_feature` with a feature id to see their evidence.\n");
+        }
         out
     }
 
@@ -211,8 +247,14 @@ impl Docs {
             .iter()
             .filter(|u| u.feature_slug == feature.slug)
             .collect();
+        let rules: Vec<&BusinessRule> = self
+            .rules
+            .iter()
+            .filter(|r| r.belongs_to_feature(&feature.slug))
+            .collect();
         if use_cases.is_empty() {
             out.push_str("\nNo use case documented for this feature.\n");
+            out.push_str(&self.rules_section(&rules));
             return out;
         }
         out.push_str("\n## Use cases\n\n");
@@ -228,6 +270,7 @@ impl Docs {
             );
         }
         out.push_str("\nUse `get_use_case` with an id to see the steps.\n");
+        out.push_str(&self.rules_section(&rules));
         out
     }
 
@@ -287,6 +330,13 @@ impl Docs {
                 step.order, step.actor.name, step.action, step.description
             );
         }
+        let rules: Vec<&BusinessRule> = self
+            .rules
+            .iter()
+            .filter(|r| r.belongs_to_feature(&use_case.feature_slug))
+            .filter(|r| r.use_cases.contains(&use_case.slug))
+            .collect();
+        out.push_str(&self.rules_section(&rules));
         out
     }
 
@@ -356,12 +406,53 @@ impl Docs {
             {
                 let _ = writeln!(out, "  {}", truncate(line, SNIPPET_CHARS));
             }
+            if entry.kind == EntryKind::Rule {
+                if let Some(feature) = self
+                    .rules
+                    .iter()
+                    .find(|r| r.slug == entry.id)
+                    .and_then(|r| self.features.iter().find(|f| r.belongs_to_feature(&f.slug)))
+                {
+                    let _ = writeln!(
+                        out,
+                        "  feature: `{}` (see `get_feature`)",
+                        feature_id(feature)
+                    );
+                }
+            }
             if !entry.sources.is_empty() {
                 let _ = writeln!(out, "  files: {}", entry.sources.join(", "));
             }
             let stale = self.stale_files(entry.sources.iter().map(String::as_str));
             if !stale.is_empty() {
                 let _ = writeln!(out, "  ⚠ stale: {}", stale.join(", "));
+            }
+        }
+        out
+    }
+
+    /// The `## Business rules` section of a feature or a use case: each rule with its id, kind,
+    /// confidence and evidence, and a stale warning for the code it cites. Empty without rules.
+    fn rules_section(&self, rules: &[&BusinessRule]) -> String {
+        if rules.is_empty() {
+            return String::new();
+        }
+        let mut out = String::from("\n## Business rules\n\n");
+        for rule in rules {
+            let _ = writeln!(out, "{}", rule_item(rule));
+            if !rule.entities.is_empty() {
+                let _ = writeln!(out, "  - Entities: {}", rule.entities.join(", "));
+            }
+            for evidence in &rule.evidence {
+                let _ = writeln!(out, "  - {}", evidence_line(evidence));
+            }
+            let code = rule.evidence.iter().filter_map(|e| match e {
+                RuleEvidence::Code { source } => Some(source.path.as_str()),
+                _ => None,
+            });
+            let stale = self.stale_files(code);
+            if !stale.is_empty() {
+                let _ = writeln!(out, "  - ⚠ stale: {}", stale.join(", "));
             }
         }
         out
@@ -489,6 +580,42 @@ fn sources_section<'a>(title: &str, paths: impl Iterator<Item = &'a str>) -> Str
         return String::new();
     }
     format!("\n{title}: {}\n", paths.join(", "))
+}
+
+fn kind_label(kind: RuleKind) -> &'static str {
+    match kind {
+        RuleKind::Validation => "validation",
+        RuleKind::Permission => "permission",
+        RuleKind::StateTransition => "state transition",
+        RuleKind::Limit => "limit",
+        RuleKind::Computation => "computation",
+    }
+}
+
+/// `- `id` — statement (kind, confidence 85%)`; below the threshold the confidence reads `(low)`.
+fn rule_item(rule: &BusinessRule) -> String {
+    format!(
+        "- `{}` — {} ({}, {})",
+        rule.slug,
+        one_line(&rule.statement),
+        kind_label(rule.kind),
+        confidence_short(rule.confidence.as_ref())
+    )
+}
+
+fn evidence_line(evidence: &RuleEvidence) -> String {
+    match evidence {
+        RuleEvidence::Code { source } => format!("Code: {}", location(source)),
+        RuleEvidence::Test { phrase, path } => {
+            format!("Test: \"{}\" (`{path}`)", one_line(phrase))
+        }
+        RuleEvidence::Doc { path, heading } if heading.is_empty() => {
+            format!("Documentation: `{path}`")
+        }
+        RuleEvidence::Doc { path, heading } => {
+            format!("Documentation: `{path}`, section \"{}\"", one_line(heading))
+        }
+    }
 }
 
 fn location(source: &SourceRef) -> String {
@@ -766,5 +893,167 @@ mod tests {
         assert!(docs()
             .git_log("app/invoice.rb", 5)
             .starts_with("Not available:"));
+    }
+
+    fn rules() -> Vec<BusinessRule> {
+        vec![
+            BusinessRule {
+                slug: "pay-invoice-1".into(),
+                statement: "A paid invoice cannot be paid again.".into(),
+                kind: RuleKind::StateTransition,
+                entities: vec!["Invoice".into()],
+                use_cases: vec!["pay-by-card".into()],
+                evidence: vec![
+                    RuleEvidence::Code {
+                        source: SourceRef {
+                            path: "app/mailer.rb".into(),
+                            start_line: Some(3),
+                            end_line: Some(9),
+                        },
+                    },
+                    RuleEvidence::Test {
+                        phrase: "refuses a second payment".into(),
+                        path: "spec/pay_spec.rb".into(),
+                    },
+                ],
+                confidence: Some(ConfidenceScore::new(0.7, None)),
+            },
+            BusinessRule {
+                slug: "pay-invoice-2".into(),
+                statement: "Amounts above the credit ceiling need approval.".into(),
+                kind: RuleKind::Limit,
+                entities: Vec::new(),
+                use_cases: Vec::new(),
+                evidence: vec![RuleEvidence::Code {
+                    source: SourceRef {
+                        path: "app/invoice.rb".into(),
+                        start_line: None,
+                        end_line: None,
+                    },
+                }],
+                confidence: Some(ConfidenceScore::new(0.4, None)),
+            },
+            BusinessRule {
+                slug: "cancel-plan-1".into(),
+                statement: "A cancelled plan stops renewing.".into(),
+                kind: RuleKind::Computation,
+                entities: Vec::new(),
+                use_cases: Vec::new(),
+                evidence: Vec::new(),
+                confidence: None,
+            },
+        ]
+    }
+
+    #[test]
+    fn rules_are_in_the_feature_use_case_and_domain_answers() {
+        let docs = docs().with_rules(rules());
+
+        let feature = docs.get_feature("pay-invoice");
+        assert!(feature.contains("## Business rules"), "{feature}");
+        assert!(
+            feature.contains(
+                "- `pay-invoice-1` — A paid invoice cannot be paid again. (state transition, confidence 70%)"
+            ),
+            "{feature}"
+        );
+        assert!(feature.contains("  - Entities: Invoice"), "{feature}");
+        assert!(
+            feature.contains("  - Code: `app/mailer.rb:3-9`"),
+            "{feature}"
+        );
+        assert!(
+            feature.contains("  - Test: \"refuses a second payment\" (`spec/pay_spec.rb`)"),
+            "{feature}"
+        );
+        assert!(
+            feature.contains("(limit, confidence 40% (low))"),
+            "{feature}"
+        );
+        assert!(!feature.contains("cancelled plan"), "{feature}");
+
+        let use_case = docs.get_use_case("billing/pay-invoice/pay-by-card");
+        assert!(
+            use_case.contains("paid invoice cannot be paid again"),
+            "{use_case}"
+        );
+        assert!(!use_case.contains("credit ceiling"), "{use_case}");
+
+        let domain = docs.get_domain("billing");
+        assert!(domain.contains("## Business rules"), "{domain}");
+        assert!(domain.contains("`pay-invoice-2`"), "{domain}");
+        assert!(domain.contains("`cancel-plan-1`"), "{domain}");
+    }
+
+    #[test]
+    fn a_feature_without_use_case_still_shows_its_rules() {
+        let docs = docs().with_rules(rules());
+        let out = docs.get_feature("cancel-plan");
+        assert!(out.contains("No use case documented"), "{out}");
+        assert!(out.contains("A cancelled plan stops renewing."), "{out}");
+    }
+
+    #[test]
+    fn without_rules_the_answers_have_no_rules_section() {
+        let docs = docs();
+        for out in [
+            docs.get_feature("pay-invoice"),
+            docs.get_use_case("pay-by-card"),
+            docs.get_domain("billing"),
+        ] {
+            assert!(!out.contains("Business rules"), "{out}");
+        }
+    }
+
+    #[test]
+    fn a_search_finds_a_rule_by_what_it_says_and_by_its_tests() {
+        let docs = docs().with_rules(rules());
+        let out = docs.search_docs("credit ceiling approval", 3);
+        assert!(
+            out.contains("[rule] Amounts above the credit ceiling need approval."),
+            "{out}"
+        );
+        assert!(out.contains("`pay-invoice-2`"), "{out}");
+        let out = docs.search_docs("second payment", 3);
+        assert!(out.contains("`pay-invoice-1`"), "{out}");
+        assert!(
+            out.contains("feature: `billing/pay-invoice` (see `get_feature`)"),
+            "{out}"
+        );
+        assert!(out.contains("files: app/mailer.rb"), "{out}");
+    }
+
+    #[test]
+    fn a_rule_warns_when_the_code_it_cites_changed_and_its_code_can_be_read() {
+        let (dir, docs) = docs_over_a_generated_repo();
+        let docs = docs.with_rules(rules()).with_source_access(dir.path());
+        assert!(!docs.get_feature("pay-invoice").contains("tale"));
+        std::fs::write(dir.path().join("app/mailer.rb"), "edited").unwrap();
+        let out = docs.get_feature("pay-invoice");
+        assert!(
+            out.contains("  - ⚠ stale: `app/mailer.rb` (modified)"),
+            "{out}"
+        );
+        assert!(docs
+            .read_source("app/mailer.rb", None, None)
+            .starts_with("# `app/mailer.rb`"));
+    }
+
+    #[test]
+    fn the_saved_rules_are_loaded_with_the_docs() {
+        let dir = tempfile::tempdir().unwrap();
+        retrodoc_pipeline::save_features(
+            dir.path(),
+            &[feature(
+                "pay-invoice",
+                "Pay an invoice",
+                "Settle what is due",
+            )],
+        )
+        .unwrap();
+        retrodoc_pipeline::save_rules(dir.path(), &rules()[..1]).unwrap();
+        let docs = Docs::load(dir.path(), &[]).unwrap();
+        assert!(docs.get_feature("pay-invoice").contains("`pay-invoice-1`"));
+        assert_eq!(docs.index().len(), 2);
     }
 }

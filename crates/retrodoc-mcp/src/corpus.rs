@@ -2,7 +2,7 @@
 //! use case, glossary concept and collected Markdown doc, flattened to text
 //! with the identity, confidence and cited files the answers will carry.
 
-use retrodoc_core::model::{Domain, Feature, UseCase};
+use retrodoc_core::model::{BusinessRule, Domain, Feature, RuleEvidence, UseCase};
 use retrodoc_ingest::existing_docs::ExistingDoc;
 use retrodoc_pipeline::Glossary;
 
@@ -12,6 +12,7 @@ pub enum EntryKind {
     Feature,
     UseCase,
     Glossary,
+    Rule,
     Doc,
 }
 
@@ -23,6 +24,7 @@ impl EntryKind {
             EntryKind::Feature => "feature",
             EntryKind::UseCase => "use case",
             EntryKind::Glossary => "glossary",
+            EntryKind::Rule => "rule",
             EntryKind::Doc => "doc",
         }
     }
@@ -140,6 +142,48 @@ fn doc_entry(doc: &ExistingDoc) -> Entry {
         confidence: None,
         sources: vec![path],
     }
+}
+
+/// One entry per business rule: its statement is the title, found by what it says, the entities
+/// it applies to, the words of the tests and docs that state it, and its feature.
+#[must_use]
+pub fn rule_entries(rules: &[BusinessRule], features: &[Feature]) -> Vec<Entry> {
+    rules
+        .iter()
+        .map(|rule| {
+            let feature = features.iter().find(|f| rule.belongs_to_feature(&f.slug));
+            let mut sources: Vec<String> = Vec::new();
+            let mut stated: Vec<String> = Vec::new();
+            for evidence in &rule.evidence {
+                match evidence {
+                    RuleEvidence::Code { source } => {
+                        if !sources.contains(&source.path) {
+                            sources.push(source.path.clone());
+                        }
+                    }
+                    RuleEvidence::Test { phrase, .. } => stated.push(phrase.clone()),
+                    RuleEvidence::Doc { heading, .. } => stated.push(heading.clone()),
+                }
+            }
+            let text = lines(
+                [
+                    rule.statement.clone(),
+                    rule.entities.join(" "),
+                    feature.map(|f| f.name.clone()).unwrap_or_default(),
+                ]
+                .into_iter()
+                .chain(stated),
+            );
+            Entry {
+                kind: EntryKind::Rule,
+                id: rule.slug.clone(),
+                title: rule.statement.clone(),
+                text,
+                confidence: rule.confidence.as_ref().map(|c| c.value),
+                sources,
+            }
+        })
+        .collect()
 }
 
 /// Every searchable entry, in a stable order: domains, features, use cases,

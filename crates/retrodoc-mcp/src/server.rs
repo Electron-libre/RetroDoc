@@ -91,7 +91,7 @@ impl DocsServer {
 
     #[tool(
         description = "Show one domain or sub-domain (e.g. `billing`, `billing/payment`) and \
-                       its features."
+                       its features and business rules."
     )]
     async fn get_domain(&self, Parameters(IdParams { id }): Parameters<IdParams>) -> String {
         self.docs.get_domain(&id)
@@ -99,7 +99,8 @@ impl DocsServer {
 
     #[tool(
         description = "Show one feature (e.g. `billing/pay-invoice`): what it does, the files it \
-                       rests on and its use cases."
+                       rests on, its use cases and its business rules (what is allowed, refused, limited, with \
+                       their evidence)."
     )]
     async fn get_feature(&self, Parameters(IdParams { id }): Parameters<IdParams>) -> String {
         self.docs.get_feature(&id)
@@ -108,7 +109,8 @@ impl DocsServer {
     #[tool(
         description = "Show one use case (e.g. `billing/pay-invoice/pay-by-card`): who does what \
                        and why, the steps, and the code each step cites. A low confidence means \
-                       the claim is not backed by the code: verify before relying on it."
+                       the claim is not backed by the code: verify before relying on it. Lists the business rules \
+                       that apply to it."
     )]
     async fn get_use_case(&self, Parameters(IdParams { id }): Parameters<IdParams>) -> String {
         self.docs.get_use_case(&id)
@@ -144,8 +146,8 @@ impl DocsServer {
     }
 
     #[tool(
-        description = "Search the generated documentation and the project's own docs with the \
-                       words of a question. Answers `Not documented` when nothing matches: say so \
+        description = "Search the generated documentation (including business rules) and the project's \
+                       own docs with the words of a question. Answers `Not documented` when nothing matches: say so \
                        rather than guess."
     )]
     async fn search_docs(

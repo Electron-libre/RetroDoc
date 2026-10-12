@@ -34,6 +34,12 @@ impl SearchIndex {
         Self { entries, bm25 }
     }
 
+    /// The entries, in the order of the index.
+    #[must_use]
+    pub fn entries(&self) -> &[Entry] {
+        &self.entries
+    }
+
     #[must_use]
     pub fn len(&self) -> usize {
         self.entries.len()
