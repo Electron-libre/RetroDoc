@@ -8,6 +8,16 @@ use super::workspace::repo_root;
 /// `generate` run (`.retrodoc/cache/`); makes no LLM call.
 pub fn run(path: &Path) -> anyhow::Result<()> {
     let repo_root = repo_root(path)?;
+    // The report needs no `retrodoc.toml`: without one, the default document paths. A broken one
+    // is an error, not a silent change of which docs are compared.
+    let config = if repo_root
+        .join(retrodoc_core::config::CONFIG_FILE_NAME)
+        .exists()
+    {
+        retrodoc_core::config::Config::load(&repo_root)?
+    } else {
+        retrodoc_core::config::Config::default()
+    };
 
     let (Some(features), Some(use_cases)) = (
         retrodoc_pipeline::load_features(&repo_root),
@@ -25,6 +35,7 @@ pub fn run(path: &Path) -> anyhow::Result<()> {
         .map(|s| s.skipped)
         .unwrap_or_default();
     report.with_behaviour_coverage(retrodoc_pipeline::BehaviourCoverage::load(&repo_root));
+    super::docs::add_rule_debt(&mut report, &repo_root, &config, &features);
     print!("{}", report.to_markdown());
     Ok(())
 }

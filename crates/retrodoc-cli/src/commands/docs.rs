@@ -23,11 +23,6 @@ pub fn publish(repo_root: &Path, config: &Config, dry_run: bool) -> anyhow::Resu
         .map(|s| s.skipped)
         .unwrap_or_default();
     report.with_behaviour_coverage(retrodoc_pipeline::BehaviourCoverage::load(repo_root));
-    let metadata = RunMetadata {
-        model: config.llm.model.clone(),
-        commit: retrodoc_ingest::git_history::head_commit(repo_root),
-        generated_at: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
-    };
     let rules = retrodoc_pipeline::load_rules(repo_root).unwrap_or_default();
     if rules.is_empty() && retrodoc_pipeline::Artifact::Rules.path(repo_root).exists() {
         tracing::warn!(
@@ -35,6 +30,12 @@ pub fn publish(repo_root: &Path, config: &Config, dry_run: bool) -> anyhow::Resu
             retrodoc_pipeline::Artifact::Rules.relative_path()
         );
     }
+    add_rule_debt(&mut report, repo_root, config, &features);
+    let metadata = RunMetadata {
+        model: config.llm.model.clone(),
+        commit: retrodoc_ingest::git_history::head_commit(repo_root),
+        generated_at: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
+    };
     let files = retrodoc_render::render_with_rules(
         &retrodoc_pipeline::domain_models(&domains, &features),
         &features,
@@ -77,15 +78,41 @@ pub fn without_generated(
         .collect()
 }
 
+/// Adds to `report` the saved business rules that no project doc mentions. An unreadable doc leaves
+/// the section out (with a warning) rather than listing every rule as undocumented.
+pub fn add_rule_debt(
+    report: &mut retrodoc_pipeline::DebtReport,
+    repo_root: &Path,
+    config: &Config,
+    features: &[retrodoc_core::model::Feature],
+) {
+    let rules = retrodoc_pipeline::load_rules(repo_root).unwrap_or_default();
+    if rules.is_empty() {
+        return;
+    }
+    match project_docs(repo_root, config) {
+        Ok(docs) => report.with_rules(&rules, features, &docs),
+        Err(err) => tracing::warn!("rules not compared with the project docs: {err:#}"),
+    }
+}
+
+/// The project's own Markdown docs (what `generate` ingests, without what it wrote itself).
+pub fn project_docs(
+    repo_root: &Path,
+    config: &Config,
+) -> anyhow::Result<Vec<retrodoc_ingest::ExistingDoc>> {
+    let docs = retrodoc_ingest::existing_docs::load_existing_docs(
+        repo_root,
+        &config.ingest.existing_docs_paths,
+    )
+    .context("could not read the existing docs")?;
+    Ok(without_generated(docs, config))
+}
+
 /// The generated docs the `search` and `mcp` commands answer from: the
 /// artifacts of the last `generate` run and the project's own Markdown docs.
 pub fn load_docs(workspace: &super::workspace::Workspace) -> anyhow::Result<retrodoc_mcp::Docs> {
-    let docs = retrodoc_ingest::existing_docs::load_existing_docs(
-        &workspace.repo_root,
-        &workspace.config.ingest.existing_docs_paths,
-    )
-    .context("could not read the existing docs")?;
-    let docs = without_generated(docs, &workspace.config);
+    let docs = project_docs(&workspace.repo_root, &workspace.config)?;
     retrodoc_mcp::Docs::load(&workspace.repo_root, &docs)
         .context("no features/use cases found — run `retrodoc generate` first")
 }

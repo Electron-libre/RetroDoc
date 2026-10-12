@@ -10,8 +10,11 @@ use std::fmt::Write as _;
 use std::path::PathBuf;
 
 use retrodoc_core::model::{
-    ConfidenceScore, Domain, Feature, SubDomain, UseCase, LOW_CONFIDENCE_THRESHOLD,
+    BusinessRule, ConfidenceScore, Domain, Feature, RuleEvidence, SubDomain, UseCase,
+    LOW_CONFIDENCE_THRESHOLD,
 };
+use retrodoc_ingest::existing_docs::ExistingDoc;
+use retrodoc_ingest::signals::doc_sections;
 
 use crate::behaviour_coverage::BehaviourCoverage;
 use crate::domains::{DomainMap, UNCATEGORIZED_SLUG};
@@ -31,6 +34,22 @@ pub struct WeakSection {
     pub label: String,
     pub score: f32,
     pub rationale: Option<String>,
+}
+
+/// A business rule that no existing document seems to mention.
+#[derive(Debug, Clone, PartialEq)]
+pub struct UndocumentedRule {
+    pub slug: String,
+    pub statement: String,
+    /// Name of the feature the rule belongs to, if it still exists.
+    pub feature: Option<String>,
+}
+
+/// How many business rules the project's own documents leave out.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct RuleDebt {
+    pub total: usize,
+    pub undocumented: Vec<UndocumentedRule>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -60,10 +79,16 @@ pub struct DebtReport {
     /// Source files reached by no behaviour: no entry point of a feature, no code run by one, no
     /// entity. Filled by the caller like `unplaced_entry_points`.
     pub technical_support: Vec<PathBuf>,
+    /// The business rules the existing docs do not mention. `None` when no rule was stated
+    /// (`[pipeline] rules` off, or nothing found); filled by the caller with
+    /// [`DebtReport::with_rules`].
+    pub rules: Option<RuleDebt>,
 }
 
 /// Skipped files listed in the Markdown report (the rest is only counted).
 const MAX_LISTED_SKIPPED: usize = 50;
+/// Undocumented rules listed in the Markdown report (the rest is only counted).
+const MAX_LISTED_RULES: usize = 50;
 /// Technical support files listed in the Markdown report (the rest is only counted).
 const MAX_LISTED_SUPPORT: usize = 50;
 
@@ -237,6 +262,7 @@ pub fn build_report(
         skipped_files: Vec::new(),
         unplaced_entry_points: Vec::new(),
         technical_support: Vec::new(),
+        rules: None,
     }
 }
 
@@ -253,6 +279,80 @@ impl DebtReport {
         if let Some(coverage) = coverage {
             self.unplaced_entry_points = coverage.unplaced_entry_points;
             self.technical_support = coverage.technical_support;
+        }
+    }
+
+    /// Adds the business rules that no existing document mentions: those whose statement shares at
+    /// least half of its words with no section of `docs` (the project's own documents, not the
+    /// generated ones) and that cite no document section themselves; a statement made of stop
+    /// words only can't be judged and is not listed. Nothing when there is no rule.
+    pub fn with_rules(
+        &mut self,
+        rules: &[BusinessRule],
+        features: &[Feature],
+        docs: &[ExistingDoc],
+    ) {
+        if rules.is_empty() {
+            return;
+        }
+        let sections: Vec<String> = doc_sections(docs)
+            .into_iter()
+            // The path is not searched: a file named after a topic does not say what it states.
+            .map(|s| s.text)
+            .collect();
+        let index = crate::bm25::Bm25::new(&sections);
+        let undocumented = rules
+            .iter()
+            .filter(|r| {
+                !r.evidence
+                    .iter()
+                    .any(|e| matches!(e, RuleEvidence::Doc { .. }))
+                    && crate::bm25::has_content_words(&r.statement)
+                    && index.search(&r.statement).is_empty()
+            })
+            .map(|r| UndocumentedRule {
+                slug: r.slug.clone(),
+                statement: r.statement.clone(),
+                feature: features
+                    .iter()
+                    .find(|f| r.belongs_to_feature(&f.slug))
+                    .map(|f| f.name.clone()),
+            })
+            .collect();
+        self.rules = Some(RuleDebt {
+            total: rules.len(),
+            undocumented,
+        });
+    }
+
+    /// The section on the business rules the existing docs leave out.
+    fn write_rule_section(&self, md: &mut String) {
+        let Some(debt) = &self.rules else { return };
+        let _ = write!(
+            md,
+            "\n## Business rules without documentation\n\n{} of {} business rule(s) are \
+             mentioned in no existing document",
+            debt.undocumented.len(),
+            debt.total
+        );
+        if debt.undocumented.is_empty() {
+            md.push_str(".\n");
+            return;
+        }
+        md.push_str(":\n\n");
+        for rule in debt.undocumented.iter().take(MAX_LISTED_RULES) {
+            let place = rule
+                .feature
+                .as_ref()
+                .map_or_else(String::new, |f| format!(" — {f}"));
+            let _ = writeln!(md, "- `{}` {}{place}", rule.slug, rule.statement);
+        }
+        if debt.undocumented.len() > MAX_LISTED_RULES {
+            let _ = writeln!(
+                md,
+                "- … and {} more",
+                debt.undocumented.len() - MAX_LISTED_RULES
+            );
         }
     }
 
@@ -360,6 +460,7 @@ impl DebtReport {
             }
         }
         self.write_behaviour_sections(&mut md);
+        self.write_rule_section(&mut md);
         if !self.skipped_files.is_empty() {
             let _ = write!(
                 md,
@@ -433,6 +534,124 @@ mod tests {
         assert!(md.contains("## Technical support (reached by no behaviour)"));
         assert!(md.contains("1 source file(s)"));
         assert!(md.contains("`helper.rb`"));
+    }
+
+    fn rule(slug: &str, statement: &str, evidence: Vec<RuleEvidence>) -> BusinessRule {
+        BusinessRule {
+            slug: slug.to_string(),
+            statement: statement.to_string(),
+            kind: retrodoc_core::model::RuleKind::Limit,
+            entities: Vec::new(),
+            use_cases: Vec::new(),
+            evidence,
+            confidence: None,
+        }
+    }
+
+    #[test]
+    fn rules_no_existing_doc_mentions_are_counted_and_listed() {
+        let docs = [ExistingDoc {
+            path: PathBuf::from("README.md"),
+            content: "# Orders\nAn order is refused when delivery takes an hour.\n".into(),
+        }];
+        let features = [feature("orders", "billing", None)];
+        let rules = [
+            rule(
+                "orders-1",
+                "An order is refused when delivery takes an hour or more.",
+                vec![],
+            ),
+            rule(
+                "orders-2",
+                "Riders above the weekly cap are paused.",
+                vec![],
+            ),
+            rule(
+                "orders-3",
+                "Cooking time counts before the rider leaves.",
+                vec![RuleEvidence::Doc {
+                    path: "docs/x.md".into(),
+                    heading: "Time".into(),
+                }],
+            ),
+            rule("gone-1", "Credits expire after a year.", vec![]),
+        ];
+        let mut report = build_report(&DomainMap::default(), &[], &[]);
+        assert!(!report.to_markdown().contains("Business rules without"));
+
+        report.with_rules(&rules, &features, &docs);
+
+        let debt = report.rules.as_ref().unwrap();
+        assert_eq!(debt.total, 4);
+        let slugs: Vec<&str> = debt.undocumented.iter().map(|r| r.slug.as_str()).collect();
+        assert_eq!(slugs, ["orders-2", "gone-1"]);
+        assert_eq!(debt.undocumented[1].feature, None);
+        let md = report.to_markdown();
+        assert!(
+            md.contains("## Business rules without documentation"),
+            "{md}"
+        );
+        assert!(
+            md.contains("2 of 4 business rule(s) are mentioned in no existing document"),
+            "{md}"
+        );
+        assert!(
+            md.contains("- `orders-2` Riders above the weekly cap are paused. — orders"),
+            "{md}"
+        );
+        assert!(!md.contains("`orders-1`"), "{md}");
+    }
+
+    #[test]
+    fn a_file_named_after_the_topic_or_a_statement_of_stop_words_is_not_judged_wrongly() {
+        let docs = [ExistingDoc {
+            path: PathBuf::from("docs/rider-cap.md"),
+            content: "Nothing about it here.".into(),
+        }];
+        let mut report = build_report(&DomainMap::default(), &[], &[]);
+        report.with_rules(
+            &[
+                rule("a-1", "Riders above the cap are paused.", vec![]),
+                rule("a-2", "It is what it is.", vec![]),
+            ],
+            &[],
+            &docs,
+        );
+        let slugs: Vec<&str> = report
+            .rules
+            .as_ref()
+            .unwrap()
+            .undocumented
+            .iter()
+            .map(|r| r.slug.as_str())
+            .collect();
+        assert_eq!(slugs, ["a-1"]);
+    }
+
+    #[test]
+    fn no_rule_adds_no_section_and_documented_rules_say_so() {
+        let mut report = build_report(&DomainMap::default(), &[], &[]);
+        report.with_rules(&[], &[], &[]);
+        assert!(report.rules.is_none());
+
+        let docs = [ExistingDoc {
+            path: PathBuf::from("README.md"),
+            content: "Riders above the weekly cap are paused.".into(),
+        }];
+        report.with_rules(
+            &[rule(
+                "a-1",
+                "Riders above the weekly cap are paused.",
+                vec![],
+            )],
+            &[],
+            &docs,
+        );
+        let md = report.to_markdown();
+        assert!(
+            md.contains("0 of 1 business rule(s) are mentioned in no existing document.\n"),
+            "{md}"
+        );
     }
 
     #[test]
