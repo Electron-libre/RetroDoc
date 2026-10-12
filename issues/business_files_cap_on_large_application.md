@@ -62,9 +62,13 @@ and how many the cap drops (no LLM call needed: `business-files.yaml` and the fi
    the rerun redoes only what was missing), passes fixed where needed, a manual kill on `delivery_router`.
 3. [x] The map of the contexts: pass, `retrodoc contexts`, `contexts.yaml` (stable, editable, a shared
    file in one context), with its ADR 0029. Measured on the large application with a local and the hosted model.
-3b. [ ] Orphan files placed without the answer: a source file in no context (32% on the large application
-   with the hosted model) joins the context whose files reference it or are referenced by it (`slices.rs`),
-   else stays in the support; measured with no LLM call first.
+3b. [x] Orphan files: measured with no LLM call (35% of the support placed by references, a part dubious, see
+   "Orphan files placed by references"). Decided (user, 2026-10-12): no persistent placement; the reading
+   of a context (step 4) takes the files its entry points reference, so an orphan is read when a behaviour
+   reaches it.
+3c. [ ] Large contexts split: a context of more than 150 files is split by one more call into sub-contexts
+   (groups and sub-folders partitioned, nothing lost), since a run is one context. Reason: the central
+   context of the application regroups several sub-domains (editing, signing, amending…), user's remark.
 4. [ ] Reading per context: the glossary and the entry points read the files of the run's contexts,
    `MAX_FILES` removed; `generate --context <name>`, else the next contexts not done within a budget.
 5. [ ] Domains, features and use cases per context on the `surface` path: a context is a domain, its
@@ -94,6 +98,8 @@ and how many the cap drops (no LLM call needed: `business-files.yaml` and the fi
 * (user, 2026-10-12, after the first maps) A deliverable 3b is added before the reading depends on the map:
   the orphan files are placed by references, not left to the answer. The hosted model is the reference for
   the map (the local one sent half of the files to the support).
+* (user, 2026-10-12) The largest context (472 files) is the hub of the business and holds many different
+  sub-domains: it must be split into sub-contexts (3c). Orphans: no persistent placement (3b).
 * If the measure of deliverable 1 shows a poor split before reading, stop and go back to the user before
   any production code.
 
@@ -154,3 +160,22 @@ tokens in, 1.2k to 2.5k out, 1 to 1.5 min):
 * Still to do before the reading depends on the map: place the orphans without the answer (a file
   referenced by the files of one context joins it, with the slices of `slices.rs`), and look at the 472-file
   context with the user, who knows whether it is one context.
+
+## Orphan files placed by references (deliverable 3b, 2026-10-12, no LLM)
+
+`cargo run -q -p retrodoc-pipeline --example orphan_placement_measure -- [--names] <run dir>`: a file in the
+support joins the context whose files reference it or are referenced by it (`CodeIndex::slice`, depth 1, 30
+files at most per file), when the best score is at least 2 and at least twice the second.
+
+| Map | Source files | In the support | Placed | Ambiguous | Weak (score 1) | No reference |
+|---|---|---|---|---|---|---|
+| hosted map of the large application | 1,676 | 539 | 187 (35%), 155 of a business role | 159 (29%) | 150 (28%) | 43 (8%) |
+
+* About a tenth of the application (155 files) could move from the support to a context, and the sample is
+  mixed: jobs, services and state-machine actions land where a reader would put them, but base classes,
+  concerns, a utility (an identifier generator), a front-end controller and migrations land in whichever
+  context mentions them most. Migrations and data scripts (36 of the 187) are history, not behaviour.
+* The files the references reach are, by construction, the files the code slices of the use cases pass
+  reads from an entry point of a context (`slices.rs`, depth 2): the behaviour of a context is not cut by
+  the orphans being in the support. They matter for the entities of the glossary (the models no entry point
+  name reaches), not for the use cases.

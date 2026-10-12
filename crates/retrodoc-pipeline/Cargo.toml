@@ -39,3 +39,7 @@ test = true
 [[example]]
 name = "context_map_measure"
 test = true
+
+[[example]]
+name = "orphan_placement_measure"
+test = true
