@@ -24,7 +24,7 @@ use serde::{Deserialize, Serialize};
 use crate::artifact::{load_yaml, save_yaml, Artifact};
 use crate::brief::ProductBrief;
 use crate::error::PipelineError;
-use crate::features::slugify;
+use crate::features::{slugify, unique_slug};
 use crate::naming::normalize;
 use crate::response::complete_json;
 
@@ -42,6 +42,8 @@ const FOLDER_DEPTH: usize = 2;
 /// A folder holding more orphan files than this is listed by its sub-folders.
 const SPLIT_FOLDER_FILES: usize = 40;
 const SAMPLE_FILES: usize = 6;
+/// A context with more files than this is too big for one run: one more call splits it.
+const MAX_CONTEXT_FILES: usize = 150;
 
 const SYSTEM_PROMPT: &str = "You are mapping a large software application into bounded contexts: \
 vertical slices that each hold one area of the business with everything that serves it (entry \
@@ -63,6 +65,19 @@ Reply with ONLY a single JSON object, no prose and no Markdown code fence, match
 {\"contexts\":[{\"slug\":\"kebab-case\",\"name\":\"...\",\"description\":\"one or two sentences\",\
 \"groups\":[\"g1\",\"g4\"],\"folders\":[\"app/workflows/\"]}],\
 \"support\":{\"groups\":[\"g9\"],\"folders\":[\"db/migrate/\"]}}.";
+
+const SPLIT_SYSTEM_PROMPT: &str = "You are splitting one bounded context of a large software \
+application into sub-contexts, because it is too big to be documented in one go. It holds several \
+business sub-domains (an activity, a stage of the business process, a kind of object). You are \
+given what the product is for, the context, its GROUPS of files (each named after a business \
+object, with its size and a sample of its files) and its FOLDERS of files that belong to no group. \
+Split it into 2 to 8 sub-contexts, each named after a business concept or activity, never after a \
+technical layer or a kind of folder. Cite groups by their id (g1, g2…) and folders as listed, \
+never invent either. Each group and each folder goes in exactly one sub-context; nothing is set \
+aside. \
+Reply with ONLY a single JSON object, no prose and no Markdown code fence, matching this shape: \
+{\"contexts\":[{\"slug\":\"kebab-case\",\"name\":\"...\",\"description\":\"one or two sentences\",\
+\"groups\":[\"g1\",\"g4\"],\"folders\":[\"app/workflows/rules/\"]}]}.";
 
 /// One bounded context: the groups (names as written by the mechanical step) and the folders that
 /// make it, with a name and a description for the docs.
@@ -393,8 +408,147 @@ pub async fn build_context_map(
         tracing::warn!("the LLM answer for the contexts was unusable: one context per group");
         return Ok(one_context_per_group(&grouped));
     };
+    // Saved before the split: a failure there keeps the paid map.
     map.save(repo_root)?;
-    Ok(map)
+    let split = match split_large_contexts(map, &grouped, sources, seeds, brief, llm).await {
+        Ok(split) => split,
+        Err(error) => {
+            tracing::warn!(
+                "{} is saved without the split of its large contexts; `retrodoc contexts --force` asks again",
+                Artifact::Contexts.relative_path()
+            );
+            return Err(error);
+        }
+    };
+    split.save(repo_root)?;
+    Ok(split)
+}
+
+/// The map with each context over [`MAX_CONTEXT_FILES`] replaced by the sub-contexts one more call
+/// makes of it. An unusable split leaves the context whole.
+async fn split_large_contexts(
+    map: ContextMap,
+    grouped: &Groups,
+    sources: &[PathBuf],
+    seeds: &[PathBuf],
+    brief: &ProductBrief,
+    llm: &dyn LlmProvider,
+) -> Result<ContextMap, PipelineError> {
+    let resolved = map.resolve(sources, seeds);
+    let ContextMap { contexts, support } = map;
+    let big: Vec<bool> = resolved
+        .contexts
+        .iter()
+        .map(|c| c.files.len() > MAX_CONTEXT_FILES)
+        .collect();
+    // The slugs of the contexts left whole are kept; a part that takes one gets a suffix.
+    let mut slugs: Vec<String> = contexts
+        .iter()
+        .zip(&big)
+        .filter(|(_, big)| !**big)
+        .map(|(c, _)| c.slug.clone())
+        .collect();
+    let mut out: Vec<BoundedContext> = Vec::new();
+    for ((context, own), big) in contexts.into_iter().zip(resolved.contexts).zip(big) {
+        if !big {
+            out.push(context);
+            continue;
+        }
+        match split_context(&context, &own.files, grouped, brief, llm).await? {
+            Some(parts) => {
+                for mut part in parts {
+                    part.slug = unique_slug(&part.slug, slugs.iter().map(String::as_str));
+                    slugs.push(part.slug.clone());
+                    out.push(part);
+                }
+            }
+            None => out.push(context),
+        }
+    }
+    Ok(ContextMap {
+        contexts: out,
+        support,
+    })
+}
+
+/// The sub-contexts of `context` (which holds `files`), or `None` when the answer is unusable or
+/// gives fewer than two. What the answer forgets stays with the first one, and so do the folders of
+/// the context as a fallback (the sub-folders it cites are longer, so they win): no file is lost.
+///
+/// # Errors
+///
+/// Returns an error if the LLM call fails.
+async fn split_context(
+    context: &BoundedContext,
+    files: &[PathBuf],
+    grouped: &Groups,
+    brief: &ProductBrief,
+    llm: &dyn LlmProvider,
+) -> Result<Option<Vec<BoundedContext>>, PipelineError> {
+    let in_context: BTreeSet<&PathBuf> = files.iter().collect();
+    let groups: BTreeMap<String, BTreeSet<PathBuf>> = grouped
+        .groups
+        .iter()
+        .filter(|(name, _)| context.groups.contains(name))
+        .map(|(name, group_files)| {
+            let own = group_files
+                .iter()
+                .filter(|f| in_context.contains(f))
+                .cloned()
+                .collect();
+            (name.clone(), own)
+        })
+        .collect();
+    let in_a_group: BTreeSet<&PathBuf> = groups.values().flatten().collect();
+    let orphans: Vec<PathBuf> = files
+        .iter()
+        .filter(|f| !in_a_group.contains(f))
+        .cloned()
+        .collect();
+    let sub = Groups { groups, orphans };
+    let listing = Listing::new(&sub);
+    let prompt = format!(
+        "Context to split: {} - {}\n\n{}",
+        context.name,
+        context.description,
+        listing.prompt(brief)
+    );
+    let what = format!("split of the context {}", context.slug);
+    let Some(raw) = complete_json::<Response>(llm, SPLIT_SYSTEM_PROMPT, &prompt, &what).await?
+    else {
+        tracing::warn!(context = %context.slug, "the split of a large context was unusable, kept whole");
+        return Ok(None);
+    };
+    let (mut parts, free) = place_cited(raw, &listing, files);
+    if parts.contexts.len() < 2 {
+        tracing::warn!(context = %context.slug, "the split gave fewer than two parts, kept whole");
+        return Ok(None);
+    }
+    let placed: BTreeSet<&String> = parts
+        .contexts
+        .iter()
+        .flat_map(|c| &c.folders)
+        .chain(&parts.support.folders)
+        .collect();
+    let forgotten: Vec<String> = listing
+        .folders
+        .iter()
+        .map(|f| f.path.clone())
+        .filter(|path| !placed.contains(path))
+        .collect();
+    let first = &mut parts.contexts[0];
+    first.groups.extend(free);
+    first.groups.extend(unshown_groups(&listing, &sub));
+    first.groups.extend(parts.support.groups);
+    first.folders.extend(parts.support.folders);
+    first.folders.extend(forgotten);
+    first.folders.extend(context.folders.iter().cloned());
+    tracing::info!(
+        context = %context.slug,
+        parts = parts.contexts.len(),
+        "large context split"
+    );
+    Ok(Some(parts.contexts))
 }
 
 fn one_context_per_group(grouped: &Groups) -> ContextMap {
@@ -472,10 +626,51 @@ fn take_folder(
 /// The contexts of the answer with their citations resolved, what it forgot kept as contexts of
 /// their own, and the groups too small to be shown set aside as support.
 fn place(raw: Response, listing: &Listing, grouped: &Groups, sources: &[PathBuf]) -> ContextMap {
+    let (mut map, free) = place_cited(raw, listing, sources);
+    if !free.is_empty() {
+        tracing::info!(
+            groups = free.len(),
+            "the answer left groups out, each is a context of its own"
+        );
+    }
+    for group in free {
+        add_group(&mut map.contexts, &group);
+    }
+    let unshown = unshown_groups(listing, grouped);
+    if !unshown.is_empty() {
+        tracing::warn!(
+            groups = unshown.len(),
+            "more groups than the {MAX_GROUPS} shown to the LLM: the smallest are set aside as support"
+        );
+    }
+    map.support.groups.extend(unshown);
+    map
+}
+
+/// The groups too small to have been shown to the LLM.
+fn unshown_groups(listing: &Listing, grouped: &Groups) -> Vec<String> {
+    let shown: BTreeSet<&String> = listing.groups.iter().map(|g| &g.name).collect();
+    grouped
+        .groups
+        .keys()
+        .filter(|name| !shown.contains(name))
+        .cloned()
+        .collect()
+}
+
+/// What the answer cites, resolved, and the shown groups it did not cite. A context the answer
+/// calls `support` is the support, not a context.
+fn place_cited(
+    raw: Response,
+    listing: &Listing,
+    sources: &[PathBuf],
+) -> (ContextMap, BTreeSet<String>) {
     let mut free: BTreeSet<String> = listing.groups.iter().map(|g| g.name.clone()).collect();
     let mut taken_folders: BTreeSet<String> = BTreeSet::new();
     let mut dropped = 0;
     let mut map = ContextMap::default();
+    let mut support_groups: Vec<String> = Vec::new();
+    let mut support_folders: Vec<String> = Vec::new();
 
     for context in raw.contexts {
         let groups: Vec<String> = context
@@ -500,6 +695,12 @@ fn place(raw: Response, listing: &Listing, grouped: &Groups, sources: &[PathBuf]
             .cloned()
             .unwrap_or_default();
         let slug = slugify(&label);
+        if slug == "support" {
+            tracing::info!("a context called support is the support");
+            support_groups.extend(groups);
+            support_folders.extend(folders);
+            continue;
+        }
         if let Some(same) = map.contexts.iter_mut().find(|c| c.slug == slug) {
             same.groups.extend(groups);
             same.folders.extend(folders);
@@ -518,18 +719,20 @@ fn place(raw: Response, listing: &Listing, grouped: &Groups, sources: &[PathBuf]
         }
     }
 
-    map.support.groups = raw
-        .support
-        .groups
-        .iter()
-        .filter_map(|g| take_group(g, listing, &mut free, &mut dropped))
-        .collect();
-    map.support.folders = raw
-        .support
-        .folders
-        .iter()
-        .filter_map(|f| take_folder(f, sources, &mut taken_folders, &mut dropped))
-        .collect();
+    support_groups.extend(
+        raw.support
+            .groups
+            .iter()
+            .filter_map(|g| take_group(g, listing, &mut free, &mut dropped)),
+    );
+    support_folders.extend(
+        raw.support
+            .folders
+            .iter()
+            .filter_map(|f| take_folder(f, sources, &mut taken_folders, &mut dropped)),
+    );
+    map.support.groups = support_groups;
+    map.support.folders = support_folders;
 
     if dropped > 0 {
         tracing::warn!(
@@ -537,30 +740,7 @@ fn place(raw: Response, listing: &Listing, grouped: &Groups, sources: &[PathBuf]
             "the answer cites groups or folders that do not exist or are placed twice: dropped, the first placement is kept"
         );
     }
-    if !free.is_empty() {
-        tracing::info!(
-            groups = free.len(),
-            "the answer left groups out, each is a context of its own"
-        );
-    }
-    for group in free {
-        add_group(&mut map.contexts, &group);
-    }
-    let shown: BTreeSet<&String> = listing.groups.iter().map(|g| &g.name).collect();
-    if shown.len() < grouped.groups.len() {
-        tracing::warn!(
-            groups = grouped.groups.len() - shown.len(),
-            "more groups than the {MAX_GROUPS} shown to the LLM: the smallest are set aside as support"
-        );
-    }
-    map.support.groups.extend(
-        grouped
-            .groups
-            .keys()
-            .filter(|name| !shown.contains(name))
-            .cloned(),
-    );
-    map
+    (map, free)
 }
 
 #[cfg(test)]

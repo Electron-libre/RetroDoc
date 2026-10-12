@@ -35,6 +35,12 @@ until `retrodoc contexts --force`: the code changing never changes it, which is 
 stay done. Rejected: a map recomputed from the tree at each run (the slices would move under the
 fingerprints), and a stored list of files (stale as soon as a file is added).
 
+A context of more than 150 files is too big for one run (the central context of an application often
+regroups several sub-domains: editing, signing, amending a contract…), so one more call splits it into
+two to eight sub-contexts: its groups and its orphan folders, listed by sub-folder, are partitioned, and
+what the answer forgets or sets aside stays with the first part. The sub-contexts replace it in the map
+(siblings, no nesting); a failed or unusable split leaves the context whole.
+
 A file belongs to one context. A shared file is read once, with the context that owns it; the others refer
 to it by name. The map is for the `surface` path; the `files` path is unchanged.
 

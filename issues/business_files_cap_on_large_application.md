@@ -66,7 +66,7 @@ and how many the cap drops (no LLM call needed: `business-files.yaml` and the fi
    "Orphan files placed by references"). Decided (user, 2026-10-12): no persistent placement; the reading
    of a context (step 4) takes the files its entry points reference, so an orphan is read when a behaviour
    reaches it.
-3c. [ ] Large contexts split: a context of more than 150 files is split by one more call into sub-contexts
+3c. [x] Large contexts split: a context of more than 150 files is split by one more call into sub-contexts
    (groups and sub-folders partitioned, nothing lost), since a run is one context. Reason: the central
    context of the application regroups several sub-domains (editing, signing, amending…), user's remark.
 4. [ ] Reading per context: the glossary and the entry points read the files of the run's contexts,
@@ -179,3 +179,27 @@ files at most per file), when the best score is at least 2 and at least twice th
   reads from an entry point of a context (`slices.rs`, depth 2): the behaviour of a context is not cut by
   the orphans being in the support. They matter for the entities of the glossary (the models no entry point
   name reaches), not for the use cases.
+
+## Split of the large contexts (deliverable 3c, 2026-10-12, local model, mechanics only)
+
+`retrodoc contexts --force` on the large application with the local `qwen3.6:35b-a3b`: 2 calls (the map, then
+the split of the one context over 150 files), 9.8k tokens in, 2.3k out, 1m44s. The central context came out
+as 3 parts (the other contexts were under the limit) and no context is over 230 files any more: the
+largest are 227, 118, 104, 90 and 84 files. The support is still 726 files (43%), as with this model before:
+that is the model's choice for the layer folders, not an effect of the split. The quality of the split, and the
+hosted result, are not measured yet (one more hosted call of about $0.01, which needs the user's go).
+
+### Split on the hosted model (2026-10-12, `deepseek-chat`, 5 calls: the map and 4 splits, 17.9k tokens in, 3.5k out, 19 s, about $0.008)
+
+* The central context came out as 7 parts of 13 to 148 files: editing and life cycle of the contracts,
+  signing and signatories, templates and form contracts, documents and PDF generation, library and sharing, the
+  integration with the signature provider, the workflow engine. That is the split the user described (editing,
+  signing, amending…), and no part is over 150 files.
+* The model also produced a context called `support` holding technical groups, which was then split into 8
+  contexts (framework core, shared UI components, data and schema management…). Fixed after: a context
+  called `support` is the support (tested with a fake LLM, not measured again on the hosted model).
+* The review of 3c found, and fixed: the forgotten groups of a split became one context each (they stay
+  with the first part now), the original folders of the split context are kept as a fallback on the first part,
+  a failed split call is an error (the map is saved without the split first, and `--force` asks again), and a
+  part no longer takes the slug of a context left whole. Left as they are: one level of splitting (a part can
+  still be over 150 files if its folder cannot be divided), and the split calls run one after the other.

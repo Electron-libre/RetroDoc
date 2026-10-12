@@ -371,3 +371,185 @@ async fn a_context_without_slug_and_name_is_named_after_its_first_group() {
     let slugs: Vec<&str> = map.contexts.iter().map(|c| c.slug.as_str()).collect();
     assert_eq!(slugs, ["contract", "company-contract", "base"]);
 }
+
+/// The small application plus 160 task files and 5 rule files in `app/workflows`, which the first
+/// answer gives to the `contracts` context: 171 files, over the limit of a context.
+fn big_sources() -> Vec<PathBuf> {
+    let mut many = sources();
+    many.extend((0..160).map(|i| PathBuf::from(format!("app/workflows/tasks/task_{i}.rb"))));
+    many.extend((0..5).map(|i| PathBuf::from(format!("app/workflows/rules/rule_{i}.rb"))));
+    many
+}
+
+const SPLIT: &str = r#"{"contexts":[
+    {"slug":"approvals","name":"Approvals","description":"d","groups":["g1"],"folders":["app/workflows/rules/"]},
+    {"slug":"tasks","name":"Tasks","description":"d","groups":["g2"],"folders":["app/workflows/tasks/"]}]}"#;
+
+/// The first call maps, the second splits the big context.
+fn mapping_then_splitting() -> FakeLlm {
+    FakeLlm::replying(|n, _| Ok(if n == 0 { ANSWER } else { SPLIT }.to_string()))
+}
+
+async fn build_big(dir: &Path, llm: &FakeLlm) -> ContextMap {
+    build_context_map(
+        dir,
+        &big_sources(),
+        &seeds(),
+        &ProductBrief::default(),
+        llm,
+        false,
+    )
+    .await
+    .unwrap()
+}
+
+#[tokio::test]
+async fn a_context_over_the_limit_is_split_by_one_more_call_and_no_file_is_lost() {
+    let dir = tempfile::tempdir().unwrap();
+    let llm = mapping_then_splitting();
+
+    let map = build_big(dir.path(), &llm).await;
+
+    assert_eq!(llm.calls(), 2, "the map, then the split of `contracts`");
+    let slugs: Vec<&str> = map.contexts.iter().map(|c| c.slug.as_str()).collect();
+    assert_eq!(slugs, ["approvals", "tasks"]);
+    let resolved = map.resolve(&big_sources(), &seeds());
+    let sizes: Vec<usize> = resolved.contexts.iter().map(|c| c.files.len()).collect();
+    // approvals: contract group (3) + the rules (5 + approval.rb); tasks: company_contract (2) + 160.
+    assert_eq!(sizes, [9, 162]);
+    assert_eq!(
+        resolved.support.len(),
+        2,
+        "the same support as before the split: the base controller and the migration"
+    );
+    assert_eq!(ContextMap::load(dir.path()), Some(map), "saved split");
+}
+
+#[tokio::test]
+async fn the_split_prompt_names_the_context_and_lists_its_groups_and_sub_folders() {
+    let dir = tempfile::tempdir().unwrap();
+    let llm = mapping_then_splitting();
+
+    build_big(dir.path(), &llm).await;
+
+    let prompt = &llm.prompts()[1];
+    assert!(prompt.contains("Contracts"), "{prompt}");
+    assert!(prompt.contains("g1 | 3 | contract"), "{prompt}");
+    assert!(prompt.contains("app/workflows/tasks/ | 160"), "{prompt}");
+    assert!(prompt.contains("app/workflows/rules/ | 6"), "{prompt}");
+}
+
+#[tokio::test]
+async fn what_the_split_forgets_stays_with_the_first_part_and_an_unusable_split_keeps_the_context()
+{
+    let dir = tempfile::tempdir().unwrap();
+    // The split cites g1 with the rules folder, and the tasks folder alone: g2 is forgotten.
+    let partial = FakeLlm::replying(|n, _| {
+        Ok(if n == 0 {
+            ANSWER.to_string()
+        } else {
+            r#"{"contexts":[{"slug":"a","name":"A","groups":["g1"],"folders":["app/workflows/rules/"]},
+                {"slug":"b","name":"B","groups":[],"folders":["app/workflows/tasks/"]}]}"#
+                .to_string()
+        })
+    });
+    let map = build_big(dir.path(), &partial).await;
+    let slugs: Vec<&str> = map.contexts.iter().map(|c| c.slug.as_str()).collect();
+    assert_eq!(slugs, ["a", "b"], "the forgotten group is not a context");
+    assert!(map.contexts[0]
+        .groups
+        .contains(&"company_contract".to_string()));
+    let resolved = map.resolve(&big_sources(), &seeds());
+    let covered: usize = resolved.contexts.iter().map(|c| c.files.len()).sum();
+    assert_eq!(covered, 171, "{map:?}");
+
+    let dir = tempfile::tempdir().unwrap();
+    let unusable = FakeLlm::replying(|n, _| {
+        if n == 0 {
+            Ok(ANSWER.to_string())
+        } else {
+            Ok("not json".to_string())
+        }
+    });
+    let kept = build_big(dir.path(), &unusable).await;
+    let slugs: Vec<&str> = kept.contexts.iter().map(|c| c.slug.as_str()).collect();
+    assert_eq!(
+        slugs,
+        ["contracts"],
+        "an unusable split leaves the context whole"
+    );
+}
+
+#[tokio::test]
+async fn a_failed_split_call_is_an_error_and_the_map_is_saved_without_the_split() {
+    let dir = tempfile::tempdir().unwrap();
+    let down = FakeLlm::replying(|n, _| {
+        if n == 0 {
+            Ok(ANSWER.to_string())
+        } else {
+            Err(retrodoc_llm::LlmError::Transport("down".to_string()))
+        }
+    });
+
+    let result = build_context_map(
+        dir.path(),
+        &big_sources(),
+        &seeds(),
+        &ProductBrief::default(),
+        &down,
+        false,
+    )
+    .await;
+
+    assert!(result.is_err());
+    assert_eq!(ContextMap::load(dir.path()).unwrap().contexts.len(), 1);
+}
+
+#[tokio::test]
+async fn a_part_does_not_take_the_slug_of_a_context_left_whole() {
+    let dir = tempfile::tempdir().unwrap();
+    // The split calls a part `base`, which the unsplit `base` context already is.
+    let llm = FakeLlm::replying(|n, _| {
+        Ok(match n {
+            0 => r#"{"contexts":[{"slug":"contracts","name":"C","groups":["g1","g2"],"folders":["app/workflows/"]},
+                {"slug":"base","name":"Base","groups":["g3"]}]}"#
+                .to_string(),
+            _ => r#"{"contexts":[{"slug":"base","name":"B2","groups":["g1"],"folders":["app/workflows/rules/"]},
+                {"slug":"tasks","name":"T","groups":["g2"],"folders":["app/workflows/tasks/"]}]}"#
+                .to_string(),
+        })
+    });
+
+    let map = build_big(dir.path(), &llm).await;
+
+    let slugs: Vec<&str> = map.contexts.iter().map(|c| c.slug.as_str()).collect();
+    assert_eq!(slugs, ["base-2", "tasks", "base"]);
+}
+
+#[tokio::test]
+async fn a_context_the_answer_calls_support_is_the_support() {
+    let dir = tempfile::tempdir().unwrap();
+    let llm = FakeLlm::answering(
+        r#"{"contexts":[{"slug":"contracts","name":"C","groups":["g1","g2"]},
+            {"slug":"Support","name":"Support","groups":["g3"],"folders":["db/migrate/"]}]}"#,
+    );
+
+    let map = build(dir.path(), &llm, false).await;
+
+    let slugs: Vec<&str> = map.contexts.iter().map(|c| c.slug.as_str()).collect();
+    assert_eq!(slugs, ["contracts"]);
+    assert_eq!(map.support.groups, ["base"]);
+    assert_eq!(map.support.folders, ["db/migrate/"]);
+}
+
+#[tokio::test]
+async fn a_saved_split_is_reused_without_a_call() {
+    let dir = tempfile::tempdir().unwrap();
+    build_big(dir.path(), &mapping_then_splitting()).await;
+
+    let silent = FakeLlm::answering("not called");
+    let again = build_big(dir.path(), &silent).await;
+
+    assert_eq!(silent.calls(), 0);
+    assert_eq!(again.contexts.len(), 2);
+}
