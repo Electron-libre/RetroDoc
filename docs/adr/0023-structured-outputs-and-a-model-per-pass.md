@@ -7,7 +7,7 @@ Status: Accepted (refines 0002 and 0006, which stay in force)
 Every JSON answer is asked for in the prompt only. The request sends `max_tokens` but no
 `response_format`, so the lenient parsing and the retries of `response.rs` are the normal path, and the
 remaining failures (cut or malformed objects, a field of the wrong type) are the bulk of the smoke-run
-warnings (`issues/use_cases_model_noise_warnings.md`, `PLAN.md` §7).
+warnings (`issues/done/use_cases_model_noise_warnings.md`, `PLAN.md` §7).
 
 The whole run uses one model. The passes are not alike: a few calls decide the frame of the whole
 documentation (product brief, domains, features), many calls extract facts from code (glossary, entry
@@ -61,4 +61,4 @@ already carries them, ADR 0002).
   avoids drift.
 * Prompts can be shorter: the shape no longer needs to be spelled out in prose.
 * Follow-up issues: `issues/done/structured_llm_outputs.md`, `issues/done/model_per_pass.md`; measuring a split
-  with `issues/quality_benchmark.md` is still to do.
+  with `issues/done/quality_benchmark.md` is still to do.

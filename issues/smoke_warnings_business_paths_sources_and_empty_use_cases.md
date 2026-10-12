@@ -2,7 +2,7 @@
 
 # Goal
 
-Priority: low. After `issues/use_cases_model_noise_warnings.md`, a `delivery_router` smoke run with the local
+Priority: low. After `issues/done/use_cases_model_noise_warnings.md`, a `delivery_router` smoke run with the local
 model still fails the "no warning" criterion on three kinds of warning that appeared in the runs that
 followed it. Find out whether they are the model's random mistakes or have a cause in the pipeline, and
 absorb or demote them like the others, without hiding a lost piece of documentation.

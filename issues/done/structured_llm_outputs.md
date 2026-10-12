@@ -11,7 +11,7 @@ retries and skipped units.
 * The request sends `max_tokens` but no `response_format` (`crates/retrodoc-llm/src/openrouter.rs`).
 * Smoke runs of 2026-10-07 on `delivery_router` (local Ollama, `qwen3.6:35b-a3b`) warned on unparseable
   use case answers and confidence verdicts (`EOF while parsing an object`, `expected value`), see
-  `issues/use_cases_model_noise_warnings.md`.
+  `issues/done/use_cases_model_noise_warnings.md`.
 
 # Approach
 
@@ -28,7 +28,7 @@ retries and skipped units.
 
 * ADR `0023`, ADR `0006`, ADR `0012`
 * `crates/retrodoc-llm/src/types.rs`, `openrouter.rs`, `crates/retrodoc-pipeline/src/response.rs`
-* `issues/use_cases_model_noise_warnings.md` (may be closed by this one)
+* `issues/done/use_cases_model_noise_warnings.md` (may be closed by this one)
 
 # Hints
 
@@ -49,7 +49,7 @@ retries and skipped units.
    to chase (the schema already removes the unparseable answers; the prompts also say what each field
    means), so the prompts stay as they are.
 5. [ ] Docs along the way (`update-docs`): ADR 0023 (or a new ADR), `CLAUDE.md`, `PLAN.md`, config doc;
-   update `issues/use_cases_model_noise_warnings.md` and propose closing it only if justified.
+   update `issues/done/use_cases_model_noise_warnings.md` and propose closing it only if justified.
 
 ## Decisions
 
@@ -58,7 +58,7 @@ retries and skipped units.
 * The smoke runs for the measurement are made by the user, not by the agent.
 * `schemars` is accepted as a dependency.
 * Order: 1, 2, 3, then 4 after the user's measurement.
-* Deliverable 4 is left out (2026-10-09): no gain shown. `issues/use_cases_model_noise_warnings.md` stays open for
+* Deliverable 4 is left out (2026-10-09): no gain shown. `issues/done/use_cases_model_noise_warnings.md` stays open for
   the invented references only.
 
 ## Measurement protocol

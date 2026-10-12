@@ -28,7 +28,7 @@ understands why the path changes.
 
 * `crates/retrodoc-ingest/src/git_history.rs` (`file_log`, `CommitSummary`)
 * `crates/retrodoc-mcp/src/source.rs` (`SourceAccess::git_log`, the output format)
-* `issues/mcp_server.md` (deliverable 4 and its decisions on `git_log`)
+* `issues/done/mcp_server.md` (deliverable 4 and its decisions on `git_log`)
 
 # Hints
 

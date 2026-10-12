@@ -1,4 +1,4 @@
-//! Quality benchmark (see `issues/quality_benchmark.md`): measures the generated functional docs
+//! Quality benchmark (see `issues/done/quality_benchmark.md`): measures the generated functional docs
 //! against a hand-written reference instead of only checking that `generate` ends without a warning.
 //!
 //! - [`reference`]: the hand-written reference of one repository (`benchmark/<repo>/reference.yaml`).

@@ -14,7 +14,7 @@ get them from the roles pass, which sees the file tree and the manifests and not
 * Ten runs of the roles pass on the same small Ruby library (9 files under `lib/`): five give a `model`
   rule that matches files, five leave no `model` file. In three of the five empty runs the whole `lib/**/*.rb`
   tree is classed `entrypoint` (the public API of a library), in the other two `logic`. See
-  `issues/roles_no_model_files.md`.
+  `issues/done/roles_no_model_files.md`.
 * The fallback delivered by that issue (read the `logic` then the `entrypoint` files, 30 at most, in path
   order) gets the entities back on this repository (3 to 4 entities, in one call), but it is a patch on the
   same assumption: it picks files by path, not by how likely they are to hold the business.
@@ -75,7 +75,7 @@ Then, candidates (can be combined):
 
 * `crates/retrodoc-pipeline/src/roles/` (prompt, `RoleRules::classify`, `RoleMap::files_with`)
 * `crates/retrodoc-pipeline/src/glossary/`, `entry_points/`, `actors.rs`, `surface.rs`
-* ADR `0008` (surface extraction), ADR `0018` (glossary fallback), `issues/roles_no_model_files.md`
+* ADR `0008` (surface extraction), ADR `0018` (glossary fallback), `issues/done/roles_no_model_files.md`
 * `PLAN.md` §7.1 (phase 7, business-level documentation)
 * ADRs `0019` (product brief first) and `0020` (cover behaviours, not files), `issues/done/product_brief.md`
 

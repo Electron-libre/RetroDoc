@@ -140,7 +140,7 @@ mod tests {
         );
     }
 
-    /// Cost of the check, for `issues/mcp_freshness_cost.md`. Not part of the
+    /// Cost of the check, for `issues/done/mcp_freshness_cost.md`. Not part of the
     /// suite; run it optimized, the hash is slow in a debug build:
     /// `FRESHNESS_FILE_KB=20 cargo test -p retrodoc-mcp --release cost_of_the_check -- --ignored --nocapture`
     #[test]

@@ -28,7 +28,7 @@ Then pick the least invasive fix. Candidates:
 * `crates/retrodoc-mcp/src/freshness.rs` and `Docs::stale_files` in `tools.rs` (the current check)
 * `crates/retrodoc-pipeline/src/cache.rs` (`RepoMapCache::content_hash`), `fingerprints.rs`, `artifact.rs`
 * ADR `0005` (incremental re-run, fingerprints and resume)
-* `PLAN.md` §7.3 (freshness requirement) and `issues/mcp_server.md` (deliverable 3 and its decision)
+* `PLAN.md` §7.3 (freshness requirement) and `issues/done/mcp_server.md` (deliverable 3 and its decision)
 
 # Hints
 
@@ -42,7 +42,7 @@ Then pick the least invasive fix. Candidates:
 
 1. [x] `source-hashes.json` artifact and `Freshness` reads it (reproduction test first; no file = `Unknown`)
 2. [x] `generate` captures the hashes before the repo map and saves them only after a successful run; `--force` clears them
-3. [x] Docs (`update-docs` checklist: `CLAUDE.md`, `PLAN.md` §7.3, `issues/mcp_server.md`, doc comments)
+3. [x] Docs (`update-docs` checklist: `CLAUDE.md`, `PLAN.md` §7.3, `issues/done/mcp_server.md`, doc comments)
 
 ## Decisions
 

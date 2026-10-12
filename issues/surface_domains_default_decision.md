@@ -8,7 +8,7 @@ until that gap is understood and a second large repository agrees.
 
 # Findings
 
-* Benchmark of 2026-10-10 (`issues/behaviour_coverage_domains.md`, "Comparison"): on linkding with deepseek,
+* Benchmark of 2026-10-10 (`issues/done/behaviour_coverage_domains.md`, "Comparison"): on linkding with deepseek,
   `surface` makes 110 calls in 6.4 minutes against 222-283 in 9.7-14.4, with judged feature recall at par and
   better narratives; on `delivery_router` with deepseek, judged feature precision is 45% against 96% and the
   recall of the three runs ranges from 12% to 88%.
@@ -34,7 +34,7 @@ until that gap is understood and a second large repository agrees.
 
 # Resources
 
-* `issues/behaviour_coverage_domains.md` (comparison tables), `benchmark/`, skill `quality-benchmark`
+* `issues/done/behaviour_coverage_domains.md` (comparison tables), `benchmark/`, skill `quality-benchmark`
   (`--domains-from surface`), ADRs `0008` and `0020`.
 
 # Hints

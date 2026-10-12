@@ -8,7 +8,7 @@ use cases still take most of the minutes. Find how to make the pass cheaper per 
 # Findings
 
 * linkding, local model: use cases 72.6 of 118.4 minutes (80 calls, 265k tokens in); deepseek 10.4 of 14.4
-  minutes (`issues/behaviour_coverage_domains.md`).
+  minutes (`issues/done/behaviour_coverage_domains.md`).
 * `delivery_router` local, `surface`: 8 use case calls took 7.5 of 12 minutes, with 22k tokens in and 15k out:
   the output dominates.
 * One call per feature writes every use case of the feature with steps, actors, narrative and citations.

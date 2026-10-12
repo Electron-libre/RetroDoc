@@ -360,7 +360,7 @@ non-determinism for no gain. Question answering is the opposite: open-ended ques
 for one context, so retrieval is the core of the feature.
 
 Update (2026-10-06): the first consumer is an external agent through a **local MCP server** (stdio,
-`retrodoc mcp`, official `rmcp` SDK), see `issues/mcp_server.md`. The calling agent is the LLM, so the server
+`retrodoc mcp`, official `rmcp` SDK), see `issues/done/mcp_server.md`. The calling agent is the LLM, so the server
 is deterministic and LLM-free (ADR 0016): steps 1 and 3 below become MCP tools, step 2 (tool calling in `retrodoc-llm`)
 is not needed for it, and the internal `ask`/`chat` remain optional later. A static agent index
 (`llms.txt`-style) is also generated with the docs.
@@ -461,10 +461,10 @@ Decisions (accepted ADRs):
   files once for the glossary and the entry points (`[pipeline] business_read`, on by default).
 
 Steps, in order, one issue each:
-1. `issues/quality_benchmark.md`: a reproducible measure of the docs' quality, before any other step.
-2. `issues/done/product_brief.md` (then `issues/locate_business_files.md`, which takes the brief as input).
+1. `issues/done/quality_benchmark.md`: a reproducible measure of the docs' quality, before any other step.
+2. `issues/done/product_brief.md` (then `issues/done/locate_business_files.md`, which takes the brief as input).
 3. `issues/done/structured_llm_outputs.md` and `issues/done/model_per_pass.md`.
-4. `issues/behaviour_coverage_domains.md`: the pivot, shipped in steps, the old path kept behind a setting
+4. `issues/done/behaviour_coverage_domains.md`: the pivot, shipped in steps, the old path kept behind a setting
    (`[pipeline] domains_from`) until the benchmark favours the new one. In progress: the old path is measured,
    the domains and the features can be built from the surface (`generate` runs end to end in that mode); the
    entry points no feature holds are placed by a small call or listed in the coverage report, as are the files

@@ -1,5 +1,5 @@
 //! Compares the mechanical checks of the confidence pass with the scores a model gave, on saved runs and
-//! with no LLM call (`issues/deterministic_confidence_checks.md`, step 3).
+//! with no LLM call (`issues/done/deterministic_confidence_checks.md`, step 3).
 //!
 //! Usage: `cargo run -q -p retrodoc-pipeline --example confidence_agreement -- <run dir>...`
 //!

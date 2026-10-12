@@ -69,8 +69,8 @@ rather than guessing.
 3. [x] Freshness: answers warn when the cited files changed since generation (fingerprints). Verified by a
    test that modifies a file after generation.
    Tried by a headless Claude Code agent after editing a cited file of the `delivery_router` smoke repo: it
-   reported the docs as stale. Follow-ups: `issues/stale_docs_after_failed_generate.md` (false "fresh" after a
-   `generate` that failed past the repo map) and `issues/mcp_freshness_cost.md` (files re-read at every call).
+   reported the docs as stale. Follow-ups: `issues/done/stale_docs_after_failed_generate.md` (false "fresh" after a
+   `generate` that failed past the repo map) and `issues/done/mcp_freshness_cost.md` (files re-read at every call).
 4. [x] Code and git tools: `read_source` and `git_log`, limited to the repo root and to the files cited by the
    docs. Verified on a temporary git repo, including attempts to leave the scope (`../`).
    Verified on temporary git repos (scope escapes: `..`, absolute path, symlinks, uncited file, binary, large
@@ -87,8 +87,8 @@ rather than guessing.
 6. [x] ADR (MCP server, LLM-free, lexical retrieval) and `docs/ARCHITECTURE.md` update; other docs updated
    with each deliverable through `update-docs`.
    ADR `0016` written, with a new section 9 in `docs/ARCHITECTURE.md` (diagram of the server); the other docs
-   were updated with each deliverable. Follow-ups, each its own issue: `issues/stale_docs_after_failed_generate.md`,
-   `issues/mcp_freshness_cost.md`, `issues/git_log_follow_renames.md`.
+   were updated with each deliverable. Follow-ups, each its own issue: `issues/done/stale_docs_after_failed_generate.md`,
+   `issues/done/mcp_freshness_cost.md`, `issues/git_log_follow_renames.md`.
 
 ## Decisions
 

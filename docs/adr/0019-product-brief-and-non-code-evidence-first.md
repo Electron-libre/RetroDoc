@@ -58,6 +58,6 @@ every unit), and keeping the docs as titles only (the current state, which loses
   better in business language with a local model; the retrieval per unit made the features pass produce about
   20% fewer features with no gain. It is therefore off by default (`brief.evidence`) and to be tried again
   once the product is stable (`issues/brief_injection_experiments.md`).
-* Follow-up issues: `issues/quality_benchmark.md` (to measure the gain), `issues/done/product_brief.md`,
-  `issues/brief_injection_experiments.md`, `issues/docs_reconciliation_debt_report.md`, `issues/locate_business_files.md` (takes the brief as
+* Follow-up issues: `issues/done/quality_benchmark.md` (to measure the gain), `issues/done/product_brief.md`,
+  `issues/brief_injection_experiments.md`, `issues/docs_reconciliation_debt_report.md`, `issues/done/locate_business_files.md` (takes the brief as
   input).

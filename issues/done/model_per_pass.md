@@ -20,7 +20,7 @@ default.
 2. CLI: build one provider per distinct configuration, wrapped like today (heartbeat, usage), and hand each
    pass its provider.
 3. Decide the pass names (the ones `set_pass` and `in_pass` already use).
-4. Document a recommended split and measure it with `issues/quality_benchmark.md` (cost and quality).
+4. Document a recommended split and measure it with `issues/done/quality_benchmark.md` (cost and quality).
 
 # Resources
 

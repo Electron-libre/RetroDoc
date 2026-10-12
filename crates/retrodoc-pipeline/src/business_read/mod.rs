@@ -1,5 +1,5 @@
 //! One reading of the business files for the glossary and the entry points
-//! (`issues/single_read_per_business_file.md`).
+//! (`issues/done/single_read_per_business_file.md`).
 //!
 //! Both passes read the business files `business_files` located, each with its own prompt. Here one call
 //! per batch of chunks answers both: the entities and the entry points with their outputs. The answers

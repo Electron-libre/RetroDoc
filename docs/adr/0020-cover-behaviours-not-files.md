@@ -54,12 +54,12 @@ state and non-determinism to a pipeline whose re-runs must be no-ops, `PLAN.md` 
 * Libraries need their public API as entry points (already allowed by the surface model, ADR 0008).
 * `domains/coverage.rs`, `repo_map/` and the features fingerprints change shape; the incremental re-run
   (ADR 0005) must be rekeyed on entry points and entities.
-* Follow-up issue: `issues/behaviour_coverage_domains.md`.
+* Follow-up issue: `issues/done/behaviour_coverage_domains.md`.
 
 ## Status of the implementation (2026-10-10)
 
 The new path is shipped behind `[pipeline] domains_from = "surface"`; the default stays `files`. The first
-benchmark (`issues/behaviour_coverage_domains.md`) shows, on a 178-file application, 55% fewer calls and about
+benchmark (`issues/done/behaviour_coverage_domains.md`) shows, on a 178-file application, 55% fewer calls and about
 45% less time at equal quality, and worse features on a 9-file library; the time of a run stays in the use
 cases and confidence passes, which the pivot does not change. The decision on the default is
 `issues/surface_domains_default_decision.md`.

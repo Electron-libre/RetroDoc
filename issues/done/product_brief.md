@@ -33,7 +33,7 @@ editable `.retrodoc/cache/product.yaml`, and feed the brief to the later prompts
    and use cases; include its fingerprint in theirs.
 5. Retrieval per unit: share the BM25 of `retrodoc-mcp` with the pipeline, and give the features and use
    cases passes the few doc sections, commits and test phrases that match their unit.
-6. Compare with `issues/quality_benchmark.md` before and after.
+6. Compare with `issues/done/quality_benchmark.md` before and after.
 
 # Resources
 
@@ -41,7 +41,7 @@ editable `.retrodoc/cache/product.yaml`, and feed the brief to the later prompts
 * `crates/retrodoc-ingest/src/` (`existing_docs.rs`, `git_history.rs`, `walker.rs`)
 * `crates/retrodoc-pipeline/src/roles/` (the editable-artifact pattern), `surface.rs`, `domains/prompt.rs`
 * `crates/retrodoc-pipeline/src/bm25.rs` (moved from `retrodoc-mcp`)
-* `issues/locate_business_files.md` (takes the brief as input)
+* `issues/done/locate_business_files.md` (takes the brief as input)
 
 # Hints
 
@@ -76,7 +76,7 @@ editable `.retrodoc/cache/product.yaml`, and feed the brief to the later prompts
 * One commit per deliverable; the BM25 retrieval (7) comes last and may become its own issue if it grows.
 * The BM25 moves from `retrodoc-mcp` to `retrodoc-pipeline` (no new crate, ADR 0001 direction kept).
 * The brief runs first in `generate`, before roles, with its own signals (tree, manifests, docs, commits...).
-* The brief uses the same model as the other passes (no wait for `issues/model_per_pass.md`).
+* The brief uses the same model as the other passes (no wait for `issues/done/model_per_pass.md`).
 * RetroDoc targets any stack (user's repeated requirement): the readers know formats, never framework locations. A `SourceMap` says which files to read in which format, inferred by content sniffing first (3b) then by one LLM call (3c), saved and hand-editable like `roles.yaml`.
 * `generate` uses a saved brief as it is (edited or not) and only writes one when there is none; `retrodoc brief [--force]` refreshes it. Otherwise any new test or doc would change the sample and invalidate every pass. `roles.yaml` is not invalidated by a new brief (only the passes with a fingerprint are).
 * To check on the benchmark (8): in one smoke run on a small Ruby gem, the use cases named an actor absent from the known actors twice with the brief, never without it (one run each, non-deterministic model); the brief mentions that actor in prose.

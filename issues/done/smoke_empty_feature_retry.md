@@ -23,7 +23,7 @@ To be decided first, before coding:
 * or keep the retry (the model may answer differently) and write it down in ADR 0005 and `PLAN.md`.
 
 The first option has a cost: an empty answer caused by a bad model draw would be frozen until `--force`.
-See also `issues/lenient_use_case_parsing.md`, which deals with responses rejected by the parser (different
+See also `issues/done/lenient_use_case_parsing.md`, which deals with responses rejected by the parser (different
 cause, same symptom in the report).
 
 # Resources

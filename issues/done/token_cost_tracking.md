@@ -64,8 +64,8 @@ end of `generate`.
 Small Rust repo (17 files, local `qwen3.6:35b-a3b`): recap and `usage.json` correct (37 calls, 22,881 input
 tokens, 7,830 output tokens, 4m34s on the first run), idempotent rendering (0 files on the second run). The
 script's "conclusive" verdict is a false positive (WARNs not detected because of ANSI codes) and the second
-run made 2 LLM calls: tracked in `issues/smoke_test_false_positive.md` and
-`issues/smoke_empty_feature_retry.md`.
+run made 2 LLM calls: tracked in `issues/done/smoke_test_false_positive.md` and
+`issues/done/smoke_empty_feature_retry.md`.
 
 ## Out of scope (next issue)
 

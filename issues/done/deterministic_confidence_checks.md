@@ -8,7 +8,7 @@ doubtful steps (ADR 0020 step 7).
 
 # Findings
 
-* Per-pass tables of `issues/behaviour_coverage_domains.md`: confidence is 72 calls and 17 minutes of 118
+* Per-pass tables of `issues/done/behaviour_coverage_domains.md`: confidence is 72 calls and 17 minutes of 118
   locally on linkding; it was not run on the deepseek baseline.
 * A step cites code locations and names identifiers and entities; grounding already drops references to files
   outside the feature (`use_cases/grounding.rs`).

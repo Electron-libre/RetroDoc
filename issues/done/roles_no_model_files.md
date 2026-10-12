@@ -30,7 +30,7 @@ the surface is empty and the clustering loses the business hints it is meant to 
   with the glossary: a human actor outside the known actors (the actors pass had found one actor) and a JSON
   answer with a duplicate `steps` field (the retry succeeded). The rerun was a no-op without any LLM call.
   The fallback itself was checked on the saved `roles.yaml` of two baseline runs (`entrypoint` and `logic`
-  classes), through `retrodoc glossary` alone. Tracked in `issues/use_cases_smoke_warnings.md`.
+  classes), through `retrodoc glossary` alone. Tracked in `issues/done/use_cases_smoke_warnings.md`.
 
 # Approach
 
@@ -69,4 +69,4 @@ what the other answers look like. Then, candidates (can be combined):
 * The unknown-role rule that comes back on each run because `roles.yaml` is reused is out of scope.
 * Measure: about 10 runs before and after the prompt change.
 * The fallback reads `entrypoint` files too (after the `logic` ones, 30 files at most): 3 of the 5 empty baseline runs class the whole `lib/` tree as `entrypoint`. ADR 0018.
-* Deliverable 4 (roles prompt tweak and re-measure) is skipped: tuning the roles pass keeps the assumption that the business sits in a layer. The follow-up is `issues/locate_business_files.md`.
+* Deliverable 4 (roles prompt tweak and re-measure) is skipped: tuning the roles pass keeps the assumption that the business sits in a layer. The follow-up is `issues/done/locate_business_files.md`.

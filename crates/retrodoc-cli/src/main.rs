@@ -92,7 +92,7 @@ enum Command {
     /// reference: sizes, business-language and confidence scores, cost, and
     /// recall and precision of domains and features. No LLM call unless
     /// `--judge`, which asks the model to pair what the names alone leave
-    /// unmatched and to rate the narratives (see `issues/quality_benchmark.md`).
+    /// unmatched and to rate the narratives (see `issues/done/quality_benchmark.md`).
     Benchmark {
         /// Repository whose last run is measured (a clone, not the original).
         #[arg(long, default_value = ".")]

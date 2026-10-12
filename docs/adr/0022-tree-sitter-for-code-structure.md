@@ -7,7 +7,7 @@ Status: Accepted (supersedes 0013 for the languages it covers)
 The pipeline has no parser. Where to cut a long file is negotiated with the LLM: the roles call proposes
 a boundary regex per language, `chunk_check.rs` measures it on the largest files and asks for fixes (up
 to three calls), and drops it below 50% (ADR 0013). This works but is a source of warnings
-(`issues/use_cases_model_noise_warnings.md`) and of code (`chunks.rs` and `chunk_check.rs`, about 900
+(`issues/done/use_cases_model_noise_warnings.md`) and of code (`chunks.rs` and `chunk_check.rs`, about 900
 lines). Symbols and references are guessed lexically (`ranking.rs` counts the files mentioning a file's
 name, `slices.rs` follows referenced identifiers). The entry points and glossary passes send whole file
 chunks where signatures would often be enough.
@@ -36,4 +36,4 @@ lexical (the cost is the warnings and the extra calls above).
 * Fewer calls and fewer warnings at the chunking stage, smaller prompts for the extraction passes.
 * Build time and binary size grow with each grammar; the grammars should be behind cargo features.
 * Two code paths for chunking until most languages are covered.
-* Follow-up issue: `issues/tree_sitter_structure.md`.
+* Follow-up issue: `issues/done/tree_sitter_structure.md`.

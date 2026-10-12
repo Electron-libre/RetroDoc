@@ -4,7 +4,7 @@
 
 Make a `delivery_router` smoke run with the local model end without `WARN` more often. Three smoke runs of
 2026-10-07 each failed the "no warning" criterion on different warnings, none of them the two handled in
-`issues/use_cases_smoke_warnings.md`. They look like the model's random mistakes, so the goal is to absorb
+`issues/done/use_cases_smoke_warnings.md`. They look like the model's random mistakes, so the goal is to absorb
 them cheaply (lenient parsing, one more retry, a repair step) or to decide which ones are not worth a
 `WARN`.
 
@@ -49,7 +49,7 @@ output limit (`finish_reason=length`) or from the model.
 * `crates/retrodoc-pipeline/src/response.rs` (lenient parsing, retries)
 * `crates/retrodoc-pipeline/src/use_cases/grounding.rs` (step references)
 * `crates/retrodoc-pipeline/src/confidence/`, `crates/retrodoc-pipeline/src/chunk_check.rs`
-* `issues/use_cases_smoke_warnings.md`, `issues/done/lenient_use_case_parsing.md`
+* `issues/done/use_cases_smoke_warnings.md`, `issues/done/lenient_use_case_parsing.md`
 * `.claude/skills/smoke-test/`
 
 # Hints

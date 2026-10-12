@@ -9,7 +9,7 @@ step 6), so the input tokens of these passes drop and the two results come from 
 # Findings
 
 * On linkding the entry points pass is 12-13 calls (0.7 min deepseek, 10.4 min local) and the glossary
-  reads an overlapping set of files (`issues/behaviour_coverage_domains.md`, per-pass table).
+  reads an overlapping set of files (`issues/done/behaviour_coverage_domains.md`, per-pass table).
 * Both passes use `batched_read.rs` (batches of about 12,000 characters, a retry file by file, a checkpoint
   per batch) and cache per file content hash.
 

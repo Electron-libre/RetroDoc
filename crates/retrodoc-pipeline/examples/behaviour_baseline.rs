@@ -1,5 +1,5 @@
 //! Measures the old path (domains from the files) on saved runs, with no LLM call
-//! (`issues/behaviour_coverage_domains.md`, step 1): how many source files a behaviour reaches, and what the
+//! (`issues/done/behaviour_coverage_domains.md`, step 1): how many source files a behaviour reaches, and what the
 //! last `generate` cost per pass.
 //!
 //! Usage: `cargo run -q -p retrodoc-pipeline --example behaviour_baseline -- <run dir>...`

@@ -1,4 +1,4 @@
-//! Where the business lives in the repository (`issues/locate_business_files.md`).
+//! Where the business lives in the repository (`issues/done/locate_business_files.md`).
 //!
 //! The roles pass classes files by layer (`model`, `logic`, `entrypoint`…)
 //! and its answer for "where are the domain objects and the rules" changes

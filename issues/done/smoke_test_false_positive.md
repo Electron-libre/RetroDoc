@@ -23,7 +23,7 @@ unparseable JSON response, "LLM answered with no use case").
 * Strip ANSI sequences before filtering (or disable the subscriber's colors when stderr is not a terminal,
   which also helps reading the logs). A test (`test_smoke.rs`) with a colored line must fail before the fix.
 * Add a criterion: the second run made no LLM call (read the last entry of `usage.json`, or the `LLM usage:`
-  line of the log). Decide whether it is blocking or only reported until `issues/smoke_empty_feature_retry.md`
+  line of the log). Decide whether it is blocking or only reported until `issues/done/smoke_empty_feature_retry.md`
   is handled.
 
 # Resources

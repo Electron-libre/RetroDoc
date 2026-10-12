@@ -7,7 +7,7 @@ Status: Accepted (supersedes 0018; refines 0008, which stays in force)
 ADR 0008 builds the glossary from the files the roles pass classes `model`, and ADR 0018 added a fallback on
 `logic` then `entrypoint` files when that gave nothing. The `model` role is a layer label decided by an LLM
 that sees only the file tree, and it does not say where the business is. Five runs of the roles pass per
-repository (`issues/locate_business_files.md`): on a small Ruby library of plain classes `model` matched the
+repository (`issues/done/locate_business_files.md`): on a small Ruby library of plain classes `model` matched the
 business files in 2 runs of 5; on a Django application `models.py` was classed `model` in 2 runs of 5 and the
 migrations (about 54 files) in all 5. The fallback picked 30 files by path, not by how likely they are to hold
 the business.
@@ -37,7 +37,7 @@ runs, so the glossary of such an application holds presentation classes (precisi
 hand-made list); the prompt was tightened once on the same repository, so these figures are not an
 independent test. No quality benchmark of the final documents was run. If the pass fails and no model file is
 recognized, the glossary is empty and `generate` logs it; fix by editing or forcing `business-files.yaml`. The
-entry points read the files of that list next to the `entrypoint` role (`issues/business_files_for_entry_points_and_actors.md`:
+entry points read the files of that list next to the `entrypoint` role (`issues/done/business_files_for_entry_points_and_actors.md`:
 the role alone read a third of the files holding the public API of a library; the list adds files and calls on
 a web application); the actors still read authorization code: the same question may be asked of them later. The tree-shape hash of `sources/` counts the generated docs, like the first version of
 this pass did; not fixed here.

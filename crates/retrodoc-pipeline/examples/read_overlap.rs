@@ -1,5 +1,5 @@
 //! How much the glossary and the entry points passes read twice, from saved runs, with no LLM call
-//! (`issues/single_read_per_business_file.md`, step 1).
+//! (`issues/done/single_read_per_business_file.md`, step 1).
 //!
 //! Usage: `cargo run -q -p retrodoc-pipeline --example read_overlap -- <run dir>...`
 //!

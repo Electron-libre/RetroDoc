@@ -1,5 +1,5 @@
 //! Mechanical checks of one use case step against the code it cites, run
-//! before any LLM call (`issues/deterministic_confidence_checks.md`). A step
+//! before any LLM call (`issues/done/deterministic_confidence_checks.md`). A step
 //! that passes needs no verdict from the model; one that fails on a fact (the
 //! cited code is not there) is unsupported without asking; the rest is
 //! doubtful and goes to the model.

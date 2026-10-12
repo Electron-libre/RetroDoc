@@ -5,7 +5,7 @@
 Now that the entry points pass also reads the business files (`issues/done/business_files_for_entry_points_and_actors.md`),
 the files of a web application's service layer, queries and forms reach a prompt written for routes, jobs
 and the public API of a library. The model answers with `public_api` or `other` entries for internal helper
-functions. Entry points are the base of the domains and features of `issues/behaviour_coverage_domains.md`,
+functions. Entry points are the base of the domains and features of `issues/done/behaviour_coverage_domains.md`,
 so each helper listed becomes a use case candidate that no user can trigger. Make the pass keep what a user,
 a scheduler or another system can trigger, and leave out the internals, without losing the public API of a
 library (the reason the business files were added).
@@ -40,7 +40,7 @@ Then, candidates (can be combined):
 2. Do not send the business files that the role classes as `logic`, `model` or `view` to the entry points
    prompt, only the others; check this does not remove the gem's files on `delivery_router`.
 3. Filter after the answer: a `public_api` entry from a file that a route or job entry of the same run
-   already calls. Needs the references between files (`issues/tree_sitter_structure.md`), so only if 1 and 2
+   already calls. Needs the references between files (`issues/done/tree_sitter_structure.md`), so only if 1 and 2
    are not enough.
 
 # Resources
@@ -66,7 +66,7 @@ Then, candidates (can be combined):
    paired local runs per repository on the same inputs as before (`roles` and business list kept, only the pass
    replayed). Success: fewer entries outside the reference on linkding without fewer groups or reference files
    read, and the public methods of `delivery_router` still found.
-3. [-] Candidates 2 and 3 (not done): the prompt is kept as is; revisit after `issues/tree_sitter_structure.md`.
+3. [-] Candidates 2 and 3 (not done): the prompt is kept as is; revisit after `issues/done/tree_sitter_structure.md`.
 
 ## Decisions
 

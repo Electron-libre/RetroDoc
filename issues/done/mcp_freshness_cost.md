@@ -21,14 +21,14 @@ of files read, bytes hashed, milliseconds per call). Only if it matters, choose 
 
 * `Docs::stale_files` and `stale_notice` in `crates/retrodoc-mcp/src/tools.rs`
 * `crates/retrodoc-mcp/src/freshness.rs` (`Freshness::state`, `stale`)
-* `issues/mcp_server.md` (deliverable 3, decision on the hashes of `repo-map.json`)
+* `issues/done/mcp_server.md` (deliverable 3, decision on the hashes of `repo-map.json`)
 
 # Hints
 
 * Don't trade correctness for speed: a changed file must still be reported, including by a server that has
   been running for hours. An mtime-only shortcut can miss an edit that keeps the same size and timestamp.
 * Reading the files at call time is deliberate: it is what lets the server notice an edit made meanwhile.
-* If the fix for `issues/stale_docs_after_failed_generate.md` changes where the recorded hashes come from,
+* If the fix for `issues/done/stale_docs_after_failed_generate.md` changes where the recorded hashes come from,
   do this one after it.
 
 # Tracking

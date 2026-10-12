@@ -6,7 +6,7 @@ Status: Accepted
 
 ADR 0022 chose tree-sitter to replace the LLM-negotiated chunk regexes and to give the passes a
 deterministic view of the code. Its first deliverables were built and measured on the local model
-(`issues/tree_sitter_structure.md`):
+(`issues/done/tree_sitter_structure.md`):
 
 * On a small Ruby gem the regex was checked at 100% and cost nothing; on a Rails repository the Ruby
   regex scored 98% and the JavaScript/TypeScript one 0% at the first try, which meant one warning and

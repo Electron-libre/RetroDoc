@@ -5,13 +5,13 @@
 Replace the LLM-negotiated chunk boundaries and the lexical guesses of symbols and references with a real
 parse, for a first set of languages (ADR 0022). Expected: fewer calls and warnings at chunking, smaller
 prompts (signatures instead of bodies where names suffice), and a deterministic structure map that the
-behaviour-based pipeline (`issues/behaviour_coverage_domains.md`) can rank and slice on.
+behaviour-based pipeline (`issues/done/behaviour_coverage_domains.md`) can rank and slice on.
 
 # Findings
 
 * Chunk boundaries are regexes proposed by the roles call, checked by `chunk_check.rs` with up to three fix
   calls (ADR 0013); together with `chunks.rs` that is about 900 lines, and a first-try 0% coverage is one
-  of the smoke-run warnings (`issues/use_cases_model_noise_warnings.md`).
+  of the smoke-run warnings (`issues/done/use_cases_model_noise_warnings.md`).
 * `ranking.rs` counts references by file-name mentions; `slices.rs` follows referenced identifiers
   lexically.
 

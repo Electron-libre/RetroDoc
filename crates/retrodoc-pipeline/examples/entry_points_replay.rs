@@ -1,5 +1,5 @@
 //! Replays the saved runs of a benchmark repository against a hand-made reference of its entry points
-//! and actors, with no LLM call (`issues/business_files_for_entry_points_and_actors.md`).
+//! and actors, with no LLM call (`issues/done/business_files_for_entry_points_and_actors.md`).
 //!
 //! Usage:
 //! `cargo run -q -p retrodoc-pipeline --example entry_points_replay -- <reference.yaml> <tree> <dir>...`

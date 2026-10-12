@@ -30,12 +30,12 @@ technical support.
 4. Coverage of entry points by construction (place, then uncategorized), reported; files reached by
    nothing are listed in the debt report.
 5. Repo map: make the LLM summaries opt-in; use a deterministic map (symbols, references, ranking) for
-   the structure, see `issues/tree_sitter_structure.md`.
+   the structure, see `issues/done/tree_sitter_structure.md`.
 6. One read per business file: one call returns the entities, entry points, outputs and rules of a file.
 7. Confidence: deterministic checks first (named identifiers at the cited lines, named entities in the
    slice), the LLM verdict on a sample and on the doubtful steps.
 8. Rekey the incremental re-run on entry points and entities.
-9. Compare with `issues/quality_benchmark.md`.
+9. Compare with `issues/done/quality_benchmark.md`.
 
 # Resources
 

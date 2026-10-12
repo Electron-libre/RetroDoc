@@ -1,5 +1,5 @@
 //! Read-only access to the generated documentation for LLM agents (see
-//! `issues/mcp_server.md`). The consuming agent is the LLM, so nothing here
+//! `issues/done/mcp_server.md`). The consuming agent is the LLM, so nothing here
 //! calls one: the crate reads the artifacts saved by `generate` and the
 //! collected Markdown docs, and answers from them deterministically.
 //!

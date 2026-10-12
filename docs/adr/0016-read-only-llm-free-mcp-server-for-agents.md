@@ -47,10 +47,10 @@ right use cases, reported the confidence, noticed a modified cited file and was 
 the scope. Limits that remain, each tracked as an issue:
 
 - The relevance filter is lexical: with two words one match is enough, and synonyms are bridged by the agent
-  reformulating, which costs calls (`issues/mcp_server.md`).
+  reformulating, which costs calls (`issues/done/mcp_server.md`).
 - After a `generate` that failed once the repo map was done, the cache is ahead of the docs and a changed file
-  looks fresh (`issues/stale_docs_after_failed_generate.md`); and every answer re-reads the cited files
-  (`issues/mcp_freshness_cost.md`).
+  looks fresh (`issues/done/stale_docs_after_failed_generate.md`); and every answer re-reads the cited files
+  (`issues/done/mcp_freshness_cost.md`).
 - An agent cannot check what the docs do not cite, and `git_log` does not follow renames
   (`issues/git_log_follow_renames.md`).
 - The server speaks MCP only over stdio, with no network authentication; HTTP is left for later.
