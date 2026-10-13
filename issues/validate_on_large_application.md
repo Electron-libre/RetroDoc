@@ -112,3 +112,48 @@ About $0.04 at the high prices. No unparseable answer.
 * Warnings: the server refuses the strict JSON schema at each command (the run goes on without it); one
   source rule for the database schema is dropped (its file cannot be read in the expected format); one
   business path the LLM named does not exist; one long file is cut after 13 chunks.
+
+## Reading (2026-10-13): the user's first remark and a control pass by the agent
+
+Sample: the 6 contexts documented by the runs of `issues/business_files_cap_on_large_application.md` (45
+features, 161 use cases), 20 use cases taken evenly from the list sorted by context, feature and slug.
+The user judged the result encouraging for the core of the business, with some technical noise (for example
+a back-office use case that reimports a form from a JSON payload), and did not have the time to read the rest
+nor the memory of the whole application; the agent checked the sample against the code instead.
+
+Checked against the cited code (5 use cases read in full): the steps follow the code. Two imprecisions: a
+"creates or updates" where the code only creates when absent, and a title ("complete signing") that is a
+description of a provider callback. One use case invents a human trigger (a user submitting identifiers) for a
+service class that nothing calls in the code read.
+
+What holds:
+* No feature without a use case, no entry point without a feature, no unplaced entry point.
+* Business language: only 4 of 161 narratives contain a code identifier (a class name, a column value);
+  12 score under 0.8. The workflow engine of the application (steps and tasks, not controllers) was read as
+  behaviours: 180 of the 324 entry points are of kind `other`, which is where the real behaviour is.
+* The approval, denial, sending and signing flows read as a reader who does not know the code can use them.
+
+Defects found (each has an issue or a line of one):
+* Technical helpers read as business behaviours: 48 of 161 use cases (30%) come from features made mostly of
+  `public_api` entry points, that is public methods of application classes (generating a PDF, a client of
+  an external company directory, model helpers). Their narratives say "a caller requests the PDF binary".
+  The human actor is named even when nothing human triggers them: 68 use cases belong to features with no
+  HTTP route, 48 of them have the same actor as the most common one (108 of 161 overall). 9 use cases come
+  from the admin namespace (back-office tools). -> `issues/technical_and_back_office_use_cases.md`.
+* The largest part of the central context mixes subjects: its 15 features cover form contracts and contract
+  models (what its name says) but also six families of approval and signing workflows and 11 notification
+  use cases, because the workflow folder was handed to it whole, by layer (rules, tasks, processes), while a
+  family (one kind of contract flow) runs through every layer. The context that holds the life cycle is
+  small (37 files). A reader looking for the signing flow would look under "life cycle", not "drafting". ->
+  `issues/split_contexts_by_family_not_by_layer.md`.
+* 20 of 161 use cases are "open / show / view / edit" screens, several the first half of a pair (open the
+  creation form, then create): the same capability is documented twice. A few near-duplicates (two imports
+  from JSON). -> same issue as the first defect.
+* Only 49 of 161 use cases record the entry points they cover, so what share of the behaviours the use cases
+  reach cannot be measured; a feature with 76 notification entry points gets 11 use cases. ->
+  `issues/use_cases_record_their_entry_points.md`.
+* Already known and tracked: the use cases answer of a very long feature is cut at the output limit
+  (`issues/shorter_use_case_answers.md`).
+
+Not judged: the 23 contexts not documented, the rules (off), the technical support list (not computed in this
+mode).
