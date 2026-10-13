@@ -42,6 +42,31 @@ impl SourceHashes {
         Self { files }
     }
 
+    /// Hashes `paths` as they are now, the same way as [`Self::capture`].
+    #[must_use]
+    pub fn capture_paths<'a>(
+        repo_root: &Path,
+        paths: impl IntoIterator<Item = &'a std::path::PathBuf>,
+    ) -> Self {
+        let files = paths
+            .into_iter()
+            .filter_map(|path| {
+                let bytes = std::fs::read(repo_root.join(path)).ok()?;
+                Some((
+                    path.to_string_lossy().into_owned(),
+                    hash_content(&String::from_utf8_lossy(&bytes)),
+                ))
+            })
+            .collect();
+        Self { files }
+    }
+
+    /// Adds the hashes of `other`, replacing those of the files both have: a run on some contexts
+    /// of an application says nothing of the code of the others.
+    pub fn merge(&mut self, other: Self) {
+        self.files.extend(other.files);
+    }
+
     /// Missing or unreadable (never generated, or `generate --force` running):
     /// no hash at all.
     #[must_use]
@@ -79,6 +104,30 @@ mod tests {
             kind,
             size_bytes: 0,
         }
+    }
+
+    #[test]
+    fn a_partial_capture_replaces_its_files_and_leaves_the_others() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("a.rb"), "a v1").unwrap();
+        std::fs::write(dir.path().join("b.rb"), "b v1").unwrap();
+        let paths = |names: &[&str]| -> Vec<std::path::PathBuf> {
+            names.iter().map(std::path::PathBuf::from).collect()
+        };
+        let mut recorded = SourceHashes::capture_paths(dir.path(), &paths(&["a.rb", "b.rb"]));
+        let b_before = recorded.get("b.rb").unwrap().to_string();
+
+        // Both files change, a later run documents `a.rb` only.
+        std::fs::write(dir.path().join("a.rb"), "a v2").unwrap();
+        std::fs::write(dir.path().join("b.rb"), "b v2").unwrap();
+        recorded.merge(SourceHashes::capture_paths(dir.path(), &paths(&["a.rb"])));
+
+        assert_eq!(recorded.get("a.rb"), Some(hash_content("a v2").as_str()));
+        assert_eq!(
+            recorded.get("b.rb"),
+            Some(b_before.as_str()),
+            "b was not documented again"
+        );
     }
 
     #[test]

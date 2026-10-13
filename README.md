@@ -112,8 +112,16 @@ existing_docs_paths = ["docs", "README.md"]    # Markdown taken as input
 docs_dir = "docs"
 
 [pipeline]
-domains_from = "files"    # "files": domains from the file summaries; "surface": from the entities and entry points (no repo map; the features come from the entry points)
+domains_from = "files"    # "files": domains from the file summaries; "surface": from the entities and entry points (no repo map; the features come from the entry points); "contexts": a large application documented a bounded context at a time (see below)
 ```
+
+**A large application, in several runs.** With `domains_from = "contexts"`, `retrodoc contexts` (or the first
+`generate`) maps the application into bounded contexts from the names of its entry point files and one LLM call
+(`contexts.yaml`, editable: move a group or a folder, rename a context); each `generate` then documents the next
+contexts not done, as many as fit `--max-files` (default 150 files; a context is never cut), or the ones you
+name with `--context a,b`. A run reads only its slice, never redoes or changes the contexts already
+documented (a rerun with nothing left to do calls no LLM), and the docs gather every context done; the output
+lists the contexts left. An interrupted run resumes where it stopped.
 
 A pass whose model changes is redone on the next run (the model is part of what its cache is compared
 with); the first run after upgrading to this behavior redoes every pass once. `roles.yaml`,

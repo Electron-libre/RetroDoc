@@ -11,6 +11,7 @@ use retrodoc_pipeline::{
     RepoMapOptions, RoleMap, Scope, SourceHashes, Surface, UseCaseContext,
 };
 
+mod contexts;
 mod print;
 
 use super::usage::PassProviders;
@@ -25,6 +26,7 @@ const GENERATE_PASSES: &[&str] = &[
     "brief",
     "roles",
     "business-files",
+    "contexts",
     "glossary",
     "entry-points",
     "actors",
@@ -46,15 +48,18 @@ pub enum Confidence {
 }
 
 /// What the user asked of a `generate` run.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct GenerateOptions {
     /// Preview the docs instead of writing them.
     pub dry_run: bool,
     /// Wipe the caches first so nothing is reused.
     pub force: bool,
     pub confidence: Confidence,
-    /// Budget of source files (overrides `ingest.max_files`).
+    /// Budget of source files (overrides `ingest.max_files`). With `domains_from = "contexts"`:
+    /// the files one run reads, a context never being cut.
     pub max_files: Option<usize>,
+    /// With `domains_from = "contexts"`: the contexts to document now (empty: the next ones).
+    pub contexts: Vec<String>,
 }
 
 /// Current pipeline stage (PLAN.md §5, "confidence score" phase).
@@ -73,6 +78,7 @@ pub async fn run(
         force,
         confidence,
         max_files,
+        ..
     } = *options;
     let (workspace, mut ingest) = open_workspace(path, force)?;
     let (repo_root, config) = (&workspace.repo_root, &workspace.config);
@@ -84,12 +90,21 @@ pub async fn run(
         super::brief::for_generate(repo_root, &ingest, &llm, wanted, tracker).await?;
     let (evidence, rule_evidence) = (evidence.units, evidence.rules);
 
+    if config.pipeline.domains_from == DomainsFrom::Contexts {
+        let signals = Signals {
+            brief,
+            evidence,
+            rule_evidence,
+        };
+        return contexts::run(&workspace, &llm, tracker, options, signals, ingest).await;
+    }
+
     let (surface, entry_points, role_map) =
         build_surface(repo_root, &mut ingest, &brief, &llm, force, config, tracker).await?;
     let actors = tracker
         .in_pass(
             "actors",
-            identify_actors(repo_root, &ingest, &surface, &brief, &llm, force),
+            identify_actors(repo_root, &ingest, &surface, &brief, &llm, force, false),
         )
         .await?;
 
@@ -149,25 +164,13 @@ pub async fn run(
         )
         .await?;
 
-    derive_rules(
-        repo_root, config, &features, &use_cases, context, &llm, tracker,
-    )
-    .await?;
-
-    tracker
-        .in_pass(
-            "confidence",
-            run_confidence(
-                repo_root,
-                &mut features,
-                &mut use_cases,
-                &llm,
-                confidence,
-                config.llm.for_pass("confidence").concurrency.unwrap_or(1),
-            ),
-        )
-        .await?;
-
+    let passes = Passes {
+        repo_root,
+        config,
+        llm: &llm,
+        tracker,
+    };
+    finish_chain(&passes, &mut features, &mut use_cases, context, confidence).await?;
     // Only a run that went through every pass says which code the docs describe.
     source_hashes
         .save(repo_root)
@@ -179,26 +182,56 @@ pub async fn run(
     super::docs::publish(repo_root, config, dry_run)
 }
 
+/// What the passes after the use cases share.
+struct Passes<'a> {
+    repo_root: &'a Path,
+    config: &'a Config,
+    llm: &'a PassProviders,
+    tracker: &'a UsageTracker,
+}
+
+/// The business rules (when on), then the confidence of the use cases.
+async fn finish_chain(
+    passes: &Passes<'_>,
+    features: &mut [Feature],
+    use_cases: &mut [UseCase],
+    context: UseCaseContext,
+    confidence: Confidence,
+) -> anyhow::Result<()> {
+    let Passes {
+        repo_root,
+        config,
+        llm,
+        tracker,
+    } = *passes;
+    derive_rules(
+        repo_root, config, features, use_cases, context, llm, tracker,
+    )
+    .await?;
+    tracker
+        .in_pass(
+            "confidence",
+            run_confidence(
+                repo_root,
+                features,
+                use_cases,
+                llm,
+                confidence,
+                config.llm.for_pass("confidence").concurrency.unwrap_or(1),
+            ),
+        )
+        .await
+}
+
 /// Opens the repo, wipes the caches when asked, and walks it without the docs `generate` writes.
 fn open_workspace(path: &Path, force: bool) -> anyhow::Result<(Workspace, IngestResult)> {
     let workspace = Workspace::open(path)?;
     if force {
         clear_caches(&workspace.repo_root)?;
     }
-    refuse_unwired_paths(&workspace.config)?;
     let mut ingest = workspace.ingest()?;
     ingest.existing_docs = super::docs::without_generated(ingest.existing_docs, &workspace.config);
     Ok((workspace, ingest))
-}
-
-/// `domains_from = "contexts"` only has its library parts for now (step 4 of
-/// `issues/business_files_cap_on_large_application.md`): better an error than the `files` path.
-fn refuse_unwired_paths(config: &Config) -> anyhow::Result<()> {
-    anyhow::ensure!(
-        config.pipeline.domains_from != DomainsFrom::Contexts,
-        "domains_from = \"contexts\" is not wired into `generate` yet; use \"surface\" or \"files\""
-    );
-    Ok(())
 }
 
 /// The brief and the signals the closest extracts of a feature are taken from.
@@ -245,7 +278,14 @@ async fn identify_actors(
     brief: &ProductBrief,
     llm: &PassProviders,
     force: bool,
+    frozen: bool,
 ) -> anyhow::Result<Actors> {
+    // Read a slice at a time, the actors would change with every slice and redo the use cases of
+    // the others: they are identified once, then kept (`retrodoc actors --force` asks again).
+    if let Some(saved) = Actors::load(repo_root).filter(|_| frozen && !force) {
+        println!("{} actor(s) kept from the first run.", saved.actors.len());
+        return Ok(saved);
+    }
     println!("Identifying the business actors…");
     let source_files: Vec<_> = source_paths(ingest).map(Path::to_path_buf).collect();
     let actors = retrodoc_pipeline::build_actors(
@@ -483,12 +523,9 @@ async fn derive_rules(
     Ok(())
 }
 
-/// Identifies the file roles, then reads the entities and the entry points
-/// from the files of those roles: the application surface the domains are
-/// clustered from. Each pass is incremental. If no role rules can be
-/// identified the surface is empty and the domains fall back to the
-/// directory summaries alone.
-async fn build_surface(
+/// Identifies the stack and the role of every file (and promotes the files of the languages
+/// found to source files). `None` when no role rule could be identified.
+async fn identify_file_roles(
     repo_root: &Path,
     ingest: &mut IngestResult,
     brief: &ProductBrief,
@@ -496,7 +533,7 @@ async fn build_surface(
     force: bool,
     config: &Config,
     tracker: &UsageTracker,
-) -> anyhow::Result<(Surface, EntryPoints, Option<RoleMap>)> {
+) -> anyhow::Result<Option<(String, RoleMap)>> {
     println!("Identifying the stack and the file roles…");
     let rules = tracker
         .in_pass(
@@ -516,17 +553,39 @@ async fn build_surface(
         println!("{promoted} file(s) of the identified languages added to the source files.");
     }
     if rules.rules.is_empty() {
-        tracing::warn!("no file role rules identified, domains are clustered without the surface");
-        return Ok((Surface::default(), EntryPoints::default(), None));
+        return Ok(None);
     }
     let mut role_map = rules.classify(&ingest.files);
     role_map.body_lines = config.pipeline.body_lines;
     println!("Stack: {}", rules.stack);
+    Ok(Some((rules.stack, role_map)))
+}
+
+/// Identifies the file roles, then reads the entities and the entry points
+/// from the files of those roles: the application surface the domains are
+/// clustered from. Each pass is incremental. If no role rules can be
+/// identified the surface is empty and the domains fall back to the
+/// directory summaries alone.
+async fn build_surface(
+    repo_root: &Path,
+    ingest: &mut IngestResult,
+    brief: &ProductBrief,
+    llm: &PassProviders,
+    force: bool,
+    config: &Config,
+    tracker: &UsageTracker,
+) -> anyhow::Result<(Surface, EntryPoints, Option<RoleMap>)> {
+    let Some((stack, role_map)) =
+        identify_file_roles(repo_root, ingest, brief, llm, force, config, tracker).await?
+    else {
+        tracing::warn!("no file role rules identified, domains are clustered without the surface");
+        return Ok((Surface::default(), EntryPoints::default(), None));
+    };
 
     let business = super::business_files::locate(
         repo_root,
         ingest,
-        &rules.stack,
+        &stack,
         brief,
         llm.get("business-files")?.as_ref(),
         force,

@@ -46,9 +46,16 @@ to it by name. The map is for the `surface` path; the `files` path is unchanged.
 
 ## Consequences
 
-* This step only produces, tests and documents the map (`retrodoc contexts`). Reading per context, a
-  context as a domain, and `generate --context` come in the next steps of the issue; the `business-files`
-  pass stays until the reading is moved, then is judged again.
+* `[pipeline] domains_from = "contexts"` documents an application a slice at a time. A run (`generate
+  [--context a,b] [--max-files N]`) reads the files of its contexts, makes each context a domain with no LLM
+  call, and runs features, use cases, rules and confidence on every feature: the earlier ones are found up to
+  date and cost nothing. For that, the readers keep the inventories of the other files (`Retention::Others`),
+  the vocabulary of the prompts is the domain's own, the actors are identified once and kept
+  (`retrodoc actors --force` asks again), and the entry points of a domain are those of its files. The
+  `business-files` pass is not run in this mode (the files of the contexts are the business files). A
+  context is done while the hash of its files, and of the files read for it, still matches; a file edited in a
+  context already done is taken up again when that context is named or marked pending by the change.
+* An application with no entry point file is one context (the whole application).
 * One LLM call over about 140 groups on the large application: 8k tokens in, 1 to 1.5 minutes locally.
 * First measure on that application. A local model (two prompts): 19 to 21 contexts but 44% to 52% of the
   source files in the support, whole layer folders and one-job groups sent there against the instruction. A

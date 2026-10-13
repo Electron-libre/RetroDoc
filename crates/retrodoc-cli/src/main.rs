@@ -59,8 +59,14 @@ enum Command {
         /// Analyse at most N source files: the best ranked by role, git
         /// history and references; the rest is listed in the report.
         /// Overrides `ingest.max_files`.
+        /// With `[pipeline] domains_from = "contexts"`: the files one run
+        /// reads (default 150), a bounded context never being cut.
         #[arg(long, value_name = "N")]
         max_files: Option<usize>,
+        /// With `[pipeline] domains_from = "contexts"`: the contexts to
+        /// document now, by slug (default: the next ones not done).
+        #[arg(long, value_name = "SLUG", value_delimiter = ',')]
+        context: Vec<String>,
     },
     /// Writes the docs from the artifacts of the last `generate` run,
     /// without calling the LLM.
@@ -284,6 +290,7 @@ async fn main() -> anyhow::Result<()> {
             no_confidence,
             confidence_sample,
             max_files,
+            context,
         } => {
             let confidence = if no_confidence {
                 commands::generate::Confidence::Skip
@@ -295,6 +302,7 @@ async fn main() -> anyhow::Result<()> {
                 force,
                 confidence,
                 max_files,
+                contexts: context,
             };
             commands::generate::run(&path, &options, &tracker).await
         }

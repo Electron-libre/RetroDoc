@@ -85,7 +85,7 @@ and how many the cap drops (no LLM call needed: `business-files.yaml` and the fi
      own, the actors are computed once then frozen (editable, `retrodoc actors --force`), the artifacts of the
      other contexts are kept as they are. Test: context A then B, A is neither redone nor changed and the
      second run makes no call for A.
-   * 4d. [ ] `generate` wiring: `--context`, `--max-files` becomes the reading budget of a run in this mode
+   * 4d. [~] (wired and checked on `delivery_router`; the real multi-context runs are step 6) `generate` wiring: `--context`, `--max-files` becomes the reading budget of a run in this mode
      (default 150), the `business-files` pass is skipped, the docs gather the contexts done, the report lists
      the contexts left. Real run on `delivery_router` locally, then on the large application (cost to agree).
 5. (merged into 4)

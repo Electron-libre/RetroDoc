@@ -270,7 +270,7 @@ async fn an_unusable_answer_gives_one_context_per_group_and_is_not_saved() {
 }
 
 #[tokio::test]
-async fn without_an_entry_point_file_there_is_nothing_to_ask() {
+async fn without_an_entry_point_file_the_whole_application_is_one_context_and_nothing_is_asked() {
     let dir = tempfile::tempdir().unwrap();
     let llm = FakeLlm::answering(ANSWER);
 
@@ -285,8 +285,34 @@ async fn without_an_entry_point_file_there_is_nothing_to_ask() {
     .await
     .unwrap();
 
-    assert_eq!(map.contexts, Vec::<BoundedContext>::new());
     assert_eq!(llm.calls(), 0);
+    assert_eq!(map.contexts.len(), 1);
+    let resolved = map.resolve(&sources(), &[]);
+    assert_eq!(resolved.contexts[0].files.len(), sources().len());
+    assert_eq!(resolved.support, Vec::<PathBuf>::new());
+    assert_eq!(
+        ContextMap::load(dir.path()),
+        Some(map),
+        "saved, and editable"
+    );
+}
+
+#[tokio::test]
+async fn without_any_source_file_there_is_no_context() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let map = build_context_map(
+        dir.path(),
+        &[],
+        &[],
+        &ProductBrief::default(),
+        &FakeLlm::answering(ANSWER),
+        false,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(map.contexts, Vec::<BoundedContext>::new());
 }
 
 #[tokio::test]
@@ -552,4 +578,43 @@ async fn a_saved_split_is_reused_without_a_call() {
 
     assert_eq!(silent.calls(), 0);
     assert_eq!(again.contexts.len(), 2);
+}
+
+#[test]
+fn the_features_follow_the_order_of_the_map_and_a_removed_context_leaves_none() {
+    let feature = |slug: &str, domain: &str| retrodoc_core::model::Feature {
+        slug: slug.to_string(),
+        domain_slug: domain.to_string(),
+        sub_domain_slug: None,
+        name: slug.to_string(),
+        description: String::new(),
+        source_paths: Vec::new(),
+        entry_points: Vec::new(),
+        confidence: None,
+    };
+    let map = ContextMap {
+        contexts: vec![
+            BoundedContext {
+                slug: "a".to_string(),
+                ..BoundedContext::default()
+            },
+            BoundedContext {
+                slug: "b".to_string(),
+                ..BoundedContext::default()
+            },
+        ],
+        support: Support::default(),
+    };
+    // `b` was documented first, `gone` is no longer in the map.
+    let mut features = vec![
+        feature("b1", "b"),
+        feature("gone1", "gone"),
+        feature("b2", "b"),
+        feature("a1", "a"),
+    ];
+
+    map.arrange(&mut features);
+
+    let slugs: Vec<&str> = features.iter().map(|f| f.slug.as_str()).collect();
+    assert_eq!(slugs, ["a1", "b1", "b2"]);
 }

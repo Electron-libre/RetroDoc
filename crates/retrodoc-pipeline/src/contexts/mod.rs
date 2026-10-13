@@ -152,6 +152,15 @@ impl ContextMap {
         self.contexts.is_empty()
     }
 
+    /// Keeps the `features` of the contexts of the map, in the order of the map (the order within a
+    /// context is kept): whatever the order the contexts were documented in, the docs come out the
+    /// same, and a context the map no longer has leaves no feature behind.
+    pub fn arrange(&self, features: &mut Vec<retrodoc_core::model::Feature>) {
+        let position = |slug: &str| self.contexts.iter().position(|c| c.slug == slug);
+        features.retain(|f| position(&f.domain_slug).is_some());
+        features.sort_by_key(|f| position(&f.domain_slug));
+    }
+
     /// The `sources` of the current tree by context. A file joins the context of the group its
     /// name or its directories give (the longest name first), else the context of the longest
     /// folder that holds it, else the support. `seeds` are the entry point files.
@@ -394,8 +403,15 @@ pub async fn build_context_map(
     }
     let grouped = mechanical_groups(sources, seeds);
     if grouped.groups.is_empty() {
-        tracing::warn!("no entry point file: no context to map");
-        return Ok(ContextMap::default());
+        if sources.is_empty() {
+            tracing::warn!("no source file: no context to map");
+            return Ok(ContextMap::default());
+        }
+        // Nothing to cut the application by (a library has no controller): it is one context.
+        tracing::warn!("no entry point file: the whole application is one context");
+        let map = whole_application();
+        map.save(repo_root)?;
+        return Ok(map);
     }
     let listing = Listing::new(&grouped);
     let answer = complete_json::<Response>(
@@ -553,6 +569,21 @@ async fn split_context(
         "large context split"
     );
     Ok(Some(parts.contexts))
+}
+
+/// One context for every source file: the empty folder is a prefix of all of them.
+fn whole_application() -> ContextMap {
+    ContextMap {
+        contexts: vec![BoundedContext {
+            slug: "application".to_string(),
+            name: "Application".to_string(),
+            description: "The whole application: no entry point file was found to cut it by."
+                .to_string(),
+            groups: Vec::new(),
+            folders: vec![String::new()],
+        }],
+        support: Support::default(),
+    }
 }
 
 fn one_context_per_group(grouped: &Groups) -> ContextMap {

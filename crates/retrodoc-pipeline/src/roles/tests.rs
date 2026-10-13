@@ -204,3 +204,39 @@ async fn the_brief_heads_the_prompt_but_does_not_redo_saved_rules() {
         .unwrap();
     assert_eq!(llm.calls(), 1);
 }
+
+#[test]
+fn a_slice_of_the_role_map_keeps_its_files_and_every_test_file() {
+    let mut map = RoleMap::default();
+    for (path, role) in [
+        ("a/controller.rb", FileRole::EntryPoint),
+        ("b/controller.rb", FileRole::EntryPoint),
+        ("a/model.rb", FileRole::Model),
+        ("spec/a_spec.rb", FileRole::Test),
+        ("spec/b_spec.rb", FileRole::Test),
+    ] {
+        map.roles.insert(PathBuf::from(path), role);
+    }
+    map.body_lines = Some(7);
+
+    let slice = map.only(&[
+        PathBuf::from("a/controller.rb"),
+        PathBuf::from("a/model.rb"),
+    ]);
+
+    let kept: Vec<&str> = slice.roles.keys().map(|p| p.to_str().unwrap()).collect();
+    assert_eq!(
+        kept,
+        [
+            "a/controller.rb",
+            "a/model.rb",
+            "spec/a_spec.rb",
+            "spec/b_spec.rb"
+        ]
+    );
+    assert_eq!(
+        slice.files_with(FileRole::EntryPoint),
+        [Path::new("a/controller.rb")]
+    );
+    assert_eq!(slice.body_lines, Some(7));
+}

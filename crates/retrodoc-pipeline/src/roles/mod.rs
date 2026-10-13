@@ -155,6 +155,23 @@ impl RoleMap {
         counts
     }
 
+    /// The roles of `files` only, plus the test files (their vocabulary is the application's, not a
+    /// slice's): what a pass sees when it reads one bounded context at a time.
+    #[must_use]
+    pub fn only(&self, files: &[PathBuf]) -> RoleMap {
+        let wanted: std::collections::BTreeSet<&PathBuf> = files.iter().collect();
+        RoleMap {
+            roles: self
+                .roles
+                .iter()
+                .filter(|(path, role)| wanted.contains(path) || **role == FileRole::Test)
+                .map(|(path, role)| (path.clone(), *role))
+                .collect(),
+            chunk_boundaries: self.chunk_boundaries.clone(),
+            body_lines: self.body_lines,
+        }
+    }
+
     #[must_use]
     pub fn files_with(&self, role: FileRole) -> Vec<&Path> {
         self.roles
