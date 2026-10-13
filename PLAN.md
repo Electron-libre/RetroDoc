@@ -59,7 +59,7 @@ docs/
 
 ## 4. Technical architecture (Rust, workspace)
 
-- `retrodoc-cli` — binary, `clap` (`init`, `scan`, `generate`, `render`, `report`, `roles`, `brief`, `business-files`, `business-read`, `glossary`, `entry-points`, `actors`, `surface`, `benchmark`, `benchmark-table`, `search`, `mcp`)
+- `retrodoc-cli` — binary, `clap` (`init`, `scan`, `generate`, `render`, `report`, `roles`, `brief`, `business-files`, `contexts`, `business-read`, `glossary`, `entry-points`, `actors`, `surface`, `benchmark`, `benchmark-table`, `search`, `mcp`)
 - `retrodoc-core` — domain model (Domain, Feature, UseCase, Step, Actor, ConfidenceScore)
 - `retrodoc-ingest` — walker (`ignore`), history (`git2`), Markdown parsing
 - `retrodoc-llm` — provider abstraction + OpenRouter/DeepSeek implementation (chat completion, retry, rate-limit)
@@ -98,6 +98,10 @@ docs/
     brief, business files, structured outputs, model per pass, the `surface` path, tree-sitter chunking,
     mechanical confidence, single read of the business files, business rules); open: the reconciliation with
     the existing docs (step 7), the default path, and the follow-ups of the review of 2026-10-12 (§7.6).
+11. **A large application, one bounded context at a time** (see §7.7, ADR 0029, decided 2026-10-12): the map
+    of the contexts (`retrodoc contexts`) and `domains_from = "contexts"`, so that an application too large for
+    one run is documented in resumable, complementary runs. Delivered and run on a 1,676-file application (8 of
+    35 contexts); open: the quality follow-ups listed in §7.7 and the contexts left.
 
 ## 6. Identified risks
 
