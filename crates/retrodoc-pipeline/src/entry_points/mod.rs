@@ -27,6 +27,7 @@ use crate::error::PipelineError;
 use crate::fingerprints::hash_for_model;
 use crate::repo_map::read_file_lossy;
 use crate::roles::{FileRole, RoleMap};
+use crate::slices::CodeIndex;
 use crate::use_cases::resolve_cited_path;
 
 /// Entry point files carry many small actions: a bit more room than models.
@@ -164,6 +165,74 @@ impl EntryPoints {
         }
         counts
     }
+}
+
+/// As in the use cases pass: how far from an entry point's file the code it runs is followed.
+const REACH_DEPTH: usize = 2;
+
+impl EntryPoints {
+    /// Whether the inventory is that of an application: a route, a job, a consumer or a webhook
+    /// starts a behaviour. Else it is taken for a library, whose public API is its entry points
+    /// (a command is not enough: a library often ships one, and a tool made of commands keeps
+    /// all its entries, the safe side).
+    #[must_use]
+    pub fn is_application(&self) -> bool {
+        self.iter().any(|(_, e)| {
+            matches!(
+                e.kind,
+                EntryKind::HttpRoute | EntryKind::Job | EntryKind::Consumer | EntryKind::Webhook
+            )
+        })
+    }
+
+    /// The inventory of an application without the `public_api` entries that no route, command,
+    /// job, consumer or webhook reaches: the public methods of its classes that nothing
+    /// triggers are technical support, not behaviours. A file is reached when it holds such an
+    /// entry point or is in its slice (`REACH_DEPTH` hops of references, see
+    /// [`CodeIndex::slice`]). A library keeps all its entries. Returns it with the ids
+    /// (`<file>#<name>`) of the entries left out; the saved inventory is not touched, so the
+    /// choice is made again at each run, from the current code. Limits: the reach is by file and
+    /// by the names the code mentions (a call through a callback or dynamic dispatch is missed),
+    /// and a `generate` by contexts decides on the entry points read so far.
+    #[must_use]
+    pub fn without_unreached_public_api<'a>(
+        mut self,
+        repo_root: &Path,
+        sources: impl IntoIterator<Item = &'a Path>,
+    ) -> (Self, Vec<String>) {
+        if !self.is_application() {
+            return (self, Vec::new());
+        }
+        let starts: Vec<PathBuf> = self
+            .files
+            .iter()
+            .filter(|(_, f)| f.entry_points.iter().any(|e| started_from_outside(e.kind)))
+            .map(|(p, _)| p.clone())
+            .collect();
+        let index = CodeIndex::new(sources);
+        let mut reached: BTreeSet<PathBuf> = starts.iter().cloned().collect();
+        reached.extend(index.slice(repo_root, &starts, REACH_DEPTH, usize::MAX));
+        let mut left_out = Vec::new();
+        for (path, file) in &mut self.files {
+            if reached.contains(path) {
+                continue;
+            }
+            file.entry_points.retain(|e| {
+                let keep = e.kind != EntryKind::PublicApi;
+                if !keep {
+                    left_out.push(format!("{}#{}", path.display(), e.name));
+                }
+                keep
+            });
+        }
+        (self, left_out)
+    }
+}
+
+/// Whether something other than a call to a public method (or a kind nobody could name) starts
+/// the entry point.
+fn started_from_outside(kind: EntryKind) -> bool {
+    !matches!(kind, EntryKind::PublicApi | EntryKind::Other)
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]

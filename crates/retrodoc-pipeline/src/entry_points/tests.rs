@@ -412,3 +412,143 @@ async fn a_shorter_view_of_the_bodies_reads_the_files_again() {
     assert!(prompt.contains("step_2") && !prompt.contains("step_8"));
     assert!(prompt.contains("lines omitted"));
 }
+
+fn inventory(files: &[(&str, &[(EntryKind, &str)])]) -> EntryPoints {
+    EntryPoints {
+        files: files
+            .iter()
+            .map(|(path, entries)| {
+                (
+                    PathBuf::from(path),
+                    EntryFile {
+                        content_hash: String::new(),
+                        entry_points: entries
+                            .iter()
+                            .map(|(kind, name)| EntryPoint {
+                                kind: *kind,
+                                name: (*name).to_string(),
+                                verb: String::new(),
+                                resource: String::new(),
+                                description: String::new(),
+                                outputs: Vec::new(),
+                            })
+                            .collect(),
+                    },
+                )
+            })
+            .collect(),
+    }
+}
+
+fn names(entries: &EntryPoints) -> Vec<String> {
+    entries.iter().map(|(_, e)| e.name.clone()).collect()
+}
+
+#[test]
+fn in_an_application_a_public_method_no_route_reaches_is_left_out() {
+    let dir = tempfile::tempdir().unwrap();
+    let files = [
+        ("a/contracts_controller.rb", "PdfBuilder.call(contract)"),
+        ("a/pdf_builder.rb", "class PdfBuilder; FontLoader; end"),
+        ("a/font_loader.rb", "class FontLoader; end"),
+        ("a/directory_client.rb", "class DirectoryClient; end"),
+    ];
+    std::fs::create_dir_all(dir.path().join("a")).unwrap();
+    for (path, content) in files {
+        std::fs::write(dir.path().join(path), content).unwrap();
+    }
+    let entries = inventory(&[
+        (
+            "a/contracts_controller.rb",
+            &[(EntryKind::HttpRoute, "GET /contracts")],
+        ),
+        ("a/pdf_builder.rb", &[(EntryKind::PublicApi, "build")]),
+        ("a/font_loader.rb", &[(EntryKind::PublicApi, "load")]),
+        (
+            "a/directory_client.rb",
+            &[(EntryKind::PublicApi, "lookup"), (EntryKind::Other, "misc")],
+        ),
+    ]);
+    assert!(entries.is_application());
+
+    let (kept, left_out) =
+        entries.without_unreached_public_api(dir.path(), files.iter().map(|(p, _)| Path::new(p)));
+
+    // The builder is called by the controller, the loader by the builder (two hops).
+    assert_eq!(left_out, vec!["a/directory_client.rb#lookup"]);
+    assert_eq!(names(&kept), ["GET /contracts", "misc", "load", "build"]);
+}
+
+#[test]
+fn a_library_keeps_its_public_api() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("router.rb"), "class Router; end").unwrap();
+    let entries = inventory(&[("router.rb", &[(EntryKind::PublicApi, "route")])]);
+    assert!(!entries.is_application());
+
+    let (kept, left_out) =
+        entries.without_unreached_public_api(dir.path(), [Path::new("router.rb")]);
+
+    assert_eq!(left_out, Vec::<String>::new());
+    assert_eq!(names(&kept), ["route"]);
+}
+
+#[test]
+fn the_reach_stops_after_two_hops_and_a_file_with_a_route_keeps_its_public_methods() {
+    let dir = tempfile::tempdir().unwrap();
+    let files = [
+        ("a/orders_controller.rb", "OrderService.call"),
+        ("a/order_service.rb", "OrderMailer.deliver"),
+        ("a/order_mailer.rb", "MailTemplate.render"),
+        ("a/mail_template.rb", "class MailTemplate; end"),
+    ];
+    std::fs::create_dir_all(dir.path().join("a")).unwrap();
+    for (path, content) in files {
+        std::fs::write(dir.path().join(path), content).unwrap();
+    }
+    let entries = inventory(&[
+        (
+            "a/orders_controller.rb",
+            &[
+                (EntryKind::HttpRoute, "GET /orders"),
+                (EntryKind::PublicApi, "helper"),
+            ],
+        ),
+        ("a/order_service.rb", &[(EntryKind::PublicApi, "call")]),
+        ("a/order_mailer.rb", &[(EntryKind::PublicApi, "deliver")]),
+        ("a/mail_template.rb", &[(EntryKind::PublicApi, "render")]),
+    ]);
+
+    let (kept, left_out) =
+        entries.without_unreached_public_api(dir.path(), files.iter().map(|(p, _)| Path::new(p)));
+
+    // Controller -> service (1) -> mailer (2) -> template (3, too far).
+    assert_eq!(left_out, vec!["a/mail_template.rb#render"]);
+    assert_eq!(
+        names(&kept),
+        ["deliver", "call", "GET /orders", "helper"],
+        "path order"
+    );
+}
+
+#[test]
+fn a_library_with_one_command_keeps_its_public_api() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("cli.rb"), "Router.new").unwrap();
+    std::fs::write(dir.path().join("router.rb"), "class Router; end").unwrap();
+    std::fs::write(dir.path().join("other.rb"), "class Other; end").unwrap();
+    let entries = inventory(&[
+        ("cli.rb", &[(EntryKind::CliCommand, "lint")]),
+        ("router.rb", &[(EntryKind::PublicApi, "route")]),
+        ("other.rb", &[(EntryKind::PublicApi, "other")]),
+    ]);
+    assert!(!entries.is_application());
+
+    let (kept, left_out) = entries.without_unreached_public_api(
+        dir.path(),
+        ["cli.rb", "router.rb", "other.rb"].map(Path::new),
+    );
+
+    assert_eq!(left_out, Vec::<String>::new());
+    assert_eq!(names(&kept).len(), 3);
+}

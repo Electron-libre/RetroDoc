@@ -363,6 +363,11 @@ async fn read_slice(
         )
         .await
         .context("failed to build the entry points inventory")?;
+    let entry_points = super::application_entry_points(
+        entry_points,
+        repo_root,
+        repo.sources.iter().map(PathBuf::as_path),
+    );
     Ok((glossary, entry_points))
 }
 

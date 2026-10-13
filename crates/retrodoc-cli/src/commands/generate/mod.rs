@@ -668,6 +668,7 @@ async fn build_surface(
         )
         .await
         .context("failed to build the entry points inventory")?;
+    let entry_points = application_entry_points(entry_points, repo_root, source_paths(ingest));
 
     let surface = Surface::new(&glossary, &entry_points);
     if let Some(notice) = surface.missing_entities_notice(source_paths(ingest).count()) {
@@ -679,6 +680,24 @@ async fn build_surface(
         surface.resources.len()
     );
     Ok((surface, entry_points, Some(role_map)))
+}
+
+/// The entry points the later passes work from: in an application, without the public methods
+/// that no route, command, job, consumer or webhook reaches (the saved inventory keeps them).
+fn application_entry_points<'a>(
+    entry_points: EntryPoints,
+    repo_root: &Path,
+    sources: impl IntoIterator<Item = &'a Path>,
+) -> EntryPoints {
+    let (kept, left_out) = entry_points.without_unreached_public_api(repo_root, sources);
+    if !left_out.is_empty() {
+        tracing::info!(
+            count = left_out.len(),
+            entry_points = ?left_out,
+            "public API left out of the entry points: no route, job or webhook reaches it"
+        );
+    }
+    kept
 }
 
 /// Keeps the best ranked source files when a budget is set (the others
