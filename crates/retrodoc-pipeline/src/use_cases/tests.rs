@@ -334,9 +334,9 @@ async fn a_feature_with_entry_points_gets_them_and_the_code_they_run() {
     let prompts = provider.prompt_pairs();
     assert!(prompts[0].0.contains("entry_points"));
     assert!(prompts[0].0.contains("may be empty"), "{}", prompts[0].0);
-    assert!(prompts[0]
-        .1
-        .contains("- POST /contracts/:id/sign (app/contracts_controller.rb): A signatory signs"));
+    assert!(prompts[0].1.contains(
+        "- POST /contracts/:id/sign [http_route] (app/contracts_controller.rb): A signatory signs"
+    ));
     assert!(prompts[0].1.contains("Email confirmation sent"));
     assert!(prompts[0].1.contains("=== app/contract_signer.rb ==="));
     assert!(!prompts[0].1.contains("unrelated.rb"));
@@ -451,6 +451,22 @@ async fn no_human_actor_when_no_route_nor_command_starts_the_behaviour() {
     assert_eq!(unknown.steps[0].actor.kind, ActorKind::Human);
 }
 
+#[test]
+fn the_prompt_says_who_starts_what_only_where_it_applies() {
+    // The sentence about who starts a behaviour follows the entry points, the one about the
+    // primary actor follows the known actors; a feature with neither gets none of them.
+    let who_starts = "none of whose entry points is an http_route";
+    let primary = "Give each use case a `primary_actor`";
+    for (entries, actors) in [(true, true), (true, false), (false, true), (false, false)] {
+        let prompt = prompt::system_prompt(entries, actors);
+        assert_eq!(prompt.contains(who_starts), entries, "{entries} {actors}");
+        assert_eq!(prompt.contains(primary), actors, "{entries} {actors}");
+    }
+    // `other` is a kind nobody could name: the check keeps its human, so does the prompt.
+    assert!(prompt::system_prompt(true, false).contains("a cli_command or an other"));
+    assert!(prompt::system_prompt(true, false).contains("also covers a route"));
+}
+
 #[tokio::test]
 async fn the_entry_points_a_use_case_cites_decide_over_those_of_its_feature() {
     use crate::entry_points::EntryKind::{HttpRoute, Job};
@@ -504,9 +520,9 @@ async fn features_from_the_surface_get_only_their_own_entry_points_even_in_a_sha
         .unwrap();
 
     let prompts = provider.prompt_pairs();
-    assert!(prompts[0].1.contains("- GET /orders (api.rb)"));
+    assert!(prompts[0].1.contains("- GET /orders [http_route] (api.rb)"));
     assert!(!prompts[0].1.contains("GET /routes"));
-    assert!(prompts[2].1.contains("- GET /routes (api.rb)"));
+    assert!(prompts[2].1.contains("- GET /routes [http_route] (api.rb)"));
     assert!(!prompts[2].1.contains("GET /orders"));
 }
 

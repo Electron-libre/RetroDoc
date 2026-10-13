@@ -16,6 +16,11 @@ case around one entry point, or a few closely related ones: the actor's goal, th
 the trigger to the observable outputs, grounded on that code. Add to each use case an \
 `entry_points` array with the names of the entry points it covers, copied verbatim from the list; the array may be empty when none of them fits, and a name that is \
 not in the list (an actor, a sentence, a URL) must never be put there. \
+Each entry point shows its kind in brackets. A use case none of whose entry points is an \
+http_route, a cli_command or an other is reached only by a job, a consumer, a webhook or a public \
+method, which no person starts: it has no human actor and no `primary_actor`, its actor is the \
+system, the external provider that calls it or the program that calls the public method. A use \
+case that also covers a route or a command keeps its human actor. \
 Prefer business wording (what happens to the contract, the company, the user) over method names.";
 
 /// Added to the system prompt when the application's business actors are
@@ -112,8 +117,9 @@ pub(super) fn use_cases_prompt(
         for (file, entry) in &input.entries {
             let _ = write!(
                 prompt,
-                "- {} ({}): {}",
+                "- {} [{}] ({}): {}",
                 entry.name,
+                entry.kind.label(),
                 file.display(),
                 entry.description
             );
