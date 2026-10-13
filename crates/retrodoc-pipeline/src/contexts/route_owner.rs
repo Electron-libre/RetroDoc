@@ -4,7 +4,7 @@
 //! by name (its resource, then the static segments of its path) against the names of the entry point
 //! files (`name_words`: no framework convention), else it stays with its file. Only routes move: a
 //! job or an action named after a resource is declared where it runs. A route that names a word of its
-//! own file's name is that file's.
+//! own file's name is that file's (a word as generic as `api` in both stays with the file: known limit).
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;

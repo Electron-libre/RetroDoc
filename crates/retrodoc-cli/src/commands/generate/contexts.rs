@@ -158,7 +158,7 @@ async fn document(
     let slice = repo.slice;
     // Read before the passes: a file edited during the run then reads as modified later.
     let source_hashes = SourceHashes::capture_paths(repo_root, &documented_files(repo));
-    let (in_run, everywhere) = domains(repo, &glossary);
+    let (in_run, everywhere) = domains(repo, &glossary, &entry_points);
     everywhere
         .save(repo_root)
         .context("could not save the domains")?;
@@ -251,7 +251,11 @@ fn documented_files(repo: &Repo<'_>) -> Vec<PathBuf> {
 
 /// The domains of the contexts of this run, and those of every context documented so far (the
 /// ones the docs gather).
-fn domains(repo: &Repo<'_>, glossary: &Glossary) -> (DomainMap, DomainMap) {
+fn domains(
+    repo: &Repo<'_>,
+    glossary: &Glossary,
+    entry_points: &EntryPoints,
+) -> (DomainMap, DomainMap) {
     let resolved = repo.map.resolve(repo.sources, repo.seeds);
     let slice = repo.slice;
     let documented: Vec<String> = repo
@@ -262,7 +266,13 @@ fn domains(repo: &Repo<'_>, glossary: &Glossary) -> (DomainMap, DomainMap) {
         .filter(|slug| slice.contexts.contains(slug) || slice.done.contains(slug))
         .collect();
     let of = |slugs: &[String]| {
-        retrodoc_pipeline::domains_from_contexts(&resolved, &slice.reads, glossary, slugs)
+        retrodoc_pipeline::domains_from_contexts(
+            &resolved,
+            &slice.reads,
+            glossary,
+            entry_points,
+            slugs,
+        )
     };
     (of(&slice.contexts), of(&documented))
 }

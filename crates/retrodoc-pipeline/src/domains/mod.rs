@@ -96,6 +96,13 @@ pub struct DomainCluster {
     /// can be served from the files of several contexts.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub by_paths: bool,
+    /// With `by_paths`: ids (`<file>#<name>`) of the routes declared in a file of another domain that
+    /// this domain serves…
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub routed_in: BTreeSet<String>,
+    /// …and of the routes of its own files that another domain (of the map, in the run or not) serves.
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub routed_out: BTreeSet<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use super::*;
 
 use crate::artifact::Retention;
@@ -681,4 +683,99 @@ async fn an_entry_point_is_only_placed_in_a_feature_of_its_own_domain() {
     assert_eq!(orders.entry_points.len(), 2, "the POST was placed");
     let routes = features.iter().find(|f| f.slug == "routes").unwrap();
     assert_eq!(routes.entry_points.len(), 1);
+}
+
+#[tokio::test]
+async fn a_route_declared_in_another_file_is_documented_by_the_context_that_owns_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let routed = "routes.rb#GET /routes";
+    let context = |slug: &str, path: &str| DomainCluster {
+        slug: slug.to_string(),
+        name: slug.to_string(),
+        description: "d".to_string(),
+        paths: vec![PathBuf::from(path)],
+        by_paths: true,
+        ..DomainCluster::default()
+    };
+    let mut orders = context("orders", "orders.rb");
+    orders.routed_in.insert(routed.to_string());
+    let mut routing = context("routing", "routes.rb");
+    routing.routed_out.insert(routed.to_string());
+    let domains = DomainMap {
+        domains: vec![orders, routing],
+    };
+    let entries = entry_points(&[
+        ("orders.rb", vec![entry("GET /orders", "order")]),
+        (
+            "routes.rb",
+            vec![entry("GET /routes", "order"), entry("GET /ping", "ping")],
+        ),
+    ]);
+    let llm = FakeLlm::answering(
+        r#"{"features":[{"slug":"all","name":"All","description":"d","entry_points":["E1","E2"]}]}"#,
+    );
+
+    let features = run(dir.path(), &domains, &entries, &llm).await;
+
+    let ids = |domain: &str| -> Vec<String> {
+        features
+            .iter()
+            .filter(|f| f.domain_slug == domain)
+            .flat_map(|f| f.entry_points.clone())
+            .collect()
+    };
+    assert_eq!(ids("orders"), ["orders.rb#GET /orders", routed]);
+    assert_eq!(ids("routing"), ["routes.rb#GET /ping"]);
+}
+
+#[tokio::test]
+async fn a_route_another_context_serves_stays_listed_when_the_file_that_declares_it_is_run() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut domains, entries) = contexts_fixture();
+    let served = "routes.rb#GET /routes".to_string();
+    domains.domains[0].routed_in.insert(served.clone());
+    domains.domains[1].routed_out.insert(served.clone());
+    // An earlier run of `orders` left the route unplaced.
+    let earlier = BehaviourCoverage {
+        unplaced_entry_points: vec![served.clone()],
+        ..BehaviourCoverage::default()
+    };
+    earlier.save(dir.path()).unwrap();
+    let llm = FakeLlm::answering(
+        r#"{"features":[{"slug":"all","name":"A","description":"d","entry_points":["E1"]}]}"#,
+    );
+
+    run_keeping(dir.path(), &only(&domains, "routing"), &entries, &llm).await;
+
+    assert_eq!(
+        BehaviourCoverage::load(dir.path())
+            .unwrap()
+            .unplaced_entry_points,
+        [served],
+        "`routing` does not hold it: only a run of `orders` places it again"
+    );
+}
+
+#[tokio::test]
+async fn a_route_that_changes_context_redoes_the_features_of_the_one_that_gains_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let (mut domains, entries) = contexts_fixture();
+    let llm = FakeLlm::answering(
+        r#"{"features":[{"slug":"all","name":"A","description":"d","entry_points":["E1"]}]}"#,
+    );
+    run(dir.path(), &domains, &entries, &llm).await;
+    let calls = llm.calls();
+    run(dir.path(), &domains, &entries, &llm).await;
+    assert_eq!(llm.calls(), calls, "nothing changed: nothing asked");
+
+    // A context file now matches the route: it moves from `routing` to `orders`.
+    let served = "routes.rb#GET /routes".to_string();
+    domains.domains[0].routed_in.insert(served.clone());
+    domains.domains[1].routed_out.insert(served);
+    run(dir.path(), &domains, &entries, &llm).await;
+
+    assert!(
+        llm.calls() > calls,
+        "the features of `orders`, which gains an entry point, are asked again"
+    );
 }

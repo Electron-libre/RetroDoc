@@ -135,8 +135,15 @@ async fn run(
     let slice = plan_run(f.dir.path(), &f.map, &f.sources, &f.seeds, &f.roles, &[], 1).unwrap();
     let resolved = f.map.resolve(&f.sources, &f.seeds);
     let all: Vec<String> = f.map.contexts.iter().map(|c| c.slug.clone()).collect();
-    let in_run = domains_from_contexts(&resolved, &slice.reads, &f.glossary, &slice.contexts);
-    let everywhere = domains_from_contexts(&resolved, &slice.reads, &f.glossary, &all);
+    let in_run = domains_from_contexts(
+        &resolved,
+        &slice.reads,
+        &f.glossary,
+        &f.entry_points,
+        &slice.contexts,
+    );
+    let everywhere =
+        domains_from_contexts(&resolved, &slice.reads, &f.glossary, &f.entry_points, &all);
 
     let features = build_features_from_surface(
         f.dir.path(),

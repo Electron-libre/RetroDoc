@@ -8,12 +8,13 @@
 //! left with no entry point is dropped. An entry point no feature claimed is only logged for now.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use self::repair::place_unclaimed;
 use super::*;
 use crate::artifact::Retention;
 use crate::behaviour_coverage::BehaviourCoverage;
+use crate::entry_points::EntryFile;
 use crate::naming::normalize;
 use crate::surface::Surface;
 
@@ -245,12 +246,29 @@ async fn place_per_domain(
         .iter()
         .flat_map(|d| d.paths.iter().map(|p| p.display().to_string()))
         .collect();
+    // The entry points of the run are placed again; those of its files that another context serves
+    // (a route declared there), and the ones of the contexts out of the run, stay as they were.
+    let held: BTreeSet<String> = domains
+        .domains
+        .iter()
+        .flat_map(|d| {
+            entry_points_of(d, entry_points)
+                .iter()
+                .map(|(f, e)| entry_point_id(f, e))
+                .collect::<Vec<_>>()
+        })
+        .collect();
+    let routed_away: BTreeSet<&String> =
+        domains.domains.iter().flat_map(|d| &d.routed_out).collect();
     let mut unplaced: Vec<String> = earlier
         .into_iter()
         .filter(|id| {
-            id.split('#')
+            let in_run_file = id
+                .split('#')
                 .next()
-                .is_some_and(|file| !in_run.contains(file))
+                .is_some_and(|file| in_run.contains(file));
+            let stale = held.contains(id) || (in_run_file && !routed_away.contains(id));
+            !stale
         })
         .collect();
     let mut changed = false;
@@ -298,28 +316,41 @@ fn domain_range(features: &[Feature], from: usize, slug: &str) -> Option<std::op
     Some(start..start + len)
 }
 
-/// The entry points of the files of `domain`.
+/// Whether the entry point `id` of `file` is one of the entry points of a domain built from its
+/// files: it is in one of them and no other domain serves it, or this domain serves it from a file
+/// of another.
+fn held_by_paths(domain: &DomainCluster, file: &Path, id: &str) -> bool {
+    domain.routed_in.contains(id)
+        || (!domain.routed_out.contains(id) && domain.paths.iter().any(|p| p == file))
+}
+
+/// The entry points of `domain` (built from its files), as the entry points of its files.
 fn entry_points_of(domain: &DomainCluster, entry_points: &EntryPoints) -> EntryPoints {
-    let files: BTreeSet<&Path> = domain.paths.iter().map(PathBuf::as_path).collect();
-    EntryPoints {
-        files: entry_points
-            .files
-            .iter()
-            .filter(|(file, _)| files.contains(file.as_path()))
-            .map(|(file, entries)| (file.clone(), entries.clone()))
-            .collect(),
+    let mut held = EntryPoints::default();
+    for (file, entry) in entry_points.iter() {
+        if held_by_paths(domain, file, &entry_point_id(file, entry)) {
+            held.files
+                .entry(file.to_path_buf())
+                .or_insert_with(|| EntryFile {
+                    content_hash: entry_points.files[file].content_hash.clone(),
+                    entry_points: Vec::new(),
+                })
+                .entry_points
+                .push(entry.clone());
+        }
     }
+    held
 }
 
 /// The entry points of the resources of a domain, in path order.
 fn domain_entries<'a>(domain: &DomainCluster, entry_points: &'a EntryPoints) -> Vec<Entry<'a>> {
     if domain.by_paths {
-        let files: BTreeSet<&Path> = domain.paths.iter().map(PathBuf::as_path).collect();
         return entry_points
             .iter()
-            .filter(|(file, _)| files.contains(file))
-            .map(|(file, entry)| Entry {
-                id: entry_point_id(file, entry),
+            .map(|(file, entry)| (file, entry, entry_point_id(file, entry)))
+            .filter(|(file, _, id)| held_by_paths(domain, file, id))
+            .map(|(file, entry, id)| Entry {
+                id,
                 file,
                 point: entry,
             })

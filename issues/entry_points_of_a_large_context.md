@@ -46,7 +46,7 @@ context that owns that controller.
 1. [x] Measure without LLM (an example): for each entry point of a file that only holds routes, the controller it
    routes to and the context that owns it; entry points that change context, those with no controller found,
    context sizes before and after, contexts over 150.
-2. [ ] A route goes to the context that owns the controller it routes to, else stays in the context of its file
+2. [x] A route goes to the context that owns the controller it routes to, else stays in the context of its file
    (same for any file that only declares entry points for other files).
 3. [ ] Several features calls over slices of entry points grouped by file when a domain has more than
    `MAX_ENTRIES_PER_PROMPT`; features of the same slug merged (no LLM); saved after each slice, one print per slice.

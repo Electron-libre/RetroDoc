@@ -1,8 +1,9 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
 use super::*;
 use crate::contexts::ResolvedContext;
+use crate::entry_points::{EntryFile, EntryKind, EntryPoint, EntryPoints};
 use crate::glossary::{Entity, ModelFile};
 
 fn context(slug: &str, files: &[&str]) -> ResolvedContext {
@@ -59,7 +60,13 @@ fn resolved() -> Resolved {
 fn a_context_is_a_domain_of_its_files_and_the_files_read_for_it() {
     let reads = BTreeMap::from([("orders".to_string(), vec![PathBuf::from("a/shared.rb")])]);
 
-    let map = domains_from_contexts(&resolved(), &reads, &glossary(), &["orders".to_string()]);
+    let map = domains_from_contexts(
+        &resolved(),
+        &reads,
+        &glossary(),
+        &EntryPoints::default(),
+        &["orders".to_string()],
+    );
 
     assert_eq!(map.domains.len(), 1);
     let orders = &map.domains[0];
@@ -80,6 +87,7 @@ fn the_domains_follow_the_order_of_the_map_and_only_the_contexts_asked_for() {
         &resolved(),
         &BTreeMap::new(),
         &glossary(),
+        &EntryPoints::default(),
         &["users".to_string(), "orders".to_string()],
     );
 
@@ -94,6 +102,7 @@ fn the_vocabulary_of_a_domain_is_its_own_best_connected_entities() {
         &resolved(),
         &reads,
         &glossary(),
+        &EntryPoints::default(),
         &["orders".to_string(), "users".to_string()],
     );
 
@@ -101,4 +110,57 @@ fn the_vocabulary_of_a_domain_is_its_own_best_connected_entities() {
 
     assert_eq!(vocabulary["orders"], ["Order"]);
     assert_eq!(vocabulary["users"], ["User"]);
+}
+
+fn route(name: &str, resource: &str) -> EntryPoint {
+    EntryPoint {
+        kind: EntryKind::HttpRoute,
+        name: name.to_string(),
+        verb: String::new(),
+        resource: resource.to_string(),
+        description: String::new(),
+        outputs: Vec::new(),
+    }
+}
+
+#[test]
+fn a_route_is_routed_to_the_context_that_owns_the_file_it_names() {
+    let owned = |slug: &str, file: &str| ResolvedContext {
+        entry_files: vec![PathBuf::from(file)],
+        ..context(slug, &[file])
+    };
+    let resolved = Resolved {
+        contexts: vec![
+            owned("signing", "app/handlers/signatures_handler.py"),
+            owned("routing", "config/routes.rb"),
+        ],
+        support: Vec::new(),
+    };
+    let entry_points = EntryPoints {
+        files: BTreeMap::from([(
+            PathBuf::from("config/routes.rb"),
+            EntryFile {
+                content_hash: String::new(),
+                entry_points: vec![
+                    route("GET /signatures", "signature"),
+                    route("GET /ok", "ok"),
+                ],
+            },
+        )]),
+    };
+    let slugs = ["signing".to_string(), "routing".to_string()];
+
+    let map = domains_from_contexts(
+        &resolved,
+        &BTreeMap::new(),
+        &glossary(),
+        &entry_points,
+        &slugs,
+    );
+
+    let moved = "config/routes.rb#GET /signatures".to_string();
+    assert_eq!(map.domains[0].routed_in, BTreeSet::from([moved.clone()]));
+    assert!(map.domains[0].routed_out.is_empty());
+    assert_eq!(map.domains[1].routed_out, BTreeSet::from([moved]));
+    assert!(map.domains[1].routed_in.is_empty());
 }
