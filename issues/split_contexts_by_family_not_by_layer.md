@@ -17,6 +17,20 @@ split cut across layers by family, so that a context holds one subject.
   another role and join no group, so they are orphan folders, listed to the LLM by layer.
 * A context left over 230 files after one level of splitting twice on that run.
 
+# Findings of the work on it (2026-10-13)
+* A first cause was a defect of the split, not the layout: the folders of the split context were all added as a
+  fallback to its first part, so 43 folders were held by two contexts of the saved map and the first one won
+  them (the whole workflow layer went to the "drafting" part whatever the split said). Fixed: a folder a part holds
+  is no longer the fallback of the first one.
+* The listing named a folder by sub-folder one level only; the families of the workflow layer are folders one
+  level deeper (`processes/<family>/`, 148 of the 175 files). Fixed: a big folder is listed by its own sub-folders as
+  deep as it stays big (5 levels at most), with a test.
+* A part still over 150 files is split again (twice at most, at least three groups and folders to cut).
+* On the copy of the real map (hosted `deepseek-chat`, 5 calls, 20k tokens in, $0.008): 35 contexts, the largest
+  199 files; the families of the workflows are now grouped by subject (the multi-party flows together, the
+  approval and signature flows together, the internal-document flow apart). The map still varies from a call to
+  another (the support went from 14% to 38% of the files across the builds).
+
 # Approach
 Measure first, with no LLM call, on the saved run: names shared by files across layers (a file stem, or a folder
 named like a stem) in the orphan folders of the biggest parts.

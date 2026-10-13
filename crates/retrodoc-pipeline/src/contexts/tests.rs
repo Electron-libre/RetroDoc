@@ -640,3 +640,143 @@ async fn a_context_whose_groups_resolve_to_no_file_is_dropped() {
     let slugs: Vec<&str> = again.contexts.iter().map(|c| c.slug.as_str()).collect();
     assert_eq!(slugs, ["contracts"]);
 }
+
+#[tokio::test]
+async fn a_folder_the_split_gives_to_a_later_part_is_not_also_the_first_parts_fallback() {
+    let dir = tempfile::tempdir().unwrap();
+    // The first answer already holds the two sub-folders (the split lists them by sub-folder when they
+    // are big); the split gives `rules` to `approvals` (the first part) and `tasks` to `tasks`.
+    let llm = FakeLlm::replying(|n, _| {
+        Ok(match n {
+            0 => r#"{"contexts":[{"slug":"contracts","name":"C","groups":["g1","g2"],
+                "folders":["app/workflows/rules/","app/workflows/tasks/"]}]}"#
+                .to_string(),
+            _ => r#"{"contexts":[
+                {"slug":"approvals","name":"A","groups":["g1"],"folders":["app/workflows/rules/"]},
+                {"slug":"tasks","name":"T","groups":["g2"],"folders":["app/workflows/tasks/"]}]}"#
+                .to_string(),
+        })
+    });
+
+    let map = build_big(dir.path(), &llm).await;
+
+    let holders: Vec<&str> = map
+        .contexts
+        .iter()
+        .filter(|c| c.folders.contains(&"app/workflows/tasks/".to_string()))
+        .map(|c| c.slug.as_str())
+        .collect();
+    assert_eq!(holders, ["tasks"], "{map:?}");
+    let resolved = map.resolve(&big_sources(), &seeds());
+    let tasks = resolved
+        .contexts
+        .iter()
+        .find(|c| c.slug == "tasks")
+        .unwrap();
+    assert!(
+        tasks.files.len() >= 160,
+        "the 160 task files follow the split: {}",
+        tasks.files.len()
+    );
+}
+
+#[tokio::test]
+async fn a_folder_still_big_after_one_split_is_listed_by_its_own_sub_folders() {
+    let dir = tempfile::tempdir().unwrap();
+    // `processes` holds one folder per family, 45 files each: the families are what the LLM must see.
+    let mut many = sources();
+    for family in ["hybrid", "market"] {
+        many.extend(
+            (0..45).map(|i| PathBuf::from(format!("app/workflows/processes/{family}/step_{i}.rb"))),
+        );
+    }
+    many.extend(
+        (0..3).map(|i| PathBuf::from(format!("app/workflows/processes/small/step_{i}.rb"))),
+    );
+    let llm = FakeLlm::answering(ANSWER);
+
+    build_context_map(
+        dir.path(),
+        &many,
+        &seeds(),
+        &ProductBrief::default(),
+        &llm,
+        false,
+    )
+    .await
+    .unwrap();
+
+    let prompt = &llm.prompts()[0];
+    assert!(
+        prompt.contains("app/workflows/processes/hybrid/ | 45"),
+        "{prompt}"
+    );
+    assert!(
+        prompt.contains("app/workflows/processes/market/ | 45"),
+        "{prompt}"
+    );
+    assert!(
+        prompt.contains("app/workflows/processes/small/ | 3"),
+        "a small family is listed under its own name too: {prompt}"
+    );
+}
+
+#[tokio::test]
+async fn a_part_still_over_the_limit_is_split_again_once() {
+    let dir = tempfile::tempdir().unwrap();
+    // Three families of 60 files each: the first split keeps them together in `life` (183 files).
+    let mut many = sources();
+    for family in ["a", "b", "c"] {
+        many.extend(
+            (0..60).map(|i| PathBuf::from(format!("app/workflows/processes/{family}/step_{i}.rb"))),
+        );
+    }
+    let llm = FakeLlm::replying(|_, request| {
+        let prompt = &request.messages[1].content;
+        Ok(if prompt.contains("Context to split: Life") {
+            r#"{"contexts":[
+                {"slug":"life-a","name":"LA","groups":["g1"],"folders":["app/workflows/processes/a/"]},
+                {"slug":"life-bc","name":"LBC","groups":[],"folders":["app/workflows/processes/b/","app/workflows/processes/c/"]}]}"#
+        } else if prompt.contains("Context to split") {
+            r#"{"contexts":[
+                {"slug":"life","name":"Life","groups":["g1"],"folders":["app/workflows/processes/a/","app/workflows/processes/b/","app/workflows/processes/c/"]},
+                {"slug":"other","name":"Other","groups":["g2"]}]}"#
+        } else {
+            ANSWER
+        }
+        .to_string())
+    });
+
+    let map = build_context_map(
+        dir.path(),
+        &many,
+        &seeds(),
+        &ProductBrief::default(),
+        &llm,
+        false,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(
+        llm.calls(),
+        3,
+        "the map, the split, the split of the part left big"
+    );
+    let slugs: Vec<&str> = map.contexts.iter().map(|c| c.slug.as_str()).collect();
+    assert_eq!(slugs, ["life-a", "life-bc", "other"], "{map:?}");
+    let resolved = map.resolve(&many, &seeds());
+    assert!(resolved.contexts.iter().all(|c| c.files.len() <= 150));
+}
+
+#[tokio::test]
+async fn a_context_that_cannot_be_split_is_not_asked_about_twice() {
+    let dir = tempfile::tempdir().unwrap();
+    let llm = FakeLlm::replying(|n, _| Ok(if n == 0 { ANSWER } else { "not json" }.to_string()));
+
+    let map = build_big(dir.path(), &llm).await;
+
+    // The map, then the split twice (the answer is retried once by `complete_json`), then nothing.
+    assert_eq!(llm.calls(), 3, "{:?}", llm.prompts().len());
+    assert_eq!(map.contexts.len(), 1);
+}

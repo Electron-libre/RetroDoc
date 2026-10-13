@@ -45,6 +45,12 @@ const MAX_FOLDERS: usize = 100;
 const FOLDER_DEPTH: usize = 2;
 /// A folder holding more orphan files than this is listed by its sub-folders.
 const SPLIT_FOLDER_FILES: usize = 40;
+/// Groups and folders a context needs to be worth a split call.
+const MIN_ENTRIES_TO_SPLIT: usize = 3;
+/// Times a context over the limit is split, a part of a split included.
+const MAX_SPLIT_LEVELS: usize = 2;
+/// Deepest folder a listing names.
+const MAX_FOLDER_DEPTH: usize = 5;
 const SAMPLE_FILES: usize = 6;
 /// A context with more files than this is too big for one run: one more call splits it.
 const MAX_CONTEXT_FILES: usize = 150;
@@ -276,19 +282,28 @@ impl Listing {
                 .map(|p| p.components().take(depth).collect())
                 .unwrap_or_default()
         };
+        // Orphan files under each folder, at every depth that can name one.
         let mut sizes: BTreeMap<PathBuf, usize> = BTreeMap::new();
+        let parent_depth = |file: &Path| file.parent().map_or(0, |p| p.components().count());
         for file in &grouped.orphans {
-            *sizes.entry(folder_of(file, FOLDER_DEPTH)).or_insert(0) += 1;
+            // Once per folder that holds it, from the top one down to its own.
+            let deepest = parent_depth(file).clamp(FOLDER_DEPTH, MAX_FOLDER_DEPTH);
+            for depth in FOLDER_DEPTH..=deepest {
+                *sizes.entry(folder_of(file, depth)).or_insert(0) += 1;
+            }
         }
         let mut by_folder: BTreeMap<PathBuf, Vec<&PathBuf>> = BTreeMap::new();
         for file in &grouped.orphans {
-            let top = folder_of(file, FOLDER_DEPTH);
-            // A layer folder holding many orphans is listed by sub-folder: its files serve many contexts.
-            let folder = if sizes[&top] > SPLIT_FOLDER_FILES {
-                folder_of(file, FOLDER_DEPTH + 1)
-            } else {
-                top
-            };
+            // A layer folder holding many orphans is listed by sub-folder, as deep as it stays
+            // big: its files serve many contexts, and a family often is a folder of its own.
+            let mut depth = FOLDER_DEPTH;
+            while depth < MAX_FOLDER_DEPTH
+                && depth < parent_depth(file)
+                && sizes[&folder_of(file, depth)] > SPLIT_FOLDER_FILES
+            {
+                depth += 1;
+            }
+            let folder = folder_of(file, depth);
             if !folder.as_os_str().is_empty() {
                 by_folder.entry(folder).or_default().push(file);
             }
@@ -476,17 +491,53 @@ async fn split_large_contexts(
     brief: &ProductBrief,
     llm: &dyn LlmProvider,
 ) -> Result<ContextMap, PipelineError> {
-    let resolved = map.resolve(sources, seeds);
-    let ContextMap { contexts, support } = map;
-    let big: Vec<bool> = resolved
+    let mut map = map;
+    // A part of a split can still be big: it is split again, a bounded number of times.
+    let mut whole: BTreeSet<String> = BTreeSet::new();
+    for _ in 0..MAX_SPLIT_LEVELS {
+        let resolved = map.resolve(sources, seeds);
+        let big: Vec<bool> = map
+            .contexts
+            .iter()
+            .zip(&resolved.contexts)
+            .map(|(c, own)| own.files.len() > MAX_CONTEXT_FILES && !whole.contains(&c.slug))
+            .collect();
+        if !big.contains(&true) {
+            break;
+        }
+        map = split_once(map, resolved, &big, &mut whole, grouped, brief, llm).await?;
+    }
+    let left = map.resolve(sources, seeds);
+    let still_big = left
         .contexts
         .iter()
-        .map(|c| c.files.len() > MAX_CONTEXT_FILES)
-        .collect();
+        .filter(|c| c.files.len() > MAX_CONTEXT_FILES)
+        .count();
+    if still_big > 0 {
+        tracing::warn!(
+            contexts = still_big,
+            "contexts still over {MAX_CONTEXT_FILES} files after splitting: a run takes each whole"
+        );
+    }
+    Ok(map)
+}
+
+/// One level: the contexts flagged in `big` replaced by their parts. The ones that could not be
+/// split are added to `whole`, so they are not asked about again.
+async fn split_once(
+    map: ContextMap,
+    resolved: Resolved,
+    big: &[bool],
+    whole: &mut BTreeSet<String>,
+    grouped: &Groups,
+    brief: &ProductBrief,
+    llm: &dyn LlmProvider,
+) -> Result<ContextMap, PipelineError> {
+    let ContextMap { contexts, support } = map;
     // The slugs of the contexts left whole are kept; a part that takes one gets a suffix.
     let mut slugs: Vec<String> = contexts
         .iter()
-        .zip(&big)
+        .zip(big)
         .filter(|(_, big)| !**big)
         .map(|(c, _)| c.slug.clone())
         .collect();
@@ -496,15 +547,15 @@ async fn split_large_contexts(
             out.push(context);
             continue;
         }
-        match split_context(&context, &own.files, grouped, brief, llm).await? {
-            Some(parts) => {
-                for mut part in parts {
-                    part.slug = unique_slug(&part.slug, slugs.iter().map(String::as_str));
-                    slugs.push(part.slug.clone());
-                    out.push(part);
-                }
+        if let Some(parts) = split_context(&context, &own.files, grouped, brief, llm).await? {
+            for mut part in parts {
+                part.slug = unique_slug(&part.slug, slugs.iter().map(String::as_str));
+                slugs.push(part.slug.clone());
+                out.push(part);
             }
-            None => out.push(context),
+        } else {
+            whole.insert(context.slug.clone());
+            out.push(context);
         }
     }
     Ok(ContextMap {
@@ -549,6 +600,11 @@ async fn split_context(
         .collect();
     let sub = Groups { groups, orphans };
     let listing = Listing::new(&sub);
+    if listing.groups.len() + listing.folders.len() < MIN_ENTRIES_TO_SPLIT {
+        // With fewer than three groups and folders there is hardly anything to cut: the call
+        // would answer the context itself, for the price of a call.
+        return Ok(None);
+    }
     let prompt = format!(
         "Context to split: {} - {}\n\n{}",
         context.name,
@@ -566,11 +622,12 @@ async fn split_context(
         tracing::warn!(context = %context.slug, "the split gave fewer than two parts, kept whole");
         return Ok(None);
     }
-    let placed: BTreeSet<&String> = parts
+    let placed: BTreeSet<String> = parts
         .contexts
         .iter()
         .flat_map(|c| &c.folders)
         .chain(&parts.support.folders)
+        .cloned()
         .collect();
     let forgotten: Vec<String> = listing
         .folders
@@ -584,7 +641,18 @@ async fn split_context(
     first.groups.extend(parts.support.groups);
     first.folders.extend(parts.support.folders);
     first.folders.extend(forgotten);
-    first.folders.extend(context.folders.iter().cloned());
+    // The context's own folders stay as a fallback on the first part, unless a part holds them
+    // (the sub-folders the split lists are often the context's own): a folder in two contexts goes
+    // to the first of them, whatever the split meant.
+    first.folders.extend(
+        context
+            .folders
+            .iter()
+            .filter(|f| !placed.contains(*f))
+            .cloned(),
+    );
+    first.folders.sort();
+    first.folders.dedup();
     tracing::info!(
         context = %context.slug,
         parts = parts.contexts.len(),
