@@ -1,5 +1,5 @@
 //! Measures, with no LLM call, what giving a route to the context that owns its controller changes
-//! (`issues/entry_points_of_a_large_context.md`, step 1).
+//! (`issues/done/entry_points_of_a_large_context.md`, step 1).
 //!
 //! Usage: `cargo run -q -p retrodoc-pipeline --example route_owner_measure -- <run dir>...`
 //!

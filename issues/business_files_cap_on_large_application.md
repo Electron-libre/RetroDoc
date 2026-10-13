@@ -273,5 +273,5 @@ inventories of the files already read were kept (the readers add), the features 
 
 Product: 8 contexts, 46 features, 203 use cases, no feature without a use case. Cost of the whole validation on
 the application, all builds of the map and all runs: about $1.0 of the $1.5 ceiling. Findings: the entry points a
-large context never shows to the LLM (`issues/entry_points_of_a_large_context.md`), and a feature whose use cases
+large context never shows to the LLM (`issues/done/entry_points_of_a_large_context.md`), and a feature whose use cases
 answer is cut at the output limit again (`issues/shorter_use_case_answers.md`).
