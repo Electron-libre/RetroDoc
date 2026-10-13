@@ -52,7 +52,7 @@ Measure first on the saved run (no LLM): for the use cases flagged by each signa
 3. [x] Mechanical check: a use case reached only through entry points no person starts (job, consumer, webhook, public API) has no human actor; its human steps become the calling program, the external provider or the system, and the primary actor is dropped (`without_invented_humans`). The narrative is not rewritten (step 4's prompt). A feature with no entry point is not judged.
 4. [x] Use cases prompt: each entry point shows its kind; only a route or a command is started by a person, else the actor is the system, the external provider or the calling program, with no `primary_actor`. Not measured on a real run (step 7).
 5. [x] Entry points: in an application, a `public_api` entry is kept only if its file is reached (2 hops of references) from a route, command, job, consumer or webhook entry; else it is left out for the later passes (technical support); a library keeps all (`without_unreached_public_api`). Measure on the saved run: 40 of 106 `public_api` entries left out, 7 of the 17 use cases that cite only `public_api` entries (2% of 285). A workflow has no entry point kind of its own, so it counts only through the route or job that reaches it.
-6. [ ] Use cases prompt: a form-opening action and its submit are one use case.
+6. [x] Use cases prompt: a route that opens a form and the one that submits it are one use case citing both (entry points addendum). Not measured on a real run (step 7); a mechanical merge was not done.
 7. [ ] Re-validate on the large application (needs the user's agreement before the paid run); figures to the issue and `PLAN.md`, generically.
 
 ## Decisions

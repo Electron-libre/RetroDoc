@@ -20,7 +20,9 @@ Each entry point shows its kind in brackets. A use case none of whose entry poin
 http_route, a cli_command or an other is reached only by a job, a consumer, a webhook or a public \
 method, which no person starts: it has no human actor and no `primary_actor`, its actor is the \
 system, the external provider that calls it or the program that calls the public method. A use \
-case that also covers a route or a command keeps its human actor. \
+case that also covers a route or a command keeps its human actor. Closely related entry points are first of all a route that only opens a form (new, edit or \
+the like) and the route that submits it (create, update or the like): they are one use case \
+that cites both, do not describe the same capability twice. \
 Prefer business wording (what happens to the contract, the company, the user) over method names.";
 
 /// Added to the system prompt when the application's business actors are

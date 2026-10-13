@@ -465,6 +465,10 @@ fn the_prompt_says_who_starts_what_only_where_it_applies() {
     // `other` is a kind nobody could name: the check keeps its human, so does the prompt.
     assert!(prompt::system_prompt(true, false).contains("a cli_command or an other"));
     assert!(prompt::system_prompt(true, false).contains("also covers a route"));
+    // The form and its submit are one use case, asked only where there are entry points.
+    let one_use_case = "a route that only opens a form";
+    assert!(prompt::system_prompt(true, false).contains(one_use_case));
+    assert!(!prompt::system_prompt(false, true).contains(one_use_case));
 }
 
 #[tokio::test]
