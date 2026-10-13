@@ -80,7 +80,7 @@ and how many the cap drops (no LLM call needed: `business-files.yaml` and the fi
      not done within a budget of files, a context never cut), the files read for a context (roles entry point,
      model and logic, plus the files its entry points reference at depth 1), and the done state of a context
      (kept in `fingerprints.json` when its whole chain finished).
-   * 4c. [ ] Domains, features, use cases and rules per context: `[pipeline] domains_from = "contexts"`, a
+   * 4c. [x] (library; frozen actors and the wiring are in 4d) Domains, features, use cases and rules per context: `[pipeline] domains_from = "contexts"`, a
      context is a domain with no LLM call, its entry points are those of its files, its vocabulary is its
      own, the actors are computed once then frozen (editable, `retrodoc actors --force`), the artifacts of the
      other contexts are kept as they are. Test: context A then B, A is neither redone nor changed and the

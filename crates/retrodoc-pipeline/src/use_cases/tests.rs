@@ -964,3 +964,43 @@ async fn a_failure_among_parallel_calls_keeps_the_features_before_it() {
     assert_eq!(use_cases.len(), 4);
     assert_eq!(healthy.calls(), 2);
 }
+
+#[tokio::test]
+async fn the_vocabulary_of_another_domain_does_not_redo_the_use_cases_of_a_feature() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.rs"), "fn a() {}\n").unwrap();
+    let features = vec![feature("pay", &["a.rs"])];
+    let llm = FakeLlm::replying(|n, _| Ok(use_case_reply(n)));
+    let with = |global: &[&str], billing: &[&str]| UseCaseContext {
+        vocabulary: global.iter().map(ToString::to_string).collect(),
+        domain_vocabulary: std::collections::BTreeMap::from([(
+            "billing".to_string(),
+            billing.iter().map(ToString::to_string).collect(),
+        )]),
+        ..UseCaseContext::default()
+    };
+
+    build_use_cases(dir.path(), &features, &with(&["Order"], &["Invoice"]), &llm)
+        .await
+        .unwrap();
+    // Another context was read since: the application's vocabulary grew, the domain's did not.
+    build_use_cases(
+        dir.path(),
+        &features,
+        &with(&["Order", "Rider"], &["Invoice"]),
+        &llm,
+    )
+    .await
+    .unwrap();
+    assert_eq!(llm.calls(), 1);
+
+    build_use_cases(
+        dir.path(),
+        &features,
+        &with(&["Order"], &["Invoice", "Ledger"]),
+        &llm,
+    )
+    .await
+    .unwrap();
+    assert_eq!(llm.calls(), 2, "its own vocabulary does");
+}

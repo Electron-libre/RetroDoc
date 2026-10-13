@@ -8,10 +8,12 @@
 //! left with no entry point is dropped. An entry point no feature claimed is only logged for now.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use self::repair::place_unclaimed;
 use super::*;
+use crate::artifact::Retention;
+use crate::behaviour_coverage::BehaviourCoverage;
 use crate::naming::normalize;
 use crate::surface::Surface;
 
@@ -80,6 +82,7 @@ pub fn entry_point_id(file: &Path, entry: &EntryPoint) -> String {
 /// # Errors
 ///
 /// Returns an error if an LLM call fails or the artifact can't be saved.
+#[allow(clippy::too_many_arguments)] // the inputs of one pass, as in the other passes
 pub async fn build_features_from_surface(
     repo_root: &Path,
     domains: &DomainMap,
@@ -88,10 +91,16 @@ pub async fn build_features_from_surface(
     brief: &ProductBrief,
     evidence: &Evidence,
     llm: &dyn LlmProvider,
+    keep: Retention,
 ) -> Result<Vec<Feature>, PipelineError> {
     let previous = load_features(repo_root).unwrap_or_default();
     let mut prints = Fingerprints::load(repo_root);
     let known_units = std::mem::take(&mut prints.features);
+    let mut features: Vec<Feature> = Vec::new();
+    if keep == Retention::Others {
+        features = retain_other_domains(domains, &previous, &known_units, &mut prints);
+    }
+    let retained = features.len();
 
     let units: Vec<(&DomainCluster, Vec<Entry<'_>>)> = domains
         .domains
@@ -102,7 +111,6 @@ pub async fn build_features_from_surface(
         .collect();
     let mut progress = Progress::new("features", units.len());
 
-    let mut features: Vec<Feature> = Vec::new();
     for (domain, entries) in &units {
         let key = unit_key(&domain.slug, None);
         let close = evidence.section(&domain_query(domain, entries));
@@ -160,15 +168,28 @@ pub async fn build_features_from_surface(
     // Saved before the placement call: a failure there keeps the units done.
     prints.save(repo_root)?;
     save_features(repo_root, &features)?;
+    let earlier_unplaced = BehaviourCoverage::load(repo_root)
+        .map(|c| c.unplaced_entry_points)
+        .unwrap_or_default();
+    let in_run;
+    let placed_among = if keep == Retention::Others {
+        in_run = entry_points_of(domains, entry_points);
+        &in_run
+    } else {
+        entry_points
+    };
     let placed = place_unclaimed(
         repo_root,
-        &mut features,
-        entry_points,
+        &mut features[retained..],
+        placed_among,
         brief,
         &mut prints,
         llm,
     )
     .await?;
+    if keep == Retention::Others {
+        keep_other_unplaced(repo_root, earlier_unplaced, domains)?;
+    }
     prints.save(repo_root)?;
     if placed {
         save_features(repo_root, &features)?;
@@ -176,8 +197,88 @@ pub async fn build_features_from_surface(
     Ok(features)
 }
 
+/// The features of the domains that are not in `domains` (the other bounded contexts), and their
+/// fingerprints put back in `prints`.
+fn retain_other_domains(
+    domains: &DomainMap,
+    previous: &[Feature],
+    known_units: &BTreeMap<String, String>,
+    prints: &mut Fingerprints,
+) -> Vec<Feature> {
+    let run: BTreeSet<&str> = domains.domains.iter().map(|d| d.slug.as_str()).collect();
+    for (key, print) in known_units {
+        if key
+            .split_once('/')
+            .is_some_and(|(slug, _)| !run.contains(slug))
+        {
+            prints.features.insert(key.clone(), print.clone());
+        }
+    }
+    previous
+        .iter()
+        .filter(|f| !run.contains(f.domain_slug.as_str()))
+        .cloned()
+        .collect()
+}
+
+/// The entry points no feature holds that the earlier slices listed stay listed: the placement
+/// only looked at the files of this one.
+fn keep_other_unplaced(
+    repo_root: &Path,
+    earlier: Vec<String>,
+    domains: &DomainMap,
+) -> Result<(), PipelineError> {
+    let files: BTreeSet<String> = domains
+        .domains
+        .iter()
+        .flat_map(|d| d.paths.iter().map(|p| p.display().to_string()))
+        .collect();
+    let mut coverage = BehaviourCoverage::load(repo_root).unwrap_or_default();
+    let mut unplaced: Vec<String> = earlier
+        .into_iter()
+        .filter(|id| {
+            id.split('#')
+                .next()
+                .is_some_and(|file| !files.contains(file))
+        })
+        .collect();
+    unplaced.extend(coverage.unplaced_entry_points);
+    coverage.unplaced_entry_points = unplaced;
+    coverage.save(repo_root)
+}
+
+/// The entry points of the files of `domains`: a slice at a time, the entry points of the other
+/// slices are theirs to place.
+fn entry_points_of(domains: &DomainMap, entry_points: &EntryPoints) -> EntryPoints {
+    let files: BTreeSet<&Path> = domains
+        .domains
+        .iter()
+        .flat_map(|d| d.paths.iter().map(PathBuf::as_path))
+        .collect();
+    EntryPoints {
+        files: entry_points
+            .files
+            .iter()
+            .filter(|(file, _)| files.contains(file.as_path()))
+            .map(|(file, entries)| (file.clone(), entries.clone()))
+            .collect(),
+    }
+}
+
 /// The entry points of the resources of a domain, in path order.
 fn domain_entries<'a>(domain: &DomainCluster, entry_points: &'a EntryPoints) -> Vec<Entry<'a>> {
+    if domain.by_paths {
+        let files: BTreeSet<&Path> = domain.paths.iter().map(PathBuf::as_path).collect();
+        return entry_points
+            .iter()
+            .filter(|(file, _)| files.contains(file))
+            .map(|(file, entry)| Entry {
+                id: entry_point_id(file, entry),
+                file,
+                point: entry,
+            })
+            .collect();
+    }
     let resources: BTreeSet<String> = domain.resources.iter().map(|r| normalize(r)).collect();
     entry_points
         .iter()

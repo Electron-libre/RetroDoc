@@ -1,5 +1,6 @@
 use super::*;
 
+use crate::artifact::Retention;
 use crate::behaviour_coverage::BehaviourCoverage;
 use crate::entry_points::{EntryFile, EntryKind};
 use crate::testing::{killed, FakeLlm};
@@ -80,6 +81,7 @@ async fn run(
         &ProductBrief::default(),
         &Evidence::default(),
         llm,
+        Retention::OnlyRead,
     )
     .await
     .unwrap()
@@ -438,6 +440,7 @@ async fn a_killed_run_keeps_the_domains_done_and_the_rerun_resumes() {
             &ProductBrief::default(),
             &Evidence::default(),
             &stuck,
+            Retention::OnlyRead,
         ),
         &stuck,
     )
@@ -456,5 +459,170 @@ async fn a_killed_run_keeps_the_domains_done_and_the_rerun_resumes() {
         healthy.calls(),
         2,
         "the routing domain, then the placement of `GET /ping`: the orders domain is not asked again"
+    );
+}
+
+/// Two domains of a context map: no resources, the entry points are those of their files.
+fn contexts_fixture() -> (DomainMap, EntryPoints) {
+    let context = |slug: &str, path: &str| DomainCluster {
+        slug: slug.to_string(),
+        name: slug.to_string(),
+        description: "d".to_string(),
+        paths: vec![PathBuf::from(path)],
+        by_paths: true,
+        ..DomainCluster::default()
+    };
+    let entries = entry_points(&[
+        // Both files serve the same resource: the files tell the contexts apart, not the resource.
+        (
+            "orders.rb",
+            vec![
+                entry("GET /orders", "order"),
+                entry("POST /orders", "order"),
+            ],
+        ),
+        ("routes.rb", vec![entry("GET /routes", "order")]),
+    ]);
+    (
+        DomainMap {
+            domains: vec![
+                context("orders", "orders.rb"),
+                context("routing", "routes.rb"),
+            ],
+        },
+        entries,
+    )
+}
+
+fn only(domains: &DomainMap, slug: &str) -> DomainMap {
+    DomainMap {
+        domains: domains
+            .domains
+            .iter()
+            .filter(|d| d.slug == slug)
+            .cloned()
+            .collect(),
+    }
+}
+
+async fn run_keeping(
+    dir: &Path,
+    domains: &DomainMap,
+    entries: &EntryPoints,
+    llm: &FakeLlm,
+) -> Vec<Feature> {
+    build_features_from_surface(
+        dir,
+        domains,
+        entries,
+        &Surface::default(),
+        &ProductBrief::default(),
+        &Evidence::default(),
+        llm,
+        Retention::Others,
+    )
+    .await
+    .unwrap()
+}
+
+fn answer_by_domain() -> FakeLlm {
+    FakeLlm::replying(|_, request| {
+        Ok(if request.messages[1].content.contains("GET /routes") {
+            r#"{"features":[{"slug":"routes","name":"R","description":"d",
+                "entry_points":["routes.rb#GET /routes"]}]}"#
+        } else {
+            r#"{"features":[{"slug":"orders","name":"O","description":"d",
+                "entry_points":["orders.rb#GET /orders","orders.rb#POST /orders"]}]}"#
+        }
+        .to_string())
+    })
+}
+
+#[tokio::test]
+async fn a_domain_without_resources_takes_the_entry_points_of_its_files_only() {
+    let dir = tempfile::tempdir().unwrap();
+    let (domains, entries) = contexts_fixture();
+    let llm = answer_by_domain();
+
+    let features = run_keeping(dir.path(), &only(&domains, "orders"), &entries, &llm).await;
+
+    assert_eq!(llm.calls(), 1);
+    assert_eq!(features.len(), 1);
+    assert_eq!(
+        features[0].entry_points.len(),
+        2,
+        "not the route of the other file"
+    );
+}
+
+#[tokio::test]
+async fn running_one_domain_after_the_other_keeps_the_first_and_never_asks_for_it_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let (domains, entries) = contexts_fixture();
+    let llm = answer_by_domain();
+
+    run_keeping(dir.path(), &only(&domains, "orders"), &entries, &llm).await;
+    let before = std::fs::read_to_string(Artifact::Features.path(dir.path())).unwrap();
+    let both = run_keeping(dir.path(), &only(&domains, "routing"), &entries, &llm).await;
+
+    assert_eq!(llm.calls(), 2, "one call per domain");
+    let slugs: Vec<&str> = both.iter().map(|f| f.domain_slug.as_str()).collect();
+    assert_eq!(slugs, ["orders", "routing"]);
+    let saved = load_features(dir.path()).unwrap();
+    assert_eq!(saved.len(), 2);
+    assert!(
+        before.contains("orders")
+            && std::fs::read_to_string(Artifact::Features.path(dir.path()))
+                .unwrap()
+                .contains("slug: orders"),
+        "the first feature is still there"
+    );
+
+    // Both domains together: nothing is asked, the first one's fingerprint was kept.
+    let again = run_keeping(dir.path(), &domains, &entries, &llm).await;
+    assert_eq!(llm.calls(), 2);
+    assert_eq!(again.len(), 2);
+}
+
+#[tokio::test]
+async fn without_retention_the_domains_not_given_are_dropped() {
+    let dir = tempfile::tempdir().unwrap();
+    let (domains, entries) = contexts_fixture();
+    let llm = answer_by_domain();
+    run_keeping(dir.path(), &only(&domains, "orders"), &entries, &llm).await;
+
+    let features = run(dir.path(), &only(&domains, "routing"), &entries, &llm).await;
+
+    let slugs: Vec<&str> = features.iter().map(|f| f.domain_slug.as_str()).collect();
+    assert_eq!(slugs, ["routing"]);
+}
+
+#[tokio::test]
+async fn the_entry_points_an_earlier_slice_left_unplaced_stay_listed() {
+    let dir = tempfile::tempdir().unwrap();
+    let (domains, entries) = contexts_fixture();
+    // The orders domain claims one of its two entry points, and the placement places nothing.
+    let llm = FakeLlm::replying(|_, request| {
+        let prompt = &request.messages[1].content;
+        Ok(if prompt.contains("Entry points to place") {
+            r#"{"placements":[]}"#
+        } else if prompt.contains("GET /routes") {
+            r#"{"features":[{"slug":"routes","name":"R","description":"d",
+                "entry_points":["routes.rb#GET /routes"]}]}"#
+        } else {
+            r#"{"features":[{"slug":"orders","name":"O","description":"d",
+                "entry_points":["orders.rb#GET /orders"]}]}"#
+        }
+        .to_string())
+    });
+
+    run_keeping(dir.path(), &only(&domains, "orders"), &entries, &llm).await;
+    run_keeping(dir.path(), &only(&domains, "routing"), &entries, &llm).await;
+
+    assert_eq!(
+        BehaviourCoverage::load(dir.path())
+            .unwrap()
+            .unplaced_entry_points,
+        ["orders.rb#POST /orders"]
     );
 }

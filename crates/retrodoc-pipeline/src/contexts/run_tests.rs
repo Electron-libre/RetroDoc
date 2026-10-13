@@ -293,3 +293,26 @@ fn the_files_read_are_the_business_ones_and_what_the_entry_points_reference() {
         "infra is not read: {read:?}"
     );
 }
+
+#[test]
+fn an_orphan_two_contexts_reference_is_read_for_the_first_of_them_only() {
+    let repo = repo();
+    std::fs::write(
+        repo.dir
+            .path()
+            .join("app/controllers/invoices_controller.rb"),
+        "class InvoicesController\nPdfRenderer.new\nend\n",
+    )
+    .unwrap();
+
+    let slice = plan(&repo, &[], 100).unwrap();
+
+    let reads = |slug: &str| -> Vec<String> {
+        slice.reads[slug]
+            .iter()
+            .map(|f| f.display().to_string())
+            .collect()
+    };
+    assert!(reads("contracts").contains(&"app/services/pdf_renderer.rb".to_string()));
+    assert!(!reads("invoices").contains(&"app/services/pdf_renderer.rb".to_string()));
+}

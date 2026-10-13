@@ -58,7 +58,8 @@ pub struct Config {
 pub struct PipelineConfig {
     /// What the domains are built from. `files` (default): the LLM summaries of
     /// the files and directories (ADR 0004). `surface`: the entities and the
-    /// entry points grouped by resource (ADR 0020), with no repo map.
+    /// entry points grouped by resource (ADR 0020), with no repo map. `contexts`: the
+    /// bounded contexts of `retrodoc contexts` (ADR 0029), each a domain, documented a slice at a time.
     #[serde(default)]
     pub domains_from: DomainsFrom,
     /// Experimental (ADR 0022): the entry points and glossary passes read, of
@@ -99,6 +100,8 @@ pub enum DomainsFrom {
     #[default]
     Files,
     Surface,
+    /// The bounded contexts of `contexts.yaml` (ADR 0029), documented a slice at a time.
+    Contexts,
 }
 
 /// How the product brief (ADR 0019) is used.

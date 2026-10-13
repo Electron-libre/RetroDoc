@@ -126,6 +126,10 @@ pub struct UseCaseContext {
     pub actors: Actors,
     /// Names of the application's main entities.
     pub vocabulary: Vec<String>,
+    /// The vocabulary of a domain, when it has its own (a bounded context read on its own): the
+    /// vocabulary of the whole application grows with every context read, which would redo what
+    /// was done. A domain without one uses `vocabulary`.
+    pub domain_vocabulary: BTreeMap<String, Vec<String>>,
     /// The product brief that frames every prompt (empty: none).
     pub brief: ProductBrief,
     /// The signals the closest extracts of a feature are taken from (empty: none).
@@ -136,6 +140,16 @@ pub struct UseCaseContext {
     /// Features asked at once (`0` and `1`: one at a time). The answers are used in the order of
     /// the features, so the result does not depend on it.
     pub concurrency: usize,
+}
+
+impl UseCaseContext {
+    /// The vocabulary the prompts and the fingerprints of the features of `domain_slug` use.
+    #[must_use]
+    pub fn vocabulary_for(&self, domain_slug: &str) -> &[String] {
+        self.domain_vocabulary
+            .get(domain_slug)
+            .unwrap_or(&self.vocabulary)
+    }
 }
 
 /// Derives the use cases of every feature from the code it is grounded on
@@ -280,7 +294,6 @@ fn plan_items<'a>(
         entry_points,
         index,
         actors,
-        vocabulary,
         brief,
         evidence,
         ..
@@ -294,7 +307,7 @@ fn plan_items<'a>(
             let close = evidence.section(&feature_query(feature, &input));
             let framing = Framing {
                 actors,
-                vocabulary,
+                vocabulary: context.vocabulary_for(&feature.domain_slug),
                 brief,
                 evidence: &close,
             };

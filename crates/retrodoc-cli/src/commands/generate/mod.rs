@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use anyhow::Context;
@@ -73,23 +74,15 @@ pub async fn run(
         confidence,
         max_files,
     } = *options;
-    let workspace = Workspace::open(path)?;
-    let repo_root = &workspace.repo_root;
-    let config = &workspace.config;
-
-    if force {
-        clear_caches(repo_root)?;
-    }
-
-    let mut ingest = workspace.ingest()?;
-    ingest.existing_docs = super::docs::without_generated(ingest.existing_docs, config);
+    let (workspace, mut ingest) = open_workspace(path, force)?;
+    let (repo_root, config) = (&workspace.repo_root, &workspace.config);
 
     let llm = PassProviders::open(&config.llm, tracker, GENERATE_PASSES)?;
 
     let wanted = super::brief::EvidenceFor::of(config);
     let (brief, evidence) =
         super::brief::for_generate(repo_root, &ingest, &llm, wanted, tracker).await?;
-    let (evidence, rules_evidence) = (evidence.units, evidence.rules);
+    let (evidence, rule_evidence) = (evidence.units, evidence.rules);
 
     let (surface, entry_points, role_map) =
         build_surface(repo_root, &mut ingest, &brief, &llm, force, config, tracker).await?;
@@ -137,16 +130,18 @@ pub async fn run(
         .await?
     };
 
-    let context = UseCaseContext {
+    let context = use_case_context(
         entry_points,
-        index: CodeIndex::new(source_paths(&ingest)),
+        &ingest,
         actors,
-        vocabulary: surface.vocabulary(VOCABULARY_SIZE),
-        brief,
-        evidence,
-        rule_evidence: rules_evidence,
-        concurrency: config.llm.for_pass("use-cases").concurrency.unwrap_or(1),
-    };
+        &surface,
+        Signals {
+            brief,
+            evidence,
+            rule_evidence,
+        },
+        config,
+    );
     let mut use_cases = tracker
         .in_pass(
             "use-cases",
@@ -182,6 +177,65 @@ pub async fn run(
     print::saved(features.len(), use_cases.len());
 
     super::docs::publish(repo_root, config, dry_run)
+}
+
+/// Opens the repo, wipes the caches when asked, and walks it without the docs `generate` writes.
+fn open_workspace(path: &Path, force: bool) -> anyhow::Result<(Workspace, IngestResult)> {
+    let workspace = Workspace::open(path)?;
+    if force {
+        clear_caches(&workspace.repo_root)?;
+    }
+    refuse_unwired_paths(&workspace.config)?;
+    let mut ingest = workspace.ingest()?;
+    ingest.existing_docs = super::docs::without_generated(ingest.existing_docs, &workspace.config);
+    Ok((workspace, ingest))
+}
+
+/// `domains_from = "contexts"` only has its library parts for now (step 4 of
+/// `issues/business_files_cap_on_large_application.md`): better an error than the `files` path.
+fn refuse_unwired_paths(config: &Config) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        config.pipeline.domains_from != DomainsFrom::Contexts,
+        "domains_from = \"contexts\" is not wired into `generate` yet; use \"surface\" or \"files\""
+    );
+    Ok(())
+}
+
+/// The brief and the signals the closest extracts of a feature are taken from.
+struct Signals {
+    brief: ProductBrief,
+    /// For the features and the use cases.
+    evidence: Evidence,
+    /// For the rules, which need them even when the others are given none.
+    rule_evidence: Evidence,
+}
+
+/// What the use cases and rules passes draw on besides the features: the vocabulary is the
+/// application's, one for every domain.
+fn use_case_context(
+    entry_points: EntryPoints,
+    ingest: &IngestResult,
+    actors: Actors,
+    surface: &Surface,
+    signals: Signals,
+    config: &Config,
+) -> UseCaseContext {
+    let Signals {
+        brief,
+        evidence,
+        rule_evidence,
+    } = signals;
+    UseCaseContext {
+        entry_points,
+        index: CodeIndex::new(source_paths(ingest)),
+        actors,
+        vocabulary: surface.vocabulary(VOCABULARY_SIZE),
+        domain_vocabulary: BTreeMap::new(),
+        brief,
+        evidence,
+        rule_evidence,
+        concurrency: config.llm.for_pass("use-cases").concurrency.unwrap_or(1),
+    }
 }
 
 async fn identify_actors(
@@ -241,6 +295,7 @@ async fn features_from_surface(
                 brief,
                 evidence,
                 llm.get("features")?.as_ref(),
+                retrodoc_pipeline::Retention::OnlyRead,
             ),
         )
         .await

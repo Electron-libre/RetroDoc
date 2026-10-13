@@ -28,9 +28,11 @@ use crate::features::{slugify, unique_slug};
 use crate::naming::normalize;
 use crate::response::complete_json;
 
+mod domains;
 mod groups;
 mod run;
 
+pub use domains::{domain_vocabulary, domains_from_contexts};
 pub use groups::{contexts_of, mechanical_groups, name_words, Groups};
 use groups::{group_of, group_words};
 pub use run::{mark_done, plan_run, RunSlice};
@@ -747,3 +749,5 @@ fn place_cited(
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod two_runs_tests;

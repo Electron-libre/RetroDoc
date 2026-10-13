@@ -69,7 +69,7 @@ impl RuleInput {
         }
         let words = words_of(&text);
         let entities = context
-            .vocabulary
+            .vocabulary_for(&feature.domain_slug)
             .iter()
             .filter(|name| {
                 let wanted = words_of(name);

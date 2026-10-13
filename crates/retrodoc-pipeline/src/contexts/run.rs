@@ -38,6 +38,9 @@ pub struct RunSlice {
     pub pending: Vec<String>,
     /// Contexts done (all their files unchanged since their chain finished).
     pub done: Vec<String>,
+    /// The files read for each context of the map, selected or not: a context is documented from
+    /// its own files and these.
+    pub reads: BTreeMap<String, Vec<PathBuf>>,
 }
 
 /// The hash of a context: its files, the files read for it, and their content.
@@ -73,6 +76,8 @@ impl Reading {
         for (i, context) in resolved.contexts.iter().enumerate() {
             owner.extend(context.files.iter().map(|f| (f.as_path(), i)));
         }
+        // An orphan several contexts reference is read for the first of them, in the order of the map.
+        let mut claimed: BTreeSet<PathBuf> = BTreeSet::new();
         let read = resolved
             .contexts
             .iter()
@@ -89,7 +94,8 @@ impl Reading {
                         .into_iter()
                         .filter(|f| {
                             business(f) && owner.get(f.as_path()).is_none_or(|o| *o == index)
-                        }),
+                        })
+                        .filter(|f| owner.contains_key(f.as_path()) || claimed.insert(f.clone())),
                 );
                 files.sort();
                 files.dedup();
@@ -178,6 +184,12 @@ pub fn plan_run(
         files,
         pending: slugs(&|i| !done[i] && !chosen.contains(&i)),
         done: slugs(&|i| done[i]),
+        reads: resolved
+            .contexts
+            .iter()
+            .map(|c| c.slug.clone())
+            .zip(reading.read)
+            .collect(),
     })
 }
 

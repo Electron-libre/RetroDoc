@@ -91,6 +91,11 @@ pub struct DomainCluster {
     pub resources: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub entities: Vec<String>,
+    /// Domains built from the bounded contexts (`domains_from = "contexts"`): the entry points of
+    /// the domain are those of its `paths`, not those of the resources it names, since a resource
+    /// can be served from the files of several contexts.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub by_paths: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
