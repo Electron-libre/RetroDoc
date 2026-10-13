@@ -40,3 +40,46 @@ context that owns that controller.
 * A context already documented has its features saved by domain: changing the entries of a domain redoes its
   features once. Warn the user before a rerun that costs.
 * The application is confidential: no name, path or code of it in a committed file.
+
+# Tracking
+
+1. [x] Measure without LLM (an example): for each entry point of a file that only holds routes, the controller it
+   routes to and the context that owns it; entry points that change context, those with no controller found,
+   context sizes before and after, contexts over 150.
+2. [ ] A route goes to the context that owns the controller it routes to, else stays in the context of its file
+   (same for any file that only declares entry points for other files).
+3. [ ] Several features calls over slices of entry points grouped by file when a domain has more than
+   `MAX_ENTRIES_PER_PROMPT`; features of the same slug merged (no LLM); saved after each slice, one print per slice.
+4. [ ] Entry points held by no feature reported per context, in the output, `behaviour-coverage.yaml` and the report.
+5. [ ] Docs (`skill:update-docs`), then a real rerun of the central context on the saved run, after agreeing on
+   the cost with the user.
+
+## Decisions
+
+* (user, 2026-10-13) A route with no controller found stays in the context of its file (no pseudo-context).
+* (user, 2026-10-13) Slices of at most 150 entry points grouped by file, a file over 150 cut as a last resort;
+  features of the same slug merged without an LLM call (entry points united, first description kept).
+* (user, 2026-10-13) Saved after each slice, one print per slice.
+* The saved run for the measure and the real rerun: `/tmp/retrodoc-validate-ctx` (outside the repo, not named in committed files).
+
+## Measure of the routes by owner (deliverable 1, 2026-10-13, no LLM)
+
+`cargo run -q -p retrodoc-pipeline --example route_owner_measure -- <run dir>...` on the saved run of the
+second series (35 contexts, 739 entry points). No framework convention: a route (`http_route`) goes to the
+context that owns the entry point file it names, found by the name of that file (`name_words`, the words that
+repeat a directory left out) against its resource (whole, then last word), then the static segments of its
+path; a name owned by two contexts says nothing and the next name is tried; a route that names a word of its
+own file's name stays with it (`EntryOwners`, `contexts/route_owner.rs`). A first version looked for files
+ending in `controller`, which is a Rails convention: dropped (user's remark). Without any notion of handler,
+moving every kind of entry point sent the actions of the workflow files to the context of the resource they
+name (55 to 2 in one context): only routes move.
+
+* 318 routes; 130 move to another context, 3 are already in the right one, 185 stay with their file (they
+  name a word of its name, as the routes of a handler file do, or no single context owns the file they name).
+* The routes file is in no context (it is read for one): 166 entry points were held by whichever context
+  read it. After the move 116 of them are in the contexts they serve (worksites, users, documents, compliance,
+  companies… from 0 or 2 entry points to 12 to 22 each) and 50 stay with the file.
+* Contexts over the prompt limit (150): the central one stays over it (298 entry points in its own files, 308
+  after), so the slices of deliverable 3 are needed.
+* A sample of the moved routes read by eye on the first version: they land where a reader would put them.
+  Not re-read on this version.

@@ -62,8 +62,8 @@ pub use business_read::read_business_files;
 pub use confidence::{mechanical_score, score_confidence, StepTally};
 pub use contexts::{
     build_context_map, contexts_of, domain_vocabulary, domains_from_contexts, mark_done,
-    mechanical_groups, name_words, plan_run, BoundedContext, ContextMap, Groups, Resolved,
-    ResolvedContext, RunSlice,
+    mechanical_groups, name_words, plan_run, BoundedContext, ContextMap, EntryOwners, Groups,
+    Resolved, ResolvedContext, RunSlice,
 };
 pub use diagrams::{attach_diagrams, sequence_diagram};
 pub use domains::{
