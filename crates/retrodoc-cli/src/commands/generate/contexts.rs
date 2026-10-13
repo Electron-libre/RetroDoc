@@ -192,7 +192,14 @@ async fn document(
     let mut use_cases = tracker
         .in_pass(
             "use-cases",
-            super::derive_use_cases(repo_root, &features, &context, &surface, llm),
+            super::derive_use_cases(
+                repo_root,
+                &features,
+                &context,
+                &surface,
+                llm,
+                super::Scoring::NewOnly,
+            ),
         )
         .await?;
     super::finish_chain(

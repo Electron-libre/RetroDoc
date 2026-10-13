@@ -618,3 +618,25 @@ fn the_features_follow_the_order_of_the_map_and_a_removed_context_leaves_none() 
     let slugs: Vec<&str> = features.iter().map(|f| f.slug.as_str()).collect();
     assert_eq!(slugs, ["a1", "b1", "b2"]);
 }
+
+#[tokio::test]
+async fn a_context_whose_groups_resolve_to_no_file_is_dropped() {
+    let dir = tempfile::tempdir().unwrap();
+    // `ghost` cites a group that does not exist in this tree once resolved: only a folder with no file.
+    let llm = FakeLlm::answering(
+        r#"{"contexts":[{"slug":"contracts","name":"C","groups":["g1","g2","g3"]}]}"#,
+    );
+    let mut map = build(dir.path(), &llm, false).await;
+    map.contexts.push(BoundedContext {
+        slug: "ghost".to_string(),
+        name: "Ghost".to_string(),
+        groups: vec!["nothing_here".to_string()],
+        ..BoundedContext::default()
+    });
+    map.save(dir.path()).unwrap();
+
+    let again = without_empty_contexts(map, &sources(), &seeds());
+
+    let slugs: Vec<&str> = again.contexts.iter().map(|c| c.slug.as_str()).collect();
+    assert_eq!(slugs, ["contracts"]);
+}

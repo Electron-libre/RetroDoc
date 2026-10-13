@@ -84,6 +84,22 @@ pub fn score_business_language(use_cases: &mut [UseCase], vocabulary: &[String],
     }
 }
 
+/// Scores the use cases that have no business-language score yet; the others keep theirs. For an
+/// application documented a bounded context at a time: the vocabulary known grows with every
+/// context, so rescoring the earlier use cases would change what was documented.
+pub fn score_unscored_business_language(
+    use_cases: &mut [UseCase],
+    vocabulary: &[String],
+    actors: &Actors,
+) {
+    for use_case in use_cases
+        .iter_mut()
+        .filter(|u| u.business_language.is_none())
+    {
+        use_case.business_language = Some(business_language_score(use_case, vocabulary, actors));
+    }
+}
+
 /// The business-language score of one use case (see the module docs).
 #[must_use]
 pub fn business_language_score(
@@ -240,6 +256,19 @@ mod tests {
                 evidence: Vec::new(),
             }],
         }
+    }
+
+    #[test]
+    fn only_the_use_cases_without_a_score_are_scored_by_the_unscored_variant() {
+        let mut kept = use_case(Some("The contract manager signs the contract."));
+        kept.business_language = Some(ConfidenceScore::new(0.4, "scored earlier".to_string()));
+        let fresh = use_case(Some("The contract manager signs the contract."));
+        let mut all = vec![kept, fresh];
+
+        score_unscored_business_language(&mut all, &vocabulary(), &actors());
+
+        assert_eq!(all[0].business_language.as_ref().unwrap().value, 0.4);
+        assert!(all[1].business_language.is_some());
     }
 
     fn score(narrative: Option<&str>) -> ConfidenceScore {

@@ -597,12 +597,9 @@ async fn without_retention_the_domains_not_given_are_dropped() {
     assert_eq!(slugs, ["routing"]);
 }
 
-#[tokio::test]
-async fn the_entry_points_an_earlier_slice_left_unplaced_stay_listed() {
-    let dir = tempfile::tempdir().unwrap();
-    let (domains, entries) = contexts_fixture();
-    // The orders domain claims one of its two entry points, and the placement places nothing.
-    let llm = FakeLlm::replying(|_, request| {
+/// The orders domain claims one of its two entry points and the placement places nothing.
+fn leaves_one_entry_point_unplaced() -> FakeLlm {
+    FakeLlm::replying(|_, request| {
         let prompt = &request.messages[1].content;
         Ok(if prompt.contains("Entry points to place") {
             r#"{"placements":[]}"#
@@ -614,7 +611,14 @@ async fn the_entry_points_an_earlier_slice_left_unplaced_stay_listed() {
                 "entry_points":["orders.rb#GET /orders"]}]}"#
         }
         .to_string())
-    });
+    })
+}
+
+#[tokio::test]
+async fn the_entry_points_an_earlier_slice_left_unplaced_stay_listed() {
+    let dir = tempfile::tempdir().unwrap();
+    let (domains, entries) = contexts_fixture();
+    let llm = leaves_one_entry_point_unplaced();
 
     run_keeping(dir.path(), &only(&domains, "orders"), &entries, &llm).await;
     run_keeping(dir.path(), &only(&domains, "routing"), &entries, &llm).await;
@@ -625,4 +629,56 @@ async fn the_entry_points_an_earlier_slice_left_unplaced_stay_listed() {
             .unplaced_entry_points,
         ["orders.rb#POST /orders"]
     );
+}
+
+#[tokio::test]
+async fn the_domains_run_together_after_each_alone_ask_nothing_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let (domains, entries) = contexts_fixture();
+    let llm = leaves_one_entry_point_unplaced();
+    run_keeping(dir.path(), &only(&domains, "orders"), &entries, &llm).await;
+    run_keeping(dir.path(), &only(&domains, "routing"), &entries, &llm).await;
+    let calls = llm.calls();
+    assert_eq!(
+        calls, 3,
+        "the features of each, and the placement for the orders"
+    );
+
+    run_keeping(dir.path(), &domains, &entries, &llm).await;
+
+    assert_eq!(llm.calls(), calls, "the placement is kept per domain");
+    assert_eq!(
+        BehaviourCoverage::load(dir.path())
+            .unwrap()
+            .unplaced_entry_points,
+        ["orders.rb#POST /orders"]
+    );
+}
+
+#[tokio::test]
+async fn an_entry_point_is_only_placed_in_a_feature_of_its_own_domain() {
+    let dir = tempfile::tempdir().unwrap();
+    let (domains, entries) = contexts_fixture();
+    let llm = FakeLlm::replying(|_, request| {
+        let prompt = &request.messages[1].content;
+        Ok(if prompt.contains("Entry points to place") {
+            // The prompt of a domain lists its own features only.
+            assert!(!prompt.contains("- routes"), "{prompt}");
+            r#"{"placements":[{"entry_point":"E1","feature":"orders"}]}"#
+        } else if prompt.contains("GET /routes") {
+            r#"{"features":[{"slug":"routes","name":"R","description":"d",
+                "entry_points":["routes.rb#GET /routes"]}]}"#
+        } else {
+            r#"{"features":[{"slug":"orders","name":"O","description":"d",
+                "entry_points":["orders.rb#GET /orders"]}]}"#
+        }
+        .to_string())
+    });
+
+    let features = run_keeping(dir.path(), &domains, &entries, &llm).await;
+
+    let orders = features.iter().find(|f| f.slug == "orders").unwrap();
+    assert_eq!(orders.entry_points.len(), 2, "the POST was placed");
+    let routes = features.iter().find(|f| f.slug == "routes").unwrap();
+    assert_eq!(routes.entry_points.len(), 1);
 }

@@ -54,6 +54,14 @@ fn unclaimed<'a>(entry_points: &'a EntryPoints, features: &[Feature]) -> Vec<Unc
         .collect()
 }
 
+/// The ids of the entry points of `entry_points` that no feature of `features` holds.
+pub(super) fn unplaced_ids(entry_points: &EntryPoints, features: &[Feature]) -> Vec<String> {
+    unclaimed(entry_points, features)
+        .into_iter()
+        .map(|u| u.id)
+        .collect()
+}
+
 fn placement_print(
     left: &[Unclaimed<'_>],
     features: &[Feature],
@@ -113,7 +121,8 @@ fn placement_prompt(
 
 /// Puts the entry points of `entry_points` that no feature holds into a feature, and saves the ones
 /// that stay out in the coverage artifact. With an unchanged input (unplaced entry points, features,
-/// brief, model) the saved answer is kept and no call is made. Returns whether `features` changed.
+/// brief, model) the print in `saved_print` matches and no call is made. Returns whether `features`
+/// changed.
 ///
 /// # Errors
 ///
@@ -123,7 +132,7 @@ pub(super) async fn place_unclaimed(
     features: &mut [Feature],
     entry_points: &EntryPoints,
     brief: &ProductBrief,
-    prints: &mut Fingerprints,
+    saved_print: &mut Option<String>,
     llm: &dyn LlmProvider,
 ) -> Result<bool, PipelineError> {
     let left = unclaimed(entry_points, features);
@@ -131,11 +140,11 @@ pub(super) async fn place_unclaimed(
     if left.is_empty() || features.is_empty() {
         coverage.unplaced_entry_points = left.iter().map(|u| u.id.clone()).collect();
         coverage.save(repo_root)?;
-        prints.entry_point_placement = None;
+        *saved_print = None;
         return Ok(false);
     }
     let print = placement_print(&left, features, brief, llm);
-    if prints.entry_point_placement.as_ref() == Some(&print) {
+    if saved_print.as_ref() == Some(&print) {
         tracing::info!(
             entry_points = left.len(),
             "entry point placement unchanged, reused"
@@ -201,6 +210,6 @@ pub(super) async fn place_unclaimed(
     coverage.save(repo_root)?;
     // The print of the input *after* the placements, so the next run compares like with like.
     let after = unclaimed(entry_points, features);
-    prints.entry_point_placement = Some(placement_print(&after, features, brief, llm));
+    *saved_print = Some(placement_print(&after, features, brief, llm));
     Ok(changed)
 }

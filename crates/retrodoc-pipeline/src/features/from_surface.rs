@@ -168,28 +168,29 @@ pub async fn build_features_from_surface(
     // Saved before the placement call: a failure there keeps the units done.
     prints.save(repo_root)?;
     save_features(repo_root, &features)?;
-    let earlier_unplaced = BehaviourCoverage::load(repo_root)
-        .map(|c| c.unplaced_entry_points)
-        .unwrap_or_default();
-    let in_run;
-    let placed_among = if keep == Retention::Others {
-        in_run = entry_points_of(domains, entry_points);
-        &in_run
+    let placed = if keep == Retention::Others {
+        place_per_domain(
+            repo_root,
+            domains,
+            &mut features,
+            retained,
+            entry_points,
+            brief,
+            &mut prints,
+            llm,
+        )
+        .await?
     } else {
-        entry_points
+        place_unclaimed(
+            repo_root,
+            &mut features,
+            entry_points,
+            brief,
+            &mut prints.entry_point_placement,
+            llm,
+        )
+        .await?
     };
-    let placed = place_unclaimed(
-        repo_root,
-        &mut features[retained..],
-        placed_among,
-        brief,
-        &mut prints,
-        llm,
-    )
-    .await?;
-    if keep == Retention::Others {
-        keep_other_unplaced(repo_root, earlier_unplaced, domains)?;
-    }
     prints.save(repo_root)?;
     if placed {
         save_features(repo_root, &features)?;
@@ -221,40 +222,85 @@ fn retain_other_domains(
         .collect()
 }
 
-/// The entry points no feature holds that the earlier slices listed stay listed: the placement
-/// only looked at the files of this one.
-fn keep_other_unplaced(
+/// A slice at a time, the entry points no feature claimed are placed domain by domain: into a
+/// feature of their own domain only, with a print per domain, so that a domain already placed is
+/// not asked again whatever the others of the run are. The entry points the earlier slices left
+/// unplaced stay listed. Returns whether a feature changed.
+#[allow(clippy::too_many_arguments)] // the inputs of one step, as in the pass
+async fn place_per_domain(
     repo_root: &Path,
-    earlier: Vec<String>,
     domains: &DomainMap,
-) -> Result<(), PipelineError> {
-    let files: BTreeSet<String> = domains
+    features: &mut [Feature],
+    retained: usize,
+    entry_points: &EntryPoints,
+    brief: &ProductBrief,
+    prints: &mut Fingerprints,
+    llm: &dyn LlmProvider,
+) -> Result<bool, PipelineError> {
+    let earlier = BehaviourCoverage::load(repo_root)
+        .map(|c| c.unplaced_entry_points)
+        .unwrap_or_default();
+    let in_run: BTreeSet<String> = domains
         .domains
         .iter()
         .flat_map(|d| d.paths.iter().map(|p| p.display().to_string()))
         .collect();
-    let mut coverage = BehaviourCoverage::load(repo_root).unwrap_or_default();
     let mut unplaced: Vec<String> = earlier
         .into_iter()
         .filter(|id| {
             id.split('#')
                 .next()
-                .is_some_and(|file| !files.contains(file))
+                .is_some_and(|file| !in_run.contains(file))
         })
         .collect();
-    unplaced.extend(coverage.unplaced_entry_points);
+    let mut changed = false;
+    for domain in &domains.domains {
+        let own = entry_points_of(domain, entry_points);
+        // A domain with no print left to keep: it is placed again from scratch when it comes back.
+        let mut print = prints.entry_point_placements.remove(&domain.slug);
+        let Some(range) = domain_range(features, retained, &domain.slug) else {
+            // No feature at all in this domain: nothing to place into.
+            unplaced.extend(own.iter().map(|(file, entry)| entry_point_id(file, entry)));
+            continue;
+        };
+        changed |= place_unclaimed(
+            repo_root,
+            &mut features[range.clone()],
+            &own,
+            brief,
+            &mut print,
+            llm,
+        )
+        .await?;
+        if let Some(print) = print {
+            prints
+                .entry_point_placements
+                .insert(domain.slug.clone(), print);
+        }
+        unplaced.extend(repair::unplaced_ids(&own, &features[range]));
+    }
+    let mut coverage = BehaviourCoverage::load(repo_root).unwrap_or_default();
     coverage.unplaced_entry_points = unplaced;
-    coverage.save(repo_root)
+    coverage.save(repo_root)?;
+    Ok(changed)
 }
 
-/// The entry points of the files of `domains`: a slice at a time, the entry points of the other
-/// slices are theirs to place.
-fn entry_points_of(domains: &DomainMap, entry_points: &EntryPoints) -> EntryPoints {
-    let files: BTreeSet<&Path> = domains
-        .domains
+/// The positions, from `from`, of the features of `slug` (a domain's features are contiguous).
+fn domain_range(features: &[Feature], from: usize, slug: &str) -> Option<std::ops::Range<usize>> {
+    let start = from
+        + features[from..]
+            .iter()
+            .position(|f| f.domain_slug == slug)?;
+    let len = features[start..]
         .iter()
-        .flat_map(|d| d.paths.iter().map(PathBuf::as_path))
-        .collect();
+        .take_while(|f| f.domain_slug == slug)
+        .count();
+    Some(start..start + len)
+}
+
+/// The entry points of the files of `domain`.
+fn entry_points_of(domain: &DomainCluster, entry_points: &EntryPoints) -> EntryPoints {
+    let files: BTreeSet<&Path> = domain.paths.iter().map(PathBuf::as_path).collect();
     EntryPoints {
         files: entry_points
             .files

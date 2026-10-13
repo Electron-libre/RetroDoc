@@ -160,7 +160,7 @@ pub async fn run(
     let mut use_cases = tracker
         .in_pass(
             "use-cases",
-            derive_use_cases(repo_root, &features, &context, &surface, &llm),
+            derive_use_cases(repo_root, &features, &context, &surface, &llm, Every),
         )
         .await?;
 
@@ -181,6 +181,18 @@ pub async fn run(
 
     super::docs::publish(repo_root, config, dry_run)
 }
+
+/// Which use cases get their business-language score computed.
+#[derive(Debug, Clone, Copy)]
+enum Scoring {
+    /// All of them, every run: the vocabulary is the whole application's.
+    Every,
+    /// Those without a score only: read a bounded context at a time, the vocabulary known grows
+    /// and the earlier use cases keep the score they were documented with.
+    NewOnly,
+}
+
+use Scoring::Every;
 
 /// What the passes after the use cases share.
 struct Passes<'a> {
@@ -455,6 +467,7 @@ async fn derive_use_cases(
     context: &UseCaseContext,
     surface: &Surface,
     llm: &PassProviders,
+    scoring: Scoring,
 ) -> anyhow::Result<Vec<UseCase>> {
     println!(
         "Deriving use cases ({} feature(s), one LLM call each)…",
@@ -469,12 +482,24 @@ async fn derive_use_cases(
     .await
     .context("failed to derive the use cases")?;
     retrodoc_pipeline::attach_diagrams(&mut use_cases);
-    // Deterministic, so recomputed every run: does each use case read as business?
-    retrodoc_pipeline::score_business_language(
-        &mut use_cases,
-        &surface.vocabulary(usize::MAX),
-        &context.actors,
-    );
+    // Deterministic: does each use case read as business? Recomputed every run, except read a
+    // bounded context at a time, where the vocabulary known grows with every context and the
+    // earlier use cases keep the score they were documented with.
+    let vocabulary = surface.vocabulary(usize::MAX);
+    match scoring {
+        Scoring::Every => {
+            retrodoc_pipeline::score_business_language(
+                &mut use_cases,
+                &vocabulary,
+                &context.actors,
+            );
+        }
+        Scoring::NewOnly => retrodoc_pipeline::score_unscored_business_language(
+            &mut use_cases,
+            &vocabulary,
+            &context.actors,
+        ),
+    }
     // Persist again now that the diagrams are attached.
     retrodoc_pipeline::save_use_cases(repo_root, &use_cases)
         .context("failed to save the use cases")?;

@@ -40,6 +40,10 @@ pub(crate) struct Fingerprints {
     /// was asked with (`None`: nothing was left to place).
     #[serde(default)]
     pub entry_point_placement: Option<String>,
+    /// The same, per domain, when the domains are documented a bounded context at a time (the
+    /// placement of a context depends on that context alone).
+    #[serde(default)]
+    pub entry_point_placements: BTreeMap<String, String>,
     /// Contexts: slug → hash of the files of the context when its whole chain finished (the
     /// context is done while it still matches).
     #[serde(default)]

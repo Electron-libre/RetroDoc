@@ -91,4 +91,4 @@ pub use source_hashes::SourceHashes;
 pub use sources::{infer_sources, saved_or_sniffed, SourceMapFile};
 pub use surface::{Resource, Surface};
 pub use use_cases::{build_use_cases, load_use_cases, save_use_cases, UseCaseContext};
-pub use vocabulary::score_business_language;
+pub use vocabulary::{score_business_language, score_unscored_business_language};

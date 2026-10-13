@@ -85,7 +85,7 @@ and how many the cap drops (no LLM call needed: `business-files.yaml` and the fi
      own, the actors are computed once then frozen (editable, `retrodoc actors --force`), the artifacts of the
      other contexts are kept as they are. Test: context A then B, A is neither redone nor changed and the
      second run makes no call for A.
-   * 4d. [~] (wired and checked on `delivery_router`; the real multi-context runs are step 6) `generate` wiring: `--context`, `--max-files` becomes the reading budget of a run in this mode
+   * 4d. [x] `generate` wiring: `--context`, `--max-files` becomes the reading budget of a run in this mode
      (default 150), the `business-files` pass is skipped, the docs gather the contexts done, the report lists
      the contexts left. Real run on `delivery_router` locally, then on the large application (cost to agree).
 5. (merged into 4)
@@ -222,3 +222,40 @@ hosted result, are not measured yet (one more hosted call of about $0.01, which 
   a failed split call is an error (the map is saved without the split first, and `--force` asks again), and a
   part no longer takes the slug of a context left whole. Left as they are: one level of splitting (a part can
   still be over 150 files if its folder cannot be divided), and the split calls run one after the other.
+
+## Real runs on the large application (step 6, 2026-10-13, hosted `deepseek-chat`, rules off)
+
+Fresh clone, map rebuilt with the fixes (3 calls, 14.2k tokens in, 2.3k out, $0.007): 29 contexts after one
+empty context was dropped by hand, 236 files (14%) in the support, two contexts over 230 files (one split
+only goes one level). Costs below are the recaps of `usage.json` at the high prices of the repository
+($0.30/M in, $1.20/M out); the ceiling agreed with the user was $1.50.
+
+| Run | Contexts | Files read | Calls | Tokens in / out | Time | Cost |
+|---|---|---|---|---|---|---|
+| 1 | 1 (the largest, 242 files) | 246 | 87 (business read 44, features 3, use cases 18, confidence 21) | 434k / 113k | 8m03 | $0.27 |
+| 2 | the next 5 | 100 | 90 (business read 19, features 5, use cases 32, confidence 34) | 422k / 71k | 5m52 | $0.21 |
+| 3 to 5 | the same 6 by name, after the fixes below | 346 | 3, then 6, then 2 | 14k, 35k, 5k | under 1 min each | $0.04 |
+| 6 | the same 6 by name | 346 | 0 | 0 | seconds | 0 |
+
+Total of the session on the application: 191 calls, 924k tokens in, 197k out, about $0.51. After run 2 the
+product was 45 features and 160 use cases for 6 contexts; the 23 other contexts are left, listed by the output.
+
+What the runs showed (each one a defect of this issue's work, fixed unless said):
+
+* Run 2 changed some of run 1: the business-language score of 4 use cases rose from 0.7-0.85 to 1.0, because
+  it is recomputed against the vocabulary known so far, which grew with the new contexts. Now computed once
+  per use case when read a context at a time.
+* Run 3 (the same contexts by name) made 3 calls and changed a feature: the placement of the entry points no
+  feature claimed had one print for the whole run, so a different set of contexts redid it, and it could place
+  an entry point in a feature of another context. Now per domain, into a feature of its own domain only; a
+  stray cross-domain placement made by run 3 was cleaned by the next runs, which then converged (run 6: no
+  call, no artifact changed).
+* A feature whose use cases answer is very long (over 30,000 characters) hit `finish_reason=length` twice in
+  run 1 and was skipped; run 2 retried it (an unparseable answer is always retried) and it passed. Tracked by
+  `issues/shorter_use_case_answers.md`.
+* The first features call of the context with 5 entry point files left 97 of its entry points unclaimed; the
+  placement call placed 94 and listed 3. The features call is one prompt per domain, so a domain with
+  over a hundred entry points gets few features from it.
+* The contexts mode does not compute the technical support list (it would call every undocumented file
+  technical support).
+* Not measured: the quality of the docs (to read with the user), the remaining 23 contexts, the rules.

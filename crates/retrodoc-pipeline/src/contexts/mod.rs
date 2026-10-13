@@ -428,6 +428,7 @@ pub async fn build_context_map(
         tracing::warn!("the LLM answer for the contexts was unusable: one context per group");
         return Ok(one_context_per_group(&grouped));
     };
+    let map = without_empty_contexts(map, sources, seeds);
     // Saved before the split: a failure there keeps the paid map.
     map.save(repo_root)?;
     let split = match split_large_contexts(map, &grouped, sources, seeds, brief, llm).await {
@@ -440,8 +441,29 @@ pub async fn build_context_map(
             return Err(error);
         }
     };
+    let split = without_empty_contexts(split, sources, seeds);
     split.save(repo_root)?;
     Ok(split)
+}
+
+/// The map without the contexts that hold no file of the tree (every group of theirs was claimed by
+/// a longer name): nothing to document there.
+fn without_empty_contexts(map: ContextMap, sources: &[PathBuf], seeds: &[PathBuf]) -> ContextMap {
+    let resolved = map.resolve(sources, seeds);
+    let ContextMap { contexts, support } = map;
+    let contexts = contexts
+        .into_iter()
+        .zip(resolved.contexts)
+        .filter(|(context, own)| {
+            let kept = !own.files.is_empty();
+            if !kept {
+                tracing::info!(context = %context.slug, "context without any file, dropped");
+            }
+            kept
+        })
+        .map(|(context, _)| context)
+        .collect();
+    ContextMap { contexts, support }
 }
 
 /// The map with each context over [`MAX_CONTEXT_FILES`] replaced by the sub-contexts one more call
