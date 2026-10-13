@@ -1,5 +1,7 @@
 use super::*;
 
+use crate::entry_points::EntryKind;
+
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub(super) struct RawUseCases {
     #[serde(default)]
@@ -129,7 +131,7 @@ pub(super) fn grounded_use_cases(
             .filter(|u| u.feature_slug == feature.slug)
             .map(|u| u.slug.as_str());
         let slug = unique_slug(&raw_use_case.slug, taken);
-        produced.push(UseCase {
+        let mut use_case = UseCase {
             slug,
             feature_slug: feature.slug.clone(),
             name: raw_use_case.name,
@@ -148,9 +150,79 @@ pub(super) fn grounded_use_cases(
                 .map(|actor| actor.name.clone()),
             diagram_mermaid: None,
             confidence: None,
-        });
+        };
+        without_invented_humans(&mut use_case, &input.entries, actors);
+        produced.push(use_case);
     }
     produced
+}
+
+/// The actors that replace an invented human, by what triggers the behaviour.
+pub(super) const CALLING_PROGRAM: &str = "Calling program";
+pub(super) const EXTERNAL_PROVIDER: &str = "External provider";
+pub(super) const SYSTEM: &str = "System";
+
+/// Whether a person can start the entry point: a route or a command. A kind the inventory could
+/// not name (`other`) is given the benefit of the doubt.
+fn started_by_a_person(kind: EntryKind) -> bool {
+    matches!(
+        kind,
+        EntryKind::HttpRoute | EntryKind::CliCommand | EntryKind::Other
+    )
+}
+
+/// A use case reached only through entry points no person starts (a job, a consumer, a webhook,
+/// a public method of a class) has no human actor: its human steps and primary actor are put
+/// back to what triggers it, a calling program, the external provider or the system. The
+/// entry points are those the use case cites, else all those of its feature; a feature with none
+/// is not judged, nothing says who triggers it.
+fn without_invented_humans(
+    use_case: &mut UseCase,
+    entries: &[(PathBuf, EntryPoint)],
+    actors: &Actors,
+) {
+    let kinds: Vec<EntryKind> = if use_case.entry_points.is_empty() {
+        entries.iter().map(|(_, e)| e.kind).collect()
+    } else {
+        entries
+            .iter()
+            .filter(|(_, e)| use_case.entry_points.contains(&e.name))
+            .map(|(_, e)| e.kind)
+            .collect()
+    };
+    if kinds.is_empty() || kinds.iter().any(|k| started_by_a_person(*k)) {
+        return;
+    }
+    let name = if kinds.iter().all(|k| *k == EntryKind::PublicApi) {
+        CALLING_PROGRAM
+    } else if kinds.iter().all(|k| *k == EntryKind::Webhook) {
+        EXTERNAL_PROVIDER
+    } else {
+        SYSTEM
+    };
+    let mut changed = false;
+    for step in use_case.steps.iter_mut().filter(|s| is_human(&s.actor)) {
+        step.actor = Actor {
+            name: name.to_string(),
+            kind: ActorKind::System,
+        };
+        changed = true;
+    }
+    // A known software actor (an external provider of the actors list) is a fine primary actor.
+    let human_primary = use_case
+        .primary_actor
+        .as_deref()
+        .and_then(|n| actors.canonical(n))
+        .is_none_or(|a| a.kind == ActorKind::Human);
+    if human_primary {
+        use_case.primary_actor = None;
+    }
+    if changed || human_primary {
+        tracing::info!(
+            use_case = %use_case.slug,
+            "human actor dropped: no route nor command starts this behaviour"
+        );
+    }
 }
 
 /// Numbers steps from 1 (skipping incomplete ones) and keeps only the source

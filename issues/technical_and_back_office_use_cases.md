@@ -49,7 +49,7 @@ Measure first on the saved run (no LLM): for the use cases flagged by each signa
 2. [x] Render a section "Administration and technical" (admin, business language < 0.8 or confidence < 0.6), out of the business index: `Feature.back_office` and `UseCase::is_technical` in the model, the render splits the feature, domain and `llms.txt` pages.
 2b. [x] Features pass: the LLM sets `back_office` from the description, the routes and the files (both prompts, files and surface); kept by the reuse and the partial redo; docs fixed. Known: the prompt is not in the fingerprints, so a saved run keeps `false` until `--force`.
 2c. [x] Align the others on `UseCase::is_technical`: the debt report counts what is set apart (its own "technical-sounding" list keeps its 50% debt threshold), and a marker in the MCP answers and the search results (no change of ranking). The CLI `search` answers from the same `Docs`, so it carries the marker too.
-3. [ ] Mechanical check that the human actor of the first step matches a human entry point.
+3. [x] Mechanical check: a use case reached only through entry points no person starts (job, consumer, webhook, public API) has no human actor; its human steps become the calling program, the external provider or the system, and the primary actor is dropped (`without_invented_humans`). The narrative is not rewritten (step 4's prompt). A feature with no entry point is not judged.
 4. [ ] Use cases prompt: system, external provider or API consumer as actor without a human entry point.
 5. [ ] Entry points: in an application, a public method is an entry point only if a route, job, workflow or webhook reaches it; else technical support.
 6. [ ] Use cases prompt: a form-opening action and its submit are one use case.

@@ -2,6 +2,7 @@ use super::*;
 
 use crate::brief::Evidence;
 use crate::testing::{killed, FakeLlm};
+use crate::use_cases::grounding::{CALLING_PROGRAM, EXTERNAL_PROVIDER, SYSTEM};
 
 fn feature(slug: &str, paths: &[&str]) -> Feature {
     Feature {
@@ -350,6 +351,117 @@ async fn a_feature_with_entry_points_gets_them_and_the_code_they_run() {
         use_cases[0].steps[0].source_refs[0].path,
         "app/contract_signer.rb"
     );
+}
+
+/// One use case of a feature with these entry point kinds (named `entry 0`, `entry 1`…), citing
+/// `cited` of them (their numbers), with a human `Customer` step, a `Mailer` system step and
+/// `primary` as primary actor; the actors list knows a human `Customer` and a software `Payment
+/// provider`.
+async fn use_case_on(
+    kinds: &[crate::entry_points::EntryKind],
+    cited: &[usize],
+    primary: &str,
+) -> UseCase {
+    use crate::actors::BusinessActor;
+    use crate::entry_points::EntryFile;
+
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.rb"), "def a\nend\n").unwrap();
+    let entry_points = EntryPoints {
+        files: BTreeMap::from([(
+            PathBuf::from("a.rb"),
+            EntryFile {
+                content_hash: String::new(),
+                entry_points: kinds
+                    .iter()
+                    .enumerate()
+                    .map(|(i, kind)| EntryPoint {
+                        kind: *kind,
+                        name: format!("entry {i}"),
+                        verb: String::new(),
+                        resource: String::new(),
+                        description: String::new(),
+                        outputs: Vec::new(),
+                    })
+                    .collect(),
+            },
+        )]),
+    };
+    let cited: Vec<String> = cited.iter().map(|i| format!("entry {i}")).collect();
+    let provider = FakeLlm::answering(format!(
+        r#"{{"use_cases":[{{"slug":"go","name":"Go","description":"d","primary_actor":"{primary}",
+          "entry_points":{},
+          "steps":[{{"description":"s1","actor":{{"name":"Customer","kind":"human"}},
+                    "action":"asks","source_refs":[]}},
+                   {{"description":"s2","actor":{{"name":"Mailer","kind":"system"}},
+                    "action":"sends","source_refs":[]}}]}}]}}"#,
+        serde_json::to_string(&cited).unwrap()
+    ));
+    let known = |name: &str, kind| BusinessActor {
+        name: name.to_string(),
+        kind,
+        description: String::new(),
+        evidence: Vec::new(),
+    };
+    let context = UseCaseContext {
+        entry_points,
+        actors: Actors {
+            input_hash: String::new(),
+            actors: vec![
+                known("Customer", ActorKind::Human),
+                known("Payment provider", ActorKind::System),
+            ],
+        },
+        ..UseCaseContext::default()
+    };
+    build_use_cases(dir.path(), &[feature("f", &["a.rb"])], &context, &provider)
+        .await
+        .unwrap()
+        .remove(0)
+}
+
+#[tokio::test]
+async fn no_human_actor_when_no_route_nor_command_starts_the_behaviour() {
+    use crate::entry_points::EntryKind::{HttpRoute, Job, Other, PublicApi, Webhook};
+
+    let api = use_case_on(&[PublicApi, PublicApi], &[], "Customer").await;
+    assert_eq!(api.primary_actor, None, "a known human primary actor goes");
+    assert_eq!(api.steps[0].actor.name, CALLING_PROGRAM);
+    assert_eq!(api.steps[0].actor.kind, ActorKind::System);
+    assert_eq!(api.steps[1].actor.name, "Mailer", "a system actor stays");
+
+    let webhook = use_case_on(&[Webhook], &[], "Payment provider").await;
+    assert_eq!(webhook.steps[0].actor.name, EXTERNAL_PROVIDER);
+    assert_eq!(
+        webhook.primary_actor.as_deref(),
+        Some("Payment provider"),
+        "a known software primary actor stays"
+    );
+    let job = use_case_on(&[Job, PublicApi], &[], "Customer").await;
+    assert_eq!(job.steps[0].actor.name, SYSTEM);
+
+    // A route or a command, or a kind nobody could name, leaves the human in place.
+    for kinds in [&[HttpRoute, PublicApi][..], &[Other]] {
+        let kept = use_case_on(kinds, &[], "Customer").await;
+        assert_eq!(kept.primary_actor.as_deref(), Some("Customer"));
+        assert_eq!(kept.steps[0].actor.kind, ActorKind::Human);
+    }
+    // No entry point at all: nothing says who triggers it.
+    let unknown = use_case_on(&[], &[], "Customer").await;
+    assert_eq!(unknown.steps[0].actor.kind, ActorKind::Human);
+}
+
+#[tokio::test]
+async fn the_entry_points_a_use_case_cites_decide_over_those_of_its_feature() {
+    use crate::entry_points::EntryKind::{HttpRoute, Job};
+
+    // `entry 1` is a job; `entry 0` a route that the use case does not cite.
+    let job = use_case_on(&[HttpRoute, Job], &[1], "Customer").await;
+    assert_eq!(job.steps[0].actor.name, SYSTEM);
+    assert_eq!(job.primary_actor, None);
+    let route = use_case_on(&[HttpRoute, Job], &[0], "Customer").await;
+    assert_eq!(route.steps[0].actor.kind, ActorKind::Human);
+    assert_eq!(route.primary_actor.as_deref(), Some("Customer"));
 }
 
 #[tokio::test]
