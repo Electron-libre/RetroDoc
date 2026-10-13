@@ -509,6 +509,7 @@ mod tests {
 
     fn feature(slug: &str, domain: &str, score: Option<f32>) -> Feature {
         Feature {
+            back_office: false,
             slug: slug.to_string(),
             domain_slug: domain.to_string(),
             sub_domain_slug: None,

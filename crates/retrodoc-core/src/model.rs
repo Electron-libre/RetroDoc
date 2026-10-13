@@ -30,6 +30,13 @@ impl ConfidenceScore {
 /// coverage report and in the rendered docs.
 pub const LOW_CONFIDENCE_THRESHOLD: f32 = 0.5;
 
+/// A use case that reads below this business-language score is set apart in the docs
+/// (`UseCase::is_technical`).
+pub const MIN_BUSINESS_LANGUAGE: f32 = 0.8;
+
+/// A use case below this confidence is set apart in the docs (`UseCase::is_technical`).
+pub const MIN_USE_CASE_CONFIDENCE: f32 = 0.6;
+
 /// Stable, human-readable identifier (slug) used for file names and
 /// cross-document links.
 pub type Slug = String;
@@ -71,6 +78,10 @@ pub struct Feature {
     /// from files, and absent from old `features.yaml`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub entry_points: Vec<String>,
+    /// A back-office or administration tool, as the LLM judged it from the roles of the
+    /// feature's files and its description. Its use cases are set apart in the docs.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub back_office: bool,
     /// `None` until the confidence pass (roadmap phase 5) has scored it.
     #[serde(default)]
     pub confidence: Option<ConfidenceScore>,
@@ -108,6 +119,24 @@ pub struct UseCase {
     /// `None` until the confidence pass (roadmap phase 5) has scored it.
     #[serde(default)]
     pub confidence: Option<ConfidenceScore>,
+}
+
+impl UseCase {
+    /// Whether the docs set this use case apart from the business ones: it belongs to a
+    /// back-office feature, or reads under the business-language or confidence threshold (a
+    /// score not yet computed is not a reason).
+    #[must_use]
+    pub fn is_technical(&self, feature_back_office: bool) -> bool {
+        feature_back_office
+            || self
+                .business_language
+                .as_ref()
+                .is_some_and(|s| s.value < MIN_BUSINESS_LANGUAGE)
+            || self
+                .confidence
+                .as_ref()
+                .is_some_and(|s| s.value < MIN_USE_CASE_CONFIDENCE)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -217,6 +246,32 @@ impl BusinessRule {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn use_case(business_language: Option<f32>, confidence: Option<f32>) -> UseCase {
+        UseCase {
+            slug: "u".into(),
+            feature_slug: "f".into(),
+            name: "U".into(),
+            description: String::new(),
+            steps: Vec::new(),
+            entry_points: Vec::new(),
+            primary_actor: None,
+            narrative: None,
+            business_language: business_language.map(|v| ConfidenceScore::new(v, None)),
+            diagram_mermaid: None,
+            confidence: confidence.map(|v| ConfidenceScore::new(v, None)),
+        }
+    }
+
+    #[test]
+    fn a_use_case_is_technical_in_a_back_office_feature_or_under_a_threshold() {
+        assert!(use_case(Some(0.9), Some(0.9)).is_technical(true));
+        assert!(use_case(Some(0.79), Some(0.9)).is_technical(false));
+        assert!(use_case(Some(0.9), Some(0.59)).is_technical(false));
+        assert!(!use_case(Some(0.8), Some(0.6)).is_technical(false));
+        // Not scored yet is no reason to set it apart.
+        assert!(!use_case(None, None).is_technical(false));
+    }
 
     fn rule() -> BusinessRule {
         BusinessRule {

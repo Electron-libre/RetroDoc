@@ -25,6 +25,12 @@ use crate::{
     METADATA_PATH, RULES_INDEX_PATH,
 };
 
+/// Where the docs put what is not the core of the business: back-office tools, and use cases
+/// that read as code or are weakly backed by it.
+const TECHNICAL_HEADING: &str = "Administration and technical";
+const TECHNICAL_NOTE: &str =
+    "Back-office tools, and behaviours that read as code or that the code backs weakly.";
+
 /// Renders every file of the docs, paths relative to the docs dir. Pure and
 /// deterministic: the same artifacts always give the same bytes (the run
 /// metadata's timestamp aside).
@@ -276,15 +282,20 @@ fn agent_index(domains: &[Domain], features: &[Feature], rule_count: usize) -> S
                 .as_ref()
                 .is_some_and(|s| domain.sub_domains.iter().any(|d| &d.slug == s))
         };
-        for f in own.iter().filter(|f| !in_sub(f)) {
+        for f in own.iter().filter(|f| !in_sub(f) && !f.back_office) {
             feature_item(&mut md, "  ", f);
         }
         for sub in &domain.sub_domains {
             let _ = writeln!(md, "  - {}: {}", sub.name, one_line(&sub.description));
-            for f in own
-                .iter()
-                .filter(|f| f.sub_domain_slug.as_deref() == Some(sub.slug.as_str()))
-            {
+            for f in own.iter().filter(|f| {
+                f.sub_domain_slug.as_deref() == Some(sub.slug.as_str()) && !f.back_office
+            }) {
+                feature_item(&mut md, "    ", f);
+            }
+        }
+        if own.iter().any(|f| f.back_office) {
+            let _ = writeln!(md, "  - {TECHNICAL_HEADING}:");
+            for f in own.iter().filter(|f| f.back_office) {
                 feature_item(&mut md, "    ", f);
             }
         }
@@ -327,7 +338,10 @@ fn domain_page(domain: &Domain, features: &[&Feature], rules: &[BusinessRule]) -
             .as_ref()
             .is_some_and(|s| domain.sub_domains.iter().any(|d| &d.slug == s))
     };
-    let direct: Vec<&&Feature> = features.iter().filter(|f| !is_in_sub(f)).collect();
+    let direct: Vec<&&Feature> = features
+        .iter()
+        .filter(|f| !is_in_sub(f) && !f.back_office)
+        .collect();
     if !direct.is_empty() {
         md.push_str("## Features\n\n");
         for f in direct {
@@ -341,14 +355,20 @@ fn domain_page(domain: &Domain, features: &[&Feature], rules: &[BusinessRule]) -
         for sub in &domain.sub_domains {
             let _ = write!(md, "### {}\n\n{}\n\n", sub.name, sub.description.trim());
             let _ = writeln!(md, "{}\n", confidence_line(sub.confidence.as_ref()));
-            for f in features
-                .iter()
-                .filter(|f| f.sub_domain_slug.as_deref() == Some(sub.slug.as_str()))
-            {
+            for f in features.iter().filter(|f| {
+                f.sub_domain_slug.as_deref() == Some(sub.slug.as_str()) && !f.back_office
+            }) {
                 feature_item(&mut md, f);
             }
             md.push('\n');
         }
+    }
+    if features.iter().any(|f| f.back_office) {
+        let _ = write!(md, "## {TECHNICAL_HEADING}\n\n{TECHNICAL_NOTE}\n\n");
+        for f in features.iter().filter(|f| f.back_office) {
+            feature_item(&mut md, f);
+        }
+        md.push('\n');
     }
     let own: Vec<(&Feature, &BusinessRule)> = features
         .iter()
@@ -374,11 +394,11 @@ fn feature_page(feature: &Feature, use_cases: &[&UseCase], rules: &[&BusinessRul
     let _ = writeln!(md, "{}\n", feature.description.trim());
     let _ = writeln!(md, "{}\n", confidence_line(feature.confidence.as_ref()));
 
-    md.push_str("## Use cases\n\n");
-    if use_cases.is_empty() {
-        md.push_str("None could be derived from the code.\n");
-    }
-    for u in use_cases {
+    let (technical, business): (Vec<&UseCase>, Vec<&UseCase>) = use_cases
+        .iter()
+        .copied()
+        .partition(|u| u.is_technical(feature.back_office));
+    let use_case_item = |md: &mut String, u: &UseCase| {
         let _ = writeln!(
             md,
             "- [{}]({}) ({}): {}",
@@ -387,6 +407,21 @@ fn feature_page(feature: &Feature, use_cases: &[&UseCase], rules: &[&BusinessRul
             short_confidence(u.confidence.as_ref()),
             u.description.trim()
         );
+    };
+    md.push_str("## Use cases\n\n");
+    if use_cases.is_empty() {
+        md.push_str("None could be derived from the code.\n");
+    } else if business.is_empty() {
+        md.push_str("All of them are set apart below.\n");
+    }
+    for u in &business {
+        use_case_item(&mut md, u);
+    }
+    if !technical.is_empty() {
+        let _ = write!(md, "\n## {TECHNICAL_HEADING}\n\n{TECHNICAL_NOTE}\n\n");
+        for u in &technical {
+            use_case_item(&mut md, u);
+        }
     }
 
     if !rules.is_empty() {
@@ -538,6 +573,7 @@ mod tests {
         }];
         let features = vec![
             Feature {
+                back_office: false,
                 slug: "pay-invoice".to_string(),
                 domain_slug: "billing".to_string(),
                 sub_domain_slug: Some("payment".to_string()),
@@ -548,6 +584,7 @@ mod tests {
                 confidence: Some(ConfidenceScore::new(0.3, "weak".to_string())),
             },
             Feature {
+                back_office: false,
                 slug: "list".to_string(),
                 domain_slug: "billing".to_string(),
                 sub_domain_slug: None,
@@ -585,6 +622,62 @@ mod tests {
             confidence: Some(ConfidenceScore::new(0.3, "step 1: guessed".to_string())),
         }];
         (domains, features, use_cases)
+    }
+
+    fn page<'a>(files: &'a [RenderedFile], path: &str) -> &'a str {
+        &files
+            .iter()
+            .find(|f| f.path == Path::new(path))
+            .unwrap()
+            .content
+    }
+
+    #[test]
+    fn technical_use_cases_are_set_apart_on_the_feature_page() {
+        let (d, f, mut u) = sample();
+        let mut business = u[0].clone();
+        business.slug = "pay-by-wire".to_string();
+        business.name = "Pay by wire".to_string();
+        business.confidence = Some(ConfidenceScore::new(0.9, None));
+        u.push(business);
+        let files = render(&d, &f, &u, "", &meta()).unwrap();
+        let feature = page(&files, "functional/billing/payment/pay-invoice.md");
+        let (core, apart) = feature
+            .split_once("## Administration and technical")
+            .expect("a section for what is set apart");
+        assert!(core.contains("Pay by wire") && !core.contains("Pay by card"));
+        assert!(apart.contains("Pay by card") && !apart.contains("Pay by wire"));
+    }
+
+    #[test]
+    fn a_page_without_technical_use_cases_has_no_such_section() {
+        let (d, f, mut u) = sample();
+        u[0].confidence = Some(ConfidenceScore::new(0.9, None));
+        let files = render(&d, &f, &u, "", &meta()).unwrap();
+        for file in &files {
+            assert!(!file.content.contains("Administration and technical"));
+        }
+    }
+
+    #[test]
+    fn a_back_office_feature_is_listed_apart_in_its_domain_and_the_index() {
+        let (d, mut f, mut u) = sample();
+        f[0].back_office = true;
+        u[0].confidence = Some(ConfidenceScore::new(0.9, None));
+        let files = render(&d, &f, &u, "", &meta()).unwrap();
+        let readme = page(&files, "functional/billing/README.md");
+        let (core, apart) = readme
+            .split_once("## Administration and technical")
+            .expect("a section for the back-office features");
+        assert!(!core.contains("pay-invoice.md") && apart.contains("pay-invoice.md"));
+        let index = page(&files, "functional/llms.txt");
+        let (core, apart) = index
+            .split_once("  - Administration and technical:")
+            .expect("a group for the back-office features");
+        assert!(!core.contains("pay-invoice.md") && apart.contains("pay-invoice.md"));
+        // The use case of a back-office feature is set apart even with a good score.
+        let feature = page(&files, "functional/billing/payment/pay-invoice.md");
+        assert!(feature.contains("All of them are set apart below."));
     }
 
     #[test]

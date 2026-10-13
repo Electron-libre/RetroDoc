@@ -583,6 +583,7 @@ async fn a_saved_split_is_reused_without_a_call() {
 #[test]
 fn the_features_follow_the_order_of_the_map_and_a_removed_context_leaves_none() {
     let feature = |slug: &str, domain: &str| retrodoc_core::model::Feature {
+        back_office: false,
         slug: slug.to_string(),
         domain_slug: domain.to_string(),
         sub_domain_slug: None,

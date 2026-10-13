@@ -499,6 +499,7 @@ mod tests {
         save_features(
             root,
             &[Feature {
+                back_office: false,
                 slug: "checkout".to_string(),
                 domain_slug: "billing".to_string(),
                 sub_domain_slug: None,

@@ -878,6 +878,7 @@ fn place_entry_points(
         let taken = existing.iter().chain(&produced).map(|f| f.slug.as_str());
         let slug = unique_slug(&raw_feature.slug, taken);
         produced.push(Feature {
+            back_office: false,
             slug,
             domain_slug: domain.slug.clone(),
             sub_domain_slug: None,

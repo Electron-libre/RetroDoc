@@ -14,6 +14,7 @@ const ROUTER: &str = "def add_order\n  return :refused if time >= 60\n  accept\n
 
 fn feature() -> Feature {
     Feature {
+        back_office: false,
         slug: "orders".into(),
         domain_slug: "delivery".into(),
         sub_domain_slug: None,

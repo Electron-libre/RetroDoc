@@ -5,6 +5,7 @@ use crate::glossary::MergedEntity;
 
 fn feature(entry_points: &[&str]) -> Feature {
     Feature {
+        back_office: false,
         slug: "f".to_string(),
         domain_slug: "d".to_string(),
         sub_domain_slug: None,

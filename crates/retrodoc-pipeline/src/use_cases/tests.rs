@@ -5,6 +5,7 @@ use crate::testing::{killed, FakeLlm};
 
 fn feature(slug: &str, paths: &[&str]) -> Feature {
     Feature {
+        back_office: false,
         slug: slug.to_string(),
         domain_slug: "billing".to_string(),
         sub_domain_slug: None,

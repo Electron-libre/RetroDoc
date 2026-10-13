@@ -258,6 +258,7 @@ fn validated_features(raw: RawFeatures, unit: &Unit<'_>, existing: &[Feature]) -
         let taken = existing.iter().chain(&produced).map(|f| f.slug.as_str());
         let slug = unique_slug(&raw_feature.slug, taken);
         produced.push(Feature {
+            back_office: false,
             slug,
             domain_slug: unit.domain.slug.clone(),
             sub_domain_slug: unit.sub_slug.map(str::to_string),

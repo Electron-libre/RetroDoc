@@ -13,6 +13,7 @@ fn generated_repo() -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();
     Config::write_default(dir.path(), false).unwrap();
     let feature = Feature {
+        back_office: false,
         slug: "pay-invoice".into(),
         domain_slug: "billing".into(),
         sub_domain_slug: None,

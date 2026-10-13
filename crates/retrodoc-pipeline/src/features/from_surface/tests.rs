@@ -358,6 +358,7 @@ fn an_entry_point_held_by_two_features_stays_with_the_domain_that_owns_it() {
         .map(|d| (d, domain_entries(d, &entries)))
         .collect();
     let held = |slug: &str, domain: &str, ids: &[&str]| Feature {
+        back_office: false,
         slug: slug.to_string(),
         domain_slug: domain.to_string(),
         sub_domain_slug: None,
@@ -1057,6 +1058,7 @@ async fn a_failed_slice_keeps_the_features_it_had() {
 #[test]
 fn features_merge_against_the_earlier_slices_only() {
     let feature = |slug: &str, name: &str, id: &str| Feature {
+        back_office: false,
         slug: slug.to_string(),
         domain_slug: "big".to_string(),
         sub_domain_slug: None,

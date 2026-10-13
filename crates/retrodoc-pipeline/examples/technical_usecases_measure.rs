@@ -14,12 +14,11 @@ use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::path::Path;
 
-use retrodoc_core::model::{ActorKind, Feature, UseCase};
+use retrodoc_core::model::{
+    ActorKind, Feature, UseCase, MIN_BUSINESS_LANGUAGE, MIN_USE_CASE_CONFIDENCE,
+};
 use retrodoc_pipeline::{load_features, load_use_cases, EntryKind, EntryPoints};
 
-/// Below these, a use case is set apart in the docs.
-const MIN_BUSINESS_LANGUAGE: f32 = 0.8;
-const MIN_CONFIDENCE: f32 = 0.6;
 /// Words that open a screen rather than do something.
 const SCREEN_VERBS: [&str; 6] = ["open", "show", "view", "edit", "display", "new"];
 
@@ -114,7 +113,7 @@ fn signals(uc: &UseCase, feature: Option<&Feature>, kinds: &[EntryKind]) -> Sign
         low_confidence: uc
             .confidence
             .as_ref()
-            .is_some_and(|s| s.value < MIN_CONFIDENCE),
+            .is_some_and(|s| s.value < MIN_USE_CASE_CONFIDENCE),
         screen: uc
             .name
             .split_whitespace()
