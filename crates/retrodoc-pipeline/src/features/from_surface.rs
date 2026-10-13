@@ -542,7 +542,9 @@ impl SurfaceRun<'_> {
                 self.llm,
             );
             if self.known_units.get(&key) == Some(&print) {
-                if let Some(kept) = reusable_slice(self.previous, features, &domain.slug, slice) {
+                if let Some(kept) =
+                    reusable_slice(self.previous, features, &domain.slug, slice, entries)
+                {
                     tracing::info!(unit = %key, "features unchanged, reused");
                     merge_features(&mut domain_features, kept);
                     prints.features.insert(key, print);
@@ -631,7 +633,12 @@ impl SurfaceRun<'_> {
             if let Some(print) = self.known_units.get(&key) {
                 prints.features.entry(key).or_insert_with(|| print.clone());
             }
-            let mut old = restricted(self.previous, &domain.slug, &entries[range.clone()]);
+            let mut old = restricted(
+                self.previous,
+                &domain.slug,
+                &entries[range.clone()],
+                entries,
+            );
             old.retain(|f| !features.iter().any(|other| other.slug == f.slug));
             merge_features(&mut domain_features, old);
         }
@@ -715,9 +722,17 @@ fn merge_features(domain_features: &mut Vec<Feature>, produced: Vec<Feature>) {
     }
 }
 
-/// The previous features of the domain restricted to the entry points of `slice`.
-fn restricted(previous: &[Feature], domain_slug: &str, slice: &[Entry<'_>]) -> Vec<Feature> {
-    let ids: BTreeSet<&str> = slice.iter().map(|e| e.id.as_str()).collect();
+/// The previous features of the domain restricted to the entry points of `slice`. An entry point
+/// the domain does not have (one a placement put there from another file) belongs to no slice and
+/// stays where it is: dropping it would open it again at every run.
+fn restricted(
+    previous: &[Feature],
+    domain_slug: &str,
+    slice: &[Entry<'_>],
+    entries: &[Entry<'_>],
+) -> Vec<Feature> {
+    let in_slice: BTreeSet<&str> = slice.iter().map(|e| e.id.as_str()).collect();
+    let of_domain: BTreeSet<&str> = entries.iter().map(|e| e.id.as_str()).collect();
     previous
         .iter()
         .filter(|f| f.domain_slug == domain_slug)
@@ -725,7 +740,7 @@ fn restricted(previous: &[Feature], domain_slug: &str, slice: &[Entry<'_>]) -> V
             let entry_points: Vec<String> = f
                 .entry_points
                 .iter()
-                .filter(|id| ids.contains(id.as_str()))
+                .filter(|id| in_slice.contains(id.as_str()) || !of_domain.contains(id.as_str()))
                 .cloned()
                 .collect();
             (!entry_points.is_empty()).then(|| Feature {
@@ -749,8 +764,9 @@ fn reusable_slice(
     features: &[Feature],
     domain_slug: &str,
     slice: &[Entry<'_>],
+    entries: &[Entry<'_>],
 ) -> Option<Vec<Feature>> {
-    let kept = restricted(previous, domain_slug, slice);
+    let kept = restricted(previous, domain_slug, slice, entries);
     let collides = kept
         .iter()
         .any(|k| features.iter().any(|f| f.slug == k.slug));

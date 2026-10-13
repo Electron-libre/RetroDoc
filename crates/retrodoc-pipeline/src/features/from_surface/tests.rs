@@ -1114,3 +1114,37 @@ async fn the_entry_points_held_by_no_feature_are_counted_per_domain() {
         "the second run keeps the count of the first"
     );
 }
+
+#[tokio::test]
+async fn an_entry_point_placed_from_another_file_stays_in_its_feature_on_the_rerun() {
+    let dir = tempfile::tempdir().unwrap();
+    let (domains, entries) = fixture();
+    // The placement puts `GET /ping`, which belongs to no domain of the fixture (uncategorized), and
+    // `POST /orders` into the orders feature.
+    let answer = |n: usize, request: &CompletionRequest| -> Result<String, LlmError> {
+        let prompt = &request.messages.last().unwrap().content;
+        Ok(if prompt.contains("Entry points to place") {
+            r#"{"placements":[{"entry_point":"orders.rb#POST /orders","feature":"orders"},
+                {"entry_point":"misc.rb#GET /ping","feature":"orders"}]}"#
+        } else if n == 0 {
+            r#"{"features":[{"slug":"orders","name":"O","description":"d",
+                "entry_points":["orders.rb#GET /orders"]}]}"#
+        } else {
+            r#"{"features":[{"slug":"routes","name":"R","description":"d",
+                "entry_points":["orders.rb#GET /routes"]}]}"#
+        }
+        .to_string())
+    };
+    let first = run(dir.path(), &domains, &entries, &FakeLlm::replying(answer)).await;
+    assert_eq!(first[0].entry_points.len(), 3);
+
+    let again = FakeLlm::replying(answer);
+    let features = run(dir.path(), &domains, &entries, &again).await;
+
+    assert_eq!(again.calls(), 0, "nothing is asked again");
+    assert_eq!(
+        features[0].entry_points.len(),
+        3,
+        "the placed entry points are kept"
+    );
+}
