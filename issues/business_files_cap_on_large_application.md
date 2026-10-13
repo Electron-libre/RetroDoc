@@ -259,3 +259,19 @@ What the runs showed (each one a defect of this issue's work, fixed unless said)
 * The contexts mode does not compute the technical support list (it would call every undocumented file
   technical support).
 * Not measured: the quality of the docs (to read with the user), the remaining 23 contexts, the rules.
+
+### Second series (2026-10-13): the new map, the first two runs again
+
+The map was rebuilt after the fixes of `issues/split_contexts_by_family_not_by_layer.md` (35 contexts, the
+largest 199 files, the families of the workflows grouped by subject) and adopted for the working copy; the
+inventories of the files already read were kept (the readers add), the features of the old contexts dropped.
+
+| Run | Contexts | Files read | Calls | Tokens in / out | Time | Cost |
+|---|---|---|---|---|---|---|
+| A | the largest (the contract life cycle) | 226 | 91 | 442k / 115k | 8m43 | $0.27 |
+| B | the next 6 | 133 | 74 | 349k / 71k | 5m46 | $0.19 |
+
+Product: 8 contexts, 46 features, 203 use cases, no feature without a use case. Cost of the whole validation on
+the application, all builds of the map and all runs: about $1.0 of the $1.5 ceiling. Findings: the entry points a
+large context never shows to the LLM (`issues/entry_points_of_a_large_context.md`), and a feature whose use cases
+answer is cut at the output limit again (`issues/shorter_use_case_answers.md`).
