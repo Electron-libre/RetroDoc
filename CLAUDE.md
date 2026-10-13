@@ -30,6 +30,7 @@ cargo run -q -p retrodoc-pipeline --example entry_points_replay -- benchmark/<re
 cargo run -q -p retrodoc-pipeline --example behaviour_baseline -- <run dir>...   # share of source files a behaviour reaches and calls/minutes per pass of saved runs (no LLM)
 cargo run -q -p retrodoc-pipeline --example context_map_measure -- [--names] <run dir>...   # can bounded contexts be built from the file names: contexts, coverage, overlap of saved runs (no LLM)
 cargo run -q -p retrodoc-pipeline --example route_owner_measure -- <run dir>...   # routes given to the context that owns their controller: moved, kept, entry points per context before/after (no LLM)
+cargo run -q -p retrodoc-pipeline --example technical_usecases_measure -- <run dir>...   # use cases per technical or back-office signal, and which signal finds the administration ones (no LLM)
 ```
 
 Scripts and dev commands are `just` recipes (`justfile`) and `rust-script` files, not bash.

@@ -43,3 +43,25 @@ Measure first on the saved run (no LLM): for the use cases flagged by each signa
 # Hints
 * The application is confidential: no name, path or code of it in a committed file.
 * Do not remove the public methods of a library (the reason business files feed the entry points pass).
+
+# Tracking
+1. [x] Measure on the saved run, no LLM (`examples/technical_usecases_measure.rs`): use cases per signal, and which signal best finds the administration ones.
+2. [ ] Render a section "Administration and technical" (admin, business language < 0.8 or confidence < 0.6), out of the business index.
+3. [ ] Mechanical check that the human actor of the first step matches a human entry point.
+4. [ ] Use cases prompt: system, external provider or API consumer as actor without a human entry point.
+5. [ ] Entry points: in an application, a public method is an entry point only if a route, job, workflow or webhook reaches it; else technical support.
+6. [ ] Use cases prompt: a form-opening action and its submit are one use case.
+7. [ ] Re-validate on the large application (needs the user's agreement before the paid run); figures to the issue and `PLAN.md`, generically.
+
+## Decisions
+* Set apart, do not delete: the use cases stay in the cache and the render, in their own section.
+* Thresholds: business language < 0.8 or confidence < 0.6, plus administration.
+* Administration is detected from what the LLM determined (context, role, actor), not from a folder name or a config key; the measure (1) picks the signal.
+* Run used for the measure: `/tmp/retrodoc-validate-ctx/.retrodoc/cache/` (confidential, not committed).
+* Order: measure, render, actor check, prompts and entry points, then re-validation.
+
+## Measure (step 1, saved run of the large application, 285 use cases, 6 contexts)
+* `public_api` feature 21%; human actor with no route nor command 28%; screens 12%; business language < 0.8 6%; confidence < 0.6 13%.
+* Administration: the reference (sources in an `admin` folder) is 15%. The primary actor named "administrator" matches it badly (18 in both, 25 actor only, 25 folder only: a customer's company administrator is business, not back-office). The name or description of the feature matches best (26 in both, 6 only, 17 folder only), and still misses back-office features described with a business role.
+* Set apart with the feature text and the two thresholds: 27% of the use cases.
+* The figures of the Findings come from an earlier pass (161 use cases); the saved run is a later one.
