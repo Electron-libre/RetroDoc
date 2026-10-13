@@ -13,7 +13,7 @@ use retrodoc_core::model::{
 use retrodoc_ingest::existing_docs::ExistingDoc;
 use retrodoc_pipeline::{domain_models, DomainMap, Glossary};
 
-use crate::corpus::{build_entries, rule_entries, EntryKind};
+use crate::corpus::{build_entries, rule_entries, Entry, EntryKind};
 use crate::freshness::{FileState, Freshness};
 use crate::search::SearchIndex;
 use crate::source::SourceAccess;
@@ -222,6 +222,31 @@ impl Docs {
         out
     }
 
+    /// Whether the docs set a use case apart under "Administration and technical".
+    fn use_case_set_apart(&self, use_case: &UseCase) -> bool {
+        let back_office = self
+            .features
+            .iter()
+            .any(|f| f.slug == use_case.feature_slug && f.back_office);
+        use_case.is_technical(back_office)
+    }
+
+    /// Whether a search entry is a back-office feature or a use case set apart.
+    fn entry_set_apart(&self, entry: &Entry) -> bool {
+        match entry.kind {
+            EntryKind::Feature => self
+                .features
+                .iter()
+                .any(|f| f.back_office && feature_id(f) == entry.id),
+            EntryKind::UseCase => self.use_cases.iter().any(|u| {
+                self.features.iter().any(|f| {
+                    f.slug == u.feature_slug && format!("{}/{}", feature_id(f), u.slug) == entry.id
+                }) && self.use_case_set_apart(u)
+            }),
+            _ => false,
+        }
+    }
+
     /// A feature, by its id (`billing/pay-invoice`) or its slug alone, with
     /// its use cases and the files it is grounded on.
     #[must_use]
@@ -237,6 +262,9 @@ impl Docs {
             feature.description,
             confidence_line(feature.confidence.as_ref())
         );
+        if feature.back_office {
+            let _ = writeln!(out, "{SET_APART_NOTE}");
+        }
         out.push_str(&self.stale_notice(feature.source_paths.iter().map(String::as_str)));
         out.push_str(&sources_section(
             "Grounded on",
@@ -261,12 +289,13 @@ impl Docs {
         for use_case in use_cases {
             let _ = writeln!(
                 out,
-                "- `{}/{}` — {}: {} ({})",
+                "- `{}/{}` — {}: {} ({}){}",
                 feature_id(feature),
                 use_case.slug,
                 use_case.name,
                 one_line(&use_case.description),
                 confidence_short(use_case.confidence.as_ref()),
+                set_apart_tag(self.use_case_set_apart(use_case)),
             );
         }
         out.push_str("\nUse `get_use_case` with an id to see the steps.\n");
@@ -299,6 +328,9 @@ impl Docs {
             use_case.slug,
             confidence_line(use_case.confidence.as_ref())
         );
+        if self.use_case_set_apart(use_case) {
+            let _ = writeln!(out, "{SET_APART_NOTE}");
+        }
         let cited = use_case
             .steps
             .iter()
@@ -388,7 +420,7 @@ impl Docs {
             let entry = hit.entry;
             let _ = writeln!(
                 out,
-                "- [{}] {} (`{}`, {})",
+                "- [{}] {} (`{}`, {}){}",
                 entry.kind.label(),
                 entry.title,
                 entry.id,
@@ -398,6 +430,7 @@ impl Docs {
                         .map(|v| ConfidenceScore::new(v, None))
                         .as_ref()
                 ),
+                set_apart_tag(self.entry_set_apart(entry)),
             );
             if let Some(line) = entry
                 .text
@@ -516,6 +549,18 @@ const NO_SOURCE_ACCESS: &str =
 
 /// Characters of a description shown in a list or a search hit.
 const SNIPPET_CHARS: usize = 160;
+
+/// What an answer says of a feature or use case the docs set apart under "Administration and
+/// technical": an agent can still read it, and knows it is not the core of the business.
+const SET_APART_NOTE: &str = "Administration and technical: a back-office tool, or a behaviour that reads as code or that the code backs weakly (not the core of the business).";
+
+fn set_apart_tag(set_apart: bool) -> &'static str {
+    if set_apart {
+        " [administration/technical]"
+    } else {
+        ""
+    }
+}
 
 fn feature_id(feature: &Feature) -> String {
     match &feature.sub_domain_slug {
@@ -700,6 +745,42 @@ mod tests {
         assert!(docs()
             .get_feature("cancel-plan")
             .contains("No use case documented"));
+    }
+
+    #[test]
+    fn what_the_docs_set_apart_is_marked_in_the_answers() {
+        // `pay-late` has a confidence of 30%, `pay-by-card` 90%.
+        let feature = docs().get_feature("billing/pay-invoice");
+        let late = feature.lines().find(|l| l.contains("Pay late")).unwrap();
+        let card = feature.lines().find(|l| l.contains("Pay by card")).unwrap();
+        assert!(late.contains("[administration/technical]"));
+        assert!(!card.contains("[administration/technical]"));
+        assert!(docs()
+            .get_use_case("pay-invoice/pay-late")
+            .contains("Administration and technical"));
+        assert!(!docs()
+            .get_use_case("billing/pay-invoice/pay-by-card")
+            .contains("Administration and technical"));
+        let found = docs().search_docs("late", 10);
+        let hit = found.lines().find(|l| l.contains("Pay late")).unwrap();
+        assert!(hit.contains("[administration/technical]"), "{found}");
+    }
+
+    #[test]
+    fn a_back_office_feature_is_marked_with_its_use_cases() {
+        let mut features = docs().features.clone();
+        features
+            .iter_mut()
+            .find(|f| f.slug == "pay-invoice")
+            .unwrap()
+            .back_office = true;
+        let mut docs = docs();
+        docs.features = features;
+        let out = docs.get_use_case("billing/pay-invoice/pay-by-card");
+        assert!(out.contains("Administration and technical"));
+        assert!(docs
+            .get_feature("billing/pay-invoice")
+            .contains("Administration and technical"));
     }
 
     #[test]

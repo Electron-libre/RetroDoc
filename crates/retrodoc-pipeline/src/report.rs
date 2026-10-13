@@ -5,7 +5,7 @@
 //! `coverage-report.md` content the writing phase will put under
 //! `docs/_retrodoc/`.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::path::PathBuf;
 
@@ -65,6 +65,10 @@ pub struct DebtReport {
     /// Use cases whose business-language score is below the threshold (they
     /// read like code, or like an internal helper), lowest first.
     pub technical_use_cases: Vec<WeakSection>,
+    /// Use cases the docs set apart under "Administration and technical"
+    /// (`UseCase::is_technical`), and the features marked back-office.
+    pub set_apart_use_cases: usize,
+    pub back_office_features: usize,
     /// Use cases the confidence pass could not score.
     pub unscored_use_cases: Vec<String>,
     /// Source files the clustering could not place in a domain: code with no
@@ -192,6 +196,15 @@ pub fn build_report(
 
     let domain_debts = domain_debts(features, use_cases, &feature_domain);
 
+    let back_office: BTreeSet<&str> = features
+        .iter()
+        .filter(|f| f.back_office)
+        .map(|f| f.slug.as_str())
+        .collect();
+    let set_apart_use_cases = use_cases
+        .iter()
+        .filter(|u| u.is_technical(back_office.contains(u.feature_slug.as_str())))
+        .count();
     let mut weak_sections: Vec<WeakSection> = Vec::new();
     let mut unscored_use_cases = Vec::new();
     let mut technical_use_cases: Vec<WeakSection> = Vec::new();
@@ -259,6 +272,8 @@ pub fn build_report(
         domains: domain_debts,
         weak_sections,
         technical_use_cases,
+        set_apart_use_cases,
+        back_office_features: back_office.len(),
         unscored_use_cases,
         uncategorized_files,
         skipped_files: Vec::new(),
@@ -447,6 +462,15 @@ impl DebtReport {
                 let _ = write!(md, ": {why}");
             }
             md.push('\n');
+        }
+
+        if self.set_apart_use_cases > 0 || self.back_office_features > 0 {
+            let _ = write!(
+                md,
+                "\n## Set apart in the docs\n\n{} use case(s) and {} back-office feature(s) are listed \
+                 under \"Administration and technical\" instead of among the business ones.\n",
+                self.set_apart_use_cases, self.back_office_features
+            );
         }
 
         if !self.technical_use_cases.is_empty() {
@@ -769,6 +793,11 @@ mod tests {
 
         assert_eq!(report.technical_use_cases.len(), 1);
         assert_eq!(report.technical_use_cases[0].label, "billing/pay/helper");
+        // 0.2 is under both the debt threshold and the one that sets a use case apart.
+        assert_eq!(
+            (report.set_apart_use_cases, report.back_office_features),
+            (1, 0)
+        );
         assert!((report.overall_business.unwrap() - 0.55).abs() < 1e-6);
         let md = report.to_markdown();
         assert!(md.contains("Overall business language: **55%**"));
@@ -783,5 +812,59 @@ mod tests {
             &[use_case("a", "pay", Some(0.9))],
         );
         assert!(!plain.to_markdown().contains("business language"));
+    }
+}
+
+#[cfg(test)]
+mod set_apart_tests {
+    use super::*;
+
+    #[test]
+    fn the_report_counts_what_the_docs_set_apart() {
+        let mut admin = Feature {
+            slug: "admin-tools".into(),
+            domain_slug: "ops".into(),
+            sub_domain_slug: None,
+            name: "Admin".into(),
+            description: String::new(),
+            source_paths: Vec::new(),
+            entry_points: Vec::new(),
+            back_office: true,
+            confidence: None,
+        };
+        let mut business = admin.clone();
+        business.slug = "pay".into();
+        business.back_office = false;
+        admin.back_office = true;
+        let uc = |slug: &str, feature: &str, business_language: f32| UseCase {
+            slug: slug.into(),
+            feature_slug: feature.into(),
+            name: slug.into(),
+            description: String::new(),
+            steps: Vec::new(),
+            entry_points: Vec::new(),
+            primary_actor: None,
+            narrative: None,
+            business_language: Some(ConfidenceScore::new(business_language, None)),
+            diagram_mermaid: None,
+            confidence: None,
+        };
+        let use_cases = [
+            uc("reimport", "admin-tools", 0.95),
+            uc("pay", "pay", 0.95),
+            uc("helper", "pay", 0.7),
+        ];
+
+        let report = build_report(&DomainMap::default(), &[admin, business], &use_cases);
+
+        assert_eq!(
+            (report.set_apart_use_cases, report.back_office_features),
+            (2, 1)
+        );
+        assert!(report
+            .to_markdown()
+            .contains("2 use case(s) and 1 back-office feature(s)"));
+        let none = build_report(&DomainMap::default(), &[], &[uc("pay", "pay", 0.95)]);
+        assert!(!none.to_markdown().contains("Set apart in the docs"));
     }
 }
