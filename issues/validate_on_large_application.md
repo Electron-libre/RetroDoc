@@ -47,11 +47,15 @@ and gives the evidence the parked decision on `domains_from` is waiting for.
 # Tracking
 
 1. [x] Preparation without LLM call: clone in `/tmp`, config, `scan`, reading sample fixed.
-2. [ ] The paid run: `generate`, rerun, `report`, verdict of the smoke-test criteria, `behaviour_baseline`;
-   figures per pass written here.
-3. [ ] Reading with the user on the fixed sample; the reading written here, generically.
-4. [ ] Each defect to an issue or a line of an existing one; result given to
-   `issues/surface_domains_default_decision.md` and `PLAN.md` §7.6.
+2. [x] The paid runs: made in slices, one bounded context at a time, once the reading stage showed that a
+   whole-application run was out of reach (`issues/business_files_cap_on_large_application.md`, "Real runs on the
+   large application"); figures per run there, about $1.28 of the $1.5 ceiling for the whole validation.
+3. [x] Reading: the user's first remark, then a control pass by the agent on the fixed sample, against the code
+   (section "Reading"). The rest of the reading (the 23 contexts left, the 22 extra features of the central
+   context) is not done.
+4. [x] Each defect to an issue (`technical_and_back_office_use_cases`, `split_contexts_by_family_not_by_layer`,
+   `use_cases_record_their_entry_points`, `entry_points_of_a_large_context`, closed) or a line of one; result
+   given to `issues/surface_domains_default_decision.md` and `PLAN.md` §7.6.
 
 ## Decisions
 
@@ -64,8 +68,8 @@ and gives the evidence the parked decision on `domains_from` is waiting for.
 
 * (user, 2026-10-12) Paused after the reading stage: the second stage waits for
   `issues/business_files_cap_on_large_application.md`, since a reading made now would be dominated by that defect.
-* Not asked for the budget finding below (`--max-files` on the `surface` path): still to turn into an issue
-  or a line of one (deliverable 4).
+* The budget finding below (`--max-files` on the `surface` path) is a line of `issues/surface_domains_default_decision.md`
+  and of `issues/single_pipeline_path.md`; with `domains_from = "contexts"` the flag is the reading budget of a run.
 
 ## Reading sample (fixed before the run)
 
@@ -157,3 +161,25 @@ Defects found (each has an issue or a line of one):
 
 Not judged: the 23 contexts not documented, the rules (off), the technical support list (not computed in this
 mode).
+
+## Verdict (2026-10-13)
+
+Does the redesigned pipeline reach its goal on a large legacy application? **On the core of the business, yes,
+with a method that had to change.** What the real runs established:
+
+* One whole `generate` is out of reach on a 1,676-file application with the reading designed for files: the
+  business read stopped at 60 files, the features call showed 150 entry points of a context of 456. The
+  application had to be documented a bounded context at a time (ADR 0029), which the redesign did not foresee
+  and which is now the way to run it: resumable, complementary runs, no work redone. A rerun of documented
+  contexts calls no LLM.
+* Cost follows the business surface, not the file count: the first 8 of 35 contexts (about a third of the
+  files read), 285 use cases, 46+ features, cost about $1.3 in total including the false starts, 5 to 9 minutes a
+  slice with the hosted model.
+* What a reader gets: use cases in business language (4 of 161 narratives with a code identifier), faithful to the
+  code on the 5 read in full, no feature without a use case. The user found the core of the business
+  encouraging.
+* What the runs did not settle: the quality of the 27 contexts left, of the rules (off), and the technical
+  noise (about 30% of the use cases of the first slices are helpers or back-office tools, tracked).
+* Decision for `issues/surface_domains_default_decision.md`: the question is no longer only `files` against
+  `surface`: for a large application the contexts mode is the only one that finished, and it is built on the
+  `surface` pipeline.

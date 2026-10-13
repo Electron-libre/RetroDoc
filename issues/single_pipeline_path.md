@@ -22,6 +22,11 @@ both stay and for which repositories.
   collections there.
 * `retrodoc-pipeline` is 23.8k of the workspace's 37.9k lines.
 
+* `domains_from` has a third value since 2026-10-13, `"contexts"` (ADR 0029, `generate/contexts.rs`): the surface
+  pipeline run a bounded context at a time. It shares the passes of the `surface` path and adds `Retention`,
+  per-domain placement and vocabulary, `contexts/`; the decision must say what happens to it (it is the way to
+  run a large application).
+
 # Approach
 1. Wait for `surface_domains_default_decision` (fed by `validate_on_large_application`).
 2. List what each path alone uses (modules, config keys, artifacts, commands, docs, skills, tests), and what

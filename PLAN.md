@@ -513,8 +513,7 @@ Measured since the baseline of §7.5 step 1 (details in the closed issues):
 | Business rules, linkding, deepseek | 649 rules for 66 features, 450 backed by code alone; the pass is about 42% of the input tokens of the run (1.18M in, 242k out) |
 
 Not reached yet:
-- No complete run on a large application since 2026-10-02; on the cache of an older run of one, 36% of the
-  source files are reached by a behaviour.
+- No complete run on a large application since 2026-10-02 (done since: see §7.7).
 - Feature precision stays low on the application benchmark, and the judge overstates it (by 12 to 33 points on
   the audited runs).
 - Run-to-run spread: 13 to 21 entry points on the 9-file library, 64 against 96 between two identical runs
@@ -524,7 +523,8 @@ Not reached yet:
   are maintained together.
 
 Next work, in the order of `issues/queue.md`:
-1. `issues/validate_on_large_application.md`: one complete run on a large application, read by the user.
+1. `issues/validate_on_large_application.md`: one complete run on a large application, read by the user (done in
+   slices, §7.7).
 2. `issues/sampling_temperature_for_steadier_runs.md` and `issues/benchmark_passes_on_fixed_inputs.md`: a steadier
    and cheaper measure, with references a human has checked.
 3. `issues/rules_deduplication_and_noise.md`, `issues/one_code_reading_for_use_cases_and_rules.md` and
@@ -532,6 +532,26 @@ Next work, in the order of `issues/queue.md`:
 4. `issues/settle_experimental_settings.md`, `issues/surface_domains_default_decision.md`,
    `issues/single_pipeline_path.md`, then `issues/pass_runner_and_run_context.md`: fewer options, one path, then
    the refactoring of what stays.
+
+### 7.7 Phase 11 — a large application, one bounded context at a time (2026-10-12 to 13)
+
+`issues/validate_on_large_application.md` tried one run on a private 1,676-file Rails application and found that
+the reading stopped at 60 files and showed 150 entry points of 456: the design could not be run once on a large
+application. The work that followed (`issues/business_files_cap_on_large_application.md`, ADR 0029):
+
+- every pass of the `surface` path saves after each answer, artifacts are written beside and renamed;
+- `retrodoc contexts`: the application is mapped into bounded contexts from the names of its entry point files
+  and one LLM call (`contexts.yaml`, editable), a context over 150 files is split by family, a route goes to the
+  context of the controller it names;
+- `[pipeline] domains_from = "contexts"`: `generate [--context a,b] [--max-files N]` documents the next contexts,
+  reads only their files, keeps the inventories, features and use cases of the others (readers that add, vocabulary
+  and placement per domain, actors kept), and a rerun with nothing left calls no LLM.
+
+Result on the real application (hosted `deepseek-chat`): 8 of 35 contexts, 285 use cases, about $1.3 including
+the false starts; the core of the business reads well (the user's reading), about 30% of the use cases of the first
+slices are technical or back-office. Follow-ups are in the queue (`technical_and_back_office_use_cases`,
+`split_contexts_by_family_not_by_layer`, `use_cases_record_their_entry_points`). The `files` and `surface` paths
+are unchanged.
 
 This plan's §7.1 to §7.3 are a dated log of findings; the current behaviour is in `docs/crates/` and
 `docs/ARCHITECTURE.md`.
