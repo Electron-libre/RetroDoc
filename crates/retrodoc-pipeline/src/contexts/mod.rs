@@ -1,4 +1,4 @@
-//! The map of the bounded contexts (`issues/business_files_cap_on_large_application.md`): the
+//! The map of the bounded contexts (`issues/done/business_files_cap_on_large_application.md`): the
 //! vertical slices a large application is documented in, one run at a time.
 //!
 //! It is built before any code is read, in two steps. The mechanical groups ([`groups`]) put the

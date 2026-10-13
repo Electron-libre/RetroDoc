@@ -48,7 +48,7 @@ and gives the evidence the parked decision on `domains_from` is waiting for.
 
 1. [x] Preparation without LLM call: clone in `/tmp`, config, `scan`, reading sample fixed.
 2. [x] The paid runs: made in slices, one bounded context at a time, once the reading stage showed that a
-   whole-application run was out of reach (`issues/business_files_cap_on_large_application.md`, "Real runs on the
+   whole-application run was out of reach (`issues/done/business_files_cap_on_large_application.md`, "Real runs on the
    large application"); figures per run there, about $1.28 of the $1.5 ceiling for the whole validation.
 3. [x] Reading: the user's first remark, then a control pass by the agent on the fixed sample, against the code
    (section "Reading"). The rest of the reading (the 23 contexts left, the 22 extra features of the central
@@ -67,7 +67,7 @@ and gives the evidence the parked decision on `domains_from` is waiting for.
   `smoke.rs evaluate`.
 
 * (user, 2026-10-12) Paused after the reading stage: the second stage waits for
-  `issues/business_files_cap_on_large_application.md`, since a reading made now would be dominated by that defect.
+  `issues/done/business_files_cap_on_large_application.md`, since a reading made now would be dominated by that defect.
 * The budget finding below (`--max-files` on the `surface` path) is a line of `issues/surface_domains_default_decision.md`
   and of `issues/single_pipeline_path.md`; with `domains_from = "contexts"` the flag is the reading budget of a run.
 
@@ -119,7 +119,7 @@ About $0.04 at the high prices. No unparseable answer.
 
 ## Reading (2026-10-13): the user's first remark and a control pass by the agent
 
-Sample: the 6 contexts documented by the runs of `issues/business_files_cap_on_large_application.md` (45
+Sample: the 6 contexts documented by the runs of `issues/done/business_files_cap_on_large_application.md` (45
 features, 161 use cases), 20 use cases taken evenly from the list sorted by context, feature and slug.
 The user judged the result encouraging for the core of the business, with some technical noise (for example
 a back-office use case that reimports a form from a JSON payload), and did not have the time to read the rest

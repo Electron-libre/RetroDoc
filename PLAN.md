@@ -80,7 +80,7 @@ docs/
    glossary, entry points and outputs) that also bounds what is sent to the LLM. Implemented end to end in
    code (steps 1–4e: surface, actors, narrative, business-language score), each step checked on the real Rails test repo
    data piece by piece. The only full `generate` on a part of that repo is of 2026-10-02 (§7.2, 325 files), before
-   the redesign of phase 10; the next one is `issues/validate_on_large_application.md`.
+   the redesign of phase 10; the next one is `issues/done/validate_on_large_application.md`.
 8. **Scalability & cost control** (see §7.2): bring a run on a large repo (thousands of files) within
    reach, including on limited/local LLM resources. In progress: delivered are progress reporting, the LLM
    heartbeat, the directory-summary cache (item 6), `--no-confidence`/`--confidence-sample` (item 3) and item 5
@@ -527,7 +527,7 @@ Not reached yet:
   are maintained together.
 
 Next work, in the order of `issues/queue.md`:
-1. `issues/validate_on_large_application.md`: one complete run on a large application, read by the user (done in
+1. `issues/done/validate_on_large_application.md`: one complete run on a large application, read by the user (done in
    slices, §7.7).
 2. `issues/sampling_temperature_for_steadier_runs.md` and `issues/benchmark_passes_on_fixed_inputs.md`: a steadier
    and cheaper measure, with references a human has checked.
@@ -539,9 +539,9 @@ Next work, in the order of `issues/queue.md`:
 
 ### 7.7 Phase 11 — a large application, one bounded context at a time (2026-10-12 to 13)
 
-`issues/validate_on_large_application.md` tried one run on a private 1,676-file Rails application and found that
+`issues/done/validate_on_large_application.md` tried one run on a private 1,676-file Rails application and found that
 the reading stopped at 60 files and showed 150 entry points of 456: the design could not be run once on a large
-application. The work that followed (`issues/business_files_cap_on_large_application.md`, ADR 0029):
+application. The work that followed (`issues/done/business_files_cap_on_large_application.md`, ADR 0029):
 
 - every pass of the `surface` path saves after each answer, artifacts are written beside and renamed;
 - `retrodoc contexts`: the application is mapped into bounded contexts from the names of its entry point files

@@ -1,4 +1,4 @@
-//! The slice of a run (`issues/business_files_cap_on_large_application.md`, step 4b): which contexts
+//! The slice of a run (`issues/done/business_files_cap_on_large_application.md`, step 4b): which contexts
 //! a `generate` documents now, and which files it reads for them. No LLM call.
 //!
 //! The contexts are named by the user, else the next ones not done in the order of the map, as many

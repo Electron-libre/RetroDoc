@@ -1,5 +1,5 @@
 //! `generate` with `[pipeline] domains_from = "contexts"` (ADR 0029, step 4 of
-//! `issues/business_files_cap_on_large_application.md`): one run documents a slice of the
+//! `issues/done/business_files_cap_on_large_application.md`): one run documents a slice of the
 //! application, some bounded contexts, and builds on the earlier runs without redoing them.
 //!
 //! Roles, then the map of the contexts, then the slice of this run (`--context`, else the next

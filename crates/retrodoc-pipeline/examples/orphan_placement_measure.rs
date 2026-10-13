@@ -1,5 +1,5 @@
 //! Measures, with no LLM call, how many of the files a context map leaves in the support can be placed
-//! by their references (`issues/business_files_cap_on_large_application.md`, step 3b): a support file
+//! by their references (`issues/done/business_files_cap_on_large_application.md`, step 3b): a support file
 //! joins the context whose files reference it or are referenced by it.
 //!
 //! Usage: `cargo run -q -p retrodoc-pipeline --example orphan_placement_measure -- [--names] <run dir>`

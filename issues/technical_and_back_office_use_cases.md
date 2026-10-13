@@ -2,7 +2,7 @@
 
 # Goal
 The functional docs of a large application must read as what the business does. The first real run on a large
-Rails application (`issues/validate_on_large_application.md`, control pass of 2026-10-13) shows that about a
+Rails application (`issues/done/validate_on_large_application.md`, control pass of 2026-10-13) shows that about a
 third of the use cases are not that: public methods of application classes read as behaviours, back-office
 tools, and behaviours nobody human triggers described with a human actor. Set them apart or leave them out, so
 the core of the business is what a reader meets first.
@@ -36,7 +36,7 @@ Measure first on the saved run (no LLM): for the use cases flagged by each signa
 4. Ask the use cases pass to cover a form-opening action and its submit as one use case.
 
 # Resources
-* `issues/validate_on_large_application.md` (control pass), `issues/done/entry_points_internal_helpers_noise.md`
+* `issues/done/validate_on_large_application.md` (control pass), `issues/done/entry_points_internal_helpers_noise.md`
 * `crates/retrodoc-pipeline/src/use_cases/`, `entry_points/`, `vocabulary.rs`, `crates/retrodoc-render`
 * ADR 0028; `.retrodoc/cache/use-cases.yaml` of the run (confidential, not committed)
 

@@ -23,7 +23,7 @@ the entry points no use case covers.
 
 # Resources
 * `crates/retrodoc-pipeline/src/use_cases/` (prompt, grounding), `behaviour_coverage.rs`
-* `issues/shorter_use_case_answers.md`, `issues/validate_on_large_application.md`
+* `issues/shorter_use_case_answers.md`, `issues/done/validate_on_large_application.md`
 
 # Hints
 * The application is confidential: no name, path or code of it in a committed file.

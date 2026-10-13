@@ -2,7 +2,7 @@
 
 # Goal
 A bounded context must be documented from all the entry points it serves and only those. The second series of
-real runs on a large Rails application (`issues/business_files_cap_on_large_application.md`) shows that the largest
+real runs on a large Rails application (`issues/done/business_files_cap_on_large_application.md`) shows that the largest
 context sees only a third of its entry points in the features call, and that a central routes file gives the
 routes of the whole application to one context.
 
@@ -34,7 +34,7 @@ context that owns that controller.
 * `crates/retrodoc-pipeline/src/features/from_surface.rs` (`domain_entries`, `MAX_ENTRIES_PER_PROMPT`,
   `place_per_domain`), `domains.rs` of `contexts/`
 * `issues/use_cases_record_their_entry_points.md`, `issues/technical_and_back_office_use_cases.md`
-* `issues/business_files_cap_on_large_application.md` (the real runs)
+* `issues/done/business_files_cap_on_large_application.md` (the real runs)
 
 # Hints
 * A context already documented has its features saved by domain: changing the entries of a domain redoes its

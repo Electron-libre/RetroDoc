@@ -1,5 +1,5 @@
 //! Measures, with no LLM call, whether a map of bounded contexts can be built before any code is read
-//! (`issues/business_files_cap_on_large_application.md`, step 1): one context per entry point file name, the
+//! (`issues/done/business_files_cap_on_large_application.md`, step 1): one context per entry point file name, the
 //! files of the other layers joined by their name, then by the identifiers the context references.
 //!
 //! Usage: `cargo run -q -p retrodoc-pipeline --example context_map_measure -- [--names] <run dir>...`

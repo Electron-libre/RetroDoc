@@ -4,7 +4,7 @@ Status: Accepted
 
 ## Context
 
-A large application cannot be documented in one run (`issues/validate_on_large_application.md`): the
+A large application cannot be documented in one run (`issues/done/validate_on_large_application.md`): the
 reading of the business files stops at 60 files (`business_files::MAX_FILES`) and takes the first of the
 first folder in path order, so the glossary, and on the `surface` path the domains, rest on an arbitrary
 corner. The user wants several complementary runs, none losing work, each on a vertical slice of the

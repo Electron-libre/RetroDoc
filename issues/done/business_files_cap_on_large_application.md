@@ -43,7 +43,7 @@ and how many the cap drops (no LLM call needed: `business-files.yaml` and the fi
 * `crates/retrodoc-pipeline/src/business_files/mod.rs` (`MAX_FILES`, `BusinessFiles::files`), `glossary/`,
   `business_read/`, `entry_points/mod.rs` (`build_entry_points`)
 * ADRs `0025` and `0028`; `issues/done/locate_business_files.md`, `issues/done/single_read_per_business_file.md`
-* `issues/validate_on_large_application.md` (the reading stage that found it, paused until this is fixed)
+* `issues/done/validate_on_large_application.md` (the reading stage that found it, paused until this is fixed)
 * `crates/retrodoc-pipeline/src/ranking.rs`
 
 # Hints
@@ -89,8 +89,8 @@ and how many the cap drops (no LLM call needed: `business-files.yaml` and the fi
      (default 150), the `business-files` pass is skipped, the docs gather the contexts done, the report lists
      the contexts left. Real run on `delivery_router` locally, then on the large application (cost to agree).
 5. (merged into 4)
-6. [ ] Real validation (the reading stage on one context of the large application, a `surface` benchmark
-   on `linkding`; paid runs with the user's go) and the docs.
+6. [x] Real validation (the large application in slices, see "Real runs on the large application" and the second
+   series; the `surface` path on `linkding` for non-regression, see below) and the docs (`skill:update-docs`).
 
 ## Decisions
 
@@ -275,3 +275,16 @@ Product: 8 contexts, 46 features, 203 use cases, no feature without a use case. 
 the application, all builds of the map and all runs: about $1.0 of the $1.5 ceiling. Findings: the entry points a
 large context never shows to the LLM (`issues/done/entry_points_of_a_large_context.md`), and a feature whose use cases
 answer is cut at the output limit again (`issues/shorter_use_case_answers.md`).
+
+## Non-regression of the `surface` path (2026-10-13, linkding, local `qwen3.6:35b-a3b`, `just smoke ... --domains-from surface`)
+
+The smoke test found a regression of this work, fixed in `01b6620`: reusing the features of a slice kept only the
+entry points of the slice, so the entry points a placement had put in a feature from other files were lost at
+every run, the placement was asked again and placed others, and the use cases and the confidence of the changed
+features were derived again (second run: 12 calls; third: 20). With the fix a fourth run on that state calls
+nothing, and the full smoke test passes its idempotence criteria: first run 85 calls, 402k tokens in, 64k out,
+51 minutes, 110 files written; second run 0 files written and no LLM call.
+
+The verdict is still FAIL for the warnings of the first run (25: entities the local model attributes to an unknown
+file, a source rule that selects no file); they come from the model and are tracked by
+`issues/smoke_warnings_business_paths_sources_and_empty_use_cases.md`, not by this work.

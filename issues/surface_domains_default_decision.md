@@ -24,7 +24,7 @@ until that gap is understood and a second large repository agrees.
   instead of the capabilities of the reference. The gap comes from the entry points pass, not from the grouping.
 
 * The first complete work on a large application (a private Rails application of 1,676 source files,
-  `issues/validate_on_large_application.md`, 2026-10-13) used the `surface` pipeline in a third mode,
+  `issues/done/validate_on_large_application.md`, 2026-10-13) used the `surface` pipeline in a third mode,
   `domains_from = "contexts"` (ADR 0029): the entities and entry points of a bounded context at a time, with
   the readers adding to their inventories. It finished and cost about $1.3 for a third of the application;
   the `files` path was not tried on it (the repo map alone is one call per file). So the default question now has three values.

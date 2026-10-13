@@ -41,7 +41,7 @@ named like a stem) in the orphan folders of the biggest parts.
 
 # Resources
 * ADR 0029, `crates/retrodoc-pipeline/src/contexts/` (`groups.rs`, `mod.rs` `split_context`)
-* `issues/business_files_cap_on_large_application.md` (the map, step 3c, and the real runs)
+* `issues/done/business_files_cap_on_large_application.md` (the map, step 3c, and the real runs)
 * `crates/retrodoc-pipeline/examples/context_map_measure.rs`
 
 # Hints
