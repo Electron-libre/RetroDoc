@@ -51,7 +51,7 @@ context that owns that controller.
 3. [x] Several features calls over slices of entry points grouped by file when a domain has more than
    `MAX_ENTRIES_PER_PROMPT`; features of the same slug merged (no LLM); saved after each slice, one print per slice.
 4. [x] Entry points held by no feature reported per context, in the output, `behaviour-coverage.yaml` and the report.
-5. [ ] Docs (`skill:update-docs`), then a real rerun of the central context on the saved run, after agreeing on
+5. [x] Docs (`skill:update-docs`), then a real rerun of the central context on the saved run, after agreeing on
    the cost with the user.
 
 ## Decisions
@@ -83,3 +83,27 @@ name (55 to 2 in one context): only routes move.
   after), so the slices of deliverable 3 are needed.
 * A sample of the moved routes read by eye on the first version: they land where a reader would put them.
   Not re-read on this version.
+
+## Real rerun of the central context (deliverable 5, 2026-10-13, hosted `deepseek-chat`, rules off)
+
+`generate --context <the largest context>` on the working copy of the second series, after deliverables 1 to 4
+(reading cached: the inventories were kept). 94 calls (features 4, use cases 39, confidence 51), 505,600 tokens in,
+110,195 out, 9m06, about $0.28 at the high prices of the repository (estimate given: $0.10 to $0.25 for this
+context alone, so a little over). With the earlier runs about $1.28 of the $1.5 ceiling.
+
+| | Before | After |
+|---|---|---|
+| Entry points of the context | 456 (first series), 150 shown to the features call | 352 now that the routes of other contexts left it, all shown (3 slices of at most 150) |
+| Entry points held by a feature | 284 | 352 |
+| Entry points of the context held by no feature | 231 listed for the 8 contexts, mostly this one | 0 |
+| Features of the context | 17 | 39 (7 with a single entry point) |
+| Use cases (8 contexts) | 203 | 285 |
+| Entry points held by no feature, whole application run so far | 231 | 100 |
+
+* The 100 left are all routes of the central routes file that belong to contexts not documented yet (they
+  come back when those contexts run); the count per context is printed by `generate` and listed in the coverage
+  report.
+* The features call went from 1 call (150 entry points seen) to 3 slices plus the placement; the cost is mostly the
+  use cases of the 22 new features.
+* Not measured: the quality of the 22 extra features (to read with the user), the contexts that gain routes
+  (companies, worksites, users…), which redo their features when they run.
