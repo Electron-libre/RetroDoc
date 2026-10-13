@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use super::*;
 
 use crate::artifact::Retention;
-use crate::behaviour_coverage::BehaviourCoverage;
+use crate::behaviour_coverage::{BehaviourCoverage, EntryCount};
 use crate::entry_points::{EntryFile, EntryKind};
 use crate::testing::{killed, FakeLlm};
 use retrodoc_llm::{CompletionRequest, LlmError};
@@ -1090,4 +1090,27 @@ fn features_merge_against_the_earlier_slices_only() {
     assert_eq!(features[0].entry_points, ["a.rb#1", "b.rb#3", "b.rb#4"]);
     assert_eq!(features[0].source_paths, ["a.rb", "b.rb"]);
     assert_eq!(features[0].description, "of a.rb#1");
+}
+
+#[tokio::test]
+async fn the_entry_points_held_by_no_feature_are_counted_per_domain() {
+    let dir = tempfile::tempdir().unwrap();
+    let (domains, entries) = contexts_fixture();
+    let llm = leaves_one_entry_point_unplaced();
+
+    run_keeping(dir.path(), &only(&domains, "orders"), &entries, &llm).await;
+    run_keeping(dir.path(), &only(&domains, "routing"), &entries, &llm).await;
+
+    let count = |entry_points, unplaced| EntryCount {
+        entry_points,
+        unplaced,
+    };
+    assert_eq!(
+        BehaviourCoverage::load(dir.path()).unwrap().by_domain,
+        BTreeMap::from([
+            ("orders".to_string(), count(2, 1)),
+            ("routing".to_string(), count(1, 0)),
+        ]),
+        "the second run keeps the count of the first"
+    );
 }

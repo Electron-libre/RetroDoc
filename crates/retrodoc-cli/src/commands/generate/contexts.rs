@@ -184,6 +184,7 @@ async fn document(
     repo.map.arrange(&mut features);
     retrodoc_pipeline::save_features(repo_root, &features)
         .context("could not save the features")?;
+    report_entries_by_context(repo_root, repo, &in_run)?;
 
     let mut context =
         super::use_case_context(entry_points, repo.ingest, actors, &surface, signals, config);
@@ -247,6 +248,29 @@ fn documented_files(repo: &Repo<'_>) -> Vec<PathBuf> {
                 .cloned()
         })
         .collect()
+}
+
+/// Drops from the saved coverage the rows of a context cut again or removed since, then prints
+/// those of the contexts of the run.
+fn report_entries_by_context(
+    repo_root: &Path,
+    repo: &Repo<'_>,
+    in_run: &DomainMap,
+) -> anyhow::Result<()> {
+    let Some(mut coverage) = retrodoc_pipeline::BehaviourCoverage::load(repo_root) else {
+        return Ok(());
+    };
+    let before = coverage.by_domain.len();
+    coverage
+        .by_domain
+        .retain(|slug, _| repo.map.contexts.iter().any(|c| c.slug == *slug));
+    if coverage.by_domain.len() != before {
+        coverage
+            .save(repo_root)
+            .context("could not save the behaviour coverage")?;
+    }
+    super::print::entries_by_context(&coverage, in_run);
+    Ok(())
 }
 
 /// The domains of the contexts of this run, and those of every context documented so far (the

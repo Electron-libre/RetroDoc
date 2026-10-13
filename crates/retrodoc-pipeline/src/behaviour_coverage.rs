@@ -3,7 +3,7 @@
 //! the placement call (the uncategorized bucket of the entry points), and the source files reached
 //! by no behaviour (technical support). The debt report reads it; it needs no LLM call.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -28,6 +28,18 @@ pub struct BehaviourCoverage {
     /// Source files that hold no entry point of a feature, are not run by one and mention no entity.
     #[serde(default)]
     pub technical_support: Vec<PathBuf>,
+    /// Per domain (bounded context) of a `domains_from = "contexts"` run: how many entry points it
+    /// holds and how many of them no feature holds. The count of a domain is renewed when it runs.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub by_domain: BTreeMap<String, EntryCount>,
+}
+
+/// The entry points of one domain.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EntryCount {
+    pub entry_points: usize,
+    /// Held by no feature.
+    pub unplaced: usize,
 }
 
 impl BehaviourCoverage {

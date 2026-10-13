@@ -16,7 +16,7 @@ use retrodoc_core::model::{
 use retrodoc_ingest::existing_docs::ExistingDoc;
 use retrodoc_ingest::signals::doc_sections;
 
-use crate::behaviour_coverage::BehaviourCoverage;
+use crate::behaviour_coverage::{BehaviourCoverage, EntryCount};
 use crate::domains::{DomainMap, UNCATEGORIZED_SLUG};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -76,6 +76,8 @@ pub struct DebtReport {
     /// Entry points (`<file>#<name>`) no feature holds. Filled by the caller from the saved
     /// `BehaviourCoverage`.
     pub unplaced_entry_points: Vec<String>,
+    /// Per bounded context: its entry points and those held by no feature.
+    pub entries_by_context: BTreeMap<String, EntryCount>,
     /// Source files reached by no behaviour: no entry point of a feature, no code run by one, no
     /// entity. Filled by the caller like `unplaced_entry_points`.
     pub technical_support: Vec<PathBuf>,
@@ -261,6 +263,7 @@ pub fn build_report(
         uncategorized_files,
         skipped_files: Vec::new(),
         unplaced_entry_points: Vec::new(),
+        entries_by_context: BTreeMap::new(),
         technical_support: Vec::new(),
         rules: None,
     }
@@ -278,6 +281,7 @@ impl DebtReport {
     pub fn with_behaviour_coverage(&mut self, coverage: Option<BehaviourCoverage>) {
         if let Some(coverage) = coverage {
             self.unplaced_entry_points = coverage.unplaced_entry_points;
+            self.entries_by_context = coverage.by_domain;
             self.technical_support = coverage.technical_support;
         }
     }
@@ -365,6 +369,20 @@ impl DebtReport {
             );
             for id in &self.unplaced_entry_points {
                 let _ = writeln!(md, "- `{id}`");
+            }
+        }
+        if !self.entries_by_context.is_empty() {
+            md.push_str(
+                "\n## Entry points by context\n\n| Context | Entry points | Without a feature |\n|---|---|---|\n",
+            );
+            let mut rows: Vec<_> = self.entries_by_context.iter().collect();
+            rows.sort_by_key(|(_, count)| std::cmp::Reverse((count.unplaced, count.entry_points)));
+            for (context, count) in rows {
+                let _ = writeln!(
+                    md,
+                    "| {context} | {} | {} |",
+                    count.entry_points, count.unplaced
+                );
             }
         }
         if !self.technical_support.is_empty() {
@@ -526,11 +544,35 @@ mod tests {
         report.with_behaviour_coverage(Some(BehaviourCoverage {
             unplaced_entry_points: vec!["a.rb#GET /a".to_string()],
             technical_support: vec![PathBuf::from("helper.rb")],
+            by_domain: BTreeMap::from([
+                (
+                    "orders".to_string(),
+                    EntryCount {
+                        entry_points: 40,
+                        unplaced: 3,
+                    },
+                ),
+                (
+                    "billing".to_string(),
+                    EntryCount {
+                        entry_points: 5,
+                        unplaced: 0,
+                    },
+                ),
+            ]),
         }));
 
         let md = report.to_markdown();
         assert!(md.contains("## Entry points without a feature"), "{md}");
         assert!(md.contains("`a.rb#GET /a`"));
+        assert!(
+            md.contains("| orders | 40 | 3 |") && md.contains("| billing | 5 | 0 |"),
+            "{md}"
+        );
+        assert!(
+            md.find("| orders |") < md.find("| billing |"),
+            "the largest gap first"
+        );
         assert!(md.contains("## Technical support (reached by no behaviour)"));
         assert!(md.contains("1 source file(s)"));
         assert!(md.contains("`helper.rb`"));

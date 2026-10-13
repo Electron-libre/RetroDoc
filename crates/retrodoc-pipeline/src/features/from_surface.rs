@@ -19,7 +19,7 @@ use std::path::Path;
 use self::repair::place_unclaimed;
 use super::*;
 use crate::artifact::Retention;
-use crate::behaviour_coverage::BehaviourCoverage;
+use crate::behaviour_coverage::{BehaviourCoverage, EntryCount};
 use crate::entry_points::EntryFile;
 use crate::naming::normalize;
 use crate::surface::Surface;
@@ -243,13 +243,25 @@ async fn place_per_domain(
         })
         .collect();
     let mut changed = false;
+    let mut counts: BTreeMap<String, EntryCount> = BTreeMap::new();
     for domain in &domains.domains {
         let own = entry_points_of(domain, entry_points);
         // A domain with no print left to keep: it is placed again from scratch when it comes back.
         let mut print = prints.entry_point_placements.remove(&domain.slug);
         let Some(range) = domain_range(features, retained, &domain.slug) else {
             // No feature at all in this domain: nothing to place into.
-            unplaced.extend(own.iter().map(|(file, entry)| entry_point_id(file, entry)));
+            let ids: Vec<String> = own
+                .iter()
+                .map(|(file, entry)| entry_point_id(file, entry))
+                .collect();
+            counts.insert(
+                domain.slug.clone(),
+                EntryCount {
+                    entry_points: ids.len(),
+                    unplaced: ids.len(),
+                },
+            );
+            unplaced.extend(ids);
             continue;
         };
         changed |= place_unclaimed(
@@ -266,10 +278,19 @@ async fn place_per_domain(
                 .entry_point_placements
                 .insert(domain.slug.clone(), print);
         }
-        unplaced.extend(repair::unplaced_ids(&own, &features[range]));
+        let left = repair::unplaced_ids(&own, &features[range]);
+        counts.insert(
+            domain.slug.clone(),
+            EntryCount {
+                entry_points: own.iter().count(),
+                unplaced: left.len(),
+            },
+        );
+        unplaced.extend(left);
     }
     let mut coverage = BehaviourCoverage::load(repo_root).unwrap_or_default();
     coverage.unplaced_entry_points = unplaced;
+    coverage.by_domain.extend(counts);
     coverage.save(repo_root)?;
     Ok(changed)
 }

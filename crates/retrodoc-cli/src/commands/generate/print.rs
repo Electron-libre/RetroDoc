@@ -131,3 +131,27 @@ pub(super) fn behaviour_coverage(coverage: &BehaviourCoverage, source_files: usi
         source_files
     );
 }
+
+/// The entry points held by no feature, for each context of the run (nothing when none has a count).
+pub(super) fn entries_by_context(coverage: &BehaviourCoverage, in_run: &DomainMap) {
+    let counts: Vec<_> = in_run
+        .domains
+        .iter()
+        .filter_map(|d| {
+            coverage
+                .by_domain
+                .get(&d.slug)
+                .map(|count| (&d.slug, count))
+        })
+        .collect();
+    if counts.is_empty() {
+        return;
+    }
+    println!("\nEntry points by context:");
+    for (slug, count) in counts {
+        println!(
+            "  {slug}: {} entry point(s), {} held by no feature.",
+            count.entry_points, count.unplaced
+        );
+    }
+}

@@ -82,6 +82,7 @@ fn files_reached_by_no_documented_behaviour_are_technical_support() {
     BehaviourCoverage {
         unplaced_entry_points: vec!["other_routes.rb#GET /b".to_string()],
         technical_support: Vec::new(),
+        by_domain: std::collections::BTreeMap::new(),
     }
     .save(root)
     .unwrap();
@@ -104,4 +105,21 @@ fn files_reached_by_no_documented_behaviour_are_technical_support() {
         vec!["other_routes.rb#GET /b"]
     );
     assert_eq!(BehaviourCoverage::load(root).unwrap(), coverage);
+}
+
+#[test]
+fn a_coverage_saved_before_the_counts_per_domain_still_loads() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = Artifact::BehaviourCoverage.path(dir.path());
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    std::fs::write(
+        &path,
+        "unplaced_entry_points:\n- a.rb#GET /a\ntechnical_support: []\n",
+    )
+    .unwrap();
+
+    let coverage = BehaviourCoverage::load(dir.path()).unwrap();
+
+    assert_eq!(coverage.unplaced_entry_points, ["a.rb#GET /a"]);
+    assert!(coverage.by_domain.is_empty());
 }

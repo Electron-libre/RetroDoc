@@ -50,7 +50,7 @@ context that owns that controller.
    (same for any file that only declares entry points for other files).
 3. [x] Several features calls over slices of entry points grouped by file when a domain has more than
    `MAX_ENTRIES_PER_PROMPT`; features of the same slug merged (no LLM); saved after each slice, one print per slice.
-4. [ ] Entry points held by no feature reported per context, in the output, `behaviour-coverage.yaml` and the report.
+4. [x] Entry points held by no feature reported per context, in the output, `behaviour-coverage.yaml` and the report.
 5. [ ] Docs (`skill:update-docs`), then a real rerun of the central context on the saved run, after agreeing on
    the cost with the user.
 
