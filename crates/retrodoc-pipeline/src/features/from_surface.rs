@@ -5,7 +5,13 @@
 //! map is read.
 //!
 //! The first placement of an entry point wins, an id the domain does not know is dropped, a feature
-//! left with no entry point is dropped. An entry point no feature claimed is only logged for now.
+//! left with no entry point is dropped.
+//!
+//! A domain with more entry points than one prompt holds ([`MAX_ENTRIES_PER_PROMPT`]) is asked in
+//! slices of whole files (a file over the limit is cut): one call per slice, which sees the features
+//! of the earlier slices and may give one again. The features of the same slug or name are one
+//! feature. Each slice has its own print (the entry points up to its end, so a change in a later
+//! file asks only the slices from there) and the features are saved after each of them.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -21,6 +27,8 @@ use crate::surface::Surface;
 /// Entry points listed in one prompt.
 const MAX_ENTRIES_PER_PROMPT: usize = 150;
 const MAX_DESCRIPTION_CHARS: usize = 160;
+/// Features of the earlier slices shown in the prompt of a slice.
+const MAX_KNOWN_FEATURES: usize = 100;
 
 const SURFACE_FEATURES_SYSTEM_PROMPT: &str = "You are documenting a software project from a \
 functional (business) point of view. Given a functional domain, its business entities and its \
@@ -112,57 +120,20 @@ pub async fn build_features_from_surface(
         .collect();
     let mut progress = Progress::new("features", units.len());
 
+    let run = SurfaceRun {
+        repo_root,
+        previous: &previous,
+        known_units: &known_units,
+        surface,
+        brief,
+        evidence,
+        llm,
+    };
     for (domain, entries) in &units {
-        let key = unit_key(&domain.slug, None);
-        let close = evidence.section(&domain_query(domain, entries));
-        let print = domain_fingerprint(domain, entries, surface, brief, &close, llm);
-        if known_units.get(&key) == Some(&print) {
-            if let Some(kept) = reusable_for(&previous, &features, &domain.slug) {
-                tracing::info!(unit = %key, "features unchanged, reused");
-                features.extend(kept);
-                prints.features.insert(key, print);
-                progress.skip();
-                continue;
-            }
-        }
-        progress.begin(&key);
-        let prompt = surface_features_prompt(domain, entries, surface, brief, &close);
-        let what = format!("features of {key}");
-        // An answer with no usable feature (ids copied wrongly) is asked once more.
-        let mut produced: Vec<Feature> = Vec::new();
-        for _ in 0..2 {
-            let raw = match complete_json::<RawSurfaceFeatures>(
-                llm,
-                SURFACE_FEATURES_SYSTEM_PROMPT,
-                &prompt,
-                &what,
-            )
-            .await
-            {
-                Ok(Some(raw)) => raw,
-                Ok(None) => continue,
-                Err(err) => {
-                    save_partial(repo_root, features, &previous, prints, &known_units);
-                    return Err(err);
-                }
-            };
-            produced = place_entry_points(raw, domain, entries, &features);
-            if !produced.is_empty() {
-                break;
-            }
-        }
-        if !produced.is_empty() {
-            prints.features.insert(key, print);
-        }
-        features.extend(produced);
-        // After each domain: a run killed later loses the call in flight, nothing more.
-        save_partial(
-            repo_root,
-            features.clone(),
-            &previous,
-            prints.clone(),
-            &known_units,
-        );
+        let of_domain = run
+            .features_of_domain(domain, entries, &features, &mut prints, &mut progress)
+            .await?;
+        features.extend(of_domain);
     }
 
     settle_duplicates(&mut features, &units);
@@ -429,6 +400,7 @@ fn surface_features_prompt(
     surface: &Surface,
     brief: &ProductBrief,
     evidence: &str,
+    known: &[Feature],
 ) -> String {
     let mut prompt = format!(
         "{}Domain: {} — {}\n",
@@ -447,6 +419,25 @@ fn surface_features_prompt(
                 .take(MAX_DESCRIPTION_CHARS)
                 .collect();
             let _ = writeln!(prompt, "- {name}: {description}");
+        }
+    }
+    if !known.is_empty() {
+        prompt.push_str(
+            "\nFeatures already found in the other entry points of this domain (when an entry point \
+             below belongs to one of them, give that feature again with the same slug and name; \
+             otherwise create new features):\n",
+        );
+        for feature in known.iter().take(MAX_KNOWN_FEATURES) {
+            let description: String = feature
+                .description
+                .chars()
+                .take(MAX_DESCRIPTION_CHARS)
+                .collect();
+            let _ = writeln!(
+                prompt,
+                "- {}: {} — {description}",
+                feature.slug, feature.name
+            );
         }
     }
     prompt.push_str("\nEntry points:\n");
@@ -489,21 +480,260 @@ fn surface_features_prompt(
     prompt
 }
 
-/// The previous features of an unchanged domain, unless there are none (or none from the
-/// surface) or one of their slugs was taken meanwhile by a newly derived feature.
-fn reusable_for(
+/// What the features of every domain of a run are derived from.
+struct SurfaceRun<'a> {
+    repo_root: &'a Path,
+    previous: &'a [Feature],
+    /// The prints of the units of the previous run.
+    known_units: &'a BTreeMap<String, String>,
+    surface: &'a Surface,
+    brief: &'a ProductBrief,
+    evidence: &'a Evidence,
+    llm: &'a dyn LlmProvider,
+}
+
+impl SurfaceRun<'_> {
+    /// The features of one domain, a call per slice of its entry points (one when they fit in a
+    /// prompt). `features` are those of the domains before it. Saved after each slice.
+    async fn features_of_domain(
+        &self,
+        domain: &DomainCluster,
+        entries: &[Entry<'_>],
+        features: &[Feature],
+        prints: &mut Fingerprints,
+        progress: &mut Progress,
+    ) -> Result<Vec<Feature>, PipelineError> {
+        let ranges = slices(entries);
+        let mut domain_features: Vec<Feature> = Vec::new();
+        let mut started = false;
+        for (position, range) in ranges.iter().enumerate() {
+            let key = slice_key(&domain.slug, position, ranges.len());
+            let slice = &entries[range.clone()];
+            let close = self.evidence.section(&domain_query(domain, slice));
+            // Everything up to the end of the slice: a change before it asks it again, a change
+            // after it does not.
+            let print = domain_fingerprint(
+                domain,
+                &entries[..range.end],
+                self.surface,
+                self.brief,
+                &close,
+                self.llm,
+            );
+            if self.known_units.get(&key) == Some(&print) {
+                if let Some(kept) = reusable_slice(self.previous, features, &domain.slug, slice) {
+                    tracing::info!(unit = %key, "features unchanged, reused");
+                    merge_features(&mut domain_features, kept);
+                    prints.features.insert(key, print);
+                    continue;
+                }
+            }
+            if !started {
+                progress.begin(&domain.slug);
+                started = true;
+            }
+            let prompt = surface_features_prompt(
+                domain,
+                slice,
+                self.surface,
+                self.brief,
+                &close,
+                &domain_features,
+            );
+            let what = format!("features of {key}");
+            // An answer with no usable feature (ids copied wrongly) is asked once more.
+            let mut produced: Vec<Feature> = Vec::new();
+            for _ in 0..2 {
+                let answered = complete_json::<RawSurfaceFeatures>(
+                    self.llm,
+                    SURFACE_FEATURES_SYSTEM_PROMPT,
+                    &prompt,
+                    &what,
+                )
+                .await;
+                let raw = match answered {
+                    Ok(Some(raw)) => raw,
+                    Ok(None) => continue,
+                    Err(err) => {
+                        self.checkpoint(
+                            domain,
+                            entries,
+                            (&ranges, position),
+                            features,
+                            &domain_features,
+                            prints,
+                        );
+                        return Err(err);
+                    }
+                };
+                // Slugs are unique across domains; the features of this one merge by slug.
+                produced = place_entry_points(raw, domain, slice, features);
+                if !produced.is_empty() {
+                    break;
+                }
+            }
+            if !produced.is_empty() {
+                prints.features.insert(key, print);
+            }
+            merge_features(&mut domain_features, produced);
+            // After each slice: a run killed later loses the call in flight, nothing more.
+            self.checkpoint(
+                domain,
+                entries,
+                (&ranges, position + 1),
+                features,
+                &domain_features,
+                prints,
+            );
+        }
+        if !started {
+            progress.skip();
+        }
+        Ok(domain_features)
+    }
+
+    /// Saves what is done: the features of the earlier domains and the slices of this one done,
+    /// then what the previous run had for the slices still to ask (so a stop keeps it).
+    fn checkpoint(
+        &self,
+        domain: &DomainCluster,
+        entries: &[Entry<'_>],
+        (ranges, next): (&[std::ops::Range<usize>], usize),
+        features: &[Feature],
+        domain_features: &[Feature],
+        prints: &Fingerprints,
+    ) {
+        let mut domain_features = domain_features.to_vec();
+        let mut prints = prints.clone();
+        for (offset, range) in ranges[next..].iter().enumerate() {
+            let key = slice_key(&domain.slug, next + offset, ranges.len());
+            if let Some(print) = self.known_units.get(&key) {
+                prints.features.entry(key).or_insert_with(|| print.clone());
+            }
+            let mut old = restricted(self.previous, &domain.slug, &entries[range.clone()]);
+            old.retain(|f| !features.iter().any(|other| other.slug == f.slug));
+            merge_features(&mut domain_features, old);
+        }
+        let done = [features, &domain_features].concat();
+        save_partial(
+            self.repo_root,
+            done,
+            self.previous,
+            prints,
+            self.known_units,
+        );
+    }
+}
+
+/// The key of a slice's print in the fingerprints: the domain alone when one prompt holds it.
+fn slice_key(domain_slug: &str, position: usize, slices: usize) -> String {
+    if slices == 1 {
+        unit_key(domain_slug, None)
+    } else {
+        format!("{domain_slug}/slice-{}", position + 1)
+    }
+}
+
+/// The ranges of `entries` asked in one call each: whole files (the entries of a file are
+/// contiguous) up to [`MAX_ENTRIES_PER_PROMPT`]; a file over the limit is cut, as a last resort.
+fn slices(entries: &[Entry<'_>]) -> Vec<std::ops::Range<usize>> {
+    let mut ranges = Vec::new();
+    let mut start = 0;
+    let mut from = 0;
+    while from < entries.len() {
+        let file = entries[from].file;
+        let to = from
+            + entries[from..]
+                .iter()
+                .take_while(|e| e.file == file)
+                .count();
+        if to - from > MAX_ENTRIES_PER_PROMPT {
+            if start < from {
+                ranges.push(start..from);
+            }
+            let mut cut = from;
+            while cut < to {
+                let end = (cut + MAX_ENTRIES_PER_PROMPT).min(to);
+                ranges.push(cut..end);
+                cut = end;
+            }
+            start = to;
+        } else if to - start > MAX_ENTRIES_PER_PROMPT {
+            ranges.push(start..from);
+            start = from;
+        }
+        from = to;
+    }
+    if start < entries.len() {
+        ranges.push(start..entries.len());
+    }
+    ranges
+}
+
+/// Adds `produced` to the features of a domain: a feature of the same slug or name is one feature,
+/// with the entry points and files of both and the description of the first.
+fn merge_features(domain_features: &mut Vec<Feature>, produced: Vec<Feature>) {
+    // Against the features of the earlier slices only: one answer keeps its own features apart.
+    let earlier = domain_features.len();
+    for feature in produced {
+        let same = domain_features[..earlier]
+            .iter_mut()
+            .find(|f| f.slug == feature.slug || normalize(&f.name) == normalize(&feature.name));
+        let Some(same) = same else {
+            domain_features.push(feature);
+            continue;
+        };
+        for id in feature.entry_points {
+            if !same.entry_points.contains(&id) {
+                same.entry_points.push(id);
+            }
+        }
+        same.source_paths.extend(feature.source_paths);
+        same.source_paths.sort();
+        same.source_paths.dedup();
+    }
+}
+
+/// The previous features of the domain restricted to the entry points of `slice`.
+fn restricted(previous: &[Feature], domain_slug: &str, slice: &[Entry<'_>]) -> Vec<Feature> {
+    let ids: BTreeSet<&str> = slice.iter().map(|e| e.id.as_str()).collect();
+    previous
+        .iter()
+        .filter(|f| f.domain_slug == domain_slug)
+        .filter_map(|f| {
+            let entry_points: Vec<String> = f
+                .entry_points
+                .iter()
+                .filter(|id| ids.contains(id.as_str()))
+                .cloned()
+                .collect();
+            (!entry_points.is_empty()).then(|| Feature {
+                source_paths: entry_points
+                    .iter()
+                    .filter_map(|id| id.split_once('#').map(|(file, _)| file.to_string()))
+                    .collect::<BTreeSet<_>>()
+                    .into_iter()
+                    .collect(),
+                entry_points,
+                ..f.clone()
+            })
+        })
+        .collect()
+}
+
+/// What a slice gave last time, unless nothing or one of its slugs was taken meanwhile by a
+/// feature of another domain.
+fn reusable_slice(
     previous: &[Feature],
     features: &[Feature],
     domain_slug: &str,
+    slice: &[Entry<'_>],
 ) -> Option<Vec<Feature>> {
-    let kept: Vec<&Feature> = previous
-        .iter()
-        .filter(|f| f.domain_slug == domain_slug && !f.entry_points.is_empty())
-        .collect();
+    let kept = restricted(previous, domain_slug, slice);
     let collides = kept
         .iter()
         .any(|k| features.iter().any(|f| f.slug == k.slug));
-    (!kept.is_empty() && !collides).then(|| kept.into_iter().cloned().collect())
+    (!kept.is_empty() && !collides).then_some(kept)
 }
 
 /// The entry point a feature cites: by tag, else by id, else by its name alone when that is unambiguous in the

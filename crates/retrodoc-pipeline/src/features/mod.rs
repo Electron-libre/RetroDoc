@@ -302,6 +302,11 @@ fn save_partial(
         if let Some(print) = known_units.get(&unit_key) {
             prints.features.insert(unit_key, print.clone());
         }
+        // The slices of a domain asked in several calls (`from_surface`).
+        let slices = format!("{}/slice-", old.domain_slug);
+        for (key, print) in known_units.iter().filter(|(k, _)| k.starts_with(&slices)) {
+            prints.features.insert(key.clone(), print.clone());
+        }
         features.push(old.clone());
     }
     warn_on_error(prints.save(repo_root));

@@ -779,3 +779,315 @@ async fn a_route_that_changes_context_redoes_the_features_of_the_one_that_gains_
         "the features of `orders`, which gains an entry point, are asked again"
     );
 }
+
+/// A domain of two files, 100 and 60 entry points: over the limit of one prompt, so two slices.
+fn big_domain() -> (DomainMap, EntryPoints) {
+    let routes = |prefix: &str, n: usize| -> Vec<EntryPoint> {
+        (0..n)
+            .map(|i| entry(&format!("GET /{prefix}{i}"), prefix))
+            .collect()
+    };
+    let domain = DomainCluster {
+        slug: "big".to_string(),
+        name: "Big".to_string(),
+        description: "d".to_string(),
+        paths: vec![PathBuf::from("a.rb"), PathBuf::from("b.rb")],
+        by_paths: true,
+        ..DomainCluster::default()
+    };
+    (
+        DomainMap {
+            domains: vec![domain],
+        },
+        entry_points(&[("a.rb", routes("a", 100)), ("b.rb", routes("b", 60))]),
+    )
+}
+
+/// Each slice claims its first entry point in the feature `all`; the second one also in `later`.
+fn answers_per_slice(prompt: &str) -> String {
+    if prompt.contains("Entry points to place") {
+        return r#"{"placements":[]}"#.to_string();
+    }
+    let extra = if prompt.contains("already found") {
+        r#",{"slug":"later","name":"Later","description":"d","entry_points":["E2"]}"#
+    } else {
+        ""
+    };
+    format!(
+        r#"{{"features":[{{"slug":"all","name":"All","description":"d{}","entry_points":["E1"]}}{extra}]}}"#,
+        u8::from(prompt.contains("already found"))
+    )
+}
+
+#[tokio::test]
+async fn a_domain_over_the_prompt_limit_is_asked_in_slices_by_file_and_the_features_merge() {
+    let dir = tempfile::tempdir().unwrap();
+    let (domains, entries) = big_domain();
+    let llm = FakeLlm::replying(|_, request| Ok(answers_per_slice(&request.messages[1].content)));
+
+    let features = run(dir.path(), &domains, &entries, &llm).await;
+
+    let prompts = llm.prompts();
+    assert_eq!(
+        prompts.len(),
+        5,
+        "two slices, then the placement in 3 batches of 60"
+    );
+    assert!(
+        prompts[0].contains("GET /a99") && !prompts[0].contains("/b0\""),
+        "{}",
+        prompts[0]
+    );
+    assert!(prompts[1].contains("GET /b59") && !prompts[1].contains("GET /a0\""));
+    assert!(prompts[1].contains("already found") && prompts[1].contains("all"));
+    assert!(!prompts[0].contains("already found"));
+    assert!(!prompts[0].contains("(b.rb)") && !prompts[1].contains("(a.rb)"));
+    let slugs: Vec<&str> = features.iter().map(|f| f.slug.as_str()).collect();
+    assert_eq!(
+        slugs,
+        ["all", "later"],
+        "`all` of the two slices is one feature"
+    );
+    assert_eq!(
+        features[0].entry_points,
+        ["a.rb#GET /a0", "b.rb#GET /b0"],
+        "the entry points of the two slices"
+    );
+    assert_eq!(features[0].source_paths, ["a.rb", "b.rb"]);
+    assert_eq!(
+        features[0].description, "d0",
+        "the first description is kept"
+    );
+}
+
+#[tokio::test]
+async fn a_run_killed_between_two_slices_keeps_the_first_and_the_rerun_asks_the_second() {
+    let dir = tempfile::tempdir().unwrap();
+    let (domains, entries) = big_domain();
+    let stuck = FakeLlm::hanging_after(1, |_| {
+        r#"{"features":[{"slug":"all","name":"All","description":"d","entry_points":["E1"]}]}"#
+            .to_string()
+    });
+    killed(
+        build_features_from_surface(
+            dir.path(),
+            &domains,
+            &entries,
+            &Surface::default(),
+            &ProductBrief::default(),
+            &Evidence::default(),
+            &stuck,
+            Retention::OnlyRead,
+        ),
+        &stuck,
+    )
+    .await;
+    let saved = load_features(dir.path()).expect("the first slice is on disk");
+    assert_eq!(saved.len(), 1);
+    assert_eq!(saved[0].entry_points, ["a.rb#GET /a0"]);
+
+    let llm = FakeLlm::replying(|_, request| Ok(answers_per_slice(&request.messages[1].content)));
+    let features = run(dir.path(), &domains, &entries, &llm).await;
+
+    let prompts = llm.prompts();
+    assert_eq!(
+        prompts.len(),
+        4,
+        "the second slice, then the placement in 3 batches"
+    );
+    assert!(prompts[0].contains("GET /b59") && !prompts[0].contains("GET /a0\""));
+    assert_eq!(features[0].entry_points, ["a.rb#GET /a0", "b.rb#GET /b0"]);
+}
+
+#[tokio::test]
+async fn a_rerun_of_a_sliced_domain_asks_nothing_and_a_new_entry_point_redoes_its_slice_only() {
+    let dir = tempfile::tempdir().unwrap();
+    let (domains, mut entries) = big_domain();
+    let llm = FakeLlm::replying(|_, request| Ok(answers_per_slice(&request.messages[1].content)));
+    let first = run(dir.path(), &domains, &entries, &llm).await;
+    let calls = llm.calls();
+
+    let again = run(dir.path(), &domains, &entries, &llm).await;
+    assert_eq!(llm.calls(), calls, "nothing changed: nothing asked");
+    assert_eq!(again.len(), first.len());
+
+    entries
+        .files
+        .get_mut(&PathBuf::from("b.rb"))
+        .unwrap()
+        .entry_points
+        .push(entry("GET /b60", "b"));
+    run(dir.path(), &domains, &entries, &llm).await;
+    let prompts = llm.prompts();
+    let new = &prompts[calls..];
+    assert!(
+        new.iter().any(|p| p.contains("GET /b60")) && new.iter().all(|p| !p.contains("GET /a0\"")),
+        "only the slice of `b.rb` is asked again"
+    );
+}
+
+#[test]
+fn slices_hold_whole_files_and_a_file_over_the_limit_is_cut() {
+    let many = |n: usize| -> Vec<EntryPoint> {
+        (0..n).map(|i| entry(&format!("GET /{i}"), "r")).collect()
+    };
+    let entries = entry_points(&[
+        ("a.rb", many(100)),
+        ("b.rb", many(40)),
+        ("c.rb", many(20)),
+        ("d.rb", many(400)),
+        ("e.rb", many(10)),
+    ]);
+    let domain = DomainCluster {
+        paths: ["a.rb", "b.rb", "c.rb", "d.rb", "e.rb"]
+            .map(PathBuf::from)
+            .to_vec(),
+        by_paths: true,
+        ..DomainCluster::default()
+    };
+    let held = domain_entries(&domain, &entries);
+
+    let ranges = slices(&held);
+
+    // a + b = 140 (c would make 160), c alone (d does not fit), d cut in 150, 150 and 100, then e.
+    assert_eq!(
+        ranges,
+        vec![0..140, 140..160, 160..310, 310..460, 460..560, 560..570]
+    );
+    assert!(ranges.iter().all(|r| r.len() <= MAX_ENTRIES_PER_PROMPT));
+    assert_eq!(
+        ranges.iter().map(ExactSizeIterator::len).sum::<usize>(),
+        570
+    );
+}
+
+#[tokio::test]
+async fn a_stop_in_the_first_slice_keeps_the_features_the_other_slices_had() {
+    let dir = tempfile::tempdir().unwrap();
+    let (domains, mut entries) = big_domain();
+    let llm = FakeLlm::replying(|_, request| Ok(answers_per_slice(&request.messages[1].content)));
+    run(dir.path(), &domains, &entries, &llm).await;
+    let before = load_features(dir.path()).unwrap();
+    let in_b = |features: &[Feature]| {
+        features
+            .iter()
+            .flat_map(|f| &f.entry_points)
+            .filter(|id| id.starts_with("b.rb"))
+            .count()
+    };
+    assert!(in_b(&before) > 0);
+
+    // A new file before the others changes both slices; the run stops during the second.
+    entries.files.insert(
+        PathBuf::from("0.rb"),
+        EntryFile {
+            content_hash: "h".to_string(),
+            entry_points: vec![entry("GET /zero", "zero")],
+        },
+    );
+    let mut domains = domains;
+    domains.domains[0].paths.push(PathBuf::from("0.rb"));
+    // The first slice answers, the second one never does.
+    let stuck = FakeLlm::hanging_after(1, |_| {
+        r#"{"features":[{"slug":"all","name":"All","description":"d","entry_points":["E1"]}]}"#
+            .to_string()
+    });
+    killed(
+        build_features_from_surface(
+            dir.path(),
+            &domains,
+            &entries,
+            &Surface::default(),
+            &ProductBrief::default(),
+            &Evidence::default(),
+            &stuck,
+            Retention::OnlyRead,
+        ),
+        &stuck,
+    )
+    .await;
+
+    let after = load_features(dir.path()).unwrap();
+    assert_eq!(
+        in_b(&after),
+        in_b(&before),
+        "the slice not asked yet is kept"
+    );
+}
+
+#[tokio::test]
+async fn a_failed_slice_keeps_the_features_it_had() {
+    let dir = tempfile::tempdir().unwrap();
+    let (domains, mut entries) = big_domain();
+    let llm = FakeLlm::replying(|_, request| Ok(answers_per_slice(&request.messages[1].content)));
+    run(dir.path(), &domains, &entries, &llm).await;
+    let before = load_features(dir.path()).unwrap();
+
+    // A new entry point in the second file: that slice is asked again, and fails.
+    entries
+        .files
+        .get_mut(&PathBuf::from("b.rb"))
+        .unwrap()
+        .entry_points
+        .push(entry("GET /b60", "b"));
+    let failing = FakeLlm::replying(|_, _| Err(LlmError::Transport("down".to_string())));
+    let result = build_features_from_surface(
+        dir.path(),
+        &domains,
+        &entries,
+        &Surface::default(),
+        &ProductBrief::default(),
+        &Evidence::default(),
+        &failing,
+        Retention::OnlyRead,
+    )
+    .await;
+
+    assert!(result.is_err());
+    let after = load_features(dir.path()).unwrap();
+    let ids = |features: &[Feature]| -> BTreeSet<String> {
+        features
+            .iter()
+            .flat_map(|f| f.entry_points.clone())
+            .collect()
+    };
+    assert_eq!(ids(&after), ids(&before), "nothing paid for is lost");
+}
+
+#[test]
+fn features_merge_against_the_earlier_slices_only() {
+    let feature = |slug: &str, name: &str, id: &str| Feature {
+        slug: slug.to_string(),
+        domain_slug: "big".to_string(),
+        sub_domain_slug: None,
+        name: name.to_string(),
+        description: format!("of {id}"),
+        source_paths: vec![id.split('#').next().unwrap().to_string()],
+        entry_points: vec![id.to_string()],
+        confidence: None,
+    };
+    let mut features = Vec::new();
+
+    // One answer: two features of the same name stay two.
+    merge_features(
+        &mut features,
+        vec![
+            feature("a", "Same", "a.rb#1"),
+            feature("b", "Same", "a.rb#2"),
+        ],
+    );
+    assert_eq!(features.len(), 2);
+
+    // The next slice: by slug, or by name (the first hit), entry points and files united.
+    merge_features(
+        &mut features,
+        vec![
+            feature("a", "Other", "b.rb#3"),
+            feature("c", "same", "b.rb#4"),
+        ],
+    );
+    assert_eq!(features.len(), 2, "{features:?}");
+    assert_eq!(features[0].entry_points, ["a.rb#1", "b.rb#3", "b.rb#4"]);
+    assert_eq!(features[0].source_paths, ["a.rb", "b.rb"]);
+    assert_eq!(features[0].description, "of a.rb#1");
+}

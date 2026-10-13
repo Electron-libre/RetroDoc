@@ -48,7 +48,7 @@ context that owns that controller.
    context sizes before and after, contexts over 150.
 2. [x] A route goes to the context that owns the controller it routes to, else stays in the context of its file
    (same for any file that only declares entry points for other files).
-3. [ ] Several features calls over slices of entry points grouped by file when a domain has more than
+3. [x] Several features calls over slices of entry points grouped by file when a domain has more than
    `MAX_ENTRIES_PER_PROMPT`; features of the same slug merged (no LLM); saved after each slice, one print per slice.
 4. [ ] Entry points held by no feature reported per context, in the output, `behaviour-coverage.yaml` and the report.
 5. [ ] Docs (`skill:update-docs`), then a real rerun of the central context on the saved run, after agreeing on
