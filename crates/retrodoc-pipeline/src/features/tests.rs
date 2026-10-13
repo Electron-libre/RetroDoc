@@ -58,7 +58,9 @@ async fn build_features_grounds_features_on_known_files_and_persists() {
             {"features":[
               {"slug":"Invoice Creation","name":"Invoice creation","description":"d",
                "files":["a.rs","ghost.rs"]},
-              {"slug":"phantom","name":"Phantom","description":"d","files":["ghost.rs"]}
+              {"slug":"phantom","name":"Phantom","description":"d","files":["ghost.rs"]},
+              {"slug":"import","name":"Import","description":"d","back_office":true,
+               "files":["b.rs"]}
             ]}
             ```"#,
     );
@@ -74,14 +76,16 @@ async fn build_features_grounds_features_on_known_files_and_persists() {
     .await
     .unwrap();
 
-    assert_eq!(features.len(), 1);
+    assert_eq!(features.len(), 2);
+    assert!(!features[0].back_office && features[1].back_office);
     assert_eq!(features[0].slug, "invoice-creation");
     assert_eq!(features[0].domain_slug, "billing");
     assert_eq!(features[0].sub_domain_slug, None);
     assert_eq!(features[0].source_paths, vec!["a.rs".to_string()]);
 
     let reloaded = load_features(dir.path()).unwrap();
-    assert_eq!(reloaded.len(), 1);
+    assert_eq!(reloaded.len(), 2);
+    assert!(reloaded[1].back_office);
 }
 
 #[tokio::test]

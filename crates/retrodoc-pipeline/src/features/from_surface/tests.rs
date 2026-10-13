@@ -197,6 +197,56 @@ async fn a_rerun_on_the_same_surface_makes_no_call_and_a_changed_entry_point_one
 }
 
 #[tokio::test]
+async fn the_back_office_flag_is_read_and_kept_by_a_rerun_and_a_partial_redo() {
+    let dir = tempfile::tempdir().unwrap();
+    let (domains, entries) = fixture();
+    let answer = |n: usize, _: &CompletionRequest| -> Result<String, LlmError> {
+        Ok(if n == 0 {
+            r#"{"features":[{"slug":"orders","name":"O","description":"d","back_office":true,
+                "entry_points":["orders.rb#GET /orders","orders.rb#POST /orders"]}]}"#
+        } else {
+            r#"{"features":[{"slug":"routes","name":"R","description":"d",
+                "entry_points":["orders.rb#GET /routes"]}]}"#
+        }
+        .to_string())
+    };
+    let first = run(dir.path(), &domains, &entries, &FakeLlm::replying(answer)).await;
+    assert!(first[0].back_office, "read from the answer");
+    assert!(!first[1].back_office, "absent means a business feature");
+
+    let again = FakeLlm::replying(answer);
+    let reused = run(dir.path(), &domains, &entries, &again).await;
+    assert_eq!(again.calls(), 0);
+    assert!(reused[0].back_office, "kept when nothing is asked again");
+    assert!(load_features(dir.path()).unwrap()[0].back_office);
+
+    // The routing domain is asked again; the other one is reused as it was.
+    let mut changed = entries.clone();
+    changed
+        .files
+        .get_mut(Path::new("orders.rb"))
+        .unwrap()
+        .entry_points[2]
+        .description = "now does something else".to_string();
+    let redo = FakeLlm::replying(|_, _| {
+        Ok(
+            r#"{"features":[{"slug":"routes","name":"R","description":"d",
+            "entry_points":["orders.rb#GET /routes"]}]}"#
+                .to_string(),
+        )
+    });
+    let redone = run(dir.path(), &domains, &changed, &redo).await;
+    assert_eq!(redo.calls(), 1);
+    assert!(
+        redone
+            .iter()
+            .find(|f| f.slug == "orders")
+            .unwrap()
+            .back_office
+    );
+}
+
+#[tokio::test]
 async fn the_prompt_shows_ids_and_only_the_entry_points_of_the_domain() {
     let dir = tempfile::tempdir().unwrap();
     let (domains, entries) = fixture();

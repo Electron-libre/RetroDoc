@@ -43,9 +43,9 @@ const FEATURES_SYSTEM_PROMPT: &str = "You are documenting a software project fro
 source files, identify the user-facing features it provides: capabilities a user or an external \
 system would recognize, not technical layers. Group the files implementing each feature. Every \
 feature must list at least one file, copied verbatim from the list given to you; a file may \
-support several features. Reply with ONLY a single JSON object, no prose and no Markdown code \
+support several features. A feature is back_office (true) when it is an administration or back-office tool, used by the people who run the application rather than by its users or an external system (judged from its description, its routes and its files); otherwise false. Reply with ONLY a single JSON object, no prose and no Markdown code \
 fence, matching this shape: {\"features\":[{\"slug\":\"kebab-case\",\"name\":\"...\",\
-\"description\":\"one or two sentences\",\"files\":[\"...\"]}]}.";
+\"description\":\"one or two sentences\",\"back_office\":false,\"files\":[\"...\"]}]}.";
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct RawFeatures {
@@ -59,6 +59,8 @@ struct RawFeature {
     name: String,
     #[serde(default)]
     description: String,
+    #[serde(default)]
+    back_office: bool,
     #[serde(default)]
     files: Vec<PathBuf>,
 }
@@ -258,7 +260,7 @@ fn validated_features(raw: RawFeatures, unit: &Unit<'_>, existing: &[Feature]) -
         let taken = existing.iter().chain(&produced).map(|f| f.slug.as_str());
         let slug = unique_slug(&raw_feature.slug, taken);
         produced.push(Feature {
-            back_office: false,
+            back_office: raw_feature.back_office,
             slug,
             domain_slug: unit.domain.slug.clone(),
             sub_domain_slug: unit.sub_slug.map(str::to_string),

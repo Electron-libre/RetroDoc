@@ -36,9 +36,9 @@ entry points (what users and systems can do: routes, commands, jobs, public API)
 points into the user-facing features of the domain: capabilities a user or an external system \
 would recognize, not technical layers. Every feature must list at least one entry point, and an \
 entry point goes in exactly one feature. Entry points are cited by their short id (E1, E2…, the \
-first word of each line of the list), copied verbatim. Reply with ONLY a single JSON object, no prose and no \
+first word of each line of the list), copied verbatim. A feature is back_office (true) when it is an administration or back-office tool, used by the people who run the application rather than by its users or an external system (judged from its description, its routes and its files); otherwise false. Reply with ONLY a single JSON object, no prose and no \
 Markdown code fence, matching this shape: {\"features\":[{\"slug\":\"kebab-case\",\"name\":\"...\",\
-\"description\":\"one or two sentences\",\"entry_points\":[\"...\"]}]}.";
+\"description\":\"one or two sentences\",\"back_office\":false,\"entry_points\":[\"...\"]}]}.";
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct RawSurfaceFeatures {
@@ -52,6 +52,8 @@ struct RawSurfaceFeature {
     name: String,
     #[serde(default)]
     description: String,
+    #[serde(default)]
+    back_office: bool,
     #[serde(default)]
     entry_points: Vec<String>,
 }
@@ -878,7 +880,7 @@ fn place_entry_points(
         let taken = existing.iter().chain(&produced).map(|f| f.slug.as_str());
         let slug = unique_slug(&raw_feature.slug, taken);
         produced.push(Feature {
-            back_office: false,
+            back_office: raw_feature.back_office,
             slug,
             domain_slug: domain.slug.clone(),
             sub_domain_slug: None,

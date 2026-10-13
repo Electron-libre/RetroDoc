@@ -47,7 +47,7 @@ Measure first on the saved run (no LLM): for the use cases flagged by each signa
 # Tracking
 1. [x] Measure on the saved run, no LLM (`examples/technical_usecases_measure.rs`): use cases per signal, and which signal best finds the administration ones.
 2. [x] Render a section "Administration and technical" (admin, business language < 0.8 or confidence < 0.6), out of the business index: `Feature.back_office` and `UseCase::is_technical` in the model, the render splits the feature, domain and `llms.txt` pages.
-2b. [ ] Features pass: the LLM sets `back_office` from the description and the roles of the files (nothing fills it yet); kept by the incremental re-runs (`place_entry_points`, `validated_features` rebuild features); fix the render doc line that describes the feature split as active.
+2b. [x] Features pass: the LLM sets `back_office` from the description, the routes and the files (both prompts, files and surface); kept by the reuse and the partial redo; docs fixed. Known: the prompt is not in the fingerprints, so a saved run keeps `false` until `--force`.
 2c. [ ] Align the others on `UseCase::is_technical`: the debt report (`technical_use_cases`), and a marker in the MCP answers and the search results (no change of ranking).
 3. [ ] Mechanical check that the human actor of the first step matches a human entry point.
 4. [ ] Use cases prompt: system, external provider or API consumer as actor without a human entry point.
