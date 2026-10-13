@@ -24,6 +24,8 @@ pub enum PipelineError {
     YamlSerialize(#[from] serde_yaml::Error),
     #[error("benchmark reference {path} is unusable: {reason}")]
     InvalidReference { path: PathBuf, reason: String },
+    #[error("unknown context `{name}`; the contexts are: {known}")]
+    UnknownContext { name: String, known: String },
     #[error("artifact unreadable/unwritable at {path}: {source}")]
     ArtifactIo {
         path: PathBuf,

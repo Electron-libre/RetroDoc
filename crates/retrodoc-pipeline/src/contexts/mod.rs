@@ -29,9 +29,11 @@ use crate::naming::normalize;
 use crate::response::complete_json;
 
 mod groups;
+mod run;
 
 pub use groups::{contexts_of, mechanical_groups, name_words, Groups};
 use groups::{group_of, group_words};
+pub use run::{mark_done, plan_run, RunSlice};
 
 /// Groups shown to the LLM, the largest first; the others go to the support.
 const MAX_GROUPS: usize = 250;

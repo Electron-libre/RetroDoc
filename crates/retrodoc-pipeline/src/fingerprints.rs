@@ -40,6 +40,10 @@ pub(crate) struct Fingerprints {
     /// was asked with (`None`: nothing was left to place).
     #[serde(default)]
     pub entry_point_placement: Option<String>,
+    /// Contexts: slug → hash of the files of the context when its whole chain finished (the
+    /// context is done while it still matches).
+    #[serde(default)]
+    pub contexts: BTreeMap<String, String>,
     /// Confidence pass: the model that scored the saved use cases. Another
     /// model scores them all again.
     #[serde(default)]

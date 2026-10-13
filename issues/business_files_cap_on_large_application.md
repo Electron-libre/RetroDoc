@@ -76,7 +76,7 @@ and how many the cap drops (no LLM call needed: `business-files.yaml` and the fi
    * 4a. [x] Additive readers: glossary, entry points and the joint reading keep the entries of the files
      outside the run. Test: two readings on two sets of files give the union and the second does not read the
      first again.
-   * 4b. [ ] The slice of a run, with no LLM call: the contexts (named with `--context`, else the next ones
+   * 4b. [x] The slice of a run, with no LLM call: the contexts (named with `--context`, else the next ones
      not done within a budget of files, a context never cut), the files read for a context (roles entry point,
      model and logic, plus the files its entry points reference at depth 1), and the done state of a context
      (kept in `fingerprints.json` when its whole chain finished).
