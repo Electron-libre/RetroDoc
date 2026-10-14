@@ -1,6 +1,7 @@
 use super::*;
 
 use crate::entry_points::EntryKind;
+use crate::features::{entry_point_id, tag_position};
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub(super) struct RawUseCases {
@@ -186,7 +187,7 @@ fn without_invented_humans(
     } else {
         entries
             .iter()
-            .filter(|(_, e)| use_case.entry_points.contains(&e.name))
+            .filter(|(file, e)| use_case.entry_points.contains(&entry_point_id(file, e)))
             .map(|(_, e)| e.kind)
             .collect()
     };
@@ -312,20 +313,36 @@ pub(crate) fn resolve_cited_path(cited: &str, allowed: &BTreeSet<String>) -> Opt
     }
 }
 
-/// The entry point names of an answer that designate a known entry point
-/// (exact, else case-insensitive), as the inventory spells them.
+/// The ids (`<file>#<name>`) of the known entry points an answer cites, each by its tag
+/// (`E1`, as the prompt shows it), else by its id, else by its name alone when that is
+/// unambiguous (exact, else case-insensitive). The unknown and the ambiguous are dropped.
 pub(super) fn known_entry_points(
     cited: &[String],
     entries: &[(PathBuf, EntryPoint)],
 ) -> Vec<String> {
+    let ids: Vec<String> = entries
+        .iter()
+        .map(|(file, entry)| entry_point_id(file, entry))
+        .collect();
+    let resolve = |name: &str| -> Option<usize> {
+        let name = name.trim();
+        if let Some(position) = tag_position(name, entries.len()) {
+            return Some(position);
+        }
+        if let Some(position) = ids.iter().position(|id| id == name) {
+            return Some(position);
+        }
+        let by_name = |same: fn(&str, &str) -> bool| {
+            let mut found = (0..entries.len()).filter(|&i| same(&entries[i].1.name, name));
+            let first = found.next()?;
+            found.next().is_none().then_some(first)
+        };
+        by_name(|a, b| a == b).or_else(|| by_name(str::eq_ignore_ascii_case))
+    };
     let mut known: Vec<String> = Vec::new();
     for name in cited {
-        let found = entries
-            .iter()
-            .map(|(_, entry)| entry.name.as_str())
-            .find(|n| *n == name || n.eq_ignore_ascii_case(name.trim()));
-        match found {
-            Some(found) if !known.iter().any(|k| k == found) => known.push(found.to_string()),
+        match resolve(name) {
+            Some(position) if !known.contains(&ids[position]) => known.push(ids[position].clone()),
             Some(_) => {}
             None => {
                 tracing::info!(entry_point = %name, "use case cites an unknown entry point, dropped");

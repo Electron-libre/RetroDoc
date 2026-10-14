@@ -107,7 +107,7 @@ fn use_case_entry(use_case: &UseCase, feature_id: &str) -> Entry {
             use_case.description.clone(),
             use_case.narrative.clone().unwrap_or_default(),
             use_case.primary_actor.clone().unwrap_or_default(),
-            use_case.entry_points.join("\n"),
+            use_case.entry_point_names().join("\n"),
         ]
         .into_iter()
         .chain(steps),

@@ -1,5 +1,7 @@
 use super::*;
 
+use crate::features::tag;
+
 /// Per-file truncation and overall budget of code sent for one feature
 /// (PLAN.md §6 "cost/volume"); files beyond the budget are left out of the
 /// prompt, and so can't be cited.
@@ -14,8 +16,8 @@ pub(super) const ENTRY_POINTS_ADDENDUM: &str =
 observable outputs, then the files that define them and the files those reference. Build each use \
 case around one entry point, or a few closely related ones: the actor's goal, then the steps from \
 the trigger to the observable outputs, grounded on that code. Add to each use case an \
-`entry_points` array with the names of the entry points it covers, copied verbatim from the list; the array may be empty when none of them fits, and a name that is \
-not in the list (an actor, a sentence, a URL) must never be put there. \
+`entry_points` array with the tags (`E1`, `E2`…) of the entry points it covers, copied from the list; try to cover every entry point of the list, but leave out the tag that fits none of your use cases, \
+and a tag that is not in the list (an actor, a sentence, a URL) must never be put there. \
 Each entry point shows its kind in brackets. A use case none of whose entry points is an \
 http_route, a cli_command or an other is reached only by a job, a consumer, a webhook or a public \
 method, which no person starts: it has no human actor and no `primary_actor`, its actor is the \
@@ -116,10 +118,11 @@ pub(super) fn use_cases_prompt(
     }
     if !input.entries.is_empty() {
         prompt.push_str("\nEntry points:\n");
-        for (file, entry) in &input.entries {
+        for (position, (file, entry)) in input.entries.iter().enumerate() {
             let _ = write!(
                 prompt,
-                "- {} [{}] ({}): {}",
+                "- {} {} [{}] ({}): {}",
+                tag(position),
                 entry.name,
                 entry.kind.label(),
                 file.display(),

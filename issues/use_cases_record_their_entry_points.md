@@ -27,3 +27,17 @@ the entry points no use case covers.
 
 # Hints
 * The application is confidential: no name, path or code of it in a committed file.
+
+# Tracking
+1. [x] The use cases answer cites entry point ids (`<file>#<name>`); `known_entry_points` validates them (a bare name still works when it is unambiguous), drops the unknown ones.
+2. [ ] Entry points covered by no use case, per feature and overall: `behaviour-coverage.yaml` (optional field, old files still load) and the debt report.
+3. [ ] A feature with many entry points gets its use cases in several calls over slices of its entry points (constant, 12 per call, grouped by file), results merged by slug.
+4. [ ] Docs (`docs/crates/pipeline.md`, `PLAN.md`) and a real `generate --force` run on a large application to measure the covered share (generic wording, no name).
+
+## Decisions
+* Ids are the full `<file>#<name>`, as in the features pass.
+* Entry points already saved by name are not migrated; `generate --force` once.
+* The slice size is a constant, no new `retrodoc.toml` key; adjust after a real run.
+* The uncovered entry points go to the debt report as well as to `behaviour-coverage.yaml`.
+* Runs are kept in `~/retrodoc-runs`, not `/tmp`.
+* Deliverable 1: the prompt shows tags `E1`.. (as the features pass) and the answer cites them; ids are stored. Not measured on a real model yet (deliverable 4).

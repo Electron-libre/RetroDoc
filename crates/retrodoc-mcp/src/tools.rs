@@ -346,7 +346,11 @@ impl Docs {
             let _ = writeln!(out, "\nPrimary actor: {actor}");
         }
         if !use_case.entry_points.is_empty() {
-            let _ = writeln!(out, "Triggered by: {}", use_case.entry_points.join(", "));
+            let _ = writeln!(
+                out,
+                "Triggered by: {}",
+                use_case.entry_point_names().join(", ")
+            );
         }
         out.push_str("\n## Steps\n\n");
         for step in &use_case.steps {

@@ -67,12 +67,12 @@ struct Entry<'a> {
 
 /// The short tag the prompts show for the entry point at `position` of a list (`E1`, `E2`…): the
 /// model copies it reliably, where it garbles `<file>#<name>`.
-pub(super) fn tag(position: usize) -> String {
+pub(crate) fn tag(position: usize) -> String {
     format!("E{}", position + 1)
 }
 
 /// The position a tag cited by the model stands for, if it is one of `len`.
-pub(super) fn tag_position(cited: &str, len: usize) -> Option<usize> {
+pub(crate) fn tag_position(cited: &str, len: usize) -> Option<usize> {
     let number: usize = cited.trim().strip_prefix(['E', 'e'])?.parse().ok()?;
     (1..=len).contains(&number).then(|| number - 1)
 }

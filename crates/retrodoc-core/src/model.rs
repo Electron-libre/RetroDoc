@@ -94,7 +94,7 @@ pub struct UseCase {
     pub name: String,
     pub description: String,
     pub steps: Vec<Step>,
-    /// Names of the entry points (routes, commands, jobs…) this use case is
+    /// Ids (`<file>#<name>`; names only in artifacts from before) of the entry points (routes, commands, jobs…) this use case is
     /// triggered by, copied from the entry points inventory. Empty when the
     /// feature has no known entry point.
     #[serde(default)]
@@ -122,6 +122,19 @@ pub struct UseCase {
 }
 
 impl UseCase {
+    /// The names of the entry points it covers, without the file of their id.
+    #[must_use]
+    pub fn entry_point_names(&self) -> Vec<&str> {
+        self.entry_points
+            .iter()
+            .map(|id| match id.split_once('#') {
+                // A file has a dot or a slash; `Class#method`, a name saved before ids, has neither.
+                Some((file, name)) if file.contains(['.', '/']) => name,
+                _ => id.as_str(),
+            })
+            .collect()
+    }
+
     /// Whether the docs set this use case apart from the business ones: it belongs to a
     /// back-office feature, or reads under the business-language or confidence threshold (a
     /// score not yet computed is not a reason).

@@ -333,16 +333,19 @@ async fn a_feature_with_entry_points_gets_them_and_the_code_they_run() {
 
     let prompts = provider.prompt_pairs();
     assert!(prompts[0].0.contains("entry_points"));
-    assert!(prompts[0].0.contains("may be empty"), "{}", prompts[0].0);
+    assert!(prompts[0].0.contains("the tags (`E1`"), "{}", prompts[0].0);
     assert!(prompts[0].1.contains(
-        "- POST /contracts/:id/sign [http_route] (app/contracts_controller.rb): A signatory signs"
+        "- E1 POST /contracts/:id/sign [http_route] (app/contracts_controller.rb): A signatory signs"
     ));
     assert!(prompts[0].1.contains("Email confirmation sent"));
     assert!(prompts[0].1.contains("=== app/contract_signer.rb ==="));
     assert!(!prompts[0].1.contains("unrelated.rb"));
     // Known entry points are kept as the inventory spells them, unknown dropped;
     // a step may cite code reached through the entry point.
-    assert_eq!(use_cases[0].entry_points, vec!["POST /contracts/:id/sign"]);
+    assert_eq!(
+        use_cases[0].entry_points,
+        vec!["app/contracts_controller.rb#POST /contracts/:id/sign"]
+    );
     // A name that is no entry point costs nothing but the name: not a warning.
     let logs = logs.text();
     assert!(logs.contains("unknown entry point"), "{logs}");
@@ -524,9 +527,13 @@ async fn features_from_the_surface_get_only_their_own_entry_points_even_in_a_sha
         .unwrap();
 
     let prompts = provider.prompt_pairs();
-    assert!(prompts[0].1.contains("- GET /orders [http_route] (api.rb)"));
+    assert!(prompts[0]
+        .1
+        .contains("- E1 GET /orders [http_route] (api.rb)"));
     assert!(!prompts[0].1.contains("GET /routes"));
-    assert!(prompts[2].1.contains("- GET /routes [http_route] (api.rb)"));
+    assert!(prompts[2]
+        .1
+        .contains("- E1 GET /routes [http_route] (api.rb)"));
     assert!(!prompts[2].1.contains("GET /orders"));
 }
 
@@ -1136,4 +1143,39 @@ async fn the_vocabulary_of_another_domain_does_not_redo_the_use_cases_of_a_featu
     .await
     .unwrap();
     assert_eq!(llm.calls(), 2, "its own vocabulary does");
+}
+
+#[test]
+fn an_entry_point_is_cited_by_tag_id_or_unambiguous_name() {
+    use crate::entry_points::EntryKind::HttpRoute;
+
+    let entry = |name: &str| EntryPoint {
+        kind: HttpRoute,
+        name: name.to_string(),
+        verb: String::new(),
+        resource: String::new(),
+        description: String::new(),
+        outputs: Vec::new(),
+    };
+    let entries = vec![
+        (PathBuf::from("a.rb"), entry("GET /orders")),
+        (PathBuf::from("b.rb"), entry("GET /orders")),
+        (PathBuf::from("b.rb"), entry("POST /orders")),
+    ];
+    let cite = |names: &[&str]| {
+        let cited: Vec<String> = names.iter().map(ToString::to_string).collect();
+        grounding::known_entry_points(&cited, &entries)
+    };
+    assert_eq!(
+        cite(&["E2", "e3"]),
+        ["b.rb#GET /orders", "b.rb#POST /orders"]
+    );
+    assert_eq!(cite(&["a.rb#GET /orders"]), ["a.rb#GET /orders"]);
+    assert_eq!(cite(&["post /orders"]), ["b.rb#POST /orders"]);
+    // Twice the same, an ambiguous name, an unknown tag and an unknown name: kept once or dropped.
+    assert_eq!(cite(&["E3", "b.rb#POST /orders"]), ["b.rb#POST /orders"]);
+    assert_eq!(
+        cite(&["GET /orders", "E9", "GET /ghost"]),
+        Vec::<String>::new()
+    );
 }

@@ -461,7 +461,7 @@ fn use_case_page(feature: &Feature, use_case: &UseCase, rules: &[&BusinessRule])
     }
     if !use_case.entry_points.is_empty() {
         let names: Vec<String> = use_case
-            .entry_points
+            .entry_point_names()
             .iter()
             .map(|n| format!("`{n}`"))
             .collect();
