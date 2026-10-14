@@ -32,7 +32,7 @@ the entry points no use case covers.
 1. [x] The use cases answer cites entry point ids (`<file>#<name>`); `known_entry_points` validates them (a bare name still works when it is unambiguous), drops the unknown ones.
 2. [x] Entry points covered by no use case, per feature and overall: `behaviour-coverage.yaml` (optional field, old files still load) and the debt report.
 3. [x] A feature with many entry points gets its use cases in several calls over slices of its entry points (constant, 12 per call, grouped by file), results merged by slug.
-4. [ ] Docs (`docs/crates/pipeline.md`, `PLAN.md`) and a real `generate --force` run on a large application to measure the covered share (generic wording, no name).
+4. [x] Docs (`docs/crates/pipeline.md`, `PLAN.md`) and a real `generate --force` run on a large application to measure the covered share (generic wording, no name).
 
 ## Decisions
 * Ids are the full `<file>#<name>`, as in the features pass.
@@ -43,3 +43,4 @@ the entry points no use case covers.
 * Deliverable 1: the prompt shows tags `E1`.. (as the features pass) and the answer cites them; ids are stored. Not measured on a real model yet (deliverable 4).
 * Deliverable 2: `by_feature` in `behaviour-coverage.yaml`, "Entry points without a use case" in the report. Known limit: the entry of a deleted or renamed feature is not pruned (a partial run does not know all the features); `generate --force` wipes the artifact.
 * Deliverable 3: slices of whole files (`file_ranges`, shared with the features pass), asked one after the other, no merge across slices. Known limits: a form and its submit route in two slices give two use cases; an unusable slice redoes the whole feature next run; the constant is not in the fingerprint (`--force` after changing it). Not measured on a real model yet (deliverable 4).
+* Deliverable 4, real run (2026-10-14, a large Rails application, local `qwen3.6:35b-a3b`, `domains_from = "surface"`, 1h06): 52 use cases for 5 features, 48 with a non-empty `entry_points` (92%, against 49 of 161 before). They cite 68 of the 123 entry points the features hold; 55 (45%) are cited by none (per feature, from 4 of 10 to 14 of 18). The feature with 73 entry points was asked in slices: 14 calls for 5 features, no answer cut, use cases 24m31s for 157k tokens in and 26k out. The second run made no call. The smoke verdict is FAIL for 107 warnings in the first run, 94 of them the placement pass dropping a placement "in an unknown feature" (`issues/placement_into_unknown_features.md`). Not measured: why the 55 are not cited (omissions of the model, or entry points no use case needs), nor the run with the code before this issue.

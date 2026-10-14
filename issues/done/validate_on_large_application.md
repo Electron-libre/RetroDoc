@@ -155,7 +155,7 @@ Defects found (each has an issue or a line of one):
   from JSON). -> same issue as the first defect.
 * Only 49 of 161 use cases record the entry points they cover, so what share of the behaviours the use cases
   reach cannot be measured; a feature with 76 notification entry points gets 11 use cases. ->
-  `issues/use_cases_record_their_entry_points.md`.
+  `issues/done/use_cases_record_their_entry_points.md`.
 * Already known and tracked: the use cases answer of a very long feature is cut at the output limit
   (`issues/shorter_use_case_answers.md`).
 

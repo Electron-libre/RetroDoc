@@ -33,7 +33,7 @@ context that owns that controller.
 # Resources
 * `crates/retrodoc-pipeline/src/features/from_surface.rs` (`domain_entries`, `MAX_ENTRIES_PER_PROMPT`,
   `place_per_domain`), `domains.rs` of `contexts/`
-* `issues/use_cases_record_their_entry_points.md`, `issues/done/technical_and_back_office_use_cases.md`
+* `issues/done/use_cases_record_their_entry_points.md`, `issues/done/technical_and_back_office_use_cases.md`
 * `issues/done/business_files_cap_on_large_application.md` (the real runs)
 
 # Hints

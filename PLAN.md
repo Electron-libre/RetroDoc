@@ -554,7 +554,7 @@ application. The work that followed (`issues/done/business_files_cap_on_large_ap
 Result on the real application (hosted `deepseek-chat`): 8 of 35 contexts, 285 use cases, about $1.3 including
 the false starts; the core of the business reads well (the user's reading), about 30% of the use cases of the first
 slices are technical or back-office. The split by family is done (`issues/done/split_contexts_by_family_not_by_layer.md`: the
-largest context went from 199 to 167 files); `use_cases_record_their_entry_points` is in the queue. The `files` and `surface` paths are unchanged.
+largest context went from 199 to 167 files); the use cases cite the entry points they cover (tags `E1`.., stored as ids), a feature of more than 12 entry points is asked in slices, and the entry points no use case cites are in `behaviour-coverage.yaml` and the debt report (`issues/done/use_cases_record_their_entry_points.md`; on a large Rails application, 92% of the use cases cite an entry point and 45% of the entry points of the features are cited by none). The `files` and `surface` paths are unchanged.
 
 Technical and back-office use cases (`issues/done/technical_and_back_office_use_cases.md`, 2026-10-14): the features pass
 marks the back-office features (`Feature.back_office`); the docs, the MCP answers, the search and the debt report set
