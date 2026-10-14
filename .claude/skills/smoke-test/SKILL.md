@@ -13,7 +13,7 @@ Unit tests use a fake `LlmProvider`; this checks the real thing. The repository 
 Target repositories may belong to a client. **Never write their name, path, file names or code excerpts**
 in anything committed: docs, `PLAN.md`, `issues/`, ADRs, commit messages, tests. Describe them generically
 ("a large Rails repository", "a small Rust crate") and give figures (files, duration, features) only.
-Logs and the clone stay in `/tmp`.
+Logs and the clone stay in `~/retrodoc-runs` (`$RETRODOC_RUNS_DIR`).
 
 ## Run
 
@@ -25,12 +25,12 @@ just smoke <repo> --rules                     # also state the business rules (`
 ```
 
 It takes minutes to hours, so launch it with `run_in_background` and read the logs
-(`/tmp/retrodoc-smoke-<repo-dir-name>.run1.log`, `.run2.log`, `.report.txt`) while it runs: progress lines
+(`~/retrodoc-runs/retrodoc-smoke-<repo-dir-name>.run1.log`, `.run2.log`, `.report.txt`) while it runs: progress lines
 show rank, percentage and ETA, and a "still waiting for the LLM (Ns)" line every 30 s means a slow call,
 not a stuck run.
 
 What `smoke.rs run` does: refuses to start if no server answers; clones the committed `HEAD` of the target
-into `/tmp` (the original is never touched, uncommitted changes are not tested); `retrodoc init` then points
+into `~/retrodoc-runs` (the original is never touched, uncommitted changes are not tested); `retrodoc init` then points
 `[llm]` at the local server; runs `generate`, `generate` again, then `report`; prints the verdict.
 
 ## Local LLM defaults
@@ -63,4 +63,4 @@ manual run: `rust-script .claude/skills/smoke-test/smoke.rs evaluate <run1> <run
 - A FAIL is a finding, not noise: read the log around the first `WARN`/error, say what it is and whether it
   comes from the pipeline or the target repository (a repo that breaks its own layering is its flaw, not a
   RetroDoc bug). Don't paper over it by editing the generated rules by hand.
-- Don't commit anything produced by the run; the clone and logs live in `/tmp`.
+- Don't commit anything produced by the run; the clone and logs live in `~/retrodoc-runs`.

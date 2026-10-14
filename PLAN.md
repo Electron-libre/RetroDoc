@@ -123,7 +123,7 @@ docs/
 ## 7. Smoke-test findings and next work (2026-10-01)
 
 Smoke tests were run with `qwen3.6:35b-a3b` on a local Ollama (AMD iGPU, 32k context,
-`reasoning_effort = "none"`), on throwaway `git worktree`s in `/tmp` (see CLAUDE.md for the CLI commands):
+`reasoning_effort = "none"`), on throwaway `git worktree`s in `~/retrodoc-runs` (see CLAUDE.md for the CLI commands):
 
 | Repo | Size | Full run (`--force`) | Incremental re-run | Result |
 |---|---|---|---|---|

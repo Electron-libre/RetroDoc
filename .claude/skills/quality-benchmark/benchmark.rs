@@ -15,7 +15,7 @@
 //!   `current` that has a table.
 //!
 //! Usage: `just benchmark benchmark/<repo>/reference.yaml`. A run takes minutes to hours each: start it
-//! in the background. Everything it writes (clones, logs, JSON, table) stays in /tmp.
+//! in the background. Everything it writes (clones, logs, JSON, table) stays in the runs directory (`$RETRODOC_RUNS_DIR`, default `~/retrodoc-runs`).
 
 use std::fs::{self, File};
 use std::net::{TcpStream, ToSocketAddrs};
@@ -150,7 +150,7 @@ fn run(args: &[String]) -> i32 {
         die(&format!("no LLM server answers on {host}; start it or pass --base-url"));
     }
 
-    let root = std::env::temp_dir().join(format!("retrodoc-benchmark-{name}"));
+    let root = runs_dir().join(format!("retrodoc-benchmark-{name}"));
     let stamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs().to_string();
     let out = root.join(&stamp);
     let source = root.join("source");
@@ -242,6 +242,15 @@ fn run(args: &[String]) -> i32 {
         failures += 1;
     }
     i32::from(failures > 0)
+}
+
+/// Where runs are kept: `$RETRODOC_RUNS_DIR`, else `~/retrodoc-runs` (not /tmp, which is wiped at reboot).
+fn runs_dir() -> PathBuf {
+    let dir = std::env::var_os("RETRODOC_RUNS_DIR").map(PathBuf::from).unwrap_or_else(|| {
+        PathBuf::from(std::env::var_os("HOME").expect("HOME is set")).join("retrodoc-runs")
+    });
+    fs::create_dir_all(&dir).expect("create the runs directory");
+    dir
 }
 
 fn main() {

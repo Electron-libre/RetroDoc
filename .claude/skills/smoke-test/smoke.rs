@@ -2,7 +2,7 @@
 //! Smoke test of `retrodoc generate` against a real repository with a local LLM.
 //!
 //! - `smoke.rs run <repo> [--model M] [--base-url U] [--domains-from files|surface] [--rules]`: clones `<repo>` (committed HEAD only, the
-//!   original is never touched) into /tmp, points it at the local LLM, runs `generate` twice and
+//!   original is never touched) into the runs directory (`~/retrodoc-runs`), points it at the local LLM, runs `generate` twice and
 //!   `report`, then prints the verdict.
 //! - `smoke.rs evaluate <run1.log> <run2.log> <report.txt> <usage.json>`: only the verdict, from saved
 //!   logs and the `.retrodoc/cache/usage.json` of the clone.
@@ -160,7 +160,7 @@ fn run(args: &[String]) -> i32 {
     }
 
     let name = Path::new(target).file_name().unwrap().to_string_lossy().into_owned();
-    let clone = std::env::temp_dir().join(format!("retrodoc-smoke-{name}"));
+    let clone = runs_dir().join(format!("retrodoc-smoke-{name}"));
     if clone.exists() {
         fs::remove_dir_all(&clone).expect("remove the previous smoke clone");
     }
@@ -185,7 +185,7 @@ fn run(args: &[String]) -> i32 {
             .unwrap()
             .success()
     };
-    let log = |suffix: &str| std::env::temp_dir().join(format!("retrodoc-smoke-{name}.{suffix}"));
+    let log = |suffix: &str| runs_dir().join(format!("retrodoc-smoke-{name}.{suffix}"));
     let (log1, log2, rep) = (log("run1.log"), log("run2.log"), log("report.txt"));
 
     if !retrodoc(&["init"], &rep) {
@@ -236,6 +236,15 @@ fn run(args: &[String]) -> i32 {
         }
     }
     verdict(&problems)
+}
+
+/// Where runs are kept: `$RETRODOC_RUNS_DIR`, else `~/retrodoc-runs` (not /tmp, which is wiped at reboot).
+fn runs_dir() -> PathBuf {
+    let dir = std::env::var_os("RETRODOC_RUNS_DIR").map(PathBuf::from).unwrap_or_else(|| {
+        PathBuf::from(std::env::var_os("HOME").expect("HOME is set")).join("retrodoc-runs")
+    });
+    fs::create_dir_all(&dir).expect("create the runs directory");
+    dir
 }
 
 fn main() {

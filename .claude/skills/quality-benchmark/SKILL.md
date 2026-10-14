@@ -22,11 +22,11 @@ just benchmark <reference> --domains-from surface              # the new path of
 ```
 
 It takes minutes to hours per run (2 series × N runs), so launch it with `run_in_background` and read
-the logs in `/tmp/retrodoc-benchmark-<repo>/<timestamp>/<series>/run-<n>.log`. Same local LLM rules as
+the logs in `~/retrodoc-runs/retrodoc-benchmark-<repo>/<timestamp>/<series>/run-<n>.log`. Same local LLM rules as
 the smoke test (Ollama on `:11435`, large context, don't run two at once).
 
 What `benchmark.rs run` does: clones the repository of the reference at its pinned commit (cached in
-`/tmp/retrodoc-benchmark-<repo>/source`); for each series, `hidden` (the repo's own docs left out of
+`~/retrodoc-runs/retrodoc-benchmark-<repo>/source`); for each series, `hidden` (the repo's own docs left out of
 `ingest.existing_docs_paths`) then `shown`, and each run, clones afresh, runs `retrodoc init`,
 `generate` and `retrodoc benchmark --judge --out run-<n>.json`; then `retrodoc benchmark-table` writes
 `table.md` with the mean, range and number of runs of each figure and its change against the previous
@@ -50,7 +50,7 @@ a later run generates. The figures are therefore read like this:
 ## Audit (after each benchmark)
 
 1. Pick one run out of three per series and read the judge's pairs in
-   `/tmp/retrodoc-benchmark-<repo>/clones-<timestamp>/<series>-<n>/.retrodoc/benchmark/judge.yaml`
+   `~/retrodoc-runs/retrodoc-benchmark-<repo>/clones-<timestamp>/<series>-<n>/.retrodoc/benchmark/judge.yaml`
    (they are also the ones the table counted in `(judged)`).
 2. For each pair, check it against `reference.yaml` (descriptions included, not only the names): same
    business capability, or not? Count the false ones: that is the error rate of the judge, to report
@@ -67,4 +67,4 @@ a later run generates. The figures are therefore read like this:
 - Report the table, the number of runs and what moved beyond the spread.
 - A `FAIL` line (generate or benchmark failed in a run) is a finding: read the log around the first
   `WARN`/error. A run that failed is missing from the table, which says so in its `Runs` column.
-- Don't commit the clones, logs or tables (they live in `/tmp`); commit reference and match files only.
+- Don't commit the clones, logs or tables (they live in `~/retrodoc-runs`); commit reference and match files only.
