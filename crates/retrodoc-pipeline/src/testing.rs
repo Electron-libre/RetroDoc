@@ -302,5 +302,9 @@ pub(crate) fn capture_logs() -> (LogBuffer, tracing::subscriber::DefaultGuard) {
         .with_writer(buffer.clone())
         .with_ansi(false)
         .finish();
-    (buffer, tracing::subscriber::set_default(subscriber))
+    let guard = tracing::subscriber::set_default(subscriber);
+    // A callsite first hit by a test thread without a subscriber is cached as
+    // "never enabled" for everyone: rebuild so this thread's logs are seen.
+    tracing::callsite::rebuild_interest_cache();
+    (buffer, guard)
 }
