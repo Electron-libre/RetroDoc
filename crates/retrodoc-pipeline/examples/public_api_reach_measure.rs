@@ -1,6 +1,6 @@
 //! Measures, with no LLM call, what leaving out of an application the `public_api` entry points that
 //! no route, command, job, consumer or webhook reaches changes
-//! (`issues/technical_and_back_office_use_cases.md`, step 5; `EntryPoints::without_unreached_public_api`).
+//! (`issues/done/technical_and_back_office_use_cases.md`, step 5; `EntryPoints::without_unreached_public_api`).
 //!
 //! Usage: `cargo run -q -p retrodoc-pipeline --example public_api_reach_measure -- <run dir>...`
 //!

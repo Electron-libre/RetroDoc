@@ -143,7 +143,7 @@ Defects found (each has an issue or a line of one):
   an external company directory, model helpers). Their narratives say "a caller requests the PDF binary".
   The human actor is named even when nothing human triggers them: 68 use cases belong to features with no
   HTTP route, 48 of them have the same actor as the most common one (108 of 161 overall). 9 use cases come
-  from the admin namespace (back-office tools). -> `issues/technical_and_back_office_use_cases.md`.
+  from the admin namespace (back-office tools). -> `issues/done/technical_and_back_office_use_cases.md`.
 * The largest part of the central context mixes subjects: its 15 features cover form contracts and contract
   models (what its name says) but also six families of approval and signing workflows and 11 notification
   use cases, because the workflow folder was handed to it whole, by layer (rules, tasks, processes), while a

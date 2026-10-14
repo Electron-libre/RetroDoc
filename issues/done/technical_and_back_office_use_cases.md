@@ -53,7 +53,7 @@ Measure first on the saved run (no LLM): for the use cases flagged by each signa
 4. [x] Use cases prompt: each entry point shows its kind; only a route or a command is started by a person, else the actor is the system, the external provider or the calling program, with no `primary_actor`. Not measured on a real run (step 7).
 5. [x] Entry points: in an application, a `public_api` entry is kept only if its file is reached (2 hops of references) from a route, command, job, consumer or webhook entry; else it is left out for the later passes (technical support); a library keeps all (`without_unreached_public_api`). Measure on the saved run: 40 of 106 `public_api` entries left out, 7 of the 17 use cases that cite only `public_api` entries (2% of 285). A workflow has no entry point kind of its own, so it counts only through the route or job that reaches it.
 6. [x] Use cases prompt: a route that opens a form and the one that submits it are one use case citing both (entry points addendum). Not measured on a real run (step 7); a mechanical merge was not done.
-7. [ ] Re-validate on the large application (needs the user's agreement before the paid run); figures to the issue and `PLAN.md`, generically.
+7. [x] Re-validated on the large application (user's agreement given; figures below and in `PLAN.md` §7.7, generically).
 
 ## Decisions
 * Set apart, do not delete: the use cases stay in the cache and the render, in their own section.
@@ -67,3 +67,24 @@ Measure first on the saved run (no LLM): for the use cases flagged by each signa
 * Administration: the reference (sources in an `admin` folder) is 15%. The primary actor named "administrator" matches it badly (18 in both, 25 actor only, 25 folder only: a customer's company administrator is business, not back-office). The name or description of the feature matches best (26 in both, 6 only, 17 folder only), and still misses back-office features described with a business role.
 * Set apart with the feature text and the two thresholds: 27% of the use cases.
 * The figures of the Findings come from an earlier pass (161 use cases); the saved run is a later one.
+
+## Re-validation (step 7, 2026-10-14, 8 of 35 contexts, hosted `deepseek-chat`, `generate --force`, one run)
+One pass: 191 calls, 936k tokens in, 164k out, 14 minutes. The saved run before had 285 use cases (several passes
+added up), the new one 184: another LLM run, so part of the change is spread.
+
+| Signal | Before (285) | After (184) |
+|---|---|---|
+| feature made mostly of `public_api` entry points | 61 (21%) | 10 (5%) |
+| human actor, no route nor command | 80 (28%) | 13 (7%) |
+| business language < 0.8 | 18 (6%) | 7 (4%) |
+| confidence < 0.6 | 36 (13%) | 14 (8%) |
+| open / show / view / edit screens | 34 (12%) | 38 (21%) |
+| set apart in the docs | 78 (27%) | 57 (31%) |
+| back-office features | 0 | 5 of 52 (35 use cases) |
+
+* The docs have the section "Administration and technical" on 24 pages, in the 3 domain pages and in `llms.txt`.
+* 10 steps got the calling program or the external provider as actor, 26 use cases have no primary actor (8 before).
+* In an application, 35 of the 57 `public_api` entries of the inventory are left out.
+* Not solved: the form screens did not drop; the prompt alone does not merge them. Opened as
+  `issues/merge_form_screens_into_their_use_case.md`.
+* Not checked by hand: the 5 back-office features and their 35 use cases; one run only.

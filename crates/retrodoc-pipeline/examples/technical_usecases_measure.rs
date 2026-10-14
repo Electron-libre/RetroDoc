@@ -1,5 +1,5 @@
 //! Measures, with no LLM call, how many use cases of a saved run are not the business
-//! (`issues/technical_and_back_office_use_cases.md`, step 1).
+//! (`issues/done/technical_and_back_office_use_cases.md`, step 1).
 //!
 //! Usage: `cargo run -q -p retrodoc-pipeline --example technical_usecases_measure -- <run dir>...`
 //!

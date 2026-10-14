@@ -553,9 +553,18 @@ application. The work that followed (`issues/done/business_files_cap_on_large_ap
 
 Result on the real application (hosted `deepseek-chat`): 8 of 35 contexts, 285 use cases, about $1.3 including
 the false starts; the core of the business reads well (the user's reading), about 30% of the use cases of the first
-slices are technical or back-office. Follow-ups are in the queue (`technical_and_back_office_use_cases`,
-`split_contexts_by_family_not_by_layer`, `use_cases_record_their_entry_points`). The `files` and `surface` paths
-are unchanged.
+slices are technical or back-office. Follow-ups are in the queue (`split_contexts_by_family_not_by_layer`,
+`use_cases_record_their_entry_points`). The `files` and `surface` paths are unchanged.
+
+Technical and back-office use cases (`issues/done/technical_and_back_office_use_cases.md`, 2026-10-14): the features pass
+marks the back-office features (`Feature.back_office`); the docs, the MCP answers, the search and the debt report set
+apart those and the use cases under 0.8 of business language or 0.6 of confidence ("Administration and technical",
+nothing is dropped); a use case reached only by a job, a consumer, a webhook or a public method loses its human
+actor (prompt and mechanical check); in an application, the public methods no route, job or webhook reaches are left
+out of the entry points; the prompt asks for one use case for a form and its submit. On the same 8 contexts, one run:
+features made of public methods 21% to 5% of the use cases, human actor with no route nor command 28% to 7%, 5
+back-office features found; the form screens did not drop (12% to 21%), kept in
+`issues/merge_form_screens_into_their_use_case.md`.
 
 This plan's §7.1 to §7.3 are a dated log of findings; the current behaviour is in `docs/crates/` and
 `docs/ARCHITECTURE.md`.
