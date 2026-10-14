@@ -32,7 +32,7 @@ use crate::response::complete_json;
 
 mod from_surface;
 pub use self::from_surface::{build_features_from_surface, entry_point_id};
-pub(crate) use self::from_surface::{tag, tag_position};
+pub(crate) use self::from_surface::{file_ranges, tag, tag_position};
 
 /// Upper bound on files listed in one features prompt (PLAN.md §6
 /// "cost/volume"). When a unit has more, the most-modified files are kept:

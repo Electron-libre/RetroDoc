@@ -1179,3 +1179,129 @@ fn an_entry_point_is_cited_by_tag_id_or_unambiguous_name() {
         Vec::<String>::new()
     );
 }
+
+/// A feature over `files`, each holding `per_file` routes named `GET /f<file>/<n>`; `answers` for
+/// its calls. Returns the use cases and the provider.
+async fn use_cases_of_many_entry_points(
+    files: usize,
+    per_file: usize,
+    answers: &[&str],
+) -> (Vec<UseCase>, FakeLlm) {
+    use crate::entry_points::{EntryFile, EntryKind};
+
+    let dir = tempfile::tempdir().unwrap();
+    let names: Vec<String> = (0..files).map(|f| format!("f{f}.rb")).collect();
+    for name in &names {
+        std::fs::write(dir.path().join(name), "def a\nend\n").unwrap();
+    }
+    let entry_points = EntryPoints {
+        files: names
+            .iter()
+            .enumerate()
+            .map(|(f, name)| {
+                let points = (0..per_file)
+                    .map(|n| EntryPoint {
+                        kind: EntryKind::HttpRoute,
+                        name: format!("GET /f{f}/{n}"),
+                        verb: String::new(),
+                        resource: String::new(),
+                        description: String::new(),
+                        outputs: Vec::new(),
+                    })
+                    .collect();
+                (
+                    PathBuf::from(name),
+                    EntryFile {
+                        content_hash: String::new(),
+                        entry_points: points,
+                    },
+                )
+            })
+            .collect(),
+    };
+    let provider = FakeLlm::sequence(answers);
+    let context = UseCaseContext {
+        entry_points,
+        ..UseCaseContext::default()
+    };
+    let paths: Vec<&str> = names.iter().map(String::as_str).collect();
+    let use_cases = build_use_cases(dir.path(), &[feature("big", &paths)], &context, &provider)
+        .await
+        .unwrap();
+    (use_cases, provider)
+}
+
+fn one_use_case_citing(slug: &str, tags: &[&str]) -> String {
+    format!(
+        r#"{{"use_cases":[{{"slug":"{slug}","name":"{slug}","description":"d","entry_points":{},
+          "steps":[{{"description":"s","actor":{{"name":"User","kind":"human"}},
+                    "action":"a","source_refs":[]}}]}}]}}"#,
+        serde_json::to_string(tags).unwrap()
+    )
+}
+
+#[tokio::test]
+async fn a_feature_with_many_entry_points_is_asked_in_slices_of_whole_files() {
+    let answers = [
+        one_use_case_citing("first", &["E1"]),
+        one_use_case_citing("second", &["E1", "E10"]),
+        one_use_case_citing("third", &["E10"]),
+    ];
+    let answers: Vec<&str> = answers.iter().map(String::as_str).collect();
+
+    // Three files of 10 entry points: a file does not fit with the next one under the limit.
+    let (use_cases, provider) = use_cases_of_many_entry_points(3, 10, &answers).await;
+
+    let prompts = provider.prompt_pairs();
+    assert_eq!(prompts.len(), 3);
+    for (slice, (_, prompt)) in prompts.iter().enumerate() {
+        assert!(
+            prompt.contains(&format!("- E1 GET /f{slice}/0")),
+            "{prompt}"
+        );
+        assert!(
+            prompt.contains(&format!("- E10 GET /f{slice}/9")),
+            "{prompt}"
+        );
+        assert!(!prompt.contains("- E11"), "{prompt}");
+        assert_eq!(prompt.matches("GET /f").count(), 10, "{prompt}");
+    }
+    // The tags of each answer stand for the entry points of its own slice.
+    let cited: Vec<(&str, Vec<&str>)> = use_cases
+        .iter()
+        .map(|u| (u.slug.as_str(), u.entry_point_names()))
+        .collect();
+    assert_eq!(
+        cited,
+        [
+            ("first", vec!["GET /f0/0"]),
+            ("second", vec!["GET /f1/0", "GET /f1/9"]),
+            ("third", vec!["GET /f2/9"]),
+        ]
+    );
+}
+
+#[tokio::test]
+async fn a_file_over_the_limit_is_cut_and_a_small_feature_is_asked_once() {
+    let one = one_use_case_citing("u", &["E1"]);
+    let (_, provider) = use_cases_of_many_entry_points(1, 20, &[&one, &one]).await;
+    let prompts = provider.prompt_pairs();
+    assert_eq!(prompts.len(), 2);
+    assert!(prompts[0].1.contains("- E12 GET /f0/11"));
+    assert!(!prompts[0].1.contains("GET /f0/12"));
+    assert!(prompts[1].1.contains("- E1 GET /f0/12"));
+    assert!(prompts[1].1.contains("- E8 GET /f0/19"));
+
+    let (_, provider) = use_cases_of_many_entry_points(2, 6, &[&one]).await;
+    assert_eq!(provider.calls(), 1);
+}
+
+#[tokio::test]
+async fn a_slice_without_a_usable_answer_leaves_the_feature_to_the_next_run() {
+    let ok = one_use_case_citing("u", &["E1"]);
+    // Every call after the first answers with no JSON: the second slice is unusable.
+    let (use_cases, provider) = use_cases_of_many_entry_points(3, 10, &[&ok, "no"]).await;
+
+    assert!(use_cases.is_empty());
+    assert!(provider.prompts().iter().all(|p| !p.contains("GET /f2/")));
+}

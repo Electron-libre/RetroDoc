@@ -27,7 +27,7 @@ use crate::cache::hash_content;
 use crate::chunks::{Focus, Splitter};
 use crate::entry_points::{EntryPoint, EntryPoints};
 use crate::error::PipelineError;
-use crate::features::{entry_point_id, unique_slug};
+use crate::features::{entry_point_id, file_ranges, unique_slug};
 use crate::fingerprints::{fingerprint, model_part, Fingerprints};
 use crate::progress::Progress;
 use crate::response::complete_json;
@@ -50,6 +50,10 @@ use self::prompt::{system_prompt, use_cases_prompt, Framing};
 /// many files are kept (see [`CodeIndex::slice`]).
 const SLICE_DEPTH: usize = 2;
 const MAX_SLICE_FILES: usize = 8;
+
+/// Entry points of a feature asked in one call: a feature with more is asked in slices of whole
+/// files (a file over the limit is cut), so that no answer is cut at the output limit.
+const MAX_ENTRIES_PER_CALL: usize = 12;
 
 /// Loads a previously saved `use-cases.yaml`. Missing or unreadable: `None`
 /// (first run), not an error.
@@ -196,26 +200,22 @@ pub async fn build_use_cases(
     // features, and the slugs are made unique in that order: the result is the sequential one.
     let mut answers = stream::iter(items)
         .map(|item| async move {
-            let answer = match &item.plan {
-                Plan::Ask {
-                    system_prompt,
-                    prompt,
-                    ..
-                } => Some(ask_use_cases(llm, system_prompt, prompt, &item.feature.slug).await),
+            let answers = match &item.plan {
+                Plan::Ask { requests } => Some(ask_slices(llm, requests, &item.feature.slug).await),
                 Plan::Reuse | Plan::Unreadable => None,
             };
-            (item, answer)
+            (item, answers)
         })
         .buffered((*concurrency).max(1));
 
-    while let Some((item, answer)) = answers.next().await {
+    while let Some((item, answered)) = answers.next().await {
         let Item {
             position,
             feature,
             key,
             print,
-            input,
             plan,
+            ..
         } = item;
         match plan {
             Plan::Reuse => {
@@ -234,10 +234,19 @@ pub async fn build_use_cases(
                 progress.begin(&key);
                 tracing::warn!(feature = %feature.slug, "feature skipped: none of its files is readable");
             }
-            Plan::Ask { cited_files, .. } => {
+            Plan::Ask { requests } => {
                 progress.begin(&key);
-                let answer = match answer.unwrap_or(Ok(Answer::Unusable)) {
-                    Ok(answer) => answer,
+                let grounded = ground_slices(
+                    feature,
+                    &requests,
+                    answered.unwrap_or_default(),
+                    &use_cases,
+                    actors,
+                );
+                let produced = match grounded {
+                    Ok(Some(produced)) => produced,
+                    // A slice not answered: the feature is asked again on the next run.
+                    Ok(None) => continue,
                     Err(err) => {
                         save_partial(
                             repo_root,
@@ -249,13 +258,6 @@ pub async fn build_use_cases(
                         );
                         return Err(err);
                     }
-                };
-                let produced = match answer {
-                    Answer::Use(raw) => {
-                        grounded_use_cases(raw, feature, &use_cases, &input, &cited_files, actors)
-                    }
-                    Answer::Empty => Vec::new(),
-                    Answer::Unusable => continue,
                 };
                 prints.use_cases.insert(key, print);
                 use_cases.extend(produced);
@@ -278,6 +280,56 @@ pub async fn build_use_cases(
     save_use_cases(repo_root, &use_cases)?;
     prints.save(repo_root)?;
     Ok(use_cases)
+}
+
+/// The answers to the requests of a feature, one after the other (its answers must not be cut, not
+/// hurry); the last one is the one that is not usable, if any.
+async fn ask_slices(
+    llm: &dyn LlmProvider,
+    requests: &[Request],
+    feature_slug: &str,
+) -> Vec<Result<Answer, PipelineError>> {
+    let mut answers = Vec::with_capacity(requests.len());
+    for request in requests {
+        let answer =
+            ask_use_cases(llm, &request.system_prompt, &request.prompt, feature_slug).await;
+        let stop = !matches!(answer, Ok(Answer::Use(_) | Answer::Empty));
+        answers.push(answer);
+        if stop {
+            break;
+        }
+    }
+    answers
+}
+
+/// The use cases of all the slices of a feature, grounded in order (slugs unique against the
+/// `existing` ones and those of the earlier slices). `None` when a slice has no usable answer.
+fn ground_slices(
+    feature: &Feature,
+    requests: &[Request],
+    answers: Vec<Result<Answer, PipelineError>>,
+    existing: &[UseCase],
+    actors: &Actors,
+) -> Result<Option<Vec<UseCase>>, PipelineError> {
+    let mut produced: Vec<UseCase> = Vec::new();
+    for (request, answer) in requests.iter().zip(answers) {
+        match answer? {
+            Answer::Use(raw) => {
+                let taken: Vec<UseCase> = existing.iter().chain(&produced).cloned().collect();
+                produced.extend(grounded_use_cases(
+                    raw,
+                    feature,
+                    &taken,
+                    &request.input,
+                    &request.cited_files,
+                    actors,
+                ));
+            }
+            Answer::Empty => {}
+            Answer::Unusable => return Ok(None),
+        }
+    }
+    Ok(Some(produced))
 }
 
 /// What each feature needs, decided before any call: nothing (unchanged since the last run), or a
@@ -315,16 +367,30 @@ fn plan_items<'a>(
             let plan = if known.get(&key) == Some(&print) {
                 Plan::Reuse
             } else {
-                let (prompt, cited_files) =
-                    use_cases_prompt(repo_root, feature, &input, &framing, splitter);
-                if cited_files.is_empty() {
+                let requests: Vec<Request> = input
+                    .calls(repo_root, feature, index)
+                    .into_iter()
+                    .filter_map(|input| {
+                        let (prompt, cited_files) =
+                            use_cases_prompt(repo_root, feature, &input, &framing, splitter);
+                        if cited_files.is_empty() {
+                            tracing::warn!(feature = %feature.slug, "slice left out: none of its files is readable");
+                        }
+                        (!cited_files.is_empty()).then(|| Request {
+                            system_prompt: system_prompt(
+                                !input.entries.is_empty(),
+                                !actors.is_empty(),
+                            ),
+                            prompt,
+                            cited_files,
+                            input,
+                        })
+                    })
+                    .collect();
+                if requests.is_empty() {
                     Plan::Unreadable
                 } else {
-                    Plan::Ask {
-                        system_prompt: system_prompt(!input.entries.is_empty(), !actors.is_empty()),
-                        prompt,
-                        cited_files,
-                    }
+                    Plan::Ask { requests }
                 }
             };
             Item {
@@ -332,7 +398,6 @@ fn plan_items<'a>(
                 feature,
                 key,
                 print,
-                input,
                 plan,
             }
         })
@@ -345,7 +410,6 @@ struct Item<'a> {
     feature: &'a Feature,
     key: String,
     print: String,
-    input: FeatureInput,
     plan: Plan,
 }
 
@@ -354,11 +418,16 @@ enum Plan {
     Reuse,
     /// None of its files can be read: nothing to ask.
     Unreadable,
-    Ask {
-        system_prompt: String,
-        prompt: String,
-        cited_files: BTreeSet<String>,
-    },
+    /// One request, or one per slice of a feature with many entry points.
+    Ask { requests: Vec<Request> },
+}
+
+/// One call: its prompts, and what its answer is grounded on.
+struct Request {
+    system_prompt: String,
+    prompt: String,
+    cited_files: BTreeSet<String>,
+    input: FeatureInput,
 }
 
 /// Best-effort save of a run in progress or failed: the `unreached` features
@@ -458,6 +527,7 @@ pub(crate) fn feature_query(feature: &Feature, input: &FeatureInput) -> String {
 /// files shown to the LLM. A feature with entry points shows the files that
 /// define them and the code they run (a [`CodeIndex::slice`]); without any,
 /// all the feature's files, as before.
+#[derive(Clone)]
 pub(crate) struct FeatureInput {
     /// The feature's entry points (those it lists, else those defined in its files), with their file.
     pub(crate) entries: Vec<(PathBuf, EntryPoint)>,
@@ -483,6 +553,16 @@ impl FeatureInput {
             })
             .map(|(file, entry)| (file.to_path_buf(), entry.clone()))
             .collect();
+        Self::of(repo_root, feature, entries, index)
+    }
+
+    /// The input of `entries`: the files that define them and the code they run.
+    fn of(
+        repo_root: &Path,
+        feature: &Feature,
+        entries: Vec<(PathBuf, EntryPoint)>,
+        index: &CodeIndex,
+    ) -> Self {
         if entries.is_empty() {
             return Self {
                 entries,
@@ -502,5 +582,19 @@ impl FeatureInput {
             .map(|p| p.to_string_lossy().into_owned())
             .collect();
         Self { entries, files }
+    }
+
+    /// The inputs of the calls that derive the use cases: this one, or, for more than
+    /// [`MAX_ENTRIES_PER_CALL`] entry points, one per slice of whole files.
+    fn calls(self, repo_root: &Path, feature: &Feature, index: &CodeIndex) -> Vec<Self> {
+        let files: Vec<&Path> = self.entries.iter().map(|(f, _)| f.as_path()).collect();
+        let ranges = file_ranges(&files, MAX_ENTRIES_PER_CALL);
+        if ranges.len() <= 1 {
+            return vec![self];
+        }
+        ranges
+            .into_iter()
+            .map(|range| Self::of(repo_root, feature, self.entries[range].to_vec(), index))
+            .collect()
     }
 }

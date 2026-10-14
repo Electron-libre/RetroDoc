@@ -667,35 +667,38 @@ fn slice_key(domain_slug: &str, position: usize, slices: usize) -> String {
 /// The ranges of `entries` asked in one call each: whole files (the entries of a file are
 /// contiguous) up to [`MAX_ENTRIES_PER_PROMPT`]; a file over the limit is cut, as a last resort.
 fn slices(entries: &[Entry<'_>]) -> Vec<std::ops::Range<usize>> {
+    let files: Vec<&Path> = entries.iter().map(|e| e.file).collect();
+    file_ranges(&files, MAX_ENTRIES_PER_PROMPT)
+}
+
+/// The ranges of a list whose item `i` belongs to `files[i]` (the items of a file are contiguous):
+/// whole files up to `limit` items; a file over the limit is cut, as a last resort.
+pub(crate) fn file_ranges(files: &[&Path], limit: usize) -> Vec<std::ops::Range<usize>> {
     let mut ranges = Vec::new();
     let mut start = 0;
     let mut from = 0;
-    while from < entries.len() {
-        let file = entries[from].file;
-        let to = from
-            + entries[from..]
-                .iter()
-                .take_while(|e| e.file == file)
-                .count();
-        if to - from > MAX_ENTRIES_PER_PROMPT {
+    while from < files.len() {
+        let file = files[from];
+        let to = from + files[from..].iter().take_while(|f| **f == file).count();
+        if to - from > limit {
             if start < from {
                 ranges.push(start..from);
             }
             let mut cut = from;
             while cut < to {
-                let end = (cut + MAX_ENTRIES_PER_PROMPT).min(to);
+                let end = (cut + limit).min(to);
                 ranges.push(cut..end);
                 cut = end;
             }
             start = to;
-        } else if to - start > MAX_ENTRIES_PER_PROMPT {
+        } else if to - start > limit {
             ranges.push(start..from);
             start = from;
         }
         from = to;
     }
-    if start < entries.len() {
-        ranges.push(start..entries.len());
+    if start < files.len() {
+        ranges.push(start..files.len());
     }
     ranges
 }
