@@ -294,17 +294,64 @@ impl MakeWriter<'_> for LogBuffer {
     }
 }
 
+thread_local! {
+    static CAPTURE: std::cell::RefCell<Option<LogBuffer>> = const { std::cell::RefCell::new(None) };
+}
+
+/// Writer of the one global test subscriber: sends each event to the buffer
+/// of the thread that logged it, and drops it when that thread captures none.
+#[derive(Clone, Copy)]
+struct ThreadWriter;
+
+impl io::Write for ThreadWriter {
+    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        CAPTURE.with(|c| {
+            if let Some(buffer) = c.borrow_mut().as_mut() {
+                io::Write::write(buffer, bytes)?;
+            }
+            Ok(bytes.len())
+        })
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+impl MakeWriter<'_> for ThreadWriter {
+    type Writer = ThreadWriter;
+
+    fn make_writer(&self) -> Self::Writer {
+        *self
+    }
+}
+
+/// Stops the capture of the current thread when dropped.
+pub(crate) struct CaptureGuard;
+
+impl Drop for CaptureGuard {
+    fn drop(&mut self) {
+        CAPTURE.with(|c| *c.borrow_mut() = None);
+    }
+}
+
 /// Captures the logs of the current thread until the guard is dropped: use
 /// it in a test on the default single-threaded runtime of `#[tokio::test]`.
-pub(crate) fn capture_logs() -> (LogBuffer, tracing::subscriber::DefaultGuard) {
+///
+/// One global subscriber serves every test: scoped subscribers made the
+/// callsite interest cache of `tracing` race between parallel tests and lose
+/// events.
+pub(crate) fn capture_logs() -> (LogBuffer, CaptureGuard) {
+    static INIT: std::sync::Once = std::sync::Once::new();
+    INIT.call_once(|| {
+        let subscriber = tracing_subscriber::fmt()
+            .with_writer(ThreadWriter)
+            .with_ansi(false)
+            .finish();
+        tracing::subscriber::set_global_default(subscriber)
+            .expect("no other test sets a global subscriber");
+    });
     let buffer = LogBuffer::default();
-    let subscriber = tracing_subscriber::fmt()
-        .with_writer(buffer.clone())
-        .with_ansi(false)
-        .finish();
-    let guard = tracing::subscriber::set_default(subscriber);
-    // A callsite first hit by a test thread without a subscriber is cached as
-    // "never enabled" for everyone: rebuild so this thread's logs are seen.
-    tracing::callsite::rebuild_interest_cache();
-    (buffer, guard)
+    CAPTURE.with(|c| *c.borrow_mut() = Some(buffer.clone()));
+    (buffer, CaptureGuard)
 }
