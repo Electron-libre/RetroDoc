@@ -687,9 +687,11 @@ async fn a_folder_still_big_after_one_split_is_listed_by_its_own_sub_folders() {
     // `processes` holds one folder per family, 45 files each: the families are what the LLM must see.
     let mut many = sources();
     for family in ["hybrid", "market"] {
-        many.extend(
-            (0..45).map(|i| PathBuf::from(format!("app/workflows/processes/{family}/step_{i}.rb"))),
-        );
+        many.extend((0..45).map(|i| {
+            PathBuf::from(format!(
+                "app/workflows/processes/{family}/step_{family}_{i}.rb"
+            ))
+        }));
     }
     many.extend(
         (0..3).map(|i| PathBuf::from(format!("app/workflows/processes/small/step_{i}.rb"))),
@@ -727,10 +729,14 @@ async fn a_part_still_over_the_limit_is_split_again_once() {
     let dir = tempfile::tempdir().unwrap();
     // Three families of 60 files each: the first split keeps them together in `life` (183 files).
     let mut many = sources();
-    for family in ["a", "b", "c"] {
-        many.extend(
-            (0..60).map(|i| PathBuf::from(format!("app/workflows/processes/{family}/step_{i}.rb"))),
-        );
+    // Each file has a name of its own: a name repeated in every folder would be taken for a family.
+    for (n, family) in ["a", "b", "c"].into_iter().enumerate() {
+        many.extend((0..60).map(|i| {
+            PathBuf::from(format!(
+                "app/workflows/processes/{family}/step_{}.rb",
+                n * 60 + i
+            ))
+        }));
     }
     let llm = FakeLlm::replying(|_, request| {
         let prompt = &request.messages[1].content;
@@ -780,4 +786,84 @@ async fn a_context_that_cannot_be_split_is_not_asked_about_twice() {
     // The map, then the split twice (the answer is retried once by `complete_json`), then nothing.
     assert_eq!(llm.calls(), 3, "{:?}", llm.prompts().len());
     assert_eq!(map.contexts.len(), 1);
+}
+
+/// The id the split prompt gives the group `name`.
+fn id_of(prompt: &str, name: &str) -> String {
+    prompt
+        .lines()
+        .find(|l| l.contains(&format!(" | {name} | ")))
+        .and_then(|l| l.split(" | ").next())
+        .unwrap_or_else(|| panic!("no group {name} in {prompt}"))
+        .to_string()
+}
+
+/// The small application, 140 task files (153 files with the families: over the limit of a context, 146 once they leave), and two families (`market`, `audit`) that repeat in the
+/// rules, tasks and processes folders of the workflows.
+fn layered_sources() -> Vec<PathBuf> {
+    let mut many = sources();
+    many.extend((0..140).map(|i| PathBuf::from(format!("app/workflows/tasks/task_{i}.rb"))));
+    for family in ["market", "audit"] {
+        many.extend(paths(&[
+            &format!("app/workflows/rules/{family}.rb"),
+            &format!("app/workflows/tasks/{family}_task.rb"),
+            &format!("app/workflows/processes/{family}/start.rb"),
+        ]));
+    }
+    many
+}
+
+#[tokio::test]
+async fn the_split_lists_the_families_that_repeat_across_layers_and_cuts_by_family() {
+    let dir = tempfile::tempdir().unwrap();
+    let llm = FakeLlm::replying(|n, request| {
+        let prompt = &request.messages[1].content;
+        Ok(if n == 0 {
+            ANSWER.to_string()
+        } else {
+            format!(
+                r#"{{"contexts":[
+                {{"slug":"flows","name":"Flows","description":"d","groups":["{}","{}"]}},
+                {{"slug":"contracts","name":"Contracts","description":"d","groups":["{}","{}"],
+                  "folders":["app/workflows/tasks/"]}}]}}"#,
+                id_of(prompt, "market"),
+                id_of(prompt, "audit"),
+                id_of(prompt, "contract"),
+                id_of(prompt, "company_contract"),
+            )
+        })
+    });
+
+    let map = build_context_map(
+        dir.path(),
+        &layered_sources(),
+        &seeds(),
+        &ProductBrief::default(),
+        &llm,
+        false,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(llm.calls(), 2, "the map, then the split");
+    let resolved = map.resolve(&layered_sources(), &seeds());
+    let flows = resolved
+        .contexts
+        .iter()
+        .find(|c| c.slug == "flows")
+        .unwrap();
+    assert_eq!(
+        flows.files,
+        paths(&[
+            "app/workflows/processes/audit/start.rb",
+            "app/workflows/processes/market/start.rb",
+            // What the answer forgets stays with the first part.
+            "app/workflows/rules/approval.rb",
+            "app/workflows/rules/audit.rb",
+            "app/workflows/rules/market.rb",
+            "app/workflows/tasks/audit_task.rb",
+            "app/workflows/tasks/market_task.rb",
+        ]),
+        "a family holds its files of every layer"
+    );
 }

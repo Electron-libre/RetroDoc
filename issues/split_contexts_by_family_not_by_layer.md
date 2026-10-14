@@ -57,7 +57,7 @@ Approach step 2 (split a part again) was done before this plan; the deliverables
    at least 2 layer folders and covering at least 3 files (generic stems and layer names ignored). Unit test.
 2. [x] Measure: an option of `context_map_measure` applies it to the orphan folders of the biggest parts of a
    saved run (families found, share of the orphans covered). Run on the saved run, figures in this issue.
-3. [ ] Use in the split: families computed in `split_context` only, listed to the call with their sample,
+3. [x] Use in the split: families computed in `split_context` only, listed to the call with their sample,
    kept in `contexts.yaml` as group rules. Tests with `FakeLlm`.
 4. [ ] Name fits content: an instruction in `SPLIT_SYSTEM_PROMPT` (name a part after most of its files), tested
    by its presence in the prompt.

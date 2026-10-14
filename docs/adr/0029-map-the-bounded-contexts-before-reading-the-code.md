@@ -41,6 +41,12 @@ two to eight sub-contexts: its groups and its orphan folders, listed by sub-fold
 what the answer forgets or sets aside stays with the first part. The sub-contexts replace it in the map
 (siblings, no nesting); a failed or unusable split leaves the context whole.
 
+On a framework that lays its code out by layer (rules, tasks, processes, one folder each), the groups made
+around the entry point files reach none of the layers' files, which stay orphan folders listed by layer. The
+split therefore also looks for the names that repeat across several folders of its orphans
+(`family_groups`) and lists each as a group, kept in the map as a group name like any other, so a business
+family is cut as one unit whatever its layers.
+
 A file belongs to one context. A shared file is read once, with the context that owns it; the others refer
 to it by name. The map is for the `surface` path; the `files` path is unchanged.
 

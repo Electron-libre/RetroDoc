@@ -13,6 +13,9 @@
 //! file joins a context by the same rules and a hand edit (moving a group or a folder) takes effect
 //! at once. The map is reused as it is until `retrodoc contexts --force`: the code changing never
 //! changes the map, which is what lets a context done stay done.
+//!
+//! A context over the limit is split by one more call. Its orphan files that share a name across
+//! layer folders are listed to that call as groups of their own (`groups::family_groups`).
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
@@ -600,6 +603,19 @@ async fn split_context(
         .filter(|f| !in_a_group.contains(f))
         .cloned()
         .collect();
+    // The orphans of a layered framework (rules, tasks, processes…) have no entry point to be named
+    // after: the business families that repeat across the layers are groups of their own, so the
+    // split cuts by family and not by folder.
+    let taken: BTreeSet<Vec<String>> = grouped.groups.keys().map(|g| group_words(g)).collect();
+    let families = family_groups(&orphans, &taken);
+    let in_a_family: BTreeSet<&PathBuf> = families.values().flatten().collect();
+    let orphans: Vec<PathBuf> = orphans
+        .iter()
+        .filter(|f| !in_a_family.contains(f))
+        .cloned()
+        .collect();
+    let mut groups = groups;
+    groups.extend(families);
     let sub = Groups { groups, orphans };
     let listing = Listing::new(&sub);
     if listing.groups.len() + listing.folders.len() < MIN_ENTRIES_TO_SPLIT {
