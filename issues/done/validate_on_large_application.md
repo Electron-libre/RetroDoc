@@ -149,7 +149,7 @@ Defects found (each has an issue or a line of one):
   use cases, because the workflow folder was handed to it whole, by layer (rules, tasks, processes), while a
   family (one kind of contract flow) runs through every layer. The context that holds the life cycle is
   small (37 files). A reader looking for the signing flow would look under "life cycle", not "drafting". ->
-  `issues/split_contexts_by_family_not_by_layer.md`.
+  `issues/done/split_contexts_by_family_not_by_layer.md`.
 * 20 of 161 use cases are "open / show / view / edit" screens, several the first half of a pair (open the
   creation form, then create): the same capability is documented twice. A few near-duplicates (two imports
   from JSON). -> same issue as the first defect.

@@ -4,7 +4,6 @@ Open issues in the order to work on them: the first is the next one. Read by `ju
 `just close-issue` removes a line, `skill:create-issue` inserts one at its rank, `skill:prioritize-issues`
 re-ranks the whole list. Line format: `- [<file stem>](<file stem>.md) - <why here>`.
 
-- [split_contexts_by_family_not_by_layer](split_contexts_by_family_not_by_layer.md) - same run: the largest context mixes subjects because the workflow folder was handed over by layer; it decides what the next contexts look like, so before documenting the 23 left
 - [use_cases_record_their_entry_points](use_cases_record_their_entry_points.md) - same run: the share of behaviours the use cases reach cannot be measured (the field is empty in 112 of 161); needed to judge the two issues above and `shorter_use_case_answers`
 - [merge_form_screens_into_their_use_case](merge_form_screens_into_their_use_case.md) - left open by `technical_and_back_office_use_cases` (2026-10-14): the prompt alone did not merge the form screens (21% of the use cases of the new run); after `use_cases_record_their_entry_points`, which gives the pairing its data
 - [sampling_temperature_for_steadier_runs](sampling_temperature_for_steadier_runs.md) - small, and before every issue that measures: a smaller spread makes each later comparison cheaper

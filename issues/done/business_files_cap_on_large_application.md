@@ -262,7 +262,7 @@ What the runs showed (each one a defect of this issue's work, fixed unless said)
 
 ### Second series (2026-10-13): the new map, the first two runs again
 
-The map was rebuilt after the fixes of `issues/split_contexts_by_family_not_by_layer.md` (35 contexts, the
+The map was rebuilt after the fixes of `issues/done/split_contexts_by_family_not_by_layer.md` (35 contexts, the
 largest 199 files, the families of the workflows grouped by subject) and adopted for the working copy; the
 inventories of the files already read were kept (the readers add), the features of the old contexts dropped.
 
