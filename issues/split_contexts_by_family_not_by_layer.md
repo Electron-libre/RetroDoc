@@ -59,7 +59,7 @@ Approach step 2 (split a part again) was done before this plan; the deliverables
    saved run (families found, share of the orphans covered). Run on the saved run, figures in this issue.
 3. [x] Use in the split: families computed in `split_context` only, listed to the call with their sample,
    kept in `contexts.yaml` as group rules. Tests with `FakeLlm`.
-4. [ ] Name fits content: an instruction in `SPLIT_SYSTEM_PROMPT` (name a part after most of its files), tested
+4. [x] Name fits content: an instruction in `SPLIT_SYSTEM_PROMPT` (name a part after most of its files), tested
    by its presence in the prompt.
 5. [ ] Docs (`docs/crates/pipeline.md`, ADR 0029 consequences), `just check`, `just test-harness`.
 

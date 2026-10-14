@@ -87,7 +87,10 @@ business sub-domains (an activity, a stage of the business process, a kind of ob
 given what the product is for, the context, its GROUPS of files (each named after a business \
 object, with its size and a sample of its files) and its FOLDERS of files that belong to no group. \
 Split it into 2 to 8 sub-contexts, each named after a business concept or activity, never after a \
-technical layer or a kind of folder. Cite groups by their id (g1, g2…) and folders as listed, \
+technical layer or a kind of folder, and named after what most of its files are about: read the \
+samples before naming a part, and name it after its main subject, not after the first file you see. \
+Some groups are a business family whose files sit in several layer folders (rules, tasks, \
+processes): keep such a group whole in one sub-context, never cut it by folder. Cite groups by their id (g1, g2…) and folders as listed, \
 never invent either. Each group and each folder goes in exactly one sub-context; nothing is set \
 aside. \
 Reply with ONLY a single JSON object, no prose and no Markdown code fence, matching this shape: \

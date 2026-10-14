@@ -466,6 +466,21 @@ async fn the_split_prompt_names_the_context_and_lists_its_groups_and_sub_folders
 }
 
 #[tokio::test]
+async fn the_split_instructions_ask_for_a_name_that_fits_most_files_and_a_family_kept_whole() {
+    let dir = tempfile::tempdir().unwrap();
+    let llm = mapping_then_splitting();
+
+    build_big(dir.path(), &llm).await;
+
+    let system = &llm.system_prompts()[1];
+    assert!(
+        system.contains("what most of its files are about"),
+        "{system}"
+    );
+    assert!(system.contains("keep such a group whole"), "{system}");
+}
+
+#[tokio::test]
 async fn what_the_split_forgets_stays_with_the_first_part_and_an_unusable_split_keeps_the_context()
 {
     let dir = tempfile::tempdir().unwrap();
