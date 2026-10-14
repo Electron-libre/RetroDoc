@@ -61,7 +61,7 @@ Approach step 2 (split a part again) was done before this plan; the deliverables
    kept in `contexts.yaml` as group rules. Tests with `FakeLlm`.
 4. [x] Name fits content: an instruction in `SPLIT_SYSTEM_PROMPT` (name a part after most of its files), tested
    by its presence in the prompt.
-5. [ ] Docs (`docs/crates/pipeline.md`, ADR 0029 consequences), `just check`, `just test-harness`.
+5. [x] Docs (`docs/crates/pipeline.md`, ADR 0029 consequences), `just check`, `just test-harness`.
 
 Measure (deliverables 1 and 2, `context_map_measure --families`, saved run of the large Rails application):
 * Whole application: 25 families over the 645 files in no group, covering 22% of them; noisy (folders such as
@@ -73,6 +73,16 @@ Measure (deliverables 1 and 2, `context_map_measure --families`, saved run of th
   (`send`) is a step, and a folder that holds families is a layer unless it also names files.
 * Known residue: an action name present in several layers is still taken for a family. The split call decides
   with the sample; to watch on the real run.
+
+Real run (2026-10-14, `contexts --force` on the copy of the large Rails application, hosted `deepseek-chat`,
+5 calls, 16.4k tokens in, 2.6k out, 16 s):
+* 34 contexts (35 before), the largest 167 files (199 before); one context is still over 150 files (a warning).
+* The five largest business flows of the workflow layer found by `family_groups` (multi-party, consortium,
+  market, internal-document and the hybrid one) went together to one context of 121 files with no entry point
+  file, named after the contract life cycle workflows; the two approval flows went to an approval context.
+  The layer is no longer one part among others: the families are cited by name, not by folder.
+* Not done: reading whether each of the 34 names fits its content (only the largest were looked at), and a
+  second run to see the spread between calls.
 
 ## Decisions
 
