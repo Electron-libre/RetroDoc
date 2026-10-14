@@ -48,3 +48,35 @@ named like a stem) in the orphan folders of the biggest parts.
 * A context already documented must stay as it is: changing the map redoes its slice. Offer the new split
   with `retrodoc contexts --force`, which asks again, edits included.
 * The application is confidential: describe it generically.
+
+# Tracking
+
+Approach step 2 (split a part again) was done before this plan; the deliverables cover steps 1 and 3.
+
+1. [x] Family detection: a pure function in `groups.rs` that finds, among orphan files, the names repeated in
+   at least 2 layer folders and covering at least 3 files (generic stems and layer names ignored). Unit test.
+2. [x] Measure: an option of `context_map_measure` applies it to the orphan folders of the biggest parts of a
+   saved run (families found, share of the orphans covered). Run on the saved run, figures in this issue.
+3. [ ] Use in the split: families computed in `split_context` only, listed to the call with their sample,
+   kept in `contexts.yaml` as group rules. Tests with `FakeLlm`.
+4. [ ] Name fits content: an instruction in `SPLIT_SYSTEM_PROMPT` (name a part after most of its files), tested
+   by its presence in the prompt.
+5. [ ] Docs (`docs/crates/pipeline.md`, ADR 0029 consequences), `just check`, `just test-harness`.
+
+Measure (deliverables 1 and 2, `context_map_measure --families`, saved run of the large Rails application):
+* Whole application: 25 families over the 645 files in no group, covering 22% of them; noisy (folders such as
+  `javascript`, `helper`, and action names such as `approve`).
+* Under the workflow folder (`FAMILIES_UNDER=app/workflows`, 176 files in no group): 13 families covering 60% of
+  the files; the 5 largest are real business families (the multi-party, consortium, market and internal-document
+  flows), the others are action names (`validate`, `approve`, `restart`, `reissue`) that the folder of a
+  `workflow_actions` layer repeats. Two iterations were needed: a name repeated in the folder of every family
+  (`send`) is a step, and a folder that holds families is a layer unless it also names files.
+* Known residue: an action name present in several layers is still taken for a family. The split call decides
+  with the sample; to watch on the real run.
+
+## Decisions
+
+* Families are computed only when splitting a large context, never for the initial map.
+* A family: a name in at least 2 distinct layer folders and at least 3 files; generic names ignored.
+* The measure runs on a saved run of a large Rails application (copy in `/tmp`, not named here).
+* The naming check is a prompt instruction, without a quality measure.
