@@ -30,7 +30,7 @@ the entry points no use case covers.
 
 # Tracking
 1. [x] The use cases answer cites entry point ids (`<file>#<name>`); `known_entry_points` validates them (a bare name still works when it is unambiguous), drops the unknown ones.
-2. [ ] Entry points covered by no use case, per feature and overall: `behaviour-coverage.yaml` (optional field, old files still load) and the debt report.
+2. [x] Entry points covered by no use case, per feature and overall: `behaviour-coverage.yaml` (optional field, old files still load) and the debt report.
 3. [ ] A feature with many entry points gets its use cases in several calls over slices of its entry points (constant, 12 per call, grouped by file), results merged by slug.
 4. [ ] Docs (`docs/crates/pipeline.md`, `PLAN.md`) and a real `generate --force` run on a large application to measure the covered share (generic wording, no name).
 
@@ -41,3 +41,4 @@ the entry points no use case covers.
 * The uncovered entry points go to the debt report as well as to `behaviour-coverage.yaml`.
 * Runs are kept in `~/retrodoc-runs`, not `/tmp`.
 * Deliverable 1: the prompt shows tags `E1`.. (as the features pass) and the answer cites them; ids are stored. Not measured on a real model yet (deliverable 4).
+* Deliverable 2: `by_feature` in `behaviour-coverage.yaml`, "Entry points without a use case" in the report. Known limit: the entry of a deleted or renamed feature is not pruned (a partial run does not know all the features); a full `generate --force` does not clean it either.

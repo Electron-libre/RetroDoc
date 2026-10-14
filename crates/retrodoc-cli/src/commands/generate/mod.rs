@@ -503,6 +503,9 @@ async fn derive_use_cases(
     // Persist again now that the diagrams are attached.
     retrodoc_pipeline::save_use_cases(repo_root, &use_cases)
         .context("failed to save the use cases")?;
+    let coverage = retrodoc_pipeline::save_use_case_coverage(repo_root, features, &use_cases)
+        .context("could not save the behaviour coverage")?;
+    print::use_case_coverage(&coverage, features);
     Ok(use_cases)
 }
 

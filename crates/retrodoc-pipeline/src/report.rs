@@ -16,7 +16,7 @@ use retrodoc_core::model::{
 use retrodoc_ingest::existing_docs::ExistingDoc;
 use retrodoc_ingest::signals::doc_sections;
 
-use crate::behaviour_coverage::{BehaviourCoverage, EntryCount};
+use crate::behaviour_coverage::{BehaviourCoverage, EntryCount, FeatureCoverage};
 use crate::domains::{DomainMap, UNCATEGORIZED_SLUG};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -82,6 +82,8 @@ pub struct DebtReport {
     pub unplaced_entry_points: Vec<String>,
     /// Per bounded context: its entry points and those held by no feature.
     pub entries_by_context: BTreeMap<String, EntryCount>,
+    /// Per feature (from the surface): its entry points and those no use case cites.
+    pub entries_by_feature: BTreeMap<String, FeatureCoverage>,
     /// Source files reached by no behaviour: no entry point of a feature, no code run by one, no
     /// entity. Filled by the caller like `unplaced_entry_points`.
     pub technical_support: Vec<PathBuf>,
@@ -97,6 +99,8 @@ const MAX_LISTED_SKIPPED: usize = 50;
 const MAX_LISTED_RULES: usize = 50;
 /// Technical support files listed in the Markdown report (the rest is only counted).
 const MAX_LISTED_SUPPORT: usize = 50;
+/// Entry points without a use case listed in the Markdown report (the rest is only counted).
+const MAX_LISTED_UNCOVERED: usize = 50;
 
 fn mean(values: impl Iterator<Item = f32>) -> Option<f32> {
     let (sum, n) = values.fold((0.0_f32, 0_u32), |(s, n), v| (s + v, n + 1));
@@ -279,6 +283,7 @@ pub fn build_report(
         skipped_files: Vec::new(),
         unplaced_entry_points: Vec::new(),
         entries_by_context: BTreeMap::new(),
+        entries_by_feature: BTreeMap::new(),
         technical_support: Vec::new(),
         rules: None,
     }
@@ -297,6 +302,7 @@ impl DebtReport {
         if let Some(coverage) = coverage {
             self.unplaced_entry_points = coverage.unplaced_entry_points;
             self.entries_by_context = coverage.by_domain;
+            self.entries_by_feature = coverage.by_feature;
             self.technical_support = coverage.technical_support;
         }
     }
@@ -400,6 +406,7 @@ impl DebtReport {
                 );
             }
         }
+        self.write_uncovered_by_use_cases(md);
         if !self.technical_support.is_empty() {
             let _ = write!(
                 md,
@@ -418,6 +425,51 @@ impl DebtReport {
                     self.technical_support.len() - MAX_LISTED_SUPPORT
                 );
             }
+        }
+    }
+
+    /// The entry points of the features that no use case cites, per feature and overall.
+    fn write_uncovered_by_use_cases(&self, md: &mut String) {
+        let total: usize = self
+            .entries_by_feature
+            .values()
+            .map(|c| c.entry_points)
+            .sum();
+        let uncovered: usize = self
+            .entries_by_feature
+            .values()
+            .map(|c| c.uncovered.len())
+            .sum();
+        if uncovered == 0 {
+            return;
+        }
+        let _ = write!(
+            md,
+            "\n## Entry points without a use case\n\n{uncovered} of {total} entry points held by \
+             a feature are cited by no use case, so what they do is not described:\n\n\
+             | Feature | Entry points | Without a use case |\n|---|---|---|\n"
+        );
+        let mut rows: Vec<_> = self
+            .entries_by_feature
+            .iter()
+            .filter(|(_, c)| !c.uncovered.is_empty())
+            .collect();
+        rows.sort_by_key(|(_, c)| std::cmp::Reverse((c.uncovered.len(), c.entry_points)));
+        for (feature, count) in &rows {
+            let _ = writeln!(
+                md,
+                "| {feature} | {} | {} |",
+                count.entry_points,
+                count.uncovered.len()
+            );
+        }
+        md.push('\n');
+        let ids: Vec<&String> = rows.iter().flat_map(|(_, c)| &c.uncovered).collect();
+        for id in ids.iter().take(MAX_LISTED_UNCOVERED) {
+            let _ = writeln!(md, "- `{id}`");
+        }
+        if ids.len() > MAX_LISTED_UNCOVERED {
+            let _ = writeln!(md, "- … and {} more", ids.len() - MAX_LISTED_UNCOVERED);
         }
     }
 
@@ -585,9 +637,32 @@ mod tests {
                     },
                 ),
             ]),
+            by_feature: BTreeMap::from([
+                (
+                    "sign".to_string(),
+                    FeatureCoverage {
+                        entry_points: 4,
+                        uncovered: vec!["a.rb#GET /b".to_string(), "a.rb#GET /c".to_string()],
+                    },
+                ),
+                (
+                    "pay".to_string(),
+                    FeatureCoverage {
+                        entry_points: 2,
+                        uncovered: Vec::new(),
+                    },
+                ),
+            ]),
         }));
 
         let md = report.to_markdown();
+        assert!(md.contains("## Entry points without a use case"), "{md}");
+        assert!(md.contains("2 of 6 entry points"), "{md}");
+        assert!(
+            md.contains("| sign | 4 | 2 |") && !md.contains("| pay |"),
+            "{md}"
+        );
+        assert!(md.contains("`a.rb#GET /c`"));
         assert!(md.contains("## Entry points without a feature"), "{md}");
         assert!(md.contains("`a.rb#GET /a`"));
         assert!(

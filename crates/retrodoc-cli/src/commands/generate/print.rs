@@ -132,6 +132,23 @@ pub(super) fn behaviour_coverage(coverage: &BehaviourCoverage, source_files: usi
     );
 }
 
+/// How many of the entry points held by `features` (those of this run) no use case cites; nothing
+/// for features built from files.
+pub(super) fn use_case_coverage(coverage: &BehaviourCoverage, features: &[Feature]) {
+    let counts: Vec<_> = features
+        .iter()
+        .filter_map(|f| coverage.by_feature.get(&f.slug))
+        .collect();
+    let total: usize = counts.iter().map(|c| c.entry_points).sum();
+    let uncovered: usize = counts.iter().map(|c| c.uncovered.len()).sum();
+    if total > 0 {
+        println!(
+            "Use cases cover {} of {total} entry point(s) held by features; {uncovered} cited by none.",
+            total - uncovered
+        );
+    }
+}
+
 /// The entry points held by no feature, for each context of the run (nothing when none has a count).
 pub(super) fn entries_by_context(coverage: &BehaviourCoverage, in_run: &DomainMap) {
     let counts: Vec<_> = in_run

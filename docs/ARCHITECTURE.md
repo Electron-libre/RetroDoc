@@ -243,7 +243,7 @@ Guarantees:
 │   ├── features.yaml              #   features (+ confidence)
 │   ├── use-cases.yaml             #   use cases, steps, diagrams (+ confidence)
 │   ├── fingerprints.json          #   what the incremental re-run compares against
-│   ├── behaviour-coverage.yaml    #   (surface mode) entry points without a feature (per context in contexts mode), files reached by no behaviour
+│   ├── behaviour-coverage.yaml    #   (surface mode) entry points without a feature (per context in contexts mode) or without a use case (per feature), files reached by no behaviour
 │   ├── scope.yaml                 #   files left out by the budget (`--max-files`), listed in the report
 │   ├── roles.yaml                 #   (phase 7) glob → role rules, hand-editable
 │   ├── signal-sources.yaml        #   where the schema, migrations and translations are, hand-editable

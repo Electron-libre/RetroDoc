@@ -1,5 +1,7 @@
 use super::*;
 
+use std::collections::BTreeMap;
+
 use crate::entry_points::{EntryFile, EntryKind, EntryPoint};
 use crate::glossary::MergedEntity;
 
@@ -83,7 +85,7 @@ fn files_reached_by_no_documented_behaviour_are_technical_support() {
     BehaviourCoverage {
         unplaced_entry_points: vec!["other_routes.rb#GET /b".to_string()],
         technical_support: Vec::new(),
-        by_domain: std::collections::BTreeMap::new(),
+        ..BehaviourCoverage::default()
     }
     .save(root)
     .unwrap();
@@ -122,5 +124,76 @@ fn a_coverage_saved_before_the_counts_per_domain_still_loads() {
     let coverage = BehaviourCoverage::load(dir.path()).unwrap();
 
     assert_eq!(coverage.unplaced_entry_points, ["a.rb#GET /a"]);
-    assert!(coverage.by_domain.is_empty());
+    assert!(coverage.by_domain.is_empty() && coverage.by_feature.is_empty());
+}
+
+fn use_case(feature_slug: &str, entry_points: &[&str]) -> UseCase {
+    UseCase {
+        slug: "u".to_string(),
+        feature_slug: feature_slug.to_string(),
+        name: "U".to_string(),
+        description: String::new(),
+        steps: Vec::new(),
+        business_language: None,
+        entry_points: entry_points.iter().map(ToString::to_string).collect(),
+        narrative: None,
+        primary_actor: None,
+        diagram_mermaid: None,
+        confidence: None,
+    }
+}
+
+#[test]
+fn the_entry_points_no_use_case_cites_are_saved_per_feature() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    let mut a = feature(&["a.rb#GET /a", "a.rb#GET /b", "a.rb#GET /c"]);
+    a.slug = "a".to_string();
+    let mut files = feature(&[]);
+    files.slug = "from-files".to_string();
+    let use_cases = [
+        use_case("a", &["a.rb#GET /a"]),
+        use_case("a", &["a.rb#GET /c", "a.rb#GET /a"]),
+        // A name saved before ids, and a use case of another feature: neither covers an id.
+        use_case("a", &["GET /b"]),
+        use_case("other", &["a.rb#GET /b"]),
+    ];
+    // What the other passes saved is kept.
+    BehaviourCoverage {
+        unplaced_entry_points: vec!["x.rb#GET /x".to_string()],
+        ..BehaviourCoverage::default()
+    }
+    .save(root)
+    .unwrap();
+
+    let coverage = save_use_case_coverage(root, &[a, files], &use_cases).unwrap();
+
+    assert_eq!(coverage.unplaced_entry_points, ["x.rb#GET /x"]);
+    assert_eq!(
+        coverage.by_feature,
+        BTreeMap::from([(
+            "a".to_string(),
+            FeatureCoverage {
+                entry_points: 3,
+                uncovered: vec!["a.rb#GET /b".to_string()],
+            }
+        )])
+    );
+    assert_eq!(BehaviourCoverage::load(root).unwrap(), coverage);
+
+    // Derived again with everything cited: the feature's entry is renewed, not left stale.
+    let mut a = feature(&["a.rb#GET /b"]);
+    a.slug = "a".to_string();
+    let coverage = save_use_case_coverage(root, &[a], &[use_case("a", &["a.rb#GET /b"])]).unwrap();
+    assert_eq!(coverage.by_feature["a"].uncovered, Vec::<String>::new());
+}
+
+#[test]
+fn features_from_files_leave_no_coverage_artifact() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let coverage = save_use_case_coverage(dir.path(), &[feature(&[])], &[]).unwrap();
+
+    assert!(coverage.by_feature.is_empty());
+    assert!(BehaviourCoverage::load(dir.path()).is_none());
 }
