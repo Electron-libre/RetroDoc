@@ -19,5 +19,6 @@ re-ranks the whole list. Line format: `- [<file stem>](<file stem>.md) - <why he
 - [surface_domains_default_decision](surface_domains_default_decision.md) - parked (user, 2026-10-10): an optimization; the default stays `files` until the cost of more benchmark runs is acceptable
 - [single_pipeline_path](single_pipeline_path.md) - right after `surface_domains_default_decision`, which it applies
 - [pass_runner_and_run_context](pass_runner_and_run_context.md) - after `single_pipeline_path`: do not refactor code about to be removed
+- [contexts_residual_size_and_names](contexts_residual_size_and_names.md) - low: follow-up of the closed split by family (2026-10-14): one context still over 150 files, action names taken for families, the names unread; nothing before it depends on it, and its spread measure is cheaper after `sampling_temperature_for_steadier_runs`
 - [git_log_follow_renames](git_log_follow_renames.md) - not a priority (user, 2026-10-09): small MCP improvement, do it when nothing more valuable is left
 - [smoke_warnings_business_paths_sources_and_empty_use_cases](smoke_warnings_business_paths_sources_and_empty_use_cases.md) - priority low; remeasure after the big changes
