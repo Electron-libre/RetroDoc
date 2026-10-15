@@ -49,7 +49,7 @@ quality, and choose the default with the figures. A steadier run also means fewe
 1. [x] Send `temperature` from the config: `LlmConfig` / `PassLlmConfig` / `for_pass`, `ApiRequest` (only when set, sent again without it when the server refuses), part of what `PassProviders` compares; one `probe-schema` call per provider.
 2. [x] Measure the spread of `entry-points` on linkding and `delivery_router`: 5 runs at the server default against 5 at temperature 0, local Ollama first, then one deepseek series; table in the issue. `seed` only if the figures call for it (separate deliverable).
 3. [x] Choose the default for the extraction passes with the figures, decide whether the temperature is part of the fingerprints, ADR if the default changes, docs.
-4. [ ] Writing passes (brief, domains, features, use cases, rules): quality benchmark at a low temperature against the server default before changing their default.
+4. [x] Writing passes (brief, domains, features, use cases, rules): quality benchmark at a low temperature against the server default before changing their default.
 
 ## Decisions
 * Measure locally (Ollama), then confirm with one deepseek series.
@@ -91,3 +91,46 @@ Reading:
   (including it redoes the glossary, entry points and actors, and through them most of the run); ADR 0030.
   Known limits: no way to ask for the server's default on an extraction pass; `contexts` not measured, left
   out; only `entry-points` was measured.
+
+## Benchmark of deliverable 4 (2026-10-15)
+linkding at the pinned commit, `generate` + judge, series `hidden` (own docs left out), deepseek-chat, 3 runs per
+setting, `--no-confidence`. Extraction passes at 0 in both (ADR 0030); only the writing passes (brief,
+domains, features, use cases, rules) differ: server default against `temperature = 0`
+(`benchmark.rs --writing-temperature 0`). Mean (range).
+
+| Metric | Server default | Temperature 0 |
+|---|---|---|
+| Domains recall (judged) | 44% (33-67) | 56% (50-67) |
+| Domains precision (judged) | 55% (33-71) | 63% (50-80) |
+| Features recall (judged) | 82% (65-95) | 83% (80-85) |
+| Features precision (judged) | 58% (19-100) | 40% (34-45) |
+| Features recall, strict | 17% (15-20) | 35% (30-40) |
+| Features precision, strict | 7% (4-9) | 16% (13-18) |
+| Narratives in business language (judge) | 86% (84-88) | 91% (91-92) |
+| Use cases fully in business language | 72% (58-84) | 71% (54-82) |
+| Features | 70 (50-89) | 69 (67-73) |
+| Use cases | 309 (277-329) | 319 (258-373) |
+| Cost (calls, tokens in / out) | 267, 828k / 174k | 267, 829k / 166k |
+
+Reading:
+* The narratives are not poorer: the share rated in business language rises 86% to 91% and the ranges do
+  not overlap; the deterministic score and the share of use cases fully in business language do not move.
+* The number of features is steadier (50-89 to 67-73) and the judged recall and precision of the domains
+  rise a little, within the old ranges. The features precision (judged) falls in the mean (58% to 40%) but
+  the old range was 19-100%, so the mean of three runs is not a measure of a fall; the strict recall and
+  precision of the features double, which can come from steadier names as much as from better features.
+* Cost and time are unchanged.
+* Not done: the audit of the judge's pairs, one run per series (`skill:quality-benchmark`); one repository,
+  one model; 3 runs. The figures say a low temperature does no harm to the writing passes and steadies the
+  features, not that it makes them better.
+* Runs: `~/retrodoc-runs/retrodoc-benchmark-linkding/{1792068771,1792071794}`.
+
+## Audit of the judge and decision (deliverable 4)
+Pairs read against `reference.yaml` (one run per series): 4 wrong of 21 at the server default (reader mode as
+"Read it later", bundles as tagging, feeds as sharing), 5 wrong of 12 at temperature 0 (the easy pairs were
+already matched by name, the judge's are what is left). The right pairs went into `benchmark/linkding/matches.yaml`,
+the wrong ones are listed at its top. The judged figures therefore overstate both settings and the gap between
+them is not a measure; the narratives, the steadiness and the cost are.
+
+Decision: every pass at 0 unless set, but `contexts`, `repo-map` and the benchmark judge (ADR 0031, supersedes
+the list of ADR 0030).

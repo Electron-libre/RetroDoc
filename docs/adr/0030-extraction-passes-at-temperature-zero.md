@@ -1,6 +1,6 @@
 # 0030. Ask the extraction passes at temperature 0, outside the fingerprints
 
-Status: Accepted
+Status: Superseded by 0031
 
 ## Context
 

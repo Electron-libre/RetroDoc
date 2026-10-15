@@ -38,16 +38,22 @@ pub const PASS_NAMES: &[&str] = &[
     "benchmark judge",
 ];
 
-/// The passes that read facts out of the code and the repository, where two runs should agree: they
-/// are asked at temperature 0 unless the configuration sets one (`issues/sampling_temperature_for_steadier_runs.md`).
-/// The writing passes (brief, domains, features, use cases, rules) keep the server's default.
-pub const EXTRACTION_PASSES: &[&str] = &[
+/// The passes asked at temperature 0 unless the configuration sets one (ADR 0031,
+/// `issues/sampling_temperature_for_steadier_runs.md`): the ones that read facts out of the code and the
+/// repository, and the ones that write the docs. Left to the server's default: `contexts` and `repo-map`
+/// (not measured) and the benchmark judge.
+pub const ZERO_TEMPERATURE_PASSES: &[&str] = &[
     "sources",
+    "brief",
     "roles",
     "business-files",
     "glossary",
     "entry-points",
     "actors",
+    "domains",
+    "features",
+    "use-cases",
+    "rules",
     "confidence",
 ];
 
@@ -157,10 +163,10 @@ pub struct LlmConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reasoning_effort: Option<String>,
     /// Sampling temperature sent with every request when set (0 gives the
-    /// steadiest runs). Unset: the extraction passes ([`EXTRACTION_PASSES`])
-    /// use 0 and the writing ones send nothing, so the server's default
-    /// applies. A server that refuses it is asked again without it. Not part
-    /// of the fingerprints: a unit already saved is not redone when it changes
+    /// steadiest runs). Unset: the passes of [`ZERO_TEMPERATURE_PASSES`] use
+    /// 0 and the others send nothing, so the server's default applies. A
+    /// server that refuses it is asked again without it. Not part of the
+    /// fingerprints: a unit already saved is not redone when it changes
     /// (`generate --force` does).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub temperature: Option<f32>,
@@ -224,7 +230,7 @@ impl LlmConfig {
             passes: BTreeMap::new(),
             ..self.clone()
         };
-        if config.temperature.is_none() && EXTRACTION_PASSES.contains(&name) {
+        if config.temperature.is_none() && ZERO_TEMPERATURE_PASSES.contains(&name) {
             config.temperature = Some(0.0);
         }
         let Some(pass) = self.passes.get(name) else {
@@ -540,8 +546,8 @@ mod tests {
     }
 
     #[test]
-    fn the_extraction_passes_are_passes() {
-        for pass in EXTRACTION_PASSES {
+    fn the_zero_temperature_passes_are_passes() {
+        for pass in ZERO_TEMPERATURE_PASSES {
             assert!(PASS_NAMES.contains(pass), "{pass} is no pass");
         }
     }
@@ -558,10 +564,11 @@ mod tests {
         let llm = toml::from_str::<Config>(raw).unwrap().llm;
         assert_eq!(llm.for_pass("glossary").temperature, Some(0.0));
         assert_eq!(llm.for_pass("domains").temperature, Some(0.7));
-        // Unset: 0 for the extraction passes, the server's default for the writing ones.
+        // Unset: 0 for the extraction and writing passes, the server's default for the others.
         let unset = LlmConfig::default();
         assert_eq!(unset.for_pass("entry-points").temperature, Some(0.0));
-        assert_eq!(unset.for_pass("domains").temperature, None);
+        assert_eq!(unset.for_pass("domains").temperature, Some(0.0));
+        assert_eq!(unset.for_pass("contexts").temperature, None);
         let pass: Config = toml::from_str("[llm.passes.glossary]\ntemperature = 0.5").unwrap();
         assert_eq!(pass.llm.for_pass("glossary").temperature, Some(0.5));
     }
