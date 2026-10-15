@@ -33,6 +33,7 @@ cargo run -q -p retrodoc-pipeline --example route_owner_measure -- <run dir>... 
 cargo run -q -p retrodoc-pipeline --example technical_usecases_measure -- <run dir>...   # use cases per technical or back-office signal, and which signal finds the administration ones (no LLM)
 cargo run -q -p retrodoc-pipeline --example public_api_reach_measure -- <run dir>...   # public API entry points no route/job/webhook reaches, left out of an application (no LLM)
 cargo run -q -p retrodoc-pipeline --example form_pairs_measure -- [--names] <run dir>...   # use cases that only show a resource another use case changes (candidates to merge with the one that submits) (no LLM)
+cargo run -q -p retrodoc-pipeline --example features_by_domain_measure -- <run dir>...   # entry points, features and share held by a feature per domain of saved runs (no LLM)
 ```
 
 Scripts and dev commands are `just` recipes (`justfile`) and `rust-script` files, not bash.
