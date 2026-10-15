@@ -48,7 +48,7 @@ quality, and choose the default with the figures. A steadier run also means fewe
 # Tracking
 1. [x] Send `temperature` from the config: `LlmConfig` / `PassLlmConfig` / `for_pass`, `ApiRequest` (only when set, sent again without it when the server refuses), part of what `PassProviders` compares; one `probe-schema` call per provider.
 2. [x] Measure the spread of `entry-points` on linkding and `delivery_router`: 5 runs at the server default against 5 at temperature 0, local Ollama first, then one deepseek series; table in the issue. `seed` only if the figures call for it (separate deliverable).
-3. [ ] Choose the default for the extraction passes with the figures, decide whether the temperature is part of the fingerprints, ADR if the default changes, docs.
+3. [x] Choose the default for the extraction passes with the figures, decide whether the temperature is part of the fingerprints, ADR if the default changes, docs.
 4. [ ] Writing passes (brief, domains, features, use cases, rules): quality benchmark at a low temperature against the server default before changing their default.
 
 ## Decisions
@@ -86,3 +86,8 @@ Reading:
   `seed` was not tried; the figures do not call for it yet (deepseek delivery_router is already identical).
 * Both servers accepted `temperature: 0` and no run logged a refusal.
 * Runs are in `~/retrodoc-runs/eps-temp/{default,t0,ds-default,ds-t0}/`.
+* Deliverable 3: default 0 for `EXTRACTION_PASSES` (sources, roles, business-files, glossary, entry-points, actors,
+  confidence) when nothing is set, writing passes unchanged; the temperature stays out of the fingerprints
+  (including it redoes the glossary, entry points and actors, and through them most of the run); ADR 0030.
+  Known limits: no way to ask for the server's default on an extraction pass; `contexts` not measured, left
+  out; only `entry-points` was measured.
