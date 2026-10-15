@@ -47,7 +47,7 @@ quality, and choose the default with the figures. A steadier run also means fewe
 
 # Tracking
 1. [x] Send `temperature` from the config: `LlmConfig` / `PassLlmConfig` / `for_pass`, `ApiRequest` (only when set, sent again without it when the server refuses), part of what `PassProviders` compares; one `probe-schema` call per provider.
-2. [ ] Measure the spread of `entry-points` on linkding and `delivery_router`: 5 runs at the server default against 5 at temperature 0, local Ollama first, then one deepseek series; table in the issue. `seed` only if the figures call for it (separate deliverable).
+2. [x] Measure the spread of `entry-points` on linkding and `delivery_router`: 5 runs at the server default against 5 at temperature 0, local Ollama first, then one deepseek series; table in the issue. `seed` only if the figures call for it (separate deliverable).
 3. [ ] Choose the default for the extraction passes with the figures, decide whether the temperature is part of the fingerprints, ADR if the default changes, docs.
 4. [ ] Writing passes (brief, domains, features, use cases, rules): quality benchmark at a low temperature against the server default before changing their default.
 
@@ -57,3 +57,32 @@ quality, and choose the default with the figures. A steadier run also means fewe
 * A reasoning model that ignores the temperature is documented, not worked around.
 * Deliverable 4 stays in this issue.
 * Deliverable 1 review follow-ups for deliverable 3: the temperature is not in any fingerprint yet; an out-of-range value is a refusal (400) and is silently dropped with a warning (consider validating); a refusal not caused by the parameter can switch it off for the run (same risk as the schema).
+
+## Measure of deliverable 2 (2026-10-15)
+`entry-points` alone, 5 runs per cell, same `roles`, `brief` and `business-files` (computed once per repo), no
+cache between runs. Local = qwen3.6:35b-a3b via Ollama, `reasoning_effort=none`; deepseek = `deepseek-chat`.
+"Shared" = entries (file + name) found by all 5 runs / by any run; "pairwise" = mean Jaccard of two runs.
+Groups = share of the reference groups found (`entry_points_replay`), mean (range).
+
+| Repo, server | Setting | Entries (range) | Groups found | Shared by all 5 | Pairwise |
+|---|---|---|---|---|---|
+| linkding, local | server default | 124 (105-142) | 86% (79-93) | 9 of 315 (3%) | 25% |
+| linkding, local | temperature 0 | 130 (125-134) | 86% (86-86) | 102 of 164 (62%) | 81% |
+| linkding, deepseek | server default | 165 (150-187) | 87% (86-93) | 55 of 350 (16%) | 42% |
+| linkding, deepseek | temperature 0 | 160 (156-163) | 86% (86-86) | 140 of 184 (76%) | 88% |
+| delivery_router, local | server default | 11.6 (5-20) | 65% (62-75) | 1 of 34 (3%) | 37% |
+| delivery_router, local | temperature 0 | 17.4 (13-23) | 78% (62-100) | 12 of 23 (52%) | 72% |
+| delivery_router, deepseek | server default | 15.2 (14-16) | 57% (38-62) | 1 of 42 (2%) | 25% |
+| delivery_router, deepseek | temperature 0 | 16 (16-16) | 62% (62-62) | 16 of 16 (100%) | 100% |
+
+Reading:
+* Temperature 0 narrows the spread a lot on both servers and both repos: the entries shared by all runs go
+  from 2-16% to 52-100%, the range of the number of entries shrinks (linkding local 105-142 to 125-134,
+  deepseek 150-187 to 156-163), and the group recall stops swinging (linkding 79-93% to a flat 86%).
+* The mean recall does not rise or fall in a consistent way (linkding unchanged, delivery_router +13 points
+  local and +5 deepseek, inside the old range): the gain is steadiness, not quality. Precision of the
+  entries inside the reference files moves little (linkding 74 to 72% local, 55 to 60% deepseek).
+* It is not determinism: linkding local still differs by 19% between two runs (pairwise 81%), deepseek by 12%.
+  `seed` was not tried; the figures do not call for it yet (deepseek delivery_router is already identical).
+* Both servers accepted `temperature: 0` and no run logged a refusal.
+* Runs are in `~/retrodoc-runs/eps-temp/{default,t0,ds-default,ds-t0}/`.
