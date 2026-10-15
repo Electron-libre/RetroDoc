@@ -2,7 +2,7 @@
 //! Quality benchmark of `retrodoc generate` on a public repository, against a hand-written reference.
 //!
 //! - `benchmark.rs run <reference.yaml> [--runs N] [--model M] [--base-url U] [--provider deepseek]
-//!   [--series hidden|shown] [--no-confidence] [--domains-from files|surface]`: clones the repository
+//!   [--series hidden|shown] [--no-confidence] [--domains-from files|surface] [--writing-temperature T]`: clones the repository
 //!   of the reference at its pinned commit, then for each of the two series (`hidden`: the repo's own
 //!   docs left out of the input; `shown`: with them) runs `generate` and `retrodoc benchmark --judge`
 //!   N times in fresh clones, and prints the table (with the change against the previous benchmark).
@@ -11,6 +11,8 @@
 //!   `[llm]` at the local server (`provider` `local`) or at the hosted API of `provider` (`deepseek`; the key
 //!   comes from `DEEPSEEK_API_KEY`, in the environment or in the `.env` of the project) and, when asked,
 //!   empties `existing_docs_paths`.
+//! - `benchmark.rs writing-temperature <retrodoc.toml> <t>`: the config with `temperature = t` on the writing passes
+//!   (brief, domains, features, use-cases, rules), to try another value than the default 0 (ADR 0031).
 //! - `benchmark.rs previous <root> <current>`: the latest benchmark directory of `root` before
 //!   `current` that has a table.
 //!
@@ -78,6 +80,20 @@ fn set_domains_from(toml: &str, mode: &str) -> String {
     toml.replacen("domains_from = \"files\"", &format!("domains_from = \"{mode}\""), 1)
 }
 
+/// The passes that write prose, whose temperature the benchmark can change (default 0, ADR 0031).
+const WRITING_PASSES: [&str; 5] = ["brief", "domains", "features", "use-cases", "rules"];
+
+/// `toml` with `temperature` set on each writing pass (`[llm.passes.<name>]` sections added at the end).
+fn set_writing_temperature(toml: &str, temperature: &str) -> String {
+    assert!(!toml.contains("[llm.passes."), "the config already has [llm.passes.*] sections");
+    let mut out = toml.trim_end().to_string();
+    for pass in WRITING_PASSES {
+        out.push_str(&format!("\n\n[llm.passes.{pass}]\ntemperature = {temperature}"));
+    }
+    out.push('\n');
+    out
+}
+
 /// The benchmark directory of `root` that comes just before `current` (names are seconds since the
 /// epoch) and has a `table.md`.
 fn previous(root: &Path, current: &Path) -> Option<PathBuf> {
@@ -126,6 +142,16 @@ fn run(args: &[String]) -> i32 {
     let domains_from = option("--domains-from", "files");
     if !["files", "surface"].contains(&domains_from.as_str()) {
         die("--domains-from must be `files` or `surface`");
+    }
+    let writing_temperature = option("--writing-temperature", "");
+    // A TOML float: digits, a dot only between digits.
+    let is_toml_float = |t: &str| {
+        t.split_once('.').map_or(t, |(a, b)| if b.is_empty() { "" } else { a }).chars().all(|c| c.is_ascii_digit())
+            && !t.is_empty()
+            && t.split_once('.').is_none_or(|(_, b)| b.chars().all(|c| c.is_ascii_digit()))
+    };
+    if !writing_temperature.is_empty() && !is_toml_float(&writing_temperature) {
+        die("--writing-temperature must be a number like 0 or 0.7");
     }
     let runs: u32 = option("--runs", "1").parse().unwrap_or_else(|_| die("--runs must be a number"));
     if runs == 0 {
@@ -203,7 +229,9 @@ fn run(args: &[String]) -> i32 {
             let toml_path = clone.join("retrodoc.toml");
             let toml = fs::read_to_string(&toml_path).unwrap();
             let patched = patch_config(&toml, &provider, &model, &base_url, hide_docs);
-            fs::write(&toml_path, set_domains_from(&patched, &domains_from)).unwrap();
+            let patched = set_domains_from(&patched, &domains_from);
+            let patched = if writing_temperature.is_empty() { patched } else { set_writing_temperature(&patched, &writing_temperature) };
+            fs::write(&toml_path, patched).unwrap();
             let generate: &[&str] = if no_confidence { &["generate", "--no-confidence"] } else { &["generate"] };
             if !retrodoc(generate, &clone, &log) {
                 println!("FAIL - {series} {n}: generate failed (see {})", log.display());
@@ -271,6 +299,14 @@ fn main() {
             let toml = fs::read_to_string(&args[1]).unwrap_or_else(|e| die(&format!("{}: {e}", args[1])));
             let patched = patch_config(&toml, &args[2], &args[3], &args[4], args[5] == "true");
             print!("{}", args.get(6).map_or(patched.clone(), |mode| set_domains_from(&patched, mode)));
+            0
+        }
+        Some("writing-temperature") if args.len() == 3 => {
+            let toml = fs::read_to_string(&args[1]).unwrap_or_else(|e| die(&format!("{}: {e}", args[1])));
+            if !args[2].chars().all(|c| c.is_ascii_digit() || c == '.') || args[2].is_empty() {
+                die("the temperature must be a number like 0 or 0.7");
+            }
+            print!("{}", set_writing_temperature(&toml, &args[2]));
             0
         }
         Some("previous") if args.len() == 3 => match previous(Path::new(&args[1]), Path::new(&args[2])) {

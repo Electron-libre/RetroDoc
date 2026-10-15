@@ -7,6 +7,13 @@
 #   Administration & Maintenance, Application Platform (domains) -> Accounts and administration (backups, wiring, migrations)
 #   Quality Assurance, Project Operations (domains) -> Organisation and search, Integrations (tests and build scripts)
 #   Bookmark Details Modal, Bookmark Browsing, Bundle Management/Preview, Global Site Settings, RSS/Atom Feeds: no reference feature fits
+# Audit of the judge's pairs of one run per series of the temperature benchmark (deepseek, docs hidden, writing
+# passes at the server default / at 0). Judged wrong, left out:
+#   Reader Mode Extraction, Read saved pages in reader mode -> Read it later  (reader view is not the to-read flag)
+#   Organize bookmarks into bundles -> Tag bookmarks, Archive a page as an HTML snapshot  (bundles are saved filters)
+#   RSS/Atom Feed(s) -> Share bookmarks, Use the REST API  (feeds are not in the reference)
+#   Save, edit and delete bookmarks -> Archive a bookmark; Search and filter bookmarks -> Read it later;
+#   Manage tags -> Tag automatically  (the reference features exist: Edit and delete, Search bookmarks, Tag bookmarks)
 domains:
   - generated: Core Bookmarking Service
     reference: Bookmark management
@@ -14,6 +21,8 @@ domains:
     reference: Accounts and administration
   - generated: API and Integration
     reference: Integrations
+  - generated: User Accounts and Preferences
+    reference: Accounts and administration
 features:
   - generated: Core Bookmark Management
     reference: Save a bookmark
@@ -176,3 +185,32 @@ features:
     reference: Archive a page as an HTML snapshot
   - generated: Bookmarklet
     reference: Save a bookmark
+  # Audited pairs of the temperature benchmark (see the top of the file).
+  - generated: Search, filter and browse bookmarks
+    reference: Search bookmarks
+  - generated: Search and Filter Bookmarks
+    reference: Search bookmarks
+  - generated: Capture Page Snapshots
+    reference: Archive a page as an HTML snapshot
+  - generated: Share Bookmarks Publicly
+    reference: Share bookmarks
+  - generated: REST API and API Tokens
+    reference: Use the REST API
+  - generated: Sign in and manage sessions
+    reference: Sign in
+  - generated: Sign in via external identity provider
+    reference: Sign in
+  - generated: Install as a PWA and use mobile UI
+    reference: Install as an app
+  - generated: Link to Web Archive
+    reference: Snapshot on the Internet Archive
+  - generated: Archive and view page snapshots
+    reference: Archive a page as an HTML snapshot
+  - generated: Automatic tagging rules
+    reference: Tag automatically
+  - generated: Single sign-on with OIDC
+    reference: Sign in
+  - generated: Installable progressive web app
+    reference: Install as an app
+  - generated: REST API for programmatic access
+    reference: Use the REST API

@@ -73,6 +73,16 @@ fn main() {
     let (ok, out) = call(&["patch-config", &with_pipeline, "local", "m1", "http://localhost:1/v1", "false"]);
     check("leaves domains_from alone by default", ok && out.contains("domains_from = \"files\""));
 
+    let (ok, out) = call(&["writing-temperature", &toml, "0.7"]);
+    check(
+        "sets the temperature of the writing passes only",
+        ok && ["brief", "domains", "features", "use-cases", "rules"]
+            .iter()
+            .all(|p| out.contains(&format!("[llm.passes.{p}]\ntemperature = 0.7")))
+            && !out.contains("[llm.passes.roles]")
+            && out.contains("README.md"),
+    );
+
     let root = tmp.join("benchmarks");
     for (stamp, table) in [("100", true), ("200", true), ("250", false), ("300", true)] {
         let folder = root.join(stamp);
