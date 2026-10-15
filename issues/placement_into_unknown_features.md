@@ -37,7 +37,7 @@ and make the features hold the behaviours of the application, so that the covera
 # Tracking
 
 1. [x] Measure without a call (`features_by_domain_measure` example): entry points, features and share held per domain, unplaced entry points, unknown cited slugs when replayable.
-2. [ ] Derive the features of the "Uncategorized" domain too (sliced), adjusting `place_per_domain` and `retain_other_domains`.
+2. [x] Derive the features of the "Uncategorized" domain too (sliced), adjusting `place_per_domain` and `retain_other_domains`.
 3. [ ] Cite the features by a short tag in the placement call (only if unknown slugs remain after 2).
 4. [ ] Second placement round for the entry points still left out (only if they remain significant after 2).
 5. [ ] Smoke test with the local Ollama on the same application, compare the entry points held before and after.
@@ -47,3 +47,4 @@ and make the features hold the behaviours of the application, so that the covera
 * The measure is a no-LLM example, run on the saved run and on the `contexts` runs to tell whether the problem is specific to the `surface` mode.
 * A full run with the local Ollama closes the issue to quantify the gain (indicative: one run, one local model).
 * Step 1 result: on the saved run, "Uncategorized" holds 444 of 458 entry points and has 0 features (only 109 are held, through the placement into features of another domain). No other saved run has a `features.yaml`, so the `contexts` comparison and the cited unknown slugs wait for the step 5 run.
+* Step 2 done: `build_features_from_surface` no longer skips the "Uncategorized" domain (the `contexts` mode never builds one). Steps 3 and 4 wait for the step 5 run to say whether unknown slugs or unplaced entry points remain.

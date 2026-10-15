@@ -4,6 +4,10 @@
 //! feature keeps the ids it groups (`Feature::entry_points`) and the files that define them. No repo
 //! map is read.
 //!
+//! The `uncategorized` domain (the resources no domain claimed) is asked like the others: on a large
+//! application it holds most of the entry points, and skipping it left them to the placement call,
+//! which only knows the features of the other domains.
+//!
 //! The first placement of an entry point wins, an id the domain does not know is dropped, a feature
 //! left with no entry point is dropped.
 //!
@@ -116,7 +120,6 @@ pub async fn build_features_from_surface(
     let units: Vec<(&DomainCluster, Vec<Entry<'_>>)> = domains
         .domains
         .iter()
-        .filter(|d| d.slug != UNCATEGORIZED_SLUG)
         .map(|d| (d, domain_entries(d, entry_points)))
         .filter(|(_, entries)| !entries.is_empty())
         .collect();

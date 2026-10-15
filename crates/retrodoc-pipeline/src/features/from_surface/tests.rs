@@ -46,14 +46,10 @@ fn domain(slug: &str, resources: &[&str]) -> DomainCluster {
     }
 }
 
-/// `orders.rb` serves two resources of two domains; `routes.rb` one.
+/// `orders.rb` serves two resources of two domains; `GET /ping` is a resource of no domain.
 fn fixture() -> (DomainMap, EntryPoints) {
     let domains = DomainMap {
-        domains: vec![
-            domain("orders", &["order"]),
-            domain("routing", &["route"]),
-            domain(UNCATEGORIZED_SLUG, &["misc"]),
-        ],
+        domains: vec![domain("orders", &["order"]), domain("routing", &["route"])],
     };
     let entries = entry_points(&[
         (
@@ -90,16 +86,24 @@ async fn run(
 }
 
 #[tokio::test]
-async fn groups_the_entry_points_of_each_domain_and_skips_uncategorized() {
+async fn groups_the_entry_points_of_each_domain_uncategorized_included() {
     let dir = tempfile::tempdir().unwrap();
-    let (domains, entries) = fixture();
+    let (mut domains, entries) = fixture();
+    domains.domains.push(domain(UNCATEGORIZED_SLUG, &["misc"]));
     let llm = FakeLlm::replying(|n, _| {
-        Ok(if n == 0 {
-            r#"{"features":[{"slug":"Place order","name":"Place order","description":"d",
+        Ok(match n {
+            0 => {
+                r#"{"features":[{"slug":"Place order","name":"Place order","description":"d",
                 "entry_points":["orders.rb#POST /orders","orders.rb#GET /orders"]}]}"#
-        } else {
-            r#"{"features":[{"slug":"list-routes","name":"List routes","description":"d",
+            }
+            1 => {
+                r#"{"features":[{"slug":"list-routes","name":"List routes","description":"d",
                 "entry_points":["orders.rb#GET /routes"]}]}"#
+            }
+            _ => {
+                r#"{"features":[{"slug":"check-health","name":"Check health","description":"d",
+                "entry_points":["misc.rb#GET /ping"]}]}"#
+            }
         }
         .to_string())
     });
@@ -109,16 +113,11 @@ async fn groups_the_entry_points_of_each_domain_and_skips_uncategorized() {
     assert_eq!(
         llm.calls(),
         3,
-        "one call per domain, none for uncategorized, then one to place `GET /ping` (held only by \
-         the uncategorized domain; this canned answer places nothing)"
+        "one call per domain, the uncategorized one too, and none to place: every entry point is held"
     );
-    assert_eq!(
-        BehaviourCoverage::load(dir.path())
-            .unwrap()
-            .unplaced_entry_points,
-        vec!["misc.rb#GET /ping"]
-    );
-    assert_eq!(features.len(), 2);
+    let coverage = BehaviourCoverage::load(dir.path()).unwrap();
+    assert_eq!(coverage.unplaced_entry_points, Vec::<String>::new());
+    assert_eq!(features.len(), 3);
     assert_eq!(features[0].slug, "place-order");
     assert_eq!(features[0].domain_slug, "orders");
     assert_eq!(
@@ -127,7 +126,13 @@ async fn groups_the_entry_points_of_each_domain_and_skips_uncategorized() {
     );
     assert_eq!(features[0].source_paths, vec!["orders.rb"]);
     assert_eq!(features[1].entry_points, vec!["orders.rb#GET /routes"]);
-    assert_eq!(load_features(dir.path()).unwrap().len(), 2);
+    assert_eq!(features[2].domain_slug, UNCATEGORIZED_SLUG);
+    assert_eq!(features[2].entry_points, vec!["misc.rb#GET /ping"]);
+    assert_eq!(load_features(dir.path()).unwrap().len(), 3);
+
+    let again = run(dir.path(), &domains, &entries, &llm).await;
+    assert_eq!(again.len(), 3);
+    assert_eq!(llm.calls(), 3, "an unchanged rerun makes no call");
 }
 
 #[tokio::test]
