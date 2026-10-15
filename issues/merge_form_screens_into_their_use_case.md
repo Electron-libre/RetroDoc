@@ -34,3 +34,22 @@ use cases of such a pair that are two separate ones. Then, candidates (can be co
 * The application is confidential: no name, path or code of it in a committed file.
 * A `show` or a list is a legitimate use case; only the opening of a form that has a submit is a duplicate.
 * Do not rely on Rails action names alone: pair by the resource and the HTTP verb as the entry points name them.
+
+# Tracking
+1. [x] No-LLM measure `form_pairs_measure` (example): opening entry points paired with a submitting one by `resource` and `outputs`, three cases counted on a saved run; stop and decide with the numbers.
+2. [ ] (on hold) The chosen candidate (mechanical merge, pair input before the prompt, or nothing), decided after the measure.
+3. [ ] (on hold) Measure again on a new run, update the docs, close.
+
+## Decisions
+* Reference run: the latest saved run in `~/retrodoc-runs` made after `ab34246` (use cases cite their entry points).
+* The pairing must not depend on Rails: an opening entry point is an `http_route` whose `outputs` are only `response`, on a `resource` that also has an entry point with a `db_write`, `email`, `event` or `external_call` output.
+* Three cases are counted: an opening split from its submit (candidate), a showing entry point on a resource with a submit (ambiguous, sampled by hand), a showing entry point on a resource without one (legitimate).
+* Threshold (user: "see if it is worth it"): above 5% of the use cases list, do the mechanical merge; otherwise the prompt stays as is.
+
+## Measure (step 1, 2026-10-15, the only saved run with cited entry points: 52 use cases, 458 entry points)
+* Showing use cases on a resource another use case changes ("paired"): 10 (19%); showing a resource nothing changes: 5 (10%); acting: 33; no known entry point: 4.
+* Read by name, only 2 or 3 of the 10 paired open a form; the others are consultations (legitimate). Neither the name nor the text of the entry point separates them well (2 and 3 of 10).
+* So the real pairs are about 2 to 5% of the list, around the 5% threshold: neither the mechanical merge nor the pair input is worth it on this run.
+
+## On hold (user, 2026-10-15)
+The run is too small (the issue's 184 use cases are not saved). Take it again with a complete run, which costs LLM calls: if the pairs stay under 5%, close with this measure (candidate 3); otherwise the mechanical merge needs a rule that tells an opening from a consultation.

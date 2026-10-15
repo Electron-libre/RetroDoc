@@ -73,7 +73,7 @@ pub use domains::{
     SubDomainCluster,
 };
 pub use entry_points::{
-    build_entry_points, EntryKind, EntryPoint, EntryPoints, Output, OutputKind,
+    build_entry_points, EntryFile, EntryKind, EntryPoint, EntryPoints, Output, OutputKind,
 };
 pub use error::PipelineError;
 pub use features::{
