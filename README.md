@@ -91,6 +91,7 @@ api_key_env = "OPENROUTER_API_KEY"   # name of the variable, never the key itsel
 model = "anthropic/claude-sonnet-4.5"
 # base_url = "http://localhost:11434/v1/chat/completions"   # any OpenAI-compatible server
 # reasoning_effort = "none"   # skip "thinking" on models that support it
+# temperature = 0             # sampling temperature (unset: the server's default); a server that refuses it is asked again without
 # timeout_secs = 120
 # concurrency = 1
 # batch_chars = 6000          # 0 disables batching

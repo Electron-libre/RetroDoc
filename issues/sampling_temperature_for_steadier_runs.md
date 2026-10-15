@@ -44,3 +44,16 @@ quality, and choose the default with the figures. A steadier run also means fewe
   without it), and check each provider with one call.
 * Temperature 0 is not determinism on a hosted model: measure the spread, do not assume it is gone.
 * A reasoning model may ignore the temperature.
+
+# Tracking
+1. [x] Send `temperature` from the config: `LlmConfig` / `PassLlmConfig` / `for_pass`, `ApiRequest` (only when set, sent again without it when the server refuses), part of what `PassProviders` compares; one `probe-schema` call per provider.
+2. [ ] Measure the spread of `entry-points` on linkding and `delivery_router`: 5 runs at the server default against 5 at temperature 0, local Ollama first, then one deepseek series; table in the issue. `seed` only if the figures call for it (separate deliverable).
+3. [ ] Choose the default for the extraction passes with the figures, decide whether the temperature is part of the fingerprints, ADR if the default changes, docs.
+4. [ ] Writing passes (brief, domains, features, use cases, rules): quality benchmark at a low temperature against the server default before changing their default.
+
+## Decisions
+* Measure locally (Ollama), then confirm with one deepseek series.
+* `seed` is added only if the measure shows it narrows the spread beyond temperature 0.
+* A reasoning model that ignores the temperature is documented, not worked around.
+* Deliverable 4 stays in this issue.
+* Deliverable 1 review follow-ups for deliverable 3: the temperature is not in any fingerprint yet; an out-of-range value is a refusal (400) and is silently dropped with a warning (consider validating); a refusal not caused by the parameter can switch it off for the run (same risk as the schema).

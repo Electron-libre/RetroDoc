@@ -143,6 +143,11 @@ pub struct LlmConfig {
     /// structured calls. Unset: nothing is sent, the server's default applies.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reasoning_effort: Option<String>,
+    /// Sampling temperature sent with every request when set (0 gives the
+    /// steadiest runs). Unset: nothing is sent, the server's default applies.
+    /// A server that refuses it is asked again without it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f32>,
     /// Per-request HTTP timeout in seconds. Unset: 120. A slow local model
     /// producing a long structured answer (several thousand tokens at a few
     /// tokens per second) needs more; the retry loop restarts the whole
@@ -184,6 +189,7 @@ pub struct PassLlmConfig {
     /// endpoint is used.
     pub base_url: Option<String>,
     pub reasoning_effort: Option<String>,
+    pub temperature: Option<f32>,
     pub timeout_secs: Option<u64>,
     pub concurrency: Option<usize>,
     /// Only read for `repo-map`, the one pass that batches files.
@@ -225,6 +231,7 @@ impl LlmConfig {
         if pass.reasoning_effort.is_some() {
             config.reasoning_effort.clone_from(&pass.reasoning_effort);
         }
+        config.temperature = pass.temperature.or(config.temperature);
         config.timeout_secs = pass.timeout_secs.or(config.timeout_secs);
         config.concurrency = pass.concurrency.or(config.concurrency);
         config.structured_output = pass.structured_output.or(config.structured_output);
@@ -265,6 +272,7 @@ impl Default for LlmConfig {
             model: Self::default_model(),
             base_url: None,
             reasoning_effort: None,
+            temperature: None,
             timeout_secs: None,
             concurrency: None,
             batch_chars: None,
@@ -510,6 +518,21 @@ mod tests {
         assert_eq!(llm.for_pass("glossary").model, "local");
         let other: Config = toml::from_str("[llm.passes.glossary]\nbatch_chars = 5").unwrap();
         assert_eq!(other.llm.for_pass("glossary").batch_chars, None);
+    }
+
+    #[test]
+    fn the_temperature_is_set_in_llm_and_overridden_by_a_pass() {
+        let raw = r"
+            [llm]
+            temperature = 0.0
+
+            [llm.passes.domains]
+            temperature = 0.7
+        ";
+        let llm = toml::from_str::<Config>(raw).unwrap().llm;
+        assert_eq!(llm.for_pass("glossary").temperature, Some(0.0));
+        assert_eq!(llm.for_pass("domains").temperature, Some(0.7));
+        assert_eq!(LlmConfig::default().for_pass("domains").temperature, None);
     }
 
     #[test]

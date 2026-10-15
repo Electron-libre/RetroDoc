@@ -50,6 +50,8 @@ struct ApiRequest<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     reasoning_effort: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    temperature: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     response_format: Option<ApiResponseFormat<'a>>,
     /// `OpenRouter` routing preferences, sent with a schema only.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -103,6 +105,7 @@ pub struct OpenRouterProvider {
     default_model: String,
     endpoint: String,
     reasoning_effort: Option<String>,
+    temperature: Option<f32>,
     /// `llm.structured_output`: send the schema of a request that has one.
     structured_output: bool,
     /// Ask `OpenRouter` to route only to servers that honor every parameter
@@ -111,6 +114,9 @@ pub struct OpenRouterProvider {
     /// Set once a server refused the schema and accepted the plain request:
     /// the schema is not sent again.
     schema_refused: AtomicBool,
+    /// Set once a server refused the temperature and accepted the request
+    /// without it: the temperature is not sent again.
+    temperature_refused: AtomicBool,
 }
 
 impl OpenRouterProvider {
@@ -152,9 +158,11 @@ impl OpenRouterProvider {
             default_model: config.model.clone(),
             endpoint,
             reasoning_effort: config.reasoning_effort.clone(),
+            temperature: config.temperature,
             structured_output: config.structured_output.unwrap_or(true),
             require_parameters,
             schema_refused: AtomicBool::new(false),
+            temperature_refused: AtomicBool::new(false),
         })
     }
 
@@ -175,12 +183,21 @@ impl OpenRouterProvider {
         request.json_schema.as_ref()
     }
 
+    /// The temperature to send, unless unset or a server already refused it.
+    fn temperature_to_send(&self) -> Option<f32> {
+        if self.temperature_refused.load(Ordering::Relaxed) {
+            return None;
+        }
+        self.temperature
+    }
+
     /// Sends the request (with the retries on transient errors) and decodes
     /// the answer.
     async fn send(
         &self,
         request: &CompletionRequest,
         schema: Option<&ResponseSchema>,
+        temperature: Option<f32>,
     ) -> Result<CompletionResponse, Failure> {
         let model = request.model.as_deref().unwrap_or(&self.default_model);
         let body = ApiRequest {
@@ -195,6 +212,7 @@ impl OpenRouterProvider {
                 .collect(),
             max_tokens: MAX_COMPLETION_TOKENS,
             reasoning_effort: self.reasoning_effort.as_deref(),
+            temperature,
             response_format: schema.map(|s| ApiResponseFormat {
                 kind: "json_schema",
                 json_schema: ApiJsonSchema {
@@ -277,29 +295,48 @@ fn is_retryable_status(status: reqwest::StatusCode) -> bool {
 #[async_trait]
 impl LlmProvider for OpenRouterProvider {
     async fn complete(&self, request: CompletionRequest) -> Result<CompletionResponse, LlmError> {
-        let Some(schema) = self.schema_to_send(&request) else {
-            return self.send(&request, None).await.map_err(Failure::into_error);
+        let schema = self.schema_to_send(&request);
+        let temperature = self.temperature_to_send();
+        let failure = match self.send(&request, schema, temperature).await {
+            Ok(response) => return Ok(response),
+            Err(failure) => failure,
         };
-        match self.send(&request, Some(schema)).await {
-            Ok(response) => Ok(response),
-            Err(failure) if failure.may_be_a_refused_schema() => {
-                // The server may not know `response_format` (or this model
-                // not support it). Try again plain; only if that works is the
-                // schema the culprit and left out for the rest of the run.
-                let response = self
-                    .send(&request, None)
-                    .await
-                    .map_err(|_| failure.into_error())?;
-                if !self.schema_refused.swap(true, Ordering::Relaxed) {
-                    tracing::warn!(
-                        "the server refused the JSON schema (response_format); \
-                         continuing without it (set llm.structured_output = false to silence)"
-                    );
-                }
-                Ok(response)
+        // A server may not know `temperature` or `response_format` (or this
+        // model not take them). Try again without one, then the other, then
+        // both; only if a request works are the parameters left out of it the
+        // culprits, and they are not sent again for the rest of the run.
+        let drop_temperature = [true, false, true];
+        let drop_schema = [false, true, true];
+        for (drop_temperature, drop_schema) in drop_temperature.into_iter().zip(drop_schema) {
+            if (drop_temperature && temperature.is_none())
+                || (drop_schema && schema.is_none())
+                || !failure.may_be_a_refused_parameter()
+            {
+                continue;
             }
-            Err(failure) => Err(failure.into_error()),
+            let attempt = self
+                .send(
+                    &request,
+                    schema.filter(|_| !drop_schema),
+                    temperature.filter(|_| !drop_temperature),
+                )
+                .await;
+            let Ok(response) = attempt else { continue };
+            if drop_temperature && !self.temperature_refused.swap(true, Ordering::Relaxed) {
+                tracing::warn!(
+                    "the server refused the temperature; continuing without it \
+                     (unset llm.temperature to silence)"
+                );
+            }
+            if drop_schema && !self.schema_refused.swap(true, Ordering::Relaxed) {
+                tracing::warn!(
+                    "the server refused the JSON schema (response_format); \
+                     continuing without it (set llm.structured_output = false to silence)"
+                );
+            }
+            return Ok(response);
         }
+        Err(failure.into_error())
     }
 
     fn model(&self) -> &str {
@@ -359,9 +396,10 @@ enum Failure {
 }
 
 impl Failure {
-    /// A client error that a schema the server cannot handle would explain:
+    /// A client error that a parameter the server cannot handle (the schema,
+    /// the temperature) would explain:
     /// bad request, not found (no endpoint with the parameter), unprocessable.
-    fn may_be_a_refused_schema(&self) -> bool {
+    fn may_be_a_refused_parameter(&self) -> bool {
         matches!(
             self,
             Failure::Http { status, .. }
@@ -473,6 +511,7 @@ mod tests {
             model: "anthropic/claude-sonnet-4.5".to_string(),
             base_url: None,
             reasoning_effort: None,
+            temperature: None,
             timeout_secs: None,
             concurrency: None,
             batch_chars: None,
@@ -492,6 +531,7 @@ mod tests {
             model: "gpt-4o".to_string(),
             base_url: None,
             reasoning_effort: None,
+            temperature: None,
             timeout_secs: None,
             concurrency: None,
             batch_chars: None,
@@ -510,6 +550,7 @@ mod tests {
             model: "llama3.2:3b".to_string(),
             base_url: Some("http://localhost:11434/v1/chat/completions".to_string()),
             reasoning_effort: None,
+            temperature: None,
             timeout_secs: None,
             concurrency: None,
             batch_chars: None,
@@ -549,6 +590,7 @@ mod tests {
             model: "anthropic/claude-sonnet-4.5".to_string(),
             base_url: None,
             reasoning_effort: None,
+            temperature: None,
             timeout_secs: None,
             concurrency: None,
             batch_chars: None,
@@ -633,9 +675,11 @@ mod tests {
             default_model: "anthropic/claude-sonnet-4.5".to_string(),
             endpoint: String::new(),
             reasoning_effort: None,
+            temperature: None,
             structured_output: true,
             require_parameters: false,
             schema_refused: AtomicBool::new(false),
+            temperature_refused: AtomicBool::new(false),
         }
         .with_endpoint(format!("http://{addr}"));
 
@@ -679,9 +723,11 @@ mod tests {
             default_model: "m".to_string(),
             endpoint: String::new(),
             reasoning_effort: None,
+            temperature: None,
             structured_output: true,
             require_parameters: false,
             schema_refused: AtomicBool::new(false),
+            temperature_refused: AtomicBool::new(false),
         }
         .with_endpoint(format!("http://{addr}"));
         provider.complete(request()).await.unwrap()
@@ -743,9 +789,11 @@ mod tests {
             default_model: "m".to_string(),
             endpoint: String::new(),
             reasoning_effort: None,
+            temperature: None,
             structured_output: true,
             require_parameters: false,
             schema_refused: AtomicBool::new(false),
+            temperature_refused: AtomicBool::new(false),
         }
         .with_endpoint(format!("http://{addr}"));
 
@@ -794,9 +842,11 @@ mod tests {
             default_model: "m".to_string(),
             endpoint: String::new(),
             reasoning_effort: None,
+            temperature: None,
             structured_output: true,
             require_parameters: false,
             schema_refused: AtomicBool::new(false),
+            temperature_refused: AtomicBool::new(false),
         }
         .with_endpoint(format!("http://{addr}"));
 
@@ -843,9 +893,11 @@ mod tests {
                 default_model: "m".to_string(),
                 endpoint: String::new(),
                 reasoning_effort: effort.map(str::to_string),
+                temperature: None,
                 structured_output: true,
                 require_parameters: false,
                 schema_refused: AtomicBool::new(false),
+                temperature_refused: AtomicBool::new(false),
             }
             .with_endpoint(format!("http://{addr}"));
 
@@ -914,9 +966,11 @@ mod tests {
             default_model: "m".to_string(),
             endpoint: String::new(),
             reasoning_effort: None,
+            temperature: None,
             structured_output,
             require_parameters: true,
             schema_refused: AtomicBool::new(false),
+            temperature_refused: AtomicBool::new(false),
         }
         .with_endpoint(endpoint)
     }
@@ -978,6 +1032,82 @@ mod tests {
         provider.complete(schema_request()).await.unwrap();
         let sent: Vec<String> = rx.try_iter().collect();
         assert!(sent[2].contains("response_format"));
+    }
+
+    fn temperature_provider(endpoint: &str, temperature: Option<f32>) -> OpenRouterProvider {
+        OpenRouterProvider {
+            temperature,
+            ..schema_provider(endpoint, true)
+        }
+    }
+
+    #[tokio::test]
+    async fn the_temperature_is_sent_only_when_configured() {
+        for (temperature, expected) in [(Some(0.0), true), (None, false)] {
+            let (url, rx) = serve(vec![http("200 OK", OK_BODY)]);
+            temperature_provider(&url, temperature)
+                .complete(request())
+                .await
+                .unwrap();
+            assert_eq!(rx.recv().unwrap().contains("\"temperature\":0.0"), expected);
+        }
+    }
+
+    #[tokio::test]
+    async fn a_refused_temperature_falls_back_keeping_the_schema_and_is_remembered() {
+        let (url, rx) = serve(vec![
+            http(
+                "400 Bad Request",
+                r#"{"error":"unknown field temperature"}"#,
+            ),
+            http("200 OK", OK_BODY),
+            http("200 OK", OK_BODY),
+        ]);
+        let provider = temperature_provider(&url, Some(0.0));
+        provider.complete(schema_request()).await.unwrap();
+        provider.complete(schema_request()).await.unwrap();
+        let sent: Vec<String> = rx.try_iter().collect();
+        assert_eq!(sent.len(), 3);
+        assert!(sent[0].contains("temperature"));
+        for plain in &sent[1..] {
+            assert!(!plain.contains("temperature"));
+            assert!(plain.contains("response_format"));
+        }
+    }
+
+    #[tokio::test]
+    async fn a_refused_schema_keeps_the_temperature() {
+        let (url, rx) = serve(vec![
+            http("400 Bad Request", r#"{"error":"no schema"}"#),
+            http("400 Bad Request", r#"{"error":"no schema"}"#),
+            http("200 OK", OK_BODY),
+        ]);
+        temperature_provider(&url, Some(0.0))
+            .complete(schema_request())
+            .await
+            .unwrap();
+        let sent: Vec<String> = rx.try_iter().collect();
+        assert_eq!(sent.len(), 3);
+        assert!(!sent[2].contains("response_format"));
+        assert!(sent[2].contains("\"temperature\":0.0"));
+    }
+
+    #[tokio::test]
+    async fn a_server_refusing_both_the_temperature_and_the_schema_gets_the_plain_request() {
+        let refusal = http("400 Bad Request", r#"{"error":"unknown parameter"}"#);
+        let (url, rx) = serve(vec![
+            refusal.clone(),
+            refusal.clone(),
+            refusal,
+            http("200 OK", OK_BODY),
+        ]);
+        temperature_provider(&url, Some(0.0))
+            .complete(schema_request())
+            .await
+            .unwrap();
+        let sent: Vec<String> = rx.try_iter().collect();
+        assert_eq!(sent.len(), 4);
+        assert!(!sent[3].contains("temperature") && !sent[3].contains("response_format"));
     }
 
     #[test]
