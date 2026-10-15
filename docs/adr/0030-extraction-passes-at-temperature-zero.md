@@ -7,7 +7,7 @@ Status: Superseded by 0031
 Two runs on the same input gave different entry points, domains and features, and the spread was as large as
 the effects the benchmark tries to measure. The requests left the sampling to the server. Measured on the
 entry points pass alone (5 runs per setting, linkding and delivery_router, a local model and deepseek, see
-`issues/sampling_temperature_for_steadier_runs.md`): at the server's default the entries all runs share were
+`issues/done/sampling_temperature_for_steadier_runs.md`): at the server's default the entries all runs share were
 2% to 16%, at temperature 0 they were 52% to 100%, the number of entries stopped swinging, and the share of
 the reference found did not move in a consistent way. It is steadier, not deterministic, and not better.
 

@@ -6,7 +6,7 @@ Status: Accepted
 
 ADR 0030 asked the extraction passes at temperature 0 and left the writing passes (brief, domains, features,
 use cases, rules) at the server's default, because a low temperature might make narratives poorer. That was
-measured (`issues/sampling_temperature_for_steadier_runs.md`): linkding, docs hidden, deepseek, 3 runs per
+measured (`issues/done/sampling_temperature_for_steadier_runs.md`): linkding, docs hidden, deepseek, 3 runs per
 setting, only the writing passes differing. The share of narratives the judge rates in business language did
 not fall (86% to 91%, ranges not overlapping), the use cases fully in business language did not move (72% and
 71%), the number of features became steadier (50-89 to 67-73), cost and time were the same. The judged

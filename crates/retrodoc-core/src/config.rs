@@ -39,7 +39,7 @@ pub const PASS_NAMES: &[&str] = &[
 ];
 
 /// The passes asked at temperature 0 unless the configuration sets one (ADR 0031,
-/// `issues/sampling_temperature_for_steadier_runs.md`): the ones that read facts out of the code and the
+/// `issues/done/sampling_temperature_for_steadier_runs.md`): the ones that read facts out of the code and the
 /// repository, and the ones that write the docs. Left to the server's default: `contexts` and `repo-map`
 /// (not measured) and the benchmark judge.
 pub const ZERO_TEMPERATURE_PASSES: &[&str] = &[

@@ -4,7 +4,6 @@ Open issues in the order to work on them: the first is the next one. Read by `ju
 `just close-issue` removes a line, `skill:create-issue` inserts one at its rank, `skill:prioritize-issues`
 re-ranks the whole list. Line format: `- [<file stem>](<file stem>.md) - <why here>`.
 
-- [sampling_temperature_for_steadier_runs](sampling_temperature_for_steadier_runs.md) - small, and before every issue that measures: a smaller spread makes each later comparison cheaper
 - [placement_into_unknown_features](placement_into_unknown_features.md) - found by the measure of `use_cases_record_their_entry_points` (2026-10-14): the `surface` mode leaves 335 of 458 entry points without a feature on a large application; after the steadier-runs issue, before the rules work since the use cases coverage is only as wide as the features
 - [rules_deduplication_and_noise](rules_deduplication_and_noise.md) - follow-up of business_rules (smoke test, 2026-10-12): the rules must be stated once and be business ones before the docs are reconciled with them
 - [benchmark_passes_on_fixed_inputs](benchmark_passes_on_fixed_inputs.md) - after the rules work in progress, before the issues that compare settings (`measure_model_split_per_pass`, `brief_injection_experiments`, `settle_experimental_settings`), which need this measure
