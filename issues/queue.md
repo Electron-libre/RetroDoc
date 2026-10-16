@@ -5,6 +5,7 @@ Open issues in the order to work on them: the first is the next one. Read by `ju
 re-ranks the whole list. Line format: `- [<file stem>](<file stem>.md) - <why here>`.
 
 - [rules_deduplication_and_noise](rules_deduplication_and_noise.md) - follow-up of business_rules (smoke test, 2026-10-12): the rules must be stated once and be business ones before the docs are reconciled with them
+- [rules_answer_truncated_on_large_features](rules_answer_truncated_on_large_features.md) - found by the smoke test of `rules_deduplication_and_noise` (2026-10-16): the linkding smoke is not conclusive until the rules of a large feature fit the answer; after it because splitting a feature changes what that issue compares
 - [benchmark_passes_on_fixed_inputs](benchmark_passes_on_fixed_inputs.md) - after the rules work in progress, before the issues that compare settings (`measure_model_split_per_pass`, `brief_injection_experiments`, `settle_experimental_settings`), which need this measure
 - [one_code_reading_for_use_cases_and_rules](one_code_reading_for_use_cases_and_rules.md) - after `rules_deduplication_and_noise` (same pass) and the per-pass measure: the largest token saving, about 80% of a run's input is these two passes
 - [docs_reconciliation_debt_report](docs_reconciliation_debt_report.md) - first PRODUCT.md feature, needs stable generated docs with rules
