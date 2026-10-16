@@ -43,3 +43,51 @@ retrieval plumbing is stated as rules.
   page keeps it, and the rendering, MCP and report read that slug (`BusinessRule::belongs_to_feature`).
 * Do not hard-code patterns of any language or framework to recognize plumbing: the same rule as the
   rest of the pass (the LLM judges, the checks are mechanical).
+
+# Tracking
+
+1. [x] Measure: run `--rules` on `delivery_router` and linkding (local Ollama), label a sample of 60 rules (fixed seed) as good, UI noise, test noise, plumbing, duplicate, wrong kind; count duplicate pairs; keep a reusable measure script and the reference figures here.
+2. [ ] Noise: a second judgement per rule ("would a business reader ask about this?"), also covering the features that describe tests; verdict kept on the rule; tested with a fake `LlmProvider` (filtering, incremental rerun, malformed answer); kept only if it lowers noise without losing good rules.
+3. [ ] Noise: rank rules backed by code alone lower in the rendered pages; only if deliverable 2 is not enough.
+4. [ ] Deduplication across features: first (2c) give each feature the rules already stated before it, then if not enough (2a) a mechanical merge on overlapping cited lines and shared words, kept on the feature that owns the code (slug stays consistent with `belongs_to_feature`).
+5. [ ] Final re-measure with the figures of deliverable 1, before/after table, docs (`docs/crates/pipeline.md`, ADR if an architectural decision is taken).
+
+## Decisions
+
+* Order: measure, then noise, then deduplication (linkding shows noise matters more than duplicates: 38 pairs among 649).
+* Local Ollama (`qwen3.6:35b-a3b`, `reasoning_effort=none`) for every measure; the figures of the issue (DeepSeek) are not the baseline, the new ones are.
+* The features that describe tests are handled by the LLM judgement, not by a hard-coded pattern; no language or framework patterns anywhere.
+* The linkding run of 649 rules was not saved in `~/retrodoc-runs`: deliverable 1 reruns it (checkout in `/tmp/lbf/linkding` if still there, else reclone).
+
+## Reference figures (deliverable 1, local `qwen3.6:35b-a3b`, 2026-10-16)
+
+Measured with `cargo run -q -p retrodoc-pipeline --example rules_noise_measure -- <run dir>` (no LLM call;
+duplicate pairs = different features, statements sharing at least 60% of their words, or 40% and
+overlapping cited lines). Labelled by hand by the assistant, to be checked by the user.
+
+| | `delivery_router` | linkding |
+|---|---|---|
+| rules / features with rules | 32 / 5 | 241 / 30 |
+| backed by code alone | 31 | 133 |
+| duplicate pairs (worded / same code) | 14 / 10 | 14 / 26 |
+| rules in at least one pair | 14 | 40 (17%) |
+| rules labelled (all / sample of 60, seed 1) | 32 | 60 |
+| good | 9 (28%) | 32 (53%) |
+| duplicate | 14 (44%) | 2 (3%) |
+| plumbing | 9 (28%) | 8 (13%) |
+| user interface noise | 0 | 7 (12%) |
+| test noise (rules of "...-verification" features) | 0 | 11 (18%) |
+
+* The measure finds 13 of the 14 duplicates labelled on `delivery_router` (it misses one that is worded
+  differently). On linkding the sample shows only 2 duplicates, but 17% of the rules are in a pair.
+* Small repository: the feature `system-initialization` restates almost every rule of the others
+  (13 rules, 11 duplicates). Large one: the noise is the features that verify tests (14% of the rules
+  are in a feature named `...-verification`, 18% of the sample), user interface behaviour and plumbing.
+  This confirms the order of the plan: noise first.
+* Wrong kind: about 4 of the 32 good rules of the sample (a filter or a display condition kind
+  `state_transition` or `validation`, a condition kind `permission`); `computation` is still the fallback.
+* Defect seen, not in this issue's scope: the local model truncated the answer (`finish_reason=length`,
+  about 25k characters) for the 3 largest features (38 rules for `search-and-filtering`); two retried, one
+  feature lost its rules (`user-profile-and-application-settings-management` was skipped), so
+  the smoke test is not conclusive on linkding (rerun asked 2 calls). The same feature needs a smaller
+  answer: to track in its own issue.
