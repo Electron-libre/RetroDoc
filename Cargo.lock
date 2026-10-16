@@ -1347,6 +1347,7 @@ dependencies = [
  "futures-util",
  "globset",
  "regex",
+ "reqwest",
  "retrodoc-core",
  "retrodoc-ingest",
  "retrodoc-llm",

@@ -4,6 +4,7 @@ Open issues in the order to work on them: the first is the next one. Read by `ju
 `just close-issue` removes a line, `skill:create-issue` inserts one at its rank, `skill:prioritize-issues`
 re-ranks the whole list. Line format: `- [<file stem>](<file stem>.md) - <why here>`.
 
+- [closed_answer_decisions_with_semif](closed_answer_decisions_with_semif.md) - user idea (2026-10-15): measures SemIf on the same placement pass, so after `placement_into_unknown_features` (its baseline and its saved run); a measure only, nothing else waits on it
 - [rules_deduplication_and_noise](rules_deduplication_and_noise.md) - follow-up of business_rules (smoke test, 2026-10-12): the rules must be stated once and be business ones before the docs are reconciled with them
 - [benchmark_passes_on_fixed_inputs](benchmark_passes_on_fixed_inputs.md) - after the rules work in progress, before the issues that compare settings (`measure_model_split_per_pass`, `brief_injection_experiments`, `settle_experimental_settings`), which need this measure
 - [one_code_reading_for_use_cases_and_rules](one_code_reading_for_use_cases_and_rules.md) - after `rules_deduplication_and_noise` (same pass) and the per-pass measure: the largest token saving, about 80% of a run's input is these two passes

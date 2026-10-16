@@ -27,6 +27,7 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 tempfile = "3"
 async-trait.workspace = true
 tracing-subscriber.workspace = true
+reqwest.workspace = true
 
 [[example]]
 name = "entry_points_replay"
@@ -42,4 +43,8 @@ test = true
 
 [[example]]
 name = "orphan_placement_measure"
+test = true
+
+[[example]]
+name = "closed_answer_readout"
 test = true
