@@ -395,6 +395,17 @@ enum Failure {
     Decode(LlmError),
 }
 
+/// A timeout of the server's answer, as opposed to one while connecting.
+trait WaitingTooLong {
+    fn is_waiting_too_long(&self) -> bool;
+}
+
+impl WaitingTooLong for reqwest::Error {
+    fn is_waiting_too_long(&self) -> bool {
+        self.is_timeout() && !self.is_connect()
+    }
+}
+
 impl Failure {
     /// A client error that a parameter the server cannot handle (the schema,
     /// the temperature) would explain:
@@ -431,7 +442,8 @@ impl Failure {
     /// too long, a daily quota say, is an error, not a pause).
     fn is_transient(&self) -> bool {
         match self {
-            Failure::Network(_) => true,
+            // A timeout is not: the same prompt takes as long again, so a retry only multiplies the wait.
+            Failure::Network(source) => !source.is_waiting_too_long(),
             Failure::Decode(_) => false,
             Failure::Http {
                 status,
@@ -477,6 +489,9 @@ impl Failure {
             Failure::Http { status, body, .. } => {
                 LlmError::InvalidResponse(format!("HTTP status {status}: {body}"))
             }
+            Failure::Network(source) if source.is_waiting_too_long() => LlmError::Transport(format!(
+                "the request timed out before the model finished its answer (raise `llm.timeout_secs`): {source}"
+            )),
             Failure::Network(source) => LlmError::Transport(source.to_string()),
             Failure::Decode(err) => err,
         }
@@ -1108,6 +1123,47 @@ mod tests {
         let sent: Vec<String> = rx.try_iter().collect();
         assert_eq!(sent.len(), 4);
         assert!(!sent[3].contains("temperature") && !sent[3].contains("response_format"));
+    }
+
+    #[tokio::test]
+    async fn a_timeout_is_named_and_not_retried() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let accepted = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let seen = accepted.clone();
+        // Takes the connections and never answers.
+        std::thread::spawn(move || {
+            let mut held = Vec::new();
+            while let Ok((stream, _)) = listener.accept() {
+                seen.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                held.push(stream);
+            }
+        });
+        let provider = OpenRouterProvider {
+            client: reqwest::Client::builder()
+                .timeout(Duration::from_millis(200))
+                .build()
+                .unwrap(),
+            api_key: "test-key".to_string(),
+            default_model: "m".to_string(),
+            endpoint: String::new(),
+            reasoning_effort: None,
+            temperature: None,
+            structured_output: true,
+            require_parameters: false,
+            schema_refused: AtomicBool::new(false),
+            temperature_refused: AtomicBool::new(false),
+        }
+        .with_endpoint(format!("http://{addr}"));
+
+        let error = provider.complete(request()).await.unwrap_err();
+
+        assert!(
+            matches!(&error, LlmError::Transport(m) if m.contains("timed out") && m.contains("llm.timeout_secs")),
+            "{error:?}"
+        );
+        std::thread::sleep(Duration::from_millis(100));
+        assert_eq!(accepted.load(std::sync::atomic::Ordering::SeqCst), 1);
     }
 
     #[test]

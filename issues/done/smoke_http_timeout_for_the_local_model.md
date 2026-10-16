@@ -26,3 +26,11 @@ cut readable in the log.
 
 # Hints
 * The repository under test is confidential: no name or path of it in a committed file.
+
+# Tracking
+1. [x] `smoke.rs` writes `timeout_secs = 900` in `[llm]` (`--timeout-secs` overrides it), keeping the per-pass tables; tested in `test_smoke.rs`.
+2. [x] A timeout while waiting for the answer says so (and names `llm.timeout_secs`).
+3. [x] Such a timeout is not retried (the same prompt takes as long again); a connect timeout still is.
+
+## Decisions
+* Not verified by a real smoke run on a large application.

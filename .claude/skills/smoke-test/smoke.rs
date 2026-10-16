@@ -1,7 +1,7 @@
 #!/usr/bin/env rust-script
 //! Smoke test of `retrodoc generate` against a real repository with a local LLM.
 //!
-//! - `smoke.rs run <repo> [--model M] [--base-url U] [--domains-from files|surface] [--rules]`: clones `<repo>` (committed HEAD only, the
+//! - `smoke.rs run <repo> [--model M] [--base-url U] [--timeout-secs N] [--domains-from files|surface] [--rules]`: clones `<repo>` (committed HEAD only, the
 //!   original is never touched) into the runs directory (`~/retrodoc-runs`), points it at the local LLM, runs `generate` twice and
 //!   `report`, then prints the verdict.
 //! - `smoke.rs evaluate <run1.log> <run2.log> <report.txt> <usage.json>`: only the verdict, from saved
@@ -17,6 +17,9 @@ use std::time::Duration;
 
 const DEFAULT_MODEL: &str = "qwen3.6:35b-a3b";
 const DEFAULT_BASE_URL: &str = "http://localhost:11435/v1/chat/completions";
+/// Default HTTP timeout written in `[llm]` (`--timeout-secs` overrides it): the default (two minutes) cuts the long answers of the local model
+/// (a large routes file takes about ten minutes at 38 tokens per second).
+const LLM_TIMEOUT_SECS: &str = "900";
 
 /// `line` without its ANSI escape sequences (`ESC [ … letter`), which `tracing` writes around the level.
 fn strip_ansi(line: &str) -> String {
@@ -134,6 +137,28 @@ fn verdict(problems: &[String]) -> i32 {
     1
 }
 
+/// `toml` (as `init` wrote it) with the local model, endpoint, reasoning effort and HTTP timeout in `[llm]`.
+fn patch_llm_section(toml: &str, model: &str, base_url: &str, timeout_secs: &str) -> String {
+    // Only the top-level keys of `[llm]` are replaced: the lines of the tables after it (per-pass overrides) are kept.
+    let mut in_llm = false;
+    let kept: Vec<&str> = toml
+        .lines()
+        .filter(|l| {
+            if l.starts_with('[') {
+                in_llm = *l == "[llm]";
+            }
+            !(in_llm && ["model =", "base_url =", "reasoning_effort =", "timeout_secs ="].iter().any(|k| l.starts_with(k)))
+        })
+        .collect();
+    (kept.join("\n") + "\n").replacen(
+        "[llm]",
+        &format!(
+            "[llm]\nmodel = \"{model}\"\nbase_url = \"{base_url}\"\nreasoning_effort = \"none\"\ntimeout_secs = {timeout_secs}"
+        ),
+        1,
+    )
+}
+
 fn project_root() -> PathBuf {
     fs::canonicalize(Path::new(file!()).parent().unwrap().join("../../..")).unwrap()
 }
@@ -192,17 +217,7 @@ fn run(args: &[String]) -> i32 {
         die("retrodoc init failed");
     }
     let toml_path = clone.join("retrodoc.toml");
-    let kept: Vec<String> = fs::read_to_string(&toml_path)
-        .unwrap()
-        .lines()
-        .filter(|l| !["model =", "base_url =", "reasoning_effort ="].iter().any(|k| l.starts_with(k)))
-        .map(String::from)
-        .collect();
-    let patched = kept.join("\n").replacen(
-        "[llm]",
-        &format!("[llm]\nmodel = \"{model}\"\nbase_url = \"{base_url}\"\nreasoning_effort = \"none\""),
-        1,
-    );
+    let patched = patch_llm_section(&fs::read_to_string(&toml_path).unwrap(), &model, &base_url, &option("--timeout-secs", LLM_TIMEOUT_SECS));
     // `--domains-from surface` tries the new path of ADR 0020 (default: the config as `init` wrote it).
     let patched = match option("--domains-from", "").as_str() {
         "" => patched,
@@ -255,6 +270,12 @@ fn main() {
             // A missing usage.json is fine: it only details a failure.
             let usage = fs::read_to_string(&args[4]).ok();
             verdict(&evaluate(&read(1), &read(2), &read(3), usage.as_deref()))
+        }
+        // Only for the test of the written config: `patch-config <retrodoc.toml> <model> <base url>` prints it.
+        Some("patch-config") if args.len() == 4 => {
+            let toml = fs::read_to_string(&args[1]).unwrap_or_else(|e| die(&format!("{}: {e}", args[1])));
+            println!("{}", patch_llm_section(&toml, &args[2], &args[3], LLM_TIMEOUT_SECS));
+            0
         }
         Some("run") => run(&args[1..]),
         _ => die("usage: smoke.rs run <repo> | smoke.rs evaluate <run1> <run2> <report> <usage.json>"),

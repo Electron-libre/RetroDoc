@@ -104,7 +104,29 @@ fn main() {
         ("empty report", evaluate(GOOD_RUN1, GOOD_RUN2, "  \n", Some(GOOD_USAGE)), false, "report"),
     ];
 
-    let mut failed = false;
+    // The `[llm]` section written for the local model: a timeout that fits it, replacing any other.
+    let toml = "[llm]\nprovider = \"openrouter\"\nmodel = \"x/y\"\ntimeout_secs = 30\n\n[llm.passes.x]\nmodel = \"keep/me\"\n\n[pipeline]\nrules = false\n";
+    fs::write(tmp.join("retrodoc.toml"), toml).unwrap();
+    let patched = Command::new("rust-script")
+        .arg(&script)
+        .args(["patch-config"])
+        .arg(tmp.join("retrodoc.toml"))
+        .args(["local:model", "http://h:1/v1/chat/completions"])
+        .output()
+        .expect("rust-script must be installed");
+    let patched = String::from_utf8_lossy(&patched.stdout).into_owned();
+    let config_ok = patched.contains("timeout_secs = 900\n")
+        && patched.matches("timeout_secs").count() == 1
+        && patched.matches("model =").count() == 2
+        && patched.contains("model = \"keep/me\"")
+        && patched.contains("model = \"local:model\"")
+        && patched.contains("[pipeline]\nrules = false");
+    println!("{} - written config has one timeout the local model can meet", if config_ok { "ok  " } else { "FAIL" });
+    if !config_ok {
+        println!("       got: {patched}");
+    }
+
+    let mut failed = !config_ok;
     for (name, (passed, output), should_pass, hint) in cases {
         let ok = passed == should_pass && (should_pass || output.contains(hint));
         println!("{} - {name}", if ok { "ok  " } else { "FAIL" });
