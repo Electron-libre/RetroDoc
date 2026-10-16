@@ -12,7 +12,7 @@
 //! unchanged keeps its saved rules without a call; an answer that can't be parsed is retried on the
 //! next run.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use futures_util::stream::{self, StreamExt};
@@ -31,12 +31,14 @@ use crate::use_cases::UseCaseContext;
 
 mod grounding;
 mod input;
+mod judge;
 mod prompt;
 #[cfg(test)]
 mod tests;
 
 use self::grounding::{grounded_rules, RawRules};
 pub use self::input::RuleInput;
+use self::judge::{judge_prompt, keep_judged, RawVerdict, JUDGE_SYSTEM_PROMPT};
 use self::prompt::{rules_prompt, RULES_SYSTEM_PROMPT};
 
 /// Loads a previously saved `rules.yaml`. Missing or unreadable: `None` (first run), not an error.
@@ -92,15 +94,10 @@ pub async fn build_rules(
     let mut answers = stream::iter(items)
         .map(|item| async move {
             let answer = match &item.plan {
-                Plan::Ask { prompt, .. } => Some(
-                    complete_json::<RawRules>(
-                        llm,
-                        RULES_SYSTEM_PROMPT,
-                        prompt,
-                        &format!("rules of {}", item.feature.slug),
-                    )
-                    .await,
-                ),
+                Plan::Ask {
+                    prompt,
+                    cited_files,
+                } => Some(ask_rules(repo_root, llm, &item, prompt, cited_files).await),
                 Plan::Reuse | Plan::Unreadable => None,
             };
             (item, answer)
@@ -126,9 +123,8 @@ pub async fn build_rules(
             feature,
             key,
             print,
-            input,
-            use_cases: own_use_cases,
             plan,
+            ..
         } = item;
         match plan {
             Plan::Reuse => {
@@ -142,7 +138,7 @@ pub async fn build_rules(
                 tracing::warn!(feature = %feature.slug, "rules skipped: none of its files is readable");
                 rules.extend(kept(&previous, &feature.slug));
             }
-            Plan::Ask { cited_files, .. } => {
+            Plan::Ask { .. } => {
                 progress.begin(&key);
                 match answer.unwrap_or(Ok(None)) {
                     Err(err) => {
@@ -151,15 +147,8 @@ pub async fn build_rules(
                     }
                     // Unparseable: the saved rules stay, and it is asked again on the next run.
                     Ok(None) => rules.extend(kept(&previous, &feature.slug)),
-                    Ok(Some(raw)) => {
-                        rules.extend(grounded_rules(
-                            raw,
-                            repo_root,
-                            feature,
-                            &input,
-                            &cited_files,
-                            &own_use_cases,
-                        ));
+                    Ok(Some(judged)) => {
+                        rules.extend(judged);
                         prints.rules.insert(key, print);
                     }
                 }
@@ -174,6 +163,55 @@ pub async fn build_rules(
     save_rules(repo_root, &rules)?;
     prints.save(repo_root)?;
     Ok(rules)
+}
+
+/// The rules of one feature: the statement call, the checks of its answer, then the judgement of
+/// what a business reader would ask about. `Ok(None)` when the statement answer can't be parsed; an
+/// unparseable verdict keeps the rules as they are (the call is logged), so the rules are not lost.
+async fn ask_rules(
+    repo_root: &Path,
+    llm: &dyn LlmProvider,
+    item: &Item<'_>,
+    prompt: &str,
+    cited_files: &BTreeSet<String>,
+) -> Result<Option<Vec<BusinessRule>>, PipelineError> {
+    let feature = item.feature;
+    let Some(raw) = complete_json::<RawRules>(
+        llm,
+        RULES_SYSTEM_PROMPT,
+        prompt,
+        &format!("rules of {}", feature.slug),
+    )
+    .await?
+    else {
+        return Ok(None);
+    };
+    let rules = grounded_rules(
+        raw,
+        repo_root,
+        feature,
+        &item.input,
+        cited_files,
+        &item.use_cases,
+    );
+    if rules.is_empty() {
+        return Ok(Some(rules));
+    }
+    let Some(verdict) = complete_json::<RawVerdict>(
+        llm,
+        JUDGE_SYSTEM_PROMPT,
+        &judge_prompt(feature, &rules),
+        &format!("judgement of the rules of {}", feature.slug),
+    )
+    .await?
+    else {
+        return Ok(Some(rules));
+    };
+    let (rules, dropped) = keep_judged(rules, &verdict);
+    for rule in &dropped {
+        tracing::info!(rule = %rule.slug, statement = %rule.statement, "rule dropped by the judgement");
+    }
+    Ok(Some(rules))
 }
 
 /// The saved rules of the feature `slug`.
@@ -235,7 +273,7 @@ enum Plan {
     Unreadable,
     Ask {
         prompt: String,
-        cited_files: std::collections::BTreeSet<String>,
+        cited_files: BTreeSet<String>,
     },
 }
 
@@ -280,7 +318,7 @@ fn plan_item<'a>(
 }
 
 /// Hash of everything the rules of a feature are derived from: its text, the content of its files,
-/// its entities, the evidence, its use cases, the brief and the model.
+/// its entities, the evidence, its use cases, the brief, the judgement prompt and the model.
 fn rules_fingerprint(
     repo_root: &Path,
     feature: &Feature,
@@ -316,6 +354,10 @@ fn rules_fingerprint(
                     .map(|u| format!("use case {} {}", u.slug, u.name)),
             )
             .chain((!brief.is_empty()).then_some(brief))
+            .chain(std::iter::once(format!(
+                "judgement {}",
+                hash_content(JUDGE_SYSTEM_PROMPT)
+            )))
             .chain(std::iter::once(model_part(llm))),
     )
 }

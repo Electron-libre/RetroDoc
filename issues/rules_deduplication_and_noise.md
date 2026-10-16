@@ -47,8 +47,8 @@ retrieval plumbing is stated as rules.
 # Tracking
 
 1. [x] Measure: run `--rules` on `delivery_router` and linkding (local Ollama), label a sample of 60 rules (fixed seed) as good, UI noise, test noise, plumbing, duplicate, wrong kind; count duplicate pairs; keep a reusable measure script and the reference figures here.
-2. [ ] Noise: a second judgement per rule ("would a business reader ask about this?"), also covering the features that describe tests; verdict kept on the rule; tested with a fake `LlmProvider` (filtering, incremental rerun, malformed answer); kept only if it lowers noise without losing good rules.
-3. [ ] Noise: rank rules backed by code alone lower in the rendered pages; only if deliverable 2 is not enough.
+2. [x] Noise: a second judgement per rule ("would a business reader ask about this?"), also covering the features that describe tests; verdict logged, the noise dropped (no field on the rule); tested with a fake `LlmProvider` (filtering, incremental rerun, malformed answer keeps the rules); kept only if it lowers noise without losing good rules.
+3. [x] (skipped, the noise left after deliverable 2 is small) Noise: rank rules backed by code alone lower in the rendered pages; only if deliverable 2 is not enough.
 4. [ ] Deduplication across features: first (2c) give each feature the rules already stated before it, then if not enough (2a) a mechanical merge on overlapping cited lines and shared words, kept on the feature that owns the code (slug stays consistent with `belongs_to_feature`).
 5. [ ] Final re-measure with the figures of deliverable 1, before/after table, docs (`docs/crates/pipeline.md`, ADR if an architectural decision is taken).
 
@@ -91,3 +91,26 @@ overlapping cited lines). Labelled by hand by the assistant, to be checked by th
   feature lost its rules (`user-profile-and-application-settings-management` was skipped), so
   the smoke test is not conclusive on linkding (rerun asked 2 calls). The same feature needs a smaller
   answer: to track in its own issue.
+
+## Deliverable 2: judgement per rule (local `qwen3.6:35b-a3b`, 2026-10-16)
+
+Replay of the judgement prompts outside the pipeline on the 241 saved rules of linkding, scored on the 60
+hand labels of deliverable 1 (`~/retrodoc-runs/scripts/judge_replay.py`, one call per feature):
+
+| variant | good rules dropped | noise dropped (26 labelled) |
+|---|---|---|
+| A: list the numbers to drop | 7 of 32 (22%) | 23 |
+| B: one closed class per rule | 0 of 32 | 13 |
+| C: B with sharper `test` and `technical` | 1 of 32 (3%) | 17 (65%) |
+
+C is kept (`rules/judge.rs`). In the pipeline: linkding 229 statements, 67 dropped (29%), 162 kept (the 30 dropped
+read by hand are almost all screen or test behaviour); `delivery_router` 33 statements, 4 dropped (3 plumbing,
+1 formula whose two copies stay). Cost: one short extra call per feature with rules (74 calls in all for 28
+features with rules, 212k tokens in and 54k out, 31 min; the judgement calls are the cheap ones).
+
+* Estimated on the 60 labelled rules after C: good 31 of 46 kept (67%, from 53%), test noise 4, plumbing 4, screen 1,
+  duplicates 2 (6 of the 46 are noise left: the judge stays prudent). The labels were not redone on the new
+  pipeline run: the figures come from the replay.
+* A small repository such as `delivery_router` has little to drop: its problem is the duplicates (deliverable 4).
+* Not tried: the two classes left out of the judge (kind wrong, duplicates).
+* Decision taken while doing it: the verdict is logged, not stored on `BusinessRule`; a verdict that can't be read keeps the rules as stated; the judgement prompt is part of the fingerprint.

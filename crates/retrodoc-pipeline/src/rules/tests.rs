@@ -208,7 +208,7 @@ async fn an_unchanged_feature_is_not_asked_again_but_a_new_model_or_code_is() {
     let dir = repo();
     let first = FakeLlm::answering(answer(LIMIT));
     let rules = run(dir.path(), &first).await;
-    assert_eq!(first.calls(), 1);
+    assert_eq!(first.calls(), 2);
 
     let second = FakeLlm::answering("not even json");
     assert_eq!(run(dir.path(), &second).await, rules);
@@ -329,7 +329,7 @@ async fn a_killed_run_keeps_the_rules_of_the_features_done_and_the_rerun_resumes
     };
     let features = [feature(), second];
 
-    let stuck = FakeLlm::hanging_after(1, |_| answer(LIMIT));
+    let stuck = FakeLlm::hanging_after(2, |_| answer(LIMIT));
     killed(
         build_rules(dir.path(), &features, &[use_case()], &context(), &stuck),
         &stuck,
@@ -342,5 +342,104 @@ async fn a_killed_run_keeps_the_rules_of_the_features_done_and_the_rerun_resumes
     build_rules(dir.path(), &features, &[use_case()], &context(), &healthy)
         .await
         .unwrap();
-    assert_eq!(healthy.calls(), 1, "only the second feature is asked");
+    assert_eq!(
+        healthy.calls(),
+        2,
+        "only the second feature is asked (rules, then judgement)"
+    );
+}
+
+const STORAGE: &str = r#"{"statement":"An order is stored by the customer id.","kind":"validation","code":[{"path":"lib/router.rb","start_line":1,"end_line":1}]}"#;
+
+/// An LLM that states `rules` for the feature and answers `verdict` to the judgement.
+fn judging(rules: &str, verdict: &'static str) -> FakeLlm {
+    let rules = rules.to_string();
+    FakeLlm::replying(move |_, request| {
+        Ok(
+            if request.messages[0].content == judge::JUDGE_SYSTEM_PROMPT {
+                verdict.to_string()
+            } else {
+                answer(&rules)
+            },
+        )
+    })
+}
+
+#[tokio::test]
+async fn a_rule_a_business_reader_would_not_ask_about_is_dropped_and_the_others_keep_their_slug() {
+    let dir = repo();
+    let llm = judging(
+        &format!("{STORAGE},{LIMIT}"),
+        r#"{"rules":[{"n":1,"class":"storage"},{"n":2,"class":"business"}]}"#,
+    );
+
+    let rules = run(dir.path(), &llm).await;
+
+    assert_eq!(rules.len(), 1);
+    assert_eq!(rules[0].slug, "orders-2");
+    assert_eq!(llm.calls(), 2);
+    let judged = &llm.prompts()[1];
+    assert!(judged.contains("Place an order"), "{judged}");
+    assert!(
+        judged.contains("1. [validation, code alone] An order is stored by the customer id."),
+        "{judged}"
+    );
+    assert!(
+        judged.contains("2. [limit, code, test and doc]"),
+        "{judged}"
+    );
+    assert_eq!(load_rules(dir.path()).unwrap(), rules);
+}
+
+#[tokio::test]
+async fn an_unusable_verdict_item_costs_nothing_and_a_feature_without_rules_is_not_judged() {
+    let dir = repo();
+    let llm = judging(
+        LIMIT,
+        r#"{"rules":[{"n":2.0,"class":"screen"},{"n":"x","class":"screen"},{"n":99,"class":"test"},{"n":0,"class":"technical"},{"class":"storage"},{"n":1,"class":"odd"},{"n":"1"}]}"#,
+    );
+    assert_eq!(run(dir.path(), &llm).await.len(), 1);
+
+    let dir = repo();
+    let none = judging(
+        "",
+        r#"{"rules":[{"n":1,"class":"storage"},{"n":2,"class":"business"}]}"#,
+    );
+    assert_eq!(run(dir.path(), &none).await, []);
+    assert_eq!(none.calls(), 1);
+}
+
+#[tokio::test]
+async fn a_judged_feature_is_not_asked_again_and_an_unparseable_verdict_keeps_the_rules() {
+    let dir = repo();
+    let first = judging(
+        &format!("{STORAGE},{LIMIT}"),
+        r#"{"rules":[{"n":1,"class":"storage"},{"n":2,"class":"business"}]}"#,
+    );
+    let rules = run(dir.path(), &first).await;
+    let second = FakeLlm::answering("not even json");
+    assert_eq!(run(dir.path(), &second).await, rules);
+    assert_eq!(second.calls(), 0);
+
+    let dir = repo();
+    let garbage = judging(LIMIT, "sorry");
+    let rules = run(dir.path(), &garbage).await;
+    assert_eq!(rules.len(), 1, "an unusable verdict keeps the rules");
+    let calls = garbage.calls();
+    assert_eq!(run(dir.path(), &garbage).await, rules);
+    assert_eq!(garbage.calls(), calls, "and the feature is not asked again");
+}
+
+#[tokio::test]
+async fn a_new_judgement_prompt_judges_the_saved_features_again() {
+    let dir = repo();
+    run(dir.path(), &judging(LIMIT, r#"{"rules":[]}"#)).await;
+    let mut prints = Fingerprints::load(dir.path());
+    for print in prints.rules.values_mut() {
+        *print = "from an older judgement prompt".to_string();
+    }
+    prints.save(dir.path()).unwrap();
+    let again = judging(LIMIT, r#"{"rules":[]}"#);
+    run(dir.path(), &again).await;
+    assert_eq!(again.calls(), 2);
 }
