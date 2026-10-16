@@ -1,5 +1,5 @@
 //! Measures, with no LLM call, how many entry points the features of a saved run hold, per domain
-//! (`issues/placement_into_unknown_features.md`, step 1).
+//! (`issues/done/placement_into_unknown_features.md`, step 1).
 //!
 //! Usage: `cargo run -q -p retrodoc-pipeline --example features_by_domain_measure -- <run dir>...`
 //!

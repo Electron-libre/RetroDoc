@@ -16,6 +16,10 @@ absorb or demote them like the others, without hiding a lost piece of documentat
 * `use case dropped: no steps`: 2 occurrences in 1 run of 2, with an empty `use_case=` slug.
 * None of them appeared in the 3 runs measured before the changes of the other issue; the second runs
   had no warning in all 5 runs. Two runs cannot tell random noise from a regression.
+* A smoke run of 2026-10-16 on a large Rails application (local model, `domains_from = "surface"`, 4h19) had 15
+  warnings of other kinds: 8 cited resources and 1 cited entity the surface does not know (domains pass, dropped),
+  1 answer cut by `finish_reason=length`, 1 unparseable use cases answer retried, and 5 "entry points no
+  feature claimed" (placed afterwards). Same question: random noise or a cause in the pipeline?
 
 # Approach
 

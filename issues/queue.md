@@ -4,7 +4,7 @@ Open issues in the order to work on them: the first is the next one. Read by `ju
 `just close-issue` removes a line, `skill:create-issue` inserts one at its rank, `skill:prioritize-issues`
 re-ranks the whole list. Line format: `- [<file stem>](<file stem>.md) - <why here>`.
 
-- [placement_into_unknown_features](placement_into_unknown_features.md) - found by the measure of `use_cases_record_their_entry_points` (2026-10-14): the `surface` mode leaves 335 of 458 entry points without a feature on a large application; after the steadier-runs issue, before the rules work since the use cases coverage is only as wide as the features
+- [smoke_http_timeout_for_the_local_model](smoke_http_timeout_for_the_local_model.md) - found by the smoke run of `placement_into_unknown_features` (2026-10-15): without it a smoke on a large application fails on the 2 minute timeout, so every later validation on one depends on it; small
 - [rules_deduplication_and_noise](rules_deduplication_and_noise.md) - follow-up of business_rules (smoke test, 2026-10-12): the rules must be stated once and be business ones before the docs are reconciled with them
 - [benchmark_passes_on_fixed_inputs](benchmark_passes_on_fixed_inputs.md) - after the rules work in progress, before the issues that compare settings (`measure_model_split_per_pass`, `brief_injection_experiments`, `settle_experimental_settings`), which need this measure
 - [one_code_reading_for_use_cases_and_rules](one_code_reading_for_use_cases_and_rules.md) - after `rules_deduplication_and_noise` (same pass) and the per-pass measure: the largest token saving, about 80% of a run's input is these two passes
@@ -20,4 +20,5 @@ re-ranks the whole list. Line format: `- [<file stem>](<file stem>.md) - <why he
 - [contexts_residual_size_and_names](contexts_residual_size_and_names.md) - low: follow-up of the closed split by family (2026-10-14): one context still over 150 files, action names taken for families, the names unread; nothing before it depends on it, and its spread measure is cheaper after `sampling_temperature_for_steadier_runs`
 - [git_log_follow_renames](git_log_follow_renames.md) - not a priority (user, 2026-10-09): small MCP improvement, do it when nothing more valuable is left
 - [smoke_warnings_business_paths_sources_and_empty_use_cases](smoke_warnings_business_paths_sources_and_empty_use_cases.md) - priority low; remeasure after the big changes
+- [rerun_rewrites_files_with_a_timestamp](rerun_rewrites_files_with_a_timestamp.md) - priority low (user, 2026-10-16): the rerun of the same smoke writes 3 files for a `generated_at` stamp; cosmetic for the smoke criterion
 - [merge_form_screens_into_their_use_case](merge_form_screens_into_their_use_case.md) - on hold (user, 2026-10-15): the measure found the real pairs at about 2 to 5% of a 52 use cases run; retake it on a complete run before deciding (see the issue)
