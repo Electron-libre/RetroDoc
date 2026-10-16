@@ -34,7 +34,7 @@ cargo run -q -p retrodoc-pipeline --example technical_usecases_measure -- <run d
 cargo run -q -p retrodoc-pipeline --example public_api_reach_measure -- <run dir>...   # public API entry points no route/job/webhook reaches, left out of an application (no LLM)
 cargo run -q -p retrodoc-pipeline --example form_pairs_measure -- [--names] <run dir>...   # use cases that only show a resource another use case changes (candidates to merge with the one that submits) (no LLM)
 cargo run -q -p retrodoc-pipeline --example features_by_domain_measure -- <run dir>...   # entry points, features and share held by a feature per domain of saved runs (no LLM)
-cargo run -q -p retrodoc-pipeline --example closed_answer_readout -- <model> <base url> <cache dir> [questions] [options]   # closed-answer readout (lettered options, logprobs of one token) on the placement of the entry points of a saved run: agreement, order sensitivity, time and tokens per question (needs an OpenAI-compatible server)
+OPENROUTER_API_KEY=x cargo run -q -p retrodoc-pipeline --example placement_replay -- <model> <base url> <run dir> benchmark/<repo>/placement-sample.yaml   # placement of a labelled sample of entry points: JSON answer vs closed-answer readout (logprobs of one token) on a local OpenAI-compatible server: placed, acceptable, steadiness, time and tokens
 ```
 
 Scripts and dev commands are `just` recipes (`justfile`) and `rust-script` files, not bash.
