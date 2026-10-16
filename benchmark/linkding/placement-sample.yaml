@@ -1,0 +1,243 @@
+# Hand-labelled sample of 50 entry points of linkding for the placement into features
+# (issues/closed_answer_decisions_with_semif.md, step 2).
+#
+# Run: smoke test of linkding at commit 27b7303 (`--domains-from surface`, qwen3.6:35b-a3b); the
+# features are those of that run, so the labels hold for it only. The generated features overlap
+# (bookmark-management / -2, three snapshot features, two import features), so an entry point has
+# every feature it can acceptably go into, not one. `pipeline` is the feature the run held it in.
+# Checked against the code: Api.getTags feeds the tag and search autocompletes; GET / redirects to the
+# shared or main list by landing page; POST on the archived and shared lists is the search action.
+entry_points:
+- id: bookmarks/admin.py#GET /admin/tasks/
+  acceptable:
+  - background-task-administration
+  pipeline: background-task-administration
+- id: bookmarks/admin.py#POST /admin/bookmarks/bulk_delete/
+  acceptable:
+  - admin-bulk-management
+  pipeline: admin-bulk-management
+- id: bookmarks/admin.py#POST /admin/bookmarks/bulk_mark_unread/
+  acceptable:
+  - admin-bulk-management
+  pipeline: admin-bulk-management
+- id: bookmarks/admin.py#POST /admin/tags/bulk_delete_unused/
+  acceptable:
+  - admin-bulk-management
+  - tag-management
+  pipeline: admin-bulk-management
+- id: bookmarks/api/routes.py#GET /api/bookmarks/archived/
+  acceptable:
+  - api-access
+  - bookmark-archival
+  pipeline: api-access
+- id: bookmarks/api/routes.py#GET /api/bookmarks/shared/
+  acceptable:
+  - api-access
+  - shared-bookmarks-access
+  - shared-bookmarks-management
+  pipeline: shared-bookmarks-access
+- id: bookmarks/api/routes.py#GET /api/users/profile/
+  acceptable:
+  - api-access
+  - profile-management
+  pipeline: profile-management
+- id: bookmarks/api/routes.py#POST /api/bookmarks/{id}/archive/
+  acceptable:
+  - bookmark-archival
+  - api-access
+  pipeline: bookmark-archival
+- id: bookmarks/frontend/api.js#Api.getTags
+  acceptable:
+  - tag-management
+  - search-filtering
+  - ui-interaction-handling
+  pipeline: null
+- id: bookmarks/frontend/shortcuts.js#Keyboard Shortcuts Handler
+  acceptable:
+  - keyboard-navigation
+  pipeline: keyboard-navigation
+- id: bookmarks/management/commands/backup.py#backup
+  acceptable:
+  - backup-management
+  pipeline: backup-management
+- id: bookmarks/management/commands/enable_wal.py#enable_wal
+  acceptable:
+  - system-maintenance
+  pipeline: system-maintenance
+- id: bookmarks/management/commands/full_backup.py#full_backup
+  acceptable:
+  - backup-management
+  pipeline: backup-management
+- id: bookmarks/management/commands/migrate_tasks.py#migrate_tasks
+  acceptable:
+  - system-maintenance
+  pipeline: system-maintenance
+- id: bookmarks/services/assets.py#create_snapshot_asset
+  acceptable:
+  - snapshot-processing
+  - background-snapshot-processing
+  - metadata-snapshot-processing
+  - asset-management
+  pipeline: snapshot-processing
+- id: bookmarks/services/assets.py#remove_asset
+  acceptable:
+  - asset-removal
+  - asset-management
+  pipeline: asset-removal
+- id: bookmarks/services/assets.py#upload_snapshot
+  acceptable:
+  - snapshot-processing
+  - background-snapshot-processing
+  - metadata-snapshot-processing
+  - asset-management
+  pipeline: snapshot-processing
+- id: bookmarks/services/favicon_loader.py#load_favicon
+  acceptable:
+  - favicon-and-preview-image-management
+  - metadata-snapshot-processing
+  pipeline: favicon-and-preview-image-management
+- id: bookmarks/services/parser.py#parse
+  acceptable:
+  - import-bookmarks
+  - bookmark-import-export
+  pipeline: import-bookmarks
+- id: bookmarks/services/tags.py#get_or_create_tags
+  acceptable:
+  - tag-management
+  pipeline: null
+- id: bookmarks/services/tasks.py#_create_web_archive_snapshot_task
+  acceptable: &id001
+  - snapshot-processing
+  - background-snapshot-processing
+  - metadata-snapshot-processing
+  pipeline: metadata-snapshot-processing
+- id: bookmarks/services/tasks.py#_load_preview_image_task
+  acceptable:
+  - favicon-and-preview-image-management
+  - metadata-snapshot-processing
+  pipeline: metadata-snapshot-processing
+- id: bookmarks/services/tasks.py#_refresh_metadata_task
+  acceptable:
+  - metadata-snapshot-processing
+  - website-metadata-and-content-loading
+  pipeline: metadata-snapshot-processing
+- id: bookmarks/services/tasks.py#create_missing_html_snapshots
+  acceptable: *id001
+  pipeline: metadata-snapshot-processing
+- id: bookmarks/services/website_loader.py#is_pdf_content_type
+  acceptable:
+  - website-metadata-and-content-loading
+  pipeline: website-metadata-and-content-loading
+- id: bookmarks/services/website_loader.py#load_website_metadata
+  acceptable:
+  - website-metadata-and-content-loading
+  - metadata-snapshot-processing
+  pipeline: website-metadata-and-content-loading
+- id: bookmarks/views/access.py#GET /bundle/:id
+  acceptable:
+  - shared-bookmarks-access
+  - bundle-management
+  - bundle-management-2
+  pipeline: shared-bookmarks-access
+  note: access helper of the code, not a route; its description is partly invented
+- id: bookmarks/views/assets.py#GET /assets/:id/view
+  acceptable:
+  - asset-access-and-viewing
+  - asset-management
+  pipeline: asset-access-and-viewing
+- id: bookmarks/views/auth.py#POST /password/change
+  acceptable:
+  - authentication-and-security
+  pipeline: authentication-and-security
+- id: bookmarks/views/bookmarks.py#GET /bookmarks/archived
+  acceptable:
+  - bookmark-archival
+  pipeline: bookmark-archival
+- id: bookmarks/views/bookmarks.py#GET /bookmarks/archived/update/
+  acceptable:
+  - bookmark-archival
+  pipeline: bookmark-archival
+- id: bookmarks/views/bookmarks.py#GET /bookmarks/details
+  acceptable: &id002
+  - bookmark-management
+  - bookmark-management-2
+  pipeline: bookmark-management-2
+- id: bookmarks/views/bookmarks.py#GET /bookmarks/shared/update
+  acceptable:
+  - shared-bookmarks-management
+  - shared-bookmarks-access
+  pipeline: shared-bookmarks-management
+- id: bookmarks/views/bookmarks.py#GET /shared/
+  acceptable:
+  - shared-bookmarks-access
+  - shared-bookmarks-management
+  pipeline: shared-bookmarks-access
+- id: bookmarks/views/bookmarks.py#POST /bookmarks/
+  acceptable:
+  - search-filtering
+  pipeline: search-filtering
+- id: bookmarks/views/bookmarks.py#POST /bookmarks/:id/edit
+  acceptable: *id002
+  pipeline: bookmark-management
+- id: bookmarks/views/bookmarks.py#POST /bookmarks/:id/remove
+  acceptable: *id002
+  pipeline: bookmark-management
+- id: bookmarks/views/bookmarks.py#POST /bookmarks/:id/unshare
+  acceptable:
+  - shared-bookmarks-management
+  - shared-bookmarks-access
+  pipeline: shared-bookmarks-access
+- id: bookmarks/views/bookmarks.py#POST /bookmarks/archived/
+  acceptable:
+  - search-filtering
+  - bookmark-archival
+  pipeline: search-filtering
+- id: bookmarks/views/bookmarks.py#POST /bookmarks/new
+  acceptable: *id002
+  pipeline: bookmark-management
+- id: bookmarks/views/bookmarks.py#POST /shared/
+  acceptable:
+  - search-filtering
+  - shared-bookmarks-management
+  pipeline: search-filtering
+- id: bookmarks/views/bundles.py#POST /bundles (move)
+  acceptable:
+  - bundle-management
+  - bundle-management-2
+  pipeline: bundle-management
+- id: bookmarks/views/bundles.py#POST /bundles/:id/edit
+  acceptable:
+  - bundle-management
+  - bundle-management-2
+  pipeline: bundle-management
+- id: bookmarks/views/custom_css.py#GET /custom.css
+  acceptable:
+  - profile-management
+  pipeline: profile-management
+- id: bookmarks/views/opensearch.py#GET /opensearch.xml
+  acceptable:
+  - public-application-services
+  pipeline: public-application-services
+- id: bookmarks/views/root.py#GET /
+  acceptable:
+  - public-application-services
+  - routing-and-development-tools
+  pipeline: routing-and-development-tools
+- id: bookmarks/views/settings.py#GET /settings/general
+  acceptable:
+  - application-configuration
+  - profile-management
+  pipeline: application-configuration
+- id: bookmarks/views/settings.py#POST /settings/general
+  acceptable:
+  - application-configuration
+  - profile-management
+  pipeline: application-configuration
+- id: bookmarks/views/settings.py#POST /settings/integrations/api-token/delete
+  acceptable:
+  - api-token-management
+  pipeline: api-token-management
+- id: bookmarks/views/tags.py#POST /tags/:id/edit
+  acceptable:
+  - tag-management
+  pipeline: tag-management

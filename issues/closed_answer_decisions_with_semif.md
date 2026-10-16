@@ -66,7 +66,7 @@ decision to add it to the pipeline. This issue measures; it does not change the 
    in). Models: `qwen3.5:9b-q4_k_m`, `ministral-3:8b`, `qwen3.6:35b-a3b`. Measures: latency and tokens per
    question, rate of letters missing from the returned top logprobs, sensitivity to option order. Verified by
    unit tests of the softmax and the folding, and a run on a real question.
-2. [ ] Hand-labelled sample of about 50 entry points (benchmark repositories), proposed by the agent and
+2. [x] Hand-labelled sample of about 50 entry points (benchmark repositories), proposed by the agent and
    reviewed by the user.
 3. [ ] Replay on the saved runs: JSON answer vs logprob readout on the same model, then the small models.
    Table: unknown-feature placements, entry points placed, agreement with the baseline and the labels,
@@ -89,4 +89,9 @@ decision to add it to the pipeline. This issue measures; it does not change the 
   to redo); 16 options with the 9B 83%, 1.7% of letters missing. Two samples of the same size differ by 4
   points: the sample is too small to rank models. Only the confidential run links features to entry points;
   the linkding runs predate that, so step 2 needs a fresh run on a public repository.
+* Step 2: sample in `benchmark/linkding/placement-sample.yaml` (50 entry points of a fresh linkding run, 34
+  features, 116 entry points). The generated features overlap, so each entry point has a set of acceptable
+  features. Labels written by the agent and checked against the code; the user does not know the application
+  and trusts them. The pipeline's own placement falls in the sets 48 times out of 50; the 2 others are entry
+  points the pass left without a feature.
 * Performance and token cost are measured against the JSON answer at every step, not only at the end.
