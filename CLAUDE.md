@@ -14,65 +14,18 @@ scope for v1 (technical/C4 docs, GitHub/GitLab/Jira connectors, multi-provider L
 Commit messages follow the Conventional Commits format described in `AGENTS.md`. Check `git log` to see
 which roadmap phases from `PLAN.md` §5 are already done before assuming what's implemented.
 
-## Commands
+## Index
 
-```sh
-cargo build --workspace                 # build everything
-cargo test --workspace                  # run all tests
-cargo test -p retrodoc-pipeline         # run one crate's tests
-cargo test -p retrodoc-pipeline repo_map::tests::builds_bottom_up  # run a single test
-cargo clippy --workspace --all-targets  # lint (see Lints below — must be warning-free)
-cargo fmt --all                         # format
-just check                              # fmt + clippy -D warnings + tests in one go
-just test-harness                       # test the agent hooks and skills (needs rust-script)
-just probe-schema <ollama|deepseek|gemini|openrouter>   # one HTTP call: does the server reject, ignore or obey a strict JSON schema
-cargo run -q -p retrodoc-pipeline --example entry_points_replay -- benchmark/<repo>/entry-points.yaml <checkout> <runs dir>   # saved runs vs a hand-made entry points/actors reference (no LLM)
-cargo run -q -p retrodoc-pipeline --example behaviour_baseline -- <run dir>...   # share of source files a behaviour reaches and calls/minutes per pass of saved runs (no LLM)
-cargo run -q -p retrodoc-pipeline --example context_map_measure -- [--names] <run dir>...   # can bounded contexts be built from the file names: contexts, coverage, overlap of saved runs (no LLM)
-cargo run -q -p retrodoc-pipeline --example route_owner_measure -- <run dir>...   # routes given to the context that owns their controller: moved, kept, entry points per context before/after (no LLM)
-cargo run -q -p retrodoc-pipeline --example technical_usecases_measure -- <run dir>...   # use cases per technical or back-office signal, and which signal finds the administration ones (no LLM)
-cargo run -q -p retrodoc-pipeline --example public_api_reach_measure -- <run dir>...   # public API entry points no route/job/webhook reaches, left out of an application (no LLM)
-cargo run -q -p retrodoc-pipeline --example form_pairs_measure -- [--names] <run dir>...   # use cases that only show a resource another use case changes (candidates to merge with the one that submits) (no LLM)
-cargo run -q -p retrodoc-pipeline --example features_by_domain_measure -- <run dir>...   # entry points, features and share held by a feature per domain of saved runs (no LLM)
-OPENROUTER_API_KEY=x cargo run -q -p retrodoc-pipeline --example placement_replay -- <model> <base url> <run dir> benchmark/<repo>/placement-sample.yaml   # placement of a labelled sample of entry points: JSON answer vs closed-answer readout (logprobs of one token) on a local OpenAI-compatible server: placed, acceptable, steadiness, time and tokens
-```
+Details live in separate files; read the one that matches the task:
 
-Scripts and dev commands are `just` recipes (`justfile`) and `rust-script` files, not bash.
+- `docs/dev/commands.md`: build/test/lint commands, `just` recipes, measurement examples, registry note, CLI smoke test, API keys.
+- `docs/dev/agent-harness.md`: hooks (`format_rust`, `clippy_gate`) and the skills in `.claude/skills/`.
+- `docs/dev/conventions.md`: codebase conventions (confidentiality of test repos, English only, clippy pedantic, test patterns).
+- `docs/crates/`: per-crate detail. `docs/ARCHITECTURE.md`: high-level view. `docs/adr/`: decisions.
+- `PLAN.md`: roadmap; `PRODUCT.md`: vision; `AGENTS.md`: commit format.
 
-Registry note: this environment has no direct network access to `crates.io` (plain HTTP is blocked), but
-`cargo build`/`cargo test`/`cargo clippy` work fine without `--offline` — cargo reaches the registry through
-a path that works even though `curl https://crates.io` doesn't. Don't pass `--offline`; it fails on any
-dependency not already in `~/.cargo/registry/cache`.
-
-Manual CLI smoke test (no real OpenRouter call needed to check the error path):
-```sh
-cargo run -p retrodoc-cli -- init --path <target-repo>
-cargo run -p retrodoc-cli -- scan --path <target-repo>
-OPENROUTER_API_KEY=... cargo run -p retrodoc-cli -- generate --path <target-repo>
-```
-
-API keys may live in a git-ignored `.env` (read by the CLI at startup, `dotenvy`; variables already set win).
-With `provider = "deepseek"` in `retrodoc.toml` the key is `DEEPSEEK_API_KEY`.
-
-## Agent harness
-
-Hooks in `.claude/settings.json` (`rust-script` files in `.claude/hooks/`, tested by `test_hooks.rs`):
-- `format_rust.rs` (PostToolUse on Edit/Write): runs `cargo fmt --all` after a `.rs` file is edited.
-- `clippy_gate.rs` (Stop): if `.rs` files changed, runs `cargo clippy --workspace --all-targets -- -D warnings`;
-  on failure the output goes back to the agent, which must fix the code before finishing.
-
-Skills in `.claude/skills/` (structure checked by `.claude/skills/test_skills.rs`):
-- `issue-workflow`: how to work an `issues/*.md` file (reformulate, plan, then per deliverable test, code,
-  docs, review, human validation, tracking, commit). Architecture decisions go to `docs/adr/`.
-- `create-issue`: write a new `issues/*.md` with the template (Goal, Findings, Approach, Resources, Hints), validated by
-  `check_issue.rs` (`just check-issue issues/<name>.md`).
-- `prioritize-issues`: re-rank `issues/queue.md` (the ordered list of open issues; `just next-issue` prints the first)
-  from the roadmap, ADRs, history and each issue, with a validation stop.
-- `commit-message`: procedure to write a commit message per `AGENTS.md`, validated by `commit_check.rs`
-  (`just check-commit` checks `HEAD`).
-- `smoke-test`: end-to-end run on a real repo with the local Ollama and a verdict (`just smoke <repo>`).
-- `quality-benchmark`: quality of the generated docs against a hand-written reference on a public repo, user docs hidden then shown, several runs, table with the change since the previous benchmark (`just benchmark benchmark/<repo>/reference.yaml`).
-- `update-docs`: checklist to keep the documentation in sync after a change.
+Essentials: `just check` (fmt + clippy -D warnings + tests) must pass before committing; clippy is pedantic and
+warning-free; everything is in English; never name or quote confidential smoke-test repos in committed files.
 
 ## Architecture
 
@@ -102,19 +55,3 @@ of the crate you are about to touch. High-level view: `docs/ARCHITECTURE.md`. De
 - **retrodoc-cli**: `clap` subcommands (`init`, `scan`, `generate`, `render`, `report`, `roles`, `brief`, `glossary`,
   `entry-points`, `business-read`, `business-files`, `contexts`, `actors`, `surface`, `benchmark`, `benchmark-table`, `search`,
   `mcp`); logs go to stdout (stderr for `mcp`). → `docs/crates/render-mcp-cli.md`
-
-### Conventions specific to this codebase
-
-- Repositories used for smoke tests may be confidential: never name them, nor quote their paths or code, in
-  committed files (docs, `PLAN.md`, `issues/`, commit messages). Describe them generically.
-- Everything is in English: doc comments, user-facing CLI/error strings, commit messages, and `PLAN.md`/
-  `PRODUCT.md`. Don't reintroduce French — an earlier revision of this repo was French throughout and its
-  history was rewritten to English (see `backup-fr-history` if you ever need the old wording for reference).
-- `clippy::pedantic` is enabled workspace-wide (`[workspace.lints.clippy]` in the root `Cargo.toml`; each
-  crate opts in via `[lints] workspace = true`). Any new `pub fn` returning `Result` needs a `# Errors` doc
-  section; getters with no side effects need `#[must_use]`. Keep clippy warning-free before committing.
-- Pipeline code that calls an `LlmProvider` is tested with a fake in-`#[cfg(test)]` implementation of the
-  trait (`FakeLlm` in `testing.rs`: canned or scripted answers, call count, recorded prompts) rather than hitting the network — follow that pattern for
-  new pipeline passes instead of adding integration tests that need `OPENROUTER_API_KEY`.
-- Filesystem-touching tests use `tempfile::tempdir()` and, where git history matters, actually run `git
-  init`/`git commit` in the tempdir (see `git_history.rs` and `walker.rs` tests) rather than mocking `git2`.
