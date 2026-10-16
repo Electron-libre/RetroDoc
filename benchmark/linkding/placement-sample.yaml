@@ -1,5 +1,5 @@
 # Hand-labelled sample of 50 entry points of linkding for the placement into features
-# (issues/closed_answer_decisions_with_semif.md, step 2).
+# (issues/done/closed_answer_decisions_with_semif.md, step 2).
 #
 # Run: smoke test of linkding at commit 27b7303 (`--domains-from surface`, qwen3.6:35b-a3b); the
 # features are those of that run, so the labels hold for it only. The generated features overlap

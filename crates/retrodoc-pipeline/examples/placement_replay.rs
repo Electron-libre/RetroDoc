@@ -1,5 +1,5 @@
 //! Replays the placement of entry points into features with two answer formats on the same questions
-//! (`issues/closed_answer_decisions_with_semif.md`, step 3), against a hand-labelled sample:
+//! (`issues/done/closed_answer_decisions_with_semif.md`, step 3), against a hand-labelled sample:
 //!
 //! - `json`: the answer of the pipeline (`features/from_surface/repair.rs`): one call lists the features and
 //!   the entry points, the model writes a JSON object; same system prompt, same provider and schema;
