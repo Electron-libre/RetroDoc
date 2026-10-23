@@ -1,5 +1,5 @@
 //! Measures, with no LLM call, how close the rules answer of each feature of saved runs comes to the
-//! completion cap (`issues/rules_answer_truncated_on_large_features.md`, step 1).
+//! completion cap (`issues/done/rules_answer_truncated_on_large_features.md`, step 1).
 //!
 //! Usage: `cargo run -q -p retrodoc-pipeline --example rules_answer_size_measure -- <run dir>...`
 //!

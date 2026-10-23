@@ -1,5 +1,5 @@
 //! The statement call of a feature, asked again on smaller parts of its code when the server cuts
-//! the answer at its completion limit (`issues/rules_answer_truncated_on_large_features.md`).
+//! the answer at its completion limit (`issues/done/rules_answer_truncated_on_large_features.md`).
 //!
 //! A feature with many rules writes an answer longer than the limit; the cut JSON can't be read
 //! and asking again would be cut at the same place. The files shown are then halved, in the order
