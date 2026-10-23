@@ -50,13 +50,13 @@ the rules of its largest features, and the rerun must stay a no-op.
    can't be read leaves the feature to the next run. No upstream split: nothing predicts the size of an
    answer before the call. Known limits: no cap on the number of calls, and a single file always cut loses
    the other halves until the next run.
-4. [ ] Smoke test on linkding with DeepSeek: no feature lost, no truncation warning, second run with no LLM
-   call. Ask before launching (paid external API).
+4. [x] Smoke test on linkding with the local model (the user chose local over DeepSeek, to see the cut):
+   see `## Smoke test` below.
 
 ## Decisions
 * Measure first; the choice between (b) alone and (b)+(a) follows its figures.
 * Split upstream on the expected answer size, with a `finish_reason=length` fallback as a safety net.
-* The final smoke test uses DeepSeek, not the local model.
+* The final smoke test uses the local model (it reproduces the cut), not DeepSeek (changed by the user).
 * After the measure: go for (b)+(a); log the raw rules and the characters per answer in step 2.
 * Step 2 changes the statement prompt, which is now part of the feature fingerprint: saved features are asked
   again once.
@@ -78,3 +78,15 @@ answers were never saved, and the rules dropped by grounding, deduplication and 
 * Conclusion: the rebuilt size is not a sound measure of what is asked. To decide between (b) alone and
   (b)+(a), measure the answers themselves (`answer_chars` in the logs, or log the number of raw rules per
   answer).
+
+## Smoke test (step 4, linkding, local `qwen3.6:35b-a3b`, `--rules`, 2026-10-23)
+* One answer cut (`bookmark-crud-operations`, 9 files, 28k characters), asked again on two halves (12 and 8
+  rules) and merged; no feature skipped; second run: 0 file written, no LLM call. 350 calls, 730k tokens in,
+  167k out, 1 h 36.
+* Verdict FAIL on "no warning" only: 5 warnings, of which 3 are not about this issue (one file left
+  unassigned by the domains clustering, two features whose use cases stayed empty:
+  `issues/smoke_warnings_business_paths_sources_and_empty_use_cases.md`) and 1 is the provider's
+  `finish_reason=length` warning, kept on purpose (other passes read it). The cut handled by the rules pass is
+  now logged at info by `response.rs`, the pass warns when it gives up.
+* 202 rules published against 241 in the run before the change: the two runs differ in prompt and answers, so
+  nothing says whether rules were lost; the grounding kept all of the stated rules on most features.

@@ -221,7 +221,7 @@ pub(crate) async fn complete_json_or_cut<T: DeserializeOwned + JsonSchema>(
         match parse_json_response(&content) {
             // The parse is lenient: a cut answer can still read as a shorter list of rules.
             Ok(_) if stop_on_cut && truncated => {
-                tracing::warn!(
+                tracing::info!(
                     what,
                     answer_chars = content.chars().count(),
                     "LLM answer cut by the completion limit"
@@ -247,23 +247,24 @@ pub(crate) async fn complete_json_or_cut<T: DeserializeOwned + JsonSchema>(
                 let cut = stop_on_cut && truncated;
                 llm.note_unparseable_answer(cut || attempt == ATTEMPTS);
                 tracing::debug!(what, raw = %content, "unparseable LLM response (raw)");
+                if cut {
+                    // The caller asks a smaller question and warns if it gives up.
+                    tracing::info!(
+                        what,
+                        error = %reason,
+                        answer_chars = content.chars().count(),
+                        "LLM answer cut by the completion limit"
+                    );
+                    return Ok(Answer::Cut);
+                }
                 tracing::warn!(
                     what,
                     attempt,
                     error = %reason,
                     answer_chars = content.chars().count(),
                     "unparseable LLM response{}",
-                    if cut {
-                        ", cut by the completion limit"
-                    } else if attempt < ATTEMPTS {
-                        ", retrying"
-                    } else {
-                        ", skipped"
-                    }
+                    if attempt < ATTEMPTS { ", retrying" } else { ", skipped" }
                 );
-                if cut {
-                    return Ok(Answer::Cut);
-                }
             }
         }
     }
