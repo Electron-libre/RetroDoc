@@ -50,7 +50,8 @@ retrieval plumbing is stated as rules.
 2. [x] Noise: a second judgement per rule ("would a business reader ask about this?"), also covering the features that describe tests; verdict logged, the noise dropped (no field on the rule); tested with a fake `LlmProvider` (filtering, incremental rerun, malformed answer keeps the rules); kept only if it lowers noise without losing good rules.
 3. [x] (skipped, the noise left after deliverable 2 is small) Noise: rank rules backed by code alone lower in the rendered pages; only if deliverable 2 is not enough.
 4. [x] Deduplication across features (2a only; (2c) dropped, see Decisions): a mechanical merge on overlapping cited lines and shared words, kept on the feature that owns the code (slug stays consistent with `belongs_to_feature`).
-5. [ ] Final re-measure with the figures of deliverable 1, before/after table, docs (`docs/crates/pipeline.md`, ADR if an architectural decision is taken).
+5. [x] Final re-measure with the figures of deliverable 1, before/after table, docs (`docs/crates/pipeline.md`, ADR if an architectural decision is taken).
+6. [x] (5b, added after the first final measure) Features about tests: one question on the name and description, asked before the rules; such a feature has no rules. What is set aside (features, rules dropped as noise) is kept with its reason in `rules-set-aside.yaml` and listed in the debt report, so that the doubtful cases can be checked (asked by the user: a false positive must be visible).
 
 ## Decisions
 
@@ -146,3 +147,63 @@ the copy that stays is the one of the feature that owns the code.
   back when its owner stops stating the rule (tested). A run saved before has only `rules.yaml`: it is read as
   the stated rules.
 * The copy that stays takes the entities, use cases, tests, documents and the best confidence of the copies it replaces; a feature that reads no file never wins the tie. The rerun of both measured runs made no LLM call.
+
+## Deliverable 5: final measure (2026-10-23)
+
+Labelled by hand by the assistant, on the final `rules.yaml` of each run (same categories as deliverable 1).
+`delivery_router` and linkding: local `qwen3.6:35b-a3b`; a large Rails application of the test set: DeepSeek
+(`deepseek-chat`, `[llm.passes.rules]` only, the other passes read from the cache of a local run), 85 features,
+about 4 minutes and 0.4 $ with the prices remembered for the model.
+
+First measure (judgement per rule and merge, `c162158`):
+
+| | `delivery_router` before / after | linkding before / after | large Rails application |
+|---|---|---|---|
+| rules | 32 / 23 | 241 / 218 | 1319 stated, 1179 published |
+| sample labelled | 32 / 23 | 60 / 60 | 40 |
+| good | 28% / 35% | 53% / 50% | 68% |
+| duplicate | 44% / 39% | 3% / 2% | 0% (140 merged away, 10.6%) |
+| plumbing | 28% / 26% | 13% / 18% | 28% |
+| screen noise | 0 / 0 | 12% / 10% | 5% |
+| test noise | 0 / 0 | 18% / 20% | 0% |
+
+* Merges read by hand: 14 of the 140 drawn at random on the Rails application, all true copies; 0 false merge on
+  the three repositories. The judgement dropped 38 of 1357 statements there (a backend with little screen
+  behaviour).
+* **The end-to-end sample of linkding did not improve** (good 53% to 50%). The cause is the test features: 9
+  features named `...-verification` held 56 of 226 rules (25%), and the per-rule judgement left them
+  (`new-bookmark-creation-verification`: 25 rules, all classed `business`, although its description says "Tests
+  the new bookmark creation form"; a run earlier the same judgement had dropped 23 of those 25). The statements
+  also vary a lot from a run to another (the same feature went from 8 to 32 rules).
+* Replay outside the pipeline of a question asked per feature, on its name and description only ("does it
+  describe how the application is tested?"): right for the 30 features of linkding (9 yes, all the
+  `...-verification` ones, 21 no).
+
+Second measure, with that question asked before the rules (deliverable 5b; a feature about tests gets no rule and
+no statement call; the sentence about tests left the per-rule judgement):
+
+| | linkding | large Rails application |
+|---|---|---|
+| features about tests | 14 of 33, all named `...-verification` | 0 of 85 |
+| rules | 112 | 1349 stated, 1197 published |
+| sample labelled | 60 | not redone (no feature about tests, so nothing changes in it) |
+| good | 63% | 68% (first measure) |
+| duplicate | 2% | 0% |
+| plumbing | 22% | 28% |
+| screen noise | 13% | 5% |
+| test noise | **0%** (from 18% and 20%) | 0% |
+| LLM calls | 98 (35 min) against 77 | 256 against 170 (the question: 85 short calls) |
+
+* On linkding the 14 features about tests held 100 of the 218 rules of the first measure; they are gone. The
+  rest of the noise is plumbing (22%) and screen behaviour (13%), which the per-rule judgement leaves in part.
+* The good rules of the labelled sample are not a stable count: 128 (53% of 241) at the start, 109, then 71
+  (63% of 112): the statement pass gives different rules from a run to another, and the features about tests
+  held some rules that read as good (a tag name must be unique) which other features state too. Not measured
+  on a fixed set of statements.
+* Not solved here: the plumbing left (about a fifth), the siblings the merge does not join (17% of the rules of
+  linkding are in a pair of the loose test, half of them siblings), and the variance of the statement pass.
+* Trace of the doubtful cases (asked by the user): the 14 features of linkding taken for tests and the 34
+  rules dropped as noise are listed in the debt report with their class; reading them, a few drops are
+  debatable (a rule on the re-indexing of the other bundles when one is deleted, the one on creating a tag with
+  its owner), which is the kind of case the list is for. No way yet to put a feature back by hand: to do if a
+  wrong yes shows up.

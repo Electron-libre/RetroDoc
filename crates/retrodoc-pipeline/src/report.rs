@@ -18,6 +18,7 @@ use retrodoc_ingest::signals::doc_sections;
 
 use crate::behaviour_coverage::{BehaviourCoverage, EntryCount, FeatureCoverage};
 use crate::domains::{DomainMap, UNCATEGORIZED_SLUG};
+use crate::rules::{AsideFeature, AsideRule, SetAside};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct DomainDebt {
@@ -91,6 +92,8 @@ pub struct DebtReport {
     /// (`[pipeline] rules` off, or nothing found); filled by the caller with
     /// [`DebtReport::with_rules`].
     pub rules: Option<RuleDebt>,
+    /// What the rules pass set aside on a judgement of the LLM: to be checked. `None` when nothing.
+    pub set_aside: Option<SetAside>,
 }
 
 /// Skipped files listed in the Markdown report (the rest is only counted).
@@ -286,7 +289,13 @@ pub fn build_report(
         entries_by_feature: BTreeMap::new(),
         technical_support: Vec::new(),
         rules: None,
+        set_aside: None,
     }
+}
+
+/// `text` on one line, so that a sentence of the LLM can't break the list it is written in.
+fn one_line(text: &str) -> String {
+    text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 fn percent(value: Option<f32>) -> String {
@@ -348,6 +357,71 @@ impl DebtReport {
             total: rules.len(),
             undocumented,
         });
+    }
+
+    /// Adds what the rules pass set aside on a judgement of the LLM. Nothing when it set nothing aside.
+    pub fn with_set_aside(&mut self, set_aside: SetAside) {
+        self.set_aside = (!set_aside.is_empty()).then_some(set_aside);
+    }
+
+    /// The section on what the rules pass set aside: the features taken for tests (they lost every
+    /// rule, so a wrong answer costs the most) and the rules dropped as noise.
+    fn write_set_aside_section(&self, md: &mut String) {
+        let Some(aside) = &self.set_aside else { return };
+        md.push_str(
+            "\n## Set aside by the rules pass (to check)\n\nThe LLM judged these; a wrong answer \
+             hides a business rule. The full list is in `.retrodoc/cache/rules-set-aside.yaml`, \
+             every rule as each feature stated it in `.retrodoc/cache/rules-stated.yaml`.\n",
+        );
+        if !aside.features.is_empty() {
+            let _ = write!(
+                md,
+                "\n### {} feature(s) without rules\n\nTaken for features about tests, so no rule was \
+                 asked of them; if one of them is a business feature, its rules are missing:\n\n",
+                aside.features.len()
+            );
+            for AsideFeature {
+                slug,
+                name,
+                description,
+                reason,
+            } in aside.features.iter().take(MAX_LISTED_RULES)
+            {
+                let _ = writeln!(
+                    md,
+                    "- `{slug}` {}: {} ({})",
+                    one_line(name),
+                    one_line(description),
+                    one_line(reason)
+                );
+            }
+            if aside.features.len() > MAX_LISTED_RULES {
+                let _ = writeln!(
+                    md,
+                    "- … and {} more",
+                    aside.features.len() - MAX_LISTED_RULES
+                );
+            }
+        }
+        if !aside.rules.is_empty() {
+            let _ = write!(
+                md,
+                "\n### {} rule(s) dropped as noise\n\n",
+                aside.rules.len()
+            );
+            for AsideRule {
+                slug,
+                statement,
+                class,
+                ..
+            } in aside.rules.iter().take(MAX_LISTED_RULES)
+            {
+                let _ = writeln!(md, "- `{slug}` ({class}) {}", one_line(statement));
+            }
+            if aside.rules.len() > MAX_LISTED_RULES {
+                let _ = writeln!(md, "- … and {} more", aside.rules.len() - MAX_LISTED_RULES);
+            }
+        }
     }
 
     /// The section on the business rules the existing docs leave out.
@@ -555,6 +629,7 @@ impl DebtReport {
         }
         self.write_behaviour_sections(&mut md);
         self.write_rule_section(&mut md);
+        self.write_set_aside_section(&mut md);
         if !self.skipped_files.is_empty() {
             let _ = write!(
                 md,
@@ -794,6 +869,38 @@ mod tests {
             md.contains("0 of 1 business rule(s) are mentioned in no existing document.\n"),
             "{md}"
         );
+    }
+
+    #[test]
+    fn what_the_rules_pass_set_aside_is_listed_to_be_checked() {
+        let mut report = build_report(&DomainMap::default(), &[], &[]);
+        report.with_set_aside(SetAside::default());
+        assert!(!report.to_markdown().contains("Set aside by the rules pass"));
+
+        report.with_set_aside(SetAside {
+            features: vec![AsideFeature {
+                slug: "email-verification".into(),
+                name: "Verify an email".into(),
+                description: "Checks the address\nof a new user".into(),
+                reason: "describes how the application is tested".into(),
+            }],
+            rules: vec![AsideRule {
+                slug: "orders-1".into(),
+                feature: "orders".into(),
+                statement: "An order is stored by the customer id.".into(),
+                class: "storage".into(),
+            }],
+        });
+        let md = report.to_markdown();
+        assert!(md.contains("## Set aside by the rules pass"), "{md}");
+        assert!(md.contains("`email-verification`"), "{md}");
+        assert!(md.contains("Checks the address of a new user"), "{md}");
+        assert!(
+            md.contains("describes how the application is tested"),
+            "{md}"
+        );
+        assert!(md.contains("`orders-1` (storage)"), "{md}");
+        assert!(md.contains("rules-set-aside.yaml"), "{md}");
     }
 
     #[test]

@@ -134,7 +134,7 @@ async fn the_prompt_numbers_the_code_and_gives_an_id_to_each_evidence() {
     let dir = repo();
     let llm = FakeLlm::answering(answer(LIMIT));
     run(dir.path(), &llm).await;
-    let prompt = &llm.prompts()[0];
+    let prompt = &llm.prompts()[1];
     assert!(prompt.contains("[T1] refuses an order"), "{prompt}");
     assert!(prompt.contains("[D1] An order is refused"), "{prompt}");
     assert!(prompt.contains("   2 |   return :refused"), "{prompt}");
@@ -208,7 +208,7 @@ async fn an_unchanged_feature_is_not_asked_again_but_a_new_model_or_code_is() {
     let dir = repo();
     let first = FakeLlm::answering(answer(LIMIT));
     let rules = run(dir.path(), &first).await;
-    assert_eq!(first.calls(), 2);
+    assert_eq!(first.calls(), 3);
 
     let second = FakeLlm::answering("not even json");
     assert_eq!(run(dir.path(), &second).await, rules);
@@ -216,7 +216,7 @@ async fn an_unchanged_feature_is_not_asked_again_but_a_new_model_or_code_is() {
 
     let other_model = FakeLlm::answering(answer("")).with_model("big");
     assert_eq!(run(dir.path(), &other_model).await, []);
-    assert_eq!(other_model.calls(), 1);
+    assert_eq!(other_model.calls(), 2);
 
     std::fs::write(
         dir.path().join("lib/router.rb"),
@@ -225,7 +225,7 @@ async fn an_unchanged_feature_is_not_asked_again_but_a_new_model_or_code_is() {
     .unwrap();
     let after_edit = FakeLlm::answering(answer("")).with_model("big");
     run(dir.path(), &after_edit).await;
-    assert_eq!(after_edit.calls(), 1);
+    assert_eq!(after_edit.calls(), 2);
 }
 
 #[tokio::test]
@@ -234,7 +234,7 @@ async fn a_feature_without_rules_is_remembered_but_an_unparseable_answer_is_retr
     let none = FakeLlm::answering(answer(""));
     assert_eq!(run(dir.path(), &none).await, []);
     assert_eq!(run(dir.path(), &none).await, []);
-    assert_eq!(none.calls(), 1);
+    assert_eq!(none.calls(), 2);
 
     let dir = repo();
     let garbage = FakeLlm::answering("sorry");
@@ -329,7 +329,7 @@ async fn a_killed_run_keeps_the_rules_of_the_features_done_and_the_rerun_resumes
     };
     let features = [feature(), second];
 
-    let stuck = FakeLlm::hanging_after(2, |_| answer(LIMIT));
+    let stuck = FakeLlm::hanging_after(3, |_| answer(LIMIT));
     killed(
         build_rules(dir.path(), &features, &[use_case()], &context(), &stuck),
         &stuck,
@@ -344,8 +344,8 @@ async fn a_killed_run_keeps_the_rules_of_the_features_done_and_the_rerun_resumes
         .unwrap();
     assert_eq!(
         healthy.calls(),
-        2,
-        "only the second feature is asked (rules, then judgement)"
+        3,
+        "only the second feature is asked (kind, rules, judgement)"
     );
 }
 
@@ -377,8 +377,8 @@ async fn a_rule_a_business_reader_would_not_ask_about_is_dropped_and_the_others_
 
     assert_eq!(rules.len(), 1);
     assert_eq!(rules[0].slug, "orders-2");
-    assert_eq!(llm.calls(), 2);
-    let judged = &llm.prompts()[1];
+    assert_eq!(llm.calls(), 3);
+    let judged = &llm.prompts()[2];
     assert!(judged.contains("Place an order"), "{judged}");
     assert!(
         judged.contains("1. [validation, code alone] An order is stored by the customer id."),
@@ -406,7 +406,7 @@ async fn an_unusable_verdict_item_costs_nothing_and_a_feature_without_rules_is_n
         r#"{"rules":[{"n":1,"class":"storage"},{"n":2,"class":"business"}]}"#,
     );
     assert_eq!(run(dir.path(), &none).await, []);
-    assert_eq!(none.calls(), 1);
+    assert_eq!(none.calls(), 2);
 }
 
 #[tokio::test]
@@ -441,7 +441,7 @@ async fn a_new_judgement_prompt_judges_the_saved_features_again() {
     prints.save(dir.path()).unwrap();
     let again = judging(LIMIT, r#"{"rules":[]}"#);
     run(dir.path(), &again).await;
-    assert_eq!(again.calls(), 2);
+    assert_eq!(again.calls(), 3);
 }
 
 fn wide() -> Feature {
@@ -488,7 +488,129 @@ async fn a_rule_two_features_state_is_published_once_and_comes_back_when_its_own
     changed[0].description = "A customer orders a meal, or not".into();
     let third = FakeLlm::answering(answer(""));
     let after = ask(dir.path(), &third, &changed).await;
-    assert_eq!(third.calls(), 1);
+    assert_eq!(third.calls(), 2);
     assert_eq!(after.len(), 1);
     assert_eq!(after[0].slug, "wide-1");
+}
+
+/// An LLM that says whether the feature is about tests, and states `LIMIT` otherwise.
+fn knowing(about_tests: &'static str) -> FakeLlm {
+    FakeLlm::replying(move |_, request| {
+        Ok(
+            if request.messages[0].content == judge::FEATURE_SYSTEM_PROMPT {
+                about_tests.to_string()
+            } else {
+                answer(LIMIT)
+            },
+        )
+    })
+}
+
+#[tokio::test]
+async fn a_feature_that_describes_tests_has_no_rules_and_no_statement_call() {
+    let dir = repo();
+    let llm = knowing(r#"{"about_tests":true}"#);
+
+    assert_eq!(run(dir.path(), &llm).await, []);
+
+    assert_eq!(llm.calls(), 1, "only the question about the feature");
+    let asked = &llm.prompts()[0];
+    assert!(asked.contains("Place an order"), "{asked}");
+    assert!(!asked.contains("return :refused"), "no code: {asked}");
+    // Remembered like a feature without rules.
+    let again = knowing(r#"{"about_tests":true}"#);
+    assert_eq!(run(dir.path(), &again).await, []);
+    assert_eq!(again.calls(), 0);
+}
+
+#[tokio::test]
+async fn a_feature_about_something_else_or_an_unreadable_answer_goes_on_to_its_rules() {
+    for reply in [
+        r#"{"about_tests":false}"#,
+        "sorry",
+        r#"{"about_tests":"maybe"}"#,
+    ] {
+        let dir = repo();
+        let llm = knowing(reply);
+        assert_eq!(run(dir.path(), &llm).await.len(), 1, "{reply}");
+        // An unreadable answer is asked once more before it counts as no.
+        let asked = if reply == "sorry" { 4 } else { 3 };
+        assert_eq!(llm.calls(), asked, "question, rules, judgement: {reply}");
+    }
+    let dir = repo();
+    assert_eq!(
+        run(dir.path(), &knowing(r#"{"about_tests":"true"}"#)).await,
+        []
+    );
+}
+
+#[tokio::test]
+async fn a_feature_set_aside_as_tests_is_kept_with_its_reason_until_it_changes() {
+    let dir = repo();
+    run(dir.path(), &knowing(r#"{"about_tests":true}"#)).await;
+
+    let aside = load_set_aside(dir.path()).expect("the features set aside are on disk");
+    assert_eq!(aside.features.len(), 1);
+    let set_aside = &aside.features[0];
+    assert_eq!(set_aside.slug, "orders");
+    assert_eq!(set_aside.name, "Place an order");
+    assert_eq!(set_aside.description, "A customer orders a meal");
+    assert!(set_aside.reason.contains("tested"), "{}", set_aside.reason);
+
+    // Reused with the feature, no call.
+    let again = FakeLlm::answering("not even json");
+    run(dir.path(), &again).await;
+    assert_eq!(again.calls(), 0);
+    assert_eq!(load_set_aside(dir.path()).unwrap(), aside);
+
+    // Asked again and no longer about tests: nothing is set aside.
+    let mut changed = feature();
+    changed.description = "A customer orders a meal, or not".into();
+    build_rules(
+        dir.path(),
+        &[changed],
+        &[use_case()],
+        &context(),
+        &knowing(r#"{"about_tests":false}"#),
+    )
+    .await
+    .unwrap();
+    assert!(load_set_aside(dir.path()).unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn a_rule_dropped_by_the_judgement_is_kept_with_its_class() {
+    let dir = repo();
+    let llm = judging(
+        &format!("{STORAGE},{LIMIT}"),
+        r#"{"rules":[{"n":1,"class":"storage"},{"n":2,"class":"business"}]}"#,
+    );
+    run(dir.path(), &llm).await;
+
+    let aside = load_set_aside(dir.path()).unwrap();
+    assert_eq!(aside.features, []);
+    assert_eq!(aside.rules.len(), 1);
+    let dropped = &aside.rules[0];
+    assert_eq!(dropped.slug, "orders-1");
+    assert_eq!(dropped.feature, "orders");
+    assert_eq!(dropped.statement, "An order is stored by the customer id.");
+    assert_eq!(dropped.class, "storage");
+
+    let again = FakeLlm::answering("not even json");
+    run(dir.path(), &again).await;
+    assert_eq!(again.calls(), 0);
+    assert_eq!(load_set_aside(dir.path()).unwrap(), aside);
+}
+
+#[tokio::test]
+async fn a_run_saved_before_the_set_aside_file_is_asked_again_once() {
+    let dir = repo();
+    run(dir.path(), &knowing(r#"{"about_tests":true}"#)).await;
+    std::fs::remove_file(Artifact::RulesSetAside.path(dir.path())).unwrap();
+
+    let again = knowing(r#"{"about_tests":true}"#);
+    run(dir.path(), &again).await;
+
+    assert_eq!(again.calls(), 1);
+    assert_eq!(load_set_aside(dir.path()).unwrap().features.len(), 1);
 }

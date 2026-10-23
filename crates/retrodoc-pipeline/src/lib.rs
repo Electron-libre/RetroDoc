@@ -87,7 +87,10 @@ pub use repo_map::{
 };
 pub use report::{build_report, domain_models, DebtReport};
 pub use roles::{identify_roles, FileRole, RoleMap, RoleRule, RoleRules};
-pub use rules::{build_rules, load_rules, save_rules, RuleInput};
+pub use rules::{
+    build_rules, load_rules, load_set_aside, save_rules, AsideFeature, AsideRule, RuleInput,
+    SetAside,
+};
 pub use slices::CodeIndex;
 pub use source_hashes::SourceHashes;
 pub use sources::{infer_sources, saved_or_sniffed, SourceMapFile};

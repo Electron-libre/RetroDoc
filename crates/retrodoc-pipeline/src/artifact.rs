@@ -46,12 +46,15 @@ pub enum Artifact {
     /// The rules as each feature stated them, before the same rule of several features is kept once;
     /// what a rerun starts from.
     RulesStated,
+    /// What the rules pass left out on a judgement of the LLM (features about tests, rules
+    /// dropped as noise), kept to check the doubtful cases.
+    RulesSetAside,
     BehaviourCoverage,
     Usage,
 }
 
 impl Artifact {
-    pub const ALL: [Artifact; 19] = [
+    pub const ALL: [Artifact; 20] = [
         Artifact::RepoMap,
         Artifact::SourceHashes,
         Artifact::Fingerprints,
@@ -69,6 +72,7 @@ impl Artifact {
         Artifact::UseCases,
         Artifact::Rules,
         Artifact::RulesStated,
+        Artifact::RulesSetAside,
         Artifact::BehaviourCoverage,
         Artifact::Usage,
     ];
@@ -93,6 +97,7 @@ impl Artifact {
             Artifact::UseCases => "use-cases.yaml",
             Artifact::Rules => "rules.yaml",
             Artifact::RulesStated => "rules-stated.yaml",
+            Artifact::RulesSetAside => "rules-set-aside.yaml",
             Artifact::BehaviourCoverage => "behaviour-coverage.yaml",
             Artifact::Usage => "usage.json",
         }
@@ -126,6 +131,7 @@ impl Artifact {
             | Artifact::UseCases
             | Artifact::Rules
             | Artifact::RulesStated
+            | Artifact::RulesSetAside
             | Artifact::BehaviourCoverage => true,
             Artifact::Roles
             | Artifact::SignalSources

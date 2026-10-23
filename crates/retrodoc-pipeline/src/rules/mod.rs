@@ -29,6 +29,7 @@ use crate::response::complete_json;
 use crate::roles::load_splitter;
 use crate::use_cases::UseCaseContext;
 
+mod aside;
 mod dedup;
 mod grounding;
 mod input;
@@ -37,10 +38,14 @@ mod prompt;
 #[cfg(test)]
 mod tests;
 
+pub use self::aside::{AsideFeature, AsideRule, SetAside};
 use self::dedup::{merge_duplicates, Reach};
 use self::grounding::{grounded_rules, RawRules};
 pub use self::input::RuleInput;
-use self::judge::{judge_prompt, keep_judged, RawVerdict, JUDGE_SYSTEM_PROMPT};
+use self::judge::{
+    feature_prompt, judge_prompt, keep_judged, RawFeatureKind, RawVerdict, FEATURE_SYSTEM_PROMPT,
+    JUDGE_SYSTEM_PROMPT,
+};
 use self::prompt::{rules_prompt, RULES_SYSTEM_PROMPT};
 
 /// Loads a previously saved `rules.yaml`. Missing or unreadable: `None` (first run), not an error.
@@ -56,6 +61,13 @@ pub fn load_rules(repo_root: &Path) -> Option<Vec<BusinessRule>> {
 /// Returns an error if the file can't be written or serialization fails.
 pub fn save_rules(repo_root: &Path, rules: &[BusinessRule]) -> Result<(), PipelineError> {
     save_yaml(&Artifact::Rules.path(repo_root), rules)
+}
+
+/// What the rules pass set aside on a judgement of the LLM, to check the doubtful cases. Missing or
+/// unreadable: `None`.
+#[must_use]
+pub fn load_set_aside(repo_root: &Path) -> Option<SetAside> {
+    load_yaml(&Artifact::RulesSetAside.path(repo_root))
 }
 
 /// The rules as each feature stated them, else (a run from before this artifact) the saved rules.
@@ -91,13 +103,15 @@ pub async fn build_rules(
 ) -> Result<Vec<BusinessRule>, PipelineError> {
     let saved = load_stated(repo_root);
     let mut prints = Fingerprints::load(repo_root);
-    // Without the saved rules, a fingerprint can't tell "none" from "lost".
-    let known = if saved.is_some() {
+    // Without the saved rules, a fingerprint can't tell "none" from "lost"; nor can it, without the
+    // file of what was set aside (a run from before it), tell a feature about tests from the rest.
+    let known = if saved.is_some() && Artifact::RulesSetAside.path(repo_root).exists() {
         std::mem::take(&mut prints.rules)
     } else {
         BTreeMap::new()
     };
     let previous = saved.unwrap_or_default();
+    let previous_aside = load_set_aside(repo_root).unwrap_or_default();
     let splitter = load_splitter(repo_root);
     let mut progress = Progress::new("rules", features.len());
 
@@ -126,17 +140,22 @@ pub async fn build_rules(
         .buffered(context.concurrency.max(1));
 
     // What a rerun starts from when the features from the rank `from` on are not done.
-    let checkpoint = |rules: &[BusinessRule], prints: &Fingerprints, from: usize| {
-        save_partial(
-            repo_root,
-            rules,
-            &previous,
-            &features[from..],
-            prints,
-            &known,
-        );
-    };
+    let checkpoint =
+        |rules: &[BusinessRule], aside: &SetAside, prints: &Fingerprints, from: usize| {
+            save_partial(
+                repo_root,
+                Snapshot { rules, aside },
+                Snapshot {
+                    rules: &previous,
+                    aside: &previous_aside,
+                },
+                &features[from..],
+                prints,
+                &known,
+            );
+        };
     let mut rules: Vec<BusinessRule> = Vec::new();
+    let mut aside = SetAside::default();
     let mut position = 0;
     while let Some((item, answer)) = answers.next().await {
         position += 1;
@@ -151,6 +170,7 @@ pub async fn build_rules(
             Plan::Reuse => {
                 tracing::info!(feature = %key, "rules unchanged, reused");
                 rules.extend(kept(&previous, &feature.slug));
+                aside.extend(previous_aside.of_feature(&feature.slug));
                 prints.rules.insert(key, print);
                 progress.skip();
             }
@@ -158,23 +178,28 @@ pub async fn build_rules(
                 progress.begin(&key);
                 tracing::warn!(feature = %feature.slug, "rules skipped: none of its files is readable");
                 rules.extend(kept(&previous, &feature.slug));
+                aside.extend(previous_aside.of_feature(&feature.slug));
             }
             Plan::Ask { .. } => {
                 progress.begin(&key);
                 match answer.unwrap_or(Ok(None)) {
                     Err(err) => {
-                        checkpoint(&rules, &prints, position - 1);
+                        checkpoint(&rules, &aside, &prints, position - 1);
                         return Err(err);
                     }
                     // Unparseable: the saved rules stay, and it is asked again on the next run.
-                    Ok(None) => rules.extend(kept(&previous, &feature.slug)),
-                    Ok(Some(judged)) => {
-                        rules.extend(judged);
+                    Ok(None) => {
+                        rules.extend(kept(&previous, &feature.slug));
+                        aside.extend(previous_aside.of_feature(&feature.slug));
+                    }
+                    Ok(Some(asked)) => {
+                        rules.extend(asked.rules);
+                        aside.extend(asked.aside);
                         prints.rules.insert(key, print);
                     }
                 }
                 // After each answer: a run killed later loses the call in flight, nothing more.
-                checkpoint(&rules, &prints, position);
+                checkpoint(&rules, &aside, &prints, position);
             }
         }
     }
@@ -182,21 +207,49 @@ pub async fn build_rules(
 
     // Rules first: a fingerprint without its rules would freeze a feature as "none".
     let published = save_published(repo_root, &rules, &reach)?;
+    save_yaml(&Artifact::RulesSetAside.path(repo_root), &aside)?;
     prints.save(repo_root)?;
     Ok(published)
 }
 
-/// The rules of one feature: the statement call, the checks of its answer, then the judgement of
-/// what a business reader would ask about. `Ok(None)` when the statement answer can't be parsed; an
-/// unparseable verdict keeps the rules as they are (the call is logged), so the rules are not lost.
+/// The rules of one feature: a question on whether it is about tests (then it has no rules), the
+/// statement call, the checks of its answer, then the judgement of what a business reader would ask
+/// about. `Ok(None)` when the statement answer can't be parsed; an unparseable verdict keeps the
+/// rules as they are (the call is logged), so the rules are not lost.
 async fn ask_rules(
     repo_root: &Path,
     llm: &dyn LlmProvider,
     item: &Item<'_>,
     prompt: &str,
     cited_files: &BTreeSet<String>,
-) -> Result<Option<Vec<BusinessRule>>, PipelineError> {
+) -> Result<Option<Asked>, PipelineError> {
     let feature = item.feature;
+    if let Some(kind) = complete_json::<RawFeatureKind>(
+        llm,
+        FEATURE_SYSTEM_PROMPT,
+        &feature_prompt(feature),
+        &format!("kind of {}", feature.slug),
+    )
+    .await?
+    {
+        if kind.is_about_tests() {
+            tracing::info!(feature = %feature.slug, "feature about tests, no rules asked");
+            return Ok(Some(Asked {
+                rules: Vec::new(),
+                aside: SetAside {
+                    features: vec![AsideFeature {
+                        slug: feature.slug.clone(),
+                        name: feature.name.clone(),
+                        description: feature.description.clone(),
+                        reason: "describes how the application is tested, not what it does for \
+                                 its users"
+                            .to_string(),
+                    }],
+                    rules: Vec::new(),
+                },
+            }));
+        }
+    }
     let Some(raw) = complete_json::<RawRules>(
         llm,
         RULES_SYSTEM_PROMPT,
@@ -216,7 +269,7 @@ async fn ask_rules(
         &item.use_cases,
     );
     if rules.is_empty() {
-        return Ok(Some(rules));
+        return Ok(Some(Asked::of(rules)));
     }
     let Some(verdict) = complete_json::<RawVerdict>(
         llm,
@@ -226,13 +279,20 @@ async fn ask_rules(
     )
     .await?
     else {
-        return Ok(Some(rules));
+        return Ok(Some(Asked::of(rules)));
     };
     let (rules, dropped) = keep_judged(rules, &verdict);
-    for rule in &dropped {
-        tracing::info!(rule = %rule.slug, statement = %rule.statement, "rule dropped by the judgement");
+    let mut asked = Asked::of(rules);
+    for (rule, class) in dropped {
+        tracing::info!(rule = %rule.slug, %class, statement = %rule.statement, "rule dropped by the judgement");
+        asked.aside.rules.push(AsideRule {
+            slug: rule.slug.clone(),
+            feature: feature.slug.clone(),
+            statement: rule.statement,
+            class,
+        });
     }
-    Ok(Some(rules))
+    Ok(Some(asked))
 }
 
 /// What each feature reads, to tell which one owns the code a rule cites.
@@ -257,6 +317,28 @@ fn reach_of(items: &[Item<'_>]) -> BTreeMap<String, Reach> {
         .collect()
 }
 
+/// The answer for one feature: its rules, and what was set aside on the way.
+struct Asked {
+    rules: Vec<BusinessRule>,
+    aside: SetAside,
+}
+
+impl Asked {
+    fn of(rules: Vec<BusinessRule>) -> Self {
+        Self {
+            rules,
+            aside: SetAside::default(),
+        }
+    }
+}
+
+/// The rules and the set-aside entries of a run, as saved.
+#[derive(Clone, Copy)]
+struct Snapshot<'a> {
+    rules: &'a [BusinessRule],
+    aside: &'a SetAside,
+}
+
 /// The saved rules of the feature `slug`.
 fn kept(previous: &[BusinessRule], slug: &str) -> Vec<BusinessRule> {
     previous
@@ -266,23 +348,29 @@ fn kept(previous: &[BusinessRule], slug: &str) -> Vec<BusinessRule> {
         .collect()
 }
 
-/// Best-effort save of a run in progress or failed: the rules done so far, and the previous rules
-/// and fingerprints of the features not reached, so a rerun resumes where this one stopped.
+/// Best-effort save of a run in progress or failed: the rules done so far, and the previous rules,
+/// set-aside entries and fingerprints of the features not reached, so a rerun resumes where this one
+/// stopped.
 fn save_partial(
     repo_root: &Path,
-    done: &[BusinessRule],
-    previous: &[BusinessRule],
+    done: Snapshot<'_>,
+    previous: Snapshot<'_>,
     remaining: &[Feature],
     prints: &Fingerprints,
     known: &BTreeMap<String, String>,
 ) {
-    let mut rules = done.to_vec();
+    let mut rules = done.rules.to_vec();
     rules.extend(
         previous
+            .rules
             .iter()
             .filter(|r| remaining.iter().any(|f| r.belongs_to_feature(&f.slug)))
             .cloned(),
     );
+    let mut aside = done.aside.clone();
+    for feature in remaining {
+        aside.extend(previous.aside.of_feature(&feature.slug));
+    }
     let mut prints = prints.clone();
     for feature in remaining {
         let key = feature_key(feature);
@@ -293,6 +381,7 @@ fn save_partial(
     // Not merged: it costs a quadratic comparison and the final save does it.
     warn_on_error(save_yaml(&Artifact::RulesStated.path(repo_root), &rules));
     warn_on_error(save_rules(repo_root, &rules));
+    warn_on_error(save_yaml(&Artifact::RulesSetAside.path(repo_root), &aside));
     warn_on_error(prints.save(repo_root));
 }
 
@@ -401,7 +490,7 @@ fn rules_fingerprint(
             .chain((!brief.is_empty()).then_some(brief))
             .chain(std::iter::once(format!(
                 "judgement {}",
-                hash_content(JUDGE_SYSTEM_PROMPT)
+                hash_content(&format!("{FEATURE_SYSTEM_PROMPT}\0{JUDGE_SYSTEM_PROMPT}"))
             )))
             .chain(std::iter::once(model_part(llm))),
     )

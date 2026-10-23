@@ -86,6 +86,10 @@ pub fn add_rule_debt(
     config: &Config,
     features: &[retrodoc_core::model::Feature],
 ) {
+    // Only while the rules are on: a file left by an earlier run is not what the last one judged.
+    if config.pipeline.rules {
+        report.with_set_aside(retrodoc_pipeline::load_set_aside(repo_root).unwrap_or_default());
+    }
     let rules = retrodoc_pipeline::load_rules(repo_root).unwrap_or_default();
     if rules.is_empty() {
         return;
