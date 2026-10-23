@@ -4,7 +4,7 @@
 //! a screen checks, a technical detail). The statement call finds what the code enforces; this one
 //! judges what is worth a page, on the statements alone, so it is much shorter. A closed class per
 //! rule, not a list of numbers to drop: measured on hand labels of a large repository, the list
-//! lost 22% of the good rules, the classes 3% (`issues/rules_deduplication_and_noise.md`). A rule
+//! lost 22% of the good rules, the classes 3% (`issues/done/rules_deduplication_and_noise.md`). A rule
 //! the answer does not class, or classes in an unknown way, is kept. Like the rest of the pass, no
 //! pattern of a language or framework: the LLM judges, the program applies the verdict.
 
@@ -45,7 +45,7 @@ const NOISE: [&str; 4] = ["storage", "screen", "test", "technical"];
 /// screens and scenarios, not about the business, and measured on a large repository no judgement
 /// per rule leaves them out steadily (the same feature was dropped whole in one run and kept in the
 /// next), where this question on the name and description alone was right for every feature
-/// (`issues/rules_deduplication_and_noise.md`). Asked before the rules, so a feature of tests costs
+/// (`issues/done/rules_deduplication_and_noise.md`). Asked before the rules, so a feature of tests costs
 /// one short call. An answer that isn't a clear yes counts as no: no rule is lost on a doubt.
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub(super) struct RawFeatureKind {

@@ -16,7 +16,7 @@ becomes the default, stays an option with a stated use, or is removed.
 * `[pipeline] business_read` (on, ADR 0028): the switch exists to turn it off; no known case where that is
   wanted.
 * `[pipeline] rules` (off, ADR 0021): about 42% of the input tokens of a run, rules still noisy
-  (`issues/rules_deduplication_and_noise.md`).
+  (`issues/done/rules_deduplication_and_noise.md`).
 * `[pipeline] domains_from`: `issues/surface_domains_default_decision.md` and `issues/single_pipeline_path.md`.
 * `--confidence-sample N`, `--no-confidence`, `--max-files`, `llm.batch_chars`, `llm.structured_output`:
   options with a use, listed here so the review is complete.

@@ -1,5 +1,5 @@
 //! Measures, with no LLM call, the duplicates of a saved `rules.yaml` and draws a sample to label by
-//! hand (`issues/rules_deduplication_and_noise.md`, step 1).
+//! hand (`issues/done/rules_deduplication_and_noise.md`, step 1).
 //!
 //! Usage: `cargo run -q -p retrodoc-pipeline --example rules_noise_measure -- [--sample N] [--seed S] <run dir>`
 //!

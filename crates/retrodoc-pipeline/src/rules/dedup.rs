@@ -2,7 +2,7 @@
 //! features that read the same code state the same rule in their own words. No LLM and no pattern
 //! of a language or framework: two rules of different features are the same when their statements
 //! share most of their words and they cite overlapping lines of the same file, or share nearly all
-//! of them. Measured by hand on two repositories (`issues/rules_deduplication_and_noise.md`): that
+//! of them. Measured by hand on two repositories (`issues/done/rules_deduplication_and_noise.md`): that
 //! test never joined two different rules, and found about half of the repeated ones; the others
 //! are worded too differently, and are left alone.
 //!

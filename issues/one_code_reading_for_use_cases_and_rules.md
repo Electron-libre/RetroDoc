@@ -37,7 +37,7 @@ that cost without losing use cases or rules, as `business-read` did for the glos
 * `crates/retrodoc-pipeline/src/use_cases/prompt.rs`, `rules/prompt.rs`, `rules/input.rs`
 * `crates/retrodoc-llm/src/usage.rs`, `crates/retrodoc-pipeline/src/usage_log.rs`
 * `issues/done/single_read_per_business_file.md`, ADRs 0021 and 0028
-* `issues/rules_deduplication_and_noise.md` (changes the same pass)
+* `issues/done/rules_deduplication_and_noise.md` (changes the same pass)
 
 # Hints
 * Moving the code to the head of a prompt changes every fingerprint and may change the answers: measure

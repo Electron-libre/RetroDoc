@@ -495,7 +495,7 @@ Expected: a cost that grows with the business surface (entry points, entities, u
 repository. That is an estimate, to be measured with step 1 and `usage.json`.
 
 Follow-up of step 6: the rules are stated per feature, so some are duplicated, and storage plumbing comes out
-as rules (`issues/rules_deduplication_and_noise.md`); the pass stays off by default.
+as rules (`issues/done/rules_deduplication_and_noise.md`); the pass stays off by default.
 
 ### 7.6 Project review of 2026-10-12
 
@@ -531,7 +531,7 @@ Next work, in the order of `issues/queue.md`:
    slices, §7.7).
 2. `issues/done/sampling_temperature_for_steadier_runs.md` and `issues/benchmark_passes_on_fixed_inputs.md`: a steadier
    and cheaper measure, with references a human has checked.
-3. `issues/rules_deduplication_and_noise.md`, `issues/one_code_reading_for_use_cases_and_rules.md` and
+3. `issues/done/rules_deduplication_and_noise.md`, `issues/one_code_reading_for_use_cases_and_rules.md` and
    `issues/shorter_use_case_answers.md`: quality of the rules, then the tokens of the two largest passes.
 4. `issues/settle_experimental_settings.md`, `issues/surface_domains_default_decision.md`,
    `issues/single_pipeline_path.md`, then `issues/pass_runner_and_run_context.md`: fewer options, one path, then

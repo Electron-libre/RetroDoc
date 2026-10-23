@@ -4,11 +4,11 @@ Open issues in the order to work on them: the first is the next one. Read by `ju
 `just close-issue` removes a line, `skill:create-issue` inserts one at its rank, `skill:prioritize-issues`
 re-ranks the whole list. Line format: `- [<file stem>](<file stem>.md) - <why here>`.
 
-- [rules_deduplication_and_noise](rules_deduplication_and_noise.md) - follow-up of business_rules (smoke test, 2026-10-12): the rules must be stated once and be business ones before the docs are reconciled with them
-- [rules_answer_truncated_on_large_features](rules_answer_truncated_on_large_features.md) - found by the smoke test of `rules_deduplication_and_noise` (2026-10-16): the linkding smoke is not conclusive until the rules of a large feature fit the answer; after it because splitting a feature changes what that issue compares
+- [rules_answer_truncated_on_large_features](rules_answer_truncated_on_large_features.md) - found by the smoke test of `rules_deduplication_and_noise` (2026-10-16): the linkding smoke is not conclusive until the rules of a large feature fit the answer; next now that `rules_deduplication_and_noise` is closed (splitting a feature changes what that issue compared)
 - [benchmark_passes_on_fixed_inputs](benchmark_passes_on_fixed_inputs.md) - after the rules work in progress, before the issues that compare settings (`measure_model_split_per_pass`, `brief_injection_experiments`, `settle_experimental_settings`), which need this measure
 - [one_code_reading_for_use_cases_and_rules](one_code_reading_for_use_cases_and_rules.md) - after `rules_deduplication_and_noise` (same pass) and the per-pass measure: the largest token saving, about 80% of a run's input is these two passes
 - [docs_reconciliation_debt_report](docs_reconciliation_debt_report.md) - first PRODUCT.md feature, needs stable generated docs with rules
+- [rules_put_back_what_was_set_aside](rules_put_back_what_was_set_aside.md) - moderate: safety net for the false yes of the question on features about tests (a wrong yes hides every rule of a feature), after `docs_reconciliation_debt_report` which reads the rules and the report that lists them; the rules pass is off by default, so not before
 - [shorter_use_case_answers](shorter_use_case_answers.md) - lever B of the closed `use_cases_cost_per_call`; after the input side (`one_code_reading_for_use_cases_and_rules`) which changes the same prompts
 - [measure_model_split_per_pass](measure_model_split_per_pass.md) - after the pivot: it removes and changes passes, which would make an earlier split measure stale
 - [settle_experimental_settings](settle_experimental_settings.md) - after the measures it needs (`benchmark_passes_on_fixed_inputs`, the rules issues); fewer options before the refactoring
@@ -18,6 +18,7 @@ re-ranks the whole list. Line format: `- [<file stem>](<file stem>.md) - <why he
 - [single_pipeline_path](single_pipeline_path.md) - right after `surface_domains_default_decision`, which it applies
 - [pass_runner_and_run_context](pass_runner_and_run_context.md) - after `single_pipeline_path`: do not refactor code about to be removed
 - [contexts_residual_size_and_names](contexts_residual_size_and_names.md) - low: follow-up of the closed split by family (2026-10-14): one context still over 150 files, action names taken for families, the names unread; nothing before it depends on it, and its spread measure is cheaper after `sampling_temperature_for_steadier_runs`
+- [rules_plumbing_and_screen_noise](rules_plumbing_and_screen_noise.md) - low (user, 2026-10-23): fine tuning of rules that are already usable; each step gained less than the one before, so after `contexts_residual_size_and_names` and well behind the structural work
 - [git_log_follow_renames](git_log_follow_renames.md) - not a priority (user, 2026-10-09): small MCP improvement, do it when nothing more valuable is left
 - [smoke_warnings_business_paths_sources_and_empty_use_cases](smoke_warnings_business_paths_sources_and_empty_use_cases.md) - priority low; remeasure after the big changes
 - [rerun_rewrites_files_with_a_timestamp](rerun_rewrites_files_with_a_timestamp.md) - priority low (user, 2026-10-16): the rerun of the same smoke writes 3 files for a `generated_at` stamp; cosmetic for the smoke criterion
