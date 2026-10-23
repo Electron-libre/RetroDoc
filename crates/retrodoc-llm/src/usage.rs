@@ -329,6 +329,7 @@ mod tests {
                 content: "ok".to_string(),
                 model: self.model.to_string(),
                 usage: self.usage,
+                truncated: false,
             })
         }
     }

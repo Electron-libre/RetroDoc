@@ -27,6 +27,8 @@ pub(crate) struct FakeLlm {
     hang_from: Option<usize>,
     /// A call is waiting for an answer that never comes.
     hanging: std::sync::atomic::AtomicBool,
+    /// A user prompt longer than this gets a half answer flagged as cut by the completion limit.
+    truncate_over: Option<usize>,
 }
 
 impl FakeLlm {
@@ -57,6 +59,7 @@ impl FakeLlm {
             most_in_flight: AtomicUsize::new(0),
             hang_from: None,
             hanging: std::sync::atomic::AtomicBool::new(false),
+            truncate_over: None,
         }
     }
 
@@ -74,6 +77,13 @@ impl FakeLlm {
     /// Makes each call wait, so that calls asked together are in flight together.
     pub fn with_delay(mut self, delay: std::time::Duration) -> Self {
         self.delay = Some(delay);
+        self
+    }
+
+    /// Cuts the answer, as a server at its completion limit does, of each call whose user prompt
+    /// is longer than `chars`.
+    pub fn truncating_prompts_over(mut self, chars: usize) -> Self {
+        self.truncate_over = Some(chars);
         self
     }
 
@@ -165,10 +175,17 @@ impl LlmProvider for FakeLlm {
             .lock()
             .unwrap()
             .push(request.json_schema.as_ref().map(|s| s.schema.clone()));
-        let content = (self.reply)(n, &request)?;
+        let mut content = (self.reply)(n, &request)?;
+        let truncated = self
+            .truncate_over
+            .is_some_and(|over| prompt(1).len() > over);
+        if truncated {
+            content.truncate(content.len() / 2);
+        }
         Ok(CompletionResponse {
             content,
             model: self.model.clone(),
+            truncated,
             ..Default::default()
         })
     }

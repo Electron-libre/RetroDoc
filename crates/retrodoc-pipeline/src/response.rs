@@ -6,7 +6,9 @@
 //! accept the first JSON value found and the last of a repeated field, and
 //! [`complete_json`] retries once before giving up.
 
-use retrodoc_llm::{ChatMessage, CompletionRequest, LlmProvider, ResponseSchema, Role};
+use retrodoc_llm::{
+    ChatMessage, CompletionRequest, CompletionResponse, LlmProvider, ResponseSchema, Role,
+};
 use schemars::{generate::SchemaSettings, JsonSchema};
 use serde::de::DeserializeOwned;
 
@@ -76,6 +78,17 @@ async fn complete_with_schema(
     user_prompt: &str,
     json_schema: Option<&ResponseSchema>,
 ) -> Result<String, PipelineError> {
+    Ok(complete_raw(llm, system_prompt, user_prompt, json_schema)
+        .await?
+        .content)
+}
+
+async fn complete_raw(
+    llm: &dyn LlmProvider,
+    system_prompt: &str,
+    user_prompt: &str,
+    json_schema: Option<&ResponseSchema>,
+) -> Result<CompletionResponse, PipelineError> {
     let response = llm
         .complete(CompletionRequest {
             messages: vec![
@@ -92,7 +105,7 @@ async fn complete_with_schema(
             json_schema: json_schema.cloned(),
         })
         .await?;
-    Ok(response.content)
+    Ok(response)
 }
 
 /// The schema of the answer type `T`, in the shape strict structured outputs
@@ -168,18 +181,61 @@ pub(crate) async fn complete_json<T: DeserializeOwned + JsonSchema>(
     user_prompt: &str,
     what: &str,
 ) -> Result<Option<T>, PipelineError> {
+    Ok(
+        match complete_json_or_cut(llm, system_prompt, user_prompt, what, false).await? {
+            Answer::Read(parsed) => Some(parsed),
+            Answer::Cut | Answer::Unreadable => None,
+        },
+    )
+}
+
+/// What [`complete_json_or_cut`] got.
+pub(crate) enum Answer<T> {
+    Read(T),
+    /// The server cut the answer at its completion limit: asking the same question again would
+    /// be cut at the same place, so there was no second attempt.
+    Cut,
+    /// Unparseable on both attempts.
+    Unreadable,
+}
+
+/// Like [`complete_json`], but with `stop_on_cut` an answer the server cut at its completion
+/// limit is reported as such at once instead of being asked again, so that the caller can ask a
+/// smaller question.
+///
+/// # Errors
+///
+/// Returns an error only if the LLM call itself fails.
+pub(crate) async fn complete_json_or_cut<T: DeserializeOwned + JsonSchema>(
+    llm: &dyn LlmProvider,
+    system_prompt: &str,
+    user_prompt: &str,
+    what: &str,
+    stop_on_cut: bool,
+) -> Result<Answer<T>, PipelineError> {
     const ATTEMPTS: u32 = 2;
     let schema = response_schema::<T>();
     for attempt in 1..=ATTEMPTS {
-        let response = complete_with_schema(llm, system_prompt, user_prompt, Some(&schema)).await?;
-        match parse_json_response(&response) {
+        let response = complete_raw(llm, system_prompt, user_prompt, Some(&schema)).await?;
+        let (content, truncated) = (response.content, response.truncated);
+        match parse_json_response(&content) {
+            // The parse is lenient: a cut answer can still read as a shorter list of rules.
+            Ok(_) if stop_on_cut && truncated => {
+                tracing::warn!(
+                    what,
+                    answer_chars = content.chars().count(),
+                    "LLM answer cut by the completion limit"
+                );
+                llm.note_unparseable_answer(true);
+                return Ok(Answer::Cut);
+            }
             Ok(parsed) => {
                 tracing::debug!(
                     what,
-                    answer_chars = response.chars().count(),
+                    answer_chars = content.chars().count(),
                     "LLM answer read"
                 );
-                return Ok(Some(parsed));
+                return Ok(Answer::Read(parsed));
             }
             Err(err) => {
                 // The error's Display embeds the whole raw answer: keep the
@@ -188,20 +244,30 @@ pub(crate) async fn complete_json<T: DeserializeOwned + JsonSchema>(
                     PipelineError::ResponseParse { source, .. } => source.to_string(),
                     other => other.to_string(),
                 };
-                llm.note_unparseable_answer(attempt == ATTEMPTS);
-                tracing::debug!(what, raw = %response, "unparseable LLM response (raw)");
+                let cut = stop_on_cut && truncated;
+                llm.note_unparseable_answer(cut || attempt == ATTEMPTS);
+                tracing::debug!(what, raw = %content, "unparseable LLM response (raw)");
                 tracing::warn!(
                     what,
                     attempt,
                     error = %reason,
-                    answer_chars = response.chars().count(),
+                    answer_chars = content.chars().count(),
                     "unparseable LLM response{}",
-                    if attempt < ATTEMPTS { ", retrying" } else { ", skipped" }
+                    if cut {
+                        ", cut by the completion limit"
+                    } else if attempt < ATTEMPTS {
+                        ", retrying"
+                    } else {
+                        ", skipped"
+                    }
                 );
+                if cut {
+                    return Ok(Answer::Cut);
+                }
             }
         }
     }
-    Ok(None)
+    Ok(Answer::Unreadable)
 }
 
 #[cfg(test)]

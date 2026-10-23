@@ -1,9 +1,10 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use retrodoc_core::model::{Feature, RuleEvidence, RuleKind, UseCase};
+use retrodoc_core::model::{ConfidenceScore, Feature, RuleEvidence, RuleKind, UseCase};
 use retrodoc_ingest::signals::{Signal, SignalKind};
 
+use super::grounding::RawRules;
 use super::*;
 use crate::brief::Evidence;
 use crate::entry_points::{EntryFile, EntryKind, EntryPoint, EntryPoints};
@@ -701,4 +702,127 @@ fn a_slip_in_the_lines_of_a_numbered_file_costs_the_lines_not_the_file() {
             (Some("lib/a.rb:x"), None)
         ]
     );
+}
+
+const EXTRA: &str = "def helper\n  return :refused if retries > 3\nend\n";
+
+/// A feature that reads two files, each with an entry point.
+fn two_file_context() -> UseCaseContext {
+    let mut context = context();
+    let entry = |name: &str| EntryPoint {
+        kind: EntryKind::Job,
+        name: name.into(),
+        verb: "run".into(),
+        resource: "job".into(),
+        description: name.into(),
+        outputs: Vec::new(),
+    };
+    context.entry_points.files.insert(
+        PathBuf::from("lib/extra.rb"),
+        EntryFile {
+            content_hash: String::new(),
+            entry_points: vec![entry("helper")],
+        },
+    );
+    context.index = CodeIndex::new(["lib/router.rb", "lib/extra.rb"].map(Path::new));
+    context
+}
+
+fn extra_rule(path_ref: &str) -> String {
+    format!(
+        r#"{{"statement":"A delivery is abandoned after three retries.","kind":"limit","code":["{path_ref}:2-2"]}}"#
+    )
+}
+
+/// Answers each prompt with the rule of the file it shows, and cuts the prompts that show both.
+fn answering_per_file() -> FakeLlm {
+    FakeLlm::replying(|_, request| {
+        let prompt = &request.messages[1].content;
+        let mut rules = Vec::new();
+        if prompt.contains("=== [F1] lib/router.rb") || prompt.contains("=== [F2] lib/router.rb") {
+            rules.push(LIMIT_COMPACT.to_string());
+        }
+        if prompt.contains("lib/extra.rb ===") {
+            let number = if prompt.contains("=== [F1] lib/extra.rb") {
+                "F1"
+            } else {
+                "F2"
+            };
+            rules.push(extra_rule(number));
+        }
+        Ok(answer(&rules.join(",")))
+    })
+    .truncating_prompts_over(0)
+}
+
+const LIMIT_COMPACT: &str = r#"{"statement":"An order that would take an hour or more to deliver is refused.","kind":"limit","code":["F1:2-2"]}"#;
+
+#[tokio::test]
+async fn an_answer_cut_by_the_completion_limit_is_asked_again_on_halves_of_the_files_and_merged() {
+    let dir = two_features_repo();
+    std::fs::write(dir.path().join("lib/extra.rb"), EXTRA).unwrap();
+    let context = two_file_context();
+    // Only the prompt with both files is cut: the halves are shorter.
+    let probe_dir = two_features_repo();
+    std::fs::write(probe_dir.path().join("lib/extra.rb"), EXTRA).unwrap();
+    let probe = FakeLlm::answering(answer(""));
+    build_rules(probe_dir.path(), &[wide()], &[use_case()], &context, &probe)
+        .await
+        .unwrap();
+    let both = probe.prompts().iter().map(String::len).max().unwrap();
+    assert!(
+        probe.prompts()[1].contains("lib/extra.rb"),
+        "{:?}",
+        probe.prompts()
+    );
+
+    let llm = answering_per_file().truncating_prompts_over(both - 1);
+    let rules = build_rules(dir.path(), &[wide()], &[use_case()], &context, &llm)
+        .await
+        .unwrap();
+
+    // 1 kind question, the cut call, the two halves, then the judgement of the merged rules.
+    assert_eq!(llm.calls(), 5, "{:?}", llm.prompts());
+    let slugs: Vec<&str> = rules.iter().map(|r| r.slug.as_str()).collect();
+    assert_eq!(slugs, ["wide-1", "wide-2"]);
+    // The files go in the order of the prompt (`extra` before `router`), the first half first.
+    assert!(rules[0].statement.starts_with("A delivery"), "{rules:?}");
+    assert!(rules[1].statement.starts_with("An order"), "{rules:?}");
+}
+
+#[tokio::test]
+async fn a_single_file_that_is_still_cut_leaves_the_feature_to_the_next_run() {
+    let dir = repo();
+    let llm = FakeLlm::answering(answer(COMPACT)).truncating_prompts_over(0);
+    let rules = run(dir.path(), &llm).await;
+    assert_eq!(rules.len(), 0);
+    // Not remembered as "no rules": the next run asks again.
+    let again = FakeLlm::answering(answer(COMPACT));
+    assert_eq!(run(dir.path(), &again).await.len(), 1);
+}
+
+#[test]
+fn a_statement_two_parts_make_is_kept_once_with_the_better_backed_copy_and_the_rules_renumbered() {
+    let rule = |slug: &str, statement: &str, confidence: f32| BusinessRule {
+        slug: slug.into(),
+        statement: statement.into(),
+        kind: RuleKind::Limit,
+        entities: Vec::new(),
+        use_cases: Vec::new(),
+        evidence: Vec::new(),
+        confidence: Some(ConfidenceScore::new(confidence, None)),
+    };
+    let merged = split::merged(
+        vec![
+            rule("f-1", "A retry limit applies.", 0.4),
+            rule("f-2", "Orders are refused.", 0.4),
+            rule("f-1", "a retry  limit applies.", 0.7),
+        ],
+        "f",
+    );
+    let seen: Vec<(&str, f32)> = merged
+        .iter()
+        .map(|r| (r.slug.as_str(), r.confidence.as_ref().unwrap().value))
+        .collect();
+    assert_eq!(seen, [("f-1", 0.7), ("f-2", 0.4)]);
 }

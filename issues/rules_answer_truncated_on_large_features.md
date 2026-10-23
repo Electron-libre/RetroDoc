@@ -44,10 +44,12 @@ the rules of its largest features, and the rerun must stay a no-op.
 2. [x] Shorter answer per rule (b): the model cites code as `"F1:10-24"` (files numbered in the prompt) and no
    longer writes `entities` (derived from the statement); `use_cases` and the test phrase stay in the answer.
    The real gain in characters and the quality of the citations are only measured at step 4.
-3. [ ] Split a large feature into several calls (a), by group of files the feature already holds, merged in a
-   stable order (slugs `<feature-slug>-<n>`, dedup after the merge); fall back to two halves when an answer
-   ends with `finish_reason=length` (the provider must report the truncation). Reduced to the fallback alone
-   if the measure shows no feature near the cap after (b).
+3. [x] Split a large feature into several calls (a): only the fallback was done. A cut answer
+   (`CompletionResponse::truncated`, from `finish_reason=length`) is asked again on two halves of the files
+   shown, recursively down to one file, merged in a stable order (slugs `<feature-slug>-<n>`); a part that
+   can't be read leaves the feature to the next run. No upstream split: nothing predicts the size of an
+   answer before the call. Known limits: no cap on the number of calls, and a single file always cut loses
+   the other halves until the next run.
 4. [ ] Smoke test on linkding with DeepSeek: no feature lost, no truncation warning, second run with no LLM
    call. Ask before launching (paid external API).
 
@@ -58,6 +60,7 @@ the rules of its largest features, and the rerun must stay a no-op.
 * After the measure: go for (b)+(a); log the raw rules and the characters per answer in step 2.
 * Step 2 changes the statement prompt, which is now part of the feature fingerprint: saved features are asked
   again once.
+* Step 3: fallback on `finish_reason=length` only, no upstream split (no predictor of the answer size).
 * Candidates (c) (cap on the number of rules) and (d) (raise the cap) are dropped.
 
 ## Measure (step 1, `examples/rules_answer_size_measure.rs`)

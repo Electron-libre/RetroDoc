@@ -8,9 +8,11 @@
 //! exists, tests and documents are cited by the ids of the prompt, and the confidence follows from
 //! what backs the rule (code alone 0.4, with a test or a document 0.7, with both 0.85).
 //!
-//! One call per feature. Incremental: a feature whose text, code, evidence, use cases and model are
-//! unchanged keeps its saved rules without a call; an answer that can't be parsed is retried on the
-//! next run.
+//! One statement call per feature, asked again on two halves of its files (recursively, down to one
+//! file) when the server cuts the answer at its completion limit (`split.rs`).
+//!
+//! Incremental: a feature whose text, code, evidence, use cases and model are unchanged keeps its
+//! saved rules without a call; an answer that can't be parsed is retried on the next run.
 
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -20,6 +22,7 @@ use retrodoc_core::model::{BusinessRule, Feature, UseCase};
 use retrodoc_llm::LlmProvider;
 
 use crate::artifact::{load_yaml, save_yaml, warn_on_error, Artifact};
+use crate::brief::ProductBrief;
 use crate::cache::hash_content;
 use crate::chunks::Splitter;
 use crate::error::PipelineError;
@@ -35,18 +38,19 @@ mod grounding;
 mod input;
 mod judge;
 mod prompt;
+mod split;
 #[cfg(test)]
 mod tests;
 
 pub use self::aside::{AsideFeature, AsideRule, SetAside};
 use self::dedup::{merge_duplicates, Reach};
-use self::grounding::{grounded_rules, RawRules};
 pub use self::input::RuleInput;
 use self::judge::{
     feature_prompt, judge_prompt, keep_judged, RawFeatureKind, RawVerdict, FEATURE_SYSTEM_PROMPT,
     JUDGE_SYSTEM_PROMPT,
 };
 use self::prompt::{rules_prompt, RULES_SYSTEM_PROMPT};
+use self::split::stated_rules;
 
 /// Loads a previously saved `rules.yaml`. Missing or unreadable: `None` (first run), not an error.
 #[must_use]
@@ -126,15 +130,10 @@ pub async fn build_rules(
 
     let reach = reach_of(&items);
 
+    let (brief, splitter) = (&context.brief, &splitter);
     let mut answers = stream::iter(items)
         .map(|item| async move {
-            let answer = match &item.plan {
-                Plan::Ask {
-                    prompt,
-                    cited_files,
-                } => Some(ask_rules(repo_root, llm, &item, prompt, cited_files).await),
-                Plan::Reuse | Plan::Unreadable => None,
-            };
+            let answer = answer_for(repo_root, llm, &item, brief, splitter).await;
             (item, answer)
         })
         .buffered(context.concurrency.max(1));
@@ -212,6 +211,23 @@ pub async fn build_rules(
     Ok(published)
 }
 
+/// The answer for `item`, when its plan is to ask.
+async fn answer_for(
+    repo_root: &Path,
+    llm: &dyn LlmProvider,
+    item: &Item<'_>,
+    brief: &ProductBrief,
+    splitter: &Splitter,
+) -> Option<Result<Option<Asked>, PipelineError>> {
+    match &item.plan {
+        Plan::Ask {
+            prompt,
+            cited_files,
+        } => Some(ask_rules(repo_root, llm, item, prompt, cited_files, brief, splitter).await),
+        Plan::Reuse | Plan::Unreadable => None,
+    }
+}
+
 /// The rules of one feature: a question on whether it is about tests (then it has no rules), the
 /// statement call, the checks of its answer, then the judgement of what a business reader would ask
 /// about. `Ok(None)` when the statement answer can't be parsed; an unparseable verdict keeps the
@@ -222,6 +238,8 @@ async fn ask_rules(
     item: &Item<'_>,
     prompt: &str,
     cited_files: &[String],
+    brief: &ProductBrief,
+    splitter: &Splitter,
 ) -> Result<Option<Asked>, PipelineError> {
     let feature = item.feature;
     if let Some(kind) = complete_json::<RawFeatureKind>(
@@ -250,26 +268,11 @@ async fn ask_rules(
             }));
         }
     }
-    let Some(raw) = complete_json::<RawRules>(
-        llm,
-        RULES_SYSTEM_PROMPT,
-        prompt,
-        &format!("rules of {}", feature.slug),
-    )
-    .await?
+    let Some(rules) =
+        stated_rules(repo_root, llm, item, prompt, cited_files, brief, splitter).await?
     else {
         return Ok(None);
     };
-    let stated = raw.rules.len();
-    let rules = grounded_rules(
-        raw,
-        repo_root,
-        feature,
-        &item.input,
-        cited_files,
-        &item.use_cases,
-    );
-    tracing::info!(feature = %feature.slug, stated, grounded = rules.len(), "rules answer read");
     if rules.is_empty() {
         return Ok(Some(Asked::of(rules)));
     }

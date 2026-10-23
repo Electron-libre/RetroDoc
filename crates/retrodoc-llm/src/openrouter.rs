@@ -357,7 +357,8 @@ async fn decode_success(
         .into_iter()
         .next()
         .ok_or_else(|| LlmError::InvalidResponse("no choice in the response".to_string()))?;
-    if choice.finish_reason.as_deref() == Some("length") {
+    let truncated = choice.finish_reason.as_deref() == Some("length");
+    if truncated {
         // Cut off by the token limit: either our `max_tokens` cap or, on a
         // local server, its context window (Ollama defaults to 4096 tokens,
         // prompt included). The JSON the passes expect will then be
@@ -377,6 +378,7 @@ async fn decode_success(
         content: choice.message.content,
         model,
         usage: usage::parse(parsed.usage),
+        truncated,
     })
 }
 
@@ -746,6 +748,20 @@ mod tests {
         }
         .with_endpoint(format!("http://{addr}"));
         provider.complete(request()).await.unwrap()
+    }
+
+    #[tokio::test]
+    async fn an_answer_cut_by_the_completion_limit_is_flagged_and_a_complete_one_is_not() {
+        let cut = complete_with_payload(
+            r#"{"model":"m","choices":[{"finish_reason":"length","message":{"role":"assistant","content":"{\"rules\":[{"}}]}"#,
+        )
+        .await;
+        assert!(cut.truncated);
+        let whole = complete_with_payload(
+            r#"{"model":"m","choices":[{"finish_reason":"stop","message":{"role":"assistant","content":"ok"}}]}"#,
+        )
+        .await;
+        assert!(!whole.truncated);
     }
 
     #[tokio::test]

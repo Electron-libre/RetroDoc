@@ -104,6 +104,7 @@ mod tests {
                     .to_string(),
                 model: "test".to_string(),
                 usage: None,
+                truncated: false,
             })
         }
     }

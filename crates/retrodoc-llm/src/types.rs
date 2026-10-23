@@ -54,6 +54,9 @@ pub struct CompletionResponse {
     /// Tokens the server billed for this call, when it says so. `None` when
     /// the server sends no (or an incomplete) `usage` block: never estimated.
     pub usage: Option<Usage>,
+    /// The server cut the answer at its completion limit (`finish_reason=length`): `content` is
+    /// incomplete, and asking the same question again would be cut at the same place.
+    pub truncated: bool,
 }
 
 #[derive(Debug, thiserror::Error)]
