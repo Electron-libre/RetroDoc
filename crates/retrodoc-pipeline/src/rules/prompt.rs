@@ -1,7 +1,6 @@
 //! The prompt of the rules of one feature: its entities, its use cases, the evidence with a short id
 //! each (so a rule cites `T1` or `D2`, never a path it could invent) and the numbered code.
 
-use std::collections::BTreeSet;
 use std::fmt::Write as _;
 use std::path::Path;
 
@@ -21,14 +20,15 @@ Write each rule as one sentence in the application's own vocabulary, without cla
 file names. Leave out technical constraints without business meaning (field lengths, required \
 fields, null handling, framework errors) and anything the code does not show. A rule may be a \
 refusal returned as a value as well as a raised error, or a constant that a check uses. Cite the \
-code it comes from with the path and the line range of the numbered excerpts. When a test \
+code it comes from with the number of the file shown before its excerpt and the line range of the \
+numbered lines, as \"F2:10-24\". When a test \
 description or a documentation extract of the prompt states the same rule, cite it by its id and \
 copy the words of the test that state it. An empty list is a valid answer. Reply with ONLY a single \
 JSON object, no prose and no Markdown code fence, matching this shape: {\"rules\":[{\"statement\":\
-\"...\",\"kind\":\"validation|permission|state_transition|limit|computation\",\"entities\":[\"...\"],\
-\"use_cases\":[\"use-case-slug\"],\"code\":[{\"path\":\"...\",\"start_line\":1,\"end_line\":10}],\
-\"tests\":[{\"id\":\"T1\",\"phrase\":\"...\"}],\"docs\":[\"D1\"]}]}. `entities` and `use_cases` \
-are copied from the lists of the prompt and may be empty.";
+\"...\",\"kind\":\"validation|permission|state_transition|limit|computation\",\
+\"use_cases\":[\"use-case-slug\"],\"code\":[\"F1:10-24\"],\
+\"tests\":[{\"id\":\"T1\",\"phrase\":\"...\"}],\"docs\":[\"D1\"]}]}. `use_cases` is copied \
+from the list of the prompt and may be empty.";
 
 /// Id of the `n`th (from 0) test extract or documentation extract.
 pub(super) fn evidence_id(kind: ExtractKind, n: usize) -> String {
@@ -39,8 +39,8 @@ pub(super) fn evidence_id(kind: ExtractKind, n: usize) -> String {
     format!("{letter}{}", n + 1)
 }
 
-/// The prompt for `feature`, with the set of files whose code it shows (the only ones a rule can
-/// cite).
+/// The prompt for `feature`, with the files whose code it shows, in the order of their numbers
+/// (`F1`, …): the only ones a rule can cite.
 pub(super) fn rules_prompt(
     repo_root: &Path,
     feature: &Feature,
@@ -48,7 +48,7 @@ pub(super) fn rules_prompt(
     use_cases: &[&UseCase],
     brief: &ProductBrief,
     splitter: &Splitter,
-) -> (String, BTreeSet<String>) {
+) -> (String, Vec<String>) {
     let mut prompt = format!(
         "{}Feature: {} — {}\n",
         brief.prompt_head(),
@@ -84,7 +84,7 @@ pub(super) fn rules_prompt(
     }
     prompt.push_str("\nSource files:\n");
     let focus = focus_for(feature, &input.entries);
-    let mut included = BTreeSet::new();
+    let mut included: Vec<String> = Vec::new();
     let mut budget = MAX_CHARS_PER_PROMPT;
     for path in &input.files {
         if budget == 0 {
@@ -101,8 +101,12 @@ pub(super) fn rules_prompt(
             &focus,
         );
         budget = budget.saturating_sub(excerpt.len());
-        let _ = write!(prompt, "\n=== {path} ===\n{excerpt}\n");
-        included.insert(path.clone());
+        included.push(path.clone());
+        let _ = write!(
+            prompt,
+            "\n=== [F{}] {path} ===\n{excerpt}\n",
+            included.len()
+        );
     }
     (prompt, included)
 }

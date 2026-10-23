@@ -149,6 +149,55 @@ async fn the_prompt_numbers_the_code_and_gives_an_id_to_each_evidence() {
     );
 }
 
+const COMPACT: &str = r#"{"statement":"An order that would take an hour or more to deliver is refused.","kind":"limit","use_cases":["place-an-order"],"code":["F1:2-2"],"tests":[{"id":"T1","phrase":"refuses an order that takes 60 minutes"}],"docs":["D1"]}"#;
+
+#[tokio::test]
+async fn a_compact_answer_cites_a_file_by_its_number_and_the_entities_come_from_the_statement() {
+    let dir = repo();
+    let llm = FakeLlm::answering(answer(COMPACT));
+
+    let rules = run(dir.path(), &llm).await;
+
+    assert_eq!(rules.len(), 1);
+    let rule = &rules[0];
+    assert_eq!(rule.entities, ["Order"]);
+    assert_eq!(rule.use_cases, ["place-an-order"]);
+    assert!(matches!(
+        &rule.evidence[0],
+        RuleEvidence::Code { source }
+            if source.path == "lib/router.rb"
+                && source.start_line == Some(2)
+                && source.end_line == Some(2)
+    ));
+    assert_eq!(rule.evidence.len(), 3);
+    let prompt = &llm.prompts()[1];
+    assert!(prompt.contains("=== [F1] lib/router.rb ==="), "{prompt}");
+}
+
+#[test]
+fn a_citation_is_read_as_a_number_with_lines_a_path_with_lines_or_the_old_object() {
+    let raw: RawRules = serde_json::from_str(
+        r#"{"rules":[{"statement":"s","kind":"limit","code":["F2:10-24","F1:7","F3","lib/a.rb:3-4",
+        {"path":"lib/b.rb","start_line":1,"end_line":2},5]}]}"#,
+    )
+    .unwrap();
+    let cited: Vec<_> = raw.rules[0]
+        .code
+        .iter()
+        .map(|c| (c.path.as_deref(), c.start_line, c.end_line))
+        .collect();
+    assert_eq!(
+        cited,
+        [
+            (Some("F2"), Some(10), Some(24)),
+            (Some("F1"), Some(7), None),
+            (Some("F3"), None, None),
+            (Some("lib/a.rb"), Some(3), Some(4)),
+            (Some("lib/b.rb"), Some(1), Some(2)),
+        ]
+    );
+}
+
 #[tokio::test]
 async fn code_alone_is_a_hypothesis() {
     let dir = repo();
@@ -301,7 +350,6 @@ async fn a_repeated_statement_is_kept_once_with_the_copy_that_has_valid_code() {
 fn a_hosted_model_s_odd_shapes_cost_the_element_not_the_answer() {
     let raw: grounding::RawRules = serde_json::from_str(
         r#"{"rules":[{"statement":"s","kind":"limit",
-            "entities":[{"name":"Order"},"Rider",3],
             "use_cases":{"slug":"place-an-order"},
             "code":[{"path":"lib/router.rb"}],
             "tests":["T2",{"id":"T1","phrase":"refuses an order"},7],
@@ -309,7 +357,6 @@ fn a_hosted_model_s_odd_shapes_cost_the_element_not_the_answer() {
     )
     .unwrap();
     let r = &raw.rules[0];
-    assert_eq!(r.entities, ["Order", "Rider"]);
     assert_eq!(r.use_cases, ["place-an-order"]);
     assert_eq!(r.docs, ["D1", "D2"]);
     let tests: Vec<(&str, &str)> = r
@@ -613,4 +660,45 @@ async fn a_run_saved_before_the_set_aside_file_is_asked_again_once() {
 
     assert_eq!(again.calls(), 1);
     assert_eq!(load_set_aside(dir.path()).unwrap().features.len(), 1);
+}
+
+#[test]
+fn the_entities_of_a_rule_are_the_ones_its_statement_speaks_of_as_whole_words() {
+    let allowed = ["Order", "Rider", "Delivery Slot", "Rid"];
+    assert_eq!(
+        grounding::mentioned(
+            "Orders are refused, and a delivery slot is freed.",
+            &allowed
+        ),
+        ["Order", "Delivery Slot"]
+    );
+    assert_eq!(
+        grounding::mentioned(
+            "Addresses and categories are checked.",
+            &["Address", "Category"]
+        ),
+        ["Address", "Category"]
+    );
+    let none = grounding::mentioned("Preorders wait for a ride.", &allowed);
+    assert_eq!(none.len(), 0, "{none:?}");
+}
+
+#[test]
+fn a_slip_in_the_lines_of_a_numbered_file_costs_the_lines_not_the_file() {
+    let raw: RawRules =
+        serde_json::from_str(r#"{"rules":[{"code":["F2:L10-24","F2:10\u201324","lib/a.rb:x"]}]}"#)
+            .unwrap();
+    let cited: Vec<_> = raw.rules[0]
+        .code
+        .iter()
+        .map(|c| (c.path.as_deref(), c.start_line))
+        .collect();
+    assert_eq!(
+        cited,
+        [
+            (Some("F2"), None),
+            (Some("F2"), None),
+            (Some("lib/a.rb:x"), None)
+        ]
+    );
 }

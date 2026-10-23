@@ -1,7 +1,7 @@
 //! What the LLM said about the rules of a feature, checked: a rule is kept only with a citation of
-//! code that exists (a file shown to the LLM, lines inside it); the tests and documentation it
-//! cites are ids of the prompt, a quoted test phrase must be in the extract; entities and use
-//! cases are those of the lists; confidence follows from what backs the rule.
+//! code that exists (a file shown to the LLM, by its number or its path, lines inside it); the tests
+//! and documentation it cites are ids of the prompt, a quoted test phrase must be in the extract;
+//! use cases are those of the list and entities the ones the statement names; confidence follows from what backs the rule.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -31,11 +31,10 @@ pub(super) struct RawRule {
     pub(super) kind: String,
     #[serde(default, deserialize_with = "lenient_names")]
     #[schemars(with = "Vec<String>")]
-    pub(super) entities: Vec<String>,
-    #[serde(default, deserialize_with = "lenient_names")]
-    #[schemars(with = "Vec<String>")]
     pub(super) use_cases: Vec<String>,
-    #[serde(default)]
+    /// `"F2:10-24"`: the number of a file of the prompt and a line range.
+    #[serde(default, deserialize_with = "lenient_code")]
+    #[schemars(with = "Vec<String>")]
     pub(super) code: Vec<RawCode>,
     #[serde(default, deserialize_with = "lenient_tests")]
     #[schemars(with = "Vec<RawTest>")]
@@ -102,11 +101,70 @@ where
         .collect())
 }
 
-#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Deserialize)]
 pub(super) struct RawCode {
+    /// A file number of the prompt (`F2`) or a path.
     pub(super) path: Option<String>,
     pub(super) start_line: Option<u32>,
     pub(super) end_line: Option<u32>,
+}
+
+/// The cited code: `"F2:10-24"`, `"F2:7"`, `"F2"` or `"lib/a.rb:3-4"` strings, or the `{"path",
+/// "start_line", "end_line"}` objects an older answer (or a model that ignores the shape) gives;
+/// anything else is skipped.
+fn lenient_code<'de, D>(deserializer: D) -> Result<Vec<RawCode>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = Option::<serde_json::Value>::deserialize(deserializer)?;
+    let items = match value {
+        Some(serde_json::Value::Array(items)) => items,
+        Some(single @ (serde_json::Value::String(_) | serde_json::Value::Object(_))) => {
+            vec![single]
+        }
+        _ => Vec::new(),
+    };
+    Ok(items.iter().filter_map(raw_code_of).collect())
+}
+
+fn raw_code_of(value: &serde_json::Value) -> Option<RawCode> {
+    match value {
+        serde_json::Value::String(text) => Some(parse_citation(text)),
+        serde_json::Value::Object(_) => serde_json::from_value(value.clone()).ok(),
+        _ => None,
+    }
+}
+
+/// `file:start-end`, `file:line` or `file`; a suffix after the last `:` that is not lines belongs
+/// to the file.
+fn parse_citation(text: &str) -> RawCode {
+    let text = text.trim();
+    if let Some((file, lines)) = text.rsplit_once(':') {
+        let (start, end) = lines.split_once('-').unwrap_or((lines, ""));
+        let start = start.trim().parse::<u32>().ok();
+        let end = end.trim().parse::<u32>().ok();
+        if start.is_some() && (end.is_some() || !lines.contains('-')) {
+            return RawCode {
+                path: Some(file.trim().to_string()),
+                start_line: start,
+                end_line: end,
+            };
+        }
+    }
+    // A slip in the range (`F2:L10-24`) costs the lines, not the file, when the file is a number.
+    let file = text.split_once(':').map_or(text, |(file, _)| file);
+    RawCode {
+        path: Some(
+            if file_number(file).is_some() {
+                file
+            } else {
+                text
+            }
+            .to_string(),
+        ),
+        start_line: None,
+        end_line: None,
+    }
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -162,13 +220,14 @@ pub(super) fn grounded_rules(
     repo_root: &Path,
     feature: &Feature,
     input: &RuleInput,
-    cited_files: &BTreeSet<String>,
+    cited_files: &[String],
     use_cases: &[&UseCase],
 ) -> Vec<BusinessRule> {
     let mut lines = LineCounts {
         repo_root,
         counts: BTreeMap::new(),
     };
+    let file_set: BTreeSet<String> = cited_files.iter().cloned().collect();
     let entity_names: Vec<&str> = input.entities.iter().map(String::as_str).collect();
     let use_case_slugs: Vec<&str> = use_cases.iter().map(|u| u.slug.as_str()).collect();
     let mut rules: Vec<BusinessRule> = Vec::new();
@@ -186,7 +245,7 @@ pub(super) fn grounded_rules(
         let mut evidence: Vec<RuleEvidence> = r
             .code
             .iter()
-            .filter_map(|c| cited_code(c, cited_files, &mut lines))
+            .filter_map(|c| cited_code(c, cited_files, &file_set, &mut lines))
             .map(|source| RuleEvidence::Code { source })
             .collect();
         if evidence.is_empty() {
@@ -201,9 +260,9 @@ pub(super) fn grounded_rules(
         evidence.extend(docs);
         rules.push(BusinessRule {
             slug: format!("{}-{}", feature.slug, rules.len() + 1),
+            entities: mentioned(&statement, &entity_names),
             statement,
             kind,
-            entities: known(&r.entities, &entity_names),
             use_cases: known(&r.use_cases, &use_case_slugs),
             evidence,
             confidence: Some(confidence),
@@ -216,10 +275,15 @@ pub(super) fn grounded_rules(
 /// stands for the file, one beyond its end is false and dropped.
 fn cited_code(
     cited: &RawCode,
+    numbered: &[String],
     files: &BTreeSet<String>,
     lines: &mut LineCounts<'_>,
 ) -> Option<SourceRef> {
-    let path = resolve_cited_path(cited.path.as_deref()?, files)?;
+    let reference = cited.path.as_deref()?;
+    let path = match file_number(reference).filter(|_| !files.contains(reference.trim())) {
+        Some(number) => numbered.get(number.checked_sub(1)?)?.clone(),
+        None => resolve_cited_path(reference, files)?,
+    };
     let (start, end) = match (cited.start_line, cited.end_line) {
         (Some(s), Some(e)) => (Some(s.min(e)), Some(s.max(e))),
         (Some(l), None) | (None, Some(l)) => (Some(l), Some(l)),
@@ -235,6 +299,18 @@ fn cited_code(
         start_line: start,
         end_line: end,
     })
+}
+
+/// The number of a file as the prompt shows it (`F2`, or `[F2]`), unless it is a path.
+fn file_number(reference: &str) -> Option<usize> {
+    let digits = reference
+        .trim()
+        .trim_matches(|c| c == '[' || c == ']')
+        .strip_prefix(['F', 'f'])?;
+    if digits.is_empty() || !digits.chars().all(|c| c.is_ascii_digit()) {
+        return None;
+    }
+    digits.parse().ok()
 }
 
 /// The extract an id of the prompt designates.
@@ -292,6 +368,40 @@ fn cited_docs(cited: &[String], input: &RuleInput) -> Vec<RuleEvidence> {
         }
     }
     found
+}
+
+/// Whether `word` is `name` or its plural (`s`, `es`, or `ies` for a name ending in `y`).
+fn same_word(word: &str, name: &str) -> bool {
+    word == name
+        || word.strip_suffix('s') == Some(name)
+        || word.strip_suffix("es") == Some(name)
+        || name
+            .strip_suffix('y')
+            .is_some_and(|stem| word.strip_suffix("ies") == Some(stem))
+}
+
+/// The names of `allowed` the statement speaks of, as whole words (case-insensitive, singular or plural), in the order of `allowed`.
+pub(super) fn mentioned(statement: &str, allowed: &[&str]) -> Vec<String> {
+    let words: Vec<String> = statement
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .map(str::to_lowercase)
+        .collect();
+    allowed
+        .iter()
+        .filter(|name| {
+            let name: Vec<String> = name
+                .split(|c: char| !c.is_alphanumeric())
+                .filter(|w| !w.is_empty())
+                .map(str::to_lowercase)
+                .collect();
+            !name.is_empty()
+                && words
+                    .windows(name.len())
+                    .any(|window| window.iter().zip(&name).all(|(w, n)| same_word(w, n)))
+        })
+        .map(|name| (*name).to_string())
+        .collect()
 }
 
 /// The names of `cited` that designate one of `allowed` (case-insensitive), spelled as `allowed`.

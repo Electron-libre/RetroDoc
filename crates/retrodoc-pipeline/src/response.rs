@@ -173,7 +173,14 @@ pub(crate) async fn complete_json<T: DeserializeOwned + JsonSchema>(
     for attempt in 1..=ATTEMPTS {
         let response = complete_with_schema(llm, system_prompt, user_prompt, Some(&schema)).await?;
         match parse_json_response(&response) {
-            Ok(parsed) => return Ok(Some(parsed)),
+            Ok(parsed) => {
+                tracing::debug!(
+                    what,
+                    answer_chars = response.chars().count(),
+                    "LLM answer read"
+                );
+                return Ok(Some(parsed));
+            }
             Err(err) => {
                 // The error's Display embeds the whole raw answer: keep the
                 // warning short and leave the raw text to the debug level.

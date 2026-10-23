@@ -41,8 +41,9 @@ the rules of its largest features, and the rerun must stay a no-op.
 1. [x] Measure, without an LLM call, the rules and the answer length per feature on the saved runs
    (`rules-ld-*`, `rules-dr-*`, `rules-contrat-*`); the figures are in `## Measure` below. They are a lower
    bound and do not decide: go for (b)+(a).
-2. [ ] Shorter answer per rule (b): the model gives the statement, the kind and the cited lines; the program
-   derives `entities`, `use_cases` and the test phrase.
+2. [x] Shorter answer per rule (b): the model cites code as `"F1:10-24"` (files numbered in the prompt) and no
+   longer writes `entities` (derived from the statement); `use_cases` and the test phrase stay in the answer.
+   The real gain in characters and the quality of the citations are only measured at step 4.
 3. [ ] Split a large feature into several calls (a), by group of files the feature already holds, merged in a
    stable order (slugs `<feature-slug>-<n>`, dedup after the merge); fall back to two halves when an answer
    ends with `finish_reason=length` (the provider must report the truncation). Reduced to the fallback alone
@@ -55,6 +56,8 @@ the rules of its largest features, and the rerun must stay a no-op.
 * Split upstream on the expected answer size, with a `finish_reason=length` fallback as a safety net.
 * The final smoke test uses DeepSeek, not the local model.
 * After the measure: go for (b)+(a); log the raw rules and the characters per answer in step 2.
+* Step 2 changes the statement prompt, which is now part of the feature fingerprint: saved features are asked
+  again once.
 * Candidates (c) (cap on the number of rules) and (d) (raise the cap) are dropped.
 
 ## Measure (step 1, `examples/rules_answer_size_measure.rs`)

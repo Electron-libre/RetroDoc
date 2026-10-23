@@ -12,7 +12,7 @@
 //! unchanged keeps its saved rules without a call; an answer that can't be parsed is retried on the
 //! next run.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use futures_util::stream::{self, StreamExt};
@@ -221,7 +221,7 @@ async fn ask_rules(
     llm: &dyn LlmProvider,
     item: &Item<'_>,
     prompt: &str,
-    cited_files: &BTreeSet<String>,
+    cited_files: &[String],
 ) -> Result<Option<Asked>, PipelineError> {
     let feature = item.feature;
     if let Some(kind) = complete_json::<RawFeatureKind>(
@@ -260,6 +260,7 @@ async fn ask_rules(
     else {
         return Ok(None);
     };
+    let stated = raw.rules.len();
     let rules = grounded_rules(
         raw,
         repo_root,
@@ -268,6 +269,7 @@ async fn ask_rules(
         cited_files,
         &item.use_cases,
     );
+    tracing::info!(feature = %feature.slug, stated, grounded = rules.len(), "rules answer read");
     if rules.is_empty() {
         return Ok(Some(Asked::of(rules)));
     }
@@ -407,7 +409,7 @@ enum Plan {
     Unreadable,
     Ask {
         prompt: String,
-        cited_files: BTreeSet<String>,
+        cited_files: Vec<String>,
     },
 }
 
@@ -452,7 +454,7 @@ fn plan_item<'a>(
 }
 
 /// Hash of everything the rules of a feature are derived from: its text, the content of its files,
-/// its entities, the evidence, its use cases, the brief, the judgement prompt and the model.
+/// its entities, the evidence, its use cases, the brief, the three prompts (statement, kind, judgement) and the model.
 fn rules_fingerprint(
     repo_root: &Path,
     feature: &Feature,
@@ -490,7 +492,9 @@ fn rules_fingerprint(
             .chain((!brief.is_empty()).then_some(brief))
             .chain(std::iter::once(format!(
                 "judgement {}",
-                hash_content(&format!("{FEATURE_SYSTEM_PROMPT}\0{JUDGE_SYSTEM_PROMPT}"))
+                hash_content(&format!(
+                    "{RULES_SYSTEM_PROMPT}\0{FEATURE_SYSTEM_PROMPT}\0{JUDGE_SYSTEM_PROMPT}"
+                ))
             )))
             .chain(std::iter::once(model_part(llm))),
     )
