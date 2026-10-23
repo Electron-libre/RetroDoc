@@ -29,6 +29,7 @@ use crate::response::complete_json;
 use crate::roles::load_splitter;
 use crate::use_cases::UseCaseContext;
 
+mod dedup;
 mod grounding;
 mod input;
 mod judge;
@@ -36,6 +37,7 @@ mod prompt;
 #[cfg(test)]
 mod tests;
 
+use self::dedup::{merge_duplicates, Reach};
 use self::grounding::{grounded_rules, RawRules};
 pub use self::input::RuleInput;
 use self::judge::{judge_prompt, keep_judged, RawVerdict, JUDGE_SYSTEM_PROMPT};
@@ -56,6 +58,23 @@ pub fn save_rules(repo_root: &Path, rules: &[BusinessRule]) -> Result<(), Pipeli
     save_yaml(&Artifact::Rules.path(repo_root), rules)
 }
 
+/// The rules as each feature stated them, else (a run from before this artifact) the saved rules.
+fn load_stated(repo_root: &Path) -> Option<Vec<BusinessRule>> {
+    load_yaml(&Artifact::RulesStated.path(repo_root)).or_else(|| load_rules(repo_root))
+}
+
+/// Saves the rules as stated, then the same rule of several features kept once; returns the latter.
+fn save_published(
+    repo_root: &Path,
+    stated: &[BusinessRule],
+    reach: &BTreeMap<String, Reach>,
+) -> Result<Vec<BusinessRule>, PipelineError> {
+    save_yaml(&Artifact::RulesStated.path(repo_root), stated)?;
+    let published = merge_duplicates(stated.to_vec(), reach);
+    save_rules(repo_root, &published)?;
+    Ok(published)
+}
+
 /// The rules of every feature, from the code and the evidence of each, saved to
 /// `.retrodoc/cache/rules.yaml`. `context` is the one of the use cases pass.
 ///
@@ -70,7 +89,7 @@ pub async fn build_rules(
     context: &UseCaseContext,
     llm: &dyn LlmProvider,
 ) -> Result<Vec<BusinessRule>, PipelineError> {
-    let saved = load_rules(repo_root);
+    let saved = load_stated(repo_root);
     let mut prints = Fingerprints::load(repo_root);
     // Without the saved rules, a fingerprint can't tell "none" from "lost".
     let known = if saved.is_some() {
@@ -90,6 +109,8 @@ pub async fn build_rules(
             )
         })
         .collect();
+
+    let reach = reach_of(&items);
 
     let mut answers = stream::iter(items)
         .map(|item| async move {
@@ -160,9 +181,9 @@ pub async fn build_rules(
     drop(answers);
 
     // Rules first: a fingerprint without its rules would freeze a feature as "none".
-    save_rules(repo_root, &rules)?;
+    let published = save_published(repo_root, &rules, &reach)?;
     prints.save(repo_root)?;
-    Ok(rules)
+    Ok(published)
 }
 
 /// The rules of one feature: the statement call, the checks of its answer, then the judgement of
@@ -214,6 +235,28 @@ async fn ask_rules(
     Ok(Some(rules))
 }
 
+/// What each feature reads, to tell which one owns the code a rule cites.
+fn reach_of(items: &[Item<'_>]) -> BTreeMap<String, Reach> {
+    items
+        .iter()
+        .map(|item| {
+            let entry_files = item
+                .input
+                .entries
+                .iter()
+                .map(|(path, _)| path.to_string_lossy().into_owned())
+                .collect();
+            (
+                item.feature.slug.clone(),
+                Reach {
+                    entry_files,
+                    files: item.input.files.len(),
+                },
+            )
+        })
+        .collect()
+}
+
 /// The saved rules of the feature `slug`.
 fn kept(previous: &[BusinessRule], slug: &str) -> Vec<BusinessRule> {
     previous
@@ -247,6 +290,8 @@ fn save_partial(
             prints.rules.insert(key, print.clone());
         }
     }
+    // Not merged: it costs a quadratic comparison and the final save does it.
+    warn_on_error(save_yaml(&Artifact::RulesStated.path(repo_root), &rules));
     warn_on_error(save_rules(repo_root, &rules));
     warn_on_error(prints.save(repo_root));
 }

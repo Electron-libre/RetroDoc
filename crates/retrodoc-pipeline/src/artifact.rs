@@ -43,12 +43,15 @@ pub enum Artifact {
     Features,
     UseCases,
     Rules,
+    /// The rules as each feature stated them, before the same rule of several features is kept once;
+    /// what a rerun starts from.
+    RulesStated,
     BehaviourCoverage,
     Usage,
 }
 
 impl Artifact {
-    pub const ALL: [Artifact; 18] = [
+    pub const ALL: [Artifact; 19] = [
         Artifact::RepoMap,
         Artifact::SourceHashes,
         Artifact::Fingerprints,
@@ -65,6 +68,7 @@ impl Artifact {
         Artifact::Features,
         Artifact::UseCases,
         Artifact::Rules,
+        Artifact::RulesStated,
         Artifact::BehaviourCoverage,
         Artifact::Usage,
     ];
@@ -88,6 +92,7 @@ impl Artifact {
             Artifact::Features => "features.yaml",
             Artifact::UseCases => "use-cases.yaml",
             Artifact::Rules => "rules.yaml",
+            Artifact::RulesStated => "rules-stated.yaml",
             Artifact::BehaviourCoverage => "behaviour-coverage.yaml",
             Artifact::Usage => "usage.json",
         }
@@ -120,6 +125,7 @@ impl Artifact {
             | Artifact::Features
             | Artifact::UseCases
             | Artifact::Rules
+            | Artifact::RulesStated
             | Artifact::BehaviourCoverage => true,
             Artifact::Roles
             | Artifact::SignalSources

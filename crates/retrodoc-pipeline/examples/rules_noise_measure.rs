@@ -160,8 +160,17 @@ fn main() {
             same_code += usize::from(is_same_code);
             if is_worded || is_same_code {
                 println!(
-                    "PAIR {score:.2} {} | {} :: {} || {}",
-                    rules[i].slug, rules[j].slug, rules[i].statement, rules[j].statement
+                    "PAIR {score:.2} {}{} {} | {} :: {} || {}",
+                    if is_worded { "W" } else { "-" },
+                    if overlap(&rules[i], &rules[j]) {
+                        "C"
+                    } else {
+                        "-"
+                    },
+                    rules[i].slug,
+                    rules[j].slug,
+                    rules[i].statement,
+                    rules[j].statement
                 );
             }
         }

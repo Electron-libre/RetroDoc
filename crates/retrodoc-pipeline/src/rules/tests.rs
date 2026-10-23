@@ -443,3 +443,52 @@ async fn a_new_judgement_prompt_judges_the_saved_features_again() {
     run(dir.path(), &again).await;
     assert_eq!(again.calls(), 2);
 }
+
+fn wide() -> Feature {
+    Feature {
+        slug: "wide".into(),
+        name: "Run the whole router".into(),
+        source_paths: vec!["lib/router.rb".into(), "lib/extra.rb".into()],
+        ..feature()
+    }
+}
+
+fn two_features_repo() -> tempfile::TempDir {
+    let dir = repo();
+    std::fs::write(dir.path().join("lib/extra.rb"), "def helper; end\n").unwrap();
+    dir
+}
+
+async fn ask(dir: &Path, llm: &FakeLlm, features: &[Feature]) -> Vec<BusinessRule> {
+    build_rules(dir, features, &[use_case()], &context(), llm)
+        .await
+        .unwrap()
+}
+
+#[tokio::test]
+async fn a_rule_two_features_state_is_published_once_and_comes_back_when_its_owner_drops_it() {
+    let dir = two_features_repo();
+    let features = [feature(), wide()];
+    let first = FakeLlm::answering(answer(LIMIT));
+    let published = ask(dir.path(), &first, &features).await;
+    // The feature that reads the fewest files keeps it; both stated it.
+    assert_eq!(published.len(), 1);
+    assert_eq!(published[0].slug, "orders-1");
+    assert_eq!(load_rules(dir.path()).unwrap(), published);
+    let stated: Vec<BusinessRule> = load_yaml(&Artifact::RulesStated.path(dir.path())).unwrap();
+    assert_eq!(stated.len(), 2);
+
+    let second = FakeLlm::answering("not even json");
+    assert_eq!(ask(dir.path(), &second, &features).await, published);
+    assert_eq!(second.calls(), 0);
+
+    // Its owner no longer states it: only that feature is asked again, and the copy of the other
+    // one is published.
+    let mut changed = features.clone();
+    changed[0].description = "A customer orders a meal, or not".into();
+    let third = FakeLlm::answering(answer(""));
+    let after = ask(dir.path(), &third, &changed).await;
+    assert_eq!(third.calls(), 1);
+    assert_eq!(after.len(), 1);
+    assert_eq!(after[0].slug, "wide-1");
+}

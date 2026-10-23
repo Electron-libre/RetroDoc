@@ -49,15 +49,16 @@ retrieval plumbing is stated as rules.
 1. [x] Measure: run `--rules` on `delivery_router` and linkding (local Ollama), label a sample of 60 rules (fixed seed) as good, UI noise, test noise, plumbing, duplicate, wrong kind; count duplicate pairs; keep a reusable measure script and the reference figures here.
 2. [x] Noise: a second judgement per rule ("would a business reader ask about this?"), also covering the features that describe tests; verdict logged, the noise dropped (no field on the rule); tested with a fake `LlmProvider` (filtering, incremental rerun, malformed answer keeps the rules); kept only if it lowers noise without losing good rules.
 3. [x] (skipped, the noise left after deliverable 2 is small) Noise: rank rules backed by code alone lower in the rendered pages; only if deliverable 2 is not enough.
-4. [ ] Deduplication across features: first (2c) give each feature the rules already stated before it, then if not enough (2a) a mechanical merge on overlapping cited lines and shared words, kept on the feature that owns the code (slug stays consistent with `belongs_to_feature`).
+4. [x] Deduplication across features (2a only; (2c) dropped, see Decisions): a mechanical merge on overlapping cited lines and shared words, kept on the feature that owns the code (slug stays consistent with `belongs_to_feature`).
 5. [ ] Final re-measure with the figures of deliverable 1, before/after table, docs (`docs/crates/pipeline.md`, ADR if an architectural decision is taken).
 
 ## Decisions
 
+* Deduplication: mechanical merge only for now; the rules a feature states are kept in `rules-stated.yaml`, `rules.yaml` is the merged set.
 * Order: measure, then noise, then deduplication (linkding shows noise matters more than duplicates: 38 pairs among 649).
 * Local Ollama (`qwen3.6:35b-a3b`, `reasoning_effort=none`) for every measure; the figures of the issue (DeepSeek) are not the baseline, the new ones are.
 * The features that describe tests are handled by the LLM judgement, not by a hard-coded pattern; no language or framework patterns anywhere.
-* The linkding run of 649 rules was not saved in `~/retrodoc-runs`: deliverable 1 reruns it (checkout in `/tmp/lbf/linkding` if still there, else reclone).
+* The linkding run of 649 rules was not saved in the runs folder: deliverable 1 reruns it (a fresh clone of the public repository).
 
 ## Reference figures (deliverable 1, local `qwen3.6:35b-a3b`, 2026-10-16)
 
@@ -95,7 +96,7 @@ overlapping cited lines). Labelled by hand by the assistant, to be checked by th
 ## Deliverable 2: judgement per rule (local `qwen3.6:35b-a3b`, 2026-10-16)
 
 Replay of the judgement prompts outside the pipeline on the 241 saved rules of linkding, scored on the 60
-hand labels of deliverable 1 (`~/retrodoc-runs/scripts/judge_replay.py`, one call per feature):
+hand labels of deliverable 1 (a throw-away script kept in the runs folder, one call per feature):
 
 | variant | good rules dropped | noise dropped (26 labelled) |
 |---|---|---|
@@ -114,3 +115,34 @@ features with rules, 212k tokens in and 54k out, 31 min; the judgement calls are
 * A small repository such as `delivery_router` has little to drop: its problem is the duplicates (deliverable 4).
 * Not tried: the two classes left out of the judge (kind wrong, duplicates).
 * Decision taken while doing it: the verdict is logged, not stored on `BusinessRule`; a verdict that can't be read keeps the rules as stated; the judgement prompt is part of the fingerprint.
+
+## Deliverable 4: deduplication across features (local `qwen3.6:35b-a3b`, 2026-10-23)
+
+Chosen: (2a), a mechanical merge (`rules/dedup.rs`), not (2c) (it makes the features depend on their order, ends
+the parallel calls, and spoils the fingerprints). Read by hand, the 18 pairs of linkding and the 16 of
+`delivery_router` before choosing the test:
+
+| test on two rules of different features | false pairs | repeated rules found |
+|---|---|---|
+| 60% of the words alone | 3 of 14 pairs | most |
+| 60% of the words and overlapping cited lines, or 75% of the words | none | about half |
+
+Kept: the second one. Rules alike by 40 to 56% of the words with overlapping lines are a mix of true copies and
+siblings (date added or date modified, favicons or web archive): no threshold tells them apart, so they stay.
+Two traps handled and tested: "unknown customer" and "unknown restaurant" (67% of the words) are not joined
+through a third rule (a group never holds two rules of one feature, and groups are joined only if all are alike);
+the copy that stays is the one of the feature that owns the code.
+
+| full run (stated, judged, merged) | rules stated | published | merged away | false merges (read by hand) |
+|---|---|---|---|---|
+| `delivery_router` | 29 | 23 | 6 | 0 |
+| linkding | 226 | 218 | 8 | 0 |
+
+* On `delivery_router` the merge removes most of what the judgement left: the time formula, the 60-minute limit,
+  unknown customer and restaurant, the route. On linkding it removes only 4% (words of three letters or fewer are left out of the comparison, which costs one copy on each repository, 7 and 9 before that): 17% of the rules are in a pair
+  but half are siblings that no mechanical test separates. If that is not enough, the next candidate is (2b)
+  (one LLM call per domain); it was not tried.
+* `rules-stated.yaml` (new artifact) keeps what each feature stated; a rerun starts from it, so that a copy comes
+  back when its owner stops stating the rule (tested). A run saved before has only `rules.yaml`: it is read as
+  the stated rules.
+* The copy that stays takes the entities, use cases, tests, documents and the best confidence of the copies it replaces; a feature that reads no file never wins the tie. The rerun of both measured runs made no LLM call.
