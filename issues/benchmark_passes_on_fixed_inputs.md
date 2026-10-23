@@ -52,7 +52,7 @@ the final check.
 2. [x] Frozen inputs per repository (loader, `~/retrodoc-runs/frozen/<repo>/`, manifest with model and commit).
 3. [x] Domains replay on the frozen surface.
 4. [x] Features replay on the frozen domains.
-5. [ ] Use cases replay on the frozen features.
+5. [x] Use cases replay on the frozen features.
 6. [ ] Rules reference for linkding and rules replay.
 7. [ ] Docs (commands, pipeline, skill `quality-benchmark`) and the decision on a second application and on
    `delivery_router`.
@@ -82,3 +82,7 @@ the final check.
   path finds no entry point in them: the frozen domains of both repositories were replaced by domains
   clustered from the surface by `deepseek-chat` (`pass_replay domains --freeze-first`, recorded in the
   manifest as `domains_origin`). The replays follow the `surface` path, not the default `files` one.
+* The use cases replay (`pass_replay use-cases`) reads the code of the tree at `manifest.source_run` (copied into
+  the work directory) and measures the use cases (number, narratives, business language by the judge and by
+  the deterministic score), with no match of the reference use cases: the reference lists only a few per
+  feature. Frozen features are those of the `surface` path (`pass_replay features --freeze-first`).

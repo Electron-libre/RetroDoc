@@ -24,6 +24,7 @@ fn main() {
         model: model.clone(),
         source_run: run.clone(),
         domains_origin: None,
+        features_origin: None,
     };
     match FrozenInputs::freeze(Path::new(run), Path::new(frozen), &manifest) {
         Ok(frozen) => println!("{frozen:#?}"),

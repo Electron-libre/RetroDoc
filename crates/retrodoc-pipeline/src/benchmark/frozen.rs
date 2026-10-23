@@ -95,6 +95,9 @@ pub struct Manifest {
     /// [`FrozenInputs::replace_domains`]).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub domains_origin: Option<String>,
+    /// The same for `features.yaml` (see [`FrozenInputs::replace_features`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub features_origin: Option<String>,
 }
 
 /// The frozen artifacts of one repository.
@@ -163,11 +166,29 @@ impl FrozenInputs {
     ///
     /// Returns an error if the run has no `domains.yaml` or a file can't be written.
     pub fn replace_domains(&mut self, run_root: &Path, origin: &str) -> Result<(), PipelineError> {
-        let from = Artifact::Domains.path(run_root);
-        std::fs::copy(&from, self.cache().join(Artifact::Domains.file_name()))
-            .map_err(|e| io_error(&from, e))?;
+        self.copy_from(Artifact::Domains, run_root)?;
         self.manifest.domains_origin = Some(origin.to_string());
         save_yaml(&self.dir.join("manifest.yaml"), &self.manifest)
+    }
+
+    /// Replaces the frozen features by those saved in the run at `run_root`, as
+    /// [`FrozenInputs::replace_domains`] does for the domains: the use cases replay starts from features
+    /// of the `surface` path, the ones its domains hold.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the run has no `features.yaml` or a file can't be written.
+    pub fn replace_features(&mut self, run_root: &Path, origin: &str) -> Result<(), PipelineError> {
+        self.copy_from(Artifact::Features, run_root)?;
+        self.manifest.features_origin = Some(origin.to_string());
+        save_yaml(&self.dir.join("manifest.yaml"), &self.manifest)
+    }
+
+    fn copy_from(&self, artifact: Artifact, run_root: &Path) -> Result<(), PipelineError> {
+        let from = artifact.path(run_root);
+        std::fs::copy(&from, self.cache().join(artifact.file_name()))
+            .map(|_| ())
+            .map_err(|e| io_error(&from, e))
     }
 
     /// Opens a frozen directory.
@@ -247,6 +268,7 @@ mod tests {
             model: "some-model".to_string(),
             source_run: "run-1".to_string(),
             domains_origin: None,
+            features_origin: None,
         }
     }
 

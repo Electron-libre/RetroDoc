@@ -11,6 +11,7 @@ pub mod matching;
 pub mod metrics;
 pub mod reference;
 pub mod replay;
+pub mod replay_use_cases;
 pub mod summary;
 pub mod table;
 
@@ -20,5 +21,6 @@ pub use matching::{compare, Comparison, Matches, Pair, Score};
 pub use metrics::{Cost, RunMetrics};
 pub use reference::{Reference, ReferenceDomain, ReferenceFeature};
 pub use replay::{replay_domains, replay_features, replay_table, RunFigures, Scoring};
+pub use replay_use_cases::{replay_use_cases, use_case_table, UseCaseFigures};
 pub use summary::summary;
 pub use table::{load_series, table, RunReport, Series};
