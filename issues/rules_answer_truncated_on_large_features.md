@@ -36,3 +36,39 @@ the rules of its largest features, and the rerun must stay a no-op.
 * No pattern of any language or framework to split a feature: group by the files and entry points the
   feature already holds.
 * Splitting a feature changes what `rules_deduplication_and_noise` has to compare: do it after or with it.
+
+# Tracking
+1. [x] Measure, without an LLM call, the rules and the answer length per feature on the saved runs
+   (`rules-ld-*`, `rules-dr-*`, `rules-contrat-*`); the figures are in `## Measure` below. They are a lower
+   bound and do not decide: go for (b)+(a).
+2. [ ] Shorter answer per rule (b): the model gives the statement, the kind and the cited lines; the program
+   derives `entities`, `use_cases` and the test phrase.
+3. [ ] Split a large feature into several calls (a), by group of files the feature already holds, merged in a
+   stable order (slugs `<feature-slug>-<n>`, dedup after the merge); fall back to two halves when an answer
+   ends with `finish_reason=length` (the provider must report the truncation). Reduced to the fallback alone
+   if the measure shows no feature near the cap after (b).
+4. [ ] Smoke test on linkding with DeepSeek: no feature lost, no truncation warning, second run with no LLM
+   call. Ask before launching (paid external API).
+
+## Decisions
+* Measure first; the choice between (b) alone and (b)+(a) follows its figures.
+* Split upstream on the expected answer size, with a `finish_reason=length` fallback as a safety net.
+* The final smoke test uses DeepSeek, not the local model.
+* After the measure: go for (b)+(a); log the raw rules and the characters per answer in step 2.
+* Candidates (c) (cap on the number of rules) and (d) (raise the cap) are dropped.
+
+## Measure (step 1, `examples/rules_answer_size_measure.rs`)
+The answer of a feature is rebuilt from its saved rules, so the figures below are a **lower bound**: the cut
+answers were never saved, and the rules dropped by grounding, deduplication and the judgement are missing.
+* linkding (smoke run): the largest feature, `search-and-filtering`, keeps 38 rules, about 13k characters
+  rebuilt (51 % of the cap), yet its real answer was cut at 25.8k characters. So the model writes about twice
+  as many rules as survive, and the saved rules cannot tell how big a real answer is.
+* Mean rebuilt answer: 373 to 419 characters per rule (statement 20 to 30 %, cited code 20 to 36 %, tests 0 to
+  17 %, entities and use cases 2 to 21 %). The code field is the second largest share.
+* Contrat (DeepSeek): 3 features of 85 at 50 % or more, one at 84 % (`contract-event-notifications`, 51 rules
+  kept); none cut, DeepSeek having a larger window than the local server.
+* Cut answers in the logs: 25.5k to 25.8k characters and 1184 to 1315 lines, against 12 rules kept for one
+  of them in another run: the answers carry far more rules than the 241 published.
+* Conclusion: the rebuilt size is not a sound measure of what is asked. To decide between (b) alone and
+  (b)+(a), measure the answers themselves (`answer_chars` in the logs, or log the number of raw rules per
+  answer).
