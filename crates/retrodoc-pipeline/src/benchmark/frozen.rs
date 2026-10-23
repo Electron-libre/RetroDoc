@@ -91,6 +91,10 @@ pub struct Manifest {
     pub model: String,
     /// The run they were taken from.
     pub source_run: String,
+    /// Where `domains.yaml` comes from when it is not the one of the run (see
+    /// [`FrozenInputs::replace_domains`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub domains_origin: Option<String>,
 }
 
 /// The frozen artifacts of one repository.
@@ -148,6 +152,22 @@ impl FrozenInputs {
         }
         save_yaml(&dir.join("manifest.yaml"), manifest)?;
         FrozenInputs::open(dir)
+    }
+
+    /// Replaces the frozen domains by those saved in the run at `run_root`, and says where they come from
+    /// in the manifest. The domains of a run of the `files` path hold paths and no resources, so the
+    /// features pass of the `surface` path finds no entry point in them: the replay of that pass freezes
+    /// domains clustered from the surface.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the run has no `domains.yaml` or a file can't be written.
+    pub fn replace_domains(&mut self, run_root: &Path, origin: &str) -> Result<(), PipelineError> {
+        let from = Artifact::Domains.path(run_root);
+        std::fs::copy(&from, self.cache().join(Artifact::Domains.file_name()))
+            .map_err(|e| io_error(&from, e))?;
+        self.manifest.domains_origin = Some(origin.to_string());
+        save_yaml(&self.dir.join("manifest.yaml"), &self.manifest)
     }
 
     /// Opens a frozen directory.
@@ -226,6 +246,7 @@ mod tests {
             commit: "abc123".to_string(),
             model: "some-model".to_string(),
             source_run: "run-1".to_string(),
+            domains_origin: None,
         }
     }
 
@@ -291,6 +312,31 @@ mod tests {
             .prepare(ReplayPass::UseCases, work.path())
             .unwrap_err();
         assert!(error.to_string().contains("features.yaml"), "{error}");
+    }
+
+    #[test]
+    fn the_frozen_domains_can_be_replaced_and_the_manifest_says_so() {
+        let (run_dir, frozen_dir, other) = (
+            tempfile::tempdir().unwrap(),
+            tempfile::tempdir().unwrap(),
+            tempfile::tempdir().unwrap(),
+        );
+        run(run_dir.path());
+        write(other.path(), Artifact::Domains, "other domains");
+        let mut frozen =
+            FrozenInputs::freeze(run_dir.path(), frozen_dir.path(), &manifest()).unwrap();
+
+        frozen
+            .replace_domains(other.path(), "surface, run 1")
+            .unwrap();
+
+        let saved = std::fs::read_to_string(frozen_dir.path().join("cache/domains.yaml")).unwrap();
+        assert_eq!(saved, "other domains");
+        let reopened = FrozenInputs::open(frozen_dir.path()).unwrap();
+        assert_eq!(
+            reopened.manifest.domains_origin.as_deref(),
+            Some("surface, run 1")
+        );
     }
 
     #[test]

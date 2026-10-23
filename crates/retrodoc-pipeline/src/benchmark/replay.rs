@@ -10,12 +10,14 @@ use retrodoc_llm::{LlmProvider, UsageTracker};
 
 use super::frozen::{FrozenInputs, ReplayPass};
 use super::judge::judge;
-use super::matching::{compare, Matches, Score};
+use super::matching::{compare, Comparison, Matches, Score};
 use super::reference::Reference;
-use crate::brief::ProductBrief;
-use crate::domains::build_domains_from_surface;
+use crate::artifact::Retention;
+use crate::brief::{Evidence, ProductBrief};
+use crate::domains::{build_domains_from_surface, DomainMap};
 use crate::entry_points::EntryPoints;
 use crate::error::PipelineError;
+use crate::features::build_features_from_surface;
 use crate::glossary::Glossary;
 use crate::surface::Surface;
 
@@ -51,6 +53,31 @@ fn missing(frozen_dir: &Path, what: &str) -> PipelineError {
     }
 }
 
+/// The artifacts every replay of a pass on the surface reads, loaded from the work directory.
+struct Inputs {
+    entry_points: EntryPoints,
+    brief: ProductBrief,
+    surface: Surface,
+}
+
+fn prepare(
+    frozen: &FrozenInputs,
+    pass: ReplayPass,
+    work_root: &Path,
+) -> Result<Inputs, PipelineError> {
+    frozen.prepare(pass, work_root)?;
+    let glossary = Glossary::load(work_root).ok_or_else(|| missing(work_root, "glossary.yaml"))?;
+    let entry_points =
+        EntryPoints::load(work_root).ok_or_else(|| missing(work_root, "entry-points.yaml"))?;
+    let brief = ProductBrief::load(work_root).unwrap_or_default();
+    let surface = Surface::new(&glossary, &entry_points);
+    Ok(Inputs {
+        entry_points,
+        brief,
+        surface,
+    })
+}
+
 /// Runs the domains pass (clustering of the surface) once on the frozen inputs, in `work_root` (an empty
 /// directory), and scores the domains against `reference`. With `judge_llm`, the judge then proposes pairs
 /// for the names no pair covers; its calls are not in the figures of the pass.
@@ -66,19 +93,95 @@ pub async fn replay_domains(
     tracker: &UsageTracker,
     scoring: Scoring<'_>,
 ) -> Result<RunFigures, PipelineError> {
-    frozen.prepare(ReplayPass::Domains, work_root)?;
-    let glossary = Glossary::load(work_root).ok_or_else(|| missing(work_root, "glossary.yaml"))?;
-    let entry_points =
-        EntryPoints::load(work_root).ok_or_else(|| missing(work_root, "entry-points.yaml"))?;
-    let brief = ProductBrief::load(work_root).unwrap_or_default();
-    let surface = Surface::new(&glossary, &entry_points);
-
+    let inputs = prepare(frozen, ReplayPass::Domains, work_root)?;
     let map = tracker
         .in_pass(
             "domains",
-            build_domains_from_surface(work_root, &surface, &brief, llm),
+            build_domains_from_surface(work_root, &inputs.surface, &inputs.brief, llm),
         )
         .await?;
+    figures(
+        work_root,
+        Level::Domains,
+        map.domains.len(),
+        judge_llm,
+        tracker,
+        scoring,
+    )
+    .await
+}
+
+/// Runs the features pass once on the frozen domains, in `work_root` (an empty directory), and scores
+/// the features against `reference`; the evidence of the brief is left out, as in the runs the inputs
+/// come from. Same judge as [`replay_domains`], which also proposes pairs for the frozen domains: ignore
+/// them.
+///
+/// # Errors
+///
+/// Returns an error if the frozen inputs (domains included) are unusable, the pass fails or the matches
+/// can't be read.
+pub async fn replay_features(
+    frozen: &FrozenInputs,
+    work_root: &Path,
+    llm: &dyn LlmProvider,
+    judge_llm: Option<&dyn LlmProvider>,
+    tracker: &UsageTracker,
+    scoring: Scoring<'_>,
+) -> Result<RunFigures, PipelineError> {
+    let inputs = prepare(frozen, ReplayPass::Features, work_root)?;
+    let domains = DomainMap::load(work_root).ok_or_else(|| missing(work_root, "domains.yaml"))?;
+    let features = tracker
+        .in_pass(
+            "features",
+            build_features_from_surface(
+                work_root,
+                &domains,
+                &inputs.entry_points,
+                &inputs.surface,
+                &inputs.brief,
+                &Evidence::default(),
+                llm,
+                Retention::OnlyRead,
+            ),
+        )
+        .await?;
+    figures(
+        work_root,
+        Level::Features,
+        features.len(),
+        judge_llm,
+        tracker,
+        scoring,
+    )
+    .await
+}
+
+/// What a replay is scored on.
+#[derive(Clone, Copy)]
+enum Level {
+    Domains,
+    Features,
+}
+
+impl Level {
+    fn pick(self, comparison: Comparison) -> Score {
+        match self {
+            Level::Domains => comparison.domains,
+            Level::Features => comparison.features,
+        }
+    }
+}
+
+/// The score of the saved result of a pass, strict and with the judge, and what the pass cost so far
+/// (read before the judge's calls are made).
+async fn figures(
+    work_root: &Path,
+    level: Level,
+    items: usize,
+    judge_llm: Option<&dyn LlmProvider>,
+    tracker: &UsageTracker,
+    scoring: Scoring<'_>,
+) -> Result<RunFigures, PipelineError> {
     let comparison = compare(
         work_root,
         scoring.reference,
@@ -92,30 +195,30 @@ pub async fn replay_domains(
     let wall = report.wall();
     let judged = match judge_llm {
         Some(judge_llm) => {
-            match judge(
+            let judgement = judge(
                 judge_llm,
                 work_root,
                 scoring.reference,
                 scoring.matches,
                 scoring.matches_path,
             )
-            .await?
-            {
+            .await?;
+            match judgement {
                 Some(judgement) => compare(
                     work_root,
                     scoring.reference,
                     &scoring.matches.with_proposals(&judgement),
                     scoring.matches_path,
                 )?
-                .map(|c| c.domains),
+                .map(|c| level.pick(c)),
                 None => None,
             }
         }
         None => None,
     };
     Ok(RunFigures {
-        items: map.domains.len(),
-        score: comparison.domains,
+        items,
+        score: level.pick(comparison),
         judged,
         calls: total.calls,
         prompt_tokens: total.prompt_tokens,
@@ -209,8 +312,7 @@ mod tests {
     use retrodoc_llm::UsageProvider;
 
     const GLOSSARY: &str = "models:\n  customer.rb:\n    content_hash: h\n    entities:\n    - name: Customer\n      description: Someone who orders.\n";
-    const ENTRY_POINTS: &str =
-        "files:\n  customer.rb:\n    content_hash: h\n    entry_points: []\n";
+    const ENTRY_POINTS: &str = "files:\n  customer.rb:\n    content_hash: h\n    entry_points:\n    - kind: http_route\n      name: POST /orders\n      verb: create\n      resource: Customer\n      description: Places an order.\n      outputs: []\n";
     const REFERENCE: &str = "repository: r\ncommit: c\npurpose: p\nactors: [Customer]\ndomains:\n  - name: Customers\n    description: d\n    features:\n      - name: Order\n        description: d\n";
 
     fn frozen(dir: &Path) -> FrozenInputs {
@@ -236,6 +338,7 @@ mod tests {
             commit: "c".to_string(),
             model: "m".to_string(),
             source_run: "run".to_string(),
+            domains_origin: None,
         };
         FrozenInputs::freeze(&run, &dir.join("frozen"), &manifest).unwrap()
     }
@@ -247,7 +350,7 @@ mod tests {
         let tracker = UsageTracker::new();
         let llm = UsageProvider::new(
             FakeLlm::answering(
-                r#"{"domains":[{"slug":"customers","name":"Customers","description":"d","entities":["Customer"]}]}"#,
+                r#"{"domains":[{"slug":"customers","name":"Customers","description":"d","resources":["Customer"],"entities":["Customer"]}]}"#,
             ),
             tracker.clone(),
         );
@@ -313,7 +416,7 @@ mod tests {
         let tracker = UsageTracker::new();
         let llm = UsageProvider::new(
             FakeLlm::sequence(&[
-                r#"{"domains":[{"slug":"clients","name":"Clients","description":"d","entities":["Customer"]}]}"#,
+                r#"{"domains":[{"slug":"clients","name":"Clients","description":"d","resources":["Customer"],"entities":["Customer"]}]}"#,
                 r#"{"matches":[{"generated":"Clients","reference":"Customers"}]}"#,
             ]),
             tracker.clone(),
@@ -341,5 +444,48 @@ mod tests {
             figures.calls, 1,
             "the calls of the judge are not the pass's"
         );
+    }
+
+    #[tokio::test]
+    async fn a_features_replay_starts_from_the_frozen_domains() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut frozen = frozen(dir.path());
+        let surface_run = dir.path().join("surface-run");
+        let domains = Artifact::Domains.path(&surface_run);
+        std::fs::create_dir_all(domains.parent().unwrap()).unwrap();
+        std::fs::write(
+            &domains,
+            "domains:\n- slug: customers\n  name: Customers\n  description: d\n  resources: [Customer]\n  entities: [Customer]\n",
+        )
+        .unwrap();
+        frozen.replace_domains(&surface_run, "test").unwrap();
+        let tracker = UsageTracker::new();
+        let llm = UsageProvider::new(
+            FakeLlm::answering(
+                r#"{"features":[{"slug":"order","name":"Order","description":"d","back_office":false,"entry_points":["customer.rb#POST /orders"]}]}"#,
+            ),
+            tracker.clone(),
+        );
+        let reference: Reference = serde_yaml::from_str(REFERENCE).unwrap();
+
+        let figures = replay_features(
+            &frozen,
+            &dir.path().join("work"),
+            &llm,
+            None,
+            &tracker,
+            Scoring {
+                reference: &reference,
+                matches: &Matches::default(),
+                matches_path: Path::new("matches.yaml"),
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(figures.items, 1);
+        assert_eq!(figures.score.recall, Some(1.0));
+        assert!(figures.calls >= 1);
+        assert!(!dir.path().join("frozen/cache/features.yaml").exists());
     }
 }

@@ -51,7 +51,7 @@ the final check.
    fixes only. Checked by an agent, not by a human: the human spot check stays due.
 2. [x] Frozen inputs per repository (loader, `~/retrodoc-runs/frozen/<repo>/`, manifest with model and commit).
 3. [x] Domains replay on the frozen surface.
-4. [ ] Features replay on the frozen domains.
+4. [x] Features replay on the frozen domains.
 5. [ ] Use cases replay on the frozen features.
 6. [ ] Rules reference for linkding and rules replay.
 7. [ ] Docs (commands, pipeline, skill `quality-benchmark`) and the decision on a second application and on
@@ -78,3 +78,7 @@ the final check.
   reader, reader view) and the actor "Feed reader", by agent: recall figures of linkding are not comparable
   with the benchmarks before 2026-10-23. Replays of use cases report the judge's business-language rate; the
   deterministic score is reported apart as "identifier leaks only".
+* The frozen domains of the `files` path hold paths and no resources, so the features pass of the `surface`
+  path finds no entry point in them: the frozen domains of both repositories were replaced by domains
+  clustered from the surface by `deepseek-chat` (`pass_replay domains --freeze-first`, recorded in the
+  manifest as `domains_origin`). The replays follow the `surface` path, not the default `files` one.

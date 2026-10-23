@@ -23,6 +23,7 @@ fn main() {
         commit: commit.clone(),
         model: model.clone(),
         source_run: run.clone(),
+        domains_origin: None,
     };
     match FrozenInputs::freeze(Path::new(run), Path::new(frozen), &manifest) {
         Ok(frozen) => println!("{frozen:#?}"),
