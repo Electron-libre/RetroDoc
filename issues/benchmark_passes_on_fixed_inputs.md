@@ -44,3 +44,37 @@ the final check.
 * The steps that need the user's reading cannot be done by the agent alone.
 * Do it before the issues that compare settings (`measure_model_split_per_pass`,
   `brief_injection_experiments`), which need this measure.
+
+# Tracking
+1. [x] Check the references with a subagent (`reference.yaml`, `matches.yaml`, `entry-points.yaml` of both
+   repositories, a sample of narratives, the two measures of business language): report of gaps, factual
+   fixes only. Checked by an agent, not by a human: the human spot check stays due.
+2. [ ] Frozen inputs per repository (loader, `~/retrodoc-runs/frozen/<repo>/`, manifest with model and commit).
+3. [ ] Domains replay on the frozen surface.
+4. [ ] Features replay on the frozen domains.
+5. [ ] Use cases replay on the frozen features.
+6. [ ] Rules reference for linkding and rules replay.
+7. [ ] Docs (commands, pipeline, skill `quality-benchmark`) and the decision on a second application and on
+   `delivery_router`.
+
+## Decisions
+* Replays are `examples/` in Rust with a shared loader of frozen inputs, no CLI subcommand.
+* Frozen inputs live in `~/retrodoc-runs/frozen/<repo>/`.
+* LLM of the replays: DeepSeek. N = 3 runs per setting. Announce the cost before each real run.
+* The review of the references is done by a subagent, not by the user.
+* Item 5 of the approach (second application, fate of `delivery_router`) is decided by the user once the
+  figures exist.
+* Subagent check of 2026-10-23 (no human): no clear factual error in `reference.yaml`, `entry-points.yaml`;
+  no file changed. Left for the human spot check: actor `Dispatcher` (delivery_router, not an actor), 3
+  delivery_router and about 15 linkding pairs of `matches.yaml` that are loose (API facets paired with
+  "Use the REST API", multi-feature items), the feature "Use the browser extensions" (not verifiable in this
+  repository), and entry-point regexes too broad in linkding (`bookmark`, `api|client|token|...`, `login|...`).
+  Missing from the linkding reference: bundles, RSS feeds, tag merge/edit, favicons and previews, reader view,
+  background tasks, operations commands, public endpoints. Narratives in business language: about 55% on
+  linkding (20 read) and 54% on delivery_router (13 read), so the judge (about 54%) is right and the
+  deterministic score (88 to 93%) only measures identifier leaks; the share of use cases at score 1 (61 to
+  77%) is closer but still high.
+* The linkding reference gained 4 features the subagent found missing (merge and rename tags, bundles, feed
+  reader, reader view) and the actor "Feed reader", by agent: recall figures of linkding are not comparable
+  with the benchmarks before 2026-10-23. Replays of use cases report the judge's business-language rate; the
+  deterministic score is reported apart as "identifier leaks only".

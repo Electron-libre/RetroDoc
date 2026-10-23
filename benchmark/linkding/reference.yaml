@@ -11,6 +11,7 @@ actors:
   - Third-party application
   - Browser extension
   - Internet Archive
+  - Feed reader
 domains:
   - name: Bookmark management
     description: Saving links and keeping the collection tidy.
@@ -68,6 +69,18 @@ domains:
         use_cases:
           - Search with several words and a tag
           - Search with a boolean expression
+      - name: Merge and rename tags
+        description: Rename a tag, or merge several tags into one, across all the bookmarks that carry them.
+        use_cases:
+          - Merge two tags
+          - Rename a tag
+      - name: Group bookmarks in bundles
+        description: >-
+          A bundle is a saved filter (search words, tags to include and exclude) that lists the matching
+          bookmarks; bundles are created, ordered, edited and deleted.
+        use_cases:
+          - Create a bundle
+          - Browse the bookmarks of a bundle
   - name: Sharing
     description: Letting other people see bookmarks.
     features:
@@ -76,6 +89,13 @@ domains:
         use_cases:
           - Share a bookmark with other users
           - Browse the shared bookmarks as a guest
+      - name: Follow bookmarks in a feed reader
+        description: >-
+          Each user has a private RSS feed of their bookmarks, protected by a feed token, and a public feed
+          of the shared bookmarks.
+        use_cases:
+          - Subscribe to the feed of my bookmarks
+          - Subscribe to the feed of the shared bookmarks
   - name: Page archiving
     description: Keeping a copy of the bookmarked pages.
     features:
@@ -94,6 +114,10 @@ domains:
         description: Ask the Wayback Machine to save the page in the background.
         use_cases:
           - Create a Wayback Machine snapshot of a bookmark
+      - name: Read a saved page
+        description: Open the details of a bookmark and read the saved copy of the page in a reader view.
+        use_cases:
+          - Read a saved page in the reader view
   - name: Accounts and administration
     description: Who can sign in and what they can configure.
     features:
