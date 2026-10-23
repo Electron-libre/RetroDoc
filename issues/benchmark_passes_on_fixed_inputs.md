@@ -49,8 +49,8 @@ the final check.
 1. [x] Check the references with a subagent (`reference.yaml`, `matches.yaml`, `entry-points.yaml` of both
    repositories, a sample of narratives, the two measures of business language): report of gaps, factual
    fixes only. Checked by an agent, not by a human: the human spot check stays due.
-2. [ ] Frozen inputs per repository (loader, `~/retrodoc-runs/frozen/<repo>/`, manifest with model and commit).
-3. [ ] Domains replay on the frozen surface.
+2. [x] Frozen inputs per repository (loader, `~/retrodoc-runs/frozen/<repo>/`, manifest with model and commit).
+3. [x] Domains replay on the frozen surface.
 4. [ ] Features replay on the frozen domains.
 5. [ ] Use cases replay on the frozen features.
 6. [ ] Rules reference for linkding and rules replay.

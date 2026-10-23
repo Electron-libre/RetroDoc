@@ -10,6 +10,7 @@ pub mod judge;
 pub mod matching;
 pub mod metrics;
 pub mod reference;
+pub mod replay;
 pub mod summary;
 pub mod table;
 
@@ -18,5 +19,6 @@ pub use judge::{judge, Judgement, NarrativeRating};
 pub use matching::{compare, Comparison, Matches, Pair, Score};
 pub use metrics::{Cost, RunMetrics};
 pub use reference::{Reference, ReferenceDomain, ReferenceFeature};
+pub use replay::{replay_domains, replay_table, RunFigures, Scoring};
 pub use summary::summary;
 pub use table::{load_series, table, RunReport, Series};
