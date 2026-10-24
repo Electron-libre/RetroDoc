@@ -28,7 +28,7 @@ Details live in separate files; read the one that matches the task:
 - `PLAN.md`: roadmap; `PRODUCT.md`: vision; `AGENTS.md`: commit format.
 
 Essentials: `just check` (fmt + clippy -D warnings + tests + spec traceability) must pass before committing; it
-needs `rust-script`; clippy is pedantic and warning-free; everything is in English; never name or quote
+needs `rust-script` and the `harness` binary (`cargo install --git <source in .claude/harness.toml> harness --locked`); clippy is pedantic and warning-free; everything is in English; never name or quote
 confidential smoke-test repos in committed files.
 
 ## Architecture
