@@ -7,8 +7,8 @@ fails when one drifted, and the fix belongs in the central repository. What is s
 `.claude/harness.toml` (commit scopes, root documents, roadmap, confidentiality note) and
 `.claude/update-docs-map.md` (which documents to update after a change).
 
-The `harness` binary (needed by `just check-harness`, hence `just check`) is installed from the central repository with
-`cargo install --path crates/harness`; `harness sync` refreshes the copies.
+The `harness` binary (needed by `just check-harness`, hence `just check`) is installed from a checkout of the central repository
+(`cargo install --path crates/harness`); `harness sync` refreshes the copies.
 
 Hooks in `.claude/settings.json` (`rust-script` files in `.claude/hooks/`, tested by `test_hooks.rs`):
 - `format_rust.rs` (PostToolUse on Edit/Write): runs `cargo fmt --all` after a `.rs` file is edited.
