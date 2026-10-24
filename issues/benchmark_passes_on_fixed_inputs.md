@@ -53,7 +53,7 @@ the final check.
 3. [x] Domains replay on the frozen surface.
 4. [x] Features replay on the frozen domains.
 5. [x] Use cases replay on the frozen features.
-6. [ ] Rules reference for linkding and rules replay.
+6. [x] Rules reference for linkding and rules replay.
 7. [ ] Docs (commands, pipeline, skill `quality-benchmark`) and the decision on a second application and on
    `delivery_router`.
 
@@ -86,3 +86,9 @@ the final check.
   the work directory) and measures the use cases (number, narratives, business language by the judge and by
   the deterministic score), with no match of the reference use cases: the reference lists only a few per
   feature. Frozen features are those of the `surface` path (`pass_replay features --freeze-first`).
+* Rules reference of linkding: 29 rules (9 by hand earlier, 20 added by a subagent that confirmed each in the
+  code; not a human reading). A `#` after a space in a YAML plain string starts a comment: the rule on the
+  tag search was cut to "A tag is searched with a leading"; quoted since. The rules replay
+  (`pass_replay rules`) reports the rules stated and kept, the reference rules a generated rule states by the
+  judge (12 closest candidates by BM25), calls and tokens; the share of the generated rules the reference
+  covers is not a precision, the reference being a selection.

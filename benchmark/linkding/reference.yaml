@@ -158,7 +158,7 @@ domains:
           - Install linkding as a PWA
 rules:
   - A search with several terms and no operator needs all of them to match (and is assumed).
-  - A tag is searched with a leading #, unless the lax tag search mode is on.
+  - "A tag is searched with a leading #, unless the lax tag search mode is on."
   - An auto tagging rule without a subdomain matches every subdomain of the host; one with a subdomain only matches it.
   - An auto tagging rule with a path matches that path and its subpaths; with query parameters, all must be present with their values.
   - Deleting a tag does not delete the bookmarks that carry it.
@@ -166,3 +166,23 @@ rules:
   - Uploading a snapshot for a URL that has no bookmark creates the bookmark; otherwise the snapshot is added to the existing one.
   - A bookmarked URL that is a PDF is downloaded instead of being turned into an HTML snapshot.
   - A superuser created without a password can only sign in through an authentication proxy.
+  - When a bookmark is edited, a URL already held by another bookmark of the same owner is refused.
+  - When a bookmark is created with a URL its owner already holds, the existing bookmark is updated instead of a duplicate being added.
+  - Users only see, edit, archive, share and delete their own bookmarks; a bookmark of another user is reported as not found.
+  - Users only manage their own tags; two tags of the same user cannot have the same name, ignoring case.
+  - Spaces inside a tag name are replaced by dashes.
+  - Merging tags needs exactly one existing target tag and at least one existing tag to merge, and the target tag cannot be one of the merged tags.
+  - Only a superuser may change the global settings; any other user is denied.
+  - Only one global settings record may exist.
+  - A PDF snapshot larger than the size limit (15 MB by default) is refused, whether the size is announced by the server or only found while downloading.
+  - A numeric preference that has a minimum (the number of bookmarks per page) cannot be set below 10.
+  - API tokens and feed tokens are unique.
+  - The sharing of bookmarks needs the owner to have enabled sharing; guests see a shared bookmark only if the owner also enabled public sharing.
+  - Sharing and public sharing are off by default for a new profile.
+  - Reading a bookmark that belongs to another user is allowed only when it is shared and the owner enabled sharing (signed-in users) or public sharing (guests), and such a bookmark can never be modified by someone else.
+  - The shared bookmarks list is open to guests, while every other list of the API needs authentication.
+  - Uploading a file to a bookmark, or a snapshot through the API, is refused when asset uploads are disabled.
+  - The preferences of the theme, date display, description display, link target, web archive integration, tag search, tag grouping and landing page only accept their listed values.
+  - The landing page of the site is either the login page or the shared bookmarks page, and defaults to the login page.
+  - A snapshot of a page is only taken when snapshots are enabled and background tasks are not disabled.
+  - A bookmark URL must be a syntactically valid URL, unless URL validation is switched off.
