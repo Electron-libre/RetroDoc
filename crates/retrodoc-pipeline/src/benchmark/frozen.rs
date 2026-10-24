@@ -98,6 +98,9 @@ pub struct Manifest {
     /// The same for `features.yaml` (see [`FrozenInputs::replace_features`]).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub features_origin: Option<String>,
+    /// The same for `use-cases.yaml` (see [`FrozenInputs::replace_use_cases`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub use_cases_origin: Option<String>,
 }
 
 /// The frozen artifacts of one repository.
@@ -181,6 +184,23 @@ impl FrozenInputs {
     pub fn replace_features(&mut self, run_root: &Path, origin: &str) -> Result<(), PipelineError> {
         self.copy_from(Artifact::Features, run_root)?;
         self.manifest.features_origin = Some(origin.to_string());
+        save_yaml(&self.dir.join("manifest.yaml"), &self.manifest)
+    }
+
+    /// Replaces the frozen use cases by those saved in the run at `run_root`, as
+    /// [`FrozenInputs::replace_features`] does for the features: the rules replay starts from use cases
+    /// that belong to the frozen features.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the run has no `use-cases.yaml` or a file can't be written.
+    pub fn replace_use_cases(
+        &mut self,
+        run_root: &Path,
+        origin: &str,
+    ) -> Result<(), PipelineError> {
+        self.copy_from(Artifact::UseCases, run_root)?;
+        self.manifest.use_cases_origin = Some(origin.to_string());
         save_yaml(&self.dir.join("manifest.yaml"), &self.manifest)
     }
 
@@ -269,6 +289,7 @@ mod tests {
             source_run: "run-1".to_string(),
             domains_origin: None,
             features_origin: None,
+            use_cases_origin: None,
         }
     }
 

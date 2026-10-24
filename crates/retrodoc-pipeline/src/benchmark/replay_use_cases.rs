@@ -26,6 +26,7 @@ use crate::slices::CodeIndex;
 use crate::surface::Surface;
 use crate::use_cases::{build_use_cases, UseCaseContext};
 use crate::vocabulary::score_business_language;
+use retrodoc_core::model::Feature;
 
 /// Names of the main entities given to the prompts, as in `generate`.
 const VOCABULARY_SIZE: usize = 40;
@@ -49,7 +50,7 @@ pub struct UseCaseFigures {
     pub wall: Duration,
 }
 
-fn missing(dir: &Path, what: &str) -> PipelineError {
+pub(super) fn missing(dir: &Path, what: &str) -> PipelineError {
     PipelineError::InvalidReference {
         path: dir.to_path_buf(),
         reason: format!("{what} is missing or unreadable"),
@@ -88,22 +89,22 @@ fn copy_tree(tree: &Path, work_root: &Path) -> Result<Vec<std::path::PathBuf>, P
     Ok(sources)
 }
 
-/// Runs the use cases pass once on the frozen features, in `work_root` (an empty directory), reading the
-/// code of `tree`, and measures the use cases. With `judge_llm`, the judge rates the narratives; its calls
-/// are not in the figures of the pass.
-///
-/// # Errors
-///
-/// Returns an error if the frozen inputs (features included) or the tree are unusable, or the pass fails.
-pub async fn replay_use_cases(
+/// What a replay of a pass that reads the code starts from.
+pub(super) struct TreeRun {
+    pub context: UseCaseContext,
+    pub surface: Surface,
+    pub features: Vec<Feature>,
+}
+
+/// Fills `work_root` with the frozen artifacts a replay of `pass` starts from and a copy of the tree, and
+/// loads what the passes that read the code are given, as `generate` gives it.
+pub(super) fn prepare_with_tree(
     frozen: &FrozenInputs,
+    pass: ReplayPass,
     tree: &Path,
     work_root: &Path,
-    llm: &dyn LlmProvider,
-    judge_llm: Option<&dyn LlmProvider>,
-    tracker: &UsageTracker,
-) -> Result<UseCaseFigures, PipelineError> {
-    frozen.prepare(ReplayPass::UseCases, work_root)?;
+) -> Result<TreeRun, PipelineError> {
+    frozen.prepare(pass, work_root)?;
     let sources = copy_tree(tree, work_root)?;
     let glossary = Glossary::load(work_root).ok_or_else(|| missing(work_root, "glossary.yaml"))?;
     let entry_points =
@@ -120,6 +121,33 @@ pub async fn replay_use_cases(
         evidence: Evidence::default(),
         ..UseCaseContext::default()
     };
+    Ok(TreeRun {
+        context,
+        surface,
+        features,
+    })
+}
+
+/// Runs the use cases pass once on the frozen features, in `work_root` (an empty directory), reading the
+/// code of `tree`, and measures the use cases. With `judge_llm`, the judge rates the narratives; its calls
+/// are not in the figures of the pass.
+///
+/// # Errors
+///
+/// Returns an error if the frozen inputs (features included) or the tree are unusable, or the pass fails.
+pub async fn replay_use_cases(
+    frozen: &FrozenInputs,
+    tree: &Path,
+    work_root: &Path,
+    llm: &dyn LlmProvider,
+    judge_llm: Option<&dyn LlmProvider>,
+    tracker: &UsageTracker,
+) -> Result<UseCaseFigures, PipelineError> {
+    let TreeRun {
+        context,
+        surface,
+        features,
+    } = prepare_with_tree(frozen, ReplayPass::UseCases, tree, work_root)?;
 
     let mut use_cases = tracker
         .in_pass(
@@ -276,6 +304,7 @@ mod tests {
             source_run: "run".to_string(),
             domains_origin: None,
             features_origin: None,
+            use_cases_origin: None,
         };
         let frozen = FrozenInputs::freeze(&run, &dir.path().join("frozen"), &manifest).unwrap();
         let tracker = UsageTracker::new();

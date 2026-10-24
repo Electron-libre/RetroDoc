@@ -340,6 +340,7 @@ mod tests {
             source_run: "run".to_string(),
             domains_origin: None,
             features_origin: None,
+            use_cases_origin: None,
         };
         FrozenInputs::freeze(&run, &dir.join("frozen"), &manifest).unwrap()
     }
