@@ -44,7 +44,7 @@ retro-documentation. Proposed deliverables, in this order:
 1. [x] Format and pilot spec: `specs/README.md`, `specs/TEMPLATE.md`, `specs/rerun.md` (`draft`, prefix `RER-`), ADR 0032. Checked by mapping each requirement to the existing test that proves it.
 2. [x] Traceability check: `check_specs.rs` and its test, `just check-specs` in `just check`, `test-harness` extended; annotate the pilot's tests and move `rerun.md` to `accepted`. Checked by `just test-harness` and `just check`.
 3. [x] Skill `write-spec` (template, validation by `just check-specs`), structure checked by `test_skills.rs`.
-4. [ ] Adapt `issue-workflow` (spec stop before the plan), `create-issue` (`Specs` section and checker), `CLAUDE.md`, `update-docs`, `docs/dev/agent-harness.md`.
+4. [x] Adapt `issue-workflow` (spec stop before the plan), `create-issue` (`Specs` section and checker), `CLAUDE.md`, `update-docs`, `docs/dev/agent-harness.md`.
 
 Step 5 of the approach (one spec per capability, written when it is next changed) is not a deliverable: it is how the project goes on.
 

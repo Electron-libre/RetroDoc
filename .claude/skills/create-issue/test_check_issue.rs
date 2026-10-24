@@ -41,6 +41,11 @@ fn main() {
     let (ok, out) = run("issues/e.md", &GOOD.replace("# Fix the thing\n\n", ""));
     check("missing title is flagged", !ok && out.contains("title"));
 
+    let (ok, out) = run("issues/f.md", &GOOD.replace("# Resources", "# Specs\n\n* `specs/rerun.md`: RER-2\n\n# Resources"));
+    check("filled specs section passes", ok && out.is_empty());
+    let (ok, out) = run("issues/g.md", &GOOD.replace("# Resources", "# Specs\n\n# Resources"));
+    check("empty specs section is flagged", !ok && out.contains("`# Specs` is empty"));
+
     let _ = std::fs::remove_dir_all(&tmp);
     if failed {
         std::process::exit(1);

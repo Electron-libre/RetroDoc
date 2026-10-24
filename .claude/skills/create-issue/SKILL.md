@@ -27,7 +27,11 @@ This skill writes it; `check_issue.rs` enforces the mechanical rules. Don't impl
 
    # Approach
    <Measure first when the cause is unknown, then candidate solutions (numbered, can be combined).
-   Propose, don't decide: decisions are made in `issue-workflow` step 1-2.>
+   Propose, don't decide: decisions are made in `issue-workflow` steps 1 to 3.>
+
+   # Specs (optional; when the issue changes what a capability does)
+   * <`specs/<capability>.md` and the requirement ids (`ABC-n`) it creates or amends. A spec that does not exist
+   yet is named here and written at `issue-workflow` step 2.>
 
    # Resources
    * <Files, ADRs, docs, skills to read first.>

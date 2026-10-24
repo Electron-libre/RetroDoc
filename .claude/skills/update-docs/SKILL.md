@@ -31,6 +31,7 @@ Work through the steps in order and report the result of each one. Don't skip a 
 | Roadmap phase started, finished, or re-scoped | `PLAN.md` §5 (remove "Not started" / add status) and the matching §7.x section, `CLAUDE.md` if it lists what is implemented |
 | New or changed convention (lint, tests, commit format, language) | `docs/dev/conventions.md`, `AGENTS.md` for commit rules |
 | Product-level scope change (new connector, doc type) | `PRODUCT.md`, `PLAN.md` §1 scope |
+| Behaviour of a capability that has a spec in `specs/` added, changed or dropped | `specs/<capability>.md` (requirement, scenario, status), the `// spec: ID` of the tests; `just check-specs` must pass |
 | Public Rust API added or changed | doc comments: `# Errors` section on `pub fn` returning `Result`, `#[must_use]` on pure getters (clippy pedantic) |
 
 ## 3. Detect stale statements (don't trust memory)

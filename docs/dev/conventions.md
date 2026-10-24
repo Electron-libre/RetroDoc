@@ -13,3 +13,5 @@
   new pipeline passes instead of adding integration tests that need `OPENROUTER_API_KEY`.
 - Filesystem-touching tests use `tempfile::tempdir()` and, where git history matters, actually run `git
   init`/`git commit` in the tempdir (see `git_history.rs` and `walker.rs` tests) rather than mocking `git2`.
+- A test that proves a requirement of a spec in `specs/` carries `// spec: ABC-n` right above it; the rules are in
+  `specs/README.md` and `just check-specs` enforces them.

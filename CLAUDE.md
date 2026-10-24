@@ -21,6 +21,9 @@ Details live in separate files; read the one that matches the task:
 - `docs/dev/commands.md`: build/test/lint commands, `just` recipes, measurement examples, registry note, CLI smoke test, API keys.
 - `docs/dev/agent-harness.md`: hooks (`format_rust`, `clippy_gate`) and the skills in `.claude/skills/`.
 - `docs/dev/conventions.md`: codebase conventions (confidentiality of test repos, English only, clippy pedantic, test patterns).
+- `specs/`: one spec per capability (numbered requirements, scenarios, non-goals), traced to tests by `// spec: ID`
+  (ADR 0032). Read the spec of a capability before touching it; a change of behaviour starts by amending it
+  (`skill:write-spec`).
 - `docs/crates/`: per-crate detail. `docs/ARCHITECTURE.md`: high-level view. `docs/adr/`: decisions.
 - `PLAN.md`: roadmap; `PRODUCT.md`: vision; `AGENTS.md`: commit format.
 

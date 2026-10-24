@@ -4,6 +4,12 @@
 
 use std::path::Path;
 
+/// True when the section exists and has no text before the next `# ` heading.
+fn section_is_empty(text: &str, heading: &str) -> bool {
+    let mut lines = text.lines();
+    lines.by_ref().any(|l| l.trim() == heading) && lines.take_while(|l| !l.starts_with("# ")).all(|l| l.trim().is_empty())
+}
+
 fn problems(path: &Path, text: &str) -> Vec<String> {
     let mut out = Vec::new();
     let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
@@ -30,12 +36,12 @@ fn problems(path: &Path, text: &str) -> Vec<String> {
     if headings.iter().any(|h| h.trim() == "# Tracking") {
         out.push("`# Tracking` is written by issue-workflow after the plan is validated".to_string());
     }
-    // `# Goal` must have a body.
-    let mut lines = text.lines();
-    if lines.by_ref().any(|l| l.trim() == "# Goal")
-        && lines.take_while(|l| !l.starts_with("# ")).all(|l| l.trim().is_empty())
-    {
+    if section_is_empty(text, "# Goal") {
         out.push("`# Goal` is empty".to_string());
+    }
+    // `# Specs` is optional, but when present it must name something.
+    if section_is_empty(text, "# Specs") {
+        out.push("`# Specs` is empty: name the spec and requirement ids, or drop the section".to_string());
     }
     for (i, line) in text.lines().enumerate() {
         let n = i + 1;
