@@ -1,0 +1,41 @@
+name: Harness
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: harness-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  harness:
+    name: agent harness tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the stable toolchain
+        run: rustup toolchain install stable --profile minimal -c rustfmt,clippy
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just,rust-script
+      - run: just test-harness
+      - run: just check-specs
+
+  commits:
+    name: commit messages
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install the stable toolchain
+        run: rustup toolchain install stable --profile minimal -c rustfmt,clippy
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just,rust-script
+      - name: Check every commit of the PR
+        run: just check-commits ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }}

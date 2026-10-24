@@ -1,0 +1,21 @@
+[harness]
+source = "https://github.com/Electron-libre/agent-harness.git"
+
+# Values of this project that the shared harness reads. Owned by the project: `harness sync` never rewrites it.
+
+[project]
+# Scopes allowed in commit messages besides `docs` and `harness` (crates, areas).
+commit_scopes = ["core", "ingest", "llm", "pipeline", "render", "mcp", "cli"]
+# Documents at the repository root that skills may cite besides AGENTS.md and CLAUDE.md.
+root_docs = ["README.md", "PLAN.md", "PRODUCT.md"]
+# Directories that scripts do not scan besides .git, target and node_modules.
+skipped_dirs = [".retrodoc"]
+# Where the agent finds the context of the project (issue-workflow, create-issue, prioritize-issues).
+roadmap = ["PLAN.md", "PRODUCT.md", "issues/queue.md"]
+architecture = "docs/ARCHITECTURE.md"
+# Where the rules for writing tests are (issue-workflow, step "test first").
+test_conventions = "docs/dev/conventions.md"
+# What must never be named in an issue or a committed file (create-issue); generic wording only.
+confidential = "name no smoke-test repository (client or private) in a committed file or an issue; describe it generically (\"a large Rails repository\") with figures only"
+# Language of the conversation with the user (skills, code, docs and issues stay in English).
+user_language = "French"

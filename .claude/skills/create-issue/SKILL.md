@@ -12,9 +12,9 @@ This skill writes it; `check_issue.rs` enforces the mechanical rules. Don't impl
 
 1. **Check for duplicates**: `ls issues issues/done` and skim the titles close to the subject. If one already
    covers it, propose extending it instead of creating a new file.
-2. **Gather the facts** from what was actually observed (logs, smoke runs, code, `git log`). Don't invent
+2. **Gather the facts** from what was actually observed (logs, smoke runs, code, `git log`, the `roadmap` documents of `.claude/harness.toml`). Don't invent
    findings; if a fact is missing, say so in the issue or ask the user.
-3. **Write the file** in English (the conversation with the user stays in French), with this template:
+3. **Write the file** in English (the conversation with the user stays in the `user_language` of `.claude/harness.toml`), with this template:
 
    ```markdown
    # <Title: what to achieve, imperative; it names the thread via /rename>
@@ -41,8 +41,8 @@ This skill writes it; `check_issue.rs` enforces the mechanical rules. Don't impl
    ```
 
    - No `# Tracking` section: the plan is written there by `issue-workflow` after the user validated it.
-   - Smoke-test repos may be confidential (`CLAUDE.md`): describe them generically, except
-     `delivery_router`. No absolute or home paths.
+   - Confidentiality: follow the `confidential` note of `.claude/harness.toml` (what must not be named in an
+     issue; describe it generically). No absolute or home paths.
 4. **Validate**, and fix the file until it prints nothing:
 
    ```sh

@@ -1,10 +1,11 @@
 # Development commands. `just` lists them; the agent harness uses the same entry points.
+import 'harness.just'
 
 default:
     @just --list
 
 # Format, lint (warning-free) and test the whole workspace.
-check: fmt clippy test check-specs
+check: fmt clippy test check-specs check-harness
 
 fmt:
     cargo fmt --all
@@ -14,19 +15,6 @@ clippy:
 
 test:
     cargo test --workspace
-
-# Test the agent harness itself (hooks and skills). Requires `rust-script`.
-test-harness:
-    rust-script .claude/hooks/test_hooks.rs
-    rust-script .claude/skills/test_skills.rs
-    rust-script .claude/skills/commit-message/test_commit_check.rs
-    rust-script .claude/skills/smoke-test/test_smoke.rs
-    rust-script .claude/skills/quality-benchmark/test_benchmark.rs
-    rust-script .claude/skills/issue-workflow/test_close_issue.rs
-    rust-script .claude/skills/issue-workflow/test_next_issue.rs
-    rust-script .claude/skills/create-issue/test_check_issue.rs
-    rust-script .claude/specs/test_check_specs.rs
-    rust-script .claude/test_settings.rs
 
 # One HTTP call: does a server reject, ignore or obey a strict JSON schema? (ollama|deepseek|gemini|openrouter)
 probe-schema *args:
@@ -39,23 +27,3 @@ smoke *args:
 # Quality benchmark on a public repo against its hand-written reference (see .claude/skills/quality-benchmark/SKILL.md). Slow.
 benchmark *args:
     rust-script .claude/skills/quality-benchmark/benchmark.rs run {{args}}
-
-# Validate a commit message against AGENTS.md (default: HEAD).
-check-commit rev="HEAD":
-    git log -1 --format=%B {{rev}} | rust-script .claude/skills/commit-message/commit_check.rs
-
-# Move a finished issue to issues/done/ and repoint the documents that cite it (only after the user agreed). `--relink` repairs old references.
-close-issue issue:
-    rust-script .claude/skills/issue-workflow/close_issue.rs {{issue}}
-
-# Which issue to work on next (first entry of issues/queue.md) and drift between the queue and the files.
-next-issue:
-    rust-script .claude/skills/issue-workflow/next_issue.rs
-
-# Validate specs/*.md and trace their requirements to the `// spec: ID` comments of the tests.
-check-specs:
-    rust-script .claude/specs/check_specs.rs
-
-# Validate a new issue file against the create-issue template.
-check-issue issue:
-    rust-script .claude/skills/create-issue/check_issue.rs {{issue}}

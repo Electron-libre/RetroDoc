@@ -3,7 +3,7 @@
 One file per capability: what it must do, stated so that a test (or a benchmark) can prove it. A change of
 behaviour starts here: write or amend the spec, get it validated, then write the tests from its requirements.
 
-The spec says **what is expected**; an ADR (`docs/adr/`) says **why a choice was made**; `docs/crates/` says
+The spec says **what is expected**; an ADR (`docs/adr/`) says **why a choice was made**; `docs/*.md` says
 **how the code is laid out**. Specs link to the ADRs that justify them and never repeat their reasoning.
 
 ## Format
@@ -34,7 +34,7 @@ its number (start its statement with `withdrawn:`, which exempts it from the che
 
 The kind says what proves the requirement:
 
-* `deterministic`: a test with a fake `LlmProvider` (no network, no real model) proves it. The test carries a
+* `deterministic`: a test with no network and no external service (fakes, temp dirs, pure functions) proves it. The test carries a
   `// spec: RER-1` comment right above it, attributes and other comments included, and directly above a `fn` (several ids: `// spec: RER-1, RER-2`).
 * `quality`: it depends on what a model writes, so only the benchmark can tell. The item gets indented lines
   `benchmark: benchmark/<repo>/reference.yaml`, `metric: <name>` and an optional `threshold: <value>`. The

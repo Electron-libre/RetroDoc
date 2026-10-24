@@ -24,24 +24,24 @@ fn main() {
     let script = std::fs::canonicalize(Path::new(file!()).parent().unwrap().join("commit_check.rs")).unwrap();
     let long_line = "word ".repeat(16);
     let cases: Vec<(&str, String, bool, &str)> = vec![
-        ("valid subject only", "fix(llm): retry on 429 with backoff\n".into(), true, ""),
+        ("valid subject only", "fix(docs): retry on 429 with backoff\n".into(), true, ""),
         ("valid without scope", "fix: handle empty repository\n".into(), true, ""),
-        ("valid with body and footer", "feat(pipeline): add progress reporting\n\nLog one line per unit.\n\nRefs: #12\n".into(), true, ""),
+        ("valid with body and footer", "feat(harness): add progress reporting\n\nLog one line per unit.\n\nRefs: #12\n".into(), true, ""),
         ("mentioning Claude Code as the subject matter", "docs: describe the Claude Code hooks\n\nThe Anthropic CLI runs them.\n".into(), true, ""),
-        ("subject of exactly 72 chars", format!("feat(cli): {}\n", "a".repeat(72 - "feat(cli): ".len())), true, ""),
-        ("subject too long", format!("feat(cli): {}\n", "a".repeat(73 - "feat(cli): ".len())), false, "72"),
-        ("unknown type", "feature(cli): add flag\n".into(), false, "type"),
+        ("subject of exactly 72 chars", format!("feat(docs): {}\n", "a".repeat(72 - "feat(docs): ".len())), true, ""),
+        ("subject too long", format!("feat(docs): {}\n", "a".repeat(73 - "feat(docs): ".len())), false, "72"),
+        ("unknown type", "feature(docs): add flag\n".into(), false, "type"),
         ("unknown scope", "feat(frontend): add flag\n".into(), false, "scope"),
-        ("capitalized description", "feat(cli): Add flag\n".into(), false, "lowercase"),
-        ("trailing period", "feat(cli): add flag.\n".into(), false, "period"),
+        ("capitalized description", "feat(docs): Add flag\n".into(), false, "lowercase"),
+        ("trailing period", "feat(docs): add flag.\n".into(), false, "period"),
         ("missing colon format", "feat(cli) add flag\n".into(), false, "format"),
-        ("no blank line before body", "feat(cli): add flag\nbody here\n".into(), false, "blank"),
-        ("body line too long", format!("feat(cli): add flag\n\n{long_line}\n"), false, "72"),
-        ("co-authored-by trailer", "feat(cli): add flag\n\nCo-Authored-By: Someone <a@b.c>\n".into(), false, "attribution"),
-        ("generated-with line", "feat(cli): add flag\n\nGenerated with Claude Code\n".into(), false, "attribution"),
-        ("markdown heading", "feat(cli): add flag\n\n# Why\n".into(), false, "markdown"),
-        ("code fence", "feat(cli): add flag\n\n```\nx\n```\n".into(), false, "markdown"),
-        ("emoji", "feat(cli): add flag \u{1F680}\n".into(), false, "emoji"),
+        ("no blank line before body", "feat(docs): add flag\nbody here\n".into(), false, "blank"),
+        ("body line too long", format!("feat(docs): add flag\n\n{long_line}\n"), false, "72"),
+        ("co-authored-by trailer", "feat(docs): add flag\n\nCo-Authored-By: Someone <a@b.c>\n".into(), false, "attribution"),
+        ("generated-with line", "feat(docs): add flag\n\nGenerated with Claude Code\n".into(), false, "attribution"),
+        ("markdown heading", "feat(docs): add flag\n\n# Why\n".into(), false, "markdown"),
+        ("code fence", "feat(docs): add flag\n\n```\nx\n```\n".into(), false, "markdown"),
+        ("emoji", "feat(docs): add flag \u{1F680}\n".into(), false, "emoji"),
     ];
     let mut failed = false;
     for (name, message, should_pass, hint) in cases {

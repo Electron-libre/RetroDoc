@@ -37,8 +37,8 @@ Use one of:
 
 ### Scope
 
-- The crate or area touched, without the `retrodoc-` prefix:
-  `core`, `ingest`, `llm`, `pipeline`, `render`, `mcp`, `cli`, or `docs`.
+- The crate or area touched, from the `commit_scopes` list of `.claude/harness.toml`. Two scopes always exist:
+  `docs` (the `docs/` folder, README, CLAUDE.md) and `harness` (`.claude/`, `justfile`, CI).
 - Omit the scope (`fix: …`) when the change spans the whole workspace.
 
 ### Body (optional)
@@ -64,12 +64,12 @@ Use one of:
 ### Examples
 
 ```
-feat(pipeline): add progress reporting to long passes
+feat(harness): report the commit a sync came from
 
-Long LLM passes gave no feedback, so a slow call looked like a hang.
-Log one line per unit with rank, percentage and ETA.
+The lock file only held hashes, so a drift could not be traced to a
+source revision. Record the revision on the first line.
 ```
 
 ```
-fix(llm): retry on 429 with exponential backoff
+fix(docs): repoint the links to the renamed folder
 ```

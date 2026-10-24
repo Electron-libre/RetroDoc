@@ -10,7 +10,23 @@ use std::collections::HashSet;
 use std::path::Path;
 use std::process::Command;
 
-const SKIPPED_DIRS: [&str; 4] = [".git", "target", ".retrodoc", "node_modules"];
+const SKIPPED_DIRS: [&str; 3] = [".git", "target", "node_modules"];
+
+/// Strings of `key = ["a", "b"]` (on one or several lines) in `.claude/harness.toml`; empty when absent.
+fn config_list(root: &std::path::Path, key: &str) -> Vec<String> {
+    let text = std::fs::read_to_string(root.join(".claude/harness.toml")).unwrap_or_default();
+    let mut offset = 0;
+    for line in text.split_inclusive('\n') {
+        let value = line.strip_prefix(key).map(str::trim_start).and_then(|rest| rest.strip_prefix('='));
+        if let Some(value) = value {
+            let rest = &text[offset + line.len() - value.len()..];
+            let list = rest.split_once('[').and_then(|(_, r)| r.split_once(']')).map_or("", |(list, _)| list);
+            return list.split('"').skip(1).step_by(2).map(str::to_string).collect();
+        }
+        offset += line.len();
+    }
+    Vec::new()
+}
 
 fn is_text_file(path: &Path) -> bool {
     path.file_name().is_some_and(|n| n == "justfile")
@@ -20,13 +36,13 @@ fn is_text_file(path: &Path) -> bool {
             .is_some_and(|e| ["md", "rs", "toml", "yaml", "yml", "txt", "json"].contains(&e))
 }
 
-fn text_files(dir: &Path, out: &mut Vec<std::path::PathBuf>) {
+fn text_files(dir: &Path, out: &mut Vec<std::path::PathBuf>, skipped: &[String]) {
     let Ok(entries) = std::fs::read_dir(dir) else { return };
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
-            if !path.file_name().and_then(|n| n.to_str()).is_some_and(|n| SKIPPED_DIRS.contains(&n)) {
-                text_files(&path, out);
+            if !path.file_name().and_then(|n| n.to_str()).is_some_and(|n| skipped.iter().any(|s| s == n)) {
+                text_files(&path, out, skipped);
             }
         } else if is_text_file(&path) {
             out.push(path);
@@ -59,7 +75,9 @@ fn relink_text(text: &str, stems: &HashSet<String>) -> String {
 /// Rewrite the references to the given closed issues in every text file under `root`.
 fn relink(root: &Path, stems: &HashSet<String>) {
     let mut files = Vec::new();
-    text_files(root, &mut files);
+    let mut skipped: Vec<String> = SKIPPED_DIRS.iter().map(|s| (*s).to_string()).collect();
+    skipped.extend(config_list(root, "skipped_dirs"));
+    text_files(root, &mut files, &skipped);
     for file in files {
         let Ok(text) = std::fs::read_to_string(&file) else { continue };
         let updated = relink_text(&text, stems);

@@ -7,10 +7,31 @@
 use std::io::Read;
 
 const TYPES: [&str; 9] = ["feat", "fix", "refactor", "docs", "test", "perf", "build", "ci", "chore"];
-const SCOPES: [&str; 8] = [
-    "core", "ingest", "llm", "pipeline", "render", "mcp", "cli", "docs",
-];
+const BUILT_IN_SCOPES: [&str; 2] = ["docs", "harness"];
 const ATTRIBUTION: [&str; 3] = ["co-authored-by", "generated with", "noreply@anthropic.com"];
+
+/// Strings of `key = ["a", "b"]` (on one or several lines) in `.claude/harness.toml`; empty when absent.
+fn config_list(root: &std::path::Path, key: &str) -> Vec<String> {
+    let text = std::fs::read_to_string(root.join(".claude/harness.toml")).unwrap_or_default();
+    let mut offset = 0;
+    for line in text.split_inclusive('\n') {
+        let value = line.strip_prefix(key).map(str::trim_start).and_then(|rest| rest.strip_prefix('='));
+        if let Some(value) = value {
+            let rest = &text[offset + line.len() - value.len()..];
+            let list = rest.split_once('[').and_then(|(_, r)| r.split_once(']')).map_or("", |(list, _)| list);
+            return list.split('"').skip(1).step_by(2).map(str::to_string).collect();
+        }
+        offset += line.len();
+    }
+    Vec::new()
+}
+
+/// The built-in scopes plus the project's `commit_scopes`.
+fn scopes() -> Vec<String> {
+    let mut all: Vec<String> = BUILT_IN_SCOPES.iter().map(|s| (*s).to_string()).collect();
+    all.extend(config_list(std::path::Path::new("."), "commit_scopes"));
+    all
+}
 
 fn is_emoji(c: char) -> bool {
     matches!(c as u32, 0x1F000..=0x1FFFF | 0x2600..=0x27BF | 0x2B00..=0x2BFF)
@@ -37,8 +58,9 @@ fn check_subject(subject: &str, errors: &mut Vec<String>) {
     if !TYPES.contains(&ty) {
         errors.push(format!("unknown type `{ty}`, use one of {TYPES:?}"));
     }
-    if let Some(scope) = scope.filter(|s| !SCOPES.contains(s)) {
-        errors.push(format!("unknown scope `{scope}`, use one of {SCOPES:?} (or omit it)"));
+    let scopes = scopes();
+    if let Some(scope) = scope.filter(|s| !scopes.contains(&s.to_string())) {
+        errors.push(format!("unknown scope `{scope}`, use one of {scopes:?} (or omit it)"));
     }
     if description.chars().next().is_some_and(char::is_uppercase) {
         errors.push("description must start in lowercase".into());

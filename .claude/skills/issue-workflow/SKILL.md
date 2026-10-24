@@ -5,7 +5,7 @@ description: Drive an issue file from `issues/` to done in validated deliverable
 
 # Work an issue
 
-The user hands over an issue file in `issues/`. Talk to the user in **French** (skills, code, docs and
+The user hands over an issue file in `issues/`. Talk to the user in the `user_language` of `.claude/harness.toml` (skills, code, docs and
 commits stay in English). Never skip a validation stop: they are what makes the autonomy safe.
 
 ## 0. Resume or start
@@ -19,7 +19,7 @@ validated requirements, or not named in its `# Specs` section: then do step 2 fi
 
 ## 1. Reformulate and validate (STOP)
 
-- Read the issue, plus the resources it names (docs, `git log`, past conversations, `PLAN.md`, memory).
+- Read the issue, plus the resources it names (docs, `git log`, the `roadmap` documents of `.claude/harness.toml`, memory).
 - Restate the need in your own words: goal, means, constraints, what is out of scope, open questions.
 - Ask the questions you can't answer from the repo. Don't ask what has a conventional default.
 - **Stop and wait for the user to validate the understanding.**
@@ -48,12 +48,12 @@ validated requirements, or not named in its `# Specs` section: then do step 2 fi
    spec, the test proves a requirement and carries `// spec: ABC-n` (placement in `specs/README.md`); the
    deliverable that traces the last untraced `deterministic` requirement sets the spec `accepted`, and the one
    that makes the last requirement true sets it `implemented`. Follow the test
-   conventions in `CLAUDE.md` (fake `LlmProvider`, `tempfile::tempdir()`, no network). For non-Rust
+   conventions of the project (the `test_conventions` note of `.claude/harness.toml` says where they are written). For non-Rust
    deliverables (hooks, skills, scripts) write the script test in Rust (`rust-script`, no bash) and run it with `just test-harness`.
 3. **Implement** until the test passes. The clippy gate hook keeps the code warning-free; fix what it reports.
 4. **Docs**: run `skill:update-docs` (it covers the specs). If the change is an architectural decision, also write an ADR in
    `docs/adr/` (template and numbering in `docs/adr/README.md`) and update the
-   Mermaid diagrams in `docs/ARCHITECTURE.md` when the flow changed.
+   diagrams in the `architecture` document of `.claude/harness.toml` when the flow changed.
 5. **Review (mandatory, never skipped)**: run `just check` (fmt, clippy, tests, specs) and
    `just test-harness`, then **invoke `/code-review` on the diff with the Skill tool** and wait for its
    findings; reread the docs you changed. Fix what the review finds, or say why a finding is not fixed.

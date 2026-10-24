@@ -7,16 +7,33 @@
 use std::fs;
 use std::path::Path;
 
-const ROOT_DOCS: [&str; 4] = ["AGENTS.md", "CLAUDE.md", "PLAN.md", "PRODUCT.md"];
+const BUILT_IN_ROOT_DOCS: [&str; 2] = ["AGENTS.md", "CLAUDE.md"];
 
-fn is_doc_path(s: &str) -> bool {
+/// Strings of `key = ["a", "b"]` (on one or several lines) in `.claude/harness.toml`; empty when absent.
+fn config_list(root: &std::path::Path, key: &str) -> Vec<String> {
+    let text = std::fs::read_to_string(root.join(".claude/harness.toml")).unwrap_or_default();
+    let mut offset = 0;
+    for line in text.split_inclusive('\n') {
+        let value = line.strip_prefix(key).map(str::trim_start).and_then(|rest| rest.strip_prefix('='));
+        if let Some(value) = value {
+            let rest = &text[offset + line.len() - value.len()..];
+            let list = rest.split_once('[').and_then(|(_, r)| r.split_once(']')).map_or("", |(list, _)| list);
+            return list.split('"').skip(1).step_by(2).map(str::to_string).collect();
+        }
+        offset += line.len();
+    }
+    Vec::new()
+}
+
+fn is_doc_path(s: &str, root_docs: &[String]) -> bool {
     let path_chars = s.chars().all(|c| c.is_ascii_alphanumeric() || "_./-".contains(c));
-    path_chars && (ROOT_DOCS.contains(&s) || (s.starts_with("docs/") && s.ends_with(".md")))
+    path_chars && (BUILT_IN_ROOT_DOCS.contains(&s) || root_docs.iter().any(|d| d == s) || (s.starts_with("docs/") && s.ends_with(".md")))
 }
 
 fn main() {
     let root = fs::canonicalize(Path::new(file!()).parent().unwrap().join("../..")).unwrap();
     let skills = root.join(".claude/skills");
+    let root_docs = config_list(&root, "root_docs");
     let mut failures = Vec::new();
 
     let mut dirs: Vec<_> = fs::read_dir(&skills)
@@ -56,7 +73,7 @@ fn main() {
             }
         }
         // `path` references to repo docs (odd segments between backticks)
-        for path in text.split('`').skip(1).step_by(2).filter(|s| is_doc_path(s)) {
+        for path in text.split('`').skip(1).step_by(2).filter(|s| is_doc_path(s, &root_docs)) {
             if !root.join(path).exists() {
                 failures.push(format!("{name}: references missing file '{path}'"));
             }

@@ -14,11 +14,11 @@ mechanical rules. Don't implement anything here: the tests come after the user v
 
 1. **Find the spec**: `ls specs` and read the one that covers the capability. Amend it rather than create a
    second one for the same capability. Read the ADRs it lists and the `//!` doc of the code it describes
-   (`docs/crates/`) so the requirements say what is true, not what is hoped.
+   (the `architecture` document and `docs/`) so the requirements say what is true, not what is hoped.
 2. **Draft** (new spec: copy `specs/TEMPLATE.md`; pick a free three-letter id with `grep -h '^id:' specs/*.md`):
    * Intent in one or two sentences.
    * One requirement per testable obligation, "must" / "must not", the kind of each (`deterministic` if a
-     test with a fake `LlmProvider` can prove it, `quality` if only a model's output can: then add its
+     test that needs no network or external service can prove it, `quality` if only a model's output can: then add its
      `benchmark:` and `metric:` lines).
    * Scenarios only for the edge cases a statement leaves open; non-goals for what the spec refuses to
      require. Link ADRs by number in the front matter, never repeat their reasoning.

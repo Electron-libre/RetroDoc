@@ -1,5 +1,15 @@
 # Agent harness
 
+Most of it is shared with the other projects and copied here by `harness sync` from the central repository
+(hooks, skills other than `smoke-test` and `quality-benchmark`, which stay RetroDoc's own and are still tested by `just test-harness`, spec checker, `harness.just`, `AGENTS.md`,
+`specs/README.md`, `script/`, `.github/workflows/harness.yml`). Never edit those copies: `just check-harness`
+fails when one drifted, and the fix belongs in the central repository. What is specific to RetroDoc is in
+`.claude/harness.toml` (commit scopes, root documents, roadmap, confidentiality note) and
+`.claude/update-docs-map.md` (which documents to update after a change).
+
+The `harness` binary (needed by `just check-harness`, hence `just check`) is installed from the central repository with
+`cargo install --path crates/harness`; `harness sync` refreshes the copies.
+
 Hooks in `.claude/settings.json` (`rust-script` files in `.claude/hooks/`, tested by `test_hooks.rs`):
 - `format_rust.rs` (PostToolUse on Edit/Write): runs `cargo fmt --all` after a `.rs` file is edited.
 - `clippy_gate.rs` (Stop): if `.rs` files changed, runs `cargo clippy --workspace --all-targets -- -D warnings`;

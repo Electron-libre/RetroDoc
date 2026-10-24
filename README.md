@@ -149,11 +149,11 @@ The workspace has seven crates with one-way dependencies: `retrodoc-cli`, `retro
 ## Development
 
 ```sh
-just check          # fmt + clippy -D warnings + tests
+just check          # fmt + clippy -D warnings + tests + specs + check-harness (needs `harness`, see docs/dev/agent-harness.md)
 just test-harness   # test the agent hooks and skills (needs rust-script)
 ```
 
-CI (`.github/workflows/ci.yml`) runs the same checks plus the harness tests, and validates the commit messages of pull requests.
+CI runs the Rust checks (`.github/workflows/ci.yml`) and, from the shared harness, its tests and the commit messages of pull requests (`.github/workflows/harness.yml`).
 
 Commit messages follow Conventional Commits, see [AGENTS.md](./AGENTS.md). Agent-specific guidance is in
 [CLAUDE.md](./CLAUDE.md).
