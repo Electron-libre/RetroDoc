@@ -3,26 +3,24 @@
 //! and every skill (`skill:<name>`) or repo doc (`` `AGENTS.md` ``, `` `docs/….md` ``) a skill
 //! references actually exists.
 //! Usage: `just test-harness` (or `rust-script .claude/skills/test_skills.rs`).
+//! ```cargo
+//! [dependencies]
+//! toml = "0.8"
+//! ```
 
 use std::fs;
 use std::path::Path;
 
 const BUILT_IN_ROOT_DOCS: [&str; 2] = ["AGENTS.md", "CLAUDE.md"];
 
-/// Strings of `key = ["a", "b"]` (on one or several lines) in `.claude/harness.toml`; empty when absent.
+/// Strings of `key = ["a", "b"]` in the `[project]` table of `.claude/harness.toml`; empty when absent.
 fn config_list(root: &std::path::Path, key: &str) -> Vec<String> {
     let text = std::fs::read_to_string(root.join(".claude/harness.toml")).unwrap_or_default();
-    let mut offset = 0;
-    for line in text.split_inclusive('\n') {
-        let value = line.strip_prefix(key).map(str::trim_start).and_then(|rest| rest.strip_prefix('='));
-        if let Some(value) = value {
-            let rest = &text[offset + line.len() - value.len()..];
-            let list = rest.split_once('[').and_then(|(_, r)| r.split_once(']')).map_or("", |(list, _)| list);
-            return list.split('"').skip(1).step_by(2).map(str::to_string).collect();
-        }
-        offset += line.len();
-    }
-    Vec::new()
+    let table: toml::Table = text.parse().unwrap_or_default();
+    let list = table.get("project").and_then(|p| p.get(key)).or_else(|| table.get(key));
+    list.and_then(toml::Value::as_array)
+        .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+        .unwrap_or_default()
 }
 
 fn is_doc_path(s: &str, root_docs: &[String]) -> bool {

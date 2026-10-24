@@ -23,6 +23,10 @@ skill is the procedure; `commit_check.rs` enforces the mechanical rules.
    printf '%s\n' "$msg" | rust-script .claude/skills/commit-message/commit_check.rs
    ```
 
+   The checker reads the scopes from `.claude/harness.toml` at the repository root, from any directory. If
+   that file is missing or invalid, or the directory is not a git repository, it prints `error: …` on stderr
+   and exits 2: fix the setup, the message was not checked.
+
 5. **Deliver**:
    - If the user commits themselves: output **only the message**, with no preamble, no summary, no code
      fence.

@@ -5,6 +5,10 @@
 //! `issues/done/foo.md`, so no document keeps pointing at the old path.
 //! Usage: `just close-issue issues/foo.md`; `just close-issue --relink` fixes the references to
 //! every issue already in `issues/done/` (run it once to repair old dangling paths).
+//! ```cargo
+//! [dependencies]
+//! toml = "0.8"
+//! ```
 
 use std::collections::HashSet;
 use std::path::Path;
@@ -12,20 +16,14 @@ use std::process::Command;
 
 const SKIPPED_DIRS: [&str; 3] = [".git", "target", "node_modules"];
 
-/// Strings of `key = ["a", "b"]` (on one or several lines) in `.claude/harness.toml`; empty when absent.
+/// Strings of `key = ["a", "b"]` in the `[project]` table of `.claude/harness.toml`; empty when absent.
 fn config_list(root: &std::path::Path, key: &str) -> Vec<String> {
     let text = std::fs::read_to_string(root.join(".claude/harness.toml")).unwrap_or_default();
-    let mut offset = 0;
-    for line in text.split_inclusive('\n') {
-        let value = line.strip_prefix(key).map(str::trim_start).and_then(|rest| rest.strip_prefix('='));
-        if let Some(value) = value {
-            let rest = &text[offset + line.len() - value.len()..];
-            let list = rest.split_once('[').and_then(|(_, r)| r.split_once(']')).map_or("", |(list, _)| list);
-            return list.split('"').skip(1).step_by(2).map(str::to_string).collect();
-        }
-        offset += line.len();
-    }
-    Vec::new()
+    let table: toml::Table = text.parse().unwrap_or_default();
+    let list = table.get("project").and_then(|p| p.get(key)).or_else(|| table.get(key));
+    list.and_then(toml::Value::as_array)
+        .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+        .unwrap_or_default()
 }
 
 fn is_text_file(path: &Path) -> bool {
