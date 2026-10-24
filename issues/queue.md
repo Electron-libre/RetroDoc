@@ -4,7 +4,6 @@ Open issues in the order to work on them: the first is the next one. Read by `ju
 `just close-issue` removes a line, `skill:create-issue` inserts one at its rank, `skill:prioritize-issues`
 re-ranks the whole list. Line format: `- [<file stem>](<file stem>.md) - <why here>`.
 
-- [spec_driven_development](spec_driven_development.md) - first: it changes how every later issue starts (spec before tests), so the behaviour issues below should be specified with it rather than retrofitted
 - [one_code_reading_for_use_cases_and_rules](one_code_reading_for_use_cases_and_rules.md) - after `rules_deduplication_and_noise` (same pass) and the per-pass measure: the largest token saving, about 80% of a run's input is these two passes
 - [docs_reconciliation_debt_report](docs_reconciliation_debt_report.md) - first PRODUCT.md feature, needs stable generated docs with rules
 - [rules_put_back_what_was_set_aside](rules_put_back_what_was_set_aside.md) - moderate: safety net for the false yes of the question on features about tests (a wrong yes hides every rule of a feature), after `docs_reconciliation_debt_report` which reads the rules and the report that lists them; the rules pass is off by default, so not before
