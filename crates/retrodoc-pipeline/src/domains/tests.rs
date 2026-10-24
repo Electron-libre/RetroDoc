@@ -144,6 +144,7 @@ async fn build_domains_parses_response_and_persists_the_artifact() {
     assert_eq!(reloaded.domains[0].slug, "billing");
 }
 
+// spec: RER-1
 #[tokio::test]
 async fn build_domains_reuses_the_saved_clustering_when_the_input_is_unchanged() {
     let dir = tempfile::tempdir().unwrap();
@@ -659,6 +660,7 @@ async fn the_brief_heads_the_clustering_prompt_and_a_changed_brief_clusters_agai
     assert_eq!(provider.calls(), 2);
 }
 
+// spec: RER-3
 #[tokio::test]
 async fn another_model_clusters_the_same_input_again() {
     let dir = tempfile::tempdir().unwrap();

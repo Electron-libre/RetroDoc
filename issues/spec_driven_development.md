@@ -42,7 +42,7 @@ retro-documentation. Proposed deliverables, in this order:
 
 # Tracking
 1. [x] Format and pilot spec: `specs/README.md`, `specs/TEMPLATE.md`, `specs/rerun.md` (`draft`, prefix `RER-`), ADR 0032. Checked by mapping each requirement to the existing test that proves it.
-2. [ ] Traceability check: `check_specs.rs` and its test, `just check-specs` in `just check`, `test-harness` extended; annotate the pilot's tests and move `rerun.md` to `accepted`. Checked by `just test-harness` and `just check`.
+2. [x] Traceability check: `check_specs.rs` and its test, `just check-specs` in `just check`, `test-harness` extended; annotate the pilot's tests and move `rerun.md` to `accepted`. Checked by `just test-harness` and `just check`.
 3. [ ] Skill `write-spec` (template, validation by `just check-specs`), structure checked by `test_skills.rs`.
 4. [ ] Adapt `issue-workflow` (spec stop before the plan), `create-issue` (`Specs` section and checker), `CLAUDE.md`, `update-docs`, `docs/dev/agent-harness.md`.
 
@@ -54,3 +54,5 @@ Step 5 of the approach (one spec per capability, written when it is next changed
 * A `quality` requirement names `benchmark: benchmark/<repo>/reference.yaml` and `metric:`, with an optional threshold; the script only checks the file exists, it does not rerun the benchmark. The pilot has none.
 * `implemented` is set by hand by whoever delivers the last requirement; only `accepted` and `implemented` specs must have every `deterministic` requirement traced, `draft` is exempt.
 * `write-spec` comes before the workflow adaptation so the workflow cites an existing skill.
+* The check scripts live in `.claude/specs/`, not in `.claude/skills/write-spec/` (`test_skills.rs` requires a `SKILL.md` per skill dir, which arrives with deliverable 3).
+* `withdrawn:` must start the statement of a withdrawn requirement; a `// spec:` comment must sit right above a `fn` (attributes and comments allowed between).

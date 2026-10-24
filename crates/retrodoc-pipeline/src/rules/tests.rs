@@ -253,6 +253,7 @@ async fn a_quote_that_is_not_in_the_test_or_an_unknown_id_is_no_evidence() {
     assert_eq!(rules[0].evidence.len(), 1, "{:?}", rules[0].evidence);
 }
 
+// spec: RER-1, RER-3
 #[tokio::test]
 async fn an_unchanged_feature_is_not_asked_again_but_a_new_model_or_code_is() {
     let dir = repo();
@@ -368,6 +369,7 @@ fn a_hosted_model_s_odd_shapes_cost_the_element_not_the_answer() {
     assert_eq!(tests, [("T2", ""), ("T1", "refuses an order")]);
 }
 
+// spec: RER-5
 #[tokio::test]
 async fn a_killed_run_keeps_the_rules_of_the_features_done_and_the_rerun_resumes() {
     let dir = repo();

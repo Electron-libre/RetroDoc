@@ -256,6 +256,7 @@ async fn the_brief_heads_the_prompt_and_a_changed_brief_reads_the_files_again() 
     assert_eq!(llm.calls(), 2);
 }
 
+// spec: RER-3
 #[tokio::test]
 async fn another_model_reads_the_unchanged_files_again() {
     let dir = tempfile::tempdir().unwrap();

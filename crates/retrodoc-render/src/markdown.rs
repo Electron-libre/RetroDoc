@@ -808,6 +808,7 @@ mod tests {
         assert!(empty.contains("No domain documented yet."), "{empty}");
     }
 
+    // spec: RER-8
     #[test]
     fn a_rerun_on_unchanged_artifacts_rewrites_nothing_including_the_index() {
         let (d, f, u) = sample();

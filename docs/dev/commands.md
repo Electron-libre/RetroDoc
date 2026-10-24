@@ -7,7 +7,8 @@ cargo test -p retrodoc-pipeline         # run one crate's tests
 cargo test -p retrodoc-pipeline repo_map::tests::builds_bottom_up  # run a single test
 cargo clippy --workspace --all-targets  # lint (see Lints below — must be warning-free)
 cargo fmt --all                         # format
-just check                              # fmt + clippy -D warnings + tests in one go
+just check                              # fmt + clippy -D warnings + tests + check-specs in one go
+just check-specs                        # validate specs/*.md and trace their requirements to the tests (`// spec: ID`; needs rust-script)
 just test-harness                       # test the agent hooks and skills (needs rust-script)
 just probe-schema <ollama|deepseek|gemini|openrouter>   # one HTTP call: does the server reject, ignore or obey a strict JSON schema
 cargo run -q -p retrodoc-pipeline --example entry_points_replay -- benchmark/<repo>/entry-points.yaml <checkout> <runs dir>   # saved runs vs a hand-made entry points/actors reference (no LLM)

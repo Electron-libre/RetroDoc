@@ -4,7 +4,7 @@ default:
     @just --list
 
 # Format, lint (warning-free) and test the whole workspace.
-check: fmt clippy test
+check: fmt clippy test check-specs
 
 fmt:
     cargo fmt --all
@@ -25,6 +25,7 @@ test-harness:
     rust-script .claude/skills/issue-workflow/test_close_issue.rs
     rust-script .claude/skills/issue-workflow/test_next_issue.rs
     rust-script .claude/skills/create-issue/test_check_issue.rs
+    rust-script .claude/specs/test_check_specs.rs
     rust-script .claude/test_settings.rs
 
 # One HTTP call: does a server reject, ignore or obey a strict JSON schema? (ollama|deepseek|gemini|openrouter)
@@ -50,6 +51,10 @@ close-issue issue:
 # Which issue to work on next (first entry of issues/queue.md) and drift between the queue and the files.
 next-issue:
     rust-script .claude/skills/issue-workflow/next_issue.rs
+
+# Validate specs/*.md and trace their requirements to the `// spec: ID` comments of the tests.
+check-specs:
+    rust-script .claude/specs/check_specs.rs
 
 # Validate a new issue file against the create-issue template.
 check-issue issue:

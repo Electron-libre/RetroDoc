@@ -532,6 +532,7 @@ mod tests {
         assert_eq!(llm.calls(), 2);
     }
 
+    // spec: RER-3
     #[tokio::test]
     async fn another_model_identifies_the_actors_again() {
         let dir = tempfile::tempdir().unwrap();

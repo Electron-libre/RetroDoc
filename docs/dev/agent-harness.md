@@ -17,3 +17,7 @@ Skills in `.claude/skills/` (structure checked by `.claude/skills/test_skills.rs
 - `smoke-test`: end-to-end run on a real repo with the local Ollama and a verdict (`just smoke <repo>`).
 - `quality-benchmark`: quality of the generated docs against a hand-written reference on a public repo, user docs hidden then shown, several runs, table with the change since the previous benchmark (`just benchmark benchmark/<repo>/reference.yaml`).
 - `update-docs`: checklist to keep the documentation in sync after a change.
+
+Specs (`specs/`, ADR 0032): `.claude/specs/check_specs.rs` (`just check-specs`, part of `just check`) validates the format of
+each spec and fails when an `accepted` spec has a `deterministic` requirement no test cites with `// spec: ID`, or a test
+cites an unknown id; tested by `.claude/specs/test_check_specs.rs`.

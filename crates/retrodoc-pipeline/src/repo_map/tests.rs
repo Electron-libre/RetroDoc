@@ -206,6 +206,7 @@ async fn small_files_share_a_request_and_missing_ones_fall_back() {
     assert_eq!(provider.calls(), 5);
 }
 
+// spec: RER-1
 #[tokio::test]
 async fn unchanged_files_are_not_re_summarized_on_second_run() {
     let dir = tempfile::tempdir().unwrap();
@@ -229,6 +230,7 @@ async fn unchanged_files_are_not_re_summarized_on_second_run() {
     assert_eq!(calls_after_second_run, calls_after_first_run);
 }
 
+// spec: RER-2
 #[tokio::test]
 async fn a_changed_file_only_invalidates_its_folder_and_ancestors() {
     let dir = tempfile::tempdir().unwrap();
@@ -284,6 +286,7 @@ async fn a_failure_partway_through_the_file_loop_keeps_earlier_summaries_cached(
     assert_eq!(cached_paths.len(), 1);
 }
 
+// spec: RER-3
 #[tokio::test]
 async fn another_model_summarizes_everything_again() {
     let dir = tempfile::tempdir().unwrap();

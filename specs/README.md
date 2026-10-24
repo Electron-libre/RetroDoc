@@ -28,15 +28,15 @@ adrs: [0005]       # ADR numbers that justify the spec
 
 ### Requirements
 
-One list item per requirement, `- **<ID>-<n>** (<kind>) <statement>`. The statement says "must" or "must
+One list item per requirement (every top-level item under `## Requirements` is one), `- **<ID>-<n>** (<kind>) <statement>`. The statement says "must" or "must
 not". The ids are stable once the spec is `accepted`: tests and issues cite them; a dropped requirement keeps
-its number (mark it `withdrawn` in the statement) and a new one takes the next number.
+its number (start its statement with `withdrawn:`, which exempts it from the check) and a new one takes the next number.
 
 The kind says what proves the requirement:
 
 * `deterministic`: a test with a fake `LlmProvider` (no network, no real model) proves it. The test carries a
-  `// spec: RER-1` comment on the line above its `fn` (several ids: `// spec: RER-1, RER-2`).
-* `quality`: it depends on what a model writes, so only the benchmark can tell. The item gets an indented line
+  `// spec: RER-1` comment right above it, attributes and other comments included, and directly above a `fn` (several ids: `// spec: RER-1, RER-2`).
+* `quality`: it depends on what a model writes, so only the benchmark can tell. The item gets indented lines
   `benchmark: benchmark/<repo>/reference.yaml`, `metric: <name>` and an optional `threshold: <value>`. The
   check only verifies that the file exists; it does not run the benchmark (cost, and the spread between
   runs is too wide for a blocking threshold).
@@ -57,4 +57,5 @@ refines (`(RER-2)`); it is not traced on its own.
 
 `just check-specs` (part of `just check`) fails when: the format is wrong, an id is duplicated, a test cites an
 unknown id, an `accepted` or `implemented` spec has a `deterministic` requirement no test cites, or a `quality`
-requirement names no existing benchmark file. `skill:write-spec` writes and validates a spec.
+requirement names no existing benchmark file and metric. The script is `.claude/specs/check_specs.rs`, tested by
+`just test-harness`.

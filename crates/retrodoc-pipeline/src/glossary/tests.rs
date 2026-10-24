@@ -306,6 +306,7 @@ async fn the_business_files_are_read_instead_of_the_model_role() {
     assert!(!sent.contains("0001.py"), "{sent}");
 }
 
+// spec: RER-3
 #[tokio::test]
 async fn another_model_reads_the_unchanged_files_again() {
     let dir = tempfile::tempdir().unwrap();

@@ -1,6 +1,6 @@
 ---
 id: RER
-status: draft
+status: accepted
 adrs: [0005]
 ---
 
@@ -22,8 +22,7 @@ repository makes no LLM call and rewrites no file.
 - **RER-3** (deterministic) Another model must redo the units it did not answer: the model is part of what is
   compared, for every pass that keeps fingerprints.
 - **RER-4** (deterministic) A unit the LLM cleanly answered with nothing (no use case) must be remembered
-  until its input changes; an unparseable answer or an LLM error must not be remembered and must be asked
-  again on the next run.
+  until its input changes.
 - **RER-5** (deterministic) A run that fails or is killed must keep the units already done, and the next run
   must resume with the others only.
 - **RER-6** (deterministic) An artifact must be written beside and renamed over the old one, leaving no
@@ -31,6 +30,8 @@ repository makes no LLM call and rewrites no file.
 - **RER-7** (deterministic) `generate --force` must remove the saved results of the LLM passes and keep the
   hand-editable files and the usage history.
 - **RER-8** (deterministic) Rendering again unchanged artifacts must rewrite no file, the index included.
+- **RER-9** (deterministic) An unparseable answer must not be remembered: the unit must be asked again on the
+  next run. An LLM error leaves the unit not done, which RER-5 covers.
 
 ## Scenarios
 

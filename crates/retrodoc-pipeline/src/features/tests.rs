@@ -155,6 +155,7 @@ async fn build_features_skips_a_unit_with_an_unparseable_response() {
     assert!(features.is_empty());
 }
 
+// spec: RER-1, RER-2
 #[tokio::test]
 async fn rerun_reuses_unchanged_units_and_redoes_changed_ones() {
     let dir = tempfile::tempdir().unwrap();
@@ -259,6 +260,7 @@ fn feature_reply(n: usize) -> String {
     )
 }
 
+// spec: RER-5
 #[tokio::test]
 async fn a_failed_run_keeps_the_units_done_and_the_rerun_resumes() {
     let dir = tempfile::tempdir().unwrap();
@@ -453,6 +455,7 @@ async fn the_evidence_closest_to_a_unit_is_in_its_prompt_and_moves_only_its_fing
     assert_eq!(provider.calls(), 3);
 }
 
+// spec: RER-3
 #[tokio::test]
 async fn another_model_derives_the_unchanged_units_again() {
     let dir = tempfile::tempdir().unwrap();
