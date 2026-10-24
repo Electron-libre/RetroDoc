@@ -48,14 +48,17 @@ refines (`(RER-2)`); it is not traced on its own.
 
 ### Status
 
-* `draft`: being written, not enforced.
-* `accepted`: validated by the user; every `deterministic` requirement must be traced by a test.
+* `draft`: being written, or validated by the user while its tests are still to be written. Not enforced.
+* `accepted`: validated by the user and every `deterministic` requirement is traced by a test.
 * `implemented`: the code does all of it. Set by hand by whoever delivers the last requirement. Enforced like
   `accepted`.
+
+The order is therefore: write the spec (`draft`), get it validated, write the tests with their
+`// spec: ID` (a failing test counts), set `accepted` once all are traced, `implemented` once the code passes.
 
 ### Check
 
 `just check-specs` (part of `just check`) fails when: the format is wrong, an id is duplicated, a test cites an
 unknown id, an `accepted` or `implemented` spec has a `deterministic` requirement no test cites, or a `quality`
 requirement names no existing benchmark file and metric. The script is `.claude/specs/check_specs.rs`, tested by
-`just test-harness`.
+`just test-harness`. `skill:write-spec` writes and validates a spec.

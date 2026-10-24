@@ -16,6 +16,8 @@ Skills in `.claude/skills/` (structure checked by `.claude/skills/test_skills.rs
   (`just check-commit` checks `HEAD`).
 - `smoke-test`: end-to-end run on a real repo with the local Ollama and a verdict (`just smoke <repo>`).
 - `quality-benchmark`: quality of the generated docs against a hand-written reference on a public repo, user docs hidden then shown, several runs, table with the change since the previous benchmark (`just benchmark benchmark/<repo>/reference.yaml`).
+- `write-spec`: write or amend a `specs/*.md` (requirements with stable ids, scenarios, non-goals) with the template,
+  validated by `just check-specs`; the user validates the spec before the tests are written.
 - `update-docs`: checklist to keep the documentation in sync after a change.
 
 Specs (`specs/`, ADR 0032): `.claude/specs/check_specs.rs` (`just check-specs`, part of `just check`) validates the format of
