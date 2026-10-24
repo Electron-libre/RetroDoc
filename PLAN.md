@@ -529,8 +529,9 @@ Not reached yet:
 Next work, in the order of `issues/queue.md`:
 1. `issues/done/validate_on_large_application.md`: one complete run on a large application, read by the user (done in
    slices, §7.7).
-2. `issues/done/sampling_temperature_for_steadier_runs.md` and `issues/benchmark_passes_on_fixed_inputs.md`: a steadier
-   and cheaper measure, with references a human has checked.
+2. `issues/done/sampling_temperature_for_steadier_runs.md` and `issues/done/benchmark_passes_on_fixed_inputs.md`: a steadier
+   and cheaper measure, with references a human has checked (done: one pass replayed on frozen inputs,
+   `pass_replay`; a second application is `issues/second_application_in_benchmark.md`).
 3. `issues/done/rules_deduplication_and_noise.md`, `issues/one_code_reading_for_use_cases_and_rules.md` and
    `issues/shorter_use_case_answers.md`: quality of the rules, then the tokens of the two largest passes.
 4. `issues/settle_experimental_settings.md`, `issues/surface_domains_default_decision.md`,

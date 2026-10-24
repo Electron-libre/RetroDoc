@@ -1,4 +1,4 @@
-//! Replay of the use cases pass on frozen features (`issues/benchmark_passes_on_fixed_inputs.md`).
+//! Replay of the use cases pass on frozen features (`issues/done/benchmark_passes_on_fixed_inputs.md`).
 //!
 //! The pass reads the code its features are grounded on, so the replay needs the tree of the repository
 //! at the commit of the frozen inputs: its files are copied into the work directory next to the frozen

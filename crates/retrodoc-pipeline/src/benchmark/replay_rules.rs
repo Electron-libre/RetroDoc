@@ -1,4 +1,4 @@
-//! Replay of the rules pass on frozen features and use cases (`issues/benchmark_passes_on_fixed_inputs.md`).
+//! Replay of the rules pass on frozen features and use cases (`issues/done/benchmark_passes_on_fixed_inputs.md`).
 //!
 //! The pass reads the code of its features, so the tree of the repository is copied into the work
 //! directory, as for the use cases. The figures are how many rules the pass states (before and after the

@@ -46,7 +46,7 @@ the final check.
   `brief_injection_experiments`), which need this measure.
 
 # Tracking
-1. [x] Check the references with a subagent (`reference.yaml`, `matches.yaml`, `entry-points.yaml` of both
+1. [x] Check the references with a subagent, then read by the user (2026-10-24) (`reference.yaml`, `matches.yaml`, `entry-points.yaml` of both
    repositories, a sample of narratives, the two measures of business language): report of gaps, factual
    fixes only. Checked by an agent, not by a human: the human spot check stays due.
 2. [x] Frozen inputs per repository (loader, `~/retrodoc-runs/frozen/<repo>/`, manifest with model and commit).
@@ -54,7 +54,7 @@ the final check.
 4. [x] Features replay on the frozen domains.
 5. [x] Use cases replay on the frozen features.
 6. [x] Rules reference for linkding and rules replay.
-7. [ ] Docs (commands, pipeline, skill `quality-benchmark`) and the decision on a second application and on
+7. [x] Docs (commands, pipeline, skill `quality-benchmark`) and the decision on a second application and on
    `delivery_router`.
 
 ## Decisions
@@ -92,3 +92,7 @@ the final check.
   (`pass_replay rules`) reports the rules stated and kept, the reference rules a generated rule states by the
   judge (12 closest candidates by BM25), calls and tokens; the share of the generated rules the reference
   covers is not a precision, the reference being a selection.
+* The user read the references on 2026-10-24 (`reference.yaml`, `matches.yaml`, `entry-points.yaml`) and
+  reported no correction; the human spot check of `issues/done/quality_benchmark.md` is done.
+* `delivery_router` becomes a smoke repository only (its figures saturate); a second public application is
+  `issues/second_application_in_benchmark.md`.

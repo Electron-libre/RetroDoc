@@ -1,4 +1,4 @@
-//! Replays of one pass on frozen inputs (`issues/benchmark_passes_on_fixed_inputs.md`): the pass runs
+//! Replays of one pass on frozen inputs (`issues/done/benchmark_passes_on_fixed_inputs.md`): the pass runs
 //! alone on the artifacts of [`FrozenInputs`], its result is scored against the hand-made reference of the
 //! level, and its calls and tokens are counted. No pass upstream varies between two replays.
 

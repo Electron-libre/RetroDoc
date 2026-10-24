@@ -49,7 +49,7 @@ decision to add it to the pipeline. This issue measures; it does not change the 
 # Resources
 * `crates/retrodoc-pipeline/src/features/from_surface/repair.rs`, `docs/crates/pipeline.md` (`features/`)
 * `issues/done/placement_into_unknown_features.md`, `issues/done/sampling_temperature_for_steadier_runs.md` (spread
-  between runs), `issues/benchmark_passes_on_fixed_inputs.md`
+  between runs), `issues/done/benchmark_passes_on_fixed_inputs.md`
 * `crates/retrodoc-pipeline/examples/entry_points_replay.rs`, `benchmark/linkding/`
 * `skill:quality-benchmark`, `skill:smoke-test`, `docs/crates/llm.md` (`LlmProvider`)
 * README of SemIf: https://raw.githubusercontent.com/TheoLeeCJ/SemIf/master/README.md

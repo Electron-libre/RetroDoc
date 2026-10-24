@@ -1,4 +1,4 @@
-//! Frozen inputs of a replay (`issues/benchmark_passes_on_fixed_inputs.md`): the artifacts of one good
+//! Frozen inputs of a replay (`issues/done/benchmark_passes_on_fixed_inputs.md`): the artifacts of one good
 //! run, kept outside the clone, from which one pass is replayed alone so that the passes upstream do not
 //! vary between the runs that are compared.
 //!

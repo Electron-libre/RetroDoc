@@ -5,6 +5,10 @@ description: Measure the quality of the generated functional docs against a hand
 
 # Quality benchmark
 
+**Two levels.** To compare a change in one pass (a prompt, a setting, a model for that pass), replay that
+pass alone on frozen inputs first: a few cents and a few minutes, without the variation of the passes
+upstream (see "Replay one pass" below). The whole-run benchmark that follows stays the final check.
+
 `skill:smoke-test` checks that `generate` is robust; this checks that what it writes is right. The
 reference is written by hand per repository in `benchmark/<repo>/reference.yaml` (purpose, actors,
 domains, features, a sample of use cases and rules, the pinned commit) and the hand-written pairs in
@@ -69,3 +73,26 @@ a later run generates. The figures are therefore read like this:
 - A `FAIL` line (generate or benchmark failed in a run) is a finding: read the log around the first
   `WARN`/error. A run that failed is missing from the table, which says so in its `Runs` column.
 - Don't commit the clones, logs or tables (they live in `~/retrodoc-runs`); commit reference and match files only.
+
+## Replay one pass (the first level)
+
+The frozen inputs of a repository live in `~/retrodoc-runs/frozen/<repo>/` (`manifest.yaml`: the model that
+wrote them, the commit, the run they come from and the origin of the domains, features and use cases that a
+replay froze; `cache/`: the artifacts). `freeze_inputs` makes them from a complete run; the replays of
+the `use-cases` and `rules` passes read the code of the tree at `manifest.source_run`, so keep that run.
+
+```sh
+set -a; . ./.env; set +a
+cargo run -q -p retrodoc-pipeline --example pass_replay -- <domains|features|use-cases|rules> \
+  ~/retrodoc-runs/frozen/<repo> benchmark/<repo> deepseek-chat 3
+```
+
+Replay a pass 3 times at least, once with the setting kept and once with the setting changed, and compare
+the means and ranges: a difference inside the range is noise. Domains and features are scored against
+`reference.yaml` strictly and with the judge's pairs (the strict figure is near zero, the models rename
+everything: read the judge columns); use cases report their number and the business language by the judge and
+by the deterministic score; rules report the rules stated and the rules of the reference a generated rule
+states. Calls, tokens and seconds of the pass alone come with each. A change in the output of an upstream pass
+asks for new frozen inputs (`--freeze-first` on `domains`, `features` and `use-cases`, in that order, rewrites
+the frozen artifact of the `surface` path from the first run); say which model wrote them. The judge is the
+model of the replay, so it shares its biases: use the figures to compare settings, not as absolute values.

@@ -1,5 +1,5 @@
 //! Replays one pass alone on frozen inputs, N times, and scores each run against the hand-made reference
-//! (`issues/benchmark_passes_on_fixed_inputs.md`).
+//! (`issues/done/benchmark_passes_on_fixed_inputs.md`).
 //!
 //! Usage:
 //! `DEEPSEEK_API_KEY=x cargo run -q -p retrodoc-pipeline --example pass_replay -- <domains|features|use-cases|rules> <frozen dir> <benchmark dir> <model> [runs] [--freeze-first]`

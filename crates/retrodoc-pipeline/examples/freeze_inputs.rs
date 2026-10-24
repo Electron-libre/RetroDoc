@@ -1,5 +1,5 @@
 //! Freezes the artifacts of a good run as the inputs of the replays of one pass
-//! (`issues/benchmark_passes_on_fixed_inputs.md`), outside the clone.
+//! (`issues/done/benchmark_passes_on_fixed_inputs.md`), outside the clone.
 //!
 //! Usage:
 //! `cargo run -q -p retrodoc-pipeline --example freeze_inputs -- <run dir> <frozen dir> <repo> <commit> <model>`
