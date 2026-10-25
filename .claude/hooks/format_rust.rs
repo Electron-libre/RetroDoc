@@ -1,6 +1,8 @@
 #!/usr/bin/env rust-script
 //! PostToolUse hook (Edit|Write): run `cargo fmt --all` after a Rust file was edited.
 //!
+//! Declare: PostToolUse Edit|Write
+//!
 //! ```cargo
 //! [dependencies]
 //! serde_json = "1"

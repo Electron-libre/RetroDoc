@@ -3,6 +3,8 @@
 //! Exit 2 sends clippy's output back to the agent so it fixes the code. When the agent already
 //! retried once (`stop_hook_active`), let go to avoid an endless loop.
 //!
+//! Declare: Stop
+//!
 //! ```cargo
 //! [dependencies]
 //! serde_json = "1"

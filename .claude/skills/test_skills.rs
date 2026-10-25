@@ -13,6 +13,13 @@ use std::path::Path;
 
 const BUILT_IN_ROOT_DOCS: [&str; 2] = ["AGENTS.md", "CLAUDE.md"];
 
+/// Passages a skill must keep, as (skill, passage, why).
+const REQUIRED_PASSAGES: &[(&str, &str, &str)] = &[
+    ("issue-workflow", "## Autonomous mode", "section defining the autonomous mode"),
+    ("issue-workflow", "autonomous (default)", "plan validation asks autonomous or per-deliverable validation"),
+    ("issue-workflow", "recorded first in `## Decisions`", "mode recorded in the issue so it survives a /clear"),
+];
+
 /// Strings of `key = ["a", "b"]` in the `[project]` table of `.claude/harness.toml`; empty when absent.
 fn config_list(root: &std::path::Path, key: &str) -> Vec<String> {
     let text = std::fs::read_to_string(root.join(".claude/harness.toml")).unwrap_or_default();
@@ -33,6 +40,7 @@ fn main() {
     let skills = root.join(".claude/skills");
     let root_docs = config_list(&root, "root_docs");
     let mut failures = Vec::new();
+    let mut visited = Vec::new();
 
     let mut dirs: Vec<_> = fs::read_dir(&skills)
         .unwrap()
@@ -76,7 +84,17 @@ fn main() {
                 failures.push(format!("{name}: references missing file '{path}'"));
             }
         }
+        for (skill, passage, why) in REQUIRED_PASSAGES.iter().filter(|(s, _, _)| *s == name) {
+            if !text.contains(passage) {
+                failures.push(format!("{skill}: missing '{passage}' ({why})"));
+            }
+        }
+        visited.push(name.clone());
         println!("checked {name}");
+    }
+
+    for (skill, passage, _) in REQUIRED_PASSAGES.iter().filter(|(s, _, _)| !visited.iter().any(|v| v == s)) {
+        failures.push(format!("{skill}: skill missing, cannot hold '{passage}'"));
     }
 
     for f in &failures {

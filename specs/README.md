@@ -36,6 +36,7 @@ The kind says what proves the requirement:
 
 * `deterministic`: a test with no network and no external service (fakes, temp dirs, pure functions) proves it. The test carries a
   `// spec: RER-1` comment right above it, attributes and other comments included, and directly above a `fn` (several ids: `// spec: RER-1, RER-2`).
+  A test under `.claude/` (a managed one) may cite a spec the project does not have: the repository that ships it traces it. Only a prefix with no spec in the project is exempt: an unknown id of a spec the project has, and any citation outside `.claude/`, are still flagged. The repository that ships those tests runs the script with `--strict`, which removes the exemption.
 * `quality`: it depends on what a model writes, so only the benchmark can tell. The item gets indented lines
   `benchmark: benchmark/<repo>/reference.yaml`, `metric: <name>` and an optional `threshold: <value>`. The
   check only verifies that the file exists; it does not run the benchmark (cost, and the spread between
@@ -60,5 +61,5 @@ The order is therefore: write the spec (`draft`), get it validated, write the te
 
 `just check-specs` (part of `just check`) fails when: the format is wrong, an id is duplicated, a test cites an
 unknown id, an `accepted` or `implemented` spec has a `deterministic` requirement no test cites, or a `quality`
-requirement names no existing benchmark file and metric. The script is `.claude/specs/check_specs.rs`, tested by
+requirement names no existing benchmark file and metric. `just check-specs --strict` (for the repository that ships managed tests; consumers stay lenient) also flags the citations of managed tests whose spec the project lacks. The script is `.claude/specs/check_specs.rs`, tested by
 `just test-harness`. `skill:write-spec` writes and validates a spec.

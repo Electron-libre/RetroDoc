@@ -3,6 +3,7 @@
 //! Uses `git mv` when the file is tracked, a plain rename otherwise. Refuses to overwrite.
 //! Then rewrites every `issues/foo.md` mentioned in the other text files of the repo to
 //! `issues/done/foo.md`, so no document keeps pointing at the old path.
+//! Refuses to run in a linked git worktree: the queue is edited at merge time, on the main worktree.
 //! Usage: `just close-issue issues/foo.md`; `just close-issue --relink` fixes the references to
 //! every issue already in `issues/done/` (run it once to repair old dangling paths).
 //! ```cargo
@@ -95,11 +96,28 @@ fn repo_root(dir: &Path) -> Option<std::path::PathBuf> {
     out.status.success().then(|| std::path::PathBuf::from(String::from_utf8_lossy(&out.stdout).trim()))
 }
 
+/// `Some(message)` when the current directory is in a git worktree other than the main one.
+fn linked_worktree() -> Option<String> {
+    let top = repo_root(Path::new("."))?;
+    let out = Command::new("git").args(["worktree", "list", "--porcelain"]).output().ok()?;
+    let list = String::from_utf8_lossy(&out.stdout);
+    if list.split("\n\n").next()?.lines().any(|l| l == "bare") {
+        return None;
+    }
+    let main = list.lines().find_map(|l| l.strip_prefix("worktree "))?;
+    let same = std::fs::canonicalize(main).ok()? == std::fs::canonicalize(&top).ok()?;
+    (!same).then(|| format!("{} is a linked worktree: close the issue from the main worktree {main}, after merging its branch", top.display()))
+}
+
 fn main() {
     let Some(arg) = std::env::args().nth(1) else {
         eprintln!("usage: close_issue.rs issues/<name>.md | --relink");
         std::process::exit(2);
     };
+    if let Some(message) = linked_worktree() {
+        eprintln!("{message}");
+        std::process::exit(1);
+    }
     if arg == "--relink" {
         let stems: HashSet<String> = std::fs::read_dir("issues/done")
             .into_iter()

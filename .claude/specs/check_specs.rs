@@ -1,6 +1,7 @@
 #!/usr/bin/env rust-script
 //! Validate `specs/*.md` against `specs/README.md` and trace them to the tests (`// spec: ID`).
-//! Usage: `just check-specs` (from the repo root; an optional argument is another root).
+//! Usage: `just check-specs` (from the repo root; an optional argument is another root; `--strict` also flags the
+//! citations of managed tests (under `.claude/`) whose spec the project lacks: for the repository that ships them).
 //! Prints one line per problem, exit 1 if any.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -129,12 +130,16 @@ fn parse(root: &Path, file: &str, text: &str, out: &mut Vec<String>) -> Spec {
     spec
 }
 
-fn rust_files(dir: &Path, found: &mut Vec<PathBuf>) {
+/// Every `.rs` file under `dir`, except under the `skipped` directories (build output and agent worktrees, which hold
+/// no tests of their own): matched by full path, so a module named `target` or `worktrees` is still scanned.
+fn rust_files(dir: &Path, skipped: &[PathBuf], found: &mut Vec<PathBuf>) {
     let Ok(entries) = std::fs::read_dir(dir) else { return };
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
-            rust_files(&path, found);
+            if !skipped.contains(&path) {
+                rust_files(&path, skipped, found);
+            }
         } else if path.extension().is_some_and(|e| e == "rs") {
             found.push(path);
         }
@@ -145,7 +150,11 @@ fn rust_files(dir: &Path, found: &mut Vec<PathBuf>) {
 /// test: only attributes and other comments may come between it and the `fn`; any other place is a problem.
 fn citations(root: &Path, out: &mut Vec<String>) -> BTreeMap<String, String> {
     let mut files = Vec::new();
-    rust_files(&root.join("crates"), &mut files);
+    // the tests of the crates, and those of the harness scripts, hooks and skills
+    let skipped = [root.join("target"), root.join(".claude/worktrees")];
+    for dir in ["crates", ".claude"] {
+        rust_files(&root.join(dir), &skipped, &mut files);
+    }
     let mut cited = BTreeMap::new();
     for file in files {
         let Ok(text) = std::fs::read_to_string(&file) else { continue };
@@ -165,7 +174,7 @@ fn citations(root: &Path, out: &mut Vec<String>) -> BTreeMap<String, String> {
     cited
 }
 
-fn problems(root: &Path) -> Vec<String> {
+fn problems(root: &Path, strict: bool) -> Vec<String> {
     let mut out = Vec::new();
     let mut names: Vec<String> = std::fs::read_dir(root.join("specs"))
         .into_iter()
@@ -190,7 +199,10 @@ fn problems(root: &Path) -> Vec<String> {
     let cited = citations(root, &mut out);
     let known: BTreeSet<&str> = specs.iter().flat_map(|s| s.requirements.iter().map(|r| r.id.as_str())).collect();
     for (id, file) in &cited {
-        if !known.contains(id.as_str()) {
+        // a managed test (under `.claude/`) may cite a spec that stays in the harness repository
+        let foreign = !strict
+            && file.replace('\\', "/").starts_with(".claude/") && !ids.contains_key(id.split('-').next().unwrap_or(""));
+        if !known.contains(id.as_str()) && !foreign {
             out.push(format!("{file}: cites `{id}`, which no spec defines"));
         }
     }
@@ -205,8 +217,18 @@ fn problems(root: &Path) -> Vec<String> {
 }
 
 fn main() {
-    let root = PathBuf::from(std::env::args().nth(1).unwrap_or_else(|| ".".to_string()));
-    let found = problems(&root);
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if let Some(flag) = args.iter().find(|a| a.starts_with('-') && *a != "--strict") {
+        eprintln!("unknown option `{flag}` (usage: check_specs.rs [--strict] [root])");
+        std::process::exit(2);
+    }
+    if args.iter().filter(|a| *a != "--strict").count() > 1 {
+        eprintln!("usage: check_specs.rs [--strict] [root]");
+        std::process::exit(2);
+    }
+    let strict = args.iter().any(|a| a == "--strict");
+    let root = PathBuf::from(args.iter().find(|a| *a != "--strict").map_or(".", String::as_str));
+    let found = problems(&root, strict);
     for p in &found {
         println!("{p}");
     }

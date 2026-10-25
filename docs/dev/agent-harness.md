@@ -14,10 +14,16 @@ Hooks in `.claude/settings.json` (`rust-script` files in `.claude/hooks/`, teste
 - `format_rust.rs` (PostToolUse on Edit/Write): runs `cargo fmt --all` after a `.rs` file is edited.
 - `clippy_gate.rs` (Stop): if `.rs` files changed, runs `cargo clippy --workspace --all-targets -- -D warnings`;
   on failure the output goes back to the agent, which must fix the code before finishing.
+- `block_ai_attribution.rs` (PreToolUse on Bash): refuses a `git commit` or `gh pr create|edit` whose message credits Claude or
+  Anthropic (`Co-Authored-By:` trailer, "Generated with" footer); exit 2 sends the reason back so the agent rewrites the message.
+- `require_code_review.rs` (review gate): refuses a `git commit` until the `code-review` skill has run on the current diff
+  (`record` on PostToolUse `Skill`, `check` on PreToolUse `Bash`, `native` from the git `pre-commit` hook installed by `harness sync`).
+  The user waives the review of the next commit by creating `claude-review-waived` in the git directory.
 
 Skills in `.claude/skills/` (structure checked by `.claude/skills/test_skills.rs`):
 - `issue-workflow`: how to work an `issues/*.md` file (reformulate, plan, then per deliverable test, code,
-  docs, review, human validation, tracking, commit). Architecture decisions go to `docs/adr/`.
+  docs, review, human validation, tracking, commit). Architecture decisions go to `docs/adr/`. `just start-issue` / `just finish-issue`
+  give an issue its own git worktree and branch (`issue_worktree.rs`).
 - `create-issue`: write a new `issues/*.md` with the template (Goal, Findings, Approach, Resources, Hints), validated by
   `check_issue.rs` (`just check-issue issues/<name>.md`).
 - `prioritize-issues`: re-rank `issues/queue.md` (the ordered list of open issues; `just next-issue` prints the first)
@@ -29,6 +35,7 @@ Skills in `.claude/skills/` (structure checked by `.claude/skills/test_skills.rs
 - `write-spec`: write or amend a `specs/*.md` (requirements with stable ids, scenarios, non-goals) with the template,
   validated by `just check-specs`; the user validates the spec before the tests are written.
 - `update-docs`: checklist to keep the documentation in sync after a change.
+- `audit-instructions`: read the instructions given to the agent over time and propose skills and hooks worth adding, for validation.
 
 Specs (`specs/`, ADR 0032): `.claude/specs/check_specs.rs` (`just check-specs`, part of `just check`) validates the format of
 each spec and fails when an `accepted` spec has a `deterministic` requirement no test cites with `// spec: ID`, or a test

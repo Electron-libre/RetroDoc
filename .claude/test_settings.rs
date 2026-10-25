@@ -53,13 +53,41 @@ fn main() {
         for group in event.1.as_array().into_iter().flatten() {
             for hook in group["hooks"].as_array().into_iter().flatten() {
                 let cmd = hook["command"].as_str().unwrap_or("");
-                let script = cmd.split_whitespace().last().unwrap_or("").replace("\"$CLAUDE_PROJECT_DIR\"", "");
+                let script = cmd.split_whitespace().rev().find(|w| w.trim_matches('"').ends_with(".rs") && w.contains(".claude/")).or(cmd.split_whitespace().last()).unwrap_or("").replace("\"$CLAUDE_PROJECT_DIR\"", "");
                 let script = script.trim_matches('"').trim_start_matches('/');
-                if !root.join(script).exists() {
+                if script.is_empty() || !root.join(script).exists() {
                     failures.push(format!("hook {} points to a missing script: {script}", event.0));
                 }
             }
         }
+    }
+
+    // every hook script is declared: `settings.json` is seeded once, so a hook added by a later sync is not
+    // wired until someone adds its declaration (the `Declare:` line of its header says where)
+    let declared: Vec<String> = shared["hooks"]
+        .as_object()
+        .into_iter()
+        .flatten()
+        .flat_map(|(_, groups)| groups.as_array().into_iter().flatten())
+        .flat_map(|group| group["hooks"].as_array().into_iter().flatten())
+        .filter_map(|hook| hook["command"].as_str().map(String::from))
+        .collect();
+    let mut scripts: Vec<String> = fs::read_dir(root.join(".claude/hooks"))
+        .into_iter()
+        .flatten()
+        .filter_map(|e| e.ok()?.file_name().into_string().ok())
+        .filter(|n| n.ends_with(".rs") && !n.starts_with("test_"))
+        .collect();
+    scripts.sort();
+    for script in scripts {
+        if declared.iter().any(|c| c.contains(&format!("/.claude/hooks/{script}"))) {
+            continue;
+        }
+        let header = fs::read_to_string(root.join(".claude/hooks").join(&script)).unwrap_or_default();
+        let wanted = header.lines().find_map(|l| l.strip_prefix("//! Declare: ")).unwrap_or("see its header");
+        failures.push(format!(
+            "hook `{script}` is not declared in .claude/settings.json: add under `hooks` the event and matcher `{wanted}` with the command `rust-script \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/{script}` (see docs/architecture.md, Hooks and their declaration)"
+        ));
     }
 
     // shared allowlist: covers the dev commands, nothing dangerous, nothing machine specific

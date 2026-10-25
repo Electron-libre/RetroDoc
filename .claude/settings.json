@@ -32,14 +32,45 @@
       {
         "matcher": "Edit|Write",
         "hooks": [
-          { "type": "command", "command": "rust-script \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/format_rust.rs" }
+          {
+            "type": "command",
+            "command": "rust-script \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/format_rust.rs"
+          }
+        ]
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "rust-script \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/require_code_review.rs record"
+          }
         ]
       }
     ],
     "Stop": [
       {
         "hooks": [
-          { "type": "command", "command": "rust-script \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/clippy_gate.rs", "timeout": 600 }
+          {
+            "type": "command",
+            "command": "rust-script \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/clippy_gate.rs",
+            "timeout": 600
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "rust-script \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/block_ai_attribution.rs"
+          },
+          {
+            "type": "command",
+            "command": "rust-script \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/require_code_review.rs check"
+          }
         ]
       }
     ]
