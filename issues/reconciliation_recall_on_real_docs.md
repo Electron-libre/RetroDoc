@@ -2,7 +2,7 @@
 
 # Goal
 
-The reconciliation of `issues/docs_reconciliation_debt_report.md` (spec `specs/docs-reconciliation.md`, ADR 0033)
+The reconciliation of `issues/done/docs_reconciliation_debt_report.md` (spec `specs/docs-reconciliation.md`, ADR 0033)
 is traced by tests with a fake LLM only. Know, on a repository whose docs really describe what it does, whether
 the lexical match finds the sections that document an item, and whether the LLM judge tells covers, contradicts
 and unrelated apart.
@@ -37,7 +37,7 @@ and unrelated apart.
 
 * `crates/retrodoc-pipeline/src/reconcile/` (`candidates`, `judge.rs`), `crates/retrodoc-pipeline/src/bm25.rs`
 * `skill:quality-benchmark`, `benchmark/`
-* ADR 0033, `issues/docs_reconciliation_debt_report.md` (Tracking: the high review)
+* ADR 0033, `issues/done/docs_reconciliation_debt_report.md` (Tracking: the high review)
 
 # Hints
 

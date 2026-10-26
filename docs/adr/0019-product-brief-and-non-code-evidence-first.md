@@ -59,5 +59,5 @@ every unit), and keeping the docs as titles only (the current state, which loses
   20% fewer features with no gain. It is therefore off by default (`brief.evidence`) and to be tried again
   once the product is stable (`issues/brief_injection_experiments.md`).
 * Follow-up issues: `issues/done/quality_benchmark.md` (to measure the gain), `issues/done/product_brief.md`,
-  `issues/brief_injection_experiments.md`, `issues/docs_reconciliation_debt_report.md`, `issues/done/locate_business_files.md` (takes the brief as
+  `issues/brief_injection_experiments.md`, `issues/done/docs_reconciliation_debt_report.md`, `issues/done/locate_business_files.md` (takes the brief as
   input).

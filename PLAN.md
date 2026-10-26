@@ -97,8 +97,9 @@ docs/
     reconcile the generated docs with the existing ones in the debt report. It takes over the open
     business-level work of phase 7 and the scaling work of phase 8. Steps 1 to 6 of §7.5 are delivered (benchmark,
     brief, business files, structured outputs, model per pass, the `surface` path, tree-sitter chunking,
-    mechanical confidence, single read of the business files, business rules); open: the reconciliation with
-    the existing docs (step 7), the default path, and the follow-ups of the review of 2026-10-12 (§7.6).
+    mechanical confidence, single read of the business files, business rules), and step 7, the reconciliation
+    with the existing docs (ADR 0033; its measure on real docs is `issues/reconciliation_recall_on_real_docs.md`);
+    open: the default path, and the follow-ups of the review of 2026-10-12 (§7.6).
 11. **A large application, one bounded context at a time** (see §7.7, ADR 0029, decided 2026-10-12): the map
     of the contexts (`retrodoc contexts`) and `domains_from = "contexts"`, so that an application too large for
     one run is documented in resumable, complementary runs. Delivered and run on a 1,676-file application (8 of
@@ -490,7 +491,10 @@ Steps, in order, one issue each:
    confidence and the single read per file are queued as their own issues.
 5. `issues/done/tree_sitter_structure.md`: long files cut at parsed definitions for five languages, short method bodies as an option (ADR 0027); the parsed references moved to `issues/parsed_references_for_ranking_and_slices.md`.
 6. `issues/done/business_rules.md`.
-7. `issues/docs_reconciliation_debt_report.md`.
+7. `issues/done/docs_reconciliation_debt_report.md`: every domain, feature, use case and rule matched by BM25 to
+   the existing doc sections, then judged covers / contradicts / unrelated by the LLM (pass `reconcile`, ADR 0033);
+   the debt report counts the coverage per domain and lists the contradictions and the undocumented items, the
+   item pages link their doc sections. Not yet measured on a repository with functional docs.
 
 Expected: a cost that grows with the business surface (entry points, entities, use cases), not with the
 repository. That is an estimate, to be measured with step 1 and `usage.json`.
