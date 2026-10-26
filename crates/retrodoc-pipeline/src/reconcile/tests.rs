@@ -757,11 +757,8 @@ async fn a_long_section_shows_the_paragraphs_of_each_of_its_items_in_turn() {
         shown[archive..delete].contains("[...]"),
         "the paragraphs left out between them are marked"
     );
-    assert!(
-        shown.chars().count() < 36_500,
-        "{} chars",
-        shown.chars().count()
-    );
+    let n = section_shown(&llm, 1).chars().count();
+    assert!(n <= 36_000, "{n} chars");
 }
 
 // spec: REC-15
@@ -825,8 +822,8 @@ async fn a_long_section_none_of_whose_paragraphs_holds_a_query_word_is_shown_fro
         "{}",
         &shown[..300]
     );
-    let n = shown.chars().count();
-    assert!((35_900..36_200).contains(&n), "{n} chars");
+    let n = section_shown(&llm, 1).chars().count();
+    assert!((35_900..=36_000).contains(&n), "{n} chars");
 }
 
 // spec: REC-6
@@ -901,5 +898,153 @@ async fn a_paragraph_with_a_word_rare_in_the_section_beats_ones_with_its_common_
         shown.contains("Unarchives a bookmark."),
         "{}",
         &shown[shown.len() - 600..]
+    );
+}
+
+/// The text shown of section `S<n>` in the prompt of `llm`'s first call, without its `[S<n>]` line.
+fn section_shown(llm: &FakeLlm, n: usize) -> String {
+    let all = sections_shown(llm);
+    let start = all.find(&format!("[S{n}] ")).expect("section listed");
+    let body = &all[start..];
+    let body = &body[body.find('\n').unwrap() + 1..];
+    let end = body.find("\n[S").unwrap_or(body.len());
+    body[..end].trim_end().to_string()
+}
+
+async fn shown_for(candidates: &[Candidate]) -> FakeLlm {
+    let dir = tempfile::tempdir().unwrap();
+    let llm = FakeLlm::answering(r#"{"items":[]}"#);
+    judge(dir.path(), &llm, &on(), candidates).await.unwrap();
+    llm
+}
+
+// spec: REC-15
+#[tokio::test]
+async fn a_long_paragraph_first_picked_leaves_room_for_the_other_items() {
+    let text = format!(
+        "### Bookmarks\nThe example: {}\n\nDeletes a bookmark.",
+        "tag_names favicon_url bundle shown. ".repeat(2_000)
+    );
+    let llm = shown_for(&[
+        candidate(
+            "b/api",
+            "Tag names favicon url bundle",
+            &[("api.md#Bookmarks", &text)],
+        ),
+        candidate(
+            "b/remove",
+            "Delete a bookmark",
+            &[("api.md#Bookmarks", &text)],
+        ),
+    ])
+    .await;
+
+    let shown = section_shown(&llm, 1);
+    assert!(
+        shown.contains("Deletes a bookmark."),
+        "{}",
+        &shown[shown.len() - 200..]
+    );
+    assert!(
+        shown.chars().count() <= 36_000,
+        "{} chars",
+        shown.chars().count()
+    );
+}
+
+// spec: REC-15
+#[tokio::test]
+async fn the_text_before_the_first_heading_has_no_heading_line_to_keep() {
+    let text = format!(
+        "{}\n\nZebra stripes are shown.",
+        "An opening line. ".repeat(3_000)
+    );
+    let llm = shown_for(&[candidate(
+        "b/zebra",
+        "Zebra stripes",
+        &[("README.md", &text)],
+    )])
+    .await;
+
+    let shown = section_shown(&llm, 1);
+    assert!(
+        shown.contains("Zebra stripes are shown."),
+        "{}",
+        &shown[..200]
+    );
+    assert!(
+        shown.chars().count() <= 36_000,
+        "{} chars",
+        shown.chars().count()
+    );
+}
+
+// spec: REC-15
+#[tokio::test]
+async fn a_fenced_block_with_blank_lines_is_one_paragraph_and_a_cut_one_is_closed() {
+    let fence = "```json\n{\n\n  \"tag_names\": [\"a\"]\n}\n```";
+    let long_fence = format!("```\nbundle {}\n```", "x = 1;\n".repeat(8_000));
+    let text = format!(
+        "### Create\n{}\n\n{fence}\n\n{}\n\n{long_fence}",
+        filler(20),
+        filler(20)
+    );
+    let llm = shown_for(&[
+        candidate("b/tags", "Tag names", &[("api.md#Create", &text)]),
+        candidate("b/bundle", "Bundle", &[("api.md#Create", &text)]),
+    ])
+    .await;
+
+    let shown = section_shown(&llm, 1);
+    assert!(shown.contains(fence), "{shown}");
+    assert!(
+        shown.contains("bundle x = 1;"),
+        "the long fence is shown, cut"
+    );
+    assert_eq!(shown.matches("```").count() % 2, 0, "every fence is closed");
+}
+
+// spec: REC-15
+#[tokio::test]
+async fn a_blank_line_holding_spaces_splits_paragraphs() {
+    let text = format!(
+        "### Bookmarks\n{}\n  \nDeletes a bookmark.",
+        filler(40).replace("\n\n", "\n \t\n")
+    );
+    let llm = shown_for(&[candidate(
+        "b/remove",
+        "Delete a bookmark",
+        &[("api.md#Bookmarks", &text)],
+    )])
+    .await;
+
+    let shown = section_shown(&llm, 1);
+    assert!(shown.contains("Deletes a bookmark."), "{}", &shown[..200]);
+    assert!(shown.contains("[...]"), "{}", &shown[..200]);
+}
+
+// spec: REC-15
+#[tokio::test]
+async fn a_short_section_gives_its_unused_share_to_the_long_ones() {
+    let long = format!("### Listing\n{}", filler(60));
+    let mut candidates = vec![candidate(
+        "b/list",
+        "List the entries page by page",
+        &[("a.md#Listing", &long), ("a.md#S0", "Short 0.")],
+    )];
+    candidates.extend((1..8).map(|i| {
+        candidate(
+            &format!("b/{i}"),
+            "Short",
+            &[(&format!("a.md#S{i}"), &format!("Short {i}."))],
+        )
+    }));
+    let llm = shown_for(&candidates).await;
+
+    let shown = section_shown(&llm, 1);
+    let n = shown.chars().count();
+    assert!(
+        (35_000..=36_000).contains(&n),
+        "{n} chars: the share the short sections left"
     );
 }

@@ -47,6 +47,11 @@ about, with the request still bounded.
   and the first endpoints instead of `Unarchive`: counting the query words a paragraph holds favours the long
   paragraphs full of `bookmark`, `list`, `archived`. Weighting each word by how few paragraphs of the section hold
   it shows `Unarchive` and `Delete` (REC-15 amended, `SHOWN_RULE` v2).
+* REC-15 after the high review (paragraphs ranked by `Bm25`, unused shares given back, fences kept whole),
+  `deepseek-chat`, one run: 36 of 39 right, **all 7 answers whose text is past the old cut right** (the
+  "Restore an archived bookmark" one too), 3 wrong on the first part of a section (metadata by
+  `api.md#Bookmarks`, a snapshot item by the Singlefile section, and the import item on `index.mdx#Features`,
+  a short section shown whole as before: run noise); 169k prompt tokens for the 36 calls (136k before).
 # Approach
 
 1. Measure first: on the saved linkding run, list the answers given on a section longer than the cut and
@@ -95,6 +100,10 @@ and 3 of the issue combined (REC-15), the section still listed once per batch.
 3. [x] Compare: re-run the reconciliation of 1 with the new prompt, DeepSeek and the local model, and score the
    labelled sample before / after; verified by a table in `# Findings`.
 
+4. [x] Fixes of the high review: the paragraph pick ranked by `Bm25`, a long paragraph cut to the share of one item,
+   no heading line for the text before the first heading, fences and blank lines with spaces, unused shares given
+   back, the cap kept; verified by unit tests; makes true REC-15.
+
 ## Decisions
 - Mode: autonomous
 - Base commit: 6f3b2205981f4444461077f7f1ebd0f677693216
@@ -102,6 +111,9 @@ and 3 of the issue combined (REC-15), the section still listed once per batch.
 - 2a: 36,000 chars of section text per request.
 - After 2: the local model comparison is left until the switch to the hybrid llama-server
   (`issues/hybrid_llama_server_as_local_llm.md`); deliverable 3 measures with DeepSeek only.
+- High review: what is shown of a section depends on the other items of the batch, and the fingerprint does not
+  hold it (an unchanged item keeps a verdict given on another excerpt). Kept: a fingerprint per batch would ask
+  every item again when one changes (the hint of the issue); the excerpt changes only with the batch.
 - 3a: the reconciliation is re-run by an incremental `generate` on a copy of the saved linkding run, DeepSeek.
 
 ## Deliverable 1
@@ -154,5 +166,34 @@ Not verified: the local model (left, decision after 2); one or two runs per vari
 39 between runs.
 
 Left: the local comparison once the hybrid llama-server is the local target.
+
+Code review (low): no findings.
+
+## Deliverable 4: fixes of the high review
+
+High review of `6f3b220..HEAD`, 10 findings:
+
+| finding | done |
+|---|---|
+| the first paragraph picked, cut, takes the whole share | fixed: a paragraph is cut to the share of one item |
+| a long hit paragraph skipped once something is kept | fixed: same cut, it always fits |
+| the text before the first heading treated as a heading | fixed: no heading line when the section has none |
+| a fence with blank lines split, left open | fixed: a fenced block is one paragraph, a cut fence closed |
+| blank lines holding spaces don't split | fixed |
+| the share of short sections lost | fixed: given back to the long ones (REC-15 amended) |
+| what is shown depends on the batch, not in the fingerprint | not fixed: decision in `## Decisions` |
+| the weight rescans every paragraph | fixed: `Bm25` over the paragraphs replaces it |
+| a hand-made IDF next to `Bm25` | fixed: `Bm25::search_any` ranks the paragraphs |
+| the last `[...]` not budgeted, cap overrun | fixed: set aside, the tests check `<= 36,000` |
+
+| check | result |
+|---|---|
+| tests, lint, specs | `just check` ok |
+| docs | `docs/crates/pipeline.md` (`reconcile/` row) |
+| code review | see below |
+
+red: the 5 new tests, e.g. `a_short_section_gives_its_unused_share_to_the_long_ones`: "3926 chars: the share the
+short sections left"; `a_long_paragraph_first_picked_leaves_room_for_the_other_items`: no "Deletes a bookmark.".
+Not verified: one DeepSeek run only for this version (table in `# Findings`); the local model (decision after 2).
 
 Code review (low): no findings.

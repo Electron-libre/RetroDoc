@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{Candidate, ItemKind, Section};
 use crate::artifact::{load_yaml, save_yaml, Artifact};
-use crate::bm25::content_words;
+use crate::bm25::Bm25;
 use crate::error::PipelineError;
 use crate::fingerprints::{fingerprint, model_part};
 use crate::response::complete_json;
@@ -32,7 +32,7 @@ const MIN_SECTION_CHARS: usize = 1_500;
 
 /// Names the rule that picks what is shown of a section: part of a verdict's fingerprint, so that a
 /// change of the rule asks the saved items again. Change it when [`shown`] changes.
-const SHOWN_RULE: &str = "paragraphs-of-the-items-v2";
+const SHOWN_RULE: &str = "paragraphs-of-the-items-v3";
 
 /// Marks the paragraphs of a section left out.
 const LEFT_OUT: &str = "[...]";
@@ -206,76 +206,93 @@ fn first_chars(text: &str, n: usize) -> &str {
     text.char_indices().nth(n).map_or(text, |(i, _)| &text[..i])
 }
 
+fn is_fence(line: &str) -> bool {
+    line.trim_start().starts_with("```")
+}
+
+/// `text` cut to `n` chars at most, a code fence it leaves open closed.
+fn cut(text: &str, n: usize) -> String {
+    if text.chars().count() <= n {
+        return text.to_string();
+    }
+    let mut out = first_chars(text, n.saturating_sub(4))
+        .trim_end()
+        .to_string();
+    if out.lines().filter(|l| is_fence(l)).count() % 2 == 1 {
+        out.push_str("\n```");
+    }
+    out
+}
+
+/// The paragraphs of `body`: split on lines that are blank, but not inside a fenced code block.
+fn paragraphs(body: &str) -> Vec<String> {
+    let mut paragraphs = Vec::new();
+    let mut current: Vec<&str> = Vec::new();
+    let mut in_fence = false;
+    for line in body.lines() {
+        if is_fence(line) {
+            in_fence = !in_fence;
+        }
+        if line.trim().is_empty() && !in_fence {
+            if !current.is_empty() {
+                paragraphs.push(current.join("\n"));
+                current.clear();
+            }
+        } else {
+            current.push(line);
+        }
+    }
+    if !current.is_empty() {
+        paragraphs.push(current.join("\n"));
+    }
+    paragraphs
+}
+
 /// What is shown of `section` within `share` chars: the whole text when it fits, else its heading line
-/// and the paragraphs that hold content words of `queries`, a word weighing more the fewer paragraphs hold
-/// it, taken heaviest first for each query in turn and shown in the section's order, [`LEFT_OUT`] where paragraphs are left out.
+/// and the paragraphs [`Bm25`] ranks against each of `queries`, best first for each query in turn, each
+/// cut to the share of one query, shown in the section's order with [`LEFT_OUT`] where paragraphs are
+/// left out.
 fn shown(section: &Section, queries: &[&str], share: usize) -> String {
     let text = section.text.trim();
     if text.chars().count() <= share {
         return text.to_string();
     }
-    let (heading, body) = text.split_once('\n').unwrap_or((text, ""));
-    let paragraphs: Vec<&str> = body
-        .split("\n\n")
-        .map(str::trim)
-        .filter(|p| !p.is_empty())
-        .collect();
-    let words: Vec<_> = paragraphs.iter().map(|p| content_words(p)).collect();
-    // A word weighs more the fewer paragraphs hold it: `bookmark` is in every endpoint of a bookmarks API,
-    // `unarchive` in one.
-    #[allow(clippy::cast_precision_loss)]
-    let weight = |word: &String| {
-        let holding = words.iter().filter(|w| w.contains(word)).count();
-        (1.0 + paragraphs.len() as f32 / holding as f32).ln()
+    // The text before the first heading has no heading line.
+    let (heading, body) = match section.at.heading {
+        Some(_) => text.split_once('\n').unwrap_or((text, "")),
+        None => ("", text),
     };
-    // Per query, the paragraphs holding one of its words, heaviest first, then in the section's order.
-    let mut ranked: Vec<std::vec::IntoIter<usize>> = queries
+    let paragraphs = paragraphs(body);
+    let index = Bm25::new(&paragraphs);
+    let mut ranked: Vec<std::vec::IntoIter<(usize, f32)>> = queries
         .iter()
-        .map(|query| {
-            let query = content_words(query);
-            let mut hits: Vec<(f32, usize)> = words
-                .iter()
-                .enumerate()
-                .map(|(i, w)| (w.intersection(&query).map(&weight).sum(), i))
-                .filter(|(score, _)| *score > 0.0)
-                .collect();
-            hits.sort_by(|a, b| b.0.total_cmp(&a.0).then(a.1.cmp(&b.1)));
-            hits.into_iter()
-                .map(|(_, i)| i)
-                .collect::<Vec<_>>()
-                .into_iter()
-        })
+        .map(|query| index.search_any(query).into_iter())
         .collect();
-    let mut left = share.saturating_sub(heading.chars().count());
+    // A kept paragraph comes with a separator and a [...] line at most; the last [...] is set aside.
+    let overhead = LEFT_OUT.len() + 4;
+    let mut left = share.saturating_sub(heading.chars().count() + LEFT_OUT.len() + 2);
+    let per_query = (left / queries.len().max(1)).saturating_sub(overhead);
     // Paragraph index → the text kept of it.
-    let mut kept: BTreeMap<usize, &str> = BTreeMap::new();
+    let mut kept: BTreeMap<usize, String> = BTreeMap::new();
     let mut taking = true;
     while taking {
         taking = false;
         for paragraphs_of_query in &mut ranked {
-            for i in paragraphs_of_query.by_ref() {
-                if kept.contains_key(&i) {
+            for (i, _) in paragraphs_of_query.by_ref() {
+                let paragraph = cut(&paragraphs[i], per_query);
+                let cost = paragraph.chars().count() + overhead;
+                if kept.contains_key(&i) || cost > left {
                     continue;
                 }
-                // A separator and a [...] line at most come with a paragraph.
-                let cost = paragraphs[i].chars().count() + LEFT_OUT.len() + 4;
-                if cost <= left {
-                    kept.insert(i, paragraphs[i]);
-                    left -= cost;
-                } else if kept.is_empty() {
-                    let cut = first_chars(paragraphs[i], left.saturating_sub(LEFT_OUT.len() + 4));
-                    kept.insert(i, cut);
-                    left = 0;
-                } else {
-                    continue;
-                }
+                kept.insert(i, paragraph);
+                left -= cost;
                 taking = true;
                 break;
             }
         }
     }
     if kept.is_empty() {
-        return first_chars(text, share).trim_end().to_string();
+        return cut(text, share);
     }
     let mut out = heading.to_string();
     let mut next = 0;
@@ -285,14 +302,29 @@ fn shown(section: &Section, queries: &[&str], share: usize) -> String {
             out.push_str(LEFT_OUT);
         }
         out.push_str("\n\n");
-        out.push_str(paragraph);
+        out.push_str(&paragraph);
         next = i + 1;
     }
     if next < paragraphs.len() {
         out.push_str("\n\n");
         out.push_str(LEFT_OUT);
     }
-    out
+    out.trim_start().to_string()
+}
+
+/// The chars each of `lengths` (of the sections of a request) may show: a section within an even share of
+/// what is left is shown whole, the rest shared evenly by the longer ones, never under [`MIN_SECTION_CHARS`].
+fn shares(lengths: &[usize]) -> Vec<usize> {
+    let mut order: Vec<usize> = (0..lengths.len()).collect();
+    order.sort_by_key(|&i| lengths[i]);
+    let mut shares = vec![0; lengths.len()];
+    let mut left = MAX_REQUEST_SECTION_CHARS;
+    for (done, &i) in order.iter().enumerate() {
+        let even = (left / (lengths.len() - done)).max(MIN_SECTION_CHARS);
+        shares[i] = lengths[i].min(even);
+        left = left.saturating_sub(shares[i]);
+    }
+    shares
 }
 
 fn prompt(batch: &[&Candidate], numbers: &BTreeMap<String, usize>) -> String {
@@ -303,9 +335,13 @@ fn prompt(batch: &[&Candidate], numbers: &BTreeMap<String, usize>) -> String {
             by_number.push((n, section));
         }
     }
-    let share = (MAX_REQUEST_SECTION_CHARS / by_number.len().max(1)).max(MIN_SECTION_CHARS);
+    let lengths: Vec<usize> = by_number
+        .iter()
+        .map(|(_, s)| s.text.trim().chars().count())
+        .collect();
+    let shares = shares(&lengths);
     let mut prompt = String::from("Sections of the existing documents:\n");
-    for (n, section) in by_number {
+    for ((n, section), share) in by_number.into_iter().zip(shares) {
         let origin = section.at.origin();
         let queries: Vec<&str> = batch
             .iter()

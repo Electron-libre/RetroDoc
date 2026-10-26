@@ -54,13 +54,14 @@ backed by the doc sections it rests on.
   replaced by the lists of REC-10 and REC-11, the rules being items like the others.
 - **REC-14** (deterministic) An LLM call of the pass that fails must not fail `generate`: the pass stops with a
   warning, keeping the verdicts got before.
-- **REC-15** (deterministic) A request of the judge must show at most 36,000 chars of section text, shared evenly
-  between its sections, and never less than 1,500 chars per section. A section within its share must be shown
-  whole; a longer one must be shown as its heading line plus the paragraphs (split on blank lines) that hold
-  content words of the queries of the batch's items it is matched to, a word weighing more the fewer paragraphs
-  of the section hold it, taken in turn for each of those items, heaviest first, until the share is spent, then shown in the order of the section with `[...]` where paragraphs are
-  left out. A paragraph longer than the share is cut to it; a section where no paragraph holds one of those
-  words is shown from its start, cut to its share.
+- **REC-15** (deterministic) A request of the judge must show at most 36,000 chars of section text. A section within
+  an even share of what is left is shown whole and gives the rest back to the others, which share it evenly, never
+  less than 1,500 chars each. A longer section must be shown as its heading line plus the paragraphs (split on
+  blank lines, a fenced code block being one paragraph) that BM25 ranks against the query of each of the batch's
+  items it is matched to, taken in turn for each of those items, best first, until its share is spent, then shown
+  in the order of the section with `[...]` where paragraphs are left out. A paragraph longer than the share divided
+  by the number of those items is cut to it, a code fence it opens closed; a section where no paragraph holds a
+  query word is shown from its start, cut to its share.
 
 ## Scenarios
 
