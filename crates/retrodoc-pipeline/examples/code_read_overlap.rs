@@ -1,5 +1,5 @@
 //! How much code the use cases prompt and the rules prompt of a feature share, from frozen inputs, with
-//! no LLM call (`issues/one_code_reading_for_use_cases_and_rules.md`, step 3).
+//! no LLM call (`issues/done/one_code_reading_for_use_cases_and_rules.md`, step 3).
 //!
 //! Usage: `cargo run -q -p retrodoc-pipeline --example code_read_overlap -- <frozen dir> <benchmark dir>`
 //!

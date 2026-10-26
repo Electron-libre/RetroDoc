@@ -57,7 +57,7 @@ that cost without losing use cases or rules, as `business-read` did for the glos
 3. [x] Offline measure of the code shared by the use cases and rules prompts, on the saved linkding run
 4. [x] Candidate (b) - dropped: code first in both prompts; linkding run on DeepSeek, cached tokens and benchmark
 5. [x] Candidate (c) - dropped: rules read only the lines cited by the use cases; linkding measure
-6. [ ] Candidate (a): one call per feature (only if (b) and (c) fall short; needs an ADR)
+6. [-] Candidate (a) - not done, issue closed before it: one call per feature (only if (b) and (c) fall short; needs an ADR)
 
 ## Decisions
 * Mode: autonomous. Stops before each paid DeepSeek run and at each decision on a candidate.
@@ -146,3 +146,11 @@ Two runs of each setting kept with `RETRODOC_KEEP_RULES` (`kept-base/`, `kept-c1
 * Code review: fixed `RETRODOC_KEEP_RULES` (creates the directory, skips a run with no file) and the headers
   above. Not fixed, by design: the offline table of cited lines is a one-off measure (a step citing a whole
   file counts the whole file, features keyed by name, first prompt with code only).
+
+## Closing
+Delivered: the cached prompt tokens in `Usage`, the recap and the history (spec `token-accounting`), and the
+measures of the ceilings of each lever (shared code 45% of the input of the two passes; cache-first order
+84% served from the cache but -12% rules; cited lines only -70% rules input but about 11% of the true rules
+lost). Left out: candidate (a), one call per feature (ceiling 45% of the input of the two passes, about 24%
+of a run; needs an ADR and the risks above). Reopen it as a new issue if the cost of the rules pass
+becomes the priority.
