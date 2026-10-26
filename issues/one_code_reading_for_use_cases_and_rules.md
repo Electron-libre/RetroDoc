@@ -47,3 +47,22 @@ that cost without losing use cases or rules, as `business-read` did for the glos
 * A local server has no prompt cache between different requests worth counting on: candidate (b) is for
   hosted models.
 * Do it after `rules_deduplication_and_noise`, which decides what the rules pass asks.
+
+# Specs
+* `specs/token-accounting.md` (TOK-1 to TOK-5)
+
+# Tracking
+1. [x] Cached prompt tokens in `Usage` and in the totals (TOK-1, TOK-2, TOK-3)
+2. [x] Cached tokens in the recap and the usage history (TOK-4, TOK-5); spec `accepted` then `implemented`
+3. [ ] Offline measure of the code shared by the use cases and rules prompts, on the saved linkding run
+4. [ ] Candidate (b): code first in both prompts; linkding run on DeepSeek, cached tokens and benchmark
+5. [ ] Candidate (c): rules read only the lines cited by the use cases; linkding measure
+6. [ ] Candidate (a): one call per feature (only if (b) and (c) fall short; needs an ADR)
+
+## Decisions
+* Mode: autonomous. Stops before each paid DeepSeek run and at each decision on a candidate.
+* Order: 1, 2, 3, then the candidates (b), (c), (a); (a) may never be done.
+* A candidate that moves quality beyond the spread is dropped and noted here.
+* Deliverables 1 and 2 were delivered together: the struct change broke the compilation of `usage_log.rs`. Spec `token-accounting` is `implemented`.
+* Per-pass cached column is shown only when the run has cached tokens, so the recap is unchanged otherwise.
+* Code review of 1+2: fixed a zero `cached_tokens` hiding `prompt_cache_hit_tokens` (max of the two). Not fixed, by design: the cap at the prompt is TOK-3, pricing is a non-goal of the spec, the "cached" column is shown only when the run has cache hits.

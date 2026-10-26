@@ -209,6 +209,7 @@ mod tests {
                         calls_without_usage: 1,
                         prompt_tokens: 100 * calls,
                         completion_tokens: 10 * calls,
+                        cached_tokens: 0,
                     }],
                 })
                 .collect(),

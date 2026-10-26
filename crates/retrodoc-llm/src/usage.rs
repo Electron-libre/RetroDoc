@@ -25,6 +25,9 @@ use crate::{CompletionRequest, CompletionResponse, LlmError, LlmProvider};
 pub struct Usage {
     pub prompt_tokens: u64,
     pub completion_tokens: u64,
+    /// Among `prompt_tokens`, those the server served from its prompt
+    /// cache; 0 when it reports none.
+    pub cached_tokens: u64,
 }
 
 /// The `usage` block of an OpenAI-compatible chat completion. Both counters
@@ -36,13 +39,33 @@ struct ApiUsage {
     prompt_tokens: Option<u64>,
     #[serde(default)]
     completion_tokens: Option<u64>,
+    /// OpenAI-compatible servers and `OpenRouter`: `{"cached_tokens": n}`.
+    /// Raw values: a malformed cache count must not cost the other counters.
+    #[serde(default)]
+    prompt_tokens_details: Option<serde_json::Value>,
+    /// `DeepSeek`.
+    #[serde(default)]
+    prompt_cache_hit_tokens: Option<serde_json::Value>,
 }
 
 impl ApiUsage {
     fn into_usage(self) -> Option<Usage> {
+        let prompt_tokens = self.prompt_tokens?;
+        // A server sending both fields (one of them 0) must not hide the other.
+        let cached = [
+            self.prompt_tokens_details
+                .as_ref()
+                .and_then(|details| details.get("cached_tokens")),
+            self.prompt_cache_hit_tokens.as_ref(),
+        ]
+        .into_iter()
+        .flatten()
+        .filter_map(serde_json::Value::as_u64)
+        .max();
         Some(Usage {
-            prompt_tokens: self.prompt_tokens?,
+            prompt_tokens,
             completion_tokens: self.completion_tokens?,
+            cached_tokens: cached.unwrap_or(0).min(prompt_tokens),
         })
     }
 }
@@ -70,6 +93,8 @@ pub struct CallTotals {
     pub calls_without_usage: u64,
     pub prompt_tokens: u64,
     pub completion_tokens: u64,
+    /// Among `prompt_tokens`, those served from the server's prompt cache.
+    pub cached_tokens: u64,
 }
 
 impl CallTotals {
@@ -79,6 +104,7 @@ impl CallTotals {
             Some(usage) => {
                 self.prompt_tokens += usage.prompt_tokens;
                 self.completion_tokens += usage.completion_tokens;
+                self.cached_tokens += usage.cached_tokens;
             }
             None => self.calls_without_usage += 1,
         }
@@ -89,6 +115,7 @@ impl CallTotals {
         self.calls_without_usage += other.calls_without_usage;
         self.prompt_tokens += other.prompt_tokens;
         self.completion_tokens += other.completion_tokens;
+        self.cached_tokens += other.cached_tokens;
     }
 }
 
@@ -309,6 +336,7 @@ mod tests {
                 usage: Some(Usage {
                     prompt_tokens: prompt,
                     completion_tokens: completion,
+                    cached_tokens: 0,
                 }),
                 fail: false,
             }
@@ -348,6 +376,7 @@ mod tests {
             calls_without_usage: without,
             prompt_tokens: prompt,
             completion_tokens: completion,
+            cached_tokens: 0,
         }
     }
 
@@ -512,9 +541,105 @@ mod tests {
             parse(r#"{"prompt_tokens":120,"completion_tokens":35,"total_tokens":155}"#),
             Some(Usage {
                 prompt_tokens: 120,
-                completion_tokens: 35
+                completion_tokens: 35,
+                cached_tokens: 0
             })
         );
+    }
+
+    fn cached(json: &str) -> u64 {
+        parse(json).unwrap().cached_tokens
+    }
+
+    // spec: TOK-1
+    #[test]
+    fn the_cached_tokens_are_read_from_either_provider_field() {
+        assert_eq!(
+            cached(
+                r#"{"prompt_tokens":1000,"completion_tokens":5,"prompt_tokens_details":{"cached_tokens":640}}"#
+            ),
+            640
+        );
+        assert_eq!(
+            cached(
+                r#"{"prompt_tokens":1000,"completion_tokens":5,"prompt_cache_hit_tokens":800,"prompt_cache_miss_tokens":200}"#
+            ),
+            800
+        );
+    }
+
+    // spec: TOK-1
+    #[test]
+    fn a_zero_in_one_cache_field_does_not_hide_the_other() {
+        assert_eq!(
+            cached(
+                r#"{"prompt_tokens":100,"completion_tokens":5,"prompt_tokens_details":{"cached_tokens":0},"prompt_cache_hit_tokens":70}"#
+            ),
+            70
+        );
+    }
+
+    // spec: TOK-2
+    #[test]
+    fn a_missing_or_malformed_cache_count_is_zero_and_keeps_the_other_counters() {
+        for extra in [
+            "",
+            r#","prompt_tokens_details":null"#,
+            r#","prompt_tokens_details":{}"#,
+            r#","prompt_tokens_details":{"cached_tokens":"many"}"#,
+            r#","prompt_tokens_details":{"cached_tokens":-4}"#,
+            r#","prompt_tokens_details":7"#,
+            r#","prompt_cache_hit_tokens":1.5"#,
+        ] {
+            let json = format!(r#"{{"prompt_tokens":100,"completion_tokens":5{extra}}}"#);
+            let usage = parse(&json).unwrap_or_else(|| panic!("{json}"));
+            assert_eq!(
+                (
+                    usage.prompt_tokens,
+                    usage.completion_tokens,
+                    usage.cached_tokens
+                ),
+                (100, 5, 0),
+                "{json}"
+            );
+        }
+    }
+
+    // spec: TOK-3
+    #[test]
+    fn a_cache_count_above_the_prompt_is_capped() {
+        assert_eq!(
+            cached(r#"{"prompt_tokens":100,"completion_tokens":5,"prompt_cache_hit_tokens":900}"#),
+            100
+        );
+    }
+
+    // spec: TOK-3
+    #[tokio::test(start_paused = true)]
+    async fn the_cached_tokens_are_summed_per_model_pass_and_run() {
+        let tracker = UsageTracker::new();
+        let cached = |n| FakeProvider {
+            model: "m",
+            usage: Some(Usage {
+                prompt_tokens: 100,
+                completion_tokens: 10,
+                cached_tokens: n,
+            }),
+            fail: false,
+        };
+        let a = UsageProvider::new(cached(30), tracker.clone());
+        let b = UsageProvider::new(cached(50), tracker.clone());
+        tracker.set_pass("use-cases");
+        a.complete(request()).await.unwrap();
+        tracker.set_pass("rules");
+        b.complete(request()).await.unwrap();
+        b.complete(request()).await.unwrap();
+
+        let report = tracker.report();
+        assert_eq!(report.passes[0].models["m"].cached_tokens, 30);
+        assert_eq!(report.passes[1].total().cached_tokens, 100);
+        assert_eq!(report.total().cached_tokens, 130);
+        assert!(report.total().cached_tokens <= report.total().prompt_tokens);
     }
 
     #[test]

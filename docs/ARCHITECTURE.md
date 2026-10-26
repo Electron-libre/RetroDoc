@@ -253,7 +253,7 @@ Guarantees:
 │   ├── glossary.yaml              #   (phase 7) business entities, also its own cache
 │   ├── entry-points.yaml          #   (phase 7) routes/commands/jobs + outputs, also its own cache
 │   ├── actors.yaml                #   (phase 7) business actors, reused while its input hash is unchanged
-│   └── usage.json                 #   calls, tokens and time per pass of the last 20 runs (see ADR 0015)
+│   └── usage.json                 #   calls, tokens (and cached prompt tokens) and time per pass of the last 20 runs (see ADR 0015)
 └── docs/                          # output dir (`output.docs_dir`)
     ├── functional/llms.txt        #   index for agents that don't run the MCP server
     ├── functional/<domain>/…      #   README per domain, feature pages, use-case pages

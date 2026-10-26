@@ -159,6 +159,7 @@ mod tests {
                 calls_without_usage: 0,
                 prompt_tokens: 0,
                 completion_tokens: 0,
+                cached_tokens: 0,
             }],
             unparseable: 0,
             skipped: 0,

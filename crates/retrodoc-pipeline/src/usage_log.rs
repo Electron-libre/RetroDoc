@@ -54,6 +54,9 @@ pub struct ModelRecord {
     pub calls_without_usage: u64,
     pub prompt_tokens: u64,
     pub completion_tokens: u64,
+    /// Among `prompt_tokens`, those served from the server's prompt cache.
+    #[serde(default)]
+    pub cached_tokens: u64,
 }
 
 fn millis(duration: Duration) -> u64 {
@@ -84,6 +87,7 @@ impl RunUsage {
                             calls_without_usage: totals.calls_without_usage,
                             prompt_tokens: totals.prompt_tokens,
                             completion_tokens: totals.completion_tokens,
+                            cached_tokens: totals.cached_tokens,
                         })
                         .collect(),
                 })
@@ -134,15 +138,22 @@ fn thousands(n: u64) -> String {
 
 /// The text printed at the end of a command: the total, one row per pass
 /// that called the LLM, the models when there are several, and a warning when
-/// some calls reported no tokens.
+/// some calls reported no tokens. The prompt tokens served from a server's
+/// cache are shown only when some call reported any.
 #[must_use]
 pub fn recap(report: &UsageReport) -> String {
     let total = report.total();
     if total.calls == 0 {
         return "LLM usage: no call (everything was reused from the cache).\n".to_string();
     }
+    let with_cache = total.cached_tokens > 0;
+    let cached_in_total = if with_cache {
+        format!(" ({} cached)", thousands(total.cached_tokens))
+    } else {
+        String::new()
+    };
     let mut out = format!(
-        "LLM usage: {} call(s), {} tokens in, {} tokens out, {}.\n",
+        "LLM usage: {} call(s), {} tokens in{cached_in_total}, {} tokens out, {}.\n",
         thousands(total.calls),
         thousands(total.prompt_tokens),
         thousands(total.completion_tokens),
@@ -156,9 +167,14 @@ pub fn recap(report: &UsageReport) -> String {
     let name_width = rows.iter().map(|p| p.name.len()).max().unwrap_or(0);
     for pass in rows {
         let t = pass.total();
+        let cached = if with_cache {
+            format!("  {:>12} cached", thousands(t.cached_tokens))
+        } else {
+            String::new()
+        };
         let _ = writeln!(
             out,
-            "  {:<name_width$}  {:>7} call(s)  {:>12} in  {:>11} out  {:>7}",
+            "  {:<name_width$}  {:>7} call(s)  {:>12} in{cached}  {:>11} out  {:>7}",
             pass.name,
             thousands(t.calls),
             thousands(t.prompt_tokens),
@@ -183,14 +199,20 @@ pub fn recap(report: &UsageReport) -> String {
             entry.calls += totals.calls;
             entry.prompt_tokens += totals.prompt_tokens;
             entry.completion_tokens += totals.completion_tokens;
+            entry.cached_tokens += totals.cached_tokens;
         }
     }
     if models.len() > 1 {
         out.push_str("  By model:\n");
         for (model, t) in &models {
+            let cached = if with_cache {
+                format!(" ({} cached)", thousands(t.cached_tokens))
+            } else {
+                String::new()
+            };
             let _ = writeln!(
                 out,
-                "    {model}: {} call(s), {} in, {} out",
+                "    {model}: {} call(s), {} in{cached}, {} out",
                 thousands(t.calls),
                 thousands(t.prompt_tokens),
                 thousands(t.completion_tokens),
@@ -227,6 +249,7 @@ mod tests {
                             calls_without_usage: without,
                             prompt_tokens: prompt,
                             completion_tokens: completion,
+                            cached_tokens: 0,
                         },
                     )
                 })
@@ -270,6 +293,74 @@ mod tests {
         // One model: no per-model section; every call reported its tokens.
         assert!(!text.contains("By model"), "{text}");
         assert!(!text.contains("lower bound"), "{text}");
+    }
+
+    fn with_cache() -> UsageReport {
+        let mut report = report();
+        for pass in &mut report.passes {
+            for totals in pass.models.values_mut() {
+                totals.cached_tokens = totals.prompt_tokens / 2;
+            }
+        }
+        report
+    }
+
+    // spec: TOK-4
+    #[test]
+    fn recap_shows_the_cached_tokens_only_when_a_server_reported_some() {
+        let text = recap(&with_cache());
+        assert!(
+            text.starts_with(
+                "LLM usage: 103 call(s), 1,012,400 tokens in (506,200 cached), 91,800 tokens out"
+            ),
+            "{text}"
+        );
+        assert!(text.contains("500,000 cached"), "{text}");
+        assert!(text.contains("6,200 cached"), "{text}");
+
+        let plain = recap(&report());
+        assert!(!plain.contains("cached"), "{plain}");
+    }
+
+    // spec: TOK-4
+    #[test]
+    fn recap_shows_the_cached_tokens_of_each_model() {
+        let mut cached = pass(
+            "rules",
+            5,
+            &[("big", 1, 0, 100, 20), ("small", 4, 0, 40, 8)],
+        );
+        cached.models.get_mut("big").unwrap().cached_tokens = 60;
+        let text = recap(&UsageReport {
+            passes: vec![cached],
+        });
+        assert!(
+            text.contains("big: 1 call(s), 100 in (60 cached), 20 out"),
+            "{text}"
+        );
+        assert!(
+            text.contains("small: 4 call(s), 40 in (0 cached), 8 out"),
+            "{text}"
+        );
+    }
+
+    // spec: TOK-5
+    #[test]
+    fn the_cached_tokens_are_saved_and_an_old_history_without_them_loads_with_zero() {
+        let dir = tempfile::tempdir().unwrap();
+        let run = RunUsage::new("generate", "2026-10-09T00:00:00Z", &with_cache());
+        record_run(dir.path(), run).unwrap();
+        assert_eq!(
+            load_history(dir.path())[0].passes[1].models[0].cached_tokens,
+            500_000
+        );
+
+        let old = r#"{"runs":[{"command":"generate","finished_at":"x","wall_ms":1,"passes":[{"name":"p","wall_ms":1,"models":[{"model":"m","calls":1,"calls_without_usage":0,"prompt_tokens":5,"completion_tokens":2}]}]}]}"#;
+        let path = dir.path().join(".retrodoc/cache/usage.json");
+        std::fs::write(&path, old).unwrap();
+        let back = load_history(dir.path());
+        assert_eq!(back[0].passes[0].models[0].prompt_tokens, 5);
+        assert_eq!(back[0].passes[0].models[0].cached_tokens, 0);
     }
 
     #[test]

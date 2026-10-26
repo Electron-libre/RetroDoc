@@ -774,7 +774,8 @@ mod tests {
             response.usage,
             Some(Usage {
                 prompt_tokens: 120,
-                completion_tokens: 35
+                completion_tokens: 35,
+                cached_tokens: 0
             })
         );
     }
