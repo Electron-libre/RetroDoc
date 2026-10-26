@@ -11,10 +11,8 @@ const SECTIONS: [&str; 4] = ["## Intent", "## Requirements", "## Scenarios", "##
 
 struct Requirement {
     id: String,
-    kind: String,
-    withdrawn: bool,
-    benchmark: Option<String>,
-    metric: bool,
+    /// Needs no test: withdrawn, or of the former `quality` kind.
+    exempt: bool,
 }
 
 struct Spec {
@@ -67,8 +65,13 @@ fn parse(root: &Path, file: &str, text: &str, out: &mut Vec<String>) -> Spec {
     if !is_id_prefix(&spec.id) {
         problem(format!("front matter `id` must be three capital letters, got `{}`", spec.id));
     }
-    if !["draft", "accepted", "implemented"].contains(&spec.status.as_str()) {
-        problem(format!("front matter `status` must be draft, accepted or implemented, got `{}`", spec.status));
+    // `implemented` was a status of its own, enforced like `accepted`: still read as such so older specs keep passing
+    if spec.status == "implemented" {
+        eprintln!("warning: {file}: status `implemented` is deprecated, use `accepted`");
+        spec.status = "accepted".to_string();
+    }
+    if !["draft", "accepted"].contains(&spec.status.as_str()) {
+        problem(format!("front matter `status` must be draft or accepted, got `{}`", spec.status));
     }
     for section in SECTIONS {
         if !lines.iter().any(|l| l.trim() == section) {
@@ -77,7 +80,7 @@ fn parse(root: &Path, file: &str, text: &str, out: &mut Vec<String>) -> Spec {
     }
     let mut seen = BTreeSet::new();
     let mut in_requirements = false;
-    for (i, line) in lines.iter().enumerate() {
+    for line in &lines {
         if line.starts_with("## ") {
             in_requirements = line.trim() == "## Requirements";
         }
@@ -97,35 +100,14 @@ fn parse(root: &Path, file: &str, text: &str, out: &mut Vec<String>) -> Spec {
         }
         let kind = after.trim().strip_prefix('(').and_then(|a| a.split_once(')'));
         let (kind, statement) = kind.map_or((String::new(), ""), |(k, rest)| (k.to_string(), rest.trim()));
-        if kind != "deterministic" && kind != "quality" {
-            problem(format!("requirement {id}: kind must be `(deterministic)` or `(quality)`, got `({kind})`"));
+        let withdrawn = statement.starts_with("withdrawn:");
+        // `quality` was a kind proved by a benchmark: still read, untraced, so older specs keep passing
+        if kind == "quality" && !withdrawn {
+            eprintln!("warning: {file}: requirement {id}: kind `quality` is deprecated, reword it for a test or withdraw it");
+        } else if kind != "deterministic" && kind != "quality" {
+            problem(format!("requirement {id}: kind must be `(deterministic)`, got `({kind})`"));
         }
-        let mut req = Requirement {
-            id: id.to_string(),
-            kind,
-            withdrawn: statement.starts_with("withdrawn:"),
-            benchmark: None,
-            metric: false,
-        };
-        for next in lines[i + 1..].iter().take_while(|l| !l.starts_with("- ") && !l.starts_with('#')) {
-            let t = next.trim();
-            if let Some(b) = t.strip_prefix("benchmark:") {
-                req.benchmark = Some(b.trim().to_string());
-            } else if t.strip_prefix("metric:").is_some_and(|m| !m.trim().is_empty()) {
-                req.metric = true;
-            }
-        }
-        spec.requirements.push(req);
-    }
-    for req in spec.requirements.iter().filter(|r| r.kind == "quality" && !r.withdrawn) {
-        match &req.benchmark {
-            Some(b) if root.join(b).is_file() => {}
-            Some(b) => problem(format!("requirement {}: benchmark file `{b}` does not exist", req.id)),
-            None => problem(format!("requirement {}: quality needs a `benchmark:` line", req.id)),
-        }
-        if !req.metric {
-            problem(format!("requirement {}: quality needs a `metric:` line", req.id));
-        }
+        spec.requirements.push(Requirement { id: id.to_string(), exempt: withdrawn || kind == "quality" });
     }
     spec
 }
@@ -206,10 +188,10 @@ fn problems(root: &Path, strict: bool) -> Vec<String> {
             out.push(format!("{file}: cites `{id}`, which no spec defines"));
         }
     }
-    for spec in specs.iter().filter(|s| s.status == "accepted" || s.status == "implemented") {
-        for req in spec.requirements.iter().filter(|r| r.kind == "deterministic" && !r.withdrawn) {
+    for spec in specs.iter().filter(|s| s.status == "accepted") {
+        for req in spec.requirements.iter().filter(|r| !r.exempt) {
             if !cited.contains_key(&req.id) {
-                out.push(format!("{}: requirement {} is deterministic and no test cites `// spec: {}`", spec.file, req.id, req.id));
+                out.push(format!("{}: requirement {}: no test cites `// spec: {}`", spec.file, req.id, req.id));
             }
         }
     }

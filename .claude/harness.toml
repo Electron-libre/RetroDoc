@@ -1,6 +1,6 @@
 [harness]
 source = "https://github.com/Electron-libre/agent-harness.git"
-rev = "4ff1948834703cb28abcead1d82ee7e4dae15c7d"  # default branch
+rev = "b410ad5655aa14d90ce55ceabdfc36041c964424"  # default branch
 
 # Values of this project that the shared harness reads. Owned by the project: `harness sync` never rewrites it.
 

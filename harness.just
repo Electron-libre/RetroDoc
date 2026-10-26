@@ -1,8 +1,13 @@
 # Recipes of the shared agent harness. Managed by `harness sync`: change them in the central repository.
 
-# Test the agent harness itself (hooks, skills, spec checker). Requires `rust-script`.
+# Test the agent harness itself (hooks, skills, spec checker). Requires `rust-script`. Prints nothing on success, and
+# only the lines of the failing script that are not `ok` otherwise.
 test-harness:
-    for t in .claude/hooks/test_*.rs .claude/skills/test_skills.rs .claude/skills/*/test_*.rs .claude/specs/test_*.rs .claude/test_settings.rs; do [ -e "$t" ] || continue; rust-script "$t" || exit 1; done
+    #!/usr/bin/env sh
+    for t in .claude/hooks/test_*.rs .claude/skills/test_skills.rs .claude/skills/*/test_*.rs .claude/specs/test_*.rs .claude/test_*.rs; do
+        [ -e "$t" ] || continue
+        out=$(rust-script "$t" 2>&1) || { printf '%s\n' "$out" | grep -v '^ok '; echo "FAILED: $t"; exit 1; }
+    done
 
 # For the user only, never the agent: waive the code review of the next commit of this worktree (creates its waiver file and prints the path).
 waive-review:
@@ -42,7 +47,7 @@ check-issue issue:
 
 # Validate specs/*.md and trace their requirements to the `// spec: ID` comments of the tests.
 check-specs *args:
-    rust-script .claude/specs/check_specs.rs {{args}}
+    @rust-script .claude/specs/check_specs.rs {{args}}
 
 # Fail when a managed harness file was modified or deleted since the last `harness sync`.
 check-harness:

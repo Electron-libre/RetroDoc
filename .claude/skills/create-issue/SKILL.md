@@ -29,11 +29,11 @@ Show the user your results as `AGENTS.md` section "Reports to the user" says.
 
    # Approach
    <Measure first when the cause is unknown, then candidate solutions (numbered, can be combined).
-   Propose, don't decide: decisions are made in `issue-workflow` steps 1 to 3.>
+   Propose, don't decide: decisions are made in `issue-workflow` steps 1 and 2.>
 
    # Specs (optional; when the issue changes what a capability does)
    * <`specs/<capability>.md` and the requirement ids (`ABC-n`) it creates or amends. A spec that does not exist
-   yet is named here and written at `issue-workflow` step 2.>
+   yet is named here and written at `issue-workflow` step 1.>
 
    # Resources
    * <Files, ADRs, docs, skills to read first.>
@@ -42,7 +42,7 @@ Show the user your results as `AGENTS.md` section "Reports to the user" says.
    * <Traps already met, constraints.>
    ```
 
-   - No `# Tracking` section: the plan is written there by `issue-workflow` after the user validated it.
+   - No `# Tracking` section: the plan is written there by `issue-workflow`.
    - Confidentiality: follow the `confidential` note of `.claude/harness.toml` (what must not be named in an
      issue; describe it generically). No absolute or home paths.
 4. **Validate**, and fix the file until it prints nothing:

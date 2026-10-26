@@ -1,6 +1,6 @@
 ---
 id: TOK
-status: implemented
+status: accepted
 adrs: [0015]
 ---
 

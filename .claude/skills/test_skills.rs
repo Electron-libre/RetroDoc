@@ -1,7 +1,8 @@
 #!/usr/bin/env rust-script
 //! Structural check of the project skills: frontmatter is valid, `name` matches the directory,
-//! and every skill (`skill:<name>`) or repo doc (`` `AGENTS.md` ``, `` `docs/….md` ``) a skill
-//! references actually exists.
+//! and every skill (`skill:<name>`), repo doc (`` `AGENTS.md` ``, `` `docs/….md` ``) or section of `AGENTS.md`
+//! (`` `AGENTS.md` section "<heading>" ``) a skill references actually exists, as does every file of its own
+//! directory it links (`[x](details.md)`); every markdown file of a skill is checked, not only `SKILL.md`.
 //! Usage: `just test-harness` (or `rust-script .claude/skills/test_skills.rs`).
 //! ```cargo
 //! [dependencies]
@@ -18,6 +19,9 @@ const REQUIRED_PASSAGES: &[(&str, &str, &str)] = &[
     ("issue-workflow", "## Autonomous mode", "section defining the autonomous mode"),
     ("issue-workflow", "autonomous (default)", "plan validation asks autonomous or per-deliverable validation"),
     ("issue-workflow", "recorded first in `## Decisions`", "mode recorded in the issue so it survives a /clear"),
+    ("issue-workflow", "Plan: proposed", "the plan is written in the issue before its validation"),
+    ("issue-workflow", "set `Plan: validated`", "the validation is recorded so a resume skips the stop"),
+    ("issue-workflow", "`1 a, 2 c`", "questions answered by number and option letter"),
 ];
 
 /// Strings of `key = ["a", "b"]` in the `[project]` table of `.claude/harness.toml`; empty when absent.
@@ -35,118 +39,24 @@ fn is_doc_path(s: &str, root_docs: &[String]) -> bool {
     path_chars && (BUILT_IN_ROOT_DOCS.contains(&s) || root_docs.iter().any(|d| d == s) || (s.starts_with("docs/") && s.ends_with(".md")))
 }
 
-const OUTPUT_SECTION: &str = "## Reports to the user";
-const REPORTING_SKILLS: [&str; 7] = [
-    "issue-workflow",
-    "create-issue",
-    "prioritize-issues",
-    "audit-instructions",
-    "update-docs",
-    "commit-message",
-    "write-spec",
-];
-/// Wording that makes the agent narrate its steps or repeat the plan.
-const NARRATION: [&str; 5] = ["report the result of each", "announce each", "announce the step", "narrate", "repeat the plan"];
-/// Phrases of the output rule, as they stand in `AGENTS.md`; a skill citing the rule must not copy them.
-const OUTPUT_RULES: [&str; 4] = [
-    "table or a checklist",
-    "no narration of the steps",
-    "don't repeat what the diff",
-    "only for a decision the user must take",
-];
-
-// spec: RPT-1
-/// `AGENTS.md` holds the one section on the output of the agent, with its four rules.
-fn check_output_section(root: &Path) -> Vec<String> {
-    let text = fs::read_to_string(root.join("AGENTS.md")).unwrap_or_default();
-    let Some(section) = text.split(OUTPUT_SECTION).nth(1) else {
-        return vec![format!("AGENTS.md: missing '{OUTPUT_SECTION}' (output rule of the agent)")];
-    };
-    let section = section.split("\n## ").next().unwrap_or_default().to_lowercase();
-    OUTPUT_RULES
-        .iter()
-        .filter(|rule| !section.contains(*rule))
-        .map(|rule| format!("AGENTS.md: the output section does not state '{rule}'"))
-        .collect()
-}
-
-// spec: RPT-2
-/// Every reporting skill cites the section instead of restating its rules.
-fn check_output_citation(name: &str, text: &str) -> Vec<String> {
-    if !REPORTING_SKILLS.contains(&name) {
-        return Vec::new();
-    }
-    let mut failures = Vec::new();
-    if !text.contains("Reports to the user") {
-        failures.push(format!("{name}: does not cite the 'Reports to the user' section of `AGENTS.md`"));
-    }
-    let lower = text.to_lowercase();
-    for rule in OUTPUT_RULES.iter().filter(|rule| lower.contains(*rule)) {
-        failures.push(format!("{name}: restates the output rule '{rule}' instead of citing it"));
-    }
-    failures
-}
-
-// spec: RPT-6
-/// No skill asks the agent to narrate its steps or repeat the plan.
-fn check_no_narration(name: &str, text: &str) -> Vec<String> {
-    let lower = text.to_lowercase();
-    NARRATION
-        .iter()
-        .filter(|phrase| lower.contains(*phrase))
-        .map(|phrase| format!("{name}: asks for narration ('{phrase}')"))
-        .collect()
-}
-
-// spec: RPT-3, RPT-7
-/// The human review stop of `issue-workflow` keeps its layout and the markers the review hook relies on.
-fn check_review_template(name: &str, text: &str) -> Vec<String> {
-    if name != "issue-workflow" {
-        return Vec::new();
-    }
-    let step = text
-        .split("6. **Human review")
-        .nth(1)
-        .and_then(|s| s.split("\n7. ").next())
-        .unwrap_or_default();
-    if step.is_empty() {
-        return vec![format!("{name}: step 4.6 (human review) not found")];
-    }
-    ["`done`", "`check | result`", "`Code review:`", "`no findings`", "`not verified`", "`decisions needed`"]
-        .iter()
-        .filter(|part| !step.contains(*part))
-        .map(|part| format!("{name}: step 4.6 does not name {part}"))
-        .collect()
-}
-
-// spec: RPT-4, RPT-5
-/// The resume summary, the final summary, the delivery of `create-issue` and the reformulation name a layout.
-fn check_report_layouts(name: &str, text: &str) -> Vec<String> {
-    let required: &[&str] = match name {
-        "issue-workflow" => &["`next` / `left` lines", "`goal`, `out of scope`, `questions`", "final summary: a table `deliverable | commit`"],
-        "create-issue" => &["path, rank and one line"],
-        _ => &[],
-    };
-    let mut failures: Vec<String> = required
-        .iter()
-        .filter(|part| !text.contains(*part))
-        .map(|part| format!("{name}: does not name the layout '{part}'"))
-        .collect();
-    for old in ["summarize where it stands", "a two-line summary", "Restate the need in your own words"] {
-        if text.contains(old) {
-            failures.push(format!("{name}: still asks for a free report ('{old}')"));
-        }
-    }
-    failures
-}
-
 fn main() {
     let root = fs::canonicalize(Path::new(file!()).parent().unwrap().join("../..")).unwrap();
     let skills = root.join(".claude/skills");
     let root_docs = config_list(&root, "root_docs");
     let mut failures = Vec::new();
     let mut visited = Vec::new();
-    failures.extend(check_output_section(&root));
+    // headings of `AGENTS.md` outside fenced blocks; `None` when it cannot be read (its citations report that)
+    let headings: Option<Vec<String>> = fs::read_to_string(root.join("AGENTS.md")).ok().map(|agents| {
+        let mut fenced = false;
+        agents
+            .lines()
+            .filter(|l| {
+                fenced ^= l.starts_with("```");
+                !fenced && l.starts_with('#')
+            })
+            .map(|l| l.trim_start_matches('#').trim().to_string())
+            .collect()
+    });
 
     let mut dirs: Vec<_> = fs::read_dir(&skills)
         .unwrap()
@@ -176,6 +86,16 @@ fn main() {
             failures.push(format!("{name}: description missing or too short"));
         }
 
+        // the references below are checked in every markdown file of the skill, not only `SKILL.md`
+        let mut extra: Vec<_> = fs::read_dir(entry.path())
+            .unwrap()
+            .flatten()
+            .map(|e| e.path())
+            .filter(|p| p.extension().is_some_and(|x| x == "md") && !p.ends_with("SKILL.md"))
+            .collect();
+        extra.sort();
+        let text = extra.iter().fold(text, |acc, p| acc + "\n" + &fs::read_to_string(p).unwrap_or_default());
+
         // `skill:<name>` references
         for word in text.split(|c: char| !(c.is_ascii_alphanumeric() || ":-".contains(c))) {
             if let Some(target) = word.strip_prefix("skill:").filter(|t| !t.is_empty()) {
@@ -190,10 +110,23 @@ fn main() {
                 failures.push(format!("{name}: references missing file '{path}'"));
             }
         }
-        failures.extend(check_output_citation(&name, &text));
-        failures.extend(check_no_narration(&name, &text));
-        failures.extend(check_review_template(&name, &text));
-        failures.extend(check_report_layouts(&name, &text));
+        // relative markdown links outside code spans, resolved in the skill's directory
+        let prose = text.split('`').step_by(2).collect::<Vec<_>>().join(" ");
+        for link in prose.split("](").skip(1).filter_map(|t| t.split(')').next()) {
+            // drop the title and the anchor; a target with a scheme (`https:`, `mailto:`) is not a file
+            let target = link.split([' ', '#']).next().unwrap_or_default();
+            if !target.is_empty() && !target.contains(':') && !entry.path().join(target).exists() {
+                failures.push(format!("{name}: links the missing file '{target}'"));
+            }
+        }
+        // `AGENTS.md` section "<heading>" references, wherever the text wraps
+        let flat = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        for cited in flat.split("`AGENTS.md` section \"").skip(1) {
+            let heading = cited.split('"').next().unwrap_or_default();
+            if headings.as_ref().is_some_and(|h| !h.iter().any(|h| h == heading)) {
+                failures.push(format!("{name}: cites the missing section '{heading}' of `AGENTS.md`"));
+            }
+        }
         for (skill, passage, why) in REQUIRED_PASSAGES.iter().filter(|(s, _, _)| *s == name) {
             if !text.contains(passage) {
                 failures.push(format!("{skill}: missing '{passage}' ({why})"));

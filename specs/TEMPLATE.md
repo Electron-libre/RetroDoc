@@ -13,9 +13,6 @@ adrs: []
 ## Requirements
 
 - **XXX-1** (deterministic) <The capability must ... / must not ...>
-- **XXX-2** (quality) <...>
-  benchmark: benchmark/<repo>/reference.yaml
-  metric: <name>
 
 ## Scenarios
 

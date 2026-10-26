@@ -1,4 +1,9 @@
 {
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  },
   "permissions": {
     "allow": [
       "Bash(cargo build *)",
@@ -6,6 +11,7 @@
       "Bash(cargo clippy *)",
       "Bash(cargo fmt *)",
       "Bash(cargo run -p retrodoc-cli *)",
+      "Bash(cargo check *)",
       "Bash(just)",
       "Bash(just *)",
       "Bash(rust-script .claude/*)",
@@ -25,6 +31,11 @@
       "Bash(git grep *)",
       "Bash(git ls-files)",
       "Bash(git ls-files *)"
+    ],
+    "deny": [
+      "Bash(just waive-review)",
+      "Bash(just waive-review *)",
+      "Edit(//**/claude-review-waived)"
     ]
   },
   "hooks": {
@@ -63,10 +74,6 @@
       {
         "matcher": "Bash",
         "hooks": [
-          {
-            "type": "command",
-            "command": "rust-script \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/block_ai_attribution.rs"
-          },
           {
             "type": "command",
             "command": "rust-script \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/require_code_review.rs check"

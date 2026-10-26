@@ -12,11 +12,15 @@ const TESTS: &str = "// spec: RER-1, RER-2\n#[test]\nfn reuses() {}\n";
 fn main() {
     let script = std::fs::canonicalize(Path::new(file!()).parent().unwrap().join("check_specs.rs")).unwrap();
     let tmp = std::env::temp_dir().join(format!("check_specs_test_{}", std::process::id()));
-    let mut failed = false;
+    let failed = Cell::new(false);
+    let report = |name: &str, ok: bool| {
+        println!("{} - {name}", if ok { "ok  " } else { "FAIL" });
+        failed.set(failed.get() | !ok);
+    };
     let strict = Cell::new(false);
-    let mut case = |name: &str, spec: &str, tests: &str, others: &[(&str, &str)], expect: Option<&str>| {
+    let case = |name: &str, spec: &str, tests: &str, others: &[(&str, &str)], expect: Option<&str>| {
         let _ = std::fs::remove_dir_all(&tmp);
-        for dir in ["specs", "crates/a/src", ".claude/hooks", "docs/adr", "benchmark/x"] {
+        for dir in ["specs", "crates/a/src", ".claude/hooks", "docs/adr"] {
             std::fs::create_dir_all(tmp.join(dir)).unwrap();
         }
         std::fs::write(tmp.join("docs/adr/0005-incremental.md"), "x").unwrap();
@@ -34,15 +38,16 @@ fn main() {
         }
         let out = command.output().expect("rust-script must be installed");
         let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
+        let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
         let ok = match expect {
             None => out.status.success() && stdout.is_empty(),
             Some(text) => !out.status.success() && stdout.contains(text),
         };
-        println!("{} - {name}", if ok { "ok  " } else { "FAIL" });
+        report(name, ok);
         if !ok {
-            println!("{stdout}");
+            println!("{stdout}{stderr}");
         }
-        failed |= !ok;
+        stderr
     };
 
     case("good spec with traced tests passes", SPEC, TESTS, &[], None);
@@ -72,13 +77,20 @@ fn main() {
     case("a citation under src/worktrees is checked", SPEC, TESTS, &[("crates/a/src/worktrees/t.rs", "// spec: RER-9\nfn t() {}\n")], Some("RER-9"));
     case("agent worktrees under .claude/worktrees are skipped", SPEC, TESTS, &[(".claude/worktrees/x/crates/a/t.rs", "// spec: RER-9\nfn t() {}\n")], None);
 
-    let quality = SPEC.replace("- **RER-2** (deterministic) A run must resume.", "- **RER-2** (quality) Docs must be good.\n  benchmark: benchmark/x/reference.yaml\n  metric: recall");
     case("a test of a harness script under .claude traces a requirement", SPEC, "", &[(".claude/hooks/test_h.rs", TESTS)], None);
     case("a citation under .claude not above a fn is flagged", SPEC, TESTS, &[(".claude/hooks/test_h.rs", "// spec: RER-1\nlet x = 1;\n")], Some("right above"));
-    case("quality requirement with an existing benchmark passes", &quality, "// spec: RER-1\nfn t() {}\n", &[("benchmark/x/reference.yaml", "x")], None);
-    case("quality requirement with a missing benchmark file is flagged", &quality, "// spec: RER-1\nfn t() {}\n", &[], Some("reference.yaml"));
-    case("quality lines may follow a blank line", &quality.replace("recall\n", "recall\n\n").replace("  benchmark", "\n  benchmark"), "// spec: RER-1\nfn t() {}\n", &[("benchmark/x/reference.yaml", "x")], None);
-    case("quality requirement with no metric is flagged", &quality.replace("  metric: recall\n", ""), "// spec: RER-1\nfn t() {}\n", &[("benchmark/x/reference.yaml", "x")], Some("metric"));
+
+    let quality = SPEC.replace("(deterministic) A run must resume.", "(quality) Docs must be good.");
+    let stderr = case("a quality requirement needs no test", &quality, "// spec: RER-1\nfn t() {}\n", &[], None);
+    report("a quality requirement is warned of", stderr.contains("RER-2: kind `quality` is deprecated"));
+    let withdrawn = quality.replace("Docs must", "withdrawn: Docs must");
+    let stderr = case("a withdrawn quality requirement passes", &withdrawn, "// spec: RER-1\nfn t() {}\n", &[], None);
+    report("a withdrawn quality requirement is not warned of", !stderr.contains("kind `quality` is deprecated"));
+
+    let implemented = SPEC.replace("status: accepted", "status: implemented");
+    case("an implemented spec is enforced like accepted", &implemented, "// spec: RER-1\nfn t() {}\n", &[], Some("RER-2"));
+    let stderr = case("an implemented spec passes as accepted", &implemented, TESTS, &[], None);
+    report("an implemented spec is warned of", stderr.contains("warning: specs/rerun.md: status `implemented` is deprecated, use `accepted`"));
 
     strict.set(true);
     case("strict: a managed test citing a spec the project lacks is flagged", SPEC, TESTS, &[(".claude/hooks/test_h.rs", "// spec: PAR-1\nfn t() {}\n")], Some("PAR-1"));
@@ -89,16 +101,14 @@ fn main() {
 
     let bad = Command::new("rust-script").arg(&script).arg("--strcit").arg(&tmp.join("missing")).output().expect("rust-script must be installed");
     let ok = bad.status.code() == Some(2);
-    println!("{} - an unknown option is rejected", if ok { "ok  " } else { "FAIL" });
-    failed |= !ok;
+    report("an unknown option is rejected", ok);
     // the tree of the last case still holds the unknown id RER-9 under `.claude/`
     let first = Command::new("rust-script").arg(&script).arg("--strict").arg(&tmp).output().expect("rust-script must be installed");
     let ok = !first.status.success() && String::from_utf8_lossy(&first.stdout).contains("RER-9");
-    println!("{} - --strict may come before the root", if ok { "ok  " } else { "FAIL" });
-    failed |= !ok;
+    report("--strict may come before the root", ok);
 
     let _ = std::fs::remove_dir_all(&tmp);
-    if failed {
+    if failed.get() {
         std::process::exit(1);
     }
 }

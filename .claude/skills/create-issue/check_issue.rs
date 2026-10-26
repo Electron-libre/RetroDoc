@@ -34,7 +34,7 @@ fn problems(path: &Path, text: &str) -> Vec<String> {
         }
     }
     if headings.iter().any(|h| h.trim() == "# Tracking") {
-        out.push("`# Tracking` is written by issue-workflow after the plan is validated".to_string());
+        out.push("`# Tracking` is written by issue-workflow".to_string());
     }
     if section_is_empty(text, "# Goal") {
         out.push("`# Goal` is empty".to_string());
