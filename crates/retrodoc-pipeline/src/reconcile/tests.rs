@@ -72,6 +72,7 @@ fn verdict(label: &str, entry_points: usize, confidence: Option<f32>) -> ItemVer
         confidence,
         status: Status::Undocumented,
         sections: Vec::new(),
+        contradictions: Vec::new(),
     }
 }
 
@@ -188,7 +189,14 @@ fn no_matching_section_is_undocumented_and_a_cited_doc_section_documents_a_rule(
         rule("cart-3", "A cart holds ten items at most.", vec![]),
     ];
 
-    let result = reconcile(&DomainMap::default(), &[], &[], &rules, &docs);
+    let result = reconcile(
+        &DomainMap::default(),
+        &[],
+        &[],
+        &rules,
+        &docs,
+        &Judgements::default(),
+    );
     let status: Vec<(&str, Status, Vec<String>)> = result
         .items
         .iter()
@@ -279,4 +287,263 @@ fn a_domain_is_as_trusted_as_its_features() {
     };
     let found = items(&map, &[a, b], &[], &[]);
     assert!((found[0].confidence.unwrap() - 0.6).abs() < 1e-6);
+}
+
+fn section(origin: &str, text: &str) -> Section {
+    Section {
+        at: SectionRef::parse(origin),
+        text: text.to_string(),
+    }
+}
+
+fn candidate(label: &str, query: &str, sections: &[(&str, &str)]) -> Candidate {
+    Candidate {
+        item: Item {
+            kind: ItemKind::Feature,
+            label: label.to_string(),
+            domain: "billing".to_string(),
+            name: label.to_string(),
+            query: query.to_string(),
+            entry_points: 0,
+            confidence: None,
+            cited_sections: Vec::new(),
+        },
+        sections: sections.iter().map(|(o, t)| section(o, t)).collect(),
+    }
+}
+
+fn three_candidates() -> Vec<Candidate> {
+    vec![
+        candidate(
+            "billing/pay",
+            "Pay an invoice by card",
+            &[("docs/guide.md#Paying", "Pay by card.")],
+        ),
+        candidate(
+            "billing/refund",
+            "Refund at once",
+            &[
+                ("docs/guide.md#Paying", "Pay by card."),
+                ("docs/guide.md#Refunds", "Refunds take a week."),
+            ],
+        ),
+        candidate(
+            "billing/riders",
+            "Riders",
+            &[("docs/guide.md#Team", "Our riders.")],
+        ),
+    ]
+}
+
+const THREE_ANSWERS: &str = r#"{"items":[
+    {"n":1,"sections":[{"s":"S1","answer":"covers"}]},
+    {"n":2,"sections":[{"s":"S1","answer":"Unrelated"},{"s":"S2","answer":"contradicts",
+        "doc_states":"Refunds take a week.","item_states":"Refunds are made at once."}]},
+    {"n":"3","sections":[{"s":3,"answer":"unrelated"}]}]}"#;
+
+fn on() -> PipelineConfig {
+    PipelineConfig::default()
+}
+
+use retrodoc_core::config::PipelineConfig;
+
+use crate::testing::FakeLlm;
+
+// spec: REC-4
+#[tokio::test]
+async fn the_llm_tells_covering_contradicting_and_unrelated_sections_apart() {
+    let dir = tempfile::tempdir().unwrap();
+    let llm = FakeLlm::answering(THREE_ANSWERS);
+
+    judge(dir.path(), &llm, &on(), &three_candidates())
+        .await
+        .unwrap();
+
+    assert_eq!(llm.calls(), 1, "the three items go in one request");
+    let prompt = &llm.prompts()[0];
+    assert_eq!(
+        prompt.matches("[S1] docs/guide.md#Paying").count(),
+        1,
+        "a section is shown once: {prompt}"
+    );
+    assert!(
+        prompt.contains("2. feature: Refund at once (sections: S1, S2)"),
+        "{prompt}"
+    );
+    let result = Reconciliation::new(three_candidates(), &Judgements::load(dir.path()));
+    let status: Vec<(&str, Status, Vec<String>)> = result
+        .items
+        .iter()
+        .map(|i| {
+            (
+                i.label.as_str(),
+                i.status,
+                i.sections.iter().map(SectionRef::origin).collect(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        status,
+        [
+            (
+                "billing/pay",
+                Status::Documented,
+                vec!["docs/guide.md#Paying".to_string()]
+            ),
+            (
+                "billing/refund",
+                Status::Contradicted,
+                vec!["docs/guide.md#Refunds".to_string()]
+            ),
+            ("billing/riders", Status::Undocumented, vec![]),
+        ]
+    );
+    assert_eq!(
+        result.items[1].contradictions,
+        [Contradiction {
+            section: SectionRef::parse("docs/guide.md#Refunds"),
+            doc_states: "Refunds take a week.".into(),
+            item_states: "Refunds are made at once.".into(),
+        }]
+    );
+}
+
+// spec: REC-4
+#[tokio::test]
+async fn items_go_to_the_llm_a_batch_at_a_time() {
+    let dir = tempfile::tempdir().unwrap();
+    let candidates: Vec<Candidate> = (0..=MAX_ITEMS_PER_REQUEST)
+        .map(|i| candidate(&format!("f{i}"), "Pay", &[("a.md#A", "Pay.")]))
+        .collect();
+    let llm = FakeLlm::answering(r#"{"items":[]}"#);
+
+    judge(dir.path(), &llm, &on(), &candidates).await.unwrap();
+
+    assert_eq!(llm.calls(), 2);
+}
+
+// spec: REC-5
+#[tokio::test]
+async fn a_contradiction_without_both_sides_or_an_unreadable_answer_decides_nothing() {
+    let dir = tempfile::tempdir().unwrap();
+    let llm = FakeLlm::answering(
+        r#"{"items":[{"n":1,"sections":[{"s":"S1","answer":"contradicts","doc_states":"x"}]},
+        {"n":2,"sections":[{"s":"S1","answer":"covers"}]}]}"#,
+    );
+
+    judge(dir.path(), &llm, &on(), &three_candidates())
+        .await
+        .unwrap();
+
+    let saved = Judgements::load(dir.path());
+    assert!(
+        saved.items.is_empty(),
+        "every item has a section unanswered: {saved:?}"
+    );
+    let result = Reconciliation::new(three_candidates(), &saved);
+    assert!(result.items.iter().all(|i| i.status == Status::Matched));
+
+    let unreadable = FakeLlm::answering("I think they match.");
+    judge(dir.path(), &unreadable, &on(), &three_candidates())
+        .await
+        .unwrap();
+    assert_eq!(
+        unreadable.calls(),
+        2,
+        "asked once more, then left to the next run"
+    );
+    assert_eq!(Judgements::load(dir.path()).items, []);
+}
+
+// spec: REC-6
+#[tokio::test]
+async fn an_unchanged_item_is_not_asked_again_a_changed_one_or_another_model_is() {
+    let dir = tempfile::tempdir().unwrap();
+    judge(
+        dir.path(),
+        &FakeLlm::answering(THREE_ANSWERS),
+        &on(),
+        &three_candidates(),
+    )
+    .await
+    .unwrap();
+
+    let again = FakeLlm::answering(THREE_ANSWERS);
+    judge(dir.path(), &again, &on(), &three_candidates())
+        .await
+        .unwrap();
+    assert_eq!(again.calls(), 0);
+
+    let mut changed = three_candidates();
+    changed[2].sections[0].text = "Our riders, now in two cities.".into();
+    let one =
+        FakeLlm::answering(r#"{"items":[{"n":1,"sections":[{"s":"S1","answer":"covers"}]}]}"#);
+    judge(dir.path(), &one, &on(), &changed).await.unwrap();
+    assert_eq!(one.calls(), 1);
+    assert!(
+        one.prompts()[0].contains("1. feature: Riders"),
+        "{}",
+        one.prompts()[0]
+    );
+    assert!(!one.prompts()[0].contains("Refund"), "{}", one.prompts()[0]);
+    assert_eq!(
+        Reconciliation::new(changed.clone(), &Judgements::load(dir.path())).items[2].status,
+        Status::Documented
+    );
+
+    let other = FakeLlm::answering(THREE_ANSWERS).with_model("other-model");
+    judge(dir.path(), &other, &on(), &changed).await.unwrap();
+    assert_eq!(other.calls(), 1);
+}
+
+// spec: REC-7
+#[tokio::test]
+async fn the_verdicts_are_saved_and_read_while_the_texts_are_unchanged() {
+    let dir = tempfile::tempdir().unwrap();
+    judge(
+        dir.path(),
+        &FakeLlm::answering(THREE_ANSWERS),
+        &on(),
+        &three_candidates(),
+    )
+    .await
+    .unwrap();
+    assert!(dir
+        .path()
+        .join(".retrodoc/cache/reconciliation.yaml")
+        .exists());
+
+    let mut edited = three_candidates();
+    edited[0].item.query = "Pay an invoice in cash".into();
+    let result = Reconciliation::new(edited, &Judgements::load(dir.path()));
+    assert_eq!(result.items[0].status, Status::Matched);
+    assert_eq!(result.items[1].status, Status::Contradicted);
+
+    let none = Reconciliation::new(three_candidates(), &Judgements::default());
+    assert!(none.items.iter().all(|i| i.status == Status::Matched));
+}
+
+// spec: REC-8
+#[tokio::test]
+async fn nothing_matched_or_the_pass_off_makes_no_call() {
+    let dir = tempfile::tempdir().unwrap();
+    let llm = FakeLlm::answering(THREE_ANSWERS);
+
+    judge(dir.path(), &llm, &on(), &[candidate("a", "Pay", &[])])
+        .await
+        .unwrap();
+    judge(dir.path(), &llm, &on(), &[]).await.unwrap();
+    let off = PipelineConfig {
+        reconcile: false,
+        ..PipelineConfig::default()
+    };
+    judge(dir.path(), &llm, &off, &three_candidates())
+        .await
+        .unwrap();
+
+    assert_eq!(llm.calls(), 0);
+    assert!(!dir
+        .path()
+        .join(".retrodoc/cache/reconciliation.yaml")
+        .exists());
 }

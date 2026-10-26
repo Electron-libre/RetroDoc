@@ -50,11 +50,13 @@ pub enum Artifact {
     /// dropped as noise), kept to check the doubtful cases.
     RulesSetAside,
     BehaviourCoverage,
+    /// The verdicts of the reconciliation with the project's own docs.
+    Reconciliation,
     Usage,
 }
 
 impl Artifact {
-    pub const ALL: [Artifact; 20] = [
+    pub const ALL: [Artifact; 21] = [
         Artifact::RepoMap,
         Artifact::SourceHashes,
         Artifact::Fingerprints,
@@ -74,6 +76,7 @@ impl Artifact {
         Artifact::RulesStated,
         Artifact::RulesSetAside,
         Artifact::BehaviourCoverage,
+        Artifact::Reconciliation,
         Artifact::Usage,
     ];
 
@@ -99,6 +102,7 @@ impl Artifact {
             Artifact::RulesStated => "rules-stated.yaml",
             Artifact::RulesSetAside => "rules-set-aside.yaml",
             Artifact::BehaviourCoverage => "behaviour-coverage.yaml",
+            Artifact::Reconciliation => "reconciliation.yaml",
             Artifact::Usage => "usage.json",
         }
     }
@@ -132,7 +136,8 @@ impl Artifact {
             | Artifact::Rules
             | Artifact::RulesStated
             | Artifact::RulesSetAside
-            | Artifact::BehaviourCoverage => true,
+            | Artifact::BehaviourCoverage
+            | Artifact::Reconciliation => true,
             Artifact::Roles
             | Artifact::SignalSources
             | Artifact::Product

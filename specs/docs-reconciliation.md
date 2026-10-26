@@ -26,12 +26,14 @@ backed by the doc sections it rests on.
   answered `covers`, `contradicts` or `unrelated`; the item is `contradicted` when one section contradicts it,
   else `documented` when one covers it, else `undocumented`.
 - **REC-5** (deterministic) A `contradicts` answer must carry what the section states and what the generated item
-  states; an answer without both, or an answer that can't be parsed, must leave the item `matched` (documented, not
-  judged) rather than invent a verdict.
+  states; an answer without both, a missing answer or one that can't be parsed counts as no answer for that section,
+  and an item that no answer decides stays `matched` (documented, not judged) rather than get an invented verdict;
+  an item with a section left unanswered is not saved, so the next run asks it again.
 - **REC-6** (deterministic) A verdict must be reused with no LLM call while the fingerprint of the item's text, of
   its matched sections' text and of the model is unchanged; any change of one of them must judge the item again.
 - **REC-7** (deterministic) The verdicts must be saved in `.retrodoc/cache/reconciliation.yaml`; `retrodoc report`
-  and `render` must read them and make no LLM call. Without that file, every matched item is `matched`.
+  and `render` must read them and make no LLM call. Without that file, or for an item whose text or sections changed
+  since its verdict, a matched item is `matched`.
 - **REC-8** (deterministic) The pass must make no LLM call when the corpus is empty or no item has a matched
   section, and must not run when `[pipeline] reconcile` is `false`.
 - **REC-9** (deterministic) The report must give, per domain, how many of its items are documented, matched,

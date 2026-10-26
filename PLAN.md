@@ -26,6 +26,7 @@ connectors, automatic PRs, multi-provider LLM.
 5. Use cases       → per feature, steps + actors/actions, grounded on real code (handlers, routes, UI, DB)
 6. Diagrams        → Mermaid (flowchart/sequenceDiagram) per use case
 7. Confidence      → per-section cross-check pass (the LLM checks the claim against the cited code)
+7b. Reconciliation → each item matched (BM25) to the existing doc sections, the LLM tells covers / contradicts / unrelated
 8. Writing         → Markdown into docs/, dry-run + diff preview before writing, idempotent on re-run
 ```
 

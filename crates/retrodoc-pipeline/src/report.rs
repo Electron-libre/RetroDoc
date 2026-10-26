@@ -15,7 +15,7 @@ use retrodoc_core::model::{
 
 use crate::behaviour_coverage::{BehaviourCoverage, EntryCount, FeatureCoverage};
 use crate::domains::{DomainMap, UNCATEGORIZED_SLUG};
-use crate::reconcile::Reconciliation;
+use crate::reconcile::{ItemVerdict, Reconciliation};
 use crate::rules::{AsideFeature, AsideRule, SetAside};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -288,6 +288,35 @@ fn percent(value: Option<f32>) -> String {
     )
 }
 
+/// The items a doc section contradicts, with what each side states.
+fn write_contradictions(md: &mut String, items: &[&ItemVerdict]) {
+    if items.is_empty() {
+        return;
+    }
+    md.push_str(
+        "\n### Contradicted\n\nThe existing docs and the code disagree on these items; the doc may \
+         be out of date rather than wrong, check which one is right:\n\n",
+    );
+    for item in items {
+        let _ = writeln!(
+            md,
+            "- `{}` {}: {}",
+            item.label,
+            item.kind.label(),
+            one_line(&item.name)
+        );
+        for c in &item.contradictions {
+            let _ = writeln!(
+                md,
+                "  - `{}` states: {}\n  - the generated docs state: {}",
+                c.section.origin(),
+                one_line(&c.doc_states),
+                one_line(&c.item_states)
+            );
+        }
+    }
+}
+
 impl DebtReport {
     /// Adds what the behaviours leave out, from the saved coverage of a `surface` run.
     pub fn with_behaviour_coverage(&mut self, coverage: Option<BehaviourCoverage>) {
@@ -394,6 +423,7 @@ impl DebtReport {
                 count.contradicted
             );
         }
+        write_contradictions(md, &reconciliation.contradicted());
         let undocumented = reconciliation.undocumented();
         if undocumented.is_empty() {
             return;
@@ -756,7 +786,14 @@ mod tests {
             ),
             rule("gone-1", "Credits expire after a year.", vec![]),
         ];
-        crate::reconcile::reconcile(&DomainMap::default(), &[orders], &[], &rules, &docs)
+        crate::reconcile::reconcile(
+            &DomainMap::default(),
+            &[orders],
+            &[],
+            &rules,
+            &docs,
+            &crate::reconcile::Judgements::default(),
+        )
     }
 
     // spec: REC-9
@@ -799,6 +836,43 @@ mod tests {
         );
     }
 
+    // spec: REC-11
+    #[test]
+    fn each_contradiction_cites_both_sources_as_a_finding_to_check() {
+        use crate::reconcile::{Contradiction, ItemKind, ItemVerdict, SectionRef, Status};
+        let mut report = build_report(&DomainMap::default(), &[], &[]);
+        report.with_reconciliation(Reconciliation {
+            items: vec![ItemVerdict {
+                kind: ItemKind::UseCase,
+                label: "billing/refund/refund-order".into(),
+                domain: "billing".into(),
+                name: "Refund an order".into(),
+                entry_points: 1,
+                confidence: Some(0.8),
+                status: Status::Contradicted,
+                sections: vec![SectionRef::parse("docs/guide.md#Refunds")],
+                contradictions: vec![Contradiction {
+                    section: SectionRef::parse("docs/guide.md#Refunds"),
+                    doc_states: "Refunds take a week.".into(),
+                    item_states: "Refunds are made at once.".into(),
+                }],
+            }],
+        });
+
+        let md = report.to_markdown();
+        assert!(md.contains("| billing | 1 | 0 | 0 | 0 | 1 |"), "{md}");
+        assert!(
+            md.contains(
+                "### Contradicted\n\nThe existing docs and the code disagree on these items; the doc \
+                 may be out of date rather than wrong, check which one is right:\n\n\
+                 - `billing/refund/refund-order` use case: Refund an order\n  \
+                 - `docs/guide.md#Refunds` states: Refunds take a week.\n  \
+                 - the generated docs state: Refunds are made at once.\n"
+            ),
+            "{md}"
+        );
+    }
+
     // spec: REC-10
     #[test]
     fn at_most_fifty_undocumented_items_are_listed() {
@@ -818,6 +892,7 @@ mod tests {
             &[],
             &rules,
             &[],
+            &crate::reconcile::Judgements::default(),
         ));
         let md = report.to_markdown();
         assert!(md.contains("- … and 5 more\n"), "{md}");

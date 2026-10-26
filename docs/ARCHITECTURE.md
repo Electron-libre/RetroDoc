@@ -135,6 +135,7 @@ What each pass hands to the next, and where it is saved:
 | 6 | `diagrams.rs` | use case steps (the technical level; each use case also carries a business `narrative`) | Mermaid text attached to each use case | `use-cases.yaml` |
 | 6b | `vocabulary.rs` | use case narrative + entity/actor names | business-language score on each use case (no LLM) | `use-cases.yaml` |
 | 7 | `confidence/` | use case + the code its steps cite | scores on use cases and features | `features.yaml`, `use-cases.yaml` |
+| 7b | `reconcile/` (`[pipeline] reconcile`, on by default, [ADR 0033](adr/0033-reconcile-with-existing-docs-lexical-match-then-llm-judge.md)) | each domain, feature, use case and rule + the doc sections BM25 matches to it (generated docs left out) | per section `covers`, `contradicts` (with what each side states) or `unrelated`; no call for an item no section matches, nor for an unchanged one | `reconciliation.yaml` |
 | 8 | `report.rs` + `retrodoc-render` | all of the above | Markdown files + debt report | — (written to `docs/`) |
 
 ### Safety nets built into the passes
@@ -253,6 +254,7 @@ Guarantees:
 │   ├── glossary.yaml              #   (phase 7) business entities, also its own cache
 │   ├── entry-points.yaml          #   (phase 7) routes/commands/jobs + outputs, also its own cache
 │   ├── actors.yaml                #   (phase 7) business actors, reused while its input hash is unchanged
+│   ├── reconciliation.yaml        #   verdicts of the existing doc sections on the items (ADR 0033), with the fingerprints they hold for
 │   └── usage.json                 #   calls, tokens (and cached prompt tokens) and time per pass of the last 20 runs (see ADR 0015)
 └── docs/                          # output dir (`output.docs_dir`)
     ├── functional/llms.txt        #   index for agents that don't run the MCP server

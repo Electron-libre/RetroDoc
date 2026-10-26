@@ -103,7 +103,12 @@ pub fn add_doc_debt(
     let rules = retrodoc_pipeline::load_rules(repo_root).unwrap_or_default();
     match project_docs(repo_root, config) {
         Ok(docs) => report.with_reconciliation(retrodoc_pipeline::reconcile::reconcile(
-            domains, features, use_cases, &rules, &docs,
+            domains,
+            features,
+            use_cases,
+            &rules,
+            &docs,
+            &retrodoc_pipeline::reconcile::Judgements::load(repo_root),
         )),
         Err(err) => tracing::warn!("items not compared with the project docs: {err:#}"),
     }

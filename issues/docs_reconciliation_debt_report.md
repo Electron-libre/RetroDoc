@@ -48,7 +48,7 @@ of a new cached `reconcile` pass (spec `specs/docs-reconciliation.md`, ADR 0033)
 1. [x] Match and report: retrieval of the sections per item, deterministic verdicts (`undocumented`, `matched`,
    rule doc evidence), coverage per domain, ranked undocumented list replacing the rule section; verified by
    pipeline unit tests and a `report` CLI test; makes true REC-1, REC-2, REC-3, REC-9, REC-10, REC-13.
-2. [ ] `reconcile` pass: batched LLM judgement, lenient parsing, fingerprint cache, `reconciliation.yaml`,
+2. [x] `reconcile` pass: batched LLM judgement, lenient parsing, fingerprint cache, `reconciliation.yaml`,
    `[pipeline] reconcile` and pass name, contradictions in the report; verified by tests with a fake provider;
    makes true REC-4, REC-5, REC-6, REC-7, REC-8, REC-11.
 3. [ ] Item pages link their doc sections: relative links from the rendered pages, rule lines; verified by render
@@ -70,3 +70,14 @@ of a new cached `reconcile` pass (spec `specs/docs-reconciliation.md`, ADR 0033)
 - Code review (low): duplicated `origin` formatting → `Section` holds a `SectionRef`, fixed; empty
   reconciliation printed a bare table → section left out, fixed and tested.
 - not verified: on a real repo (deliverable 4).
+
+## Deliverable 2 summary
+- done: `reconcile/judge.rs` (pass `reconcile`, batches of 8, sections listed once, lenient answer, verdicts
+  saved with their fingerprint and model), `Reconciliation::new` applies them, report "Contradicted" list,
+  `[pipeline] reconcile` (on), pass name (temperature 0), `generate` runs it last; `Artifact::Reconciliation`.
+- checks: `just check` ok, `just test-harness` ok; docs `docs/crates/pipeline.md`, `docs/ARCHITECTURE.md` §4 §7,
+  `PLAN.md` §2.
+- red: the report test of REC-11 failed on the missing "### Contradicted" list; the judge tests were written right
+  after the code and passed at once (no red seen for REC-4 to REC-8).
+- Code review (low): no findings.
+- not verified: on a real model (deliverable 4).

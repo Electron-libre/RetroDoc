@@ -35,6 +35,7 @@ pub const PASS_NAMES: &[&str] = &[
     "use-cases",
     "rules",
     "confidence",
+    "reconcile",
     "benchmark judge",
 ];
 
@@ -55,6 +56,7 @@ pub const ZERO_TEMPERATURE_PASSES: &[&str] = &[
     "use-cases",
     "rules",
     "confidence",
+    "reconcile",
 ];
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -96,6 +98,11 @@ pub struct PipelineConfig {
     /// feature, ADR 0021). Off by default until validated on real repositories.
     #[serde(default)]
     pub rules: bool,
+    /// `generate` ends by asking the LLM whether the doc sections that match an item cover or
+    /// contradict it (`specs/docs-reconciliation.md`, ADR 0033); no call when nothing matches.
+    /// `false`: the report only says which items no doc matches.
+    #[serde(default = "default_true")]
+    pub reconcile: bool,
 }
 
 fn default_true() -> bool {
@@ -109,6 +116,7 @@ impl Default for PipelineConfig {
             body_lines: None,
             business_read: true,
             rules: false,
+            reconcile: true,
         }
     }
 }
@@ -467,6 +475,13 @@ mod tests {
     #[test]
     fn the_rules_pass_is_off_unless_asked_and_has_its_own_llm_section() {
         assert!(!Config::default().pipeline.rules);
+        assert!(Config::default().pipeline.reconcile);
+        assert!(
+            !toml::from_str::<Config>("[pipeline]\nreconcile = false")
+                .unwrap()
+                .pipeline
+                .reconcile
+        );
         let on: Config =
             toml::from_str("[pipeline]\nrules = true\n[llm.passes.rules]\nmodel = \"big\"")
                 .unwrap();

@@ -14,6 +14,10 @@ use serde::{Deserialize, Serialize};
 use crate::bm25::{has_content_words, Bm25};
 use crate::domains::{DomainMap, UNCATEGORIZED_SLUG};
 
+mod judge;
+
+pub use judge::{judge, Answer, Judged, JudgedSection, Judgements, MAX_ITEMS_PER_REQUEST};
+
 /// Sections kept per item, best first.
 pub const MAX_SECTIONS_PER_ITEM: usize = 3;
 
@@ -280,6 +284,16 @@ pub struct ItemVerdict {
     pub status: Status,
     /// The sections that document or contradict it, best first (the matched ones while not judged).
     pub sections: Vec<SectionRef>,
+    /// What each contradicting section states against the item.
+    pub contradictions: Vec<Contradiction>,
+}
+
+/// A section that states something incompatible with the generated item.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Contradiction {
+    pub section: SectionRef,
+    pub doc_states: String,
+    pub item_states: String,
 }
 
 /// The verdicts on every item.
@@ -289,19 +303,24 @@ pub struct Reconciliation {
 }
 
 impl Reconciliation {
-    /// The verdicts that need no LLM: no section is undocumented, sections the item cites itself
-    /// document it, other sections only match it.
+    /// The verdicts on `candidates`: no section is undocumented, sections the item cites itself
+    /// document it; otherwise the saved judgement while the texts are unchanged decides (one
+    /// contradicting section makes it contradicted, else one covering section documented, else an
+    /// unanswered section leaves it matched, else undocumented), and with none it is matched.
     #[must_use]
-    pub fn from_candidates(candidates: Vec<Candidate>) -> Self {
+    pub fn new(candidates: Vec<Candidate>, judgements: &Judgements) -> Self {
         let items = candidates
             .into_iter()
             .map(|c| {
-                let status = if c.sections.is_empty() {
-                    Status::Undocumented
+                let judged = judgements.of(&c);
+                let (status, sections, contradictions) = if c.sections.is_empty() {
+                    (Status::Undocumented, Vec::new(), Vec::new())
                 } else if c.cites_its_docs() {
-                    Status::Documented
+                    (Status::Documented, at(c.sections), Vec::new())
+                } else if let Some(judged) = judged {
+                    verdict_of(judged)
                 } else {
-                    Status::Matched
+                    (Status::Matched, at(c.sections), Vec::new())
                 };
                 ItemVerdict {
                     kind: c.item.kind,
@@ -311,11 +330,21 @@ impl Reconciliation {
                     entry_points: c.item.entry_points,
                     confidence: c.item.confidence,
                     status,
-                    sections: c.sections.into_iter().map(|s| s.at).collect(),
+                    sections,
+                    contradictions,
                 }
             })
             .collect();
         Self { items }
+    }
+
+    /// The contradicted items, in the order of the items.
+    #[must_use]
+    pub fn contradicted(&self) -> Vec<&ItemVerdict> {
+        self.items
+            .iter()
+            .filter(|i| i.status == Status::Contradicted)
+            .collect()
     }
 
     /// The undocumented items, most entry points first, then most trusted (unscored last), then by
@@ -373,7 +402,47 @@ impl StatusCount {
     }
 }
 
-/// The verdicts that need no LLM on the saved artifacts and the project's own docs.
+fn at(sections: Vec<Section>) -> Vec<SectionRef> {
+    sections.into_iter().map(|s| s.at).collect()
+}
+
+/// Status, sections behind it and contradictions of a judged item.
+fn verdict_of(judged: &Judged) -> (Status, Vec<SectionRef>, Vec<Contradiction>) {
+    let with = |answer: Answer| -> Vec<&JudgedSection> {
+        judged
+            .sections
+            .iter()
+            .filter(|s| s.answer == answer)
+            .collect()
+    };
+    let (covering, contradicting) = (with(Answer::Covers), with(Answer::Contradicts));
+    let contradictions: Vec<Contradiction> = contradicting
+        .iter()
+        .filter_map(|s| {
+            Some(Contradiction {
+                section: SectionRef::parse(&s.section),
+                doc_states: s.doc_states.clone()?,
+                item_states: s.item_states.clone()?,
+            })
+        })
+        .collect();
+    let status = if !contradictions.is_empty() {
+        Status::Contradicted
+    } else if !covering.is_empty() {
+        Status::Documented
+    } else {
+        Status::Undocumented
+    };
+    let sections = judged
+        .sections
+        .iter()
+        .filter(|s| s.answer != Answer::Unrelated)
+        .map(|s| SectionRef::parse(&s.section))
+        .collect();
+    (status, sections, contradictions)
+}
+
+/// The verdicts on the saved artifacts and the project's own docs, with the saved `judgements`.
 #[must_use]
 pub fn reconcile(
     domains: &DomainMap,
@@ -381,11 +450,12 @@ pub fn reconcile(
     use_cases: &[UseCase],
     rules: &[BusinessRule],
     docs: &[ExistingDoc],
+    judgements: &Judgements,
 ) -> Reconciliation {
-    Reconciliation::from_candidates(candidates(
-        items(domains, features, use_cases, rules),
-        &corpus(docs),
-    ))
+    Reconciliation::new(
+        candidates(items(domains, features, use_cases, rules), &corpus(docs)),
+        judgements,
+    )
 }
 
 #[cfg(test)]

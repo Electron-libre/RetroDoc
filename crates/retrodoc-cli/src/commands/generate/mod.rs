@@ -36,6 +36,7 @@ const GENERATE_PASSES: &[&str] = &[
     "use-cases",
     "rules",
     "confidence",
+    "reconcile",
 ];
 
 /// What the confidence pass does in this run.
@@ -232,7 +233,53 @@ async fn finish_chain(
                 config.llm.for_pass("confidence").concurrency.unwrap_or(1),
             ),
         )
+        .await?;
+    reconcile_with_docs(repo_root, config, features, use_cases, llm, tracker).await
+}
+
+/// Asks whether the doc sections matched to the items cover or contradict them; nothing unless
+/// `[pipeline] reconcile` is on. Docs that can't be read leave the verdicts as they were.
+async fn reconcile_with_docs(
+    repo_root: &Path,
+    config: &Config,
+    features: &[Feature],
+    use_cases: &[UseCase],
+    llm: &PassProviders,
+    tracker: &UsageTracker,
+) -> anyhow::Result<()> {
+    use retrodoc_pipeline::reconcile;
+    if !config.pipeline.reconcile {
+        return Ok(());
+    }
+    let docs = match super::docs::project_docs(repo_root, config) {
+        Ok(docs) => docs,
+        Err(err) => {
+            tracing::warn!("items not reconciled with the project docs: {err:#}");
+            return Ok(());
+        }
+    };
+    let rules = retrodoc_pipeline::load_rules(repo_root).unwrap_or_default();
+    let candidates = reconcile::candidates(
+        reconcile::items(
+            &DomainMap::load(repo_root).unwrap_or_default(),
+            features,
+            use_cases,
+            &rules,
+        ),
+        &reconcile::corpus(&docs),
+    );
+    tracker
+        .in_pass(
+            "reconcile",
+            reconcile::judge(
+                repo_root,
+                llm.get("reconcile")?.as_ref(),
+                &config.pipeline,
+                &candidates,
+            ),
+        )
         .await
+        .context("failed to reconcile the items with the project docs")
 }
 
 /// Opens the repo, wipes the caches when asked, and walks it without the docs `generate` writes.
