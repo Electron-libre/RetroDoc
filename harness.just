@@ -4,6 +4,14 @@
 test-harness:
     for t in .claude/hooks/test_*.rs .claude/skills/test_skills.rs .claude/skills/*/test_*.rs .claude/specs/test_*.rs .claude/test_settings.rs; do [ -e "$t" ] || continue; rust-script "$t" || exit 1; done
 
+# For the user only, never the agent: waive the code review of the next commit of this worktree (creates its waiver file and prints the path).
+waive-review:
+    #!/usr/bin/env sh
+    set -e
+    waiver=$(git rev-parse --path-format=absolute --git-path claude-review-waived)
+    touch "$waiver"
+    echo "$waiver"
+
 # Validate a commit message against AGENTS.md (default: HEAD).
 check-commit rev="HEAD":
     git log -1 --format=%B {{rev}} | rust-script .claude/skills/commit-message/commit_check.rs

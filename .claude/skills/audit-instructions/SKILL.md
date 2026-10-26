@@ -8,6 +8,8 @@ description: Read the instructions the user gave the agent over time (CLAUDE.md,
 Talk to the user in the `user_language` of `.claude/harness.toml` (skills, code, docs and issues stay in English). A recurring multi-step
 procedure is a skill, a rule the agent must never break is a hook. Propose only: create nothing here.
 
+Show the user your results as `AGENTS.md` section "Reports to the user" says.
+
 ## Procedure
 
 1. **Collect**: `rust-script .claude/skills/audit-instructions/audit_sources.rs` lists, per project of

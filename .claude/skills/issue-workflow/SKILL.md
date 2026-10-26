@@ -9,19 +9,20 @@ The user hands over an issue file in `issues/`. Talk to the user in the `user_la
 commits stay in English). Never skip a validation stop: they are what makes the autonomy safe. The only ones the user can lift are those of
 step 4.6 and 4.8, through the Autonomous mode.
 
+Show the user your results as `AGENTS.md` section "Reports to the user" says.
+
 ## 0. Resume or start
 
-Read the issue file. Name the thread after the issue: its title is the first `# ` heading of the file
-(e.g. `# Improve Harness`). Run `/rename <title>` if you can; if you can't (a skill can't type a slash
-command), give the user the exact `/rename <title>` line to paste, once, at the start. Do this on resume
-too, since a resumed thread may still carry another name. If it has a `# Tracking` section, the issue is already planned: summarize where it
-stands (next unchecked deliverable) and continue at step 4 in the mode recorded there (none recorded: validation at each deliverable), unless the issue changes a capability whose spec is missing, still `draft` with no
-validated requirements, or not named in its `# Specs` section: then do step 2 first. Otherwise start at step 1.
+Read the issue file. If it has a `# Tracking` section, the issue is already planned: show where it stands in two `next` / `left` lines (the next unchecked
+deliverable with the recorded mode, the deliverables left by name) and continue at step 4 in the mode recorded there (none recorded: validation at each deliverable), unless the issue
+changes a capability whose spec is missing, still `draft` with no validated requirements, or not named in its `# Specs` section:
+then do step 2 first. Otherwise start at step 1.
 
 ## 1. Reformulate and validate (STOP)
 
 - Read the issue, plus the resources it names (docs, `git log`, the `roadmap` documents of `.claude/harness.toml`, memory).
-- Restate the need in your own words: goal, means, constraints, what is out of scope, open questions.
+- Show, short, only what the issue does not already say: `goal`, `out of scope`, `questions` (plus the means when you
+  propose a different one than the issue's).
 - Ask the questions you can't answer from the repo. Don't ask what has a conventional default.
 - **Stop and wait for the user to validate the understanding.**
 
@@ -63,14 +64,14 @@ validated requirements, or not named in its `# Specs` section: then do step 2 fi
    The hook `require_code_review.rs` enforces it: `git commit` is refused (exit 2) while the diff holds a file
    the last review never saw, so write the tracking and the summary of steps 6 and 7 in the issue **before**
    the review (fixes to reviewed files pass; a diff under `issues/` only needs no review). Only the user can
-   waive the review, with `touch "$(git rev-parse --git-path claude-review-waived)"` (also right in a linked
-   worktree, where `.git` is a file and the waiver is per worktree); never create that file yourself. You can
-   still name it (commit message, `grep`): the hook only refuses a command that writes it.
-6. **Human review (STOP, except in autonomous mode)**: summarize what was done, what was verified and **what was not** (state it
-   plainly), decisions needed. The summary has a line `Code review:` with the findings and what was done
-   about each (`no findings` if it came back clean); if you did not invoke the review, go back to step 5
-   instead of presenting the deliverable. Wait for
-   the user's validation. Don't commit before it. In autonomous mode, write this summary in the issue and go on.
+   waive the review, with `just waive-review` (it creates the waiver of the current worktree, also in a linked
+   worktree, where the waiver is per worktree); never create that file nor run that recipe yourself. You can
+   still name them (commit message, `grep`): the hook only refuses a command that writes the file or runs the recipe.
+6. **Human review (STOP, except in autonomous mode)**: show one line `done` (what changed, not the diff), a table `check | result` (tests, lint, specs, docs, code
+   review), then the line `Code review:` with the findings and what was done about each (`no findings` if it came back
+   clean), then the lists `not verified` (state it plainly) and `decisions needed`, empty when nothing applies. If you did
+   not invoke the review, go back to step 5 instead of presenting the deliverable. Wait for the user's validation.
+   Don't commit before it. In autonomous mode, write this summary in the issue and go on.
 7. **Track**: tick the deliverable in the issue's `# Tracking` and note decisions or follow-ups.
 8. **Commit**: after validation (autonomous mode: right after step 7), run `skill:commit-message` (message per `AGENTS.md`, validated by its
    checker). Commit only the files of this deliverable (never `git add -A`; leave unrelated or personal
@@ -86,12 +87,14 @@ The default once the plan is validated, unless the user asked for a validation a
 recorded first in `## Decisions` of the issue's `# Tracking`, so it survives a `/clear` or a resumed thread. The user
 can switch it at any time.
 
-- **Lifted**: step 4.6 stops and the wait before step 4.8. Write the 4.6 summary (what was done, verified and not,
-  the `Code review:` line) in the issue instead, then commit locally and chain into the next deliverable.
+- **Lifted**: step 4.6 stops and the wait before step 4.8. Write the 4.6 summary (`done`, `check | result`,
+  `Code review:`, `not verified`, `decisions needed`) in the issue instead, then commit locally and chain into the next
+  deliverable.
 - **Never lifted**: the review of step 4.5 and its checks, the stops of steps 1 to 3, the Rules on push, deletion and
   history rewriting (no push).
 - **Stops the chain**: a blocking question, a decision the summary needs from the user, a review finding you can't
-  settle, a failing check you can't fix (never commit or build on a red base). After the last deliverable, give the final summary and ask whether to close the issue.
+  settle, a failing check you can't fix (never commit or build on a red base). After the last deliverable, give the
+  final summary: a table `deliverable | commit`, then `left` (what remains, if anything); ask whether to close the issue.
 
 ## Parallel agents
 

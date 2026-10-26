@@ -8,6 +8,8 @@ description: Write a new issue file in `issues/` with the repo's template (Goal,
 An issue is a Markdown file `issues/<snake_case_name>.md` that `skill:issue-workflow` can later pick up.
 This skill writes it; `check_issue.rs` enforces the mechanical rules. Don't implement anything here.
 
+Show the user your results as `AGENTS.md` section "Reports to the user" says.
+
 ## Procedure
 
 1. **Check for duplicates**: `ls issues issues/done` and skim the titles close to the subject. If one already
@@ -17,7 +19,7 @@ This skill writes it; `check_issue.rs` enforces the mechanical rules. Don't impl
 3. **Write the file** in English (the conversation with the user stays in the `user_language` of `.claude/harness.toml`), with this template:
 
    ```markdown
-   # <Title: what to achieve, imperative; it names the thread via /rename>
+   # <Title: what to achieve, imperative>
 
    # Goal
    <The problem and the expected outcome, in a few sentences.>
@@ -55,5 +57,5 @@ This skill writes it; `check_issue.rs` enforces the mechanical rules. Don't impl
    reason to the user, who can move it. If the new issue changes the case for others, say so and suggest
    `skill:prioritize-issues` rather than silently reshuffling. Run `just next-issue` and check it reports
    no drift.
-6. **Deliver**: give the path and a two-line summary. Don't commit unless asked (then
+6. **Deliver**: give the path, rank and one line (no other recap). Don't commit unless asked (then
    `skill:commit-message`), and offer to start `skill:issue-workflow` on it.

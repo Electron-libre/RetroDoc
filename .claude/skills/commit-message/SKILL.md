@@ -8,6 +8,8 @@ description: Write a commit message that follows the repo's Conventional Commits
 The rules live in `AGENTS.md` (single source of truth: don't restate or drift from them here). This
 skill is the procedure; `commit_check.rs` enforces the mechanical rules.
 
+Show the user your results as `AGENTS.md` section "Reports to the user" says.
+
 ## Procedure
 
 1. **Look at what is actually being committed**: `git status`, and `git diff --staged` (or `git diff` if

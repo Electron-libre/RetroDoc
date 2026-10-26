@@ -9,6 +9,8 @@ Talk to the user in the `user_language` of `.claude/harness.toml` (skills, code,
 `issues/queue.md`, one line per open issue, first = next (`just next-issue` reads it). Don't implement
 anything here.
 
+Show the user your results as `AGENTS.md` section "Reports to the user" says.
+
 ## Procedure
 
 1. **Current state**: `just next-issue` (also reports files missing from the queue or queue lines without

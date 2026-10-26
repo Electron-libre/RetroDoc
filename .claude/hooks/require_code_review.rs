@@ -13,9 +13,10 @@
 //! review of the next commit by creating `claude-review-waived` in the git directory; the hook stamps it with
 //! `HEAD` when it lets a commit through and removes it, without using it, at the first check after `HEAD` moved
 //! (a command that does not commit, such as `--dry-run`, leaves it usable; after a commit the user creates it
-//! again), and refuses a `Bash` command that writes it (a redirection, `touch`, `tee`, `cp`, a shell…; a commit
-//! message or a `grep` that only names it passes; a deterrent, not a barrier: a `Write` of the file or a name built
-//! in pieces is not caught).
+//! again), and refuses a `Bash` command that writes it (a redirection, `touch`, `tee`, `cp`…) or runs the recipe
+//! `just waive-review`, the user's way to create it (a commit message, a `grep`, a shell or an interpreter that only
+//! names it passes; a deterrent, not a barrier: a `Write` of the file,
+//! a script that writes it or a name built in pieces is not caught).
 //!
 //! The review judged is the one of the repository the commit lands in, named by `-C`, `--work-tree`, `--git-dir`
 //! and by `GIT_DIR` / `GIT_WORK_TREE` written or exported in the same line (`specs/review-gate.md`). A value of
@@ -44,6 +45,8 @@ const REVIEW_SKILL: &str = "code-review";
 const ISSUES_DIR: &str = "issues/";
 /// Created by the user, in the git directory, to waive the review of the next commit; the hook removes it.
 const WAIVER: &str = "claude-review-waived";
+/// The recipe of `harness.just` that creates the waiver: for the user, so the agent running it is refused.
+const WAIVE_RECIPE: &str = "waive-review";
 /// Stamp of a waiver used in a repository without commit.
 const NO_HEAD: &str = "no-head";
 
@@ -325,10 +328,10 @@ fn segments(command: &str) -> impl Iterator<Item = &str> {
     command.split([';', '|', '&', '(', ')', '`', '\n']).filter(|s| !s.trim().is_empty())
 }
 
-/// Commands that create or fill a file, or run text as a program, hence able to create the waiver wherever it stands
-/// among their words.
-const WRITERS: [&str; 17] =
-    ["touch", "tee", "dd", "truncate", "sh", "bash", "zsh", "fish", "dash", "eval", "source", "python", "python3", "perl", "ruby", "node", "curl"];
+/// Commands that create or fill a file, hence able to create the waiver wherever it stands among their words. A shell,
+/// `eval`, `source` or an interpreter is not one: the hook cannot tell what its text does, and refusing it for naming the
+/// file also refused the specs, tests and docs that talk about the waiver.
+const WRITERS: [&str; 5] = ["touch", "tee", "dd", "truncate", "curl"];
 /// Commands that write their last word (`cp a waiver`); `cp waiver /tmp/x` only reads it.
 const COPIERS: [&str; 5] = ["cp", "mv", "ln", "install", "rsync"];
 
@@ -348,7 +351,7 @@ fn unquoted_commands(command: &str) -> Vec<(String, String)> {
     };
     for line in command.split('\n') {
         if let Some(tag) = tags.first() {
-            // inside a heredoc body: text for `git` or `cat`, but the words of a program for a shell
+            // inside a heredoc body: text, not read as the words of a command, even for a shell (REV-13)
             if line.trim() == tag {
                 tags.remove(0);
                 if tags.is_empty() {
@@ -439,7 +442,7 @@ fn unquoted_commands(command: &str) -> Vec<(String, String)> {
 
 /// Whether some command of the line writes the waiver: the name stands in it and either a redirection outside quotes
 /// leads to it, or a command word (not a quoted one, so after `sudo`, `env`, `{`, `then`, `find -exec` as well) creates
-/// files or runs text as a program (`WRITERS`), writes its last word (`COPIERS`) or edits in place (`sed -i`). A commit
+/// files (`WRITERS`), writes its last word (`COPIERS`) or edits in place (`sed -i`). A commit
 /// message, a `grep` or a `cat` that only names the file is not one. A deterrent, not a barrier.
 fn writes_waiver(command: &str) -> bool {
     unquoted_commands(command).iter().any(|(segment, masked)| {
@@ -456,6 +459,45 @@ fn writes_waiver(command: &str) -> bool {
             WRITERS.contains(&base) || (COPIERS.contains(&base) && last) || (base == "sed" && words.iter().any(|a| a.starts_with("-i") || *a == "--in-place"))
         });
         redirected || writer
+    })
+}
+
+/// Words that may stand before `just` and leave it the command run: wrappers, keywords, assignments, options and the
+/// value of an option (`sudo -u me just …`).
+const BEFORE_JUST: [&str; 10] = ["sudo", "doas", "env", "command", "exec", "time", "nohup", "then", "do", "else"];
+/// Options of `just` that run nothing (`just --show waive-review` reads the recipe).
+const JUST_READS: [&str; 8] = ["--show", "-s", "--dry-run", "-n", "--summary", "--list", "-l", "--dump"];
+
+/// Whether some command of the line runs the recipe that waives the review: `just` is the command run (alone, or after
+/// wrappers, assignments and options) and the recipe name follows, with any options between, unless one of them only
+/// reads (`JUST_READS`). The name may be quoted, and `just` may stand in braces or a substitution. A commit message or a
+/// `grep` that only names the recipe is not one. A deterrent, like `writes_waiver`.
+fn runs_waive_recipe(command: &str) -> bool {
+    unquoted_commands(command).iter().any(|(segment, masked)| {
+        let (mut just, mut after_option, mut pos) = (false, false, 0);
+        for word in segment.split_inclusive(|c: char| c.is_whitespace() || "\"'$(){};`<>".contains(c)) {
+            let start = pos;
+            pos += word.len();
+            let word = word.trim_end_matches(|c: char| c.is_whitespace() || "\"'$(){};`<>".contains(c));
+            if word.is_empty() {
+                continue;
+            }
+            if !just {
+                let visible = masked.get(start..start + word.len()) == Some(word);
+                if visible && word.rsplit('/').next() == Some("just") {
+                    just = true;
+                } else if visible && (BEFORE_JUST.contains(&word) || word.contains('=') || word.starts_with('-') || after_option) {
+                    after_option = word.starts_with('-');
+                } else {
+                    return false;
+                }
+            } else if JUST_READS.contains(&word) {
+                return false;
+            } else if word == WAIVE_RECIPE {
+                return true;
+            }
+        }
+        false
     })
 }
 
@@ -796,6 +838,10 @@ fn main() {
         }
         "check" => {
             let Some(command) = event["tool_input"]["command"].as_str() else { return };
+            if runs_waive_recipe(command) {
+                eprintln!("Refused: only the user waives the code review, with `just {WAIVE_RECIPE}`; do not run it.");
+                std::process::exit(2);
+            }
             if writes_waiver(command) {
                 eprintln!("Refused: only the user waives the code review, by creating {WAIVER} in the git directory.");
                 if let Some(path) = git_file(&shell_dir, WAIVER) {

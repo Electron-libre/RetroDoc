@@ -6,8 +6,9 @@ description: Checklist-driven update of the project documentation (CLAUDE.md, RE
 # Update the project documentation
 
 Goal: after a change, every document that describes the touched behavior says the same true thing.
-Work through the steps in order and report the result of each one; write "n/a" with the reason rather
-than skipping a step.
+Work through the steps in order; write "n/a" with the reason rather than skipping a step.
+
+Show the user your results as `AGENTS.md` section "Reports to the user" says.
 
 ## 1. Establish what changed
 

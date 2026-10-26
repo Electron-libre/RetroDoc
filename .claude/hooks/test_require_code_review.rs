@@ -106,6 +106,43 @@ fn worktree_checks(hook: &Path) -> Vec<(&'static str, bool)> {
     out
 }
 
+// spec: REV-17
+/// `just waive-review` creates the waiver of the worktree it runs in, prints its path and changes nothing else.
+fn recipe_checks(hook: &Path) -> Vec<(&'static str, bool)> {
+    let recipes = hook.parent().unwrap().join("../../harness.just");
+    let root = std::env::temp_dir().join(format!("reviewtest-rc-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&root);
+    let (main, linked) = (root.join("main"), root.join("linked"));
+    fs::create_dir_all(main.join("sub")).unwrap();
+    sh(&main, &["init", "-q", "."]);
+    fs::write(main.join("a.txt"), "one\n").unwrap();
+    fs::copy(&recipes, main.join("justfile")).unwrap();
+    sh(&main, &["add", "-A"]);
+    sh(&main, &["commit", "-qm", "init"]);
+    sh(&main, &["worktree", "add", "-q", "-b", "other", linked.to_str().unwrap()]);
+    let name = ["claude-review", "waived"].join("-");
+    let status = |dir: &Path| String::from_utf8_lossy(&Command::new("git").args(["status", "--porcelain"]).current_dir(dir).output().unwrap().stdout).to_string();
+    let recipe = |dir: &Path| Command::new("just").arg("waive-review").current_dir(dir).output().unwrap();
+    let mut out = Vec::new();
+
+    let before = status(&main);
+    let run = recipe(&main.join("sub"));
+    let (main_waiver, linked_waiver) = (git_dir_of(&main).join(&name), git_dir_of(&linked).join(&name));
+    out.push(("the recipe runs", run.status.success()));
+    out.push(("it creates the waiver of the main worktree, from a subdirectory", main_waiver.exists()));
+    out.push(("it prints that path", String::from_utf8_lossy(&run.stdout).contains(main_waiver.to_str().unwrap())));
+    out.push(("it changes nothing else in the repository", status(&main) == before));
+    out.push(("it leaves the linked worktree alone", !linked_waiver.exists()));
+
+    let run = recipe(&linked);
+    out.push(("it creates the waiver of a linked worktree", run.status.success() && linked_waiver.exists()));
+    out.push(("it prints the path of the linked worktree", String::from_utf8_lossy(&run.stdout).contains(linked_waiver.to_str().unwrap())));
+    fs::write(linked.join("a.txt"), "two\n").unwrap();
+    out.push(("the hook honours that waiver in the linked worktree", commit_attempt(hook, &linked, "git commit -am x").0 == 0));
+    let _ = fs::remove_dir_all(&root);
+    out
+}
+
 /// Two repositories side by side: `current` reviewed and unchanged, `other` with a change nobody reviewed.
 /// Returns the shell directory (`current`).
 fn target_fixture(hook: &Path, name: &str) -> (std::path::PathBuf, std::path::PathBuf) {
@@ -727,7 +764,7 @@ fn untracked_content_checks(hook: &Path) -> Vec<(&'static str, bool)> {
     out
 }
 
-// spec: REV-13
+// spec: REV-13, REV-18
 /// A command that writes the waiver is refused, with the path the user creates; the refusal does not depend on the review.
 fn waiver_write_checks(hook: &Path) -> Vec<(&'static str, bool)> {
     let project = std::env::temp_dir().join(format!("reviewtest-ww-{}", std::process::id()));
@@ -740,8 +777,21 @@ fn waiver_write_checks(hook: &Path) -> Vec<(&'static str, bool)> {
         ("refuses a redirection with a quoted target", "echo x >> \".git/claude-review-waived\""),
         ("refuses tee on the waiver", "echo x | tee .git/claude-review-waived"),
         ("refuses a copy onto the waiver", "sudo cp a .git/claude-review-waived"),
-        ("refuses a shell that names the waiver", "sh -c 'touch .git/claude-review-waived'"),
-        ("refuses a heredoc fed to a shell", "bash <<'EOF'\ntouch .git/claude-review-waived\nEOF"),
+        ("refuses curl writing the waiver", "curl -o .git/claude-review-waived http://x"),
+        ("refuses the recipe that waives the review", "just waive-review"),
+        ("refuses the recipe after a cd", "cd x && just waive-review"),
+        ("refuses the recipe with a justfile option", "just -f y waive-review"),
+        ("refuses the recipe with a long justfile option", "just --justfile y waive-review"),
+        ("refuses the recipe after sudo", "sudo just waive-review"),
+        ("refuses the recipe after env", "env X=1 just waive-review"),
+        ("refuses the recipe by path", "/usr/bin/just waive-review"),
+        ("refuses the recipe with a quoted name", "just 'waive-review'"),
+        ("refuses the recipe after a commit", "git commit -qm 'a b'; just waive-review"),
+        ("refuses the recipe in braces", "{ just waive-review; }"),
+        ("refuses the recipe in a substitution", "echo $(just waive-review)"),
+        ("refuses the recipe in parentheses", "(just waive-review)"),
+        ("refuses the recipe after sudo with an option", "sudo -u me just waive-review"),
+        ("refuses the recipe after a keyword", "if true; then just waive-review; fi"),
         ("refuses a substitution inside double quotes", "echo \"$(touch .git/claude-review-waived)\""),
         ("refuses a backtick inside double quotes", "echo \"`touch .git/claude-review-waived`\""),
         ("refuses a quote closed by an escape", "echo \"\\\"\"; touch .git/claude-review-waived"),
@@ -765,7 +815,7 @@ fn waiver_write_checks(hook: &Path) -> Vec<(&'static str, bool)> {
     out
 }
 
-// spec: REV-14
+// spec: REV-14, REV-18
 /// A command that only names the waiver is not refused for it (a clean repository has nothing to review).
 fn waiver_mention_checks(hook: &Path) -> Vec<(&'static str, bool)> {
     let project = std::env::temp_dir().join(format!("reviewtest-wm-{}", std::process::id()));
@@ -777,6 +827,19 @@ fn waiver_mention_checks(hook: &Path) -> Vec<(&'static str, bool)> {
     sh(&project, &["commit", "-qm", "init"]);
     let mut out = Vec::new();
     for (name, command) in [
+        ("lets through a grep for the recipe", "grep -rn waive-review specs files"),
+        ("lets through a commit message that names the recipe", "git commit -qm 'run just waive-review'"),
+        ("lets through a heredoc that names the recipe", "git commit -q -F - <<'EOF'\ndocs: just waive-review\nEOF"),
+        ("lets through another recipe", "just check-specs"),
+        ("lets through reading the recipe", "just --show waive-review"),
+        ("lets through a dry run of the recipe", "just --dry-run waive-review"),
+        ("lets through the summary piped to a grep", "just --summary | grep waive-review"),
+        ("lets through an echo of the recipe", "echo just waive-review"),
+        ("lets through a shell that names the waiver", "sh -c 'touch .git/claude-review-waived'"),
+        ("lets through a heredoc fed to a shell", "bash <<'EOF'\ntouch .git/claude-review-waived\nEOF"),
+        ("lets through a heredoc fed to an interpreter", "python3 - <<'EOF'\nopen('.git/claude-review-waived', 'w')\nEOF"),
+        ("lets through an interpreter given the name", "perl -e 'print 1' .git/claude-review-waived"),
+        ("lets through eval of the name", "eval echo .git/claude-review-waived"),
         ("lets through a read with sed", "sed -n 1p .git/claude-review-waived"),
         ("lets through a copy of the waiver", "cp .git/claude-review-waived /tmp/x"),
         ("lets through a message with backticks in a quoted heredoc", "git commit -q -F - <<'EOF'\ndocs: `touch .git/claude-review-waived`\nEOF"),
@@ -925,7 +988,7 @@ fn main() {
     review_done(&hook, &fresh, "code-review");
     check("lets through the reviewed first commit", commit_attempt(&hook, &project, "git -C fresh commit -m x").0 == 0);
 
-    for checks in [waiver_write_checks, waiver_mention_checks, worktree_checks, target_checks, accumulated_c_checks, cd_checks, work_tree_and_git_dir_checks, option_forms_checks, relative_option_checks, git_dir_alone_checks, environment_checks, undeterminable_checks, unreadable_option_checks, fish_set_checks, native_checks, native_hook_checks, native_worktree_checks, skipped_hook_checks, cheap_checks, streaming_checks, untracked_content_checks] {
+    for checks in [waiver_write_checks, waiver_mention_checks, worktree_checks, recipe_checks, target_checks, accumulated_c_checks, cd_checks, work_tree_and_git_dir_checks, option_forms_checks, relative_option_checks, git_dir_alone_checks, environment_checks, undeterminable_checks, unreadable_option_checks, fish_set_checks, native_checks, native_hook_checks, native_worktree_checks, skipped_hook_checks, cheap_checks, streaming_checks, untracked_content_checks] {
         for (name, ok) in checks(&hook) {
             check(name, ok);
         }
