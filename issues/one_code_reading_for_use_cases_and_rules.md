@@ -56,7 +56,7 @@ that cost without losing use cases or rules, as `business-read` did for the glos
 2. [x] Cached tokens in the recap and the usage history (TOK-4, TOK-5); spec `accepted` then `implemented`
 3. [x] Offline measure of the code shared by the use cases and rules prompts, on the saved linkding run
 4. [x] Candidate (b) - dropped: code first in both prompts; linkding run on DeepSeek, cached tokens and benchmark
-5. [ ] Candidate (c): rules read only the lines cited by the use cases; linkding measure
+5. [x] Candidate (c) - dropped: rules read only the lines cited by the use cases; linkding measure
 6. [ ] Candidate (a): one call per feature (only if (b) and (c) fall short; needs an ADR)
 
 ## Decisions
@@ -85,7 +85,7 @@ prompt that shows code per feature:
   (first prompt with code only, `=== x ===` in a source). Not fixed: features keyed by name (all unique on
   linkding), trailer after the code (none: the code is last in both prompts).
 
-## Candidate (b), first run (deliverable 4, in progress)
+## Candidate (b), measures (deliverable 4, dropped)
 `src/cache_first.rs`, active with `RETRODOC_CODE_FIRST=1` (experiment, not wired for users): one fixed system
 sentence, then in the user message the brief, the code (`=== [Fn] path ===` in both passes), the task (the
 former system message), the feature and the parts of the pass. The system message must be shared too: a
@@ -107,3 +107,42 @@ cache is a prefix of the whole request, system message included.
   call sites) is removed; `pass_replay` now prints the cached tokens of each run.
 * Code review of the drop: not fixed, by design: `surface_pass` (no code, no cache question) and the two-line
   duplicate in the example; the evidence stays in `~/retrodoc-runs/code-first/` as for the other measures.
+
+## Candidate (c), measures (deliverable 5, dropped)
+Rules prompt limited to the lines the steps of the feature's use cases cite, widened by a margin
+(`RETRODOC_CITED_ONLY=<margin>` in `rules/prompt.rs`, an experiment removed after the measure).
+* Offline (`code_read_overlap`, second table), linkding, 32 features: the cited lines are 10% of the code
+  of the rules prompts, 17% with a margin of 15 lines, 20% with 40.
+* Offline (saved run `rules-ld-judged`, 162 rules with code evidence): the evidence of 61% of the rules is
+  inside the cited lines, 69% with 15 lines of margin, 78% with 40; the rest cites code no step cites.
+* Replay, `deepseek-chat`, frozen inputs, 4 runs each (`c15-rules`, `c40-rules` in
+  `~/retrodoc-runs/code-first/`); the baseline is the 7 runs above:
+
+| | prompt tokens | rules kept | reference rules stated (of 29) |
+|---|---|---|---|
+| current | 281k | 270 (256-280) | 11.4 (9-13) |
+| margin 15 | 84k (-70%) | 189 (182-200) | 10 (8-11) |
+| margin 40 | 92k (-67%) | 193 (188-204) | 8 (7-10) |
+
+The input of the rules pass falls by two thirds; the rules kept fall by 30%, the reference rules stated stay
+within the spread of the current ones (margin 15). Whether the 80 rules left out are noise or true rules the
+reference does not list is not known (29 reference rules is a coarse instrument).
+
+### Candidate (c), judgement of the rules left out (by the agent, as judge)
+Two runs of each setting kept with `RETRODOC_KEEP_RULES` (`kept-base/`, `kept-c15/`, `lost-sample.yaml` in
+`~/retrodoc-runs/code-first/`). A rule is "found" in another run when it shares at least 0.4 of its words
+(Jaccard) with one of its rules.
+* Not found: 7-8% between two runs of the current setting (the noise of the method), **28-29%** from the
+  current setting to margin 15 (2 runs). Margin 15 states 64 rules (18%) the current setting does not.
+* A sample of 45 rules the current setting states and margin 15 does not (and the other current run does),
+  read one by one: 24 true business rules (53%: owner-only changes, global settings unique, retry limits,
+  feed limit, case-insensitive tags, archive marker on import...), 12 duplicates (27%), 9 noise (20%:
+  manifest text, timestamps, tautologies, a technical origin check). A sample of 30 of the 64 new rules
+  has the same profile (about half true rules).
+* So the 80 rules left out per run are not mostly noise: about 11% of the rules of the current setting
+  are true rules margin 15 loses and does not replace, against a 70% cut of the rules input (about 17%
+  of a whole run). The loss is beyond the spread (rules kept 189 against 256-280): **dropped** under the
+  rule recorded in the decisions. Experiment code removed.
+* Code review: fixed `RETRODOC_KEEP_RULES` (creates the directory, skips a run with no file) and the headers
+  above. Not fixed, by design: the offline table of cited lines is a one-off measure (a step citing a whole
+  file counts the whole file, features keyed by name, first prompt with code only).

@@ -9,6 +9,11 @@
 //! the two prompts share (the smaller of the two excerpts). Printed: one row per feature, then the
 //! totals: the share of each prompt that the other repeats.
 //!
+//! A second table (candidate (c), rules reading only what the use cases cite) gives, per feature, the
+//! share of the code characters of the rules prompt that lies in the lines the steps of its use cases
+//! cite (`source_refs`), taken as they are and widened by 15 and by 40 lines on each side (the
+//! validations around a cited line).
+//!
 //! Limits: only the first prompt that shows code is counted per feature (the kind question and the
 //! judgement of the rules carry no code; a statement call cut at the completion limit is asked again on
 //! halves, which this does not see, so the figures are a floor for such a feature), and a source line
@@ -23,6 +28,7 @@ use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
+use retrodoc_core::model::{Feature, UseCase};
 use retrodoc_llm::{
     CompletionRequest, CompletionResponse, LlmError, LlmProvider, Role, UsageTracker,
 };
@@ -36,6 +42,8 @@ type Failure = Box<dyn std::error::Error>;
 struct Prompt {
     chars: usize,
     code: BTreeMap<String, usize>,
+    /// Per file, the number of each numbered code line shown and its characters.
+    lines: BTreeMap<String, Vec<(u32, usize)>>,
 }
 
 /// The feature a prompt is about (the name after `Feature: `) and its code blocks. A block starts with a
@@ -49,7 +57,7 @@ fn parse(prompt: &str) -> Option<(String, Prompt)> {
         .to_string();
     let mut parsed = Prompt {
         chars: prompt.chars().count(),
-        code: BTreeMap::new(),
+        ..Prompt::default()
     };
     let mut current: Option<String> = None;
     for line in prompt.lines() {
@@ -64,6 +72,16 @@ fn parse(prompt: &str) -> Option<(String, Prompt)> {
             current = Some(path.to_string());
             parsed.code.entry(path.to_string()).or_default();
         } else if let Some(path) = &current {
+            if let Some(number) = line
+                .split_once(" | ")
+                .and_then(|(n, _)| n.trim().parse::<u32>().ok())
+            {
+                parsed
+                    .lines
+                    .entry(path.clone())
+                    .or_default()
+                    .push((number, line.chars().count() + 1));
+            }
             *parsed.code.get_mut(path).expect("inserted above") += line.chars().count() + 1;
         }
     }
@@ -189,6 +207,92 @@ fn report(rows: &BTreeMap<String, Row>) -> String {
     out
 }
 
+/// The inclusive line ranges the steps of each feature cite, per file.
+type Cited = BTreeMap<String, BTreeMap<String, Vec<(u32, u32)>>>;
+
+fn cited_ranges(features: &[Feature], use_cases: &[UseCase]) -> Cited {
+    let mut cited = Cited::new();
+    for use_case in use_cases {
+        let Some(feature) = features.iter().find(|f| f.slug == use_case.feature_slug) else {
+            continue;
+        };
+        for reference in use_case.steps.iter().flat_map(|s| &s.source_refs) {
+            let (start, end) = match (reference.start_line, reference.end_line) {
+                (Some(s), Some(e)) => (s, e.max(s)),
+                (Some(l), None) | (None, Some(l)) => (l, l),
+                (None, None) => (1, u32::MAX),
+            };
+            cited
+                .entry(feature.name.clone())
+                .or_default()
+                .entry(reference.path.clone())
+                .or_default()
+                .push((start, end));
+        }
+    }
+    cited
+}
+
+/// Characters of the numbered code lines of `prompt` within `margin` lines of a cited range.
+fn cited_chars(
+    prompt: &Prompt,
+    ranges: Option<&BTreeMap<String, Vec<(u32, u32)>>>,
+    margin: u32,
+) -> usize {
+    let Some(ranges) = ranges else { return 0 };
+    prompt
+        .lines
+        .iter()
+        .filter_map(|(path, lines)| ranges.get(path).map(|r| (lines, r)))
+        .flat_map(|(lines, r)| {
+            lines.iter().filter(move |(n, _)| {
+                r.iter()
+                    .any(|(s, e)| *n + margin >= *s && *n <= e.saturating_add(margin))
+            })
+        })
+        .map(|(_, chars)| chars)
+        .sum()
+}
+
+fn cited_report(rule_prompts: &[String], cited: &Cited) -> String {
+    let mut first: BTreeMap<String, Prompt> = BTreeMap::new();
+    for (name, prompt) in rule_prompts.iter().filter_map(|p| parse(p)) {
+        let entry = first.entry(name).or_default();
+        if entry.code.is_empty() {
+            *entry = prompt;
+        }
+    }
+    let margins = [0, 15, 40];
+    let mut out = String::from(
+        "\n| Feature | Code chars | Cited | Cited +15 lines | Cited +40 lines |\n|---|---|---|---|---|\n",
+    );
+    let (mut code_total, mut totals) = (0, [0; 3]);
+    for (name, prompt) in &first {
+        let code: usize = prompt.lines.values().flatten().map(|(_, c)| c).sum();
+        let shares = margins.map(|m| cited_chars(prompt, cited.get(name), m));
+        let _ = writeln!(
+            out,
+            "| {name} | {code} | {:.0}% | {:.0}% | {:.0}% |",
+            percent(shares[0], code),
+            percent(shares[1], code),
+            percent(shares[2], code),
+        );
+        code_total += code;
+        for (total, share) in totals.iter_mut().zip(shares) {
+            *total += share;
+        }
+    }
+    let _ = writeln!(
+        out,
+        "| **{} features** | {code_total} | {:.0}% | {:.0}% | {:.0}% |",
+        first.len(),
+        percent(totals[0], code_total),
+        percent(totals[1], code_total),
+        percent(totals[2], code_total),
+    );
+    out
+}
+
 async fn run(frozen_dir: &Path, benchmark_dir: &Path) -> Result<String, Failure> {
     let frozen = FrozenInputs::open(frozen_dir)?;
     let tree = PathBuf::from(&frozen.manifest.source_run);
@@ -218,7 +322,13 @@ async fn run(frozen_dir: &Path, benchmark_dir: &Path) -> Result<String, Failure>
     .await?;
     let use_cases = use_cases.prompts.into_inner().unwrap();
     let rules = rules.prompts.into_inner().unwrap();
-    Ok(report(&rows(&use_cases, &rules)))
+    let cache = frozen_dir.join("cache");
+    let features: Vec<Feature> =
+        serde_yaml::from_str(&std::fs::read_to_string(cache.join("features.yaml"))?)?;
+    let saved: Vec<UseCase> =
+        serde_yaml::from_str(&std::fs::read_to_string(cache.join("use-cases.yaml"))?)?;
+    let table = report(&rows(&use_cases, &rules));
+    Ok(table + &cited_report(&rules, &cited_ranges(&features, &saved)))
 }
 
 #[tokio::main]
@@ -262,5 +372,26 @@ mod tests {
         assert_eq!(row.shared_code, uc.code["a.rs"]);
         assert!(row.shared_code < row.use_cases);
         assert!(report(&rows).contains("1 features"));
+    }
+
+    #[test]
+    fn the_cited_lines_are_counted_with_their_margin() {
+        let prompt = "Feature: Refund — x\n\nSource files:\n\n=== [F1] a.rs ===\n   1 | a\n   2 | b\n  50 | c\n  90 | d\n=== [F2] b.rs ===\n   1 | z\n";
+        let (_, parsed) = parse(prompt).unwrap();
+        let ranges = BTreeMap::from([("a.rs".to_string(), vec![(2, 2), (88, 89)])]);
+        let size = |n| {
+            parsed.lines["a.rs"]
+                .iter()
+                .find(|(l, _)| *l == n)
+                .unwrap()
+                .1
+        };
+        assert_eq!(cited_chars(&parsed, Some(&ranges), 0), size(2));
+        // 1 and 2 by the first range, 90 by the second with a margin of 2; 50 and b.rs never.
+        assert_eq!(
+            cited_chars(&parsed, Some(&ranges), 2),
+            size(1) + size(2) + size(90)
+        );
+        assert_eq!(cited_chars(&parsed, None, 40), 0);
     }
 }

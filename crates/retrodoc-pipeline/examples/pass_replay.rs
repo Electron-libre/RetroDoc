@@ -26,6 +26,7 @@ use retrodoc_pipeline::benchmark::{
     replay_domains, replay_features, replay_rules, replay_table, replay_use_cases, rule_table,
     use_case_table, FrozenInputs, Matches, Reference, RunFigures, Scoring,
 };
+use retrodoc_pipeline::Artifact;
 use serde_json::json;
 
 type Failure = Box<dyn std::error::Error>;
@@ -163,6 +164,15 @@ async fn rules(setup: &Setup) -> Result<(), Failure> {
         )
         .await?;
         let total = tracker.report().total();
+        // RETRODOC_KEEP_RULES=<dir>: keep the rules of each run to read them (`rules-<n>.yaml`).
+        if let Some(dir) = std::env::var_os("RETRODOC_KEEP_RULES") {
+            let from = Artifact::Rules.path(work.path());
+            std::fs::create_dir_all(&dir)?;
+            // A run that published no rule wrote no file: nothing to keep.
+            if from.exists() {
+                std::fs::copy(from, Path::new(&dir).join(format!("rules-{n}.yaml")))?;
+            }
+        }
         eprintln!(
             "run {n}/{}: {} rules, {} prompt tokens of which {} cached",
             setup.runs, run.published, total.prompt_tokens, total.cached_tokens
