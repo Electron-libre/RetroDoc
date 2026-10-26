@@ -10,14 +10,12 @@ use std::fmt::Write as _;
 use std::path::PathBuf;
 
 use retrodoc_core::model::{
-    BusinessRule, ConfidenceScore, Domain, Feature, RuleEvidence, SubDomain, UseCase,
-    LOW_CONFIDENCE_THRESHOLD,
+    ConfidenceScore, Domain, Feature, SubDomain, UseCase, LOW_CONFIDENCE_THRESHOLD,
 };
-use retrodoc_ingest::existing_docs::ExistingDoc;
-use retrodoc_ingest::signals::doc_sections;
 
 use crate::behaviour_coverage::{BehaviourCoverage, EntryCount, FeatureCoverage};
 use crate::domains::{DomainMap, UNCATEGORIZED_SLUG};
+use crate::reconcile::Reconciliation;
 use crate::rules::{AsideFeature, AsideRule, SetAside};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -35,22 +33,6 @@ pub struct WeakSection {
     pub label: String,
     pub score: f32,
     pub rationale: Option<String>,
-}
-
-/// A business rule that no existing document seems to mention.
-#[derive(Debug, Clone, PartialEq)]
-pub struct UndocumentedRule {
-    pub slug: String,
-    pub statement: String,
-    /// Name of the feature the rule belongs to, if it still exists.
-    pub feature: Option<String>,
-}
-
-/// How many business rules the project's own documents leave out.
-#[derive(Debug, Clone, Default, PartialEq)]
-pub struct RuleDebt {
-    pub total: usize,
-    pub undocumented: Vec<UndocumentedRule>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -88,18 +70,19 @@ pub struct DebtReport {
     /// Source files reached by no behaviour: no entry point of a feature, no code run by one, no
     /// entity. Filled by the caller like `unplaced_entry_points`.
     pub technical_support: Vec<PathBuf>,
-    /// The business rules the existing docs do not mention. `None` when no rule was stated
-    /// (`[pipeline] rules` off, or nothing found); filled by the caller with
-    /// [`DebtReport::with_rules`].
-    pub rules: Option<RuleDebt>,
+    /// Where the items stand against the project's own docs. `None` until the caller adds it with
+    /// [`DebtReport::with_reconciliation`].
+    pub reconciliation: Option<Reconciliation>,
     /// What the rules pass set aside on a judgement of the LLM: to be checked. `None` when nothing.
     pub set_aside: Option<SetAside>,
 }
 
 /// Skipped files listed in the Markdown report (the rest is only counted).
 const MAX_LISTED_SKIPPED: usize = 50;
-/// Undocumented rules listed in the Markdown report (the rest is only counted).
+/// Rules set aside listed in the Markdown report (the rest is only counted).
 const MAX_LISTED_RULES: usize = 50;
+/// Undocumented items listed in the Markdown report (the rest is only counted).
+const MAX_LISTED_UNDOCUMENTED: usize = 50;
 /// Technical support files listed in the Markdown report (the rest is only counted).
 const MAX_LISTED_SUPPORT: usize = 50;
 /// Entry points without a use case listed in the Markdown report (the rest is only counted).
@@ -288,7 +271,7 @@ pub fn build_report(
         entries_by_context: BTreeMap::new(),
         entries_by_feature: BTreeMap::new(),
         technical_support: Vec::new(),
-        rules: None,
+        reconciliation: None,
         set_aside: None,
     }
 }
@@ -316,47 +299,9 @@ impl DebtReport {
         }
     }
 
-    /// Adds the business rules that no existing document mentions: those whose statement shares at
-    /// least half of its words with no section of `docs` (the project's own documents, not the
-    /// generated ones) and that cite no document section themselves; a statement made of stop
-    /// words only can't be judged and is not listed. Nothing when there is no rule.
-    pub fn with_rules(
-        &mut self,
-        rules: &[BusinessRule],
-        features: &[Feature],
-        docs: &[ExistingDoc],
-    ) {
-        if rules.is_empty() {
-            return;
-        }
-        let sections: Vec<String> = doc_sections(docs)
-            .into_iter()
-            // The path is not searched: a file named after a topic does not say what it states.
-            .map(|s| s.text)
-            .collect();
-        let index = crate::bm25::Bm25::new(&sections);
-        let undocumented = rules
-            .iter()
-            .filter(|r| {
-                !r.evidence
-                    .iter()
-                    .any(|e| matches!(e, RuleEvidence::Doc { .. }))
-                    && crate::bm25::has_content_words(&r.statement)
-                    && index.search(&r.statement).is_empty()
-            })
-            .map(|r| UndocumentedRule {
-                slug: r.slug.clone(),
-                statement: r.statement.clone(),
-                feature: features
-                    .iter()
-                    .find(|f| r.belongs_to_feature(&f.slug))
-                    .map(|f| f.name.clone()),
-            })
-            .collect();
-        self.rules = Some(RuleDebt {
-            total: rules.len(),
-            undocumented,
-        });
+    /// Adds where the items stand against the project's own docs.
+    pub fn with_reconciliation(&mut self, reconciliation: Reconciliation) {
+        self.reconciliation = Some(reconciliation);
     }
 
     /// Adds what the rules pass set aside on a judgement of the LLM. Nothing when it set nothing aside.
@@ -424,33 +369,57 @@ impl DebtReport {
         }
     }
 
-    /// The section on the business rules the existing docs leave out.
-    fn write_rule_section(&self, md: &mut String) {
-        let Some(debt) = &self.rules else { return };
-        let _ = write!(
-            md,
-            "\n## Business rules without documentation\n\n{} of {} business rule(s) are \
-             mentioned in no existing document",
-            debt.undocumented.len(),
-            debt.total
+    /// The section on the existing docs: how much of each domain they cover, then what they leave out.
+    fn write_reconciliation_section(&self, md: &mut String) {
+        let Some(reconciliation) = self.reconciliation.as_ref().filter(|r| !r.items.is_empty())
+        else {
+            return;
+        };
+        md.push_str(
+            "\n## Existing documentation\n\nWhat the project's own documents say about the generated \
+             items (domains, features, use cases, business rules).\n\n\
+             | Domain | Items | Documented | Matched, not judged | Undocumented | Contradicted |\n\
+             |---|---|---|---|---|---|\n",
         );
-        if debt.undocumented.is_empty() {
-            md.push_str(".\n");
+        let mut rows: Vec<_> = reconciliation.by_domain().into_iter().collect();
+        rows.sort_by_key(|(domain, count)| (std::cmp::Reverse(count.undocumented), *domain));
+        for (domain, count) in rows {
+            let _ = writeln!(
+                md,
+                "| {domain} | {} | {} | {} | {} | {} |",
+                count.total(),
+                count.documented,
+                count.matched,
+                count.undocumented,
+                count.contradicted
+            );
+        }
+        let undocumented = reconciliation.undocumented();
+        if undocumented.is_empty() {
             return;
         }
-        md.push_str(":\n\n");
-        for rule in debt.undocumented.iter().take(MAX_LISTED_RULES) {
-            let place = rule
-                .feature
-                .as_ref()
-                .map_or_else(String::new, |f| format!(" — {f}"));
-            let _ = writeln!(md, "- `{}` {}{place}", rule.slug, rule.statement);
+        let _ = write!(
+            md,
+            "\n### Undocumented\n\n{} item(s) are mentioned in no existing document, most entry \
+             points first:\n\n",
+            undocumented.len()
+        );
+        for item in undocumented.iter().take(MAX_LISTED_UNDOCUMENTED) {
+            let plural = if item.entry_points == 1 { "" } else { "s" };
+            let _ = writeln!(
+                md,
+                "- `{}` {}: {} ({} entry point{plural})",
+                item.label,
+                item.kind.label(),
+                one_line(&item.name),
+                item.entry_points
+            );
         }
-        if debt.undocumented.len() > MAX_LISTED_RULES {
+        if undocumented.len() > MAX_LISTED_UNDOCUMENTED {
             let _ = writeln!(
                 md,
                 "- … and {} more",
-                debt.undocumented.len() - MAX_LISTED_RULES
+                undocumented.len() - MAX_LISTED_UNDOCUMENTED
             );
         }
     }
@@ -628,7 +597,7 @@ impl DebtReport {
             }
         }
         self.write_behaviour_sections(&mut md);
-        self.write_rule_section(&mut md);
+        self.write_reconciliation_section(&mut md);
         self.write_set_aside_section(&mut md);
         if !self.skipped_files.is_empty() {
             let _ = write!(
@@ -657,6 +626,8 @@ mod tests {
     use super::*;
 
     use crate::domains::DomainCluster;
+    use retrodoc_core::model::{BusinessRule, RuleEvidence};
+    use retrodoc_ingest::existing_docs::ExistingDoc;
 
     fn feature(slug: &str, domain: &str, score: Option<f32>) -> Feature {
         Feature {
@@ -765,13 +736,13 @@ mod tests {
         }
     }
 
-    #[test]
-    fn rules_no_existing_doc_mentions_are_counted_and_listed() {
+    fn reconciliation() -> Reconciliation {
         let docs = [ExistingDoc {
             path: PathBuf::from("README.md"),
             content: "# Orders\nAn order is refused when delivery takes an hour.\n".into(),
         }];
-        let features = [feature("orders", "billing", None)];
+        let mut orders = feature("orders", "billing", None);
+        orders.entry_points = vec!["a.rb#GET /orders".into()];
         let rules = [
             rule(
                 "orders-1",
@@ -783,92 +754,74 @@ mod tests {
                 "Riders above the weekly cap are paused.",
                 vec![],
             ),
-            rule(
-                "orders-3",
-                "Cooking time counts before the rider leaves.",
-                vec![RuleEvidence::Doc {
-                    path: "docs/x.md".into(),
-                    heading: "Time".into(),
-                }],
-            ),
             rule("gone-1", "Credits expire after a year.", vec![]),
         ];
-        let mut report = build_report(&DomainMap::default(), &[], &[]);
-        assert!(!report.to_markdown().contains("Business rules without"));
-
-        report.with_rules(&rules, &features, &docs);
-
-        let debt = report.rules.as_ref().unwrap();
-        assert_eq!(debt.total, 4);
-        let slugs: Vec<&str> = debt.undocumented.iter().map(|r| r.slug.as_str()).collect();
-        assert_eq!(slugs, ["orders-2", "gone-1"]);
-        assert_eq!(debt.undocumented[1].feature, None);
-        let md = report.to_markdown();
-        assert!(
-            md.contains("## Business rules without documentation"),
-            "{md}"
-        );
-        assert!(
-            md.contains("2 of 4 business rule(s) are mentioned in no existing document"),
-            "{md}"
-        );
-        assert!(
-            md.contains("- `orders-2` Riders above the weekly cap are paused. — orders"),
-            "{md}"
-        );
-        assert!(!md.contains("`orders-1`"), "{md}");
+        crate::reconcile::reconcile(&DomainMap::default(), &[orders], &[], &rules, &docs)
     }
 
+    // spec: REC-9
     #[test]
-    fn a_file_named_after_the_topic_or_a_statement_of_stop_words_is_not_judged_wrongly() {
-        let docs = [ExistingDoc {
-            path: PathBuf::from("docs/rider-cap.md"),
-            content: "Nothing about it here.".into(),
-        }];
+    fn the_existing_docs_coverage_is_counted_per_domain() {
         let mut report = build_report(&DomainMap::default(), &[], &[]);
-        report.with_rules(
-            &[
-                rule("a-1", "Riders above the cap are paused.", vec![]),
-                rule("a-2", "It is what it is.", vec![]),
-            ],
-            &[],
-            &docs,
+        report.with_reconciliation(Reconciliation::default());
+        assert!(!report.to_markdown().contains("## Existing documentation"));
+
+        report.with_reconciliation(reconciliation());
+
+        let md = report.to_markdown();
+        assert!(md.contains("## Existing documentation"), "{md}");
+        assert!(
+            md.contains(
+                "| Domain | Items | Documented | Matched, not judged | Undocumented | Contradicted |"
+            ),
+            "{md}"
         );
-        let slugs: Vec<&str> = report
-            .rules
-            .as_ref()
-            .unwrap()
-            .undocumented
-            .iter()
-            .map(|r| r.slug.as_str())
+        assert!(md.contains("| billing | 3 | 0 | 2 | 1 | 0 |"), "{md}");
+        assert!(md.contains("| ? | 1 | 0 | 0 | 1 | 0 |"), "{md}");
+    }
+
+    // spec: REC-10, REC-13
+    #[test]
+    fn the_undocumented_items_are_listed_by_importance_rules_among_them() {
+        let mut report = build_report(&DomainMap::default(), &[], &[]);
+        report.with_reconciliation(reconciliation());
+
+        let md = report.to_markdown();
+        assert!(!md.contains("Business rules without documentation"), "{md}");
+        assert!(
+            md.contains(
+                "### Undocumented\n\n2 item(s) are mentioned in no existing document, most entry \
+                 points first:\n\n\
+                 - `billing/orders/orders-2` rule: Riders above the weekly cap are paused. (1 entry point)\n\
+                 - `?/?/gone-1` rule: Credits expire after a year. (0 entry points)\n"
+            ),
+            "{md}"
+        );
+    }
+
+    // spec: REC-10
+    #[test]
+    fn at_most_fifty_undocumented_items_are_listed() {
+        let rules: Vec<BusinessRule> = (0..55)
+            .map(|i| {
+                rule(
+                    &format!("r-{i}"),
+                    "Riders above the cap are paused.",
+                    vec![],
+                )
+            })
             .collect();
-        assert_eq!(slugs, ["a-1"]);
-    }
-
-    #[test]
-    fn no_rule_adds_no_section_and_documented_rules_say_so() {
         let mut report = build_report(&DomainMap::default(), &[], &[]);
-        report.with_rules(&[], &[], &[]);
-        assert!(report.rules.is_none());
-
-        let docs = [ExistingDoc {
-            path: PathBuf::from("README.md"),
-            content: "Riders above the weekly cap are paused.".into(),
-        }];
-        report.with_rules(
-            &[rule(
-                "a-1",
-                "Riders above the weekly cap are paused.",
-                vec![],
-            )],
+        report.with_reconciliation(crate::reconcile::reconcile(
+            &DomainMap::default(),
             &[],
-            &docs,
-        );
+            &[],
+            &rules,
+            &[],
+        ));
         let md = report.to_markdown();
-        assert!(
-            md.contains("0 of 1 business rule(s) are mentioned in no existing document.\n"),
-            "{md}"
-        );
+        assert!(md.contains("- … and 5 more\n"), "{md}");
+        assert_eq!(md.matches("rule: Riders").count(), 50);
     }
 
     #[test]

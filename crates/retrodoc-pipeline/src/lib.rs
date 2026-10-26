@@ -37,6 +37,7 @@ pub mod glossary;
 mod naming;
 mod progress;
 pub mod ranking;
+pub mod reconcile;
 pub mod repo_map;
 pub mod report;
 mod response;

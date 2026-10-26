@@ -35,7 +35,14 @@ pub fn run(path: &Path) -> anyhow::Result<()> {
         .map(|s| s.skipped)
         .unwrap_or_default();
     report.with_behaviour_coverage(retrodoc_pipeline::BehaviourCoverage::load(&repo_root));
-    super::docs::add_rule_debt(&mut report, &repo_root, &config, &features);
+    super::docs::add_doc_debt(
+        &mut report,
+        &repo_root,
+        &config,
+        &domains,
+        &features,
+        &use_cases,
+    );
     print!("{}", report.to_markdown());
     Ok(())
 }
