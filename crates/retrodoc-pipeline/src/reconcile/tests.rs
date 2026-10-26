@@ -863,3 +863,43 @@ async fn a_verdict_given_before_the_rule_of_what_is_shown_changed_is_asked_again
 
     assert_eq!(llm.calls(), 1);
 }
+
+// spec: REC-15
+#[tokio::test]
+async fn a_paragraph_with_a_word_rare_in_the_section_beats_ones_with_its_common_words() {
+    let dir = tempfile::tempdir().unwrap();
+    let common = (0..30)
+        .map(|i| {
+            format!(
+                "Bookmark list {i}: archived entries. {}",
+                "Shown page by page. ".repeat(97)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n");
+    let text = format!(
+        "### Bookmarks\n{common}\n\nUnarchives a bookmark. {}",
+        "It goes back to the main view. ".repeat(15)
+    );
+    let llm = FakeLlm::answering(r#"{"items":[]}"#);
+
+    judge(
+        dir.path(),
+        &llm,
+        &on(),
+        &[candidate(
+            "b/unarchive",
+            "Unarchive an archived bookmark to the list",
+            &[("docs/api.md#Bookmarks", &text)],
+        )],
+    )
+    .await
+    .unwrap();
+
+    let shown = sections_shown(&llm);
+    assert!(
+        shown.contains("Unarchives a bookmark."),
+        "{}",
+        &shown[shown.len() - 600..]
+    );
+}

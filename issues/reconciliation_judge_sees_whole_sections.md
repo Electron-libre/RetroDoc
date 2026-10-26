@@ -30,6 +30,23 @@ about, with the request still bounded.
   "mark unread" on the `unread` field of the example). The 3 other wrong are false `covers` on the first part
   (tags on `api.md#Bookmarks`, two snapshot items on the Singlefile section): seeing more text may not fix them.
   On the other long sections the tail held nothing the answer needed.
+* 2026-10-26, comparison of deliverable 3 on the 39 labelled answers (2 unsure left out), `deepseek-chat`, the
+  whole reconciliation re-run each time (36 calls, about 1 min):
+
+  | prompt | right | wrong, text past the old cut | wrong, other | prompt tokens |
+  |---|---|---|---|---|
+  | first 1,500 chars, run 1 / run 2 | 30 / 32 | 6 / 7 | 3 / 0 | 136k |
+  | REC-15, paragraphs with the most query words | 36 | 1 | 2 | 158k |
+  | REC-15, words weighted by rarity in the section, run 1 / run 2 | 35 / 36 | 1 / 1 | 3 / 2 | 158k |
+
+  The wrong answer left past the cut is "Restore an archived bookmark" against the `Unarchive` endpoint: no word
+  shared, a paraphrase the lexical pick can't find (non-goal). The other wrong ones move between runs (DeepSeek
+  is not steady at temperature 0 on them): false `covers` of the metadata or bundles items by
+  `api.md#Bookmarks`, of a snapshot item by the Singlefile section.
+* The prompt of the batch of "Unarchive a bookmark" (11 sections, a share of 3,272 chars) showed the JSON example
+  and the first endpoints instead of `Unarchive`: counting the query words a paragraph holds favours the long
+  paragraphs full of `bookmark`, `list`, `archived`. Weighting each word by how few paragraphs of the section hold
+  it shows `Unarchive` and `Delete` (REC-15 amended, `SHOWN_RULE` v2).
 # Approach
 
 1. Measure first: on the saved linkding run, list the answers given on a section longer than the cut and
@@ -75,7 +92,7 @@ and 3 of the issue combined (REC-15), the section still listed once per batch.
    paragraphs that hold the most query words of its items; the fingerprint holds a version of that rule; verified
    by unit tests (whole section, excerpts per item in turn, `[...]`, budget, fingerprint change); makes true REC-15,
    REC-6.
-3. [ ] Compare: re-run the reconciliation of 1 with the new prompt, DeepSeek and the local model, and score the
+3. [x] Compare: re-run the reconciliation of 1 with the new prompt, DeepSeek and the local model, and score the
    labelled sample before / after; verified by a table in `# Findings`.
 
 ## Decisions
@@ -83,6 +100,8 @@ and 3 of the issue combined (REC-15), the section still listed once per batch.
 - Base commit: 6f3b2205981f4444461077f7f1ebd0f677693216
 - 1a: paragraph excerpts within a per-request budget (REC-15), sections not split.
 - 2a: 36,000 chars of section text per request.
+- After 2: the local model comparison is left until the switch to the hybrid llama-server
+  (`issues/hybrid_llama_server_as_local_llm.md`); deliverable 3 measures with DeepSeek only.
 - 3a: the reconciliation is re-run by an incremental `generate` on a copy of the saved linkding run, DeepSeek.
 
 ## Deliverable 1
@@ -114,5 +133,26 @@ fingerprint holds `SHOWN_RULE`; REC-15 added, REC-6 amended, spec `accepted`.
 red: `a_long_section_shows_the_paragraphs_of_each_of_its_items_in_turn`: "the archive paragraph is shown"
 (the 1,500-char cut); the 4 others failed on the cut or on a reused verdict (`left: 0, right: 1` calls).
 Not verified: the answers of the judge on the new prompt (deliverable 3).
+
+Code review (low): no findings.
+
+## Deliverable 3
+
+done: before / after on the labelled sample with DeepSeek (table in `# Findings`); the paragraph pick weights
+each word by its rarity in the section (REC-15 amended, `SHOWN_RULE` v2), after the prompt of a missed item showed
+the JSON example instead of its endpoint.
+
+| check | result |
+|---|---|
+| tests, lint, specs | `just check` ok |
+| docs | `docs/crates/pipeline.md` (`reconcile/` row) |
+| code review | see below |
+
+red: `a_paragraph_with_a_word_rare_in_the_section_beats_ones_with_its_common_words`: the section shown ended on
+the common paragraphs, no "Unarchives a bookmark.".
+Not verified: the local model (left, decision after 2); one or two runs per variant, DeepSeek moves 2 answers of
+39 between runs.
+
+Left: the local comparison once the hybrid llama-server is the local target.
 
 Code review (low): no findings.

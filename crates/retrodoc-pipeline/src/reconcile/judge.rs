@@ -32,7 +32,7 @@ const MIN_SECTION_CHARS: usize = 1_500;
 
 /// Names the rule that picks what is shown of a section: part of a verdict's fingerprint, so that a
 /// change of the rule asks the saved items again. Change it when [`shown`] changes.
-const SHOWN_RULE: &str = "paragraphs-of-the-items-v1";
+const SHOWN_RULE: &str = "paragraphs-of-the-items-v2";
 
 /// Marks the paragraphs of a section left out.
 const LEFT_OUT: &str = "[...]";
@@ -207,8 +207,8 @@ fn first_chars(text: &str, n: usize) -> &str {
 }
 
 /// What is shown of `section` within `share` chars: the whole text when it fits, else its heading line
-/// and the paragraphs that hold the most content words of `queries`, taken best first for each query in
-/// turn and shown in the section's order, [`LEFT_OUT`] where paragraphs are left out.
+/// and the paragraphs that hold content words of `queries`, a word weighing more the fewer paragraphs hold
+/// it, taken heaviest first for each query in turn and shown in the section's order, [`LEFT_OUT`] where paragraphs are left out.
 fn shown(section: &Section, queries: &[&str], share: usize) -> String {
     let text = section.text.trim();
     if text.chars().count() <= share {
@@ -221,18 +221,25 @@ fn shown(section: &Section, queries: &[&str], share: usize) -> String {
         .filter(|p| !p.is_empty())
         .collect();
     let words: Vec<_> = paragraphs.iter().map(|p| content_words(p)).collect();
-    // Per query, the paragraphs holding one of its words, most words first, then in the section's order.
+    // A word weighs more the fewer paragraphs hold it: `bookmark` is in every endpoint of a bookmarks API,
+    // `unarchive` in one.
+    #[allow(clippy::cast_precision_loss)]
+    let weight = |word: &String| {
+        let holding = words.iter().filter(|w| w.contains(word)).count();
+        (1.0 + paragraphs.len() as f32 / holding as f32).ln()
+    };
+    // Per query, the paragraphs holding one of its words, heaviest first, then in the section's order.
     let mut ranked: Vec<std::vec::IntoIter<usize>> = queries
         .iter()
         .map(|query| {
             let query = content_words(query);
-            let mut hits: Vec<(usize, usize)> = words
+            let mut hits: Vec<(f32, usize)> = words
                 .iter()
                 .enumerate()
-                .map(|(i, w)| (w.intersection(&query).count(), i))
-                .filter(|(n, _)| *n > 0)
+                .map(|(i, w)| (w.intersection(&query).map(&weight).sum(), i))
+                .filter(|(score, _)| *score > 0.0)
                 .collect();
-            hits.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));
+            hits.sort_by(|a, b| b.0.total_cmp(&a.0).then(a.1.cmp(&b.1)));
             hits.into_iter()
                 .map(|(_, i)| i)
                 .collect::<Vec<_>>()

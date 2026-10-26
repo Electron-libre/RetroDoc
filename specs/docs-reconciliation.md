@@ -56,9 +56,9 @@ backed by the doc sections it rests on.
   warning, keeping the verdicts got before.
 - **REC-15** (deterministic) A request of the judge must show at most 36,000 chars of section text, shared evenly
   between its sections, and never less than 1,500 chars per section. A section within its share must be shown
-  whole; a longer one must be shown as its heading line plus the paragraphs (split on blank lines) that hold the
-  most content words of the queries of the batch's items it is matched to, taken in turn for each of those items,
-  best first, until the share is spent, then shown in the order of the section with `[...]` where paragraphs are
+  whole; a longer one must be shown as its heading line plus the paragraphs (split on blank lines) that hold
+  content words of the queries of the batch's items it is matched to, a word weighing more the fewer paragraphs
+  of the section hold it, taken in turn for each of those items, heaviest first, until the share is spent, then shown in the order of the section with `[...]` where paragraphs are
   left out. A paragraph longer than the share is cut to it; a section where no paragraph holds one of those
   words is shown from its start, cut to its share.
 
