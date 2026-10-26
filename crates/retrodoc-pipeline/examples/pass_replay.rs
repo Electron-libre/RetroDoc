@@ -162,7 +162,11 @@ async fn rules(setup: &Setup) -> Result<(), Failure> {
             &setup.reference,
         )
         .await?;
-        eprintln!("run {n}/{}: {} rules", setup.runs, run.published);
+        let total = tracker.report().total();
+        eprintln!(
+            "run {n}/{}: {} rules, {} prompt tokens of which {} cached",
+            setup.runs, run.published, total.prompt_tokens, total.cached_tokens
+        );
         figures.push(run);
     }
     println!("{}", setup.head());
@@ -188,7 +192,11 @@ async fn use_cases(setup: &mut Setup) -> Result<(), Failure> {
             let origin = setup.origin();
             setup.frozen.replace_use_cases(work.path(), &origin)?;
         }
-        eprintln!("run {n}/{}: {} use cases", setup.runs, run.use_cases);
+        let total = tracker.report().total();
+        eprintln!(
+            "run {n}/{}: {} use cases, {} prompt tokens of which {} cached",
+            setup.runs, run.use_cases, total.prompt_tokens, total.cached_tokens
+        );
         figures.push(run);
     }
     println!("{}", setup.head());

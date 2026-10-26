@@ -55,7 +55,7 @@ that cost without losing use cases or rules, as `business-read` did for the glos
 1. [x] Cached prompt tokens in `Usage` and in the totals (TOK-1, TOK-2, TOK-3)
 2. [x] Cached tokens in the recap and the usage history (TOK-4, TOK-5); spec `accepted` then `implemented`
 3. [x] Offline measure of the code shared by the use cases and rules prompts, on the saved linkding run
-4. [ ] Candidate (b): code first in both prompts; linkding run on DeepSeek, cached tokens and benchmark
+4. [x] Candidate (b) - dropped: code first in both prompts; linkding run on DeepSeek, cached tokens and benchmark
 5. [ ] Candidate (c): rules read only the lines cited by the use cases; linkding measure
 6. [ ] Candidate (a): one call per feature (only if (b) and (c) fall short; needs an ADR)
 
@@ -84,3 +84,26 @@ prompt that shows code per feature:
 * Code review of 3: fixed the pass detection by content (one recorder per pass); documented the limits
   (first prompt with code only, `=== x ===` in a source). Not fixed: features keyed by name (all unique on
   linkding), trailer after the code (none: the code is last in both prompts).
+
+## Candidate (b), first run (deliverable 4, in progress)
+`src/cache_first.rs`, active with `RETRODOC_CODE_FIRST=1` (experiment, not wired for users): one fixed system
+sentence, then in the user message the brief, the code (`=== [Fn] path ===` in both passes), the task (the
+former system message), the feature and the parts of the pass. The system message must be shared too: a
+cache is a prefix of the whole request, system message included.
+* linkding, `deepseek-chat`, frozen inputs, use cases then rules, one run each: use cases 11.9k of 282.8k
+  prompt tokens cached (cold); rules **244.1k of 291.4k (84%)**. DeepSeek serves the prefix the use cases
+  call left, across the whole pass. Runs saved in `~/retrodoc-runs/code-first/`.
+* Quality, linkding, `deepseek-chat`, frozen inputs (files `base-*` and `cf-*` in `~/retrodoc-runs/code-first/`):
+  use cases, 3 runs each: 80 (78-81) vs 78 (75-79) use cases, business language by the judge 87% vs 84%
+  (77-89), score = 1 64% vs 74%: no move beyond the spread. Rules, 7 runs each: kept 270 (256-280) vs 237
+  (214-256), reference rules stated 11.4 vs 8.6 of 29 (base 9-13, code first 6-10; the 4 last runs of each
+  do not overlap: 12-13 vs 8-10). The rules lose about 12% of their rules and a quarter of the reference
+  ones.
+* **Dropped**: the prompt tokens of the tables do not change (about 281k per pass in both layouts), only their price does (84% served from the cache on
+  the rules pass after a cold use cases pass), and the rules pass loses quality. The cause is probably the
+  task moved after the code, into the user message; a layout that keeps the system message of each pass
+  has no common prefix. Repeated runs of one layout hit their own cache (about 95%), so only the cold
+  use cases then rules run measures the cross-pass reuse. The experiment code (`cache_first.rs`, three
+  call sites) is removed; `pass_replay` now prints the cached tokens of each run.
+* Code review of the drop: not fixed, by design: `surface_pass` (no code, no cache question) and the two-line
+  duplicate in the example; the evidence stays in `~/retrodoc-runs/code-first/` as for the other measures.
