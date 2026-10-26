@@ -93,6 +93,8 @@ and unrelated apart.
 
 Plan: validated
 
+Status: done (2026-10-26). Left: `issues/reconciliation_judge_sees_whole_sections.md`.
+
 ## Understanding
 Measure, on linkding (its `docs/src/content/docs/*.md` describe its features), the recall of the REC-2 match and the
 quality of the judge's verdicts, against a hand-labelled sample of 20 items. Out of scope: semantic retrieval, judging

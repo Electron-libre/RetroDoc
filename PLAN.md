@@ -98,7 +98,7 @@ docs/
     business-level work of phase 7 and the scaling work of phase 8. Steps 1 to 6 of §7.5 are delivered (benchmark,
     brief, business files, structured outputs, model per pass, the `surface` path, tree-sitter chunking,
     mechanical confidence, single read of the business files, business rules), and step 7, the reconciliation
-    with the existing docs (ADR 0033; its measure on real docs is `issues/reconciliation_recall_on_real_docs.md`);
+    with the existing docs (ADR 0033; its measure on real docs is `issues/done/reconciliation_recall_on_real_docs.md`);
     open: the default path, and the follow-ups of the review of 2026-10-12 (§7.6).
 11. **A large application, one bounded context at a time** (see §7.7, ADR 0029, decided 2026-10-12): the map
     of the contexts (`retrodoc contexts`) and `domains_from = "contexts"`, so that an application too large for

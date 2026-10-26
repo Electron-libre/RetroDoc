@@ -105,7 +105,7 @@ of a new cached `reconcile` pass (spec `specs/docs-reconciliation.md`, ADR 0033)
   longer documented; a failing reconcile call no longer fails `generate` (new REC-14); `docs_dir = "./docs"`
   gave one `..` too many; the fingerprint is computed only for a judged candidate.
 - Not fixed, decided: the half-of-the-words match on name + description (decision 2) may miss long
-  descriptions; measured in the follow-up issue `issues/reconciliation_recall_on_real_docs.md`.
+  descriptions; measured in the follow-up issue `issues/done/reconciliation_recall_on_real_docs.md`.
 - Not fixed, minor: section bodies are multi-line in the prompt (the project's own text, like the rules
   extracts); `one_line` / lenient number helpers duplicated across passes (existing pattern); the flag checked
   in the CLI too (saves reading the docs); `render_with_rules` kept as the entry point of the existing tests;

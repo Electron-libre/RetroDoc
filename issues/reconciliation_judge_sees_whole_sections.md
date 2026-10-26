@@ -10,7 +10,7 @@ about, with the request still bounded.
 
 # Findings
 
-* 2026-10-26, linkding, `deepseek-chat`, measured in `issues/reconciliation_recall_on_real_docs.md`
+* 2026-10-26, linkding, `deepseek-chat`, measured in `issues/done/reconciliation_recall_on_real_docs.md`
   (deliverable 3): 16 of the 113 doc sections are over 1,500 chars, and they hold 126 of the 196 matches.
 * `api.md#Bookmarks` (4,700 chars) lists the bookmark endpoints with bold labels, not headings: its `DELETE`
   endpoint is past the cut, and "remove a bookmark" was answered `unrelated` on it.
@@ -37,7 +37,7 @@ about, with the request still bounded.
 # Resources
 
 * `crates/retrodoc-pipeline/src/reconcile/judge.rs` (`prompt`, `MAX_SECTION_CHARS`), `reconcile/mod.rs`
-* `issues/reconciliation_recall_on_real_docs.md` (Findings, labels and replay tool kept with the saved run)
+* `issues/done/reconciliation_recall_on_real_docs.md` (Findings, labels and replay tool kept with the saved run)
 * ADR 0033
 
 # Hints
