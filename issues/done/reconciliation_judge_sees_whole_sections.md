@@ -83,6 +83,8 @@ about, with the request still bounded.
 
 Plan: validated
 
+Status: done (2026-10-26). Left: the local comparison, in `issues/hybrid_llama_server_as_local_llm.md`.
+
 ## Understanding
 The judge sees the first 1,500 chars of a section; show it instead the paragraphs of a long section that hold the
 words of the batch's items, within a request budget no larger than today's worst case (24 x 1,500 chars).
@@ -165,7 +167,8 @@ the common paragraphs, no "Unarchives a bookmark.".
 Not verified: the local model (left, decision after 2); one or two runs per variant, DeepSeek moves 2 answers of
 39 between runs.
 
-Left: the local comparison once the hybrid llama-server is the local target.
+Left: the local comparison once the hybrid llama-server is the local target, moved to
+`issues/hybrid_llama_server_as_local_llm.md`.
 
 Code review (low): no findings.
 

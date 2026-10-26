@@ -93,7 +93,7 @@ and unrelated apart.
 
 Plan: validated
 
-Status: done (2026-10-26). Left: `issues/reconciliation_judge_sees_whole_sections.md`.
+Status: done (2026-10-26). Left: `issues/done/reconciliation_judge_sees_whole_sections.md`.
 
 ## Understanding
 Measure, on linkding (its `docs/src/content/docs/*.md` describe its features), the recall of the REC-2 match and the
@@ -182,7 +182,7 @@ them rest on deliverable 3's audit.
 Code review (low): no findings; its open question, a name of stop words only, is covered by `Bm25::search`
 (a query of stop words finds nothing).
 
-Follow-up (decision 2a): `issues/reconciliation_judge_sees_whole_sections.md`, queued second.
+Follow-up (decision 2a): `issues/done/reconciliation_judge_sees_whole_sections.md`, queued second.
 
 ## Deliverable 5: fixes of the high review
 
