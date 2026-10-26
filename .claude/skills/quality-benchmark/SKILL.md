@@ -28,7 +28,7 @@ just benchmark <reference> --writing-temperature 0.7           # another tempera
 
 It takes minutes to hours per run (2 series × N runs), so launch it with `run_in_background` and read
 the logs in `~/retrodoc-runs/retrodoc-benchmark-<repo>/<timestamp>/<series>/run-<n>.log`. Same local LLM rules as
-the smoke test (Ollama on `:11435`, large context, don't run two at once).
+the smoke test (Ollama on `:11435`, or the faster hybrid llama-server on `:11437`, large context, don't run two at once).
 
 What `benchmark.rs run` does: clones the repository of the reference at its pinned commit (cached in
 `~/retrodoc-runs/retrodoc-benchmark-<repo>/source`); for each series, `hidden` (the repo's own docs left out of

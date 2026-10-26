@@ -46,6 +46,23 @@ into `~/retrodoc-runs` (the original is never touched, uncommitted changes are n
   model on a large repository (a timeout is not retried and fails the pass).
 - Don't run two smoke tests against the same Ollama at once.
 
+### Faster option: the hybrid llama-server
+
+Same model, about twice the generation speed (~54 tok/s against ~28, prompt processing ~10 % slower),
+128k context. It is the on-demand user service `llama-hybride` (attention and KV on the NVIDIA card, MoE
+experts in RAM), stopped by default; details in `~/Code/meta-lambda-desktop/IA.md`.
+
+```sh
+systemctl --user start llama-hybride        # unloads the models of :11434 to free the NVIDIA card
+just smoke <repo> --model qwen3.6:35b-a3b-hybride --base-url http://127.0.0.1:11437/v1/chat/completions
+systemctl --user stop llama-hybride         # when done (never `pkill -x llama-server`: it hits Ollama too)
+```
+
+- Ask the user before starting it: it takes the NVIDIA card away from the `:11434` instance they may be using.
+- One slot (`-np 1`): parallel calls queue up.
+- It unloads the model after 10 min idle and reloads it in ~1.5 s; if `:11434` took the card meanwhile, the
+  reload may run out of VRAM.
+
 ## Conclusive means
 
 1. `generate` ends with "N file(s) written" (reached the render step) and exits 0;
