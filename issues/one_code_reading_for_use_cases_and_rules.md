@@ -54,7 +54,7 @@ that cost without losing use cases or rules, as `business-read` did for the glos
 # Tracking
 1. [x] Cached prompt tokens in `Usage` and in the totals (TOK-1, TOK-2, TOK-3)
 2. [x] Cached tokens in the recap and the usage history (TOK-4, TOK-5); spec `accepted` then `implemented`
-3. [ ] Offline measure of the code shared by the use cases and rules prompts, on the saved linkding run
+3. [x] Offline measure of the code shared by the use cases and rules prompts, on the saved linkding run
 4. [ ] Candidate (b): code first in both prompts; linkding run on DeepSeek, cached tokens and benchmark
 5. [ ] Candidate (c): rules read only the lines cited by the use cases; linkding measure
 6. [ ] Candidate (a): one call per feature (only if (b) and (c) fall short; needs an ADR)
@@ -66,3 +66,21 @@ that cost without losing use cases or rules, as `business-read` did for the glos
 * Deliverables 1 and 2 were delivered together: the struct change broke the compilation of `usage_log.rs`. Spec `token-accounting` is `implemented`.
 * Per-pass cached column is shown only when the run has cached tokens, so the recap is unchanged otherwise.
 * Code review of 1+2: fixed a zero `cached_tokens` hiding `prompt_cache_hit_tokens` (max of the two). Not fixed, by design: the cap at the prompt is TOK-3, pricing is a non-goal of the spec, the "cached" column is shown only when the run has cache hits.
+
+## Measure of step 1 (deliverable 3, `examples/code_read_overlap.rs`)
+linkding, frozen inputs, 32 features, both passes replayed against a recording provider (no call), first
+prompt that shows code per feature:
+* The code (`=== path ===` blocks) is 89% of a use cases prompt and 92% of a rules prompt (937k and 907k
+  characters). The two prompts show the same excerpts of the same files: 833k characters, 89% / 92%, are
+  shared, 45% of the 1.84M characters the two passes send.
+* So a single reading (candidate (a)) is worth up to 45% of the input of the two passes. Candidate (b) is
+  bounded by the same figure but only if the code comes first (a common prefix, not counted here) and the
+  calls come close in time. The other rules calls (kind question, judgement) carry no code. A statement
+  call cut at the completion limit is asked again on halves, which the replay does not see: the figures
+  are a floor for such a feature. The brief and the feature lines before the code differ in size per
+  prompt (~3k characters): they break the common prefix today.
+* (c) can cut at most the 92% of the rules prompt that is code, and only as far as the cited lines allow.
+
+* Code review of 3: fixed the pass detection by content (one recorder per pass); documented the limits
+  (first prompt with code only, `=== x ===` in a source). Not fixed: features keyed by name (all unique on
+  linkding), trailer after the code (none: the code is last in both prompts).
