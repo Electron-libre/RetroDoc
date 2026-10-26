@@ -2,10 +2,11 @@
 //! a full `generate` run: is it rejected, ignored, or obeyed?
 //!
 //! ```sh
-//! cargo run -p retrodoc-llm --example schema_probe -- <preset> [--model M] [--base-url U] [--key-env V] [--json-object]
+//! cargo run -p retrodoc-llm --example schema_probe -- <preset> [--model M] [--base-url U] [--key-env V] [--json-object] [--max-tokens N]
 //! ```
 //!
-//! Presets: `ollama` (local, no key), `deepseek`, `gemini`, `openrouter`. The key comes from the
+//! Presets: `ollama` (local Ollama iGPU instance, no key), `hybrid` (local hybrid llama-server, no key,
+//! `systemctl --user start llama-hybride`), `deepseek`, `gemini`, `openrouter`. The key comes from the
 //! environment or the `.env` of the current directory. The prompt does not mention the JSON shape, so a
 //! conforming answer comes from the schema, not from the prompt. The request is the one
 //! `OpenRouterProvider` sends (strict `json_schema`, `require_parameters` on `OpenRouter`), sent
@@ -14,6 +15,10 @@
 //! `--json-object` probes the weaker `response_format: {"type": "json_object"}` instead (valid JSON,
 //! no schema): the prompt then spells the shape out, as the servers that offer only this mode require
 //! the word JSON in it, and the verdict says whether the answer is valid JSON of that shape.
+//!
+//! The line after the verdict shows the `finish_reason` and the `usage` counters the server sent, which
+//! the provider relies on (truncation, token accounting); `--max-tokens 8` forces a cut to see how the
+//! server reports one (default 1024).
 
 use std::time::Duration;
 
@@ -32,6 +37,13 @@ fn preset(name: &str) -> Option<Target> {
         "ollama" => Target {
             base_url: "http://localhost:11435/v1/chat/completions",
             model: "qwen3.6:35b-a3b",
+            key_env: None,
+            reasoning_effort: Some("none"),
+            require_parameters: false,
+        },
+        "hybrid" => Target {
+            base_url: "http://127.0.0.1:11437/v1/chat/completions",
+            model: "qwen3.6:35b-a3b-hybride",
             key_env: None,
             reasoning_effort: Some("none"),
             require_parameters: false,
@@ -169,6 +181,66 @@ fn judge(status: u16, body: &str) -> Verdict {
     }
 }
 
+/// The `finish_reason` and the `usage` counters of a response, as one line: the two fields
+/// `OpenRouterProvider` reads besides the content.
+fn details(body: &str) -> String {
+    let value = serde_json::from_str::<Value>(body).unwrap_or(Value::Null);
+    let finish = value["choices"][0]["finish_reason"]
+        .as_str()
+        .unwrap_or("none");
+    let usage = &value["usage"];
+    let usage = if usage.is_object() {
+        let counter = |key: &str| {
+            usage[key]
+                .as_u64()
+                .map_or_else(|| format!("{key}=missing"), |n| format!("{key}={n}"))
+        };
+        format!(
+            "{} {}",
+            counter("prompt_tokens"),
+            counter("completion_tokens")
+        )
+    } else {
+        "none".to_string()
+    };
+    format!("finish_reason={finish}, usage: {usage}")
+}
+
+/// The request: the question, the strict schema (or `json_object`), and the target's extra fields.
+fn request_body(target: &Target, model: &str, json_object: bool, max_tokens: u32) -> Value {
+    let question = "Tell me about Paris: its population in millions, two landmarks with the year they were built, and a note about its mayor if you have one.";
+    let (question, response_format) = if json_object {
+        (
+            format!("{question} Answer in JSON only, an object with the keys city (string), population_millions (integer), landmarks (array of objects with name (string) and year_built (integer)) and mayor_note (string or null), and no other key."),
+            json!({"type": "json_object"}),
+        )
+    } else {
+        (
+            question.to_string(),
+            json!({
+                "type": "json_schema",
+                "json_schema": {"name": "city_facts", "strict": true, "schema": schema()}
+            }),
+        )
+    };
+    let mut body = json!({
+        "model": model,
+        "messages": [
+            {"role": "system", "content": "You answer questions about cities."},
+            {"role": "user", "content": question}
+        ],
+        "max_tokens": max_tokens,
+        "response_format": response_format
+    });
+    if let Some(effort) = target.reasoning_effort {
+        body["reasoning_effort"] = json!(effort);
+    }
+    if target.require_parameters {
+        body["provider"] = json!({"require_parameters": true});
+    }
+    body
+}
+
 /// Variables of a `.env` in the current directory, those already set winning.
 fn load_dotenv() {
     let Ok(text) = std::fs::read_to_string(".env") else {
@@ -189,7 +261,7 @@ async fn main() {
     load_dotenv();
     let args: Vec<String> = std::env::args().skip(1).collect();
     let Some(target) = args.first().and_then(|name| preset(name)) else {
-        eprintln!("usage: schema_probe <ollama|deepseek|gemini|openrouter> [--model M] [--base-url U] [--key-env V]");
+        eprintln!("usage: schema_probe <ollama|hybrid|deepseek|gemini|openrouter> [--model M] [--base-url U] [--key-env V] [--json-object] [--max-tokens N]");
         std::process::exit(2);
     };
     let flag = |name: &str| {
@@ -212,36 +284,13 @@ async fn main() {
     );
 
     let json_object = args.iter().any(|a| a == "--json-object");
-    let question = "Tell me about Paris: its population in millions, two landmarks with the year they were built, and a note about its mayor if you have one.";
-    let (question, response_format) = if json_object {
-        (
-            format!("{question} Answer in JSON only, an object with the keys city (string), population_millions (integer), landmarks (array of objects with name (string) and year_built (integer)) and mayor_note (string or null), and no other key."),
-            json!({"type": "json_object"}),
-        )
-    } else {
-        (
-            question.to_string(),
-            json!({
-                "type": "json_schema",
-                "json_schema": {"name": "city_facts", "strict": true, "schema": schema()}
-            }),
-        )
-    };
-    let mut body = json!({
-        "model": model,
-        "messages": [
-            {"role": "system", "content": "You answer questions about cities."},
-            {"role": "user", "content": question}
-        ],
-        "max_tokens": 1024,
-        "response_format": response_format
+    let max_tokens: u32 = flag("--max-tokens").map_or(1024, |n| {
+        n.parse().ok().filter(|&n| n > 0).unwrap_or_else(|| {
+            eprintln!("--max-tokens takes a positive integer");
+            std::process::exit(2);
+        })
     });
-    if let Some(effort) = target.reasoning_effort {
-        body["reasoning_effort"] = json!(effort);
-    }
-    if target.require_parameters {
-        body["provider"] = json!({"require_parameters": true});
-    }
+    let body = request_body(&target, &model, json_object, max_tokens);
 
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(120))
@@ -279,6 +328,9 @@ async fn main() {
         Verdict::Ignored(why) => println!("IGNORED - answered, but {why}"),
         Verdict::Rejected(why) => println!("REJECTED - {why}"),
         Verdict::Unavailable(why) => println!("UNAVAILABLE (no verdict, retry later) - {why}"),
+    }
+    if (200..300).contains(&status) {
+        println!("        {}", details(&text));
     }
     std::process::exit(i32::from(verdict != Verdict::Obeyed));
 }
@@ -356,6 +408,45 @@ mod tests {
             judge(200, r#"{"choices":[]}"#),
             Verdict::Ignored(_)
         ));
+    }
+
+    #[test]
+    fn details_show_the_finish_reason_and_the_usage_counters() {
+        let body = json!({
+            "choices": [{"finish_reason": "length", "message": {"content": "{"}}],
+            "usage": {"prompt_tokens": 40, "completion_tokens": 5, "total_tokens": 45}
+        })
+        .to_string();
+        assert_eq!(
+            details(&body),
+            "finish_reason=length, usage: prompt_tokens=40 completion_tokens=5"
+        );
+    }
+
+    #[test]
+    fn details_say_when_the_usage_or_a_counter_is_missing() {
+        assert_eq!(details(&response(GOOD)), "finish_reason=none, usage: none");
+        let partial = json!({
+            "choices": [{"finish_reason": "stop", "message": {"content": GOOD}}],
+            "usage": {"prompt_tokens": 40}
+        })
+        .to_string();
+        assert_eq!(
+            details(&partial),
+            "finish_reason=stop, usage: prompt_tokens=40 completion_tokens=missing"
+        );
+    }
+
+    #[test]
+    fn the_hybrid_preset_targets_the_llama_server_with_reasoning_off() {
+        let target = preset("hybrid").unwrap();
+        assert_eq!(
+            target.base_url,
+            "http://127.0.0.1:11437/v1/chat/completions"
+        );
+        assert_eq!(target.model, "qwen3.6:35b-a3b-hybride");
+        assert_eq!(target.reasoning_effort, Some("none"));
+        assert!(target.key_env.is_none());
     }
 
     #[test]

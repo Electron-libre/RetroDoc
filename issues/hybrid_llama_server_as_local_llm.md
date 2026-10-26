@@ -59,3 +59,52 @@ against this server and make it a first-class local target, so local runs get fa
 * Don't run it together with another smoke test or benchmark: one slot, and the NVIDIA card is shared.
 * The faster generation can be eaten by the slower prompt processing on RetroDoc's long prompts: compare
   wall-clock durations of whole runs, not tokens per second.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Make the hybrid llama-server (`:11437`) a checked, first-class local target of `just probe-schema`, `just smoke`
+and `just benchmark`, and know from whole-run wall clock whether it beats the Ollama iGPU instance on RetroDoc.
+Out of scope: changing the default local target before the measures say so; any hosted provider.
+
+## Plan
+1. [x] Probe reports what the issue lists as unknown: `schema_probe` gains a `hybrid` preset, a `--max-tokens N`
+   flag and prints `finish_reason` and the parsed `usage`; then run it on the server (strict schema,
+   `--json-object`, forced cut) and record the answers here; verified by unit tests of the new output and the runs.
+2. [ ] Named local target: `--local igpu|hybrid` in `smoke.rs` and `benchmark.rs` (default `igpu`, explicit
+   `--model`/`--base-url` still win), the "no server answers" message names `systemctl --user start llama-hybride`
+   for the hybrid target; skills updated; verified by `just test-harness` tests.
+3. [ ] Smoke comparison on `delivery_router`: hybrid then iGPU, one at a time; record verdict, wall clock,
+   warnings here; verified by the two `just smoke` verdicts.
+4. [ ] Only if 1 or 3 shows a request or response difference: fix it in `OpenRouterProvider` (spec and test
+   first); otherwise noted as not needed.
+5. [ ] Only if 3 shows queued calls cost time: local defaults for one slot (`concurrency = 1`) and the larger
+   context (bigger batches), measured by a second hybrid smoke and kept only if faster.
+6. [ ] Benchmark series on the hybrid target (`just benchmark`), compared with the last iGPU series; record
+   whether the docs differ.
+
+## Deliverable 1: probe of the hybrid server (2026-10-26, llama.cpp b11898)
+| check | answer |
+|---|---|
+| strict `json_schema` | OBEYED, 4.8 s, `finish_reason=stop`, usage `prompt_tokens=53 completion_tokens=133` |
+| `json_object` | accepted, valid JSON, but the model wrote a float for `population_millions`: the model's answer, not the mode (RetroDoc sends the strict schema) |
+| forced cut (`--max-tokens 8`), both modes | `finish_reason=length`, usage present (`completion_tokens=8`): the provider's truncation check works |
+| `reasoning_effort: "none"` | honoured: no `reasoning_content`, 2 tokens for "Say hi"; without it, 200 tokens of `reasoning_content` and an empty `content` |
+| `usage` shape | `prompt_tokens`, `completion_tokens`, `total_tokens`, `prompt_tokens_details.cached_tokens`: the shape `usage::parse` reads, prompt cache included |
+
+No request difference so far: deliverable 4 hangs on the smoke test only.
+
+- done: `schema_probe` has a `hybrid` preset and `--max-tokens N`, and prints `finish_reason` and the `usage` counters after the verdict; `docs/dev/commands.md` updated.
+- red: `cannot find function details in this scope` (the three new tests, before the code).
+- checks: `just check` ok, `just test-harness` ok.
+- Code review (low): `--max-tokens 0` was accepted against its own message; fixed (zero rejected).
+- not verified: how the server shows a refused or unsupported schema (no schema RetroDoc sends was refused).
+
+## Decisions
+- Mode: autonomous
+- Base commit: 72c5081
+- Server: use the running `llama-hybride` service throughout and leave it running at the end (user, 2026-10-26).
+- The paused before / after comparison of the reconciliation judge stays out of this issue and is not tracked elsewhere (user, 2026-10-26).
+- Benchmark series of deliverable 6: one run (`--runs 1`) (user, 2026-10-26).
