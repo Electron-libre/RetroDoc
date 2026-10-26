@@ -28,6 +28,25 @@ and unrelated apart.
 * The top 11 of the report's undocumented list (most entry points): 9 are documented (API tags, bundles, assets,
   tokens twice, archive, HTML snapshots twice, snapshot queue), the current match finds **0 of 9**. The head of
   the list the reader acts on is mostly wrong.
+* Replay of the match (no LLM, throwaway tool in `~/retrodoc-runs/reconcile-replay`, not committed), on the 20
+  labelled items plus the top 11 (25 documented, 6 undocumented), top 3 kept. Recall: a labelled section in the
+  top 3; false: an undocumented item matched; batches: one per 8 matched items over the 330.
+
+  | variant | recall | false | items matched | sections | batches |
+  |---|---|---|---|---|---|
+  | current: half of the words, name + description | 8/25 | 1/6 | 119 | 196 | 15 |
+  | half of the words of the name only | 18/25 | 5/6 | 284 | 740 | 36 |
+  | current, else half of the name when nothing matches | 18/25 | 5/6 | 285 | 604 | 36 |
+  | a third of the words, name + description | 16/25 | 4/6 | 238 | 544 | 30 |
+  | 40% of the words, name + description | 14/25 | 4/6 | 194 | 408 | 25 |
+  | `search_any`, name + description, BM25 >= 10 | 16/25 | 4/6 | 278 | 640 | 35 |
+  | `search_any`, name + description, BM25 >= 15 | 10/25 | 4/6 | 147 | 233 | 19 |
+  | `search_any`, name only | 21/25 | 5/6 | 325 | 968 | 41 |
+
+  An absolute BM25 floor is a bad knob: the score grows with the length of the query, so it keeps the long
+  queries and drops the short ones. Every wider variant matches most undocumented items too, so whether it
+  helps rests on the judge answering `unrelated` (deliverable 3). The context of a batch does not grow with any
+  variant: at most 8 items x 3 sections x 1,500 chars (`MAX_SECTION_CHARS`), sections listed once.
 
 # Approach
 
@@ -69,7 +88,7 @@ the generated items themselves. REC-2 changes only if a variant clearly wins (de
 1. [x] Shown run: `generate` on linkding at the pinned commit with its docs in the corpus; count the items per status
    and label 20 items by hand (documented by which section, or not); verified by the counts and the label table in
    `# Findings`.
-2. [ ] Match replay: recall of the current match, of `search_any` with a minimum BM25 score, and of the name alone,
+2. [x] Match replay: recall of the current match, of `search_any` with a minimum BM25 score, and of the name alone,
    on the 20 labelled items, from the run's artifacts and docs, no LLM; verified by a recall / sections-per-item /
    judge-batches table in `# Findings`.
 3. [ ] Judge audit: read the verdicts on the matched items (false `covers`, real contradictions, unparsed answers);
@@ -96,3 +115,15 @@ done: shown run on linkding (DeepSeek), status counts and 20 hand labels in `# F
 
 red: none. Not verified: `retrodoc report` bails ("no confidence scores found") on a `--no-confidence` run; the
 reconciliation was read from `docs/_retrodoc/coverage-report.md` and `.retrodoc/cache/reconciliation.yaml`.
+
+## Deliverable 2
+
+done: replay of 8 match variants on 25 + 6 labelled items, table in `# Findings`.
+
+| check | result |
+|---|---|
+| tests, lint, specs, docs | n/a (no committed code) |
+| code review | n/a (diff under `issues/` only) |
+
+red: none. Not verified: the labels are one reader's (mine); a section that only names a feature in a list
+(README feature overview) counts as documenting it.
