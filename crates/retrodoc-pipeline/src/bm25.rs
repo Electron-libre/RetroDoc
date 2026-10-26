@@ -66,14 +66,6 @@ pub(crate) fn has_content_words(text: &str) -> bool {
     tokenize(text).iter().any(|t| !stop_words().contains(t))
 }
 
-/// The words of `text` that are not stop words, in the form [`tokenize`] gives them.
-pub(crate) fn content_words(text: &str) -> HashSet<String> {
-    tokenize(text)
-        .into_iter()
-        .filter(|t| !stop_words().contains(t))
-        .collect()
-}
-
 /// [`STOP_WORDS`] in the form [`tokenize`] gives them (accents folded, plural
 /// `s` dropped).
 fn stop_words() -> &'static HashSet<String> {
