@@ -120,6 +120,33 @@ fn an_item_keeps_at_most_three_sections_sharing_half_of_its_words_best_first() {
 
 // spec: REC-2
 #[test]
+fn an_item_its_description_matches_nowhere_is_searched_with_its_name_alone() {
+    let docs = [doc(
+        "docs/api.md",
+        "# Tags\nList, create and delete tags.\n\n# Bookmarks\nSave a bookmark with a title and notes.\n",
+    )];
+    let mut tags = feature("tags", "library", "Manage tags", 0);
+    tags.description = "Users rename, merge and categorize labels used across the library.".into();
+    let mut save = feature("save", "library", "Tags of a bookmark", 0);
+    save.description = "Save a bookmark with a title and notes.".into();
+
+    let found = candidates(
+        items(&DomainMap::default(), &[tags, save], &[], &[]),
+        &corpus(&docs),
+    );
+
+    let origins =
+        |i: usize| -> Vec<String> { found[i].sections.iter().map(|s| s.at.origin()).collect() };
+    assert_eq!(origins(0), ["docs/api.md#Tags"], "the name alone finds it");
+    assert_eq!(
+        origins(1),
+        ["docs/api.md#Bookmarks"],
+        "the name is not searched when the name and description match"
+    );
+}
+
+// spec: REC-2
+#[test]
 fn every_kind_of_item_is_searched_with_its_name_and_description() {
     let map = DomainMap {
         domains: vec![

@@ -228,7 +228,8 @@ impl Candidate {
     }
 }
 
-/// Matches each item against `corpus`; an item whose query has no content word is left out.
+/// Matches each item against `corpus`, with its name alone when its query matches nothing; an item whose
+/// query has no content word is left out.
 #[must_use]
 pub fn candidates(items: Vec<Item>, corpus: &[Section]) -> Vec<Candidate> {
     // The path is not searched: a file named after a topic does not say what it states.
@@ -251,8 +252,13 @@ pub fn candidates(items: Vec<Item>, corpus: &[Section]) -> Vec<Candidate> {
             if !has_content_words(&item.query) {
                 return None;
             }
-            let sections = index
-                .search(&item.query)
+            // A description of two sentences rarely shares half its words with the section that
+            // documents it in other words; a short name often does.
+            let mut found = index.search(&item.query);
+            if found.is_empty() {
+                found = index.search(&item.name);
+            }
+            let sections = found
                 .into_iter()
                 .take(MAX_SECTIONS_PER_ITEM)
                 .map(|(i, _)| corpus[i].clone())

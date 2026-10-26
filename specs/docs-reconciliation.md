@@ -19,8 +19,8 @@ backed by the doc sections it rests on.
   and must not hold any file of the generated docs dirs (`functional/`, `_retrodoc/` under the docs dir).
 - **REC-2** (deterministic) Each domain, feature, use case and business rule must be matched against the corpus with
   its name and description (a rule: its statement) as the query, keeping at most 3 sections, best first, that share
-  at least half of the query's content words; an item whose query has no content word is left out of the
-  reconciliation (it can't be judged).
+  at least half of the query's content words; when no section does, the query is the name alone, under the same
+  rule; an item whose query has no content word is left out of the reconciliation (it can't be judged).
 - **REC-3** (deterministic) An item with no matched section must be `undocumented` without an LLM call; a business
   rule that cites a doc section of the corpus in its evidence must be `documented` by that section without an LLM
   call; a cited section no longer in the corpus is ignored.

@@ -107,7 +107,7 @@ the generated items themselves. REC-2 changes only if a variant clearly wins (de
    judge-batches table in `# Findings`.
 3. [x] Judge audit: read the verdicts on the matched items (false `covers`, real contradictions, unparsed answers);
    verified by the counts in `# Findings`.
-4. [ ] (only if a variant of 2 clearly wins) Amend REC-2, test, code; verified by `just check` and a replay of 2
+4. [x] (only if a variant of 2 clearly wins) Amend REC-2, test, code; verified by `just check` and a replay of 2
    with the new match; makes true REC-2.
 
 ## Decisions
@@ -116,6 +116,10 @@ the generated items themselves. REC-2 changes only if a variant clearly wins (de
 - 1a: the shown run uses hosted DeepSeek (`--provider deepseek`).
 - 2a: the replay tool is a throwaway Rust example, not committed; only the figures go in the issue.
 - 3a: the run goes through `just benchmark --series shown`, 1 run.
+- After 3, 1a: REC-2 keeps the current match and, for an item it matches nothing, falls back on half of the
+  content words of the name alone.
+- After 3, 2a: the 1,500-char cut of the sections sent to the judge becomes its own issue.
+- After 3, 3a: `retrodoc report` bailing on a `--no-confidence` run is only noted here (Deliverable 1).
 
 ## Deliverable 1
 
@@ -153,3 +157,25 @@ done: audit of the 196 judge answers of the run, counts in `# Findings`.
 
 red: none. Not verified: the 12 false `covers` come from reading every `covers` once, not a second reader;
 the `unrelated` answers were read on a sample only.
+
+## Deliverable 4
+
+done: REC-2 amended and `candidates` falls back on the name alone when the name and description match no
+section; replayed with the real `candidates()` on linkding: recall 18/25 (was 8/25), false 5/6, 285 items
+matched, 604 sections, 36 judge batches (was 15).
+
+| check | result |
+|---|---|
+| tests | `just check` ok |
+| lint | clippy ok |
+| specs | `just check-specs` ok (REC-2 traced) |
+| docs | `docs/crates/pipeline.md` |
+| code review | see below |
+
+red: `an_item_its_description_matches_nowhere_is_searched_with_its_name_alone`: "the name alone finds it",
+left `[]`, right `["docs/api.md#Tags"]`.
+Not verified: the judge on the 166 items newly matched (no new `generate` run); its `unrelated` answers on
+them rest on deliverable 3's audit.
+
+Code review (low): no findings; its open question, a name of stop words only, is covered by `Bm25::search`
+(a query of stop words finds nothing).
