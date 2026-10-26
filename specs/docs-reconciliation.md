@@ -1,6 +1,6 @@
 ---
 id: REC
-status: draft
+status: accepted
 adrs: [0019, 0033]
 ---
 

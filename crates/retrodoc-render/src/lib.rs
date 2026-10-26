@@ -6,11 +6,13 @@
 //! input, same bytes), [`plan`] compares them with what is on disk, and
 //! [`WritePlan::apply`] writes only the files that actually differ.
 
+mod doc_links;
 mod markdown;
 mod plan;
 mod rules;
 
-pub use markdown::{render, render_with_rules};
+pub use doc_links::{DocLink, DocLinks, ItemRef};
+pub use markdown::{render, render_with_docs, render_with_rules};
 pub use plan::{plan, FileStatus, PlannedFile, WritePlan};
 
 use std::path::PathBuf;

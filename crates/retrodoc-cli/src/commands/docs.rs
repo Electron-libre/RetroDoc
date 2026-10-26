@@ -43,11 +43,17 @@ pub fn publish(repo_root: &Path, config: &Config, dry_run: bool) -> anyhow::Resu
         commit: retrodoc_ingest::git_history::head_commit(repo_root),
         generated_at: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
     };
-    let files = retrodoc_render::render_with_rules(
+    let links = report
+        .reconciliation
+        .as_ref()
+        .map(|r| doc_links(r, &rules, &config.output.docs_dir))
+        .unwrap_or_default();
+    let files = retrodoc_render::render_with_docs(
         &retrodoc_pipeline::domain_models(&domains, &features),
         &features,
         &use_cases,
         &rules,
+        &links,
         &report.to_markdown(),
         &metadata,
     )?;
@@ -83,6 +89,63 @@ pub fn without_generated(
     docs.into_iter()
         .filter(|d| !generated.iter().any(|g| d.path.starts_with(g)))
         .collect()
+}
+
+/// The doc sections each item page links: those that document or contradict the item. A rule that
+/// cites a section already shows it with its evidence.
+fn doc_links(
+    reconciliation: &retrodoc_pipeline::reconcile::Reconciliation,
+    rules: &[retrodoc_core::model::BusinessRule],
+    docs_dir: &str,
+) -> retrodoc_render::DocLinks {
+    use retrodoc_pipeline::reconcile::{ItemKind, Status};
+    use retrodoc_render::{DocLink, ItemRef};
+    let mut links = retrodoc_render::DocLinks {
+        docs_dir: docs_dir.into(),
+        ..retrodoc_render::DocLinks::default()
+    };
+    for item in &reconciliation.items {
+        if !matches!(item.status, Status::Documented | Status::Contradicted) {
+            continue;
+        }
+        let mut parts = item.label.rsplit('/');
+        let (last, before) = (parts.next().unwrap_or_default(), parts.next());
+        let key = match item.kind {
+            ItemKind::Domain => ItemRef::Domain(item.label.clone()),
+            ItemKind::Feature => ItemRef::Feature(last.to_string()),
+            ItemKind::UseCase => ItemRef::UseCase {
+                feature: before.unwrap_or_default().to_string(),
+                use_case: last.to_string(),
+            },
+            ItemKind::Rule => {
+                let cites = rules.iter().any(|r| {
+                    r.slug == last
+                        && r.evidence
+                            .iter()
+                            .any(|e| matches!(e, retrodoc_core::model::RuleEvidence::Doc { .. }))
+                });
+                if cites {
+                    continue;
+                }
+                ItemRef::Rule(last.to_string())
+            }
+        };
+        let docs = item
+            .sections
+            .iter()
+            .map(|section| DocLink {
+                path: section.path.clone(),
+                heading: section.heading.clone(),
+                contradicts: item
+                    .contradictions
+                    .iter()
+                    .find(|c| c.section == *section)
+                    .map(|c| c.doc_states.clone()),
+            })
+            .collect();
+        links.links.insert(key, docs);
+    }
+    links
 }
 
 /// Adds to `report` where the generated items stand against the project's own docs, and what the
@@ -195,6 +258,111 @@ mod tests {
                 ("billing/pay", vec![]),
                 ("billing/ride", vec!["docs/guide.md#Riders".to_string()]),
             ]
+        );
+    }
+
+    // spec: REC-12
+    #[test]
+    fn the_pages_link_what_documents_or_contradicts_the_item_only() {
+        use retrodoc_pipeline::reconcile::{
+            Contradiction, ItemKind, ItemVerdict, Reconciliation, SectionRef, Status,
+        };
+        use retrodoc_render::{DocLink, ItemRef};
+        let verdict = |kind, label: &str, status, sections: &[&str]| ItemVerdict {
+            kind,
+            label: label.into(),
+            domain: "billing".into(),
+            name: label.into(),
+            entry_points: 0,
+            confidence: None,
+            status,
+            sections: sections.iter().map(|s| SectionRef::parse(s)).collect(),
+            contradictions: Vec::new(),
+        };
+        let mut refund = verdict(
+            ItemKind::UseCase,
+            "billing/pay/refund",
+            Status::Contradicted,
+            &["docs/guide.md#Refunds"],
+        );
+        refund.contradictions.push(Contradiction {
+            section: SectionRef::parse("docs/guide.md#Refunds"),
+            doc_states: "A week.".into(),
+            item_states: "At once.".into(),
+        });
+        let reconciliation = Reconciliation {
+            items: vec![
+                verdict(
+                    ItemKind::Domain,
+                    "billing",
+                    Status::Documented,
+                    &["README.md"],
+                ),
+                verdict(
+                    ItemKind::Feature,
+                    "billing/pay",
+                    Status::Matched,
+                    &["README.md"],
+                ),
+                refund,
+                verdict(
+                    ItemKind::Rule,
+                    "billing/pay/pay-1",
+                    Status::Documented,
+                    &["a.md#A"],
+                ),
+                verdict(
+                    ItemKind::Rule,
+                    "billing/pay/pay-2",
+                    Status::Documented,
+                    &["b.md#B"],
+                ),
+            ],
+        };
+        let mut cited = retrodoc_core::model::BusinessRule {
+            slug: "pay-1".into(),
+            statement: "x".into(),
+            kind: retrodoc_core::model::RuleKind::Limit,
+            entities: Vec::new(),
+            use_cases: Vec::new(),
+            evidence: vec![retrodoc_core::model::RuleEvidence::Doc {
+                path: "a.md".into(),
+                heading: "A".into(),
+            }],
+            confidence: None,
+        };
+        let plain = retrodoc_core::model::BusinessRule {
+            slug: "pay-2".into(),
+            evidence: Vec::new(),
+            ..cited.clone()
+        };
+        cited.statement = "y".into();
+
+        let links = doc_links(&reconciliation, &[cited, plain], "docs");
+
+        assert_eq!(links.docs_dir, std::path::PathBuf::from("docs"));
+        let keys: Vec<&ItemRef> = links.links.keys().collect();
+        assert_eq!(
+            keys,
+            [
+                &ItemRef::Domain("billing".into()),
+                &ItemRef::UseCase {
+                    feature: "pay".into(),
+                    use_case: "refund".into()
+                },
+                &ItemRef::Rule("pay-2".into()),
+            ]
+        );
+        assert_eq!(
+            links.links[&ItemRef::UseCase {
+                feature: "pay".into(),
+                use_case: "refund".into()
+            }],
+            [DocLink {
+                path: "docs/guide.md".into(),
+                heading: Some("Refunds".into()),
+                contradicts: Some("A week.".into()),
+            }]
         );
     }
 }

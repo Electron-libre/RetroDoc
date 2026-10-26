@@ -10,6 +10,7 @@ use retrodoc_core::model::{
     BusinessRule, Feature, RuleEvidence, RuleKind, UseCase, LOW_CONFIDENCE_THRESHOLD,
 };
 
+use crate::doc_links::DocLinks;
 use crate::markdown::{feature_path, link, use_case_path};
 
 fn kind_label(kind: RuleKind) -> &'static str {
@@ -64,6 +65,7 @@ pub(crate) fn rules_section(
     from: &Path,
     feature: &Feature,
     use_cases: &[&UseCase],
+    docs: &DocLinks,
 ) -> String {
     if rules.is_empty() {
         return String::new();
@@ -85,6 +87,7 @@ pub(crate) fn rules_section(
         for evidence in &rule.evidence {
             let _ = writeln!(md, "  - {}", evidence_line(evidence));
         }
+        md.push_str(&docs.rule_lines(&rule.slug, from));
     }
     md.push('\n');
     md

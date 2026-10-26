@@ -51,7 +51,7 @@ of a new cached `reconcile` pass (spec `specs/docs-reconciliation.md`, ADR 0033)
 2. [x] `reconcile` pass: batched LLM judgement, lenient parsing, fingerprint cache, `reconciliation.yaml`,
    `[pipeline] reconcile` and pass name, contradictions in the report; verified by tests with a fake provider;
    makes true REC-4, REC-5, REC-6, REC-7, REC-8, REC-11.
-3. [ ] Item pages link their doc sections: relative links from the rendered pages, rule lines; verified by render
+3. [x] Item pages link their doc sections: relative links from the rendered pages, rule lines; verified by render
    tests; makes true REC-12.
 4. [ ] Smoke test on the default smoke repo (`skill:smoke-test`): verdicts sane, rerun calls no LLM; measure only.
 
@@ -81,3 +81,13 @@ of a new cached `reconcile` pass (spec `specs/docs-reconciliation.md`, ADR 0033)
   after the code and passed at once (no red seen for REC-4 to REC-8).
 - Code review (low): no findings.
 - not verified: on a real model (deliverable 4).
+
+## Deliverable 3 summary
+- done: `retrodoc-render` `doc_links.rs` (`DocLinks`, `ItemRef`, `render_with_docs`): "Existing documentation"
+  on domain, feature and use case pages, `Existing doc:` lines under the rules; CLI `doc_links` builds them from
+  the reconciliation (documented and contradicted items only, rules citing the section skipped). Spec
+  `accepted`, ADR 0033 `Accepted`.
+- checks: `just check` ok, `just test-harness` ok; docs `docs/crates/render-mcp-cli.md`.
+- red: `unresolved imports crate::DocLink, crate::DocLinks, crate::ItemRef`.
+- Code review (low): no findings.
+- not verified: links on a forge (the anchor rule is GitHub's, simplified).

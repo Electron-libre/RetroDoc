@@ -19,6 +19,7 @@ use retrodoc_core::model::{
     BusinessRule, ConfidenceScore, Domain, Feature, Step, UseCase, LOW_CONFIDENCE_THRESHOLD,
 };
 
+use crate::doc_links::{DocLinks, ItemRef};
 use crate::rules::{domain_section, index_page, rules_section};
 use crate::{
     RenderedFile, RunMetadata, AGENT_INDEX_PATH, COVERAGE_REPORT_PATH, FUNCTIONAL_DIR,
@@ -62,6 +63,32 @@ pub fn render_with_rules(
     coverage_report: &str,
     metadata: &RunMetadata,
 ) -> Result<Vec<RenderedFile>, crate::RenderError> {
+    render_with_docs(
+        domains,
+        features,
+        use_cases,
+        rules,
+        &DocLinks::default(),
+        coverage_report,
+        metadata,
+    )
+}
+
+/// [`render_with_rules`] with the sections of the project's own docs that document or contradict
+/// each item, linked from its page (a rule: under it). Without links the files are the same.
+///
+/// # Errors
+///
+/// Returns an error if the run metadata can't be serialized.
+pub fn render_with_docs(
+    domains: &[Domain],
+    features: &[Feature],
+    use_cases: &[UseCase],
+    rules: &[BusinessRule],
+    docs: &DocLinks,
+    coverage_report: &str,
+    metadata: &RunMetadata,
+) -> Result<Vec<RenderedFile>, crate::RenderError> {
     // A rule of a feature that no longer exists would be on no page.
     let rules: Vec<BusinessRule> = rules
         .iter()
@@ -78,7 +105,7 @@ pub fn render_with_rules(
             .collect();
         files.push(RenderedFile {
             path: domain_readme_path(&domain.slug),
-            content: domain_page(domain, &domain_features, rules),
+            content: domain_page(domain, &domain_features, rules, docs),
         });
         for feature in domain_features {
             let own: Vec<&UseCase> = use_cases
@@ -91,7 +118,7 @@ pub fn render_with_rules(
                 .collect();
             files.push(RenderedFile {
                 path: feature_path(feature),
-                content: feature_page(feature, &own, &own_rules),
+                content: feature_page(feature, &own, &own_rules, docs),
             });
             for use_case in &own {
                 let applying: Vec<&BusinessRule> = own_rules
@@ -101,7 +128,7 @@ pub fn render_with_rules(
                     .collect();
                 files.push(RenderedFile {
                     path: use_case_path(feature, use_case),
-                    content: use_case_page(feature, use_case, &applying),
+                    content: use_case_page(feature, use_case, &applying, docs),
                 });
             }
         }
@@ -317,7 +344,12 @@ fn agent_index(domains: &[Domain], features: &[Feature], rule_count: usize) -> S
     md
 }
 
-fn domain_page(domain: &Domain, features: &[&Feature], rules: &[BusinessRule]) -> String {
+fn domain_page(
+    domain: &Domain,
+    features: &[&Feature],
+    rules: &[BusinessRule],
+    docs: &DocLinks,
+) -> String {
     let readme = domain_readme_path(&domain.slug);
     let mut md = format!("# {}\n\n{}\n\n", domain.name, domain.description.trim());
     let _ = writeln!(md, "{}\n", confidence_line(domain.confidence.as_ref()));
@@ -380,10 +412,16 @@ fn domain_page(domain: &Domain, features: &[&Feature], rules: &[BusinessRule]) -
         })
         .collect();
     md.push_str(&domain_section(&own, &readme));
+    md.push_str(&docs.section(&ItemRef::Domain(domain.slug.clone()), &readme));
     trim_end(&md)
 }
 
-fn feature_page(feature: &Feature, use_cases: &[&UseCase], rules: &[&BusinessRule]) -> String {
+fn feature_page(
+    feature: &Feature,
+    use_cases: &[&UseCase],
+    rules: &[&BusinessRule],
+    docs: &DocLinks,
+) -> String {
     let path = feature_path(feature);
     let mut md = format!("# {}\n\n", feature.name);
     let _ = writeln!(
@@ -426,7 +464,12 @@ fn feature_page(feature: &Feature, use_cases: &[&UseCase], rules: &[&BusinessRul
 
     if !rules.is_empty() {
         md.push('\n');
-        md.push_str(&rules_section(rules, &path, feature, use_cases));
+        md.push_str(&rules_section(rules, &path, feature, use_cases, docs));
+    }
+    let existing = docs.section(&ItemRef::Feature(feature.slug.clone()), &path);
+    if !existing.is_empty() {
+        md.push('\n');
+        md.push_str(&existing);
     }
 
     if !feature.source_paths.is_empty() {
@@ -438,7 +481,12 @@ fn feature_page(feature: &Feature, use_cases: &[&UseCase], rules: &[&BusinessRul
     trim_end(&md)
 }
 
-fn use_case_page(feature: &Feature, use_case: &UseCase, rules: &[&BusinessRule]) -> String {
+fn use_case_page(
+    feature: &Feature,
+    use_case: &UseCase,
+    rules: &[&BusinessRule],
+    docs: &DocLinks,
+) -> String {
     let path = use_case_path(feature, use_case);
     let mut md = format!("# {}\n\n", use_case.name);
     let _ = writeln!(
@@ -478,7 +526,7 @@ fn use_case_page(feature: &Feature, use_case: &UseCase, rules: &[&BusinessRule])
         .filter(|n| !n.is_empty());
     let (steps_heading, diagram_heading) = if let Some(narrative) = narrative {
         let _ = write!(md, "## What happens\n\n{narrative}\n\n");
-        md.push_str(&rules_section(rules, &path, feature, &[]));
+        md.push_str(&rules_section(rules, &path, feature, &[], docs));
         let _ = write!(
             md,
             "<details>\n<summary>Technical details ({} step{})</summary>\n\n",
@@ -487,7 +535,7 @@ fn use_case_page(feature: &Feature, use_case: &UseCase, rules: &[&BusinessRule])
         );
         ("### Steps", "### Diagram")
     } else {
-        md.push_str(&rules_section(rules, &path, feature, &[]));
+        md.push_str(&rules_section(rules, &path, feature, &[], docs));
         ("## Steps", "## Diagram")
     };
 
@@ -505,6 +553,17 @@ fn use_case_page(feature: &Feature, use_case: &UseCase, rules: &[&BusinessRule])
     }
     if narrative.is_some() {
         md.push_str("\n</details>\n");
+    }
+    let existing = docs.section(
+        &ItemRef::UseCase {
+            feature: feature.slug.clone(),
+            use_case: use_case.slug.clone(),
+        },
+        &path,
+    );
+    if !existing.is_empty() {
+        md.push('\n');
+        md.push_str(&existing);
     }
     trim_end(&md)
 }
@@ -939,6 +998,85 @@ mod tests {
                 "Only open invoices are listed. (Validation, not scored) — [List](list.md)"
             ),
             "{domain}"
+        );
+    }
+
+    // spec: REC-12
+    #[test]
+    fn the_pages_link_the_doc_sections_that_document_or_contradict_them() {
+        use crate::{DocLink, DocLinks, ItemRef};
+        let (d, f, u) = sample();
+        let link = |path: &str, heading: Option<&str>, contradicts: Option<&str>| DocLink {
+            path: path.to_string(),
+            heading: heading.map(str::to_string),
+            contradicts: contradicts.map(str::to_string),
+        };
+        let mut docs = DocLinks {
+            docs_dir: PathBuf::from("docs"),
+            ..DocLinks::default()
+        };
+        docs.links.insert(
+            ItemRef::Domain("billing".into()),
+            vec![link("docs/guide.md", Some("Billing"), None)],
+        );
+        docs.links.insert(
+            ItemRef::Feature("pay-invoice".into()),
+            vec![link(
+                "README.md",
+                None,
+                Some("Invoices are paid by wire only."),
+            )],
+        );
+        docs.links.insert(
+            ItemRef::UseCase {
+                feature: "pay-invoice".into(),
+                use_case: "pay-by-card".into(),
+            },
+            vec![link("docs/guide.md", Some("Paying by card!"), None)],
+        );
+        docs.links.insert(
+            ItemRef::Rule("pay-invoice-2".into()),
+            vec![link("docs/guide.md", Some("Limits"), None)],
+        );
+        let files = || render_with_docs(&d, &f, &u, &rules(), &docs, "r", &meta()).unwrap();
+        let files = files();
+
+        let domain = page(&files, "functional/billing/README.md");
+        assert!(
+            domain.contains(
+                "## Existing documentation\n\n- [`docs/guide.md`, section \"Billing\"](../../guide.md#billing)\n"
+            ),
+            "{domain}"
+        );
+        let feature = page(&files, "functional/billing/payment/pay-invoice.md");
+        assert!(
+            feature.contains(
+                "- [`README.md`](../../../../README.md) ⚠️ states otherwise: Invoices are paid by wire only.\n"
+            ),
+            "{feature}"
+        );
+        assert!(
+            feature.contains(
+                "  - Existing doc: [`docs/guide.md`, section \"Limits\"](../../../guide.md#limits)\n"
+            ),
+            "{feature}"
+        );
+        let use_case = page(
+            &files,
+            "functional/billing/payment/use-cases/pay-invoice/pay-by-card.md",
+        );
+        assert!(
+            use_case.contains("](../../../../../guide.md#paying-by-card)"),
+            "{use_case}"
+        );
+        assert!(!page(&files, "functional/billing/list.md").contains("Existing documentation"));
+        assert_eq!(
+            files,
+            render_with_docs(&d, &f, &u, &rules(), &docs, "r", &meta()).unwrap()
+        );
+        assert_eq!(
+            render_with_rules(&d, &f, &u, &rules(), "r", &meta()).unwrap(),
+            render_with_docs(&d, &f, &u, &rules(), &DocLinks::default(), "r", &meta()).unwrap()
         );
     }
 

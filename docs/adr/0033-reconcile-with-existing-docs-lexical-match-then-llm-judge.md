@@ -1,6 +1,6 @@
 # 0033. Reconcile with the existing docs: a lexical match, then an LLM judge
 
-Status: Proposed
+Status: Accepted
 
 ## Context
 
