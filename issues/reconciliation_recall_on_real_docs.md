@@ -47,6 +47,20 @@ and unrelated apart.
   queries and drops the short ones. Every wider variant matches most undocumented items too, so whether it
   helps rests on the judge answering `unrelated` (deliverable 3). The context of a batch does not grow with any
   variant: at most 8 items x 3 sections x 1,500 chars (`MAX_SECTION_CHARS`), sections listed once.
+* Judge audit, the 196 answers of the run: 78 `covers`, 117 `unrelated`, 1 `contradicts`, none unparsed or
+  missing (0 items left matched).
+  * `covers`: about 12 of 78 are false, the section only shares words or a field name: tags, bundles and favicons
+    "covered" by `api.md#Bookmarks` (a `tag_names` field, a `bundle` filter), the UI bulk edit and archived list by
+    the admin app's section, "create a bookmark" by the two browser-extension sections of `archiving.md`, a favicon
+    by `backups.md`, password sign-in by `LD_ENABLE_OIDC`. The item's status is often right anyway (another
+    section covers it) but the linked section is wrong.
+  * `unrelated`: the ones read are right (an iOS share action for "share bookmarks", the tag section of the admin
+    for "remove a bookmark"), except `api.md#Bookmarks` for "remove a bookmark": its `DELETE` endpoint is after
+    the first 1,500 chars, which is all the judge sees.
+  * The contradiction is real: `admin.md#Bookmark management` lists Delete, Archive and Unarchive as the admin's
+    bulk actions, `bookmarks/admin.py` also has `mark_as_read` and `mark_as_unread`. The doc is out of date.
+* The truncation is the main weakness of the judge: 16 of the 113 sections are over 1,500 chars, but they hold
+  126 of the 196 matches (long sections share the most words), so most answers are given on a cut text.
 
 # Approach
 
@@ -91,7 +105,7 @@ the generated items themselves. REC-2 changes only if a variant clearly wins (de
 2. [x] Match replay: recall of the current match, of `search_any` with a minimum BM25 score, and of the name alone,
    on the 20 labelled items, from the run's artifacts and docs, no LLM; verified by a recall / sections-per-item /
    judge-batches table in `# Findings`.
-3. [ ] Judge audit: read the verdicts on the matched items (false `covers`, real contradictions, unparsed answers);
+3. [x] Judge audit: read the verdicts on the matched items (false `covers`, real contradictions, unparsed answers);
    verified by the counts in `# Findings`.
 4. [ ] (only if a variant of 2 clearly wins) Amend REC-2, test, code; verified by `just check` and a replay of 2
    with the new match; makes true REC-2.
@@ -127,3 +141,15 @@ done: replay of 8 match variants on 25 + 6 labelled items, table in `# Findings`
 
 red: none. Not verified: the labels are one reader's (mine); a section that only names a feature in a list
 (README feature overview) counts as documenting it.
+
+## Deliverable 3
+
+done: audit of the 196 judge answers of the run, counts in `# Findings`.
+
+| check | result |
+|---|---|
+| tests, lint, specs, docs | n/a (no code) |
+| code review | n/a (diff under `issues/` only) |
+
+red: none. Not verified: the 12 false `covers` come from reading every `covers` once, not a second reader;
+the `unrelated` answers were read on a sample only.
