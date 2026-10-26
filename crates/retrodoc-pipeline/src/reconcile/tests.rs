@@ -547,3 +547,80 @@ async fn nothing_matched_or_the_pass_off_makes_no_call() {
         .join(".retrodoc/cache/reconciliation.yaml")
         .exists());
 }
+
+// spec: REC-2
+#[test]
+fn two_sections_of_one_file_under_the_same_heading_are_one_section() {
+    let docs = [doc(
+        "docs/guide.md",
+        "# Example\nPay by card.\n\n# Other\nNothing.\n\n# Example\nRefund by wire.\n",
+    )];
+    let sections = corpus(&docs);
+    let examples: Vec<&Section> = sections
+        .iter()
+        .filter(|s| s.at.origin() == "docs/guide.md#Example")
+        .collect();
+    assert_eq!(examples.len(), 1);
+    assert!(
+        examples[0].text.contains("Pay by card."),
+        "{}",
+        examples[0].text
+    );
+    assert!(
+        examples[0].text.contains("Refund by wire."),
+        "{}",
+        examples[0].text
+    );
+}
+
+// spec: REC-3
+#[test]
+fn a_rule_citing_a_section_that_is_gone_is_matched_like_the_others() {
+    let docs = [doc("README.md", "# Limits\nA cart holds ten items.\n")];
+    let rules = [
+        rule(
+            "cart-1",
+            "A cart holds ten items at most.",
+            vec![RuleEvidence::Doc {
+                path: "docs/old.md".into(),
+                heading: "Caps".into(),
+            }],
+        ),
+        rule(
+            "cart-2",
+            "Riders above the weekly cap are paused.",
+            vec![RuleEvidence::Doc {
+                path: "docs/old.md".into(),
+                heading: "Caps".into(),
+            }],
+        ),
+    ];
+
+    let result = reconcile(
+        &DomainMap::default(),
+        &[],
+        &[],
+        &rules,
+        &docs,
+        &Judgements::default(),
+    );
+
+    let status: Vec<Status> = result.items.iter().map(|i| i.status).collect();
+    assert_eq!(status, [Status::Matched, Status::Undocumented]);
+}
+
+// spec: REC-14
+#[tokio::test]
+async fn a_failing_llm_keeps_the_verdicts_got_and_fails_nothing() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut candidates = three_candidates();
+    candidates.extend(
+        (0..MAX_ITEMS_PER_REQUEST)
+            .map(|i| candidate(&format!("more-{i}"), "Pay", &[("a.md#A", "Pay.")])),
+    );
+    let llm = FakeLlm::failing_after(1, |_| THREE_ANSWERS.to_string());
+
+    judge(dir.path(), &llm, &on(), &candidates).await.unwrap();
+
+    assert_eq!(Judgements::load(dir.path()).items.len(), 3);
+}

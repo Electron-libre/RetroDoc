@@ -103,16 +103,25 @@ pub struct Section {
     pub text: String,
 }
 
-/// The sections of `docs`, which must not hold the generated docs (the caller drops them).
+/// The sections of `docs`, which must not hold the generated docs (the caller drops them). Sections
+/// of one file under the same heading are one section: an origin names one text.
 #[must_use]
 pub fn corpus(docs: &[ExistingDoc]) -> Vec<Section> {
-    doc_sections(docs)
-        .into_iter()
-        .map(|s| Section {
-            at: SectionRef::parse(&s.origin),
-            text: s.text,
-        })
-        .collect()
+    let mut sections: Vec<Section> = Vec::new();
+    for signal in doc_sections(docs) {
+        let at = SectionRef::parse(&signal.origin);
+        match sections.iter_mut().find(|s| s.at == at) {
+            Some(same) => {
+                same.text.push_str("\n\n");
+                same.text.push_str(&signal.text);
+            }
+            None => sections.push(Section {
+                at,
+                text: signal.text,
+            }),
+        }
+    }
+    sections
 }
 
 fn mean(values: impl Iterator<Item = f32>) -> Option<f32> {
@@ -227,21 +236,15 @@ pub fn candidates(items: Vec<Item>, corpus: &[Section]) -> Vec<Candidate> {
     let index = Bm25::new(&texts);
     items
         .into_iter()
-        .filter_map(|item| {
+        .filter_map(|mut item| {
+            // A cited section no longer in the docs backs nothing.
+            item.cited_sections
+                .retain(|origin| corpus.iter().any(|s| s.at.origin() == *origin));
             if !item.cited_sections.is_empty() {
-                let sections = item
-                    .cited_sections
+                let sections = corpus
                     .iter()
-                    .map(|origin| {
-                        corpus
-                            .iter()
-                            .find(|s| s.at.origin() == *origin)
-                            .cloned()
-                            .unwrap_or_else(|| Section {
-                                at: SectionRef::parse(origin),
-                                text: String::new(),
-                            })
-                    })
+                    .filter(|s| item.cited_sections.contains(&s.at.origin()))
+                    .cloned()
                     .collect();
                 return Some(Candidate { item, sections });
             }
@@ -312,12 +315,11 @@ impl Reconciliation {
         let items = candidates
             .into_iter()
             .map(|c| {
-                let judged = judgements.of(&c);
                 let (status, sections, contradictions) = if c.sections.is_empty() {
                     (Status::Undocumented, Vec::new(), Vec::new())
                 } else if c.cites_its_docs() {
                     (Status::Documented, at(c.sections), Vec::new())
-                } else if let Some(judged) = judged {
+                } else if let Some(judged) = judgements.of(&c) {
                     verdict_of(judged)
                 } else {
                     (Status::Matched, at(c.sections), Vec::new())

@@ -44,7 +44,13 @@ impl DocLinks {
     /// `- [`path`, section "heading"](link)`, flagged when it contradicts, from the page `from`
     /// (relative to the docs dir).
     fn item(&self, doc: &DocLink, from: &Path) -> String {
-        let target = link(&self.docs_dir.join(from), Path::new(&doc.path));
+        // `./docs` and `docs` are the same dir: a `.` would count as one more level.
+        let docs_dir: PathBuf = self
+            .docs_dir
+            .components()
+            .filter(|c| !matches!(c, std::path::Component::CurDir))
+            .collect();
+        let target = link(&docs_dir.join(from), Path::new(&doc.path));
         let (label, target) = match &doc.heading {
             Some(h) => (
                 format!("`{}`, section \"{}\"", doc.path, one_line(h)),
@@ -103,4 +109,32 @@ fn anchor(heading: &str) -> String {
             }
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // spec: REC-12
+    #[test]
+    fn a_docs_dir_written_from_the_current_dir_links_the_same() {
+        let doc = DocLink {
+            path: "docs/guide.md".into(),
+            heading: Some("Paying".into()),
+            contradicts: None,
+        };
+        let links = |dir: &str| DocLinks {
+            docs_dir: PathBuf::from(dir),
+            ..DocLinks::default()
+        };
+        let from = Path::new("functional/billing/pay.md");
+        assert_eq!(
+            links("./docs").item(&doc, from),
+            links("docs").item(&doc, from)
+        );
+        assert_eq!(
+            links(".").item(&doc, from),
+            "[`docs/guide.md`, section \"Paying\"](../../docs/guide.md#paying)"
+        );
+    }
 }

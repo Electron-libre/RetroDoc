@@ -14,14 +14,16 @@ backed by the doc sections it rests on.
 
 ## Requirements
 
-- **REC-1** (deterministic) The matched corpus must be the sections of the existing docs (one section per heading)
+- **REC-1** (deterministic) The matched corpus must be the sections of the existing docs (one section per heading,
+  the sections of one file under the same heading joined)
   and must not hold any file of the generated docs dirs (`functional/`, `_retrodoc/` under the docs dir).
 - **REC-2** (deterministic) Each domain, feature, use case and business rule must be matched against the corpus with
   its name and description (a rule: its statement) as the query, keeping at most 3 sections, best first, that share
   at least half of the query's content words; an item whose query has no content word is left out of the
   reconciliation (it can't be judged).
 - **REC-3** (deterministic) An item with no matched section must be `undocumented` without an LLM call; a business
-  rule that cites a doc section in its evidence must be `documented` by that section without an LLM call.
+  rule that cites a doc section of the corpus in its evidence must be `documented` by that section without an LLM
+  call; a cited section no longer in the corpus is ignored.
 - **REC-4** (deterministic) The items with matched sections must be judged by the LLM in batches, each section
   answered `covers`, `contradicts` or `unrelated`; the item is `contradicted` when one section contradicts it,
   else `documented` when one covers it, else `undocumented`.
@@ -49,6 +51,8 @@ backed by the doc sections it rests on.
   undocumented item gets no such section. The render stays deterministic.
 - **REC-13** (deterministic) The former "Business rules without documentation" section of the report must be
   replaced by the lists of REC-10 and REC-11, the rules being items like the others.
+- **REC-14** (deterministic) An LLM call of the pass that fails must not fail `generate`: the pass stops with a
+  warning, keeping the verdicts got before.
 
 ## Scenarios
 

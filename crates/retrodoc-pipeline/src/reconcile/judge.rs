@@ -279,10 +279,11 @@ fn read_answer(
 /// Judges the matched items of `candidates` not judged yet with the same texts and model, and saves
 /// the verdicts of every candidate (the others are dropped). Nothing when `[pipeline] reconcile` is off.
 ///
+/// An LLM call that fails ends the pass with a warning, the verdicts got before saved.
+///
 /// # Errors
 ///
-/// Returns an error if an LLM call fails or the verdicts can't be saved; the verdicts got before are
-/// saved.
+/// Returns an error if the verdicts can't be saved.
 pub async fn judge(
     repo_root: &Path,
     llm: &dyn LlmProvider,
@@ -325,8 +326,12 @@ pub async fn judge(
         let answer = match asked {
             Ok(answer) => answer,
             Err(err) => {
-                crate::artifact::warn_on_error(kept.save(repo_root));
-                return Err(err);
+                // The pass only feeds the report: the items left stay matched, asked next run.
+                tracing::warn!(
+                    "reconciliation with the existing docs stopped, the items left are asked next \
+                     run: {err}"
+                );
+                break;
             }
         };
         if let Some(answer) = answer {

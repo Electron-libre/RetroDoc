@@ -53,7 +53,10 @@ of a new cached `reconcile` pass (spec `specs/docs-reconciliation.md`, ADR 0033)
    makes true REC-4, REC-5, REC-6, REC-7, REC-8, REC-11.
 3. [x] Item pages link their doc sections: relative links from the rendered pages, rule lines; verified by render
    tests; makes true REC-12.
-4. [ ] Smoke test on the default smoke repo (`skill:smoke-test`): verdicts sane, rerun calls no LLM; measure only.
+4. [x] Smoke test on the default smoke repo (`skill:smoke-test`): verdicts sane, rerun calls no LLM; measure only.
+
+5. [x] Fixes of the `high` review of the issue: corpus joins same-heading sections, a cited section gone is
+   ignored, a failing call ends the pass with a warning (REC-14), `./docs` links, fingerprint only when judged.
 
 ## Decisions
 - Mode: autonomous
@@ -91,3 +94,22 @@ of a new cached `reconcile` pass (spec `specs/docs-reconciliation.md`, ADR 0033)
 - red: `unresolved imports crate::DocLink, crate::DocLinks, crate::ItemRef`.
 - Code review (low): no findings.
 - not verified: links on a forge (the anchor rule is GitHub's, simplified).
+
+## Deliverable 4 summary (smoke test)
+- `just smoke` on the default smoke repo: SMOKE TEST CONCLUSIVE (no warning, rerun no-op with no call).
+- Its README holds no functional text: 23 of 23 items undocumented, no section matched, so the judge made no call;
+  correct here, but the LLM judgement is not verified on a real model yet (follow-up issue).
+
+## High review (`fdc584f..HEAD`) and deliverable 5 summary
+- Fixed: same-heading sections of one file joined (wrong text judged); a rule citing a vanished section no
+  longer documented; a failing reconcile call no longer fails `generate` (new REC-14); `docs_dir = "./docs"`
+  gave one `..` too many; the fingerprint is computed only for a judged candidate.
+- Not fixed, decided: the half-of-the-words match on name + description (decision 2) may miss long
+  descriptions; measured in the follow-up issue `issues/reconciliation_recall_on_real_docs.md`.
+- Not fixed, minor: section bodies are multi-line in the prompt (the project's own text, like the rules
+  extracts); `one_line` / lenient number helpers duplicated across passes (existing pattern); the flag checked
+  in the CLI too (saves reading the docs); `render_with_rules` kept as the entry point of the existing tests;
+  the corpus is built twice in `generate` (cheap).
+- checks: `just check` ok, `just test-harness` ok; Code review (low) of the fixes: no findings.
+- red: the four new tests failed before the fixes (one section per origin, vanished cited section, failing LLM,
+  `./docs` link).
