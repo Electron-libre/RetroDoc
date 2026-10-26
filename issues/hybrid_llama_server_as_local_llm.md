@@ -76,11 +76,11 @@ Out of scope: changing the default local target before the measures say so; any 
 2. [x] Named local target: `--local igpu|hybrid` in `smoke.rs` and `benchmark.rs` (default `igpu`, explicit
    `--model`/`--base-url` still win), the "no server answers" message names `systemctl --user start llama-hybride`
    for the hybrid target; skills updated; verified by `just test-harness` tests.
-3. [ ] Smoke comparison on `delivery_router`: hybrid then iGPU, one at a time; record verdict, wall clock,
+3. [x] Smoke comparison on `delivery_router`: hybrid then iGPU, one at a time; record verdict, wall clock,
    warnings here; verified by the two `just smoke` verdicts.
-4. [ ] Only if 1 or 3 shows a request or response difference: fix it in `OpenRouterProvider` (spec and test
+4. [x] Only if 1 or 3 shows a request or response difference: fix it in `OpenRouterProvider` (spec and test
    first); otherwise noted as not needed.
-5. [ ] Only if 3 shows queued calls cost time: local defaults for one slot (`concurrency = 1`) and the larger
+5. [x] Only if 3 shows queued calls cost time: local defaults for one slot (`concurrency = 1`) and the larger
    context (bigger batches), measured by a second hybrid smoke and kept only if faster.
 6. [ ] Benchmark series on the hybrid target (`just benchmark`), compared with the last iGPU series; record
    whether the docs differ.
@@ -110,6 +110,32 @@ No request difference so far: deliverable 4 hangs on the smoke test only.
 - red: `error: usage: smoke.rs run <repo> | …` (no `llm-target`), and `no LLM server answers on 127.0.0.1:1; start it or pass --base-url` (no service named).
 - Code review (low): no findings.
 - not verified: a real run with `--local hybrid` (deliverable 3).
+
+## Deliverable 3: smoke comparison on `delivery_router` (2026-10-26, one run each, hybrid first)
+| | hybrid (`--local hybrid`) | iGPU (`--local igpu`) |
+|---|---|---|
+| verdict | CONCLUSIVE, no warning | CONCLUSIVE, no warning |
+| wall clock of `just smoke` | 261 s | 595 s |
+| LLM calls, tokens in / out | 23, 21,581 / 10,160 | 27, 30,776 / 17,857 |
+| features, use cases, files | 4, 11, 19 | 6, 22, 32 |
+| grounding drops (INFO) | 8 | 15 |
+
+Same calls, same prompts (within a few tokens), wall per pass: brief 10 / 14 s, business-read 19 / 31 s,
+repo-map 19 / 25 s, domains 6 / 13 s, features 11 / 18 s. The use-cases pass is 34 s a call on the hybrid against
+68 s on the iGPU. The prompts are short on this repository (at most 2.3k tokens a call outside the use cases), so
+the slower prompt processing does not show; it is not measured on a large repository.
+
+The two runs did not find the same features (4 against 6), so their outputs, and the use cases that follow, are
+not comparable: one run each says nothing on the spread. Deliverable 6 measures quality.
+
+Artifacts (logs, reports, `usage.json` of both): `~/retrodoc-runs/hybrid-vs-igpu`.
+
+## Deliverables 4 and 5: not needed
+- 4: the probe and the smoke run show no request or response difference from Ollama (schema obeyed, reasoning
+  off, `usage` and `finish_reason` read, no warning): nothing to change in `OpenRouterProvider`.
+- 5: nothing to measure on this repository: its passes send at most 6 calls, which the one slot serves one
+  after the other without any timeout or retry, and no batch comes near the 32k context of the iGPU instance.
+  Local defaults stay as they are; to revisit only on a large repository where calls queue past the timeout.
 
 ## Decisions
 - Mode: autonomous
