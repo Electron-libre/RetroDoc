@@ -73,7 +73,7 @@ Out of scope: changing the default local target before the measures say so; any 
 1. [x] Probe reports what the issue lists as unknown: `schema_probe` gains a `hybrid` preset, a `--max-tokens N`
    flag and prints `finish_reason` and the parsed `usage`; then run it on the server (strict schema,
    `--json-object`, forced cut) and record the answers here; verified by unit tests of the new output and the runs.
-2. [ ] Named local target: `--local igpu|hybrid` in `smoke.rs` and `benchmark.rs` (default `igpu`, explicit
+2. [x] Named local target: `--local igpu|hybrid` in `smoke.rs` and `benchmark.rs` (default `igpu`, explicit
    `--model`/`--base-url` still win), the "no server answers" message names `systemctl --user start llama-hybride`
    for the hybrid target; skills updated; verified by `just test-harness` tests.
 3. [ ] Smoke comparison on `delivery_router`: hybrid then iGPU, one at a time; record verdict, wall clock,
@@ -101,6 +101,15 @@ No request difference so far: deliverable 4 hangs on the smoke test only.
 - checks: `just check` ok, `just test-harness` ok.
 - Code review (low): `--max-tokens 0` was accepted against its own message; fixed (zero rejected).
 - not verified: how the server shows a refused or unsupported schema (no schema RetroDoc sends was refused).
+
+## Deliverable 2: `--local igpu|hybrid`
+- done: `just smoke` and `just benchmark` take `--local igpu|hybrid` (default `igpu`); `--model`/`--base-url`
+  still win; when nothing answers, the error names the command that starts the target's server; `--local`
+  with `--provider deepseek` is an error; both skills updated.
+- checks: `just check` ok, `just test-harness` ok.
+- red: `error: usage: smoke.rs run <repo> | …` (no `llm-target`), and `no LLM server answers on 127.0.0.1:1; start it or pass --base-url` (no service named).
+- Code review (low): no findings.
+- not verified: a real run with `--local hybrid` (deliverable 3).
 
 ## Decisions
 - Mode: autonomous

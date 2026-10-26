@@ -83,6 +83,24 @@ fn main() {
             && out.contains("README.md"),
     );
 
+    // `--local` names a local server; explicit flags win; a hosted provider takes no `--local`.
+    let (ok, out) = call(&["llm-target"]);
+    check("the default local target is the Ollama iGPU instance", ok && out.starts_with("qwen3.6:35b-a3b\nhttp://localhost:11435/v1/chat/completions\n"));
+    let (ok, out) = call(&["llm-target", "--local", "hybrid"]);
+    check(
+        "--local hybrid targets the llama-server and names its service",
+        ok && out.starts_with("qwen3.6:35b-a3b-hybride\nhttp://127.0.0.1:11437/v1/chat/completions\n")
+            && out.contains("systemctl --user start llama-hybride"),
+    );
+    let (ok, out) = call(&["llm-target", "--local", "hybrid", "--model", "m", "--base-url", "u"]);
+    check("--model and --base-url win over --local", ok && out.starts_with("m\nu\n"));
+    let (ok, _) = call(&["llm-target", "--local", "nope"]);
+    check("an unknown --local is an error", !ok);
+    let (ok, out) = call(&["llm-target", "--provider", "deepseek"]);
+    check("the hosted provider keeps its model", ok && out.starts_with("deepseek-chat\n"));
+    let (ok, _) = call(&["llm-target", "--provider", "deepseek", "--local", "hybrid"]);
+    check("--local with a hosted provider is an error", !ok);
+
     let root = tmp.join("benchmarks");
     for (stamp, table) in [("100", true), ("200", true), ("250", false), ("300", true)] {
         let folder = root.join(stamp);

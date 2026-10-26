@@ -126,7 +126,38 @@ fn main() {
         println!("       got: {patched}");
     }
 
+    // `--local` names a local server: its model and URL (explicit flags win), and the command that
+    // starts it when nothing answers.
+    let smoke = |args: &[&str]| -> (bool, String) {
+        let out = Command::new("rust-script").arg(&script).args(args).output().expect("rust-script must be installed");
+        (out.status.success(), format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr)))
+    };
+    let local_cases: Vec<(&str, (bool, String), bool, &str)> = vec![
+        ("the default local target is the Ollama iGPU instance", smoke(&["llm-target"]), true, "qwen3.6:35b-a3b\nhttp://localhost:11435/v1/chat/completions\n"),
+        (
+            "--local hybrid targets the llama-server",
+            smoke(&["llm-target", "--local", "hybrid"]),
+            true,
+            "qwen3.6:35b-a3b-hybride\nhttp://127.0.0.1:11437/v1/chat/completions\n",
+        ),
+        ("--model and --base-url win over --local", smoke(&["llm-target", "--local", "hybrid", "--model", "m", "--base-url", "u"]), true, "m\nu\n"),
+        ("an unknown --local is an error", smoke(&["llm-target", "--local", "nope"]), false, "--local must be `igpu` or `hybrid`"),
+        (
+            "nothing answers: the error names the service of the target",
+            smoke(&["run", "/nonexistent", "--local", "hybrid", "--base-url", "http://127.0.0.1:1/v1/chat/completions"]),
+            false,
+            "systemctl --user start llama-hybride",
+        ),
+    ];
     let mut failed = !config_ok;
+    for (name, (passed, output), should_pass, expected) in local_cases {
+        let ok = passed == should_pass && output.contains(expected);
+        println!("{} - {name}", if ok { "ok  " } else { "FAIL" });
+        if !ok {
+            println!("       got pass={passed}, output: {}", output.trim());
+        }
+        failed |= !ok;
+    }
     for (name, (passed, output), should_pass, hint) in cases {
         let ok = passed == should_pass && (should_pass || output.contains(hint));
         println!("{} - {name}", if ok { "ok  " } else { "FAIL" });

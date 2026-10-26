@@ -19,7 +19,8 @@ Logs and the clone stay in `~/retrodoc-runs` (`$RETRODOC_RUNS_DIR`).
 
 ```sh
 just smoke <path-to-target-repo>              # defaults below
-just smoke <repo> --model <m> --base-url <u>  # another model or server
+just smoke <repo> --local hybrid              # the hybrid llama-server (default: `igpu`, the Ollama iGPU instance)
+just smoke <repo> --model <m> --base-url <u>  # another model or server (overrides the `--local` values)
 just smoke <repo> --domains-from surface      # the new path of ADR 0020 (default: the config as init wrote it)
 just smoke <repo> --rules                     # also state the business rules (`[pipeline] rules`, off by default)
 ```
@@ -54,7 +55,7 @@ experts in RAM), stopped by default; details in `~/Code/meta-lambda-desktop/IA.m
 
 ```sh
 systemctl --user start llama-hybride        # unloads the models of :11434 to free the NVIDIA card
-just smoke <repo> --model qwen3.6:35b-a3b-hybride --base-url http://127.0.0.1:11437/v1/chat/completions
+just smoke <repo> --local hybrid             # qwen3.6:35b-a3b-hybride on http://127.0.0.1:11437/v1
 systemctl --user stop llama-hybride         # when done (never `pkill -x llama-server`: it hits Ollama too)
 ```
 

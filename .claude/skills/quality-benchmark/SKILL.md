@@ -19,7 +19,8 @@ domains, features, a sample of use cases and rules, the pinned commit) and the h
 ```sh
 just benchmark benchmark/<repo>/reference.yaml                 # 1 run per series
 just benchmark benchmark/<repo>/reference.yaml --runs 3        # the spread needs 3 at least
-just benchmark <reference> --model <m> --base-url <u>          # another model or server
+just benchmark <reference> --local hybrid                      # the hybrid llama-server (default: `igpu`, the Ollama iGPU instance)
+just benchmark <reference> --model <m> --base-url <u>          # another model or server (overrides the `--local` values)
 just benchmark <reference> --provider deepseek --runs 3 --no-confidence   # hosted: key in .env, about $0.30 per linkding run
 just benchmark <reference> --series hidden                     # one series only
 just benchmark <reference> --domains-from surface              # the new path of ADR 0020 (default: files)

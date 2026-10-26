@@ -1,11 +1,13 @@
 #!/usr/bin/env rust-script
 //! Quality benchmark of `retrodoc generate` on a public repository, against a hand-written reference.
 //!
-//! - `benchmark.rs run <reference.yaml> [--runs N] [--model M] [--base-url U] [--provider deepseek]
+//! - `benchmark.rs run <reference.yaml> [--runs N] [--local igpu|hybrid] [--model M] [--base-url U] [--provider deepseek]
 //!   [--series hidden|shown] [--no-confidence] [--domains-from files|surface] [--writing-temperature T]`: clones the repository
 //!   of the reference at its pinned commit, then for each of the two series (`hidden`: the repo's own
 //!   docs left out of the input; `shown`: with them) runs `generate` and `retrodoc benchmark --judge`
 //!   N times in fresh clones, and prints the table (with the change against the previous benchmark).
+//!   `--local` picks the local server (default `igpu`, the Ollama iGPU instance; `hybrid`, the llama-server);
+//!   `--model` and `--base-url` override its values.
 //! - `benchmark.rs reference-field <reference.yaml> <key>`: a top-level scalar of the reference.
 //! - `benchmark.rs patch-config <retrodoc.toml> <provider> <model> <base-url> <hide-docs: true|false> [domains-from: files|surface]`: points
 //!   `[llm]` at the local server (`provider` `local`) or at the hosted API of `provider` (`deepseek`; the key
@@ -25,9 +27,12 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-const DEFAULT_MODEL: &str = "qwen3.6:35b-a3b";
 const DEEPSEEK_MODEL: &str = "deepseek-chat";
-const DEFAULT_BASE_URL: &str = "http://localhost:11435/v1/chat/completions";
+/// The local servers `--local` names: `(name, model, base URL, command that starts it)`; the first is the default.
+const LOCAL_TARGETS: [(&str, &str, &str, &str); 2] = [
+    ("igpu", "qwen3.6:35b-a3b", "http://localhost:11435/v1/chat/completions", "sudo systemctl start ollama-amd"),
+    ("hybrid", "qwen3.6:35b-a3b-hybride", "http://127.0.0.1:11437/v1/chat/completions", "systemctl --user start llama-hybride"),
+];
 /// `(series name, hide the repository's own docs)`.
 const SERIES: [(&str, bool); 2] = [("hidden", true), ("shown", false)];
 
@@ -120,20 +125,41 @@ fn git(args: &[&str], dir: Option<&Path>) -> bool {
     command.status().is_ok_and(|s| s.success())
 }
 
-fn run(args: &[String]) -> i32 {
-    let Some(reference) = args.first().map(PathBuf::from) else {
-        die("usage: benchmark.rs run <reference.yaml> [--runs N] [--model M] [--base-url U]")
-    };
-    let option = |name: &str, default: &str| {
-        args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).cloned().unwrap_or(default.into())
-    };
-    let provider = option("--provider", "local");
+/// The value of the flag `name` in `args`, or `default`.
+fn option(args: &[String], name: &str, default: &str) -> String {
+    args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).cloned().unwrap_or(default.into())
+}
+
+/// `(provider, model, base URL, how to start the server)` of the LLM the run targets: the hosted
+/// `--provider`, or the `--local` server; `--model` and `--base-url` override them. No start hint for
+/// a hosted provider, nor for an explicit `--base-url` without `--local`.
+fn llm_target(args: &[String]) -> (String, String, String, Option<&'static str>) {
+    let provider = option(args, "--provider", "local");
     if provider != "local" && provider != "deepseek" {
         die("--provider must be `local` (default) or `deepseek`");
     }
+    let named = option(args, "--local", "");
+    if provider != "local" {
+        if !named.is_empty() {
+            die("--local only goes with the local provider");
+        }
+        return (provider, option(args, "--model", DEEPSEEK_MODEL), option(args, "--base-url", LOCAL_TARGETS[0].2), None);
+    }
+    let local = if named.is_empty() { LOCAL_TARGETS[0] } else {
+        *LOCAL_TARGETS.iter().find(|t| t.0 == named).unwrap_or_else(|| die("--local must be `igpu` or `hybrid`"))
+    };
+    let explicit_url = args.iter().any(|a| a == "--base-url");
+    let hint = (!named.is_empty() || !explicit_url).then_some(local.3);
+    (provider, option(args, "--model", local.1), option(args, "--base-url", local.2), hint)
+}
+
+fn run(args: &[String]) -> i32 {
+    let Some(reference) = args.first().map(PathBuf::from) else {
+        die("usage: benchmark.rs run <reference.yaml> [--runs N] [--local igpu|hybrid] [--model M] [--base-url U]")
+    };
+    let option = |name: &str, default: &str| option(args, name, default);
+    let (provider, model, base_url, start) = llm_target(args);
     let hosted = provider != "local";
-    let model = option("--model", if hosted { DEEPSEEK_MODEL } else { DEFAULT_MODEL });
-    let base_url = option("--base-url", DEFAULT_BASE_URL);
     let only_series = args.iter().position(|a| a == "--series").and_then(|i| args.get(i + 1)).cloned();
     if only_series.as_deref().is_some_and(|s| !SERIES.iter().any(|(name, _)| *name == s)) {
         die("--series must be `hidden` or `shown`");
@@ -173,7 +199,8 @@ fn run(args: &[String]) -> i32 {
         a.find_map(|addr| TcpStream::connect_timeout(&addr, Duration::from_secs(3)).ok())
     });
     if !hosted && reachable.is_none() {
-        die(&format!("no LLM server answers on {host}; start it or pass --base-url"));
+        let start = start.map_or_else(String::new, |command| format!(" (`{command}`)"));
+        die(&format!("no LLM server answers on {host}; start it{start} or pass --base-url"));
     }
 
     let root = runs_dir().join(format!("retrodoc-benchmark-{name}"));
@@ -285,6 +312,12 @@ fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let code = match args.first().map(String::as_str) {
         Some("run") => run(&args[1..]),
+        // Only for the test of `--local`: `llm-target [flags]` prints the model, the URL and the start command.
+        Some("llm-target") => {
+            let (_, model, base_url, start) = llm_target(&args[1..]);
+            println!("{model}\n{base_url}\n{}", start.unwrap_or(""));
+            0
+        }
         Some("reference-field") if args.len() == 3 => {
             let yaml = fs::read_to_string(&args[1]).unwrap_or_else(|e| die(&format!("{}: {e}", args[1])));
             match reference_field(&yaml, &args[2]) {

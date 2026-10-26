@@ -1,9 +1,10 @@
 #!/usr/bin/env rust-script
 //! Smoke test of `retrodoc generate` against a real repository with a local LLM.
 //!
-//! - `smoke.rs run <repo> [--model M] [--base-url U] [--timeout-secs N] [--domains-from files|surface] [--rules]`: clones `<repo>` (committed HEAD only, the
+//! - `smoke.rs run <repo> [--local igpu|hybrid] [--model M] [--base-url U] [--timeout-secs N] [--domains-from files|surface] [--rules]`: clones `<repo>` (committed HEAD only, the
 //!   original is never touched) into the runs directory (`~/retrodoc-runs`), points it at the local LLM, runs `generate` twice and
-//!   `report`, then prints the verdict.
+//!   `report`, then prints the verdict. `--local` picks the local server (default `igpu`, the Ollama iGPU instance; `hybrid`,
+//!   the llama-server); `--model` and `--base-url` override its values.
 //! - `smoke.rs evaluate <run1.log> <run2.log> <report.txt> <usage.json>`: only the verdict, from saved
 //!   logs and the `.retrodoc/cache/usage.json` of the clone.
 //!
@@ -15,8 +16,11 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Duration;
 
-const DEFAULT_MODEL: &str = "qwen3.6:35b-a3b";
-const DEFAULT_BASE_URL: &str = "http://localhost:11435/v1/chat/completions";
+/// The local servers `--local` names: `(name, model, base URL, command that starts it)`; the first is the default.
+const LOCAL_TARGETS: [(&str, &str, &str, &str); 2] = [
+    ("igpu", "qwen3.6:35b-a3b", "http://localhost:11435/v1/chat/completions", "sudo systemctl start ollama-amd"),
+    ("hybrid", "qwen3.6:35b-a3b-hybride", "http://127.0.0.1:11437/v1/chat/completions", "systemctl --user start llama-hybride"),
+];
 /// Default HTTP timeout written in `[llm]` (`--timeout-secs` overrides it): the default (two minutes) cuts the long answers of the local model
 /// (a large routes file takes about ten minutes at 38 tokens per second).
 const LLM_TIMEOUT_SECS: &str = "900";
@@ -168,12 +172,27 @@ fn die(message: &str) -> ! {
     std::process::exit(2);
 }
 
-fn run(args: &[String]) -> i32 {
-    let Some(target) = args.first() else { die("usage: smoke.rs run <repo> [--model M] [--base-url U] [--domains-from files|surface] [--rules]") };
-    let option = |name: &str, default: &str| {
-        args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).cloned().unwrap_or(default.into())
+/// The value of the flag `name` in `args`, or `default`.
+fn option(args: &[String], name: &str, default: &str) -> String {
+    args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).cloned().unwrap_or(default.into())
+}
+
+/// `(model, base URL, how to start the server)` of the LLM the run targets: the `--local` server,
+/// overridden by `--model` and `--base-url`. No start hint for an explicit `--base-url` without `--local`.
+fn llm_target(args: &[String]) -> (String, String, Option<&'static str>) {
+    let named = option(args, "--local", "");
+    let local = if named.is_empty() { LOCAL_TARGETS[0] } else {
+        *LOCAL_TARGETS.iter().find(|t| t.0 == named).unwrap_or_else(|| die("--local must be `igpu` or `hybrid`"))
     };
-    let (model, base_url) = (option("--model", DEFAULT_MODEL), option("--base-url", DEFAULT_BASE_URL));
+    let explicit_url = args.iter().any(|a| a == "--base-url");
+    let hint = (!named.is_empty() || !explicit_url).then_some(local.3);
+    (option(args, "--model", local.1), option(args, "--base-url", local.2), hint)
+}
+
+fn run(args: &[String]) -> i32 {
+    let Some(target) = args.first() else { die("usage: smoke.rs run <repo> [--local igpu|hybrid] [--model M] [--base-url U] [--domains-from files|surface] [--rules]") };
+    let option = |name: &str, default: &str| option(args, name, default);
+    let (model, base_url, start) = llm_target(args);
 
     // The LLM must answer before we spend minutes building.
     let host = base_url.split("://").nth(1).and_then(|r| r.split('/').next()).unwrap_or("");
@@ -181,7 +200,8 @@ fn run(args: &[String]) -> i32 {
         a.find_map(|addr| TcpStream::connect_timeout(&addr, Duration::from_secs(3)).ok())
     });
     if reachable.is_none() {
-        die(&format!("no LLM server answers on {host}; start it or pass --base-url"));
+        let start = start.map_or_else(String::new, |command| format!(" (`{command}`)"));
+        die(&format!("no LLM server answers on {host}; start it{start} or pass --base-url"));
     }
 
     let name = Path::new(target).file_name().unwrap().to_string_lossy().into_owned();
@@ -275,6 +295,12 @@ fn main() {
         Some("patch-config") if args.len() == 4 => {
             let toml = fs::read_to_string(&args[1]).unwrap_or_else(|e| die(&format!("{}: {e}", args[1])));
             println!("{}", patch_llm_section(&toml, &args[2], &args[3], LLM_TIMEOUT_SECS));
+            0
+        }
+        // Only for the test of `--local`: `llm-target [flags]` prints the model, the URL and the start command.
+        Some("llm-target") => {
+            let (model, base_url, start) = llm_target(&args[1..]);
+            println!("{model}\n{base_url}\n{}", start.unwrap_or(""));
             0
         }
         Some("run") => run(&args[1..]),
