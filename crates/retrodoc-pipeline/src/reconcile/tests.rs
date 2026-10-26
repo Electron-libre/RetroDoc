@@ -665,3 +665,201 @@ async fn a_failing_llm_keeps_the_verdicts_got_and_fails_nothing() {
 
     assert_eq!(Judgements::load(dir.path()).items.len(), 3);
 }
+
+/// `n` paragraphs of about 1,000 chars that speak of listing only.
+fn filler(n: usize) -> String {
+    (0..n)
+        .map(|i| {
+            format!(
+                "Listing page {i}. {}",
+                "Lists the entries page by page. ".repeat(30)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n")
+}
+
+/// The text shown of the sections in the prompt of `llm`'s first call.
+fn sections_shown(llm: &FakeLlm) -> String {
+    let prompt = &llm.prompts()[0];
+    let end = prompt
+        .find("\nItems of the generated documentation:")
+        .expect("items listed");
+    prompt[..end].to_string()
+}
+
+// spec: REC-15
+#[tokio::test]
+async fn a_section_within_its_share_is_shown_whole_even_past_the_old_cut() {
+    let dir = tempfile::tempdir().unwrap();
+    let text = format!("### Paying\n{}\n\nRemove a card with DELETE.", filler(3));
+    let llm = FakeLlm::answering(r#"{"items":[]}"#);
+
+    judge(
+        dir.path(),
+        &llm,
+        &on(),
+        &[candidate(
+            "billing/remove-card",
+            "Remove a card",
+            &[("docs/api.md#Paying", &text)],
+        )],
+    )
+    .await
+    .unwrap();
+
+    let shown = sections_shown(&llm);
+    assert!(shown.contains("Remove a card with DELETE."), "{shown}");
+    assert!(!shown.contains("[...]"), "{shown}");
+}
+
+// spec: REC-15
+#[tokio::test]
+async fn a_long_section_shows_the_paragraphs_of_each_of_its_items_in_turn() {
+    let dir = tempfile::tempdir().unwrap();
+    let text = format!(
+        "### Bookmarks\n**List**\n\n{}\n\n**Archive**\n\nArchives a bookmark.\n\n{}\n\n**Delete**\n\nDeletes a bookmark.",
+        filler(20),
+        filler(20)
+    );
+    let llm = FakeLlm::answering(r#"{"items":[]}"#);
+
+    judge(
+        dir.path(),
+        &llm,
+        &on(),
+        &[
+            candidate(
+                "b/remove",
+                "Delete a bookmark",
+                &[("docs/api.md#Bookmarks", &text)],
+            ),
+            candidate(
+                "b/archive",
+                "Archive a bookmark",
+                &[("docs/api.md#Bookmarks", &text)],
+            ),
+        ],
+    )
+    .await
+    .unwrap();
+
+    let shown = sections_shown(&llm);
+    assert!(shown.contains("### Bookmarks"), "the heading line is kept");
+    let archive = shown
+        .find("Archives a bookmark.")
+        .expect("the archive paragraph is shown");
+    let delete = shown
+        .find("Deletes a bookmark.")
+        .expect("the delete paragraph is shown");
+    assert!(archive < delete, "shown in the order of the section");
+    assert!(
+        shown[archive..delete].contains("[...]"),
+        "the paragraphs left out between them are marked"
+    );
+    assert!(
+        shown.chars().count() < 36_500,
+        "{} chars",
+        shown.chars().count()
+    );
+}
+
+// spec: REC-15
+#[tokio::test]
+async fn the_sections_of_a_request_share_its_budget_and_a_long_paragraph_is_cut() {
+    let dir = tempfile::tempdir().unwrap();
+    let huge = format!("### Refunds\nRefund {}", "at once, always. ".repeat(4_000));
+    let other = format!("### Paying\nPay by card.\n\n{}", filler(30));
+    let llm = FakeLlm::answering(r#"{"items":[]}"#);
+
+    judge(
+        dir.path(),
+        &llm,
+        &on(),
+        &[
+            candidate("billing/refund", "Refund", &[("docs/a.md#Refunds", &huge)]),
+            candidate("billing/pay", "Pay", &[("docs/a.md#Paying", &other)]),
+        ],
+    )
+    .await
+    .unwrap();
+
+    let shown = sections_shown(&llm);
+    let refunds = &shown[..shown.find("[S2]").expect("two sections")];
+    let paying = &shown[shown.find("[S2]").unwrap()..];
+    assert!(refunds.contains("Refund at once"), "{refunds}");
+    let n = refunds.chars().count();
+    assert!(
+        (17_000..18_200).contains(&n),
+        "{n} chars: half of the budget"
+    );
+    assert!(
+        paying.contains("Pay by card.\n\n[...]") && !paying.contains("Listing page"),
+        "only the paragraphs holding a query word: {paying}"
+    );
+}
+
+// spec: REC-15
+#[tokio::test]
+async fn a_long_section_none_of_whose_paragraphs_holds_a_query_word_is_shown_from_its_start() {
+    let dir = tempfile::tempdir().unwrap();
+    let text = format!("### Team\nOur riders.\n\n{}", filler(50));
+    let llm = FakeLlm::answering(r#"{"items":[]}"#);
+
+    judge(
+        dir.path(),
+        &llm,
+        &on(),
+        &[candidate(
+            "billing/zzz",
+            "Zebra",
+            &[("docs/a.md#Team", &text)],
+        )],
+    )
+    .await
+    .unwrap();
+
+    let shown = sections_shown(&llm);
+    assert!(
+        shown.contains("### Team\nOur riders.\n\nListing page 0."),
+        "{}",
+        &shown[..300]
+    );
+    let n = shown.chars().count();
+    assert!((35_900..36_200).contains(&n), "{n} chars");
+}
+
+// spec: REC-6
+#[tokio::test]
+async fn a_verdict_given_before_the_rule_of_what_is_shown_changed_is_asked_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let candidates = three_candidates();
+    let before_the_rule = |c: &Candidate| {
+        let mut parts = vec![c.item.kind.label().to_string(), c.item.query.clone()];
+        for s in &c.sections {
+            parts.push(s.at.origin());
+            parts.push(s.text.clone());
+        }
+        crate::fingerprints::fingerprint(parts)
+    };
+    let model = crate::fingerprints::model_part(&FakeLlm::answering(""));
+    Judgements {
+        items: candidates
+            .iter()
+            .map(|c| Judged {
+                kind: c.item.kind,
+                label: c.item.label.clone(),
+                fingerprint: before_the_rule(c),
+                model: model.clone(),
+                sections: Vec::new(),
+            })
+            .collect(),
+    }
+    .save(dir.path())
+    .unwrap();
+    let llm = FakeLlm::answering(THREE_ANSWERS);
+
+    judge(dir.path(), &llm, &on(), &candidates).await.unwrap();
+
+    assert_eq!(llm.calls(), 1);
+}

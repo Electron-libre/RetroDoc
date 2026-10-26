@@ -32,7 +32,8 @@ backed by the doc sections it rests on.
   and an item that no answer decides stays `matched` (documented, not judged) rather than get an invented verdict;
   an item with a section left unanswered is not saved, so the next run asks it again.
 - **REC-6** (deterministic) A verdict must be reused with no LLM call while the fingerprint of the item's text, of
-  its matched sections' text and of the model is unchanged; any change of one of them must judge the item again.
+  its matched sections' text, of the model and of the rule that picks what the judge is shown of a section (REC-15)
+  is unchanged; any change of one of them must judge the item again.
 - **REC-7** (deterministic) The verdicts must be saved in `.retrodoc/cache/reconciliation.yaml`; `retrodoc report`
   and `render` must read them and make no LLM call. Without that file, or for an item whose text or sections changed
   since its verdict, a matched item is `matched`.
@@ -53,6 +54,13 @@ backed by the doc sections it rests on.
   replaced by the lists of REC-10 and REC-11, the rules being items like the others.
 - **REC-14** (deterministic) An LLM call of the pass that fails must not fail `generate`: the pass stops with a
   warning, keeping the verdicts got before.
+- **REC-15** (deterministic) A request of the judge must show at most 36,000 chars of section text, shared evenly
+  between its sections, and never less than 1,500 chars per section. A section within its share must be shown
+  whole; a longer one must be shown as its heading line plus the paragraphs (split on blank lines) that hold the
+  most content words of the queries of the batch's items it is matched to, taken in turn for each of those items,
+  best first, until the share is spent, then shown in the order of the section with `[...]` where paragraphs are
+  left out. A paragraph longer than the share is cut to it; a section where no paragraph holds one of those
+  words is shown from its start, cut to its share.
 
 ## Scenarios
 
@@ -66,6 +74,9 @@ backed by the doc sections it rests on.
   or after the change, are sent to the LLM.
 - (REC-12) Given a use case page under `docs/functional/billing/pay-invoice.md` documented by
   `docs/guide.md#Paying`, then the page links `../../guide.md#paying`.
+
+- (REC-15) Given a 4,700-char section whose `Delete` paragraph is past its first 1,500 chars, matched to the use
+  case "remove a bookmark" in a batch of 8 sections, then the `Delete` paragraph is shown to the judge.
 
 ## Non-goals
 

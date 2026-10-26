@@ -3,7 +3,8 @@
 //! a request listed once. A verdict is saved with the fingerprint of the item's text and of its sections'
 //! text, and the model: an unchanged item makes no call, and the report (which has no model) still reads a
 //! verdict while the texts match. A section left unanswered keeps its item out of the saved verdicts, so
-//! the next run asks it again.
+//! the next run asks it again. A section is shown within its share of [`MAX_REQUEST_SECTION_CHARS`]: a
+//! longer one by the paragraphs that hold the words of the items of the request it is matched to.
 
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
@@ -13,8 +14,9 @@ use retrodoc_core::config::PipelineConfig;
 use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
-use super::{Candidate, ItemKind};
+use super::{Candidate, ItemKind, Section};
 use crate::artifact::{load_yaml, save_yaml, Artifact};
+use crate::bm25::content_words;
 use crate::error::PipelineError;
 use crate::fingerprints::{fingerprint, model_part};
 use crate::response::complete_json;
@@ -22,8 +24,18 @@ use crate::response::complete_json;
 /// Items judged in one request.
 pub const MAX_ITEMS_PER_REQUEST: usize = 8;
 
-/// Characters shown of a section.
-const MAX_SECTION_CHARS: usize = 1_500;
+/// Characters of section text a request shows at most, shared evenly between its sections.
+const MAX_REQUEST_SECTION_CHARS: usize = 36_000;
+
+/// The share of a section is never smaller.
+const MIN_SECTION_CHARS: usize = 1_500;
+
+/// Names the rule that picks what is shown of a section: part of a verdict's fingerprint, so that a
+/// change of the rule asks the saved items again. Change it when [`shown`] changes.
+const SHOWN_RULE: &str = "paragraphs-of-the-items-v1";
+
+/// Marks the paragraphs of a section left out.
+const LEFT_OUT: &str = "[...]";
 
 const SYSTEM_PROMPT: &str = "You compare the functional documentation generated from the code of an \
 application with the project's own documents. You are given sections of the existing documents, \
@@ -109,10 +121,14 @@ impl Judgements {
 }
 
 impl Candidate {
-    /// Hash of the item's text and of the origin and text of its sections.
+    /// Hash of the item's text, of the origin and text of its sections and of [`SHOWN_RULE`].
     #[must_use]
     pub fn fingerprint(&self) -> String {
-        let mut parts = vec![self.item.kind.label().to_string(), self.item.query.clone()];
+        let mut parts = vec![
+            SHOWN_RULE.to_string(),
+            self.item.kind.label().to_string(),
+            self.item.query.clone(),
+        ];
         for section in &self.sections {
             parts.push(section.at.origin());
             parts.push(section.text.clone());
@@ -185,22 +201,114 @@ fn section_numbers(batch: &[&Candidate]) -> BTreeMap<String, usize> {
     numbers
 }
 
+/// The first `n` chars of `text`.
+fn first_chars(text: &str, n: usize) -> &str {
+    text.char_indices().nth(n).map_or(text, |(i, _)| &text[..i])
+}
+
+/// What is shown of `section` within `share` chars: the whole text when it fits, else its heading line
+/// and the paragraphs that hold the most content words of `queries`, taken best first for each query in
+/// turn and shown in the section's order, [`LEFT_OUT`] where paragraphs are left out.
+fn shown(section: &Section, queries: &[&str], share: usize) -> String {
+    let text = section.text.trim();
+    if text.chars().count() <= share {
+        return text.to_string();
+    }
+    let (heading, body) = text.split_once('\n').unwrap_or((text, ""));
+    let paragraphs: Vec<&str> = body
+        .split("\n\n")
+        .map(str::trim)
+        .filter(|p| !p.is_empty())
+        .collect();
+    let words: Vec<_> = paragraphs.iter().map(|p| content_words(p)).collect();
+    // Per query, the paragraphs holding one of its words, most words first, then in the section's order.
+    let mut ranked: Vec<std::vec::IntoIter<usize>> = queries
+        .iter()
+        .map(|query| {
+            let query = content_words(query);
+            let mut hits: Vec<(usize, usize)> = words
+                .iter()
+                .enumerate()
+                .map(|(i, w)| (w.intersection(&query).count(), i))
+                .filter(|(n, _)| *n > 0)
+                .collect();
+            hits.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));
+            hits.into_iter()
+                .map(|(_, i)| i)
+                .collect::<Vec<_>>()
+                .into_iter()
+        })
+        .collect();
+    let mut left = share.saturating_sub(heading.chars().count());
+    // Paragraph index → the text kept of it.
+    let mut kept: BTreeMap<usize, &str> = BTreeMap::new();
+    let mut taking = true;
+    while taking {
+        taking = false;
+        for paragraphs_of_query in &mut ranked {
+            for i in paragraphs_of_query.by_ref() {
+                if kept.contains_key(&i) {
+                    continue;
+                }
+                // A separator and a [...] line at most come with a paragraph.
+                let cost = paragraphs[i].chars().count() + LEFT_OUT.len() + 4;
+                if cost <= left {
+                    kept.insert(i, paragraphs[i]);
+                    left -= cost;
+                } else if kept.is_empty() {
+                    let cut = first_chars(paragraphs[i], left.saturating_sub(LEFT_OUT.len() + 4));
+                    kept.insert(i, cut);
+                    left = 0;
+                } else {
+                    continue;
+                }
+                taking = true;
+                break;
+            }
+        }
+    }
+    if kept.is_empty() {
+        return first_chars(text, share).trim_end().to_string();
+    }
+    let mut out = heading.to_string();
+    let mut next = 0;
+    for (i, paragraph) in kept {
+        if i > next {
+            out.push_str("\n\n");
+            out.push_str(LEFT_OUT);
+        }
+        out.push_str("\n\n");
+        out.push_str(paragraph);
+        next = i + 1;
+    }
+    if next < paragraphs.len() {
+        out.push_str("\n\n");
+        out.push_str(LEFT_OUT);
+    }
+    out
+}
+
 fn prompt(batch: &[&Candidate], numbers: &BTreeMap<String, usize>) -> String {
-    let mut by_number: Vec<(usize, &super::Section)> = Vec::new();
+    let mut by_number: Vec<(usize, &Section)> = Vec::new();
     for section in batch.iter().flat_map(|c| &c.sections) {
         let n = numbers[&section.at.origin()];
         if !by_number.iter().any(|(m, _)| *m == n) {
             by_number.push((n, section));
         }
     }
+    let share = (MAX_REQUEST_SECTION_CHARS / by_number.len().max(1)).max(MIN_SECTION_CHARS);
     let mut prompt = String::from("Sections of the existing documents:\n");
     for (n, section) in by_number {
-        let text: String = section.text.chars().take(MAX_SECTION_CHARS).collect();
+        let origin = section.at.origin();
+        let queries: Vec<&str> = batch
+            .iter()
+            .filter(|c| c.sections.iter().any(|s| s.at.origin() == origin))
+            .map(|c| c.item.query.as_str())
+            .collect();
         let _ = write!(
             prompt,
-            "\n[S{n}] {}\n{}\n",
-            section.at.origin(),
-            text.trim()
+            "\n[S{n}] {origin}\n{}\n",
+            shown(section, &queries, share)
         );
     }
     prompt.push_str("\nItems of the generated documentation:\n");
