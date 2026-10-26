@@ -125,23 +125,37 @@ fn an_item_its_description_matches_nowhere_is_searched_with_its_name_alone() {
         "docs/api.md",
         "# Tags\nList, create and delete tags.\n\n# Bookmarks\nSave a bookmark with a title and notes.\n",
     )];
-    let mut tags = feature("tags", "library", "Manage tags", 0);
-    tags.description = "Users rename, merge and categorize labels used across the library.".into();
-    let mut save = feature("save", "library", "Tags of a bookmark", 0);
+    let elsewhere = "Users rename, merge and categorize labels used across the library.";
+    let map = DomainMap {
+        domains: vec![DomainCluster {
+            description: elsewhere.into(),
+            ..domain("tagging", "Tags")
+        }],
+    };
+    let mut tags = feature("tags", "tagging", "Manage tags", 0);
+    tags.description = elsewhere.into();
+    let mut delete = use_case("delete", "tags", "Delete tags");
+    delete.description = elsewhere.into();
+    let mut save = feature("save", "tagging", "Tags of a bookmark", 0);
     save.description = "Save a bookmark with a title and notes.".into();
 
-    let found = candidates(
-        items(&DomainMap::default(), &[tags, save], &[], &[]),
-        &corpus(&docs),
-    );
+    let found = candidates(items(&map, &[tags, save], &[delete], &[]), &corpus(&docs));
 
-    let origins =
-        |i: usize| -> Vec<String> { found[i].sections.iter().map(|s| s.at.origin()).collect() };
-    assert_eq!(origins(0), ["docs/api.md#Tags"], "the name alone finds it");
+    let origins = |label: &str| -> Vec<String> {
+        let c = found.iter().find(|c| c.item.label == label).unwrap();
+        c.sections.iter().map(|s| s.at.origin()).collect()
+    };
+    for label in ["tagging", "tagging/tags", "tagging/tags/delete"] {
+        assert_eq!(
+            origins(label),
+            ["docs/api.md#Tags"],
+            "{label}: the name alone finds it"
+        );
+    }
     assert_eq!(
-        origins(1),
+        origins("tagging/save"),
         ["docs/api.md#Bookmarks"],
-        "the name is not searched when the name and description match"
+        "the name alone is not searched when the name and description match a section"
     );
 }
 

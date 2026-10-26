@@ -50,9 +50,9 @@ pub struct Item {
     /// (`?` for a feature or domain that no longer exists).
     pub label: String,
     pub domain: String,
-    /// The name, or the statement of a rule.
+    /// The name, or the statement of a rule; also searched alone when [`Item::query`] matches nothing.
     pub name: String,
-    /// What the corpus is searched with: the name and the description.
+    /// What the corpus is searched with first: the name and the description.
     pub query: String,
     /// Entry points the item holds (a domain: those of its features; a rule: those of its feature).
     pub entry_points: usize,
@@ -255,7 +255,7 @@ pub fn candidates(items: Vec<Item>, corpus: &[Section]) -> Vec<Candidate> {
             // A description of two sentences rarely shares half its words with the section that
             // documents it in other words; a short name often does.
             let mut found = index.search(&item.query);
-            if found.is_empty() {
+            if found.is_empty() && item.name != item.query {
                 found = index.search(&item.name);
             }
             let sections = found

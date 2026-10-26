@@ -181,3 +181,27 @@ Code review (low): no findings; its open question, a name of stop words only, is
 (a query of stop words finds nothing).
 
 Follow-up (decision 2a): `issues/reconciliation_judge_sees_whole_sections.md`, queued second.
+
+## Deliverable 5: fixes of the high review
+
+High review of `4603339..HEAD`, 7 findings:
+
+| finding | done |
+|---|---|
+| name searched only when the query matches nothing, a weak match blocks it | not fixed: decision 1a (fallback, not union), measured in deliverable 2 |
+| half of a two-word name is one generic word | not fixed: the trade-off measured and taken in 1a; the judge answers `unrelated` |
+| a rule is searched twice with its statement | fixed: no fallback when the name is the query |
+| doc comments of `Item.name` / `Item.query` stale | fixed |
+| fallback tested for features only | fixed: the test covers a domain, a feature and a use case |
+| assertion message misleading | fixed |
+| queue still lists this issue first | left to `just close-issue` |
+
+| check | result |
+|---|---|
+| tests, lint, specs | `just check` ok |
+| docs | n/a (doc comments only) |
+| code review | low, see below |
+
+red: none (the double search is not observable; the widened test passed at once, the code already did it).
+
+Code review (low): no findings.
