@@ -179,3 +179,5 @@ them rest on deliverable 3's audit.
 
 Code review (low): no findings; its open question, a name of stop words only, is covered by `Bm25::search`
 (a query of stop words finds nothing).
+
+Follow-up (decision 2a): `issues/reconciliation_judge_sees_whole_sections.md`, queued second.
