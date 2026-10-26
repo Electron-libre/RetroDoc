@@ -11,7 +11,7 @@ const REFERENCE: &str = "repository: https://github.com/example/shop.git\ncommit
 
 /// What `retrodoc init` writes (`toml::to_string_pretty` of the default config), reduced: the array of
 /// existing docs is spread over several lines.
-const TOML: &str = "[llm]\nmodel = \"x/y\"\nbase_url = \"http://other\"\n\n[ingest]\nextra_ignore = []\nexisting_docs_paths = [\n    \"docs\",\n    \"README.md\",\n]\n\n[output]\ndocs_dir = \"docs\"\n";
+const TOML: &str = "[llm]\nmodel = \"x/y\"\nbase_url = \"http://other\"\ntimeout_secs = 30\n\n[ingest]\nextra_ignore = []\nexisting_docs_paths = [\n    \"docs\",\n    \"README.md\",\n]\n\n[output]\ndocs_dir = \"docs\"\n";
 
 fn main() {
     let dir = Path::new(file!()).parent().unwrap();
@@ -56,6 +56,10 @@ fn main() {
             && !out.contains("x/y")
             && !out.contains("http://other"),
     );
+    check(
+        "gives the local model one timeout it can meet (a use case call of a large repo takes minutes)",
+        ok && out.contains("timeout_secs = 900\n") && out.matches("timeout_secs").count() == 1,
+    );
     let (ok, out) = call(&["patch-config", &toml, "local", "m1", "http://localhost:1/v1", "false"]);
     check("keeps the existing docs when shown", ok && out.contains("existing_docs_paths = [\n    \"docs\",\n    \"README.md\",\n]"));
 
@@ -64,7 +68,8 @@ fn main() {
         "points [llm] at a hosted provider without base_url or reasoning_effort",
         ok && out.contains("[llm]\nprovider = \"deepseek\"\nmodel = \"deepseek-chat\"")
             && !out.contains("base_url")
-            && !out.contains("reasoning_effort"),
+            && !out.contains("reasoning_effort")
+            && !out.contains("timeout_secs"),
     );
 
     let with_pipeline = write("with-pipeline.toml", &format!("{TOML}\n[pipeline]\ndomains_from = \"files\"\n"));

@@ -84,6 +84,8 @@ Out of scope: changing the default local target before the measures say so; any 
    context (bigger batches), measured by a second hybrid smoke and kept only if faster.
 6. [ ] Benchmark series on the hybrid target (`just benchmark`), compared with the last iGPU series; record
    whether the docs differ.
+7. [x] Found by 6: `benchmark.rs` writes `timeout_secs = 900` for the local provider, as the smoke test does;
+   verified by `just test-harness`.
 
 ## Deliverable 1: probe of the hybrid server (2026-10-26, llama.cpp b11898)
 | check | answer |
@@ -135,7 +137,24 @@ Artifacts (logs, reports, `usage.json` of both): `~/retrodoc-runs/hybrid-vs-igpu
   off, `usage` and `finish_reason` read, no warning): nothing to change in `OpenRouterProvider`.
 - 5: nothing to measure on this repository: its passes send at most 6 calls, which the one slot serves one
   after the other without any timeout or retry, and no batch comes near the 32k context of the iGPU instance.
-  Local defaults stay as they are; to revisit only on a large repository where calls queue past the timeout.
+  Local defaults stay as they are. Corrected by deliverable 6: on linkding no call queues (`concurrency` is
+  already 1 by default), but single use case calls run past the default timeout of 120 s; see deliverable 7.
+
+## Deliverable 6, first try (2026-10-27): both series failed
+`just benchmark benchmark/linkding/reference.yaml --local hybrid --runs 1`, 66 min: `generate` stopped in the
+use-cases pass in both series, `the request timed out before the model finished its answer`. The benchmark wrote
+no `timeout_secs`, so the default of 120 s applied; the use case calls averaged 85 s (13 calls, 129,642 tokens
+in, 34,794 out, 18m26s), some over 120 s. Before that pass, hidden: 186 calls, 41 min (repo-map 133 calls 8m50s,
+business-read 21 calls 7m23s). At about 4.5 min a feature, the use cases of 50 features alone take about 3.5 h a
+series.
+
+## Deliverable 7: local timeout in the benchmark
+- done: `patch_config` drops any `timeout_secs` of `[llm]` and writes 900 s for the local provider (the hosted
+  one keeps the default).
+- checks: `just check` ok, `just test-harness` ok.
+- red: `FAIL - gives the local model one timeout it can meet`, `FAIL - points [llm] at a hosted provider without base_url or reasoning_effort` (the `timeout_secs = 30` of the input kept).
+- Code review (low): no findings.
+- not verified: a whole benchmark series with it (deliverable 6, second try).
 
 ## Decisions
 - Mode: autonomous
@@ -143,3 +162,4 @@ Artifacts (logs, reports, `usage.json` of both): `~/retrodoc-runs/hybrid-vs-igpu
 - Server: use the running `llama-hybride` service throughout and leave it running at the end (user, 2026-10-26).
 - The paused before / after comparison of the reconciliation judge stays out of this issue and is not tracked elsewhere (user, 2026-10-26).
 - Benchmark series of deliverable 6: one run (`--runs 1`) (user, 2026-10-26).
+- Deliverable 6 compares the hybrid series with the last DeepSeek series of linkding; no iGPU series is run, and this series is the baseline of later local comparisons (user, 2026-10-26).

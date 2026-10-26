@@ -33,6 +33,9 @@ const LOCAL_TARGETS: [(&str, &str, &str, &str); 2] = [
     ("igpu", "qwen3.6:35b-a3b", "http://localhost:11435/v1/chat/completions", "sudo systemctl start ollama-amd"),
     ("hybrid", "qwen3.6:35b-a3b-hybride", "http://127.0.0.1:11437/v1/chat/completions", "systemctl --user start llama-hybride"),
 ];
+/// HTTP timeout written in `[llm]` for the local model: the default (two minutes) cuts its use case
+/// answers on a repository the size of linkding (85 s a call on average, some over 120 s); same value as the smoke test.
+const LOCAL_TIMEOUT_SECS: &str = "900";
 /// `(series name, hide the repository's own docs)`.
 const SERIES: [(&str, bool); 2] = [("hidden", true), ("shown", false)];
 
@@ -50,8 +53,8 @@ fn reference_field(yaml: &str, key: &str) -> Option<String> {
     (!value.is_empty()).then(|| value.to_string())
 }
 
-/// `retrodoc.toml` with `[llm]` pointed at the local server (`provider` `local`) or at a hosted API
-/// (its own endpoint, no `reasoning_effort`) and, when `hide_docs`, no existing docs read as input
+/// `retrodoc.toml` with `[llm]` pointed at the local server (`provider` `local`, with a timeout it can meet) or at a hosted API
+/// (its own endpoint, no `reasoning_effort`, the default timeout) and, when `hide_docs`, no existing docs read as input
 /// (the repository's README and docs would give the answer away).
 fn patch_config(toml: &str, provider: &str, model: &str, base_url: &str, hide_docs: bool) -> String {
     let mut kept: Vec<String> = Vec::new();
@@ -62,7 +65,7 @@ fn patch_config(toml: &str, provider: &str, model: &str, base_url: &str, hide_do
             dropping = !line.trim_start().starts_with(']');
             continue;
         }
-        if ["provider =", "model =", "base_url =", "reasoning_effort ="].iter().any(|k| line.starts_with(k)) {
+        if ["provider =", "model =", "base_url =", "reasoning_effort =", "timeout_secs ="].iter().any(|k| line.starts_with(k)) {
             continue;
         }
         if hide_docs && line.starts_with("existing_docs_paths =") {
@@ -73,7 +76,7 @@ fn patch_config(toml: &str, provider: &str, model: &str, base_url: &str, hide_do
         }
     }
     let llm = if provider == "local" {
-        format!("[llm]\nmodel = \"{model}\"\nbase_url = \"{base_url}\"\nreasoning_effort = \"none\"")
+        format!("[llm]\nmodel = \"{model}\"\nbase_url = \"{base_url}\"\nreasoning_effort = \"none\"\ntimeout_secs = {LOCAL_TIMEOUT_SECS}")
     } else {
         format!("[llm]\nprovider = \"{provider}\"\nmodel = \"{model}\"")
     };
