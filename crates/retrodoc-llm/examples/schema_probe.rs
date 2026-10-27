@@ -185,9 +185,11 @@ fn judge(status: u16, body: &str) -> Verdict {
 /// `OpenRouterProvider` reads besides the content.
 fn details(body: &str) -> String {
     let value = serde_json::from_str::<Value>(body).unwrap_or(Value::Null);
-    let finish = value["choices"][0]["finish_reason"]
-        .as_str()
-        .unwrap_or("none");
+    let finish = match value["choices"][0].get("finish_reason") {
+        None => "missing",
+        Some(Value::String(reason)) => reason,
+        Some(_) => "null",
+    };
     let usage = &value["usage"];
     let usage = if usage.is_object() {
         let counter = |key: &str| {
@@ -425,7 +427,15 @@ mod tests {
 
     #[test]
     fn details_say_when_the_usage_or_a_counter_is_missing() {
-        assert_eq!(details(&response(GOOD)), "finish_reason=none, usage: none");
+        assert_eq!(
+            details(&response(GOOD)),
+            "finish_reason=missing, usage: none"
+        );
+        let null = json!({"choices": [{"finish_reason": null, "message": {"content": GOOD}}]});
+        assert_eq!(
+            details(&null.to_string()),
+            "finish_reason=null, usage: none"
+        );
         let partial = json!({
             "choices": [{"finish_reason": "stop", "message": {"content": GOOD}}],
             "usage": {"prompt_tokens": 40}

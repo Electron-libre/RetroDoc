@@ -82,10 +82,13 @@ Out of scope: changing the default local target before the measures say so; any 
    first); otherwise noted as not needed.
 5. [x] Only if 3 shows queued calls cost time: local defaults for one slot (`concurrency = 1`) and the larger
    context (bigger batches), measured by a second hybrid smoke and kept only if faster.
-6. [ ] Benchmark series on the hybrid target (`just benchmark`), compared with the last iGPU series; record
-   whether the docs differ.
+6. [x] Benchmark series on the hybrid target (`just benchmark`), compared with the last iGPU series; record
+   whether the docs differ. Closed without a measure: both series failed on a timeout (fixed by 7) and a
+   second try was dropped for its duration; see "Deliverable 6, first try".
 7. [x] Found by 6: `benchmark.rs` writes `timeout_secs = 900` for the local provider, as the smoke test does;
    verified by `just test-harness`.
+8. [x] Fixes of the `high` review of the whole issue (`72c5081..HEAD`); verified by `just test-harness` and the
+   probe's unit tests.
 
 ## Deliverable 1: probe of the hybrid server (2026-10-26, llama.cpp b11898)
 | check | answer |
@@ -128,7 +131,8 @@ repo-map 19 / 25 s, domains 6 / 13 s, features 11 / 18 s. The use-cases pass is 
 the slower prompt processing does not show; it is not measured on a large repository.
 
 The two runs did not find the same features (4 against 6), so their outputs, and the use cases that follow, are
-not comparable: one run each says nothing on the spread. Deliverable 6 measures quality.
+not comparable: one run each says nothing on the spread. Deliverable 6 was to measure quality; it ended
+without a measure.
 
 Artifacts (logs, reports, `usage.json` of both): `~/retrodoc-runs/hybrid-vs-igpu`.
 
@@ -148,13 +152,35 @@ in, 34,794 out, 18m26s), some over 120 s. Before that pass, hidden: 186 calls, 4
 business-read 21 calls 7m23s). At about 4.5 min a feature, the use cases of 50 features alone take about 3.5 h a
 series.
 
+Closed on this finding, without a second try (user, 2026-10-27): a local benchmark of linkding costs about 4 to
+4.5 h a series (8 h for both) even on the hybrid server, so there is no local quality figure and no local
+baseline yet; the hosted DeepSeek series stay the reference (12 min a series).
+
 ## Deliverable 7: local timeout in the benchmark
 - done: `patch_config` drops any `timeout_secs` of `[llm]` and writes 900 s for the local provider (the hosted
   one keeps the default).
 - checks: `just check` ok, `just test-harness` ok.
 - red: `FAIL - gives the local model one timeout it can meet`, `FAIL - points [llm] at a hosted provider without base_url or reasoning_effort` (the `timeout_secs = 30` of the input kept).
 - Code review (low): no findings.
-- not verified: a whole benchmark series with it (deliverable 6, second try).
+- not verified: a whole benchmark series with it (the second try of deliverable 6 was dropped).
+
+## Deliverable 8: fixes of the high review
+| finding | done |
+|---|---|
+| `patch_config` of the benchmark dropped `timeout_secs`, `model`… in every section, per-pass overrides included | fixed: only the keys of `[llm]`, as `smoke.rs` does |
+| tracking said item 6 was measured and kept a local baseline that does not exist | fixed in this file |
+| an explicit `--base-url` with `--local` still named the `--local` service | fixed: no start command for an explicit `--base-url` |
+| `--local` without a value fell back to `igpu` | fixed: error |
+| no `--timeout-secs` in the benchmark | added (default 900) |
+| the 120 s default of `retrodoc` itself does not fit a local server | out of this issue: `issues/default_timeout_for_a_local_server.md` |
+| `LOCAL_TARGETS` and `llm_target` copied in `smoke.rs` and `benchmark.rs` | not fixed: each is a standalone `rust-script`, no shared module to put them in; the probe preset is a third, in a crate example |
+| hosted benchmark probed the iGPU host | fixed: the TCP check runs only for the local provider |
+| probe printed `finish_reason=none` for a missing field | fixed: `missing` or `null` |
+
+- checks: `just check` ok, `just test-harness` ok.
+- red: `FAIL - keeps the keys of a per-pass override`, `FAIL - --local without a value is an error`, `FAIL - --model and --base-url win over --local, and name no service`, probe `left: "finish_reason=missing…" right: "finish_reason=none…"`.
+- Code review (low): an `[llm]` header with a comment or spaces would not be recognised; not fixed: the config is always the one `retrodoc init` just wrote (`[llm]` exact), the rule `smoke.rs` already uses.
+- not verified: `--timeout-secs` wiring in `run` (no test runs a benchmark).
 
 ## Decisions
 - Mode: autonomous
@@ -162,4 +188,5 @@ series.
 - Server: use the running `llama-hybride` service throughout and leave it running at the end (user, 2026-10-26).
 - The paused before / after comparison of the reconciliation judge stays out of this issue and is not tracked elsewhere (user, 2026-10-26).
 - Benchmark series of deliverable 6: one run (`--runs 1`) (user, 2026-10-26).
-- Deliverable 6 compares the hybrid series with the last DeepSeek series of linkding; no iGPU series is run, and this series is the baseline of later local comparisons (user, 2026-10-26).
+- Deliverable 6 closed on the duration finding, no second run (user, 2026-10-27).
+- Deliverable 6 compares the hybrid series with the last DeepSeek series of linkding; no iGPU series is run (user, 2026-10-26). Superseded the next day: no series ran to the end, so there is no local baseline.

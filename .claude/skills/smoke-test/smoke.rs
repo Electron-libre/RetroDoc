@@ -178,14 +178,16 @@ fn option(args: &[String], name: &str, default: &str) -> String {
 }
 
 /// `(model, base URL, how to start the server)` of the LLM the run targets: the `--local` server,
-/// overridden by `--model` and `--base-url`. No start hint for an explicit `--base-url` without `--local`.
+/// overridden by `--model` and `--base-url`. No start hint for an explicit `--base-url`: it may be another server.
 fn llm_target(args: &[String]) -> (String, String, Option<&'static str>) {
-    let named = option(args, "--local", "");
-    let local = if named.is_empty() { LOCAL_TARGETS[0] } else {
+    // A `--local` with no value is an error, not the default.
+    let named = args.iter().position(|a| a == "--local").map(|i| {
+        args.get(i + 1).filter(|v| !v.starts_with("--")).cloned().unwrap_or_else(|| die("--local must be `igpu` or `hybrid`"))
+    });
+    let local = named.map_or(LOCAL_TARGETS[0], |named| {
         *LOCAL_TARGETS.iter().find(|t| t.0 == named).unwrap_or_else(|| die("--local must be `igpu` or `hybrid`"))
-    };
-    let explicit_url = args.iter().any(|a| a == "--base-url");
-    let hint = (!named.is_empty() || !explicit_url).then_some(local.3);
+    });
+    let hint = (!args.iter().any(|a| a == "--base-url")).then_some(local.3);
     (option(args, "--model", local.1), option(args, "--base-url", local.2), hint)
 }
 

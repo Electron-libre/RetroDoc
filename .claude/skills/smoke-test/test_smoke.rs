@@ -140,13 +140,15 @@ fn main() {
             true,
             "qwen3.6:35b-a3b-hybride\nhttp://127.0.0.1:11437/v1/chat/completions\n",
         ),
-        ("--model and --base-url win over --local", smoke(&["llm-target", "--local", "hybrid", "--model", "m", "--base-url", "u"]), true, "m\nu\n"),
+        ("--model and --base-url win over --local", smoke(&["llm-target", "--local", "hybrid", "--model", "m", "--base-url", "u"]), true, "m\nu\n\n"),
+        ("--local names the command that starts its server", smoke(&["llm-target", "--local", "hybrid"]), true, "\nsystemctl --user start llama-hybride\n"),
         ("an unknown --local is an error", smoke(&["llm-target", "--local", "nope"]), false, "--local must be `igpu` or `hybrid`"),
+        ("--local without a value is an error", smoke(&["llm-target", "--local"]), false, "--local must be `igpu` or `hybrid`"),
         (
-            "nothing answers: the error names the service of the target",
+            "nothing answers on an explicit --base-url: no service of another server is named",
             smoke(&["run", "/nonexistent", "--local", "hybrid", "--base-url", "http://127.0.0.1:1/v1/chat/completions"]),
             false,
-            "systemctl --user start llama-hybride",
+            "no LLM server answers on 127.0.0.1:1; start it or pass --base-url",
         ),
     ];
     let mut failed = !config_ok;

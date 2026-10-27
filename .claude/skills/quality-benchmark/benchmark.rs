@@ -1,13 +1,13 @@
 #!/usr/bin/env rust-script
 //! Quality benchmark of `retrodoc generate` on a public repository, against a hand-written reference.
 //!
-//! - `benchmark.rs run <reference.yaml> [--runs N] [--local igpu|hybrid] [--model M] [--base-url U] [--provider deepseek]
+//! - `benchmark.rs run <reference.yaml> [--runs N] [--local igpu|hybrid] [--model M] [--base-url U] [--timeout-secs N] [--provider deepseek]
 //!   [--series hidden|shown] [--no-confidence] [--domains-from files|surface] [--writing-temperature T]`: clones the repository
 //!   of the reference at its pinned commit, then for each of the two series (`hidden`: the repo's own
 //!   docs left out of the input; `shown`: with them) runs `generate` and `retrodoc benchmark --judge`
 //!   N times in fresh clones, and prints the table (with the change against the previous benchmark).
 //!   `--local` picks the local server (default `igpu`, the Ollama iGPU instance; `hybrid`, the llama-server);
-//!   `--model` and `--base-url` override its values.
+//!   `--model` and `--base-url` override its values; `--timeout-secs` sets its HTTP timeout (default 900).
 //! - `benchmark.rs reference-field <reference.yaml> <key>`: a top-level scalar of the reference.
 //! - `benchmark.rs patch-config <retrodoc.toml> <provider> <model> <base-url> <hide-docs: true|false> [domains-from: files|surface]`: points
 //!   `[llm]` at the local server (`provider` `local`) or at the hosted API of `provider` (`deepseek`; the key
@@ -33,7 +33,7 @@ const LOCAL_TARGETS: [(&str, &str, &str, &str); 2] = [
     ("igpu", "qwen3.6:35b-a3b", "http://localhost:11435/v1/chat/completions", "sudo systemctl start ollama-amd"),
     ("hybrid", "qwen3.6:35b-a3b-hybride", "http://127.0.0.1:11437/v1/chat/completions", "systemctl --user start llama-hybride"),
 ];
-/// HTTP timeout written in `[llm]` for the local model: the default (two minutes) cuts its use case
+/// Default HTTP timeout written in `[llm]` for the local model (`--timeout-secs` overrides it): the default (two minutes) cuts its use case
 /// answers on a repository the size of linkding (85 s a call on average, some over 120 s); same value as the smoke test.
 const LOCAL_TIMEOUT_SECS: &str = "900";
 /// `(series name, hide the repository's own docs)`.
@@ -56,16 +56,21 @@ fn reference_field(yaml: &str, key: &str) -> Option<String> {
 /// `retrodoc.toml` with `[llm]` pointed at the local server (`provider` `local`, with a timeout it can meet) or at a hosted API
 /// (its own endpoint, no `reasoning_effort`, the default timeout) and, when `hide_docs`, no existing docs read as input
 /// (the repository's README and docs would give the answer away).
-fn patch_config(toml: &str, provider: &str, model: &str, base_url: &str, hide_docs: bool) -> String {
+fn patch_config(toml: &str, provider: &str, model: &str, base_url: &str, timeout_secs: &str, hide_docs: bool) -> String {
     let mut kept: Vec<String> = Vec::new();
     // Lines of an `existing_docs_paths` array being dropped (it can span several lines).
     let mut dropping = false;
+    // Only the top-level keys of `[llm]` are replaced: the per-pass overrides after it are kept.
+    let mut in_llm = false;
     for line in toml.lines() {
         if dropping {
             dropping = !line.trim_start().starts_with(']');
             continue;
         }
-        if ["provider =", "model =", "base_url =", "reasoning_effort =", "timeout_secs ="].iter().any(|k| line.starts_with(k)) {
+        if line.starts_with('[') {
+            in_llm = line == "[llm]";
+        }
+        if in_llm && ["provider =", "model =", "base_url =", "reasoning_effort =", "timeout_secs ="].iter().any(|k| line.starts_with(k)) {
             continue;
         }
         if hide_docs && line.starts_with("existing_docs_paths =") {
@@ -76,7 +81,7 @@ fn patch_config(toml: &str, provider: &str, model: &str, base_url: &str, hide_do
         }
     }
     let llm = if provider == "local" {
-        format!("[llm]\nmodel = \"{model}\"\nbase_url = \"{base_url}\"\nreasoning_effort = \"none\"\ntimeout_secs = {LOCAL_TIMEOUT_SECS}")
+        format!("[llm]\nmodel = \"{model}\"\nbase_url = \"{base_url}\"\nreasoning_effort = \"none\"\ntimeout_secs = {timeout_secs}")
     } else {
         format!("[llm]\nprovider = \"{provider}\"\nmodel = \"{model}\"")
     };
@@ -135,24 +140,26 @@ fn option(args: &[String], name: &str, default: &str) -> String {
 
 /// `(provider, model, base URL, how to start the server)` of the LLM the run targets: the hosted
 /// `--provider`, or the `--local` server; `--model` and `--base-url` override them. No start hint for
-/// a hosted provider, nor for an explicit `--base-url` without `--local`.
+/// a hosted provider, nor for an explicit `--base-url`: it may be another server.
 fn llm_target(args: &[String]) -> (String, String, String, Option<&'static str>) {
     let provider = option(args, "--provider", "local");
     if provider != "local" && provider != "deepseek" {
         die("--provider must be `local` (default) or `deepseek`");
     }
-    let named = option(args, "--local", "");
+    // A `--local` with no value is an error, not the default.
+    let named = args.iter().position(|a| a == "--local").map(|i| {
+        args.get(i + 1).filter(|v| !v.starts_with("--")).cloned().unwrap_or_else(|| die("--local must be `igpu` or `hybrid`"))
+    });
     if provider != "local" {
-        if !named.is_empty() {
+        if named.is_some() {
             die("--local only goes with the local provider");
         }
         return (provider, option(args, "--model", DEEPSEEK_MODEL), option(args, "--base-url", LOCAL_TARGETS[0].2), None);
     }
-    let local = if named.is_empty() { LOCAL_TARGETS[0] } else {
+    let local = named.map_or(LOCAL_TARGETS[0], |named| {
         *LOCAL_TARGETS.iter().find(|t| t.0 == named).unwrap_or_else(|| die("--local must be `igpu` or `hybrid`"))
-    };
-    let explicit_url = args.iter().any(|a| a == "--base-url");
-    let hint = (!named.is_empty() || !explicit_url).then_some(local.3);
+    });
+    let hint = (!args.iter().any(|a| a == "--base-url")).then_some(local.3);
     (provider, option(args, "--model", local.1), option(args, "--base-url", local.2), hint)
 }
 
@@ -182,6 +189,10 @@ fn run(args: &[String]) -> i32 {
     if !writing_temperature.is_empty() && !is_toml_float(&writing_temperature) {
         die("--writing-temperature must be a number like 0 or 0.7");
     }
+    let timeout_secs = option("--timeout-secs", LOCAL_TIMEOUT_SECS);
+    if timeout_secs.parse::<u32>().map_or(true, |t| t == 0) {
+        die("--timeout-secs must be a positive number of seconds");
+    }
     let runs: u32 = option("--runs", "1").parse().unwrap_or_else(|_| die("--runs must be a number"));
     if runs == 0 {
         die("--runs must be at least 1");
@@ -196,12 +207,14 @@ fn run(args: &[String]) -> i32 {
         .and_then(|p| p.parent().and_then(|d| d.file_name().map(|n| n.to_string_lossy().into_owned())))
         .unwrap_or_else(|| die("the reference must live in benchmark/<repo>/"));
 
-    // The LLM must answer before we spend minutes building.
+    // The local LLM must answer before we spend minutes building.
     let host = base_url.split("://").nth(1).and_then(|r| r.split('/').next()).unwrap_or("");
-    let reachable = host.to_socket_addrs().ok().and_then(|mut a| {
-        a.find_map(|addr| TcpStream::connect_timeout(&addr, Duration::from_secs(3)).ok())
-    });
-    if !hosted && reachable.is_none() {
+    let reachable = || {
+        host.to_socket_addrs().ok().and_then(|mut a| {
+            a.find_map(|addr| TcpStream::connect_timeout(&addr, Duration::from_secs(3)).ok())
+        })
+    };
+    if !hosted && reachable().is_none() {
         let start = start.map_or_else(String::new, |command| format!(" (`{command}`)"));
         die(&format!("no LLM server answers on {host}; start it{start} or pass --base-url"));
     }
@@ -258,7 +271,7 @@ fn run(args: &[String]) -> i32 {
             }
             let toml_path = clone.join("retrodoc.toml");
             let toml = fs::read_to_string(&toml_path).unwrap();
-            let patched = patch_config(&toml, &provider, &model, &base_url, hide_docs);
+            let patched = patch_config(&toml, &provider, &model, &base_url, &timeout_secs, hide_docs);
             let patched = set_domains_from(&patched, &domains_from);
             let patched = if writing_temperature.is_empty() { patched } else { set_writing_temperature(&patched, &writing_temperature) };
             fs::write(&toml_path, patched).unwrap();
@@ -333,7 +346,7 @@ fn main() {
         }
         Some("patch-config") if args.len() == 6 || args.len() == 7 => {
             let toml = fs::read_to_string(&args[1]).unwrap_or_else(|e| die(&format!("{}: {e}", args[1])));
-            let patched = patch_config(&toml, &args[2], &args[3], &args[4], args[5] == "true");
+            let patched = patch_config(&toml, &args[2], &args[3], &args[4], LOCAL_TIMEOUT_SECS, args[5] == "true");
             print!("{}", args.get(6).map_or(patched.clone(), |mode| set_domains_from(&patched, mode)));
             0
         }

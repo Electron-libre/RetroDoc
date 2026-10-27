@@ -63,6 +63,13 @@ fn main() {
     let (ok, out) = call(&["patch-config", &toml, "local", "m1", "http://localhost:1/v1", "false"]);
     check("keeps the existing docs when shown", ok && out.contains("existing_docs_paths = [\n    \"docs\",\n    \"README.md\",\n]"));
 
+    let with_pass = write("with-pass.toml", &format!("{TOML}\n[llm.passes.use-cases]\nmodel = \"keep/me\"\ntimeout_secs = 1800\n"));
+    let (ok, out) = call(&["patch-config", &with_pass, "local", "m1", "http://localhost:1/v1", "false"]);
+    check(
+        "keeps the keys of a per-pass override",
+        ok && out.contains("[llm.passes.use-cases]\nmodel = \"keep/me\"\ntimeout_secs = 1800") && out.contains("timeout_secs = 900\n"),
+    );
+
     let (ok, out) = call(&["patch-config", &toml, "deepseek", "deepseek-chat", "-", "false"]);
     check(
         "points [llm] at a hosted provider without base_url or reasoning_effort",
@@ -98,7 +105,9 @@ fn main() {
             && out.contains("systemctl --user start llama-hybride"),
     );
     let (ok, out) = call(&["llm-target", "--local", "hybrid", "--model", "m", "--base-url", "u"]);
-    check("--model and --base-url win over --local", ok && out.starts_with("m\nu\n"));
+    check("--model and --base-url win over --local, and name no service", ok && out == "m\nu\n\n");
+    let (ok, _) = call(&["llm-target", "--local"]);
+    check("--local without a value is an error", !ok);
     let (ok, _) = call(&["llm-target", "--local", "nope"]);
     check("an unknown --local is an error", !ok);
     let (ok, out) = call(&["llm-target", "--provider", "deepseek"]);
