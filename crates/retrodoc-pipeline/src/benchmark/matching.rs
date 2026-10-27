@@ -1,13 +1,14 @@
 //! Matching what a run generated with the reference, and the recall and precision that follow.
 //!
-//! A generated name matches a reference name when a hand-written pair in `matches.yaml` says so, or,
-//! failing that, when both are the same name once normalized (`naming::normalize`). The manual pairs
-//! take precedence: an entry lets the user correct the automatic reading, and the LLM judge (a later
-//! step) only looks at what is still unmatched.
+//! A generated name matches the reference name that is the same once normalized (`naming::normalize`),
+//! and every reference name a hand-written pair in `matches.yaml` gives it: a generated item that
+//! merges several capabilities may stand for several reference items. The LLM judge (a later step)
+//! only proposes reference items that nothing covers yet.
 //!
 //! - recall: share of the reference items some generated item matches;
-//! - precision: share of the generated items that match some reference item. Several generated items
-//!   may stand for one reference item (a split), which is fine for recall and counts for precision.
+//! - precision: share of the generated items that match some reference item, each counted once
+//!   whatever the number of reference items it stands for. Several generated items may stand for one
+//!   reference item (a split), which is fine for recall and counts for precision.
 
 use std::path::Path;
 
@@ -42,7 +43,8 @@ pub struct Score {
     pub recall: Option<f32>,
     /// `None` when nothing was generated.
     pub precision: Option<f32>,
-    /// `(generated, reference)`, in the order of the generated items.
+    /// `(generated, reference)`, in the order of the generated items, one per reference item a
+    /// generated name stands for.
     pub matched: Vec<(String, String)>,
     pub unmatched_generated: Vec<String>,
     pub unmatched_reference: Vec<String>,
@@ -106,19 +108,25 @@ pub fn score(
     let mut matched = Vec::new();
     let mut unmatched_generated = Vec::new();
     let mut covered = vec![false; reference.len()];
+    let mut matched_generated = 0;
     for name in generated {
         let wanted = normalize(name);
-        let paired = pairs.iter().find(|p| normalize(&p.generated) == wanted);
-        let found = match paired {
-            Some(pair) => reference_index(&pair.reference),
-            None => reference_index(name),
-        };
-        match found {
-            Some(index) => {
-                covered[index] = true;
-                matched.push((name.clone(), reference[index].clone()));
+        let mut found: Vec<usize> = reference_index(name).into_iter().collect();
+        for pair in pairs.iter().filter(|p| normalize(&p.generated) == wanted) {
+            if let Some(index) = reference_index(&pair.reference) {
+                if !found.contains(&index) {
+                    found.push(index);
+                }
             }
-            None => unmatched_generated.push(name.clone()),
+        }
+        if found.is_empty() {
+            unmatched_generated.push(name.clone());
+            continue;
+        }
+        matched_generated += 1;
+        for index in found {
+            covered[index] = true;
+            matched.push((name.clone(), reference[index].clone()));
         }
     }
     let unmatched_reference = reference
@@ -129,7 +137,7 @@ pub fn score(
         .collect();
     Ok(Score {
         recall: share(covered.iter().filter(|c| **c).count(), reference.len()),
-        precision: share(matched.len(), generated.len()),
+        precision: share(matched_generated, generated.len()),
         matched,
         unmatched_generated,
         unmatched_reference,
@@ -240,24 +248,49 @@ mod tests {
         assert_eq!(score.precision, Some(0.5));
     }
 
+    // spec: BSC-1
     #[test]
-    fn a_manual_pair_wins_over_the_name() {
-        // "Billing" is also a reference name, but the user says it stands for "Payments".
+    fn a_pair_adds_to_the_name() {
+        // "Billing" is also a reference name, and the user says it holds "Payments" as well.
         let score = score_of(
             &["Billing"],
-            &["Billing", "Payments"],
+            &["Billing", "Payments", "Shipping"],
             &[pair("billing", "Payments")],
         )
         .unwrap();
         assert_eq!(
             score.matched,
-            [("Billing".to_string(), "Payments".to_string())]
+            [
+                ("Billing".to_string(), "Billing".to_string()),
+                ("Billing".to_string(), "Payments".to_string())
+            ]
         );
-        assert_eq!(score.unmatched_reference, ["Billing"]);
-        assert_eq!(score.recall, Some(0.5));
-        assert_eq!(score.precision, Some(1.0));
+        assert_eq!(score.unmatched_reference, ["Shipping"]);
+        assert!((score.recall.unwrap() - 2.0 / 3.0).abs() < 1e-6);
     }
 
+    // spec: BSC-1, BSC-2
+    #[test]
+    fn a_merge_counts_for_each_reference_item_and_once_for_precision() {
+        let score = score_of(
+            &["Voting and flagging", "A", "B", "C"],
+            &["Upvote", "Flag", "Hide", "Other"],
+            &[
+                pair("Voting and flagging", "Upvote"),
+                pair("Voting and flagging", "Flag"),
+                pair("Voting and flagging", "Hide"),
+                pair("Voting and flagging", "flag"),
+            ],
+        )
+        .unwrap();
+        assert_eq!(score.recall, Some(0.75), "a repeated pair counts once");
+        assert_eq!(score.precision, Some(0.25));
+        assert_eq!(score.matched.len(), 3);
+        assert_eq!(score.unmatched_generated, ["A", "B", "C"]);
+        assert_eq!(score.unmatched_reference, ["Other"]);
+    }
+
+    // spec: BSC-2
     #[test]
     fn a_split_counts_once_for_recall_and_each_time_for_precision() {
         let score = score_of(
@@ -274,6 +307,7 @@ mod tests {
         assert_eq!(score.unmatched_generated, ["Noise"]);
     }
 
+    // spec: BSC-3
     #[test]
     fn a_pair_for_a_generated_name_absent_from_this_run_is_ignored() {
         let score = score_of(&["A"], &["B"], &[pair("Gone", "B")]).unwrap();
@@ -281,6 +315,7 @@ mod tests {
         assert_eq!(score.recall, Some(0.0));
     }
 
+    // spec: BSC-3
     #[test]
     fn a_pair_naming_an_unknown_reference_item_is_an_error() {
         let error = score_of(&["A"], &["B"], &[pair("A", "Typo")])

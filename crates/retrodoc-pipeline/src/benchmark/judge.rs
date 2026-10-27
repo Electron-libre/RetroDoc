@@ -76,8 +76,8 @@ impl Judgement {
 }
 
 impl Matches {
-    /// The hand-written pairs followed by the judge's proposals (the first pair for a generated name
-    /// wins, so the manual ones keep priority).
+    /// The hand-written pairs followed by the judge's proposals; every pair counts, so a generated
+    /// name may stand for a reference item of each.
     #[must_use]
     pub fn with_proposals(&self, judgement: &Judgement) -> Matches {
         Matches {
@@ -447,7 +447,7 @@ mod tests {
     }
 
     #[test]
-    fn manual_pairs_keep_priority_over_proposals() {
+    fn merges_the_manual_pairs_and_the_proposals() {
         let matches = Matches {
             domains: vec![pair("Billing", "Payments")],
             features: vec![],

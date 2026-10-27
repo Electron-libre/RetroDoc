@@ -87,7 +87,9 @@ a later run generates. The figures are therefore read like this:
 3. Copy the pairs you checked and find right into `benchmark/<repo>/matches.yaml` (the pairs of a
    `domains:` and a `features:` list: `generated` is the model's name, `reference` a name of
    `reference.yaml`). Never copy a pair you did not check. A pair naming an unknown reference name
-   makes the next run fail on purpose.
+   makes the next run fail on purpose. A generated feature that holds several reference features
+   (one "voting and flagging" for upvote and flag) gets one pair for each: it counts for each in recall,
+   once in precision.
 4. A narrative the judge rated as technical is worth reading too: if the rating is wrong, say so in the
    report; there is no file to correct it.
 

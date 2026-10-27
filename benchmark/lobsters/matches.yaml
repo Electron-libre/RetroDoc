@@ -1,6 +1,6 @@
 # Pairs checked by hand from the judge's proposals of the first run (deepseek-chat, docs hidden, 2026-10-27).
 # `generated` is a name the model produced in a run, `reference` a name of reference.yaml.
-# A generated feature that holds a reference feature and more (voting and flagging) is paired with it.
+# A generated feature that holds several reference features (voting and flagging) is paired with each of them.
 # Left out on purpose, judged wrong:
 #   Story lookup and access -> Browse the front page  (reading one story by its id, not the ranked lists)
 #   Account and Ban Emails  -> Manage my account      (e-mails sent on a ban or a password reset, not the settings)
@@ -100,3 +100,20 @@ features:
     reference: Talk with the moderators
   - generated: Tag and category administration
     reference: Manage tags and categories
+  # A generated feature that holds several reference features: one pair for each one it holds besides the above.
+  - generated: Story submission and editing
+    reference: Edit and delete my story
+  - generated: Story voting, flagging, hiding and saving
+    reference: Flag stories and comments
+  - generated: Story voting, flagging, hiding and saving
+    reference: Hide and save stories
+  - generated: Voting and flagging
+    reference: Flag stories and comments
+  - generated: Commenting and discussion
+    reference: Edit and delete my comment
+  - generated: Commenting and threaded discussion
+    reference: Edit and delete my comment
+  - generated: Story browsing and feeds
+    reference: Browse by tag, domain or origin
+  - generated: Story browsing and feeds
+    reference: Follow the site in a feed reader
