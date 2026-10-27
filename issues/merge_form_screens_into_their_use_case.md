@@ -41,7 +41,7 @@ use cases of such a pair that are two separate ones. Then, candidates (can be co
 3. [ ] (on hold) Measure again on a new run, update the docs, close.
 
 ## Decisions
-* Reference run: the latest saved run in `~/retrodoc-runs` made after `ab34246` (use cases cite their entry points).
+* Reference run: the latest saved run of the runs directory made after `ab34246` (use cases cite their entry points).
 * The pairing must not depend on Rails: an opening entry point is an `http_route` whose `outputs` are only `response`, on a `resource` that also has an entry point with a `db_write`, `email`, `event` or `external_call` output.
 * Three cases are counted: an opening split from its submit (candidate), a showing entry point on a resource with a submit (ambiguous, sampled by hand), a showing entry point on a resource without one (legitimate).
 * Threshold (user: "see if it is worth it"): above 5% of the use cases list, do the mechanical merge; otherwise the prompt stays as is.
@@ -52,4 +52,7 @@ use cases of such a pair that are two separate ones. Then, candidates (can be co
 * So the real pairs are about 2 to 5% of the list, around the 5% threshold: neither the mechanical merge nor the pair input is worth it on this run.
 
 ## On hold (user, 2026-10-15)
+Ledger (2026-10-27): a complete run of the same application is already saved (762 use cases, 750 of them cite
+their entry points; group G1 of the planned measures in the ledger of measures (see `CLAUDE.md`)), so step 3 is a `form_pairs_measure`
+on it, with no new LLM call.
 The run is too small (the issue's 184 use cases are not saved). Take it again with a complete run, which costs LLM calls: if the pairs stay under 5%, close with this measure (candidate 3); otherwise the mechanical merge needs a rule that tells an opening from a consultation.

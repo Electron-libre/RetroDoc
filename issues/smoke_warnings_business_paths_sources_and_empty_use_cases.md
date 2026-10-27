@@ -23,7 +23,8 @@ absorb or demote them like the others, without hiding a lost piece of documentat
 
 # Approach
 
-First measure: several runs, count each kind, and look at the raw answer behind each (debug log): was
+First measure: count each kind in the saved smoke logs of `delivery_router` first (listed in group G1 of
+the ledger of measures (see `CLAUDE.md`)), then in the smoke runs other issues make anyway, rather than runs of its own: several runs, count each kind, and look at the raw answer behind each (debug log): was
 the slug empty because the model answered an empty object, a use case with `steps: []`, or an unexpected shape?
 
 1. Business paths: a near-miss path (closest existing source file) is resolved before being dropped, or the

@@ -26,7 +26,7 @@ measure, whether and how the global frame should be injected, then keep the best
 # Approach
 
 1. A steadier measure first: 3 runs or more per setting on `linkding`, the features pass replayed on fixed
-   domains (the domain clustering varies too much between runs to compare settings), recall and precision
+   domains (`pass_replay features`, baseline in group G2 of the ledger of measures (see `CLAUDE.md`)) (the domain clustering varies too much between runs to compare settings), recall and precision
    audited by hand rather than judged.
 2. Settings to compare: no brief; brief in the system prompt instead of the head of the user prompt; brief
    only for domains and features; evidence limited to the use cases; fewer or longer extracts; extracts picked

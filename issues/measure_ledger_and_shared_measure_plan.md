@@ -84,7 +84,7 @@ LLM run is made by this issue.
    a paid or long run, append a line after, keep asking before a paid run, and name new runs `<issue>-<short commit>-<n>`;
    `CLAUDE.md` also says to update the planned measures when an issue is created or the queue re-ranked;
    verified by `just test-harness` and `just check`.
-3. [ ] Shared plan: the "Planned measures" section of the ledger (groups of the Findings) and the amended Approach of
+3. [x] Shared plan: the "Planned measures" section of the ledger (groups of the Findings) and the amended Approach of
    the issues it changes (`measure_model_split_per_pass` replays instead of full benchmarks, the no-LLM issues pointed
    at saved runs, one complete large Rails run shared by two issues); verified by `just check-issue` on each amended issue.
 
@@ -123,3 +123,21 @@ LLM run is made by this issue.
 - red: `FAIL - the skill reads and appends the ledger of measures` (`test_benchmark.rs`; same check added to
   `test_smoke.rs`).
 - not verified: that the agent follows the rule in a later session (only the text is tested).
+
+## Summary of deliverable 3
+- done: "Planned measures" in the ledger, six groups: G1 saved runs only (`merge_form_screens` step 3,
+  `rules_plumbing` step 1, `parsed_references` step 1, `smoke_warnings` first count), G2 baselines of each pass
+  on frozen linkding (use cases valid at 1c6f592, rules to check, domains and features to rerun for cents),
+  G3 model split by replays, G4 one `contexts` run of the large Rails application, G5 second application,
+  G6 parked local runs. Approach amended in 7 issues: `measure_model_split_per_pass` (replays, then one
+  benchmark of the chosen split), `contexts_residual_size_and_names` (map lost: a `contexts` run first),
+  `merge_form_screens_into_their_use_case` (a complete run is saved: step 3 needs no LLM call),
+  `rules_plumbing_and_screen_noise`, `smoke_warnings_business_paths_sources_and_empty_use_cases`,
+  `brief_injection_experiments`, `settle_experimental_settings` (pointers to the ledger groups).
+- checks: `just check-issue` passes on 6 issues; on `merge_form_screens_into_their_use_case` it only
+  reports its `# Tracking` section (issue already in progress); its private path was replaced.
+- Code review: none (issues only).
+- red: none (plan, not code).
+- decisions needed: the user validates the amended Approaches (especially G3: replays replace the full
+  benchmarks of `measure_model_split_per_pass`) and decides on the orphans of the ledger (63 empty
+  directories, `reconcile-replay-old/`, 540 MB).

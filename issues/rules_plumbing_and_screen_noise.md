@@ -19,7 +19,8 @@ gained less than the one before.
 # Approach
 1. Measure first on a fixed set of statements (replay the judgement on saved `rules-stated.yaml` of several
    runs and repositories), not on a new run each time, to separate the effect of a prompt from the variance
-   of the statement pass.
+   of the statement pass. The saved runs that hold one (linkding, `delivery_router`, a Django application, the
+   large Rails application) are listed in group G1 of the ledger of measures (see `CLAUDE.md`).
 2. Candidates: (a) examples of what is not a rule in the statement prompt (a first sentence on storage did not
    move the count on a small repository); (b) a second class question with the neighbours of the rule (same
    file, same feature); (c) lower the rank of the rules backed by code alone in the rendered pages.
