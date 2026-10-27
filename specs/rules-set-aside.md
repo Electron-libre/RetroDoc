@@ -1,6 +1,6 @@
 ---
 id: RSA
-status: draft
+status: accepted
 adrs: [0021]
 ---
 

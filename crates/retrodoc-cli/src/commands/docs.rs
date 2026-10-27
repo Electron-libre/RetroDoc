@@ -161,7 +161,10 @@ pub fn add_doc_debt(
 ) {
     // Only while the rules are on: a file left by an earlier run is not what the last one judged.
     if config.pipeline.rules {
-        report.with_set_aside(retrodoc_pipeline::load_set_aside(repo_root).unwrap_or_default());
+        report.with_set_aside(
+            retrodoc_pipeline::load_set_aside(repo_root).unwrap_or_default(),
+            &config.rules,
+        );
     }
     let rules = retrodoc_pipeline::load_rules(repo_root).unwrap_or_default();
     match project_docs(repo_root, config) {

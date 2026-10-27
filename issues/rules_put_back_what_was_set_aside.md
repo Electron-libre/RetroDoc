@@ -48,7 +48,7 @@ concerned (none for a rule: the dropped rule is kept whole in `rules-set-aside.y
 1. [ ] Measure: `--rules` with DeepSeek on two more repositories, read their set-aside lists, count the wrong cases; figures here; verified by the figures recorded.
 2. [x] Features: `[rules] keep_features` in `retrodoc.toml`, a listed feature skips the tests question, the list is in its fingerprint, unknown slug warned; verified by pipeline tests with a fake `LlmProvider` (calls counted); makes true RSA-1, RSA-2, RSA-5 (features), RSA-6.
 3. [x] Rules: the dropped rule kept whole in `rules-set-aside.yaml`, `[rules] keep_rules` puts it back at publishing (no call), removal sets it aside again, unknown or old-format slug warned; verified by pipeline tests with a fake `LlmProvider`; makes true RSA-3, RSA-4, RSA-5 (rules), RSA-8.
-4. [ ] Report: the key to use at each set-aside list, rules put back marked; docs (`docs/crates/pipeline.md`, README config); verified by a report test; makes true RSA-7.
+4. [x] Report: the key to use at each set-aside list, rules put back marked; docs (`docs/crates/pipeline.md`, README config); verified by a report test; makes true RSA-7.
 
 ## Decisions
 - Mode: autonomous
@@ -93,6 +93,26 @@ done: a rule dropped as noise is kept whole in `rules-set-aside.yaml` (`AsideRul
 | code review | see below |
 
 red: `assertion left == right failed: left: ["orders-2"], right: ["orders-1", "orders-2"]` (the listed rule not published).
+
+Code review: no findings.
+
+not verified: a real run (no LLM run in this deliverable).
+
+decisions needed: none.
+
+## Deliverable 4: report
+
+done: each set-aside list of the debt report names the key that puts an entry back (`keep_features`, `keep_rules`), and a rule put back is marked `put back by hand`; spec RSA set `accepted`.
+
+| check | result |
+|---|---|
+| tests | pass (1 new in `report.rs`) |
+| lint | pass |
+| specs | RSA-7 traced; every RSA requirement traced, spec `accepted` |
+| docs | `docs/crates/pipeline.md` |
+| code review | see below |
+
+red: the assertion on the `keep_features` hint line failed (no hint in the section).
 
 Code review: no findings.
 

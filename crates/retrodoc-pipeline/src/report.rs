@@ -9,6 +9,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::path::PathBuf;
 
+use retrodoc_core::config::RulesConfig;
 use retrodoc_core::model::{
     ConfidenceScore, Domain, Feature, SubDomain, UseCase, LOW_CONFIDENCE_THRESHOLD,
 };
@@ -75,6 +76,8 @@ pub struct DebtReport {
     pub reconciliation: Option<Reconciliation>,
     /// What the rules pass set aside on a judgement of the LLM: to be checked. `None` when nothing.
     pub set_aside: Option<SetAside>,
+    /// The slugs of the rules of `set_aside` that `keep_rules` of `retrodoc.toml` puts back.
+    pub rules_put_back: BTreeSet<String>,
 }
 
 /// Skipped files listed in the Markdown report (the rest is only counted).
@@ -273,6 +276,7 @@ pub fn build_report(
         technical_support: Vec::new(),
         reconciliation: None,
         set_aside: None,
+        rules_put_back: BTreeSet::new(),
     }
 }
 
@@ -333,8 +337,15 @@ impl DebtReport {
         self.reconciliation = Some(reconciliation);
     }
 
-    /// Adds what the rules pass set aside on a judgement of the LLM. Nothing when it set nothing aside.
-    pub fn with_set_aside(&mut self, set_aside: SetAside) {
+    /// Adds what the rules pass set aside on a judgement of the LLM, and which of its rules `put_back`
+    /// puts back. Nothing when it set nothing aside.
+    pub fn with_set_aside(&mut self, set_aside: SetAside, put_back: &RulesConfig) {
+        self.rules_put_back = set_aside
+            .rules
+            .iter()
+            .filter(|r| put_back.keep_rules.contains(&r.slug))
+            .map(|r| r.slug.clone())
+            .collect();
         self.set_aside = (!set_aside.is_empty()).then_some(set_aside);
     }
 
@@ -351,7 +362,9 @@ impl DebtReport {
             let _ = write!(
                 md,
                 "\n### {} feature(s) without rules\n\nTaken for features about tests, so no rule was \
-                 asked of them; if one of them is a business feature, its rules are missing:\n\n",
+                 asked of them; if one of them is a business feature, its rules are missing. To put \
+                 one back, add its slug to `keep_features` in the `[rules]` section of \
+                 `retrodoc.toml` (that feature alone is asked again):\n\n",
                 aside.features.len()
             );
             for AsideFeature {
@@ -380,7 +393,8 @@ impl DebtReport {
         if !aside.rules.is_empty() {
             let _ = write!(
                 md,
-                "\n### {} rule(s) dropped as noise\n\n",
+                "\n### {} rule(s) dropped as noise\n\nTo put one back, add its slug to `keep_rules` \
+                 in the `[rules]` section of `retrodoc.toml` (no LLM call):\n\n",
                 aside.rules.len()
             );
             for AsideRule {
@@ -390,7 +404,12 @@ impl DebtReport {
                 ..
             } in aside.rules.iter().take(MAX_LISTED_RULES)
             {
-                let _ = writeln!(md, "- `{slug}` ({class}) {}", one_line(statement));
+                let mark = if self.rules_put_back.contains(slug) {
+                    ", put back by hand"
+                } else {
+                    ""
+                };
+                let _ = writeln!(md, "- `{slug}` ({class}{mark}) {}", one_line(statement));
             }
             if aside.rules.len() > MAX_LISTED_RULES {
                 let _ = writeln!(md, "- … and {} more", aside.rules.len() - MAX_LISTED_RULES);
@@ -902,24 +921,27 @@ mod tests {
     #[test]
     fn what_the_rules_pass_set_aside_is_listed_to_be_checked() {
         let mut report = build_report(&DomainMap::default(), &[], &[]);
-        report.with_set_aside(SetAside::default());
+        report.with_set_aside(SetAside::default(), &RulesConfig::default());
         assert!(!report.to_markdown().contains("Set aside by the rules pass"));
 
-        report.with_set_aside(SetAside {
-            features: vec![AsideFeature {
-                slug: "email-verification".into(),
-                name: "Verify an email".into(),
-                description: "Checks the address\nof a new user".into(),
-                reason: "describes how the application is tested".into(),
-            }],
-            rules: vec![AsideRule {
-                slug: "orders-1".into(),
-                feature: "orders".into(),
-                statement: "An order is stored by the customer id.".into(),
-                class: "storage".into(),
-                rule: None,
-            }],
-        });
+        report.with_set_aside(
+            SetAside {
+                features: vec![AsideFeature {
+                    slug: "email-verification".into(),
+                    name: "Verify an email".into(),
+                    description: "Checks the address\nof a new user".into(),
+                    reason: "describes how the application is tested".into(),
+                }],
+                rules: vec![AsideRule {
+                    slug: "orders-1".into(),
+                    feature: "orders".into(),
+                    statement: "An order is stored by the customer id.".into(),
+                    class: "storage".into(),
+                    rule: None,
+                }],
+            },
+            &RulesConfig::default(),
+        );
         let md = report.to_markdown();
         assert!(md.contains("## Set aside by the rules pass"), "{md}");
         assert!(md.contains("`email-verification`"), "{md}");
@@ -930,6 +952,52 @@ mod tests {
         );
         assert!(md.contains("`orders-1` (storage)"), "{md}");
         assert!(md.contains("rules-set-aside.yaml"), "{md}");
+    }
+
+    // spec: RSA-7
+    #[test]
+    fn the_set_aside_lists_say_how_to_put_an_entry_back_and_mark_the_rules_put_back() {
+        let rule = |slug: &str| AsideRule {
+            slug: slug.into(),
+            feature: "orders".into(),
+            statement: "An order is stored by the customer id.".into(),
+            class: "storage".into(),
+            rule: None,
+        };
+        let mut report = build_report(&DomainMap::default(), &[], &[]);
+        report.with_set_aside(
+            SetAside {
+                features: vec![AsideFeature {
+                    slug: "email-verification".into(),
+                    name: "Verify an email".into(),
+                    description: "Checks the address".into(),
+                    reason: "describes how the application is tested".into(),
+                }],
+                rules: vec![rule("orders-1"), rule("orders-3")],
+            },
+            &RulesConfig {
+                keep_features: Vec::new(),
+                keep_rules: vec!["orders-3".into(), "ghost-1".into()],
+            },
+        );
+
+        let md = report.to_markdown();
+        assert!(
+            md.contains(
+                "add its slug to `keep_features` in the `[rules]` section of `retrodoc.toml`"
+            ),
+            "{md}"
+        );
+        assert!(
+            md.contains("add its slug to `keep_rules` in the `[rules]` section of `retrodoc.toml`"),
+            "{md}"
+        );
+        assert!(md.contains("- `orders-1` (storage) An order"), "{md}");
+        assert!(
+            md.contains("- `orders-3` (storage, put back by hand) An order"),
+            "{md}"
+        );
+        assert!(!md.contains("ghost-1"), "{md}");
     }
 
     #[test]
