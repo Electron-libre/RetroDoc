@@ -214,3 +214,8 @@ features:
     reference: Install as an app
   - generated: REST API for programmatic access
     reference: Use the REST API
+  # A generated feature that holds several reference features: one pair for each (shown-1 of the 2026-10-26 run).
+  - generated: Create, edit and delete bookmarks
+    reference: Save a bookmark
+  - generated: Administration and background task monitoring
+    reference: Manage users

@@ -96,6 +96,9 @@ a later run generates. The figures are therefore read like this:
 ## After the run
 
 - Report the table, the number of runs and what moved beyond the spread.
+- Compare only with figures scored by the same scoring code. The feature recalls of the ledger recorded before
+  a generated feature could count for several reference features (spec `benchmark-scoring`) are lower by up to
+  19 points; re-score the saved runs instead (`~/retrodoc-runs/scripts/merged-features/rescore.sh`, no LLM).
 - A `FAIL` line (generate or benchmark failed in a run) is a finding: read the log around the first
   `WARN`/error. A run that failed is missing from the table, which says so in its `Runs` column.
 - Don't commit the clones, logs or tables (they live in `~/retrodoc-runs`); commit reference and match files only.

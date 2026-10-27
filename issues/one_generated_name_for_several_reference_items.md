@@ -61,7 +61,7 @@ the generated features (script `~/retrodoc-runs/scripts/merged-features/uncovere
    `benchmark-scoring` committed; makes true BSC-1, BSC-2, BSC-3.
 2. [x] Judge: offered every generated item against the uncovered reference items, keeps several reference items
    for one generated name; verified by `judge.rs` tests on the fake LLM; makes true BSC-4, BSC-5 (spec `accepted`).
-3. [ ] Re-score and record: re-score the saved lobsters and linkding runs with the new pairs (no LLM); the ledger
+3. [x] Re-score and record: re-score the saved lobsters and linkding runs with the new pairs (no LLM); the ledger
    says the feature figures before this change are not comparable; skill `quality-benchmark` says a merged feature
    counts for each reference item it holds; verified by `just check`.
 
@@ -85,3 +85,17 @@ the generated features (script `~/retrodoc-runs/scripts/merged-features/uncovere
 - red: `keeps_several_reference_items...` kept `[Billing -> Payments]` only; `offers_every_generated_feature...`
   proposed `[]` (Checkout, name-matched, was not offered).
 - not verified: what the model answers with the new prompt (a paid judge run, deliverable 3 asks first).
+
+## Deliverable 3 (re-score and record)
+- done: 2 superset pairs in `benchmark/linkding/matches.yaml`; saved runs re-scored with `retrodoc benchmark`
+  (no LLM; judged = `matches.yaml` + the saved `judge.yaml`); ledger line added; skill `quality-benchmark` says
+  older feature recalls are not comparable.
+
+| Run | Features strict before -> after | Features judged before -> after | Precision judged |
+|---|---|---|---|
+| lobsters d8d8c92-1 | 81% -> 100% | 81% -> 100% | 51% (unchanged) |
+| linkding 10-26 shown-1 | 12% -> 21% | 75% -> 83% | 33% (unchanged) |
+
+- checks: `just check` ok, `just test-harness` ok; code review low: no findings.
+- not verified: a new judge call with the new prompt (paid, not run); lobsters at 100% saturates on features,
+  its domains (43%) still separate settings.
