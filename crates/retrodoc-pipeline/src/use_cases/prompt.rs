@@ -37,6 +37,10 @@ service), and use \"System\" only for the application itself. Give each use case
 `primary_actor`: the known human actor who triggers it, and begin its steps with the step in \
 which that actor acts (submits the request, opens the page, confirms).";
 
+/// Added when no actors list gives the kind of an actor: the answer gives it.
+pub(super) const ACTOR_KIND_ADDENDUM: &str = " No list of actors is given: write each step's \
+actor as an object {\"name\":\"...\",\"kind\":\"human|system\"}, kind \"human\" for a person.";
+
 /// Asks for the business-level account of each use case, next to its
 /// technical steps (the two output levels).
 pub(super) const NARRATIVE_ADDENDUM: &str =
@@ -50,13 +54,13 @@ pub(super) const USE_CASES_SYSTEM_PROMPT: &str =
     "You are documenting a software project from a functional \
 point of view. Given a feature and the source code implementing it, describe its use cases: \
 concrete scenarios in which an actor achieves a goal with this feature. For each use case give \
-the ordered steps, each with its actor (kind \"human\" for a person, \"system\" for a software \
-component, service or external system), the action performed, and in `code` the code the step is grounded on: the number of the file \
+the ordered steps, each with its actor (the name of the person, or of the software component, \
+service or external system that acts), one sentence saying what the actor does, naming the code \
+identifiers involved, and in `code` the code the step is grounded on: the number of the file \
 shown before its excerpt and the line range of the numbered lines, as \"F2:10-24\". Only describe behavior visible in the code provided; do not \
 invent steps. Reply with ONLY a single JSON object, no prose and no Markdown code fence, matching \
 this shape: {\"use_cases\":[{\"slug\":\"kebab-case\",\"name\":\"...\",\"description\":\"...\",\
-\"steps\":[{\"description\":\"...\",\"actor\":{\"name\":\"...\",\"kind\":\"human|system\"},\
-\"action\":\"short verb phrase\",\"code\":[\"F1:10-24\"]}]}]}.";
+\"steps\":[{\"actor\":\"...\",\"text\":\"...\",\"code\":[\"F1:10-24\"]}]}]}.";
 
 /// The system prompt: the base, the narrative request, and the parts that
 /// only apply when the feature has entry points / the actors are known.
@@ -67,6 +71,8 @@ pub(super) fn system_prompt(has_entry_points: bool, has_actors: bool) -> String 
     }
     if has_actors {
         prompt.push_str(ACTORS_ADDENDUM);
+    } else {
+        prompt.push_str(ACTOR_KIND_ADDENDUM);
     }
     prompt
 }

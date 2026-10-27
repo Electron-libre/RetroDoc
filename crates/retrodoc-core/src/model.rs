@@ -157,9 +157,24 @@ pub struct Step {
     pub order: u32,
     pub description: String,
     pub actor: Actor,
+    /// A short verb phrase. Empty when the LLM wrote one text per step, kept
+    /// in `description` (`issues/shorter_use_case_answers.md`).
+    #[serde(default)]
     pub action: String,
     /// Files/lines of code this step is grounded on.
     pub source_refs: Vec<SourceRef>,
+}
+
+impl Step {
+    /// What the step does in few words: its action, else its text.
+    #[must_use]
+    pub fn label(&self) -> &str {
+        if self.action.trim().is_empty() {
+            self.description.trim()
+        } else {
+            &self.action
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -282,6 +297,21 @@ mod tests {
             diagram_mermaid: None,
             confidence: confidence.map(|v| ConfidenceScore::new(v, None)),
         }
+    }
+
+    #[test]
+    fn a_step_with_one_text_has_no_action_and_is_labelled_by_its_text() {
+        let step: Step = serde_json::from_str(
+            r#"{"order":1,"description":"Saves the invoice.","actor":{"name":"System","kind":"system"},"source_refs":[]}"#,
+        )
+        .unwrap();
+        assert_eq!(step.action, "");
+        assert_eq!(step.label(), "Saves the invoice.");
+        let step = Step {
+            action: "saves".into(),
+            ..step
+        };
+        assert_eq!(step.label(), "saves");
     }
 
     #[test]

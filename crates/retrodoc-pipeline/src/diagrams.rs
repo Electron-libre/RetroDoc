@@ -59,11 +59,25 @@ pub fn sequence_diagram(steps: &[Step]) -> Option<String> {
             diagram,
             "    P{from}->>P{to}: {}. {}",
             step.order,
-            sanitize(&step.action)
+            sanitize(&shortened(step.label()))
         );
         previous = &step.actor.name;
     }
     Some(diagram)
+}
+
+/// Characters of a message of the diagram before it is cut at a word.
+const MAX_LABEL_CHARS: usize = 60;
+
+/// `text` cut after its last whole word within `MAX_LABEL_CHARS`, marked with
+/// `…`: a step written as one text is longer than an action.
+fn shortened(text: &str) -> String {
+    if text.chars().count() <= MAX_LABEL_CHARS {
+        return text.to_string();
+    }
+    let cut: String = text.chars().take(MAX_LABEL_CHARS).collect();
+    let words = cut.rsplit_once(' ').map_or(cut.as_str(), |(head, _)| head);
+    format!("{}…", words.trim_end_matches([',', ';', ' ']))
 }
 
 /// Strips the characters that terminate or corrupt a Mermaid message/label
@@ -118,6 +132,24 @@ mod tests {
              \x20   P1->>P2: 2. validates, stores  1\n\
              \x20   P2->>P1: 3. sees receipt\n"
         );
+    }
+
+    #[test]
+    fn a_step_without_action_shows_the_start_of_its_text() {
+        let mut long = step(1, "System", ActorKind::System, "");
+        long.description =
+            "Validates the bookmark form, stores the bookmark and schedules the loading of its favicon."
+                .to_string();
+        let mut short = step(2, "System", ActorKind::System, "");
+        short.description = "Redirects to the list.".to_string();
+
+        let diagram = sequence_diagram(&[long, short]).unwrap();
+
+        assert!(
+            diagram.contains("P1->>P1: 1. Validates the bookmark form, stores the bookmark and…\n"),
+            "{diagram}"
+        );
+        assert!(diagram.contains("P1->>P1: 2. Redirects to the list.\n"));
     }
 
     #[test]

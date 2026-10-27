@@ -148,6 +148,20 @@ async fn start(
     }
 }
 
+/// Copies the `artifact` of a run to the directory the environment variable `var` names, as `name`,
+/// when it is set. A run that wrote no such file has nothing to keep.
+fn keep(work: &Path, artifact: Artifact, var: &str, name: &str) -> Result<(), Failure> {
+    let Some(dir) = std::env::var_os(var) else {
+        return Ok(());
+    };
+    let from = artifact.path(work);
+    std::fs::create_dir_all(&dir)?;
+    if from.exists() {
+        std::fs::copy(from, Path::new(&dir).join(name))?;
+    }
+    Ok(())
+}
+
 async fn rules(setup: &Setup) -> Result<(), Failure> {
     let mut figures = Vec::new();
     for n in 1..=setup.runs {
@@ -165,14 +179,12 @@ async fn rules(setup: &Setup) -> Result<(), Failure> {
         .await?;
         let total = tracker.report().total();
         // RETRODOC_KEEP_RULES=<dir>: keep the rules of each run to read them (`rules-<n>.yaml`).
-        if let Some(dir) = std::env::var_os("RETRODOC_KEEP_RULES") {
-            let from = Artifact::Rules.path(work.path());
-            std::fs::create_dir_all(&dir)?;
-            // A run that published no rule wrote no file: nothing to keep.
-            if from.exists() {
-                std::fs::copy(from, Path::new(&dir).join(format!("rules-{n}.yaml")))?;
-            }
-        }
+        keep(
+            work.path(),
+            Artifact::Rules,
+            "RETRODOC_KEEP_RULES",
+            &format!("rules-{n}.yaml"),
+        )?;
         eprintln!(
             "run {n}/{}: {} rules, {} prompt tokens of which {} cached",
             setup.runs, run.published, total.prompt_tokens, total.cached_tokens
@@ -202,6 +214,13 @@ async fn use_cases(setup: &mut Setup) -> Result<(), Failure> {
             let origin = setup.origin();
             setup.frozen.replace_use_cases(work.path(), &origin)?;
         }
+        // RETRODOC_KEEP_USE_CASES=<dir>: keep the use cases of each run (`use-cases-<n>.yaml`).
+        keep(
+            work.path(),
+            Artifact::UseCases,
+            "RETRODOC_KEEP_USE_CASES",
+            &format!("use-cases-{n}.yaml"),
+        )?;
         let total = tracker.report().total();
         eprintln!(
             "run {n}/{}: {} use cases, {} prompt tokens of which {} cached",

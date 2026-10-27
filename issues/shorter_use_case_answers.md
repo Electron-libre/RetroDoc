@@ -87,7 +87,7 @@ instruction "only the steps the reader observes" is not estimable without a call
 4. [x] (a) Compact citations: files numbered in the prompt, a citation as `"F2:10-24"` (the rules pass's form, its reading moved to `citations.rs`); a
    path still accepted; verified by grounding tests (number to path, unknown number dropped); one replay,
    kept if within the spread.
-5. [ ] (b) One text per step and the actor as a name (kind from the actors list, else `System` / human
+5. [x] (b) One text per step and the actor as a name (kind from the actors list, else `System` / human
    by the list); verified by grounding and render tests (old artifacts with `action` still load and render);
    one replay, kept or reverted.
 6. [ ] (c) Fewer system steps: only the steps that change what the reader observes, with a cap; verified by a
@@ -123,6 +123,7 @@ instruction "only the steps the reader observes" is not estimable without a call
 |---|---|---|---|---|---|---|---|---|---|---|
 | current (2026-10-27) | 80 | 79% | 65% | 349 | 100% | 68% | 32 | 275,026 | 34,146 | 176 |
 | (a) `"F2:10-24"` | 80 | 95% | 70% | 346 | 100% | 68% | 32 | 276,602 | 27,426 (-20%) | 153 |
+| (a+b) one text, actor name | 81 | 81% | 67% | 351 | 100% | 66% | 32 | 276,378 | 23,679 (-31%) | 145 |
 
 ## Summary of deliverables 3 and 4
 - done: baseline replay; (a) kept: steps cite `"F2:10-24"`, the files are numbered in the prompt, the
@@ -133,3 +134,16 @@ instruction "only the steps the reader observes" is not estimable without a call
 - red: the prompt did not ask for `"code":["F1:10-24"]` (test `steps_cite_the_files_by_their_number_in_the_prompt`).
 - not verified: a local model (only `deepseek-chat`); the prompt is not in the fingerprints, so saved use
   cases keep their shape until `generate --force`.
+
+## Summary of deliverable 5
+- done: (b) kept: a step is `{"actor": "<name>", "text": "...", "code": [...]}`; the text goes to
+  `Step.description`, `Step.action` stays empty (`#[serde(default)]`, `Step::label` falls back on the text);
+  the actor's kind comes from the actors list, else system; the diagram cuts the text at 60 characters on a
+  word; render, MCP and confidence prompt drop the empty action; old steps still read. Replay: completion
+  tokens -14% after (a), -31% in all; use cases, judge and grounding within one run's noise (checks pass 66%
+  against 68%). `pass_replay` keeps the use cases of a run with `RETRODOC_KEEP_USE_CASES`.
+- Code review: no findings (two passes, the second after the prompt with no actors list).
+- red: `no method named label found for struct Step` (and the new tests of grounding, diagram and render).
+- not verified: the share of human steps under (b) (the replay did not keep its use cases); checked on the
+  run of (c), which reads the actors the same way. With no actors list, the prompt asks for the
+  `{"name", "kind"}` object again (`ACTOR_KIND_ADDENDUM`), so a person keeps its kind.

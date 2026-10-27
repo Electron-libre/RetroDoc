@@ -32,8 +32,12 @@ pub(super) struct RawUseCase {
 /// whole answer.
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub(super) struct RawStep {
-    #[serde(default, deserialize_with = "lenient_text")]
+    /// The one text of the step (`text`), or its `description` in the shape before.
+    #[serde(default, alias = "text", deserialize_with = "lenient_text")]
     pub(super) description: String,
+    /// The actor's name, or the `{"name", "kind"}` object of the shape before.
+    #[serde(default, deserialize_with = "lenient_actor")]
+    #[schemars(with = "Option<String>")]
     pub(super) actor: Option<RawActor>,
     #[serde(default, deserialize_with = "lenient_text")]
     pub(super) action: Option<String>,
@@ -101,8 +105,27 @@ impl FromText for Option<String> {
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub(super) struct RawActor {
     pub(super) name: String,
+    /// `human` or `system`; empty when the actor is given by its name alone.
     #[serde(default)]
     pub(super) kind: String,
+}
+
+/// A step's actor: a name (its kind then comes from the actors list) or a
+/// `{"name", "kind"}` object; anything else, or a blank name, is no actor.
+fn lenient_actor<'de, D>(deserializer: D) -> Result<Option<RawActor>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    let actor = match value {
+        serde_json::Value::String(name) => Some(RawActor {
+            name,
+            kind: String::new(),
+        }),
+        object @ serde_json::Value::Object(_) => serde_json::from_value(object).ok(),
+        _ => None,
+    };
+    Ok(actor.filter(|a| !a.name.trim().is_empty()))
 }
 
 /// The LLM's use cases of `feature` turned into [`UseCase`]s: those without
@@ -234,10 +257,15 @@ pub(super) fn ground_steps(
 ) -> Vec<Step> {
     let allowed: BTreeSet<String> = numbered.iter().cloned().collect();
     let complete = raw_steps.into_iter().filter_map(|raw| {
-        let (Some(actor), Some(action)) = (raw.actor, raw.action) else {
-            tracing::warn!("step dropped: no actor or no action");
+        let action = raw.action.unwrap_or_default();
+        let Some(actor) = raw.actor else {
+            tracing::warn!("step dropped: no actor");
             return None;
         };
+        if action.trim().is_empty() && raw.description.trim().is_empty() {
+            tracing::warn!("step dropped: no text");
+            return None;
+        }
         Some((raw.description, actor, action, raw.code))
     });
     complete

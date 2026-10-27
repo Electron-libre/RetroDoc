@@ -360,11 +360,12 @@ impl Docs {
             } else {
                 format!(" ({})", cited.join(", "))
             };
-            let _ = writeln!(
-                out,
-                "{}. {} — {}: {}{cited}",
-                step.order, step.actor.name, step.action, step.description
-            );
+            let text = if step.action.trim().is_empty() {
+                step.description.clone()
+            } else {
+                format!("{}: {}", step.action, step.description)
+            };
+            let _ = writeln!(out, "{}. {} — {text}{cited}", step.order, step.actor.name);
         }
         let rules: Vec<&BusinessRule> = self
             .rules

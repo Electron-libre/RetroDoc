@@ -505,10 +505,13 @@ fn the_prompt_says_who_starts_what_only_where_it_applies() {
     // primary actor follows the known actors; a feature with neither gets none of them.
     let who_starts = "none of whose entry points is an http_route";
     let primary = "Give each use case a `primary_actor`";
+    // Without a list to take the kind of an actor from, the answer gives it.
+    let kind = r#"{"name":"...","kind":"human|system"}"#;
     for (entries, actors) in [(true, true), (true, false), (false, true), (false, false)] {
         let prompt = prompt::system_prompt(entries, actors);
         assert_eq!(prompt.contains(who_starts), entries, "{entries} {actors}");
         assert_eq!(prompt.contains(primary), actors, "{entries} {actors}");
+        assert_eq!(prompt.contains(kind), !actors, "{entries} {actors}");
     }
     // `other` is a kind nobody could name: the check keeps its human, so does the prompt.
     assert!(prompt::system_prompt(true, false).contains("a cli_command or an other"));
@@ -580,6 +583,68 @@ async fn features_from_the_surface_get_only_their_own_entry_points_even_in_a_sha
         .1
         .contains("- E1 GET /routes [http_route] (api.rb)"));
     assert!(!prompts[2].1.contains("GET /orders"));
+}
+
+#[tokio::test]
+async fn a_step_is_one_text_and_its_actor_a_name() {
+    use crate::actors::BusinessActor;
+
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.rs"), "fn a() {}\n").unwrap();
+    let actors = Actors {
+        input_hash: String::new(),
+        actors: vec![BusinessActor {
+            name: "Signatory".to_string(),
+            kind: ActorKind::Human,
+            description: "Signs contracts".to_string(),
+            evidence: Vec::new(),
+        }],
+    };
+    let provider = FakeLlm::answering(
+        r#"{"use_cases":[{"slug":"sign","name":"Sign","description":"d","steps":[
+          {"actor":"signatory","text":"Signs the contract.","code":["F1:1"]},
+          {"actor":"Mailer","text":"Sends the signed copy."},
+          {"actor":"System"}]}]}"#,
+    );
+
+    let use_cases = build_use_cases(
+        dir.path(),
+        &[feature("signing", &["a.rs"])],
+        &UseCaseContext {
+            actors,
+            ..UseCaseContext::default()
+        },
+        &provider,
+    )
+    .await
+    .unwrap();
+
+    let system = &provider.prompt_pairs()[0].0;
+    assert!(
+        system.contains(r#""steps":[{"actor":"...","text":"...","code":["F1:10-24"]}]"#),
+        "{system}"
+    );
+    let steps = &use_cases[0].steps;
+    // The kind comes from the actors list; a name outside it is a software component.
+    let read: Vec<(&str, ActorKind, &str, &str)> = steps
+        .iter()
+        .map(|s| {
+            (
+                s.actor.name.as_str(),
+                s.actor.kind,
+                s.description.as_str(),
+                s.action.as_str(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        read,
+        [
+            ("Signatory", ActorKind::Human, "Signs the contract.", ""),
+            ("Mailer", ActorKind::System, "Sends the signed copy.", ""),
+        ],
+        "a step with no text is dropped"
+    );
 }
 
 #[tokio::test]

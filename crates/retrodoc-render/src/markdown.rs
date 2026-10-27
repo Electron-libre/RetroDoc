@@ -576,10 +576,12 @@ fn step_item(step: &Step) -> String {
     };
     let mut item = format!(
         "{}. **{}** ({kind}) — {}",
-        step.order, step.actor.name, step.action
+        step.order,
+        step.actor.name,
+        step.label()
     );
     let description = step.description.trim();
-    if !description.is_empty() {
+    if !description.is_empty() && description != step.label() {
         let _ = write!(item, ". {description}");
     }
     item.push('\n');
@@ -689,6 +691,24 @@ mod tests {
             .find(|f| f.path == Path::new(path))
             .unwrap()
             .content
+    }
+
+    #[test]
+    fn a_step_with_one_text_shows_it_after_its_actor() {
+        let step = Step {
+            order: 2,
+            description: "Saves the invoice.".to_string(),
+            actor: Actor {
+                name: "System".to_string(),
+                kind: ActorKind::System,
+            },
+            action: String::new(),
+            source_refs: Vec::new(),
+        };
+        assert_eq!(
+            step_item(&step),
+            "2. **System** (system) — Saves the invoice.\n"
+        );
     }
 
     #[test]
