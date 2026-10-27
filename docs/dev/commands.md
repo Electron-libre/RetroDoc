@@ -24,6 +24,7 @@ cargo run -q -p retrodoc-pipeline --example form_pairs_measure -- [--names] <run
 cargo run -q -p retrodoc-pipeline --example rules_noise_measure -- [--sample N] [--seed S] <run dir>   # duplicate pairs of rules across features and a seeded sample to label by hand (no LLM)
 cargo run -q -p retrodoc-pipeline --example code_read_overlap -- <frozen dir> <benchmark dir>   # code shared by the use cases and rules prompts of each feature, and the share of it the use case steps cite, from frozen inputs (no LLM)
 cargo run -q -p retrodoc-pipeline --example rules_answer_size_measure -- <run dir>...   # characters of the rules answer per feature rebuilt from saved rules, share of the completion cap (an estimate: cut answers are never saved) (no LLM)
+cargo run -q -p retrodoc-pipeline --example use_cases_answer_size_measure -- <run>...   # where the characters of the use cases answer go (fields, steps per use case, system steps) and the size under the candidate shorter shapes, rebuilt from saved use cases (no LLM)
 cargo run -q -p retrodoc-pipeline --example features_by_domain_measure -- <run dir>...   # entry points, features and share held by a feature per domain of saved runs (no LLM)
 OPENROUTER_API_KEY=x cargo run -q -p retrodoc-pipeline --example placement_replay -- <model> <base url> <run dir> benchmark/<repo>/placement-sample.yaml   # placement of a labelled sample of entry points: JSON answer vs closed-answer readout (logprobs of one token) on a local OpenAI-compatible server: placed, acceptable, steadiness, time and tokens
 ```

@@ -48,3 +48,7 @@ test = true
 [[example]]
 name = "placement_replay"
 test = true
+
+[[example]]
+name = "use_cases_answer_size_measure"
+test = true

@@ -41,3 +41,71 @@ the business reading.
 * A new answer shape changes the fingerprints (`generate --force` once) and the saved artifact: old
   `use-cases.yaml` files must still load.
 * Measure with the per-pass replay of `benchmark_passes_on_fixed_inputs` if it exists by then.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Cut the output tokens of the use cases answer without moving use cases found, business language (judge) or
+grounding beyond the spread of the replays. Out of scope: the input side (excerpts), batching features, a
+spec (the answer shape is internal; the saved artifact keeps loading). Candidate (d) (a second call) is left
+out: it adds a call and only saves when the steps are not wanted.
+
+## Measure of step 1 (2026-10-27, no call)
+Answers rebuilt in the prompt's JSON shape from saved `use-cases.yaml`
+(`examples/use_cases_answer_size_measure.rs`). Share of the characters of the answer:
+
+| run | use cases / feature | steps / use case | system steps | step description | citations (of which paths) | narrative | name, slug, description | actor object | action |
+|---|---|---|---|---|---|---|---|---|---|
+| linkding frozen (81 uc) | 2.5 | 4.6 | 83% | 21% | 19% (8%) | 18% | 10% | 8% | 6% |
+| linkding `rules-ld-judged` (141) | 3.3 | 4.3 | 64% | 20% | 20% (10%) | 18% | 9% | 8% | 8% |
+| a private Rails app, deepseek (762) | 9.0 | 3.3 | 75% | 19% | 17% (9%) | 20% | 11% | 8% | 7% |
+| `delivery_router` frozen (5) | 1.0 | 5.8 | 100% | 21% | 24% (10%) | 16% | 9% | 8% | 6% |
+
+The JSON keys are the remaining ~16%. Steps (description, action, actor, citations) are about 55% of the
+answer; the narrative, the business level, under 20%.
+
+Estimated size of the answer under each candidate shape, against the current one:
+
+| run | (a) compact citations | (b) one text, actor name | (c) at most 5 steps | (a+b+c) |
+|---|---|---|---|---|
+| linkding frozen | -18% | -16% | -6% | -37% |
+| linkding `rules-ld-judged` | -19% | -18% | -9% | -40% |
+| a private Rails app | -16% | -16% | -3% | -34% |
+| `delivery_router` frozen | -22% | -16% | -17% | -45% |
+
+The cap alone of (c) cuts little where use cases have few steps; what the model leaves out under the
+instruction "only the steps the reader observes" is not estimable without a call.
+
+## Plan
+1. [x] Measure example `use_cases_answer_size_measure`: the table above from run dirs, plus the estimated
+   size of the answer under each candidate shape (a, b, c); verified by a unit test on a small artifact.
+2. [ ] Grounding in the use cases replay: `UseCaseFigures` gains the steps with a citation and the share the
+   mechanical checks pass (`mechanical_score`), shown by `use_case_table`; verified by a test of the table.
+3. [ ] Baseline: one `pass_replay use-cases` on frozen linkding, `deepseek-chat`, current shape.
+4. [ ] (a) Compact citations: files numbered in the prompt, a citation as `[file number, start, end]`; a
+   path still accepted; verified by grounding tests (number to path, unknown number dropped); one replay,
+   kept if within the spread.
+5. [ ] (b) One text per step and the actor as a name (kind from the actors list, else `System` / human
+   by the list); verified by grounding and render tests (old artifacts with `action` still load and render);
+   one replay, kept or reverted.
+6. [ ] (c) Fewer system steps: only the steps that change what the reader observes, with a cap; verified by a
+   prompt test; one replay, kept or reverted.
+7. [ ] Docs (`docs/crates/pipeline.md`, `llm.md` if touched), the `generate --force` note, findings recorded.
+
+## Decisions
+- Mode: autonomous
+- Base commit: d64d803c02c4c8643d777b251e68c4046f2a5070
+- Paid replays: one run per shape on frozen linkding, `deepseek-chat` (user, 2026-10-27). With one run the
+  spread is not measured: it is read from the replays of `issues/done/benchmark_passes_on_fixed_inputs.md`.
+- (b): the one text goes to `description`, `action` stays empty; the diagram (truncated), the render and the
+  MCP fall back to the description (user, 2026-10-27).
+- (c): only the steps that change what the reader observes, at most 5 steps per use case (user, 2026-10-27).
+
+## Summary of deliverable 1
+- done: example `use_cases_answer_size_measure` (fields, steps, system steps, candidate shapes), line in
+  `docs/dev/commands.md`, figures above.
+- red: none (a new example; its two tests written with it).
+- Code review: (b) credited with the `refs` key of (a), fixed; bytes counted as characters, fixed.
+- not verified: the estimates assume a file number of two digits and steps the grounding did not drop.
