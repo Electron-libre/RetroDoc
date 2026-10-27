@@ -28,8 +28,14 @@ const MAX_SERVER_RETRY_DELAY: Duration = Duration::from_secs(120);
 /// but a local `llm.base_url` override (a small quantized model) can
 /// degenerate into a runaway generation loop that never reaches a stop
 /// token; without a client-side bound the call hangs indefinitely instead
-/// of surfacing an error the existing retry loop can act on.
+/// of surfacing an error.
 const DEFAULT_REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
+/// Default timeout when `llm.base_url` names a loopback host: a local server
+/// writes a long structured answer far slower than a hosted one (the
+/// [`MAX_COMPLETION_TOKENS`] cap at about 15 tokens per second is some 550 s),
+/// while a hosted provider that hangs must still fail within
+/// [`DEFAULT_REQUEST_TIMEOUT`].
+const LOCAL_REQUEST_TIMEOUT: Duration = Duration::from_mins(15);
 /// Upper bound on `max_tokens` sent with every request, for the same
 /// reason: caps how long a runaway generation can run server-side too.
 const MAX_COMPLETION_TOKENS: u32 = 8_192;
@@ -258,11 +264,31 @@ impl OpenRouterProvider {
     }
 }
 
-/// Per-request timeout: `llm.timeout_secs`, else [`DEFAULT_REQUEST_TIMEOUT`].
+/// Per-request timeout: `llm.timeout_secs`, else [`LOCAL_REQUEST_TIMEOUT`]
+/// for a loopback `llm.base_url`, else [`DEFAULT_REQUEST_TIMEOUT`].
 fn request_timeout(config: &LlmConfig) -> Duration {
-    config
-        .timeout_secs
-        .map_or(DEFAULT_REQUEST_TIMEOUT, Duration::from_secs)
+    if let Some(secs) = config.timeout_secs {
+        return Duration::from_secs(secs);
+    }
+    if config.base_url.as_deref().is_some_and(is_loopback_url) {
+        LOCAL_REQUEST_TIMEOUT
+    } else {
+        DEFAULT_REQUEST_TIMEOUT
+    }
+}
+
+/// The host of `url` is `localhost`, an address of `127.0.0.0/8` or `::1`.
+fn is_loopback_url(url: &str) -> bool {
+    let Ok(url) = reqwest::Url::parse(url) else {
+        return false;
+    };
+    let host = url.host_str().unwrap_or_default();
+    host.eq_ignore_ascii_case("localhost")
+        || host
+            .trim_start_matches('[')
+            .trim_end_matches(']')
+            .parse::<std::net::IpAddr>()
+            .is_ok_and(|ip| ip.is_loopback())
 }
 
 /// How long the provider asks to wait before retrying: the `Retry-After`
@@ -1143,6 +1169,7 @@ mod tests {
     }
 
     #[tokio::test]
+    // spec: LTO-4
     async fn a_timeout_is_named_and_not_retried() {
         let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let addr = listener.local_addr().unwrap();
@@ -1183,11 +1210,64 @@ mod tests {
         assert_eq!(accepted.load(std::sync::atomic::Ordering::SeqCst), 1);
     }
 
+    fn timeout_for(base_url: Option<&str>) -> Duration {
+        request_timeout(&LlmConfig {
+            base_url: base_url.map(str::to_string),
+            ..LlmConfig::default()
+        })
+    }
+
     #[test]
-    fn timeout_defaults_to_two_minutes_and_follows_the_config() {
-        let mut config = LlmConfig::default();
-        assert_eq!(request_timeout(&config), Duration::from_secs(120));
+    // spec: LTO-1
+    fn a_loopback_server_defaults_to_fifteen_minutes() {
+        for url in [
+            "http://localhost:11434/v1/chat/completions",
+            "http://127.0.0.1:11437/v1/chat/completions",
+            "http://127.3.4.5/v1",
+            "http://[::1]:11435/v1/chat/completions",
+            "HTTP://LOCALHOST/v1",
+        ] {
+            assert_eq!(timeout_for(Some(url)), Duration::from_mins(15), "{url}");
+        }
+    }
+
+    #[test]
+    // spec: LTO-2
+    fn a_hosted_endpoint_defaults_to_two_minutes() {
+        for url in [
+            None,
+            Some("https://openrouter.ai/api/v1/chat/completions"),
+            Some("https://localhost.example.com/v1"),
+            Some("http://192.168.1.20:11434/v1"),
+            Some("not a url"),
+        ] {
+            assert_eq!(timeout_for(url), Duration::from_secs(120), "{url:?}");
+        }
+    }
+
+    #[test]
+    // spec: LTO-3
+    fn a_configured_timeout_wins_over_both_defaults() {
+        let mut config = LlmConfig {
+            base_url: Some("http://127.0.0.1:11437/v1".to_string()),
+            timeout_secs: Some(60),
+            ..LlmConfig::default()
+        };
+        assert_eq!(request_timeout(&config), Duration::from_secs(60));
+        config.base_url = None;
         config.timeout_secs = Some(600);
         assert_eq!(request_timeout(&config), Duration::from_secs(600));
+        config.timeout_secs = None;
+        config.passes.insert(
+            "use-cases".to_string(),
+            retrodoc_core::config::PassLlmConfig {
+                timeout_secs: Some(30),
+                ..Default::default()
+            },
+        );
+        assert_eq!(
+            request_timeout(&config.for_pass("use-cases")),
+            Duration::from_secs(30)
+        );
     }
 }

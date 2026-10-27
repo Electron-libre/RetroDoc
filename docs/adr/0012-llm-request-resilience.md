@@ -16,7 +16,8 @@ In `OpenRouterProvider`:
 - Retry with exponential backoff on 429 and 5xx, but when the server states a delay (`Retry-After`
   header, Google's `retryDelay` in the body) wait exactly that. Up to 120 s; a longer delay is an
   unrecoverable quota error, not a pause.
-- Per-request HTTP timeout of 120 s, overridable with `llm.timeout_secs` for slow local models. A timeout
+- Per-request HTTP timeout of 120 s, 900 s when `llm.base_url` names a loopback host (a local server, LTO-1),
+  overridable with `llm.timeout_secs` (a slow server elsewhere on the network). A timeout
   is not retried (the same prompt takes as long again): the error names it and points at `llm.timeout_secs`.
 - `max_tokens` is always sent (8,192) to cap runaway generations; an answer cut by `finish_reason=length`
   logs a warning, and one that overflows twice is split (0006).

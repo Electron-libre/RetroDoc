@@ -178,10 +178,11 @@ pub struct LlmConfig {
     /// (`generate --force` does).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub temperature: Option<f32>,
-    /// Per-request HTTP timeout in seconds. Unset: 120. A slow local model
-    /// producing a long structured answer (several thousand tokens at a few
-    /// tokens per second) needs more; the retry loop restarts the whole
-    /// generation on a timeout, so too small a value never succeeds.
+    /// Per-request HTTP timeout in seconds. Unset: 900 when `base_url` names
+    /// a loopback host (`localhost`, `127.0.0.0/8`, `::1`), 120 otherwise. A
+    /// slow local model on another machine writing a long structured answer
+    /// (several thousand tokens at a few tokens per second) needs it set; a
+    /// timeout is not retried, the same prompt would take as long again.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub timeout_secs: Option<u64>,
     /// Maximum number of LLM calls in flight at once for the passes that

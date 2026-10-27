@@ -36,3 +36,33 @@ of a hosted provider that is down.
 
 # Hints
 * A hosted provider that hangs must still fail in a reasonable time: don't raise the default for everyone.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Without `llm.timeout_secs`, a loopback `base_url` gets 900 s, everything else keeps 120 s (`specs/llm-request-timeout.md`).
+Candidate c is already done (655d1dc: a timeout is not retried); b is moot (`init` takes no endpoint). Means: a.
+Sizing: longest local call measured ~160 s (use-cases, hybrid); the 8,192-token cap at iGPU speed (~15 tok/s) is ~550 s.
+
+## Plan
+1. [x] Local default timeout: `request_timeout` picks 900 s for a loopback host, 120 s otherwise; stale doc of
+   `timeout_secs` (retry) fixed, `docs/crates/llm.md` and ADR 0012 updated; verified by unit tests on
+   `request_timeout` and the existing no-retry test; makes true LTO-1 to LTO-4.
+2. [ ] Scripts rely on the default: smoke and benchmark stop writing `timeout_secs` unless `--timeout-secs` is
+   given; verified by their `just test-harness` tests.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 46d7e407947ffc3c7356eb748853acda53c85140
+- Q1: loopback hosts only get the long default (a server elsewhere on the network sets `llm.timeout_secs`).
+- Q2: the scripts write `timeout_secs` only when `--timeout-secs` is given.
+
+## Deliverable 1
+- done: no `timeout_secs` + loopback `base_url` gives 900 s, else 120 s; spec LTO accepted; docs (config.rs, llm.md,
+  ADR 0012, README) updated.
+- checks: `just check` ok, `just test-harness` ok, specs traced (LTO-1 to LTO-4).
+- red: `a_loopback_server_defaults_to_fifteen_minutes`: left 120s, right 900s.
+- Code review (low): no findings.
+- not verified: no real run against a local server with the new default.
