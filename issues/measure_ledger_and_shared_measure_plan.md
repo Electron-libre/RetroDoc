@@ -64,3 +64,51 @@ run serves every issue it can.
   runs as kept.
 * A measure is reusable only at the same pass code, prompt, model and inputs: record the commit and the
   frozen inputs it used, not only the date.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+A ledger outside the repo (`~/retrodoc-runs/LEDGER.md`) that says what was measured (commit, model, inputs,
+cost, figures, artifacts), backfilled from the issues and the run directory; rules that make the agent read it
+before a paid or long run and append to it after; one plan of the queue's measures. No run is deleted, no new
+LLM run is made by this issue.
+
+## Plan
+1. [x] Ledger skeleton and backfill: `~/retrodoc-runs/LEDGER.md` with the measures of the open and done issues
+   (date, commit, issue, repo, model, command, runs, cost, key figures, artifact), the reusable artifacts (frozen
+   inputs, their `source_run` marked kept, complete runs a no-LLM measure reads) and the orphan runs for the user;
+   verified by a cross-check: every run dir is either cited by a line or listed as orphan. Outside git, no commit.
+2. [ ] Rules: `CLAUDE.md` and the project skills `quality-benchmark` and `smoke-test` say to read the ledger before
+   a paid or long run, append a line after, keep asking before a paid run, and name new runs `<issue>-<short commit>-<n>`;
+   `CLAUDE.md` also says to update the planned measures when an issue is created or the queue re-ranked;
+   verified by `just test-harness` and `just check`.
+3. [ ] Shared plan: the "Planned measures" section of the ledger (groups of the Findings) and the amended Approach of
+   the issues it changes (`measure_model_split_per_pass` replays instead of full benchmarks, the no-LLM issues pointed
+   at saved runs, one complete large Rails run shared by two issues); verified by `just check-issue` on each amended issue.
+
+## Decisions
+- Mode: autonomous
+- Base commit: c9b98edd9fe107204e2237ebdb61c26f3f89accf
+- Synced skills: a project rule in `CLAUDE.md`, no change proposed to the central harness (user, 2026-10-27).
+- Runs: a naming convention `<issue>-<short commit>-<n>` in the skills only; no tool appends to the ledger (user, 2026-10-27).
+- Ledger file: `~/retrodoc-runs/LEDGER.md` (user, 2026-10-27).
+
+## Summary of deliverable 1
+- done: `~/retrodoc-runs/LEDGER.md` (outside git): 18 lines of measures (the detailed ones from 2026-10-13 on,
+  earlier ones grouped as stale), 13 reusable artifacts, orphans. Cross-check: every top-level entry of the
+  run directory is cited by a line or listed as orphan (companion `.log`/`.report.txt` files go with their run).
+- Findings while backfilling:
+  * 63 of the 130 entries are empty directories (no file): the runs of 2026-10-01 to 10-14 lost their data
+    when they left `/tmp`; their logs survive in `logs/`. Listed as orphans, safe to delete.
+  * The saved context map of the large Rails application (`contexts.yaml`, run of 2026-10-13) is among them:
+    steps 1-2 of `contexts_residual_size_and_names` cannot run without a new `contexts` run.
+  * The figures of the 3-run domains and features replays of 2026-10-23 were not saved (only ranges in
+    `second_application_in_benchmark`): the baseline of those two passes has to be rerun (cents).
+  * Still valid baselines: use cases (final shape, 3 runs, 1c6f592), rules (7 runs, 2026-10-26, check the
+    diff of `rules/` since).
+- Code review: none (no file of the repository changed but this issue).
+- red: none (data, not code).
+- not verified: the commit of the measures before 2026-10-23 is the commit that recorded them, not always the
+  measured one.
