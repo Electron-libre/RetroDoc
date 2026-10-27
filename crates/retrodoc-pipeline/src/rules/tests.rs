@@ -870,6 +870,67 @@ async fn a_rule_put_back_from_an_older_set_aside_file_is_warned_about_and_not_ma
     );
 }
 
+#[tokio::test]
+async fn a_rule_listed_twice_is_put_back_once() {
+    let dir = repo();
+    dropping_storage(dir.path()).await;
+
+    let rules = ask_with(
+        dir.path(),
+        &FakeLlm::answering("not even json"),
+        &[feature()],
+        &putting_back(&[], &["orders-1", "orders-1"]),
+    )
+    .await;
+
+    let slugs: Vec<&str> = rules.iter().map(|r| r.slug.as_str()).collect();
+    assert_eq!(slugs, ["orders-1", "orders-2"]);
+}
+
+#[tokio::test]
+async fn a_failing_run_keeps_the_rules_put_back_in_what_it_saves() {
+    let dir = two_features_repo();
+    let features = [feature(), wide()];
+    let llm = judging(
+        &format!("{STORAGE},{LIMIT}"),
+        r#"{"rules":[{"n":1,"class":"storage"},{"n":2,"class":"business"}]}"#,
+    );
+    ask_with(dir.path(), &llm, &features, &context()).await;
+    let mut changed = features.clone();
+    changed[1].description = "Runs everything, or not".into();
+
+    let down = FakeLlm::failing_after(0, |_| String::new());
+    let result = build_rules(
+        dir.path(),
+        &changed,
+        &[use_case()],
+        &putting_back(&[], &["orders-1"]),
+        &down,
+    )
+    .await;
+
+    assert!(result.is_err());
+    let saved = load_rules(dir.path()).unwrap();
+    assert!(saved.iter().any(|r| r.slug == "orders-1"), "{saved:?}");
+}
+
+#[tokio::test]
+async fn a_feature_put_back_whose_answer_is_unreadable_is_no_longer_listed_as_set_aside() {
+    let dir = repo();
+    run(dir.path(), &knowing(r#"{"about_tests":true}"#)).await;
+    assert_eq!(load_set_aside(dir.path()).unwrap().features.len(), 1);
+
+    ask_with(
+        dir.path(),
+        &FakeLlm::answering("sorry"),
+        &[feature()],
+        &putting_back(&["orders"], &[]),
+    )
+    .await;
+
+    assert_eq!(load_set_aside(dir.path()).unwrap().features, []);
+}
+
 #[test]
 fn the_entities_of_a_rule_are_the_ones_its_statement_speaks_of_as_whole_words() {
     let allowed = ["Order", "Rider", "Delivery Slot", "Rid"];

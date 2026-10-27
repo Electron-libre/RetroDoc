@@ -20,6 +20,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use futures_util::stream::{self, StreamExt};
+use retrodoc_core::config::RulesConfig;
 use retrodoc_core::model::{BusinessRule, Feature, UseCase};
 use retrodoc_llm::LlmProvider;
 
@@ -82,34 +83,48 @@ fn load_stated(repo_root: &Path) -> Option<Vec<BusinessRule>> {
 }
 
 /// Saves the rules as stated, then publishes them with the rules `put_back` by hand, the same rule of
-/// several features kept once; returns the latter. The rules put back are not saved as stated: a run
-/// reuses them from what was set aside, so taking one off the list sets it aside again.
+/// several features kept once; returns the latter.
 fn save_published(
     repo_root: &Path,
     stated: &[BusinessRule],
-    put_back: Vec<BusinessRule>,
-    features: &[Feature],
+    aside: &SetAside,
+    put_back: &RulesConfig,
     reach: &BTreeMap<String, Reach>,
 ) -> Result<Vec<BusinessRule>, PipelineError> {
     save_yaml(&Artifact::RulesStated.path(repo_root), stated)?;
-    let mut all = stated.to_vec();
-    all.extend(put_back);
-    // Each rule put back among the rules of its feature, by its number.
-    let rank = |rule: &BusinessRule| {
-        let feature = features
-            .iter()
-            .position(|f| rule.belongs_to_feature(&f.slug));
-        let number = rule
-            .slug
-            .rsplit('-')
-            .next()
-            .and_then(|n| n.parse::<usize>().ok());
-        (feature, number)
-    };
-    all.sort_by_key(rank);
-    let published = merge_duplicates(all, reach);
+    let published = merge_duplicates(with_put_back(stated, aside, put_back), reach);
     save_rules(repo_root, &published)?;
     Ok(published)
+}
+
+/// The rules `stated` and those of `aside` that `keep_rules` of `put_back` lists, each among the rules
+/// of its feature by its number. The rules put back are never saved as stated: a run takes them
+/// from what was set aside, so taking one off the list sets it aside again.
+fn with_put_back(
+    stated: &[BusinessRule],
+    aside: &SetAside,
+    put_back: &RulesConfig,
+) -> Vec<BusinessRule> {
+    let mut all = stated.to_vec();
+    for entry in &aside.rules {
+        let Some(rule) = entry
+            .rule
+            .as_ref()
+            .filter(|_| put_back.keep_rules.contains(&entry.slug))
+        else {
+            continue;
+        };
+        let feature = entry.feature.as_str();
+        let number = rule.number_in(feature);
+        let at = all
+            .iter()
+            .rposition(|r| r.number_in(feature).is_some_and(|n| Some(n) < number))
+            .map(|i| i + 1)
+            .or_else(|| all.iter().position(|r| r.belongs_to_feature(feature)))
+            .unwrap_or(all.len());
+        all.insert(at, rule.clone());
+    }
+    all
 }
 
 /// The rules of every feature, from the code and the evidence of each, saved to
@@ -173,6 +188,7 @@ pub async fn build_rules(
                 &features[from..],
                 prints,
                 &known,
+                &context.put_back,
             );
         };
     let mut rules: Vec<BusinessRule> = Vec::new();
@@ -226,9 +242,10 @@ pub async fn build_rules(
     }
     drop(answers);
 
-    let put_back = put_back_rules(&context.put_back.keep_rules, &aside, &rules);
+    warn_unknown_rules(&context.put_back.keep_rules, &aside, &rules);
+    aside.forget_features(&context.put_back.keep_features);
     // Rules first: a fingerprint without its rules would freeze a feature as "none".
-    let published = save_published(repo_root, &rules, put_back, features, &reach)?;
+    let published = save_published(repo_root, &rules, &aside, &context.put_back, &reach)?;
     save_yaml(&Artifact::RulesSetAside.path(repo_root), &aside)?;
     prints.save(repo_root)?;
     Ok(published)
@@ -338,19 +355,12 @@ fn warn_unknown_features(keep_features: &[String], features: &[Feature]) {
     }
 }
 
-/// The rules of `keep_rules` that the judgement set aside, whole. Warns about a slug that names no
-/// rule, set aside or `stated`, and about one set aside by a run that did not keep the rule whole.
-fn put_back_rules(
-    keep_rules: &[String],
-    aside: &SetAside,
-    stated: &[BusinessRule],
-) -> Vec<BusinessRule> {
-    let mut put_back = Vec::new();
-    for slug in keep_rules {
+/// Warns about each slug of `keep_rules` that names no rule, set aside or `stated`, and about one set
+/// aside by a run that did not keep the rule whole.
+fn warn_unknown_rules(keep_rules: &[String], aside: &SetAside, stated: &[BusinessRule]) {
+    for slug in keep_rules.iter().collect::<std::collections::BTreeSet<_>>() {
         match aside.rules.iter().find(|r| &r.slug == slug) {
-            Some(AsideRule {
-                rule: Some(rule), ..
-            }) => put_back.push(rule.clone()),
+            Some(AsideRule { rule: Some(_), .. }) => {}
             Some(_) => tracing::warn!(
                 "`{slug}` of `keep_rules` in `[rules]` of retrodoc.toml was set aside by an older run \
                  that did not keep it whole: it comes back when its feature is stated again"
@@ -362,7 +372,6 @@ fn put_back_rules(
             ),
         }
     }
-    put_back
 }
 
 /// What each feature reads, to tell which one owns the code a rule cites.
@@ -428,6 +437,7 @@ fn save_partial(
     remaining: &[Feature],
     prints: &Fingerprints,
     known: &BTreeMap<String, String>,
+    put_back: &RulesConfig,
 ) {
     let mut rules = done.rules.to_vec();
     rules.extend(
@@ -441,6 +451,7 @@ fn save_partial(
     for feature in remaining {
         aside.extend(previous.aside.of_feature(&feature.slug));
     }
+    aside.forget_features(&put_back.keep_features);
     let mut prints = prints.clone();
     for feature in remaining {
         let key = feature_key(feature);
@@ -450,7 +461,10 @@ fn save_partial(
     }
     // Not merged: it costs a quadratic comparison and the final save does it.
     warn_on_error(save_yaml(&Artifact::RulesStated.path(repo_root), &rules));
-    warn_on_error(save_rules(repo_root, &rules));
+    warn_on_error(save_rules(
+        repo_root,
+        &with_put_back(&rules, &aside, put_back),
+    ));
     warn_on_error(save_yaml(&Artifact::RulesSetAside.path(repo_root), &aside));
     warn_on_error(prints.save(repo_root));
 }

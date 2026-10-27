@@ -241,10 +241,18 @@ impl BusinessRule {
     /// `<feature-slug>-<number>`.
     #[must_use]
     pub fn belongs_to_feature(&self, feature_slug: &str) -> bool {
+        self.number_in(feature_slug).is_some()
+    }
+
+    /// The number of the rule among those of the feature `feature_slug`, `None` when it is not
+    /// one of them.
+    #[must_use]
+    pub fn number_in(&self, feature_slug: &str) -> Option<usize> {
         self.slug
             .strip_prefix(feature_slug)
             .and_then(|rest| rest.strip_prefix('-'))
-            .is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()))
+            .filter(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()))
+            .and_then(|n| n.parse().ok())
     }
 
     /// Whether a test phrase or a doc section backs the rule next to the code.

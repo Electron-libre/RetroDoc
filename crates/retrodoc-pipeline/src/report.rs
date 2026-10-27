@@ -11,7 +11,7 @@ use std::path::PathBuf;
 
 use retrodoc_core::config::RulesConfig;
 use retrodoc_core::model::{
-    ConfidenceScore, Domain, Feature, SubDomain, UseCase, LOW_CONFIDENCE_THRESHOLD,
+    BusinessRule, ConfidenceScore, Domain, Feature, SubDomain, UseCase, LOW_CONFIDENCE_THRESHOLD,
 };
 
 use crate::behaviour_coverage::{BehaviourCoverage, EntryCount, FeatureCoverage};
@@ -338,12 +338,19 @@ impl DebtReport {
     }
 
     /// Adds what the rules pass set aside on a judgement of the LLM, and which of its rules `put_back`
-    /// puts back. Nothing when it set nothing aside.
-    pub fn with_set_aside(&mut self, set_aside: SetAside, put_back: &RulesConfig) {
+    /// lists and are `published`. Nothing when it set nothing aside.
+    pub fn with_set_aside(
+        &mut self,
+        set_aside: SetAside,
+        put_back: &RulesConfig,
+        published: &[BusinessRule],
+    ) {
         self.rules_put_back = set_aside
             .rules
             .iter()
-            .filter(|r| put_back.keep_rules.contains(&r.slug))
+            .filter(|r| {
+                put_back.keep_rules.contains(&r.slug) && published.iter().any(|p| p.slug == r.slug)
+            })
             .map(|r| r.slug.clone())
             .collect();
         self.set_aside = (!set_aside.is_empty()).then_some(set_aside);
@@ -675,7 +682,7 @@ mod tests {
     use super::*;
 
     use crate::domains::DomainCluster;
-    use retrodoc_core::model::{BusinessRule, RuleEvidence};
+    use retrodoc_core::model::RuleEvidence;
     use retrodoc_ingest::existing_docs::ExistingDoc;
 
     fn feature(slug: &str, domain: &str, score: Option<f32>) -> Feature {
@@ -921,7 +928,7 @@ mod tests {
     #[test]
     fn what_the_rules_pass_set_aside_is_listed_to_be_checked() {
         let mut report = build_report(&DomainMap::default(), &[], &[]);
-        report.with_set_aside(SetAside::default(), &RulesConfig::default());
+        report.with_set_aside(SetAside::default(), &RulesConfig::default(), &[]);
         assert!(!report.to_markdown().contains("Set aside by the rules pass"));
 
         report.with_set_aside(
@@ -941,6 +948,7 @@ mod tests {
                 }],
             },
             &RulesConfig::default(),
+            &[],
         );
         let md = report.to_markdown();
         assert!(md.contains("## Set aside by the rules pass"), "{md}");
@@ -957,13 +965,14 @@ mod tests {
     // spec: RSA-7
     #[test]
     fn the_set_aside_lists_say_how_to_put_an_entry_back_and_mark_the_rules_put_back() {
-        let rule = |slug: &str| AsideRule {
+        let aside = |slug: &str| AsideRule {
             slug: slug.into(),
             feature: "orders".into(),
             statement: "An order is stored by the customer id.".into(),
             class: "storage".into(),
             rule: None,
         };
+        let published = |slug: &str| rule(slug, "An order is stored.", Vec::new());
         let mut report = build_report(&DomainMap::default(), &[], &[]);
         report.with_set_aside(
             SetAside {
@@ -973,12 +982,14 @@ mod tests {
                     description: "Checks the address".into(),
                     reason: "describes how the application is tested".into(),
                 }],
-                rules: vec![rule("orders-1"), rule("orders-3")],
+                rules: vec![aside("orders-1"), aside("orders-3"), aside("orders-4")],
             },
             &RulesConfig {
                 keep_features: Vec::new(),
-                keep_rules: vec!["orders-3".into(), "ghost-1".into()],
+                keep_rules: vec!["orders-3".into(), "orders-4".into(), "ghost-1".into()],
             },
+            // `orders-4` is listed but not published (an older file, or `generate` not run since).
+            &[published("orders-2"), published("orders-3")],
         );
 
         let md = report.to_markdown();
@@ -998,6 +1009,7 @@ mod tests {
             "{md}"
         );
         assert!(!md.contains("ghost-1"), "{md}");
+        assert!(md.contains("- `orders-4` (storage) An order"), "{md}");
     }
 
     #[test]

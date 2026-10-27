@@ -50,6 +50,9 @@ concerned (none for a rule: the dropped rule is kept whole in `rules-set-aside.y
 3. [x] Rules: the dropped rule kept whole in `rules-set-aside.yaml`, `[rules] keep_rules` puts it back at publishing (no call), removal sets it aside again, unknown or old-format slug warned; verified by pipeline tests with a fake `LlmProvider`; makes true RSA-3, RSA-4, RSA-5 (rules), RSA-8.
 4. [x] Report: the key to use at each set-aside list, rules put back marked; docs (`docs/crates/pipeline.md`, README config); verified by a report test; makes true RSA-7.
 
+## Plan (added after the high review)
+5. [x] Fixes of the `high` review of the whole issue (see the last section).
+
 ## Decisions
 - Mode: autonomous
 - Base commit: ab5c3b631cd42327c898d3024a6b716c61fe10b3
@@ -117,5 +120,27 @@ red: the assertion on the `keep_features` hint line failed (no hint in the secti
 Code review: no findings.
 
 not verified: a real run (no LLM run in this deliverable).
+
+decisions needed: none.
+
+## Deliverable 5: fixes of the high review (`ab5c3b6..c1652e7`)
+
+done: the rules put back are inserted by `with_put_back` wherever `rules.yaml` is written (partial saves included), once per set-aside rule, by their number (`BusinessRule::number_in`, shared with `belongs_to_feature`; the global sort is gone); a feature of `keep_features` is no longer listed as set aside, even when its answer is unreadable; the report marks a rule put back only when `rules.yaml` holds it.
+
+| check | result |
+|---|---|
+| tests | pass (3 new in `rules/tests.rs`, report test extended) |
+| lint | pass |
+| specs | no change (RSA-3, RSA-7 hold more strictly) |
+| docs | `docs/crates/pipeline.md` |
+| code review | see below |
+
+red: `a_rule_listed_twice_is_put_back_once` (two `orders-1`), `a_failing_run_keeps_the_rules_put_back_in_what_it_saves` (`orders-1` missing from `rules.yaml`), `a_feature_put_back_whose_answer_is_unreadable_is_no_longer_listed_as_set_aside` (1 feature left).
+
+High review findings: 8; fixed 7 (report mark, slug listed twice, partial saves, carried feature, global sort, its cost, duplicate slug parser). Not fixed: `AsideRule` keeps `slug` and `statement` beside the whole rule, on purpose: an older file has only them, and the report and a reader of the YAML read them without the nested rule.
+
+Code review (low, on these fixes): no findings.
+
+not verified: a real run.
 
 decisions needed: none.

@@ -67,6 +67,12 @@ impl SetAside {
         }
     }
 
+    /// Drops the features the user put back (`keep_features`): they are not set aside, even while
+    /// their rules are not stated yet.
+    pub(super) fn forget_features(&mut self, keep_features: &[String]) {
+        self.features.retain(|f| !keep_features.contains(&f.slug));
+    }
+
     pub(super) fn extend(&mut self, other: Self) {
         self.features.extend(other.features);
         self.rules.extend(other.rules);
