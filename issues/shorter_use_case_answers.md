@@ -126,6 +126,7 @@ instruction "only the steps the reader observes" is not estimable without a call
 | (a) `"F2:10-24"` | 80 | 95% | 70% | 346 | 100% | 68% | 32 | 276,602 | 27,426 (-20%) | 153 |
 | (a+b) one text, actor name | 81 | 81% | 67% | 351 | 100% | 66% | 32 | 276,378 | 23,679 (-31%) | 145 |
 | (a+b+c) observable steps, 5 at most | 81 | 73% | 67% | 288 | 100% | 69% | 32 | 277,978 | 21,667 (-37%) | 140 |
+| final (after the fixes), 3 runs, mean (min-max) | 78 (78-79) | 80% (74-85%) | 69% (67-72%) | 279 (275-287) | 100% | 71% (68-73%) | 32 | 279,738 | 20,820 (-39%) | 132 |
 
 ## Summary of deliverables 3 and 4
 - done: baseline replay; (a) kept: steps cite `"F2:10-24"`, the files are numbered in the prompt, the
@@ -184,3 +185,9 @@ instruction "only the steps the reader observes" is not estimable without a call
   written with the code, their red was not observed.
 - not verified: the replays of (b) and (c) ran on DeepSeek, which does not enforce the schema; the figures
   of the shape on a provider that does (OpenRouter, Ollama, llama-server) are not measured.
+
+## Check of the final shape (2026-10-27, user's go)
+Three replays of the final shape (after deliverable 8): the judge's business language is 80% (74-85%),
+the baseline's 79% inside the range, so the 73% of the single (c) run was the judge's noise. Completion
+tokens 20.8k (-39%), use cases 78-79 against 80, checks pass 71%. Still not measured: a provider that
+enforces the schema (DeepSeek does not). Closing decided after this check (user).
