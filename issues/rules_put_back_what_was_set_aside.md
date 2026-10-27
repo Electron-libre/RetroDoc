@@ -45,7 +45,7 @@ rule dropped as noise; the correction survives reruns and `--force`, and costs a
 concerned (none for a rule: the dropped rule is kept whole in `rules-set-aside.yaml`). Out of scope: setting aside by hand.
 
 ## Plan
-1. [ ] Measure: `--rules` with DeepSeek on two more repositories, read their set-aside lists, count the wrong cases; figures here; verified by the figures recorded.
+1. [x] Measure: `--rules` with DeepSeek on two more repositories, read their set-aside lists, count the wrong cases; figures here; verified by the figures recorded.
 2. [x] Features: `[rules] keep_features` in `retrodoc.toml`, a listed feature skips the tests question, the list is in its fingerprint, unknown slug warned; verified by pipeline tests with a fake `LlmProvider` (calls counted); makes true RSA-1, RSA-2, RSA-5 (features), RSA-6.
 3. [x] Rules: the dropped rule kept whole in `rules-set-aside.yaml`, `[rules] keep_rules` puts it back at publishing (no call), removal sets it aside again, unknown or old-format slug warned; verified by pipeline tests with a fake `LlmProvider`; makes true RSA-3, RSA-4, RSA-5 (rules), RSA-8.
 4. [x] Report: the key to use at each set-aside list, rules put back marked; docs (`docs/crates/pipeline.md`, README config); verified by a report test; makes true RSA-7.
@@ -144,3 +144,28 @@ Code review (low, on these fixes): no findings.
 not verified: a real run.
 
 decisions needed: none.
+
+## Deliverable 1: measure (DeepSeek `deepseek-chat`, 2026-10-27)
+
+Full `generate` with `[pipeline] rules = true`, `domains_from = "surface"`, after deliverables 2 to 5 (nothing
+listed in `[rules]`). The public repository is healthchecks (Django, about 21k lines of Python outside the
+tests), chosen because its business features speak of checks: "Check Management", "Service health check".
+Runs in `~/retrodoc-runs/rsa-dr` and `rsa-hc`; set-aside lists read by hand by the assistant.
+
+| | `delivery_router` | healthchecks |
+|---|---|---|
+| features / taken for tests | 11 / 0 | 38 / 0 |
+| rules published / dropped as noise | 39 / 1 | 346 / 52 (34 technical, 17 screen, 1 storage) |
+| clearly wrong drops (a business rule lost) | 0 | 0 |
+| debatable drops | 0 | 3 |
+| rules pass | 33 calls, 17 s | 114 calls, 1m39s (one feature cut and skipped, retried next run) |
+| whole run | | 268 calls, 1.12M tokens in, 127k out, 6m50s |
+
+* The features named after checks were not taken for tests: with the linkding and large-application figures,
+  0 wrong answers out of 134 features, still no false yes.
+* The 3 debatable drops on healthchecks: a new API key revealed only on click (`screen`, a security choice), a
+  pause asking a second confirming click (`screen`), the project last opened remembered (`storage`). The rest
+  is display formatting, retries, statsd, documentation build, favicons, as intended.
+* Conclusion: the doubtful cases are rare (3 of 53 entries, none clear) but they exist, and the correction
+  costs no LLM call for a rule: deliverables 2 to 4 stand as built (decision "built even if the measure finds
+  no wrong case").
