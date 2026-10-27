@@ -57,6 +57,9 @@ behaviour (no spec). Candidate: Lobsters (Rails, BSD-3-Clause, 131 Ruby files an
    (measures, artifacts, G5 ticked, G2/G3 extended to two applications).
 3. [x] Docs: skill `quality-benchmark` and `docs/dev/commands.md` say `delivery_router` is a smoke repository
    only and name the two benchmark applications; verified by `just check` and `just test-harness`.
+4. [x] Fixes of the `high` review of the whole issue: the test requires `matches.yaml` with known keys only,
+   compiles every entry point and actor regex and checks the three repositories are present rather than an exact
+   list; the lobsters entry point patterns no longer match unrelated words; the issue gives the right counts.
 
 ## Decisions
 - Mode: autonomous
@@ -68,7 +71,7 @@ behaviour (no spec). Candidate: Lobsters (Rails, BSD-3-Clause, 131 Ruby files an
 - Reference: checked item by item in the code by the agent, then a stop for the user to read it before the measure.
 
 ## Deliverable 1 summary
-- done: `benchmark/lobsters/reference.yaml` (8 actors, 7 domains, 33 features, 35 rules, each read in the code of
+- done: `benchmark/lobsters/reference.yaml` (8 actors, 7 domains, 31 features, 35 rules, each read in the code of
   ceb5e71) and `entry-points.yaml` (49 files, 24 groups, 8 actors), plus `tests/benchmark_files.rs` that loads and
   checks every committed reference, pair and entry points file.
 - red: `left: ["delivery_router", "linkding"] right: ["delivery_router", "linkding", "lobsters"]`.
@@ -100,3 +103,13 @@ behaviour (no spec). Candidate: Lobsters (Rails, BSD-3-Clause, 131 Ruby files an
   `docs/dev/commands.md` gives the tokens of the lobsters replays and the same split.
 - red: none (docs).
 - not verified: nothing.
+
+## Deliverable 4 summary (review `high` of a7487c2..0546639)
+- done: findings 2, 3, 9 fixed in `tests/benchmark_files.rs`; 4, 5, 6 fixed in `benchmark/lobsters/entry-points.yaml`
+  (`entry_points_replay` on the lobsters run still finds 24 of 24 groups); 10 fixed (31 features, 35 rules).
+- red: `lobsters: unknown key String("feature")` and `lobsters: bad regex sugg(est` on files broken on purpose,
+  then restored.
+- not fixed: 1 (a generated name stands for one reference item) is a change of the scoring, outside this issue:
+  `issues/one_generated_name_for_several_reference_items.md`; 7 (the test copies the structs of
+  `entry_points_replay`) and 8 (full hash only checked for committed references) are kept: moving the struct or
+  tightening `Reference::check` changes a library for an example and a test, for little gain.

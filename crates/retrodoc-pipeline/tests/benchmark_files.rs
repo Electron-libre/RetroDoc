@@ -2,6 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
+use regex::RegexBuilder;
 use retrodoc_pipeline::benchmark::{matching::score, Matches, Reference};
 use serde::Deserialize;
 
@@ -47,7 +48,12 @@ fn name(dir: &Path) -> String {
 #[test]
 fn the_benchmark_holds_two_applications_besides_the_smoke_repository() {
     let names: Vec<String> = benchmark_dirs().iter().map(|d| name(d)).collect();
-    assert_eq!(names, ["delivery_router", "linkding", "lobsters"]);
+    for wanted in ["delivery_router", "linkding", "lobsters"] {
+        assert!(
+            names.iter().any(|n| n == wanted),
+            "{wanted} is missing from {names:?}"
+        );
+    }
 }
 
 #[test]
@@ -74,6 +80,16 @@ fn every_hand_written_pair_names_an_item_of_its_reference() {
     for dir in benchmark_dirs() {
         let reference = Reference::load(&dir.join("reference.yaml")).unwrap();
         let path = dir.join("matches.yaml");
+        // `Matches::load` takes a missing file or a misspelled key for no pair at all.
+        let raw = std::fs::read_to_string(&path).unwrap();
+        let keys: serde_yaml::Mapping = serde_yaml::from_str(&raw).unwrap();
+        for key in keys.keys() {
+            assert!(
+                matches!(key.as_str(), Some("domains" | "features")),
+                "{}: unknown key {key:?}",
+                name(&dir)
+            );
+        }
         let matches = Matches::load(&path).unwrap();
         let domains: Vec<String> = reference.domains.iter().map(|d| d.name.clone()).collect();
         let features: Vec<String> = reference
@@ -96,10 +112,28 @@ fn every_entry_points_reference_parses_and_names_its_repository() {
         assert!(!entry_points.entry_points.is_empty(), "{}", name(&dir));
         assert!(!entry_points.actors.is_empty(), "{}", name(&dir));
         for item in &entry_points.entry_points {
-            assert!(!item.label.is_empty() && !item.matches.is_empty());
+            assert!(
+                !item.label.is_empty(),
+                "{}: an entry point has no label",
+                name(&dir)
+            );
+            compiles(&dir, &item.matches);
         }
         for actor in &entry_points.actors {
-            assert!(!actor.name.is_empty() && !actor.matches.is_empty());
+            assert!(
+                !actor.name.is_empty(),
+                "{}: an actor has no name",
+                name(&dir)
+            );
+            compiles(&dir, &actor.matches);
         }
+    }
+}
+
+/// `entry_points_replay` builds the same regex and panics on a bad one.
+fn compiles(dir: &Path, pattern: &str) {
+    assert!(!pattern.is_empty(), "{}: empty pattern", name(dir));
+    if let Err(error) = RegexBuilder::new(pattern).case_insensitive(true).build() {
+        panic!("{}: bad regex {pattern}: {error}", name(dir));
     }
 }

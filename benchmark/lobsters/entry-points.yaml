@@ -61,25 +61,25 @@ entry_points:
   - { label: "suggestions of title and tags", matches: "suggest" }
   - { label: "comments: write, reply, edit, delete", matches: "comment" }
   - { label: "votes and flags", matches: "vote|flag" }
-  - { label: "front page lists: hottest, newest, active, recent, top", matches: "home|hottest|newest|active|recent|top" }
+  - { label: "front page lists: hottest, newest, active, recent, top", matches: "home|hottest|newest|\\bactive\\b|recent|\\btop\\b|front page" }
   - { label: "tags, categories, domains, origins", matches: "tag|categor|domain|origin" }
   - { label: "tag filters", matches: "filter" }
   - { label: "search", matches: "search" }
   - { label: "inbox and notifications", matches: "inbox|notif|repl" }
-  - { label: "private messages", matches: "message" }
+  - { label: "private messages", matches: "/messages|private message" }
   - { label: "invitations and invitation requests", matches: "invit" }
   - { label: "signup", matches: "sign.?up|register" }
   - { label: "login, logout, two-factor, password reset", matches: "login|logout|sign.?in|2fa|two.?factor|password" }
   - { label: "settings, avatar, linked accounts", matches: "setting|avatar|mastodon|github|pushover|deactivat" }
-  - { label: "hats and hat requests", matches: "hat" }
+  - { label: "hats and hat requests", matches: "\\bhats?\\b|hat.?request" }
   - { label: "user profiles, tree, standing", matches: "user|profile|standing" }
-  - { label: "moderation: ban members, disable invitations", matches: "ban" }
+  - { label: "moderation: ban members, disable invitations", matches: "\\b(un)?ban(s|ned)?\\b" }
   - { label: "moderation log", matches: "moderation" }
   - { label: "mod mail and mod notes", matches: "mod.?mail|note" }
   - { label: "moderator dashboards and reparenting", matches: "flagged|activit|reparent" }
-  - { label: "reply by e-mail and mailing list", matches: "mail" }
+  - { label: "reply by e-mail and mailing list", matches: "mailbox|mailing|inbound|by e-?mail" }
   - { label: "webmentions", matches: "webmention" }
-  - { label: "about, privacy, chat, stats", matches: "about|privacy|chat|stat" }
+  - { label: "about, privacy, chat, stats", matches: "about|privacy|/chat|/stats|statistic" }
 # `matches`: regex (case-insensitive) on the name of an actor found by a run.
 actors:
   - { name: user, matches: "^(registered |logged.in |authenticated )?(user|member)" }
