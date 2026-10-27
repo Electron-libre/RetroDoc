@@ -59,7 +59,7 @@ Spec: `specs/pipeline-settings.md` (SET).
 2. [x] `rules`: on by default; the smoke test follows the default (`--rules` becomes `--no-rules`), the
    benchmark keeps it off (it does not judge the rules); verified by config and `init` tests and the harness
    tests; makes true SET-1, SET-2; ADR 0021 follow-up, README, `pipeline.md`, skills.
-3. [ ] Measure `body_lines` with `business-read` on: frozen linkding inputs (roles, business files, brief),
+3. [x] Measure `body_lines` with `business-read` on: frozen linkding inputs (roles, business files, brief),
    `business-read` + glossary + entry points, 3 runs off and 3 at N=5; `entry_points_replay`, entity and
    attribute counts, entity names compared between settings (the vocabulary of the use cases); figures here and
    in the ledger. Stop on the figures for the decision.
@@ -84,3 +84,27 @@ Spec: `specs/pipeline-settings.md` (SET).
 - red: `assertion failed: Config::default().pipeline.rules` (config tests), `FAIL - turns the rules pass off` (harness).
 - Consequence: a project whose `retrodoc.toml` has no `rules` key runs the rules pass at its next `generate`;
   one written by `init` before keeps `rules = false`.
+
+## Measure of deliverable 3 (`body_lines` with `business-read` on, 2026-10-27)
+linkding at 27b7303, roles, business files and brief of `frozen/linkding`, `deepseek-chat`, `business-read` then
+`glossary` (no call left: the joint reading covers its files) then `entry-points`, 3 runs per setting
+(`~/retrodoc-runs/settle_experimental_settings-71fdad9/`, about $0.10 in all; counts by
+`scripts/body_lines_counts.py`, entry points by `entry_points_replay`).
+
+| | off | N=5 |
+|---|---|---|
+| tokens in (business-read + entry-points) | 70.9k (52.5k + 18.4k), 22 calls | 43.9k (33.2k + 10.7k), 14 calls: -38% |
+| entry points | 117 (112-121) | 120 (108-137) |
+| groups of the reference found | 93% (93-93) | 90% (86-93) |
+| entries in reference files | 89% (88-92) | 84% (73-91) |
+| entities / attributes / associations | 20 (19-21) / 140 (134-147) / 22 (20-23) | 16 (15-17) / 101 (100-103) / 17 (16-18) |
+| attributes of the 8 model entities | 65 (65-66) | 68 (65-70) |
+
+* The attributes lost are those of the entities N=5 no longer lists: the Django forms (`BookmarkBundleForm`,
+  `BookmarkSearchForm`, `GlobalSettingsForm`, `UserProfileForm`), sometimes `WebsiteMetadata`. The 8 model
+  entities are in every run with as many attributes or more. None of the names lost appears in the frozen
+  features or use cases (`BookmarkSearch` does, twice, and an `off` run alone lists it).
+* Downstream, the reading passes are a small share of a run: 27k tokens saved is about 4% of the input of a
+  linkding `generate` with the rules on (use cases and rules about 280k each).
+* Entry points: one N=5 run finds one group fewer and 73% of its entries in reference files; the other two are
+  as `off`. Within the spread of three runs, but the only move is downwards.
