@@ -1,8 +1,8 @@
 //! The LLM judge of the benchmark. It reads what the deterministic matching left out:
 //!
-//! - it proposes pairs between the generated domains/features that match no reference item and the
-//!   reference items that no generated item covers (a pair is a proposal: the user reads it, fixes it
-//!   and freezes it in `matches.yaml`, which always wins);
+//! - it proposes pairs between the generated domains/features, the ones already paired included (a
+//!   generated item may hold several reference items), and the reference items that no generated item
+//!   covers (a pair is a proposal: the user reads it, fixes it and freezes it in `matches.yaml`);
 //! - it rates whether each use case narrative reads as business language, in batches.
 //!
 //! The judge shares the biases of the model that generated the docs, so its verdicts are saved apart
@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 
 use super::matching::{compare, Matches, Pair};
 use super::reference::Reference;
-use crate::domains::DomainMap;
+use crate::domains::{DomainMap, UNCATEGORIZED_SLUG};
 use crate::error::PipelineError;
 use crate::features::load_features;
 use crate::naming::normalize;
@@ -88,8 +88,9 @@ impl Matches {
 }
 
 /// Asks the judge to pair `generated` items with `reference` ones that stand for the same business
-/// capability. Pairs naming an item that wasn't offered are dropped, and so are repeated generated
-/// names. No call when either side is empty.
+/// capability; a generated item that holds several reference items may get a pair for each. Pairs
+/// naming an item that wasn't offered are dropped, and so are repeated pairs. No call when either
+/// side is empty.
 ///
 /// # Errors
 ///
@@ -120,9 +121,10 @@ pub async fn propose_matches(
     };
     let mut pairs: Vec<Pair> = Vec::new();
     for raw in answer.matches {
-        let repeated = pairs
-            .iter()
-            .any(|p| normalize(&p.generated) == normalize(&raw.generated));
+        let repeated = pairs.iter().any(|p| {
+            normalize(&p.generated) == normalize(&raw.generated)
+                && normalize(&p.reference) == normalize(&raw.reference)
+        });
         if known(generated, &raw.generated) && known(reference, &raw.reference) && !repeated {
             pairs.push(raw);
         } else {
@@ -140,8 +142,8 @@ const MATCH_SYSTEM_PROMPT: &str = "You are checking generated software documenta
 hand-written reference. You get the generated items and the reference items, each with a \
 description. Pair a generated item with a reference item only when both describe the same \
 business capability, even if their names differ. Leave out what has no counterpart: an \
-unpaired item is a normal answer. A generated item is paired with at most one reference item; \
-several generated items may share one reference item. Copy the names exactly as written. Reply \
+unpaired item is a normal answer. A generated item that clearly does what several reference items \
+describe is paired with each of them; several generated items may share one reference item. Copy the names exactly as written. Reply \
 with ONLY a single JSON object, no prose and no Markdown code fence, matching this shape: \
 {\"matches\":[{\"generated\":\"...\",\"reference\":\"...\"}]}.";
 
@@ -228,8 +230,8 @@ struct RawRating {
     business: bool,
 }
 
-/// The whole judgement of the run in `repo_root`: proposals for the unmatched domains and features
-/// (against `matches`, the hand-written pairs) and the rating of the narratives. `None` when the run
+/// The whole judgement of the run in `repo_root`: proposals for the reference domains and features
+/// left uncovered by `matches`, the hand-written pairs, and the rating of the narratives. `None` when the run
 /// has no clustering.
 ///
 /// # Errors
@@ -250,6 +252,7 @@ pub async fn judge(
     let generated_domains: Vec<Item> = map
         .domains
         .iter()
+        .filter(|d| d.slug != UNCATEGORIZED_SLUG)
         .map(|d| Item {
             name: d.name.clone(),
             description: d.description.clone(),
@@ -283,17 +286,14 @@ pub async fn judge(
     let domains = propose_matches(
         llm,
         "domains",
-        &only(&generated_domains, &comparison.domains.unmatched_generated),
+        &generated_domains,
         &only(&reference_domains, &comparison.domains.unmatched_reference),
     )
     .await?;
     let features = propose_matches(
         llm,
         "features",
-        &only(
-            &generated_features,
-            &comparison.features.unmatched_generated,
-        ),
+        &generated_features,
         &only(
             &reference_features,
             &comparison.features.unmatched_reference,
@@ -340,6 +340,7 @@ mod tests {
         }
     }
 
+    // spec: BSC-5
     #[tokio::test]
     async fn keeps_only_the_proposals_that_name_offered_items() {
         let llm = FakeLlm::answering(
@@ -368,6 +369,37 @@ mod tests {
         );
     }
 
+    // spec: BSC-5
+    #[tokio::test]
+    async fn keeps_several_reference_items_for_one_generated_name() {
+        let llm = FakeLlm::answering(
+            r#"{"matches":[
+                {"generated":"Billing","reference":"Payments"},
+                {"generated":"Billing","reference":"Refunds"},
+                {"generated":"billing","reference":"payments"}
+            ]}"#,
+        );
+
+        let pairs = propose_matches(
+            &llm,
+            "features",
+            &[item("Billing", "Invoices and refunds")],
+            &[
+                item("Payments", "Getting paid"),
+                item("Refunds", "Paying back"),
+            ],
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(
+            pairs,
+            [pair("Billing", "Payments"), pair("Billing", "Refunds")],
+            "the repeated pair is dropped"
+        );
+    }
+
+    // spec: BSC-4
     #[tokio::test]
     async fn no_call_when_there_is_nothing_to_pair() {
         let llm = FakeLlm::answering("{}");
@@ -568,5 +600,90 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(none, None, "nothing generated, nothing to judge");
+    }
+
+    // spec: BSC-4
+    #[tokio::test]
+    async fn offers_every_generated_feature_against_the_uncovered_reference_ones() {
+        use crate::artifact::{save_yaml, Artifact};
+        use crate::domains::{DomainCluster, DomainMap};
+        use crate::features::save_features;
+        use retrodoc_core::model::Feature;
+
+        let reference = |features: &str| -> Reference {
+            serde_yaml::from_str(&format!(
+                "repository: r\ncommit: c\npurpose: p\nactors: []\ndomains:\n  - name: Billing\n    description: d\n    features:\n{features}"
+            ))
+            .unwrap()
+        };
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let map = DomainMap {
+            domains: vec![DomainCluster {
+                slug: "billing".to_string(),
+                name: "Billing".to_string(),
+                ..DomainCluster::default()
+            }],
+        };
+        save_yaml(&Artifact::Domains.path(root), &map).unwrap();
+        let feature = |name: &str, description: &str| Feature {
+            back_office: false,
+            slug: name.to_lowercase(),
+            domain_slug: "billing".to_string(),
+            sub_domain_slug: None,
+            name: name.to_string(),
+            description: description.to_string(),
+            source_paths: vec![],
+            entry_points: Vec::new(),
+            confidence: None,
+        };
+        save_features(
+            root,
+            &[
+                feature("Checkout", "Paying, and refunds too"),
+                feature("Newsletter", "Mails"),
+            ],
+        )
+        .unwrap();
+        let llm =
+            FakeLlm::answering(r#"{"matches":[{"generated":"Checkout","reference":"Refund"}]}"#);
+
+        let judgement = judge(
+            &llm,
+            root,
+            &reference(
+                "      - {name: Checkout, description: Pay}\n      - {name: Refund, description: Pay back}\n",
+            ),
+            &Matches::default(),
+            Path::new("m.yaml"),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+
+        assert_eq!(judgement.features, [pair("Checkout", "Refund")]);
+        assert_eq!(llm.calls(), 1, "the domain is covered: no call for it");
+        let prompt = &llm.prompts()[0];
+        let (generated, reference_part) = prompt.split_once("Reference features:").unwrap();
+        assert!(
+            generated.contains("- Checkout:") && generated.contains("- Newsletter:"),
+            "{prompt}"
+        );
+        assert!(
+            reference_part.contains("- Refund:") && !reference_part.contains("- Checkout:"),
+            "{prompt}"
+        );
+
+        let covered = FakeLlm::answering("{}");
+        judge(
+            &covered,
+            root,
+            &reference("      - {name: Checkout, description: Pay}\n"),
+            &Matches::default(),
+            Path::new("m.yaml"),
+        )
+        .await
+        .unwrap();
+        assert_eq!(covered.calls(), 0, "every reference item is covered");
     }
 }

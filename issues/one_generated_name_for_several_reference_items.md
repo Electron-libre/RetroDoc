@@ -59,7 +59,7 @@ the generated features (script `~/retrodoc-runs/scripts/merged-features/uncovere
 1. [x] Scoring: `matching::score` covers the name match and every pair of a generated name, precision counts the
    name once; `matches.yaml` of lobsters lists the superset pairs; verified by unit tests of `score`; spec
    `benchmark-scoring` committed; makes true BSC-1, BSC-2, BSC-3.
-2. [ ] Judge: offered every generated item against the uncovered reference items, keeps several reference items
+2. [x] Judge: offered every generated item against the uncovered reference items, keeps several reference items
    for one generated name; verified by `judge.rs` tests on the fake LLM; makes true BSC-4, BSC-5 (spec `accepted`).
 3. [ ] Re-score and record: re-score the saved lobsters and linkding runs with the new pairs (no LLM); the ledger
    says the feature figures before this change are not comparable; skill `quality-benchmark` says a merged feature
@@ -77,3 +77,11 @@ the generated features (script `~/retrodoc-runs/scripts/merged-features/uncovere
 - red: `a_pair_adds_to_the_name` left `[("Billing", "Payments")]`, right with `("Billing", "Billing")`;
   `a_merge_counts...` recall `Some(0.25)` instead of `Some(0.75)`.
 - not verified: the re-score of the saved runs (deliverable 3).
+
+## Deliverable 2 (judge)
+- done: the judge is offered every generated item (the uncategorized bucket out) against the uncovered reference
+  items, may pair one generated name with several, drops repeated pairs only; prompt says so; spec `accepted`.
+- checks: `just check` ok, `just test-harness` ok, specs ok (BSC-1 to 5 traced), code review low: no findings.
+- red: `keeps_several_reference_items...` kept `[Billing -> Payments]` only; `offers_every_generated_feature...`
+  proposed `[]` (Checkout, name-matched, was not offered).
+- not verified: what the model answers with the new prompt (a paid judge run, deliverable 3 asks first).

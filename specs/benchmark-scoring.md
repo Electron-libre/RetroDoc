@@ -1,6 +1,6 @@
 ---
 id: BSC
-status: draft
+status: accepted
 adrs: []
 ---
 
