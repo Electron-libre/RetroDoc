@@ -143,7 +143,8 @@ hand-written reference. You get the generated items and the reference items, eac
 description. Pair a generated item with a reference item only when both describe the same \
 business capability, even if their names differ. Leave out what has no counterpart: an \
 unpaired item is a normal answer. A generated item that clearly does what several reference items \
-describe is paired with each of them; several generated items may share one reference item. Copy the names exactly as written. Reply \
+describe is paired with each of them; several generated items may share one reference item, and a \
+generated item dedicated to a reference item is paired with it even when a broader one holds it too. Copy the names exactly as written. Reply \
 with ONLY a single JSON object, no prose and no Markdown code fence, matching this shape: \
 {\"matches\":[{\"generated\":\"...\",\"reference\":\"...\"}]}.";
 

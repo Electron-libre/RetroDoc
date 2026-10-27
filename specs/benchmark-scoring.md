@@ -38,4 +38,6 @@ depend on how the model groups capabilities: a generated item that holds several
 
 - Whether the judge's pairs are right: it depends on what the model answers, the user reads `judge.yaml` and
   freezes the right pairs in `matches.yaml`.
+- Undoing a match by equal names: a pair adds a reference item, it never takes one away (a generated name equal
+  to a reference name that means another capability has not been seen).
 - Rejecting a judge proposal in `matches.yaml`: a wrong proposal stays out of the hand-written figures only.

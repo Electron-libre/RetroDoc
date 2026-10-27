@@ -87,8 +87,9 @@ the generated features (script `~/retrodoc-runs/scripts/merged-features/uncovere
 - not verified: what the model answers with the new prompt (a paid judge run, deliverable 3 asks first).
 
 ## Deliverable 3 (re-score and record)
-- done: 2 superset pairs in `benchmark/linkding/matches.yaml`; saved runs re-scored with `retrodoc benchmark`
-  (no LLM; judged = `matches.yaml` + the saved `judge.yaml`); ledger line added; skill `quality-benchmark` says
+- done: 2 superset pairs in `benchmark/linkding/matches.yaml`; saved runs re-scored by
+  `~/retrodoc-runs/scripts/merged-features/rescore.sh` (no LLM: `retrodoc benchmark`, then again with `--matches`
+  on `matches.yaml` + the saved `judge.yaml`; `retrodoc benchmark` alone never reads `judge.yaml`); ledger line added; skill `quality-benchmark` says
   older feature recalls are not comparable.
 
 | Run | Features strict before -> after | Features judged before -> after | Precision judged |
@@ -99,3 +100,18 @@ the generated features (script `~/retrodoc-runs/scripts/merged-features/uncovere
 - checks: `just check` ok, `just test-harness` ok; code review low: no findings.
 - not verified: a new judge call with the new prompt (paid, not run); lobsters at 100% saturates on features,
   its domains (43%) still separate settings.
+
+## Deliverable 4 (fixes of the `high` review of 075ffb3..HEAD)
+| Finding | Done |
+|---|---|
+| a pair can no longer undo a match by equal names | kept (validated at the plan stop); spec non-goal says so |
+| the judge may pick a broad matched feature over a dedicated unmatched one | prompt: a dedicated item is paired too |
+| `(N matched)` counted pairs | counts the generated items, `(N matched, M pairs)` when they differ; test |
+| judge prompt lists every generated feature (tokens) | not fixed: about 98 short descriptions on lobsters, cents |
+| `judge` repeats the selection of generated items of `compare` | not fixed: refactor, no behaviour at stake |
+| no scoring version in `RunReport` | new issue `scoring_version_in_benchmark_reports`, ranked 2nd |
+| issue still in the queue | closing asked to the user at the end |
+| the re-score wording named `retrodoc benchmark` alone | reworded: the script and `--matches` |
+
+- checks: `just check` ok, `just test-harness` ok; code review low: no findings.
+- red: `a_merged_item_counts_once_in_the_matched_count` printed `(2 matched)`.

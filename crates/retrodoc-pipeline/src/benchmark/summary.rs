@@ -14,12 +14,19 @@ fn percent(value: Option<f32>) -> String {
 }
 
 fn score_line(out: &mut String, label: &str, score: &Score) {
+    // The pairs of one generated item are next to each other: count the items, not the pairs.
+    let items = score.matched.chunk_by(|a, b| a.0 == b.0).count();
+    let pairs = score.matched.len();
+    let matched = if pairs == items {
+        format!("{items} matched")
+    } else {
+        format!("{items} matched, {pairs} pairs")
+    };
     let _ = writeln!(
         out,
-        "{label}: recall {}, precision {} ({} matched)",
+        "{label}: recall {}, precision {} ({matched})",
         percent(score.recall),
         percent(score.precision),
-        score.matched.len()
     );
     if !score.unmatched_generated.is_empty() {
         let _ = writeln!(
@@ -133,6 +140,24 @@ mod tests {
             confidence: None,
             cost,
         }
+    }
+
+    // spec: BSC-2
+    #[test]
+    fn a_merged_item_counts_once_in_the_matched_count() {
+        let mut merged = score(Some(1.0), Some(1.0), &[], &[]);
+        merged.matched = vec![
+            ("Voting".to_string(), "Upvote".to_string()),
+            ("Voting".to_string(), "Flag".to_string()),
+        ];
+        let comparison = Comparison {
+            domains: merged.clone(),
+            features: merged,
+        };
+
+        let text = summary(&metrics(None), &comparison, None);
+
+        assert!(text.contains("(1 matched, 2 pairs)"), "{text}");
     }
 
     #[test]

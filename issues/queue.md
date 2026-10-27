@@ -5,6 +5,7 @@ Open issues in the order to work on them: the first is the next one. Read by `ju
 re-ranks the whole list. Line format: `- [<file stem>](<file stem>.md) - <why here>`.
 
 - [one_generated_name_for_several_reference_items](one_generated_name_for_several_reference_items.md) - code review of `second_application_in_benchmark` (2026-10-27): a floor on the judged recall that biases both sides of a comparison alike, so after the settings measures; a no-LLM count on saved runs decides it
+- [scoring_version_in_benchmark_reports](scoring_version_in_benchmark_reports.md) - code review `high` of `one_generated_name_for_several_reference_items` (2026-10-27): cheap and no LLM, it guards every benchmark comparison made after the scoring change, so before the measures of the next issues
 - [parsed_references_for_ranking_and_slices](parsed_references_for_ranking_and_slices.md) - split off `tree_sitter_structure` step 3 (2026-10-11): gain unmeasured, starts with a no-LLM comparison of slices, after the passes it reads have settled
 - [brief_injection_experiments](brief_injection_experiments.md) - only once the pipeline stopped moving (behaviour issue) and with a steadier measure
 - [surface_domains_default_decision](surface_domains_default_decision.md) - parked (user, 2026-10-10): an optimization; the default stays `files` until the cost of more benchmark runs is acceptable
