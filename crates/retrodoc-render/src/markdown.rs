@@ -580,9 +580,8 @@ fn step_item(step: &Step) -> String {
         step.actor.name,
         step.label()
     );
-    let description = step.description.trim();
-    if !description.is_empty() && description != step.label() {
-        let _ = write!(item, ". {description}");
+    if let Some(detail) = step.detail() {
+        let _ = write!(item, ". {detail}");
     }
     item.push('\n');
     if !step.source_refs.is_empty() {

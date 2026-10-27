@@ -6,8 +6,6 @@ use std::collections::BTreeSet;
 
 use serde::Deserialize;
 
-use crate::use_cases::resolve_cited_path;
-
 #[derive(Debug, Deserialize)]
 pub(crate) struct RawCode {
     /// A file number of the prompt (`F2`) or a path.
@@ -24,14 +22,18 @@ where
     D: serde::Deserializer<'de>,
 {
     let value = Option::<serde_json::Value>::deserialize(deserializer)?;
-    let items = match value {
-        Some(serde_json::Value::Array(items)) => items,
+    Ok(codes_of(value.as_ref()))
+}
+
+/// The citations of a value, read as [`lenient_code`] says.
+pub(crate) fn codes_of(value: Option<&serde_json::Value>) -> Vec<RawCode> {
+    match value {
+        Some(serde_json::Value::Array(items)) => items.iter().filter_map(raw_code_of).collect(),
         Some(single @ (serde_json::Value::String(_) | serde_json::Value::Object(_))) => {
-            vec![single]
+            raw_code_of(single).into_iter().collect()
         }
         _ => Vec::new(),
-    };
-    Ok(items.iter().filter_map(raw_code_of).collect())
+    }
 }
 
 fn raw_code_of(value: &serde_json::Value) -> Option<RawCode> {
@@ -97,5 +99,22 @@ pub(crate) fn cited_path(
     match file_number(reference).filter(|_| !files.contains(reference.trim())) {
         Some(number) => numbered.get(number.checked_sub(1)?).cloned(),
         None => resolve_cited_path(reference, files),
+    }
+}
+
+/// Maps a path cited by the LLM to the feature file it designates: an exact
+/// match, or a unique file the citation is a path suffix of (or the other way
+/// round). Models often shorten `crate/src/a.rs` to `src/a.rs`.
+pub(crate) fn resolve_cited_path(cited: &str, allowed: &BTreeSet<String>) -> Option<String> {
+    let cited = cited.trim().trim_start_matches("./");
+    if allowed.contains(cited) {
+        return Some(cited.to_string());
+    }
+    let mut matches = allowed.iter().filter(|file| {
+        file.ends_with(&format!("/{cited}")) || cited.ends_with(&format!("/{file}"))
+    });
+    match (matches.next(), matches.next()) {
+        (Some(only), None) => Some(only.clone()),
+        _ => None,
     }
 }

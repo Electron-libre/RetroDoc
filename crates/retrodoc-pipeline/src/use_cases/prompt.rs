@@ -37,8 +37,10 @@ service), and use \"System\" only for the application itself. Give each use case
 `primary_actor`: the known human actor who triggers it, and begin its steps with the step in \
 which that actor acts (submits the request, opens the page, confirms).";
 
-/// Added when no actors list gives the kind of an actor: the answer gives it.
-pub(super) const ACTOR_KIND_ADDENDUM: &str = " No list of actors is given: write each step's \
+/// How a step names its actor: the kind of a known actor comes from the
+/// list, the answer gives the kind of any other.
+pub(super) const ACTOR_KIND_ADDENDUM: &str = " Write a step's actor by its name alone when it \
+is one of the known actors of the prompt or \"System\" (the application itself), and any other \
 actor as an object {\"name\":\"...\",\"kind\":\"human|system\"}, kind \"human\" for a person.";
 
 /// Asks for the business-level account of each use case, next to its
@@ -74,9 +76,8 @@ pub(super) fn system_prompt(has_entry_points: bool, has_actors: bool) -> String 
     }
     if has_actors {
         prompt.push_str(ACTORS_ADDENDUM);
-    } else {
-        prompt.push_str(ACTOR_KIND_ADDENDUM);
     }
+    prompt.push_str(ACTOR_KIND_ADDENDUM);
     prompt
 }
 

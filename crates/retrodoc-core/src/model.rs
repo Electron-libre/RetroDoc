@@ -172,8 +172,16 @@ impl Step {
         if self.action.trim().is_empty() {
             self.description.trim()
         } else {
-            &self.action
+            self.action.trim()
         }
+    }
+
+    /// What the step says beyond its [`label`](Self::label): its description
+    /// when it has an action too and says more than it, else nothing.
+    #[must_use]
+    pub fn detail(&self) -> Option<&str> {
+        let description = self.description.trim();
+        (!description.is_empty() && description != self.label()).then_some(description)
     }
 }
 
@@ -307,11 +315,18 @@ mod tests {
         .unwrap();
         assert_eq!(step.action, "");
         assert_eq!(step.label(), "Saves the invoice.");
+        assert_eq!(step.detail(), None);
         let step = Step {
-            action: "saves".into(),
+            action: " saves ".into(),
             ..step
         };
         assert_eq!(step.label(), "saves");
+        assert_eq!(step.detail(), Some("Saves the invoice."));
+        let same = Step {
+            action: "Saves the invoice.".into(),
+            ..step
+        };
+        assert_eq!(same.detail(), None, "the same text is not said twice");
     }
 
     #[test]

@@ -93,6 +93,7 @@ instruction "only the steps the reader observes" is not estimable without a call
 6. [x] (c) Fewer system steps: only the steps that change what the reader observes, with a cap; verified by a
    prompt test; one replay, kept or reverted.
 7. [x] Docs (`docs/crates/pipeline.md`, `llm.md` if touched), the `generate --force` note, findings recorded.
+8. [x] Fixes of the `high` review of the whole issue (below).
 
 ## Decisions
 - Mode: autonomous
@@ -166,3 +167,20 @@ instruction "only the steps the reader observes" is not estimable without a call
   fingerprints, so saved use cases keep their shape until `generate --force`.
 - Code review: no findings.
 - red: none (docs).
+
+## Summary of deliverable 8 (fixes of the `high` review, `d64d803..3fb0b9d`)
+- done: the strict schema sent with the request still described `{description, actor, action, code}`
+  (schemars ignores serde aliases), so a provider that enforces it could not write the one-text step: the
+  schema is now `StepShape` (`actor`, `text`, `code`), the actor a name or a `{name, kind}` object (anyOf);
+  the steps are read by hand (`RawStep::of`), so a step mixing both shapes no longer fails the whole
+  answer on a duplicated field; the prompt asks for a known actor or `System` by name and any other with its
+  kind, so a person outside the list stays human; a reversed range is put in order as in the rules pass;
+  `resolve_cited_path` moved to `citations.rs`; `Step::detail` next to `Step::label` replaces the three
+  copies of the action/description branch; the diagram keeps a word that ends at the limit.
+- Code review (low): a description equal to the action was said twice, fixed in `Step::detail`; then no findings.
+- not fixed: the cap of 5 steps stays a request of the prompt, as decided (a cut in the code could drop the
+  step that shows the result); the replay shows how often it is broken (0 of 81).
+- red: `a_word_that_ends_at_the_limit_is_kept` failed before the fix; the schema and mixed-shape tests were
+  written with the code, their red was not observed.
+- not verified: the replays of (b) and (c) ran on DeepSeek, which does not enforce the schema; the figures
+  of the shape on a provider that does (OpenRouter, Ollama, llama-server) are not measured.

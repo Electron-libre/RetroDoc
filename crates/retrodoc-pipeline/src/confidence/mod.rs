@@ -445,19 +445,17 @@ fn feature_confidence(feature: &Feature, use_cases: &[UseCase]) -> Option<Confid
 fn steps_text(use_case: &UseCase) -> String {
     let mut text = String::new();
     for step in &use_case.steps {
-        if step.action.trim().is_empty() {
-            let _ = writeln!(
-                text,
-                "{}. [{}] {}",
-                step.order, step.actor.name, step.description
-            );
-        } else {
-            let _ = writeln!(
-                text,
-                "{}. [{}] {} — {}",
-                step.order, step.actor.name, step.action, step.description
-            );
+        let _ = write!(
+            text,
+            "{}. [{}] {}",
+            step.order,
+            step.actor.name,
+            step.label()
+        );
+        if let Some(detail) = step.detail() {
+            let _ = write!(text, " — {detail}");
         }
+        text.push('\n');
     }
     text
 }

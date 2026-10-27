@@ -360,10 +360,9 @@ impl Docs {
             } else {
                 format!(" ({})", cited.join(", "))
             };
-            let text = if step.action.trim().is_empty() {
-                step.description.clone()
-            } else {
-                format!("{}: {}", step.action, step.description)
+            let text = match step.detail() {
+                Some(detail) => format!("{}: {detail}", step.label()),
+                None => step.label().to_string(),
             };
             let _ = writeln!(out, "{}. {} — {text}{cited}", step.order, step.actor.name);
         }

@@ -1,6 +1,6 @@
 use super::*;
 
-use crate::citations::{cited_path, lenient_code, RawCode};
+use crate::citations::{cited_path, codes_of, RawCode};
 use crate::entry_points::EntryKind;
 use crate::features::{entry_point_id, tag_position};
 
@@ -16,7 +16,8 @@ pub(super) struct RawUseCase {
     pub(super) name: String,
     #[serde(default, deserialize_with = "lenient_text")]
     pub(super) description: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "lenient_steps")]
+    #[schemars(with = "Vec<StepShape>")]
     pub(super) steps: Vec<RawStep>,
     #[serde(default)]
     pub(super) entry_points: Vec<String>,
@@ -26,26 +27,74 @@ pub(super) struct RawUseCase {
     pub(super) narrative: Option<String>,
 }
 
-/// Steps are parsed leniently: small models emit empty objects, steps
-/// without an actor, or "references" that are just notes. Incomplete steps
-/// are dropped and incomplete references ignored, rather than rejecting the
-/// whole answer.
-#[derive(Debug, Deserialize, schemars::JsonSchema)]
+/// A step as the prompt asks for it: what the schema sent with the request
+/// describes (`RawStep` is read from more shapes than that).
+#[derive(schemars::JsonSchema)]
+#[allow(dead_code)] // only its schema is used
+struct StepShape {
+    actor: ActorShape,
+    text: String,
+    /// `"F2:10-24"`: the number of a file of the prompt and a line range.
+    code: Vec<String>,
+}
+
+/// An actor of the list by its name, any other with its kind.
+#[derive(schemars::JsonSchema)]
+#[serde(untagged)]
+#[allow(dead_code)] // only its schema is used
+enum ActorShape {
+    Name(String),
+    Object { name: String, kind: String },
+}
+
+/// Steps are read leniently: small models emit empty objects, steps
+/// without an actor, or "references" that are just notes, and a model may mix
+/// the shape asked for (`actor` name, `text`, `code`) with the one before
+/// (`actor` object, `description`, `action`, `source_refs`), even in one step.
+/// Incomplete steps are dropped and incomplete references ignored, rather than
+/// rejecting the whole answer.
+#[derive(Debug)]
 pub(super) struct RawStep {
-    /// The one text of the step (`text`), or its `description` in the shape before.
-    #[serde(default, alias = "text", deserialize_with = "lenient_text")]
+    /// The one text of the step (`text`), else its `description`.
     pub(super) description: String,
-    /// The actor's name, or the `{"name", "kind"}` object of the shape before.
-    #[serde(default, deserialize_with = "lenient_actor")]
-    #[schemars(with = "Option<String>")]
     pub(super) actor: Option<RawActor>,
-    #[serde(default, deserialize_with = "lenient_text")]
     pub(super) action: Option<String>,
-    /// `"F2:10-24"`: the number of a file of the prompt and a line range; the `source_refs` objects
-    /// (`{"path", "start_line", "end_line"}`) of the shape before are read too.
-    #[serde(default, alias = "source_refs", deserialize_with = "lenient_code")]
-    #[schemars(with = "Vec<String>")]
+    /// From `code`, then from `source_refs`.
     pub(super) code: Vec<RawCode>,
+}
+
+impl RawStep {
+    fn of(step: &serde_json::Map<String, serde_json::Value>) -> Self {
+        let text = |key: &str| step.get(key).and_then(text_of);
+        RawStep {
+            description: text("text")
+                .filter(|t| !t.trim().is_empty())
+                .or_else(|| text("description"))
+                .unwrap_or_default(),
+            actor: step.get("actor").and_then(actor_of),
+            action: text("action"),
+            code: ["code", "source_refs"]
+                .iter()
+                .flat_map(|key| codes_of(step.get(*key)))
+                .collect(),
+        }
+    }
+}
+
+fn lenient_steps<'de, D>(deserializer: D) -> Result<Vec<RawStep>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = Option::<serde_json::Value>::deserialize(deserializer)?;
+    let steps = match value {
+        Some(serde_json::Value::Array(items)) => items,
+        _ => Vec::new(),
+    };
+    Ok(steps
+        .iter()
+        .filter_map(serde_json::Value::as_object)
+        .map(RawStep::of)
+        .collect())
 }
 
 /// A text field read as a string, or as an object turned into text: the
@@ -59,7 +108,12 @@ where
     T: FromText,
 {
     let value = serde_json::Value::deserialize(deserializer)?;
-    let text = match &value {
+    Ok(T::from_text(text_of(&value)))
+}
+
+/// The text of a value, read as [`lenient_text`] says.
+fn text_of(value: &serde_json::Value) -> Option<String> {
+    match value {
         serde_json::Value::String(text) => Some(text.clone()),
         serde_json::Value::Object(map) => {
             let text = if let Some(serde_json::Value::String(name)) = map.get("name") {
@@ -81,8 +135,7 @@ where
             tracing::debug!(%other, "text field of an unexpected type, ignored");
             None
         }
-    };
-    Ok(T::from_text(text))
+    }
 }
 
 /// What a lenient text field is built from: the text, if any.
@@ -102,7 +155,7 @@ impl FromText for Option<String> {
     }
 }
 
-#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Deserialize)]
 pub(super) struct RawActor {
     pub(super) name: String,
     /// `human` or `system`; empty when the actor is given by its name alone.
@@ -112,20 +165,16 @@ pub(super) struct RawActor {
 
 /// A step's actor: a name (its kind then comes from the actors list) or a
 /// `{"name", "kind"}` object; anything else, or a blank name, is no actor.
-fn lenient_actor<'de, D>(deserializer: D) -> Result<Option<RawActor>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let value = serde_json::Value::deserialize(deserializer)?;
+fn actor_of(value: &serde_json::Value) -> Option<RawActor> {
     let actor = match value {
         serde_json::Value::String(name) => Some(RawActor {
-            name,
+            name: name.clone(),
             kind: String::new(),
         }),
-        object @ serde_json::Value::Object(_) => serde_json::from_value(object).ok(),
+        object @ serde_json::Value::Object(_) => serde_json::from_value(object.clone()).ok(),
         _ => None,
     };
-    Ok(actor.filter(|a| !a.name.trim().is_empty()))
+    actor.filter(|a| !a.name.trim().is_empty())
 }
 
 /// The LLM's use cases of `feature` turned into [`UseCase`]s: those without
@@ -278,10 +327,14 @@ pub(super) fn ground_steps(
                         tracing::warn!(path = ?r.path, "step reference dropped: file not in the feature");
                         return None;
                     };
+                    let (start_line, end_line) = match (r.start_line, r.end_line) {
+                        (Some(s), Some(e)) => (Some(s.min(e)), Some(s.max(e))),
+                        lines => lines,
+                    };
                     Some(SourceRef {
                         path,
-                        start_line: r.start_line,
-                        end_line: r.end_line,
+                        start_line,
+                        end_line,
                     })
                 })
                 .collect();
@@ -319,23 +372,6 @@ pub(super) fn resolve_actor(raw: &RawActor, actors: &Actors) -> Actor {
     Actor {
         name: raw.name.clone(),
         kind,
-    }
-}
-
-/// Maps a path cited by the LLM to the feature file it designates: an exact
-/// match, or a unique file the citation is a path suffix of (or the other way
-/// round). Models often shorten `crate/src/a.rs` to `src/a.rs`.
-pub(crate) fn resolve_cited_path(cited: &str, allowed: &BTreeSet<String>) -> Option<String> {
-    let cited = cited.trim().trim_start_matches("./");
-    if allowed.contains(cited) {
-        return Some(cited.to_string());
-    }
-    let mut matches = allowed.iter().filter(|file| {
-        file.ends_with(&format!("/{cited}")) || cited.ends_with(&format!("/{file}"))
-    });
-    match (matches.next(), matches.next()) {
-        (Some(only), None) => Some(only.clone()),
-        _ => None,
     }
 }
 

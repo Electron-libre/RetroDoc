@@ -514,13 +514,13 @@ fn the_prompt_says_who_starts_what_only_where_it_applies() {
     // primary actor follows the known actors; a feature with neither gets none of them.
     let who_starts = "none of whose entry points is an http_route";
     let primary = "Give each use case a `primary_actor`";
-    // Without a list to take the kind of an actor from, the answer gives it.
+    // An actor outside the list (all of them without a list) gives its kind.
     let kind = r#"{"name":"...","kind":"human|system"}"#;
     for (entries, actors) in [(true, true), (true, false), (false, true), (false, false)] {
         let prompt = prompt::system_prompt(entries, actors);
         assert_eq!(prompt.contains(who_starts), entries, "{entries} {actors}");
         assert_eq!(prompt.contains(primary), actors, "{entries} {actors}");
-        assert_eq!(prompt.contains(kind), !actors, "{entries} {actors}");
+        assert!(prompt.contains(kind), "{entries} {actors}");
     }
     // `other` is a kind nobody could name: the check keeps its human, so does the prompt.
     assert!(prompt::system_prompt(true, false).contains("a cli_command or an other"));
@@ -653,6 +653,58 @@ async fn a_step_is_one_text_and_its_actor_a_name() {
             ("Mailer", ActorKind::System, "Sends the signed copy.", ""),
         ],
         "a step with no text is dropped"
+    );
+}
+
+#[test]
+fn the_schema_sent_describes_the_step_the_prompt_asks_for() {
+    let schema = crate::response::response_schema::<grounding::RawUseCases>().schema;
+    let step = &schema["properties"]["use_cases"]["items"]["properties"]["steps"]["items"];
+    let mut fields: Vec<&str> = step["properties"]
+        .as_object()
+        .unwrap()
+        .keys()
+        .map(String::as_str)
+        .collect();
+    fields.sort_unstable();
+    assert_eq!(fields, ["actor", "code", "text"], "{step}");
+    // A name, or the object that gives the kind of an actor outside the list.
+    let actor = step["properties"]["actor"].to_string();
+    assert!(actor.contains("anyOf") && actor.contains("kind"), "{actor}");
+}
+
+#[tokio::test]
+async fn a_step_mixing_both_shapes_costs_no_use_case() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.rs"), "fn a() {}\nfn b() {}\nfn c() {}\n").unwrap();
+    let provider = FakeLlm::answering(
+        r#"{"use_cases":[{"slug":"pay","name":"Pay","description":"d","steps":[
+            {"actor":{"name":"Payer","kind":"human"},"description":"old","text":"Pays the invoice.",
+             "code":["F1:3-1"],"source_refs":[{"path":"a.rs","start_line":2}]}]}]}"#,
+    );
+
+    let use_cases = build_use_cases(
+        dir.path(),
+        &[feature("payment", &["a.rs"])],
+        &UseCaseContext::default(),
+        &provider,
+    )
+    .await
+    .unwrap();
+
+    let step = &use_cases[0].steps[0];
+    assert_eq!(step.description, "Pays the invoice.", "the text wins");
+    assert_eq!(
+        (step.actor.name.as_str(), step.actor.kind),
+        ("Payer", ActorKind::Human)
+    );
+    // Both citation keys are read, a reversed range put back in order.
+    assert_eq!(
+        step.source_refs
+            .iter()
+            .map(|r| (r.start_line, r.end_line))
+            .collect::<Vec<_>>(),
+        [(Some(1), Some(3)), (Some(2), None)]
     );
 }
 

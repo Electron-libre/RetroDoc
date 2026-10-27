@@ -76,7 +76,16 @@ fn shortened(text: &str) -> String {
         return text.to_string();
     }
     let cut: String = text.chars().take(MAX_LABEL_CHARS).collect();
-    let words = cut.rsplit_once(' ').map_or(cut.as_str(), |(head, _)| head);
+    // The cut ends a word when the text goes on with a space.
+    let ends_a_word = text
+        .chars()
+        .nth(MAX_LABEL_CHARS)
+        .is_some_and(char::is_whitespace);
+    let words = if ends_a_word {
+        cut.as_str()
+    } else {
+        cut.rsplit_once(' ').map_or(cut.as_str(), |(head, _)| head)
+    };
     format!("{}…", words.trim_end_matches([',', ';', ' ']))
 }
 
@@ -150,6 +159,15 @@ mod tests {
             "{diagram}"
         );
         assert!(diagram.contains("P1->>P1: 2. Redirects to the list.\n"));
+    }
+
+    #[test]
+    fn a_word_that_ends_at_the_limit_is_kept() {
+        let text = format!("{} {} tail", "a".repeat(29), "b".repeat(30));
+        assert_eq!(
+            shortened(&text),
+            format!("{} {}…", "a".repeat(29), "b".repeat(30))
+        );
     }
 
     #[test]
