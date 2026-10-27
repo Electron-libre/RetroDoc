@@ -114,6 +114,10 @@ docs_dir = "docs"
 
 [pipeline]
 domains_from = "files"    # "files": domains from the file summaries; "surface": from the entities and entry points (no repo map; the features come from the entry points); "contexts": a large application documented a bounded context at a time (see below)
+# rules = true            # also state the business rules of each feature (off by default)
+
+# [rules]                 # put back what the rules pass set aside by mistake (listed in the debt report); kept by --force
+# keep_features = ["email-verification"]    # not features about tests: their rules are stated
 ```
 
 **A large application, in several runs.** With `domains_from = "contexts"`, `retrodoc contexts` (or the first

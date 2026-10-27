@@ -16,6 +16,7 @@ use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use futures_util::stream::{self, StreamExt};
+use retrodoc_core::config::RulesConfig;
 use retrodoc_core::model::{Actor, ActorKind, Feature, SourceRef, Step, UseCase};
 use retrodoc_llm::LlmProvider;
 use serde::Deserialize;
@@ -141,6 +142,8 @@ pub struct UseCaseContext {
     /// The signals the rules pass takes the closest extracts of a feature from (empty: none). Not
     /// `evidence`: the rules need them even when the features and use cases are not given any.
     pub rule_evidence: Evidence,
+    /// What the rules pass must not set aside, as `[rules]` of `retrodoc.toml` lists it.
+    pub put_back: RulesConfig,
     /// Features asked at once (`0` and `1`: one at a time). The answers are used in the order of
     /// the features, so the result does not depend on it.
     pub concurrency: usize,

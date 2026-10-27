@@ -31,3 +31,51 @@ for the whole repository.
 * Feature slugs change when the features are derived again: a hand list must say what happens to a slug that
   no longer exists (a warning, as for other hand-edited files).
 * Priority is moderate: the rules pass is off by default; the trace already shows the risk.
+
+# Specs
+* `specs/rules-set-aside.md` (RSA)
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Let the user correct, in `retrodoc.toml` (`[rules] keep_features`, `keep_rules`), a feature taken for tests or a
+rule dropped as noise; the correction survives reruns and `--force`, and costs at most the calls of the feature
+concerned (none for a rule: the dropped rule is kept whole in `rules-set-aside.yaml`). Out of scope: setting aside by hand.
+
+## Plan
+1. [ ] Measure: `--rules` with DeepSeek on two more repositories, read their set-aside lists, count the wrong cases; figures here; verified by the figures recorded.
+2. [x] Features: `[rules] keep_features` in `retrodoc.toml`, a listed feature skips the tests question, the list is in its fingerprint, unknown slug warned; verified by pipeline tests with a fake `LlmProvider` (calls counted); makes true RSA-1, RSA-2, RSA-5 (features), RSA-6.
+3. [ ] Rules: the dropped rule kept whole in `rules-set-aside.yaml`, `[rules] keep_rules` puts it back at publishing (no call), removal sets it aside again, unknown or old-format slug warned; verified by pipeline tests with a fake `LlmProvider`; makes true RSA-3, RSA-4, RSA-5 (rules), RSA-8.
+4. [ ] Report: the key to use at each set-aside list, rules put back marked; docs (`docs/crates/pipeline.md`, README config); verified by a report test; makes true RSA-7.
+
+## Decisions
+- Mode: autonomous
+- Base commit: ab5c3b631cd42327c898d3024a6b716c61fe10b3
+- The corrections live in `retrodoc.toml` `[rules]` (`keep_features`, `keep_rules`), not in the cache: they survive `--force` and are versioned.
+- Measure on `delivery_router` and one public repository with a business feature about checking, with DeepSeek.
+- Built even if the measure finds no wrong case: cheap, and the risk is already shown in the report.
+- Report: one line per set-aside list naming the key, not a hint on each entry.
+- Order: deliverable 1 (measure) waits for a `DEEPSEEK_API_KEY`, absent from the environment of the agent; 2 to 4 do not depend on it (decision above) and go first.
+- The lists reach the pass through `UseCaseContext::put_back` (like `rule_evidence`), not a new argument of `build_rules`.
+
+## Deliverable 2: keep_features
+
+done: `[rules] keep_features` (`RulesConfig`) read by the rules pass: a listed feature skips the tests question; only a listed feature carries it in its fingerprint; an unknown slug is warned about.
+
+| check | result |
+|---|---|
+| tests | pass (3 new in `rules/tests.rs`, 1 in `config.rs`) |
+| lint | pass |
+| specs | RSA-1, RSA-2, RSA-5 (features), RSA-6 traced |
+| docs | `docs/crates/pipeline.md`, `docs/ARCHITECTURE.md`, `README.md`, `rules/mod.rs` |
+| code review | see below |
+
+red: `assertion left == right failed: left: 0, right: 1` (the listed feature had no rules: still taken for tests).
+
+Code review: one finding, `keep_rules` is read by nothing: planned, it is deliverable 3 (next).
+
+not verified: a real run (no LLM run in this deliverable).
+
+decisions needed: none.

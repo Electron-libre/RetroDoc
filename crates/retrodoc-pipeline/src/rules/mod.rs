@@ -13,6 +13,8 @@
 //!
 //! Incremental: a feature whose text, code, evidence, use cases and model are unchanged keeps its
 //! saved rules without a call; an answer that can't be parsed is retried on the next run.
+//!
+//! What the LLM set aside, the user can put back in `[rules]` of `retrodoc.toml` (`specs/rules-set-aside.md`).
 
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -116,6 +118,7 @@ pub async fn build_rules(
     };
     let previous = saved.unwrap_or_default();
     let previous_aside = load_set_aside(repo_root).unwrap_or_default();
+    warn_unknown_features(&context.put_back.keep_features, features);
     let splitter = load_splitter(repo_root);
     let mut progress = Progress::new("rules", features.len());
 
@@ -242,7 +245,9 @@ async fn ask_rules(
     splitter: &Splitter,
 ) -> Result<Option<Asked>, PipelineError> {
     let feature = item.feature;
-    if let Some(kind) = complete_json::<RawFeatureKind>(
+    if item.put_back {
+        tracing::info!(feature = %feature.slug, "feature put back by hand, not asked whether it is about tests");
+    } else if let Some(kind) = complete_json::<RawFeatureKind>(
         llm,
         FEATURE_SYSTEM_PROMPT,
         &feature_prompt(feature),
@@ -298,6 +303,18 @@ async fn ask_rules(
         });
     }
     Ok(Some(asked))
+}
+
+/// Warns about each slug of `keep_features` that names none of `features`.
+fn warn_unknown_features(keep_features: &[String], features: &[Feature]) {
+    for slug in keep_features {
+        if !features.iter().any(|f| &f.slug == slug) {
+            tracing::warn!(
+                "`{slug}` of `keep_features` in `[rules]` of retrodoc.toml names no feature: \
+                 nothing to put back (was it renamed?)"
+            );
+        }
+    }
 }
 
 /// What each feature reads, to tell which one owns the code a rule cites.
@@ -402,6 +419,8 @@ struct Item<'a> {
     print: String,
     input: RuleInput,
     use_cases: Vec<&'a UseCase>,
+    /// Listed in `keep_features`: not asked whether it is about tests.
+    put_back: bool,
     plan: Plan,
 }
 
@@ -431,7 +450,8 @@ fn plan_item<'a>(
         .iter()
         .filter(|u| u.feature_slug == feature.slug)
         .collect();
-    let print = rules_fingerprint(repo_root, feature, &input, &own, context, llm);
+    let put_back = context.put_back.keep_features.contains(&feature.slug);
+    let print = rules_fingerprint(repo_root, feature, &input, &own, context, llm, put_back);
     let plan = if known.get(&key) == Some(&print) {
         Plan::Reuse
     } else {
@@ -452,12 +472,14 @@ fn plan_item<'a>(
         print,
         input,
         use_cases: own,
+        put_back,
         plan,
     }
 }
 
 /// Hash of everything the rules of a feature are derived from: its text, the content of its files,
-/// its entities, the evidence, its use cases, the brief, the three prompts (statement, kind, judgement) and the model.
+/// its entities, the evidence, its use cases, the brief, the three prompts (statement, kind, judgement), the model,
+/// and whether it is put back by hand (only when it is, so that the other features keep their print).
 fn rules_fingerprint(
     repo_root: &Path,
     feature: &Feature,
@@ -465,6 +487,7 @@ fn rules_fingerprint(
     use_cases: &[&UseCase],
     context: &UseCaseContext,
     llm: &dyn LlmProvider,
+    put_back: bool,
 ) -> String {
     let files = input.files.iter().map(|path| {
         let hash = std::fs::read(repo_root.join(path)).map_or_else(
@@ -499,6 +522,7 @@ fn rules_fingerprint(
                     "{RULES_SYSTEM_PROMPT}\0{FEATURE_SYSTEM_PROMPT}\0{JUDGE_SYSTEM_PROMPT}"
                 ))
             )))
-            .chain(std::iter::once(model_part(llm))),
+            .chain(std::iter::once(model_part(llm)))
+            .chain(put_back.then(|| "put back by hand".to_string())),
     )
 }

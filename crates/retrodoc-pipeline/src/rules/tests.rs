@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
+use retrodoc_core::config::RulesConfig;
 use retrodoc_core::model::{ConfidenceScore, Feature, RuleEvidence, RuleKind, UseCase};
 use retrodoc_ingest::signals::{Signal, SignalKind};
 
@@ -663,6 +664,109 @@ async fn a_run_saved_before_the_set_aside_file_is_asked_again_once() {
 
     assert_eq!(again.calls(), 1);
     assert_eq!(load_set_aside(dir.path()).unwrap().features.len(), 1);
+}
+
+/// The context of the tests, with the features and rules of `put_back` put back by hand.
+fn putting_back(features: &[&str], rules: &[&str]) -> UseCaseContext {
+    UseCaseContext {
+        put_back: RulesConfig {
+            keep_features: features.iter().map(ToString::to_string).collect(),
+            keep_rules: rules.iter().map(ToString::to_string).collect(),
+        },
+        ..context()
+    }
+}
+
+async fn ask_with(
+    dir: &Path,
+    llm: &FakeLlm,
+    features: &[Feature],
+    context: &UseCaseContext,
+) -> Vec<BusinessRule> {
+    build_rules(dir, features, &[use_case()], context, llm)
+        .await
+        .unwrap()
+}
+
+// spec: RSA-1
+#[tokio::test]
+async fn a_feature_put_back_by_hand_is_not_asked_whether_it_is_about_tests() {
+    let dir = repo();
+    let llm = knowing(r#"{"about_tests":true}"#);
+
+    let rules = ask_with(
+        dir.path(),
+        &llm,
+        &[feature()],
+        &putting_back(&["orders"], &[]),
+    )
+    .await;
+
+    assert_eq!(rules.len(), 1);
+    assert_eq!(llm.calls(), 2, "statement and judgement only");
+    assert!(!llm
+        .system_prompts()
+        .iter()
+        .any(|p| p == judge::FEATURE_SYSTEM_PROMPT));
+    assert_eq!(load_set_aside(dir.path()).unwrap().features, []);
+}
+
+// spec: RSA-2
+#[tokio::test]
+async fn putting_a_feature_back_or_taking_it_off_the_list_redoes_that_feature_only() {
+    let dir = two_features_repo();
+    let features = [feature(), wide()];
+    let first = knowing(r#"{"about_tests":true}"#);
+    ask_with(dir.path(), &first, &features, &context()).await;
+    assert_eq!(first.calls(), 2);
+
+    let listed = knowing(r#"{"about_tests":true}"#);
+    let rules = ask_with(
+        dir.path(),
+        &listed,
+        &features,
+        &putting_back(&["orders"], &[]),
+    )
+    .await;
+    assert_eq!(rules.len(), 1);
+    assert_eq!(rules[0].slug, "orders-1");
+    assert_eq!(listed.calls(), 2, "{:?}", listed.prompts());
+    assert!(listed
+        .prompts()
+        .iter()
+        .all(|p| !p.contains("Run the whole router")));
+
+    let unlisted = knowing(r#"{"about_tests":true}"#);
+    assert_eq!(
+        ask_with(dir.path(), &unlisted, &features, &context()).await,
+        []
+    );
+    assert_eq!(unlisted.calls(), 1, "the question on `orders` only");
+}
+
+// spec: RSA-5
+#[tokio::test]
+async fn a_feature_put_back_that_does_not_exist_is_warned_about() {
+    let (logs, _guard) = crate::testing::capture_logs();
+    let dir = repo();
+    let llm = knowing(r#"{"about_tests":false}"#);
+
+    let rules = ask_with(
+        dir.path(),
+        &llm,
+        &[feature()],
+        &putting_back(&["ghost", "orders"], &[]),
+    )
+    .await;
+
+    assert_eq!(rules.len(), 1);
+    let logs = logs.text();
+    let warnings: Vec<&str> = logs.lines().filter(|l| l.contains("WARN")).collect();
+    assert_eq!(warnings.len(), 1, "{logs}");
+    assert!(
+        warnings[0].contains("ghost") && warnings[0].contains("keep_features"),
+        "{logs}"
+    );
 }
 
 #[test]

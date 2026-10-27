@@ -326,6 +326,7 @@ fn use_case_context(
         brief,
         evidence,
         rule_evidence,
+        put_back: config.rules.clone(),
         concurrency: config.llm.for_pass("use-cases").concurrency.unwrap_or(1),
     }
 }

@@ -71,6 +71,28 @@ pub struct Config {
     pub brief: BriefConfig,
     #[serde(default)]
     pub pipeline: PipelineConfig,
+    #[serde(default, skip_serializing_if = "RulesConfig::is_empty")]
+    pub rules: RulesConfig,
+}
+
+/// `[rules]`: what the user puts back of what the rules pass set aside on a judgement of the LLM
+/// (`specs/rules-set-aside.md`). In `retrodoc.toml`, not in the cache, so `generate --force` keeps it.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RulesConfig {
+    /// Slugs of the features not to take for features about tests: their rules are stated.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub keep_features: Vec<String>,
+    /// Slugs (`<feature-slug>-<n>`) of the rules the judgement dropped as noise, published anyway.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub keep_rules: Vec<String>,
+}
+
+impl RulesConfig {
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.keep_features.is_empty() && self.keep_rules.is_empty()
+    }
 }
 
 /// `[pipeline]`: which path `generate` takes (ADR 0020).
@@ -459,6 +481,25 @@ mod tests {
         assert_eq!(parsed.llm.provider, config.llm.provider);
         assert_eq!(parsed.llm.model, config.llm.model);
         assert_eq!(parsed.output.docs_dir, config.output.docs_dir);
+    }
+
+    // spec: RSA-6
+    #[test]
+    fn the_corrections_of_the_rules_pass_are_read_from_retrodoc_toml_and_init_writes_none() {
+        let raw = r#"
+            [rules]
+            keep_features = ["email-verification"]
+            keep_rules = ["orders-2"]
+        "#;
+        let parsed: Config = toml::from_str(raw).unwrap();
+        assert_eq!(parsed.rules.keep_features, ["email-verification"]);
+        assert_eq!(parsed.rules.keep_rules, ["orders-2"]);
+        // The config file is not under `.retrodoc/cache/`, the only folder `--force` clears.
+        assert!(!CONFIG_FILE_NAME.contains(".retrodoc"));
+        assert!(!toml::to_string_pretty(&Config::default())
+            .unwrap()
+            .contains("[rules]"));
+        assert!(toml::from_str::<Config>("[rules]\nkeep = []\n").is_err());
     }
 
     #[test]
