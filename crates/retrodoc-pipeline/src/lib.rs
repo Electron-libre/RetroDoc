@@ -25,6 +25,7 @@ pub mod business_read;
 pub mod cache;
 mod chunk_check;
 pub mod chunks;
+mod citations;
 pub mod confidence;
 pub mod contexts;
 pub mod diagrams;

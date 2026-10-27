@@ -83,8 +83,8 @@ instruction "only the steps the reader observes" is not estimable without a call
    size of the answer under each candidate shape (a, b, c); verified by a unit test on a small artifact.
 2. [x] Grounding in the use cases replay: `UseCaseFigures` gains the steps with a citation and the share the
    mechanical checks pass (`mechanical_score`), shown by `use_case_table`; verified by a test of the table.
-3. [ ] Baseline: one `pass_replay use-cases` on frozen linkding, `deepseek-chat`, current shape.
-4. [ ] (a) Compact citations: files numbered in the prompt, a citation as `[file number, start, end]`; a
+3. [x] Baseline: one `pass_replay use-cases` on frozen linkding, `deepseek-chat`, current shape.
+4. [x] (a) Compact citations: files numbered in the prompt, a citation as `"F2:10-24"` (the rules pass's form, its reading moved to `citations.rs`); a
    path still accepted; verified by grounding tests (number to path, unknown number dropped); one replay,
    kept if within the spread.
 5. [ ] (b) One text per step and the actor as a name (kind from the actors list, else `System` / human
@@ -116,3 +116,20 @@ instruction "only the steps the reader observes" is not estimable without a call
 - Code review: no findings.
 - red: `no field steps on type UseCaseFigures` (the replay test asserting 2 steps, 1 cited, 1 passing).
 - not verified: on a real replay (deliverable 3).
+
+## Replays (frozen linkding, `deepseek-chat`, one run each)
+
+| shape | use cases | business language, judge | score = 1 | steps | cited | checks pass | calls | prompt tokens | completion tokens | seconds |
+|---|---|---|---|---|---|---|---|---|---|---|
+| current (2026-10-27) | 80 | 79% | 65% | 349 | 100% | 68% | 32 | 275,026 | 34,146 | 176 |
+| (a) `"F2:10-24"` | 80 | 95% | 70% | 346 | 100% | 68% | 32 | 276,602 | 27,426 (-20%) | 153 |
+
+## Summary of deliverables 3 and 4
+- done: baseline replay; (a) kept: steps cite `"F2:10-24"`, the files are numbered in the prompt, the
+  reading of citations shared with the rules pass (`citations.rs`); `source_refs` objects and paths still
+  read. Completion tokens -20%, as estimated; use cases, steps and grounding unchanged; the judge's 95%
+  against 79% is one run each, read as noise until (b) and (c) say otherwise.
+- Code review: no findings.
+- red: the prompt did not ask for `"code":["F1:10-24"]` (test `steps_cite_the_files_by_their_number_in_the_prompt`).
+- not verified: a local model (only `deepseek-chat`); the prompt is not in the fingerprints, so saved use
+  cases keep their shape until `generate --force`.

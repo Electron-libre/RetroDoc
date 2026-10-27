@@ -1,5 +1,6 @@
 use super::*;
 
+use crate::citations::{cited_path, lenient_code, RawCode};
 use crate::entry_points::EntryKind;
 use crate::features::{entry_point_id, tag_position};
 
@@ -36,8 +37,11 @@ pub(super) struct RawStep {
     pub(super) actor: Option<RawActor>,
     #[serde(default, deserialize_with = "lenient_text")]
     pub(super) action: Option<String>,
-    #[serde(default)]
-    pub(super) source_refs: Vec<RawSourceRef>,
+    /// `"F2:10-24"`: the number of a file of the prompt and a line range; the `source_refs` objects
+    /// (`{"path", "start_line", "end_line"}`) of the shape before are read too.
+    #[serde(default, alias = "source_refs", deserialize_with = "lenient_code")]
+    #[schemars(with = "Vec<String>")]
+    pub(super) code: Vec<RawCode>,
 }
 
 /// A text field read as a string, or as an object turned into text: the
@@ -101,23 +105,17 @@ pub(super) struct RawActor {
     pub(super) kind: String,
 }
 
-#[derive(Debug, Deserialize, schemars::JsonSchema)]
-pub(super) struct RawSourceRef {
-    pub(super) path: Option<String>,
-    pub(super) start_line: Option<u32>,
-    pub(super) end_line: Option<u32>,
-}
-
 /// The LLM's use cases of `feature` turned into [`UseCase`]s: those without
 /// steps are dropped, slugs made unique among the feature's `existing` ones
-/// and each other, steps grounded on the `cited_files`, and entry points and
+/// and each other, steps grounded on the `cited_files` (in the order of their
+/// numbers in the prompt), and entry points and
 /// primary actor kept only when known.
 pub(super) fn grounded_use_cases(
     raw: RawUseCases,
     feature: &Feature,
     existing: &[UseCase],
     input: &FeatureInput,
-    cited_files: &BTreeSet<String>,
+    cited_files: &[String],
     actors: &Actors,
 ) -> Vec<UseCase> {
     let mut produced: Vec<UseCase> = Vec::new();
@@ -228,18 +226,19 @@ fn without_invented_humans(
 
 /// Numbers steps from 1 (skipping incomplete ones) and keeps only the source
 /// references that point to a file actually shown to the LLM for this
-/// feature.
+/// feature, by its number in the prompt (`numbered`, from 1) or its path.
 pub(super) fn ground_steps(
     raw_steps: Vec<RawStep>,
-    allowed: &BTreeSet<String>,
+    numbered: &[String],
     actors: &Actors,
 ) -> Vec<Step> {
+    let allowed: BTreeSet<String> = numbered.iter().cloned().collect();
     let complete = raw_steps.into_iter().filter_map(|raw| {
         let (Some(actor), Some(action)) = (raw.actor, raw.action) else {
             tracing::warn!("step dropped: no actor or no action");
             return None;
         };
-        Some((raw.description, actor, action, raw.source_refs))
+        Some((raw.description, actor, action, raw.code))
     });
     complete
         .zip(1..)
@@ -247,9 +246,8 @@ pub(super) fn ground_steps(
             let source_refs = refs
                 .into_iter()
                 .filter_map(|r| {
-                    let cited = r.path?;
-                    let Some(path) = resolve_cited_path(&cited, allowed) else {
-                        tracing::warn!(path = %cited, "step reference dropped: file not in the feature");
+                    let Some(path) = cited_path(&r, numbered, &allowed) else {
+                        tracing::warn!(path = ?r.path, "step reference dropped: file not in the feature");
                         return None;
                     };
                     Some(SourceRef {

@@ -51,13 +51,12 @@ pub(super) const USE_CASES_SYSTEM_PROMPT: &str =
 point of view. Given a feature and the source code implementing it, describe its use cases: \
 concrete scenarios in which an actor achieves a goal with this feature. For each use case give \
 the ordered steps, each with its actor (kind \"human\" for a person, \"system\" for a software \
-component, service or external system), the action performed, and the file (with line range when \
-you can tell) the step is grounded on. Only describe behavior visible in the code provided; do not \
+component, service or external system), the action performed, and in `code` the code the step is grounded on: the number of the file \
+shown before its excerpt and the line range of the numbered lines, as \"F2:10-24\". Only describe behavior visible in the code provided; do not \
 invent steps. Reply with ONLY a single JSON object, no prose and no Markdown code fence, matching \
 this shape: {\"use_cases\":[{\"slug\":\"kebab-case\",\"name\":\"...\",\"description\":\"...\",\
 \"steps\":[{\"description\":\"...\",\"actor\":{\"name\":\"...\",\"kind\":\"human|system\"},\
-\"action\":\"short verb phrase\",\"source_refs\":[{\"path\":\"...\",\"start_line\":1,\
-\"end_line\":10}]}]}]}.";
+\"action\":\"short verb phrase\",\"code\":[\"F1:10-24\"]}]}]}.";
 
 /// The system prompt: the base, the narrative request, and the parts that
 /// only apply when the feature has entry points / the actors are known.
@@ -82,14 +81,15 @@ pub(super) struct Framing<'a> {
 }
 
 /// Builds the user prompt for `feature` from the code of its files, within
-/// the prompt budget. Returns it with the set of files actually included.
+/// the prompt budget. Returns it with the files actually included, in the
+/// order of the numbers the prompt shows them with (`=== [F1] path ===`).
 pub(super) fn use_cases_prompt(
     repo_root: &Path,
     feature: &Feature,
     input: &FeatureInput,
     framing: &Framing<'_>,
     splitter: &Splitter,
-) -> (String, BTreeSet<String>) {
+) -> (String, Vec<String>) {
     let Framing {
         actors,
         vocabulary,
@@ -140,7 +140,7 @@ pub(super) fn use_cases_prompt(
         }
     }
     prompt.push_str("\nSource files:\n");
-    let mut included = BTreeSet::new();
+    let mut included: Vec<String> = Vec::new();
     let mut budget = MAX_CHARS_PER_PROMPT;
 
     for path in &input.files {
@@ -159,8 +159,12 @@ pub(super) fn use_cases_prompt(
             &focus,
         );
         budget = budget.saturating_sub(excerpt.len());
-        let _ = write!(prompt, "\n=== {path} ===\n{excerpt}\n");
-        included.insert(path.clone());
+        included.push(path.clone());
+        let _ = write!(
+            prompt,
+            "\n=== [F{}] {path} ===\n{excerpt}\n",
+            included.len()
+        );
     }
     (prompt, included)
 }

@@ -429,7 +429,8 @@ enum Plan {
 struct Request {
     system_prompt: String,
     prompt: String,
-    cited_files: BTreeSet<String>,
+    /// The files shown, in the order of their numbers in the prompt.
+    cited_files: Vec<String>,
     input: FeatureInput,
 }
 

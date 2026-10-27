@@ -89,6 +89,48 @@ async fn build_use_cases_renumbers_steps_and_drops_ungrounded_refs() {
 }
 
 #[tokio::test]
+async fn steps_cite_the_files_by_their_number_in_the_prompt() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.rs"), "fn a() {}\n").unwrap();
+    std::fs::write(dir.path().join("b.rs"), "fn b() {}\nfn c() {}\n").unwrap();
+    let provider = FakeLlm::answering(
+        r#"{"use_cases":[{"slug":"pay","name":"Pay","description":"d","steps":[
+            {"description":"s","actor":{"name":"API","kind":"system"},"action":"pays",
+             "code":["F2:1-2","F9:1","a.rs:1"]}]}]}"#,
+    );
+
+    let use_cases = build_use_cases(
+        dir.path(),
+        &[feature("payment", &["a.rs", "b.rs"])],
+        &UseCaseContext::default(),
+        &provider,
+    )
+    .await
+    .unwrap();
+
+    let prompts = provider.prompt_pairs();
+    assert!(
+        prompts[0].0.contains(r#""code":["F1:10-24"]"#),
+        "{}",
+        prompts[0].0
+    );
+    assert!(
+        prompts[0].1.contains("=== [F1] a.rs ==="),
+        "{}",
+        prompts[0].1
+    );
+    assert!(prompts[0].1.contains("=== [F2] b.rs ==="));
+    // The number of a file shown, else a path; an unknown number is dropped.
+    let refs = &use_cases[0].steps[0].source_refs;
+    assert_eq!(
+        refs.iter()
+            .map(|r| (r.path.as_str(), r.start_line, r.end_line))
+            .collect::<Vec<_>>(),
+        [("b.rs", Some(1), Some(2)), ("a.rs", Some(1), None)]
+    );
+}
+
+#[tokio::test]
 async fn build_use_cases_skips_features_without_readable_files_and_bad_answers() {
     let dir = tempfile::tempdir().unwrap();
     std::fs::write(dir.path().join("a.rs"), "fn a() {}\n").unwrap();
@@ -341,7 +383,7 @@ async fn a_feature_with_entry_points_gets_them_and_the_code_they_run() {
         "- E1 POST /contracts/:id/sign [http_route] (app/contracts_controller.rb): A signatory signs"
     ));
     assert!(prompts[0].1.contains("Email confirmation sent"));
-    assert!(prompts[0].1.contains("=== app/contract_signer.rb ==="));
+    assert!(prompts[0].1.contains("] app/contract_signer.rb ==="));
     assert!(!prompts[0].1.contains("unrelated.rb"));
     // Known entry points are kept as the inventory spells them, unknown dropped;
     // a step may cite code reached through the entry point.
