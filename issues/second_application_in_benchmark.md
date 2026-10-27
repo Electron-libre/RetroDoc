@@ -55,7 +55,7 @@ behaviour (no spec). Candidate: Lobsters (Rails, BSD-3-Clause, 131 Ruby files an
    `freeze_inputs` into `~/retrodoc-runs/frozen/lobsters`, then `pass_replay --freeze-first` 3 runs each for
    domains, features, use cases; audit the judge's pairs into `benchmark/lobsters/matches.yaml`; ledger lines
    (measures, artifacts, G5 ticked, G2/G3 extended to two applications).
-3. [ ] Docs: skill `quality-benchmark` and `docs/dev/commands.md` say `delivery_router` is a smoke repository
+3. [x] Docs: skill `quality-benchmark` and `docs/dev/commands.md` say `delivery_router` is a smoke repository
    only and name the two benchmark applications; verified by `just check` and `just test-harness`.
 
 ## Decisions
@@ -93,3 +93,10 @@ behaviour (no spec). Candidate: Lobsters (Rails, BSD-3-Clause, 131 Ruby files an
   replays are not saved, only those of the complete run were audited.
 - follow-up: the features judged recall spread on lobsters (84-90) is narrower than on linkding (15 to 20 points);
   domains spread 29 points on one call.
+
+## Deliverable 3 summary
+- done: skill `quality-benchmark` names the two benchmark applications (linkding, lobsters), says a setting is
+  compared on both and that `delivery_router` is a smoke repository only, with the cost of a lobsters run;
+  `docs/dev/commands.md` gives the tokens of the lobsters replays and the same split.
+- red: none (docs).
+- not verified: nothing.

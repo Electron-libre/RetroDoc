@@ -31,6 +31,10 @@ reference is written by hand per repository in `benchmark/<repo>/reference.yaml`
 domains, features, a sample of use cases and rules, the pinned commit) and the hand-written pairs in
 `benchmark/<repo>/matches.yaml`. Only **public** repositories go in the benchmark.
 
+Two applications decide whether a setting wins: `linkding` (Python/Django) and `lobsters` (Rails). Compare a
+setting on both: a gain on one only is not yet a gain. `delivery_router` (9 files) is a **smoke repository
+only**: its figures saturate (100% recall), it separates no two settings.
+
 ## Run
 
 ```sh
@@ -39,7 +43,7 @@ just benchmark benchmark/<repo>/reference.yaml --runs 3        # the spread need
 just benchmark <reference> --local hybrid                      # the hybrid llama-server (default: `igpu`, the Ollama iGPU instance)
 just benchmark <reference> --local hybrid --timeout-secs 1800  # HTTP timeout of the local model (default: RetroDoc's, 900 s for a loopback URL)
 just benchmark <reference> --model <m> --base-url <u>          # another model or server (overrides the `--local` values; on another host than loopback, add `--timeout-secs`: the default is 120 s)
-just benchmark <reference> --provider deepseek --runs 3 --no-confidence   # hosted: key in .env, about $0.30 per linkding run
+just benchmark <reference> --provider deepseek --runs 3 --no-confidence   # hosted: key in .env, about $0.30 per linkding run, $0.45 per lobsters run
 just benchmark <reference> --series hidden                     # one series only
 just benchmark <reference> --domains-from surface              # the new path of ADR 0020 (default: files)
 just benchmark <reference> --writing-temperature 0.7           # another temperature on the writing passes (brief, domains, features, use-cases, rules); they are at 0 by default (ADR 0031)
@@ -106,7 +110,7 @@ cargo run -q -p retrodoc-pipeline --example pass_replay -- <domains|features|use
   ~/retrodoc-runs/frozen/<repo> benchmark/<repo> deepseek-chat 3
 ```
 
-Replay a pass 3 times at least, once with the setting kept and once with the setting changed, and compare
+Replay a pass 3 times at least, on linkding and on lobsters, once with the setting kept and once with the setting changed, and compare
 the means and ranges: a difference inside the range is noise. Domains and features are scored against
 `reference.yaml` strictly and with the judge's pairs (the strict figure is near zero, the models rename
 everything: read the judge columns); use cases report their number and the business language by the judge and
