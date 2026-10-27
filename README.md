@@ -114,7 +114,7 @@ docs_dir = "docs"
 
 [pipeline]
 domains_from = "files"    # "files": domains from the file summaries; "surface": from the entities and entry points (no repo map; the features come from the entry points); "contexts": a large application documented a bounded context at a time (see below)
-# rules = true            # also state the business rules of each feature (off by default)
+rules = true              # state the business rules of each feature; false: a cheaper run (the rules are about 40% of the input tokens)
 # business_read = false   # each pass reads the business files alone: for a small library, where the joint reading finds fewer entry points
 
 # [rules]                 # put back what the rules pass set aside by mistake (listed in the debt report); kept by --force

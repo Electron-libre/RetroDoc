@@ -1,7 +1,7 @@
 #!/usr/bin/env rust-script
 //! Smoke test of `retrodoc generate` against a real repository with a local LLM.
 //!
-//! - `smoke.rs run <repo> [--local igpu|hybrid] [--model M] [--base-url U] [--timeout-secs N] [--domains-from files|surface] [--rules]`: clones `<repo>` (committed HEAD only, the
+//! - `smoke.rs run <repo> [--local igpu|hybrid] [--model M] [--base-url U] [--timeout-secs N] [--domains-from files|surface] [--no-rules]`: clones `<repo>` (committed HEAD only, the
 //!   original is never touched) into the runs directory (`~/retrodoc-runs`), points it at the local LLM, runs `generate` twice and
 //!   `report`, then prints the verdict. `--local` picks the local server (default `igpu`, the Ollama iGPU instance; `hybrid`,
 //!   the llama-server); `--model` and `--base-url` override its values.
@@ -188,7 +188,7 @@ fn llm_target(args: &[String]) -> (String, String, Option<&'static str>) {
 }
 
 fn run(args: &[String]) -> i32 {
-    let Some(target) = args.first() else { die("usage: smoke.rs run <repo> [--local igpu|hybrid] [--model M] [--base-url U] [--domains-from files|surface] [--rules]") };
+    let Some(target) = args.first() else { die("usage: smoke.rs run <repo> [--local igpu|hybrid] [--model M] [--base-url U] [--domains-from files|surface] [--no-rules]") };
     let option = |name: &str, default: &str| option(args, name, default);
     let (model, base_url, start) = llm_target(args);
 
@@ -245,9 +245,9 @@ fn run(args: &[String]) -> i32 {
             1,
         ),
     };
-    // `--rules` turns on the business rules pass (`[pipeline] rules`, off by default).
-    let patched = if args.iter().any(|a| a == "--rules") {
-        patched.replacen("rules = false", "rules = true", 1)
+    // `--no-rules` turns off the business rules pass (`[pipeline] rules`, on by default): a shorter run.
+    let patched = if args.iter().any(|a| a == "--no-rules") {
+        patched.replacen("rules = true", "rules = false", 1)
     } else {
         patched
     };

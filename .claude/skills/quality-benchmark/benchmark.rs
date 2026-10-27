@@ -13,7 +13,7 @@
 //! - `benchmark.rs patch-config <retrodoc.toml> <provider> <model> <base-url> <hide-docs: true|false> [domains-from: files|surface|''] [timeout-secs]`: points
 //!   `[llm]` at the local server (`provider` `local`) or at the hosted API of `provider` (`deepseek`; the key
 //!   comes from `DEEPSEEK_API_KEY`, in the environment or in the `.env` of the project) and, when asked,
-//!   empties `existing_docs_paths`; writes `timeout_secs` only when given.
+//!   empties `existing_docs_paths`; writes `timeout_secs` only when given; turns the rules pass off (not judged).
 //! - `benchmark.rs writing-temperature <retrodoc.toml> <t>`: the config with `temperature = t` on the writing passes
 //!   (brief, domains, features, use-cases, rules), to try another value than the default 0 (ADR 0031).
 //! - `benchmark.rs previous <root> <current>`: the latest benchmark directory of `root` before
@@ -86,6 +86,11 @@ fn patch_config(toml: &str, provider: &str, model: &str, base_url: &str, timeout
         format!("[llm]\nprovider = \"{provider}\"\nmodel = \"{model}\"")
     };
     kept.join("\n").replacen("[llm]", &llm, 1)
+}
+
+/// `toml` with the rules pass off (`[pipeline] rules`, on as `init` writes it): the benchmark does not judge the rules.
+fn without_rules(toml: &str) -> String {
+    toml.replacen("rules = true", "rules = false", 1)
 }
 
 /// `toml` with `[pipeline] domains_from` set to `mode` (ADR 0020; `init` writes `files`).
@@ -271,7 +276,7 @@ fn run(args: &[String]) -> i32 {
             }
             let toml_path = clone.join("retrodoc.toml");
             let toml = fs::read_to_string(&toml_path).unwrap();
-            let patched = patch_config(&toml, &provider, &model, &base_url, &timeout_secs, hide_docs);
+            let patched = without_rules(&patch_config(&toml, &provider, &model, &base_url, &timeout_secs, hide_docs));
             let patched = set_domains_from(&patched, &domains_from);
             let patched = if writing_temperature.is_empty() { patched } else { set_writing_temperature(&patched, &writing_temperature) };
             fs::write(&toml_path, patched).unwrap();
@@ -347,7 +352,7 @@ fn main() {
         Some("patch-config") if (6..=8).contains(&args.len()) => {
             let toml = fs::read_to_string(&args[1]).unwrap_or_else(|e| die(&format!("{}: {e}", args[1])));
             let timeout_secs = args.get(7).map_or("", String::as_str);
-            let patched = patch_config(&toml, &args[2], &args[3], &args[4], timeout_secs, args[5] == "true");
+            let patched = without_rules(&patch_config(&toml, &args[2], &args[3], &args[4], timeout_secs, args[5] == "true"));
             let mode = args.get(6).filter(|mode| !mode.is_empty());
             print!("{}", mode.map_or(patched.clone(), |mode| set_domains_from(&patched, mode)));
             0

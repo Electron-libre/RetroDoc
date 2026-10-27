@@ -36,7 +36,7 @@ touches files modified since the last run).
 
 This is the default path (`[pipeline] domains_from = "files"`), with what phases 7 and 10 added around it: a
 product brief from the non-code evidence comes first, then the surface (roles, business files, entities,
-entry points) and the actors; the confidence checks are mechanical first; business rules are an optional
+entry points) and the actors; the confidence checks are mechanical first; business rules are a pass (on by default)
 pass after the use cases. Phase 10 (§7.5) also built a second path (`domains_from = "surface"`): domains and
 features from the entry points and entities, no LLM repo map, the coverage invariant moved from files to
 behaviours. Both exist until one is chosen (§7.6). The order `generate` runs today is in

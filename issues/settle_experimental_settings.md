@@ -56,7 +56,7 @@ Spec: `specs/pipeline-settings.md` (SET).
 ## Plan
 1. [x] `business_read`: kept as an option with its stated use (a small library, where the joint reading finds
    fewer entry points); verified by a config test; makes true SET-3; ADR 0028 follow-up, README, `pipeline.md`.
-2. [ ] `rules`: on by default; the smoke test follows the default (`--rules` becomes `--no-rules`), the
+2. [x] `rules`: on by default; the smoke test follows the default (`--rules` becomes `--no-rules`), the
    benchmark keeps it off (it does not judge the rules); verified by config and `init` tests and the harness
    tests; makes true SET-1, SET-2; ADR 0021 follow-up, README, `pipeline.md`, skills.
 3. [ ] Measure `body_lines` with `business-read` on: frozen linkding inputs (roles, business files, brief),
@@ -76,3 +76,11 @@ Spec: `specs/pipeline-settings.md` (SET).
 - done: SET-3 traced by its own config test; the stated use written in the doc comment, the README sample,
   `pipeline.md` and ADR 0028 (follow-up).
 - red: none (the behaviour was already true; the test moved out of the `domains_from` test).
+
+## Deliverable 2 (`rules` on by default)
+- done: `[pipeline] rules` defaults to true (SET-1, SET-2 traced); the smoke test takes `--no-rules` instead of
+  `--rules`; the benchmark writes `rules = false` (tested by `test_benchmark.rs`); README sample, `pipeline.md`,
+  `ARCHITECTURE.md`, `PLAN.md`, both skills and ADR 0021 (follow-up).
+- red: `assertion failed: Config::default().pipeline.rules` (config tests), `FAIL - turns the rules pass off` (harness).
+- Consequence: a project whose `retrodoc.toml` has no `rules` key runs the rules pass at its next `generate`;
+  one written by `init` before keeps `rules = false`.

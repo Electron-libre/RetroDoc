@@ -32,7 +32,7 @@ just smoke <path-to-target-repo>              # defaults below
 just smoke <repo> --local hybrid              # the hybrid llama-server (default: `igpu`, the Ollama iGPU instance)
 just smoke <repo> --model <m> --base-url <u>  # another model or server (overrides the `--local` values)
 just smoke <repo> --domains-from surface      # the new path of ADR 0020 (default: the config as init wrote it)
-just smoke <repo> --rules                     # also state the business rules (`[pipeline] rules`, off by default)
+just smoke <repo> --no-rules                  # no business rules (`[pipeline] rules`, on by default): a shorter run
 ```
 
 It takes minutes to hours, so launch it with `run_in_background` and read the logs

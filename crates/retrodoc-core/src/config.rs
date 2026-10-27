@@ -118,8 +118,9 @@ pub struct PipelineConfig {
     #[serde(default = "default_true")]
     pub business_read: bool,
     /// `generate` states the business rules of each feature after its use cases (one LLM call per
-    /// feature, ADR 0021). Off by default until validated on real repositories.
-    #[serde(default)]
+    /// feature, ADR 0021). `false`: no rules, for a cheaper run (the pass is about 40% of the input
+    /// tokens of a run).
+    #[serde(default = "default_true")]
     pub rules: bool,
     /// `generate` ends by asking the LLM whether the doc sections that match an item cover or
     /// contradict it (`specs/docs-reconciliation.md`, ADR 0033); no call when nothing matches.
@@ -138,7 +139,7 @@ impl Default for PipelineConfig {
             domains_from: DomainsFrom::default(),
             body_lines: None,
             business_read: true,
-            rules: false,
+            rules: true,
             reconcile: true,
         }
     }
@@ -515,9 +516,14 @@ mod tests {
         assert_eq!(parsed.output.docs_dir, "docs");
     }
 
+    // spec: SET-1
     #[test]
-    fn the_rules_pass_is_off_unless_asked_and_has_its_own_llm_section() {
-        assert!(!Config::default().pipeline.rules);
+    fn the_rules_pass_is_on_unless_turned_off_and_has_its_own_llm_section() {
+        assert!(Config::default().pipeline.rules);
+        let none: Config = toml::from_str("[pipeline]\ndomains_from = \"files\"").unwrap();
+        assert!(none.pipeline.rules);
+        let off: Config = toml::from_str("[pipeline]\nrules = false").unwrap();
+        assert!(!off.pipeline.rules);
         assert!(Config::default().pipeline.reconcile);
         assert!(
             !toml::from_str::<Config>("[pipeline]\nreconcile = false")
@@ -546,6 +552,16 @@ mod tests {
         let raw = toml::to_string_pretty(&surface).unwrap();
         let again: Config = toml::from_str(&raw).unwrap();
         assert_eq!(again.pipeline.domains_from, DomainsFrom::Surface);
+    }
+
+    // spec: SET-2
+    #[test]
+    fn init_writes_the_default_settings_with_the_rules_on() {
+        let dir = tempfile::tempdir().unwrap();
+        Config::write_default(dir.path(), false).unwrap();
+        let read = Config::load(dir.path()).unwrap();
+        assert_eq!(read.pipeline, PipelineConfig::default());
+        assert!(read.pipeline.rules);
     }
 
     // spec: SET-3

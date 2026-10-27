@@ -38,3 +38,12 @@ against the docs).
 * The candidate detection is language-dependent; it starts with the languages of the smoke repositories
   and degrades to the LLM reading the slice.
 * Follow-up issue: `issues/done/business_rules.md`.
+
+## Follow-up (2026-10-27)
+
+The pass was off by default while its noise was measured (`issues/done/rules_deduplication_and_noise.md`,
+`issues/done/one_code_reading_for_use_cases_and_rules.md`). The review of the experimental settings
+(`issues/settle_experimental_settings.md`) turns `[pipeline] rules` on by default: about two thirds of the
+rules kept are good on the hand labels, and the noise left is fine tuning (`issues/rules_plumbing_and_screen_noise.md`).
+It costs about 40% of the input tokens of a run; `rules = false` gives the cheaper run. The quality benchmark keeps
+it off, since it does not judge the rules. Spec: `specs/pipeline-settings.md` (SET-1, SET-2).

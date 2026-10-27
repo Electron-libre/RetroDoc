@@ -86,6 +86,9 @@ fn main() {
     check("sets domains_from when asked", ok && out.contains("domains_from = \"surface\"") && !out.contains("\"files\""));
     let (ok, out) = call(&["patch-config", &with_pipeline, "local", "m1", "http://localhost:1/v1", "false"]);
     check("leaves domains_from alone by default", ok && out.contains("domains_from = \"files\""));
+    let with_rules = write("with-rules.toml", &format!("{TOML}\n[pipeline]\nrules = true\n"));
+    let (ok, out) = call(&["patch-config", &with_rules, "local", "m1", "http://localhost:1/v1", "false"]);
+    check("turns the rules pass off (the benchmark does not judge the rules)", ok && out.contains("rules = false") && !out.contains("rules = true"));
 
     let (ok, out) = call(&["writing-temperature", &toml, "0.7"]);
     check(
