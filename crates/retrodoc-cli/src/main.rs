@@ -112,6 +112,10 @@ enum Command {
         /// Also call the LLM judge.
         #[arg(long)]
         judge: bool,
+        /// Score with the judgement saved by an earlier `--judge` (`.retrodoc/benchmark/judge.yaml`)
+        /// instead of calling the judge again: no LLM call.
+        #[arg(long, conflicts_with = "judge")]
+        saved_judge: bool,
         /// Also write the figures of the run as JSON (for `benchmark-table`).
         #[arg(long)]
         out: Option<PathBuf>,
@@ -317,12 +321,14 @@ async fn main() -> anyhow::Result<()> {
             reference,
             matches,
             judge,
+            saved_judge,
             out,
         } => {
             let options = commands::benchmark::BenchmarkOptions {
                 reference,
                 matches,
                 judge,
+                saved_judge,
                 out,
             };
             commands::benchmark::run(&path, &options, &tracker).await

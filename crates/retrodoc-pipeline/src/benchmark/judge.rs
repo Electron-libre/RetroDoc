@@ -73,6 +73,24 @@ impl Judgement {
     pub fn save(&self, repo_root: &Path) -> Result<(), PipelineError> {
         crate::artifact::save_yaml(&Self::path(repo_root), self)
     }
+
+    /// Reads the `judge.yaml` saved by an earlier [`judge`] of the run in `repo_root`, to re-score the
+    /// run with no LLM call.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error naming the file if it is missing, can't be read or parsed.
+    pub fn load(repo_root: &Path) -> Result<Self, PipelineError> {
+        let path = Self::path(repo_root);
+        let raw = std::fs::read_to_string(&path).map_err(|source| PipelineError::ArtifactIo {
+            path: path.clone(),
+            source,
+        })?;
+        serde_yaml::from_str(&raw).map_err(|error| PipelineError::InvalidReference {
+            path,
+            reason: error.to_string(),
+        })
+    }
 }
 
 impl Matches {

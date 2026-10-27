@@ -28,10 +28,14 @@ change of these rules must not read as a change of quality between two benchmark
   proposal naming an item that was not offered, or repeating a pair already proposed, must be dropped.
 - **BSC-6** (deterministic) A saved run report must carry the scoring version of the code that scored it; a report
   saved before the version existed must still load, with no version.
-- **BSC-7** (deterministic) `benchmark-table --previous` must show the previous figures and the change of a series
-  only when every run of both sides carries the same scoring version; otherwise it must leave them empty and say,
-  under the series, which versions each side has and that the runs of another version must be re-scored to be
-  compared.
+- **BSC-7** (deterministic) `benchmark-table --previous` must show the previous figures and the change of the
+  recalls, precisions and judge's rating of a series only when every run of both sides carries the same scoring
+  version; otherwise it must leave them empty, keep them for the other figures, and say, under the series, which
+  versions each side has and that the runs of another version must be re-scored to be compared.
+- **BSC-8** (deterministic) `benchmark --saved-judge` must score the run with the judge's proposals and rating
+  saved in its `judge.yaml`, with no LLM call, and fail naming the file when there is none.
+- **BSC-9** (deterministic) `benchmark-table` must say, under a series, when its runs do not all carry the same
+  scoring version, with or without `--previous`.
 
 ## Scenarios
 
@@ -44,11 +48,12 @@ change of these rules must not read as a change of quality between two benchmark
   is shown and the note names "none" for the previous side.
 - (BSC-7) Given two series that both have no version, then no change is shown: an unknown version is never
   assumed equal.
+- (BSC-7) Given a previous series of another version, then the LLM calls and the sizes still show their change.
 
 ## Non-goals
 
-- Re-scoring the previous series from its saved clones inside `benchmark-table`: the re-score script of the ledger
-  does it, and the judged figure needs the saved `judge.yaml`.
+- Re-scoring the previous series from its saved clones inside `benchmark-table`: `benchmark --saved-judge --out`
+  re-scores one saved clone.
 - Whether the judge's pairs are right: it depends on what the model answers, the user reads `judge.yaml` and
   freezes the right pairs in `matches.yaml`.
 - Undoing a match by equal names: a pair adds a reference item, it never takes one away (a generated name equal

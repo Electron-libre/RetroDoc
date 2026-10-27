@@ -156,6 +156,71 @@ fn tabulates_saved_runs_and_their_change_against_a_previous_benchmark() {
     );
 }
 
+// spec: BSC-8
+#[test]
+fn rescores_a_run_with_its_saved_judgement_and_no_llm() {
+    let dir = tempfile::tempdir().unwrap();
+    let cache = dir.path().join(".retrodoc/cache");
+    std::fs::create_dir_all(&cache).unwrap();
+    std::fs::write(
+        cache.join("domains.yaml"),
+        "domains:\n  - {slug: ordering, name: Ordering, description: d}\n",
+    )
+    .unwrap();
+    std::fs::write(
+        cache.join("features.yaml"),
+        "- {slug: pay, domain_slug: ordering, name: Pay and refund, description: d}\n",
+    )
+    .unwrap();
+    let reference = dir.path().join("reference.yaml");
+    std::fs::write(&reference, REFERENCE).unwrap();
+    let out = dir.path().join("run.json");
+    let args = [
+        "benchmark",
+        "--path",
+        dir.path().to_str().unwrap(),
+        "--reference",
+        reference.to_str().unwrap(),
+        "--saved-judge",
+        "--out",
+        out.to_str().unwrap(),
+    ];
+
+    let missing = retrodoc(&args);
+    assert!(!missing.status.success());
+    let stderr = String::from_utf8_lossy(&missing.stderr);
+    assert!(stderr.contains("judge.yaml"), "{stderr}");
+
+    std::fs::create_dir_all(dir.path().join(".retrodoc/benchmark")).unwrap();
+    std::fs::write(
+        dir.path().join(".retrodoc/benchmark/judge.yaml"),
+        "domains: []\n\
+         features:\n  - {generated: Pay and refund, reference: Checkout}\n  \
+         - {generated: Pay and refund, reference: Refund}\n\
+         narratives: {total: 4, rated: 4, business: 3}\n",
+    )
+    .unwrap();
+    // No `retrodoc.toml` and no key: a call to the judge would fail.
+    let output = Command::new(env!("CARGO_BIN_EXE_retrodoc"))
+        .args(args)
+        .env_remove("OPENROUTER_API_KEY")
+        .env_remove("DEEPSEEK_API_KEY")
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let report: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&out).unwrap()).unwrap();
+    assert_eq!(report["strict"]["features"]["recall"], 0.0);
+    assert_eq!(report["judged"]["features"]["recall"], 1.0);
+    assert_eq!(report["narratives"]["business"], 3);
+    assert_eq!(report["scoring"], 1);
+}
+
 #[test]
 fn an_empty_directory_has_no_table() {
     let dir = tempfile::tempdir().unwrap();

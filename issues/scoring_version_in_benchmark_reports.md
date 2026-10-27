@@ -41,6 +41,9 @@ between sides whose versions differ or are unknown (approach 1 + 2). Out of scop
    absent in old files), table leaves Previous/Change empty with a note under the series when the versions are not
    all equal and known; skill `quality-benchmark` and docs updated; verified by unit tests in `table.rs`; makes
    true BSC-6, BSC-7.
+2. [x] Fixes of the `high` review: only the scoring figures lose their change, a series of mixed versions is
+   flagged, `benchmark --saved-judge` re-scores a saved clone with its `judge.yaml` and no LLM (what the note
+   advises); verified by unit tests in `table.rs` and a CLI test; makes true BSC-7, BSC-8, BSC-9.
 
 ## Decisions
 - Mode: autonomous
@@ -59,3 +62,21 @@ between sides whose versions differ or are unknown (approach 1 + 2). Out of scop
 - checked by hand: `benchmark-table` on two saved linkding series prints the note and no change.
 - not verified: `benchmark-table` on the saved series of `~/retrodoc-runs` (they all have no version, so every
   change is now refused until re-scored with `--out`).
+
+## Deliverable 2 summary (fixes of the `high` review of 12f39ed..45d747a)
+- done: only the 9 scored figures (recall, precision, judge's rating) lose their change across versions, sizes
+  and cost keep it; a series of mixed versions gets a note, with or without `--previous`; `benchmark
+  --saved-judge` re-scores a clone with its saved `judge.yaml`, no LLM (what the note now advises).
+- red: `a_series_of_mixed_scoring_versions_is_flagged` and the LLM-calls assertion failed;
+  `unexpected argument '--saved-judge' found`.
+- High review findings: rescore advice broken (strict/judged JSON mixed, `--judge` paid): fixed by
+  `--saved-judge`; non-scoring figures blanked: fixed; mixed series unflagged: fixed (BSC-9); fixture
+  duplication: fixed. Not fixed: empty side skips the check (nothing to compare, no number shown); constant
+  not tied to `judge.rs` by a test (a golden test of the judge filter would freeze its behaviour, not its
+  meaning; the doc comment and the skill say when to bump); `#[serde(default)]` on `Option` kept for the
+  idiom of the struct (`judged` has it too).
+- Code review (low): no findings.
+- checked by hand: `--saved-judge --out` on a saved linkding clone (shown-1) gives the ledger's figures
+  (features 21% strict, 83% judged), version 1.
+- not verified: `~/retrodoc-runs/scripts/merged-features/rescore.sh` (outside git) still uses `--matches`;
+  `--saved-judge` replaces it.

@@ -14,13 +14,16 @@ pub struct BenchmarkOptions {
     pub matches: Option<PathBuf>,
     /// Also ask the LLM judge for pairs and a rating of the narratives.
     pub judge: bool,
+    /// Score with the judgement saved by an earlier `judge` run instead: no LLM call.
+    pub saved_judge: bool,
     /// Also write the figures of the run as JSON, for `benchmark-table`.
     pub out: Option<PathBuf>,
 }
 
 /// Prints the figures of the last `generate` run in `path` and its scores against the reference.
 /// Without `--judge` it makes no LLM call; with it, the judge's proposals are saved in
-/// `.retrodoc/benchmark/judge.yaml` and scored apart from the hand-written pairs.
+/// `.retrodoc/benchmark/judge.yaml` and scored apart from the hand-written pairs; with `saved_judge`,
+/// the saved ones are scored again.
 pub async fn run(
     path: &Path,
     options: &BenchmarkOptions,
@@ -51,7 +54,9 @@ pub async fn run(
         );
     };
 
-    let judged = if options.judge {
+    let judgement = if options.saved_judge {
+        Some(benchmark::Judgement::load(&repo_root)?)
+    } else if options.judge {
         let workspace = Workspace::open(&repo_root)?;
         let llm = super::usage::pass_provider(&workspace.config.llm, tracker, "benchmark judge")?;
         tracker.set_pass("benchmark judge");
@@ -66,6 +71,11 @@ pub async fn run(
         .context("the judge failed")?
         .context("no domains found, nothing to judge")?;
         judgement.save(&repo_root)?;
+        Some(judgement)
+    } else {
+        None
+    };
+    let judged = if let Some(judgement) = judgement {
         let with_judge = benchmark::compare(
             &repo_root,
             &reference,

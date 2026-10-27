@@ -117,28 +117,41 @@ fn sorted_entries(dir: &Path) -> std::io::Result<Vec<PathBuf>> {
 pub fn table(current: &[Series], previous: Option<&[Series]>) -> String {
     let mut out = String::new();
     for series in current {
-        let mut before = previous.and_then(|all| all.iter().find(|s| s.name == series.name));
+        let before = previous.and_then(|all| all.iter().find(|s| s.name == series.name));
         let _ = writeln!(out, "## {} ({} run(s))\n", series.name, series.runs.len());
+        let now_versions = versions(&series.runs);
+        if now_versions.len() > 1 {
+            let _ = writeln!(
+                out,
+                "The runs of this series were scored under scoring versions {}: their recalls, \
+                 precisions and judge's rating mix rules.\n",
+                show_versions(&now_versions)
+            );
+        }
+        let mut same_rules = true;
         if let Some(was) = before.filter(|was| !was.runs.is_empty() && !series.runs.is_empty()) {
-            let (now_versions, was_versions) = (versions(&series.runs), versions(&was.runs));
-            if now_versions.len() != 1 || now_versions != was_versions || now_versions[0].is_none()
-            {
+            let was_versions = versions(&was.runs);
+            same_rules =
+                now_versions == was_versions && matches!(now_versions.as_slice(), [Some(_)]);
+            if !same_rules {
                 let _ = writeln!(
                     out,
-                    "No change shown: this series was scored under scoring version {}, the previous \
-                     runs under {}; re-score the runs of another version with `retrodoc benchmark --out` \
-                     (version {SCORING_VERSION}) to compare them.\n",
+                    "No change shown for recall, precision and the judge's rating: this series was \
+                     scored under scoring version {}, the previous runs under {}; re-score the runs \
+                     of another version with `retrodoc benchmark --saved-judge --out` (version \
+                     {SCORING_VERSION}) to compare them.\n",
                     show_versions(&now_versions),
                     show_versions(&was_versions)
                 );
-                before = None;
             }
         }
         out.push_str("| Metric | Mean | Range | Runs | Previous | Change |\n");
         out.push_str("|---|---|---|---|---|---|\n");
         for figure in FIGURES {
             let now = Summary::of(&series.runs, figure.value);
-            let was = before.map(|s| Summary::of(&s.runs, figure.value));
+            let was = before
+                .filter(|_| same_rules || !figure.scored)
+                .map(|s| Summary::of(&s.runs, figure.value));
             let (previous, change) = match (&now.mean, was.and_then(|w| w.mean)) {
                 (Some(now), Some(was)) => (figure.kind.show(was), figure.kind.change(*now - was)),
                 _ => (String::new(), String::new()),
@@ -232,6 +245,8 @@ fn millis(value: f64) -> u64 {
 struct Figure {
     label: &'static str,
     kind: Kind,
+    /// Depends on the scoring rules ([`SCORING_VERSION`]): recall, precision, the judge's rating.
+    scored: bool,
     value: fn(&RunReport) -> Option<f64>,
 }
 
@@ -254,91 +269,109 @@ const FIGURES: &[Figure] = &[
     Figure {
         label: "Domains recall",
         kind: Kind::Percent,
+        scored: true,
         value: |r| share(r.strict.domains.recall),
     },
     Figure {
         label: "Domains precision",
         kind: Kind::Percent,
+        scored: true,
         value: |r| share(r.strict.domains.precision),
     },
     Figure {
         label: "Features recall",
         kind: Kind::Percent,
+        scored: true,
         value: |r| share(r.strict.features.recall),
     },
     Figure {
         label: "Features precision",
         kind: Kind::Percent,
+        scored: true,
         value: |r| share(r.strict.features.precision),
     },
     Figure {
         label: "Domains recall (judged)",
         kind: Kind::Percent,
+        scored: true,
         value: |r| r.judged.as_ref().and_then(|c| share(c.domains.recall)),
     },
     Figure {
         label: "Domains precision (judged)",
         kind: Kind::Percent,
+        scored: true,
         value: |r| r.judged.as_ref().and_then(|c| share(c.domains.precision)),
     },
     Figure {
         label: "Features recall (judged)",
         kind: Kind::Percent,
+        scored: true,
         value: |r| r.judged.as_ref().and_then(|c| share(c.features.recall)),
     },
     Figure {
         label: "Features precision (judged)",
         kind: Kind::Percent,
+        scored: true,
         value: |r| r.judged.as_ref().and_then(|c| share(c.features.precision)),
     },
     Figure {
         label: "Narratives in business language (judge)",
         kind: Kind::Percent,
+        scored: true,
         value: |r| r.narratives.and_then(|n| share(n.business_share())),
     },
     Figure {
         label: "Business-language score",
         kind: Kind::Percent,
+        scored: false,
         value: |r| share(r.metrics.business_language),
     },
     Figure {
         label: "Use cases fully in business language (score 1)",
         kind: Kind::Percent,
+        scored: false,
         value: |r| share(r.metrics.fully_business),
     },
     Figure {
         label: "Domains",
         kind: Kind::Count,
+        scored: false,
         value: |r| Some(count(r.metrics.domains)),
     },
     Figure {
         label: "Features",
         kind: Kind::Count,
+        scored: false,
         value: |r| Some(count(r.metrics.features)),
     },
     Figure {
         label: "Use cases",
         kind: Kind::Count,
+        scored: false,
         value: |r| Some(count(r.metrics.use_cases)),
     },
     Figure {
         label: "LLM calls",
         kind: Kind::Count,
+        scored: false,
         value: |r| r.metrics.cost.map(|c| big(c.calls)),
     },
     Figure {
         label: "Tokens in",
         kind: Kind::Count,
+        scored: false,
         value: |r| r.metrics.cost.map(|c| big(c.prompt_tokens)),
     },
     Figure {
         label: "Tokens out",
         kind: Kind::Count,
+        scored: false,
         value: |r| r.metrics.cost.map(|c| big(c.completion_tokens)),
     },
     Figure {
         label: "Time",
         kind: Kind::Time,
+        scored: false,
         value: |r| r.metrics.cost.map(|c| big(c.wall_ms)),
     },
 ];
@@ -518,11 +551,8 @@ mod tests {
     // spec: BSC-6
     #[test]
     fn a_report_carries_the_scoring_version_and_an_old_one_loads_without() {
-        let fresh = RunReport::new(
-            report(0.5, 6, 10, false).metrics,
-            report(0.5, 6, 10, false).strict,
-            None,
-        );
+        let run = report(0.5, 6, 10, false);
+        let fresh = RunReport::new(run.metrics, run.strict, None);
         assert_eq!(fresh.scoring, Some(SCORING_VERSION));
 
         let mut old = serde_json::to_value(report(0.5, 6, 10, false)).unwrap();
@@ -558,6 +588,11 @@ mod tests {
             text.contains("re-score the runs of another version"),
             "{text}"
         );
+        assert_eq!(
+            row(&text, "LLM calls"),
+            "| LLM calls | 10 | — | 1 | 25 | -15 |",
+            "a figure the scoring rules don't touch keeps its change"
+        );
 
         // Two sides with no version are not assumed to share the rules.
         let mut current = unversioned.clone();
@@ -571,6 +606,25 @@ mod tests {
             "| Domains recall | 75% | — | 1 |  |  |"
         );
         assert!(text.contains("under scoring version none"), "{text}");
+    }
+
+    // spec: BSC-9
+    #[test]
+    fn a_series_of_mixed_scoring_versions_is_flagged() {
+        let mut old = report(0.5, 6, 10, false);
+        old.scoring = None;
+        let mixed = [series("hidden", vec![report(0.5, 6, 10, false), old])];
+
+        let text = table(&mixed, None);
+
+        assert!(
+            text.contains(&format!(
+                "The runs of this series were scored under scoring versions {SCORING_VERSION}, none"
+            )),
+            "{text}"
+        );
+        let same = table(&[series("hidden", vec![report(0.5, 6, 10, false)])], None);
+        assert!(!same.contains("scoring version"), "{same}");
     }
 
     #[test]
