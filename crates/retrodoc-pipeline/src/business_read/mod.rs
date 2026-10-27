@@ -137,12 +137,12 @@ pub async fn read_business_files(
         glossary: Glossary::load(repo_root).unwrap_or_default(),
         entry_points: EntryPoints::load(repo_root).unwrap_or_default(),
     };
-    let splitter = Splitter::new(&roles.chunk_boundaries).with_body_lines(roles.body_lines);
+    let splitter = Splitter::new(&roles.chunk_boundaries);
     // One item per chunk of a changed file: (path, file hash, chunk text).
     let mut pending: Vec<PendingChunk> = Vec::new();
     for path in business {
         let content = read_file_lossy(repo_root, path)?;
-        let hash = hash_for_model(&brief.hash_with(&splitter.keyed(&content)), glossary_llm);
+        let hash = hash_for_model(&brief.hash_with(&content), glossary_llm);
         let current = state
             .glossary
             .models

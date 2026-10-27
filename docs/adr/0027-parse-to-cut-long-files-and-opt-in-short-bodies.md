@@ -46,3 +46,12 @@ would stay, so the gain is unmeasured (`issues/parsed_references_for_ranking_and
 * Two chunking paths remain for the languages without a grammar here.
 * `body_lines` can be tried per repository; making it the default needs a reference for the glossary and
   more runs than the noise allows today.
+
+## Follow-up (2026-10-27)
+
+`[pipeline] body_lines` is removed (`issues/settle_experimental_settings.md`). Measured again with the joint
+reading of ADR 0028 on linkding (`deepseek-chat`, three runs per setting): N=5 cuts the input of the reading
+passes by 38%, which is about 4% of a run with the rules on; the glossary loses only the form classes, the
+model entities keep their attributes; the entry points stay within the spread but the only move is down (one run
+finds one group fewer, 73% of its entries in reference files against 88-92%). The files are read whole; a
+`retrodoc.toml` that still names the key is refused with a message saying so (`specs/pipeline-settings.md`, SET-4).

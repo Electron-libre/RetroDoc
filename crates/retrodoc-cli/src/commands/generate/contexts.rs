@@ -50,7 +50,6 @@ pub(super) async fn run(
         &signals.brief,
         llm,
         options.force,
-        config,
         tracker,
     )
     .await?

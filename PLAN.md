@@ -473,7 +473,7 @@ Decisions (accepted ADRs):
 - [0026](docs/adr/0026-check-use-case-steps-mechanically-before-asking-the-llm.md): the confidence pass checks
   the steps mechanically and asks the LLM only about the doubtful ones.
 - [0027](docs/adr/0027-parse-to-cut-long-files-and-opt-in-short-bodies.md): long files of the five parsed
-  languages are cut at their definitions; `[pipeline] body_lines` (opt-in) shortens method bodies for the reading passes.
+  languages are cut at their definitions; the opt-in short method bodies were removed after a measure (2026-10-27).
 - [0028](docs/adr/0028-read-the-business-files-once-for-entities-and-entry-points.md): `generate` reads the business
   files once for the glossary and the entry points (`[pipeline] business_read`, on by default).
 
@@ -528,8 +528,8 @@ Not reached yet:
 - Run-to-run spread: 13 to 21 entry points on the 9-file library, 64 against 96 between two identical runs
   of the entry points pass on linkding; the requests set no sampling temperature.
 - The use cases and the rules read the same code: about 80% of the input tokens of a run with the rules on.
-- Two paths (`files`, `surface`) and several experimental settings (`body_lines`, `brief.evidence`, `rules`)
-  are maintained together.
+- Two paths (`files`, `surface`) and the experimental `brief.evidence` are maintained together (`body_lines` removed,
+  `rules` on by default since 2026-10-27).
 
 Next work, in the order of `issues/queue.md`:
 1. `issues/done/validate_on_large_application.md`: one complete run on a large application, read by the user (done in

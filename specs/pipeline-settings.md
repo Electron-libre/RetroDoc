@@ -1,6 +1,6 @@
 ---
 id: SET
-status: draft
+status: accepted
 adrs: [0021, 0027, 0028]
 ---
 
@@ -19,11 +19,15 @@ The `[pipeline]` section of `retrodoc.toml` turns passes and readings on or off.
   rules pass on.
 - **SET-3** (deterministic) A `retrodoc.toml` with no `business_read` key must read the joint reading of the
   business files as on; `business_read = false` must read it as off.
+- **SET-4** (deterministic) A `retrodoc.toml` that still names a removed key (`[pipeline] body_lines`) must fail to
+  load with an error that names the key, says it was removed and tells to delete the line.
 
 ## Scenarios
 
 - (SET-1) Given a `retrodoc.toml` written before this change with `rules = false` in it, when it is read, then
   the rules pass stays off.
+- (SET-4) Given `body_lines = 5` under `[pipeline]`, when any command loads the config, then it stops with
+  `[pipeline] body_lines was removed` and the advice to delete the line, not a bare unknown-field error.
 - (SET-3) Given a small library where the joint reading finds fewer entry points, when the user sets
   `business_read = false`, then each pass reads the business files on its own.
 
@@ -31,4 +35,4 @@ The `[pipeline]` section of `retrodoc.toml` turns passes and readings on or off.
 
 - `[brief] evidence` and `domains_from`: decided by their own issues.
 - The quality benchmark does not judge the rules: it keeps the rules pass off unless asked.
-- `body_lines` until its measure with the joint reading is done (`issues/settle_experimental_settings.md`).
+- Reading only the start of method bodies: the measure kept the files whole (`issues/settle_experimental_settings.md`).

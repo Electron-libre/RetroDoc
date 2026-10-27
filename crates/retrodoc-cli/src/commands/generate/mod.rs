@@ -607,7 +607,6 @@ async fn identify_file_roles(
     brief: &ProductBrief,
     llm: &PassProviders,
     force: bool,
-    config: &Config,
     tracker: &UsageTracker,
 ) -> anyhow::Result<Option<(String, RoleMap)>> {
     println!("Identifying the stack and the file roles…");
@@ -631,8 +630,7 @@ async fn identify_file_roles(
     if rules.rules.is_empty() {
         return Ok(None);
     }
-    let mut role_map = rules.classify(&ingest.files);
-    role_map.body_lines = config.pipeline.body_lines;
+    let role_map = rules.classify(&ingest.files);
     println!("Stack: {}", rules.stack);
     Ok(Some((rules.stack, role_map)))
 }
@@ -652,7 +650,7 @@ async fn build_surface(
     tracker: &UsageTracker,
 ) -> anyhow::Result<(Surface, EntryPoints, Option<RoleMap>)> {
     let Some((stack, role_map)) =
-        identify_file_roles(repo_root, ingest, brief, llm, force, config, tracker).await?
+        identify_file_roles(repo_root, ingest, brief, llm, force, tracker).await?
     else {
         tracing::warn!("no file role rules identified, domains are clustered without the surface");
         return Ok((Surface::default(), EntryPoints::default(), None));

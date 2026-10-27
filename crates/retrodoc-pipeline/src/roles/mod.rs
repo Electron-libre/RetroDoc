@@ -139,9 +139,6 @@ pub struct RoleMap {
     pub roles: BTreeMap<PathBuf, FileRole>,
     /// Copied from [`RoleRules::chunk_boundaries`].
     pub chunk_boundaries: Vec<ChunkBoundary>,
-    /// `[pipeline] body_lines`: set by the caller from the config; the passes that
-    /// read whole files show only that many lines of each method body.
-    pub body_lines: Option<usize>,
 }
 
 impl RoleMap {
@@ -168,7 +165,6 @@ impl RoleMap {
                 .map(|(path, role)| (path.clone(), *role))
                 .collect(),
             chunk_boundaries: self.chunk_boundaries.clone(),
-            body_lines: self.body_lines,
         }
     }
 
@@ -256,7 +252,6 @@ impl RoleRules {
         RoleMap {
             roles,
             chunk_boundaries: self.chunk_boundaries.clone(),
-            body_lines: None,
         }
     }
 }

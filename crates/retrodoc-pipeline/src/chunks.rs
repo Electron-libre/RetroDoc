@@ -137,8 +137,6 @@ fn parsed_starts(path: &Path, content: &str) -> Option<BTreeSet<u32>> {
 #[derive(Debug, Default)]
 pub(crate) struct Splitter {
     rules: Vec<(Vec<String>, Regex)>,
-    /// Lines of each method/function body kept by [`Splitter::file_chunks`] (all when `None`).
-    body_lines: Option<usize>,
 }
 
 impl Splitter {
@@ -165,25 +163,7 @@ impl Splitter {
                 }
             })
             .collect();
-        Splitter {
-            rules,
-            body_lines: None,
-        }
-    }
-
-    /// Reads long method bodies short: see [`elide_bodies`].
-    pub(crate) fn with_body_lines(mut self, body_lines: Option<usize>) -> Self {
-        self.body_lines = body_lines;
-        self
-    }
-
-    /// `content` with what the splitter changes to it, for a hash of what a pass reads: the same
-    /// text unless bodies are shortened, so nothing is redone by default.
-    pub(crate) fn keyed(&self, content: &str) -> String {
-        match self.body_lines {
-            Some(n) => format!("{content}\0body_lines={n}"),
-            None => content.to_string(),
-        }
+        Splitter { rules }
     }
 
     /// The parsed definitions of the file when its language is read by tree-sitter, else the
@@ -209,10 +189,6 @@ impl Splitter {
         max_chars: usize,
         pass: &str,
     ) -> Vec<String> {
-        let shortened = self
-            .body_lines
-            .and_then(|keep| elide_bodies(path, content, keep));
-        let content = shortened.as_deref().unwrap_or(content);
         let mut chunks = split_chunks(
             content,
             max_chars,
@@ -235,53 +211,6 @@ impl Splitter {
         }
         chunks
     }
-}
-
-/// `content` with the body of each method or function (the outermost ones) cut after `keep` lines,
-/// the omitted lines replaced by one marker and the closing line kept. `None` when the language is not
-/// parsed or nothing is long enough to cut.
-fn elide_bodies(path: &Path, content: &str, keep: usize) -> Option<String> {
-    let structure = retrodoc_ingest::structure::parse(path, content)?;
-    let mut spans: Vec<(usize, usize)> = structure
-        .definitions
-        .iter()
-        .filter(|d| matches!(d.kind.as_str(), "method" | "function"))
-        .map(|d| (d.start_line as usize, d.end_line as usize))
-        .collect();
-    spans.sort_unstable();
-    let lines: Vec<&str> = content.split_inclusive('\n').collect();
-    let mut out = String::with_capacity(content.len());
-    let mut changed = false;
-    let mut line = 1;
-    let mut last_end = 0;
-    for (start, end) in spans {
-        if start <= last_end {
-            continue; // nested in a method already handled
-        }
-        last_end = end;
-        // Omit lines `from..=to`: after the signature and `keep` body lines, before the closing line.
-        let (from, to) = (start + 1 + keep, end.saturating_sub(1));
-        if from > to || to > lines.len() || (to - from + 1) < 2 {
-            continue;
-        }
-        for text in &lines[line - 1..from - 1] {
-            out.push_str(text);
-        }
-        let indent: String = lines[from - 1]
-            .chars()
-            .take_while(|c| c.is_whitespace() && *c != '\n')
-            .collect();
-        let _ = writeln!(out, "{indent}… ({} lines omitted)", to - from + 1);
-        line = to + 1;
-        changed = true;
-    }
-    if !changed {
-        return None;
-    }
-    for text in &lines[line - 1..] {
-        out.push_str(text);
-    }
-    Some(out)
 }
 
 /// One chunk of a file rendered for an excerpt.
@@ -552,45 +481,6 @@ mod tests {
         assert_eq!(body.concat(), content);
         // Cut after a blank line, as without any parse.
         assert!(body[..body.len() - 1].iter().all(|c| c.ends_with("\n\n")));
-    }
-
-    #[test]
-    fn long_bodies_are_cut_after_the_kept_lines_and_short_ones_left_alone() {
-        let content = "class Report\n  def run\n    a\n    b\n    c\n    d\n    e\n  end\n\n  def tiny\n    x\n  end\nend\n";
-        let out = elide_bodies(Path::new("report.rb"), content, 2).unwrap();
-        assert_eq!(
-            out,
-            "class Report\n  def run\n    a\n    b\n    … (3 lines omitted)\n  end\n\n  def tiny\n    x\n  end\nend\n"
-        );
-        // Nothing long enough to cut, or a language without a parser: no change.
-        assert!(elide_bodies(Path::new("report.rb"), content, 10).is_none());
-        assert!(elide_bodies(Path::new("report.zig"), content, 1).is_none());
-    }
-
-    #[test]
-    fn only_the_outermost_method_is_cut_and_the_file_stays_whole_otherwise() {
-        let content = "function outer() {\n  const a = 1;\n  function inner() {\n    return 1;\n  }\n  const b = 2;\n  const c = 3;\n  return a + b + c;\n}\n";
-        let out = elide_bodies(Path::new("a.js"), content, 1).unwrap();
-        assert!(out.starts_with("function outer() {\n  const a = 1;\n  … ("));
-        assert!(out.ends_with("}\n"));
-        assert!(!out.contains("inner"));
-    }
-
-    #[test]
-    fn the_reading_passes_see_short_bodies_but_an_excerpt_stays_complete() {
-        let content = "class Report\n  def run\n    a\n    b\n    c\n    d\n    e\n  end\nend\n";
-        let whole = Splitter::new(&[]);
-        let short = Splitter::new(&[]).with_body_lines(Some(1));
-        let path = Path::new("report.rb");
-
-        assert!(whole.file_chunks(path, content, 1_000, "t")[0].contains("    e"));
-        let chunk = &short.file_chunks(path, content, 1_000, "t")[0];
-        assert!(chunk.contains("    a") && !chunk.contains("    e"));
-        assert!(short
-            .excerpt(path, content, 1_000, &Focus::default())
-            .contains("    e"));
-        assert_eq!(whole.keyed(content), content);
-        assert_ne!(short.keyed(content), content);
     }
 
     #[test]

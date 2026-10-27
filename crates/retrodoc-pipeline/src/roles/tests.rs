@@ -217,7 +217,6 @@ fn a_slice_of_the_role_map_keeps_its_files_and_every_test_file() {
     ] {
         map.roles.insert(PathBuf::from(path), role);
     }
-    map.body_lines = Some(7);
 
     let slice = map.only(&[
         PathBuf::from("a/controller.rb"),
@@ -238,5 +237,4 @@ fn a_slice_of_the_role_map_keeps_its_files_and_every_test_file() {
         slice.files_with(FileRole::EntryPoint),
         [Path::new("a/controller.rb")]
     );
-    assert_eq!(slice.body_lines, Some(7));
 }

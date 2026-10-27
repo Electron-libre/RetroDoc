@@ -12,6 +12,14 @@ use serde::{Deserialize, Serialize};
 
 pub const CONFIG_FILE_NAME: &str = "retrodoc.toml";
 
+/// Keys `retrodoc.toml` no longer takes, as `(section, key, why)`: a file that still names one is refused with a
+/// message saying so, rather than a bare unknown-field error (`specs/pipeline-settings.md`).
+const REMOVED_KEYS: &[(&str, &str, &str)] = &[(
+    "pipeline",
+    "body_lines",
+    "the reading passes read the files whole (ADR 0027)",
+)];
+
 /// Default `llm.batch_chars`.
 pub const DEFAULT_BATCH_CHARS: usize = 6_000;
 
@@ -105,12 +113,6 @@ pub struct PipelineConfig {
     /// bounded contexts of `retrodoc contexts` (ADR 0029), each a domain, documented a slice at a time.
     #[serde(default)]
     pub domains_from: DomainsFrom,
-    /// Experimental (ADR 0022): the entry points and glossary passes read, of
-    /// each method or function of a language tree-sitter parses, only its
-    /// signature and the first N lines of its body; the rest is marked as
-    /// omitted. Absent (default): files are read whole.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub body_lines: Option<usize>,
     /// `generate` reads the business files once for the glossary and the entry
     /// points (one call answers both, ADR 0028). `false`: each pass reads them
     /// on its own, as before; for a small library, where the joint reading finds
@@ -137,7 +139,6 @@ impl Default for PipelineConfig {
     fn default() -> Self {
         Self {
             domains_from: DomainsFrom::default(),
-            body_lines: None,
             business_read: true,
             rules: true,
             reconcile: true,
@@ -411,6 +412,12 @@ pub enum ConfigError {
     },
     #[error("invalid TOML config: {0}")]
     Parse(#[from] toml::de::Error),
+    #[error("[{section}] {key} was removed: {why}; delete the line from retrodoc.toml")]
+    RemovedKey {
+        section: &'static str,
+        key: &'static str,
+        why: &'static str,
+    },
     #[error("unknown pass in [llm.passes]: {}; valid names: {}", .0.join(", "), PASS_NAMES.join(", "))]
     UnknownPass(Vec<String>),
     #[error("could not serialize TOML: {0}")]
@@ -423,7 +430,7 @@ impl Config {
     /// # Errors
     ///
     /// Returns an error if the file is missing, unreadable, or its TOML
-    /// content is invalid.
+    /// content is invalid or names a removed key.
     pub fn load(repo_root: &Path) -> Result<Self, ConfigError> {
         let path = repo_root.join(CONFIG_FILE_NAME);
         if !path.exists() {
@@ -433,7 +440,16 @@ impl Config {
             path: path.display().to_string(),
             source,
         })?;
-        let config: Config = toml::from_str(&raw)?;
+        let table: toml::Table = toml::from_str(&raw)?;
+        if let Some(&(section, key, why)) = REMOVED_KEYS.iter().find(|(section, key, _)| {
+            table
+                .get(*section)
+                .and_then(toml::Value::as_table)
+                .is_some_and(|t| t.contains_key(*key))
+        }) {
+            return Err(ConfigError::RemovedKey { section, key, why });
+        }
+        let config: Config = table.try_into()?;
         let unknown = config.llm.unknown_passes();
         if !unknown.is_empty() {
             return Err(ConfigError::UnknownPass(
@@ -543,9 +559,6 @@ mod tests {
         assert_eq!(Config::default().pipeline.domains_from, DomainsFrom::Files);
         let none: Config = toml::from_str("[llm]\nmodel = \"m\"").unwrap();
         assert_eq!(none.pipeline.domains_from, DomainsFrom::Files);
-        let lines: Config = toml::from_str("[pipeline]\nbody_lines = 5").unwrap();
-        assert_eq!(lines.pipeline.body_lines, Some(5));
-        assert_eq!(Config::default().pipeline.body_lines, None);
         let surface: Config = toml::from_str("[pipeline]\ndomains_from = \"surface\"").unwrap();
         assert_eq!(surface.pipeline.domains_from, DomainsFrom::Surface);
         // Kept when the config is written back.
@@ -564,11 +577,28 @@ mod tests {
         assert!(read.pipeline.rules);
     }
 
+    // spec: SET-4
+    #[test]
+    fn a_removed_key_stops_the_load_with_a_message_naming_it() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(
+            dir.path().join(CONFIG_FILE_NAME),
+            "[pipeline]\nrules = true\nbody_lines = 5\n",
+        )
+        .unwrap();
+        let message = Config::load(dir.path()).unwrap_err().to_string();
+        assert!(
+            message.contains("[pipeline] body_lines was removed"),
+            "{message}"
+        );
+        assert!(message.contains("delete the line"), "{message}");
+    }
+
     // spec: SET-3
     #[test]
     fn the_business_files_are_read_once_unless_turned_off() {
         assert!(Config::default().pipeline.business_read);
-        let other: Config = toml::from_str("[pipeline]\nbody_lines = 5").unwrap();
+        let other: Config = toml::from_str("[pipeline]\nrules = false").unwrap();
         assert!(other.pipeline.business_read);
         let off: Config = toml::from_str("[pipeline]\nbusiness_read = false").unwrap();
         assert!(!off.pipeline.business_read);

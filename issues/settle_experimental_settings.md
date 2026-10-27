@@ -63,12 +63,14 @@ Spec: `specs/pipeline-settings.md` (SET).
    `business-read` + glossary + entry points, 3 runs off and 3 at N=5; `entry_points_replay`, entity and
    attribute counts, entity names compared between settings (the vocabulary of the use cases); figures here and
    in the ledger. Stop on the figures for the decision.
-4. [ ] `body_lines`: default N, option, or removed (with the message of a removed key), per the decision of 3;
+4. [x] `body_lines`: default N, option, or removed (with the message of a removed key), per the decision of 3;
    verified by config tests; ADR 0027 follow-up.
 
 ## Decisions
 - Answers of 2026-10-27: 1 a (`business_read` kept, stated use), 2 a (`rules` on by default), 3 a (measure on
   DeepSeek `deepseek-chat`).
+- Answer on the measure (2026-10-27): `body_lines` removed (the gain is about 4% of a run, the entry points
+  only move down).
 - Mode: autonomous (stops anyway before the paid run of 3 and on its figures)
 - Base commit: 96e98285237dd7a023729e0ee27c05d32d0d499c
 
@@ -108,3 +110,10 @@ linkding at 27b7303, roles, business files and brief of `frozen/linkding`, `deep
   linkding `generate` with the rules on (use cases and rules about 280k each).
 * Entry points: one N=5 run finds one group fewer and 73% of its entries in reference files; the other two are
   as `off`. Within the spread of three runs, but the only move is downwards.
+
+## Deliverable 4 (`body_lines` removed)
+- done: the key, `RoleMap.body_lines`, the body view of `Splitter` (`with_body_lines`, `keyed`, `elide_bodies`) and
+  their tests are gone; a `retrodoc.toml` naming the key fails to load with `[pipeline] body_lines was removed: …;
+  delete the line from retrodoc.toml` (SET-4, `REMOVED_KEYS` in `config.rs`); spec `accepted`; ADR 0027 follow-up,
+  `pipeline.md`, `PLAN.md`. The file hash of the reading passes is unchanged for the default (whole files): no redo.
+- red: `called Result::unwrap_err() on an Ok value` (the key was still read).
