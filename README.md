@@ -118,6 +118,7 @@ domains_from = "files"    # "files": domains from the file summaries; "surface":
 
 # [rules]                 # put back what the rules pass set aside by mistake (listed in the debt report); kept by --force
 # keep_features = ["email-verification"]    # not features about tests: their rules are stated
+# keep_rules = ["orders-2"]                 # rules dropped as noise, published anyway (no LLM call)
 ```
 
 **A large application, in several runs.** With `domains_from = "contexts"`, `retrodoc contexts` (or the first

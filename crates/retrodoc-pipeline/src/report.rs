@@ -917,6 +917,7 @@ mod tests {
                 feature: "orders".into(),
                 statement: "An order is stored by the customer id.".into(),
                 class: "storage".into(),
+                rule: None,
             }],
         });
         let md = report.to_markdown();

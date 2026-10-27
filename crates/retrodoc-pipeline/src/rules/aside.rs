@@ -3,7 +3,10 @@
 //! all of them) and the rules dropped as noise, each with its reason. Saved as
 //! `.retrodoc/cache/rules-set-aside.yaml` and listed in the debt report. The rules merged because
 //! several features state them are not here: `rules-stated.yaml` still holds every copy.
+//! A rule dropped as noise is kept whole, so that `keep_rules` of `retrodoc.toml` puts it back
+//! without asking the LLM again.
 
+use retrodoc_core::model::BusinessRule;
 use serde::{Deserialize, Serialize};
 
 /// A feature that got no rule because it describes how the application is tested.
@@ -25,6 +28,10 @@ pub struct AsideRule {
     pub statement: String,
     /// The class the LLM gave it: `storage`, `screen`, `test` or `technical`.
     pub class: String,
+    /// The rule whole, with its evidence, so that `keep_rules` can put it back with no call. `None`
+    /// in a file saved before it was kept.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rule: Option<BusinessRule>,
 }
 
 /// Everything the pass set aside, by feature.

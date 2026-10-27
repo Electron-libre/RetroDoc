@@ -47,7 +47,7 @@ concerned (none for a rule: the dropped rule is kept whole in `rules-set-aside.y
 ## Plan
 1. [ ] Measure: `--rules` with DeepSeek on two more repositories, read their set-aside lists, count the wrong cases; figures here; verified by the figures recorded.
 2. [x] Features: `[rules] keep_features` in `retrodoc.toml`, a listed feature skips the tests question, the list is in its fingerprint, unknown slug warned; verified by pipeline tests with a fake `LlmProvider` (calls counted); makes true RSA-1, RSA-2, RSA-5 (features), RSA-6.
-3. [ ] Rules: the dropped rule kept whole in `rules-set-aside.yaml`, `[rules] keep_rules` puts it back at publishing (no call), removal sets it aside again, unknown or old-format slug warned; verified by pipeline tests with a fake `LlmProvider`; makes true RSA-3, RSA-4, RSA-5 (rules), RSA-8.
+3. [x] Rules: the dropped rule kept whole in `rules-set-aside.yaml`, `[rules] keep_rules` puts it back at publishing (no call), removal sets it aside again, unknown or old-format slug warned; verified by pipeline tests with a fake `LlmProvider`; makes true RSA-3, RSA-4, RSA-5 (rules), RSA-8.
 4. [ ] Report: the key to use at each set-aside list, rules put back marked; docs (`docs/crates/pipeline.md`, README config); verified by a report test; makes true RSA-7.
 
 ## Decisions
@@ -75,6 +75,26 @@ done: `[rules] keep_features` (`RulesConfig`) read by the rules pass: a listed f
 red: `assertion left == right failed: left: 0, right: 1` (the listed feature had no rules: still taken for tests).
 
 Code review: one finding, `keep_rules` is read by nothing: planned, it is deliverable 3 (next).
+
+not verified: a real run (no LLM run in this deliverable).
+
+decisions needed: none.
+
+## Deliverable 3: keep_rules
+
+done: a rule dropped as noise is kept whole in `rules-set-aside.yaml` (`AsideRule::rule`); `[rules] keep_rules` publishes it among the rules of its feature with no call, not as stated, so unlisting sets it aside again; unknown slug and older set-aside file warned about.
+
+| check | result |
+|---|---|
+| tests | pass (3 new in `rules/tests.rs`) |
+| lint | pass |
+| specs | RSA-3, RSA-4, RSA-5 (rules), RSA-8 traced |
+| docs | `docs/crates/pipeline.md`, `README.md`, `rules/aside.rs` |
+| code review | see below |
+
+red: `assertion left == right failed: left: ["orders-2"], right: ["orders-1", "orders-2"]` (the listed rule not published).
+
+Code review: no findings.
 
 not verified: a real run (no LLM run in this deliverable).
 

@@ -769,6 +769,107 @@ async fn a_feature_put_back_that_does_not_exist_is_warned_about() {
     );
 }
 
+/// A run where `orders-1` (`STORAGE`) is dropped as storage and `orders-2` (`LIMIT`) kept.
+async fn dropping_storage(dir: &Path) {
+    let llm = judging(
+        &format!("{STORAGE},{LIMIT}"),
+        r#"{"rules":[{"n":1,"class":"storage"},{"n":2,"class":"business"}]}"#,
+    );
+    run(dir, &llm).await;
+}
+
+// spec: RSA-3, RSA-4
+#[tokio::test]
+async fn a_rule_put_back_by_hand_is_published_with_its_evidence_without_a_call_until_unlisted() {
+    let dir = repo();
+    dropping_storage(dir.path()).await;
+    let dropped = load_set_aside(dir.path()).unwrap().rules[0].clone();
+    assert_eq!(dropped.slug, "orders-1");
+
+    let listed = FakeLlm::answering("not even json");
+    let rules = ask_with(
+        dir.path(),
+        &listed,
+        &[feature()],
+        &putting_back(&[], &["orders-1"]),
+    )
+    .await;
+    assert_eq!(listed.calls(), 0);
+    let slugs: Vec<&str> = rules.iter().map(|r| r.slug.as_str()).collect();
+    assert_eq!(slugs, ["orders-1", "orders-2"]);
+    assert_eq!(rules[0].statement, "An order is stored by the customer id.");
+    assert_eq!(rules[0].evidence, dropped.rule.clone().unwrap().evidence);
+    assert_eq!(load_rules(dir.path()).unwrap(), rules);
+    // Still a decision of the LLM on record: the set-aside file keeps it.
+    assert_eq!(
+        load_set_aside(dir.path()).unwrap().rules,
+        std::slice::from_ref(&dropped)
+    );
+
+    let unlisted = FakeLlm::answering("not even json");
+    let rules = run(dir.path(), &unlisted).await;
+    assert_eq!(unlisted.calls(), 0);
+    assert_eq!(rules.len(), 1);
+    assert_eq!(rules[0].slug, "orders-2");
+    assert_eq!(load_set_aside(dir.path()).unwrap().rules, [dropped]);
+}
+
+// spec: RSA-5
+#[tokio::test]
+async fn a_rule_put_back_that_was_not_set_aside_is_warned_about_unless_it_is_published() {
+    let (logs, _guard) = crate::testing::capture_logs();
+    let dir = repo();
+    dropping_storage(dir.path()).await;
+
+    let rules = ask_with(
+        dir.path(),
+        &FakeLlm::answering("not even json"),
+        &[feature()],
+        &putting_back(&[], &["orders-9", "orders-2"]),
+    )
+    .await;
+
+    assert_eq!(rules.len(), 1);
+    let logs = logs.text();
+    let warnings: Vec<&str> = logs.lines().filter(|l| l.contains("WARN")).collect();
+    assert_eq!(warnings.len(), 1, "{logs}");
+    assert!(
+        warnings[0].contains("orders-9") && warnings[0].contains("keep_rules"),
+        "{logs}"
+    );
+}
+
+// spec: RSA-8
+#[tokio::test]
+async fn a_rule_put_back_from_an_older_set_aside_file_is_warned_about_and_not_made_up() {
+    let (logs, _guard) = crate::testing::capture_logs();
+    let dir = repo();
+    dropping_storage(dir.path()).await;
+    // As written before the dropped rule was kept whole.
+    let path = Artifact::RulesSetAside.path(dir.path());
+    let mut older = load_set_aside(dir.path()).unwrap();
+    older.rules[0].rule = None;
+    save_yaml(&path, &older).unwrap();
+
+    let rules = ask_with(
+        dir.path(),
+        &FakeLlm::answering("not even json"),
+        &[feature()],
+        &putting_back(&[], &["orders-1"]),
+    )
+    .await;
+
+    assert_eq!(rules.len(), 1);
+    assert_eq!(rules[0].slug, "orders-2");
+    let logs = logs.text();
+    let warnings: Vec<&str> = logs.lines().filter(|l| l.contains("WARN")).collect();
+    assert_eq!(warnings.len(), 1, "{logs}");
+    assert!(
+        warnings[0].contains("orders-1") && warnings[0].contains("stated again"),
+        "{logs}"
+    );
+}
+
 #[test]
 fn the_entities_of_a_rule_are_the_ones_its_statement_speaks_of_as_whole_words() {
     let allowed = ["Order", "Rider", "Delivery Slot", "Rid"];

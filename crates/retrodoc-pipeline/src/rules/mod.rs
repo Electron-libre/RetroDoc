@@ -81,14 +81,33 @@ fn load_stated(repo_root: &Path) -> Option<Vec<BusinessRule>> {
     load_yaml(&Artifact::RulesStated.path(repo_root)).or_else(|| load_rules(repo_root))
 }
 
-/// Saves the rules as stated, then the same rule of several features kept once; returns the latter.
+/// Saves the rules as stated, then publishes them with the rules `put_back` by hand, the same rule of
+/// several features kept once; returns the latter. The rules put back are not saved as stated: a run
+/// reuses them from what was set aside, so taking one off the list sets it aside again.
 fn save_published(
     repo_root: &Path,
     stated: &[BusinessRule],
+    put_back: Vec<BusinessRule>,
+    features: &[Feature],
     reach: &BTreeMap<String, Reach>,
 ) -> Result<Vec<BusinessRule>, PipelineError> {
     save_yaml(&Artifact::RulesStated.path(repo_root), stated)?;
-    let published = merge_duplicates(stated.to_vec(), reach);
+    let mut all = stated.to_vec();
+    all.extend(put_back);
+    // Each rule put back among the rules of its feature, by its number.
+    let rank = |rule: &BusinessRule| {
+        let feature = features
+            .iter()
+            .position(|f| rule.belongs_to_feature(&f.slug));
+        let number = rule
+            .slug
+            .rsplit('-')
+            .next()
+            .and_then(|n| n.parse::<usize>().ok());
+        (feature, number)
+    };
+    all.sort_by_key(rank);
+    let published = merge_duplicates(all, reach);
     save_rules(repo_root, &published)?;
     Ok(published)
 }
@@ -207,8 +226,9 @@ pub async fn build_rules(
     }
     drop(answers);
 
+    let put_back = put_back_rules(&context.put_back.keep_rules, &aside, &rules);
     // Rules first: a fingerprint without its rules would freeze a feature as "none".
-    let published = save_published(repo_root, &rules, &reach)?;
+    let published = save_published(repo_root, &rules, put_back, features, &reach)?;
     save_yaml(&Artifact::RulesSetAside.path(repo_root), &aside)?;
     prints.save(repo_root)?;
     Ok(published)
@@ -298,8 +318,9 @@ async fn ask_rules(
         asked.aside.rules.push(AsideRule {
             slug: rule.slug.clone(),
             feature: feature.slug.clone(),
-            statement: rule.statement,
+            statement: rule.statement.clone(),
             class,
+            rule: Some(rule),
         });
     }
     Ok(Some(asked))
@@ -315,6 +336,33 @@ fn warn_unknown_features(keep_features: &[String], features: &[Feature]) {
             );
         }
     }
+}
+
+/// The rules of `keep_rules` that the judgement set aside, whole. Warns about a slug that names no
+/// rule, set aside or `stated`, and about one set aside by a run that did not keep the rule whole.
+fn put_back_rules(
+    keep_rules: &[String],
+    aside: &SetAside,
+    stated: &[BusinessRule],
+) -> Vec<BusinessRule> {
+    let mut put_back = Vec::new();
+    for slug in keep_rules {
+        match aside.rules.iter().find(|r| &r.slug == slug) {
+            Some(AsideRule {
+                rule: Some(rule), ..
+            }) => put_back.push(rule.clone()),
+            Some(_) => tracing::warn!(
+                "`{slug}` of `keep_rules` in `[rules]` of retrodoc.toml was set aside by an older run \
+                 that did not keep it whole: it comes back when its feature is stated again"
+            ),
+            None if stated.iter().any(|r| &r.slug == slug) => {}
+            None => tracing::warn!(
+                "`{slug}` of `keep_rules` in `[rules]` of retrodoc.toml names no rule: nothing to \
+                 put back (was its feature stated again?)"
+            ),
+        }
+    }
+    put_back
 }
 
 /// What each feature reads, to tell which one owns the code a rule cites.
