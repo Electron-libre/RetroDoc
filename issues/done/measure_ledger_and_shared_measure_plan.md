@@ -95,6 +95,7 @@ LLM run is made by this issue.
 - Synced skills: a project rule in `CLAUDE.md`, no change proposed to the central harness (user, 2026-10-27).
 - Runs: a naming convention `<issue>-<short commit>-<n>` in the skills only; no tool appends to the ledger (user, 2026-10-27).
 - Ledger file: `~/retrodoc-runs/LEDGER.md` (user, 2026-10-27).
+- Amended Approaches validated by the user (2026-10-27); issue closed.
 
 ## Summary of deliverable 1
 - done: `~/retrodoc-runs/LEDGER.md` (outside git): 18 lines of measures (the detailed ones from 2026-10-13 on,

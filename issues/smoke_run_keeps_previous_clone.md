@@ -22,7 +22,7 @@ Expected outcome: a smoke run never deletes a run the ledger still needs.
 
 # Resources
 * `.claude/skills/smoke-test/smoke.rs`, `test_smoke.rs`, `SKILL.md` (section "Ledger of measures")
-* `issues/measure_ledger_and_shared_measure_plan.md`
+* `issues/done/measure_ledger_and_shared_measure_plan.md`
 
 # Hints
 * `smoke.rs` is a project skill, not synced: it can change here.

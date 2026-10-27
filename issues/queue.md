@@ -4,7 +4,6 @@ Open issues in the order to work on them: the first is the next one. Read by `ju
 `just close-issue` removes a line, `skill:create-issue` inserts one at its rank, `skill:prioritize-issues`
 re-ranks the whole list. Line format: `- [<file stem>](<file stem>.md) - <why here>`.
 
-- [measure_ledger_and_shared_measure_plan](measure_ledger_and_shared_measure_plan.md) - first: 10 of the queued issues plan measures; a ledger and a shared plan avoid redoing runs before the next paid ones (`second_application_in_benchmark`)
 - [second_application_in_benchmark](second_application_in_benchmark.md) - after `benchmark_passes_on_fixed_inputs`, before the issues that compare settings (`measure_model_split_per_pass`, `settle_experimental_settings`): a gain on one application is not yet a gain
 - [measure_model_split_per_pass](measure_model_split_per_pass.md) - after the pivot: it removes and changes passes, which would make an earlier split measure stale
 - [settle_experimental_settings](settle_experimental_settings.md) - after the measures it needs (`benchmark_passes_on_fixed_inputs`, the rules issues); fewer options before the refactoring
