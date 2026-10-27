@@ -172,7 +172,7 @@ baseline yet; the hosted DeepSeek series stay the reference (12 min a series).
 | an explicit `--base-url` with `--local` still named the `--local` service | fixed: no start command for an explicit `--base-url` |
 | `--local` without a value fell back to `igpu` | fixed: error |
 | no `--timeout-secs` in the benchmark | added (default 900) |
-| the 120 s default of `retrodoc` itself does not fit a local server | out of this issue: `issues/default_timeout_for_a_local_server.md` |
+| the 120 s default of `retrodoc` itself does not fit a local server | out of this issue: `issues/done/default_timeout_for_a_local_server.md` |
 | `LOCAL_TARGETS` and `llm_target` copied in `smoke.rs` and `benchmark.rs` | not fixed: each is a standalone `rust-script`, no shared module to put them in; the probe preset is a third, in a crate example |
 | hosted benchmark probed the iGPU host | fixed: the TCP check runs only for the local provider |
 | probe printed `finish_reason=none` for a missing field | fixed: `missing` or `null` |
