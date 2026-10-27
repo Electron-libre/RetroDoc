@@ -1,0 +1,102 @@
+# Pairs checked by hand from the judge's proposals of the first run (deepseek-chat, docs hidden, 2026-10-27).
+# `generated` is a name the model produced in a run, `reference` a name of reference.yaml.
+# A generated feature that holds a reference feature and more (voting and flagging) is paired with it.
+# Left out on purpose, judged wrong:
+#   Story lookup and access -> Browse the front page  (reading one story by its id, not the ranked lists)
+#   Account and Ban Emails  -> Manage my account      (e-mails sent on a ban or a password reset, not the settings)
+domains:
+  - generated: Stories and Comments
+    reference: Stories
+  - generated: Identity and Membership
+    reference: Membership
+features:
+  - generated: Sign-in and role-based access
+    reference: Sign in
+  - generated: Story browsing and feeds
+    reference: Browse the front page
+  - generated: Story submission and editing
+    reference: Submit a story
+  - generated: Story voting, flagging, hiding and saving
+    reference: Upvote stories and comments
+  - generated: Story tagging and tag suggestions
+    reference: Suggest a better title or tags
+  - generated: Similar story lookup by URL
+    reference: Submit a story
+  - generated: Commenting and discussion
+    reference: Comment on a story
+  - generated: Search
+    reference: Search stories and comments
+  - generated: Tag filtering
+    reference: Filter out tags
+  - generated: Hats
+    reference: Wear hats
+  - generated: Inbox notifications
+    reference: Follow replies and mentions
+  - generated: Private messages
+    reference: Send private messages
+  - generated: Mod mail
+    reference: Talk with the moderators
+  - generated: User profiles
+    reference: View member profiles
+  - generated: Account settings
+    reference: Manage my account
+  - generated: Login and authentication
+    reference: Sign in
+  - generated: Signup and invitations
+    reference: Sign up with an invitation
+  - generated: Moderation log
+    reference: Read the moderation log
+  - generated: Domain and origin management
+    reference: Ban domains and origins
+  - generated: Category management
+    reference: Manage tags and categories
+  - generated: User moderation
+    reference: Ban members and take away invitations
+  - generated: Story moderation
+    reference: Moderate stories
+  - generated: Comment moderation
+    reference: Moderate comments
+  - generated: Moderator mail
+    reference: Talk with the moderators
+  - generated: Tag administration
+    reference: Manage tags and categories
+  - generated: Domain banning
+    reference: Ban domains and origins
+  - generated: Origin banning
+    reference: Ban domains and origins
+  - generated: Flagged content review
+    reference: Talk with the moderators
+  - generated: Moderator notes
+    reference: Talk with the moderators
+  - generated: Comment by Email
+    reference: Take part by e-mail
+  - generated: Comment and Mention Notifications
+    reference: Follow replies and mentions
+  - generated: Private Message Notifications
+    reference: Send private messages
+  - generated: Invitations and Invitation Requests
+    reference: Invite a new member
+  - generated: Webmention Sending
+    reference: Send webmentions
+  - generated: Mastodon Posting
+    reference: Post stories to Mastodon
+  - generated: Story submission and tagging
+    reference: Submit a story
+  - generated: Commenting and threaded discussion
+    reference: Comment on a story
+  - generated: Voting and flagging
+    reference: Upvote stories and comments
+  - generated: Hats (alternate identities)
+    reference: Wear hats
+  - generated: Inbox notifications and private messages
+    reference: Send private messages
+  - generated: Story filtering
+    reference: Filter out tags
+  - generated: Account settings and username history
+    reference: Manage my account
+  - generated: Domain and origin moderation
+    reference: Ban domains and origins
+  - generated: Moderation dashboard, notes, and mail
+    reference: Talk with the moderators
+  - generated: Tag and category administration
+    reference: Manage tags and categories

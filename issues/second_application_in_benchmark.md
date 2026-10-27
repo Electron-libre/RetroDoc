@@ -51,7 +51,7 @@ behaviour (no spec). Candidate: Lobsters (Rails, BSD-3-Clause, 131 Ruby files an
 1. [x] Reference: `benchmark/lobsters/reference.yaml` (pinned commit, purpose, actors, domains, features, a sample
    of use cases and rules) and `entry-points.yaml`, each item confirmed in the code; verified by a test that loads
    and checks every committed `benchmark/*/reference.yaml` and `matches.yaml` (`Reference::load`, `check`).
-2. [ ] Measure (paid, user's go): one complete DeepSeek `generate` of the pinned commit, kept as `source_run`,
+2. [x] Measure (paid, user's go): one complete DeepSeek `generate` of the pinned commit, kept as `source_run`,
    `freeze_inputs` into `~/retrodoc-runs/frozen/lobsters`, then `pass_replay --freeze-first` 3 runs each for
    domains, features, use cases; audit the judge's pairs into `benchmark/lobsters/matches.yaml`; ledger lines
    (measures, artifacts, G5 ticked, G2/G3 extended to two applications).
@@ -63,6 +63,8 @@ behaviour (no spec). Candidate: Lobsters (Rails, BSD-3-Clause, 131 Ruby files an
 - Base commit: a7487c210d4c000e2273bc822ac88bc81487a6e7
 - Application: Lobsters (Rails, BSD-3-Clause), github.com/lobsters/lobsters.
 - Paid measure: approved, deepseek-chat, about $1 in total (generate about $0.5, use cases replays about $0.4).
+- Use cases replay: 1 run with `--freeze-first` (user, 2026-10-27), not 3: about 0.27 $ a run on lobsters; the
+  3-run baseline comes with the G2/G3 measures that need it.
 - Reference: checked item by item in the code by the agent, then a stop for the user to read it before the measure.
 
 ## Deliverable 1 summary
@@ -72,3 +74,22 @@ behaviour (no spec). Candidate: Lobsters (Rails, BSD-3-Clause, 131 Ruby files an
 - red: `left: ["delivery_router", "linkding"] right: ["delivery_router", "linkding", "lobsters"]`.
 - not verified: the reference is not yet read by the user (stop before deliverable 2, Decisions); no
   `matches.yaml` yet (deliverable 2).
+
+## Deliverable 2 summary
+- done: one complete run of Lobsters (deepseek-chat, served as deepseek-flash, its new name; docs hidden; ~$0.45),
+  frozen in `~/retrodoc-runs/frozen/lobsters` (source run `second_application_in_benchmark-d8d8c92-1`, keep it),
+  replays with `--freeze-first`: domains 3, features 3, use cases 1; `benchmark/lobsters/matches.yaml` holds the 47
+  judge pairs of the complete run checked right (2 of 49 wrong); ledger lines added. Total ~$0.75.
+
+| figure | complete run | replays (mean, range) |
+|---|---|---|
+| domains, judged recall | 43% (8 domains) | 48% (29-57), 8 (8-9) domains |
+| features, judged recall / precision | 81% / 51% (98 features) | 87% (84-90) / 49% (42-56), 77 features |
+| use cases, business by the judge / score 1 | 81% / 74% (392) | 80% / 72% (202, 1 run) |
+| prompt tokens of the pass | domains 5k, features 22k, use cases 1.0M | 3.7k, 26k, 810k |
+
+- red: none (a measure; the test of deliverable 1 checks the pairs name reference items).
+- not verified: the spread of the use cases replay on lobsters (1 run, decision above); the judge's pairs of the
+  replays are not saved, only those of the complete run were audited.
+- follow-up: the features judged recall spread on lobsters (84-90) is narrower than on linkding (15 to 20 points);
+  domains spread 29 points on one call.
