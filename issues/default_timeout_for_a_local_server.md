@@ -14,7 +14,7 @@ of a hosted provider that is down.
 * The Ollama iGPU instance generates about half as fast, so its calls run longer still.
 * The same cut on a large Rails application led to `issues/done/smoke_http_timeout_for_the_local_model.md`,
   which fixed the smoke test only; `benchmark.rs` got the same 900 s in
-  `issues/hybrid_llama_server_as_local_llm.md` (deliverable 7).
+  `issues/done/hybrid_llama_server_as_local_llm.md` (deliverable 7).
 * The retry loop restarts the whole generation on a timeout (doc of `timeout_secs` in `config.rs`), so each
   failing call costs about three times the timeout before the pass fails.
 
@@ -29,7 +29,7 @@ of a hosted provider that is down.
 
 # Resources
 * `crates/retrodoc-core/src/config.rs` (`timeout_secs`), `crates/retrodoc-llm/src/openrouter.rs` (timeout, retry).
-* `issues/done/smoke_http_timeout_for_the_local_model.md`, `issues/hybrid_llama_server_as_local_llm.md`.
+* `issues/done/smoke_http_timeout_for_the_local_model.md`, `issues/done/hybrid_llama_server_as_local_llm.md`.
 * `.claude/skills/smoke-test/smoke.rs` (`LLM_TIMEOUT_SECS`), `.claude/skills/quality-benchmark/benchmark.rs`
   (`LOCAL_TIMEOUT_SECS`).
 * ADR 0002 (one provider, any OpenAI-compatible server).

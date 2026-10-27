@@ -83,7 +83,7 @@ about, with the request still bounded.
 
 Plan: validated
 
-Status: done (2026-10-26). Left: the local comparison, in `issues/hybrid_llama_server_as_local_llm.md`.
+Status: done (2026-10-26). Left: the local comparison, in `issues/done/hybrid_llama_server_as_local_llm.md`.
 
 ## Understanding
 The judge sees the first 1,500 chars of a section; show it instead the paragraphs of a long section that hold the
@@ -112,7 +112,7 @@ and 3 of the issue combined (REC-15), the section still listed once per batch.
 - 1a: paragraph excerpts within a per-request budget (REC-15), sections not split.
 - 2a: 36,000 chars of section text per request.
 - After 2: the local model comparison is left until the switch to the hybrid llama-server
-  (`issues/hybrid_llama_server_as_local_llm.md`); deliverable 3 measures with DeepSeek only.
+  (`issues/done/hybrid_llama_server_as_local_llm.md`); deliverable 3 measures with DeepSeek only.
 - High review: what is shown of a section depends on the other items of the batch, and the fingerprint does not
   hold it (an unchanged item keeps a verdict given on another excerpt). Kept: a fingerprint per batch would ask
   every item again when one changes (the hint of the issue); the excerpt changes only with the batch.
@@ -168,7 +168,7 @@ Not verified: the local model (left, decision after 2); one or two runs per vari
 39 between runs.
 
 Left: the local comparison once the hybrid llama-server is the local target, moved to
-`issues/hybrid_llama_server_as_local_llm.md`.
+`issues/done/hybrid_llama_server_as_local_llm.md`.
 
 Code review (low): no findings.
 

@@ -4,7 +4,6 @@ Open issues in the order to work on them: the first is the next one. Read by `ju
 `just close-issue` removes a line, `skill:create-issue` inserts one at its rank, `skill:prioritize-issues`
 re-ranks the whole list. Line format: `- [<file stem>](<file stem>.md) - <why here>`.
 
-- [hybrid_llama_server_as_local_llm](hybrid_llama_server_as_local_llm.md) - small tooling issue right after the open reconciliation follow-up: about twice faster local generation would make every later smoke and benchmark measure (second application, model split, settings) cheaper
 - [default_timeout_for_a_local_server](default_timeout_for_a_local_server.md) - small, right after the hybrid llama-server issue that found it: any `generate` on a local server of a linkding-sized repository fails at the 120 s default, and the scripts only hide it
 - [rules_put_back_what_was_set_aside](rules_put_back_what_was_set_aside.md) - moderate: safety net for the false yes of the question on features about tests (a wrong yes hides every rule of a feature), after `docs_reconciliation_debt_report` which reads the rules and the report that lists them; the rules pass is off by default, so not before
 - [shorter_use_case_answers](shorter_use_case_answers.md) - lever B of the closed `use_cases_cost_per_call`; the input side (`one_code_reading_for_use_cases_and_rules`) is closed without changing the prompts
