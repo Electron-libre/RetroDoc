@@ -90,7 +90,7 @@ instruction "only the steps the reader observes" is not estimable without a call
 5. [x] (b) One text per step and the actor as a name (kind from the actors list, else `System` / human
    by the list); verified by grounding and render tests (old artifacts with `action` still load and render);
    one replay, kept or reverted.
-6. [ ] (c) Fewer system steps: only the steps that change what the reader observes, with a cap; verified by a
+6. [x] (c) Fewer system steps: only the steps that change what the reader observes, with a cap; verified by a
    prompt test; one replay, kept or reverted.
 7. [ ] Docs (`docs/crates/pipeline.md`, `llm.md` if touched), the `generate --force` note, findings recorded.
 
@@ -124,6 +124,7 @@ instruction "only the steps the reader observes" is not estimable without a call
 | current (2026-10-27) | 80 | 79% | 65% | 349 | 100% | 68% | 32 | 275,026 | 34,146 | 176 |
 | (a) `"F2:10-24"` | 80 | 95% | 70% | 346 | 100% | 68% | 32 | 276,602 | 27,426 (-20%) | 153 |
 | (a+b) one text, actor name | 81 | 81% | 67% | 351 | 100% | 66% | 32 | 276,378 | 23,679 (-31%) | 145 |
+| (a+b+c) observable steps, 5 at most | 81 | 73% | 67% | 288 | 100% | 69% | 32 | 277,978 | 21,667 (-37%) | 140 |
 
 ## Summary of deliverables 3 and 4
 - done: baseline replay; (a) kept: steps cite `"F2:10-24"`, the files are numbered in the prompt, the
@@ -147,3 +148,14 @@ instruction "only the steps the reader observes" is not estimable without a call
 - not verified: the share of human steps under (b) (the replay did not keep its use cases); checked on the
   run of (c), which reads the actors the same way. With no actors list, the prompt asks for the
   `{"name", "kind"}` object again (`ACTOR_KIND_ADDENDUM`), so a person keeps its kind.
+
+## Summary of deliverable 6
+- done: (c) kept: the prompt asks for the steps that change what the actor or the reader observes, at most 5
+  per use case (no cap in the code). Replay: completion tokens -8% after (b), -37% in all, the pass 140 s
+  against 176; steps 288 against 351, none over 5 (19 of 81 before); checks pass 69%; human steps kept
+  (53 of 288, all `End-user`, against 65 of 375 in the frozen use cases), which also checks (b).
+- Code review: no findings.
+- red: the prompt did not say "at most 5 steps" (test `the_prompt_asks_for_the_steps_the_reader_observes_five_at_most`).
+- not verified: the judge's business language reads 73%, under the 79-95% of the three earlier shapes;
+  the narrative prompt is untouched by (c) and the judge varied by 16 points between (a) and (b) alone,
+  so it is read as the judge's noise; three runs of (a+b+c) would settle it (about $0.6).

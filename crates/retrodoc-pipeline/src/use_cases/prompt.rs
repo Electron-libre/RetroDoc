@@ -57,7 +57,10 @@ concrete scenarios in which an actor achieves a goal with this feature. For each
 the ordered steps, each with its actor (the name of the person, or of the software component, \
 service or external system that acts), one sentence saying what the actor does, naming the code \
 identifiers involved, and in `code` the code the step is grounded on: the number of the file \
-shown before its excerpt and the line range of the numbered lines, as \"F2:10-24\". Only describe behavior visible in the code provided; do not \
+shown before its excerpt and the line range of the numbered lines, as \"F2:10-24\". Keep only \
+the steps that change what the actor or the reader observes (a request, a decision, a record \
+created or changed, a message sent, a page shown), at most 5 steps per use case; fold the internal \
+plumbing into them. Only describe behavior visible in the code provided; do not \
 invent steps. Reply with ONLY a single JSON object, no prose and no Markdown code fence, matching \
 this shape: {\"use_cases\":[{\"slug\":\"kebab-case\",\"name\":\"...\",\"description\":\"...\",\
 \"steps\":[{\"actor\":\"...\",\"text\":\"...\",\"code\":[\"F1:10-24\"]}]}]}.";

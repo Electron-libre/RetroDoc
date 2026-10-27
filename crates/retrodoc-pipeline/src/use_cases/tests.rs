@@ -500,6 +500,15 @@ async fn no_human_actor_when_no_route_nor_command_starts_the_behaviour() {
 }
 
 #[test]
+fn the_prompt_asks_for_the_steps_the_reader_observes_five_at_most() {
+    for (entries, actors) in [(true, true), (false, false)] {
+        let prompt = prompt::system_prompt(entries, actors);
+        assert!(prompt.contains("at most 5 steps"), "{prompt}");
+        assert!(prompt.contains("change what the actor or the reader observes"));
+    }
+}
+
+#[test]
 fn the_prompt_says_who_starts_what_only_where_it_applies() {
     // The sentence about who starts a behaviour follows the entry points, the one about the
     // primary actor follows the known actors; a feature with neither gets none of them.
