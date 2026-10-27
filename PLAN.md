@@ -539,7 +539,7 @@ Next work, in the order of `issues/queue.md`:
    `pass_replay`; a second application is `issues/done/second_application_in_benchmark.md`).
 3. `issues/done/rules_deduplication_and_noise.md`, `issues/done/one_code_reading_for_use_cases_and_rules.md` and
    `issues/done/shorter_use_case_answers.md`: quality of the rules, then the tokens of the two largest passes.
-4. `issues/settle_experimental_settings.md`, `issues/surface_domains_default_decision.md`,
+4. `issues/done/settle_experimental_settings.md`, `issues/surface_domains_default_decision.md`,
    `issues/single_pipeline_path.md`, then `issues/pass_runner_and_run_context.md`: fewer options, one path, then
    the refactoring of what stays.
 

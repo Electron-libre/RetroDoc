@@ -45,7 +45,7 @@ becomes the default, stays an option with a stated use, or is removed.
 
 # Tracking
 
-Plan: validated
+Plan: validated (done 2026-10-27)
 
 ## Understanding
 Decide, figures in hand, the fate of `business_read`, `rules` and `body_lines`: default, option with a stated use,

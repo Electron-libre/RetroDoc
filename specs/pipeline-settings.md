@@ -35,4 +35,4 @@ The `[pipeline]` section of `retrodoc.toml` turns passes and readings on or off.
 
 - `[brief] evidence` and `domains_from`: decided by their own issues.
 - The quality benchmark does not judge the rules: it always turns the rules pass off (`pass_replay rules` measures them).
-- Reading only the start of method bodies: the measure kept the files whole (`issues/settle_experimental_settings.md`).
+- Reading only the start of method bodies: the measure kept the files whole (`issues/done/settle_experimental_settings.md`).

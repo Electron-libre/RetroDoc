@@ -49,7 +49,7 @@ would stay, so the gain is unmeasured (`issues/parsed_references_for_ranking_and
 
 ## Follow-up (2026-10-27)
 
-`[pipeline] body_lines` is removed (`issues/settle_experimental_settings.md`). Measured again with the joint
+`[pipeline] body_lines` is removed (`issues/done/settle_experimental_settings.md`). Measured again with the joint
 reading of ADR 0028 on linkding (`deepseek-chat`, three runs per setting): N=5 cuts the input of the reading
 passes by 38%, which is about 4% of a run with the rules on; the glossary loses only the form classes, the
 model entities keep their attributes; the entry points stay within the spread but the only move is down (one run

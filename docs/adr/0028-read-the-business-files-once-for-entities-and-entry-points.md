@@ -37,6 +37,6 @@ small library gave one entry point instead of about fifteen.
 
 ## Follow-up (2026-10-27)
 
-The review of the experimental settings (`issues/settle_experimental_settings.md`) keeps
+The review of the experimental settings (`issues/done/settle_experimental_settings.md`) keeps
 `[pipeline] business_read` as an option, on by default, for one stated use: a small library, where the joint
 reading finds fewer entry points (above). Spec: `specs/pipeline-settings.md` (SET-3).
