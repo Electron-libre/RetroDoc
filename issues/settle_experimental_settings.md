@@ -66,6 +66,9 @@ Spec: `specs/pipeline-settings.md` (SET).
 4. [x] `body_lines`: default N, option, or removed (with the message of a removed key), per the decision of 3;
    verified by config tests; ADR 0027 follow-up.
 
+5. [x] Fixes of the `high` review of the whole issue: config errors keep their line, the benchmark turns the
+   rules off whatever the `[pipeline]` section holds, the smoke test refuses `--rules` and a `--no-rules` it can't apply.
+
 ## Decisions
 - Answers of 2026-10-27: 1 a (`business_read` kept, stated use), 2 a (`rules` on by default), 3 a (measure on
   DeepSeek `deepseek-chat`).
@@ -117,3 +120,18 @@ linkding at 27b7303, roles, business files and brief of `frozen/linkding`, `deep
   delete the line from retrodoc.toml` (SET-4, `REMOVED_KEYS` in `config.rs`); spec `accepted`; ADR 0027 follow-up,
   `pipeline.md`, `PLAN.md`. The file hash of the reading passes is unchanged for the default (whole files): no redo.
 - red: `called Result::unwrap_err() on an Ok value` (the key was still read).
+
+## Deliverable 5 (fixes of the `high` review, `96e9828..a9ad181`)
+- done: `Config::load` deserializes as before and looks for a removed key only when that fails, so a mistyped key
+  keeps `line 3, column 1` in its error (test under SET-4); `without_rules` of `benchmark.rs` sets
+  `rules = false` in `[pipeline]` whatever it holds (key absent, other spacing, no section: harness tests);
+  `smoke.rs` dies on `--rules` (gone) and on a `--no-rules` with no `rules = true` to turn off; the spec's
+  non-goal says the benchmark always turns the rules off.
+- red: `invalid TOML config: unknown field rulez…` with no position; `FAIL - turns the rules pass off when the
+  key is absent`, `… without a [pipeline] section`.
+- Code review `low` of the fixes: the end of `[pipeline]` is a `[name]` or `[[name]]` header only, not an array
+  value on its own line (fixed; quoted headers are not handled, `retrodoc.toml` has none); `REMOVED_KEYS` needs a section that denies unknown fields (documented on the constant).
+  Not fixed: `--no-rules` of the smoke test stops when `init` wrote no `rules = true` (loud on purpose; `init`
+  writes it, SET-2), and the two scripts keep their own patch (separate `rust-script` files).
+- Not fixed, by design: `REMOVED_KEYS` looks one section deep; no nested key is removed today, a deeper one
+  extends it when it comes.

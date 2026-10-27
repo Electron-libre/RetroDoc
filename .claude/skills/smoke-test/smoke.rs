@@ -246,7 +246,13 @@ fn run(args: &[String]) -> i32 {
         ),
     };
     // `--no-rules` turns off the business rules pass (`[pipeline] rules`, on by default): a shorter run.
+    if args.iter().any(|a| a == "--rules") {
+        die("--rules is gone: the rules pass is on by default; --no-rules turns it off");
+    }
     let patched = if args.iter().any(|a| a == "--no-rules") {
+        if !patched.contains("rules = true") {
+            die("--no-rules: no `rules = true` line in the retrodoc.toml init wrote");
+        }
         patched.replacen("rules = true", "rules = false", 1)
     } else {
         patched

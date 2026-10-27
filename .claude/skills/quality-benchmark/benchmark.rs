@@ -88,9 +88,22 @@ fn patch_config(toml: &str, provider: &str, model: &str, base_url: &str, timeout
     kept.join("\n").replacen("[llm]", &llm, 1)
 }
 
-/// `toml` with the rules pass off (`[pipeline] rules`, on as `init` writes it): the benchmark does not judge the rules.
+/// `toml` with the rules pass off (`[pipeline] rules`, on by default): the benchmark does not judge the rules.
 fn without_rules(toml: &str) -> String {
-    toml.replacen("rules = true", "rules = false", 1)
+    let mut lines: Vec<String> = toml.lines().map(str::to_string).collect();
+    let pipeline = lines.iter().position(|l| l.trim() == "[pipeline]");
+    let Some(start) = pipeline else {
+        return format!("{}\n\n[pipeline]\nrules = false\n", toml.trim_end());
+    };
+    // A header is `[name]` or `[[name]]`: an array value on its own line (`["a", "b"]`, `[ 1,`) is not one.
+    let header = |l: &String| l.trim().trim_start_matches('[').chars().next().is_some_and(|c| c.is_ascii_alphabetic()) && l.trim().starts_with('[');
+    let end = lines[start + 1..].iter().position(header).map_or(lines.len(), |i| start + 1 + i);
+    let key = |l: &String| l.split('=').next().is_some_and(|k| k.trim() == "rules");
+    match lines[start + 1..end].iter().position(key) {
+        Some(i) => lines[start + 1 + i] = "rules = false".into(),
+        None => lines.insert(start + 1, "rules = false".into()),
+    }
+    lines.join("\n") + "\n"
 }
 
 /// `toml` with `[pipeline] domains_from` set to `mode` (ADR 0020; `init` writes `files`).

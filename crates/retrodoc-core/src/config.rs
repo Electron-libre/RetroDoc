@@ -13,7 +13,8 @@ use serde::{Deserialize, Serialize};
 pub const CONFIG_FILE_NAME: &str = "retrodoc.toml";
 
 /// Keys `retrodoc.toml` no longer takes, as `(section, key, why)`: a file that still names one is refused with a
-/// message saying so, rather than a bare unknown-field error (`specs/pipeline-settings.md`).
+/// message saying so, rather than a bare unknown-field error (`specs/pipeline-settings.md`). Looked up only when
+/// the file fails to load: the section must deny unknown fields, as `[pipeline]` does.
 const REMOVED_KEYS: &[(&str, &str, &str)] = &[(
     "pipeline",
     "body_lines",
@@ -424,6 +425,20 @@ pub enum ConfigError {
     Serialize(#[from] toml::ser::Error),
 }
 
+/// The error for the first key of [`REMOVED_KEYS`] that `raw` still names, if any.
+fn removed_key(raw: &str) -> Option<ConfigError> {
+    let table: toml::Table = toml::from_str(raw).ok()?;
+    REMOVED_KEYS
+        .iter()
+        .find(|(section, key, _)| {
+            table
+                .get(*section)
+                .and_then(toml::Value::as_table)
+                .is_some_and(|t| t.contains_key(*key))
+        })
+        .map(|&(section, key, why)| ConfigError::RemovedKey { section, key, why })
+}
+
 impl Config {
     /// Loads the config from `<repo_root>/retrodoc.toml`.
     ///
@@ -440,16 +455,8 @@ impl Config {
             path: path.display().to_string(),
             source,
         })?;
-        let table: toml::Table = toml::from_str(&raw)?;
-        if let Some(&(section, key, why)) = REMOVED_KEYS.iter().find(|(section, key, _)| {
-            table
-                .get(*section)
-                .and_then(toml::Value::as_table)
-                .is_some_and(|t| t.contains_key(*key))
-        }) {
-            return Err(ConfigError::RemovedKey { section, key, why });
-        }
-        let config: Config = table.try_into()?;
+        let config: Config =
+            toml::from_str(&raw).map_err(|error| removed_key(&raw).unwrap_or(error.into()))?;
         let unknown = config.llm.unknown_passes();
         if !unknown.is_empty() {
             return Err(ConfigError::UnknownPass(
@@ -592,6 +599,19 @@ mod tests {
             "{message}"
         );
         assert!(message.contains("delete the line"), "{message}");
+    }
+
+    // spec: SET-4
+    #[test]
+    fn a_mistyped_key_keeps_the_position_of_the_parse_error() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(
+            dir.path().join(CONFIG_FILE_NAME),
+            "[pipeline]\ndomains_from = \"files\"\nrulez = true\n",
+        )
+        .unwrap();
+        let message = Config::load(dir.path()).unwrap_err().to_string();
+        assert!(message.contains("line 3"), "{message}");
     }
 
     // spec: SET-3

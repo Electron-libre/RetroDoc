@@ -89,6 +89,16 @@ fn main() {
     let with_rules = write("with-rules.toml", &format!("{TOML}\n[pipeline]\nrules = true\n"));
     let (ok, out) = call(&["patch-config", &with_rules, "local", "m1", "http://localhost:1/v1", "false"]);
     check("turns the rules pass off (the benchmark does not judge the rules)", ok && out.contains("rules = false") && !out.contains("rules = true"));
+    let (ok, out) = call(&["patch-config", &with_pipeline, "local", "m1", "http://localhost:1/v1", "false"]);
+    check("turns the rules pass off when the key is absent", ok && out.contains("[pipeline]\nrules = false\n"));
+    let with_tables = write("with-tables.toml", &format!("{TOML}\n[pipeline]\ndomains_from = \"files\"\n[[x]]\nrules = true\n"));
+    let (ok, out) = call(&["patch-config", &with_tables, "local", "m1", "http://localhost:1/v1", "false"]);
+    check("stops the [pipeline] section at an array of tables", ok && out.contains("[pipeline]\nrules = false") && out.contains("[[x]]\nrules = true"));
+    let with_array = write("with-array.toml", &format!("{TOML}\n[pipeline]\nx = [\n  [\"a\"],\n]\nrules = true\n"));
+    let (ok, out) = call(&["patch-config", &with_array, "local", "m1", "http://localhost:1/v1", "false"]);
+    check("turns the rules pass off past an array value", ok && out.matches("rules =").count() == 1 && out.contains("rules = false"));
+    let (ok, out) = call(&["patch-config", &toml, "local", "m1", "http://localhost:1/v1", "false"]);
+    check("turns the rules pass off without a [pipeline] section", ok && out.contains("[pipeline]\nrules = false"));
 
     let (ok, out) = call(&["writing-temperature", &toml, "0.7"]);
     check(
