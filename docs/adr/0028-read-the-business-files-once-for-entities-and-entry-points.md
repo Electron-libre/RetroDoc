@@ -34,3 +34,9 @@ small library gave one entry point instead of about fifteen.
 * The answer type has room for the business rules of ADR 0021.
 * The model sometimes copies the `--- path ---` header as the file name: the attribution now ignores the
   dashes, which also helps the separate passes.
+
+## Follow-up (2026-10-27)
+
+The review of the experimental settings (`issues/settle_experimental_settings.md`) keeps
+`[pipeline] business_read` as an option, on by default, for one stated use: a small library, where the joint
+reading finds fewer entry points (above). Spec: `specs/pipeline-settings.md` (SET-3).

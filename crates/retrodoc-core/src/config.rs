@@ -113,7 +113,8 @@ pub struct PipelineConfig {
     pub body_lines: Option<usize>,
     /// `generate` reads the business files once for the glossary and the entry
     /// points (one call answers both, ADR 0028). `false`: each pass reads them
-    /// on its own, as before.
+    /// on its own, as before; for a small library, where the joint reading finds
+    /// fewer entry points.
     #[serde(default = "default_true")]
     pub business_read: bool,
     /// `generate` states the business rules of each feature after its use cases (one LLM call per
@@ -538,10 +539,6 @@ mod tests {
         assert_eq!(none.pipeline.domains_from, DomainsFrom::Files);
         let lines: Config = toml::from_str("[pipeline]\nbody_lines = 5").unwrap();
         assert_eq!(lines.pipeline.body_lines, Some(5));
-        assert!(Config::default().pipeline.business_read);
-        let off: Config = toml::from_str("[pipeline]\nbusiness_read = false").unwrap();
-        assert!(!off.pipeline.business_read);
-        assert!(lines.pipeline.business_read);
         assert_eq!(Config::default().pipeline.body_lines, None);
         let surface: Config = toml::from_str("[pipeline]\ndomains_from = \"surface\"").unwrap();
         assert_eq!(surface.pipeline.domains_from, DomainsFrom::Surface);
@@ -549,6 +546,16 @@ mod tests {
         let raw = toml::to_string_pretty(&surface).unwrap();
         let again: Config = toml::from_str(&raw).unwrap();
         assert_eq!(again.pipeline.domains_from, DomainsFrom::Surface);
+    }
+
+    // spec: SET-3
+    #[test]
+    fn the_business_files_are_read_once_unless_turned_off() {
+        assert!(Config::default().pipeline.business_read);
+        let other: Config = toml::from_str("[pipeline]\nbody_lines = 5").unwrap();
+        assert!(other.pipeline.business_read);
+        let off: Config = toml::from_str("[pipeline]\nbusiness_read = false").unwrap();
+        assert!(!off.pipeline.business_read);
     }
 
     #[test]

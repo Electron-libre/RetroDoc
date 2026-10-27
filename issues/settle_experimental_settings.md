@@ -42,3 +42,37 @@ becomes the default, stays an option with a stated use, or is removed.
 * `body_lines` is part of the file hash of the reading passes: a new default redoes them once for everyone.
 * Removing a key: `retrodoc.toml` files that still name it must get a clear message.
 * Easier to measure after `benchmark_passes_on_fixed_inputs` and `sampling_temperature_for_steadier_runs`.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Decide, figures in hand, the fate of `business_read`, `rules` and `body_lines`: default, option with a stated use,
+or removed, and write it in the code, the `init` default, the README, `docs/crates/pipeline.md` and the ADRs.
+Out of scope: `[brief] evidence` (`brief_injection_experiments`), `domains_from` (its two issues), the options with a use.
+Spec: `specs/pipeline-settings.md` (SET).
+
+## Plan
+1. [x] `business_read`: kept as an option with its stated use (a small library, where the joint reading finds
+   fewer entry points); verified by a config test; makes true SET-3; ADR 0028 follow-up, README, `pipeline.md`.
+2. [ ] `rules`: on by default; the smoke test follows the default (`--rules` becomes `--no-rules`), the
+   benchmark keeps it off (it does not judge the rules); verified by config and `init` tests and the harness
+   tests; makes true SET-1, SET-2; ADR 0021 follow-up, README, `pipeline.md`, skills.
+3. [ ] Measure `body_lines` with `business-read` on: frozen linkding inputs (roles, business files, brief),
+   `business-read` + glossary + entry points, 3 runs off and 3 at N=5; `entry_points_replay`, entity and
+   attribute counts, entity names compared between settings (the vocabulary of the use cases); figures here and
+   in the ledger. Stop on the figures for the decision.
+4. [ ] `body_lines`: default N, option, or removed (with the message of a removed key), per the decision of 3;
+   verified by config tests; ADR 0027 follow-up.
+
+## Decisions
+- Answers of 2026-10-27: 1 a (`business_read` kept, stated use), 2 a (`rules` on by default), 3 a (measure on
+  DeepSeek `deepseek-chat`).
+- Mode: autonomous (stops anyway before the paid run of 3 and on its figures)
+- Base commit: 96e98285237dd7a023729e0ee27c05d32d0d499c
+
+## Deliverable 1 (`business_read` kept)
+- done: SET-3 traced by its own config test; the stated use written in the doc comment, the README sample,
+  `pipeline.md` and ADR 0028 (follow-up).
+- red: none (the behaviour was already true; the test moved out of the `domains_from` test).
