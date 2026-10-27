@@ -52,6 +52,8 @@ Sizing: longest local call measured ~160 s (use-cases, hybrid); the 8,192-token 
    `request_timeout` and the existing no-retry test; makes true LTO-1 to LTO-4.
 2. [x] Scripts rely on the default: smoke and benchmark stop writing `timeout_secs` unless `--timeout-secs` is
    given; verified by their `just test-harness` tests.
+3. [x] Fixes of the `high` review: the timeout error gives the timeout that applied (LTO-4 amended), stale doc
+   comments, a benchmark note for a `--base-url` on another host.
 
 ## Decisions
 - Mode: autonomous
@@ -74,3 +76,18 @@ Sizing: longest local call measured ~160 s (use-cases, hybrid); the 8,192-token 
   benchmark `leaves the timeout to the default of a local server` FAIL.
 - Code review (low): no findings.
 - not verified: no smoke or benchmark run against a local server with the new default.
+
+## Deliverable 3 (fixes of the high review of 46d7e40..241f425)
+- done: timeout error says `timed out after <timeout>`; `DEFAULT_REQUEST_TIMEOUT` and `patch_config` docs fixed;
+  quality-benchmark SKILL.md notes `--timeout-secs` for a non-loopback `--base-url`.
+- checks: `just check` ok, `just test-harness` ok.
+- red: `a_timeout_is_named_and_not_retried` asserts `timed out after 200ms`, absent from the old message.
+- High review findings not fixed:
+  - non-loopback `--base-url` in the scripts gets 120 s: decision Q2; documented in both SKILL.md.
+  - smoke.rs does not validate `--timeout-secs`: predates this issue.
+  - `0.0.0.0`, `::ffff:127.0.0.1`, `*.localhost` not loopback: outside LTO-1 as validated (Q1).
+  - `is_loopback_url` could match on `Url::host()`: needs a direct `url` dependency for a few lines.
+  - positional timeout of the test-only `patch-config`: only the test calls it.
+  - duplicated `[llm]` patching across smoke.rs and benchmark.rs: predates this issue.
+- Code review (low): no findings.
+- not verified: no real run against a local server with the new default.

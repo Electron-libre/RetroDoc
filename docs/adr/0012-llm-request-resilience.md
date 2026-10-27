@@ -18,7 +18,7 @@ In `OpenRouterProvider`:
   unrecoverable quota error, not a pause.
 - Per-request HTTP timeout of 120 s, 900 s when `llm.base_url` names a loopback host (a local server, LTO-1),
   overridable with `llm.timeout_secs` (a slow server elsewhere on the network). A timeout
-  is not retried (the same prompt takes as long again): the error names it and points at `llm.timeout_secs`.
+  is not retried (the same prompt takes as long again): the error names it, gives the timeout that applied and points at `llm.timeout_secs`.
 - `max_tokens` is always sent (8,192) to cap runaway generations; an answer cut by `finish_reason=length`
   logs a warning, and one that overflows twice is split (0006).
 

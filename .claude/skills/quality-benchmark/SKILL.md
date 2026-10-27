@@ -21,7 +21,7 @@ just benchmark benchmark/<repo>/reference.yaml                 # 1 run per serie
 just benchmark benchmark/<repo>/reference.yaml --runs 3        # the spread needs 3 at least
 just benchmark <reference> --local hybrid                      # the hybrid llama-server (default: `igpu`, the Ollama iGPU instance)
 just benchmark <reference> --local hybrid --timeout-secs 1800  # HTTP timeout of the local model (default: RetroDoc's, 900 s for a loopback URL)
-just benchmark <reference> --model <m> --base-url <u>          # another model or server (overrides the `--local` values)
+just benchmark <reference> --model <m> --base-url <u>          # another model or server (overrides the `--local` values; on another host than loopback, add `--timeout-secs`: the default is 120 s)
 just benchmark <reference> --provider deepseek --runs 3 --no-confidence   # hosted: key in .env, about $0.30 per linkding run
 just benchmark <reference> --series hidden                     # one series only
 just benchmark <reference> --domains-from surface              # the new path of ADR 0020 (default: files)

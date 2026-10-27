@@ -24,11 +24,11 @@ const RETRY_BASE_DELAY: Duration = Duration::from_millis(500);
 /// Longest wait the provider may ask for (`Retry-After`, `retryDelay`) that
 /// is still honored; beyond it the error is returned (e.g. a daily quota).
 const MAX_SERVER_RETRY_DELAY: Duration = Duration::from_secs(120);
-/// Default per-request HTTP timeout (`llm.timeout_secs` overrides it). `OpenRouter` always responds well within this,
-/// but a local `llm.base_url` override (a small quantized model) can
-/// degenerate into a runaway generation loop that never reaches a stop
-/// token; without a client-side bound the call hangs indefinitely instead
-/// of surfacing an error.
+/// Default per-request HTTP timeout of a hosted or non-loopback endpoint
+/// (`llm.timeout_secs` overrides it). `OpenRouter` always responds well within
+/// this, and a model can degenerate into a runaway generation loop that never
+/// reaches a stop token; without a client-side bound the call hangs
+/// indefinitely instead of surfacing an error.
 const DEFAULT_REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
 /// Default timeout when `llm.base_url` names a loopback host: a local server
 /// writes a long structured answer far slower than a hosted one (the
@@ -112,6 +112,8 @@ pub struct OpenRouterProvider {
     endpoint: String,
     reasoning_effort: Option<String>,
     temperature: Option<f32>,
+    /// The per-request timeout of `client`, named in the error of a call that runs past it.
+    timeout: Duration,
     /// `llm.structured_output`: send the schema of a request that has one.
     structured_output: bool,
     /// Ask `OpenRouter` to route only to servers that honor every parameter
@@ -154,8 +156,9 @@ impl OpenRouterProvider {
             .clone()
             .unwrap_or_else(|| default_endpoint.to_string());
         let require_parameters = config.provider == "openrouter" && config.base_url.is_none();
+        let timeout = request_timeout(config);
         let client = reqwest::Client::builder()
-            .timeout(request_timeout(config))
+            .timeout(timeout)
             .build()
             .map_err(|source| LlmError::Transport(source.to_string()))?;
         Ok(Self {
@@ -169,6 +172,7 @@ impl OpenRouterProvider {
             require_parameters,
             schema_refused: AtomicBool::new(false),
             temperature_refused: AtomicBool::new(false),
+            timeout,
         })
     }
 
@@ -362,7 +366,7 @@ impl LlmProvider for OpenRouterProvider {
             }
             return Ok(response);
         }
-        Err(failure.into_error())
+        Err(failure.into_error(self.timeout))
     }
 
     fn model(&self) -> &str {
@@ -512,13 +516,14 @@ impl Failure {
         }
     }
 
-    fn into_error(self) -> LlmError {
+    /// The error of the last attempt; `timeout` is the one of the client, named when it was reached.
+    fn into_error(self, timeout: Duration) -> LlmError {
         match self {
             Failure::Http { status, body, .. } => {
                 LlmError::InvalidResponse(format!("HTTP status {status}: {body}"))
             }
             Failure::Network(source) if source.is_waiting_too_long() => LlmError::Transport(format!(
-                "the request timed out before the model finished its answer (raise `llm.timeout_secs`): {source}"
+                "the request timed out after {timeout:?} before the model finished its answer (raise `llm.timeout_secs`): {source}"
             )),
             Failure::Network(source) => LlmError::Transport(source.to_string()),
             Failure::Decode(err) => err,
@@ -723,6 +728,7 @@ mod tests {
             require_parameters: false,
             schema_refused: AtomicBool::new(false),
             temperature_refused: AtomicBool::new(false),
+            timeout: DEFAULT_REQUEST_TIMEOUT,
         }
         .with_endpoint(format!("http://{addr}"));
 
@@ -771,6 +777,7 @@ mod tests {
             require_parameters: false,
             schema_refused: AtomicBool::new(false),
             temperature_refused: AtomicBool::new(false),
+            timeout: DEFAULT_REQUEST_TIMEOUT,
         }
         .with_endpoint(format!("http://{addr}"));
         provider.complete(request()).await.unwrap()
@@ -852,6 +859,7 @@ mod tests {
             require_parameters: false,
             schema_refused: AtomicBool::new(false),
             temperature_refused: AtomicBool::new(false),
+            timeout: DEFAULT_REQUEST_TIMEOUT,
         }
         .with_endpoint(format!("http://{addr}"));
 
@@ -905,6 +913,7 @@ mod tests {
             require_parameters: false,
             schema_refused: AtomicBool::new(false),
             temperature_refused: AtomicBool::new(false),
+            timeout: DEFAULT_REQUEST_TIMEOUT,
         }
         .with_endpoint(format!("http://{addr}"));
 
@@ -956,6 +965,7 @@ mod tests {
                 require_parameters: false,
                 schema_refused: AtomicBool::new(false),
                 temperature_refused: AtomicBool::new(false),
+                timeout: DEFAULT_REQUEST_TIMEOUT,
             }
             .with_endpoint(format!("http://{addr}"));
 
@@ -1029,6 +1039,7 @@ mod tests {
             require_parameters: true,
             schema_refused: AtomicBool::new(false),
             temperature_refused: AtomicBool::new(false),
+            timeout: DEFAULT_REQUEST_TIMEOUT,
         }
         .with_endpoint(endpoint)
     }
@@ -1197,13 +1208,14 @@ mod tests {
             require_parameters: false,
             schema_refused: AtomicBool::new(false),
             temperature_refused: AtomicBool::new(false),
+            timeout: Duration::from_millis(200),
         }
         .with_endpoint(format!("http://{addr}"));
 
         let error = provider.complete(request()).await.unwrap_err();
 
         assert!(
-            matches!(&error, LlmError::Transport(m) if m.contains("timed out") && m.contains("llm.timeout_secs")),
+            matches!(&error, LlmError::Transport(m) if m.contains("timed out after 200ms") && m.contains("llm.timeout_secs")),
             "{error:?}"
         );
         std::thread::sleep(Duration::from_millis(100));

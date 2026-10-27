@@ -21,7 +21,7 @@ user having to know `llm.timeout_secs`.
 - **LTO-3** (deterministic) A `llm.timeout_secs` set in `[llm]` or in `[llm.passes.<name>]` must be the timeout of
   the requests it applies to, whatever the host of the endpoint.
 - **LTO-4** (deterministic) A request that times out while the server answers must not be sent again, and its error
-  must name `llm.timeout_secs`.
+  must name `llm.timeout_secs` and the timeout that applied.
 
 ## Scenarios
 

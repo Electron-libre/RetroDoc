@@ -51,8 +51,8 @@ fn reference_field(yaml: &str, key: &str) -> Option<String> {
     (!value.is_empty()).then(|| value.to_string())
 }
 
-/// `retrodoc.toml` with `[llm]` pointed at the local server (`provider` `local`, with a timeout it can meet) or at a hosted API
-/// (its own endpoint, no `reasoning_effort`, the default timeout) and, when `hide_docs`, no existing docs read as input
+/// `retrodoc.toml` with `[llm]` pointed at the local server (`provider` `local`, with `timeout_secs` only when given) or at a
+/// hosted API (its own endpoint, no `reasoning_effort`, the default timeout) and, when `hide_docs`, no existing docs read as input
 /// (the repository's README and docs would give the answer away).
 fn patch_config(toml: &str, provider: &str, model: &str, base_url: &str, timeout_secs: &str, hide_docs: bool) -> String {
     let mut kept: Vec<String> = Vec::new();
