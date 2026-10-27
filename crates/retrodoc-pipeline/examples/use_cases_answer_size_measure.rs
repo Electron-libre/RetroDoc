@@ -1,5 +1,5 @@
 //! Where the characters of the use cases answer go, and how much shorter candidate shapes would be, from
-//! saved runs with no LLM call (`issues/shorter_use_case_answers.md`, step 1).
+//! saved runs with no LLM call (`issues/done/shorter_use_case_answers.md`, step 1).
 //!
 //! Usage: `cargo run -q -p retrodoc-pipeline --example use_cases_answer_size_measure -- <run>...`
 //!

@@ -19,11 +19,11 @@ the entry points no use case covers.
 2. Report, per feature and overall, the entry points covered by no use case, in the coverage report and
    `behaviour-coverage.yaml`.
 3. For a feature with many entry points, ask for the use cases in several calls over slices of its entry points,
-   so no answer is cut (together with `issues/shorter_use_case_answers.md`).
+   so no answer is cut (together with `issues/done/shorter_use_case_answers.md`).
 
 # Resources
 * `crates/retrodoc-pipeline/src/use_cases/` (prompt, grounding), `behaviour_coverage.rs`
-* `issues/shorter_use_case_answers.md`, `issues/done/validate_on_large_application.md`
+* `issues/done/shorter_use_case_answers.md`, `issues/done/validate_on_large_application.md`
 
 # Hints
 * The application is confidential: no name, path or code of it in a committed file.

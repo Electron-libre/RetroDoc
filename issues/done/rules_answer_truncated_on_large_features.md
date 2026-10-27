@@ -29,7 +29,7 @@ the rules of its largest features, and the rerun must stay a no-op.
 # Resources
 * `crates/retrodoc-llm/src/openrouter.rs` (`MAX_COMPLETION_TOKENS`, the `finish_reason=length` warning)
 * `crates/retrodoc-pipeline/src/rules/` (`mod.rs`, `prompt.rs`)
-* `issues/shorter_use_case_answers.md` (same question for the use cases pass)
+* `issues/done/shorter_use_case_answers.md` (same question for the use cases pass)
 * `.claude/skills/smoke-test/SKILL.md`
 
 # Hints

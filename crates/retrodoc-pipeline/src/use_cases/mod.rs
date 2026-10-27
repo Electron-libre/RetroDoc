@@ -3,7 +3,7 @@
 //! its use cases as ordered steps, each with an actor's name, one text and
 //! the code it is grounded on, cited as `"F2:10-24"` (the number of a file of
 //! the prompt and a line range), at most 5 observable steps per use case
-//! (`issues/shorter_use_case_answers.md`). Saved as the intermediate
+//! (`issues/done/shorter_use_case_answers.md`). Saved as the intermediate
 //! `.retrodoc/cache/use-cases.yaml` artifact.
 //!
 //! Grounding is enforced rather than trusted: a step's source reference to a

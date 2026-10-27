@@ -252,7 +252,7 @@ What the runs showed (each one a defect of this issue's work, fixed unless said)
   call, no artifact changed).
 * A feature whose use cases answer is very long (over 30,000 characters) hit `finish_reason=length` twice in
   run 1 and was skipped; run 2 retried it (an unparseable answer is always retried) and it passed. Tracked by
-  `issues/shorter_use_case_answers.md`.
+  `issues/done/shorter_use_case_answers.md`.
 * The first features call of the context with 5 entry point files left 97 of its entry points unclaimed; the
   placement call placed 94 and listed 3. The features call is one prompt per domain, so a domain with
   over a hundred entry points gets few features from it.
@@ -274,7 +274,7 @@ inventories of the files already read were kept (the readers add), the features 
 Product: 8 contexts, 46 features, 203 use cases, no feature without a use case. Cost of the whole validation on
 the application, all builds of the map and all runs: about $1.0 of the $1.5 ceiling. Findings: the entry points a
 large context never shows to the LLM (`issues/done/entry_points_of_a_large_context.md`), and a feature whose use cases
-answer is cut at the output limit again (`issues/shorter_use_case_answers.md`).
+answer is cut at the output limit again (`issues/done/shorter_use_case_answers.md`).
 
 ## Non-regression of the `surface` path (2026-10-13, linkding, local `qwen3.6:35b-a3b`, `just smoke ... --domains-from surface`)
 

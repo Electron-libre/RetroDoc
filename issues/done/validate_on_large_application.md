@@ -157,7 +157,7 @@ Defects found (each has an issue or a line of one):
   reach cannot be measured; a feature with 76 notification entry points gets 11 use cases. ->
   `issues/done/use_cases_record_their_entry_points.md`.
 * Already known and tracked: the use cases answer of a very long feature is cut at the output limit
-  (`issues/shorter_use_case_answers.md`).
+  (`issues/done/shorter_use_case_answers.md`).
 
 Not judged: the 23 contexts not documented, the rules (off), the technical support list (not computed in this
 mode).

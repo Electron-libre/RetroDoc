@@ -158,7 +158,7 @@ pub struct Step {
     pub description: String,
     pub actor: Actor,
     /// A short verb phrase. Empty when the LLM wrote one text per step, kept
-    /// in `description` (`issues/shorter_use_case_answers.md`).
+    /// in `description` (`issues/done/shorter_use_case_answers.md`).
     #[serde(default)]
     pub action: String,
     /// Files/lines of code this step is grounded on.

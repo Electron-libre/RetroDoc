@@ -4,7 +4,6 @@ Open issues in the order to work on them: the first is the next one. Read by `ju
 `just close-issue` removes a line, `skill:create-issue` inserts one at its rank, `skill:prioritize-issues`
 re-ranks the whole list. Line format: `- [<file stem>](<file stem>.md) - <why here>`.
 
-- [shorter_use_case_answers](shorter_use_case_answers.md) - lever B of the closed `use_cases_cost_per_call`; the input side (`one_code_reading_for_use_cases_and_rules`) is closed without changing the prompts
 - [second_application_in_benchmark](second_application_in_benchmark.md) - after `benchmark_passes_on_fixed_inputs`, before the issues that compare settings (`measure_model_split_per_pass`, `settle_experimental_settings`): a gain on one application is not yet a gain
 - [measure_model_split_per_pass](measure_model_split_per_pass.md) - after the pivot: it removes and changes passes, which would make an earlier split measure stale
 - [settle_experimental_settings](settle_experimental_settings.md) - after the measures it needs (`benchmark_passes_on_fixed_inputs`, the rules issues); fewer options before the refactoring
