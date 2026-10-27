@@ -92,7 +92,7 @@ instruction "only the steps the reader observes" is not estimable without a call
    one replay, kept or reverted.
 6. [x] (c) Fewer system steps: only the steps that change what the reader observes, with a cap; verified by a
    prompt test; one replay, kept or reverted.
-7. [ ] Docs (`docs/crates/pipeline.md`, `llm.md` if touched), the `generate --force` note, findings recorded.
+7. [x] Docs (`docs/crates/pipeline.md`, `llm.md` if touched), the `generate --force` note, findings recorded.
 
 ## Decisions
 - Mode: autonomous
@@ -159,3 +159,10 @@ instruction "only the steps the reader observes" is not estimable without a call
 - not verified: the judge's business language reads 73%, under the 79-95% of the three earlier shapes;
   the narrative prompt is untouched by (c) and the judge varied by 16 points between (a) and (b) alone,
   so it is read as the judge's noise; three runs of (a+b+c) would settle it (about $0.6).
+
+## Summary of deliverable 7
+- done: the module doc of `use_cases/` describes the new step; `docs/crates/pipeline.md`, `commands.md` were
+  updated with each deliverable. The `--force` note was already there: the prompt is not in the
+  fingerprints, so saved use cases keep their shape until `generate --force`.
+- Code review: no findings.
+- red: none (docs).

@@ -1,13 +1,15 @@
 //! Use cases pass (PLAN.md §2 step 5, roadmap phase 4): for each feature,
 //! one LLM call reads the actual code of the feature's files and describes
-//! its use cases as ordered steps, each with an actor, an action and the
-//! code locations it is grounded on. Saved as the intermediate
+//! its use cases as ordered steps, each with an actor's name, one text and
+//! the code it is grounded on, cited as `"F2:10-24"` (the number of a file of
+//! the prompt and a line range), at most 5 observable steps per use case
+//! (`issues/shorter_use_case_answers.md`). Saved as the intermediate
 //! `.retrodoc/cache/use-cases.yaml` artifact.
 //!
 //! Grounding is enforced rather than trusted: a step's source reference to a
-//! file outside the feature is dropped, and steps are renumbered from 1 in
+//! file outside the feature (or to a number the prompt does not show) is dropped, and steps are renumbered from 1 in
 //! the order given. Text fields (`description`, `primary_actor`, `narrative`,
-//! a step's `action`) accept an object too, turned into text (its `name`, else
+//! a step's `text` and `action`) accept an object too, turned into text (its `name`, else
 //! its string values), so a wrong shape costs the field, not the feature. As in the features pass, a malformed answer for one
 //! feature is logged and that feature skipped.
 
