@@ -110,6 +110,6 @@ behaviour (no spec). Candidate: Lobsters (Rails, BSD-3-Clause, 131 Ruby files an
 - red: `lobsters: unknown key String("feature")` and `lobsters: bad regex sugg(est` on files broken on purpose,
   then restored.
 - not fixed: 1 (a generated name stands for one reference item) is a change of the scoring, outside this issue:
-  `issues/one_generated_name_for_several_reference_items.md`; 7 (the test copies the structs of
+  `issues/done/one_generated_name_for_several_reference_items.md`; 7 (the test copies the structs of
   `entry_points_replay`) and 8 (full hash only checked for committed references) are kept: moving the struct or
   tightening `Reference::check` changes a library for an example and a test, for little gain.
