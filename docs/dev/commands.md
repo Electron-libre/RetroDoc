@@ -29,6 +29,9 @@ cargo run -q -p retrodoc-pipeline --example features_by_domain_measure -- <run d
 OPENROUTER_API_KEY=x cargo run -q -p retrodoc-pipeline --example placement_replay -- <model> <base url> <run dir> benchmark/<repo>/placement-sample.yaml   # placement of a labelled sample of entry points: JSON answer vs closed-answer readout (logprobs of one token) on a local OpenAI-compatible server: placed, acceptable, steadiness, time and tokens
 ```
 
+Saved runs, frozen inputs and measure outputs live in `~/retrodoc-runs`; its `LEDGER.md` (outside git) lists the
+measures already made and the runs to keep: read it before a replay, a benchmark or a smoke run, append a line after.
+
 Scripts and dev commands are `just` recipes (`justfile`) and `rust-script` files, not bash.
 
 Registry note: this environment has no direct network access to `crates.io` (plain HTTP is blocked), but

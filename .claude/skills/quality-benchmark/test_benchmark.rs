@@ -133,6 +133,12 @@ fn main() {
     let (ok, _) = previous("100");
     check("the first benchmark has no previous one", !ok);
 
+    let skill = fs::read_to_string(dir.join("SKILL.md")).unwrap();
+    check(
+        "the skill reads and appends the ledger of measures",
+        skill.contains("~/retrodoc-runs/LEDGER.md") && skill.contains("## Ledger of measures"),
+    );
+
     let mut failed = false;
     for (name, ok) in results {
         println!("{} - {name}", if ok { "ok  " } else { "FAIL" });

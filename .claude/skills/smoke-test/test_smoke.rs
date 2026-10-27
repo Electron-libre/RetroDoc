@@ -161,7 +161,11 @@ fn main() {
             "no LLM server answers on 127.0.0.1:1; start it or pass --base-url",
         ),
     ];
-    let mut failed = !config_ok || !timeout_ok;
+    // The ledger of measures: read before the run, a line appended after (it lives with the runs, outside git).
+    let skill = fs::read_to_string(dir.join("SKILL.md")).unwrap();
+    let ledger_ok = skill.contains("~/retrodoc-runs/LEDGER.md") && skill.contains("## Ledger of measures");
+    println!("{} - the skill reads and appends the ledger of measures", if ledger_ok { "ok  " } else { "FAIL" });
+    let mut failed = !config_ok || !timeout_ok || !ledger_ok;
     for (name, (passed, output), should_pass, expected) in local_cases {
         let ok = passed == should_pass && output.contains(expected);
         println!("{} - {name}", if ok { "ok  " } else { "FAIL" });

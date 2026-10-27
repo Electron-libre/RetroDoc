@@ -30,8 +30,8 @@ Skills in `.claude/skills/` (structure checked by `.claude/skills/test_skills.rs
   from the roadmap, ADRs, history and each issue, with a validation stop.
 - `commit-message`: procedure to write a commit message per `AGENTS.md`, validated by `commit_check.rs`
   (`just check-commit` checks `HEAD`).
-- `smoke-test`: end-to-end run on a real repo with the local Ollama and a verdict (`just smoke <repo>`).
-- `quality-benchmark`: quality of the generated docs against a hand-written reference on a public repo, user docs hidden then shown, several runs, table with the change since the previous benchmark (`just benchmark benchmark/<repo>/reference.yaml`).
+- `smoke-test`: end-to-end run on a real repo with the local Ollama and a verdict (`just smoke <repo>`); reads and appends the ledger of measures (`~/retrodoc-runs/LEDGER.md`).
+- `quality-benchmark`: quality of the generated docs against a hand-written reference on a public repo, user docs hidden then shown, several runs, table with the change since the previous benchmark (`just benchmark benchmark/<repo>/reference.yaml`); reads and appends the same ledger.
 - `write-spec`: write or amend a `specs/*.md` (requirements with stable ids, scenarios, non-goals) with the template,
   validated by `just check-specs`; the user validates the spec before the tests are written.
 - `update-docs`: checklist to keep the documentation in sync after a change.

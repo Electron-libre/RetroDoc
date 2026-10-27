@@ -9,6 +9,20 @@ description: Measure the quality of the generated functional docs against a hand
 pass alone on frozen inputs first: a few cents and a few minutes, without the variation of the passes
 upstream (see "Replay one pass" below). The whole-run benchmark that follows stays the final check.
 
+## Ledger of measures
+
+Measures cost money (hosted runs) or hours (local runs). `~/retrodoc-runs/LEDGER.md`, outside git, lists what
+was measured (date, commit, issue, repository, model, command, runs, cost, key figures, artifacts), the
+artifacts to keep and the planned measures.
+
+- **Before** a replay or a benchmark, read it: a measure of the same pass with the same model and the same
+  frozen inputs is reusable when `git diff <its commit>..HEAD -- crates/retrodoc-pipeline/src/<pass>` shows no
+  change of code or prompt. Reuse it instead of running again, and check the planned measures for other
+  issues one run can serve. A paid run still needs the user's go, with its estimated cost.
+- **After**, append its line (the commit you ran at, the frozen inputs' commit, the figures, where the outputs
+  are), add what must be kept to the reusable artifacts, and update the planned measures.
+- Name ad hoc output directories and files `<issue stem>-<short commit>-<n>` in `~/retrodoc-runs`.
+
 `skill:smoke-test` checks that `generate` is robust; this checks that what it writes is right. The
 reference is written by hand per repository in `benchmark/<repo>/reference.yaml` (purpose, actors,
 domains, features, a sample of use cases and rules, the pinned commit) and the hand-written pairs in

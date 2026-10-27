@@ -80,7 +80,7 @@ LLM run is made by this issue.
    (date, commit, issue, repo, model, command, runs, cost, key figures, artifact), the reusable artifacts (frozen
    inputs, their `source_run` marked kept, complete runs a no-LLM measure reads) and the orphan runs for the user;
    verified by a cross-check: every run dir is either cited by a line or listed as orphan. Outside git, no commit.
-2. [ ] Rules: `CLAUDE.md` and the project skills `quality-benchmark` and `smoke-test` say to read the ledger before
+2. [x] Rules: `CLAUDE.md` and the project skills `quality-benchmark` and `smoke-test` say to read the ledger before
    a paid or long run, append a line after, keep asking before a paid run, and name new runs `<issue>-<short commit>-<n>`;
    `CLAUDE.md` also says to update the planned measures when an issue is created or the queue re-ranked;
    verified by `just test-harness` and `just check`.
@@ -112,3 +112,14 @@ LLM run is made by this issue.
 - red: none (data, not code).
 - not verified: the commit of the measures before 2026-10-23 is the commit that recorded them, not always the
   measured one.
+
+## Summary of deliverable 2
+- done: section "Ledger of measures" in the skills `quality-benchmark` (reuse rule by `git diff` of the pass,
+  append after, naming) and `smoke-test` (copy the clone before the next smoke run of the same repository
+  deletes it); a paragraph in `CLAUDE.md` (read, reuse, append, ask before a paid run, update the planned
+  measures when an issue is created or the queue re-ranked); one line each in `docs/dev/commands.md` and
+  `docs/dev/agent-harness.md`.
+- checks: `just check` ok, `just test-harness` ok.
+- red: `FAIL - the skill reads and appends the ledger of measures` (`test_benchmark.rs`; same check added to
+  `test_smoke.rs`).
+- not verified: that the agent follows the rule in a later session (only the text is tested).
