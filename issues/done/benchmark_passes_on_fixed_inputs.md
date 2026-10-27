@@ -95,4 +95,4 @@ the final check.
 * The user read the references on 2026-10-24 (`reference.yaml`, `matches.yaml`, `entry-points.yaml`) and
   reported no correction; the human spot check of `issues/done/quality_benchmark.md` is done.
 * `delivery_router` becomes a smoke repository only (its figures saturate); a second public application is
-  `issues/second_application_in_benchmark.md`.
+  `issues/done/second_application_in_benchmark.md`.
