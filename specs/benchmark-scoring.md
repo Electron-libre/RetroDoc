@@ -10,7 +10,8 @@ adrs: []
 
 The quality benchmark scores the domains and features of a run against a hand-written reference, through the
 pairs written by hand in `matches.yaml` and the ones the LLM judge proposes. The recall of an application must not
-depend on how the model groups capabilities: a generated item that holds several reference items counts for each.
+depend on how the model groups capabilities: a generated item that holds several reference items counts for each. A
+change of these rules must not read as a change of quality between two benchmarks.
 
 ## Requirements
 
@@ -25,6 +26,12 @@ depend on how the model groups capabilities: a generated item that holds several
   or nothing was generated.
 - **BSC-5** (deterministic) The judge's proposals must keep several reference items for one generated name; a
   proposal naming an item that was not offered, or repeating a pair already proposed, must be dropped.
+- **BSC-6** (deterministic) A saved run report must carry the scoring version of the code that scored it; a report
+  saved before the version existed must still load, with no version.
+- **BSC-7** (deterministic) `benchmark-table --previous` must show the previous figures and the change of a series
+  only when every run of both sides carries the same scoring version; otherwise it must leave them empty and say,
+  under the series, which versions each side has and that the runs of another version must be re-scored to be
+  compared.
 
 ## Scenarios
 
@@ -33,9 +40,15 @@ depend on how the model groups capabilities: a generated item that holds several
 - (BSC-1) Given a generated name equal to a reference name and a pair of that generated name with another reference
   item, then both reference items are covered.
 - (BSC-2) Given 4 generated names of which one covers 3 reference items and the others none, then precision is 1/4.
+- (BSC-7) Given a previous series saved with no version and a current one at the current version, then no change
+  is shown and the note names "none" for the previous side.
+- (BSC-7) Given two series that both have no version, then no change is shown: an unknown version is never
+  assumed equal.
 
 ## Non-goals
 
+- Re-scoring the previous series from its saved clones inside `benchmark-table`: the re-score script of the ledger
+  does it, and the judged figure needs the saved `judge.yaml`.
 - Whether the judge's pairs are right: it depends on what the model answers, the user reads `judge.yaml` and
   freezes the right pairs in `matches.yaml`.
 - Undoing a match by equal names: a pair adds a reference item, it never takes one away (a generated name equal

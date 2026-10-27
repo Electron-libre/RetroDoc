@@ -20,6 +20,11 @@ use crate::error::PipelineError;
 use crate::features::load_features;
 use crate::naming::normalize;
 
+/// The version of the scoring rules, saved in each [`super::RunReport`]: bump it when [`score`] or the
+/// judge changes what counts, so `benchmark-table` doesn't read a change of rules as a change of quality.
+/// Version 1: a generated item counts for each reference item it stands for.
+pub const SCORING_VERSION: u32 = 1;
+
 /// `benchmark/<repo>/matches.yaml`: the pairs written by hand, kept between runs.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Matches {

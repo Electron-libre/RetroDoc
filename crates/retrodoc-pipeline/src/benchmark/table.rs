@@ -11,7 +11,7 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 
 use super::judge::{Judgement, NarrativeRating};
-use super::matching::Comparison;
+use super::matching::{Comparison, SCORING_VERSION};
 use super::metrics::RunMetrics;
 use crate::error::PipelineError;
 use crate::progress::format_duration;
@@ -19,6 +19,9 @@ use crate::progress::format_duration;
 /// Everything `retrodoc benchmark` measured for one run.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RunReport {
+    /// [`SCORING_VERSION`] of the code that scored the run; `None` in a file saved before it existed.
+    #[serde(default)]
+    pub scoring: Option<u32>,
     pub metrics: RunMetrics,
     /// Hand-written pairs and equal names only.
     pub strict: Comparison,
@@ -41,6 +44,7 @@ impl RunReport {
             None => (None, None),
         };
         Self {
+            scoring: Some(SCORING_VERSION),
             metrics,
             strict,
             judged,
@@ -108,13 +112,28 @@ fn sorted_entries(dir: &Path) -> std::io::Result<Vec<PathBuf>> {
 }
 
 /// One Markdown table per series: mean, range and number of runs of each figure, and the change
-/// against the same series of `previous` when it has one.
+/// against the same series of `previous` when it has one and both were scored under the same rules.
 #[must_use]
 pub fn table(current: &[Series], previous: Option<&[Series]>) -> String {
     let mut out = String::new();
     for series in current {
-        let before = previous.and_then(|all| all.iter().find(|s| s.name == series.name));
+        let mut before = previous.and_then(|all| all.iter().find(|s| s.name == series.name));
         let _ = writeln!(out, "## {} ({} run(s))\n", series.name, series.runs.len());
+        if let Some(was) = before.filter(|was| !was.runs.is_empty() && !series.runs.is_empty()) {
+            let (now_versions, was_versions) = (versions(&series.runs), versions(&was.runs));
+            if now_versions.len() != 1 || now_versions != was_versions || now_versions[0].is_none()
+            {
+                let _ = writeln!(
+                    out,
+                    "No change shown: this series was scored under scoring version {}, the previous \
+                     runs under {}; re-score the runs of another version with `retrodoc benchmark --out` \
+                     (version {SCORING_VERSION}) to compare them.\n",
+                    show_versions(&now_versions),
+                    show_versions(&was_versions)
+                );
+                before = None;
+            }
+        }
         out.push_str("| Metric | Mean | Range | Runs | Previous | Change |\n");
         out.push_str("|---|---|---|---|---|---|\n");
         for figure in FIGURES {
@@ -142,6 +161,22 @@ pub fn table(current: &[Series], previous: Option<&[Series]>) -> String {
     }
     out.push_str(READING_NOTE);
     out
+}
+
+/// The scoring versions of `runs`, each once, sorted, `None` (saved before versions existed) last.
+fn versions(runs: &[RunReport]) -> Vec<Option<u32>> {
+    let mut versions: Vec<_> = runs.iter().map(|run| run.scoring).collect();
+    versions.sort_by_key(|version| (version.is_none(), *version));
+    versions.dedup();
+    versions
+}
+
+fn show_versions(versions: &[Option<u32>]) -> String {
+    versions
+        .iter()
+        .map(|version| version.map_or_else(|| "none".to_string(), |v| v.to_string()))
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 /// Printed under the tables: the model renames domains and features on every run, so pairs written
@@ -369,6 +404,7 @@ mod tests {
                     calls_without_usage: 0,
                 }),
             },
+            scoring: Some(SCORING_VERSION),
             judged: judged.then(|| strict.clone()),
             narratives: judged.then_some(NarrativeRating {
                 total: 10,
@@ -477,6 +513,64 @@ mod tests {
             "the table must say how to read recall and precision: {text}"
         );
         assert!(text.contains("floor"), "{text}");
+    }
+
+    // spec: BSC-6
+    #[test]
+    fn a_report_carries_the_scoring_version_and_an_old_one_loads_without() {
+        let fresh = RunReport::new(
+            report(0.5, 6, 10, false).metrics,
+            report(0.5, 6, 10, false).strict,
+            None,
+        );
+        assert_eq!(fresh.scoring, Some(SCORING_VERSION));
+
+        let mut old = serde_json::to_value(report(0.5, 6, 10, false)).unwrap();
+        old.as_object_mut().unwrap().remove("scoring");
+        let old: RunReport = serde_json::from_value(old).unwrap();
+        assert_eq!(old.scoring, None);
+    }
+
+    // spec: BSC-7
+    #[test]
+    fn no_change_is_shown_against_runs_scored_under_other_rules() {
+        let now = [series("hidden", vec![report(0.75, 8, 10, false)])];
+        let mut unversioned = report(0.5, 10, 25, false);
+        unversioned.scoring = None;
+        let mut older = report(0.5, 10, 25, false);
+        older.scoring = Some(SCORING_VERSION - 1);
+        let before = [series("hidden", vec![older, unversioned.clone()])];
+
+        let text = table(&now, Some(&before));
+
+        assert_eq!(
+            row(&text, "Domains recall"),
+            "| Domains recall | 75% | — | 1 |  |  |"
+        );
+        assert!(
+            text.contains(&format!(
+                "scored under scoring version {SCORING_VERSION}, the previous runs under {}, none",
+                SCORING_VERSION - 1
+            )),
+            "{text}"
+        );
+        assert!(
+            text.contains("re-score the runs of another version"),
+            "{text}"
+        );
+
+        // Two sides with no version are not assumed to share the rules.
+        let mut current = unversioned.clone();
+        current.strict.domains.recall = Some(0.75);
+        let text = table(
+            &[series("hidden", vec![current])],
+            Some(&[series("hidden", vec![unversioned])]),
+        );
+        assert_eq!(
+            row(&text, "Domains recall"),
+            "| Domains recall | 75% | — | 1 |  |  |"
+        );
+        assert!(text.contains("under scoring version none"), "{text}");
     }
 
     #[test]

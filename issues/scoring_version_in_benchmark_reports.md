@@ -26,3 +26,36 @@ Make the table say, or refuse, when the two sides were scored under different ru
 
 # Hints
 * No paid run is needed: the saved series and clones are enough to test it.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Stamp each saved `RunReport` with a scoring version and make `benchmark-table --previous` refuse the change
+between sides whose versions differ or are unknown (approach 1 + 2). Out of scope: re-scoring inside the table
+(approach 3); the ledger's `rescore.sh` re-scores saved runs and now writes a versioned JSON with `--out`.
+
+## Plan
+1. [x] Scoring version: `SCORING_VERSION` (1) next to `matching::score`, `RunReport.scoring` (`Option<u32>`,
+   absent in old files), table leaves Previous/Change empty with a note under the series when the versions are not
+   all equal and known; skill `quality-benchmark` and docs updated; verified by unit tests in `table.rs`; makes
+   true BSC-6, BSC-7.
+
+## Decisions
+- Mode: autonomous
+- Two series with no version are not compared: an unknown version is never assumed equal (answer 1a).
+- No way to stamp a version by hand: runs saved since da35abe are re-scored with `--out` (answer 2a).
+- Base commit: 12f39edf3566db2a5b58ed69465b141cda5a2520
+
+## Deliverable 1 summary
+- done: `RunReport.scoring` stamped with `SCORING_VERSION` (1, `matching.rs`); `benchmark-table` leaves
+  Previous/Change empty and prints a note under a series whose sides differ or have no version; docs and skill
+  `quality-benchmark` say so.
+- red: `cannot find value SCORING_VERSION` / `no field scoring on RunReport` (compile failure of the new tests).
+- checks: `just check` ok, `just test-harness` ok, specs BSC-6, BSC-7 traced.
+- Code review (low): no findings. Own reread: the note told to re-score only "the previous runs" when the current
+  side can lack the version too (seen on two saved linkding series); reworded to "the runs of another version".
+- checked by hand: `benchmark-table` on two saved linkding series prints the note and no change.
+- not verified: `benchmark-table` on the saved series of `~/retrodoc-runs` (they all have no version, so every
+  change is now refused until re-scored with `--out`).
