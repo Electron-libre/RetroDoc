@@ -7,12 +7,13 @@
 //!   docs left out of the input; `shown`: with them) runs `generate` and `retrodoc benchmark --judge`
 //!   N times in fresh clones, and prints the table (with the change against the previous benchmark).
 //!   `--local` picks the local server (default `igpu`, the Ollama iGPU instance; `hybrid`, the llama-server);
-//!   `--model` and `--base-url` override its values; `--timeout-secs` sets its HTTP timeout (default 900).
+//!   `--model` and `--base-url` override its values; `--timeout-secs` sets its HTTP timeout (unset: RetroDoc's default, 900 s
+//!   for a loopback URL, 120 s for another host).
 //! - `benchmark.rs reference-field <reference.yaml> <key>`: a top-level scalar of the reference.
-//! - `benchmark.rs patch-config <retrodoc.toml> <provider> <model> <base-url> <hide-docs: true|false> [domains-from: files|surface]`: points
+//! - `benchmark.rs patch-config <retrodoc.toml> <provider> <model> <base-url> <hide-docs: true|false> [domains-from: files|surface|''] [timeout-secs]`: points
 //!   `[llm]` at the local server (`provider` `local`) or at the hosted API of `provider` (`deepseek`; the key
 //!   comes from `DEEPSEEK_API_KEY`, in the environment or in the `.env` of the project) and, when asked,
-//!   empties `existing_docs_paths`.
+//!   empties `existing_docs_paths`; writes `timeout_secs` only when given.
 //! - `benchmark.rs writing-temperature <retrodoc.toml> <t>`: the config with `temperature = t` on the writing passes
 //!   (brief, domains, features, use-cases, rules), to try another value than the default 0 (ADR 0031).
 //! - `benchmark.rs previous <root> <current>`: the latest benchmark directory of `root` before
@@ -33,9 +34,6 @@ const LOCAL_TARGETS: [(&str, &str, &str, &str); 2] = [
     ("igpu", "qwen3.6:35b-a3b", "http://localhost:11435/v1/chat/completions", "sudo systemctl start ollama-amd"),
     ("hybrid", "qwen3.6:35b-a3b-hybride", "http://127.0.0.1:11437/v1/chat/completions", "systemctl --user start llama-hybride"),
 ];
-/// Default HTTP timeout written in `[llm]` for the local model (`--timeout-secs` overrides it): the default (two minutes) cuts its use case
-/// answers on a repository the size of linkding (85 s a call on average, some over 120 s); same value as the smoke test.
-const LOCAL_TIMEOUT_SECS: &str = "900";
 /// `(series name, hide the repository's own docs)`.
 const SERIES: [(&str, bool); 2] = [("hidden", true), ("shown", false)];
 
@@ -81,7 +79,9 @@ fn patch_config(toml: &str, provider: &str, model: &str, base_url: &str, timeout
         }
     }
     let llm = if provider == "local" {
-        format!("[llm]\nmodel = \"{model}\"\nbase_url = \"{base_url}\"\nreasoning_effort = \"none\"\ntimeout_secs = {timeout_secs}")
+        // No timeout unless `--timeout-secs` gives one: the default of a loopback `base_url` (900 s) fits the local model.
+        let timeout = if timeout_secs.is_empty() { String::new() } else { format!("\ntimeout_secs = {timeout_secs}") };
+        format!("[llm]\nmodel = \"{model}\"\nbase_url = \"{base_url}\"\nreasoning_effort = \"none\"{timeout}")
     } else {
         format!("[llm]\nprovider = \"{provider}\"\nmodel = \"{model}\"")
     };
@@ -189,8 +189,8 @@ fn run(args: &[String]) -> i32 {
     if !writing_temperature.is_empty() && !is_toml_float(&writing_temperature) {
         die("--writing-temperature must be a number like 0 or 0.7");
     }
-    let timeout_secs = option("--timeout-secs", LOCAL_TIMEOUT_SECS);
-    if timeout_secs.parse::<u32>().map_or(true, |t| t == 0) {
+    let timeout_secs = option("--timeout-secs", "");
+    if !timeout_secs.is_empty() && timeout_secs.parse::<u32>().map_or(true, |t| t == 0) {
         die("--timeout-secs must be a positive number of seconds");
     }
     let runs: u32 = option("--runs", "1").parse().unwrap_or_else(|_| die("--runs must be a number"));
@@ -344,10 +344,12 @@ fn main() {
                 None => 1,
             }
         }
-        Some("patch-config") if args.len() == 6 || args.len() == 7 => {
+        Some("patch-config") if (6..=8).contains(&args.len()) => {
             let toml = fs::read_to_string(&args[1]).unwrap_or_else(|e| die(&format!("{}: {e}", args[1])));
-            let patched = patch_config(&toml, &args[2], &args[3], &args[4], LOCAL_TIMEOUT_SECS, args[5] == "true");
-            print!("{}", args.get(6).map_or(patched.clone(), |mode| set_domains_from(&patched, mode)));
+            let timeout_secs = args.get(7).map_or("", String::as_str);
+            let patched = patch_config(&toml, &args[2], &args[3], &args[4], timeout_secs, args[5] == "true");
+            let mode = args.get(6).filter(|mode| !mode.is_empty());
+            print!("{}", mode.map_or(patched.clone(), |mode| set_domains_from(&patched, mode)));
             0
         }
         Some("writing-temperature") if args.len() == 3 => {

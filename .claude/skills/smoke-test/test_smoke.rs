@@ -104,26 +104,36 @@ fn main() {
         ("empty report", evaluate(GOOD_RUN1, GOOD_RUN2, "  \n", Some(GOOD_USAGE)), false, "report"),
     ];
 
-    // The `[llm]` section written for the local model: a timeout that fits it, replacing any other.
+    // The `[llm]` section written for the local model: no timeout (the default fits a loopback server), or the one
+    // `--timeout-secs` gives, replacing any other.
     let toml = "[llm]\nprovider = \"openrouter\"\nmodel = \"x/y\"\ntimeout_secs = 30\n\n[llm.passes.x]\nmodel = \"keep/me\"\n\n[pipeline]\nrules = false\n";
     fs::write(tmp.join("retrodoc.toml"), toml).unwrap();
-    let patched = Command::new("rust-script")
-        .arg(&script)
-        .args(["patch-config"])
-        .arg(tmp.join("retrodoc.toml"))
-        .args(["local:model", "http://h:1/v1/chat/completions"])
-        .output()
-        .expect("rust-script must be installed");
-    let patched = String::from_utf8_lossy(&patched.stdout).into_owned();
-    let config_ok = patched.contains("timeout_secs = 900\n")
-        && patched.matches("timeout_secs").count() == 1
+    let patch = |extra: &[&str]| {
+        let out = Command::new("rust-script")
+            .arg(&script)
+            .args(["patch-config"])
+            .arg(tmp.join("retrodoc.toml"))
+            .args(["local:model", "http://h:1/v1/chat/completions"])
+            .args(extra)
+            .output()
+            .expect("rust-script must be installed");
+        String::from_utf8_lossy(&out.stdout).into_owned()
+    };
+    let patched = patch(&[]);
+    let config_ok = !patched.contains("timeout_secs")
         && patched.matches("model =").count() == 2
         && patched.contains("model = \"keep/me\"")
         && patched.contains("model = \"local:model\"")
         && patched.contains("[pipeline]\nrules = false");
-    println!("{} - written config has one timeout the local model can meet", if config_ok { "ok  " } else { "FAIL" });
+    println!("{} - written config leaves the timeout to the default of a local server", if config_ok { "ok  " } else { "FAIL" });
     if !config_ok {
         println!("       got: {patched}");
+    }
+    let with_timeout = patch(&["60"]);
+    let timeout_ok = with_timeout.contains("timeout_secs = 60\n") && with_timeout.matches("timeout_secs").count() == 1;
+    println!("{} - written config has the timeout --timeout-secs gives", if timeout_ok { "ok  " } else { "FAIL" });
+    if !timeout_ok {
+        println!("       got: {with_timeout}");
     }
 
     // `--local` names a local server: its model and URL (explicit flags win), and the command that
@@ -151,7 +161,7 @@ fn main() {
             "no LLM server answers on 127.0.0.1:1; start it or pass --base-url",
         ),
     ];
-    let mut failed = !config_ok;
+    let mut failed = !config_ok || !timeout_ok;
     for (name, (passed, output), should_pass, expected) in local_cases {
         let ok = passed == should_pass && output.contains(expected);
         println!("{} - {name}", if ok { "ok  " } else { "FAIL" });

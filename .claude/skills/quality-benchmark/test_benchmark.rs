@@ -56,9 +56,11 @@ fn main() {
             && !out.contains("x/y")
             && !out.contains("http://other"),
     );
+    check("leaves the timeout to the default of a local server", ok && !out.contains("timeout_secs"));
+    let (ok, out) = call(&["patch-config", &toml, "local", "m1", "http://localhost:1/v1", "true", "", "60"]);
     check(
-        "gives the local model one timeout it can meet (a use case call of a large repo takes minutes)",
-        ok && out.contains("timeout_secs = 900\n") && out.matches("timeout_secs").count() == 1,
+        "writes the one timeout --timeout-secs gives",
+        ok && out.contains("timeout_secs = 60\n") && out.matches("timeout_secs").count() == 1,
     );
     let (ok, out) = call(&["patch-config", &toml, "local", "m1", "http://localhost:1/v1", "false"]);
     check("keeps the existing docs when shown", ok && out.contains("existing_docs_paths = [\n    \"docs\",\n    \"README.md\",\n]"));
@@ -67,7 +69,7 @@ fn main() {
     let (ok, out) = call(&["patch-config", &with_pass, "local", "m1", "http://localhost:1/v1", "false"]);
     check(
         "keeps the keys of a per-pass override",
-        ok && out.contains("[llm.passes.use-cases]\nmodel = \"keep/me\"\ntimeout_secs = 1800") && out.contains("timeout_secs = 900\n"),
+        ok && out.contains("[llm.passes.use-cases]\nmodel = \"keep/me\"\ntimeout_secs = 1800") && out.matches("timeout_secs").count() == 1,
     );
 
     let (ok, out) = call(&["patch-config", &toml, "deepseek", "deepseek-chat", "-", "false"]);

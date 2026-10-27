@@ -21,10 +21,6 @@ const LOCAL_TARGETS: [(&str, &str, &str, &str); 2] = [
     ("igpu", "qwen3.6:35b-a3b", "http://localhost:11435/v1/chat/completions", "sudo systemctl start ollama-amd"),
     ("hybrid", "qwen3.6:35b-a3b-hybride", "http://127.0.0.1:11437/v1/chat/completions", "systemctl --user start llama-hybride"),
 ];
-/// Default HTTP timeout written in `[llm]` (`--timeout-secs` overrides it): the default (two minutes) cuts the long answers of the local model
-/// (a large routes file takes about ten minutes at 38 tokens per second).
-const LLM_TIMEOUT_SECS: &str = "900";
-
 /// `line` without its ANSI escape sequences (`ESC [ … letter`), which `tracing` writes around the level.
 fn strip_ansi(line: &str) -> String {
     let mut out = String::with_capacity(line.len());
@@ -141,7 +137,8 @@ fn verdict(problems: &[String]) -> i32 {
     1
 }
 
-/// `toml` (as `init` wrote it) with the local model, endpoint, reasoning effort and HTTP timeout in `[llm]`.
+/// `toml` (as `init` wrote it) with the local model, endpoint and reasoning effort in `[llm]`, plus `timeout_secs`
+/// unless it is empty: the default of a loopback `base_url` (900 s) fits the long answers of a local model.
 fn patch_llm_section(toml: &str, model: &str, base_url: &str, timeout_secs: &str) -> String {
     // Only the top-level keys of `[llm]` are replaced: the lines of the tables after it (per-pass overrides) are kept.
     let mut in_llm = false;
@@ -154,11 +151,10 @@ fn patch_llm_section(toml: &str, model: &str, base_url: &str, timeout_secs: &str
             !(in_llm && ["model =", "base_url =", "reasoning_effort =", "timeout_secs ="].iter().any(|k| l.starts_with(k)))
         })
         .collect();
+    let timeout = if timeout_secs.is_empty() { String::new() } else { format!("\ntimeout_secs = {timeout_secs}") };
     (kept.join("\n") + "\n").replacen(
         "[llm]",
-        &format!(
-            "[llm]\nmodel = \"{model}\"\nbase_url = \"{base_url}\"\nreasoning_effort = \"none\"\ntimeout_secs = {timeout_secs}"
-        ),
+        &format!("[llm]\nmodel = \"{model}\"\nbase_url = \"{base_url}\"\nreasoning_effort = \"none\"{timeout}"),
         1,
     )
 }
@@ -239,7 +235,7 @@ fn run(args: &[String]) -> i32 {
         die("retrodoc init failed");
     }
     let toml_path = clone.join("retrodoc.toml");
-    let patched = patch_llm_section(&fs::read_to_string(&toml_path).unwrap(), &model, &base_url, &option("--timeout-secs", LLM_TIMEOUT_SECS));
+    let patched = patch_llm_section(&fs::read_to_string(&toml_path).unwrap(), &model, &base_url, &option("--timeout-secs", ""));
     // `--domains-from surface` tries the new path of ADR 0020 (default: the config as `init` wrote it).
     let patched = match option("--domains-from", "").as_str() {
         "" => patched,
@@ -293,10 +289,10 @@ fn main() {
             let usage = fs::read_to_string(&args[4]).ok();
             verdict(&evaluate(&read(1), &read(2), &read(3), usage.as_deref()))
         }
-        // Only for the test of the written config: `patch-config <retrodoc.toml> <model> <base url>` prints it.
-        Some("patch-config") if args.len() == 4 => {
+        // Only for the test of the written config: `patch-config <retrodoc.toml> <model> <base url> [timeout]` prints it.
+        Some("patch-config") if args.len() == 4 || args.len() == 5 => {
             let toml = fs::read_to_string(&args[1]).unwrap_or_else(|e| die(&format!("{}: {e}", args[1])));
-            println!("{}", patch_llm_section(&toml, &args[2], &args[3], LLM_TIMEOUT_SECS));
+            println!("{}", patch_llm_section(&toml, &args[2], &args[3], args.get(4).map_or("", String::as_str)));
             0
         }
         // Only for the test of `--local`: `llm-target [flags]` prints the model, the URL and the start command.

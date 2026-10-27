@@ -20,7 +20,7 @@ domains, features, a sample of use cases and rules, the pinned commit) and the h
 just benchmark benchmark/<repo>/reference.yaml                 # 1 run per series
 just benchmark benchmark/<repo>/reference.yaml --runs 3        # the spread needs 3 at least
 just benchmark <reference> --local hybrid                      # the hybrid llama-server (default: `igpu`, the Ollama iGPU instance)
-just benchmark <reference> --local hybrid --timeout-secs 1800  # HTTP timeout of the local model (default 900 s)
+just benchmark <reference> --local hybrid --timeout-secs 1800  # HTTP timeout of the local model (default: RetroDoc's, 900 s for a loopback URL)
 just benchmark <reference> --model <m> --base-url <u>          # another model or server (overrides the `--local` values)
 just benchmark <reference> --provider deepseek --runs 3 --no-confidence   # hosted: key in .env, about $0.30 per linkding run
 just benchmark <reference> --series hidden                     # one series only

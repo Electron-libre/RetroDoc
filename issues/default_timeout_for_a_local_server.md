@@ -50,7 +50,7 @@ Sizing: longest local call measured ~160 s (use-cases, hybrid); the 8,192-token 
 1. [x] Local default timeout: `request_timeout` picks 900 s for a loopback host, 120 s otherwise; stale doc of
    `timeout_secs` (retry) fixed, `docs/crates/llm.md` and ADR 0012 updated; verified by unit tests on
    `request_timeout` and the existing no-retry test; makes true LTO-1 to LTO-4.
-2. [ ] Scripts rely on the default: smoke and benchmark stop writing `timeout_secs` unless `--timeout-secs` is
+2. [x] Scripts rely on the default: smoke and benchmark stop writing `timeout_secs` unless `--timeout-secs` is
    given; verified by their `just test-harness` tests.
 
 ## Decisions
@@ -66,3 +66,11 @@ Sizing: longest local call measured ~160 s (use-cases, hybrid); the 8,192-token 
 - red: `a_loopback_server_defaults_to_fifteen_minutes`: left 120s, right 900s.
 - Code review (low): no findings.
 - not verified: no real run against a local server with the new default.
+
+## Deliverable 2
+- done: smoke and benchmark write `timeout_secs` only with `--timeout-secs`; their docs and SKILL.md say so.
+- checks: `just check` ok, `just test-harness` ok.
+- red: smoke `written config leaves the timeout to the default of a local server` FAIL (`timeout_secs = 900` written);
+  benchmark `leaves the timeout to the default of a local server` FAIL.
+- Code review (low): no findings.
+- not verified: no smoke or benchmark run against a local server with the new default.

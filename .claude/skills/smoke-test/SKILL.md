@@ -43,8 +43,9 @@ into `~/retrodoc-runs` (the original is never touched, uncommitted changes are n
 - The server context must be large (`OLLAMA_CONTEXT_LENGTH=32768`, set server-side; the default 4096
   silently truncates prompts and cuts JSON answers). Check with `OLLAMA_HOST=127.0.0.1:11435 ollama ps`
   (column CONTEXT). A `finish_reason=length` warning in the log is the symptom.
-- `smoke.rs` writes `timeout_secs = 900` in `[llm]`: the default two minutes cuts the long answers of the local
-  model on a large repository (a timeout is not retried and fails the pass).
+- `smoke.rs` writes no `timeout_secs` (unless `--timeout-secs N`): RetroDoc gives a loopback `base_url` 900 s, enough
+  for the long answers of the local model on a large repository (a timeout is not retried and fails the pass). A
+  `--base-url` on another host gets 120 s: pass `--timeout-secs`.
 - Don't run two smoke tests against the same Ollama at once.
 
 ### Faster option: the hybrid llama-server
