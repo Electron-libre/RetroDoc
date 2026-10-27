@@ -136,7 +136,7 @@ fn main() {
     let skill = fs::read_to_string(dir.join("SKILL.md")).unwrap();
     check(
         "the skill reads and appends the ledger of measures",
-        skill.contains("~/retrodoc-runs/LEDGER.md") && skill.contains("## Ledger of measures"),
+        skill.contains("~/retrodoc-runs/LEDGER.md") && skill.contains("## Ledger of measures") && skill.contains("**Before**") && skill.contains("**After**"),
     );
 
     let mut failed = false;

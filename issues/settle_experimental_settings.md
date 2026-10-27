@@ -23,7 +23,7 @@ becomes the default, stays an option with a stated use, or is removed.
 
 # Approach
 1. `body_lines`: measure again with `business-read` on (`entry_points_replay`, entity and attribute counts,
-   three runs; check the ledger of measures (see `CLAUDE.md`) for saved runs with `business-read` on first), and check on the use cases downstream whether the lost attributes matter (the vocabulary
+   three runs; check the ledger of measures (`CLAUDE.md`) for saved runs with `business-read` on first), and check on the use cases downstream whether the lost attributes matter (the vocabulary
    given to the use cases is entity names). Then: default N, or option, or removed.
 2. `business_read`: remove the switch if no case needs it (the passes already read alone when their models
    differ).

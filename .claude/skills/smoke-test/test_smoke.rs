@@ -163,7 +163,7 @@ fn main() {
     ];
     // The ledger of measures: read before the run, a line appended after (it lives with the runs, outside git).
     let skill = fs::read_to_string(dir.join("SKILL.md")).unwrap();
-    let ledger_ok = skill.contains("~/retrodoc-runs/LEDGER.md") && skill.contains("## Ledger of measures");
+    let ledger_ok = skill.contains("~/retrodoc-runs/LEDGER.md") && skill.contains("## Ledger of measures") && skill.contains("**Before**") && skill.contains("**After**");
     println!("{} - the skill reads and appends the ledger of measures", if ledger_ok { "ok  " } else { "FAIL" });
     let mut failed = !config_ok || !timeout_ok || !ledger_ok;
     for (name, (passed, output), should_pass, expected) in local_cases {

@@ -18,11 +18,12 @@ Logs and the clone stay in `~/retrodoc-runs` (`$RETRODOC_RUNS_DIR`).
 ## Ledger of measures
 
 `~/retrodoc-runs/LEDGER.md`, outside git, lists the runs already made (date, commit, issue, repository, model,
-figures, artifacts); being outside git, it may name the repository. Read it **before** a smoke run: a saved
-complete run at a recent enough commit may answer the question with no new run (the `*_measure` examples of
-`docs/dev/commands.md` read saved runs). **After** the run, append its line. The next smoke run of the same
-repository deletes the clone: copy it to `~/retrodoc-runs/<issue stem>-<short commit>-<n>` first if a measure
-reads it, and list that copy in the reusable artifacts.
+figures, artifacts); being outside git, it may name the repository. **Before** a smoke run, read it: when the
+question is a measure (counts of warnings, a `*_measure` example of `docs/dev/commands.md`), a saved complete run
+may answer it with no new run. Validating a change always needs a run of the current code. **After** the run,
+append its line. The next smoke run of the same repository deletes the clone and overwrites its logs
+(`.run1.log`, `.run2.log`, `.report.txt`): copy them to `~/retrodoc-runs/<issue stem>-<short commit>-<n>` first if a
+measure reads them, and list that copy in the reusable artifacts.
 
 ## Run
 

@@ -16,9 +16,12 @@ was measured (date, commit, issue, repository, model, command, runs, cost, key f
 artifacts to keep and the planned measures.
 
 - **Before** a replay or a benchmark, read it: a measure of the same pass with the same model and the same
-  frozen inputs is reusable when `git diff <its commit>..HEAD -- crates/retrodoc-pipeline/src/<pass>` shows no
-  change of code or prompt. Reuse it instead of running again, and check the planned measures for other
-  issues one run can serve. A paid run still needs the user's go, with its estimated cost.
+  frozen inputs is reusable when the working tree is clean and
+  `git diff <its commit>..HEAD -- crates/retrodoc-pipeline/src/<module> crates/retrodoc-pipeline/examples/pass_replay.rs crates/retrodoc-pipeline/src/benchmark crates/retrodoc-llm benchmark/<repo>`
+  is empty (`<module>` is the pass's directory: `use_cases` for `use-cases`); a change elsewhere in the
+  pipeline that the pass reads (shared prompts, parsing) also counts. Reuse it instead of running again, and
+  check the planned measures for other issues one run can serve. A paid run still needs the user's go, with
+  its estimated cost.
 - **After**, append its line (the commit you ran at, the frozen inputs' commit, the figures, where the outputs
   are), add what must be kept to the reusable artifacts, and update the planned measures.
 - Name ad hoc output directories and files `<issue stem>-<short commit>-<n>` in `~/retrodoc-runs`.

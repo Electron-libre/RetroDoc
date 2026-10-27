@@ -38,7 +38,7 @@ use cases of such a pair that are two separate ones. Then, candidates (can be co
 # Tracking
 1. [x] No-LLM measure `form_pairs_measure` (example): opening entry points paired with a submitting one by `resource` and `outputs`, three cases counted on a saved run; stop and decide with the numbers.
 2. [ ] (on hold) The chosen candidate (mechanical merge, pair input before the prompt, or nothing), decided after the measure.
-3. [ ] (on hold) Measure again on a new run, update the docs, close.
+3. [ ] (on hold) Measure again on a complete run (a saved one exists, see "On hold"), update the docs, close.
 
 ## Decisions
 * Reference run: the latest saved run of the runs directory made after `ab34246` (use cases cite their entry points).
@@ -53,6 +53,6 @@ use cases of such a pair that are two separate ones. Then, candidates (can be co
 
 ## On hold (user, 2026-10-15)
 Ledger (2026-10-27): a complete run of the same application is already saved (762 use cases, 750 of them cite
-their entry points; group G1 of the planned measures in the ledger of measures (see `CLAUDE.md`)), so step 3 is a `form_pairs_measure`
-on it, with no new LLM call.
+their entry points, listed in the planned measures of the ledger, `CLAUDE.md`), so step 3 is a `form_pairs_measure`
+on it, with no new LLM call; this replaces the new run asked for below.
 The run is too small (the issue's 184 use cases are not saved). Take it again with a complete run, which costs LLM calls: if the pairs stay under 5%, close with this measure (candidate 3); otherwise the mechanical merge needs a rule that tells an opening from a consultation.

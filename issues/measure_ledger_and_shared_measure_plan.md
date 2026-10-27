@@ -87,6 +87,7 @@ LLM run is made by this issue.
 3. [x] Shared plan: the "Planned measures" section of the ledger (groups of the Findings) and the amended Approach of
    the issues it changes (`measure_model_split_per_pass` replays instead of full benchmarks, the no-LLM issues pointed
    at saved runs, one complete large Rails run shared by two issues); verified by `just check-issue` on each amended issue.
+4. [x] Fixes of the `high` review of `c9b98ed..10ad7e1`.
 
 ## Decisions
 - Mode: autonomous
@@ -141,3 +142,21 @@ LLM run is made by this issue.
 - decisions needed: the user validates the amended Approaches (especially G3: replays replace the full
   benchmarks of `measure_model_split_per_pass`) and decides on the orphans of the ledger (63 empty
   directories, `reconcile-replay-old/`, 540 MB).
+
+## Summary of deliverable 4 (fixes of the `high` review)
+- done (fixed):
+  * reuse rule (skill `quality-benchmark`, ledger header): clean tree, `<module>` named (`use_cases` for
+    `use-cases`), and the diff also covers `pass_replay.rs`, `src/benchmark`, `retrodoc-llm`, `benchmark/<repo>`;
+  * `measure_model_split_per_pass`: `pass_replay` judges with the replayed model, so a fixed judge first;
+  * skill `smoke-test`: a saved run answers a measure, never the validation of a change; the next smoke run
+    also overwrites the logs, so copy them with the clone;
+  * `merge_form_screens_into_their_use_case`: step 3 and the "On hold" text no longer contradict the ledger note;
+  * `smoke_warnings_business_paths_sources_and_empty_use_cases`: saved logs give the counts, not the raw answers;
+  * the issues no longer cite ledger group numbers (renumbering would break them), only "the planned measures";
+  * the skill tests also check the **Before** and **After** rules.
+- not fixed: the copy rule stays text; protecting the clone in `smoke.rs` is
+  `issues/smoke_run_keeps_previous_clone.md` (new, ranked before `git_log_follow_renames`). The ledger rule
+  is summarized in 4 places (CLAUDE.md, two skills, a line in `commands.md` and `agent-harness.md`): the two
+  skills hold the detail, the others point to them.
+- checks: `just check` ok, `just test-harness` ok.
+- red: `FAIL - the skill reads and appends the ledger of measures` (`test_smoke.rs`: the smoke skill wrote "**before**" in lower case), fixed.

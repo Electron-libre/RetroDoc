@@ -19,7 +19,7 @@ name says what it holds, and so that the map is steady enough to trust.
 
 # Approach
 Measure first, with no LLM call where possible.
-The saved map of 2026-10-13 is lost (the run directory is empty, see the ledger of measures (see `CLAUDE.md`)): steps 1 and 2 first need one
+The saved map of 2026-10-13 is lost (the run directory is empty, see the ledger of measures (`CLAUDE.md`)): steps 1 and 2 first need one
 `contexts` run of the application (the map alone, about 5 calls, about $0.01), which step 3 then repeats.
 1. Find why the largest context was not cut: its groups and folders on the saved map (`contexts.yaml`), and the
    number of listed entries the split call got for it. If it is too few entries to cut, list its files by

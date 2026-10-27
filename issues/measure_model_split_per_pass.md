@@ -21,9 +21,11 @@ keeps the quality of one strong model for every pass, at what cost. `[llm.passes
 1. Let the benchmark script take the per-pass sections (for example a `--passes <file>` with the TOML to
    append, or `--pass domains=<model>` repeated) and keep them out of the `patch_config` removal.
 2. Replay each pass 3 times with the other model on the frozen inputs (`pass_replay`, skill
-   `quality-benchmark`) against the baseline of the same pass (group G2 of the planned measures in the ledger of measures (see `CLAUDE.md`)):
-   cents for domains and features, about $0.3 a series for use cases and rules, instead of 2 series x 3 full
-   benchmark runs per split (about $1.8 a split). Item 1 is only needed for the final check.
+   `quality-benchmark`) against the baseline of the same pass, listed in the planned measures of the ledger
+   (`CLAUDE.md`): cents for domains and features, about $0.3 a series for use cases and rules, instead of 2
+   series x 3 full benchmark runs per split (about $1.8 a split). Item 1 is only needed for the final check.
+   `pass_replay` judges with the replayed model itself: give it a judge model of its own (fixed, e.g.
+   `deepseek-chat`) before comparing models, or a more lenient judge passes for a better model.
 3. Pick the split from the replays (quality per pass, calls and tokens per pass and model), then run one whole
    benchmark of linkding (3 runs) with that split as the final check, compared with `benchmark-table`.
 4. Write the result in the issue and in the README suggestion: keep, change or drop the recommended split.
