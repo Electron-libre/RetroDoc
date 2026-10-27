@@ -18,6 +18,7 @@ use super::judge::{rate_narratives, NarrativeRating};
 use crate::actors::Actors;
 
 use crate::brief::{Evidence, ProductBrief};
+use crate::confidence::mechanical_score;
 use crate::entry_points::EntryPoints;
 use crate::error::PipelineError;
 use crate::features::load_features;
@@ -26,7 +27,7 @@ use crate::slices::CodeIndex;
 use crate::surface::Surface;
 use crate::use_cases::{build_use_cases, UseCaseContext};
 use crate::vocabulary::score_business_language;
-use retrodoc_core::model::Feature;
+use retrodoc_core::model::{Feature, Step};
 
 /// Names of the main entities given to the prompts, as in `generate`.
 const VOCABULARY_SIZE: usize = 40;
@@ -44,6 +45,11 @@ pub struct UseCaseFigures {
     /// only sees identifiers leaking into the text: read it as such.
     pub mean_score: Option<f32>,
     pub share_full: Option<f32>,
+    /// Steps of all the use cases, those that cite code, and those the mechanical confidence checks pass
+    /// (the identifiers they name are at the cited lines, `mechanical_score`): the grounding, with no call.
+    pub steps: usize,
+    pub steps_cited: usize,
+    pub steps_passing: usize,
     pub calls: u64,
     pub prompt_tokens: u64,
     pub completion_tokens: u64,
@@ -176,6 +182,14 @@ pub async fn replay_use_cases(
         .iter()
         .filter_map(|u| u.business_language.as_ref().map(|s| s.value))
         .collect();
+    let entities: Vec<String> = Glossary::load(work_root)
+        .map(|g| g.entities().map(|(_, e)| e.name.clone()).collect())
+        .unwrap_or_default();
+    let steps: Vec<&Step> = use_cases.iter().flat_map(|u| &u.steps).collect();
+    let steps_passing = use_cases
+        .iter()
+        .map(|u| mechanical_score(work_root, u, &entities).0.passing)
+        .sum();
     Ok(UseCaseFigures {
         use_cases: use_cases.len(),
         features: features.len(),
@@ -183,6 +197,9 @@ pub async fn replay_use_cases(
         judged,
         mean_score: mean(&scores),
         share_full: share(scores.iter().filter(|v| **v >= 0.999).count(), scores.len()),
+        steps: steps.len(),
+        steps_cited: steps.iter().filter(|s| !s.source_refs.is_empty()).count(),
+        steps_passing,
         calls: total.calls,
         prompt_tokens: total.prompt_tokens,
         completion_tokens: total.completion_tokens,
@@ -211,19 +228,24 @@ pub fn use_case_table(title: &str, runs: &[UseCaseFigures]) -> String {
     use std::fmt::Write as _;
 
     let mut out = format!(
-        "## {title}\n\n| Run | Use cases | With narrative | Business language, judge | Score (mean) | Score = 1 | Calls | Prompt tokens | Completion tokens | Seconds |\n|---|---|---|---|---|---|---|---|---|---|\n"
+        "## {title}\n\n| Run | Use cases | With narrative | Business language, judge | Score (mean) | Score = 1 | Steps | Cited | Checks pass | Calls | Prompt tokens | Completion tokens | Seconds |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|\n"
     );
     let judge_share = |r: &UseCaseFigures| r.judged.and_then(|j| j.business_share());
+    let cited_share = |r: &UseCaseFigures| share(r.steps_cited, r.steps);
+    let passing_share = |r: &UseCaseFigures| share(r.steps_passing, r.steps);
     for (n, run) in runs.iter().enumerate() {
         let _ = writeln!(
             out,
-            "| {} | {} | {} | {} | {} | {} | {} | {} | {} | {:.0} |",
+            "| {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {:.0} |",
             n + 1,
             run.use_cases,
             run.with_narrative,
             percent(judge_share(run)),
             percent(run.mean_score),
             percent(run.share_full),
+            run.steps,
+            percent(cited_share(run)),
+            percent(passing_share(run)),
             run.calls,
             run.prompt_tokens,
             run.completion_tokens,
@@ -244,12 +266,15 @@ pub fn use_case_table(title: &str, runs: &[UseCaseFigures]) -> String {
     let pct = |values: Vec<f32>| range(values, &|v| format!("{:.0}%", v * 100.0));
     let _ = writeln!(
         out,
-        "| mean (min-max) | {} | {} | {} | {} | {} | {} | {} | {} | {} |",
+        "| mean (min-max) | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | {} |",
         count(|r| r.use_cases as f32),
         count(|r| r.with_narrative as f32),
         pct(runs.iter().filter_map(judge_share).collect()),
         pct(runs.iter().filter_map(|r| r.mean_score).collect()),
         pct(runs.iter().filter_map(|r| r.share_full).collect()),
+        count(|r| r.steps as f32),
+        pct(runs.iter().filter_map(cited_share).collect()),
+        pct(runs.iter().filter_map(passing_share).collect()),
         count(|r| r.calls as f32),
         count(|r| r.prompt_tokens as f32),
         count(|r| r.completion_tokens as f32),
@@ -270,7 +295,7 @@ mod tests {
     const ENTRY_POINTS: &str =
         "files:\n  customer.rb:\n    content_hash: h\n    entry_points: []\n";
     const FEATURES: &str = "- slug: order\n  domain_slug: customers\n  name: Order\n  description: d\n  source_paths: [customer.rb]\n  entry_points: []\n";
-    const USE_CASES: &str = r#"{"use_cases":[{"slug":"place-an-order","name":"Place an order","description":"A customer orders.","narrative":"A customer places an order.","steps":[{"description":"s","actor":{"name":"Customer","kind":"human"},"action":"orders","source_refs":[{"path":"customer.rb","start_line":1,"end_line":1}]}]}]}"#;
+    const USE_CASES: &str = r#"{"use_cases":[{"slug":"place-an-order","name":"Place an order","description":"A customer orders.","narrative":"A customer places an order.","steps":[{"description":"The customer is a `Customer`.","actor":{"name":"Customer","kind":"human"},"action":"orders","source_refs":[{"path":"customer.rb","start_line":1,"end_line":1}]},{"description":"Nothing to check.","actor":{"name":"System","kind":"system"},"action":"waits","source_refs":[]}]}]}"#;
 
     #[tokio::test]
     async fn a_use_cases_replay_reads_the_tree_and_measures_the_use_cases() {
@@ -329,8 +354,15 @@ mod tests {
         assert_eq!(figures.with_narrative, 1);
         assert_eq!(figures.judged.unwrap().business, 1);
         assert!(figures.mean_score.is_some());
+        assert_eq!(
+            (figures.steps, figures.steps_cited, figures.steps_passing),
+            (2, 1, 1),
+            "the step that cites nothing is not grounded"
+        );
         assert_eq!(figures.calls, 1, "the judge's call is not the pass's");
         let text = use_case_table("demo", &[figures]);
         assert!(text.contains("mean (min-max)"), "{text}");
+        assert!(text.contains("| Steps | Cited | Checks pass |"), "{text}");
+        assert!(text.contains("| 2 | 50% | 50% |"), "{text}");
     }
 }

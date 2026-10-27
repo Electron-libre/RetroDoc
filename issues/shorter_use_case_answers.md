@@ -81,7 +81,7 @@ instruction "only the steps the reader observes" is not estimable without a call
 ## Plan
 1. [x] Measure example `use_cases_answer_size_measure`: the table above from run dirs, plus the estimated
    size of the answer under each candidate shape (a, b, c); verified by a unit test on a small artifact.
-2. [ ] Grounding in the use cases replay: `UseCaseFigures` gains the steps with a citation and the share the
+2. [x] Grounding in the use cases replay: `UseCaseFigures` gains the steps with a citation and the share the
    mechanical checks pass (`mechanical_score`), shown by `use_case_table`; verified by a test of the table.
 3. [ ] Baseline: one `pass_replay use-cases` on frozen linkding, `deepseek-chat`, current shape.
 4. [ ] (a) Compact citations: files numbered in the prompt, a citation as `[file number, start, end]`; a
@@ -109,3 +109,10 @@ instruction "only the steps the reader observes" is not estimable without a call
 - red: none (a new example; its two tests written with it).
 - Code review: (b) credited with the `refs` key of (a), fixed; bytes counted as characters, fixed.
 - not verified: the estimates assume a file number of two digits and steps the grounding did not drop.
+
+## Summary of deliverable 2
+- done: `UseCaseFigures` gains `steps`, `steps_cited`, `steps_passing` (`mechanical_score` with the glossary
+  entities, as the confidence pass); three columns in `use_case_table`; `commands.md`, `pipeline.md`.
+- Code review: no findings.
+- red: `no field steps on type UseCaseFigures` (the replay test asserting 2 steps, 1 cited, 1 passing).
+- not verified: on a real replay (deliverable 3).
