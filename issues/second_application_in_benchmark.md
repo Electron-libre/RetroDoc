@@ -36,3 +36,39 @@ public application, with a reference a human has read, makes a comparison of set
 * The frozen inputs must name the model that wrote them (`manifest.yaml`); the replays of the use cases and
   rules read the code of `manifest.source_run`, keep that run.
 * Only public repositories go in `benchmark/` (`CLAUDE.md`).
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Give the benchmark a second public application, other stack than linkding, with a reference checked in its code,
+frozen inputs and audited judge pairs, so a setting is compared on two repositories. No change of pipeline
+behaviour (no spec). Candidate: Lobsters (Rails, BSD-3-Clause, 131 Ruby files and 121 ERB views under `app/` and
+`lib/`, 47 models, 46 controllers: stories, comments, votes, moderation, invitations, messages, hats).
+
+## Plan
+1. [x] Reference: `benchmark/lobsters/reference.yaml` (pinned commit, purpose, actors, domains, features, a sample
+   of use cases and rules) and `entry-points.yaml`, each item confirmed in the code; verified by a test that loads
+   and checks every committed `benchmark/*/reference.yaml` and `matches.yaml` (`Reference::load`, `check`).
+2. [ ] Measure (paid, user's go): one complete DeepSeek `generate` of the pinned commit, kept as `source_run`,
+   `freeze_inputs` into `~/retrodoc-runs/frozen/lobsters`, then `pass_replay --freeze-first` 3 runs each for
+   domains, features, use cases; audit the judge's pairs into `benchmark/lobsters/matches.yaml`; ledger lines
+   (measures, artifacts, G5 ticked, G2/G3 extended to two applications).
+3. [ ] Docs: skill `quality-benchmark` and `docs/dev/commands.md` say `delivery_router` is a smoke repository
+   only and name the two benchmark applications; verified by `just check` and `just test-harness`.
+
+## Decisions
+- Mode: autonomous
+- Base commit: a7487c210d4c000e2273bc822ac88bc81487a6e7
+- Application: Lobsters (Rails, BSD-3-Clause), github.com/lobsters/lobsters.
+- Paid measure: approved, deepseek-chat, about $1 in total (generate about $0.5, use cases replays about $0.4).
+- Reference: checked item by item in the code by the agent, then a stop for the user to read it before the measure.
+
+## Deliverable 1 summary
+- done: `benchmark/lobsters/reference.yaml` (8 actors, 7 domains, 33 features, 35 rules, each read in the code of
+  ceb5e71) and `entry-points.yaml` (49 files, 24 groups, 8 actors), plus `tests/benchmark_files.rs` that loads and
+  checks every committed reference, pair and entry points file.
+- red: `left: ["delivery_router", "linkding"] right: ["delivery_router", "linkding", "lobsters"]`.
+- not verified: the reference is not yet read by the user (stop before deliverable 2, Decisions); no
+  `matches.yaml` yet (deliverable 2).

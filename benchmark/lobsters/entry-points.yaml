@@ -1,0 +1,92 @@
+# Hand-made reference of the entry points and actors of the repository of `reference.yaml`, read from
+# `config/routes.rb` and the controllers, plus the inbound mailbox, the background jobs and the scripts run by
+# cron. Entry points are grouped by resource: a run covers a group when one of its entry points matches. Used by
+# `cargo run -p retrodoc-pipeline --example entry_points_replay`.
+repo: lobsters
+# Where the entry points live: a pass that does not read these files cannot find them.
+files:
+  - config/routes.rb
+  - app/controllers/about_controller.rb
+  - app/controllers/avatars_controller.rb
+  - app/controllers/banned_ips_controller.rb
+  - app/controllers/categories_controller.rb
+  - app/controllers/comments_controller.rb
+  - app/controllers/filters_controller.rb
+  - app/controllers/hat_requests_controller.rb
+  - app/controllers/hats_controller.rb
+  - app/controllers/home_controller.rb
+  - app/controllers/inbox_controller.rb
+  - app/controllers/invitations_controller.rb
+  - app/controllers/login_controller.rb
+  - app/controllers/messages_controller.rb
+  - app/controllers/mod/activities_controller.rb
+  - app/controllers/mod/comments_controller.rb
+  - app/controllers/mod/domains_ban_controller.rb
+  - app/controllers/mod/domains_controller.rb
+  - app/controllers/mod/flagged_controller.rb
+  - app/controllers/mod/mail_messages_controller.rb
+  - app/controllers/mod/mails_controller.rb
+  - app/controllers/mod/notes_controller.rb
+  - app/controllers/mod/origins_ban_controller.rb
+  - app/controllers/mod/origins_controller.rb
+  - app/controllers/mod/reparents_controller.rb
+  - app/controllers/mod/stories_controller.rb
+  - app/controllers/mod/tags_controller.rb
+  - app/controllers/mod_mail_messages_controller.rb
+  - app/controllers/mod_mails_controller.rb
+  - app/controllers/moderations_controller.rb
+  - app/controllers/origins_controller.rb
+  - app/controllers/search_controller.rb
+  - app/controllers/settings_controller.rb
+  - app/controllers/signup_controller.rb
+  - app/controllers/stats_controller.rb
+  - app/controllers/stories_controller.rb
+  - app/controllers/story_image_controller.rb
+  - app/controllers/story_urls_controller.rb
+  - app/controllers/suggestions_controller.rb
+  - app/controllers/tags_controller.rb
+  - app/controllers/users_controller.rb
+  - app/mailboxes/inbox_mailbox.rb
+  - app/jobs/create_story_card_job.rb
+  - app/jobs/notify_comment_job.rb
+  - app/jobs/notify_message_job.rb
+  - app/jobs/notify_mod_mail_message_job.rb
+  - app/jobs/send_webmention_job.rb
+  - script/mail_new_activity.rb
+  - script/mastodon_post.rb
+# `matches`: regex (case-insensitive) on "<name> <verb> <resource>" of an entry point found by a run.
+entry_points:
+  - { label: "stories: submit, preview, edit, delete, undelete", matches: "stor(y|ies)" }
+  - { label: "stories: hide and save", matches: "hide|hidden|save" }
+  - { label: "suggestions of title and tags", matches: "suggest" }
+  - { label: "comments: write, reply, edit, delete", matches: "comment" }
+  - { label: "votes and flags", matches: "vote|flag" }
+  - { label: "front page lists: hottest, newest, active, recent, top", matches: "home|hottest|newest|active|recent|top" }
+  - { label: "tags, categories, domains, origins", matches: "tag|categor|domain|origin" }
+  - { label: "tag filters", matches: "filter" }
+  - { label: "search", matches: "search" }
+  - { label: "inbox and notifications", matches: "inbox|notif|repl" }
+  - { label: "private messages", matches: "message" }
+  - { label: "invitations and invitation requests", matches: "invit" }
+  - { label: "signup", matches: "sign.?up|register" }
+  - { label: "login, logout, two-factor, password reset", matches: "login|logout|sign.?in|2fa|two.?factor|password" }
+  - { label: "settings, avatar, linked accounts", matches: "setting|avatar|mastodon|github|pushover|deactivat" }
+  - { label: "hats and hat requests", matches: "hat" }
+  - { label: "user profiles, tree, standing", matches: "user|profile|standing" }
+  - { label: "moderation: ban members, disable invitations", matches: "ban" }
+  - { label: "moderation log", matches: "moderation" }
+  - { label: "mod mail and mod notes", matches: "mod.?mail|note" }
+  - { label: "moderator dashboards and reparenting", matches: "flagged|activit|reparent" }
+  - { label: "reply by e-mail and mailing list", matches: "mail" }
+  - { label: "webmentions", matches: "webmention" }
+  - { label: "about, privacy, chat, stats", matches: "about|privacy|chat|stat" }
+# `matches`: regex (case-insensitive) on the name of an actor found by a run.
+actors:
+  - { name: user, matches: "^(registered |logged.in |authenticated )?(user|member)" }
+  - { name: visitor, matches: "visitor|guest|anonymous|public|unauthenticated|logged.out" }
+  - { name: new user, matches: "new (user|member)" }
+  - { name: moderator, matches: "mod" }
+  - { name: administrator, matches: "admin" }
+  - { name: feed reader, matches: "feed|rss|reader" }
+  - { name: mail client, matches: "mail" }
+  - { name: mastodon, matches: "mastodon" }

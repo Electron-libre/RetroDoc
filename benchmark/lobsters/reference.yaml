@@ -1,0 +1,274 @@
+repository: https://github.com/lobsters/lobsters
+commit: ceb5e71f0d9f5b8ea20b4d96c6c46e1aed27a913
+purpose: >-
+  Lobsters is a link aggregation community: members submit links or text stories with tags, discuss them in
+  threaded comments and vote on both, and the front page ranks stories by votes, comments and age. Membership
+  is by invitation, and moderators keep the site on topic in the open, with a public moderation log.
+actors:
+  - Visitor
+  - User
+  - New user
+  - Moderator
+  - Administrator
+  - Feed reader
+  - Mail client
+  - Mastodon
+domains:
+  - name: Stories
+    description: Submitting stories and keeping them in shape.
+    features:
+      - name: Submit a story
+        description: >-
+          Post a link or a text with a title and at least one tag; the title and the canonical URL are fetched
+          from the page, a preview shows the story before posting, and a URL already submitted is pointed out.
+        use_cases:
+          - Submit a link with tags
+          - Submit a text story without a URL
+          - Fetch the title of the linked page
+          - Preview a story before posting it
+      - name: Edit and delete my story
+        description: >-
+          The submitter edits a story shortly after posting, deletes or undeletes it, and can disown an old one
+          so it no longer shows their name.
+        use_cases:
+          - Edit my story
+          - Delete my story
+          - Disown an old story
+      - name: Suggest a better title or tags
+        description: >-
+          Members with enough karma suggest another title or other tags for someone else's story; the change is
+          applied once enough members suggested the same thing.
+        use_cases:
+          - Suggest new tags for a story
+          - Suggest a new title for a story
+      - name: Hide and save stories
+        description: Hide a story from my lists, or save it to read later in my saved list.
+        use_cases:
+          - Hide a story
+          - Save a story
+          - Browse my saved stories
+  - name: Discussion
+    description: Talking about the stories.
+    features:
+      - name: Comment on a story
+        description: Write a comment on a story or reply to a comment, in Markdown, in threads.
+        use_cases:
+          - Comment on a story
+          - Reply to a comment
+      - name: Edit and delete my comment
+        description: >-
+          The author edits a comment for a while after writing it, deletes it, undeletes it, or disowns an old one.
+        use_cases:
+          - Edit my comment
+          - Delete my comment
+          - Disown an old comment
+      - name: Follow replies and mentions
+        description: >-
+          Replies to my stories and comments and mentions of my username reach my inbox, and by e-mail or
+          Pushover when I asked for it.
+        use_cases:
+          - Read my unread replies in the inbox
+          - Get an e-mail when someone mentions me
+      - name: Take part by e-mail
+        description: >-
+          In mailing list mode new stories and comments are e-mailed to the member, who can reply by e-mail to
+          post a comment.
+        use_cases:
+          - Receive new stories and comments by e-mail
+          - Reply to a comment by e-mail
+      - name: Send private messages
+        description: Send a private message to another member, read the inbox and sent messages, delete them.
+        use_cases:
+          - Send a private message
+          - Delete messages
+  - name: Votes and ranking
+    description: What the community thinks of a story or a comment, and the order of the front page.
+    features:
+      - name: Upvote stories and comments
+        description: Upvote or unvote a story or a comment; upvotes give karma to its author.
+        use_cases:
+          - Upvote a story
+          - Upvote a comment
+          - Browse what I upvoted
+      - name: Flag stories and comments
+        description: >-
+          Flag a story (off-topic, already posted, broken link, spam) or a comment (off-topic, me-too, troll,
+          unkind, spam) for the moderators.
+        use_cases:
+          - Flag a story as off-topic
+          - Flag an unkind comment
+      - name: Browse the front page
+        description: >-
+          The hottest stories by votes, comments, tags and age, and the newest, the active, the recent and the
+          top stories of a period.
+        use_cases:
+          - Read the hottest stories
+          - Read the newest stories
+          - Read the top stories of the month
+  - name: Finding stories
+    description: Narrowing the stories down to what interests me.
+    features:
+      - name: Browse by tag, domain or origin
+        description: >-
+          List the stories of one tag, several tags or a category of tags, of a web domain, or of an origin (an
+          author on a domain).
+        use_cases:
+          - Browse the stories of a tag
+          - Browse the stories of a domain
+      - name: Filter out tags
+        description: Hide the stories carrying chosen tags, for members and for visitors alike.
+        use_cases:
+          - Filter out a tag
+      - name: Search stories and comments
+        description: >-
+          Search words and phrases with tag, domain, title, submitter and commenter terms, in stories or comments,
+          by newest, relevance or score.
+        use_cases:
+          - Search stories with a tag and a domain
+          - Search the comments of a member
+      - name: Follow the site in a feed reader
+        description: >-
+          RSS feeds of the front page, the newest stories, a tag, a domain and the comments, private feeds with
+          the member's token, and a JSON version of the lists.
+        use_cases:
+          - Subscribe to the feed of a tag
+          - Subscribe to my private feed
+  - name: Membership
+    description: Who belongs to the community and how they present themselves.
+    features:
+      - name: Invite a new member
+        description: >-
+          A member sends an invitation by e-mail; visitors may ask for an invitation, which members with enough
+          karma read and answer.
+        use_cases:
+          - Invite someone by e-mail
+          - Request an invitation
+          - Send an invitation for a request
+      - name: Sign up with an invitation
+        description: Create an account from the link of an invitation, unless signups are open to everyone.
+        use_cases:
+          - Sign up from an invitation link
+      - name: Sign in
+        description: Sign in with a username or e-mail and a password, with a second factor, or reset a forgotten password.
+        use_cases:
+          - Sign in with a password
+          - Sign in with two-factor authentication
+          - Reset a forgotten password
+      - name: Manage my account
+        description: >-
+          Edit the profile, the preferences and the notification settings, link a Mastodon or GitHub account,
+          turn on two-factor authentication, or deactivate the account.
+        use_cases:
+          - Change my notification settings
+          - Turn on two-factor authentication
+          - Link my Mastodon account
+          - Deactivate my account
+      - name: Wear hats
+        description: >-
+          A member requests a hat (a verified role, such as working on a project); a moderator approves or
+          rejects it; the member wears it on comments and messages and can doff it.
+        use_cases:
+          - Request a hat
+          - Approve a hat request
+          - Wear a hat on a comment
+      - name: View member profiles
+        description: >-
+          The profile of a member with their karma, stories, comments and hats, the tree of who invited whom, and
+          a member's own standing with the flags their comments received.
+        use_cases:
+          - View the profile of a member
+          - Browse the invitation tree
+          - Check my standing
+  - name: Moderation
+    description: Keeping the site on topic, in the open.
+    features:
+      - name: Moderate stories
+        description: >-
+          Moderators edit the title, URL and tags of a story, merge it into another one, delete or undelete it,
+          giving a reason.
+        use_cases:
+          - Merge a duplicate story
+          - Delete a story with a reason
+      - name: Moderate comments
+        description: Moderators delete a comment with a reason; administrators move a comment to another parent.
+        use_cases:
+          - Delete a comment as a moderator
+          - Move a comment to another parent
+      - name: Ban members and take away invitations
+        description: >-
+          Administrators ban or unban a member with a reason, and disable or enable a member's invitations and
+          suggestions.
+        use_cases:
+          - Ban a member
+          - Disable the invitations of a member
+      - name: Ban domains and origins
+        description: Moderators ban a web domain or an origin with a reason, so its links can no longer be submitted.
+        use_cases:
+          - Ban a domain
+      - name: Manage tags and categories
+        description: >-
+          Administrators create and edit tags (description, category, hotness modifier, privileged, allowed to
+          new users, media) and the categories that group them.
+        use_cases:
+          - Create a tag
+          - Edit a category
+      - name: Read the moderation log
+        description: Every moderation action and its reason is listed publicly.
+        use_cases:
+          - Browse the moderation log
+      - name: Talk with the moderators
+        description: >-
+          Moderators open mod mail conversations with members and keep notes on members; moderator dashboards
+          list the most flagged stories, comments and commenters.
+        use_cases:
+          - Open a mod mail conversation with a member
+          - Write a moderator note on a member
+          - Review the most flagged comments
+  - name: Syndication
+    description: Making the stories known outside the site.
+    features:
+      - name: Post stories to Mastodon
+        description: >-
+          A bot account posts the hottest recent stories to Mastodon, and deletes the post of a deleted story.
+        use_cases:
+          - Post a front page story to Mastodon
+      - name: Send webmentions
+        description: When a story links to a page that accepts webmentions, the site tells it so.
+        use_cases:
+          - Send a webmention for a new story
+rules:
+  - A story title has 3 to 150 characters, may not contain emoji or other graphics, and may not be all in capitals.
+  - A story without a URL must have a text.
+  - A URL submitted in the last 30 days cannot be submitted again, and a new user cannot resubmit a URL at all.
+  - A story needs at least one tag that is not a media tag (PDF, video).
+  - Only moderators may use a privileged tag; new users cannot use the tags that are closed to new users.
+  - A new user cannot submit a link to a domain that has no story yet.
+  - A link from a banned domain or a banned origin cannot be submitted.
+  - A member whose karma is below -4 cannot submit stories.
+  - An account is a new user for 70 days after it was created.
+  - The submitter can edit a story for 6 hours after posting it, unless a moderator has moderated it.
+  - A story or a comment can be disowned by its author only once it is older than its deletion period (28 days for a story, 14 days for a comment).
+  - A comment can be deleted by its author for 14 days, and edited for 6 hours after its last edit.
+  - A story stops accepting comments 90 days after it was posted.
+  - Comments cannot be nested deeper than the maximum depth.
+  - A reply waits at least 2 minutes after the member's previous comment in the same thread, longer when the thread has flags; moderators are exempt.
+  - Only stories younger than 2 days, with a score of at least 2 and not tagged meta, are posted to Mastodon.
+  - A comment that only says "me too", "+1" or "nice" is refused, the member is told to upvote instead.
+  - A member who flagged a comment cannot reply to it, and a member who replied to a comment cannot flag it.
+  - New users cannot flag; flagging a comment needs at least 50 karma.
+  - A story can be flagged for 14 days and a comment for 7 days, and not by its author.
+  - A member cannot flag a story whose score is already at -5 or less, nor a comment at -10 or less.
+  - Upvotes give karma to the author of the story or comment, but not when the voters vote on their own.
+  - Suggesting a title or tags needs at least 10 karma and an account that is no longer new.
+  - A suggested title replaces the title once 2 members suggested the same one; suggested tags replace the tags once each tag reaches its quorum.
+  - A member can send invitations only when no longer a new user, with invitations not disabled and allowed to submit stories.
+  - Reading invitation requests needs at least 50 karma, or being a moderator.
+  - Without open signups, an account can only be created from an unused invitation.
+  - A username can be changed once a year, and a username given up cannot be taken again for 5 years.
+  - A private message has a subject of 1 to 100 characters and a body of 5 to 8192 characters.
+  - Banning a member needs a reason.
+  - Banning a domain or an origin needs a reason.
+  - A moderator who edits someone else's story must give a reason.
+  - A hat can only be worn by the member who holds it.
+  - Members who hid a story are not told about mentions in its comments.
+  - Deactivating an account needs the password and the "I am sure" box.
