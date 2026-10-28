@@ -29,9 +29,10 @@ The measures of `issues/surface_domains_default_decision.md` (deepseek-chat, 202
 it needs the map of `retrodoc contexts` first and documents a slice of the application per run, which a
 default `generate` must not require.
 
-A config that names `domains_from = "files"`, as every `init` before this decision wrote, keeps the `files`
-path: changing a value the user's file states would change their run without notice. Only new configs and
-configs without the key take the new default.
+A config that names `domains_from = "files"`, as every `init` wrote from 2026-10-09 to this decision, keeps
+the `files` path: changing a value the user's file states would change their run without notice. New configs
+and configs without the key take the new default, those `init` wrote before the key existed included. A
+`surface` run that finds no entity and no entry point warns and names `domains_from = "files"`.
 
 Rejected: keeping `files` as the default. It costs a call per file and directory before any business
 reading, and its domains were the weakest figure on both applications; the small library, where it was ahead,

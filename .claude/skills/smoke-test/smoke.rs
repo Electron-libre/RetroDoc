@@ -282,14 +282,24 @@ fn runs_dir() -> PathBuf {
     dir
 }
 
-/// `toml` with `[pipeline] domains_from` set to `mode`, whatever value `init` wrote.
+/// `toml` with `[pipeline] domains_from` set to `mode` (`files` or `surface`, else the script stops), whatever
+/// value `init` wrote: the line replaced inside `[pipeline]`, added under its header when absent.
 fn set_domains_from(toml: &str, mode: &str) -> String {
-    let key = |l: &str| l.split('=').next().is_some_and(|k| k.trim() == "domains_from");
-    toml.lines()
-        .map(|l| if key(l) { format!("domains_from = \"{mode}\"") } else { l.to_string() })
-        .collect::<Vec<_>>()
-        .join("\n")
-        + "\n"
+    if !["files", "surface"].contains(&mode) {
+        die("--domains-from must be `files` or `surface`");
+    }
+    let line = format!("domains_from = \"{mode}\"");
+    let mut lines: Vec<String> = toml.lines().map(str::to_string).collect();
+    let Some(start) = lines.iter().position(|l| l.trim() == "[pipeline]") else {
+        return format!("{}\n\n[pipeline]\n{line}\n", toml.trim_end());
+    };
+    let end = lines[start + 1..].iter().position(|l| l.trim().starts_with('[')).map_or(lines.len(), |i| start + 1 + i);
+    let named = |l: &String| l.split('=').next().is_some_and(|k| k.trim() == "domains_from");
+    match lines[start + 1..end].iter().position(named) {
+        Some(i) => lines[start + 1 + i] = line,
+        None => lines.insert(start + 1, line),
+    }
+    lines.join("\n") + "\n"
 }
 
 fn main() {

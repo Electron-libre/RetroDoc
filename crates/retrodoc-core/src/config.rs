@@ -599,6 +599,11 @@ mod tests {
         let raw = toml::to_string_pretty(&files).unwrap();
         let again: Config = toml::from_str(&raw).unwrap();
         assert_eq!(again.pipeline.domains_from, DomainsFrom::Files);
+        // `init` writes the key, so the `--domains-from` of the skills has a line to set.
+        let dir = tempfile::tempdir().unwrap();
+        Config::write_default(dir.path(), false).unwrap();
+        let written = fs::read_to_string(dir.path().join(CONFIG_FILE_NAME)).unwrap();
+        assert!(written.contains("domains_from = \"surface\""), "{written}");
     }
 
     // spec: SET-2

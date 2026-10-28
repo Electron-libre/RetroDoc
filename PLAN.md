@@ -100,7 +100,7 @@ docs/
     brief, business files, structured outputs, model per pass, the `surface` path, tree-sitter chunking,
     mechanical confidence, single read of the business files, business rules), and step 7, the reconciliation
     with the existing docs (ADR 0033; its measure on real docs is `issues/done/reconciliation_recall_on_real_docs.md`);
-    open: the default path, and the follow-ups of the review of 2026-10-12 (§7.6).
+    the default path is `surface` since 2026-10-28 (ADR 0034); open: the follow-ups of the review of 2026-10-12 (§7.6).
 11. **A large application, one bounded context at a time** (see §7.7, ADR 0029, decided 2026-10-12): the map
     of the contexts (`retrodoc contexts`) and `domains_from = "contexts"`, so that an application too large for
     one run is documented in resumable, complementary runs. Delivered and run on a 1,676-file application (8 of

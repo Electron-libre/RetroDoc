@@ -146,6 +146,18 @@ fn main() {
         println!("       got: {switched}");
     }
 
+    fs::write(tmp.join("no-path.toml"), "[llm]\nmodel = \"m\"\n\n[pipeline]\nrules = true\n").unwrap();
+    let out = Command::new("rust-script").arg(&script).arg("domains-from").arg(tmp.join("no-path.toml")).arg("files").output().expect("rust-script must be installed");
+    let added = String::from_utf8_lossy(&out.stdout).into_owned();
+    let added_ok = added.contains("[pipeline]\ndomains_from = \"files\"\nrules = true");
+    println!("{} - --domains-from adds the key to [pipeline] when init wrote none", if added_ok { "ok  " } else { "FAIL" });
+    if !added_ok {
+        println!("       got: {added}");
+    }
+    let out = Command::new("rust-script").arg(&script).arg("domains-from").arg(tmp.join("paths.toml")).arg("file").output().expect("rust-script must be installed");
+    let refused_ok = !out.status.success() && String::from_utf8_lossy(&out.stderr).contains("files");
+    println!("{} - --domains-from refuses a path that is not files or surface", if refused_ok { "ok  " } else { "FAIL" });
+
     // `--local` names a local server: its model and URL (explicit flags win), and the command that
     // starts it when nothing answers.
     let smoke = |args: &[&str]| -> (bool, String) {

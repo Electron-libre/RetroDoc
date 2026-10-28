@@ -58,7 +58,8 @@ enum Command {
         confidence_sample: Option<usize>,
         /// Analyse at most N source files: the best ranked by role, git
         /// history and references; the rest is listed in the report.
-        /// Overrides `ingest.max_files`.
+        /// Overrides `ingest.max_files`. On the default `surface` path the
+        /// features and use cases still cover every entry point.
         /// With `[pipeline] domains_from = "contexts"`: the files one run
         /// reads (default 150), a bounded context never being cut.
         #[arg(long, value_name = "N")]

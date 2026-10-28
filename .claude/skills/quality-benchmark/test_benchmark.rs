@@ -89,6 +89,9 @@ fn main() {
     let from_surface = write("from-surface.toml", &format!("{TOML}\n[pipeline]\ndomains_from = \"surface\"\n"));
     let (ok, out) = call(&["patch-config", &from_surface, "local", "m1", "http://localhost:1/v1", "false", "files"]);
     check("sets domains_from over the surface default init writes (ADR 0034)", ok && out.contains("domains_from = \"files\"") && !out.contains("\"surface\""));
+    let without_path = write("without-path.toml", &format!("{TOML}\n[pipeline]\nrules = true\n"));
+    let (ok, out) = call(&["patch-config", &without_path, "local", "m1", "http://localhost:1/v1", "false", "files"]);
+    check("adds domains_from to [pipeline] when the config has no such line", ok && out.contains("[pipeline]\ndomains_from = \"files\"\n"));
     let with_rules = write("with-rules.toml", &format!("{TOML}\n[pipeline]\nrules = true\n"));
     let (ok, out) = call(&["patch-config", &with_rules, "local", "m1", "http://localhost:1/v1", "false"]);
     check("turns the rules pass off (the benchmark does not judge the rules)", ok && out.contains("rules = false") && !out.contains("rules = true"));

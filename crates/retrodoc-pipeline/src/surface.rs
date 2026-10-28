@@ -111,6 +111,16 @@ impl Surface {
             .then_some("no entity was found, the clustering gets no business hints")
     }
 
+    /// The warning of a `surface` run (the default, ADR 0034) on `source_files` that gave no entity
+    /// and no entry point: the domains, features and use cases come out empty.
+    #[must_use]
+    pub fn empty_surface_warning(&self, source_files: usize) -> Option<&'static str> {
+        (self.is_empty() && source_files > 0).then_some(
+            "no entity and no entry point were found, so the surface path documents no domain; \
+             set `[pipeline] domains_from = \"files\"` to build the domains from the file summaries",
+        )
+    }
+
     /// Names of the best connected entities: the application's own business
     /// vocabulary, for prompts that should speak it.
     #[must_use]
@@ -260,6 +270,17 @@ mod tests {
         assert!(notice.contains("no business hints"), "{notice}");
         assert_eq!(empty.missing_entities_notice(0), None);
         assert_eq!(surface().missing_entities_notice(9), None);
+    }
+
+    // spec: SET-7 (internal: a generate with no surface needs a scripted LLM server answering every pass)
+    #[test]
+    fn an_empty_surface_with_source_files_warns_that_nothing_is_documented() {
+        let warning = Surface::default()
+            .empty_surface_warning(9)
+            .expect("a warning");
+        assert!(warning.contains("domains_from = \"files\""), "{warning}");
+        assert_eq!(Surface::default().empty_surface_warning(0), None);
+        assert_eq!(surface().empty_surface_warning(9), None);
     }
 
     #[test]

@@ -26,6 +26,9 @@ The `[pipeline]` and `[brief]` sections of `retrodoc.toml` turn passes and readi
 - **SET-6** (deterministic) A `retrodoc.toml` with no `domains_from` key in `[pipeline]` must read the domains
   and features as built from the surface (`surface`); `domains_from = "files"` and `domains_from = "contexts"`
   must read as those paths.
+- **SET-7** (deterministic) A `generate` on the `surface` path whose surface holds no entity and no entry point,
+  while the repository has source files, must warn that the run documents no domain and name
+  `domains_from = "files"` as the way to build the domains from the file summaries.
 
 ## Scenarios
 
@@ -39,7 +42,10 @@ The `[pipeline]` and `[brief]` sections of `retrodoc.toml` turn passes and readi
 - (SET-5) Given a `retrodoc.toml` that `init` wrote before this change, with `evidence = false` in it, when it is
   read, then the extracts stay off: the change only reaches new and hand-written configs.
 - (SET-6) Given a `retrodoc.toml` that `init` wrote before this change, with `domains_from = "files"` in it, when
-  it is read, then `generate` keeps the `files` path: the change only reaches new and hand-written configs.
+  it is read, then `generate` keeps the `files` path: the change only reaches new and hand-written configs. A
+  config written by `init` before the key existed (2026-10-09) has no line and takes the new default.
+- (SET-7) Given a repository in a language the surface passes don't read, when `generate` runs with the default
+  config, then the log warns that no domain can be built from the surface and names `domains_from = "files"`.
 
 ## Non-goals
 

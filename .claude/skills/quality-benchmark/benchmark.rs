@@ -88,33 +88,35 @@ fn patch_config(toml: &str, provider: &str, model: &str, base_url: &str, timeout
     kept.join("\n").replacen("[llm]", &llm, 1)
 }
 
-/// `toml` with the rules pass off (`[pipeline] rules`, on by default): the benchmark does not judge the rules.
-fn without_rules(toml: &str) -> String {
+/// `toml` with `[pipeline] <key> = <value>`: the line replaced inside `[pipeline]`, added under its header
+/// when absent, the section added at the end when there is none.
+fn set_pipeline_key(toml: &str, key: &str, value: &str) -> String {
+    let line = format!("{key} = {value}");
     let mut lines: Vec<String> = toml.lines().map(str::to_string).collect();
     let pipeline = lines.iter().position(|l| l.trim() == "[pipeline]");
     let Some(start) = pipeline else {
-        return format!("{}\n\n[pipeline]\nrules = false\n", toml.trim_end());
+        return format!("{}\n\n[pipeline]\n{line}\n", toml.trim_end());
     };
     // A header is `[name]` or `[[name]]`: an array value on its own line (`["a", "b"]`, `[ 1,`) is not one.
     let header = |l: &String| l.trim().trim_start_matches('[').chars().next().is_some_and(|c| c.is_ascii_alphabetic()) && l.trim().starts_with('[');
     let end = lines[start + 1..].iter().position(header).map_or(lines.len(), |i| start + 1 + i);
-    let key = |l: &String| l.split('=').next().is_some_and(|k| k.trim() == "rules");
-    match lines[start + 1..end].iter().position(key) {
-        Some(i) => lines[start + 1 + i] = "rules = false".into(),
-        None => lines.insert(start + 1, "rules = false".into()),
+    let named = |l: &String| l.split('=').next().is_some_and(|k| k.trim() == key);
+    match lines[start + 1..end].iter().position(named) {
+        Some(i) => lines[start + 1 + i] = line,
+        None => lines.insert(start + 1, line),
     }
     lines.join("\n") + "\n"
+}
+
+/// `toml` with the rules pass off (`[pipeline] rules`, on by default): the benchmark does not judge the rules.
+fn without_rules(toml: &str) -> String {
+    set_pipeline_key(toml, "rules", "false")
 }
 
 /// `toml` with `[pipeline] domains_from` set to `mode` (ADR 0020), whatever value `init` wrote (`surface` since
 /// ADR 0034).
 fn set_domains_from(toml: &str, mode: &str) -> String {
-    let key = |l: &str| l.split('=').next().is_some_and(|k| k.trim() == "domains_from");
-    toml.lines()
-        .map(|l| if key(l) { format!("domains_from = \"{mode}\"") } else { l.to_string() })
-        .collect::<Vec<_>>()
-        .join("\n")
-        + "\n"
+    set_pipeline_key(toml, "domains_from", &format!("\"{mode}\""))
 }
 
 /// The passes that write prose, whose temperature the benchmark can change (default 0, ADR 0031).

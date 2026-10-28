@@ -142,6 +142,9 @@ cheap paid runs. Out of scope: removing the losing path (`single_pipeline_path`)
    `specs/pipeline-settings.md` replacing its non-goal, an ADR on the default (ADR 0020's "default stays
    `files`" clause), `PLAN.md`, `docs/`, the "default: files" lines of the skills `smoke-test` and
    `quality-benchmark`; verified by a config test traced to the new requirement; makes true SET-6 (new).
+4. [x] Fixes of the `high` review of the issue: warning on an empty surface (SET-7), `--max-files` help, ADR
+   0034 on configs without the key, `--domains-from` of the skills section-aware and adding a missing key, smoke
+   refuses an unknown path, stale doc lines; verified by the SET-7 test and the skill script tests.
 
 ## Decisions
 - Mode: autonomous
@@ -185,3 +188,18 @@ cheap paid runs. Out of scope: removing the losing path (`single_pipeline_path`)
   before; `init` writes the line, checked: `domains_from = "surface"`).
 - not verified: a whole `generate` from `init` on a repository with no entry point (the `surface` path then has
   nothing to group; `single_pipeline_path` names the fallback); the smoke script's new check was not run red first.
+
+## Deliverable 4 (fixes of the `high` review, 9 findings)
+- done: `generate` on the `surface` path warns when the surface is empty and names `domains_from = "files"`
+  (SET-7); the help of `--max-files` says the `surface` features cover every entry point; ADR 0034 and SET-6 say
+  that configs `init` wrote before 2026-10-09 have no key and take the new default; `just benchmark` and
+  `just smoke` set `domains_from` inside `[pipeline]` and add it when missing (the benchmark's `without_rules`
+  shares the helper), the smoke refuses a path other than `files` or `surface`; the SET-6 test checks that
+  `init` writes `domains_from = "surface"`; the `run` doc of `generate`, `PLAN.md` phase 10 and
+  `docs/ARCHITECTURE.md` no longer call `files` the default.
+- Not fixed: the queue entry (removed by `just close-issue`); the two copies of the key setter (two standalone
+  rust-script files, no shared module; the smoke copy is the short one).
+- checks: `just check` green.
+- Code review: no findings.
+- red: SET-7: `no method named empty_surface_warning`; the benchmark script test failed with
+  `FAIL - adds domains_from to [pipeline] when the config has no such line`.

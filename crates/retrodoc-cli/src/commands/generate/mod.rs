@@ -56,7 +56,8 @@ pub struct GenerateOptions {
     /// Wipe the caches first so nothing is reused.
     pub force: bool,
     pub confidence: Confidence,
-    /// Budget of source files (overrides `ingest.max_files`). With `domains_from = "contexts"`:
+    /// Budget of source files (overrides `ingest.max_files`); on the `surface` path the features
+    /// still come from every entry point. With `domains_from = "contexts"`:
     /// the files one run reads, a context never being cut.
     pub max_files: Option<usize>,
     /// With `domains_from = "contexts"`: the contexts to document now (empty: the next ones).
@@ -65,7 +66,8 @@ pub struct GenerateOptions {
 
 /// Current pipeline stage (PLAN.md §5, "confidence score" phase).
 ///
-/// Runs ingestion, the bottom-up repo map, domain/sub-domain clustering,
+/// Runs ingestion, the surface, the domains (from the surface by default,
+/// ADR 0034; from the bottom-up repo map with `domains_from = "files"`),
 /// then features and use cases with Mermaid diagrams, and finally the
 /// confidence cross-check, and writes the docs (or previews them with
 /// `dry_run`). `force` wipes the caches first so nothing is reused.
@@ -121,6 +123,9 @@ pub async fn run(
     let source_hashes = SourceHashes::capture(repo_root, &ingest);
 
     let mut features = if config.pipeline.domains_from == DomainsFrom::Surface {
+        if let Some(warning) = surface.empty_surface_warning(source_paths(&ingest).count()) {
+            tracing::warn!("{warning}");
+        }
         features_from_surface(
             repo_root,
             &ingest,
