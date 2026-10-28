@@ -204,8 +204,7 @@ async fn figures(
     let report = tracker.report();
     let total = report.total();
     let wall = report.wall();
-    let mut unjudged = false;
-    let judged = match judge_llm {
+    let (judged, unjudged) = match judge_llm {
         Some(judge_llm) => {
             let judgement = judge(
                 judge_llm,
@@ -222,28 +221,24 @@ async fn figures(
                     if let Err(error) = judgement.save(work_root) {
                         tracing::warn!("judgement not kept: {error}");
                     }
-                    unjudged = level.unjudged(judgement.unjudged);
-                    compare(
+                    // `compare` found the result above: it finds it again.
+                    let judged = compare(
                         work_root,
                         scoring.reference,
                         &scoring.matches.with_proposals(&judgement),
                         scoring.matches_path,
                     )?
-                    .map(|c| level.pick(c))
-                    .map(|mut score| {
-                        // Read at the strict floor, it would move the series because the judge
-                        // answered nothing.
-                        if unjudged {
-                            score.recall = None;
-                            score.precision = None;
-                        }
-                        score
-                    })
+                    .map(|mut c| {
+                        judgement.unjudged.leave_out(&mut c);
+                        level.pick(c)
+                    });
+                    let unjudged = judged.is_some() && level.unjudged(judgement.unjudged);
+                    (judged, unjudged)
                 }
-                None => None,
+                None => (None, false),
             }
         }
-        None => None,
+        None => (None, false),
     };
     Ok(RunFigures {
         items,
@@ -327,8 +322,8 @@ pub fn replay_table(title: &str, runs: &[RunFigures]) -> String {
     if unjudged > 0 {
         let _ = writeln!(
             out,
-            "\n{unjudged} run(s) unjudged: the judge proposed no pair, twice; they are left out of the \
-             judge columns."
+            "\n{unjudged} run(s) unjudged: {}; they are left out of the judge columns.",
+            Unjudged::REASON
         );
     }
     if let Some(first) = runs.first() {

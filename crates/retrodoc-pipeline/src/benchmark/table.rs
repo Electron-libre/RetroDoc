@@ -45,15 +45,7 @@ impl RunReport {
         let (judged, narratives, unjudged) = match judged {
             Some((mut comparison, judgement)) => {
                 let unjudged = judgement.unjudged;
-                for (left_out, score) in [
-                    (unjudged.domains, &mut comparison.domains),
-                    (unjudged.features, &mut comparison.features),
-                ] {
-                    if left_out {
-                        score.recall = None;
-                        score.precision = None;
-                    }
-                }
+                unjudged.leave_out(&mut comparison);
                 (Some(comparison), Some(judgement.narratives), unjudged)
             }
             None => (None, None, Unjudged::default()),
@@ -174,8 +166,9 @@ pub fn table(current: &[Series], previous: Option<&[Series]>) -> String {
             if count > 0 {
                 let _ = writeln!(
                     out,
-                    "{count} run(s) unjudged for {kind}: the judge proposed no pair, twice; they \
-                     are left out of the `(judged)` figures of {kind}.\n"
+                    "{count} run(s) unjudged for {kind}: {}; they are left out of the `(judged)` \
+                     figures of {kind}.\n",
+                    Unjudged::REASON
                 );
             }
         }

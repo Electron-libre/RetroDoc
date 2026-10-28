@@ -14,7 +14,7 @@ use std::path::Path;
 use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
-use super::matching::{compare, Matches, Pair};
+use super::matching::{compare, Comparison, Matches, Pair};
 use super::reference::Reference;
 use crate::domains::{DomainMap, UNCATEGORIZED_SLUG};
 use crate::error::PipelineError;
@@ -61,6 +61,24 @@ pub struct Unjudged {
 }
 
 impl Unjudged {
+    /// Why a kind is unjudged, for the tables and the summary that show it.
+    pub const REASON: &'static str = "the judge proposed no pair, twice";
+
+    /// Empties the recall and precision of the unjudged kinds of `judged`, the comparison made with the
+    /// judge's proposals: read at the strict floor, they would move a series because the judge answered
+    /// nothing.
+    pub fn leave_out(self, judged: &mut Comparison) {
+        for (left_out, score) in [
+            (self.domains, &mut judged.domains),
+            (self.features, &mut judged.features),
+        ] {
+            if left_out {
+                score.recall = None;
+                score.precision = None;
+            }
+        }
+    }
+
     /// Every kind was judged.
     #[must_use]
     pub fn is_none(&self) -> bool {

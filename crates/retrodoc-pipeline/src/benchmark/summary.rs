@@ -3,7 +3,7 @@
 use std::fmt::Write as _;
 use std::time::Duration;
 
-use super::judge::Judgement;
+use super::judge::{Judgement, Unjudged};
 use super::matching::{Comparison, Score};
 use super::metrics::RunMetrics;
 use crate::progress::format_duration;
@@ -101,7 +101,7 @@ pub fn summary(
         ] {
             if unjudged {
                 // As in the saved report, which holds no judged figures for the kind.
-                let _ = writeln!(out, "{label}: unjudged (the judge proposed no pair, twice)");
+                let _ = writeln!(out, "{label}: unjudged ({})", Unjudged::REASON);
             } else {
                 score_line(&mut out, label, score);
             }
@@ -122,7 +122,7 @@ pub fn summary(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::benchmark::judge::{NarrativeRating, Unjudged};
+    use crate::benchmark::judge::NarrativeRating;
     use crate::benchmark::metrics::Cost;
 
     fn score(

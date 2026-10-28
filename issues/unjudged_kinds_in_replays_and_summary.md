@@ -55,6 +55,9 @@ replays, changing the judge.
    `replay_table` shows `unjudged`, leaves it out of the judge mean and range and counts it under the table;
    `summary` prints the unjudged kind as unjudged; verified by unit tests in `replay.rs` and `summary.rs`; makes
    true BSC-15 (~150 lines).
+2. [x] Fixes of the `high` review: `Unjudged::leave_out` and `Unjudged::REASON` shared by the replays, the
+   summary and `benchmark-table`; a replay is unjudged only when it has a judged score; verified by the existing
+   tests; refactor, no new requirement.
 
 ## Decisions
 - Mode: autonomous
@@ -79,5 +82,32 @@ red: BSC-15: error[E0609]: no field `unjudged` on type `replay::RunFigures`
 Code review: no findings
 
 not verified: no real replay run where the judge answers no pair twice.
+
+decisions needed: none
+
+## Deliverable 2
+
+done: the `high` review of `b48b59d..86bb7d9` gave 6 findings; the rule and its wording live once in `Unjudged`
+(`leave_out`, `REASON`), used by `replay`, `summary` and `table`; `figures` returns `(judged, unjudged)` with no
+mutable flag and no `unjudged` without a judged score.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint (fmt, clippy) | pass |
+| specs | pass |
+| harness | fails as in deliverable 1, unrelated |
+| docs | n/a (no behaviour change) |
+| code review | low, see below |
+
+red: none
+
+Code review: no findings
+
+High review findings: 1 and 2 (rule written three times) fixed by `leave_out`; 3 (reason in three strings) fixed
+by `REASON`; 4 and 5 (mutable flag, unjudged with no judged score) fixed; 6 (summary reads the flag) not
+changed: a cleared score reads `n/a`, which also means an empty reference, so the summary needs the flag.
+
+not verified: none
 
 decisions needed: none
