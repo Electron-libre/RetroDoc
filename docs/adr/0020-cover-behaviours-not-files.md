@@ -62,4 +62,4 @@ The new path is shipped behind `[pipeline] domains_from = "surface"`; the defaul
 benchmark (`issues/done/behaviour_coverage_domains.md`) shows, on a 178-file application, 55% fewer calls and about
 45% less time at equal quality, and worse features on a 9-file library; the time of a run stays in the use
 cases and confidence passes, which the pivot does not change. The decision on the default is
-`issues/surface_domains_default_decision.md`.
+`issues/surface_domains_default_decision.md`: on 2026-10-28 the default became `surface` (ADR 0034).

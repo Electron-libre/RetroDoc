@@ -106,9 +106,15 @@ fn without_rules(toml: &str) -> String {
     lines.join("\n") + "\n"
 }
 
-/// `toml` with `[pipeline] domains_from` set to `mode` (ADR 0020; `init` writes `files`).
+/// `toml` with `[pipeline] domains_from` set to `mode` (ADR 0020), whatever value `init` wrote (`surface` since
+/// ADR 0034).
 fn set_domains_from(toml: &str, mode: &str) -> String {
-    toml.replacen("domains_from = \"files\"", &format!("domains_from = \"{mode}\""), 1)
+    let key = |l: &str| l.split('=').next().is_some_and(|k| k.trim() == "domains_from");
+    toml.lines()
+        .map(|l| if key(l) { format!("domains_from = \"{mode}\"") } else { l.to_string() })
+        .collect::<Vec<_>>()
+        .join("\n")
+        + "\n"
 }
 
 /// The passes that write prose, whose temperature the benchmark can change (default 0, ADR 0031).
@@ -193,7 +199,7 @@ fn run(args: &[String]) -> i32 {
         die("--series must be `hidden` or `shown`");
     }
     let no_confidence = args.iter().any(|a| a == "--no-confidence");
-    let domains_from = option("--domains-from", "files");
+    let domains_from = option("--domains-from", "surface");
     if !["files", "surface"].contains(&domains_from.as_str()) {
         die("--domains-from must be `files` or `surface`");
     }

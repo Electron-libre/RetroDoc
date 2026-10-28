@@ -76,8 +76,10 @@ Run `retrodoc <command> --help` for the details.
 
 ### Controlling cost on a large repo
 
-`generate` prints the expected number of repo-map LLM calls before it starts. To bound a run:
-`--max-files N` keeps only the best-ranked files, `--no-confidence` / `--confidence-sample N` limit the
+With `domains_from = "files"`, `generate` prints the expected number of repo-map LLM calls before it starts
+(the default `surface` path makes no repo map). To bound a run:
+`--max-files N` keeps only the best-ranked files (on the `surface` path the features still come from every
+entry point; with `contexts` it is the reading budget of a run), `--no-confidence` / `--confidence-sample N` limit the
 verification pass, and `llm.concurrency` / `llm.batch_chars` parallelize and batch the summaries (`llm.concurrency` also the use cases and the confidence checks).
 
 ## Configuration
@@ -113,7 +115,7 @@ existing_docs_paths = ["docs", "README.md"]    # Markdown taken as input
 docs_dir = "docs"
 
 [pipeline]
-domains_from = "files"    # "files": domains from the file summaries; "surface": from the entities and entry points (no repo map; the features come from the entry points); "contexts": a large application documented a bounded context at a time (see below)
+domains_from = "surface"  # "surface" (default, ADR 0034): domains from the entities and entry points (no repo map; the features come from the entry points); "files": from the file summaries; "contexts": a large application documented a bounded context at a time (see below)
 rules = true              # state the business rules of each feature; false: a cheaper run (the rules are about 40% of the input tokens)
 # business_read = false   # each pass reads the business files alone: for a small library, where the joint reading finds fewer entry points
 
@@ -143,7 +145,7 @@ YAML under `.retrodoc/cache/`. `roles.yaml`, `signal-sources.yaml` and `product.
 
 ## How it works
 
-Ingestion → surface extraction (file roles, glossary, entry points) → actors → repo map → domains →
+Ingestion → surface extraction (file roles, glossary, entry points) → actors → repo map (`files` path only) → domains →
 features → use cases → diagrams → business-language score → confidence → Markdown. Each stage is a
 Rust module of the `retrodoc-pipeline` crate with its rationale in its `//!` doc; the overview is in
 [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md), and the design decisions are recorded in

@@ -138,10 +138,10 @@ cheap paid runs. Out of scope: removing the losing path (`single_pipeline_path`)
    once per path (`files`, `surface`, cents), and one lobsters `--domains-from surface --series hidden --runs 1`
    (~$0.5) to set calls, time and judged recall against the `files` run; verified by the tables in `# Findings`
    and the ledger lines. Stop: the decision is the user's.
-3. [ ] Apply the decision: the default of `DomainsFrom`, the config `init` writes, a requirement in
+3. [x] Apply the decision: the default of `DomainsFrom`, the config `init` writes, a requirement in
    `specs/pipeline-settings.md` replacing its non-goal, an ADR on the default (ADR 0020's "default stays
    `files`" clause), `PLAN.md`, `docs/`, the "default: files" lines of the skills `smoke-test` and
-   `quality-benchmark`; verified by a config test traced to the new requirement; makes true SET-n (new).
+   `quality-benchmark`; verified by a config test traced to the new requirement; makes true SET-6 (new).
 
 ## Decisions
 - Mode: autonomous
@@ -150,6 +150,7 @@ cheap paid runs. Out of scope: removing the losing path (`single_pipeline_path`)
 - Paid budget (user, 2026-10-28): delivery_router 5 runs per path + one `surface` run of lobsters, ~$0.55; no
   linkding confidence or `shown` series.
 - No local linkding run (user, 2026-10-28).
+- Default (user, 2026-10-28): `surface`; `files` stays opt-in until `single_pipeline_path`.
 - `contexts` stays out of the default: opt-in for large applications, said in the ADR (user, 2026-10-28).
 
 ## Deliverable 1
@@ -170,3 +171,17 @@ cheap paid runs. Out of scope: removing the losing path (`single_pipeline_path`)
 - not verified: the lobsters judge pairs beyond the domains (28 feature pairs not read); whether the halved
   use cases of lobsters lose behaviours; one `surface` run of lobsters is a sample, not a spread.
 - decisions needed: the default (see the stop of deliverable 2).
+
+## Deliverable 3
+- done: `DomainsFrom` defaults to `surface`, so `init` writes it; SET-6 in `specs/pipeline-settings.md`; ADR
+  0034; ADR 0020's status line, `PLAN.md`, `README.md`, `docs/ARCHITECTURE.md`, `docs/crates/pipeline.md`. The
+  `--domains-from` of `just benchmark` and `just smoke` replaced only a `domains_from = "files"` line, so `files`
+  would have been ignored on a config `init` now writes: both set the line whatever its value, the benchmark
+  defaults to `surface`.
+- checks: `just check` (fmt, clippy, tests, specs, skill scripts) green.
+- red: SET-6: `assertion left == right failed, left: Files, right: Surface`; the benchmark script test failed with
+  `FAIL - sets domains_from over the surface default init writes (ADR 0034)`.
+- Code review: no findings (a remark: `--domains-from` changes nothing on a config with no `domains_from` line, as
+  before; `init` writes the line, checked: `domains_from = "surface"`).
+- not verified: a whole `generate` from `init` on a repository with no entry point (the `surface` path then has
+  nothing to group; `single_pipeline_path` names the fallback); the smoke script's new check was not run red first.

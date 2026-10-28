@@ -100,7 +100,10 @@ flowchart LR
 
 ## 4. The `generate` pipeline
 
-This is the core flow. Blue-ish steps call the LLM; the others are deterministic.
+This is the core flow. Blue-ish steps call the LLM; the others are deterministic. The diagram shows the
+`files` path (`[pipeline] domains_from = "files"`); the default `surface` path (ADR 0020, ADR 0034) has no
+step 2, clusters the domains from the entities and entry points in one call and makes the features of a
+domain from its entry points (§5).
 
 ```mermaid
 flowchart TD

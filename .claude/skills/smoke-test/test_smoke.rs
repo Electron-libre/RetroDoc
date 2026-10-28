@@ -136,6 +136,16 @@ fn main() {
         println!("       got: {with_timeout}");
     }
 
+    // `--domains-from` sets the path whatever value `init` wrote (`surface` since ADR 0034).
+    fs::write(tmp.join("paths.toml"), "[pipeline]\ndomains_from = \"surface\"\nrules = true\n").unwrap();
+    let out = Command::new("rust-script").arg(&script).arg("domains-from").arg(tmp.join("paths.toml")).arg("files").output().expect("rust-script must be installed");
+    let switched = String::from_utf8_lossy(&out.stdout).into_owned();
+    let switched_ok = switched.contains("domains_from = \"files\"") && !switched.contains("surface") && switched.contains("rules = true");
+    println!("{} - --domains-from replaces the path init wrote", if switched_ok { "ok  " } else { "FAIL" });
+    if !switched_ok {
+        println!("       got: {switched}");
+    }
+
     // `--local` names a local server: its model and URL (explicit flags win), and the command that
     // starts it when nothing answers.
     let smoke = |args: &[&str]| -> (bool, String) {

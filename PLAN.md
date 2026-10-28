@@ -34,12 +34,13 @@ Step 3 (`domains.yaml`) is a structured intermediate artifact, not a final file 
 be rerun without redoing the clustering, and it's the basis for the incremental cache (rerun only what
 touches files modified since the last run).
 
-This is the default path (`[pipeline] domains_from = "files"`), with what phases 7 and 10 added around it: a
+This is the `files` path (`[pipeline] domains_from = "files"`, the default until 2026-10-28), with what phases 7 and 10 added around it: a
 product brief from the non-code evidence comes first, then the surface (roles, business files, entities,
 entry points) and the actors; the confidence checks are mechanical first; business rules are a pass (on by default)
 pass after the use cases. Phase 10 (§7.5) also built a second path (`domains_from = "surface"`): domains and
 features from the entry points and entities, no LLM repo map, the coverage invariant moved from files to
-behaviours. Both exist until one is chosen (§7.6). The order `generate` runs today is in
+behaviours. It is the default since 2026-10-28 (ADR 0034); the `files` path stays until
+`issues/single_pipeline_path.md` (§7.6). The order `generate` runs today is in
 `docs/crates/pipeline.md`.
 
 ## 3. Expected output
@@ -487,8 +488,8 @@ Steps, in order, one issue each:
    the domains and the features can be built from the surface (`generate` runs end to end in that mode); the
    entry points no feature holds are placed by a small call or listed in the coverage report, as are the files
    reached by no behaviour. Benchmark of 2026-10-10: on a 178-file application `surface` makes 55% fewer calls
-   and takes about 45% less time at par quality; on a 9-file library its features are worse. The default stays
-   `files` until `issues/surface_domains_default_decision.md`; the cost of the use cases pass, the deterministic
+   and takes about 45% less time at par quality; on a 9-file library its features are worse. The default became
+   `surface` on 2026-10-28 (`issues/surface_domains_default_decision.md`, ADR 0034); the cost of the use cases pass, the deterministic
    confidence and the single read per file are queued as their own issues.
 5. `issues/done/tree_sitter_structure.md`: long files cut at parsed definitions for five languages, short method bodies as an option (ADR 0027); the parsed references moved to `issues/done/parsed_references_for_ranking_and_slices.md`.
 6. `issues/done/business_rules.md`.
@@ -529,7 +530,8 @@ Not reached yet:
 - Run-to-run spread: 13 to 21 entry points on the 9-file library, 64 against 96 between two identical runs
   of the entry points pass on linkding; the requests set no sampling temperature.
 - The use cases and the rules read the same code: about 80% of the input tokens of a run with the rules on.
-- Two paths (`files`, `surface`) are maintained together (`body_lines` removed, `rules` on by default since
+- Two paths (`files`, `surface`, the default since 2026-10-28) are maintained together until
+  `issues/single_pipeline_path.md` (`body_lines` removed, `rules` on by default since
   2026-10-27, `brief.evidence` on by default since 2026-10-28).
 
 Next work, in the order of `issues/queue.md`:

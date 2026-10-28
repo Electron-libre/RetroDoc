@@ -45,7 +45,7 @@ just benchmark <reference> --local hybrid --timeout-secs 1800  # HTTP timeout of
 just benchmark <reference> --model <m> --base-url <u>          # another model or server (overrides the `--local` values; on another host than loopback, add `--timeout-secs`: the default is 120 s)
 just benchmark <reference> --provider deepseek --runs 3 --no-confidence   # hosted: key in .env, about $0.30 per linkding run, $0.45 per lobsters run
 just benchmark <reference> --series hidden                     # one series only
-just benchmark <reference> --domains-from surface              # the new path of ADR 0020 (default: files)
+just benchmark <reference> --domains-from files                # the old path of ADR 0004 (default: surface, ADR 0034)
 just benchmark <reference> --writing-temperature 0.7           # another temperature on the writing passes (brief, domains, features, use-cases, rules); they are at 0 by default (ADR 0031)
 ```
 

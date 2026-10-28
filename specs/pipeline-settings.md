@@ -1,7 +1,7 @@
 ---
 id: SET
 status: accepted
-adrs: [0019, 0021, 0027, 0028]
+adrs: [0019, 0020, 0021, 0027, 0028, 0034]
 ---
 
 # Defaults of the pipeline settings
@@ -23,6 +23,9 @@ The `[pipeline]` and `[brief]` sections of `retrodoc.toml` turn passes and readi
   load with an error that names the key, says it was removed and tells to delete the line.
 - **SET-5** (deterministic) A `retrodoc.toml` with no `evidence` key in `[brief]` must read the extracts of the
   signals closest to each feature and use case as on; `evidence = false` must read them as off.
+- **SET-6** (deterministic) A `retrodoc.toml` with no `domains_from` key in `[pipeline]` must read the domains
+  and features as built from the surface (`surface`); `domains_from = "files"` and `domains_from = "contexts"`
+  must read as those paths.
 
 ## Scenarios
 
@@ -35,9 +38,12 @@ The `[pipeline]` and `[brief]` sections of `retrodoc.toml` turn passes and readi
 
 - (SET-5) Given a `retrodoc.toml` that `init` wrote before this change, with `evidence = false` in it, when it is
   read, then the extracts stay off: the change only reaches new and hand-written configs.
+- (SET-6) Given a `retrodoc.toml` that `init` wrote before this change, with `domains_from = "files"` in it, when
+  it is read, then `generate` keeps the `files` path: the change only reaches new and hand-written configs.
 
 ## Non-goals
 
-- `domains_from`: decided by its own issue.
+- `contexts` as the default: it needs the `contexts` map first and documents a slice per run, an opt-in for large applications (ADR 0034).
+- Removing the `files` path: `issues/single_pipeline_path.md`.
 - The quality benchmark does not judge the rules: it always turns the rules pass off (`pass_replay rules` measures them).
 - Reading only the start of method bodies: the measure kept the files whole (`issues/done/settle_experimental_settings.md`).

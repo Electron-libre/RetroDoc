@@ -108,9 +108,9 @@ impl RulesConfig {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PipelineConfig {
-    /// What the domains are built from. `files` (default): the LLM summaries of
-    /// the files and directories (ADR 0004). `surface`: the entities and the
-    /// entry points grouped by resource (ADR 0020), with no repo map. `contexts`: the
+    /// What the domains are built from. `surface` (default, ADR 0034): the entities and
+    /// the entry points grouped by resource (ADR 0020), with no repo map. `files`: the LLM
+    /// summaries of the files and directories (ADR 0004). `contexts`: the
     /// bounded contexts of `retrodoc contexts` (ADR 0029), each a domain, documented a slice at a time.
     #[serde(default)]
     pub domains_from: DomainsFrom,
@@ -150,8 +150,8 @@ impl Default for PipelineConfig {
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum DomainsFrom {
-    #[default]
     Files,
+    #[default]
     Surface,
     /// The bounded contexts of `contexts.yaml` (ADR 0029), documented a slice at a time.
     Contexts,
@@ -582,17 +582,23 @@ mod tests {
         assert_eq!(on.llm.for_pass("rules").model, "big");
     }
 
+    // spec: SET-6 (internal: the default is a parse of retrodoc.toml, no command shows it without an LLM run)
     #[test]
-    fn the_domains_come_from_the_files_unless_the_surface_is_asked() {
-        assert_eq!(Config::default().pipeline.domains_from, DomainsFrom::Files);
+    fn the_domains_come_from_the_surface_unless_another_path_is_named() {
+        assert_eq!(
+            Config::default().pipeline.domains_from,
+            DomainsFrom::Surface
+        );
         let none: Config = toml::from_str("[llm]\nmodel = \"m\"").unwrap();
-        assert_eq!(none.pipeline.domains_from, DomainsFrom::Files);
-        let surface: Config = toml::from_str("[pipeline]\ndomains_from = \"surface\"").unwrap();
-        assert_eq!(surface.pipeline.domains_from, DomainsFrom::Surface);
+        assert_eq!(none.pipeline.domains_from, DomainsFrom::Surface);
+        let files: Config = toml::from_str("[pipeline]\ndomains_from = \"files\"").unwrap();
+        assert_eq!(files.pipeline.domains_from, DomainsFrom::Files);
+        let contexts: Config = toml::from_str("[pipeline]\ndomains_from = \"contexts\"").unwrap();
+        assert_eq!(contexts.pipeline.domains_from, DomainsFrom::Contexts);
         // Kept when the config is written back.
-        let raw = toml::to_string_pretty(&surface).unwrap();
+        let raw = toml::to_string_pretty(&files).unwrap();
         let again: Config = toml::from_str(&raw).unwrap();
-        assert_eq!(again.pipeline.domains_from, DomainsFrom::Surface);
+        assert_eq!(again.pipeline.domains_from, DomainsFrom::Files);
     }
 
     // spec: SET-2
