@@ -91,8 +91,21 @@ pub fn summary(
     if let Some((with_judge, judgement)) = judged {
         out.push('\n');
         out.push_str("With the judge's proposals (not yet in matches.yaml):\n");
-        score_line(&mut out, "Domains", &with_judge.domains);
-        score_line(&mut out, "Features", &with_judge.features);
+        for (label, score, unjudged) in [
+            ("Domains", &with_judge.domains, judgement.unjudged.domains),
+            (
+                "Features",
+                &with_judge.features,
+                judgement.unjudged.features,
+            ),
+        ] {
+            if unjudged {
+                // As in the saved report, which holds no judged figures for the kind.
+                let _ = writeln!(out, "{label}: unjudged (the judge proposed no pair, twice)");
+            } else {
+                score_line(&mut out, label, score);
+            }
+        }
         let rating = judgement.narratives;
         let _ = writeln!(
             out,
@@ -109,7 +122,7 @@ pub fn summary(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::benchmark::judge::NarrativeRating;
+    use crate::benchmark::judge::{NarrativeRating, Unjudged};
     use crate::benchmark::metrics::Cost;
 
     fn score(
@@ -206,6 +219,40 @@ mod tests {
             "{text}"
         );
         assert!(!text.contains("judge"), "{text}");
+    }
+
+    // spec: BSC-15 (internal: the binary would need a judge answering no pair twice)
+    #[test]
+    fn prints_an_unjudged_kind_as_unjudged() {
+        let comparison = Comparison {
+            domains: score(Some(0.5), Some(0.5), &[], &[]),
+            features: score(Some(0.25), Some(0.25), &[], &[]),
+        };
+        let judged = Comparison {
+            domains: score(Some(1.0), Some(1.0), &[], &[]),
+            features: score(Some(0.25), Some(0.25), &[], &["Pay"]),
+        };
+        let judgement = Judgement {
+            unjudged: Unjudged {
+                features: true,
+                ..Unjudged::default()
+            },
+            ..Judgement::default()
+        };
+
+        let text = summary(&metrics(None), &comparison, Some((&judged, &judgement)));
+        let with_judge = text.split("With the judge's proposals").nth(1).unwrap();
+
+        assert!(
+            with_judge.contains("Domains: recall 100%, precision 100%"),
+            "{text}"
+        );
+        assert!(
+            with_judge.contains("Features: unjudged (the judge proposed no pair, twice)"),
+            "{text}"
+        );
+        assert!(!with_judge.contains("Features: recall"), "{text}");
+        assert!(!with_judge.contains("Pay"), "{text}");
     }
 
     #[test]

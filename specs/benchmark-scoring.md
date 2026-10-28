@@ -49,6 +49,10 @@ change of these rules must not read as a change of quality between two benchmark
   kind, and `benchmark-table` must say, under the series, how many runs are unjudged for each kind.
 - **BSC-14** (deterministic) A proposal whose name is an offered name followed by `:` and its description, or the
   start of it, must be read as that offered name; followed by any other text, it must be dropped.
+- **BSC-15** (deterministic) A per-pass replay whose kind is unjudged must have no judged recall and precision, show
+  its run as unjudged in the judge columns of its table, leave it out of the mean and range of those columns, and
+  say under the table how many runs are unjudged; the summary `retrodoc benchmark` prints must show an unjudged
+  kind as unjudged instead of its judged recall and precision.
 
 ## Scenarios
 
@@ -71,6 +75,10 @@ change of these rules must not read as a change of quality between two benchmark
   `(judged)` feature figures of the run are empty while its strict ones stay.
 - (BSC-13) Given a series of 5 runs of which 2 have unjudged features, then the judged feature rows count 3 runs and
   a note under the series says 2 runs are unjudged for features.
+- (BSC-15) Given a features replay series of 3 runs of which 1 is unjudged, then the judge columns of that run read
+  `unjudged`, their mean and range count the 2 other runs and a note under the table says 1 run is unjudged.
+- (BSC-15) Given a run whose features are unjudged, then the printed summary reads, under the judge's proposals,
+  that the features are unjudged and gives no judged feature recall or precision; the domains keep theirs.
 
 ## Non-goals
 

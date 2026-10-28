@@ -40,3 +40,44 @@ tens of points because the judge answered nothing, and the printed summary shoul
 
 * A saved `judge.yaml` without the mark loads as judged: do not derive the mark from the pairs at scoring time
   (decision of the parent issue).
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+An unjudged kind (BSC-12) must read as unjudged, not at the strict floor, in the per-pass replay tables and in the
+summary `retrodoc benchmark` prints, as `benchmark-table` already does (BSC-13). Out of scope: re-scoring saved
+replays, changing the judge.
+
+## Plan
+1. [x] Replays and summary: `RunFigures` carries the unjudged mark of its kind and no judged score then;
+   `replay_table` shows `unjudged`, leaves it out of the judge mean and range and counts it under the table;
+   `summary` prints the unjudged kind as unjudged; verified by unit tests in `replay.rs` and `summary.rs`; makes
+   true BSC-15 (~150 lines).
+
+## Decisions
+- Mode: autonomous
+- Base commit: b48b59d15d3f6d29153d188f0f5f9d71288c07eb
+
+## Deliverable 1
+
+done: `RunFigures.unjudged`, the replay table shows `unjudged` and counts it, the printed summary shows the kind
+as unjudged; BSC-15 added, spec `accepted`; `docs/crates/pipeline.md`, `docs/crates/render-mcp-cli.md`.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint (fmt, clippy) | pass |
+| specs | pass |
+| harness | fails: `modified: native review gate`, unrelated (uncommitted `source` change of `.claude/harness.toml`) |
+| docs | updated |
+| code review | low, see below |
+
+red: BSC-15: error[E0609]: no field `unjudged` on type `replay::RunFigures`
+
+Code review: no findings
+
+not verified: no real replay run where the judge answers no pair twice.
+
+decisions needed: none

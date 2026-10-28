@@ -10,7 +10,7 @@ use retrodoc_llm::{LlmProvider, UsageTracker};
 
 use super::frame::Frame;
 use super::frozen::{FrozenInputs, ReplayPass};
-use super::judge::judge;
+use super::judge::{judge, Unjudged};
 use super::matching::{compare, Comparison, Matches, Score};
 use super::reference::Reference;
 use crate::artifact::Retention;
@@ -41,6 +41,8 @@ pub struct RunFigures {
     /// The same with the pairs the judge proposed for what no pair covers (it shares the biases of an LLM:
     /// read it next to `score`, never instead); `None` when the judge did not run.
     pub judged: Option<Score>,
+    /// The judge proposed no pair for the level, twice: `judged` has no recall and precision.
+    pub unjudged: bool,
     pub calls: u64,
     pub prompt_tokens: u64,
     pub completion_tokens: u64,
@@ -172,6 +174,13 @@ impl Level {
             Level::Features => comparison.features,
         }
     }
+
+    fn unjudged(self, unjudged: Unjudged) -> bool {
+        match self {
+            Level::Domains => unjudged.domains,
+            Level::Features => unjudged.features,
+        }
+    }
 }
 
 /// The score of the saved result of a pass, strict and with the judge, and what the pass cost so far
@@ -195,6 +204,7 @@ async fn figures(
     let report = tracker.report();
     let total = report.total();
     let wall = report.wall();
+    let mut unjudged = false;
     let judged = match judge_llm {
         Some(judge_llm) => {
             let judgement = judge(
@@ -212,6 +222,7 @@ async fn figures(
                     if let Err(error) = judgement.save(work_root) {
                         tracing::warn!("judgement not kept: {error}");
                     }
+                    unjudged = level.unjudged(judgement.unjudged);
                     compare(
                         work_root,
                         scoring.reference,
@@ -219,6 +230,15 @@ async fn figures(
                         scoring.matches_path,
                     )?
                     .map(|c| level.pick(c))
+                    .map(|mut score| {
+                        // Read at the strict floor, it would move the series because the judge
+                        // answered nothing.
+                        if unjudged {
+                            score.recall = None;
+                            score.precision = None;
+                        }
+                        score
+                    })
                 }
                 None => None,
             }
@@ -229,6 +249,7 @@ async fn figures(
         items,
         score: level.pick(comparison),
         judged,
+        unjudged,
         calls: total.calls,
         prompt_tokens: total.prompt_tokens,
         completion_tokens: total.completion_tokens,
@@ -238,6 +259,15 @@ async fn figures(
 
 fn percent(share: Option<f32>) -> String {
     share.map_or_else(|| "-".to_string(), |s| format!("{:.0}%", s * 100.0))
+}
+
+/// A judge column of `run`: `unjudged` rather than a dash the judge's absence also shows.
+fn judged_percent(run: &RunFigures, share: fn(&Score) -> Option<f32>) -> String {
+    if run.unjudged {
+        "unjudged".to_string()
+    } else {
+        percent(run.judged.as_ref().and_then(share))
+    }
 }
 
 /// The runs of one setting as a Markdown table: one row per run, then the mean and the range of each
@@ -256,8 +286,8 @@ pub fn replay_table(title: &str, runs: &[RunFigures]) -> String {
             run.items,
             percent(run.score.recall),
             percent(run.score.precision),
-            percent(run.judged.as_ref().and_then(|j| j.recall)),
-            percent(run.judged.as_ref().and_then(|j| j.precision)),
+            judged_percent(run, |j| j.recall),
+            judged_percent(run, |j| j.precision),
             run.calls,
             run.prompt_tokens,
             run.completion_tokens,
@@ -293,6 +323,14 @@ pub fn replay_table(title: &str, runs: &[RunFigures]) -> String {
         count(|r| r.completion_tokens as f32),
         count(|r| r.wall.as_secs_f32()),
     );
+    let unjudged = runs.iter().filter(|r| r.unjudged).count();
+    if unjudged > 0 {
+        let _ = writeln!(
+            out,
+            "\n{unjudged} run(s) unjudged: the judge proposed no pair, twice; they are left out of the \
+             judge columns."
+        );
+    }
     if let Some(first) = runs.first() {
         let _ = writeln!(
             out,
@@ -461,6 +499,78 @@ mod tests {
             crate::benchmark::Judgement::path(&dir.path().join("work")).exists(),
             "the judgement is kept to audit its pairs"
         );
+    }
+
+    // spec: BSC-15 (internal: the replays are driven by an example, not the binary)
+    #[tokio::test]
+    async fn a_replay_the_judge_paired_nothing_for_twice_is_unjudged() {
+        let dir = tempfile::tempdir().unwrap();
+        let frozen = frozen(dir.path());
+        let tracker = UsageTracker::new();
+        let llm = UsageProvider::new(
+            FakeLlm::sequence(&[
+                r#"{"domains":[{"slug":"clients","name":"Clients","description":"d","resources":["Customer"],"entities":["Customer"]}]}"#,
+                r#"{"matches":[]}"#,
+                r#"{"matches":[]}"#,
+            ]),
+            tracker.clone(),
+        );
+        let reference: Reference = serde_yaml::from_str(REFERENCE).unwrap();
+
+        let figures = replay_domains(
+            &frozen,
+            &dir.path().join("work"),
+            &llm,
+            Some(&llm),
+            &tracker,
+            Scoring {
+                reference: &reference,
+                matches: &Matches::default(),
+                matches_path: Path::new("matches.yaml"),
+            },
+        )
+        .await
+        .unwrap();
+
+        assert!(figures.unjudged);
+        let judged = figures.judged.unwrap();
+        assert_eq!((judged.recall, judged.precision), (None, None));
+    }
+
+    // spec: BSC-15 (internal: the replays are driven by an example, not the binary)
+    #[test]
+    fn an_unjudged_run_is_left_out_of_the_judge_columns_and_counted() {
+        let share = |value: Option<f32>| Score {
+            recall: value,
+            precision: value,
+            matched: Vec::new(),
+            unmatched_generated: Vec::new(),
+            unmatched_reference: Vec::new(),
+        };
+        let run = |judged: f32, unjudged: bool| RunFigures {
+            items: 2,
+            score: share(Some(0.2)),
+            judged: Some(share((!unjudged).then_some(judged))),
+            unjudged,
+            calls: 1,
+            prompt_tokens: 1,
+            completion_tokens: 1,
+            wall: Duration::from_secs(1),
+        };
+
+        let text = replay_table("demo", &[run(0.6, false), run(0.0, true), run(0.8, false)]);
+
+        assert!(
+            text.contains("| 2 | 2 | 20% | 20% | unjudged | unjudged |"),
+            "{text}"
+        );
+        assert!(text.contains("| 70% (60%-80%) | 70% (60%-80%) |"), "{text}");
+        assert!(
+            text.contains("1 run(s) unjudged: the judge proposed no pair, twice"),
+            "{text}"
+        );
+        let all_judged = replay_table("demo", &[run(0.6, false)]);
+        assert!(!all_judged.contains("unjudged"), "{all_judged}");
     }
 
     /// Frozen inputs with the domains of the surface, ready for a features replay.
