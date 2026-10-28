@@ -9,8 +9,9 @@ cargo clippy --workspace --all-targets  # lint (see Lints below — must be warn
 cargo fmt --all                         # format
 just check                              # fmt + clippy -D warnings + tests + check-specs + check-harness in one go
 just check-harness                      # fail when a file synced from the shared harness was edited locally (needs the `harness` binary: `cargo install --git <source in .claude/harness.toml> harness --locked`)
-just check-specs                        # validate specs/*.md and trace their requirements to the tests (`// spec: ID`; needs rust-script)
-just test-harness                       # test the agent hooks and skills (needs rust-script)
+just check-specs                        # validate specs/*.md and trace their requirements to the tests (`// spec: ID`; needs `harness`)
+just spec-coverage                      # test files that cite no requirement of an accepted spec, largest first
+just test-skill-scripts                 # test the scripts of the smoke-test and quality-benchmark skills (needs rust-script)
 just probe-schema <ollama|hybrid|deepseek|gemini|openrouter>   # one HTTP call: does the server reject, ignore or obey a strict JSON schema; also prints finish_reason and usage (`--max-tokens 8` forces a cut)
 cargo run -q -p retrodoc-pipeline --example entry_points_replay -- benchmark/<repo>/entry-points.yaml <checkout> <runs dir>   # saved runs vs a hand-made entry points/actors reference (no LLM)
 cargo run -q -p retrodoc-pipeline --example freeze_inputs -- <run dir> ~/retrodoc-runs/frozen/<repo> <repo> <commit> <model>   # copies the artifacts of a complete run as the frozen inputs of the replays of one pass (manifest with the model that wrote them) (no LLM)
@@ -32,7 +33,7 @@ OPENROUTER_API_KEY=x cargo run -q -p retrodoc-pipeline --example placement_repla
 Saved runs, frozen inputs and measure outputs live in `~/retrodoc-runs`; its `LEDGER.md` (outside git) lists the
 measures already made and the runs to keep: read it before a replay, a benchmark or a smoke run, append a line after.
 
-Scripts and dev commands are `just` recipes (`justfile`) and `rust-script` files, not bash.
+Scripts and dev commands are `just` recipes (`justfile`), `harness run` tools and `rust-script` files, not bash.
 
 Registry note: this environment has no direct network access to `crates.io` (plain HTTP is blocked), but
 `cargo build`/`cargo test`/`cargo clippy` work fine without `--offline` — cargo reaches the registry through

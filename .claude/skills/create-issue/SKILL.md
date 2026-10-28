@@ -6,7 +6,7 @@ description: Write a new issue file in `issues/` with the repo's template (Goal,
 # Create an issue
 
 An issue is a Markdown file `issues/<snake_case_name>.md` that `skill:issue-workflow` can later pick up.
-This skill writes it; `check_issue.rs` enforces the mechanical rules. Don't implement anything here.
+This skill writes it; `harness run check-issue` (`just check-issue`) enforces the mechanical rules. Don't implement anything here.
 
 Show the user your results as `AGENTS.md` section "Reports to the user" says.
 
@@ -43,6 +43,9 @@ Show the user your results as `AGENTS.md` section "Reports to the user" says.
    ```
 
    - No `# Tracking` section: the plan is written there by `issue-workflow`.
+   - Size: estimate the changed lines and deliverables the Approach implies. Over the size limit of
+     `skill:issue-workflow` step 1, propose the cuts to the user and, on their agreement, write one issue per cut
+     instead (its `details.md`, "Split an issue"); steps 5 and 6 then cover all of them.
    - Confidentiality: follow the `confidential` note of `.claude/harness.toml` (what must not be named in an
      issue; describe it generically). No absolute or home paths.
 4. **Validate**, and fix the file until it prints nothing:

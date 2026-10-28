@@ -1,7 +1,7 @@
 #!/usr/bin/env rust-script
 //! Behavior test for the pure parts of `benchmark.rs`: reading the pinned commit of a reference,
 //! patching the clone's config, finding the previous benchmark. No LLM, no network.
-//! Usage: `just test-harness`.
+//! Usage: `just test-skill-scripts`.
 
 use std::fs;
 use std::path::Path;

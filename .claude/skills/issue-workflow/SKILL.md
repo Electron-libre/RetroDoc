@@ -18,11 +18,17 @@ Reports to the user (stops, summaries, final report) are read at a glance:
 
 ## 0. Resume or start
 
+**Work where the session was started**: the main worktree, or the issue worktree the user opened for parallel work.
+Never create, enter or leave a worktree yourself (no `just start-issue`, no `EnterWorktree`). In a linked worktree,
+never redirect to the main one (`git -C`, its paths). Stop and ask the user when the issue is taken elsewhere: in the
+main worktree, a branch `<stem>` exists; in a linked one, its branch is not `<stem>`. Details: [details.md](details.md).
+
 Read the issue file. No `# Tracking` section: start at step 1. If `# Tracking` says `Plan: proposed`, the plan was never
 validated: redo the stop of step 2. Otherwise (`Plan: validated`, or no marker: planned before it existed) show where it stands in two `next` / `left` lines (the next unchecked
 deliverable with the recorded mode, the deliverables left by name) and continue at step 3 in the mode recorded there (none recorded:
 validation at each deliverable), unless the issue changes a capability whose spec is missing, still `draft` with no validated
-requirements, or not named in its `# Specs` section: then write the spec as step 1 says, keeping `# Tracking` as it is, and validate it (step 2) first.
+requirements, or not named in its `# Specs` section: then write the spec as step 1 says, keeping `# Tracking` as it is, and validate it (step 2) first. A plan whose
+deliverables left exceed the size limit of step 1 also goes back to the stop of step 2, with the split proposed.
 
 ## 1. Prepare in the files (no stop)
 
@@ -31,8 +37,9 @@ the console only shows the link and the questions.
 
 - Read the issue, plus the resources it names (docs, `git log`, the `roadmap` documents of `.claude/harness.toml`, memory).
 - **Spec**, when the issue changes what a capability does (skip it for docs, harness, pure refactor, a measure): run
-  `skill:write-spec` up to its format check (requirements with stable ids, `deterministic`, left `draft`); don't do its
-  validation stop: step 2 replaces it. The tests of step 3 come from these requirements, not the other way round.
+  `skill:write-spec` up to its format check (requirements with stable ids, `deterministic`, left `draft`, a
+  `[NEEDS CLARIFICATION: ...]` marker where you would guess); don't do its validation stop: step 2 replaces it. The
+  tests of step 3 come from these requirements, not the other way round.
 - **Write `# Tracking`** at the end of the issue:
 
   ```markdown
@@ -54,6 +61,12 @@ the console only shows the link and the questions.
   Small deliverables, each independently testable and committable, ordered by value and dependency. An issue that
   fits one deliverable has a one-line plan. A decision of architecture also gets its ADR draft in `docs/adr/` now. The spec and ADR drafts are
   committed with the first deliverable.
+- **Size limit**: estimate the changed lines of each deliverable (added + removed, outside `issues/` and lock
+  files). At most ~1,000 per deliverable (a `low` review reads it whole), ~3,000 and 6 deliverables per issue (the
+  `high` review reads `base..HEAD`, the context grows with each deliverable). A pure `git mv` counts as renames; a
+  move that also edits counts twice, so move in a deliverable of its own (in the issue total, a moved file edited
+  later still counts twice). A deliverable over the limit is cut until each part is under it; an issue over it
+  gets a split proposed at step 2 ([details.md](details.md), "Split an issue").
 
 ## 2. Validate (STOP)
 
@@ -63,8 +76,11 @@ Show, and nothing else:
   one more line when the means differs from the issue's, and the ids of the requirements written.
 - The questions you can't answer from the repo, if any, as a table `# | question | options | why | impact`: questions
   numbered `1`, `2`…, options lettered `a`, `b`… with the recommended one marked, so the user answers `1 a, 2 c` (a bare
-  `ok` takes every recommendation). Don't ask what has a conventional default. The details stay in the files.
+  `ok` takes every recommendation). Don't ask what has a conventional default. The details stay in the files. Each
+  `[NEEDS CLARIFICATION: ...]` marker of the spec (warned of by `just check-specs`) is one row; the answer replaces
+  the marker in the spec.
 - One line: the mode of step 3, **autonomous (default)** or a validation at each deliverable.
+- When the plan exceeds the size limit: the proposed cuts (issue, deliverables, estimated lines), as a question.
 
 **Wait for the user.** Apply their answers and corrections to the files (the answers go to `## Decisions`). When an
 answer changes the plan itself (deliverables, their order) rather than a detail, show the new plan lines and stop
@@ -74,29 +90,31 @@ again. Then set `Plan: validated` and the base commit. The spec file is the reco
 
 1. **Gather**: read the code and docs it touches; ask about missing information (one batch of questions).
 2. **Test first**: write a behavior or end-to-end test that fails for the right reason. When the capability has a
-   spec, the test proves a requirement and carries `// spec: ABC-n` (placement in `specs/README.md`); the
+   spec, the test proves a requirement and carries `// spec: ABC-n` (placement in `specs/README.md`), through the
+   binary when that is cheap and stable, else internal with its reason, `// spec: ABC-n (internal: <reason>)`; the
    deliverable that traces the last untraced requirement sets the spec `accepted`. Follow the test
-   conventions of the project (the `test_conventions` note of `.claude/harness.toml` says where they are written). For non-Rust
-   deliverables (hooks, skills, scripts) write the script test in Rust (`rust-script`, no bash) and run it with `just test-harness`.
+   conventions of the project (the `test_conventions` note of `.claude/harness.toml` says where they are written). Write
+   the test of a hook, a skill or a script like the others, never in bash.
 3. **Implement** until the test passes, then **refactor** under the green tests: remove duplication, rename, simplify,
    no new behaviour. The clippy gate hook keeps the code warning-free; fix what it reports.
 4. **Docs**: run `skill:update-docs` (it covers the specs). If the change is an architectural decision, also write or finish its ADR in
    `docs/adr/` (template and numbering in `docs/adr/README.md`) and update the
    diagrams in the `architecture` document of `.claude/harness.toml` when the flow changed.
-5. **Review (mandatory, never skipped)**: run `just check` (fmt, clippy, tests, specs) and
-   `just test-harness`, then **invoke `/code-review low` on the diff with the Skill tool** (always name the level)
+5. **Review (mandatory, never skipped)**: run `just check` (fmt, clippy, tests, specs); when `git diff --shortstat`
+   (new files included) exceeds the size limit of step 1, cut the deliverable before the review; then **invoke `/code-review low` on the diff with the Skill tool** (always name the level)
    and wait for its findings; reread the docs you changed. Fix the findings on the deliverable's own change, or say
    why one is not fixed; a finding outside the requirements of the deliverable becomes an issue
    (`skill:create-issue`), not a fix in this deliverable.
    Re-run `just check` after the fixes. Step 6 cannot start before the review has run.
-   The native `pre-commit` hook (`require_code_review.rs native`) enforces it: `git commit` fails while the diff holds a file
+   The native `pre-commit` hook (`harness run review-gate native`) enforces it: `git commit` fails while the diff holds a file
    the last review never saw, so write the tracking and the summary of steps 6 and 7 in the issue **before**
    the review (fixes to reviewed files pass; a diff under `issues/` only needs no review). Only the user can
    waive the review: never do it yourself ([details.md](details.md), "Review waiver").
 6. **Human review (STOP, except in autonomous mode)**: show one line `done` (what changed, not the diff), a table `check | result` (tests, lint, specs, docs, code
-   review), one line `red:` with the failure message the test of step 3.2 gave before the code (`none` for a deliverable
-   with no test), then the line `Code review:` with the findings and what was done about each (`no findings` if it came back
-   clean), then the lists `not verified` (state it plainly) and `decisions needed`, empty when nothing applies. If you did
+   review), one line `red:` opening with the ids its tests trace, then the failure message the test of step 3.2 gave before
+   the code (`red: ABC-3, ABC-4: <failure>`, `harness run delivered-quality` counts a traced id it lacks; `none` for a
+   deliverable with no test), then the line `Code review: <n> findings` (`Code review: no findings` if it came back clean; the
+   count first, `harness run delivered-quality` reads it) with what was done about each, then the lists `not verified` (state it plainly) and `decisions needed`, empty when nothing applies. If you did
    not invoke the review, go back to step 5 instead of presenting the deliverable. Wait for the user's validation.
    Don't commit before it. In autonomous mode, write this summary in the issue and go on.
 7. **Track**: tick the deliverable in the issue's `# Tracking` and note decisions or follow-ups.
@@ -126,19 +144,21 @@ can switch it at any time.
   settle, a failing check you can't fix (never commit or build on a red base). After the last deliverable, give the
   final summary: a table `deliverable | commit`, then `left` (what remains, if anything); ask whether to close the issue.
 
-## Parallel agents
+## Merge back
 
-Two agents can work two issues at once, each in its own git worktree: read [details.md](details.md) before
-`just start-issue`, the merge or `just finish-issue`. In a linked worktree, report the issue as done and leave the
-closing to the merge.
+In the main worktree, the issue is closed as the Rules below say (`just close-issue`). In a linked worktree the issue is closed at the merge, which is
+the user's: on their agreement to close, follow [details.md](details.md), "Merge back" (rebase, then stop and print
+the commands left to the user).
 
 ## Rules
 
 - Anything outward-facing or hard to reverse (push, deleting, rewriting history) needs an explicit ask.
 - Don't re-litigate decisions already recorded in the issue.
+- After a `harness sync` that adds a hook, run `just check-harness` at once and the `cargo install` it prints: the
+  live hooks call the installed `harness`, and one it refuses blocks every command, the install included.
 - If something blocks you, say what and propose one recommendation; don't enumerate every option.
 - When the issue is fully done, mark it in the issue and say what, if anything, remains. Then **ask the
-  user whether to close it** (in a linked worktree, see "Parallel agents"); on their agreement run `just close-issue issues/<name>.md` (moves it to
+  user whether to close it** (in a linked worktree, see "Merge back"); on their agreement run `just close-issue issues/<name>.md` (moves it to
   `issues/done/`, drops the issue from `issues/queue.md` and rewrites `issues/<name>.md` to
   `issues/done/<name>.md` in every other document that cites it) and include the
   move and those edits in the final commit. Never move it unasked.

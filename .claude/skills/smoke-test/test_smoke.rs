@@ -1,6 +1,6 @@
 #!/usr/bin/env rust-script
 //! Behavior test for `smoke.rs evaluate`: the verdict of a smoke test from the logs of two
-//! `generate` runs and of `report`. No LLM needed. Usage: `just test-harness`.
+//! `generate` runs and of `report`. No LLM needed. Usage: `just test-skill-scripts`.
 
 use std::fs;
 use std::path::Path;

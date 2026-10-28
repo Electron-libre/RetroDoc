@@ -6,7 +6,7 @@ description: Write a commit message that follows the repo's Conventional Commits
 # Write a commit message
 
 The rules live in `AGENTS.md` (single source of truth: don't restate or drift from them here). This
-skill is the procedure; `commit_check.rs` enforces the mechanical rules.
+skill is the procedure; `harness run commit-check` enforces the mechanical rules.
 
 Show the user your results as `AGENTS.md` section "Reports to the user" says.
 
@@ -22,12 +22,13 @@ Show the user your results as `AGENTS.md` section "Reports to the user" says.
 4. **Validate** by piping the message to the checker; fix the message until it prints nothing:
 
    ```sh
-   printf '%s\n' "$msg" | rust-script .claude/skills/commit-message/commit_check.rs
+   printf '%s\n' "$msg" | harness run commit-check
    ```
 
    The checker reads the scopes from `.claude/harness.toml` at the repository root, from any directory. If
-   that file is missing or invalid, or the directory is not a git repository, it prints `error: …` on stderr
-   and exits 2: fix the setup, the message was not checked.
+   that file is missing or invalid, or the directory is not a git repository, it prints the error on stderr
+   and exits non-zero (3 when `harness run` finds no `harness.toml`, else 2): fix the setup, the message was not
+   checked.
 
 5. **Deliver**:
    - If the user commits themselves: output **only the message**, with no preamble, no summary, no code

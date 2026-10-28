@@ -1,37 +1,23 @@
-# Written by `harness sync`: hashes of the managed files. Do not edit.
-6c5eb936f17ddff45055e217a5318012a8be8c6bae05728d2d5ec8cc94d5c591+x  .claude/hooks/clippy_gate.rs
-f3da08683417a1f2964cabde5f76b1e5e0154db28ae253db4adbde990eb92640+x  .claude/hooks/format_rust.rs
-d976e44da867bb4223883f010040400c451c8ad753d1b8e6e5e976a63cbe42c4  .claude/hooks/require_code_review.rs
-b19b8fe611cccf460b2c1f554bbe1a1f4d01263c9c2811eebb8410bdd76e182c+x  .claude/hooks/test_hooks.rs
-9f7ab65a4f341f67b1d946989bda79b06ced318125b73875cb2ce1350256113a  .claude/hooks/test_require_code_review.rs
-e5bd42bb4faea6c1134d4a18087c19eb7896c84261638630b00b7c5a3eebabb7  .claude/skills/audit-instructions/SKILL.md
-ec3bb90e7f7ce48972c78c614f713ca3a3e780056387346e8f097595ddfab91c  .claude/skills/audit-instructions/audit_sources.rs
-1e27ed1965dd0a755f12948b637ce444b41504c67f12874dc338b2f6bb51995e  .claude/skills/audit-instructions/test_audit_sources.rs
-c69340ee617c4f7cef8323fb062497efde14099555a1ea45e7de64047f5ae53b  .claude/skills/commit-message/SKILL.md
-ae9f6efa0dfd5f07e7809685da315d7483da9ac6bb88902b34b8efff2214a5c0  .claude/skills/commit-message/commit_check.rs
-613cb1a304b808ffbaebaad3fce6d4de0dd3cc2ef2a106005b0cbab2dc803a46  .claude/skills/commit-message/test_commit_check.rs
-737612b44cb092959fc2d3778b60961dc66d85d36b89a6d26ab2e13797902c36  .claude/skills/create-issue/SKILL.md
-5c5a0cbac46a42b78dbeeaffaa145413e01d53487b0f8923c65d9d9610c93e6a  .claude/skills/create-issue/check_issue.rs
-d2db744e6291a53f6c90457db7fa2704f044815c4ebbff5fc8c85497eced7894  .claude/skills/create-issue/test_check_issue.rs
-c6b81fea40cc0217d8d035f8663497b3951764234567d47f9f1bd80c71d951c5  .claude/skills/issue-workflow/SKILL.md
-5017f6c21972e6aa501eaf553a331e03464e0f0342486a019a9eee1f838a7578  .claude/skills/issue-workflow/close_issue.rs
-c94a9aff5c47fe37ee47bab1ff33416085be16648a4d23b0b25fb4d36f387702  .claude/skills/issue-workflow/details.md
-ae87714b3fc1afbc4c73f80e016f15a79191ee5232a051631b33e363c33931e4+x  .claude/skills/issue-workflow/issue_worktree.rs
-59ca70c69792b4c6b4788d6889755b6ea579cf0d59a8fe614e411cd18160af1a  .claude/skills/issue-workflow/next_issue.rs
-0c25958c2308e3834882808af9b39b6c1e80626268d1617006ca29c746dbe3d4  .claude/skills/issue-workflow/test_close_issue.rs
-a0e48ae02cc30dbc1afbb470d3082637a5af03e47b1cba7e0e1f0bf7d6e3b167+x  .claude/skills/issue-workflow/test_issue_worktree.rs
-b1a0b8f8f0533c10d465909e73ab93dcfa9a600afefd32a33a2ba51d6d9f1726  .claude/skills/issue-workflow/test_next_issue.rs
-72ad3c6cf9cfd9f5fa459b083143e5aceb9e8e9395035d22438ae73f86be270e  .claude/skills/prioritize-issues/SKILL.md
-5d12af8b76b73465a2aa56fff45e8f6b13c7342d3f998365e65e2a13a7fe88e6+x  .claude/skills/test_skills.rs
+# Written by `harness sync`: hashes of the managed files, then the managed settings entries. Do not edit.
+e3e51f6f18193d7f1e6038fd864db46beef88c1d5dc6764d0c56ae0299eeaef7  .claude/skills/audit-instructions/SKILL.md
+9e47d720de527cc71aa3b0a6a56cf6dbb49c817226134473654487c082c38dcb  .claude/skills/commit-message/SKILL.md
+fe5eafac04a3bac9f735b206b0f196c17131a6384bd2a054462ade8e6427e697  .claude/skills/create-issue/SKILL.md
+615e260a6005e26f130d5a5a440946d0ddaaf7c2f12d095fb0dfbe8bca20864d  .claude/skills/evaluate-harness/SKILL.md
+7651489b64c5b0b7d1b1ac3cd60127ab5706e58588b2c8b00547bb04a5c7223e  .claude/skills/issue-workflow/SKILL.md
+9c33f0c0a6e861d889aabab43f2d76f65d515e03098582b935b4b25f2db2851b  .claude/skills/issue-workflow/details.md
+a4a97bcd508675dab0db8578c011312a9af3cc19b080a42cb50e764534e81b85  .claude/skills/prioritize-issues/SKILL.md
 fb2d21c5484dbad2bd0639f2a326a6385731bee3a4143fb8778807e1169d5e14  .claude/skills/update-docs/SKILL.md
-096d49e86e1085d76a232ad9bde259afd37a86039f7f23b6ce66ca1eab01ab85  .claude/skills/write-spec/SKILL.md
-3ee170437688440217ff8d8b018dda7747e9fe8dbe82d31d8b41dd76e20e1ba9  .claude/specs/check_specs.rs
-eef49e1375eea2f261986ca202a8834fa96ef9082e764ee857e1edc1c37eede6  .claude/specs/test_check_specs.rs
-5ef0ab2500a2acedba5279f540433fe3d23dad8b3c60109ae769312e6cbbcdf5  .claude/test_recipes.rs
-44db3f9547f020195487e266cc3a56ed385268200aca0a4d630c90952ba481c0  .claude/test_settings.rs
-e328be09319efaad812bfa96c5077095cd70df3916430daa4e9983818f167135  .github/workflows/harness.yml
+d5474e37acb61e92fecd6bdb116dd453088a86cdcbb577194dd30d2b96df8d8d  .claude/skills/write-spec/SKILL.md
+069c16cd72dfa2c1973363f9229d4a4d0ce2af94ab5d7539e016cf269cf70c99+x  .github/install_harness.sh
+2b97d7a8180410864f346bb576e743cabc626aeeb14de7b4d9023a00c0e9ae4f  .github/workflows/harness.yml
 2cab19ded8c81cdd2d52e207c210f42f2addcfe91ae5c5c353276a7a53e68dc5  AGENTS.md
-55909ca5fe329922439329e6d70745d49ba1e37ffe6486e0740a7dd767c29262  harness.just
-99d4b18124a2209d5cb602633ed413db0f04c6a95e0c4a72563d7f92ee9f9e5d+x  script/check_commits.rs
-4d7f4b59c2f7d344f106e18ab74774d9442f5d489f33291c94de5182967c93ea  specs/README.md
+460af70e0d1a5b046b16b8517bf4523a7dfd7c8adba81e4cbb64dd412ade6521  harness.just
+87298bd1f3b916410039d54f75f99aad611ab51d9b53e94d383b055061273114  specs/README.md
 66c02d6a40b353ab64053572558e258ee2a65c4272abf394d2375356958e21f5  specs/TEMPLATE.md
+entry  {"deny":"Bash(just waive-review)"}
+entry  {"deny":"Bash(just waive-review *)"}
+entry  {"deny":"Edit(//**/claude-review-waived)"}
+entry  {"event":"PreToolUse","matcher":"Bash","hook":{"type":"command","command":"harness run review-gate check"}}
+entry  {"event":"PostToolUse","matcher":"Skill","hook":{"type":"command","command":"harness run review-gate record"}}
+entry  {"event":"PostToolUse","matcher":"Edit|Write","hook":{"type":"command","command":"harness run format-rust"}}
+entry  {"event":"Stop","matcher":null,"hook":{"type":"command","command":"harness run clippy-gate","timeout":600}}

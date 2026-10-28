@@ -1,6 +1,6 @@
 # Work an issue: details
 
-The rare cases of `SKILL.md`, read when one of them comes up.
+The cases `SKILL.md` leaves out, read when one of them comes up.
 
 ## Review waiver
 
@@ -9,15 +9,45 @@ worktree (also in a linked worktree, where the waiver is per worktree). Never cr
 yourself. Deny rules of `.claude/settings.json` refuse the recipe and an edit of the file; naming them (commit
 message, `grep`) is fine.
 
-## Parallel agents
+## Split an issue
 
-Two agents can work two issues at once, each in its own git worktree. From the main worktree run
-`just start-issue issues/<name>.md`: it creates `../<repo>-<name>` on a branch `<name>`; open the agent there.
-The issue must be committed on the main branch first. While the branch or worktree exists, `just next-issue` skips the issue.
-When the issue is done, merge it from the main worktree (rebase the branch onto the main branch, then
-fast-forward), run `just close-issue issues/<name>.md` there, commit the move, then `just finish-issue <name>`:
-run it from the main worktree (it refuses inside the worktree to remove, `--force` or not): it removes the worktree and the branch only once merged (fast-forward, rebase or squash of any number of commits are detected, the last by comparing trees) and clean.
-When the work is not on the main branch, `finish-issue` refuses: after the user agreed, run `just finish-issue <name> --force`, which deletes the branch even though
-its work is not on the main branch. `close-issue` refuses in a linked worktree, so
-the queue is never edited on an issue branch; in that worktree, report the issue as done and leave the closing
-to the merge.
+An issue over the size limit of step 1 is cut where its parts can be delivered and closed alone (a launcher, then
+the tools moved to it, then the cleanup), each under the limit. The cuts are proposed to the user before any file
+is written. The first cut keeps the original file (at creation, the name of the whole): its Goal, Approach and plan
+are narrowed to it, its Findings stay. Each other cut is a new issue written with steps 1 to 4 of
+`skill:create-issue` (not its queue and deliver steps), citing the first in `# Findings` and the issue it needs in
+`# Hints` (`after <stem>`); its queue line goes right after the one it needs. A split at step 2 takes the
+deliverables of the other cuts out of the plan, and the new plan is validated again. In a linked worktree, write
+no cut: stop and leave the split to the user in the main worktree, where `start-issue` and `next-issue` see it.
+
+## Worktree of an issue
+
+An issue usually runs in the main worktree. For parallel work the user opens one, from the main
+worktree: commit the issue with its queue line (`start-issue` refuses an issue not committed on the main branch),
+`just start-issue issues/<name>.md` (creates `.claude/worktrees/<name>` on a branch `<name>` and adds
+`/.claude/worktrees/` to `.git/info/exclude`), then a plain `claude` launched in that directory. Not `claude
+--worktree`, nor `EnterWorktree` from another session: Claude Code then isolates the session and refuses every
+command it cannot prove stays in the worktree. While the branch or worktree exists, `just next-issue` skips the issue.
+The hooks act on the work tree of their `cwd` (`clippy-gate`, `review-gate`; `format-rust` formats the project of the
+edited file); `harness run` finds the `harness.toml` of the worktree and runs the tools of the revision it pins (with
+a local source, those of the worktree's own crate). The session's project is the worktree: its hooks are declared by
+the worktree's own `.claude/settings.json`, so a hook a branch adds runs at once in that session.
+
+## Merge back
+
+In a linked worktree, once the user agreed to close the issue:
+
+1. Commit the last tracking, then `git rebase <main branch>` (the branch checked out by the main worktree); a
+   conflict stops here, for the user.
+2. Run `just check-harness`: when it names a hook the installed `harness` refuses (the branch adds a subcommand the
+   hooks call), run the `cargo install` it prints before going on. After the fast-forward the hooks of the main worktree
+   call it too, and one the installed `harness` refuses blocks every command, the install included.
+3. Stop and print, without running them, the commands left to the user in the main worktree: `git merge --ff-only
+   <name>` (when it refuses because the main branch moved, rebase again in the worktree), `just close-issue
+   issues/<name>.md` and the commit of the move (`docs: close ...`, with its `low` review when `close-issue` rewrote
+   documents outside `issues/`), then `just finish-issue <name>` (removes the worktree and the branch once merged and
+   clean).
+
+`close-issue` refuses in a linked worktree and an issue of one named by path from the main one, so the queue is never
+edited on an issue branch. `finish-issue` refuses inside the worktree it would remove, and a branch whose work is not
+on the main branch unless `--force`.

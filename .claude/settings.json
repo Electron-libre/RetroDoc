@@ -45,7 +45,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "rust-script \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/format_rust.rs"
+            "command": "harness run format-rust"
           }
         ]
       },
@@ -54,7 +54,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "rust-script \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/require_code_review.rs record"
+            "command": "harness run review-gate record"
           }
         ]
       }
@@ -64,7 +64,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "rust-script \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/clippy_gate.rs",
+            "command": "harness run clippy-gate",
             "timeout": 600
           }
         ]
@@ -76,7 +76,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "rust-script \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/require_code_review.rs check"
+            "command": "harness run review-gate check"
           }
         ]
       }

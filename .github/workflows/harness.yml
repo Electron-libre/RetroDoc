@@ -11,32 +11,21 @@ concurrency:
 
 jobs:
   harness:
-    name: agent harness tests
+    name: agent harness checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install the toolchain (the project's pinned one, else stable)
-        run: |
-          if [ -f rust-toolchain.toml ] || [ -f rust-toolchain ]; then
-            rustup toolchain install
-          else
-            rustup toolchain install stable --profile minimal -c rustfmt,clippy
-          fi
-      - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@v2
         with:
-          tool: just,rust-script
-      - run: just test-harness
-      - run: just check-specs
-      - name: Check that no synced file was edited (needs a git source to install the tool)
+          tool: just
+      - name: Install harness (the release of the pinned revision, else built with the runner's cargo)
+        run: sh .github/install_harness.sh
+      - name: Check the specs
         run: |
-          value() { sed -n "s/^$1 *= *\"\([^\"]*\)\".*/\1/p" .claude/harness.toml | head -n 1; }
-          source=$(value source)
-          rev=$(value rev)
-          case "$source" in
-            *://*|git@*) cargo install --git "$source" ${rev:+--rev "$rev"} harness --locked && harness check ;;
-            *) echo "source '$source' is a local path: nothing to install in CI, check-harness skipped" ;;
-          esac
+          if command -v harness >/dev/null; then just check-specs; else echo "harness not installed: check-specs skipped"; fi
+      - name: Check that no synced file was edited
+        run: |
+          if command -v harness >/dev/null; then harness check; else echo "harness not installed: check-harness skipped"; fi
 
   commits:
     name: commit messages
@@ -46,15 +35,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Install the toolchain (the project's pinned one, else stable)
-        run: |
-          if [ -f rust-toolchain.toml ] || [ -f rust-toolchain ]; then
-            rustup toolchain install
-          else
-            rustup toolchain install stable --profile minimal -c rustfmt,clippy
-          fi
       - uses: taiki-e/install-action@v2
         with:
-          tool: just,rust-script
+          tool: just
+      - name: Install harness (the release of the pinned revision, else built with the runner's cargo)
+        run: sh .github/install_harness.sh
       - name: Check every commit of the PR
-        run: just check-commits ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }}
+        run: |
+          if command -v harness >/dev/null; then
+            just check-commits ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }}
+          else
+            echo "harness not installed: check-commits skipped"
+          fi
