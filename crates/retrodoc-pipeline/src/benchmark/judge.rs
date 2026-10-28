@@ -108,7 +108,8 @@ impl Matches {
 /// Asks the judge to pair `generated` items with `reference` ones that stand for the same business
 /// capability; a generated item that holds several reference items may get a pair for each. A name
 /// copied with its description stands for the offered name; pairs naming an item that wasn't
-/// offered are dropped, and so are repeated pairs. No call when either side is empty.
+/// offered are dropped, and so are repeated pairs. An answer with no pair left is asked once more,
+/// and the second one is kept. No call when either side is empty.
 ///
 /// # Errors
 ///
@@ -127,13 +128,32 @@ pub async fn propose_matches(
         listing(generated),
         listing(reference)
     );
+    for _ in 0..2 {
+        let pairs = ask_matches(llm, what, &user, generated, reference).await?;
+        if !pairs.is_empty() {
+            return Ok(pairs);
+        }
+    }
+    tracing::warn!(what, "benchmark judge proposed no pair, twice");
+    Ok(Vec::new())
+}
+
+/// One answer of the judge, its pairs read against the offered items.
+async fn ask_matches(
+    llm: &dyn LlmProvider,
+    what: &str,
+    user: &str,
+    generated: &[Item],
+    reference: &[Item],
+) -> Result<Vec<Pair>, PipelineError> {
     let Some(answer) =
-        complete_json::<RawMatches>(llm, MATCH_SYSTEM_PROMPT, &user, "benchmark judge (matches)")
+        complete_json::<RawMatches>(llm, MATCH_SYSTEM_PROMPT, user, "benchmark judge (matches)")
             .await?
     else {
         return Ok(Vec::new());
     };
     let mut pairs: Vec<Pair> = Vec::new();
+    let mut dropped = 0;
     for raw in answer.matches {
         let offered = offered_name(generated, &raw.generated)
             .zip(offered_name(reference, &raw.reference))
@@ -144,12 +164,21 @@ pub async fn propose_matches(
         if let Some(pair) = offered.filter(|pair| !pairs.contains(pair)) {
             pairs.push(pair);
         } else {
+            dropped += 1;
             tracing::debug!(
                 generated = %raw.generated,
                 reference = %raw.reference,
                 "benchmark judge: proposal dropped"
             );
         }
+    }
+    if dropped > 0 {
+        tracing::warn!(
+            what,
+            dropped,
+            kept = pairs.len(),
+            "benchmark judge: proposals dropped (a name not offered, or a repeated pair)"
+        );
     }
     Ok(pairs)
 }
@@ -474,6 +503,76 @@ mod tests {
             pairs,
             [pair("Auth: SSO login", "Login")],
             "the longest offered name wins"
+        );
+    }
+
+    // spec: BSC-10 (internal: the judge's answers come from a fake LLM)
+    #[tokio::test]
+    async fn asks_once_more_when_the_answer_proposes_no_pair() {
+        let offered = || {
+            (
+                [item("Billing", "Invoices")],
+                [item("Payments", "Getting paid")],
+            )
+        };
+        for first in [
+            r#"{"matches":[]}"#,
+            r#"{"matches":[{"generated":"Invented","reference":"Payments"}]}"#,
+        ] {
+            let llm = FakeLlm::sequence(&[
+                first,
+                r#"{"matches":[{"generated":"Billing","reference":"Payments"}]}"#,
+            ]);
+            let (generated, reference) = offered();
+
+            let pairs = propose_matches(&llm, "features", &generated, &reference)
+                .await
+                .unwrap();
+
+            assert_eq!(pairs, [pair("Billing", "Payments")], "after {first}");
+            assert_eq!(llm.calls(), 2, "after {first}");
+        }
+
+        let llm = FakeLlm::sequence(&["no idea", "no idea", r#"{"matches":[]}"#]);
+        let (generated, reference) = offered();
+        let pairs = propose_matches(&llm, "features", &generated, &reference)
+            .await
+            .unwrap();
+        assert_eq!(pairs, []);
+        assert_eq!(
+            llm.calls(),
+            3,
+            "an unparseable answer is asked again, then the question once more"
+        );
+    }
+
+    // spec: BSC-11 (internal: the judge's answers come from a fake LLM)
+    #[tokio::test]
+    async fn warns_of_the_dropped_proposals_and_of_a_call_with_no_pair() {
+        let (logs, _guard) = crate::testing::capture_logs();
+        let llm = FakeLlm::answering(
+            r#"{"matches":[{"generated":"Invented","reference":"Payments"},{"generated":"Billing","reference":"Gone"}]}"#,
+        );
+
+        let pairs = propose_matches(
+            &llm,
+            "features",
+            &[item("Billing", "Invoices")],
+            &[item("Payments", "Getting paid")],
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(pairs, []);
+        let text = logs.text();
+        assert!(
+            text.contains("WARN") && text.contains("dropped=2"),
+            "{text}"
+        );
+        assert!(
+            text.contains("benchmark judge proposed no pair, twice")
+                && text.contains("what=\"features\""),
+            "{text}"
         );
     }
 

@@ -71,7 +71,7 @@ Measure: the judge writes the names with their descriptions, so they are dropped
    a ledger line; tells empty answer from names off.
 2. [x] Names with their description: a proposal whose name is an offered name followed by `:` and more text is
    read as that name; verified by a `judge.rs` test; makes true BSC-14; `SCORING_VERSION` becomes 2. (~60 lines)
-3. [ ] Retry and warn: `propose_matches` asks once more when the answer proposes no pair, warns with the count of
+3. [x] Retry and warn: `propose_matches` asks once more when the answer proposes no pair, warns with the count of
    dropped proposals and when the second answer is still empty; verified by `judge.rs` tests on `FakeLlm`
    sequences; makes true BSC-10, BSC-11. (~150 lines)
 4. [ ] Unjudged runs: `Judgement` marks an unjudged kind (absent from the file when false), `RunReport` gets no
@@ -92,3 +92,12 @@ Measure: the judge writes the names with their descriptions, so they are dropped
 - not verified: no new paid judge run on `hidden-2` with the fix.
 - Code review: 1 finding; fixed: `offered_name` tried every prefix at once, so a shorter offered name could win
   over a longer one holding a `:`; now the whole name first, then the longest prefix (test added).
+
+## Deliverable 3
+- done: `propose_matches` asks once more when an answer leaves no pair (empty, unparseable, all dropped), warns
+  with the count of dropped proposals and when the second answer has none either.
+- checks: `just check` pass; docs `docs/crates/pipeline.md`, `propose_matches` doc comment.
+- red: BSC-10, BSC-11: `left: [] right: [Pair { generated: "Billing", reference: "Payments" }]`; no `dropped=2`
+  in the logs.
+- not verified: no paid run.
+- Code review: no findings
