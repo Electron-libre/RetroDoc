@@ -68,18 +68,18 @@ frozen brief and never the evidence, so the settings must first become replay op
    baseline), brief + evidence; strict and judged recall/precision, then a hand audit of the features against
    `benchmark/linkding/reference.yaml` (merged duplicates counted as such); figures in the issue and the ledger.
    No code; ~$0.05.
-3. [ ] Injection variants, kept only as experimental options of the pipeline: brief in the system message instead of
-   the head of the user prompt; evidence searched with the entry points of the unit instead of its names; extract
-   count and length; exposed in `pass_replay`; verified by prompt tests; ~400 lines. Dropped if measure 1 shows no
-   effect of either the brief or the evidence beyond the spread.
-4. [ ] Measure 2: the variants of 3 on features (3 runs each, cents), then the use cases replay with the two best
-   settings plus no brief (3 runs each, ~$0.3 a series); hand audit as in 2; issue and ledger.
+3. [-] Injection variants: dropped (user, 2026-10-28) after measure 1, the effect on the features is at the edge
+   of the spread.
+4. [x] Measure 2, use cases on the frozen features: no brief and brief + evidence, 3 runs each (~$0.55); the
+   brief setting reuses the baseline of 1c6f592 (`shorter-uc/`, `use_cases/` unchanged since); business language
+   by the judge and the deterministic score, steps, grounding; hand audit of the narratives of one run a setting.
 5. [ ] Default: the best setting becomes the default, the losing options and their code are removed, ADR 0019,
    `specs/pipeline-settings.md` (the `[brief]` keys) and `docs/crates/pipeline.md` updated; verified by the config
    and prompt tests of the kept setting; ~200 lines.
 
 ## Decisions
 - Mode: autonomous
+- Deliverable 3 (user, 2026-10-28): dropped; measure the use cases with no brief, brief, brief + evidence instead.
 - Base commit: c85c157
 - Path measured (user, 2026-10-28): the `surface` path by `pass_replay` only; the kept setting is applied to the
   `files` path too, whose features prompt builds the brief head the same way (`features/mod.rs`).
@@ -153,3 +153,33 @@ database maintenance, task migration, health check, live reload, navigation and 
 - Code review: no findings
 - not verified: `judge-<n>.yaml` kept by a paid replay (the measure ran before the change).
 - decisions needed: deliverable 3, see the stop below.
+
+## Deliverable 4: measure 2, use cases on fixed features (2026-10-28)
+
+`pass_replay use-cases` on frozen linkding (the frozen features), deepseek-chat, 3 runs a setting, at 1421894;
+the brief setting is the baseline of 1c6f592 (`use_cases/` unchanged since). Kept use cases in the measures
+directory `brief_injection_experiments-1421894/` (`none/`, `evidence/`) and `shorter-uc/final-kept/` (brief).
+"Code names" counts the narratives holding a class name (`BookmarkBundle`, `ApiToken`), "goal stated" those
+that say what the actor wants (`wants`, `so that`), both mechanical aids to the hand reading.
+
+| setting | use cases | business language, judge | score = 1 | checks pass | code names | goal stated | prompt tokens |
+|---|---|---|---|---|---|---|---|
+| no brief | 79 (78-79) | 79% (75-82%) | 63% (58-67%) | 67% (64-71%) | 7.7 (6-9) | 3.0 (1-4) | 271k |
+| brief (default) | 78 (78-79) | 80% (74-85%) | 69% (67-72%) | 71% (68-73%) | 4.0 (3-5) | 7.0 (6-8) | 280k (+3%) |
+| brief + evidence | 79 (78-80) | 78% (72-85%) | 75% (68-81%) | 70% (67-72%) | 2.7 (2-4) | 9.7 (9-10) | 303k (+12%) |
+
+* Hand reading of run 1 of each setting on the same nine features (snapshots, tags, bundles, API tokens, backups,
+  health): the steps and the facts are the same; with the brief the actor gets a purpose ("a self-hosting
+  operator wants a copy before maintenance"), with the evidence also facts of the docs (the SingleFile browser
+  extension that uploads the snapshots). No narrative cites an extract as a source: steps cited 100% in every run.
+* The deterministic score, the code names and the stated goals move the same way from no brief to brief to
+  evidence, in each run; the judge's rating does not move.
+
+# Conclusion of the measures
+
+* The brief helps a little and costs little (features +30% of a small prompt, use cases +3%): kept on.
+* The evidence merges duplicate features (precision +6 points, no reference feature lost) and makes the
+  narratives a little more business-like, for +58% of the features prompt and +8% of the use cases prompt.
+  The fewer features of `issues/done/product_brief.md` were merges, not lost coverage.
+* Each difference alone is at the edge of the spread of 3 runs; they all point the same way.
+* Not measured: delivery_router (few docs: its extracts are mostly tests), the hidden-docs series, a local model.
