@@ -74,8 +74,8 @@ pub struct Feature {
     #[serde(default)]
     pub source_paths: Vec<String>,
     /// Entry points (`<file>#<name>`) this feature groups, when the features come from the
-    /// surface (`domains_from = "surface"`); each has one use case. Empty for features built
-    /// from files, and absent from old `features.yaml`.
+    /// surface (`domains_from = "surface"`); each has one use case. Empty in the `features.yaml`
+    /// of the removed `files` path (ADR 0035), and absent from older ones.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub entry_points: Vec<String>,
     /// A back-office or administration tool, as the LLM judged it from the roles of the

@@ -2,7 +2,7 @@
 //! Quality benchmark of `retrodoc generate` on a public repository, against a hand-written reference.
 //!
 //! - `benchmark.rs run <reference.yaml> [--runs N] [--local igpu|hybrid] [--model M] [--base-url U] [--timeout-secs N] [--provider deepseek]
-//!   [--series hidden|shown] [--no-confidence] [--domains-from files|surface] [--writing-temperature T]`: clones the repository
+//!   [--series hidden|shown] [--no-confidence] [--writing-temperature T]`: clones the repository
 //!   of the reference at its pinned commit, then for each of the two series (`hidden`: the repo's own
 //!   docs left out of the input; `shown`: with them) runs `generate` and `retrodoc benchmark --judge`
 //!   N times in fresh clones, and prints the table (with the change against the previous benchmark).
@@ -10,7 +10,7 @@
 //!   `--model` and `--base-url` override its values; `--timeout-secs` sets its HTTP timeout (unset: RetroDoc's default, 900 s
 //!   for a loopback URL, 120 s for another host).
 //! - `benchmark.rs reference-field <reference.yaml> <key>`: a top-level scalar of the reference.
-//! - `benchmark.rs patch-config <retrodoc.toml> <provider> <model> <base-url> <hide-docs: true|false> [domains-from: files|surface|''] [timeout-secs]`: points
+//! - `benchmark.rs patch-config <retrodoc.toml> <provider> <model> <base-url> <hide-docs: true|false> [timeout-secs]`: points
 //!   `[llm]` at the local server (`provider` `local`) or at the hosted API of `provider` (`deepseek`; the key
 //!   comes from `DEEPSEEK_API_KEY`, in the environment or in the `.env` of the project) and, when asked,
 //!   empties `existing_docs_paths`; writes `timeout_secs` only when given; turns the rules pass off (not judged).
@@ -113,12 +113,6 @@ fn without_rules(toml: &str) -> String {
     set_pipeline_key(toml, "rules", "false")
 }
 
-/// `toml` with `[pipeline] domains_from` set to `mode` (ADR 0020), whatever value `init` wrote (`surface` since
-/// ADR 0034).
-fn set_domains_from(toml: &str, mode: &str) -> String {
-    set_pipeline_key(toml, "domains_from", &format!("\"{mode}\""))
-}
-
 /// The passes that write prose, whose temperature the benchmark can change (default 0, ADR 0031).
 const WRITING_PASSES: [&str; 5] = ["brief", "domains", "features", "use-cases", "rules"];
 
@@ -193,6 +187,9 @@ fn run(args: &[String]) -> i32 {
     let Some(reference) = args.first().map(PathBuf::from) else {
         die("usage: benchmark.rs run <reference.yaml> [--runs N] [--local igpu|hybrid] [--model M] [--base-url U]")
     };
+    if args.iter().any(|a| a == "--domains-from") {
+        die("--domains-from is gone: generate builds the domains from the surface only (ADR 0035)");
+    }
     let option = |name: &str, default: &str| option(args, name, default);
     let (provider, model, base_url, start) = llm_target(args);
     let hosted = provider != "local";
@@ -201,10 +198,6 @@ fn run(args: &[String]) -> i32 {
         die("--series must be `hidden` or `shown`");
     }
     let no_confidence = args.iter().any(|a| a == "--no-confidence");
-    let domains_from = option("--domains-from", "surface");
-    if !["files", "surface"].contains(&domains_from.as_str()) {
-        die("--domains-from must be `files` or `surface`");
-    }
     let writing_temperature = option("--writing-temperature", "");
     // A TOML float: digits, a dot only between digits.
     let is_toml_float = |t: &str| {
@@ -298,7 +291,6 @@ fn run(args: &[String]) -> i32 {
             let toml_path = clone.join("retrodoc.toml");
             let toml = fs::read_to_string(&toml_path).unwrap();
             let patched = without_rules(&patch_config(&toml, &provider, &model, &base_url, &timeout_secs, hide_docs));
-            let patched = set_domains_from(&patched, &domains_from);
             let patched = if writing_temperature.is_empty() { patched } else { set_writing_temperature(&patched, &writing_temperature) };
             fs::write(&toml_path, patched).unwrap();
             let generate: &[&str] = if no_confidence { &["generate", "--no-confidence"] } else { &["generate"] };
@@ -370,12 +362,10 @@ fn main() {
                 None => 1,
             }
         }
-        Some("patch-config") if (6..=8).contains(&args.len()) => {
+        Some("patch-config") if (6..=7).contains(&args.len()) => {
             let toml = fs::read_to_string(&args[1]).unwrap_or_else(|e| die(&format!("{}: {e}", args[1])));
-            let timeout_secs = args.get(7).map_or("", String::as_str);
-            let patched = without_rules(&patch_config(&toml, &args[2], &args[3], &args[4], timeout_secs, args[5] == "true"));
-            let mode = args.get(6).filter(|mode| !mode.is_empty());
-            print!("{}", mode.map_or(patched.clone(), |mode| set_domains_from(&patched, mode)));
+            let timeout_secs = args.get(6).map_or("", String::as_str);
+            print!("{}", without_rules(&patch_config(&toml, &args[2], &args[3], &args[4], timeout_secs, args[5] == "true")));
             0
         }
         Some("writing-temperature") if args.len() == 3 => {

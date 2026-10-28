@@ -57,7 +57,7 @@ fn main() {
             && !out.contains("http://other"),
     );
     check("leaves the timeout to the default of a local server", ok && !out.contains("timeout_secs"));
-    let (ok, out) = call(&["patch-config", &toml, "local", "m1", "http://localhost:1/v1", "true", "", "60"]);
+    let (ok, out) = call(&["patch-config", &toml, "local", "m1", "http://localhost:1/v1", "true", "60"]);
     check(
         "writes the one timeout --timeout-secs gives",
         ok && out.contains("timeout_secs = 60\n") && out.matches("timeout_secs").count() == 1,
@@ -81,23 +81,23 @@ fn main() {
             && !out.contains("timeout_secs"),
     );
 
-    let with_pipeline = write("with-pipeline.toml", &format!("{TOML}\n[pipeline]\ndomains_from = \"files\"\n"));
-    let (ok, out) = call(&["patch-config", &with_pipeline, "local", "m1", "http://localhost:1/v1", "false", "surface"]);
-    check("sets domains_from when asked", ok && out.contains("domains_from = \"surface\"") && !out.contains("\"files\""));
-    let (ok, out) = call(&["patch-config", &with_pipeline, "local", "m1", "http://localhost:1/v1", "false"]);
-    check("leaves domains_from alone by default", ok && out.contains("domains_from = \"files\""));
-    let from_surface = write("from-surface.toml", &format!("{TOML}\n[pipeline]\ndomains_from = \"surface\"\n"));
-    let (ok, out) = call(&["patch-config", &from_surface, "local", "m1", "http://localhost:1/v1", "false", "files"]);
-    check("sets domains_from over the surface default init writes (ADR 0034)", ok && out.contains("domains_from = \"files\"") && !out.contains("\"surface\""));
-    let without_path = write("without-path.toml", &format!("{TOML}\n[pipeline]\nrules = true\n"));
-    let (ok, out) = call(&["patch-config", &without_path, "local", "m1", "http://localhost:1/v1", "false", "files"]);
-    check("adds domains_from to [pipeline] when the config has no such line", ok && out.contains("[pipeline]\ndomains_from = \"files\"\n"));
+    let with_pipeline = write("with-pipeline.toml", &format!("{TOML}\n[pipeline]\ndomains_from = \"surface\"\n"));
+    // `--domains-from` is refused before anything runs: `generate` has one path (ADR 0035).
+    let out = Command::new("rust-script")
+        .arg(&script)
+        .args(["run", &reference, "--domains-from", "files"])
+        .output()
+        .expect("rust-script must be installed");
+    check(
+        "refuses --domains-from, generate has one path",
+        !out.status.success() && String::from_utf8_lossy(&out.stderr).contains("ADR 0035"),
+    );
     let with_rules = write("with-rules.toml", &format!("{TOML}\n[pipeline]\nrules = true\n"));
     let (ok, out) = call(&["patch-config", &with_rules, "local", "m1", "http://localhost:1/v1", "false"]);
     check("turns the rules pass off (the benchmark does not judge the rules)", ok && out.contains("rules = false") && !out.contains("rules = true"));
     let (ok, out) = call(&["patch-config", &with_pipeline, "local", "m1", "http://localhost:1/v1", "false"]);
     check("turns the rules pass off when the key is absent", ok && out.contains("[pipeline]\nrules = false\n"));
-    let with_tables = write("with-tables.toml", &format!("{TOML}\n[pipeline]\ndomains_from = \"files\"\n[[x]]\nrules = true\n"));
+    let with_tables = write("with-tables.toml", &format!("{TOML}\n[pipeline]\ndomains_from = \"surface\"\n[[x]]\nrules = true\n"));
     let (ok, out) = call(&["patch-config", &with_tables, "local", "m1", "http://localhost:1/v1", "false"]);
     check("stops the [pipeline] section at an array of tables", ok && out.contains("[pipeline]\nrules = false") && out.contains("[[x]]\nrules = true"));
     let with_array = write("with-array.toml", &format!("{TOML}\n[pipeline]\nx = [\n  [\"a\"],\n]\nrules = true\n"));

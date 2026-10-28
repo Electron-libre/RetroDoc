@@ -5,6 +5,7 @@ Open issues in the order to work on them: the first is the next one. Read by `ju
 re-ranks the whole list. Line format: `- [<file stem>](<file stem>.md) - <why here>`.
 
 - [single_pipeline_path](single_pipeline_path.md) - applies the default settled by `issues/done/surface_domains_default_decision.md` (ADR 0034)
+- [remove_repo_map](remove_repo_map.md) - right after `single_pipeline_path`, split from it for size: removes the repo map it leaves without caller (ADR 0035), before `pass_runner_and_run_context` refactors the passes
 - [pass_runner_and_run_context](pass_runner_and_run_context.md) - after `single_pipeline_path`: do not refactor code about to be removed
 - [contexts_residual_size_and_names](contexts_residual_size_and_names.md) - low: follow-up of the closed split by family (2026-10-14): one context still over 150 files, action names taken for families, the names unread; nothing before it depends on it, and its spread measure is cheaper after `sampling_temperature_for_steadier_runs`
 - [rules_replay_without_evidence](rules_replay_without_evidence.md) - small, right before `rules_plumbing_and_screen_noise`: its rules measures should replay the pass with the evidence `generate` gives

@@ -1,6 +1,6 @@
 # 0034. Domains from the surface by default
 
-Status: Accepted
+Status: Accepted (`files` kept as a value: superseded by 0035)
 
 ## Context
 

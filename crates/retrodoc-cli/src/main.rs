@@ -33,7 +33,7 @@ enum Command {
         #[arg(long, default_value = ".")]
         path: PathBuf,
     },
-    /// Runs the pipeline (repo map, domains, features, use cases,
+    /// Runs the pipeline (surface, domains, features, use cases, rules,
     /// confidence), saves the intermediate artifacts under
     /// `.retrodoc/cache/` and writes the docs. Units unchanged since the
     /// last run are not sent to the LLM again.

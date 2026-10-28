@@ -1,7 +1,7 @@
 #!/usr/bin/env rust-script
 //! Smoke test of `retrodoc generate` against a real repository with a local LLM.
 //!
-//! - `smoke.rs run <repo> [--local igpu|hybrid] [--model M] [--base-url U] [--timeout-secs N] [--domains-from files|surface] [--no-rules]`: clones `<repo>` (committed HEAD only, the
+//! - `smoke.rs run <repo> [--local igpu|hybrid] [--model M] [--base-url U] [--timeout-secs N] [--no-rules]`: clones `<repo>` (committed HEAD only, the
 //!   original is never touched) into the runs directory (`~/retrodoc-runs`), points it at the local LLM, runs `generate` twice and
 //!   `report`, then prints the verdict. `--local` picks the local server (default `igpu`, the Ollama iGPU instance; `hybrid`,
 //!   the llama-server); `--model` and `--base-url` override its values.
@@ -188,7 +188,10 @@ fn llm_target(args: &[String]) -> (String, String, Option<&'static str>) {
 }
 
 fn run(args: &[String]) -> i32 {
-    let Some(target) = args.first() else { die("usage: smoke.rs run <repo> [--local igpu|hybrid] [--model M] [--base-url U] [--domains-from files|surface] [--no-rules]") };
+    let Some(target) = args.first() else { die("usage: smoke.rs run <repo> [--local igpu|hybrid] [--model M] [--base-url U] [--no-rules]") };
+    if args.iter().any(|a| a == "--domains-from") {
+        die("--domains-from is gone: generate builds the domains from the surface only (ADR 0035)");
+    }
     let option = |name: &str, default: &str| option(args, name, default);
     let (model, base_url, start) = llm_target(args);
 
@@ -236,11 +239,6 @@ fn run(args: &[String]) -> i32 {
     }
     let toml_path = clone.join("retrodoc.toml");
     let patched = patch_llm_section(&fs::read_to_string(&toml_path).unwrap(), &model, &base_url, &option("--timeout-secs", ""));
-    // `--domains-from files` tries the other path (default: the config as `init` wrote it, `surface`, ADR 0034).
-    let patched = match option("--domains-from", "").as_str() {
-        "" => patched,
-        mode => set_domains_from(&patched, mode),
-    };
     // `--no-rules` turns off the business rules pass (`[pipeline] rules`, on by default): a shorter run.
     if args.iter().any(|a| a == "--rules") {
         die("--rules is gone: the rules pass is on by default; --no-rules turns it off");
@@ -282,26 +280,6 @@ fn runs_dir() -> PathBuf {
     dir
 }
 
-/// `toml` with `[pipeline] domains_from` set to `mode` (`files` or `surface`, else the script stops), whatever
-/// value `init` wrote: the line replaced inside `[pipeline]`, added under its header when absent.
-fn set_domains_from(toml: &str, mode: &str) -> String {
-    if !["files", "surface"].contains(&mode) {
-        die("--domains-from must be `files` or `surface`");
-    }
-    let line = format!("domains_from = \"{mode}\"");
-    let mut lines: Vec<String> = toml.lines().map(str::to_string).collect();
-    let Some(start) = lines.iter().position(|l| l.trim() == "[pipeline]") else {
-        return format!("{}\n\n[pipeline]\n{line}\n", toml.trim_end());
-    };
-    let end = lines[start + 1..].iter().position(|l| l.trim().starts_with('[')).map_or(lines.len(), |i| start + 1 + i);
-    let named = |l: &String| l.split('=').next().is_some_and(|k| k.trim() == "domains_from");
-    match lines[start + 1..end].iter().position(named) {
-        Some(i) => lines[start + 1 + i] = line,
-        None => lines.insert(start + 1, line),
-    }
-    lines.join("\n") + "\n"
-}
-
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let code = match args.first().map(String::as_str) {
@@ -315,12 +293,6 @@ fn main() {
         Some("patch-config") if args.len() == 4 || args.len() == 5 => {
             let toml = fs::read_to_string(&args[1]).unwrap_or_else(|e| die(&format!("{}: {e}", args[1])));
             println!("{}", patch_llm_section(&toml, &args[2], &args[3], args.get(4).map_or("", String::as_str)));
-            0
-        }
-        // Only for the test of `--domains-from`: `domains-from <retrodoc.toml> <mode>` prints the patched config.
-        Some("domains-from") if args.len() == 3 => {
-            let toml = fs::read_to_string(&args[1]).unwrap_or_else(|e| die(&format!("{}: {e}", args[1])));
-            print!("{}", set_domains_from(&toml, &args[2]));
             0
         }
         // Only for the test of `--local`: `llm-target [flags]` prints the model, the URL and the start command.

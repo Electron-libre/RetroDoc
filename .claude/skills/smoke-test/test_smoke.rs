@@ -60,7 +60,7 @@ fn main() {
         ("conclusive run", evaluate(GOOD_RUN1, GOOD_RUN2, GOOD_REPORT, Some(GOOD_USAGE)), true, ""),
         (
             "first run never reached the render",
-            evaluate("Error: failed to build the repo map\n", GOOD_RUN2, GOOD_REPORT, Some(GOOD_USAGE)),
+            evaluate("Error: failed to derive the features from the entry points\n", GOOD_RUN2, GOOD_REPORT, Some(GOOD_USAGE)),
             false,
             "first run",
         ),
@@ -136,27 +136,10 @@ fn main() {
         println!("       got: {with_timeout}");
     }
 
-    // `--domains-from` sets the path whatever value `init` wrote (`surface` since ADR 0034).
-    fs::write(tmp.join("paths.toml"), "[pipeline]\ndomains_from = \"surface\"\nrules = true\n").unwrap();
-    let out = Command::new("rust-script").arg(&script).arg("domains-from").arg(tmp.join("paths.toml")).arg("files").output().expect("rust-script must be installed");
-    let switched = String::from_utf8_lossy(&out.stdout).into_owned();
-    let switched_ok = switched.contains("domains_from = \"files\"") && !switched.contains("surface") && switched.contains("rules = true");
-    println!("{} - --domains-from replaces the path init wrote", if switched_ok { "ok  " } else { "FAIL" });
-    if !switched_ok {
-        println!("       got: {switched}");
-    }
-
-    fs::write(tmp.join("no-path.toml"), "[llm]\nmodel = \"m\"\n\n[pipeline]\nrules = true\n").unwrap();
-    let out = Command::new("rust-script").arg(&script).arg("domains-from").arg(tmp.join("no-path.toml")).arg("files").output().expect("rust-script must be installed");
-    let added = String::from_utf8_lossy(&out.stdout).into_owned();
-    let added_ok = added.contains("[pipeline]\ndomains_from = \"files\"\nrules = true");
-    println!("{} - --domains-from adds the key to [pipeline] when init wrote none", if added_ok { "ok  " } else { "FAIL" });
-    if !added_ok {
-        println!("       got: {added}");
-    }
-    let out = Command::new("rust-script").arg(&script).arg("domains-from").arg(tmp.join("paths.toml")).arg("file").output().expect("rust-script must be installed");
-    let refused_ok = !out.status.success() && String::from_utf8_lossy(&out.stderr).contains("files");
-    println!("{} - --domains-from refuses a path that is not files or surface", if refused_ok { "ok  " } else { "FAIL" });
+    // `--domains-from` is refused before anything runs: `generate` has one path (ADR 0035).
+    let out = Command::new("rust-script").arg(&script).args(["run", "some-repo", "--domains-from", "files"]).output().expect("rust-script must be installed");
+    let refused_ok = !out.status.success() && String::from_utf8_lossy(&out.stderr).contains("ADR 0035");
+    println!("{} - --domains-from is refused, generate has one path", if refused_ok { "ok  " } else { "FAIL" });
 
     // `--local` names a local server: its model and URL (explicit flags win), and the command that
     // starts it when nothing answers.
@@ -187,7 +170,7 @@ fn main() {
     let skill = fs::read_to_string(dir.join("SKILL.md")).unwrap();
     let ledger_ok = skill.contains("~/retrodoc-runs/LEDGER.md") && skill.contains("## Ledger of measures") && skill.contains("**Before**") && skill.contains("**After**");
     println!("{} - the skill reads and appends the ledger of measures", if ledger_ok { "ok  " } else { "FAIL" });
-    let mut failed = !config_ok || !timeout_ok || !ledger_ok;
+    let mut failed = !config_ok || !timeout_ok || !refused_ok || !ledger_ok;
     for (name, (passed, output), should_pass, expected) in local_cases {
         let ok = passed == should_pass && output.contains(expected);
         println!("{} - {name}", if ok { "ok  " } else { "FAIL" });

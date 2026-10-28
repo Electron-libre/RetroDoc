@@ -13,16 +13,20 @@ use serde::{Deserialize, Serialize};
 pub const CONFIG_FILE_NAME: &str = "retrodoc.toml";
 
 /// Keys `retrodoc.toml` no longer takes, as `(section, key, why)`: a file that still names one is refused with a
-/// message saying so, rather than a bare unknown-field error (`specs/pipeline-settings.md`). Looked up only when
-/// the file fails to load: the section must deny unknown fields, as `[pipeline]` does.
-const REMOVED_KEYS: &[(&str, &str, &str)] = &[(
-    "pipeline",
-    "body_lines",
-    "the reading passes read the files whole (ADR 0027)",
-)];
+/// message saying so, rather than a bare unknown-field error or a key silently ignored
+/// (`specs/pipeline-settings.md`).
+const REMOVED_KEYS: &[(&str, &str, &str)] = &[
+    (
+        "pipeline",
+        "body_lines",
+        "the reading passes read the files whole (ADR 0027)",
+    ),
+    ("llm", "batch_chars", FILES_PATH_REMOVED),
+];
 
-/// Default `llm.batch_chars`.
-pub const DEFAULT_BATCH_CHARS: usize = 6_000;
+/// Why the settings of the `files` path of `generate` are refused.
+const FILES_PATH_REMOVED: &str =
+    "the domains are built from the surface only, the file summaries are gone (ADR 0035)";
 
 /// Default model proposed at init. Can be changed in `retrodoc.toml`.
 pub const DEFAULT_MODEL: &str = "anthropic/claude-sonnet-4.5";
@@ -38,7 +42,6 @@ pub const PASS_NAMES: &[&str] = &[
     "glossary",
     "entry-points",
     "actors",
-    "repo-map",
     "domains",
     "features",
     "use-cases",
@@ -50,8 +53,8 @@ pub const PASS_NAMES: &[&str] = &[
 
 /// The passes asked at temperature 0 unless the configuration sets one (ADR 0031,
 /// `issues/done/sampling_temperature_for_steadier_runs.md`): the ones that read facts out of the code and the
-/// repository, and the ones that write the docs. Left to the server's default: `contexts` and `repo-map`
-/// (not measured) and the benchmark judge.
+/// repository, and the ones that write the docs. Left to the server's default: `contexts` (not measured) and the
+/// benchmark judge.
 pub const ZERO_TEMPERATURE_PASSES: &[&str] = &[
     "sources",
     "brief",
@@ -109,9 +112,9 @@ impl RulesConfig {
 #[serde(deny_unknown_fields)]
 pub struct PipelineConfig {
     /// What the domains are built from. `surface` (default, ADR 0034): the entities and
-    /// the entry points grouped by resource (ADR 0020), with no repo map. `files`: the LLM
-    /// summaries of the files and directories (ADR 0004). `contexts`: the
+    /// the entry points grouped by resource (ADR 0020). `contexts`: the
     /// bounded contexts of `retrodoc contexts` (ADR 0029), each a domain, documented a slice at a time.
+    /// `files`, the LLM summaries of the files and directories, was removed (ADR 0035).
     #[serde(default)]
     pub domains_from: DomainsFrom,
     /// `generate` reads the business files once for the glossary and the entry
@@ -150,7 +153,6 @@ impl Default for PipelineConfig {
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum DomainsFrom {
-    Files,
     #[default]
     Surface,
     /// The bounded contexts of `contexts.yaml` (ADR 0029), documented a slice at a time.
@@ -219,16 +221,11 @@ pub struct LlmConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub timeout_secs: Option<u64>,
     /// Maximum number of LLM calls in flight at once for the passes that
-    /// can run them in parallel (file and directory summaries, use cases, confidence). Unset: 1.
+    /// can run them in parallel (use cases, rules, confidence). Unset: 1.
     /// A single local model gains little; a hosted one (`OpenRouter`) a lot,
     /// within its rate limits (429s are retried with backoff).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub concurrency: Option<usize>,
-    /// Characters per request when several small files are summarized
-    /// together (see [`DEFAULT_BATCH_CHARS`]); 0 disables batching. A small
-    /// local model may summarize better one file at a time.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub batch_chars: Option<usize>,
     /// Ask the server to constrain JSON answers to a schema (`response_format`).
     /// Unset: `true`. A server that rejects it is detected (the request is sent
     /// again without the schema); `false` never sends it.
@@ -256,8 +253,6 @@ pub struct PassLlmConfig {
     pub temperature: Option<f32>,
     pub timeout_secs: Option<u64>,
     pub concurrency: Option<usize>,
-    /// Only read for `repo-map`, the one pass that batches files.
-    pub batch_chars: Option<usize>,
     pub structured_output: Option<bool>,
 }
 
@@ -302,10 +297,6 @@ impl LlmConfig {
         config.timeout_secs = pass.timeout_secs.or(config.timeout_secs);
         config.concurrency = pass.concurrency.or(config.concurrency);
         config.structured_output = pass.structured_output.or(config.structured_output);
-        // Only the repo map batches files: other passes keep `[llm]`'s value.
-        if name == "repo-map" {
-            config.batch_chars = pass.batch_chars.or(config.batch_chars);
-        }
         config
     }
 
@@ -342,7 +333,6 @@ impl Default for LlmConfig {
             temperature: None,
             timeout_secs: None,
             concurrency: None,
-            batch_chars: None,
             structured_output: None,
             passes: BTreeMap::new(),
         }
@@ -434,11 +424,11 @@ pub enum ConfigError {
     },
     #[error("invalid TOML config: {0}")]
     Parse(#[from] toml::de::Error),
-    #[error("[{section}] {key} was removed: {why}; delete the line from retrodoc.toml")]
-    RemovedKey {
-        section: &'static str,
-        key: &'static str,
+    #[error("{setting} was removed: {why}; {fix} in retrodoc.toml")]
+    Removed {
+        setting: String,
         why: &'static str,
+        fix: &'static str,
     },
     #[error("unknown pass in [llm.passes]: {}; valid names: {}", .0.join(", "), PASS_NAMES.join(", "))]
     UnknownPass(Vec<String>),
@@ -446,18 +436,52 @@ pub enum ConfigError {
     Serialize(#[from] toml::ser::Error),
 }
 
-/// The error for the first key of [`REMOVED_KEYS`] that `raw` still names, if any.
-fn removed_key(raw: &str) -> Option<ConfigError> {
+/// The error for the first removed setting `raw` still names, if any: a key of [`REMOVED_KEYS`], or a
+/// setting of the removed `files` path (ADR 0035).
+fn removed_setting(raw: &str) -> Option<ConfigError> {
     let table: toml::Table = toml::from_str(raw).ok()?;
-    REMOVED_KEYS
+    let section = |name: &str| table.get(name).and_then(toml::Value::as_table);
+    let removed = |setting: String, why, fix| ConfigError::Removed { setting, why, fix };
+    if let Some(&(name, key, why)) = REMOVED_KEYS
         .iter()
-        .find(|(section, key, _)| {
-            table
-                .get(*section)
-                .and_then(toml::Value::as_table)
-                .is_some_and(|t| t.contains_key(*key))
+        .find(|(name, key, _)| section(name).is_some_and(|t| t.contains_key(*key)))
+    {
+        return Some(removed(format!("[{name}] {key}"), why, "delete the line"));
+    }
+    if section("pipeline")
+        .and_then(|t| t.get("domains_from"))
+        .and_then(toml::Value::as_str)
+        == Some("files")
+    {
+        return Some(removed(
+            "[pipeline] domains_from = \"files\"".to_string(),
+            FILES_PATH_REMOVED,
+            "delete the line or set domains_from = \"surface\"",
+        ));
+    }
+    let passes = section("llm")
+        .and_then(|t| t.get("passes"))
+        .and_then(toml::Value::as_table)?;
+    if passes.contains_key("repo-map") {
+        return Some(removed(
+            "[llm.passes.repo-map]".to_string(),
+            FILES_PATH_REMOVED,
+            "delete the section",
+        ));
+    }
+    passes
+        .iter()
+        .find(|(_, pass)| {
+            pass.as_table()
+                .is_some_and(|t| t.contains_key("batch_chars"))
         })
-        .map(|&(section, key, why)| ConfigError::RemovedKey { section, key, why })
+        .map(|(name, _)| {
+            removed(
+                format!("[llm.passes.{name}] batch_chars"),
+                FILES_PATH_REMOVED,
+                "delete the line",
+            )
+        })
 }
 
 impl Config {
@@ -466,7 +490,7 @@ impl Config {
     /// # Errors
     ///
     /// Returns an error if the file is missing, unreadable, or its TOML
-    /// content is invalid or names a removed key.
+    /// content is invalid or names a removed setting.
     pub fn load(repo_root: &Path) -> Result<Self, ConfigError> {
         let path = repo_root.join(CONFIG_FILE_NAME);
         if !path.exists() {
@@ -476,8 +500,10 @@ impl Config {
             path: path.display().to_string(),
             source,
         })?;
-        let config: Config =
-            toml::from_str(&raw).map_err(|error| removed_key(&raw).unwrap_or(error.into()))?;
+        if let Some(error) = removed_setting(&raw) {
+            return Err(error);
+        }
+        let config: Config = toml::from_str(&raw)?;
         let unknown = config.llm.unknown_passes();
         if !unknown.is_empty() {
             return Err(ConfigError::UnknownPass(
@@ -564,7 +590,7 @@ mod tests {
     #[test]
     fn the_rules_pass_is_on_unless_turned_off_and_has_its_own_llm_section() {
         assert!(Config::default().pipeline.rules);
-        let none: Config = toml::from_str("[pipeline]\ndomains_from = \"files\"").unwrap();
+        let none: Config = toml::from_str("[pipeline]\ndomains_from = \"surface\"").unwrap();
         assert!(none.pipeline.rules);
         let off: Config = toml::from_str("[pipeline]\nrules = false").unwrap();
         assert!(!off.pipeline.rules);
@@ -591,14 +617,12 @@ mod tests {
         );
         let none: Config = toml::from_str("[llm]\nmodel = \"m\"").unwrap();
         assert_eq!(none.pipeline.domains_from, DomainsFrom::Surface);
-        let files: Config = toml::from_str("[pipeline]\ndomains_from = \"files\"").unwrap();
-        assert_eq!(files.pipeline.domains_from, DomainsFrom::Files);
         let contexts: Config = toml::from_str("[pipeline]\ndomains_from = \"contexts\"").unwrap();
         assert_eq!(contexts.pipeline.domains_from, DomainsFrom::Contexts);
         // Kept when the config is written back.
-        let raw = toml::to_string_pretty(&files).unwrap();
+        let raw = toml::to_string_pretty(&contexts).unwrap();
         let again: Config = toml::from_str(&raw).unwrap();
-        assert_eq!(again.pipeline.domains_from, DomainsFrom::Files);
+        assert_eq!(again.pipeline.domains_from, DomainsFrom::Contexts);
         // `init` writes the key, so the `--domains-from` of the skills has a line to set.
         let dir = tempfile::tempdir().unwrap();
         Config::write_default(dir.path(), false).unwrap();
@@ -633,13 +657,49 @@ mod tests {
         assert!(message.contains("delete the line"), "{message}");
     }
 
+    /// The message `Config::load` gives for `raw`, which must fail.
+    fn load_error(raw: &str) -> String {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join(CONFIG_FILE_NAME), raw).unwrap();
+        Config::load(dir.path()).unwrap_err().to_string()
+    }
+
+    // spec: SET-8 (internal: the refusal is a parse of retrodoc.toml, the same for every command)
+    #[test]
+    fn a_setting_of_the_removed_files_path_stops_the_load_with_a_message_naming_it() {
+        let message = load_error("[pipeline]\ndomains_from = \"files\"\nrules = true\n");
+        assert!(
+            message.contains("[pipeline] domains_from = \"files\" was removed"),
+            "{message}"
+        );
+        assert!(message.contains("ADR 0035"), "{message}");
+        assert!(message.contains("domains_from = \"surface\""), "{message}");
+        let message = load_error("[llm]\nmodel = \"m\"\nbatch_chars = 1000\n");
+        assert!(
+            message.contains("[llm] batch_chars was removed"),
+            "{message}"
+        );
+        assert!(message.contains("delete the line"), "{message}");
+        let message = load_error("[llm.passes.repo-map]\nconcurrency = 8\n");
+        assert!(
+            message.contains("[llm.passes.repo-map] was removed"),
+            "{message}"
+        );
+        assert!(message.contains("delete the section"), "{message}");
+        let message = load_error("[llm.passes.domains]\nbatch_chars = 0\n");
+        assert!(
+            message.contains("[llm.passes.domains] batch_chars was removed"),
+            "{message}"
+        );
+    }
+
     // spec: SET-4
     #[test]
     fn a_mistyped_key_keeps_the_position_of_the_parse_error() {
         let dir = tempfile::tempdir().unwrap();
         fs::write(
             dir.path().join(CONFIG_FILE_NAME),
-            "[pipeline]\ndomains_from = \"files\"\nrulez = true\n",
+            "[pipeline]\ndomains_from = \"surface\"\nrulez = true\n",
         )
         .unwrap();
         let message = Config::load(dir.path()).unwrap_err().to_string();
@@ -681,15 +741,13 @@ mod tests {
             model = "local"
             base_url = "http://localhost:11434/v1"
             concurrency = 2
-            batch_chars = 1000
 
             [llm.passes.domains]
             model = "strong"
             base_url = ""
             timeout_secs = 600
 
-            [llm.passes.repo-map]
-            batch_chars = 0
+            [llm.passes.use-cases]
             concurrency = 8
         "#;
         let llm = toml::from_str::<Config>(raw).unwrap().llm;
@@ -698,16 +756,16 @@ mod tests {
         assert_eq!(domains.base_url, None);
         assert_eq!(domains.timeout_secs, Some(600));
         assert_eq!(domains.concurrency, Some(2));
-        assert_eq!(domains.batch_chars, Some(1000));
         assert!(domains.passes.is_empty());
-        let map = llm.for_pass("repo-map");
-        assert_eq!(map.model, "local");
-        assert_eq!(map.base_url.as_deref(), Some("http://localhost:11434/v1"));
-        assert_eq!((map.concurrency, map.batch_chars), (Some(8), Some(0)));
-        // A pass without a section, and `batch_chars` set on another pass, change nothing.
+        let use_cases = llm.for_pass("use-cases");
+        assert_eq!(use_cases.model, "local");
+        assert_eq!(
+            use_cases.base_url.as_deref(),
+            Some("http://localhost:11434/v1")
+        );
+        assert_eq!(use_cases.concurrency, Some(8));
+        // A pass without a section changes nothing.
         assert_eq!(llm.for_pass("glossary").model, "local");
-        let other: Config = toml::from_str("[llm.passes.glossary]\nbatch_chars = 5").unwrap();
-        assert_eq!(other.llm.for_pass("glossary").batch_chars, None);
     }
 
     #[test]

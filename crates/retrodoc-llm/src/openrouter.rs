@@ -562,7 +562,6 @@ mod tests {
             temperature: None,
             timeout_secs: None,
             concurrency: None,
-            batch_chars: None,
             structured_output: None,
             passes: std::collections::BTreeMap::new(),
         };
@@ -582,7 +581,6 @@ mod tests {
             temperature: None,
             timeout_secs: None,
             concurrency: None,
-            batch_chars: None,
             structured_output: None,
             passes: std::collections::BTreeMap::new(),
         };
@@ -601,7 +599,6 @@ mod tests {
             temperature: None,
             timeout_secs: None,
             concurrency: None,
-            batch_chars: None,
             structured_output: None,
             passes: std::collections::BTreeMap::new(),
         };
@@ -641,7 +638,6 @@ mod tests {
             temperature: None,
             timeout_secs: None,
             concurrency: None,
-            batch_chars: None,
             structured_output: None,
             passes: std::collections::BTreeMap::new(),
         };

@@ -1,6 +1,6 @@
 # 0011. Cost control: estimate, concurrency, batching and an opt-in file budget
 
-Status: Accepted
+Status: Accepted (its batching, `llm.batch_chars`, superseded by 0035)
 
 _Retroactive ADR, reconstructed from the history (3843170, c9f4d49, 7e4040f, 5661691, 09e00fe; 2026-10-02 to 2026-10-03). Phase 8 of `PLAN.md`._
 

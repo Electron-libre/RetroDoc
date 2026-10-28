@@ -1,6 +1,6 @@
 # 0017. Place the files a clustering left unassigned with a second LLM call
 
-Status: Accepted
+Status: Superseded by 0035
 
 Refines 0004 (the coverage guarantee stays; this adds a step before its "uncategorized" bucket).
 

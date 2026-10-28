@@ -116,8 +116,8 @@ impl Surface {
     #[must_use]
     pub fn empty_surface_warning(&self, source_files: usize) -> Option<&'static str> {
         (self.is_empty() && source_files > 0).then_some(
-            "no entity and no entry point were found, so the surface path documents no domain; \
-             set `[pipeline] domains_from = \"files\"` to build the domains from the file summaries",
+            "no entity and no entry point were found, so the run documents no domain \
+             and lists every source file as technical support",
         )
     }
 
@@ -278,7 +278,9 @@ mod tests {
         let warning = Surface::default()
             .empty_surface_warning(9)
             .expect("a warning");
-        assert!(warning.contains("domains_from = \"files\""), "{warning}");
+        assert!(warning.contains("documents no domain"), "{warning}");
+        assert!(warning.contains("technical support"), "{warning}");
+        assert!(!warning.contains("domains_from"), "{warning}");
         assert_eq!(Surface::default().empty_surface_warning(0), None);
         assert_eq!(surface().empty_surface_warning(9), None);
     }

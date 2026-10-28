@@ -31,7 +31,6 @@ measure reads them, and list that copy in the reusable artifacts.
 just smoke <path-to-target-repo>              # defaults below
 just smoke <repo> --local hybrid              # the hybrid llama-server (default: `igpu`, the Ollama iGPU instance)
 just smoke <repo> --model <m> --base-url <u>  # another model or server (overrides the `--local` values)
-just smoke <repo> --domains-from files        # the old path of ADR 0004 (default: the config as init wrote it, surface)
 just smoke <repo> --no-rules                  # no business rules (`[pipeline] rules`, on by default): a shorter run
 ```
 

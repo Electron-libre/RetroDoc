@@ -2,13 +2,13 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use anyhow::Context;
-use retrodoc_core::config::{Config, DomainsFrom, LlmConfig, DEFAULT_BATCH_CHARS};
+use retrodoc_core::config::{Config, DomainsFrom};
 use retrodoc_core::model::{Feature, UseCase};
 use retrodoc_ingest::IngestResult;
 use retrodoc_llm::UsageTracker;
 use retrodoc_pipeline::{
-    Actors, Artifact, CodeIndex, DomainMap, EntryPoints, Evidence, ProductBrief, RepoMap,
-    RepoMapOptions, RoleMap, Scope, SourceHashes, Surface, UseCaseContext,
+    Actors, Artifact, CodeIndex, DomainMap, EntryPoints, Evidence, ProductBrief, RoleMap, Scope,
+    SourceHashes, Surface, UseCaseContext,
 };
 
 mod contexts;
@@ -30,7 +30,6 @@ const GENERATE_PASSES: &[&str] = &[
     "glossary",
     "entry-points",
     "actors",
-    "repo-map",
     "domains",
     "features",
     "use-cases",
@@ -66,8 +65,8 @@ pub struct GenerateOptions {
 
 /// Current pipeline stage (PLAN.md §5, "confidence score" phase).
 ///
-/// Runs ingestion, the surface, the domains (from the surface by default,
-/// ADR 0034; from the bottom-up repo map with `domains_from = "files"`),
+/// Runs ingestion, the surface, the domains (from the surface, ADR 0035;
+/// a bounded context at a time with `domains_from = "contexts"`),
 /// then features and use cases with Mermaid diagrams, and finally the
 /// confidence cross-check, and writes the docs (or previews them with
 /// `dry_run`). `force` wipes the caches first so nothing is reused.
@@ -118,38 +117,24 @@ pub async fn run(
         max_files.or(config.ingest.max_files),
     )?;
 
-    // Read before the repo map: a file edited during the run then reads as
+    // Read before the features: a file edited during the run then reads as
     // modified later, never as fresh.
     let source_hashes = SourceHashes::capture(repo_root, &ingest);
 
-    let mut features = if config.pipeline.domains_from == DomainsFrom::Surface {
-        if let Some(warning) = surface.empty_surface_warning(source_paths(&ingest).count()) {
-            tracing::warn!("{warning}");
-        }
-        features_from_surface(
-            repo_root,
-            &ingest,
-            &surface,
-            &entry_points,
-            &brief,
-            &evidence,
-            &llm,
-            tracker,
-        )
-        .await?
-    } else {
-        features_from_files(
-            repo_root,
-            &ingest,
-            &surface,
-            &brief,
-            &evidence,
-            &llm,
-            &config.llm,
-            tracker,
-        )
-        .await?
-    };
+    if let Some(warning) = surface.empty_surface_warning(source_paths(&ingest).count()) {
+        tracing::warn!("{warning}");
+    }
+    let mut features = features_from_surface(
+        repo_root,
+        &ingest,
+        &surface,
+        &entry_points,
+        &brief,
+        &evidence,
+        &llm,
+        tracker,
+    )
+    .await?;
 
     let context = use_case_context(
         entry_points,
@@ -367,8 +352,8 @@ async fn identify_actors(
     Ok(actors)
 }
 
-/// The `surface` path: the domains from the entities and resources, then the features from the
-/// entry points of each domain. No repo map is built.
+/// The domains from the entities and resources, then the features from the entry points of each
+/// domain.
 #[allow(clippy::too_many_arguments)]
 async fn features_from_surface(
     repo_root: &Path,
@@ -419,55 +404,6 @@ async fn features_from_surface(
     Ok(features)
 }
 
-/// The `files` path: the repo map, the domains clustered from it, then the features of each domain.
-#[allow(clippy::too_many_arguments)]
-async fn features_from_files(
-    repo_root: &Path,
-    ingest: &IngestResult,
-    surface: &Surface,
-    brief: &ProductBrief,
-    evidence: &Evidence,
-    llm: &PassProviders,
-    llm_config: &LlmConfig,
-    tracker: &UsageTracker,
-) -> anyhow::Result<Vec<Feature>> {
-    let map = tracker
-        .in_pass("repo-map", build_map(repo_root, ingest, llm, llm_config))
-        .await?;
-
-    print::repo_map(&map);
-
-    println!(
-        "\nRepo map built ({} file(s), {} module(s)), cached in {}.",
-        map.files.len(),
-        map.modules.len(),
-        Artifact::RepoMap.relative_path()
-    );
-
-    let domain_map = tracker
-        .in_pass(
-            "domains",
-            cluster_domains(repo_root, &map, ingest, surface, brief, llm),
-        )
-        .await?;
-
-    println!("\nDeriving features…");
-    tracker
-        .in_pass(
-            "features",
-            retrodoc_pipeline::build_features(
-                repo_root,
-                &domain_map,
-                &map,
-                brief,
-                evidence,
-                llm.get("features")?.as_ref(),
-            ),
-        )
-        .await
-        .context("failed to derive the features")
-}
-
 async fn cluster_domains_from_surface(
     repo_root: &Path,
     surface: &Surface,
@@ -483,33 +419,6 @@ async fn cluster_domains_from_surface(
     )
     .await
     .context("failed to build the domains from the surface")
-}
-
-async fn cluster_domains(
-    repo_root: &Path,
-    map: &RepoMap,
-    ingest: &IngestResult,
-    surface: &Surface,
-    brief: &ProductBrief,
-    llm: &PassProviders,
-) -> anyhow::Result<DomainMap> {
-    println!("\nClustering into functional domains…");
-    let (domain_map, coverage) = retrodoc_pipeline::build_domains(
-        repo_root,
-        map,
-        &ingest.existing_docs,
-        surface,
-        brief,
-        llm.get("domains")?.as_ref(),
-    )
-    .await
-    .context("failed to build the domain clustering")?;
-
-    print::domain_map(&domain_map);
-    print::coverage_report(&coverage);
-
-    println!("\nDomains saved to {}.", Artifact::Domains.relative_path());
-    Ok(domain_map)
 }
 
 /// Use cases of the features, with their diagrams and business-language
@@ -828,35 +737,4 @@ async fn run_confidence(
             Ok(())
         }
     }
-}
-
-/// Sizes the repo map pass from the caches, then runs it.
-async fn build_map(
-    repo_root: &Path,
-    ingest: &IngestResult,
-    llm: &PassProviders,
-    config: &LlmConfig,
-) -> anyhow::Result<RepoMap> {
-    let config = &config.for_pass("repo-map");
-    let options = RepoMapOptions {
-        concurrency: config.concurrency.unwrap_or(1),
-        batch_chars: config.batch_chars.unwrap_or(DEFAULT_BATCH_CHARS),
-    };
-    let estimate = retrodoc_pipeline::estimate_repo_map(
-        repo_root,
-        ingest,
-        options.batch_chars,
-        llm.get("repo-map")?.model(),
-    );
-    println!(
-        "Building the repo map: {} source file(s), {} file call(s) + {} directory call(s) expected \
-         (~{}k chars to send; the later passes cost about one call per domain unit, feature and use case).",
-        estimate.files,
-        estimate.file_calls,
-        estimate.directories_to_summarize,
-        estimate.chars_to_send / 1000
-    );
-    retrodoc_pipeline::build_repo_map(repo_root, ingest, llm.get("repo-map")?.as_ref(), options)
-        .await
-        .context("failed to build the repo map")
 }

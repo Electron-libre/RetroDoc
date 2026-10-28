@@ -76,11 +76,9 @@ Run `retrodoc <command> --help` for the details.
 
 ### Controlling cost on a large repo
 
-With `domains_from = "files"`, `generate` prints the expected number of repo-map LLM calls before it starts
-(the default `surface` path makes no repo map). To bound a run:
-`--max-files N` keeps only the best-ranked files (on the `surface` path the features still come from every
+To bound a run: `--max-files N` keeps only the best-ranked files (the features still come from every
 entry point; with `contexts` it is the reading budget of a run), `--no-confidence` / `--confidence-sample N` limit the
-verification pass, and `llm.concurrency` / `llm.batch_chars` parallelize and batch the summaries (`llm.concurrency` also the use cases and the confidence checks).
+verification pass, and `llm.concurrency` parallelizes the use cases, the rules and the confidence checks.
 
 ## Configuration
 
@@ -93,15 +91,14 @@ api_key_env = "OPENROUTER_API_KEY"   # name of the variable, never the key itsel
 model = "anthropic/claude-sonnet-4.5"
 # base_url = "http://localhost:11434/v1/chat/completions"   # any OpenAI-compatible server
 # reasoning_effort = "none"   # skip "thinking" on models that support it
-# temperature = 0             # sampling temperature; unset: 0 for every pass but contexts, repo-map and the benchmark judge (the server's default there); a server that refuses it is asked again without
+# temperature = 0             # sampling temperature; unset: 0 for every pass but contexts and the benchmark judge (the server's default there); a server that refuses it is asked again without
 # timeout_secs = 120          # unset: 120, 900 for a loopback base_url (a local server)
 # concurrency = 1
-# batch_chars = 6000          # 0 disables batching
 # structured_output = true    # ask the server for schema-constrained JSON answers (false: never)
 
 # A pass can use another model or server: `[llm.passes.<name>]` takes the keys above and falls back to
 # `[llm]` for the rest. Names: sources, brief, roles, business-files, contexts, glossary, entry-points, actors,
-# repo-map, domains, features, use-cases, confidence, benchmark judge.
+# domains, features, use-cases, rules, confidence, reconcile, benchmark judge.
 # [llm.passes.domains]
 # model = "anthropic/claude-sonnet-4.5"
 # base_url = ""               # empty: the provider's own endpoint instead of [llm]'s base_url
@@ -115,7 +112,7 @@ existing_docs_paths = ["docs", "README.md"]    # Markdown taken as input
 docs_dir = "docs"
 
 [pipeline]
-domains_from = "surface"  # "surface" (default, ADR 0034): domains from the entities and entry points (no repo map; the features come from the entry points); "files": from the file summaries; "contexts": a large application documented a bounded context at a time (see below)
+domains_from = "surface"  # "surface" (default): domains from the entities and entry points, features from the entry points; "contexts": a large application documented a bounded context at a time (see below). "files" was removed (ADR 0035)
 rules = true              # state the business rules of each feature; false: a cheaper run (the rules are about 40% of the input tokens)
 # business_read = false   # each pass reads the business files alone: for a small library, where the joint reading finds fewer entry points
 
@@ -136,7 +133,7 @@ A pass whose model changes is redone on the next run (the model is part of what 
 with); the first run after upgrading to this behavior redoes every pass once. `roles.yaml`,
 `signal-sources.yaml`, `business-files.yaml`, `contexts.yaml` and `product.yaml` are the exception: they stay until `--force`.
 A suggested split, **not benchmarked yet**: the strong model on `brief`, `domains` and `features`, which
-frame everything else, and a cheap or local one in `[llm]` for the many extraction calls (`repo-map`,
+frame everything else, and a cheap or local one in `[llm]` for the many extraction calls (`roles`,
 `glossary`, `entry-points`, `actors`, `confidence`). Measure it against one model for all with
 `just benchmark` (the `quality-benchmark` skill: quality and cost, which the recap splits per pass and model).
 
@@ -145,7 +142,7 @@ YAML under `.retrodoc/cache/`. `roles.yaml`, `signal-sources.yaml` and `product.
 
 ## How it works
 
-Ingestion → surface extraction (file roles, glossary, entry points) → actors → repo map (`files` path only) → domains →
+Ingestion → surface extraction (file roles, glossary, entry points) → actors → domains →
 features → use cases → diagrams → business-language score → confidence → Markdown. Each stage is a
 Rust module of the `retrodoc-pipeline` crate with its rationale in its `//!` doc; the overview is in
 [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md), and the design decisions are recorded in

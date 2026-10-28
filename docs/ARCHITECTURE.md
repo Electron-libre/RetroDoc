@@ -100,25 +100,24 @@ flowchart LR
 
 ## 4. The `generate` pipeline
 
-This is the core flow. Blue-ish steps call the LLM; the others are deterministic. The diagram shows the
-`files` path (`[pipeline] domains_from = "files"`); the default `surface` path (ADR 0020, ADR 0034) has no
-step 2, clusters the domains from the entities and entry points in one call and makes the features of a
-domain from its entry points (§5).
+This is the core flow. Blue-ish steps call the LLM; the others are deterministic. The domains and features
+come from the surface (ADR 0020, ADR 0034); the `files` path, an LLM summary of every file and directory
+clustered into domains (ADR 0004), was removed ([ADR 0035](adr/0035-remove-the-files-path.md)). With
+`[pipeline] domains_from = "contexts"` the same passes run a bounded context at a time (§5).
 
 ```mermaid
 flowchart TD
     A["1. Ingestion<br/>files + git history + existing docs"]:::det
     S["1b. Surface<br/>file roles, entities (glossary),<br/>entry points + outputs"]:::llm
     K["1c. File budget (optional, --max-files)<br/>keep the best-ranked source files:<br/>role × git churn × references"]:::det
-    B["2. Repo map<br/>summary per file (small files batched),<br/>then per directory (bottom-up)"]:::llm
-    C["3. Domains<br/>cluster directory summaries into<br/>domains / sub-domains,<br/>named from the surface<br/>+ mechanical file expansion<br/>+ LLM placement of unassigned files<br/>+ coverage repair"]:::llm
-    D["4. Features<br/>one call per domain / sub-domain"]:::llm
+    C["3. Domains<br/>one call groups the resources<br/>and entities into domains"]:::llm
+    D["4. Features<br/>one call per domain over its entry points<br/>+ LLM placement of unclaimed entry points<br/>+ files reached by no behaviour"]:::llm
     E["5. Use cases<br/>one call per feature<br/>(steps + actors, from real code)"]:::llm
     F["6. Diagrams<br/>Mermaid sequenceDiagram<br/>from the steps"]:::det
     G["7. Confidence (optional)<br/>mechanical checks, then one call per feature<br/>for the doubtful steps only"]:::llm
     H["8. Publish<br/>render → plan (diff) → apply"]:::det
 
-    A --> S --> K --> B --> C --> D --> E --> F --> G --> H
+    A --> S --> K --> C --> D --> E --> F --> G --> H
 
     classDef llm fill:#dbeafe,stroke:#2563eb,color:#000
     classDef det fill:#f3f4f6,stroke:#6b7280,color:#000
@@ -130,9 +129,8 @@ What each pass hands to the next, and where it is saved:
 |---|---|---|---|---|
 | 1 | ingest (`retrodoc-ingest`) | repo path | files, history, existing docs | — (recomputed) |
 | 1c | `ranking.rs` (only with a budget) | source files + roles + history + references | the N best-ranked files; the rest is left out | `scope.yaml` |
-| 2 | `repo_map/` | source files + history | file and directory summaries | `repo-map.json` |
-| 3 | `domains/` | directory summaries + doc titles + the surface (entities, entry points by resource) | `DomainMap` (every source file in exactly one domain) | `domains.yaml` |
-| 4 | `features/` | one domain + its files' summaries | `Feature`s grounded on a validated subset of files | `features.yaml` |
+| 3 | `domains/from_surface.rs` | the surface (entities, entry points by resource) + the brief | `DomainMap` (flat domains of resources and entities) | `domains.yaml` |
+| 4 | `features/from_surface/` + `behaviour_coverage.rs` | one domain + its entry points and entities | `Feature`s holding entry points; the entry points no feature holds and the files reached by no behaviour | `features.yaml`, `behaviour-coverage.yaml` |
 | 5 | `use_cases/` | one feature + its entry points + the code they run (`slices.rs`) + the business actors (`actors.rs`), else its files' excerpts | `UseCase`s with steps and actors | `use-cases.yaml` |
 | 5b | `rules/` (`[pipeline] rules`, on by default, [ADR 0021](adr/0021-business-rules-as-a-model-object.md)) | one feature + the same code as its use cases + its entities + the closest doc sections and test descriptions | `BusinessRule`s with cited code, tests and docs, and a confidence; a feature about tests gets no rules (one question on its name and description), then a second call per feature drops the noise (storage, screen, test, technical), then the rule several features state is kept once (no LLM) | `rules-stated.yaml` (per feature), `rules-set-aside.yaml` (to check; `[rules]` of `retrodoc.toml` puts a wrong case back), `rules.yaml` |
 | 6 | `diagrams.rs` | use case steps (the technical level; each use case also carries a business `narrative`) | Mermaid text attached to each use case | `use-cases.yaml` |
@@ -143,10 +141,10 @@ What each pass hands to the next, and where it is saved:
 
 ### Safety nets built into the passes
 
-- **Domains coverage is enforced by construction.** A file the clustering forgot is first placed by one small
-  extra LLM call ([ADR 0017](adr/0017-place-unassigned-files-before-the-uncategorized-bucket.md)); if that
-  fails too it goes into a synthetic "uncategorized" domain; a file assigned twice keeps the first assignment; invented paths are dropped.
-  The run is never failed for this, and the repairs are reported (`CoverageReport`).
+- **Behaviours are covered, not files** ([ADR 0020](adr/0020-cover-behaviours-not-files.md)). An entry point no
+  feature holds is placed by one more LLM call; what stays out, and the source files no behaviour reaches, are
+  reported (`behaviour-coverage.yaml`, the debt report) rather than forced into a domain. A surface with no entity
+  and no entry point documents no domain, with a warning.
 - **Lenient JSON.** LLM answers are parsed leniently (first JSON value, code fences tolerated, a repeated field keeps its last value). An
   unparseable answer is retried once, then that single unit is skipped with a warning instead of
   aborting the run (`response.rs`).
@@ -177,16 +175,12 @@ flowchart TD
     force -- no --> redo["run passes"]
 
     redo --> p2{"File content hash<br/>unchanged?"}
-    p2 -- yes --> r2["reuse file summary"]
-    p2 -- no --> c2["LLM: summarize file"]
-
-    redo --> pd{"Directory listing<br/>(children's summaries) unchanged?"}
-    pd -- yes --> rd2["reuse directory summary"]
-    pd -- no --> cd2["LLM: summarize directory"]
+    p2 -- yes --> r2["reuse its roles, entities,<br/>entry points"]
+    p2 -- no --> c2["LLM: read the file"]
 
     redo --> p3["Domains: reused if their input<br/>hash is unchanged"]
 
-    redo --> p4{"Domain's files and<br/>summaries unchanged?"}
+    redo --> p4{"Domain's entry points<br/>and entities unchanged?"}
     p4 -- yes --> r4["reuse features"]
     p4 -- no --> c4["LLM: derive features"]
 
@@ -201,15 +195,13 @@ flowchart TD
 
 The model of the pass is part of every one of these comparisons: ask a pass for another model and its
 units are redone (the hand-editable roles, sources, business files and brief are only redone with `--force`).
-Directory summaries are keyed by the hash of what was sent to the LLM (their children's summaries), so a
-changed file only invalidates its folder and ancestors. Domain clustering is not deterministic, so
+Domain clustering is not deterministic, so
 `domains.yaml` is reused while its input hash is unchanged (otherwise downstream fingerprints would be
-invalidated, see `PLAN.md` §7); with `[pipeline] domains_from = "surface"` that hash is the surface (entities
-and resources), the brief and the model, not the file summaries. In that mode the features are one call per domain over its
+invalidated, see `PLAN.md` §7): the surface (entities and resources), the brief and the model. The features are one call per domain over its
 entry points (keyed on them and the domain's entities) and the use cases read those entry points. With `[pipeline] domains_from = "contexts"` (ADR 0029) a run documents a slice of the application, some bounded contexts of `contexts.yaml`: it reads their files only, keeps the inventories, features and use cases of the others as they are (`Retention::Others`, per-domain vocabulary, frozen actors) and marks its contexts done. The passes save after each answer
-(features of the `surface` path, use cases, rules, confidence) and every artifact is written beside then renamed, so a run
-that fails or is killed mid-pass loses the call in flight and the next run resumes there. With `domains_from = "files"`, `generate` prints the repo map pass's expected calls up front; the
-`llm.concurrency` (repo map, use cases and confidence) and `llm.batch_chars` settings and the `--no-confidence` / `--confidence-sample` /
+(features, use cases, rules, confidence) and every artifact is written beside then renamed, so a run
+that fails or is killed mid-pass loses the call in flight and the next run resumes there. The
+`llm.concurrency` (use cases, rules and confidence) setting and the `--no-confidence` / `--confidence-sample` /
 `--max-files` flags bound the cost of a run.
 
 ## 6. Publishing the docs (no LLM)
@@ -241,13 +233,12 @@ Guarantees:
 <target repo>/
 ├── retrodoc.toml                  # config (LLM model, ignores, docs dir) — you edit this
 ├── .retrodoc/cache/               # intermediate artifacts (pipeline state)
-│   ├── repo-map.json              #   file summaries, cached by content hash
 │   ├── source-hashes.json         #   hash of each source file at the last complete run (MCP freshness)
 │   ├── domains.yaml               #   domain clustering
 │   ├── features.yaml              #   features (+ confidence)
 │   ├── use-cases.yaml             #   use cases, steps, diagrams (+ confidence)
 │   ├── fingerprints.json          #   what the incremental re-run compares against
-│   ├── behaviour-coverage.yaml    #   (surface mode) entry points without a feature (per context in contexts mode) or without a use case (per feature), files reached by no behaviour
+│   ├── behaviour-coverage.yaml    #   entry points without a feature (per context in contexts mode) or without a use case (per feature), files reached by no behaviour
 │   ├── scope.yaml                 #   files left out by the budget (`--max-files`), listed in the report
 │   ├── roles.yaml                 #   (phase 7) glob → role rules, hand-editable
 │   ├── signal-sources.yaml        #   where the schema, migrations and translations are, hand-editable
