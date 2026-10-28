@@ -4,6 +4,7 @@ use super::*;
 
 use crate::artifact::Retention;
 use crate::behaviour_coverage::{BehaviourCoverage, EntryCount};
+use crate::domains::UNCATEGORIZED_SLUG;
 use crate::entry_points::{EntryFile, EntryKind};
 use crate::testing::{killed, FakeLlm};
 use retrodoc_llm::{CompletionRequest, LlmError};

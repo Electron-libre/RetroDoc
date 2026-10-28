@@ -68,7 +68,7 @@ sub-domain code (follow-up issue). The repo map itself goes in a second issue (`
    `benchmark` skill scripts, docs (README, ARCHITECTURE, `docs/crates/pipeline.md`, PLAN), ADR 0035 accepted,
    0004/0017/0011/0034 statuses; verified by the SET-6/7/8 config tests and the skill script tests; makes true
    SET-6, SET-7, SET-8 (~800 lines).
-2. [ ] Remove the features per domain from the file summaries (`build_features` and its files-only helpers of
+2. [x] Remove the features per domain from the file summaries (`build_features` and its files-only helpers of
    `features/mod.rs`, their tests; the shared `slugify`, `save_partial`, `unit_key`, load/save stay); verified by
    `just check` (~735 lines, deletion).
 3. [ ] Remove the placement of unassigned files (`domains/repair.rs`, its call in `build_domains`, its tests;
@@ -106,3 +106,13 @@ sub-domain code (follow-up issue). The repo map itself goes in a second issue (`
   outside their tests; not fixed here, by plan (deliverables 2 to 4, then `remove_repo_map`).
 - Found: `test_smoke.rs` printed `FAIL` for the inline checks of `--domains-from` without failing the script
   (they were not in `failed`); the new check is.
+
+## Deliverable 2
+- done: `build_features` and its files-only helpers (prompt, units, reuse, validation) and their tests removed
+  from `features/`; `load_features`, `save_features`, `unit_key`, `save_partial`, `slugify`, `unique_slug`
+  stay; the `features/` row of `docs/crates/pipeline.md`.
+- checks: fmt, clippy, tests, specs green (RER-1, 2, 3, 5 keep traces in the use cases, rules and surface
+  features tests); `check-harness` red as in deliverable 1 (harness migration in progress).
+- red: none (a deletion, no new behaviour).
+- Code review: no findings.
+- not verified: a whole `generate` (no LLM run).
