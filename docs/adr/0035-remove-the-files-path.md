@@ -6,7 +6,7 @@ Status: Accepted
 
 ADR 0034 made `surface` the default of `[pipeline] domains_from` and kept `files` (ADR 0004: an LLM summary of
 every file and directory, the domains clustered from them, every file placed in a domain, ADR 0017) as a value
-a config can name, until `issues/single_pipeline_path.md` decided what of it to keep. Every change of a pass
+a config can name, until `issues/done/single_pipeline_path.md` decided what of it to keep. Every change of a pass
 downstream had to hold on both paths, and the `files` path alone is about 3,300 lines of `retrodoc-pipeline` and
 `retrodoc-cli`: the repo map and its cache, the clustering with its coverage and repair, the features per
 domain, the batching of small files (`llm.batch_chars`, ADR 0011).

@@ -25,7 +25,7 @@ The measures of `issues/done/surface_domains_default_decision.md` (deepseek-chat
 ## Decision
 
 `domains_from` defaults to `surface`, and `init` writes it. `files` stays a value a config can name, until
-`issues/single_pipeline_path.md` decides what of it to keep. `contexts` stays an opt-in for large applications:
+`issues/done/single_pipeline_path.md` decides what of it to keep. `contexts` stays an opt-in for large applications:
 it needs the map of `retrodoc contexts` first and documents a slice of the application per run, which a
 default `generate` must not require.
 
@@ -45,5 +45,5 @@ is at par after the audit.
 * The small library keeps a known flaw on the `surface` path: entry points that are constructors or internal
   collections become features in some runs (ADR 0008 lists a library's public API as its entry points).
 * Every pass downstream is now tested and measured first on the `surface` path; the `files` path keeps its
-  tests until it is removed or kept by `issues/single_pipeline_path.md`.
+  tests until it is removed or kept by `issues/done/single_pipeline_path.md`.
 * Supersedes the "default stays `files`" statement of ADR 0020's status section; the rest of ADR 0020 stands.

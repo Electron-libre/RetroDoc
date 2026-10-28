@@ -99,7 +99,7 @@ and how many the cap drops (no LLM call needed: `business-files.yaml` and the fi
 * (user, 2026-10-12) The slice of a run: named by the user, or the next contexts not done, in the order of
   the map, within a budget.
 * (user, 2026-10-12) A context becomes a domain of the docs on the `surface` path: the map replaces the
-  domains pass there (ADR to write; touches `issues/single_pipeline_path.md`).
+  domains pass there (ADR to write; touches `issues/done/single_pipeline_path.md`).
 * (user, 2026-10-12) A file shared by several contexts is read once and belongs to one context; the others
   refer to it.
 * (user, 2026-10-12) This issue is widened rather than a second one opened. Out of scope: the `files`

@@ -36,7 +36,7 @@ touches files modified since the last run).
 
 The first version (ADR 0004) had a repo map (an LLM summary of every file and directory) as step 2 and
 clustered its directory summaries into domains covering every file: the `files` path, the default until
-2026-10-28 and removed by ADR 0035 (`issues/single_pipeline_path.md`, §7.6). Phases 7 and 10 added a product
+2026-10-28 and removed by ADR 0035 (`issues/done/single_pipeline_path.md`, §7.6). Phases 7 and 10 added a product
 brief from the non-code evidence first, the surface and the actors, mechanical confidence checks and a business
 rules pass (on by default) after the use cases; phase 10 (§7.5) built the domains and features from the surface,
 the coverage invariant moved from files to behaviours (ADR 0020, the default since ADR 0034). With
@@ -532,7 +532,7 @@ Not reached yet:
   of the entry points pass on linkding; the requests set no sampling temperature.
 - The use cases and the rules read the same code: about 80% of the input tokens of a run with the rules on.
 - Two paths (`files`, `surface`, the default since 2026-10-28) were maintained together; `files` is refused
-  since ADR 0035 and its code removed by `issues/single_pipeline_path.md` (`body_lines` removed, `rules` on by default since
+  since ADR 0035 and its code removed by `issues/done/single_pipeline_path.md` (`body_lines` removed, `rules` on by default since
   2026-10-27, `brief.evidence` on by default since 2026-10-28).
 
 Next work, in the order of `issues/queue.md`:
@@ -544,7 +544,7 @@ Next work, in the order of `issues/queue.md`:
 3. `issues/done/rules_deduplication_and_noise.md`, `issues/done/one_code_reading_for_use_cases_and_rules.md` and
    `issues/done/shorter_use_case_answers.md`: quality of the rules, then the tokens of the two largest passes.
 4. `issues/done/settle_experimental_settings.md`, `issues/done/surface_domains_default_decision.md`,
-   `issues/single_pipeline_path.md`, then `issues/pass_runner_and_run_context.md`: fewer options, one path, then
+   `issues/done/single_pipeline_path.md`, then `issues/pass_runner_and_run_context.md`: fewer options, one path, then
    the refactoring of what stays.
 
 ### 7.7 Phase 11 — a large application, one bounded context at a time (2026-10-12 to 13)

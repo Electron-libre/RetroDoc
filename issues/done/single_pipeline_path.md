@@ -88,6 +88,8 @@ sub-domain code (follow-up issue). The repo map itself goes in a second issue (`
 - Base commit: a4cc7a6cc02faa83db91ce3eb06cbf8abd3fd3c8
 - Candidate (user, 2026-10-28): (a), `surface` only, the `files` path removed (ADR 0035).
 - Old `files` settings (user, 2026-10-28): refused with a message (SET-8), not ignored.
+- Saved `files` clones (user, 2026-10-28): `report` and `benchmark --judge` keep refusing them (SET-8);
+  delete the `domains_from` line in the clone, or use `--saved-judge`.
 - Split (user, 2026-10-28): the repo map goes in a new issue `remove_repo_map`, queued right after this one;
   the dead sub-domain code gets a follow-up issue at deliverable 4.
 

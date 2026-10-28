@@ -69,7 +69,7 @@ and gives the evidence the parked decision on `domains_from` is waiting for.
 * (user, 2026-10-12) Paused after the reading stage: the second stage waits for
   `issues/done/business_files_cap_on_large_application.md`, since a reading made now would be dominated by that defect.
 * The budget finding below (`--max-files` on the `surface` path) is a line of `issues/done/surface_domains_default_decision.md`
-  and of `issues/single_pipeline_path.md`; with `domains_from = "contexts"` the flag is the reading budget of a run.
+  and of `issues/done/single_pipeline_path.md`; with `domains_from = "contexts"` the flag is the reading budget of a run.
 
 ## Reading sample (fixed before the run)
 

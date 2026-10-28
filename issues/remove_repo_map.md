@@ -4,9 +4,9 @@
 Since ADR 0035 `generate` no longer builds the repo map (the LLM summaries of every file and directory of the
 removed `files` path), but `retrodoc-pipeline` still holds it, its summary cache and its artifact. Remove them,
 with the docs and the spec lines that describe them, keeping `just check` green and a second `generate` a
-no-op. Split from `issues/single_pipeline_path.md` for the size limit.
+no-op. Split from `issues/done/single_pipeline_path.md` for the size limit.
 
-# Findings (inventory of 2026-10-28, `issues/single_pipeline_path.md`)
+# Findings (inventory of 2026-10-28, `issues/done/single_pipeline_path.md`)
 * `repo_map/` (`mod.rs`, `summarize.rs`, `tests.rs`): about 1,020 lines; `build_repo_map`, `estimate_repo_map`,
   `RepoMap`, `FileSummary`, `ModuleSummary`, `RepoMapOptions`, `RepoMapEstimate`, re-exported by `lib.rs`.
 * Two helpers of `repo_map/mod.rs` are used elsewhere and must move first: `read_file_lossy` (actors, chunk
@@ -36,12 +36,12 @@ no-op. Split from `issues/single_pipeline_path.md` for the size limit.
 * `specs/rerun.md`: RER-2 amended.
 
 # Resources
-* ADR 0035, ADR 0005 (incremental rerun), `issues/single_pipeline_path.md` (`# Tracking`).
+* ADR 0035, ADR 0005 (incremental rerun), `issues/done/single_pipeline_path.md` (`# Tracking`).
 * `crates/retrodoc-pipeline/src/repo_map/`, `cache.rs`, `artifact.rs`, `benchmark/frozen.rs`,
   `crates/retrodoc-mcp/src/freshness.rs`.
 
 # Hints
-* Do it after `issues/single_pipeline_path.md` (which removes the last callers of the repo map) and before
+* Do it after `issues/done/single_pipeline_path.md` (which removes the last callers of the repo map) and before
   `issues/pass_runner_and_run_context.md`: less code to refactor.
 * The saved frozen inputs of the per-pass replays may hold a `repo-map.json`: `FrozenInputs::prepare` must keep
   working on them.
