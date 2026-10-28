@@ -69,7 +69,7 @@ until that gap is understood and a second large repository agrees.
   | calls / time | 18 / 47 s | 17 / 38 s | |
 
   The two `surface` runs at 0% are a judge failure, not the docs: their `judge.yaml` has `features: []`
-  (`issues/judge_silently_proposes_no_feature_pair.md`). By hand, run 2's 5 features cover 7 or 8 of the 8
+  (`issues/done/judge_silently_proposes_no_feature_pair.md`). By hand, run 2's 5 features cover 7 or 8 of the 8
   reference features with none extra; run 5's 11 cover all 8, with 2 extra (`Rider lookup`, `Router setup`). The
   library flaw of 2026-10-10 is still visible in one run of five: run 5 makes features of constructors
   (`Customer.new`, `Restaurant.new`, `DeliveryRouter.new`) and of internal collections (`Orders#add`,

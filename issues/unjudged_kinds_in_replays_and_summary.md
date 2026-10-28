@@ -2,7 +2,7 @@
 
 # Goal
 
-Since `issues/judge_silently_proposes_no_feature_pair.md`, a kind (domains or features) the judge proposed no
+Since `issues/done/judge_silently_proposes_no_feature_pair.md`, a kind (domains or features) the judge proposed no
 pair for, twice, is marked `unjudged` in `judge.yaml` and has no judged recall and precision in `run-<n>.json`,
 so `benchmark-table` leaves it out of the judged mean. Two other readers of the judgement still show it at the
 strict floor: the per-pass replays and the text `retrodoc benchmark` prints. A replay series should not move by
@@ -34,7 +34,7 @@ tens of points because the judge answered nothing, and the printed summary shoul
 
 * `crates/retrodoc-pipeline/src/benchmark/replay.rs`, `summary.rs`, `table.rs` (`RunReport::new`, the unjudged
   note), `judge.rs` (`Unjudged`).
-* `issues/judge_silently_proposes_no_feature_pair.md` (the measure and the decisions).
+* `issues/done/judge_silently_proposes_no_feature_pair.md` (the measure and the decisions).
 
 # Hints
 

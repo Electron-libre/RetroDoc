@@ -4,7 +4,6 @@ Open issues in the order to work on them: the first is the next one. Read by `ju
 `just close-issue` removes a line, `skill:create-issue` inserts one at its rank, `skill:prioritize-issues`
 re-ranks the whole list. Line format: `- [<file stem>](<file stem>.md) - <why here>`.
 
-- [judge_silently_proposes_no_feature_pair](judge_silently_proposes_no_feature_pair.md) - small, before the next measure: an empty judgement drops a run's judged figures to the strict floor (found by `surface_domains_default_decision`), every judged figure depends on it
 - [unjudged_kinds_in_replays_and_summary](unjudged_kinds_in_replays_and_summary.md) - small, right after `judge_silently_proposes_no_feature_pair`: the next replay measure would still read an unjudged kind at the strict floor
 - [single_pipeline_path](single_pipeline_path.md) - applies the default settled by `issues/done/surface_domains_default_decision.md` (ADR 0034)
 - [pass_runner_and_run_context](pass_runner_and_run_context.md) - after `single_pipeline_path`: do not refactor code about to be removed
