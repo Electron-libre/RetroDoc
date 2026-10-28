@@ -73,7 +73,7 @@ frozen brief and never the evidence, so the settings must first become replay op
 4. [x] Measure 2, use cases on the frozen features: no brief and brief + evidence, 3 runs each (~$0.55); the
    brief setting reuses the baseline of 1c6f592 (`shorter-uc/`, `use_cases/` unchanged since); business language
    by the judge and the deterministic score, steps, grounding; hand audit of the narratives of one run a setting.
-5. [ ] Default: the best setting becomes the default, the losing options and their code are removed, ADR 0019,
+5. [x] Default: the best setting becomes the default, the losing options and their code are removed, ADR 0019,
    `specs/pipeline-settings.md` (the `[brief]` keys) and `docs/crates/pipeline.md` updated; verified by the config
    and prompt tests of the kept setting; ~200 lines.
 
@@ -183,3 +183,24 @@ that say what the actor wants (`wants`, `so that`), both mechanical aids to the 
   The fewer features of `issues/done/product_brief.md` were merges, not lost coverage.
 * Each difference alone is at the edge of the spread of 3 runs; they all point the same way.
 * Not measured: delivery_router (few docs: its extracts are mostly tests), the hidden-docs series, a local model.
+
+## Deliverable 5: the evidence on by default
+
+- done: `brief.evidence` is on unless `false` (SET-5, `specs/pipeline-settings.md` accepted again); a
+  `retrodoc.toml` written by `init` before holds `evidence = false` and stays off. `pass_replay` follows `generate`:
+  `--evidence on|off`, `on` by default. ADR 0019, `PLAN.md`, `docs/ARCHITECTURE.md`, `docs/crates/pipeline.md`,
+  `docs/dev/commands.md` updated; the ledger says the earlier baselines were without the evidence.
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | pass |
+| specs | pass, SET-5 traced |
+| docs | ADR 0019, PLAN, ARCHITECTURE, pipeline, commands |
+| code review | low, see below |
+
+- red: SET-5: `assertion failed: Config::default().brief.evidence` (`config.rs:650`).
+- Code review: no findings
+- not verified: a complete `generate` with the new default (the replays measured the two passes alone); a
+  repository with few docs.
+- decisions needed: none.

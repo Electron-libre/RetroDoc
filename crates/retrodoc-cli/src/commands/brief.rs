@@ -85,7 +85,7 @@ pub fn saved(repo_root: &Path) -> ProductBrief {
 /// Which passes get the closest extracts of the signals (the others get none).
 #[derive(Debug, Clone, Copy, Default)]
 pub struct EvidenceFor {
-    /// The features and use cases passes (`brief.evidence`, off by default).
+    /// The features and use cases passes (`brief.evidence`, on by default).
     pub units: bool,
     /// The rules pass (`[pipeline] rules`): a rule backed by a test or a doc needs them.
     pub rules: bool,

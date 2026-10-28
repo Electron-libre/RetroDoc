@@ -11,8 +11,8 @@ use crate::brief::{Evidence, ProductBrief};
 use crate::error::PipelineError;
 use crate::sources::saved_or_sniffed;
 
-/// What frames the prompts of a replayed pass. The default is what `generate` gives by default: the
-/// frozen brief, no evidence.
+/// What frames the prompts of a replayed pass. The default is the frozen brief and no evidence: `generate`
+/// also gives the evidence by default (`brief.evidence`), built from the tree with [`tree_evidence`].
 #[derive(Debug, Clone, Default)]
 pub struct Frame {
     /// Leave the frozen product brief out of the prompts.

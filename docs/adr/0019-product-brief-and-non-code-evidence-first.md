@@ -56,8 +56,14 @@ every unit), and keeping the docs as titles only (the current state, which loses
   passes that used it, as it should.
 * Measured on 2026-10-08 (`issues/done/product_brief.md`): the brief alone is neutral on coverage and slightly
   better in business language with a local model; the retrieval per unit made the features pass produce about
-  20% fewer features with no gain. It is therefore off by default (`brief.evidence`) and to be tried again
-  once the product is stable (`issues/brief_injection_experiments.md`).
+  20% fewer features with no gain. It was therefore off by default (`brief.evidence`) until it was tried again.
+* Measured again on 2026-10-28 (`issues/brief_injection_experiments.md`), one pass replayed 3 times a setting on
+  frozen linkding inputs with DeepSeek, audited by hand: the brief adds a reference feature and makes the use
+  cases more business-like for 3% to 30% more prompt tokens; the retrieval per unit merges duplicate features
+  (no reference feature lost: the fewer features of 2026-10-08 were merges) and makes the use cases a little
+  more business-like again, for about 8% more tokens on the use cases. Both are on by default
+  (`brief.evidence = false` turns the retrieval off); each gain alone is at the edge of the spread of 3 runs.
+  Not measured: a repository with few docs, a local model.
 * Follow-up issues: `issues/done/quality_benchmark.md` (to measure the gain), `issues/done/product_brief.md`,
   `issues/brief_injection_experiments.md`, `issues/done/docs_reconciliation_debt_report.md`, `issues/done/locate_business_files.md` (takes the brief as
   input).

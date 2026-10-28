@@ -158,14 +158,21 @@ pub enum DomainsFrom {
 }
 
 /// How the product brief (ADR 0019) is used.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BriefConfig {
     /// Also give the features and use cases passes, per unit, the few doc
-    /// sections, test descriptions and commit subjects closest to it. Off by
-    /// default: the benchmarks (see `issues/done/product_brief.md`) showed fewer
-    /// features with it and no gain, to be tried again later.
-    #[serde(default)]
+    /// sections, test descriptions and commit subjects closest to it. On by
+    /// default: the replays of `issues/brief_injection_experiments.md` showed
+    /// merged duplicate features and more business-like use cases, for about
+    /// a tenth more prompt tokens.
+    #[serde(default = "default_true")]
     pub evidence: bool,
+}
+
+impl Default for BriefConfig {
+    fn default() -> Self {
+        Self { evidence: true }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -644,13 +651,16 @@ mod tests {
         assert!(toml::from_str::<Config>("[pipeline]\ndomain_from = \"surface\"").is_err());
     }
 
+    // spec: SET-5 (internal: the default is a parse of retrodoc.toml, no command shows it without an LLM run)
     #[test]
-    fn the_evidence_of_each_unit_is_off_unless_asked() {
-        assert!(!Config::default().brief.evidence);
-        let parsed: Config = toml::from_str("[brief]\nevidence = true").unwrap();
-        assert!(parsed.brief.evidence);
+    fn the_evidence_of_each_unit_is_on_unless_turned_off() {
+        assert!(Config::default().brief.evidence);
         let none: Config = toml::from_str("").unwrap();
-        assert!(!none.brief.evidence);
+        assert!(none.brief.evidence);
+        let other: Config = toml::from_str("[brief]\n").unwrap();
+        assert!(other.brief.evidence);
+        let off: Config = toml::from_str("[brief]\nevidence = false").unwrap();
+        assert!(!off.brief.evidence);
     }
 
     #[test]

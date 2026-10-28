@@ -458,8 +458,9 @@ LLM in up to five passes.
 Decisions (accepted ADRs):
 - [0019](docs/adr/0019-product-brief-and-non-code-evidence-first.md): collect the non-code signals
   mechanically and write an editable product brief (`product.yaml`) that frames every later prompt; each
-  unit retrieves its relevant doc sections, commits and test phrases with BM25. The retrieval per unit is built but off by default (`brief.evidence`) since the
-  benchmarks did not show a gain; to be tried again in `issues/brief_injection_experiments.md`.
+  unit retrieves its relevant doc sections, commits and test phrases with BM25. The retrieval per unit is on by default (`brief.evidence`) since the replays
+  of `issues/brief_injection_experiments.md` (2026-10-28) showed merged duplicate features and more
+  business-like use cases for about a tenth more prompt tokens.
 - [0020](docs/adr/0020-cover-behaviours-not-files.md) (supersedes 0004): every entry point belongs to one
   use case; domains and features are built from entry points and entities; files reached by no behaviour
   are reported as technical support; the LLM repo map becomes optional; confidence is mostly
@@ -528,8 +529,8 @@ Not reached yet:
 - Run-to-run spread: 13 to 21 entry points on the 9-file library, 64 against 96 between two identical runs
   of the entry points pass on linkding; the requests set no sampling temperature.
 - The use cases and the rules read the same code: about 80% of the input tokens of a run with the rules on.
-- Two paths (`files`, `surface`) and the experimental `brief.evidence` are maintained together (`body_lines` removed,
-  `rules` on by default since 2026-10-27).
+- Two paths (`files`, `surface`) are maintained together (`body_lines` removed, `rules` on by default since
+  2026-10-27, `brief.evidence` on by default since 2026-10-28).
 
 Next work, in the order of `issues/queue.md`:
 1. `issues/done/validate_on_large_application.md`: one complete run on a large application, read by the user (done in

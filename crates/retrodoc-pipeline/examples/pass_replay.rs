@@ -2,7 +2,7 @@
 //! (`issues/done/benchmark_passes_on_fixed_inputs.md`).
 //!
 //! Usage:
-//! `DEEPSEEK_API_KEY=x cargo run -q -p retrodoc-pipeline --example pass_replay -- <domains|features|use-cases|rules> <frozen dir> <benchmark dir> <model> [runs] [--freeze-first] [--brief off|head] [--evidence]`
+//! `DEEPSEEK_API_KEY=x cargo run -q -p retrodoc-pipeline --example pass_replay -- <domains|features|use-cases|rules> <frozen dir> <benchmark dir> <model> [runs] [--freeze-first] [--brief off|head] [--evidence on|off]`
 //!
 //! - `pass`: `domains` (the clustering of the surface), `features` (on the frozen domains), `use-cases` (on
 //!   the frozen features) or `rules` (on the frozen features and use cases). The last two read the code, of
@@ -15,8 +15,8 @@
 //!   reads).
 //! - `--brief off|head` (features, use cases): leave the frozen product brief out of the prompts, or put it
 //!   at the head of the user prompt (the default, as `generate`).
-//! - `--evidence` (features, use cases): give each unit the extracts of the signals closest to it, from the
-//!   tree at `manifest.source_run` (`brief.evidence = true`; off by default, as `generate`).
+//! - `--evidence on|off` (features, use cases): give each unit the extracts of the signals closest to it,
+//!   from the tree at `manifest.source_run`, or not (`brief.evidence`; `on`, the default, as `generate`).
 //!
 //! Each run starts from an empty work directory and the temperature is the pipeline's for the pass. The
 //! same model then judges what the strict reading cannot (the "judge" columns: an LLM's reading, not the
@@ -109,7 +109,7 @@ async fn main() {
         }
     };
     let [pass, frozen_dir, bench_dir, model, rest @ ..] = args.as_slice() else {
-        eprintln!("usage: pass_replay <domains|features|use-cases|rules> <frozen dir> <benchmark dir> <model> [runs] [--freeze-first] [--brief off|head] [--evidence]");
+        eprintln!("usage: pass_replay <domains|features|use-cases|rules> <frozen dir> <benchmark dir> <model> [runs] [--freeze-first] [--brief off|head] [--evidence on|off]");
         std::process::exit(2);
     };
     let runs = rest.first().and_then(|n| n.parse().ok()).unwrap_or(3);
@@ -121,11 +121,21 @@ async fn main() {
 }
 
 /// The flags of the command line.
-#[derive(Default)]
 struct Options {
     freeze_first: bool,
     without_brief: bool,
     evidence: bool,
+}
+
+impl Default for Options {
+    /// The frame `generate` gives by default: the brief and the evidence.
+    fn default() -> Self {
+        Self {
+            freeze_first: false,
+            without_brief: false,
+            evidence: true,
+        }
+    }
 }
 
 impl Options {
@@ -137,7 +147,11 @@ impl Options {
         while let Some(arg) = given.next() {
             match arg.as_str() {
                 "--freeze-first" => options.freeze_first = true,
-                "--evidence" => options.evidence = true,
+                "--evidence" => match given.next().as_deref() {
+                    Some("on") => options.evidence = true,
+                    Some("off") => options.evidence = false,
+                    _ => return Err("--evidence takes `on` or `off`".into()),
+                },
                 "--brief" => match given.next().as_deref() {
                     Some("off") => options.without_brief = true,
                     Some("head") => options.without_brief = false,
@@ -165,7 +179,7 @@ impl Options {
 
     fn frame_label(&self) -> String {
         let brief = if self.without_brief { ", no brief" } else { "" };
-        let evidence = if self.evidence { ", evidence" } else { "" };
+        let evidence = if self.evidence { "" } else { ", no evidence" };
         format!("{brief}{evidence}")
     }
 }
@@ -183,8 +197,9 @@ async fn start(
     {
         return Err("pass is `domains`, `features`, `use-cases` or `rules`; --freeze-first goes with the first three".into());
     }
-    if (options.without_brief || options.evidence) && !["features", "use-cases"].contains(&pass) {
-        return Err("--brief and --evidence go with `features` and `use-cases`".into());
+    let framed = ["features", "use-cases"].contains(&pass);
+    if !framed && (options.without_brief || !options.evidence) {
+        return Err("--brief off and --evidence off go with `features` and `use-cases`".into());
     }
     let bench_dir = Path::new(bench_dir);
     let matches_path = bench_dir.join("matches.yaml");
@@ -197,7 +212,11 @@ async fn start(
         config.temperature = Some(0.0);
     }
     let frozen = FrozenInputs::open(Path::new(frozen_dir))?;
-    let frame = options.frame(Path::new(&frozen.manifest.source_run))?;
+    let frame = if framed {
+        options.frame(Path::new(&frozen.manifest.source_run))?
+    } else {
+        Frame::default()
+    };
     let mut setup = Setup {
         pass: pass.to_string(),
         model: model.to_string(),
