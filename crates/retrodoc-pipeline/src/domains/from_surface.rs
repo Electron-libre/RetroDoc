@@ -4,11 +4,19 @@
 //! resource, not the file: a file that serves two domains belongs to both.
 
 use std::collections::BTreeSet;
+use std::fmt::Write as _;
+use std::path::Path;
 
-use super::*;
+use retrodoc_llm::LlmProvider;
+use serde::Deserialize;
+
+use super::{layer_named_domains, DomainCluster, DomainMap, UNCATEGORIZED_SLUG};
+use crate::brief::ProductBrief;
+use crate::error::PipelineError;
+use crate::fingerprints::{fingerprint, model_part, Fingerprints};
 use crate::naming::normalize;
 use crate::response::complete_json;
-use crate::surface::Resource;
+use crate::surface::{Resource, Surface};
 
 /// Entities and resources listed in the prompt, the best connected first.
 const MAX_ENTITIES: usize = 80;
