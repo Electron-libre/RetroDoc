@@ -50,12 +50,33 @@ impl NarrativeRating {
     }
 }
 
+/// The kinds whose judge call proposed no pair, twice, though there was something to pair: their
+/// judged figures are left out rather than read at the strict floor.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Unjudged {
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub domains: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub features: bool,
+}
+
+impl Unjudged {
+    /// Every kind was judged.
+    #[must_use]
+    pub fn is_none(&self) -> bool {
+        !self.domains && !self.features
+    }
+}
+
 /// What the judge said about one run: written to `judge.yaml`.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Judgement {
     pub domains: Vec<Pair>,
     pub features: Vec<Pair>,
     pub narratives: NarrativeRating,
+    /// Absent from the file when every kind was judged, as in the files saved before it existed.
+    #[serde(default, skip_serializing_if = "Unjudged::is_none")]
+    pub unjudged: Unjudged,
 }
 
 impl Judgement {
@@ -340,23 +361,21 @@ pub async fn judge(
         })
         .collect();
 
-    let domains = propose_matches(
-        llm,
-        "domains",
-        &generated_domains,
-        &only(&reference_domains, &comparison.domains.unmatched_reference),
-    )
-    .await?;
-    let features = propose_matches(
-        llm,
-        "features",
-        &generated_features,
-        &only(
-            &reference_features,
-            &comparison.features.unmatched_reference,
-        ),
-    )
-    .await?;
+    let offered_domains = only(&reference_domains, &comparison.domains.unmatched_reference);
+    let domains = propose_matches(llm, "domains", &generated_domains, &offered_domains).await?;
+    let offered_features = only(
+        &reference_features,
+        &comparison.features.unmatched_reference,
+    );
+    let features = propose_matches(llm, "features", &generated_features, &offered_features).await?;
+    // `propose_matches` only comes back empty from a call after asking twice.
+    let unjudged = |pairs: &[Pair], generated: &[Item], offered: &[Item]| {
+        pairs.is_empty() && !generated.is_empty() && !offered.is_empty()
+    };
+    let unjudged = Unjudged {
+        domains: unjudged(&domains, &generated_domains, &offered_domains),
+        features: unjudged(&features, &generated_features, &offered_features),
+    };
     let narratives: Vec<String> = load_use_cases(repo_root)
         .unwrap_or_default()
         .into_iter()
@@ -366,6 +385,7 @@ pub async fn judge(
         domains,
         features,
         narratives: rate_narratives(llm, &narratives).await?,
+        unjudged,
     }))
 }
 
@@ -665,6 +685,7 @@ mod tests {
             domains: vec![pair("Billing", "Shipping"), pair("Parcels", "Shipping")],
             features: vec![pair("Checkout", "Pay")],
             narratives: NarrativeRating::default(),
+            unjudged: Unjudged::default(),
         };
 
         let merged = matches.with_proposals(&judgement);
@@ -777,6 +798,86 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(none, None, "nothing generated, nothing to judge");
+    }
+
+    // spec: BSC-12 (internal: the judge's answers come from a fake LLM)
+    #[tokio::test]
+    async fn a_kind_with_no_pair_twice_is_marked_unjudged_in_the_saved_judgement() {
+        use crate::artifact::{save_yaml, Artifact};
+        use crate::domains::{DomainCluster, DomainMap};
+        use crate::features::save_features;
+        use retrodoc_core::model::Feature;
+
+        let reference: Reference = serde_yaml::from_str(
+            "repository: r\ncommit: c\npurpose: p\nactors: []\ndomains:\n  - name: Payments\n    description: Getting paid\n    features:\n      - {name: Pay, description: Pay a bill}\n",
+        )
+        .unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let map = DomainMap {
+            domains: vec![DomainCluster {
+                slug: "billing".to_string(),
+                name: "Billing".to_string(),
+                ..DomainCluster::default()
+            }],
+        };
+        save_yaml(&Artifact::Domains.path(root), &map).unwrap();
+        save_features(
+            root,
+            &[Feature {
+                back_office: false,
+                slug: "checkout".to_string(),
+                domain_slug: "billing".to_string(),
+                sub_domain_slug: None,
+                name: "Checkout".to_string(),
+                description: "Paying".to_string(),
+                source_paths: vec![],
+                entry_points: Vec::new(),
+                confidence: None,
+            }],
+        )
+        .unwrap();
+        let llm = FakeLlm::sequence(&[
+            r#"{"matches":[{"generated":"Billing","reference":"Payments"}]}"#,
+            r#"{"matches":[]}"#,
+            r#"{"matches":[{"generated":"Checkout: Paying","reference":"Invented"}]}"#,
+        ]);
+
+        let judgement = judge(
+            &llm,
+            root,
+            &reference,
+            &Matches::default(),
+            Path::new("m.yaml"),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+
+        assert_eq!(
+            judgement.unjudged,
+            Unjudged {
+                domains: false,
+                features: true
+            }
+        );
+        judgement.save(root).unwrap();
+        let saved = std::fs::read_to_string(Judgement::path(root)).unwrap();
+        assert!(saved.contains("unjudged:\n  features: true"), "{saved}");
+        assert!(!saved.contains("domains: true"), "{saved}");
+        assert_eq!(Judgement::load(root).unwrap(), judgement);
+
+        let judged = Judgement {
+            domains: vec![pair("Billing", "Payments")],
+            ..Judgement::default()
+        };
+        judged.save(root).unwrap();
+        let saved = std::fs::read_to_string(Judgement::path(root)).unwrap();
+        assert!(
+            !saved.contains("unjudged"),
+            "a judged run keeps the old file: {saved}"
+        );
+        assert_eq!(Judgement::load(root).unwrap().unjudged, Unjudged::default());
     }
 
     // spec: BSC-4

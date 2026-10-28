@@ -74,7 +74,7 @@ Measure: the judge writes the names with their descriptions, so they are dropped
 3. [x] Retry and warn: `propose_matches` asks once more when the answer proposes no pair, warns with the count of
    dropped proposals and when the second answer is still empty; verified by `judge.rs` tests on `FakeLlm`
    sequences; makes true BSC-10, BSC-11. (~150 lines)
-4. [ ] Unjudged runs: `Judgement` marks an unjudged kind (absent from the file when false), `RunReport` gets no
+4. [x] Unjudged runs: `Judgement` marks an unjudged kind (absent from the file when false), `RunReport` gets no
    judged figures for it, `benchmark-table` counts the unjudged runs per kind under the series; verified by `judge.rs` and `table.rs` tests; makes true BSC-12, BSC-13, spec back to `accepted`.
    (~300 lines)
 
@@ -100,4 +100,14 @@ Measure: the judge writes the names with their descriptions, so they are dropped
 - red: BSC-10, BSC-11: `left: [] right: [Pair { generated: "Billing", reference: "Payments" }]`; no `dropped=2`
   in the logs.
 - not verified: no paid run.
+- Code review: no findings
+
+## Deliverable 4
+- done: `Unjudged` (domains, features) in `judge.yaml` and `run-<n>.json`, absent when everything was judged; an
+  unjudged kind has no judged recall and precision; `benchmark-table` counts the unjudged runs per kind under the
+  series; spec `accepted`.
+- checks: `just check` pass; docs `docs/crates/pipeline.md`, `docs/crates/render-mcp-cli.md`.
+- red: BSC-12, BSC-13: `cannot find struct ... Unjudged`, `no field unjudged on Judgement`.
+- not verified: no paid run; the printed `retrodoc benchmark` summary and the `pass_replay` tables still show an
+  unjudged kind at the strict floor (only the log warns there).
 - Code review: no findings

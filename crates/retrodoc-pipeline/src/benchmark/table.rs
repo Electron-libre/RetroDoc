@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
-use super::judge::{Judgement, NarrativeRating};
+use super::judge::{Judgement, NarrativeRating, Unjudged};
 use super::matching::{Comparison, SCORING_VERSION};
 use super::metrics::RunMetrics;
 use crate::error::PipelineError;
@@ -30,6 +30,9 @@ pub struct RunReport {
     pub judged: Option<Comparison>,
     #[serde(default)]
     pub narratives: Option<NarrativeRating>,
+    /// The kinds the judge proposed no pair for, twice: their judged recall and precision are empty.
+    #[serde(default, skip_serializing_if = "Unjudged::is_none")]
+    pub unjudged: Unjudged,
 }
 
 impl RunReport {
@@ -39,9 +42,21 @@ impl RunReport {
         strict: Comparison,
         judged: Option<(Comparison, Judgement)>,
     ) -> Self {
-        let (judged, narratives) = match judged {
-            Some((comparison, judgement)) => (Some(comparison), Some(judgement.narratives)),
-            None => (None, None),
+        let (judged, narratives, unjudged) = match judged {
+            Some((mut comparison, judgement)) => {
+                let unjudged = judgement.unjudged;
+                for (left_out, score) in [
+                    (unjudged.domains, &mut comparison.domains),
+                    (unjudged.features, &mut comparison.features),
+                ] {
+                    if left_out {
+                        score.recall = None;
+                        score.precision = None;
+                    }
+                }
+                (Some(comparison), Some(judgement.narratives), unjudged)
+            }
+            None => (None, None, Unjudged::default()),
         };
         Self {
             scoring: Some(SCORING_VERSION),
@@ -49,6 +64,7 @@ impl RunReport {
             strict,
             judged,
             narratives,
+            unjudged,
         }
     }
 }
@@ -142,6 +158,24 @@ pub fn table(current: &[Series], previous: Option<&[Series]>) -> String {
                      {SCORING_VERSION}) to compare them.\n",
                     show_versions(&now_versions),
                     show_versions(&was_versions)
+                );
+            }
+        }
+        for (kind, count) in [
+            (
+                "domains",
+                series.runs.iter().filter(|r| r.unjudged.domains).count(),
+            ),
+            (
+                "features",
+                series.runs.iter().filter(|r| r.unjudged.features).count(),
+            ),
+        ] {
+            if count > 0 {
+                let _ = writeln!(
+                    out,
+                    "{count} run(s) unjudged for {kind}: the judge proposed no pair, twice; they \
+                     are left out of the `(judged)` figures of {kind}.\n"
                 );
             }
         }
@@ -445,6 +479,7 @@ mod tests {
                 business: 9,
             }),
             strict,
+            unjudged: Unjudged::default(),
         }
     }
 
@@ -546,6 +581,55 @@ mod tests {
             "the table must say how to read recall and precision: {text}"
         );
         assert!(text.contains("floor"), "{text}");
+    }
+
+    // spec: BSC-13 (internal: the reports are built in memory)
+    #[test]
+    fn an_unjudged_kind_is_left_out_of_the_judged_figures_and_counted() {
+        let unjudged = |judgement: Judgement| {
+            let run = report(0.5, 6, 10, true);
+            let judged = run.strict.clone();
+            RunReport::new(run.metrics, run.strict, Some((judged, judgement)))
+        };
+        let features_unjudged = Judgement {
+            unjudged: Unjudged {
+                domains: false,
+                features: true,
+            },
+            ..Judgement::default()
+        };
+        let run = unjudged(features_unjudged.clone());
+        let judged = run.judged.as_ref().unwrap();
+        assert_eq!(
+            (judged.features.recall, judged.features.precision),
+            (None, None)
+        );
+        assert_eq!(judged.domains.recall, Some(0.5));
+        assert_eq!(run.strict.features.recall, Some(0.5));
+        let old: RunReport =
+            serde_json::from_value(serde_json::to_value(report(0.5, 6, 10, true)).unwrap())
+                .unwrap();
+        assert_eq!(old.unjudged, Unjudged::default());
+
+        let runs = vec![
+            unjudged(features_unjudged.clone()),
+            unjudged(features_unjudged),
+            report(0.5, 6, 10, true),
+            report(0.5, 6, 10, true),
+            report(0.5, 6, 10, true),
+        ];
+        let text = table(&[series("hidden", runs)], None);
+
+        assert_eq!(
+            row(&text, "Features recall (judged)"),
+            "| Features recall (judged) | 50% | 50%–50% | 3 |  |  |"
+        );
+        assert!(
+            row(&text, "Domains recall (judged)").contains("| 5 |"),
+            "{text}"
+        );
+        assert!(text.contains("2 run(s) unjudged for features"), "{text}");
+        assert!(!text.contains("unjudged for domains"), "{text}");
     }
 
     // spec: BSC-6
