@@ -4,7 +4,8 @@ Open issues in the order to work on them: the first is the next one. Read by `ju
 `just close-issue` removes a line, `skill:create-issue` inserts one at its rank, `skill:prioritize-issues`
 re-ranks the whole list. Line format: `- [<file stem>](<file stem>.md) - <why here>`.
 
-- [surface_domains_default_decision](surface_domains_default_decision.md) - parked (user, 2026-10-10): an optimization; the default stays `files` until the cost of more benchmark runs is acceptable
+- [surface_domains_default_decision](surface_domains_default_decision.md) - unparked (user, 2026-10-28): settles the default that `single_pipeline_path` applies
+- [judge_silently_proposes_no_feature_pair](judge_silently_proposes_no_feature_pair.md) - small, before the next measure: an empty judgement drops a run's judged figures to the strict floor (found by `surface_domains_default_decision`), every judged figure depends on it
 - [single_pipeline_path](single_pipeline_path.md) - right after `surface_domains_default_decision`, which it applies
 - [pass_runner_and_run_context](pass_runner_and_run_context.md) - after `single_pipeline_path`: do not refactor code about to be removed
 - [contexts_residual_size_and_names](contexts_residual_size_and_names.md) - low: follow-up of the closed split by family (2026-10-14): one context still over 150 files, action names taken for families, the names unread; nothing before it depends on it, and its spread measure is cheaper after `sampling_temperature_for_steadier_runs`

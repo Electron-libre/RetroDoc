@@ -54,6 +54,45 @@ until that gap is understood and a second large repository agrees.
   repository only since (`issues/done/benchmark_passes_on_fixed_inputs.md`). The library gap is therefore not
   settled by them: deliverable 2 reruns the whole pipeline with deepseek on both paths.
 
+* Measures of 2026-10-28 (7e2bf9a, deepseek-chat, `--series hidden --no-confidence`). delivery_router, 5 runs per
+  path:
+
+  | delivery_router | `files` | `surface` | `surface`, runs 2 and 5 audited by hand |
+  |---|---|---|---|
+  | domains | 1 (1-1) | 3 (2-5) | |
+  | domains recall / precision, judged | 100% / 100% | 100% / 81% (40-100) | |
+  | features | 5 (4-5) | 7 (5-11) | |
+  | features recall, judged | 88% (75-100) | 57% (0-100) | about 95% (88-100) |
+  | features precision, judged | 88% (80-100) | 57% (0-100) | about 94% (82-100) |
+  | narratives in business language (judge) | 79% (53-100) | 76% (0-100) | |
+  | use cases | 17 (14-27) | 10 (7-16) | |
+  | calls / time | 18 / 47 s | 17 / 38 s | |
+
+  The two `surface` runs at 0% are a judge failure, not the docs: their `judge.yaml` has `features: []`
+  (`issues/judge_silently_proposes_no_feature_pair.md`). By hand, run 2's 5 features cover 7 or 8 of the 8
+  reference features with none extra; run 5's 11 cover all 8, with 2 extra (`Rider lookup`, `Router setup`). The
+  library flaw of 2026-10-10 is still visible in one run of five: run 5 makes features of constructors
+  (`Customer.new`, `Restaurant.new`, `DeliveryRouter.new`) and of internal collections (`Orders#add`,
+  `Riders#get`), and has 5 domains, 2 of them (`Party registration`, `Router setup`) technical. The `files` path
+  always makes one domain on this library, which the reference scores as a full match.
+* lobsters, 1 `surface` run against the `files` run of 2026-10-27, both scored with scoring version 1 (the `files`
+  run re-scored with `retrodoc benchmark --saved-judge`, no LLM call):
+
+  | lobsters | `files` (d8d8c92-1) | `surface` (7e2bf9a) |
+  |---|---|---|
+  | domains | 8 | 11 |
+  | domains recall / precision, judged | 43% / 38% | 100% / 82% |
+  | features | 98 | 73 |
+  | features recall / precision, judged | 100% / 51% | 97% / 47% |
+  | narratives in business language (judge) / use cases at score 1 | 81% / 74% | 81% / 82% |
+  | use cases | 392 | 208 |
+  | calls / tokens in / out | 351 / 1.38M / 164k | 126 / 1.08M / 95k |
+  | time | 18 min | 9 min |
+
+  One judge pair of the `surface` domains is loose (`Messaging and notifications` paired with `Syndication`);
+  without it, recall is 86%. Half the use cases is fewer behaviours described, not only fewer duplicates: not
+  audited.
+
 # Approach
 
 1. Find why the library does worse: read the entry points, domains and features of the three weak runs
@@ -95,7 +134,7 @@ cheap paid runs. Out of scope: removing the losing path (`single_pipeline_path`)
    (`second_application_in_benchmark-d8d8c92-1`) and its `surface` domains and features replays, read the
    delivery_router `surface` replays (f7ac334, 100%), and write the comparison table in `# Findings`; verified by
    the table and the ledger line.
-2. [ ] Paid measures (user's go): delivery_router `just benchmark --provider deepseek --runs 5 --no-confidence`
+2. [x] Paid measures (user's go): delivery_router `just benchmark --provider deepseek --runs 5 --no-confidence`
    once per path (`files`, `surface`, cents), and one lobsters `--domains-from surface --series hidden --runs 1`
    (~$0.5) to set calls, time and judged recall against the `files` run; verified by the tables in `# Findings`
    and the ledger lines. Stop: the decision is the user's.
@@ -121,3 +160,13 @@ cheap paid runs. Out of scope: removing the losing path (`single_pipeline_path`)
 - Code review: no findings.
 - not verified: the lobsters judge pairs of the replays (not saved); the judge was right on 47 of 49 pairs of
   the generate.
+
+## Deliverable 2
+- done: delivery_router 5 runs per path and one lobsters `surface` run measured, tables in `# Findings`; issue
+  `judge_silently_proposes_no_feature_pair` created and queued second (the judge's empty feature answers).
+- checks: issue files and queue only; `just check` and the code review below.
+- red: none (no test, a measure).
+- Code review: no findings.
+- not verified: the lobsters judge pairs beyond the domains (28 feature pairs not read); whether the halved
+  use cases of lobsters lose behaviours; one `surface` run of lobsters is a sample, not a spread.
+- decisions needed: the default (see the stop of deliverable 2).
