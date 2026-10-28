@@ -48,7 +48,8 @@ fn unusable(tree: &Path, reason: String) -> PipelineError {
 /// Returns an error if `retrodoc.toml` of the tree is invalid, or the tree can't be ingested.
 pub fn tree_evidence(tree: &Path) -> Result<Evidence, PipelineError> {
     let config = if tree.join(retrodoc_core::config::CONFIG_FILE_NAME).exists() {
-        Config::load(tree).map_err(|e| unusable(tree, e.to_string()))?
+        // A saved run may name settings removed since (ADR 0035): only what it read is needed.
+        Config::load_ingest_and_output(tree).map_err(|e| unusable(tree, e.to_string()))?
     } else {
         Config::default()
     };
@@ -96,5 +97,26 @@ mod tests {
 
         assert!(section.contains("paid monthly by the tenant"), "{section}");
         assert!(!section.contains("Generated invoices page"), "{section}");
+    }
+
+    #[test]
+    fn a_saved_run_of_the_removed_files_path_still_gives_its_evidence() {
+        let tree = tempfile::tempdir().unwrap();
+        git2::Repository::init(tree.path()).unwrap();
+        write(
+            tree.path(),
+            "retrodoc.toml",
+            "[llm]\nbatch_chars = 6000\n\n[ingest]\nexisting_docs_paths = [\"notes\"]\n\n\
+             [pipeline]\ndomains_from = \"files\"\n",
+        );
+        write(
+            tree.path(),
+            "notes/billing.md",
+            "# Billing\n\nInvoices are paid monthly by the tenant.\n",
+        );
+
+        let section = tree_evidence(tree.path()).unwrap().section("invoices paid");
+
+        assert!(section.contains("paid monthly by the tenant"), "{section}");
     }
 }

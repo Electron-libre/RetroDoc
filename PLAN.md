@@ -20,9 +20,9 @@ connectors, automatic PRs, multi-provider LLM.
 
 ```
 1. Ingestion       → repo walker (respects .gitignore) + parsing of existing .md files + git log per path
-2. Repo map        → bottom-up summary per file/module (probable role, enriched with commit frequency/authors)
-3. Domains         → LLM clustering of the repo map's directory-level summaries + existing docs (files resolved to domains by longest-prefix path match; files left unassigned placed by one small extra call) → domains.yaml (intermediate, validated: 100% code coverage, no overlap)
-4. Features        → per domain, grounded on the associated code chunks
+2. Surface         → file roles, business files, entities (glossary), entry points, then the actors
+3. Domains         → LLM grouping of the resources (entry points by resource) and the entities → domains.yaml (intermediate; the entry points no feature holds and the files no behaviour reaches are reported, ADR 0020)
+4. Features        → per domain, over its entry points
 5. Use cases       → per feature, steps + actors/actions, grounded on real code (handlers, routes, UI, DB)
 6. Diagrams        → Mermaid (flowchart/sequenceDiagram) per use case
 7. Confidence      → per-section cross-check pass (the LLM checks the claim against the cited code)
@@ -34,14 +34,14 @@ Step 3 (`domains.yaml`) is a structured intermediate artifact, not a final file 
 be rerun without redoing the clustering, and it's the basis for the incremental cache (rerun only what
 touches files modified since the last run).
 
-This was the `files` path (`[pipeline] domains_from = "files"`, the default until 2026-10-28, removed by ADR 0035), with what phases 7 and 10 added around it: a
-product brief from the non-code evidence comes first, then the surface (roles, business files, entities,
-entry points) and the actors; the confidence checks are mechanical first; business rules are a pass (on by default)
-pass after the use cases. Phase 10 (§7.5) also built a second path (`domains_from = "surface"`): domains and
-features from the entry points and entities, no LLM repo map, the coverage invariant moved from files to
-behaviours. It is the default since 2026-10-28 (ADR 0034) and the only path since ADR 0035
-(`issues/single_pipeline_path.md`, §7.6): steps 2 and 3 above are gone, the domains are clustered from the surface.
-The order `generate` runs today is in
+The first version (ADR 0004) had a repo map (an LLM summary of every file and directory) as step 2 and
+clustered its directory summaries into domains covering every file: the `files` path, the default until
+2026-10-28 and removed by ADR 0035 (`issues/single_pipeline_path.md`, §7.6). Phases 7 and 10 added a product
+brief from the non-code evidence first, the surface and the actors, mechanical confidence checks and a business
+rules pass (on by default) after the use cases; phase 10 (§7.5) built the domains and features from the surface,
+the coverage invariant moved from files to behaviours (ADR 0020, the default since ADR 0034). With
+`domains_from = "contexts"` the same passes run a bounded context at a time (§7.7). The order `generate` runs
+today is in
 `docs/crates/pipeline.md`.
 
 ## 3. Expected output

@@ -492,14 +492,7 @@ impl Config {
     /// Returns an error if the file is missing, unreadable, or its TOML
     /// content is invalid or names a removed setting.
     pub fn load(repo_root: &Path) -> Result<Self, ConfigError> {
-        let path = repo_root.join(CONFIG_FILE_NAME);
-        if !path.exists() {
-            return Err(ConfigError::NotFound(path.display().to_string()));
-        }
-        let raw = fs::read_to_string(&path).map_err(|source| ConfigError::Read {
-            path: path.display().to_string(),
-            source,
-        })?;
+        let raw = Self::read(repo_root)?;
         if let Some(error) = removed_setting(&raw) {
             return Err(error);
         }
@@ -511,6 +504,35 @@ impl Config {
             ));
         }
         Ok(config)
+    }
+
+    /// The `[ingest]` and `[output]` of `<repo_root>/retrodoc.toml`, the other sections left to their
+    /// defaults: how a saved run is read again (its files and its docs), whatever settings were removed
+    /// since it was made (ADR 0035).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the file is missing, unreadable, or its TOML content or those two sections are
+    /// invalid.
+    pub fn load_ingest_and_output(repo_root: &Path) -> Result<Self, ConfigError> {
+        let table: toml::Table = toml::from_str(&Self::read(repo_root)?)?;
+        let kept: toml::Table = table
+            .into_iter()
+            .filter(|(section, _)| section == "ingest" || section == "output")
+            .collect();
+        Ok(toml::Value::Table(kept).try_into()?)
+    }
+
+    /// The text of `<repo_root>/retrodoc.toml`.
+    fn read(repo_root: &Path) -> Result<String, ConfigError> {
+        let path = repo_root.join(CONFIG_FILE_NAME);
+        if !path.exists() {
+            return Err(ConfigError::NotFound(path.display().to_string()));
+        }
+        fs::read_to_string(&path).map_err(|source| ConfigError::Read {
+            path: path.display().to_string(),
+            source,
+        })
     }
 
     /// Writes the default config to `<repo_root>/retrodoc.toml`.
@@ -623,7 +645,7 @@ mod tests {
         let raw = toml::to_string_pretty(&contexts).unwrap();
         let again: Config = toml::from_str(&raw).unwrap();
         assert_eq!(again.pipeline.domains_from, DomainsFrom::Contexts);
-        // `init` writes the key, so the `--domains-from` of the skills has a line to set.
+        // `init` writes the key, so a user sees which path the run takes and where to change it.
         let dir = tempfile::tempdir().unwrap();
         Config::write_default(dir.path(), false).unwrap();
         let written = fs::read_to_string(dir.path().join(CONFIG_FILE_NAME)).unwrap();

@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use super::*;
 
-use crate::artifact::Retention;
+use crate::artifact::{Artifact, Retention};
 use crate::behaviour_coverage::{BehaviourCoverage, EntryCount};
 use crate::domains::UNCATEGORIZED_SLUG;
 use crate::entry_points::{EntryFile, EntryKind};
@@ -520,6 +520,46 @@ async fn a_killed_run_keeps_the_domains_done_and_the_rerun_resumes() {
         2,
         "the routing domain, then the placement of `GET /ping`: the orders domain is not asked again"
     );
+}
+
+#[tokio::test]
+async fn a_killed_run_does_not_bring_back_the_features_of_the_removed_files_path() {
+    let dir = tempfile::tempdir().unwrap();
+    let (domains, entries) = fixture();
+    let from_files = Feature {
+        slug: "billing".to_string(),
+        domain_slug: "billing".to_string(),
+        sub_domain_slug: Some("invoices".to_string()),
+        name: "Billing".to_string(),
+        description: "d".to_string(),
+        source_paths: vec!["lib/billing.rb".to_string()],
+        entry_points: Vec::new(),
+        back_office: false,
+        confidence: None,
+    };
+    save_features(dir.path(), &[from_files]).unwrap();
+    let stuck = FakeLlm::hanging_after(1, |_| {
+        r#"{"features":[{"slug":"orders","name":"O","description":"d",
+            "entry_points":["orders.rb#GET /orders","orders.rb#POST /orders"]}]}"#
+            .to_string()
+    });
+    killed(
+        build_features_from_surface(
+            dir.path(),
+            &domains,
+            &entries,
+            &Surface::default(),
+            &ProductBrief::default(),
+            &Evidence::default(),
+            &stuck,
+            Retention::OnlyRead,
+        ),
+        &stuck,
+    )
+    .await;
+    let saved = load_features(dir.path()).expect("the features of the domain done are on disk");
+    let slugs: Vec<&str> = saved.iter().map(|f| f.slug.as_str()).collect();
+    assert_eq!(slugs, vec!["orders"]);
 }
 
 /// Two domains of a context map: no resources, the entry points are those of their files.

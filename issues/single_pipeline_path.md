@@ -79,6 +79,9 @@ sub-domain code (follow-up issue). The repo map itself goes in a second issue (`
    (~900 lines, deletion).
 5. [x] Name the removed setting first (found by the check of deliverable 4): only a missing `retrodoc.toml` asks
    for `init`; verified by `crates/retrodoc-cli/tests/removed_settings.rs`; makes true SET-8 through the binary.
+6. [x] Fixes of the `high` review of the issue (10 findings): replays on frozen inputs of `files` runs, a killed
+   run bringing back `files` features, PLAN §2, a stale comment, explicit imports of `features/from_surface`;
+   verified by the frame and features tests.
 
 ## Decisions
 - Mode: autonomous
@@ -147,4 +150,25 @@ sub-domain code (follow-up issue). The repo map itself goes in a second issue (`
 - checks: as deliverable 4.
 - red: SET-8: `removed_settings.rs` failed with `Error: config not found — run retrodoc init first` as the
   first line.
+- Code review: no findings.
+
+## Deliverable 6 (fixes of the `high` review, 10 findings)
+- done: `tree_evidence` reads a saved run with `Config::load_ingest_and_output` (only `[ingest]` and
+  `[output]`), so `pass_replay` keeps working on the frozen inputs, whose source runs name
+  `domains_from = "files"`; `save_partial` never puts back a feature with no entry point (one of the `files`
+  path), so a killed first run after the switch does not mix them with the surface features; `unit_key` and
+  `save_partial` moved to `features/from_surface.rs`, which names its imports instead of `super::*`; PLAN §2
+  lists the surface pipeline; the stale `--domains-from` comment of the SET-6 test;
+  `docs/crates/pipeline.md` on the frozen inputs.
+- Not fixed: `report` and `benchmark --judge` refuse a saved clone of a `files` run (SET-8 as written; the
+  line can be deleted in the clone, `--saved-judge` still works): decision left to the user; `unit_key` and
+  `save_partial` still handle a sub-domain slug (changing the keys would redo every saved unit; with
+  `remove_sub_domains`); `freeze` still copies a `repo-map.json` and `lib.rs` still exports the repo map
+  (`remove_repo_map`); `removed_setting` special cases instead of one table (four shapes, one each); the second
+  TOML parse of every load (a `[llm] batch_chars` loads without error, so it must be looked for on success too).
+- checks: fmt, clippy, tests, specs green; `check-harness` red as before (harness migration in progress).
+- red: `a_saved_run_of_the_removed_files_path_still_gives_its_evidence`: `InvalidReference { reason: "[llm]
+  batch_chars was removed: ..." }`; `a_killed_run_does_not_bring_back_the_features_of_the_removed_files_path`:
+  `left: ["orders", "billing"], right: ["orders"]` (checked by removing the filter after the fix).
+- not verified: `pass_replay` itself on `~/retrodoc-runs/frozen` (it calls the LLM).
 - Code review: no findings.
