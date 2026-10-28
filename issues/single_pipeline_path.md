@@ -73,10 +73,12 @@ sub-domain code (follow-up issue). The repo map itself goes in a second issue (`
    `just check` (~735 lines, deletion).
 3. [x] Remove the placement of unassigned files (`domains/repair.rs`, its call in `build_domains`, its tests;
    ADR 0017); verified by `just check` (~300 lines, deletion).
-4. [ ] Remove the clustering by directory (`build_domains`, `CoverageReport`, `domains/coverage.rs`, the
+4. [x] Remove the clustering by directory (`build_domains`, `CoverageReport`, `domains/coverage.rs`, the
    clustering prompt, files-only tests of `domains/tests.rs`; `layer_named_domains` stays); verified by
    `just check` and a `generate` on a copy of a saved `delivery_router` `surface` run making no LLM call
    (~900 lines, deletion).
+5. [x] Name the removed setting first (found by the check of deliverable 4): only a missing `retrodoc.toml` asks
+   for `init`; verified by `crates/retrodoc-cli/tests/removed_settings.rs`; makes true SET-8 through the binary.
 
 ## Decisions
 - Mode: autonomous
@@ -124,3 +126,25 @@ sub-domain code (follow-up issue). The repo map itself goes in a second issue (`
 - red: none (a deletion, no new behaviour).
 - Code review: no findings.
 - not verified: a whole `generate` (no LLM run).
+
+## Deliverable 4
+- done: `build_domains`, `CoverageReport`, `domains/coverage.rs`, the clustering prompt and fingerprint and
+  their tests removed; `domains/prompt.rs` keeps `layer_named_domains`; `from_surface.rs` names the imports it
+  took from `super::*`. Issue `remove_sub_domains` created and queued after `pass_runner_and_run_context`.
+- checks: fmt, clippy, tests, specs green; `check-harness` red as before (harness migration in progress); a
+  `generate --no-confidence` on a copy of a saved `delivery_router` `surface` benchmark run of 2026-10-28
+  (deepseek-chat, `base_url` pointed at a closed port) made no LLM call and wrote no file
+  (`~/retrodoc-runs/single_pipeline_path-noop`).
+- red: none (a deletion, no new behaviour).
+- Code review: no findings.
+- not verified: a `generate` from scratch (no LLM run).
+
+## Deliverable 5
+- done: a command on a `retrodoc.toml` naming a removed setting printed `config not found — run retrodoc init
+  first` above the SET-8 message; only a missing file asks for `init` now (`workspace.rs`). Found by running
+  the copy of the `files` run of 2026-10-28, which now stops with the SET-8 message alone. Cut from
+  deliverable 4 for the size limit, reviewed on its own.
+- checks: as deliverable 4.
+- red: SET-8: `removed_settings.rs` failed with `Error: config not found — run retrodoc init first` as the
+  first line.
+- Code review: no findings.

@@ -5,7 +5,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::Context;
-use retrodoc_core::config::Config;
+use retrodoc_core::config::{Config, ConfigError};
 use retrodoc_ingest::{FileKind, IngestResult};
 
 /// The canonical root of the repo at `path`.
@@ -24,8 +24,14 @@ impl Workspace {
     /// Opens the repo at `path` with its `retrodoc.toml`.
     pub fn open(path: &Path) -> anyhow::Result<Self> {
         let repo_root = repo_root(path)?;
-        let config = Config::load(&repo_root)
-            .with_context(|| "config not found — run `retrodoc init` first".to_string())?;
+        // Only a missing file asks for `init`: a file that names a removed setting or fails to parse
+        // says so itself.
+        let config = Config::load(&repo_root).map_err(|error| match error {
+            ConfigError::NotFound(_) => {
+                anyhow::anyhow!("config not found — run `retrodoc init` first")
+            }
+            other => other.into(),
+        })?;
         Ok(Self { repo_root, config })
     }
 
