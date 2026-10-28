@@ -39,15 +39,16 @@ change of these rules must not read as a change of quality between two benchmark
 - **BSC-10** (deterministic) When a judge call offered generated and reference items and its answer proposes no
   pair, because it is empty, unparseable or every proposal was dropped, the judge must ask once more and keep the
   pairs of the second answer.
-- **BSC-11** (deterministic) The judge must log at `warn` the proposals it drops, with their count, and must log
-  at `warn`, naming domains or features, a call that still proposes no pair after the second answer.
+- **BSC-11** (deterministic) The judge must log at `warn` the proposals it drops for naming an item not offered,
+  with their count, and must log at `warn`, naming domains or features, a call that still proposes no pair after
+  the second answer; a repeated pair must not be warned about.
 - **BSC-12** (deterministic) A kind (domains or features) whose call still proposes no pair after the second
   answer must be marked unjudged in `judge.yaml`; a `judge.yaml` saved without the mark must load as judged.
 - **BSC-13** (deterministic) A run whose kind is unjudged must have no judged recall and precision of that kind in
   its `run-<n>.json`, so that `benchmark-table` leaves it out of the mean and range of the judged figures of that
   kind, and `benchmark-table` must say, under the series, how many runs are unjudged for each kind.
-- **BSC-14** (deterministic) A proposal whose name is an offered name followed by `:` and more text must be read
-  as that offered name, so that a name copied with its description is kept.
+- **BSC-14** (deterministic) A proposal whose name is an offered name followed by `:` and its description, or the
+  start of it, must be read as that offered name; followed by any other text, it must be dropped.
 
 ## Scenarios
 

@@ -182,8 +182,10 @@ async fn ask_matches(
                 generated: generated.to_string(),
                 reference: reference.to_string(),
             });
-        if let Some(pair) = offered.filter(|pair| !pairs.contains(pair)) {
-            pairs.push(pair);
+        if let Some(pair) = offered {
+            if !pairs.contains(&pair) {
+                pairs.push(pair);
+            }
         } else {
             dropped += 1;
             tracing::debug!(
@@ -198,20 +200,31 @@ async fn ask_matches(
             what,
             dropped,
             kept = pairs.len(),
-            "benchmark judge: proposals dropped (a name not offered, or a repeated pair)"
+            "benchmark judge: proposals dropped, naming an item not offered"
         );
     }
     Ok(pairs)
 }
 
 /// The offered item that `name` stands for: same normalized name, or the name followed by `:` and
-/// its description, as the judge sometimes copies the listing line whole.
+/// its description (or the start of it), as the judge sometimes copies the listing line whole.
 fn offered_name<'a>(items: &'a [Item], name: &str) -> Option<&'a str> {
-    // The whole name first, then the longest prefix: an offered name may hold a `:` itself.
-    std::iter::once(name)
-        .chain(name.rmatch_indices(':').map(|(at, _)| &name[..at]))
-        .map(normalize)
-        .find_map(|wanted| items.iter().find(|i| normalize(&i.name) == wanted))
+    let same = |a: &str, b: &str| normalize(a) == normalize(b);
+    let starts = |text: &str, description: &str| {
+        let (text, description) = (normalize(text), normalize(description));
+        !text.is_empty() && (description.starts_with(&text) || text.starts_with(&description))
+    };
+    if let Some(item) = items.iter().find(|i| same(&i.name, name)) {
+        return Some(&item.name);
+    }
+    // The longest prefix first: an offered name may hold a `:` itself.
+    name.rmatch_indices(':')
+        .find_map(|(at, _)| {
+            let (head, rest) = (&name[..at], &name[at + 1..]);
+            items
+                .iter()
+                .find(|i| same(&i.name, head) && starts(rest, &i.description))
+        })
         .map(|i| i.name.as_str())
 }
 
@@ -482,7 +495,7 @@ mod tests {
         let llm = FakeLlm::answering(
             r#"{"matches":[
                 {"generated":"Order clearing: Removes a customer's orders from the router.","reference":"Cancel a customer's order: Forget the order of a customer"},
-                {"generated":"order clearing: Removes orders","reference":"Cancel a customer's order"},
+                {"generated":"order clearing: Removes a customer's orders","reference":"Cancel a customer's order"},
                 {"generated":"Order clearingness: no","reference":"Cancel a customer's order"}
             ]}"#,
         );
@@ -514,7 +527,7 @@ mod tests {
         let pairs = propose_matches(
             &llm,
             "features",
-            &[item("Auth", "a"), item("Auth: SSO login", "b")],
+            &[item("Auth", "a"), item("Auth: SSO login", "Signs in")],
             &[item("Login", "c")],
         )
         .await
@@ -523,6 +536,23 @@ mod tests {
             pairs,
             [pair("Auth: SSO login", "Login")],
             "the longest offered name wins"
+        );
+
+        let llm = FakeLlm::answering(
+            r#"{"matches":[{"generated":"Refund flow","reference":"Payments: refunds"}]}"#,
+        );
+        let pairs = propose_matches(
+            &llm,
+            "features",
+            &[item("Refund flow", "Pays back")],
+            &[item("Payments", "Getting paid")],
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            pairs,
+            [],
+            "a name not offered is not cut at its colon when the rest is not the description"
         );
     }
 
@@ -588,6 +618,24 @@ mod tests {
         assert!(
             text.contains("WARN") && text.contains("dropped=2"),
             "{text}"
+        );
+
+        let (logs, _guard) = crate::testing::capture_logs();
+        let llm = FakeLlm::answering(
+            r#"{"matches":[{"generated":"Billing","reference":"Payments"},{"generated":"Billing","reference":"Payments"}]}"#,
+        );
+        propose_matches(
+            &llm,
+            "features",
+            &[item("Billing", "Invoices")],
+            &[item("Payments", "Getting paid")],
+        )
+        .await
+        .unwrap();
+        assert!(
+            !logs.text().contains("WARN"),
+            "a repeated pair loses nothing: {}",
+            logs.text()
         );
         assert!(
             text.contains("benchmark judge proposed no pair, twice")

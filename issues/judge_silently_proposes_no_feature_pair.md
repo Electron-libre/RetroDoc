@@ -77,6 +77,8 @@ Measure: the judge writes the names with their descriptions, so they are dropped
 4. [x] Unjudged runs: `Judgement` marks an unjudged kind (absent from the file when false), `RunReport` gets no
    judged figures for it, `benchmark-table` counts the unjudged runs per kind under the series; verified by `judge.rs` and `table.rs` tests; makes true BSC-12, BSC-13, spec back to `accepted`.
    (~300 lines)
+5. [x] Fixes of the `high` review: a name cut at its colon only when the rest is the offered description (or its
+   start), no warning for a repeated pair, `SCORING_VERSION` 2 doc names BSC-13; BSC-11 and BSC-14 reworded.
 
 ## Decisions
 - Mode: autonomous
@@ -111,3 +113,18 @@ Measure: the judge writes the names with their descriptions, so they are dropped
 - not verified: no paid run; the printed `retrodoc benchmark` summary and the `pass_replay` tables still show an
   unjudged kind at the strict floor (only the log warns there).
 - Code review: no findings
+
+## Deliverable 5 (fixes of the `high` review, 10 findings)
+- done: `offered_name` cuts a name at a `:` only when what follows is the offered item's description or its
+  start (the replay showed verbatim copies), so a reference name holding a `:` that was not offered is no longer
+  mapped onto another item; a repeated pair is not counted as dropped; `SCORING_VERSION` doc names both changes.
+- checks: `just check` pass; spec BSC-11, BSC-14 reworded.
+- red: BSC-14, BSC-11: `left: [Pair { generated: "Refund flow", reference: "Payments" }] right: []`; a WARN for a
+  repeated pair.
+- Code review (high): 10 findings: fixed the colon mapping, the repeat warning, the version doc; issue
+  `issues/unjudged_kinds_in_replays_and_summary.md` for the replay tables and the printed summary (2 findings);
+  not fixed: a genuine "no pair" twice is marked unjudged (decided in the spec, the table shows the count), the
+  stacked retries (up to 4 calls on unreadable answers, cents), `judge` deriving the mark from empty pairs
+  (documented on `propose_matches`), the listing format (a prompt change, unmeasured), the `harness.toml`
+  source change (the user's, uncommitted).
+- Code review (low): no findings
