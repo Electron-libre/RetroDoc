@@ -19,12 +19,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-/// Folder of the functional documentation, under the docs dir.
-pub const FUNCTIONAL_DIR: &str = "functional";
-/// Folder of `RetroDoc`'s own files (coverage report, run metadata), under
-/// the docs dir. Neither it nor [`FUNCTIONAL_DIR`] must be fed back as
-/// existing documentation on the next run.
-pub const META_DIR: &str = "_retrodoc";
+pub use retrodoc_core::config::{FUNCTIONAL_DIR, META_DIR};
 /// Path of the index for agents (`llms.txt` style), relative to the docs dir.
 pub const AGENT_INDEX_PATH: &str = "functional/llms.txt";
 /// Path of the business rules grouped by entity, relative to the docs dir.

@@ -8,12 +8,13 @@ use std::time::Duration;
 
 use retrodoc_llm::{LlmProvider, UsageTracker};
 
+use super::frame::Frame;
 use super::frozen::{FrozenInputs, ReplayPass};
 use super::judge::judge;
 use super::matching::{compare, Comparison, Matches, Score};
 use super::reference::Reference;
 use crate::artifact::Retention;
-use crate::brief::{Evidence, ProductBrief};
+use crate::brief::ProductBrief;
 use crate::domains::{build_domains_from_surface, DomainMap};
 use crate::entry_points::EntryPoints;
 use crate::error::PipelineError;
@@ -111,9 +112,8 @@ pub async fn replay_domains(
     .await
 }
 
-/// Runs the features pass once on the frozen domains, in `work_root` (an empty directory), and scores
-/// the features against `reference`; the evidence of the brief is left out, as in the runs the inputs
-/// come from. Same judge as [`replay_domains`], which also proposes pairs for the frozen domains: ignore
+/// Runs the features pass once on the frozen domains, in `work_root` (an empty directory), framed by
+/// `frame`, and scores the features against `reference`. Same judge as [`replay_domains`], which also proposes pairs for the frozen domains: ignore
 /// them.
 ///
 /// # Errors
@@ -127,8 +127,10 @@ pub async fn replay_features(
     judge_llm: Option<&dyn LlmProvider>,
     tracker: &UsageTracker,
     scoring: Scoring<'_>,
+    frame: &Frame,
 ) -> Result<RunFigures, PipelineError> {
     let inputs = prepare(frozen, ReplayPass::Features, work_root)?;
+    let brief = frame.brief(work_root);
     let domains = DomainMap::load(work_root).ok_or_else(|| missing(work_root, "domains.yaml"))?;
     let features = tracker
         .in_pass(
@@ -138,8 +140,8 @@ pub async fn replay_features(
                 &domains,
                 &inputs.entry_points,
                 &inputs.surface,
-                &inputs.brief,
-                &Evidence::default(),
+                &brief,
+                &frame.evidence,
                 llm,
                 Retention::OnlyRead,
             ),
@@ -308,7 +310,9 @@ mod tests {
     use super::*;
     use crate::artifact::Artifact;
     use crate::benchmark::frozen::Manifest;
+    use crate::brief::Evidence;
     use crate::testing::FakeLlm;
+    use retrodoc_ingest::signals::{Signal, SignalKind};
     use retrodoc_llm::UsageProvider;
 
     const GLOSSARY: &str = "models:\n  customer.rb:\n    content_hash: h\n    entities:\n    - name: Customer\n      description: Someone who orders.\n";
@@ -448,11 +452,10 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn a_features_replay_starts_from_the_frozen_domains() {
-        let dir = tempfile::tempdir().unwrap();
-        let mut frozen = frozen(dir.path());
-        let surface_run = dir.path().join("surface-run");
+    /// Frozen inputs with the domains of the surface, ready for a features replay.
+    fn frozen_domains(dir: &Path) -> FrozenInputs {
+        let mut frozen = frozen(dir);
+        let surface_run = dir.join("surface-run");
         let domains = Artifact::Domains.path(&surface_run);
         std::fs::create_dir_all(domains.parent().unwrap()).unwrap();
         std::fs::write(
@@ -461,13 +464,65 @@ mod tests {
         )
         .unwrap();
         frozen.replace_domains(&surface_run, "test").unwrap();
+        frozen
+    }
+
+    const FEATURES: &str = r#"{"features":[{"slug":"order","name":"Order","description":"d","back_office":false,"entry_points":["customer.rb#POST /orders"]}]}"#;
+
+    /// The prompts of a features replay framed by `frame`, the frozen brief saying `Sells things.`.
+    async fn features_prompts(frame: &Frame) -> String {
+        let dir = tempfile::tempdir().unwrap();
+        let frozen = frozen_domains(dir.path());
+        let brief = serde_yaml::to_string(&crate::testing::brief("Sells things.")).unwrap();
+        std::fs::write(dir.path().join("frozen/cache/product.yaml"), brief).unwrap();
+        let llm = FakeLlm::answering(FEATURES);
+        let reference: Reference = serde_yaml::from_str(REFERENCE).unwrap();
+
+        replay_features(
+            &frozen,
+            &dir.path().join("work"),
+            &llm,
+            None,
+            &UsageTracker::new(),
+            Scoring {
+                reference: &reference,
+                matches: &Matches::default(),
+                matches_path: Path::new("matches.yaml"),
+            },
+            frame,
+        )
+        .await
+        .unwrap();
+        llm.prompts().concat()
+    }
+
+    #[tokio::test]
+    async fn a_features_replay_takes_the_frozen_brief_unless_left_out_and_the_evidence_it_is_given()
+    {
+        let default = features_prompts(&Frame::default()).await;
+        assert!(default.contains("Sells things."), "{default}");
+        assert!(!default.contains("Project evidence"), "{default}");
+
+        let evidence = Evidence::new(&[Signal {
+            kind: SignalKind::DocSection,
+            origin: "docs/orders.md".to_string(),
+            text: "An order is placed by a customer and paid at delivery.".to_string(),
+        }]);
+        let framed = features_prompts(&Frame {
+            without_brief: true,
+            evidence,
+        })
+        .await;
+        assert!(!framed.contains("Sells things."), "{framed}");
+        assert!(framed.contains("paid at delivery"), "{framed}");
+    }
+
+    #[tokio::test]
+    async fn a_features_replay_starts_from_the_frozen_domains() {
+        let dir = tempfile::tempdir().unwrap();
+        let frozen = frozen_domains(dir.path());
         let tracker = UsageTracker::new();
-        let llm = UsageProvider::new(
-            FakeLlm::answering(
-                r#"{"features":[{"slug":"order","name":"Order","description":"d","back_office":false,"entry_points":["customer.rb#POST /orders"]}]}"#,
-            ),
-            tracker.clone(),
-        );
+        let llm = UsageProvider::new(FakeLlm::answering(FEATURES), tracker.clone());
         let reference: Reference = serde_yaml::from_str(REFERENCE).unwrap();
 
         let figures = replay_features(
@@ -481,6 +536,7 @@ mod tests {
                 matches: &Matches::default(),
                 matches_path: Path::new("matches.yaml"),
             },
+            &Frame::default(),
         )
         .await
         .unwrap();

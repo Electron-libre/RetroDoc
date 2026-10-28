@@ -15,6 +15,7 @@ use retrodoc_core::model::BusinessRule;
 use retrodoc_llm::{LlmProvider, UsageTracker};
 use serde::Deserialize;
 
+use super::frame::Frame;
 use super::frozen::{FrozenInputs, ReplayPass};
 use super::reference::Reference;
 use super::replay_use_cases::{missing, prepare_with_tree, TreeRun};
@@ -68,7 +69,13 @@ pub async fn replay_rules(
 ) -> Result<RuleFigures, PipelineError> {
     let TreeRun {
         context, features, ..
-    } = prepare_with_tree(frozen, ReplayPass::Rules, tree, work_root)?;
+    } = prepare_with_tree(
+        frozen,
+        ReplayPass::Rules,
+        tree,
+        work_root,
+        &Frame::default(),
+    )?;
     let use_cases =
         load_use_cases(work_root).ok_or_else(|| missing(work_root, "use-cases.yaml"))?;
     let rules = tracker

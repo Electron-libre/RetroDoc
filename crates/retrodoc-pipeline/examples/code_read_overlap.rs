@@ -32,7 +32,9 @@ use retrodoc_core::model::{Feature, UseCase};
 use retrodoc_llm::{
     CompletionRequest, CompletionResponse, LlmError, LlmProvider, Role, UsageTracker,
 };
-use retrodoc_pipeline::benchmark::{replay_rules, replay_use_cases, FrozenInputs, Reference};
+use retrodoc_pipeline::benchmark::{
+    replay_rules, replay_use_cases, Frame, FrozenInputs, Reference,
+};
 use std::sync::Mutex;
 
 type Failure = Box<dyn std::error::Error>;
@@ -308,6 +310,7 @@ async fn run(frozen_dir: &Path, benchmark_dir: &Path) -> Result<String, Failure>
         &use_cases,
         None,
         &UsageTracker::new(),
+        &Frame::default(),
     )
     .await?;
     replay_rules(

@@ -13,11 +13,11 @@ use retrodoc_ingest::walker::walk_repo;
 use retrodoc_ingest::FileKind;
 use retrodoc_llm::{LlmProvider, UsageTracker};
 
+use super::frame::Frame;
 use super::frozen::{FrozenInputs, ReplayPass};
 use super::judge::{rate_narratives, NarrativeRating};
 use crate::actors::Actors;
 
-use crate::brief::{Evidence, ProductBrief};
 use crate::confidence::mechanical_score;
 use crate::entry_points::EntryPoints;
 use crate::error::PipelineError;
@@ -103,12 +103,13 @@ pub(super) struct TreeRun {
 }
 
 /// Fills `work_root` with the frozen artifacts a replay of `pass` starts from and a copy of the tree, and
-/// loads what the passes that read the code are given, as `generate` gives it.
+/// loads what the passes that read the code are given, as `generate` gives it, framed by `frame`.
 pub(super) fn prepare_with_tree(
     frozen: &FrozenInputs,
     pass: ReplayPass,
     tree: &Path,
     work_root: &Path,
+    frame: &Frame,
 ) -> Result<TreeRun, PipelineError> {
     frozen.prepare(pass, work_root)?;
     let sources = copy_tree(tree, work_root)?;
@@ -123,8 +124,8 @@ pub(super) fn prepare_with_tree(
         index: CodeIndex::new(sources.iter().map(std::path::PathBuf::as_path)),
         actors,
         vocabulary: surface.vocabulary(VOCABULARY_SIZE),
-        brief: ProductBrief::load(work_root).unwrap_or_default(),
-        evidence: Evidence::default(),
+        brief: frame.brief(work_root),
+        evidence: frame.evidence.clone(),
         ..UseCaseContext::default()
     };
     Ok(TreeRun {
@@ -135,7 +136,7 @@ pub(super) fn prepare_with_tree(
 }
 
 /// Runs the use cases pass once on the frozen features, in `work_root` (an empty directory), reading the
-/// code of `tree`, and measures the use cases. With `judge_llm`, the judge rates the narratives; its calls
+/// code of `tree`, framed by `frame`, and measures the use cases. With `judge_llm`, the judge rates the narratives; its calls
 /// are not in the figures of the pass.
 ///
 /// # Errors
@@ -148,12 +149,13 @@ pub async fn replay_use_cases(
     llm: &dyn LlmProvider,
     judge_llm: Option<&dyn LlmProvider>,
     tracker: &UsageTracker,
+    frame: &Frame,
 ) -> Result<UseCaseFigures, PipelineError> {
     let TreeRun {
         context,
         surface,
         features,
-    } = prepare_with_tree(frozen, ReplayPass::UseCases, tree, work_root)?;
+    } = prepare_with_tree(frozen, ReplayPass::UseCases, tree, work_root, frame)?;
 
     let mut use_cases = tracker
         .in_pass(
@@ -345,6 +347,7 @@ mod tests {
             &llm,
             Some(&llm),
             &tracker,
+            &Frame::default(),
         )
         .await
         .unwrap();

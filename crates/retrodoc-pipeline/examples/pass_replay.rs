@@ -2,7 +2,7 @@
 //! (`issues/done/benchmark_passes_on_fixed_inputs.md`).
 //!
 //! Usage:
-//! `DEEPSEEK_API_KEY=x cargo run -q -p retrodoc-pipeline --example pass_replay -- <domains|features|use-cases|rules> <frozen dir> <benchmark dir> <model> [runs] [--freeze-first]`
+//! `DEEPSEEK_API_KEY=x cargo run -q -p retrodoc-pipeline --example pass_replay -- <domains|features|use-cases|rules> <frozen dir> <benchmark dir> <model> [runs] [--freeze-first] [--brief off|head] [--evidence]`
 //!
 //! - `pass`: `domains` (the clustering of the surface), `features` (on the frozen domains), `use-cases` (on
 //!   the frozen features) or `rules` (on the frozen features and use cases). The last two read the code, of
@@ -13,6 +13,10 @@
 //! - `--freeze-first` (domains, features or use cases): the result of the first run replaces the frozen
 //!   one, which the next replay needs (what the `files` path wrote holds paths, not what the `surface` path
 //!   reads).
+//! - `--brief off|head` (features, use cases): leave the frozen product brief out of the prompts, or put it
+//!   at the head of the user prompt (the default, as `generate`).
+//! - `--evidence` (features, use cases): give each unit the extracts of the signals closest to it, from the
+//!   tree at `manifest.source_run` (`brief.evidence = true`; off by default, as `generate`).
 //!
 //! Each run starts from an empty work directory and the temperature is the pipeline's for the pass. The
 //! same model then judges what the strict reading cannot (the "judge" columns: an LLM's reading, not the
@@ -24,7 +28,7 @@ use retrodoc_core::config::{LlmConfig, ZERO_TEMPERATURE_PASSES};
 use retrodoc_llm::{OpenRouterProvider, UsageProvider, UsageTracker};
 use retrodoc_pipeline::benchmark::{
     replay_domains, replay_features, replay_rules, replay_table, replay_use_cases, rule_table,
-    use_case_table, FrozenInputs, Matches, Reference, RunFigures, Scoring,
+    tree_evidence, use_case_table, Frame, FrozenInputs, Matches, Reference, RunFigures, Scoring,
 };
 use retrodoc_pipeline::Artifact;
 use serde_json::json;
@@ -41,6 +45,9 @@ struct Setup {
     matches: Matches,
     matches_path: PathBuf,
     config: LlmConfig,
+    frame: Frame,
+    /// How the frame was set, for the title.
+    frame_label: String,
 }
 
 impl Setup {
@@ -77,8 +84,8 @@ impl Setup {
 
     fn title(&self) -> String {
         format!(
-            "{} of {} with {}",
-            self.pass, self.frozen.manifest.repo, self.model
+            "{} of {} with {}{}",
+            self.pass, self.frozen.manifest.repo, self.model, self.frame_label
         )
     }
 
@@ -93,17 +100,72 @@ impl Setup {
 #[tokio::main]
 async fn main() {
     let mut args: Vec<String> = std::env::args().skip(1).collect();
-    let freeze_first = args.iter().any(|a| a == "--freeze-first");
-    args.retain(|a| a != "--freeze-first");
+    let options = match Options::take(&mut args) {
+        Ok(options) => options,
+        Err(error) => {
+            eprintln!("{error}");
+            std::process::exit(2);
+        }
+    };
     let [pass, frozen_dir, bench_dir, model, rest @ ..] = args.as_slice() else {
-        eprintln!("usage: pass_replay <domains|features|use-cases|rules> <frozen dir> <benchmark dir> <model> [runs] [--freeze-first]");
+        eprintln!("usage: pass_replay <domains|features|use-cases|rules> <frozen dir> <benchmark dir> <model> [runs] [--freeze-first] [--brief off|head] [--evidence]");
         std::process::exit(2);
     };
     let runs = rest.first().and_then(|n| n.parse().ok()).unwrap_or(3);
-    let result = start(pass, frozen_dir, bench_dir, model, runs, freeze_first).await;
+    let result = start(pass, frozen_dir, bench_dir, model, runs, options).await;
     if let Err(error) = result {
         eprintln!("{error}");
         std::process::exit(1);
+    }
+}
+
+/// The flags of the command line.
+#[derive(Default)]
+struct Options {
+    freeze_first: bool,
+    without_brief: bool,
+    evidence: bool,
+}
+
+impl Options {
+    /// Takes the flags out of `args`, leaving the positional arguments.
+    fn take(args: &mut Vec<String>) -> Result<Self, Failure> {
+        let mut options = Options::default();
+        let mut rest = Vec::new();
+        let mut given = std::mem::take(args).into_iter();
+        while let Some(arg) = given.next() {
+            match arg.as_str() {
+                "--freeze-first" => options.freeze_first = true,
+                "--evidence" => options.evidence = true,
+                "--brief" => match given.next().as_deref() {
+                    Some("off") => options.without_brief = true,
+                    Some("head") => options.without_brief = false,
+                    _ => return Err("--brief takes `off` or `head`".into()),
+                },
+                _ => rest.push(arg),
+            }
+        }
+        *args = rest;
+        Ok(options)
+    }
+
+    /// The frame of the replayed pass, read from the tree when it takes the evidence.
+    fn frame(&self, tree: &Path) -> Result<Frame, Failure> {
+        let evidence = if self.evidence {
+            tree_evidence(tree)?
+        } else {
+            retrodoc_pipeline::Evidence::default()
+        };
+        Ok(Frame {
+            without_brief: self.without_brief,
+            evidence,
+        })
+    }
+
+    fn frame_label(&self) -> String {
+        let brief = if self.without_brief { ", no brief" } else { "" };
+        let evidence = if self.evidence { ", evidence" } else { "" };
+        format!("{brief}{evidence}")
     }
 }
 
@@ -113,12 +175,15 @@ async fn start(
     bench_dir: &str,
     model: &str,
     runs: usize,
-    freeze_first: bool,
+    options: Options,
 ) -> Result<(), Failure> {
     if !["domains", "features", "use-cases", "rules"].contains(&pass)
-        || (freeze_first && pass == "rules")
+        || (options.freeze_first && pass == "rules")
     {
         return Err("pass is `domains`, `features`, `use-cases` or `rules`; --freeze-first goes with the first three".into());
+    }
+    if (options.without_brief || options.evidence) && !["features", "use-cases"].contains(&pass) {
+        return Err("--brief and --evidence go with `features` and `use-cases`".into());
     }
     let bench_dir = Path::new(bench_dir);
     let matches_path = bench_dir.join("matches.yaml");
@@ -130,16 +195,20 @@ async fn start(
     if ZERO_TEMPERATURE_PASSES.contains(&pass) {
         config.temperature = Some(0.0);
     }
+    let frozen = FrozenInputs::open(Path::new(frozen_dir))?;
+    let frame = options.frame(Path::new(&frozen.manifest.source_run))?;
     let mut setup = Setup {
         pass: pass.to_string(),
         model: model.to_string(),
         runs,
-        freeze_first,
-        frozen: FrozenInputs::open(Path::new(frozen_dir))?,
+        freeze_first: options.freeze_first,
+        frozen,
         reference: Reference::load(&bench_dir.join("reference.yaml"))?,
         matches: Matches::load(&matches_path)?,
         matches_path,
         config,
+        frame,
+        frame_label: options.frame_label(),
     };
     match pass {
         "use-cases" => use_cases(&mut setup).await,
@@ -208,6 +277,7 @@ async fn use_cases(setup: &mut Setup) -> Result<(), Failure> {
             &llm,
             Some(&llm),
             &tracker,
+            &setup.frame,
         )
         .await?;
         if setup.freeze_first && n == 1 {
@@ -262,6 +332,7 @@ async fn surface_pass(setup: &mut Setup) -> Result<(), Failure> {
                 Some(&llm),
                 &tracker,
                 scoring,
+                &setup.frame,
             )
             .await?
         };

@@ -45,11 +45,7 @@ impl Workspace {
 
 /// The directories `RetroDoc` writes its docs into, relative to the repo root.
 pub fn generated_dirs(config: &Config) -> [PathBuf; 2] {
-    let docs_dir = Path::new(&config.output.docs_dir);
-    [
-        docs_dir.join(retrodoc_render::FUNCTIONAL_DIR),
-        docs_dir.join(retrodoc_render::META_DIR),
-    ]
+    config.output.generated_dirs()
 }
 
 /// The paths of the files classified as source.

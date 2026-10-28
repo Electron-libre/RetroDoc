@@ -48,3 +48,65 @@ measure, whether and how the global frame should be injected, then keep the best
   every one of them changes the prompts the brief is injected in.
 * `brief.evidence = true` in `retrodoc.toml` switches the evidence on for an experiment.
 * A hosted model costs about $0.30 per `linkding` run; the local one takes 1 to 2 hours per run on the iGPU.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Measure, on frozen linkding inputs and several runs per setting, whether the product brief and the per-unit evidence
+improve the features and use cases, then keep the best setting as the default (ADR 0019, `specs/pipeline-settings.md`).
+Out of scope: the `files` path prompts beyond sharing the setting, the domain clustering, local-model runs.
+Means: `pass_replay` (surface path, deepseek-chat) instead of whole benchmarks; the replays today always load the
+frozen brief and never the evidence, so the settings must first become replay options.
+
+## Plan
+1. [x] Replay settings: `pass_replay features|use-cases` takes `--brief off|head` and `--evidence` (extracts built from
+   the signals of the `source_run` tree, as `generate` does); verified by replay tests with a recording provider (the
+   prompt holds or lacks the brief and the extracts); ~300 lines.
+2. [ ] Measure 1, features on the frozen domains, 3 runs each: no brief, brief (today's default, also the G2 features
+   baseline), brief + evidence; strict and judged recall/precision, then a hand audit of the features against
+   `benchmark/linkding/reference.yaml` (merged duplicates counted as such); figures in the issue and the ledger.
+   No code; ~$0.05.
+3. [ ] Injection variants, kept only as experimental options of the pipeline: brief in the system message instead of
+   the head of the user prompt; evidence searched with the entry points of the unit instead of its names; extract
+   count and length; exposed in `pass_replay`; verified by prompt tests; ~400 lines. Dropped if measure 1 shows no
+   effect of either the brief or the evidence beyond the spread.
+4. [ ] Measure 2: the variants of 3 on features (3 runs each, cents), then the use cases replay with the two best
+   settings plus no brief (3 runs each, ~$0.3 a series); hand audit as in 2; issue and ledger.
+5. [ ] Default: the best setting becomes the default, the losing options and their code are removed, ADR 0019,
+   `specs/pipeline-settings.md` (the `[brief]` keys) and `docs/crates/pipeline.md` updated; verified by the config
+   and prompt tests of the kept setting; ~200 lines.
+
+## Decisions
+- Mode: autonomous
+- Base commit: c85c157
+- Path measured (user, 2026-10-28): the `surface` path by `pass_replay` only; the kept setting is applied to the
+  `files` path too, whose features prompt builds the brief head the same way (`features/mod.rs`).
+- Audit (user, 2026-10-28): the agent audits by hand one run per setting and every pair where the strict reading and
+  the judge disagree; the other runs keep the judge's figures.
+- Budget (user, 2026-10-28): one go for the paid runs of deliverables 2 and 4, deepseek-chat, at most $1.50 in all;
+  more needs a new ask.
+
+## Deliverable 1: replay settings
+
+- done: `benchmark::Frame` (brief left out or not, evidence) taken by `replay_features` and `replay_use_cases`;
+  `tree_evidence` builds the extracts from the signals of the `source_run` tree, its generated docs left out
+  (`OutputConfig::generated_dirs` moved to `retrodoc-core` for it); `pass_replay --brief off|head --evidence`.
+  Checked with no LLM on the linkding tree: the extracts come from its docs, changelog and tests, none from
+  `docs/functional`.
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | pass |
+| specs | pass (no spec: a measurement tool) |
+| docs | `docs/dev/commands.md`, `docs/crates/pipeline.md` |
+| code review | low, see below |
+
+- red: none traced (no spec); the frame test failed with the brief still in the prompt
+  (`replay.rs:515`), the tree test with the generated page among the extracts (`frame.rs:97`).
+- Code review: no findings
+- not verified: a paid replay with the new flags (deliverable 2).
+- decisions needed: none.
+- Follow-up: `issues/rules_replay_without_evidence.md` (the rules replay gets no `rule_evidence`, `generate` gives it).

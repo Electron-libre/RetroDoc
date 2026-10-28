@@ -6,7 +6,7 @@
 
 use std::collections::BTreeMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
@@ -381,9 +381,23 @@ pub struct OutputConfig {
     pub docs_dir: String,
 }
 
+/// Folder of the functional documentation, under the docs dir.
+pub const FUNCTIONAL_DIR: &str = "functional";
+/// Folder of `RetroDoc`'s own files (coverage report, run metadata), under
+/// the docs dir. Neither it nor [`FUNCTIONAL_DIR`] must be fed back as
+/// existing documentation on the next run.
+pub const META_DIR: &str = "_retrodoc";
+
 impl OutputConfig {
     fn default_docs_dir() -> String {
         "docs".to_string()
+    }
+
+    /// The directories `RetroDoc` writes its docs into, relative to the repo root.
+    #[must_use]
+    pub fn generated_dirs(&self) -> [PathBuf; 2] {
+        let docs_dir = Path::new(&self.docs_dir);
+        [docs_dir.join(FUNCTIONAL_DIR), docs_dir.join(META_DIR)]
     }
 }
 
