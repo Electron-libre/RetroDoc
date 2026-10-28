@@ -206,13 +206,17 @@ async fn figures(
             )
             .await?;
             match judgement {
-                Some(judgement) => compare(
-                    work_root,
-                    scoring.reference,
-                    &scoring.matches.with_proposals(&judgement),
-                    scoring.matches_path,
-                )?
-                .map(|c| level.pick(c)),
+                Some(judgement) => {
+                    // Saved in the work directory, to audit the pairs the judge proposed.
+                    judgement.save(work_root)?;
+                    compare(
+                        work_root,
+                        scoring.reference,
+                        &scoring.matches.with_proposals(&judgement),
+                        scoring.matches_path,
+                    )?
+                    .map(|c| level.pick(c))
+                }
                 None => None,
             }
         }
@@ -449,6 +453,10 @@ mod tests {
         assert_eq!(
             figures.calls, 1,
             "the calls of the judge are not the pass's"
+        );
+        assert!(
+            crate::benchmark::Judgement::path(&dir.path().join("work")).exists(),
+            "the judgement is kept to audit its pairs"
         );
     }
 

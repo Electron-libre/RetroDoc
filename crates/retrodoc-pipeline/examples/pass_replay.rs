@@ -28,7 +28,8 @@ use retrodoc_core::config::{LlmConfig, ZERO_TEMPERATURE_PASSES};
 use retrodoc_llm::{OpenRouterProvider, UsageProvider, UsageTracker};
 use retrodoc_pipeline::benchmark::{
     replay_domains, replay_features, replay_rules, replay_table, replay_use_cases, rule_table,
-    tree_evidence, use_case_table, Frame, FrozenInputs, Matches, Reference, RunFigures, Scoring,
+    tree_evidence, use_case_table, Frame, FrozenInputs, Judgement, Matches, Reference, RunFigures,
+    Scoring,
 };
 use retrodoc_pipeline::Artifact;
 use serde_json::json;
@@ -220,10 +221,14 @@ async fn start(
 /// Copies the `artifact` of a run to the directory the environment variable `var` names, as `name`,
 /// when it is set. A run that wrote no such file has nothing to keep.
 fn keep(work: &Path, artifact: Artifact, var: &str, name: &str) -> Result<(), Failure> {
+    keep_file(&artifact.path(work), var, name)
+}
+
+/// The same for any file of the run.
+fn keep_file(from: &Path, var: &str, name: &str) -> Result<(), Failure> {
     let Some(dir) = std::env::var_os(var) else {
         return Ok(());
     };
-    let from = artifact.path(work);
     std::fs::create_dir_all(&dir)?;
     if from.exists() {
         std::fs::copy(from, Path::new(&dir).join(name))?;
@@ -344,6 +349,25 @@ async fn surface_pass(setup: &mut Setup) -> Result<(), Failure> {
                 setup.frozen.replace_features(work.path(), &origin)?;
             }
         }
+        // RETRODOC_KEEP_FEATURES=<dir>: keep the result and the judgement of each run to audit them
+        // (`<pass>-<n>.yaml`, `judge-<n>.yaml`).
+        let result = if setup.pass == "domains" {
+            Artifact::Domains
+        } else {
+            Artifact::Features
+        };
+        let var = "RETRODOC_KEEP_FEATURES";
+        keep(
+            work.path(),
+            result,
+            var,
+            &format!("{}-{n}.yaml", setup.pass),
+        )?;
+        keep_file(
+            &Judgement::path(work.path()),
+            var,
+            &format!("judge-{n}.yaml"),
+        )?;
         eprintln!("run {n}/{}: {} {}", setup.runs, run.items, setup.pass);
         figures.push(run);
     }

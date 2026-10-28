@@ -64,7 +64,7 @@ frozen brief and never the evidence, so the settings must first become replay op
 1. [x] Replay settings: `pass_replay features|use-cases` takes `--brief off|head` and `--evidence` (extracts built from
    the signals of the `source_run` tree, as `generate` does); verified by replay tests with a recording provider (the
    prompt holds or lacks the brief and the extracts); ~300 lines.
-2. [ ] Measure 1, features on the frozen domains, 3 runs each: no brief, brief (today's default, also the G2 features
+2. [x] Measure 1, features on the frozen domains, 3 runs each: no brief, brief (today's default, also the G2 features
    baseline), brief + evidence; strict and judged recall/precision, then a hand audit of the features against
    `benchmark/linkding/reference.yaml` (merged duplicates counted as such); figures in the issue and the ledger.
    No code; ~$0.05.
@@ -110,3 +110,46 @@ frozen brief and never the evidence, so the settings must first become replay op
 - not verified: a paid replay with the new flags (deliverable 2).
 - decisions needed: none.
 - Follow-up: `issues/rules_replay_without_evidence.md` (the rules replay gets no `rule_evidence`, `generate` gives it).
+
+## Deliverable 2: measure 1, features on fixed domains (2026-10-28)
+
+`pass_replay features` on frozen linkding (8 domains clustered from the surface by deepseek-chat, 80 entry
+points), deepseek-chat, 3 runs a setting, at d600304; runs and kept features in the measures directory
+`brief_injection_experiments-d600304/`. Hand audit of the 9 runs against the 24 features of
+`benchmark/linkding/reference.yaml`: a reference feature is found when a generated feature names it, alone or
+merged with others; a generated feature is out of the reference when it is plumbing (secret key, toasts,
+database maintenance, task migration, health check, live reload, navigation and close page, asset removal).
+
+| setting | features | found by hand (of 24) | precision by hand | judged recall | prompt tokens |
+|---|---|---|---|---|---|
+| no brief | 32 (28-36) | 69% (16-17) | 77% (75-81%) | 35% (17-67%) | 7.8k |
+| brief (default) | 33 (33-34) | 74% (17-18) | 73% (73-74%) | 71% (71-71%) | 10.0k (+30%) |
+| brief + evidence | 28 (26-30) | 75% (18-18) | 79% (77-81%) | 75% (67-79%) | 15.8k (+104%) |
+
+* Every run places the 80 entry points; the settings differ by how they cut them, not by what they cover. 16 of
+  the 24 reference features are found by every run; the 8 never found have no entry point of their own (sign in,
+  PDF, browser extensions, feed reader, automatic tags, managed users) or only a partial one.
+* The brief adds the notes (named in all 6 runs with the brief, in none without): one reference feature, from the
+  capabilities of the brief. It also steadies the cut (33-34 features against 28-36).
+* The evidence merges features (archive and share into the state actions, settings and custom CSS, backups),
+  with no reference feature lost: the fewer features of `issues/done/product_brief.md` are merged duplicates
+  here, not lost coverage. It names the Internet Archive snapshots in 3 runs of 3 (2 of 3 otherwise).
+* The judge is not a measure here: no brief, runs 2 and 3, it proposed no pair (judged = strict, 17% and 21%)
+  where run 1 got 67%. Its pairs were not kept (now saved, `RETRODOC_KEEP_FEATURES`).
+* Every difference is one reference feature of 24 or a few points of precision, at the edge of the spread.
+
+- done: measure 1 above; `pass_replay` keeps the features or domains of each run and the judgement
+  (`RETRODOC_KEEP_FEATURES`), the replays save the judge's pairs in their work directory.
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | pass |
+| specs | pass (no spec) |
+| docs | `docs/dev/commands.md` |
+| code review | low, see below |
+
+- red: none traced (no spec); the judge test failed with `the judgement is kept to audit its pairs`.
+- Code review: no findings
+- not verified: `judge-<n>.yaml` kept by a paid replay (the measure ran before the change).
+- decisions needed: deliverable 3, see the stop below.
