@@ -12,7 +12,7 @@ the final check.
   `benchmark/<repo>/entry-points.yaml`); the confidence checks have an agreement measure
   (`confidence_agreement`). Domains, features, use cases and rules are measured through whole runs.
 * The spread of whole runs is as large as most changes (`issues/done/quality_benchmark.md`); the features pass
-  had to be replayed by hand on fixed domains to compare settings (`issues/brief_injection_experiments.md`).
+  had to be replayed by hand on fixed domains to compare settings (`issues/done/brief_injection_experiments.md`).
 * Audit of the judge: 10 of 23 feature pairs wrong on `delivery_router`, 3 of 22 on linkding; it overstates
   feature recall by 8 to 17 points and precision by 12 to 33.
 * The references were drafted by the agent; "a human spot check of `matches.yaml` is still due"

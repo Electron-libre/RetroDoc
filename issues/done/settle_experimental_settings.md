@@ -12,7 +12,7 @@ becomes the default, stays an option with a stated use, or is removed.
   (`issues/done/tree_sitter_structure.md`). Since then `business-read` reads those files for both passes
   (ADR 0028): the gain was not measured again with it.
 * `[brief] evidence` (off, ADR 0019): fewer features and no gain in the benchmarks; it has its own issue,
-  `issues/brief_injection_experiments.md`.
+  `issues/done/brief_injection_experiments.md`.
 * `[pipeline] business_read` (on, ADR 0028): the switch exists to turn it off; no known case where that is
   wanted.
 * `[pipeline] rules` (off, ADR 0021): about 42% of the input tokens of a run, rules still noisy

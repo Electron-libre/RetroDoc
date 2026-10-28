@@ -13,7 +13,7 @@ quality, and choose the default with the figures. A steadier run also means fewe
 * Spread already measured: 13 to 21 entry points on `delivery_router` with deepseek
   (`issues/surface_domains_default_decision.md`), 64 against 96 entry points between two identical local runs
   on linkding (`issues/done/tree_sitter_structure.md`), 8 against 11 domains between two
-  linkding runs, put down to run-to-run variation without a measure (`issues/brief_injection_experiments.md`), feature recall of three `surface` runs from 12% to 88%
+  linkding runs, put down to run-to-run variation without a measure (`issues/done/brief_injection_experiments.md`), feature recall of three `surface` runs from 12% to 88%
   (`issues/done/behaviour_coverage_domains.md`).
 * "Never conclude from one run" (`issues/done/quality_benchmark.md`): every comparison costs 3 runs or more
   per setting.

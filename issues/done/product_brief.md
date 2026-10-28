@@ -65,11 +65,11 @@ editable `.retrodoc/cache/product.yaml`, and feed the brief to the later prompts
 7. [x] BM25 retrieval per unit, in two commits:
    * 7a. [x] move the BM25 to `retrodoc-pipeline`, `retrodoc-mcp` uses it from there (structural, tests unchanged)
    * 7b. [x] index of the signals, retrieval per unit for features and use cases (budget, fingerprint)
-8. [x] Benchmark before and after, final docs and ADR 0019 update: no proven gain, the per-unit evidence is off by default (`brief.evidence`), the new tries are in `issues/brief_injection_experiments.md`
+8. [x] Benchmark before and after, final docs and ADR 0019 update: no proven gain, the per-unit evidence is off by default (`brief.evidence`), the new tries are in `issues/done/brief_injection_experiments.md`
 
 ## Decisions
 
-* After the benchmarks (8): the per-unit evidence (7b) is off by default, `[brief] evidence = true` switches it on; the brief stays on. The code and tests of 7b stay for the next experiments (`issues/brief_injection_experiments.md`, to do when the product is more stable). The extracts are shown without their origin: with it, the model cited `spec/` files as source files of the steps.
+* After the benchmarks (8): the per-unit evidence (7b) is off by default, `[brief] evidence = true` switches it on; the brief stays on. The code and tests of 7b stay for the next experiments (`issues/done/brief_injection_experiments.md`, to do when the product is more stable). The extracts are shown without their origin: with it, the model cited `spec/` files as source files of the steps.
 
 * Retrieval per unit (7b): `brief::Evidence` indexes doc sections, test descriptions/scenarios and commit subjects (schema, migrations, i18n, manifests and tree stay the brief's); query = names, description and file stems of the unit; budget 1,200 (docs) + 900 (tests) + 900 (commits) characters, 400 per extract; the extracts are in the unit's fingerprint (a related new commit redoes that unit only). `Bm25::search_any` drops the half-of-the-words rule, which a long query would never meet.
 
@@ -114,7 +114,7 @@ two external services). What did not work:
 ## Measures (deliverable 8)
 
 Benchmarks of 2026-10-08, before (the commit before the signals) and after (this issue), same model on both sides.
-The detail and the analysis are in `issues/brief_injection_experiments.md`.
+The detail and the analysis are in `issues/done/brief_injection_experiments.md`.
 
 | Setting | Result |
 |---|---|

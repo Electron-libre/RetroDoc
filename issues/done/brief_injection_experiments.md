@@ -51,7 +51,7 @@ measure, whether and how the global frame should be injected, then keep the best
 
 # Tracking
 
-Plan: validated
+Plan: validated (done 2026-10-28)
 
 ## Understanding
 Measure, on frozen linkding inputs and several runs per setting, whether the product brief and the per-unit evidence

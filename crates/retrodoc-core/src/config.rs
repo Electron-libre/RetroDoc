@@ -162,7 +162,7 @@ pub enum DomainsFrom {
 pub struct BriefConfig {
     /// Also give the features and use cases passes, per unit, the few doc
     /// sections, test descriptions and commit subjects closest to it. On by
-    /// default: the replays of `issues/brief_injection_experiments.md` showed
+    /// default: the replays of `issues/done/brief_injection_experiments.md` showed
     /// merged duplicate features and more business-like use cases, for about
     /// a tenth more prompt tokens.
     #[serde(default = "default_true")]

@@ -459,7 +459,7 @@ Decisions (accepted ADRs):
 - [0019](docs/adr/0019-product-brief-and-non-code-evidence-first.md): collect the non-code signals
   mechanically and write an editable product brief (`product.yaml`) that frames every later prompt; each
   unit retrieves its relevant doc sections, commits and test phrases with BM25. The retrieval per unit is on by default (`brief.evidence`) since the replays
-  of `issues/brief_injection_experiments.md` (2026-10-28) showed merged duplicate features and more
+  of `issues/done/brief_injection_experiments.md` (2026-10-28) showed merged duplicate features and more
   business-like use cases for about a tenth more prompt tokens.
 - [0020](docs/adr/0020-cover-behaviours-not-files.md) (supersedes 0004): every entry point belongs to one
   use case; domains and features are built from entry points and entities; files reached by no behaviour

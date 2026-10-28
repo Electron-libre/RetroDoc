@@ -1,6 +1,6 @@
 //! The global frame a replay gives the features or use cases pass: the product brief and the extracts of
 //! the signals closest to each unit (ADR 0019), set per replay to compare the ways of injecting them
-//! (`issues/brief_injection_experiments.md`).
+//! (`issues/done/brief_injection_experiments.md`).
 
 use std::path::Path;
 
