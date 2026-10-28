@@ -8,7 +8,7 @@ description: Write a commit message that follows the repo's Conventional Commits
 The rules live in `AGENTS.md` (single source of truth: don't restate or drift from them here). This
 skill is the procedure; `harness run commit-check` enforces the mechanical rules.
 
-Show the user your results as `AGENTS.md` section "Reports to the user" says.
+Show the user your results as `.claude/rules/reports-to-the-user.md` says.
 
 ## Procedure
 
@@ -33,8 +33,9 @@ Show the user your results as `AGENTS.md` section "Reports to the user" says.
 5. **Deliver**:
    - If the user commits themselves: output **only the message**, with no preamble, no summary, no code
      fence.
-   - If the agent commits (after the user validated the review): `git commit` with that message, adding
-     only the files of the deliverable (never `git add -A`), then report the hash.
+   - If the agent commits (after the user validated the review, or at the commit step of a skill that commits
+     on its own, such as `skill:create-issue`): `git commit` with that message, adding only the files of the
+     deliverable (never `git add -A`), then report the hash.
 
 ## Rules the agent must not break
 

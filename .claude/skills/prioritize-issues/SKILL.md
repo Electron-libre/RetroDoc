@@ -9,7 +9,7 @@ Talk to the user in the `user_language` of `.claude/harness.toml` (skills, code,
 `issues/queue.md`, one line per open issue, first = next (`just next-issue` reads it). Don't implement
 anything here.
 
-Show the user your results as `AGENTS.md` section "Reports to the user" says.
+Show the user your results as `.claude/rules/reports-to-the-user.md` says.
 
 ## Procedure
 
@@ -30,4 +30,6 @@ Show the user your results as `AGENTS.md` section "Reports to the user" says.
 6. **Apply** on their agreement: split the issues as validated (`skill:issue-workflow` `details.md`, "Split an
    issue"), rewrite the entries of `issues/queue.md` in the validated order (format
    `- [<stem>](<stem>.md) - <why here>`, keep the header text), run `just next-issue` and check it reports
-   no drift. Don't commit unless asked (then `skill:commit-message`).
+   no drift. When the queue changed, commit `issues/queue.md` alone, with the issue files the split wrote or
+   narrowed, added then named on the commit line (`git add <files>`, then
+   `git commit -m <msg> -- <files>`; never `git add -A`), with `skill:commit-message`; ask first when the queue held changes that are not this skill's.

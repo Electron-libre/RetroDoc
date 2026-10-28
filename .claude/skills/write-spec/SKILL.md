@@ -10,7 +10,7 @@ it. The format, the requirement kind and the statuses are in `specs/README.md` (
 don't restate them here). This skill is the procedure; `harness run check-specs` (`just check-specs`) enforces the
 mechanical rules. Don't implement anything here: the tests come after the user validated the spec.
 
-Show the user your results as `AGENTS.md` section "Reports to the user" says.
+Show the user your results as `.claude/rules/reports-to-the-user.md` says.
 
 ## Procedure
 

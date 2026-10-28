@@ -9,12 +9,7 @@ The user hands over an issue file in `issues/`. Talk to the user in the `user_la
 commits stay in English). Never skip a validation stop: they are what makes the autonomy safe. The only ones the user can lift are those of
 step 3.6 and 3.8, through the Autonomous mode.
 
-Reports to the user (stops, summaries, final report) are read at a glance:
-
-- Facts go in a table or a checklist, one fact per line; prose only for a decision the user must take.
-- No narration of the steps: show the result, not the path.
-- Don't repeat what the diff, the issue, a spec or the validated plan already shows.
-- Keep what a stop must show; shorten the form, not the content.
+Reports to the user (stops, summaries, final report) follow `.claude/rules/reports-to-the-user.md`.
 
 ## 0. Resume or start
 
@@ -36,6 +31,11 @@ The understanding, the spec and the plan are written in the files, not in the co
 the console only shows the link and the questions.
 
 - Read the issue, plus the resources it names (docs, `git log`, the `roadmap` documents of `.claude/harness.toml`, memory).
+- **Delegate a broad exploration**: a search over many files, the history or the conventions goes to a read-only
+  `Explore` subagent (Agent tool), so only its conclusion stays in the main context. Ask it for the paths and lines
+  behind each conclusion; read back only the lines a decision of the plan rests on. A targeted read of a known file
+  stays in the main thread; so do the spec, the plan, the tests and the commits; the reviews keep going through
+  `code-review`.
 - **Spec**, when the issue changes what a capability does (skip it for docs, harness, pure refactor, a measure): run
   `skill:write-spec` up to its format check (requirements with stable ids, `deterministic`, left `draft`, a
   `[NEEDS CLARIFICATION: ...]` marker where you would guess); don't do its validation stop: step 2 replaces it. The
@@ -88,7 +88,8 @@ again. Then set `Plan: validated` and the base commit. The spec file is the reco
 
 ## 3. For each deliverable, in order
 
-1. **Gather**: read the code and docs it touches; ask about missing information (one batch of questions).
+1. **Gather**: read the code and docs it touches (a broad exploration delegated as in step 1); ask about missing
+   information (one batch of questions).
 2. **Test first**: write a behavior or end-to-end test that fails for the right reason. When the capability has a
    spec, the test proves a requirement and carries `// spec: ABC-n` (placement in `specs/README.md`), through the
    binary when that is cheap and stable, else internal with its reason, `// spec: ABC-n (internal: <reason>)`; the

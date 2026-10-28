@@ -19,9 +19,14 @@ Hooks in `.claude/settings.json` (`harness run <tool>`):
 - `format-rust` (PostToolUse on Edit/Write): runs `cargo fmt --all` after a `.rs` file is edited.
 - `clippy-gate` (Stop): if `.rs` files changed, runs `cargo clippy --workspace --all-targets -- -D warnings`;
   on failure the output goes back to the agent, which must fix the code before finishing.
+- `language-hint` (Stop): sends the agent back once when its last reply is not in the `user_language` of
+  `.claude/harness.toml`.
 - `review-gate` (review gate): refuses a `git commit` until the `code-review` skill has run on the current diff
   (`record` on PostToolUse `Skill`, `check` on PreToolUse `Bash`, `native` from the git `pre-commit` hook installed by `harness sync`).
   The user waives the review of the next commit by creating `claude-review-waived` in the git directory.
+
+Rules in `.claude/rules/` (loaded by Claude Code in every session): `reports-to-the-user.md`, how the agent
+writes what it shows the user (stops, summaries, final report).
 
 Skills in `.claude/skills/`:
 - `issue-workflow`: how to work an `issues/*.md` file (reformulate, plan, then per deliverable test, code,

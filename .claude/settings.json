@@ -66,6 +66,11 @@
             "type": "command",
             "command": "harness run clippy-gate",
             "timeout": 600
+          },
+          {
+            "type": "command",
+            "command": "harness run language-hint",
+            "timeout": 600
           }
         ]
       }
