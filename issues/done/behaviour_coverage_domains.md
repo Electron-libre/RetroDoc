@@ -99,7 +99,7 @@ default stays `files` (the old path) until deliverable 6.
   left entry points in two features (the owning domain keeps them). One repository, one run each: it says
   the path works, not how stable it is.
 * Default of `domains_from` stays `files` (user, 2026-10-10): `surface` is documented as the path for large
-  applications, the decision rests on `issues/surface_domains_default_decision.md`. Follow-ups queued:
+  applications, the decision rests on `issues/done/surface_domains_default_decision.md`. Follow-ups queued:
   `use_cases_cost_per_call`, `deterministic_confidence_checks`, `single_read_per_business_file`; the
   deterministic repo map is `tree_sitter_structure`.
 * No paid run without asking.

@@ -17,7 +17,7 @@ both stay and for which repositories.
   `behaviour_coverage.rs`.
 * The repo map is 133 to 138 calls and about 114k tokens in on linkding
   (`issues/done/behaviour_coverage_domains.md`), spent to cluster the domains.
-* The decision is parked (`issues/surface_domains_default_decision.md`, user, 2026-10-10); on a 9-file library
+* The decision is parked (`issues/done/surface_domains_default_decision.md`, user, 2026-10-10); on a 9-file library
   the `surface` features are worse, because the entry points pass lists constructors and internal
   collections there.
 * `retrodoc-pipeline` is 23.8k of the workspace's 37.9k lines.
@@ -41,7 +41,7 @@ both stay and for which repositories.
 # Resources
 * `crates/retrodoc-cli/src/commands/generate/mod.rs`
 * `crates/retrodoc-pipeline/src/repo_map/`, `domains/`, `features/`, `ranking.rs`, `behaviour_coverage.rs`
-* ADRs 0004, 0011, 0017 and 0020; `issues/surface_domains_default_decision.md`
+* ADRs 0004, 0011, 0017 and 0020; `issues/done/surface_domains_default_decision.md`
 * Skill `update-docs`
 
 # Hints

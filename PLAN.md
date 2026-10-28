@@ -489,7 +489,7 @@ Steps, in order, one issue each:
    entry points no feature holds are placed by a small call or listed in the coverage report, as are the files
    reached by no behaviour. Benchmark of 2026-10-10: on a 178-file application `surface` makes 55% fewer calls
    and takes about 45% less time at par quality; on a 9-file library its features are worse. The default became
-   `surface` on 2026-10-28 (`issues/surface_domains_default_decision.md`, ADR 0034); the cost of the use cases pass, the deterministic
+   `surface` on 2026-10-28 (`issues/done/surface_domains_default_decision.md`, ADR 0034); the cost of the use cases pass, the deterministic
    confidence and the single read per file are queued as their own issues.
 5. `issues/done/tree_sitter_structure.md`: long files cut at parsed definitions for five languages, short method bodies as an option (ADR 0027); the parsed references moved to `issues/done/parsed_references_for_ranking_and_slices.md`.
 6. `issues/done/business_rules.md`.
@@ -542,7 +542,7 @@ Next work, in the order of `issues/queue.md`:
    `pass_replay`; a second application is `issues/done/second_application_in_benchmark.md`).
 3. `issues/done/rules_deduplication_and_noise.md`, `issues/done/one_code_reading_for_use_cases_and_rules.md` and
    `issues/done/shorter_use_case_answers.md`: quality of the rules, then the tokens of the two largest passes.
-4. `issues/done/settle_experimental_settings.md`, `issues/surface_domains_default_decision.md`,
+4. `issues/done/settle_experimental_settings.md`, `issues/done/surface_domains_default_decision.md`,
    `issues/single_pipeline_path.md`, then `issues/pass_runner_and_run_context.md`: fewer options, one path, then
    the refactoring of what stays.
 

@@ -31,11 +31,11 @@ and gives the evidence the parked decision on `domains_from` is waiting for.
    list. For each: right, wrong, technical noise, missing.
 4. Write the figures and the reading in this issue, generically (no name, path or code of the application),
    and turn each defect into an issue or a line of an existing one.
-5. Give the result to `issues/surface_domains_default_decision.md`.
+5. Give the result to `issues/done/surface_domains_default_decision.md`.
 
 # Resources
 * `PLAN.md` §7.2 and §7.5, `issues/done/behaviour_coverage_domains.md`
-* `issues/surface_domains_default_decision.md`
+* `issues/done/surface_domains_default_decision.md`
 * Skill `smoke-test`; `crates/retrodoc-pipeline/examples/behaviour_baseline.rs`
 * `CLAUDE.md` (confidential repositories)
 
@@ -55,7 +55,7 @@ and gives the evidence the parked decision on `domains_from` is waiting for.
    context) is not done.
 4. [x] Each defect to an issue (`technical_and_back_office_use_cases`, `split_contexts_by_family_not_by_layer`,
    `use_cases_record_their_entry_points`, `entry_points_of_a_large_context`, closed) or a line of one; result
-   given to `issues/surface_domains_default_decision.md` and `PLAN.md` §7.6.
+   given to `issues/done/surface_domains_default_decision.md` and `PLAN.md` §7.6.
 
 ## Decisions
 
@@ -68,7 +68,7 @@ and gives the evidence the parked decision on `domains_from` is waiting for.
 
 * (user, 2026-10-12) Paused after the reading stage: the second stage waits for
   `issues/done/business_files_cap_on_large_application.md`, since a reading made now would be dominated by that defect.
-* The budget finding below (`--max-files` on the `surface` path) is a line of `issues/surface_domains_default_decision.md`
+* The budget finding below (`--max-files` on the `surface` path) is a line of `issues/done/surface_domains_default_decision.md`
   and of `issues/single_pipeline_path.md`; with `domains_from = "contexts"` the flag is the reading budget of a run.
 
 ## Reading sample (fixed before the run)
@@ -180,6 +180,6 @@ with a method that had to change.** What the real runs established:
   encouraging.
 * What the runs did not settle: the quality of the 27 contexts left, of the rules (off), and the technical
   noise (about 30% of the use cases of the first slices are helpers or back-office tools, tracked).
-* Decision for `issues/surface_domains_default_decision.md`: the question is no longer only `files` against
+* Decision for `issues/done/surface_domains_default_decision.md`: the question is no longer only `files` against
   `surface`: for a large application the contexts mode is the only one that finished, and it is built on the
   `surface` pipeline.

@@ -10,7 +10,7 @@ measure should either get the judge's pairs or say that the run is unjudged.
 # Findings
 
 * 2026-10-28, `delivery_router`, deepseek-chat, `just benchmark --series hidden --runs 5 --no-confidence
-  --domains-from surface` (`issues/surface_domains_default_decision.md`, deliverable 2): runs 2 and 5 have
+  --domains-from surface` (`issues/done/surface_domains_default_decision.md`, deliverable 2): runs 2 and 5 have
   `features: []` in `.retrodoc/benchmark/judge.yaml` while their domains got pairs in the same judgement. Run 2's
   five features ("Order placement and rider assignment", "Delivery time computation", "Order clearing",
   "Rider routing", "Location measurement") cover 7 or 8 of the 8 reference features by hand. The series reads

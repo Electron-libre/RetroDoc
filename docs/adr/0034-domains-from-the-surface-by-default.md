@@ -10,7 +10,7 @@ directory, ADR 0004) until the `surface` features were understood on a small lib
 application agreed. ADR 0029 added a third value, `contexts`, the `surface` passes run a bounded context at a
 time.
 
-The measures of `issues/surface_domains_default_decision.md` (deepseek-chat, 2026-10-28):
+The measures of `issues/done/surface_domains_default_decision.md` (deepseek-chat, 2026-10-28):
 
 * On Lobsters (a Rails application, 373 source files), one `surface` run against one `files` run, same scoring:
   judged domain recall 100% against 43% (precision 82% against 38%), feature recall 97% against 100% (precision

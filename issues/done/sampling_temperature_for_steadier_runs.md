@@ -11,7 +11,7 @@ quality, and choose the default with the figures. A steadier run also means fewe
   `reasoning_effort`, `response_format` and `provider`: no `temperature`, no `seed`. `LlmConfig` has no key
   for them.
 * Spread already measured: 13 to 21 entry points on `delivery_router` with deepseek
-  (`issues/surface_domains_default_decision.md`), 64 against 96 entry points between two identical local runs
+  (`issues/done/surface_domains_default_decision.md`), 64 against 96 entry points between two identical local runs
   on linkding (`issues/done/tree_sitter_structure.md`), 8 against 11 domains between two
   linkding runs, put down to run-to-run variation without a measure (`issues/done/brief_injection_experiments.md`), feature recall of three `surface` runs from 12% to 88%
   (`issues/done/behaviour_coverage_domains.md`).
