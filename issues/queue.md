@@ -4,7 +4,6 @@ Open issues in the order to work on them: the first is the next one. Read by `ju
 `just close-issue` removes a line, `skill:create-issue` inserts one at its rank, `skill:prioritize-issues`
 re-ranks the whole list. Line format: `- [<file stem>](<file stem>.md) - <why here>`.
 
-- [unjudged_kinds_in_replays_and_summary](unjudged_kinds_in_replays_and_summary.md) - small, right after `judge_silently_proposes_no_feature_pair`: the next replay measure would still read an unjudged kind at the strict floor
 - [single_pipeline_path](single_pipeline_path.md) - applies the default settled by `issues/done/surface_domains_default_decision.md` (ADR 0034)
 - [pass_runner_and_run_context](pass_runner_and_run_context.md) - after `single_pipeline_path`: do not refactor code about to be removed
 - [contexts_residual_size_and_names](contexts_residual_size_and_names.md) - low: follow-up of the closed split by family (2026-10-14): one context still over 150 files, action names taken for families, the names unread; nothing before it depends on it, and its spread measure is cheaper after `sampling_temperature_for_steadier_runs`

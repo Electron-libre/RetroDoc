@@ -122,7 +122,7 @@ Measure: the judge writes the names with their descriptions, so they are dropped
 - red: BSC-14, BSC-11: `left: [Pair { generated: "Refund flow", reference: "Payments" }] right: []`; a WARN for a
   repeated pair.
 - Code review (high): 10 findings: fixed the colon mapping, the repeat warning, the version doc; issue
-  `issues/unjudged_kinds_in_replays_and_summary.md` for the replay tables and the printed summary (2 findings);
+  `issues/done/unjudged_kinds_in_replays_and_summary.md` for the replay tables and the printed summary (2 findings);
   not fixed: a genuine "no pair" twice is marked unjudged (decided in the spec, the table shows the count), the
   stacked retries (up to 4 calls on unreadable answers, cents), `judge` deriving the mark from empty pairs
   (documented on `propose_matches`), the listing format (a prompt change, unmeasured), the `harness.toml`
