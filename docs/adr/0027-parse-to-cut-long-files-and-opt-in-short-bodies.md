@@ -35,7 +35,7 @@ noise (groups of the reference 79-93% in every setting), but the number of attri
 at N=5 in all three runs (77-94 against 103-132) and no reference to say whether they matter.
 
 Not done: references from the parse for `ranking.rs` and `slices.rs`. Measured with no LLM
-(`issues/parsed_references_for_ranking_and_slices.md`, example `parsed_slices`): slices that follow the parsed
+(`issues/done/parsed_references_for_ranking_and_slices.md`, example `parsed_slices`): slices that follow the parsed
 calls (resolved to the definitions of the same language, lexical follow for the rest) change about 40% of the
 files of a Rails slice, but bring in as much noise as they remove, as a method called on a receiver of unknown
 type resolves to any file defining that name; resolved to classes, modules and functions only, they are almost

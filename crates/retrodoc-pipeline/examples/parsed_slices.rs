@@ -1,5 +1,5 @@
 //! Compares, with no LLM call, the slices of the entry points of saved runs built three ways
-//! (`issues/parsed_references_for_ranking_and_slices.md`, step 1): the lexical follow of today, the parsed calls
+//! (`issues/done/parsed_references_for_ranking_and_slices.md`, step 1): the lexical follow of today, the parsed calls
 //! with the lexical follow for what they do not resolve (what the use cases pass would use), and the parsed calls
 //! alone (what the parser sees).
 //!
