@@ -1,6 +1,6 @@
 ---
 id: BSC
-status: accepted
+status: draft
 adrs: []
 ---
 
@@ -36,6 +36,18 @@ change of these rules must not read as a change of quality between two benchmark
   saved in its `judge.yaml`, with no LLM call, and fail naming the file when there is none.
 - **BSC-9** (deterministic) `benchmark-table` must say, under a series, when its runs do not all carry the same
   scoring version, with or without `--previous`.
+- **BSC-10** (deterministic) When a judge call offered generated and reference items and its answer proposes no
+  pair, because it is empty, unparseable or every proposal was dropped, the judge must ask once more and keep the
+  pairs of the second answer.
+- **BSC-11** (deterministic) The judge must log at `warn` the proposals it drops, with their count, and must log
+  at `warn`, naming domains or features, a call that still proposes no pair after the second answer.
+- **BSC-12** (deterministic) A kind (domains or features) whose call still proposes no pair after the second
+  answer must be marked unjudged in `judge.yaml`; a `judge.yaml` saved without the mark must load as judged.
+- **BSC-13** (deterministic) A run whose kind is unjudged must have no judged recall and precision of that kind in
+  its `run-<n>.json`, so that `benchmark-table` leaves it out of the mean and range of the judged figures of that
+  kind, and `benchmark-table` must say, under the series, how many runs are unjudged for each kind.
+- **BSC-14** (deterministic) A proposal whose name is an offered name followed by `:` and more text must be read
+  as that offered name, so that a name copied with its description is kept.
 
 ## Scenarios
 
@@ -50,6 +62,15 @@ change of these rules must not read as a change of quality between two benchmark
   assumed equal.
 - (BSC-7) Given a previous series of another version, then the LLM calls and the sizes still show their change.
 
+- (BSC-14) Given the offered feature "Order clearing" and a proposal named "Order clearing: Removes a customer's
+  orders from the router.", then the pair is kept under "Order clearing".
+- (BSC-10) Given a first features answer `{"matches":[]}` and a second one with a pair of offered names, then the
+  judgement holds that pair and the judge made two features calls.
+- (BSC-12) Given two features answers with no pair, then `judge.yaml` marks the features unjudged and the
+  `(judged)` feature figures of the run are empty while its strict ones stay.
+- (BSC-13) Given a series of 5 runs of which 2 have unjudged features, then the judged feature rows count 3 runs and
+  a note under the series says 2 runs are unjudged for features.
+
 ## Non-goals
 
 - Re-scoring the previous series from its saved clones inside `benchmark-table`: `benchmark --saved-judge --out`
@@ -59,3 +80,7 @@ change of these rules must not read as a change of quality between two benchmark
 - Undoing a match by equal names: a pair adds a reference item, it never takes one away (a generated name equal
   to a reference name that means another capability has not been seen).
 - Rejecting a judge proposal in `matches.yaml`: a wrong proposal stays out of the hand-written figures only.
+- Marking unjudged the runs of a `judge.yaml` saved before BSC-12: they keep their figures; re-judging them is a
+  paid run.
+- A looser matching of the proposals' names than `normalize` and BSC-14 (a part of a name, a synonym): the
+  replay of the issue showed only names copied with their description.

@@ -106,9 +106,9 @@ impl Matches {
 }
 
 /// Asks the judge to pair `generated` items with `reference` ones that stand for the same business
-/// capability; a generated item that holds several reference items may get a pair for each. Pairs
-/// naming an item that wasn't offered are dropped, and so are repeated pairs. No call when either
-/// side is empty.
+/// capability; a generated item that holds several reference items may get a pair for each. A name
+/// copied with its description stands for the offered name; pairs naming an item that wasn't
+/// offered are dropped, and so are repeated pairs. No call when either side is empty.
 ///
 /// # Errors
 ///
@@ -133,18 +133,16 @@ pub async fn propose_matches(
     else {
         return Ok(Vec::new());
     };
-    let known = |items: &[Item], name: &str| {
-        let wanted = normalize(name);
-        items.iter().any(|i| normalize(&i.name) == wanted)
-    };
     let mut pairs: Vec<Pair> = Vec::new();
     for raw in answer.matches {
-        let repeated = pairs.iter().any(|p| {
-            normalize(&p.generated) == normalize(&raw.generated)
-                && normalize(&p.reference) == normalize(&raw.reference)
-        });
-        if known(generated, &raw.generated) && known(reference, &raw.reference) && !repeated {
-            pairs.push(raw);
+        let offered = offered_name(generated, &raw.generated)
+            .zip(offered_name(reference, &raw.reference))
+            .map(|(generated, reference)| Pair {
+                generated: generated.to_string(),
+                reference: reference.to_string(),
+            });
+        if let Some(pair) = offered.filter(|pair| !pairs.contains(pair)) {
+            pairs.push(pair);
         } else {
             tracing::debug!(
                 generated = %raw.generated,
@@ -154,6 +152,17 @@ pub async fn propose_matches(
         }
     }
     Ok(pairs)
+}
+
+/// The offered item that `name` stands for: same normalized name, or the name followed by `:` and
+/// its description, as the judge sometimes copies the listing line whole.
+fn offered_name<'a>(items: &'a [Item], name: &str) -> Option<&'a str> {
+    // The whole name first, then the longest prefix: an offered name may hold a `:` itself.
+    std::iter::once(name)
+        .chain(name.rmatch_indices(':').map(|(at, _)| &name[..at]))
+        .map(normalize)
+        .find_map(|wanted| items.iter().find(|i| normalize(&i.name) == wanted))
+        .map(|i| i.name.as_str())
 }
 
 const MATCH_SYSTEM_PROMPT: &str = "You are checking generated software documentation against a \
@@ -415,6 +424,56 @@ mod tests {
             pairs,
             [pair("Billing", "Payments"), pair("Billing", "Refunds")],
             "the repeated pair is dropped"
+        );
+    }
+
+    // spec: BSC-14 (internal: the judge's answer comes from a fake LLM)
+    #[tokio::test]
+    async fn reads_a_name_copied_with_its_description_as_the_name() {
+        let llm = FakeLlm::answering(
+            r#"{"matches":[
+                {"generated":"Order clearing: Removes a customer's orders from the router.","reference":"Cancel a customer's order: Forget the order of a customer"},
+                {"generated":"order clearing: Removes orders","reference":"Cancel a customer's order"},
+                {"generated":"Order clearingness: no","reference":"Cancel a customer's order"}
+            ]}"#,
+        );
+
+        let pairs = propose_matches(
+            &llm,
+            "features",
+            &[item(
+                "Order clearing",
+                "Removes a customer's orders from the router.",
+            )],
+            &[item(
+                "Cancel a customer's order",
+                "Forget the order of a customer",
+            )],
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(
+            pairs,
+            [pair("Order clearing", "Cancel a customer's order")],
+            "the description is cut off, the repeated pair and the longer name are dropped"
+        );
+
+        let llm = FakeLlm::answering(
+            r#"{"matches":[{"generated":"Auth: SSO login: Signs in","reference":"Login"}]}"#,
+        );
+        let pairs = propose_matches(
+            &llm,
+            "features",
+            &[item("Auth", "a"), item("Auth: SSO login", "b")],
+            &[item("Login", "c")],
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            pairs,
+            [pair("Auth: SSO login", "Login")],
+            "the longest offered name wins"
         );
     }
 

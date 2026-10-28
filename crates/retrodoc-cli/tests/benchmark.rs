@@ -218,7 +218,10 @@ fn rescores_a_run_with_its_saved_judgement_and_no_llm() {
     assert_eq!(report["strict"]["features"]["recall"], 0.0);
     assert_eq!(report["judged"]["features"]["recall"], 1.0);
     assert_eq!(report["narratives"]["business"], 3);
-    assert_eq!(report["scoring"], 1);
+    assert_eq!(
+        report["scoring"],
+        retrodoc_pipeline::benchmark::SCORING_VERSION
+    );
 }
 
 #[test]
