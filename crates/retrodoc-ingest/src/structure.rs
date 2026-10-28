@@ -98,6 +98,17 @@ impl Lang {
         }
     }
 
+    /// The language, JavaScript and its TypeScript dialects counted as one.
+    fn family(self) -> Self {
+        match self {
+            #[cfg(all(feature = "typescript", feature = "javascript"))]
+            Self::TypeScript | Self::Tsx => Self::JavaScript,
+            #[cfg(all(feature = "typescript", not(feature = "javascript")))]
+            Self::Tsx => Self::TypeScript,
+            other => other,
+        }
+    }
+
     /// The compiled query of the language, built once.
     fn config(self) -> Option<&'static TagsConfiguration> {
         #[allow(unused_macros)] // no language compiled in
@@ -156,6 +167,16 @@ const TS_EXTRA_QUERY: &str = "
 #[must_use]
 pub fn is_supported(path: &Path) -> bool {
     Lang::of(path).is_some()
+}
+
+/// Whether this build parses both files as one language: a name one defines is one the other can call.
+/// JavaScript and TypeScript are one, as they import each other.
+#[must_use]
+pub fn same_language(a: &Path, b: &Path) -> bool {
+    match (Lang::of(a), Lang::of(b)) {
+        (Some(a), Some(b)) => a.family() == b.family(),
+        _ => false,
+    }
 }
 
 /// Whether files with this extension (with or without the dot, any case) can be parsed.
@@ -332,6 +353,24 @@ mod tests {
         for ext in supported_extensions() {
             assert!(is_supported_extension(ext), "{ext}");
         }
+    }
+
+    #[test]
+    fn a_file_is_of_its_own_language_and_typescript_is_of_javascript() {
+        assert_eq!(
+            same_language(Path::new("a.rb"), Path::new("b.rake")),
+            cfg!(feature = "ruby")
+        );
+        assert!(!same_language(Path::new("a.rb"), Path::new("b.py")));
+        assert_eq!(
+            same_language(Path::new("a.tsx"), Path::new("b.ts")),
+            cfg!(feature = "typescript")
+        );
+        assert_eq!(
+            same_language(Path::new("a.tsx"), Path::new("b.js")),
+            cfg!(all(feature = "typescript", feature = "javascript"))
+        );
+        assert!(!same_language(Path::new("a.go"), Path::new("b.go")));
     }
 
     #[test]

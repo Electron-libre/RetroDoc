@@ -38,6 +38,10 @@ name = "behaviour_baseline"
 test = true
 
 [[example]]
+name = "parsed_slices"
+test = true
+
+[[example]]
 name = "context_map_measure"
 test = true
 
