@@ -71,7 +71,7 @@ sub-domain code (follow-up issue). The repo map itself goes in a second issue (`
 2. [x] Remove the features per domain from the file summaries (`build_features` and its files-only helpers of
    `features/mod.rs`, their tests; the shared `slugify`, `save_partial`, `unit_key`, load/save stay); verified by
    `just check` (~735 lines, deletion).
-3. [ ] Remove the placement of unassigned files (`domains/repair.rs`, its call in `build_domains`, its tests;
+3. [x] Remove the placement of unassigned files (`domains/repair.rs`, its call in `build_domains`, its tests;
    ADR 0017); verified by `just check` (~300 lines, deletion).
 4. [ ] Remove the clustering by directory (`build_domains`, `CoverageReport`, `domains/coverage.rs`, the
    clustering prompt, files-only tests of `domains/tests.rs`; `layer_named_domains` stays); verified by
@@ -113,6 +113,14 @@ sub-domain code (follow-up issue). The repo map itself goes in a second issue (`
   stay; the `features/` row of `docs/crates/pipeline.md`.
 - checks: fmt, clippy, tests, specs green (RER-1, 2, 3, 5 keep traces in the use cases, rules and surface
   features tests); `check-harness` red as in deliverable 1 (harness migration in progress).
+- red: none (a deletion, no new behaviour).
+- Code review: no findings.
+- not verified: a whole `generate` (no LLM run).
+
+## Deliverable 3
+- done: `domains/repair.rs`, its call in `build_domains` and its four tests removed (ADR 0017); the module doc
+  and the `domains/` row of `docs/crates/pipeline.md`.
+- checks: fmt, clippy, tests, specs green; `check-harness` red as before (harness migration in progress).
 - red: none (a deletion, no new behaviour).
 - Code review: no findings.
 - not verified: a whole `generate` (no LLM run).
