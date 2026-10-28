@@ -207,8 +207,11 @@ async fn figures(
             .await?;
             match judgement {
                 Some(judgement) => {
-                    // Saved in the work directory, to audit the pairs the judge proposed.
-                    judgement.save(work_root)?;
+                    // Saved in the work directory, to audit the pairs the judge proposed; a run that can't
+                    // keep it still gives its figures.
+                    if let Err(error) = judgement.save(work_root) {
+                        tracing::warn!("judgement not kept: {error}");
+                    }
                     compare(
                         work_root,
                         scoring.reference,

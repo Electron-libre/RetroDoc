@@ -85,7 +85,7 @@ pub fn without_generated(
     docs: Vec<retrodoc_ingest::ExistingDoc>,
     config: &Config,
 ) -> Vec<retrodoc_ingest::ExistingDoc> {
-    let generated = super::workspace::generated_dirs(config);
+    let generated = config.output.generated_dirs();
     docs.into_iter()
         .filter(|d| !generated.iter().any(|g| d.path.starts_with(g)))
         .collect()

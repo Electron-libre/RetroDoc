@@ -35,17 +35,12 @@ impl Workspace {
     pub fn ingest(&self) -> anyhow::Result<IngestResult> {
         let mut ingest = retrodoc_ingest::run(&self.repo_root, &self.config.ingest)
             .with_context(|| format!("ingestion of {} failed", self.repo_root.display()))?;
-        let generated = generated_dirs(&self.config);
+        let generated = self.config.output.generated_dirs();
         ingest
             .files
             .retain(|file| !generated.iter().any(|dir| file.path.starts_with(dir)));
         Ok(ingest)
     }
-}
-
-/// The directories `RetroDoc` writes its docs into, relative to the repo root.
-pub fn generated_dirs(config: &Config) -> [PathBuf; 2] {
-    config.output.generated_dirs()
 }
 
 /// The paths of the files classified as source.

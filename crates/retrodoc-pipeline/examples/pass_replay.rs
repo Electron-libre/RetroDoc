@@ -92,8 +92,8 @@ impl Setup {
 
     fn origin(&self) -> String {
         format!(
-            "written from the surface by {}, first run of pass_replay",
-            self.model
+            "written from the surface by {}{}, first run of pass_replay",
+            self.model, self.frame_label
         )
     }
 }
@@ -157,6 +157,9 @@ impl Options {
                     Some("head") => options.without_brief = false,
                     _ => return Err("--brief takes `off` or `head`".into()),
                 },
+                flag if flag.starts_with("--") => {
+                    return Err(format!("unknown option `{flag}`").into());
+                }
                 _ => rest.push(arg),
             }
         }
@@ -177,10 +180,35 @@ impl Options {
         })
     }
 
+    /// How the frame was set, said in every title: the replays of the features and use cases had no
+    /// evidence before it was on by default, so a title never leaves it implicit.
     fn frame_label(&self) -> String {
-        let brief = if self.without_brief { ", no brief" } else { "" };
-        let evidence = if self.evidence { "" } else { ", no evidence" };
-        format!("{brief}{evidence}")
+        let brief = if self.without_brief {
+            "no brief"
+        } else {
+            "brief"
+        };
+        let evidence = if self.evidence {
+            "evidence"
+        } else {
+            "no evidence"
+        };
+        format!(", {brief}, {evidence}")
+    }
+}
+
+/// Warns when the tree the evidence is read from is no longer at the commit of the frozen inputs: its
+/// docs, tests and commits would not be those the frozen run saw.
+fn warn_if_moved(tree: &Path, commit: &str) {
+    let head = git2::Repository::open(tree)
+        .and_then(|repo| Ok(repo.head()?.peel_to_commit()?.id().to_string()));
+    match head {
+        Ok(head) if head == commit => {}
+        Ok(head) => eprintln!(
+            "warning: {} is at {head}, the frozen inputs at {commit}: the evidence comes from another commit",
+            tree.display()
+        ),
+        Err(error) => eprintln!("warning: commit of {} unknown: {error}", tree.display()),
     }
 }
 
@@ -213,7 +241,9 @@ async fn start(
     }
     let frozen = FrozenInputs::open(Path::new(frozen_dir))?;
     let frame = if framed {
-        options.frame(Path::new(&frozen.manifest.source_run))?
+        let tree = Path::new(&frozen.manifest.source_run);
+        warn_if_moved(tree, &frozen.manifest.commit);
+        options.frame(tree)?
     } else {
         Frame::default()
     };
@@ -228,7 +258,11 @@ async fn start(
         matches_path,
         config,
         frame,
-        frame_label: options.frame_label(),
+        frame_label: if framed {
+            options.frame_label()
+        } else {
+            String::new()
+        },
     };
     match pass {
         "use-cases" => use_cases(&mut setup).await,

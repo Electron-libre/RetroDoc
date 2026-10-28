@@ -77,6 +77,8 @@ frozen brief and never the evidence, so the settings must first become replay op
    `specs/pipeline-settings.md` (the `[brief]` keys) and `docs/crates/pipeline.md` updated; verified by the config
    and prompt tests of the kept setting; ~200 lines.
 
+6. [x] Fixes of the `high` review of the issue (`c85c157..HEAD`).
+
 ## Decisions
 - Mode: autonomous
 - Deliverable 3 (user, 2026-10-28): dropped; measure the use cases with no brief, brief, brief + evidence instead.
@@ -203,4 +205,42 @@ that say what the actor wants (`wants`, `so that`), both mechanical aids to the 
 - Code review: no findings
 - not verified: a complete `generate` with the new default (the replays measured the two passes alone); a
   repository with few docs.
+- decisions needed: none.
+
+## Deliverable 6: fixes of the `high` review
+
+10 findings. Fixed:
+
+* The titles of the features and use cases replays always name the frame (`, brief, evidence`): the tables before
+  the evidence was on by default had no label and would look the same as the new default ones.
+* `--freeze-first` writes the frame into the origin of the frozen features or use cases.
+* A replay that reads the evidence warns when the `source_run` tree is not at the commit of the frozen inputs.
+* A judgement that can't be saved is a warning, not a failed paid run.
+* `pass_replay` refuses an unknown option (`--evidence=off` was read as a positional argument).
+* `workspace::generated_dirs`, a pass-through to `OutputConfig::generated_dirs`, removed.
+
+Not fixed:
+
+* The evidence of `tree_evidence` repeats the filtering of the generated dirs of `generate` (`Workspace::ingest`
+  for the files, `docs::without_generated` for the docs, applied by each command): the dirs come from one place
+  (`OutputConfig::generated_dirs`); sharing the rest would change what each command filters, out of this issue.
+* The features replay reads `product.yaml` twice and the use cases replay clones the evidence once per run: a
+  few kilobytes, not worth a change of the replay API.
+* `RETRODOC_KEEP_FEATURES` also keeps the domains: documented in `docs/dev/commands.md`; a second variable for
+  a pass replayed alone adds nothing.
+* A features replay now needs the `source_run` tree by default, as the use cases and rules replays already do;
+  `--evidence off` does without it.
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | pass |
+| specs | pass |
+| docs | none changed (the options did not change) |
+| code review | low, see below |
+
+- red: none (the fixes are in the `pass_replay` example, which has no test): checked by hand with no API key,
+  `--evidence=off` refused with `unknown option`, the linkding tree at the frozen commit gives no warning.
+- Code review: no findings
+- not verified: the warning of a tree at another commit (no such tree at hand).
 - decisions needed: none.
