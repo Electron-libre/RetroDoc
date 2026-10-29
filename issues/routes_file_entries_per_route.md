@@ -13,6 +13,8 @@ namespace.
 * It gives 39 entries: `stories` and `comments` (from `resources`) are collapsed, while `GET /`, `GET /rss`,
   `GET /login`, `POST /login`, `GET /stories/url/all`… are one entry each. At least `GET /stories/url/all` and
   `GET /stories/url/latest` are also given by `app/controllers/story_urls_controller.rb`.
+* In linkding the route declarations are in `bookmarks/urls.py`, which no role rule of the frozen roles matches
+  (local qwen roles): no pass reads it.
 * Unknown: whether the duplicates change the domains, features or use cases (the surface may merge them).
 
 # Approach
@@ -20,11 +22,12 @@ namespace.
    and look for them in the surface, features and use cases.
 2. If they matter, candidates (can be combined): make the rule explicit for explicit route lines (group them by
    controller or path prefix); drop from a routing file the entries a controller of the same run also gives.
-3. Replay the entry points on frozen `lobsters` and `linkding` and compare.
+3. Replay the entry points on frozen `lobsters` and `linkding` and compare, with the entries of the routing files
+   removed from the cache first: the per-file hash ignores the prompt, so a replay would keep the old entries.
 
 # Resources
 * `crates/retrodoc-pipeline/src/entry_points/mod.rs` (`ENTRY_POINTS_SYSTEM_PROMPT`)
-* `issues/done/joint_reading_routing_rule.md` (the measure that found it)
+* `issues/joint_reading_routing_rule.md` (the measure that found it)
 * The measures ledger (see `CLAUDE.md`), skill `quality-benchmark`
 
 # Hints

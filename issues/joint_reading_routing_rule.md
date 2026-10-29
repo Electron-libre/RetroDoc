@@ -37,11 +37,13 @@ Step 1 of the approach answered from saved data (no LLM call): on the frozen inp
 routing file in the sense of the rule (route declarations) is read jointly, so the missing rule has no measurable
 effect there. Proposed: record the measure and close without a prompt change.
 
-## Measure (2026-10-29, at a238861, frozen inputs, no LLM call)
+## Measure (2026-10-29, at a238861, saved runs, no LLM call)
+Lobsters frozen inputs are deepseek-chat; linkding frozen entry points are local qwen, so its DeepSeek figures come from the joint reading runs of `settle_experimental_settings` (71fdad9).
+
 | repo | routing file | role | business file? | read by | entries |
 |---|---|---|---|---|---|
 | lobsters | `config/routes.rb` (11.6k chars, 3 parts) | entrypoint | no | entry points pass alone (its prompt has the rule) | 39: `resources` collapsed (`stories`, `comments`), every explicit `get`/`post` line one entry |
-| linkding | `bookmarks/api/routes.py` | entrypoint | yes | joint reading | 16, one per action: DRF view sets with their `@action`s plus 5 router registrations, so controller actions, where one entry per action is what the rule asks |
+| linkding | `bookmarks/api/routes.py` | entrypoint | yes | joint reading | DeepSeek (`settle_experimental_settings-71fdad9`, 6 runs): 26 each, every action of the 5 DRF view sets, one per action, which is what the rule asks of controller actions. Frozen inputs (qwen3.6:35b-a3b, local): 16, `TagViewSet` and 4 of the 5 bundle actions missed |
 | linkding | `bookmarks/urls.py` | no rule matches | no | not read | - |
 
 * The per-file hash of the reading passes is `hash_for_model(brief.hash_with(content), llm)`
@@ -71,7 +73,14 @@ done: measure recorded (issue table, ledger line); follow-up issue `routes_file_
 
 red: none
 Code review: no findings (low; issue files only, the new issue file untracked so unread)
-not verified: whether the linkding frozen entry points came from the joint reading (inferred: business_read on by default since 2026-10-12, frozen 2026-10-23)
+not verified: none
 decisions needed: none
 
-Done: no prompt change (decision 1 a); nothing left.
+## Deliverable 2 (fixes of the high review)
+done: linkding row measured on DeepSeek runs (the frozen entries are local qwen); ledger line corrected; the
+comment above `BUSINESS_READ_SYSTEM_PROMPT` says the routing-file rule is left out on purpose; the follow-up issue
+gets the replay trap in its Approach, the unread `bookmarks/urls.py`, and a link `close-issue` can rewrite.
+
+Code review: no findings (low)
+
+Done: no prompt change (decision 1 a); left: the closing of the issue (user).
