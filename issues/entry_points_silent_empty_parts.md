@@ -26,7 +26,7 @@ declare are missing from the inventory. Find where they were lost, then make suc
 * `crates/retrodoc-pipeline/src/batched_read.rs` (`BatchedRead::run`, `attribute`: a group with one path takes
   every item, whatever its `file`)
 * `crates/retrodoc-pipeline/src/entry_points/mod.rs` (`ENTRY_POINTS_SYSTEM_PROMPT`, `MAX_ENTRY_FILE_CHARS`)
-* `issues/routes_file_entries_per_route.md` (the measure that found it)
+* `issues/done/routes_file_entries_per_route.md` (the measure that found it)
 * The measures ledger (see `CLAUDE.md`)
 
 # Hints

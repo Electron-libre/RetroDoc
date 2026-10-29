@@ -1,5 +1,5 @@
 //! Measures, with no LLM call, what leaving out the routes a routing file declares for other
-//! files changes (`issues/routes_file_entries_per_route.md`,
+//! files changes (`issues/done/routes_file_entries_per_route.md`,
 //! `EntryPoints::without_routes_declared_elsewhere`).
 //!
 //! Usage: `cargo run -q -p retrodoc-pipeline --example routing_duplicates_measure -- <run dir>...`
