@@ -17,7 +17,6 @@ fn flags_domains_named_after_a_technical_layer() {
         name: slug.to_string(),
         description: String::new(),
         paths: Vec::new(),
-        sub_domains: Vec::new(),
         ..DomainCluster::default()
     };
     let map = DomainMap {
@@ -103,7 +102,6 @@ async fn domains_from_the_surface_hold_resources_and_entities_and_their_files() 
         ["app/invoice.rb", "app/invoices_controller.rb"]
     );
     assert_eq!(paths(rest), ["app/hooks.rb"]);
-    assert!(ordering.sub_domains.is_empty());
 
     assert_eq!(llm.calls(), 1);
     let prompt = &llm.prompts()[0];
@@ -179,4 +177,23 @@ async fn a_domain_the_model_calls_uncategorized_is_the_one_bucket_the_leftovers_
     // What the model put there plus what nobody claimed (the webhook, Customer, Order), in the order of the surface.
     assert_eq!(map.domains[0].resources, ["order", "webhook"]);
     assert_eq!(map.domains[0].entities, ["Customer", "Order"]);
+}
+
+#[test]
+fn an_old_domain_map_with_sub_domains_loads_and_is_saved_without_them() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = Artifact::Domains.path(dir.path());
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    std::fs::write(
+        &path,
+        "domains:\n- slug: billing\n  name: Billing\n  description: Bills.\n  paths: [app/invoice.rb]\n  \
+         sub_domains:\n  - slug: payment\n    name: Payment\n    description: Pays.\n    paths: [app/pay.rb]\n",
+    )
+    .unwrap();
+
+    let map = DomainMap::load(dir.path()).expect("an old domains.yaml still loads");
+    assert_eq!(map.domains[0].slug, "billing");
+    map.save(dir.path()).unwrap();
+    let saved = std::fs::read_to_string(&path).unwrap();
+    assert!(!saved.contains("sub_domains"), "{saved}");
 }

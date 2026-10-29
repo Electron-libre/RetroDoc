@@ -31,3 +31,51 @@ needs, with the docs.
   run, which changes the docs of a repository documented with the `files` path.
 * Do it after `issues/done/remove_repo_map.md`; it touches the render and the MCP, which `pass_runner_and_run_context`
   does not, so it can wait behind it.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Remove the sub-domain model (`Domain.sub_domains`, `SubDomain`, `Feature.sub_domain_slug`, `DomainCluster.sub_domains`,
+`SubDomainCluster`) and every reader (render, MCP, report, benchmark metrics), with the docs. No behaviour of the
+`surface`/`contexts` paths changes; old artifacts keep loading (serde ignores the unknown fields, no `deny_unknown_fields`
+on these types), the features fingerprint key stays `<domain>/-` so a rerun stays a no-op.
+
+## Plan
+1. [x] Pipeline side: drop `DomainCluster.sub_domains`, `SubDomainCluster`, the sub-domain loop of `layer_named_domains`,
+   `RunMetrics.sub_domains` and the `sub-domain(s)` of the benchmark summary; `unit_key` loses its sub-domain argument
+   (key unchanged); verified by a test that an old `domains.yaml` holding `sub_domains` still loads, and the updated
+   benchmark tests; ~250 lines.
+2. [ ] Core model and readers: drop `Domain.sub_domains`, `SubDomain`, `Feature.sub_domain_slug`; the render loses the
+   sub-domain sections and paths, the MCP its `billing/payment` addresses and sub-domain listing, the report its
+   sub-domain confidences; fixtures updated; docs (`README.md`, `PLAN.md` §2, `docs/crates/render-mcp-cli.md`,
+   `docs/crates/pipeline.md`); verified by a test that an old `features.yaml` holding `sub_domain_slug` still loads,
+   `just check`, and `retrodoc render` run twice on a copy of a saved run of `~/retrodoc-runs` (LLM-free: the
+   second writes nothing); ~600 lines.
+
+## Decisions
+- Mode: autonomous
+- Base commit: cf3103fc3aacb3b2148e3ef33baf57324d975bd2
+- Old artifacts: read, the sub-domain fields ignored (no `#[serde(default)]` field kept). A rendered page set saved
+  before keeps its sub-domain pages until the next render deletes them (render plan); only a repo documented with the
+  removed `files` path had any, and its features are already dropped (ADR 0035).
+- No spec: pure removal of dead code, no spec names sub-domains.
+
+## Deliverable 1 summary
+- done: `DomainCluster.sub_domains`, `SubDomainCluster`, `RunMetrics.sub_domains` and the `sub-domain(s)` of the
+  benchmark summary line removed; `unit_key` takes the domain only, key still `<domain>/-`; `domain_models` writes
+  an empty `sub_domains` until deliverable 2 removes the field.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass (warnings predate the change) |
+| docs | n/a: no doc names the removed fields |
+| code review | low, see below |
+
+- red: none (no spec); the new load test failed with `sub_domains: []` written on save.
+- Code review: no findings
+- not verified: none.
+- decisions needed: none.

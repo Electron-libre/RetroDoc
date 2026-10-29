@@ -55,12 +55,8 @@ pub fn summary(
     let mut out = String::new();
     let _ = writeln!(
         out,
-        "Run: {} domain(s), {} sub-domain(s), {} feature(s), {} use case(s), {} file(s) uncategorized",
-        metrics.domains,
-        metrics.sub_domains,
-        metrics.features,
-        metrics.use_cases,
-        metrics.uncategorized_files
+        "Run: {} domain(s), {} feature(s), {} use case(s), {} file(s) uncategorized",
+        metrics.domains, metrics.features, metrics.use_cases, metrics.uncategorized_files
     );
     let _ = writeln!(
         out,
@@ -143,7 +139,6 @@ mod tests {
     fn metrics(cost: Option<Cost>) -> RunMetrics {
         RunMetrics {
             domains: 3,
-            sub_domains: 1,
             features: 7,
             use_cases: 12,
             uncategorized_files: 2,
@@ -189,7 +184,12 @@ mod tests {
 
         let text = summary(&metrics(Some(cost)), &comparison, None);
 
-        assert!(text.contains("Run: 3 domain(s), 1 sub-domain(s), 7 feature(s), 12 use case(s), 2 file(s) uncategorized"), "{text}");
+        assert!(
+            text.contains(
+                "Run: 3 domain(s), 7 feature(s), 12 use case(s), 2 file(s) uncategorized"
+            ),
+            "{text}"
+        );
         assert!(
             text.contains("50% with a narrative, business-language score 60%, confidence n/a")
                 || text

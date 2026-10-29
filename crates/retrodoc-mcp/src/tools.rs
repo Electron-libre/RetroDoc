@@ -863,7 +863,6 @@ mod tests {
                 name: "Billing".into(),
                 description: "Invoices".into(),
                 paths: vec![],
-                sub_domains: vec![],
                 ..retrodoc_pipeline::DomainCluster::default()
             }],
         }

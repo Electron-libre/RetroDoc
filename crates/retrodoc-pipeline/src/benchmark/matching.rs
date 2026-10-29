@@ -364,7 +364,6 @@ mod tests {
             name: name.to_string(),
             description: String::new(),
             paths: vec![],
-            sub_domains: vec![],
             ..DomainCluster::default()
         };
         let map = DomainMap {

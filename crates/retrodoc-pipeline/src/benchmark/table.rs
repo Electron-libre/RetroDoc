@@ -448,7 +448,6 @@ mod tests {
         RunReport {
             metrics: RunMetrics {
                 domains: 3,
-                sub_domains: 0,
                 features,
                 use_cases: 10,
                 uncategorized_files: 0,

@@ -51,7 +51,7 @@ fn prints_the_scores_of_a_run_against_the_reference() {
         String::from_utf8_lossy(&output.stderr)
     );
     assert!(
-        stdout.contains("Run: 1 domain(s), 0 sub-domain(s), 2 feature(s)"),
+        stdout.contains("Run: 1 domain(s), 2 feature(s)"),
         "{stdout}"
     );
     assert!(

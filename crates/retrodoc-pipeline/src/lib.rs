@@ -70,7 +70,7 @@ pub use contexts::{
     Groups, Resolved, ResolvedContext, RunSlice,
 };
 pub use diagrams::{attach_diagrams, sequence_diagram};
-pub use domains::{build_domains_from_surface, DomainCluster, DomainMap, SubDomainCluster};
+pub use domains::{build_domains_from_surface, DomainCluster, DomainMap};
 pub use entry_points::{
     build_entry_points, EntryFile, EntryKind, EntryPoint, EntryPoints, Output, OutputKind,
 };

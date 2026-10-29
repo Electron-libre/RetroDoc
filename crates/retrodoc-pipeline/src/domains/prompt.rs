@@ -32,7 +32,7 @@ pub(super) const LAYER_WORDS: &[&str] = &[
     "other",
 ];
 
-/// Slugs of the domains and sub-domains whose name is made only of layer
+/// Slugs of the domains whose name is made only of layer
 /// words (`presentation-layer`, `services`): the technical split PLAN.md §6
 /// warns about. Reported, not repaired.
 pub(super) fn layer_named_domains(map: &DomainMap) -> Vec<String> {
@@ -45,11 +45,6 @@ pub(super) fn layer_named_domains(map: &DomainMap) -> Vec<String> {
     for domain in &map.domains {
         if domain.slug != UNCATEGORIZED_SLUG && is_layer(&domain.slug) {
             found.push(domain.slug.clone());
-        }
-        for sub in &domain.sub_domains {
-            if is_layer(&sub.slug) {
-                found.push(format!("{}/{}", domain.slug, sub.slug));
-            }
         }
     }
     found

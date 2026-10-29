@@ -11,7 +11,7 @@ use std::path::PathBuf;
 
 use retrodoc_core::config::RulesConfig;
 use retrodoc_core::model::{
-    BusinessRule, ConfidenceScore, Domain, Feature, SubDomain, UseCase, LOW_CONFIDENCE_THRESHOLD,
+    BusinessRule, ConfidenceScore, Domain, Feature, UseCase, LOW_CONFIDENCE_THRESHOLD,
 };
 
 use crate::behaviour_coverage::{BehaviourCoverage, EntryCount, FeatureCoverage};
@@ -98,8 +98,8 @@ fn mean(values: impl Iterator<Item = f32>) -> Option<f32> {
 }
 
 /// Converts the clustering into the rendering model: the "uncategorized"
-/// bucket is left out (it belongs to the coverage report), and each domain /
-/// sub-domain carries the mean confidence of its features.
+/// bucket is left out (it belongs to the coverage report), and each domain
+/// carries the mean confidence of its features.
 #[must_use]
 pub fn domain_models(map: &DomainMap, features: &[Feature]) -> Vec<Domain> {
     map.domains
@@ -109,18 +109,7 @@ pub fn domain_models(map: &DomainMap, features: &[Feature]) -> Vec<Domain> {
             slug: d.slug.clone(),
             name: d.name.clone(),
             description: d.description.clone(),
-            sub_domains: d
-                .sub_domains
-                .iter()
-                .map(|s| SubDomain {
-                    slug: s.slug.clone(),
-                    name: s.name.clone(),
-                    description: s.description.clone(),
-                    confidence: mean_confidence(features.iter().filter(|f| {
-                        f.domain_slug == d.slug && f.sub_domain_slug.as_deref() == Some(&s.slug)
-                    })),
-                })
-                .collect(),
+            sub_domains: Vec::new(),
             confidence: mean_confidence(features.iter().filter(|f| f.domain_slug == d.slug)),
         })
         .collect()
@@ -1020,7 +1009,6 @@ mod tests {
                 name: String::new(),
                 description: String::new(),
                 paths: vec![PathBuf::from("x.rs")],
-                sub_domains: vec![],
                 ..DomainCluster::default()
             }],
         };

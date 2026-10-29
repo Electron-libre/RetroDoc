@@ -674,7 +674,7 @@ impl SurfaceRun<'_> {
 /// The key of a slice's print in the fingerprints: the domain alone when one prompt holds it.
 fn slice_key(domain_slug: &str, position: usize, slices: usize) -> String {
     if slices == 1 {
-        unit_key(domain_slug, None)
+        unit_key(domain_slug)
     } else {
         format!("{domain_slug}/slice-{}", position + 1)
     }
@@ -920,9 +920,10 @@ fn place_entry_points(
     produced
 }
 
-/// Key of a unit in the fingerprints and the progress line.
-fn unit_key(domain_slug: &str, sub_slug: Option<&str>) -> String {
-    format!("{domain_slug}/{}", sub_slug.unwrap_or("-"))
+/// Key of a unit in the fingerprints and the progress line: `<domain>/-`, the `-` left by the
+/// removed sub-domains so that the prints of a saved run still match.
+fn unit_key(domain_slug: &str) -> String {
+    format!("{domain_slug}/-")
 }
 
 /// Best-effort save after a failure: the units not reached yet keep their
@@ -944,7 +945,7 @@ fn save_partial(
         if reached || slug_taken {
             continue;
         }
-        let unit_key = unit_key(&old.domain_slug, old.sub_domain_slug.as_deref());
+        let unit_key = unit_key(&old.domain_slug);
         if let Some(print) = known_units.get(&unit_key) {
             prints.features.insert(unit_key, print.clone());
         }

@@ -39,12 +39,9 @@ pub struct DomainCluster {
     pub slug: String,
     pub name: String,
     pub description: String,
-    /// Source files assigned directly to this domain (not to one of its
-    /// `sub_domains`).
+    /// Source files assigned to this domain.
     #[serde(default)]
     pub paths: Vec<PathBuf>,
-    #[serde(default)]
-    pub sub_domains: Vec<SubDomainCluster>,
     /// Domains built from the surface (`domains_from = "surface"`): the
     /// resources (entry points grouped by resource) and the entities placed
     /// here.
@@ -64,15 +61,6 @@ pub struct DomainCluster {
     /// …and of the routes of its own files that another domain (of the map, in the run or not) serves.
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub routed_out: BTreeSet<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SubDomainCluster {
-    pub slug: String,
-    pub name: String,
-    pub description: String,
-    #[serde(default)]
-    pub paths: Vec<PathBuf>,
 }
 
 impl DomainMap {

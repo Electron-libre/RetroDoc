@@ -787,7 +787,6 @@ mod tests {
                 name: "Billing".to_string(),
                 description: "Invoices".to_string(),
                 paths: vec![],
-                sub_domains: vec![],
                 ..DomainCluster::default()
             }],
         };

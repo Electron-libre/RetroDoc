@@ -27,7 +27,7 @@ pub(crate) struct Fingerprints {
     /// existing docs). Equal to the last run's: `domains.yaml` is reused.
     #[serde(default)]
     pub domains: Option<String>,
-    /// Features pass: `<domain>/<sub-domain or ->` → hash of the unit's files
+    /// Features pass: `<domain>/-` (or `<domain>/slice-<n>`) → hash of the unit's files
     /// and their summaries.
     #[serde(default)]
     pub features: BTreeMap<String, String>,

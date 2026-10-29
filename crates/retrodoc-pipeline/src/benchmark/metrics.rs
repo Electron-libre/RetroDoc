@@ -50,7 +50,6 @@ impl Cost {
 pub struct RunMetrics {
     /// Domains, without the "uncategorized" bucket.
     pub domains: usize,
-    pub sub_domains: usize,
     pub features: usize,
     pub use_cases: usize,
     /// Source files no domain claims.
@@ -80,14 +79,13 @@ impl RunMetrics {
         let real = || map.domains.iter().filter(|d| d.slug != UNCATEGORIZED_SLUG);
         Some(Self {
             domains: real().count(),
-            sub_domains: real().map(|d| d.sub_domains.len()).sum(),
             features: features.len(),
             use_cases: use_cases.len(),
             uncategorized_files: map
                 .domains
                 .iter()
                 .filter(|d| d.slug == UNCATEGORIZED_SLUG)
-                .map(|d| d.paths.len() + d.sub_domains.iter().map(|s| s.paths.len()).sum::<usize>())
+                .map(|d| d.paths.len())
                 .sum(),
             narrative_share: share(
                 use_cases.iter().filter(|u| u.narrative.is_some()).count(),
@@ -138,25 +136,17 @@ mod tests {
 
     use super::*;
     use crate::artifact::{save_yaml, Artifact};
-    use crate::domains::{DomainCluster, SubDomainCluster};
+    use crate::domains::DomainCluster;
     use crate::features::save_features;
     use crate::usage_log::{record_run, ModelRecord, PassRecord};
     use crate::use_cases::save_use_cases;
 
-    fn cluster(slug: &str, paths: &[&str], subs: usize) -> DomainCluster {
+    fn cluster(slug: &str, paths: &[&str]) -> DomainCluster {
         DomainCluster {
             slug: slug.to_string(),
             name: slug.to_string(),
             description: String::new(),
             paths: paths.iter().map(PathBuf::from).collect(),
-            sub_domains: (0..subs)
-                .map(|i| SubDomainCluster {
-                    slug: format!("{slug}-{i}"),
-                    name: String::new(),
-                    description: String::new(),
-                    paths: vec![],
-                })
-                .collect(),
             ..DomainCluster::default()
         }
     }
@@ -228,9 +218,9 @@ mod tests {
         let root = dir.path();
         let map = DomainMap {
             domains: vec![
-                cluster("billing", &["a.rb"], 2),
-                cluster("shipping", &[], 0),
-                cluster(UNCATEGORIZED_SLUG, &["x.rb", "y.rb"], 0),
+                cluster("billing", &["a.rb"]),
+                cluster("shipping", &[]),
+                cluster(UNCATEGORIZED_SLUG, &["x.rb", "y.rb"]),
             ],
         };
         save_yaml(&Artifact::Domains.path(root), &map).unwrap();
@@ -254,7 +244,6 @@ mod tests {
             metrics.domains, 2,
             "the uncategorized bucket is not a domain"
         );
-        assert_eq!(metrics.sub_domains, 2);
         assert_eq!(metrics.features, 3);
         assert_eq!(metrics.use_cases, 4);
         assert_eq!(metrics.uncategorized_files, 2);
@@ -279,7 +268,7 @@ mod tests {
     fn missing_features_and_use_cases_give_zeros_and_no_scores() {
         let dir = tempfile::tempdir().unwrap();
         let map = DomainMap {
-            domains: vec![cluster("billing", &[], 0)],
+            domains: vec![cluster("billing", &[])],
         };
         save_yaml(&Artifact::Domains.path(dir.path()), &map).unwrap();
 
@@ -299,7 +288,7 @@ mod tests {
         save_yaml(
             &Artifact::Domains.path(root),
             &DomainMap {
-                domains: vec![cluster("billing", &["a.rb"], 0)],
+                domains: vec![cluster("billing", &["a.rb"])],
             },
         )
         .unwrap();
