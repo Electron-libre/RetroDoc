@@ -1,8 +1,8 @@
 //! `retrodoc-ingest`: basic ingestion of the analyzed repo (PLAN.md §2 step 1).
 //!
 //! Combines the file walk (respecting `.gitignore`), the per-file Git
-//! history, and the loading of existing Markdown docs. The result is the
-//! basis for the "repo map" (next roadmap phase).
+//! history, and the loading of existing Markdown docs. The result is what
+//! the pipeline passes start from.
 
 pub mod error;
 pub mod existing_docs;

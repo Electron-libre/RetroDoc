@@ -1,7 +1,7 @@
 //! Whether the code the docs cite is still the code they were generated from:
 //! the current hash of each cited file against the one the last `generate`
 //! recorded in `source-hashes.json` (written once a run has gone through every
-//! pass, unlike the repo map cache), checked at every call so a long-running
+//! pass, unlike the hashes a pass saves), checked at every call so a long-running
 //! server notices an edit made meanwhile.
 
 use std::path::{Path, PathBuf};
@@ -41,7 +41,7 @@ impl Freshness {
             return FileState::Unknown;
         };
         match std::fs::read(self.repo_root.join(path)) {
-            // Hashed as the repo map does (`SourceHashes::capture`): lossy UTF-8.
+            // Hashed as `SourceHashes::capture` does: lossy UTF-8.
             Ok(bytes) if hash_content(&String::from_utf8_lossy(&bytes)) == recorded => {
                 FileState::Fresh
             }

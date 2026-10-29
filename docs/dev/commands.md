@@ -4,7 +4,7 @@
 cargo build --workspace                 # build everything
 cargo test --workspace                  # run all tests
 cargo test -p retrodoc-pipeline         # run one crate's tests
-cargo test -p retrodoc-pipeline repo_map::tests::builds_bottom_up  # run a single test
+cargo test -p retrodoc-pipeline cache::tests::hash_changes_with_content  # run a single test
 cargo clippy --workspace --all-targets  # lint (see Lints below — must be warning-free)
 cargo fmt --all                         # format
 just check                              # fmt + clippy -D warnings + tests + check-specs + check-harness in one go

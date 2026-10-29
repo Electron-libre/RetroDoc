@@ -1,9 +1,7 @@
 //! `retrodoc-pipeline`: orchestration of the generation pipeline passes
 //! (PLAN.md §2) and incremental cache (`.retrodoc/cache/`).
 //!
-//! Roadmap phase 2 (PLAN.md §5): repo map — bottom-up summaries per
-//! file/module, enriched with git history ([`repo_map`]). Roadmap phase 3:
-//! domain/sub-domain clustering of the repo map, with coverage validation
+//! Roadmap phase 3 (PLAN.md §5): domain clustering from the surface
 //! ([`domains`]). Roadmap phase 4: features ([`features`]) → use cases
 //! ([`use_cases`]) → Mermaid diagrams ([`diagrams`]). Roadmap phase 5:
 //! confidence scoring ([`confidence`]) and the documentation debt report

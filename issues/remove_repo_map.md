@@ -62,7 +62,7 @@ removed-setting error of `config.rs`, the ADRs (historical records).
    `Artifact::RepoMap` and its copy in `benchmark/frozen.rs`, the MCP freshness test that used the cache; RER-2
    amended and proven by a new use cases test (two features, one file changed, only its feature redone), spec back
    to `accepted`; verified by `just check`; makes true RER-2; ~1,250 lines, almost all deletions (see Decisions).
-3. [ ] Docs: `lib.rs` and `source_hashes.rs` doc comments, `retrodoc-ingest` and `retrodoc-llm` crate docs,
+3. [x] Docs: `lib.rs` and `source_hashes.rs` doc comments, `retrodoc-ingest` and `retrodoc-llm` crate docs,
    `docs/crates/pipeline.md`, `docs/ARCHITECTURE.md`, `docs/dev/commands.md`, `specs/pipeline-settings.md` if it
    still names it, PLAN; verified by `skill:update-docs` and `just check`; ~100 lines.
 
@@ -91,6 +91,17 @@ removed-setting error of `config.rs`, the ADRs (historical records).
 - check | result: tests ok, clippy ok, fmt ok, specs ok, `check-harness` fails as in deliverable 1.
 - red: RER-2: none, the behaviour already existed (the test pins it; its first run failed only on a wrong call
   count of the test itself, an empty answer is asked twice).
+- not verified: nothing.
+- decisions needed: none.
+- Code review: no findings.
+
+### 3. Docs
+- done: crate docs of `retrodoc-ingest` (`lib.rs`, `git_history.rs`, `existing_docs.rs`) and `retrodoc-llm`, the
+  `retrodoc-pipeline` `lib.rs`, `source_hashes.rs` and MCP `freshness.rs` comments, the `progress.rs` test label,
+  `docs/crates/pipeline.md` (row removed), `docs/ARCHITECTURE.md` §8 diagram, `docs/dev/commands.md` example,
+  PLAN (roadmap item 2 marked removed, `.erb` and truncation notes). The ADRs and PLAN §7.2 stay as history.
+- check | result: tests ok, clippy ok, fmt ok, specs ok, `check-harness` fails as in deliverable 1.
+- red: none (docs only).
 - not verified: nothing.
 - decisions needed: none.
 - Code review: no findings.

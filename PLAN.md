@@ -73,7 +73,7 @@ docs/
 ## 5. Indicative roadmap
 
 1. **Foundation**: CLI skeleton, config (`retrodoc.toml`: OpenRouter key/model, ignored paths), basic ingestion
-2. **Repo map**: bottom-up summaries + git history enrichment
+2. **Repo map**: bottom-up summaries + git history enrichment (removed with the `files` path, ADR 0035)
 3. **Domains/sub-domains**: clustering + coverage validation
 4. **Features → use cases → steps/actors** + Mermaid diagrams
 5. **Confidence score** + documentation debt report
@@ -439,13 +439,12 @@ Steps, each shippable:
   pass now also asks the LLM for `source_extensions` (saved in `roles.yaml`); `generate` promotes the matching
   `Other` files to `Source` right after it (`RoleRules::promote_sources`; the `actors` command does it from the
   saved `roles.yaml`). Not yet checked on a real repo; `scan` and `roles` still show the built-in classification.
-- `.erb` view templates stay `FileKind::Other` on purpose (1,253 files on the Rails test repo): the repo map, the
-  file budget and the actors pass select on `FileKind::Source` only, never on role, so promoting them would add
-  ~1,250 summary calls. They keep their `view` role (used by `classify`). Open: extract their labels (form
+- `.erb` view templates stay `FileKind::Other` on purpose (1,253 files on the Rails test repo): the file budget and
+  the actors pass select on `FileKind::Source` only, never on role. They keep their `view` role (used by `classify`). Open: extract their labels (form
   fields, headings) cheaply, without a per-file LLM call.
 - Retry on an empty/invalid LLM answer fixes symptoms; the underlying causes (context length, truncated
   JSON) depend on the server config — see the local LLM setup notes.
-- Truncation: the entry points and glossary passes chunk long files and the use cases/confidence passes show the relevant chunks of a long file; the actors pass and the repo map still cut long files.
+- Truncation: the entry points and glossary passes chunk long files and the use cases/confidence passes show the relevant chunks of a long file; the actors pass still cuts long files.
 
 ### 7.5 Phase 10 — top-down redesign (open)
 

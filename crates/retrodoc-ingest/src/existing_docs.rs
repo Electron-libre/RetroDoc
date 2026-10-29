@@ -1,7 +1,7 @@
 //! Raw loading of existing Markdown documents listed by
 //! `ingest.existing_docs_paths` in `retrodoc.toml`. Structural parsing
-//! (sections, front-matter) is left to the "repo map" step (phase 2); here
-//! we just locate the files and their content.
+//! (sections, front-matter) is left to the passes that read them; here we
+//! just locate the files and their content.
 
 use std::path::{Path, PathBuf};
 

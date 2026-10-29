@@ -112,10 +112,10 @@ mod tests {
 
     #[test]
     fn line_shows_rank_percentage_and_eta_from_processed_units_only() {
-        let mut progress = Progress::new("repo map", 10);
+        let mut progress = Progress::new("use cases", 10);
         assert_eq!(
             progress.line("a.rs", Duration::from_secs(0)),
-            "repo map: 1/10 (0%) a.rs — elapsed 0s"
+            "use cases: 1/10 (0%) a.rs — elapsed 0s"
         );
         // Four cached units, two processed in 60s each: 4 units left.
         for _ in 0..4 {
@@ -126,7 +126,7 @@ mod tests {
         progress.processed_time = Duration::from_secs(120);
         assert_eq!(
             progress.line("b.rs", Duration::from_secs(125)),
-            "repo map: 7/10 (60%) b.rs — elapsed 2m05s, ~4m00s left"
+            "use cases: 7/10 (60%) b.rs — elapsed 2m05s, ~4m00s left"
         );
     }
 }

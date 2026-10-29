@@ -1,10 +1,10 @@
 //! The hash of each source file as the docs were produced from it, saved in
 //! `source-hashes.json` once a `generate` has gone through every pass.
 //!
-//! The MCP freshness check compares these with the files on disk. The repo map
-//! cache can't serve for that: it is updated early in a run, so a run that
-//! fails afterwards leaves it describing code the features, the use cases and
-//! the rendered docs know nothing about.
+//! The MCP freshness check compares these with the files on disk. The hashes
+//! a pass saves can't serve for that: they are updated during a run, so a run
+//! that fails afterwards leaves them describing code the features, the use
+//! cases and the rendered docs know nothing about.
 
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -24,7 +24,7 @@ pub struct SourceHashes {
 
 impl SourceHashes {
     /// Hashes the source files of `ingest` as they are now (lossy UTF-8, like
-    /// the repo map). An unreadable file is left out: it is not judged later.
+    /// the passes read them). An unreadable file is left out: it is not judged later.
     #[must_use]
     pub fn capture(repo_root: &Path, ingest: &IngestResult) -> Self {
         let files = ingest

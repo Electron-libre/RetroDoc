@@ -1,7 +1,7 @@
-//! Per-file Git history (modification frequency, authors, dates), used in
-//! phase 2 to enrich the repo map. A single pass over the history
-//! (`revwalk` + diff against the parent) feeds the map rather than a
-//! `git log` per file, to stay practical on a large repo.
+//! Per-file Git history (modification frequency, authors, dates), used by
+//! the file budget to rank the files. A single pass over the history
+//! (`revwalk` + diff against the parent) rather than a `git log` per file,
+//! to stay practical on a large repo.
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};

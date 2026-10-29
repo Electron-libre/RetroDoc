@@ -266,7 +266,7 @@ be added later without touching the pipeline.
 
 ```mermaid
 flowchart LR
-    passes["pipeline passes<br/>(repo_map, domains, features,<br/>use_cases, confidence, roles, glossary,<br/>entry_points)"] -->|"one provider per pass<br/>([llm.passes.name] over [llm])"| trait["trait LlmProvider"]
+    passes["pipeline passes<br/>(domains, features,<br/>use_cases, confidence, roles, glossary,<br/>entry_points)"] -->|"one provider per pass<br/>([llm.passes.name] over [llm])"| trait["trait LlmProvider"]
     trait --> or["OpenRouterProvider<br/>HTTP + exponential-backoff retry"]
     trait -.->|wrappers| wrap["HeartbeatProvider<br/>UsageProvider (tokens per pass)"]
     trait -.-> fake["test fakes<br/>(FakeLlm)"]
