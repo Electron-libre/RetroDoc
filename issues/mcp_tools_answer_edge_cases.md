@@ -1,7 +1,7 @@
 # Fix the edge cases of the MCP tools' answers and of the `Docs` builders
 
 # Goal
-The `high` code review of `issues/split_mcp_tools.md` (2026-10-29, `3dfec60..b71dbf0`, pure moves) found
+The `high` code review of `issues/done/split_mcp_tools.md` (2026-10-29, `3dfec60..b71dbf0`, pure moves) found
 behaviours of the MCP tools that predate the split: ids resolved on part of their segments, malformed or empty
 answer text, builders whose result depends on their call order, and lookups that scale badly. Decide which are
 bugs, fix those, and leave the intended ones documented, with no change to the answers of well-formed ids.
@@ -45,7 +45,7 @@ bugs, fix those, and leave the intended ones documented, with no change to the a
   from the current tests of `crates/retrodoc-mcp/src/tools/tests.rs`.
 
 # Resources
-* `issues/split_mcp_tools.md` (where the review ran) and `issues/done/mcp_server.md` (the design of the tools)
+* `issues/done/split_mcp_tools.md` (where the review ran) and `issues/done/mcp_server.md` (the design of the tools)
 * `crates/retrodoc-mcp/src/tools/` and `docs/crates/render-mcp-cli.md`
 
 # Hints

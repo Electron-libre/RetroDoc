@@ -4,7 +4,6 @@ Open issues in the order to work on them: the first is the next one. Read by `ju
 `just close-issue` removes a line, `skill:create-issue` inserts one at its rank, `skill:prioritize-issues`
 re-ranks the whole list. Line format: `- [<file stem>](<file stem>.md) - <why here>`.
 
-- [split_mcp_tools](split_mcp_tools.md) - cut from `split_largest_files`, right after it: same pure moves, one crate each
 - [split_render_markdown](split_render_markdown.md) - cut from `split_largest_files`, after `split_mcp_tools`
 - [split_openrouter_tests](split_openrouter_tests.md) - cut from `split_largest_files`, after `split_render_markdown`: tests only, the least value
 - [joint_reading_routing_rule](joint_reading_routing_rule.md) - after the structural refactors: a possible quality loss of the default reading, unmeasured; its measure reuses the frozen inputs

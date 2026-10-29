@@ -32,7 +32,7 @@ check` stays green and the answers of the tools are unchanged.
 
 # Tracking
 
-Plan: validated
+Plan: validated (done)
 
 ## Understanding
 Split `crates/retrodoc-mcp/src/tools.rs` (1,127 lines) into its tests and one file per tool, pure moves: answers and

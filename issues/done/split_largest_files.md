@@ -4,7 +4,7 @@
 Five files hold several things each (production code, its tests, several tools or pages), which makes them long
 to read and to review. Split each along the seams it already has, with no behaviour change: `just check` and a
 second `generate` writing nothing stay green. This issue covers the two files of `retrodoc-pipeline`
-(`report.rs`, `chunks.rs`); the other three were cut into `issues/split_mcp_tools.md`,
+(`report.rs`, `chunks.rs`); the other three were cut into `issues/done/split_mcp_tools.md`,
 `issues/split_render_markdown.md` and `issues/split_openrouter_tests.md` (one issue per crate, for the size
 limit).
 
