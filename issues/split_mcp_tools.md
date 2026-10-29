@@ -45,6 +45,8 @@ public API (`retrodoc_mcp::tools::Docs`) unchanged. Out of scope: `server.rs` an
 3. [x] Remaining tools apart: `tools/get_feature.rs`, `tools/get_use_case.rs`, `tools/read_source.rs`,
    `tools/git_log.rs`, `tools/search_docs.rs`; `mod.rs` keeps `Docs` and its builders (about 480 changed lines);
    verified by `just check`.
+4. [x] Fixes of the `high` review: the tests name their imports instead of taking `mod.rs`'s through
+   `use super::*`; verified by `just check`.
 
 ## Decisions
 - Mode: autonomous
@@ -87,6 +89,21 @@ public API (`retrodoc_mcp::tools::Docs`) unchanged. Out of scope: `server.rs` an
   | moved lines identical (sorted line comparison) | yes, apart from the `impl`/`use`/`mod` headers |
   | docs (`docs/crates/render-mcp-cli.md`, `lib.rs` crate doc) | updated |
 - red: none (pure move, no new test)
+- Code review: no findings
+- not verified: none
+- decisions needed: none
+
+## Deliverable 4: fixes of the high review (`3dfec60..b71dbf0`, 10 findings)
+- done: `tests.rs` imports `Docs`, the model types, `DomainMap`, `Glossary` and `Freshness` by name instead of
+  through `use super::*` (finding 8: the tests depended on what `mod.rs` happens to import).
+- Findings 1 to 7 and 9 are on behaviour that predates the split (code moved unchanged): filed as
+  `issues/mcp_tools_answer_edge_cases.md`, ranked before `git_log_follow_renames`. Finding 10 (the issue still
+  open) is the close, asked of the user.
+- | check | result |
+  |---|---|
+  | tests, lint, specs (`just check`) | pass |
+  | docs | n/a (test imports only) |
+- red: none (no new test)
 - Code review: no findings
 - not verified: none
 - decisions needed: none

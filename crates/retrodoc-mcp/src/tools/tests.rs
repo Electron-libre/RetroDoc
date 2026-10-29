@@ -1,7 +1,9 @@
-use retrodoc_core::model::{ConfidenceScore, RuleKind, SourceRef};
+use retrodoc_core::model::{BusinessRule, ConfidenceScore, RuleEvidence, RuleKind, SourceRef};
+use retrodoc_pipeline::{DomainMap, Glossary};
 
-use super::*;
+use super::Docs;
 use crate::corpus::fixtures::*;
+use crate::freshness::Freshness;
 
 fn docs() -> Docs {
     let mut weak = use_case(
