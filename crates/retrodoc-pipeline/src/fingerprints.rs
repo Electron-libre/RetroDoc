@@ -50,8 +50,8 @@ pub(crate) struct Fingerprints {
     /// context is done while it still matches).
     #[serde(default)]
     pub contexts: BTreeMap<String, String>,
-    /// Confidence pass: the model that scored the saved use cases. Another
-    /// model scores them all again.
+    /// Confidence pass: the model and the system prompt that scored the saved use cases.
+    /// Another of either scores them all again.
     #[serde(default)]
     pub confidence_model: Option<String>,
 }

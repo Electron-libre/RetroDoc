@@ -67,6 +67,15 @@ invent steps. Reply with ONLY a single JSON object, no prose and no Markdown cod
 this shape: {\"use_cases\":[{\"slug\":\"kebab-case\",\"name\":\"...\",\"description\":\"...\",\
 \"steps\":[{\"actor\":\"...\",\"text\":\"...\",\"code\":[\"F1:10-24\"]}]}]}.";
 
+/// Every part [`system_prompt`] is made of, for the fingerprint of a feature.
+pub(super) const SYSTEM_PROMPT_PARTS: [&str; 5] = [
+    USE_CASES_SYSTEM_PROMPT,
+    NARRATIVE_ADDENDUM,
+    ENTRY_POINTS_ADDENDUM,
+    ACTORS_ADDENDUM,
+    ACTOR_KIND_ADDENDUM,
+];
+
 /// The system prompt: the base, the narrative request, and the parts that
 /// only apply when the feature has entry points / the actors are known.
 pub(super) fn system_prompt(has_entry_points: bool, has_actors: bool) -> String {

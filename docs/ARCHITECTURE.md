@@ -201,8 +201,8 @@ flowchart TD
     p7 -- no --> c7["LLM: score"]
 ```
 
-The model of the pass is part of every one of these comparisons: ask a pass for another model and its
-units are redone (the hand-editable roles, sources, business files and brief are only redone with `--force`).
+The model of the pass is part of every one of these comparisons, and so is its system prompt (ADR 0037): ask a
+pass for another model, or change its prompt, and its units are redone once (the hand-editable roles, sources, business files and brief are only redone with `--force`).
 Domain clustering is not deterministic, so
 `domains.yaml` is reused while its input hash is unchanged (otherwise downstream fingerprints would be
 invalidated, see `PLAN.md` §7): the surface (entities and resources), the brief and the model. The features are one call per domain over its

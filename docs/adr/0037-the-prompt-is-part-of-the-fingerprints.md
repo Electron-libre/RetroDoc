@@ -1,6 +1,6 @@
 # 0037. The prompt is part of the fingerprints
 
-Status: Proposed
+Status: Accepted
 
 ## Context
 
@@ -14,10 +14,14 @@ prompts without saying so.
 
 ## Decision
 
-Every LLM pass that reuses saved results puts the hash of its fixed instructions (its system prompts and the
-fixed text of its user prompts, constants of the binary) in what it compares for each unit, next to the model
-(`fingerprints::prompt_part`). A changed prompt redoes the units of that pass once; the same binary gives the
-same print, so a rerun with no change still makes no call. The hand-editable artifacts (`roles`, `sources`,
+Every LLM pass that reuses saved results puts the hash of its system prompts (constants of the binary; the
+reading passes add the fixed text of their user prompts, one part for the three since the joint reading saves
+what the two others reuse) in what it compares for each unit, next to the model (`fingerprints::prompt_part`).
+The rules pass keeps the hash of its prompts it already had, the reconciliation keeps `SHOWN_RULE` beside it
+(it covers what is shown, not the prompt). The fixed text of the other user prompts is left out (it is spread
+in `format!` calls; the instructions live in the system prompts): a change to that text alone still needs
+`--force`. A changed prompt redoes the units of that pass once; the same binary gives the same print, so a rerun
+with no change still makes no call. The hand-editable artifacts (`roles`, `sources`,
 `business-files`, `brief`, `contexts`) stay until `--force`, as an edit by hand would.
 
 Rejected: a version constant per pass bumped by hand (`SHOWN_RULE`): a cosmetic edit would cost nothing, but a

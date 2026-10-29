@@ -46,7 +46,7 @@ with no fingerprints (`benchmark/frozen.rs`).
 1. [x] Reading passes: `fingerprints::prompt_part`, taken by `batched_read::pending_chunks` from `glossary`,
    `entry_points`, `business_read`; spec and ADR drafts committed; verified by a test that a file saved under
    other instructions is pending and is not on a second run; makes true RER-10 (~200 lines).
-2. [ ] Other passes: `domains`, `features`, placement repair, `use_cases`, `actors`, `confidence`, `reconcile`
+2. [x] Other passes: `domains`, `features`, placement repair, `use_cases`, `actors`, `confidence`, `reconcile`
    (its system prompt next to `SHOWN_RULE`), `rules` through the same helper; docs (`docs/crates/pipeline.md`,
    `fingerprints.rs` `//!`) say the prompt is compared; verified by a test per pass that a unit saved under
    other instructions is asked again; makes true RER-10, spec `accepted` (~400 lines).
@@ -56,6 +56,11 @@ with no fingerprints (`benchmark/frozen.rs`).
 - Base commit: 2de90d29c2936515d729b7fb3e7c72bee8086741
 - Detection: an automatic hash of the prompt text, as `rules` does (no hand-bumped version).
 - Saved runs: no migration, asked again once.
+- Deliverable 2: only the system prompts of the other passes are hashed (their user prompts' fixed text is
+  spread in `format!` calls); `rules` keeps its print as it was, to spare a re-ask with no gain. RER-10 reworded
+  to say so; spec `accepted`, ADR 0037 `Accepted`.
+- Deliverable 2 tests: one per pass whose old print a test can rebuild (confidence, reconcile); the golden
+  prints of features and use cases updated, their comment now says a prompt edit changes them on purpose.
 
 ## Deliverable 1
 - done: the per-file hash of `glossary`, `entry_points`, `business_read` takes `reading_instructions()` (their
@@ -64,3 +69,13 @@ with no fingerprints (`benchmark/frozen.rs`).
 - checks: tests ok, clippy ok, specs ok (warnings on untouched requirements), docs `pipeline.md`.
 - red: RER-10: `pending_chunks` took no instructions (E0277, the test did not compile).
 - not verified: no run on a saved repository.
+
+## Deliverable 2
+- done: system prompt hashed in the prints of `domains`, `features`, placement, `use_cases`
+  (`SYSTEM_PROMPT_PARTS`), `actors`, `reconcile` and in `confidence_model` (`scored_by`); docs `pipeline.md`,
+  `ARCHITECTURE.md` §5, ADR 0037, spec RER-10.
+- checks: tests ok, clippy ok, specs ok, docs updated.
+- red: RER-10: confidence `left: [1, 0, 0, 0] right: [1, 1, 0, 0]`; reconcile `left: [0, 0]` (expected `[1, 0]`).
+- not verified: no per-pass test for domains, features, placement, use cases, actors (their print before the
+  change can't be rebuilt from a test); covered by the golden prints of features and use cases only.
+- Code review (low): no findings.

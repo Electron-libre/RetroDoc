@@ -18,7 +18,7 @@ use super::{Candidate, ItemKind, Section};
 use crate::artifact::{load_yaml, save_yaml, Artifact};
 use crate::bm25::Bm25;
 use crate::error::PipelineError;
-use crate::fingerprints::{fingerprint, model_part};
+use crate::fingerprints::{fingerprint, model_part, prompt_part};
 use crate::response::complete_json;
 use crate::text::{char_prefix, without_last_chars};
 
@@ -33,7 +33,7 @@ const MIN_SECTION_CHARS: usize = 1_500;
 
 /// Names the rule that picks what is shown of a section: part of a verdict's fingerprint, so that a
 /// change of the rule asks the saved items again. Change it when [`shown`] changes.
-const SHOWN_RULE: &str = "paragraphs-of-the-items-v3";
+pub(super) const SHOWN_RULE: &str = "paragraphs-of-the-items-v3";
 
 /// Marks the paragraphs of a section left out.
 const LEFT_OUT: &str = "[...]";
@@ -122,11 +122,13 @@ impl Judgements {
 }
 
 impl Candidate {
-    /// Hash of the item's text, of the origin and text of its sections and of [`SHOWN_RULE`].
+    /// Hash of the item's text, of the origin and text of its sections, of [`SHOWN_RULE`] and of the
+    /// system prompt (ADR 0037).
     #[must_use]
     pub fn fingerprint(&self) -> String {
         let mut parts = vec![
             SHOWN_RULE.to_string(),
+            prompt_part(&[SYSTEM_PROMPT]),
             self.item.kind.label().to_string(),
             self.item.query.clone(),
         ];

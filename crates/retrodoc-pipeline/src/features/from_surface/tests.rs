@@ -1245,7 +1245,8 @@ async fn an_entry_point_placed_from_another_file_stays_in_its_feature_on_the_rer
     );
 }
 
-/// The saved prints must not change with a refactor: another print redoes every user's next run.
+/// The saved prints must not change with a refactor: another print redoes every user's next run. A
+/// prompt edit changes it on purpose (ADR 0037): update the print then.
 #[tokio::test]
 async fn the_print_of_a_domain_stays_the_same() {
     let dir = tempfile::tempdir().unwrap();
@@ -1271,7 +1272,7 @@ async fn the_print_of_a_domain_stays_the_same() {
         prints.into_iter().collect::<Vec<_>>(),
         vec![(
             "orders/-".to_string(),
-            "750ccd02b35e6685334cdaa7e7e8eee2884f60833854b7054e6c0cb6058e9d4c".to_string()
+            "a1766605c9212daa6f6c71cb52a7c7d352c816aa1d301c56f87af41f2e3dcd12".to_string()
         )]
     );
 }

@@ -35,7 +35,7 @@ use crate::domains::{DomainCluster, DomainMap};
 use crate::entry_points::EntryFile;
 use crate::entry_points::{EntryPoint, EntryPoints};
 use crate::error::PipelineError;
-use crate::fingerprints::{fingerprint, model_part, Fingerprints};
+use crate::fingerprints::{fingerprint, model_part, prompt_part, Fingerprints};
 use crate::naming::normalize;
 use crate::progress::Progress;
 use crate::response::complete_json;
@@ -386,7 +386,7 @@ fn domain_query(domain: &DomainCluster, entries: &[Entry<'_>]) -> String {
     query
 }
 
-/// Everything the features of a domain are derived from, besides the prompt text.
+/// Everything the features of a domain are derived from, the system prompt included (ADR 0037).
 fn domain_fingerprint(
     domain: &DomainCluster,
     entries: &[Entry<'_>],
@@ -420,6 +420,9 @@ fn domain_fingerprint(
             .chain(entities)
             .chain(brief.print_part())
             .chain((!close.is_empty()).then(|| close.to_string()))
+            .chain(std::iter::once(prompt_part(&[
+                SURFACE_FEATURES_SYSTEM_PROMPT,
+            ])))
             .chain(std::iter::once(model_part(llm))),
     )
 }

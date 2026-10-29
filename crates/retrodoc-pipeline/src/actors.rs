@@ -21,7 +21,7 @@ use crate::artifact::{load_yaml, save_yaml, Artifact};
 use crate::brief::ProductBrief;
 use crate::cache::hash_content;
 use crate::error::PipelineError;
-use crate::fingerprints::{fingerprint, model_part};
+use crate::fingerprints::{fingerprint, model_part, prompt_part};
 use crate::naming::normalize;
 use crate::response::complete_json;
 use crate::surface::Surface;
@@ -282,6 +282,7 @@ pub async fn build_actors(
             .map(|(path, content)| format!("{}\n{}", path.display(), hash_content(content)))
             .chain(entity_lines.iter().cloned())
             .chain(brief.print_part())
+            .chain(std::iter::once(prompt_part(&[ACTORS_SYSTEM_PROMPT])))
             .chain(std::iter::once(model_part(llm))),
     );
     if !force {

@@ -35,7 +35,7 @@ use crate::artifact::warn_on_error;
 use crate::chunks::{Focus, Splitter};
 use crate::error::PipelineError;
 use crate::features::save_features;
-use crate::fingerprints::Fingerprints;
+use crate::fingerprints::{prompt_part, Fingerprints};
 use crate::glossary::Glossary;
 use crate::progress::Progress;
 use crate::response::complete_json;
@@ -175,7 +175,7 @@ pub async fn score_confidence(
     let splitter = load_splitter(repo_root);
     // Scores given by another model are not kept: it scores them again.
     let mut prints = Fingerprints::load(repo_root);
-    if prints.confidence_model.as_deref() != Some(llm.model()) {
+    if prints.confidence_model != Some(scored_by(llm)) {
         for use_case in use_cases.iter_mut() {
             use_case.confidence = None;
         }
@@ -264,8 +264,18 @@ pub async fn score_confidence(
     }
     save_use_cases(repo_root, use_cases)?;
     save_features(repo_root, features)?;
-    prints.confidence_model = Some(llm.model().to_string());
+    prints.confidence_model = Some(scored_by(llm));
     prints.save(repo_root)
+}
+
+/// What the saved scores were given by: the model and the system prompt (ADR 0037), so another of
+/// either scores them again.
+fn scored_by(llm: &dyn LlmProvider) -> String {
+    format!(
+        "{} {}",
+        llm.model(),
+        prompt_part(&[CONFIDENCE_SYSTEM_PROMPT])
+    )
 }
 
 /// The `chosen` use cases by request: a feature's use cases mostly cite the same code, so they
@@ -294,7 +304,7 @@ fn save_scores(
     prints: &mut Fingerprints,
     llm: &dyn LlmProvider,
 ) {
-    prints.confidence_model = Some(llm.model().to_string());
+    prints.confidence_model = Some(scored_by(llm));
     warn_on_error(save_use_cases(repo_root, use_cases));
     warn_on_error(prints.save(repo_root));
 }

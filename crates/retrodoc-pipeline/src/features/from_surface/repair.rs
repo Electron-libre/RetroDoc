@@ -5,6 +5,7 @@
 
 use super::*;
 use crate::behaviour_coverage::BehaviourCoverage;
+use crate::fingerprints::prompt_part;
 
 /// Entry points per placement call.
 const REPAIR_BATCH: usize = 60;
@@ -80,6 +81,7 @@ fn placement_print(
                     .map(|f| format!("feature {}\n{}\n{}", f.slug, f.name, f.description)),
             )
             .chain(brief.print_part())
+            .chain(std::iter::once(prompt_part(&[PLACEMENT_SYSTEM_PROMPT])))
             .chain(std::iter::once(model_part(llm))),
     )
 }

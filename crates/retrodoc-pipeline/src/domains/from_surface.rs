@@ -13,7 +13,7 @@ use serde::Deserialize;
 use super::{layer_named_domains, DomainCluster, DomainMap, UNCATEGORIZED_SLUG};
 use crate::brief::ProductBrief;
 use crate::error::PipelineError;
-use crate::fingerprints::{fingerprint, model_part, Fingerprints};
+use crate::fingerprints::{fingerprint, model_part, prompt_part, Fingerprints};
 use crate::naming::normalize;
 use crate::response::complete_json;
 use crate::surface::{Resource, Surface};
@@ -83,6 +83,9 @@ fn surface_fingerprint(surface: &Surface, brief: &ProductBrief, model: String) -
         std::iter::once("domains from the surface".to_string())
             .chain(surface.fingerprint_parts())
             .chain(brief.print_part())
+            .chain(std::iter::once(prompt_part(&[
+                SURFACE_DOMAINS_SYSTEM_PROMPT,
+            ])))
             .chain(std::iter::once(model)),
     )
 }

@@ -29,7 +29,9 @@ use crate::chunks::{Focus, Splitter};
 use crate::entry_points::{EntryPoint, EntryPoints};
 use crate::error::PipelineError;
 use crate::features::{entry_point_id, file_ranges, unique_slug};
-use crate::fingerprints::{feature_key, file_part, fingerprint, model_part, Fingerprints};
+use crate::fingerprints::{
+    feature_key, file_part, fingerprint, model_part, prompt_part, Fingerprints,
+};
 use crate::per_feature::{self, FeaturePass, Plan, Unit};
 use crate::response::complete_json;
 use crate::roles::load_splitter;
@@ -46,7 +48,7 @@ use self::grounding::{grounded_use_cases, RawUseCases};
 pub(crate) use self::prompt::{
     focus_for, numbered_excerpt, MAX_CHARS_PER_FILE, MAX_CHARS_PER_PROMPT,
 };
-use self::prompt::{system_prompt, use_cases_prompt, Framing};
+use self::prompt::{system_prompt, use_cases_prompt, Framing, SYSTEM_PROMPT_PARTS};
 
 /// How far from an entry point's file the code it runs is followed, and how
 /// many files are kept (see [`CodeIndex::slice`]).
@@ -386,9 +388,9 @@ struct Request {
     input: FeatureInput,
 }
 
-/// Hash of everything the feature's use cases are derived from: its text and
+/// Hash of everything the feature's use cases are derived from: its text,
 /// the content of its files (an unreadable file hashes as such, so it
-/// invalidates when it becomes readable).
+/// invalidates when it becomes readable) and the parts of the system prompt (ADR 0037).
 fn feature_fingerprint(
     walked: &WalkedFiles,
     feature: &Feature,
@@ -427,6 +429,7 @@ fn feature_fingerprint(
             .chain(files)
             .chain(brief.print_part())
             .chain((!evidence.is_empty()).then(|| evidence.to_string()))
+            .chain(std::iter::once(prompt_part(&SYSTEM_PROMPT_PARTS)))
             .chain(std::iter::once(model_part(llm))),
     )
 }

@@ -351,6 +351,38 @@ async fn another_model_scores_the_scored_use_cases_again() {
     assert!(use_cases[0].confidence.is_some());
 }
 
+// spec: RER-10 (internal: the scores of a run saved before the prompt was compared are written by hand)
+#[tokio::test]
+async fn scores_saved_before_the_prompt_was_compared_are_given_again_once() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.rs"), "fn a() {}\n").unwrap();
+    let answer = r#"{"steps":[{"order":1,"verdict":"supported"}]}"#;
+    let mut features = vec![feature("f")];
+    let mut use_cases = vec![use_case("f", vec![step(1, Some("a.rs"))])];
+    let mut calls = Vec::new();
+    for run in 0..4 {
+        if run == 1 {
+            // What a run before ADR 0037 saved with its scores: the model alone.
+            let mut prints = crate::fingerprints::Fingerprints::load(dir.path());
+            prints.confidence_model = Some("local".to_string());
+            prints.save(dir.path()).unwrap();
+        }
+        let provider = FakeLlm::answering(answer).with_model("local");
+        score_confidence(
+            &walked(dir.path()),
+            &mut features,
+            &mut use_cases,
+            &provider,
+            None,
+            1,
+        )
+        .await
+        .unwrap();
+        calls.push(provider.calls());
+    }
+    assert_eq!(calls, [1, 1, 0, 0]);
+}
+
 /// A verdict per call: every step supported, except for the feature named `weak` (partial).
 fn verdicts_by_feature(weak: &'static str) -> FakeLlm {
     FakeLlm::replying(move |_, request| {

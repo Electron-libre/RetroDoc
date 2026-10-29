@@ -860,6 +860,48 @@ async fn a_verdict_given_before_the_rule_of_what_is_shown_changed_is_asked_again
     assert_eq!(llm.calls(), 1);
 }
 
+// spec: RER-10 (internal: the verdicts of a run saved before the prompt was compared are written by hand)
+#[tokio::test]
+async fn a_verdict_given_before_the_prompt_was_compared_is_asked_again_once() {
+    let dir = tempfile::tempdir().unwrap();
+    let candidates = three_candidates();
+    let before_the_prompt = |c: &Candidate| {
+        let mut parts = vec![
+            super::judge::SHOWN_RULE.to_string(),
+            c.item.kind.label().to_string(),
+            c.item.query.clone(),
+        ];
+        for s in &c.sections {
+            parts.push(s.at.origin());
+            parts.push(s.text.clone());
+        }
+        crate::fingerprints::fingerprint(parts)
+    };
+    let model = crate::fingerprints::model_part(&FakeLlm::answering(""));
+    Judgements {
+        items: candidates
+            .iter()
+            .map(|c| Judged {
+                kind: c.item.kind,
+                label: c.item.label.clone(),
+                fingerprint: before_the_prompt(c),
+                model: model.clone(),
+                sections: Vec::new(),
+            })
+            .collect(),
+    }
+    .save(dir.path())
+    .unwrap();
+    let mut calls = Vec::new();
+    for _ in 0..2 {
+        let llm = FakeLlm::answering(THREE_ANSWERS);
+        judge(dir.path(), &llm, &on(), &candidates).await.unwrap();
+        calls.push(llm.calls());
+    }
+
+    assert_eq!(calls, [1, 0]);
+}
+
 // spec: REC-15
 #[tokio::test]
 async fn a_paragraph_with_a_word_rare_in_the_section_beats_ones_with_its_common_words() {
