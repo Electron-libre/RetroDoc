@@ -32,3 +32,46 @@ text twice to cut it, and two warnings drop the cause of an unreadable file. Mak
 # Hints
 * Point 2 changes the fingerprint input of the rules pass only if the text changes; a cut at a boundary changes
   the words of a file cut inside a character: a rerun may redo the rules of such a feature.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Make the remaining reads and cuts of `retrodoc-pipeline` match `text.rs`: business files mine lossy test files like
+the glossary; `rules/input.rs` reads a guarded byte prefix cut back to a character start (also gaining the repo guard
+it lacks today); every "first n characters" cut goes through one `text.rs` helper; two warnings log the io error. No
+spec covers the test vocabulary nor the rules input (bug fixes, no spec). Out of scope: `retrodoc-ingest`, `retrodoc-mcp`.
+
+## Plan
+1. [x] Reads: `text::read_file_prefix_lossy(repo_root, relative, max_bytes)` (path guard, `Read::take`, cut back to
+   the start of a character, lossy decode) used by `RuleInput::new`; `business_files::test_vocabulary` reads through
+   `read_file_lossy`; `rules/prompt.rs` and `use_cases/prompt.rs` warnings log `error = %err`; verified by unit tests
+   (prefix cut inside a multi-byte character leaves no U+FFFD, a path outside the repo is refused, a test file with
+   invalid UTF-8 is mined by `test_vocabulary`); ~120 lines.
+2. [ ] One cut: `text::char_prefix(text, max_chars) -> Option<&str>` (the prefix when the text is longer, one
+   `char_indices().nth` walk) called by `truncate_chars`, `brief/sample.rs::squeeze`, `diagrams.rs::shortened` and
+   the `chars().take().collect()` excerpts of `sources/mod.rs` and `business_files/mod.rs`; verified by the existing
+   tests of these helpers plus unit tests of `char_prefix` (exact length, one over, multi-byte, zero); ~80 lines.
+
+## Decisions
+- Mode: autonomous
+- Base commit: a448d704c8c3235eca737a5902c0d36ecfcc3e94
+
+## Summary of deliverable 1
+- done: `rules/input.rs` reads a guarded byte prefix cut back to a character start (`text::read_file_prefix_lossy`);
+  `business_files` mines lossy test files; the two feature-file warnings log the io error.
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | clippy pedantic clean |
+| specs | no spec covers the test vocabulary nor the rules input |
+| docs | `docs/ARCHITECTURE.md` "Reads stay in the repo" names the prefix read |
+| code review | see below |
+
+- red: none (no spec); before the code: `test_vocabulary` gave `[]` instead of `["refunds a paid order"]`, the prefix
+  read gave `"abé"` instead of `"ab"`
+- Code review: 1 findings (no bug; the lossy decode was copied from `read_file_lossy`: both now call `decode_lossy`)
+- not verified: none
+- decisions needed: none

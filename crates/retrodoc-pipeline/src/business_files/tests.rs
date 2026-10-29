@@ -395,3 +395,17 @@ async fn files_written_by_generate_do_not_make_the_map_out_of_date() {
 
     assert_eq!(llm.calls(), 1);
 }
+
+#[test]
+fn a_test_file_with_invalid_utf8_is_still_mined() {
+    let (dir, ingest) = repo(&[("spec/order_spec.rb", FileKind::Test, "")]);
+    std::fs::write(
+        dir.path().join("spec/order_spec.rb"),
+        b"# caf\xe9\nit \"refunds a paid order\" do\nend\n",
+    )
+    .unwrap();
+    assert_eq!(
+        test_vocabulary(dir.path(), &ingest),
+        vec!["refunds a paid order".to_string()]
+    );
+}

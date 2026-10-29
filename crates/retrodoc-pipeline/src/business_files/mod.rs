@@ -33,6 +33,7 @@ use crate::cache::hash_content;
 use crate::error::PipelineError;
 use crate::response::complete_json;
 use crate::roles::{render_tree, MANIFESTS, MAX_MANIFEST_CHARS};
+use crate::text::read_file_lossy;
 
 /// Entries kept from the LLM's answer.
 const MAX_ENTRIES: usize = 40;
@@ -392,7 +393,7 @@ fn test_vocabulary(repo_root: &Path, ingest: &IngestResult) -> Vec<String> {
     let mut seen = BTreeSet::new();
     let mut phrases = Vec::new();
     for path in tests.into_iter().take(MAX_TEST_FILES_READ) {
-        let Ok(content) = std::fs::read_to_string(repo_root.join(path)) else {
+        let Ok(content) = read_file_lossy(repo_root, path) else {
             continue;
         };
         for phrase in test_phrases(&content) {

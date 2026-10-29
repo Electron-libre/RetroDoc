@@ -157,9 +157,12 @@ pub(super) fn use_cases_prompt(
         if budget == 0 {
             break;
         }
-        let Ok(content) = read_file_lossy(repo_root, Path::new(path)) else {
-            tracing::warn!(path = %path, "could not read a feature file, left out of the prompt");
-            continue;
+        let content = match read_file_lossy(repo_root, Path::new(path)) {
+            Ok(content) => content,
+            Err(err) => {
+                tracing::warn!(path = %path, error = %err, "could not read a feature file, left out of the prompt");
+                continue;
+            }
         };
         let excerpt = splitter.excerpt(
             Path::new(path),

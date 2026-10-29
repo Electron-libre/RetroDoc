@@ -1,6 +1,6 @@
 //! Reading a source file as text and cutting a text for a prompt: shared by the passes that read files.
 
-use std::io::ErrorKind;
+use std::io::{ErrorKind, Read};
 use std::path::{Component, Path, PathBuf};
 
 use crate::error::PipelineError;
@@ -14,9 +14,42 @@ pub(crate) fn read_file_lossy(repo_root: &Path, relative: &Path) -> Result<Strin
     };
     let real = resolve_inside_repo(repo_root, relative).map_err(read_error)?;
     let bytes = std::fs::read(&real).map_err(read_error)?;
-    // Valid UTF-8 keeps the buffer read; only invalid bytes cost a copy.
-    Ok(String::from_utf8(bytes)
-        .unwrap_or_else(|err| String::from_utf8_lossy(err.as_bytes()).into_owned()))
+    Ok(decode_lossy(bytes))
+}
+
+/// The first `max_bytes` bytes of the file at `relative` as text, cut back to the start of a character and invalid
+/// UTF-8 replaced, read as `read_file_lossy` reads: only the prefix is read.
+pub(crate) fn read_file_prefix_lossy(
+    repo_root: &Path,
+    relative: &Path,
+    max_bytes: usize,
+) -> Result<String, PipelineError> {
+    let read_error = |source| PipelineError::Read {
+        path: relative.to_path_buf(),
+        source,
+    };
+    let real = resolve_inside_repo(repo_root, relative).map_err(read_error)?;
+    let file = std::fs::File::open(&real).map_err(read_error)?;
+    // One byte past the budget tells whether the cut falls inside a character.
+    let mut bytes = Vec::new();
+    file.take(max_bytes as u64 + 1)
+        .read_to_end(&mut bytes)
+        .map_err(read_error)?;
+    if bytes.len() > max_bytes {
+        let is_continuation = |byte: u8| byte & 0b1100_0000 == 0b1000_0000;
+        // A character has at most three continuation bytes; past them the bytes are invalid anyway.
+        let back = (1..=3)
+            .take_while(|&back| back <= max_bytes && is_continuation(bytes[max_bytes + 1 - back]))
+            .count();
+        bytes.truncate(max_bytes - back);
+    }
+    Ok(decode_lossy(bytes))
+}
+
+/// `bytes` as text, invalid UTF-8 replaced: valid UTF-8 keeps the buffer read, only invalid bytes cost a copy.
+fn decode_lossy(bytes: Vec<u8>) -> String {
+    String::from_utf8(bytes)
+        .unwrap_or_else(|err| String::from_utf8_lossy(err.as_bytes()).into_owned())
 }
 
 /// `relative` resolved under `repo_root`, refused when it is absolute, has a `..` component or resolves outside the
@@ -138,6 +171,36 @@ mod tests {
             read_file_lossy(&root_link, Path::new("a.rb")).unwrap(),
             "inside"
         );
+    }
+
+    #[test]
+    fn a_prefix_read_cut_inside_a_character_drops_the_character() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("a.rb"), "abé").unwrap();
+        let read = |max| read_file_prefix_lossy(dir.path(), Path::new("a.rb"), max).unwrap();
+        assert_eq!(read(3), "ab");
+        assert_eq!(read(4), "abé");
+        assert_eq!(read(10), "abé");
+        assert_eq!(read(0), "");
+    }
+
+    #[test]
+    fn a_prefix_read_keeps_invalid_bytes_replaced() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("bad.rb"), b"caf\xe9 ok").unwrap();
+        assert_eq!(
+            read_file_prefix_lossy(dir.path(), Path::new("bad.rb"), 6).unwrap(),
+            "caf\u{fffd} o"
+        );
+    }
+
+    #[test]
+    fn a_prefix_read_outside_the_repo_is_refused() {
+        let (repo, outside) = repo_and_outside();
+        assert!(
+            read_file_prefix_lossy(repo.path(), &outside.path().join("secret.rb"), 10).is_err()
+        );
+        assert!(read_file_prefix_lossy(repo.path(), Path::new("missing.rb"), 10).is_err());
     }
 
     #[test]

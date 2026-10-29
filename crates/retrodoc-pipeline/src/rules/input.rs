@@ -9,6 +9,7 @@ use retrodoc_core::model::Feature;
 
 use crate::brief::Extract;
 use crate::entry_points::EntryPoint;
+use crate::text::read_file_prefix_lossy;
 use crate::use_cases::{feature_query, FeatureInput, UseCaseContext};
 
 /// Of each file, the bytes searched for entity names.
@@ -61,10 +62,11 @@ impl RuleInput {
             .extracts(&feature_query(feature, &input));
         let mut text = format!("{} {}", feature.name, feature.description);
         for path in &input.files {
-            if let Ok(bytes) = std::fs::read(repo_root.join(path)) {
-                let end = bytes.len().min(MAX_BYTES_PER_FILE);
+            if let Ok(prefix) =
+                read_file_prefix_lossy(repo_root, Path::new(path), MAX_BYTES_PER_FILE)
+            {
                 text.push('\n');
-                text.push_str(&String::from_utf8_lossy(&bytes[..end]));
+                text.push_str(&prefix);
             }
         }
         let words = words_of(&text);
