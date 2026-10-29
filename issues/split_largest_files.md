@@ -3,7 +3,10 @@
 # Goal
 Five files hold several things each (production code, its tests, several tools or pages), which makes them long
 to read and to review. Split each along the seams it already has, with no behaviour change: `just check` and a
-second `generate` writing nothing stay green.
+second `generate` writing nothing stay green. This issue covers the two files of `retrodoc-pipeline`
+(`report.rs`, `chunks.rs`); the other three were cut into `issues/split_mcp_tools.md`,
+`issues/split_render_markdown.md` and `issues/split_openrouter_tests.md` (one issue per crate, for the size
+limit).
 
 # Findings (exploration of 2026-10-29, at aee4cc9)
 * `crates/retrodoc-mcp/src/tools.rs`, 1,144 lines: tests at 678-1144; one block per tool (`list_domains`
@@ -22,10 +25,8 @@ second `generate` writing nothing stay green.
 # Approach
 1. Tests apart first: `x.rs` becomes `x/mod.rs` (a `git mv`) plus `x/tests.rs`, as the pipeline modules already
    are (`issues/done/refactor_code_hygiene.md`, deliverable 7).
-2. Then, where it reads better: one MCP tool per file, one page per file of the render, one section per file of
-   the report, chunking and excerpts apart.
-3. One commit per file. A move that also edits counts twice in the size limit: about 4,600 lines moved in all,
-   so more than one issue or several small deliverables; propose the cut at planning.
+2. Then, where it reads better: one section per file of the report, chunking and excerpts apart.
+3. One commit per deliverable. A move that also edits counts twice in the size limit.
 
 # Resources
 * `issues/done/refactor_code_hygiene.md` (how the earlier splits were made)
@@ -35,3 +36,22 @@ second `generate` writing nothing stay green.
 # Hints
 * Keep the public API of each crate (re-export from `mod.rs`).
 * The line numbers above move with every commit; read the files again at planning.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Split `report.rs` and `chunks.rs` of `retrodoc-pipeline` into their tests and their seams, pure moves, public API
+unchanged. Out of scope: the MCP tools, the Markdown render and the OpenRouter tests (their own issues).
+
+## Plan
+1. [ ] Report tests apart: `report.rs` → `report/mod.rs` + `report/tests.rs` (both test modules); verified by `just check`.
+2. [ ] Report sections apart: set aside, reconciliation, behaviour, uncovered in their own files of `report/`; verified by `just check`.
+3. [ ] Chunks tests apart: `chunks.rs` → `chunks/mod.rs` + `chunks/tests.rs`; verified by `just check`.
+4. [ ] Chunking and excerpts apart: `Focus`, `excerpt` and the pieces in `chunks/excerpt.rs`; verified by `just check` and a second `generate` writing nothing.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 2a9c27a
+- Split (user, 2026-10-29): one issue per crate; the OpenRouter tests go to one file per theme under `openrouter/tests/`.
