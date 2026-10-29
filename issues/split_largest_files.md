@@ -49,7 +49,7 @@ unchanged. Out of scope: the MCP tools, the Markdown render and the OpenRouter t
 1. [x] Report tests apart: `report.rs` → `report/mod.rs` + `report/tests.rs` (both test modules); verified by `just check`.
 2. [x] Report sections apart: set aside, reconciliation, behaviour, uncovered in their own files of `report/`; verified by `just check`.
 3. [x] Chunks tests apart: `chunks.rs` → `chunks/mod.rs` + `chunks/tests.rs`; verified by `just check`.
-4. [ ] Chunking and excerpts apart: `Focus`, `excerpt` and the pieces in `chunks/excerpt.rs`; verified by `just check` and a second `generate` writing nothing.
+4. [x] Chunking and excerpts apart: `Focus`, `excerpt` and the pieces in `chunks/excerpt.rs`; verified by `just check` and a second `generate` writing nothing.
 
 ## Decisions
 - Mode: autonomous
@@ -90,4 +90,16 @@ unchanged. Out of scope: the MCP tools, the Markdown render and the OpenRouter t
 - red: none (pure move, no new test)
 - Code review: no findings
 - not verified: none
+- decisions needed: none
+
+## Deliverable 4: chunking and excerpts apart
+- done: `chunks/excerpt.rs` holds `Focus`, `Piece`, `Splitter::excerpt` and `pieces`, the excerpt chunk size and the omitted marker, with the part of the module doc about excerpts; `mod.rs` re-exports `Focus`; `tests.rs` imports `fmt::Write` itself.
+- | check | result |
+  |---|---|
+  | tests, lint, specs (`just check`) | pass |
+  | moved lines identical (sorted line comparison) | yes, apart from `mod excerpt;` and the re-export |
+  | docs (`docs/crates/pipeline.md`) | updated |
+- red: none (pure move, no new test)
+- Code review: no findings
+- not verified: the second `generate` writing nothing on a real repository (no run of the current code to reuse; a fresh one is a local run of hours or a paid one). The rerun tests (`specs/rerun.md`) pass, and the moves change no code of the passes.
 - decisions needed: none
