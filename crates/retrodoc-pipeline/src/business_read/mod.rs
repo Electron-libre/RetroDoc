@@ -17,7 +17,7 @@ use std::path::PathBuf;
 use retrodoc_llm::LlmProvider;
 use serde::Deserialize;
 
-use crate::batched_read::{BatchedRead, PendingChunk};
+use crate::batched_read::{pending_chunks, BatchedRead, PendingChunk};
 use crate::brief::ProductBrief;
 use crate::chunks::Splitter;
 use crate::entry_points::{
@@ -25,13 +25,10 @@ use crate::entry_points::{
     MAX_ENTRY_FILE_CHARS,
 };
 use crate::error::PipelineError;
-use crate::fingerprints::hash_for_model;
 use crate::glossary::{
-    attribute_entities, merge_chunk_entities, Entity, Glossary, GlossaryResponse, ModelFile,
-    ResponseEntity,
+    attribute_entities, Entity, Glossary, GlossaryResponse, ModelFile, ResponseEntity,
 };
 use crate::roles::RoleMap;
-use crate::text::read_file_lossy;
 
 // The wording of the two tasks is that of `glossary` (business prompt) and `entry_points`; keep them close.
 const BUSINESS_READ_SYSTEM_PROMPT: &str = "You are reading the source files of a software \
@@ -138,28 +135,25 @@ pub async fn read_business_files(
         entry_points: EntryPoints::load(repo_root).unwrap_or_default(),
     };
     let splitter = Splitter::new(&roles.chunk_boundaries);
-    // One item per chunk of a changed file: (path, file hash, chunk text).
-    let mut pending: Vec<PendingChunk> = Vec::new();
-    for path in business {
-        let content = read_file_lossy(repo_root, path)?;
-        let hash = hash_for_model(&brief.hash_with(&content), glossary_llm);
-        let current = state
-            .glossary
-            .models
-            .get(path)
-            .is_some_and(|saved| saved.content_hash == hash)
-            && state
-                .entry_points
-                .files
+    let pending = pending_chunks(
+        repo_root,
+        business.iter().map(PathBuf::as_path),
+        brief,
+        glossary_llm,
+        |path, content| splitter.file_chunks(path, content, MAX_ENTRY_FILE_CHARS, "business files"),
+        |path, hash| {
+            state
+                .glossary
+                .models
                 .get(path)
-                .is_some_and(|saved| saved.content_hash == hash);
-        if current {
-            continue;
-        }
-        for chunk in splitter.file_chunks(path, &content, MAX_ENTRY_FILE_CHARS, "business files") {
-            pending.push((path.clone(), hash.clone(), chunk));
-        }
-    }
+                .is_some_and(|saved| saved.content_hash == hash)
+                && state
+                    .entry_points
+                    .files
+                    .get(path)
+                    .is_some_and(|saved| saved.content_hash == hash)
+        },
+    )?;
 
     BatchedRead {
         pass: "business files",
@@ -175,22 +169,14 @@ pub async fn read_business_files(
                     Found::Entry(entry) => entry_points.push(entry),
                 }
             }
-            let mut seen = std::collections::BTreeSet::new();
-            entry_points.retain(|e| seen.insert(e.name.clone()));
-            state.glossary.models.insert(
-                path.to_path_buf(),
-                ModelFile {
-                    content_hash: hash.to_string(),
-                    entities: merge_chunk_entities(entities),
-                },
-            );
-            state.entry_points.files.insert(
-                path.to_path_buf(),
-                EntryFile {
-                    content_hash: hash.to_string(),
-                    entry_points,
-                },
-            );
+            state
+                .glossary
+                .models
+                .insert(path.to_path_buf(), ModelFile::read(hash, entities));
+            state
+                .entry_points
+                .files
+                .insert(path.to_path_buf(), EntryFile::read(hash, entry_points));
         },
         checkpoint: &|state: &Both| {
             state.glossary.save(repo_root)?;

@@ -80,7 +80,7 @@ share the file part (`path\nhash`, or `unreadable`) and the key `"{domain}/{slug
    `build_rules` instead of a field of `UseCaseContext`, so the context is no longer rebuilt for the rules;
    verified by `just check` and a `generate` on a copy of a saved `delivery_router` run making no LLM call
    (~300 lines).
-4. [ ] The reading passes share their leftovers in `batched_read.rs`, the modules staying where they are: the
+4. [x] The reading passes share their leftovers in `batched_read.rs`, the modules staying where they are: the
    loop building the pending chunks (read, hash, compare, chunk), the attribution of an answer to a cited file,
    the seeding of `Retention::Others`; verified by the glossary, entry points and business read tests unchanged
    (~250 lines).
@@ -135,5 +135,18 @@ share the file part (`path\nhash`, or `unreadable`) and the key `"{domain}/{slug
   and wrote no file.
 - not verified: the `contexts` path of `generate` through the binary (no saved `contexts` run of
   `delivery_router`); its pipeline side is covered by `two_runs_tests.rs`.
+- Code review: no findings.
+- decisions needed: none.
+
+## Deliverable 4
+- done: `batched_read.rs` gains `pending_chunks` (read, hash with the brief and the model, keep the saved
+  reading or cut the file), `attribute` (an answer by the cited file of the batch) and `unread_kept` (the saved
+  files a `Retention::Others` run keeps); `ModelFile::read` and `EntryFile::read` build an artifact entry (chunks
+  merged, entry points kept once by name). The glossary, entry points and joint reading use them; the modules
+  and the standalone commands stay where they are.
+- red: none (no requirement: pure refactor); the glossary, entry points and business read tests held unchanged,
+  and the per-file hash is the same expression, moved.
+- not verified: the warning of an answer citing an unknown file names the item as `name = ...` (was
+  `entity = ...` or `entry_point = ...`); its message is unchanged.
 - Code review: no findings.
 - decisions needed: none.

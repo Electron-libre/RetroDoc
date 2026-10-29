@@ -1,5 +1,7 @@
 //! The loop shared by the passes that read many small files per LLM call
-//! (glossary, entry points).
+//! (glossary, entry points, and the joint reading of both), and what they
+//! share around it: the files to read again, the attribution of an answer
+//! to the cited file, the saved files a partial run keeps.
 //!
 //! The changed files, already cut in chunks, are grouped in batches of about
 //! [`BATCH_CHARS`] of code. A batch whose answer is unusable is retried file
@@ -15,9 +17,14 @@ use std::path::{Path, PathBuf};
 use retrodoc_llm::LlmProvider;
 use serde::de::DeserializeOwned;
 
+use crate::brief::ProductBrief;
+use crate::chunks::strip_part_marker;
 use crate::error::PipelineError;
+use crate::fingerprints::hash_for_model;
 use crate::progress::Progress;
 use crate::response::complete_json;
+use crate::text::read_file_lossy;
+use crate::use_cases::resolve_cited_path;
 
 /// Characters of code per LLM call.
 const BATCH_CHARS: usize = 12_000;
@@ -110,6 +117,84 @@ impl<R: DeserializeOwned + schemars::JsonSchema, T, S> BatchedRead<'_, R, T, S> 
         }
         Ok(())
     }
+}
+
+/// The chunks of the `paths` to read again. The hash of a file is that of its content with the brief,
+/// for the model of `llm`; `current(path, hash)` says whether the saved reading is up to date (and
+/// keeps it), else the file is cut by `cut(path, content)`.
+///
+/// # Errors
+///
+/// Returns an error if a file can't be read.
+pub(crate) fn pending_chunks<'p>(
+    repo_root: &Path,
+    paths: impl IntoIterator<Item = &'p Path>,
+    brief: &ProductBrief,
+    llm: &dyn LlmProvider,
+    cut: impl Fn(&Path, &str) -> Vec<String>,
+    mut current: impl FnMut(&Path, &str) -> bool,
+) -> Result<Vec<PendingChunk>, PipelineError> {
+    let mut pending = Vec::new();
+    for path in paths {
+        let content = read_file_lossy(repo_root, path)?;
+        let hash = hash_for_model(&brief.hash_with(&content), llm);
+        if current(path, &hash) {
+            continue;
+        }
+        for chunk in cut(path, &content) {
+            pending.push((path.to_path_buf(), hash.clone(), chunk));
+        }
+    }
+    Ok(pending)
+}
+
+/// What an answer found, by the file of `batch` it cites. A batch of a single file needs no
+/// citation; otherwise the cited path must resolve to a file of the batch (else the item is dropped,
+/// with a warning naming `what` it is). `split` gives the cited file of an item and what it found,
+/// `name` the name of that, and a nameless one is ignored.
+pub(crate) fn attribute<I, T>(
+    items: Vec<I>,
+    batch: &[PendingChunk],
+    what: &str,
+    split: impl Fn(I) -> (String, T),
+    name: impl Fn(&T) -> &str,
+) -> BTreeMap<String, Vec<T>> {
+    let allowed = group_paths(batch);
+    let mut found: BTreeMap<String, Vec<T>> = BTreeMap::new();
+    for item in items {
+        let (file, value) = split(item);
+        let target = if allowed.len() == 1 {
+            allowed.iter().next().cloned()
+        } else {
+            resolve_cited_path(strip_part_marker(&file), &allowed)
+        };
+        match target {
+            Some(target) if !name(&value).trim().is_empty() => {
+                found.entry(target).or_default().push(value);
+            }
+            Some(_) => {}
+            None => tracing::warn!(
+                file = %file,
+                name = %name(&value),
+                "{what} attributed to an unknown file, dropped"
+            ),
+        }
+    }
+    found
+}
+
+/// The `saved` readings of the files not `read` this time that still exist, which a run reading a
+/// part of the application keeps (`Retention::Others`).
+pub(crate) fn unread_kept<V: Clone>(
+    repo_root: &Path,
+    saved: &BTreeMap<PathBuf, V>,
+    read: &BTreeSet<&Path>,
+) -> Vec<(PathBuf, V)> {
+    saved
+        .iter()
+        .filter(|(path, _)| !read.contains(path.as_path()) && repo_root.join(path).is_file())
+        .map(|(path, value)| (path.clone(), value.clone()))
+        .collect()
 }
 
 /// The files whose attribution key (`path` as a string) appears in `group`.

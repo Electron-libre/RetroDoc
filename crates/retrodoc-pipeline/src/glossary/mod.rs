@@ -30,15 +30,13 @@ use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
 use crate::artifact::{load_yaml, save_yaml, Artifact, Retention};
-use crate::batched_read::{group_paths, BatchedRead, PendingChunk};
+use crate::batched_read::{attribute, pending_chunks, unread_kept, BatchedRead, PendingChunk};
 use crate::brief::ProductBrief;
-use crate::chunks::{strip_part_marker, Splitter};
+use crate::chunks::Splitter;
 use crate::error::PipelineError;
-use crate::fingerprints::hash_for_model;
 use crate::naming::normalize;
 use crate::roles::{FileRole, RoleMap};
 use crate::text::read_file_lossy;
-use crate::use_cases::resolve_cited_path;
 
 /// A longer model file is read in several chunks of about this size, so one
 /// huge model can't crowd out the others in a batch.
@@ -90,6 +88,17 @@ pub struct Entity {
 pub struct ModelFile {
     pub content_hash: String,
     pub entities: Vec<Entity>,
+}
+
+impl ModelFile {
+    /// The reading of a file whose content hashes to `content_hash`: the entities of its chunks,
+    /// merged.
+    pub(crate) fn read(content_hash: &str, entities: Vec<Entity>) -> Self {
+        Self {
+            content_hash: content_hash.to_string(),
+            entities: merge_chunk_entities(entities),
+        }
+    }
 }
 
 /// Descriptions found in the tests of one file.
@@ -167,34 +176,18 @@ pub struct MergedEntity {
     pub files: Vec<PathBuf>,
 }
 
-/// The entities of an answer by file. A batch of a single file needs no
-/// citation; otherwise the cited path must resolve to a file of the batch,
-/// and nameless entities are ignored.
+/// The entities of an answer by file (see [`attribute`]).
 pub(crate) fn attribute_entities(
     response: GlossaryResponse,
     batch: &[PendingChunk],
 ) -> BTreeMap<String, Vec<Entity>> {
-    let allowed = group_paths(batch);
-    let mut found: BTreeMap<String, Vec<Entity>> = BTreeMap::new();
-    for item in response.entities {
-        let target = if allowed.len() == 1 {
-            allowed.iter().next().cloned()
-        } else {
-            resolve_cited_path(strip_part_marker(&item.file), &allowed)
-        };
-        match target {
-            Some(file) if !item.entity.name.trim().is_empty() => {
-                found.entry(file).or_default().push(item.entity);
-            }
-            Some(_) => {}
-            None => tracing::warn!(
-                file = %item.file,
-                entity = %item.entity.name,
-                "entity attributed to an unknown file, dropped"
-            ),
-        }
-    }
-    found
+    attribute(
+        response.entities,
+        batch,
+        "entity",
+        |item| (item.file, item.entity),
+        |entity| &entity.name,
+    )
 }
 
 fn merge_group(group: &[(&Path, &Entity)]) -> MergedEntity {
@@ -285,11 +278,9 @@ pub async fn build_glossary(
     let to_read = files_to_read(roles, business);
     if keep == Retention::Others {
         let read: BTreeSet<&Path> = to_read.iter().copied().collect();
-        for (path, saved) in &previous.models {
-            if !read.contains(path.as_path()) && repo_root.join(path).is_file() {
-                glossary.models.insert(path.clone(), saved.clone());
-            }
-        }
+        glossary
+            .models
+            .extend(unread_kept(repo_root, &previous.models, &read));
     }
     let splitter = Splitter::new(&roles.chunk_boundaries);
     let reader = EntityReader {
@@ -355,25 +346,23 @@ impl EntityReader<'_> {
         unit: &'static str,
         glossary: &mut Glossary,
     ) -> Result<(), PipelineError> {
-        // One item per chunk of a changed file: (path, file hash, chunk text).
-        let mut pending: Vec<PendingChunk> = Vec::new();
-        for path in paths {
-            let content = read_file_lossy(self.repo_root, path)?;
-            let hash = hash_for_model(&self.brief.hash_with(&content), self.llm);
-            match self.previous.models.get(path) {
+        let pending = pending_chunks(
+            self.repo_root,
+            paths,
+            self.brief,
+            self.llm,
+            |path, content| {
+                self.splitter
+                    .file_chunks(path, content, MAX_MODEL_FILE_CHARS, "glossary")
+            },
+            |path, hash| match self.previous.models.get(path) {
                 Some(saved) if saved.content_hash == hash => {
                     glossary.models.insert(path.to_path_buf(), saved.clone());
+                    true
                 }
-                _ => {
-                    let chunks =
-                        self.splitter
-                            .file_chunks(path, &content, MAX_MODEL_FILE_CHARS, "glossary");
-                    for chunk in chunks {
-                        pending.push((path.to_path_buf(), hash.clone(), chunk));
-                    }
-                }
-            }
-        }
+                _ => false,
+            },
+        )?;
 
         BatchedRead {
             pass: "glossary",
@@ -382,13 +371,9 @@ impl EntityReader<'_> {
             header,
             attribute: attribute_entities,
             finish: |glossary: &mut Glossary, path, hash, entities| {
-                glossary.models.insert(
-                    path.to_path_buf(),
-                    ModelFile {
-                        content_hash: hash.to_string(),
-                        entities: merge_chunk_entities(entities),
-                    },
-                );
+                glossary
+                    .models
+                    .insert(path.to_path_buf(), ModelFile::read(hash, entities));
             },
             checkpoint: &|glossary: &Glossary| glossary.save(self.repo_root),
         }

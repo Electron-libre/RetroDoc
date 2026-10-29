@@ -20,15 +20,12 @@ use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
 use crate::artifact::{load_yaml, save_yaml, Artifact, Retention};
-use crate::batched_read::{group_paths, BatchedRead, PendingChunk};
+use crate::batched_read::{attribute, pending_chunks, unread_kept, BatchedRead, PendingChunk};
 use crate::brief::ProductBrief;
-use crate::chunks::{strip_part_marker, Splitter};
+use crate::chunks::Splitter;
 use crate::error::PipelineError;
-use crate::fingerprints::hash_for_model;
 use crate::roles::{FileRole, RoleMap};
 use crate::slices::CodeIndex;
-use crate::text::read_file_lossy;
-use crate::use_cases::resolve_cited_path;
 
 /// Entry point files carry many small actions: a bit more room than models.
 /// A longer file is read in several chunks of about this size.
@@ -126,6 +123,19 @@ pub struct EntryPoint {
 pub struct EntryFile {
     pub content_hash: String,
     pub entry_points: Vec<EntryPoint>,
+}
+
+impl EntryFile {
+    /// The reading of a file whose content hashes to `content_hash`: the entry points of its chunks,
+    /// the first of a name kept.
+    pub(crate) fn read(content_hash: &str, mut entry_points: Vec<EntryPoint>) -> Self {
+        let mut seen = BTreeSet::new();
+        entry_points.retain(|e| seen.insert(e.name.clone()));
+        Self {
+            content_hash: content_hash.to_string(),
+            entry_points,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -271,8 +281,6 @@ pub async fn build_entry_points(
     let previous = EntryPoints::load(repo_root).unwrap_or_default();
     let mut inventory = EntryPoints::default();
     let splitter = Splitter::new(&roles.chunk_boundaries);
-    // One item per chunk of a changed file: (path, file hash, chunk text).
-    let mut pending: Vec<PendingChunk> = Vec::new();
     let to_read: BTreeSet<&Path> = roles
         .files_with(FileRole::EntryPoint)
         .into_iter()
@@ -280,28 +288,24 @@ pub async fn build_entry_points(
         .collect();
     if keep == Retention::Others {
         // Seeded first, so that the checkpoints and the final save hold them too.
-        for (path, saved) in &previous.files {
-            if !to_read.contains(path.as_path()) && repo_root.join(path).is_file() {
-                inventory.files.insert(path.clone(), saved.clone());
-            }
-        }
+        inventory
+            .files
+            .extend(unread_kept(repo_root, &previous.files, &to_read));
     }
-    for path in to_read {
-        let content = read_file_lossy(repo_root, path)?;
-        let hash = hash_for_model(&brief.hash_with(&content), llm);
-        match previous.files.get(path) {
+    let pending = pending_chunks(
+        repo_root,
+        to_read,
+        brief,
+        llm,
+        |path, content| splitter.file_chunks(path, content, MAX_ENTRY_FILE_CHARS, "entry points"),
+        |path, hash| match previous.files.get(path) {
             Some(saved) if saved.content_hash == hash => {
                 inventory.files.insert(path.to_path_buf(), saved.clone());
+                true
             }
-            _ => {
-                let chunks =
-                    splitter.file_chunks(path, &content, MAX_ENTRY_FILE_CHARS, "entry points");
-                for chunk in chunks {
-                    pending.push((path.to_path_buf(), hash.clone(), chunk));
-                }
-            }
-        }
-    }
+            _ => false,
+        },
+    )?;
 
     BatchedRead {
         pass: "entry points",
@@ -309,16 +313,10 @@ pub async fn build_entry_points(
         system_prompt: ENTRY_POINTS_SYSTEM_PROMPT,
         header: &format!("{}Files:\n", brief.prompt_head()),
         attribute: attribute_entry_points,
-        finish: |inventory: &mut EntryPoints, path, hash, mut entry_points| {
-            let mut seen = BTreeSet::new();
-            entry_points.retain(|e| seen.insert(e.name.clone()));
-            inventory.files.insert(
-                path.to_path_buf(),
-                EntryFile {
-                    content_hash: hash.to_string(),
-                    entry_points,
-                },
-            );
+        finish: |inventory: &mut EntryPoints, path, hash, entry_points| {
+            inventory
+                .files
+                .insert(path.to_path_buf(), EntryFile::read(hash, entry_points));
         },
         checkpoint: &|inventory: &EntryPoints| inventory.save(repo_root),
     }
@@ -329,33 +327,18 @@ pub async fn build_entry_points(
     Ok(inventory)
 }
 
-/// The entry points of an answer, by the file of `group` each belongs to (an
-/// entry point of an unknown file is dropped, with a warning).
+/// The entry points of an answer, by the file of `group` each belongs to (see [`attribute`]).
 pub(crate) fn attribute_entry_points(
     response: EntryPointsResponse,
     group: &[PendingChunk],
 ) -> BTreeMap<String, Vec<EntryPoint>> {
-    let allowed = group_paths(group);
-    let mut found: BTreeMap<String, Vec<EntryPoint>> = BTreeMap::new();
-    for item in response.entry_points {
-        let target = if allowed.len() == 1 {
-            allowed.iter().next().cloned()
-        } else {
-            resolve_cited_path(strip_part_marker(&item.file), &allowed)
-        };
-        match target {
-            Some(file) if !item.entry.name.trim().is_empty() => {
-                found.entry(file).or_default().push(item.entry);
-            }
-            Some(_) => {}
-            None => tracing::warn!(
-                file = %item.file,
-                entry_point = %item.entry.name,
-                "entry point attributed to an unknown file, dropped"
-            ),
-        }
-    }
-    found
+    attribute(
+        response.entry_points,
+        group,
+        "entry point",
+        |item| (item.file, item.entry),
+        |entry| &entry.name,
+    )
 }
 
 #[cfg(test)]
