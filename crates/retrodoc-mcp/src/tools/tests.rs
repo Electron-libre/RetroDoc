@@ -1,4 +1,4 @@
-use retrodoc_core::model::ConfidenceScore;
+use retrodoc_core::model::{ConfidenceScore, RuleKind, SourceRef};
 
 use super::*;
 use crate::corpus::fixtures::*;

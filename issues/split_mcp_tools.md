@@ -40,7 +40,7 @@ public API (`retrodoc_mcp::tools::Docs`) unchanged. Out of scope: `server.rs` an
 
 ## Plan
 1. [x] Tests apart: `tools.rs` → `tools/mod.rs` (git mv) + `tools/tests.rs` (about 960 changed lines); verified by `just check`.
-2. [ ] Shared helpers and domain tools apart: `tools/answer.rs` (constants, free answer helpers, private helpers of
+2. [x] Shared helpers and domain tools apart: `tools/answer.rs` (constants, free answer helpers, private helpers of
    `Docs` as `pub(super)`), `tools/list_domains.rs`, `tools/get_domain.rs` (about 650 changed lines); verified by `just check`.
 3. [ ] Remaining tools apart: `tools/get_feature.rs`, `tools/get_use_case.rs`, `tools/read_source.rs`,
    `tools/git_log.rs`, `tools/search_docs.rs`; `mod.rs` keeps `Docs` and its builders (about 480 changed lines);
@@ -58,6 +58,20 @@ public API (`retrodoc_mcp::tools::Docs`) unchanged. Out of scope: `server.rs` an
   | tests, lint, specs (`just check`) | pass |
   | moved code identical modulo whitespace | yes (script comparison; rustfmt reflowed two asserts) |
   | docs (`docs/crates/render-mcp-cli.md`, `docs/ARCHITECTURE.md`) | updated |
+- red: none (pure move, no new test)
+- Code review: no findings
+- not verified: none
+- decisions needed: none
+
+## Deliverable 2: shared helpers and domain tools apart
+- done: `tools/answer.rs` holds the constants, the free answer helpers and the private helpers of `Docs` (now
+  `pub(super)`); `tools/list_domains.rs` and `tools/get_domain.rs` hold their tool's `impl Docs` block; the test
+  imports that came through `use super::*` (`RuleKind`, `SourceRef`) are named in `tests.rs`.
+- | check | result |
+  |---|---|
+  | tests, lint, specs (`just check`) | pass |
+  | moved lines identical (sorted line comparison) | yes, apart from the `impl`/`use`/`mod` headers and `pub(super)` |
+  | docs (`docs/crates/render-mcp-cli.md`) | updated |
 - red: none (pure move, no new test)
 - Code review: no findings
 - not verified: none
