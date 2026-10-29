@@ -44,6 +44,7 @@ rendered bytes, `rules.rs`, `doc_links.rs`, `plan.rs`.
 1. [x] Pages and layout tests apart: `git mv markdown.rs markdown/mod.rs`; fixtures (`meta`, `sample`, `page`, `index_of`) in `markdown/tests/mod.rs` (`pub(super)`), the pages and layout tests in `tests/pages.rs`, the agent index, rerun and determinism tests in `tests/agent_index.rs`; the rules and doc links tests stay inline in `mod.rs` for now, renamed `mod rules_tests` (body untouched) and importing the fixtures; verified by `just check` and the moved code identical modulo whitespace (~600 lines).
 2. [x] Rules and doc links tests apart: `rules_tests` → `markdown/tests/rules.rs` (dedented); verified by `just check` (~530 lines).
 3. [x] One page per file: `agent_index`, `domain_page`, `feature_page`, `use_case_page` (+ `step_item`) in `markdown/agent_index.rs`, `domain.rs`, `feature.rs`, `use_case.rs`; paths, links, confidence lines and `trim_end` stay in `mod.rs` (`pub(super)` where needed); `docs/crates/render-mcp-cli.md` and `docs/ARCHITECTURE.md` point to `markdown/`; verified by `just check` (~660 lines).
+4. [x] Fixes of the `high` review: the render module list of `docs/crates/render-mcp-cli.md` without nested parentheses; verified by rereading the doc.
 
 ## Decisions
 - Mode: autonomous
@@ -87,3 +88,20 @@ rendered bytes, `rules.rs`, `doc_links.rs`, `plan.rs`.
 - Code review: no findings
 - not verified: second `generate` (pure move)
 - decisions needed: none
+
+## High review (9856e71..afa7110)
+- 10 findings: the split itself is a pure move (bodies and the 17 tests identical).
+  - fixed (deliverable 4): nested parentheses in the module list of `docs/crates/render-mcp-cli.md`.
+  - pre-existing, outside a no-behaviour-change issue: multi-line descriptions break the domain and feature page lists; `segment` can map two slugs to one file; inverted line range printed; duplicated item format and confidence flag across pages; rules filtered twice and deep-cloned; `ActorKind::Human` written in full. Left to the user (issue or not).
+  - the issue is still open: closed on the user's agreement.
+
+## Deliverable 4: fixes of the high review
+- done: the render module list is a sentence of its own after the crate summary.
+- | check | result |
+  |---|---|
+  | tests, lint, specs (`just check`) | pass |
+  | docs | reread |
+- red: none (docs only)
+- Code review: no findings
+- not verified: none
+- decisions needed: an issue for the pre-existing findings
