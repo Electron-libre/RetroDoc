@@ -32,7 +32,7 @@ and the test count is unchanged.
 * `crates/retrodoc-llm/src/openrouter/tests/` (`mod.rs`, `completion.rs`, `fallbacks.rs`, `timeouts.rs`)
 * `specs/` (the `// spec: LTO-n` lines stay with their tests)
 * `docs/dev/conventions.md` (test patterns)
-* `issues/split_openrouter_tests.md` (the split and its high review)
+* `issues/done/split_openrouter_tests.md` (the split and its high review)
 
 # Hints
 * The tests that check the exact bytes of a request (headers, `max_tokens`, `reasoning_effort`) need the requests

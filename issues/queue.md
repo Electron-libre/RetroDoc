@@ -4,7 +4,6 @@ Open issues in the order to work on them: the first is the next one. Read by `ju
 `just close-issue` removes a line, `skill:create-issue` inserts one at its rank, `skill:prioritize-issues`
 re-ranks the whole list. Line format: `- [<file stem>](<file stem>.md) - <why here>`.
 
-- [split_openrouter_tests](split_openrouter_tests.md) - cut from `split_largest_files`, after `split_render_markdown`: tests only, the least value
 - [joint_reading_routing_rule](joint_reading_routing_rule.md) - after the structural refactors: a possible quality loss of the default reading, unmeasured; its measure reuses the frozen inputs
 - [contexts_residual_size_and_names](contexts_residual_size_and_names.md) - low: follow-up of the closed split by family (2026-10-14): one context still over 150 files, action names taken for families, the names unread; nothing before it depends on it, and its spread measure is cheaper after `sampling_temperature_for_steadier_runs`
 - [rules_replay_without_evidence](rules_replay_without_evidence.md) - small, right before `rules_plumbing_and_screen_noise`: its rules measures should replay the pass with the evidence `generate` gives

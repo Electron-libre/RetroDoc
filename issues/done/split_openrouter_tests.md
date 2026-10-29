@@ -72,3 +72,9 @@ any change of the production code or of a test body.
 - Code review: no findings
 - not verified: none
 - decisions needed: none
+
+## High review (fc03730..db3d41b)
+- 6 findings, no correctness bug: the split is a pure move (production code and the tests identical, 46 tests, `LTO-1` to `LTO-4` traced).
+  - pre-existing, outside a no-behaviour-change issue: the hand-built mock server repeated in `completion.rs` and `timeouts.rs` while `serve`/`http` sit in `fallbacks.rs`; the `OpenRouterProvider` literal repeated about 10 times; `CompletionRequest` literals that could use `..request()`; `std::thread::sleep` in the async `LTO-4` test. Left to the user (issue or not).
+  - the end-to-end 429 test stays in `completion.rs`: it goes through `complete`, `retry.rs` holds the delay functions, as the issue's themes said.
+  - follow-up: `issues/openrouter_tests_shared_fixtures.md` for the pre-existing findings; issue closed on the user's agreement.
