@@ -19,7 +19,6 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use futures_util::stream::{self, StreamExt};
 use retrodoc_core::config::RulesConfig;
 use retrodoc_core::model::{BusinessRule, Feature, UseCase};
 use retrodoc_llm::LlmProvider;
@@ -29,7 +28,7 @@ use crate::cache::hash_content;
 use crate::chunks::Splitter;
 use crate::error::PipelineError;
 use crate::fingerprints::{feature_key, file_part, fingerprint, model_part, Fingerprints};
-use crate::progress::Progress;
+use crate::per_feature::{self, FeaturePass, Plan, Unit};
 use crate::response::complete_json;
 use crate::roles::load_splitter;
 use crate::use_cases::UseCaseContext;
@@ -141,105 +140,39 @@ pub async fn build_rules(
     llm: &dyn LlmProvider,
 ) -> Result<Vec<BusinessRule>, PipelineError> {
     let saved = load_stated(repo_root);
-    let mut prints = Fingerprints::load(repo_root);
     // Without the saved rules, a fingerprint can't tell "none" from "lost"; nor can it, without the
     // file of what was set aside (a run from before it), tell a feature about tests from the rest.
-    let known = if saved.is_some() && Artifact::RulesSetAside.path(repo_root).exists() {
-        std::mem::take(&mut prints.rules)
-    } else {
-        BTreeMap::new()
-    };
-    let previous = saved.unwrap_or_default();
-    let previous_aside = load_set_aside(repo_root).unwrap_or_default();
+    let (mut prints, known) = per_feature::open::<RulesPass>(
+        Fingerprints::load(repo_root),
+        saved.is_some() && Artifact::RulesSetAside.path(repo_root).exists(),
+    );
     warn_unknown_features(&context.put_back.keep_features, features);
     let splitter = load_splitter(repo_root);
-    let mut progress = Progress::new("rules", features.len());
-
-    let items: Vec<Item<'_>> = features
+    let (units, reach): (Vec<_>, BTreeMap<_, _>) = features
         .iter()
         .map(|feature| {
-            plan_item(
+            plan_unit(
                 repo_root, feature, use_cases, context, &known, &splitter, llm,
             )
         })
-        .collect();
-
-    let reach = reach_of(&items);
-
-    let splitter = &splitter;
-    let mut answers = stream::iter(items)
-        .map(|item| async move {
-            let answer = answer_for(repo_root, llm, &item, context, splitter).await;
-            (item, answer)
-        })
-        .buffered(context.concurrency.max(1));
-
-    // What a rerun starts from when the features from the rank `from` on are not done.
-    let checkpoint =
-        |rules: &[BusinessRule], aside: &SetAside, prints: &Fingerprints, from: usize| {
-            save_partial(
-                repo_root,
-                Snapshot { rules, aside },
-                Snapshot {
-                    rules: &previous,
-                    aside: &previous_aside,
-                },
-                &features[from..],
-                prints,
-                &known,
-                &context.put_back,
-            );
-        };
-    let mut rules: Vec<BusinessRule> = Vec::new();
-    let mut aside = SetAside::default();
-    let mut position = 0;
-    while let Some((item, answer)) = answers.next().await {
-        position += 1;
-        let Item {
-            feature,
-            key,
-            print,
-            plan,
-            ..
-        } = item;
-        match plan {
-            Plan::Reuse => {
-                tracing::info!(feature = %key, "rules unchanged, reused");
-                rules.extend(kept(&previous, &feature.slug));
-                aside.extend(previous_aside.of_feature(&feature.slug));
-                prints.rules.insert(key, print);
-                progress.skip();
-            }
-            Plan::Unreadable => {
-                progress.begin(&key);
-                tracing::warn!(feature = %feature.slug, "rules skipped: none of its files is readable");
-                rules.extend(kept(&previous, &feature.slug));
-                aside.extend(previous_aside.of_feature(&feature.slug));
-            }
-            Plan::Ask { .. } => {
-                progress.begin(&key);
-                match answer.unwrap_or(Ok(None)) {
-                    Err(err) => {
-                        checkpoint(&rules, &aside, &prints, position - 1);
-                        return Err(err);
-                    }
-                    // Unparseable: the saved rules stay, and it is asked again on the next run.
-                    Ok(None) => {
-                        rules.extend(kept(&previous, &feature.slug));
-                        aside.extend(previous_aside.of_feature(&feature.slug));
-                    }
-                    Ok(Some(asked)) => {
-                        rules.extend(asked.rules);
-                        aside.extend(asked.aside);
-                        prints.rules.insert(key, print);
-                    }
-                }
-                // After each answer: a run killed later loses the call in flight, nothing more.
-                checkpoint(&rules, &aside, &prints, position);
-            }
-        }
-    }
-    drop(answers);
+        .unzip();
+    let pass = RulesPass {
+        repo_root,
+        llm,
+        context,
+        splitter: &splitter,
+        previous: saved.unwrap_or_default(),
+        previous_aside: load_set_aside(repo_root).unwrap_or_default(),
+    };
+    let Stated { rules, mut aside } = per_feature::run(
+        &pass,
+        features,
+        units,
+        &mut prints,
+        &known,
+        context.concurrency,
+    )
+    .await?;
 
     warn_unknown_rules(&context.put_back.keep_rules, &aside, &rules);
     aside.forget_features(&context.put_back.keep_features);
@@ -250,21 +183,91 @@ pub async fn build_rules(
     Ok(published)
 }
 
-/// The answer for `item`, when its plan is to ask.
-async fn answer_for(
-    repo_root: &Path,
-    llm: &dyn LlmProvider,
-    item: &Item<'_>,
-    context: &UseCaseContext,
-    splitter: &Splitter,
-) -> Option<Result<Option<Asked>, PipelineError>> {
-    match &item.plan {
-        Plan::Ask {
-            prompt,
-            cited_files,
-        } => Some(ask_rules(repo_root, llm, item, prompt, cited_files, context, splitter).await),
-        Plan::Reuse | Plan::Unreadable => None,
+/// The rules pass as the loop of the passes per feature runs it.
+struct RulesPass<'a> {
+    repo_root: &'a Path,
+    llm: &'a dyn LlmProvider,
+    context: &'a UseCaseContext,
+    splitter: &'a Splitter,
+    /// The rules as stated by the last run.
+    previous: Vec<BusinessRule>,
+    /// What the last run set aside.
+    previous_aside: SetAside,
+}
+
+impl<'a> FeaturePass for RulesPass<'a> {
+    type Ask = Asking<'a>;
+    type Answer = Result<Option<Asked>, PipelineError>;
+    type Done = Stated;
+
+    const NAME: &'static str = "rules";
+    // An unparseable or unreadable feature keeps its saved rules until it is answered.
+    const KEEP_UNANSWERED: bool = true;
+
+    fn prints(prints: &mut Fingerprints) -> &mut BTreeMap<String, String> {
+        &mut prints.rules
     }
+
+    async fn ask(&self, _feature: &Feature, asking: &Asking<'a>) -> Self::Answer {
+        ask_rules(
+            self.repo_root,
+            self.llm,
+            &asking.item,
+            &asking.prompt,
+            &asking.cited_files,
+            self.context,
+            self.splitter,
+        )
+        .await
+    }
+
+    fn keep(&self, feature: &Feature, done: &mut Stated) {
+        done.rules.extend(kept(&self.previous, &feature.slug));
+        done.aside
+            .extend(self.previous_aside.of_feature(&feature.slug));
+    }
+
+    fn take(
+        &self,
+        _feature: &Feature,
+        _asking: Asking<'a>,
+        answer: Self::Answer,
+        done: &mut Stated,
+    ) -> Result<bool, PipelineError> {
+        let Some(asked) = answer? else {
+            return Ok(false);
+        };
+        done.rules.extend(asked.rules);
+        done.aside.extend(asked.aside);
+        Ok(true)
+    }
+
+    /// Not merged: it costs a quadratic comparison and the final save does it.
+    fn save_partial(&self, done: &Stated, prints: &Fingerprints) {
+        let put_back = &self.context.put_back;
+        let mut aside = done.aside.clone();
+        aside.forget_features(&put_back.keep_features);
+        warn_on_error(save_yaml(
+            &Artifact::RulesStated.path(self.repo_root),
+            &done.rules,
+        ));
+        warn_on_error(save_rules(
+            self.repo_root,
+            &with_put_back(&done.rules, &aside, put_back),
+        ));
+        warn_on_error(save_yaml(
+            &Artifact::RulesSetAside.path(self.repo_root),
+            &aside,
+        ));
+        warn_on_error(prints.save(self.repo_root));
+    }
+}
+
+/// The rules as stated in a run and what it set aside.
+#[derive(Clone, Default)]
+struct Stated {
+    rules: Vec<BusinessRule>,
+    aside: SetAside,
 }
 
 /// The rules of one feature: a question on whether it is about tests (then it has no rules), the
@@ -373,28 +376,6 @@ fn warn_unknown_rules(keep_rules: &[String], aside: &SetAside, stated: &[Busines
     }
 }
 
-/// What each feature reads, to tell which one owns the code a rule cites.
-fn reach_of(items: &[Item<'_>]) -> BTreeMap<String, Reach> {
-    items
-        .iter()
-        .map(|item| {
-            let entry_files = item
-                .input
-                .entries
-                .iter()
-                .map(|(path, _)| path.to_string_lossy().into_owned())
-                .collect();
-            (
-                item.feature.slug.clone(),
-                Reach {
-                    entry_files,
-                    files: item.input.files.len(),
-                },
-            )
-        })
-        .collect()
-}
-
 /// The answer for one feature: its rules, and what was set aside on the way.
 struct Asked {
     rules: Vec<BusinessRule>,
@@ -410,13 +391,6 @@ impl Asked {
     }
 }
 
-/// The rules and the set-aside entries of a run, as saved.
-#[derive(Clone, Copy)]
-struct Snapshot<'a> {
-    rules: &'a [BusinessRule],
-    aside: &'a SetAside,
-}
-
 /// The saved rules of the feature `slug`.
 fn kept(previous: &[BusinessRule], slug: &str) -> Vec<BusinessRule> {
     previous
@@ -426,72 +400,24 @@ fn kept(previous: &[BusinessRule], slug: &str) -> Vec<BusinessRule> {
         .collect()
 }
 
-/// Best-effort save of a run in progress or failed: the rules done so far, and the previous rules,
-/// set-aside entries and fingerprints of the features not reached, so a rerun resumes where this one
-/// stopped.
-fn save_partial(
-    repo_root: &Path,
-    done: Snapshot<'_>,
-    previous: Snapshot<'_>,
-    remaining: &[Feature],
-    prints: &Fingerprints,
-    known: &BTreeMap<String, String>,
-    put_back: &RulesConfig,
-) {
-    let mut rules = done.rules.to_vec();
-    rules.extend(
-        previous
-            .rules
-            .iter()
-            .filter(|r| remaining.iter().any(|f| r.belongs_to_feature(&f.slug)))
-            .cloned(),
-    );
-    let mut aside = done.aside.clone();
-    for feature in remaining {
-        aside.extend(previous.aside.of_feature(&feature.slug));
-    }
-    aside.forget_features(&put_back.keep_features);
-    let mut prints = prints.clone();
-    for feature in remaining {
-        let key = feature_key(feature);
-        if let Some(print) = known.get(&key) {
-            prints.rules.insert(key, print.clone());
-        }
-    }
-    // Not merged: it costs a quadratic comparison and the final save does it.
-    warn_on_error(save_yaml(&Artifact::RulesStated.path(repo_root), &rules));
-    warn_on_error(save_rules(
-        repo_root,
-        &with_put_back(&rules, &aside, put_back),
-    ));
-    warn_on_error(save_yaml(&Artifact::RulesSetAside.path(repo_root), &aside));
-    warn_on_error(prints.save(repo_root));
-}
-
-/// One feature of the pass: what it is derived from and what is done about it.
+/// One feature of the pass: what it is derived from.
 struct Item<'a> {
     feature: &'a Feature,
-    key: String,
-    print: String,
     input: RuleInput,
     use_cases: Vec<&'a UseCase>,
     /// Listed in `keep_features`: not asked whether it is about tests.
     put_back: bool,
-    plan: Plan,
 }
 
-enum Plan {
-    /// Unchanged since the last run: its saved rules are kept.
-    Reuse,
-    /// None of its files can be read: nothing to ask.
-    Unreadable,
-    Ask {
-        prompt: String,
-        cited_files: Vec<String>,
-    },
+/// The call of a feature: the feature and its statement prompt.
+struct Asking<'a> {
+    item: Item<'a>,
+    prompt: String,
+    cited_files: Vec<String>,
 }
 
-fn plan_item<'a>(
+/// The plan of a feature, and what it reads (to tell which feature owns the code a rule cites).
+fn plan_unit<'a>(
     repo_root: &Path,
     feature: &'a Feature,
     use_cases: &'a [UseCase],
@@ -499,9 +425,17 @@ fn plan_item<'a>(
     known: &BTreeMap<String, String>,
     splitter: &Splitter,
     llm: &dyn LlmProvider,
-) -> Item<'a> {
+) -> (Unit<'a, Asking<'a>>, (String, Reach)) {
     let key = feature_key(feature);
     let input = RuleInput::new(repo_root, feature, context);
+    let reach = Reach {
+        entry_files: input
+            .entries
+            .iter()
+            .map(|(path, _)| path.to_string_lossy().into_owned())
+            .collect(),
+        files: input.files.len(),
+    };
     let own: Vec<&UseCase> = use_cases
         .iter()
         .filter(|u| u.feature_slug == feature.slug)
@@ -522,21 +456,27 @@ fn plan_item<'a>(
         if cited_files.is_empty() {
             Plan::Unreadable
         } else {
-            Plan::Ask {
+            Plan::Ask(Asking {
+                item: Item {
+                    feature,
+                    input,
+                    use_cases: own,
+                    put_back,
+                },
                 prompt,
                 cited_files,
-            }
+            })
         }
     };
-    Item {
-        feature,
-        key,
-        print,
-        input,
-        use_cases: own,
-        put_back,
-        plan,
-    }
+    (
+        Unit {
+            feature,
+            key,
+            print,
+            plan,
+        },
+        (feature.slug.clone(), reach),
+    )
 }
 
 /// Hash of everything the rules of a feature are derived from: its text, the content of its files,

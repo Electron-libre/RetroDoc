@@ -70,7 +70,7 @@ share the file part (`path\nhash`, or `unreadable`) and the key `"{domain}/{slug
 1. [x] Pin and share the fingerprint parts: tests pinning the print of one unit of features, use cases and rules
    (literal hash); one helper for the brief + model tail and one for the cited file contents, plus the feature key;
    verified by the pinned prints unchanged (~200 lines).
-2. [ ] One per-feature driver for use cases and rules: the `Item`/`Plan` loop, its progress, partial and final
+2. [x] One per-feature driver for use cases and rules: the `Item`/`Plan` loop, its progress, partial and final
    saves in one function; each pass gives its planning, its call + grounding and its policy for an unanswered
    feature (keep or drop the previous ones); verified by the existing use cases and rules tests (resume, partial
    save, concurrency) unchanged (~350 lines).
@@ -105,4 +105,20 @@ share the file part (`path\nhash`, or `unreadable`) and the key `"{domain}/{slug
   (`orders/-`, `billing/idle`, `delivery/orders`), then held through the refactor.
 - not verified: the actors and domains prints are not pinned (their change is the same one-line expression the
   pinned passes use).
+- Code review: no findings.
+- decisions needed: none.
+
+## Deliverable 2
+- done: `per_feature.rs` holds the loop of the use cases and rules passes (`Plan`, `Unit`, `FeaturePass`,
+  `open`, `run`): planning before any call, `buffered(concurrency)`, reuse and progress, the checkpoint after
+  each answer and on an error; each pass keeps its call, its grounding, what it keeps of a feature, its partial
+  write and its final save. The two policies the passes differ on (a feature unreadable or not answered keeps
+  its saved results, and the run is saved then) are one constant, `KEEP_UNANSWERED` (rules yes, use cases no).
+- red: none (no requirement: pure refactor); the existing tests (resume after a kill or a failure, partial
+  saves, concurrency, reuse) and the pinned prints of deliverable 1 held unchanged.
+- not verified: two differences no test sees: the log of an unreadable feature of the use cases says
+  `use cases skipped: ...` (was `feature skipped: ...`), and a partial save of the rules lists the saved rules
+  of the features not reached in the order of the features (was the order of the saved file); the final save
+  is unchanged.
+- Code review: no findings.
 - decisions needed: none.

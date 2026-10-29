@@ -34,6 +34,7 @@ pub mod features;
 mod fingerprints;
 pub mod glossary;
 mod naming;
+mod per_feature;
 mod progress;
 pub mod ranking;
 pub mod reconcile;

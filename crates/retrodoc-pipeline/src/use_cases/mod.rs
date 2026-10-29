@@ -17,7 +17,6 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
-use futures_util::stream::{self, StreamExt};
 use retrodoc_core::config::RulesConfig;
 use retrodoc_core::model::{Actor, ActorKind, Feature, SourceRef, Step, UseCase};
 use retrodoc_llm::LlmProvider;
@@ -31,7 +30,7 @@ use crate::entry_points::{EntryPoint, EntryPoints};
 use crate::error::PipelineError;
 use crate::features::{entry_point_id, file_ranges, unique_slug};
 use crate::fingerprints::{feature_key, file_part, fingerprint, model_part, Fingerprints};
-use crate::progress::Progress;
+use crate::per_feature::{self, FeaturePass, Plan, Unit};
 use crate::response::complete_json;
 use crate::roles::load_splitter;
 use crate::slices::CodeIndex;
@@ -184,111 +183,85 @@ pub async fn build_use_cases(
     context: &UseCaseContext,
     llm: &dyn LlmProvider,
 ) -> Result<Vec<UseCase>, PipelineError> {
-    let UseCaseContext {
-        actors,
-        concurrency,
-        ..
-    } = context;
     let saved = load_use_cases(repo_root);
-    let mut prints = Fingerprints::load(repo_root);
     // Without the saved use cases, a fingerprint can't tell "none" from "lost".
-    let known = if saved.is_some() {
-        std::mem::take(&mut prints.use_cases)
-    } else {
-        BTreeMap::new()
+    let (mut prints, known) =
+        per_feature::open::<UseCasesPass>(Fingerprints::load(repo_root), saved.is_some());
+    let pass = UseCasesPass {
+        repo_root,
+        llm,
+        actors: &context.actors,
+        previous: saved.unwrap_or_default(),
     };
-    let previous = saved.unwrap_or_default();
     let splitter = load_splitter(repo_root);
-
-    let mut use_cases: Vec<UseCase> = Vec::new();
-    let mut progress = Progress::new("use cases", features.len());
-
-    let items = plan_items(repo_root, features, context, &known, &splitter, llm);
-
-    // The calls go out `concurrency` at a time but the answers come back in the order of the
-    // features, and the slugs are made unique in that order: the result is the sequential one.
-    let mut answers = stream::iter(items)
-        .map(|item| async move {
-            let answers = match &item.plan {
-                Plan::Ask { requests } => Some(ask_slices(llm, requests, &item.feature.slug).await),
-                Plan::Reuse | Plan::Unreadable => None,
-            };
-            (item, answers)
-        })
-        .buffered((*concurrency).max(1));
-
-    while let Some((item, answered)) = answers.next().await {
-        let Item {
-            position,
-            feature,
-            key,
-            print,
-            plan,
-            ..
-        } = item;
-        match plan {
-            Plan::Reuse => {
-                let kept: Vec<UseCase> = previous
-                    .iter()
-                    .filter(|u| u.feature_slug == feature.slug)
-                    .cloned()
-                    .collect();
-                // A saved fingerprint without use cases is a remembered "none".
-                tracing::info!(feature = %key, "use cases unchanged, reused");
-                use_cases.extend(kept);
-                prints.use_cases.insert(key, print);
-                progress.skip();
-            }
-            Plan::Unreadable => {
-                progress.begin(&key);
-                tracing::warn!(feature = %feature.slug, "feature skipped: none of its files is readable");
-            }
-            Plan::Ask { requests } => {
-                progress.begin(&key);
-                let grounded = ground_slices(
-                    feature,
-                    &requests,
-                    answered.unwrap_or_default(),
-                    &use_cases,
-                    actors,
-                );
-                let produced = match grounded {
-                    Ok(Some(produced)) => produced,
-                    // A slice not answered: the feature is asked again on the next run.
-                    Ok(None) => continue,
-                    Err(err) => {
-                        save_partial(
-                            repo_root,
-                            &use_cases,
-                            &previous,
-                            &prints,
-                            &known,
-                            &features[position..],
-                        );
-                        return Err(err);
-                    }
-                };
-                prints.use_cases.insert(key, print);
-                use_cases.extend(produced);
-                // After each answer: a run killed later loses the call in flight, nothing more.
-                save_partial(
-                    repo_root,
-                    &use_cases,
-                    &previous,
-                    &prints,
-                    &known,
-                    &features[position + 1..],
-                );
-            }
-        }
-    }
-    drop(answers);
+    let units = plan_units(repo_root, features, context, &known, &splitter, llm);
+    let use_cases = per_feature::run(
+        &pass,
+        features,
+        units,
+        &mut prints,
+        &known,
+        context.concurrency,
+    )
+    .await?;
 
     // Use cases first: a fingerprint without its use cases would freeze a
     // feature as "none".
     save_use_cases(repo_root, &use_cases)?;
     prints.save(repo_root)?;
     Ok(use_cases)
+}
+
+/// The use cases pass as the loop of the passes per feature runs it.
+struct UseCasesPass<'a> {
+    repo_root: &'a Path,
+    llm: &'a dyn LlmProvider,
+    actors: &'a Actors,
+    /// The use cases of the last run.
+    previous: Vec<UseCase>,
+}
+
+impl FeaturePass for UseCasesPass<'_> {
+    type Ask = Vec<Request>;
+    type Answer = Vec<Result<Answer, PipelineError>>;
+    type Done = Vec<UseCase>;
+
+    const NAME: &'static str = "use cases";
+    // A feature not answered loses its use cases until it is.
+    const KEEP_UNANSWERED: bool = false;
+
+    fn prints(prints: &mut Fingerprints) -> &mut BTreeMap<String, String> {
+        &mut prints.use_cases
+    }
+
+    async fn ask(&self, feature: &Feature, requests: &Vec<Request>) -> Self::Answer {
+        ask_slices(self.llm, requests, &feature.slug).await
+    }
+
+    fn keep(&self, feature: &Feature, done: &mut Vec<UseCase>) {
+        done.extend(
+            self.previous
+                .iter()
+                .filter(|u| u.feature_slug == feature.slug)
+                .cloned(),
+        );
+    }
+
+    fn take(
+        &self,
+        feature: &Feature,
+        requests: Vec<Request>,
+        answers: Self::Answer,
+        done: &mut Vec<UseCase>,
+    ) -> Result<bool, PipelineError> {
+        let grounded = ground_slices(feature, &requests, answers, done, self.actors)?;
+        Ok(grounded.map(|produced| done.extend(produced)).is_some())
+    }
+
+    fn save_partial(&self, done: &Vec<UseCase>, prints: &Fingerprints) {
+        warn_on_error(save_use_cases(self.repo_root, done));
+        warn_on_error(prints.save(self.repo_root));
+    }
 }
 
 /// The answers to the requests of a feature, one after the other (its answers must not be cut, not
@@ -343,14 +316,14 @@ fn ground_slices(
 
 /// What each feature needs, decided before any call: nothing (unchanged since the last run), or a
 /// request.
-fn plan_items<'a>(
+fn plan_units<'a>(
     repo_root: &Path,
     features: &'a [Feature],
     context: &UseCaseContext,
     known: &BTreeMap<String, String>,
     splitter: &Splitter,
     llm: &dyn LlmProvider,
-) -> Vec<Item<'a>> {
+) -> Vec<Unit<'a, Vec<Request>>> {
     let UseCaseContext {
         actors,
         brief,
@@ -359,8 +332,7 @@ fn plan_items<'a>(
     } = context;
     features
         .iter()
-        .enumerate()
-        .map(|(position, feature)| {
+        .map(|feature| {
             let key = feature_key(feature);
             let input = FeatureInput::new(repo_root, feature, context);
             let close = evidence.section(&feature_query(feature, &input));
@@ -397,11 +369,10 @@ fn plan_items<'a>(
                 if requests.is_empty() {
                     Plan::Unreadable
                 } else {
-                    Plan::Ask { requests }
+                    Plan::Ask(requests)
                 }
             };
-            Item {
-                position,
+            Unit {
                 feature,
                 key,
                 print,
@@ -411,24 +382,6 @@ fn plan_items<'a>(
         .collect()
 }
 
-/// One feature of the pass: what it is derived from and what is done about it.
-struct Item<'a> {
-    position: usize,
-    feature: &'a Feature,
-    key: String,
-    print: String,
-    plan: Plan,
-}
-
-enum Plan {
-    /// Unchanged since the last run: its saved use cases are kept.
-    Reuse,
-    /// None of its files can be read: nothing to ask.
-    Unreadable,
-    /// One request, or one per slice of a feature with many entry points.
-    Ask { requests: Vec<Request> },
-}
-
 /// One call: its prompts, and what its answer is grounded on.
 struct Request {
     system_prompt: String,
@@ -436,35 +389,6 @@ struct Request {
     /// The files shown, in the order of their numbers in the prompt.
     cited_files: Vec<String>,
     input: FeatureInput,
-}
-
-/// Best-effort save of a run in progress or failed: the `unreached` features
-/// keep their previous use cases and fingerprints, so a rerun resumes where
-/// this one stopped.
-fn save_partial(
-    repo_root: &Path,
-    done: &[UseCase],
-    previous: &[UseCase],
-    prints: &Fingerprints,
-    known: &BTreeMap<String, String>,
-    unreached: &[Feature],
-) {
-    let mut use_cases = done.to_vec();
-    let mut prints = prints.clone();
-    for feature in unreached {
-        let key = feature_key(feature);
-        if let Some(print) = known.get(&key) {
-            prints.use_cases.insert(key, print.clone());
-        }
-        use_cases.extend(
-            previous
-                .iter()
-                .filter(|u| u.feature_slug == feature.slug)
-                .cloned(),
-        );
-    }
-    warn_on_error(save_use_cases(repo_root, &use_cases));
-    warn_on_error(prints.save(repo_root));
 }
 
 /// Hash of everything the feature's use cases are derived from: its text and
