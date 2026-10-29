@@ -27,10 +27,10 @@ use crate::chunk_check::verify_boundaries;
 use crate::chunks::{ChunkBoundary, Splitter, REGEX_SYNTAX_HELP};
 use crate::error::PipelineError;
 use crate::response::complete_json;
-use crate::text::first_chars;
+use crate::text::{first_chars, read_file_lossy};
 
 /// Manifest files read at the repo root to help recognize the stack.
-pub(crate) const MANIFESTS: &[&str] = &[
+const MANIFESTS: &[&str] = &[
     "Cargo.toml",
     "Gemfile",
     "package.json",
@@ -42,7 +42,7 @@ pub(crate) const MANIFESTS: &[&str] = &[
     "composer.json",
 ];
 /// Characters kept of each manifest sent to the LLM.
-pub(crate) const MAX_MANIFEST_CHARS: usize = 1_500;
+const MAX_MANIFEST_CHARS: usize = 1_500;
 /// Directory lines sent to the LLM (shallowest first); deeper ones are
 /// summed up in a trailing note.
 const MAX_TREE_DIRS: usize = 300;
@@ -310,12 +310,7 @@ pub async fn identify_roles(
     let mut prompt = brief.prompt_head();
     prompt.push_str("File tree (one line per directory):\n");
     prompt.push_str(&render_tree(&ingest.files));
-    for name in MANIFESTS {
-        if let Ok(content) = std::fs::read_to_string(repo_root.join(name)) {
-            let excerpt = first_chars(&content, MAX_MANIFEST_CHARS);
-            let _ = write!(prompt, "\n--- {name} ---\n{excerpt}\n");
-        }
-    }
+    prompt.push_str(&manifest_excerpts(repo_root));
 
     let system_prompt = format!(
         "{ROLES_SYSTEM_PROMPT} Do not give `chunk_boundaries` for the extensions {}: those \
@@ -396,6 +391,19 @@ pub(crate) fn render_tree(files: &[FileEntry]) -> String {
     }
     if omitted > 0 {
         let _ = writeln!(out, "… and {omitted} deeper directories not shown");
+    }
+    out
+}
+
+/// The excerpt of each manifest at the root of the repository, one `--- name ---` block each, read as every
+/// source file is read.
+pub(crate) fn manifest_excerpts(repo_root: &Path) -> String {
+    let mut out = String::new();
+    for name in MANIFESTS {
+        if let Ok(content) = read_file_lossy(repo_root, Path::new(name)) {
+            let excerpt = first_chars(&content, MAX_MANIFEST_CHARS);
+            let _ = write!(out, "\n--- {name} ---\n{excerpt}\n");
+        }
     }
     out
 }

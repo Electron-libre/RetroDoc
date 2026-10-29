@@ -238,3 +238,23 @@ fn a_slice_of_the_role_map_keeps_its_files_and_every_test_file() {
         [Path::new("a/controller.rb")]
     );
 }
+
+#[test]
+fn a_manifest_with_invalid_utf8_is_shown_replaced() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("Gemfile"), b"# caf\xe9\ngem \"rails\"\n").unwrap();
+    assert_eq!(
+        manifest_excerpts(dir.path()),
+        "\n--- Gemfile ---\n# caf\u{fffd}\ngem \"rails\"\n\n"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn a_manifest_linking_outside_the_repo_is_left_out() {
+    let repo = tempfile::tempdir().unwrap();
+    let outside = tempfile::tempdir().unwrap();
+    std::fs::write(outside.path().join("secret"), "secret").unwrap();
+    std::os::unix::fs::symlink(outside.path().join("secret"), repo.path().join("Gemfile")).unwrap();
+    assert_eq!(manifest_excerpts(repo.path()), "");
+}

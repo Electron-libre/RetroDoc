@@ -20,7 +20,7 @@ use crate::bm25::Bm25;
 use crate::error::PipelineError;
 use crate::fingerprints::{fingerprint, model_part};
 use crate::response::complete_json;
-use crate::text::{char_prefix, first_chars};
+use crate::text::{char_prefix, without_last_chars};
 
 /// Items judged in one request.
 pub const MAX_ITEMS_PER_REQUEST: usize = 8;
@@ -208,12 +208,10 @@ fn is_fence(line: &str) -> bool {
 
 /// `text` cut to `n` chars at most, a code fence it leaves open closed.
 fn cut(text: &str, n: usize) -> String {
-    if char_prefix(text, n).is_none() {
+    let Some(head) = char_prefix(text, n) else {
         return text.to_string();
-    }
-    let mut out = first_chars(text, n.saturating_sub(4))
-        .trim_end()
-        .to_string();
+    };
+    let mut out = without_last_chars(head, 4).trim_end().to_string();
     if out.lines().filter(|l| is_fence(l)).count() % 2 == 1 {
         out.push_str("\n```");
     }

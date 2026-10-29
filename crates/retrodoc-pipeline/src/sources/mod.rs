@@ -30,8 +30,7 @@ use crate::artifact::{load_yaml, save_yaml, Artifact};
 use crate::cache::hash_content;
 use crate::error::PipelineError;
 use crate::response::complete_json;
-use crate::roles::{render_tree, MANIFESTS, MAX_MANIFEST_CHARS};
-use crate::text::first_chars;
+use crate::roles::{manifest_excerpts, render_tree};
 
 /// Sniffed rules shown to the LLM as a starting point.
 const MAX_HINT_RULES: usize = 60;
@@ -167,12 +166,7 @@ async fn ask(
 ) -> Result<Option<Vec<SourceRule>>, PipelineError> {
     let mut prompt = String::from("File tree (one line per directory):\n");
     prompt.push_str(&render_tree(&ingest.files));
-    for name in MANIFESTS {
-        if let Ok(content) = std::fs::read_to_string(repo_root.join(name)) {
-            let excerpt = first_chars(&content, MAX_MANIFEST_CHARS);
-            let _ = write!(prompt, "\n--- {name} ---\n{excerpt}\n");
-        }
-    }
+    prompt.push_str(&manifest_excerpts(repo_root));
     prompt.push_str("\nFirst guess from the file content (one file per line):\n");
     for rule in sniffed.rules.iter().take(MAX_HINT_RULES) {
         let _ = writeln!(prompt, "{}", describe(rule));

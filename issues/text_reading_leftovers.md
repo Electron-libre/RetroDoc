@@ -55,6 +55,10 @@ spec covers the test vocabulary nor the rules input (bug fixes, no spec). Out of
    from `reconcile/judge.rs`) for the same cuts found in `roles`, `ranking`, `chunks`, `chunk_check`, `brief/mod.rs`
    and `reconcile/judge.rs`; verified by the existing
    tests of these helpers plus unit tests of `char_prefix` (exact length, one over, multi-byte, zero); ~80 lines.
+3. [x] Fixes of the `high` review: the prefix read keeps a character before a stray continuation byte (`utf8_chunks`),
+   both guarded reads share `read_inside_repo`, the manifests are read once (`roles::manifest_excerpts`) through
+   `read_file_lossy`, the three marked cuts walk once (`without_last_chars`), two needless copies dropped; verified by
+   unit tests (Latin-1 byte at the cut, manifest with invalid UTF-8, manifest linking outside the repo).
 
 ## Decisions
 - Mode: autonomous
@@ -91,6 +95,26 @@ spec covers the test vocabulary nor the rules input (bug fixes, no spec). Out of
 | code review | see below |
 
 - red: none (refactor; the existing tests of the cuts pass before and after)
+- Code review: no findings
+- not verified: none
+- decisions needed: none
+
+## Summary of deliverable 3 (review `high` of base..HEAD)
+- done: the 9 findings of the `high` review fixed: prefix cut by `utf8_chunks` (no ASCII lost on Latin-1, no overflow
+  of the budget), one guarded reader (`read_inside_repo`), manifests through `read_file_lossy` in one helper (the
+  "Reads stay in the repo" line of `docs/ARCHITECTURE.md` is now true), one walk for `squeeze`, `cut_at_word` and
+  `cut`, no copy of a test phrase or a missed example before it is kept.
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | clippy pedantic clean |
+| specs | no spec covers these reads |
+| docs | `docs/ARCHITECTURE.md` already states the guarantee the manifests now meet |
+| code review | see below |
+
+- red: none (no spec); before the code: the prefix read of `abc\xa9` at 3 bytes gave `"ab"`, a Latin-1 `Gemfile` gave
+  no excerpt, a `Gemfile` linking outside the repo was shown
 - Code review: no findings
 - not verified: none
 - decisions needed: none

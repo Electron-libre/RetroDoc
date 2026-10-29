@@ -32,7 +32,7 @@ use crate::brief::ProductBrief;
 use crate::cache::hash_content;
 use crate::error::PipelineError;
 use crate::response::complete_json;
-use crate::roles::{render_tree, MANIFESTS, MAX_MANIFEST_CHARS};
+use crate::roles::{manifest_excerpts, render_tree};
 use crate::text::{first_chars, read_file_lossy};
 
 /// Entries kept from the LLM's answer.
@@ -292,12 +292,7 @@ fn build_prompt(
     prompt.push_str(&render_tree(&ingest.files));
     prompt.push_str("\nEvidence per directory (source files, commits, most changed files):\n");
     prompt.push_str(&directory_evidence(ingest));
-    for name in MANIFESTS {
-        if let Ok(content) = std::fs::read_to_string(repo_root.join(name)) {
-            let excerpt = first_chars(&content, MAX_MANIFEST_CHARS);
-            let _ = write!(prompt, "\n--- {name} ---\n{excerpt}\n");
-        }
-    }
+    prompt.push_str(&manifest_excerpts(repo_root));
     let titles = doc_titles(ingest);
     if !titles.is_empty() {
         let _ = write!(prompt, "\nTitles of the docs:\n{}", titles.join("\n"));
@@ -396,8 +391,8 @@ fn test_vocabulary(repo_root: &Path, ingest: &IngestResult) -> Vec<String> {
         let Ok(content) = read_file_lossy(repo_root, path) else {
             continue;
         };
-        for phrase in test_phrases(&content) {
-            let phrase = first_chars(&phrase, MAX_PHRASE_CHARS).to_string();
+        for mut phrase in test_phrases(&content) {
+            phrase.truncate(first_chars(&phrase, MAX_PHRASE_CHARS).len());
             if phrases.len() < MAX_TEST_PHRASES && seen.insert(phrase.clone()) {
                 phrases.push(phrase);
             }

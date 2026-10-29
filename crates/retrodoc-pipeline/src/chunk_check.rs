@@ -152,9 +152,9 @@ pub(crate) fn coverage(pattern: &str, expected: &[String], lines: &[String]) -> 
         if regex.as_ref().is_some_and(|r| r.is_match(line)) {
             matched += 1;
         } else if missed.len() < MISSED_EXAMPLES {
-            let example = first_chars(line.trim(), MAX_EXAMPLE_CHARS).to_string();
-            if !missed.contains(&example) {
-                missed.push(example);
+            let example = first_chars(line.trim(), MAX_EXAMPLE_CHARS);
+            if !missed.iter().any(|seen| seen == example) {
+                missed.push(example.to_string());
             }
         }
     }

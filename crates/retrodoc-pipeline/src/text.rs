@@ -1,5 +1,6 @@
 //! Reading a source file as text and cutting a text for a prompt: shared by the passes that read files.
 
+use std::fs::File;
 use std::io::{ErrorKind, Read};
 use std::path::{Component, Path, PathBuf};
 
@@ -8,42 +9,65 @@ use crate::error::PipelineError;
 /// The file at `relative` (from `repo_root`) as text, invalid UTF-8 replaced. A path that may come from a saved
 /// artifact is refused, as unreadable, when it would read a file outside the repository.
 pub(crate) fn read_file_lossy(repo_root: &Path, relative: &Path) -> Result<String, PipelineError> {
-    let read_error = |source| PipelineError::Read {
-        path: relative.to_path_buf(),
-        source,
-    };
-    let real = resolve_inside_repo(repo_root, relative).map_err(read_error)?;
-    let bytes = std::fs::read(&real).map_err(read_error)?;
-    Ok(decode_lossy(bytes))
+    read_inside_repo(repo_root, relative, |mut file, bytes| {
+        file.read_to_end(bytes).map(drop)
+    })
 }
 
-/// The first `max_bytes` bytes of the file at `relative` as text, cut back to the start of a character and invalid
+/// The first `max_bytes` bytes of the file at `relative` as text, a character the cut splits left out and invalid
 /// UTF-8 replaced, read as `read_file_lossy` reads: only the prefix is read.
 pub(crate) fn read_file_prefix_lossy(
     repo_root: &Path,
     relative: &Path,
     max_bytes: usize,
 ) -> Result<String, PipelineError> {
+    read_inside_repo(repo_root, relative, |file, bytes| {
+        // One byte past the budget tells whether the file goes on after the cut.
+        let limit = u64::try_from(max_bytes).map_or(u64::MAX, |max| max.saturating_add(1));
+        file.take(limit).read_to_end(bytes)?;
+        if bytes.len() > max_bytes {
+            bytes.truncate(max_bytes);
+            // A character split by the cut ends the prefix with the start of a valid sequence.
+            let split = bytes.utf8_chunks().last().map_or(0, |chunk| {
+                let tail = chunk.invalid();
+                if std::str::from_utf8(tail).is_err_and(|err| err.error_len().is_none()) {
+                    tail.len()
+                } else {
+                    0
+                }
+            });
+            bytes.truncate(max_bytes - split);
+        }
+        Ok(())
+    })
+}
+
+/// The bytes `read_bytes` takes from the file at `relative`, resolved by `resolve_inside_repo`, decoded lossily.
+fn read_inside_repo(
+    repo_root: &Path,
+    relative: &Path,
+    read_bytes: impl FnOnce(File, &mut Vec<u8>) -> std::io::Result<()>,
+) -> Result<String, PipelineError> {
     let read_error = |source| PipelineError::Read {
         path: relative.to_path_buf(),
         source,
     };
     let real = resolve_inside_repo(repo_root, relative).map_err(read_error)?;
-    let file = std::fs::File::open(&real).map_err(read_error)?;
-    // One byte past the budget tells whether the cut falls inside a character.
+    let file = File::open(&real).map_err(read_error)?;
     let mut bytes = Vec::new();
-    file.take(max_bytes as u64 + 1)
-        .read_to_end(&mut bytes)
-        .map_err(read_error)?;
-    if bytes.len() > max_bytes {
-        let is_continuation = |byte: u8| byte & 0b1100_0000 == 0b1000_0000;
-        // A character has at most three continuation bytes; past them the bytes are invalid anyway.
-        let back = (1..=3)
-            .take_while(|&back| back <= max_bytes && is_continuation(bytes[max_bytes + 1 - back]))
-            .count();
-        bytes.truncate(max_bytes - back);
-    }
+    read_bytes(file, &mut bytes).map_err(read_error)?;
     Ok(decode_lossy(bytes))
+}
+
+/// `text` without its last `n` characters, empty when it has no more: one walk from the end.
+pub(crate) fn without_last_chars(text: &str, n: usize) -> &str {
+    match n.checked_sub(1) {
+        None => text,
+        Some(back) => text
+            .char_indices()
+            .nth_back(back)
+            .map_or("", |(cut, _)| &text[..cut]),
+    }
 }
 
 /// `bytes` as text, invalid UTF-8 replaced: valid UTF-8 keeps the buffer read, only invalid bytes cost a copy.
@@ -195,6 +219,28 @@ mod tests {
         assert_eq!(read(4), "abé");
         assert_eq!(read(10), "abé");
         assert_eq!(read(0), "");
+    }
+
+    #[test]
+    fn a_prefix_read_cut_before_a_stray_continuation_byte_keeps_the_character_before() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("latin1.rb"), b"abc\xa9\xa9").unwrap();
+        assert_eq!(
+            read_file_prefix_lossy(dir.path(), Path::new("latin1.rb"), 3).unwrap(),
+            "abc"
+        );
+        assert_eq!(
+            read_file_prefix_lossy(dir.path(), Path::new("latin1.rb"), 4).unwrap(),
+            "abc\u{fffd}"
+        );
+    }
+
+    #[test]
+    fn a_text_loses_its_last_characters() {
+        assert_eq!(without_last_chars("héllo", 2), "hél");
+        assert_eq!(without_last_chars("hé", 2), "");
+        assert_eq!(without_last_chars("h", 2), "");
+        assert_eq!(without_last_chars("héllo", 0), "héllo");
     }
 
     #[test]
