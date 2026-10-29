@@ -110,3 +110,62 @@ fn every_reference_test_layout_is_test() {
     let expected = format!("(source: 0, test: {}, markdown: 0, other: 1)", tests.len());
     assert!(out.contains(&expected), "{out}");
 }
+
+/// A manifest of each reference language, each naming one dependency.
+const MANIFESTS: &[(&str, &str)] = &[
+    ("package.json", r#"{"dependencies":{"express":"4"}}"#),
+    ("pyproject.toml", "[project]\nname = \"shop\"\n"),
+    ("requirements.txt", "django\n"),
+    (
+        "pom.xml",
+        "<project><artifactId>shop</artifactId></project>",
+    ),
+    (
+        "build.gradle",
+        "dependencies {\n    implementation 'org.springframework.boot:spring-boot-starter-web:3.2.0'\n}\n",
+    ),
+    (
+        "build.gradle.kts",
+        "dependencies {\n    implementation(\"io.ktor:ktor-server-core:2.3.0\")\n}\n",
+    ),
+    (
+        "Shop.Api.csproj",
+        "<Project><ItemGroup><PackageReference Include=\"Serilog\" Version=\"3\" /></ItemGroup></Project>",
+    ),
+    ("composer.json", r#"{"require":{"laravel/framework":"^10"}}"#),
+    ("go.mod", "module example.com/shop\n"),
+    ("Gemfile", "gem 'rails'\n"),
+    ("Cargo.toml", "[package]\nname = \"shop\"\n"),
+    (
+        "Package.swift",
+        "let package = Package(\n    name: \"Shop\",\n    dependencies: [\n        .package(url: \"https://github.com/vapor/vapor.git\", from: \"4.0.0\"),\n    ]\n)\n",
+    ),
+    (
+        "build.sbt",
+        "name := \"shop\"\nlibraryDependencies += \"com.typesafe.play\" %% \"play\" % \"2.9.0\"\n",
+    ),
+];
+
+// spec: LNG-7
+#[test]
+fn every_reference_manifest_is_read() {
+    let dir = repo(&[]);
+    for (name, content) in MANIFESTS {
+        std::fs::write(dir.path().join(name), content).unwrap();
+    }
+
+    let output = Command::new(env!("CARGO_BIN_EXE_retrodoc"))
+        .args(["brief", "--signals", "--path"])
+        .arg(dir.path())
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{output:?}");
+    let out = String::from_utf8(output.stdout).unwrap();
+
+    let manifests = out
+        .lines()
+        .find_map(|l| l.strip_prefix("Manifest"))
+        .and_then(|rest| rest.split_whitespace().next())
+        .and_then(|count| count.parse::<usize>().ok());
+    assert_eq!(manifests, Some(MANIFESTS.len()), "{out}");
+}

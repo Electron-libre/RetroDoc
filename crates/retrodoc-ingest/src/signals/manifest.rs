@@ -15,7 +15,14 @@ const MANIFESTS: &[&str] = &[
     "go.mod",
     "pom.xml",
     "composer.json",
+    "build.gradle",
+    "build.gradle.kts",
+    "Package.swift",
+    "build.sbt",
 ];
+/// Manifests read at the repo root under any name, by extension: a .NET
+/// project file is named after its project.
+const MANIFEST_EXTENSIONS: &[&str] = &["csproj"];
 /// Dependency names kept per manifest.
 const MAX_DEPENDENCIES: usize = 40;
 
@@ -23,23 +30,45 @@ const MAX_DEPENDENCIES: usize = 40;
 /// and dependency names. A manifest that can't be read or parsed is skipped.
 #[must_use]
 pub fn manifest_metadata(repo_root: &Path) -> Vec<Signal> {
-    let mut signals = Vec::new();
-    for name in MANIFESTS {
-        let Ok(bytes) = std::fs::read(repo_root.join(name)) else {
-            continue;
-        };
-        let content = String::from_utf8_lossy(&bytes);
-        let Some(summary) = summarize(name, &content) else {
-            tracing::debug!("manifest {name} has no usable metadata");
-            continue;
-        };
-        signals.push(Signal {
-            kind: SignalKind::Manifest,
-            origin: (*name).to_string(),
-            text: summary.render(),
-        });
-    }
-    signals
+    let mut names: Vec<String> = MANIFESTS.iter().map(ToString::to_string).collect();
+    names.extend(names_by_extension(repo_root));
+    names
+        .iter()
+        .filter_map(|name| read_manifest(repo_root, name))
+        .collect()
+}
+
+/// The root files whose extension is one of [`MANIFEST_EXTENSIONS`], sorted.
+fn names_by_extension(repo_root: &Path) -> Vec<String> {
+    let Ok(entries) = std::fs::read_dir(repo_root) else {
+        return Vec::new();
+    };
+    let mut names: Vec<String> = entries
+        .filter_map(Result::ok)
+        .filter(|e| e.file_type().is_ok_and(|t| t.is_file()))
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .filter(|name| {
+            Path::new(name)
+                .extension()
+                .is_some_and(|ext| MANIFEST_EXTENSIONS.iter().any(|m| ext == *m))
+        })
+        .collect();
+    names.sort();
+    names
+}
+
+fn read_manifest(repo_root: &Path, name: &str) -> Option<Signal> {
+    let bytes = std::fs::read(repo_root.join(name)).ok()?;
+    let content = String::from_utf8_lossy(&bytes);
+    let Some(summary) = summarize(name, &content) else {
+        tracing::debug!("manifest {name} has no usable metadata");
+        return None;
+    };
+    Some(Signal {
+        kind: SignalKind::Manifest,
+        origin: name.to_string(),
+        text: summary.render(),
+    })
 }
 
 #[derive(Default)]
@@ -92,6 +121,10 @@ fn summarize(file: &str, content: &str) -> Option<Summary> {
         }),
         "go.mod" => Some(go_manifest(content)),
         "pom.xml" => Some(pom_manifest(content)),
+        "build.gradle" | "build.gradle.kts" => Some(gradle_manifest(content)),
+        "Package.swift" => Some(swift_manifest(content)),
+        "build.sbt" => Some(sbt_manifest(content)),
+        _ if file.ends_with(".csproj") => Some(csproj_manifest(file, content)),
         _ => None,
     }?;
     (!summary.is_empty()).then_some(summary)
@@ -190,13 +223,15 @@ fn go_manifest(content: &str) -> Summary {
     }
 }
 
+/// The text of the first `<name>...</name>` element of `from`.
+fn tag(name: &str, from: &str) -> Option<String> {
+    let open = format!("<{name}>");
+    let start = from.find(&open)? + open.len();
+    let end = from[start..].find(&format!("</{name}>"))?;
+    Some(from[start..start + end].trim().to_string())
+}
+
 fn pom_manifest(content: &str) -> Summary {
-    let tag = |name: &str, from: &str| {
-        let open = format!("<{name}>");
-        let start = from.find(&open)? + open.len();
-        let end = from[start..].find(&format!("</{name}>"))?;
-        Some(from[start..start + end].trim().to_string())
-    };
     // The project's own tags come before its <dependencies> block.
     let (head, tail) = content
         .split_once("<dependencies>")
@@ -221,6 +256,119 @@ fn pom_manifest(content: &str) -> Summary {
         description: tag("description", head),
         dependencies,
     }
+}
+
+/// Gradle scripts are code: the dependencies are the `group:artifact` of the
+/// coordinates quoted on a line, test configurations left out.
+fn gradle_manifest(content: &str) -> Summary {
+    let dependencies = line_values(content, |line| {
+        if line.starts_with("test") || line.starts_with("//") {
+            return None;
+        }
+        let (_, _, coordinates) = quoted_strings(line, &['"', '\'']).into_iter().next()?;
+        let mut parts = coordinates.split(':');
+        let (group, artifact) = (parts.next()?, parts.next()?);
+        let plain = |p: &str| !p.is_empty() && !p.contains(['/', ' ', '$']);
+        (plain(group) && plain(artifact)).then(|| format!("{group}:{artifact}"))
+    });
+    Summary {
+        dependencies,
+        ..Summary::default()
+    }
+}
+
+/// `Package.swift`: the package name, and the repository name of each
+/// `.package(url: ...)` dependency.
+fn swift_manifest(content: &str) -> Summary {
+    let name = content.find("Package(").and_then(|at| {
+        let rest = &content[at..];
+        let value = &rest[rest.find("name:")? + "name:".len()..];
+        quoted(value.trim_start())
+    });
+    let dependencies = content
+        .match_indices(".package(")
+        .filter_map(|(at, _)| {
+            let call = &content[at..];
+            let call = &call[..call.find(')').unwrap_or(call.len())];
+            let url = quoted(call[call.find("url:")? + "url:".len()..].trim_start())?;
+            let repo = url.trim_end_matches('/').rsplit('/').next()?;
+            Some(repo.trim_end_matches(".git").to_string())
+        })
+        .collect();
+    Summary {
+        name,
+        description: None,
+        dependencies,
+    }
+}
+
+/// `build.sbt`: `name := "x"`, and the artifact of each `"org" % "artifact"`
+/// (or `%%`) dependency.
+fn sbt_manifest(content: &str) -> Summary {
+    let name = line_values(content, |line| {
+        let rest = line.strip_prefix("name")?.trim_start().strip_prefix(":=")?;
+        quoted(rest.trim_start())
+    })
+    .into_iter()
+    .next();
+    // Scala strings are double-quoted (`'a'` is a character), and a comment
+    // could hold an odd quote.
+    let content: String = content
+        .lines()
+        .filter(|l| !l.trim_start().starts_with("//"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let content = content.as_str();
+    let strings = quoted_strings(content, &['"']);
+    let is_percent = |between: &str| matches!(between.trim(), "%" | "%%" | "%%%");
+    let mut dependencies = Vec::new();
+    for (i, pair) in strings.windows(2).enumerate() {
+        let (_, org_end, _) = &pair[0];
+        let (art_start, _, artifact) = &pair[1];
+        let follows_percent = i > 0 && is_percent(&content[strings[i - 1].1..strings[i].0]);
+        if is_percent(&content[*org_end..*art_start]) && !follows_percent {
+            dependencies.push(artifact.clone());
+        }
+    }
+    Summary {
+        name,
+        description: None,
+        dependencies,
+    }
+}
+
+/// A `.csproj`: the `AssemblyName` (else the file name), the `Description`
+/// and the `PackageReference` names.
+fn csproj_manifest(file: &str, content: &str) -> Summary {
+    let marker = "<PackageReference Include=";
+    let dependencies = content
+        .match_indices(marker)
+        .filter_map(|(at, _)| quoted(&content[at + marker.len()..]))
+        .collect();
+    Summary {
+        name: tag("AssemblyName", content)
+            .or_else(|| Some(file.trim_end_matches(".csproj").to_string())),
+        description: tag("Description", content),
+        dependencies,
+    }
+}
+
+/// Every string of `text` quoted by one of `quotes`, with the byte offsets
+/// of its opening quote and past its closing one.
+fn quoted_strings(text: &str, quotes: &[char]) -> Vec<(usize, usize, String)> {
+    let mut strings = Vec::new();
+    let mut from = 0;
+    while let Some(offset) = text[from..].find(quotes) {
+        let start = from + offset;
+        let quote = &text[start..=start];
+        let Some(len) = text[start + 1..].find(quote) else {
+            break;
+        };
+        let end = start + 1 + len;
+        strings.push((start, end + 1, text[start + 1..end].to_string()));
+        from = end + 1;
+    }
+    strings
 }
 
 fn line_values(content: &str, f: impl Fn(&str) -> Option<String>) -> Vec<String> {
@@ -342,6 +490,79 @@ mod tests {
             "<project><parent><artifactId>starter</artifactId></parent><artifactId>shop</artifactId></project>",
         );
         assert_eq!(text, "name: shop");
+    }
+
+    #[test]
+    fn reads_gradle_scripts() {
+        let groovy = "plugins {\n    id 'org.springframework.boot' version '3.2.0'\n}\n\
+            dependencies {\n    implementation 'org.springframework.boot:spring-boot-starter-web'\n\
+            runtimeOnly \"org.postgresql:postgresql:42.7\"\n\
+            testImplementation 'org.junit:junit:4'\n    // implementation 'a:b'\n}\n";
+        assert_eq!(
+            text_of("build.gradle", groovy),
+            "dependencies: org.springframework.boot:spring-boot-starter-web, org.postgresql:postgresql"
+        );
+        let kotlin = "dependencies {\n    implementation(platform(\"io.ktor:ktor-bom:2.3\"))\n\
+            api(\"io.ktor:ktor-server-core:$ktor\")\n    implementation(project(\":core\"))\n}\n";
+        assert_eq!(
+            text_of("build.gradle.kts", kotlin),
+            "dependencies: io.ktor:ktor-bom, io.ktor:ktor-server-core"
+        );
+    }
+
+    #[test]
+    fn reads_csproj_under_any_name() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(
+            dir.path().join("Shop.Api.csproj"),
+            "<Project><PropertyGroup><Description>Sells</Description></PropertyGroup>\
+             <ItemGroup><PackageReference Include=\"Serilog\" Version=\"3\" />\
+             <PackageReference Include=\"Dapper\" /></ItemGroup></Project>",
+        )
+        .unwrap();
+        fs::write(
+            dir.path().join("Tools.csproj"),
+            "<Project><PropertyGroup><AssemblyName>shop-tools</AssemblyName></PropertyGroup></Project>",
+        )
+        .unwrap();
+        let signals = manifest_metadata(dir.path());
+        let read: Vec<_> = signals
+            .iter()
+            .map(|s| (s.origin.as_str(), s.text.as_str()))
+            .collect();
+        assert_eq!(
+            read,
+            vec![
+                (
+                    "Shop.Api.csproj",
+                    "name: Shop.Api\ndescription: Sells\ndependencies: Serilog, Dapper"
+                ),
+                ("Tools.csproj", "name: shop-tools"),
+            ]
+        );
+    }
+
+    #[test]
+    fn reads_package_swift() {
+        let text = text_of(
+            "Package.swift",
+            "// swift-tools-version:5.9\nlet package = Package(\n    name: \"Shop\",\n    dependencies: [\n\
+             .package(url: \"https://github.com/vapor/vapor.git\", from: \"4.0.0\"),\n\
+             .package(url: \"https://github.com/vapor/fluent\", from: \"4.0.0\"),\n    ],\n\
+             targets: [.target(name: \"App\")]\n)\n",
+        );
+        assert_eq!(text, "name: Shop\ndependencies: vapor, fluent");
+    }
+
+    #[test]
+    fn reads_build_sbt() {
+        let text = text_of(
+            "build.sbt",
+            "name := \"shop\"\n// don't upgrade play\nval sep = ','\nlibraryDependencies ++= Seq(\n\
+             guice,\n  \"com.typesafe.play\" %% \"play-slick\" % \"5.1\",\n\
+             \"org.postgresql\" % \"postgresql\" % \"42.7\" % Test\n)\n",
+        );
+        assert_eq!(text, "name: shop\ndependencies: play-slick, postgresql");
     }
 
     #[test]

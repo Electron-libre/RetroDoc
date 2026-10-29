@@ -47,7 +47,7 @@ briefed. Out of scope: grammars (LNG-8), framework fixtures (LNG-9), both have t
    source), and the `Test`/`Tests` suffix with a capital after a word; verified by a `retrodoc scan` test on a repo
    with one file per extension and one test per layout (source/test counts), plus unit cases (`Contest.java`,
    `build.gradle.kts`); makes true LNG-5, LNG-6. ~150 lines.
-2. [ ] Manifests: read `build.gradle`, `build.gradle.kts` (dependency coordinates `group:artifact` from the
+2. [x] Manifests: read `build.gradle`, `build.gradle.kts` (dependency coordinates `group:artifact` from the
    `implementation`-like calls), `*.csproj` at the root under any name (`PackageReference Include`, name from
    `AssemblyName` else the file stem), `Package.swift` (package name, `.package(url:` dependencies), `build.sbt`
    (`name :=`, `"org" %% "artifact"` dependencies), by string scanning, no new crate; verified by a
@@ -72,6 +72,22 @@ briefed. Out of scope: grammars (LNG-8), framework fixtures (LNG-9), both have t
 | code review | low, run |
 
 - red: LNG-5, LNG-6: `scan` counted `source: 19, other: 9` for 25 sources, and `source: 3, test: 5` for 8 tests.
+- Code review: no findings
+- not verified: none
+- decisions needed: none
+
+## Deliverable 2
+- done: the brief reads `build.gradle`, `build.gradle.kts`, `Package.swift`, `build.sbt` and every root `*.csproj`.
+
+| check | result |
+|---|---|
+| tests | `just check` green |
+| lint | clean |
+| specs | LNG-7 traced through `retrodoc brief --signals` |
+| docs | `docs/crates/core-ingest.md` |
+| code review | low, run |
+
+- red: LNG-7: `brief --signals` counted `Manifest 8` for 13 manifests.
 - Code review: no findings
 - not verified: none
 - decisions needed: none
