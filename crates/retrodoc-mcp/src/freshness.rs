@@ -123,23 +123,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn a_repo_map_updated_by_a_failed_run_does_not_make_an_edit_look_fresh() {
-        use retrodoc_pipeline::cache::RepoMapCache;
-        let dir = generated_repo();
-        // The next `generate` edits the file, rebuilds the repo map (which
-        // records the new hash), then fails before the docs are rewritten:
-        // `source-hashes.json` is left as the last complete run wrote it.
-        std::fs::write(dir.path().join("a.rb"), "edited").unwrap();
-        let mut repo_map = RepoMapCache::default();
-        repo_map.put(Path::new("a.rb"), &hash_content("edited"), "summary");
-        repo_map.save(dir.path()).unwrap();
-        assert_eq!(
-            Freshness::load(dir.path()).state("a.rb"),
-            FileState::Modified
-        );
-    }
-
     /// Cost of the check, for `issues/done/mcp_freshness_cost.md`. Not part of the
     /// suite; run it optimized, the hash is slow in a debug build:
     /// `FRESHNESS_FILE_KB=20 cargo test -p retrodoc-mcp --release cost_of_the_check -- --ignored --nocapture`

@@ -27,7 +27,6 @@ pub enum Retention {
 /// knows their names.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Artifact {
-    RepoMap,
     SourceHashes,
     Fingerprints,
     Roles,
@@ -56,8 +55,7 @@ pub enum Artifact {
 }
 
 impl Artifact {
-    pub const ALL: [Artifact; 21] = [
-        Artifact::RepoMap,
+    pub const ALL: [Artifact; 20] = [
         Artifact::SourceHashes,
         Artifact::Fingerprints,
         Artifact::Roles,
@@ -83,7 +81,6 @@ impl Artifact {
     #[must_use]
     pub fn file_name(self) -> &'static str {
         match self {
-            Artifact::RepoMap => "repo-map.json",
             Artifact::SourceHashes => "source-hashes.json",
             Artifact::Fingerprints => "fingerprints.json",
             Artifact::Roles => "roles.yaml",
@@ -125,8 +122,7 @@ impl Artifact {
     #[must_use]
     pub fn cleared_by_force(self) -> bool {
         match self {
-            Artifact::RepoMap
-            | Artifact::SourceHashes
+            Artifact::SourceHashes
             | Artifact::Fingerprints
             | Artifact::Glossary
             | Artifact::EntryPoints

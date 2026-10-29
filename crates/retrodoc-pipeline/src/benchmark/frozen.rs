@@ -143,7 +143,6 @@ impl FrozenInputs {
         let cache = dir.join("cache");
         std::fs::create_dir_all(&cache).map_err(|e| io_error(&cache, e))?;
         let kept = BASE.into_iter().chain([
-            Artifact::RepoMap,
             Artifact::Contexts,
             Artifact::Domains,
             Artifact::Features,

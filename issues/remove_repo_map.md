@@ -58,7 +58,7 @@ removed-setting error of `config.rs`, the ADRs (historical records).
 ## Plan
 1. [x] Move the helpers: `read_file_lossy` and `truncate_chars` go to a new `src/text.rs` (pipeline-private), the
    eight importers edited; verified by `just check` (no behaviour change); ~40 lines.
-2. [ ] Remove the repo map: `repo_map/`, the `lib.rs` exports, `RepoMapCache` (keeping `hash_content`),
+2. [x] Remove the repo map: `repo_map/`, the `lib.rs` exports, `RepoMapCache` (keeping `hash_content`),
    `Artifact::RepoMap` and its copy in `benchmark/frozen.rs`, the MCP freshness test that used the cache; RER-2
    amended and proven by a new use cases test (two features, one file changed, only its feature redone), spec back
    to `accepted`; verified by `just check`; makes true RER-2; ~1,250 lines, almost all deletions (see Decisions).
@@ -80,6 +80,17 @@ removed-setting error of `config.rs`, the ADRs (historical records).
 - check | result: tests ok, clippy ok, fmt ok, specs ok, `check-harness` fails on the git review gate hook (the
   uncommitted switch of `.claude/harness.toml` to `cardinal`, not this change), code review below.
 - red: none (no behaviour change, no new test).
+- not verified: nothing.
+- decisions needed: none.
+- Code review: no findings.
+
+### 2. Remove the repo map
+- done: `repo_map/`, `RepoMapCache`, `Artifact::RepoMap`, the MCP test and the `lib.rs` exports removed;
+  `cache.rs` keeps `hash_content` only; `complete_text` and `Progress::finish`, used only by the repo map, removed;
+  RER-2 proven by `a_changed_file_redoes_only_the_feature_that_reads_it`; `specs/rerun.md` back to `accepted`.
+- check | result: tests ok, clippy ok, fmt ok, specs ok, `check-harness` fails as in deliverable 1.
+- red: RER-2: none, the behaviour already existed (the test pins it; its first run failed only on a wrong call
+  count of the test itself, an empty answer is asked twice).
 - not verified: nothing.
 - decisions needed: none.
 - Code review: no findings.

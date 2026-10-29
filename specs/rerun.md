@@ -1,6 +1,6 @@
 ---
 id: RER
-status: draft
+status: accepted
 adrs: [0005]
 ---
 

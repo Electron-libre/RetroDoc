@@ -42,18 +42,13 @@ impl Progress {
     }
 
     /// Logs a unit that starts while others may be in flight (concurrent
-    /// passes); pair it with [`Progress::finish`] when it completes.
+    /// passes); pair it with [`Progress::finish_many`] when it completes.
     pub fn start(&self, item: &str) {
         tracing::info!("{}", self.line(item, self.started.elapsed()));
     }
 
-    /// Counts a unit started with [`Progress::start`] as complete. The ETA
-    /// then rests on wall-clock time, so it accounts for the parallelism.
-    pub fn finish(&mut self) {
-        self.finish_many(1);
-    }
-
-    /// Same, for a unit that covered `n` items (a batch).
+    /// Counts a unit started with [`Progress::start`], which covered `n` items (a batch), as complete.
+    /// The ETA then rests on wall-clock time, so it accounts for the parallelism.
     pub fn finish_many(&mut self, n: usize) {
         self.done += n;
         self.processed += n;

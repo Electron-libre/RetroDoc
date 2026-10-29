@@ -39,7 +39,6 @@ mod naming;
 mod progress;
 pub mod ranking;
 pub mod reconcile;
-pub mod repo_map;
 pub mod report;
 mod response;
 pub mod roles;
@@ -79,10 +78,6 @@ pub use error::PipelineError;
 pub use features::{build_features_from_surface, entry_point_id, load_features, save_features};
 pub use glossary::{build_glossary, Entity, Glossary, MergedEntity};
 pub use ranking::{apply_budget, rank_files, Scope};
-pub use repo_map::{
-    build_repo_map, estimate_repo_map, FileSummary, ModuleSummary, RepoMap, RepoMapEstimate,
-    RepoMapOptions,
-};
 pub use report::{build_report, domain_models, DebtReport};
 pub use roles::{identify_roles, FileRole, RoleMap, RoleRule, RoleRules};
 pub use rules::{

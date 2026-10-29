@@ -59,30 +59,6 @@ pub(crate) fn strip_code_fence(raw: &str) -> &str {
     trimmed.find('{').map_or(trimmed, |start| &trimmed[start..])
 }
 
-/// One system + user exchange with the default model, answer as is.
-///
-/// # Errors
-///
-/// Returns an error if the LLM call fails.
-pub(crate) async fn complete_text(
-    llm: &dyn LlmProvider,
-    system_prompt: &str,
-    user_prompt: &str,
-) -> Result<String, PipelineError> {
-    complete_with_schema(llm, system_prompt, user_prompt, None).await
-}
-
-async fn complete_with_schema(
-    llm: &dyn LlmProvider,
-    system_prompt: &str,
-    user_prompt: &str,
-    json_schema: Option<&ResponseSchema>,
-) -> Result<String, PipelineError> {
-    Ok(complete_raw(llm, system_prompt, user_prompt, json_schema)
-        .await?
-        .content)
-}
-
 async fn complete_raw(
     llm: &dyn LlmProvider,
     system_prompt: &str,
