@@ -126,7 +126,8 @@ fn with_put_back(
 }
 
 /// The rules of every feature, from the code and the evidence of each, saved to
-/// `.retrodoc/cache/rules.yaml`. `context` is the one of the use cases pass.
+/// `.retrodoc/cache/rules.yaml`. `context` is the one of the use cases pass; `concurrency` features
+/// are asked at once, as there.
 ///
 /// # Errors
 ///
@@ -138,6 +139,7 @@ pub async fn build_rules(
     use_cases: &[UseCase],
     context: &UseCaseContext,
     llm: &dyn LlmProvider,
+    concurrency: usize,
 ) -> Result<Vec<BusinessRule>, PipelineError> {
     let saved = load_stated(repo_root);
     // Without the saved rules, a fingerprint can't tell "none" from "lost"; nor can it, without the
@@ -164,15 +166,8 @@ pub async fn build_rules(
         previous: saved.unwrap_or_default(),
         previous_aside: load_set_aside(repo_root).unwrap_or_default(),
     };
-    let Stated { rules, mut aside } = per_feature::run(
-        &pass,
-        features,
-        units,
-        &mut prints,
-        &known,
-        context.concurrency,
-    )
-    .await?;
+    let Stated { rules, mut aside } =
+        per_feature::run(&pass, features, units, &mut prints, &known, concurrency).await?;
 
     warn_unknown_rules(&context.put_back.keep_rules, &aside, &rules);
     aside.forget_features(&context.put_back.keep_features);

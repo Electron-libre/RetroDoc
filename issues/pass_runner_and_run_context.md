@@ -74,7 +74,7 @@ share the file part (`path\nhash`, or `unreadable`) and the key `"{domain}/{slug
    saves in one function; each pass gives its planning, its call + grounding and its policy for an unanswered
    feature (keep or drop the previous ones); verified by the existing use cases and rules tests (resume, partial
    save, concurrency) unchanged (~350 lines).
-3. [ ] A run context for `generate`: `Run { repo_root, config, walked, llm, tracker, force }` plus `Signals`
+3. [x] A run context for `generate`: `Run { repo_root, config, walked, llm, tracker, force }` plus `Signals`
    replace `Passes` and the long argument lists of `generate/mod.rs` and `contexts.rs` (the `too_many_arguments`
    allow of `features_from_surface` goes); the concurrency becomes an argument of `build_use_cases` /
    `build_rules` instead of a field of `UseCaseContext`, so the context is no longer rebuilt for the rules;
@@ -120,5 +120,20 @@ share the file part (`path\nhash`, or `unreadable`) and the key `"{domain}/{slug
   `use cases skipped: ...` (was `feature skipped: ...`), and a partial save of the rules lists the saved rules
   of the features not reached in the order of the features (was the order of the saved file); the final save
   is unchanged.
+- Code review: no findings.
+- decisions needed: none.
+
+## Deliverable 3
+- done: `Run { repo_root, config, walked, llm, tracker, force }` (with `Run::concurrency(pass)`) replaces
+  `Passes` and the argument lists of `generate/mod.rs` and `contexts.rs`; `Signals` is built once and passed
+  whole; the `too_many_arguments` allow of the CLI goes (the one of `build_features_from_surface`, in the
+  pipeline, stays: its eight inputs are those of the pass). `concurrency` leaves `UseCaseContext` for an
+  argument of `build_use_cases` and `build_rules` (the replays and the tests pass `1`, as the default context
+  gave), so the context is no longer rebuilt for the rules and is borrowed by `finish_chain`.
+- red: none (no requirement: pure refactor); the existing tests held, and a `generate` on a copy of the saved
+  `rsa-dr` run (`~/retrodoc-runs/pass-runner-noop`, `base_url` pointing at a closed port) made no LLM call
+  and wrote no file.
+- not verified: the `contexts` path of `generate` through the binary (no saved `contexts` run of
+  `delivery_router`); its pipeline side is covered by `two_runs_tests.rs`.
 - Code review: no findings.
 - decisions needed: none.

@@ -165,7 +165,7 @@ async fn run(
         domain_vocabulary: domain_vocabulary(&everywhere, &f.glossary, 5),
         ..reading(f.dir.path())
     };
-    let use_cases = build_use_cases(f.dir.path(), &features, &context, use_cases_llm)
+    let use_cases = build_use_cases(f.dir.path(), &features, &context, use_cases_llm, 1)
         .await
         .unwrap();
     for slug in &slice.contexts {

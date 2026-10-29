@@ -165,7 +165,7 @@ pub async fn replay_use_cases(
     let mut use_cases = tracker
         .in_pass(
             "use-cases",
-            build_use_cases(work_root, &features, &context, llm),
+            build_use_cases(work_root, &features, &context, llm, 1),
         )
         .await?;
     score_business_language(

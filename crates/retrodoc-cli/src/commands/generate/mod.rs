@@ -92,23 +92,30 @@ pub async fn run(
     let wanted = super::brief::EvidenceFor::of(config);
     let (brief, evidence) =
         super::brief::for_generate(repo_root, &ingest, &llm, wanted, tracker).await?;
-    let (evidence, rule_evidence) = (evidence.units, evidence.rules);
+    let signals = Signals {
+        brief,
+        evidence: evidence.units,
+        rule_evidence: evidence.rules,
+    };
+    let run = Run {
+        repo_root,
+        config,
+        walked: &walked,
+        llm: &llm,
+        tracker,
+        force,
+    };
 
     if config.pipeline.domains_from == DomainsFrom::Contexts {
-        let signals = Signals {
-            brief,
-            evidence,
-            rule_evidence,
-        };
-        return contexts::run(&workspace, &walked, &llm, tracker, options, signals, ingest).await;
+        return contexts::run(&run, options, signals, ingest).await;
     }
 
     let (surface, entry_points, role_map) =
-        build_surface(repo_root, &mut ingest, &brief, &llm, force, config, tracker).await?;
+        build_surface(&run, &mut ingest, &signals.brief).await?;
     let actors = tracker
         .in_pass(
             "actors",
-            identify_actors(repo_root, &ingest, &surface, &brief, &llm, force, false),
+            identify_actors(&run, &ingest, &surface, &signals.brief, false),
         )
         .await?;
 
@@ -126,46 +133,18 @@ pub async fn run(
     if let Some(warning) = surface.empty_surface_warning(source_paths(&ingest).count()) {
         tracing::warn!("{warning}");
     }
-    let mut features = features_from_surface(
-        repo_root,
-        &ingest,
-        &surface,
-        &entry_points,
-        &brief,
-        &evidence,
-        &llm,
-        tracker,
-    )
-    .await?;
+    let mut features =
+        features_from_surface(&run, &ingest, &surface, &entry_points, &signals).await?;
 
-    let context = use_case_context(
-        entry_points,
-        &ingest,
-        &walked,
-        actors,
-        &surface,
-        Signals {
-            brief,
-            evidence,
-            rule_evidence,
-        },
-        config,
-    );
+    let context = use_case_context(&run, entry_points, &ingest, actors, &surface, signals);
     let mut use_cases = tracker
         .in_pass(
             "use-cases",
-            derive_use_cases(repo_root, &features, &context, &surface, &llm, Every),
+            derive_use_cases(&run, &features, &context, &surface, Every),
         )
         .await?;
 
-    let passes = Passes {
-        repo_root,
-        walked: &walked,
-        config,
-        llm: &llm,
-        tracker,
-    };
-    finish_chain(&passes, &mut features, &mut use_cases, context, confidence).await?;
+    finish_chain(&run, &mut features, &mut use_cases, &context, confidence).await?;
     // Only a run that went through every pass says which code the docs describe.
     source_hashes
         .save(repo_root)
@@ -189,62 +168,58 @@ enum Scoring {
 
 use Scoring::Every;
 
-/// What the passes after the use cases share.
-struct Passes<'a> {
+/// What every pass of a `generate` run draws on.
+struct Run<'a> {
     repo_root: &'a Path,
+    config: &'a Config,
     /// The files of the walk, which the paths of the saved artifacts are read from.
     walked: &'a WalkedFiles,
-    config: &'a Config,
     llm: &'a PassProviders,
     tracker: &'a UsageTracker,
+    /// Ask again what is kept until then (`--force`).
+    force: bool,
+}
+
+impl Run<'_> {
+    /// The units `pass` asks at once (`[llm.passes.<pass>] concurrency`, one by default).
+    fn concurrency(&self, pass: &str) -> usize {
+        self.config.llm.for_pass(pass).concurrency.unwrap_or(1)
+    }
 }
 
 /// The business rules (when on), then the confidence of the use cases.
 async fn finish_chain(
-    passes: &Passes<'_>,
+    run: &Run<'_>,
     features: &mut [Feature],
     use_cases: &mut [UseCase],
-    context: UseCaseContext,
+    context: &UseCaseContext,
     confidence: Confidence,
 ) -> anyhow::Result<()> {
-    let Passes {
-        repo_root,
-        walked,
-        config,
-        llm,
-        tracker,
-    } = *passes;
-    derive_rules(
-        repo_root, config, features, use_cases, context, llm, tracker,
-    )
-    .await?;
-    tracker
+    derive_rules(run, features, use_cases, context).await?;
+    run.tracker
         .in_pass(
             "confidence",
-            run_confidence(
-                walked,
-                features,
-                use_cases,
-                llm,
-                confidence,
-                config.llm.for_pass("confidence").concurrency.unwrap_or(1),
-            ),
+            run_confidence(run, features, use_cases, confidence),
         )
         .await?;
-    reconcile_with_docs(repo_root, config, features, use_cases, llm, tracker).await
+    reconcile_with_docs(run, features, use_cases).await
 }
 
 /// Asks whether the doc sections matched to the items cover or contradict them; nothing unless
 /// `[pipeline] reconcile` is on. Docs that can't be read leave the verdicts as they were.
 async fn reconcile_with_docs(
-    repo_root: &Path,
-    config: &Config,
+    run: &Run<'_>,
     features: &[Feature],
     use_cases: &[UseCase],
-    llm: &PassProviders,
-    tracker: &UsageTracker,
 ) -> anyhow::Result<()> {
     use retrodoc_pipeline::reconcile;
+    let Run {
+        repo_root,
+        config,
+        llm,
+        tracker,
+        ..
+    } = *run;
     if !config.pipeline.reconcile {
         return Ok(());
     }
@@ -302,13 +277,12 @@ struct Signals {
 /// What the use cases and rules passes draw on besides the features: the vocabulary is the
 /// application's, one for every domain.
 fn use_case_context(
+    run: &Run<'_>,
     entry_points: EntryPoints,
     ingest: &IngestResult,
-    walked: &WalkedFiles,
     actors: Actors,
     surface: &Surface,
     signals: Signals,
-    config: &Config,
 ) -> UseCaseContext {
     let Signals {
         brief,
@@ -324,21 +298,24 @@ fn use_case_context(
         brief,
         evidence,
         rule_evidence,
-        put_back: config.rules.clone(),
-        concurrency: config.llm.for_pass("use-cases").concurrency.unwrap_or(1),
-        walked: walked.clone(),
+        put_back: run.config.rules.clone(),
+        walked: run.walked.clone(),
     }
 }
 
 async fn identify_actors(
-    repo_root: &Path,
+    run: &Run<'_>,
     ingest: &IngestResult,
     surface: &Surface,
     brief: &ProductBrief,
-    llm: &PassProviders,
-    force: bool,
     frozen: bool,
 ) -> anyhow::Result<Actors> {
+    let Run {
+        repo_root,
+        llm,
+        force,
+        ..
+    } = *run;
     // Read a slice at a time, the actors would change with every slice and redo the use cases of
     // the others: they are identified once, then kept (`retrodoc actors --force` asks again).
     if let Some(saved) = Actors::load(repo_root).filter(|_| frozen && !force) {
@@ -363,21 +340,23 @@ async fn identify_actors(
 
 /// The domains from the entities and resources, then the features from the entry points of each
 /// domain.
-#[allow(clippy::too_many_arguments)]
 async fn features_from_surface(
-    repo_root: &Path,
+    run: &Run<'_>,
     ingest: &IngestResult,
     surface: &Surface,
     entry_points: &EntryPoints,
-    brief: &ProductBrief,
-    evidence: &Evidence,
-    llm: &PassProviders,
-    tracker: &UsageTracker,
+    signals: &Signals,
 ) -> anyhow::Result<Vec<Feature>> {
+    let Run {
+        repo_root,
+        llm,
+        tracker,
+        ..
+    } = *run;
     let domain_map = tracker
         .in_pass(
             "domains",
-            cluster_domains_from_surface(repo_root, surface, brief, llm),
+            cluster_domains_from_surface(run, surface, &signals.brief),
         )
         .await?;
     print::surface_domains(&domain_map);
@@ -391,8 +370,8 @@ async fn features_from_surface(
                 &domain_map,
                 entry_points,
                 surface,
-                brief,
-                evidence,
+                &signals.brief,
+                &signals.evidence,
                 llm.get("features")?.as_ref(),
                 retrodoc_pipeline::Retention::OnlyRead,
             ),
@@ -414,17 +393,16 @@ async fn features_from_surface(
 }
 
 async fn cluster_domains_from_surface(
-    repo_root: &Path,
+    run: &Run<'_>,
     surface: &Surface,
     brief: &ProductBrief,
-    llm: &PassProviders,
 ) -> anyhow::Result<DomainMap> {
     println!("\nClustering the resources and entities into functional domains…");
     retrodoc_pipeline::build_domains_from_surface(
-        repo_root,
+        run.repo_root,
         surface,
         brief,
-        llm.get("domains")?.as_ref(),
+        run.llm.get("domains")?.as_ref(),
     )
     .await
     .context("failed to build the domains from the surface")
@@ -433,13 +411,13 @@ async fn cluster_domains_from_surface(
 /// Use cases of the features, with their diagrams and business-language
 /// score, saved.
 async fn derive_use_cases(
-    repo_root: &Path,
+    run: &Run<'_>,
     features: &[Feature],
     context: &UseCaseContext,
     surface: &Surface,
-    llm: &PassProviders,
     scoring: Scoring,
 ) -> anyhow::Result<Vec<UseCase>> {
+    let repo_root = run.repo_root;
     println!(
         "Deriving use cases ({} feature(s), one LLM call each)…",
         features.len()
@@ -448,7 +426,8 @@ async fn derive_use_cases(
         repo_root,
         features,
         context,
-        llm.get("use-cases")?.as_ref(),
+        run.llm.get("use-cases")?.as_ref(),
+        run.concurrency("use-cases"),
     )
     .await
     .context("failed to derive the use cases")?;
@@ -482,34 +461,29 @@ async fn derive_use_cases(
 
 /// The business rules of the features, saved; nothing unless `[pipeline] rules` is on.
 async fn derive_rules(
-    repo_root: &Path,
-    config: &Config,
+    run: &Run<'_>,
     features: &[Feature],
     use_cases: &[UseCase],
-    context: UseCaseContext,
-    llm: &PassProviders,
-    tracker: &UsageTracker,
+    context: &UseCaseContext,
 ) -> anyhow::Result<()> {
-    if !config.pipeline.rules {
+    if !run.config.pipeline.rules {
         return Ok(());
     }
-    let context = UseCaseContext {
-        concurrency: config.llm.for_pass("rules").concurrency.unwrap_or(1),
-        ..context
-    };
     println!(
         "Stating the business rules ({} feature(s), one LLM call each)…",
         features.len()
     );
-    let rules = tracker
+    let rules = run
+        .tracker
         .in_pass(
             "rules",
             retrodoc_pipeline::build_rules(
-                repo_root,
+                run.repo_root,
                 features,
                 use_cases,
-                &context,
-                llm.get("rules")?.as_ref(),
+                context,
+                run.llm.get("rules")?.as_ref(),
+                run.concurrency("rules"),
             ),
         )
         .await
@@ -525,13 +499,17 @@ async fn derive_rules(
 /// Identifies the stack and the role of every file (and promotes the files of the languages
 /// found to source files). `None` when no role rule could be identified.
 async fn identify_file_roles(
-    repo_root: &Path,
+    run: &Run<'_>,
     ingest: &mut IngestResult,
     brief: &ProductBrief,
-    llm: &PassProviders,
-    force: bool,
-    tracker: &UsageTracker,
 ) -> anyhow::Result<Option<(String, RoleMap)>> {
+    let Run {
+        repo_root,
+        llm,
+        tracker,
+        force,
+        ..
+    } = *run;
     println!("Identifying the stack and the file roles…");
     let rules = tracker
         .in_pass(
@@ -564,17 +542,19 @@ async fn identify_file_roles(
 /// identified the surface is empty and the domains fall back to the
 /// directory summaries alone.
 async fn build_surface(
-    repo_root: &Path,
+    run: &Run<'_>,
     ingest: &mut IngestResult,
     brief: &ProductBrief,
-    llm: &PassProviders,
-    force: bool,
-    config: &Config,
-    tracker: &UsageTracker,
 ) -> anyhow::Result<(Surface, EntryPoints, Option<RoleMap>)> {
-    let Some((stack, role_map)) =
-        identify_file_roles(repo_root, ingest, brief, llm, force, tracker).await?
-    else {
+    let Run {
+        repo_root,
+        config,
+        llm,
+        tracker,
+        force,
+        ..
+    } = *run;
+    let Some((stack, role_map)) = identify_file_roles(run, ingest, brief).await? else {
         tracing::warn!("no file role rules identified, domains are clustered without the surface");
         return Ok((Surface::default(), EntryPoints::default(), None));
     };
@@ -718,23 +698,21 @@ fn clear_caches(repo_root: &Path) -> anyhow::Result<()> {
 }
 
 async fn run_confidence(
-    walked: &WalkedFiles,
+    run: &Run<'_>,
     features: &mut [Feature],
     use_cases: &mut [UseCase],
-    llm: &PassProviders,
     confidence: Confidence,
-    concurrency: usize,
 ) -> anyhow::Result<()> {
     match confidence {
         Confidence::Sample(sample) => {
             println!("\nCross-checking use cases against the code (confidence)…");
             retrodoc_pipeline::score_confidence(
-                walked,
+                run.walked,
                 features,
                 use_cases,
-                llm.get("confidence")?.as_ref(),
+                run.llm.get("confidence")?.as_ref(),
                 sample,
-                concurrency,
+                run.concurrency("confidence"),
             )
             .await
             .context("failed to score the confidence")

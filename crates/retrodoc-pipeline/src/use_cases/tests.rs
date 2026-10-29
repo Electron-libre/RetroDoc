@@ -68,6 +68,7 @@ async fn build_use_cases_renumbers_steps_and_drops_ungrounded_refs() {
         &[feature("payment", &["a.rs"])],
         &reading(dir.path()),
         &provider,
+        1,
     )
     .await
     .unwrap();
@@ -104,6 +105,7 @@ async fn steps_cite_the_files_by_their_number_in_the_prompt() {
         &[feature("payment", &["a.rs", "b.rs"])],
         &reading(dir.path()),
         &provider,
+        1,
     )
     .await
     .unwrap();
@@ -144,6 +146,7 @@ async fn build_use_cases_skips_features_without_readable_files_and_bad_answers()
         ],
         &reading(dir.path()),
         &provider,
+        1,
     )
     .await
     .unwrap();
@@ -175,6 +178,7 @@ async fn build_use_cases_tolerates_sloppy_steps_and_references() {
         &[feature("f", &["a.rs"])],
         &reading(dir.path()),
         &provider,
+        1,
     )
     .await
     .unwrap();
@@ -201,7 +205,7 @@ async fn rerun_reuses_use_cases_until_a_file_changes() {
     );
     let calls = || provider.calls();
 
-    let mut first = build_use_cases(dir.path(), &features, &reading(dir.path()), &provider)
+    let mut first = build_use_cases(dir.path(), &features, &reading(dir.path()), &provider, 1)
         .await
         .unwrap();
     assert_eq!(calls(), 1);
@@ -209,7 +213,7 @@ async fn rerun_reuses_use_cases_until_a_file_changes() {
     first[0].confidence = Some(retrodoc_core::model::ConfidenceScore::new(0.9, None));
     save_use_cases(dir.path(), &first).unwrap();
 
-    let again = build_use_cases(dir.path(), &features, &reading(dir.path()), &provider)
+    let again = build_use_cases(dir.path(), &features, &reading(dir.path()), &provider, 1)
         .await
         .unwrap();
     assert_eq!(calls(), 1, "unchanged feature must not call the LLM");
@@ -217,7 +221,7 @@ async fn rerun_reuses_use_cases_until_a_file_changes() {
     assert!(again[0].confidence.is_some());
 
     std::fs::write(dir.path().join("a.rs"), "fn a() { changed }").unwrap();
-    let redone = build_use_cases(dir.path(), &features, &reading(dir.path()), &provider)
+    let redone = build_use_cases(dir.path(), &features, &reading(dir.path()), &provider, 1)
         .await
         .unwrap();
     assert_eq!(calls(), 2, "a changed file must invalidate the feature");
@@ -237,7 +241,7 @@ async fn a_changed_file_redoes_only_the_feature_that_reads_it() {
     );
     let context = reading(dir.path());
 
-    let first = build_use_cases(dir.path(), &features, &context, &provider)
+    let first = build_use_cases(dir.path(), &features, &context, &provider, 1)
         .await
         .unwrap();
     save_use_cases(dir.path(), &first).unwrap();
@@ -245,7 +249,7 @@ async fn a_changed_file_redoes_only_the_feature_that_reads_it() {
     assert_eq!(provider.calls(), 2);
 
     std::fs::write(dir.path().join("a.rs"), "fn a() { changed }").unwrap();
-    build_use_cases(dir.path(), &features, &context, &provider)
+    build_use_cases(dir.path(), &features, &context, &provider, 1)
         .await
         .unwrap();
     assert_eq!(
@@ -264,7 +268,7 @@ async fn a_clean_empty_answer_is_remembered_until_the_feature_changes() {
     let features = vec![feature("idle", &["a.rs"])];
     let provider = FakeLlm::answering(r#"{"use_cases":[]}"#);
     let context = reading(dir.path());
-    let run = || build_use_cases(dir.path(), &features, &context, &provider);
+    let run = || build_use_cases(dir.path(), &features, &context, &provider, 1);
 
     assert!(run().await.unwrap().is_empty());
     assert_eq!(provider.calls(), 2, "an empty answer is asked once more");
@@ -293,11 +297,11 @@ async fn lost_saved_use_cases_are_asked_again_despite_the_fingerprints() {
     let provider = FakeLlm::answering(r#"{"use_cases":[]}"#);
     let context = reading(dir.path());
 
-    build_use_cases(dir.path(), &features, &context, &provider)
+    build_use_cases(dir.path(), &features, &context, &provider, 1)
         .await
         .unwrap();
     std::fs::remove_file(Artifact::UseCases.path(dir.path())).unwrap();
-    build_use_cases(dir.path(), &features, &context, &provider)
+    build_use_cases(dir.path(), &features, &context, &provider, 1)
         .await
         .unwrap();
     assert_eq!(provider.calls(), 4, "no saved use cases: nothing to trust");
@@ -313,7 +317,7 @@ async fn use_cases_all_dropped_by_grounding_are_remembered() {
         r#"{"use_cases":[{"slug":"u","name":"U","description":"d","steps":[]}]}"#,
     );
     let context = reading(dir.path());
-    let run = || build_use_cases(dir.path(), &features, &context, &provider);
+    let run = || build_use_cases(dir.path(), &features, &context, &provider, 1);
 
     assert!(run().await.unwrap().is_empty());
     assert_eq!(provider.calls(), 1);
@@ -333,7 +337,7 @@ async fn an_empty_answer_followed_by_a_garbled_one_is_retried_on_rerun() {
     let features = vec![feature("flaky", &["a.rs"])];
     let provider = FakeLlm::answering("not json");
     let context = reading(dir.path());
-    let run = || build_use_cases(dir.path(), &features, &context, &provider);
+    let run = || build_use_cases(dir.path(), &features, &context, &provider, 1);
 
     run().await.unwrap();
     let first = provider.calls();
@@ -404,7 +408,7 @@ async fn a_feature_with_entry_points_gets_them_and_the_code_they_run() {
         index,
         ..reading(dir.path())
     };
-    let use_cases = build_use_cases(root, &features, &context, &provider)
+    let use_cases = build_use_cases(root, &features, &context, &provider, 1)
         .await
         .unwrap();
 
@@ -494,10 +498,16 @@ async fn use_case_on(
         },
         ..reading(dir.path())
     };
-    build_use_cases(dir.path(), &[feature("f", &["a.rb"])], &context, &provider)
-        .await
-        .unwrap()
-        .remove(0)
+    build_use_cases(
+        dir.path(),
+        &[feature("f", &["a.rb"])],
+        &context,
+        &provider,
+        1,
+    )
+    .await
+    .unwrap()
+    .remove(0)
 }
 
 #[tokio::test]
@@ -611,7 +621,7 @@ async fn features_from_the_surface_get_only_their_own_entry_points_even_in_a_sha
         ..reading(dir.path())
     };
 
-    build_use_cases(root, &[orders, routes], &context, &provider)
+    build_use_cases(root, &[orders, routes], &context, &provider, 1)
         .await
         .unwrap();
 
@@ -656,6 +666,7 @@ async fn a_step_is_one_text_and_its_actor_a_name() {
             ..reading(dir.path())
         },
         &provider,
+        1,
     )
     .await
     .unwrap();
@@ -720,6 +731,7 @@ async fn a_step_mixing_both_shapes_costs_no_use_case() {
         &[feature("payment", &["a.rs"])],
         &reading(dir.path()),
         &provider,
+        1,
     )
     .await
     .unwrap();
@@ -778,6 +790,7 @@ async fn known_actors_reach_the_prompt_and_name_the_steps() {
             ..reading(dir.path())
         },
         &provider,
+        1,
     )
     .await
     .unwrap();
@@ -838,6 +851,7 @@ async fn a_human_actor_outside_the_known_list_is_kept_and_only_an_info() {
             ..reading(dir.path())
         },
         &provider,
+        1,
     )
     .await
     .unwrap();
@@ -874,6 +888,7 @@ async fn text_fields_given_as_objects_do_not_reject_the_answer() {
         &[feature("signing", &["a.rs"])],
         &reading(dir.path()),
         &provider,
+        1,
     )
     .await
     .unwrap();
@@ -936,14 +951,14 @@ async fn a_failed_run_keeps_the_features_done_and_the_rerun_resumes() {
     let context = reading(dir.path());
 
     let flaky = FakeLlm::failing_after(1, use_case_reply);
-    assert!(build_use_cases(dir.path(), &features, &context, &flaky)
+    assert!(build_use_cases(dir.path(), &features, &context, &flaky, 1)
         .await
         .is_err());
     assert_eq!(load_use_cases(dir.path()).unwrap().len(), 1);
 
     // The first feature is cached: the second one is the call of rank 1.
     let healthy = FakeLlm::replying(|n, _| Ok(use_case_reply(n + 1)));
-    let use_cases = build_use_cases(dir.path(), &features, &context, &healthy)
+    let use_cases = build_use_cases(dir.path(), &features, &context, &healthy, 1)
         .await
         .unwrap();
     assert_eq!(use_cases.len(), 2);
@@ -967,7 +982,7 @@ async fn a_killed_run_keeps_the_features_done_and_the_rerun_resumes() {
 
     let stuck = FakeLlm::hanging_after(1, use_case_reply);
     killed(
-        build_use_cases(dir.path(), &features, &context, &stuck),
+        build_use_cases(dir.path(), &features, &context, &stuck, 1),
         &stuck,
     )
     .await;
@@ -976,7 +991,7 @@ async fn a_killed_run_keeps_the_features_done_and_the_rerun_resumes() {
     assert_eq!(saved[0].feature_slug, "one");
 
     let healthy = FakeLlm::replying(|n, _| Ok(use_case_reply(n + 1)));
-    let use_cases = build_use_cases(dir.path(), &features, &context, &healthy)
+    let use_cases = build_use_cases(dir.path(), &features, &context, &healthy, 1)
         .await
         .unwrap();
     assert_eq!(use_cases.len(), 3);
@@ -1028,7 +1043,7 @@ async fn a_long_controller_is_shown_around_the_actions_of_its_entry_points() {
     let provider = FakeLlm::answering(r#"{"use_cases":[]}"#);
     let features = [feature("sending", &["contracts_controller.rb"])];
 
-    build_use_cases(dir.path(), &features, &context, &provider)
+    build_use_cases(dir.path(), &features, &context, &provider, 1)
         .await
         .unwrap();
 
@@ -1055,7 +1070,7 @@ async fn a_first_empty_answer_recovered_by_the_retry_gives_its_use_case() {
              "action":"does it","source_refs":[]}]}]}"#,
     ]);
 
-    let use_cases = build_use_cases(dir.path(), &features, &reading(dir.path()), &provider)
+    let use_cases = build_use_cases(dir.path(), &features, &reading(dir.path()), &provider, 1)
         .await
         .unwrap();
 
@@ -1079,7 +1094,7 @@ async fn the_brief_heads_the_prompt_and_a_changed_brief_derives_again() {
         ..reading(dir.path())
     };
 
-    build_use_cases(dir.path(), &features, &with("Sells things."), &provider)
+    build_use_cases(dir.path(), &features, &with("Sells things."), &provider, 1)
         .await
         .unwrap();
     let prompt = provider.prompt_pairs().remove(0).1;
@@ -1089,12 +1104,12 @@ async fn the_brief_heads_the_prompt_and_a_changed_brief_derives_again() {
     );
     assert!(prompt.find("Purpose: Sells things.").unwrap() < prompt.find("Feature:").unwrap());
 
-    build_use_cases(dir.path(), &features, &with("Sells things."), &provider)
+    build_use_cases(dir.path(), &features, &with("Sells things."), &provider, 1)
         .await
         .unwrap();
     assert_eq!(provider.calls(), 1);
 
-    build_use_cases(dir.path(), &features, &with("Rents things."), &provider)
+    build_use_cases(dir.path(), &features, &with("Rents things."), &provider, 1)
         .await
         .unwrap();
     assert_eq!(provider.calls(), 2);
@@ -1133,6 +1148,7 @@ async fn the_evidence_closest_to_a_feature_is_in_its_prompt_and_in_its_fingerpri
         &features,
         &with(std::slice::from_ref(&reminders)),
         &provider,
+        1,
     )
     .await
     .unwrap();
@@ -1148,6 +1164,7 @@ async fn the_evidence_closest_to_a_feature_is_in_its_prompt_and_in_its_fingerpri
         &features,
         &with(std::slice::from_ref(&reminders)),
         &provider,
+        1,
     )
     .await
     .unwrap();
@@ -1159,6 +1176,7 @@ async fn the_evidence_closest_to_a_feature_is_in_its_prompt_and_in_its_fingerpri
         &features,
         &with(&[reminders.clone(), unrelated]),
         &provider,
+        1,
     )
     .await
     .unwrap();
@@ -1174,6 +1192,7 @@ async fn the_evidence_closest_to_a_feature_is_in_its_prompt_and_in_its_fingerpri
         &features,
         &with(&[reminders, related]),
         &provider,
+        1,
     )
     .await
     .unwrap();
@@ -1193,7 +1212,7 @@ async fn another_model_derives_the_unchanged_features_again() {
         let provider = FakeLlm::answering(answer).with_model(model);
         let (root, features) = (dir.path().to_path_buf(), features.clone());
         async move {
-            build_use_cases(&root, &features, &reading(&root), &provider)
+            build_use_cases(&root, &features, &reading(&root), &provider, 1)
                 .await
                 .unwrap();
             provider.calls()
@@ -1247,12 +1266,9 @@ async fn use_cases_asked_in_parallel_come_out_in_the_order_of_the_features() {
     for concurrency in [1, 3] {
         let dir = tempfile::tempdir().unwrap();
         let features = features_with_files(dir.path(), &names);
-        let context = UseCaseContext {
-            concurrency,
-            ..reading(dir.path())
-        };
+        let context = reading(dir.path());
         let probe = probe(None);
-        let use_cases = build_use_cases(dir.path(), &features, &context, &probe)
+        let use_cases = build_use_cases(dir.path(), &features, &context, &probe, concurrency)
             .await
             .unwrap();
         let summary: Vec<(String, String)> = use_cases
@@ -1284,13 +1300,10 @@ async fn use_cases_asked_in_parallel_come_out_in_the_order_of_the_features() {
 async fn a_failure_among_parallel_calls_keeps_the_features_before_it() {
     let dir = tempfile::tempdir().unwrap();
     let features = features_with_files(dir.path(), &["one", "two", "three", "four"]);
-    let context = UseCaseContext {
-        concurrency: 3,
-        ..reading(dir.path())
-    };
+    let context = reading(dir.path());
 
     let flaky = probe(Some("three"));
-    assert!(build_use_cases(dir.path(), &features, &context, &flaky)
+    assert!(build_use_cases(dir.path(), &features, &context, &flaky, 3)
         .await
         .is_err());
     let saved = load_use_cases(dir.path()).unwrap();
@@ -1304,7 +1317,7 @@ async fn a_failure_among_parallel_calls_keeps_the_features_before_it() {
 
     // The rerun only asks for the two features that were not kept.
     let healthy = FakeLlm::replying(|n, _| Ok(use_case_reply(n + 10))).with_model("test-model");
-    let use_cases = build_use_cases(dir.path(), &features, &context, &healthy)
+    let use_cases = build_use_cases(dir.path(), &features, &context, &healthy, 1)
         .await
         .unwrap();
     assert_eq!(use_cases.len(), 4);
@@ -1326,15 +1339,22 @@ async fn the_vocabulary_of_another_domain_does_not_redo_the_use_cases_of_a_featu
         ..reading(dir.path())
     };
 
-    build_use_cases(dir.path(), &features, &with(&["Order"], &["Invoice"]), &llm)
-        .await
-        .unwrap();
+    build_use_cases(
+        dir.path(),
+        &features,
+        &with(&["Order"], &["Invoice"]),
+        &llm,
+        1,
+    )
+    .await
+    .unwrap();
     // Another context was read since: the application's vocabulary grew, the domain's did not.
     build_use_cases(
         dir.path(),
         &features,
         &with(&["Order", "Rider"], &["Invoice"]),
         &llm,
+        1,
     )
     .await
     .unwrap();
@@ -1345,6 +1365,7 @@ async fn the_vocabulary_of_another_domain_does_not_redo_the_use_cases_of_a_featu
         &features,
         &with(&["Order"], &["Invoice", "Ledger"]),
         &llm,
+        1,
     )
     .await
     .unwrap();
@@ -1431,9 +1452,15 @@ async fn use_cases_of_many_entry_points(
         ..reading(dir.path())
     };
     let paths: Vec<&str> = names.iter().map(String::as_str).collect();
-    let use_cases = build_use_cases(dir.path(), &[feature("big", &paths)], &context, &provider)
-        .await
-        .unwrap();
+    let use_cases = build_use_cases(
+        dir.path(),
+        &[feature("big", &paths)],
+        &context,
+        &provider,
+        1,
+    )
+    .await
+    .unwrap();
     (use_cases, provider)
 }
 
@@ -1546,6 +1573,7 @@ async fn a_file_a_saved_feature_or_entry_point_names_outside_the_walk_is_not_sho
         &[feature("pay", &["a.rs", ".env"])],
         &context,
         &provider,
+        1,
     )
     .await
     .unwrap();
@@ -1577,7 +1605,7 @@ async fn the_print_of_a_feature_stays_the_same() {
         vocabulary: vec!["Order".to_string()],
         ..reading(dir.path())
     };
-    build_use_cases(dir.path(), &features, &context, &provider)
+    build_use_cases(dir.path(), &features, &context, &provider, 1)
         .await
         .unwrap();
     let prints = crate::fingerprints::Fingerprints::load(dir.path()).use_cases;

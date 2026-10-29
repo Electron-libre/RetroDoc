@@ -12,15 +12,13 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Context;
 use retrodoc_ingest::IngestResult;
-use retrodoc_llm::UsageTracker;
 use retrodoc_pipeline::{
     ContextMap, DomainMap, EntryPoints, FileRole, Glossary, Retention, RoleMap, RunSlice,
-    SourceHashes, Surface, WalkedFiles,
+    SourceHashes, Surface,
 };
 
-use super::super::usage::PassProviders;
-use super::super::workspace::{source_paths, Workspace};
-use super::{GenerateOptions, Passes, Signals, VOCABULARY_SIZE};
+use super::super::workspace::source_paths;
+use super::{GenerateOptions, Run, Signals, VOCABULARY_SIZE};
 
 /// Files one run reads when `--max-files` says nothing: the size above which a context is split.
 const DEFAULT_RUN_FILES: usize = 150;
@@ -36,24 +34,19 @@ struct Repo<'a> {
 }
 
 pub(super) async fn run(
-    workspace: &Workspace,
-    walked: &WalkedFiles,
-    llm: &PassProviders,
-    tracker: &UsageTracker,
+    run: &Run<'_>,
     options: &GenerateOptions,
     signals: Signals,
     mut ingest: IngestResult,
 ) -> anyhow::Result<()> {
-    let (repo_root, config) = (workspace.repo_root.as_path(), &workspace.config);
-    let Some((_, role_map)) = super::identify_file_roles(
+    let Run {
         repo_root,
-        &mut ingest,
-        &signals.brief,
+        config,
         llm,
-        options.force,
         tracker,
-    )
-    .await?
+        ..
+    } = *run;
+    let Some((_, role_map)) = super::identify_file_roles(run, &mut ingest, &signals.brief).await?
     else {
         anyhow::bail!("no file role could be identified, and the contexts are built from them");
     };
@@ -103,14 +96,7 @@ pub(super) async fn run(
             map: &map,
             slice: &slice,
         };
-        let passes = Passes {
-            repo_root,
-            walked,
-            config,
-            llm,
-            tracker,
-        };
-        document(&passes, options, signals, &repo).await?;
+        document(run, options, signals, &repo).await?;
         print_pending(&slice);
     }
     super::super::docs::publish(repo_root, config, options.dry_run)
@@ -129,32 +115,23 @@ fn entry_point_files(role_map: &RoleMap, sources: &[PathBuf]) -> Vec<PathBuf> {
 
 /// Reads the slice, derives everything from it and marks its contexts done.
 async fn document(
-    passes: &Passes<'_>,
+    run: &Run<'_>,
     options: &GenerateOptions,
     signals: Signals,
     repo: &Repo<'_>,
 ) -> anyhow::Result<()> {
-    let Passes {
+    let Run {
         repo_root,
-        config,
         llm,
         tracker,
         ..
-    } = *passes;
-    let (glossary, entry_points) = read_slice(passes, &signals, repo).await?;
+    } = *run;
+    let (glossary, entry_points) = read_slice(run, &signals, repo).await?;
     let surface = Surface::new(&glossary, &entry_points);
     let actors = tracker
         .in_pass(
             "actors",
-            super::identify_actors(
-                repo_root,
-                repo.ingest,
-                &surface,
-                &signals.brief,
-                llm,
-                options.force,
-                true,
-            ),
+            super::identify_actors(run, repo.ingest, &surface, &signals.brief, true),
         )
         .await?;
     // Read before the passes: a file edited during the run then reads as modified later.
@@ -187,35 +164,21 @@ async fn document(
         .context("could not save the features")?;
     report_entries_by_context(repo_root, repo, &in_run)?;
 
-    let mut context = super::use_case_context(
-        entry_points,
-        repo.ingest,
-        passes.walked,
-        actors,
-        &surface,
-        signals,
-        config,
-    );
+    let mut context =
+        super::use_case_context(run, entry_points, repo.ingest, actors, &surface, signals);
     context.domain_vocabulary =
         retrodoc_pipeline::domain_vocabulary(&everywhere, &glossary, VOCABULARY_SIZE);
     let mut use_cases = tracker
         .in_pass(
             "use-cases",
-            super::derive_use_cases(
-                repo_root,
-                &features,
-                &context,
-                &surface,
-                llm,
-                super::Scoring::NewOnly,
-            ),
+            super::derive_use_cases(run, &features, &context, &surface, super::Scoring::NewOnly),
         )
         .await?;
     super::finish_chain(
-        passes,
+        run,
         &mut features,
         &mut use_cases,
-        context,
+        &context,
         options.confidence,
     )
     .await?;
@@ -322,17 +285,17 @@ fn domains(
 /// Reads the files of the slice for the entities and the entry points, keeping the inventories of
 /// the contexts read before.
 async fn read_slice(
-    passes: &Passes<'_>,
+    run: &Run<'_>,
     signals: &Signals,
     repo: &Repo<'_>,
 ) -> anyhow::Result<(Glossary, EntryPoints)> {
-    let Passes {
+    let Run {
         repo_root,
         config,
         llm,
         tracker,
         ..
-    } = *passes;
+    } = *run;
     let brief = &signals.brief;
     let files = &repo.slice.files;
     // The roles of the slice only: the passes read the entry point files of the roles they are given.

@@ -81,7 +81,7 @@ pub async fn replay_rules(
     let rules = tracker
         .in_pass(
             "rules",
-            build_rules(work_root, &features, &use_cases, &context, llm),
+            build_rules(work_root, &features, &use_cases, &context, llm, 1),
         )
         .await?;
     let report = tracker.report();

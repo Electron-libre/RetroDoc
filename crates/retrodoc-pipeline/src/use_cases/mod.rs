@@ -146,9 +146,6 @@ pub struct UseCaseContext {
     pub rule_evidence: Evidence,
     /// What the rules pass must not set aside, as `[rules]` of `retrodoc.toml` lists it.
     pub put_back: RulesConfig,
-    /// Features asked at once (`0` and `1`: one at a time). The answers are used in the order of
-    /// the features, so the result does not depend on it.
-    pub concurrency: usize,
     /// The files of the walk: a file a saved feature or entry point names is shown only when it is one of them,
     /// as `features.yaml` and `entry-points.yaml` can be edited (none by default: no file is shown).
     pub walked: WalkedFiles,
@@ -174,6 +171,9 @@ impl UseCaseContext {
 /// "no use case" for (twice, cleanly); `generate --force` or a change of input
 /// asks again, and an unparseable answer is always retried.
 ///
+/// `concurrency` features are asked at once (`0` and `1`: one at a time); the answers are used in
+/// the order of the features, so the result does not depend on it.
+///
 /// # Errors
 ///
 /// Returns an error if an LLM call fails or the artifact can't be saved.
@@ -182,6 +182,7 @@ pub async fn build_use_cases(
     features: &[Feature],
     context: &UseCaseContext,
     llm: &dyn LlmProvider,
+    concurrency: usize,
 ) -> Result<Vec<UseCase>, PipelineError> {
     let saved = load_use_cases(repo_root);
     // Without the saved use cases, a fingerprint can't tell "none" from "lost".
@@ -195,15 +196,8 @@ pub async fn build_use_cases(
     };
     let splitter = load_splitter(repo_root);
     let units = plan_units(repo_root, features, context, &known, &splitter, llm);
-    let use_cases = per_feature::run(
-        &pass,
-        features,
-        units,
-        &mut prints,
-        &known,
-        context.concurrency,
-    )
-    .await?;
+    let use_cases =
+        per_feature::run(&pass, features, units, &mut prints, &known, concurrency).await?;
 
     // Use cases first: a fingerprint without its use cases would freeze a
     // feature as "none".

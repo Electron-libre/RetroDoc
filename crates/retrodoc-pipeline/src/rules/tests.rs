@@ -99,7 +99,7 @@ fn answer(rules: &str) -> String {
 const LIMIT: &str = r#"{"statement":"An order that would take an hour or more to deliver is refused.","kind":"limit","entities":["order","Ghost"],"use_cases":["place-an-order","nope"],"code":[{"path":"lib/router.rb","start_line":2,"end_line":2}],"tests":[{"id":"T1","phrase":"refuses an order that takes 60 minutes"}],"docs":["D1"]}"#;
 
 async fn run(dir: &Path, llm: &FakeLlm) -> Vec<BusinessRule> {
-    build_rules(dir, &[feature()], &[use_case()], &context(dir), llm)
+    build_rules(dir, &[feature()], &[use_case()], &context(dir), llm, 1)
         .await
         .unwrap()
 }
@@ -313,6 +313,7 @@ async fn a_failing_call_keeps_the_previous_rules_of_the_features_not_reached() {
         &[use_case()],
         &context(dir.path()),
         &down,
+        1,
     )
     .await;
 
@@ -395,6 +396,7 @@ async fn a_killed_run_keeps_the_rules_of_the_features_done_and_the_rerun_resumes
             &[use_case()],
             &context(dir.path()),
             &stuck,
+            1,
         ),
         &stuck,
     )
@@ -409,6 +411,7 @@ async fn a_killed_run_keeps_the_rules_of_the_features_done_and_the_rerun_resumes
         &[use_case()],
         &context(dir.path()),
         &healthy,
+        1,
     )
     .await
     .unwrap();
@@ -530,7 +533,7 @@ fn two_features_repo() -> tempfile::TempDir {
 }
 
 async fn ask(dir: &Path, llm: &FakeLlm, features: &[Feature]) -> Vec<BusinessRule> {
-    build_rules(dir, features, &[use_case()], &context(dir), llm)
+    build_rules(dir, features, &[use_case()], &context(dir), llm, 1)
         .await
         .unwrap()
 }
@@ -642,6 +645,7 @@ async fn a_feature_set_aside_as_tests_is_kept_with_its_reason_until_it_changes()
         &[use_case()],
         &context(dir.path()),
         &knowing(r#"{"about_tests":false}"#),
+        1,
     )
     .await
     .unwrap();
@@ -702,7 +706,7 @@ async fn ask_with(
     features: &[Feature],
     context: &UseCaseContext,
 ) -> Vec<BusinessRule> {
-    build_rules(dir, features, &[use_case()], context, llm)
+    build_rules(dir, features, &[use_case()], context, llm, 1)
         .await
         .unwrap()
 }
@@ -925,6 +929,7 @@ async fn a_failing_run_keeps_the_rules_put_back_in_what_it_saves() {
         &[use_case()],
         &putting_back(dir.path(), &[], &["orders-1"]),
         &down,
+        1,
     )
     .await;
 
@@ -1053,9 +1058,16 @@ async fn an_answer_cut_by_the_completion_limit_is_asked_again_on_halves_of_the_f
     let probe_dir = two_features_repo();
     std::fs::write(probe_dir.path().join("lib/extra.rb"), EXTRA).unwrap();
     let probe = FakeLlm::answering(answer(""));
-    build_rules(probe_dir.path(), &[wide()], &[use_case()], &context, &probe)
-        .await
-        .unwrap();
+    build_rules(
+        probe_dir.path(),
+        &[wide()],
+        &[use_case()],
+        &context,
+        &probe,
+        1,
+    )
+    .await
+    .unwrap();
     let both = probe.prompts().iter().map(String::len).max().unwrap();
     assert!(
         probe.prompts()[1].contains("lib/extra.rb"),
@@ -1064,7 +1076,7 @@ async fn an_answer_cut_by_the_completion_limit_is_asked_again_on_halves_of_the_f
     );
 
     let llm = answering_per_file().truncating_prompts_over(both - 1);
-    let rules = build_rules(dir.path(), &[wide()], &[use_case()], &context, &llm)
+    let rules = build_rules(dir.path(), &[wide()], &[use_case()], &context, &llm, 1)
         .await
         .unwrap();
 
@@ -1123,7 +1135,7 @@ async fn the_print_of_a_feature_stays_the_same() {
         brief: crate::testing::brief("Delivers meals."),
         ..context(dir.path())
     };
-    build_rules(dir.path(), &[feature()], &[use_case()], &context, &llm)
+    build_rules(dir.path(), &[feature()], &[use_case()], &context, &llm, 1)
         .await
         .unwrap();
     let prints = crate::fingerprints::Fingerprints::load(dir.path()).rules;
