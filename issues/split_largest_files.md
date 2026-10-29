@@ -46,7 +46,7 @@ Split `report.rs` and `chunks.rs` of `retrodoc-pipeline` into their tests and th
 unchanged. Out of scope: the MCP tools, the Markdown render and the OpenRouter tests (their own issues).
 
 ## Plan
-1. [ ] Report tests apart: `report.rs` → `report/mod.rs` + `report/tests.rs` (both test modules); verified by `just check`.
+1. [x] Report tests apart: `report.rs` → `report/mod.rs` + `report/tests.rs` (both test modules); verified by `just check`.
 2. [ ] Report sections apart: set aside, reconciliation, behaviour, uncovered in their own files of `report/`; verified by `just check`.
 3. [ ] Chunks tests apart: `chunks.rs` → `chunks/mod.rs` + `chunks/tests.rs`; verified by `just check`.
 4. [ ] Chunking and excerpts apart: `Focus`, `excerpt` and the pieces in `chunks/excerpt.rs`; verified by `just check` and a second `generate` writing nothing.
@@ -55,3 +55,15 @@ unchanged. Out of scope: the MCP tools, the Markdown render and the OpenRouter t
 - Mode: autonomous
 - Base commit: 2a9c27a
 - Split (user, 2026-10-29): one issue per crate; the OpenRouter tests go to one file per theme under `openrouter/tests/`.
+
+## Deliverable 1: report tests apart
+- done: `report.rs` → `report/mod.rs` (git mv) + `report/tests.rs` + `report/set_apart_tests.rs` (the two test modules kept apart); docs point to `report/`.
+- | check | result |
+  |---|---|
+  | tests, lint, specs (`just check`) | pass |
+  | moved code identical modulo whitespace | yes (script comparison) |
+  | docs (`docs/crates/pipeline.md`, `docs/ARCHITECTURE.md`) | updated |
+- red: none (pure move, no new test)
+- Code review: no findings
+- not verified: none
+- decisions needed: none
