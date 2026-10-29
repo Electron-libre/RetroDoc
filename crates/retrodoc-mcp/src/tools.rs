@@ -13,7 +13,7 @@ use retrodoc_core::model::{
 use retrodoc_ingest::existing_docs::ExistingDoc;
 use retrodoc_pipeline::{domain_models, DomainMap, Glossary};
 
-use crate::corpus::{build_entries, rule_entries, Entry, EntryKind};
+use crate::corpus::{build_entries, feature_id, rule_entries, Entry, EntryKind};
 use crate::freshness::{FileState, Freshness};
 use crate::search::SearchIndex;
 use crate::source::SourceAccess;
@@ -542,10 +542,6 @@ fn set_apart_tag(set_apart: bool) -> &'static str {
     }
 }
 
-fn feature_id(feature: &Feature) -> String {
-    format!("{}/{}", feature.domain_slug, feature.slug)
-}
-
 fn last_segment(id: &str) -> &str {
     id.rsplit('/').next().unwrap_or(id)
 }
@@ -714,6 +710,15 @@ mod tests {
         let out = docs.get_domain("billing");
         assert!(out.contains("Invoices and payments"));
         assert!(out.contains("No feature documented here."));
+    }
+
+    #[test]
+    fn a_domain_is_addressed_by_its_slug_alone() {
+        let out = docs().get_domain("billing/payment");
+        assert!(
+            out.starts_with("Not documented: no domain `billing/payment`."),
+            "{out}"
+        );
     }
 
     #[test]

@@ -184,16 +184,12 @@ fn domain_readme_path(domain_slug: &str) -> PathBuf {
     domain_dir(domain_slug).join("README.md")
 }
 
-fn container(feature: &Feature) -> PathBuf {
-    domain_dir(&feature.domain_slug)
-}
-
 pub(crate) fn feature_path(feature: &Feature) -> PathBuf {
-    container(feature).join(format!("{}.md", segment(&feature.slug)))
+    domain_dir(&feature.domain_slug).join(format!("{}.md", segment(&feature.slug)))
 }
 
 pub(crate) fn use_case_path(feature: &Feature, use_case: &UseCase) -> PathBuf {
-    container(feature)
+    domain_dir(&feature.domain_slug)
         .join("use-cases")
         .join(segment(&feature.slug))
         .join(format!("{}.md", segment(&use_case.slug)))
@@ -348,10 +344,10 @@ fn domain_page(
         );
     };
 
-    let direct: Vec<&&Feature> = features.iter().filter(|f| !f.back_office).collect();
-    if !direct.is_empty() {
+    let business: Vec<&&Feature> = features.iter().filter(|f| !f.back_office).collect();
+    if !business.is_empty() {
         md.push_str("## Features\n\n");
-        for f in direct {
+        for f in business {
             feature_item(&mut md, f);
         }
         md.push('\n');

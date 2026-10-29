@@ -58,8 +58,10 @@ on these types), the features fingerprint key stays `<domain>/-` so a rerun stay
 - Mode: autonomous
 - Base commit: cf3103fc3aacb3b2148e3ef33baf57324d975bd2
 - Old artifacts: read, the sub-domain fields ignored (no `#[serde(default)]` field kept). A rendered page set saved
-  before keeps its sub-domain pages until the next render deletes them (render plan); only a repo documented with the
-  removed `files` path had any, and its features are already dropped (ADR 0035).
+  before keeps its sub-domain pages: the next render writes the pages under `functional/<domain>/` and reports the
+  old ones as stale (the render plan never deletes, they may hold hand-written content). Only a repo documented with
+  the removed `files` path had any, and its features are already dropped (ADR 0035). The files of an old
+  `sub_domains[].paths` are dropped with it, not moved to the domain (same reason).
 - No spec: pure removal of dead code, no spec names sub-domains.
 
 ## Deliverable 1 summary
@@ -95,8 +97,30 @@ on these types), the features fingerprint key stays `<domain>/-` so a rerun stay
 
 - red: none (no spec); the new load test failed with `sub_domain_slug` written on save.
 - Code review: no findings
-- Render check: on a copy of a saved `files`-path run, the first `render` moves its sub-domain pages to
-  `functional/<domain>/`, the second writes nothing.
+- Render check: on a copy of a saved `files`-path run, the first `render` writes the pages under
+  `functional/<domain>/` and reports the sub-domain ones as stale, the second writes nothing.
 - not verified: none.
 - decisions needed: none. The prompt of the contexts pass keeps "business sub-domains" (a word of the prompt, not the
   model; changing it would change the answers).
+
+3. [x] Fixes of the `high` review: one `feature_id` in the MCP (`corpus.rs`), a test that `get_domain` takes a slug
+   alone, `container` inlined and `direct` renamed `business` in the render, the issue text corrected on stale pages.
+
+## Deliverable 3 summary
+- done: the review fixes above; the commit message of deliverable 2 says the old pages "move": they are reported
+  as stale, not deleted.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass |
+| docs | n/a: no doc describes these helpers |
+| code review | low, see below |
+
+- red: none (refactor; the new MCP test passes on the code of deliverable 2).
+- Code review: no findings
+- High review findings not fixed: `get_domain` no longer resolves `billing/x` to `billing` (a domain id is a slug,
+  as `list_domains` shows); the paths of an old `sub_domains` are not moved to their domain (files path only).
+- not verified: none.
+- decisions needed: none.
