@@ -66,6 +66,8 @@ filter of the entries before the features (like `without_unreached_public_api`),
 2. [x] Measure: replay of features and use cases on frozen `lobsters` (paid, see question 2), compared with the
    d8d8c92 baselines (features judged recall 87%, use cases 202); ledger line; verified by the table in the issue.
 
+3. [x] Fixes of the `high` review of the issue (94a83b9..3f11ac4): see the summary of deliverable 3.
+
 ## Decisions
 - Mode: autonomous
 - Base commit: 94a83b9
@@ -139,3 +141,47 @@ Code review: no findings
 
 not verified: the effect on a `surface` generate (the 16 duplicate use cases).
 decisions needed: whether to pay a lobsters `surface` generate (~$0.3) to verify it.
+
+## Deliverable 3 summary (high review of the issue)
+done: RFD-1 to RFD-4 amended and implemented: a path named with a verb is covered by the same path only (a single
+route no longer goes because its controller gives a longer path under it), a placeholder with an extension
+(`{id}.json`) is a placeholder, chained shorthands (`/upvote, /unvote, /flag`) are all read as siblings; the ids come
+from `entry_point_id`, the entries to drop are kept by index (no clone per entry), the coverage checks stop at the
+first file; the contexts limit is written in the doc comment and `pipeline.md`; the `surface` command no longer says
+it shows what the clustering receives; `pipeline.md` says to freeze the features again before a use cases replay.
+
+| high finding | outcome |
+|---|---|
+| verbs ignored, a route dropped under a longer controller path | fixed: same path for a route named with a verb (RFD-3); the verbs themselves are not compared, the two readings disagree on them |
+| a controller judged a routing file by 3 routing files | not fixed, written as a known limit (RFD-4 scenario): excluding such files lost the 25 dropped entries of a real per-resource routes file of the large private Rails app (31 -> 6) |
+| contexts decide on the entries read so far | documented (doc comment, `pipeline.md`) |
+| use cases replay on features frozen before the filter | documented; the measure of deliverable 2 froze its features first |
+| placeholder with an extension | fixed (RFD-1) |
+| chained siblings | fixed (RFD-2) |
+| `retrodoc surface` doc | fixed (doc comment and CLI help); `docs/ARCHITECTURE.md` line 95 says the same and is left: the file holds uncommitted changes of other work |
+| one function for the entry points of the later passes | not done: the domains and features replays have no source tree, so they can't apply the public API filter |
+| id format copied, clones per entry | fixed |
+| quadratic coverage with allocations | allocations removed, checks short-circuit; still quadratic (852 entries measured instantly) |
+
+Measure after the fixes (`routing_duplicates_measure`, no LLM): lobsters `surface` 37 of 302 left out, 1 feature and
+15 use cases holding only them; d8d8c92-1 28, 14 use cases; linkding 0; delivery_router 0; large private Rails app 32
+of 852, 1 feature, 34 use cases (`REST /contracts` read as a resource after the low review).
+
+| check | result |
+|---|---|
+| tests | `just check` green |
+| lint | clippy pedantic clean |
+| specs | RFD-1 to RFD-8 traced, spec accepted |
+| docs | `docs/crates/pipeline.md`, `surface` doc comment and help |
+| code review | `low`: 1 finding, fixed |
+
+red: RFD-1, RFD-2, RFD-3: against the code of a07df3c the new tests failed (`left: RoutePath([Name("stories")])
+right: RoutePath([Name("stories")])` for the verb flag, `/flag` left out of the siblings, `route("/stories")` covered
+by `/stories/:id`).
+
+Code review: 1 finding
+- `low`: any upper-case word (`REST`, `API`) was read as a verb, so `REST /contracts` was a single route: fixed, a
+  verb word is made of HTTP verbs only, with a test.
+
+not verified: a `surface` generate with the filter.
+decisions needed: none.

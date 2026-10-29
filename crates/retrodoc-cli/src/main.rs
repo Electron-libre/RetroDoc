@@ -152,8 +152,9 @@ enum Command {
         path: PathBuf,
     },
     /// Prints the application surface (entities, entry points by resource)
-    /// as the domain clustering receives it. No LLM call; needs the
-    /// artifacts of `retrodoc glossary` and `retrodoc entry-points`.
+    /// from the saved artifacts, before the entry points `generate` leaves
+    /// out. No LLM call; needs the artifacts of `retrodoc glossary` and
+    /// `retrodoc entry-points`.
     Surface {
         #[arg(long, default_value = ".")]
         path: PathBuf,

@@ -16,16 +16,18 @@ use case of its own. The later passes must work from one copy of a route: the on
 
 - **RFD-1** (deterministic) The paths an `http_route` entry names must be read from its name: every word that starts
   with `/`, with its parenthesised optional parts and the extension of its last segment dropped, a trailing `/`
-  ignored, and every placeholder segment (`:id`, `{id}`, `<id>`, `<int:id>`, `[id]`, `*rest`) read as the same
-  placeholder.
-- **RFD-2** (deterministic) A path of one segment must also be read as a sibling of the path before it when it
-  follows a longer path in the same name and no entry of another file covers it (`/unvote` after
-  `/stories/:id/upvote` is `/stories/:id/unvote`).
-- **RFD-3** (deterministic) A path must be covered by an `http_route` entry when its segments are the first segments
-  of one of the paths of that entry, or all of them; the root path `/` is covered by `/` only.
+  ignored, every placeholder segment (`:id`, `{id}`, `<id>`, `<int:id>`, `[id]`, `*rest`, with or without an
+  extension) read as the same placeholder, and named with a verb when a word of HTTP verbs (`GET`, `GET/POST`, not
+  `REST`) comes before it in the name.
+- **RFD-2** (deterministic) A path of one segment must also be read as a sibling of the last longer path before it in
+  the same name when no entry of another file covers it (`/unvote` and `/flag` after `/stories/:id/upvote` are
+  `/stories/:id/unvote` and `/stories/:id/flag`).
+- **RFD-3** (deterministic) A path must be covered by an `http_route` entry when the entry names the same path,
+  whatever its verbs, or, for a path named with no verb (a resource or a namespace), when its segments are the
+  first segments of one of the paths of the entry; the root path `/` is covered by `/` only.
 - **RFD-4** (deterministic) A file must be a routing file when at least 3 other files have an `http_route` entry
-  with a path equal to one of its paths, and when at least half of its `http_route` entries have a path covered by an
-  entry of another file.
+  with the segments of one of its paths, and when at least half of its `http_route` entries have a path covered by
+  an entry of another file.
 - **RFD-5** (deterministic) An `http_route` entry of a routing file must be left out of the entry points the later
   passes work from when each of its paths is covered by an entry of another file that is not a routing file.
 - **RFD-6** (deterministic) An entry must be kept when it names no path, when it has a path no other file covers,
@@ -41,6 +43,9 @@ use case of its own. The later passes must work from one copy of a route: the on
   when the coverage is computed, then `/invitations` is covered.
 - (RFD-3) Given a controller entry `GET /invitations/request` and a routing-file entry `/invitations`, then
   `/invitations/request` is not covered by the routing-file entry (it is longer).
+- (RFD-3) Given `DELETE /stories/:id` and `POST /stories` in `config/routes.rb` and only `GET /stories/:id` in
+  `stories_controller.rb`, then `POST /stories` is not covered and stays; `DELETE /stories/:id` is covered (the
+  file that handles the path is read, the verbs the two readings give are not compared).
 - (RFD-5) Given `GET /signup, POST /signup, /signup/invite` in `config/routes.rb` and `GET /signup`,
   `GET /signup/invite` in `signup_controller.rb`, then the routing-file entry is left out and the controller entries
   stay.
@@ -51,6 +56,8 @@ use case of its own. The later passes must work from one copy of a route: the on
   neither loses an entry to the other.
 - (RFD-4) Given a controller that gives `GET /` and `GET /t/:tag`, also declared by `config/routes.rb` and by one
   other controller, then it is not a routing file (2 other files), even if most of its entries are covered.
+- (RFD-4) Known limit: given three routing files that each declare the paths of one controller, the controller is a
+  routing file too, and the routes that only it and the routing files give stay in all of them.
 
 ## Non-goals
 

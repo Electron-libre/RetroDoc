@@ -5,9 +5,10 @@ use retrodoc_pipeline::{EntryPoints, Glossary, Surface};
 
 use super::workspace::repo_root;
 
-/// Prints the application surface (entities and entry points by resource) as
-/// the domain clustering receives it, from the artifacts of `retrodoc
-/// glossary` and `retrodoc entry-points`; makes no LLM call.
+/// Prints the application surface (entities and entry points by resource)
+/// from the artifacts of `retrodoc glossary` and `retrodoc entry-points`, as
+/// saved: before the entry points `generate` leaves out (the public API no
+/// route reaches, the routes a routing file declares twice); makes no LLM call.
 pub fn run(path: &Path) -> anyhow::Result<()> {
     let repo_root = repo_root(path)?;
     let glossary =

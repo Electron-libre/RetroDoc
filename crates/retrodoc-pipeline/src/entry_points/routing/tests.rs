@@ -46,7 +46,11 @@ fn rails_app(routes: &[&str]) -> EntryPoints {
         ),
         (
             "app/controllers/invitations_controller.rb",
-            &["GET /invitations/request", "POST /invitations"],
+            &[
+                "GET /invitations/request",
+                "POST /invitations",
+                "POST /invitations/send_for_request",
+            ],
         ),
         (
             "app/controllers/stories_controller.rb",
@@ -55,13 +59,20 @@ fn rails_app(routes: &[&str]) -> EntryPoints {
                 "GET /stories/:id",
                 "POST /stories/:id/upvote",
                 "POST /stories/:id/unvote",
+                "POST /stories/:id/flag",
             ],
         ),
     ])
 }
 
+/// A path named with no verb.
 fn path(text: &str) -> RoutePath {
     paths_of(text).remove(0)
+}
+
+/// A path named with a verb.
+fn route(text: &str) -> RoutePath {
+    paths_of(&format!("GET {text}")).remove(0)
 }
 
 // spec: RFD-1 (internal: the filter runs inside `generate`, whose run through the binary needs an LLM)
@@ -69,20 +80,39 @@ fn path(text: &str) -> RoutePath {
 fn the_paths_of_a_name_drop_options_extensions_and_read_every_placeholder_alike() {
     assert_eq!(
         paths_of("GET /signup, POST /signup, /signup/invite and related"),
-        vec![path("/signup"), path("/signup"), path("/signup/invite")]
+        vec![route("/signup"), route("/signup"), route("/signup/invite")]
     );
-    assert_eq!(paths_of("GET /s/:id/(:title)"), vec![path("/s/:x")]);
-    assert_eq!(paths_of("GET /tags.json"), vec![path("/tags")]);
+    assert_eq!(paths_of("GET /s/:id/(:title)"), vec![route("/s/:x")]);
+    assert_eq!(paths_of("GET /tags.json"), vec![route("/tags")]);
     assert_eq!(
         paths_of("GET /api/bookmarks/"),
-        vec![path("/api/bookmarks")]
+        vec![route("/api/bookmarks")]
     );
+    assert_eq!(
+        paths_of("GET/POST /login/reset"),
+        vec![route("/login/reset")]
+    );
+    assert_eq!(
+        paths_of("/stories (resources) and /comments"),
+        vec![path("/stories"), path("/comments")]
+    );
+    assert_ne!(path("/stories"), route("/stories"));
+    assert_eq!(paths_of("REST /contracts"), vec![path("/contracts")]);
     for placeholder in [
-        ":id", "{id}", "<id>", "<int:id>", "[id]", "*rest", ":id.png",
+        ":id",
+        "{id}",
+        "<id>",
+        "<int:id>",
+        "[id]",
+        "*rest",
+        ":id.png",
+        "{id}.json",
+        "<id>.json",
+        "[id].json",
     ] {
         assert_eq!(
             paths_of(&format!("GET /users/{placeholder}")),
-            vec![path("/users/:user")],
+            vec![route("/users/:user")],
             "{placeholder}"
         );
     }
@@ -90,14 +120,14 @@ fn the_paths_of_a_name_drop_options_extensions_and_read_every_placeholder_alike(
         paths_of("MissionControl::Jobs engine"),
         Vec::<RoutePath>::new()
     );
-    assert_eq!(paths_of("GET /"), vec![RoutePath::default()]);
+    assert_eq!(paths_of("GET /"), vec![route("/")]);
 }
 
 // spec: RFD-2, RFD-8 (internal: the filter runs inside `generate`, whose run through the binary needs an LLM)
 #[test]
 fn a_short_path_after_a_longer_one_is_read_as_its_sibling() {
     let (kept_entries, left_out) = rails_app(&[
-        "POST /stories/:id/upvote, /unvote",
+        "POST /stories/:id/upvote, /unvote, /flag",
         "GET /signup",
         "POST /invitations",
     ])
@@ -105,7 +135,7 @@ fn a_short_path_after_a_longer_one_is_read_as_its_sibling() {
     assert_eq!(
         left_out,
         [
-            "config/routes.rb#POST /stories/:id/upvote, /unvote",
+            "config/routes.rb#POST /stories/:id/upvote, /unvote, /flag",
             "config/routes.rb#GET /signup",
             "config/routes.rb#POST /invitations",
         ]
@@ -119,11 +149,16 @@ fn a_short_path_after_a_longer_one_is_read_as_its_sibling() {
 // spec: RFD-3 (internal: the filter runs inside `generate`, whose run through the binary needs an LLM)
 #[test]
 fn a_path_covers_the_longer_paths_it_starts_and_the_root_only_itself() {
-    assert!(path("/invitations").covered_by(&path("/invitations/request")));
-    assert!(path("/stories/:id").covered_by(&path("/stories/{story}")));
+    assert!(path("/invitations").covered_by(&route("/invitations/request")));
+    assert!(path("/stories/:id").covered_by(&route("/stories/{story}")));
     assert!(!path("/invitations/request").covered_by(&path("/invitations")));
-    assert!(!path("/").covered_by(&path("/signup")));
-    assert!(path("/").covered_by(&path("/")));
+    assert!(!path("/").covered_by(&route("/signup")));
+    assert!(route("/").covered_by(&route("/")));
+    // A single route: the same path only, whatever the verbs of the two readings.
+    assert!(!route("/stories").covered_by(&route("/stories/:id")));
+    let delete = paths_of("DELETE /stories/:id").remove(0);
+    assert!(delete.covered_by(&route("/stories/:id")));
+    assert!(route("/signup").covered_by(&path("/signup")));
 }
 
 // spec: RFD-4, RFD-5 (internal: the filter runs inside `generate`, whose run through the binary needs an LLM)
@@ -271,7 +306,7 @@ fn the_saved_inventory_keeps_every_entry() {
         .unwrap()
         .without_routes_declared_elsewhere();
     assert_eq!(left_out.len(), 3);
-    assert_eq!(kept_entries.iter().count(), 9);
+    assert_eq!(kept_entries.iter().count(), 11);
     let saved = EntryPoints::load(dir.path()).unwrap();
     assert_eq!(names(&saved), names(&entries));
 }
