@@ -70,8 +70,10 @@ fn prepare(
 ) -> Result<Inputs, PipelineError> {
     frozen.prepare(pass, work_root)?;
     let glossary = Glossary::load(work_root).ok_or_else(|| missing(work_root, "glossary.yaml"))?;
-    let entry_points =
-        EntryPoints::load(work_root).ok_or_else(|| missing(work_root, "entry-points.yaml"))?;
+    // Without the routes `generate` leaves out (its public API filter is not replayed).
+    let (entry_points, _) = EntryPoints::load(work_root)
+        .ok_or_else(|| missing(work_root, "entry-points.yaml"))?
+        .without_routes_declared_elsewhere();
     let brief = ProductBrief::load(work_root).unwrap_or_default();
     let surface = Surface::new(&glossary, &entry_points);
     Ok(Inputs {
@@ -360,6 +362,10 @@ mod tests {
     const REFERENCE: &str = "repository: r\ncommit: c\npurpose: p\nactors: [Customer]\ndomains:\n  - name: Customers\n    description: d\n    features:\n      - name: Order\n        description: d\n";
 
     fn frozen(dir: &Path) -> FrozenInputs {
+        frozen_with(dir, ENTRY_POINTS)
+    }
+
+    fn frozen_with(dir: &Path, entry_points: &str) -> FrozenInputs {
         let run = dir.join("run");
         let write = |artifact: Artifact, content: &str| {
             let path = artifact.path(&run);
@@ -376,7 +382,7 @@ mod tests {
             write(artifact, "{}");
         }
         write(Artifact::Glossary, GLOSSARY);
-        write(Artifact::EntryPoints, ENTRY_POINTS);
+        write(Artifact::EntryPoints, entry_points);
         let manifest = Manifest {
             repo: "demo".to_string(),
             commit: "c".to_string(),
@@ -387,6 +393,41 @@ mod tests {
             use_cases_origin: None,
         };
         FrozenInputs::freeze(&run, &dir.join("frozen"), &manifest).unwrap()
+    }
+
+    #[test]
+    fn a_replay_works_from_the_entry_points_generate_keeps() {
+        let dir = tempfile::tempdir().unwrap();
+        let route = |name: &str| {
+            format!("    - kind: http_route\n      name: {name}\n      verb: v\n      resource: r\n      description: d\n      outputs: []\n")
+        };
+        let file = |path: &str, names: &[&str]| {
+            let routes: String = names.iter().map(|n| route(n)).collect();
+            format!("  {path}:\n    content_hash: h\n    entry_points:\n{routes}")
+        };
+        let yaml = [
+            file(
+                "config/routes.rb",
+                &["GET /signup", "/invitations", "/stories"],
+            ),
+            file("signup.rb", &["GET /signup"]),
+            file("invitations.rb", &["POST /invitations"]),
+            file("stories.rb", &["POST /stories"]),
+        ]
+        .into_iter()
+        .fold("files:\n".to_string(), |all, f| all + &f);
+        let frozen = frozen_with(dir.path(), &yaml);
+
+        let inputs = prepare(&frozen, ReplayPass::Domains, &dir.path().join("work")).unwrap();
+
+        let files: Vec<String> = inputs
+            .entry_points
+            .files
+            .iter()
+            .filter(|(_, f)| !f.entry_points.is_empty())
+            .map(|(p, _)| p.display().to_string())
+            .collect();
+        assert_eq!(files, ["invitations.rb", "signup.rb", "stories.rb"]);
     }
 
     #[tokio::test]

@@ -63,7 +63,7 @@ filter of the entries before the features (like `without_unreached_public_api`),
    (`application_entry_points`), info log of the ids; spec `specs/routing-file-duplicates.md`; verified by unit tests on
    built inventories (lobsters and linkding shapes) and an example `routing_duplicates_measure` on the saved runs above;
    makes true RFD-1 to RFD-8. ~400 lines.
-2. [ ] Measure: replay of features and use cases on frozen `lobsters` (paid, see question 2), compared with the
+2. [x] Measure: replay of features and use cases on frozen `lobsters` (paid, see question 2), compared with the
    d8d8c92 baselines (features judged recall 87%, use cases 202); ledger line; verified by the table in the issue.
 
 ## Decisions
@@ -103,3 +103,39 @@ Code review: no findings
 
 not verified: the effect on a generate (deliverable 2).
 decisions needed: none.
+
+## Deliverable 2 summary
+done: the replays work from the entry points `generate` keeps (`prepare` and `prepare_with_tree` apply
+`without_routes_declared_elsewhere`; they did not, so a replay measured the old inputs), then the paid measure on a
+copy of the frozen inputs (`frozen/lobsters-rfd`, `frozen/lobsters` untouched), deepseek-chat, at a07df3c + this
+deliverable.
+
+| replay (lobsters, frozen) | items | judged recall | judged precision | calls | prompt tokens |
+|---|---|---|---|---|---|
+| features, without the filter, 3 runs | 79 (76-82) | 99% (97-100) | 47% (44-49) | 10 | 36.8k |
+| features, with the filter, 3 runs | 80 (78-82) | 99% (97-100) | 44% (41-46) | 9 | 32.1k |
+| use cases, with the filter, 1 run | 204 | business 81%, score=1 77% | | 82 | 900k |
+| use cases d8d8c92 baseline (other frame, not comparable) | 202 | business 80%, score=1 72% | | 78 | 810k |
+
+* On the frozen inputs the filter changes nothing measurable but the cost of the features pass (-13% prompt tokens):
+  there the 39 routes entries were placed in the features of their controllers (14 features, 34 use cases cite
+  one), so a use case already covered both copies. The 16 duplicate use cases are on the `surface` run, where
+  grouped entries made features of their own (`invitation-routing`): only a new generate on that path measures them.
+* A routes entry with no path (`stories`, from `resources :stories`, in the part-1 inputs) stays (RFD-6) and made a
+  feature of its own in one run (`story-management-routes`).
+
+| check | result |
+|---|---|
+| tests | `just check` green (1 new: `a_replay_works_from_the_entry_points_generate_keeps`) |
+| lint | clippy pedantic clean |
+| specs | n/a (benchmark tooling) |
+| docs | `docs/crates/pipeline.md` (`benchmark/` row) |
+| code review | `low`: no findings |
+
+red: none (benchmark tooling, no spec id); the new test failed before the change with `left: ["config/routes.rb",
+"invitations.rb", "signup.rb", "stories.rb"]`.
+
+Code review: no findings
+
+not verified: the effect on a `surface` generate (the 16 duplicate use cases).
+decisions needed: whether to pay a lobsters `surface` generate (~$0.3) to verify it.

@@ -112,8 +112,10 @@ pub(super) fn prepare_with_tree(
     frozen.prepare(pass, work_root)?;
     let copied = copy_tree(tree, work_root)?;
     let glossary = Glossary::load(work_root).ok_or_else(|| missing(work_root, "glossary.yaml"))?;
-    let entry_points =
-        EntryPoints::load(work_root).ok_or_else(|| missing(work_root, "entry-points.yaml"))?;
+    // Without the routes `generate` leaves out (its public API filter is not replayed).
+    let (entry_points, _) = EntryPoints::load(work_root)
+        .ok_or_else(|| missing(work_root, "entry-points.yaml"))?
+        .without_routes_declared_elsewhere();
     let actors = Actors::load(work_root).ok_or_else(|| missing(work_root, "actors.yaml"))?;
     let features = load_features(work_root).ok_or_else(|| missing(work_root, "features.yaml"))?;
     let surface = Surface::new(&glossary, &entry_points);
