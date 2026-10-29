@@ -2,7 +2,8 @@ use std::path::Path;
 
 use retrodoc_core::model::{Actor, ActorKind, ConfidenceScore, Step};
 
-use super::super::{render, segment, step_item};
+use super::super::use_case::step_item;
+use super::super::{render, segment};
 use super::{meta, page, sample};
 
 #[test]

@@ -2,7 +2,7 @@
 
 Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and §9.
 
-- **retrodoc-render**: writes the Markdown/Mermaid output to the docs dir (`output.docs_dir`). `render()` builds
+- **retrodoc-render** (`markdown/` (entry points, paths and links in `mod.rs`, one file per page: `agent_index.rs`, `domain.rs`, `feature.rs`, `use_case.rs`, the tests by topic in `tests/`), `rules.rs`, `doc_links.rs`, `plan.rs`): writes the Markdown/Mermaid output to the docs dir (`output.docs_dir`). `render()` builds
   the files in memory (deterministic), `plan()` compares them with the disk (created/updated + unified diff,
   stale files under `functional/` reported but never deleted), `WritePlan::apply()` writes only what differs.
   `_retrodoc/run-metadata.json` has a timestamp that is ignored when it's the only change, so reruns are no-ops. `functional/llms.txt` (`agent_index`) is the `llms.txt`-style entry point for agents that don't
