@@ -4,11 +4,15 @@
 //! to the cited file, the saved files a partial run keeps.
 //!
 //! The changed files, already cut in chunks, are grouped in batches of about
-//! [`BATCH_CHARS`] of code. A batch whose answer is unusable is retried file
-//! by file. A file is handed back only once all its chunks are answered, so
-//! an unusable answer leaves it to be retried whole next run, and the state
-//! is checkpointed after every batch: a failure later in a long run (a call
-//! timing out) must not lose the batches already read.
+//! [`BATCH_CHARS`] of code, never two chunks of one file in the same batch: a
+//! model asked several parts of a file at once can answer for the first one
+//! only (`specs/batched-reading.md`). A batch whose answer is unusable is
+//! retried file by file. A file is handed back only once all its chunks are
+//! answered, so an unusable answer leaves it to be retried whole next run
+//! (with a warning), and the state is checkpointed after every batch: a
+//! failure later in a long run (a call timing out) must not lose the batches
+//! already read. A part that gives nothing while another part of its file
+//! gives something is warned of.
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fmt::Write as _;
@@ -70,6 +74,8 @@ impl<R: DeserializeOwned + schemars::JsonSchema, T, S> BatchedRead<'_, R, T, S> 
             *remaining.entry(path.as_path()).or_insert(0) += 1;
         }
         let mut partial: BTreeMap<&Path, Vec<T>> = BTreeMap::new();
+        // What each answered chunk of a file found, in the order of its parts.
+        let mut found_per_part: BTreeMap<&Path, Vec<usize>> = BTreeMap::new();
 
         let batches = batches(pending);
         let mut progress = Progress::new(self.pass, batches.len());
@@ -99,6 +105,12 @@ impl<R: DeserializeOwned + schemars::JsonSchema, T, S> BatchedRead<'_, R, T, S> 
                             "unusable answer for a batch, retrying its files one by one"
                         );
                         queue.extend(group.chunks(1));
+                    } else {
+                        tracing::warn!(
+                            pass = self.pass,
+                            file = %group[0].0.display(),
+                            "unusable answer for a file, left to read again next run"
+                        );
                     }
                     continue;
                 };
@@ -106,12 +118,14 @@ impl<R: DeserializeOwned + schemars::JsonSchema, T, S> BatchedRead<'_, R, T, S> 
                 let mut found = (self.attribute)(response, group);
                 for (path, hash, _) in group {
                     let key = path.to_string_lossy();
-                    if let Some(items) = found.remove(key.as_ref()) {
-                        partial.entry(path).or_default().extend(items);
-                    }
+                    let items = found.remove(key.as_ref()).unwrap_or_default();
+                    found_per_part.entry(path).or_default().push(items.len());
+                    partial.entry(path).or_default().extend(items);
                     let left = remaining.entry(path).or_insert(1);
                     *left -= 1;
                     if *left == 0 {
+                        let parts = found_per_part.remove(path.as_path()).unwrap_or_default();
+                        self.warn_empty_parts(path, &parts);
                         let items = partial.remove(path.as_path()).unwrap_or_default();
                         (self.finish)(state, path, hash, items);
                     }
@@ -120,6 +134,28 @@ impl<R: DeserializeOwned + schemars::JsonSchema, T, S> BatchedRead<'_, R, T, S> 
             (self.checkpoint)(state)?;
         }
         Ok(())
+    }
+
+    /// Warns of the parts of `path` that found nothing while another part found something
+    /// (`parts`: what each part found, in order).
+    fn warn_empty_parts(&self, path: &Path, parts: &[usize]) {
+        if !parts.iter().any(|&n| n > 0) {
+            return;
+        }
+        let empty: Vec<String> = (1..=parts.len())
+            .zip(parts)
+            .filter(|(_, &n)| n == 0)
+            .map(|(i, _)| i.to_string())
+            .collect();
+        if !empty.is_empty() {
+            tracing::warn!(
+                pass = self.pass,
+                file = %path.display(),
+                parts = empty.join(", "),
+                of = parts.len(),
+                "parts of a file found nothing while the others did"
+            );
+        }
     }
 }
 
@@ -236,14 +272,15 @@ pub(crate) fn group_paths(group: &[PendingChunk]) -> BTreeSet<String> {
 }
 
 /// Groups files so that each batch holds about [`BATCH_CHARS`] of code
-/// (at least one file).
+/// (at least one file) and at most one chunk of a file (the chunks of a
+/// file follow each other).
 fn batches(files: &[PendingChunk]) -> Vec<&[PendingChunk]> {
     let mut out = Vec::new();
     let mut start = 0;
     let mut size = 0;
-    for (i, (_, _, content)) in files.iter().enumerate() {
+    for (i, (path, _, content)) in files.iter().enumerate() {
         let len = content.chars().count();
-        if i > start && size + len > BATCH_CHARS {
+        if i > start && (size + len > BATCH_CHARS || files[i - 1].0 == *path) {
             out.push(&files[start..i]);
             start = i;
             size = 0;
@@ -263,6 +300,18 @@ mod tests {
     use serde::Deserialize;
 
     use crate::testing::FakeLlm;
+
+    // spec: BRD-1 (internal: a long file needs more than 12k characters of code, the batches are built inside the pass)
+    #[test]
+    fn two_parts_of_a_file_never_share_a_batch() {
+        let part = |n: &str| (PathBuf::from(n), String::new(), "x".repeat(4_000));
+        let files = vec![part("a"), part("b"), part("b"), part("b"), part("c")];
+        let paths: Vec<Vec<&str>> = batches(&files)
+            .iter()
+            .map(|b| b.iter().map(|(p, _, _)| p.to_str().unwrap()).collect())
+            .collect();
+        assert_eq!(paths, vec![vec!["a", "b"], vec!["b"], vec!["b", "c"]]);
+    }
 
     #[test]
     fn batches_respect_the_char_budget() {
@@ -361,6 +410,7 @@ mod tests {
         );
     }
 
+    // spec: BRD-1, BRD-2 (internal: the fake LLM answers per prompt, the binary needs a real provider)
     #[tokio::test]
     async fn a_file_is_finished_once_all_its_chunks_are_read() {
         let llm = echo(false);
@@ -369,11 +419,83 @@ mod tests {
 
         spec().run(&llm, &pending, &mut state).await.unwrap();
 
-        // One batch, one call; each chunk of `a` yields one item.
-        assert_eq!(llm.calls(), 1);
+        // The two parts of `a` are asked in two calls, `b` with the second; each yields one item.
+        assert_eq!(llm.calls(), 2);
         assert_eq!(state.done.len(), 2);
         assert!(state.done.contains(&("b".to_string(), 1)));
         assert!(state.done.contains(&("a".to_string(), 2)));
+    }
+
+    /// Answers one item per file of the prompt, except for a file whose text says `empty`.
+    fn per_part() -> FakeLlm {
+        FakeLlm::replying(|_, request| {
+            let mut files = Vec::new();
+            let mut lines = request.messages[1].content.lines().peekable();
+            while let Some(line) = lines.next() {
+                if let Some(path) = line
+                    .strip_prefix("--- ")
+                    .and_then(|l| l.strip_suffix(" ---"))
+                {
+                    if lines.peek().is_some_and(|text| !text.contains("empty")) {
+                        files.push(path.to_string());
+                    }
+                }
+            }
+            Ok(format!(
+                "{{\"files\":{}}}",
+                serde_json::to_string(&files).unwrap()
+            ))
+        })
+    }
+
+    // spec: BRD-3 (internal: the fake LLM answers per part, the binary needs a real provider)
+    #[tokio::test]
+    async fn a_part_with_nothing_beside_parts_with_something_is_warned_of() {
+        let (logs, _guard) = crate::testing::capture_logs();
+        let pending = vec![
+            chunk("routes.rb", "(part 1/3) resources"),
+            chunk("routes.rb", "(part 2/3) empty"),
+            chunk("routes.rb", "(part 3/3) empty"),
+            chunk("empty.rb", "(part 1/2) empty"),
+            chunk("empty.rb", "(part 2/2) empty"),
+        ];
+        let mut state = State::default();
+
+        spec().run(&per_part(), &pending, &mut state).await.unwrap();
+
+        let logs = logs.text();
+        let warnings: Vec<&str> = logs.lines().filter(|l| l.contains("WARN")).collect();
+        assert_eq!(warnings.len(), 1, "{logs}");
+        assert!(warnings[0].contains("pass=\"test\""), "{logs}");
+        assert!(warnings[0].contains("file=routes.rb"), "{logs}");
+        assert!(warnings[0].contains("parts=\"2, 3\""), "{logs}");
+        assert!(state.done.contains(&("routes.rb".to_string(), 1)));
+    }
+
+    // spec: BRD-4 (internal: the fake LLM refuses per prompt, the binary needs a real provider)
+    #[tokio::test]
+    async fn an_unusable_answer_for_a_single_file_is_warned_of() {
+        let (logs, _guard) = crate::testing::capture_logs();
+        let llm = FakeLlm::replying(|_, request| {
+            Ok(if request.messages[1].content.contains("--- b ---") {
+                "no".to_string()
+            } else {
+                r#"{"files":["a"]}"#.to_string()
+            })
+        });
+        let pending = vec![chunk("a", "one"), chunk("b", "two")];
+        let mut state = State::default();
+
+        spec().run(&llm, &pending, &mut state).await.unwrap();
+
+        let logs = logs.text();
+        let skipped: Vec<&str> = logs.lines().filter(|l| l.contains("read again")).collect();
+        assert_eq!(skipped.len(), 1, "{logs}");
+        assert!(
+            skipped[0].contains("pass=\"test\"") && skipped[0].contains("file=b"),
+            "{logs}"
+        );
+        assert_eq!(state.done, vec![("a".to_string(), 1)]);
     }
 
     #[tokio::test]

@@ -172,10 +172,11 @@ async fn a_long_file_is_read_in_chunks_and_saved_once_all_are_read() {
     .await
     .unwrap();
 
+    // One call per part.
     let prompts = llm.prompts();
     assert!(prompts.len() >= 2, "several parts, several calls");
-    assert!(prompts[0].contains("(part 1/"));
-    assert!(prompts[1].contains("(part 3/"));
+    assert!(prompts[0].contains("(part 1/") && !prompts[0].contains("(part 2/"));
+    assert!(prompts[1].contains("(part 2/") && !prompts[1].contains("(part 3/"));
     // The same entry point seen in every part is kept once.
     assert_eq!(inventory.iter().count(), 1);
 }

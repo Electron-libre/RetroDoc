@@ -51,7 +51,7 @@ every file of every user once, ADR 0037) unless the measure after shows the cap 
 1. [x] Measure before: `retrodoc entry-points` 3 times on a copy of the source run with `config/routes.rb` removed from
    `entry-points.yaml` (one call each, deepseek-chat, ~$0.02 in all); entries and last line covered per run, in the
    issue and the ledger. No code.
-2. [ ] One part of a file per call, warnings: `batches` cuts before a second part of a path, the run tracks the
+2. [x] One part of a file per call, warnings: `batches` cuts before a second part of a path, the run tracks the
    findings per part and warns (BRD-3), a single unusable call warns (BRD-4); verified by fake-LLM tests of
    `batched_read.rs`; makes true BRD-1 to BRD-4 (BRD-2 traced on the existing test).
 3. [ ] Measure after: the same 3 runs at the commit of deliverable 2 (3 calls each, ~$0.02); compared with
@@ -72,6 +72,25 @@ The loss does not reproduce: the joint call covered the three parts 3 times out 
 answer of the model (1 of the 4 joint calls seen), not a drop by the code. Asking each part alone still removes the
 case where the model answers for one part of a joint call, and the warning makes the rare case visible: deliverable 2
 stays as planned. Artifacts: `~/retrodoc-runs/entry_points_silent_empty_parts-2df9c6b/` (`before-<n>.log`, `.yaml`).
+
+## Deliverable 2
+- done: `batches` never puts two parts of a file in one batch; the run warns of a part that found nothing while its
+  siblings did and of an unusable answer for a single file; spec `specs/batched-reading.md` (BRD) accepted.
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | pass |
+| specs | BRD traced, accepted |
+| docs | `docs/crates/pipeline.md`, `batched_read.rs` module doc |
+| code review | low, no findings |
+
+- Code review: no findings.
+- red: BRD-1, BRD-2: `left: [["a", "b", "b"], ["b", "c"]]` and `left: 1, right: 2` calls; BRD-3: no warning
+  (`left: 0, right: 1`); BRD-4: no warning (`left: 0, right: 1`).
+- not verified: the effect on the model's answers (deliverable 3).
+- decisions needed: none.
+- The spec draft was committed with this deliverable (deliverable 1 held no code to review).
 
 ## Decisions
 - Mode: autonomous
