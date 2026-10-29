@@ -27,3 +27,51 @@ come back with one entry per route. Bring the rule back, and keep the prompts fr
 # Hints
 * The per-file hash of the reading passes covers the content, the brief and the model; check whether it covers
   the prompt, else a saved run keeps the old entries until the file changes.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Step 1 of the approach answered from saved data (no LLM call): on the frozen inputs of the two benchmark apps, no
+routing file in the sense of the rule (route declarations) is read jointly, so the missing rule has no measurable
+effect there. Proposed: record the measure and close without a prompt change.
+
+## Measure (2026-10-29, at a238861, frozen inputs, no LLM call)
+| repo | routing file | role | business file? | read by | entries |
+|---|---|---|---|---|---|
+| lobsters | `config/routes.rb` (11.6k chars, 3 parts) | entrypoint | no | entry points pass alone (its prompt has the rule) | 39: `resources` collapsed (`stories`, `comments`), every explicit `get`/`post` line one entry |
+| linkding | `bookmarks/api/routes.py` | entrypoint | yes | joint reading | 16, one per action: DRF view sets with their `@action`s plus 5 router registrations, so controller actions, where one entry per action is what the rule asks |
+| linkding | `bookmarks/urls.py` | no rule matches | no | not read | - |
+
+* The per-file hash of the reading passes is `hash_for_model(brief.hash_with(content), llm)`
+  (`batched_read.rs:140`): content, brief, model, not the prompt. A prompt change re-reads nothing in a saved run.
+* Adding the rule to the joint prompt could collapse the linkding view sets (a file named `routes.py`) to one
+  entry per resource: a risk with no gain measured.
+
+## Plan
+1. [x] Record the measure: this table in the issue, one ledger line; no code change; verified by `just check`.
+
+## Decisions
+- Mode: autonomous
+- Base commit: a238861
+- No prompt change: the rule stays out of the joint prompt and the prompts are not shared (risk on view sets, no gain measured) (1 a).
+- The per-route entries of lobsters `config/routes.rb` go to a new issue (2 a).
+
+## Deliverable 1
+done: measure recorded (issue table, ledger line); follow-up issue `routes_file_entries_per_route` opened, ranked 2nd.
+
+| check | result |
+|---|---|
+| tests | `just check` passes |
+| lint | `just check` passes |
+| specs | no capability changed |
+| docs | none touched |
+| code review | low, on the issue files |
+
+red: none
+Code review: no findings (low; issue files only, the new issue file untracked so unread)
+not verified: whether the linkding frozen entry points came from the joint reading (inferred: business_read on by default since 2026-10-12, frozen 2026-10-23)
+decisions needed: none
+
+Done: no prompt change (decision 1 a); nothing left.
