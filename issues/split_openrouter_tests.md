@@ -29,3 +29,33 @@ green.
 * after split_render_markdown
 * Keep the public API of the crate (re-export from `mod.rs`).
 * The line numbers above move with every commit; read the file again at planning.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Split the tests of `crates/retrodoc-llm/src/openrouter.rs` out of the file: `openrouter/mod.rs` keeps the provider,
+`openrouter/tests/` holds the shared helpers and one file per theme; pure move, public API unchanged. Out of scope:
+any change of the production code or of a test body.
+
+## Plan
+1. [x] Helpers, config and retry tests apart: `git mv openrouter.rs openrouter/mod.rs`; `request()` in `openrouter/tests/mod.rs` (`pub(super)`), config and endpoints tests in `tests/config.rs`, retry delay tests in `tests/retry.rs`; the completion, fallback and timeout tests stay inline in `mod.rs` for now, renamed `mod rest_tests` (body untouched) and importing `request`; `docs/crates/llm.md` points to `openrouter/`; verified by `just check` and the moved lines identical modulo whitespace (~500 lines).
+2. [ ] Completion, fallbacks and timeouts apart: `rest_tests` → `tests/completion.rs`, `tests/fallbacks.rs` (with `serve`, `http` and the schema and temperature helpers), `tests/timeouts.rs` (the `// spec: LTO-n` lines move with their tests), dedented; verified by `just check` (specs found) and the test count unchanged (~980 lines).
+
+## Decisions
+- Mode: autonomous
+- Base commit: fc03730
+
+## Deliverable 1: helpers, config and retry tests apart
+- done: `openrouter.rs` → `openrouter/mod.rs` (git mv); `request()` in `openrouter/tests/mod.rs` (`pub(super)`), config and endpoint tests in `tests/config.rs`, retry delay tests in `tests/retry.rs`, imports named; the other tests stay inline as `mod rest_tests` (body untouched); `docs/crates/llm.md` points to `openrouter/`.
+- | check | result |
+  |---|---|
+  | tests, lint, specs (`just check`) | pass |
+  | moved lines identical (sorted line comparison) | yes, apart from imports, `mod` lines and `pub(super)` |
+  | test count of the crate | 46, unchanged |
+  | docs (`docs/crates/llm.md`) | updated |
+- red: none (pure move, no new test)
+- Code review: no findings
+- not verified: none
+- decisions needed: none

@@ -2,7 +2,7 @@
 
 Detail moved out of `CLAUDE.md`. The LLM boundary: `docs/ARCHITECTURE.md` §8.
 
-- **retrodoc-llm** (`types.rs`, `heartbeat.rs`, `openrouter.rs`, `usage.rs`): `LlmProvider` trait abstraction (kept provider-agnostic) + `OpenRouterProvider`, which serves
+- **retrodoc-llm** (`types.rs`, `heartbeat.rs`, `openrouter/` with the provider in `mod.rs` and its tests by theme in `tests/`, `usage.rs`): `LlmProvider` trait abstraction (kept provider-agnostic) + `OpenRouterProvider`, which serves
   `provider = "openrouter"` and `"deepseek"` (same chat-completions format, own endpoint and key variable; ADR 0024), a real `reqwest` HTTP client with exponential-backoff retry on
   429/5xx that honors the delay the server asks for (`Retry-After`, Google's `retryDelay`; up to 120 s, a longer
   one is an error). Per-request HTTP timeout is 120 s, 900 s for a loopback `llm.base_url` (`localhost`, `127.0.0.0/8`, `::1`: a local
