@@ -32,3 +32,46 @@ PHP or Swift repository is classified and briefed without relying on the roles c
 
 # Hints
 * A file newly classified as source enters the file budget and the fingerprints: a saved run re-reads it.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Make the walker's built-in tables (source extensions, test heuristic) and the manifest reader of the product brief
+cover the reference set of `specs/language-agnostic.md`, so these stacks need no roles call to be classified and
+briefed. Out of scope: grammars (LNG-8), framework fixtures (LNG-9), both have their own issue.
+
+## Plan
+1. [x] Walker tables: add `mjs`, `cjs`, `mts`, `cts`, `kts`, `cc` (a `*.gradle.kts` build script stays out of the
+   source), and the `Test`/`Tests` suffix with a capital after a word; verified by a `retrodoc scan` test on a repo
+   with one file per extension and one test per layout (source/test counts), plus unit cases (`Contest.java`,
+   `build.gradle.kts`); makes true LNG-5, LNG-6. ~150 lines.
+2. [ ] Manifests: read `build.gradle`, `build.gradle.kts` (dependency coordinates `group:artifact` from the
+   `implementation`-like calls), `*.csproj` at the root under any name (`PackageReference Include`, name from
+   `AssemblyName` else the file stem), `Package.swift` (package name, `.package(url:` dependencies), `build.sbt`
+   (`name :=`, `"org" %% "artifact"` dependencies), by string scanning, no new crate; verified by a
+   `retrodoc brief --signals` test (13 manifests counted at the root) plus one unit test per format and an
+   unparseable one; makes true LNG-7. ~350 lines.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 9dbfd7c8cd849e7b160af90d6c786b18df65534f
+- Gradle gives no project name (it lives in `settings.gradle`, not a manifest of LNG-7): dependencies only (user, ok).
+
+## Deliverable 1
+- done: walker knows `mjs`, `cjs`, `mts`, `cts`, `kts`, `cc`, keeps `*.gradle.kts` out of the source, and reads
+  `FooTest`/`FooTests` as tests.
+
+| check | result |
+|---|---|
+| tests | `just check` green |
+| lint | clean |
+| specs | LNG-5, LNG-6 traced through `retrodoc scan` |
+| docs | `docs/crates/core-ingest.md` |
+| code review | low, run |
+
+- red: LNG-5, LNG-6: `scan` counted `source: 19, other: 9` for 25 sources, and `source: 3, test: 5` for 8 tests.
+- Code review: no findings
+- not verified: none
+- decisions needed: none

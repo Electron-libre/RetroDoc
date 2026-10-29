@@ -26,9 +26,12 @@ impl FileKind {
     fn from_path(path: &Path) -> Self {
         match path.extension().and_then(|e| e.to_str()) {
             Some("md" | "mdx") => FileKind::Markdown,
+            // A Gradle build script is a manifest, not code of the application.
+            Some("kts") if is_gradle_script(path) => FileKind::Other,
             Some(
-                "rs" | "ts" | "tsx" | "js" | "jsx" | "py" | "go" | "java" | "kt" | "rb" | "php"
-                | "c" | "h" | "cpp" | "hpp" | "cs" | "swift" | "scala" | "sql",
+                "rs" | "ts" | "tsx" | "mts" | "cts" | "js" | "jsx" | "mjs" | "cjs" | "py" | "go"
+                | "java" | "kt" | "kts" | "rb" | "php" | "c" | "h" | "cc" | "cpp" | "hpp" | "cs"
+                | "swift" | "scala" | "sql",
             ) => {
                 if is_test_path(path) {
                     FileKind::Test
@@ -71,9 +74,16 @@ pub fn promote_to_source(files: &mut [FileEntry], extensions: &[String]) -> usiz
     promoted
 }
 
+/// `build.gradle.kts`, `settings.gradle.kts`.
+fn is_gradle_script(path: &Path) -> bool {
+    path.file_stem()
+        .is_some_and(|s| s.to_string_lossy().ends_with(".gradle"))
+}
+
 /// Heuristic test detection on a repo-relative path: a test directory
 /// anywhere in it, or a conventional test file name (`foo_test.go`,
-/// `foo.spec.ts`, `test_foo.py`, `foo_spec.rb`).
+/// `foo.spec.ts`, `test_foo.py`, `foo_spec.rb`, `FooTest.java`,
+/// `FooTests.cs`).
 fn is_test_path(path: &Path) -> bool {
     let in_test_dir = path
         .parent()
@@ -85,12 +95,24 @@ fn is_test_path(path: &Path) -> bool {
     }
     let stem = path
         .file_stem()
-        .map(|s| s.to_string_lossy().to_lowercase())
+        .map(|s| s.to_string_lossy().into_owned())
         .unwrap_or_default();
+    let lower = stem.to_lowercase();
     ["_test", "_spec", ".test", ".spec"]
         .iter()
-        .any(|suffix| stem.ends_with(suffix))
-        || stem.starts_with("test_")
+        .any(|suffix| lower.ends_with(suffix))
+        || lower.starts_with("test_")
+        || has_capital_test_suffix(&stem)
+}
+
+/// `OrderTest`, `OrderTests`: the capital `Test` after a word, so `Contest`
+/// and a bare `Test` are not tests.
+fn has_capital_test_suffix(stem: &str) -> bool {
+    let word = stem
+        .strip_suffix("Tests")
+        .or_else(|| stem.strip_suffix("Test"));
+    word.and_then(|w| w.chars().last())
+        .is_some_and(char::is_alphanumeric)
 }
 
 #[derive(Debug, Clone)]
@@ -262,6 +284,8 @@ mod tests {
             "pkg/handler_test.go",
             "web/app.spec.ts",
             "tools/test_parser.py",
+            "src/main/java/shop/OrderTest.java",
+            "Shop/OrderTests.cs",
         ] {
             assert_eq!(
                 FileKind::from_path(Path::new(test)),
@@ -274,6 +298,9 @@ mod tests {
             "src/testing_utils.rs",
             "app/latest.py",
             "src/contest/a.rs",
+            "src/main/java/shop/Contest.java",
+            "src/main/java/shop/Test.java",
+            "src/main/kotlin/Order.kts",
         ] {
             assert_eq!(
                 FileKind::from_path(Path::new(source)),
@@ -281,6 +308,10 @@ mod tests {
                 "{source}"
             );
         }
+        assert_eq!(
+            FileKind::from_path(Path::new("build.gradle.kts")),
+            FileKind::Other
+        );
         // Non-code files under a test dir stay non-code.
         assert_eq!(
             FileKind::from_path(Path::new("tests/test_api.yml")),
