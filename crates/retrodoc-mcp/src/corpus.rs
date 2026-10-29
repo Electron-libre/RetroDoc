@@ -1,5 +1,5 @@
-//! What the agent can find: one [`Entry`] per domain, sub-domain, feature,
-//! use case, glossary concept and collected Markdown doc, flattened to text
+//! What the agent can find: one [`Entry`] per domain, feature, use case,
+//! glossary concept and collected Markdown doc, flattened to text
 //! with the identity, confidence and cited files the answers will carry.
 
 use retrodoc_core::model::{BusinessRule, Domain, Feature, RuleEvidence, UseCase};
@@ -33,10 +33,9 @@ impl EntryKind {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Entry {
     pub kind: EntryKind,
-    /// Stable address: `billing`, `billing/payment` (sub-domain),
-    /// `billing/pay-invoice` (feature), `billing/pay-invoice/pay-by-card`
-    /// (use case), an entity name, or a repo-relative doc path. A feature in
-    /// a sub-domain is `billing/payment/pay-invoice`.
+    /// Stable address: `billing` (domain), `billing/pay-invoice` (feature),
+    /// `billing/pay-invoice/pay-by-card` (use case), an entity name, or a
+    /// repo-relative doc path.
     pub id: String,
     pub title: String,
     /// The searchable text.
@@ -57,10 +56,7 @@ fn lines(parts: impl IntoIterator<Item = String>) -> String {
 }
 
 fn feature_id(feature: &Feature) -> String {
-    match &feature.sub_domain_slug {
-        Some(sub) => format!("{}/{sub}/{}", feature.domain_slug, feature.slug),
-        None => format!("{}/{}", feature.domain_slug, feature.slug),
-    }
+    format!("{}/{}", feature.domain_slug, feature.slug)
 }
 
 fn domain_entries(domains: &[Domain]) -> Vec<Entry> {
@@ -74,16 +70,6 @@ fn domain_entries(domains: &[Domain]) -> Vec<Entry> {
             confidence: domain.confidence.as_ref().map(|c| c.value),
             sources: Vec::new(),
         });
-        for sub in &domain.sub_domains {
-            entries.push(Entry {
-                kind: EntryKind::Domain,
-                id: format!("{}/{}", domain.slug, sub.slug),
-                title: sub.name.clone(),
-                text: lines([sub.name.clone(), sub.description.clone()]),
-                confidence: sub.confidence.as_ref().map(|c| c.value),
-                sources: Vec::new(),
-            });
-        }
     }
     entries
 }
@@ -244,7 +230,7 @@ pub fn build_entries(
 #[cfg(test)]
 pub(crate) mod fixtures {
     use retrodoc_core::model::{
-        Actor, ActorKind, ConfidenceScore, Domain, Feature, SourceRef, Step, SubDomain, UseCase,
+        Actor, ActorKind, ConfidenceScore, Domain, Feature, SourceRef, Step, UseCase,
     };
 
     pub fn domain(slug: &str, name: &str, description: &str) -> Domain {
@@ -252,12 +238,6 @@ pub(crate) mod fixtures {
             slug: slug.into(),
             name: name.into(),
             description: description.into(),
-            sub_domains: vec![SubDomain {
-                slug: "payment".into(),
-                name: "Payment".into(),
-                description: "Collecting the money".into(),
-                confidence: None,
-            }],
             confidence: Some(ConfidenceScore::new(0.8, None)),
         }
     }
@@ -267,7 +247,6 @@ pub(crate) mod fixtures {
             back_office: false,
             slug: slug.into(),
             domain_slug: "billing".into(),
-            sub_domain_slug: None,
             name: name.into(),
             description: description.into(),
             source_paths: vec!["app/invoice.rb".into()],
@@ -348,7 +327,6 @@ mod tests {
             all,
             [
                 "billing",
-                "billing/payment",
                 "billing/pay-invoice",
                 "billing/pay-invoice/pay-by-card",
                 "docs/billing.md"
@@ -368,14 +346,6 @@ mod tests {
         assert!(use_case.text.contains("POST /invoices/:id/pay"));
         assert_eq!(use_case.confidence, Some(0.9));
         assert_eq!(use_case.sources, ["app/invoice.rb", "app/mailer.rb"]);
-    }
-
-    #[test]
-    fn a_feature_in_a_sub_domain_is_addressed_through_it() {
-        let mut feature = feature("refund", "Refund", "Give money back");
-        feature.sub_domain_slug = Some("payment".into());
-        let entries = build_entries(&[], &[feature], &[], &Glossary::default(), &[]);
-        assert_eq!(entries[0].id, "billing/payment/refund");
     }
 
     #[test]

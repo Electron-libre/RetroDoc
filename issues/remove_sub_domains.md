@@ -47,7 +47,7 @@ on these types), the features fingerprint key stays `<domain>/-` so a rerun stay
    `RunMetrics.sub_domains` and the `sub-domain(s)` of the benchmark summary; `unit_key` loses its sub-domain argument
    (key unchanged); verified by a test that an old `domains.yaml` holding `sub_domains` still loads, and the updated
    benchmark tests; ~250 lines.
-2. [ ] Core model and readers: drop `Domain.sub_domains`, `SubDomain`, `Feature.sub_domain_slug`; the render loses the
+2. [x] Core model and readers: drop `Domain.sub_domains`, `SubDomain`, `Feature.sub_domain_slug`; the render loses the
    sub-domain sections and paths, the MCP its `billing/payment` addresses and sub-domain listing, the report its
    sub-domain confidences; fixtures updated; docs (`README.md`, `PLAN.md` §2, `docs/crates/render-mcp-cli.md`,
    `docs/crates/pipeline.md`); verified by a test that an old `features.yaml` holding `sub_domain_slug` still loads,
@@ -79,3 +79,24 @@ on these types), the features fingerprint key stays `<domain>/-` so a rerun stay
 - Code review: no findings
 - not verified: none.
 - decisions needed: none.
+
+## Deliverable 2 summary
+- done: `Domain.sub_domains`, `SubDomain`, `Feature.sub_domain_slug` removed; the render puts every feature page under
+  `functional/<domain>/`, the MCP addresses a domain by its slug only (`get_domain("billing/x")` is unknown), the
+  report gives the domain confidence only; docs updated.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass (warnings predate the change) |
+| docs | `README.md`, `PLAN.md` §3 and §5, `docs/crates/render-mcp-cli.md` |
+| code review | low, see below |
+
+- red: none (no spec); the new load test failed with `sub_domain_slug` written on save.
+- Code review: no findings
+- Render check: on a copy of a saved `files`-path run, the first `render` moves its sub-domain pages to
+  `functional/<domain>/`, the second writes nothing.
+- not verified: none.
+- decisions needed: none. The prompt of the contexts pass keeps "business sub-domains" (a word of the prompt, not the
+  model; changing it would change the answers).

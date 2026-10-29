@@ -10,7 +10,6 @@ fn feature(entry_points: &[&str]) -> Feature {
         back_office: false,
         slug: "f".to_string(),
         domain_slug: "d".to_string(),
-        sub_domain_slug: None,
         name: "F".to_string(),
         description: "d".to_string(),
         source_paths: Vec::new(),

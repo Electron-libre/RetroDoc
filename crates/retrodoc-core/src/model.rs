@@ -46,17 +46,6 @@ pub struct Domain {
     pub slug: Slug,
     pub name: String,
     pub description: String,
-    pub sub_domains: Vec<SubDomain>,
-    /// `None` until the confidence pass (roadmap phase 5) has scored it.
-    #[serde(default)]
-    pub confidence: Option<ConfidenceScore>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SubDomain {
-    pub slug: Slug,
-    pub name: String,
-    pub description: String,
     /// `None` until the confidence pass (roadmap phase 5) has scored it.
     #[serde(default)]
     pub confidence: Option<ConfidenceScore>,
@@ -66,7 +55,6 @@ pub struct SubDomain {
 pub struct Feature {
     pub slug: Slug,
     pub domain_slug: Slug,
-    pub sub_domain_slug: Option<Slug>,
     pub name: String,
     pub description: String,
     /// Source files (repo-relative) this feature is grounded on; the code

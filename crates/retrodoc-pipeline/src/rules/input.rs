@@ -106,7 +106,6 @@ mod tests {
             back_office: false,
             slug: "refunds".into(),
             domain_slug: "billing".into(),
-            sub_domain_slug: None,
             name: "Refund an order".into(),
             description: "A buyer gets money back".into(),
             source_paths: paths.iter().map(ToString::to_string).collect(),

@@ -10,7 +10,6 @@ fn feature(slug: &str, paths: &[&str]) -> Feature {
         back_office: false,
         slug: slug.to_string(),
         domain_slug: "billing".to_string(),
-        sub_domain_slug: None,
         name: slug.to_string(),
         description: "d".to_string(),
         source_paths: paths.iter().map(ToString::to_string).collect(),

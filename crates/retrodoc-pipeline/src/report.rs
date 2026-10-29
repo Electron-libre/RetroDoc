@@ -109,7 +109,6 @@ pub fn domain_models(map: &DomainMap, features: &[Feature]) -> Vec<Domain> {
             slug: d.slug.clone(),
             name: d.name.clone(),
             description: d.description.clone(),
-            sub_domains: Vec::new(),
             confidence: mean_confidence(features.iter().filter(|f| f.domain_slug == d.slug)),
         })
         .collect()
@@ -679,7 +678,6 @@ mod tests {
             back_office: false,
             slug: slug.to_string(),
             domain_slug: domain.to_string(),
-            sub_domain_slug: None,
             name: slug.to_string(),
             description: String::new(),
             source_paths: vec![],
@@ -1103,7 +1101,6 @@ mod set_apart_tests {
         let mut admin = Feature {
             slug: "admin-tools".into(),
             domain_slug: "ops".into(),
-            sub_domain_slug: None,
             name: "Admin".into(),
             description: String::new(),
             source_paths: Vec::new(),

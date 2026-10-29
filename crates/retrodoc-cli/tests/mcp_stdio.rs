@@ -16,7 +16,6 @@ fn generated_repo() -> tempfile::TempDir {
         back_office: false,
         slug: "pay-invoice".into(),
         domain_slug: "billing".into(),
-        sub_domain_slug: None,
         name: "Pay an invoice".into(),
         description: "Settle what is due".into(),
         source_paths: vec!["app/invoice.rb".into()],

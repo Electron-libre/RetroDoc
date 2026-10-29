@@ -19,7 +19,6 @@ fn feature() -> Feature {
         back_office: false,
         slug: "orders".into(),
         domain_slug: "delivery".into(),
-        sub_domain_slug: None,
         name: "Place an order".into(),
         description: "A customer orders a meal".into(),
         source_paths: vec!["lib/router.rb".into()],

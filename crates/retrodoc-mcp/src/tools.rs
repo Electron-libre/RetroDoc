@@ -124,7 +124,7 @@ impl Docs {
         &self.index
     }
 
-    /// Every domain and sub-domain, with the number of features.
+    /// Every domain, with the number of features.
     #[must_use]
     pub fn list_domains(&self) -> String {
         if self.domains.is_empty() {
@@ -145,51 +145,27 @@ impl Docs {
                 one_line(&domain.description),
                 confidence_short(domain.confidence.as_ref()),
             );
-            for sub in &domain.sub_domains {
-                let _ = writeln!(
-                    out,
-                    "  - `{}/{}` — {}: {}",
-                    domain.slug,
-                    sub.slug,
-                    sub.name,
-                    one_line(&sub.description)
-                );
-            }
         }
         out.push_str("\nUse `get_domain` with an id to see its features.\n");
         out
     }
 
-    /// A domain (`billing`) or sub-domain (`billing/payment`) and its features.
+    /// A domain (`billing`) and its features.
     #[must_use]
     pub fn get_domain(&self, id: &str) -> String {
-        let (domain_slug, sub_slug) = match id.split_once('/') {
-            Some((d, s)) => (d, Some(s)),
-            None => (id, None),
-        };
-        let Some(domain) = self.domains.iter().find(|d| d.slug == domain_slug) else {
+        let Some(domain) = self.domains.iter().find(|d| d.slug == id) else {
             return self.unknown("domain", id, "list_domains");
         };
-        let (name, description, confidence) = match sub_slug {
-            None => (
-                &domain.name,
-                &domain.description,
-                domain.confidence.as_ref(),
-            ),
-            Some(slug) => match domain.sub_domains.iter().find(|s| s.slug == slug) {
-                Some(sub) => (&sub.name, &sub.description, sub.confidence.as_ref()),
-                None => return self.unknown("domain", id, "list_domains"),
-            },
-        };
         let mut out = format!(
-            "# {name} (`{id}`)\n\n{description}\n\n{}\n",
-            confidence_line(confidence)
+            "# {} (`{id}`)\n\n{}\n\n{}\n",
+            domain.name,
+            domain.description,
+            confidence_line(domain.confidence.as_ref())
         );
         let features: Vec<&Feature> = self
             .features
             .iter()
-            .filter(|f| f.domain_slug == domain_slug)
-            .filter(|f| sub_slug.is_none_or(|s| f.sub_domain_slug.as_deref() == Some(s)))
+            .filter(|f| f.domain_slug == id)
             .collect();
         if features.is_empty() {
             out.push_str("\nNo feature documented here.\n");
@@ -567,10 +543,7 @@ fn set_apart_tag(set_apart: bool) -> &'static str {
 }
 
 fn feature_id(feature: &Feature) -> String {
-    match &feature.sub_domain_slug {
-        Some(sub) => format!("{}/{sub}/{}", feature.domain_slug, feature.slug),
-        None => format!("{}/{}", feature.domain_slug, feature.slug),
-    }
+    format!("{}/{}", feature.domain_slug, feature.slug)
 }
 
 fn last_segment(id: &str) -> &str {
@@ -714,12 +687,11 @@ mod tests {
     }
 
     #[test]
-    fn domains_are_listed_with_their_sub_domains_and_feature_counts() {
+    fn domains_are_listed_with_their_feature_counts() {
         let out = docs().list_domains();
         assert!(out.contains(
             "- `billing` — Billing: Invoices and payments (confidence 80%, 2 feature(s))"
         ));
-        assert!(out.contains("  - `billing/payment` — Payment: Collecting the money"));
     }
 
     #[test]
@@ -731,9 +703,16 @@ mod tests {
     }
 
     #[test]
-    fn a_sub_domain_without_feature_says_so() {
-        let out = docs().get_domain("billing/payment");
-        assert!(out.contains("Collecting the money"));
+    fn a_domain_without_feature_says_so() {
+        let docs = Docs::new(
+            vec![domain("billing", "Billing", "Invoices and payments")],
+            vec![],
+            vec![],
+            &Glossary::default(),
+            &[],
+        );
+        let out = docs.get_domain("billing");
+        assert!(out.contains("Invoices and payments"));
         assert!(out.contains("No feature documented here."));
     }
 

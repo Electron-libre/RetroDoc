@@ -601,7 +601,6 @@ fn the_features_follow_the_order_of_the_map_and_a_removed_context_leaves_none() 
         back_office: false,
         slug: slug.to_string(),
         domain_slug: domain.to_string(),
-        sub_domain_slug: None,
         name: slug.to_string(),
         description: String::new(),
         source_paths: Vec::new(),

@@ -82,17 +82,14 @@ async fn blocking(work: impl FnOnce() -> String + Send + 'static) -> String {
 #[tool_router]
 impl DocsServer {
     #[tool(
-        description = "List the functional domains of the application (and their sub-domains) \
-                       with a description and a confidence score. Start here to find your way."
+        description = "List the functional domains of the application with a description and a \
+                       confidence score. Start here to find your way."
     )]
     async fn list_domains(&self) -> String {
         self.docs.list_domains()
     }
 
-    #[tool(
-        description = "Show one domain or sub-domain (e.g. `billing`, `billing/payment`) and \
-                       its features and business rules."
-    )]
+    #[tool(description = "Show one domain (e.g. `billing`) and its features and business rules.")]
     async fn get_domain(&self, Parameters(IdParams { id }): Parameters<IdParams>) -> String {
         self.docs.get_domain(&id)
     }

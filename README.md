@@ -20,9 +20,8 @@ docs/
     llms.txt                             # index for agents: domains, features, confidence
     <domain>/
       README.md                          # domain overview, confidence
-      <sub-domain>/
-        <feature>.md                     # list of use cases
-        use-cases/<feature>/<use-case>.md  # business narrative, steps, actors, diagram, confidence
+      <feature>.md                       # list of use cases
+      use-cases/<feature>/<use-case>.md  # business narrative, steps, actors, diagram, confidence
   _retrodoc/
     coverage-report.md                   # gaps and low-confidence sections
     run-metadata.json                    # model, date, analyzed commit

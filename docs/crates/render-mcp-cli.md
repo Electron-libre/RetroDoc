@@ -13,7 +13,7 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
 - **retrodoc-mcp** (`corpus.rs`, `search.rs`, `freshness.rs`, `source.rs`, `tools.rs`, `server.rs`): read-only access to the generated docs
   for LLM agents, with no LLM call (see `issues/done/mcp_server.md`). `SearchIndex` ranks (the hand-written BM25 of `retrodoc-pipeline`'s `bm25.rs`, shared with the pipeline, title counted
   three times, stop words in English and French dropped, at least half of the query words must match) one `Entry` per
-  domain, sub-domain, feature, use case, glossary concept and collected Markdown doc, each with its id, confidence and
+  domain, feature, use case, glossary concept and collected Markdown doc, each with its id, confidence and
   cited files. `Docs` (`Docs::load` reads `.retrodoc/cache/`, business rules included, + the collected docs) answers the seven tools in Markdown
   (`list_domains`, `get_domain`, `get_feature`, `get_use_case`, `search_docs`, `read_source`, `git_log`): ids to reuse, confidence (flagged below
   50%), cited files, a stale warning when a cited file no longer matches the hash recorded in `source-hashes.json` (`SourceHashes`, written only by a `generate` that went through every pass, hashes read before the features)

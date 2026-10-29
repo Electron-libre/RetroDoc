@@ -3,8 +3,8 @@
 //! ```text
 //! functional/llms.txt
 //! functional/<domain>/README.md
-//! functional/<domain>[/<sub-domain>]/<feature>.md
-//! functional/<domain>[/<sub-domain>]/use-cases/<feature>/<use-case>.md
+//! functional/<domain>/<feature>.md
+//! functional/<domain>/use-cases/<feature>/<use-case>.md
 //! _retrodoc/coverage-report.md
 //! _retrodoc/run-metadata.json
 //! ```
@@ -185,11 +185,7 @@ fn domain_readme_path(domain_slug: &str) -> PathBuf {
 }
 
 fn container(feature: &Feature) -> PathBuf {
-    let dir = domain_dir(&feature.domain_slug);
-    match &feature.sub_domain_slug {
-        Some(sub) => dir.join(segment(sub)),
-        None => dir,
-    }
+    domain_dir(&feature.domain_slug)
 }
 
 pub(crate) fn feature_path(feature: &Feature) -> PathBuf {
@@ -304,21 +300,8 @@ fn agent_index(domains: &[Domain], features: &[Feature], rule_count: usize) -> S
             .iter()
             .filter(|f| f.domain_slug == domain.slug)
             .collect();
-        let in_sub = |f: &Feature| {
-            f.sub_domain_slug
-                .as_ref()
-                .is_some_and(|s| domain.sub_domains.iter().any(|d| &d.slug == s))
-        };
-        for f in own.iter().filter(|f| !in_sub(f) && !f.back_office) {
+        for f in own.iter().filter(|f| !f.back_office) {
             feature_item(&mut md, "  ", f);
-        }
-        for sub in &domain.sub_domains {
-            let _ = writeln!(md, "  - {}: {}", sub.name, one_line(&sub.description));
-            for f in own.iter().filter(|f| {
-                f.sub_domain_slug.as_deref() == Some(sub.slug.as_str()) && !f.back_office
-            }) {
-                feature_item(&mut md, "    ", f);
-            }
         }
         if own.iter().any(|f| f.back_office) {
             let _ = writeln!(md, "  - {TECHNICAL_HEADING}:");
@@ -365,15 +348,7 @@ fn domain_page(
         );
     };
 
-    let is_in_sub = |f: &&&Feature| {
-        f.sub_domain_slug
-            .as_ref()
-            .is_some_and(|s| domain.sub_domains.iter().any(|d| &d.slug == s))
-    };
-    let direct: Vec<&&Feature> = features
-        .iter()
-        .filter(|f| !is_in_sub(f) && !f.back_office)
-        .collect();
+    let direct: Vec<&&Feature> = features.iter().filter(|f| !f.back_office).collect();
     if !direct.is_empty() {
         md.push_str("## Features\n\n");
         for f in direct {
@@ -382,19 +357,6 @@ fn domain_page(
         md.push('\n');
     }
 
-    if !domain.sub_domains.is_empty() {
-        md.push_str("## Sub-domains\n\n");
-        for sub in &domain.sub_domains {
-            let _ = write!(md, "### {}\n\n{}\n\n", sub.name, sub.description.trim());
-            let _ = writeln!(md, "{}\n", confidence_line(sub.confidence.as_ref()));
-            for f in features.iter().filter(|f| {
-                f.sub_domain_slug.as_deref() == Some(sub.slug.as_str()) && !f.back_office
-            }) {
-                feature_item(&mut md, f);
-            }
-            md.push('\n');
-        }
-    }
     if features.iter().any(|f| f.back_office) {
         let _ = write!(md, "## {TECHNICAL_HEADING}\n\n{TECHNICAL_NOTE}\n\n");
         for f in features.iter().filter(|f| f.back_office) {
@@ -608,7 +570,7 @@ fn trim_end(md: &str) -> String {
 mod tests {
     use super::*;
 
-    use retrodoc_core::model::{Actor, ActorKind, SourceRef, SubDomain};
+    use retrodoc_core::model::{Actor, ActorKind, SourceRef};
 
     fn meta() -> RunMetadata {
         RunMetadata {
@@ -623,12 +585,6 @@ mod tests {
             slug: "billing".to_string(),
             name: "Billing".to_string(),
             description: "Invoices.".to_string(),
-            sub_domains: vec![SubDomain {
-                slug: "payment".to_string(),
-                name: "Payment".to_string(),
-                description: "Paying.".to_string(),
-                confidence: None,
-            }],
             confidence: Some(ConfidenceScore::new(0.8, None)),
         }];
         let features = vec![
@@ -636,7 +592,6 @@ mod tests {
                 back_office: false,
                 slug: "pay-invoice".to_string(),
                 domain_slug: "billing".to_string(),
-                sub_domain_slug: Some("payment".to_string()),
                 name: "Pay an invoice".to_string(),
                 description: "Customers pay.".to_string(),
                 source_paths: vec!["src/pay.rs".to_string()],
@@ -647,7 +602,6 @@ mod tests {
                 back_office: false,
                 slug: "list".to_string(),
                 domain_slug: "billing".to_string(),
-                sub_domain_slug: None,
                 name: "List".to_string(),
                 description: "Listing.".to_string(),
                 source_paths: vec![],
@@ -719,7 +673,7 @@ mod tests {
         business.confidence = Some(ConfidenceScore::new(0.9, None));
         u.push(business);
         let files = render(&d, &f, &u, "", &meta()).unwrap();
-        let feature = page(&files, "functional/billing/payment/pay-invoice.md");
+        let feature = page(&files, "functional/billing/pay-invoice.md");
         let (core, apart) = feature
             .split_once("## Administration and technical")
             .expect("a section for what is set apart");
@@ -754,7 +708,7 @@ mod tests {
             .expect("a group for the back-office features");
         assert!(!core.contains("pay-invoice.md") && apart.contains("pay-invoice.md"));
         // The use case of a back-office feature is set apart even with a good score.
-        let feature = page(&files, "functional/billing/payment/pay-invoice.md");
+        let feature = page(&files, "functional/billing/pay-invoice.md");
         assert!(feature.contains("All of them are set apart below."));
     }
 
@@ -767,8 +721,8 @@ mod tests {
             paths,
             [
                 "functional/billing/README.md",
-                "functional/billing/payment/pay-invoice.md",
-                "functional/billing/payment/use-cases/pay-invoice/pay-by-card.md",
+                "functional/billing/pay-invoice.md",
+                "functional/billing/use-cases/pay-invoice/pay-by-card.md",
                 "functional/billing/list.md",
                 "functional/llms.txt",
                 "_retrodoc/coverage-report.md",
@@ -784,15 +738,15 @@ mod tests {
         };
 
         let readme = content("functional/billing/README.md");
-        assert!(readme.contains("](payment/pay-invoice.md)"));
+        assert!(readme.contains("](pay-invoice.md)"));
         assert!(readme.contains("](list.md)"));
 
-        let feature = content("functional/billing/payment/pay-invoice.md");
-        assert!(feature.contains("](../README.md)"));
+        let feature = content("functional/billing/pay-invoice.md");
+        assert!(feature.contains("](README.md)"));
         assert!(feature.contains("](use-cases/pay-invoice/pay-by-card.md)"));
         assert!(feature.contains("⚠️ 30% — weak"));
 
-        let use_case = content("functional/billing/payment/use-cases/pay-invoice/pay-by-card.md");
+        let use_case = content("functional/billing/use-cases/pay-invoice/pay-by-card.md");
         assert!(use_case.contains("](../../pay-invoice.md)"));
         assert!(use_case.contains("1. **Customer** (human) — submit. Submit the form"));
         assert!(use_case.contains("`src/pay.rs:3-9`"));
@@ -861,9 +815,7 @@ mod tests {
             "{index}"
         );
         assert!(
-            index.contains(
-                "[Pay an invoice](billing/payment/pay-invoice.md) (⚠️ 30%): Customers pay."
-            ),
+            index.contains("[Pay an invoice](billing/pay-invoice.md) (⚠️ 30%): Customers pay."),
             "{index}"
         );
         assert!(
@@ -982,7 +934,7 @@ mod tests {
                 .clone()
         };
 
-        let feature = content("functional/billing/payment/pay-invoice.md");
+        let feature = content("functional/billing/pay-invoice.md");
         assert!(feature.contains("## Business rules\n\n- An invoice already paid cannot be paid again. (State transition, 85%)"), "{feature}");
         assert!(
             feature.contains("  - Use cases: [Pay by card](use-cases/pay-invoice/pay-by-card.md)"),
@@ -1004,14 +956,14 @@ mod tests {
         );
         assert!(!feature.contains("Only open invoices"), "{feature}");
 
-        let use_case = content("functional/billing/payment/use-cases/pay-invoice/pay-by-card.md");
+        let use_case = content("functional/billing/use-cases/pay-invoice/pay-by-card.md");
         assert!(use_case.contains("## Business rules"), "{use_case}");
         assert!(use_case.contains("cannot be paid again"), "{use_case}");
         assert!(!use_case.contains("above the limit"), "{use_case}");
 
         let domain = content("functional/billing/README.md");
         assert!(domain.contains("## Business rules"), "{domain}");
-        assert!(domain.contains("- A payment above the limit is refused. (Limit, ⚠️ 40%) — [Pay an invoice](payment/pay-invoice.md)"), "{domain}");
+        assert!(domain.contains("- A payment above the limit is refused. (Limit, ⚠️ 40%) — [Pay an invoice](pay-invoice.md)"), "{domain}");
         assert!(
             domain.contains(
                 "Only open invoices are listed. (Validation, not scored) — [List](list.md)"
@@ -1067,25 +1019,25 @@ mod tests {
             ),
             "{domain}"
         );
-        let feature = page(&files, "functional/billing/payment/pay-invoice.md");
+        let feature = page(&files, "functional/billing/pay-invoice.md");
         assert!(
             feature.contains(
-                "- [`README.md`](../../../../README.md) ⚠️ states otherwise: Invoices are paid by wire only.\n"
+                "- [`README.md`](../../../README.md) ⚠️ states otherwise: Invoices are paid by wire only.\n"
             ),
             "{feature}"
         );
         assert!(
             feature.contains(
-                "  - Existing doc: [`docs/guide.md`, section \"Limits\"](../../../guide.md#limits)\n"
+                "  - Existing doc: [`docs/guide.md`, section \"Limits\"](../../guide.md#limits)\n"
             ),
             "{feature}"
         );
         let use_case = page(
             &files,
-            "functional/billing/payment/use-cases/pay-invoice/pay-by-card.md",
+            "functional/billing/use-cases/pay-invoice/pay-by-card.md",
         );
         assert!(
-            use_case.contains("](../../../../../guide.md#paying-by-card)"),
+            use_case.contains("](../../../../guide.md#paying-by-card)"),
             "{use_case}"
         );
         assert!(!page(&files, "functional/billing/list.md").contains("Existing documentation"));
@@ -1118,7 +1070,7 @@ mod tests {
         assert!(invoice < payment && payment < other, "{index}");
         assert!(index.contains("3 rule(s)"), "{index}");
         assert!(
-            index.contains("— [Pay an invoice](billing/payment/pay-invoice.md)"),
+            index.contains("— [Pay an invoice](billing/pay-invoice.md)"),
             "{index}"
         );
         assert!(

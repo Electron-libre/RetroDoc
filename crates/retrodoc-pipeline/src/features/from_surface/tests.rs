@@ -417,7 +417,6 @@ fn an_entry_point_held_by_two_features_stays_with_the_domain_that_owns_it() {
         back_office: false,
         slug: slug.to_string(),
         domain_slug: domain.to_string(),
-        sub_domain_slug: None,
         name: slug.to_string(),
         description: "d".to_string(),
         source_paths: vec!["stale.rb".to_string()],
@@ -529,7 +528,6 @@ async fn a_killed_run_does_not_bring_back_the_features_of_the_removed_files_path
     let from_files = Feature {
         slug: "billing".to_string(),
         domain_slug: "billing".to_string(),
-        sub_domain_slug: Some("invoices".to_string()),
         name: "Billing".to_string(),
         description: "d".to_string(),
         source_paths: vec!["lib/billing.rb".to_string()],
@@ -1158,7 +1156,6 @@ fn features_merge_against_the_earlier_slices_only() {
         back_office: false,
         slug: slug.to_string(),
         domain_slug: "big".to_string(),
-        sub_domain_slug: None,
         name: name.to_string(),
         description: format!("of {id}"),
         source_paths: vec![id.split('#').next().unwrap().to_string()],

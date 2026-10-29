@@ -225,7 +225,6 @@ mod tests {
             back_office: false,
             slug: slug.into(),
             domain_slug: "billing".into(),
-            sub_domain_slug: None,
             name: name.into(),
             description: String::new(),
             source_paths: vec![],

@@ -377,7 +377,6 @@ mod tests {
             back_office: false,
             slug: name.to_lowercase(),
             domain_slug: "ordering".to_string(),
-            sub_domain_slug: None,
             name: name.to_string(),
             description: String::new(),
             source_paths: vec![],

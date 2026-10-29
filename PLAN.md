@@ -51,10 +51,9 @@ docs/
   functional/
     llms.txt                       # index for agents (llms.txt style): domains, features, confidence, how to read
     <domain>/
-      README.md                    # domain overview + sub-domains, confidence
-      <sub-domain>/
-        <feature>.md                # list of use cases
-        use-cases/<feature>/<use-case>.md    # business narrative, then (folded) steps, actors, Mermaid diagram, confidence
+      README.md                    # domain overview, confidence
+      <feature>.md                 # list of use cases
+      use-cases/<feature>/<use-case>.md    # business narrative, then (folded) steps, actors, Mermaid diagram, confidence
   _retrodoc/
     coverage-report.md             # identified gaps, low-confidence sections
     run-metadata.json              # model used, date, analyzed commit
@@ -74,7 +73,7 @@ docs/
 
 1. **Foundation**: CLI skeleton, config (`retrodoc.toml`: OpenRouter key/model, ignored paths), basic ingestion
 2. **Repo map**: bottom-up summaries + git history enrichment (removed with the `files` path, ADR 0035)
-3. **Domains/sub-domains**: clustering + coverage validation
+3. **Domains/sub-domains**: clustering + coverage validation (sub-domains removed with the `files` path, ADR 0035)
 4. **Features → use cases → steps/actors** + Mermaid diagrams
 5. **Confidence score** + documentation debt report
 6. **Writing & CLI ergonomics** (dry-run, idempotence, incremental re-run)

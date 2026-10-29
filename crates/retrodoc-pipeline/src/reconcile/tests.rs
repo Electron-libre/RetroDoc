@@ -25,7 +25,6 @@ fn feature(slug: &str, domain: &str, name: &str, entry_points: usize) -> Feature
         back_office: false,
         slug: slug.to_string(),
         domain_slug: domain.to_string(),
-        sub_domain_slug: None,
         name: name.to_string(),
         description: String::new(),
         source_paths: vec![],

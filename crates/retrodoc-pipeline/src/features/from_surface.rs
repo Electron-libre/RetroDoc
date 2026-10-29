@@ -902,7 +902,6 @@ fn place_entry_points(
             back_office: raw_feature.back_office,
             slug,
             domain_slug: domain.slug.clone(),
-            sub_domain_slug: None,
             name: raw_feature.name,
             description: raw_feature.description,
             source_paths: files,
@@ -938,9 +937,7 @@ fn save_partial(
 ) {
     // A feature with no entry point comes from the removed `files` path (ADR 0035): never put back.
     for old in previous.iter().filter(|f| !f.entry_points.is_empty()) {
-        let reached = features
-            .iter()
-            .any(|f| f.domain_slug == old.domain_slug && f.sub_domain_slug == old.sub_domain_slug);
+        let reached = features.iter().any(|f| f.domain_slug == old.domain_slug);
         let slug_taken = features.iter().any(|f| f.slug == old.slug);
         if reached || slug_taken {
             continue;
