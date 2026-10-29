@@ -1,7 +1,10 @@
 use crate::CompletionRequest;
 
+mod completion;
 mod config;
+mod fallbacks;
 mod retry;
+mod timeouts;
 
 pub(super) fn request() -> CompletionRequest {
     CompletionRequest {

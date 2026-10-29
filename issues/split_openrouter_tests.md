@@ -41,7 +41,7 @@ any change of the production code or of a test body.
 
 ## Plan
 1. [x] Helpers, config and retry tests apart: `git mv openrouter.rs openrouter/mod.rs`; `request()` in `openrouter/tests/mod.rs` (`pub(super)`), config and endpoints tests in `tests/config.rs`, retry delay tests in `tests/retry.rs`; the completion, fallback and timeout tests stay inline in `mod.rs` for now, renamed `mod rest_tests` (body untouched) and importing `request`; `docs/crates/llm.md` points to `openrouter/`; verified by `just check` and the moved lines identical modulo whitespace (~500 lines).
-2. [ ] Completion, fallbacks and timeouts apart: `rest_tests` → `tests/completion.rs`, `tests/fallbacks.rs` (with `serve`, `http` and the schema and temperature helpers), `tests/timeouts.rs` (the `// spec: LTO-n` lines move with their tests), dedented; verified by `just check` (specs found) and the test count unchanged (~980 lines).
+2. [x] Completion, fallbacks and timeouts apart: `rest_tests` → `tests/completion.rs`, `tests/fallbacks.rs` (with `serve`, `http` and the schema and temperature helpers), `tests/timeouts.rs` (the `// spec: LTO-n` lines move with their tests), dedented; verified by `just check` (specs found) and the test count unchanged (~980 lines).
 
 ## Decisions
 - Mode: autonomous
@@ -55,6 +55,19 @@ any change of the production code or of a test body.
   | moved lines identical (sorted line comparison) | yes, apart from imports, `mod` lines and `pub(super)` |
   | test count of the crate | 46, unchanged |
   | docs (`docs/crates/llm.md`) | updated |
+- red: none (pure move, no new test)
+- Code review: no findings
+- not verified: none
+- decisions needed: none
+
+## Deliverable 2: completion, fallbacks and timeouts apart
+- done: `rest_tests` → `openrouter/tests/completion.rs`, `tests/fallbacks.rs` (with `serve`, `http` and the schema and temperature helpers), `tests/timeouts.rs` (with `LTO-1` to `LTO-4`), dedented, imports named; `openrouter/mod.rs` keeps only the provider (542 lines).
+- | check | result |
+  |---|---|
+  | tests, lint, specs (`just check`) | pass, `LTO-1` to `LTO-4` found |
+  | moved lines identical (sorted line comparison) | yes, apart from imports, `mod` lines, `pub(super)` and two `let payload` lines rewrapped by rustfmt |
+  | test count of the crate | 46, unchanged |
+  | docs (`docs/crates/llm.md`) | already right (deliverable 1) |
 - red: none (pure move, no new test)
 - Code review: no findings
 - not verified: none
