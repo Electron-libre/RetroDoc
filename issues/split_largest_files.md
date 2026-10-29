@@ -48,7 +48,7 @@ unchanged. Out of scope: the MCP tools, the Markdown render and the OpenRouter t
 ## Plan
 1. [x] Report tests apart: `report.rs` → `report/mod.rs` + `report/tests.rs` (both test modules); verified by `just check`.
 2. [x] Report sections apart: set aside, reconciliation, behaviour, uncovered in their own files of `report/`; verified by `just check`.
-3. [ ] Chunks tests apart: `chunks.rs` → `chunks/mod.rs` + `chunks/tests.rs`; verified by `just check`.
+3. [x] Chunks tests apart: `chunks.rs` → `chunks/mod.rs` + `chunks/tests.rs`; verified by `just check`.
 4. [ ] Chunking and excerpts apart: `Focus`, `excerpt` and the pieces in `chunks/excerpt.rs`; verified by `just check` and a second `generate` writing nothing.
 
 ## Decisions
@@ -74,6 +74,18 @@ unchanged. Out of scope: the MCP tools, the Markdown render and the OpenRouter t
   |---|---|
   | tests, lint, specs (`just check`) | pass |
   | moved lines identical (sorted line comparison) | yes, apart from the `impl`/`mod` headers |
+  | docs (`docs/crates/pipeline.md`) | updated |
+- red: none (pure move, no new test)
+- Code review: no findings
+- not verified: none
+- decisions needed: none
+
+## Deliverable 3: chunks tests apart
+- done: `chunks.rs` → `chunks/mod.rs` (git mv) + `chunks/tests.rs`; docs point to `chunks/`.
+- | check | result |
+  |---|---|
+  | tests, lint, specs (`just check`) | pass |
+  | moved code identical modulo whitespace | yes (script comparison) |
   | docs (`docs/crates/pipeline.md`) | updated |
 - red: none (pure move, no new test)
 - Code review: no findings

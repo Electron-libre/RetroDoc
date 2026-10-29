@@ -1,5 +1,5 @@
 //! Mechanical check of the `chunk_boundaries` regexes the LLM proposes
-//! (see `chunks.rs`): a regex is only a good place to cut if it recognizes
+//! (see `chunks/`): a regex is only a good place to cut if it recognizes
 //! the lines that start definitions in the repo's real files.
 //!
 //! A language-agnostic probe picks, in a sample of the repo's source files of
