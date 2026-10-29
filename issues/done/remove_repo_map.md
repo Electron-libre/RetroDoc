@@ -111,7 +111,7 @@ removed-setting error of `config.rs`, the ADRs (historical records).
 ### 4. Fixes of the high review
 - done: `docs/crates/pipeline.md` (pass order without the repo map, no `complete_text`), PLAN §7.4 truncation line,
   `cache.rs` doc (what the hash keys), the RER-2 test answers a use case (one call per feature, no RER-4 retry);
-  follow-up `issues/shared_lossy_read_and_one_pass_truncation.md` queued at rank 2.
+  follow-up `issues/done/shared_lossy_read_and_one_pass_truncation.md` queued at rank 2.
 - check | result: tests ok, clippy ok, fmt ok, specs ok, `check-harness` fails as in deliverable 1.
 - red: none (fixes of docs and of a test that already passed).
 - High review: 10 findings. Fixed: stale `pipeline.md` pass order and `complete_text`, PLAN truncation line,

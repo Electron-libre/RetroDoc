@@ -5,7 +5,7 @@
 path or one with `..` reads a file outside the repository, whose content can then be sent to the LLM. Reject such
 paths in the one helper every pipeline read now goes through.
 
-# Findings (code review `high` of `issues/shared_lossy_read_and_one_pass_truncation.md`, 2026-10-29)
+# Findings (code review `high` of `issues/done/shared_lossy_read_and_one_pass_truncation.md`, 2026-10-29)
 * `Path::join` with an absolute path drops the root: `read_file_lossy(root, "/etc/passwd")` reads `/etc/passwd`.
 * `confidence/checks.rs` (`check_step`) and `confidence/mod.rs` (cited excerpts) read the paths cited by the saved
   use cases, a YAML artifact that a user or another tool can edit; the excerpt goes into the confidence prompt.

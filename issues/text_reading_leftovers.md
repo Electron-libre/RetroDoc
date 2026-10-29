@@ -1,12 +1,12 @@
 # Decode and cut source texts the same way in every pass
 
 # Goal
-`issues/shared_lossy_read_and_one_pass_truncation.md` routed the whole-file lossy reads of `retrodoc-pipeline`
+`issues/done/shared_lossy_read_and_one_pass_truncation.md` routed the whole-file lossy reads of `retrodoc-pipeline`
 through `text::read_file_lossy` and cut `truncate_chars` in one walk. Some reads and cuts still differ from it: two
 passes decode the same test files differently, one read cuts a file at a byte offset, three helpers still walk a
 text twice to cut it, and two warnings drop the cause of an unreadable file. Make them consistent.
 
-# Findings (code review `high` of `issues/shared_lossy_read_and_one_pass_truncation.md`, 2026-10-29)
+# Findings (code review `high` of `issues/done/shared_lossy_read_and_one_pass_truncation.md`, 2026-10-29)
 * `business_files/mod.rs` (`test_vocabulary`) reads test files with a strict `std::fs::read_to_string`, while
   `glossary/mod.rs` reads the same files through `read_file_lossy` and feeds them to the same `test_phrases`: a
   test file with one invalid UTF-8 byte is mined by the glossary and silently skipped by the business files pass.
