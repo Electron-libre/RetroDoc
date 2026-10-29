@@ -42,7 +42,7 @@ public API (`retrodoc_mcp::tools::Docs`) unchanged. Out of scope: `server.rs` an
 1. [x] Tests apart: `tools.rs` → `tools/mod.rs` (git mv) + `tools/tests.rs` (about 960 changed lines); verified by `just check`.
 2. [x] Shared helpers and domain tools apart: `tools/answer.rs` (constants, free answer helpers, private helpers of
    `Docs` as `pub(super)`), `tools/list_domains.rs`, `tools/get_domain.rs` (about 650 changed lines); verified by `just check`.
-3. [ ] Remaining tools apart: `tools/get_feature.rs`, `tools/get_use_case.rs`, `tools/read_source.rs`,
+3. [x] Remaining tools apart: `tools/get_feature.rs`, `tools/get_use_case.rs`, `tools/read_source.rs`,
    `tools/git_log.rs`, `tools/search_docs.rs`; `mod.rs` keeps `Docs` and its builders (about 480 changed lines);
    verified by `just check`.
 
@@ -72,6 +72,20 @@ public API (`retrodoc_mcp::tools::Docs`) unchanged. Out of scope: `server.rs` an
   | tests, lint, specs (`just check`) | pass |
   | moved lines identical (sorted line comparison) | yes, apart from the `impl`/`use`/`mod` headers and `pub(super)` |
   | docs (`docs/crates/render-mcp-cli.md`) | updated |
+- red: none (pure move, no new test)
+- Code review: no findings
+- not verified: none
+- decisions needed: none
+
+## Deliverable 3: remaining tools apart
+- done: `tools/get_feature.rs`, `get_use_case.rs`, `read_source.rs`, `git_log.rs`, `search_docs.rs` each hold their
+  tool's `impl Docs` block; `mod.rs` keeps `Docs`, its builders and `load`; the crate doc said "five tools", now
+  "seven" (the server has seven).
+- | check | result |
+  |---|---|
+  | tests, lint, specs (`just check`) | pass |
+  | moved lines identical (sorted line comparison) | yes, apart from the `impl`/`use`/`mod` headers |
+  | docs (`docs/crates/render-mcp-cli.md`, `lib.rs` crate doc) | updated |
 - red: none (pure move, no new test)
 - Code review: no findings
 - not verified: none

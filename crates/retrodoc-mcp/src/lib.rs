@@ -3,7 +3,7 @@
 //! calls one: the crate reads the artifacts saved by `generate` and the
 //! collected Markdown docs, and answers from them deterministically.
 //!
-//! [`Docs`] holds the loaded artifacts and answers the five tools in
+//! [`Docs`] holds the loaded artifacts and answers the seven tools in
 //! Markdown; [`serve_stdio`] puts them behind an MCP server (`retrodoc mcp`).
 //! The lexical search ([`SearchIndex`]) is also exposed alone by `retrodoc
 //! search`, to judge retrieval quality.
