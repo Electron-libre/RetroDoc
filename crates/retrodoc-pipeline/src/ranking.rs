@@ -20,7 +20,7 @@ use crate::artifact::{load_yaml, save_yaml, Artifact};
 use crate::error::PipelineError;
 use crate::naming::normalize;
 use crate::roles::{FileRole, RoleMap};
-use crate::text::read_file_lossy;
+use crate::text::{first_chars, read_file_lossy};
 
 /// A file name shared by more files than this designates none of them.
 const MAX_SHARED_NAME: usize = 3;
@@ -108,8 +108,7 @@ pub fn rank_files(
         let Ok(content) = read_file_lossy(repo_root, path) else {
             continue;
         };
-        let head: String = content.chars().take(MAX_SCAN_CHARS).collect();
-        for token in tokens(&head) {
+        for token in tokens(first_chars(&content, MAX_SCAN_CHARS)) {
             if let Some(files) = owners.get(&token).filter(|f| f.len() <= MAX_SHARED_NAME) {
                 for &owner in files.iter().filter(|&&o| o != i) {
                     references[owner] += 1;

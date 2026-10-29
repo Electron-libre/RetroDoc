@@ -7,6 +7,8 @@ use std::fmt::Write as _;
 
 use retrodoc_ingest::signals::{Signal, SignalKind};
 
+use crate::text::{char_prefix, first_chars};
+
 /// Characters of signals sent to the LLM (a few thousand tokens).
 pub(crate) const SAMPLE_BUDGET: usize = 20_000;
 /// Characters kept of one signal.
@@ -171,11 +173,11 @@ fn pick<'a>(group: &[&'a Signal], budget: usize) -> Vec<(&'a Signal, String)> {
 
 /// `text` cut at a line end within `max` characters, marked when cut.
 fn squeeze(text: &str, max: usize) -> String {
-    if text.chars().count() <= max {
+    if char_prefix(text, max).is_none() {
         return text.to_string();
     }
-    let cut: String = text.chars().take(max.saturating_sub(2)).collect();
-    let cut = cut.rsplit_once('\n').map_or(cut.as_str(), |(head, _)| head);
+    let cut = first_chars(text, max.saturating_sub(2));
+    let cut = cut.rsplit_once('\n').map_or(cut, |(head, _)| head);
     if cut.is_empty() {
         return String::new();
     }

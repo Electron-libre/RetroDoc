@@ -27,6 +27,7 @@ use crate::chunk_check::verify_boundaries;
 use crate::chunks::{ChunkBoundary, Splitter, REGEX_SYNTAX_HELP};
 use crate::error::PipelineError;
 use crate::response::complete_json;
+use crate::text::first_chars;
 
 /// Manifest files read at the repo root to help recognize the stack.
 pub(crate) const MANIFESTS: &[&str] = &[
@@ -311,7 +312,7 @@ pub async fn identify_roles(
     prompt.push_str(&render_tree(&ingest.files));
     for name in MANIFESTS {
         if let Ok(content) = std::fs::read_to_string(repo_root.join(name)) {
-            let excerpt: String = content.chars().take(MAX_MANIFEST_CHARS).collect();
+            let excerpt = first_chars(&content, MAX_MANIFEST_CHARS);
             let _ = write!(prompt, "\n--- {name} ---\n{excerpt}\n");
         }
     }

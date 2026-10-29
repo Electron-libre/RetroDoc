@@ -31,6 +31,7 @@ use crate::cache::hash_content;
 use crate::error::PipelineError;
 use crate::response::complete_json;
 use crate::roles::{render_tree, MANIFESTS, MAX_MANIFEST_CHARS};
+use crate::text::first_chars;
 
 /// Sniffed rules shown to the LLM as a starting point.
 const MAX_HINT_RULES: usize = 60;
@@ -168,7 +169,7 @@ async fn ask(
     prompt.push_str(&render_tree(&ingest.files));
     for name in MANIFESTS {
         if let Ok(content) = std::fs::read_to_string(repo_root.join(name)) {
-            let excerpt: String = content.chars().take(MAX_MANIFEST_CHARS).collect();
+            let excerpt = first_chars(&content, MAX_MANIFEST_CHARS);
             let _ = write!(prompt, "\n--- {name} ---\n{excerpt}\n");
         }
     }

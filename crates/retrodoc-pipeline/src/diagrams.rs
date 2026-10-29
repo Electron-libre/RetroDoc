@@ -13,6 +13,7 @@ use std::fmt::Write as _;
 
 use retrodoc_core::model::{Step, UseCase};
 
+use crate::text::char_prefix;
 use crate::use_cases::is_human;
 
 /// Attaches a Mermaid sequence diagram to every use case that has steps.
@@ -72,19 +73,15 @@ const MAX_LABEL_CHARS: usize = 60;
 /// `text` cut after its last whole word within `MAX_LABEL_CHARS`, marked with
 /// `…`: a step written as one text is longer than an action.
 fn shortened(text: &str) -> String {
-    if text.chars().count() <= MAX_LABEL_CHARS {
+    let Some(cut) = char_prefix(text, MAX_LABEL_CHARS) else {
         return text.to_string();
-    }
-    let cut: String = text.chars().take(MAX_LABEL_CHARS).collect();
+    };
     // The cut ends a word when the text goes on with a space.
-    let ends_a_word = text
-        .chars()
-        .nth(MAX_LABEL_CHARS)
-        .is_some_and(char::is_whitespace);
+    let ends_a_word = text[cut.len()..].starts_with(char::is_whitespace);
     let words = if ends_a_word {
-        cut.as_str()
+        cut
     } else {
-        cut.rsplit_once(' ').map_or(cut.as_str(), |(head, _)| head)
+        cut.rsplit_once(' ').map_or(cut, |(head, _)| head)
     };
     format!("{}…", words.trim_end_matches([',', ';', ' ']))
 }

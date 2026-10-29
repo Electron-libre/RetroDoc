@@ -26,6 +26,7 @@ use std::path::Path;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
+use crate::text::first_chars;
 use crate::use_cases::numbered_excerpt;
 
 /// A file longer than this many chunks is cut there (a 40 KB controller is
@@ -262,7 +263,7 @@ impl Splitter {
             shown_to = piece.last;
         }
         if out.is_empty() {
-            out = whole.chars().take(max_chars).collect();
+            out = first_chars(&whole, max_chars).to_string();
         } else if shown_to < total_lines {
             omitted(&mut out, shown_to + 1, total_lines);
         }

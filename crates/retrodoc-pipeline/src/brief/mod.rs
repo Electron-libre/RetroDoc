@@ -26,6 +26,7 @@ use crate::artifact::{load_yaml, save_yaml, Artifact};
 use crate::cache::hash_content;
 use crate::error::PipelineError;
 use crate::response::complete_json;
+use crate::text::{char_prefix, first_chars};
 pub use evidence::{Evidence, Extract, ExtractKind};
 use sample::{Sample, SAMPLE_BUDGET};
 
@@ -344,11 +345,11 @@ fn resolve_claim(raw: RawClaim, sample: &Sample, max_chars: usize) -> Option<Cla
 
 /// `text` cut before a word within `max` characters, `…` marking the cut.
 fn cut_at_word(text: &str, max: usize) -> String {
-    if text.chars().count() <= max {
+    if char_prefix(text, max).is_none() {
         return text.to_string();
     }
-    let cut: String = text.chars().take(max.saturating_sub(1)).collect();
-    let cut = cut.rsplit_once(' ').map_or(cut.as_str(), |(head, _)| head);
+    let cut = first_chars(text, max.saturating_sub(1));
+    let cut = cut.rsplit_once(' ').map_or(cut, |(head, _)| head);
     format!("{}…", cut.trim_end_matches([',', ';', ':', ' ']))
 }
 

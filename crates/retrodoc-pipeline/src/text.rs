@@ -70,11 +70,24 @@ fn resolve_inside_repo(repo_root: &Path, relative: &Path) -> std::io::Result<Pat
     }
 }
 
+/// The first `max_chars` characters of `text` when it has more, else `None`: one walk of at most `max_chars`
+/// characters, whatever the length of `text`.
+pub(crate) fn char_prefix(text: &str, max_chars: usize) -> Option<&str> {
+    text.char_indices()
+        .nth(max_chars)
+        .map(|(cut, _)| &text[..cut])
+}
+
+/// The first `max_chars` characters of `text`, all of it when it is shorter.
+pub(crate) fn first_chars(text: &str, max_chars: usize) -> &str {
+    char_prefix(text, max_chars).unwrap_or(text)
+}
+
 /// `content` cut to its first `max_chars` characters, with a marker when it was cut.
 pub(crate) fn truncate_chars(content: &str, max_chars: usize) -> String {
-    match content.char_indices().nth(max_chars) {
+    match char_prefix(content, max_chars) {
         None => content.to_string(),
-        Some((cut, _)) => format!("{}\n… (truncated)", &content[..cut]),
+        Some(head) => format!("{head}\n… (truncated)"),
     }
 }
 
@@ -201,6 +214,22 @@ mod tests {
             read_file_prefix_lossy(repo.path(), &outside.path().join("secret.rb"), 10).is_err()
         );
         assert!(read_file_prefix_lossy(repo.path(), Path::new("missing.rb"), 10).is_err());
+    }
+
+    #[test]
+    fn a_prefix_is_given_only_when_the_text_is_longer() {
+        assert_eq!(char_prefix("héllo", 5), None);
+        assert_eq!(char_prefix("héllo!", 5), Some("héllo"));
+        assert_eq!(char_prefix("ééé", 1), Some("é"));
+        assert_eq!(char_prefix("abc", 0), Some(""));
+        assert_eq!(char_prefix("", 0), None);
+    }
+
+    #[test]
+    fn first_chars_keeps_a_shorter_text_whole() {
+        assert_eq!(first_chars("héllo", 5), "héllo");
+        assert_eq!(first_chars("héllo!", 2), "hé");
+        assert_eq!(first_chars("", 3), "");
     }
 
     #[test]

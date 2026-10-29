@@ -24,7 +24,7 @@ use serde::Deserialize;
 use crate::chunks::{ChunkBoundary, REGEX_SYNTAX_HELP};
 use crate::error::PipelineError;
 use crate::response::complete_json;
-use crate::text::read_file_lossy;
+use crate::text::{first_chars, read_file_lossy};
 
 /// Coverage from which a regex is accepted without a second call.
 const GOOD_COVERAGE: f64 = 0.9;
@@ -152,7 +152,7 @@ pub(crate) fn coverage(pattern: &str, expected: &[String], lines: &[String]) -> 
         if regex.as_ref().is_some_and(|r| r.is_match(line)) {
             matched += 1;
         } else if missed.len() < MISSED_EXAMPLES {
-            let example: String = line.trim().chars().take(MAX_EXAMPLE_CHARS).collect();
+            let example = first_chars(line.trim(), MAX_EXAMPLE_CHARS).to_string();
             if !missed.contains(&example) {
                 missed.push(example);
             }

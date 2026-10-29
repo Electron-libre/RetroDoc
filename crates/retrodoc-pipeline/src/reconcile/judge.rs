@@ -20,6 +20,7 @@ use crate::bm25::Bm25;
 use crate::error::PipelineError;
 use crate::fingerprints::{fingerprint, model_part};
 use crate::response::complete_json;
+use crate::text::{char_prefix, first_chars};
 
 /// Items judged in one request.
 pub const MAX_ITEMS_PER_REQUEST: usize = 8;
@@ -201,18 +202,13 @@ fn section_numbers(batch: &[&Candidate]) -> BTreeMap<String, usize> {
     numbers
 }
 
-/// The first `n` chars of `text`.
-fn first_chars(text: &str, n: usize) -> &str {
-    text.char_indices().nth(n).map_or(text, |(i, _)| &text[..i])
-}
-
 fn is_fence(line: &str) -> bool {
     line.trim_start().starts_with("```")
 }
 
 /// `text` cut to `n` chars at most, a code fence it leaves open closed.
 fn cut(text: &str, n: usize) -> String {
-    if text.chars().count() <= n {
+    if char_prefix(text, n).is_none() {
         return text.to_string();
     }
     let mut out = first_chars(text, n.saturating_sub(4))
@@ -254,7 +250,7 @@ fn paragraphs(body: &str) -> Vec<String> {
 /// left out.
 fn shown(section: &Section, queries: &[&str], share: usize) -> String {
     let text = section.text.trim();
-    if text.chars().count() <= share {
+    if char_prefix(text, share).is_none() {
         return text.to_string();
     }
     // The text before the first heading has no heading line.

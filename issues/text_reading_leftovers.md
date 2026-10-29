@@ -49,9 +49,11 @@ spec covers the test vocabulary nor the rules input (bug fixes, no spec). Out of
    `read_file_lossy`; `rules/prompt.rs` and `use_cases/prompt.rs` warnings log `error = %err`; verified by unit tests
    (prefix cut inside a multi-byte character leaves no U+FFFD, a path outside the repo is refused, a test file with
    invalid UTF-8 is mined by `test_vocabulary`); ~120 lines.
-2. [ ] One cut: `text::char_prefix(text, max_chars) -> Option<&str>` (the prefix when the text is longer, one
+2. [x] One cut: `text::char_prefix(text, max_chars) -> Option<&str>` (the prefix when the text is longer, one
    `char_indices().nth` walk) called by `truncate_chars`, `brief/sample.rs::squeeze`, `diagrams.rs::shortened` and
-   the `chars().take().collect()` excerpts of `sources/mod.rs` and `business_files/mod.rs`; verified by the existing
+   the `chars().take().collect()` excerpts of `sources/mod.rs` and `business_files/mod.rs`, plus `first_chars` (moved
+   from `reconcile/judge.rs`) for the same cuts found in `roles`, `ranking`, `chunks`, `chunk_check`, `brief/mod.rs`
+   and `reconcile/judge.rs`; verified by the existing
    tests of these helpers plus unit tests of `char_prefix` (exact length, one over, multi-byte, zero); ~80 lines.
 
 ## Decisions
@@ -73,5 +75,22 @@ spec covers the test vocabulary nor the rules input (bug fixes, no spec). Out of
 - red: none (no spec); before the code: `test_vocabulary` gave `[]` instead of `["refunds a paid order"]`, the prefix
   read gave `"abé"` instead of `"ab"`
 - Code review: 1 findings (no bug; the lossy decode was copied from `read_file_lossy`: both now call `decode_lossy`)
+- not verified: none
+- decisions needed: none
+
+## Summary of deliverable 2
+- done: `text::char_prefix` (prefix when longer, one bounded walk) and `text::first_chars` replace every hand-written
+  `chars().count()` / `chars().take()` cut of the pipeline (12 sites in 11 files).
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | clippy pedantic clean |
+| specs | no change (pure refactor) |
+| docs | no doc names the cut helpers: nothing to update |
+| code review | see below |
+
+- red: none (refactor; the existing tests of the cuts pass before and after)
+- Code review: no findings
 - not verified: none
 - decisions needed: none
