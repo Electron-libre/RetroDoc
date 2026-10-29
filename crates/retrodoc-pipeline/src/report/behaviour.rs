@@ -69,7 +69,7 @@ impl DebtReport {
     }
 
     /// The entry points of the features that no use case cites, per feature and overall.
-    pub(super) fn write_uncovered_by_use_cases(&self, md: &mut String) {
+    fn write_uncovered_by_use_cases(&self, md: &mut String) {
         let total: usize = self
             .entries_by_feature
             .values()

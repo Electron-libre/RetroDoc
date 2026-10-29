@@ -46,10 +46,10 @@ Split `report.rs` and `chunks.rs` of `retrodoc-pipeline` into their tests and th
 unchanged. Out of scope: the MCP tools, the Markdown render and the OpenRouter tests (their own issues).
 
 ## Plan
-1. [x] Report tests apart: `report.rs` → `report/mod.rs` + `report/tests.rs` (both test modules); verified by `just check`.
-2. [x] Report sections apart: set aside, reconciliation, behaviour, uncovered in their own files of `report/`; verified by `just check`.
+1. [x] Report tests apart: `report.rs` → `report/mod.rs` + `report/tests.rs` + `report/set_apart_tests.rs` (its two test modules); verified by `just check`.
+2. [x] Report sections apart: set aside, reconciliation, behaviour (with the uncovered entry points) in their own files of `report/`; verified by `just check`.
 3. [x] Chunks tests apart: `chunks.rs` → `chunks/mod.rs` + `chunks/tests.rs`; verified by `just check`.
-4. [x] Chunking and excerpts apart: `Focus`, `excerpt` and the pieces in `chunks/excerpt.rs`; verified by `just check` and a second `generate` writing nothing.
+4. [x] Chunking and excerpts apart: `Focus`, `excerpt` and the pieces in `chunks/excerpt.rs`; verified by `just check` (the second `generate` was not run, see deliverable 4).
 
 ## Decisions
 - Mode: autonomous
@@ -102,4 +102,16 @@ unchanged. Out of scope: the MCP tools, the Markdown render and the OpenRouter t
 - red: none (pure move, no new test)
 - Code review: no findings
 - not verified: the second `generate` writing nothing on a real repository (no run of the current code to reuse; a fresh one is a local run of hours or a paid one). The rerun tests (`specs/rerun.md`) pass, and the moves change no code of the passes.
+- decisions needed: none
+
+## Deliverable 5: fixes of the high review
+- done: `write_uncovered_by_use_cases` private again; `PLAN.md` points to `chunks/`; the `report/` row of `docs/crates/pipeline.md` says where each section is; the plan lines match what was delivered.
+- | check | result |
+  |---|---|
+  | tests, lint, specs (`just check`) | pass |
+  | docs (`PLAN.md`, `docs/crates/pipeline.md`) | updated |
+- red: none (no behaviour change, no new test)
+- Code review (high): 8 findings; fixed: the stale `chunks.rs` in `PLAN.md`, the `report/` row, the three plan lines, the visibility of `write_uncovered_by_use_cases`. Not fixed: the Goal and Findings still name the five files (a split keeps the Findings of the first cut, and the Goal names the three issues cut out); the two test files of `report/` (they are the two test modules the file had, moved as they were).
+- Code review: no findings
+- not verified: none
 - decisions needed: none
