@@ -5,7 +5,7 @@ description: Drive an issue file from `issues/` to done in validated deliverable
 
 # Work an issue
 
-The user hands over an issue file in `issues/`. Talk to the user in the `user_language` of `.claude/harness.toml` (skills, code, docs and
+The user hands over an issue file in `issues/`. Talk to the user in the `user_language` of `.claude/cardinal.toml` (skills, code, docs and
 commits stay in English). Never skip a validation stop: they are what makes the autonomy safe. The only ones the user can lift are those of
 step 3.6 and 3.8, through the Autonomous mode.
 
@@ -30,7 +30,7 @@ deliverables left exceed the size limit of step 1 also goes back to the stop of 
 The understanding, the spec and the plan are written in the files, not in the console: the files keep the history,
 the console only shows the link and the questions.
 
-- Read the issue, plus the resources it names (docs, `git log`, the `roadmap` documents of `.claude/harness.toml`, memory).
+- Read the issue, plus the resources it names (docs, `git log`, the `roadmap` documents of `.claude/cardinal.toml`, memory).
 - **Delegate a broad exploration**: a search over many files, the history or the conventions goes to a read-only
   `Explore` subagent (Agent tool), so only its conclusion stays in the main context. Ask it for the paths and lines
   behind each conclusion; read back only the lines a decision of the plan rests on. A targeted read of a known file
@@ -94,28 +94,28 @@ again. Then set `Plan: validated` and the base commit. The spec file is the reco
    spec, the test proves a requirement and carries `// spec: ABC-n` (placement in `specs/README.md`), through the
    binary when that is cheap and stable, else internal with its reason, `// spec: ABC-n (internal: <reason>)`; the
    deliverable that traces the last untraced requirement sets the spec `accepted`. Follow the test
-   conventions of the project (the `test_conventions` note of `.claude/harness.toml` says where they are written). Write
+   conventions of the project (the `test_conventions` note of `.claude/cardinal.toml` says where they are written). Write
    the test of a hook, a skill or a script like the others, never in bash.
 3. **Implement** until the test passes, then **refactor** under the green tests: remove duplication, rename, simplify,
    no new behaviour. The clippy gate hook keeps the code warning-free; fix what it reports.
 4. **Docs**: run `skill:update-docs` (it covers the specs). If the change is an architectural decision, also write or finish its ADR in
    `docs/adr/` (template and numbering in `docs/adr/README.md`) and update the
-   diagrams in the `architecture` document of `.claude/harness.toml` when the flow changed.
+   diagrams in the `architecture` document of `.claude/cardinal.toml` when the flow changed.
 5. **Review (mandatory, never skipped)**: run `just check` (fmt, clippy, tests, specs); when `git diff --shortstat`
    (new files included) exceeds the size limit of step 1, cut the deliverable before the review; then **invoke `/code-review low` on the diff with the Skill tool** (always name the level)
    and wait for its findings; reread the docs you changed. Fix the findings on the deliverable's own change, or say
    why one is not fixed; a finding outside the requirements of the deliverable becomes an issue
    (`skill:create-issue`), not a fix in this deliverable.
    Re-run `just check` after the fixes. Step 6 cannot start before the review has run.
-   The native `pre-commit` hook (`harness run review-gate native`) enforces it: `git commit` fails while the diff holds a file
+   The native `pre-commit` hook (`cardinal run review-gate native`) enforces it: `git commit` fails while the diff holds a file
    the last review never saw, so write the tracking and the summary of steps 6 and 7 in the issue **before**
    the review (fixes to reviewed files pass; a diff under `issues/` only needs no review). Only the user can
    waive the review: never do it yourself ([details.md](details.md), "Review waiver").
 6. **Human review (STOP, except in autonomous mode)**: show one line `done` (what changed, not the diff), a table `check | result` (tests, lint, specs, docs, code
    review), one line `red:` opening with the ids its tests trace, then the failure message the test of step 3.2 gave before
-   the code (`red: ABC-3, ABC-4: <failure>`, `harness run delivered-quality` counts a traced id it lacks; `none` for a
+   the code (`red: ABC-3, ABC-4: <failure>`, `cardinal run delivered-quality` counts a traced id it lacks; `none` for a
    deliverable with no test), then the line `Code review: <n> findings` (`Code review: no findings` if it came back clean; the
-   count first, `harness run delivered-quality` reads it) with what was done about each, then the lists `not verified` (state it plainly) and `decisions needed`, empty when nothing applies. If you did
+   count first, `cardinal run delivered-quality` reads it) with what was done about each, then the lists `not verified` (state it plainly) and `decisions needed`, empty when nothing applies. If you did
    not invoke the review, go back to step 5 instead of presenting the deliverable. Wait for the user's validation.
    Don't commit before it. In autonomous mode, write this summary in the issue and go on.
 7. **Track**: tick the deliverable in the issue's `# Tracking` and note decisions or follow-ups.
@@ -155,13 +155,13 @@ the commands left to the user).
 
 - Anything outward-facing or hard to reverse (push, deleting, rewriting history) needs an explicit ask.
 - Don't re-litigate decisions already recorded in the issue.
-- After a `harness sync` that adds a hook, run `just check-harness` at once and the `cargo install` it prints: the
-  live hooks call the installed `harness`, and one it refuses blocks every command, the install included.
+- After a `cardinal sync` that adds a hook, run `just check-cardinal` at once and the `cargo install` it prints: the
+  live hooks call the installed `cardinal`, and one it refuses blocks every command, the install included.
 - If something blocks you, say what and propose one recommendation; don't enumerate every option.
 - When the issue is fully done, mark it in the issue and say what, if anything, remains. Then **ask the
   user whether to close it** (in a linked worktree, see "Merge back"); on their agreement run `just close-issue issues/<name>.md` (moves it to
   `issues/done/`, drops the issue from `issues/queue.md` and rewrites `issues/<name>.md` to
-  `issues/done/<name>.md` in every other document that cites it) and include the
+  `issues/done/<name>.md` in every other document that cites it, relative Markdown links included) and include the
   move and those edits in the final commit. Never move it unasked.
 - To know which issue comes next, run `just next-issue` (first entry of `issues/queue.md` that no branch or
   worktree has taken) instead of reading the issue files. An issue is taken when a branch named after its stem

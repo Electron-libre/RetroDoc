@@ -5,21 +5,21 @@ description: Read the instructions the user gave the agent over time (CLAUDE.md,
 
 # Audit the instructions
 
-Talk to the user in the `user_language` of `.claude/harness.toml` (skills, code, docs and issues stay in English).
+Talk to the user in the `user_language` of `.claude/cardinal.toml` (skills, code, docs and issues stay in English).
 Propose only: create nothing here. What an adopted proposal brought is measured by `skill:evaluate-harness`.
 
 Show the user your results as `.claude/rules/reports-to-the-user.md` says.
 
 ## Procedure
 
-1. **Collect**: `harness run audit-sources` lists, per project of the `projects/` of the configuration directory, the sessions, typed
+1. **Collect**: `cardinal run audit-sources` lists, per project of the `projects/` of the configuration directory, the sessions, typed
    messages, memory files and instruction files (the memory files a session loads at launch, `CLAUDE.local.md`
    and its imports included, `AGENTS.md`, `.claude/AGENTS.md` and the scoped rules, of each working directory and
    its ancestors up to the repository root), after the user-level instruction files (`CLAUDE.md`, `rules/` and their imports in the configuration
-   directory), listed once; read them project by project (`harness run audit-sources
+   directory), listed once; read them project by project (`cardinal run audit-sources
    --messages` through `grep -P '^<project>\t'`), keeping the private content in the conversation, never in the
    repository.
-   `harness run rule-breaches --summary` gives, per rule and revision, the sessions where it applied, where the
+   `cardinal run rule-breaches --summary` gives, per rule and revision, the sessions where it applied, where the
    agent broke it and the refusals of a gate (no message text).
 2. **Detect** candidates:
    - a procedure the user re-explained or re-triggered in several sessions or projects (same steps, same
@@ -34,7 +34,7 @@ Show the user your results as `.claude/rules/reports-to-the-user.md` says.
 3. **Classify** each candidate in the first form that holds it, always-on rule last (a skill pays one description
    line per turn, its body on demand; an instruction file is paid whole on every turn):
    - **skill**: a procedure with steps, triggered by a request;
-   - **script** or `harness` tool: a computation or a scan the agent would otherwise redo by hand;
+   - **script** or `cardinal` tool: a computation or a scan the agent would otherwise redo by hand;
    - **hook**: a mechanical step on a tool call (a command, a file path, a diff), needing no judgment: block or
      fix it, a hint after a recurring error, trimming a noisy output, a check right after a write;
    - **rule**: a line in an instruction file; its `why` names what it replaces or trims.
@@ -43,4 +43,4 @@ Show the user your results as `.claude/rules/reports-to-the-user.md` says.
    never a project's private content. The report stays in the conversation; a copy the user asks for goes outside
    the repository and `/tmp` (e.g. `~/.local/state/`), never committed.
 5. **Create** only what the user validates, one issue per proposal through `skill:create-issue`, in generic
-   wording per the `confidential` note of `.claude/harness.toml` (no project name, no raw quote).
+   wording per the `confidential` note of `.claude/cardinal.toml` (no project name, no raw quote).

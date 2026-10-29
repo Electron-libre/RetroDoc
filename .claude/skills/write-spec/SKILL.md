@@ -7,7 +7,7 @@ description: Write a new spec in `specs/` or amend an existing one (numbered req
 
 A spec is `specs/<capability>.md`: what a capability must do, stated so that a test can prove
 it. The format, the requirement kind and the statuses are in `specs/README.md` (single source of truth:
-don't restate them here). This skill is the procedure; `harness run check-specs` (`just check-specs`) enforces the
+don't restate them here). This skill is the procedure; `cardinal run check-specs` (`just check-specs`) enforces the
 mechanical rules. Don't implement anything here: the tests come after the user validated the spec.
 
 Show the user your results as `.claude/rules/reports-to-the-user.md` says.

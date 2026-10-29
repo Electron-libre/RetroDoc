@@ -37,8 +37,8 @@ Use one of:
 
 ### Scope
 
-- The crate or area touched, from the `commit_scopes` list of `.claude/harness.toml`. Two scopes always exist:
-  `docs` (the `docs/` folder, README, CLAUDE.md) and `harness` (`.claude/`, `justfile`, CI).
+- The crate or area touched, from the `commit_scopes` list of `.claude/cardinal.toml`. Two scopes always exist:
+  `docs` (the `docs/` folder, README, CLAUDE.md) and `cardinal` (`.claude/`, `justfile`, CI).
 - Omit the scope (`fix: …`) when the change spans the whole workspace.
 
 ### Body (optional)
@@ -64,7 +64,7 @@ Use one of:
 ### Examples
 
 ```
-feat(harness): report the commit a sync came from
+feat(cardinal): report the commit a sync came from
 
 The lock file only held hashes, so a drift could not be traced to a
 source revision. Record the revision on the first line.

@@ -1,4 +1,4 @@
-name: Harness
+name: Cardinal
 
 on:
   push:
@@ -6,11 +6,11 @@ on:
   pull_request:
 
 concurrency:
-  group: harness-${{ github.ref }}
+  group: cardinal-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  harness:
+  cardinal:
     name: agent harness checks
     runs-on: ubuntu-latest
     steps:
@@ -18,14 +18,14 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: just
-      - name: Install harness (the release of the pinned revision, else built with the runner's cargo)
-        run: sh .github/install_harness.sh
+      - name: Install cardinal (the release of the pinned revision, else built with the runner's cargo)
+        run: sh .github/install_cardinal.sh
       - name: Check the specs
         run: |
-          if command -v harness >/dev/null; then just check-specs; else echo "harness not installed: check-specs skipped"; fi
+          if command -v cardinal >/dev/null; then just check-specs; else echo "cardinal not installed: check-specs skipped"; fi
       - name: Check that no synced file was edited
         run: |
-          if command -v harness >/dev/null; then harness check; else echo "harness not installed: check-harness skipped"; fi
+          if command -v cardinal >/dev/null; then cardinal check; else echo "cardinal not installed: check-cardinal skipped"; fi
 
   commits:
     name: commit messages
@@ -38,12 +38,12 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: just
-      - name: Install harness (the release of the pinned revision, else built with the runner's cargo)
-        run: sh .github/install_harness.sh
+      - name: Install cardinal (the release of the pinned revision, else built with the runner's cargo)
+        run: sh .github/install_cardinal.sh
       - name: Check every commit of the PR
         run: |
-          if command -v harness >/dev/null; then
+          if command -v cardinal >/dev/null; then
             just check-commits ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }}
           else
-            echo "harness not installed: check-commits skipped"
+            echo "cardinal not installed: check-commits skipped"
           fi

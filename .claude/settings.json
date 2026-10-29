@@ -30,7 +30,8 @@
       "Bash(git grep)",
       "Bash(git grep *)",
       "Bash(git ls-files)",
-      "Bash(git ls-files *)"
+      "Bash(git ls-files *)",
+      "Bash(cardinal run *)"
     ],
     "deny": [
       "Bash(just waive-review)",
@@ -45,7 +46,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "harness run format-rust"
+            "command": "cardinal run format-rust"
           }
         ]
       },
@@ -54,7 +55,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "harness run review-gate record"
+            "command": "cardinal run review-gate record"
           }
         ]
       }
@@ -64,12 +65,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "harness run clippy-gate",
+            "command": "cardinal run clippy-gate",
             "timeout": 600
           },
           {
             "type": "command",
-            "command": "harness run language-hint",
+            "command": "cardinal run language-hint",
             "timeout": 600
           }
         ]
@@ -81,7 +82,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "harness run review-gate check"
+            "command": "cardinal run review-gate check"
           }
         ]
       }

@@ -1,11 +1,11 @@
 # Development commands. `just` lists them; the agent harness uses the same entry points.
-import 'harness.just'
+import 'cardinal.just'
 
 default:
     @just --list
 
 # Format, lint (warning-free) and test the whole workspace.
-check: fmt clippy test check-specs check-harness
+check: fmt clippy test check-specs check-cardinal
 
 fmt:
     cargo fmt --all

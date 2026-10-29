@@ -19,7 +19,7 @@ which roadmap phases from `PLAN.md` §5 are already done before assuming what's 
 Details live in separate files; read the one that matches the task:
 
 - `docs/dev/commands.md`: build/test/lint commands, `just` recipes, measurement examples, registry note, CLI smoke test, API keys.
-- `docs/dev/agent-harness.md`: hooks (`format-rust`, `clippy-gate`, `review-gate`, run by `harness run`) and the skills in `.claude/skills/`. Most of it is synced by `harness sync`: never edit the copies (`just check-harness` fails), project values are in `.claude/harness.toml` and `.claude/update-docs-map.md`.
+- `docs/dev/agent-harness.md`: hooks (`format-rust`, `clippy-gate`, `review-gate`, run by `cardinal run`) and the skills in `.claude/skills/`. Most of it is synced by Cardinal (`cardinal sync`): never edit the copies (`just check-cardinal` fails), project values are in `.claude/cardinal.toml` and `.claude/update-docs-map.md`.
 - `docs/dev/conventions.md`: codebase conventions (confidentiality of test repos, English only, clippy pedantic, test patterns).
 - `specs/`: one spec per capability (numbered requirements, scenarios, non-goals), traced to tests by `// spec: ID`
   (ADR 0032). Read the spec of a capability before touching it; a change of behaviour starts by amending it
@@ -28,7 +28,7 @@ Details live in separate files; read the one that matches the task:
 - `PLAN.md`: roadmap; `PRODUCT.md`: vision; `AGENTS.md`: commit format.
 
 Essentials: `just check` (fmt + clippy -D warnings + tests + spec traceability) must pass before committing; it
-needs the `harness` binary (`cargo install --git <source in .claude/harness.toml> harness --locked`); clippy is pedantic and warning-free; everything is in English; never name or quote
+needs the `cardinal` binary (`cargo install --git <source in .claude/cardinal.toml> cardinal --locked`); clippy is pedantic and warning-free; everything is in English; never name or quote
 confidential smoke-test repos in committed files.
 
 Measures (paid DeepSeek runs, hours-long local runs): `~/retrodoc-runs/LEDGER.md`, outside git, records each

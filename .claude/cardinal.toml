@@ -1,11 +1,11 @@
-[harness]
-source = "https://github.com/Electron-libre/agent-harness.git"
-rev = "93418324c751e493a316d7c058244735829ce46b"  # default branch
+[cardinal]
+source = "https://github.com/Electron-libre/cardinal.git"
+rev = "963468884649d137a6b2c18053b80963dcbc2c91"  # default branch
 
-# Values of this project that the shared harness reads. Owned by the project: `harness sync` never rewrites it.
+# Values of this project that Cardinal (the shared harness) reads. Owned by the project: `cardinal sync` never rewrites it.
 
 [project]
-# Scopes allowed in commit messages besides `docs` and `harness` (crates, areas).
+# Scopes allowed in commit messages besides `docs` and `cardinal` (crates, areas).
 commit_scopes = ["core", "ingest", "llm", "pipeline", "render", "mcp", "cli"]
 # Documents at the repository root that skills may cite besides AGENTS.md and CLAUDE.md.
 root_docs = ["README.md", "PLAN.md", "PRODUCT.md"]
