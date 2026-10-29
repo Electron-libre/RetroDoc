@@ -33,6 +33,7 @@ use crate::fingerprints::{fingerprint, model_part, Fingerprints};
 use crate::progress::Progress;
 use crate::response::complete_json;
 use crate::roles::load_splitter;
+use crate::text::read_file_lossy;
 use crate::use_cases::UseCaseContext;
 
 mod aside;
@@ -552,9 +553,9 @@ fn rules_fingerprint(
     put_back: bool,
 ) -> String {
     let files = input.files.iter().map(|path| {
-        let hash = std::fs::read(repo_root.join(path)).map_or_else(
+        let hash = read_file_lossy(repo_root, Path::new(path)).map_or_else(
             |_| "unreadable".to_string(),
-            |bytes| hash_content(&String::from_utf8_lossy(&bytes)),
+            |content| hash_content(&content),
         );
         format!("{path}\n{hash}")
     });

@@ -157,11 +157,10 @@ pub(super) fn use_cases_prompt(
         if budget == 0 {
             break;
         }
-        let Ok(bytes) = std::fs::read(repo_root.join(path)) else {
+        let Ok(content) = read_file_lossy(repo_root, Path::new(path)) else {
             tracing::warn!(path = %path, "could not read a feature file, left out of the prompt");
             continue;
         };
-        let content = String::from_utf8_lossy(&bytes);
         let excerpt = splitter.excerpt(
             Path::new(path),
             &content,

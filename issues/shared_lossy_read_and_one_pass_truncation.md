@@ -29,3 +29,40 @@ with no change of behaviour.
 
 # Hints
 * `retrodoc-mcp` cannot call the pipeline-private `crate::text`: keep its read as is or make the helper public.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Route every whole-file lossy read of `retrodoc-pipeline` through `text::read_file_lossy` (callers that skip a file or
+hash `"unreadable"` take `.ok()` / `map_or_else` on it: no new variant), and cut `truncate_chars` at
+`char_indices().nth(max_chars)`. Out of scope: `rules/input.rs` (decodes a byte prefix only), `retrodoc-ingest` and
+`retrodoc-mcp` (cannot call the crate-private helper; MCP read kept as is, per the hint). Pure refactor, no spec.
+
+## Plan
+1. [x] One read, one walk: `source_hashes.rs` (2), `contexts/run.rs`, `rules/mod.rs`, `confidence/mod.rs`, plus the
+   other whole-file reads found in the pipeline (`confidence/checks.rs`, `use_cases/mod.rs`, `use_cases/prompt.rs`,
+   `rules/prompt.rs`, `rules/grounding.rs`) call `read_file_lossy`; `truncate_chars` cuts in one walk; verified by the
+   existing tests plus unit tests of `truncate_chars` at the boundary (exactly `max_chars`, multi-byte, one over);
+   ~120 lines.
+
+## Decisions
+- Mode: autonomous
+- Base commit: f420903b32066a2ef290c374bc23608650c3851c
+
+## Summary of deliverable 1
+- done: 10 whole-file reads of the pipeline call `read_file_lossy`; `truncate_chars` cuts at `char_indices().nth`.
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | clippy pedantic clean |
+| specs | no change (pure refactor) |
+| docs | no doc names the helpers or the hand-written reads: nothing to update |
+| code review | see below |
+
+- red: none (refactor; the 3 boundary tests of `truncate_chars` pass before and after)
+- Code review: no findings
+- not verified: none
+- decisions needed: none

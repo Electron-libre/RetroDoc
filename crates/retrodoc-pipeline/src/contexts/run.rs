@@ -21,6 +21,7 @@ use crate::error::PipelineError;
 use crate::fingerprints::{fingerprint, Fingerprints};
 use crate::roles::{FileRole, RoleMap};
 use crate::slices::CodeIndex;
+use crate::text::read_file_lossy;
 
 use super::{ContextMap, Resolved, ResolvedContext};
 
@@ -49,9 +50,9 @@ fn context_hash(repo_root: &Path, context: &ResolvedContext, read: &[PathBuf]) -
     files.sort();
     files.dedup();
     fingerprint(files.into_iter().map(|path| {
-        let hash = std::fs::read(repo_root.join(path)).map_or_else(
+        let hash = read_file_lossy(repo_root, path).map_or_else(
             |_| "unreadable".to_string(),
-            |bytes| hash_content(&String::from_utf8_lossy(&bytes)),
+            |content| hash_content(&content),
         );
         format!("{}\n{hash}", path.display())
     }))

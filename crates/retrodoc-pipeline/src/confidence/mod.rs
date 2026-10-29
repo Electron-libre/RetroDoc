@@ -40,6 +40,7 @@ use crate::glossary::Glossary;
 use crate::progress::Progress;
 use crate::response::complete_json;
 use crate::roles::load_splitter;
+use crate::text::read_file_lossy;
 use crate::use_cases::save_use_cases;
 use checks::{check_step, StepCheck};
 
@@ -499,7 +500,7 @@ fn append_code(
         if budget == 0 {
             break;
         }
-        let Ok(bytes) = std::fs::read(repo_root.join(path)) else {
+        let Ok(content) = read_file_lossy(repo_root, Path::new(path)) else {
             continue;
         };
         let focus = Focus {
@@ -508,7 +509,7 @@ fn append_code(
         };
         let excerpt = splitter.excerpt(
             Path::new(path),
-            &String::from_utf8_lossy(&bytes),
+            &content,
             MAX_CHARS_PER_FILE.min(budget),
             &focus,
         );

@@ -16,6 +16,7 @@ use super::RuleInput;
 use crate::brief::ExtractKind;
 use crate::citations::{cited_path, lenient_code, RawCode};
 use crate::naming::normalize;
+use crate::text::read_file_lossy;
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub(super) struct RawRules {
@@ -142,8 +143,8 @@ struct LineCounts<'a> {
 impl LineCounts<'_> {
     fn of(&mut self, path: &str) -> Option<u32> {
         *self.counts.entry(path.to_string()).or_insert_with(|| {
-            let bytes = std::fs::read(self.repo_root.join(path)).ok()?;
-            u32::try_from(String::from_utf8_lossy(&bytes).lines().count()).ok()
+            let content = read_file_lossy(self.repo_root, Path::new(path)).ok()?;
+            u32::try_from(content.lines().count()).ok()
         })
     }
 }

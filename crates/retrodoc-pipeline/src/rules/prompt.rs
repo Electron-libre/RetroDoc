@@ -9,6 +9,7 @@ use retrodoc_core::model::{Feature, UseCase};
 use super::RuleInput;
 use crate::brief::{ExtractKind, ProductBrief};
 use crate::chunks::Splitter;
+use crate::text::read_file_lossy;
 use crate::use_cases::{focus_for, MAX_CHARS_PER_FILE, MAX_CHARS_PER_PROMPT};
 
 pub(super) const RULES_SYSTEM_PROMPT: &str = "You are documenting a software project from a \
@@ -90,13 +91,13 @@ pub(super) fn rules_prompt(
         if budget == 0 {
             break;
         }
-        let Ok(bytes) = std::fs::read(repo_root.join(path)) else {
+        let Ok(content) = read_file_lossy(repo_root, Path::new(path)) else {
             tracing::warn!(path = %path, "could not read a feature file, left out of the rules prompt");
             continue;
         };
         let excerpt = splitter.excerpt(
             Path::new(path),
-            &String::from_utf8_lossy(&bytes),
+            &content,
             MAX_CHARS_PER_FILE.min(budget),
             &focus,
         );

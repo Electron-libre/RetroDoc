@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use crate::artifact::{load_json, save_json, Artifact};
 use crate::cache::hash_content;
 use crate::error::PipelineError;
+use crate::text::read_file_lossy;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct SourceHashes {
@@ -32,10 +33,10 @@ impl SourceHashes {
             .iter()
             .filter(|f| f.kind == FileKind::Source)
             .filter_map(|f| {
-                let bytes = std::fs::read(repo_root.join(&f.path)).ok()?;
+                let content = read_file_lossy(repo_root, &f.path).ok()?;
                 Some((
                     f.path.to_string_lossy().into_owned(),
-                    hash_content(&String::from_utf8_lossy(&bytes)),
+                    hash_content(&content),
                 ))
             })
             .collect();
@@ -51,11 +52,8 @@ impl SourceHashes {
         let files = paths
             .into_iter()
             .filter_map(|path| {
-                let bytes = std::fs::read(repo_root.join(path)).ok()?;
-                Some((
-                    path.to_string_lossy().into_owned(),
-                    hash_content(&String::from_utf8_lossy(&bytes)),
-                ))
+                let content = read_file_lossy(repo_root, path).ok()?;
+                Some((path.to_string_lossy().into_owned(), hash_content(&content)))
             })
             .collect();
         Self { files }

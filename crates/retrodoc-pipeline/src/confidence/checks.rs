@@ -8,6 +8,8 @@ use std::path::Path;
 
 use retrodoc_core::model::Step;
 
+use crate::text::read_file_lossy;
+
 /// Names shorter than this are too common to prove anything.
 const MIN_ENTITY_CHARS: usize = 3;
 
@@ -35,10 +37,9 @@ pub(super) fn check_step(repo_root: &Path, step: &Step, entities: &[String]) -> 
     let mut cited = String::new();
     let mut files = String::new();
     for reference in &step.source_refs {
-        let Ok(bytes) = std::fs::read(repo_root.join(&reference.path)) else {
+        let Ok(text) = read_file_lossy(repo_root, Path::new(&reference.path)) else {
             return StepCheck::Broken(format!("cannot read {}", reference.path));
         };
-        let text = String::from_utf8_lossy(&bytes);
         let lines: Vec<&str> = text.lines().collect();
         if let Some(start) = reference.start_line.or(reference.end_line) {
             let end = reference.end_line.unwrap_or(start).max(start);

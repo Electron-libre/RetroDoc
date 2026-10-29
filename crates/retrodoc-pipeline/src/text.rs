@@ -16,9 +16,30 @@ pub(crate) fn read_file_lossy(repo_root: &Path, relative: &Path) -> Result<Strin
 
 /// `content` cut to its first `max_chars` characters, with a marker when it was cut.
 pub(crate) fn truncate_chars(content: &str, max_chars: usize) -> String {
-    if content.chars().count() <= max_chars {
-        return content.to_string();
+    match content.char_indices().nth(max_chars) {
+        None => content.to_string(),
+        Some((cut, _)) => format!("{}\n… (truncated)", &content[..cut]),
     }
-    let truncated: String = content.chars().take(max_chars).collect();
-    format!("{truncated}\n… (truncated)")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_text_of_exactly_max_chars_is_kept_whole() {
+        assert_eq!(truncate_chars("héllo", 5), "héllo");
+    }
+
+    #[test]
+    fn a_text_one_char_over_is_cut_on_a_char_boundary() {
+        assert_eq!(truncate_chars("héllo!", 5), "héllo\n… (truncated)");
+        assert_eq!(truncate_chars("ééé", 1), "é\n… (truncated)");
+    }
+
+    #[test]
+    fn a_zero_budget_keeps_only_the_marker() {
+        assert_eq!(truncate_chars("abc", 0), "\n… (truncated)");
+        assert_eq!(truncate_chars("", 0), "");
+    }
 }

@@ -36,6 +36,7 @@ use crate::progress::Progress;
 use crate::response::complete_json;
 use crate::roles::load_splitter;
 use crate::slices::CodeIndex;
+use crate::text::read_file_lossy;
 
 mod grounding;
 mod prompt;
@@ -483,9 +484,9 @@ fn feature_fingerprint(
         evidence,
     } = *framing;
     let files = input.files.iter().map(|path| {
-        let content = std::fs::read(repo_root.join(path)).map_or_else(
+        let content = read_file_lossy(repo_root, Path::new(path)).map_or_else(
             |_| "unreadable".to_string(),
-            |bytes| hash_content(&String::from_utf8_lossy(&bytes)),
+            |content| hash_content(&content),
         );
         format!("{path}\n{content}")
     });
