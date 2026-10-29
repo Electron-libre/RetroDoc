@@ -23,6 +23,7 @@ use crate::cache::{hash_content, RepoMapCache};
 use crate::error::PipelineError;
 use crate::progress::Progress;
 use crate::response::{complete_json, complete_text};
+use crate::text::{read_file_lossy, truncate_chars};
 
 mod summarize;
 #[cfg(test)]
@@ -377,23 +378,6 @@ pub fn estimate_repo_map(
         .filter(|d| dirty.contains(*d) || !cache.has_module(d))
         .count();
     estimate
-}
-
-pub(crate) fn read_file_lossy(repo_root: &Path, relative: &Path) -> Result<String, PipelineError> {
-    let abs = repo_root.join(relative);
-    let bytes = std::fs::read(&abs).map_err(|source| PipelineError::Read {
-        path: relative.to_path_buf(),
-        source,
-    })?;
-    Ok(String::from_utf8_lossy(&bytes).into_owned())
-}
-
-pub(crate) fn truncate_chars(content: &str, max_chars: usize) -> String {
-    if content.chars().count() <= max_chars {
-        return content.to_string();
-    }
-    let truncated: String = content.chars().take(max_chars).collect();
-    format!("{truncated}\n… (truncated)")
 }
 
 /// Number of distinct authors, saturated at `u32::MAX` (never reached in

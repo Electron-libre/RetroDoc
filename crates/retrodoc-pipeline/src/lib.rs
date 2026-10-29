@@ -50,6 +50,7 @@ pub mod sources;
 pub mod surface;
 #[cfg(test)]
 mod testing;
+mod text;
 pub mod usage_log;
 pub mod use_cases;
 pub mod vocabulary;

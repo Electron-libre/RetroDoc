@@ -22,9 +22,9 @@ use super::replay_use_cases::{missing, prepare_with_tree, TreeRun};
 use crate::artifact::{load_yaml, Artifact};
 use crate::bm25::Bm25;
 use crate::error::PipelineError;
-use crate::repo_map::truncate_chars;
 use crate::response::complete_json;
 use crate::rules::build_rules;
+use crate::text::truncate_chars;
 use crate::use_cases::load_use_cases;
 
 /// Generated rules shown to the judge for each rule of the reference: the closest by BM25.

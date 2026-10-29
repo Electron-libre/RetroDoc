@@ -45,3 +45,41 @@ no-op. Split from `issues/done/single_pipeline_path.md` for the size limit.
   `issues/pass_runner_and_run_context.md`: less code to refactor.
 * The saved frozen inputs of the per-pass replays may hold a `repo-map.json`: `FrozenInputs::prepare` must keep
   working on them.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Delete the repo map (`repo_map/`, `RepoMapCache`, `Artifact::RepoMap`) that no pass calls since ADR 0035, keeping
+its two shared helpers. Out of scope: the `"repo-map"` fixtures of old `usage.json` runs, the `[llm.passes.repo-map]`
+removed-setting error of `config.rs`, the ADRs (historical records).
+
+## Plan
+1. [x] Move the helpers: `read_file_lossy` and `truncate_chars` go to a new `src/text.rs` (pipeline-private), the
+   eight importers edited; verified by `just check` (no behaviour change); ~40 lines.
+2. [ ] Remove the repo map: `repo_map/`, the `lib.rs` exports, `RepoMapCache` (keeping `hash_content`),
+   `Artifact::RepoMap` and its copy in `benchmark/frozen.rs`, the MCP freshness test that used the cache; RER-2
+   amended and proven by a new use cases test (two features, one file changed, only its feature redone), spec back
+   to `accepted`; verified by `just check`; makes true RER-2; ~1,250 lines, almost all deletions (see Decisions).
+3. [ ] Docs: `lib.rs` and `source_hashes.rs` doc comments, `retrodoc-ingest` and `retrodoc-llm` crate docs,
+   `docs/crates/pipeline.md`, `docs/ARCHITECTURE.md`, `docs/dev/commands.md`, `specs/pipeline-settings.md` if it
+   still names it, PLAN; verified by `skill:update-docs` and `just check`; ~100 lines.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 18cb5fbb9a531ad409ceb0a831b4546652365417
+- An old `.retrodoc/cache/repo-map.json` is left on disk: nothing reads it, `FrozenInputs::prepare` copies it harmlessly.
+- Deliverable 2 is slightly over the ~1,000-line limit but is a pure deletion of a self-contained module plus one
+  test: kept whole, since splitting `repo_map/` would leave a module that no longer compiles alone.
+
+## Deliverable summaries
+
+### 1. Move the helpers
+- done: `read_file_lossy` and `truncate_chars` live in `src/text.rs`; the nine importers point there.
+- check | result: tests ok, clippy ok, fmt ok, specs ok, `check-harness` fails on the git review gate hook (the
+  uncommitted switch of `.claude/harness.toml` to `cardinal`, not this change), code review below.
+- red: none (no behaviour change, no new test).
+- not verified: nothing.
+- decisions needed: none.
+- Code review: no findings.

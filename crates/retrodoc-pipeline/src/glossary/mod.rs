@@ -36,8 +36,8 @@ use crate::chunks::{strip_part_marker, Splitter};
 use crate::error::PipelineError;
 use crate::fingerprints::hash_for_model;
 use crate::naming::normalize;
-use crate::repo_map::read_file_lossy;
 use crate::roles::{FileRole, RoleMap};
+use crate::text::read_file_lossy;
 use crate::use_cases::resolve_cited_path;
 
 /// A longer model file is read in several chunks of about this size, so one

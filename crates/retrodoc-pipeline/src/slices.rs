@@ -23,7 +23,7 @@ use std::path::{Path, PathBuf};
 use retrodoc_ingest::structure;
 
 use crate::naming::normalize;
-use crate::repo_map::read_file_lossy;
+use crate::text::read_file_lossy;
 
 /// A name shared by more files than this designates none of them.
 const MAX_FILES_PER_NAME: usize = 6;

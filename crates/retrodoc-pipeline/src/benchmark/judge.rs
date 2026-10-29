@@ -20,8 +20,8 @@ use crate::domains::{DomainMap, UNCATEGORIZED_SLUG};
 use crate::error::PipelineError;
 use crate::features::load_features;
 use crate::naming::normalize;
-use crate::repo_map::truncate_chars;
 use crate::response::complete_json;
+use crate::text::truncate_chars;
 use crate::use_cases::load_use_cases;
 
 /// A name with what it means, as shown to the judge.

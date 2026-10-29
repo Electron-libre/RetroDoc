@@ -23,9 +23,9 @@ use crate::cache::hash_content;
 use crate::error::PipelineError;
 use crate::fingerprints::{fingerprint, model_part};
 use crate::naming::normalize;
-use crate::repo_map::{read_file_lossy, truncate_chars};
 use crate::response::complete_json;
 use crate::surface::Surface;
+use crate::text::{read_file_lossy, truncate_chars};
 
 /// Authorization files sent to the LLM.
 const MAX_AUTH_FILES: usize = 12;

@@ -23,8 +23,8 @@ use serde::Deserialize;
 
 use crate::chunks::{ChunkBoundary, REGEX_SYNTAX_HELP};
 use crate::error::PipelineError;
-use crate::repo_map::read_file_lossy;
 use crate::response::complete_json;
+use crate::text::read_file_lossy;
 
 /// Coverage from which a regex is accepted without a second call.
 const GOOD_COVERAGE: f64 = 0.9;

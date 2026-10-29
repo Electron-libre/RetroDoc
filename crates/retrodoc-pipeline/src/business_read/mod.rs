@@ -30,8 +30,8 @@ use crate::glossary::{
     attribute_entities, merge_chunk_entities, Entity, Glossary, GlossaryResponse, ModelFile,
     ResponseEntity,
 };
-use crate::repo_map::read_file_lossy;
 use crate::roles::RoleMap;
+use crate::text::read_file_lossy;
 
 // The wording of the two tasks is that of `glossary` (business prompt) and `entry_points`; keep them close.
 const BUSINESS_READ_SYSTEM_PROMPT: &str = "You are reading the source files of a software \

@@ -19,8 +19,8 @@ use serde::{Deserialize, Serialize};
 use crate::artifact::{load_yaml, save_yaml, Artifact};
 use crate::error::PipelineError;
 use crate::naming::normalize;
-use crate::repo_map::read_file_lossy;
 use crate::roles::{FileRole, RoleMap};
+use crate::text::read_file_lossy;
 
 /// A file name shared by more files than this designates none of them.
 const MAX_SHARED_NAME: usize = 3;
