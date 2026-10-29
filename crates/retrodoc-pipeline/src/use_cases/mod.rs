@@ -37,6 +37,7 @@ use crate::response::complete_json;
 use crate::roles::load_splitter;
 use crate::slices::CodeIndex;
 use crate::text::read_file_lossy;
+use crate::walked::WalkedFiles;
 
 mod grounding;
 mod prompt;
@@ -151,6 +152,9 @@ pub struct UseCaseContext {
     /// Features asked at once (`0` and `1`: one at a time). The answers are used in the order of
     /// the features, so the result does not depend on it.
     pub concurrency: usize,
+    /// The files of the walk: a file a saved feature or entry point names is shown only when it is one of them,
+    /// as `features.yaml` and `entry-points.yaml` can be edited (none by default: no file is shown).
+    pub walked: WalkedFiles,
 }
 
 impl UseCaseContext {
@@ -350,8 +354,6 @@ fn plan_items<'a>(
     llm: &dyn LlmProvider,
 ) -> Vec<Item<'a>> {
     let UseCaseContext {
-        entry_points,
-        index,
         actors,
         brief,
         evidence,
@@ -362,7 +364,7 @@ fn plan_items<'a>(
         .enumerate()
         .map(|(position, feature)| {
             let key = format!("{}/{}", feature.domain_slug, feature.slug);
-            let input = FeatureInput::new(repo_root, feature, entry_points, index);
+            let input = FeatureInput::new(repo_root, feature, context);
             let close = evidence.section(&feature_query(feature, &input));
             let framing = Framing {
                 actors,
@@ -375,7 +377,7 @@ fn plan_items<'a>(
                 Plan::Reuse
             } else {
                 let requests: Vec<Request> = input
-                    .calls(repo_root, feature, index)
+                    .calls(repo_root, feature, context)
                     .into_iter()
                     .filter_map(|input| {
                         let (prompt, cited_files) =
@@ -543,14 +545,13 @@ pub(crate) struct FeatureInput {
 }
 
 impl FeatureInput {
-    pub(crate) fn new(
-        repo_root: &Path,
-        feature: &Feature,
-        entry_points: &EntryPoints,
-        index: &CodeIndex,
-    ) -> Self {
-        let entries: Vec<(PathBuf, EntryPoint)> = entry_points
+    /// The input of `feature` drawn from `context`, kept to the files of its walk.
+    pub(crate) fn new(repo_root: &Path, feature: &Feature, context: &UseCaseContext) -> Self {
+        let walked = &context.walked;
+        let entries: Vec<(PathBuf, EntryPoint)> = context
+            .entry_points
             .iter()
+            .filter(|(file, _)| walked.contains(file))
             .filter(|(file, entry)| {
                 if feature.entry_points.is_empty() {
                     feature.source_paths.iter().any(|p| Path::new(p) == *file)
@@ -561,20 +562,26 @@ impl FeatureInput {
             })
             .map(|(file, entry)| (file.to_path_buf(), entry.clone()))
             .collect();
-        Self::of(repo_root, feature, entries, index)
+        Self::of(repo_root, feature, entries, context)
     }
 
-    /// The input of `entries`: the files that define them and the code they run.
+    /// The input of `entries`: the files that define them and the code they run, those of the walk only.
     fn of(
         repo_root: &Path,
         feature: &Feature,
         entries: Vec<(PathBuf, EntryPoint)>,
-        index: &CodeIndex,
+        context: &UseCaseContext,
     ) -> Self {
+        let walked = |path: &String| context.walked.contains(Path::new(path));
         if entries.is_empty() {
             return Self {
                 entries,
-                files: feature.source_paths.clone(),
+                files: feature
+                    .source_paths
+                    .iter()
+                    .filter(|p| walked(p))
+                    .cloned()
+                    .collect(),
             };
         }
         let mut starts: Vec<PathBuf> = Vec::new();
@@ -583,18 +590,21 @@ impl FeatureInput {
                 starts.push(file.clone());
             }
         }
-        let slice = index.slice(repo_root, &starts, SLICE_DEPTH, MAX_SLICE_FILES);
+        let slice = context
+            .index
+            .slice(repo_root, &starts, SLICE_DEPTH, MAX_SLICE_FILES);
         let files = starts
             .iter()
             .chain(&slice)
             .map(|p| p.to_string_lossy().into_owned())
+            .filter(|p| walked(p))
             .collect();
         Self { entries, files }
     }
 
     /// The inputs of the calls that derive the use cases: this one, or, for more than
     /// [`MAX_ENTRIES_PER_CALL`] entry points, one per slice of whole files.
-    fn calls(self, repo_root: &Path, feature: &Feature, index: &CodeIndex) -> Vec<Self> {
+    fn calls(self, repo_root: &Path, feature: &Feature, context: &UseCaseContext) -> Vec<Self> {
         let files: Vec<&Path> = self.entries.iter().map(|(f, _)| f.as_path()).collect();
         let ranges = file_ranges(&files, MAX_ENTRIES_PER_CALL);
         if ranges.len() <= 1 {
@@ -602,7 +612,7 @@ impl FeatureInput {
         }
         ranges
             .into_iter()
-            .map(|range| Self::of(repo_root, feature, self.entries[range].to_vec(), index))
+            .map(|range| Self::of(repo_root, feature, self.entries[range].to_vec(), context))
             .collect()
     }
 }

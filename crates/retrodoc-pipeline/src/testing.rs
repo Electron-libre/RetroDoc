@@ -393,3 +393,11 @@ pub(crate) fn repo_with_an_ignored_secret() -> tempfile::TempDir {
     std::fs::write(dir.path().join("a.rs"), "fn a() {}\n").unwrap();
     dir
 }
+
+/// The default context of the use cases and rules passes, reading the walk of `root` as it is now.
+pub(crate) fn reading(root: &std::path::Path) -> crate::use_cases::UseCaseContext {
+    crate::use_cases::UseCaseContext {
+        walked: walked(root),
+        ..crate::use_cases::UseCaseContext::default()
+    }
+}

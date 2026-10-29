@@ -42,7 +42,7 @@ entry points filtered by the walked sources, role map applied to `ingest.files`,
    cited excerpts; `generate`, the benchmark replay and the `confidence_agreement` example pass it; verified by a
    `check_step` test and a `score_confidence` test whose use case cites a gitignored `.env` inside a git repo
    (Broken, not in the prompt); ~250 lines.
-2. [ ] `UseCaseContext` carries the `WalkedFiles`; `FeatureInput` keeps only the walked files of `feature.source_paths`,
+2. [x] `UseCaseContext` carries the `WalkedFiles`; `FeatureInput` keeps only the walked files of `feature.source_paths`,
    so the use cases and rules prompts, `RuleInput`, the groundings and the fingerprints never read another; verified
    by a use cases test and a rules test whose feature lists a gitignored file (absent from the prompt sent to the
    fake LLM); ~300 lines.
@@ -69,4 +69,25 @@ entry points filtered by the walked sources, role map applied to `ingest.files`,
 - red: none (no spec): `check_step` gave `Pass` for a cited gitignored `.env`; the scoring prompt held `SECRET_TOKEN`.
 - Code review: no findings
 - not verified: a real `generate` run (no paid run for an internal guard).
+- decisions needed: none.
+
+## Deliverable 2 summary
+- done: `UseCaseContext::walked` (set by `generate`, both paths, and the benchmark replay, which also scores its
+  grounding with it); `FeatureInput` keeps only the walked entry files and feature files, so the use cases and
+  rules prompts, `RuleInput`, the groundings and the fingerprints read no other; a file gone from the repository is
+  now dropped from the input rather than hashed as unreadable (the fingerprint still changes);
+  `ARCHITECTURE.md` §4, `pipeline.md` use cases row; `contexts::record_run` taken out of `document` (clippy length).
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | pass |
+| specs | n/a (no spec) |
+| docs | `docs/ARCHITECTURE.md` safety nets, `docs/crates/pipeline.md` use cases row |
+| code review | low: no findings |
+
+- red: none (no spec): the rules input kept `.env` in its files; the use cases prompt showed the `.env` entry file
+  instead of `a.rs`.
+- Code review: no findings
+- not verified: a real `generate` run.
 - decisions needed: none.

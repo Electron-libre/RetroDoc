@@ -153,9 +153,11 @@ What each pass hands to the next, and where it is saved:
 - **Reads stay in the repo.** Every source read goes through `text::read_file_lossy` (or `read_file_prefix_lossy` for a
   bounded prefix), which treats as unreadable a path that is absolute, has a `..` or resolves outside the repository
   through a symbolic link: a path edited in a saved artifact can't point a prompt at a file outside the repository.
-- **Artifact paths stay in the walk.** A path cited by a saved artifact (the `source_refs` of `use-cases.yaml`) is
-  read through `WalkedFiles::read` (`walked.rs`), the files of this run's walk taken before the budget: a file the
-  walker skips (gitignored `.env`, `.git/config`) reads as unreadable, so its content never reaches a prompt.
+- **Artifact paths stay in the walk.** A path cited by a saved artifact is read only when it is one of the
+  `WalkedFiles` (`walked.rs`), the files of this run's walk taken before the budget: the `source_refs` of
+  `use-cases.yaml` read through `WalkedFiles::read`, and the use cases and rules inputs (`FeatureInput`) drop the
+  files of `features.yaml` and `entry-points.yaml` the walk lacks. A file the walker skips (gitignored `.env`,
+  `.git/config`) never reaches a prompt.
 
 ### How the confidence score is computed
 

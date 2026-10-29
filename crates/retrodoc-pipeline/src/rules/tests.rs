@@ -10,7 +10,7 @@ use super::*;
 use crate::brief::Evidence;
 use crate::entry_points::{EntryFile, EntryKind, EntryPoint, EntryPoints};
 use crate::slices::CodeIndex;
-use crate::testing::{killed, FakeLlm};
+use crate::testing::{killed, reading, FakeLlm};
 
 const ROUTER: &str = "def add_order\n  return :refused if time >= 60\n  accept\nend\n";
 
@@ -44,7 +44,7 @@ fn use_case() -> UseCase {
     }
 }
 
-fn context() -> UseCaseContext {
+fn context(root: &Path) -> UseCaseContext {
     let signal = |kind, origin: &str, text: &str| Signal {
         kind,
         origin: origin.into(),
@@ -81,7 +81,7 @@ fn context() -> UseCaseContext {
                 "An order is refused when delivery takes an hour.",
             ),
         ]),
-        ..UseCaseContext::default()
+        ..reading(root)
     }
 }
 
@@ -99,7 +99,7 @@ fn answer(rules: &str) -> String {
 const LIMIT: &str = r#"{"statement":"An order that would take an hour or more to deliver is refused.","kind":"limit","entities":["order","Ghost"],"use_cases":["place-an-order","nope"],"code":[{"path":"lib/router.rb","start_line":2,"end_line":2}],"tests":[{"id":"T1","phrase":"refuses an order that takes 60 minutes"}],"docs":["D1"]}"#;
 
 async fn run(dir: &Path, llm: &FakeLlm) -> Vec<BusinessRule> {
-    build_rules(dir, &[feature()], &[use_case()], &context(), llm)
+    build_rules(dir, &[feature()], &[use_case()], &context(dir), llm)
         .await
         .unwrap()
 }
@@ -307,7 +307,14 @@ async fn a_failing_call_keeps_the_previous_rules_of_the_features_not_reached() {
     .unwrap();
 
     let down = FakeLlm::failing_after(0, |_| String::new());
-    let result = build_rules(dir.path(), &[feature()], &[use_case()], &context(), &down).await;
+    let result = build_rules(
+        dir.path(),
+        &[feature()],
+        &[use_case()],
+        &context(dir.path()),
+        &down,
+    )
+    .await;
 
     assert!(result.is_err());
     assert_eq!(load_rules(dir.path()).unwrap().len(), 1);
@@ -382,7 +389,13 @@ async fn a_killed_run_keeps_the_rules_of_the_features_done_and_the_rerun_resumes
 
     let stuck = FakeLlm::hanging_after(3, |_| answer(LIMIT));
     killed(
-        build_rules(dir.path(), &features, &[use_case()], &context(), &stuck),
+        build_rules(
+            dir.path(),
+            &features,
+            &[use_case()],
+            &context(dir.path()),
+            &stuck,
+        ),
         &stuck,
     )
     .await;
@@ -390,9 +403,15 @@ async fn a_killed_run_keeps_the_rules_of_the_features_done_and_the_rerun_resumes
     assert_eq!(saved.len(), 1);
 
     let healthy = FakeLlm::answering(answer(LIMIT));
-    build_rules(dir.path(), &features, &[use_case()], &context(), &healthy)
-        .await
-        .unwrap();
+    build_rules(
+        dir.path(),
+        &features,
+        &[use_case()],
+        &context(dir.path()),
+        &healthy,
+    )
+    .await
+    .unwrap();
     assert_eq!(
         healthy.calls(),
         3,
@@ -511,7 +530,7 @@ fn two_features_repo() -> tempfile::TempDir {
 }
 
 async fn ask(dir: &Path, llm: &FakeLlm, features: &[Feature]) -> Vec<BusinessRule> {
-    build_rules(dir, features, &[use_case()], &context(), llm)
+    build_rules(dir, features, &[use_case()], &context(dir), llm)
         .await
         .unwrap()
 }
@@ -621,7 +640,7 @@ async fn a_feature_set_aside_as_tests_is_kept_with_its_reason_until_it_changes()
         dir.path(),
         &[changed],
         &[use_case()],
-        &context(),
+        &context(dir.path()),
         &knowing(r#"{"about_tests":false}"#),
     )
     .await
@@ -667,13 +686,13 @@ async fn a_run_saved_before_the_set_aside_file_is_asked_again_once() {
 }
 
 /// The context of the tests, with the features and rules of `put_back` put back by hand.
-fn putting_back(features: &[&str], rules: &[&str]) -> UseCaseContext {
+fn putting_back(root: &Path, features: &[&str], rules: &[&str]) -> UseCaseContext {
     UseCaseContext {
         put_back: RulesConfig {
             keep_features: features.iter().map(ToString::to_string).collect(),
             keep_rules: rules.iter().map(ToString::to_string).collect(),
         },
-        ..context()
+        ..context(root)
     }
 }
 
@@ -698,7 +717,7 @@ async fn a_feature_put_back_by_hand_is_not_asked_whether_it_is_about_tests() {
         dir.path(),
         &llm,
         &[feature()],
-        &putting_back(&["orders"], &[]),
+        &putting_back(dir.path(), &["orders"], &[]),
     )
     .await;
 
@@ -717,7 +736,7 @@ async fn putting_a_feature_back_or_taking_it_off_the_list_redoes_that_feature_on
     let dir = two_features_repo();
     let features = [feature(), wide()];
     let first = knowing(r#"{"about_tests":true}"#);
-    ask_with(dir.path(), &first, &features, &context()).await;
+    ask_with(dir.path(), &first, &features, &context(dir.path())).await;
     assert_eq!(first.calls(), 2);
 
     let listed = knowing(r#"{"about_tests":true}"#);
@@ -725,7 +744,7 @@ async fn putting_a_feature_back_or_taking_it_off_the_list_redoes_that_feature_on
         dir.path(),
         &listed,
         &features,
-        &putting_back(&["orders"], &[]),
+        &putting_back(dir.path(), &["orders"], &[]),
     )
     .await;
     assert_eq!(rules.len(), 1);
@@ -738,7 +757,7 @@ async fn putting_a_feature_back_or_taking_it_off_the_list_redoes_that_feature_on
 
     let unlisted = knowing(r#"{"about_tests":true}"#);
     assert_eq!(
-        ask_with(dir.path(), &unlisted, &features, &context()).await,
+        ask_with(dir.path(), &unlisted, &features, &context(dir.path())).await,
         []
     );
     assert_eq!(unlisted.calls(), 1, "the question on `orders` only");
@@ -755,7 +774,7 @@ async fn a_feature_put_back_that_does_not_exist_is_warned_about() {
         dir.path(),
         &llm,
         &[feature()],
-        &putting_back(&["ghost", "orders"], &[]),
+        &putting_back(dir.path(), &["ghost", "orders"], &[]),
     )
     .await;
 
@@ -791,7 +810,7 @@ async fn a_rule_put_back_by_hand_is_published_with_its_evidence_without_a_call_u
         dir.path(),
         &listed,
         &[feature()],
-        &putting_back(&[], &["orders-1"]),
+        &putting_back(dir.path(), &[], &["orders-1"]),
     )
     .await;
     assert_eq!(listed.calls(), 0);
@@ -825,7 +844,7 @@ async fn a_rule_put_back_that_was_not_set_aside_is_warned_about_unless_it_is_pub
         dir.path(),
         &FakeLlm::answering("not even json"),
         &[feature()],
-        &putting_back(&[], &["orders-9", "orders-2"]),
+        &putting_back(dir.path(), &[], &["orders-9", "orders-2"]),
     )
     .await;
 
@@ -855,7 +874,7 @@ async fn a_rule_put_back_from_an_older_set_aside_file_is_warned_about_and_not_ma
         dir.path(),
         &FakeLlm::answering("not even json"),
         &[feature()],
-        &putting_back(&[], &["orders-1"]),
+        &putting_back(dir.path(), &[], &["orders-1"]),
     )
     .await;
 
@@ -879,7 +898,7 @@ async fn a_rule_listed_twice_is_put_back_once() {
         dir.path(),
         &FakeLlm::answering("not even json"),
         &[feature()],
-        &putting_back(&[], &["orders-1", "orders-1"]),
+        &putting_back(dir.path(), &[], &["orders-1", "orders-1"]),
     )
     .await;
 
@@ -895,7 +914,7 @@ async fn a_failing_run_keeps_the_rules_put_back_in_what_it_saves() {
         &format!("{STORAGE},{LIMIT}"),
         r#"{"rules":[{"n":1,"class":"storage"},{"n":2,"class":"business"}]}"#,
     );
-    ask_with(dir.path(), &llm, &features, &context()).await;
+    ask_with(dir.path(), &llm, &features, &context(dir.path())).await;
     let mut changed = features.clone();
     changed[1].description = "Runs everything, or not".into();
 
@@ -904,7 +923,7 @@ async fn a_failing_run_keeps_the_rules_put_back_in_what_it_saves() {
         dir.path(),
         &changed,
         &[use_case()],
-        &putting_back(&[], &["orders-1"]),
+        &putting_back(dir.path(), &[], &["orders-1"]),
         &down,
     )
     .await;
@@ -924,7 +943,7 @@ async fn a_feature_put_back_whose_answer_is_unreadable_is_no_longer_listed_as_se
         dir.path(),
         &FakeLlm::answering("sorry"),
         &[feature()],
-        &putting_back(&["orders"], &[]),
+        &putting_back(dir.path(), &["orders"], &[]),
     )
     .await;
 
@@ -975,8 +994,8 @@ fn a_slip_in_the_lines_of_a_numbered_file_costs_the_lines_not_the_file() {
 const EXTRA: &str = "def helper\n  return :refused if retries > 3\nend\n";
 
 /// A feature that reads two files, each with an entry point.
-fn two_file_context() -> UseCaseContext {
-    let mut context = context();
+fn two_file_context(root: &Path) -> UseCaseContext {
+    let mut context = context(root);
     let entry = |name: &str| EntryPoint {
         kind: EntryKind::Job,
         name: name.into(),
@@ -1029,7 +1048,7 @@ const LIMIT_COMPACT: &str = r#"{"statement":"An order that would take an hour or
 async fn an_answer_cut_by_the_completion_limit_is_asked_again_on_halves_of_the_files_and_merged() {
     let dir = two_features_repo();
     std::fs::write(dir.path().join("lib/extra.rb"), EXTRA).unwrap();
-    let context = two_file_context();
+    let context = two_file_context(dir.path());
     // Only the prompt with both files is cut: the halves are shorter.
     let probe_dir = two_features_repo();
     std::fs::write(probe_dir.path().join("lib/extra.rb"), EXTRA).unwrap();

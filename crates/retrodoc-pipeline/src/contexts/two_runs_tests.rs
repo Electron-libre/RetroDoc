@@ -12,7 +12,7 @@ use crate::glossary::{Entity, Glossary, ModelFile};
 use crate::roles::{FileRole, RoleMap};
 use crate::slices::CodeIndex;
 use crate::surface::Surface;
-use crate::testing::FakeLlm;
+use crate::testing::{reading, FakeLlm};
 use crate::use_cases::{build_use_cases, UseCaseContext};
 
 struct Fixture {
@@ -163,7 +163,7 @@ async fn run(
         // The vocabulary of the whole application grows with every context read.
         vocabulary: vec![format!("{} contexts known", slice.done.len())],
         domain_vocabulary: domain_vocabulary(&everywhere, &f.glossary, 5),
-        ..UseCaseContext::default()
+        ..reading(f.dir.path())
     };
     let use_cases = build_use_cases(f.dir.path(), &features, &context, use_cases_llm)
         .await

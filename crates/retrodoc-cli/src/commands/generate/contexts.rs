@@ -157,7 +157,6 @@ async fn document(
             ),
         )
         .await?;
-    let slice = repo.slice;
     // Read before the passes: a file edited during the run then reads as modified later.
     let source_hashes = SourceHashes::capture_paths(repo_root, &documented_files(repo));
     let (in_run, everywhere) = domains(repo, &glossary, &entry_points);
@@ -188,8 +187,15 @@ async fn document(
         .context("could not save the features")?;
     report_entries_by_context(repo_root, repo, &in_run)?;
 
-    let mut context =
-        super::use_case_context(entry_points, repo.ingest, actors, &surface, signals, config);
+    let mut context = super::use_case_context(
+        entry_points,
+        repo.ingest,
+        passes.walked,
+        actors,
+        &surface,
+        signals,
+        config,
+    );
     context.domain_vocabulary =
         retrodoc_pipeline::domain_vocabulary(&everywhere, &glossary, VOCABULARY_SIZE);
     let mut use_cases = tracker
@@ -214,12 +220,24 @@ async fn document(
     )
     .await?;
 
+    record_run(repo_root, repo, source_hashes)?;
+    super::print::features(&features, &use_cases);
+    super::print::saved(features.len(), use_cases.len());
+    Ok(())
+}
+
+/// Saves the source hashes of the files the run documented and marks its contexts done.
+fn record_run(
+    repo_root: &Path,
+    repo: &Repo<'_>,
+    source_hashes: SourceHashes,
+) -> anyhow::Result<()> {
     let mut recorded = SourceHashes::load(repo_root);
     recorded.merge(source_hashes);
     recorded
         .save(repo_root)
         .context("could not save the source hashes")?;
-    for slug in &slice.contexts {
+    for slug in &repo.slice.contexts {
         retrodoc_pipeline::mark_done(
             repo_root,
             repo.map,
@@ -229,8 +247,6 @@ async fn document(
             slug,
         )?;
     }
-    super::print::features(&features, &use_cases);
-    super::print::saved(features.len(), use_cases.len());
     Ok(())
 }
 

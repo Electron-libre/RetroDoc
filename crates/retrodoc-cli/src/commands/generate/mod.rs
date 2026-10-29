@@ -141,6 +141,7 @@ pub async fn run(
     let context = use_case_context(
         entry_points,
         &ingest,
+        &walked,
         actors,
         &surface,
         Signals {
@@ -303,6 +304,7 @@ struct Signals {
 fn use_case_context(
     entry_points: EntryPoints,
     ingest: &IngestResult,
+    walked: &WalkedFiles,
     actors: Actors,
     surface: &Surface,
     signals: Signals,
@@ -324,6 +326,7 @@ fn use_case_context(
         rule_evidence,
         put_back: config.rules.clone(),
         concurrency: config.llm.for_pass("use-cases").concurrency.unwrap_or(1),
+        walked: walked.clone(),
     }
 }
 

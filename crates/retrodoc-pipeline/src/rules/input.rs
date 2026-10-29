@@ -56,7 +56,7 @@ pub struct RuleInput {
 impl RuleInput {
     #[must_use]
     pub fn new(repo_root: &Path, feature: &Feature, context: &UseCaseContext) -> Self {
-        let input = FeatureInput::new(repo_root, feature, &context.entry_points, &context.index);
+        let input = FeatureInput::new(repo_root, feature, context);
         let evidence = context
             .rule_evidence
             .extracts(&feature_query(feature, &input));
@@ -99,6 +99,7 @@ mod tests {
     use crate::brief::{Evidence, ExtractKind};
     use crate::entry_points::{EntryFile, EntryKind, EntryPoints};
     use crate::slices::CodeIndex;
+    use crate::testing::reading;
 
     fn feature(paths: &[&str]) -> Feature {
         Feature {
@@ -190,7 +191,7 @@ mod tests {
                     "Run the installer.",
                 ),
             ]),
-            ..UseCaseContext::default()
+            ..reading(dir.path())
         };
 
         let input = RuleInput::new(
@@ -230,22 +231,34 @@ mod tests {
             vocabulary: ["Order", "Item", "Order Line", "Credit Note", "Note book"]
                 .map(String::from)
                 .into(),
-            ..UseCaseContext::default()
+            ..reading(dir.path())
         };
         let input = RuleInput::new(dir.path(), &feature(&["lib/a.rb"]), &context);
         assert_eq!(input.entities, ["Order", "Order Line", "Credit Note"]);
     }
 
     #[test]
-    fn a_feature_without_entry_points_reads_its_own_files() {
+    fn a_feature_without_entry_points_reads_its_own_files_of_the_walk() {
         let dir = tempfile::tempdir().unwrap();
         write(dir.path(), &[("lib/router.rb", "class Router; end\n")]);
         let input = RuleInput::new(
             dir.path(),
             &feature(&["lib/router.rb", "lib/gone.rb"]),
-            &UseCaseContext::default(),
+            &reading(dir.path()),
         );
-        assert_eq!(input.files, ["lib/router.rb", "lib/gone.rb"]);
+        assert_eq!(input.files, ["lib/router.rb"], "a file gone is not walked");
         assert!(input.entities.is_empty() && input.evidence.is_empty());
+    }
+
+    #[test]
+    fn a_file_a_saved_feature_names_outside_the_walk_is_not_read() {
+        let dir = crate::testing::repo_with_an_ignored_secret();
+        let context = UseCaseContext {
+            vocabulary: vec!["SECRET_TOKEN".into()],
+            ..reading(dir.path())
+        };
+        let input = RuleInput::new(dir.path(), &feature(&["a.rs", ".env"]), &context);
+        assert_eq!(input.files, ["a.rs"]);
+        assert!(input.entities.is_empty(), "the skipped file is not read");
     }
 }

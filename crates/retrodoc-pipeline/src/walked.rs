@@ -11,8 +11,9 @@ use retrodoc_ingest::walker::{walk_repo, FileEntry};
 use crate::error::PipelineError;
 use crate::text::read_file_lossy;
 
-/// The repository root and the relative paths of the files its walk yields.
-#[derive(Debug, Clone)]
+/// The repository root and the relative paths of the files its walk yields. The default holds no file: nothing
+/// is readable through it.
+#[derive(Debug, Clone, Default)]
 pub struct WalkedFiles {
     root: PathBuf,
     files: BTreeSet<PathBuf>,
