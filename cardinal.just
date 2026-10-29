@@ -48,7 +48,3 @@ spec-coverage *args:
 # Fail when a managed Cardinal file was modified or deleted since the last `cardinal sync`.
 check-cardinal:
     cardinal check
-
-# The name of `check-cardinal` before the rename, kept until the `harness` alias is dropped; a recipe, not an
-# alias, so a project's justfile may still override it.
-check-harness: check-cardinal

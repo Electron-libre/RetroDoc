@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# Put on the CI path the `cardinal` of the revision `.claude/cardinal.toml` (else `.claude/harness.toml`) pins, and its `harness` alias, without Rust
+# Put on the CI path the `cardinal` of the revision `.claude/cardinal.toml` (else `.claude/harness.toml`) pins, without Rust
 # when the source publishes it (ADR 0010): the release asset of the commit, checked against its SHA-256, goes where
 # `cardinal run` looks for it (`~/.cache/cardinal/bin/<commit>/<target>`). Otherwise `cargo install`: from the git
 # source at `rev` (into that same place when `rev` is a commit, so `cardinal run` does not build it again), or from the
@@ -88,7 +88,6 @@ if [ -n "$full" ] && [ -n "$on_github" ] && mkdir -p "$dir" && { fetched cardina
   fi
   chmod +x "$dir/.partial"
   mv "$dir/.partial" "$dir/cardinal"
-  ln -sf cardinal "$dir/harness"
   echo "$dir" >> "$GITHUB_PATH"
   echo "cardinal $rev for $target: release asset"
 elif [ -n "$full" ]; then
@@ -98,10 +97,9 @@ elif [ -n "$full" ]; then
   cargo install --quiet --git "$cargo_url" --rev "$full" --locked --root "$dir/.root"
   # `harness` for a commit from before the rename
   mv "$dir/.root/bin/cardinal" "$dir/cardinal" 2>/dev/null || mv "$dir/.root/bin/harness" "$dir/cardinal"
-  ln -sf cardinal "$dir/harness"
   rm -rf "$dir/.root"
   echo "$dir" >> "$GITHUB_PATH"
 else
-  # --force: over a `harness` package installed before the rename
+  # --force: over the installed `cardinal`, even of the same version
   cargo install --quiet --force --git "$cargo_url" ${rev:+--rev "$rev"} --locked
 fi
