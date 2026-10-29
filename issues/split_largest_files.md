@@ -29,7 +29,7 @@ second `generate` writing nothing stay green.
 
 # Resources
 * `issues/done/refactor_code_hygiene.md` (how the earlier splits were made)
-* `issues/pass_runner_and_run_context.md` (origin: its point 5, left out for size)
+* `issues/done/pass_runner_and_run_context.md` (origin: its point 5, left out for size)
 * `docs/crates/render-mcp-cli.md`, `docs/crates/llm.md`, `docs/crates/pipeline.md` (module lists to update)
 
 # Hints

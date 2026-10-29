@@ -42,7 +42,7 @@ no-op. Split from `issues/done/single_pipeline_path.md` for the size limit.
 
 # Hints
 * Do it after `issues/done/single_pipeline_path.md` (which removes the last callers of the repo map) and before
-  `issues/pass_runner_and_run_context.md`: less code to refactor.
+  `issues/done/pass_runner_and_run_context.md`: less code to refactor.
 * The saved frozen inputs of the per-pass replays may hold a `repo-map.json`: `FrozenInputs::prepare` must keep
   working on them.
 

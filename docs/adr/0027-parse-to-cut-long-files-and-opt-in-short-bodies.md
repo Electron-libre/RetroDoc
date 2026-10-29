@@ -62,7 +62,7 @@ finds one group fewer, 73% of its entries in reference files against 88-92%). Th
 
 ## Follow-up (2026-10-29)
 
-`chunk_check` is kept (`issues/pass_runner_and_run_context.md`). Measured on the smoke and benchmark
+`chunk_check` is kept (`issues/done/pass_runner_and_run_context.md`). Measured on the smoke and benchmark
 repositories: no file of `delivery_router`, `linkding` or `lobsters` reaches it. Their source files are parsed
 (Ruby, Python, JavaScript, TypeScript), and the languages the roles call promotes there (`erb`, `ru`, `astro`)
 are not built-in source extensions of the walker, so they have no file to check a regex on: their regex is kept
