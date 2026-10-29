@@ -8,8 +8,9 @@ use crate::{RenderedFile, RunMetadata, AGENT_INDEX_PATH};
 
 mod agent_index;
 mod pages;
+mod rules;
 
-pub(super) fn meta() -> RunMetadata {
+fn meta() -> RunMetadata {
     RunMetadata {
         model: "m".to_string(),
         commit: Some("abc".to_string()),
@@ -17,7 +18,7 @@ pub(super) fn meta() -> RunMetadata {
     }
 }
 
-pub(super) fn sample() -> (Vec<Domain>, Vec<Feature>, Vec<UseCase>) {
+fn sample() -> (Vec<Domain>, Vec<Feature>, Vec<UseCase>) {
     let domains = vec![Domain {
         slug: "billing".to_string(),
         name: "Billing".to_string(),
@@ -75,7 +76,7 @@ pub(super) fn sample() -> (Vec<Domain>, Vec<Feature>, Vec<UseCase>) {
     (domains, features, use_cases)
 }
 
-pub(super) fn page<'a>(files: &'a [RenderedFile], path: &str) -> &'a str {
+fn page<'a>(files: &'a [RenderedFile], path: &str) -> &'a str {
     &files
         .iter()
         .find(|f| f.path == Path::new(path))

@@ -42,7 +42,7 @@ rendered bytes, `rules.rs`, `doc_links.rs`, `plan.rs`.
 
 ## Plan
 1. [x] Pages and layout tests apart: `git mv markdown.rs markdown/mod.rs`; fixtures (`meta`, `sample`, `page`, `index_of`) in `markdown/tests/mod.rs` (`pub(super)`), the pages and layout tests in `tests/pages.rs`, the agent index, rerun and determinism tests in `tests/agent_index.rs`; the rules and doc links tests stay inline in `mod.rs` for now, renamed `mod rules_tests` (body untouched) and importing the fixtures; verified by `just check` and the moved code identical modulo whitespace (~600 lines).
-2. [ ] Rules and doc links tests apart: `rules_tests` → `markdown/tests/rules.rs` (dedented); verified by `just check` (~530 lines).
+2. [x] Rules and doc links tests apart: `rules_tests` → `markdown/tests/rules.rs` (dedented); verified by `just check` (~530 lines).
 3. [ ] One page per file: `agent_index`, `domain_page`, `feature_page`, `use_case_page` (+ `step_item`) in `markdown/agent_index.rs`, `domain.rs`, `feature.rs`, `use_case.rs`; paths, links, confidence lines and `trim_end` stay in `mod.rs` (`pub(super)` where needed); `docs/crates/render-mcp-cli.md` and `docs/ARCHITECTURE.md` point to `markdown/`; verified by `just check` (~660 lines).
 
 ## Decisions
@@ -57,6 +57,19 @@ rendered bytes, `rules.rs`, `doc_links.rs`, `plan.rs`.
   | moved lines identical (sorted line comparison) | yes, apart from imports, `mod` lines and `pub(super)` |
   | test count of the crate | 22, unchanged (17 in the render module) |
   | docs (`docs/ARCHITECTURE.md`) | updated |
+- red: none (pure move, no new test)
+- Code review: no findings
+- not verified: second `generate` (pure move)
+- decisions needed: none
+
+## Deliverable 2: rules and doc links tests apart
+- done: the inline `rules_tests` of `markdown/mod.rs` → `markdown/tests/rules.rs` (dedented, imports named); the fixtures of `tests/mod.rs` back to private, only its children use them now.
+- | check | result |
+  |---|---|
+  | tests, lint, specs (`just check`) | pass |
+  | moved lines identical (sorted line comparison against 9856e71) | yes, apart from imports, `mod` lines and one assert rustfmt reflowed |
+  | test count of the crate | 22, unchanged |
+  | docs | nothing to change (module list unchanged at this level) |
 - red: none (pure move, no new test)
 - Code review: no findings
 - not verified: second `generate` (pure move)
