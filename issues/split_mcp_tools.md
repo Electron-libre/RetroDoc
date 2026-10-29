@@ -29,3 +29,36 @@ check` stays green and the answers of the tools are unchanged.
 * after split_largest_files
 * Keep the public API of the crate (re-export from `mod.rs`).
 * The line numbers above move with every commit; read the file again at planning.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Split `crates/retrodoc-mcp/src/tools.rs` (1,127 lines) into its tests and one file per tool, pure moves: answers and
+public API (`retrodoc_mcp::tools::Docs`) unchanged. Out of scope: `server.rs` and the other modules of the crate.
+
+## Plan
+1. [x] Tests apart: `tools.rs` → `tools/mod.rs` (git mv) + `tools/tests.rs` (about 960 changed lines); verified by `just check`.
+2. [ ] Shared helpers and domain tools apart: `tools/answer.rs` (constants, free answer helpers, private helpers of
+   `Docs` as `pub(super)`), `tools/list_domains.rs`, `tools/get_domain.rs` (about 650 changed lines); verified by `just check`.
+3. [ ] Remaining tools apart: `tools/get_feature.rs`, `tools/get_use_case.rs`, `tools/read_source.rs`,
+   `tools/git_log.rs`, `tools/search_docs.rs`; `mod.rs` keeps `Docs` and its builders (about 480 changed lines);
+   verified by `just check`.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 3dfec60
+- File names (user, 2026-10-29): one file per tool, named after the tool.
+
+## Deliverable 1: tests apart
+- done: `tools.rs` → `tools/mod.rs` (git mv) + `tools/tests.rs` (the test module, dedented); docs point to `tools/`.
+- | check | result |
+  |---|---|
+  | tests, lint, specs (`just check`) | pass |
+  | moved code identical modulo whitespace | yes (script comparison; rustfmt reflowed two asserts) |
+  | docs (`docs/crates/render-mcp-cli.md`, `docs/ARCHITECTURE.md`) | updated |
+- red: none (pure move, no new test)
+- Code review: no findings
+- not verified: none
+- decisions needed: none
