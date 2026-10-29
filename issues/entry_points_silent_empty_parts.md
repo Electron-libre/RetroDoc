@@ -54,7 +54,7 @@ every file of every user once, ADR 0037) unless the measure after shows the cap 
 2. [x] One part of a file per call, warnings: `batches` cuts before a second part of a path, the run tracks the
    findings per part and warns (BRD-3), a single unusable call warns (BRD-4); verified by fake-LLM tests of
    `batched_read.rs`; makes true BRD-1 to BRD-4 (BRD-2 traced on the existing test).
-3. [ ] Measure after: the same 3 runs at the commit of deliverable 2 (3 calls each, ~$0.02); compared with
+3. [x] Measure after: the same 3 runs at the commit of deliverable 2 (3 calls each, ~$0.02); compared with
    deliverable 1, in the issue and the ledger.
 
 ## Measure before (deliverable 1, 2df9c6b, deepseek-chat, ~$0.03)
@@ -91,6 +91,24 @@ stays as planned. Artifacts: `~/retrodoc-runs/entry_points_silent_empty_parts-2d
 - not verified: the effect on the model's answers (deliverable 3).
 - decisions needed: none.
 - The spec draft was committed with this deliverable (deliverable 1 held no code to review).
+
+## Measure after (deliverable 3, 572045b, deepseek-chat, ~$0.03)
+Same copy, same command; each part of `config/routes.rb` asked alone (`35/37`, `36/37`, `37/37 … 1 file(s)`).
+
+| run | entries | entries of parts 2-3 | calls | tokens in / out | warnings of empty parts |
+|---|---|---|---|---|---|
+| before (3 runs) | 34 / 43 / 38 | 8 / 15 / 10 | 24 | 94k / 15k | — |
+| after 1 | 78 | 15 | 37 | 108k / 16.4k | 3 |
+| after 2 | 77 | 14 | 37 | 108k / 16.8k | 4 |
+| after 3 | 89 | 26 | 37 | 108k / 16.8k | 3 |
+
+- Asked alone, a part of the routes file gives one entry per route (`GET /login`, `POST /login`…) instead of one per
+  resource as the prompt asks: about twice the entries, parts 2-3 always covered.
+- Calls +54% (one per part), tokens in +15%, out +10%.
+- The warnings name parts of business files with no entry point (the public API of a model is in some parts only:
+  `search.rb` parts 1-2 of 3, `comment.rb` 1-4 of 5, `user.rb` 1-3 of 4) and `stories_controller.rb` part 4 of 4
+  (private helpers): 3 or 4 a run, none on `config/routes.rb`.
+- Artifacts: `~/retrodoc-runs/entry_points_silent_empty_parts-2df9c6b/` (`after-<n>.log`, `.yaml`).
 
 ## Decisions
 - Mode: autonomous
