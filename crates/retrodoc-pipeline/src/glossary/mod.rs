@@ -30,7 +30,9 @@ use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
 use crate::artifact::{load_yaml, save_yaml, Artifact, Retention};
-use crate::batched_read::{attribute, pending_chunks, unread_kept, BatchedRead, PendingChunk};
+use crate::batched_read::{
+    attribute, pending_chunks, reading_instructions, unread_kept, BatchedRead, PendingChunk,
+};
 use crate::brief::ProductBrief;
 use crate::chunks::Splitter;
 use crate::error::PipelineError;
@@ -42,7 +44,8 @@ use crate::text::read_file_lossy;
 /// huge model can't crowd out the others in a batch.
 const MAX_MODEL_FILE_CHARS: usize = 4_000;
 
-const GLOSSARY_SYSTEM_PROMPT: &str = "You are extracting the business entities from the model \
+pub(crate) const GLOSSARY_SYSTEM_PROMPT: &str =
+    "You are extracting the business entities from the model \
 files of a software application. For each entity (a business concept such as a contract, a \
 company, an invoice; skip purely technical classes, concerns and mixins) give its name, one \
 sentence on what it represents for the business, its main attributes (business meaning, not \
@@ -51,10 +54,14 @@ prose and no Markdown code fence, matching this shape: {\"entities\":[{\"file\":
 \"name\":\"...\",\"description\":\"...\",\"attributes\":[\"...\"],\"associations\":[{\"kind\":\
 \"has_many\",\"target\":\"...\"}]}]}. Use the file paths exactly as given.";
 
+/// First line of the user prompt of the model files, before the files.
+pub(crate) const GLOSSARY_HEADER: &str = "Model files:\n";
+
 /// Same answer shape as [`GLOSSARY_SYSTEM_PROMPT`], for the files the
 /// business-files pass located: some are plain domain classes, others
 /// services, collections or helpers.
-const BUSINESS_SYSTEM_PROMPT: &str = "You are looking for the business entities in the source \
+pub(crate) const BUSINESS_SYSTEM_PROMPT: &str =
+    "You are looking for the business entities in the source \
 files of a software application, located as holding its business. An entity is a plain class \
 (or struct, or module) that holds business data and rules, such as a customer, an order or a \
 contract; skip services, routers, collections of entities, helpers, mixins and anything \
@@ -65,6 +72,9 @@ object, no prose and no Markdown code fence, matching this shape: {\"entities\":
 \"path as given\",\"name\":\"...\",\"description\":\"...\",\"attributes\":[\"...\"],\
 \"associations\":[{\"kind\":\"has_many\",\"target\":\"...\"}]}]}. Use the file paths exactly \
 as given.";
+
+/// First line of the user prompt of the business files, before the files.
+pub(crate) const BUSINESS_HEADER: &str = "Business files:\n";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Association {
@@ -291,15 +301,11 @@ pub async fn build_glossary(
         llm,
     };
     let (prompt, header, unit) = if business.is_empty() {
-        (GLOSSARY_SYSTEM_PROMPT, "Model files:\n", "model file(s)")
+        (GLOSSARY_SYSTEM_PROMPT, GLOSSARY_HEADER, "model file(s)")
     } else {
         // Where the business lives, located by its own pass: services and
         // plain domain classes as much as models.
-        (
-            BUSINESS_SYSTEM_PROMPT,
-            "Business files:\n",
-            "business file(s)",
-        )
+        (BUSINESS_SYSTEM_PROMPT, BUSINESS_HEADER, "business file(s)")
     };
     reader
         .read(
@@ -349,6 +355,7 @@ impl EntityReader<'_> {
         let pending = pending_chunks(
             self.repo_root,
             paths,
+            &reading_instructions(),
             self.brief,
             self.llm,
             |path, content| {

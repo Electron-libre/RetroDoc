@@ -20,7 +20,9 @@ use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
 use crate::artifact::{load_yaml, save_yaml, Artifact, Retention};
-use crate::batched_read::{attribute, pending_chunks, unread_kept, BatchedRead, PendingChunk};
+use crate::batched_read::{
+    attribute, pending_chunks, reading_instructions, unread_kept, BatchedRead, PendingChunk,
+};
 use crate::brief::ProductBrief;
 use crate::chunks::Splitter;
 use crate::error::PipelineError;
@@ -33,7 +35,7 @@ mod routing;
 /// A longer file is read in several chunks of about this size.
 pub(crate) const MAX_ENTRY_FILE_CHARS: usize = 5_000;
 
-const ENTRY_POINTS_SYSTEM_PROMPT: &str = "You are inventorying the entry points of a software \
+pub(crate) const ENTRY_POINTS_SYSTEM_PROMPT: &str = "You are inventorying the entry points of a software \
 application from the files that define them: HTTP routes and controller actions, CLI commands, \
 background jobs and schedulers, message consumers, webhooks, or, for a library, its public API. \
 List the entry points defined in each file. A long file is given in several parts (marked \"part i/n\"): list only the entry points \
@@ -53,6 +55,9 @@ is its entry points, so list the methods a user of the library calls. Reply with
 matching this shape: {\"entry_points\":[{\"file\":\"path as given\",\"kind\":\"http_route\",\
 \"name\":\"...\",\"verb\":\"...\",\"resource\":\"...\",\"description\":\"...\",\"outputs\":\
 [{\"kind\":\"email\",\"description\":\"...\"}]}]}. Use the file paths exactly as given.";
+
+/// First line of the user prompt, before the files.
+pub(crate) const ENTRY_POINTS_HEADER: &str = "Files:\n";
 
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, schemars::JsonSchema,
@@ -297,6 +302,7 @@ pub async fn build_entry_points(
     let pending = pending_chunks(
         repo_root,
         to_read,
+        &reading_instructions(),
         brief,
         llm,
         |path, content| splitter.file_chunks(path, content, MAX_ENTRY_FILE_CHARS, "entry points"),
@@ -313,7 +319,7 @@ pub async fn build_entry_points(
         pass: "entry points",
         unit: "file(s)",
         system_prompt: ENTRY_POINTS_SYSTEM_PROMPT,
-        header: &format!("{}Files:\n", brief.prompt_head()),
+        header: &format!("{}{ENTRY_POINTS_HEADER}", brief.prompt_head()),
         attribute: attribute_entry_points,
         finish: |inventory: &mut EntryPoints, path, hash, entry_points| {
             inventory

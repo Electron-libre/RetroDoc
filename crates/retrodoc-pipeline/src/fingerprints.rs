@@ -5,9 +5,9 @@
 //!
 //! Each pass replaces its own map with the keys seen during the run, so
 //! entries of vanished units are pruned. The model of the pass is part of
-//! what is hashed, so asking a pass for another model redoes it; changing the
-//! prompts does not invalidate anything: `retrodoc generate --force` wipes
-//! the caches.
+//! what is hashed, so asking a pass for another model redoes it, and so are its
+//! fixed instructions ([`prompt_part`], ADR 0037), so a changed prompt redoes
+//! it once. `retrodoc generate --force` wipes the caches.
 
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -71,6 +71,13 @@ impl Fingerprints {
 /// pass asked to use another model redoes its units (ADR 0023).
 pub(crate) fn model_part(llm: &dyn LlmProvider) -> String {
     format!("model {}", llm.model())
+}
+
+/// The part of a fingerprint that says which instructions derived the result: the system prompts and
+/// the fixed text of the user prompts of the pass, constants of the binary, so a changed prompt redoes
+/// the units of its pass once and two runs of the same binary compare equal (ADR 0037).
+pub(crate) fn prompt_part(instructions: &[&str]) -> String {
+    format!("prompt {}", fingerprint(instructions))
 }
 
 /// `hash` (of a unit of input) made dependent on the model of the pass.

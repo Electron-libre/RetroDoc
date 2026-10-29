@@ -17,7 +17,7 @@ use std::path::PathBuf;
 use retrodoc_llm::LlmProvider;
 use serde::Deserialize;
 
-use crate::batched_read::{pending_chunks, BatchedRead, PendingChunk};
+use crate::batched_read::{pending_chunks, reading_instructions, BatchedRead, PendingChunk};
 use crate::brief::ProductBrief;
 use crate::chunks::Splitter;
 use crate::entry_points::{
@@ -34,7 +34,7 @@ use crate::roles::RoleMap;
 // The routing-file rule of `entry_points` is left out on purpose: the business files hold no route
 // declarations on the benchmark apps, and it could collapse the actions of a view set file
 // (`issues/done/joint_reading_routing_rule.md`).
-const BUSINESS_READ_SYSTEM_PROMPT: &str = "You are reading the source files of a software \
+pub(crate) const BUSINESS_READ_SYSTEM_PROMPT: &str = "You are reading the source files of a software \
 application, located as holding its business, for two inventories at once. A long file is given in \
 several parts (marked \"part i/n\"): report only what is visible in the part. \
 (1) ENTRY POINTS: what a user, a scheduler or another system triggers from outside the application: \
@@ -61,6 +61,9 @@ Markdown code fence, matching this shape: {\"entry_points\":[{\"file\":\"path as
 \"description\":\"...\",\"outputs\":[{\"kind\":\"email\",\"description\":\"...\"}]}],\
 \"entities\":[{\"file\":\"path as given\",\"name\":\"...\",\"description\":\"...\",\
 \"attributes\":[\"...\"],\"associations\":[{\"kind\":\"has_many\",\"target\":\"...\"}]}]}. Use the file paths exactly as given.";
+
+/// First line of the user prompt, before the files.
+pub(crate) const BUSINESS_READ_HEADER: &str = "Business files:\n";
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct BusinessReadResponse {
@@ -141,6 +144,7 @@ pub async fn read_business_files(
     let pending = pending_chunks(
         repo_root,
         business.iter().map(PathBuf::as_path),
+        &reading_instructions(),
         brief,
         glossary_llm,
         |path, content| splitter.file_chunks(path, content, MAX_ENTRY_FILE_CHARS, "business files"),
@@ -162,7 +166,7 @@ pub async fn read_business_files(
         pass: "business files",
         unit: "file(s)",
         system_prompt: BUSINESS_READ_SYSTEM_PROMPT,
-        header: &format!("{}Business files:\n", brief.prompt_head()),
+        header: &format!("{}{BUSINESS_READ_HEADER}", brief.prompt_head()),
         attribute,
         finish: |state: &mut Both, path, hash, items| {
             let (mut entities, mut entry_points) = (Vec::new(), Vec::new());

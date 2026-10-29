@@ -28,3 +28,39 @@ the prompt belongs in that hash, and make the passes consistent with the decisio
 # Hints
 * A rerun that calls no LLM is a criterion of the smoke test: a prompt hash must not change between two runs of
   the same binary.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Put a hash of the fixed instructions of each LLM pass in what it compares per unit, next to the model, so a
+prompt change redoes that pass once (RER-10, ADR 0037 amending 0005). Out of scope: the hand-editable artifacts
+(`roles`, `sources`, `business-files`, `brief`, `contexts`), kept until `--force`; no migration of saved runs.
+Inventory at 2de90d2: only `rules` holds its prompts, `reconcile` a hand-bumped `SHOWN_RULE`; `glossary`,
+`entry_points`, `business_read` (per-file hash), `domains`, `features`, placement repair, `use_cases`, `actors`,
+`confidence` (`confidence_model`) hold input and model only. Replays are not concerned: the replayed pass runs
+with no fingerprints (`benchmark/frozen.rs`).
+
+## Plan
+1. [x] Reading passes: `fingerprints::prompt_part`, taken by `batched_read::pending_chunks` from `glossary`,
+   `entry_points`, `business_read`; spec and ADR drafts committed; verified by a test that a file saved under
+   other instructions is pending and is not on a second run; makes true RER-10 (~200 lines).
+2. [ ] Other passes: `domains`, `features`, placement repair, `use_cases`, `actors`, `confidence`, `reconcile`
+   (its system prompt next to `SHOWN_RULE`), `rules` through the same helper; docs (`docs/crates/pipeline.md`,
+   `fingerprints.rs` `//!`) say the prompt is compared; verified by a test per pass that a unit saved under
+   other instructions is asked again; makes true RER-10, spec `accepted` (~400 lines).
+
+## Decisions
+- Mode: autonomous
+- Base commit: 2de90d29c2936515d729b7fb3e7c72bee8086741
+- Detection: an automatic hash of the prompt text, as `rules` does (no hand-bumped version).
+- Saved runs: no migration, asked again once.
+
+## Deliverable 1
+- done: the per-file hash of `glossary`, `entry_points`, `business_read` takes `reading_instructions()` (their
+  system prompts, headers and file marker, one part for all three since the joint reading saves what the other
+  two reuse); `fingerprints::prompt_part`; spec RER-10 and ADR 0037 drafts.
+- checks: tests ok, clippy ok, specs ok (warnings on untouched requirements), docs `pipeline.md`.
+- red: RER-10: `pending_chunks` took no instructions (E0277, the test did not compile).
+- not verified: no run on a saved repository.

@@ -21,7 +21,7 @@ use crate::brief::ProductBrief;
 use crate::chunks::strip_part_marker;
 use crate::citations::resolve_cited_path;
 use crate::error::PipelineError;
-use crate::fingerprints::hash_for_model;
+use crate::fingerprints::{fingerprint, hash_for_model, prompt_part};
 use crate::progress::Progress;
 use crate::response::complete_json;
 use crate::text::read_file_lossy;
@@ -84,7 +84,7 @@ impl<R: DeserializeOwned + schemars::JsonSchema, T, S> BatchedRead<'_, R, T, S> 
             while let Some(group) = queue.pop_front() {
                 let mut prompt = String::from(self.header);
                 for (path, _, content) in group {
-                    let _ = write!(prompt, "\n--- {} ---\n{content}\n", path.display());
+                    let _ = write!(prompt, "{FILE_MARKER}{} ---\n{content}\n", path.display());
                 }
                 let Some(response) =
                     complete_json::<R>(llm, self.system_prompt, &prompt, self.pass).await?
@@ -119,8 +119,28 @@ impl<R: DeserializeOwned + schemars::JsonSchema, T, S> BatchedRead<'_, R, T, S> 
     }
 }
 
-/// The chunks of the `paths` to read again. The hash of a file is that of its content with the brief,
-/// for the model of `llm`; `current(path, hash)` says whether the saved reading is up to date (and
+/// The fixed instructions of the three reading passes (glossary, entry points and their joint reading),
+/// for the hash of a file: one for all three, since the joint reading saves what the two others reuse
+/// (ADR 0028), so a change of any of them reads the files again (ADR 0037).
+pub(crate) fn reading_instructions() -> String {
+    prompt_part(&[
+        crate::glossary::GLOSSARY_SYSTEM_PROMPT,
+        crate::glossary::GLOSSARY_HEADER,
+        crate::glossary::BUSINESS_SYSTEM_PROMPT,
+        crate::glossary::BUSINESS_HEADER,
+        crate::entry_points::ENTRY_POINTS_SYSTEM_PROMPT,
+        crate::entry_points::ENTRY_POINTS_HEADER,
+        crate::business_read::BUSINESS_READ_SYSTEM_PROMPT,
+        crate::business_read::BUSINESS_READ_HEADER,
+        FILE_MARKER,
+    ])
+}
+
+/// How a file opens in the prompt of a batch, before its path (and `---` after it).
+const FILE_MARKER: &str = "\n--- ";
+
+/// The chunks of the `paths` to read again. The hash of a file is that of its content with the
+/// `instructions` of the pass and the brief, for the model of `llm`; `current(path, hash)` says whether the saved reading is up to date (and
 /// keeps it), else the file is cut by `cut(path, content)`.
 ///
 /// # Errors
@@ -129,6 +149,7 @@ impl<R: DeserializeOwned + schemars::JsonSchema, T, S> BatchedRead<'_, R, T, S> 
 pub(crate) fn pending_chunks<'p>(
     repo_root: &Path,
     paths: impl IntoIterator<Item = &'p Path>,
+    instructions: &str,
     brief: &ProductBrief,
     llm: &dyn LlmProvider,
     cut: impl Fn(&Path, &str) -> Vec<String>,
@@ -137,7 +158,10 @@ pub(crate) fn pending_chunks<'p>(
     let mut pending = Vec::new();
     for path in paths {
         let content = read_file_lossy(repo_root, path)?;
-        let hash = hash_for_model(&brief.hash_with(&content), llm);
+        let hash = hash_for_model(
+            &fingerprint([instructions, &brief.hash_with(&content)]),
+            llm,
+        );
         if current(path, &hash) {
             continue;
         }
@@ -298,6 +322,37 @@ mod tests {
 
     fn chunk(path: &str, text: &str) -> PendingChunk {
         (PathBuf::from(path), "hash".to_string(), text.to_string())
+    }
+
+    // spec: RER-10 (internal: the instructions are constants of the binary, a test can't change them)
+    #[test]
+    fn a_file_saved_under_other_instructions_is_read_again() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("a.rb"), "class A; end").unwrap();
+        let llm = FakeLlm::answering("");
+        let saved = std::cell::RefCell::new(String::new());
+        let pending = |instructions: &str| {
+            pending_chunks(
+                dir.path(),
+                [Path::new("a.rb")],
+                instructions,
+                &ProductBrief::default(),
+                &llm,
+                |_, content| vec![content.to_string()],
+                |_, hash| {
+                    let same = *saved.borrow() == hash;
+                    *saved.borrow_mut() = hash.to_string();
+                    same
+                },
+            )
+            .unwrap()
+            .len()
+        };
+
+        assert_eq!(
+            [pending("v1"), pending("v1"), pending("v2"), pending("v2")],
+            [1, 0, 1, 0]
+        );
     }
 
     #[tokio::test]
