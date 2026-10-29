@@ -84,7 +84,7 @@ share the file part (`path\nhash`, or `unreadable`) and the key `"{domain}/{slug
    loop building the pending chunks (read, hash, compare, chunk), the attribution of an answer to a cited file,
    the seeding of `Retention::Others`; verified by the glossary, entry points and business read tests unchanged
    (~250 lines).
-5. [ ] `chunk_check` kept: record the measure (extensions that reach it on the three repositories) in ADR 0027
+5. [x] `chunk_check` kept: record the measure (extensions that reach it on the three repositories) in ADR 0027
    and `docs/crates/pipeline.md`; verified by `just check` (~20 lines).
 
 ## Decisions
@@ -148,5 +148,14 @@ share the file part (`path\nhash`, or `unreadable`) and the key `"{domain}/{slug
   and the per-file hash is the same expression, moved.
 - not verified: the warning of an answer citing an unknown file names the item as `name = ...` (was
   `entity = ...` or `entry_point = ...`); its message is unchanged.
+- Code review: no findings.
+- decisions needed: none.
+
+## Deliverable 5
+- done: the measure of `chunk_check` (no file of `delivery_router`, `linkding` or `lobsters` reaches it; it only
+  checks the walker's own unparsed languages) is a follow-up of ADR 0027 and a sentence of the `chunks.rs`
+  row of `docs/crates/pipeline.md`.
+- red: none (docs only).
+- not verified: the walker's unparsed languages on a real repository (none in the smoke and benchmark set).
 - Code review: no findings.
 - decisions needed: none.

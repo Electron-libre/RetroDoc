@@ -59,3 +59,13 @@ passes by 38%, which is about 4% of a run with the rules on; the glossary loses 
 model entities keep their attributes; the entry points stay within the spread but the only move is down (one run
 finds one group fewer, 73% of its entries in reference files against 88-92%). The files are read whole; a
 `retrodoc.toml` that still names the key is refused with a message saying so (`specs/pipeline-settings.md`, SET-4).
+
+## Follow-up (2026-10-29)
+
+`chunk_check` is kept (`issues/pass_runner_and_run_context.md`). Measured on the smoke and benchmark
+repositories: no file of `delivery_router`, `linkding` or `lobsters` reaches it. Their source files are parsed
+(Ruby, Python, JavaScript, TypeScript), and the languages the roles call promotes there (`erb`, `ru`, `astro`)
+are not built-in source extensions of the walker, so they have no file to check a regex on: their regex is kept
+unchecked, or their long files are cut at blank lines. `chunk_check` only measures and fixes the regexes of the
+walker's own unparsed languages (Go, Java, Kotlin, PHP, C, C++, C#, Swift, Scala, SQL), which none of these
+repositories holds. Removing it would cut those languages at blank lines with nothing measured to compare.
