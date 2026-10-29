@@ -11,7 +11,9 @@ pub(crate) fn read_file_lossy(repo_root: &Path, relative: &Path) -> Result<Strin
         path: relative.to_path_buf(),
         source,
     })?;
-    Ok(String::from_utf8_lossy(&bytes).into_owned())
+    // Valid UTF-8 keeps the buffer read; only invalid bytes cost a copy.
+    Ok(String::from_utf8(bytes)
+        .unwrap_or_else(|err| String::from_utf8_lossy(err.as_bytes()).into_owned()))
 }
 
 /// `content` cut to its first `max_chars` characters, with a marker when it was cut.
@@ -25,6 +27,22 @@ pub(crate) fn truncate_chars(content: &str, max_chars: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_file_is_read_as_text_with_invalid_utf8_replaced() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("ok.rb"), "héllo").unwrap();
+        std::fs::write(dir.path().join("bad.rb"), b"caf\xe9").unwrap();
+        assert_eq!(
+            read_file_lossy(dir.path(), Path::new("ok.rb")).unwrap(),
+            "héllo"
+        );
+        assert_eq!(
+            read_file_lossy(dir.path(), Path::new("bad.rb")).unwrap(),
+            "caf\u{fffd}"
+        );
+        assert!(read_file_lossy(dir.path(), Path::new("missing.rb")).is_err());
+    }
 
     #[test]
     fn a_text_of_exactly_max_chars_is_kept_whole() {

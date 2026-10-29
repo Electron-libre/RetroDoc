@@ -46,6 +46,8 @@ hash `"unreadable"` take `.ok()` / `map_or_else` on it: no new variant), and cut
    `rules/prompt.rs`, `rules/grounding.rs`) call `read_file_lossy`; `truncate_chars` cuts in one walk; verified by the
    existing tests plus unit tests of `truncate_chars` at the boundary (exactly `max_chars`, multi-byte, one over);
    ~120 lines.
+2. [x] Fixes of the `high` review: `read_file_lossy` keeps the buffer of valid UTF-8 (no second copy); verified by a
+   unit test of the read (valid, invalid UTF-8, missing file).
 
 ## Decisions
 - Mode: autonomous
@@ -66,3 +68,28 @@ hash `"unreadable"` take `.ok()` / `map_or_else` on it: no new variant), and cut
 - Code review: no findings
 - not verified: none
 - decisions needed: none
+
+## Summary of deliverable 2 (review `high` of base..HEAD)
+- done: `read_file_lossy` copies only invalid UTF-8; other findings moved to follow-up issues.
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | clippy pedantic clean |
+| specs | no change |
+| docs | nothing to update |
+| code review | see below |
+
+- red: none (the copy is a cost, not an observable behaviour; the new read test pins the decoding)
+- Code review (`high`): 6 findings
+  1. second copy of valid UTF-8 in `read_file_lossy`: fixed.
+  2. `business_files` strict read of test files: `issues/text_reading_leftovers.md` (a change of behaviour).
+  3. warnings drop the io error: `issues/text_reading_leftovers.md` (unchanged here, pre-existing).
+  4. `rules/input.rs` byte cut: `issues/text_reading_leftovers.md`.
+  5. other two-walk truncations: `issues/text_reading_leftovers.md`.
+  6. no path containment in `read_file_lossy`: `issues/source_reads_stay_in_the_repo.md`.
+- Code review (`low`): no findings
+- not verified: none
+- decisions needed: none
+
+Status: done; both follow-ups queued right after this issue.
