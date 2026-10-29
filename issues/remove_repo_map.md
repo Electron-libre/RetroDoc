@@ -65,6 +65,8 @@ removed-setting error of `config.rs`, the ADRs (historical records).
 3. [x] Docs: `lib.rs` and `source_hashes.rs` doc comments, `retrodoc-ingest` and `retrodoc-llm` crate docs,
    `docs/crates/pipeline.md`, `docs/ARCHITECTURE.md`, `docs/dev/commands.md`, `specs/pipeline-settings.md` if it
    still names it, PLAN; verified by `skill:update-docs` and `just check`; ~100 lines.
+4. [x] Fixes of the `high` review of `18cb5fb..HEAD`: stale docs, the `cache.rs` doc, the RER-2 test made
+   independent of the empty-answer retry; verified by `just check`.
 
 ## Decisions
 - Mode: autonomous
@@ -102,6 +104,22 @@ removed-setting error of `config.rs`, the ADRs (historical records).
   PLAN (roadmap item 2 marked removed, `.erb` and truncation notes). The ADRs and PLAN §7.2 stay as history.
 - check | result: tests ok, clippy ok, fmt ok, specs ok, `check-harness` fails as in deliverable 1.
 - red: none (docs only).
+- not verified: nothing.
+- decisions needed: none.
+- Code review: no findings.
+
+### 4. Fixes of the high review
+- done: `docs/crates/pipeline.md` (pass order without the repo map, no `complete_text`), PLAN §7.4 truncation line,
+  `cache.rs` doc (what the hash keys), the RER-2 test answers a use case (one call per feature, no RER-4 retry);
+  follow-up `issues/shared_lossy_read_and_one_pass_truncation.md` queued at rank 2.
+- check | result: tests ok, clippy ok, fmt ok, specs ok, `check-harness` fails as in deliverable 1.
+- red: none (fixes of docs and of a test that already passed).
+- High review: 10 findings. Fixed: stale `pipeline.md` pass order and `complete_text`, PLAN truncation line,
+  `cache.rs` doc, RER-2 test bound to the RER-4 retry. Not fixed: `--force` leaves `repo-map.json` (decision
+  recorded above: left on disk); MCP test not retargeted (freshness reads `source-hashes.json` only, no pass hash
+  to retarget it to); `check-harness` red (the user's uncommitted harness switch); `truncate_chars` double walk
+  and the hand-written lossy reads (outside this issue, filed as a follow-up); PLAN line on `llm.concurrency`
+  "repo map only" kept (history of phase 8).
 - not verified: nothing.
 - decisions needed: none.
 - Code review: no findings.

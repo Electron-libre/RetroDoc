@@ -231,15 +231,18 @@ async fn a_changed_file_redoes_only_the_feature_that_reads_it() {
     std::fs::write(dir.path().join("a.rs"), "fn a() {}").unwrap();
     std::fs::write(dir.path().join("b.rs"), "fn b() {}").unwrap();
     let features = vec![feature("pay", &["a.rs"]), feature("ship", &["b.rs"])];
-    let provider = FakeLlm::answering(r#"{"use_cases":[]}"#);
+    let provider = FakeLlm::answering(
+        r#"{"use_cases":[{"slug":"u","name":"U","description":"d","steps":[
+          {"actor":"System","text":"Does it.","code":["F1:1"]}]}]}"#,
+    );
     let context = UseCaseContext::default();
 
     let first = build_use_cases(dir.path(), &features, &context, &provider)
         .await
         .unwrap();
     save_use_cases(dir.path(), &first).unwrap();
-    // An empty answer is asked once more: two calls per feature.
-    assert_eq!(provider.calls(), 4);
+    assert_eq!(first.len(), 2);
+    assert_eq!(provider.calls(), 2);
 
     std::fs::write(dir.path().join("a.rs"), "fn a() { changed }").unwrap();
     build_use_cases(dir.path(), &features, &context, &provider)
@@ -247,11 +250,10 @@ async fn a_changed_file_redoes_only_the_feature_that_reads_it() {
         .unwrap();
     assert_eq!(
         provider.calls(),
-        6,
+        3,
         "only the feature reading a.rs is redone"
     );
-    let redone = &provider.prompts()[4..];
-    assert!(redone.iter().all(|p| p.contains("fn a() { changed }")));
+    assert!(provider.prompts()[2].contains("fn a() { changed }"));
 }
 
 // spec: RER-4

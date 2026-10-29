@@ -4,8 +4,8 @@ Detail moved out of `CLAUDE.md`. Pipeline overview: `docs/ARCHITECTURE.md` §4 a
 
 - **retrodoc-pipeline**: orchestrates the multi-pass generation pipeline of `PLAN.md` §2, one module per
 pass. The `//!` doc of each module is the reference for what the pass does and why; this is only the map.
-`generate` runs them in this order: surface (roles → glossary → entry points), actors, file budget, repo
-map, domains, features, use cases, diagrams, business-language score, confidence, then render.
+`generate` runs them in this order: surface (roles → glossary → entry points), actors, file budget,
+domains, features, use cases, diagrams, business-language score, confidence, then render.
 
 | Module | Role |
 |---|---|
@@ -35,9 +35,9 @@ map, domains, features, use cases, diagrams, business-language score, confidence
 
 Cross-cutting pieces: `batched_read.rs` (the loop of the glossary and entry points passes: files in
 batches of ~12k chars, an unusable batch retried file by file, a checkpoint after each batch), `artifact.rs` (`Artifact`: the names of everything under `.retrodoc/cache/` and which `generate --force` clears; load/save of those files; a missing or
-unreadable file is a first run, not an error), `response.rs` (`complete_text`, and `complete_json` with
+unreadable file is a first run, not an error), `response.rs` (`complete_json` with
 the `schemars` schema of its answer type sent as `response_format`, `response_schema` making it strict — every raw answer type derives `JsonSchema`; lenient parsing (fences, prose, a repeated field keeps its last value) and one retry; an unparseable unit is skipped with a warning), `fingerprints.rs` and
-`cache.rs` (incremental re-run), `source_hashes.rs` (`source-hashes.json`: the hash of each source file at the last complete `generate`, what MCP freshness compares against), `progress.rs` (one `tracing::info!` line per unit with ETA), `naming.rs`
+`cache.rs` (`hash_content`, incremental re-run), `source_hashes.rs` (`source-hashes.json`: the hash of each source file at the last complete `generate`, what MCP freshness compares against), `progress.rs` (one `tracing::info!` line per unit with ETA), `naming.rs`
 (the single `normalize` used to match names across passes), `usage_log.rs` (the end-of-run recap text and the
 history of the last 20 runs in `.retrodoc/cache/usage.json`), `error.rs`.
 

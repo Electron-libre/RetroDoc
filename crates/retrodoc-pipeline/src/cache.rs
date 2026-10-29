@@ -1,5 +1,5 @@
-//! The content hash that keys what the passes save under `.retrodoc/cache/` (source hashes,
-//! fingerprints): a file or input whose hash is unchanged since the last run is not asked again.
+//! The content hash of what the passes save under `.retrodoc/cache/`: the fingerprints and
+//! per-file hashes that let a rerun skip an unchanged unit, and the source hashes of MCP freshness.
 
 use sha2::{Digest, Sha256};
 
