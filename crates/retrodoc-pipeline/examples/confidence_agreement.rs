@@ -77,7 +77,13 @@ fn measure(run: &Path) -> Option<Agreement> {
     let entities: Vec<String> = Glossary::load(run)
         .map(|g| g.entities().map(|(_, e)| e.name.clone()).collect())
         .unwrap_or_default();
-    let walked = WalkedFiles::walk(run, &[]).ok()?;
+    let walked = match WalkedFiles::walk(run, &[]) {
+        Ok(walked) => walked,
+        Err(error) => {
+            eprintln!("{}: {error}", run.display());
+            return None;
+        }
+    };
     let mut agreement = Agreement::default();
     for use_case in &use_cases {
         let (tally, score) = mechanical_score(&walked, use_case, &entities);

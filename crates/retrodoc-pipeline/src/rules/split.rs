@@ -19,11 +19,11 @@ use retrodoc_llm::LlmProvider;
 use super::grounding::{grounded_rules, RawRules};
 use super::prompt::{rules_prompt, RULES_SYSTEM_PROMPT};
 use super::Item;
-use crate::brief::ProductBrief;
 use crate::chunks::Splitter;
 use crate::error::PipelineError;
 use crate::naming::normalize;
 use crate::response::{complete_json_or_cut, Answer};
+use crate::use_cases::UseCaseContext;
 
 /// The rules `item`'s feature states, grounded; `None` when an answer can't be read.
 pub(super) async fn stated_rules(
@@ -32,7 +32,7 @@ pub(super) async fn stated_rules(
     item: &Item<'_>,
     prompt: &str,
     cited_files: &[String],
-    brief: &ProductBrief,
+    context: &UseCaseContext,
     splitter: &Splitter,
 ) -> Result<Option<Vec<BusinessRule>>, PipelineError> {
     let feature = item.feature;
@@ -74,8 +74,14 @@ pub(super) async fn stated_rules(
                 for half in [second, first] {
                     let mut input = item.input.clone();
                     input.files = half.to_vec();
-                    let (prompt, included) =
-                        rules_prompt(repo_root, feature, &input, &item.use_cases, brief, splitter);
+                    let (prompt, included) = rules_prompt(
+                        &context.walked,
+                        feature,
+                        &input,
+                        &item.use_cases,
+                        &context.brief,
+                        splitter,
+                    );
                     if included.is_empty() {
                         tracing::warn!(feature = %feature.slug, "rules skipped: a half of the files can't be shown");
                         return Ok(None);

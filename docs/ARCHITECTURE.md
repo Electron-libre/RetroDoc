@@ -155,9 +155,9 @@ What each pass hands to the next, and where it is saved:
   through a symbolic link: a path edited in a saved artifact can't point a prompt at a file outside the repository.
 - **Artifact paths stay in the walk.** A path cited by a saved artifact is read only when it is one of the
   `WalkedFiles` (`walked.rs`), the files of this run's walk taken before the budget: the `source_refs` of
-  `use-cases.yaml` read through `WalkedFiles::read`, and the use cases and rules inputs (`FeatureInput`) drop the
-  files of `features.yaml` and `entry-points.yaml` the walk lacks. A file the walker skips (gitignored `.env`,
-  `.git/config`) never reaches a prompt.
+  `use-cases.yaml` and the files of `features.yaml` are read through `WalkedFiles::read` (prompts, rules input,
+  fingerprints), and `FeatureInput` leaves out the entry points of `entry-points.yaml` in a file the walk lacks. A
+  file the walker skips (gitignored `.env`, `.git/config`) reads as unreadable and never reaches a prompt.
 
 ### How the confidence score is computed
 

@@ -94,7 +94,7 @@ pub(super) struct Framing<'a> {
 /// the prompt budget. Returns it with the files actually included, in the
 /// order of the numbers the prompt shows them with (`=== [F1] path ===`).
 pub(super) fn use_cases_prompt(
-    repo_root: &Path,
+    walked: &WalkedFiles,
     feature: &Feature,
     input: &FeatureInput,
     framing: &Framing<'_>,
@@ -157,7 +157,7 @@ pub(super) fn use_cases_prompt(
         if budget == 0 {
             break;
         }
-        let content = match read_file_lossy(repo_root, Path::new(path)) {
+        let content = match walked.read(Path::new(path)) {
             Ok(content) => content,
             Err(err) => {
                 tracing::warn!(path = %path, error = %err, "could not read a feature file, left out of the prompt");

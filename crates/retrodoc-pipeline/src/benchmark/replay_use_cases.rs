@@ -9,7 +9,7 @@
 use std::path::Path;
 use std::time::Duration;
 
-use retrodoc_ingest::walker::walk_repo;
+use retrodoc_ingest::walker::{walk_repo, FileEntry};
 use retrodoc_ingest::FileKind;
 use retrodoc_llm::{LlmProvider, UsageTracker};
 
@@ -71,14 +71,13 @@ fn io_error(path: &Path, source: std::io::Error) -> PipelineError {
     }
 }
 
-/// Copies the files of the tree at `tree` that a walk keeps into `work_root`, and returns the paths of
-/// those classified as source.
-fn copy_tree(tree: &Path, work_root: &Path) -> Result<Vec<std::path::PathBuf>, PipelineError> {
+/// Copies the files of the tree at `tree` that a walk keeps into `work_root`, and returns them.
+fn copy_tree(tree: &Path, work_root: &Path) -> Result<Vec<FileEntry>, PipelineError> {
     let files = walk_repo(tree, &[]).map_err(|error| PipelineError::InvalidReference {
         path: tree.to_path_buf(),
         reason: error.to_string(),
     })?;
-    let mut sources = Vec::new();
+    let mut copied = Vec::new();
     for file in files {
         if file.path.starts_with(".retrodoc") {
             continue;
@@ -89,11 +88,9 @@ fn copy_tree(tree: &Path, work_root: &Path) -> Result<Vec<std::path::PathBuf>, P
         }
         let from = tree.join(&file.path);
         std::fs::copy(&from, &to).map_err(|e| io_error(&from, e))?;
-        if file.kind == FileKind::Source {
-            sources.push(file.path);
-        }
+        copied.push(file);
     }
-    Ok(sources)
+    Ok(copied)
 }
 
 /// What a replay of a pass that reads the code starts from.
@@ -113,7 +110,7 @@ pub(super) fn prepare_with_tree(
     frame: &Frame,
 ) -> Result<TreeRun, PipelineError> {
     frozen.prepare(pass, work_root)?;
-    let sources = copy_tree(tree, work_root)?;
+    let copied = copy_tree(tree, work_root)?;
     let glossary = Glossary::load(work_root).ok_or_else(|| missing(work_root, "glossary.yaml"))?;
     let entry_points =
         EntryPoints::load(work_root).ok_or_else(|| missing(work_root, "entry-points.yaml"))?;
@@ -122,12 +119,18 @@ pub(super) fn prepare_with_tree(
     let surface = Surface::new(&glossary, &entry_points);
     let context = UseCaseContext {
         entry_points,
-        index: CodeIndex::new(sources.iter().map(std::path::PathBuf::as_path)),
+        index: CodeIndex::new(
+            copied
+                .iter()
+                .filter(|file| file.kind == FileKind::Source)
+                .map(|file| file.path.as_path()),
+        ),
         actors,
         vocabulary: surface.vocabulary(VOCABULARY_SIZE),
         brief: frame.brief(work_root),
         evidence: frame.evidence.clone(),
-        walked: WalkedFiles::walk(work_root, &[])?,
+        // The walk of the tree, the files the copy holds.
+        walked: WalkedFiles::new(work_root, &copied),
         ..UseCaseContext::default()
     };
     Ok(TreeRun {

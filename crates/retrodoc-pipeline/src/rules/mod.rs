@@ -25,7 +25,6 @@ use retrodoc_core::model::{BusinessRule, Feature, UseCase};
 use retrodoc_llm::LlmProvider;
 
 use crate::artifact::{load_yaml, save_yaml, warn_on_error, Artifact};
-use crate::brief::ProductBrief;
 use crate::cache::hash_content;
 use crate::chunks::Splitter;
 use crate::error::PipelineError;
@@ -33,7 +32,6 @@ use crate::fingerprints::{fingerprint, model_part, Fingerprints};
 use crate::progress::Progress;
 use crate::response::complete_json;
 use crate::roles::load_splitter;
-use crate::text::read_file_lossy;
 use crate::use_cases::UseCaseContext;
 
 mod aside;
@@ -168,10 +166,10 @@ pub async fn build_rules(
 
     let reach = reach_of(&items);
 
-    let (brief, splitter) = (&context.brief, &splitter);
+    let splitter = &splitter;
     let mut answers = stream::iter(items)
         .map(|item| async move {
-            let answer = answer_for(repo_root, llm, &item, brief, splitter).await;
+            let answer = answer_for(repo_root, llm, &item, context, splitter).await;
             (item, answer)
         })
         .buffered(context.concurrency.max(1));
@@ -257,14 +255,14 @@ async fn answer_for(
     repo_root: &Path,
     llm: &dyn LlmProvider,
     item: &Item<'_>,
-    brief: &ProductBrief,
+    context: &UseCaseContext,
     splitter: &Splitter,
 ) -> Option<Result<Option<Asked>, PipelineError>> {
     match &item.plan {
         Plan::Ask {
             prompt,
             cited_files,
-        } => Some(ask_rules(repo_root, llm, item, prompt, cited_files, brief, splitter).await),
+        } => Some(ask_rules(repo_root, llm, item, prompt, cited_files, context, splitter).await),
         Plan::Reuse | Plan::Unreadable => None,
     }
 }
@@ -279,7 +277,7 @@ async fn ask_rules(
     item: &Item<'_>,
     prompt: &str,
     cited_files: &[String],
-    brief: &ProductBrief,
+    context: &UseCaseContext,
     splitter: &Splitter,
 ) -> Result<Option<Asked>, PipelineError> {
     let feature = item.feature;
@@ -312,7 +310,7 @@ async fn ask_rules(
         }
     }
     let Some(rules) =
-        stated_rules(repo_root, llm, item, prompt, cited_files, brief, splitter).await?
+        stated_rules(repo_root, llm, item, prompt, cited_files, context, splitter).await?
     else {
         return Ok(None);
     };
@@ -514,12 +512,18 @@ fn plan_item<'a>(
         .filter(|u| u.feature_slug == feature.slug)
         .collect();
     let put_back = context.put_back.keep_features.contains(&feature.slug);
-    let print = rules_fingerprint(repo_root, feature, &input, &own, context, llm, put_back);
+    let print = rules_fingerprint(feature, &input, &own, context, llm, put_back);
     let plan = if known.get(&key) == Some(&print) {
         Plan::Reuse
     } else {
-        let (prompt, cited_files) =
-            rules_prompt(repo_root, feature, &input, &own, &context.brief, splitter);
+        let (prompt, cited_files) = rules_prompt(
+            &context.walked,
+            feature,
+            &input,
+            &own,
+            &context.brief,
+            splitter,
+        );
         if cited_files.is_empty() {
             Plan::Unreadable
         } else {
@@ -544,7 +548,6 @@ fn plan_item<'a>(
 /// its entities, the evidence, its use cases, the brief, the three prompts (statement, kind, judgement), the model,
 /// and whether it is put back by hand (only when it is, so that the other features keep their print).
 fn rules_fingerprint(
-    repo_root: &Path,
     feature: &Feature,
     input: &RuleInput,
     use_cases: &[&UseCase],
@@ -553,7 +556,7 @@ fn rules_fingerprint(
     put_back: bool,
 ) -> String {
     let files = input.files.iter().map(|path| {
-        let hash = read_file_lossy(repo_root, Path::new(path)).map_or_else(
+        let hash = context.walked.read(Path::new(path)).map_or_else(
             |_| "unreadable".to_string(),
             |content| hash_content(&content),
         );

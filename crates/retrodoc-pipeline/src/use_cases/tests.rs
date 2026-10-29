@@ -1516,6 +1516,7 @@ async fn a_slice_without_a_usable_answer_leaves_the_feature_to_the_next_run() {
 async fn a_file_a_saved_feature_or_entry_point_names_outside_the_walk_is_not_shown() {
     use crate::entry_points::{EntryFile, EntryKind};
 
+    let (logs, _guard) = crate::testing::capture_logs();
     let dir = crate::testing::repo_with_an_ignored_secret();
     // `entry-points.yaml` and `features.yaml` edited to name the gitignored `.env`.
     let entry_points = EntryPoints {
@@ -1553,4 +1554,9 @@ async fn a_file_a_saved_feature_or_entry_point_names_outside_the_walk_is_not_sho
     assert!(prompts[0].contains("a.rs ==="), "a walked file is shown");
     assert!(prompts.iter().all(|p| !p.contains("SECRET_TOKEN")));
     assert!(prompts.iter().all(|p| !p.contains("leak")));
+    let logs = logs.text();
+    assert!(
+        logs.contains("could not read a feature file") && logs.contains(".env"),
+        "{logs}"
+    );
 }

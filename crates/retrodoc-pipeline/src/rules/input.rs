@@ -9,7 +9,6 @@ use retrodoc_core::model::Feature;
 
 use crate::brief::Extract;
 use crate::entry_points::EntryPoint;
-use crate::text::read_file_prefix_lossy;
 use crate::use_cases::{feature_query, FeatureInput, UseCaseContext};
 
 /// Of each file, the bytes searched for entity names.
@@ -62,8 +61,9 @@ impl RuleInput {
             .extracts(&feature_query(feature, &input));
         let mut text = format!("{} {}", feature.name, feature.description);
         for path in &input.files {
-            if let Ok(prefix) =
-                read_file_prefix_lossy(repo_root, Path::new(path), MAX_BYTES_PER_FILE)
+            if let Ok(prefix) = context
+                .walked
+                .read_prefix(Path::new(path), MAX_BYTES_PER_FILE)
             {
                 text.push('\n');
                 text.push_str(&prefix);
@@ -238,7 +238,7 @@ mod tests {
     }
 
     #[test]
-    fn a_feature_without_entry_points_reads_its_own_files_of_the_walk() {
+    fn a_feature_without_entry_points_reads_its_own_files() {
         let dir = tempfile::tempdir().unwrap();
         write(dir.path(), &[("lib/router.rb", "class Router; end\n")]);
         let input = RuleInput::new(
@@ -246,7 +246,7 @@ mod tests {
             &feature(&["lib/router.rb", "lib/gone.rb"]),
             &reading(dir.path()),
         );
-        assert_eq!(input.files, ["lib/router.rb"], "a file gone is not walked");
+        assert_eq!(input.files, ["lib/router.rb", "lib/gone.rb"]);
         assert!(input.entities.is_empty() && input.evidence.is_empty());
     }
 
@@ -258,7 +258,6 @@ mod tests {
             ..reading(dir.path())
         };
         let input = RuleInput::new(dir.path(), &feature(&["a.rs", ".env"]), &context);
-        assert_eq!(input.files, ["a.rs"]);
         assert!(input.entities.is_empty(), "the skipped file is not read");
     }
 }

@@ -9,7 +9,7 @@ use std::path::{Component, Path, PathBuf};
 use retrodoc_ingest::walker::{walk_repo, FileEntry};
 
 use crate::error::PipelineError;
-use crate::text::read_file_lossy;
+use crate::text::{read_file_lossy, read_file_prefix_lossy};
 
 /// The repository root and the relative paths of the files its walk yields. The default holds no file: nothing
 /// is readable through it.
@@ -61,13 +61,31 @@ impl WalkedFiles {
     /// The file at `relative` as text, as `read_file_lossy` reads it, refused as unreadable when it is not a file of
     /// the walk.
     pub(crate) fn read(&self, relative: &Path) -> Result<String, PipelineError> {
-        if !self.contains(relative) {
-            return Err(PipelineError::Read {
+        self.check(relative)?;
+        read_file_lossy(&self.root, relative)
+    }
+
+    /// The first `max_bytes` bytes of the file at `relative`, as `read_file_prefix_lossy` reads them, refused as
+    /// [`Self::read`] refuses.
+    pub(crate) fn read_prefix(
+        &self,
+        relative: &Path,
+        max_bytes: usize,
+    ) -> Result<String, PipelineError> {
+        self.check(relative)?;
+        read_file_prefix_lossy(&self.root, relative, max_bytes)
+    }
+
+    /// An error when `relative` is not a file of the walk.
+    fn check(&self, relative: &Path) -> Result<(), PipelineError> {
+        if self.contains(relative) {
+            Ok(())
+        } else {
+            Err(PipelineError::Read {
                 path: relative.to_path_buf(),
                 source: std::io::Error::new(ErrorKind::NotFound, "not a file of the walk"),
-            });
+            })
         }
-        read_file_lossy(&self.root, relative)
     }
 }
 

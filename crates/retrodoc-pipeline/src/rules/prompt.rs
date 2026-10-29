@@ -9,8 +9,8 @@ use retrodoc_core::model::{Feature, UseCase};
 use super::RuleInput;
 use crate::brief::{ExtractKind, ProductBrief};
 use crate::chunks::Splitter;
-use crate::text::read_file_lossy;
 use crate::use_cases::{focus_for, MAX_CHARS_PER_FILE, MAX_CHARS_PER_PROMPT};
+use crate::walked::WalkedFiles;
 
 pub(super) const RULES_SYSTEM_PROMPT: &str = "You are documenting a software project from a \
 functional point of view. Given a feature and the source code implementing it, state the business \
@@ -43,7 +43,7 @@ pub(super) fn evidence_id(kind: ExtractKind, n: usize) -> String {
 /// The prompt for `feature`, with the files whose code it shows, in the order of their numbers
 /// (`F1`, …): the only ones a rule can cite.
 pub(super) fn rules_prompt(
-    repo_root: &Path,
+    walked: &WalkedFiles,
     feature: &Feature,
     input: &RuleInput,
     use_cases: &[&UseCase],
@@ -91,7 +91,7 @@ pub(super) fn rules_prompt(
         if budget == 0 {
             break;
         }
-        let content = match read_file_lossy(repo_root, Path::new(path)) {
+        let content = match walked.read(Path::new(path)) {
             Ok(content) => content,
             Err(err) => {
                 tracing::warn!(path = %path, error = %err, "could not read a feature file, left out of the rules prompt");

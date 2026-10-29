@@ -47,6 +47,11 @@ entry points filtered by the walked sources, role map applied to `ingest.files`,
    by a use cases test and a rules test whose feature lists a gitignored file (absent from the prompt sent to the
    fake LLM); ~300 lines.
 
+3. [x] Fixes of the `high` review: the files of a feature stay in its input and are read through the walk
+   (`WalkedFiles::read`, `read_prefix`) in the use cases and rules prompts, `RuleInput` and both fingerprints, so a
+   missing file is still warned about and hashed as unreadable (saved fingerprints still match); the replay builds
+   its walk from the files it copied; the `confidence_agreement` example says why it skips a run.
+
 ## Decisions
 - Mode: autonomous
 - Base commit: 6a059b0e403bef68b76536d1fef8b1093425e5fd
@@ -89,5 +94,38 @@ entry points filtered by the walked sources, role map applied to `ingest.files`,
 - red: none (no spec): the rules input kept `.env` in its files; the use cases prompt showed the `.env` entry file
   instead of `a.rs`.
 - Code review: no findings
+- not verified: a real `generate` run.
+- decisions needed: none.
+
+## Review `high` (`6a059b0..4f280e5`): 10 findings
+| finding | what was done |
+|---|---|
+| dropped files change the saved fingerprints | fixed (deliverable 3): files kept, read through the walk, hashed `unreadable` |
+| the warning on a missing feature file never fires | fixed (deliverable 3): the prompt read warns again, tested on `.env` |
+| `UseCaseContext::default()` reads no file | not fixed: closed by default on purpose; every context of the code sets `walked` |
+| replay walks `work_root` again | fixed (deliverable 3): `WalkedFiles::new` over the files `copy_tree` copied |
+| `walk(_, &[])` ignores `[ingest] extra_ignore` | not fixed: the replay copies the tree with the same empty list; the example reads saved runs |
+| `WalkedFiles` cloned into each context | not fixed: once per run (`document` runs once per slice) |
+| the example drops a run silently | fixed (deliverable 3): it prints the walk error |
+| walk error mapped to `Read` on the root | not fixed: only the example and tests walk now |
+| `./path` matched to entry points without normalising | not fixed: matching unchanged by this issue |
+| guard at the read sites, not at load | partly: every read of an artifact path now goes through `WalkedFiles`; load-time cleaning would rewrite the artifacts |
+
+## Deliverable 3 summary
+- done: see plan line 3; `docs/ARCHITECTURE.md` and `pipeline.md` say the files are read through the walk.
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | pass |
+| specs | n/a (no spec) |
+| docs | `docs/ARCHITECTURE.md` safety nets, `docs/crates/pipeline.md` use cases row |
+| code review | low: 2 findings, not fixed (intended) |
+
+- red: none (no spec): under deliverable 2, `a_feature_without_entry_points_reads_its_own_files` gave
+  `["lib/router.rb"]` (the gone file dropped), and no warning named the `.env` left out.
+- Code review: 2 findings, not fixed: a feature file the walk lacks warns and an all-unreadable feature is
+  skipped after its prompt is built; both are what the code did before deliverable 2 for a missing file (the
+  warning was the regression the `high` review flagged), and a run's own features only list walked files.
 - not verified: a real `generate` run.
 - decisions needed: none.

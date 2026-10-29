@@ -36,7 +36,6 @@ use crate::progress::Progress;
 use crate::response::complete_json;
 use crate::roles::load_splitter;
 use crate::slices::CodeIndex;
-use crate::text::read_file_lossy;
 use crate::walked::WalkedFiles;
 
 mod grounding;
@@ -372,7 +371,7 @@ fn plan_items<'a>(
                 brief,
                 evidence: &close,
             };
-            let print = feature_fingerprint(repo_root, feature, &input, &framing, llm);
+            let print = feature_fingerprint(&context.walked, feature, &input, &framing, llm);
             let plan = if known.get(&key) == Some(&print) {
                 Plan::Reuse
             } else {
@@ -381,7 +380,7 @@ fn plan_items<'a>(
                     .into_iter()
                     .filter_map(|input| {
                         let (prompt, cited_files) =
-                            use_cases_prompt(repo_root, feature, &input, &framing, splitter);
+                            use_cases_prompt(&context.walked, feature, &input, &framing, splitter);
                         if cited_files.is_empty() {
                             tracing::warn!(feature = %feature.slug, "slice left out: none of its files is readable");
                         }
@@ -473,7 +472,7 @@ fn save_partial(
 /// the content of its files (an unreadable file hashes as such, so it
 /// invalidates when it becomes readable).
 fn feature_fingerprint(
-    repo_root: &Path,
+    walked: &WalkedFiles,
     feature: &Feature,
     input: &FeatureInput,
     framing: &Framing,
@@ -486,7 +485,7 @@ fn feature_fingerprint(
         evidence,
     } = *framing;
     let files = input.files.iter().map(|path| {
-        let content = read_file_lossy(repo_root, Path::new(path)).map_or_else(
+        let content = walked.read(Path::new(path)).map_or_else(
             |_| "unreadable".to_string(),
             |content| hash_content(&content),
         );
@@ -545,7 +544,8 @@ pub(crate) struct FeatureInput {
 }
 
 impl FeatureInput {
-    /// The input of `feature` drawn from `context`, kept to the files of its walk.
+    /// The input of `feature` drawn from `context`: an entry point of a file the walk lacks is left out (a file the
+    /// feature lists is kept, and read through the walk).
     pub(crate) fn new(repo_root: &Path, feature: &Feature, context: &UseCaseContext) -> Self {
         let walked = &context.walked;
         let entries: Vec<(PathBuf, EntryPoint)> = context
@@ -565,23 +565,17 @@ impl FeatureInput {
         Self::of(repo_root, feature, entries, context)
     }
 
-    /// The input of `entries`: the files that define them and the code they run, those of the walk only.
+    /// The input of `entries`: the files that define them and the code they run.
     fn of(
         repo_root: &Path,
         feature: &Feature,
         entries: Vec<(PathBuf, EntryPoint)>,
         context: &UseCaseContext,
     ) -> Self {
-        let walked = |path: &String| context.walked.contains(Path::new(path));
         if entries.is_empty() {
             return Self {
                 entries,
-                files: feature
-                    .source_paths
-                    .iter()
-                    .filter(|p| walked(p))
-                    .cloned()
-                    .collect(),
+                files: feature.source_paths.clone(),
             };
         }
         let mut starts: Vec<PathBuf> = Vec::new();
@@ -597,7 +591,6 @@ impl FeatureInput {
             .iter()
             .chain(&slice)
             .map(|p| p.to_string_lossy().into_owned())
-            .filter(|p| walked(p))
             .collect();
         Self { entries, files }
     }
