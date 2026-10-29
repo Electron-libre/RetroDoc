@@ -1614,7 +1614,7 @@ async fn the_print_of_a_feature_stays_the_same() {
         prints.into_iter().collect::<Vec<_>>(),
         vec![(
             "billing/idle".to_string(),
-            "b27e939916cb804d563fb89c949b4024fe23e9687f8eb537c760bbee1bcc12e6".to_string()
+            "2ca4362ce67d20bc01b6fddd3ddcb6f3742ae8878e20f23a66822e450a79c45a".to_string()
         )]
     );
 }

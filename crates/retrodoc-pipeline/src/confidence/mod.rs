@@ -173,7 +173,7 @@ pub async fn score_confidence(
 ) -> Result<(), PipelineError> {
     let repo_root = walked.root();
     let splitter = load_splitter(repo_root);
-    // Scores given by another model are not kept: it scores them again.
+    // Scores given by another model or prompt are not kept: they are given again.
     let mut prints = Fingerprints::load(repo_root);
     if prints.confidence_model != Some(scored_by(llm)) {
         for use_case in use_cases.iter_mut() {

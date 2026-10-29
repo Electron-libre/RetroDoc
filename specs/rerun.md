@@ -44,7 +44,8 @@ repository makes no LLM call and rewrites no file.
 - (RER-10) Given a file read by the glossary pass and saved, when its prompt changes and the file does
   not, then the file is read again on the next run, and the run after makes no call.
 - (RER-10) Given a run saved before the prompts were compared, when `generate` runs again, then every
-  unit of the LLM passes is asked again once (no migration).
+  unit of the reading, domains, features, placement, use cases, actors, reconciliation and confidence passes
+  is asked again once (no migration).
 - (RER-4) Given a feature whose answer is `{"use_cases": []}` twice, when the run is repeated, then it makes
   no call; when a file of the feature changes, then it asks again.
 

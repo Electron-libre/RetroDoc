@@ -50,6 +50,8 @@ with no fingerprints (`benchmark/frozen.rs`).
    (its system prompt next to `SHOWN_RULE`), `rules` through the same helper; docs (`docs/crates/pipeline.md`,
    `fingerprints.rs` `//!`) say the prompt is compared; verified by a test per pass that a unit saved under
    other instructions is asked again; makes true RER-10, spec `accepted` (~400 lines).
+3. [x] Fixes of the `high` review: the use cases print hashes `system_prompt(true, true)` (no hand list), the
+   reading file marker covers both sides of the path, a scenario of RER-10 names its passes, stale docs.
 
 ## Decisions
 - Mode: autonomous
@@ -78,4 +80,12 @@ with no fingerprints (`benchmark/frozen.rs`).
 - red: RER-10: confidence `left: [1, 0, 0, 0] right: [1, 1, 0, 0]`; reconcile `left: [0, 0]` (expected `[1, 0]`).
 - not verified: no per-pass test for domains, features, placement, use cases, actors (their print before the
   change can't be rebuilt from a test); covered by the golden prints of features and use cases only.
+- Code review (low): no findings.
+
+## Deliverable 3 (high review of 2de90d2..7c64fe6)
+- done: findings 2, 3 (file marker), 5, 6 fixed; 1, 3 (chunk marker, brief framing, hand list), 4 and 8 go to
+  `issues/prompt_print_covers_what_is_sent.md`; 7 not fixed (a few KB hashed per unit, a few ms on a large run).
+- checks: tests ok, clippy ok, specs ok, docs updated.
+- red: none (the golden print of the use cases changed, updated).
+- not verified: no run on a saved repository.
 - Code review (low): no findings.

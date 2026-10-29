@@ -48,7 +48,7 @@ use self::grounding::{grounded_use_cases, RawUseCases};
 pub(crate) use self::prompt::{
     focus_for, numbered_excerpt, MAX_CHARS_PER_FILE, MAX_CHARS_PER_PROMPT,
 };
-use self::prompt::{system_prompt, use_cases_prompt, Framing, SYSTEM_PROMPT_PARTS};
+use self::prompt::{system_prompt, use_cases_prompt, Framing};
 
 /// How far from an entry point's file the code it runs is followed, and how
 /// many files are kept (see [`CodeIndex::slice`]).
@@ -429,7 +429,8 @@ fn feature_fingerprint(
             .chain(files)
             .chain(brief.print_part())
             .chain((!evidence.is_empty()).then(|| evidence.to_string()))
-            .chain(std::iter::once(prompt_part(&SYSTEM_PROMPT_PARTS)))
+            // Every part of the system prompt, whichever a slice is sent.
+            .chain(std::iter::once(prompt_part(&[&system_prompt(true, true)])))
             .chain(std::iter::once(model_part(llm))),
     )
 }

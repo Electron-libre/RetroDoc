@@ -84,7 +84,11 @@ impl<R: DeserializeOwned + schemars::JsonSchema, T, S> BatchedRead<'_, R, T, S> 
             while let Some(group) = queue.pop_front() {
                 let mut prompt = String::from(self.header);
                 for (path, _, content) in group {
-                    let _ = write!(prompt, "{FILE_MARKER}{} ---\n{content}\n", path.display());
+                    let _ = writeln!(
+                        prompt,
+                        "{FILE_OPENS}{}{FILE_CLOSES}{content}",
+                        path.display()
+                    );
                 }
                 let Some(response) =
                     complete_json::<R>(llm, self.system_prompt, &prompt, self.pass).await?
@@ -132,12 +136,14 @@ pub(crate) fn reading_instructions() -> String {
         crate::entry_points::ENTRY_POINTS_HEADER,
         crate::business_read::BUSINESS_READ_SYSTEM_PROMPT,
         crate::business_read::BUSINESS_READ_HEADER,
-        FILE_MARKER,
+        FILE_OPENS,
+        FILE_CLOSES,
     ])
 }
 
-/// How a file opens in the prompt of a batch, before its path (and `---` after it).
-const FILE_MARKER: &str = "\n--- ";
+/// What frames the path of a file in the prompt of a batch.
+const FILE_OPENS: &str = "\n--- ";
+const FILE_CLOSES: &str = " ---\n";
 
 /// The chunks of the `paths` to read again. The hash of a file is that of its content with the
 /// `instructions` of the pass and the brief, for the model of `llm`; `current(path, hash)` says whether the saved reading is up to date (and
