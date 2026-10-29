@@ -27,6 +27,7 @@ use crate::slices::CodeIndex;
 use crate::surface::Surface;
 use crate::use_cases::{build_use_cases, UseCaseContext};
 use crate::vocabulary::score_business_language;
+use crate::walked::WalkedFiles;
 use retrodoc_core::model::{Feature, Step};
 
 /// Names of the main entities given to the prompts, as in `generate`.
@@ -188,9 +189,10 @@ pub async fn replay_use_cases(
         .map(|g| g.entities().map(|(_, e)| e.name.clone()).collect())
         .unwrap_or_default();
     let steps: Vec<&Step> = use_cases.iter().flat_map(|u| &u.steps).collect();
+    let walked = WalkedFiles::walk(work_root, &[])?;
     let steps_passing = use_cases
         .iter()
-        .map(|u| mechanical_score(work_root, u, &entities).0.passing)
+        .map(|u| mechanical_score(&walked, u, &entities).0.passing)
         .sum();
     Ok(UseCaseFigures {
         use_cases: use_cases.len(),

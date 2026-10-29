@@ -372,3 +372,24 @@ pub(crate) fn capture_logs() -> (LogBuffer, CaptureGuard) {
     CAPTURE.with(|c| *c.borrow_mut() = Some(buffer.clone()));
     (buffer, CaptureGuard)
 }
+
+/// The walk of `root` as it is now.
+pub(crate) fn walked(root: &std::path::Path) -> crate::walked::WalkedFiles {
+    crate::walked::WalkedFiles::walk(root, &[]).unwrap()
+}
+
+/// A git repository holding `a.rs` and a gitignored `.env` whose content is `SECRET_TOKEN`: a file the walk skips.
+pub(crate) fn repo_with_an_ignored_secret() -> tempfile::TempDir {
+    let dir = tempfile::tempdir().unwrap();
+    // `.gitignore` only applies inside a git repository.
+    let status = std::process::Command::new("git")
+        .args(["init", "-q"])
+        .current_dir(dir.path())
+        .status()
+        .unwrap();
+    assert!(status.success());
+    std::fs::write(dir.path().join(".gitignore"), ".env\n").unwrap();
+    std::fs::write(dir.path().join(".env"), "SECRET_TOKEN\n").unwrap();
+    std::fs::write(dir.path().join("a.rs"), "fn a() {}\n").unwrap();
+    dir
+}

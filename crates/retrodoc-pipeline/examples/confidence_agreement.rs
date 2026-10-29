@@ -14,7 +14,7 @@
 use std::fmt::Write as _;
 use std::path::Path;
 
-use retrodoc_pipeline::{load_use_cases, mechanical_score, Glossary, StepTally};
+use retrodoc_pipeline::{load_use_cases, mechanical_score, Glossary, StepTally, WalkedFiles};
 
 /// The flag threshold of the report and the MCP server.
 const FLAG: f32 = 0.5;
@@ -77,9 +77,10 @@ fn measure(run: &Path) -> Option<Agreement> {
     let entities: Vec<String> = Glossary::load(run)
         .map(|g| g.entities().map(|(_, e)| e.name.clone()).collect())
         .unwrap_or_default();
+    let walked = WalkedFiles::walk(run, &[]).ok()?;
     let mut agreement = Agreement::default();
     for use_case in &use_cases {
-        let (tally, score) = mechanical_score(run, use_case, &entities);
+        let (tally, score) = mechanical_score(&walked, use_case, &entities);
         agreement.add(
             &use_case.slug,
             tally,

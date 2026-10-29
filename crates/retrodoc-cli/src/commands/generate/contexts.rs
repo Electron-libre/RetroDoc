@@ -15,7 +15,7 @@ use retrodoc_ingest::IngestResult;
 use retrodoc_llm::UsageTracker;
 use retrodoc_pipeline::{
     ContextMap, DomainMap, EntryPoints, FileRole, Glossary, Retention, RoleMap, RunSlice,
-    SourceHashes, Surface,
+    SourceHashes, Surface, WalkedFiles,
 };
 
 use super::super::usage::PassProviders;
@@ -37,6 +37,7 @@ struct Repo<'a> {
 
 pub(super) async fn run(
     workspace: &Workspace,
+    walked: &WalkedFiles,
     llm: &PassProviders,
     tracker: &UsageTracker,
     options: &GenerateOptions,
@@ -104,6 +105,7 @@ pub(super) async fn run(
         };
         let passes = Passes {
             repo_root,
+            walked,
             config,
             llm,
             tracker,
@@ -137,6 +139,7 @@ async fn document(
         config,
         llm,
         tracker,
+        ..
     } = *passes;
     let (glossary, entry_points) = read_slice(passes, &signals, repo).await?;
     let surface = Surface::new(&glossary, &entry_points);
@@ -312,6 +315,7 @@ async fn read_slice(
         config,
         llm,
         tracker,
+        ..
     } = *passes;
     let brief = &signals.brief;
     let files = &repo.slice.files;

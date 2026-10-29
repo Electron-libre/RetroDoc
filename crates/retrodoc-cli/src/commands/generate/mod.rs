@@ -8,7 +8,7 @@ use retrodoc_ingest::IngestResult;
 use retrodoc_llm::UsageTracker;
 use retrodoc_pipeline::{
     Actors, Artifact, CodeIndex, DomainMap, EntryPoints, Evidence, ProductBrief, RoleMap, Scope,
-    SourceHashes, Surface, UseCaseContext,
+    SourceHashes, Surface, UseCaseContext, WalkedFiles,
 };
 
 mod contexts;
@@ -84,6 +84,8 @@ pub async fn run(
     } = *options;
     let (workspace, mut ingest) = open_workspace(path, force)?;
     let (repo_root, config) = (&workspace.repo_root, &workspace.config);
+    // The whole walk, before the budget: the only files a path of a saved artifact may read.
+    let walked = WalkedFiles::new(repo_root, &ingest.files);
 
     let llm = PassProviders::open(&config.llm, tracker, GENERATE_PASSES)?;
 
@@ -98,7 +100,7 @@ pub async fn run(
             evidence,
             rule_evidence,
         };
-        return contexts::run(&workspace, &llm, tracker, options, signals, ingest).await;
+        return contexts::run(&workspace, &walked, &llm, tracker, options, signals, ingest).await;
     }
 
     let (surface, entry_points, role_map) =
@@ -157,6 +159,7 @@ pub async fn run(
 
     let passes = Passes {
         repo_root,
+        walked: &walked,
         config,
         llm: &llm,
         tracker,
@@ -188,6 +191,8 @@ use Scoring::Every;
 /// What the passes after the use cases share.
 struct Passes<'a> {
     repo_root: &'a Path,
+    /// The files of the walk, which the paths of the saved artifacts are read from.
+    walked: &'a WalkedFiles,
     config: &'a Config,
     llm: &'a PassProviders,
     tracker: &'a UsageTracker,
@@ -203,6 +208,7 @@ async fn finish_chain(
 ) -> anyhow::Result<()> {
     let Passes {
         repo_root,
+        walked,
         config,
         llm,
         tracker,
@@ -215,7 +221,7 @@ async fn finish_chain(
         .in_pass(
             "confidence",
             run_confidence(
-                repo_root,
+                walked,
                 features,
                 use_cases,
                 llm,
@@ -709,7 +715,7 @@ fn clear_caches(repo_root: &Path) -> anyhow::Result<()> {
 }
 
 async fn run_confidence(
-    repo_root: &Path,
+    walked: &WalkedFiles,
     features: &mut [Feature],
     use_cases: &mut [UseCase],
     llm: &PassProviders,
@@ -720,7 +726,7 @@ async fn run_confidence(
         Confidence::Sample(sample) => {
             println!("\nCross-checking use cases against the code (confidence)…");
             retrodoc_pipeline::score_confidence(
-                repo_root,
+                walked,
                 features,
                 use_cases,
                 llm.get("confidence")?.as_ref(),

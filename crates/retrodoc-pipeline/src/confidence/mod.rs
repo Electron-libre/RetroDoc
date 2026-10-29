@@ -40,8 +40,8 @@ use crate::glossary::Glossary;
 use crate::progress::Progress;
 use crate::response::complete_json;
 use crate::roles::load_splitter;
-use crate::text::read_file_lossy;
 use crate::use_cases::save_use_cases;
+use crate::walked::WalkedFiles;
 use checks::{check_step, StepCheck};
 
 /// Highest score a step without any source reference can get.
@@ -118,14 +118,14 @@ pub struct StepTally {
 /// asking), `None` when a doubtful step is left to the model.
 #[must_use]
 pub fn mechanical_score(
-    repo_root: &Path,
+    walked: &WalkedFiles,
     use_case: &UseCase,
     entities: &[String],
 ) -> (StepTally, Option<ConfidenceScore>) {
     let checks: Vec<StepCheck> = use_case
         .steps
         .iter()
-        .map(|s| check_step(repo_root, s, entities))
+        .map(|s| check_step(walked, s, entities))
         .collect();
     let mut tally = StepTally::default();
     for check in &checks {
@@ -157,19 +157,21 @@ fn evenly_spaced(items: &[usize], count: usize) -> Vec<usize> {
 /// by the model for the doubtful steps, and for `sample` of the use cases that
 /// pass every check, evenly spread, as a second opinion. Then every feature, and persists both artifacts
 /// (`use-cases.yaml`, `features.yaml`) with their `confidence` filled in. `concurrency` groups of use
-/// cases are checked at a time; the scores are the same as one at a time.
+/// cases are checked at a time; the scores are the same as one at a time. A cited file that is not one of
+/// `walked` is unreadable, as a missing one is: `use-cases.yaml` can be edited.
 ///
 /// # Errors
 ///
 /// Returns an error if an LLM call fails or an artifact can't be saved.
 pub async fn score_confidence(
-    repo_root: &Path,
+    walked: &WalkedFiles,
     features: &mut [Feature],
     use_cases: &mut [UseCase],
     llm: &dyn LlmProvider,
     sample: Option<usize>,
     concurrency: usize,
 ) -> Result<(), PipelineError> {
+    let repo_root = walked.root();
     let splitter = load_splitter(repo_root);
     // Scores given by another model are not kept: it scores them again.
     let mut prints = Fingerprints::load(repo_root);
@@ -189,7 +191,7 @@ pub async fn score_confidence(
     let mut checked: Vec<(usize, Vec<StepCheck>)> = Vec::new();
     let mut passing: Vec<usize> = Vec::new();
     for &i in &pending {
-        let (_, readable) = confidence_prompt(repo_root, &splitter, &use_cases[i]);
+        let (_, readable) = confidence_prompt(walked, &splitter, &use_cases[i]);
         if readable.is_empty() {
             use_cases[i].confidence = Some(ConfidenceScore::new(
                 0.0,
@@ -200,7 +202,7 @@ pub async fn score_confidence(
         let checks: Vec<StepCheck> = use_cases[i]
             .steps
             .iter()
-            .map(|s| check_step(repo_root, s, &entities))
+            .map(|s| check_step(walked, s, &entities))
             .collect();
         if checks.iter().all(|c| *c == StepCheck::Pass) {
             passing.push(i);
@@ -239,7 +241,7 @@ pub async fn score_confidence(
         })
         .collect();
     let mut results = stream::iter(jobs)
-        .map(|owned| async move { score_group(repo_root, splitter, &owned, llm).await })
+        .map(|owned| async move { score_group(walked, splitter, &owned, llm).await })
         .buffered(concurrency.max(1));
     let mut done = groups.iter();
     while let Some(scores) = results.next().await {
@@ -301,7 +303,7 @@ fn save_scores(
 /// one request for all of them when several, one per use case otherwise. A
 /// use case the batched answer misses falls back to its own request.
 async fn score_group(
-    repo_root: &Path,
+    walked: &WalkedFiles,
     splitter: &Splitter,
     group: &[(UseCase, Vec<StepCheck>)],
     llm: &dyn LlmProvider,
@@ -315,7 +317,7 @@ async fn score_group(
         complete_json::<RawBatchVerdicts>(
             llm,
             CONFIDENCE_SYSTEM_PROMPT,
-            &batch_prompt(repo_root, splitter, &asked),
+            &batch_prompt(walked, splitter, &asked),
             &what,
         )
         .await?
@@ -333,7 +335,7 @@ async fn score_group(
     for ((use_case, checks), part) in group.iter().zip(&asked) {
         scores.push(match answers.remove(use_case.slug.as_str()) {
             Some(steps) => Some(combine(use_case, &steps, checks)),
-            None => score_use_case(repo_root, splitter, use_case, part, checks, llm).await?,
+            None => score_use_case(walked, splitter, use_case, part, checks, llm).await?,
         });
     }
     Ok(scores)
@@ -353,14 +355,14 @@ fn doubtful_part(use_case: &UseCase, checks: &[StepCheck]) -> UseCase {
 }
 
 async fn score_use_case(
-    repo_root: &Path,
+    walked: &WalkedFiles,
     splitter: &Splitter,
     use_case: &UseCase,
     part: &UseCase,
     checks: &[StepCheck],
     llm: &dyn LlmProvider,
 ) -> Result<Option<ConfidenceScore>, PipelineError> {
-    let (prompt, _) = confidence_prompt(repo_root, splitter, part);
+    let (prompt, _) = confidence_prompt(walked, splitter, part);
     let Some(raw) = complete_json::<RawVerdicts>(
         llm,
         CONFIDENCE_SYSTEM_PROMPT,
@@ -489,7 +491,7 @@ fn cited_lines(use_cases: &[&UseCase], path: &str) -> Vec<(u32, u32)> {
 /// within the prompt budget; a long file is shown around the cited lines.
 /// Returns the files actually included.
 fn append_code(
-    repo_root: &Path,
+    walked: &WalkedFiles,
     splitter: &Splitter,
     use_cases: &[&UseCase],
     prompt: &mut String,
@@ -500,7 +502,7 @@ fn append_code(
         if budget == 0 {
             break;
         }
-        let Ok(content) = read_file_lossy(repo_root, Path::new(path)) else {
+        let Ok(content) = walked.read(Path::new(path)) else {
             continue;
         };
         let focus = Focus {
@@ -523,7 +525,7 @@ fn append_code(
 /// Prompt with the steps and the code they cite; also returns the files
 /// actually included.
 fn confidence_prompt(
-    repo_root: &Path,
+    walked: &WalkedFiles,
     splitter: &Splitter,
     use_case: &UseCase,
 ) -> (String, BTreeSet<String>) {
@@ -533,13 +535,13 @@ fn confidence_prompt(
         use_case.description,
         steps_text(use_case)
     );
-    let included = append_code(repo_root, splitter, &[use_case], &mut prompt);
+    let included = append_code(walked, splitter, &[use_case], &mut prompt);
     (prompt, included)
 }
 
 /// Prompt for several use cases of a feature: each one's steps, then the
 /// code they cite, once. The answer is one verdict list per use case slug.
-fn batch_prompt(repo_root: &Path, splitter: &Splitter, use_cases: &[&UseCase]) -> String {
+fn batch_prompt(walked: &WalkedFiles, splitter: &Splitter, use_cases: &[&UseCase]) -> String {
     let mut prompt = String::from(
         "Several use cases are checked against the same code. Reply with ONLY a JSON object \
          {\"use_cases\":[{\"slug\":\"...\",\"steps\":[{\"order\":1,\"verdict\":\"...\",\
@@ -555,7 +557,7 @@ fn batch_prompt(repo_root: &Path, splitter: &Splitter, use_cases: &[&UseCase]) -
             steps_text(use_case)
         );
     }
-    append_code(repo_root, splitter, use_cases, &mut prompt);
+    append_code(walked, splitter, use_cases, &mut prompt);
     prompt
 }
 

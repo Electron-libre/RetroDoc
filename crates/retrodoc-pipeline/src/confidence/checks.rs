@@ -8,7 +8,7 @@ use std::path::Path;
 
 use retrodoc_core::model::Step;
 
-use crate::text::read_file_lossy;
+use crate::walked::WalkedFiles;
 
 /// Names shorter than this are too common to prove anything.
 const MIN_ENTITY_CHARS: usize = 3;
@@ -30,14 +30,14 @@ pub(super) enum StepCheck {
 /// identifiers its text names appear at the cited lines, and the `entities`
 /// it names appear in the cited files. A step that names none of either has
 /// nothing to check and stays doubtful.
-pub(super) fn check_step(repo_root: &Path, step: &Step, entities: &[String]) -> StepCheck {
+pub(super) fn check_step(walked: &WalkedFiles, step: &Step, entities: &[String]) -> StepCheck {
     if step.source_refs.is_empty() {
         return StepCheck::Ungrounded;
     }
     let mut cited = String::new();
     let mut files = String::new();
     for reference in &step.source_refs {
-        let Ok(text) = read_file_lossy(repo_root, Path::new(&reference.path)) else {
+        let Ok(text) = walked.read(Path::new(&reference.path)) else {
             return StepCheck::Broken(format!("cannot read {}", reference.path));
         };
         let lines: Vec<&str> = text.lines().collect();
@@ -129,6 +129,7 @@ fn looks_like_identifier(word: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testing::{repo_with_an_ignored_secret, walked};
     use retrodoc_core::model::{Actor, ActorKind, SourceRef};
 
     fn step(action: &str, refs: Vec<(&str, Option<u32>, Option<u32>)>) -> Step {
@@ -177,7 +178,7 @@ mod tests {
     fn passes_when_names_are_at_the_cited_lines() {
         let dir = repo();
         let s = step("Calls create_invoice", vec![("a.rs", Some(1), Some(1))]);
-        assert_eq!(check_step(dir.path(), &s, &[]), StepCheck::Pass);
+        assert_eq!(check_step(&walked(dir.path()), &s, &[]), StepCheck::Pass);
     }
 
     #[test]
@@ -188,7 +189,7 @@ mod tests {
             vec![("a.rs", Some(1), Some(1))],
         );
         assert!(matches!(
-            check_step(dir.path(), &s, &["Payment".to_string()]),
+            check_step(&walked(dir.path()), &s, &["Payment".to_string()]),
             StepCheck::Doubtful(_)
         ));
     }
@@ -204,7 +205,7 @@ mod tests {
             vec![(absolute.to_str().unwrap(), Some(1), Some(1))],
         );
         assert!(matches!(
-            check_step(dir.path(), &s, &[]),
+            check_step(&walked(dir.path()), &s, &[]),
             StepCheck::Broken(_)
         ));
     }
@@ -213,7 +214,10 @@ mod tests {
     fn a_step_without_reference_is_ungrounded() {
         let dir = repo();
         let s = step("Calls create_invoice", vec![]);
-        assert_eq!(check_step(dir.path(), &s, &[]), StepCheck::Ungrounded);
+        assert_eq!(
+            check_step(&walked(dir.path()), &s, &[]),
+            StepCheck::Ungrounded
+        );
     }
 
     #[test]
@@ -221,14 +225,24 @@ mod tests {
         let dir = repo();
         let gone = step("x", vec![("nope.rs", None, None)]);
         assert!(matches!(
-            check_step(dir.path(), &gone, &[]),
+            check_step(&walked(dir.path()), &gone, &[]),
             StepCheck::Broken(_)
         ));
         let far = step("x", vec![("a.rs", Some(40), Some(45))]);
         assert!(matches!(
-            check_step(dir.path(), &far, &[]),
+            check_step(&walked(dir.path()), &far, &[]),
             StepCheck::Broken(_)
         ));
+    }
+
+    #[test]
+    fn a_cited_file_the_walk_skips_is_broken() {
+        let dir = repo_with_an_ignored_secret();
+        let s = step("Reads SECRET_TOKEN", vec![(".env", None, None)]);
+        assert_eq!(
+            check_step(&walked(dir.path()), &s, &[]),
+            StepCheck::Broken("cannot read .env".to_string())
+        );
     }
 
     #[test]
@@ -236,11 +250,14 @@ mod tests {
         let dir = repo();
         let s = step("Calls send_mail", vec![("a.rs", Some(1), Some(1))]);
         assert!(matches!(
-            check_step(dir.path(), &s, &[]),
+            check_step(&walked(dir.path()), &s, &[]),
             StepCheck::Doubtful(_)
         ));
         let whole = step("Calls send_mail", vec![("a.rs", None, None)]);
-        assert_eq!(check_step(dir.path(), &whole, &[]), StepCheck::Pass);
+        assert_eq!(
+            check_step(&walked(dir.path()), &whole, &[]),
+            StepCheck::Pass
+        );
     }
 
     #[test]
@@ -249,10 +266,13 @@ mod tests {
         let s = step("Creates a Payment", vec![("a.rs", None, None)]);
         let entities = vec!["Payment".to_string(), "Invoice".to_string()];
         assert!(matches!(
-            check_step(dir.path(), &s, &entities),
+            check_step(&walked(dir.path()), &s, &entities),
             StepCheck::Doubtful(_)
         ));
         let ok = step("Creates an Invoice", vec![("a.rs", None, None)]);
-        assert_eq!(check_step(dir.path(), &ok, &entities), StepCheck::Pass);
+        assert_eq!(
+            check_step(&walked(dir.path()), &ok, &entities),
+            StepCheck::Pass
+        );
     }
 }

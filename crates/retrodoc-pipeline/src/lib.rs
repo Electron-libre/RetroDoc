@@ -51,6 +51,7 @@ mod text;
 pub mod usage_log;
 pub mod use_cases;
 pub mod vocabulary;
+mod walked;
 
 pub use actors::{authorization_files, build_actors, Actors, BusinessActor};
 pub use artifact::{Artifact, Retention};
@@ -88,3 +89,4 @@ pub use sources::{infer_sources, saved_or_sniffed, SourceMapFile};
 pub use surface::{Resource, Surface};
 pub use use_cases::{build_use_cases, load_use_cases, save_use_cases, UseCaseContext};
 pub use vocabulary::{score_business_language, score_unscored_business_language};
+pub use walked::WalkedFiles;

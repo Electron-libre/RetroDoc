@@ -1,6 +1,6 @@
 use super::*;
 
-use crate::testing::{killed, FakeLlm};
+use crate::testing::{killed, repo_with_an_ignored_secret, walked, FakeLlm};
 use crate::use_cases::load_use_cases;
 use retrodoc_core::model::{Actor, ActorKind, SourceRef, Step};
 use std::path::Path;
@@ -73,7 +73,7 @@ async fn scores_steps_caps_ungrounded_ones_and_aggregates_to_the_feature() {
     )];
 
     score_confidence(
-        dir.path(),
+        &walked(dir.path()),
         &mut features,
         &mut use_cases,
         &provider,
@@ -110,7 +110,7 @@ async fn no_readable_code_scores_zero_and_bad_answer_stays_unscored() {
     ];
 
     score_confidence(
-        dir.path(),
+        &walked(dir.path()),
         &mut features,
         &mut use_cases,
         &FakeLlm::answering("nope"),
@@ -152,7 +152,7 @@ async fn steps_that_pass_the_checks_are_scored_without_the_model() {
     use_cases[1].steps[2].action = "calls `a`".to_string();
 
     score_confidence(
-        dir.path(),
+        &walked(dir.path()),
         &mut features,
         &mut use_cases,
         &provider,
@@ -181,7 +181,7 @@ async fn only_the_doubtful_steps_are_sent_to_the_model() {
     let mut use_cases = vec![use_case("f", vec![passing_step(), doubtful])];
 
     score_confidence(
-        dir.path(),
+        &walked(dir.path()),
         &mut features,
         &mut use_cases,
         &provider,
@@ -209,7 +209,7 @@ async fn a_sample_gives_a_second_opinion_on_that_many_passing_use_cases() {
         .collect();
 
     score_confidence(
-        dir.path(),
+        &walked(dir.path()),
         &mut features,
         &mut use_cases,
         &provider,
@@ -228,7 +228,7 @@ async fn a_sample_gives_a_second_opinion_on_that_many_passing_use_cases() {
     assert_eq!(values.iter().filter(|v| **v == 1.0).count(), 4);
     let again = FakeLlm::answering("unused");
     score_confidence(
-        dir.path(),
+        &walked(dir.path()),
         &mut features,
         &mut use_cases,
         &again,
@@ -269,7 +269,7 @@ async fn use_cases_of_a_feature_share_a_request_and_missing_ones_fall_back() {
         .collect();
 
     score_confidence(
-        dir.path(),
+        &walked(dir.path()),
         &mut features,
         &mut use_cases,
         &provider,
@@ -308,9 +308,16 @@ async fn a_long_cited_file_is_shown_around_the_cited_lines() {
     let mut use_cases = vec![use_case("f", vec![cited])];
     let spy = FakeLlm::answering(r#"{"steps":[{"order":1,"verdict":"supported"}]}"#);
 
-    score_confidence(dir.path(), &mut features, &mut use_cases, &spy, None, 1)
-        .await
-        .unwrap();
+    score_confidence(
+        &walked(dir.path()),
+        &mut features,
+        &mut use_cases,
+        &spy,
+        None,
+        1,
+    )
+    .await
+    .unwrap();
 
     let prompts = spy.prompts();
     assert!(prompts[0].contains("def action_50"), "cited code is shown");
@@ -330,7 +337,7 @@ async fn another_model_scores_the_scored_use_cases_again() {
     for model in ["local", "local", "strong"] {
         let provider = FakeLlm::answering(answer).with_model(model);
         score_confidence(
-            dir.path(),
+            &walked(dir.path()),
             &mut features,
             &mut use_cases,
             &provider,
@@ -384,7 +391,7 @@ async fn use_cases_scored_in_parallel_get_the_scores_of_a_sequential_run() {
         let provider = verdicts_by_feature("three");
 
         score_confidence(
-            dir.path(),
+            &walked(dir.path()),
             &mut features,
             &mut use_cases,
             &provider,
@@ -420,7 +427,15 @@ async fn a_failure_among_parallel_scores_leaves_the_earlier_use_cases_scored() {
     })
     .with_delay(std::time::Duration::from_millis(30));
 
-    let result = score_confidence(dir.path(), &mut features, &mut use_cases, &flaky, None, 3).await;
+    let result = score_confidence(
+        &walked(dir.path()),
+        &mut features,
+        &mut use_cases,
+        &flaky,
+        None,
+        3,
+    )
+    .await;
 
     assert!(result.is_err());
     let scored: Vec<bool> = use_cases.iter().map(|u| u.confidence.is_some()).collect();
@@ -433,12 +448,12 @@ fn mechanical_score_is_known_only_when_no_step_is_doubtful() {
     std::fs::write(dir.path().join("a.rs"), "fn a() {}\n").unwrap();
 
     let settled = use_case("f", vec![passing_step()]);
-    let (tally, score) = mechanical_score(dir.path(), &settled, &[]);
+    let (tally, score) = mechanical_score(&walked(dir.path()), &settled, &[]);
     assert_eq!((tally.passing, tally.doubtful), (1, 0));
     assert_eq!(score.unwrap().value, 1.0);
 
     let open = use_case("f", vec![passing_step(), step(2, Some("a.rs"))]);
-    let (tally, score) = mechanical_score(dir.path(), &open, &[]);
+    let (tally, score) = mechanical_score(&walked(dir.path()), &open, &[]);
     assert_eq!((tally.passing, tally.doubtful), (1, 1));
     assert!(score.is_none());
 }
@@ -452,7 +467,14 @@ async fn a_killed_run_keeps_the_scores_given_and_the_rerun_scores_the_rest() {
 
     let stuck = FakeLlm::hanging_after(2, supported);
     killed(
-        score_confidence(dir.path(), &mut features, &mut use_cases, &stuck, None, 1),
+        score_confidence(
+            &walked(dir.path()),
+            &mut features,
+            &mut use_cases,
+            &stuck,
+            None,
+            1,
+        ),
         &stuck,
     )
     .await;
@@ -461,9 +483,50 @@ async fn a_killed_run_keeps_the_scores_given_and_the_rerun_scores_the_rest() {
     assert_eq!(scored, [true, true, false, false]);
 
     let healthy = FakeLlm::replying(move |n, _| Ok(supported(n)));
-    score_confidence(dir.path(), &mut features, &mut saved, &healthy, None, 1)
-        .await
-        .unwrap();
+    score_confidence(
+        &walked(dir.path()),
+        &mut features,
+        &mut saved,
+        &healthy,
+        None,
+        1,
+    )
+    .await
+    .unwrap();
     assert_eq!(healthy.calls(), 2, "only the two use cases left unscored");
     assert!(saved.iter().all(|u| u.confidence.is_some()));
+}
+
+#[tokio::test]
+async fn a_cited_file_the_walk_skips_is_not_shown_to_the_model() {
+    let dir = repo_with_an_ignored_secret();
+    let mut features = vec![feature("f")];
+    let mut use_cases = vec![use_case(
+        "f",
+        vec![step(1, Some("a.rs")), step(2, Some(".env"))],
+    )];
+    let spy = FakeLlm::answering(r#"{"steps":[{"order":1,"verdict":"supported"}]}"#);
+
+    score_confidence(
+        &walked(dir.path()),
+        &mut features,
+        &mut use_cases,
+        &spy,
+        None,
+        1,
+    )
+    .await
+    .unwrap();
+
+    let prompts = spy.prompts();
+    assert!(
+        prompts[0].contains("=== a.rs ==="),
+        "a walked file is shown"
+    );
+    assert!(prompts.iter().all(|p| !p.contains("SECRET_TOKEN")));
+    let rationale = &use_cases[0].confidence.as_ref().unwrap().rationale;
+    assert!(rationale
+        .as_deref()
+        .unwrap_or_default()
+        .contains("cannot read .env"));
 }
