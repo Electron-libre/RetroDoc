@@ -5,7 +5,7 @@ Five files hold several things each (production code, its tests, several tools o
 to read and to review. Split each along the seams it already has, with no behaviour change: `just check` and a
 second `generate` writing nothing stay green. This issue covers the two files of `retrodoc-pipeline`
 (`report.rs`, `chunks.rs`); the other three were cut into `issues/done/split_mcp_tools.md`,
-`issues/split_render_markdown.md` and `issues/split_openrouter_tests.md` (one issue per crate, for the size
+`issues/done/split_render_markdown.md` and `issues/split_openrouter_tests.md` (one issue per crate, for the size
 limit).
 
 # Findings (exploration of 2026-10-29, at aee4cc9)
