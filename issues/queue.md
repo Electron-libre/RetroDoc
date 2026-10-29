@@ -6,6 +6,8 @@ re-ranks the whole list. Line format: `- [<file stem>](<file stem>.md) - <why he
 
 - [pass_runner_and_run_context](pass_runner_and_run_context.md) - after `single_pipeline_path`: do not refactor code about to be removed
 - [remove_sub_domains](remove_sub_domains.md) - after `pass_runner_and_run_context`: dead code left by ADR 0035 (only the removed `files` path made sub-domains); wide but mechanical, touches the render and the MCP, which nothing before it does
+- [split_largest_files](split_largest_files.md) - after `remove_sub_domains`, which edits the render and the MCP files it splits; pure moves, cheaper once the passes are shared
+- [joint_reading_routing_rule](joint_reading_routing_rule.md) - after the structural refactors: a possible quality loss of the default reading, unmeasured; its measure reuses the frozen inputs
 - [contexts_residual_size_and_names](contexts_residual_size_and_names.md) - low: follow-up of the closed split by family (2026-10-14): one context still over 150 files, action names taken for families, the names unread; nothing before it depends on it, and its spread measure is cheaper after `sampling_temperature_for_steadier_runs`
 - [rules_replay_without_evidence](rules_replay_without_evidence.md) - small, right before `rules_plumbing_and_screen_noise`: its rules measures should replay the pass with the evidence `generate` gives
 - [rules_plumbing_and_screen_noise](rules_plumbing_and_screen_noise.md) - low (user, 2026-10-23): fine tuning of rules that are already usable; each step gained less than the one before, so after `contexts_residual_size_and_names` and well behind the structural work

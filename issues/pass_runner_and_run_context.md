@@ -47,3 +47,50 @@ One deliverable per point, each a `refactor(...)` commit:
 * An abstraction that hides the differences between passes behind many parameters is worse than the
   duplication: stop where the passes really differ.
 * The fingerprints must not change, or every user's next run redoes everything.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Share what the passes really have in common, make `generate` thread one run context, share the leftovers of the
+three reading passes; no behaviour change, fingerprints byte-identical. Out of scope: features and confidence loops
+(sequential with the previous slices in the prompt; no per-unit print), the split of the largest files (over the
+size limit: ~2,300 moved lines counted twice; new issue). `chunk_check` measured: no extension of
+`delivery_router`, `linkding` or `lobsters` reaches it (all parsed by tree-sitter, or not walker sources).
+
+What is the same (read side by side): use cases and rules run the same loop (`Item { key, print, plan }`,
+`Plan::{Reuse, Unreadable, Ask}`, `buffered(concurrency)`, skip/begin, partial save on each answer and on error,
+artifact saved before the prints); they differ in the payload (rules carry the set-aside entries) and in what an
+unanswered or unreadable feature keeps (use cases drop the previous ones, rules keep them). Features, use cases,
+rules, actors and domains share the fingerprint tail (brief when not empty, then `model_part`); use cases and rules
+share the file part (`path\nhash`, or `unreadable`) and the key `"{domain}/{slug}"`.
+
+## Plan
+1. [ ] Pin and share the fingerprint parts: tests pinning the print of one unit of features, use cases and rules
+   (literal hash); one helper for the brief + model tail and one for the cited file contents, plus the feature key;
+   verified by the pinned prints unchanged (~200 lines).
+2. [ ] One per-feature driver for use cases and rules: the `Item`/`Plan` loop, its progress, partial and final
+   saves in one function; each pass gives its planning, its call + grounding and its policy for an unanswered
+   feature (keep or drop the previous ones); verified by the existing use cases and rules tests (resume, partial
+   save, concurrency) unchanged (~350 lines).
+3. [ ] A run context for `generate`: `Run { repo_root, config, walked, llm, tracker, force }` plus `Signals`
+   replace `Passes` and the long argument lists of `generate/mod.rs` and `contexts.rs` (the `too_many_arguments`
+   allow of `features_from_surface` goes); the concurrency becomes an argument of `build_use_cases` /
+   `build_rules` instead of a field of `UseCaseContext`, so the context is no longer rebuilt for the rules;
+   verified by `just check` and a `generate` on a copy of a saved `delivery_router` run making no LLM call
+   (~300 lines).
+4. [ ] The reading passes share their leftovers in `batched_read.rs`, the modules staying where they are: the
+   loop building the pending chunks (read, hash, compare, chunk), the attribution of an answer to a cited file,
+   the seeding of `Retention::Others`; verified by the glossary, entry points and business read tests unchanged
+   (~250 lines).
+5. [ ] `chunk_check` kept: record the measure (extensions that reach it on the three repositories) in ADR 0027
+   and `docs/crates/pipeline.md`; verified by `just check` (~20 lines).
+
+## Decisions
+- Mode: autonomous
+- Base commit: aee4cc9598a94f40ff9326001cee6fdd5aaf0341
+- Standalone `glossary` and `entry-points` (user, 2026-10-29): kept; their shared pieces go to `batched_read.rs`.
+- `chunk_check` (user, 2026-10-29): kept; the measure goes in ADR 0027.
+- Split of the largest files (user, 2026-10-29): a new issue, queued right after this one.
+- Joint reading prompt lacking the routing-file rule of `entry-points` (user, 2026-10-29): a follow-up issue.
