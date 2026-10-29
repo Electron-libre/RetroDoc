@@ -150,6 +150,9 @@ What each pass hands to the next, and where it is saved:
   aborting the run (`response.rs`).
 - **Grounding.** Source references to files outside the feature are dropped; a use case that cites no
   readable code scores 0 without even calling the LLM.
+- **Reads stay in the repo.** Every source read goes through `text::read_file_lossy`, which treats as unreadable a
+  path that is absolute, has a `..` or resolves outside the repository through a symbolic link: a path edited in a
+  saved artifact never sends an outside file to the LLM.
 
 ### How the confidence score is computed
 

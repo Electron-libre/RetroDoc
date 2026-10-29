@@ -22,3 +22,41 @@ paths in the one helper every pipeline read now goes through.
 # Resources
 * `crates/retrodoc-pipeline/src/text.rs`, `confidence/checks.rs`, `confidence/mod.rs`, `citations.rs`,
   `crates/retrodoc-mcp/src/source.rs`.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+`read_file_lossy` refuses a path that is absolute, has a `..` (or root/prefix) component, or resolves outside the
+repository through a symbolic link, with the `PipelineError::Read` every caller already treats as unreadable. No spec:
+an internal guard of the one read helper, no capability's behaviour changes for a path the walker yields (it does not
+follow links, so no walked file is a link). The MCP keeps its own check (it returns sentences for the agent).
+
+## Plan
+1. [x] Guard `read_file_lossy`: lexical check (absolute, `..`), then canonicalize the file and the root and require
+   the file under the root; verified by unit tests in `text.rs` (absolute, `..`, link to a file outside, link
+   inside the repo to an outside directory, `./a.rb` still read) and a `check_step` test citing `/etc/...` that
+   comes back `Broken`; ~80 lines.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 9ab490db8f4954ea21a374ae93107236003885b0
+- Links: canonicalize, refuse what resolves outside the repo; a link inside it stays readable (1 a).
+
+## Deliverable 1 summary
+- done: `read_file_lossy` resolves the path through `resolve_inside_repo` and refuses, as `PipelineError::Read`
+  (`InvalidInput`), an absolute path, a `..` and a link resolving outside the repo; `ARCHITECTURE.md` safety nets.
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | pass |
+| specs | n/a (no spec; existing warnings only) |
+| docs | `docs/ARCHITECTURE.md` §4 safety nets |
+| code review | low: no findings |
+
+- red: none (no spec): 4 tests failed on `assert!(...is_err())`, the outside file was read.
+- not verified: Windows (link tests are `cfg(unix)`; the lexical check covers prefixes there).
+- Code review: no findings
+- decisions needed: none.

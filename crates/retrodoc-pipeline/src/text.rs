@@ -1,19 +1,40 @@
 //! Reading a source file as text and cutting a text for a prompt: shared by the passes that read files.
 
-use std::path::Path;
+use std::io::ErrorKind;
+use std::path::{Component, Path, PathBuf};
 
 use crate::error::PipelineError;
 
-/// The file at `relative` (from `repo_root`) as text, invalid UTF-8 replaced.
+/// The file at `relative` (from `repo_root`) as text, invalid UTF-8 replaced. A path that may come from a saved
+/// artifact is refused, as unreadable, when it would read a file outside the repository.
 pub(crate) fn read_file_lossy(repo_root: &Path, relative: &Path) -> Result<String, PipelineError> {
-    let abs = repo_root.join(relative);
-    let bytes = std::fs::read(&abs).map_err(|source| PipelineError::Read {
+    let read_error = |source| PipelineError::Read {
         path: relative.to_path_buf(),
         source,
-    })?;
+    };
+    let real = resolve_inside_repo(repo_root, relative).map_err(read_error)?;
+    let bytes = std::fs::read(&real).map_err(read_error)?;
     // Valid UTF-8 keeps the buffer read; only invalid bytes cost a copy.
     Ok(String::from_utf8(bytes)
         .unwrap_or_else(|err| String::from_utf8_lossy(err.as_bytes()).into_owned()))
+}
+
+/// `relative` resolved under `repo_root`, refused when it is absolute, has a `..` component or resolves outside the
+/// repository through a symbolic link. A link that stays inside the repository is followed.
+fn resolve_inside_repo(repo_root: &Path, relative: &Path) -> std::io::Result<PathBuf> {
+    let outside = || std::io::Error::new(ErrorKind::InvalidInput, "the path leaves the repository");
+    let plain = relative
+        .components()
+        .all(|component| matches!(component, Component::Normal(_) | Component::CurDir));
+    if !plain {
+        return Err(outside());
+    }
+    let real = repo_root.join(relative).canonicalize()?;
+    if real.starts_with(repo_root.canonicalize()?) {
+        Ok(real)
+    } else {
+        Err(outside())
+    }
 }
 
 /// `content` cut to its first `max_chars` characters, with a marker when it was cut.
@@ -42,6 +63,81 @@ mod tests {
             "caf\u{fffd}"
         );
         assert!(read_file_lossy(dir.path(), Path::new("missing.rb")).is_err());
+    }
+
+    /// A repo holding `a.rb`, next to a directory outside it holding `secret.rb`.
+    fn repo_and_outside() -> (tempfile::TempDir, tempfile::TempDir) {
+        let repo = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        std::fs::write(repo.path().join("a.rb"), "inside").unwrap();
+        std::fs::write(outside.path().join("secret.rb"), "secret").unwrap();
+        (repo, outside)
+    }
+
+    #[test]
+    fn an_absolute_path_is_refused_even_inside_the_repo() {
+        let (repo, outside) = repo_and_outside();
+        assert!(read_file_lossy(repo.path(), &outside.path().join("secret.rb")).is_err());
+        assert!(read_file_lossy(repo.path(), &repo.path().join("a.rb")).is_err());
+    }
+
+    #[test]
+    fn a_path_climbing_out_with_dot_dot_is_refused() {
+        let (repo, outside) = repo_and_outside();
+        let name = outside.path().file_name().unwrap();
+        let climbing = Path::new("..").join(name).join("secret.rb");
+        assert!(read_file_lossy(repo.path(), &climbing).is_err());
+        std::fs::create_dir(repo.path().join("lib")).unwrap();
+        assert!(read_file_lossy(repo.path(), Path::new("lib/../a.rb")).is_err());
+    }
+
+    #[test]
+    fn a_dot_slash_path_is_read() {
+        let (repo, _outside) = repo_and_outside();
+        assert_eq!(
+            read_file_lossy(repo.path(), Path::new("./a.rb")).unwrap(),
+            "inside"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_link_resolving_outside_the_repo_is_refused() {
+        use std::os::unix::fs::symlink;
+        let (repo, outside) = repo_and_outside();
+        symlink(
+            outside.path().join("secret.rb"),
+            repo.path().join("file_link.rb"),
+        )
+        .unwrap();
+        symlink(outside.path(), repo.path().join("dir_link")).unwrap();
+        assert!(read_file_lossy(repo.path(), Path::new("file_link.rb")).is_err());
+        assert!(read_file_lossy(repo.path(), Path::new("dir_link/secret.rb")).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_link_resolving_inside_the_repo_is_read() {
+        use std::os::unix::fs::symlink;
+        let (repo, _outside) = repo_and_outside();
+        symlink(repo.path().join("a.rb"), repo.path().join("alias.rb")).unwrap();
+        assert_eq!(
+            read_file_lossy(repo.path(), Path::new("alias.rb")).unwrap(),
+            "inside"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_repo_root_reached_through_a_link_still_reads_its_files() {
+        use std::os::unix::fs::symlink;
+        let (repo, outside) = repo_and_outside();
+        let root_link = outside.path().join("root_link");
+        symlink(repo.path(), &root_link).unwrap();
+        assert_eq!(
+            read_file_lossy(&root_link, Path::new("a.rb")).unwrap(),
+            "inside"
+        );
     }
 
     #[test]

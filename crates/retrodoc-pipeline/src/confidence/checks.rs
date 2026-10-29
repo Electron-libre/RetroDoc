@@ -194,6 +194,22 @@ mod tests {
     }
 
     #[test]
+    fn a_step_citing_a_file_outside_the_repo_is_broken() {
+        let outside = tempfile::tempdir().unwrap();
+        std::fs::write(outside.path().join("secret.rs"), "fn create_invoice() {}\n").unwrap();
+        let dir = repo();
+        let absolute = outside.path().join("secret.rs");
+        let s = step(
+            "Calls create_invoice",
+            vec![(absolute.to_str().unwrap(), Some(1), Some(1))],
+        );
+        assert!(matches!(
+            check_step(dir.path(), &s, &[]),
+            StepCheck::Broken(_)
+        ));
+    }
+
+    #[test]
     fn a_step_without_reference_is_ungrounded() {
         let dir = repo();
         let s = step("Calls create_invoice", vec![]);
