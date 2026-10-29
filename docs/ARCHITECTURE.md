@@ -323,7 +323,7 @@ flowchart LR
 |---|---|
 | Know what is planned / out of scope | `PLAN.md` §5–§7 (§7.6: the review of 2026-10-12 and the order of the next work), `issues/queue.md` |
 | Add or change a pipeline pass | `crates/retrodoc-pipeline/src/` (follow the existing pass + its fake-provider test) |
-| Change the generated Markdown | `crates/retrodoc-render/src/markdown.rs` |
+| Change the generated Markdown | `crates/retrodoc-render/src/markdown/` |
 | Change what an agent can ask (MCP tools, search, code access) | `crates/retrodoc-mcp/src/` (`tools/` the answers, `server.rs` the wiring, `source.rs` the code access scope) |
 | Add a CLI command | `crates/retrodoc-cli/src/commands/` + `main.rs` |
 | Change config options | `crates/retrodoc-core/src/config.rs` |

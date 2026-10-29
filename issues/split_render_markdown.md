@@ -30,3 +30,34 @@ and a second `generate` writing nothing stay green.
 * Keep the public API of the crate (re-export from `mod.rs`); `feature_path`, `use_case_path` and `link` are
   `pub(crate)` and used by `rules.rs` and `doc_links.rs`.
 * The line numbers above move with every commit; read the file again at planning.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Split `crates/retrodoc-render/src/markdown.rs` into `markdown/mod.rs`, its tests by topic under `markdown/tests/`
+and one file per page; pure moves, public API and `pub(crate)` helpers unchanged. Out of scope: any change of the
+rendered bytes, `rules.rs`, `doc_links.rs`, `plan.rs`.
+
+## Plan
+1. [x] Pages and layout tests apart: `git mv markdown.rs markdown/mod.rs`; fixtures (`meta`, `sample`, `page`, `index_of`) in `markdown/tests/mod.rs` (`pub(super)`), the pages and layout tests in `tests/pages.rs`, the agent index, rerun and determinism tests in `tests/agent_index.rs`; the rules and doc links tests stay inline in `mod.rs` for now, renamed `mod rules_tests` (body untouched) and importing the fixtures; verified by `just check` and the moved code identical modulo whitespace (~600 lines).
+2. [ ] Rules and doc links tests apart: `rules_tests` → `markdown/tests/rules.rs` (dedented); verified by `just check` (~530 lines).
+3. [ ] One page per file: `agent_index`, `domain_page`, `feature_page`, `use_case_page` (+ `step_item`) in `markdown/agent_index.rs`, `domain.rs`, `feature.rs`, `use_case.rs`; paths, links, confidence lines and `trim_end` stay in `mod.rs` (`pub(super)` where needed); `docs/crates/render-mcp-cli.md` and `docs/ARCHITECTURE.md` point to `markdown/`; verified by `just check` (~660 lines).
+
+## Decisions
+- Mode: autonomous
+- Base commit: 9856e71
+
+## Deliverable 1: pages and layout tests apart
+- done: `markdown.rs` → `markdown/mod.rs` (git mv); fixtures in `markdown/tests/mod.rs` (`meta`, `sample`, `page` `pub(super)` for the inline `rules_tests`, `index_of` private), pages and layout tests (with the hostile slugs one) in `tests/pages.rs`, agent index, rerun and determinism tests in `tests/agent_index.rs`; imports named; `docs/ARCHITECTURE.md` points to `markdown/`.
+- | check | result |
+  |---|---|
+  | tests, lint, specs (`just check`) | pass |
+  | moved lines identical (sorted line comparison) | yes, apart from imports, `mod` lines and `pub(super)` |
+  | test count of the crate | 22, unchanged (17 in the render module) |
+  | docs (`docs/ARCHITECTURE.md`) | updated |
+- red: none (pure move, no new test)
+- Code review: no findings
+- not verified: second `generate` (pure move)
+- decisions needed: none
