@@ -4,7 +4,6 @@ Open issues in the order to work on them: the first is the next one. Read by `ju
 `just close-issue` removes a line, `skill:create-issue` inserts one at its rank, `skill:prioritize-issues`
 re-ranks the whole list. Line format: `- [<file stem>](<file stem>.md) - <why here>`.
 
-- [remove_sub_domains](remove_sub_domains.md) - after `pass_runner_and_run_context`: dead code left by ADR 0035 (only the removed `files` path made sub-domains); wide but mechanical, touches the render and the MCP, which nothing before it does
 - [split_largest_files](split_largest_files.md) - after `remove_sub_domains`, which edits the render and the MCP files it splits; pure moves, cheaper once the passes are shared
 - [joint_reading_routing_rule](joint_reading_routing_rule.md) - after the structural refactors: a possible quality loss of the default reading, unmeasured; its measure reuses the frozen inputs
 - [contexts_residual_size_and_names](contexts_residual_size_and_names.md) - low: follow-up of the closed split by family (2026-10-14): one context still over 150 files, action names taken for families, the names unread; nothing before it depends on it, and its spread measure is cheaper after `sampling_temperature_for_steadier_runs`
