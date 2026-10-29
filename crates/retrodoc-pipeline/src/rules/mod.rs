@@ -167,7 +167,7 @@ pub async fn build_rules(
         previous_aside: load_set_aside(repo_root).unwrap_or_default(),
     };
     let Stated { rules, mut aside } =
-        per_feature::run(&pass, features, units, &mut prints, &known, concurrency).await?;
+        per_feature::run(&pass, units, &mut prints, &known, concurrency).await?;
 
     warn_unknown_rules(&context.put_back.keep_rules, &aside, &rules);
     aside.forget_features(&context.put_back.keep_features);

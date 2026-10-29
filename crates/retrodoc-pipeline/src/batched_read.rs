@@ -19,12 +19,12 @@ use serde::de::DeserializeOwned;
 
 use crate::brief::ProductBrief;
 use crate::chunks::strip_part_marker;
+use crate::citations::resolve_cited_path;
 use crate::error::PipelineError;
 use crate::fingerprints::hash_for_model;
 use crate::progress::Progress;
 use crate::response::complete_json;
 use crate::text::read_file_lossy;
-use crate::use_cases::resolve_cited_path;
 
 /// Characters of code per LLM call.
 const BATCH_CHARS: usize = 12_000;

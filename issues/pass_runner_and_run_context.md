@@ -86,6 +86,7 @@ share the file part (`path\nhash`, or `unreadable`) and the key `"{domain}/{slug
    (~250 lines).
 5. [x] `chunk_check` kept: record the measure (extensions that reach it on the three repositories) in ADR 0027
    and `docs/crates/pipeline.md`; verified by `just check` (~20 lines).
+6. [x] Fixes of the `high` review of the issue (10 findings, 5 fixed); verified by a new RER-9 test.
 
 ## Decisions
 - Mode: autonomous
@@ -158,4 +159,21 @@ share the file part (`path\nhash`, or `unreadable`) and the key `"{domain}/{slug
 - red: none (docs only).
 - not verified: the walker's unparsed languages on a real repository (none in the smoke and benchmark set).
 - Code review: no findings.
+- decisions needed: none.
+
+## Deliverable 6 (`high` review of `aee4cc9..HEAD`)
+- done: `per_feature::open` drops the prints of the pass it can't trust instead of leaving them in the prints
+  every save of the run writes back (a bug from before the issue, in both passes: after a lost `use-cases.yaml`,
+  a feature not answered kept its old print and the next run reused it with no use case); `run` takes the
+  features from the units (no second list to keep in the same order); the doc of `KEEP_UNANSWERED` says the
+  save follows a feature not answered, not an unreadable one; `UseCasesPass::take` reads as `RulesPass::take`;
+  `batched_read.rs` takes `resolve_cited_path` from `citations.rs`, not from the use cases pass.
+- red: RER-9: `the second feature is asked again`, `left: 0, right: 1` (the stale print was reused).
+- Code review: 10 findings (`high`, whole issue): 5 fixed above; not fixed: the checkpoint cost per answer
+  (the same O(features x rules) as before the issue), the feature carried in `Item` and in the trait arguments
+  of the rules (`ask_rules` and `split.rs` read `Item`; minor), `Run.force` beside `GenerateOptions.force`
+  (`Run` is built from the options once), the hand-built `domain/slug` labels of `report.rs` and `reconcile/`
+  (labels, not print keys), `context_hash` beside `file_part` (it reads the repository, not the walk).
+- Code review (`low`, this deliverable): no findings.
+- not verified: the rules side of the `open` fix through a test of its own (same helper as the use cases).
 - decisions needed: none.

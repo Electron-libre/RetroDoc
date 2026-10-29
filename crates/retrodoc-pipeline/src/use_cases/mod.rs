@@ -47,7 +47,6 @@ pub(crate) use self::prompt::{
     focus_for, numbered_excerpt, MAX_CHARS_PER_FILE, MAX_CHARS_PER_PROMPT,
 };
 use self::prompt::{system_prompt, use_cases_prompt, Framing};
-pub(crate) use crate::citations::resolve_cited_path;
 
 /// How far from an entry point's file the code it runs is followed, and how
 /// many files are kept (see [`CodeIndex::slice`]).
@@ -196,8 +195,7 @@ pub async fn build_use_cases(
     };
     let splitter = load_splitter(repo_root);
     let units = plan_units(repo_root, features, context, &known, &splitter, llm);
-    let use_cases =
-        per_feature::run(&pass, features, units, &mut prints, &known, concurrency).await?;
+    let use_cases = per_feature::run(&pass, units, &mut prints, &known, concurrency).await?;
 
     // Use cases first: a fingerprint without its use cases would freeze a
     // feature as "none".
@@ -248,8 +246,11 @@ impl FeaturePass for UseCasesPass<'_> {
         answers: Self::Answer,
         done: &mut Vec<UseCase>,
     ) -> Result<bool, PipelineError> {
-        let grounded = ground_slices(feature, &requests, answers, done, self.actors)?;
-        Ok(grounded.map(|produced| done.extend(produced)).is_some())
+        let Some(produced) = ground_slices(feature, &requests, answers, done, self.actors)? else {
+            return Ok(false);
+        };
+        done.extend(produced);
+        Ok(true)
     }
 
     fn save_partial(&self, done: &Vec<UseCase>, prints: &Fingerprints) {

@@ -47,8 +47,8 @@ pub(crate) trait FeaturePass {
 
     /// The name of the pass in the progress line and the logs.
     const NAME: &'static str;
-    /// Whether a feature that could not be read or answered keeps its saved results (and the run is
-    /// saved then too), or loses them until it is answered.
+    /// Whether a feature that could not be read or answered keeps its saved results, or loses them
+    /// until it is answered. When it keeps them, the run is also saved after a feature not answered.
     const KEEP_UNANSWERED: bool;
 
     /// The prints of the pass among those of every pass.
@@ -78,41 +78,38 @@ pub(crate) trait FeaturePass {
     fn save_partial(&self, done: &Self::Done, prints: &Fingerprints);
 }
 
-/// The saved prints, and those of the pass taken out of them when they can be trusted (`trusted`:
-/// the results they describe were saved too; else a print can't tell "none" from "lost").
+/// The saved prints without those of the pass, and those of the pass when they can be trusted
+/// (`trusted`: the results they describe were saved too; else a print can't tell "none" from
+/// "lost"). Untrusted prints are dropped, so that no save of this run writes them back.
 pub(crate) fn open<P: FeaturePass>(
     mut prints: Fingerprints,
     trusted: bool,
 ) -> (Fingerprints, BTreeMap<String, String>) {
-    let known = if trusted {
-        std::mem::take(P::prints(&mut prints))
-    } else {
-        BTreeMap::new()
-    };
-    (prints, known)
+    let known = std::mem::take(P::prints(&mut prints));
+    (prints, if trusted { known } else { BTreeMap::new() })
 }
 
-/// Runs `units`, the plans of `features` in the same order, and returns the results with `prints`
-/// holding those of the features done.
+/// Runs `units`, one per feature, and returns the results with `prints` holding those of the
+/// features done.
 ///
 /// # Errors
 ///
 /// The first error of a call: the run is saved with the features not reached as they were.
 pub(crate) async fn run<P: FeaturePass>(
     pass: &P,
-    features: &[Feature],
     units: Vec<Unit<'_, P::Ask>>,
     prints: &mut Fingerprints,
     known: &BTreeMap<String, String>,
     concurrency: usize,
 ) -> Result<P::Done, PipelineError> {
+    let features: Vec<&Feature> = units.iter().map(|unit| unit.feature).collect();
     let mut progress = Progress::new(P::NAME, features.len());
     let mut done = P::Done::default();
     // What a rerun starts from when the features from the rank `from` on are not done.
     let checkpoint = |done: &P::Done, prints: &Fingerprints, from: usize| {
         let mut done = done.clone();
         let mut prints = prints.clone();
-        for feature in &features[from..] {
+        for &feature in &features[from..] {
             pass.keep(feature, &mut done);
             let key = feature_key(feature);
             if let Some(print) = known.get(&key) {

@@ -1,4 +1,5 @@
 use super::*;
+use crate::citations::resolve_cited_path;
 
 use crate::brief::Evidence;
 use crate::testing::{killed, reading, FakeLlm};
@@ -1616,4 +1617,46 @@ async fn the_print_of_a_feature_stays_the_same() {
             "f60bd7d3796f777ea450857e3c80de5519689b4c63889f85b64f1eb66bc5a759".to_string()
         )]
     );
+}
+
+// spec: RER-9 (internal: the saved artifacts are removed by hand between two runs of the pass)
+#[tokio::test]
+async fn a_feature_unanswered_after_its_use_cases_were_lost_is_asked_again() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.rs"), "fn a() {}").unwrap();
+    std::fs::write(dir.path().join("b.rs"), "fn b() {}").unwrap();
+    let features = vec![feature("one", &["a.rs"]), feature("two", &["b.rs"])];
+    let answer = r#"{"use_cases":[{"slug":"u","name":"U","description":"d","steps":[
+        {"description":"s","actor":{"name":"A","kind":"human"},"action":"act",
+         "source_refs":[{"path":"a.rs"}]}]}]}"#;
+    let context = reading(dir.path());
+
+    build_use_cases(
+        dir.path(),
+        &features,
+        &context,
+        &FakeLlm::answering(answer),
+        1,
+    )
+    .await
+    .unwrap();
+    std::fs::remove_file(Artifact::UseCases.path(dir.path())).unwrap();
+    // The second feature's answer can't be read: it is not done.
+    let garbled = FakeLlm::replying(move |_, request| {
+        let prompt = &request.messages.last().unwrap().content;
+        Ok(if prompt.contains("fn b()") {
+            "not json".to_string()
+        } else {
+            answer.to_string()
+        })
+    });
+    build_use_cases(dir.path(), &features, &context, &garbled, 1)
+        .await
+        .unwrap();
+
+    let again = FakeLlm::answering(answer);
+    build_use_cases(dir.path(), &features, &context, &again, 1)
+        .await
+        .unwrap();
+    assert_eq!(again.calls(), 1, "the second feature is asked again");
 }
