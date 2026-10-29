@@ -46,7 +46,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cardinal run format-rust"
+            "command": "cardinal run format-code"
           }
         ]
       },
@@ -58,6 +58,14 @@
             "command": "cardinal run review-gate record"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cardinal run language-hint"
+          }
+        ]
       }
     ],
     "Stop": [
@@ -65,7 +73,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cardinal run clippy-gate",
+            "command": "cardinal run lint-gate",
             "timeout": 600
           },
           {

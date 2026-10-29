@@ -1,15 +1,21 @@
 #!/usr/bin/env sh
-# Put on the CI path the `cardinal` of the revision `.claude/cardinal.toml` (else `.claude/harness.toml`) pins, without Rust
-# when the source publishes it (ADR 0010): the release asset of the commit, checked against its SHA-256, goes where
-# `cardinal run` looks for it (`~/.cache/cardinal/bin/<commit>/<target>`). Otherwise `cargo install`: from the git
+# Put on the CI path the `cardinal` of the revision `.claude/cardinal.toml` pins, without Rust when the source
+# publishes it (ADR 0010): the release asset of the commit, checked against its SHA-256, goes where `cardinal run`
+# looks for it (`~/.cache/cardinal/bin/<commit>/<target>`). Otherwise `cargo install`: from the git
 # source at `rev` (into that same place when `rev` is a commit, so `cardinal run` does not build it again), or from the
 # crate of a local source in this repository. Run from the top of the work tree by the jobs of `cardinal.yml`.
 set -eu
 
 config=.claude/cardinal.toml
-[ -f "$config" ] || config=.claude/harness.toml
-value() { sed -n "s/^$1 *= *\"\([^\"]*\)\".*/\1/p" "$config" | head -n 1; }
+[ -f "$config" ] || { echo "no $config: cardinal not installed" >&2; exit 1; }
+# a basic or a literal TOML string, the key indented or not
+value() {
+  key="^[[:space:]]*$1[[:space:]]*=[[:space:]]*"
+  sed -n -e "s/$key\"\([^\"]*\)\".*/\1/p" -e "s/$key'\([^']*\)'.*/\1/p" "$config" | head -n 1
+}
 source=$(value source)
+# no key, another form of string or an unreadable file: the local-path branch below would take '' for a path
+[ -n "$source" ] || { echo "no source read from $config: cardinal not installed" >&2; exit 1; }
 rev=$(value rev)
 
 # A path git source as the absolute `file://` URL of that path from the top of the work tree, its symlinks resolved, as

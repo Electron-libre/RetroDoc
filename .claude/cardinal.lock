@@ -1,20 +1,20 @@
 # Written by `cardinal sync`: hashes of the managed files, then the managed settings entries. Do not edit.
-format 3
+format 4
 ae32a54ad3e59066328e1a2f7f5afff0ca4b13bf194272c376e23280e4a7ce4e  .claude/rules/reports-to-the-user.md
 c3b88f2d59233b045460e7d6dfa7095f33bacaa727eb75f6319b16e4ec41dd0a  .claude/skills/audit-instructions/SKILL.md
 62e77f126f444e4c4e85623d044235473d36db43bd61877acdaf7bab565a7fb0  .claude/skills/commit-message/SKILL.md
 39be44eb1cc9c4caf23cd919dd41f1da9d2941348ad7b324f55e6106cab79491  .claude/skills/create-issue/SKILL.md
 e5c7e210f336a8ec28994671d57d9fb0ddb764228d46127f68775671f175239e  .claude/skills/evaluate-harness/SKILL.md
-7c70c0c9b08cbff4287f15442943189b061f840e8868f53152d5bfdad25842b2  .claude/skills/issue-workflow/SKILL.md
-8b56a6527b297e1824ca6fe3e44f017dc23a5215f713cb4aad48c563642527c7  .claude/skills/issue-workflow/details.md
+58895dd3f0c2c501ff37e0ffd29e5f259c53f39983e6ffe9d7515caf36d41950  .claude/skills/issue-workflow/SKILL.md
+58528dde6d7a81b006ae4a01106d3bdb356e5779cec00ba41c8e195e5f5caa25  .claude/skills/issue-workflow/details.md
 28f9767ec4bf136a3d50a1bac3b2d86215ff56156997a67fd83beee9a930469b  .claude/skills/prioritize-issues/SKILL.md
 b627b1f62d4611948416cd01e935d79fb2898692162c09cfc2b50d30000f88af  .claude/skills/update-docs/SKILL.md
 8e77a3c231b051e1553dce195bfe1458a14d8aca9cd7867ede28e77996589d0f  .claude/skills/write-spec/SKILL.md
-65ee6d60b7e6b093a103e7fbe7cd12c53ab3da9cee7d8cb5c0546ef293a21630+x  .github/install_cardinal.sh
+0ef4ecc7fed76a612c22f84bc6d5d5e7a7e93f064deb59712af918aa79dd47dc+x  .github/install_cardinal.sh
 bc32a7e12c24311ccc036b49232f3458f44997761b6a1099cdfe4db1bb738121  .github/workflows/cardinal.yml
 71a0ea0c7e9530936b006d503e89994cd45992911127a9c239b2a560d5de6cef  AGENTS.md
 f8f8a1a2b5dc550d0e488229e337f4a3d4e792b3ccefda52b133c5dcb13d4a7a  cardinal.just
-06f900c7d03de7d7ba67fb8f2a648d52b78f3d9a905b002536bee49795420d17  specs/README.md
+97a94bbaf7d29b5c19cc83b56b1ce099fa941f20e41d9c449b33d0e1f6028cce  specs/README.md
 66c02d6a40b353ab64053572558e258ee2a65c4272abf394d2375356958e21f5  specs/TEMPLATE.md
 entry  {"allow":"Bash(cardinal run *)"}
 entry  {"deny":"Bash(just waive-review)"}
@@ -22,6 +22,7 @@ entry  {"deny":"Bash(just waive-review *)"}
 entry  {"deny":"Edit(//**/claude-review-waived)"}
 entry  {"event":"PreToolUse","matcher":"Bash","hook":{"type":"command","command":"cardinal run review-gate check"}}
 entry  {"event":"PostToolUse","matcher":"Skill","hook":{"type":"command","command":"cardinal run review-gate record"}}
-entry  {"event":"PostToolUse","matcher":"Edit|Write","hook":{"type":"command","command":"cardinal run format-rust"}}
-entry  {"event":"Stop","matcher":null,"hook":{"type":"command","command":"cardinal run clippy-gate","timeout":600}}
+entry  {"event":"PostToolUse","matcher":"Edit|Write","hook":{"type":"command","command":"cardinal run format-code"}}
+entry  {"event":"PostToolUse","matcher":null,"hook":{"type":"command","command":"cardinal run language-hint"}}
+entry  {"event":"Stop","matcher":null,"hook":{"type":"command","command":"cardinal run lint-gate","timeout":600}}
 entry  {"event":"Stop","matcher":null,"hook":{"type":"command","command":"cardinal run language-hint","timeout":600}}

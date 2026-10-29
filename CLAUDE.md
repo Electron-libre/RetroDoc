@@ -19,7 +19,7 @@ which roadmap phases from `PLAN.md` §5 are already done before assuming what's 
 Details live in separate files; read the one that matches the task:
 
 - `docs/dev/commands.md`: build/test/lint commands, `just` recipes, measurement examples, registry note, CLI smoke test, API keys.
-- `docs/dev/agent-harness.md`: hooks (`format-rust`, `clippy-gate`, `review-gate`, run by `cardinal run`) and the skills in `.claude/skills/`. Most of it is synced by Cardinal (`cardinal sync`): never edit the copies (`just check-cardinal` fails), project values are in `.claude/cardinal.toml` and `.claude/update-docs-map.md`.
+- `docs/dev/agent-harness.md`: hooks (`format-code`, `lint-gate`, `language-hint`, `review-gate`, run by `cardinal run`) and the skills in `.claude/skills/`. Most of it is synced by Cardinal (`cardinal sync`): never edit the copies (`just check-cardinal` fails), project values are in `.claude/cardinal.toml` and `.claude/update-docs-map.md`.
 - `docs/dev/conventions.md`: codebase conventions (confidentiality of test repos, English only, clippy pedantic, test patterns).
 - `specs/`: one spec per capability (numbered requirements, scenarios, non-goals), traced to tests by `// spec: ID`
   (ADR 0032). Read the spec of a capability before touching it; a change of behaviour starts by amending it

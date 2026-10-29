@@ -97,11 +97,11 @@ again. Then set `Plan: validated` and the base commit. The spec file is the reco
    conventions of the project (the `test_conventions` note of `.claude/cardinal.toml` says where they are written). Write
    the test of a hook, a skill or a script like the others, never in bash.
 3. **Implement** until the test passes, then **refactor** under the green tests: remove duplication, rename, simplify,
-   no new behaviour. The clippy gate hook keeps the code warning-free; fix what it reports.
+   no new behaviour. The lint gate hook keeps the code warning-free; fix what it reports.
 4. **Docs**: run `skill:update-docs` (it covers the specs). If the change is an architectural decision, also write or finish its ADR in
    `docs/adr/` (template and numbering in `docs/adr/README.md`) and update the
    diagrams in the `architecture` document of `.claude/cardinal.toml` when the flow changed.
-5. **Review (mandatory, never skipped)**: run `just check` (fmt, clippy, tests, specs); when `git diff --shortstat`
+5. **Review (mandatory, never skipped)**: run `just check` (the project's format, lint and tests, and the specs); when `git diff --shortstat`
    (new files included) exceeds the size limit of step 1, cut the deliverable before the review; then **invoke `/code-review low` on the diff with the Skill tool** (always name the level)
    and wait for its findings; reread the docs you changed. Fix the findings on the deliverable's own change, or say
    why one is not fixed; a finding outside the requirements of the deliverable becomes an issue
