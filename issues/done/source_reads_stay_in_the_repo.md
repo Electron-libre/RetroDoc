@@ -40,7 +40,7 @@ follow links, so no walked file is a link). The MCP keeps its own check (it retu
    a file outside the repo that comes back `Broken`; ~80 lines.
 
 2. [x] Fixes of the `high` review: the safety-net line of `ARCHITECTURE.md` says what the guard guarantees, the
-   plan line names the test it has; the gitignored-file gap goes to `issues/artifact_reads_stay_in_the_walked_files.md`.
+   plan line names the test it has; the gitignored-file gap goes to `issues/done/artifact_reads_stay_in_the_walked_files.md`.
 
 ## Decisions
 - Mode: autonomous
