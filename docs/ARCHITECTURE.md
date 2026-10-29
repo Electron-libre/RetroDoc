@@ -152,7 +152,7 @@ What each pass hands to the next, and where it is saved:
   readable code scores 0 without even calling the LLM.
 - **Reads stay in the repo.** Every source read goes through `text::read_file_lossy`, which treats as unreadable a
   path that is absolute, has a `..` or resolves outside the repository through a symbolic link: a path edited in a
-  saved artifact never sends an outside file to the LLM.
+  saved artifact can't point a prompt at a file outside the repository.
 
 ### How the confidence score is computed
 
