@@ -10,8 +10,8 @@
 //! glossary.
 //!
 //! The same entry point can be listed twice from two angles (the route in a
-//! routes file, the action in its controller); linking them is left to the
-//! use-case rewiring (step 4), which traces the code from an entry point.
+//! routes file, the action in its controller); the copy of the routes file is
+//! left out of the later passes when a controller covers it (`routing.rs`).
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -26,6 +26,8 @@ use crate::chunks::Splitter;
 use crate::error::PipelineError;
 use crate::roles::{FileRole, RoleMap};
 use crate::slices::CodeIndex;
+
+mod routing;
 
 /// Entry point files carry many small actions: a bit more room than models.
 /// A longer file is read in several chunks of about this size.

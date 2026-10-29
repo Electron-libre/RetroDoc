@@ -35,3 +35,71 @@ namespace.
   (`batched_read.rs`): a prompt change re-reads nothing in a saved run.
 * The linkding `bookmarks/api/routes.py` holds DRF view sets (controller actions): one entry per action is right
   there, so a rule keyed on the file name would be wrong.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+The duplicates reach the docs, whatever the shape of the routes entries: the later passes must keep one copy of a
+route, the one of the controller. Out of scope: the prompt, the reading of `bookmarks/urls.py`. Means: a mechanical
+filter of the entries before the features (like `without_unreached_public_api`), not a prompt change.
+
+## Measure (no LLM call, saved runs, prototype of the filter in Python)
+| run | routes.rb entries | same name in a controller | left out by the filter | use cases citing only left-out entries |
+|---|---|---|---|---|
+| lobsters `files` d8d8c92-1 (= frozen) | 39, one per route | 26 | 29 | 23 use cases of a feature `routing` (domain infrastructure) |
+| lobsters `surface` 7e2bf9a (default path) | 53, grouped as the prompt asks | 6 by name, most by path prefix | 35 | 16 of 208 (feature `invitation-routing`, 6 copies of the invitations use cases, `signup`, mod mail, hats...) |
+| linkding frozen, `rules-ld-judged` | `api/routes.py` 16-26 | 0 | 0 (no routing file) | 0 |
+| delivery_router frozen | none | - | 0 | 0 |
+| large private Rails app | 2 routing files of 3 | - | 32 | not measured |
+
+* Grouping per resource does not remove the duplicates: the `surface` run follows the rule and still gets them.
+* In d8d8c92-1 all 39 entries come from part 1 of 3 (last one at line 126, character 4,721): parts 2 and 3 gave
+  nothing, with no warning. Not this issue.
+
+## Plan
+1. [x] Filter: `EntryPoints::without_routes_declared_elsewhere` applied by `generate` next to the public API filter
+   (`application_entry_points`), info log of the ids; spec `specs/routing-file-duplicates.md`; verified by unit tests on
+   built inventories (lobsters and linkding shapes) and an example `routing_duplicates_measure` on the saved runs above;
+   makes true RFD-1 to RFD-8. ~400 lines.
+2. [ ] Measure: replay of features and use cases on frozen `lobsters` (paid, see question 2), compared with the
+   d8d8c92 baselines (features judged recall 87%, use cases 202); ledger line; verified by the table in the issue.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 94a83b9
+- Means: the mechanical filter, not a prompt change (question 1 a).
+- Measure: replay features and use cases on frozen `lobsters` after deliverable 1, ~$0.3 (question 2 a).
+- The empty parts 2 and 3 of `config/routes.rb` get an issue of their own (question 3 a).
+
+## Deliverable 1 summary
+done: `EntryPoints::without_routes_declared_elsewhere` (`entry_points/routing.rs`) applied by `generate` after the
+public API filter, info log of the ids; example `routing_duplicates_measure`; spec RFD accepted (RFD-6 and RFD-8
+reworded: one "must" per statement, and the ids returned rather than a log no test can read).
+
+| check | result |
+|---|---|
+| tests | `just check` green (544 pipeline tests, 8 new) |
+| lint | clippy pedantic clean |
+| specs | RFD-1 to RFD-8 traced (internal: `generate` needs an LLM) |
+| docs | `docs/crates/pipeline.md`, `docs/dev/commands.md`, module doc of `entry_points` |
+| code review | `low`: no findings |
+
+red: RFD-1, RFD-2, RFD-3, RFD-4, RFD-5, RFD-6, RFD-7, RFD-8: the stub left everything in (`left: []` against the 3
+ids expected, `left: 0 right: 6`...), `paths_of` gave no path.
+
+Measure (`routing_duplicates_measure`, saved runs, no LLM):
+
+| run | entries left out | features holding only them | use cases citing only them |
+|---|---|---|---|
+| lobsters `surface` 7e2bf9a | 35 of 302 | 1 of 73 (`invitation-routing`) | 16 of 208 |
+| lobsters `files` d8d8c92-1 | 29 of 284 | 0 of 98 | 15 of 392 |
+| linkding `rules-ld-judged` | 0 of 80 | 0 | 0 |
+| delivery_router `rules-dr-judged` | 0 of 5 | 0 | 0 |
+| large private Rails app | 32 of 852 | 1 of 85 | 34 of 762 |
+
+Code review: no findings
+
+not verified: the effect on a generate (deliverable 2).
+decisions needed: none.

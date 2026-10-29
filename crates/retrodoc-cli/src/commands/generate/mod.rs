@@ -635,7 +635,8 @@ async fn build_surface(
 }
 
 /// The entry points the later passes work from: in an application, without the public methods
-/// that no route, command, job, consumer or webhook reaches (the saved inventory keeps them).
+/// that no route, command, job, consumer or webhook reaches, and without the routes a routing
+/// file declares for the controllers that give them too (the saved inventory keeps them).
 fn application_entry_points<'a>(
     entry_points: EntryPoints,
     repo_root: &Path,
@@ -647,6 +648,14 @@ fn application_entry_points<'a>(
             count = left_out.len(),
             entry_points = ?left_out,
             "public API left out of the entry points: no route, job or webhook reaches it"
+        );
+    }
+    let (kept, left_out) = kept.without_routes_declared_elsewhere();
+    if !left_out.is_empty() {
+        tracing::info!(
+            count = left_out.len(),
+            entry_points = ?left_out,
+            "routes left out of the entry points: their routing file declares them for other files"
         );
     }
     kept

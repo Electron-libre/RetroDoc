@@ -22,6 +22,7 @@ cargo run -q -p retrodoc-pipeline --example context_map_measure -- [--names] <ru
 cargo run -q -p retrodoc-pipeline --example route_owner_measure -- <run dir>...   # routes given to the context that owns their controller: moved, kept, entry points per context before/after (no LLM)
 cargo run -q -p retrodoc-pipeline --example technical_usecases_measure -- <run dir>...   # use cases per technical or back-office signal, and which signal finds the administration ones (no LLM)
 cargo run -q -p retrodoc-pipeline --example public_api_reach_measure -- <run dir>...   # public API entry points no route/job/webhook reaches, left out of an application (no LLM)
+cargo run -q -p retrodoc-pipeline --example routing_duplicates_measure -- <run dir>...   # routes a routing file declares for the controllers, left out, and the features/use cases holding only them (no LLM)
 cargo run -q -p retrodoc-pipeline --example form_pairs_measure -- [--names] <run dir>...   # use cases that only show a resource another use case changes (candidates to merge with the one that submits) (no LLM)
 cargo run -q -p retrodoc-pipeline --example rules_noise_measure -- [--sample N] [--seed S] <run dir>   # duplicate pairs of rules across features and a seeded sample to label by hand (no LLM)
 cargo run -q -p retrodoc-pipeline --example code_read_overlap -- <frozen dir> <benchmark dir>   # code shared by the use cases and rules prompts of each feature, and the share of it the use case steps cite, from frozen inputs (no LLM)
