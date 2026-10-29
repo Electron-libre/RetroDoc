@@ -6,7 +6,7 @@ still name a file inside it that the walker skips (a gitignored `.env`, `config/
 content then goes into a prompt sent to the LLM. A path that comes from an artifact should only reach a file the
 walker yields, as the MCP only reads cited paths.
 
-# Findings (code review `high` of `issues/source_reads_stay_in_the_repo.md`, 2026-10-29)
+# Findings (code review `high` of `issues/done/source_reads_stay_in_the_repo.md`, 2026-10-29)
 * The new guard checks that a path is plain and resolves under the root, not that it is a walked file.
 * `confidence/checks.rs` (`check_step`) and `confidence/mod.rs` (cited excerpts) read the `source_refs` of the
   saved use cases, a YAML artifact a user or another tool can edit.
