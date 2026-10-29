@@ -172,11 +172,13 @@ async fn a_long_file_is_read_in_chunks_and_saved_once_all_are_read() {
     .await
     .unwrap();
 
-    // One call per part.
+    // One call per part, in order.
     let prompts = llm.prompts();
     assert!(prompts.len() >= 2, "several parts, several calls");
-    assert!(prompts[0].contains("(part 1/") && !prompts[0].contains("(part 2/"));
-    assert!(prompts[1].contains("(part 2/") && !prompts[1].contains("(part 3/"));
+    for (i, prompt) in prompts.iter().enumerate() {
+        assert_eq!(prompt.matches("(part ").count(), 1);
+        assert!(prompt.contains(&format!("(part {}/{})", i + 1, prompts.len())));
+    }
     // The same entry point seen in every part is kept once.
     assert_eq!(inventory.iter().count(), 1);
 }
@@ -516,4 +518,56 @@ fn a_library_with_one_command_keeps_its_public_api() {
 
     assert_eq!(left_out, Vec::<String>::new());
     assert_eq!(names(&kept).len(), 3);
+}
+
+// spec: BRD-3, BRD-5 (internal: the fake LLM answers per part, the binary needs a real provider)
+#[tokio::test]
+async fn the_empty_parts_of_an_entry_point_file_are_warned_of_unless_it_is_a_business_file() {
+    let method = "def action\n  work\nend\n\n";
+    let repeats = MAX_ENTRY_FILE_CHARS * 2 / method.len();
+    let llm = || {
+        FakeLlm::replying(|_, request| {
+            Ok(if request.messages[1].content.contains("(part 1/") {
+                r#"{"entry_points":[{"file":"big.rb","kind":"http_route","name":"GET /a"}]}"#
+            } else {
+                r#"{"entry_points":[]}"#
+            }
+            .to_string())
+        })
+    };
+    for business in [false, true] {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("big.rb"), method.repeat(repeats)).unwrap();
+        let roles = RoleMap {
+            roles: [(PathBuf::from("big.rb"), FileRole::EntryPoint)]
+                .into_iter()
+                .collect(),
+            ..RoleMap::default()
+        };
+        let business_files = if business {
+            vec![PathBuf::from("big.rb")]
+        } else {
+            Vec::new()
+        };
+        let (logs, _guard) = crate::testing::capture_logs();
+
+        build_entry_points(
+            dir.path(),
+            &roles,
+            &business_files,
+            &ProductBrief::default(),
+            &llm(),
+            Retention::OnlyRead,
+        )
+        .await
+        .unwrap();
+
+        let logs = logs.text();
+        let line = logs
+            .lines()
+            .find(|l| l.contains("found nothing"))
+            .unwrap_or_else(|| panic!("{logs}"));
+        assert!(line.contains("file=big.rb"), "{logs}");
+        assert_eq!(line.contains("WARN"), !business, "{logs}");
+    }
 }

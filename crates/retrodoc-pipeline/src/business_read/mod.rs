@@ -185,6 +185,7 @@ pub async fn read_business_files(
                 .files
                 .insert(path.to_path_buf(), EntryFile::read(hash, entry_points));
         },
+        loud: &|_| false,
         checkpoint: &|state: &Both| {
             state.glossary.save(repo_root)?;
             state.entry_points.save(repo_root)

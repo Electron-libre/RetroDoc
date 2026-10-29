@@ -315,6 +315,7 @@ pub async fn build_entry_points(
         },
     )?;
 
+    let business: BTreeSet<&Path> = business.iter().map(PathBuf::as_path).collect();
     BatchedRead {
         pass: "entry points",
         unit: "file(s)",
@@ -326,6 +327,8 @@ pub async fn build_entry_points(
                 .files
                 .insert(path.to_path_buf(), EntryFile::read(hash, entry_points));
         },
+        // A part of a business file often holds no public method.
+        loud: &|path| !business.contains(path),
         checkpoint: &|inventory: &EntryPoints| inventory.save(repo_root),
     }
     .run(llm, &pending, &mut inventory)

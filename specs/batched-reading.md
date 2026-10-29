@@ -20,9 +20,14 @@ miss what that part declares.
 - **BRD-2** (deterministic) A file must be recorded only once every one of its parts has an answer, with the findings
   of all its parts merged.
 - **BRD-3** (deterministic) The run must log a warning naming the pass, the file and the numbers of the parts that
-  gave nothing when a part of a file gives no finding while another part of the same file gives some.
-- **BRD-4** (deterministic) When the answer for a call holding a single file or part is unusable, the run must log a
-  warning naming the pass and the file, which stays unrecorded and is read again by the next run.
+  gave nothing when a part of a file the entry points pass reads gives no finding while another part of the same
+  file gives some, unless the file is a business file.
+- **BRD-4** (deterministic) The run must log one line naming the pass and the file, beside the warning of the
+  unusable answer, when the answer for a call holding a single file or part is unusable; the pass leaves that file
+  unrecorded.
+- **BRD-5** (deterministic) The run must log the parts that gave nothing at the info level, not as a warning, for a
+  business file or a file the glossary or the joint reading reads: a part of a model often holds no entity and no
+  public method.
 
 ## Scenarios
 
@@ -33,7 +38,9 @@ miss what that part declares.
 - (BRD-3) Given a file in three parts that all give no finding, then no warning is logged (an empty file of its kind
   is not a loss).
 - (BRD-4) Given a call holding several files whose answer is unusable, then it is retried file by file as before, and
-  only a file whose own call is unusable is warned of.
+  only a file whose own call is unusable is named.
+- (BRD-5) Given a business model in five parts whose public methods are all in part 5, then an info line names parts
+  1 to 4 and the run logs no warning.
 
 ## Non-goals
 

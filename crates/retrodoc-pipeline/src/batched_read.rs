@@ -9,10 +9,11 @@
 //! only (`specs/batched-reading.md`). A batch whose answer is unusable is
 //! retried file by file. A file is handed back only once all its chunks are
 //! answered, so an unusable answer leaves it to be retried whole next run
-//! (with a warning), and the state is checkpointed after every batch: a
-//! failure later in a long run (a call timing out) must not lose the batches
-//! already read. A part that gives nothing while another part of its file
-//! gives something is warned of.
+//! (its file named in the log), and the state is checkpointed after every
+//! batch: a failure later in a long run (a call timing out) must not lose the
+//! batches already read. A part that gives nothing while another part of its
+//! file gives something is logged, as a warning for the files the pass says
+//! are `loud`.
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fmt::Write as _;
@@ -50,6 +51,9 @@ pub(crate) struct BatchedRead<'a, R, T, S> {
     pub attribute: fn(R, &[PendingChunk]) -> BTreeMap<String, Vec<T>>,
     /// All the chunks of a file are read: record what was found in it.
     pub finish: fn(&mut S, &Path, &str, Vec<T>),
+    /// Whether a part of the file that found nothing beside parts that found something is a
+    /// warning (else an info line: a part of a model often holds no entity and no public method).
+    pub loud: &'a dyn Fn(&Path) -> bool,
     /// Saves the state after a batch.
     pub checkpoint: &'a dyn Fn(&S) -> Result<(), PipelineError>,
 }
@@ -68,14 +72,12 @@ impl<R: DeserializeOwned + schemars::JsonSchema, T, S> BatchedRead<'_, R, T, S> 
         state: &mut S,
     ) -> Result<(), PipelineError> {
         // Chunks of a file not yet answered, and what was found in the
-        // answered ones.
+        // answered ones with how much each found, in the order of its parts.
         let mut remaining: BTreeMap<&Path, usize> = BTreeMap::new();
         for (path, _, _) in pending {
             *remaining.entry(path.as_path()).or_insert(0) += 1;
         }
-        let mut partial: BTreeMap<&Path, Vec<T>> = BTreeMap::new();
-        // What each answered chunk of a file found, in the order of its parts.
-        let mut found_per_part: BTreeMap<&Path, Vec<usize>> = BTreeMap::new();
+        let mut partial: BTreeMap<&Path, (Vec<T>, Vec<usize>)> = BTreeMap::new();
 
         let batches = batches(pending);
         let mut progress = Progress::new(self.pass, batches.len());
@@ -106,10 +108,11 @@ impl<R: DeserializeOwned + schemars::JsonSchema, T, S> BatchedRead<'_, R, T, S> 
                         );
                         queue.extend(group.chunks(1));
                     } else {
-                        tracing::warn!(
+                        // `complete_json` warned of the answer: this names its file.
+                        tracing::info!(
                             pass = self.pass,
                             file = %group[0].0.display(),
-                            "unusable answer for a file, left to read again next run"
+                            "unusable answer for a file, left unread by this pass"
                         );
                     }
                     continue;
@@ -119,14 +122,14 @@ impl<R: DeserializeOwned + schemars::JsonSchema, T, S> BatchedRead<'_, R, T, S> 
                 for (path, hash, _) in group {
                     let key = path.to_string_lossy();
                     let items = found.remove(key.as_ref()).unwrap_or_default();
-                    found_per_part.entry(path).or_default().push(items.len());
-                    partial.entry(path).or_default().extend(items);
+                    let (all, per_part) = partial.entry(path).or_default();
+                    per_part.push(items.len());
+                    all.extend(items);
                     let left = remaining.entry(path).or_insert(1);
                     *left -= 1;
                     if *left == 0 {
-                        let parts = found_per_part.remove(path.as_path()).unwrap_or_default();
-                        self.warn_empty_parts(path, &parts);
-                        let items = partial.remove(path.as_path()).unwrap_or_default();
+                        let (items, per_part) = partial.remove(path.as_path()).unwrap_or_default();
+                        self.log_empty_parts(path, &per_part);
                         (self.finish)(state, path, hash, items);
                     }
                 }
@@ -136,25 +139,24 @@ impl<R: DeserializeOwned + schemars::JsonSchema, T, S> BatchedRead<'_, R, T, S> 
         Ok(())
     }
 
-    /// Warns of the parts of `path` that found nothing while another part found something
+    /// Logs the parts of `path` that found nothing while another part found something
     /// (`parts`: what each part found, in order).
-    fn warn_empty_parts(&self, path: &Path, parts: &[usize]) {
-        if !parts.iter().any(|&n| n > 0) {
+    fn log_empty_parts(&self, path: &Path, parts: &[usize]) {
+        let empty: Vec<String> = parts
+            .iter()
+            .enumerate()
+            .filter(|&(_, &n)| n == 0)
+            .map(|(i, _)| (i + 1).to_string())
+            .collect();
+        if empty.is_empty() || empty.len() == parts.len() {
             return;
         }
-        let empty: Vec<String> = (1..=parts.len())
-            .zip(parts)
-            .filter(|(_, &n)| n == 0)
-            .map(|(i, _)| i.to_string())
-            .collect();
-        if !empty.is_empty() {
-            tracing::warn!(
-                pass = self.pass,
-                file = %path.display(),
-                parts = empty.join(", "),
-                of = parts.len(),
-                "parts of a file found nothing while the others did"
-            );
+        let (pass, file, parts, of) = (self.pass, path.display(), empty.join(", "), parts.len());
+        let message = "parts of a file found nothing while the others did";
+        if (self.loud)(path) {
+            tracing::warn!(pass, %file, parts, of, "{message}");
+        } else {
+            tracing::info!(pass, %file, parts, of, "{message}");
         }
     }
 }
@@ -272,20 +274,22 @@ pub(crate) fn group_paths(group: &[PendingChunk]) -> BTreeSet<String> {
 }
 
 /// Groups files so that each batch holds about [`BATCH_CHARS`] of code
-/// (at least one file) and at most one chunk of a file (the chunks of a
-/// file follow each other).
+/// (at least one file) and at most one chunk of a file.
 fn batches(files: &[PendingChunk]) -> Vec<&[PendingChunk]> {
     let mut out = Vec::new();
     let mut start = 0;
     let mut size = 0;
+    let mut paths: BTreeSet<&Path> = BTreeSet::new();
     for (i, (path, _, content)) in files.iter().enumerate() {
         let len = content.chars().count();
-        if i > start && (size + len > BATCH_CHARS || files[i - 1].0 == *path) {
+        if i > start && (size + len > BATCH_CHARS || paths.contains(path.as_path())) {
             out.push(&files[start..i]);
             start = i;
             size = 0;
+            paths.clear();
         }
         size += len;
+        paths.insert(path);
     }
     if start < files.len() {
         out.push(&files[start..]);
@@ -305,12 +309,20 @@ mod tests {
     #[test]
     fn two_parts_of_a_file_never_share_a_batch() {
         let part = |n: &str| (PathBuf::from(n), String::new(), "x".repeat(4_000));
+        let paths = |files: &[PendingChunk]| -> Vec<Vec<String>> {
+            batches(files)
+                .iter()
+                .map(|b| b.iter().map(|(p, _, _)| p.display().to_string()).collect())
+                .collect()
+        };
         let files = vec![part("a"), part("b"), part("b"), part("b"), part("c")];
-        let paths: Vec<Vec<&str>> = batches(&files)
-            .iter()
-            .map(|b| b.iter().map(|(p, _, _)| p.to_str().unwrap()).collect())
-            .collect();
-        assert_eq!(paths, vec![vec!["a", "b"], vec!["b"], vec!["b", "c"]]);
+        assert_eq!(
+            paths(&files),
+            vec![vec!["a", "b"], vec!["b"], vec!["b", "c"]]
+        );
+        // Parts that are not next to each other do not share a batch either.
+        let files = vec![part("a"), part("b"), part("a")];
+        assert_eq!(paths(&files), vec![vec!["a", "b"], vec!["a"]]);
     }
 
     #[test]
@@ -371,6 +383,7 @@ mod tests {
                     .done
                     .push((path.to_string_lossy().into_owned(), items.len()));
             },
+            loud: &|_| true,
             checkpoint: &|_| Ok(()),
         }
     }
@@ -472,9 +485,36 @@ mod tests {
         assert!(state.done.contains(&("routes.rb".to_string(), 1)));
     }
 
+    // spec: BRD-5 (internal: the fake LLM answers per part, the binary needs a real provider)
+    #[tokio::test]
+    async fn the_empty_parts_of_a_quiet_file_are_logged_at_info() {
+        let (logs, _guard) = crate::testing::capture_logs();
+        let pending = vec![
+            chunk("comment.rb", "(part 1/2) empty"),
+            chunk("comment.rb", "(part 2/2) def public"),
+        ];
+        let mut state = State::default();
+        let mut read = spec();
+        read.loud = &|_| false;
+
+        read.run(&per_part(), &pending, &mut state).await.unwrap();
+
+        let logs = logs.text();
+        assert!(!logs.contains("WARN"), "{logs}");
+        let empty: Vec<&str> = logs
+            .lines()
+            .filter(|l| l.contains("found nothing"))
+            .collect();
+        assert_eq!(empty.len(), 1, "{logs}");
+        assert!(
+            empty[0].contains("INFO") && empty[0].contains("parts=\"1\""),
+            "{logs}"
+        );
+    }
+
     // spec: BRD-4 (internal: the fake LLM refuses per prompt, the binary needs a real provider)
     #[tokio::test]
-    async fn an_unusable_answer_for_a_single_file_is_warned_of() {
+    async fn an_unusable_answer_for_a_single_file_names_it() {
         let (logs, _guard) = crate::testing::capture_logs();
         let llm = FakeLlm::replying(|_, request| {
             Ok(if request.messages[1].content.contains("--- b ---") {
@@ -489,12 +529,14 @@ mod tests {
         spec().run(&llm, &pending, &mut state).await.unwrap();
 
         let logs = logs.text();
-        let skipped: Vec<&str> = logs.lines().filter(|l| l.contains("read again")).collect();
+        let skipped: Vec<&str> = logs.lines().filter(|l| l.contains("left unread")).collect();
         assert_eq!(skipped.len(), 1, "{logs}");
         assert!(
             skipped[0].contains("pass=\"test\"") && skipped[0].contains("file=b"),
             "{logs}"
         );
+        // `complete_json` warned of the answer: naming the file adds no warning.
+        assert!(skipped[0].contains("INFO"), "{logs}");
         assert_eq!(state.done, vec![("a".to_string(), 1)]);
     }
 

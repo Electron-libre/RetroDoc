@@ -382,6 +382,7 @@ impl EntityReader<'_> {
                     .models
                     .insert(path.to_path_buf(), ModelFile::read(hash, entities));
             },
+            loud: &|_| false,
             checkpoint: &|glossary: &Glossary| glossary.save(self.repo_root),
         }
         .run(self.llm, &pending, glossary)

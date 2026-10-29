@@ -54,6 +54,9 @@ every file of every user once, ADR 0037) unless the measure after shows the cap 
 2. [x] One part of a file per call, warnings: `batches` cuts before a second part of a path, the run tracks the
    findings per part and warns (BRD-3), a single unusable call warns (BRD-4); verified by fake-LLM tests of
    `batched_read.rs`; makes true BRD-1 to BRD-4 (BRD-2 traced on the existing test).
+4. [x] Fixes of the `high` review: empty-part warning only off the business files (info elsewhere), one log line
+   for an unusable single file, neutral wording, batches check the paths of the batch, one map per path, the
+   entry points test checks one call per part; verified by fake-LLM tests; amends BRD-3, BRD-4, adds BRD-5.
 3. [x] Measure after: the same 3 runs at the commit of deliverable 2 (3 calls each, ~$0.02); compared with
    deliverable 1, in the issue and the ledger.
 
@@ -110,9 +113,33 @@ Same copy, same command; each part of `config/routes.rb` asked alone (`35/37`, `
   (private helpers): 3 or 4 a run, none on `config/routes.rb`.
 - Artifacts: `~/retrodoc-runs/entry_points_silent_empty_parts-2df9c6b/` (`after-<n>.log`, `.yaml`).
 
+## Deliverable 4 (fixes of the `high` review)
+- done: `loud` (entry points pass: a file that is not a business file) decides warning or info for the empty parts;
+  an unusable single file is named at info beside the warning of `complete_json`; `batches` checks the paths of the
+  batch; one map per path; the entry points test checks one call per part; BRD-3, BRD-4 amended, BRD-5 added.
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | pass |
+| specs | BRD-1 to BRD-5 traced, accepted |
+| docs | `docs/crates/pipeline.md`, `batched_read.rs` module doc |
+| code review | low, no findings |
+
+- red: BRD-5, BRD-3, BRD-1, BRD-4: no field `loud` (compile error of the tests); the new BRD-1 case (parts not next
+  to each other) and the INFO level of BRD-4 were not seen failing on their own.
+- Code review: no findings.
+- High review: 8 findings; 1 and 4 settled by the user (Decisions), 2, 3, 5, 6, 7, 8 fixed here.
+- not verified: the warnings of a real run after the fix (none expected on the measure's copy: its long files are
+  business files).
+- decisions needed: none.
+
 ## Decisions
 - Mode: autonomous
 - Base commit: 2df9c6bf11ecf53056db31483db9f2937a7b7c8a
 - Measures: the two paid DeepSeek measures are approved (~$0.04 in all).
 - The empty-part warning covers the three readings (glossary, entry points, joint reading).
 - The prompt cap is not reworded unless the measure after shows it matters.
+- After the measure (review `high`): the empty-part warning stays a warning only for a file the entry points pass
+  reads that is not a business file, an info line for the others; the inventory of one entry per route that the
+  parts asked alone give is kept (the routing filter, RFD, leaves out the routes the controllers cover).
