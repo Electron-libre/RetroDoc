@@ -29,5 +29,5 @@ needs, with the docs.
 # Hints
 * A rendered page set saved before may hold sub-domain pages: the render plan would delete them on the next
   run, which changes the docs of a repository documented with the `files` path.
-* Do it after `issues/remove_repo_map.md`; it touches the render and the MCP, which `pass_runner_and_run_context`
+* Do it after `issues/done/remove_repo_map.md`; it touches the render and the MCP, which `pass_runner_and_run_context`
   does not, so it can wait behind it.

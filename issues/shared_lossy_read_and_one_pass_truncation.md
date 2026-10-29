@@ -1,12 +1,12 @@
 # Read source files through one helper and cut long texts in one walk
 
 # Goal
-Since `issues/remove_repo_map.md`, `crate::text` holds `read_file_lossy` and `truncate_chars`, shared by the passes
+Since `issues/done/remove_repo_map.md`, `crate::text` holds `read_file_lossy` and `truncate_chars`, shared by the passes
 that read files. Several modules still read a file and decode it by hand, and `truncate_chars` decodes a whole text
 to cut its head. Make every lossy read of a source file go through one helper and cut a text in one bounded walk,
 with no change of behaviour.
 
-# Findings (code review `high` of `issues/remove_repo_map.md`, 2026-10-29)
+# Findings (code review `high` of `issues/done/remove_repo_map.md`, 2026-10-29)
 * `std::fs::read` followed by `String::from_utf8_lossy` by hand: `source_hashes.rs` (two places, `capture` and the
   second capture function), `contexts/run.rs`, `rules/mod.rs` (hash of a file, `"unreadable"` on error),
   `confidence/mod.rs` (excerpt of a cited file).
