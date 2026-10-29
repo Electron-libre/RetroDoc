@@ -7,7 +7,7 @@ in the user prompts. A change to those leaves the saved answers of the old reque
 the stale cache ADR 0037 meant to remove. Make the prompt part cover what is sent, and keep it from being a
 list kept by hand.
 
-# Findings (high review of `issues/reading_hash_ignores_the_prompt.md`, 2026-10-29, read in the code; not measured)
+# Findings (high review of `issues/done/reading_hash_ignores_the_prompt.md`, 2026-10-29, read in the code; not measured)
 * The schema `complete_json` sends (`response_schema::<R>()`, `response_format`) is in no print: a new answer
   field (as `back_office` on the features) keeps the saved answers without it.
 * Instructions in user prompts built by `format!` are in no print: the features slice prompt ("give that

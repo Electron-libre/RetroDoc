@@ -4,7 +4,6 @@ Open issues in the order to work on them: the first is the next one. Read by `ju
 `just close-issue` removes a line, `skill:create-issue` inserts one at its rank, `skill:prioritize-issues`
 re-ranks the whole list. Line format: `- [<file stem>](<file stem>.md) - <why here>`.
 
-- [reading_hash_ignores_the_prompt](reading_hash_ignores_the_prompt.md) - after `routes_file_entries_per_route`, whose prompt measure meets the trap first; a decision on the cache before more prompt changes are measured
 - [entry_points_silent_empty_parts](entry_points_silent_empty_parts.md) - after `reading_hash_ignores_the_prompt`, whose cache decision its replay needs: routes lost with no warning in the default entry points, worth more than the follow-ups below
 - [stack_tables_cover_the_reference_set](stack_tables_cover_the_reference_set.md) - after the entry points chain above (user, 2026-10-29: language and framework agnosticism, ADR 0036): small, makes the frequent stacks classified and briefed, and the fixtures below run on the full tables
 - [framework_fixtures_through_generate](framework_fixtures_through_generate.md) - after `stack_tables_cover_the_reference_set`: proves the generic path and each frequent framework through `generate`, and shows what else breaks before the grammars
