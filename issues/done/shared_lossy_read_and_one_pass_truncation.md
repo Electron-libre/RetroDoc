@@ -83,10 +83,10 @@ hash `"unreadable"` take `.ok()` / `map_or_else` on it: no new variant), and cut
 - red: none (the copy is a cost, not an observable behaviour; the new read test pins the decoding)
 - Code review (`high`): 6 findings
   1. second copy of valid UTF-8 in `read_file_lossy`: fixed.
-  2. `business_files` strict read of test files: `issues/text_reading_leftovers.md` (a change of behaviour).
-  3. warnings drop the io error: `issues/text_reading_leftovers.md` (unchanged here, pre-existing).
-  4. `rules/input.rs` byte cut: `issues/text_reading_leftovers.md`.
-  5. other two-walk truncations: `issues/text_reading_leftovers.md`.
+  2. `business_files` strict read of test files: `issues/done/text_reading_leftovers.md` (a change of behaviour).
+  3. warnings drop the io error: `issues/done/text_reading_leftovers.md` (unchanged here, pre-existing).
+  4. `rules/input.rs` byte cut: `issues/done/text_reading_leftovers.md`.
+  5. other two-walk truncations: `issues/done/text_reading_leftovers.md`.
   6. no path containment in `read_file_lossy`: `issues/done/source_reads_stay_in_the_repo.md`.
 - Code review (`low`): no findings
 - not verified: none

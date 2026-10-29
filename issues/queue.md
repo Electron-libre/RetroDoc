@@ -5,7 +5,6 @@ Open issues in the order to work on them: the first is the next one. Read by `ju
 re-ranks the whole list. Line format: `- [<file stem>](<file stem>.md) - <why here>`.
 
 - [artifact_reads_stay_in_the_walked_files](artifact_reads_stay_in_the_walked_files.md) - small and a safety fix (review `high` of `source_reads_stay_in_the_repo`): an edited artifact can still send a gitignored file of the repo to the LLM; same helpers, before `text_reading_leftovers` touches them
-- [text_reading_leftovers](text_reading_leftovers.md) - small, follow-up of `shared_lossy_read_and_one_pass_truncation`: before `pass_runner_and_run_context` refactors the same passes
 - [pass_runner_and_run_context](pass_runner_and_run_context.md) - after `single_pipeline_path`: do not refactor code about to be removed
 - [remove_sub_domains](remove_sub_domains.md) - after `pass_runner_and_run_context`: dead code left by ADR 0035 (only the removed `files` path made sub-domains); wide but mechanical, touches the render and the MCP, which nothing before it does
 - [contexts_residual_size_and_names](contexts_residual_size_and_names.md) - low: follow-up of the closed split by family (2026-10-14): one context still over 150 files, action names taken for families, the names unread; nothing before it depends on it, and its spread measure is cheaper after `sampling_temperature_for_steadier_runs`
