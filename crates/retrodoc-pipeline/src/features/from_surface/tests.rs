@@ -1247,3 +1247,34 @@ async fn an_entry_point_placed_from_another_file_stays_in_its_feature_on_the_rer
         "the placed entry points are kept"
     );
 }
+
+/// The saved prints must not change with a refactor: another print redoes every user's next run.
+#[tokio::test]
+async fn the_print_of_a_domain_stays_the_same() {
+    let dir = tempfile::tempdir().unwrap();
+    let (domains, entries) = fixture();
+    let llm = FakeLlm::answering(
+        r#"{"features":[{"slug":"orders","name":"O","description":"d",
+            "entry_points":["orders.rb#GET /orders"]}]}"#,
+    );
+    build_features_from_surface(
+        dir.path(),
+        &domains,
+        &entries,
+        &Surface::default(),
+        &crate::testing::brief("Sells things."),
+        &Evidence::default(),
+        &llm,
+        Retention::OnlyRead,
+    )
+    .await
+    .unwrap();
+    let prints = crate::fingerprints::Fingerprints::load(dir.path()).features;
+    assert_eq!(
+        prints.into_iter().collect::<Vec<_>>(),
+        vec![(
+            "orders/-".to_string(),
+            "750ccd02b35e6685334cdaa7e7e8eee2884f60833854b7054e6c0cb6058e9d4c".to_string()
+        )]
+    );
+}

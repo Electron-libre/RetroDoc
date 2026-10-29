@@ -67,7 +67,7 @@ rules, actors and domains share the fingerprint tail (brief when not empty, then
 share the file part (`path\nhash`, or `unreadable`) and the key `"{domain}/{slug}"`.
 
 ## Plan
-1. [ ] Pin and share the fingerprint parts: tests pinning the print of one unit of features, use cases and rules
+1. [x] Pin and share the fingerprint parts: tests pinning the print of one unit of features, use cases and rules
    (literal hash); one helper for the brief + model tail and one for the cited file contents, plus the feature key;
    verified by the pinned prints unchanged (~200 lines).
 2. [ ] One per-feature driver for use cases and rules: the `Item`/`Plan` loop, its progress, partial and final
@@ -94,3 +94,15 @@ share the file part (`path\nhash`, or `unreadable`) and the key `"{domain}/{slug
 - `chunk_check` (user, 2026-10-29): kept; the measure goes in ADR 0027.
 - Split of the largest files (user, 2026-10-29): a new issue, queued right after this one.
 - Joint reading prompt lacking the routing-file rule of `entry-points` (user, 2026-10-29): a follow-up issue.
+
+## Deliverable 1
+- done: three tests pin the saved print of one unit of features, use cases and rules (literal hashes);
+  `ProductBrief::print_part` replaces the six copies of the brief part (features, placement, use cases, rules,
+  actors, domains), `fingerprints::file_part` the two copies of the cited file part (use cases, rules),
+  `fingerprints::feature_key` the three of the key (use cases twice, rules).
+- checks: see the table below.
+- red: none (no requirement: pure refactor); the pins first failed on their placeholder, showing the real prints
+  (`orders/-`, `billing/idle`, `delivery/orders`), then held through the refactor.
+- not verified: the actors and domains prints are not pinned (their change is the same one-line expression the
+  pinned passes use).
+- decisions needed: none.

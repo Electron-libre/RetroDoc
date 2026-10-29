@@ -418,7 +418,7 @@ fn domain_fingerprint(
                 )
             }))
             .chain(entities)
-            .chain((!brief.fingerprint().is_empty()).then(|| brief.fingerprint()))
+            .chain(brief.print_part())
             .chain((!close.is_empty()).then(|| close.to_string()))
             .chain(std::iter::once(model_part(llm))),
     )

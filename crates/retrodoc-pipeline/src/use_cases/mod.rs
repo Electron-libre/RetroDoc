@@ -26,12 +26,11 @@ use serde::Deserialize;
 use crate::actors::Actors;
 use crate::artifact::{load_yaml, save_yaml, warn_on_error, Artifact};
 use crate::brief::{Evidence, ProductBrief};
-use crate::cache::hash_content;
 use crate::chunks::{Focus, Splitter};
 use crate::entry_points::{EntryPoint, EntryPoints};
 use crate::error::PipelineError;
 use crate::features::{entry_point_id, file_ranges, unique_slug};
-use crate::fingerprints::{fingerprint, model_part, Fingerprints};
+use crate::fingerprints::{feature_key, file_part, fingerprint, model_part, Fingerprints};
 use crate::progress::Progress;
 use crate::response::complete_json;
 use crate::roles::load_splitter;
@@ -362,7 +361,7 @@ fn plan_items<'a>(
         .iter()
         .enumerate()
         .map(|(position, feature)| {
-            let key = format!("{}/{}", feature.domain_slug, feature.slug);
+            let key = feature_key(feature);
             let input = FeatureInput::new(repo_root, feature, context);
             let close = evidence.section(&feature_query(feature, &input));
             let framing = Framing {
@@ -453,7 +452,7 @@ fn save_partial(
     let mut use_cases = done.to_vec();
     let mut prints = prints.clone();
     for feature in unreached {
-        let key = format!("{}/{}", feature.domain_slug, feature.slug);
+        let key = feature_key(feature);
         if let Some(print) = known.get(&key) {
             prints.use_cases.insert(key, print.clone());
         }
@@ -484,13 +483,7 @@ fn feature_fingerprint(
         brief,
         evidence,
     } = *framing;
-    let files = input.files.iter().map(|path| {
-        let content = walked.read(Path::new(path)).map_or_else(
-            |_| "unreadable".to_string(),
-            |content| hash_content(&content),
-        );
-        format!("{path}\n{content}")
-    });
+    let files = input.files.iter().map(|path| file_part(walked, path));
     fingerprint(
         [feature.name.clone(), feature.description.clone()]
             .into_iter()
@@ -513,7 +506,7 @@ fn feature_fingerprint(
                 vocabulary.join(",")
             )))
             .chain(files)
-            .chain((!brief.fingerprint().is_empty()).then(|| brief.fingerprint()))
+            .chain(brief.print_part())
             .chain((!evidence.is_empty()).then(|| evidence.to_string()))
             .chain(std::iter::once(model_part(llm))),
     )

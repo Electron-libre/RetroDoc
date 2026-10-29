@@ -82,7 +82,7 @@ fn surface_fingerprint(surface: &Surface, brief: &ProductBrief, model: String) -
     fingerprint(
         std::iter::once("domains from the surface".to_string())
             .chain(surface.fingerprint_parts())
-            .chain((!brief.fingerprint().is_empty()).then(|| brief.fingerprint()))
+            .chain(brief.print_part())
             .chain(std::iter::once(model)),
     )
 }

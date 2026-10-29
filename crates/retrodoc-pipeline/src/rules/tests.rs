@@ -1113,3 +1113,25 @@ fn a_statement_two_parts_make_is_kept_once_with_the_better_backed_copy_and_the_r
         .collect();
     assert_eq!(seen, [("f-1", 0.7), ("f-2", 0.4)]);
 }
+
+/// The saved prints must not change with a refactor: another print redoes every user's next run.
+#[tokio::test]
+async fn the_print_of_a_feature_stays_the_same() {
+    let dir = repo();
+    let llm = FakeLlm::answering(answer(LIMIT));
+    let context = UseCaseContext {
+        brief: crate::testing::brief("Delivers meals."),
+        ..context(dir.path())
+    };
+    build_rules(dir.path(), &[feature()], &[use_case()], &context, &llm)
+        .await
+        .unwrap();
+    let prints = crate::fingerprints::Fingerprints::load(dir.path()).rules;
+    assert_eq!(
+        prints.into_iter().collect::<Vec<_>>(),
+        vec![(
+            "delivery/orders".to_string(),
+            "39d25ac7c67ab0fde88e782117c00d16840309a976fcf90dd98dc572683edcc3".to_string()
+        )]
+    );
+}

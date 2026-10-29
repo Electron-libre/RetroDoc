@@ -193,6 +193,12 @@ impl ProductBrief {
             hash_content(&section)
         }
     }
+
+    /// The part of a print the brief makes: none for an empty brief, so that a run without one keeps
+    /// the prints it had.
+    pub(crate) fn print_part(&self) -> Option<String> {
+        Some(self.fingerprint()).filter(|print| !print.is_empty())
+    }
 }
 
 /// Characters of evidence the LLM would be sent for these signals.

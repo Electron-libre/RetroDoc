@@ -28,7 +28,7 @@ use crate::artifact::{load_yaml, save_yaml, warn_on_error, Artifact};
 use crate::cache::hash_content;
 use crate::chunks::Splitter;
 use crate::error::PipelineError;
-use crate::fingerprints::{fingerprint, model_part, Fingerprints};
+use crate::fingerprints::{feature_key, file_part, fingerprint, model_part, Fingerprints};
 use crate::progress::Progress;
 use crate::response::complete_json;
 use crate::roles::load_splitter;
@@ -468,11 +468,6 @@ fn save_partial(
     warn_on_error(prints.save(repo_root));
 }
 
-/// The key of a feature in the fingerprints of the pass.
-fn feature_key(feature: &Feature) -> String {
-    format!("{}/{}", feature.domain_slug, feature.slug)
-}
-
 /// One feature of the pass: what it is derived from and what is done about it.
 struct Item<'a> {
     feature: &'a Feature,
@@ -555,18 +550,14 @@ fn rules_fingerprint(
     llm: &dyn LlmProvider,
     put_back: bool,
 ) -> String {
-    let files = input.files.iter().map(|path| {
-        let hash = context.walked.read(Path::new(path)).map_or_else(
-            |_| "unreadable".to_string(),
-            |content| hash_content(&content),
-        );
-        format!("{path}\n{hash}")
-    });
+    let files = input
+        .files
+        .iter()
+        .map(|path| file_part(&context.walked, path));
     let evidence = input
         .evidence
         .iter()
         .map(|e| format!("{:?} {}\n{}", e.kind, e.origin, e.text));
-    let brief = context.brief.fingerprint();
     fingerprint(
         [feature.name.clone(), feature.description.clone()]
             .into_iter()
@@ -581,7 +572,7 @@ fn rules_fingerprint(
                     .iter()
                     .map(|u| format!("use case {} {}", u.slug, u.name)),
             )
-            .chain((!brief.is_empty()).then_some(brief))
+            .chain(context.brief.print_part())
             .chain(std::iter::once(format!(
                 "judgement {}",
                 hash_content(&format!(

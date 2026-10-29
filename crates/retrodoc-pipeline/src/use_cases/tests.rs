@@ -1560,3 +1560,32 @@ async fn a_file_a_saved_feature_or_entry_point_names_outside_the_walk_is_not_sho
         "{logs}"
     );
 }
+
+/// The saved prints must not change with a refactor: another print redoes every user's next run.
+#[tokio::test]
+async fn the_print_of_a_feature_stays_the_same() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.rs"), "fn a() {}").unwrap();
+    let features = vec![feature("idle", &["a.rs", "gone.rs"])];
+    let provider = FakeLlm::answering(
+        r#"{"use_cases":[{"slug":"u","name":"U","description":"d","steps":[
+            {"description":"s","actor":{"name":"A","kind":"human"},"action":"act",
+             "source_refs":[{"path":"a.rs"}]}]}]}"#,
+    );
+    let context = UseCaseContext {
+        brief: crate::testing::brief("Sells things."),
+        vocabulary: vec!["Order".to_string()],
+        ..reading(dir.path())
+    };
+    build_use_cases(dir.path(), &features, &context, &provider)
+        .await
+        .unwrap();
+    let prints = crate::fingerprints::Fingerprints::load(dir.path()).use_cases;
+    assert_eq!(
+        prints.into_iter().collect::<Vec<_>>(),
+        vec![(
+            "billing/idle".to_string(),
+            "f60bd7d3796f777ea450857e3c80de5519689b4c63889f85b64f1eb66bc5a759".to_string()
+        )]
+    );
+}

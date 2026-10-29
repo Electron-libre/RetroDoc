@@ -12,12 +12,14 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
+use retrodoc_core::model::Feature;
 use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
 use crate::artifact::{load_json, save_json, Artifact};
 use crate::cache::hash_content;
 use crate::error::PipelineError;
+use crate::walked::WalkedFiles;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub(crate) struct Fingerprints {
@@ -74,6 +76,21 @@ pub(crate) fn model_part(llm: &dyn LlmProvider) -> String {
 /// `hash` (of a unit of input) made dependent on the model of the pass.
 pub(crate) fn hash_for_model(hash: &str, llm: &dyn LlmProvider) -> String {
     hash_content(&format!("{}\0{hash}", model_part(llm)))
+}
+
+/// The key of a feature in the prints of the passes that take a feature at a time.
+pub(crate) fn feature_key(feature: &Feature) -> String {
+    format!("{}/{}", feature.domain_slug, feature.slug)
+}
+
+/// The part of a print a cited file makes: its path and the hash of its content read through the
+/// walk (an unreadable file hashes as such, so the print changes when it becomes readable).
+pub(crate) fn file_part(walked: &WalkedFiles, path: &str) -> String {
+    let hash = walked.read(Path::new(path)).map_or_else(
+        |_| "unreadable".to_string(),
+        |content| hash_content(&content),
+    );
+    format!("{path}\n{hash}")
 }
 
 /// Hash of `parts`, unambiguous regardless of how they are split.

@@ -281,7 +281,7 @@ pub async fn build_actors(
             .iter()
             .map(|(path, content)| format!("{}\n{}", path.display(), hash_content(content)))
             .chain(entity_lines.iter().cloned())
-            .chain((!brief.fingerprint().is_empty()).then(|| brief.fingerprint()))
+            .chain(brief.print_part())
             .chain(std::iter::once(model_part(llm))),
     );
     if !force {

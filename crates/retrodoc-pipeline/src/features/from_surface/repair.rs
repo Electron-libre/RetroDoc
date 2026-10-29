@@ -79,7 +79,7 @@ fn placement_print(
                     .iter()
                     .map(|f| format!("feature {}\n{}\n{}", f.slug, f.name, f.description)),
             )
-            .chain((!brief.fingerprint().is_empty()).then(|| brief.fingerprint()))
+            .chain(brief.print_part())
             .chain(std::iter::once(model_part(llm))),
     )
 }
