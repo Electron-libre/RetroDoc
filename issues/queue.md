@@ -4,7 +4,6 @@ Open issues in the order to work on them: the first is the next one. Read by `ju
 `just close-issue` removes a line, `skill:create-issue` inserts one at its rank, `skill:prioritize-issues`
 re-ranks the whole list. Line format: `- [<file stem>](<file stem>.md) - <why here>`.
 
-- [split_largest_files](split_largest_files.md) - after `remove_sub_domains`, which edits the render and the MCP files it splits; pure moves, cheaper once the passes are shared
 - [split_mcp_tools](split_mcp_tools.md) - cut from `split_largest_files`, right after it: same pure moves, one crate each
 - [split_render_markdown](split_render_markdown.md) - cut from `split_largest_files`, after `split_mcp_tools`
 - [split_openrouter_tests](split_openrouter_tests.md) - cut from `split_largest_files`, after `split_render_markdown`: tests only, the least value

@@ -6,7 +6,7 @@ long to read and to review. Split it along the seams it already has, with no beh
 and a second `generate` writing nothing stay green.
 
 # Findings (exploration of 2026-10-29, at 2a9c27a)
-* Cut from `issues/split_largest_files.md` (one issue per crate, to stay under the size limit).
+* Cut from `issues/done/split_largest_files.md` (one issue per crate, to stay under the size limit).
 * `crates/retrodoc-render/src/markdown.rs`, 1,122 lines: entry points `render`, `render_with_rules`,
   `render_with_docs` at 42-159; paths and links at 160-248; one function per page (`agent_index` 249,
   `domain_page` 326, `feature_page` 377, `use_case_page` 442, `step_item` 529); tests at 565-1122 (about 556
@@ -21,7 +21,7 @@ and a second `generate` writing nothing stay green.
 3. One commit per deliverable.
 
 # Resources
-* `issues/split_largest_files.md` (the issue it was cut from, and its plan)
+* `issues/done/split_largest_files.md` (the issue it was cut from, and its plan)
 * `issues/done/refactor_code_hygiene.md` (how the earlier splits were made)
 * `docs/crates/render-mcp-cli.md` (module list to update)
 
