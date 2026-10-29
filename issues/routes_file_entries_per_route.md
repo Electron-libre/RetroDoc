@@ -27,7 +27,7 @@ namespace.
 
 # Resources
 * `crates/retrodoc-pipeline/src/entry_points/mod.rs` (`ENTRY_POINTS_SYSTEM_PROMPT`)
-* `issues/joint_reading_routing_rule.md` (the measure that found it)
+* `issues/done/joint_reading_routing_rule.md` (the measure that found it)
 * The measures ledger (see `CLAUDE.md`), skill `quality-benchmark`
 
 # Hints

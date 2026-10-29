@@ -33,7 +33,7 @@ use crate::roles::RoleMap;
 // The wording of the two tasks is that of `glossary` (business prompt) and `entry_points`; keep them close.
 // The routing-file rule of `entry_points` is left out on purpose: the business files hold no route
 // declarations on the benchmark apps, and it could collapse the actions of a view set file
-// (`issues/joint_reading_routing_rule.md`).
+// (`issues/done/joint_reading_routing_rule.md`).
 const BUSINESS_READ_SYSTEM_PROMPT: &str = "You are reading the source files of a software \
 application, located as holding its business, for two inventories at once. A long file is given in \
 several parts (marked \"part i/n\"): report only what is visible in the part. \
