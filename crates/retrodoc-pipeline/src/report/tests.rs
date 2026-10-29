@@ -1,7 +1,10 @@
 use super::*;
 
+use crate::behaviour_coverage::BehaviourCoverage;
 use crate::domains::DomainCluster;
-use retrodoc_core::model::RuleEvidence;
+use crate::rules::{AsideFeature, AsideRule};
+use retrodoc_core::config::RulesConfig;
+use retrodoc_core::model::{BusinessRule, RuleEvidence};
 use retrodoc_ingest::existing_docs::ExistingDoc;
 
 fn feature(slug: &str, domain: &str, score: Option<f32>) -> Feature {

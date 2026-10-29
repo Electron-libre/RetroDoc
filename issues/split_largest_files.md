@@ -47,7 +47,7 @@ unchanged. Out of scope: the MCP tools, the Markdown render and the OpenRouter t
 
 ## Plan
 1. [x] Report tests apart: `report.rs` → `report/mod.rs` + `report/tests.rs` (both test modules); verified by `just check`.
-2. [ ] Report sections apart: set aside, reconciliation, behaviour, uncovered in their own files of `report/`; verified by `just check`.
+2. [x] Report sections apart: set aside, reconciliation, behaviour, uncovered in their own files of `report/`; verified by `just check`.
 3. [ ] Chunks tests apart: `chunks.rs` → `chunks/mod.rs` + `chunks/tests.rs`; verified by `just check`.
 4. [ ] Chunking and excerpts apart: `Focus`, `excerpt` and the pieces in `chunks/excerpt.rs`; verified by `just check` and a second `generate` writing nothing.
 
@@ -63,6 +63,18 @@ unchanged. Out of scope: the MCP tools, the Markdown render and the OpenRouter t
   | tests, lint, specs (`just check`) | pass |
   | moved code identical modulo whitespace | yes (script comparison) |
   | docs (`docs/crates/pipeline.md`, `docs/ARCHITECTURE.md`) | updated |
+- red: none (pure move, no new test)
+- Code review: no findings
+- not verified: none
+- decisions needed: none
+
+## Deliverable 2: report sections apart
+- done: `report/behaviour.rs`, `report/reconciliation.rs`, `report/set_aside.rs` each hold their `with_*` builder, their `write_*` section (now `pub(super)`) and their list caps; `mod.rs` keeps the model, `build_report` and `to_markdown`; the test imports that came through `use super::*` are named in `tests.rs`.
+- | check | result |
+  |---|---|
+  | tests, lint, specs (`just check`) | pass |
+  | moved lines identical (sorted line comparison) | yes, apart from the `impl`/`mod` headers |
+  | docs (`docs/crates/pipeline.md`) | updated |
 - red: none (pure move, no new test)
 - Code review: no findings
 - not verified: none
