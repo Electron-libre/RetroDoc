@@ -121,7 +121,7 @@ The milestones up to "A large application, one bounded context at a time" are th
   - [roles_second_pass_and_promoted_sources](issues/done/roles_second_pass_and_promoted_sources.md)
   - [view_template_labels](issues/done/view_template_labels.md)
   - [template_extensions_never_promoted](issues/done/template_extensions_never_promoted.md)
-  - [test_layouts_singular_and_variants](issues/test_layouts_singular_and_variants.md)
+  - [test_layouts_singular_and_variants](issues/done/test_layouts_singular_and_variants.md)
   - [built_in_extension_templates_read_as_source](issues/built_in_extension_templates_read_as_source.md)
 
 ## A large application, one bounded context at a time
