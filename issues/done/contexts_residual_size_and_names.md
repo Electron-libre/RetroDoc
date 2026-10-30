@@ -53,7 +53,7 @@ A large application, one bounded context at a time
 
 # Tracking
 
-Plan: validated
+Plan: validated (done 2026-10-30)
 
 ## Understanding
 Make the contexts map trustworthy on the large Rails application: know why one context stays over 150 files and

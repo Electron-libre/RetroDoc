@@ -76,4 +76,4 @@ to it by name. The map is for the `surface` path; the `files` path is unchanged.
 * A context left over 150 files is warned of with the reason it stayed whole (`specs/context-split.md`). On the
   large application it is the first part of a second-level split, which also keeps the folders the answer
   forgot; it is accepted above the limit rather than split a third time, the next maps cutting it under the
-  limit (`issues/contexts_residual_size_and_names.md`).
+  limit (`issues/done/contexts_residual_size_and_names.md`).

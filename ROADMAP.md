@@ -138,7 +138,7 @@ The milestones up to "A large application, one bounded context at a time" are th
   - [split_contexts_by_family_not_by_layer](issues/done/split_contexts_by_family_not_by_layer.md)
   - [use_cases_record_their_entry_points](issues/done/use_cases_record_their_entry_points.md)
   - [technical_and_back_office_use_cases](issues/done/technical_and_back_office_use_cases.md)
-  - [contexts_residual_size_and_names](issues/contexts_residual_size_and_names.md)
+  - [contexts_residual_size_and_names](issues/done/contexts_residual_size_and_names.md)
   - [merge_form_screens_into_their_use_case](issues/merge_form_screens_into_their_use_case.md)
   - [actors_read_long_authorization_files](issues/done/actors_read_long_authorization_files.md)
 
