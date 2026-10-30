@@ -4,7 +4,6 @@ Open issues in the order to work on them: the first is the next one. Read by `ju
 `just close-issue` removes a line, `skill:create-issue` inserts one at its rank, `skill:prioritize-issues`
 re-ranks the whole list. Line format: `- [<file stem>](<file stem>.md) - <why here>`.
 
-- [tree_sitter_reference_languages](tree_sitter_reference_languages.md) - after `framework_fixtures_through_generate`, whose fixtures then check each new grammar; the largest of the three, an accelerator over the generic path
 - [stack_tables_nested_layouts](stack_tables_nested_layouts.md) - after `tree_sitter_reference_languages` (high review of `stack_tables_cover_the_reference_set`, 2026-10-30): common JVM and .NET layouts the flat tables miss, found by reading, no run has shown them; before the low-priority tuning, it widens the stacks the fixtures cover
 - [contexts_residual_size_and_names](contexts_residual_size_and_names.md) - low: follow-up of the closed split by family (2026-10-14): one context still over 150 files, action names taken for families, the names unread; nothing before it depends on it, and its spread measure is cheaper after `sampling_temperature_for_steadier_runs`
 - [rules_replay_without_evidence](rules_replay_without_evidence.md) - small, right before `rules_plumbing_and_screen_noise`: its rules measures should replay the pass with the evidence `generate` gives
