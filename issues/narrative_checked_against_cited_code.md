@@ -1,3 +1,7 @@
+---
+rank: 100
+why: 'last open issue of the earliest open milestone (Business-level documentation, `docs/findings.md`, 2026-10-30): the narrative is the first thing a reader trusts and nothing checks it; its measure reads saved benchmark runs'
+---
 # Check the business narrative of a use case against the code it cites
 
 # Goal
@@ -69,8 +73,9 @@ step (S), at the cited lines (C), true elsewhere in the tree (F), unsupported or
    pipeline tests with a recording fake LLM; makes true CNF-1 to CNF-7. ~450 lines.
 2. [x] Report section "Narratives the cited code does not back"; verified by a report test; makes true CNF-8, spec
    `accepted`. ~120 lines.
-3. [ ] Measure: an example runs the confidence pass on the 40 sampled use cases with DeepSeek (cents, asked before)
-   and counts the 8 known U claims flagged and the narratives flagged wrongly; figures in the issue and the ledger.
+3. [x] Measure, then the narrower verdict: an example runs the confidence pass on the 40 sampled use cases with DeepSeek (cents, asked before)
+   and counts the 8 known U claims flagged and the narratives flagged wrongly; figures in the issue and the ledger;
+   then `unsupported` only for a claim the code contradicts, the report listing those only (CNF-9), measured again.
    ~150 lines.
 
 ## Decisions
@@ -78,6 +83,9 @@ step (S), at the cited lines (C), true elsewhere in the tree (F), unsupported or
 - Base commit: a006efc
 - Narratives of use cases the checks settle: not checked, no extra call (only the `--confidence-sample` ones are).
 - Weight of the narrative verdict: one more item in the mean, like a step.
+- After the measure of deliverable 3 (2026-10-30): `unsupported` is kept for a claim the shown code contradicts, a
+  claim it merely does not show is `partial`; the report lists the `unsupported` narratives only (CNF-8 withdrawn,
+  CNF-9); measured again on the same samples.
 
 ## Deliverable 1 summary
 done: the confidence request shows the narrative, its verdict is one more item of the mean, named in the rationale
@@ -113,3 +121,54 @@ red: CNF-8: `assertion failed: md.contains("## Narratives the cited code does no
 Code review: no findings
 not verified: nothing beyond deliverable 3.
 decisions needed: none.
+
+## Deliverable 3 measure (2026-10-30, 280641f + example, deepseek-chat, ~$0.02)
+`examples/narrative_check_measure.rs` on the 40 use cases labelled by hand above; runs 1-2 as `generate` (only
+the use cases with a doubtful step go to the model), runs 3-4 with `--all` (every sampled use case).
+
+| run | repo | narratives checked | judged partial | judged unsupported | hand U claims caught with their reason | calls | prompt tokens |
+|---|---|---|---|---|---|---|---|
+| 1 | linkding | 15 of 20 | 13 | 0 | 1 of 1 (templates not watched) | 12 | 16.9k |
+| 2 | lobsters | 15 of 20 | 9 | 0 | 1 of 7 (front page is the hottest list) | 13 | 14.9k |
+| 3 | linkding `--all` | 20 | 15 | 0 | 1 of 1 | 18 | 31.6k |
+| 4 | lobsters `--all` | 20 | 13 | 1 | 1 of 7 | 19 | 26.0k |
+
+* The model flags about two narratives in three as `partial`, almost always for a claim outside the cited lines
+  (an outcome restated, a fact of the uncited code: the F claims of the hand measure), which it cannot tell from
+  an invented one. The two caught are the claims the shown code contradicts.
+* Missed: wrong conditions and reasons ("so the job is retried", hat recreated "because it cannot be edited"),
+  over-reaching definitions; two lobsters use cases with a U are flagged for another claim.
+* The one `unsupported` (lobsters `send-pushover-notification`) is a step citing the wrong lines.
+* As shipped, the report section would list 65% of the narratives, the score loses ~0.1 on each.
+
+## Deliverable 3, measured again with `unsupported` only for a contradicted claim (runs 5-8, ~$0.02)
+
+| run | repo | judged partial (before) | judged unsupported | listed by the report | hand U claims caught with their reason | calls | prompt tokens |
+|---|---|---|---|---|---|---|---|
+| 5 | linkding | 9 (13) | 0 | 0 | 1 of 1, as `partial` | 12 | 17.3k |
+| 6 | lobsters | 5 (9) | 0 | 0 | 0 of 7 (front page: "newest not visible", as `partial`) | 13 | 15.4k |
+| 7 | linkding `--all` | 11 (15) | 0 | 0 | 0 of 1 | 18 | 32.2k |
+| 8 | lobsters `--all` | 6 (13) | 1 | 1 | 0 of 7 | 19 | 26.7k |
+
+* Fewer narratives lose score for a claim outside the cited lines (about one in three instead of two in three).
+* The model gives `unsupported` to no contradicted claim: the templates claim is `partial`. The one `unsupported`
+  is still the step citing the wrong lines (`send-pushover-notification`).
+* So the report section stays empty on these samples but for that case: the check catches no wrong narrative there.
+
+## Deliverable 3 summary
+done: `examples/narrative_check_measure.rs`; the confidence prompt keeps `unsupported` for a narrative claim the
+shown code contradicts; the report lists the `unsupported` narratives only, section "Narratives the cited code
+contradicts" (CNF-8 withdrawn, CNF-9); ADR 0038, ARCHITECTURE and pipeline docs.
+
+| check | result |
+|---|---|
+| tests | `just check` pass |
+| lint | clippy pedantic clean |
+| specs | CNF-9 traced (internal: report built from cached artifacts), spec accepted |
+| docs | updated |
+| code review | low, 1 finding |
+
+red: CNF-9: `a partial narrative is not listed`
+Code review: 1 finding: the `score` of the listed narratives is always 0 (not fixed: they reuse `WeakSection`, shared with the other lists; a type of their own for one dead field is not worth it).
+not verified: a run on a whole application.
+decisions needed: whether to keep the narrative check, given the figures above (asked at the end of the issue).

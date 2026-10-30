@@ -67,9 +67,11 @@ whether the code provided actually shows it happening: \"supported\" (the code c
 \"partial\" (plausible but only partly visible, or details are guessed) or \"unsupported\" (nothing \
 in the code shows it). Be strict: do not give credit for what is merely plausible. Give a \
 rationale ONLY for steps that are not supported: at most 15 words, plain prose, no code and no \
-double quotes (an empty string for supported steps). When a use case has a narrative, judge it the \
-same way: \"supported\" only if the code provided shows every effect, condition and actor it \
-states; name the claim the code does not show in the rationale. Do not think out loud or explain \
+double quotes (an empty string for supported steps). When a use case has a narrative, judge it too: \
+\"supported\" if the code provided shows every effect, condition and actor it states, \"partial\" \
+if a claim is merely not visible in the code provided, \"unsupported\" only if the code provided \
+contradicts a claim (another condition, scope, reason or caller than the one stated); name that \
+claim in the rationale. Do not think out loud or explain \
 outside the JSON. Reply with ONLY a single JSON object, no prose and no Markdown code fence, \
 matching this shape: {\"narrative\":{\"verdict\":\"supported|partial|unsupported\",\
 \"rationale\":\"...\"},\"steps\":[{\"order\":1,\"verdict\":\"supported|partial|unsupported\",\

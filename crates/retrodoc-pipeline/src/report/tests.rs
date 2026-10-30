@@ -424,7 +424,7 @@ fn technical_sounding_use_cases_get_their_own_section() {
     assert!(!plain.to_markdown().contains("business language"));
 }
 
-// spec: CNF-8 (internal: the report is built from cached artifacts that only an LLM run writes)
+// spec: CNF-9 (internal: the report is built from cached artifacts that only an LLM run writes)
 #[test]
 fn narratives_the_cited_code_does_not_back_are_listed_with_the_reason() {
     let map = DomainMap {
@@ -451,9 +451,12 @@ fn narratives_the_cited_code_does_not_back_are_listed_with_the_reason() {
 
     let md = build_report(&map, &features, &use_cases).to_markdown();
 
-    assert!(md.contains("## Narratives the cited code does not back"));
+    assert!(md.contains("## Narratives the cited code contradicts"));
     assert!(md.contains("- `billing/pay/pay-invoice` — unsupported: no retry in the code"));
-    assert!(md.contains("- `billing/pay/refund` — partial"));
+    assert!(
+        !md.contains("billing/pay/refund` —"),
+        "a partial narrative is not listed"
+    );
     assert!(!md.contains("billing/pay/cancel` —"));
 
     for u in &mut use_cases {

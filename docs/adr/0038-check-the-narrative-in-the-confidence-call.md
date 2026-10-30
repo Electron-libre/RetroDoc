@@ -17,7 +17,13 @@ for 19 false alarms: the wrong claims are paraphrased effects and conditions, in
 The narrative is checked by the model, in the request the confidence pass already makes for the doubtful steps: the
 request shows it with the steps and the cited code, and the answer gives it a verdict like a step's. The verdict is
 one more item in the mean of the use case score, and is kept apart on the use case (`narrative_check`) so the debt
-report can list the narratives the code does not back. No mechanical check of the narrative's words.
+report can list the narratives the code contradicts. No mechanical check of the narrative's words.
+
+The model only sees the cited code, so it cannot tell a claim true in the code around it from an invented one:
+measured on the same 40 use cases, it judged two narratives in three `partial` for claims outside the cited lines,
+and the two wrong claims it caught were those the shown code contradicts. So `unsupported` is asked only for a
+claim the shown code contradicts, a claim it does not show is `partial`, and the report lists the `unsupported`
+narratives only.
 
 ## Consequences
 

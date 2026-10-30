@@ -36,7 +36,7 @@ Skills in `.claude/skills/`:
   give an issue its own git worktree and branch (`cardinal run issue-worktree`).
 - `create-issue`: write a new `issues/*.md` with the template (Goal, Findings, Approach, Resources, Hints), validated by
   `just check-issue issues/<name>.md`.
-- `prioritize-issues`: re-rank `issues/queue.md` (the ordered list of open issues; `just next-issue` prints the first)
+- `prioritize-issues`: re-rank the open issues (the `rank` of each issue file; `just next-issue` prints the first)
   from the roadmap, ADRs, history and each issue, with a validation stop.
 - `commit-message`: procedure to write a commit message per `AGENTS.md`, validated by `just check-commit`
   (checks `HEAD`).

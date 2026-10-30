@@ -169,7 +169,7 @@ flowchart LR
     f --> r["Debt report:<br/>per-domain confidence,<br/>sections below 50%"]
 ```
 
-Only the doubtful steps are sent to the LLM ([ADR 0026](adr/0026-check-use-case-steps-mechanically-before-asking-the-llm.md)); `--confidence-sample` adds a second opinion on use cases that pass every check. The narrative of a use case sent to the LLM is judged in the same call ([ADR 0038](adr/0038-check-the-narrative-in-the-confidence-call.md), `specs/use-case-confidence.md`) and its verdict kept as `narrative_check`, the report listing the narratives the code does not back; a use case the checks settle makes no call for it. An unparseable verdict leaves the use case **unscored** (`None`), which the report lists separately.
+Only the doubtful steps are sent to the LLM ([ADR 0026](adr/0026-check-use-case-steps-mechanically-before-asking-the-llm.md)); `--confidence-sample` adds a second opinion on use cases that pass every check. The narrative of a use case sent to the LLM is judged in the same call ([ADR 0038](adr/0038-check-the-narrative-in-the-confidence-call.md), `specs/use-case-confidence.md`) and its verdict kept as `narrative_check`, `unsupported` only for a claim the shown code contradicts (a claim it does not show is `partial`), the report listing the `unsupported` ones; a use case the checks settle makes no call for it. An unparseable verdict leaves the use case **unscored** (`None`), which the report lists separately.
 
 ## 5. Incremental re-run
 
@@ -321,7 +321,7 @@ flowchart LR
 
 | I want to… | Look at |
 |---|---|
-| Know what is planned / out of scope | `ROADMAP.md` (milestones), `PRODUCT.md` "Scope of v1" (out of scope) and "Risks", `docs/findings.md` (dated findings, §7: the review of 2026-10-12), `issues/queue.md` |
+| Know what is planned / out of scope | `ROADMAP.md` (milestones), `PRODUCT.md` "Scope of v1" (out of scope) and "Risks", `docs/findings.md` (dated findings, §7: the review of 2026-10-12), `just next-issue` (the open issues by rank) |
 | Add or change a pipeline pass | `crates/retrodoc-pipeline/src/` (follow the existing pass + its fake-provider test) |
 | Change the generated Markdown | `crates/retrodoc-render/src/markdown/` (one file per page) |
 | Change what an agent can ask (MCP tools, search, code access) | `crates/retrodoc-mcp/src/` (`tools/` the answers, `server.rs` the wiring, `source.rs` the code access scope) |

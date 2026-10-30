@@ -50,8 +50,9 @@ pub struct DebtReport {
     /// Use cases whose business-language score is below the threshold (they
     /// read like code, or like an internal helper), lowest first.
     pub technical_use_cases: Vec<WeakSection>,
-    /// Use cases whose narrative the confidence pass judged not backed by the cited code
-    /// (`UseCase::narrative_check` below 1), lowest first.
+    /// Use cases whose narrative the confidence pass judged contradicted by the cited code
+    /// (`UseCase::narrative_check` at 0, `unsupported`). A `partial` one is not listed: it states
+    /// what the cited lines do not show, which is mostly true of the code around them.
     pub unbacked_narratives: Vec<WeakSection>,
     /// Use cases the docs set apart under "Administration and technical"
     /// (`UseCase::is_technical`), and the features marked back-office.
@@ -201,7 +202,7 @@ pub fn build_report(
                 });
             }
         }
-        if let Some(n) = use_case.narrative_check.as_ref().filter(|n| n.value < 1.0) {
+        if let Some(n) = use_case.narrative_check.as_ref().filter(|n| n.value <= 0.0) {
             unbacked_narratives.push(WeakSection {
                 label: label.clone(),
                 score: n.value,
@@ -235,7 +236,7 @@ pub fn build_report(
     }
     weak_sections.sort_by(|a, b| a.score.total_cmp(&b.score).then(a.label.cmp(&b.label)));
     technical_use_cases.sort_by(|a, b| a.score.total_cmp(&b.score).then(a.label.cmp(&b.label)));
-    unbacked_narratives.sort_by(|a, b| a.score.total_cmp(&b.score).then(a.label.cmp(&b.label)));
+    unbacked_narratives.sort_by(|a, b| a.label.cmp(&b.label));
 
     let uncategorized_files = domains
         .domains
@@ -287,19 +288,14 @@ fn percent(value: Option<f32>) -> String {
 }
 
 impl DebtReport {
-    /// The use cases whose narrative the cited code does not back, with the model's reason.
+    /// The use cases whose narrative the cited code contradicts, with the model's reason.
     fn write_narratives_section(&self, md: &mut String) {
         if self.unbacked_narratives.is_empty() {
             return;
         }
-        md.push_str("\n## Narratives the cited code does not back\n\n");
+        md.push_str("\n## Narratives the cited code contradicts\n\n");
         for w in &self.unbacked_narratives {
-            let verdict = if w.score > 0.0 {
-                "partial"
-            } else {
-                "unsupported"
-            };
-            let _ = write!(md, "- `{}` — {verdict}", w.label);
+            let _ = write!(md, "- `{}` — unsupported", w.label);
             if let Some(why) = &w.rationale {
                 let _ = write!(md, ": {}", one_line(why));
             }
