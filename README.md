@@ -130,14 +130,14 @@ lists the contexts left. An interrupted run resumes where it stopped.
 
 A pass whose model changes is redone on the next run (the model is part of what its cache is compared
 with); the first run after upgrading to this behavior redoes every pass once. `roles.yaml`,
-`signal-sources.yaml`, `business-files.yaml`, `contexts.yaml` and `product.yaml` are the exception: they stay until `--force`.
+`roles-unmatched.yaml`, `signal-sources.yaml`, `business-files.yaml`, `contexts.yaml` and `product.yaml` are the exception: they stay until `--force`.
 A suggested split, **not benchmarked yet**: the strong model on `brief`, `domains` and `features`, which
 frame everything else, and a cheap or local one in `[llm]` for the many extraction calls (`roles`,
 `glossary`, `entry-points`, `actors`, `confidence`). Measure it against one model for all with
 `just benchmark` (the `quality-benchmark` skill: quality and cost, which the recap splits per pass and model).
 
 Intermediate artifacts (file roles, glossary, entry points, domains, features, use cases…) are plain
-YAML under `.retrodoc/cache/`. `roles.yaml`, `signal-sources.yaml` and `product.yaml` are meant to be edited by hand when the LLM gets them wrong.
+YAML under `.retrodoc/cache/`. `roles.yaml`, `roles-unmatched.yaml`, `signal-sources.yaml` and `product.yaml` are meant to be edited by hand when the LLM gets them wrong.
 
 ## How it works
 

@@ -30,6 +30,8 @@ pub enum Artifact {
     SourceHashes,
     Fingerprints,
     Roles,
+    /// The roles of the files no rule of `roles.yaml` matches, from their paths.
+    RolesUnmatched,
     SignalSources,
     Product,
     BusinessFiles,
@@ -55,10 +57,11 @@ pub enum Artifact {
 }
 
 impl Artifact {
-    pub const ALL: [Artifact; 20] = [
+    pub const ALL: [Artifact; 21] = [
         Artifact::SourceHashes,
         Artifact::Fingerprints,
         Artifact::Roles,
+        Artifact::RolesUnmatched,
         Artifact::SignalSources,
         Artifact::Product,
         Artifact::BusinessFiles,
@@ -84,6 +87,7 @@ impl Artifact {
             Artifact::SourceHashes => "source-hashes.json",
             Artifact::Fingerprints => "fingerprints.json",
             Artifact::Roles => "roles.yaml",
+            Artifact::RolesUnmatched => "roles-unmatched.yaml",
             Artifact::SignalSources => "signal-sources.yaml",
             Artifact::Product => "product.yaml",
             Artifact::BusinessFiles => "business-files.yaml",
@@ -116,7 +120,7 @@ impl Artifact {
     }
 
     /// Whether `generate --force` removes it. The others are not results to
-    /// redo: `roles.yaml`, `signal-sources.yaml`, `product.yaml`, `business-files.yaml` and `contexts.yaml` are hand-editable (`retrodoc roles --force`
+    /// redo: `roles.yaml`, `roles-unmatched.yaml`, `signal-sources.yaml`, `product.yaml`, `business-files.yaml` and `contexts.yaml` are hand-editable (`retrodoc roles --force`
     /// identifies it again), `usage.json` is the history of the runs, and
     /// `domains.yaml` and `scope.yaml` are recomputed on every run anyway.
     #[must_use]
@@ -135,6 +139,7 @@ impl Artifact {
             | Artifact::BehaviourCoverage
             | Artifact::Reconciliation => true,
             Artifact::Roles
+            | Artifact::RolesUnmatched
             | Artifact::SignalSources
             | Artifact::Product
             | Artifact::BusinessFiles
@@ -252,6 +257,7 @@ mod tests {
             kept,
             [
                 "roles.yaml",
+                "roles-unmatched.yaml",
                 "signal-sources.yaml",
                 "product.yaml",
                 "business-files.yaml",

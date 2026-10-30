@@ -68,6 +68,9 @@ there; no call at all on the benchmark repositories that match everything.
    skipped when none is left or the set was already asked; `roles` always goes through `identify_roles` (no
    provider opened when no call is due) and prints the added rules; verified by CLI tests with the fake LLM
    (`roles` and `generate`); makes true LNG-16, LNG-17, LNG-18, LNG-19.
+3. [x] Fixes of the `high` review of the issue: the added rules and the paths left unclassified saved in
+   `roles-unmatched.yaml` (`roles.yaml` never rewritten), each path sent once, the call best effort and skipped on
+   empty rules, the role definitions shared by both prompts; verified by the CLI tests of LNG-16 to LNG-19 (amended).
 
 ## Decisions
 - Mode: autonomous
@@ -95,3 +98,25 @@ there; no call at all on the benchmark repositories that match everything.
 - decisions needed: none.
 - Note: the fake LLM of the CLI tests answers `** -> other` to the second call, so the minimal apps of LNG-9 stay
   warning-free; a test of the boundaries got a rule so it still makes one call.
+
+## Paid check (after deliverable 2, commit 10375c8)
+One `deepseek-chat` call on a copy of the large Rails repository (saved `roles.yaml` reused): unclassified 163 to 10
+(only `.keep` files left), 38 rules added (API blueprints, decorators, serializers and coffee scripts as `view`,
+dotfiles as `config`), 3,070 tokens in, 525 out, 2 s; the rerun made no call. Ledger line of 2026-10-30.
+
+## Deliverable 3 (review `high` of b6b306d..10375c8)
+- done: `roles-unmatched.yaml` (new artifact, hand-editable, kept by `--force` of `generate`, reset when `roles.yaml`
+  is identified again) holds the added rules and the paths the call left unclassified; a path is sent once (the
+  paths over the cap of 400 go to the next run); a failed call warns and the pass goes on; no call when
+  `roles.yaml` has no rule; the prompt asks for narrow patterns, its role definitions shared with the first call;
+  `stdout_of` shared by the CLI tests. LNG-17 and LNG-18 reworded, scenarios amended.
+- Review findings settled: (1) paths over the cap never asked, (2) any change of the set re-asking the files left
+  out, (3) `roles.yaml` rewritten, (4) prompt saying the patterns apply to the listed files only, (5) a failed call
+  aborting the pass, (6) a paid call on empty rules, (7) repeated clones (one clone per decision now), (9) the
+  duplicated role definitions, (10) the duplicated test helper: fixed. (8) the decision duplicated in `roles`: it
+  calls the same `unmatched_to_ask` as the pipeline, no second rule to drift; kept.
+- checks: `just check` ok; docs: `docs/crates/pipeline.md`, `docs/ARCHITECTURE.md` §7, README.
+- red: none (the tests of the amended scenarios were written with the fix, not run red first).
+- Code review: no findings
+- not verified: the paid check ran on deliverable 2; the change of storage is not re-run on the Rails repository.
+- decisions needed: none.

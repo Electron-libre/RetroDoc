@@ -68,9 +68,12 @@ pub async fn run(path: &Path, force: bool, tracker: &UsageTracker) -> anyhow::Re
     for rule in &rules.rules {
         println!("  {:<12} {}", rule.role.label(), rule.pattern);
     }
-    if !rules.unmatched_rules.is_empty() {
-        println!("\nRules for the files no rule above matches (applied to those files only):");
-        for rule in &rules.unmatched_rules {
+    if !rules.unmatched.rules.is_empty() {
+        println!(
+            "\nRules for the files no rule above matches ({}, applied to those files only):",
+            Artifact::RolesUnmatched.relative_path()
+        );
+        for rule in &rules.unmatched.rules {
             println!("  {:<12} {}", rule.role.label(), rule.pattern);
         }
     }

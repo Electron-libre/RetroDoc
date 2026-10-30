@@ -248,7 +248,8 @@ Guarantees:
 │   ├── fingerprints.json          #   what the incremental re-run compares against
 │   ├── behaviour-coverage.yaml    #   entry points without a feature (per context in contexts mode) or without a use case (per feature), files reached by no behaviour
 │   ├── scope.yaml                 #   files left out by the budget (`--max-files`), listed in the report
-│   ├── roles.yaml                 #   (phase 7) glob → role rules (+ rules of the unmatched files), hand-editable
+│   ├── roles.yaml                 #   (phase 7) glob → role rules, hand-editable
+│   ├── roles-unmatched.yaml       #   (phase 7) rules of the files roles.yaml leaves unmatched, hand-editable
 │   ├── signal-sources.yaml        #   where the schema, migrations and translations are, hand-editable
 │   ├── product.yaml               #   product brief (ADR 0019), hand-editable
 │   ├── business-files.yaml        #   ranked files and directories that hold the business, hand-editable

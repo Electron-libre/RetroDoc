@@ -327,6 +327,18 @@ pub fn retrodoc(dir: &Path, command: &str) -> Output {
         .unwrap()
 }
 
+/// The stdout of the subcommand `command` on `dir`, which must succeed.
+pub fn stdout_of(dir: &Path, command: &str) -> String {
+    let output = retrodoc(dir, command);
+    let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+    assert!(
+        output.status.success(),
+        "{stdout}{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    stdout
+}
+
 /// The ` WARN ` lines of a run.
 pub fn warnings(output: &Output) -> Vec<String> {
     String::from_utf8_lossy(&output.stdout)

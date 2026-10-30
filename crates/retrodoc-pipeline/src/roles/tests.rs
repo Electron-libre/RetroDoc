@@ -122,7 +122,7 @@ async fn parsed_languages_get_no_boundary_rule_and_the_prompt_says_so() {
         commits: Vec::new(),
     };
     let llm = FakeLlm::answering(
-        r#"{"stack":"Rust","rules":[{"pattern":"src/**","role":"logic"}],
+        r#"{"stack":"Rust","rules":[],
 "chunk_boundaries":[{"extensions":["rs"],"pattern":"^\\s*fn "}]}"#,
     );
 

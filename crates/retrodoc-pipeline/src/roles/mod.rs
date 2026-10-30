@@ -11,8 +11,8 @@
 //!
 //! The files no rule matches then get a role from a second call over their
 //! paths alone (`unmatched.rs`): its rules are saved apart, in
-//! `unmatched_rules`, and apply to those files only, so they never change a
-//! file a rule matched nor rewrite a rule. A file neither matches stays
+//! `roles-unmatched.yaml`, and apply to those files only, so they never change
+//! a file a rule matched nor rewrite `roles.yaml`. A file neither matches stays
 //! [`FileRole::Unclassified`].
 
 use std::collections::BTreeMap;
@@ -52,14 +52,24 @@ const MAX_TREE_DIRS: usize = 300;
 /// File names given as a sample for each directory of the tree.
 const SAMPLE_FILES_PER_DIR: usize = 4;
 
-const ROLES_SYSTEM_PROMPT: &str = "You are analyzing the file tree of a software repository. \
-First identify the technology stack and its conventions (language, framework, where it puts things). \
-Then give glob rules that assign a role to every kind of file. Roles: \"entrypoint\" (routes, \
+/// The roles and what each one covers, shared by the prompts of both roles calls.
+macro_rules! role_definitions {
+    () => {
+        "Roles: \"entrypoint\" (routes, \
 controllers, CLI commands, jobs, message consumers, webhooks, public API of a library), \"model\" \
 (entities, schemas, domain objects, migrations), \"logic\" (services, presenters, policies and other \
 business logic), \"view\" (templates, UI components, serializers), \"infra\" (database, queue, \
 HTTP clients, deployment, CI), \"config\" (settings, manifests, lockfiles), \"test\", \"docs\", \
-\"other\" (assets, vendored or generated files). Patterns use glob syntax relative to the repo \
+\"other\" (assets, vendored or generated files). "
+    };
+}
+
+const ROLES_SYSTEM_PROMPT: &str = concat!(
+    "You are analyzing the file tree of a software repository. \
+First identify the technology stack and its conventions (language, framework, where it puts things). \
+Then give glob rules that assign a role to every kind of file. ",
+    role_definitions!(),
+    "Patterns use glob syntax relative to the repo \
 root, e.g. \"app/models/**\" or \"**/*.erb\"; when several rules match a file the most specific \
 pattern wins, so broad fallbacks are fine. Reply with ONLY a single JSON object, no prose and no \
 Markdown code fence, matching this shape: {\"stack\":\"one sentence\",\"rules\":[{\"pattern\":\
@@ -73,7 +83,8 @@ it; the match is tried on one line at a time, indentation allowed). Be thorough:
 modifier that can precede the keyword (visibility such as `pub(crate)`, `public static`, `export \
 default`, `async`, `unsafe`, `abstract`...), and also match the decorator, attribute or annotation \
 lines that sit right before a definition (`#[derive(..)]`, `@Override`, `@app.route(..)`), so a cut \
-never separates them from it. For example Ruby: \"^\\\\s*(class|module|def)\\\\s\".";
+never separates them from it. For example Ruby: \"^\\\\s*(class|module|def)\\\\s\"."
+);
 
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, schemars::JsonSchema,
@@ -135,14 +146,10 @@ pub struct RoleRules {
     /// --force` regenerates it): chunks then fall back to blank lines.
     #[serde(default)]
     pub chunk_boundaries: Vec<ChunkBoundary>,
-    /// Rules for the files no rule of `rules` matches, from the call over
-    /// their paths: applied to those files only.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub unmatched_rules: Vec<RoleRule>,
-    /// Fingerprint of the paths no rule of `rules` matched when that call was
-    /// last made: the same set is not asked about again.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub unmatched_asked: Option<String>,
+    /// The roles of the files no rule of `rules` matches, saved apart in
+    /// `roles-unmatched.yaml` (loaded with `roles.yaml`, never written into it).
+    #[serde(skip)]
+    pub unmatched: UnmatchedRoles,
 }
 
 /// A role per file, with the rules that produced it.
@@ -191,10 +198,14 @@ impl RoleMap {
 }
 
 impl RoleRules {
-    /// Loads `.retrodoc/cache/roles.yaml`. Missing or unreadable: `None`.
+    /// Loads `.retrodoc/cache/roles.yaml`, with the rules of the files no rule
+    /// matches (`roles-unmatched.yaml`, empty when absent). Missing or
+    /// unreadable `roles.yaml`: `None`.
     #[must_use]
     pub fn load(repo_root: &Path) -> Option<Self> {
-        load_yaml(&Artifact::Roles.path(repo_root))
+        let mut rules: Self = load_yaml(&Artifact::Roles.path(repo_root))?;
+        rules.unmatched = load_yaml(&Artifact::RolesUnmatched.path(repo_root)).unwrap_or_default();
+        Some(rules)
     }
 
     /// # Errors
@@ -217,11 +228,11 @@ impl RoleRules {
     /// for the others the matching rule with the most literal characters in
     /// its pattern wins (the first one on a tie). A rule whose pattern isn't
     /// a valid glob is skipped with a warning.
-    /// The files of [`RoleRules::unmatched_rules`] get theirs only when no rule
+    /// The files of the rules in [`RoleRules::unmatched`] get theirs only when no rule
     /// of `rules` matches them.
     #[must_use]
     pub fn classify(&self, files: &[FileEntry]) -> RoleMap {
-        let (matchers, fallback) = (matchers(&self.rules), matchers(&self.unmatched_rules));
+        let (matchers, fallback) = (matchers(&self.rules), matchers(&self.unmatched.rules));
         let roles = files
             .iter()
             .map(|file| {
@@ -331,7 +342,7 @@ pub async fn identify_roles(
 ) -> Result<RoleRules, PipelineError> {
     if !force {
         if let Some(mut rules) = RoleRules::load(repo_root) {
-            unmatched::classify_unmatched(repo_root, &ingest.files, llm, &mut rules).await?;
+            unmatched::classify_unmatched(repo_root, &ingest.files, llm, &mut rules).await;
             return Ok(rules);
         }
     }
@@ -361,7 +372,9 @@ pub async fn identify_roles(
         ..RoleRules::default()
     };
     rules.save(repo_root)?;
-    unmatched::classify_unmatched(repo_root, &ingest.files, llm, &mut rules).await?;
+    // New rules leave the files they did not match before: what the call gave on the old ones is dropped.
+    rules.unmatched.save(repo_root)?;
+    unmatched::classify_unmatched(repo_root, &ingest.files, llm, &mut rules).await;
     Ok(rules)
 }
 
@@ -440,6 +453,8 @@ pub(crate) fn manifest_excerpts(repo_root: &Path) -> String {
 }
 
 mod unmatched;
+
+pub use unmatched::UnmatchedRoles;
 
 #[cfg(test)]
 mod tests;
