@@ -339,7 +339,7 @@ Steps, each shippable:
 
 ## 5. Smaller open items
 
-Followed since 2026-10-30 by `issues/roles_second_pass_and_promoted_sources.md` (the source extensions below and the
+Followed since 2026-10-30 by `issues/done/roles_second_pass_and_promoted_sources.md` (the source extensions below and the
 unclassified files of §2 step 1), `issues/actors_read_long_authorization_files.md` (truncation),
 `issues/view_template_labels.md` (view templates), `issues/done/narrative_checked_against_cited_code.md` (§2 step 4d) and
 `issues/search_relevance_threshold.md` (§4 step 1). Dropped: the server-dependent causes of empty answers (not

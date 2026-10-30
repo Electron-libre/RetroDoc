@@ -118,7 +118,7 @@ The milestones up to "A large application, one bounded context at a time" are th
   - [framework_fixtures_through_generate](issues/done/framework_fixtures_through_generate.md)
   - [tree_sitter_reference_languages](issues/done/tree_sitter_reference_languages.md)
   - [stack_tables_nested_layouts](issues/done/stack_tables_nested_layouts.md)
-  - [roles_second_pass_and_promoted_sources](issues/roles_second_pass_and_promoted_sources.md)
+  - [roles_second_pass_and_promoted_sources](issues/done/roles_second_pass_and_promoted_sources.md)
   - [view_template_labels](issues/view_template_labels.md)
   - [test_layouts_singular_and_variants](issues/test_layouts_singular_and_variants.md)
 
