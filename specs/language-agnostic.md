@@ -1,6 +1,6 @@
 ---
 id: LNG
-status: accepted
+status: draft
 adrs: [0008, 0013, 0022, 0027, 0036]
 ---
 
@@ -63,6 +63,16 @@ Overflow Developer Survey and reviewed once a year (ADR 0036):
   `src/testFixtures/java/`).
 - **LNG-14** (deterministic) The walker must not classify as source a file under the root `project/` directory of
   an sbt build (a `build.sbt` at the root).
+- **LNG-15** (deterministic) `scan` and `roles` must count as source a file whose extension the saved `roles.yaml`
+  names in `source_extensions`, like the passes of `generate` read it.
+- **LNG-16** (deterministic) When files remain that no rule of `roles.yaml` matches, the roles pass must make one
+  LLM call over their paths alone (no content) and give them the roles of its answer.
+- **LNG-17** (deterministic) The rules the call of LNG-16 answers must not change the role of a file a rule of
+  `roles.yaml` matched, nor rewrite any rule of `roles.yaml`.
+- **LNG-18** (deterministic) The roles pass must not make the call of LNG-16 again while the set of files no rule
+  matches is the one already asked about.
+- **LNG-19** (deterministic) The call of LNG-16 must send at most 400 paths, and the roles pass must warn of the
+  count of files it leaves unclassified.
 
 ## Scenarios
 
@@ -105,6 +115,16 @@ Overflow Developer Survey and reviewed once a year (ADR 0036):
   the other can call); so are Scala and Java, C and C++.
 - (LNG-10) Given a Prisma schema (`prisma/schema.prisma`) and no `schema.rb` nor SQL DDL, then the glossary is
   still given, from the business files.
+- (LNG-15) Given a saved `roles.yaml` naming `ex` and `lib/shop/order.ex`, then `scan` counts it as source and
+  says one file was promoted; with no `roles.yaml`, it is counted as other.
+- (LNG-16) Given rules that match no `.coffee` file and an answer giving `app/assets/**/*.coffee` the role `view`,
+  then those files are `view` and the added rules are saved apart from the rules in `roles.yaml`.
+- (LNG-17) Given an answer whose rule `app/**` would also match `app/models/order.rb`, matched by `app/models/**`
+  (`model`), then that file stays `model`.
+- (LNG-18) Given a second `roles` or `generate` with no file added, then no call is made; given an answer that
+  leaves `Rakefile` unclassified, then the rerun does not ask about it again; given a new unmatched file, then one
+  call is made.
+- (LNG-19) Given 450 unmatched files, then the call lists 400 paths and the warning names the files left.
 
 ## Non-goals
 
@@ -119,3 +139,4 @@ Overflow Developer Survey and reviewed once a year (ADR 0036):
   configuration uses them.
 - A domain class named like a test (`BloodTest.java`, `LabTest.php`): read as a test by the suffix of LNG-6.
 - Reading a long file past its first 8 parts: the end is dropped with a warning, whatever the language.
+- Reading the content of an unmatched file to give it a role: the call of LNG-16 sees its path only.

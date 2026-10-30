@@ -43,3 +43,43 @@ Language and framework agnostic
 # Hints
 * The rules are cached and hand-editable: the second pass must not overwrite a rule the user edited.
 * A rerun with nothing changed must stay a no-op (`specs/rerun.md`).
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Give a role to the files no rule of `roles.yaml` matches, from one call over their paths, kept in a fallback tier
+of `roles.yaml` that applies to those files only (the user's rules are never touched); and make `scan` and `roles`
+count the sources `source_extensions` promotes. Out of scope: reading the content of an unmatched file.
+
+Measure of approach step 1 (saved runs, `roles` on the saved `roles.yaml`, no call; copies in
+`~/retrodoc-runs/roles_second_pass-b6b306d/`): linkding 0 of 443 unclassified, lobsters 0 of 791 and 5 of 791
+(`Makefile`, `Rakefile`, `Procfile.dev`…), delivery_router 2 of 17 (`.gitignore`, `retrodoc.toml`), the large
+Rails repository 163 of 4,181, of them ~80 of the application's code (`app/blueprints/api/*.rb` 26,
+`app/components/**/*.ts`, `app/decorators/api/*.rb` 9, `app/assets/javascripts/*.coffee` 33). Worth one call
+there; no call at all on the benchmark repositories that match everything.
+
+## Plan
+1. [x] Promoted sources in `scan` and `roles`: both apply `promote_sources` when a `roles.yaml` is saved and say how
+   many files were promoted; verified by a CLI test through the binary; makes true LNG-15.
+2. [ ] Second pass: `roles.yaml` gains `unmatched_rules` (applied only to the files no rule matches) and the
+   fingerprint of the paths last asked about; `identify_roles` makes the call over at most 400 unmatched paths,
+   skipped when none is left or the set was already asked; `roles` always goes through `identify_roles` (no
+   provider opened when no call is due) and prints the added rules; verified by CLI tests with the fake LLM
+   (`roles` and `generate`); makes true LNG-16, LNG-17, LNG-18, LNG-19.
+
+## Decisions
+- Mode: autonomous
+- Base commit: b6b306d184b3cb83fc29e5b4a7b1a3dce1612b35
+- Cap of the second-pass call: 400 paths.
+- Paid check after deliverable 2: one DeepSeek roles call on the large Rails repository (agreed).
+
+## Deliverable 1
+- done: `scan` and `roles` promote the sources of a saved `roles.yaml` and say how many (one shared message with
+  `generate`); `roles` also prints the source and test counts.
+- red: LNG-15: `scan` printed `source: 0` for `lib/shop/order.ex`; `roles` printed no promoted count.
+- checks: `just check` ok; docs: README, `docs/crates/render-mcp-cli.md`; spec: LNG-15 traced.
+- Code review: no findings
+- not verified: none.
+- decisions needed: none.

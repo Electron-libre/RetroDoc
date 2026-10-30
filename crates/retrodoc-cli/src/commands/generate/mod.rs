@@ -524,10 +524,7 @@ async fn identify_file_roles(
         )
         .await
         .context("failed to identify the file roles")?;
-    let promoted = rules.promote_sources(&mut ingest.files);
-    if promoted > 0 {
-        println!("{promoted} file(s) of the identified languages added to the source files.");
-    }
+    crate::commands::roles::promote_sources(&rules, &mut ingest.files);
     if rules.rules.is_empty() {
         return Ok(None);
     }

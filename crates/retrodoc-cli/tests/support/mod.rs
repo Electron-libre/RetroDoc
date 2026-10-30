@@ -309,8 +309,13 @@ pub fn repo(files: &[(&str, &str)], llm: &FakeLlm) -> tempfile::TempDir {
 
 /// Runs `generate` on `dir`.
 pub fn generate(dir: &Path) -> Output {
+    retrodoc(dir, "generate")
+}
+
+/// Runs the subcommand `command` on `dir`.
+pub fn retrodoc(dir: &Path, command: &str) -> Output {
     Command::new(env!("CARGO_BIN_EXE_retrodoc"))
-        .args(["generate", "--path"])
+        .args([command, "--path"])
         .arg(dir)
         .current_dir(dir)
         .env("RETRODOC_TEST_FAKE_LLM_KEY", "unused")

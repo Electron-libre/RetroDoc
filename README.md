@@ -62,7 +62,7 @@ During development, replace `retrodoc` with `cargo run -p retrodoc-cli --`.
 | Command | Purpose |
 |---|---|
 | `init` | Create a default `retrodoc.toml` |
-| `scan` | Summarize the repo (files, history, docs) without writing |
+| `scan` | Summarize the repo (files, history, docs) without writing; the languages a saved `roles.yaml` names count as source |
 | `generate` | Run the whole pipeline and write the docs (`--dry-run`, `--force`, `--no-confidence`, `--confidence-sample N`, `--max-files N`) |
 | `render` | Write the docs from the cached artifacts of the last run, no LLM call |
 | `report` | Print the documentation debt report, no LLM call |

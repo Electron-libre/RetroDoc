@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use anyhow::Context;
+use retrodoc_ingest::{FileEntry, FileKind};
 use retrodoc_llm::UsageTracker;
 use retrodoc_pipeline::{Artifact, FileRole, RoleRules};
 
@@ -8,6 +9,18 @@ use super::workspace::Workspace;
 
 /// Unclassified files listed after the distribution.
 const UNCLASSIFIED_SAMPLE: usize = 20;
+
+/// Marks as source (or test) the files of the languages `rules` names, and says how many (nothing
+/// when none): what every command shows of the sources, `generate` reads.
+pub fn promote_sources(rules: &RoleRules, files: &mut [FileEntry]) {
+    let promoted = rules.promote_sources(files);
+    if promoted > 0 {
+        println!(
+            "{promoted} file(s) of the languages of {} counted as source or test.",
+            Artifact::Roles.file_name()
+        );
+    }
+}
 
 /// Identifies the stack and the file role rules (one LLM call, or the saved
 /// `.retrodoc/cache/roles.yaml`), applies them and prints the distribution.
@@ -66,6 +79,16 @@ pub async fn run(path: &Path, force: bool, tracker: &UsageTracker) -> anyhow::Re
             );
         }
     }
+
+    println!();
+    promote_sources(&rules, &mut ingest.files);
+    let count = |kind: FileKind| ingest.files.iter().filter(|f| f.kind == kind).count();
+    println!(
+        "Files: {} (source: {}, test: {})",
+        ingest.files.len(),
+        count(FileKind::Source),
+        count(FileKind::Test)
+    );
 
     let map = rules.classify(&ingest.files);
     println!("\nDistribution ({} file(s)):", map.roles.len());

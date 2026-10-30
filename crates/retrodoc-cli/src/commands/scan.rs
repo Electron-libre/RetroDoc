@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use retrodoc_ingest::FileKind;
+use retrodoc_pipeline::RoleRules;
 
 use super::workspace::Workspace;
 
@@ -8,7 +9,10 @@ pub fn run(path: &Path) -> anyhow::Result<()> {
     let workspace = Workspace::open(path)?;
     let repo_root = &workspace.repo_root;
 
-    let result = workspace.ingest()?;
+    let mut result = workspace.ingest()?;
+    if let Some(rules) = RoleRules::load(repo_root) {
+        super::roles::promote_sources(&rules, &mut result.files);
+    }
 
     let source_count = result
         .files
