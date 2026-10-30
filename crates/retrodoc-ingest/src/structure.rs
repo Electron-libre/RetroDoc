@@ -70,6 +70,12 @@ enum Lang {
     Php,
     #[cfg(feature = "go")]
     Go,
+    #[cfg(feature = "c")]
+    C,
+    #[cfg(feature = "cpp")]
+    Cpp,
+    #[cfg(feature = "swift")]
+    Swift,
 }
 
 /// Languages that call each other: a name one defines is one the other can call.
@@ -86,6 +92,9 @@ enum Family {
     CSharp,
     Php,
     Go,
+    /// C and C++, whose headers are shared.
+    C,
+    Swift,
 }
 
 impl Lang {
@@ -116,6 +125,13 @@ impl Lang {
             "php" => Some(Self::Php),
             #[cfg(feature = "go")]
             "go" => Some(Self::Go),
+            #[cfg(feature = "c")]
+            "c" => Some(Self::C),
+            // A header may be C or C++: the C++ grammar reads both.
+            #[cfg(feature = "cpp")]
+            "cpp" | "cc" | "cxx" | "h" | "hpp" | "hh" | "hxx" => Some(Self::Cpp),
+            #[cfg(feature = "swift")]
+            "swift" => Some(Self::Swift),
             _ => None,
         }
     }
@@ -144,6 +160,12 @@ impl Lang {
             Self::Php => Family::Php,
             #[cfg(feature = "go")]
             Self::Go => Family::Go,
+            #[cfg(feature = "c")]
+            Self::C => Family::C,
+            #[cfg(feature = "cpp")]
+            Self::Cpp => Family::C,
+            #[cfg(feature = "swift")]
+            Self::Swift => Family::Swift,
         }
     }
 
@@ -197,6 +219,15 @@ impl Lang {
             ),
             #[cfg(feature = "go")]
             Self::Go => config!(tree_sitter_go::LANGUAGE, tree_sitter_go::TAGS_QUERY),
+            #[cfg(feature = "c")]
+            Self::C => config!(tree_sitter_c::LANGUAGE, C_QUERY),
+            #[cfg(feature = "cpp")]
+            Self::Cpp => config!(
+                tree_sitter_cpp::LANGUAGE,
+                &format!("{C_QUERY}\n{CPP_EXTRA_QUERY}")
+            ),
+            #[cfg(feature = "swift")]
+            Self::Swift => config!(tree_sitter_swift::LANGUAGE, SWIFT_QUERY),
         }
     }
 }
@@ -275,6 +306,42 @@ const PHP_EXTRA_QUERY: &str = "
 (function_call_expression function: (name) @name) @reference.call
 ";
 
+/// The C grammar's query tags a function by its declarator, one line, and no call: this one tags the
+/// whole definition (prototypes left out) and the calls. C++ reads it too.
+#[cfg(any(feature = "c", feature = "cpp"))]
+const C_QUERY: &str = "
+(struct_specifier name: (type_identifier) @name body: (_)) @definition.class
+(union_specifier name: (type_identifier) @name body: (_)) @definition.class
+(enum_specifier name: (type_identifier) @name body: (_)) @definition.type
+(type_definition declarator: (type_identifier) @name) @definition.type
+(function_definition declarator: (function_declarator declarator: (identifier) @name)) @definition.function
+(function_definition declarator: (pointer_declarator declarator: (function_declarator declarator: (identifier) @name))) @definition.function
+(call_expression function: (identifier) @name) @reference.call
+(call_expression function: (field_expression field: (field_identifier) @name)) @reference.call
+";
+
+/// Classes, namespaces, methods defined in or out of their class, and qualified calls.
+#[cfg(feature = "cpp")]
+const CPP_EXTRA_QUERY: &str = "
+(class_specifier name: (type_identifier) @name body: (_)) @definition.class
+(namespace_definition name: (namespace_identifier) @name) @definition.module
+(function_definition declarator: (function_declarator declarator: (field_identifier) @name)) @definition.method
+(function_definition declarator: (function_declarator declarator: (qualified_identifier name: (identifier) @name))) @definition.method
+(call_expression function: (qualified_identifier name: (identifier) @name)) @reference.call
+";
+
+/// The Swift grammar's query spans a method over its whole class and tags no call: this one tags each
+/// function over its own body, and the calls. Structs and enums are `class_declaration`s too.
+#[cfg(feature = "swift")]
+const SWIFT_QUERY: &str = "
+(class_declaration name: (type_identifier) @name) @definition.class
+(protocol_declaration name: (type_identifier) @name) @definition.interface
+(function_declaration name: (simple_identifier) @name) @definition.function
+(protocol_function_declaration name: (simple_identifier) @name) @definition.function
+(call_expression . (simple_identifier) @name) @reference.call
+(call_expression . (navigation_expression suffix: (navigation_suffix suffix: (simple_identifier) @name))) @reference.call
+";
+
 /// Whether `path` is in a language this build can parse.
 #[must_use]
 pub fn is_supported(path: &Path) -> bool {
@@ -282,7 +349,8 @@ pub fn is_supported(path: &Path) -> bool {
 }
 
 /// Whether this build parses both files as one language: a name one defines is one the other can call.
-/// JavaScript and TypeScript are one, as they import each other; so are Java, Kotlin and Scala.
+/// JavaScript and TypeScript are one, as they import each other; so are Java, Kotlin and Scala, and C
+/// and C++.
 #[must_use]
 pub fn same_language(a: &Path, b: &Path) -> bool {
     match (Lang::of(a), Lang::of(b)) {
@@ -327,6 +395,12 @@ pub fn supported_extensions() -> Vec<&'static str> {
         &["php"][..],
         #[cfg(feature = "go")]
         &["go"][..],
+        #[cfg(feature = "c")]
+        &["c"][..],
+        #[cfg(feature = "cpp")]
+        &["cpp", "cc", "cxx", "h", "hpp", "hh", "hxx"][..],
+        #[cfg(feature = "swift")]
+        &["swift"][..],
     ]
     .concat()
 }
@@ -558,9 +632,49 @@ mod tests {
         assert!(calls("a.go", source, "check", 8));
     }
 
+    // spec: LNG-8 (internal: the structure is a library API no command prints)
+    #[cfg(feature = "c")]
+    #[test]
+    fn reads_c_structs_whole_functions_and_calls() {
+        let source = "struct order {\n  int id;\n};\n\nint ship(struct order *o) {\n  return check(o);\n}\n\nchar *name(void) {\n  return o->label(o);\n}\n";
+        let found = defs("src/order.c", source);
+        has(&found, "order", "class", (1, 3));
+        has(&found, "ship", "function", (5, 7));
+        has(&found, "name", "function", (9, 11));
+        assert!(calls("a.c", source, "check", 6));
+        assert!(calls("a.c", source, "label", 10));
+    }
+
+    // spec: LNG-8 (internal: the structure is a library API no command prints)
+    #[cfg(feature = "cpp")]
+    #[test]
+    fn reads_cpp_classes_methods_and_calls_and_headers_as_cpp() {
+        let source = "class Order {\n  bool ship();\n};\n\nbool Order::ship() {\n  repo.save(*this);\n  return check(this);\n}\n";
+        let found = defs("src/order.cpp", source);
+        has(&found, "Order", "class", (1, 3));
+        has(&found, "ship", "method", (5, 8));
+        assert!(calls("a.cpp", source, "save", 6));
+        assert!(calls("a.cpp", source, "check", 7));
+        let header = defs("include/order.h", "class Order {\n  int id;\n};\n");
+        has(&header, "Order", "class", (1, 3));
+    }
+
+    // spec: LNG-8 (internal: the structure is a library API no command prints)
+    #[cfg(feature = "swift")]
+    #[test]
+    fn reads_swift_classes_functions_and_calls() {
+        let source = "class Order {\n  func ship() -> Bool {\n    repo.save(self)\n    return check(self)\n  }\n}\n\nprotocol Repo {}\n";
+        let found = defs("Sources/Shop/Order.swift", source);
+        has(&found, "Order", "class", (1, 6));
+        has(&found, "ship", "function", (2, 5));
+        has(&found, "Repo", "interface", (8, 8));
+        assert!(calls("a.swift", source, "save", 3));
+        assert!(calls("a.swift", source, "check", 4));
+    }
+
     // spec: LNG-8 (internal: `same_language` is a library API no command prints)
     #[test]
-    fn kotlin_and_scala_are_of_java() {
+    fn kotlin_and_scala_are_of_java_and_c_of_cpp() {
         assert_eq!(
             same_language(Path::new("a.kt"), Path::new("b.java")),
             cfg!(all(feature = "kotlin", feature = "java"))
@@ -570,6 +684,11 @@ mod tests {
             cfg!(all(feature = "scala", feature = "kotlin"))
         );
         assert!(!same_language(Path::new("a.cs"), Path::new("b.java")));
+        assert_eq!(
+            same_language(Path::new("a.c"), Path::new("b.h")),
+            cfg!(all(feature = "c", feature = "cpp"))
+        );
+        assert!(!same_language(Path::new("a.swift"), Path::new("b.c")));
     }
 
     #[test]

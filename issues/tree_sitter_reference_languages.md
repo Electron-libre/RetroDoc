@@ -63,7 +63,7 @@ All depend on `tree-sitter-language` 0.1, so they load in `tree-sitter` 0.27. Bu
    (`docs/crates/core-ingest.md`, ADR 0022 note); verified by one structure test per language and a family test;
    makes true part of LNG-8. ~400 lines.
 2. [x] PHP and Go: features `php`, `go`, PHP call pattern; verified by one test per language; part of LNG-8. ~200 lines.
-3. [ ] C, C++ and Swift: features `c`, `cpp`, `swift`, patterns for whole function bodies and calls; C and C++ one
+3. [x] C, C++ and Swift: features `c`, `cpp`, `swift`, patterns for whole function bodies and calls; C and C++ one
    family; verified by one test per language and a family test; completes LNG-8, spec `accepted`. ~350 lines.
 
 ## Decisions
@@ -109,4 +109,23 @@ red: LNG-8: `called Option::unwrap() on a None value` (no grammar for `.php`, `.
 Code review: no findings
 
 not verified: a run on a real PHP or Go repository.
+decisions needed: none
+
+## Deliverable 3 summary
+done: C, C++ (`.h` with the C++ grammar) and Swift parsed (features on by default), with queries of our own; C and
+C++ one family; spec `accepted` (every LNG requirement traced).
+
+| check | result |
+|---|---|
+| tests | `just check` green |
+| lint | clippy pedantic clean, also with `c`, `cpp` or `swift` alone |
+| specs | LNG-8 traced for every reference language, spec `accepted` |
+| docs | `docs/crates/core-ingest.md` |
+| code review | see below |
+
+red: LNG-8: `called Option::unwrap() on a None value` (no grammar for `.c`, `.cpp`, `.h`, `.swift`); family test:
+`same_language("a.c", "b.h")` was false.
+Code review: no findings
+
+not verified: a run on a real C, C++ or Swift repository; C++ templates and Objective-C headers not tested.
 decisions needed: none
