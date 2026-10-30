@@ -73,6 +73,11 @@ Overflow Developer Survey and reviewed once a year (ADR 0036):
 - **LNG-19** (deterministic) The call of LNG-16 must send at most 400 paths, and the roles pass must warn of the
   count of files it leaves unclassified.
 
+- **LNG-20** (deterministic) The promotion of LNG-2 and LNG-15 must leave out a file whose extension is one of
+  templates, markup, stylesheets or data (`erb`, `haml`, `slim`, `jbuilder`, `html`, `css`, `scss`, `json`,
+  `yaml`... the full list in `walker.rs`), whatever `source_extensions` names, and `scan`, `roles` and `generate` must print
+  the extensions they left out.
+
 ## Scenarios
 
 - (LNG-1) Given an Elixir repository (`mix.exs`, `lib/**/*.ex`) and a fake LLM whose roles answer names `ex` in
@@ -128,6 +133,12 @@ Overflow Developer Survey and reviewed once a year (ADR 0036):
   then no call is made; given a new unmatched `Procfile`, then one call is made, listing `Procfile` alone.
 - (LNG-19) Given 454 unmatched files, then the call lists the 400 shallowest, the warning gives the count left
   unclassified, and the next run sends the 54 others.
+
+- (LNG-20) Given `source_extensions: [rb, erb, jbuilder, scss]`, then `app/views/orders/show.html.erb`,
+  `app/views/orders/show.json.jbuilder` and `app/assets/stylesheets/app.scss` stay other files and `scan` prints
+  `erb, jbuilder, scss`; `app/models/order.rb` is source.
+- (LNG-20) Given `source_extensions: [vue, svelte, astro]`, then their files are promoted: they hold code and
+  markup together.
 
 ## Non-goals
 

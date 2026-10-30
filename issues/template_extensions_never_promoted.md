@@ -44,3 +44,34 @@ Language and framework agnostic
 # Hints
 * `vue`, `svelte` and `astro` files hold code and markup together; linkding lists `astro`: decide before
   denying them.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Approach step 1 measured without LLM on the saved copy of the large Rails repository (run of the ledger, 2026-10-30): the LLM names
+`rb, js, ts, erb, jbuilder, scss, css, rake`, so 1,253 `erb` + 53 `jbuilder` + 52 `scss` + 28 `css` = 1,386 files
+become `Source` next to 2,280 `rb`, i.e. ~38 % of the source set of the file ranking, business files and chunk check.
+Means: candidate (a), a deny list in `promote_to_source`, the dropped extensions logged (LNG-20). Out of scope: the
+built-in `php` making `.blade.php` source, the prompt text.
+
+## Plan
+1. [x] Deny list of template, markup, stylesheet and data extensions in `promote_to_source`, returned to the callers
+   and logged by the roles pass; verified by a walker test and a `scan` test through the binary; makes true LNG-20.
+
+## Decisions
+- Mode: autonomous
+- Answer 1 a: `jbuilder` and `rabl` are denied (view templates of Rails).
+- Answer 2 a: `vue`, `svelte`, `astro` stay promotable (code and markup together).
+- Answer 3 a: `.blade.php` and the other templates the built-in extensions make source go to a new issue.
+- Base commit: e8d3b82f93c7f7fe8df4d72d364cd15eb13db17c
+
+## Deliverable 1
+- done: `promote_to_source` leaves out the extensions of `NEVER_SOURCE` (templates, markup, stylesheets, data;
+  `vue`, `svelte`, `astro` kept); `scan`, `roles` and `generate` print the ones `roles.yaml` named; LNG-20 added,
+  spec back to `accepted`; findings §5, `docs/crates/pipeline.md`, `docs/crates/render-mcp-cli.md` updated.
+- red: LNG-20: `scan` printed `source: 5` for `source: 2` (erb, jbuilder, scss promoted); the walker test did not
+  compile (`denied_source_extensions` missing).
+- Code review: no findings.
+- not verified: no run on the large Rails repository (the measure is the file count of the saved copy).

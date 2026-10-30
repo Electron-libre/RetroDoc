@@ -122,6 +122,7 @@ The milestones up to "A large application, one bounded context at a time" are th
   - [view_template_labels](issues/done/view_template_labels.md)
   - [template_extensions_never_promoted](issues/template_extensions_never_promoted.md)
   - [test_layouts_singular_and_variants](issues/test_layouts_singular_and_variants.md)
+  - [built_in_extension_templates_read_as_source](issues/built_in_extension_templates_read_as_source.md)
 
 ## A large application, one bounded context at a time
 

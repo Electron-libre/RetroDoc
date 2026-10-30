@@ -64,3 +64,33 @@ fn roles_counts_the_promoted_sources() {
     );
     assert!(out.contains("source: 1"), "{out}");
 }
+
+// spec: LNG-20
+#[test]
+fn templates_stylesheets_and_data_are_never_promoted() {
+    let llm = FakeLlm::start(|call| panic!("no call expected, got {}", call.pass));
+    let roles = "stack: Rails\nrules:\n- pattern: app/**\n  role: logic\nsource_extensions:\n\
+                 - rb\n- erb\n- jbuilder\n- scss\n- vue\n";
+    let dir = repo(
+        &[
+            ("app/models/order.rb", "class Order\nend\n"),
+            (
+                "app/views/orders/show.html.erb",
+                "<h1><%= @order.id %></h1>\n",
+            ),
+            ("app/views/orders/show.json.jbuilder", "json.id @order.id\n"),
+            ("app/assets/stylesheets/app.scss", "h1 { color: red; }\n"),
+            ("app/javascript/Order.vue", "<template><p/></template>\n"),
+            (".retrodoc/cache/roles.yaml", roles),
+        ],
+        &llm,
+    );
+
+    let out = stdout_of(dir.path(), "scan");
+
+    assert!(out.contains("source: 2,"), "{out}");
+    assert!(
+        out.contains("not counted as source: erb, jbuilder, scss"),
+        "{out}"
+    );
+}

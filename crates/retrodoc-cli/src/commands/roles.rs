@@ -11,9 +11,18 @@ use super::workspace::Workspace;
 const UNCLASSIFIED_SAMPLE: usize = 20;
 
 /// Marks as source (or test) the files of the languages `rules` names, and says how many (nothing
-/// when none): what every command shows of the sources, `generate` reads.
+/// when none), and the extensions of templates, markup, stylesheets or data it left out: what every
+/// command shows of the sources, `generate` reads.
 pub fn promote_sources(rules: &RoleRules, files: &mut [FileEntry]) {
     let promoted = rules.promote_sources(files);
+    let denied = rules.denied_source_extensions();
+    if !denied.is_empty() {
+        println!(
+            "Extensions of {} not counted as source: {} (templates, markup, stylesheets or data).",
+            Artifact::Roles.file_name(),
+            denied.join(", ")
+        );
+    }
     if promoted > 0 {
         println!(
             "{promoted} file(s) of the languages of {} counted as source or test.",

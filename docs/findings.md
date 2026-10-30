@@ -355,9 +355,11 @@ large application that gave no entry point (§2 step 3; not reproducible without
   saved `roles.yaml`). Checked through `generate` on an Elixir fixture with a fake LLM (`tests/unknown_stack.rs`),
   not yet on a real repo; `scan` and `roles` apply the saved `source_extensions` too and count the promoted files.
 - `.erb` view templates are meant to stay `FileKind::Other` (1,253 files on the Rails test repo): the file budget and
-  the actors pass select on `FileKind::Source` only, never on role. Only the roles prompt keeps them so: on that
-  repository the roles pass listed `erb` and `scss` in `source_extensions`, which promotes them
-  (`issues/template_extensions_never_promoted.md`). They keep their `view` role (used by `classify`).
+  the actors pass select on `FileKind::Source` only, never on role. On that repository the roles pass listed `erb`,
+  `jbuilder`, `scss` and `css` in `source_extensions` (1,386 files, ~38 % of the source set); since 2026-10-30
+  (`issues/template_extensions_never_promoted.md`) the promotion leaves out the extensions of templates, markup,
+  stylesheets and data whatever the answer (LNG-20), `vue`, `svelte` and `astro` kept (code and markup together).
+  They keep their `view` role (used by `classify`).
   Dropped (2026-10-30, `issues/done/view_template_labels.md`): extracting their labels. Measured without LLM on the
   pinned benchmark repositories: the visible text of the templates (text nodes, `label`/`placeholder`/`title`/`alt`/
   `aria-label`/`value` attributes, quoted strings of the template tags such as `f.label :x, "Text"`) against the

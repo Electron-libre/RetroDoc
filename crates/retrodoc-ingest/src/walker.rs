@@ -26,6 +26,61 @@ const CAPITAL_TEST_SUFFIX: &[&str] =
 /// The language directories of a Gradle source set (`src/<set>/java/`).
 const JVM_SOURCE_DIRS: &[&str] = &["java", "kotlin", "groovy", "scala", "resources"];
 
+/// Extensions of templates, markup, stylesheets and data: never promoted to
+/// source, whatever the stack identification answers. `vue`, `svelte` and
+/// `astro` are not here: their files hold code and markup together.
+const NEVER_SOURCE: &[&str] = &[
+    // Templates (Ruby, Python, JavaScript, PHP, .NET, Java, Go, Elixir).
+    "erb",
+    "rhtml",
+    "haml",
+    "slim",
+    "jbuilder",
+    "rabl",
+    "jinja",
+    "jinja2",
+    "j2",
+    "njk",
+    "hbs",
+    "handlebars",
+    "mustache",
+    "twig",
+    "liquid",
+    "ejs",
+    "pug",
+    "jade",
+    "tpl",
+    "tmpl",
+    "gohtml",
+    "cshtml",
+    "razor",
+    "jsp",
+    "eex",
+    "heex",
+    "leex",
+    // Markup.
+    "html",
+    "htm",
+    "xhtml",
+    "xml",
+    "svg",
+    // Stylesheets.
+    "css",
+    "scss",
+    "sass",
+    "less",
+    "styl",
+    "pcss",
+    // Data.
+    "json",
+    "yaml",
+    "yml",
+    "toml",
+    "csv",
+    "tsv",
+    "ini",
+];
+
 /// Directory names that mark everything below them as tests.
 const TEST_DIRS: &[&str] = &["tests", "test", "spec", "specs", "__tests__", "e2e"];
 
@@ -54,12 +109,12 @@ impl FileKind {
 /// (with or without the dot, case-insensitive) into [`FileKind::Source`], or
 /// [`FileKind::Test`] by the usual test-path heuristic. The built-in list of
 /// [`FileKind::from_path`] only knows common languages; this lets the stack
-/// identification add the others. Returns the number of files promoted.
+/// identification add the others. The extensions of
+/// [`denied_source_extensions`] are left out. Returns the number of files
+/// promoted.
 pub fn promote_to_source(files: &mut [FileEntry], extensions: &[String]) -> usize {
-    let wanted: Vec<String> = extensions
-        .iter()
-        .map(|e| e.trim().trim_start_matches('.').to_lowercase())
-        .filter(|e| !e.is_empty())
+    let wanted: Vec<String> = normalized(extensions)
+        .filter(|e| !NEVER_SOURCE.contains(&e.as_str()))
         .collect();
     let sbt = is_sbt_build(files);
     let mut promoted = 0;
@@ -81,6 +136,27 @@ pub fn promote_to_source(files: &mut [FileEntry], extensions: &[String]) -> usiz
         }
     }
     promoted
+}
+
+/// The extensions of `extensions` that [`promote_to_source`] leaves out
+/// (templates, markup, stylesheets, data), normalized, in their order.
+#[must_use]
+pub fn denied_source_extensions(extensions: &[String]) -> Vec<String> {
+    let mut denied: Vec<String> = Vec::new();
+    for ext in normalized(extensions).filter(|e| NEVER_SOURCE.contains(&e.as_str())) {
+        if !denied.contains(&ext) {
+            denied.push(ext);
+        }
+    }
+    denied
+}
+
+/// Without the dot, trimmed, lowercase; the empty ones dropped.
+fn normalized(extensions: &[String]) -> impl Iterator<Item = String> + '_ {
+    extensions
+        .iter()
+        .map(|e| e.trim().trim_start_matches('.').to_lowercase())
+        .filter(|e| !e.is_empty())
 }
 
 /// A build script written in a language of the reference set
@@ -337,6 +413,31 @@ mod tests {
                 FileKind::Other
             ]
         );
+    }
+
+    // spec: LNG-20 (internal: the deny list of every stack, too long to run through the binary)
+    #[test]
+    fn templates_markup_stylesheets_and_data_are_never_promoted() {
+        let denied = [
+            "erb", "haml", "slim", "jbuilder", "rabl", "html", "htm", "jinja", "j2", "hbs",
+            "mustache", "twig", "liquid", "ejs", "pug", "cshtml", "jsp", "heex", "eex", "xml",
+            "svg", "css", "scss", "sass", "less", "json", "yaml", "yml", "toml", "csv",
+        ];
+        let mut files: Vec<FileEntry> = denied
+            .iter()
+            .chain(&["vue", "svelte", "astro"])
+            .map(|ext| FileEntry {
+                path: PathBuf::from(format!("app/page.{ext}")),
+                kind: FileKind::Other,
+                size_bytes: 0,
+            })
+            .collect();
+        let wanted: Vec<String> = files
+            .iter()
+            .map(|f| f.path.extension().unwrap().to_string_lossy().to_uppercase())
+            .collect();
+        assert_eq!(promote_to_source(&mut files, &wanted), 3);
+        assert_eq!(denied_source_extensions(&wanted).len(), denied.len());
     }
 
     // spec: LNG-14 (internal: the roles call that promotes extensions needs an LLM through the binary)

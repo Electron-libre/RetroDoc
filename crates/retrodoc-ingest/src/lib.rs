@@ -18,7 +18,7 @@ pub use error::IngestError;
 pub use existing_docs::ExistingDoc;
 pub use git_history::{CommitSubject, FileHistory};
 pub use signals::{Signal, SignalKind};
-pub use walker::{promote_to_source, FileEntry, FileKind};
+pub use walker::{denied_source_extensions, promote_to_source, FileEntry, FileKind};
 
 use retrodoc_core::config::IngestConfig;
 
