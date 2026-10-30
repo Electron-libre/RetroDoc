@@ -113,6 +113,7 @@ The milestones up to "A large application, one bounded context at a time" are th
   accelerators with a generic fallback, and cover the reference set of stacks (ADR 0036).
 - Why: the stack knowledge grew from the measured repositories only, so the tables drifted towards their stacks.
 - State: done
+- Released: v0.2.0
 - Issues:
   - [stack_tables_cover_the_reference_set](issues/done/stack_tables_cover_the_reference_set.md)
   - [framework_fixtures_through_generate](issues/done/framework_fixtures_through_generate.md)
