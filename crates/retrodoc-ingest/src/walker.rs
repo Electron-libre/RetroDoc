@@ -19,6 +19,10 @@ pub enum FileKind {
     Other,
 }
 
+/// Languages whose test files are named `FooTest` or `FooTests`.
+const CAPITAL_TEST_SUFFIX: &[&str] =
+    &["java", "kt", "kts", "groovy", "cs", "php", "scala", "swift"];
+
 /// Directory names that mark everything below them as tests.
 const TEST_DIRS: &[&str] = &["tests", "test", "spec", "specs", "__tests__", "e2e"];
 
@@ -26,8 +30,7 @@ impl FileKind {
     fn from_path(path: &Path) -> Self {
         match path.extension().and_then(|e| e.to_str()) {
             Some("md" | "mdx") => FileKind::Markdown,
-            // A Gradle build script is a manifest, not code of the application.
-            Some("kts") if is_gradle_script(path) => FileKind::Other,
+            _ if is_build_script(path) => FileKind::Other,
             Some(
                 "rs" | "ts" | "tsx" | "mts" | "cts" | "js" | "jsx" | "mjs" | "cjs" | "py" | "go"
                 | "java" | "kt" | "kts" | "rb" | "php" | "c" | "h" | "cc" | "cpp" | "hpp" | "cs"
@@ -56,7 +59,10 @@ pub fn promote_to_source(files: &mut [FileEntry], extensions: &[String]) -> usiz
         .filter(|e| !e.is_empty())
         .collect();
     let mut promoted = 0;
-    for file in files.iter_mut().filter(|f| f.kind == FileKind::Other) {
+    for file in files
+        .iter_mut()
+        .filter(|f| f.kind == FileKind::Other && !is_build_script(&f.path))
+    {
         let matches = file
             .path
             .extension()
@@ -74,10 +80,13 @@ pub fn promote_to_source(files: &mut [FileEntry], extensions: &[String]) -> usiz
     promoted
 }
 
-/// `build.gradle.kts`, `settings.gradle.kts`.
-fn is_gradle_script(path: &Path) -> bool {
-    path.file_stem()
-        .is_some_and(|s| s.to_string_lossy().ends_with(".gradle"))
+/// A build script written in a language of the reference set
+/// (`build.gradle.kts`, `settings.gradle.kts`, `Package.swift`): a manifest,
+/// not code of the application.
+fn is_build_script(path: &Path) -> bool {
+    path.file_name()
+        .map(|n| n.to_string_lossy())
+        .is_some_and(|n| n.ends_with(".gradle.kts") || n == "Package.swift")
 }
 
 /// Heuristic test detection on a repo-relative path: a test directory
@@ -102,7 +111,13 @@ fn is_test_path(path: &Path) -> bool {
         .iter()
         .any(|suffix| lower.ends_with(suffix))
         || lower.starts_with("test_")
-        || has_capital_test_suffix(&stem)
+        || (has_capital_test_suffix(&stem) && uses_capital_test_suffix(path))
+}
+
+fn uses_capital_test_suffix(path: &Path) -> bool {
+    path.extension()
+        .map(|e| e.to_string_lossy().to_lowercase())
+        .is_some_and(|e| CAPITAL_TEST_SUFFIX.contains(&e.as_str()))
 }
 
 /// `OrderTest`, `OrderTests`: the capital `Test` after a word, so `Contest`
@@ -258,8 +273,12 @@ mod tests {
             entry("web/b.EXS", FileKind::Other),
             entry("app/show.html.erb", FileKind::Other),
             entry("lib/c.rs", FileKind::Source),
+            entry("build.gradle.kts", FileKind::Other),
         ];
-        let promoted = promote_to_source(&mut files, &[".ex".into(), "exs".into(), " ".into()]);
+        let promoted = promote_to_source(
+            &mut files,
+            &[".ex".into(), "exs".into(), "kts".into(), " ".into()],
+        );
         let kinds: Vec<_> = files.iter().map(|f| f.kind).collect();
         assert_eq!(promoted, 3);
         assert_eq!(
@@ -269,7 +288,8 @@ mod tests {
                 FileKind::Test,
                 FileKind::Source,
                 FileKind::Other,
-                FileKind::Source
+                FileKind::Source,
+                FileKind::Other
             ]
         );
     }
@@ -301,6 +321,7 @@ mod tests {
             "src/main/java/shop/Contest.java",
             "src/main/java/shop/Test.java",
             "src/main/kotlin/Order.kts",
+            "src/components/SpeedTest.tsx",
         ] {
             assert_eq!(
                 FileKind::from_path(Path::new(source)),
@@ -308,10 +329,13 @@ mod tests {
                 "{source}"
             );
         }
-        assert_eq!(
-            FileKind::from_path(Path::new("build.gradle.kts")),
-            FileKind::Other
-        );
+        for build_script in ["build.gradle.kts", "Package.swift"] {
+            assert_eq!(
+                FileKind::from_path(Path::new(build_script)),
+                FileKind::Other,
+                "{build_script}"
+            );
+        }
         // Non-code files under a test dir stay non-code.
         assert_eq!(
             FileKind::from_path(Path::new("tests/test_api.yml")),

@@ -259,10 +259,23 @@ fn pom_manifest(content: &str) -> Summary {
 }
 
 /// Gradle scripts are code: the dependencies are the `group:artifact` of the
-/// coordinates quoted on a line, test configurations left out.
+/// coordinates quoted on a dependency configuration line, test
+/// configurations left out.
 fn gradle_manifest(content: &str) -> Summary {
     let dependencies = line_values(content, |line| {
-        if line.starts_with("test") || line.starts_with("//") {
+        let configuration: String = line
+            .chars()
+            .take_while(char::is_ascii_alphanumeric)
+            .collect::<String>()
+            .to_lowercase();
+        let is_dependency = ["implementation", "api", "compileonly", "runtimeonly"]
+            .iter()
+            .any(|c| configuration.ends_with(c))
+            || matches!(
+                configuration.as_str(),
+                "compile" | "runtime" | "annotationprocessor" | "kapt" | "ksp"
+            );
+        if !is_dependency || configuration.contains("test") {
             return None;
         }
         let (_, _, coordinates) = quoted_strings(line, &['"', '\'']).into_iter().next()?;
@@ -305,12 +318,10 @@ fn swift_manifest(content: &str) -> Summary {
 /// `build.sbt`: `name := "x"`, and the artifact of each `"org" % "artifact"`
 /// (or `%%`) dependency.
 fn sbt_manifest(content: &str) -> Summary {
-    let name = line_values(content, |line| {
+    let name = content.lines().map(str::trim).find_map(|line| {
         let rest = line.strip_prefix("name")?.trim_start().strip_prefix(":=")?;
         quoted(rest.trim_start())
-    })
-    .into_iter()
-    .next();
+    });
     // Scala strings are double-quoted (`'a'` is a character), and a comment
     // could hold an odd quote.
     let content: String = content
@@ -322,11 +333,30 @@ fn sbt_manifest(content: &str) -> Summary {
     let strings = quoted_strings(content, &['"']);
     let is_percent = |between: &str| matches!(between.trim(), "%" | "%%" | "%%%");
     let mut dependencies = Vec::new();
+    // `% Test`, `% "test"`, `% IntegrationTest` after the version.
+    let is_test_scoped = |after: &str| {
+        let mut in_string = false;
+        let end = after
+            .char_indices()
+            .find(|&(_, c)| {
+                in_string ^= c == '"';
+                !in_string && matches!(c, ',' | ')' | '\n')
+            })
+            .map_or(after.len(), |(at, _)| at);
+        after[..end]
+            .split('%')
+            .map(str::trim)
+            .map(|scope| scope.trim_matches('"'))
+            .any(|scope| scope.ends_with("Test") || scope.split(',').any(|s| s.trim() == "test"))
+    };
     for (i, pair) in strings.windows(2).enumerate() {
         let (_, org_end, _) = &pair[0];
-        let (art_start, _, artifact) = &pair[1];
+        let (art_start, art_end, artifact) = &pair[1];
         let follows_percent = i > 0 && is_percent(&content[strings[i - 1].1..strings[i].0]);
-        if is_percent(&content[*org_end..*art_start]) && !follows_percent {
+        if is_percent(&content[*org_end..*art_start])
+            && !follows_percent
+            && !is_test_scoped(&content[*art_end..])
+        {
             dependencies.push(artifact.clone());
         }
     }
@@ -338,16 +368,25 @@ fn sbt_manifest(content: &str) -> Summary {
 }
 
 /// A `.csproj`: the `AssemblyName` (else the file name), the `Description`
-/// and the `PackageReference` names.
+/// and the `Include` of each `PackageReference`.
 fn csproj_manifest(file: &str, content: &str) -> Summary {
-    let marker = "<PackageReference Include=";
+    let marker = "<PackageReference";
     let dependencies = content
         .match_indices(marker)
-        .filter_map(|(at, _)| quoted(&content[at + marker.len()..]))
+        .filter_map(|(at, _)| {
+            let element = &content[at + marker.len()..];
+            let element = &element[..element.find('>').unwrap_or(element.len())];
+            // `Include`, not `IncludeAssets`.
+            element.match_indices("Include").find_map(|(at, _)| {
+                let value = element[at + "Include".len()..].trim_start();
+                quoted(value.strip_prefix('=')?.trim_start())
+            })
+        })
         .collect();
+    // `$(MSBuildProjectName)` and the like are MSBuild properties.
+    let assembly = tag("AssemblyName", content).filter(|n| !n.contains("$("));
     Summary {
-        name: tag("AssemblyName", content)
-            .or_else(|| Some(file.trim_end_matches(".csproj").to_string())),
+        name: assembly.or_else(|| Some(file.trim_end_matches(".csproj").to_string())),
         description: tag("Description", content),
         dependencies,
     }
@@ -497,7 +536,9 @@ mod tests {
         let groovy = "plugins {\n    id 'org.springframework.boot' version '3.2.0'\n}\n\
             dependencies {\n    implementation 'org.springframework.boot:spring-boot-starter-web'\n\
             runtimeOnly \"org.postgresql:postgresql:42.7\"\n\
-            testImplementation 'org.junit:junit:4'\n    // implementation 'a:b'\n}\n";
+            testImplementation 'org.junit:junit:4'\n    // implementation 'a:b'\n\
+            androidTestImplementation 'androidx.test:runner:1.5'\n}\n\
+            flyway {\n    url = 'jdbc:postgresql://localhost:5432/shop'\n}\n";
         assert_eq!(
             text_of("build.gradle", groovy),
             "dependencies: org.springframework.boot:spring-boot-starter-web, org.postgresql:postgresql"
@@ -517,12 +558,13 @@ mod tests {
             dir.path().join("Shop.Api.csproj"),
             "<Project><PropertyGroup><Description>Sells</Description></PropertyGroup>\
              <ItemGroup><PackageReference Include=\"Serilog\" Version=\"3\" />\
-             <PackageReference Include=\"Dapper\" /></ItemGroup></Project>",
+             <PackageReference IncludeAssets=\"all\" Include=\"Dapper\" />\
+             <PackageReference Version=\"8\"\n    Include = \"Npgsql\" /></ItemGroup></Project>",
         )
         .unwrap();
         fs::write(
             dir.path().join("Tools.csproj"),
-            "<Project><PropertyGroup><AssemblyName>shop-tools</AssemblyName></PropertyGroup></Project>",
+            "<Project><PropertyGroup><AssemblyName>$(MSBuildProjectName)</AssemblyName></PropertyGroup></Project>",
         )
         .unwrap();
         let signals = manifest_metadata(dir.path());
@@ -535,9 +577,9 @@ mod tests {
             vec![
                 (
                     "Shop.Api.csproj",
-                    "name: Shop.Api\ndescription: Sells\ndependencies: Serilog, Dapper"
+                    "name: Shop.Api\ndescription: Sells\ndependencies: Serilog, Dapper, Npgsql"
                 ),
-                ("Tools.csproj", "name: shop-tools"),
+                ("Tools.csproj", "name: Tools"),
             ]
         );
     }
@@ -560,7 +602,10 @@ mod tests {
             "build.sbt",
             "name := \"shop\"\n// don't upgrade play\nval sep = ','\nlibraryDependencies ++= Seq(\n\
              guice,\n  \"com.typesafe.play\" %% \"play-slick\" % \"5.1\",\n\
-             \"org.postgresql\" % \"postgresql\" % \"42.7\" % Test\n)\n",
+             \"org.postgresql\" % \"postgresql\" % \"42.7\",\n\
+             \"org.scalatest\" %% \"scalatest\" % \"3.2\" % Test,\n\
+             \"org.mockito\" % \"mockito-core\" % \"5\" % \"test\",\n\
+             \"org.h2\" % \"h2\" % \"2\" % \"it,test\"\n)\n",
         );
         assert_eq!(text, "name: shop\ndependencies: play-slick, postgresql");
     }

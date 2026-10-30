@@ -65,10 +65,13 @@ Overflow Developer Survey and reviewed once a year (ADR 0036):
 - (LNG-3) Given a 40 KB `.ex` file and a boundary regex that matches no line, then it is cut at blank lines.
 - (LNG-4) Given a Django fixture and a Spring Boot fixture, when the prompts of `generate` are captured, then their
   instruction parts are equal and only the file lists, extracts and paths differ.
-- (LNG-5) Given `build.gradle.kts` and `settings.gradle.kts`, then they are not source files: a Gradle build script
-  is read as a manifest (LNG-7), never as code of the application; `src/main/kotlin/Order.kts` is a source file.
+- (LNG-5) Given `build.gradle.kts`, `settings.gradle.kts` and `Package.swift`, then they are not source files, even
+  when the roles call names `kts` or `swift`: a build script is read as a manifest (LNG-7), never as code of the
+  application; `src/main/kotlin/Order.kts` is a source file.
 - (LNG-6) Given `src/main/java/shop/OrderTest.java` outside any test directory, then it is a test file; given
-  `src/main/java/shop/Contest.java`, then it is a source file (the suffix is `Test` with a capital, after a word).
+  `src/main/java/shop/Contest.java`, then it is a source file (the suffix is `Test` with a capital, after a word);
+  given `src/components/SpeedTest.tsx`, then it is a source file (the capital suffix is the convention of Java,
+  Kotlin, Groovy, C#, PHP, Scala and Swift only).
 - (LNG-7) Given a `.csproj` file at the root under any name (`Shop.Api.csproj`), then it is read.
 - (LNG-7) Given a manifest that does not parse, then it is skipped and the brief is still written.
 - (LNG-10) Given a Prisma schema (`prisma/schema.prisma`) and no `schema.rb` nor SQL DDL, then the glossary is

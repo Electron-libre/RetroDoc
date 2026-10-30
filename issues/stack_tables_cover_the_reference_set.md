@@ -37,6 +37,8 @@ PHP or Swift repository is classified and briefed without relying on the roles c
 
 Plan: validated
 
+Done: every deliverable committed; follow-ups in `issues/stack_tables_nested_layouts.md`.
+
 ## Understanding
 Make the walker's built-in tables (source extensions, test heuristic) and the manifest reader of the product brief
 cover the reference set of `specs/language-agnostic.md`, so these stacks need no roles call to be classified and
@@ -53,6 +55,11 @@ briefed. Out of scope: grammars (LNG-8), framework fixtures (LNG-9), both have t
    (`name :=`, `"org" %% "artifact"` dependencies), by string scanning, no new crate; verified by a
    `retrodoc brief --signals` test (13 manifests counted at the root) plus one unit test per format and an
    unparseable one; makes true LNG-7. ~350 lines.
+3. [x] High review fixes: build scripts (`*.gradle.kts`, `Package.swift`) stay out of the source even when the
+   roles call names their extension; the capital `Test` suffix only for the languages whose convention it is;
+   Gradle reads dependency configurations only (no JDBC URL, no `*Test*` configuration); sbt drops test-scoped
+   dependencies; `.csproj` `Include` in any attribute order, `$(...)` names ignored; verified by unit cases;
+   amends the LNG-5 and LNG-6 scenarios.
 
 ## Decisions
 - Mode: autonomous
@@ -89,5 +96,25 @@ briefed. Out of scope: grammars (LNG-8), framework fixtures (LNG-9), both have t
 
 - red: LNG-7: `brief --signals` counted `Manifest 8` for 13 manifests.
 - Code review: no findings
+- not verified: none
+- decisions needed: none
+
+## Deliverable 3 (high review of `9dbfd7c..925f52c`)
+- done: 7 of the 10 findings fixed; the 3 others (Gradle version catalogs, nested `.csproj`, .NET test-project
+  directories) plus `project/*.scala` and `BloodTest.java` go to `issues/stack_tables_nested_layouts.md`.
+
+| check | result |
+|---|---|
+| tests | `just check` green |
+| lint | clean |
+| specs | LNG-5, LNG-6 scenarios amended |
+| docs | `docs/crates/core-ingest.md` |
+| code review | low, run |
+
+- red: LNG-5, LNG-6: `build.gradle.kts` promoted to source by `kts` (4 promoted, 3 expected), `SpeedTest.tsx`
+  classified Test; Gradle listed `androidx.test:runner, jdbc:postgresql`; sbt kept `scalatest, mockito-core`;
+  csproj missed `Npgsql` and named `$(MSBuildProjectName)`.
+- Code review: 2 findings, both fixed: `IncludeAssets` matched before `Include` in a `PackageReference`, and an sbt
+  scope `% "it,test"` cut at its comma; cases added to the unit tests. Second low review: no findings.
 - not verified: none
 - decisions needed: none
