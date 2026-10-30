@@ -7,6 +7,7 @@
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
+use std::panic::AssertUnwindSafe;
 use std::path::Path;
 use std::process::{Command, Output};
 use std::sync::{Arc, Mutex};
@@ -89,8 +90,17 @@ fn serve(
     let mut stream = stream;
     while let Some(body) = read_request(&mut reader) {
         let call = call_of(&body);
-        let content = answer(&call);
-        kept.lock().unwrap().push(call);
+        kept.lock().unwrap().push(call.clone());
+        // A pass with no script answers a 500 naming it, rather than a dropped connection.
+        let Ok(content) = std::panic::catch_unwind(AssertUnwindSafe(|| answer(&call))) else {
+            let message = format!("no script for the pass {}", call.pass);
+            let response = format!(
+                "HTTP/1.1 500 Internal Server Error\r\nContent-Length: {}\r\n\r\n{message}",
+                message.len()
+            );
+            let _ = stream.write_all(response.as_bytes());
+            return;
+        };
         let payload = json!({
             "model": "fake",
             "choices": [{"message": {"role": "assistant", "content": content}, "finish_reason": "stop"}],

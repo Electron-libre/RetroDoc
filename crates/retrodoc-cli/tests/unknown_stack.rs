@@ -35,7 +35,15 @@ fn run() -> (tempfile::TempDir, FakeLlm, std::process::Output) {
         entry: "lib/shop_web/order_controller.ex",
         model: "lib/shop/order.ex",
     };
-    let llm = FakeLlm::start(move |call| app.answer(call));
+    // The business files also name the test file: read only if it were taken for source.
+    let llm = FakeLlm::start(move |call| match call.pass.as_str() {
+        "business-files" => serde_json::json!({"business": [
+            {"path": "lib/", "reason": "the shop"},
+            {"path": "test/shop_test.ex", "reason": "the shop"},
+        ]})
+        .to_string(),
+        _ => app.answer(call),
+    });
     let dir = repo(
         &[
             (
@@ -75,15 +83,19 @@ fn read_paths(llm: &FakeLlm) -> Vec<String> {
 // spec: LNG-1
 #[test]
 fn generate_documents_a_repository_of_an_unknown_language() {
-    let (dir, llm, output) = run();
+    let (dir, _llm, output) = run();
     let stdout = String::from_utf8_lossy(&output.stdout);
 
     assert!(output.status.success(), "{stdout}");
     let functional = dir.path().join("docs/functional");
     assert!(functional.join("orders/README.md").is_file(), "{stdout}");
+    let entry_points =
+        std::fs::read_to_string(dir.path().join(".retrodoc/cache/entry-points.yaml"))
+            .unwrap_or_default();
     assert!(
-        read_paths(&llm).contains(&"lib/shop_web/order_controller.ex".to_string()),
-        "{stdout}"
+        entry_points.contains("lib/shop_web/order_controller.ex")
+            && entry_points.contains("GET /orders"),
+        "{entry_points}\n{stdout}"
     );
 }
 
@@ -115,6 +127,7 @@ fn a_long_file_of_an_unparsed_language_is_cut_at_blank_lines() {
         .collect();
 
     assert!(parts.len() >= 2, "{parts:?}\n{stdout}");
+    assert!(!stdout.contains("file too long"), "{stdout}");
     for part in parts.iter().filter(|p| !p.starts_with("(part 1/")) {
         let first = part.lines().nth(1).unwrap_or_default();
         assert!(

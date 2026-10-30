@@ -46,11 +46,11 @@ scope: the grammars (`tree_sitter_reference_languages`), LNG-8, any quality judg
 fixed in the deliverable that shows it if small, else filed as an issue.
 
 ## Plan
-1. [x] Scripted fake LLM + Elixir fixture: `tests/support/fake_llm.rs` (reads the whole request by
+1. [x] Scripted fake LLM + Elixir fixture: `tests/support/mod.rs` (reads the whole request by
    `Content-Length`, recognises the pass by schema name, then system prompt start for the three `Response`
    passes, answers from a per-fixture script, keeps the request bodies); `tests/unknown_stack.rs` runs `generate` on
    `mix.exs` + `lib/**/*.ex` + `test/*_test.ex` with `source_extensions: [".EX"]`; verified by exit 0 and docs
-   written (LNG-1), the entry-points requests holding `lib/shop.ex` and not the test file (LNG-2), a 20 KB `.ex`
+   written (LNG-1), the reading requests holding `lib/shop/order.ex` and not the test file (LNG-2), a 20 KB `.ex`
    file sent in parts cut at blank lines (LNG-3); makes true LNG-1, LNG-2, LNG-3. ~600 lines.
 2. [x] Framework fixtures: a table of the 19 frameworks (manifest, entry point, model, test, a few lines each)
    generated into temp repos by a helper, one test per framework through `generate`, no ` WARN ` line; the Django
@@ -60,6 +60,7 @@ fixed in the deliverable that shows it if small, else filed as an issue.
    with no manifest and an unparseable one still gives the brief; the Elixir fixture (no grammar) gives entry
    points from its parts; `PLAN.md` §7.4 updated (promotion of `source_extensions` now checked); verified by
    `tests/stack_fallbacks.rs`; makes true LNG-10. ~300 lines.
+4. [x] Fixes of the `high` review: verified by the same tests; makes LNG-1, LNG-2, LNG-3 proven as written.
 
 ## Decisions
 - Mode: autonomous
@@ -96,3 +97,18 @@ fixed in the deliverable that shows it if small, else filed as an issue.
 - Code review: no findings
 - not verified: on a real repository of an unknown language (`PLAN.md` §7.4 keeps it open). LNG-8 stays untraced,
   so the spec stays `draft` until `tree_sitter_reference_languages`.
+
+## Deliverable 4 (high review of `250ea3d..8c8755c`, 10 findings)
+- done: fixed 1 (LNG-2: the business files now name `test/shop_test.ex`, read only if taken for source), 3 (LNG-3
+  asserts no "file too long"), 4 (the cap of 8 parts is a non-goal of the spec), 5 (LNG-1 asserts the entry point
+  saved from `lib/shop_web/order_controller.ex`, the scenario reworded: the entry points are read from the `.ex`
+  files), 6 (the fake server records a request before answering and answers 500 naming a pass with no script),
+  9 (the plan names the real files).
+- not fixed: 2 (pass told apart by system prompt words for the three `Response` schemas: renaming those structs is a
+  production change outside the issue; finding 6 now makes a miss explicit); 7 (each test runs its own
+  `generate`, 0.1 s each; sharing a run would keep its temp dir in a static); 8 (duplicated helpers in the older CLI
+  tests: `issues/cli_tests_shared_support.md`); 10 (LNG-4 compares the system prompts only: the user prompts mix
+  fixed headers with content and no generic split exists; `prompt_print_covers_what_is_sent` covers user-prompt
+  text).
+- red: none (fixes of existing tests).
+- Code review: no findings

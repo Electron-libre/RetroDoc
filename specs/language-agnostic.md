@@ -58,7 +58,7 @@ Overflow Developer Survey and reviewed once a year (ADR 0036):
 ## Scenarios
 
 - (LNG-1) Given an Elixir repository (`mix.exs`, `lib/**/*.ex`) and a fake LLM whose roles answer names `ex` in
-  `source_extensions`, when `generate` runs, then it exits 0 and the entry points pass reads the `.ex` files.
+  `source_extensions`, when `generate` runs, then it exits 0 and the entry points are read from the `.ex` files.
 - (LNG-2) Given `source_extensions: [".EX"]`, then `lib/shop.ex` is read as source (dot and case ignored).
 - (LNG-2) Given `source_extensions` naming `ex` and a file `test/shop_test.ex`, then it is a test file, not a
   source file.
@@ -86,3 +86,4 @@ Overflow Developer Survey and reviewed once a year (ADR 0036):
 - Reading view templates (`.erb`, `.blade.php`, `.cshtml`) as source.
 - A language outside the reference set beyond the generic path of LNG-1 to LNG-3.
 - Generated, vendored or minified code.
+- Reading a long file past its first 8 parts: the end is dropped with a warning, whatever the language.
