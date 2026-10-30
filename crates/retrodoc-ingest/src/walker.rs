@@ -207,9 +207,11 @@ const COMPOUND_TEMPLATE_SUFFIXES: &[&str] = &[".blade.php", ".html.php", ".tpl.p
 /// A view template that ends in a built-in source extension
 /// (`index.blade.php`): markup, not code of the application.
 fn is_compound_template(path: &Path) -> bool {
-    path.file_name()
-        .map(|n| n.to_string_lossy().to_lowercase())
-        .is_some_and(|n| COMPOUND_TEMPLATE_SUFFIXES.iter().any(|s| n.ends_with(s)))
+    let name = path.file_name().map_or(&[][..], |n| n.as_encoded_bytes());
+    COMPOUND_TEMPLATE_SUFFIXES.iter().any(|suffix| {
+        name.len() >= suffix.len()
+            && name[name.len() - suffix.len()..].eq_ignore_ascii_case(suffix.as_bytes())
+    })
 }
 
 /// An sbt build: a `build.sbt` at the root, whose `project/` directory holds
@@ -514,25 +516,6 @@ mod tests {
             promote_to_source(&mut rb, &["erb".into()]),
             Promotion::default()
         );
-    }
-
-    // spec: LNG-21 (internal: the roles call that promotes extensions needs an LLM through the binary)
-    #[test]
-    fn templates_of_a_built_in_extension_are_never_promoted() {
-        let entry = |path: &str| FileEntry {
-            path: PathBuf::from(path),
-            kind: FileKind::from_path(Path::new(path)),
-            size_bytes: 0,
-        };
-        let mut files = vec![
-            entry("resources/views/orders/index.blade.php"),
-            entry("templates/order.html.php"),
-            entry("themes/node.tpl.php"),
-            entry("tests/views/order.blade.php"),
-        ];
-        let promotion = promote_to_source(&mut files, &["php".into()]);
-        assert_eq!(promotion, Promotion::default());
-        assert!(files.iter().all(|f| f.kind == FileKind::Other));
     }
 
     // spec: LNG-14 (internal: the roles call that promotes extensions needs an LLM through the binary)

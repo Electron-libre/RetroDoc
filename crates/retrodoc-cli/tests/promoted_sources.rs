@@ -114,3 +114,31 @@ fn roles_prints_the_extensions_left_out() {
         "{out}"
     );
 }
+
+// spec: LNG-21
+#[test]
+fn templates_of_a_built_in_extension_are_never_promoted() {
+    let llm = FakeLlm::start(|call| panic!("no call expected, got {}", call.pass));
+    let roles =
+        "stack: Laravel\nrules:\n- pattern: '**'\n  role: logic\nsource_extensions:\n- php\n";
+    let dir = repo(
+        &[
+            (
+                "app/Models/Order.php",
+                "<?php\nclass Order extends Model {}\n",
+            ),
+            (
+                "resources/views/orders/index.blade.php",
+                "<h1>{{ $order->id }}</h1>\n",
+            ),
+            ("templates/order.html.php", "<h1><?= $order->id ?></h1>\n"),
+            ("themes/node.tpl.php", "<h1><?php print $title; ?></h1>\n"),
+            (".retrodoc/cache/roles.yaml", roles),
+        ],
+        &llm,
+    );
+
+    let out = stdout_of(dir.path(), "scan");
+
+    assert!(out.contains("source: 1,"), "{out}");
+}

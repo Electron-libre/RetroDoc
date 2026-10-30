@@ -57,6 +57,9 @@ files of Drupal 7. No other compound suffix of the reference set ends in a built
    files other; verified by a `scan` test in `stack_tables.rs` and a promotion unit test in `walker.rs`; makes true
    LNG-21.
 
+2. [x] Review fixes of the `high` review: LNG-21 proven through `scan` with `php` in `roles.yaml`, no allocation per
+   walked file, Volt components named in the non-goal; verified by `promoted_sources.rs`; makes true LNG-21.
+
 ## Decisions
 - Mode: autonomous
 - Base commit: 78dc1da8dfce21b0670cca9c66e1383fbae56dce
@@ -78,4 +81,25 @@ files of Drupal 7. No other compound suffix of the reference set ends in a built
   promotion unit test promoted the templates once `php` was named.
 - Code review: no findings
 - not verified: no run on a real Laravel repository (none in the benchmark or the smoke tests).
+- decisions needed: none.
+
+## Deliverable 2 (`high` review of the issue)
+- done: the internal promotion test replaced by `promoted_sources.rs` (`scan` with a saved `roles.yaml` naming `php`);
+  `is_compound_template` compares bytes case-insensitively, no allocation; spec non-goal names Volt components.
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | pass |
+| specs | pass |
+| docs | `specs/language-agnostic.md` |
+| code review | `high` on the issue: 7 findings; `low` on this fix: see below |
+
+- Code review: no findings (`low` on this fix)
+- red: none (the new test replaces an internal one proving the same clause).
+- `high` review, 7 findings: fixed: Laravel path not proven through the binary (2, 7), allocation per file (5);
+  spec: Volt components left out, now a stated non-goal (1); not fixed: compound templates not printed like LNG-20
+  (3, consistent with build scripts, never printed either), a generic inner-extension rule (4, the measure found no
+  other suffix), case-sensitive build-script names (6, Gradle and SwiftPM names are case-sensitive).
+- not verified: no run on a real Laravel repository.
 - decisions needed: none.

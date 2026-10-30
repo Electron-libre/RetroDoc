@@ -160,7 +160,8 @@ Overflow Developer Survey and reviewed once a year (ADR 0036):
   benchmark, not required here.
 - An adapter per framework (a route parser, an ORM parser): rejected by `docs/findings.md` §2, a framework is recognised by
   the LLM from the tree and the manifests.
-- Reading view templates (`.erb`, `.blade.php`, `.cshtml`) as source.
+- Reading view templates (`.erb`, `.blade.php`, `.cshtml`) as source: a Livewire Volt component, whose PHP class
+  lives in its `.blade.php`, is left out with them (LNG-21).
 - A language outside the reference set beyond the generic path of LNG-1 to LNG-3.
 - Generated, vendored or minified code.
 - Telling the test libraries of a Gradle version catalog from the others: the catalog does not say which
