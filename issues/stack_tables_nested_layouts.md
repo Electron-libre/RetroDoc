@@ -38,3 +38,38 @@ Language and framework agnostic
 
 # Hints
 * A file newly classified as test leaves the file budget and the fingerprints: a saved run re-reads the passes.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Make the nested JVM and .NET layouts give the signals of the flat ones: Gradle version catalog and the `.csproj`
+of a solution as manifests, .NET test projects and Gradle test source sets as tests, the sbt `project/` out of the
+source. Out of scope: the `BloodTest.java` trade-off (a non-goal of the spec), telling catalog test libraries apart.
+
+## Plan
+1. [x] Walker layouts: a directory ending in `Tests` and a Gradle source set `src/<name>Test/` or `src/testFixtures/` are test
+   directories; the root `project/` of an sbt build is kept out of the source, in `walk_repo` and
+   `promote_to_source`; verified by `stack_tables.rs` through `scan` and walker unit tests; makes true LNG-13, LNG-14
+   (~150 lines).
+2. [ ] Gradle version catalog: `gradle/libs.versions.toml` read as a manifest (`module`, `group`/`name`, string
+   notation); verified by `stack_tables.rs` through `brief --signals` and `manifest.rs` unit tests; makes true LNG-11
+   (~120 lines).
+3. [ ] Nested `.csproj`: the projects the root `.sln` lists, else one or two levels down, bounded, test projects
+   and paths outside the repo left out; verified likewise; makes true LNG-12, sets the spec `accepted` (~200 lines).
+
+## Decisions
+- Mode: autonomous
+- Catalog: every library of `[libraries]`, test ones included (answer 1 a).
+- `Tests` directory rule: every language (answer 2 a).
+- `src/testFixtures/` is a test directory (answer 3 a).
+- Base commit: ca76e57564bb06779392fff1e58d56dde7b07ee7
+
+## Deliverable 1: walker layouts
+- done: `*Tests` directories, `src/<name>Test/` and `src/testFixtures/` are test directories; the root `project/` of
+  an sbt build is `Other` in `walk_repo` and never promoted.
+- checks: `just check` ok; docs `docs/crates/core-ingest.md`.
+- red: LNG-13, LNG-14: `Files: 9 (source: 7, test: 1, ...)` and `Files: 4 (source: 2, test: 0, markdown: 0, other: 2)`.
+- Code review: no findings.
+- not verified: none. decisions needed: none.

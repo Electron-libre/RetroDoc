@@ -58,11 +58,11 @@ pub fn promote_to_source(files: &mut [FileEntry], extensions: &[String]) -> usiz
         .map(|e| e.trim().trim_start_matches('.').to_lowercase())
         .filter(|e| !e.is_empty())
         .collect();
+    let sbt = is_sbt_build(files);
     let mut promoted = 0;
-    for file in files
-        .iter_mut()
-        .filter(|f| f.kind == FileKind::Other && !is_build_script(&f.path))
-    {
+    for file in files.iter_mut().filter(|f| {
+        f.kind == FileKind::Other && !is_build_script(&f.path) && !(sbt && in_sbt_project(&f.path))
+    }) {
         let matches = file
             .path
             .extension()
@@ -89,16 +89,32 @@ fn is_build_script(path: &Path) -> bool {
         .is_some_and(|n| n.ends_with(".gradle.kts") || n == "Package.swift")
 }
 
+/// An sbt build: a `build.sbt` at the root, whose `project/` directory holds
+/// build code (`Dependencies.scala`), not code of the application.
+fn is_sbt_build(files: &[FileEntry]) -> bool {
+    files.iter().any(|f| f.path == Path::new("build.sbt"))
+}
+
+fn in_sbt_project(path: &Path) -> bool {
+    path.starts_with("project")
+}
+
 /// Heuristic test detection on a repo-relative path: a test directory
 /// anywhere in it, or a conventional test file name (`foo_test.go`,
 /// `foo.spec.ts`, `test_foo.py`, `foo_spec.rb`, `FooTest.java`,
 /// `FooTests.cs`).
 fn is_test_path(path: &Path) -> bool {
-    let in_test_dir = path
+    let dirs: Vec<String> = path
         .parent()
         .into_iter()
         .flat_map(Path::components)
-        .any(|c| TEST_DIRS.contains(&c.as_os_str().to_string_lossy().to_lowercase().as_str()));
+        .map(|c| c.as_os_str().to_string_lossy().into_owned())
+        .collect();
+    let in_test_dir = dirs.iter().enumerate().any(|(i, dir)| {
+        TEST_DIRS.contains(&dir.to_lowercase().as_str())
+            || is_test_project_dir(dir)
+            || (i > 0 && dirs[i - 1] == "src" && is_test_source_set(dir))
+    });
     if in_test_dir {
         return true;
     }
@@ -112,6 +128,24 @@ fn is_test_path(path: &Path) -> bool {
         .any(|suffix| lower.ends_with(suffix))
         || lower.starts_with("test_")
         || (has_capital_test_suffix(&stem) && uses_capital_test_suffix(path))
+}
+
+/// A .NET test project (`Shop.Tests`, `Shop.UnitTests`, `ShopIntegrationTests`):
+/// the capital `Tests` after a word or a dot.
+fn is_test_project_dir(dir: &str) -> bool {
+    dir.strip_suffix("Tests")
+        .and_then(|w| w.chars().last())
+        .is_some_and(|c| c.is_alphanumeric() || c == '.')
+}
+
+/// A Gradle test source set under `src/`: `integrationTest`, `functionalTest`,
+/// `testFixtures`.
+fn is_test_source_set(dir: &str) -> bool {
+    dir == "testFixtures"
+        || dir
+            .strip_suffix("Test")
+            .and_then(|w| w.chars().last())
+            .is_some_and(char::is_alphanumeric)
 }
 
 fn uses_capital_test_suffix(path: &Path) -> bool {
@@ -203,6 +237,14 @@ pub fn walk_repo(repo_root: &Path, extra_ignore: &[String]) -> Result<Vec<FileEn
         });
     }
     entries.sort_by(|a, b| a.path.cmp(&b.path));
+    if is_sbt_build(&entries) {
+        for entry in entries
+            .iter_mut()
+            .filter(|e| in_sbt_project(&e.path) && e.kind != FileKind::Markdown)
+        {
+            entry.kind = FileKind::Other;
+        }
+    }
     Ok(entries)
 }
 
@@ -294,6 +336,25 @@ mod tests {
         );
     }
 
+    // spec: LNG-14 (internal: the roles call that promotes extensions needs an LLM through the binary)
+    #[test]
+    fn the_sbt_project_directory_is_not_promoted() {
+        let entry = |path: &str| FileEntry {
+            path: PathBuf::from(path),
+            kind: FileKind::Other,
+            size_bytes: 0,
+        };
+        let mut sbt = vec![
+            entry("build.sbt"),
+            entry("project/Build.scala"),
+            entry("app/A.scala"),
+        ];
+        assert_eq!(promote_to_source(&mut sbt, &["scala".into()]), 1);
+        assert_eq!(sbt[1].kind, FileKind::Other);
+        let mut plain = vec![entry("project/Build.scala")];
+        assert_eq!(promote_to_source(&mut plain, &["scala".into()]), 1);
+    }
+
     #[test]
     fn classifies_tests_apart_from_source() {
         for test in [
@@ -306,6 +367,10 @@ mod tests {
             "tools/test_parser.py",
             "src/main/java/shop/OrderTest.java",
             "Shop/OrderTests.cs",
+            "Shop.Tests/Fakes/FakeClock.cs",
+            "ShopTests/Order.swift",
+            "core/src/integrationTest/kotlin/OrderIT.kt",
+            "src/testFixtures/java/OrderBuilder.java",
         ] {
             assert_eq!(
                 FileKind::from_path(Path::new(test)),
@@ -322,6 +387,9 @@ mod tests {
             "src/main/java/shop/Test.java",
             "src/main/kotlin/Order.kts",
             "src/components/SpeedTest.tsx",
+            "src/main/java/shop/Contests/Draw.java",
+            "src/Tests.Api/Order.cs",
+            "lib/integrationTest/a.kt",
         ] {
             assert_eq!(
                 FileKind::from_path(Path::new(source)),

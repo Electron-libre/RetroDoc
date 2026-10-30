@@ -169,3 +169,49 @@ fn every_reference_manifest_is_read() {
         .and_then(|count| count.parse::<usize>().ok());
     assert_eq!(manifests, Some(MANIFESTS.len()), "{out}");
 }
+
+// spec: LNG-13
+#[test]
+fn nested_test_projects_and_source_sets_are_test() {
+    let tests = [
+        "Shop.Tests/Fakes/FakeClock.cs",
+        "tests/Shop.UnitTests/Builders/OrderBuilder.cs",
+        "ShopIntegrationTests/Db.cs",
+        "src/integrationTest/kotlin/OrderIT.kt",
+        "app/src/functionalTest/java/shop/Flow.java",
+        "src/testFixtures/java/OrderBuilder.java",
+    ];
+    let sources = [
+        "src/main/java/shop/Contests/Draw.java",
+        "src/Shop.Api/Order.cs",
+    ];
+    let dir = repo(&[&tests[..], &sources[..]].concat());
+
+    let out = scan(dir.path());
+
+    let expected = format!(
+        "(source: {}, test: {}, markdown: 0, other: 1)",
+        sources.len(),
+        tests.len()
+    );
+    assert!(out.contains(&expected), "{out}");
+}
+
+// spec: LNG-14
+#[test]
+fn the_sbt_project_directory_is_not_source() {
+    let sbt = repo(&["build.sbt", "project/Dependencies.scala", "app/Shop.scala"]);
+    let plain = repo(&["project/Dependencies.scala"]);
+
+    // retrodoc.toml, build.sbt and the build code are the other files.
+    let out = scan(sbt.path());
+    assert!(
+        out.contains("(source: 1, test: 0, markdown: 0, other: 3)"),
+        "{out}"
+    );
+    let out = scan(plain.path());
+    assert!(
+        out.contains("(source: 1, test: 0, markdown: 0, other: 1)"),
+        "{out}"
+    );
+}

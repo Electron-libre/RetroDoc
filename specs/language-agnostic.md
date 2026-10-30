@@ -1,6 +1,6 @@
 ---
 id: LNG
-status: accepted
+status: draft
 adrs: [0008, 0013, 0022, 0027, 0036]
 ---
 
@@ -54,6 +54,15 @@ Overflow Developer Survey and reviewed once a year (ADR 0036):
   application of each framework of the reference set (one entry point, one model, one test).
 - **LNG-10** (deterministic) A pass with a reader of one stack must still give its output, from the generic path,
   on a repository with no file that reader knows (the reader of `schema.rb`, of a manifest, a grammar).
+- **LNG-11** (deterministic) The product brief must read the libraries of the Gradle version catalog
+  `gradle/libs.versions.toml` as the dependencies of a manifest.
+- **LNG-12** (deterministic) The product brief must read the `*.csproj` files the root `.sln` lists, else those one
+  or two directory levels below the root, test projects left out.
+- **LNG-13** (deterministic) The walker must classify as test a file under a .NET test project directory (a name
+  ending in `Tests`: `Shop.Tests/`, `Shop.UnitTests/`) or a Gradle test source set (`src/integrationTest/`,
+  `src/testFixtures/`).
+- **LNG-14** (deterministic) The walker must not classify as source a file under the root `project/` directory of
+  an sbt build (a `build.sbt` at the root).
 
 ## Scenarios
 
@@ -74,6 +83,19 @@ Overflow Developer Survey and reviewed once a year (ADR 0036):
   Kotlin, Groovy, C#, PHP, Scala and Swift only).
 - (LNG-7) Given a `.csproj` file at the root under any name (`Shop.Api.csproj`), then it is read.
 - (LNG-7) Given a manifest that does not parse, then it is skipped and the brief is still written.
+- (LNG-11) Given a catalog whose `[libraries]` give a `module`, a `group` and `name`, and a
+  `"group:artifact:version"` string, then each gives its `group:artifact`; given a `build.gradle.kts` that names its
+  dependencies only through the catalog (`implementation(libs.spring.web)`), then the brief still has dependencies.
+- (LNG-12) Given a root `Shop.sln` listing `src\Shop.Api\Shop.Api.csproj` and `tests\Shop.Tests\Shop.Tests.csproj`,
+  then `src/Shop.Api/Shop.Api.csproj` is read and the test project is not; given no `.sln`, then
+  `src/Shop.Api/Shop.Api.csproj` is read, and a `.csproj` three levels down is not; a path of the `.sln` outside
+  the repository is not read.
+- (LNG-13) Given `Shop.Tests/Fakes/FakeClock.cs`, `src/integrationTest/kotlin/OrderIT.kt` and
+  `src/testFixtures/java/OrderBuilder.java`, then they are test files; given
+  `src/main/java/shop/Contests/Draw.java`, then it is a source file (`Tests` with a capital, after a word;
+  `Contests` has none).
+- (LNG-14) Given `build.sbt` and `project/Dependencies.scala`, then the latter is not a source file, even when the
+  roles call names `scala`; given `project/Dependencies.scala` with no `build.sbt`, then it is a source file.
 - (LNG-8) Given a file of each language of the reference set with a type, a method spanning several lines and a
   call in it, then the structure gives the type and the method with their first and last lines, and the call.
 - (LNG-8) Given a Kotlin file and a Java file, then they are one language for the slices (a name one defines is one
@@ -90,4 +112,7 @@ Overflow Developer Survey and reviewed once a year (ADR 0036):
 - Reading view templates (`.erb`, `.blade.php`, `.cshtml`) as source.
 - A language outside the reference set beyond the generic path of LNG-1 to LNG-3.
 - Generated, vendored or minified code.
+- Telling the test libraries of a Gradle version catalog from the others: the catalog does not say which
+  configuration uses them.
+- A domain class named like a test (`BloodTest.java`, `LabTest.php`): read as a test by the suffix of LNG-6.
 - Reading a long file past its first 8 parts: the end is dropped with a warning, whatever the language.
