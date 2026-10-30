@@ -9,8 +9,11 @@
 //! reviewable and hand-editable: when the file exists it is reused as is
 //! (`force` re-identifies).
 //!
-//! Files no rule matches stay [`FileRole::Unclassified`]; the planned second
-//! pass over just those paths is not implemented yet.
+//! The files no rule matches then get a role from a second call over their
+//! paths alone (`unmatched.rs`): its rules are saved apart, in
+//! `unmatched_rules`, and apply to those files only, so they never change a
+//! file a rule matched nor rewrite a rule. A file neither matches stays
+//! [`FileRole::Unclassified`].
 
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
@@ -132,6 +135,14 @@ pub struct RoleRules {
     /// --force` regenerates it): chunks then fall back to blank lines.
     #[serde(default)]
     pub chunk_boundaries: Vec<ChunkBoundary>,
+    /// Rules for the files no rule of `rules` matches, from the call over
+    /// their paths: applied to those files only.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub unmatched_rules: Vec<RoleRule>,
+    /// Fingerprint of the paths no rule of `rules` matched when that call was
+    /// last made: the same set is not asked about again.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unmatched_asked: Option<String>,
 }
 
 /// A role per file, with the rules that produced it.
@@ -206,46 +217,20 @@ impl RoleRules {
     /// for the others the matching rule with the most literal characters in
     /// its pattern wins (the first one on a tie). A rule whose pattern isn't
     /// a valid glob is skipped with a warning.
+    /// The files of [`RoleRules::unmatched_rules`] get theirs only when no rule
+    /// of `rules` matches them.
     #[must_use]
     pub fn classify(&self, files: &[FileEntry]) -> RoleMap {
-        let mut matchers: Vec<(usize, GlobMatcher, FileRole)> = Vec::new();
-        for rule in &self.rules {
-            if rule.role == FileRole::Unclassified {
-                tracing::warn!(pattern = %rule.pattern, "role rule with an unknown role, ignored");
-                continue;
-            }
-            let pattern = if rule.pattern.ends_with('/') {
-                format!("{}**", rule.pattern)
-            } else {
-                rule.pattern.clone()
-            };
-            match Glob::new(pattern.trim_start_matches("./")) {
-                Ok(glob) => {
-                    matchers.push((specificity(&pattern), glob.compile_matcher(), rule.role));
-                }
-                Err(err) => {
-                    tracing::warn!(pattern = %rule.pattern, error = %err, "invalid role rule pattern, ignored");
-                }
-            }
-        }
-
+        let (matchers, fallback) = (matchers(&self.rules), matchers(&self.unmatched_rules));
         let roles = files
             .iter()
             .map(|file| {
                 let role = match file.kind {
                     FileKind::Test => FileRole::Test,
                     FileKind::Markdown => FileRole::Docs,
-                    FileKind::Source | FileKind::Other => matchers
-                        .iter()
-                        .filter(|(_, matcher, _)| matcher.is_match(&file.path))
-                        .fold(
-                            None::<(usize, FileRole)>,
-                            |best, (score, _, role)| match best {
-                                Some((b, _)) if b >= *score => best,
-                                _ => Some((*score, *role)),
-                            },
-                        )
-                        .map_or(FileRole::Unclassified, |(_, role)| role),
+                    FileKind::Source | FileKind::Other => best_match(&matchers, &file.path)
+                        .or_else(|| best_match(&fallback, &file.path))
+                        .unwrap_or(FileRole::Unclassified),
                 };
                 (file.path.clone(), role)
             })
@@ -255,6 +240,47 @@ impl RoleRules {
             chunk_boundaries: self.chunk_boundaries.clone(),
         }
     }
+}
+
+/// The compiled globs of `rules`, each with its specificity.
+fn matchers(rules: &[RoleRule]) -> Vec<(usize, GlobMatcher, FileRole)> {
+    let mut matchers: Vec<(usize, GlobMatcher, FileRole)> = Vec::new();
+    for rule in rules {
+        if rule.role == FileRole::Unclassified {
+            tracing::warn!(pattern = %rule.pattern, "role rule with an unknown role, ignored");
+            continue;
+        }
+        let pattern = if rule.pattern.ends_with('/') {
+            format!("{}**", rule.pattern)
+        } else {
+            rule.pattern.clone()
+        };
+        match Glob::new(pattern.trim_start_matches("./")) {
+            Ok(glob) => {
+                matchers.push((specificity(&pattern), glob.compile_matcher(), rule.role));
+            }
+            Err(err) => {
+                tracing::warn!(pattern = %rule.pattern, error = %err, "invalid role rule pattern, ignored");
+            }
+        }
+    }
+    matchers
+}
+
+/// The role of the matching rule with the most literal characters (the first
+/// one on a tie), `None` when no rule matches `path`.
+fn best_match(matchers: &[(usize, GlobMatcher, FileRole)], path: &Path) -> Option<FileRole> {
+    matchers
+        .iter()
+        .filter(|(_, matcher, _)| matcher.is_match(path))
+        .fold(
+            None::<(usize, FileRole)>,
+            |best, (score, _, role)| match best {
+                Some((b, _)) if b >= *score => best,
+                _ => Some((*score, *role)),
+            },
+        )
+        .map(|(_, role)| role)
 }
 
 /// The chunk splitter of the repo, from its saved `roles.yaml` (blank-line
@@ -289,7 +315,9 @@ struct RolesResponse {
 /// of any fingerprint: the rules are reused as saved): the saved `roles.yaml` if there is
 /// one (and `force` is false), otherwise the result of one LLM call over the
 /// file tree, saved for next time. An unparseable answer yields empty rules
-/// (every file unclassified) with a warning, and is not saved.
+/// (every file unclassified) with a warning, and is not saved. Then the files
+/// no rule matches get theirs from a second call over their paths, unless that
+/// set of files was already asked about (see `unmatched.rs`).
 ///
 /// # Errors
 ///
@@ -302,7 +330,8 @@ pub async fn identify_roles(
     force: bool,
 ) -> Result<RoleRules, PipelineError> {
     if !force {
-        if let Some(rules) = RoleRules::load(repo_root) {
+        if let Some(mut rules) = RoleRules::load(repo_root) {
+            unmatched::classify_unmatched(repo_root, &ingest.files, llm, &mut rules).await?;
             return Ok(rules);
         }
     }
@@ -324,13 +353,15 @@ pub async fn identify_roles(
     };
     let chunk_boundaries =
         verify_boundaries(repo_root, &ingest.files, llm, response.chunk_boundaries).await?;
-    let rules = RoleRules {
+    let mut rules = RoleRules {
         stack: response.stack,
         rules: response.rules,
         source_extensions: response.source_extensions,
         chunk_boundaries,
+        ..RoleRules::default()
     };
     rules.save(repo_root)?;
+    unmatched::classify_unmatched(repo_root, &ingest.files, llm, &mut rules).await?;
     Ok(rules)
 }
 
@@ -407,6 +438,8 @@ pub(crate) fn manifest_excerpts(repo_root: &Path) -> String {
     }
     out
 }
+
+mod unmatched;
 
 #[cfg(test)]
 mod tests;

@@ -63,7 +63,7 @@ there; no call at all on the benchmark repositories that match everything.
 ## Plan
 1. [x] Promoted sources in `scan` and `roles`: both apply `promote_sources` when a `roles.yaml` is saved and say how
    many files were promoted; verified by a CLI test through the binary; makes true LNG-15.
-2. [ ] Second pass: `roles.yaml` gains `unmatched_rules` (applied only to the files no rule matches) and the
+2. [x] Second pass: `roles.yaml` gains `unmatched_rules` (applied only to the files no rule matches) and the
    fingerprint of the paths last asked about; `identify_roles` makes the call over at most 400 unmatched paths,
    skipped when none is left or the set was already asked; `roles` always goes through `identify_roles` (no
    provider opened when no call is due) and prints the added rules; verified by CLI tests with the fake LLM
@@ -83,3 +83,15 @@ there; no call at all on the benchmark repositories that match everything.
 - Code review: no findings
 - not verified: none.
 - decisions needed: none.
+
+## Deliverable 2
+- done: `roles/unmatched.rs`: one call over at most 400 unmatched paths, its rules saved in `unmatched_rules`
+  (applied to the files no rule of `rules` matches only), the asked set fingerprinted in `unmatched_asked`, a warning
+  of the files left; `roles` opens a provider only when a call is due and prints the added rules; spec `accepted`.
+- checks: `just check` ok; docs: `docs/crates/pipeline.md`, `docs/ARCHITECTURE.md`, `docs/findings.md` §2.
+- red: LNG-16, LNG-17, LNG-18, LNG-19: no `roles-unmatched` call was made (`left: 0, right: 1`).
+- Code review: 2 findings, none fixed: (1) `roles` labels the rules `reused` while the second call runs: intended, the label is of the rules of `rules`, which are not asked again; (2) empty rules saved on an unparseable answer: no, `identify_roles` returns before any save or second call.
+- not verified: the answer of a real model on the large Rails repository (the paid check agreed at step 2, next).
+- decisions needed: none.
+- Note: the fake LLM of the CLI tests answers `** -> other` to the second call, so the minimal apps of LNG-9 stay
+  warning-free; a test of the boundaries got a rule so it still makes one call.

@@ -5,8 +5,10 @@ mod support;
 
 use support::{repo, retrodoc, FakeLlm};
 
+/// Every file matched, so `roles` has no call to make.
 const ROLES: &str =
-    "stack: Elixir\nrules:\n- pattern: lib/**\n  role: logic\nsource_extensions:\n- ex\n";
+    "stack: Elixir\nrules:\n- pattern: lib/**\n  role: logic\n- pattern: '*.toml'\n  \
+                     role: config\nsource_extensions:\n- ex\n";
 
 /// An Elixir shop the walker does not know, with the roles saved or not.
 fn shop(llm: &FakeLlm, roles_saved: bool) -> tempfile::TempDir {

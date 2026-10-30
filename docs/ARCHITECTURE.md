@@ -72,7 +72,7 @@ flowchart LR
     ren --> out
     rep["report"] -->|reads, no LLM| art
     rep --> debt["debt report<br/>(stdout)"]
-    roles["roles"] -->|LLM, 1 call| rolesyaml["roles.yaml"]
+    roles["roles"] -->|LLM, 1-2 calls| rolesyaml["roles.yaml"]
     brief["brief"] -->|LLM, 2-3 calls| prodyaml["product.yaml<br/>signal-sources.yaml"]
     biz["business-files"] -->|LLM, 1 call| bizyaml["business-files.yaml"]
     ctx["contexts"] -->|LLM, 1-5 calls| ctxyaml["contexts.yaml"]
@@ -248,7 +248,7 @@ Guarantees:
 │   ├── fingerprints.json          #   what the incremental re-run compares against
 │   ├── behaviour-coverage.yaml    #   entry points without a feature (per context in contexts mode) or without a use case (per feature), files reached by no behaviour
 │   ├── scope.yaml                 #   files left out by the budget (`--max-files`), listed in the report
-│   ├── roles.yaml                 #   (phase 7) glob → role rules, hand-editable
+│   ├── roles.yaml                 #   (phase 7) glob → role rules (+ rules of the unmatched files), hand-editable
 │   ├── signal-sources.yaml        #   where the schema, migrations and translations are, hand-editable
 │   ├── product.yaml               #   product brief (ADR 0019), hand-editable
 │   ├── business-files.yaml        #   ranked files and directories that hold the business, hand-editable

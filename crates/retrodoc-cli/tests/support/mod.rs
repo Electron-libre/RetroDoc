@@ -165,6 +165,7 @@ fn pass_of<'s>(schema: &'s str, system: &str) -> &'s str {
         "Response" => "contexts",
         "RawBrief" => "brief",
         "RolesResponse" => "roles",
+        "UnmatchedRolesResponse" => "roles-unmatched",
         "PatternResponse" => "roles-boundary",
         "BusinessReadResponse" => "business-read",
         "GlossaryResponse" => "glossary",
@@ -213,6 +214,8 @@ impl App {
                     .map(|(ext, pattern)| json!({"extensions": [ext], "pattern": pattern}))
                     .collect::<Vec<_>>(),
             }),
+            // Every file left is given a role, as a model would.
+            "roles-unmatched" => json!({"rules": [{"pattern": "**", "role": "other"}]}),
             "roles-boundary" => json!({"pattern": "^\\s*def\\s"}),
             "business-files" => {
                 json!({"business": [{"path": self.business, "reason": "the shop"}]})

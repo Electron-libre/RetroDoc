@@ -23,7 +23,9 @@ pub fn promote_sources(rules: &RoleRules, files: &mut [FileEntry]) {
 }
 
 /// Identifies the stack and the file role rules (one LLM call, or the saved
-/// `.retrodoc/cache/roles.yaml`), applies them and prints the distribution.
+/// `.retrodoc/cache/roles.yaml`), gives the files no rule matches theirs (a
+/// second call, once per set of such files), applies them and prints the
+/// distribution.
 /// `force` ignores the saved rules and asks the LLM again.
 pub async fn run(path: &Path, force: bool, tracker: &UsageTracker) -> anyhow::Result<()> {
     let workspace = Workspace::open(path)?;
@@ -32,9 +34,12 @@ pub async fn run(path: &Path, force: bool, tracker: &UsageTracker) -> anyhow::Re
     let mut ingest = workspace.ingest()?;
     ingest.existing_docs = super::docs::without_generated(ingest.existing_docs, config);
 
-    let saved = !force && RoleRules::load(repo_root).is_some();
-    let rules = if saved {
-        RoleRules::load(repo_root).unwrap_or_default()
+    let reused = (!force).then(|| RoleRules::load(repo_root)).flatten();
+    let saved = reused.is_some();
+    // The provider is opened only when a call is due, so reused rules need no API key.
+    let rules = if let Some(rules) = reused.filter(|r| r.unmatched_to_ask(&ingest.files).is_empty())
+    {
+        rules
     } else {
         let llm = super::usage::pass_provider(&config.llm, tracker, "roles")?;
         tracker.set_pass("roles");
@@ -62,6 +67,12 @@ pub async fn run(path: &Path, force: bool, tracker: &UsageTracker) -> anyhow::Re
     );
     for rule in &rules.rules {
         println!("  {:<12} {}", rule.role.label(), rule.pattern);
+    }
+    if !rules.unmatched_rules.is_empty() {
+        println!("\nRules for the files no rule above matches (applied to those files only):");
+        for rule in &rules.unmatched_rules {
+            println!("  {:<12} {}", rule.role.label(), rule.pattern);
+        }
     }
 
     if rules.chunk_boundaries.is_empty() {

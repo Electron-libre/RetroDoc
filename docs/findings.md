@@ -116,8 +116,10 @@ Steps, each shippable and checkable on the Rails test repo:
    Smoke test on the full Rails test repo (4,181 files, `qwen3.6:35b-a3b`, ~1m30 per call): ~92% of files
    get a role (~350 unclassified: dotfiles, `Rakefile`, coffee scripts), but two runs disagree on
    borderline folders (mailers/jobs entrypoint vs infra, presenters logic vs view) and one run out of five
-   returned unparseable JSON twice — hence the saved, editable rules. autoroute not tried yet. Not done: the second pass over unmatched files (they stay `unclassified`) and
-   wiring the roles into `generate`.
+   returned unparseable JSON twice — hence the saved, editable rules. autoroute not tried yet. Not done: wiring the roles into `generate`. The second pass over the unmatched
+   files was added on 2026-10-30 (LNG-16 to LNG-19): on the saved runs, 0 of 443 (linkding), 0 and 5 of 791
+   (lobsters) and 163 of 4,181 (the Rails test repo, ~80 of them the application's code: API blueprints and
+   decorators, components, coffee scripts) are unmatched.
 2. Models and glossary inventory. **Implemented** (`glossary/`, `retrodoc glossary`, needs `retrodoc roles`
    first): the LLM reads the business files (formerly only `model`-role files), in batches of ~12k chars, and returns entities (name,
    description, attributes, associations); test descriptions (`describe`/`context`/`it`/`test` strings,
