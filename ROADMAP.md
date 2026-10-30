@@ -131,7 +131,7 @@ The milestones up to "A large application, one bounded context at a time" are th
   time (`retrodoc contexts`, `domains_from = "contexts"`, ADR 0029, `docs/findings.md` §8).
 - Why: one run on a 1,676-file application stopped at 60 files; delivered and run on 8 of its 35 contexts, the quality
   follow-ups and the contexts left are open.
-- State: in issues
+- State: done
 - Issues:
   - [validate_on_large_application](issues/done/validate_on_large_application.md)
   - [business_files_cap_on_large_application](issues/done/business_files_cap_on_large_application.md)
@@ -139,7 +139,7 @@ The milestones up to "A large application, one bounded context at a time" are th
   - [use_cases_record_their_entry_points](issues/done/use_cases_record_their_entry_points.md)
   - [technical_and_back_office_use_cases](issues/done/technical_and_back_office_use_cases.md)
   - [contexts_residual_size_and_names](issues/done/contexts_residual_size_and_names.md)
-  - [merge_form_screens_into_their_use_case](issues/merge_form_screens_into_their_use_case.md)
+  - [merge_form_screens_into_their_use_case](issues/done/merge_form_screens_into_their_use_case.md)
   - [actors_read_long_authorization_files](issues/done/actors_read_long_authorization_files.md)
 
 ## Business rules quality

@@ -500,7 +500,7 @@ actor (prompt and mechanical check); in an application, the public methods no ro
 out of the entry points; the prompt asks for one use case for a form and its submit. On the same 8 contexts, one run:
 features made of public methods 21% to 5% of the use cases, human actor with no route nor command 28% to 7%, 5
 back-office features found; the form screens did not drop (12% to 21%), kept in
-`issues/merge_form_screens_into_their_use_case.md`.
+`issues/done/merge_form_screens_into_their_use_case.md`.
 
 Residue and spread of the map (`issues/done/contexts_residual_size_and_names.md`, 2026-10-30, hosted `deepseek-chat`):
 the context over the limit and the action names taken for families depend on the roles the map starts from (none

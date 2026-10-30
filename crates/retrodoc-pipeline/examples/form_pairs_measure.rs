@@ -1,5 +1,5 @@
 //! Measures, with no LLM call, how many use cases of a saved run only show something on a
-//! resource that another use case changes (`issues/merge_form_screens_into_their_use_case.md`,
+//! resource that another use case changes (`issues/done/merge_form_screens_into_their_use_case.md`,
 //! step 1): the candidates to be merged with the use case that submits.
 //!
 //! Usage: `cargo run -q -p retrodoc-pipeline --example form_pairs_measure -- [--names] <run dir>...`

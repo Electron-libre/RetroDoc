@@ -44,8 +44,8 @@ A large application, one bounded context at a time
 
 # Tracking
 1. [x] No-LLM measure `form_pairs_measure` (example): opening entry points paired with a submitting one by `resource` and `outputs`, three cases counted on a saved run; stop and decide with the numbers.
-2. [ ] (on hold) The chosen candidate (mechanical merge, pair input before the prompt, or nothing), decided after the measure.
-3. [ ] (on hold) Measure again on a complete run (a saved one exists, see "On hold"), update the docs, close.
+2. [x] The chosen candidate: nothing (candidate 3), the real pairs are about 1% of the complete run (see "Measure (step 3)").
+3. [x] Measure again on the saved complete run, no LLM call (2026-10-30); no docs to update (the prompt and the code stay as they are).
 
 ## Decisions
 * Reference run: the latest saved run of the runs directory made after `ab34246` (use cases cite their entry points).
@@ -63,3 +63,14 @@ Ledger (2026-10-27): a complete run of the same application is already saved (76
 their entry points, listed in the planned measures of the ledger, `CLAUDE.md`), so step 3 is a `form_pairs_measure`
 on it, with no new LLM call; this replaces the new run asked for below.
 The run is too small (the issue's 184 use cases are not saved). Take it again with a complete run, which costs LLM calls: if the pairs stay under 5%, close with this measure (candidate 3); otherwise the mechanical merge needs a rule that tells an opening from a consultation.
+
+## Measure (step 3, 2026-10-30, the saved complete run of the ledger: 762 use cases, at f3e9f8c)
+* `form_pairs_measure`: paired 202 (27%), alone 135 (18%), acting 413 (54%), no known entry point 12 (2%). The paired
+  count is an upper bound: it also holds consultations, and use cases that cite both halves when the inventory gave the
+  submitting route no `db_write` output.
+* By hand (a throwaway script, not committed, the paths of the cited routes read once): 30 use cases already cite an
+  opening route (`new`, `edit`, an import or form screen) with a submitting route of the same resource, against 7 that
+  cite only the opening and whose submit is in another use case (2 more by name, without such a path). The prompt of
+  `technical_and_back_office_use_cases` merges most pairs.
+* So the real split pairs are about 7 to 9 of 762 (about 1%), under the 5% threshold: candidate 3, the prompt stays as
+  is, no mechanical merge.

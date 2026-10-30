@@ -86,5 +86,5 @@ added up), the new one 184: another LLM run, so part of the change is spread.
 * 10 steps got the calling program or the external provider as actor, 26 use cases have no primary actor (8 before).
 * In an application, 35 of the 57 `public_api` entries of the inventory are left out.
 * Not solved: the form screens did not drop; the prompt alone does not merge them. Opened as
-  `issues/merge_form_screens_into_their_use_case.md`.
+  `issues/done/merge_form_screens_into_their_use_case.md`.
 * Not checked by hand: the 5 back-office features and their 35 use cases; one run only.
