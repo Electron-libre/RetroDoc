@@ -27,7 +27,9 @@ narratives only.
 
 ## Consequences
 
-A wrong narrative lowers its use case's score and is listed in the report, for no extra call when the use case
-already went to the model. The confidence prompt changes, so every saved score is given again once (ADR 0037). A
+A narrative the model doubts lowers its use case's score, and one it finds contradicted is listed in the report,
+for no extra call when the use case already went to the model. Measured again after the change, the model judged
+no contradicted claim `unsupported` (the one listed was a step citing the wrong lines) and one narrative in three
+`partial`: the check costs little but catches almost no wrong narrative; it is kept for that low cost. The confidence prompt changes, so every saved score is given again once (ADR 0037). A
 use case whose steps all pass the checks keeps an unchecked narrative unless it is sampled. A narrative that
 repeats a wrong step is not caught here.

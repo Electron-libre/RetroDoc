@@ -77,9 +77,10 @@ matching this shape: {\"narrative\":{\"verdict\":\"supported|partial|unsupported
 \"rationale\":\"...\"},\"steps\":[{\"order\":1,\"verdict\":\"supported|partial|unsupported\",\
 \"rationale\":\"...\"}]}, without \"narrative\" when the use case has none.";
 
-#[derive(Debug, Deserialize, schemars::JsonSchema)]
+/// What the model said of one use case: the verdicts of its doubtful steps and of its narrative.
+#[derive(Debug, Clone, Default, Deserialize, schemars::JsonSchema)]
 struct RawVerdicts {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "lenient_narrative")]
     narrative: Option<RawNarrative>,
     #[serde(default)]
     steps: Vec<RawVerdict>,
@@ -94,7 +95,7 @@ struct RawBatchVerdicts {
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct RawUseCaseVerdicts {
     slug: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "lenient_narrative")]
     narrative: Option<RawNarrative>,
     #[serde(default)]
     steps: Vec<RawVerdict>,
@@ -108,11 +109,13 @@ struct RawNarrative {
     rationale: String,
 }
 
-/// What the model said of one use case: the verdicts of its doubtful steps and of its narrative.
-#[derive(Debug, Clone, Default)]
-struct Answer {
-    steps: Vec<RawVerdict>,
-    narrative: Option<RawNarrative>,
+/// A narrative verdict of another shape than an object is no verdict: the step verdicts next to it
+/// are still read.
+fn lenient_narrative<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<RawNarrative>, D::Error> {
+    let value = serde_json::Value::deserialize(deserializer)?;
+    Ok(serde_json::from_value(value).ok())
 }
 
 /// The scores given to one use case.
@@ -172,8 +175,8 @@ pub fn mechanical_score(
             StepCheck::Broken(_) => tally.broken += 1,
         }
     }
-    let score =
-        (tally.doubtful == 0).then(|| combine(use_case, &Answer::default(), &checks).confidence);
+    let score = (tally.doubtful == 0)
+        .then(|| combine(use_case, &RawVerdicts::default(), &checks).confidence);
     (tally, score)
 }
 
@@ -229,7 +232,7 @@ pub async fn score_confidence(
     let mut checked: Vec<(usize, Vec<StepCheck>)> = Vec::new();
     let mut passing: Vec<usize> = Vec::new();
     for &i in &pending {
-        let (_, readable) = confidence_prompt(walked, &splitter, &use_cases[i]);
+        let (_, readable) = confidence_prompt(walked, &splitter, &use_cases[i], &use_cases[i]);
         if readable.is_empty() {
             use_cases[i].confidence = Some(ConfidenceScore::new(
                 0.0,
@@ -259,7 +262,7 @@ pub async fn score_confidence(
             chosen.push(i);
             jobs_checks.push(checks);
         } else {
-            let scored = combine(&use_cases[i], &Answer::default(), &checks);
+            let scored = combine(&use_cases[i], &RawVerdicts::default(), &checks);
             apply(&mut use_cases[i], Some(scored));
         }
     }
@@ -361,13 +364,19 @@ async fn score_group(
     // Only the steps the checks left open are shown, with the code they cite.
     let asked: Vec<UseCase> = group.iter().map(|(u, c)| doubtful_part(u, c)).collect();
     let asked: Vec<&UseCase> = asked.iter().collect();
-    let mut answers: BTreeMap<&str, Answer> = BTreeMap::new();
+    // A narrative tells the whole use case: it is judged against the code of every step.
+    let code_of: Vec<&UseCase> = group
+        .iter()
+        .zip(&asked)
+        .map(|((whole, _), part)| code_of(whole, part))
+        .collect();
+    let mut answers: BTreeMap<&str, RawVerdicts> = BTreeMap::new();
     let raw = if asked.len() > 1 {
         let what = format!("confidence of {} use cases", asked.len());
         complete_json::<RawBatchVerdicts>(
             llm,
             CONFIDENCE_SYSTEM_PROMPT,
-            &batch_prompt(walked, splitter, &asked),
+            &batch_prompt(walked, splitter, &asked, &code_of),
             &what,
         )
         .await?
@@ -379,7 +388,7 @@ async fn score_group(
             if let Some(u) = asked.iter().find(|u| u.slug == item.slug) {
                 answers.insert(
                     &u.slug,
-                    Answer {
+                    RawVerdicts {
                         steps: item.steps.clone(),
                         narrative: item.narrative.clone(),
                     },
@@ -395,6 +404,16 @@ async fn score_group(
         });
     }
     Ok(scores)
+}
+
+/// The use case whose cited code a request shows: the whole one when it has a narrative to judge,
+/// else the part asked about.
+fn code_of<'a>(whole: &'a UseCase, part: &'a UseCase) -> &'a UseCase {
+    if narrative_of(whole).is_some() {
+        whole
+    } else {
+        part
+    }
 }
 
 /// The use case reduced to the steps the checks left doubtful.
@@ -418,7 +437,7 @@ async fn score_use_case(
     checks: &[StepCheck],
     llm: &dyn LlmProvider,
 ) -> Result<Option<Scored>, PipelineError> {
-    let (prompt, _) = confidence_prompt(walked, splitter, part);
+    let (prompt, _) = confidence_prompt(walked, splitter, part, code_of(use_case, part));
     let Some(raw) = complete_json::<RawVerdicts>(
         llm,
         CONFIDENCE_SYSTEM_PROMPT,
@@ -429,18 +448,14 @@ async fn score_use_case(
     else {
         return Ok(None);
     };
-    let answer = Answer {
-        steps: raw.steps,
-        narrative: raw.narrative,
-    };
-    Ok(Some(combine(use_case, &answer, checks)))
+    Ok(Some(combine(use_case, &raw, checks)))
 }
 
 /// Turns the checks and the model's verdicts on the doubtful steps and the
 /// narrative into the use case score (mean of the step values, ungrounded
 /// steps capped, the narrative one more item when judged) with a rationale
 /// naming the weak steps and narrative.
-fn combine(use_case: &UseCase, answer: &Answer, checks: &[StepCheck]) -> Scored {
+fn combine(use_case: &UseCase, answer: &RawVerdicts, checks: &[StepCheck]) -> Scored {
     let by_order: BTreeMap<u32, &RawVerdict> = answer.steps.iter().map(|v| (v.order, v)).collect();
     let mut total = 0.0_f32;
     let mut weak: Vec<String> = Vec::new();
@@ -504,7 +519,11 @@ fn apply(use_case: &mut UseCase, scored: Option<Scored>) {
 /// The model's verdict on the narrative, when the use case has one and the answer judged it.
 fn narrative_score(use_case: &UseCase, verdict: Option<&RawNarrative>) -> Option<ConfidenceScore> {
     narrative_of(use_case)?;
-    let verdict = verdict.filter(|v| !v.verdict.trim().is_empty())?;
+    let known = |v: &&RawNarrative| {
+        ["supported", "partial", "unsupported"]
+            .contains(&v.verdict.trim().to_ascii_lowercase().as_str())
+    };
+    let verdict = verdict.filter(known)?;
     let why = verdict.rationale.trim();
     Some(ConfidenceScore::new(
         verdict_value(&verdict.verdict),
@@ -633,12 +652,13 @@ fn append_code(
     included
 }
 
-/// Prompt with the steps and the code they cite; also returns the files
+/// Prompt with the steps of `use_case` and the code `code_of` cites; also returns the files
 /// actually included.
 fn confidence_prompt(
     walked: &WalkedFiles,
     splitter: &Splitter,
     use_case: &UseCase,
+    code_of: &UseCase,
 ) -> (String, BTreeSet<String>) {
     let mut prompt = format!(
         "Use case: {} — {}\n{}\nSteps:\n{}",
@@ -647,31 +667,38 @@ fn confidence_prompt(
         narrative_text(use_case),
         steps_text(use_case)
     );
-    let included = append_code(walked, splitter, &[use_case], &mut prompt);
+    let included = append_code(walked, splitter, &[code_of], &mut prompt);
     (prompt, included)
 }
 
-/// Prompt for several use cases of a feature: each one's steps, then the
-/// code they cite, once. The answer is one verdict list per use case slug.
-fn batch_prompt(walked: &WalkedFiles, splitter: &Splitter, use_cases: &[&UseCase]) -> String {
+/// Prompt for several use cases of a feature: each one's steps and the files it cites, then the
+/// code `code_of` cites, once. The answer is one verdict list per use case slug.
+fn batch_prompt(
+    walked: &WalkedFiles,
+    splitter: &Splitter,
+    use_cases: &[&UseCase],
+    code_of: &[&UseCase],
+) -> String {
     let mut prompt = String::from(
         "Several use cases are checked against the same code. Reply with ONLY a JSON object \
          {\"use_cases\":[{\"slug\":\"...\",\"narrative\":{\"verdict\":\"...\",\"rationale\":\"...\"},\
          \"steps\":[{\"order\":1,\"verdict\":\"...\",\"rationale\":\"...\"}]}]}, one entry per use case \
-         below, using its slug.\n",
+         below, using its slug. Judge each use case against the files it cites only.\n",
     );
-    for use_case in use_cases {
+    for (use_case, code) in use_cases.iter().zip(code_of) {
+        let cites: Vec<&str> = cited_paths(&[code]).into_iter().collect();
         let _ = write!(
             prompt,
-            "\nUse case [{}]: {} — {}\n{}\nSteps:\n{}",
+            "\nUse case [{}]: {} — {}\n{}Cites: {}\n\nSteps:\n{}",
             use_case.slug,
             use_case.name,
             use_case.description,
             narrative_text(use_case),
+            cites.join(", "),
             steps_text(use_case)
         );
     }
-    append_code(walked, splitter, use_cases, &mut prompt);
+    append_code(walked, splitter, code_of, &mut prompt);
     prompt
 }
 

@@ -25,6 +25,10 @@ listed in the debt report.
 - **CNF-8** (deterministic) withdrawn: the debt report listed the narratives judged `partial` too; measured, two in three were, for claims merely outside the cited lines (replaced by CNF-9).
 - **CNF-9** (deterministic) The debt report must list, in a section of its own, each use case whose narrative was judged `unsupported`, with the model's reason, and must not list one judged `partial`.
 
+- **CNF-10** (deterministic) A request that holds a use case with a narrative must show the code cited by every step of that use case, not only by the steps it asks about.
+- **CNF-11** (deterministic) A narrative verdict other than `supported`, `partial` or `unsupported` must be read as no verdict.
+- **CNF-12** (deterministic) An answer whose narrative verdict has another shape than an object must keep its step verdicts.
+
 ## Scenarios
 
 - (CNF-2) Given a use case whose steps all pass the checks and no `--confidence-sample`, when the pass runs, then no
@@ -33,6 +37,12 @@ listed in the debt report.
   is 0.8.
 - (CNF-6) Given a batched answer whose entry for a use case holds step verdicts but no narrative verdict, when it is
   scored, then the score is the mean of the steps alone.
+- (CNF-10) Given a use case whose first step passes the checks and cites `a.rs`, and whose second step is doubtful
+  and cites `b.rs`, when the request is made, then it shows `a.rs` and `b.rs` but asks about the second step only.
+- (CNF-11) Given a narrative verdict `unclear`, when the use case is scored, then its narrative is left out of the
+  score, of `narrative_check` and of the report.
+- (CNF-12) Given the answer `{"narrative":"partial","steps":[...]}`, when it is read, then the steps are scored and the
+  narrative is not.
 - (CNF-9) Given no narrative judged `unsupported`, when the report is written, then it has no such section.
 
 ## Non-goals

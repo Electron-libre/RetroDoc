@@ -5,7 +5,8 @@
 //!
 //! A run dir is a checkout of the repository with its `.retrodoc/cache/` from a `generate` made before the
 //! checks existed (or with `--confidence-sample` covering every use case), so the saved `use-cases.yaml`
-//! scores are the model's. Only the use-case score is saved, not the verdict of each step, so the
+//! scores are the model's. A run scored since ADR 0038 counts the narrative verdict in those scores
+//! too, which the checks do not see: compare runs scored before it, or read the gap with that in mind. Only the use-case score is saved, not the verdict of each step, so the
 //! comparison is per use case: for those the checks settle alone, the mechanical score against the saved
 //! one (same side of the 50% flag, mean gap), plus how the steps are judged. One row per run, Markdown.
 

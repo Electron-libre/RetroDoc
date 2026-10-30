@@ -76,6 +76,9 @@ step (S), at the cited lines (C), true elsewhere in the tree (F), unsupported or
 3. [x] Measure, then the narrower verdict: an example runs the confidence pass on the 40 sampled use cases with DeepSeek (cents, asked before)
    and counts the 8 known U claims flagged and the narratives flagged wrongly; figures in the issue and the ledger;
    then `unsupported` only for a claim the code contradicts, the report listing those only (CNF-9), measured again.
+4. [x] Docs and fixes of the `high` review of the issue: the narrative is judged against the code of every step
+   (CNF-10), each use case of a batch says what it cites, an unknown or misshaped narrative verdict is none (CNF-11,
+   CNF-12), `Answer` folded into `RawVerdicts`, the examples' docs and table cells; findings.md and ADR 0038.
    ~150 lines.
 
 ## Decisions
@@ -172,3 +175,27 @@ red: CNF-9: `a partial narrative is not listed`
 Code review: 1 finding: the `score` of the listed narratives is always 0 (not fixed: they reuse `WeakSection`, shared with the other lists; a type of their own for one dead field is not worth it).
 not verified: a run on a whole application.
 decisions needed: whether to keep the narrative check, given the figures above (asked at the end of the issue).
+
+## Deliverable 4 summary
+done: fixes of the `high` review (10 findings) and the docs of the whole issue.
+
+| check | result |
+|---|---|
+| tests | `just check` pass |
+| lint | clippy pedantic clean |
+| specs | CNF-10 to CNF-12 traced (internal: faked model), spec accepted |
+| docs | findings.md 4d, ADR 0038 consequences, pipeline.md |
+| code review | high on the issue (10 findings), low on the fixes (no findings) |
+
+red: CNF-10, CNF-11, CNF-12: `prompt.contains("=== a.rs ===")` false; unknown verdict scored 0.8, not 1.0; misshaped
+narrative left the use case unscored.
+High review: 10 findings. Fixed: narrative judged against the doubtful steps' code only (CNF-10); an unknown verdict
+reported as a contradiction (CNF-11); a misshaped narrative losing the step verdicts (CNF-12); a batch narrative
+judged against a sibling's code (each use case now says what it cites); `Answer` duplicating `RawVerdicts`;
+`confidence_agreement` comparing scores that now hold the narrative (doc note); `--all` doc; table cells of the
+example. Not fixed: `partial` lowers only the use cases sent to the model (the weight the user chose); the harness
+line of `docs/dev/agent-harness.md` swept into 2d674bb (left as is, the user's call).
+Code review: no findings (low; its doubt, `Cites:` glued to the narrative, is ruled out: the narrative line ends with a newline).
+not verified: the measure was made before CNF-10 (narrative shown the doubtful steps' code only); the share of
+`partial` may drop with the whole code shown.
+decisions needed: whether to measure again after CNF-10 (cents).

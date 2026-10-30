@@ -8,8 +8,9 @@
 //!   it is copied (without `.git` and `.retrodoc`, the glossary put back) to `work dir`, which must not exist.
 //! - `use-cases.yaml`: the saved use cases; the 1st, then every `stride`-th, are scored.
 //! - `model`: a `DeepSeek` model, e.g. `deepseek-chat`.
-//! - `--all`: every sampled use case goes to the model (`--confidence-sample` covering them all), not only
-//!   those with a doubtful step as in `generate`.
+//! - `--all`: the sampled use cases whose steps all pass the checks go to the model too
+//!   (`--confidence-sample` covering them all), not only those with a doubtful step as in `generate`; one
+//!   with no doubtful step and a step the checks fail, or citing no readable code, still does not.
 //!
 //! Prints one Markdown row per use case (sent to the model or not, score, narrative verdict and reason)
 //! and the calls and tokens of the pass.
@@ -98,7 +99,7 @@ async fn run(
             |c| {
                 (
                     format!("{:.1}", c.value),
-                    c.rationale.clone().unwrap_or_default(),
+                    cell(c.rationale.as_deref().unwrap_or_default()),
                 )
             },
         );
@@ -118,6 +119,14 @@ async fn run(
         total.calls, total.prompt_tokens, total.completion_tokens
     );
     Ok(())
+}
+
+/// `text` fit for a Markdown table cell: one line, `|` escaped.
+fn cell(text: &str) -> String {
+    text.split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .replace('|', "\\|")
 }
 
 /// Copies `from` into `to`, without `.git` and `.retrodoc`.
