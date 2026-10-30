@@ -1,11 +1,12 @@
 //! Manifest metadata: what the project calls itself and which libraries it
-//! stands on, read from the manifests at the root of the repo.
+//! stands on, read from the manifests at the root of the repo and the Gradle
+//! version catalog.
 
 use std::path::Path;
 
 use super::{Signal, SignalKind};
 
-/// Manifests read at the repo root.
+/// Manifests read at these paths from the repo root.
 const MANIFESTS: &[&str] = &[
     "Cargo.toml",
     "Gemfile",
@@ -19,7 +20,11 @@ const MANIFESTS: &[&str] = &[
     "build.gradle.kts",
     "Package.swift",
     "build.sbt",
+    GRADLE_CATALOG,
 ];
+/// The Gradle version catalog: a build script that names its dependencies
+/// through it (`implementation(libs.spring.web)`) quotes no coordinates.
+const GRADLE_CATALOG: &str = "gradle/libs.versions.toml";
 /// Manifests read at the repo root under any name, by extension: a .NET
 /// project file is named after its project.
 const MANIFEST_EXTENSIONS: &[&str] = &["csproj"];
@@ -124,6 +129,7 @@ fn summarize(file: &str, content: &str) -> Option<Summary> {
         "build.gradle" | "build.gradle.kts" => Some(gradle_manifest(content)),
         "Package.swift" => Some(swift_manifest(content)),
         "build.sbt" => Some(sbt_manifest(content)),
+        GRADLE_CATALOG => gradle_catalog(content),
         _ if file.ends_with(".csproj") => Some(csproj_manifest(file, content)),
         _ => None,
     }?;
@@ -290,6 +296,32 @@ fn gradle_manifest(content: &str) -> Summary {
     }
 }
 
+/// `gradle/libs.versions.toml`: the `group:artifact` of each `[libraries]`
+/// entry, written `"group:artifact:version"`, `{ module = "group:artifact" }`
+/// or `{ group = "group", name = "artifact" }`. The catalog does not say which
+/// configuration uses a library: test libraries are kept.
+fn gradle_catalog(content: &str) -> Option<Summary> {
+    let toml: toml::Value = content.parse().ok()?;
+    let dependencies = toml
+        .get("libraries")
+        .and_then(|l| l.as_table())
+        .map(|libraries| libraries.values().filter_map(catalog_library).collect())
+        .unwrap_or_default();
+    Some(Summary {
+        dependencies,
+        ..Summary::default()
+    })
+}
+
+fn catalog_library(library: &toml::Value) -> Option<String> {
+    let text = |key: &str| library.get(key)?.as_str();
+    let Some(module) = library.as_str().or_else(|| text("module")) else {
+        return Some(format!("{}:{}", text("group")?, text("name")?));
+    };
+    let mut parts = module.split(':');
+    Some(format!("{}:{}", parts.next()?, parts.next()?))
+}
+
 /// `Package.swift`: the package name, and the repository name of each
 /// `.package(url: ...)` dependency.
 fn swift_manifest(content: &str) -> Summary {
@@ -441,7 +473,9 @@ mod tests {
 
     fn text_of(file: &str, content: &str) -> String {
         let dir = tempfile::tempdir().unwrap();
-        fs::write(dir.path().join(file), content).unwrap();
+        let path = dir.path().join(file);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, content).unwrap();
         let signals = manifest_metadata(dir.path());
         assert_eq!(signals.len(), 1, "{file}");
         assert_eq!(signals[0].origin, file);
@@ -581,6 +615,24 @@ mod tests {
                 ),
                 ("Tools.csproj", "name: Tools"),
             ]
+        );
+    }
+
+    // spec: LNG-11 (internal: the brief prints only a count of manifests, not their dependencies)
+    #[test]
+    fn reads_the_gradle_version_catalog() {
+        let text = text_of(
+            "gradle/libs.versions.toml",
+            "[versions]\nboot = \"3.2\"\n[libraries]\n\
+             web = { module = \"org.springframework.boot:spring-boot-starter-web\", version.ref = \"boot\" }\n\
+             pg = { group = \"org.postgresql\", name = \"postgresql\", version = \"42\" }\n\
+             flyway = \"org.flywaydb:flyway-core:10.0\"\n\
+             broken = { version = \"1\" }\n\
+             [plugins]\nboot = { id = \"org.springframework.boot\", version.ref = \"boot\" }\n",
+        );
+        assert_eq!(
+            text,
+            "dependencies: org.flywaydb:flyway-core, org.postgresql:postgresql, org.springframework.boot:spring-boot-starter-web"
         );
     }
 

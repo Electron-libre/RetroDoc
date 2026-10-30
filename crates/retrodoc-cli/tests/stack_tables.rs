@@ -154,20 +154,23 @@ fn every_reference_manifest_is_read() {
         std::fs::write(dir.path().join(name), content).unwrap();
     }
 
+    assert_eq!(manifest_count(dir.path()), Some(MANIFESTS.len()));
+}
+
+/// The number of manifests `brief --signals` reads.
+fn manifest_count(dir: &Path) -> Option<usize> {
     let output = Command::new(env!("CARGO_BIN_EXE_retrodoc"))
         .args(["brief", "--signals", "--path"])
-        .arg(dir.path())
+        .arg(dir)
         .output()
         .unwrap();
     assert!(output.status.success(), "{output:?}");
-    let out = String::from_utf8(output.stdout).unwrap();
-
-    let manifests = out
+    String::from_utf8(output.stdout)
+        .unwrap()
         .lines()
         .find_map(|l| l.strip_prefix("Manifest"))
         .and_then(|rest| rest.split_whitespace().next())
-        .and_then(|count| count.parse::<usize>().ok());
-    assert_eq!(manifests, Some(MANIFESTS.len()), "{out}");
+        .and_then(|count| count.parse().ok())
 }
 
 // spec: LNG-13
@@ -214,4 +217,25 @@ fn the_sbt_project_directory_is_not_source() {
         out.contains("(source: 1, test: 0, markdown: 0, other: 1)"),
         "{out}"
     );
+}
+
+// spec: LNG-11
+#[test]
+fn a_gradle_version_catalog_is_read() {
+    let dir = repo(&[]);
+    std::fs::write(
+        dir.path().join("build.gradle.kts"),
+        "dependencies {\n    implementation(libs.spring.web)\n}\n",
+    )
+    .unwrap();
+    // The build script names no coordinates: only the catalog gives them.
+    assert_eq!(manifest_count(dir.path()), None);
+
+    std::fs::create_dir(dir.path().join("gradle")).unwrap();
+    std::fs::write(
+        dir.path().join("gradle/libs.versions.toml"),
+        "[libraries]\nspring-web = { module = \"org.springframework:spring-web\", version = \"6\" }\n",
+    )
+    .unwrap();
+    assert_eq!(manifest_count(dir.path()), Some(1));
 }

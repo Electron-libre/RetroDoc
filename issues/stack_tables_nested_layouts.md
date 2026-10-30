@@ -53,7 +53,7 @@ source. Out of scope: the `BloodTest.java` trade-off (a non-goal of the spec), t
    directories; the root `project/` of an sbt build is kept out of the source, in `walk_repo` and
    `promote_to_source`; verified by `stack_tables.rs` through `scan` and walker unit tests; makes true LNG-13, LNG-14
    (~150 lines).
-2. [ ] Gradle version catalog: `gradle/libs.versions.toml` read as a manifest (`module`, `group`/`name`, string
+2. [x] Gradle version catalog: `gradle/libs.versions.toml` read as a manifest (`module`, `group`/`name`, string
    notation); verified by `stack_tables.rs` through `brief --signals` and `manifest.rs` unit tests; makes true LNG-11
    (~120 lines).
 3. [ ] Nested `.csproj`: the projects the root `.sln` lists, else one or two levels down, bounded, test projects
@@ -71,5 +71,13 @@ source. Out of scope: the `BloodTest.java` trade-off (a non-goal of the spec), t
   an sbt build is `Other` in `walk_repo` and never promoted.
 - checks: `just check` ok; docs `docs/crates/core-ingest.md`.
 - red: LNG-13, LNG-14: `Files: 9 (source: 7, test: 1, ...)` and `Files: 4 (source: 2, test: 0, markdown: 0, other: 2)`.
+- Code review: no findings.
+- not verified: none. decisions needed: none.
+
+## Deliverable 2: Gradle version catalog
+- done: `gradle/libs.versions.toml` is a manifest: the `group:artifact` of each `[libraries]` entry (string,
+  `module`, `group`/`name`), in key order.
+- checks: `just check` ok; docs `docs/crates/core-ingest.md`.
+- red: LNG-11: `left: None, right: Some(1)` (no manifest read from the catalog).
 - Code review: no findings.
 - not verified: none. decisions needed: none.
