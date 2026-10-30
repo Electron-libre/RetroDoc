@@ -8,12 +8,18 @@ license.workspace = true
 workspace = true
 
 [features]
-default = ["ruby", "rust", "javascript", "typescript", "python"]
-ruby = ["dep:tree-sitter-ruby"]
-rust = ["dep:tree-sitter-rust"]
-javascript = ["dep:tree-sitter-javascript"]
-typescript = ["dep:tree-sitter-typescript", "dep:tree-sitter-javascript"]
-python = ["dep:tree-sitter-python"]
+default = ["ruby", "rust", "javascript", "typescript", "python", "java", "kotlin", "scala", "csharp"]
+ruby = ["grammar", "dep:tree-sitter-ruby"]
+rust = ["grammar", "dep:tree-sitter-rust"]
+javascript = ["grammar", "dep:tree-sitter-javascript"]
+typescript = ["grammar", "dep:tree-sitter-typescript", "dep:tree-sitter-javascript"]
+python = ["grammar", "dep:tree-sitter-python"]
+java = ["grammar", "dep:tree-sitter-java"]
+kotlin = ["grammar", "dep:tree-sitter-kotlin-ng"]
+scala = ["grammar", "dep:tree-sitter-scala"]
+csharp = ["grammar", "dep:tree-sitter-c-sharp"]
+# Set by every language: some grammar is compiled in.
+grammar = []
 
 [dependencies]
 tree-sitter.workspace = true
@@ -23,6 +29,10 @@ tree-sitter-rust = { workspace = true, optional = true }
 tree-sitter-javascript = { workspace = true, optional = true }
 tree-sitter-typescript = { workspace = true, optional = true }
 tree-sitter-python = { workspace = true, optional = true }
+tree-sitter-java = { workspace = true, optional = true }
+tree-sitter-kotlin-ng = { workspace = true, optional = true }
+tree-sitter-scala = { workspace = true, optional = true }
+tree-sitter-c-sharp = { workspace = true, optional = true }
 retrodoc-core.workspace = true
 ignore.workspace = true
 git2.workspace = true

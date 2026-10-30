@@ -74,6 +74,10 @@ Overflow Developer Survey and reviewed once a year (ADR 0036):
   Kotlin, Groovy, C#, PHP, Scala and Swift only).
 - (LNG-7) Given a `.csproj` file at the root under any name (`Shop.Api.csproj`), then it is read.
 - (LNG-7) Given a manifest that does not parse, then it is skipped and the brief is still written.
+- (LNG-8) Given a file of each language of the reference set with a type, a method spanning several lines and a
+  call in it, then the structure gives the type and the method with their first and last lines, and the call.
+- (LNG-8) Given a Kotlin file and a Java file, then they are one language for the slices (a name one defines is one
+  the other can call); so are Scala and Java, C and C++.
 - (LNG-10) Given a Prisma schema (`prisma/schema.prisma`) and no `schema.rb` nor SQL DDL, then the glossary is
   still given, from the business files.
 

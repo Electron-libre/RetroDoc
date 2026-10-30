@@ -5,28 +5,10 @@
 //! extensions and its query. Any other file gets `None` and keeps the lexical paths.
 
 use std::path::Path;
-#[cfg_attr(
-    not(any(
-        feature = "ruby",
-        feature = "rust",
-        feature = "javascript",
-        feature = "typescript",
-        feature = "python"
-    )),
-    allow(unused_imports)
-)]
+#[cfg_attr(not(feature = "grammar"), allow(unused_imports))]
 use std::sync::OnceLock;
 
-#[cfg_attr(
-    not(any(
-        feature = "ruby",
-        feature = "rust",
-        feature = "javascript",
-        feature = "typescript",
-        feature = "python"
-    )),
-    allow(unused_imports)
-)]
+#[cfg_attr(not(feature = "grammar"), allow(unused_imports))]
 use tree_sitter::Language;
 use tree_sitter_tags::{TagsConfiguration, TagsContext};
 
@@ -76,6 +58,28 @@ enum Lang {
     Tsx,
     #[cfg(feature = "python")]
     Python,
+    #[cfg(feature = "java")]
+    Java,
+    #[cfg(feature = "kotlin")]
+    Kotlin,
+    #[cfg(feature = "scala")]
+    Scala,
+    #[cfg(feature = "csharp")]
+    CSharp,
+}
+
+/// Languages that call each other: a name one defines is one the other can call.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)] // the families of the languages left out of this build
+enum Family {
+    Ruby,
+    Rust,
+    /// JavaScript and its TypeScript dialects, which import each other.
+    Web,
+    Python,
+    /// Java, Kotlin and Scala.
+    Jvm,
+    CSharp,
 }
 
 impl Lang {
@@ -94,18 +98,38 @@ impl Lang {
             "tsx" => Some(Self::Tsx),
             #[cfg(feature = "python")]
             "py" => Some(Self::Python),
+            #[cfg(feature = "java")]
+            "java" => Some(Self::Java),
+            #[cfg(feature = "kotlin")]
+            "kt" | "kts" => Some(Self::Kotlin),
+            #[cfg(feature = "scala")]
+            "scala" => Some(Self::Scala),
+            #[cfg(feature = "csharp")]
+            "cs" => Some(Self::CSharp),
             _ => None,
         }
     }
 
-    /// The language, JavaScript and its TypeScript dialects counted as one.
-    fn family(self) -> Self {
+    fn family(self) -> Family {
         match self {
-            #[cfg(all(feature = "typescript", feature = "javascript"))]
-            Self::TypeScript | Self::Tsx => Self::JavaScript,
-            #[cfg(all(feature = "typescript", not(feature = "javascript")))]
-            Self::Tsx => Self::TypeScript,
-            other => other,
+            #[cfg(feature = "ruby")]
+            Self::Ruby => Family::Ruby,
+            #[cfg(feature = "rust")]
+            Self::Rust => Family::Rust,
+            #[cfg(feature = "javascript")]
+            Self::JavaScript => Family::Web,
+            #[cfg(feature = "typescript")]
+            Self::TypeScript | Self::Tsx => Family::Web,
+            #[cfg(feature = "python")]
+            Self::Python => Family::Python,
+            #[cfg(feature = "java")]
+            Self::Java => Family::Jvm,
+            #[cfg(feature = "kotlin")]
+            Self::Kotlin => Family::Jvm,
+            #[cfg(feature = "scala")]
+            Self::Scala => Family::Jvm,
+            #[cfg(feature = "csharp")]
+            Self::CSharp => Family::CSharp,
         }
     }
 
@@ -141,6 +165,17 @@ impl Lang {
             Self::Tsx => config!(tree_sitter_typescript::LANGUAGE_TSX, &typescript_query()),
             #[cfg(feature = "python")]
             Self::Python => config!(tree_sitter_python::LANGUAGE, tree_sitter_python::TAGS_QUERY),
+            #[cfg(feature = "java")]
+            Self::Java => config!(
+                tree_sitter_java::LANGUAGE,
+                &format!("{}\n{JAVA_EXTRA_QUERY}", tree_sitter_java::TAGS_QUERY)
+            ),
+            #[cfg(feature = "kotlin")]
+            Self::Kotlin => config!(tree_sitter_kotlin_ng::LANGUAGE, KOTLIN_QUERY),
+            #[cfg(feature = "scala")]
+            Self::Scala => config!(tree_sitter_scala::LANGUAGE, SCALA_QUERY),
+            #[cfg(feature = "csharp")]
+            Self::CSharp => config!(tree_sitter_c_sharp::LANGUAGE, &csharp_query()),
         }
     }
 }
@@ -163,6 +198,55 @@ const TS_EXTRA_QUERY: &str = "
 (enum_declaration name: (identifier) @name) @definition.class
 ";
 
+/// Enums and records, which the Java grammar's query leaves out.
+#[cfg(feature = "java")]
+const JAVA_EXTRA_QUERY: &str = "
+(enum_declaration name: (identifier) @name) @definition.class
+(record_declaration name: (identifier) @name) @definition.class
+";
+
+/// No Kotlin grammar compatible with this `tree-sitter` ships a query: this one is ours. Interfaces are
+/// `class_declaration`s too; a method is a `function`, as Kotlin calls it.
+#[cfg(feature = "kotlin")]
+const KOTLIN_QUERY: &str = "
+(class_declaration name: (identifier) @name) @definition.class
+(object_declaration name: (identifier) @name) @definition.class
+(function_declaration name: (identifier) @name) @definition.function
+(call_expression . (identifier) @name) @reference.call
+(call_expression . (navigation_expression (identifier) @name .)) @reference.call
+";
+
+/// The Scala grammar's query is not exported by its crate: this one keeps its types, functions and calls.
+#[cfg(feature = "scala")]
+const SCALA_QUERY: &str = "
+(class_definition name: (identifier) @name) @definition.class
+(object_definition name: (identifier) @name) @definition.class
+(enum_definition name: (identifier) @name) @definition.class
+(trait_definition name: (identifier) @name) @definition.interface
+(function_definition name: (identifier) @name) @definition.function
+(call_expression function: (identifier) @name) @reference.call
+(call_expression function: (field_expression field: (identifier) @name)) @reference.call
+";
+
+/// The C# grammar's query, without its pattern that captures a bare `@module` (which `tree-sitter-tags`
+/// rejects), plus the structs, records, enums and plain calls it leaves out.
+#[cfg(feature = "csharp")]
+fn csharp_query() -> String {
+    let own: Vec<&str> = tree_sitter_c_sharp::TAGS_QUERY
+        .lines()
+        .filter(|line| !line.trim_end().ends_with(" @module"))
+        .collect();
+    format!("{}\n{CSHARP_EXTRA_QUERY}", own.join("\n"))
+}
+
+#[cfg(feature = "csharp")]
+const CSHARP_EXTRA_QUERY: &str = "
+(struct_declaration name: (identifier) @name) @definition.class
+(record_declaration name: (identifier) @name) @definition.class
+(enum_declaration name: (identifier) @name) @definition.class
+(invocation_expression function: (identifier) @name) @reference.call
+";
+
 /// Whether `path` is in a language this build can parse.
 #[must_use]
 pub fn is_supported(path: &Path) -> bool {
@@ -170,7 +254,7 @@ pub fn is_supported(path: &Path) -> bool {
 }
 
 /// Whether this build parses both files as one language: a name one defines is one the other can call.
-/// JavaScript and TypeScript are one, as they import each other.
+/// JavaScript and TypeScript are one, as they import each other; so are Java, Kotlin and Scala.
 #[must_use]
 pub fn same_language(a: &Path, b: &Path) -> bool {
     match (Lang::of(a), Lang::of(b)) {
@@ -203,6 +287,14 @@ pub fn supported_extensions() -> Vec<&'static str> {
         &["ts", "mts", "cts", "tsx"][..],
         #[cfg(feature = "python")]
         &["py"][..],
+        #[cfg(feature = "java")]
+        &["java"][..],
+        #[cfg(feature = "kotlin")]
+        &["kt", "kts"][..],
+        #[cfg(feature = "scala")]
+        &["scala"][..],
+        #[cfg(feature = "csharp")]
+        &["cs"][..],
     ]
     .concat()
 }
@@ -346,6 +438,84 @@ mod tests {
         has(&found, "checkout", "function", (5, 6));
     }
 
+    /// Whether `name` is referenced at `line` in `source`, read as `path`'s language.
+    #[allow(dead_code)]
+    fn calls(path: &str, source: &str, name: &str, line: u32) -> bool {
+        parse(Path::new(path), source)
+            .unwrap()
+            .references
+            .iter()
+            .any(|r| r.name == name && r.line == line)
+    }
+
+    // spec: LNG-8 (internal: the structure is a library API no command prints)
+    #[cfg(feature = "java")]
+    #[test]
+    fn reads_java_classes_methods_and_calls() {
+        let source = "class Order {\n  void ship() {\n    check(this);\n  }\n}\n\ninterface Repo {}\n\nrecord Line(int qty) {}\n";
+        let found = defs("src/main/java/shop/Order.java", source);
+        has(&found, "Order", "class", (1, 5));
+        has(&found, "ship", "method", (2, 4));
+        has(&found, "Repo", "interface", (7, 7));
+        has(&found, "Line", "class", (9, 9));
+        assert!(calls("a.java", source, "check", 3));
+    }
+
+    // spec: LNG-8 (internal: the structure is a library API no command prints)
+    #[cfg(feature = "kotlin")]
+    #[test]
+    fn reads_kotlin_classes_objects_functions_and_calls() {
+        let source = "class Order(val id: Int) {\n  fun ship(): Boolean {\n    return check(this)\n  }\n}\n\nobject Registry {\n  fun all() = repo.load()\n}\n";
+        let found = defs("src/main/kotlin/shop/Order.kt", source);
+        has(&found, "Order", "class", (1, 5));
+        has(&found, "ship", "function", (2, 4));
+        has(&found, "Registry", "class", (7, 9));
+        has(&found, "all", "function", (8, 8));
+        assert!(calls("a.kt", source, "check", 3));
+        assert!(calls("a.kt", source, "load", 8));
+    }
+
+    // spec: LNG-8 (internal: the structure is a library API no command prints)
+    #[cfg(feature = "scala")]
+    #[test]
+    fn reads_scala_classes_traits_objects_and_calls() {
+        let source = "class Order {\n  def ship(): Boolean = {\n    check(this)\n  }\n}\n\ntrait Repo\n\nobject Shop {\n  def all = repo.load()\n}\n";
+        let found = defs("app/shop/Order.scala", source);
+        has(&found, "Order", "class", (1, 5));
+        has(&found, "ship", "function", (2, 4));
+        has(&found, "Repo", "interface", (7, 7));
+        has(&found, "Shop", "class", (9, 11));
+        assert!(calls("a.scala", source, "check", 3));
+        assert!(calls("a.scala", source, "load", 10));
+    }
+
+    // spec: LNG-8 (internal: the structure is a library API no command prints)
+    #[cfg(feature = "csharp")]
+    #[test]
+    fn reads_csharp_classes_methods_and_calls() {
+        let source = "namespace Shop {\n  class Order {\n    void Ship() {\n      Check(this);\n      repo.Save(this);\n    }\n  }\n\n  record Line(int Qty);\n}\n";
+        let found = defs("Shop/Order.cs", source);
+        has(&found, "Order", "class", (2, 7));
+        has(&found, "Ship", "method", (3, 6));
+        has(&found, "Line", "class", (9, 9));
+        assert!(calls("a.cs", source, "Check", 4));
+        assert!(calls("a.cs", source, "Save", 5));
+    }
+
+    // spec: LNG-8 (internal: `same_language` is a library API no command prints)
+    #[test]
+    fn kotlin_and_scala_are_of_java() {
+        assert_eq!(
+            same_language(Path::new("a.kt"), Path::new("b.java")),
+            cfg!(all(feature = "kotlin", feature = "java"))
+        );
+        assert_eq!(
+            same_language(Path::new("a.scala"), Path::new("b.kt")),
+            cfg!(all(feature = "scala", feature = "kotlin"))
+        );
+        assert!(!same_language(Path::new("a.cs"), Path::new("b.java")));
+    }
+
     #[test]
     fn extensions_are_matched_with_or_without_the_dot_in_any_case() {
         assert_eq!(is_supported_extension(".RB"), cfg!(feature = "ruby"));
@@ -377,7 +547,7 @@ mod tests {
     fn another_language_or_extension_is_not_parsed() {
         assert!(parse(Path::new("main.go"), "package main").is_none());
         assert!(parse(Path::new("README"), "text").is_none());
-        assert!(!is_supported(Path::new("a.php")));
+        assert!(!is_supported(Path::new("a.zig")));
     }
 
     #[cfg(feature = "ruby")]
