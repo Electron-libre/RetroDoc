@@ -36,3 +36,36 @@ Language and framework agnostic
 
 # Hints
 * A file newly classified as test leaves the file budget and the fingerprints: a saved run re-reads the passes.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Read as tests the singular (`.Test`, `UnitTest`, `IntegrationTest`) and BDD (`.Specs`) .NET test projects, for .NET
+files only, and the Android variant Gradle source sets (`testDebug`, `androidTestRelease`); the `.csproj` of such a
+project leaves the brief. Out of scope: the `LabTests/` trade-off. Means: the ".NET" condition is the file's own
+extension (`cs`, `fs`, `vb`, `*proj`), as `is_test_path` sees a path only.
+
+## Plan
+1. [x] Singular, BDD and Android variant test layouts: `is_dotnet_test_project` in `walker.rs`, gated by a .NET
+   extension, also used for the `.csproj` stem in `manifest.rs`; `is_test_source_set` takes `test`/`androidTest`
+   then a capital (subsumes `testFixtures`); verified by the cases of `classifies_tests_apart_from_source` and a
+   `.csproj` test of the manifest reader; makes true LNG-12, LNG-13 (amended scenarios). ~120 lines.
+
+## Decisions
+- Mode: autonomous
+- Base commit: bdc8f6e
+- Foreign uncommitted changes (`.blade.php` suffixes in `walker.rs`, Laravel fixture): set aside by the user before
+  the deliverable, not part of this issue.
+
+## Summary of deliverable 1
+- done: `is_dotnet_test_project` (`.Test`, `UnitTest`, `IntegrationTest`, `.Specs`, for .NET files only) in the
+  walker and for the `.csproj` stem of the manifest reader; `is_test_source_set` takes `test`/`androidTest` then a
+  capital.
+- checks: tests, clippy, fmt, specs, docs (`docs/crates/core-ingest.md`) pass with `just check`.
+- red: LNG-13: `Files: 10 (source: 9, test: 0, markdown: 0, other: 1)`; LNG-12: `assertion left == right failed`
+  (the test projects were read).
+- not verified: no run (no saved run holds these layouts).
+- Code review: no findings
+- decisions needed: none.

@@ -200,6 +200,34 @@ fn nested_test_projects_and_source_sets_are_test() {
     assert!(out.contains(&expected), "{out}");
 }
 
+// spec: LNG-13
+#[test]
+fn singular_bdd_and_android_variant_test_layouts_are_test() {
+    let tests = [
+        "Shop.Api.Test/Fakes/FakeClock.cs",
+        "Shop.UnitTest/OrderBuilder.cs",
+        "ShopIntegrationTest/Db.cs",
+        "Shop.Specs/Steps/OrderSteps.cs",
+        "app/src/testDebug/java/FakeApi.java",
+        "app/src/androidTestRelease/kotlin/LoginFlow.kt",
+    ];
+    let sources = [
+        "src/Contest/Draw.cs",
+        "web/Shop.Specs/order.ts",
+        "app/src/testing/java/Order.java",
+    ];
+    let dir = repo(&[&tests[..], &sources[..]].concat());
+
+    let out = scan(dir.path());
+
+    let expected = format!(
+        "(source: {}, test: {}, markdown: 0, other: 1)",
+        sources.len(),
+        tests.len()
+    );
+    assert!(out.contains(&expected), "{out}");
+}
+
 // spec: LNG-14
 #[test]
 fn the_sbt_project_directory_is_not_source() {
@@ -289,4 +317,20 @@ fn with_no_solution_the_projects_two_levels_down_are_read() {
     write(dir.path(), ".gitignore", "artifacts/\n");
 
     assert_eq!(manifest_count(dir.path()), Some(2));
+}
+
+// spec: LNG-12
+#[test]
+fn singular_and_bdd_test_projects_are_not_read() {
+    let dir = repo(&[]);
+    for project in [
+        "src/Shop.Api/Shop.Api.csproj",
+        "tests/Shop.Api.Test/Shop.Api.Test.csproj",
+        "Shop.Specs/Shop.Specs.csproj",
+        "Shop.UnitTest.csproj",
+    ] {
+        write(dir.path(), project, CSPROJ);
+    }
+
+    assert_eq!(manifest_count(dir.path()), Some(1));
 }

@@ -5,7 +5,7 @@
 use std::path::{Component, Path};
 
 use super::{Signal, SignalKind};
-use crate::walker::{is_test_path, is_test_project, FileEntry};
+use crate::walker::{is_dotnet_test_project, is_test_path, FileEntry};
 
 /// Manifests read at these paths from the repo root.
 const MANIFESTS: &[&str] = &[
@@ -92,7 +92,7 @@ fn dotnet_projects(repo_root: &Path, files: &[FileEntry]) -> Vec<String> {
             !is_test_path(path)
                 && !path
                     .file_stem()
-                    .is_some_and(|stem| is_test_project(&stem.to_string_lossy()))
+                    .is_some_and(|stem| is_dotnet_test_project(&stem.to_string_lossy()))
         })
         .collect();
     kept.sort();

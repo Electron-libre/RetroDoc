@@ -59,8 +59,10 @@ Overflow Developer Survey and reviewed once a year (ADR 0036):
 - **LNG-12** (deterministic) The product brief must read the `*.csproj` files the root `.sln` or `.slnx` lists, else
   those one or two directory levels below the root, test projects left out.
 - **LNG-13** (deterministic) The walker must classify as test a file under a .NET test project directory (a name
-  ending in `Tests`: `Shop.Tests/`, `Shop.UnitTests/`) or a Gradle test source set (`src/integrationTest/kotlin/`,
-  `src/testFixtures/java/`).
+  ending in `Tests`: `Shop.Tests/`, `Shop.UnitTests/`; for a .NET file, also a name ending in `.Test`, `UnitTest`,
+  `IntegrationTest` or `.Specs`: `Shop.Api.Test/`, `Shop.Specs/`) or a Gradle test source set
+  (`src/integrationTest/kotlin/`, `src/testFixtures/java/`, the Android variants `src/testDebug/java/`,
+  `src/androidTestRelease/kotlin/`).
 - **LNG-14** (deterministic) The walker must not classify as source a file under the root `project/` directory of
   an sbt build (a `build.sbt` at the root).
 - **LNG-15** (deterministic) `scan` and `roles` must count as source a file whose extension the saved `roles.yaml`
@@ -105,12 +107,18 @@ Overflow Developer Survey and reviewed once a year (ADR 0036):
   `src/Shop.Api/Shop.Api.csproj` is read, and a `.csproj` three levels down is not; a path of the `.sln` outside
   the repository, or a project the walk ignores (`.gitignore`, `extra_ignore`), is not read; a path of the `.sln` in
   another case (`src\shop.api\Shop.Api.csproj`) is read; a `.sln` listing no `.csproj` falls back to the projects
-  one or two levels down; a root `Shop.Tests.csproj` is not read.
+  one or two levels down; a root `Shop.Tests.csproj` is not read; given no `.sln` and
+  `tests/Shop.Api.Test/Shop.Api.Test.csproj`, `Shop.Specs/Shop.Specs.csproj`, then neither is read.
 - (LNG-13) Given `Shop.Tests/Fakes/FakeClock.cs`, `src/integrationTest/kotlin/OrderIT.kt` and
   `src/testFixtures/java/OrderBuilder.java`, then they are test files; given
   `src/main/java/shop/Contests/Draw.java`, then it is a source file (`Tests` with a capital, after a word;
   `Contests` has none); given `src/speedTest/Runner.ts`, then it is a source file (a source set holds a JVM language
   directory).
+- (LNG-13) Given `Shop.Api.Test/Fakes/FakeClock.cs`, `Shop.UnitTest/OrderBuilder.cs`, `Shop.Specs/Steps/OrderSteps.cs`,
+  `app/src/testDebug/java/FakeApi.java` and `app/src/androidTestRelease/kotlin/LoginFlow.kt`, then they are test
+  files; given `src/Contest/Draw.cs`, `web/Shop.Specs/order.ts` and `app/src/testing/java/Order.java`, then they
+  are source files (the singular and BDD suffixes only hold for a .NET file; a variant source set starts with
+  `test` or `androidTest` then a capital).
 - (LNG-14) Given `build.sbt` and `project/Dependencies.scala`, then the latter is not a source file, even when the
   roles call names `scala`; given `project/Dependencies.scala` with no `build.sbt`, then it is a source file.
 - (LNG-8) Given a file of each language of the reference set with a type, a method spanning several lines and a

@@ -26,6 +26,9 @@ const CAPITAL_TEST_SUFFIX: &[&str] =
 /// The language directories of a Gradle source set (`src/<set>/java/`).
 const JVM_SOURCE_DIRS: &[&str] = &["java", "kotlin", "groovy", "scala", "resources"];
 
+/// Extensions of .NET code and project files.
+const DOTNET_EXTENSIONS: &[&str] = &["cs", "fs", "vb", "csproj", "fsproj", "vbproj"];
+
 /// Extensions of templates, markup, stylesheets and data: never promoted to
 /// source, whatever the stack identification answers. `vue`, `svelte` and
 /// `astro` are not here: their files hold code and markup together.
@@ -205,11 +208,18 @@ fn in_sbt_project(path: &Path) -> bool {
 /// `foo.spec.ts`, `test_foo.py`, `foo_spec.rb`, `FooTest.java`,
 /// `FooTests.cs`).
 pub(crate) fn is_test_path(path: &Path) -> bool {
+    let dotnet = path
+        .extension()
+        .map(|e| e.to_string_lossy().to_lowercase())
+        .is_some_and(|e| DOTNET_EXTENSIONS.contains(&e.as_str()));
     // The window `before/dir/after` over the directories.
     let (mut before, mut dir): (Option<String>, Option<String>) = (None, None);
     for component in path.parent().into_iter().flat_map(Path::components) {
         let after = component.as_os_str().to_string_lossy().into_owned();
-        if TEST_DIRS.contains(&after.to_lowercase().as_str()) || is_test_project(&after) {
+        if TEST_DIRS.contains(&after.to_lowercase().as_str())
+            || is_test_project(&after)
+            || (dotnet && is_dotnet_test_project(&after))
+        {
             return true;
         }
         if before.as_deref() == Some("src")
@@ -238,10 +248,28 @@ pub(crate) fn is_test_project(name: &str) -> bool {
     ends_after(name, "Tests", |c| c.is_alphanumeric() || c == '.')
 }
 
+/// A .NET test project, also named in the singular or for BDD (`Shop.Api.Test`,
+/// `Shop.UnitTest`, `ShopIntegrationTest`, `Shop.Specs`): only for .NET files,
+/// as `Contest/` or `Shop.Specs/` of another stack are not tests.
+pub(crate) fn is_dotnet_test_project(name: &str) -> bool {
+    let after_word = |c: char| c.is_alphanumeric() || c == '.';
+    is_test_project(name)
+        || ends_after(name, "Test", |c| c == '.')
+        || ends_after(name, "UnitTest", after_word)
+        || ends_after(name, "IntegrationTest", after_word)
+        || ends_after(name, "Specs", |c| c == '.')
+}
+
 /// A Gradle test source set under `src/` (`integrationTest`, `functionalTest`,
-/// `testFixtures`), told by the language directory below it.
+/// `testFixtures`, the Android variants `testDebug`, `androidTestRelease`),
+/// told by the language directory below it.
 fn is_test_source_set(dir: &str) -> bool {
-    dir == "testFixtures" || ends_after(dir, "Test", char::is_alphanumeric)
+    ends_after(dir, "Test", char::is_alphanumeric)
+        || ["test", "androidTest"].iter().any(|prefix| {
+            dir.strip_prefix(prefix)
+                .and_then(|rest| rest.chars().next())
+                .is_some_and(char::is_uppercase)
+        })
 }
 
 fn uses_capital_test_suffix(path: &Path) -> bool {
