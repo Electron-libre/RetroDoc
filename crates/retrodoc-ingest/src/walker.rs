@@ -103,7 +103,7 @@ fn in_sbt_project(path: &Path) -> bool {
 /// anywhere in it, or a conventional test file name (`foo_test.go`,
 /// `foo.spec.ts`, `test_foo.py`, `foo_spec.rb`, `FooTest.java`,
 /// `FooTests.cs`).
-fn is_test_path(path: &Path) -> bool {
+pub(crate) fn is_test_path(path: &Path) -> bool {
     let dirs: Vec<String> = path
         .parent()
         .into_iter()

@@ -239,3 +239,52 @@ fn a_gradle_version_catalog_is_read() {
     .unwrap();
     assert_eq!(manifest_count(dir.path()), Some(1));
 }
+
+const CSPROJ: &str =
+    "<Project><ItemGroup><PackageReference Include=\"Serilog\" Version=\"3\" /></ItemGroup></Project>";
+
+fn write(dir: &Path, file: &str, content: &str) {
+    let path = dir.join(file);
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    std::fs::write(path, content).unwrap();
+}
+
+// spec: LNG-12
+#[test]
+fn the_projects_of_a_solution_are_read() {
+    let dir = repo(&[]);
+    for project in [
+        "src/Shop.Api/Shop.Api.csproj",
+        "tests/Shop.Tests/Shop.Tests.csproj",
+        "src/Unlisted/Unlisted.csproj",
+    ] {
+        write(dir.path(), project, CSPROJ);
+    }
+    write(
+        dir.path(),
+        "Shop.sln",
+        "Project(\"{FAE04EC0}\") = \"Shop.Api\", \"src\\Shop.Api\\Shop.Api.csproj\", \"{1}\"\n\
+         EndProject\n\
+         Project(\"{FAE04EC0}\") = \"Shop.Tests\", \"tests\\Shop.Tests\\Shop.Tests.csproj\", \"{2}\"\n\
+         EndProject\n",
+    );
+
+    // The unlisted project is left out, and so is the test project.
+    assert_eq!(manifest_count(dir.path()), Some(1));
+}
+
+// spec: LNG-12
+#[test]
+fn with_no_solution_the_projects_two_levels_down_are_read() {
+    let dir = repo(&[]);
+    for project in [
+        "Shop.Web/Shop.Web.csproj",
+        "src/Shop.Api/Shop.Api.csproj",
+        "src/Shop.Tests/Shop.Tests.csproj",
+        "src/a/Deep/Deep.csproj",
+    ] {
+        write(dir.path(), project, CSPROJ);
+    }
+
+    assert_eq!(manifest_count(dir.path()), Some(2));
+}

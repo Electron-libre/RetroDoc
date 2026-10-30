@@ -56,7 +56,7 @@ source. Out of scope: the `BloodTest.java` trade-off (a non-goal of the spec), t
 2. [x] Gradle version catalog: `gradle/libs.versions.toml` read as a manifest (`module`, `group`/`name`, string
    notation); verified by `stack_tables.rs` through `brief --signals` and `manifest.rs` unit tests; makes true LNG-11
    (~120 lines).
-3. [ ] Nested `.csproj`: the projects the root `.sln` lists, else one or two levels down, bounded, test projects
+3. [x] Nested `.csproj`: the projects the root `.sln` lists, else one or two levels down, bounded, test projects
    and paths outside the repo left out; verified likewise; makes true LNG-12, sets the spec `accepted` (~200 lines).
 
 ## Decisions
@@ -79,5 +79,13 @@ source. Out of scope: the `BloodTest.java` trade-off (a non-goal of the spec), t
   `module`, `group`/`name`), in key order.
 - checks: `just check` ok; docs `docs/crates/core-ingest.md`.
 - red: LNG-11: `left: None, right: Some(1)` (no manifest read from the catalog).
+- Code review: no findings.
+- not verified: none. decisions needed: none.
+
+## Deliverable 3: nested `.csproj`
+- done: the `.csproj` of the root solutions (`.sln` and `.slnx`, paths inside the repo only), else one or two levels
+  down (hidden, `bin`, `obj`, `node_modules` skipped), test projects left out, at most 20; the spec is `accepted`.
+- checks: `just check` ok; docs `docs/crates/core-ingest.md`.
+- red: LNG-12: `left: None, right: Some(1)` and `left: None, right: Some(2)`.
 - Code review: no findings.
 - not verified: none. decisions needed: none.

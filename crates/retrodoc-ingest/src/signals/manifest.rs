@@ -1,10 +1,11 @@
 //! Manifest metadata: what the project calls itself and which libraries it
-//! stands on, read from the manifests at the root of the repo and the Gradle
-//! version catalog.
+//! stands on, read from the manifests at the root of the repo, the Gradle
+//! version catalog and the .NET projects of the root solution.
 
-use std::path::Path;
+use std::path::{Component, Path};
 
 use super::{Signal, SignalKind};
+use crate::walker::is_test_path;
 
 /// Manifests read at these paths from the repo root.
 const MANIFESTS: &[&str] = &[
@@ -25,9 +26,8 @@ const MANIFESTS: &[&str] = &[
 /// The Gradle version catalog: a build script that names its dependencies
 /// through it (`implementation(libs.spring.web)`) quotes no coordinates.
 const GRADLE_CATALOG: &str = "gradle/libs.versions.toml";
-/// Manifests read at the repo root under any name, by extension: a .NET
-/// project file is named after its project.
-const MANIFEST_EXTENSIONS: &[&str] = &["csproj"];
+/// .NET projects kept: a solution of a large product lists dozens.
+const MAX_PROJECTS: usize = 20;
 /// Dependency names kept per manifest.
 const MAX_DEPENDENCIES: usize = 40;
 
@@ -36,30 +36,91 @@ const MAX_DEPENDENCIES: usize = 40;
 #[must_use]
 pub fn manifest_metadata(repo_root: &Path) -> Vec<Signal> {
     let mut names: Vec<String> = MANIFESTS.iter().map(ToString::to_string).collect();
-    names.extend(names_by_extension(repo_root));
+    names.extend(dotnet_projects(repo_root));
     names
         .iter()
         .filter_map(|name| read_manifest(repo_root, name))
         .collect()
 }
 
-/// The root files whose extension is one of [`MANIFEST_EXTENSIONS`], sorted.
-fn names_by_extension(repo_root: &Path) -> Vec<String> {
-    let Ok(entries) = std::fs::read_dir(repo_root) else {
+/// The `.csproj` files, named after their project: those at the root, plus
+/// those the root solutions (`.sln`, `.slnx`) list, else those one or two
+/// levels down. Test projects are left out; sorted, at most [`MAX_PROJECTS`].
+fn dotnet_projects(repo_root: &Path) -> Vec<String> {
+    let mut projects = files_with_extension(repo_root, "", "csproj");
+    let solutions: Vec<String> = ["sln", "slnx"]
+        .iter()
+        .flat_map(|ext| files_with_extension(repo_root, "", ext))
+        .collect();
+    if solutions.is_empty() {
+        for dir in subdirectories(repo_root, "") {
+            projects.extend(files_with_extension(repo_root, &dir, "csproj"));
+            for sub in subdirectories(repo_root, &dir) {
+                projects.extend(files_with_extension(repo_root, &sub, "csproj"));
+            }
+        }
+    } else {
+        for solution in solutions {
+            let Ok(content) = std::fs::read_to_string(repo_root.join(&solution)) else {
+                continue;
+            };
+            projects.extend(
+                quoted_strings(&content, &['"'])
+                    .into_iter()
+                    .map(|(_, _, path)| path.replace('\\', "/"))
+                    .filter(|path| {
+                        Path::new(path).extension().is_some_and(|e| e == "csproj")
+                            && Path::new(path)
+                                .components()
+                                .all(|c| matches!(c, Component::Normal(_)))
+                    }),
+            );
+        }
+    }
+    projects.retain(|p| !is_test_path(Path::new(p)));
+    projects.sort();
+    projects.dedup();
+    projects.truncate(MAX_PROJECTS);
+    projects
+}
+
+/// The files of `dir` (relative to `repo_root`, `""` for the root) whose
+/// extension is `extension`, as repo-relative paths.
+fn files_with_extension(repo_root: &Path, dir: &str, extension: &str) -> Vec<String> {
+    entries(repo_root, dir, |t| t.is_file())
+        .into_iter()
+        .filter(|path| Path::new(path).extension().is_some_and(|e| e == extension))
+        .collect()
+}
+
+/// The directories of `dir`, hidden and build output ones (`bin`, `obj`) left
+/// out.
+fn subdirectories(repo_root: &Path, dir: &str) -> Vec<String> {
+    entries(repo_root, dir, |t| t.is_dir())
+        .into_iter()
+        .filter(|path| {
+            let name = path.rsplit('/').next().unwrap_or_default();
+            !name.starts_with('.') && !matches!(name, "bin" | "obj" | "node_modules")
+        })
+        .collect()
+}
+
+fn entries(repo_root: &Path, dir: &str, keep: impl Fn(std::fs::FileType) -> bool) -> Vec<String> {
+    let Ok(entries) = std::fs::read_dir(repo_root.join(dir)) else {
         return Vec::new();
     };
-    let mut names: Vec<String> = entries
+    entries
         .filter_map(Result::ok)
-        .filter(|e| e.file_type().is_ok_and(|t| t.is_file()))
-        .map(|e| e.file_name().to_string_lossy().into_owned())
-        .filter(|name| {
-            Path::new(name)
-                .extension()
-                .is_some_and(|ext| MANIFEST_EXTENSIONS.iter().any(|m| ext == *m))
+        .filter(|e| e.file_type().is_ok_and(&keep))
+        .map(|e| {
+            let name = e.file_name().to_string_lossy().into_owned();
+            if dir.is_empty() {
+                name
+            } else {
+                format!("{dir}/{name}")
+            }
         })
-        .collect();
-    names.sort();
-    names
+        .collect()
 }
 
 fn read_manifest(repo_root: &Path, name: &str) -> Option<Signal> {
@@ -418,7 +479,11 @@ fn csproj_manifest(file: &str, content: &str) -> Summary {
     // `$(MSBuildProjectName)` and the like are MSBuild properties.
     let assembly = tag("AssemblyName", content).filter(|n| !n.contains("$("));
     Summary {
-        name: assembly.or_else(|| Some(file.trim_end_matches(".csproj").to_string())),
+        name: assembly.or_else(|| {
+            Path::new(file)
+                .file_stem()
+                .map(|s| s.to_string_lossy().into_owned())
+        }),
         description: tag("Description", content),
         dependencies,
     }
@@ -633,6 +698,37 @@ mod tests {
         assert_eq!(
             text,
             "dependencies: org.flywaydb:flyway-core, org.postgresql:postgresql, org.springframework.boot:spring-boot-starter-web"
+        );
+    }
+
+    // spec: LNG-12 (internal: the brief prints only a count of manifests, not their origins)
+    #[test]
+    fn reads_the_projects_of_a_solution_inside_the_repo() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("repo");
+        let csproj =
+            "<Project><ItemGroup><PackageReference Include=\"Dapper\" /></ItemGroup></Project>";
+        for project in ["repo/src/Shop.Api/Shop.Api.csproj", "Other/Other.csproj"] {
+            let path = dir.path().join(project);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, csproj).unwrap();
+        }
+        fs::write(
+            root.join("Shop.slnx"),
+            "<Solution><Project Path=\"src/Shop.Api/Shop.Api.csproj\" />\
+             <Project Path=\"../Other/Other.csproj\" /></Solution>",
+        )
+        .unwrap();
+        let read: Vec<_> = manifest_metadata(&root)
+            .into_iter()
+            .map(|s| (s.origin, s.text))
+            .collect();
+        assert_eq!(
+            read,
+            vec![(
+                "src/Shop.Api/Shop.Api.csproj".to_string(),
+                "name: Shop.Api\ndependencies: Dapper".to_string()
+            )]
         );
     }
 
