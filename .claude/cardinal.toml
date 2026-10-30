@@ -1,6 +1,6 @@
 [cardinal]
 source = "https://github.com/Electron-libre/cardinal.git"
-rev = "0d2bfe3fd5a82e130ec25ee35eab465326ff4c02"  # default branch
+rev = "974343b81e0e7d846a5d228dfd71ac387aa1afa7"  # default branch
 
 # Values of this project that Cardinal (the shared harness) reads. Owned by the project: `cardinal sync` never rewrites it.
 

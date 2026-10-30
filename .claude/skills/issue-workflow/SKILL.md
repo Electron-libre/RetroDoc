@@ -125,9 +125,9 @@ again. Then set `Plan: validated` and the base commit. The spec file is the reco
    just the message.
 
 Then move to the next deliverable (autonomous mode: chain into it). Don't chain into it without saying so if the user asked to stop.
-After the last deliverable, invoke `/code-review high` once on the whole issue (`<base>..HEAD`, the base commit
-recorded in `## Decisions`); its fixes are one more deliverable, steps 3.2 to 3.8 with their own `low` review (the
-commit gate only knows the files that review saw).
+After the last deliverable, run `skill:update-docs` on the whole issue (`<base>..HEAD`, the base commit recorded in
+`## Decisions`), then invoke `/code-review high` once on it; the docs edits and the review fixes are one more
+deliverable, steps 3.2 to 3.8 with their own `low` review (the commit gate only knows the files that review saw).
 
 ## Autonomous mode
 

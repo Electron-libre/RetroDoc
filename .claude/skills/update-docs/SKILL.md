@@ -12,7 +12,8 @@ Show the user your results as `.claude/rules/reports-to-the-user.md` says.
 
 ## 1. Establish what changed
 
-- Run `git status`, `git diff` (staged + unstaged) and `git log -5 --format=%s`.
+- Given a commit range (a whole issue, `<base>..HEAD`), read `git diff <range>` and `git log <range> --format=%s`;
+  otherwise run `git status`, `git diff` (staged + unstaged) and `git log -5 --format=%s`.
 - List the changes in one line each, classified with the kinds of change of the map (step 2).
 - If the diff is empty, ask which change or commit range to document.
 
@@ -26,7 +27,7 @@ These rows hold for every project:
 
 | Change | Update |
 |---|---|
-| Behaviour of a capability that has a spec in `specs/` added, changed or dropped | `specs/<capability>.md` (requirement, scenario, status), the `// spec: ID` of the tests; `just check-specs` must pass |
+| Behaviour of a capability that has a spec in `specs/` added, changed or dropped | `specs/<capability>.md` (requirement, scenario, status), the `// spec: ID` of the tests, `just check-specs` passing; the page of `docs/` or of the `root_docs` that describes the capability to its user; the `architecture` document of `.claude/cardinal.toml` when a component, a boundary or a flow changed |
 | Convention (lint, tests, harness) | `CLAUDE.md`, the page that describes the harness |
 | Commit scope added or removed (new crate or area) | `commit_scopes` in `.claude/cardinal.toml` |
 | A synced file (skill, script, `AGENTS.md`, `cardinal.just`, workflow) must change | not here: fix it in the Cardinal repository, then `cardinal sync` |
@@ -37,14 +38,15 @@ These rows hold for every project:
 Grep the old and new names of everything touched and read each hit in context:
 
 ```sh
-rg -n "<name>" CLAUDE.md README.md AGENTS.md docs/
+rg -n "<name>" CLAUDE.md AGENTS.md docs/ <root_docs> <architecture>
 ```
 
-Also compare against the code: the entry points, the defaults, and the relative links in the docs.
+`<root_docs>` and `<architecture>` are the files these keys of `.claude/cardinal.toml` name. Also compare against the code: the entry points, the defaults, and the relative links in the docs.
 
 ## 4. Edit
 
-- Change only what is now wrong or missing; keep each document's tone and density.
+- Change only what is now wrong or missing; keep each document's tone and density. Over a commit range, read each
+  page it touched whole and rewrite what the successive patches left partial or inconsistent.
 - `CLAUDE.md` is the compact guide, `docs/` holds the detail: don't state the same fact in both beyond a summary.
 - Don't invent behavior: confirm from the code or the diff.
 
