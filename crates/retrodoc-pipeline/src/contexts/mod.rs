@@ -518,7 +518,7 @@ async fn split_large_contexts(
     let left = map.resolve(sources, seeds);
     for (context, own) in map.contexts.iter().zip(&left.contexts) {
         if own.files.len() > MAX_CONTEXT_FILES {
-            let reason = whole.get(&context.slug).unwrap_or(&Whole::SplitTwice);
+            let reason = whole.get(&context.slug).unwrap_or(&Whole::NoLevelLeft);
             tracing::warn!(
                 context = %context.slug,
                 files = own.files.len(),
@@ -539,8 +539,8 @@ enum Whole {
     Unusable,
     /// The answer gave fewer than two parts.
     OnePart,
-    /// A part of a part: [`MAX_SPLIT_LEVELS`] calls were made already.
-    SplitTwice,
+    /// Over the limit once the [`MAX_SPLIT_LEVELS`] levels of split were used up (a part of a part).
+    NoLevelLeft,
 }
 
 impl std::fmt::Display for Whole {
@@ -549,7 +549,7 @@ impl std::fmt::Display for Whole {
             Self::TooFewEntries => "too few entries to cut",
             Self::Unusable => "unusable answer",
             Self::OnePart => "fewer than two parts",
-            Self::SplitTwice => "split twice already",
+            Self::NoLevelLeft => "no split level left",
         })
     }
 }
@@ -566,13 +566,9 @@ async fn split_once(
     llm: &dyn LlmProvider,
 ) -> Result<ContextMap, PipelineError> {
     let ContextMap { contexts, support } = map;
-    // The slugs of the contexts left whole are kept; a part that takes one gets a suffix.
-    let mut slugs: Vec<String> = contexts
-        .iter()
-        .zip(big)
-        .filter(|(_, big)| !**big)
-        .map(|(c, _)| c.slug.clone())
-        .collect();
+    // The slugs of the other contexts, split or not yet, are kept: a part that takes one gets a
+    // suffix. Only the slug of the context being split is free for its parts.
+    let mut slugs: Vec<String> = contexts.iter().map(|c| c.slug.clone()).collect();
     let mut out: Vec<BoundedContext> = Vec::new();
     for ((context, own), big) in contexts.into_iter().zip(resolved.contexts).zip(big) {
         if !big {
@@ -581,6 +577,7 @@ async fn split_once(
         }
         match split_context(&context, &own.files, grouped, brief, llm).await? {
             Ok(parts) => {
+                slugs.retain(|s| *s != context.slug);
                 for mut part in parts {
                     part.slug = unique_slug(&part.slug, slugs.iter().map(String::as_str));
                     slugs.push(part.slug.clone());
@@ -588,6 +585,8 @@ async fn split_once(
                 }
             }
             Err(reason) => {
+                // Logged at once: a later failed call would lose it before the warning.
+                tracing::info!(context = %context.slug, %reason, "large context kept whole");
                 whole.insert(context.slug.clone(), reason);
                 out.push(context);
             }
@@ -600,8 +599,9 @@ async fn split_once(
 }
 
 /// The sub-contexts of `context` (which holds `files`), or why it stays whole: too few entries to
-/// cut, an unusable answer or fewer than two parts. What the answer forgets stays with the first one, and so do the folders of
-/// the context as a fallback (the sub-folders it cites are longer, so they win): no file is lost.
+/// cut, an unusable answer or fewer than two parts. What the answer forgets stays with the first
+/// one, and so do the folders of the context as a fallback (the sub-folders it cites are longer, so
+/// they win): no file is lost.
 ///
 /// # Errors
 ///

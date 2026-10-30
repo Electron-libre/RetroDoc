@@ -501,3 +501,11 @@ out of the entry points; the prompt asks for one use case for a form and its sub
 features made of public methods 21% to 5% of the use cases, human actor with no route nor command 28% to 7%, 5
 back-office features found; the form screens did not drop (12% to 21%), kept in
 `issues/merge_form_screens_into_their_use_case.md`.
+
+Residue and spread of the map (`issues/contexts_residual_size_and_names.md`, 2026-10-30, hosted `deepseek-chat`):
+the context over the limit and the action names taken for families depend on the roles the map starts from (none
+with the roles of the local run, one context of 180 files and one false family of 3 files with hosted roles).
+Three maps of the same roles: 34, 40 and 44 contexts, 30%, 10% and 10% of the files in the support, 57% to 81% of
+the files in the same context from one map to another, 4 slugs in all three; the context of 180 files in the
+first is cut under the limit in the next two. About 30 of the 44 names fit their files; the others are 5 technical
+contexts (UI components, configuration, front-end code, base classes), 3 catch-alls and 6 one-file contexts.

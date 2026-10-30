@@ -916,17 +916,17 @@ async fn a_part_still_over_the_limit_after_two_splits_is_not_asked_about_a_third
     .unwrap();
 
     assert_eq!(llm.calls(), 3, "the map and two splits, no third");
-    let big = map.resolve(&many, &seeds());
-    let (slug, files) = map
+    let resolved = map.resolve(&many, &seeds());
+    let sizes: Vec<(&str, usize)> = map
         .contexts
         .iter()
-        .zip(&big.contexts)
-        .find(|(_, own)| own.files.len() > 150)
-        .map_or_else(
-            || panic!("{map:?}"),
-            |(c, own)| (c.slug.clone(), own.files.len()),
-        );
-    assert_still_big(&logs.text(), &slug, files, "split twice already");
+        .zip(&resolved.contexts)
+        .map(|(c, own)| (c.slug.as_str(), own.files.len()))
+        .collect();
+    let big: Vec<(&str, usize)> = sizes.iter().copied().filter(|(_, n)| *n > 150).collect();
+    assert_eq!(big.len(), 1, "{sizes:?}");
+    assert_eq!(big[0].0, "life-again", "{sizes:?}");
+    assert_still_big(&logs.text(), "life-again", big[0].1, "no split level left");
 }
 
 /// The id the split prompt gives the group `name`.
@@ -1007,4 +1007,44 @@ async fn the_split_lists_the_families_that_repeat_across_layers_and_cuts_by_fami
         ]),
         "a family holds its files of every layer"
     );
+}
+
+// spec: CSP-4 (internal: the map needs an LLM, faked inside the crate)
+#[tokio::test]
+async fn a_part_does_not_take_the_slug_of_a_big_context_split_after_it() {
+    let dir = tempfile::tempdir().unwrap();
+    // Two big contexts: `billing` (the workflows) is split first, into a part it calls `contracts`;
+    // the real `contracts` (one group and one folder of jobs) has too few entries to be cut.
+    let mut many = big_sources();
+    many.extend((0..160).map(|i| PathBuf::from(format!("app/jobs/job_{i}.rb"))));
+    let llm = FakeLlm::replying(|_, request| {
+        let prompt = &request.messages[1].content;
+        Ok(if prompt.contains("Context to split") {
+            r#"{"contexts":[
+                {"slug":"contracts","name":"C","groups":["g1"],"folders":["app/workflows/rules/"]},
+                {"slug":"tasks","name":"T","groups":[],"folders":["app/workflows/tasks/"]}]}"#
+        } else {
+            r#"{"contexts":[
+                {"slug":"billing","name":"Billing","groups":["g1"],"folders":["app/workflows/tasks/","app/workflows/rules/"]},
+                {"slug":"contracts","name":"Contracts","groups":["g2"],"folders":["app/jobs/"]}],
+                "support":{"groups":["g3"],"folders":["db/migrate/"]}}"#
+        }
+        .to_string())
+    });
+    let (logs, _guard) = crate::testing::capture_logs();
+
+    let map = build_context_map(
+        dir.path(),
+        &many,
+        &seeds(),
+        &ProductBrief::default(),
+        &llm,
+        false,
+    )
+    .await
+    .unwrap();
+
+    let slugs: Vec<&str> = map.contexts.iter().map(|c| c.slug.as_str()).collect();
+    assert_eq!(slugs, ["contracts-2", "tasks", "contracts"], "{map:?}");
+    assert_still_big(&logs.text(), "contracts", 162, "too few entries to cut");
 }

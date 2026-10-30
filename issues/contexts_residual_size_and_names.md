@@ -74,6 +74,9 @@ Means: the warning itself says why a context stayed whole (CSP-4), so the run di
    makes true CSP-7.
 5. [x] Names and spread (no code): `contexts --force` two more times (~$0.02), names of the contexts read against
    their files, spread (count, largest, support share, stable names) reported in the issue and the ledger.
+6. [x] Docs of the whole issue and fixes of the `high` review: ADR 0029 and `docs/findings.md` §8 record the
+   residue and the spread; a part no longer takes the slug of another big context; the reason given when no
+   level is left is named as such; the reasons are logged at once.
 
 ## Decisions
 - Mode: autonomous
@@ -136,3 +139,13 @@ files; a file "follows" when it lands in the context of the other run that holds
   context of their own). Off: 5 technical contexts that are not business (UI components 92 files, configuration
   86, front-end controllers 11, the application base classes 15, a front-end plugin 1), 3 catch-alls whose name
   covers part of the files (unrelated models, UI actions, misc views; 100 files), and 6 contexts of one file.
+
+## Deliverable 6 (docs and `high` review)
+- done: ADR 0029, `docs/findings.md` §8, `docs/crates/pipeline.md`; review fixes: the slugs of the big contexts
+  are reserved while a level is split, `no split level left` replaces `split twice already`, each context left
+  whole is logged when it is, CSP-2 and a CSP-5 scenario reworded, the CSP-2 test pins its context.
+- checks: `just check` ok.
+- Code review (`low`): no findings
+- red: CSP-4: the new slug test gave `["contracts", "tasks", "contracts"]` (two contexts with one slug) before the fix.
+- Code review (`high`, a9d06bd..b28865d): 7 findings, all fixed (slug collision, reason fallback, reasons lost on
+  error, CSP-2 wording, CSP-5 scenario, unpinned test, comment wrap).
