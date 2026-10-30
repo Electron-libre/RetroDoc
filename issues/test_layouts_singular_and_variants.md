@@ -52,10 +52,19 @@ extension (`cs`, `fs`, `vb`, `*proj`), as `is_test_path` sees a path only.
    extension, also used for the `.csproj` stem in `manifest.rs`; `is_test_source_set` takes `test`/`androidTest`
    then a capital (subsumes `testFixtures`); verified by the cases of `classifies_tests_apart_from_source` and a
    `.csproj` test of the manifest reader; makes true LNG-12, LNG-13 (amended scenarios). ~120 lines.
+2. [x] Fixes of the `high` review of the issue: walker unit cases of the new layouts, an LNG-12 case the old rules
+   did not already exclude, `has_extension_in` shared, F# script extensions, `is_test_path` doc; verified by
+   `classifies_tests_apart_from_source`.
 
 ## Decisions
 - Mode: autonomous
 - Base commit: bdc8f6e
+- Accepted trade-offs of the `high` review, to revisit only if a run shows them: a non-.NET file inside a singular
+  or BDD .NET test project stays source; a production .NET folder ending in `.Specs` or `.Test` (specification
+  pattern) becomes test; a non-test Gradle set starting with `test` then a capital (`testKit`) becomes test. Telling a
+  .NET test project by its `.csproj` (`Microsoft.NET.Test.Sdk`) instead of its name would settle the first two.
+- Not fixed: `is_test_project` is checked twice for a .NET path component (`is_dotnet_test_project` includes it,
+  for the `.csproj` stem of the manifest reader); a negligible cost.
 - Foreign uncommitted changes (`.blade.php` suffixes in `walker.rs`, Laravel fixture): set aside by the user before
   the deliverable, not part of this issue.
 
@@ -68,4 +77,13 @@ extension (`cs`, `fs`, `vb`, `*proj`), as `is_test_path` sees a path only.
   (the test projects were read).
 - not verified: no run (no saved run holds these layouts).
 - Code review: no findings
+- decisions needed: none.
+
+## Summary of deliverable 2
+- done: the review fixes listed in the plan.
+- checks: `just check` passes.
+- red: none (tests of behaviour already delivered; `Shop.Unit.Test/Order.fs` showed `.fs` is not walked as source,
+  replaced by a `.cs` case).
+- Code review: no findings
+- not verified: no run.
 - decisions needed: none.

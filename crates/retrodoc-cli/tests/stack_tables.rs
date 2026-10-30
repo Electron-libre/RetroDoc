@@ -325,7 +325,7 @@ fn singular_and_bdd_test_projects_are_not_read() {
     let dir = repo(&[]);
     for project in [
         "src/Shop.Api/Shop.Api.csproj",
-        "tests/Shop.Api.Test/Shop.Api.Test.csproj",
+        "src/ShopIntegrationTest/ShopIntegrationTest.csproj",
         "Shop.Specs/Shop.Specs.csproj",
         "Shop.UnitTest.csproj",
     ] {

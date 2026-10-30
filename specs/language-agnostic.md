@@ -108,7 +108,7 @@ Overflow Developer Survey and reviewed once a year (ADR 0036):
   the repository, or a project the walk ignores (`.gitignore`, `extra_ignore`), is not read; a path of the `.sln` in
   another case (`src\shop.api\Shop.Api.csproj`) is read; a `.sln` listing no `.csproj` falls back to the projects
   one or two levels down; a root `Shop.Tests.csproj` is not read; given no `.sln` and
-  `tests/Shop.Api.Test/Shop.Api.Test.csproj`, `Shop.Specs/Shop.Specs.csproj`, then neither is read.
+  `src/ShopIntegrationTest/ShopIntegrationTest.csproj`, `Shop.Specs/Shop.Specs.csproj`, then neither is read.
 - (LNG-13) Given `Shop.Tests/Fakes/FakeClock.cs`, `src/integrationTest/kotlin/OrderIT.kt` and
   `src/testFixtures/java/OrderBuilder.java`, then they are test files; given
   `src/main/java/shop/Contests/Draw.java`, then it is a source file (`Tests` with a capital, after a word;

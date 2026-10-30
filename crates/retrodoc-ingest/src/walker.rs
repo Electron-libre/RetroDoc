@@ -27,7 +27,7 @@ const CAPITAL_TEST_SUFFIX: &[&str] =
 const JVM_SOURCE_DIRS: &[&str] = &["java", "kotlin", "groovy", "scala", "resources"];
 
 /// Extensions of .NET code and project files.
-const DOTNET_EXTENSIONS: &[&str] = &["cs", "fs", "vb", "csproj", "fsproj", "vbproj"];
+const DOTNET_EXTENSIONS: &[&str] = &["cs", "fs", "fsi", "fsx", "vb", "csproj", "fsproj", "vbproj"];
 
 /// Extensions of templates, markup, stylesheets and data: never promoted to
 /// source, whatever the stack identification answers. `vue`, `svelte` and
@@ -204,14 +204,12 @@ fn in_sbt_project(path: &Path) -> bool {
 }
 
 /// Heuristic test detection on a repo-relative path: a test directory
-/// anywhere in it, or a conventional test file name (`foo_test.go`,
-/// `foo.spec.ts`, `test_foo.py`, `foo_spec.rb`, `FooTest.java`,
-/// `FooTests.cs`).
+/// anywhere in it (a .NET test project named in the singular or for BDD
+/// only for a .NET file, a Gradle test source set), or a conventional test
+/// file name (`foo_test.go`, `foo.spec.ts`, `test_foo.py`, `foo_spec.rb`,
+/// `FooTest.java`, `FooTests.cs`).
 pub(crate) fn is_test_path(path: &Path) -> bool {
-    let dotnet = path
-        .extension()
-        .map(|e| e.to_string_lossy().to_lowercase())
-        .is_some_and(|e| DOTNET_EXTENSIONS.contains(&e.as_str()));
+    let dotnet = has_extension_in(path, DOTNET_EXTENSIONS);
     // The window `before/dir/after` over the directories.
     let (mut before, mut dir): (Option<String>, Option<String>) = (None, None);
     for component in path.parent().into_iter().flat_map(Path::components) {
@@ -273,9 +271,14 @@ fn is_test_source_set(dir: &str) -> bool {
 }
 
 fn uses_capital_test_suffix(path: &Path) -> bool {
+    has_extension_in(path, CAPITAL_TEST_SUFFIX)
+}
+
+/// The extension of `path`, case ignored, is one of `extensions`.
+fn has_extension_in(path: &Path, extensions: &[&str]) -> bool {
     path.extension()
         .map(|e| e.to_string_lossy().to_lowercase())
-        .is_some_and(|e| CAPITAL_TEST_SUFFIX.contains(&e.as_str()))
+        .is_some_and(|e| extensions.contains(&e.as_str()))
 }
 
 /// `OrderTest`, `OrderTests`: the capital `Test` after a word, so `Contest`
@@ -529,6 +532,14 @@ mod tests {
             "ShopTests/Order.swift",
             "core/src/integrationTest/kotlin/OrderIT.kt",
             "src/testFixtures/java/OrderBuilder.java",
+            "Shop.Api.Test/Fakes/FakeClock.cs",
+            "Shop.Unit.Test/Order.cs",
+            "Shop.UnitTest/Builders.cs",
+            "ShopIntegrationTest/Db.cs",
+            "Shop.Specs/Steps/OrderSteps.cs",
+            "app/src/testDebug/java/FakeApi.java",
+            "app/src/androidTest/java/Flow.java",
+            "app/src/androidTestRelease/kotlin/LoginFlow.kt",
         ] {
             assert_eq!(
                 FileKind::from_path(Path::new(test)),
@@ -549,6 +560,13 @@ mod tests {
             "src/Tests.Api/Order.cs",
             "lib/integrationTest/a.kt",
             "src/speedTest/Runner.ts",
+            "src/Contest/Draw.cs",
+            "UnitTest/Order.cs",
+            "shop.test/Order.cs",
+            "ShopSpecs/Order.cs",
+            "web/Shop.Specs/order.ts",
+            "app/src/testing/java/Order.java",
+            "app/src/testDebug/res/Order.java",
         ] {
             assert_eq!(
                 FileKind::from_path(Path::new(source)),
