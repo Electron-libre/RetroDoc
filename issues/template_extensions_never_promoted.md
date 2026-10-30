@@ -59,6 +59,8 @@ built-in `php` making `.blade.php` source, the prompt text.
 ## Plan
 1. [x] Deny list of template, markup, stylesheet and data extensions in `promote_to_source`, returned to the callers
    and logged by the roles pass; verified by a walker test and a `scan` test through the binary; makes true LNG-20.
+2. [x] Fixes of the `high` review of the issue; verified by the walker test over the whole list and `scan`/`roles`
+   tests through the binary; makes true LNG-20.
 
 ## Decisions
 - Mode: autonomous
@@ -75,3 +77,15 @@ built-in `php` making `.blade.php` source, the prompt text.
   compile (`denied_source_extensions` missing).
 - Code review: no findings.
 - not verified: no run on the large Rails repository (the measure is the file count of the saved copy).
+
+## Deliverable 2 (`high` review of `e8d3b82..HEAD`, 8 findings)
+- done: `promote_to_source` returns a `Promotion` (count + denied extensions some file holds), one API instead of two;
+  the message names only the extensions a file holds; templates added (`phtml`, `latte`, `mako`, `ftl`, `ftlh`, `vm`,
+  `gsp`, `aspx`, `ascx`, `master`, `vbhtml`, `jst`, `eta`, `xsl`, `xslt`); the walker test iterates `NEVER_SOURCE`;
+  a `roles` test; the run path of the confidential repository removed from this issue.
+- red: LNG-20: not observed apart, the tests were written with the fix (the old code printed a `json` no file holds).
+- Code review: 8 findings (high); low review of the fixes: no findings. Fixed: missing templates, message for absent files, `roles` untested, test subset, two
+  APIs, confidential path (still in commit 969d32e, local, not pushed). Not fixed: data extensions
+  can't be overridden (the Goal of the issue denies data on purpose, validated plan); `.blade.php` through
+  `from_path` (issue `built_in_extension_templates_read_as_source`).
+- not verified: `generate` printing the line through the binary (it calls the same `roles::promote_sources`).

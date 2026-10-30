@@ -20,7 +20,7 @@ use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use globset::{Glob, GlobMatcher};
-use retrodoc_ingest::{FileEntry, FileKind, IngestResult};
+use retrodoc_ingest::{FileEntry, FileKind, IngestResult, Promotion};
 use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
@@ -218,16 +218,10 @@ impl RoleRules {
 
     /// Marks as source the files of the languages the LLM identified but the
     /// walker's built-in extension list doesn't know. Run it before any pass
-    /// that selects `FileKind::Source`. Returns the number of files promoted.
-    pub fn promote_sources(&self, files: &mut [FileEntry]) -> usize {
+    /// that selects `FileKind::Source`. Returns the number of files promoted
+    /// and the extensions of templates, markup, stylesheets or data left out.
+    pub fn promote_sources(&self, files: &mut [FileEntry]) -> Promotion {
         retrodoc_ingest::promote_to_source(files, &self.source_extensions)
-    }
-
-    /// The extensions of `source_extensions` that [`RoleRules::promote_sources`]
-    /// leaves out: templates, markup, stylesheets and data.
-    #[must_use]
-    pub fn denied_source_extensions(&self) -> Vec<String> {
-        retrodoc_ingest::denied_source_extensions(&self.source_extensions)
     }
 
     /// Applies the rules to `files`. [`FileKind::Test`] and

@@ -65,13 +65,11 @@ fn roles_counts_the_promoted_sources() {
     assert!(out.contains("source: 1"), "{out}");
 }
 
-// spec: LNG-20
-#[test]
-fn templates_stylesheets_and_data_are_never_promoted() {
-    let llm = FakeLlm::start(|call| panic!("no call expected, got {}", call.pass));
+/// A Rails app whose saved `roles.yaml` names template and stylesheet extensions.
+fn rails(llm: &FakeLlm) -> tempfile::TempDir {
     let roles = "stack: Rails\nrules:\n- pattern: app/**\n  role: logic\nsource_extensions:\n\
-                 - rb\n- erb\n- jbuilder\n- scss\n- vue\n";
-    let dir = repo(
+                 - rb\n- erb\n- jbuilder\n- scss\n- vue\n- json\n";
+    repo(
         &[
             ("app/models/order.rb", "class Order\nend\n"),
             (
@@ -83,14 +81,36 @@ fn templates_stylesheets_and_data_are_never_promoted() {
             ("app/javascript/Order.vue", "<template><p/></template>\n"),
             (".retrodoc/cache/roles.yaml", roles),
         ],
-        &llm,
-    );
+        llm,
+    )
+}
+
+// spec: LNG-20
+#[test]
+fn templates_stylesheets_and_data_are_never_promoted() {
+    let llm = FakeLlm::start(|call| panic!("no call expected, got {}", call.pass));
+    let dir = rails(&llm);
 
     let out = stdout_of(dir.path(), "scan");
 
     assert!(out.contains("source: 2,"), "{out}");
+    // No file holds `json`: it is not reported.
     assert!(
-        out.contains("not counted as source: erb, jbuilder, scss"),
+        out.contains("not counted as source: erb, jbuilder, scss ("),
+        "{out}"
+    );
+}
+
+// spec: LNG-20
+#[test]
+fn roles_prints_the_extensions_left_out() {
+    let llm = FakeLlm::start(|call| panic!("no call expected, got {}", call.pass));
+    let dir = rails(&llm);
+
+    let out = stdout_of(dir.path(), "roles");
+
+    assert!(
+        out.contains("not counted as source: erb, jbuilder, scss ("),
         "{out}"
     );
 }

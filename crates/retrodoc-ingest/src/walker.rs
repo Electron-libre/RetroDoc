@@ -30,7 +30,7 @@ const JVM_SOURCE_DIRS: &[&str] = &["java", "kotlin", "groovy", "scala", "resourc
 /// source, whatever the stack identification answers. `vue`, `svelte` and
 /// `astro` are not here: their files hold code and markup together.
 const NEVER_SOURCE: &[&str] = &[
-    // Templates (Ruby, Python, JavaScript, PHP, .NET, Java, Go, Elixir).
+    // Templates (Ruby, Python, JavaScript, PHP, .NET, Java, Groovy, Go, Elixir).
     "erb",
     "rhtml",
     "haml",
@@ -58,12 +58,27 @@ const NEVER_SOURCE: &[&str] = &[
     "eex",
     "heex",
     "leex",
+    "phtml",
+    "latte",
+    "mako",
+    "ftl",
+    "ftlh",
+    "vm",
+    "gsp",
+    "aspx",
+    "ascx",
+    "master",
+    "vbhtml",
+    "jst",
+    "eta",
     // Markup.
     "html",
     "htm",
     "xhtml",
     "xml",
     "svg",
+    "xsl",
+    "xslt",
     // Stylesheets.
     "css",
     "scss",
@@ -105,50 +120,57 @@ impl FileKind {
     }
 }
 
+/// What [`promote_to_source`] did.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct Promotion {
+    /// The files turned into [`FileKind::Source`] or [`FileKind::Test`].
+    pub promoted: usize,
+    /// The extensions asked for that are of templates, markup, stylesheets or
+    /// data, held by at least one file left [`FileKind::Other`] for that
+    /// reason: normalized, in the order asked.
+    pub denied: Vec<String>,
+}
+
 /// Turns the [`FileKind::Other`] files whose extension is in `extensions`
 /// (with or without the dot, case-insensitive) into [`FileKind::Source`], or
 /// [`FileKind::Test`] by the usual test-path heuristic. The built-in list of
 /// [`FileKind::from_path`] only knows common languages; this lets the stack
-/// identification add the others. The extensions of
-/// [`denied_source_extensions`] are left out. Returns the number of files
-/// promoted.
-pub fn promote_to_source(files: &mut [FileEntry], extensions: &[String]) -> usize {
-    let wanted: Vec<String> = normalized(extensions)
-        .filter(|e| !NEVER_SOURCE.contains(&e.as_str()))
-        .collect();
+/// identification add the others. The extensions of templates, markup,
+/// stylesheets and data are never promoted, whatever `extensions` says.
+pub fn promote_to_source(files: &mut [FileEntry], extensions: &[String]) -> Promotion {
+    let (denied, wanted): (Vec<String>, Vec<String>) =
+        normalized(extensions).partition(|e| NEVER_SOURCE.contains(&e.as_str()));
     let sbt = is_sbt_build(files);
-    let mut promoted = 0;
+    let mut promotion = Promotion::default();
+    let mut held = Vec::new();
     for file in files.iter_mut().filter(|f| {
         f.kind == FileKind::Other && !is_build_script(&f.path) && !(sbt && in_sbt_project(&f.path))
     }) {
-        let matches = file
+        let Some(ext) = file
             .path
             .extension()
             .and_then(|e| e.to_str())
-            .is_some_and(|e| wanted.contains(&e.to_lowercase()));
-        if matches {
+            .map(str::to_lowercase)
+        else {
+            continue;
+        };
+        if wanted.contains(&ext) {
             file.kind = if is_test_path(&file.path) {
                 FileKind::Test
             } else {
                 FileKind::Source
             };
-            promoted += 1;
+            promotion.promoted += 1;
+        } else if denied.contains(&ext) && !held.contains(&ext) {
+            held.push(ext);
         }
     }
-    promoted
-}
-
-/// The extensions of `extensions` that [`promote_to_source`] leaves out
-/// (templates, markup, stylesheets, data), normalized, in their order.
-#[must_use]
-pub fn denied_source_extensions(extensions: &[String]) -> Vec<String> {
-    let mut denied: Vec<String> = Vec::new();
-    for ext in normalized(extensions).filter(|e| NEVER_SOURCE.contains(&e.as_str())) {
-        if !denied.contains(&ext) {
-            denied.push(ext);
+    for ext in denied {
+        if held.contains(&ext) && !promotion.denied.contains(&ext) {
+            promotion.denied.push(ext);
         }
     }
-    denied
+    promotion
 }
 
 /// Without the dot, trimmed, lowercase; the empty ones dropped.
@@ -401,7 +423,7 @@ mod tests {
             &[".ex".into(), "exs".into(), "kts".into(), " ".into()],
         );
         let kinds: Vec<_> = files.iter().map(|f| f.kind).collect();
-        assert_eq!(promoted, 3);
+        assert_eq!(promoted.promoted, 3);
         assert_eq!(
             kinds,
             vec![
@@ -418,26 +440,30 @@ mod tests {
     // spec: LNG-20 (internal: the deny list of every stack, too long to run through the binary)
     #[test]
     fn templates_markup_stylesheets_and_data_are_never_promoted() {
-        let denied = [
-            "erb", "haml", "slim", "jbuilder", "rabl", "html", "htm", "jinja", "j2", "hbs",
-            "mustache", "twig", "liquid", "ejs", "pug", "cshtml", "jsp", "heex", "eex", "xml",
-            "svg", "css", "scss", "sass", "less", "json", "yaml", "yml", "toml", "csv",
-        ];
-        let mut files: Vec<FileEntry> = denied
+        let entry = |ext: &str| FileEntry {
+            path: PathBuf::from(format!("app/page.{ext}")),
+            kind: FileKind::Other,
+            size_bytes: 0,
+        };
+        let mut files: Vec<FileEntry> = NEVER_SOURCE
             .iter()
             .chain(&["vue", "svelte", "astro"])
-            .map(|ext| FileEntry {
-                path: PathBuf::from(format!("app/page.{ext}")),
-                kind: FileKind::Other,
-                size_bytes: 0,
-            })
+            .map(|ext| entry(ext))
             .collect();
         let wanted: Vec<String> = files
             .iter()
             .map(|f| f.path.extension().unwrap().to_string_lossy().to_uppercase())
+            .chain(["json".into(), "csv".into()])
             .collect();
-        assert_eq!(promote_to_source(&mut files, &wanted), 3);
-        assert_eq!(denied_source_extensions(&wanted).len(), denied.len());
+        let promotion = promote_to_source(&mut files, &wanted);
+        assert_eq!(promotion.promoted, 3);
+        assert_eq!(promotion.denied, NEVER_SOURCE.to_vec());
+        // A denied extension no file holds is not reported.
+        let mut rb = vec![entry("rb")];
+        assert_eq!(
+            promote_to_source(&mut rb, &["erb".into()]),
+            Promotion::default()
+        );
     }
 
     // spec: LNG-14 (internal: the roles call that promotes extensions needs an LLM through the binary)
@@ -453,10 +479,10 @@ mod tests {
             entry("project/Build.scala"),
             entry("app/A.scala"),
         ];
-        assert_eq!(promote_to_source(&mut sbt, &["scala".into()]), 1);
+        assert_eq!(promote_to_source(&mut sbt, &["scala".into()]).promoted, 1);
         assert_eq!(sbt[1].kind, FileKind::Other);
         let mut plain = vec![entry("project/Build.scala")];
-        assert_eq!(promote_to_source(&mut plain, &["scala".into()]), 1);
+        assert_eq!(promote_to_source(&mut plain, &["scala".into()]).promoted, 1);
     }
 
     #[test]

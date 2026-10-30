@@ -76,7 +76,7 @@ Overflow Developer Survey and reviewed once a year (ADR 0036):
 - **LNG-20** (deterministic) The promotion of LNG-2 and LNG-15 must leave out a file whose extension is one of
   templates, markup, stylesheets or data (`erb`, `haml`, `slim`, `jbuilder`, `html`, `css`, `scss`, `json`,
   `yaml`... the full list in `walker.rs`), whatever `source_extensions` names, and `scan`, `roles` and `generate` must print
-  the extensions they left out.
+  those of them that a file of the repository holds.
 
 ## Scenarios
 
@@ -136,7 +136,7 @@ Overflow Developer Survey and reviewed once a year (ADR 0036):
 
 - (LNG-20) Given `source_extensions: [rb, erb, jbuilder, scss]`, then `app/views/orders/show.html.erb`,
   `app/views/orders/show.json.jbuilder` and `app/assets/stylesheets/app.scss` stay other files and `scan` prints
-  `erb, jbuilder, scss`; `app/models/order.rb` is source.
+  `erb, jbuilder, scss`; `app/models/order.rb` is source; a denied `json` that no file holds is not printed.
 - (LNG-20) Given `source_extensions: [vue, svelte, astro]`, then their files are promoted: they hold code and
   markup together.
 

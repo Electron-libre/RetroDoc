@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use anyhow::Context;
-use retrodoc_ingest::{FileEntry, FileKind};
+use retrodoc_ingest::{FileEntry, FileKind, Promotion};
 use retrodoc_llm::UsageTracker;
 use retrodoc_pipeline::{Artifact, FileRole, RoleRules};
 
@@ -14,8 +14,7 @@ const UNCLASSIFIED_SAMPLE: usize = 20;
 /// when none), and the extensions of templates, markup, stylesheets or data it left out: what every
 /// command shows of the sources, `generate` reads.
 pub fn promote_sources(rules: &RoleRules, files: &mut [FileEntry]) {
-    let promoted = rules.promote_sources(files);
-    let denied = rules.denied_source_extensions();
+    let Promotion { promoted, denied } = rules.promote_sources(files);
     if !denied.is_empty() {
         println!(
             "Extensions of {} not counted as source: {} (templates, markup, stylesheets or data).",

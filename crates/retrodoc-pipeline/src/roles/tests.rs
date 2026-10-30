@@ -34,7 +34,7 @@ fn promotes_files_of_identified_languages() {
         source_extensions: vec!["ex".to_string()],
         ..RoleRules::default()
     };
-    assert_eq!(rules.promote_sources(&mut files), 1);
+    assert_eq!(rules.promote_sources(&mut files).promoted, 1);
     assert_eq!(files[0].kind, FileKind::Source);
     assert_eq!(files[1].kind, FileKind::Other);
     // An older roles.yaml has no such key: nothing is promoted.
