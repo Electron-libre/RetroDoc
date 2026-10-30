@@ -4,7 +4,7 @@ Status: Accepted
 
 ## Context
 
-Phase 9 ("ask the documentation", `PLAN.md` §7.3) planned an agent inside RetroDoc: tool calling added to
+Phase 9 ("ask the documentation", `docs/findings.md` §4) planned an agent inside RetroDoc: tool calling added to
 `retrodoc-llm`, a tool loop, then `ask` and `chat`. The first readers of the generated docs turned out to be
 other agents, coding agents such as Claude Code or Cursor, which already have a model and a loop. What they
 lack is a reliable way to query the docs without reading all of them or all the code. The docs are also not

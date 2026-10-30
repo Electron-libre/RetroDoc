@@ -1,11 +1,11 @@
 //! `retrodoc-pipeline`: orchestration of the generation pipeline passes
-//! (PLAN.md §2) and incremental cache (`.retrodoc/cache/`).
+//! (docs/ARCHITECTURE.md §4) and incremental cache (`.retrodoc/cache/`).
 //!
-//! Roadmap phase 3 (PLAN.md §5): domain clustering from the surface
+//! Milestone "Domains" (ROADMAP.md): domain clustering from the surface
 //! ([`domains`]). Roadmap phase 4: features ([`features`]) → use cases
 //! ([`use_cases`]) → Mermaid diagrams ([`diagrams`]). Roadmap phase 5:
 //! confidence scoring ([`confidence`]) and the documentation debt report
-//! ([`report`]). Roadmap phase 7 (PLAN.md §7.1), step 1: stack identification
+//! ([`report`]). Milestone "Business-level documentation" (docs/findings.md §2), step 1: stack identification
 //! and file role rules ([`roles`]); step 2: models and glossary
 //! ([`glossary`]); step 3: entry points and outputs
 //! ([`entry_points`]); step 4: the [`surface`] that domains are

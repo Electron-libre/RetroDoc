@@ -1,4 +1,4 @@
-//! Business-language criterion (PLAN.md §7.1, phase 7 step 4e): "is this
+//! Business-language criterion (docs/findings.md §2, phase 7 step 4e): "is this
 //! business language?", scored next to the confidence. The confidence pass
 //! rewards closeness to the code, which favours literal paraphrase; this one
 //! looks at the other side, whether a use case could be read by someone who

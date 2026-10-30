@@ -1,4 +1,4 @@
-//! Models and glossary inventory (PLAN.md §7.1, phase 7 step 2).
+//! Models and glossary inventory (docs/findings.md §2, phase 7 step 2).
 //!
 //! The entities of the application (names, attributes, associations) are the
 //! nouns of the business. They are read by the LLM from the files the
@@ -17,7 +17,7 @@
 //!
 //! The result is `.retrodoc/cache/glossary.yaml`, which doubles as the cache:
 //! a model file whose content hash is unchanged is not sent again. The
-//! vocabulary is a hint to validate, not a truth (PLAN.md §7.1 caveats).
+//! vocabulary is a hint to validate, not a truth (docs/findings.md §2 caveats).
 //!
 //! Not covered yet: the verbs (public methods, route actions), which belong
 //! with the entry points inventory (step 3).

@@ -1,4 +1,4 @@
-//! Domains (PLAN.md §2 step 3): the business domains of the application, saved as the intermediate
+//! Domains (docs/ARCHITECTURE.md §4 step 3): the business domains of the application, saved as the intermediate
 //! `domains.yaml` artifact, the input of the features pass. Distinct from
 //! `retrodoc_core::model::Domain`, the final rendering model populated once features and use cases are
 //! attached.
@@ -27,7 +27,7 @@ pub use self::from_surface::build_domains_from_surface;
 
 pub(crate) const UNCATEGORIZED_SLUG: &str = "uncategorized";
 
-/// Intermediate artifact (PLAN.md §2 step 3): the business domains of the application, each with the
+/// Intermediate artifact (docs/ARCHITECTURE.md §4 step 3): the business domains of the application, each with the
 /// resources, entities and files it holds.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct DomainMap {
@@ -64,9 +64,9 @@ pub struct DomainCluster {
 }
 
 impl DomainMap {
-    /// Persists the clustering as `.retrodoc/cache/domains.yaml` (PLAN.md
-    /// §2 step 3): a human-reviewable intermediate artifact, the basis for
-    /// the next pipeline pass (features, PLAN.md §2 step 4).
+    /// Persists the clustering as `.retrodoc/cache/domains.yaml` (docs/ARCHITECTURE.md
+    /// §4 step 3): a human-reviewable intermediate artifact, the basis for
+    /// the next pipeline pass (features, docs/ARCHITECTURE.md §4 step 4).
     ///
     /// # Errors
     ///

@@ -10,7 +10,7 @@ Mermaid sequence diagram and a confidence score. It also tells you where the doc
 > or the [DeepSeek](https://platform.deepseek.com) API as the LLM provider (any OpenAI-compatible endpoint, such as a
 > local Ollama, works through `base_url`).
 > Technical/C4 docs, GitHub/GitLab/Jira connectors and multi-provider support are future work, see
-> [PRODUCT.md](./PRODUCT.md) for the vision and [PLAN.md](./PLAN.md) for the roadmap.
+> [PRODUCT.md](./PRODUCT.md) for the vision and [ROADMAP.md](./ROADMAP.md) for the roadmap.
 
 ## What you get
 

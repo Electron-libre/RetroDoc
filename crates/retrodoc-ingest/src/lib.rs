@@ -1,4 +1,4 @@
-//! `retrodoc-ingest`: basic ingestion of the analyzed repo (PLAN.md §2 step 1).
+//! `retrodoc-ingest`: basic ingestion of the analyzed repo (docs/ARCHITECTURE.md §4 step 1).
 //!
 //! Combines the file walk (respecting `.gitignore`), the per-file Git
 //! history, and the loading of existing Markdown docs. The result is what

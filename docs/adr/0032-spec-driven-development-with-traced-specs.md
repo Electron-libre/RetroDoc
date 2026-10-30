@@ -4,7 +4,7 @@ Status: Accepted
 
 ## Context
 
-The expected behaviour of a capability was spread over `PLAN.md` (roadmap), the ADRs (why a choice was made),
+The expected behaviour of a capability was spread over `PLAN.md` (roadmap, since replaced by `ROADMAP.md`), the ADRs (why a choice was made),
 the `//!` doc of each pass and the issues, which are short-lived. Nothing stated, per capability, what must hold
 for it to be correct, and nothing tied such a statement to the test that proves it, so the documentation of
 behaviour could drift from the tests unnoticed.

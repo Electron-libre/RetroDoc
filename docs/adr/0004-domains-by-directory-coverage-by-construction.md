@@ -6,7 +6,7 @@ _Retroactive ADR, reconstructed from the history (69227bd, 6d57850; 2026-09-28).
 
 ## Context
 
-`PLAN.md` requires the domain map to cover 100% of the source files with no overlap. The first version
+The v1 plan (the former `PLAN.md`) required the domain map to cover 100% of the source files with no overlap. The first version
 sent every file path to the LLM in one flat list: on a 2,331-file repo that was tens of thousands of
 tokens in a single call, and an LLM never returns a perfect partition, so the repair logic became the
 normal path.

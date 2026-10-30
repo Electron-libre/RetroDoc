@@ -2,7 +2,7 @@
 
 Status: Accepted (its batching, `llm.batch_chars`, superseded by 0035)
 
-_Retroactive ADR, reconstructed from the history (3843170, c9f4d49, 7e4040f, 5661691, 09e00fe; 2026-10-02 to 2026-10-03). Phase 8 of `PLAN.md`._
+_Retroactive ADR, reconstructed from the history (3843170, c9f4d49, 7e4040f, 5661691, 09e00fe; 2026-10-02 to 2026-10-03). Phase 8 of the former `PLAN.md`, milestone "Scalability and cost control" of `ROADMAP.md`._
 
 ## Context
 
@@ -30,5 +30,5 @@ An automatic budget was rejected: dropping files without the user asking would h
 ## Consequences
 
 The user trades coverage for cost knowingly, and the report states what was left out. Concurrency raises
-the risk of 429s, handled by 0012. Token and cost accounting (PLAN §7, item 7) is documented but not
+the risk of 429s, handled by 0012. Token and cost accounting (docs/findings.md §3, item 7) is documented but not
 implemented.

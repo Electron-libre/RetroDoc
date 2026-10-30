@@ -1,4 +1,4 @@
-//! Domain model for the functional doc (see PLAN.md §1-3).
+//! Domain model for the functional doc (see PRODUCT.md "Scope of v1", docs/ARCHITECTURE.md §4 and §7).
 //!
 //! These types are the shared vocabulary between the `retrodoc-pipeline`
 //! crate (which produces them) and `retrodoc-render` (which serializes them
@@ -187,7 +187,7 @@ pub enum ActorKind {
 }
 
 /// Reference to a code location, used for grounding and cross-checking
-/// (confidence pass, PLAN.md §2 step 7).
+/// (confidence pass, docs/ARCHITECTURE.md §4 step 7).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SourceRef {
     pub path: String,

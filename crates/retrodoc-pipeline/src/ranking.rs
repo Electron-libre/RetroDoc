@@ -1,4 +1,4 @@
-//! Budget on the number of source files analysed (PLAN.md §7.2, phase 8):
+//! Budget on the number of source files analysed (docs/findings.md §3, phase 8):
 //! on a large repo, spend the LLM calls on the files that matter most.
 //!
 //! Files are ranked mechanically (no LLM call) by `role weight × (1 + ln(1 +

@@ -1,4 +1,4 @@
-//! Entry points and outputs inventory (PLAN.md §7.1, phase 7 step 3).
+//! Entry points and outputs inventory (docs/findings.md §2, phase 7 step 3).
 //!
 //! Every entry point of the application (HTTP route or controller action,
 //! CLI command, job, consumer, webhook, or the public API of a library) is a

@@ -1,8 +1,8 @@
 # Conventions specific to this codebase
 
 - Repositories used for smoke tests may be confidential: never name them, nor quote their paths or code, in
-  committed files (docs, `PLAN.md`, `issues/`, commit messages). Describe them generically.
-- Everything is in English: doc comments, user-facing CLI/error strings, commit messages, and `PLAN.md`/
+  committed files (docs, `ROADMAP.md`, `issues/`, commit messages). Describe them generically.
+- Everything is in English: doc comments, user-facing CLI/error strings, commit messages, and `ROADMAP.md`/
   `PRODUCT.md`. Don't reintroduce French — an earlier revision of this repo was French throughout and its
   history was rewritten to English (see `backup-fr-history` if you ever need the old wording for reference).
 - `clippy::pedantic` is enabled workspace-wide (`[workspace.lints.clippy]` in the root `Cargo.toml`; each

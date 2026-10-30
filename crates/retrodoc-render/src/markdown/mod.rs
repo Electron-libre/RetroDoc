@@ -1,4 +1,4 @@
-//! Markdown/Mermaid rendering of the domain model (PLAN.md §3 layout):
+//! Markdown/Mermaid rendering of the domain model (docs/ARCHITECTURE.md §7 layout):
 //!
 //! ```text
 //! functional/llms.txt

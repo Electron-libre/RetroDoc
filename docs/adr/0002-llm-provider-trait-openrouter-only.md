@@ -6,7 +6,7 @@ _Retroactive ADR, reconstructed from the history (71b8e98, 86068f5, c664ac1; 202
 
 ## Context
 
-v1 needs one LLM backend, but the model choice (quality vs. cost) is an open risk in `PLAN.md` §6 and
+v1 needs one LLM backend, but the model choice (quality vs. cost) is an open risk in the risks of `PRODUCT.md` and
 must not be locked in. Smoke tests also need a local model (Ollama, LM Studio, llama.cpp) that speaks
 the same chat-completions wire format.
 

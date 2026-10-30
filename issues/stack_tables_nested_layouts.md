@@ -28,6 +28,9 @@ these layouts give the same signals as the flat ones.
 # Specs
 * `specs/language-agnostic.md`: LNG-5, LNG-6, LNG-7 (scenarios to add).
 
+# Milestone
+Language and framework agnostic
+
 # Resources
 * `crates/retrodoc-ingest/src/walker.rs`, `crates/retrodoc-ingest/src/signals/manifest.rs`
 * `docs/crates/core-ingest.md`

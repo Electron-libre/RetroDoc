@@ -30,6 +30,9 @@ The saved map of 2026-10-13 is lost (the run directory is empty, see the ledger 
 3. Read the names of the 34 contexts against their files (a person, or a check by the call that names a part),
    and run `contexts --force` two or three times to measure the spread of the map; report it in the issue.
 
+# Milestone
+A large application, one bounded context at a time
+
 # Resources
 * `issues/done/split_contexts_by_family_not_by_layer.md` (the work, the measure and the real run)
 * ADR 0029, `crates/retrodoc-pipeline/src/contexts/` (`groups.rs` `family_groups`, `mod.rs` `split_context`)

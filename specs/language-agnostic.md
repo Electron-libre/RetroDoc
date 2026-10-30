@@ -85,7 +85,7 @@ Overflow Developer Survey and reviewed once a year (ADR 0036):
 
 - The same quality of docs on every stack: it depends on what a model writes and is measured by the quality
   benchmark, not required here.
-- An adapter per framework (a route parser, an ORM parser): rejected by `PLAN.md` §7.1, a framework is recognised by
+- An adapter per framework (a route parser, an ORM parser): rejected by `docs/findings.md` §2, a framework is recognised by
   the LLM from the tree and the manifests.
 - Reading view templates (`.erb`, `.blade.php`, `.cshtml`) as source.
 - A language outside the reference set beyond the generic path of LNG-1 to LNG-3.

@@ -6,7 +6,7 @@ _Retroactive ADR, reconstructed from the history (c1530d0, 09e00fe, 5661691; 202
 
 ## Context
 
-Generated documentation is only useful if the reader knows what to trust (`PLAN.md` §1, "Reliability").
+Generated documentation is only useful if the reader knows what to trust (`PRODUCT.md` "Principles", "Grounded and checkable").
 A generator that grades itself in the same call is not a check.
 
 ## Decision

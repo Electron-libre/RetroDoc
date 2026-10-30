@@ -1,5 +1,5 @@
 //! `retrodoc-render`: writes the Markdown/Mermaid output into `docs/`
-//! (PLAN.md §3), with a diff preview and idempotence on re-run.
+//! (docs/ARCHITECTURE.md §7), with a diff preview and idempotence on re-run.
 //!
 //! The flow is three steps so that nothing touches the disk before the user
 //! can look: [`render`] builds the files in memory (deterministic: same

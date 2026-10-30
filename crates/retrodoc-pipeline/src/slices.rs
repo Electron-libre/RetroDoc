@@ -1,4 +1,4 @@
-//! Code slices (PLAN.md §7.1, phase 7 step 4b): the part of the code an entry
+//! Code slices (docs/findings.md §2, phase 7 step 4b): the part of the code an entry
 //! point traverses (controller → service → model), found by the identifiers
 //! it references, so that a use case is derived from the code it actually
 //! runs rather than from every file of its feature.

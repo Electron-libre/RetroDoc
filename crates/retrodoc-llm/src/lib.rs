@@ -1,6 +1,6 @@
 //! `retrodoc-llm`: LLM provider abstraction (`LlmProvider`), so `RetroDoc`
-//! isn't locked to `OpenRouter` (PLAN.md §1). Only `OpenRouter` is
-//! implemented in v1. The real HTTP call (PLAN.md §4: "retry, rate-limit")
+//! isn't locked to `OpenRouter` (PRODUCT.md "Scope of v1"). Only `OpenRouter` is
+//! implemented in v1. The real HTTP call (docs/ARCHITECTURE.md §8: "retry, rate-limit")
 //! is wired up here.
 
 mod heartbeat;

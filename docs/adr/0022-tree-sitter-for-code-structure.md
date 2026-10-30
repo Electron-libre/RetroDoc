@@ -12,7 +12,7 @@ lines). Symbols and references are guessed lexically (`ranking.rs` counts the fi
 name, `slices.rs` follows referenced identifiers). The entry points and glossary passes send whole file
 chunks where signatures would often be enough.
 
-`PLAN.md` §7.1 rejected per-ecosystem adapters (one per framework). Tree-sitter grammars are per language,
+`docs/findings.md` §2 rejected per-ecosystem adapters (one per framework). Tree-sitter grammars are per language,
 not per framework, and most of them ship a `tags.scm` query that lists definitions and references.
 
 ## Decision

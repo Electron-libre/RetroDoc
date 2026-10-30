@@ -7,12 +7,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 RetroDoc is a Rust CLI that uses LLM agents to catch up on a software project's documentation debt.
 v1 (MVP) scope: **functional documentation only**, from a **local Git repo** (code + commit history +
 existing Markdown docs), using **OpenRouter** or the **DeepSeek** API as LLM provider (same wire format). See `PRODUCT.md` for the long-term
-product vision and `PLAN.md` for the v1 architecture, pipeline stages, and roadmap — read `PLAN.md` before
-starting new work, it's the source of truth for what each roadmap phase covers and what's still out of
-scope for v1 (technical/C4 docs, GitHub/GitLab/Jira connectors, multi-provider LLM).
+product vision and the v1 scope, and `ROADMAP.md` for the milestones — read `ROADMAP.md` before starting new work,
+it's the source of truth for what each milestone covers, its state and its issues; the "Scope of v1" of `PRODUCT.md`
+says what's still out of scope for v1 (technical/C4 docs, GitHub/GitLab/Jira connectors, multi-provider LLM). The
+dated findings behind the milestones are in `docs/findings.md`.
 
 Commit messages follow the Conventional Commits format described in `AGENTS.md`. Check `git log` to see
-which roadmap phases from `PLAN.md` §5 are already done before assuming what's implemented.
+which milestones of `ROADMAP.md` are already done before assuming what's implemented.
 
 ## Index
 
@@ -25,7 +26,8 @@ Details live in separate files; read the one that matches the task:
   (ADR 0032). Read the spec of a capability before touching it; a change of behaviour starts by amending it
   (`skill:write-spec`).
 - `docs/crates/`: per-crate detail. `docs/ARCHITECTURE.md`: high-level view. `docs/adr/`: decisions.
-- `PLAN.md`: roadmap; `PRODUCT.md`: vision; `AGENTS.md`: commit format.
+- `ROADMAP.md`: milestones; `PRODUCT.md`: vision and v1 scope; `docs/findings.md`: dated findings; `CHANGELOG.md`: releases
+  (`just release`); `AGENTS.md`: commit format.
 
 Essentials: `just check` (fmt + clippy -D warnings + tests + spec traceability) must pass before committing; it
 needs the `cardinal` binary (`cargo install --git <source in .claude/cardinal.toml> cardinal --locked`); clippy is pedantic and warning-free; everything is in English; never name or quote

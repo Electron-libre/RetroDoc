@@ -3,7 +3,7 @@ use super::*;
 use crate::features::tag;
 
 /// Per-file truncation and overall budget of code sent for one feature
-/// (PLAN.md §6 "cost/volume"); files beyond the budget are left out of the
+/// (the risks of PRODUCT.md "cost/volume"); files beyond the budget are left out of the
 /// prompt, and so can't be cited.
 pub(crate) const MAX_CHARS_PER_FILE: usize = 4_000;
 

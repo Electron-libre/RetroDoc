@@ -29,6 +29,6 @@ runs on unchanged input (0010), and figures that depend on the run would change 
 ## Consequences
 
 Pass timings and token counts survive the terminal log and can be compared run to run; the saved history is
-the input a pre-run estimate for the whole pipeline needs (PLAN §7.2, item 7, step 2). Figures are a lower
+the input a pre-run estimate for the whole pipeline needs (docs/findings.md §3, item 7, step 2). Figures are a lower
 bound against an unstable server, and the ingestion time before the first pass is not counted. A second
 provider must also return `usage` for its tokens to show.

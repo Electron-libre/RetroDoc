@@ -1,4 +1,4 @@
-//! Features pass (PLAN.md §2 step 4): the features of each domain, from its entry points
+//! Features pass (docs/ARCHITECTURE.md §4 step 4): the features of each domain, from its entry points
 //! (`from_surface`, ADR 0020), saved as the intermediate `.retrodoc/cache/features.yaml` artifact, the
 //! input of the use cases pass. The features per domain from the file summaries of the removed `files`
 //! path (ADR 0035) are gone; this module keeps the artifact and the slugs.

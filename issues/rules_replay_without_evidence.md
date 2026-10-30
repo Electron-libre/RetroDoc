@@ -24,6 +24,9 @@ rules baselines measure the pass as it runs.
 2. Rerun the rules baseline on frozen linkding (3 runs, about $0.3) when a rules issue next needs it, and compare
    with the 2026-10-26 figures.
 
+# Milestone
+Business rules quality
+
 # Resources
 
 * `crates/retrodoc-pipeline/src/benchmark/replay_rules.rs`, `replay_use_cases.rs`, `frame.rs`

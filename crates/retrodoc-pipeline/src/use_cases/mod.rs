@@ -1,4 +1,4 @@
-//! Use cases pass (PLAN.md §2 step 5, roadmap phase 4): for each feature,
+//! Use cases pass (docs/ARCHITECTURE.md §4 step 5, roadmap phase 4): for each feature,
 //! one LLM call reads the actual code of the feature's files and describes
 //! its use cases as ordered steps, each with an actor's name, one text and
 //! the code it is grounded on, cited as `"F2:10-24"` (the number of a file of

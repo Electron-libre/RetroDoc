@@ -1,4 +1,4 @@
-//! Technology and file role identification (PLAN.md §7.1, phase 7 step 1).
+//! Technology and file role identification (docs/findings.md §2, phase 7 step 1).
 //!
 //! One LLM call over a compact view of the file tree (plus the root manifest
 //! files) identifies the stack and says where entry points, models, business

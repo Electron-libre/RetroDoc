@@ -26,6 +26,9 @@ gained less than the one before.
    file, same feature); (c) lower the rank of the rules backed by code alone in the rendered pages.
 3. Keep only what lowers the share of plumbing without raising the good rules dropped above 3%.
 
+# Milestone
+Business rules quality
+
 # Resources
 * `issues/done/rules_deduplication_and_noise.md` (figures, replay method)
 * `crates/retrodoc-pipeline/src/rules/` (`judge.rs`, `prompt.rs`)

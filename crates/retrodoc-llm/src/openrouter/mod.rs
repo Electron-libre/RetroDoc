@@ -18,7 +18,7 @@ const DEEPSEEK_ENDPOINT: &str = "https://api.deepseek.com/chat/completions";
 const OPENROUTER_KEY_ENV: &str = "OPENROUTER_API_KEY";
 const DEEPSEEK_KEY_ENV: &str = "DEEPSEEK_API_KEY";
 /// Number of extra attempts after the initial call, on transient errors
-/// (429 / 5xx) — PLAN.md §4 "retry, rate-limit".
+/// (429 / 5xx) — docs/ARCHITECTURE.md §8 "retry, rate-limit".
 const MAX_RETRIES: u32 = 3;
 const RETRY_BASE_DELAY: Duration = Duration::from_millis(500);
 /// Longest wait the provider may ask for (`Retry-After`, `retryDelay`) that

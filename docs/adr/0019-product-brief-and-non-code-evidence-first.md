@@ -7,7 +7,7 @@ Status: Accepted
 The pipeline climbs from the code to the business: file summaries, then directories, then domains, then
 features, then use cases. No pass asks what the application is for, who uses it or what it is worth to
 them, so every pass works locally (one domain, one feature) with no global frame, and names and framing
-stay technical (`PLAN.md` §7.1).
+stay technical (`docs/findings.md` §2).
 
 The sources that carry the most business meaning per character are barely used:
 

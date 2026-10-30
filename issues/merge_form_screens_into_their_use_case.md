@@ -25,6 +25,9 @@ use cases of such a pair that are two separate ones. Then, candidates (can be co
    model sees both entry points and one answer covers them.
 3. Keep the prompt only and measure again with more runs, if the pairs are few.
 
+# Milestone
+A large application, one bounded context at a time
+
 # Resources
 * `issues/done/technical_and_back_office_use_cases.md` (the prompt, the measure `technical_usecases_measure`)
 * `crates/retrodoc-pipeline/src/use_cases/` (`prompt.rs`, `grounding.rs`), `entry_points/`

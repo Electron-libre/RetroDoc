@@ -33,7 +33,7 @@ pub(super) const LAYER_WORDS: &[&str] = &[
 ];
 
 /// Slugs of the domains whose name is made only of layer
-/// words (`presentation-layer`, `services`): the technical split PLAN.md §6
+/// words (`presentation-layer`, `services`): the technical split the risks of PRODUCT.md
 /// warns about. Reported, not repaired.
 pub(super) fn layer_named_domains(map: &DomainMap) -> Vec<String> {
     let is_layer = |slug: &str| {

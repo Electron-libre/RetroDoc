@@ -1,4 +1,4 @@
-//! Confidence pass (PLAN.md §2 step 7, roadmap phase 5): a cross-check of
+//! Confidence pass (docs/ARCHITECTURE.md §4 step 7, roadmap phase 5): a cross-check of
 //! each use case against the code it cites. One LLM call per use case gets
 //! the steps and the excerpts of the cited files and must give a verdict per
 //! step (`supported`, `partial`, `unsupported`), which is turned into a

@@ -196,7 +196,7 @@ pub struct LlmConfig {
     /// Ollama/LM Studio/llama.cpp instance — since `OpenRouterProvider`'s
     /// request/response shapes are that same protocol, not `OpenRouter`-
     /// specific. Still not "multi-provider support" (out of scope for v1,
-    /// PLAN.md §1): the auth model and client stay `OpenRouterProvider`'s.
+    /// PRODUCT.md "Scope of v1"): the auth model and client stay `OpenRouterProvider`'s.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub base_url: Option<String>,
     /// Sent as `reasoning_effort` with every request when set (e.g.

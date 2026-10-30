@@ -1,8 +1,8 @@
 # RetroDoc architecture (high level)
 
 This page explains **how RetroDoc works** with a few simple diagrams. It is a map, not a spec: for the
-roadmap and the rationale behind each choice see [`PLAN.md`](../PLAN.md), for the product vision see
-[`PRODUCT.md`](../PRODUCT.md), and for per-module details read the doc comments in the code.
+roadmap see [`ROADMAP.md`](../ROADMAP.md), for the rationale behind each choice [`docs/adr/`](adr/) and the dated
+findings in [`findings.md`](findings.md), for the product vision see [`PRODUCT.md`](../PRODUCT.md), and for per-module details read the doc comments in the code.
 
 ## 1. What RetroDoc does
 
@@ -96,7 +96,7 @@ flowchart LR
 - `contexts` (ADR 0029) maps the application into bounded contexts: the source files are grouped around the names of the entry point files, then one LLM call merges the groups, sets the technical ones aside and places the orphan folders, and a context over 150 files is split again. `contexts.yaml` is hand-editable and kept until `--force`. With `domains_from = "contexts"`, `generate [--context a,b] [--max-files N]` documents some contexts at a time and leaves the others as they were.
 - `brief` (ADR 0019) first locates where the schema, migrations and translations are (content sniffing, then one LLM call whose rules are checked on the real files), gathers the non-code evidence of the repo (docs, commit subjects, manifests, tree, schema, translations, tests, `.feature` files) and writes the product brief from a bounded sample of it, each claim citing its sources. `--signals` only prints the volume of evidence (no LLM). `generate` writes it first when there is none, then uses the saved one as it is; it heads the prompts of the later passes, and editing it redoes the passes that read it. With `brief.evidence` (on by default, `false` turns it off) features and use cases also get, per unit, the few doc sections, test descriptions and commit subjects closest to it (BM25, about 3,000 characters), which are part of that unit's fingerprint.
 - `benchmark` scores the last run against a hand-written reference (`benchmark/<repo>/reference.yaml`, pairs in `matches.yaml`): sizes, scores, cost, recall and precision of domains and features. With `--judge` the LLM pairs the reference items the names leave uncovered (a generated item may hold several) and rates the narratives; its verdicts go to `.retrodoc/benchmark/judge.yaml` and never override the hand-written pairs. `benchmark-table` puts the saved runs of several configurations side by side (mean, range, change against a previous benchmark; the scored figures only under the same `SCORING_VERSION`, saved in each run; `benchmark --saved-judge` re-scores a saved run with no LLM call); `just benchmark` runs the whole loop on a pinned public repository.
-- `search "<query>"` ranks the generated docs and the collected docs lexically (no LLM). `mcp` serves them to a coding agent over stdio (`list_domains`, `get_domain`, `get_feature`, `get_use_case`, `search_docs` — the business rules, when `[pipeline] rules` produced some, are in the first three and found by the search, with their evidence —, plus `read_source` and `git_log` on the files the docs cite; no LLM, the agent reasons): the first form of "ask the documentation" (phase 9, `PLAN.md` §7.3). Answers warn when a cited file changed since generation (its hash against the one in `source-hashes.json`, written only by a complete `generate`); the code and git tools refuse any file the docs don't cite and anything outside the repo root.
+- `search "<query>"` ranks the generated docs and the collected docs lexically (no LLM). `mcp` serves them to a coding agent over stdio (`list_domains`, `get_domain`, `get_feature`, `get_use_case`, `search_docs` — the business rules, when `[pipeline] rules` produced some, are in the first three and found by the search, with their evidence —, plus `read_source` and `git_log` on the files the docs cite; no LLM, the agent reasons): the first form of "ask the documentation" (phase 9, `docs/findings.md` §4). Answers warn when a cited file changed since generation (its hash against the one in `source-hashes.json`, written only by a complete `generate`); the code and git tools refuse any file the docs don't cite and anything outside the repo root.
 
 ## 4. The `generate` pipeline
 
@@ -205,7 +205,7 @@ The model of the pass is part of every one of these comparisons, and so is its s
 pass for another model, or change its prompt, and its units are redone once (the hand-editable roles, sources, business files and brief are only redone with `--force`).
 Domain clustering is not deterministic, so
 `domains.yaml` is reused while its input hash is unchanged (otherwise downstream fingerprints would be
-invalidated, see `PLAN.md` §7): the surface (entities and resources), the brief and the model. The features are one call per domain over its
+invalidated, see `docs/findings.md`): the surface (entities and resources), the brief and the model. The features are one call per domain over its
 entry points (keyed on them and the domain's entities) and the use cases read those entry points. With `[pipeline] domains_from = "contexts"` (ADR 0029) a run documents a slice of the application, some bounded contexts of `contexts.yaml`: it reads their files only, keeps the inventories, features and use cases of the others as they are (`Retention::Others`, per-domain vocabulary, frozen actors) and marks its contexts done. The passes save after each answer
 (features, use cases, rules, confidence) and every artifact is written beside then renamed, so a run
 that fails or is killed mid-pass loses the call in flight and the next run resumes there. The
@@ -321,10 +321,10 @@ flowchart LR
 
 | I want to… | Look at |
 |---|---|
-| Know what is planned / out of scope | `PLAN.md` §5–§7 (§7.6: the review of 2026-10-12 and the order of the next work), `issues/queue.md` |
+| Know what is planned / out of scope | `ROADMAP.md` (milestones), `PRODUCT.md` "Scope of v1" (out of scope) and "Risks", `docs/findings.md` (dated findings, §7: the review of 2026-10-12), `issues/queue.md` |
 | Add or change a pipeline pass | `crates/retrodoc-pipeline/src/` (follow the existing pass + its fake-provider test) |
 | Change the generated Markdown | `crates/retrodoc-render/src/markdown/` (one file per page) |
 | Change what an agent can ask (MCP tools, search, code access) | `crates/retrodoc-mcp/src/` (`tools/` the answers, `server.rs` the wiring, `source.rs` the code access scope) |
 | Add a CLI command | `crates/retrodoc-cli/src/commands/` + `main.rs` |
 | Change config options | `crates/retrodoc-core/src/config.rs` |
-| Understand why a design choice was made | `docs/adr/` (ADRs 0001–0014 were written retroactively from the history; 0015 to 0018 were written with the change; 0019 to 0023 decide the redesign of `PLAN.md` §7.5 ahead of its implementation; 0024 adds DeepSeek as a provider; 0025 locates the business files with a pass of its own; 0026 to 0028 record measured steps of the redesign: mechanical confidence checks, chunking by parse, single read of the business files) |
+| Understand why a design choice was made | `docs/adr/` (ADRs 0001–0014 were written retroactively from the history; 0015 to 0018 were written with the change; 0019 to 0023 decide the redesign of `docs/findings.md` §6 ahead of its implementation; 0024 adds DeepSeek as a provider; 0025 locates the business files with a pass of its own; 0026 to 0028 record measured steps of the redesign: mechanical confidence checks, chunking by parse, single read of the business files) |

@@ -2,7 +2,7 @@
 
 Status: Accepted
 
-_Retroactive ADR, reconstructed from the history (b9c9789, 86f3327, 8ffcf06, eb9e1f0, 51276ac, 1dbb8d7; 2026-10-01 to 2026-10-03). Decided 2026-10-01 after the first smoke tests, see `PLAN.md` §7.1._
+_Retroactive ADR, reconstructed from the history (b9c9789, 86f3327, 8ffcf06, eb9e1f0, 51276ac, 1dbb8d7; 2026-10-01 to 2026-10-03). Decided 2026-10-01 after the first smoke tests, see `docs/findings.md` §2._
 
 ## Context
 

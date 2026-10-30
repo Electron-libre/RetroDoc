@@ -63,7 +63,7 @@ pub struct GenerateOptions {
     pub contexts: Vec<String>,
 }
 
-/// Current pipeline stage (PLAN.md §5, "confidence score" phase).
+/// Current pipeline stage (ROADMAP.md, milestone "Confidence and debt report").
 ///
 /// Runs ingestion, the surface, the domains (from the surface, ADR 0035;
 /// a bounded context at a time with `domains_from = "contexts"`),

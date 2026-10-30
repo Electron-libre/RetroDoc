@@ -1,4 +1,4 @@
-//! The application surface (PLAN.md §7.1, phase 7 step 4): what the
+//! The application surface (docs/findings.md §2, phase 7 step 4): what the
 //! glossary (entities) and the entry points inventory say the application
 //! is about, condensed into a view small enough for a prompt. The business
 //! is expressed by its nouns (entities), its verbs and the resources they

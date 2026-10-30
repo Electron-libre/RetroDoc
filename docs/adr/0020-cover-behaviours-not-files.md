@@ -9,7 +9,7 @@ cost and part of the quality problem:
 
 * The repo map summarizes every file (one call per file or per batch of small files) and every directory,
   because the clustering works on directory summaries. On the Rails test repository, 325 source files took
-  about 2h20 locally for the whole `generate`; the ~2,300-file repository is out of reach (`PLAN.md` §7.2).
+  about 2h20 locally for the whole `generate`; the ~2,300-file repository is out of reach (`docs/findings.md` §3).
 * The summaries are one or two sentences on the "probable role" of a file, technical by construction, and
   they are the only input of the features pass.
 * Technical files (helpers, infrastructure, base classes) must go into a business domain or into the
@@ -43,7 +43,7 @@ the set of files.
 
 Rejected: keeping the file invariant and only making the repo map cheaper (batching, concurrency, budget
 are already delivered and do not change the order of growth), and RAG over the whole code base (adds
-state and non-determinism to a pipeline whose re-runs must be no-ops, `PLAN.md` §7.3).
+state and non-determinism to a pipeline whose re-runs must be no-ops, `docs/findings.md` §4).
 
 ## Consequences
 

@@ -1,4 +1,4 @@
-//! Business actors (PLAN.md §7.1, phase 7 step 4c): who uses the application,
+//! Business actors (docs/findings.md §2, phase 7 step 4c): who uses the application,
 //! in business terms ("contract manager", "signatory", "e-signature
 //! provider") rather than "Developer" or "System". They are derived from the
 //! authorization code (abilities, policies, roles, permissions: the files

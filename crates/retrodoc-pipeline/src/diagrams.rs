@@ -1,4 +1,4 @@
-//! Diagrams pass (PLAN.md §2 step 6, roadmap phase 4): Mermaid
+//! Diagrams pass (docs/ARCHITECTURE.md §4 step 6, roadmap phase 4): Mermaid
 //! `sequenceDiagram` per use case, generated *deterministically* from its
 //! steps (no LLM call). The steps already carry actor and action, so asking
 //! a model to re-draw them would only add cost and the risk of invalid

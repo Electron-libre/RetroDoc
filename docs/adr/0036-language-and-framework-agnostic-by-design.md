@@ -4,7 +4,7 @@ Status: Accepted
 
 ## Context
 
-RetroDoc must document a repository whatever its stack. `PLAN.md` §7.1 rejected an adapter per framework: the
+RetroDoc must document a repository whatever its stack. `docs/findings.md` §2 rejected an adapter per framework: the
 roles call recognises the stack from the tree and the manifests (ADR 0008), and a long file of an unknown language
 is cut by a boundary regex the LLM proposes (ADR 0013). Knowledge of given stacks has still grown in the code, each
 time from the smoke and benchmark repositories: the built-in source extensions of the walker, the test-path
@@ -24,7 +24,7 @@ Developer Survey, reviewed once a year) is named in `specs/language-agnostic.md`
 the built-in tables and parsed by tree-sitter, and each of its frameworks has a minimal application that a test runs
 through `generate` with a fake LLM.
 
-Rejected: an adapter per framework (a route or ORM parser each, `PLAN.md` §7.1), and supporting only the stacks of
+Rejected: an adapter per framework (a route or ORM parser each, `docs/findings.md` §2), and supporting only the stacks of
 the measured repositories (the current drift).
 
 ## Consequences

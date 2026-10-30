@@ -11,7 +11,7 @@ Unit tests use a fake `LlmProvider`; this checks the real thing. The repository 
 ## Confidentiality (hard rule)
 
 Target repositories may belong to a client. **Never write their name, path, file names or code excerpts**
-in anything committed: docs, `PLAN.md`, `issues/`, ADRs, commit messages, tests. Describe them generically
+in anything committed: docs, `ROADMAP.md`, `issues/`, ADRs, commit messages, tests. Describe them generically
 ("a large Rails repository", "a small Rust crate") and give figures (files, duration, features) only.
 Logs and the clone stay in `~/retrodoc-runs` (`$RETRODOC_RUNS_DIR`).
 

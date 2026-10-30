@@ -2,7 +2,7 @@
 
 Detail moved out of `CLAUDE.md`. Pipeline overview: `docs/ARCHITECTURE.md` §4 and §5.
 
-- **retrodoc-pipeline**: orchestrates the multi-pass generation pipeline of `PLAN.md` §2, one module per
+- **retrodoc-pipeline**: orchestrates the multi-pass generation pipeline of `docs/ARCHITECTURE.md` §4, one module per
 pass. The `//!` doc of each module is the reference for what the pass does and why; this is only the map.
 `generate` runs them in this order: surface (roles → glossary → entry points), actors, file budget,
 domains, features, use cases, diagrams, business-language score, confidence, then render.

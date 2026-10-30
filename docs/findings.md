@@ -1,129 +1,27 @@
-# RetroDoc v1 Plan
+# Findings log
 
-This document details the first version (MVP) of RetroDoc. The long-term scope is described in
-[PRODUCT.md](./PRODUCT.md); this plan covers only what is built in v1.
+The dated findings of the smoke tests, measures and reviews that shaped RetroDoc from 2026-10-01 to 2026-10-14,
+moved from the former `PLAN.md` (§7). It is a log: the current behaviour is in `docs/crates/` and
+`docs/ARCHITECTURE.md`, the planned work in `ROADMAP.md`, the decisions in `docs/adr/`, the later findings in the
+closed issues of `issues/done/`.
 
-## 1. Scope
+The phases it names are the milestones of `ROADMAP.md`:
 
-| | Decision |
+| Phase | Milestone |
 |---|---|
-| Scope | Functional documentation only (domains → features → use cases → steps/actors → process diagrams) |
-| Input | Local Git repo (code + commit history) + existing Markdown documents supplied as input |
-| LLM | OpenRouter (or the DeepSeek API, same format), via an abstraction interface (`trait LlmProvider`) so the model choice isn't locked in |
-| Output | Markdown + Mermaid files written directly into `docs/` of the analyzed repo |
-| Reliability | Each generated section carries a **confidence score**, aggregated into a coverage report |
+| 1 | Foundation |
+| 2 | Repo map |
+| 3 | Domains |
+| 4 | Features, use cases and diagrams |
+| 5 | Confidence and debt report |
+| 6 | Writing and CLI ergonomics |
+| 7 | Business-level documentation |
+| 8 | Scalability and cost control |
+| 9 | MCP server over the generated docs, then Ask the documentation |
+| 10 | Top-down redesign |
+| 11 | A large application, one bounded context at a time |
 
-Out of scope for v1 (kept in PRODUCT.md's long-term vision): technical/C4 docs, GitHub/GitLab/Jira
-connectors, automatic PRs, multi-provider LLM.
-
-## 2. Generation pipeline
-
-```
-1. Ingestion       → repo walker (respects .gitignore) + parsing of existing .md files + git log per path
-2. Surface         → file roles, business files, entities (glossary), entry points, then the actors
-3. Domains         → LLM grouping of the resources (entry points by resource) and the entities → domains.yaml (intermediate; the entry points no feature holds and the files no behaviour reaches are reported, ADR 0020)
-4. Features        → per domain, over its entry points
-5. Use cases       → per feature, steps + actors/actions, grounded on real code (handlers, routes, UI, DB)
-6. Diagrams        → Mermaid (flowchart/sequenceDiagram) per use case
-7. Confidence      → per-section cross-check pass (the LLM checks the claim against the cited code)
-7b. Reconciliation → each item matched (BM25) to the existing doc sections, the LLM tells covers / contradicts / unrelated
-8. Writing         → Markdown into docs/, dry-run + diff preview before writing, idempotent on re-run
-```
-
-Step 3 (`domains.yaml`) is a structured intermediate artifact, not a final file — this allows steps 4-7 to
-be rerun without redoing the clustering, and it's the basis for the incremental cache (rerun only what
-touches files modified since the last run).
-
-The first version (ADR 0004) had a repo map (an LLM summary of every file and directory) as step 2 and
-clustered its directory summaries into domains covering every file: the `files` path, the default until
-2026-10-28 and removed by ADR 0035 (`issues/done/single_pipeline_path.md`, §7.6). Phases 7 and 10 added a product
-brief from the non-code evidence first, the surface and the actors, mechanical confidence checks and a business
-rules pass (on by default) after the use cases; phase 10 (§7.5) built the domains and features from the surface,
-the coverage invariant moved from files to behaviours (ADR 0020, the default since ADR 0034). With
-`domains_from = "contexts"` the same passes run a bounded context at a time (§7.7). The order `generate` runs
-today is in
-`docs/crates/pipeline.md`.
-
-## 3. Expected output
-
-```
-docs/
-  functional/
-    llms.txt                       # index for agents (llms.txt style): domains, features, confidence, how to read
-    <domain>/
-      README.md                    # domain overview, confidence
-      <feature>.md                 # list of use cases
-      use-cases/<feature>/<use-case>.md    # business narrative, then (folded) steps, actors, Mermaid diagram, confidence
-  _retrodoc/
-    coverage-report.md             # identified gaps, low-confidence sections
-    run-metadata.json              # model used, date, analyzed commit
-```
-
-## 4. Technical architecture (Rust, workspace)
-
-- `retrodoc-cli` — binary, `clap` (`init`, `scan`, `generate`, `render`, `report`, `roles`, `brief`, `business-files`, `contexts`, `business-read`, `glossary`, `entry-points`, `actors`, `surface`, `benchmark`, `benchmark-table`, `search`, `mcp`)
-- `retrodoc-core` — domain model (Domain, Feature, UseCase, Step, Actor, ConfidenceScore)
-- `retrodoc-ingest` — walker (`ignore`), history (`git2`), Markdown parsing
-- `retrodoc-llm` — provider abstraction + OpenRouter/DeepSeek implementation (chat completion, retry, rate-limit)
-- `retrodoc-pipeline` — multi-pass orchestration + incremental cache (`.retrodoc/cache/`, key = content hash)
-- `retrodoc-render` — Markdown/Mermaid writing, diff preview
-- `retrodoc-mcp` — read-only, LLM-free access to the generated docs for agents (BM25 search, MCP server over stdio)
-
-## 5. Indicative roadmap
-
-1. **Foundation**: CLI skeleton, config (`retrodoc.toml`: OpenRouter key/model, ignored paths), basic ingestion
-2. **Repo map**: bottom-up summaries + git history enrichment (removed with the `files` path, ADR 0035)
-3. **Domains/sub-domains**: clustering + coverage validation (sub-domains removed with the `files` path, ADR 0035)
-4. **Features → use cases → steps/actors** + Mermaid diagrams
-5. **Confidence score** + documentation debt report
-6. **Writing & CLI ergonomics** (dry-run, idempotence, incremental re-run)
-7. **Business-level documentation** (see §7.1): the output must read as functional/business documentation,
-   not as a paraphrase of the code. Built on a new "surface extraction" foundation (file roles, models and
-   glossary, entry points and outputs) that also bounds what is sent to the LLM. Implemented end to end in
-   code (steps 1–4e: surface, actors, narrative, business-language score), each step checked on the real Rails test repo
-   data piece by piece. The only full `generate` on a part of that repo is of 2026-10-02 (§7.2, 325 files), before
-   the redesign of phase 10; the next one is `issues/done/validate_on_large_application.md`.
-8. **Scalability & cost control** (see §7.2): bring a run on a large repo (thousands of files) within
-   reach, including on limited/local LLM resources. In progress: delivered are progress reporting, the LLM
-   heartbeat, the directory-summary cache (item 6), `--no-confidence`/`--confidence-sample` (item 3) and item 5
-   (call estimate for the repo map pass, resumable features/use cases); item 4 (`llm.concurrency`, repo map only) and item 2 (`llm.batch_chars`, batched confidence); item 1 (`--max-files`, opt-in) — all six directions are now delivered; token accounting (item 7) is delivered for its first step (a recap of calls and tokens per pass), the pre-run estimate of the whole pipeline is still open.
-9. **Ask the documentation** (see §7.3): a question-answering agent (`retrodoc ask` / `chat`) grounded on
-   the generated artifacts, the collected docs, the git history and, when needed, the code. In progress:
-   the first consumer, a read-only MCP server for external agents (`retrodoc search`, `retrodoc mcp`), is
-   delivered; the internal `ask` / `chat` agent is not started. Answer quality is bounded by the quality of
-   the generated docs (phases 7, 8 and 10).
-10. **Top-down redesign** (see §7.5, decided 2026-10-07, ADRs 0019 to 0023): understand the product first
-    from the non-code evidence, cover behaviours instead of files, make business rules part of the model,
-    read the code structure with tree-sitter, ask for structured outputs with a model per pass, and
-    reconcile the generated docs with the existing ones in the debt report. It takes over the open
-    business-level work of phase 7 and the scaling work of phase 8. Steps 1 to 6 of §7.5 are delivered (benchmark,
-    brief, business files, structured outputs, model per pass, the `surface` path, tree-sitter chunking,
-    mechanical confidence, single read of the business files, business rules), and step 7, the reconciliation
-    with the existing docs (ADR 0033; its measure on real docs is `issues/done/reconciliation_recall_on_real_docs.md`);
-    the default path is `surface` since 2026-10-28 (ADR 0034); open: the follow-ups of the review of 2026-10-12 (§7.6).
-11. **A large application, one bounded context at a time** (see §7.7, ADR 0029, decided 2026-10-12): the map
-    of the contexts (`retrodoc contexts`) and `domains_from = "contexts"`, so that an application too large for
-    one run is documented in resumable, complementary runs. Delivered and run on a 1,676-file application (8 of
-    35 contexts); open: the quality follow-ups listed in §7.7 and the contexts left.
-
-## 6. Identified risks
-
-- Without Jira, domain clustering risks reflecting the code's *technical* structure rather than the real
-  *business* breakdown — the confidence score must explicitly distinguish the two.
-- Token cost/volume on a large repo: the incremental cache (pipeline step) matters from v1, not a
-  "nice to have" for later.
-- The default OpenRouter model choice (quality vs. cost) is still to be settled at implementation time.
-- **Both risks above materialized in the first real smoke tests** (§7): the generated docs are mostly
-  technical and the run time does not scale. They are now the priority work, ahead of new features
-  (phases 7 and 8, then the redesign of phase 10).
-- With behaviours as the coverage unit (phase 10), a behaviour the entry point pass misses is a use case
-  missing from the docs: the debt report must list the files reached by no entry point.
-- Review of 2026-10-12 (§7.6): the measures are noisy (the spread between runs is as large as most effects,
-  the LLM judge is wrong on a large share of its pairs, the references are not yet checked by a human), the
-  redesign is not validated on a large application, and two pipeline paths plus several experimental
-  settings are maintained at once.
-
-## 7. Smoke-test findings and next work (2026-10-01)
+## 1. First smoke tests (2026-10-01)
 
 Smoke tests were run with `qwen3.6:35b-a3b` on a local Ollama (AMD iGPU, 32k context,
 `reasoning_effort = "none"`), on throwaway `git worktree`s in `~/retrodoc-runs` (see docs/dev/commands.md for the CLI commands):
@@ -152,12 +50,12 @@ Already fixed (same session, commit `5543f28` and following):
   model is not deterministic, so this is one sample. Truncated JSON (`finish_reason=length`) is a separate
   problem, not covered.
 
-### 7.1 Phase 7 — business-level documentation (open)
+## 2. Phase 7 — business-level documentation (open)
 
 Observed: the documentation is mostly technical and the business domain is barely perceptible. Example
 (the Rails test repo): a use case "Format children companies for UI selection" has actor "Developer", five steps that
 restate method calls (`children_companies`, `map`), and a sequence diagram between a developer and a Ruby
-object. The top domain is named "presentation-layer" — a technical split, the very risk listed in §6.
+object. The top domain is named "presentation-layer" — a technical split, the very risk listed in the risks of `PRODUCT.md`.
 
 Causes identified in the current design:
 - Prompts ask to describe "what is visible in the code" and forbid inventing, which yields function-level
@@ -295,7 +193,7 @@ Steps, each shippable and checkable on the Rails test repo:
 Validation: re-run on the Rails test repo and autoroute; compare actors, domain names and use-case titles by hand
 (a reader who doesn't know the code should be able to say what the product does).
 
-### 7.2 Phase 8 — scalability & cost control (open)
+## 3. Phase 8 — scalability & cost control (open)
 
 Observed: the cost is linear in LLM calls — one per file, per directory, per domain unit, per feature, per
 use case, plus one **per use case** for confidence (about a third of all calls). 26 files already took 31
@@ -366,7 +264,7 @@ since Ollama has no `OLLAMA_NUM_PARALLEL` set.
 Validation: measure calls and wall time before/after on the Rails test repo `app/presenters/` (baseline above), then
 on a larger sparse-checkout (e.g. `app/models` + `app/services`).
 
-### 7.3 Phase 9 — ask the documentation (open)
+## 4. Phase 9 — ask the documentation (open)
 
 Idea (2026-10-02): once the documentation is built, the ideal consumer is an agent that can be questioned
 about how the application works ("what happens when a contract is signed?", "who can cancel a
@@ -432,7 +330,7 @@ Steps, each shippable:
 3. `retrodoc ask` with citations, confidence and freshness warnings.
 4. Interactive `chat` with conversation memory; code and git history tools.
 
-### 7.4 Smaller open items
+## 5. Smaller open items
 
 - Source extensions: the walker's built-in list (`FileKind::from_path`) only knows common languages. The roles
   pass now also asks the LLM for `source_extensions` (saved in `roles.yaml`); `generate` promotes the matching
@@ -446,7 +344,7 @@ Steps, each shippable:
   JSON) depend on the server config — see the local LLM setup notes.
 - Truncation: the entry points and glossary passes chunk long files and the use cases/confidence passes show the relevant chunks of a long file; the actors pass still cuts long files.
 
-### 7.5 Phase 10 — top-down redesign (open)
+## 6. Phase 10 — top-down redesign (open)
 
 Review of 2026-10-07: the pipeline climbs from the code to the business and its cost grows with the file
 count. Findings from the code: the existing docs reach one prompt as their first line only, commit
@@ -504,7 +402,7 @@ repository. That is an estimate, to be measured with step 1 and `usage.json`.
 Follow-up of step 6: the rules are stated per feature, so some are duplicated, and storage plumbing comes out
 as rules (`issues/done/rules_deduplication_and_noise.md`); the pass stays off by default.
 
-### 7.6 Project review of 2026-10-12
+## 7. Project review of 2026-10-12
 
 A review of the whole project after the redesign (234 commits, about 38k lines of Rust, 28 ADRs).
 
@@ -512,7 +410,7 @@ Holds: the one-way crates, the YAML artifacts, the incremental re-run, and the m
 (ADR 0020), which is what makes the cost follow the business surface. The measuring tools (benchmark, replays
 without LLM, token recap per pass) are what let the changes below be decided on figures.
 
-Measured since the baseline of §7.5 step 1 (details in the closed issues):
+Measured since the baseline of §6 step 1 (details in the closed issues):
 
 | Change | Figure |
 |---|---|
@@ -524,7 +422,7 @@ Measured since the baseline of §7.5 step 1 (details in the closed issues):
 | Business rules, linkding, deepseek | 649 rules for 66 features, 450 backed by code alone; the pass is about 42% of the input tokens of the run (1.18M in, 242k out) |
 
 Not reached yet:
-- No complete run on a large application since 2026-10-02 (done since: see §7.7).
+- No complete run on a large application since 2026-10-02 (done since: see §8).
 - Feature precision stays low on the application benchmark, and the judge overstates it (by 12 to 33 points on
   the audited runs).
 - Run-to-run spread: 13 to 21 entry points on the 9-file library, 64 against 96 between two identical runs
@@ -536,7 +434,7 @@ Not reached yet:
 
 Next work, in the order of `issues/queue.md`:
 1. `issues/done/validate_on_large_application.md`: one complete run on a large application, read by the user (done in
-   slices, §7.7).
+   slices, §8).
 2. `issues/done/sampling_temperature_for_steadier_runs.md` and `issues/done/benchmark_passes_on_fixed_inputs.md`: a steadier
    and cheaper measure, with references a human has checked (done: one pass replayed on frozen inputs,
    `pass_replay`; a second application is `issues/done/second_application_in_benchmark.md`).
@@ -546,7 +444,7 @@ Next work, in the order of `issues/queue.md`:
    `issues/done/single_pipeline_path.md`, then `issues/done/pass_runner_and_run_context.md`: fewer options, one path, then
    the refactoring of what stays.
 
-### 7.7 Phase 11 — a large application, one bounded context at a time (2026-10-12 to 13)
+## 8. Phase 11 — a large application, one bounded context at a time (2026-10-12 to 13)
 
 `issues/done/validate_on_large_application.md` tried one run on a private 1,676-file Rails application and found that
 the reading stopped at 60 files and showed 150 entry points of 456: the design could not be run once on a large
@@ -574,6 +472,3 @@ out of the entry points; the prompt asks for one use case for a form and its sub
 features made of public methods 21% to 5% of the use cases, human actor with no route nor command 28% to 7%, 5
 back-office features found; the form screens did not drop (12% to 21%), kept in
 `issues/merge_form_screens_into_their_use_case.md`.
-
-This plan's §7.1 to §7.3 are a dated log of findings; the current behaviour is in `docs/crates/` and
-`docs/ARCHITECTURE.md`.
