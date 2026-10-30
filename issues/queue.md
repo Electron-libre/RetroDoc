@@ -4,7 +4,6 @@ Open issues in the order to work on them: the first is the next one. Read by `ju
 `just close-issue` removes a line, `skill:create-issue` inserts one at its rank, `skill:prioritize-issues`
 re-ranks the whole list. Line format: `- [<file stem>](<file stem>.md) - <why here>`.
 
-- [stack_tables_nested_layouts](stack_tables_nested_layouts.md) - after `tree_sitter_reference_languages` (high review of `stack_tables_cover_the_reference_set`, 2026-10-30): common JVM and .NET layouts the flat tables miss, found by reading, no run has shown them; before the low-priority tuning, it widens the stacks the fixtures cover
 - [roles_second_pass_and_promoted_sources](roles_second_pass_and_promoted_sources.md) - same milestone as `stack_tables_nested_layouts`, after it (open point of `docs/findings.md`, 2026-10-30): an unknown stack loses the files no rule matches; its measure reads saved runs, no LLM call
 - [narrative_checked_against_cited_code](narrative_checked_against_cited_code.md) - open point of `docs/findings.md` (2026-10-30): the narrative is the first thing a reader trusts and nothing checks it; before the low-priority tuning, its measure reads saved benchmark runs
 - [actors_read_long_authorization_files](actors_read_long_authorization_files.md) - open point of `docs/findings.md` (2026-10-30): the actors of a large application are cut at 3,000 characters per file; before `contexts_residual_size_and_names`, same milestone, which is low

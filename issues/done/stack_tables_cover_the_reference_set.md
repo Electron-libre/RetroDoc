@@ -37,7 +37,7 @@ PHP or Swift repository is classified and briefed without relying on the roles c
 
 Plan: validated
 
-Done: every deliverable committed; follow-ups in `issues/stack_tables_nested_layouts.md`.
+Done: every deliverable committed; follow-ups in `issues/done/stack_tables_nested_layouts.md`.
 
 ## Understanding
 Make the walker's built-in tables (source extensions, test heuristic) and the manifest reader of the product brief
@@ -101,7 +101,7 @@ briefed. Out of scope: grammars (LNG-8), framework fixtures (LNG-9), both have t
 
 ## Deliverable 3 (high review of `9dbfd7c..925f52c`)
 - done: 7 of the 10 findings fixed; the 3 others (Gradle version catalogs, nested `.csproj`, .NET test-project
-  directories) plus `project/*.scala` and `BloodTest.java` go to `issues/stack_tables_nested_layouts.md`.
+  directories) plus `project/*.scala` and `BloodTest.java` go to `issues/done/stack_tables_nested_layouts.md`.
 
 | check | result |
 |---|---|
