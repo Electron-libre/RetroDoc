@@ -4,7 +4,6 @@ Open issues in the order to work on them: the first is the next one. Read by `ju
 `just close-issue` removes a line, `skill:create-issue` inserts one at its rank, `skill:prioritize-issues`
 re-ranks the whole list. Line format: `- [<file stem>](<file stem>.md) - <why here>`.
 
-- [stack_tables_cover_the_reference_set](stack_tables_cover_the_reference_set.md) - after the entry points chain above (user, 2026-10-29: language and framework agnosticism, ADR 0036): small, makes the frequent stacks classified and briefed, and the fixtures below run on the full tables
 - [framework_fixtures_through_generate](framework_fixtures_through_generate.md) - after `stack_tables_cover_the_reference_set`: proves the generic path and each frequent framework through `generate`, and shows what else breaks before the grammars
 - [tree_sitter_reference_languages](tree_sitter_reference_languages.md) - after `framework_fixtures_through_generate`, whose fixtures then check each new grammar; the largest of the three, an accelerator over the generic path
 - [stack_tables_nested_layouts](stack_tables_nested_layouts.md) - after `tree_sitter_reference_languages` (high review of `stack_tables_cover_the_reference_set`, 2026-10-30): common JVM and .NET layouts the flat tables miss, found by reading, no run has shown them; before the low-priority tuning, it widens the stacks the fixtures cover
