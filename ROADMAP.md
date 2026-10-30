@@ -51,7 +51,9 @@ The milestones up to "A large application, one bounded context at a time" are th
   (file roles, entities and glossary, entry points and outputs, business actors, narrative, business-language score).
 - Why: the first smoke tests gave mostly technical docs (the risks of `PRODUCT.md`, `docs/findings.md` §2); its open work moved to the top-down
   redesign.
-- State: done
+- State: in issues
+- Issues:
+  - [narrative_checked_against_cited_code](issues/narrative_checked_against_cited_code.md)
 
 ## Scalability and cost control
 
@@ -106,6 +108,8 @@ The milestones up to "A large application, one bounded context at a time" are th
   - [framework_fixtures_through_generate](issues/done/framework_fixtures_through_generate.md)
   - [tree_sitter_reference_languages](issues/done/tree_sitter_reference_languages.md)
   - [stack_tables_nested_layouts](issues/stack_tables_nested_layouts.md)
+  - [roles_second_pass_and_promoted_sources](issues/roles_second_pass_and_promoted_sources.md)
+  - [view_template_labels](issues/view_template_labels.md)
 
 ## A large application, one bounded context at a time
 
@@ -122,6 +126,7 @@ The milestones up to "A large application, one bounded context at a time" are th
   - [technical_and_back_office_use_cases](issues/done/technical_and_back_office_use_cases.md)
   - [contexts_residual_size_and_names](issues/contexts_residual_size_and_names.md)
   - [merge_form_screens_into_their_use_case](issues/merge_form_screens_into_their_use_case.md)
+  - [actors_read_long_authorization_files](issues/actors_read_long_authorization_files.md)
 
 ## Business rules quality
 
@@ -146,4 +151,6 @@ The milestones up to "A large application, one bounded context at a time" are th
 - Goal: an internal `retrodoc ask` / `chat` agent answering from the generated docs, the collected docs, the git
   history and the code, with citations, confidence and freshness warnings (`docs/findings.md` §4, steps 2 to 4).
 - Why: the MCP server serves an external agent; a user without one has no way to question the docs.
-- State: idea
+- State: in issues
+- Issues:
+  - [search_relevance_threshold](issues/search_relevance_threshold.md)

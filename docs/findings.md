@@ -332,6 +332,15 @@ Steps, each shippable:
 
 ## 5. Smaller open items
 
+Followed since 2026-10-30 by `issues/roles_second_pass_and_promoted_sources.md` (the source extensions below and the
+unclassified files of §2 step 1), `issues/actors_read_long_authorization_files.md` (truncation),
+`issues/view_template_labels.md` (view templates), `issues/narrative_checked_against_cited_code.md` (§2 step 4d) and
+`issues/search_relevance_threshold.md` (§4 step 1). Dropped: the server-dependent causes of empty answers (not
+fixable in the code), the damping of base classes in the file ranking (§3 direction 1; the budget is opt-in and the
+contexts path bounds a large run), the verbs and the docs and commits as glossary sources (§2 step 2; the evidence
+retrieved per unit of ADR 0019 brings the docs and commits, the entry points the verbs), and the routing file of the
+large application that gave no entry point (§2 step 3; not reproducible without it).
+
 - Source extensions: the walker's built-in list (`FileKind::from_path`) only knows common languages. The roles
   pass now also asks the LLM for `source_extensions` (saved in `roles.yaml`); `generate` promotes the matching
   `Other` files to `Source` right after it (`RoleRules::promote_sources`; the `actors` command does it from the
