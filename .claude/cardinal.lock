@@ -10,7 +10,7 @@ e5c7e210f336a8ec28994671d57d9fb0ddb764228d46127f68775671f175239e  .claude/skills
 28f9767ec4bf136a3d50a1bac3b2d86215ff56156997a67fd83beee9a930469b  .claude/skills/prioritize-issues/SKILL.md
 b627b1f62d4611948416cd01e935d79fb2898692162c09cfc2b50d30000f88af  .claude/skills/update-docs/SKILL.md
 8e77a3c231b051e1553dce195bfe1458a14d8aca9cd7867ede28e77996589d0f  .claude/skills/write-spec/SKILL.md
-0ef4ecc7fed76a612c22f84bc6d5d5e7a7e93f064deb59712af918aa79dd47dc+x  .github/install_cardinal.sh
+61bdad10b1c0449722ce4b9d3a409580d991222fafb87e2c78a68e4048d4e1dc+x  .github/install_cardinal.sh
 bc32a7e12c24311ccc036b49232f3458f44997761b6a1099cdfe4db1bb738121  .github/workflows/cardinal.yml
 71a0ea0c7e9530936b006d503e89994cd45992911127a9c239b2a560d5de6cef  AGENTS.md
 f8f8a1a2b5dc550d0e488229e337f4a3d4e792b3ccefda52b133c5dcb13d4a7a  cardinal.just
@@ -23,6 +23,5 @@ entry  {"deny":"Edit(//**/claude-review-waived)"}
 entry  {"event":"PreToolUse","matcher":"Bash","hook":{"type":"command","command":"cardinal run review-gate check"}}
 entry  {"event":"PostToolUse","matcher":"Skill","hook":{"type":"command","command":"cardinal run review-gate record"}}
 entry  {"event":"PostToolUse","matcher":"Edit|Write","hook":{"type":"command","command":"cardinal run format-code"}}
-entry  {"event":"PostToolUse","matcher":null,"hook":{"type":"command","command":"cardinal run language-hint"}}
 entry  {"event":"Stop","matcher":null,"hook":{"type":"command","command":"cardinal run lint-gate","timeout":600}}
 entry  {"event":"Stop","matcher":null,"hook":{"type":"command","command":"cardinal run language-hint","timeout":600}}

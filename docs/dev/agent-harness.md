@@ -21,7 +21,7 @@ Hooks in `.claude/settings.json` (`cardinal run <tool>`):
 - `lint-gate` (Stop): runs the project's lint command, else, if `.rs` files changed,
   `cargo clippy --workspace --all-targets -- -D warnings` (RetroDoc sets none, so clippy);
   on failure the output goes back to the agent, which must fix the code before finishing.
-- `language-hint` (PostToolUse and Stop): sends the agent back once when its last reply is not in the `user_language` of
+- `language-hint` (Stop): sends the agent back once when its last reply is not in the `user_language` of
   `.claude/cardinal.toml`.
 - `review-gate` (review gate): refuses a `git commit` until the `code-review` skill has run on the current diff
   (`record` on PostToolUse `Skill`, `check` on PreToolUse `Bash`, `native` from the git `pre-commit` hook installed by `cardinal sync`).

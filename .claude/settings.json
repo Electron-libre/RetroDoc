@@ -58,14 +58,6 @@
             "command": "cardinal run review-gate record"
           }
         ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "cardinal run language-hint"
-          }
-        ]
       }
     ],
     "Stop": [

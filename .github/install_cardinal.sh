@@ -8,15 +8,35 @@ set -eu
 
 config=.claude/cardinal.toml
 [ -f "$config" ] || { echo "no $config: cardinal not installed" >&2; exit 1; }
-# a basic or a literal TOML string, the key indented or not
-value() {
-  key="^[[:space:]]*$1[[:space:]]*=[[:space:]]*"
-  sed -n -e "s/$key\"\([^\"]*\)\".*/\1/p" -e "s/$key'\([^']*\)'.*/\1/p" "$config" | head -n 1
+# The strings `[cardinal].source` and `rev` read through a TOML parser, as `cardinal` reads them (SYN-56), as shell
+# assignments: empty when missing, not a string or the file not valid TOML; exit 3 without `tomllib`. `-I`: no module
+# of the work tree; bytes, so the locale encodes nothing.
+read_config() {
+  python3 -I -c '
+import shlex, sys
+try:
+    import tomllib
+except ImportError:
+    sys.exit(3)
+try:
+    with open(sys.argv[1], "rb") as f:
+        table = tomllib.load(f).get("cardinal")
+except (OSError, ValueError):
+    table = None
+if not isinstance(table, dict):
+    table = {}
+for key in ("source", "rev"):
+    value = table.get(key)
+    if not isinstance(value, str):
+        value = ""
+    sys.stdout.buffer.write((key + "=" + shlex.quote(value) + "\n").encode())
+' "$config"
 }
-source=$(value source)
-# no key, another form of string or an unreadable file: the local-path branch below would take '' for a path
+assignments=$(read_config) \
+  || { echo "Python 3.11 or later (tomllib) is needed to read $config: cardinal not installed" >&2; exit 1; }
+eval "$assignments"
+# no key, not a string or an invalid file: the local-path branch below would take '' for a path
 [ -n "$source" ] || { echo "no source read from $config: cardinal not installed" >&2; exit 1; }
-rev=$(value rev)
 
 # A path git source as the absolute `file://` URL of that path from the top of the work tree, its symlinks resolved, as
 # `cardinal` reads it (SYN-50): `.` and `..` removed, every byte outside `A-Za-z0-9-._~/` percent-encoded.
