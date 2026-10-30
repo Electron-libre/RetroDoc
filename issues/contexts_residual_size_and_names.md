@@ -80,6 +80,8 @@ Means: the warning itself says why a context stayed whole (CSP-4), so the run di
 - Base commit: a9d06bd
 - Paid runs of deliverables 2 and 5 (~$0.03) approved up front.
 - The agent reads the context names against their files (deliverable 5).
+- After deliverable 2 (no residue with the local roles): the map is redone from roles computed by the hosted model
+  (`roles --force` on a second copy), as on 2026-10-13; deliverables 3-5 work on that copy.
 - Too few entries to cut (deliverable 3): list one level deeper, by family or sub-folder.
 
 ## Deliverable 1
@@ -102,3 +104,14 @@ Copy of the complete local run of 2026-10-15 (its `roles.yaml`, 1,676 source fil
 - The lost map of 2026-10-13 came from other roles (hosted): 4 contexts split at the first level, one left at 167
   files, and the workflow families as orphans in a context of 121 files with no entry point file.
 - So neither residue shows on this copy: the size and the action names depend on the roles the map starts from.
+
+## Deliverable 2b (measure, 2026-10-30, 70546ad, hosted `deepseek-chat`, roles redone by it)
+Second copy, `roles --force` (2 calls, 15.3k in, 1.3k out) then `contexts` (4 calls, 14.1k in, 2.5k out), ~$0.01:
+- 34 contexts, 500 files in the support; three splits (8, 7 and 4 parts). One context left at 180 files, warned as
+  `reason=split twice already`: the first part of a split at the second level, so no third call.
+- Its 180 files: the `contract` group (102 files by name), the shared steps of the workflow layer (34 tasks, 17
+  workflow actions, 7 rules: `approve`, `validate`, `restart`, `archive`… used by every family), and the context's
+  own folders kept as the first part's fallback (37 files of `app/models/`). The families (`market`, `hybrid`,
+  `consortium`…) are entry point groups with contexts of their own.
+- Families under the workflow folder: 1 over 57 files in no group (`archive`, 3 files, an action name). The 13
+  families of 2026-10-13 came from roles where the family folders of `processes/` had no entry point file.
