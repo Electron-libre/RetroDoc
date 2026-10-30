@@ -132,6 +132,7 @@ The milestones up to "A large application, one bounded context at a time" are th
 - Why: one run on a 1,676-file application stopped at 60 files; delivered and run on 8 of its 35 contexts, the quality
   follow-ups and the contexts left are open.
 - State: done
+- Released: v0.3.0
 - Issues:
   - [validate_on_large_application](issues/done/validate_on_large_application.md)
   - [business_files_cap_on_large_application](issues/done/business_files_cap_on_large_application.md)

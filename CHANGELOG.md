@@ -4,6 +4,23 @@ The notable changes of each version, newest first ([Keep a Changelog](https://ke
 [Semantic Versioning](https://semver.org/)). Each section is written by `just release <version>` from the commits,
 then reread before the release is committed.
 
+## [0.3.0] - 2026-10-30
+
+### Milestones
+
+- A large application, one bounded context at a time
+
+### Added
+
+- `contexts` warns of each context left over the size limit with its file count and the reason it was not split.
+
+### Fixed
+
+- The actors pass reads every authorization file within its budget, a long one as an excerpt, and names the files
+  the budget leaves out.
+- The authorization code sent to the actors pass stays within its budget, markers of the excerpts included.
+- Each context slug stays unique across a split level.
+
 ## [0.2.0] - 2026-10-30
 
 ### Milestones
