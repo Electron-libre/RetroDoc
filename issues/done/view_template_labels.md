@@ -84,6 +84,6 @@ strings of the template tags (Rails form helpers) added no word.
 - red: none (docs only).
 - Code review: no findings (low, on these fixes)
 - Code review (high): 8 findings; 1-5, 7, 8 fixed here; 6 (nothing in code keeps `.erb` out of `promote_to_source`)
-  became `issues/template_extensions_never_promoted.md`.
+  became `issues/done/template_extensions_never_promoted.md`.
 - not verified: the effect on the generated docs (no run).
 - decisions needed: none.

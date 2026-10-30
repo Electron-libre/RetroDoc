@@ -357,7 +357,7 @@ large application that gave no entry point (§2 step 3; not reproducible without
 - `.erb` view templates are meant to stay `FileKind::Other` (1,253 files on the Rails test repo): the file budget and
   the actors pass select on `FileKind::Source` only, never on role. On that repository the roles pass listed `erb`,
   `jbuilder`, `scss` and `css` in `source_extensions` (1,386 files, ~38 % of the source set); since 2026-10-30
-  (`issues/template_extensions_never_promoted.md`) the promotion leaves out the extensions of templates, markup,
+  (`issues/done/template_extensions_never_promoted.md`) the promotion leaves out the extensions of templates, markup,
   stylesheets and data whatever the answer (LNG-20), `vue`, `svelte` and `astro` kept (code and markup together).
   They keep their `view` role (used by `classify`).
   Dropped (2026-10-30, `issues/done/view_template_labels.md`): extracting their labels. Measured without LLM on the

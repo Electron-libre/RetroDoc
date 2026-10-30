@@ -85,7 +85,7 @@ built-in `php` making `.blade.php` source, the prompt text.
   a `roles` test; the run path of the confidential repository removed from this issue.
 - red: LNG-20: not observed apart, the tests were written with the fix (the old code printed a `json` no file holds).
 - Code review: 8 findings (high); low review of the fixes: no findings. Fixed: missing templates, message for absent files, `roles` untested, test subset, two
-  APIs, confidential path (still in commit 969d32e, local, not pushed). Not fixed: data extensions
+  APIs, confidential path (also removed from the first commit by a rewrite before any push). Not fixed: data extensions
   can't be overridden (the Goal of the issue denies data on purpose, validated plan); `.blade.php` through
   `from_path` (issue `built_in_extension_templates_read_as_source`).
 - not verified: `generate` printing the line through the binary (it calls the same `roles::promote_sources`).

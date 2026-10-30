@@ -12,7 +12,7 @@ against the non-goal of `specs/language-agnostic.md` ("Reading view templates (.
 source"). Expected: such a template is never a source file, for any stack of the reference set.
 
 # Findings
-* 2026-10-30, `issues/template_extensions_never_promoted.md` (answer 3 a): the deny list of LNG-20 applies to the
+* 2026-10-30, `issues/done/template_extensions_never_promoted.md` (answer 3 a): the deny list of LNG-20 applies to the
   promotion only; `from_path` makes every `php` file `Source`, `.blade.php` included.
 * Not measured: no repository of the benchmark nor of the smoke tests is a Laravel application.
 
@@ -31,7 +31,7 @@ Language and framework agnostic
 
 # Resources
 * `crates/retrodoc-ingest/src/walker.rs` (`FileKind::from_path`, `is_build_script`, `NEVER_SOURCE`).
-* `issues/template_extensions_never_promoted.md`, ADR 0036.
+* `issues/done/template_extensions_never_promoted.md`, ADR 0036.
 
 # Hints
 * The Laravel fixture of LNG-9 (`crates/retrodoc-cli/tests/reference_frameworks.rs`) holds no view today: add
