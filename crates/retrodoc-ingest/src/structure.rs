@@ -97,43 +97,78 @@ enum Family {
     Swift,
 }
 
+/// Each extension this build parses, without the dot, and its language.
+const EXTENSIONS: &[(&str, Lang)] = &[
+    #[cfg(feature = "ruby")]
+    ("rb", Lang::Ruby),
+    #[cfg(feature = "ruby")]
+    ("rake", Lang::Ruby),
+    #[cfg(feature = "ruby")]
+    ("gemspec", Lang::Ruby),
+    #[cfg(feature = "rust")]
+    ("rs", Lang::Rust),
+    #[cfg(feature = "javascript")]
+    ("js", Lang::JavaScript),
+    #[cfg(feature = "javascript")]
+    ("jsx", Lang::JavaScript),
+    #[cfg(feature = "javascript")]
+    ("mjs", Lang::JavaScript),
+    #[cfg(feature = "javascript")]
+    ("cjs", Lang::JavaScript),
+    #[cfg(feature = "typescript")]
+    ("ts", Lang::TypeScript),
+    #[cfg(feature = "typescript")]
+    ("mts", Lang::TypeScript),
+    #[cfg(feature = "typescript")]
+    ("cts", Lang::TypeScript),
+    #[cfg(feature = "typescript")]
+    ("tsx", Lang::Tsx),
+    #[cfg(feature = "python")]
+    ("py", Lang::Python),
+    #[cfg(feature = "java")]
+    ("java", Lang::Java),
+    #[cfg(feature = "kotlin")]
+    ("kt", Lang::Kotlin),
+    #[cfg(feature = "kotlin")]
+    ("kts", Lang::Kotlin),
+    #[cfg(feature = "scala")]
+    ("scala", Lang::Scala),
+    #[cfg(feature = "csharp")]
+    ("cs", Lang::CSharp),
+    #[cfg(feature = "php")]
+    ("php", Lang::Php),
+    #[cfg(feature = "go")]
+    ("go", Lang::Go),
+    #[cfg(feature = "c")]
+    ("c", Lang::C),
+    // A header may be C or C++: the C++ grammar reads both, the C one when it is alone.
+    #[cfg(all(feature = "c", not(feature = "cpp")))]
+    ("h", Lang::C),
+    #[cfg(feature = "cpp")]
+    ("h", Lang::Cpp),
+    #[cfg(feature = "cpp")]
+    ("cpp", Lang::Cpp),
+    #[cfg(feature = "cpp")]
+    ("cc", Lang::Cpp),
+    #[cfg(feature = "cpp")]
+    ("cxx", Lang::Cpp),
+    #[cfg(feature = "cpp")]
+    ("hpp", Lang::Cpp),
+    #[cfg(feature = "cpp")]
+    ("hh", Lang::Cpp),
+    #[cfg(feature = "cpp")]
+    ("hxx", Lang::Cpp),
+    #[cfg(feature = "swift")]
+    ("swift", Lang::Swift),
+];
+
 impl Lang {
     fn of(path: &Path) -> Option<Self> {
         let ext = path.extension()?.to_str()?.to_ascii_lowercase();
-        match ext.as_str() {
-            #[cfg(feature = "ruby")]
-            "rb" | "rake" | "gemspec" => Some(Self::Ruby),
-            #[cfg(feature = "rust")]
-            "rs" => Some(Self::Rust),
-            #[cfg(feature = "javascript")]
-            "js" | "jsx" | "mjs" | "cjs" => Some(Self::JavaScript),
-            #[cfg(feature = "typescript")]
-            "ts" | "mts" | "cts" => Some(Self::TypeScript),
-            #[cfg(feature = "typescript")]
-            "tsx" => Some(Self::Tsx),
-            #[cfg(feature = "python")]
-            "py" => Some(Self::Python),
-            #[cfg(feature = "java")]
-            "java" => Some(Self::Java),
-            #[cfg(feature = "kotlin")]
-            "kt" | "kts" => Some(Self::Kotlin),
-            #[cfg(feature = "scala")]
-            "scala" => Some(Self::Scala),
-            #[cfg(feature = "csharp")]
-            "cs" => Some(Self::CSharp),
-            #[cfg(feature = "php")]
-            "php" => Some(Self::Php),
-            #[cfg(feature = "go")]
-            "go" => Some(Self::Go),
-            #[cfg(feature = "c")]
-            "c" => Some(Self::C),
-            // A header may be C or C++: the C++ grammar reads both.
-            #[cfg(feature = "cpp")]
-            "cpp" | "cc" | "cxx" | "h" | "hpp" | "hh" | "hxx" => Some(Self::Cpp),
-            #[cfg(feature = "swift")]
-            "swift" => Some(Self::Swift),
-            _ => None,
-        }
+        EXTENSIONS
+            .iter()
+            .find(|(known, _)| *known == ext)
+            .map(|&(_, lang)| lang)
     }
 
     fn family(self) -> Family {
@@ -250,9 +285,10 @@ const TS_EXTRA_QUERY: &str = "
 (enum_declaration name: (identifier) @name) @definition.class
 ";
 
-/// Enums and records, which the Java grammar's query leaves out.
+/// Constructors, enums and records, which the Java grammar's query leaves out.
 #[cfg(feature = "java")]
 const JAVA_EXTRA_QUERY: &str = "
+(constructor_declaration name: (identifier) @name) @definition.method
 (enum_declaration name: (identifier) @name) @definition.class
 (record_declaration name: (identifier) @name) @definition.class
 ";
@@ -268,7 +304,8 @@ const KOTLIN_QUERY: &str = "
 (call_expression . (navigation_expression (identifier) @name .)) @reference.call
 ";
 
-/// The Scala grammar's query is not exported by its crate: this one keeps its types, functions and calls.
+/// The Scala grammar's query is not exported by its crate: this one keeps its types, functions (abstract
+/// ones included), calls and instantiations.
 #[cfg(feature = "scala")]
 const SCALA_QUERY: &str = "
 (class_definition name: (identifier) @name) @definition.class
@@ -276,12 +313,15 @@ const SCALA_QUERY: &str = "
 (enum_definition name: (identifier) @name) @definition.class
 (trait_definition name: (identifier) @name) @definition.interface
 (function_definition name: (identifier) @name) @definition.function
+(function_declaration name: (identifier) @name) @definition.function
 (call_expression function: (identifier) @name) @reference.call
 (call_expression function: (field_expression field: (identifier) @name)) @reference.call
+(call_expression function: (generic_function function: (identifier) @name)) @reference.call
+(instance_expression (type_identifier) @name) @reference.class
 ";
 
 /// The C# grammar's query, without its pattern that captures a bare `@module` (which `tree-sitter-tags`
-/// rejects), plus the structs, records, enums and plain calls it leaves out.
+/// rejects), plus the constructors, structs, records, enums, plain and generic calls it leaves out.
 #[cfg(feature = "csharp")]
 fn csharp_query() -> String {
     let own: Vec<&str> = tree_sitter_c_sharp::TAGS_QUERY
@@ -293,17 +333,21 @@ fn csharp_query() -> String {
 
 #[cfg(feature = "csharp")]
 const CSHARP_EXTRA_QUERY: &str = "
+(constructor_declaration name: (identifier) @name) @definition.method
 (struct_declaration name: (identifier) @name) @definition.class
 (record_declaration name: (identifier) @name) @definition.class
 (enum_declaration name: (identifier) @name) @definition.class
 (invocation_expression function: (identifier) @name) @reference.call
+(invocation_expression function: (generic_name (identifier) @name)) @reference.call
+(invocation_expression function: (member_access_expression name: (generic_name (identifier) @name))) @reference.call
 ";
 
-/// Enums, and the calls of a plain function name, which the PHP grammar's query leaves out.
+/// Enums, and the calls and instantiations of a plain name, which the PHP grammar's query leaves out.
 #[cfg(feature = "php")]
 const PHP_EXTRA_QUERY: &str = "
 (enum_declaration name: (name) @name) @definition.class
 (function_call_expression function: (name) @name) @reference.call
+(object_creation_expression (name) @name) @reference.class
 ";
 
 /// The C grammar's query tags a function by its declarator, one line, and no call: this one tags the
@@ -314,30 +358,44 @@ const C_QUERY: &str = "
 (union_specifier name: (type_identifier) @name body: (_)) @definition.class
 (enum_specifier name: (type_identifier) @name body: (_)) @definition.type
 (type_definition declarator: (type_identifier) @name) @definition.type
-(function_definition declarator: (function_declarator declarator: (identifier) @name)) @definition.function
-(function_definition declarator: (pointer_declarator declarator: (function_declarator declarator: (identifier) @name))) @definition.function
+(function_definition declarator: [
+  (function_declarator declarator: (identifier) @name)
+  (pointer_declarator declarator: (function_declarator declarator: (identifier) @name))
+  (pointer_declarator declarator: (pointer_declarator declarator: (function_declarator declarator: (identifier) @name)))
+]) @definition.function
 (call_expression function: (identifier) @name) @reference.call
 (call_expression function: (field_expression field: (field_identifier) @name)) @reference.call
 ";
 
-/// Classes, namespaces, methods defined in or out of their class, and qualified calls.
+/// Classes, namespaces, functions returning a reference, methods defined in or out of their class
+/// (destructors and operators included, whatever they return), and qualified calls.
 #[cfg(feature = "cpp")]
 const CPP_EXTRA_QUERY: &str = "
 (class_specifier name: (type_identifier) @name body: (_)) @definition.class
 (namespace_definition name: (namespace_identifier) @name) @definition.module
-(function_definition declarator: (function_declarator declarator: (field_identifier) @name)) @definition.method
-(function_definition declarator: (function_declarator declarator: (qualified_identifier name: (identifier) @name))) @definition.method
+(function_definition declarator: (reference_declarator (function_declarator declarator: (identifier) @name))) @definition.function
+(function_definition declarator: [
+  (function_declarator declarator: [(field_identifier) (destructor_name) (operator_name)] @name)
+  (function_declarator declarator: (qualified_identifier name: [
+    (identifier) @name (destructor_name) @name (operator_name) @name
+    (qualified_identifier name: [(identifier) (destructor_name) (operator_name)] @name)
+  ]))
+  (pointer_declarator declarator: (function_declarator declarator: (qualified_identifier name: [(identifier) (operator_name)] @name)))
+  (reference_declarator (function_declarator declarator: (qualified_identifier name: [(identifier) (operator_name)] @name)))
+]) @definition.method
 (call_expression function: (qualified_identifier name: (identifier) @name)) @reference.call
 ";
 
 /// The Swift grammar's query spans a method over its whole class and tags no call: this one tags each
-/// function over its own body, and the calls. Structs and enums are `class_declaration`s too.
+/// function and initializer over its own body, and the calls. Structs and enums are `class_declaration`s
+/// too.
 #[cfg(feature = "swift")]
 const SWIFT_QUERY: &str = "
 (class_declaration name: (type_identifier) @name) @definition.class
 (protocol_declaration name: (type_identifier) @name) @definition.interface
 (function_declaration name: (simple_identifier) @name) @definition.function
 (protocol_function_declaration name: (simple_identifier) @name) @definition.function
+(init_declaration \"init\" @name) @definition.function
 (call_expression . (simple_identifier) @name) @reference.call
 (call_expression . (navigation_expression suffix: (navigation_suffix suffix: (simple_identifier) @name))) @reference.call
 ";
@@ -372,37 +430,7 @@ pub fn is_supported_extension(extension: &str) -> bool {
 /// The extensions of the languages this build can parse, without the dot.
 #[must_use]
 pub fn supported_extensions() -> Vec<&'static str> {
-    [
-        #[cfg(feature = "ruby")]
-        &["rb", "rake", "gemspec"][..],
-        #[cfg(feature = "rust")]
-        &["rs"][..],
-        #[cfg(feature = "javascript")]
-        &["js", "jsx", "mjs", "cjs"][..],
-        #[cfg(feature = "typescript")]
-        &["ts", "mts", "cts", "tsx"][..],
-        #[cfg(feature = "python")]
-        &["py"][..],
-        #[cfg(feature = "java")]
-        &["java"][..],
-        #[cfg(feature = "kotlin")]
-        &["kt", "kts"][..],
-        #[cfg(feature = "scala")]
-        &["scala"][..],
-        #[cfg(feature = "csharp")]
-        &["cs"][..],
-        #[cfg(feature = "php")]
-        &["php"][..],
-        #[cfg(feature = "go")]
-        &["go"][..],
-        #[cfg(feature = "c")]
-        &["c"][..],
-        #[cfg(feature = "cpp")]
-        &["cpp", "cc", "cxx", "h", "hpp", "hh", "hxx"][..],
-        #[cfg(feature = "swift")]
-        &["swift"][..],
-    ]
-    .concat()
+    EXTENSIONS.iter().map(|&(ext, _)| ext).collect()
 }
 
 /// The definitions and references of `source`, read as the language `path`'s extension names. `None` for
@@ -435,12 +463,13 @@ pub fn parse(path: &Path, source: &str) -> Option<Structure> {
             // `range` is the whole definition; `span` is only the line of its name.
             let start_line = line_at(tag.range.start);
             let last_byte = tag.range.end.saturating_sub(1).max(tag.range.start);
+            let signature = signature(text, &name);
             structure.definitions.push(Definition {
                 name,
                 kind: config.syntax_type_name(tag.syntax_type_id).to_string(),
                 start_line,
                 end_line: line_at(last_byte).max(start_line),
-                signature: signature(text),
+                signature,
             });
         } else {
             let line = line_at(tag.name_range.start);
@@ -450,10 +479,16 @@ pub fn parse(path: &Path, source: &str) -> Option<Structure> {
     Some(structure)
 }
 
-/// The first line of a definition, trimmed and bounded.
-fn signature(text: &str) -> String {
-    let first = text.lines().next().unwrap_or("").trim();
-    first.chars().take(MAX_SIGNATURE_CHARS).collect()
+/// The line of a definition that declares it, trimmed and bounded: the first one naming it past its
+/// annotations and attributes (`@Override`, `[HttpGet]`), else its first line.
+fn signature(text: &str, name: &str) -> String {
+    let first = text.lines().next().unwrap_or("");
+    let declaration = text
+        .lines()
+        .map(str::trim)
+        .find(|line| !line.starts_with(['@', '[']) && line.contains(name))
+        .unwrap_or(first.trim());
+    declaration.chars().take(MAX_SIGNATURE_CHARS).collect()
 }
 
 #[cfg(test)]
@@ -672,6 +707,88 @@ mod tests {
         assert!(calls("a.swift", source, "check", 4));
     }
 
+    // spec: LNG-8 (internal: the structure is a library API no command prints)
+    #[cfg(all(feature = "java", feature = "csharp", feature = "swift"))]
+    #[test]
+    fn constructors_and_initializers_are_definitions() {
+        let java = "class Order {\n  public Order(int x) {\n    init();\n  }\n}\n";
+        has(&defs("A.java", java), "Order", "method", (2, 4));
+        let csharp = "class Order {\n  public Order(int x) {\n    Init();\n  }\n}\n";
+        has(&defs("A.cs", csharp), "Order", "method", (2, 4));
+        let swift = "class Order {\n  init(qty: Int) {\n    setup()\n  }\n}\n";
+        has(&defs("A.swift", swift), "init", "function", (2, 4));
+    }
+
+    // spec: LNG-8 (internal: the structure is a library API no command prints)
+    #[cfg(all(feature = "csharp", feature = "scala", feature = "php"))]
+    #[test]
+    fn generic_calls_and_plain_instantiations_are_references() {
+        assert!(calls(
+            "A.cs",
+            "class A {\n  void B() {\n    Ok(Load<int>());\n  }\n}\n",
+            "Load",
+            3
+        ));
+        assert!(calls(
+            "A.scala",
+            "object A {\n  def b = foo[Int](1)\n}\n",
+            "foo",
+            2
+        ));
+        assert!(calls(
+            "a.php",
+            "<?php\nfunction b() {\n  new Service();\n}\n",
+            "Service",
+            3
+        ));
+    }
+
+    // spec: LNG-8 (internal: the structure is a library API no command prints)
+    #[cfg(feature = "scala")]
+    #[test]
+    fn abstract_scala_defs_are_definitions_and_new_is_a_reference() {
+        let source =
+            "trait Repo {\n  def load(): Int\n}\n\nobject A {\n  val o = new Order(1)\n}\n";
+        has(&defs("A.scala", source), "load", "function", (2, 2));
+        assert!(calls("A.scala", source, "Order", 6));
+    }
+
+    // spec: LNG-8 (internal: the structure is a library API no command prints)
+    #[cfg(all(feature = "c", feature = "cpp"))]
+    #[test]
+    fn c_and_cpp_functions_are_definitions_whatever_their_declarator() {
+        let c = "char **names(void) {\n  return 0;\n}\n";
+        has(&defs("a.c", c), "names", "function", (1, 3));
+        let cpp = "Order* Order::clone() {\n  return 0;\n}\nconst std::string& Order::name() const {\n  return n;\n}\nOrder::~Order() {\n}\nvoid shop::Order::ship() {\n}\nbool Order::operator==(const Order& o) const {\n  return true;\n}\n";
+        let found = defs("a.cpp", cpp);
+        has(&found, "clone", "method", (1, 3));
+        has(&found, "name", "method", (4, 6));
+        has(&found, "~Order", "method", (7, 8));
+        has(&found, "ship", "method", (9, 10));
+        has(&found, "operator==", "method", (11, 13));
+    }
+
+    #[cfg(feature = "java")]
+    #[test]
+    fn a_signature_is_the_declaration_not_its_annotations() {
+        let source = "class A {\n  @Override\n  @Deprecated\n  public void ship() {\n  }\n}\n";
+        let structure = parse(Path::new("A.java"), source).unwrap();
+        let ship = structure
+            .definitions
+            .iter()
+            .find(|d| d.name == "ship")
+            .unwrap();
+        assert_eq!(ship.signature, "public void ship() {");
+        assert_eq!(ship.start_line, 2);
+    }
+
+    #[cfg(all(feature = "c", not(feature = "cpp")))]
+    #[test]
+    fn without_cpp_a_header_is_read_as_c() {
+        assert!(is_supported(Path::new("order.h")));
+        assert!(same_language(Path::new("a.c"), Path::new("b.h")));
+    }
+
     // spec: LNG-8 (internal: `same_language` is a library API no command prints)
     #[test]
     fn kotlin_and_scala_are_of_java_and_c_of_cpp() {
@@ -686,7 +803,7 @@ mod tests {
         assert!(!same_language(Path::new("a.cs"), Path::new("b.java")));
         assert_eq!(
             same_language(Path::new("a.c"), Path::new("b.h")),
-            cfg!(all(feature = "c", feature = "cpp"))
+            cfg!(feature = "c")
         );
         assert!(!same_language(Path::new("a.swift"), Path::new("b.c")));
     }

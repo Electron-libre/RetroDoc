@@ -67,6 +67,19 @@ fn an_at_sign_above_a_definition_is_a_decorator_except_in_ruby() {
 }
 
 #[test]
+fn a_preprocessor_directive_is_not_attached_to_the_next_definition() {
+    let c = "#ifdef X\nvoid a() {}\n#endif\nvoid b() {}\n";
+    assert_eq!(
+        parsed_starts(Path::new("a.c"), c).unwrap(),
+        BTreeSet::from([2, 4])
+    );
+    let csharp = "class A {\n  #region Api\n  void B() {}\n}\n";
+    assert!(parsed_starts(Path::new("a.cs"), csharp)
+        .unwrap()
+        .contains(&3));
+}
+
+#[test]
 fn a_ruby_file_is_cut_between_its_methods() {
     let content = "class Report\n".to_string()
         + &"  def run\n    work\n    more_work\n  end\n".repeat(10)

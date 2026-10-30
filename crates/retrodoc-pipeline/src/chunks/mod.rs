@@ -78,12 +78,20 @@ fn parsed_starts(path: &Path, content: &str) -> Option<BTreeSet<u32>> {
     let lines: Vec<&str> = content.lines().collect();
     // `@name` above a definition is a decorator or an annotation, except in Ruby, where it is an
     // instance variable.
-    let ruby = path
+    let extension = path
         .extension()
-        .is_some_and(|e| matches!(e.to_str(), Some("rb" | "rake" | "gemspec")));
+        .and_then(|e| e.to_str())
+        .map(str::to_ascii_lowercase);
+    let ruby = matches!(extension.as_deref(), Some("rb" | "rake" | "gemspec"));
+    // `#` opens a preprocessor directive there (`#endif`, `#region`), never a comment nor an attribute.
+    let preprocessed = matches!(
+        extension.as_deref(),
+        Some("c" | "h" | "cpp" | "cc" | "cxx" | "hpp" | "hh" | "hxx" | "cs" | "swift")
+    );
     let attached = |line: &str| {
         let line = line.trim_start();
-        ["#", "//", "/*", "*"].iter().any(|p| line.starts_with(p))
+        ["//", "/*", "*"].iter().any(|p| line.starts_with(p))
+            || (!preprocessed && line.starts_with('#'))
             || (!ruby && line.starts_with('@'))
     };
     let starts = structure

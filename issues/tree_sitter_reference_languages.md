@@ -65,6 +65,7 @@ All depend on `tree-sitter-language` 0.1, so they load in `tree-sitter` 0.27. Bu
 2. [x] PHP and Go: features `php`, `go`, PHP call pattern; verified by one test per language; part of LNG-8. ~200 lines.
 3. [x] C, C++ and Swift: features `c`, `cpp`, `swift`, patterns for whole function bodies and calls; C and C++ one
    family; verified by one test per language and a family test; completes LNG-8, spec `accepted`. ~350 lines.
+4. [x] Fixes of the `high` review of `60d14f2..HEAD`; verified by one test per finding; LNG-8. ~300 lines.
 
 ## Decisions
 - Mode: autonomous
@@ -128,4 +129,29 @@ red: LNG-8: `called Option::unwrap() on a None value` (no grammar for `.c`, `.cp
 Code review: no findings
 
 not verified: a run on a real C, C++ or Swift repository; C++ templates and Objective-C headers not tested.
+decisions needed: none
+
+## Deliverable 4 summary (fixes of the `high` review)
+done: findings of the `high` review fixed: C++ methods returning a pointer or reference, destructors, operators,
+nested qualified names; C functions returning `T**`; constructors (Java, C#) and initializers (Swift); generic
+calls (C#, Scala); Scala abstract `def`s and `new`; PHP `new Service()`; `.h` read as C in a build without `cpp`;
+signature past annotations; preprocessor directives no longer attached to the next definition (C, C++, C#, Swift);
+one extension table feeds `Lang::of` and `supported_extensions`.
+
+| check | result |
+|---|---|
+| tests | `just check` green |
+| lint | clippy pedantic clean, also with `c`, `cpp`, `swift`, `kotlin` or `php` alone |
+| specs | LNG-8 |
+| docs | `docs/crates/core-ingest.md`, `docs/crates/pipeline.md` |
+| code review | see below |
+
+red: LNG-8: `names (function) at (1, 3) not in []`, `Order (method) at (2, 4) not in [("Order", "class", 1, 5)]`,
+`load (function) at (2, 2) not in [...]`, the generic calls not found, signature `"@Override"`; chunks: starts
+`{1, 3}` instead of `{2, 4}`.
+Not fixed: Kotlin `g<Int>(1)` as a statement, which the grammar itself parses as comparisons (no query can see a
+call there).
+Code review: no findings
+
+not verified: a run on a real repository of each new language.
 decisions needed: none
