@@ -66,13 +66,13 @@ Means: the warning itself says why a context stayed whole (CSP-4), so the run di
 2. [x] Measure, steps 1-2 (no code): copy the saved complete run to `~/retrodoc-runs/contexts_residual-<commit>-1`,
    one `retrodoc contexts` (~5 calls, ~$0.01), read the warning and `contexts.yaml`; `context_map_measure
    --families` (`FAMILIES_UNDER=` the workflow folder) for the action names; findings in the issue and the ledger.
-3. [ ] Residual size, by the diagnosis of 2: list the part one level deeper (by family or sub-folder) when it has
+3. [x] (accepted, no code: core group plus the shared workflow steps, not cut by family; the warning gives the reason) Residual size, by the diagnosis of 2: list the part one level deeper (by family or sub-folder) when it has
    too few entries, or accept it above the limit (then CSP-3/4 already cover it, no code); spec amended (CSP-6);
    verified by a `FakeLlm` test.
-4. [ ] Action names: a rule in `family_groups` that drops a name shown only in an actions folder (rule shaped by
+4. [-] (dropped: one false family of 3 files with hosted roles) Action names: a rule in `family_groups` that drops a name shown only in an actions folder (rule shaped by
    the measure of 2); verified by a unit test and `context_map_measure --families` keeping the five real families;
    makes true CSP-7.
-5. [ ] Names and spread (no code): `contexts --force` two more times (~$0.02), names of the contexts read against
+5. [x] Names and spread (no code): `contexts --force` two more times (~$0.02), names of the contexts read against
    their files, spread (count, largest, support share, stable names) reported in the issue and the ledger.
 
 ## Decisions
@@ -82,6 +82,8 @@ Means: the warning itself says why a context stayed whole (CSP-4), so the run di
 - The agent reads the context names against their files (deliverable 5).
 - After deliverable 2 (no residue with the local roles): the map is redone from roles computed by the hosted model
   (`roles --force` on a second copy), as on 2026-10-13; deliverables 3-5 work on that copy.
+- Deliverable 3: the context of 180 files is accepted above the limit (no third split level).
+- Deliverable 4: dropped, no rule for the action names.
 - Too few entries to cut (deliverable 3): list one level deeper, by family or sub-folder.
 
 ## Deliverable 1
@@ -115,3 +117,22 @@ Second copy, `roles --force` (2 calls, 15.3k in, 1.3k out) then `contexts` (4 ca
   `consortium`…) are entry point groups with contexts of their own.
 - Families under the workflow folder: 1 over 57 files in no group (`archive`, 3 files, an action name). The 13
   families of 2026-10-13 came from roles where the family folders of `processes/` had no entry point file.
+
+## Deliverable 5 (measure, 2026-10-30, 4f28917, hosted `deepseek-chat`, same copy and roles as 2b)
+Two more `contexts --force` (4 and 6 calls, ~$0.02). Spread over the three maps of the same roles (1,676 source
+files; a file "follows" when it lands in the context of the other run that holds most of its context's files):
+
+| run | contexts | support | largest | over 150 |
+|---|---|---|---|---|
+| 1 (2b) | 34 | 500 (30%) | 180 | 1 |
+| 2 | 40 | 166 (10%) | 143 | 0 |
+| 3 | 44 | 165 (10%) | 146 | 0 |
+
+- Pairs 1-2, 1-3, 2-3: 57-70%, 57-81%, 66-75% of the files follow; 75%, 80%, 93% keep their support status;
+  4 slugs in all three maps. The map is not steady: a context of 180 files in one run is cut under the limit in
+  the next two, so the residue of deliverable 3 is a draw of the call, not a fixed shape.
+- Names read against their files (run 3, 44 contexts): about 30 fit (the business families of the workflow layer,
+  companies, users, folders, signatories, notifications, imports, PDF rendering, the shared workflow steps now a
+  context of their own). Off: 5 technical contexts that are not business (UI components 92 files, configuration
+  86, front-end controllers 11, the application base classes 15, a front-end plugin 1), 3 catch-alls whose name
+  covers part of the files (unrelated models, UI actions, misc views; 100 files), and 6 contexts of one file.
