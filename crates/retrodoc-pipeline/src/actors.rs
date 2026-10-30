@@ -24,20 +24,22 @@ use serde::{Deserialize, Serialize};
 
 use crate::artifact::{load_yaml, save_yaml, Artifact};
 use crate::brief::ProductBrief;
-use crate::chunks::Focus;
+use crate::chunks::{Focus, Splitter};
 use crate::error::PipelineError;
 use crate::fingerprints::{fingerprint, model_part, prompt_part};
 use crate::naming::normalize;
 use crate::response::complete_json;
 use crate::surface::Surface;
 use crate::text::read_file_lossy;
+use crate::use_cases::numbered_excerpt;
 
 /// Characters of authorization code sent to the LLM, all files together.
 const AUTH_CODE_BUDGET: usize = 40_000;
 /// Characters of one authorization file past which it is sent as an excerpt.
 const AUTH_FILE_BUDGET: usize = 8_000;
-/// Below this many characters left, no further file is started.
-const MIN_FILE_SHARE: usize = 200;
+/// Characters left below which a file too long to fit whole is left unread
+/// rather than cut to its first lines: about one chunk of an excerpt.
+const MIN_EXCERPT_CHARS: usize = 2_000;
 /// Entities listed in the prompt, the best connected first.
 const MAX_ENTITIES: usize = 25;
 /// Attributes shown for each of those entities.
@@ -247,9 +249,11 @@ fn entity_lines(surface: &Surface) -> Vec<String> {
 }
 
 /// The text sent for each authorization file, in order, within
-/// [`AUTH_CODE_BUDGET`]: whole when it fits [`AUTH_FILE_BUDGET`], else the
-/// excerpt of its chunks naming an entity or an authorization word. The files
-/// past the budget are named in one warning.
+/// [`AUTH_CODE_BUDGET`], with numbered lines: whole when it fits
+/// [`AUTH_FILE_BUDGET`], else the excerpt of its chunks naming an entity or an
+/// authorization word. A file that fits neither whole nor as an excerpt of
+/// [`MIN_EXCERPT_CHARS`] is left unread; the files left unread are named in
+/// one warning.
 fn authorization_sections(
     repo_root: &Path,
     files: Vec<PathBuf>,
@@ -260,7 +264,12 @@ fn authorization_sections(
         terms: surface
             .entities
             .iter()
-            .map(|e| e.name.to_lowercase())
+            .take(MAX_ENTITIES)
+            .flat_map(|e| {
+                let name = words(&e.name);
+                [name.join("_"), name.concat()]
+            })
+            .filter(|term| !term.is_empty())
             .collect(),
         words: AUTH_WORDS.iter().map(|w| (*w).to_string()).collect(),
         lines: Vec::new(),
@@ -269,10 +278,6 @@ fn authorization_sections(
     let mut unread = Vec::new();
     let mut left = AUTH_CODE_BUDGET;
     for path in files {
-        if left < MIN_FILE_SHARE {
-            unread.push(path);
-            continue;
-        }
         let content = match read_file_lossy(repo_root, &path) {
             Ok(content) => content,
             Err(err) => {
@@ -280,10 +285,15 @@ fn authorization_sections(
                 continue;
             }
         };
-        let text = if content.len() <= AUTH_FILE_BUDGET.min(left) {
-            content
+        let share = AUTH_FILE_BUDGET.min(left);
+        let whole = numbered_excerpt(&content, usize::MAX);
+        let text = if whole.len() <= share {
+            whole
+        } else if share >= MIN_EXCERPT_CHARS {
+            excerpt_within(&splitter, &path, &content, share, &focus)
         } else {
-            splitter.excerpt(&path, &content, AUTH_FILE_BUDGET.min(left), &focus)
+            unread.push(path);
+            continue;
         };
         left = left.saturating_sub(text.len());
         sections.push((path, text));
@@ -296,6 +306,30 @@ fn authorization_sections(
         );
     }
     sections
+}
+
+/// The excerpt of `content` no longer than `share`: [`Splitter::excerpt`]
+/// does not count its omitted-lines markers, so it is asked again for less
+/// until they fit.
+fn excerpt_within(
+    splitter: &Splitter,
+    path: &Path,
+    content: &str,
+    share: usize,
+    focus: &Focus,
+) -> String {
+    let mut max = share;
+    loop {
+        let text = splitter.excerpt(path, content, max, focus);
+        if text.len() <= share {
+            return text;
+        }
+        let over = text.len() - share;
+        if over >= max {
+            return text[..text.floor_char_boundary(share)].to_string();
+        }
+        max -= over;
+    }
 }
 
 /// Identifies the business actors of the application. Reuses the saved list
@@ -623,12 +657,12 @@ mod tests {
                 "x".repeat(150)
             );
         }
-        content.push_str("  def signatory_can_sign?\n    true\n  end\nend\n");
+        content.push_str("  def shift_approver_can_approve?\n    true\n  end\nend\n");
         assert!(content.len() > 12_000);
         write(dir.path(), "app/models/roles.rb", &content);
         let entity = crate::glossary::MergedEntity {
-            name: "Signatory".to_string(),
-            description: "Signs contracts".to_string(),
+            name: "ShiftApprover".to_string(),
+            description: "Approves shifts".to_string(),
             attributes: Vec::new(),
             associations: Vec::new(),
             files: Vec::new(),
@@ -639,7 +673,10 @@ mod tests {
         };
         let prompt = prompt_for(dir.path(), &paths(&["app/models/roles.rb"]), &surface).await;
         assert!(prompt.contains("class Roles"), "{prompt}");
-        assert!(prompt.contains("def signatory_can_sign?"), "{prompt}");
+        assert!(
+            prompt.contains("def shift_approver_can_approve?"),
+            "{prompt}"
+        );
         assert!(prompt.contains("omitted)"), "{prompt}");
         assert!(prompt.len() < 10_000, "{}", prompt.len());
     }
@@ -666,6 +703,15 @@ mod tests {
             .filter(|i| prompt.contains(&format!("Thing{i:02}Policy")))
             .count();
         let first_unread = format!("app/policies/thing{sent:02}_policy.rb");
+        let code: usize = prompt
+            .split("\n--- ")
+            .skip(1)
+            .map(|section| section.split_once("---\n").unwrap().1.len())
+            .sum();
+        assert!(code <= AUTH_CODE_BUDGET, "{code}");
+        let last = format!("Thing{:02}Policy", sent - 1);
+        let tail = &prompt[prompt.find(&last).unwrap()..];
+        assert!(tail.contains(&"y".repeat(990)), "the last file sent is cut");
         let logs = logs.text();
         let warnings: Vec<&str> = logs
             .lines()

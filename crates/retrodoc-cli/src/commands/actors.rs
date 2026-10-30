@@ -30,7 +30,7 @@ pub async fn run(path: &Path, force: bool, tracker: &UsageTracker) -> anyhow::Re
     tracker.set_pass("actors");
     let candidates = retrodoc_pipeline::authorization_files(&source_files);
     println!(
-        "Identifying the actors ({} authorization file(s), {} entit(ies) known)…",
+        "Identifying the actors ({} authorization file(s) found, {} entit(ies) known)…",
         candidates.len(),
         surface.entities.len()
     );

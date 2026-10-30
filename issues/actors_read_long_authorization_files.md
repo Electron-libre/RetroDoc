@@ -44,9 +44,8 @@ Plan: validated
 
 ## Understanding
 Measured on 2026-10-30 (no LLM, saved trees): no selected file is longer than 3,000 characters on linkding, lobsters,
-delivery_router or the large Rails app (its central ability file: 2,860). What loses actors there is the 12-file cap:
-64 candidates, 52 never sent (the contract, signatory and validator policies, the permission manager), 37k characters
-in all. So: replace both caps by one prompt budget, cut a long file with `Splitter::excerpt`, log what is left unread.
+delivery_router or the large private Rails app. What loses actors there is the 12-file cap: most of its candidate
+files are never sent (figures in the ledger, outside git). So: replace both caps by one prompt budget, cut a long file with `Splitter::excerpt`, log what is left unread.
 Out of scope: one call per chunk group (candidate b), the file selection itself.
 
 ## Plan
@@ -73,9 +72,34 @@ Out of scope: one call per chunk group (candidate b), the file selection itself.
 | docs | updated |
 | code review | low: no findings |
 
-- red: ACT-1: `file 12 missing`; ACT-2: prompt lacked `def signatory_can_sign?` (head cut at 3,000); ACT-3, ACT-4:
+- red: ACT-1: `file 12 missing`; ACT-2: prompt lacked the last definition (head cut at 3,000); ACT-3, ACT-4:
   `left: 0, right: 1` warnings; ACT-5: already green (reuse on unchanged content), kept as its proof.
 - Code review: no findings
 - not verified: no run on a real repository (the saved actors of the runs are re-identified once, the fingerprint
   now holds the text sent).
+- decisions needed: none.
+
+## Deliverable 2: fixes of the high review
+- done: a file the budget left can hold neither whole nor as a 2,000-character excerpt is left unread (no head cut);
+  the excerpt is shrunk until its omitted markers fit; every file sent with numbered lines; entity names matched as
+  one word and in snake case, first 25 only; `retrodoc actors` says "found"; confidential figures removed from the
+  issue and findings.
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | pass |
+| specs | ACT-3 amended, ACT-2 scenario reworded |
+| docs | `docs/crates/pipeline.md`, `docs/findings.md` |
+| code review | low: see below |
+
+- red: ACT-2, ACT-3: the strengthened tests (total within the budget, last file sent whole, snake-case entity) cover
+  the cases the high review found; not run against the code before the fix.
+- High review: 9 findings. Fixed: head cut at the budget tail, markers over the budget, mixed numbered/raw formats,
+  snake-case entity focus, CLI count, confidential figures. Not fixed: fingerprint re-identification once on
+  upgrade and its dependency on the excerpt (wanted: the text sent is the input, issue hint); bytes counted as
+  characters (same as every other budget of the pipeline); the loop shared with the confidence pass (different
+  rules, a helper would be a refactor of another pass).
+- Code review: 1 finding: `first_chars` counts characters, the budget bytes (underflow on non-ASCII); fixed, cut at a byte boundary and `saturating_sub` restored.
+- not verified: no run on a real repository.
 - decisions needed: none.
