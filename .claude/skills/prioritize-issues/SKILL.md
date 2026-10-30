@@ -20,13 +20,15 @@ Show the user your results as `.claude/rules/reports-to-the-user.md` says.
 3. **Each open issue**: read its Goal, Findings, Approach and Hints (not only the title). Note for each its
    value (what it unlocks for the product or the pipeline quality), its size, what it depends on, and any
    "priority" or "once X" statement in it. Its size is the changed lines and deliverables its Approach implies,
-   checked against the size limit of `skill:issue-workflow` step 1.
-4. **Rank** by, in this order: hard dependencies (an issue never before what it needs), value to the product
-   vision, then cost (small and cheap first when value is close), then risk and measurability. Keep the
+   checked against the size limit of `skill:issue-workflow` step 1, and its milestone (its `# Milestone` section).
+4. **Rank** by, in this order: hard dependencies (an issue never before what it needs), the order of the
+   milestones of the `roadmap` documents (an issue of an earlier milestone first; an issue with no milestone keeps
+   its current rank unless its value argues for another), value to the product vision, then cost (small and cheap first when value is close), then risk and measurability. Keep the
    current order when nothing argues against it: don't reshuffle for the sake of it.
 5. **Propose, then STOP**: show the user, in that language, a table `rank | issue | why here` and, below it, only the
    changes against the current queue with the reason for each, then the issues over the size limit with their
-   proposed cuts. Ask for validation or corrections.
+   proposed cuts. You never reorder the milestones (the user's call): when the ranking argues for it, say so as a
+   question. Ask for validation or corrections.
 6. **Apply** on their agreement: split the issues as validated (`skill:issue-workflow` `details.md`, "Split an
    issue"), rewrite the entries of `issues/queue.md` in the validated order (format
    `- [<stem>](<stem>.md) - <why here>`, keep the header text), run `just next-issue` and check it reports

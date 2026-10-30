@@ -31,6 +31,7 @@ These rows hold for every project:
 | Convention (lint, tests, harness) | `CLAUDE.md`, the page that describes the harness |
 | Commit scope added or removed (new crate or area) | `commit_scopes` in `.claude/cardinal.toml` |
 | A synced file (skill, script, `AGENTS.md`, `cardinal.just`, workflow) must change | not here: fix it in the Cardinal repository, then `cardinal sync` |
+| Any change | not `CHANGELOG.md`: `just release` writes its sections from the commits; only reread and reword the section it just wrote |
 | Decision that a future reader would undo by accident | a new ADR in `docs/adr/` |
 
 ## 3. Detect stale statements

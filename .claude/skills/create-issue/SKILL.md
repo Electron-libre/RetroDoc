@@ -35,6 +35,9 @@ Show the user your results as `.claude/rules/reports-to-the-user.md` says.
    * <`specs/<capability>.md` and the requirement ids (`ABC-n`) it creates or amends. A spec that does not exist
    yet is named here and written at `issue-workflow` step 1.>
 
+   # Milestone (optional; when the roadmap has milestones)
+   <The name of the milestone of the `roadmap` documents this issue serves.>
+
    # Resources
    * <Files, ADRs, docs, skills to read first.>
 
@@ -59,11 +62,23 @@ Show the user your results as `.claude/rules/reports-to-the-user.md` says.
    justify (not by reflex at the end; the "why" names what it comes after or unblocks). Say the rank and the
    reason to the user, who can move it. If the new issue changes the case for others, say so and suggest
    `skill:prioritize-issues` rather than silently reshuffling. Run `just next-issue` and check it reports
-   no drift.
-6. **Commit**: commit the issue files alone (the new issue files and `issues/queue.md`), added then named on
+   no drift. Then attach it to a milestone of the `roadmap` documents of `.claude/cardinal.toml`: add its link
+   (relative to the roadmap file) under that milestone's issues, set a `shaped` milestone `in issues`, name it in
+   the `# Milestone` section of the issue and run `just check-issue` again; or tell the user it has none. An `idea`
+   or `done` milestone takes an issue only on the user's agreement. Never create or reorder a milestone unasked: the
+   milestones, their order and their states are the user's.
+6. **Commit**: commit the issue files alone (the new issue files, `issues/queue.md` and the roadmap file step 5 edited), added then named on
    the commit line (`git add <files>`, then `git commit -m <msg> -- <files>`; never `git add -A`), with
    `skill:commit-message`; other modified or staged files stay out of the commit. Two exceptions: an issue
    written inside another deliverable (a review finding) is committed with that deliverable, not on its own;
-   when `issues/queue.md` already held changes that are not this skill's, ask before committing.
-7. **Deliver**: give the path, rank, commit hash (if step 6 committed) and one line (no other recap), and
+   when `issues/queue.md` or the roadmap file already held changes that are not this skill's, ask before committing.
+7. **Deliver**: give the path, rank, milestone, commit hash (if step 6 committed) and one line (no other recap), and
    offer to start `skill:issue-workflow` on it.
+
+## Cut a shaped milestone into issues
+
+When the user asks to turn a milestone of the roadmap into issues (its state `shaped`, or `idea` once its goal is
+agreed): read its goal and why, then propose the issues that reach it, each sized under the limit of
+`skill:issue-workflow` step 1, in the order of their dependencies, as a table `issue | what | estimated lines`.
+On the user's agreement, write each with steps 1 to 5 (each names the milestone), then commit them together at
+step 6.

@@ -33,6 +33,10 @@ start-issue issue:
 finish-issue stem *flags:
     cardinal run issue-worktree finish {{stem}} {{flags}}
 
+# Prepare a release: no argument prints the proposed version; `<version>` writes its CHANGELOG.md section to reread and commit; `<version> --tag` then creates the local tag (never pushed).
+release *args:
+    cardinal run release {{args}}
+
 # Validate a new issue file against the create-issue template.
 check-issue issue:
     cardinal run check-issue {{issue}}

@@ -37,7 +37,8 @@ the worktree's own `.claude/settings.json`, so a hook a branch adds runs at once
 
 In a linked worktree, once the user agreed to close the issue:
 
-1. Commit the last tracking, then `git rebase <main branch>` (the branch checked out by the main worktree); a
+1. Commit the last tracking (with the milestone set `done` when this was its last open issue, as the Rules of
+   `SKILL.md` say), then `git rebase <main branch>` (the branch checked out by the main worktree); a
    conflict stops here, for the user.
 2. Run `just check-cardinal`: when it names a hook the installed `cardinal` refuses (the branch adds a subcommand the
    hooks call), run the `cargo install` it prints before going on. After the fast-forward the hooks of the main worktree
