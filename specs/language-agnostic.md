@@ -62,7 +62,7 @@ Overflow Developer Survey and reviewed once a year (ADR 0036):
 - (LNG-2) Given `source_extensions: [".EX"]`, then `lib/shop.ex` is read as source (dot and case ignored).
 - (LNG-2) Given `source_extensions` naming `ex` and a file `test/shop_test.ex`, then it is a test file, not a
   source file.
-- (LNG-3) Given a 40 KB `.ex` file and a boundary regex that matches no line, then it is cut at blank lines.
+- (LNG-3) Given a 20 KB `.ex` file (under the cap of 8 parts) and a boundary regex that matches no line, then it is cut at blank lines.
 - (LNG-4) Given a Django fixture and a Spring Boot fixture, when the prompts of `generate` are captured, then their
   instruction parts are equal and only the file lists, extracts and paths differ.
 - (LNG-5) Given `build.gradle.kts`, `settings.gradle.kts` and `Package.swift`, then they are not source files, even
