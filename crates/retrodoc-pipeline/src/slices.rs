@@ -500,13 +500,13 @@ end
     fn a_file_the_build_cannot_parse_keeps_the_lexical_follow() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path();
-        write(root, "cmd/main.go", "func main() { RunOrder() }");
-        write(root, "cmd/run_order.go", "func RunOrder() {}");
-        let index = index(&["cmd/main.go", "cmd/run_order.go"]).with_definitions(root);
-        let starts = [PathBuf::from("cmd/main.go")];
+        write(root, "cmd/main.zig", "fn main() { RunOrder() }");
+        write(root, "cmd/run_order.zig", "fn RunOrder() {}");
+        let index = index(&["cmd/main.zig", "cmd/run_order.zig"]).with_definitions(root);
+        let starts = [PathBuf::from("cmd/main.zig")];
         assert_eq!(
             index.slice_with(root, &starts, 1, 10, Follow::ParsedThenLexical),
-            [PathBuf::from("cmd/run_order.go")]
+            [PathBuf::from("cmd/run_order.zig")]
         );
         assert_eq!(
             index.slice_with(root, &starts, 1, 10, Follow::Parsed),

@@ -62,7 +62,7 @@ All depend on `tree-sitter-language` 0.1, so they load in `tree-sitter` 0.27. Bu
    repo, C# query filtered; Java, Kotlin and Scala one family in `same_language`; default features decided; docs
    (`docs/crates/core-ingest.md`, ADR 0022 note); verified by one structure test per language and a family test;
    makes true part of LNG-8. ~400 lines.
-2. [ ] PHP and Go: features `php`, `go`, PHP call pattern; verified by one test per language; part of LNG-8. ~200 lines.
+2. [x] PHP and Go: features `php`, `go`, PHP call pattern; verified by one test per language; part of LNG-8. ~200 lines.
 3. [ ] C, C++ and Swift: features `c`, `cpp`, `swift`, patterns for whole function bodies and calls; C and C++ one
    family; verified by one test per language and a family test; completes LNG-8, spec `accepted`. ~350 lines.
 
@@ -91,4 +91,22 @@ red: LNG-8: `called Option::unwrap() on a None value` (no grammar for `.java`, `
 Code review: no findings
 
 not verified: a run on a real JVM or .NET repository (no smoke repo of those stacks).
+decisions needed: none
+
+## Deliverable 2 summary
+done: PHP and Go parsed (features on by default), PHP query completed with enums and plain function calls; the
+slices test of a file the build cannot parse moved from Go to Zig.
+
+| check | result |
+|---|---|
+| tests | `just check` green |
+| lint | clippy pedantic clean, also with `php` or `go` alone |
+| specs | LNG-8 traced (PHP, Go) |
+| docs | `docs/crates/core-ingest.md` |
+| code review | see below |
+
+red: LNG-8: `called Option::unwrap() on a None value` (no grammar for `.php`, `.go`).
+Code review: no findings
+
+not verified: a run on a real PHP or Go repository.
 decisions needed: none

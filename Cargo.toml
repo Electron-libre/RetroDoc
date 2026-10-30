@@ -28,6 +28,8 @@ tree-sitter-java = "0.23"
 tree-sitter-kotlin-ng = "1.1"
 tree-sitter-scala = "0.26"
 tree-sitter-c-sharp = "0.23"
+tree-sitter-php = "0.25"
+tree-sitter-go = "0.25"
 anyhow = "1"
 thiserror = "1"
 serde = { version = "1", features = ["derive"] }

@@ -8,7 +8,7 @@ license.workspace = true
 workspace = true
 
 [features]
-default = ["ruby", "rust", "javascript", "typescript", "python", "java", "kotlin", "scala", "csharp"]
+default = ["ruby", "rust", "javascript", "typescript", "python", "java", "kotlin", "scala", "csharp", "php", "go"]
 ruby = ["grammar", "dep:tree-sitter-ruby"]
 rust = ["grammar", "dep:tree-sitter-rust"]
 javascript = ["grammar", "dep:tree-sitter-javascript"]
@@ -18,6 +18,8 @@ java = ["grammar", "dep:tree-sitter-java"]
 kotlin = ["grammar", "dep:tree-sitter-kotlin-ng"]
 scala = ["grammar", "dep:tree-sitter-scala"]
 csharp = ["grammar", "dep:tree-sitter-c-sharp"]
+php = ["grammar", "dep:tree-sitter-php"]
+go = ["grammar", "dep:tree-sitter-go"]
 # Set by every language: some grammar is compiled in.
 grammar = []
 
@@ -33,6 +35,8 @@ tree-sitter-java = { workspace = true, optional = true }
 tree-sitter-kotlin-ng = { workspace = true, optional = true }
 tree-sitter-scala = { workspace = true, optional = true }
 tree-sitter-c-sharp = { workspace = true, optional = true }
+tree-sitter-php = { workspace = true, optional = true }
+tree-sitter-go = { workspace = true, optional = true }
 retrodoc-core.workspace = true
 ignore.workspace = true
 git2.workspace = true

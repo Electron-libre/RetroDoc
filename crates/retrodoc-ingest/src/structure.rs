@@ -66,6 +66,10 @@ enum Lang {
     Scala,
     #[cfg(feature = "csharp")]
     CSharp,
+    #[cfg(feature = "php")]
+    Php,
+    #[cfg(feature = "go")]
+    Go,
 }
 
 /// Languages that call each other: a name one defines is one the other can call.
@@ -80,6 +84,8 @@ enum Family {
     /// Java, Kotlin and Scala.
     Jvm,
     CSharp,
+    Php,
+    Go,
 }
 
 impl Lang {
@@ -106,6 +112,10 @@ impl Lang {
             "scala" => Some(Self::Scala),
             #[cfg(feature = "csharp")]
             "cs" => Some(Self::CSharp),
+            #[cfg(feature = "php")]
+            "php" => Some(Self::Php),
+            #[cfg(feature = "go")]
+            "go" => Some(Self::Go),
             _ => None,
         }
     }
@@ -130,6 +140,10 @@ impl Lang {
             Self::Scala => Family::Jvm,
             #[cfg(feature = "csharp")]
             Self::CSharp => Family::CSharp,
+            #[cfg(feature = "php")]
+            Self::Php => Family::Php,
+            #[cfg(feature = "go")]
+            Self::Go => Family::Go,
         }
     }
 
@@ -176,6 +190,13 @@ impl Lang {
             Self::Scala => config!(tree_sitter_scala::LANGUAGE, SCALA_QUERY),
             #[cfg(feature = "csharp")]
             Self::CSharp => config!(tree_sitter_c_sharp::LANGUAGE, &csharp_query()),
+            #[cfg(feature = "php")]
+            Self::Php => config!(
+                tree_sitter_php::LANGUAGE_PHP,
+                &format!("{}\n{PHP_EXTRA_QUERY}", tree_sitter_php::TAGS_QUERY)
+            ),
+            #[cfg(feature = "go")]
+            Self::Go => config!(tree_sitter_go::LANGUAGE, tree_sitter_go::TAGS_QUERY),
         }
     }
 }
@@ -247,6 +268,13 @@ const CSHARP_EXTRA_QUERY: &str = "
 (invocation_expression function: (identifier) @name) @reference.call
 ";
 
+/// Enums, and the calls of a plain function name, which the PHP grammar's query leaves out.
+#[cfg(feature = "php")]
+const PHP_EXTRA_QUERY: &str = "
+(enum_declaration name: (name) @name) @definition.class
+(function_call_expression function: (name) @name) @reference.call
+";
+
 /// Whether `path` is in a language this build can parse.
 #[must_use]
 pub fn is_supported(path: &Path) -> bool {
@@ -295,6 +323,10 @@ pub fn supported_extensions() -> Vec<&'static str> {
         &["scala"][..],
         #[cfg(feature = "csharp")]
         &["cs"][..],
+        #[cfg(feature = "php")]
+        &["php"][..],
+        #[cfg(feature = "go")]
+        &["go"][..],
     ]
     .concat()
 }
@@ -502,6 +534,30 @@ mod tests {
         assert!(calls("a.cs", source, "Save", 5));
     }
 
+    // spec: LNG-8 (internal: the structure is a library API no command prints)
+    #[cfg(feature = "php")]
+    #[test]
+    fn reads_php_classes_methods_and_calls() {
+        let source = "<?php\nclass Order {\n  function ship() {\n    check($this);\n    $this->repo->save($this);\n  }\n}\n\nenum Status {}\n";
+        let found = defs("app/Models/Order.php", source);
+        has(&found, "Order", "class", (2, 7));
+        has(&found, "ship", "function", (3, 6));
+        has(&found, "Status", "class", (9, 9));
+        assert!(calls("a.php", source, "check", 4));
+        assert!(calls("a.php", source, "save", 5));
+    }
+
+    // spec: LNG-8 (internal: the structure is a library API no command prints)
+    #[cfg(feature = "go")]
+    #[test]
+    fn reads_go_types_methods_and_calls() {
+        let source = "package shop\n\ntype Order struct {\n\tID int\n}\n\nfunc (o Order) Ship() bool {\n\treturn check(o)\n}\n";
+        let found = defs("shop/order.go", source);
+        has(&found, "Order", "type", (3, 5));
+        has(&found, "Ship", "method", (7, 9));
+        assert!(calls("a.go", source, "check", 8));
+    }
+
     // spec: LNG-8 (internal: `same_language` is a library API no command prints)
     #[test]
     fn kotlin_and_scala_are_of_java() {
@@ -540,12 +596,12 @@ mod tests {
             same_language(Path::new("a.tsx"), Path::new("b.js")),
             cfg!(all(feature = "typescript", feature = "javascript"))
         );
-        assert!(!same_language(Path::new("a.go"), Path::new("b.go")));
+        assert!(!same_language(Path::new("a.zig"), Path::new("b.zig")));
     }
 
     #[test]
     fn another_language_or_extension_is_not_parsed() {
-        assert!(parse(Path::new("main.go"), "package main").is_none());
+        assert!(parse(Path::new("main.zig"), "const std = @import(\"std\");").is_none());
         assert!(parse(Path::new("README"), "text").is_none());
         assert!(!is_supported(Path::new("a.zig")));
     }
