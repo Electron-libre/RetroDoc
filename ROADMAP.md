@@ -120,6 +120,7 @@ The milestones up to "A large application, one bounded context at a time" are th
   - [stack_tables_nested_layouts](issues/done/stack_tables_nested_layouts.md)
   - [roles_second_pass_and_promoted_sources](issues/done/roles_second_pass_and_promoted_sources.md)
   - [view_template_labels](issues/done/view_template_labels.md)
+  - [template_extensions_never_promoted](issues/template_extensions_never_promoted.md)
   - [test_layouts_singular_and_variants](issues/test_layouts_singular_and_variants.md)
 
 ## A large application, one bounded context at a time

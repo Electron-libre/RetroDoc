@@ -42,19 +42,21 @@ Approach step 1 (the measure) is done, without LLM, on the pinned benchmark clon
 `~/retrodoc-runs/scratch/view_template_labels/`). The labels add little vocabulary, so the plan records the measure
 and closes the issue without code; the extractor (candidates a-c) is the alternative if the user wants it anyway.
 
-Measure (2026-10-30, reference = words of 4+ letters of `benchmark/<repo>/reference.yaml`, crude stemming; visible
-text = text nodes and `label`/`placeholder`/`title`/`alt`/`aria-label`/`value` attributes, template tags stripped;
-"read" = the business files and the entry-point files of the `source_run` of the frozen inputs):
+Measure (2026-10-30, corrected after the `high` review; reference = words of 4+ letters of
+`benchmark/<repo>/reference.yaml`, crude stemming; visible text = text nodes, `label`/`placeholder`/`title`/`alt`/
+`aria-label`/`value` attributes and the quoted strings of the template tags; "read" = the business files and the
+entry-point files of the `source_run` of the frozen inputs, so the file selection of that run's code, not of
+f147531; the generated docs of the run excluded):
 
-| repo | templates | reference words | in the files read | in templates, not in the files read | not in any Source file nor doc |
+| repo | templates | reference words | missing from the files read | of them, in the templates | of those, in no other source file nor doc |
 |---|---|---|---|---|---|
-| linkding | 46 `.html` | 254 | 74 % | 17 (6.7 %) | 1 (0.4 %) |
-| lobsters | 121 `.erb` + 9 `.html` | 274 | 86 % | 21 (7.7 %) | 8 (2.9 %) |
+| linkding | 46 `.html` | 254 | 67 | 17 (25 %) | 1 |
+| lobsters | 121 `.erb` + 9 `.html` | 274 | 38 | 21 (55 %) | 7 |
 | delivery_router | 0 | 81 | - | 0 | - |
 
 Most of the template-only words are generic (`later`, `whom`, `tell`, `turn`, `older`); the business ones are few
-(linkding: `bookmarklet`, `markdown`, `reader`; lobsters: `subscribe`, `aggregation`, `profile`), and nearly all of
-them are already in other Source files or the docs that the brief and the per-unit evidence read.
+(linkding: `bookmarklet`, `markdown`, `reader`; lobsters: `subscribe`, `aggregation`, `profile`). The quoted
+strings of the template tags (Rails form helpers) added no word.
 
 ## Plan
 1. [x] Record the measure: §5 of `docs/findings.md` (the template item states the figures and why no extractor),
@@ -64,6 +66,8 @@ them are already in other Source files or the docs that the brief and the per-un
 - Mode: autonomous
 - Answer 1 a: record the measure and close, no extractor.
 - Base commit: f1475317176bf4e15274ca30ec2be908d9bb864e
+- After the `high` review (8 findings): keep the issue closed with the corrected figures (answer 1 a); the guard keeping
+  the template extensions out of the promotion to `Source` becomes an issue (answer 2 a).
 
 ## Deliverable 1
 - done: the measure is in §5 of `docs/findings.md` (template labels dropped, with the figures) and in the ledger.
@@ -72,3 +76,14 @@ them are already in other Source files or the docs that the brief and the per-un
 - decisions needed: none.
 - Code review: no findings
 - Issue done: closed on the measure; nothing remains.
+
+## Deliverable 2 (fixes of the `high` review)
+- done: corrected measure (helper strings, shares of the missing words, generated docs excluded) in §5 of
+  `docs/findings.md`, this issue and the ledger; §5 intro lists the labels as dropped; stale line on `scan`/`roles`
+  fixed.
+- red: none (docs only).
+- Code review: no findings (low, on these fixes)
+- Code review (high): 8 findings; 1-5, 7, 8 fixed here; 6 (nothing in code keeps `.erb` out of `promote_to_source`)
+  became `issues/template_extensions_never_promoted.md`.
+- not verified: the effect on the generated docs (no run).
+- decisions needed: none.

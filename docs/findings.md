@@ -341,8 +341,9 @@ Steps, each shippable:
 
 Followed since 2026-10-30 by `issues/done/roles_second_pass_and_promoted_sources.md` (the source extensions below and the
 unclassified files of §2 step 1), `issues/actors_read_long_authorization_files.md` (truncation),
-`issues/done/view_template_labels.md` (view templates), `issues/done/narrative_checked_against_cited_code.md` (§2 step 4d) and
-`issues/search_relevance_threshold.md` (§4 step 1). Dropped: the server-dependent causes of empty answers (not
+`issues/done/narrative_checked_against_cited_code.md` (§2 step 4d) and
+`issues/search_relevance_threshold.md` (§4 step 1). Dropped: the labels of the view templates (below,
+`issues/done/view_template_labels.md`), the server-dependent causes of empty answers (not
 fixable in the code), the damping of base classes in the file ranking (§3 direction 1; the budget is opt-in and the
 contexts path bounds a large run), the verbs and the docs and commits as glossary sources (§2 step 2; the evidence
 retrieved per unit of ADR 0019 brings the docs and commits, the entry points the verbs), and the routing file of the
@@ -352,15 +353,20 @@ large application that gave no entry point (§2 step 3; not reproducible without
   pass now also asks the LLM for `source_extensions` (saved in `roles.yaml`); `generate` promotes the matching
   `Other` files to `Source` right after it (`RoleRules::promote_sources`; the `actors` command does it from the
   saved `roles.yaml`). Checked through `generate` on an Elixir fixture with a fake LLM (`tests/unknown_stack.rs`),
-  not yet on a real repo; `scan` and `roles` still show the built-in classification.
-- `.erb` view templates stay `FileKind::Other` on purpose (1,253 files on the Rails test repo): the file budget and
-  the actors pass select on `FileKind::Source` only, never on role. They keep their `view` role (used by `classify`).
+  not yet on a real repo; `scan` and `roles` apply the saved `source_extensions` too and count the promoted files.
+- `.erb` view templates are meant to stay `FileKind::Other` (1,253 files on the Rails test repo): the file budget and
+  the actors pass select on `FileKind::Source` only, never on role. Only the roles prompt keeps them so: on that
+  repository the roles pass listed `erb` and `scss` in `source_extensions`, which promotes them
+  (`issues/template_extensions_never_promoted.md`). They keep their `view` role (used by `classify`).
   Dropped (2026-10-30, `issues/done/view_template_labels.md`): extracting their labels. Measured without LLM on the
-  pinned benchmark repositories (visible text and `label`/`placeholder`/`title` attributes of the templates against
-  the words of `benchmark/<repo>/reference.yaml`), the templates hold 6.7 % (linkding, 46 templates) and 7.7 %
-  (Lobsters, 130 templates) of the reference words that the business files and entry-point files read by the passes
-  lack, mostly generic words; only 0.4 % and 2.9 % are absent from every source file and doc. Too little to change
-  the domains or features; to reopen on a repository whose labels hold its business words.
+  pinned benchmark repositories: the visible text of the templates (text nodes, `label`/`placeholder`/`title`/`alt`/
+  `aria-label`/`value` attributes, quoted strings of the template tags such as `f.label :x, "Text"`) against the
+  words of `benchmark/<repo>/reference.yaml`, the files read being the business files and entry-point files of the
+  `source_run` of the frozen inputs. Of the reference words those files lack, the templates hold 17 of 67 (linkding,
+  46 templates) and 21 of 38 (Lobsters, 130 templates), mostly generic words (`later`, `whom`, `tell`); 1 and 7 of
+  them are in no other source file nor doc, and the business words among them are few (`bookmarklet`, `subscribe`,
+  `aggregation`). Too little to expect a change of the domains or features without a paid benchmark; to reopen on
+  a repository whose labels hold its business words.
 - Retry on an empty/invalid LLM answer fixes symptoms; the underlying causes (context length, truncated
   JSON) depend on the server config — see the local LLM setup notes.
 - Truncation: the entry points and glossary passes chunk long files and the use cases/confidence passes show the relevant chunks of a long file; the actors pass still cuts long files.
