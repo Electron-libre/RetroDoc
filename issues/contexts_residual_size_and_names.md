@@ -63,7 +63,7 @@ Means: the warning itself says why a context stayed whole (CSP-4), so the run di
 ## Plan
 1. [x] Diagnostic warning: a context left over the limit is warned with its slug, file count and reason; the
    existing tests trace CSP-1/2/3/5; verified by `FakeLlm` tests in `contexts/tests.rs`; makes true CSP-1 to CSP-5.
-2. [ ] Measure, steps 1-2 (no code): copy the saved complete run to `~/retrodoc-runs/contexts_residual-<commit>-1`,
+2. [x] Measure, steps 1-2 (no code): copy the saved complete run to `~/retrodoc-runs/contexts_residual-<commit>-1`,
    one `retrodoc contexts` (~5 calls, ~$0.01), read the warning and `contexts.yaml`; `context_map_measure
    --families` (`FAMILIES_UNDER=` the workflow folder) for the action names; findings in the issue and the ledger.
 3. [ ] Residual size, by the diagnosis of 2: list the part one level deeper (by family or sub-folder) when it has
@@ -89,3 +89,16 @@ Means: the warning itself says why a context stayed whole (CSP-4), so the run di
   tests, red checked by running the tests on the stashed code).
 - Code review: no findings
 - not verified: the warning on the real application (deliverable 2).
+
+## Deliverable 2 (measure, 2026-10-30, 45ac040, hosted `deepseek-chat`)
+Copy of the complete local run of 2026-10-15 (its `roles.yaml`, 1,676 source files, 266 entry point files):
+- `retrodoc contexts`: 2 calls, 13.2k tokens in, 3.3k out, 17 s, ~$0.01. 37 contexts, the largest 117 files, none
+  over 150; one context split (7 parts). 179 citations of the answer dropped (unknown or placed twice), 7 contexts
+  dropped as empty, 445 files in the support.
+- `context_map_measure --families`, `FAMILIES_UNDER=app/workflows`: 22 files in no group, 0 families. With these
+  roles the families of the workflow folder are entry point groups (`market`, `hybrid`, `consortium`...), not
+  orphans; over the whole application, 17 families on 516 files in no group, mostly layer folders (`model`,
+  `component`, `helper`), no action name.
+- The lost map of 2026-10-13 came from other roles (hosted): 4 contexts split at the first level, one left at 167
+  files, and the workflow families as orphans in a context of 121 files with no entry point file.
+- So neither residue shows on this copy: the size and the action names depend on the roles the map starts from.
