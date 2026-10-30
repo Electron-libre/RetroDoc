@@ -5,7 +5,7 @@
 use std::path::{Component, Path};
 
 use super::{Signal, SignalKind};
-use crate::walker::is_test_path;
+use crate::walker::{is_test_path, is_test_project, FileEntry};
 
 /// Manifests read at these paths from the repo root.
 const MANIFESTS: &[&str] = &[
@@ -26,99 +26,97 @@ const MANIFESTS: &[&str] = &[
 /// The Gradle version catalog: a build script that names its dependencies
 /// through it (`implementation(libs.spring.web)`) quotes no coordinates.
 const GRADLE_CATALOG: &str = "gradle/libs.versions.toml";
-/// .NET projects kept: a solution of a large product lists dozens.
+/// .NET projects read: a solution of a large product lists dozens.
 const MAX_PROJECTS: usize = 20;
 /// Dependency names kept per manifest.
 const MAX_DEPENDENCIES: usize = 40;
 
-/// One signal per manifest found at the root of the repo: name, description
-/// and dependency names. A manifest that can't be read or parsed is skipped.
+/// One signal per manifest found: those of [`MANIFESTS`], then the .NET
+/// projects among the walked `files` (see [`dotnet_projects`]), at most
+/// [`MAX_PROJECTS`] of them giving metadata. Each signal holds the name,
+/// description and dependency names; a manifest that can't be read or parsed
+/// is skipped.
 #[must_use]
-pub fn manifest_metadata(repo_root: &Path) -> Vec<Signal> {
-    let mut names: Vec<String> = MANIFESTS.iter().map(ToString::to_string).collect();
-    names.extend(dotnet_projects(repo_root));
-    names
+pub fn manifest_metadata(repo_root: &Path, files: &[FileEntry]) -> Vec<Signal> {
+    let mut signals: Vec<Signal> = MANIFESTS
         .iter()
         .filter_map(|name| read_manifest(repo_root, name))
-        .collect()
+        .collect();
+    signals.extend(
+        dotnet_projects(repo_root, files)
+            .iter()
+            .filter_map(|name| read_manifest(repo_root, name))
+            .take(MAX_PROJECTS),
+    );
+    signals
 }
 
-/// The `.csproj` files, named after their project: those at the root, plus
-/// those the root solutions (`.sln`, `.slnx`) list, else those one or two
-/// levels down. Test projects are left out; sorted, at most [`MAX_PROJECTS`].
-fn dotnet_projects(repo_root: &Path) -> Vec<String> {
-    let mut projects = files_with_extension(repo_root, "", "csproj");
+/// The walked `.csproj` files, sorted: those at the root, plus those the root
+/// solutions (`.sln`, `.slnx`) list, or, when they list none, those one or two
+/// levels down. Test projects are left out.
+fn dotnet_projects(repo_root: &Path, files: &[FileEntry]) -> Vec<String> {
+    let walked = |extension: &str| -> Vec<String> {
+        files
+            .iter()
+            .filter(|f| f.path.extension().is_some_and(|e| e == extension))
+            .map(|f| f.path.to_string_lossy().into_owned())
+            .collect()
+    };
+    let projects = walked("csproj");
+    let depth = |path: &str| path.matches('/').count();
     let solutions: Vec<String> = ["sln", "slnx"]
         .iter()
-        .flat_map(|ext| files_with_extension(repo_root, "", ext))
+        .flat_map(|extension| walked(extension))
+        .filter(|path| depth(path) == 0)
         .collect();
-    if solutions.is_empty() {
-        for dir in subdirectories(repo_root, "") {
-            projects.extend(files_with_extension(repo_root, &dir, "csproj"));
-            for sub in subdirectories(repo_root, &dir) {
-                projects.extend(files_with_extension(repo_root, &sub, "csproj"));
-            }
-        }
-    } else {
-        for solution in solutions {
-            let Ok(content) = std::fs::read_to_string(repo_root.join(&solution)) else {
-                continue;
-            };
-            projects.extend(
-                quoted_strings(&content, &['"'])
-                    .into_iter()
-                    .map(|(_, _, path)| path.replace('\\', "/"))
-                    .filter(|path| {
-                        Path::new(path).extension().is_some_and(|e| e == "csproj")
-                            && Path::new(path)
-                                .components()
-                                .all(|c| matches!(c, Component::Normal(_)))
-                    }),
-            );
-        }
-    }
-    projects.retain(|p| !is_test_path(Path::new(p)));
-    projects.sort();
-    projects.dedup();
-    projects.truncate(MAX_PROJECTS);
-    projects
-}
-
-/// The files of `dir` (relative to `repo_root`, `""` for the root) whose
-/// extension is `extension`, as repo-relative paths.
-fn files_with_extension(repo_root: &Path, dir: &str, extension: &str) -> Vec<String> {
-    entries(repo_root, dir, |t| t.is_file())
-        .into_iter()
-        .filter(|path| Path::new(path).extension().is_some_and(|e| e == extension))
-        .collect()
-}
-
-/// The directories of `dir`, hidden and build output ones (`bin`, `obj`) left
-/// out.
-fn subdirectories(repo_root: &Path, dir: &str) -> Vec<String> {
-    entries(repo_root, dir, |t| t.is_dir())
-        .into_iter()
-        .filter(|path| {
-            let name = path.rsplit('/').next().unwrap_or_default();
-            !name.starts_with('.') && !matches!(name, "bin" | "obj" | "node_modules")
+    let listed: Vec<String> = solutions
+        .iter()
+        .filter_map(|solution| std::fs::read(repo_root.join(solution)).ok())
+        .flat_map(|bytes| solution_projects(&String::from_utf8_lossy(&bytes)))
+        .filter_map(|listed| {
+            // A solution written on Windows may not match the case on disk.
+            projects
+                .iter()
+                .find(|p| p.eq_ignore_ascii_case(&listed))
+                .cloned()
         })
-        .collect()
+        .collect();
+    let max_depth = if listed.is_empty() { 2 } else { 0 };
+    let mut kept: Vec<String> = projects
+        .iter()
+        .filter(|p| depth(p) <= max_depth)
+        .cloned()
+        .chain(listed)
+        .filter(|p| {
+            let path = Path::new(p);
+            !is_test_path(path)
+                && !path
+                    .file_stem()
+                    .is_some_and(|stem| is_test_project(&stem.to_string_lossy()))
+        })
+        .collect();
+    kept.sort();
+    kept.dedup();
+    kept
 }
 
-fn entries(repo_root: &Path, dir: &str, keep: impl Fn(std::fs::FileType) -> bool) -> Vec<String> {
-    let Ok(entries) = std::fs::read_dir(repo_root.join(dir)) else {
-        return Vec::new();
-    };
-    entries
-        .filter_map(Result::ok)
-        .filter(|e| e.file_type().is_ok_and(&keep))
-        .map(|e| {
-            let name = e.file_name().to_string_lossy().into_owned();
-            if dir.is_empty() {
-                name
-            } else {
-                format!("{dir}/{name}")
+/// The `.csproj` paths a solution lists, `/`-separated, those reaching out of
+/// its directory left out.
+fn solution_projects(content: &str) -> Vec<String> {
+    quoted_strings(content, &['"'])
+        .into_iter()
+        .map(|(_, _, path)| path.replace('\\', "/"))
+        .filter(|path| Path::new(path).extension().is_some_and(|e| e == "csproj"))
+        .filter_map(|path| {
+            let mut parts = Vec::new();
+            for component in Path::new(&path).components() {
+                match component {
+                    Component::Normal(part) => parts.push(part.to_string_lossy().into_owned()),
+                    Component::CurDir => {}
+                    _ => return None,
+                }
             }
+            Some(parts.join("/"))
         })
         .collect()
 }
@@ -536,12 +534,16 @@ mod tests {
     use super::*;
     use std::fs;
 
+    fn metadata(root: &Path) -> Vec<Signal> {
+        manifest_metadata(root, &crate::walker::walk_repo(root, &[]).unwrap())
+    }
+
     fn text_of(file: &str, content: &str) -> String {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join(file);
         fs::create_dir_all(path.parent().unwrap()).unwrap();
         fs::write(path, content).unwrap();
-        let signals = manifest_metadata(dir.path());
+        let signals = metadata(dir.path());
         assert_eq!(signals.len(), 1, "{file}");
         assert_eq!(signals[0].origin, file);
         assert_eq!(signals[0].kind, SignalKind::Manifest);
@@ -666,7 +668,7 @@ mod tests {
             "<Project><PropertyGroup><AssemblyName>$(MSBuildProjectName)</AssemblyName></PropertyGroup></Project>",
         )
         .unwrap();
-        let signals = manifest_metadata(dir.path());
+        let signals = metadata(dir.path());
         let read: Vec<_> = signals
             .iter()
             .map(|s| (s.origin.as_str(), s.text.as_str()))
@@ -708,28 +710,39 @@ mod tests {
         let root = dir.path().join("repo");
         let csproj =
             "<Project><ItemGroup><PackageReference Include=\"Dapper\" /></ItemGroup></Project>";
-        for project in ["repo/src/Shop.Api/Shop.Api.csproj", "Other/Other.csproj"] {
+        for project in [
+            "repo/src/Shop.Api/Shop.Api.csproj",
+            "repo/deep/er/Web/Web.csproj",
+            "repo/Shop.Tests.csproj",
+            "Other/Other.csproj",
+        ] {
             let path = dir.path().join(project);
             fs::create_dir_all(path.parent().unwrap()).unwrap();
             fs::write(path, csproj).unwrap();
         }
         fs::write(
             root.join("Shop.slnx"),
-            "<Solution><Project Path=\"src/Shop.Api/Shop.Api.csproj\" />\
+            "<Solution><Project Path=\"./src/shop.api/Shop.Api.csproj\" />\
+             <Project Path=\"deep/er/Web/Web.csproj\" />\
              <Project Path=\"../Other/Other.csproj\" /></Solution>",
         )
         .unwrap();
-        let read: Vec<_> = manifest_metadata(&root)
-            .into_iter()
-            .map(|s| (s.origin, s.text))
-            .collect();
+        let origins =
+            |root: &Path| -> Vec<String> { metadata(root).into_iter().map(|s| s.origin).collect() };
         assert_eq!(
-            read,
-            vec![(
-                "src/Shop.Api/Shop.Api.csproj".to_string(),
-                "name: Shop.Api\ndependencies: Dapper".to_string()
-            )]
+            origins(&root),
+            vec!["deep/er/Web/Web.csproj", "src/Shop.Api/Shop.Api.csproj"]
         );
+        let text = metadata(&root).remove(1).text;
+        assert_eq!(text, "name: Shop.Api\ndependencies: Dapper");
+
+        // A solution listing no C# project falls back to the shallow ones.
+        fs::write(
+            root.join("Shop.slnx"),
+            b"<Solution><Project Path=\"App/App.fsproj\" /> \xE9</Solution>",
+        )
+        .unwrap();
+        assert_eq!(origins(&root), vec!["src/Shop.Api/Shop.Api.csproj"]);
     }
 
     #[test]
@@ -761,9 +774,9 @@ mod tests {
     #[test]
     fn an_unparseable_or_missing_manifest_gives_nothing() {
         let dir = tempfile::tempdir().unwrap();
-        assert_eq!(manifest_metadata(dir.path()), vec![]);
+        assert_eq!(metadata(dir.path()), vec![]);
         fs::write(dir.path().join("package.json"), "{not json").unwrap();
-        assert_eq!(manifest_metadata(dir.path()), vec![]);
+        assert_eq!(metadata(dir.path()), vec![]);
     }
 
     #[test]

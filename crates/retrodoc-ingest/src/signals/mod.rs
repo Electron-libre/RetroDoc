@@ -107,7 +107,7 @@ pub fn collect(
     docs.extend(root_markdown(repo_root)?);
     let mut signals = doc_sections(&docs);
     signals.extend(commit_subjects(&ingest.commits));
-    signals.extend(manifest_metadata(repo_root));
+    signals.extend(manifest_metadata(repo_root, &ingest.files));
     signals.extend(tree_overview(&ingest.files));
     signals.extend(feature_scenarios(repo_root, &ingest.files));
     signals.extend(test_descriptions(repo_root, &ingest.files));

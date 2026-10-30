@@ -56,11 +56,11 @@ Overflow Developer Survey and reviewed once a year (ADR 0036):
   on a repository with no file that reader knows (the reader of `schema.rb`, of a manifest, a grammar).
 - **LNG-11** (deterministic) The product brief must read the libraries of the Gradle version catalog
   `gradle/libs.versions.toml` as the dependencies of a manifest.
-- **LNG-12** (deterministic) The product brief must read the `*.csproj` files the root `.sln` lists, else those one
-  or two directory levels below the root, test projects left out.
+- **LNG-12** (deterministic) The product brief must read the `*.csproj` files the root `.sln` or `.slnx` lists, else
+  those one or two directory levels below the root, test projects left out.
 - **LNG-13** (deterministic) The walker must classify as test a file under a .NET test project directory (a name
-  ending in `Tests`: `Shop.Tests/`, `Shop.UnitTests/`) or a Gradle test source set (`src/integrationTest/`,
-  `src/testFixtures/`).
+  ending in `Tests`: `Shop.Tests/`, `Shop.UnitTests/`) or a Gradle test source set (`src/integrationTest/kotlin/`,
+  `src/testFixtures/java/`).
 - **LNG-14** (deterministic) The walker must not classify as source a file under the root `project/` directory of
   an sbt build (a `build.sbt` at the root).
 
@@ -89,11 +89,14 @@ Overflow Developer Survey and reviewed once a year (ADR 0036):
 - (LNG-12) Given a root `Shop.sln` listing `src\Shop.Api\Shop.Api.csproj` and `tests\Shop.Tests\Shop.Tests.csproj`,
   then `src/Shop.Api/Shop.Api.csproj` is read and the test project is not; given no `.sln`, then
   `src/Shop.Api/Shop.Api.csproj` is read, and a `.csproj` three levels down is not; a path of the `.sln` outside
-  the repository is not read.
+  the repository, or a project the walk ignores (`.gitignore`, `extra_ignore`), is not read; a path of the `.sln` in
+  another case (`src\shop.api\Shop.Api.csproj`) is read; a `.sln` listing no `.csproj` falls back to the projects
+  one or two levels down; a root `Shop.Tests.csproj` is not read.
 - (LNG-13) Given `Shop.Tests/Fakes/FakeClock.cs`, `src/integrationTest/kotlin/OrderIT.kt` and
   `src/testFixtures/java/OrderBuilder.java`, then they are test files; given
   `src/main/java/shop/Contests/Draw.java`, then it is a source file (`Tests` with a capital, after a word;
-  `Contests` has none).
+  `Contests` has none); given `src/speedTest/Runner.ts`, then it is a source file (a source set holds a JVM language
+  directory).
 - (LNG-14) Given `build.sbt` and `project/Dependencies.scala`, then the latter is not a source file, even when the
   roles call names `scala`; given `project/Dependencies.scala` with no `build.sbt`, then it is a source file.
 - (LNG-8) Given a file of each language of the reference set with a type, a method spanning several lines and a

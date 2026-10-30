@@ -282,9 +282,11 @@ fn with_no_solution_the_projects_two_levels_down_are_read() {
         "src/Shop.Api/Shop.Api.csproj",
         "src/Shop.Tests/Shop.Tests.csproj",
         "src/a/Deep/Deep.csproj",
+        "artifacts/Lib/Lib.csproj",
     ] {
         write(dir.path(), project, CSPROJ);
     }
+    write(dir.path(), ".gitignore", "artifacts/\n");
 
     assert_eq!(manifest_count(dir.path()), Some(2));
 }

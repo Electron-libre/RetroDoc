@@ -23,6 +23,9 @@ pub enum FileKind {
 const CAPITAL_TEST_SUFFIX: &[&str] =
     &["java", "kt", "kts", "groovy", "cs", "php", "scala", "swift"];
 
+/// The language directories of a Gradle source set (`src/<set>/java/`).
+const JVM_SOURCE_DIRS: &[&str] = &["java", "kotlin", "groovy", "scala", "resources"];
+
 /// Directory names that mark everything below them as tests.
 const TEST_DIRS: &[&str] = &["tests", "test", "spec", "specs", "__tests__", "e2e"];
 
@@ -104,19 +107,20 @@ fn in_sbt_project(path: &Path) -> bool {
 /// `foo.spec.ts`, `test_foo.py`, `foo_spec.rb`, `FooTest.java`,
 /// `FooTests.cs`).
 pub(crate) fn is_test_path(path: &Path) -> bool {
-    let dirs: Vec<String> = path
-        .parent()
-        .into_iter()
-        .flat_map(Path::components)
-        .map(|c| c.as_os_str().to_string_lossy().into_owned())
-        .collect();
-    let in_test_dir = dirs.iter().enumerate().any(|(i, dir)| {
-        TEST_DIRS.contains(&dir.to_lowercase().as_str())
-            || is_test_project_dir(dir)
-            || (i > 0 && dirs[i - 1] == "src" && is_test_source_set(dir))
-    });
-    if in_test_dir {
-        return true;
+    // The window `before/dir/after` over the directories.
+    let (mut before, mut dir): (Option<String>, Option<String>) = (None, None);
+    for component in path.parent().into_iter().flat_map(Path::components) {
+        let after = component.as_os_str().to_string_lossy().into_owned();
+        if TEST_DIRS.contains(&after.to_lowercase().as_str()) || is_test_project(&after) {
+            return true;
+        }
+        if before.as_deref() == Some("src")
+            && dir.as_deref().is_some_and(is_test_source_set)
+            && JVM_SOURCE_DIRS.contains(&after.as_str())
+        {
+            return true;
+        }
+        (before, dir) = (dir, Some(after));
     }
     let stem = path
         .file_stem()
@@ -132,20 +136,14 @@ pub(crate) fn is_test_path(path: &Path) -> bool {
 
 /// A .NET test project (`Shop.Tests`, `Shop.UnitTests`, `ShopIntegrationTests`):
 /// the capital `Tests` after a word or a dot.
-fn is_test_project_dir(dir: &str) -> bool {
-    dir.strip_suffix("Tests")
-        .and_then(|w| w.chars().last())
-        .is_some_and(|c| c.is_alphanumeric() || c == '.')
+pub(crate) fn is_test_project(name: &str) -> bool {
+    ends_after(name, "Tests", |c| c.is_alphanumeric() || c == '.')
 }
 
-/// A Gradle test source set under `src/`: `integrationTest`, `functionalTest`,
-/// `testFixtures`.
+/// A Gradle test source set under `src/` (`integrationTest`, `functionalTest`,
+/// `testFixtures`), told by the language directory below it.
 fn is_test_source_set(dir: &str) -> bool {
-    dir == "testFixtures"
-        || dir
-            .strip_suffix("Test")
-            .and_then(|w| w.chars().last())
-            .is_some_and(char::is_alphanumeric)
+    dir == "testFixtures" || ends_after(dir, "Test", char::is_alphanumeric)
 }
 
 fn uses_capital_test_suffix(path: &Path) -> bool {
@@ -157,11 +155,16 @@ fn uses_capital_test_suffix(path: &Path) -> bool {
 /// `OrderTest`, `OrderTests`: the capital `Test` after a word, so `Contest`
 /// and a bare `Test` are not tests.
 fn has_capital_test_suffix(stem: &str) -> bool {
-    let word = stem
-        .strip_suffix("Tests")
-        .or_else(|| stem.strip_suffix("Test"));
-    word.and_then(|w| w.chars().last())
-        .is_some_and(char::is_alphanumeric)
+    ["Tests", "Test"]
+        .iter()
+        .any(|suffix| ends_after(stem, suffix, char::is_alphanumeric))
+}
+
+/// `name` ends in `suffix` after a character `before` accepts.
+fn ends_after(name: &str, suffix: &str, before: impl Fn(char) -> bool) -> bool {
+    name.strip_suffix(suffix)
+        .and_then(|w| w.chars().last())
+        .is_some_and(before)
 }
 
 #[derive(Debug, Clone)]
@@ -390,6 +393,7 @@ mod tests {
             "src/main/java/shop/Contests/Draw.java",
             "src/Tests.Api/Order.cs",
             "lib/integrationTest/a.kt",
+            "src/speedTest/Runner.ts",
         ] {
             assert_eq!(
                 FileKind::from_path(Path::new(source)),

@@ -58,6 +58,7 @@ source. Out of scope: the `BloodTest.java` trade-off (a non-goal of the spec), t
    (~120 lines).
 3. [x] Nested `.csproj`: the projects the root `.sln` lists, else one or two levels down, bounded, test projects
    and paths outside the repo left out; verified likewise; makes true LNG-12, sets the spec `accepted` (~200 lines).
+4. [x] Whole-issue docs and `high` review fixes.
 
 ## Decisions
 - Mode: autonomous
@@ -87,5 +88,20 @@ source. Out of scope: the `BloodTest.java` trade-off (a non-goal of the spec), t
   down (hidden, `bin`, `obj`, `node_modules` skipped), test projects left out, at most 20; the spec is `accepted`.
 - checks: `just check` ok; docs `docs/crates/core-ingest.md`.
 - red: LNG-12: `left: None, right: Some(1)` and `left: None, right: Some(2)`.
+- Code review: no findings.
+- not verified: none. decisions needed: none.
+
+## Deliverable 4: whole-issue docs and high review fixes
+- done: `.csproj` picked from the walked files (`.gitignore` and `extra_ignore` apply, no symlink out); a root
+  `*Tests.csproj` left out; a solution that lists no walked `.csproj` falls back to the shallow ones; solution paths
+  matched across case and `./`; the cap of 20 counts the projects that give metadata; a Gradle source set needs a
+  JVM language directory below it; `is_test_path` keeps no `Vec`; one `ends_after` helper for the three suffix
+  checks; spec LNG-12 and LNG-13 scenarios amended; docs `docs/crates/core-ingest.md`.
+- checks: `just check` ok.
+- red: LNG-12: the gitignored `artifacts/Lib/Lib.csproj` scenario counted 3 manifests before (read by `read_dir`).
+- High review: 10 findings. Fixed: 1 (walk bypassed), 2 (root test project), 3 (fallback off), 4 (`src/speedTest/`
+  in TS), 7 (case, `./`), 8 (cap before existence), 9 (allocation, repeated reads), 10 (duplicated suffix check).
+  Not fixed: 5 (`LabTests/` lost in every language: decision 2 a), 6 and the Android part of 10 (singular and BDD
+  .NET projects, `src/testDebug/`): outside the requirements, filed as `test_layouts_singular_and_variants`.
 - Code review: no findings.
 - not verified: none. decisions needed: none.
