@@ -33,7 +33,8 @@ Show the user your results as `.claude/rules/reports-to-the-user.md` says.
    - Before naming a trend, compare the `models`, `versions` and `projects` of the groups it spans: when they
      changed too, say the change may come from them, not from Cardinal.
    - A `too few` group supports no conclusion; say how many sessions it lacks. The same holds for a
-     `main_context_peak` whose `peak_sessions` is under the threshold.
+     `main_context_peak` whose `peak_sessions` is under the threshold, and for the advisor calls and tokens whose
+     `advisor_sessions` is.
    - A skill `unused` over the last groups may be dropped or described better; a hook whose refusals grow, or a
      rule whose `breached_share` stays high, goes to `skill:audit-instructions` with its counts.
    - With no trend, say so: no change is a valid conclusion.

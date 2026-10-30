@@ -109,7 +109,7 @@ again. Then set `Plan: validated` and the base commit. The spec file is the reco
    Re-run `just check` after the fixes. Step 6 cannot start before the review has run.
    The native `pre-commit` hook (`cardinal run review-gate native`) enforces it: `git commit` fails while the diff holds a file
    the last review never saw, so write the tracking and the summary of steps 6 and 7 in the issue **before**
-   the review (fixes to reviewed files pass; a diff under `issues/` only needs no review). Only the user can
+   the review (fixes to reviewed files pass; a diff under `issues/` only, or the close of an issue with the references `close-issue` rewrote, needs no review). Only the user can
    waive the review: never do it yourself ([details.md](details.md), "Review waiver").
 6. **Human review (STOP, except in autonomous mode)**: show one line `done` (what changed, not the diff), a table `check | result` (tests, lint, specs, docs, code
    review), one line `red:` opening with the ids its tests trace, then the failure message the test of step 3.2 gave before
