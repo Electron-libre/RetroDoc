@@ -165,6 +165,8 @@ the commands left to the user).
   move and those edits in the final commit. Never move it unasked. When it was the last open issue of its milestone
   in the `roadmap` documents of `.claude/cardinal.toml`, set that milestone `done` in the same commit, then propose a
   release to the user (`just release` prints the version it would number): theirs to trigger.
+  The report of the close ends on a Markdown link to the next issue `close-issue` printed
+  (`[<title>](issues/<stem>.md)`), or on its line saying there is none.
 - To know which issue comes next, run `just next-issue` (the open issue of lowest `rank` that no branch or
   worktree has taken) instead of reading the issue files. An issue is taken when a branch named after its stem
   exists or a worktree has it checked out; never start a taken one, `Every open issue is taken.` means

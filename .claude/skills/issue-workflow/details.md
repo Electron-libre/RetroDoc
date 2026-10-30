@@ -48,6 +48,8 @@ In a linked worktree, once the user agreed to close the issue:
    issues/<name>.md` and the commit of the move (`docs: close ...`, with its `low` review when `close-issue` rewrote
    documents outside `issues/`), then `just finish-issue <name>` (removes the worktree and the branch once merged and
    clean).
+   No link to the next issue here: the `issues/` of the worktree is the branch's, so `close-issue` prints the next
+   issue in the main worktree.
 
 `close-issue` refuses in a linked worktree and an issue of one named by path from the main one, so an issue is never
 closed on an issue branch. `finish-issue` refuses inside the worktree it would remove, and a branch whose work is not

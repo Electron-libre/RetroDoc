@@ -17,7 +17,7 @@ check-commit rev="HEAD":
 check-commits base head:
     cardinal run check-commits {{base}} {{head}}
 
-# Move a finished issue to issues/done/ and repoint the documents that cite it (only after the user agreed). `--relink` repairs old references.
+# Move a finished issue to issues/done/ and repoint the documents that cite it (only after the user agreed). Ends on the next issue to work on. `--relink` repairs old references.
 close-issue issue:
     cardinal run close-issue {{issue}}
 
