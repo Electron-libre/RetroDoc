@@ -14,36 +14,42 @@ The milestones up to "A large application, one bounded context at a time" are th
   (walker, git history, existing Markdown docs).
 - Why: every later pass reads the repository through it.
 - State: done
+- Released: v0.1.0
 
 ## Repo map
 
 - Goal: bottom-up LLM summaries of files and directories, enriched with the git history.
 - Why: the first input of the domain clustering (ADR 0004); removed with the `files` path (ADR 0035).
 - State: done
+- Released: v0.1.0
 
 ## Domains
 
 - Goal: the domains clustered from the repository, with a coverage check.
 - Why: the top level of the functional docs; the sub-domains were removed with the `files` path (ADR 0035).
 - State: done
+- Released: v0.1.0
 
 ## Features, use cases and diagrams
 
 - Goal: features per domain, use cases per feature with steps and actors, a Mermaid diagram per use case.
 - Why: the body of the functional documentation.
 - State: done
+- Released: v0.1.0
 
 ## Confidence and debt report
 
 - Goal: a confidence score per generated section and a documentation debt report.
 - Why: a reader must know how far the code supports each claim.
 - State: done
+- Released: v0.1.0
 
 ## Writing and CLI ergonomics
 
 - Goal: dry-run with diff preview, idempotent writing, incremental re-run.
 - Why: a rerun on an unchanged repository must change nothing and call no LLM.
 - State: done
+- Released: v0.1.0
 
 ## Business-level documentation
 
@@ -52,6 +58,7 @@ The milestones up to "A large application, one bounded context at a time" are th
 - Why: the first smoke tests gave mostly technical docs (the risks of `PRODUCT.md`, `docs/findings.md` §2); its open work moved to the top-down
   redesign.
 - State: done
+- Released: v0.1.0
 - Issues:
   - [narrative_checked_against_cited_code](issues/done/narrative_checked_against_cited_code.md)
 
@@ -62,6 +69,7 @@ The milestones up to "A large application, one bounded context at a time" are th
 - Why: the run time and the cost did not scale past a few hundred files (`docs/findings.md` §3); the open part is the
   milestone "Pre-run cost estimate".
 - State: done
+- Released: v0.1.0
 
 ## MCP server over the generated docs
 
@@ -69,6 +77,7 @@ The milestones up to "A large application, one bounded context at a time" are th
   freshness warnings and `read_source` / `git_log` limited to the cited files (ADR 0016).
 - Why: the first consumer of "ask the documentation" (`docs/findings.md` §4) is an external agent.
 - State: done
+- Released: v0.1.0
 - Issues:
   - [mcp_server](issues/done/mcp_server.md)
 
@@ -80,6 +89,7 @@ The milestones up to "A large application, one bounded context at a time" are th
   measures, one pipeline path, the pass runner.
 - Why: the pipeline climbed from the code to the business and its cost grew with the file count.
 - State: done
+- Released: v0.1.0
 - Issues:
   - [quality_benchmark](issues/done/quality_benchmark.md)
   - [product_brief](issues/done/product_brief.md)
