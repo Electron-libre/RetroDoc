@@ -140,7 +140,7 @@ The milestones up to "A large application, one bounded context at a time" are th
   - [technical_and_back_office_use_cases](issues/done/technical_and_back_office_use_cases.md)
   - [contexts_residual_size_and_names](issues/contexts_residual_size_and_names.md)
   - [merge_form_screens_into_their_use_case](issues/merge_form_screens_into_their_use_case.md)
-  - [actors_read_long_authorization_files](issues/actors_read_long_authorization_files.md)
+  - [actors_read_long_authorization_files](issues/done/actors_read_long_authorization_files.md)
 
 ## Business rules quality
 
