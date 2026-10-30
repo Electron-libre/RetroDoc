@@ -52,7 +52,7 @@ fixed in the deliverable that shows it if small, else filed as an issue.
    `mix.exs` + `lib/**/*.ex` + `test/*_test.ex` with `source_extensions: [".EX"]`; verified by exit 0 and docs
    written (LNG-1), the entry-points requests holding `lib/shop.ex` and not the test file (LNG-2), a 20 KB `.ex`
    file sent in parts cut at blank lines (LNG-3); makes true LNG-1, LNG-2, LNG-3. ~600 lines.
-2. [ ] Framework fixtures: a table of the 19 frameworks (manifest, entry point, model, test, a few lines each)
+2. [x] Framework fixtures: a table of the 19 frameworks (manifest, entry point, model, test, a few lines each)
    generated into temp repos by a helper, one test per framework through `generate`, no ` WARN ` line; the Django
    and Spring Boot runs compare their system prompts pass by pass; verified by `tests/reference_frameworks.rs`;
    makes true LNG-9, LNG-4. ~700 lines.
@@ -77,3 +77,12 @@ fixed in the deliverable that shows it if small, else filed as an issue.
 - Code review: no findings
 - not verified: the Elixir run still logs warnings (allowed by LNG-1); they are listed in deliverable 2 if a
   framework shares them.
+
+## Deliverable 2
+- done: `tests/reference_frameworks.rs`, 19 fixtures (manifest, entry point, model, test) built in temp repos, run
+  side by side through `generate`; Django and Spring Boot compared pass by pass on their system prompts.
+- red: LNG-9, LNG-4: the behaviour already existed, every fixture went through with no warning on the first run (no
+  bug found, none excluded); a fixture whose business folder does not exist fails LNG-9 with its five ` WARN ` lines
+  and no use-cases call.
+- Code review: no findings (the `low` level leaves test files out: only the issue was read; the `high` review of the issue covers the tests)
+- not verified: the quality of what a real model writes on these stacks (non-goal of the spec).
