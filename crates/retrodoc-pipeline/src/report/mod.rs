@@ -50,6 +50,9 @@ pub struct DebtReport {
     /// Use cases whose business-language score is below the threshold (they
     /// read like code, or like an internal helper), lowest first.
     pub technical_use_cases: Vec<WeakSection>,
+    /// Use cases whose narrative the confidence pass judged not backed by the cited code
+    /// (`UseCase::narrative_check` below 1), lowest first.
+    pub unbacked_narratives: Vec<WeakSection>,
     /// Use cases the docs set apart under "Administration and technical"
     /// (`UseCase::is_technical`), and the features marked back-office.
     pub set_apart_use_cases: usize,
@@ -182,6 +185,7 @@ pub fn build_report(
     let mut weak_sections: Vec<WeakSection> = Vec::new();
     let mut unscored_use_cases = Vec::new();
     let mut technical_use_cases: Vec<WeakSection> = Vec::new();
+    let mut unbacked_narratives: Vec<WeakSection> = Vec::new();
     for use_case in use_cases {
         let domain = feature_domain
             .get(use_case.feature_slug.as_str())
@@ -196,6 +200,13 @@ pub fn build_report(
                     rationale: b.rationale.clone(),
                 });
             }
+        }
+        if let Some(n) = use_case.narrative_check.as_ref().filter(|n| n.value < 1.0) {
+            unbacked_narratives.push(WeakSection {
+                label: label.clone(),
+                score: n.value,
+                rationale: n.rationale.clone(),
+            });
         }
         match &use_case.confidence {
             Some(c) if c.value < LOW_CONFIDENCE_THRESHOLD => weak_sections.push(WeakSection {
@@ -224,6 +235,7 @@ pub fn build_report(
     }
     weak_sections.sort_by(|a, b| a.score.total_cmp(&b.score).then(a.label.cmp(&b.label)));
     technical_use_cases.sort_by(|a, b| a.score.total_cmp(&b.score).then(a.label.cmp(&b.label)));
+    unbacked_narratives.sort_by(|a, b| a.score.total_cmp(&b.score).then(a.label.cmp(&b.label)));
 
     let uncategorized_files = domains
         .domains
@@ -246,6 +258,7 @@ pub fn build_report(
         domains: domain_debts,
         weak_sections,
         technical_use_cases,
+        unbacked_narratives,
         set_apart_use_cases,
         back_office_features: back_office.len(),
         unscored_use_cases,
@@ -274,6 +287,26 @@ fn percent(value: Option<f32>) -> String {
 }
 
 impl DebtReport {
+    /// The use cases whose narrative the cited code does not back, with the model's reason.
+    fn write_narratives_section(&self, md: &mut String) {
+        if self.unbacked_narratives.is_empty() {
+            return;
+        }
+        md.push_str("\n## Narratives the cited code does not back\n\n");
+        for w in &self.unbacked_narratives {
+            let verdict = if w.score > 0.0 {
+                "partial"
+            } else {
+                "unsupported"
+            };
+            let _ = write!(md, "- `{}` — {verdict}", w.label);
+            if let Some(why) = &w.rationale {
+                let _ = write!(md, ": {}", one_line(why));
+            }
+            md.push('\n');
+        }
+    }
+
     /// Renders the report as Markdown (`docs/_retrodoc/coverage-report.md`).
     #[must_use]
     pub fn to_markdown(&self) -> String {
@@ -340,6 +373,8 @@ impl DebtReport {
                 md.push('\n');
             }
         }
+
+        self.write_narratives_section(&mut md);
 
         if !self.unscored_use_cases.is_empty() {
             md.push_str("\n## Not scored\n\n");

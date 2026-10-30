@@ -169,7 +169,7 @@ flowchart LR
     f --> r["Debt report:<br/>per-domain confidence,<br/>sections below 50%"]
 ```
 
-Only the doubtful steps are sent to the LLM ([ADR 0026](adr/0026-check-use-case-steps-mechanically-before-asking-the-llm.md)); `--confidence-sample` adds a second opinion on use cases that pass every check. The narrative of a use case sent to the LLM is judged in the same call ([ADR 0038](adr/0038-check-the-narrative-in-the-confidence-call.md), `specs/use-case-confidence.md`) and its verdict kept as `narrative_check`; a use case the checks settle makes no call for it. An unparseable verdict leaves the use case **unscored** (`None`), which the report lists separately.
+Only the doubtful steps are sent to the LLM ([ADR 0026](adr/0026-check-use-case-steps-mechanically-before-asking-the-llm.md)); `--confidence-sample` adds a second opinion on use cases that pass every check. The narrative of a use case sent to the LLM is judged in the same call ([ADR 0038](adr/0038-check-the-narrative-in-the-confidence-call.md), `specs/use-case-confidence.md`) and its verdict kept as `narrative_check`, the report listing the narratives the code does not back; a use case the checks settle makes no call for it. An unparseable verdict leaves the use case **unscored** (`None`), which the report lists separately.
 
 ## 5. Incremental re-run
 

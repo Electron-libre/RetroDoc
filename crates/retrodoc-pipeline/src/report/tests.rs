@@ -423,3 +423,42 @@ fn technical_sounding_use_cases_get_their_own_section() {
     );
     assert!(!plain.to_markdown().contains("business language"));
 }
+
+// spec: CNF-8 (internal: the report is built from cached artifacts that only an LLM run writes)
+#[test]
+fn narratives_the_cited_code_does_not_back_are_listed_with_the_reason() {
+    let map = DomainMap {
+        domains: vec![DomainCluster {
+            slug: "billing".to_string(),
+            name: "Billing".to_string(),
+            description: String::new(),
+            paths: vec![],
+            ..DomainCluster::default()
+        }],
+    };
+    let features = vec![feature("pay", "billing", Some(0.9))];
+    let mut use_cases = vec![
+        use_case("pay-invoice", "pay", Some(0.8)),
+        use_case("refund", "pay", Some(0.9)),
+        use_case("cancel", "pay", Some(0.9)),
+    ];
+    use_cases[0].narrative_check = Some(ConfidenceScore::new(
+        0.0,
+        "no retry in the code".to_string(),
+    ));
+    use_cases[1].narrative_check = Some(ConfidenceScore::new(0.5, None));
+    use_cases[2].narrative_check = Some(ConfidenceScore::new(1.0, None));
+
+    let md = build_report(&map, &features, &use_cases).to_markdown();
+
+    assert!(md.contains("## Narratives the cited code does not back"));
+    assert!(md.contains("- `billing/pay/pay-invoice` — unsupported: no retry in the code"));
+    assert!(md.contains("- `billing/pay/refund` — partial"));
+    assert!(!md.contains("billing/pay/cancel` —"));
+
+    for u in &mut use_cases {
+        u.narrative_check = None;
+    }
+    let md = build_report(&map, &features, &use_cases).to_markdown();
+    assert!(!md.contains("Narratives the cited code"));
+}

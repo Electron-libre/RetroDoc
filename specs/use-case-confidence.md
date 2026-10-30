@@ -1,6 +1,6 @@
 ---
 id: CNF
-status: draft
+status: accepted
 adrs: [0007, 0026, 0038]
 ---
 

@@ -67,7 +67,7 @@ step (S), at the cited lines (C), true elsewhere in the tree (F), unsupported or
 1. [x] Narrative in the confidence call: the request shows it, the answer's verdict counts in the score, named in
    the rationale, kept in `UseCase::narrative_check` (spec `use-case-confidence`, ADR 0038 draft); verified by
    pipeline tests with a recording fake LLM; makes true CNF-1 to CNF-7. ~450 lines.
-2. [ ] Report section "Narratives the cited code does not back"; verified by a report test; makes true CNF-8, spec
+2. [x] Report section "Narratives the cited code does not back"; verified by a report test; makes true CNF-8, spec
    `accepted`. ~120 lines.
 3. [ ] Measure: an example runs the confidence pass on the 40 sampled use cases with DeepSeek (cents, asked before)
    and counts the 8 known U claims flagged and the narratives flagged wrongly; figures in the issue and the ledger.
@@ -95,4 +95,21 @@ red: CNF-1, CNF-3, CNF-4, CNF-5: `assertion failed: prompt.contains(NARRATIVE) &
 (CNF-2, CNF-6, CNF-7 are guards: they passed before the code).
 Code review: no findings (its one doubt, the narrative dropped by `doubtful_part`, is ruled out: it clones the use case, the tests see the narrative in the prompt).
 not verified: how often the model flags a narrative (deliverable 3).
+decisions needed: none.
+
+## Deliverable 2 summary
+done: the debt report lists the use cases whose narrative is judged partial or unsupported, with the reason, in
+"Narratives the cited code does not back"; spec `use-case-confidence` accepted; pipeline and ARCHITECTURE docs.
+
+| check | result |
+|---|---|
+| tests | `just check` pass |
+| lint | clippy pedantic clean |
+| specs | CNF-8 traced (internal: report built from cached artifacts), spec accepted |
+| docs | updated |
+| code review | low, no findings |
+
+red: CNF-8: `assertion failed: md.contains("## Narratives the cited code does not back")`
+Code review: no findings
+not verified: nothing beyond deliverable 3.
 decisions needed: none.
