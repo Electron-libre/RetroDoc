@@ -54,7 +54,7 @@ A large application, one bounded context at a time
 * Read by name, only 2 or 3 of the 10 paired open a form; the others are consultations (legitimate). Neither the name nor the text of the entry point separates them well (2 and 3 of 10).
 * So the real pairs are about 2 to 5% of the list, around the 5% threshold: neither the mechanical merge nor the pair input is worth it on this run.
 
-## On hold (user, 2026-10-15)
+## On hold (user, 2026-10-15), lifted (user, 2026-10-30): step 3 reads the saved complete run, no LLM call
 Ledger (2026-10-27): a complete run of the same application is already saved (762 use cases, 750 of them cite
 their entry points, listed in the planned measures of the ledger, `CLAUDE.md`), so step 3 is a `form_pairs_measure`
 on it, with no new LLM call; this replaces the new run asked for below.
