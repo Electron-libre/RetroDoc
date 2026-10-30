@@ -1,7 +1,7 @@
 # Roadmap
 
 The planned work of the project, grouped into milestones, in the order they are meant to land: the user orders them.
-A milestone becomes issues once it is shaped (`skill:create-issue`); `issues/queue.md` orders those issues.
+A milestone becomes issues once it is shaped (`skill:create-issue`); the `rank` of each issue file orders them (`just next-issue`).
 States: `idea`, `shaped`, `in issues`, `done`; `just release` adds `- Released: v<version>` to a `done` one. A milestone carries no date unless the project gives it one.
 
 The milestones up to "A large application, one bounded context at a time" are the phases 1 to 11 of the former

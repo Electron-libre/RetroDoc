@@ -21,9 +21,9 @@ check-commits base head:
 close-issue issue:
     cardinal run close-issue {{issue}}
 
-# Which issue to work on next (first entry of issues/queue.md that no branch or worktree has taken) and drift between the queue and the files.
-next-issue:
-    cardinal run next-issue
+# Which issue to work on next (the open issue of lowest rank that no branch or worktree has taken), and the issues without a rank; `--convert` turns a format 4 issues/queue.md into ranks.
+next-issue *args:
+    cardinal run next-issue {{args}}
 
 # Give an issue its own worktree `.claude/worktrees/<stem>` and branch `<stem>`, so two agents can work in parallel.
 start-issue issue:

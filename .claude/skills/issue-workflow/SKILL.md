@@ -5,7 +5,7 @@ description: Drive an issue file from `issues/` to done in validated deliverable
 
 # Work an issue
 
-The user hands over an issue file in `issues/`. Talk to the user in the `user_language` of `.claude/cardinal.toml` (skills, code, docs and
+The user hands over an issue file in `issues/`. Talk to the user in the `user_language` of `.claude/cardinal.local.toml`, else of `.claude/cardinal.toml` (skills, code, docs and
 commits stay in English). Never skip a validation stop: they are what makes the autonomy safe. The only ones the user can lift are those of
 step 3.6 and 3.8, through the Autonomous mode.
 
@@ -160,12 +160,12 @@ the commands left to the user).
 - If something blocks you, say what and propose one recommendation; don't enumerate every option.
 - When the issue is fully done, mark it in the issue and say what, if anything, remains. Then **ask the
   user whether to close it** (in a linked worktree, see "Merge back"); on their agreement run `just close-issue issues/<name>.md` (moves it to
-  `issues/done/`, drops the issue from `issues/queue.md` and rewrites `issues/<name>.md` to
+  `issues/done/` and rewrites `issues/<name>.md` to
   `issues/done/<name>.md` in every other document that cites it, relative Markdown links included) and include the
   move and those edits in the final commit. Never move it unasked. When it was the last open issue of its milestone
   in the `roadmap` documents of `.claude/cardinal.toml`, set that milestone `done` in the same commit, then propose a
   release to the user (`just release` prints the version it would number): theirs to trigger.
-- To know which issue comes next, run `just next-issue` (first entry of `issues/queue.md` that no branch or
+- To know which issue comes next, run `just next-issue` (the open issue of lowest `rank` that no branch or
   worktree has taken) instead of reading the issue files. An issue is taken when a branch named after its stem
-  exists or a worktree has it checked out; never start a taken one, `Every issue of the queue is taken.` means
-  there is nothing to start. Reordering the queue is the user's call (`skill:prioritize-issues`).
+  exists or a worktree has it checked out; never start a taken one, `Every open issue is taken.` means
+  there is nothing to start. Reordering the issues is the user's call (`skill:prioritize-issues`).

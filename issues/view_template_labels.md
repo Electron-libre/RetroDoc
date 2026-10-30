@@ -1,3 +1,7 @@
+---
+rank: 300
+why: 'same milestone as `roles_second_pass_and_promoted_sources`, after it: the value of the labels is not measured yet; before the later milestones'
+---
 # Read the labels of the view templates without a call per file
 
 # Goal

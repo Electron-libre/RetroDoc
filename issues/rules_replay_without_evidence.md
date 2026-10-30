@@ -1,3 +1,7 @@
+---
+rank: 800
+why: 'small, right before `rules_plumbing_and_screen_noise`: its rules measures should replay the pass with the evidence `generate` gives'
+---
 # Give the rules replay the evidence `generate` gives the rules pass
 
 # Goal

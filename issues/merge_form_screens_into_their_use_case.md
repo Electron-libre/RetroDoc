@@ -1,3 +1,7 @@
+---
+rank: 700
+why: 'out of hold (user, 2026-10-30): its last step is a `form_pairs_measure` on the saved complete run (ledger), no LLM call; closes milestone `A large application`'
+---
 # Merge the screens that open a form with the use case that submits it
 
 # Goal

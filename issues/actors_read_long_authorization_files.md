@@ -1,3 +1,7 @@
+---
+rank: 500
+why: 'first of milestone `A large application`: the actors of a large application are cut at 3,000 characters per file; before `contexts_residual_size_and_names`, which is low'
+---
 # Read the long authorization files whole in the actors pass
 
 # Goal

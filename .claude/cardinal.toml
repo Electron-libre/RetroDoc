@@ -1,6 +1,6 @@
 [cardinal]
 source = "https://github.com/Electron-libre/cardinal.git"
-rev = "703b389ce5a67d5e34200e84ac3a8ec9dfb9be18"  # default branch
+rev = "e2e2bfd0bba725755bc3a2f44820e94b0ac771f1"  # default branch
 
 # Values of this project that Cardinal (the shared harness) reads. Owned by the project: `cardinal sync` never rewrites it.
 
@@ -12,7 +12,7 @@ root_docs = ["README.md", "PRODUCT.md", "ROADMAP.md", "CHANGELOG.md"]
 # Directories that scripts do not scan besides .git, target and node_modules.
 skipped_dirs = [".retrodoc"]
 # Where the agent finds the context of the project (issue-workflow, create-issue, prioritize-issues).
-roadmap = ["ROADMAP.md", "PRODUCT.md", "issues/queue.md"]
+roadmap = ["ROADMAP.md", "PRODUCT.md"]
 architecture = "docs/ARCHITECTURE.md"
 # Where the rules for writing tests are (issue-workflow, step "test first").
 test_conventions = "docs/dev/conventions.md"

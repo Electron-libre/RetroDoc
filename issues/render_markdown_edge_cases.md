@@ -1,3 +1,7 @@
+---
+rank: 1400
+why: 'low (high review of `split_render_markdown`, 2026-10-29): edge cases of the render no run has shown yet; next to `mcp_tools_answer_edge_cases`, same kind, before `git_log_follow_renames`'
+---
 # Fix the edge cases and the duplicated pieces of the Markdown render
 
 # Goal

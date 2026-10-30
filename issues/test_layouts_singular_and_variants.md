@@ -1,3 +1,7 @@
+---
+rank: 400
+why: 'low (high review of `stack_tables_nested_layouts`, 2026-10-30): small, last issue of milestone `Language and framework agnostic`; layouts no run has shown yet'
+---
 # Read the singular, BDD and Android variant test layouts as tests
 
 # Goal

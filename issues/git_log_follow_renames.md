@@ -1,3 +1,7 @@
+---
+rank: 1700
+why: 'not a priority (user, 2026-10-09): small MCP improvement, do it when nothing more valuable is left'
+---
 # Follow file renames in the MCP git_log
 
 # Goal

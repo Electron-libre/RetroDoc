@@ -1,3 +1,7 @@
+---
+rank: 1000
+why: 'open point of `docs/findings.md` (2026-10-30): small, milestone `Ask the documentation` comes last; before the MCP edge cases, same crate'
+---
 # Return nothing from the documentation search when nothing is relevant
 
 # Goal

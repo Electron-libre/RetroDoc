@@ -5,7 +5,7 @@ description: Report whether the recent Cardinal revisions made the agent more ef
 
 # Evaluate Cardinal
 
-Talk to the user in the `user_language` of `.claude/cardinal.toml` (skills, code, docs and issues stay in English). Measure only:
+Talk to the user in the `user_language` of `.claude/cardinal.local.toml`, else of `.claude/cardinal.toml` (skills, code, docs and issues stay in English). Measure only:
 change nothing here. The sibling `skill:audit-instructions` proposes rules; this one measures what the rules
 brought.
 

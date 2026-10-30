@@ -1,3 +1,7 @@
+---
+rank: 100
+why: 'last open issue of the earliest open milestone (Business-level documentation, `docs/findings.md`, 2026-10-30): the narrative is the first thing a reader trusts and nothing checks it; its measure reads saved benchmark runs'
+---
 # Check the business narrative of a use case against the code it cites
 
 # Goal

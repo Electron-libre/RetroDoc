@@ -1,3 +1,7 @@
+---
+rank: 900
+why: 'low (user, 2026-10-23): fine tuning of rules that are already usable; each step gained less than the one before, so after `contexts_residual_size_and_names` and well behind the structural work'
+---
 # Lower the plumbing and screen behaviour left among the business rules
 
 # Goal

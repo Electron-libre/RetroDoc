@@ -16,7 +16,7 @@ Show the user your results as `.claude/rules/reports-to-the-user.md` says.
    covers it, propose extending it instead of creating a new file.
 2. **Gather the facts** from what was actually observed (logs, smoke runs, code, `git log`, the `roadmap` documents of `.claude/cardinal.toml`). Don't invent
    findings; if a fact is missing, say so in the issue or ask the user.
-3. **Write the file** in English (the conversation with the user stays in the `user_language` of `.claude/cardinal.toml`), with this template:
+3. **Write the file** in English (the conversation with the user stays in the `user_language` of `.claude/cardinal.local.toml`, else of `.claude/cardinal.toml`), with this template:
 
    ```markdown
    # <Title: what to achieve, imperative>
@@ -57,21 +57,33 @@ Show the user your results as `.claude/rules/reports-to-the-user.md` says.
    just check-issue issues/<name>.md
    ```
 
-5. **Queue**: a new issue has a priority, so rank it. Read `issues/queue.md` and the issues around the
-   candidate places, then insert `- [<stem>](<stem>.md) - <why here>` at the rank that value and dependencies
-   justify (not by reflex at the end; the "why" names what it comes after or unblocks). Say the rank and the
+5. **Rank**: a new issue has a priority, so rank it. An `issues/queue.md` left from the format 4 is converted
+   first (`just next-issue --convert`, in the main worktree). Run `just next-issue` (the open issues, lowest rank first),
+   read the issues around the candidate places, then open the file with a front matter
+
+   ```markdown
+   ---
+   rank: <n>
+   why: '<why here>'
+   ---
+   ```
+
+   at the place that value and dependencies justify (not by reflex at the end; the "why" names what it comes
+   after or unblocks): `<n>` halfway between the ranks of its neighbours (`rank` of the files, gaps of 100), never
+   editing another issue to make room (the `why` in single quotes, a `'` inside doubled); a tie with a neighbour is reported by `just next-issue` and settled by
+   `skill:prioritize-issues`. Say the rank and the
    reason to the user, who can move it. If the new issue changes the case for others, say so and suggest
-   `skill:prioritize-issues` rather than silently reshuffling. Run `just next-issue` and check it reports
-   no drift. Then attach it to a milestone of the `roadmap` documents of `.claude/cardinal.toml`: add its link
+   `skill:prioritize-issues` rather than silently reshuffling. Run `just next-issue` and check it lists the issue
+   at its place and reports no issue without a rank. Then attach it to a milestone of the `roadmap` documents of `.claude/cardinal.toml`: add its link
    (relative to the roadmap file) under that milestone's issues, set a `shaped` milestone `in issues`, name it in
    the `# Milestone` section of the issue and run `just check-issue` again; or tell the user it has none. An `idea`
    or `done` milestone takes an issue only on the user's agreement. Never create or reorder a milestone unasked: the
    milestones, their order and their states are the user's.
-6. **Commit**: commit the issue files alone (the new issue files, `issues/queue.md` and the roadmap file step 5 edited), added then named on
+6. **Commit**: commit the issue files alone (the new issue files and the roadmap file step 5 edited), added then named on
    the commit line (`git add <files>`, then `git commit -m <msg> -- <files>`; never `git add -A`), with
    `skill:commit-message`; other modified or staged files stay out of the commit. Two exceptions: an issue
    written inside another deliverable (a review finding) is committed with that deliverable, not on its own;
-   when `issues/queue.md` or the roadmap file already held changes that are not this skill's, ask before committing.
+   when the roadmap file already held changes that are not this skill's, ask before committing.
 7. **Deliver**: give the path, rank, milestone, commit hash (if step 6 committed) and one line (no other recap), and
    offer to start `skill:issue-workflow` on it.
 

@@ -1,3 +1,7 @@
+---
+rank: 600
+why: 'low: follow-up of the closed split by family (2026-10-14): one context still over 150 files, action names taken for families, the names unread; nothing before it depends on it, and its spread measure is cheaper after `sampling_temperature_for_steadier_runs`'
+---
 # Finish the split of the contexts: the one still too big, the action names, the names read
 
 # Goal

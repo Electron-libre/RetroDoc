@@ -1,3 +1,7 @@
+---
+rank: 200
+why: 'first of milestone `Language and framework agnostic`, its most valuable issue (open point of `docs/findings.md`, 2026-10-30): an unknown stack loses the files no rule matches; its measure reads saved runs, no LLM call'
+---
 # Classify the files no role rule matches, and show the promoted sources in `scan` and `roles`
 
 # Goal

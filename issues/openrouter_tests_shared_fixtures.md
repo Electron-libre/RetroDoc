@@ -1,3 +1,7 @@
+---
+rank: 1500
+why: 'low (high review of `split_openrouter_tests`, 2026-10-29): test hygiene with no user-visible effect; next to `render_markdown_edge_cases`, same origin, before `git_log_follow_renames`'
+---
 # Share the fixtures of the OpenRouter provider tests
 
 # Goal

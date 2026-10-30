@@ -1,3 +1,7 @@
+---
+rank: 1300
+why: 'low (high review of `split_mcp_tools`, 2026-10-29): edge cases of the MCP answers no run has shown yet; before `git_log_follow_renames`, same crate and also not a priority'
+---
 # Fix the edge cases of the MCP tools' answers and of the `Docs` builders
 
 # Goal

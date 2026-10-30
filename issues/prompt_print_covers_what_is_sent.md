@@ -1,3 +1,7 @@
+---
+rank: 1100
+why: 'low (high review of `reading_hash_ignores_the_prompt`, 2026-10-29): the system prompts are compared already; schema and user-prompt text change less often; before the other review follow-ups, it keeps prompt measures honest'
+---
 # Make the prompt part of the prints cover everything a pass sends
 
 # Goal
