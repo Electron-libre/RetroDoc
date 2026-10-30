@@ -112,7 +112,7 @@ The milestones up to "A large application, one bounded context at a time" are th
 - Goal: every pass works on a repository of a stack the code knows nothing of; the stack tables and readers are
   accelerators with a generic fallback, and cover the reference set of stacks (ADR 0036).
 - Why: the stack knowledge grew from the measured repositories only, so the tables drifted towards their stacks.
-- State: in issues
+- State: done
 - Issues:
   - [stack_tables_cover_the_reference_set](issues/done/stack_tables_cover_the_reference_set.md)
   - [framework_fixtures_through_generate](issues/done/framework_fixtures_through_generate.md)
@@ -122,7 +122,7 @@ The milestones up to "A large application, one bounded context at a time" are th
   - [view_template_labels](issues/done/view_template_labels.md)
   - [template_extensions_never_promoted](issues/done/template_extensions_never_promoted.md)
   - [test_layouts_singular_and_variants](issues/done/test_layouts_singular_and_variants.md)
-  - [built_in_extension_templates_read_as_source](issues/built_in_extension_templates_read_as_source.md)
+  - [built_in_extension_templates_read_as_source](issues/done/built_in_extension_templates_read_as_source.md)
 
 ## A large application, one bounded context at a time
 
