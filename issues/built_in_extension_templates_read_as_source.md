@@ -36,3 +36,46 @@ Language and framework agnostic
 # Hints
 * The Laravel fixture of LNG-9 (`crates/retrodoc-cli/tests/reference_frameworks.rs`) holds no view today: add
   one to prove it.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+A view template whose last extension is built-in (`.blade.php`, `.html.php`, `.tpl.php`) is never source nor test,
+neither by `from_path` nor by the promotion (LNG-21). Out of scope: plain `.php` templates told by their directory
+(CakePHP 4 `templates/`), generated code (`_templ.go`). Means: candidate (a), the suffixes checked in `from_path`
+and in the promotion's filter, next to `is_build_script`.
+
+Measure (2026-10-30, file lists of shallow clones): `.blade.php` is 18 % of the `.php` files of BookStack
+(325/1839), 14 % of Pixelfed (368/2722), 0.4 % of Monica (6/1656, Inertia front); `.tpl.php` is 57 of the 437 PHP
+files of Drupal 7. No other compound suffix of the reference set ends in a built-in extension (Rails `.html.erb`,
+`.json.jbuilder` end in a template extension already denied).
+
+## Plan
+1. [x] Compound template suffixes: `from_path` and `promote_to_source` leave `.blade.php`, `.html.php`, `.tpl.php`
+   files other; verified by a `scan` test in `stack_tables.rs` and a promotion unit test in `walker.rs`; makes true
+   LNG-21.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 78dc1da8dfce21b0670cca9c66e1383fbae56dce
+- 1 a: `ctp` (CakePHP 2/3 templates) added to `NEVER_SOURCE`.
+
+## Deliverable 1
+- done: `from_path` and `promote_to_source` leave `.blade.php`, `.html.php`, `.tpl.php` files other (`is_never_code`
+  = build script or compound template); `ctp` joins `NEVER_SOURCE`; LNG-21 written, spec back to `accepted`.
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | pass |
+| specs | pass, LNG-21 traced |
+| docs | `docs/crates/core-ingest.md`, `specs/language-agnostic.md` |
+| code review | `low`, clean |
+
+- red: LNG-21: `scan` gave `(source: 4, test: 1, markdown: 0, other: 1)` for the 4 templates + 1 model; the
+  promotion unit test promoted the templates once `php` was named.
+- Code review: no findings
+- not verified: no run on a real Laravel repository (none in the benchmark or the smoke tests).
+- decisions needed: none.

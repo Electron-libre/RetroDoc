@@ -62,6 +62,7 @@ const NEVER_SOURCE: &[&str] = &[
     "heex",
     "leex",
     "phtml",
+    "ctp",
     "latte",
     "mako",
     "ftl",
@@ -106,7 +107,7 @@ impl FileKind {
     fn from_path(path: &Path) -> Self {
         match path.extension().and_then(|e| e.to_str()) {
             Some("md" | "mdx") => FileKind::Markdown,
-            _ if is_build_script(path) => FileKind::Other,
+            _ if is_never_code(path) => FileKind::Other,
             Some(
                 "rs" | "ts" | "tsx" | "mts" | "cts" | "js" | "jsx" | "mjs" | "cjs" | "py" | "go"
                 | "java" | "kt" | "kts" | "rb" | "php" | "c" | "h" | "cc" | "cpp" | "hpp" | "cs"
@@ -147,7 +148,7 @@ pub fn promote_to_source(files: &mut [FileEntry], extensions: &[String]) -> Prom
     let mut promotion = Promotion::default();
     let mut held = Vec::new();
     for file in files.iter_mut().filter(|f| {
-        f.kind == FileKind::Other && !is_build_script(&f.path) && !(sbt && in_sbt_project(&f.path))
+        f.kind == FileKind::Other && !is_never_code(&f.path) && !(sbt && in_sbt_project(&f.path))
     }) {
         let Some(ext) = file
             .path
@@ -184,6 +185,12 @@ fn normalized(extensions: &[String]) -> impl Iterator<Item = String> + '_ {
         .filter(|e| !e.is_empty())
 }
 
+/// A file of a code extension that is not code of the application: a build
+/// script or a view template.
+fn is_never_code(path: &Path) -> bool {
+    is_build_script(path) || is_compound_template(path)
+}
+
 /// A build script written in a language of the reference set
 /// (`build.gradle.kts`, `settings.gradle.kts`, `Package.swift`): a manifest,
 /// not code of the application.
@@ -191,6 +198,18 @@ fn is_build_script(path: &Path) -> bool {
     path.file_name()
         .map(|n| n.to_string_lossy())
         .is_some_and(|n| n.ends_with(".gradle.kts") || n == "Package.swift")
+}
+
+/// Suffixes of view templates whose last extension is a built-in source
+/// extension (Laravel Blade, PHP templating, Drupal `PHPTemplate`).
+const COMPOUND_TEMPLATE_SUFFIXES: &[&str] = &[".blade.php", ".html.php", ".tpl.php"];
+
+/// A view template that ends in a built-in source extension
+/// (`index.blade.php`): markup, not code of the application.
+fn is_compound_template(path: &Path) -> bool {
+    path.file_name()
+        .map(|n| n.to_string_lossy().to_lowercase())
+        .is_some_and(|n| COMPOUND_TEMPLATE_SUFFIXES.iter().any(|s| n.ends_with(s)))
 }
 
 /// An sbt build: a `build.sbt` at the root, whose `project/` directory holds
@@ -495,6 +514,25 @@ mod tests {
             promote_to_source(&mut rb, &["erb".into()]),
             Promotion::default()
         );
+    }
+
+    // spec: LNG-21 (internal: the roles call that promotes extensions needs an LLM through the binary)
+    #[test]
+    fn templates_of_a_built_in_extension_are_never_promoted() {
+        let entry = |path: &str| FileEntry {
+            path: PathBuf::from(path),
+            kind: FileKind::from_path(Path::new(path)),
+            size_bytes: 0,
+        };
+        let mut files = vec![
+            entry("resources/views/orders/index.blade.php"),
+            entry("templates/order.html.php"),
+            entry("themes/node.tpl.php"),
+            entry("tests/views/order.blade.php"),
+        ];
+        let promotion = promote_to_source(&mut files, &["php".into()]);
+        assert_eq!(promotion, Promotion::default());
+        assert!(files.iter().all(|f| f.kind == FileKind::Other));
     }
 
     // spec: LNG-14 (internal: the roles call that promotes extensions needs an LLM through the binary)

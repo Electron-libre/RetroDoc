@@ -79,6 +79,9 @@ Overflow Developer Survey and reviewed once a year (ADR 0036):
   templates, markup, stylesheets or data (`erb`, `haml`, `slim`, `jbuilder`, `html`, `css`, `scss`, `json`,
   `yaml`... the full list in `walker.rs`), whatever `source_extensions` names, and `scan`, `roles` and `generate` must print
   those of them that a file of the repository holds.
+- **LNG-21** (deterministic) The walker and the promotion of LNG-2 and LNG-15 must leave out of the source and
+  test files a view template whose name ends in a compound suffix of a built-in extension (`.blade.php`,
+  `.html.php`, `.tpl.php`), whatever `source_extensions` names.
 
 ## Scenarios
 
@@ -147,6 +150,9 @@ Overflow Developer Survey and reviewed once a year (ADR 0036):
   `erb, jbuilder, scss`; `app/models/order.rb` is source; a denied `json` that no file holds is not printed.
 - (LNG-20) Given `source_extensions: [vue, svelte, astro]`, then their files are promoted: they hold code and
   markup together.
+- (LNG-21) Given `resources/views/orders/index.blade.php`, `templates/order.html.php` and
+  `themes/node.tpl.php`, then they are other files, even when `source_extensions` names `php`;
+  `app/Models/Order.php` is source.
 
 ## Non-goals
 

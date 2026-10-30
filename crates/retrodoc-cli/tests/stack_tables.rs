@@ -90,6 +90,26 @@ fn every_reference_extension_is_source() {
     assert!(out.contains(&expected), "{out}");
 }
 
+// spec: LNG-21
+#[test]
+fn templates_of_a_built_in_extension_are_not_source() {
+    let dir = repo(&[
+        "app/Models/Order.php",
+        "resources/views/orders/index.blade.php",
+        "templates/order.html.php",
+        "themes/node.tpl.php",
+        "tests/views/order.blade.php",
+    ]);
+
+    let out = scan(dir.path());
+
+    // retrodoc.toml and the four templates are the other files.
+    assert!(
+        out.contains("(source: 1, test: 0, markdown: 0, other: 5)"),
+        "{out}"
+    );
+}
+
 // spec: LNG-6
 #[test]
 fn every_reference_test_layout_is_test() {
