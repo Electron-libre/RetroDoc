@@ -6,7 +6,12 @@
 //! one LLM call, saved as `.retrodoc/cache/actors.yaml`. The use cases pass
 //! then names its actors from this list.
 //!
-//! The list is reused while its inputs (the content of those files and the
+//! The authorization files are read within one prompt budget, in their order
+//! of selection: whole when they fit, a long one as the excerpt of its chunks
+//! naming an entity or an authorization word (ADR 0027), and the files past
+//! the budget are named in a warning (`specs/actors-reading.md`).
+//!
+//! The list is reused while its inputs (the text sent for those files and the
 //! entities) are unchanged.
 
 use std::collections::BTreeSet;
@@ -19,18 +24,20 @@ use serde::{Deserialize, Serialize};
 
 use crate::artifact::{load_yaml, save_yaml, Artifact};
 use crate::brief::ProductBrief;
-use crate::cache::hash_content;
+use crate::chunks::Focus;
 use crate::error::PipelineError;
 use crate::fingerprints::{fingerprint, model_part, prompt_part};
 use crate::naming::normalize;
 use crate::response::complete_json;
 use crate::surface::Surface;
-use crate::text::{read_file_lossy, truncate_chars};
+use crate::text::read_file_lossy;
 
-/// Authorization files sent to the LLM.
-const MAX_AUTH_FILES: usize = 12;
-/// Characters kept of each authorization file.
-const MAX_AUTH_FILE_CHARS: usize = 3_000;
+/// Characters of authorization code sent to the LLM, all files together.
+const AUTH_CODE_BUDGET: usize = 40_000;
+/// Characters of one authorization file past which it is sent as an excerpt.
+const AUTH_FILE_BUDGET: usize = 8_000;
+/// Below this many characters left, no further file is started.
+const MIN_FILE_SHARE: usize = 200;
 /// Entities listed in the prompt, the best connected first.
 const MAX_ENTITIES: usize = 25;
 /// Attributes shown for each of those entities.
@@ -195,8 +202,7 @@ pub(crate) fn words(identifier: &str) -> Vec<String> {
 }
 
 /// The files that look like authorization code, by the words of their name:
-/// the ones with the most telling word first, then in path order, at most
-/// [`MAX_AUTH_FILES`].
+/// the ones with the most telling word first, then in path order.
 #[must_use]
 pub fn authorization_files(source_files: &[PathBuf]) -> Vec<PathBuf> {
     let mut found: Vec<(usize, &PathBuf)> = source_files
@@ -211,11 +217,7 @@ pub fn authorization_files(source_files: &[PathBuf]) -> Vec<PathBuf> {
         })
         .collect();
     found.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(b.1)));
-    found
-        .into_iter()
-        .take(MAX_AUTH_FILES)
-        .map(|(_, path)| path.clone())
-        .collect()
+    found.into_iter().map(|(_, path)| path.clone()).collect()
 }
 
 /// The business entities, as prompt lines with their main attributes (a
@@ -244,6 +246,58 @@ fn entity_lines(surface: &Surface) -> Vec<String> {
         .collect()
 }
 
+/// The text sent for each authorization file, in order, within
+/// [`AUTH_CODE_BUDGET`]: whole when it fits [`AUTH_FILE_BUDGET`], else the
+/// excerpt of its chunks naming an entity or an authorization word. The files
+/// past the budget are named in one warning.
+fn authorization_sections(
+    repo_root: &Path,
+    files: Vec<PathBuf>,
+    surface: &Surface,
+) -> Vec<(PathBuf, String)> {
+    let splitter = crate::roles::load_splitter(repo_root);
+    let focus = Focus {
+        terms: surface
+            .entities
+            .iter()
+            .map(|e| e.name.to_lowercase())
+            .collect(),
+        words: AUTH_WORDS.iter().map(|w| (*w).to_string()).collect(),
+        lines: Vec::new(),
+    };
+    let mut sections = Vec::new();
+    let mut unread = Vec::new();
+    let mut left = AUTH_CODE_BUDGET;
+    for path in files {
+        if left < MIN_FILE_SHARE {
+            unread.push(path);
+            continue;
+        }
+        let content = match read_file_lossy(repo_root, &path) {
+            Ok(content) => content,
+            Err(err) => {
+                tracing::warn!(path = %path.display(), error = %err, "authorization file skipped");
+                continue;
+            }
+        };
+        let text = if content.len() <= AUTH_FILE_BUDGET.min(left) {
+            content
+        } else {
+            splitter.excerpt(&path, &content, AUTH_FILE_BUDGET.min(left), &focus)
+        };
+        left = left.saturating_sub(text.len());
+        sections.push((path, text));
+    }
+    if let Some(first) = unread.first() {
+        tracing::warn!(
+            unread = unread.len(),
+            first = %first.display(),
+            "authorization files left unread by the actors pass, past its prompt budget"
+        );
+    }
+    sections
+}
+
 /// Identifies the business actors of the application. Reuses the saved list
 /// when the authorization files and the entities are unchanged
 /// (and `force` is false); an unusable answer yields an empty list, not
@@ -260,16 +314,7 @@ pub async fn build_actors(
     llm: &dyn LlmProvider,
     force: bool,
 ) -> Result<Actors, PipelineError> {
-    let files = authorization_files(source_files);
-    let mut contents: Vec<(PathBuf, String)> = Vec::new();
-    for path in files {
-        match read_file_lossy(repo_root, &path) {
-            Ok(content) => contents.push((path, content)),
-            Err(err) => {
-                tracing::warn!(path = %path.display(), error = %err, "authorization file skipped");
-            }
-        }
-    }
+    let contents = authorization_sections(repo_root, authorization_files(source_files), surface);
     let entity_lines = entity_lines(surface);
     if contents.is_empty() && entity_lines.is_empty() {
         tracing::info!("no authorization code nor entity found, no actors identified");
@@ -279,7 +324,7 @@ pub async fn build_actors(
     let input_hash = fingerprint(
         contents
             .iter()
-            .map(|(path, content)| format!("{}\n{}", path.display(), hash_content(content)))
+            .map(|(path, text)| format!("{}\n{text}", path.display()))
             .chain(entity_lines.iter().cloned())
             .chain(brief.print_part())
             .chain(std::iter::once(prompt_part(&[ACTORS_SYSTEM_PROMPT])))
@@ -299,13 +344,8 @@ pub async fn build_actors(
             let _ = writeln!(prompt, "{line}");
         }
     }
-    for (path, content) in &contents {
-        let _ = write!(
-            prompt,
-            "\n--- {} ---\n{}\n",
-            path.display(),
-            truncate_chars(content, MAX_AUTH_FILE_CHARS)
-        );
+    for (path, text) in &contents {
+        let _ = write!(prompt, "\n--- {} ---\n{text}\n", path.display());
     }
 
     let Some(raw) =
@@ -373,6 +413,7 @@ mod tests {
         );
     }
 
+    // spec: ACT-5 (internal: the LLM is faked in-process)
     #[tokio::test]
     async fn identifies_actors_once_and_reuses_them_while_the_inputs_are_unchanged() {
         let dir = tempfile::tempdir().unwrap();
@@ -531,6 +572,111 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(llm.calls(), 2);
+    }
+
+    fn write(dir: &Path, path: &str, content: &str) {
+        let full = dir.join(path);
+        std::fs::create_dir_all(full.parent().unwrap()).unwrap();
+        std::fs::write(full, content).unwrap();
+    }
+
+    async fn prompt_for(dir: &Path, files: &[PathBuf], surface: &Surface) -> String {
+        let llm = FakeLlm::answering(r#"{"actors":[{"name":"Manager","kind":"human"}]}"#);
+        build_actors(dir, files, surface, &ProductBrief::default(), &llm, false)
+            .await
+            .unwrap();
+        llm.prompts().remove(0)
+    }
+
+    // spec: ACT-1 (internal: the LLM is faked in-process)
+    #[tokio::test]
+    async fn every_short_authorization_file_is_sent_whole_past_twelve() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut files = Vec::new();
+        for i in 0..20 {
+            let path = format!("app/policies/thing{i:02}_policy.rb");
+            write(
+                dir.path(),
+                &path,
+                &format!("class Thing{i:02}Policy\n  def edit?\n    manager?\n  end\nend\n"),
+            );
+            files.push(PathBuf::from(path));
+        }
+        let prompt = prompt_for(dir.path(), &files, &Surface::default()).await;
+        for i in 0..20 {
+            assert!(
+                prompt.contains(&format!("class Thing{i:02}Policy")),
+                "file {i} missing"
+            );
+        }
+    }
+
+    // spec: ACT-2 (internal: the LLM is faked in-process)
+    #[tokio::test]
+    async fn a_long_authorization_file_is_sent_as_the_chunks_that_matter() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut content = String::from("class Roles\n");
+        for i in 0..80 {
+            let _ = write!(
+                content,
+                "  def filler_{i}\n    # {}\n    true\n  end\n\n",
+                "x".repeat(150)
+            );
+        }
+        content.push_str("  def signatory_can_sign?\n    true\n  end\nend\n");
+        assert!(content.len() > 12_000);
+        write(dir.path(), "app/models/roles.rb", &content);
+        let entity = crate::glossary::MergedEntity {
+            name: "Signatory".to_string(),
+            description: "Signs contracts".to_string(),
+            attributes: Vec::new(),
+            associations: Vec::new(),
+            files: Vec::new(),
+        };
+        let surface = Surface {
+            entities: vec![entity],
+            resources: Vec::new(),
+        };
+        let prompt = prompt_for(dir.path(), &paths(&["app/models/roles.rb"]), &surface).await;
+        assert!(prompt.contains("class Roles"), "{prompt}");
+        assert!(prompt.contains("def signatory_can_sign?"), "{prompt}");
+        assert!(prompt.contains("omitted)"), "{prompt}");
+        assert!(prompt.len() < 10_000, "{}", prompt.len());
+    }
+
+    // spec: ACT-3, ACT-4 (internal: the LLM is faked in-process)
+    #[tokio::test]
+    async fn the_files_past_the_budget_are_left_out_with_one_warning() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut files = Vec::new();
+        for i in 0..60 {
+            let path = format!("app/policies/thing{i:02}_policy.rb");
+            write(
+                dir.path(),
+                &path,
+                &format!("# Thing{i:02}Policy\n{}\n", "y".repeat(990)),
+            );
+            files.push(PathBuf::from(path));
+        }
+        let (logs, _guard) = crate::testing::capture_logs();
+        let prompt = prompt_for(dir.path(), &files, &Surface::default()).await;
+        assert!(prompt.contains("Thing00Policy"));
+        assert!(!prompt.contains("Thing59Policy"));
+        let sent = (0..60)
+            .filter(|i| prompt.contains(&format!("Thing{i:02}Policy")))
+            .count();
+        let first_unread = format!("app/policies/thing{sent:02}_policy.rb");
+        let logs = logs.text();
+        let warnings: Vec<&str> = logs
+            .lines()
+            .filter(|l| l.contains("WARN") && l.contains("authorization"))
+            .collect();
+        assert_eq!(warnings.len(), 1, "{logs}");
+        assert!(
+            warnings[0].contains(&format!("unread={}", 60 - sent)),
+            "{logs}"
+        );
+        assert!(warnings[0].contains(&first_unread), "{logs}");
     }
 
     // spec: RER-3

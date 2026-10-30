@@ -37,3 +37,45 @@ A large application, one bounded context at a time
 # Hints
 * The actors are reused while their input hash is unchanged: the new reading must enter the fingerprint.
 * Keep one prompt text for every stack (ADR 0036): no Rails-specific selection of lines.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Measured on 2026-10-30 (no LLM, saved trees): no selected file is longer than 3,000 characters on linkding, lobsters,
+delivery_router or the large Rails app (its central ability file: 2,860). What loses actors there is the 12-file cap:
+64 candidates, 52 never sent (the contract, signatory and validator policies, the permission manager), 37k characters
+in all. So: replace both caps by one prompt budget, cut a long file with `Splitter::excerpt`, log what is left unread.
+Out of scope: one call per chunk group (candidate b), the file selection itself.
+
+## Plan
+1. [x] Read the authorization code within one budget: files taken whole in selection order up to a total budget,
+   a file over the per-file budget sent as its excerpt (focus: entity names, authorization words), the files past
+   the budget logged as one warning, the fingerprint on the text sent; verified by tests in `actors.rs`; makes true
+   ACT-1 to ACT-5.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 8e015fa
+- Budgets: 40,000 characters of authorization code per prompt, 8,000 per file before it is sent as an excerpt (answers 1 a, 2 a).
+
+## Deliverable 1
+- done: `actors.rs` reads every authorization file within 40,000 characters (whole up to 8,000, else
+  `Splitter::excerpt` focused on entity names and authorization words), warns of the files left unread, fingerprints
+  the text sent; spec `specs/actors-reading.md` accepted; `docs/crates/pipeline.md`, `docs/findings.md` updated.
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | pass |
+| specs | ACT-1 to ACT-5 traced |
+| docs | updated |
+| code review | low: no findings |
+
+- red: ACT-1: `file 12 missing`; ACT-2: prompt lacked `def signatory_can_sign?` (head cut at 3,000); ACT-3, ACT-4:
+  `left: 0, right: 1` warnings; ACT-5: already green (reuse on unchanged content), kept as its proof.
+- Code review: no findings
+- not verified: no run on a real repository (the saved actors of the runs are re-identified once, the fingerprint
+  now holds the text sent).
+- decisions needed: none.
