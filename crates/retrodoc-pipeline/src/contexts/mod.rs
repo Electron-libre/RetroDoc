@@ -501,14 +501,14 @@ async fn split_large_contexts(
 ) -> Result<ContextMap, PipelineError> {
     let mut map = map;
     // A part of a split can still be big: it is split again, a bounded number of times.
-    let mut whole: BTreeSet<String> = BTreeSet::new();
+    let mut whole: BTreeMap<String, Whole> = BTreeMap::new();
     for _ in 0..MAX_SPLIT_LEVELS {
         let resolved = map.resolve(sources, seeds);
         let big: Vec<bool> = map
             .contexts
             .iter()
             .zip(&resolved.contexts)
-            .map(|(c, own)| own.files.len() > MAX_CONTEXT_FILES && !whole.contains(&c.slug))
+            .map(|(c, own)| own.files.len() > MAX_CONTEXT_FILES && !whole.contains_key(&c.slug))
             .collect();
         if !big.contains(&true) {
             break;
@@ -516,27 +516,51 @@ async fn split_large_contexts(
         map = split_once(map, resolved, &big, &mut whole, grouped, brief, llm).await?;
     }
     let left = map.resolve(sources, seeds);
-    let still_big = left
-        .contexts
-        .iter()
-        .filter(|c| c.files.len() > MAX_CONTEXT_FILES)
-        .count();
-    if still_big > 0 {
-        tracing::warn!(
-            contexts = still_big,
-            "contexts still over {MAX_CONTEXT_FILES} files after splitting: a run takes each whole"
-        );
+    for (context, own) in map.contexts.iter().zip(&left.contexts) {
+        if own.files.len() > MAX_CONTEXT_FILES {
+            let reason = whole.get(&context.slug).unwrap_or(&Whole::SplitTwice);
+            tracing::warn!(
+                context = %context.slug,
+                files = own.files.len(),
+                %reason,
+                "context still over {MAX_CONTEXT_FILES} files: a run takes it whole"
+            );
+        }
     }
     Ok(map)
 }
 
+/// Why a context over the limit was left whole.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Whole {
+    /// Fewer than [`MIN_ENTRIES_TO_SPLIT`] groups and folders: no call was made.
+    TooFewEntries,
+    /// The answer of the split call could not be read.
+    Unusable,
+    /// The answer gave fewer than two parts.
+    OnePart,
+    /// A part of a part: [`MAX_SPLIT_LEVELS`] calls were made already.
+    SplitTwice,
+}
+
+impl std::fmt::Display for Whole {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::TooFewEntries => "too few entries to cut",
+            Self::Unusable => "unusable answer",
+            Self::OnePart => "fewer than two parts",
+            Self::SplitTwice => "split twice already",
+        })
+    }
+}
+
 /// One level: the contexts flagged in `big` replaced by their parts. The ones that could not be
-/// split are added to `whole`, so they are not asked about again.
+/// split are added to `whole` with the reason, so they are not asked about again.
 async fn split_once(
     map: ContextMap,
     resolved: Resolved,
     big: &[bool],
-    whole: &mut BTreeSet<String>,
+    whole: &mut BTreeMap<String, Whole>,
     grouped: &Groups,
     brief: &ProductBrief,
     llm: &dyn LlmProvider,
@@ -555,15 +579,18 @@ async fn split_once(
             out.push(context);
             continue;
         }
-        if let Some(parts) = split_context(&context, &own.files, grouped, brief, llm).await? {
-            for mut part in parts {
-                part.slug = unique_slug(&part.slug, slugs.iter().map(String::as_str));
-                slugs.push(part.slug.clone());
-                out.push(part);
+        match split_context(&context, &own.files, grouped, brief, llm).await? {
+            Ok(parts) => {
+                for mut part in parts {
+                    part.slug = unique_slug(&part.slug, slugs.iter().map(String::as_str));
+                    slugs.push(part.slug.clone());
+                    out.push(part);
+                }
             }
-        } else {
-            whole.insert(context.slug.clone());
-            out.push(context);
+            Err(reason) => {
+                whole.insert(context.slug.clone(), reason);
+                out.push(context);
+            }
         }
     }
     Ok(ContextMap {
@@ -572,8 +599,8 @@ async fn split_once(
     })
 }
 
-/// The sub-contexts of `context` (which holds `files`), or `None` when the answer is unusable or
-/// gives fewer than two. What the answer forgets stays with the first one, and so do the folders of
+/// The sub-contexts of `context` (which holds `files`), or why it stays whole: too few entries to
+/// cut, an unusable answer or fewer than two parts. What the answer forgets stays with the first one, and so do the folders of
 /// the context as a fallback (the sub-folders it cites are longer, so they win): no file is lost.
 ///
 /// # Errors
@@ -585,7 +612,7 @@ async fn split_context(
     grouped: &Groups,
     brief: &ProductBrief,
     llm: &dyn LlmProvider,
-) -> Result<Option<Vec<BoundedContext>>, PipelineError> {
+) -> Result<Result<Vec<BoundedContext>, Whole>, PipelineError> {
     let in_context: BTreeSet<&PathBuf> = files.iter().collect();
     let groups: BTreeMap<String, BTreeSet<PathBuf>> = grouped
         .groups
@@ -624,7 +651,7 @@ async fn split_context(
     if listing.groups.len() + listing.folders.len() < MIN_ENTRIES_TO_SPLIT {
         // With fewer than three groups and folders there is hardly anything to cut: the call
         // would answer the context itself, for the price of a call.
-        return Ok(None);
+        return Ok(Err(Whole::TooFewEntries));
     }
     let prompt = format!(
         "Context to split: {} - {}\n\n{}",
@@ -635,13 +662,11 @@ async fn split_context(
     let what = format!("split of the context {}", context.slug);
     let Some(raw) = complete_json::<Response>(llm, SPLIT_SYSTEM_PROMPT, &prompt, &what).await?
     else {
-        tracing::warn!(context = %context.slug, "the split of a large context was unusable, kept whole");
-        return Ok(None);
+        return Ok(Err(Whole::Unusable));
     };
     let (mut parts, free) = place_cited(raw, &listing, files);
     if parts.contexts.len() < 2 {
-        tracing::warn!(context = %context.slug, "the split gave fewer than two parts, kept whole");
-        return Ok(None);
+        return Ok(Err(Whole::OnePart));
     }
     let placed: BTreeSet<String> = parts
         .contexts
@@ -679,7 +704,7 @@ async fn split_context(
         parts = parts.contexts.len(),
         "large context split"
     );
-    Ok(Some(parts.contexts))
+    Ok(Ok(parts.contexts))
 }
 
 /// One context for every source file: the empty folder is a prefix of all of them.

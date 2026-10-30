@@ -42,8 +42,50 @@ A large application, one bounded context at a time
 * ADR 0029, `crates/retrodoc-pipeline/src/contexts/` (`groups.rs` `family_groups`, `mod.rs` `split_context`)
 * `crates/retrodoc-pipeline/examples/context_map_measure.rs` (`--families`, `FAMILIES_UNDER=<folder>`)
 
+# Specs
+* `specs/context-split.md` (CSP)
+
 # Hints
 * A context already documented must stay as it is: offer a new map with `retrodoc contexts --force` only.
 * The application is confidential: describe it generically.
 * The same call is not steady (hosted model, no fixed seed); one run settles nothing, see
   `sampling_temperature_for_steadier_runs` which may come first.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Make the contexts map trustworthy on the large Rails application: know why one context stays over 150 files and
+cut it (or accept it), stop action names from being taken for families, read the names and measure the spread.
+Means: the warning itself says why a context stayed whole (CSP-4), so the run diagnoses it with no extra tooling.
+
+## Plan
+1. [x] Diagnostic warning: a context left over the limit is warned with its slug, file count and reason; the
+   existing tests trace CSP-1/2/3/5; verified by `FakeLlm` tests in `contexts/tests.rs`; makes true CSP-1 to CSP-5.
+2. [ ] Measure, steps 1-2 (no code): copy the saved complete run to `~/retrodoc-runs/contexts_residual-<commit>-1`,
+   one `retrodoc contexts` (~5 calls, ~$0.01), read the warning and `contexts.yaml`; `context_map_measure
+   --families` (`FAMILIES_UNDER=` the workflow folder) for the action names; findings in the issue and the ledger.
+3. [ ] Residual size, by the diagnosis of 2: list the part one level deeper (by family or sub-folder) when it has
+   too few entries, or accept it above the limit (then CSP-3/4 already cover it, no code); spec amended (CSP-6);
+   verified by a `FakeLlm` test.
+4. [ ] Action names: a rule in `family_groups` that drops a name shown only in an actions folder (rule shaped by
+   the measure of 2); verified by a unit test and `context_map_measure --families` keeping the five real families;
+   makes true CSP-7.
+5. [ ] Names and spread (no code): `contexts --force` two more times (~$0.02), names of the contexts read against
+   their files, spread (count, largest, support share, stable names) reported in the issue and the ledger.
+
+## Decisions
+- Mode: autonomous
+- Base commit: a9d06bd
+- Paid runs of deliverables 2 and 5 (~$0.03) approved up front.
+- The agent reads the context names against their files (deliverable 5).
+- Too few entries to cut (deliverable 3): list one level deeper, by family or sub-folder.
+
+## Deliverable 1
+- done: a context left over 150 files is warned of one by one (`context=`, `files=`, `reason=`); spec CSP accepted.
+- checks: `just check` ok (tests, clippy, specs); docs `docs/crates/pipeline.md`; code review below.
+- red: CSP-2, CSP-3, CSP-4: `no warning for <slug>` (4 new or extended tests; the code was written just before the
+  tests, red checked by running the tests on the stashed code).
+- Code review: no findings
+- not verified: the warning on the real application (deliverable 2).

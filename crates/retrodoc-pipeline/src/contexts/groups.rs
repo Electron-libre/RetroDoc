@@ -278,6 +278,7 @@ mod family_tests {
         list.iter().map(PathBuf::from).collect()
     }
 
+    // spec: CSP-5 (internal: a pure function of the split, which needs an LLM)
     #[test]
     fn a_name_across_layers_is_a_family() {
         let orphans = paths(&[
@@ -347,10 +348,25 @@ mod family_tests {
         assert_eq!(families["market"].len(), 4);
     }
 
+    // spec: CSP-5 (internal: a pure function of the split, which needs an LLM)
     #[test]
     fn a_family_under_three_files_is_dropped() {
         let orphans = paths(&["a/rules/pay.rb", "a/tasks/pay_task.rb"]);
         assert!(family_groups(&orphans, &BTreeSet::new()).is_empty());
+    }
+
+    // spec: CSP-5 (internal: a pure function of the split, which needs an LLM)
+    #[test]
+    fn a_name_in_more_than_eight_folders_is_not_a_family() {
+        let orphans: Vec<PathBuf> = (0..9)
+            .map(|i| PathBuf::from(format!("a/layer_{i}/everywhere.rb")))
+            .collect();
+        assert!(family_groups(&orphans, &BTreeSet::new()).is_empty());
+        let eight = &orphans[..8];
+        assert_eq!(
+            family_groups(eight, &BTreeSet::new())["everywhere"].len(),
+            8
+        );
     }
 
     #[test]

@@ -429,6 +429,7 @@ async fn build_big(dir: &Path, llm: &FakeLlm) -> ContextMap {
     .unwrap()
 }
 
+// spec: CSP-1 (internal: the map needs an LLM, faked inside the crate)
 #[tokio::test]
 async fn a_context_over_the_limit_is_split_by_one_more_call_and_no_file_is_lost() {
     let dir = tempfile::tempdir().unwrap();
@@ -480,6 +481,7 @@ async fn the_split_instructions_ask_for_a_name_that_fits_most_files_and_a_family
     assert!(system.contains("keep such a group whole"), "{system}");
 }
 
+// spec: CSP-1 (internal: the map needs an LLM, faked inside the crate)
 #[tokio::test]
 async fn what_the_split_forgets_stays_with_the_first_part_and_an_unusable_split_keeps_the_context()
 {
@@ -738,6 +740,7 @@ async fn a_folder_still_big_after_one_split_is_listed_by_its_own_sub_folders() {
     );
 }
 
+// spec: CSP-2 (internal: the map needs an LLM, faked inside the crate)
 #[tokio::test]
 async fn a_part_still_over_the_limit_is_split_again_once() {
     let dir = tempfile::tempdir().unwrap();
@@ -790,16 +793,140 @@ async fn a_part_still_over_the_limit_is_split_again_once() {
     assert!(resolved.contexts.iter().all(|c| c.files.len() <= 150));
 }
 
+// spec: CSP-4 (internal: the map needs an LLM, faked inside the crate)
 #[tokio::test]
-async fn a_context_that_cannot_be_split_is_not_asked_about_twice() {
+async fn a_context_that_cannot_be_split_is_not_asked_about_twice_and_is_warned_of() {
     let dir = tempfile::tempdir().unwrap();
     let llm = FakeLlm::replying(|n, _| Ok(if n == 0 { ANSWER } else { "not json" }.to_string()));
+
+    let (logs, _guard) = crate::testing::capture_logs();
 
     let map = build_big(dir.path(), &llm).await;
 
     // The map, then the split twice (the answer is retried once by `complete_json`), then nothing.
     assert_eq!(llm.calls(), 3, "{:?}", llm.prompts().len());
     assert_eq!(map.contexts.len(), 1);
+    assert_still_big(&logs.text(), "contracts", 171, "unusable answer");
+}
+
+/// The warning of the context `slug` left over the limit, with its size and reason.
+fn assert_still_big(logs: &str, slug: &str, files: usize, reason: &str) {
+    let line = logs
+        .lines()
+        .find(|l| l.contains("still over 150 files") && l.contains(&format!("context={slug} ")))
+        .unwrap_or_else(|| panic!("no warning for {slug}: {logs}"));
+    assert!(line.contains("WARN"), "{line}");
+    assert!(line.contains(&format!("files={files}")), "{line}");
+    assert!(line.contains(&format!("reason={reason}")), "{line}");
+}
+
+// spec: CSP-4 (internal: the map needs an LLM, faked inside the crate)
+#[tokio::test]
+async fn a_split_into_one_part_leaves_the_context_whole_with_its_reason() {
+    let dir = tempfile::tempdir().unwrap();
+    let llm = FakeLlm::replying(|n, _| {
+        Ok(if n == 0 {
+            ANSWER
+        } else {
+            r#"{"contexts":[{"slug":"all","name":"All","groups":["g1","g2"],"folders":["app/workflows/tasks/"]}]}"#
+        }
+        .to_string())
+    });
+    let (logs, _guard) = crate::testing::capture_logs();
+
+    let map = build_big(dir.path(), &llm).await;
+
+    let slugs: Vec<&str> = map.contexts.iter().map(|c| c.slug.as_str()).collect();
+    assert_eq!(slugs, ["contracts"]);
+    assert_still_big(&logs.text(), "contracts", 171, "fewer than two parts");
+}
+
+// spec: CSP-3, CSP-4 (internal: the map needs an LLM, faked inside the crate)
+#[tokio::test]
+async fn a_context_with_too_few_entries_is_not_sent_to_a_split_call() {
+    let dir = tempfile::tempdir().unwrap();
+    // One group (the contract) and one folder of 200 files: nothing to cut.
+    let mut many = paths(&[
+        "app/controllers/contracts_controller.rb",
+        "app/models/contract.rb",
+    ]);
+    many.extend((0..200).map(|i| PathBuf::from(format!("app/workflows/tasks/task_{i}.rb"))));
+    let seeds = paths(&["app/controllers/contracts_controller.rb"]);
+    let llm = FakeLlm::answering(
+        r#"{"contexts":[{"slug":"contracts","name":"C","groups":["g1"],"folders":["app/workflows/tasks/"]}]}"#,
+    );
+    let (logs, _guard) = crate::testing::capture_logs();
+
+    let map = build_context_map(
+        dir.path(),
+        &many,
+        &seeds,
+        &ProductBrief::default(),
+        &llm,
+        false,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(llm.calls(), 1, "the map only");
+    assert_eq!(map.contexts.len(), 1);
+    assert_still_big(&logs.text(), "contracts", 202, "too few entries to cut");
+}
+
+// spec: CSP-2, CSP-4 (internal: the map needs an LLM, faked inside the crate)
+#[tokio::test]
+async fn a_part_still_over_the_limit_after_two_splits_is_not_asked_about_a_third_time() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut many = sources();
+    for (n, family) in ["a", "b", "c"].into_iter().enumerate() {
+        many.extend((0..60).map(|i| {
+            PathBuf::from(format!(
+                "app/workflows/processes/{family}/step_{}.rb",
+                n * 60 + i
+            ))
+        }));
+    }
+    // Each split keeps the three families together (180 files and more).
+    let llm = FakeLlm::replying(|_, request| {
+        let prompt = &request.messages[1].content;
+        Ok(if prompt.contains("Context to split: Life") {
+            r#"{"contexts":[
+                {"slug":"life-again","name":"Life again","groups":[],"folders":["app/workflows/processes/a/","app/workflows/processes/b/","app/workflows/processes/c/"]},
+                {"slug":"contract","name":"Contract","groups":["g1"]}]}"#
+        } else if prompt.contains("Context to split") {
+            r#"{"contexts":[
+                {"slug":"life","name":"Life","groups":["g1"],"folders":["app/workflows/processes/a/","app/workflows/processes/b/","app/workflows/processes/c/"]},
+                {"slug":"other","name":"Other","groups":["g2"]}]}"#
+        } else {
+            ANSWER
+        }
+        .to_string())
+    });
+    let (logs, _guard) = crate::testing::capture_logs();
+
+    let map = build_context_map(
+        dir.path(),
+        &many,
+        &seeds(),
+        &ProductBrief::default(),
+        &llm,
+        false,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(llm.calls(), 3, "the map and two splits, no third");
+    let big = map.resolve(&many, &seeds());
+    let (slug, files) = map
+        .contexts
+        .iter()
+        .zip(&big.contexts)
+        .find(|(_, own)| own.files.len() > 150)
+        .map_or_else(
+            || panic!("{map:?}"),
+            |(c, own)| (c.slug.clone(), own.files.len()),
+        );
+    assert_still_big(&logs.text(), &slug, files, "split twice already");
 }
 
 /// The id the split prompt gives the group `name`.
