@@ -48,7 +48,7 @@ listed in the debt report.
 ## Non-goals
 
 - A mechanical check of the narrative's words against the steps or the cited code: measured on two benchmark
-  applications (`issues/narrative_checked_against_cited_code.md`), it caught 3 of 31 claims not at the cited lines
+  applications (`issues/done/narrative_checked_against_cited_code.md`), it caught 3 of 31 claims not at the cited lines
   for 19 false alarms.
 - Catching a narrative claim that repeats a wrong step: the step check is where that is caught.
 - Restating the step checks of ADR 0026 here.

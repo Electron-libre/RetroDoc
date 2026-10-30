@@ -51,9 +51,9 @@ The milestones up to "A large application, one bounded context at a time" are th
   (file roles, entities and glossary, entry points and outputs, business actors, narrative, business-language score).
 - Why: the first smoke tests gave mostly technical docs (the risks of `PRODUCT.md`, `docs/findings.md` §2); its open work moved to the top-down
   redesign.
-- State: in issues
+- State: done
 - Issues:
-  - [narrative_checked_against_cited_code](issues/narrative_checked_against_cited_code.md)
+  - [narrative_checked_against_cited_code](issues/done/narrative_checked_against_cited_code.md)
 
 ## Scalability and cost control
 

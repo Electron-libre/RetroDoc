@@ -4,7 +4,6 @@ Open issues in the order to work on them: the first is the next one. Read by `ju
 `just close-issue` removes a line, `skill:create-issue` inserts one at its rank, `skill:prioritize-issues`
 re-ranks the whole list. Line format: `- [<file stem>](<file stem>.md) - <why here>`.
 
-- [narrative_checked_against_cited_code](narrative_checked_against_cited_code.md) - last open issue of the earliest open milestone (Business-level documentation, `docs/findings.md`, 2026-10-30): the narrative is the first thing a reader trusts and nothing checks it; its measure reads saved benchmark runs
 - [roles_second_pass_and_promoted_sources](roles_second_pass_and_promoted_sources.md) - first of milestone `Language and framework agnostic`, its most valuable issue (open point of `docs/findings.md`, 2026-10-30): an unknown stack loses the files no rule matches; its measure reads saved runs, no LLM call
 - [view_template_labels](view_template_labels.md) - same milestone as `roles_second_pass_and_promoted_sources`, after it: the value of the labels is not measured yet; before the later milestones
 - [test_layouts_singular_and_variants](test_layouts_singular_and_variants.md) - low (high review of `stack_tables_nested_layouts`, 2026-10-30): small, last issue of milestone `Language and framework agnostic`; layouts no run has shown yet

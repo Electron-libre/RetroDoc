@@ -1,7 +1,3 @@
----
-rank: 100
-why: 'last open issue of the earliest open milestone (Business-level documentation, `docs/findings.md`, 2026-10-30): the narrative is the first thing a reader trusts and nothing checks it; its measure reads saved benchmark runs'
----
 # Check the business narrative of a use case against the code it cites
 
 # Goal
@@ -40,6 +36,8 @@ Business-level documentation
 # Tracking
 
 Plan: validated
+
+Done (2026-10-30): deliverables 1 to 4 committed, measured again after the last; nothing left.
 
 ## Understanding
 The confidence call that already checks the doubtful steps also judges the narrative against the cited code; its
@@ -196,6 +194,17 @@ judged against a sibling's code (each use case now says what it cites); `Answer`
 example. Not fixed: `partial` lowers only the use cases sent to the model (the weight the user chose); the harness
 line of `docs/dev/agent-harness.md` swept into 2d674bb (left as is, the user's call).
 Code review: no findings (low; its doubt, `Cites:` glued to the narrative, is ruled out: the narrative line ends with a newline).
-not verified: the measure was made before CNF-10 (narrative shown the doubtful steps' code only); the share of
-`partial` may drop with the whole code shown.
-decisions needed: whether to measure again after CNF-10 (cents).
+not verified: nothing left (measured again below).
+decisions needed: none.
+
+## Measured again after CNF-10 (0608de8, runs 1-4, ~$0.02)
+
+| run | repo | judged partial (at 280641f+) | unsupported | listed by the report | calls | prompt tokens (before) |
+|---|---|---|---|---|---|---|
+| 1 | linkding | 9 (9) | 0 | 0 | 12 | 20.3k (17.3k) |
+| 2 | lobsters | 3 (5) | 0 | 0 | 13 | 16.7k (15.4k) |
+| 3 | linkding `--all` | 10 (11) | 0 | 0 | 18 | 35.2k (32.2k) |
+| 4 | lobsters `--all` | 6 (6) | 1 | 1 (the wrong citation) | 19 | 28.0k (26.7k) |
+
+Showing the code of every step changes little (a few `partial` fewer, +5 to 17% prompt tokens); the conclusion of
+findings.md 4d stands.

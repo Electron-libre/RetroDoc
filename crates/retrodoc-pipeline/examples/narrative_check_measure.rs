@@ -1,5 +1,5 @@
 //! Runs the confidence pass on a sample of saved use cases and prints how it judged their narratives
-//! (`issues/narrative_checked_against_cited_code.md`, deliverable 3), to compare with the hand labels.
+//! (`issues/done/narrative_checked_against_cited_code.md`, deliverable 3), to compare with the hand labels.
 //!
 //! Usage:
 //! `DEEPSEEK_API_KEY=x cargo run -q -p retrodoc-pipeline --example narrative_check_measure -- <code tree> <use-cases.yaml> <work dir> <stride> <model> [--all]`

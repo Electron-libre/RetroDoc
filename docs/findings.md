@@ -180,7 +180,7 @@ Steps, each shippable and checkable on the Rails test repo:
      ongoing signature transactions … are immediately canceled. Finally, relevant parties are notified…".
      The narrative was not checked against the code (the confidence pass scored the steps only); since
      2026-10-30 the confidence call judges it with the doubtful steps (ADR 0038,
-     `issues/narrative_checked_against_cited_code.md`, measure there). Measured on 40 use cases of two
+     `issues/done/narrative_checked_against_cited_code.md`, measure there). Measured on 40 use cases of two
      applications, it catches almost no wrong narrative: 8 wrong claims in 200 by hand (a wrong condition, scope,
      reason or caller), but the model sees only the cited code, so it cannot tell a claim true in the code around
      it from an invented one, and it judged no contradicted claim `unsupported`. A wrong narrative is not found
@@ -339,7 +339,7 @@ Steps, each shippable:
 
 Followed since 2026-10-30 by `issues/roles_second_pass_and_promoted_sources.md` (the source extensions below and the
 unclassified files of §2 step 1), `issues/actors_read_long_authorization_files.md` (truncation),
-`issues/view_template_labels.md` (view templates), `issues/narrative_checked_against_cited_code.md` (§2 step 4d) and
+`issues/view_template_labels.md` (view templates), `issues/done/narrative_checked_against_cited_code.md` (§2 step 4d) and
 `issues/search_relevance_threshold.md` (§4 step 1). Dropped: the server-dependent causes of empty answers (not
 fixable in the code), the damping of base classes in the file ranking (§3 direction 1; the budget is opt-in and the
 contexts path bounds a large run), the verbs and the docs and commits as glossary sources (§2 step 2; the evidence
