@@ -437,7 +437,8 @@ Steps, each shippable:
 - Source extensions: the walker's built-in list (`FileKind::from_path`) only knows common languages. The roles
   pass now also asks the LLM for `source_extensions` (saved in `roles.yaml`); `generate` promotes the matching
   `Other` files to `Source` right after it (`RoleRules::promote_sources`; the `actors` command does it from the
-  saved `roles.yaml`). Not yet checked on a real repo; `scan` and `roles` still show the built-in classification.
+  saved `roles.yaml`). Checked through `generate` on an Elixir fixture with a fake LLM (`tests/unknown_stack.rs`),
+  not yet on a real repo; `scan` and `roles` still show the built-in classification.
 - `.erb` view templates stay `FileKind::Other` on purpose (1,253 files on the Rails test repo): the file budget and
   the actors pass select on `FileKind::Source` only, never on role. They keep their `view` role (used by `classify`). Open: extract their labels (form
   fields, headings) cheaply, without a per-file LLM call.

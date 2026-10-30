@@ -56,7 +56,7 @@ fixed in the deliverable that shows it if small, else filed as an issue.
    generated into temp repos by a helper, one test per framework through `generate`, no ` WARN ` line; the Django
    and Spring Boot runs compare their system prompts pass by pass; verified by `tests/reference_frameworks.rs`;
    makes true LNG-9, LNG-4. ~700 lines.
-3. [ ] Fallbacks of the stack readers: a Prisma fixture with no `schema.rb` nor SQL DDL gives the glossary; a repo
+3. [x] Fallbacks of the stack readers: a Prisma fixture with no `schema.rb` nor SQL DDL gives the glossary; a repo
    with no manifest and an unparseable one still gives the brief; the Elixir fixture (no grammar) gives entry
    points from its parts; `PLAN.md` §7.4 updated (promotion of `source_extensions` now checked); verified by
    `tests/stack_fallbacks.rs`; makes true LNG-10. ~300 lines.
@@ -86,3 +86,13 @@ fixed in the deliverable that shows it if small, else filed as an issue.
   and no use-cases call.
 - Code review: no findings (the `low` level leaves test files out: only the issue was read; the `high` review of the issue covers the tests)
 - not verified: the quality of what a real model writes on these stacks (non-goal of the spec).
+
+## Deliverable 3
+- done: `tests/stack_fallbacks.rs`: a Prisma app (no `schema.rb` nor SQL DDL) gets its glossary from the business
+  files; a Clojure app (no grammar, unknown `deps.edn`, a `package.json` that does not parse) gets its brief and its
+  entry points; `PLAN.md` §7.4 says the promotion of `source_extensions` is checked on a fixture.
+- red: LNG-10: the behaviour already existed; pointing the fake answers at missing files fails both tests
+  (no `Order` in the glossary, no `GET /orders` in the entry points).
+- Code review: no findings
+- not verified: on a real repository of an unknown language (`PLAN.md` §7.4 keeps it open). LNG-8 stays untraced,
+  so the spec stays `draft` until `tree_sitter_reference_languages`.
