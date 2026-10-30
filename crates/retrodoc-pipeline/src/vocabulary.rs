@@ -239,6 +239,7 @@ mod tests {
             business_language: None,
             diagram_mermaid: None,
             confidence: None,
+            narrative_check: None,
         }
     }
 

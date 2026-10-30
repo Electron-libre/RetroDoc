@@ -72,6 +72,7 @@ fn sample() -> (Vec<Domain>, Vec<Feature>, Vec<UseCase>) {
         }],
         diagram_mermaid: Some("sequenceDiagram\n    A->>B: x".to_string()),
         confidence: Some(ConfidenceScore::new(0.3, "step 1: guessed".to_string())),
+        narrative_check: None,
     }];
     (domains, features, use_cases)
 }

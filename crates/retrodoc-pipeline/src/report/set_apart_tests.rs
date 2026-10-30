@@ -28,6 +28,7 @@ fn the_report_counts_what_the_docs_set_apart() {
         business_language: Some(ConfidenceScore::new(business_language, None)),
         diagram_mermaid: None,
         confidence: None,
+        narrative_check: None,
     };
     let use_cases = [
         uc("reimport", "admin-tools", 0.95),

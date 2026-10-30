@@ -107,6 +107,10 @@ pub struct UseCase {
     /// `None` until the confidence pass (roadmap phase 5) has scored it.
     #[serde(default)]
     pub confidence: Option<ConfidenceScore>,
+    /// How far the cited code backs the `narrative`, as the confidence pass judged it (also counted
+    /// in `confidence`). `None` when the narrative was not checked: none, or no model call for it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub narrative_check: Option<ConfidenceScore>,
 }
 
 impl UseCase {
@@ -292,6 +296,7 @@ mod tests {
             business_language: business_language.map(|v| ConfidenceScore::new(v, None)),
             diagram_mermaid: None,
             confidence: confidence.map(|v| ConfidenceScore::new(v, None)),
+            narrative_check: None,
         }
     }
 

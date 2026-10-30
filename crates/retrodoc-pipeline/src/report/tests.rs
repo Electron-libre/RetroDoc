@@ -33,6 +33,7 @@ fn use_case(slug: &str, feature: &str, score: Option<f32>) -> UseCase {
         steps: vec![],
         diagram_mermaid: None,
         confidence: score.map(|s| ConfidenceScore::new(s, "because".to_string())),
+        narrative_check: None,
     }
 }
 

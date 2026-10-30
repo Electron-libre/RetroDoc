@@ -286,6 +286,7 @@ pub(crate) mod fixtures {
             business_language: None,
             diagram_mermaid: None,
             confidence: Some(ConfidenceScore::new(0.9, None)),
+            narrative_check: None,
         }
     }
 }

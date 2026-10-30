@@ -114,7 +114,7 @@ flowchart TD
     D["4. Features<br/>one call per domain over its entry points<br/>+ LLM placement of unclaimed entry points<br/>+ files reached by no behaviour"]:::llm
     E["5. Use cases<br/>one call per feature<br/>(steps + actors, from real code)"]:::llm
     F["6. Diagrams<br/>Mermaid sequenceDiagram<br/>from the steps"]:::det
-    G["7. Confidence (optional)<br/>mechanical checks, then one call per feature<br/>for the doubtful steps only"]:::llm
+    G["7. Confidence (optional)<br/>mechanical checks, then one call per feature<br/>for the doubtful steps<br/>and their use cases' narratives"]:::llm
     H["8. Publish<br/>render → plan (diff) → apply"]:::det
 
     A --> S --> K --> C --> D --> E --> F --> G --> H
@@ -163,13 +163,13 @@ What each pass hands to the next, and where it is saved:
 
 ```mermaid
 flowchart LR
-    c["Mechanical checks per step:<br/>pass = supported, code missing = unsupported,<br/>doubtful = asked to the LLM"] --> s["Each doubtful step gets a verdict:<br/>supported / partial / unsupported"]
-    s --> u["Use case score =<br/>mean of its steps<br/>(steps citing no code capped at 0.25)"]
+    c["Mechanical checks per step:<br/>pass = supported, code missing = unsupported,<br/>doubtful = asked to the LLM"] --> s["Each doubtful step, and the narrative<br/>of a use case asked about, gets a verdict:<br/>supported / partial / unsupported"]
+    s --> u["Use case score =<br/>mean of its steps and judged narrative<br/>(steps citing no code capped at 0.25)"]
     u --> f["Feature score =<br/>mean of its use cases<br/>(0 if it has none)"]
     f --> r["Debt report:<br/>per-domain confidence,<br/>sections below 50%"]
 ```
 
-Only the doubtful steps are sent to the LLM ([ADR 0026](adr/0026-check-use-case-steps-mechanically-before-asking-the-llm.md)); `--confidence-sample` adds a second opinion on use cases that pass every check. An unparseable verdict leaves the use case **unscored** (`None`), which the report lists separately.
+Only the doubtful steps are sent to the LLM ([ADR 0026](adr/0026-check-use-case-steps-mechanically-before-asking-the-llm.md)); `--confidence-sample` adds a second opinion on use cases that pass every check. The narrative of a use case sent to the LLM is judged in the same call ([ADR 0038](adr/0038-check-the-narrative-in-the-confidence-call.md), `specs/use-case-confidence.md`) and its verdict kept as `narrative_check`; a use case the checks settle makes no call for it. An unparseable verdict leaves the use case **unscored** (`None`), which the report lists separately.
 
 ## 5. Incremental re-run
 

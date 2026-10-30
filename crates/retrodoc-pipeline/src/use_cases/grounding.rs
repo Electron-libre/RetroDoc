@@ -221,6 +221,7 @@ pub(super) fn grounded_use_cases(
                 .map(|actor| actor.name.clone()),
             diagram_mermaid: None,
             confidence: None,
+            narrative_check: None,
         };
         without_invented_humans(&mut use_case, &input.entries, actors);
         produced.push(use_case);

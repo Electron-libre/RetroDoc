@@ -177,6 +177,7 @@ mod tests {
             business_language: language.map(|v| ConfidenceScore::new(v, None)),
             diagram_mermaid: None,
             confidence: confidence.map(|v| ConfidenceScore::new(v, None)),
+            narrative_check: None,
         }
     }
 

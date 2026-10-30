@@ -46,6 +46,7 @@ fn use_case(slug: &str, feature: &str, name: &str) -> UseCase {
         steps: vec![],
         diagram_mermaid: None,
         confidence: None,
+        narrative_check: None,
     }
 }
 

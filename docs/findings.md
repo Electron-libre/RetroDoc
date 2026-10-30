@@ -178,8 +178,9 @@ Steps, each shippable and checkable on the Rails test repo:
      and the diagram in a `<details>` block; artifacts without a narrative render as before. On the signatories
      feature: "The Contract Manager initiates a change for the person assigned to sign a specific contract…
      ongoing signature transactions … are immediately canceled. Finally, relevant parties are notified…".
-     The narrative is not checked against the code (the confidence pass still scores the steps only) — that is
-     what 4e is for.
+     The narrative was not checked against the code (the confidence pass scored the steps only); since
+     2026-10-30 the confidence call judges it with the doubtful steps (ADR 0038,
+     `issues/narrative_checked_against_cited_code.md`, measure there).
    - **4e — business-language criterion: implemented** (`vocabulary.rs`, `UseCase.business_language`). A
      deterministic score (no LLM call, recomputed every run) next to the confidence: 0 without a narrative; −0.15
      per code-level token in it (identifiers, paths, calls, HTTP verbs, unknown multi-word class names, words like

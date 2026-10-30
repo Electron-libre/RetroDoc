@@ -186,6 +186,7 @@ mod tests {
             steps: vec![step(1, "A", ActorKind::System, "runs")],
             diagram_mermaid: None,
             confidence: None,
+            narrative_check: None,
         }];
 
         attach_diagrams(&mut use_cases);

@@ -139,6 +139,7 @@ fn use_case(feature_slug: &str, entry_points: &[&str]) -> UseCase {
         primary_actor: None,
         diagram_mermaid: None,
         confidence: None,
+        narrative_check: None,
     }
 }
 

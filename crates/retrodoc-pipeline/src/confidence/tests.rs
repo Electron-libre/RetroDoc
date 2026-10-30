@@ -39,6 +39,7 @@ fn use_case(feature: &str, steps: Vec<Step>) -> UseCase {
         steps,
         diagram_mermaid: None,
         confidence: None,
+        narrative_check: None,
     }
 }
 
@@ -560,4 +561,135 @@ async fn a_cited_file_the_walk_skips_is_not_shown_to_the_model() {
         .as_deref()
         .unwrap_or_default()
         .contains("cannot read .env"));
+}
+
+const NARRATIVE: &str = "The member pays the invoice and the job is retried on failure.";
+
+/// A use case of `f` with a narrative: three steps the checks pass, one doubtful.
+fn narrated(slug: &str) -> UseCase {
+    let mut u = use_case(
+        "f",
+        vec![
+            passing_step(),
+            passing_step(),
+            passing_step(),
+            step(4, Some("a.rs")),
+        ],
+    );
+    for (i, s) in u.steps.iter_mut().enumerate() {
+        s.order = u32::try_from(i).unwrap() + 1;
+    }
+    u.slug = slug.to_string();
+    u.narrative = Some(NARRATIVE.to_string());
+    u
+}
+
+async fn score(dir: &Path, use_cases: &mut [UseCase], llm: &FakeLlm) {
+    score_confidence(&walked(dir), &mut [feature("f")], use_cases, llm, None, 1)
+        .await
+        .unwrap();
+}
+
+// spec: CNF-1, CNF-3, CNF-4, CNF-5 (internal: the model is faked inside the pipeline, the binary needs a real provider)
+#[tokio::test]
+async fn an_unsupported_narrative_lowers_the_score_and_is_kept_apart() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.rs"), "fn a() {}\n").unwrap();
+    let provider = FakeLlm::answering(
+        r#"{"narrative":{"verdict":"unsupported","rationale":"no retry in the code"},
+            "steps":[{"order":4,"verdict":"supported"}]}"#,
+    );
+    let mut use_cases = vec![narrated("u")];
+
+    score(dir.path(), &mut use_cases, &provider).await;
+
+    let prompt = &provider.prompts()[0];
+    assert!(prompt.contains(NARRATIVE) && prompt.contains("=== a.rs ==="));
+    let uc = use_cases[0].confidence.as_ref().unwrap();
+    // Four supported steps and a narrative at 0: 4 / 5.
+    assert!((uc.value - 0.8).abs() < 1e-6);
+    assert!(uc
+        .rationale
+        .as_deref()
+        .unwrap()
+        .contains("narrative: no retry in the code"));
+    let check = use_cases[0].narrative_check.as_ref().unwrap();
+    assert_eq!(check.value, 0.0);
+    assert_eq!(check.rationale.as_deref(), Some("no retry in the code"));
+}
+
+// spec: CNF-1, CNF-3 (internal: the model is faked inside the pipeline, the binary needs a real provider)
+#[tokio::test]
+async fn the_narratives_of_a_batched_request_are_judged_each() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.rs"), "fn a() {}\n").unwrap();
+    let provider = FakeLlm::answering(
+        r#"{"use_cases":[
+          {"slug":"u1","narrative":{"verdict":"supported"},"steps":[{"order":4,"verdict":"supported"}]},
+          {"slug":"u2","narrative":{"verdict":"partial","rationale":"guessed"},"steps":[{"order":4,"verdict":"supported"}]}]}"#,
+    );
+    let mut use_cases = vec![narrated("u1"), narrated("u2")];
+    use_cases[1].narrative = Some("Another account of the use case.".to_string());
+
+    score(dir.path(), &mut use_cases, &provider).await;
+
+    assert_eq!(provider.calls(), 1);
+    let prompt = &provider.prompts()[0];
+    assert!(prompt.contains(NARRATIVE) && prompt.contains("Another account of the use case."));
+    let value = |i: usize| use_cases[i].confidence.as_ref().unwrap().value;
+    assert_eq!(value(0), 1.0);
+    assert!((value(1) - 0.9).abs() < 1e-6);
+    assert_eq!(use_cases[1].narrative_check.as_ref().unwrap().value, 0.5);
+}
+
+// spec: CNF-2 (internal: the model is faked inside the pipeline, the binary needs a real provider)
+#[tokio::test]
+async fn a_use_case_the_checks_settle_asks_nothing_for_its_narrative() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.rs"), "fn a() {}\n").unwrap();
+    let provider = FakeLlm::answering("unused");
+    let mut settled = narrated("u");
+    settled.steps.truncate(3);
+    let mut use_cases = vec![settled];
+
+    score(dir.path(), &mut use_cases, &provider).await;
+
+    assert_eq!(provider.calls(), 0);
+    assert_eq!(use_cases[0].confidence.as_ref().unwrap().value, 1.0);
+    assert!(use_cases[0].narrative_check.is_none());
+}
+
+// spec: CNF-6 (internal: the model is faked inside the pipeline, the binary needs a real provider)
+#[tokio::test]
+async fn an_answer_without_a_narrative_verdict_scores_the_steps_alone() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.rs"), "fn a() {}\n").unwrap();
+    let provider = FakeLlm::answering(r#"{"steps":[{"order":4,"verdict":"partial"}]}"#);
+    let mut use_cases = vec![narrated("u")];
+
+    score(dir.path(), &mut use_cases, &provider).await;
+
+    let uc = use_cases[0].confidence.as_ref().unwrap();
+    assert!((uc.value - 3.5 / 4.0).abs() < 1e-6);
+    assert!(!uc.rationale.as_deref().unwrap().contains("narrative"));
+    assert!(use_cases[0].narrative_check.is_none());
+}
+
+// spec: CNF-7 (internal: the model is faked inside the pipeline, the binary needs a real provider)
+#[tokio::test]
+async fn a_use_case_without_narrative_is_scored_from_its_steps() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.rs"), "fn a() {}\n").unwrap();
+    let provider = FakeLlm::answering(
+        r#"{"narrative":{"verdict":"unsupported"},"steps":[{"order":4,"verdict":"supported"}]}"#,
+    );
+    let mut silent = narrated("u");
+    silent.narrative = Some("  ".to_string());
+    let mut use_cases = vec![silent];
+
+    score(dir.path(), &mut use_cases, &provider).await;
+
+    assert!(!provider.prompts()[0].contains("Narrative:"));
+    assert_eq!(use_cases[0].confidence.as_ref().unwrap().value, 1.0);
+    assert!(use_cases[0].narrative_check.is_none());
 }
