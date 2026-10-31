@@ -12,6 +12,7 @@ pub mod matching;
 pub mod metrics;
 pub mod reference;
 pub mod replay;
+pub mod replay_judgement;
 pub mod replay_rules;
 pub mod replay_use_cases;
 pub mod summary;
@@ -24,6 +25,9 @@ pub use matching::{compare, Comparison, Matches, Pair, Score, SCORING_VERSION};
 pub use metrics::{Cost, RunMetrics};
 pub use reference::{Reference, ReferenceDomain, ReferenceFeature};
 pub use replay::{replay_domains, replay_features, replay_table, RunFigures, Scoring};
+pub use replay_judgement::{
+    parse_labels, replay_judgement, score_labels, JudgementFigures, LabelScore, GOOD, KEPT,
+};
 pub use replay_rules::{replay_rules, rule_table, RuleFigures};
 pub use replay_use_cases::{replay_use_cases, use_case_table, UseCaseFigures};
 pub use summary::summary;

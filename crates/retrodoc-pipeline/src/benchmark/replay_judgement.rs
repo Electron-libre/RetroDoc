@@ -1,0 +1,248 @@
+//! Replay of the judgement of the rules on the rules a run stated (`issues/rules_plumbing_and_screen_noise.md`).
+//!
+//! The statements stay fixed, so what a variant of the judgement drops is not mixed with the variance of
+//! the statement call. The saved `rules-stated.yaml` holds the rules the judgement of the run kept: a
+//! replay tells what a variant drops on top of it. Each feature is judged as the pass judges it
+//! ([`crate::rules`]), with the system prompt given; hand labels then tell the good rules dropped from
+//! the noise dropped.
+
+use std::collections::BTreeMap;
+
+use futures_util::stream::{self, StreamExt, TryStreamExt};
+use retrodoc_core::model::{BusinessRule, Feature};
+use retrodoc_llm::LlmProvider;
+
+use crate::error::PipelineError;
+use crate::rules::judge_rules;
+
+/// The class of a rule the judgement keeps.
+pub const KEPT: &str = "business";
+
+/// What one replay of the judgement gave.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct JudgementFigures {
+    /// The class of each rule judged, by slug: [`KEPT`] unless the answer classes it as noise.
+    pub classes: BTreeMap<String, String>,
+    /// Features whose answer could not be read: their rules count as kept.
+    pub unread: usize,
+    /// Rules of no feature of the run, not judged.
+    pub orphans: usize,
+}
+
+impl JudgementFigures {
+    /// The rules dropped, by class of noise.
+    #[must_use]
+    pub fn dropped_by_class(&self) -> BTreeMap<&str, usize> {
+        let mut counts = BTreeMap::new();
+        for class in self.classes.values().filter(|c| *c != KEPT) {
+            *counts.entry(class.as_str()).or_default() += 1;
+        }
+        counts
+    }
+}
+
+/// Judges the `rules` of each of `features` under `system`, `concurrency` features at once.
+///
+/// # Errors
+///
+/// Returns an error if an LLM call fails.
+pub async fn replay_judgement(
+    llm: &dyn LlmProvider,
+    system: &str,
+    features: &[Feature],
+    rules: &[BusinessRule],
+    concurrency: usize,
+) -> Result<JudgementFigures, PipelineError> {
+    let groups: Vec<(&Feature, Vec<BusinessRule>)> = features
+        .iter()
+        .map(|f| {
+            let own = rules
+                .iter()
+                .filter(|r| r.belongs_to_feature(&f.slug))
+                .cloned()
+                .collect();
+            (f, own)
+        })
+        .filter(|(_, own): &(_, Vec<_>)| !own.is_empty())
+        .collect();
+    let judged: usize = groups.iter().map(|(_, own)| own.len()).sum();
+    let answers: Vec<_> = stream::iter(groups.iter().map(|(feature, own)| async move {
+        judge_rules(llm, system, feature, own)
+            .await
+            .map(|verdict| (own, verdict))
+    }))
+    .buffered(concurrency.max(1))
+    .try_collect()
+    .await?;
+    let mut figures = JudgementFigures {
+        orphans: rules.len() - judged,
+        ..JudgementFigures::default()
+    };
+    for (own, verdict) in answers {
+        let Some((kept, dropped)) = verdict else {
+            figures.unread += 1;
+            for rule in own {
+                figures.classes.insert(rule.slug.clone(), KEPT.to_string());
+            }
+            continue;
+        };
+        for rule in kept {
+            figures.classes.insert(rule.slug, KEPT.to_string());
+        }
+        for (rule, class) in dropped {
+            figures.classes.insert(rule.slug, class);
+        }
+    }
+    Ok(figures)
+}
+
+/// The label of a good rule; any other label is noise (plumbing, screen, test, duplicate).
+pub const GOOD: &str = "good";
+
+/// The judgement of a replay against hand labels.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct LabelScore {
+    /// Labelled rules judged, good ones, and good ones dropped.
+    pub labelled: usize,
+    pub good: usize,
+    pub good_dropped: usize,
+    /// Labelled noise and the part of it dropped.
+    pub noise: usize,
+    pub noise_dropped: usize,
+    /// Labels of a rule the replay did not judge.
+    pub missing: usize,
+}
+
+/// Scores `figures` on `labels` (rule slug to label).
+#[must_use]
+pub fn score_labels(figures: &JudgementFigures, labels: &BTreeMap<String, String>) -> LabelScore {
+    let mut score = LabelScore::default();
+    for (slug, label) in labels {
+        let Some(class) = figures.classes.get(slug) else {
+            score.missing += 1;
+            continue;
+        };
+        score.labelled += 1;
+        let dropped = class != KEPT;
+        if label == GOOD {
+            score.good += 1;
+            score.good_dropped += usize::from(dropped);
+        } else {
+            score.noise += 1;
+            score.noise_dropped += usize::from(dropped);
+        }
+    }
+    score
+}
+
+/// Reads labels written one per line as `<rule slug>\t<label>`; blank lines and lines starting with
+/// `#` are skipped.
+#[must_use]
+pub fn parse_labels(text: &str) -> BTreeMap<String, String> {
+    text.lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        .filter_map(|line| {
+            let (slug, label) = line.split_once('\t')?;
+            Some((slug.trim().to_string(), label.trim().to_lowercase()))
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::testing::FakeLlm;
+    use retrodoc_core::model::RuleKind;
+
+    fn feature(slug: &str) -> Feature {
+        Feature {
+            back_office: false,
+            slug: slug.into(),
+            domain_slug: "d".into(),
+            name: slug.into(),
+            description: "d".into(),
+            source_paths: Vec::new(),
+            entry_points: Vec::new(),
+            confidence: None,
+        }
+    }
+
+    fn rule(slug: &str) -> BusinessRule {
+        BusinessRule {
+            slug: slug.into(),
+            statement: format!("statement of {slug}"),
+            kind: RuleKind::Validation,
+            entities: Vec::new(),
+            use_cases: Vec::new(),
+            evidence: Vec::new(),
+            confidence: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn each_rule_gets_the_class_of_the_answer_of_its_feature() {
+        let llm = FakeLlm::replying(|_, request| {
+            let user = &request.messages.last().unwrap().content;
+            Ok(if user.contains("Feature: orders —") {
+                r#"{"rules":[{"n":1,"class":"business"},{"n":2,"class":"storage"},{"n":3,"class":"odd"}]}"#
+            } else {
+                "not json"
+            }
+            .to_string())
+        });
+        let features = [feature("orders"), feature("orders-admin"), feature("empty")];
+        let rules = [
+            rule("orders-1"),
+            rule("orders-2"),
+            rule("orders-3"),
+            rule("orders-admin-1"),
+            rule("gone-1"),
+        ];
+        let figures = replay_judgement(&llm, "system", &features, &rules, 2)
+            .await
+            .unwrap();
+        let class = |slug: &str| figures.classes[slug].as_str();
+        assert_eq!(class("orders-1"), KEPT);
+        assert_eq!(class("orders-2"), "storage");
+        assert_eq!(class("orders-3"), KEPT, "an unknown class keeps the rule");
+        assert_eq!(
+            class("orders-admin-1"),
+            KEPT,
+            "an unread answer keeps the rules"
+        );
+        assert_eq!(figures.unread, 1);
+        assert_eq!(figures.orphans, 1);
+        assert_eq!(figures.dropped_by_class(), BTreeMap::from([("storage", 1)]));
+        assert!(llm.system_prompts().iter().all(|system| system == "system"));
+        // The unreadable answer is asked twice; the feature with no rule never.
+        assert_eq!(llm.calls(), 3);
+    }
+
+    #[test]
+    fn labels_tell_the_good_rules_dropped_from_the_noise_dropped() {
+        let figures = JudgementFigures {
+            classes: BTreeMap::from([
+                ("a-1".to_string(), KEPT.to_string()),
+                ("a-2".to_string(), "storage".to_string()),
+                ("a-3".to_string(), "screen".to_string()),
+                ("a-4".to_string(), KEPT.to_string()),
+            ]),
+            ..JudgementFigures::default()
+        };
+        let labels = parse_labels(
+            "# sample\na-1\tgood\na-2\tGood\na-3\tplumbing\n\na-4\tscreen\nb-1\tgood\n",
+        );
+        assert_eq!(
+            score_labels(&figures, &labels),
+            LabelScore {
+                labelled: 4,
+                good: 2,
+                good_dropped: 1,
+                noise: 2,
+                noise_dropped: 1,
+                missing: 1,
+            }
+        );
+    }
+}

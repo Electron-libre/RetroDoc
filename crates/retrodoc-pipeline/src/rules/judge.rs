@@ -14,7 +14,8 @@ use std::fmt::Write as _;
 use retrodoc_core::model::{BusinessRule, Feature, RuleEvidence, RuleKind};
 use serde::Deserialize;
 
-pub(super) const JUDGE_SYSTEM_PROMPT: &str = "You are classifying the business rules found in \
+/// The question of the judgement: one class per rule.
+pub const JUDGE_SYSTEM_PROMPT: &str = "You are classifying the business rules found in \
 the code of a software feature, for the documentation read by product owners, support and \
 analysts. For each numbered rule, choose exactly one class:\n\
 business: a decision of the business: what is allowed or refused, who may do what, a limit or \

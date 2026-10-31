@@ -46,9 +46,9 @@ mod tests;
 pub use self::aside::{AsideFeature, AsideRule, SetAside};
 use self::dedup::{merge_duplicates, Reach};
 pub use self::input::RuleInput;
+pub use self::judge::JUDGE_SYSTEM_PROMPT;
 use self::judge::{
     feature_prompt, judge_prompt, keep_judged, RawFeatureKind, RawVerdict, FEATURE_SYSTEM_PROMPT,
-    JUDGE_SYSTEM_PROMPT,
 };
 use self::prompt::{rules_prompt, RULES_SYSTEM_PROMPT};
 use self::split::stated_rules;
@@ -315,17 +315,10 @@ async fn ask_rules(
     if rules.is_empty() {
         return Ok(Some(Asked::of(rules)));
     }
-    let Some(verdict) = complete_json::<RawVerdict>(
-        llm,
-        JUDGE_SYSTEM_PROMPT,
-        &judge_prompt(feature, &rules),
-        &format!("judgement of the rules of {}", feature.slug),
-    )
-    .await?
+    let Some((rules, dropped)) = judge_rules(llm, JUDGE_SYSTEM_PROMPT, feature, &rules).await?
     else {
         return Ok(Some(Asked::of(rules)));
     };
-    let (rules, dropped) = keep_judged(rules, &verdict);
     let mut asked = Asked::of(rules);
     for (rule, class) in dropped {
         tracing::info!(rule = %rule.slug, %class, statement = %rule.statement, "rule dropped by the judgement");
@@ -338,6 +331,29 @@ async fn ask_rules(
         });
     }
     Ok(Some(asked))
+}
+
+/// The rules of `feature` judged under `system` (the pass's [`JUDGE_SYSTEM_PROMPT`], or a variant a
+/// replay measures): those kept and those dropped with their class; `None` when the answer can't be
+/// read, the rules then being kept as stated.
+///
+/// # Errors
+///
+/// Returns an error if the LLM call fails.
+pub(crate) async fn judge_rules(
+    llm: &dyn LlmProvider,
+    system: &str,
+    feature: &Feature,
+    rules: &[BusinessRule],
+) -> Result<Option<(Vec<BusinessRule>, Vec<(BusinessRule, String)>)>, PipelineError> {
+    Ok(complete_json::<RawVerdict>(
+        llm,
+        system,
+        &judge_prompt(feature, rules),
+        &format!("judgement of the rules of {}", feature.slug),
+    )
+    .await?
+    .map(|verdict| keep_judged(rules.to_vec(), &verdict)))
 }
 
 /// Warns about each slug of `keep_features` that names none of `features`.
