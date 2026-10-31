@@ -6,10 +6,10 @@
 //! ([`crate::rules`]), with the system prompt given; hand labels then tell the good rules dropped from
 //! the noise dropped.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use futures_util::stream::{self, StreamExt, TryStreamExt};
-use retrodoc_core::model::{BusinessRule, Feature};
+use retrodoc_core::model::{BusinessRule, Feature, RuleEvidence};
 use retrodoc_llm::LlmProvider;
 
 use crate::error::PipelineError;
@@ -41,7 +41,9 @@ impl JudgementFigures {
     }
 }
 
-/// Judges the `rules` of each of `features` under `system`, `concurrency` features at once.
+/// Judges the `rules` of each of `features` under `system`, `concurrency` features at once. With
+/// `neighbours`, each feature is shown, for context, the rules of the other features that cite one of
+/// the files its own rules cite.
 ///
 /// # Errors
 ///
@@ -51,6 +53,7 @@ pub async fn replay_judgement(
     system: &str,
     features: &[Feature],
     rules: &[BusinessRule],
+    neighbours: bool,
     concurrency: usize,
 ) -> Result<JudgementFigures, PipelineError> {
     let groups: Vec<(&Feature, Vec<BusinessRule>)> = features
@@ -67,7 +70,12 @@ pub async fn replay_judgement(
         .collect();
     let judged: usize = groups.iter().map(|(_, own)| own.len()).sum();
     let answers: Vec<_> = stream::iter(groups.iter().map(|(feature, own)| async move {
-        judge_rules(llm, system, feature, own)
+        let context = if neighbours {
+            neighbours_of(feature, own, rules)
+        } else {
+            Vec::new()
+        };
+        judge_rules(llm, system, feature, own, &context)
             .await
             .map(|verdict| (own, verdict))
     }))
@@ -94,6 +102,26 @@ pub async fn replay_judgement(
         }
     }
     Ok(figures)
+}
+
+/// The rules of `all` stated by other features than `feature` that cite a file one of `own` cites.
+fn neighbours_of<'a>(
+    feature: &Feature,
+    own: &[BusinessRule],
+    all: &'a [BusinessRule],
+) -> Vec<&'a BusinessRule> {
+    let files: BTreeSet<&str> = own.iter().flat_map(cited_files).collect();
+    all.iter()
+        .filter(|r| !r.belongs_to_feature(&feature.slug))
+        .filter(|r| cited_files(r).any(|path| files.contains(path)))
+        .collect()
+}
+
+fn cited_files(rule: &BusinessRule) -> impl Iterator<Item = &str> {
+    rule.evidence.iter().filter_map(|e| match e {
+        RuleEvidence::Code { source } => Some(source.path.as_str()),
+        _ => None,
+    })
 }
 
 /// The label of a good rule; any other label is noise (plumbing, screen, test, duplicate).
@@ -153,7 +181,7 @@ pub fn parse_labels(text: &str) -> BTreeMap<String, String> {
 mod tests {
     use super::*;
     use crate::testing::FakeLlm;
-    use retrodoc_core::model::RuleKind;
+    use retrodoc_core::model::{RuleKind, SourceRef};
 
     fn feature(slug: &str) -> Feature {
         Feature {
@@ -199,7 +227,7 @@ mod tests {
             rule("orders-admin-1"),
             rule("gone-1"),
         ];
-        let figures = replay_judgement(&llm, "system", &features, &rules, 2)
+        let figures = replay_judgement(&llm, "system", &features, &rules, false, 2)
             .await
             .unwrap();
         let class = |slug: &str| figures.classes[slug].as_str();
@@ -217,6 +245,41 @@ mod tests {
         assert!(llm.system_prompts().iter().all(|system| system == "system"));
         // The unreadable answer is asked twice; the feature with no rule never.
         assert_eq!(llm.calls(), 3);
+    }
+
+    fn citing(slug: &str, path: &str) -> BusinessRule {
+        BusinessRule {
+            evidence: vec![RuleEvidence::Code {
+                source: SourceRef {
+                    path: path.into(),
+                    start_line: Some(1),
+                    end_line: Some(2),
+                },
+            }],
+            ..rule(slug)
+        }
+    }
+
+    #[tokio::test]
+    async fn with_neighbours_a_feature_sees_the_rules_of_others_on_its_files() {
+        let llm = FakeLlm::answering(r#"{"rules":[]}"#);
+        let features = [feature("orders"), feature("riders"), feature("menus")];
+        let rules = [
+            citing("orders-1", "router.rb"),
+            citing("riders-1", "router.rb"),
+            citing("menus-1", "menu.rb"),
+        ];
+        replay_judgement(&llm, "system", &features, &rules, true, 1)
+            .await
+            .unwrap();
+        let orders = &llm.prompts()[0];
+        assert!(orders.contains("for context only"), "{orders}");
+        assert!(orders.contains("statement of riders-1"), "{orders}");
+        assert!(!orders.contains("statement of menus-1"), "{orders}");
+        assert!(
+            !llm.prompts()[2].contains("for context only"),
+            "no neighbour, no list"
+        );
     }
 
     #[test]

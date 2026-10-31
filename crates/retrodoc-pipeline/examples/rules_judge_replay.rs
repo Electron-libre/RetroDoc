@@ -3,12 +3,13 @@
 //! the judgement of the run, with the statements fixed.
 //!
 //! Usage:
-//! `DEEPSEEK_API_KEY=x cargo run -q -p retrodoc-pipeline --example rules_judge_replay -- <model> [runs] [--prompt <file>] [--labels <dir>] [--keep <dir>] <run dir>...`
+//! `DEEPSEEK_API_KEY=x cargo run -q -p retrodoc-pipeline --example rules_judge_replay -- <model> [runs] [--prompt <file>] [--labels <dir>] [--keep <dir>] [--neighbours] <run dir>...`
 //!
 //! - `model`: a `DeepSeek` model, e.g. `deepseek-chat`; temperature 0, as the rules pass. `runs`: default 3.
 //! - `--prompt <file>`: the system prompt of the judgement (default: the pass's own).
 //! - `--labels <dir>`: `<dir>/<name of the run dir>.tsv`, one `<rule slug>\t<label>` a line, `good` or a
 //!   kind of noise (`plumbing`, `screen`, `test`, `duplicate`): adds the good rules and the noise dropped.
+//! - `--neighbours`: shows each feature the rules of the other features stated on the same files.
 //! - `--keep <dir>`: writes the class of each rule as `<dir>/<name of the run dir>-<n>.tsv`.
 //! - `run dir`: a checkout with its `.retrodoc/cache` (`features.yaml`, `rules-stated.yaml`).
 //!
@@ -38,6 +39,7 @@ struct Options {
     prompt: String,
     labels: Option<PathBuf>,
     keep: Option<PathBuf>,
+    neighbours: bool,
     dirs: Vec<PathBuf>,
 }
 
@@ -50,6 +52,7 @@ fn options() -> Result<Options, Failure> {
         prompt: JUDGE_SYSTEM_PROMPT.to_string(),
         labels: None,
         keep: None,
+        neighbours: false,
         dirs: Vec::new(),
     };
     while let Some(arg) = args.next() {
@@ -58,6 +61,7 @@ fn options() -> Result<Options, Failure> {
                 options.prompt = std::fs::read_to_string(args.next().ok_or("--prompt <file>")?)?;
             }
             "--labels" => options.labels = Some(args.next().ok_or("--labels <dir>")?.into()),
+            "--neighbours" => options.neighbours = true,
             "--keep" => options.keep = Some(args.next().ok_or("--keep <dir>")?.into()),
             _ if options.dirs.is_empty() && arg.parse::<usize>().is_ok() => {
                 options.runs = arg.parse()?;
@@ -89,7 +93,7 @@ fn share(part: usize, whole: usize) -> String {
 #[tokio::main]
 async fn main() {
     if let Err(error) = run().await {
-        eprintln!("usage: rules_judge_replay <model> [runs] [--prompt <file>] [--labels <dir>] [--keep <dir>] <run dir>...\n{error}");
+        eprintln!("usage: rules_judge_replay <model> [runs] [--prompt <file>] [--labels <dir>] [--keep <dir>] [--neighbours] <run dir>...\n{error}");
         std::process::exit(2);
     }
 }
@@ -125,8 +129,15 @@ async fn run() -> Result<(), Failure> {
             let tracker = UsageTracker::new();
             let llm =
                 UsageProvider::new(OpenRouterProvider::from_config(&config)?, tracker.clone());
-            let figures =
-                replay_judgement(&llm, &options.prompt, &features, &rules, CONCURRENCY).await?;
+            let figures = replay_judgement(
+                &llm,
+                &options.prompt,
+                &features,
+                &rules,
+                options.neighbours,
+                CONCURRENCY,
+            )
+            .await?;
             let total = tracker.report().total();
             let dropped = figures.dropped_by_class();
             let score = score_labels(&figures, &labels);

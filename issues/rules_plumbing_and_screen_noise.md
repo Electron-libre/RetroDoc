@@ -59,11 +59,11 @@ variant drops *on top of* today's judgement, which is the residual noise the iss
    dropped and the noise dropped; keeps the verdicts. The judgement is reached through a `benchmark` entry that
    takes the system prompt, so the pipeline and the replay share `judge_prompt` and `keep_judged`; verified by a
    fake-LLM test of that entry (classes counted, unknown class kept); about 300 lines.
-2. [ ] Labels and baseline (no code): hand labels of a sample of the kept rules (linkding
+2. [x] Labels and baseline (no code): hand labels of a sample of the kept rules (linkding
    `retrodoc-smoke-linkding` 60, `rsa-hc` 40, the large Rails application 40, `rsa-dr` all 77) in
    `~/retrodoc-runs/rules_plumbing-<commit>/labels/`; 3 replays of today's prompt on the 7 runs of the ledger
    (DeepSeek, cents) give the drop on top of today and its spread; findings and ledger line.
-3. [ ] Variants of the judgement, same measure: (a') examples of what is not a rule (plumbing, screen) in the
+3. [x] Variants of the judgement, same measure: (a') examples of what is not a rule (plumbing, screen) in the
    judgement prompt; (b) a second class question on the rules kept `business`, with the other rules citing the
    same file. The one that lowers the noise kept and drops at most 3% of the good rules goes into
    `rules/judge.rs` with its fake-LLM test (and a spec of the judgement if (b), a new call of the pass); none:
@@ -75,6 +75,63 @@ variant drops *on top of* today's judgement, which is the residual noise the iss
 - red: none (no spec): `each_rule_gets_the_class_of_the_answer_of_its_feature` failed on a stub body (`left: 0,
   right: 1` on the unread count).
 - not verified: the example on a real run (deliverable 2 does it).
+
+## Deliverable 2: labels and baseline (DeepSeek `deepseek-chat`, 2026-10-31)
+Hand labels (assistant) of the stated rules: linkding 60, a public Django application 40, the large Rails
+application 40, `delivery_router` all 77 (duplicates across features labelled by their own nature: the merge
+handles them, not the judgement).
+
+| run | labelled | good | plumbing | screen |
+|---|---|---|---|---|
+| linkding | 60 | 39 (65%) | 16 | 5 |
+| Django application | 40 | 21 (53%) | 9 | 10 |
+| Rails application | 40 | 29 (73%) | 9 | 2 |
+| `delivery_router` | 77 | 72 (94%) | 5 | 0 |
+
+Today's judgement replayed 3 times on the 7 saved runs (statements fixed, already judged once by the run):
+
+| run | rules | dropped on top (3 replays) | good dropped | noise dropped |
+|---|---|---|---|---|
+| linkding, 3 runs | 226, 116, 215 | 5-10, 3-4, 5-8 | 0/39 | 2-4/21 |
+| `delivery_router`, 2 runs | 29, 77 | 1, 0 | 0/72 | 0/5 |
+| Django application | 366 | 4-7 | 0/21 | 1/19 |
+| Rails application | 1319 | 5-12 | 0/29 | 0/11 |
+
+* Asked again, the judgement drops 0 to 4% more, no good rule, and at most a fifth of the noise: the noise
+  left is what it classes `business`, not a variance of its answer.
+* The noise the judgement keeps is mostly plumbing; screen behaviour is a quarter of the noise of the Django
+  application (an administration panel).
+* Cost: 231 short calls a series, 155k prompt tokens (cents).
+
+## Deliverable 3: variants of the judgement (same measure, 3 replays each)
+Noise and good rules dropped on top of the run's judgement, on the labelled samples (linkding 21 noise / 39
+good, Django application 19 / 21, Rails application 11 / 29, `delivery_router` 5 / 72):
+
+| variant | noise dropped | good dropped | rules dropped, all 7 runs (of 2348) |
+|---|---|---|---|
+| today | 3-5 of 56 (7%) | 0 of 161 | 28-39 |
+| (a') examples of what is not business | 16-19 of 56 (31%) | 2 of 161 (1.2%; linkding 2 of 39) | 124-136 |
+| (b) rules of other features on the same files | 3-7 of 56 | 0 of 161 | 25-43 |
+| (a') and (b) | 19-22 of 56 | 2 of 161 | 99-123 |
+
+* Kept: (a'), in `JUDGE_SYSTEM_PROMPT`. The two good rules it drops on linkding are borderline (a size limit
+  read from a server setting; lines of a tagging script that are ignored).
+* The examples were written after reading the labelled samples, so their scores flatter them. Read by hand,
+  the rules (a') drops outside the samples in at least two replays of three (about 70 on linkding, the Django
+  and the Rails applications) hold 4 to 5 debatable good rules (the set-up of a company, the syntax of a
+  tagging script); the rest is plumbing and screen behaviour: the gain is not limited to the samples.
+* On the labelled samples without `delivery_router`, the noise kept goes from about 36% to about 30%. The
+  Rails application keeps its 11 labelled noise rules under every variant: what is left there is plumbing
+  written as a business sentence (a token refused, a form to validate).
+* (b) changes nothing alone and makes (a') less steady on the Rails application (20 to 35 dropped): left
+  out; the replay keeps it (`--neighbours`) to measure it again.
+* The judgement prompt is part of the print of each feature: the next `generate` of a saved run asks the
+  rules of every feature again once (statements included), as for any change of a rules prompt.
+
+## Deliverable 3 summary
+- done: examples of what is not business in the judgement prompt; `--neighbours` in the replay.
+- red: none (a prompt; the print test changed on purpose).
+- not verified: a whole `generate` with the new prompt (the replay measures the judgement on fixed statements).
 
 ## Decisions
 - Mode: autonomous

@@ -4,7 +4,11 @@
 //! a screen checks, a technical detail). The statement call finds what the code enforces; this one
 //! judges what is worth a page, on the statements alone, so it is much shorter. A closed class per
 //! rule, not a list of numbers to drop: measured on hand labels of a large repository, the list
-//! lost 22% of the good rules, the classes 3% (`issues/done/rules_deduplication_and_noise.md`). A rule
+//! lost 22% of the good rules, the classes 3% (`issues/done/rules_deduplication_and_noise.md`). The
+//! examples of what is not business in the prompt, measured on the fixed statements of seven saved runs,
+//! made the judgement drop a third of the noise it had kept for 1% of the good rules
+//! (`issues/rules_plumbing_and_screen_noise.md`); showing it the rules of other features on the same
+//! files did not. A rule
 //! the answer does not class, or classes in an unknown way, is kept. Like the rest of the pass, no
 //! pattern of a language or framework: the LLM judges, the program applies the verdict.
 
@@ -28,6 +32,13 @@ test: what a test checks about a screen or an end-to-end scenario.\n\
 technical: a technical detail no business reader asks about: a protocol or security header, a \
 file or folder handled by the program, an internal cache or task, a database mode, the format of \
 an identifier, the exact way a number or a list is cut for display.\n\
+Examples that are NOT business: a date set to now by default (storage); an object identified by an \
+id and a position (storage); the counts a job reports when it ends (storage); a form that must be \
+valid before it is saved (technical); a folder skipped when it is missing (technical); a feature \
+turned on by a setting of the server or an environment variable (technical); a health or metrics \
+endpoint (technical); characters escaped or a text sanitised on output (technical); how a page \
+labels, sorts, filters or refreshes what it lists (screen); a confirmation dialog before an action \
+(screen).\n\
 A rule that refuses or limits something is business even if it is simple. Reply with ONLY a \
 single JSON object, no prose and no Markdown code fence: \
 {\"rules\":[{\"n\":1,\"class\":\"business\"}]}.";
@@ -94,8 +105,16 @@ struct RawClass {
     class: String,
 }
 
-/// The prompt: the feature and its numbered rules, with their kind and what backs them.
-pub(super) fn judge_prompt(feature: &Feature, rules: &[BusinessRule]) -> String {
+/// Rules of other features shown at most with the rules of a feature.
+const MAX_NEIGHBOURS: usize = 20;
+
+/// The prompt: the feature and its numbered rules, with their kind and what backs them, then the
+/// `neighbours` (rules of other features stated on the same files), for context only.
+pub(super) fn judge_prompt(
+    feature: &Feature,
+    rules: &[BusinessRule],
+    neighbours: &[&BusinessRule],
+) -> String {
     let mut prompt = format!(
         "Feature: {} — {}\n\nRules:\n",
         feature.name, feature.description
@@ -109,6 +128,14 @@ pub(super) fn judge_prompt(feature: &Feature, rules: &[BusinessRule]) -> String 
             backing(rule),
             one_line(&rule.statement)
         );
+    }
+    if !neighbours.is_empty() {
+        prompt.push_str(
+            "\nRules of other features stated on the same files, for context only (do not classify them):\n",
+        );
+        for rule in neighbours.iter().take(MAX_NEIGHBOURS) {
+            let _ = writeln!(prompt, "- {}", one_line(&rule.statement));
+        }
     }
     prompt
 }

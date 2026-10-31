@@ -315,7 +315,8 @@ async fn ask_rules(
     if rules.is_empty() {
         return Ok(Some(Asked::of(rules)));
     }
-    let Some((rules, dropped)) = judge_rules(llm, JUDGE_SYSTEM_PROMPT, feature, &rules).await?
+    let Some((rules, dropped)) =
+        judge_rules(llm, JUDGE_SYSTEM_PROMPT, feature, &rules, &[]).await?
     else {
         return Ok(Some(Asked::of(rules)));
     };
@@ -334,8 +335,8 @@ async fn ask_rules(
 }
 
 /// The rules of `feature` judged under `system` (the pass's [`JUDGE_SYSTEM_PROMPT`], or a variant a
-/// replay measures): those kept and those dropped with their class; `None` when the answer can't be
-/// read, the rules then being kept as stated.
+/// replay measures), with the `neighbours` shown for context (none in the pass): those kept and those
+/// dropped with their class; `None` when the answer can't be read, the rules then being kept as stated.
 ///
 /// # Errors
 ///
@@ -345,11 +346,12 @@ pub(crate) async fn judge_rules(
     system: &str,
     feature: &Feature,
     rules: &[BusinessRule],
+    neighbours: &[&BusinessRule],
 ) -> Result<Option<(Vec<BusinessRule>, Vec<(BusinessRule, String)>)>, PipelineError> {
     Ok(complete_json::<RawVerdict>(
         llm,
         system,
-        &judge_prompt(feature, rules),
+        &judge_prompt(feature, rules, neighbours),
         &format!("judgement of the rules of {}", feature.slug),
     )
     .await?

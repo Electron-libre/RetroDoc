@@ -1126,7 +1126,8 @@ fn a_statement_two_parts_make_is_kept_once_with_the_better_backed_copy_and_the_r
     assert_eq!(seen, [("f-1", 0.7), ("f-2", 0.4)]);
 }
 
-/// The saved prints must not change with a refactor: another print redoes every user's next run.
+/// The saved prints must not change with a refactor: another print redoes every user's next run (changed
+/// on purpose with the examples of the judgement prompt, `issues/rules_plumbing_and_screen_noise.md`).
 #[tokio::test]
 async fn the_print_of_a_feature_stays_the_same() {
     let dir = repo();
@@ -1143,7 +1144,7 @@ async fn the_print_of_a_feature_stays_the_same() {
         prints.into_iter().collect::<Vec<_>>(),
         vec![(
             "delivery/orders".to_string(),
-            "39d25ac7c67ab0fde88e782117c00d16840309a976fcf90dd98dc572683edcc3".to_string()
+            "c5627927c2550b6c30de67292b43a44dee1bdd2a20cfb430b4e24314ac7774c0".to_string()
         )]
     );
 }
