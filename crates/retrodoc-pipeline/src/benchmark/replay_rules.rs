@@ -21,6 +21,7 @@ use super::reference::Reference;
 use super::replay_use_cases::{missing, prepare_with_tree, TreeRun};
 use crate::artifact::{load_yaml, Artifact};
 use crate::bm25::Bm25;
+use crate::brief::Evidence;
 use crate::error::PipelineError;
 use crate::response::complete_json;
 use crate::rules::build_rules;
@@ -51,13 +52,15 @@ pub struct RuleFigures {
 }
 
 /// Runs the rules pass once on the frozen features and use cases, in `work_root` (an empty directory),
-/// reading the code of `tree`. With `judge_llm`, the judge says which rules of the reference the
+/// reading the code of `tree` and given `rule_evidence`, the extracts `generate` gives the rules pass
+/// ([`super::tree_evidence`]; empty: none). With `judge_llm`, the judge says which rules of the reference the
 /// generated rules state; its calls are not in the figures of the pass.
 ///
 /// # Errors
 ///
 /// Returns an error if the frozen inputs (features and use cases included) or the tree are unusable, or
 /// the pass fails.
+#[allow(clippy::too_many_arguments)] // the inputs of the pass, then those of the measure
 pub async fn replay_rules(
     frozen: &FrozenInputs,
     tree: &Path,
@@ -66,9 +69,12 @@ pub async fn replay_rules(
     judge_llm: Option<&dyn LlmProvider>,
     tracker: &UsageTracker,
     reference: &Reference,
+    rule_evidence: &Evidence,
 ) -> Result<RuleFigures, PipelineError> {
     let TreeRun {
-        context, features, ..
+        mut context,
+        features,
+        ..
     } = prepare_with_tree(
         frozen,
         ReplayPass::Rules,
@@ -76,6 +82,7 @@ pub async fn replay_rules(
         work_root,
         &Frame::default(),
     )?;
+    context.rule_evidence = rule_evidence.clone();
     let use_cases =
         load_use_cases(work_root).ok_or_else(|| missing(work_root, "use-cases.yaml"))?;
     let rules = tracker
@@ -258,6 +265,7 @@ mod tests {
     use super::*;
     use crate::benchmark::frozen::Manifest;
     use crate::testing::FakeLlm;
+    use retrodoc_ingest::signals::{Signal, SignalKind};
     use retrodoc_llm::UsageProvider;
 
     const GLOSSARY: &str = "models:\n  customer.rb:\n    content_hash: h\n    entities:\n    - name: Customer\n      description: Someone who orders.\n";
@@ -267,13 +275,12 @@ mod tests {
     const USE_CASES: &str = "- slug: place-an-order\n  feature_slug: order\n  name: Place an order\n  description: d\n  steps: []\n  entry_points: []\n";
     const REFERENCE: &str = "repository: r\ncommit: c\npurpose: p\nactors: [Customer]\ndomains:\n  - name: Customers\n    description: d\n    features:\n      - name: Order\n        description: d\nrules:\n  - An order is refused when the delivery takes 60 minutes or more.\n  - A customer can have only one order.\n";
 
-    #[tokio::test]
-    async fn a_rules_replay_counts_the_rules_and_the_reference_rules_they_state() {
-        let dir = tempfile::tempdir().unwrap();
-        let tree = dir.path().join("tree");
+    /// The frozen inputs of a run on a tree of one file, in `dir`, and the tree.
+    fn frozen_run(dir: &Path) -> (FrozenInputs, std::path::PathBuf) {
+        let tree = dir.join("tree");
         std::fs::create_dir_all(&tree).unwrap();
         std::fs::write(tree.join("customer.rb"), "class Customer; end\n").unwrap();
-        let run = dir.path().join("run");
+        let run = dir.join("run");
         let write = |artifact: Artifact, content: &str| {
             let path = artifact.path(&run);
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -302,7 +309,14 @@ mod tests {
             features_origin: None,
             use_cases_origin: None,
         };
-        let frozen = FrozenInputs::freeze(&run, &dir.path().join("frozen"), &manifest).unwrap();
+        let frozen = FrozenInputs::freeze(&run, &dir.join("frozen"), &manifest).unwrap();
+        (frozen, tree)
+    }
+
+    #[tokio::test]
+    async fn a_rules_replay_counts_the_rules_and_the_reference_rules_they_state() {
+        let dir = tempfile::tempdir().unwrap();
+        let (frozen, tree) = frozen_run(dir.path());
         let tracker = UsageTracker::new();
         let pass_calls = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let asked = pass_calls.clone();
@@ -331,6 +345,7 @@ mod tests {
             Some(&llm),
             &tracker,
             &reference,
+            &Evidence::default(),
         )
         .await
         .unwrap();
@@ -347,5 +362,51 @@ mod tests {
         );
         let text = rule_table("demo", &[figures]);
         assert!(text.contains("1 of 2"), "{text}");
+    }
+
+    // internal: the prompt the replayed pass sends is only seen through a fake LLM.
+    #[tokio::test]
+    async fn a_rules_replay_gives_the_pass_the_extracts_closest_to_each_feature() {
+        let dir = tempfile::tempdir().unwrap();
+        let (frozen, tree) = frozen_run(dir.path());
+        let tracker = UsageTracker::new();
+        let prompts = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let seen = prompts.clone();
+        let llm = UsageProvider::new(
+            FakeLlm::replying(move |_, request| {
+                seen.lock()
+                    .unwrap()
+                    .push(request.messages[1].content.clone());
+                Ok(r#"{"rules":[]}"#.to_string())
+            }),
+            tracker.clone(),
+        );
+        let reference: Reference = serde_yaml::from_str(REFERENCE).unwrap();
+        let evidence = Evidence::new(&[Signal {
+            kind: SignalKind::TestDescriptions,
+            origin: "spec/order_spec.rb".to_string(),
+            text: "refuses an order whose delivery takes an hour".to_string(),
+        }]);
+
+        replay_rules(
+            &frozen,
+            &tree,
+            &dir.path().join("work"),
+            &llm,
+            None,
+            &tracker,
+            &reference,
+            &evidence,
+        )
+        .await
+        .unwrap();
+
+        let prompts = prompts.lock().unwrap();
+        assert!(
+            prompts
+                .iter()
+                .any(|p| p.contains("refuses an order whose delivery takes an hour")),
+            "{prompts:?}"
+        );
     }
 }

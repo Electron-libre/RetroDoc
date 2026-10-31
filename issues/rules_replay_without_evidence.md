@@ -40,3 +40,43 @@ Business rules quality
 # Hints
 
 * Share one rules baseline with `rules_plumbing_and_screen_noise` rather than paying two.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Give the rules replay the extracts `generate` gives the rules pass (`rule_evidence`, from `tree_evidence` of the
+`source_run` tree), on by default with `--evidence off` to reproduce the old baselines. Out of scope: the paid
+rerun of the rules baseline (approach 2), left to `rules_plumbing_and_screen_noise` which shares it. No spec: the
+replay is a measuring tool that no spec covers.
+
+## Plan
+1. [x] Rules replay with evidence: `replay_rules` takes the rule evidence and puts it in `UseCaseContext::rule_evidence`;
+   `pass_replay rules` builds it with `tree_evidence` (`--evidence on|off`, default on, said in the title); docs of
+   `pass_replay` updated; verified by a test of `replay_rules` whose fake LLM sees an extract of the evidence in the
+   rules prompt.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 4670b62015c6093ec5aa5aa86ccbad30e91bfdc1
+- Q1 a: `rules` takes the evidence by default, `--evidence off` reproduces the old baselines.
+
+## Deliverable 1 summary
+- done: `replay_rules` takes the rule evidence into `UseCaseContext::rule_evidence`; `pass_replay rules` gives
+  `tree_evidence` of the source tree by default (`--evidence off` for the old baselines, said in the title);
+  `code_read_overlap` keeps no evidence (it compares code only); `docs/dev/commands.md`, `docs/crates/pipeline.md`.
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | pass |
+| specs | pass (no spec: measuring tool) |
+| docs | updated |
+| code review | `low`: no findings |
+
+- red: none (no spec): `a_rules_replay_gives_the_pass_the_extracts_closest_to_each_feature` failed with the rules
+  prompts holding no extract.
+Code review: no findings
+- not verified: a real `pass_replay rules` run (paid; the rules baseline is left to `rules_plumbing_and_screen_noise`).
+- decisions needed: none.

@@ -19,6 +19,8 @@
 //! halves, which this does not see, so the figures are a floor for such a feature), and a source line
 //! that looks like `=== x ===` would be read as a header.
 //!
+//! Neither pass is given the extracts of the signals: only the code is compared.
+//!
 //! The benchmark dir (`benchmark/<repo>`) is only there because the rules replay asks for its reference.
 //! The tree read is `manifest.source_run`, as for `pass_replay`. Feature names are printed to read the
 //! table: never copy them in a committed file when the repository is confidential.
@@ -35,6 +37,7 @@ use retrodoc_llm::{
 use retrodoc_pipeline::benchmark::{
     replay_rules, replay_use_cases, Frame, FrozenInputs, Reference,
 };
+use retrodoc_pipeline::Evidence;
 use std::sync::Mutex;
 
 type Failure = Box<dyn std::error::Error>;
@@ -321,6 +324,7 @@ async fn run(frozen_dir: &Path, benchmark_dir: &Path) -> Result<String, Failure>
         None,
         &UsageTracker::new(),
         &reference,
+        &Evidence::default(),
     )
     .await?;
     let use_cases = use_cases.prompts.into_inner().unwrap();

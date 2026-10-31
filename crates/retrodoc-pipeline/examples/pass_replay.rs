@@ -15,8 +15,9 @@
 //!   reads).
 //! - `--brief off|head` (features, use cases): leave the frozen product brief out of the prompts, or put it
 //!   at the head of the user prompt (the default, as `generate`).
-//! - `--evidence on|off` (features, use cases): give each unit the extracts of the signals closest to it,
-//!   from the tree at `manifest.source_run`, or not (`brief.evidence`; `on`, the default, as `generate`).
+//! - `--evidence on|off` (features, use cases, rules): give each unit the extracts of the signals closest
+//!   to it, from the tree at `manifest.source_run`, or not (`brief.evidence`, and `[pipeline] rules` for the
+//!   rules; `on`, the default, as `generate`; `off` for rules reproduces the baselines measured before).
 //!
 //! Each run starts from an empty work directory and the temperature is the pipeline's for the pass. The
 //! same model then judges what the strict reading cannot (the "judge" columns: an LLM's reading, not the
@@ -180,9 +181,9 @@ impl Options {
         })
     }
 
-    /// How the frame was set, said in every title: the replays of the features and use cases had no
-    /// evidence before it was on by default, so a title never leaves it implicit.
-    fn frame_label(&self) -> String {
+    /// How the frame was set, said in every title: the replays had no evidence before it was on by
+    /// default, so a title never leaves it implicit. The rules are always given the brief.
+    fn frame_label(&self, pass: &str) -> String {
         let brief = if self.without_brief {
             "no brief"
         } else {
@@ -193,7 +194,11 @@ impl Options {
         } else {
             "no evidence"
         };
-        format!(", {brief}, {evidence}")
+        if pass == "rules" {
+            format!(", {evidence}")
+        } else {
+            format!(", {brief}, {evidence}")
+        }
     }
 }
 
@@ -225,9 +230,12 @@ async fn start(
     {
         return Err("pass is `domains`, `features`, `use-cases` or `rules`; --freeze-first goes with the first three".into());
     }
-    let framed = ["features", "use-cases"].contains(&pass);
-    if !framed && (options.without_brief || !options.evidence) {
-        return Err("--brief off and --evidence off go with `features` and `use-cases`".into());
+    let framed = ["features", "use-cases", "rules"].contains(&pass);
+    if options.without_brief && !["features", "use-cases"].contains(&pass) {
+        return Err("--brief off goes with `features` and `use-cases`".into());
+    }
+    if !framed && !options.evidence {
+        return Err("--evidence off goes with `features`, `use-cases` and `rules`".into());
     }
     let bench_dir = Path::new(bench_dir);
     let matches_path = bench_dir.join("matches.yaml");
@@ -259,7 +267,7 @@ async fn start(
         config,
         frame,
         frame_label: if framed {
-            options.frame_label()
+            options.frame_label(pass)
         } else {
             String::new()
         },
@@ -302,6 +310,7 @@ async fn rules(setup: &Setup) -> Result<(), Failure> {
             Some(&llm),
             &tracker,
             &setup.reference,
+            &setup.frame.evidence,
         )
         .await?;
         let total = tracker.report().total();
