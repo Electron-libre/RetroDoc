@@ -153,7 +153,7 @@ The milestones up to "A large application, one bounded context at a time" are th
   - [rules_deduplication_and_noise](issues/done/rules_deduplication_and_noise.md)
   - [rules_replay_without_evidence](issues/done/rules_replay_without_evidence.md)
   - [rules_plumbing_and_screen_noise](issues/done/rules_plumbing_and_screen_noise.md)
-  - [rules_replay_without_put_back](issues/rules_replay_without_put_back.md)
+  - [rules_replay_without_put_back](issues/done/rules_replay_without_put_back.md)
   - [rules_judge_prompt_feature_on_one_line](issues/rules_judge_prompt_feature_on_one_line.md)
 
 ## Pre-run cost estimate

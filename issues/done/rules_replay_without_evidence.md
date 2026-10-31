@@ -88,7 +88,7 @@ Code review: no findings
 
 ## Deliverable 2 summary
 - done: the fixes of the `high` review (plan line 2); its finding on `[rules]` put-backs, outside this issue's
-  goal (the evidence) and with no effect on the frozen linkding, is `issues/rules_replay_without_put_back.md`.
+  goal (the evidence) and with no effect on the frozen linkding, is `issues/done/rules_replay_without_put_back.md`.
 
 | check | result |
 |---|---|
