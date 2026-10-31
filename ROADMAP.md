@@ -151,7 +151,7 @@ The milestones up to "A large application, one bounded context at a time" are th
 - State: in issues
 - Issues:
   - [rules_deduplication_and_noise](issues/done/rules_deduplication_and_noise.md)
-  - [rules_replay_without_evidence](issues/rules_replay_without_evidence.md)
+  - [rules_replay_without_evidence](issues/done/rules_replay_without_evidence.md)
   - [rules_plumbing_and_screen_noise](issues/rules_plumbing_and_screen_noise.md)
   - [rules_replay_without_put_back](issues/rules_replay_without_put_back.md)
 

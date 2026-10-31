@@ -111,7 +111,7 @@ frozen brief and never the evidence, so the settings must first become replay op
 - Code review: no findings
 - not verified: a paid replay with the new flags (deliverable 2).
 - decisions needed: none.
-- Follow-up: `issues/rules_replay_without_evidence.md` (the rules replay gets no `rule_evidence`, `generate` gives it).
+- Follow-up: `issues/done/rules_replay_without_evidence.md` (the rules replay gets no `rule_evidence`, `generate` gives it).
 
 ## Deliverable 2: measure 1, features on fixed domains (2026-10-28)
 
