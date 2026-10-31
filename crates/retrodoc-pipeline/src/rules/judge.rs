@@ -109,7 +109,8 @@ struct RawClass {
 pub(crate) fn judge_prompt(feature: &Feature, rules: &[BusinessRule]) -> String {
     let mut prompt = format!(
         "Feature: {} — {}\n\nRules:\n",
-        feature.name, feature.description
+        one_line(&feature.name),
+        one_line(&feature.description)
     );
     for (n, rule) in rules.iter().enumerate() {
         let _ = writeln!(

@@ -6,7 +6,7 @@ use std::path::Path;
 
 use retrodoc_core::model::{Feature, UseCase};
 
-use super::RuleInput;
+use super::{one_line, RuleInput};
 use crate::brief::{ExtractKind, ProductBrief};
 use crate::chunks::Splitter;
 use crate::use_cases::{focus_for, MAX_CHARS_PER_FILE, MAX_CHARS_PER_PROMPT};
@@ -53,8 +53,8 @@ pub(super) fn rules_prompt(
     let mut prompt = format!(
         "{}Feature: {} — {}\n",
         brief.prompt_head(),
-        feature.name,
-        feature.description
+        one_line(&feature.name),
+        one_line(&feature.description)
     );
     if !input.entities.is_empty() {
         let _ = write!(prompt, "\nEntities: {}\n", input.entities.join(", "));
