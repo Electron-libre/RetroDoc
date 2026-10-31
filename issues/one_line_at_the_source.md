@@ -10,7 +10,7 @@ The pipeline now shows a feature in its prompts through one helper (`text::featu
 prompt or a Markdown list as they are, and the render and the MCP server each keep their own copy of `one_line`.
 Close the remaining gaps, and decide whether the names are better put on one line where the passes build them.
 
-# Findings (high review of `issues/rules_judge_prompt_feature_on_one_line.md`, 2026-10-31, read in the code; not seen on a run)
+# Findings (high review of `issues/done/rules_judge_prompt_feature_on_one_line.md`, 2026-10-31, read in the code; not seen on a run)
 * The statement prompt of the rules writes the glossary entities raw (`Entities: {}`, `rules/prompt.rs`); the use
   case prompt writes the business vocabulary raw (`use_cases/prompt.rs`).
 * `one_line` has private copies in `retrodoc-render` (`rules.rs`, `doc_links.rs`, a closure in
