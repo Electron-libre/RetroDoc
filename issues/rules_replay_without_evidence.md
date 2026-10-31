@@ -57,6 +57,11 @@ replay is a measuring tool that no spec covers.
    `pass_replay` updated; verified by a test of `replay_rules` whose fake LLM sees an extract of the evidence in the
    rules prompt.
 
+2. [x] Docs and fixes of the `high` review of the issue: `replay_rules` takes a `Frame` like the use cases
+   replay (its evidence moved to `rule_evidence`, no clone); `warn_if_moved` says the tree read moved (code and evidence), for every replay that reads it; one
+   list of the passes that take `--brief`; the test uses `FakeLlm::prompts`; the rules cost of
+   `docs/dev/commands.md` said to be without the evidence.
+
 ## Decisions
 - Mode: autonomous
 - Base commit: 4670b62015c6093ec5aa5aa86ccbad30e91bfdc1
@@ -79,4 +84,21 @@ replay is a measuring tool that no spec covers.
   prompts holding no extract.
 Code review: no findings
 - not verified: a real `pass_replay rules` run (paid; the rules baseline is left to `rules_plumbing_and_screen_noise`).
+- decisions needed: none.
+
+## Deliverable 2 summary
+- done: the fixes of the `high` review (plan line 2); its finding on `[rules]` put-backs, outside this issue's
+  goal (the evidence) and with no effect on the frozen linkding, is `issues/rules_replay_without_put_back.md`.
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | pass |
+| specs | pass (no spec) |
+| docs | updated |
+| code review | `high` on the issue: 7 findings, 6 fixed, 1 filed; `low` on the fixes: 1 finding, fixed |
+
+- red: none (refactor and fixes under the test of deliverable 1).
+Code review: 1 finding: `low` saw the move warning dropped for a rules replay with `--evidence off`, which still reads the code; the warning now runs for every replay that reads the tree and names what moved.
+- not verified: a real `pass_replay rules` run (paid).
 - decisions needed: none.

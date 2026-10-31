@@ -21,7 +21,6 @@ use super::reference::Reference;
 use super::replay_use_cases::{missing, prepare_with_tree, TreeRun};
 use crate::artifact::{load_yaml, Artifact};
 use crate::bm25::Bm25;
-use crate::brief::Evidence;
 use crate::error::PipelineError;
 use crate::response::complete_json;
 use crate::rules::build_rules;
@@ -52,7 +51,7 @@ pub struct RuleFigures {
 }
 
 /// Runs the rules pass once on the frozen features and use cases, in `work_root` (an empty directory),
-/// reading the code of `tree` and given `rule_evidence`, the extracts `generate` gives the rules pass
+/// reading the code of `tree`, framed by `frame`: its evidence is what `generate` gives the rules pass
 /// ([`super::tree_evidence`]; empty: none). With `judge_llm`, the judge says which rules of the reference the
 /// generated rules state; its calls are not in the figures of the pass.
 ///
@@ -69,20 +68,15 @@ pub async fn replay_rules(
     judge_llm: Option<&dyn LlmProvider>,
     tracker: &UsageTracker,
     reference: &Reference,
-    rule_evidence: &Evidence,
+    frame: &Frame,
 ) -> Result<RuleFigures, PipelineError> {
     let TreeRun {
         mut context,
         features,
         ..
-    } = prepare_with_tree(
-        frozen,
-        ReplayPass::Rules,
-        tree,
-        work_root,
-        &Frame::default(),
-    )?;
-    context.rule_evidence = rule_evidence.clone();
+    } = prepare_with_tree(frozen, ReplayPass::Rules, tree, work_root, frame)?;
+    // The rules pass reads the evidence of the rules alone, as `generate` gives it.
+    context.rule_evidence = std::mem::take(&mut context.evidence);
     let use_cases =
         load_use_cases(work_root).ok_or_else(|| missing(work_root, "use-cases.yaml"))?;
     let rules = tracker
@@ -264,6 +258,7 @@ pub fn rule_table(title: &str, runs: &[RuleFigures]) -> String {
 mod tests {
     use super::*;
     use crate::benchmark::frozen::Manifest;
+    use crate::brief::Evidence;
     use crate::testing::FakeLlm;
     use retrodoc_ingest::signals::{Signal, SignalKind};
     use retrodoc_llm::UsageProvider;
@@ -345,7 +340,7 @@ mod tests {
             Some(&llm),
             &tracker,
             &reference,
-            &Evidence::default(),
+            &Frame::default(),
         )
         .await
         .unwrap();
@@ -370,17 +365,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let (frozen, tree) = frozen_run(dir.path());
         let tracker = UsageTracker::new();
-        let prompts = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
-        let seen = prompts.clone();
-        let llm = UsageProvider::new(
-            FakeLlm::replying(move |_, request| {
-                seen.lock()
-                    .unwrap()
-                    .push(request.messages[1].content.clone());
-                Ok(r#"{"rules":[]}"#.to_string())
-            }),
-            tracker.clone(),
-        );
+        let llm = FakeLlm::answering(r#"{"rules":[]}"#);
         let reference: Reference = serde_yaml::from_str(REFERENCE).unwrap();
         let evidence = Evidence::new(&[Signal {
             kind: SignalKind::TestDescriptions,
@@ -396,12 +381,15 @@ mod tests {
             None,
             &tracker,
             &reference,
-            &evidence,
+            &Frame {
+                evidence,
+                ..Frame::default()
+            },
         )
         .await
         .unwrap();
 
-        let prompts = prompts.lock().unwrap();
+        let prompts = llm.prompts();
         assert!(
             prompts
                 .iter()

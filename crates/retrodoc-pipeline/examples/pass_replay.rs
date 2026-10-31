@@ -182,8 +182,8 @@ impl Options {
     }
 
     /// How the frame was set, said in every title: the replays had no evidence before it was on by
-    /// default, so a title never leaves it implicit. The rules are always given the brief.
-    fn frame_label(&self, pass: &str) -> String {
+    /// default, so a title never leaves it implicit. A pass that does not take `--brief` is always given it.
+    fn frame_label(&self, takes_brief: bool) -> String {
         let brief = if self.without_brief {
             "no brief"
         } else {
@@ -194,23 +194,23 @@ impl Options {
         } else {
             "no evidence"
         };
-        if pass == "rules" {
-            format!(", {evidence}")
-        } else {
+        if takes_brief {
             format!(", {brief}, {evidence}")
+        } else {
+            format!(", {evidence}")
         }
     }
 }
 
-/// Warns when the tree the evidence is read from is no longer at the commit of the frozen inputs: its
-/// docs, tests and commits would not be those the frozen run saw.
+/// Warns when the tree a replay reads is no longer at the commit of the frozen inputs: its code, docs,
+/// tests and commits would not be those the frozen run saw.
 fn warn_if_moved(tree: &Path, commit: &str) {
     let head = git2::Repository::open(tree)
         .and_then(|repo| Ok(repo.head()?.peel_to_commit()?.id().to_string()));
     match head {
         Ok(head) if head == commit => {}
         Ok(head) => eprintln!(
-            "warning: {} is at {head}, the frozen inputs at {commit}: the evidence comes from another commit",
+            "warning: {} is at {head}, the frozen inputs at {commit}: what the replay reads of it comes from another commit",
             tree.display()
         ),
         Err(error) => eprintln!("warning: commit of {} unknown: {error}", tree.display()),
@@ -230,8 +230,10 @@ async fn start(
     {
         return Err("pass is `domains`, `features`, `use-cases` or `rules`; --freeze-first goes with the first three".into());
     }
-    let framed = ["features", "use-cases", "rules"].contains(&pass);
-    if options.without_brief && !["features", "use-cases"].contains(&pass) {
+    // The passes whose replay takes `--brief`, and those that also take `--evidence`.
+    let takes_brief = ["features", "use-cases"].contains(&pass);
+    let framed = takes_brief || pass == "rules";
+    if options.without_brief && !takes_brief {
         return Err("--brief off goes with `features` and `use-cases`".into());
     }
     if !framed && !options.evidence {
@@ -267,7 +269,7 @@ async fn start(
         config,
         frame,
         frame_label: if framed {
-            options.frame_label(pass)
+            options.frame_label(takes_brief)
         } else {
             String::new()
         },
@@ -310,7 +312,7 @@ async fn rules(setup: &Setup) -> Result<(), Failure> {
             Some(&llm),
             &tracker,
             &setup.reference,
-            &setup.frame.evidence,
+            &setup.frame,
         )
         .await?;
         let total = tracker.report().total();

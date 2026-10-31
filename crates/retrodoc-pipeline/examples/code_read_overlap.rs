@@ -37,7 +37,6 @@ use retrodoc_llm::{
 use retrodoc_pipeline::benchmark::{
     replay_rules, replay_use_cases, Frame, FrozenInputs, Reference,
 };
-use retrodoc_pipeline::Evidence;
 use std::sync::Mutex;
 
 type Failure = Box<dyn std::error::Error>;
@@ -324,7 +323,7 @@ async fn run(frozen_dir: &Path, benchmark_dir: &Path) -> Result<String, Failure>
         None,
         &UsageTracker::new(),
         &reference,
-        &Evidence::default(),
+        &Frame::default(),
     )
     .await?;
     let use_cases = use_cases.prompts.into_inner().unwrap();
