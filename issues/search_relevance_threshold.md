@@ -34,3 +34,54 @@ Ask the documentation
 
 # Hints
 * `bm25.rs` is shared with the reconciliation and the brief evidence: a floor in the search must not change them.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Leave out of `retrodoc search` / `search_docs` the hits that only share the query's common words, and say "not
+documented" with the number left out. Out of scope: synonyms, the BM25 of the reconciliation and the brief evidence.
+Means: neither candidate (a) nor (b) of the issue; a floor on the share of the query's IDF a hit holds (measure below).
+
+## Measure (no LLM, 2026-10-31, `~/retrodoc-runs/search_relevance/`)
+42 hand-written questions (21 documented, 21 not) on the saved runs of delivery_router (`rsa-dr`), linkding
+(`rules-ld-dedup`) and healthchecks (`rsa-hc`); `scores.txt` (scores), `coverage.txt` (words matched by the top hit).
+* Absolute score: no floor separates them (documented top hits from 0.71, undocumented up to 14.1).
+* Relative floor (a): only trims the tail, it can't empty an answer whose best hit is itself weak.
+* Share of the query's IDF held by the top hit: documented 1.00 (15), 0.52-0.68 (3), 0.06-0.22 (3: `nearest`,
+  `address`, `rename` absent, synonym misses); undocumented 0.06-0.50 (10), 0.53 (1), 1.00 (2: `cancel an order`,
+  `delete a user account`, whose words the docs do have). A floor "more than half" keeps 18/21 documented and drops
+  11/14 undocumented of those with a hit (7 already returned nothing).
+
+## Plan
+1. [x] IDF-share floor in the documentation search, with the not-documented answer naming the hits left out:
+   `Bm25` gets a ranking with the floor (the `search`/`search_any` of the reconciliation and the brief untouched),
+   `SearchIndex::search` uses it, `search_docs` and `retrodoc search` say not documented with the count; verified by
+   unit tests in `bm25.rs`/`search.rs` and an end-to-end test of `retrodoc search` (`crates/retrodoc-cli/tests/search.rs`);
+   makes true DSR-1..DSR-4 (spec `accepted`). ~250 lines.
+
+## Decisions
+- Mode: autonomous
+- Base commit: e1bcab4f0da6cc40299361b59f5f9191f7dd5f6d
+- Floor: strictly more than half of the query's IDF weight (measured best point).
+- The half-of-the-words rule stays; the floor comes on top of it.
+
+## Deliverable 1 summary
+done: `Bm25::search_relevant` (IDF-share floor, half-of-the-words rule kept), used by `SearchIndex::search`; the
+not-documented answers of `search_docs` and `retrodoc search` give the number of entries left out; spec `accepted`.
+Re-measured on the 42 questions (`after.txt`): 19/21 documented answered, 17/21 undocumented answer "not documented".
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | pass |
+| specs | DSR-1..4 traced, `accepted` |
+| docs | `docs/crates/render-mcp-cli.md`, `docs/findings.md` §4 |
+| code review | see below |
+
+red: DSR-2, DSR-3, DSR-4: `a_query_whose_rare_word_no_entry_has_is_not_documented` listed `["Assign a rider", "Track a rider", "Plan a route"]` where none was expected.
+Code review: no findings
+
+not verified: nothing.
+decisions needed: none.

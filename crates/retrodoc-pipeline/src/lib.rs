@@ -59,7 +59,7 @@ pub use artifact::{Artifact, Retention};
 pub use behaviour_coverage::{
     save_technical_support, save_use_case_coverage, BehaviourCoverage, EntryCount, FeatureCoverage,
 };
-pub use bm25::Bm25;
+pub use bm25::{Bm25, Relevant};
 pub use brief::{build_brief, sample_chars, Claim, Evidence, ProductBrief};
 pub use business_files::{infer_business_files, BusinessEntry, BusinessMap};
 pub use business_read::read_business_files;

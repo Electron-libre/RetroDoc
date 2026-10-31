@@ -12,10 +12,16 @@ impl Docs {
     /// The best `limit` matches for `query`, or "Not documented".
     #[must_use]
     pub fn search_docs(&self, query: &str, limit: usize) -> String {
-        let hits = self.index.search(query, limit);
+        let found = self.index.search(query, limit);
+        let hits = found.hits;
         if hits.is_empty() {
+            let partial = if found.left_out == 0 {
+                String::new()
+            } else {
+                format!(" ({} entries share only its common words)", found.left_out)
+            };
             return format!(
-                "Not documented: nothing among {} entries matches `{query}`. \
+                "Not documented: nothing among {} entries matches `{query}`{partial}. \
                  Try other words, or `list_domains` to browse.\n",
                 self.index.len()
             );

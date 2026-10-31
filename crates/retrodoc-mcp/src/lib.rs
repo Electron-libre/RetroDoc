@@ -16,6 +16,6 @@ pub mod source;
 pub mod tools;
 
 pub use corpus::{build_entries, Entry, EntryKind};
-pub use search::{Hit, SearchIndex};
+pub use search::{Found, Hit, SearchIndex};
 pub use server::{serve_stdio, DocsServer, McpError};
 pub use tools::Docs;

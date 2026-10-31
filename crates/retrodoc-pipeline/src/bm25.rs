@@ -120,6 +120,9 @@ impl Bm25 {
     #[must_use]
     pub fn search(&self, query: &str) -> Vec<(usize, f32)> {
         self.rank(query, true)
+            .into_iter()
+            .map(|(doc, score, _)| (doc, score))
+            .collect()
     }
 
     /// Like [`Bm25::search`] without the half-of-the-words rule: any document
@@ -128,11 +131,41 @@ impl Bm25 {
     #[must_use]
     pub fn search_any(&self, query: &str) -> Vec<(usize, f32)> {
         self.rank(query, false)
+            .into_iter()
+            .map(|(doc, score, _)| (doc, score))
+            .collect()
+    }
+
+    /// Like [`Bm25::search`], keeping only the documents whose words in
+    /// common with `query` hold more than half of its weight, each word
+    /// weighing its IDF (a word no document has weighs the most): a document
+    /// that shares only the common words of a question doesn't answer it.
+    #[must_use]
+    pub fn search_relevant(&self, query: &str) -> Relevant {
+        let ranked = self.rank(query, true);
+        let total = ranked.len();
+        let hits: Vec<(usize, f32)> = ranked
+            .into_iter()
+            .filter(|(_, _, share)| *share > 0.5)
+            .map(|(doc, score, _)| (doc, score))
+            .collect();
+        Relevant {
+            left_out: total - hits.len(),
+            hits,
+        }
     }
 
     #[allow(clippy::cast_precision_loss)]
-    fn rank(&self, query: &str, half_must_match: bool) -> Vec<(usize, f32)> {
+    fn idf(&self, containing: usize) -> f32 {
         let total = self.lengths.len() as f32;
+        let containing = containing as f32;
+        (1.0 + (total - containing + 0.5) / (containing + 0.5)).ln()
+    }
+
+    /// The matching documents, best first, with their score and the share of
+    /// the query's weight their words hold.
+    #[allow(clippy::cast_precision_loss)]
+    fn rank(&self, query: &str, half_must_match: bool) -> Vec<(usize, f32, f32)> {
         let mut terms: Vec<String> = tokenize(query)
             .into_iter()
             .filter(|t| !stop_words().contains(t))
@@ -144,30 +177,44 @@ impl Bm25 {
         } else {
             1
         };
-        // Per document: how many query words it has, and its score.
-        let mut found: HashMap<usize, (usize, f32)> = HashMap::new();
+        let weight: f32 = terms
+            .iter()
+            .map(|t| self.idf(self.postings.get(t).map_or(0, Vec::len)))
+            .sum();
+        // Per document: how many query words it has, its score, and the
+        // weight of its query words.
+        let mut found: HashMap<usize, (usize, f32, f32)> = HashMap::new();
         for term in &terms {
             let Some(postings) = self.postings.get(term) else {
                 continue;
             };
-            let containing = postings.len() as f32;
-            let idf = (1.0 + (total - containing + 0.5) / (containing + 0.5)).ln();
+            let idf = self.idf(postings.len());
             for &(doc, count) in postings {
                 let tf = count as f32;
                 let length = self.lengths[doc] as f32 / self.average_length;
                 let entry = found.entry(doc).or_default();
                 entry.0 += 1;
                 entry.1 += idf * tf * (K1 + 1.0) / (tf + K1 * (1.0 - B + B * length));
+                entry.2 += idf;
             }
         }
-        let mut ranked: Vec<(usize, f32)> = found
+        let mut ranked: Vec<(usize, f32, f32)> = found
             .into_iter()
-            .filter(|(_, (matched, _))| *matched >= needed)
-            .map(|(doc, (_, score))| (doc, score))
+            .filter(|(_, (matched, _, _))| *matched >= needed)
+            .map(|(doc, (_, score, held))| (doc, score, held / weight))
             .collect();
         ranked.sort_by(|a, b| b.1.total_cmp(&a.1).then(a.0.cmp(&b.0)));
         ranked
     }
+}
+
+/// What [`Bm25::search_relevant`] finds.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Relevant {
+    /// The documents kept, best first, with their score.
+    pub hits: Vec<(usize, f32)>,
+    /// How many documents [`Bm25::search`] finds that the floor left out.
+    pub left_out: usize,
 }
 
 #[cfg(test)]
@@ -264,6 +311,42 @@ mod tests {
             Vec::<(usize, f32)>::new()
         );
         assert_eq!(found("what is the"), Vec::<usize>::new());
+    }
+
+    fn relevant(bm25: &Bm25, query: &str) -> (Vec<usize>, usize) {
+        let found = bm25.search_relevant(query);
+        (found.hits.iter().map(|h| h.0).collect(), found.left_out)
+    }
+
+    // spec: DSR-2 (internal: the weights are corpus statistics a fixture of the binary cannot pin down)
+    #[test]
+    fn a_hit_must_hold_more_than_half_of_the_query_weight() {
+        let bm25 = index(&[
+            "rider order",
+            "rider route",
+            "rider map",
+            "salary slip",
+            "alpha",
+            "beta",
+        ]);
+        // `bonus` is in no document, so it weighs the most: `rider` alone is not enough.
+        assert_eq!(relevant(&bm25, "rider bonus"), (vec![], 3));
+        // One word is the whole weight.
+        assert_eq!(relevant(&bm25, "rider").0, [0, 1, 2]);
+        // Two words as rare as each other: one of them is half, not more.
+        assert_eq!(relevant(&bm25, "alpha beta"), (vec![], 2));
+        // The rare word without the common one is enough.
+        assert_eq!(relevant(&bm25, "rider salary"), (vec![3], 3));
+        // Both words: kept.
+        assert_eq!(relevant(&bm25, "rider route"), (vec![1], 2));
+    }
+
+    #[test]
+    fn the_floor_keeps_the_half_of_the_words_rule() {
+        let bm25 = index(&["alpha", "beta gamma delta"]);
+        // `zeta` and `eta` are in no document: one word of four matched.
+        assert_eq!(relevant(&bm25, "alpha beta zeta eta"), (vec![], 0));
+        assert_eq!(relevant(&bm25, "zzzz"), (vec![], 0));
     }
 
     #[test]

@@ -15,12 +15,21 @@ pub fn run(path: &Path, query: &str, limit: usize) -> anyhow::Result<()> {
     let docs = load_docs(&workspace)?;
     let index = docs.index();
 
-    let hits = index.search(query, limit);
+    let found = index.search(query, limit);
+    let hits = found.hits;
     if hits.is_empty() {
-        println!(
-            "not documented: nothing among {} entries matches",
-            index.len()
-        );
+        if found.left_out == 0 {
+            println!(
+                "not documented: nothing among {} entries matches",
+                index.len()
+            );
+        } else {
+            println!(
+                "not documented: nothing among {} entries matches ({} entries share only its common words); try other words",
+                index.len(),
+                found.left_out
+            );
+        }
         return Ok(());
     }
     for hit in hits {

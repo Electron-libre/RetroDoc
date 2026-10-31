@@ -173,6 +173,17 @@ fn a_search_lists_ids_confidence_and_files_or_says_not_documented() {
     assert!(out.starts_with("Not documented: nothing among"));
 }
 
+// spec: DSR-3, DSR-4 (internal: the tool answer is checked without a JSON-RPC session)
+#[test]
+fn a_search_on_common_words_only_says_not_documented_and_how_many_were_left_out() {
+    let docs = docs();
+    let out = docs.search_docs("pay salary", 5);
+    assert!(out.starts_with("Not documented:"), "{out}");
+    assert!(out.contains("entries share only its common words"), "{out}");
+    assert!(out.contains("Try other words"), "{out}");
+    assert!(!docs.search_docs("zzzz", 5).contains("share only"));
+}
+
 #[test]
 fn nothing_is_loaded_before_a_first_generate() {
     let dir = tempfile::tempdir().unwrap();
