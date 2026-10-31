@@ -52,8 +52,9 @@ pub struct RuleFigures {
 
 /// Runs the rules pass once on the frozen features and use cases, in `work_root` (an empty directory),
 /// reading the code of `tree`, framed by `frame`: its evidence is what `generate` gives the rules pass
-/// ([`super::tree_evidence`]; empty: none), and what `[rules]` of the tree's `retrodoc.toml` puts back. With `judge_llm`, the judge says which rules of the reference the
-/// generated rules state; its calls are not in the figures of the pass.
+/// ([`super::tree_evidence`]; empty: none). The pass puts back what `[rules]` of the tree's
+/// `retrodoc.toml` lists, as in `generate`. With `judge_llm`, the judge says which rules of the reference
+/// the generated rules state; its calls are not in the figures of the pass.
 ///
 /// # Errors
 ///
@@ -261,6 +262,7 @@ mod tests {
     use super::*;
     use crate::benchmark::frozen::Manifest;
     use crate::brief::Evidence;
+    use crate::rules::JUDGE_SYSTEM_PROMPT;
     use crate::testing::FakeLlm;
     use retrodoc_ingest::signals::{Signal, SignalKind};
     use retrodoc_llm::UsageProvider;
@@ -401,19 +403,23 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn a_rules_replay_states_the_rules_of_a_feature_the_source_tree_puts_back() {
+    async fn a_rules_replay_puts_back_the_feature_and_the_rule_the_source_tree_lists() {
         let dir = tempfile::tempdir().unwrap();
         let (frozen, tree) = frozen_run(dir.path());
         // A setting removed since does not stop the replay from reading the put-backs.
         std::fs::write(
             tree.join("retrodoc.toml"),
-            "[pipeline]\ndomains_from = \"files\"\n\n[rules]\nkeep_features = [\"order\"]\n",
+            "[pipeline]\ndomains_from = \"files\"\n\n\
+             [rules]\nkeep_features = [\"order\"]\nkeep_rules = [\"order-1\"]\n",
         )
         .unwrap();
         let tracker = UsageTracker::new();
         let llm = FakeLlm::replying(|_, request| {
-            Ok(if request.messages[0].content.contains("about_tests") {
+            let system = &request.messages[0].content;
+            Ok(if system.contains("about_tests") {
                 r#"{"about_tests":true}"#.to_string()
+            } else if system == JUDGE_SYSTEM_PROMPT {
+                r#"{"rules":[{"n":1,"class":"storage"}]}"#.to_string()
             } else {
                 r#"{"rules":[{"statement":"An order is refused when its delivery takes 60 minutes or more.","kind":"limit","entities":["Customer"],"use_cases":[],"code":[{"path":"customer.rb","start_line":1,"end_line":1}],"tests":[],"docs":[]}]}"#.to_string()
             })

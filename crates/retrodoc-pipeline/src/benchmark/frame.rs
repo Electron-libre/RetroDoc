@@ -47,7 +47,12 @@ fn unusable(tree: &Path, reason: String) -> PipelineError {
 ///
 /// Returns an error if `retrodoc.toml` of the tree is invalid, or the tree can't be ingested.
 pub fn tree_evidence(tree: &Path) -> Result<Evidence, PipelineError> {
-    let config = saved_config(tree)?;
+    let config = if tree.join(retrodoc_core::config::CONFIG_FILE_NAME).exists() {
+        // A saved run may name settings removed since (ADR 0035): only what it read is needed.
+        Config::load_ingest_and_output(tree).map_err(|e| unusable(tree, e.to_string()))?
+    } else {
+        Config::default()
+    };
     let mut ingest =
         retrodoc_ingest::run(tree, &config.ingest).map_err(|e| unusable(tree, e.to_string()))?;
     let generated = config.output.generated_dirs();
@@ -68,18 +73,12 @@ pub fn tree_evidence(tree: &Path) -> Result<Evidence, PipelineError> {
 ///
 /// # Errors
 ///
-/// Returns an error if `retrodoc.toml` of the tree is invalid.
+/// Returns an error if `[rules]` of the tree's `retrodoc.toml` is invalid.
 pub(super) fn tree_put_back(tree: &Path) -> Result<RulesConfig, PipelineError> {
-    Ok(saved_config(tree)?.rules)
-}
-
-/// The config of the run the frozen inputs come from, in `tree` (the default without a `retrodoc.toml`).
-fn saved_config(tree: &Path) -> Result<Config, PipelineError> {
     if tree.join(retrodoc_core::config::CONFIG_FILE_NAME).exists() {
-        // A saved run may name settings removed since (ADR 0035): only what it read is needed.
-        Config::load_saved_run(tree).map_err(|e| unusable(tree, e.to_string()))
+        Config::load_rules(tree).map_err(|e| unusable(tree, e.to_string()))
     } else {
-        Ok(Config::default())
+        Ok(RulesConfig::default())
     }
 }
 

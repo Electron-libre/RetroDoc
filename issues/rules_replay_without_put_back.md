@@ -54,7 +54,11 @@ the replays.
 - Mode: autonomous
 - Base commit: ad9e91ef9fa90e7510a721dec33d0c60e73747ba
 - The `config.rs` test of the plan was dropped: the replay test reads `[rules]` through a `retrodoc.toml` that names
-  a removed setting, so it proves `load_saved_run` keeps `[rules]` and stays tolerant.
+  a removed setting, so it proves `Config::load_rules` reads `[rules]` and stays tolerant.
+
+## Plan (after the `high` review)
+2. [x] Review fixes: `[rules]` read on its own (`Config::load_rules`), so the features and use cases replays
+   and `--evidence off` don't parse it; the replay test also covers `keep_rules`; doc comment rewrapped.
 
 ## Summary of deliverable 1
 - done: `replay_rules` sets `context.put_back` from `[rules]` of the source tree (`tree_put_back`,
@@ -71,5 +75,27 @@ the replays.
 - red: none (no spec); test `a_rules_replay_states_the_rules_of_a_feature_the_source_tree_puts_back` failed with
   `published` 0 instead of 1 before the code.
 - not verified: no replay on the frozen linkding inputs (no `[rules]` in their source run: no effect expected).
+- Code review: no findings
+- decisions needed: none.
+
+## Summary of deliverable 2 (`high` review of `ad9e91e..4ac0ef2`, 8 findings)
+- done: `load_saved_run` reverted to `load_ingest_and_output` plus `Config::load_rules` (one `load_sections`
+  helper); `tree_put_back` reads `[rules]` only; test covers `keep_features` and `keep_rules`.
+
+| check | result |
+|---|---|
+| tests | `just check` green |
+| lint | clean |
+| specs | no spec |
+| docs | `docs/crates/pipeline.md` |
+| code review | low: no findings |
+
+- red: none (no spec); with `keep_rules = ["order-9"]` the test fails with `published` 0 instead of 1.
+- `high` findings: fixed 3 (`[rules]` parsed by every replay), 4 (`--evidence off` reads the config), 7
+  (`keep_rules` untested), 8 (long doc line). Not fixed: 1 (put-backs read from the live source tree, as
+  `tree_evidence` reads it: the source runs are kept as they are), 2 (a `keep_rules` slug may name another rule
+  once the feature is stated again: a non-goal of `specs/rules-set-aside.md`), 5 (title says nothing of the
+  put-backs: no frozen source run has `[rules]`), 6 (config parsed once per run: negligible next to the LLM calls).
+- not verified: no replay on the frozen linkding inputs.
 - Code review: no findings
 - decisions needed: none.

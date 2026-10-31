@@ -506,19 +506,34 @@ impl Config {
         Ok(config)
     }
 
-    /// The `[ingest]`, `[output]` and `[rules]` of `<repo_root>/retrodoc.toml`, the other sections left to
-    /// their defaults: how a saved run is read again (its files, its docs and what it put back of the rules
-    /// pass), whatever settings were removed since it was made (ADR 0035).
+    /// The `[ingest]` and `[output]` of `<repo_root>/retrodoc.toml`, the other sections left to their
+    /// defaults: how a saved run is read again (its files and its docs), whatever settings were removed
+    /// since it was made (ADR 0035).
     ///
     /// # Errors
     ///
-    /// Returns an error if the file is missing, unreadable, or its TOML content or those three sections
-    /// are invalid.
-    pub fn load_saved_run(repo_root: &Path) -> Result<Self, ConfigError> {
+    /// Returns an error if the file is missing, unreadable, or its TOML content or those two sections are
+    /// invalid.
+    pub fn load_ingest_and_output(repo_root: &Path) -> Result<Self, ConfigError> {
+        Self::load_sections(repo_root, &["ingest", "output"])
+    }
+
+    /// The `[rules]` of `<repo_root>/retrodoc.toml`: what a saved run put back of what the rules pass set
+    /// aside, whatever settings of the other sections were removed since it was made (ADR 0035).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the file is missing, unreadable, or its TOML content or `[rules]` is invalid.
+    pub fn load_rules(repo_root: &Path) -> Result<RulesConfig, ConfigError> {
+        Ok(Self::load_sections(repo_root, &["rules"])?.rules)
+    }
+
+    /// The `sections` of `<repo_root>/retrodoc.toml`, the others left to their defaults.
+    fn load_sections(repo_root: &Path, sections: &[&str]) -> Result<Self, ConfigError> {
         let table: toml::Table = toml::from_str(&Self::read(repo_root)?)?;
         let kept: toml::Table = table
             .into_iter()
-            .filter(|(section, _)| matches!(section.as_str(), "ingest" | "output" | "rules"))
+            .filter(|(section, _)| sections.contains(&section.as_str()))
             .collect();
         Ok(toml::Value::Table(kept).try_into()?)
     }
