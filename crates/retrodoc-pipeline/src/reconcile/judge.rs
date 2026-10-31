@@ -20,7 +20,7 @@ use crate::bm25::Bm25;
 use crate::error::PipelineError;
 use crate::fingerprints::{fingerprint, model_part, prompt_part};
 use crate::response::complete_json;
-use crate::text::{char_prefix, without_last_chars};
+use crate::text::{char_prefix, one_line, without_last_chars};
 
 /// Items judged in one request.
 pub const MAX_ITEMS_PER_REQUEST: usize = 8;
@@ -187,11 +187,6 @@ fn number(value: &serde_json::Value) -> Option<usize> {
         .trim_end_matches(".0")
         .parse()
         .ok()
-}
-
-/// `text` on one line, so that it can't forge a numbered line of the prompt.
-fn one_line(text: &str) -> String {
-    text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 /// The sections of `batch` listed once, in the order they first appear: origin → label number.

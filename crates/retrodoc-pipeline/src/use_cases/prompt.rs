@@ -1,6 +1,7 @@
 use super::*;
 
 use crate::features::tag;
+use crate::text::feature_line;
 
 /// Per-file truncation and overall budget of code sent for one feature
 /// (the risks of PRODUCT.md "cost/volume"); files beyond the budget are left out of the
@@ -107,12 +108,7 @@ pub(super) fn use_cases_prompt(
         evidence,
     } = *framing;
     let focus = focus_for(feature, &input.entries);
-    let mut prompt = format!(
-        "{}Feature: {} — {}\n",
-        brief.prompt_head(),
-        feature.name,
-        feature.description
-    );
+    let mut prompt = format!("{}{}", brief.prompt_head(), feature_line(feature));
     if !evidence.is_empty() {
         let _ = write!(prompt, "\n{evidence}");
     }

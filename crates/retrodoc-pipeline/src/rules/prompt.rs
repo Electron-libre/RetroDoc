@@ -6,9 +6,10 @@ use std::path::Path;
 
 use retrodoc_core::model::{Feature, UseCase};
 
-use super::{one_line, RuleInput};
+use super::RuleInput;
 use crate::brief::{ExtractKind, ProductBrief};
 use crate::chunks::Splitter;
+use crate::text::{feature_line, one_line};
 use crate::use_cases::{focus_for, MAX_CHARS_PER_FILE, MAX_CHARS_PER_PROMPT};
 use crate::walked::WalkedFiles;
 
@@ -50,19 +51,14 @@ pub(super) fn rules_prompt(
     brief: &ProductBrief,
     splitter: &Splitter,
 ) -> (String, Vec<String>) {
-    let mut prompt = format!(
-        "{}Feature: {} — {}\n",
-        brief.prompt_head(),
-        one_line(&feature.name),
-        one_line(&feature.description)
-    );
+    let mut prompt = format!("{}{}", brief.prompt_head(), feature_line(feature));
     if !input.entities.is_empty() {
         let _ = write!(prompt, "\nEntities: {}\n", input.entities.join(", "));
     }
     if !use_cases.is_empty() {
         prompt.push_str("\nUse cases:\n");
         for use_case in use_cases {
-            let _ = writeln!(prompt, "- {}: {}", use_case.slug, use_case.name);
+            let _ = writeln!(prompt, "- {}: {}", use_case.slug, one_line(&use_case.name));
         }
     }
     for kind in [ExtractKind::Test, ExtractKind::Doc] {

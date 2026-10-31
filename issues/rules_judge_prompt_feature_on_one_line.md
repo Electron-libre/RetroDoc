@@ -44,8 +44,12 @@ prompt, so no saved run is asked again.
 
 ## Plan
 1. [x] Feature on one line in the judgement and statement prompts: `one_line` on name and description in
-   `judge_prompt` and `rules_prompt`; verified by a test per prompt with a description over several lines (the
+   `judge_prompt` and `rules_prompt`; verified by one test of both prompts with a description over several lines (the
    judgement keeps its numbering, the statement prompt forges no evidence line).
+2. [x] Fixes of the `high` review: the feature line shared by every prompt that shows it (`text::feature_line`,
+   the use case prompt included), one `one_line` for the pipeline (`text.rs`, the copies of `reconcile/` and
+   `report/` removed), the use case names of the statement prompt on one line; the tests find each prompt by its
+   system prompt; verified by the test of the rules prompts, extended, and one of the use case prompt.
 
 ## Summary of deliverable 1
 done: `one_line` on the feature name and description in `judge_prompt` and `rules_prompt`.
@@ -63,6 +67,30 @@ red: none traced (no spec); before the code the test failed on the statement pro
 Code review: no findings
 
 Not verified: none. Decisions needed: none.
+
+## Summary of deliverable 2
+done: `text::feature_line` and `text::one_line` shared; the use case prompt and the use case names of the
+statement prompt on one line; the rules test reads the prompts by system prompt and checks both numbered rules.
+
+| check | result |
+|---|---|
+| tests | `just check` green |
+| lint | clippy pedantic clean |
+| specs | n/a |
+| docs | n/a (no page describes the prompt lines or `text.rs`) |
+| code review | `low`, clean |
+
+red: none traced (no spec); before the code the rules test failed on the use case name off its line.
+
+Code review: no findings
+
+Not verified: none. Decisions needed: none.
+
+Findings of the `high` review not fixed here:
+- Saved runs are not asked again (the prints hash the raw fields): as the Approach chose, no forging was seen on
+  a run and re-asking every feature would cost a paid run.
+- The entities and vocabulary lists, and the render and MCP copies of `one_line`, are left to
+  `issues/one_line_at_the_source.md`.
 
 ## Decisions
 - Mode: autonomous

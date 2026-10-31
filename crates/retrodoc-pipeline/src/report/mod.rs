@@ -15,6 +15,7 @@ use crate::behaviour_coverage::{EntryCount, FeatureCoverage};
 use crate::domains::{DomainMap, UNCATEGORIZED_SLUG};
 use crate::reconcile::Reconciliation;
 use crate::rules::SetAside;
+use crate::text::one_line;
 
 mod behaviour;
 mod reconciliation;
@@ -273,11 +274,6 @@ pub fn build_report(
         set_aside: None,
         rules_put_back: BTreeSet::new(),
     }
-}
-
-/// `text` on one line, so that a sentence of the LLM can't break the list it is written in.
-fn one_line(text: &str) -> String {
-    text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 fn percent(value: Option<f32>) -> String {

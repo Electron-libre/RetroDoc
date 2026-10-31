@@ -18,6 +18,8 @@ use std::fmt::Write as _;
 use retrodoc_core::model::{BusinessRule, Feature, RuleEvidence, RuleKind};
 use serde::Deserialize;
 
+use crate::text::{feature_line, one_line};
+
 /// The question of the judgement: one class per rule.
 pub const JUDGE_SYSTEM_PROMPT: &str = "You are classifying the business rules found in \
 the code of a software feature, for the documentation read by product owners, support and \
@@ -80,15 +82,6 @@ impl RawFeatureKind {
     }
 }
 
-/// The prompt: the name and description of the feature, nothing else.
-pub(super) fn feature_prompt(feature: &Feature) -> String {
-    format!(
-        "Feature: {} — {}\n",
-        one_line(&feature.name),
-        one_line(&feature.description)
-    )
-}
-
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub(super) struct RawVerdict {
     #[serde(default)]
@@ -107,11 +100,7 @@ struct RawClass {
 
 /// The prompt: the feature and its numbered rules, with their kind and what backs them.
 pub(crate) fn judge_prompt(feature: &Feature, rules: &[BusinessRule]) -> String {
-    let mut prompt = format!(
-        "Feature: {} — {}\n\nRules:\n",
-        one_line(&feature.name),
-        one_line(&feature.description)
-    );
+    let mut prompt = format!("{}\nRules:\n", feature_line(feature));
     for (n, rule) in rules.iter().enumerate() {
         let _ = writeln!(
             prompt,
@@ -123,11 +112,6 @@ pub(crate) fn judge_prompt(feature: &Feature, rules: &[BusinessRule]) -> String 
         );
     }
     prompt
-}
-
-/// `text` on one line, so that it can't forge a numbered line of the prompt.
-pub(crate) fn one_line(text: &str) -> String {
-    text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 /// `rules` split into those kept and those the verdict classes as noise, with the class.

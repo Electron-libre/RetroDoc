@@ -15,7 +15,8 @@ use retrodoc_core::model::{BusinessRule, Feature};
 use retrodoc_llm::LlmProvider;
 
 use crate::error::PipelineError;
-use crate::rules::{cited_code, judge_prompt, judge_rules_with, kept, one_line};
+use crate::rules::{cited_code, judge_prompt, judge_rules_with, kept};
+use crate::text::one_line;
 
 /// Rules of other features shown at most with the rules of a feature: the first ones in the order of
 /// the run, not the closest.

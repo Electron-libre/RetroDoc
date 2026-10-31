@@ -31,6 +31,7 @@ use crate::fingerprints::{feature_key, file_part, fingerprint, model_part, Finge
 use crate::per_feature::{self, FeaturePass, Plan, Unit};
 use crate::response::complete_json;
 use crate::roles::load_splitter;
+use crate::text::feature_line;
 use crate::use_cases::UseCaseContext;
 
 mod aside;
@@ -47,8 +48,8 @@ pub use self::aside::{AsideFeature, AsideRule, SetAside};
 pub(crate) use self::dedup::code as cited_code;
 use self::dedup::{merge_duplicates, Reach};
 pub use self::input::RuleInput;
-use self::judge::{feature_prompt, keep_judged, RawFeatureKind, RawVerdict, FEATURE_SYSTEM_PROMPT};
-pub(crate) use self::judge::{judge_prompt, one_line};
+pub(crate) use self::judge::judge_prompt;
+use self::judge::{keep_judged, RawFeatureKind, RawVerdict, FEATURE_SYSTEM_PROMPT};
 pub use self::judge::{JUDGE_SYSTEM_PROMPT, NOISE};
 use self::prompt::{rules_prompt, RULES_SYSTEM_PROMPT};
 use self::split::stated_rules;
@@ -284,7 +285,7 @@ async fn ask_rules(
     } else if let Some(kind) = complete_json::<RawFeatureKind>(
         llm,
         FEATURE_SYSTEM_PROMPT,
-        &feature_prompt(feature),
+        &feature_line(feature),
         &format!("kind of {}", feature.slug),
     )
     .await?
