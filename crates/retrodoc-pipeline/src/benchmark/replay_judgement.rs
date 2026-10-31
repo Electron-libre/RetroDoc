@@ -3,17 +3,23 @@
 //! The statements stay fixed, so what a variant of the judgement drops is not mixed with the variance of
 //! the statement call. The saved `rules-stated.yaml` holds the rules the judgement of the run kept: a
 //! replay tells what a variant drops on top of it. Each feature is judged as the pass judges it
-//! ([`crate::rules`]), with the system prompt given; hand labels then tell the good rules dropped from
-//! the noise dropped.
+//! ([`crate::rules`]), with the system prompt given and, as an option, the rules of the other features on
+//! the same files after its own (not asked by the pass: measured, it did not help); hand labels then tell
+//! the good rules dropped from the noise dropped.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Write as _;
 
 use futures_util::stream::{self, StreamExt, TryStreamExt};
-use retrodoc_core::model::{BusinessRule, Feature, RuleEvidence};
+use retrodoc_core::model::{BusinessRule, Feature};
 use retrodoc_llm::LlmProvider;
 
 use crate::error::PipelineError;
-use crate::rules::judge_rules;
+use crate::rules::{cited_code, judge_prompt, judge_rules_with, kept, one_line};
+
+/// Rules of other features shown at most with the rules of a feature: the first ones in the order of
+/// the run, not the closest.
+const MAX_NEIGHBOURS: usize = 20;
 
 /// The class of a rule the judgement keeps.
 pub const KEPT: &str = "business";
@@ -58,24 +64,16 @@ pub async fn replay_judgement(
 ) -> Result<JudgementFigures, PipelineError> {
     let groups: Vec<(&Feature, Vec<BusinessRule>)> = features
         .iter()
-        .map(|f| {
-            let own = rules
-                .iter()
-                .filter(|r| r.belongs_to_feature(&f.slug))
-                .cloned()
-                .collect();
-            (f, own)
-        })
-        .filter(|(_, own): &(_, Vec<_>)| !own.is_empty())
+        .map(|f| (f, kept(rules, &f.slug)))
+        .filter(|(_, own)| !own.is_empty())
         .collect();
     let judged: usize = groups.iter().map(|(_, own)| own.len()).sum();
     let answers: Vec<_> = stream::iter(groups.iter().map(|(feature, own)| async move {
-        let context = if neighbours {
-            neighbours_of(feature, own, rules)
-        } else {
-            Vec::new()
-        };
-        judge_rules(llm, system, feature, own, &context)
+        let mut user = judge_prompt(feature, own);
+        if neighbours {
+            push_neighbours(&mut user, &neighbours_of(feature, own, rules));
+        }
+        judge_rules_with(llm, system, &user, &feature.slug, own)
             .await
             .map(|verdict| (own, verdict))
     }))
@@ -118,10 +116,20 @@ fn neighbours_of<'a>(
 }
 
 fn cited_files(rule: &BusinessRule) -> impl Iterator<Item = &str> {
-    rule.evidence.iter().filter_map(|e| match e {
-        RuleEvidence::Code { source } => Some(source.path.as_str()),
-        _ => None,
-    })
+    cited_code(rule).into_iter().map(|(path, _, _)| path)
+}
+
+/// Adds `neighbours` to the judgement prompt `user`, for context only.
+fn push_neighbours(user: &mut String, neighbours: &[&BusinessRule]) {
+    if neighbours.is_empty() {
+        return;
+    }
+    user.push_str(
+        "\nRules of other features stated on the same files, for context only (do not classify them):\n",
+    );
+    for rule in neighbours.iter().take(MAX_NEIGHBOURS) {
+        let _ = writeln!(user, "- {}", one_line(&rule.statement));
+    }
 }
 
 /// The label of a good rule; any other label is noise (plumbing, screen, test, duplicate).
@@ -181,7 +189,7 @@ pub fn parse_labels(text: &str) -> BTreeMap<String, String> {
 mod tests {
     use super::*;
     use crate::testing::FakeLlm;
-    use retrodoc_core::model::{RuleKind, SourceRef};
+    use retrodoc_core::model::{RuleEvidence, RuleKind, SourceRef};
 
     fn feature(slug: &str) -> Feature {
         Feature {

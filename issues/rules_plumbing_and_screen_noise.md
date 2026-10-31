@@ -68,6 +68,7 @@ variant drops *on top of* today's judgement, which is the residual noise the iss
    same file. The one that lowers the noise kept and drops at most 3% of the good rules goes into
    `rules/judge.rs` with its fake-LLM test (and a spec of the judgement if (b), a new call of the pass); none:
    findings only, the issue closes on the measure.
+4. [x] Review of the whole issue (`high`): fixes in the replay and the pass.
 
 ## Deliverable 1
 - done: `benchmark::replay_judgement` and `score_labels` (the judgement shared with the pass through
@@ -124,7 +125,9 @@ good, Django application 19 / 21, Rails application 11 / 29, `delivery_router` 5
   Rails application keeps its 11 labelled noise rules under every variant: what is left there is plumbing
   written as a business sentence (a token refused, a form to validate).
 * (b) changes nothing alone and makes (a') less steady on the Rails application (20 to 35 dropped): left
-  out; the replay keeps it (`--neighbours`) to measure it again.
+  out; the replay keeps it (`--neighbours`) to measure it again. It showed at most 20 rules of other
+  features, the first in the order of the run rather than the closest: a feature on a shared file of the
+  Rails application saw an arbitrary part of its neighbours.
 * The judgement prompt is part of the print of each feature: the next `generate` of a saved run asks the
   rules of every feature again once (statements included), as for any change of a rules prompt.
 
@@ -132,6 +135,21 @@ good, Django application 19 / 21, Rails application 11 / 29, `delivery_router` 5
 - done: examples of what is not business in the judgement prompt; `--neighbours` in the replay.
 - red: none (a prompt; the print test changed on purpose).
 - not verified: a whole `generate` with the new prompt (the replay measures the judgement on fixed statements).
+
+## Deliverable 4 summary (review `high` of the issue)
+- done: the neighbours left the pass (built by the replay around `rules::judge_rules_with`); the replay
+  groups the rules and reads their files with the pass's own functions (`kept`, `dedup::code`) and its noise
+  classes (`rules::NOISE`); the example warns of a labels file it can't read and refuses two run dirs of the
+  same name; a run dir of the Rails application no longer named in the issue.
+- red: none (refactor and example; tests unchanged and green).
+- Code review: 10 findings (high) — fixed: confidential name, neighbours in the pass, duplicated grouping and
+  file reading, copied noise classes, labels read silently, run dirs of the same name; noted: the 20
+  neighbours in run order (above, (b) is left out); not fixed: the clone of the rules judged (one copy per
+  feature next to an LLM call); follow-ups proposed to the user: the judgement prompt in the print of the
+  statements (a change of it states every rule again), the name and description of the feature not put on
+  one line in the judgement prompt (as before this issue).
+- Code review (low, on the fixes): no findings.
+- not verified: a whole `generate` with the new prompt.
 
 ## Decisions
 - Mode: autonomous

@@ -44,12 +44,12 @@ mod split;
 mod tests;
 
 pub use self::aside::{AsideFeature, AsideRule, SetAside};
+pub(crate) use self::dedup::code as cited_code;
 use self::dedup::{merge_duplicates, Reach};
 pub use self::input::RuleInput;
-pub use self::judge::JUDGE_SYSTEM_PROMPT;
-use self::judge::{
-    feature_prompt, judge_prompt, keep_judged, RawFeatureKind, RawVerdict, FEATURE_SYSTEM_PROMPT,
-};
+use self::judge::{feature_prompt, keep_judged, RawFeatureKind, RawVerdict, FEATURE_SYSTEM_PROMPT};
+pub(crate) use self::judge::{judge_prompt, one_line};
+pub use self::judge::{JUDGE_SYSTEM_PROMPT, NOISE};
 use self::prompt::{rules_prompt, RULES_SYSTEM_PROMPT};
 use self::split::stated_rules;
 
@@ -315,9 +315,7 @@ async fn ask_rules(
     if rules.is_empty() {
         return Ok(Some(Asked::of(rules)));
     }
-    let Some((rules, dropped)) =
-        judge_rules(llm, JUDGE_SYSTEM_PROMPT, feature, &rules, &[]).await?
-    else {
+    let Some((rules, dropped)) = judge_rules(llm, feature, &rules).await? else {
         return Ok(Some(Asked::of(rules)));
     };
     let mut asked = Asked::of(rules);
@@ -334,25 +332,44 @@ async fn ask_rules(
     Ok(Some(asked))
 }
 
-/// The rules of `feature` judged under `system` (the pass's [`JUDGE_SYSTEM_PROMPT`], or a variant a
-/// replay measures), with the `neighbours` shown for context (none in the pass): those kept and those
+/// The rules of `feature` judged under the pass's [`JUDGE_SYSTEM_PROMPT`]: those kept and those
 /// dropped with their class; `None` when the answer can't be read, the rules then being kept as stated.
+async fn judge_rules(
+    llm: &dyn LlmProvider,
+    feature: &Feature,
+    rules: &[BusinessRule],
+) -> Result<Option<Judged>, PipelineError> {
+    judge_rules_with(
+        llm,
+        JUDGE_SYSTEM_PROMPT,
+        &judge_prompt(feature, rules),
+        &feature.slug,
+        rules,
+    )
+    .await
+}
+
+/// The rules kept and those dropped with their class.
+pub(crate) type Judged = (Vec<BusinessRule>, Vec<(BusinessRule, String)>);
+
+/// The judgement of `rules` (those of the feature `slug`) asked with `system` and `user`: the pass's
+/// prompts, or a variant a replay measures.
 ///
 /// # Errors
 ///
 /// Returns an error if the LLM call fails.
-pub(crate) async fn judge_rules(
+pub(crate) async fn judge_rules_with(
     llm: &dyn LlmProvider,
     system: &str,
-    feature: &Feature,
+    user: &str,
+    slug: &str,
     rules: &[BusinessRule],
-    neighbours: &[&BusinessRule],
-) -> Result<Option<(Vec<BusinessRule>, Vec<(BusinessRule, String)>)>, PipelineError> {
+) -> Result<Option<Judged>, PipelineError> {
     Ok(complete_json::<RawVerdict>(
         llm,
         system,
-        &judge_prompt(feature, rules, neighbours),
-        &format!("judgement of the rules of {}", feature.slug),
+        user,
+        &format!("judgement of the rules of {slug}"),
     )
     .await?
     .map(|verdict| keep_judged(rules.to_vec(), &verdict)))
@@ -405,7 +422,7 @@ impl Asked {
 }
 
 /// The saved rules of the feature `slug`.
-fn kept(previous: &[BusinessRule], slug: &str) -> Vec<BusinessRule> {
+pub(crate) fn kept(previous: &[BusinessRule], slug: &str) -> Vec<BusinessRule> {
     previous
         .iter()
         .filter(|r| r.belongs_to_feature(slug))

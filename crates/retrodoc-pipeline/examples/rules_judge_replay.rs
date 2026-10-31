@@ -23,7 +23,7 @@ use retrodoc_core::config::LlmConfig;
 use retrodoc_core::model::BusinessRule;
 use retrodoc_llm::{OpenRouterProvider, UsageProvider, UsageTracker};
 use retrodoc_pipeline::benchmark::{parse_labels, replay_judgement, score_labels, LabelScore};
-use retrodoc_pipeline::rules::JUDGE_SYSTEM_PROMPT;
+use retrodoc_pipeline::rules::{JUDGE_SYSTEM_PROMPT, NOISE};
 use retrodoc_pipeline::{load_features, Artifact};
 use serde_json::json;
 
@@ -31,7 +31,6 @@ type Failure = Box<dyn std::error::Error>;
 
 /// Features judged at once.
 const CONCURRENCY: usize = 8;
-const NOISE: [&str; 4] = ["storage", "screen", "test", "technical"];
 
 struct Options {
     model: String,
@@ -71,6 +70,10 @@ fn options() -> Result<Options, Failure> {
     }
     if options.dirs.is_empty() {
         return Err("no run dir".into());
+    }
+    let names: std::collections::BTreeSet<String> = options.dirs.iter().map(|d| name(d)).collect();
+    if names.len() < options.dirs.len() {
+        return Err("two run dirs share a name: their labels and kept classes would mix".into());
     }
     Ok(options)
 }
@@ -121,7 +124,13 @@ async fn run() -> Result<(), Failure> {
         let labels = match &options.labels {
             Some(labels) => {
                 let path = labels.join(format!("{}.tsv", name(dir)));
-                parse_labels(&std::fs::read_to_string(&path).unwrap_or_default())
+                match std::fs::read_to_string(&path) {
+                    Ok(text) => parse_labels(&text),
+                    Err(err) => {
+                        eprintln!("{}: no labels read ({err}), not scored", path.display());
+                        BTreeMap::new()
+                    }
+                }
             }
             None => BTreeMap::new(),
         };

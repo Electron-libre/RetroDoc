@@ -51,7 +51,7 @@ single JSON object, no prose and no Markdown code fence: {\"about_tests\":true} 
 {\"about_tests\":false}.";
 
 /// The classes that are noise.
-const NOISE: [&str; 4] = ["storage", "screen", "test", "technical"];
+pub const NOISE: [&str; 4] = ["storage", "screen", "test", "technical"];
 
 /// Whether a feature describes how the application is tested. Features of tests state rules about
 /// screens and scenarios, not about the business, and measured on a large repository no judgement
@@ -105,16 +105,8 @@ struct RawClass {
     class: String,
 }
 
-/// Rules of other features shown at most with the rules of a feature.
-const MAX_NEIGHBOURS: usize = 20;
-
-/// The prompt: the feature and its numbered rules, with their kind and what backs them, then the
-/// `neighbours` (rules of other features stated on the same files), for context only.
-pub(super) fn judge_prompt(
-    feature: &Feature,
-    rules: &[BusinessRule],
-    neighbours: &[&BusinessRule],
-) -> String {
+/// The prompt: the feature and its numbered rules, with their kind and what backs them.
+pub(crate) fn judge_prompt(feature: &Feature, rules: &[BusinessRule]) -> String {
     let mut prompt = format!(
         "Feature: {} — {}\n\nRules:\n",
         feature.name, feature.description
@@ -129,19 +121,11 @@ pub(super) fn judge_prompt(
             one_line(&rule.statement)
         );
     }
-    if !neighbours.is_empty() {
-        prompt.push_str(
-            "\nRules of other features stated on the same files, for context only (do not classify them):\n",
-        );
-        for rule in neighbours.iter().take(MAX_NEIGHBOURS) {
-            let _ = writeln!(prompt, "- {}", one_line(&rule.statement));
-        }
-    }
     prompt
 }
 
 /// `text` on one line, so that it can't forge a numbered line of the prompt.
-fn one_line(text: &str) -> String {
+pub(crate) fn one_line(text: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
