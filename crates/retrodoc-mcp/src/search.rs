@@ -18,11 +18,41 @@ pub struct Hit<'a> {
     pub score: f32,
 }
 
-/// The hits of a query, and how many entries share only its common words.
+/// The hits of a query, how many entries share only its common words, and
+/// its words no entry has.
 #[derive(Debug, Clone)]
 pub struct Found<'a> {
     pub hits: Vec<Hit<'a>>,
     pub left_out: usize,
+    pub unknown_words: Vec<String>,
+}
+
+impl Found<'_> {
+    /// What the not-documented answer adds to "nothing matches", as
+    /// ` (...)`: the words no entry has and the entries left out; empty when
+    /// there is neither.
+    #[must_use]
+    pub fn why_not_found(&self) -> String {
+        let mut parts = Vec::new();
+        if !self.unknown_words.is_empty() {
+            let words: Vec<String> = self
+                .unknown_words
+                .iter()
+                .map(|w| format!("`{w}`"))
+                .collect();
+            parts.push(format!("no entry has {}", words.join(", ")));
+        }
+        match self.left_out {
+            0 => {}
+            1 => parts.push("1 entry shares only part of the query".to_string()),
+            n => parts.push(format!("{n} entries share only part of the query")),
+        }
+        if parts.is_empty() {
+            String::new()
+        } else {
+            format!(" ({})", parts.join("; "))
+        }
+    }
 }
 
 impl SearchIndex {
@@ -75,6 +105,7 @@ impl SearchIndex {
         Found {
             hits,
             left_out: relevant.left_out,
+            unknown_words: relevant.unknown_words,
         }
     }
 }

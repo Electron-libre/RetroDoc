@@ -119,10 +119,7 @@ impl Bm25 {
     /// document order. A query made only of stop words finds nothing.
     #[must_use]
     pub fn search(&self, query: &str) -> Vec<(usize, f32)> {
-        self.rank(query, true)
-            .into_iter()
-            .map(|(doc, score, _)| (doc, score))
-            .collect()
+        scores(self.rank(&query_terms(query), true))
     }
 
     /// Like [`Bm25::search`] without the half-of-the-words rule: any document
@@ -130,10 +127,7 @@ impl Bm25 {
     /// description, a list of files) still finds the closest documents.
     #[must_use]
     pub fn search_any(&self, query: &str) -> Vec<(usize, f32)> {
-        self.rank(query, false)
-            .into_iter()
-            .map(|(doc, score, _)| (doc, score))
-            .collect()
+        scores(self.rank(&query_terms(query), false))
     }
 
     /// Like [`Bm25::search`], keeping only the documents whose words in
@@ -142,17 +136,45 @@ impl Bm25 {
     /// that shares only the common words of a question doesn't answer it.
     #[must_use]
     pub fn search_relevant(&self, query: &str) -> Relevant {
-        let ranked = self.rank(query, true);
+        let terms = query_terms(query);
+        let weight: f32 = terms.iter().map(|t| self.idf(self.containing(t))).sum();
+        let ranked = self.rank(&terms, true);
         let total = ranked.len();
-        let hits: Vec<(usize, f32)> = ranked
-            .into_iter()
-            .filter(|(_, _, share)| *share > 0.5)
-            .map(|(doc, score, _)| (doc, score))
-            .collect();
+        // A margin, so that a share of exactly one half summed in another
+        // order is not kept by a rounding.
+        let floor = weight * 0.5 * (1.0 + 1e-5);
+        let hits = scores(
+            ranked
+                .into_iter()
+                .filter(|(_, _, held)| *held > floor)
+                .collect(),
+        );
         Relevant {
             left_out: total - hits.len(),
+            unknown_words: self.unknown_words(query),
             hits,
         }
+    }
+
+    /// The words of `query`, as written, none of whose terms is a stop word
+    /// or in a document.
+    fn unknown_words(&self, query: &str) -> Vec<String> {
+        let mut words: Vec<String> = Vec::new();
+        for word in query.split(|c: char| !c.is_alphanumeric()) {
+            let terms = tokenize(word);
+            let unknown = !terms.is_empty()
+                && terms
+                    .iter()
+                    .all(|t| !stop_words().contains(t) && self.containing(t) == 0);
+            if unknown && !words.iter().any(|w| w == word) {
+                words.push(word.to_string());
+            }
+        }
+        words
+    }
+
+    fn containing(&self, term: &str) -> usize {
+        self.postings.get(term).map_or(0, Vec::len)
     }
 
     #[allow(clippy::cast_precision_loss)]
@@ -162,29 +184,19 @@ impl Bm25 {
         (1.0 + (total - containing + 0.5) / (containing + 0.5)).ln()
     }
 
-    /// The matching documents, best first, with their score and the share of
-    /// the query's weight their words hold.
+    /// The documents matching `terms`, best first, with their score and the
+    /// IDF their query words hold.
     #[allow(clippy::cast_precision_loss)]
-    fn rank(&self, query: &str, half_must_match: bool) -> Vec<(usize, f32, f32)> {
-        let mut terms: Vec<String> = tokenize(query)
-            .into_iter()
-            .filter(|t| !stop_words().contains(t))
-            .collect();
-        terms.sort();
-        terms.dedup();
+    fn rank(&self, terms: &[String], half_must_match: bool) -> Vec<(usize, f32, f32)> {
         let needed = if half_must_match {
             terms.len().div_ceil(2)
         } else {
             1
         };
-        let weight: f32 = terms
-            .iter()
-            .map(|t| self.idf(self.postings.get(t).map_or(0, Vec::len)))
-            .sum();
-        // Per document: how many query words it has, its score, and the
-        // weight of its query words.
+        // Per document: how many query words it has, its score, and the IDF
+        // of its query words.
         let mut found: HashMap<usize, (usize, f32, f32)> = HashMap::new();
-        for term in &terms {
+        for term in terms {
             let Some(postings) = self.postings.get(term) else {
                 continue;
             };
@@ -201,11 +213,29 @@ impl Bm25 {
         let mut ranked: Vec<(usize, f32, f32)> = found
             .into_iter()
             .filter(|(_, (matched, _, _))| *matched >= needed)
-            .map(|(doc, (_, score, held))| (doc, score, held / weight))
+            .map(|(doc, (_, score, held))| (doc, score, held))
             .collect();
         ranked.sort_by(|a, b| b.1.total_cmp(&a.1).then(a.0.cmp(&b.0)));
         ranked
     }
+}
+
+/// The words of `query` that are not stop words, sorted, each once.
+fn query_terms(query: &str) -> Vec<String> {
+    let mut terms: Vec<String> = tokenize(query)
+        .into_iter()
+        .filter(|t| !stop_words().contains(t))
+        .collect();
+    terms.sort();
+    terms.dedup();
+    terms
+}
+
+fn scores(ranked: Vec<(usize, f32, f32)>) -> Vec<(usize, f32)> {
+    ranked
+        .into_iter()
+        .map(|(doc, score, _)| (doc, score))
+        .collect()
 }
 
 /// What [`Bm25::search_relevant`] finds.
@@ -215,6 +245,9 @@ pub struct Relevant {
     pub hits: Vec<(usize, f32)>,
     /// How many documents [`Bm25::search`] finds that the floor left out.
     pub left_out: usize,
+    /// The words of the query, as written, that no document has (a typo, a
+    /// word the docs don't use): they weigh the most.
+    pub unknown_words: Vec<String>,
 }
 
 #[cfg(test)]
@@ -335,6 +368,7 @@ mod tests {
         assert_eq!(relevant(&bm25, "rider").0, [0, 1, 2]);
         // Two words as rare as each other: one of them is half, not more.
         assert_eq!(relevant(&bm25, "alpha beta"), (vec![], 2));
+        assert_eq!(bm25.search_relevant("rider bonus").unknown_words, ["bonus"]);
         // The rare word without the common one is enough.
         assert_eq!(relevant(&bm25, "rider salary"), (vec![3], 3));
         // Both words: kept.

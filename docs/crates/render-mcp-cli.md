@@ -16,7 +16,8 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   for LLM agents, with no LLM call (see `issues/done/mcp_server.md`). `SearchIndex` ranks (the hand-written BM25 of `retrodoc-pipeline`'s `bm25.rs`, shared with the pipeline, title counted
   three times, stop words in English and French dropped, at least half of the query words must match, and those
   matched must hold more than half of the query's IDF weight, `Bm25::search_relevant`, `specs/docs-search.md`, so an entry
-  sharing only the common words of a question is left out and counted in the not-documented answer) one `Entry` per
+  sharing only the common words of a question is left out; the not-documented answer counts those and names the query
+  words no entry has) one `Entry` per
   domain, feature, use case, glossary concept and collected Markdown doc, each with its id, confidence and
   cited files. `Docs` (`Docs::load` reads `.retrodoc/cache/`, business rules included, + the collected docs) answers the seven tools in Markdown
   (`list_domains`, `get_domain`, `get_feature`, `get_use_case`, `search_docs`, `read_source`, `git_log`): ids to reuse, confidence (flagged below

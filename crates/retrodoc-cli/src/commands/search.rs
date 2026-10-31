@@ -16,23 +16,20 @@ pub fn run(path: &Path, query: &str, limit: usize) -> anyhow::Result<()> {
     let index = docs.index();
 
     let found = index.search(query, limit);
-    let hits = found.hits;
-    if hits.is_empty() {
-        if found.left_out == 0 {
-            println!(
-                "not documented: nothing among {} entries matches",
-                index.len()
-            );
+    if found.hits.is_empty() {
+        let why = found.why_not_found();
+        let advice = if why.is_empty() {
+            ""
         } else {
-            println!(
-                "not documented: nothing among {} entries matches ({} entries share only its common words); try other words",
-                index.len(),
-                found.left_out
-            );
-        }
+            "; try other words"
+        };
+        println!(
+            "not documented: nothing among {} entries matches{why}{advice}",
+            index.len()
+        );
         return Ok(());
     }
-    for hit in hits {
+    for hit in found.hits {
         let entry = hit.entry;
         let confidence = entry
             .confidence

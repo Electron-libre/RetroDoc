@@ -22,6 +22,7 @@ topic from an undocumented one and say "not documented" rather than guess.
   say that the topic is not documented.
 - **DSR-4** (deterministic) The not-documented answer must give the number of entries that share words with the query
   but that DSR-2 left out, and ask for other words, when there are any.
+- **DSR-5** (deterministic) The not-documented answer must name the words of the query, as written, that no entry has.
 
 ## Scenarios
 
@@ -32,6 +33,8 @@ topic from an undocumented one and say "not documented" rather than guess.
 - (DSR-2) Given a query of two words as rare as each other and an entry that has only one of them, then the entry is
   not returned: it holds half of the weight, not more.
 - (DSR-2) Given a query whose rare word an entry has and whose common word it lacks, then the entry is returned.
+- (DSR-5) Given `cancle subscription` where `cancle` is a typo, then the answer names `cancle`, so the agent can
+  fix its query rather than conclude the topic is undocumented.
 - (DSR-4) Given no entry sharing any word with the query, then the answer says not documented without a number of
   partial matches.
 

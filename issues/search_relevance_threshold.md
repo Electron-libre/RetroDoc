@@ -85,3 +85,27 @@ Code review: no findings
 
 not verified: nothing.
 decisions needed: none.
+2. [x] Docs of the whole issue and fixes of its `high` review: the not-documented answer names the query words no
+   entry has (DSR-5: a typo or a filler word is the heaviest, the agent sees it), a margin on the half-weight
+   floor against rounding, "1 entry shares" / "N entries share only part of the query", `retrodoc search --limit 0`
+   refused, the projections of `bm25.rs` shared, the MCP diagram of `docs/ARCHITECTURE.md`.
+   Not fixed: `Found` kept beside `Relevant` (it holds entries, not indexes); "Try other words" stays in every MCP
+   not-documented answer (it was there before; DSR-4 asks it when entries were left out, not only then); filler
+   words not added to the stop words (shared with the reconciliation, which must not change).
+
+## Deliverable 2 summary
+done: fixes of the `high` review above.
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | pass |
+| specs | DSR-5 added and traced, `accepted` |
+| docs | `docs/crates/render-mcp-cli.md`, `docs/ARCHITECTURE.md` |
+| code review | see below |
+
+red: DSR-5: none recorded before the code (the test was written with the fix, after the `high` review).
+Code review: no findings
+
+not verified: nothing.
+decisions needed: none.

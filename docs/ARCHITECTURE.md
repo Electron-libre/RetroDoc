@@ -299,7 +299,7 @@ flowchart LR
     agent(["coding agent<br/>(Claude Code, Cursor…)"]) <-->|"MCP over stdio"| srv["retrodoc mcp"]
     subgraph tools["seven read-only tools"]
         nav["list_domains, get_domain,<br/>get_feature, get_use_case"]
-        srch["search_docs<br/>(BM25, stop words)"]
+        srch["search_docs<br/>(BM25, relevance floor)"]
         code["read_source, git_log<br/>(cited files only)"]
     end
     srv --> tools

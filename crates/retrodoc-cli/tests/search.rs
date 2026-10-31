@@ -82,18 +82,31 @@ fn the_hits_come_best_first_up_to_the_limit() {
     assert_eq!(titles(&search(&repo, "rider", "2")).len(), 2);
 }
 
-// spec: DSR-2, DSR-3, DSR-4
+// spec: DSR-2, DSR-3, DSR-4, DSR-5
 #[test]
 fn a_query_whose_rare_word_no_entry_has_is_not_documented() {
     let repo = generated_repo();
     let out = search(&repo, "rider salary", "10");
     assert_eq!(titles(&out), Vec::<&str>::new(), "{out}");
     assert!(out.starts_with("not documented"), "{out}");
+    assert!(out.contains("no entry has `salary`"), "{out}");
     assert!(
-        out.contains("3 entries share only its common words"),
+        out.contains("3 entries share only part of the query"),
         "{out}"
     );
     assert!(out.contains("try other words"), "{out}");
+}
+
+// spec: DSR-1
+#[test]
+fn a_limit_of_zero_is_refused() {
+    let repo = generated_repo();
+    let output = Command::new(env!("CARGO_BIN_EXE_retrodoc"))
+        .args(["search", "rider", "--limit", "0", "--path"])
+        .arg(repo.path())
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
 }
 
 // spec: DSR-3, DSR-4

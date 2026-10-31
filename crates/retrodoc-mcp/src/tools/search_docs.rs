@@ -13,21 +13,16 @@ impl Docs {
     #[must_use]
     pub fn search_docs(&self, query: &str, limit: usize) -> String {
         let found = self.index.search(query, limit);
-        let hits = found.hits;
-        if hits.is_empty() {
-            let partial = if found.left_out == 0 {
-                String::new()
-            } else {
-                format!(" ({} entries share only its common words)", found.left_out)
-            };
+        if found.hits.is_empty() {
             return format!(
-                "Not documented: nothing among {} entries matches `{query}`{partial}. \
+                "Not documented: nothing among {} entries matches `{query}`{}. \
                  Try other words, or `list_domains` to browse.\n",
-                self.index.len()
+                self.index.len(),
+                found.why_not_found()
             );
         }
         let mut out = format!("# Results for `{query}`\n\n");
-        for hit in hits {
+        for hit in found.hits {
             let entry = hit.entry;
             let _ = writeln!(
                 out,
