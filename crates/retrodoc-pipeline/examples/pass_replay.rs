@@ -6,7 +6,8 @@
 //!
 //! - `pass`: `domains` (the clustering of the surface), `features` (on the frozen domains), `use-cases` (on
 //!   the frozen features) or `rules` (on the frozen features and use cases). The last two read the code, of
-//!   the tree at `manifest.source_run`.
+//!   the tree at `manifest.source_run`; `rules` also takes the put-backs of its `[rules]` (`keep_features`,
+//!   `keep_rules`), as `generate`.
 //! - `frozen dir`: `~/retrodoc-runs/frozen/<repo>` (see the `freeze_inputs` example).
 //! - `benchmark dir`: `benchmark/<repo>` (`reference.yaml`, `matches.yaml`).
 //! - `model`: a `DeepSeek` model, e.g. `deepseek-chat`. `runs`: default 3.

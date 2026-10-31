@@ -15,7 +15,7 @@ use retrodoc_core::model::BusinessRule;
 use retrodoc_llm::{LlmProvider, UsageTracker};
 use serde::Deserialize;
 
-use super::frame::Frame;
+use super::frame::{tree_put_back, Frame};
 use super::frozen::{FrozenInputs, ReplayPass};
 use super::reference::Reference;
 use super::replay_use_cases::{missing, prepare_with_tree, TreeRun};
@@ -52,7 +52,7 @@ pub struct RuleFigures {
 
 /// Runs the rules pass once on the frozen features and use cases, in `work_root` (an empty directory),
 /// reading the code of `tree`, framed by `frame`: its evidence is what `generate` gives the rules pass
-/// ([`super::tree_evidence`]; empty: none). With `judge_llm`, the judge says which rules of the reference the
+/// ([`super::tree_evidence`]; empty: none), and what `[rules]` of the tree's `retrodoc.toml` puts back. With `judge_llm`, the judge says which rules of the reference the
 /// generated rules state; its calls are not in the figures of the pass.
 ///
 /// # Errors
@@ -77,6 +77,8 @@ pub async fn replay_rules(
     } = prepare_with_tree(frozen, ReplayPass::Rules, tree, work_root, frame)?;
     // The rules pass reads the evidence of the rules alone, as `generate` gives it.
     context.rule_evidence = std::mem::take(&mut context.evidence);
+    // And what the source run puts back of what the pass sets aside, as `generate` gives it.
+    context.put_back = tree_put_back(tree)?;
     let use_cases =
         load_use_cases(work_root).ok_or_else(|| missing(work_root, "use-cases.yaml"))?;
     let rules = tracker
@@ -396,5 +398,45 @@ mod tests {
                 .any(|p| p.contains("refuses an order whose delivery takes an hour")),
             "{prompts:?}"
         );
+    }
+
+    #[tokio::test]
+    async fn a_rules_replay_states_the_rules_of_a_feature_the_source_tree_puts_back() {
+        let dir = tempfile::tempdir().unwrap();
+        let (frozen, tree) = frozen_run(dir.path());
+        // A setting removed since does not stop the replay from reading the put-backs.
+        std::fs::write(
+            tree.join("retrodoc.toml"),
+            "[pipeline]\ndomains_from = \"files\"\n\n[rules]\nkeep_features = [\"order\"]\n",
+        )
+        .unwrap();
+        let tracker = UsageTracker::new();
+        let llm = FakeLlm::replying(|_, request| {
+            Ok(if request.messages[0].content.contains("about_tests") {
+                r#"{"about_tests":true}"#.to_string()
+            } else {
+                r#"{"rules":[{"statement":"An order is refused when its delivery takes 60 minutes or more.","kind":"limit","entities":["Customer"],"use_cases":[],"code":[{"path":"customer.rb","start_line":1,"end_line":1}],"tests":[],"docs":[]}]}"#.to_string()
+            })
+        });
+        let reference: Reference = serde_yaml::from_str(REFERENCE).unwrap();
+
+        let figures = replay_rules(
+            &frozen,
+            &tree,
+            &dir.path().join("work"),
+            &llm,
+            None,
+            &tracker,
+            &reference,
+            &Frame::default(),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(figures.published, 1, "{figures:?}");
+        assert!(llm
+            .system_prompts()
+            .iter()
+            .all(|p| !p.contains("about_tests")));
     }
 }

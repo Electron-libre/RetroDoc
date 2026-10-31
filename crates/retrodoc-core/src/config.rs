@@ -506,19 +506,19 @@ impl Config {
         Ok(config)
     }
 
-    /// The `[ingest]` and `[output]` of `<repo_root>/retrodoc.toml`, the other sections left to their
-    /// defaults: how a saved run is read again (its files and its docs), whatever settings were removed
-    /// since it was made (ADR 0035).
+    /// The `[ingest]`, `[output]` and `[rules]` of `<repo_root>/retrodoc.toml`, the other sections left to
+    /// their defaults: how a saved run is read again (its files, its docs and what it put back of the rules
+    /// pass), whatever settings were removed since it was made (ADR 0035).
     ///
     /// # Errors
     ///
-    /// Returns an error if the file is missing, unreadable, or its TOML content or those two sections are
-    /// invalid.
-    pub fn load_ingest_and_output(repo_root: &Path) -> Result<Self, ConfigError> {
+    /// Returns an error if the file is missing, unreadable, or its TOML content or those three sections
+    /// are invalid.
+    pub fn load_saved_run(repo_root: &Path) -> Result<Self, ConfigError> {
         let table: toml::Table = toml::from_str(&Self::read(repo_root)?)?;
         let kept: toml::Table = table
             .into_iter()
-            .filter(|(section, _)| section == "ingest" || section == "output")
+            .filter(|(section, _)| matches!(section.as_str(), "ingest" | "output" | "rules"))
             .collect();
         Ok(toml::Value::Table(kept).try_into()?)
     }

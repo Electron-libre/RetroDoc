@@ -4,7 +4,7 @@
 
 use std::path::Path;
 
-use retrodoc_core::config::Config;
+use retrodoc_core::config::{Config, RulesConfig};
 use retrodoc_ingest::signals;
 
 use crate::brief::{Evidence, ProductBrief};
@@ -47,12 +47,7 @@ fn unusable(tree: &Path, reason: String) -> PipelineError {
 ///
 /// Returns an error if `retrodoc.toml` of the tree is invalid, or the tree can't be ingested.
 pub fn tree_evidence(tree: &Path) -> Result<Evidence, PipelineError> {
-    let config = if tree.join(retrodoc_core::config::CONFIG_FILE_NAME).exists() {
-        // A saved run may name settings removed since (ADR 0035): only what it read is needed.
-        Config::load_ingest_and_output(tree).map_err(|e| unusable(tree, e.to_string()))?
-    } else {
-        Config::default()
-    };
+    let config = saved_config(tree)?;
     let mut ingest =
         retrodoc_ingest::run(tree, &config.ingest).map_err(|e| unusable(tree, e.to_string()))?;
     let generated = config.output.generated_dirs();
@@ -66,6 +61,26 @@ pub fn tree_evidence(tree: &Path) -> Result<Evidence, PipelineError> {
     let all =
         signals::collect(tree, &ingest, &sources).map_err(|e| unusable(tree, e.to_string()))?;
     Ok(Evidence::new(&all))
+}
+
+/// What `[rules]` of the repository at `tree` puts back of what the rules pass sets aside, as `generate`
+/// gives it the pass (empty without a `retrodoc.toml`).
+///
+/// # Errors
+///
+/// Returns an error if `retrodoc.toml` of the tree is invalid.
+pub(super) fn tree_put_back(tree: &Path) -> Result<RulesConfig, PipelineError> {
+    Ok(saved_config(tree)?.rules)
+}
+
+/// The config of the run the frozen inputs come from, in `tree` (the default without a `retrodoc.toml`).
+fn saved_config(tree: &Path) -> Result<Config, PipelineError> {
+    if tree.join(retrodoc_core::config::CONFIG_FILE_NAME).exists() {
+        // A saved run may name settings removed since (ADR 0035): only what it read is needed.
+        Config::load_saved_run(tree).map_err(|e| unusable(tree, e.to_string()))
+    } else {
+        Ok(Config::default())
+    }
 }
 
 #[cfg(test)]
