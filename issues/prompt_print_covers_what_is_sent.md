@@ -21,6 +21,11 @@ list kept by hand.
 * The lists are kept by hand: `batched_read::reading_instructions` names nine constants of three modules, and
   the rules pass keeps its own hash of its three prompts (`rules/mod.rs` near line 511) rather than
   `fingerprints::prompt_part`.
+* The rules pass hashes its judgement prompt with its statement prompt in one print per feature: a change of
+  the judgement alone (`issues/done/rules_plumbing_and_screen_noise.md`, 2026-10-31) states the rules of every
+  feature again, about 280k prompt tokens on linkding, where judging the saved `rules-stated.yaml` again would
+  do (the `rules_judge_replay` example does it: about 230 short calls for seven saved runs). The judgement
+  answer is not saved apart from the stated rules today (`rules-stated.yaml` holds the rules it kept).
 * `prompt_part` hashes the same constants again for every unit (twice per reconciliation candidate); cheap
   (a few KB per unit) but avoidable.
 
@@ -28,7 +33,10 @@ list kept by hand.
 1. Compute the part of a pass from what it sends: its system prompt, the schema JSON of its answer type, and
    the fixed text of its user prompt moved to a template constant; once per pass (`LazyLock`).
 2. Move the rules pass to `prompt_part` (costs one re-ask of the rules of every saved run).
-3. Optionally, a test per pass that its part changes when its schema or user prompt template does.
+3. Give the judgement of the rules its own print, so that a change of its prompt judges the stated rules
+   again with no statement call (the rules before the judgement, or the verdicts, would then have to be
+   saved).
+4. Optionally, a test per pass that its part changes when its schema or user prompt template does.
 
 # Specs
 * `specs/rerun.md` RER-10 (widen "system prompt" to the request).

@@ -1127,7 +1127,7 @@ fn a_statement_two_parts_make_is_kept_once_with_the_better_backed_copy_and_the_r
 }
 
 /// The saved prints must not change with a refactor: another print redoes every user's next run (changed
-/// on purpose with the examples of the judgement prompt, `issues/rules_plumbing_and_screen_noise.md`).
+/// on purpose with the examples of the judgement prompt, `issues/done/rules_plumbing_and_screen_noise.md`).
 #[tokio::test]
 async fn the_print_of_a_feature_stays_the_same() {
     let dir = repo();

@@ -7,7 +7,7 @@
 //! lost 22% of the good rules, the classes 3% (`issues/done/rules_deduplication_and_noise.md`). The
 //! examples of what is not business in the prompt, measured on the fixed statements of seven saved runs,
 //! made the judgement drop a third of the noise it had kept for 1% of the good rules
-//! (`issues/rules_plumbing_and_screen_noise.md`); showing it the rules of other features on the same
+//! (`issues/done/rules_plumbing_and_screen_noise.md`); showing it the rules of other features on the same
 //! files did not. A rule
 //! the answer does not class, or classes in an unknown way, is kept. Like the rest of the pass, no
 //! pattern of a language or framework: the LLM judges, the program applies the verdict.

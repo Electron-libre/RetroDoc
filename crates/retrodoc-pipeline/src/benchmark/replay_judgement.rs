@@ -1,4 +1,4 @@
-//! Replay of the judgement of the rules on the rules a run stated (`issues/rules_plumbing_and_screen_noise.md`).
+//! Replay of the judgement of the rules on the rules a run stated (`issues/done/rules_plumbing_and_screen_noise.md`).
 //!
 //! The statements stay fixed, so what a variant of the judgement drops is not mixed with the variance of
 //! the statement call. The saved `rules-stated.yaml` holds the rules the judgement of the run kept: a

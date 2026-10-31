@@ -1,5 +1,5 @@
 //! Replays the judgement of the rules on the rules saved runs stated, N times, and scores it on hand
-//! labels (`issues/rules_plumbing_and_screen_noise.md`): what a variant of the judgement drops on top of
+//! labels (`issues/done/rules_plumbing_and_screen_noise.md`): what a variant of the judgement drops on top of
 //! the judgement of the run, with the statements fixed.
 //!
 //! Usage:
