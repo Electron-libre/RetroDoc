@@ -5,17 +5,12 @@ description: Re-rank the open issues (the `rank` of each issue file) by reading 
 
 # Prioritize the issues
 
-Talk to the user in the `user_language` of `.claude/cardinal.local.toml`, else of `.claude/cardinal.toml` (skills, code, docs and the ranks stay in English). Each open issue
-carries its place in its front matter, `rank: <n>` (lowest = next) and `why: '<why here>'` (ADR 0019); `just
-next-issue` prints the resulting order. Don't implement
-anything here.
-
-Show the user your results as `.claude/rules/reports-to-the-user.md` says.
+Each open issue carries its place in its front matter, `rank: <n>` (lowest = next) and `why: '<why here>'` (ADR
+0019); `just next-issue` prints the resulting order. Don't implement anything here.
 
 ## Procedure
 
-1. **Current state**: `just next-issue` (also reports the issues without a rank and the shared ranks; an
-   `issues/queue.md` left from the format 4 is converted first with `just next-issue --convert`).
+1. **Current state**: `just next-issue` (also reports the issues without a rank and the shared ranks).
 2. **Context**: the `roadmap` and `architecture` documents of `.claude/cardinal.toml`, the ADRs in `docs/adr/` that the issues cite, `git log --oneline -30` (what just
    landed and what it unblocks), and `issues/done/` titles when an issue refers to a closed one.
 3. **Each open issue**: read its Goal, Findings, Approach and Hints (not only the title). Note for each its
@@ -35,4 +30,4 @@ Show the user your results as `.claude/rules/reports-to-the-user.md` says.
    200, 300..., `why` updated; nothing else of the file), run `just next-issue` and check it prints that order
    with no issue without a rank nor shared rank. When the order changed, commit the re-ranked issue files alone,
    with the issue files the split wrote or narrowed, added then named on the commit line (`git add <files>`, then
-   `git commit -m <msg> -- <files>`; never `git add -A`), with `skill:commit-message`; ask first when one of those files held changes that are not this skill's.
+   `git commit -m <msg> -- <files>`), with `skill:commit-message`; ask first when one of those files held changes that are not this skill's.

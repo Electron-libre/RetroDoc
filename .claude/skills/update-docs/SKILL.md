@@ -8,8 +8,6 @@ description: Checklist-driven update of the project documentation (CLAUDE.md, RE
 Goal: after a change, every document that describes the touched behavior says the same true thing.
 Work through the steps in order; write "n/a" with the reason rather than skipping a step.
 
-Show the user your results as `.claude/rules/reports-to-the-user.md` says.
-
 ## 1. Establish what changed
 
 - Given a commit range (a whole issue, `<base>..HEAD`), read `git diff <range>` and `git log <range> --format=%s`;
@@ -59,4 +57,4 @@ rg -n "<name>" CLAUDE.md AGENTS.md docs/ <root_docs> <architecture>
 ## 6. Report
 
 Finish with a short table: document → updated / n/a (reason) → what changed. Don't commit unless asked;
-when asked, follow `AGENTS.md`.
+when asked, use `skill:commit-message`.

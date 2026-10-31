@@ -5,11 +5,8 @@ description: Drive an issue file from `issues/` to done in validated deliverable
 
 # Work an issue
 
-The user hands over an issue file in `issues/`. Talk to the user in the `user_language` of `.claude/cardinal.local.toml`, else of `.claude/cardinal.toml` (skills, code, docs and
-commits stay in English). Never skip a validation stop: they are what makes the autonomy safe. The only ones the user can lift are those of
-step 3.6 and 3.8, through the Autonomous mode.
-
-Reports to the user (stops, summaries, final report) follow `.claude/rules/reports-to-the-user.md`.
+The user hands over an issue file in `issues/`. Never skip a validation stop: they are what makes the autonomy safe.
+The only ones the user can lift are those of step 3.6 and 3.8, through the Autonomous mode.
 
 ## 0. Resume or start
 
@@ -23,7 +20,8 @@ validated: redo the stop of step 2. Otherwise (`Plan: validated`, or no marker: 
 deliverable with the recorded mode, the deliverables left by name) and continue at step 3 in the mode recorded there (none recorded:
 validation at each deliverable), unless the issue changes a capability whose spec is missing, still `draft` with no validated
 requirements, or not named in its `# Specs` section: then write the spec as step 1 says, keeping `# Tracking` as it is, and validate it (step 2) first. A plan whose
-deliverables left exceed the size limit of step 1 also goes back to the stop of step 2, with the split proposed.
+deliverables left, added to what `cardinal run deliverable-size <base commit>` counts, exceed the size limit of step 1
+also goes back to the stop of step 2, with the split proposed.
 
 ## 1. Prepare in the files (no stop)
 
@@ -31,11 +29,9 @@ The understanding, the spec and the plan are written in the files, not in the co
 the console only shows the link and the questions.
 
 - Read the issue, plus the resources it names (docs, `git log`, the `roadmap` documents of `.claude/cardinal.toml`, memory).
-- **Delegate a broad exploration**: a search over many files, the history or the conventions goes to a read-only
-  `Explore` subagent (Agent tool), so only its conclusion stays in the main context. Ask it for the paths and lines
-  behind each conclusion; read back only the lines a decision of the plan rests on. A targeted read of a known file
-  stays in the main thread; so do the spec, the plan, the tests and the commits; the reviews keep going through
-  `code-review`.
+- **Delegate only a wide search** (a hunt through the whole history, not the `git log` of a resource; many files of a
+  large repository) to a read-only `Explore` subagent asking for the paths and lines behind its conclusion; read back
+  only those a decision rests on. Everything else stays in the main thread.
 - **Spec**, when the issue changes what a capability does (skip it for docs, harness, pure refactor, a measure): run
   `skill:write-spec` up to its format check (requirements with stable ids, `deterministic`, left `draft`, a
   `[NEEDS CLARIFICATION: ...]` marker where you would guess); don't do its validation stop: step 2 replaces it. The
@@ -61,12 +57,12 @@ the console only shows the link and the questions.
   Small deliverables, each independently testable and committable, ordered by value and dependency. An issue that
   fits one deliverable has a one-line plan. A decision of architecture also gets its ADR draft in `docs/adr/` now. The spec and ADR drafts are
   committed with the first deliverable.
-- **Size limit**: estimate the changed lines of each deliverable (added + removed, outside `issues/` and lock
-  files). At most ~1,000 per deliverable (a `low` review reads it whole), ~3,000 and 6 deliverables per issue (the
-  `high` review reads `base..HEAD`, the context grows with each deliverable). A pure `git mv` counts as renames; a
-  move that also edits counts twice, so move in a deliverable of its own (in the issue total, a moved file edited
-  later still counts twice). A deliverable over the limit is cut until each part is under it; an issue over it
-  gets a split proposed at step 2 ([details.md](details.md), "Split an issue").
+- **Size limit**: estimate the changed lines of each deliverable as `cardinal run deliverable-size` will count them
+  (added + removed, outside `issues/` and lock files). At most ~1,000 per deliverable (a `low` review reads it whole),
+  ~3,000 and 6 deliverables per issue (the `high` review reads `base..HEAD`, the context grows with each
+  deliverable); the tool reads the limits of the project. It counts a move that also edits twice, so move in a
+  deliverable of its own (in the issue total, a moved file edited later still counts twice). A deliverable over the limit is cut until each part is under it; an issue over it gets a
+  split proposed at step 2 ([details.md](details.md), "Split an issue").
 
 ## 2. Validate (STOP)
 
@@ -88,7 +84,7 @@ again. Then set `Plan: validated` and the base commit. The spec file is the reco
 
 ## 3. For each deliverable, in order
 
-1. **Gather**: read the code and docs it touches (a broad exploration delegated as in step 1); ask about missing
+1. **Gather**: read the code and docs it touches (a wide search delegated as in step 1); ask about missing
    information (one batch of questions).
 2. **Test first**: write a behavior or end-to-end test that fails for the right reason. When the capability has a
    spec, the test proves a requirement and carries `// spec: ABC-n` (placement in `specs/README.md`), through the
@@ -101,12 +97,12 @@ again. Then set `Plan: validated` and the base commit. The spec file is the reco
 4. **Docs**: run `skill:update-docs` (it covers the specs). If the change is an architectural decision, also write or finish its ADR in
    `docs/adr/` (template and numbering in `docs/adr/README.md`) and update the
    diagrams in the `architecture` document of `.claude/cardinal.toml` when the flow changed.
-5. **Review (mandatory, never skipped)**: run `just check` (the project's format, lint and tests, and the specs); when `git diff --shortstat`
-   (new files included) exceeds the size limit of step 1, cut the deliverable before the review; then **invoke `/code-review low` on the diff with the Skill tool** (always name the level)
+5. **Review (mandatory)**: run `just check` (the project's format, lint and tests, and the specs); when `cardinal run deliverable-size`
+   exits 1 (over the limit of a deliverable), cut the deliverable before the review; then **invoke `/code-review low` on the diff with the Skill tool** (always name the level)
    and wait for its findings; reread the docs you changed. Fix the findings on the deliverable's own change, or say
    why one is not fixed; a finding outside the requirements of the deliverable becomes an issue
    (`skill:create-issue`), not a fix in this deliverable.
-   Re-run `just check` after the fixes. Step 6 cannot start before the review has run.
+   Re-run `just check` after the fixes.
    The native `pre-commit` hook (`cardinal run review-gate native`) enforces it: `git commit` fails while the diff holds a file
    the last review never saw, so write the tracking and the summary of steps 6 and 7 in the issue **before**
    the review (fixes to reviewed files pass; a diff under `issues/` only, or the close of an issue with the references `close-issue` rewrote, needs no review). Only the user can
@@ -115,13 +111,12 @@ again. Then set `Plan: validated` and the base commit. The spec file is the reco
    review), one line `red:` opening with the ids its tests trace, then the failure message the test of step 3.2 gave before
    the code (`red: ABC-3, ABC-4: <failure>`, `cardinal run delivered-quality` counts a traced id it lacks; `none` for a
    deliverable with no test), then the line `Code review: <n> findings` (`Code review: no findings` if it came back clean; the
-   count first, `cardinal run delivered-quality` reads it) with what was done about each, then the lists `not verified` (state it plainly) and `decisions needed`, empty when nothing applies. If you did
-   not invoke the review, go back to step 5 instead of presenting the deliverable. Wait for the user's validation.
-   Don't commit before it. In autonomous mode, write this summary in the issue and go on.
+   count first, `cardinal run delivered-quality` reads it) with what was done about each, then the lists `not verified` (state it plainly) and `decisions needed`, empty when nothing applies. Wait for the
+   user's validation. Don't commit before it. In autonomous mode, write this summary in the issue and go on.
 7. **Track**: tick the deliverable in the issue's `# Tracking` and note decisions or follow-ups.
 8. **Commit**: after validation (autonomous mode: right after step 7), run `skill:commit-message` (message per `AGENTS.md`, validated by its
-   checker). Commit only the files of this deliverable (never `git add -A`; leave unrelated or personal
-   files such as `settings.local.json`) and report the hash. If the user wants to commit themselves, output
+   checker). Commit only the files of this deliverable (leave unrelated or personal files such as
+   `settings.local.json`) and report the hash. If the user wants to commit themselves, output
    just the message.
 
 Then move to the next deliverable (autonomous mode: chain into it). Don't chain into it without saying so if the user asked to stop.
@@ -136,14 +131,24 @@ The default once the plan is validated, unless the user asked for a validation a
 recorded first in `## Decisions` of the issue's `# Tracking`, so it survives a `/clear` or a resumed thread. The user
 can switch it at any time.
 
-- **Lifted**: step 3.6 stops and the wait before step 3.8. Write the 3.6 summary (`done`, `check | result`,
-  `red:`, `Code review:`, `not verified`, `decisions needed`) in the issue instead, then commit locally and chain into the next
-  deliverable.
-- **Never lifted**: the review of step 3.5 and its checks, the `high` review of the whole issue, the stop of step 2, the Rules on push, deletion and
-  history rewriting (no push).
+- **Lifted**: step 3.6 stops and the wait before step 3.8. Write the 3.6 summary in the issue instead, then commit
+  locally and chain into the next deliverable.
+- **Never lifted**: the review of step 3.5 and its checks, the `high` review of the whole issue, the stop of step 2;
+  no push, deletion or history rewrite unasked.
 - **Stops the chain**: a blocking question, a decision the summary needs from the user, a review finding you can't
   settle, a failing check you can't fix (never commit or build on a red base). After the last deliverable, give the
   final summary: a table `deliverable | commit`, then `left` (what remains, if anything); ask whether to close the issue.
+
+## Advisor
+
+When an advisor tool is available, consult it at these moments:
+
+- the plan written in `# Tracking`, before the stop of step 2 (on a resume or a re-stop, only if the plan changed);
+- a test or a check still red after a fix (step 3.3 or 3.5), before trying another approach;
+- after the `update-docs` of the whole issue, before its `high` review.
+
+Follow the advice unless a step fails empirically or primary evidence (code, test output, the spec) contradicts it;
+then consult once more to reconcile. The advisor never replaces a review or a stop. No minimum number of calls.
 
 ## Merge back
 
@@ -153,11 +158,8 @@ the commands left to the user).
 
 ## Rules
 
-- Anything outward-facing or hard to reverse (push, deleting, rewriting history) needs an explicit ask.
-- Don't re-litigate decisions already recorded in the issue.
 - After a `cardinal sync` that adds a hook, run `just check-cardinal` at once and the `cargo install` it prints: the
   live hooks call the installed `cardinal`, and one it refuses blocks every command, the install included.
-- If something blocks you, say what and propose one recommendation; don't enumerate every option.
 - When the issue is fully done, mark it in the issue and say what, if anything, remains. Then **ask the
   user whether to close it** (in a linked worktree, see "Merge back"); on their agreement run `just close-issue issues/<name>.md` (moves it to
   `issues/done/` and rewrites `issues/<name>.md` to

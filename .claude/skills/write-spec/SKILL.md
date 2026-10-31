@@ -10,8 +10,6 @@ it. The format, the requirement kind and the statuses are in `specs/README.md` (
 don't restate them here). This skill is the procedure; `cardinal run check-specs` (`just check-specs`) enforces the
 mechanical rules. Don't implement anything here: the tests come after the user validated the spec.
 
-Show the user your results as `.claude/rules/reports-to-the-user.md` says.
-
 ## Procedure
 
 1. **Find the spec**: `ls specs` and read the one that covers the capability. Amend it rather than create a

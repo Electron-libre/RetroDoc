@@ -8,15 +8,13 @@ description: Write a new issue file in `issues/` with the repo's template (Goal,
 An issue is a Markdown file `issues/<snake_case_name>.md` that `skill:issue-workflow` can later pick up.
 This skill writes it; `cardinal run check-issue` (`just check-issue`) enforces the mechanical rules. Don't implement anything here.
 
-Show the user your results as `.claude/rules/reports-to-the-user.md` says.
-
 ## Procedure
 
 1. **Check for duplicates**: `ls issues issues/done` and skim the titles close to the subject. If one already
    covers it, propose extending it instead of creating a new file.
 2. **Gather the facts** from what was actually observed (logs, smoke runs, code, `git log`, the `roadmap` documents of `.claude/cardinal.toml`). Don't invent
    findings; if a fact is missing, say so in the issue or ask the user.
-3. **Write the file** in English (the conversation with the user stays in the `user_language` of `.claude/cardinal.local.toml`, else of `.claude/cardinal.toml`), with this template:
+3. **Write the file** in English, with this template:
 
    ```markdown
    # <Title: what to achieve, imperative>
@@ -57,8 +55,7 @@ Show the user your results as `.claude/rules/reports-to-the-user.md` says.
    just check-issue issues/<name>.md
    ```
 
-5. **Rank**: a new issue has a priority, so rank it. An `issues/queue.md` left from the format 4 is converted
-   first (`just next-issue --convert`, in the main worktree). Run `just next-issue` (the open issues, lowest rank first),
+5. **Rank**: a new issue has a priority, so rank it. Run `just next-issue` (the open issues, lowest rank first),
    read the issues around the candidate places, then open the file with a front matter
 
    ```markdown
@@ -80,7 +77,7 @@ Show the user your results as `.claude/rules/reports-to-the-user.md` says.
    or `done` milestone takes an issue only on the user's agreement. Never create or reorder a milestone unasked: the
    milestones, their order and their states are the user's.
 6. **Commit**: commit the issue files alone (the new issue files and the roadmap file step 5 edited), added then named on
-   the commit line (`git add <files>`, then `git commit -m <msg> -- <files>`; never `git add -A`), with
+   the commit line (`git add <files>`, then `git commit -m <msg> -- <files>`), with
    `skill:commit-message`; other modified or staged files stay out of the commit. Two exceptions: an issue
    written inside another deliverable (a review finding) is committed with that deliverable, not on its own;
    when the roadmap file already held changes that are not this skill's, ask before committing.
