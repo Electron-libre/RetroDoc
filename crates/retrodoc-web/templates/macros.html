@@ -51,7 +51,7 @@
       {% if !rule.entities.is_empty() %}<li>Entities: {{ rule.entities|join(", ") }}</li>{% endif %}
       {% if !rule.use_cases.is_empty() %}<li>Use cases: {% for link in rule.use_cases %}<a href="{{ link.href }}">{{ link.name }}</a>{% if !loop.last %}, {% endif %}{% endfor %}</li>{% endif %}
       {% for evidence in rule.evidence %}
-      <li>{{ evidence.kind }}: {% if evidence.code %}<code>{{ evidence.text }}</code>{% else %}“{{ evidence.text }}”{% endif %}{% if let Some(source) = evidence.source %} (<code>{{ source }}</code>){% endif %}</li>
+      <li>{{ evidence.kind }}: {% if let Some(href) = evidence.code %}<a href="{{ href }}"><code>{{ evidence.text }}</code></a>{% else %}“{{ evidence.text }}”{% endif %}{% if let Some(source) = evidence.source %} (<code>{{ source }}</code>){% endif %}</li>
       {% endfor %}
       {% for doc in rule.docs %}
       <li>Existing doc: {% call doc_link(doc) %}{% endcall %}</li>
@@ -62,3 +62,5 @@
 </ul>
 {% endif %}
 {% endmacro %}
+
+{% macro code_link(link) %}<a href="{{ link.href }}"><code>{{ link.label }}</code></a>{% endmacro %}

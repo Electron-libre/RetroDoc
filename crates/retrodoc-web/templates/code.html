@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% import "macros.html" as m %}
+{% block title %}{{ page.path }}{% endblock %}
+{% block content %}
+{% call m::crumbs(page.crumbs, page.path) %}{% endcall %}
+<h1><code>{{ page.path }}</code></h1>
+{% call m::stale(page.stale) %}{% endcall %}
+{% if !page.cited_by.is_empty() %}
+<h2>Cited by</h2>
+<ul class="cited-by">
+  {% for citer in page.cited_by %}
+  <li><span class="muted">{{ citer.kind }}:</span> <a href="{{ citer.link.href }}">{{ citer.link.name }}</a></li>
+  {% endfor %}
+</ul>
+{% endif %}
+<h2>Code</h2>
+{% if let Some(reason) = page.refused %}
+<p class="refused">{{ reason }}</p>
+{% else %}
+{% if let Some(shown) = page.shown %}<p class="muted">Showing {{ shown }}.</p>{% endif %}
+<table class="code">
+  {% for line in page.lines %}
+  <tr id="L{{ line.number }}"{% if line.cited %} class="cited"{% endif %}><td class="number">{{ line.number }}</td><td><pre>{{ line.text }}{% if let Some(length) = line.cut_from %} <span class="muted">… (line cut, {{ length }} characters)</span>{% endif %}</pre></td></tr>
+  {% endfor %}
+</table>
+{% endif %}
+<h2>History</h2>
+{% if let Some(commits) = page.commits %}
+{% if commits.is_empty() %}
+<p class="muted">No commit touches this file (not committed yet?).</p>
+{% else %}
+<ul class="history">
+  {% for commit in commits %}
+  <li><code>{{ commit.short_id }}</code> · {{ commit.date }} · {{ commit.subject }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% else %}
+<p class="muted">The history is not available: this repository has no readable git history.</p>
+{% endif %}
+{% endblock %}

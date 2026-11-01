@@ -63,8 +63,7 @@ impl Docs {
     /// `repo_root`.
     #[must_use]
     pub fn with_source_access(mut self, repo_root: &Path) -> Self {
-        let cited = self.generated.cited_paths();
-        self.source = Some(SourceAccess::new(repo_root, cited));
+        self.source = Some(SourceAccess::new(repo_root, self.generated.cited_paths()));
         self
     }
 

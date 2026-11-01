@@ -24,7 +24,7 @@
 {% call m::existing_docs(page.docs) %}{% endcall %}
 {% if !page.source_files.is_empty() %}
 <h2>Source files</h2>
-<ul>{% for path in page.source_files %}<li><code>{{ path }}</code></li>{% endfor %}</ul>
+<ul>{% for link in page.source_files %}<li>{% call m::code_link(link) %}{% endcall %}</li>{% endfor %}</ul>
 {% endif %}
 {% if !page.entry_points.is_empty() %}
 <h2>Entry points</h2>

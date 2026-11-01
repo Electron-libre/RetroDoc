@@ -8,6 +8,7 @@
 //! [`serve`] know HTTP. The docs are read once, at start.
 
 mod assets;
+pub mod code;
 mod pages;
 pub mod view;
 
@@ -37,6 +38,7 @@ pub fn router(docs: Option<GeneratedDocs>, links: DocLinks) -> Router {
             "/domains/{domain}/{feature}/{use_case}",
             get(pages::use_case),
         )
+        .route("/code/{*path}", get(pages::code))
         .route("/assets/{name}", get(assets::serve))
         .fallback(pages::not_found)
         .layer(middleware::from_fn(refuse_foreign_host))

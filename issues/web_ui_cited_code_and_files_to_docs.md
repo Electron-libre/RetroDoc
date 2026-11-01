@@ -54,10 +54,10 @@ Means: `SourceAccess` returns structured windows, commits and refusals (the MCP 
 1. [x] Structured `SourceAccess`: a `Window` of numbered lines, the `FileCommit`s and a `SourceError` enum, the
    Markdown of `read_source`/`git_log` built from them; the set of cited paths moved to `GeneratedDocs`; verified by
    the existing `source.rs` and MCP tool tests unchanged; pure refactor (~250 lines).
-2. [ ] Code page `/code/<path>` and the links to it; verified by router tests (cited file at its lines, uncited and
+2. [x] Code page `/code/<path>` and the links to it; verified by router tests (cited file at its lines, uncited and
    `..` paths 404, symlink refused, history, stale, citing items); makes true WEB-26 to WEB-33 (~700 lines).
 3. [ ] Files page `/files` and the link of every page to it; verified by router tests (tree, `1/2` share, uncited
-   file flagged, unrecorded cited file listed); makes true WEB-34 to WEB-36, spec `accepted` (~450 lines).
+   file flagged, unrecorded cited file listed); makes true WEB-34 to WEB-37, spec `accepted` (~450 lines).
 
 ## Decisions
 - Mode: autonomous
@@ -70,3 +70,16 @@ Means: `SourceAccess` returns structured windows, commits and refusals (the MCP 
 done: `SourceAccess::window`/`commits` return typed data and a `SourceError`; `read_source`/`git_log` lay it out as
 before; `GeneratedDocs::cited_paths` holds the cited set.
 red: none (pure refactor, the `source.rs` and MCP tool tests unchanged and green).
+
+## Deliverable 2
+done: `/code/{*path}` (`code::code_page`, `code.html`) through `GeneratedDocs::source_access`; step citations, feature
+source files and code evidence link to it.
+red: WEB-26, WEB-27, WEB-28, WEB-29, WEB-30, WEB-32, WEB-33: status 404 for `/code/app/invoice.rb` (no route), no
+`/code/` link on the feature page; WEB-31 passed before the code (the fallback already answered 404).
+Code review: 4 findings
+- `./` prefix not stripped before the cited check: not fixed, `SourceAccess` strips it from the cited set and from the
+  path asked (`check_cited`), so `app/x.rb` matches a citation `./app/x.rb`.
+- `end + CONTEXT` overflow on a huge `?lines=`: fixed (`saturating_add`), covered by the past-end test.
+- `Docs::with_source_access` duplicates `GeneratedDocs::source_access`: not fixed, the MCP takes its root explicitly
+  and `GeneratedDocs::new` has none.
+- `?lines=x&lines=5` takes the first pair only: not fixed, no range is the documented answer to a malformed one.

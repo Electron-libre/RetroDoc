@@ -41,7 +41,7 @@
   {% for step in steps %}
   <li value="{{ step.order }}">
     <strong>{{ step.actor }}</strong> <span class="muted">({% if step.human %}human{% else %}system{% endif %})</span> — {{ step.action }}{% if let Some(detail) = step.detail %}. {{ detail }}{% endif %}
-    {% if !step.cited.is_empty() %}<div class="cited">Code: {% for line in step.cited %}<code>{{ line }}</code>{% if !loop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+    {% if !step.cited.is_empty() %}<div class="cited">Code: {% for link in step.cited %}{% call m::code_link(link) %}{% endcall %}{% if !loop.last %}, {% endif %}{% endfor %}</div>{% endif %}
   </li>
   {% endfor %}
 </ol>

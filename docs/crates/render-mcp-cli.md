@@ -56,7 +56,14 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   from `retrodoc ui` (`commands::docs::item_doc_links`: the saved artifacts reconciled with the project docs and the
   saved judgements, no LLM call) through `router(docs, links)`; an unknown slug answers the 404 page. The shared
   pieces of the templates (score badge, breadcrumb, lists, existing docs) are the macros of `macros.html`. The
-  templates escape every text of the docs (LLM output). Tests: `tests/pages.rs` (home, tree, assets, `Host`) and `tests/item_pages.rs` (the item pages) ask the router without a socket (`tower::ServiceExt::oneshot`) over artifacts
+  templates escape every text of the docs (LLM output). The page of a cited file, `/code/{*path}` (`code::code_page`, `code.html`),
+  reads it through the `SourceAccess` of `GeneratedDocs::source_access` (the same refusals and windows as `read_source`):
+  `?lines=<start>[-<end>]` shows 10 lines around the cited ones and marks them (rows `id="L<n>"`); a path no doc cites,
+  or not plain, is the 404 page with nothing read, any other refusal a page that says why; then the last 10 commits
+  (`SourceAccess::commits`), the features, use cases and rules citing it, and the stale badge. The cited lines of the
+  steps, the source files of a feature and the code evidence of a rule link to it (`view::code_href`). Tests:
+  `tests/pages.rs` (home, tree, assets, `Host`), `tests/item_pages.rs` (the item pages) and `tests/code_page.rs` (the
+  page of a cited file, over a git repo) ask the router without a socket (`tower::ServiceExt::oneshot`) over artifacts
   saved in a temp dir. To update `htmx`, replace `assets/htmx.min.js` and the version in `assets.rs`; to update `mermaid`, gzip
   (`gzip -9 -n`) the `dist/mermaid.min.js` of its npm package (checked against the package integrity) into
   `assets/mermaid-<version>.min.js.gz` and change `MERMAID` and the file name in `assets.rs`.

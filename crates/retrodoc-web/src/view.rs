@@ -5,10 +5,11 @@
 use std::collections::BTreeSet;
 
 use retrodoc_core::model::{
-    ActorKind, BusinessRule, ConfidenceScore, Feature, RuleEvidence, Step, UseCase,
+    ActorKind, BusinessRule, ConfidenceScore, Feature, RuleEvidence, SourceRef, Step, UseCase,
     LOW_CONFIDENCE_THRESHOLD,
 };
 use retrodoc_mcp::freshness::{FileState, Freshness};
+use retrodoc_mcp::source::SourceAccess;
 use retrodoc_mcp::GeneratedDocs;
 use retrodoc_render::{anchor, kind_label, source_ref_label, DocLinks, ItemRef};
 
@@ -18,13 +19,26 @@ pub struct Site {
     docs: Option<GeneratedDocs>,
     links: DocLinks,
     tree: Vec<TreeDomain>,
+    source: Option<SourceAccess>,
 }
 
 impl Site {
     #[must_use]
     pub fn new(docs: Option<GeneratedDocs>, links: DocLinks) -> Self {
         let tree = docs.as_ref().map(tree).unwrap_or_default();
-        Self { docs, links, tree }
+        let source = docs.as_ref().and_then(GeneratedDocs::source_access);
+        Self {
+            docs,
+            links,
+            tree,
+            source,
+        }
+    }
+
+    /// The files the docs cite, `None` with no run.
+    #[must_use]
+    pub fn source(&self) -> Option<&SourceAccess> {
+        self.source.as_ref()
     }
 
     #[must_use]
@@ -208,7 +222,7 @@ pub struct DomainPage {
     pub docs: Vec<DocItem>,
 }
 
-fn home_crumb() -> Link {
+pub(crate) fn home_crumb() -> Link {
     Link {
         href: "/".into(),
         name: "Domains".into(),
@@ -219,11 +233,11 @@ fn domain_href(slug: &str) -> String {
     format!("/domains/{slug}")
 }
 
-fn feature_href(feature: &Feature) -> String {
+pub(crate) fn feature_href(feature: &Feature) -> String {
     format!("/domains/{}/{}", feature.domain_slug, feature.slug)
 }
 
-fn use_case_href(feature: &Feature, use_case: &UseCase) -> String {
+pub(crate) fn use_case_href(feature: &Feature, use_case: &UseCase) -> String {
     format!("{}/{}", feature_href(feature), use_case.slug)
 }
 
@@ -249,6 +263,40 @@ fn url_path(path: &str) -> String {
         }
     }
     url
+}
+
+/// A citation of code, linked to the page of its file.
+pub struct CodeLink {
+    pub href: String,
+    /// `path:start-end`, `path:start` or `path`.
+    pub label: String,
+}
+
+impl CodeLink {
+    fn of(source: &SourceRef) -> Self {
+        Self {
+            href: code_href(&source.path, source.start_line, source.end_line),
+            label: source_ref_label(source),
+        }
+    }
+
+    fn file(path: &str) -> Self {
+        Self {
+            href: code_href(path, None, None),
+            label: path.to_string(),
+        }
+    }
+}
+
+/// The page of the file `path`, at the lines `start` to `end` when given.
+#[must_use]
+pub fn code_href(path: &str, start: Option<u32>, end: Option<u32>) -> String {
+    let path = url_path(path.strip_prefix("./").unwrap_or(path));
+    match (start, end) {
+        (Some(s), Some(e)) if e > s => format!("/code/{path}?lines={s}-{e}#L{s}"),
+        (Some(s), _) => format!("/code/{path}?lines={s}#L{s}"),
+        _ => format!("/code/{path}"),
+    }
 }
 
 /// The doc sections behind `item`, linked to the page of the collected doc.
@@ -313,7 +361,7 @@ pub struct StaleFile {
 
 /// The files among `paths` modified or deleted since the run; none when the
 /// docs carry no freshness. Reads the files.
-fn stale_files<'a>(
+pub(crate) fn stale_files<'a>(
     freshness: Option<&Freshness>,
     paths: impl IntoIterator<Item = &'a str>,
 ) -> Vec<StaleFile> {
@@ -336,8 +384,8 @@ fn stale_files<'a>(
 /// `Documentation` and its section, with the file it comes from.
 pub struct Evidence {
     pub kind: &'static str,
-    /// The text is cited lines of code.
-    pub code: bool,
+    /// The page of the cited lines of code.
+    pub code: Option<String>,
     pub text: String,
     pub source: Option<String>,
 }
@@ -347,19 +395,19 @@ impl Evidence {
         match evidence {
             RuleEvidence::Code { source } => Self {
                 kind: "Code",
-                code: true,
+                code: Some(CodeLink::of(source).href),
                 text: source_ref_label(source),
                 source: None,
             },
             RuleEvidence::Test { phrase, path } => Self {
                 kind: "Test",
-                code: false,
+                code: None,
                 text: phrase.clone(),
                 source: Some(path.clone()),
             },
             RuleEvidence::Doc { path, heading } => Self {
                 kind: "Documentation",
-                code: false,
+                code: None,
                 text: heading.clone(),
                 source: Some(path.clone()),
             },
@@ -419,7 +467,7 @@ pub struct FeaturePage {
     pub technical: Vec<ItemRow>,
     pub rules: Vec<RuleView>,
     pub docs: Vec<DocItem>,
-    pub source_files: Vec<String>,
+    pub source_files: Vec<CodeLink>,
     pub entry_points: Vec<String>,
 }
 
@@ -494,7 +542,11 @@ pub fn feature_page(
             .map(|r| rule_view(r, feature, &use_cases, links))
             .collect(),
         docs: doc_items(links, &ItemRef::Feature(slug.to_string())),
-        source_files: feature.source_paths.clone(),
+        source_files: feature
+            .source_paths
+            .iter()
+            .map(|path| CodeLink::file(path))
+            .collect(),
         entry_points: feature.entry_points.clone(),
     })
 }
@@ -507,7 +559,7 @@ pub struct StepView {
     pub action: String,
     pub detail: Option<String>,
     /// The cited lines, `path:start-end`.
-    pub cited: Vec<String>,
+    pub cited: Vec<CodeLink>,
 }
 
 impl StepView {
@@ -518,7 +570,7 @@ impl StepView {
             human: step.actor.kind == ActorKind::Human,
             action: step.label().to_string(),
             detail: step.detail().map(str::to_string),
-            cited: step.source_refs.iter().map(source_ref_label).collect(),
+            cited: step.source_refs.iter().map(CodeLink::of).collect(),
         }
     }
 }

@@ -2,7 +2,7 @@
 //! answered: the MCP tools turn it into Markdown for an LLM, the web interface
 //! into HTML pages (ADR 0039). Loaded once from what the last `generate` saved.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use retrodoc_core::model::{BusinessRule, Domain, Feature, RuleEvidence, UseCase};
 use retrodoc_ingest::existing_docs::ExistingDoc;
@@ -11,6 +11,7 @@ use retrodoc_pipeline::{domain_models, DomainMap, Glossary};
 use crate::corpus::{build_entries, rule_entries};
 use crate::freshness::Freshness;
 use crate::search::SearchIndex;
+use crate::source::SourceAccess;
 
 /// The artifacts of a run and the search index over them and the collected docs.
 pub struct GeneratedDocs {
@@ -21,6 +22,8 @@ pub struct GeneratedDocs {
     glossary: Glossary,
     index: SearchIndex,
     freshness: Option<Freshness>,
+    /// Where the docs were loaded from, to read the code they cite.
+    repo_root: Option<PathBuf>,
 }
 
 impl GeneratedDocs {
@@ -43,6 +46,7 @@ impl GeneratedDocs {
             glossary,
             index,
             freshness: None,
+            repo_root: None,
         }
     }
 
@@ -82,8 +86,24 @@ impl GeneratedDocs {
                 docs,
             )
             .with_rules(rules)
-            .with_freshness(Freshness::load(repo_root)),
+            .with_freshness(Freshness::load(repo_root))
+            .with_repo_root(repo_root),
         )
+    }
+
+    /// Lets [`Self::source_access`] read the code under `repo_root`.
+    #[must_use]
+    pub fn with_repo_root(mut self, repo_root: &Path) -> Self {
+        self.repo_root = Some(repo_root.to_path_buf());
+        self
+    }
+
+    /// The bounded access to the files the docs cite, `None` when the docs
+    /// were not loaded from a repository.
+    #[must_use]
+    pub fn source_access(&self) -> Option<SourceAccess> {
+        let root = self.repo_root.as_deref()?;
+        Some(SourceAccess::new(root, self.cited_paths()))
     }
 
     /// The files the docs cite: the source files of the features, the lines

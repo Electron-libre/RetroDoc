@@ -76,18 +76,18 @@ over browses its domains, features and use cases rather than reading the Markdow
   it, each a link to its page (a rule to the page of its feature).
 - **WEB-30** (deterministic) The page of a file must be flagged as stale when the file was modified or deleted since
   the run.
-- **WEB-31** (deterministic) A `/code/` path that is not a plain path inside the repository, or that no feature, step
-  or rule cites, must be answered with the status 404 and the not-found page.
-- **WEB-32** (deterministic) A cited file `read_source` refuses to show (a symbolic link on its way, deleted, binary,
-  larger than 1 MB, a range past its end) must be answered with a page that says why and shows none of its lines.
+- **WEB-31** (deterministic) The status 404 and the not-found page must answer a `/code/` path that is not a plain
+  path inside the repository, or that no feature, step or rule cites.
+- **WEB-32** (deterministic) The page of a cited file must say why and show none of its lines when `read_source`
+  refuses to show it (a symbolic link on its way, deleted, binary, larger than 1 MB, a range past its end).
 - **WEB-33** (deterministic) Each cited line of a step, source file of a feature and code evidence of a rule must be a
   link to the page of its file, at its lines when it has some.
 - **WEB-34** (deterministic) The files page, `/files`, must show the tree of the source files of the last run (those
   whose hash it recorded, and those the docs cite), each directory with the number of its files cited out of its
   files, each file with the number of features, use cases and rules that cite it.
-- **WEB-35** (deterministic) On the files page, a cited file must be a link to its page and a file no doc cites must
-  be flagged `not cited`, with no link.
-- **WEB-36** (deterministic) Every page must link to the files page.
+- **WEB-35** (deterministic) On the files page, a cited file must be a link to its page.
+- **WEB-36** (deterministic) On the files page, a file no doc cites must be flagged `not cited`, with no link.
+- **WEB-37** (deterministic) Every page must link to the files page.
 
 ## Scenarios
 

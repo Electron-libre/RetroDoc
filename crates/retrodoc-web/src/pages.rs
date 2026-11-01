@@ -4,7 +4,7 @@
 use std::sync::Arc;
 
 use askama::Template;
-use axum::extract::{Path, State};
+use axum::extract::{Path, RawQuery, State};
 use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse, Response};
 use tokio::task::JoinError;
@@ -12,6 +12,7 @@ use tokio::task::JoinError;
 use retrodoc_render::{TECHNICAL_HEADING, TECHNICAL_NOTE};
 
 use crate::assets::MERMAID;
+use crate::code::{cited_range, code_page, CodePage};
 use crate::view::{
     domain_page, domain_rows, feature_page, use_case_page, DomainPage, DomainRow, FeaturePage,
     Site, TreeDomain, UseCasePage,
@@ -48,6 +49,13 @@ struct UseCaseTemplate<'a> {
     tree: &'a [TreeDomain],
     page: UseCasePage,
     mermaid: &'static str,
+}
+
+#[derive(Template)]
+#[template(path = "code.html")]
+struct CodeTemplate<'a> {
+    tree: &'a [TreeDomain],
+    page: CodePage,
 }
 
 #[derive(Template)]
@@ -157,6 +165,30 @@ pub async fn use_case(
                 tree: site.tree(),
                 page,
                 mermaid: MERMAID,
+            },
+        ),
+        Ok(None) => not_found(State(site)).await,
+        Err(err) => read_failed(&err),
+    }
+}
+
+pub async fn code(
+    State(site): State<Arc<Site>>,
+    Path(path): Path<String>,
+    RawQuery(query): RawQuery,
+) -> Response {
+    let cited = cited_range(query.as_deref());
+    let page = blocking(&site, move |site| {
+        let source = site.source()?;
+        code_page(site.docs()?, source, &path, cited)
+    })
+    .await;
+    match page {
+        Ok(Some(page)) => render(
+            StatusCode::OK,
+            &CodeTemplate {
+                tree: site.tree(),
+                page,
             },
         ),
         Ok(None) => not_found(State(site)).await,

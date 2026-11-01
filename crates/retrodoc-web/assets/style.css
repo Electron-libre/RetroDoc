@@ -60,3 +60,11 @@ code { background: var(--bg-side); padding: 0 0.25rem; border-radius: 0.2rem; }
 .cited { font-size: 0.85rem; color: var(--muted); }
 pre { background: var(--bg-side); padding: 0.6rem; overflow-x: auto; }
 pre.mermaid { background: none; }
+
+/* The page of a cited file: numbered lines, the cited ones marked. */
+table.code { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
+table.code td { padding: 0 0.5rem; vertical-align: top; }
+table.code td.number { color: #888; text-align: right; user-select: none; width: 1%; }
+table.code pre { margin: 0; white-space: pre-wrap; word-break: break-all; }
+table.code tr.cited { background: #fff3c4; }
+table.code tr:target { outline: 1px solid #c9a400; }
