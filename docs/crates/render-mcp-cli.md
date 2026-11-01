@@ -86,9 +86,12 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   with its evidence and a link to its `#rule-<slug>` item, kept by `?kind=` (the artifact name of the kind),
   `?domain=` and `?feature=` (`rules::RuleFilter`, an empty value asks nothing; a rule whose feature is not in the run
   matches no domain nor feature); its form, submitted by `htmx` on change, swaps `rules_list.html` into `#rule-list`
-  (`Vary: HX-Request`). Tests:
+  (`Vary: HX-Request`). The actors page, `/actors` (`actors::actors_page`, `actors.html`, linked from the header of
+  every page), is a table per kind, human then system: a row per actor, grouped by its exact name (a primary actor no
+  step names counts as human), a column per feature with a use case that names an actor, a cell linking the use cases
+  it starts (`starts`) or takes part in, and the permission rules that apply to them. Tests:
   `tests/pages.rs` (home, tree, assets, `Host`), `tests/item_pages.rs` (the item pages), `tests/code_page.rs` (the
-  page of a cited file, over a git repo), `tests/files_page.rs`, `tests/doc_pages.rs`, `tests/glossary_page.rs`, `tests/rules_page.rs` and `tests/search_page.rs` ask the router without a socket (`tower::ServiceExt::oneshot`) over artifacts
+  page of a cited file, over a git repo), `tests/files_page.rs`, `tests/doc_pages.rs`, `tests/glossary_page.rs`, `tests/rules_page.rs`, `tests/actors_page.rs` and `tests/search_page.rs` ask the router without a socket (`tower::ServiceExt::oneshot`) over artifacts
   saved in a temp dir. To update `htmx`, replace `assets/htmx.min.js` and the version in `assets.rs`; to update `mermaid`, gzip
   (`gzip -9 -n`) the `dist/mermaid.min.js` of its npm package (checked against the package integrity) into
   `assets/mermaid-<version>.min.js.gz` and change `MERMAID` and the file name in `assets.rs`.

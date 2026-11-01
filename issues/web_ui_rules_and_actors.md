@@ -52,7 +52,7 @@ each actor. Out of scope: merging the spellings of an actor. Also: the rule cite
 1. [x] Rules page: `/rules` with its filter form and `htmx` fragment, link from every page, rule citers of a file page
    at `#rule-<slug>`; verified by router tests in `tests/rules_page.rs` and `tests/code_page.rs`; makes true WEB-52
    (rules link), WEB-53, WEB-54, WEB-55, WEB-56, WEB-61.
-2. [ ] Actors page: `/actors`, the matrix human then system, cells linking the use cases, permission rules per row,
+2. [x] Actors page: `/actors`, the matrix human then system, cells linking the use cases, permission rules per row,
    link from every page; verified by router tests in `tests/actors_page.rs`; makes true WEB-52, WEB-57 to WEB-60.
 
 ## Decisions
@@ -68,3 +68,13 @@ each actor. Out of scope: merging the spellings of an actor. Also: the rule cite
   no `href="/rules"` in the header, the rule citer linked to the top of its feature page.
 - Code review: no findings
 - not verified: the `htmx` swap in a real browser.
+
+## Deliverable 2: actors page
+- done: `/actors` (`actors.rs`, `actors.html`), the matrix human then system with the use cases of each cell and the
+  permission rules of each row, an `Actors` link in the header; `specs/web-ui.md` accepted.
+- red: WEB-52, WEB-57, WEB-58, WEB-59, WEB-60: `/actors` answered 404 (`no section human-actors in` the not-found page),
+  no `href="/actors"` in the header.
+- Code review: 1 finding
+  - fixed: a primary actor whose name the steps give both kinds was marked `starts` (and its permission rules
+    listed) in both rows; it now starts its use cases in the human row only (scenario added to WEB-57, test red then green).
+- not verified: the layout of a wide matrix in a real browser.

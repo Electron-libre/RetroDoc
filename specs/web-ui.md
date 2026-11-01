@@ -1,6 +1,6 @@
 ---
 id: WEB
-status: draft
+status: accepted
 adrs: [0039]
 ---
 
@@ -203,7 +203,7 @@ over browses its domains, features and use cases rather than reading the Markdow
 - (WEB-54) Given an empty filter value (`?kind=`), then it filters nothing, as when it is absent.
 - (WEB-57) Given `Clerk` and `clerk`, then they are two rows (no merging of the names).
 - (WEB-57) Given a primary actor no step names, then it is a human actor; given a name the steps give both kinds,
-  then it is a row under each.
+  then it is a row under each, and as a primary actor it starts its use cases in the human row only.
 - (WEB-57) Given a run with no use case that names an actor, then the page says no actor was found.
 - (WEB-59) Given an actor that both starts a use case and takes part in one of its steps, then the use case is linked
   once, marked as started.

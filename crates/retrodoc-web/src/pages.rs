@@ -11,6 +11,7 @@ use tokio::task::JoinError;
 
 use retrodoc_render::{TECHNICAL_HEADING, TECHNICAL_NOTE};
 
+use crate::actors::{actors_page, ActorsPage};
 use crate::assets::MERMAID;
 use crate::code::{code_page, Asked, CodePage};
 use crate::collected::{collected_page, CollectedPage};
@@ -82,6 +83,13 @@ struct CollectedTemplate<'a> {
 struct GlossaryTemplate<'a> {
     tree: &'a [TreeDomain],
     page: &'a GlossaryPage,
+}
+
+#[derive(Template)]
+#[template(path = "actors.html")]
+struct ActorsTemplate<'a> {
+    tree: &'a [TreeDomain],
+    page: ActorsPage,
 }
 
 #[derive(Template)]
@@ -248,6 +256,19 @@ pub async fn glossary(State(site): State<Arc<Site>>) -> Response {
         &GlossaryTemplate {
             tree: site.tree(),
             page,
+        },
+    )
+}
+
+pub async fn actors(State(site): State<Arc<Site>>) -> Response {
+    let Some(docs) = site.docs() else {
+        return render(StatusCode::OK, &NoRun { tree: site.tree() });
+    };
+    render(
+        StatusCode::OK,
+        &ActorsTemplate {
+            tree: site.tree(),
+            page: actors_page(docs),
         },
     )
 }

@@ -7,6 +7,7 @@
 //! loads, turned into the plain view structs of [`view`]; only [`router`] and
 //! [`serve`] know HTTP. The docs are read once, at start.
 
+mod actors;
 mod assets;
 pub mod code;
 pub mod collected;
@@ -47,6 +48,7 @@ pub fn router(docs: Option<GeneratedDocs>, links: DocLinks, collected: Vec<Exist
         .route("/files", get(pages::files))
         .route("/glossary", get(pages::glossary))
         .route("/rules", get(pages::rules))
+        .route("/actors", get(pages::actors))
         .route("/search", get(pages::search))
         .route("/code/{*path}", get(pages::code))
         .route("/docs/{*path}", get(pages::collected_doc))

@@ -83,3 +83,5 @@ table.files tr.dir td:first-child { font-weight: 600; }
 ul.hits { list-style: none; padding-left: 0; }
 .filters { display: flex; flex-wrap: wrap; gap: 1rem; align-items: end; margin-bottom: 1rem; }
 .filters label { display: flex; flex-direction: column; font-size: 0.9rem; }
+.matrix { overflow-x: auto; }
+.matrix th, .matrix td { white-space: nowrap; }
