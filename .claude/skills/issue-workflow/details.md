@@ -32,7 +32,8 @@ Several issues may share a worktree, one after the other; the worktree outlives 
   `just next-issue` then skips the issue in every worktree. It takes back a claim of the same session, or of the same
   worktree whose session ended. A new claim needs the worktree clean outside `issues/`.
 - **Lock**: the `workspace-lock` hooks keep one live session per worktree; a second one has its edits and commands
-  refused. A crashed session's lock is freed when its process is gone.
+  refused. A crashed session's lock is freed when its process is gone, and the lock of a session with no work in
+  progress (a clean worktree, no issue claimed) goes to the next session that acts.
 - **Hooks** act on the work tree of their `cwd` (`lint-gate`, `review-gate`; `format-code` formats the project of the
   edited file); `cardinal run` finds the `cardinal.toml` of the worktree and runs the tools of the revision it pins
   (with a local source, those of the worktree's own crate). The session's project is the worktree: its hooks are
