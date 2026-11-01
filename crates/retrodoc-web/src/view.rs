@@ -423,7 +423,7 @@ pub struct Evidence {
 }
 
 impl Evidence {
-    fn of(evidence: &RuleEvidence) -> Self {
+    pub(crate) fn of(evidence: &RuleEvidence) -> Self {
         match evidence {
             RuleEvidence::Code { source } => Self {
                 kind: "Code",

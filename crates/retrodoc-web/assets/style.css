@@ -81,3 +81,5 @@ table.files tr.dir td:first-child { font-weight: 600; }
 .top form.search input { padding: 0.25rem 0.5rem; min-width: 16rem; }
 #search-results:not(:empty) { padding: 0 1rem; border-bottom: 1px solid var(--border); }
 ul.hits { list-style: none; padding-left: 0; }
+.filters { display: flex; flex-wrap: wrap; gap: 1rem; align-items: end; margin-bottom: 1rem; }
+.filters label { display: flex; flex-direction: column; font-size: 0.9rem; }

@@ -288,12 +288,21 @@ async fn the_page_of_a_file_lists_what_cites_it() {
         page.contains("<a href=\"/domains/billing/pay-invoice/pay-by-card\">Pay by card</a>"),
         "{page}"
     );
-    assert!(
-        page.contains("<a href=\"/domains/billing/pay-invoice\">A late invoice is charged</a>"),
-        "{page}"
-    );
     let card = self::page(&root, "/code/app/card.rb").await;
     assert!(!card.contains("A late invoice is charged"), "{card}");
+}
+
+// spec: WEB-61
+#[tokio::test]
+async fn a_rule_that_cites_the_file_links_to_its_item_on_the_page_of_its_feature() {
+    let (_dir, root) = generated_repo();
+    let page = page(&root, "/code/app/invoice.rb").await;
+    assert!(
+        page.contains(
+            "<a href=\"/domains/billing/pay-invoice#rule-pay-invoice-1\">A late invoice is charged</a>"
+        ),
+        "{page}"
+    );
 }
 
 // spec: WEB-30

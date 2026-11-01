@@ -62,7 +62,7 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   window from a line (the "Next lines" link, `code::Asked`); a path no doc cites, or not plain, is the 404 page with
   nothing read, any other refusal (a cited range past the end included) a page that says why; then the last 10 commits
   (`SourceAccess::commits`), the features, use cases and rules citing it (`code::citations`, also behind the counts of
-  the files page), and the stale badge. The cited lines of the
+  the files page; a rule linked to its `#rule-<slug>` item), and the stale badge. The cited lines of the
   steps, the source files of a feature and the code evidence of a rule link to it (`view::code_href`). The files page,
   `/files` (`files::files_page`, `files.html`, linked from the header of every page), lays out as a tree the paths of the
   files `source-hashes.json` recorded (`Freshness::recorded_paths`) and of the cited ones, built once in `Site::new`: a directory with its files
@@ -81,9 +81,14 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   default `--limit` of `retrodoc search`, so both list the same hits) and groups the hits by kind (domain, feature, use
   case, rule, concept, collected doc), each linked to its page (a rule to `#rule-<slug>` on its feature page, a concept
   to its anchor of the glossary), or gives the not-documented answer with the left-out count and the unknown words; a
-  request with `HX-Request` gets `search_results.html` alone (`Vary: HX-Request`). Tests:
+  request with `HX-Request` gets `search_results.html` alone (`Vary: HX-Request`). The rules page, `/rules`
+  (`rules::rules_page`, `rules.html`, linked from the header of every page), lists every rule in the order of the run
+  with its evidence and a link to its `#rule-<slug>` item, kept by `?kind=` (the artifact name of the kind),
+  `?domain=` and `?feature=` (`rules::RuleFilter`, an empty value asks nothing; a rule whose feature is not in the run
+  matches no domain nor feature); its form, submitted by `htmx` on change, swaps `rules_list.html` into `#rule-list`
+  (`Vary: HX-Request`). Tests:
   `tests/pages.rs` (home, tree, assets, `Host`), `tests/item_pages.rs` (the item pages), `tests/code_page.rs` (the
-  page of a cited file, over a git repo), `tests/files_page.rs`, `tests/doc_pages.rs`, `tests/glossary_page.rs` and `tests/search_page.rs` ask the router without a socket (`tower::ServiceExt::oneshot`) over artifacts
+  page of a cited file, over a git repo), `tests/files_page.rs`, `tests/doc_pages.rs`, `tests/glossary_page.rs`, `tests/rules_page.rs` and `tests/search_page.rs` ask the router without a socket (`tower::ServiceExt::oneshot`) over artifacts
   saved in a temp dir. To update `htmx`, replace `assets/htmx.min.js` and the version in `assets.rs`; to update `mermaid`, gzip
   (`gzip -9 -n`) the `dist/mermaid.min.js` of its npm package (checked against the package integrity) into
   `assets/mermaid-<version>.min.js.gz` and change `MERMAID` and the file name in `assets.rs`.

@@ -13,6 +13,7 @@ pub mod collected;
 pub mod files;
 pub mod glossary;
 mod pages;
+pub mod rules;
 pub mod search;
 pub mod view;
 
@@ -45,6 +46,7 @@ pub fn router(docs: Option<GeneratedDocs>, links: DocLinks, collected: Vec<Exist
         )
         .route("/files", get(pages::files))
         .route("/glossary", get(pages::glossary))
+        .route("/rules", get(pages::rules))
         .route("/search", get(pages::search))
         .route("/code/{*path}", get(pages::code))
         .route("/docs/{*path}", get(pages::collected_doc))

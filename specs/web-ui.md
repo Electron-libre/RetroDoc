@@ -1,6 +1,6 @@
 ---
 id: WEB
-status: accepted
+status: draft
 adrs: [0039]
 ---
 
@@ -116,6 +116,29 @@ over browses its domains, features and use cases rather than reading the Markdow
   scheme other than `http`, `https` or `mailto`.
 - **WEB-51** (deterministic) The status 404 and the not-found page must answer a `/docs/` path that is not one of the
   collected docs.
+- **WEB-52** (deterministic) Every page must link to the rules page and to the actors page.
+- **WEB-53** (deterministic) The rules page, `/rules`, must list every business rule of the last run, in the order of
+  the run, each with its statement, its kind, its confidence, its evidence as on the page of its feature (WEB-33), and
+  a link to its item on the page of its feature (`#rule-<slug>`) labelled with the feature and its domain.
+- **WEB-54** (deterministic) The rules page must keep only the rules of the kind `?kind=<kind>` (`validation`,
+  `permission`, `state_transition`, `limit`, `computation`), of the domain `?domain=<slug>` and of the feature
+  `?feature=<slug>`, each given, all of them when several are, and say no rule matches when none does.
+- **WEB-55** (deterministic) The rules page must show a form whose choices are the kinds, the domains and the
+  features of the run, the ones of the query selected, that asks the page again with them.
+- **WEB-56** (deterministic) A rules request with the header `HX-Request` must be answered with the list of the rules
+  alone, without the layout of the page; any other with the full page.
+- **WEB-57** (deterministic) The actors page, `/actors`, must show a row per actor, the actors grouped by their exact
+  name, the human ones then the system ones under their own heading, each group sorted by name ignoring case; the
+  actors are the primary actors of the use cases and the actors of their steps.
+- **WEB-58** (deterministic) The actors page must show a column per feature with at least one use case that names an
+  actor, in the order of the run, headed by a link to its page.
+- **WEB-59** (deterministic) The cell of an actor and a feature must link to each use case of the feature the actor
+  starts (its primary actor) or takes part in (the actor of one of its steps), marking those it starts; a cell with
+  none is empty.
+- **WEB-60** (deterministic) Each row of the actors page must list beside the actor the permission rules that apply
+  to a use case of its row, each a link to its item on the page of its feature.
+- **WEB-61** (deterministic) On the page of a cited file, a rule that cites it must link to its item on the page of
+  its feature (`#rule-<slug>`).
 
 ## Scenarios
 
@@ -174,6 +197,17 @@ over browses its domains, features and use cases rather than reading the Markdow
 - (WEB-43) Given a repository with no run yet, then an `htmx` search gets a fragment that says to run `generate`.
 - (WEB-48) Given two headings with the same text, then both carry the same anchor, as the links of WEB-23 do.
 - (WEB-50) Given `[x](javascript:alert(1))`, then the page shows `x` with no link; a relative link is kept.
+- (WEB-53) Given a rule whose feature is not in the run (artifacts of an older run), then it is listed without a link,
+  and no `?domain=` keeps it.
+- (WEB-54) Given a filter whose value names no kind, domain or feature of the run, then no rule matches.
+- (WEB-54) Given an empty filter value (`?kind=`), then it filters nothing, as when it is absent.
+- (WEB-57) Given `Clerk` and `clerk`, then they are two rows (no merging of the names).
+- (WEB-57) Given a primary actor no step names, then it is a human actor; given a name the steps give both kinds,
+  then it is a row under each.
+- (WEB-57) Given a run with no use case that names an actor, then the page says no actor was found.
+- (WEB-59) Given an actor that both starts a use case and takes part in one of its steps, then the use case is linked
+  once, marked as started.
+- (WEB-53, WEB-57) Given a repository with no run yet, then both pages say to run `retrodoc generate`.
 ## Non-goals
 
 - No synonym matching nor search-as-you-type: the search is that of `retrodoc search` (`specs/docs-search.md`).
@@ -184,6 +218,8 @@ over browses its domains, features and use cases rather than reading the Markdow
 - The history of a file does not follow its renames (`issues/git_log_follow_renames.md`).
 - The diagram is drawn by the browser: whether `mermaid` succeeds on an LLM-written diagram is not required, only that
   its source stays in the page.
+- The actors page does not merge the spellings of an actor nor maps them to the actors list (`actors.yaml`).
+- The rules page has no free-text filter: the search covers the rules (WEB-40).
 - No authentication nor several repositories: the server is for the local user (a hosted mode needs its own ADR).
 - No LLM call and no edit of the docs.
 - The docs are read once at start: the pages of a `generate` run while the server runs show after a restart of `ui`.

@@ -38,3 +38,33 @@ Browse the docs in a web interface
   and leave the merging out of scope.
 * The page of a cited file (`crates/retrodoc-web/src/code.rs`, `citers`) links a rule to the top of its feature page:
   once the rules have a page or an anchor (`id` on their `<li>` in `macros.html`), link there.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Two cross pages of `retrodoc ui`: `/rules`, every rule filterable by kind, domain and feature (query parameters,
+`htmx` swaps the list), and `/actors`, a matrix actor × feature linking the use cases, with the permission rules of
+each actor. Out of scope: merging the spellings of an actor. Also: the rule citers of a file page link to `#rule-<slug>`.
+
+## Plan
+1. [x] Rules page: `/rules` with its filter form and `htmx` fragment, link from every page, rule citers of a file page
+   at `#rule-<slug>`; verified by router tests in `tests/rules_page.rs` and `tests/code_page.rs`; makes true WEB-52
+   (rules link), WEB-53, WEB-54, WEB-55, WEB-56, WEB-61.
+2. [ ] Actors page: `/actors`, the matrix human then system, cells linking the use cases, permission rules per row,
+   link from every page; verified by router tests in `tests/actors_page.rs`; makes true WEB-52, WEB-57 to WEB-60.
+
+## Decisions
+- Mode: autonomous
+- A primary actor no step names is a human actor (not read from `actors.yaml`).
+- The matrix has a column only per feature where an actor appears (WEB-58).
+- Base commit: 97254fea2a8bb13cb6e1a7320d55f18e39aae102
+
+## Deliverable 1: rules page
+- done: `/rules` (`rules.rs`, `rules.html`, `rules_list.html`) with its kind, domain and feature filters and its
+  `htmx` fragment, a `Rules` link in the header, the rule citers of a file page at `#rule-<slug>`; evidence macro shared.
+- red: WEB-52, WEB-53, WEB-54, WEB-55, WEB-56, WEB-61: `/rules` answered 404 (`assertion left == right failed: 404 vs 200`),
+  no `href="/rules"` in the header, the rule citer linked to the top of its feature page.
+- Code review: no findings
+- not verified: the `htmx` swap in a real browser.

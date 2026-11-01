@@ -16,6 +16,7 @@ use crate::code::{code_page, Asked, CodePage};
 use crate::collected::{collected_page, CollectedPage};
 use crate::files::FilesPage;
 use crate::glossary::GlossaryPage;
+use crate::rules::{rules_page, RuleFilter, RulesPage};
 use crate::search::{query_value, search_page, Results, SearchPage};
 use crate::view::{
     domain_page, domain_rows, feature_page, use_case_page, DomainPage, DomainRow, FeaturePage,
@@ -81,6 +82,20 @@ struct CollectedTemplate<'a> {
 struct GlossaryTemplate<'a> {
     tree: &'a [TreeDomain],
     page: &'a GlossaryPage,
+}
+
+#[derive(Template)]
+#[template(path = "rules.html")]
+struct RulesTemplate<'a> {
+    tree: &'a [TreeDomain],
+    page: RulesPage,
+}
+
+/// The list alone, swapped under the form by `htmx`.
+#[derive(Template)]
+#[template(path = "rules_list.html")]
+struct RulesList {
+    page: RulesPage,
 }
 
 #[derive(Template)]
@@ -235,6 +250,41 @@ pub async fn glossary(State(site): State<Arc<Site>>) -> Response {
             page,
         },
     )
+}
+
+/// The list `htmx` swaps under the form before a first `generate`.
+const NO_RUN_RULES: &str = "<section id=\"rule-list\"><p>No rule yet: run \
+    <code>retrodoc generate</code>, then restart <code>retrodoc ui</code>.</p></section>";
+
+pub async fn rules(
+    State(site): State<Arc<Site>>,
+    headers: HeaderMap,
+    RawQuery(query): RawQuery,
+) -> Response {
+    // The same URL answers a fragment or a page: a cache must tell them apart.
+    let vary = [(header::VARY, "HX-Request")];
+    let htmx = headers.contains_key("HX-Request");
+    let Some(docs) = site.docs() else {
+        if htmx {
+            return (vary, Html(NO_RUN_RULES)).into_response();
+        }
+        return (vary, render(StatusCode::OK, &NoRun { tree: site.tree() })).into_response();
+    };
+    let asked = |name| query_value(query.as_deref(), name).filter(|v| !v.is_empty());
+    let filter = RuleFilter {
+        kind: asked("kind"),
+        domain: asked("domain"),
+        feature: asked("feature"),
+    };
+    let page = rules_page(docs, &filter);
+    if htmx {
+        return (vary, render(StatusCode::OK, &RulesList { page })).into_response();
+    }
+    let page = RulesTemplate {
+        tree: site.tree(),
+        page,
+    };
+    (vary, render(StatusCode::OK, &page)).into_response()
 }
 
 /// The results `htmx` swaps under the box before a first `generate`.
