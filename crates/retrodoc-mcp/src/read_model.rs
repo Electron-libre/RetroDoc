@@ -4,7 +4,7 @@
 
 use std::path::Path;
 
-use retrodoc_core::model::{BusinessRule, Domain, Feature, UseCase};
+use retrodoc_core::model::{BusinessRule, Domain, Feature, RuleEvidence, UseCase};
 use retrodoc_ingest::existing_docs::ExistingDoc;
 use retrodoc_pipeline::{domain_models, DomainMap, Glossary};
 
@@ -84,6 +84,27 @@ impl GeneratedDocs {
             .with_rules(rules)
             .with_freshness(Freshness::load(repo_root)),
         )
+    }
+
+    /// The files the docs cite: the source files of the features, the lines
+    /// of the steps and the code evidence of the rules, repeats included.
+    #[must_use]
+    pub fn cited_paths(&self) -> Vec<String> {
+        let features = self.features.iter().flat_map(|f| f.source_paths.iter());
+        let steps = self
+            .use_cases
+            .iter()
+            .flat_map(|u| &u.steps)
+            .flat_map(|s| s.source_refs.iter().map(|r| &r.path));
+        let code = self
+            .rules
+            .iter()
+            .flat_map(|r| &r.evidence)
+            .filter_map(|e| match e {
+                RuleEvidence::Code { source } => Some(&source.path),
+                _ => None,
+            });
+        features.chain(steps).chain(code).cloned().collect()
     }
 
     #[must_use]

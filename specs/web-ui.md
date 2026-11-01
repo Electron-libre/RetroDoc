@@ -1,6 +1,6 @@
 ---
 id: WEB
-status: accepted
+status: draft
 adrs: [0039]
 ---
 
@@ -65,6 +65,29 @@ over browses its domains, features and use cases rather than reading the Markdow
   the source of the diagram in the page; a page without a diagram must not load it.
 - **WEB-25** (deterministic) The status 404 and the not-found page must answer a domain, a feature or a use case
   slug the last run does not have, or a feature asked under a domain it does not belong to.
+- **WEB-26** (deterministic) The page of a file the docs cite, `/code/<path>`, must show its lines numbered, within the
+  window `read_source` serves: from the first line, 200 lines by default and 400 at most, a line longer than 400
+  characters cut.
+- **WEB-27** (deterministic) With `?lines=<start>-<end>` (or `?lines=<start>`), the page of a file must show its lines
+  from 10 before `start` to 10 after `end`, within the window of WEB-26, and mark the lines `start` to `end` as cited.
+- **WEB-28** (deterministic) The page of a file must list the last 10 commits that changed it, each with its short
+  hash, its date and its subject, without its author.
+- **WEB-29** (deterministic) The page of a file must list the features, the use cases and the business rules that cite
+  it, each a link to its page (a rule to the page of its feature).
+- **WEB-30** (deterministic) The page of a file must be flagged as stale when the file was modified or deleted since
+  the run.
+- **WEB-31** (deterministic) A `/code/` path that is not a plain path inside the repository, or that no feature, step
+  or rule cites, must be answered with the status 404 and the not-found page.
+- **WEB-32** (deterministic) A cited file `read_source` refuses to show (a symbolic link on its way, deleted, binary,
+  larger than 1 MB, a range past its end) must be answered with a page that says why and shows none of its lines.
+- **WEB-33** (deterministic) Each cited line of a step, source file of a feature and code evidence of a rule must be a
+  link to the page of its file, at its lines when it has some.
+- **WEB-34** (deterministic) The files page, `/files`, must show the tree of the source files of the last run (those
+  whose hash it recorded, and those the docs cite), each directory with the number of its files cited out of its
+  files, each file with the number of features, use cases and rules that cite it.
+- **WEB-35** (deterministic) On the files page, a cited file must be a link to its page and a file no doc cites must
+  be flagged `not cited`, with no link.
+- **WEB-36** (deterministic) Every page must link to the files page.
 
 ## Scenarios
 
@@ -93,11 +116,27 @@ over browses its domains, features and use cases rather than reading the Markdow
   with the status 406.
 - (WEB-23) Given a doc page not served yet (collected docs are a later issue), then the link answers 404.
 - (WEB-25) Given a feature slug under the slug of another domain, then it answers 404 rather than the feature.
+- (WEB-27) Given `?lines=` that is not a line or a range of lines, then the page shows the file from its first line,
+  with no line marked.
+- (WEB-27) Given `?lines=1-3`, then the window starts at line 1.
+- (WEB-28) Given a repository with no git history, then the page says the history is not available and still shows
+  the lines.
+- (WEB-30) Given a file with no recorded hash, then the page is not flagged.
+- (WEB-31) Given `/code/../secret.txt`, `/code/%2E%2E/secret.txt` or an uncited file of the repository, then the
+  answer is 404 and holds none of its content.
+- (WEB-32) Given a cited symbolic link to a file outside the repository, then the page says links are not followed
+  and holds none of the target's content.
+- (WEB-33) Given a cited reference with no line, then it links to the page of its file with no `lines`.
+- (WEB-34) Given a cited file whose hash the run did not record (left out by the file budget), then it is in the tree.
+- (WEB-34) Given a directory of two files of which one is cited, then it shows `1/2` cited.
 
 ## Non-goals
 
-- The search, the glossary, the collected docs and the cited code (later issues of the milestone); the links of
-  WEB-23 lead to the collected doc pages once they are served.
+- The search, the glossary and the collected docs (later issues of the milestone); the links of WEB-23 lead to the
+  collected doc pages once they are served.
+- No line of a file the docs don't cite is ever served: the files page shows only the path of such a file (ADR 0016).
+- No syntax highlighting: the code is plain text with line numbers.
+- The history of a file does not follow its renames (`issues/git_log_follow_renames.md`).
 - The diagram is drawn by the browser: whether `mermaid` succeeds on an LLM-written diagram is not required, only that
   its source stays in the page.
 - No authentication nor several repositories: the server is for the local user (a hosted mode needs its own ADR).

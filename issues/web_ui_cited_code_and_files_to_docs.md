@@ -39,3 +39,34 @@ Browse the docs in a web interface
 
 * Never widen what `SourceAccess` serves for the web: once hosted (ADR 0039), the interface is reachable by others.
 * A syntax highlighter is a comfort; plain text with line numbers is enough for this issue.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+A `/code/<path>` page (cited files only, through `SourceAccess`: lines, cited range marked, last commits, what cites
+it, stale flag) linked from steps, source files and code evidence, and a `/files` tree with the citation counts.
+Out of scope: syntax highlighting, renames in the history, any content of an uncited file.
+Means: `SourceAccess` returns structured windows, commits and refusals (the MCP answers unchanged) so the web lays them out.
+
+## Plan
+1. [x] Structured `SourceAccess`: a `Window` of numbered lines, the `FileCommit`s and a `SourceError` enum, the
+   Markdown of `read_source`/`git_log` built from them; the set of cited paths moved to `GeneratedDocs`; verified by
+   the existing `source.rs` and MCP tool tests unchanged; pure refactor (~250 lines).
+2. [ ] Code page `/code/<path>` and the links to it; verified by router tests (cited file at its lines, uncited and
+   `..` paths 404, symlink refused, history, stale, citing items); makes true WEB-26 to WEB-33 (~700 lines).
+3. [ ] Files page `/files` and the link of every page to it; verified by router tests (tree, `1/2` share, uncited
+   file flagged, unrecorded cited file listed); makes true WEB-34 to WEB-36, spec `accepted` (~450 lines).
+
+## Decisions
+- Mode: autonomous
+- Base commit: fe5fa4a57b9e7b97287bb77843c5c6301d523b0b
+- A cited file `read_source` refuses: status 200, a page that says why, no line of it, still its history and what
+  cites it (WEB-32).
+- `/files` lists the paths of every source file of the run, cited or not, never the content of an uncited one.
+
+## Deliverable 1
+done: `SourceAccess::window`/`commits` return typed data and a `SourceError`; `read_source`/`git_log` lay it out as
+before; `GeneratedDocs::cited_paths` holds the cited set.
+red: none (pure refactor, the `source.rs` and MCP tool tests unchanged and green).

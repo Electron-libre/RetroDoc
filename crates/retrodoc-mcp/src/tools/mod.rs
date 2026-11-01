@@ -5,7 +5,7 @@
 
 use std::path::Path;
 
-use retrodoc_core::model::{BusinessRule, Domain, Feature, RuleEvidence, UseCase};
+use retrodoc_core::model::{BusinessRule, Domain, Feature, UseCase};
 use retrodoc_ingest::existing_docs::ExistingDoc;
 use retrodoc_pipeline::Glossary;
 
@@ -63,27 +63,7 @@ impl Docs {
     /// `repo_root`.
     #[must_use]
     pub fn with_source_access(mut self, repo_root: &Path) -> Self {
-        let features = self
-            .generated
-            .features()
-            .iter()
-            .flat_map(|f| f.source_paths.iter());
-        let steps = self
-            .generated
-            .use_cases()
-            .iter()
-            .flat_map(|u| &u.steps)
-            .flat_map(|s| s.source_refs.iter().map(|r| &r.path));
-        let code = self
-            .generated
-            .rules()
-            .iter()
-            .flat_map(|r| &r.evidence)
-            .filter_map(|e| match e {
-                RuleEvidence::Code { source } => Some(&source.path),
-                _ => None,
-            });
-        let cited: Vec<String> = features.chain(steps).chain(code).cloned().collect();
+        let cited = self.generated.cited_paths();
         self.source = Some(SourceAccess::new(repo_root, cited));
         self
     }

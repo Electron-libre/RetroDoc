@@ -26,6 +26,107 @@ pub struct Excerpt {
     pub body: String,
 }
 
+/// A window of the lines of a cited file.
+#[derive(Debug, PartialEq, Eq)]
+pub struct Window {
+    /// The first and last lines shown (1-based, inclusive); `0` and `0` for an empty file.
+    pub start: usize,
+    pub end: usize,
+    /// The lines of the whole file.
+    pub total: usize,
+    pub lines: Vec<Line>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct Line {
+    pub number: usize,
+    pub text: String,
+    /// The length in characters of a line cut to [`MAX_LINE_CHARS`].
+    pub cut_from: Option<usize>,
+}
+
+/// A commit that changed a cited file: no author, on purpose.
+#[derive(Debug, PartialEq, Eq)]
+pub struct FileCommit {
+    pub short_id: String,
+    /// `YYYY-MM-DD`, or `unknown date`.
+    pub date: String,
+    pub subject: String,
+}
+
+/// Why a file can't be shown.
+#[derive(Debug, PartialEq, Eq)]
+pub enum SourceError {
+    /// Absolute, empty, or with a `..`.
+    NotPlain(String),
+    NotCited(String),
+    Symlink(String),
+    Gone(String),
+    Unreadable(String),
+    TooLarge {
+        path: String,
+        size: u64,
+    },
+    Binary(String),
+    PastEnd {
+        path: String,
+        total: usize,
+        start: usize,
+    },
+    Reversed {
+        start: usize,
+        end: usize,
+    },
+    NoHistory,
+}
+
+impl SourceError {
+    /// The path is none the docs cite: whether it exists is not told.
+    #[must_use]
+    pub fn not_served(&self) -> bool {
+        matches!(self, Self::NotPlain(_) | Self::NotCited(_))
+    }
+}
+
+impl std::fmt::Display for SourceError {
+    /// As a sentence for the agent.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NotPlain(path) => write!(
+                f,
+                "Not available: `{path}` is not a path inside the repository (no absolute path, no `..`)."
+            ),
+            Self::NotCited(path) => write!(
+                f,
+                "Not available: `{path}` is not cited by the docs, and only cited files can be read. \
+                 Find the files of a feature or use case with `get_feature` or `get_use_case`."
+            ),
+            Self::Symlink(path) => write!(
+                f,
+                "Not available: `{path}` is, or goes through, a symbolic link, and links are not followed."
+            ),
+            Self::Gone(path) => write!(f, "Not available: `{path}` no longer exists in the repository."),
+            Self::Unreadable(path) => write!(f, "Not available: `{path}` could not be read."),
+            Self::TooLarge { path, size } => write!(
+                f,
+                "Not available: `{path}` is too large to show ({size} bytes, the limit is {MAX_FILE_BYTES})."
+            ),
+            Self::Binary(path) => write!(f, "Not available: `{path}` is a binary file."),
+            Self::PastEnd { path, total, start } => write!(
+                f,
+                "`{path}` has {total} lines: start_line {start} is past the end."
+            ),
+            Self::Reversed { start, end } => {
+                write!(f, "end_line ({end}) is before start_line ({start}).")
+            }
+            Self::NoHistory => write!(
+                f,
+                "Not available: this repository has no readable git history."
+            ),
+        }
+    }
+}
+
 pub struct SourceAccess {
     repo_root: PathBuf,
     cited: BTreeSet<String>,
@@ -59,58 +160,30 @@ impl SourceAccess {
         start_line: Option<usize>,
         end_line: Option<usize>,
     ) -> Result<Excerpt, String> {
-        let path = self.check_cited(path)?;
-        let real = self.resolve_inside_repo(path)?;
-        let size = std::fs::metadata(&real)
-            .map_err(|e| unreadable(path, &e))?
-            .len();
-        if size > MAX_FILE_BYTES {
-            return Err(format!(
-                "Not available: `{path}` is too large to show ({size} bytes, the limit is {MAX_FILE_BYTES})."
-            ));
-        }
-        let bytes = std::fs::read(&real).map_err(|e| unreadable(path, &e))?;
-        if bytes.contains(&0) {
-            return Err(format!("Not available: `{path}` is a binary file."));
-        }
-        let text = String::from_utf8_lossy(&bytes);
-        let lines: Vec<&str> = text.lines().collect();
-        let total = lines.len();
-        if total == 0 {
+        let window = self
+            .window(path, start_line, end_line)
+            .map_err(|e| e.to_string())?;
+        let path = path.strip_prefix("./").unwrap_or(path);
+        if window.total == 0 {
             return Ok(Excerpt {
                 header: format!("# `{path}` (empty file)"),
                 body: String::new(),
             });
         }
-
-        let start = start_line.unwrap_or(1).max(1);
-        if start > total {
-            return Err(format!(
-                "`{path}` has {total} lines: start_line {start} is past the end."
-            ));
-        }
-        if let Some(end) = end_line.filter(|end| *end < start) {
-            return Err(format!("end_line ({end}) is before start_line ({start})."));
-        }
-        let end = end_line
-            .map_or(start + DEFAULT_LINES - 1, |end| {
-                end.min(start + MAX_LINES - 1)
-            })
-            .min(total);
-
-        let width = total.to_string().len().max(4);
+        let width = window.total.to_string().len().max(4);
         let mut shown = String::new();
-        for (index, line) in lines[start - 1..end].iter().enumerate() {
-            let number = start + index;
-            let length = line.chars().count();
-            if length > MAX_LINE_CHARS {
-                let cut: String = line.chars().take(MAX_LINE_CHARS).collect();
-                let _ = writeln!(
-                    shown,
-                    "{number:>width$} | {cut} … (line cut, {length} characters)"
-                );
-            } else {
-                let _ = writeln!(shown, "{number:>width$} | {line}");
+        for line in &window.lines {
+            let (number, text) = (line.number, &line.text);
+            match line.cut_from {
+                Some(length) => {
+                    let _ = writeln!(
+                        shown,
+                        "{number:>width$} | {text} … (line cut, {length} characters)"
+                    );
+                }
+                None => {
+                    let _ = writeln!(shown, "{number:>width$} | {text}");
+                }
             }
         }
         let longest_backticks = shown
@@ -120,16 +193,101 @@ impl SourceAccess {
             .unwrap_or_default();
         let fence = "`".repeat((longest_backticks + 1).max(3));
         let mut body = format!("{fence}\n{shown}{fence}\n");
-        if end < total {
+        if window.end < window.total {
             let _ = write!(
                 body,
                 "\nMore: call `read_source` with `start_line={}`.\n",
-                end + 1
+                window.end + 1
             );
         }
         Ok(Excerpt {
-            header: format!("# `{path}` (lines {start}-{end} of {total})"),
+            header: format!(
+                "# `{path}` (lines {}-{} of {})",
+                window.start, window.end, window.total
+            ),
             body,
+        })
+    }
+
+    /// The lines `start_line` to `end_line` (1-based, inclusive) of the cited
+    /// file `path`: [`DEFAULT_LINES`] from `start_line` with no end, at most
+    /// [`MAX_LINES`], each cut to [`MAX_LINE_CHARS`].
+    ///
+    /// # Errors
+    ///
+    /// When the file can't be shown: not cited, outside the repo, gone,
+    /// binary, too large, or a range past its end.
+    pub fn window(
+        &self,
+        path: &str,
+        start_line: Option<usize>,
+        end_line: Option<usize>,
+    ) -> Result<Window, SourceError> {
+        let path = self.check_cited(path)?;
+        let real = self.resolve_inside_repo(path)?;
+        let size = std::fs::metadata(&real)
+            .map_err(|e| unreadable(path, &e))?
+            .len();
+        if size > MAX_FILE_BYTES {
+            return Err(SourceError::TooLarge {
+                path: path.to_string(),
+                size,
+            });
+        }
+        let bytes = std::fs::read(&real).map_err(|e| unreadable(path, &e))?;
+        if bytes.contains(&0) {
+            return Err(SourceError::Binary(path.to_string()));
+        }
+        let text = String::from_utf8_lossy(&bytes);
+        let lines: Vec<&str> = text.lines().collect();
+        let total = lines.len();
+        if total == 0 {
+            return Ok(Window {
+                start: 0,
+                end: 0,
+                total,
+                lines: Vec::new(),
+            });
+        }
+
+        let start = start_line.unwrap_or(1).max(1);
+        if start > total {
+            return Err(SourceError::PastEnd {
+                path: path.to_string(),
+                total,
+                start,
+            });
+        }
+        if let Some(end) = end_line.filter(|end| *end < start) {
+            return Err(SourceError::Reversed { start, end });
+        }
+        let end = end_line
+            .map_or(start + DEFAULT_LINES - 1, |end| {
+                end.min(start + MAX_LINES - 1)
+            })
+            .min(total);
+        let lines = lines[start - 1..end]
+            .iter()
+            .enumerate()
+            .map(|(index, line)| {
+                let length = line.chars().count();
+                let cut = length > MAX_LINE_CHARS;
+                Line {
+                    number: start + index,
+                    text: if cut {
+                        line.chars().take(MAX_LINE_CHARS).collect()
+                    } else {
+                        (*line).to_string()
+                    },
+                    cut_from: cut.then_some(length),
+                }
+            })
+            .collect();
+        Ok(Window {
+            start,
+            end,
+            total,
+            lines,
         })
     }
 
@@ -141,13 +299,8 @@ impl SourceAccess {
     /// Returns the reason, as a sentence for the agent, when the history
     /// can't be shown: file not cited, no git repository.
     pub fn git_log(&self, path: &str, limit: usize) -> Result<String, String> {
-        let path = self.check_cited(path)?;
-        let limit = limit.clamp(1, MAX_LOG);
-        let log = retrodoc_ingest::git_history::file_log(&self.repo_root, Path::new(path), limit)
-            .map_err(|error| {
-            tracing::warn!(%error, path, "git_log could not read the history");
-            "Not available: this repository has no readable git history.".to_string()
-        })?;
+        let log = self.commits(path, limit).map_err(|e| e.to_string())?;
+        let path = path.strip_prefix("./").unwrap_or(path);
         if log.is_empty() {
             return Ok(format!(
                 "# History of `{path}`\n\nNo commit touches this file (not committed yet?).\n"
@@ -155,33 +308,55 @@ impl SourceAccess {
         }
         let mut out = format!("# History of `{path}` (last {} commit(s))\n\n", log.len());
         for commit in log {
-            let date = commit.committed_at.map_or_else(
-                || "unknown date".to_string(),
-                |d| d.format("%Y-%m-%d").to_string(),
+            let _ = writeln!(
+                out,
+                "- `{}` · {} · {}",
+                commit.short_id, commit.date, commit.subject
             );
-            let _ = writeln!(out, "- `{}` · {date} · {}", commit.short_id, commit.subject);
         }
         Ok(out)
     }
 
+    /// The last `limit` commits (at most [`MAX_LOG`]) that changed the cited
+    /// file `path`, newest first.
+    ///
+    /// # Errors
+    ///
+    /// When the file is not cited or the repository has no readable history.
+    pub fn commits(&self, path: &str, limit: usize) -> Result<Vec<FileCommit>, SourceError> {
+        let path = self.check_cited(path)?;
+        let limit = limit.clamp(1, MAX_LOG);
+        let log = retrodoc_ingest::git_history::file_log(&self.repo_root, Path::new(path), limit)
+            .map_err(|error| {
+            tracing::warn!(%error, path, "git_log could not read the history");
+            SourceError::NoHistory
+        })?;
+        Ok(log
+            .into_iter()
+            .map(|commit| FileCommit {
+                short_id: commit.short_id,
+                date: commit.committed_at.map_or_else(
+                    || "unknown date".to_string(),
+                    |d| d.format("%Y-%m-%d").to_string(),
+                ),
+                subject: commit.subject,
+            })
+            .collect())
+    }
+
     /// The path as the docs cite it, if it is a plain repo-relative path of a
     /// cited file; else why not.
-    fn check_cited<'a>(&self, path: &'a str) -> Result<&'a str, String> {
+    fn check_cited<'a>(&self, path: &'a str) -> Result<&'a str, SourceError> {
         let path = path.strip_prefix("./").unwrap_or(path);
         let plain = !path.is_empty()
             && Path::new(path)
                 .components()
                 .all(|c| matches!(c, Component::Normal(_)));
         if !plain {
-            return Err(format!(
-                "Not available: `{path}` is not a path inside the repository (no absolute path, no `..`)."
-            ));
+            return Err(SourceError::NotPlain(path.to_string()));
         }
         if !self.cited.contains(path) {
-            return Err(format!(
-                "Not available: `{path}` is not cited by the docs, and only cited files can be read. \
-                 Find the files of a feature or use case with `get_feature` or `get_use_case`."
-            ));
+            return Err(SourceError::NotCited(path.to_string()));
         }
         Ok(path)
     }
@@ -189,7 +364,7 @@ impl SourceAccess {
     /// The real location of `path`. A symbolic link anywhere on the way is
     /// refused, whatever it points to: it could lead to a file the docs don't
     /// cite, or out of the repo.
-    fn resolve_inside_repo(&self, path: &str) -> Result<PathBuf, String> {
+    fn resolve_inside_repo(&self, path: &str) -> Result<PathBuf, SourceError> {
         let real = self
             .repo_root
             .join(path)
@@ -202,18 +377,16 @@ impl SourceAccess {
         if real == root.join(path) {
             Ok(real)
         } else {
-            Err(format!(
-                "Not available: `{path}` is, or goes through, a symbolic link, and links are not followed."
-            ))
+            Err(SourceError::Symlink(path.to_string()))
         }
     }
 }
 
-fn unreadable(path: &str, error: &std::io::Error) -> String {
+fn unreadable(path: &str, error: &std::io::Error) -> SourceError {
     if error.kind() == std::io::ErrorKind::NotFound {
-        format!("Not available: `{path}` no longer exists in the repository.")
+        SourceError::Gone(path.to_string())
     } else {
-        format!("Not available: `{path}` could not be read.")
+        SourceError::Unreadable(path.to_string())
     }
 }
 
