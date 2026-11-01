@@ -49,7 +49,7 @@ retrodoc-cli ──> retrodoc-pipeline ──> retrodoc-ingest ──> retrodoc-
              ──> retrodoc-ingest
 retrodoc-cli ──> retrodoc-render ──> retrodoc-core
 retrodoc-cli ──> retrodoc-mcp ──> retrodoc-pipeline, retrodoc-ingest, retrodoc-core
-retrodoc-web ──> retrodoc-mcp, retrodoc-core
+retrodoc-cli ──> retrodoc-web ──> retrodoc-mcp, retrodoc-core
 ```
 
 Per-crate detail (modules, passes, behaviours that span passes) lives in `docs/crates/`; read the file
@@ -70,4 +70,4 @@ of the crate you are about to touch. High-level view: `docs/ARCHITECTURE.md`. De
   → `docs/crates/render-mcp-cli.md`
 - **retrodoc-cli**: `clap` subcommands (`init`, `scan`, `generate`, `render`, `report`, `roles`, `brief`, `glossary`,
   `entry-points`, `business-read`, `business-files`, `contexts`, `actors`, `surface`, `benchmark`, `benchmark-table`, `search`,
-  `mcp`); logs go to stdout (stderr for `mcp`). → `docs/crates/render-mcp-cli.md`
+  `mcp`, `ui`); logs go to stdout (stderr for `mcp`). → `docs/crates/render-mcp-cli.md`

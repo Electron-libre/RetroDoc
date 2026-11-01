@@ -65,7 +65,7 @@ domain, feature and use case pages (next issue: the tree links answer 404 until 
 2. [x] `retrodoc-web` crate: router, base layout with the tree, home, not-found and no-run pages, assets under
    `/assets/`; verified by router tests (`oneshot`) over the MCP fixtures; makes true WEB-4 to WEB-12 (~700 lines,
    htmx vendored minified).
-3. [ ] `retrodoc ui --path [--bind]` subcommand, `web` commit scope, docs (CLAUDE.md and ARCHITECTURE.md graphs,
+3. [x] `retrodoc ui --path [--bind]` subcommand, `web` commit scope, docs (CLAUDE.md and ARCHITECTURE.md graphs,
    `docs/crates/render-mcp-cli.md`, README), ADR 0039 `Accepted`; verified by a binary test on `--bind 127.0.0.1:0`
    (URL printed, home page fetched) and a parse test of the default; makes true WEB-1 to WEB-3 (~250 lines).
 
@@ -90,4 +90,10 @@ domain, feature and use case pages (next issue: the tree links answer 404 until 
 - red: WEB-4, WEB-5, WEB-6, WEB-7, WEB-8, WEB-9, WEB-10, WEB-11: the empty router answered 404 with no body
   (`assertion left == right failed: left: 404, right: 200`); WEB-12 passed on the empty router already.
 - Escaping: askama writes numeric entities (`&#60;`), the WEB-10 test checks that form.
+- Code review: no findings.
+
+## Deliverable 3 summary
+- done: `retrodoc ui --path [--bind]` (default `127.0.0.1:8730`, URL printed once it listens, the docs read once),
+  docs (README, CLAUDE.md, ARCHITECTURE, crate docs, commands), ADR 0039 `Accepted`, `specs/web-ui.md` `accepted`.
+- red: WEB-2, WEB-3, WEB-9: `error: unrecognized subcommand 'ui'` (no URL printed); WEB-1 written with the command.
 - Code review: no findings.

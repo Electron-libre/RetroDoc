@@ -151,6 +151,16 @@ enum Command {
         #[arg(long, default_value = ".")]
         path: PathBuf,
     },
+    /// Serves the generated documentation in a local web interface: the
+    /// domains, features and use cases of the last `generate` run. Read-only,
+    /// no LLM call; the URL is printed at start.
+    Ui {
+        #[arg(long, default_value = ".")]
+        path: PathBuf,
+        /// Address to listen on (`127.0.0.1:0` picks a free port).
+        #[arg(long, default_value = commands::ui::DEFAULT_BIND)]
+        bind: std::net::SocketAddr,
+    },
     /// Prints the application surface (entities, entry points by resource)
     /// from the saved artifacts, before the entry points `generate` leaves
     /// out. No LLM call; needs the artifacts of `retrodoc glossary` and
@@ -339,6 +349,7 @@ async fn main() -> anyhow::Result<()> {
             commands::benchmark::table(&dir, previous.as_deref())
         }
         Command::Mcp { path } => commands::mcp::run(&path).await,
+        Command::Ui { path, bind } => commands::ui::run(&path, bind).await,
         Command::Search { query, path, limit } => commands::search::run(&path, &query, limit),
         Command::Surface { path } => commands::surface::run(&path),
         Command::Roles { path, force } => commands::roles::run(&path, force, &tracker).await,
@@ -356,4 +367,19 @@ async fn main() -> anyhow::Result<()> {
         commands::usage::finish(&path, name, &tracker, result.is_ok());
     }
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // spec: WEB-1 (internal: listening on the fixed port in a test would fail whenever it is taken)
+    #[test]
+    fn the_web_interface_listens_on_this_machine_at_the_default_port() {
+        let cli = Cli::try_parse_from(["retrodoc", "ui"]).unwrap();
+        let Command::Ui { bind, .. } = cli.command else {
+            panic!("not the ui command");
+        };
+        assert_eq!(bind, "127.0.0.1:8730".parse().unwrap());
+    }
 }

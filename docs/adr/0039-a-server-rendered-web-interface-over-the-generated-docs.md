@@ -1,6 +1,6 @@
 # 0039. A server-rendered web interface over the generated docs
 
-Status: Proposed
+Status: Accepted
 
 ## Context
 

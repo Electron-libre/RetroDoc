@@ -16,5 +16,6 @@ pub mod roles;
 pub mod scan;
 pub mod search;
 pub mod surface;
+pub mod ui;
 pub mod usage;
 pub mod workspace;

@@ -1396,6 +1396,7 @@ dependencies = [
  "retrodoc-mcp",
  "retrodoc-pipeline",
  "retrodoc-render",
+ "retrodoc-web",
  "serde_json",
  "tempfile",
  "tokio",
