@@ -7,6 +7,10 @@ use retrodoc_pipeline::Bm25;
 
 const TITLE_WEIGHT: usize = 3;
 
+/// The hits `retrodoc search` shows when no limit is asked, and the web
+/// interface always: the same list for the same query.
+pub const SEARCH_LIMIT: usize = 10;
+
 pub struct SearchIndex {
     entries: Vec<Entry>,
     bm25: Bm25,

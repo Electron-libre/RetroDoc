@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use askama::Template;
 use axum::extract::{Path, RawQuery, State};
-use axum::http::StatusCode;
+use axum::http::{header, HeaderMap, StatusCode};
 use axum::response::{Html, IntoResponse, Response};
 use tokio::task::JoinError;
 
@@ -16,6 +16,7 @@ use crate::code::{code_page, Asked, CodePage};
 use crate::collected::{collected_page, CollectedPage};
 use crate::files::FilesPage;
 use crate::glossary::GlossaryPage;
+use crate::search::{query_value, search_page, Results, SearchPage};
 use crate::view::{
     domain_page, domain_rows, feature_page, use_case_page, DomainPage, DomainRow, FeaturePage,
     Site, TreeDomain, UseCasePage,
@@ -80,6 +81,20 @@ struct CollectedTemplate<'a> {
 struct GlossaryTemplate<'a> {
     tree: &'a [TreeDomain],
     page: &'a GlossaryPage,
+}
+
+#[derive(Template)]
+#[template(path = "search.html")]
+struct SearchTemplate<'a> {
+    tree: &'a [TreeDomain],
+    page: SearchPage,
+}
+
+/// The results alone, swapped under the box by `htmx`.
+#[derive(Template)]
+#[template(path = "search_results.html")]
+struct SearchResults {
+    page: SearchPage,
 }
 
 #[derive(Template)]
@@ -220,6 +235,30 @@ pub async fn glossary(State(site): State<Arc<Site>>) -> Response {
             page,
         },
     )
+}
+
+pub async fn search(
+    State(site): State<Arc<Site>>,
+    headers: HeaderMap,
+    RawQuery(query): RawQuery,
+) -> Response {
+    let Some(docs) = site.docs() else {
+        return render(StatusCode::OK, &NoRun { tree: site.tree() });
+    };
+    let page = search_page(
+        docs,
+        &query_value(query.as_deref(), "q").unwrap_or_default(),
+    );
+    // The same URL answers a fragment or a page: a cache must tell them apart.
+    let vary = [(header::VARY, "HX-Request")];
+    if headers.contains_key("HX-Request") {
+        return (vary, render(StatusCode::OK, &SearchResults { page })).into_response();
+    }
+    let page = SearchTemplate {
+        tree: site.tree(),
+        page,
+    };
+    (vary, render(StatusCode::OK, &page)).into_response()
 }
 
 pub async fn code(

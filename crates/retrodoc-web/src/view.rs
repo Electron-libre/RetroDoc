@@ -265,6 +265,10 @@ pub(crate) fn feature_href(feature: &Feature) -> String {
     format!("/domains/{}/{}", feature.domain_slug, feature.slug)
 }
 
+pub(crate) fn rule_anchor(slug: &str) -> String {
+    format!("rule-{slug}")
+}
+
 pub(crate) fn use_case_href(feature: &Feature, use_case: &UseCase) -> String {
     format!("{}/{}", feature_href(feature), use_case.slug)
 }
@@ -445,6 +449,8 @@ impl Evidence {
 
 /// A rule on the page of its feature or of a use case it applies to.
 pub struct RuleView {
+    /// The `id` of its item: `rule-<slug>`, what a search hit links to.
+    pub anchor: String,
     pub statement: String,
     pub kind: &'static str,
     pub confidence: Confidence,
@@ -462,6 +468,7 @@ fn rule_view(
     links: &DocLinks,
 ) -> RuleView {
     RuleView {
+        anchor: rule_anchor(&rule.slug),
         statement: rule.statement.clone(),
         kind: kind_label(rule.kind),
         confidence: Confidence::of(rule.confidence.as_ref()),

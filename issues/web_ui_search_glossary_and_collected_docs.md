@@ -56,7 +56,7 @@ the files a collected doc links to. Spec: `specs/web-ui.md` WEB-39 to WEB-51.
 2. [x] Glossary page: `/glossary` lists the merged concepts sorted by name with their definition, anchor and the use
    cases that use them, linked from every page; verified by router tests (~300 lines); makes true WEB-44, WEB-45,
    WEB-46.
-3. [ ] Search: the box in the layout, `/search?q=` with the hits of `GeneratedDocs::index` (limit 10, the default of
+3. [x] Search: the box in the layout, `/search?q=` with the hits of `GeneratedDocs::index` (limit 10, the default of
    `retrodoc search`) grouped by kind with confidence and link, the not-documented answer, a fragment for `htmx`;
    verified by router tests (~400 lines); makes true WEB-39, WEB-40, WEB-41, WEB-42, WEB-43.
 
@@ -104,3 +104,21 @@ red: WEB-44, WEB-45, WEB-46: `/glossary` answered 404 and the header had no `hre
 Code review: no findings (`/code-review low`).
 
 not verified: the page in a browser (checked through the router only).
+
+## Deliverable 3: search
+
+done: a search form in the header of every page; `/search?q=` (`search.rs`, `search.html`, `search_results.html`)
+groups the hits of `GeneratedDocs::index` by kind with confidence and link, or the not-documented answer; `htmx`
+gets the results alone. `SEARCH_LIMIT` (10) is shared with the default `--limit` of `retrodoc search`; the rules of a
+feature page carry `id="rule-<slug>"` for the hits to land on; `corpus::feature_id` is public.
+
+| check | result |
+|---|---|
+| tests | `just check` green, `tests/search_page.rs` 9 tests + 1 unit |
+| lint | clippy pedantic clean |
+| specs | WEB-39 to WEB-43 traced, `specs/web-ui.md` accepted |
+| docs | `docs/crates/render-mcp-cli.md`, `README.md` |
+| code review | see below |
+| real run | `retrodoc ui` on a saved linkding run: search, glossary and links checked with curl and headless Chrome |
+
+red: WEB-39, WEB-40, WEB-41, WEB-42, WEB-43: `/search` answered 404 and no page had `<form class="search"`.

@@ -45,7 +45,7 @@
 <h2>Business rules</h2>
 <ul class="rules">
   {% for rule in rules %}
-  <li>
+  <li id="{{ rule.anchor }}">
     {{ rule.statement }} <span class="muted">({{ rule.kind }}, {% call badge_why(rule.confidence) %}{% endcall %})</span>
     <ul>
       {% if !rule.entities.is_empty() %}<li>Entities: {{ rule.entities|join(", ") }}</li>{% endif %}

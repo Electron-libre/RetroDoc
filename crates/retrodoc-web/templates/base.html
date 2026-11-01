@@ -13,7 +13,11 @@
     <a class="brand" href="/">RetroDoc</a>
     <a href="/files">Files</a>
     <a href="/glossary">Glossary</a>
+    <form class="search" role="search" action="/search" method="get" hx-get="/search" hx-target="#search-results">
+      <input type="search" name="q" value="{% block query %}{% endblock %}" placeholder="Search the docs" aria-label="Search the docs">
+    </form>
   </header>
+  <div id="search-results">{% block results %}{% endblock %}</div>
   <div class="layout">
     <nav class="tree" aria-label="Domains, features and use cases">
       {% if tree.is_empty() %}

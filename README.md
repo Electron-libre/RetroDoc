@@ -67,7 +67,7 @@ During development, replace `retrodoc` with `cargo run -p retrodoc-cli --`.
 | `render` | Write the docs from the cached artifacts of the last run, no LLM call |
 | `report` | Print the documentation debt report, no LLM call |
 | `mcp` | Serve the generated docs to LLM agents (Claude Code, Cursor…) as a read-only MCP server over stdio, no LLM call. Point the agent at `retrodoc mcp --path <repo>` |
-| `ui` | Browse the generated docs in a local web interface (domains, confidence, stale code, the cited code and its history, the files no doc cites, the glossary, the project's own docs), no LLM call: `retrodoc ui --path <repo> [--bind 127.0.0.1:8730]` prints the URL to open |
+| `ui` | Browse and search the generated docs in a local web interface (domains, confidence, stale code, the cited code and its history, the files no doc cites, the glossary, the project's own docs), no LLM call: `retrodoc ui --path <repo> [--bind 127.0.0.1:8730]` prints the URL to open |
 | `search` | Search the generated docs lexically, no LLM call (what the MCP server's `search_docs` finds) |
 | `brief` | Write the product brief (what the application does, for whom, its main objects and capabilities) from docs, commits, manifests, schema, translations and tests (`--force`, `--signals` to only count the evidence, no LLM call) |
 | `roles`, `business-files`, `contexts`, `glossary`, `entry-points`, `actors`, `surface` | Run or inspect one early pipeline stage on its own |

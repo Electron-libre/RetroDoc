@@ -1,6 +1,6 @@
 ---
 id: WEB
-status: draft
+status: accepted
 adrs: [0039]
 ---
 
@@ -95,7 +95,7 @@ over browses its domains, features and use cases rather than reading the Markdow
   the same relevance rule (DSR-1, DSR-2), at most 10, grouped by kind in the order domain, feature, use case, rule,
   concept, collected doc, best first within a kind.
 - **WEB-41** (deterministic) Each hit must show its title, its confidence when it has one, and be a link to its page:
-  a domain, a feature or a use case to its page, a rule to the page of its feature, a concept to
+  a domain, a feature or a use case to its page, a rule to its item on the page of its feature (`#rule-<slug>`), a concept to
   `/glossary#<anchor of its name>`, a collected doc to `/docs/<path>`.
 - **WEB-42** (deterministic) With no hit, the search page must say the topic is not documented, give the number of
   entries DSR-2 left out when there are any, and name the words of the query no entry has (DSR-4, DSR-5).
@@ -164,7 +164,8 @@ over browses its domains, features and use cases rather than reading the Markdow
 
 - (WEB-40) Given an empty query, then the search page shows the box and no result, nor the not-documented answer.
 - (WEB-40) Given more than 10 hits, then the 10 best are shown: the same as `retrodoc search` with its default limit.
-- (WEB-41) Given a rule whose feature is not in the run, then it is shown without a link.
+- (WEB-41) Given a rule or a use case whose feature is not in the run (artifacts of an older run), then it is shown
+  without a link.
 - (WEB-10, WEB-42) Given a query `<script>`, then the words it names are shown as text.
 - (WEB-45) Given a repository with no glossary saved, then the page says no concept was found.
 - (WEB-46) Given a concept no use case uses, then it is listed with no use case.

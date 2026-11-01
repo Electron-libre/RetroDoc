@@ -55,7 +55,9 @@ fn lines(parts: impl IntoIterator<Item = String>) -> String {
         .join("\n")
 }
 
-pub(crate) fn feature_id(feature: &Feature) -> String {
+/// `<domain>/<feature>`, the id of a feature entry.
+#[must_use]
+pub fn feature_id(feature: &Feature) -> String {
     format!("{}/{}", feature.domain_slug, feature.slug)
 }
 
