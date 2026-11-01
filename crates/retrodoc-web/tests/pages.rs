@@ -10,6 +10,7 @@ use retrodoc_core::model::{ConfidenceScore, Feature, UseCase};
 use retrodoc_mcp::GeneratedDocs;
 use retrodoc_pipeline::cache::hash_content;
 use retrodoc_pipeline::{DomainCluster, DomainMap, SourceHashes};
+use retrodoc_render::DocLinks;
 use tower::ServiceExt;
 
 fn feature(slug: &str, domain: &str, confidence: f32, path: &str) -> Feature {
@@ -101,7 +102,7 @@ fn load(root: &Path) -> Option<GeneratedDocs> {
 }
 
 async fn get(docs: Option<GeneratedDocs>, path: &str) -> (StatusCode, String, Option<String>) {
-    let response = retrodoc_web::router(docs)
+    let response = retrodoc_web::router(docs, DocLinks::default())
         .oneshot(Request::get(path).body(Body::empty()).unwrap())
         .await
         .unwrap();
@@ -320,7 +321,7 @@ async fn serving_the_pages_writes_nothing_in_the_repository() {
 
 async fn status_with_host(host: &str) -> StatusCode {
     let repo = generated_repo();
-    retrodoc_web::router(load(repo.path()))
+    retrodoc_web::router(load(repo.path()), DocLinks::default())
         .oneshot(
             Request::get("/")
                 .header("host", host)

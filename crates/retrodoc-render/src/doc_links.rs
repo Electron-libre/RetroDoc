@@ -39,7 +39,9 @@ pub struct DocLinks {
 }
 
 impl DocLinks {
-    pub(crate) fn of(&self, item: &ItemRef) -> &[DocLink] {
+    /// The doc sections behind `item`, none when no section documents it.
+    #[must_use]
+    pub fn of(&self, item: &ItemRef) -> &[DocLink] {
         self.links.get(item).map_or(&[], Vec::as_slice)
     }
 
@@ -93,7 +95,8 @@ impl DocLinks {
 }
 
 /// The anchor a forge gives a heading: lowercase, spaces as `-`, punctuation dropped.
-fn anchor(heading: &str) -> String {
+#[must_use]
+pub fn anchor(heading: &str) -> String {
     heading
         .trim()
         .chars()

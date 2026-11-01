@@ -10,6 +10,7 @@ workspace = true
 [dependencies]
 retrodoc-core.workspace = true
 retrodoc-mcp.workspace = true
+retrodoc-render.workspace = true
 askama.workspace = true
 axum.workspace = true
 tokio = { workspace = true, features = ["net", "rt"] }

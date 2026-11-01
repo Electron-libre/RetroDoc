@@ -42,6 +42,7 @@ flowchart TD
     cli --> mcp
     cli --> web
     web --> mcp
+    web --> render
     web --> core
     mcp --> pipe
     mcp --> ingest
@@ -62,7 +63,7 @@ flowchart TD
 | `retrodoc-pipeline` | The brain: one module per pass, plus caches, fingerprints and the debt report. |
 | `retrodoc-render` | Turns the result into Markdown files, compares with disk, writes only what changed. |
 | `retrodoc-mcp` | Read-only access to the generated docs, without any LLM call: the typed read model `GeneratedDocs`, the BM25 search behind `retrodoc search` and the MCP server for LLM agents (`retrodoc mcp`, `rmcp`, stdio) with its seven read-only tools. |
-| `retrodoc-web` | The local web interface over the generated docs: HTML pages rendered on the server (`axum`, `askama`, vendored `htmx`) from the read model of `retrodoc-mcp`, no LLM call, nothing written ([ADR 0039](adr/0039-a-server-rendered-web-interface-over-the-generated-docs.md)). |
+| `retrodoc-web` | The local web interface over the generated docs: HTML pages rendered on the server (`axum`, `askama`, vendored `htmx`) from the read model of `retrodoc-mcp` and the rules of `retrodoc-render` (the doc links, the set-apart section), no LLM call, nothing written ([ADR 0039](adr/0039-a-server-rendered-web-interface-over-the-generated-docs.md)). |
 | `retrodoc-cli` | The `retrodoc` binary: parses arguments and wires the crates together. |
 
 ## 3. The commands

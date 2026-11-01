@@ -1,0 +1,33 @@
+{% macro badge(confidence) %}<span class="badge{% if confidence.low %} low{% endif %}">{{ confidence.label }}</span>{% endmacro %}
+
+{% macro score(label, confidence) %}
+<p class="score"><strong>{{ label }}:</strong> {% call badge(confidence) %}{% endcall %}{% if let Some(why) = confidence.rationale %} <span class="muted">{{ why }}</span>{% endif %}</p>
+{% endmacro %}
+
+{% macro crumbs(links, current) %}
+<nav class="crumbs" aria-label="Breadcrumb">
+  {% for link in links %}<a href="{{ link.href }}">{{ link.name }}</a> › {% endfor %}<span>{{ current }}</span>
+</nav>
+{% endmacro %}
+
+{% macro items(rows) %}
+<ul class="items">
+  {% for row in rows %}
+  <li><a href="{{ row.href }}">{{ row.name }}</a> {% call badge(row.confidence) %}{% endcall %}{% if let Some(why) = row.confidence.rationale %} <span class="muted">{{ why }}</span>{% endif %}{% if !row.description.is_empty() %}: {{ row.description }}{% endif %}</li>
+  {% endfor %}
+</ul>
+{% endmacro %}
+
+{% macro existing_docs(docs) %}
+{% if !docs.is_empty() %}
+<h2>Existing documentation</h2>
+<ul class="docs">
+  {% for doc in docs %}
+  <li>
+    <a href="{{ doc.href }}"><code>{{ doc.path }}</code>{% if let Some(heading) = doc.heading %}, section “{{ heading }}”{% endif %}</a>
+    {% if let Some(states) = doc.contradicts %}<span class="badge low">states otherwise</span> {{ states }}{% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% endmacro %}

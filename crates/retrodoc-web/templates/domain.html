@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% import "macros.html" as m %}
+{% block title %}{{ page.name }}{% endblock %}
+{% block content %}
+{% call m::crumbs(page.crumbs, page.name) %}{% endcall %}
+<h1>{{ page.name }}</h1>
+<p>{{ page.description }}</p>
+{% call m::score("Confidence", page.confidence) %}{% endcall %}
+{% if !page.features.is_empty() %}
+<h2>Features</h2>
+{% call m::items(page.features) %}{% endcall %}
+{% endif %}
+{% if !page.back_office.is_empty() %}
+<h2>{{ technical_heading }}</h2>
+<p class="muted">{{ technical_note }}</p>
+{% call m::items(page.back_office) %}{% endcall %}
+{% endif %}
+{% if !page.rules.is_empty() %}
+<h2>Business rules</h2>
+<ul class="rules">
+  {% for rule in page.rules %}
+  <li>{{ rule.statement }} <span class="muted">({{ rule.kind }}, {% call m::badge(rule.confidence) %}{% endcall %})</span> — <a href="{{ rule.feature.href }}">{{ rule.feature.name }}</a></li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% call m::existing_docs(page.docs) %}{% endcall %}
+{% endblock %}

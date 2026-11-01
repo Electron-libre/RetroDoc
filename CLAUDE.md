@@ -49,7 +49,7 @@ retrodoc-cli ──> retrodoc-pipeline ──> retrodoc-ingest ──> retrodoc-
              ──> retrodoc-ingest
 retrodoc-cli ──> retrodoc-render ──> retrodoc-core
 retrodoc-cli ──> retrodoc-mcp ──> retrodoc-pipeline, retrodoc-ingest, retrodoc-core
-retrodoc-cli ──> retrodoc-web ──> retrodoc-mcp, retrodoc-core
+retrodoc-cli ──> retrodoc-web ──> retrodoc-mcp, retrodoc-render, retrodoc-core
 ```
 
 Per-crate detail (modules, passes, behaviours that span passes) lives in `docs/crates/`; read the file

@@ -1,6 +1,6 @@
 ---
 id: WEB
-status: accepted
+status: draft
 adrs: [0039]
 ---
 
@@ -35,6 +35,36 @@ over browses its domains, features and use cases rather than reading the Markdow
   status 403.
 - **WEB-14** (deterministic) With a `--bind` address that is not a loopback one, `retrodoc ui` must warn that the docs
   are reachable from other machines.
+- **WEB-15** (deterministic) The page of a domain, `/domains/<domain>`, must show in this order its name, its
+  description, its confidence, its features each with its confidence and description (the back-office ones under
+  "Administration and technical"), the business rules of its features each with its feature, and the existing docs
+  that document or contradict it.
+- **WEB-16** (deterministic) The page of a feature, `/domains/<domain>/<feature>`, must show in this order its name, its
+  description, its confidence, its use cases each with its confidence and description (those `UseCase::is_technical`
+  sets apart under "Administration and technical"), its business rules each with its kind, confidence, entities, the
+  use cases it applies to and its evidence, the existing docs that document or contradict it, its source files and
+  its entry points.
+- **WEB-17** (deterministic) The page of a use case, `/domains/<domain>/<feature>/<use case>`, must show in this order
+  its name, its description, its confidence, its business-language score, its primary actor, the entry points that
+  trigger it, its narrative, the business rules that apply to it, its steps each with its actor and whether it is
+  human or a system, its action, its detail and its cited lines (`path:start-end`), its diagram and the existing docs
+  that document or contradict it.
+- **WEB-18** (deterministic) Every score shown on a page of a domain, a feature or a use case must be shown with its
+  rationale when it has one.
+- **WEB-19** (deterministic) The pages of a domain, a feature and a use case must show a breadcrumb linking to the
+  home page and to each level above the page.
+- **WEB-20** (deterministic) The page of a feature or a use case must be flagged as stale, with the files that
+  changed, when a file its source files or its cited lines name was modified or deleted since the run.
+- **WEB-21** (deterministic) A back-office feature must be flagged as such on its page.
+- **WEB-22** (deterministic) The narrative of a use case must be flagged as unbacked, with the rationale, when the
+  confidence pass judged it unsupported by the cited code (`narrative_check` at 0).
+- **WEB-23** (deterministic) Each existing doc section that documents or contradicts an item must be shown as a link
+  to `/docs/<path>#<anchor of its heading>` labelled with its path and heading, and a contradiction with what the doc
+  states otherwise.
+- **WEB-24** (deterministic) A page with a diagram must load the `mermaid` script from `/assets/` to draw it and keep
+  the source of the diagram in the page; a page without a diagram must not load it.
+- **WEB-25** (deterministic) The status 404 and the not-found page must answer a domain, a feature or a use case
+  slug the last run does not have, or a feature asked under a domain it does not belong to.
 
 ## Scenarios
 
@@ -42,17 +72,31 @@ over browses its domains, features and use cases rather than reading the Markdow
 - (WEB-4) Given a domain with no feature, then it is listed with zero features and zero use cases.
 - (WEB-4) Given a domain with no confidence score yet, then it is listed without a confidence, not as low.
 - (WEB-7) Given a cited file with no recorded hash (left out by the file budget), then the domain is not flagged.
-- (WEB-8) Given the link of a feature in the tree, while the feature pages are not served yet, then it answers 404,
-  not an error.
+- (WEB-8) withdrawn: the feature pages are served (WEB-16); an unknown slug is WEB-25.
 - (WEB-9) Given a repository where `retrodoc init` was never run, then the command fails like the other commands and
   asks to run `retrodoc init`.
 - (WEB-13) Given a page of another site that resolves its own name to `127.0.0.1` (DNS rebinding), then its requests
   carry its name in `Host` and are refused; `localhost:8730`, `127.0.0.1:8730` and `[::1]:8730` are served.
 - (WEB-10) Given a domain named `<script>alert(1)</script>`, then the page shows the name as text.
+- (WEB-10, WEB-24) Given a diagram whose source holds `</pre><script>`, then the source is escaped like any text.
+- (WEB-16) Given a feature with no use case, then the page says none could be derived from the code.
+- (WEB-17) Given a use case with no narrative (artifacts from before it existed), then the page shows the steps
+  without a narrative section.
+- (WEB-17) Given a step with no cited line, then it is shown without cited lines; a reference with only a start line
+  shows `path:start`, one with no line shows the path.
+- (WEB-18) Given a use case with no business-language score, then the page shows no business-language line.
+- (WEB-20) Given a cited file with no recorded hash, then the page is not flagged.
+- (WEB-22) Given a narrative judged partly backed (`narrative_check` above 0), then it is not flagged.
+- (WEB-23) Given a doc section with no heading, then the link points to the file with no anchor.
+- (WEB-23) Given a doc page not served yet (collected docs are a later issue), then the link answers 404.
+- (WEB-25) Given a feature slug under the slug of another domain, then it answers 404 rather than the feature.
 
 ## Non-goals
 
-- The domain, feature and use case pages, the search, the glossary and the cited code (later issues of the milestone).
+- The search, the glossary, the collected docs and the cited code (later issues of the milestone); the links of
+  WEB-23 lead to the collected doc pages once they are served.
+- The diagram is drawn by the browser: whether `mermaid` succeeds on an LLM-written diagram is not required, only that
+  its source stays in the page.
 - No authentication nor several repositories: the server is for the local user (a hosted mode needs its own ADR).
 - No LLM call and no edit of the docs.
 - The docs are read once at start: the pages of a `generate` run while the server runs show after a restart of `ui`.

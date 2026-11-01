@@ -39,8 +39,9 @@ use use_case::use_case_page;
 
 /// Where the docs put what is not the core of the business: back-office tools, and use cases
 /// that read as code or are weakly backed by it.
-const TECHNICAL_HEADING: &str = "Administration and technical";
-const TECHNICAL_NOTE: &str =
+pub const TECHNICAL_HEADING: &str = "Administration and technical";
+/// What the section [`TECHNICAL_HEADING`] holds, under it.
+pub const TECHNICAL_NOTE: &str =
     "Back-office tools, and behaviours that read as code or that the code backs weakly.";
 
 /// Renders every file of the docs, paths relative to the docs dir. Pure and

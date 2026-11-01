@@ -43,3 +43,54 @@ Browse the docs in a web interface
 * Show the same things as the Markdown pages, in the same order of sections, so the two never disagree; reuse the
   helpers of `retrodoc-render` rather than copying their rules.
 * The `mermaid` script is large: serve it with a long cache header and load it only on the pages that draw a diagram.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Serve `/domains/<d>`, `/domains/<d>/<f>`, `/domains/<d>/<f>/<u>` with what the Markdown pages show, in the same order,
+plus badges (low, stale, set apart, unbacked), a breadcrumb and the Mermaid diagram drawn in the browser. Out of
+scope: serving the collected docs (the links of WEB-23 lead to `/docs/...`, served by
+`web_ui_search_glossary_and_collected_docs`), the cited code, search and glossary.
+Means: `retrodoc-web` depends on `retrodoc-render` (ADR 0039) for `DocLinks`, the anchor of a heading, the rule kind
+label and the "Administration and technical" heading, made public there; `retrodoc ui` builds the `DocLinks` from the
+saved reconciliation judgements like `render` does (no LLM call) and hands them to the router.
+
+## Plan
+1. [x] Domain page and doc links: render helpers made public, `DocLinks` from `ui` into the router, breadcrumb, domain
+   template, 404 on unknown slugs; verified by router tests; makes true WEB-15, WEB-18 (domain), WEB-19, WEB-23,
+   WEB-25 (domain).
+2. [ ] Feature page: use cases with the technical ones set apart, rules with evidence, existing docs, source files,
+   entry points, stale and back-office badges; verified by router tests; makes true WEB-16, WEB-20 (feature), WEB-21,
+   WEB-25 (feature under another domain).
+3. [ ] Use case page and diagrams: steps, narrative and its unbacked flag, business-language score, vendored
+   `mermaid` loaded only there, served with a long cache; verified by router tests; makes true WEB-17, WEB-20 (use
+   case), WEB-22, WEB-24, WEB-25 (use case); spec `accepted`.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 71f3f48719e45c9c6469bfd1112ff3366fa5835c
+- `mermaid` 12.2.0 vendored gzip-compressed (`mermaid-12.2.0.min.js.gz`, served with `Content-Encoding: gzip`): the
+  plain file is 5.5 MB and 4,330 lines.
+- The existing doc links point to `/docs/<path>#<anchor>`, served by `web_ui_search_glossary_and_collected_docs` (404
+  until then).
+- The feature page also shows the entry points (the issue asks for them; the Markdown page lists only the source
+  files): shown last, so the order of the shared sections stays the Markdown one.
+- Unbacked narrative: `narrative_check` at 0, the rule of the debt report (`unbacked_narratives`).
+
+## Deliverable 1: domain page and doc links
+
+- done: `/domains/<domain>` served (`view::domain_page`, `domain.html`, shared macros in `macros.html`);
+  `retrodoc-web` depends on `retrodoc-render`, whose `anchor`, `kind_label`, `TECHNICAL_HEADING`/`NOTE` and
+  `DocLinks::of` are public; `retrodoc ui` builds the `DocLinks` (`commands::docs::item_doc_links`).
+
+| check | result |
+|---|---|
+| tests | `just check` green, 5 new tests in `tests/item_pages.rs` |
+| lint | clippy pedantic clean |
+| specs | `just check-specs`: no warning on `web-ui.md` |
+| docs | CLAUDE.md, ARCHITECTURE.md, `docs/crates/render-mcp-cli.md` |
+| code review | see below |
+
+- red: WEB-15, WEB-18, WEB-19, WEB-23: `assertion left == right failed: /domains/billing` (404 before the route)

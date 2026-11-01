@@ -4,7 +4,7 @@ use std::path::Path;
 use anyhow::Context;
 use retrodoc_mcp::GeneratedDocs;
 
-use super::docs::project_docs;
+use super::docs::{item_doc_links, project_docs};
 use super::workspace::Workspace;
 
 /// Where `retrodoc ui` listens without `--bind`: this machine only.
@@ -17,6 +17,7 @@ pub async fn run(path: &Path, bind: SocketAddr) -> anyhow::Result<()> {
     let workspace = Workspace::open(path)?;
     let docs = project_docs(&workspace.repo_root, &workspace.config)?;
     let generated = GeneratedDocs::load(&workspace.repo_root, &docs);
+    let links = item_doc_links(&workspace.repo_root, &workspace.config, &docs);
     if generated.is_none() {
         tracing::warn!("no features found — run `retrodoc generate`, then restart `retrodoc ui`");
     }
@@ -28,7 +29,7 @@ pub async fn run(path: &Path, bind: SocketAddr) -> anyhow::Result<()> {
         .with_context(|| format!("could not listen on {bind}"))?;
     let address = listener.local_addr()?;
     println!("Serving the docs at http://{address}/ (Ctrl+C to stop)");
-    retrodoc_web::serve(listener, generated)
+    retrodoc_web::serve(listener, generated, links)
         .await
         .context("the web server stopped")
 }

@@ -4,17 +4,28 @@
 use std::sync::Arc;
 
 use askama::Template;
-use axum::extract::State;
+use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse, Response};
 
-use crate::view::{domain_rows, DomainRow, Site, TreeDomain};
+use retrodoc_render::{TECHNICAL_HEADING, TECHNICAL_NOTE};
+
+use crate::view::{domain_page, domain_rows, DomainPage, DomainRow, Site, TreeDomain};
 
 #[derive(Template)]
 #[template(path = "home.html")]
 struct Home<'a> {
     tree: &'a [TreeDomain],
     domains: Vec<DomainRow>,
+}
+
+#[derive(Template)]
+#[template(path = "domain.html")]
+struct DomainTemplate<'a> {
+    tree: &'a [TreeDomain],
+    page: DomainPage,
+    technical_heading: &'static str,
+    technical_note: &'static str,
 }
 
 #[derive(Template)]
@@ -52,6 +63,24 @@ pub async fn home(State(site): State<Arc<Site>>) -> Response {
         )
             .into_response(),
     }
+}
+
+pub async fn domain(State(site): State<Arc<Site>>, Path(slug): Path<String>) -> Response {
+    let Some(page) = site
+        .docs()
+        .and_then(|docs| domain_page(docs, site.links(), &slug))
+    else {
+        return not_found(State(site)).await;
+    };
+    render(
+        StatusCode::OK,
+        &DomainTemplate {
+            tree: site.tree(),
+            page,
+            technical_heading: TECHNICAL_HEADING,
+            technical_note: TECHNICAL_NOTE,
+        },
+    )
 }
 
 pub async fn not_found(State(site): State<Arc<Site>>) -> Response {

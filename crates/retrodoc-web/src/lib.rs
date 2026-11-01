@@ -21,18 +21,21 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::Router;
 use retrodoc_mcp::GeneratedDocs;
+use retrodoc_render::DocLinks;
 use tokio::net::TcpListener;
 
 use view::Site;
 
-/// The routes of the interface over `docs`, `None` before a first `generate`.
-pub fn router(docs: Option<GeneratedDocs>) -> Router {
+/// The routes of the interface over `docs`, `None` before a first `generate`,
+/// with the sections of the project's own docs behind each item.
+pub fn router(docs: Option<GeneratedDocs>, links: DocLinks) -> Router {
     Router::new()
         .route("/", get(pages::home))
+        .route("/domains/{domain}", get(pages::domain))
         .route("/assets/{name}", get(assets::serve))
         .fallback(pages::not_found)
         .layer(middleware::from_fn(refuse_foreign_host))
-        .with_state(Arc::new(Site::new(docs)))
+        .with_state(Arc::new(Site::new(docs, links)))
 }
 
 /// Refuses a request whose `Host` is a name other than `localhost`: a page of
@@ -63,6 +66,10 @@ fn trusted_host(host: &str) -> bool {
 /// # Errors
 ///
 /// When the server fails to accept connections.
-pub async fn serve(listener: TcpListener, docs: Option<GeneratedDocs>) -> std::io::Result<()> {
-    axum::serve(listener, router(docs)).await
+pub async fn serve(
+    listener: TcpListener,
+    docs: Option<GeneratedDocs>,
+    links: DocLinks,
+) -> std::io::Result<()> {
+    axum::serve(listener, router(docs, links)).await
 }

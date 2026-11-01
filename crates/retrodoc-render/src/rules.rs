@@ -14,7 +14,9 @@ use retrodoc_core::text::one_line;
 use crate::doc_links::DocLinks;
 use crate::markdown::{feature_path, link, use_case_path};
 
-fn kind_label(kind: RuleKind) -> &'static str {
+/// The name of a kind of rule in the docs: `State transition`.
+#[must_use]
+pub fn kind_label(kind: RuleKind) -> &'static str {
     match kind {
         RuleKind::Validation => "Validation",
         RuleKind::Permission => "Permission",
