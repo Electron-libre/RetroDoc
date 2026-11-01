@@ -55,3 +55,8 @@ code { background: var(--bg-side); padding: 0 0.25rem; border-radius: 0.2rem; }
 .score { margin: 0.3rem 0; }
 .items li, .rules li, .docs li { margin: 0.25rem 0; }
 .badge.set-apart { color: var(--muted); background: var(--bg-side); }
+.narrative { font-size: 1.05rem; }
+.steps li { margin: 0.4rem 0; }
+.cited { font-size: 0.85rem; color: var(--muted); }
+pre { background: var(--bg-side); padding: 0.6rem; overflow-x: auto; }
+pre.mermaid { background: none; }

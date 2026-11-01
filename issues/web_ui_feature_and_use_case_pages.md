@@ -64,7 +64,7 @@ saved reconciliation judgements like `render` does (no LLM call) and hands them 
 2. [x] Feature page: use cases with the technical ones set apart, rules with evidence, existing docs, source files,
    entry points, stale and back-office badges; verified by router tests; makes true WEB-16, WEB-20 (feature), WEB-21,
    WEB-25 (feature under another domain).
-3. [ ] Use case page and diagrams: steps, narrative and its unbacked flag, business-language score, vendored
+3. [x] Use case page and diagrams: steps, narrative and its unbacked flag, business-language score, vendored
    `mermaid` loaded only there, served with a long cache; verified by router tests; makes true WEB-17, WEB-20 (use
    case), WEB-22, WEB-24, WEB-25 (use case); spec `accepted`.
 
@@ -114,4 +114,26 @@ saved reconciliation judgements like `render` does (no LLM call) and hands them 
   feature slugs unique across the run (`features::unique_slug`), and the use cases, rules and doc links are keyed by
   the feature slug alone everywhere (Markdown pages, MCP).
 - not verified: the page on a real run (layout, long lists).
+- decisions needed: none.
+
+## Deliverable 3: use case page and diagrams
+
+- done: `/domains/<domain>/<feature>/<use case>` served (`view::use_case_page`, `use_case.html`); `mermaid` 12.2.0
+  vendored gzipped (identical to the `dist/mermaid.min.js` of the npm package, whose sha512 integrity matched),
+  served compressed and immutable, loaded with `diagrams.js` only by a page with a diagram; spec `accepted`.
+
+| check | result |
+|---|---|
+| tests | `just check` green, 8 new tests in `tests/item_pages.rs` |
+| lint | clippy pedantic clean |
+| specs | `web-ui.md` accepted, every requirement traced |
+| docs | `docs/crates/render-mcp-cli.md`, `docs/ARCHITECTURE.md` |
+| code review | see below |
+
+- red: WEB-17, WEB-18, WEB-19, WEB-20, WEB-22, WEB-24: the use case pages answered 404 and `/assets/mermaid-12.2.0.min.js`
+  had no route
+- Code review: 1 finding, fixed: a diagram folded under "Technical details" was drawn while hidden (`startOnLoad`),
+  so measured empty; `diagrams.js` now draws a folded diagram when its `<details>` first opens.
+- not verified: the drawing in a browser (no browser on this machine): `mermaid` reads the escaped source through
+  `innerHTML` and `entityDecode` (read in its code), and the folded case relies on the `toggle` event.
 - decisions needed: none.

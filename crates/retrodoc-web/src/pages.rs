@@ -11,8 +11,10 @@ use tokio::task::JoinError;
 
 use retrodoc_render::{TECHNICAL_HEADING, TECHNICAL_NOTE};
 
+use crate::assets::MERMAID;
 use crate::view::{
-    domain_page, domain_rows, feature_page, DomainPage, DomainRow, FeaturePage, Site, TreeDomain,
+    domain_page, domain_rows, feature_page, use_case_page, DomainPage, DomainRow, FeaturePage,
+    Site, TreeDomain, UseCasePage,
 };
 
 #[derive(Template)]
@@ -38,6 +40,14 @@ struct FeatureTemplate<'a> {
     page: FeaturePage,
     technical_heading: &'static str,
     technical_note: &'static str,
+}
+
+#[derive(Template)]
+#[template(path = "use_case.html")]
+struct UseCaseTemplate<'a> {
+    tree: &'a [TreeDomain],
+    page: UseCasePage,
+    mermaid: &'static str,
 }
 
 #[derive(Template)]
@@ -124,6 +134,29 @@ pub async fn feature(
                 page,
                 technical_heading: TECHNICAL_HEADING,
                 technical_note: TECHNICAL_NOTE,
+            },
+        ),
+        Ok(None) => not_found(State(site)).await,
+        Err(err) => read_failed(&err),
+    }
+}
+
+pub async fn use_case(
+    State(site): State<Arc<Site>>,
+    Path((domain, feature, slug)): Path<(String, String, String)>,
+) -> Response {
+    let page = blocking(&site, move |site| {
+        site.docs()
+            .and_then(|docs| use_case_page(docs, site.links(), &domain, &feature, &slug))
+    })
+    .await;
+    match page {
+        Ok(Some(page)) => render(
+            StatusCode::OK,
+            &UseCaseTemplate {
+                tree: site.tree(),
+                page,
+                mermaid: MERMAID,
             },
         ),
         Ok(None) => not_found(State(site)).await,

@@ -31,8 +31,10 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   file over 1 MiB; a line over 400 characters is cut. `git_log` leaves merge commits out. The two tools run in
   `spawn_blocking`.
 - **retrodoc-web** (`lib.rs` the router and `serve`, `view.rs` what the pages show as plain data, `pages.rs` the
-  handlers and their `askama` templates under `templates/`, `assets.rs` the vendored `htmx` and the stylesheet of
-  `assets/`, embedded with `include_str!` and served under `/assets/`, cached an hour): the local web interface of ADR 0039
+  handlers and their `askama` templates under `templates/`, `assets.rs` the vendored `htmx`, `mermaid` and the stylesheet of
+  `assets/`, embedded in the binary and served under `/assets/`, cached an hour; `mermaid` is stored gzipped,
+  `mermaid-<version>.min.js.gz` (5.5 MB plain), served with `Content-Encoding: gzip` and cached as immutable under its
+  versioned name): the local web interface of ADR 0039
   (`specs/web-ui.md`). The docs are loaded once into `GeneratedDocs` (`None` before a first `generate`: the home page
   says to run it), and the tree built once; every page shares the layout of `base.html` (the tree of domains, features
   and use cases, linked to `/domains/{domain}[/{feature}[/{use_case}]]`); a request whose `Host` is a name other than
@@ -44,12 +46,18 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   the collected doc pages being a later issue) with what a contradicting one states otherwise. The page of a feature (`view::feature_page`, `feature.html`) does
   the same for its Markdown page (the use cases `UseCase::is_technical` sets apart under the same heading, the rules
   with their evidence and doc links, the source files) and adds its entry points, a back-office badge and the stale
-  files (read in `spawn_blocking`, like the home page); a feature asked under another domain is not found. The `DocLinks` come
+  files (read in `spawn_blocking`, like the home page); a feature asked under another domain is not found. The page of a use case (`view::use_case_page`, `use_case.html`)
+  follows its Markdown page too: the narrative first (flagged unbacked when `narrative_check` is 0, the rule of the
+  debt report), the steps and the diagram folded under "Technical details", or in the open without a narrative; the
+  stale files are those its steps cite. Only a page with a diagram loads `mermaid` and `diagrams.js` (the
+  `scripts` block of `base.html`), which draw the `<pre class="mermaid">`; the source stays readable under it. The `DocLinks` come
   from `retrodoc ui` (`commands::docs::item_doc_links`: the saved artifacts reconciled with the project docs and the
   saved judgements, no LLM call) through `router(docs, links)`; an unknown slug answers the 404 page. The shared
   pieces of the templates (score badge, breadcrumb, lists, existing docs) are the macros of `macros.html`. The
   templates escape every text of the docs (LLM output). Tests: `tests/pages.rs` (home, tree, assets, `Host`) and `tests/item_pages.rs` (the item pages) ask the router without a socket (`tower::ServiceExt::oneshot`) over artifacts
-  saved in a temp dir. To update `htmx`, replace `assets/htmx.min.js` and the version in `assets.rs`.
+  saved in a temp dir. To update `htmx`, replace `assets/htmx.min.js` and the version in `assets.rs`; to update `mermaid`, gzip
+  (`gzip -9 -n`) the `dist/mermaid.min.js` of its npm package (checked against the package integrity) into
+  `assets/mermaid-<version>.min.js.gz` and change `MERMAID` and the file name in `assets.rs`.
 - **retrodoc-cli**: `clap` subcommands (`init`, `scan`, `generate`, `render`, `report`, `roles`, `brief`, `glossary`,
   `entry-points`, `business-read`, `actors`, `surface`, `benchmark`, `benchmark-table`, `search`, `mcp`, `ui`). `generate` runs the whole pipeline then writes the docs (`--dry-run` previews, `--force`
   ignores caches, `--no-confidence` / `--confidence-sample N` / `--max-files N` bound the cost, see the pipeline bullet); `render` writes/previews the docs from the cached artifacts (no LLM call); `report` prints

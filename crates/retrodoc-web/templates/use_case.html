@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% import "macros.html" as m %}
+{% block title %}{{ page.name }}{% endblock %}
+{% block scripts %}
+{% if page.diagram.is_some() %}
+  <script src="/assets/{{ mermaid }}" defer></script>
+  <script src="/assets/diagrams.js" defer></script>
+{% endif %}
+{% endblock %}
+{% block content %}
+{% call m::crumbs(page.crumbs, page.name) %}{% endcall %}
+<h1>{{ page.name }}</h1>
+{% call m::stale(page.stale) %}{% endcall %}
+<p>{{ page.description }}</p>
+{% call m::score("Confidence", page.confidence) %}{% endcall %}
+{% if let Some(business) = page.business_language %}{% call m::score("Business language", business) %}{% endcall %}{% endif %}
+{% if let Some(actor) = page.primary_actor %}<p><strong>Primary actor:</strong> {{ actor }}</p>{% endif %}
+{% if !page.triggered_by.is_empty() %}<p><strong>Triggered by:</strong> {% for name in page.triggered_by %}<code>{{ name }}</code>{% if !loop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+{% if let Some(narrative) = page.narrative %}
+<h2>What happens</h2>
+{% if page.unbacked %}<p><span class="badge low" title="The confidence pass judged it unsupported by the cited code">unbacked</span>{% if let Some(why) = page.unbacked_rationale %} <span class="muted">{{ why }}</span>{% endif %}</p>{% endif %}
+<p class="narrative">{{ narrative }}</p>
+{% call m::rules(page.rules) %}{% endcall %}
+<details class="technical">
+<summary>Technical details ({{ page.steps.len() }} step{% if page.steps.len() != 1 %}s{% endif %})</summary>
+<h3>Steps</h3>
+{% call steps(page.steps) %}{% endcall %}
+{% if let Some(diagram) = page.diagram %}<h3>Diagram</h3>{% call draw(diagram) %}{% endcall %}{% endif %}
+</details>
+{% else %}
+{% call m::rules(page.rules) %}{% endcall %}
+<h2>Steps</h2>
+{% call steps(page.steps) %}{% endcall %}
+{% if let Some(diagram) = page.diagram %}<h2>Diagram</h2>{% call draw(diagram) %}{% endcall %}{% endif %}
+{% endif %}
+{% call m::existing_docs(page.docs) %}{% endcall %}
+{% endblock %}
+
+{% macro steps(steps) %}
+<ol class="steps">
+  {% for step in steps %}
+  <li value="{{ step.order }}">
+    <strong>{{ step.actor }}</strong> <span class="muted">({% if step.human %}human{% else %}system{% endif %})</span> — {{ step.action }}{% if let Some(detail) = step.detail %}. {{ detail }}{% endif %}
+    {% if !step.cited.is_empty() %}<div class="cited">Code: {% for line in step.cited %}<code>{{ line }}</code>{% if !loop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+  </li>
+  {% endfor %}
+</ol>
+{% endmacro %}
+
+{% macro draw(diagram) %}
+<pre class="mermaid">{{ diagram }}</pre>
+<details class="diagram-source"><summary>Source of the diagram</summary><pre><code>{{ diagram }}</code></pre></details>
+{% endmacro %}

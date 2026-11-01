@@ -6,7 +6,8 @@ use std::path::Path;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use retrodoc_core::model::{
-    BusinessRule, ConfidenceScore, Feature, RuleEvidence, RuleKind, SourceRef, UseCase,
+    Actor, ActorKind, BusinessRule, ConfidenceScore, Feature, RuleEvidence, RuleKind, SourceRef,
+    Step, UseCase,
 };
 use retrodoc_mcp::GeneratedDocs;
 use retrodoc_pipeline::cache::hash_content;
@@ -41,6 +42,34 @@ fn use_case(slug: &str, feature: &str) -> UseCase {
         diagram_mermaid: None,
         confidence: None,
         narrative_check: None,
+    }
+}
+
+fn source(path: &str, start_line: Option<u32>, end_line: Option<u32>) -> SourceRef {
+    SourceRef {
+        path: path.into(),
+        start_line,
+        end_line,
+    }
+}
+
+fn step(
+    order: u32,
+    actor: &str,
+    kind: ActorKind,
+    action: &str,
+    description: &str,
+    source_refs: &[SourceRef],
+) -> Step {
+    Step {
+        order,
+        description: description.into(),
+        actor: Actor {
+            name: actor.into(),
+            kind,
+        },
+        action: action.into(),
+        source_refs: source_refs.to_vec(),
     }
 }
 
@@ -86,6 +115,35 @@ fn generated_repo() -> tempfile::TempDir {
     let mut by_card = use_case("pay-by-card", "pay-invoice");
     by_card.description = "The customer pays by card".into();
     by_card.confidence = Some(ConfidenceScore::new(0.9, None));
+    by_card.business_language = Some(ConfidenceScore::new(
+        0.85,
+        Some("reads as the business".into()),
+    ));
+    by_card.primary_actor = Some("Customer".into());
+    by_card.entry_points = vec!["app/invoice.rb#pay".into()];
+    by_card.narrative = Some("The customer pays the invoice with a card.".into());
+    by_card.steps = vec![
+        step(
+            1,
+            "Customer",
+            ActorKind::Human,
+            "Submits the card",
+            "Fills the card form",
+            &[
+                source("app/invoice.rb", Some(4), Some(9)),
+                source("app/card.rb", Some(2), None),
+            ],
+        ),
+        step(
+            2,
+            "Gateway",
+            ActorKind::System,
+            "",
+            "Charges the card",
+            &[source("app/card.rb", None, None)],
+        ),
+    ];
+    by_card.diagram_mermaid = Some("sequenceDiagram\n  Customer->>Gateway: pay".into());
     let mut retry = use_case("retry-job", "pay-invoice");
     retry.business_language = Some(ConfidenceScore::new(0.1, None));
     retrodoc_pipeline::save_use_cases(
@@ -155,6 +213,17 @@ fn doc_links() -> DocLinks {
         vec![DocLink {
             path: "docs/guide.md".into(),
             heading: Some("Paying".into()),
+            contradicts: None,
+        }],
+    );
+    links.links.insert(
+        ItemRef::UseCase {
+            feature: "pay-invoice".into(),
+            use_case: "pay-by-card".into(),
+        },
+        vec![DocLink {
+            path: "docs/card.md".into(),
+            heading: None,
             contradicts: None,
         }],
     );
@@ -403,6 +472,209 @@ async fn a_back_office_feature_is_flagged_on_its_page() {
 async fn a_feature_asked_under_another_domain_or_unknown_is_the_not_found_page() {
     let repo = generated_repo();
     for path in ["/domains/delivery/pay-invoice", "/domains/billing/nope"] {
+        let (status, page) = get(repo.path(), path).await;
+        assert_eq!(status, StatusCode::NOT_FOUND, "{path}");
+        assert!(page.contains("<h1>Not found</h1>"), "{page}");
+    }
+}
+
+/// Replaces the use cases of the run with `use_cases`.
+fn save_use_cases(root: &Path, use_cases: &[UseCase]) {
+    retrodoc_pipeline::save_use_cases(root, use_cases).unwrap();
+}
+
+fn saved_use_case(root: &Path, slug: &str) -> UseCase {
+    retrodoc_pipeline::load_use_cases(root)
+        .unwrap()
+        .into_iter()
+        .find(|u| u.slug == slug)
+        .unwrap()
+}
+
+const PAY_BY_CARD: &str = "/domains/billing/pay-invoice/pay-by-card";
+
+// spec: WEB-17, WEB-18
+#[tokio::test]
+async fn the_use_case_page_shows_its_sections_in_the_order_of_the_markdown_page() {
+    let repo = generated_repo();
+    let page = page(repo.path(), PAY_BY_CARD).await;
+    assert_in_order(
+        main_of(&page),
+        &[
+            "<h1>Use case pay-by-card</h1>",
+            "The customer pays by card",
+            "Confidence",
+            "90%",
+            "Business language",
+            "85%",
+            "reads as the business",
+            "Primary actor",
+            "Customer",
+            "Triggered by",
+            "<code>pay</code>",
+            "<h2>What happens</h2>",
+            "The customer pays the invoice with a card.",
+            "<h2>Business rules</h2>",
+            "An invoice is paid within 30 days",
+            "Steps",
+            "Customer",
+            "human",
+            "Submits the card",
+            "Fills the card form",
+            "app/invoice.rb:4-9",
+            "app/card.rb:2",
+            "Gateway",
+            "system",
+            "Charges the card",
+            "app/card.rb",
+            "Diagram",
+            "Customer-&#62;&#62;Gateway: pay",
+            "<h2>Existing documentation</h2>",
+            "href=\"/docs/docs/card.md\"",
+        ],
+    );
+    assert!(!page.contains("badge stale"), "{page}");
+    assert!(!page.contains("unbacked"), "{page}");
+}
+
+// spec: WEB-17
+#[tokio::test]
+async fn a_use_case_with_no_narrative_shows_its_steps_without_a_narrative_section() {
+    let repo = generated_repo();
+    let mut by_card = saved_use_case(repo.path(), "pay-by-card");
+    by_card.narrative = None;
+    by_card.business_language = None;
+    save_use_cases(repo.path(), &[by_card]);
+    let page = page(repo.path(), PAY_BY_CARD).await;
+    assert!(!page.contains("What happens"), "{page}");
+    assert!(!page.contains("Business language"), "{page}");
+    assert_in_order(main_of(&page), &["<h2>Steps</h2>", "Submits the card"]);
+}
+
+// spec: WEB-19
+#[tokio::test]
+async fn the_use_case_page_has_a_breadcrumb_to_its_domain_and_feature() {
+    let repo = generated_repo();
+    let page = page(repo.path(), PAY_BY_CARD).await;
+    let start = page.find("<nav class=\"crumbs\"").expect(&page);
+    let crumbs = &page[start..start + page[start..].find("</nav>").unwrap()];
+    assert_in_order(
+        crumbs,
+        &[
+            "href=\"/\"",
+            "href=\"/domains/billing\"",
+            "href=\"/domains/billing/pay-invoice\"",
+            "Feature pay-invoice",
+            "Use case pay-by-card",
+        ],
+    );
+}
+
+// spec: WEB-20
+#[tokio::test]
+async fn a_use_case_citing_a_file_changed_since_the_run_is_flagged_stale_with_the_file() {
+    let repo = generated_repo();
+    std::fs::remove_file(repo.path().join("app/card.rb")).unwrap();
+    let page = page(repo.path(), PAY_BY_CARD).await;
+    let start = page.find("class=\"badge stale\"").expect(&page);
+    let flag = &page[start..start + page[start..].find("</p>").unwrap()];
+    assert!(flag.contains("app/card.rb</code> (deleted)"), "{flag}");
+    assert_eq!(flag.matches("app/card.rb").count(), 1, "{flag}");
+    assert!(!flag.contains("app/invoice.rb"), "{flag}");
+}
+
+// spec: WEB-22
+#[tokio::test]
+async fn a_narrative_judged_unsupported_is_flagged_unbacked_with_the_rationale() {
+    let repo = generated_repo();
+    let mut by_card = saved_use_case(repo.path(), "pay-by-card");
+    by_card.narrative_check = Some(ConfidenceScore::new(
+        0.0,
+        Some("no card in the code".into()),
+    ));
+    save_use_cases(repo.path(), &[by_card.clone()]);
+    let page = page(repo.path(), PAY_BY_CARD).await;
+    assert_in_order(
+        main_of(&page),
+        &[
+            "<h2>What happens</h2>",
+            "unbacked",
+            "no card in the code",
+            "The customer pays",
+        ],
+    );
+
+    by_card.narrative_check = Some(ConfidenceScore::new(0.5, Some("partly".into())));
+    save_use_cases(repo.path(), &[by_card]);
+    let page = self::page(repo.path(), PAY_BY_CARD).await;
+    assert!(!page.contains("unbacked"), "{page}");
+}
+
+// spec: WEB-24
+#[tokio::test]
+async fn only_a_page_with_a_diagram_loads_the_mermaid_script() {
+    let repo = generated_repo();
+    let with = page(repo.path(), PAY_BY_CARD).await;
+    let script = "<script src=\"/assets/mermaid-12.2.0.min.js\"";
+    assert!(with.contains(script), "{with}");
+    assert!(
+        with.contains("<pre class=\"mermaid\">sequenceDiagram"),
+        "{with}"
+    );
+    for path in [
+        "/domains/billing/pay-invoice/retry-job",
+        "/domains/billing/pay-invoice",
+        "/",
+    ] {
+        let without = page(repo.path(), path).await;
+        assert!(!without.contains("mermaid"), "{path}: {without}");
+    }
+}
+
+// spec: WEB-24
+#[tokio::test]
+async fn the_mermaid_script_is_served_compressed_with_a_long_cache() {
+    let repo = generated_repo();
+    let response = retrodoc_web::router(GeneratedDocs::load(repo.path(), &[]), doc_links())
+        .oneshot(
+            Request::get("/assets/mermaid-12.2.0.min.js")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let header = |name: &str| response.headers()[name].to_str().unwrap().to_string();
+    assert_eq!(header("content-encoding"), "gzip");
+    assert!(header("content-type").starts_with("text/javascript"));
+    assert!(header("cache-control").contains("immutable"));
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    assert_eq!(&body[..2], [0x1f, 0x8b], "a gzip stream");
+}
+
+// spec: WEB-10, WEB-24
+#[tokio::test]
+async fn the_source_of_a_diagram_is_escaped() {
+    let repo = generated_repo();
+    let mut by_card = saved_use_case(repo.path(), "pay-by-card");
+    by_card.diagram_mermaid = Some("graph TD\n  A</pre><script>alert(1)</script>".into());
+    save_use_cases(repo.path(), &[by_card]);
+    let page = page(repo.path(), PAY_BY_CARD).await;
+    assert!(!page.contains("<script>alert"), "{page}");
+    assert!(page.contains("&#60;/pre&#62;&#60;script&#62;"), "{page}");
+}
+
+// spec: WEB-25
+#[tokio::test]
+async fn a_use_case_unknown_or_asked_under_another_feature_is_the_not_found_page() {
+    let repo = generated_repo();
+    for path in [
+        "/domains/billing/pay-invoice/nope",
+        "/domains/billing/refund-tool/pay-by-card",
+        "/domains/delivery/pay-invoice/pay-by-card",
+    ] {
         let (status, page) = get(repo.path(), path).await;
         assert_eq!(status, StatusCode::NOT_FOUND, "{path}");
         assert!(page.contains("<h1>Not found</h1>"), "{page}");

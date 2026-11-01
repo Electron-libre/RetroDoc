@@ -7,11 +7,33 @@ use axum::response::{IntoResponse, Response};
 
 /// `htmx` 2.0.11, from `https://unpkg.com/htmx.org@2.0.11/dist/htmx.min.js`.
 const HTMX: &str = include_str!("../assets/htmx.min.js");
+/// `mermaid` 12.2.0, `dist/mermaid.min.js` of the npm package, gzipped
+/// (`gzip -9 -n`): 5.5 MB plain. Its name carries the version, so a browser
+/// keeps it until the version changes.
+const MERMAID_GZ: &[u8] = include_bytes!("../assets/mermaid-12.2.0.min.js.gz");
+/// The name `mermaid` is served under, loaded only by the pages with a diagram.
+pub const MERMAID: &str = "mermaid-12.2.0.min.js";
+const DIAGRAMS: &str = include_str!("../assets/diagrams.js");
 const STYLE: &str = include_str!("../assets/style.css");
 
+const JAVASCRIPT: &str = "text/javascript; charset=utf-8";
+
 pub async fn serve(Path(name): Path<String>) -> Response {
+    if name == MERMAID {
+        // Every browser accepts gzip; the plain script would weigh 5.5 MB more in the binary.
+        return (
+            [
+                (header::CONTENT_TYPE, JAVASCRIPT),
+                (header::CONTENT_ENCODING, "gzip"),
+                (header::CACHE_CONTROL, "public, max-age=31536000, immutable"),
+            ],
+            MERMAID_GZ,
+        )
+            .into_response();
+    }
     let (content_type, body) = match name.as_str() {
-        "htmx.min.js" => ("text/javascript; charset=utf-8", HTMX),
+        "htmx.min.js" => (JAVASCRIPT, HTMX),
+        "diagrams.js" => (JAVASCRIPT, DIAGRAMS),
         "style.css" => ("text/css; charset=utf-8", STYLE),
         _ => return StatusCode::NOT_FOUND.into_response(),
     };

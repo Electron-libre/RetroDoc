@@ -5,7 +5,8 @@
 use std::collections::BTreeSet;
 
 use retrodoc_core::model::{
-    BusinessRule, ConfidenceScore, Feature, RuleEvidence, UseCase, LOW_CONFIDENCE_THRESHOLD,
+    ActorKind, BusinessRule, ConfidenceScore, Feature, RuleEvidence, Step, UseCase,
+    LOW_CONFIDENCE_THRESHOLD,
 };
 use retrodoc_mcp::freshness::{FileState, Freshness};
 use retrodoc_mcp::GeneratedDocs;
@@ -475,5 +476,122 @@ pub fn feature_page(
         docs: doc_items(links, &ItemRef::Feature(slug.to_string())),
         source_files: feature.source_paths.clone(),
         entry_points: feature.entry_points.clone(),
+    })
+}
+
+/// A step of a use case.
+pub struct StepView {
+    pub order: u32,
+    pub actor: String,
+    pub human: bool,
+    pub action: String,
+    pub detail: Option<String>,
+    /// The cited lines, `path:start-end`.
+    pub cited: Vec<String>,
+}
+
+impl StepView {
+    fn of(step: &Step) -> Self {
+        Self {
+            order: step.order,
+            actor: step.actor.name.clone(),
+            human: step.actor.kind == ActorKind::Human,
+            action: step.label().to_string(),
+            detail: step.detail().map(str::to_string),
+            cited: step.source_refs.iter().map(source_ref_label).collect(),
+        }
+    }
+}
+
+/// The page of a use case, its sections in the order of its Markdown page.
+pub struct UseCasePage {
+    pub crumbs: Vec<Link>,
+    pub name: String,
+    pub description: String,
+    pub confidence: Confidence,
+    /// `None` until the vocabulary pass scored it.
+    pub business_language: Option<Confidence>,
+    pub primary_actor: Option<String>,
+    /// The names of the entry points that trigger it.
+    pub triggered_by: Vec<String>,
+    pub stale: Vec<StaleFile>,
+    pub narrative: Option<String>,
+    /// The confidence pass judged the narrative unsupported by the cited code.
+    pub unbacked: bool,
+    pub unbacked_rationale: Option<String>,
+    pub rules: Vec<RuleView>,
+    pub steps: Vec<StepView>,
+    pub diagram: Option<String>,
+    pub docs: Vec<DocItem>,
+}
+
+/// The page of the use case `slug` of the feature `feature` of the domain
+/// `domain`, `None` when the run has no such use case there. Reads the files
+/// its steps cite to tell whether they changed since the run.
+#[must_use]
+pub fn use_case_page(
+    docs: &GeneratedDocs,
+    links: &DocLinks,
+    domain: &str,
+    feature: &str,
+    slug: &str,
+) -> Option<UseCasePage> {
+    let owner = find_feature(docs, domain, feature)?;
+    let use_case = docs.use_cases_of(feature).find(|u| u.slug == slug)?;
+    let mut cited: Vec<&str> = Vec::new();
+    for source in use_case.steps.iter().flat_map(|s| &s.source_refs) {
+        if !cited.contains(&source.path.as_str()) {
+            cited.push(&source.path);
+        }
+    }
+    // As the debt report counts them: a narrative partly backed states what
+    // the cited lines do not show, mostly true of the code around them.
+    let unbacked = use_case
+        .narrative_check
+        .as_ref()
+        .filter(|check| check.value <= 0.0);
+    Some(UseCasePage {
+        crumbs: crumbs_to(docs, Some(owner), domain),
+        name: use_case.name.clone(),
+        description: use_case.description.trim().to_string(),
+        confidence: Confidence::of(use_case.confidence.as_ref()),
+        business_language: use_case
+            .business_language
+            .as_ref()
+            .map(|s| Confidence::of(Some(s))),
+        primary_actor: use_case.primary_actor.clone(),
+        triggered_by: use_case
+            .entry_point_names()
+            .into_iter()
+            .map(str::to_string)
+            .collect(),
+        stale: stale_files(docs.freshness(), cited),
+        narrative: use_case
+            .narrative
+            .as_deref()
+            .map(str::trim)
+            .filter(|n| !n.is_empty())
+            .map(str::to_string),
+        unbacked: unbacked.is_some(),
+        unbacked_rationale: unbacked.and_then(|check| Confidence::of(Some(check)).rationale),
+        rules: docs
+            .rules()
+            .iter()
+            .filter(|r| r.belongs_to_feature(feature) && r.use_cases.contains(&use_case.slug))
+            .map(|r| rule_view(r, owner, &[], links))
+            .collect(),
+        steps: use_case.steps.iter().map(StepView::of).collect(),
+        diagram: use_case
+            .diagram_mermaid
+            .as_deref()
+            .map(str::trim_end)
+            .map(str::to_string),
+        docs: doc_items(
+            links,
+            &ItemRef::UseCase {
+                feature: feature.to_string(),
+                use_case: slug.to_string(),
+            },
+        ),
     })
 }
