@@ -11,7 +11,7 @@ use retrodoc_core::model::{
 };
 use retrodoc_mcp::freshness::{FileState, Freshness};
 use retrodoc_mcp::source::SourceAccess;
-use retrodoc_mcp::GeneratedDocs;
+use retrodoc_mcp::{ExistingDoc, GeneratedDocs};
 use retrodoc_render::{anchor, kind_label, source_ref_label, DocLinks, ItemRef};
 
 /// The docs the interface serves, `None` before a first `generate`, and the
@@ -22,11 +22,12 @@ pub struct Site {
     tree: Vec<TreeDomain>,
     source: Option<SourceAccess>,
     files: Option<FilesPage>,
+    collected: Vec<ExistingDoc>,
 }
 
 impl Site {
     #[must_use]
-    pub fn new(docs: Option<GeneratedDocs>, links: DocLinks) -> Self {
+    pub fn new(docs: Option<GeneratedDocs>, links: DocLinks, collected: Vec<ExistingDoc>) -> Self {
         let tree = docs.as_ref().map(tree).unwrap_or_default();
         let source = docs.as_ref().and_then(GeneratedDocs::source_access);
         let files = docs.as_ref().map(files_page);
@@ -36,7 +37,14 @@ impl Site {
             tree,
             source,
             files,
+            collected,
         }
+    }
+
+    /// The project's own Markdown docs, served with or without a run.
+    #[must_use]
+    pub fn collected(&self) -> &[ExistingDoc] {
+        &self.collected
     }
 
     /// The files page, `None` with no run.

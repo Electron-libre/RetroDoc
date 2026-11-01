@@ -243,7 +243,7 @@ fn doc_links() -> DocLinks {
 
 async fn get(root: &Path, path: &str) -> (StatusCode, String) {
     let docs = GeneratedDocs::load(root, &[]);
-    let response = retrodoc_web::router(docs, doc_links())
+    let response = retrodoc_web::router(docs, doc_links(), Vec::new())
         .oneshot(Request::get(path).body(Body::empty()).unwrap())
         .await
         .unwrap();
@@ -638,15 +638,19 @@ async fn only_a_page_with_a_diagram_loads_the_mermaid_script() {
 #[tokio::test]
 async fn the_mermaid_script_is_served_compressed_with_a_long_cache() {
     let repo = generated_repo();
-    let response = retrodoc_web::router(GeneratedDocs::load(repo.path(), &[]), doc_links())
-        .oneshot(
-            Request::get("/assets/mermaid-12.2.0.min.js")
-                .header("accept-encoding", "gzip")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
+    let response = retrodoc_web::router(
+        GeneratedDocs::load(repo.path(), &[]),
+        doc_links(),
+        Vec::new(),
+    )
+    .oneshot(
+        Request::get("/assets/mermaid-12.2.0.min.js")
+            .header("accept-encoding", "gzip")
+            .body(Body::empty())
+            .unwrap(),
+    )
+    .await
+    .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     let header = |name: &str| response.headers()[name].to_str().unwrap().to_string();
     assert_eq!(header("content-encoding"), "gzip");
@@ -719,7 +723,7 @@ async fn the_path_of_a_doc_link_is_encoded() {
             contradicts: None,
         }],
     );
-    let response = retrodoc_web::router(GeneratedDocs::load(repo.path(), &[]), links)
+    let response = retrodoc_web::router(GeneratedDocs::load(repo.path(), &[]), links, Vec::new())
         .oneshot(
             Request::get("/domains/billing")
                 .body(Body::empty())
@@ -743,10 +747,14 @@ async fn mermaid_with(accept_encoding: Option<&str>) -> axum::response::Response
     if let Some(encodings) = accept_encoding {
         request = request.header("accept-encoding", encodings);
     }
-    retrodoc_web::router(GeneratedDocs::load(repo.path(), &[]), doc_links())
-        .oneshot(request.body(Body::empty()).unwrap())
-        .await
-        .unwrap()
+    retrodoc_web::router(
+        GeneratedDocs::load(repo.path(), &[]),
+        doc_links(),
+        Vec::new(),
+    )
+    .oneshot(request.body(Body::empty()).unwrap())
+    .await
+    .unwrap()
 }
 
 // spec: WEB-24

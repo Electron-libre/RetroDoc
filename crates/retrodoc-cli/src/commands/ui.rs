@@ -29,7 +29,7 @@ pub async fn run(path: &Path, bind: SocketAddr) -> anyhow::Result<()> {
         .with_context(|| format!("could not listen on {bind}"))?;
     let address = listener.local_addr()?;
     println!("Serving the docs at http://{address}/ (Ctrl+C to stop)");
-    retrodoc_web::serve(listener, generated, links)
+    retrodoc_web::serve(listener, generated, links, docs)
         .await
         .context("the web server stopped")
 }

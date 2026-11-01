@@ -13,6 +13,7 @@ use retrodoc_render::{TECHNICAL_HEADING, TECHNICAL_NOTE};
 
 use crate::assets::MERMAID;
 use crate::code::{code_page, Asked, CodePage};
+use crate::collected::{collected_page, CollectedPage};
 use crate::files::FilesPage;
 use crate::view::{
     domain_page, domain_rows, feature_page, use_case_page, DomainPage, DomainRow, FeaturePage,
@@ -64,6 +65,13 @@ struct CodeTemplate<'a> {
 struct FilesTemplate<'a> {
     tree: &'a [TreeDomain],
     page: &'a FilesPage,
+}
+
+#[derive(Template)]
+#[template(path = "collected.html")]
+struct CollectedTemplate<'a> {
+    tree: &'a [TreeDomain],
+    page: CollectedPage,
 }
 
 #[derive(Template)]
@@ -230,4 +238,17 @@ fn render(status: StatusCode, page: &impl Template) -> Response {
         )
             .into_response(),
     }
+}
+
+pub async fn collected_doc(State(site): State<Arc<Site>>, Path(path): Path<String>) -> Response {
+    let Some(page) = collected_page(site.collected(), &path) else {
+        return not_found(State(site)).await;
+    };
+    render(
+        StatusCode::OK,
+        &CollectedTemplate {
+            tree: site.tree(),
+            page,
+        },
+    )
 }

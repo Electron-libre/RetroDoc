@@ -44,8 +44,8 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   under `LOW_CONFIDENCE_THRESHOLD`), a stale badge when a file their features cite changed since the run
   (`Freshness::stale`, read in `spawn_blocking` at each request), and their counts of features and use cases. The page of a domain (`view::domain_page`, `domain.html`) shows the
   sections of its Markdown page in the same order, with a breadcrumb; the back-office features under
-  `retrodoc_render::TECHNICAL_HEADING`, the existing docs as links to `/docs/<path>#<anchor>` (the path percent-encoded, `retrodoc_render::anchor`,
-  the collected doc pages being a later issue) with what a contradicting one states otherwise. The page of a feature (`view::feature_page`, `feature.html`) does
+  `retrodoc_render::TECHNICAL_HEADING`, the existing docs as links to `/docs/<path>#<anchor>` (the path percent-encoded, `retrodoc_render::anchor`)
+  with what a contradicting one states otherwise. The page of a feature (`view::feature_page`, `feature.html`) does
   the same for its Markdown page (the use cases `UseCase::is_technical` sets apart under the same heading, the rules
   with their evidence and doc links, the source files) and adds its entry points, a back-office badge and the stale
   files (read in `spawn_blocking`, like the home page); a feature asked under another domain is not found. The page of a use case (`view::use_case_page`, `use_case.html`)
@@ -54,7 +54,7 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   stale files are those its steps cite. Only a page with a diagram loads `mermaid` and `diagrams.js` (the
   `scripts` block of `base.html`), which draw the `<pre class="mermaid">`; the source stays readable under it. The `DocLinks` come
   from `retrodoc ui` (`commands::docs::item_doc_links`: the saved artifacts reconciled with the project docs and the
-  saved judgements, no LLM call) through `router(docs, links)`; an unknown slug answers the 404 page. The shared
+  saved judgements, no LLM call) through `router(docs, links, collected)`; an unknown slug answers the 404 page. The shared
   pieces of the templates (score badge, breadcrumb, lists, existing docs) are the macros of `macros.html`. The
   templates escape every text of the docs (LLM output). The page of a cited file, `/code/{*path}` (`code::code_page`, `code.html`),
   reads it through the `SourceAccess` of `GeneratedDocs::source_access` (the same refusals and windows as `read_source`):
@@ -67,9 +67,13 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   `/files` (`files::files_page`, `files.html`, linked from the header of every page), lays out as a tree the paths of the
   files `source-hashes.json` recorded (`Freshness::recorded_paths`) and of the cited ones, built once in `Site::new`: a directory with its files
   cited out of its files, a file with the features, use cases and rules citing it and a link to its page, or `not cited`
-  and no link. Tests:
+  and no link. The page of a collected doc, `/docs/{*path}` (`collected::collected_page`, `collected.html`), renders
+  one of the docs `retrodoc ui` collected (`project_docs`, the generated ones left out; served with no run too) with
+  `pulldown-cmark`: its raw HTML shown as text, a link or an image of a scheme other than `http`, `https` or `mailto`
+  reduced to its text, each heading with the `id` that `anchor` gives its first line without the `#` (the heading the
+  doc sections name, so the `/docs/<path>#<anchor>` links land on it). Tests:
   `tests/pages.rs` (home, tree, assets, `Host`), `tests/item_pages.rs` (the item pages), `tests/code_page.rs` (the
-  page of a cited file, over a git repo) and `tests/files_page.rs` ask the router without a socket (`tower::ServiceExt::oneshot`) over artifacts
+  page of a cited file, over a git repo), `tests/files_page.rs` and `tests/doc_pages.rs` ask the router without a socket (`tower::ServiceExt::oneshot`) over artifacts
   saved in a temp dir. To update `htmx`, replace `assets/htmx.min.js` and the version in `assets.rs`; to update `mermaid`, gzip
   (`gzip -9 -n`) the `dist/mermaid.min.js` of its npm package (checked against the package integrity) into
   `assets/mermaid-<version>.min.js.gz` and change `MERMAID` and the file name in `assets.rs`.

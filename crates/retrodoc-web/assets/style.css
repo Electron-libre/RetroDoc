@@ -73,3 +73,4 @@ table.code tr:target { outline: 1px solid #c9a400; }
 table.files { border-collapse: collapse; }
 table.files td { padding: 0.1rem 0.5rem; }
 table.files tr.dir td:first-child { font-weight: 600; }
+.collected pre { overflow-x: auto; }

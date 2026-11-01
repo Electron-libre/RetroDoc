@@ -1,6 +1,6 @@
 ---
 id: WEB
-status: accepted
+status: draft
 adrs: [0039]
 ---
 
@@ -90,6 +90,32 @@ over browses its domains, features and use cases rather than reading the Markdow
 - **WEB-37** (deterministic) Every page must link to the files page.
 - **WEB-38** (deterministic) The page of a file whose window ends before its last line must link to the page showing
   the next lines, `?from=<line>`, which shows the window from that line with no line marked.
+- **WEB-39** (deterministic) Every page must show a search box that sends its query to `/search?q=<query>`.
+- **WEB-40** (deterministic) The search page must show the hits the index of `search_docs` returns for the query, by
+  the same relevance rule (DSR-1, DSR-2), at most 10, grouped by kind in the order domain, feature, use case, rule,
+  concept, collected doc, best first within a kind.
+- **WEB-41** (deterministic) Each hit must show its title, its confidence when it has one, and be a link to its page:
+  a domain, a feature or a use case to its page, a rule to the page of its feature, a concept to
+  `/glossary#<anchor of its name>`, a collected doc to `/docs/<path>`.
+- **WEB-42** (deterministic) With no hit, the search page must say the topic is not documented, give the number of
+  entries DSR-2 left out when there are any, and name the words of the query no entry has (DSR-4, DSR-5).
+- **WEB-43** (deterministic) A search request with the header `HX-Request` must be answered with the results alone,
+  without the layout of the page; any other with the full page.
+- **WEB-44** (deterministic) Every page must link to the glossary page.
+- **WEB-45** (deterministic) The glossary page, `/glossary`, must list every concept of the glossary of the last run,
+  sorted by name ignoring case, each with its definition, under a heading whose anchor is `anchor` of its name.
+- **WEB-46** (deterministic) Each concept of the glossary page must list the use cases that use it, each a link to
+  its page: a use case uses a concept when one of its steps cites a file the
+  concept was read from, or when a business rule that applies to the use case names the concept.
+- **WEB-47** (deterministic) The page of a collected doc, `/docs/<path>`, must show the Markdown doc of the
+  repository at that path, among those `retrodoc generate` reads, rendered as HTML.
+- **WEB-48** (deterministic) Each heading of a collected doc page must carry the anchor `anchor` gives its text, the
+  one the links of WEB-23 point to.
+- **WEB-49** (deterministic) The raw HTML of a collected doc must be shown as text, not as markup.
+- **WEB-50** (deterministic) A link or an image of a collected doc must be shown as its text alone when its URL has a
+  scheme other than `http`, `https` or `mailto`.
+- **WEB-51** (deterministic) The status 404 and the not-found page must answer a `/docs/` path that is not one of the
+  collected docs.
 
 ## Scenarios
 
@@ -116,7 +142,7 @@ over browses its domains, features and use cases rather than reading the Markdow
 - (WEB-23) Given a doc path with a `#`, a `?` or a space, then they are percent-encoded in the link.
 - (WEB-24) Given a client whose `Accept-Encoding` does not name gzip, then the script, stored compressed, is refused
   with the status 406.
-- (WEB-23) Given a doc page not served yet (collected docs are a later issue), then the link answers 404.
+- (WEB-23, WEB-48) Given a link of WEB-23, then it opens the page of the collected doc at the heading of its section.
 - (WEB-25) Given a feature slug under the slug of another domain, then it answers 404 rather than the feature.
 - (WEB-27) Given `?lines=` that is not a line or a range of lines, then the page shows the file from its first line,
   with no line marked.
@@ -136,10 +162,20 @@ over browses its domains, features and use cases rather than reading the Markdow
 - (WEB-34) Given a cited file whose hash the run did not record (left out by the file budget), then it is in the tree.
 - (WEB-34) Given a directory of two files of which one is cited, then it shows `1/2` cited.
 
+- (WEB-40) Given an empty query, then the search page shows the box and no result, nor the not-documented answer.
+- (WEB-40) Given more than 10 hits, then the 10 best are shown: the same as `retrodoc search` with its default limit.
+- (WEB-41) Given a rule whose feature is not in the run, then it is shown without a link.
+- (WEB-10, WEB-42) Given a query `<script>`, then the words it names are shown as text.
+- (WEB-45) Given a repository with no glossary saved, then the page says no concept was found.
+- (WEB-46) Given a concept no use case uses, then it is listed with no use case.
+- (WEB-47) Given a repository with no run yet, then its collected docs are still served.
+- (WEB-48) Given two headings with the same text, then both carry the same anchor, as the links of WEB-23 do.
+- (WEB-50) Given `[x](javascript:alert(1))`, then the page shows `x` with no link; a relative link is kept.
 ## Non-goals
 
-- The search, the glossary and the collected docs (later issues of the milestone); the links of WEB-23 lead to the
-  collected doc pages once they are served.
+- No synonym matching nor search-as-you-type: the search is that of `retrodoc search` (`specs/docs-search.md`).
+- The glossary shows no attributes nor associations of a concept, and has no page per concept.
+- The files and images a collected doc links to are not served: only the collected Markdown docs are.
 - No line of a file the docs don't cite is ever served: the files page shows only the path of such a file (ADR 0016).
 - No syntax highlighting: the code is plain text with line numbers.
 - The history of a file does not follow its renames (`issues/git_log_follow_renames.md`).

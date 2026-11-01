@@ -9,6 +9,7 @@
 
 mod assets;
 pub mod code;
+pub mod collected;
 pub mod files;
 mod pages;
 pub mod view;
@@ -22,15 +23,16 @@ use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::Router;
-use retrodoc_mcp::GeneratedDocs;
+use retrodoc_mcp::{ExistingDoc, GeneratedDocs};
 use retrodoc_render::DocLinks;
 use tokio::net::TcpListener;
 
 use view::Site;
 
 /// The routes of the interface over `docs`, `None` before a first `generate`,
-/// with the sections of the project's own docs behind each item.
-pub fn router(docs: Option<GeneratedDocs>, links: DocLinks) -> Router {
+/// with the sections of the project's own docs behind each item and those
+/// docs, `collected`, served as pages.
+pub fn router(docs: Option<GeneratedDocs>, links: DocLinks, collected: Vec<ExistingDoc>) -> Router {
     Router::new()
         .route("/", get(pages::home))
         .route("/domains/{domain}", get(pages::domain))
@@ -41,10 +43,11 @@ pub fn router(docs: Option<GeneratedDocs>, links: DocLinks) -> Router {
         )
         .route("/files", get(pages::files))
         .route("/code/{*path}", get(pages::code))
+        .route("/docs/{*path}", get(pages::collected_doc))
         .route("/assets/{name}", get(assets::serve))
         .fallback(pages::not_found)
         .layer(middleware::from_fn(refuse_foreign_host))
-        .with_state(Arc::new(Site::new(docs, links)))
+        .with_state(Arc::new(Site::new(docs, links, collected)))
 }
 
 /// Refuses a request whose `Host` is a name other than `localhost`: a page of
@@ -79,6 +82,7 @@ pub async fn serve(
     listener: TcpListener,
     docs: Option<GeneratedDocs>,
     links: DocLinks,
+    collected: Vec<ExistingDoc>,
 ) -> std::io::Result<()> {
-    axum::serve(listener, router(docs, links)).await
+    axum::serve(listener, router(docs, links, collected)).await
 }

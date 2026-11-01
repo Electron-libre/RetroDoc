@@ -102,7 +102,7 @@ fn load(root: &Path) -> Option<GeneratedDocs> {
 }
 
 async fn get(docs: Option<GeneratedDocs>, path: &str) -> (StatusCode, String, Option<String>) {
-    let response = retrodoc_web::router(docs, DocLinks::default())
+    let response = retrodoc_web::router(docs, DocLinks::default(), Vec::new())
         .oneshot(Request::get(path).body(Body::empty()).unwrap())
         .await
         .unwrap();
@@ -321,7 +321,7 @@ async fn serving_the_pages_writes_nothing_in_the_repository() {
 
 async fn status_with_host(host: &str) -> StatusCode {
     let repo = generated_repo();
-    retrodoc_web::router(load(repo.path()), DocLinks::default())
+    retrodoc_web::router(load(repo.path()), DocLinks::default(), Vec::new())
         .oneshot(
             Request::get("/")
                 .header("host", host)
