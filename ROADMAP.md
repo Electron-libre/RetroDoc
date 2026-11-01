@@ -169,7 +169,7 @@ The milestones up to "A large application, one bounded context at a time" are th
 - Issues:
   - [web_ui_server_and_domains](issues/done/web_ui_server_and_domains.md)
   - [web_ui_feature_and_use_case_pages](issues/done/web_ui_feature_and_use_case_pages.md)
-  - [web_ui_search_glossary_and_collected_docs](issues/web_ui_search_glossary_and_collected_docs.md)
+  - [web_ui_search_glossary_and_collected_docs](issues/done/web_ui_search_glossary_and_collected_docs.md)
   - [web_ui_cited_code_and_files_to_docs](issues/done/web_ui_cited_code_and_files_to_docs.md)
   - [web_ui_rules_and_actors](issues/web_ui_rules_and_actors.md)
 
