@@ -55,6 +55,7 @@ debt nobody has time to pay.
 | Technical documentation: components, C4 diagrams, deployment, APIs, linked to the domains and use cases | | yes |
 | Inputs from GitHub, GitLab and Jira (issues, tickets, pull requests) | | yes |
 | Automatic pull request with the generated docs | | yes |
+| Web interface: browse the docs, explore the debt, audit dashboard, run history, review | yes | edit the docs, hosted for a team |
 
 ## User journeys
 
@@ -93,10 +94,11 @@ OpenRouter or the DeepSeek API (or any compatible endpoint, such as a local serv
 and Mermaid into `docs/` of the analysed repository.
 
 Out of v1 (see "Later" above): technical and C4 documentation, GitHub/GitLab/Jira connectors, automatic pull
-requests, several provider wire formats.
+requests, several provider wire formats, editing the docs in the web interface and hosting it.
 
-Non-goals: generating or changing code; a hosted service (RetroDoc is a local CLI); a general retrieval layer
-(embeddings) inside the generation pipeline, which must stay deterministic on rerun.
+Non-goals: generating or changing code; a hosted service in v1 (RetroDoc is a local CLI, its web interface served on
+the machine; hosting it for a team is for later); a general retrieval layer (embeddings) inside the generation
+pipeline, which must stay deterministic on rerun.
 
 ## Success measures
 
