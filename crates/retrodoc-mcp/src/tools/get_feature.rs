@@ -19,7 +19,7 @@ impl Docs {
     #[must_use]
     pub fn get_feature(&self, id: &str) -> String {
         let slug = last_segment(id);
-        let Some(feature) = self.features.iter().find(|f| f.slug == slug) else {
+        let Some(feature) = self.generated.features().iter().find(|f| f.slug == slug) else {
             return self.unknown("feature", id, "get_domain");
         };
         let mut out = format!(
@@ -37,13 +37,10 @@ impl Docs {
             "Grounded on",
             feature.source_paths.iter().map(String::as_str),
         ));
-        let use_cases: Vec<&UseCase> = self
-            .use_cases
-            .iter()
-            .filter(|u| u.feature_slug == feature.slug)
-            .collect();
+        let use_cases: Vec<&UseCase> = self.generated.use_cases_of(&feature.slug).collect();
         let rules: Vec<&BusinessRule> = self
-            .rules
+            .generated
+            .rules()
             .iter()
             .filter(|r| r.belongs_to_feature(&feature.slug))
             .collect();

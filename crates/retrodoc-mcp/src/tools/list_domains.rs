@@ -11,16 +11,12 @@ impl Docs {
     /// Every domain, with the number of features.
     #[must_use]
     pub fn list_domains(&self) -> String {
-        if self.domains.is_empty() {
+        if self.generated.domains().is_empty() {
             return "Not documented: no domain was generated.\n".into();
         }
         let mut out = String::from("# Domains\n\n");
-        for domain in &self.domains {
-            let count = self
-                .features
-                .iter()
-                .filter(|f| f.domain_slug == domain.slug)
-                .count();
+        for domain in self.generated.domains() {
+            let count = self.generated.features_of(&domain.slug).count();
             let _ = writeln!(
                 out,
                 "- `{}` — {}: {} ({}, {count} feature(s))",

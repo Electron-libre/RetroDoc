@@ -16,7 +16,8 @@ impl Docs {
     /// Whether the docs set a use case apart under "Administration and technical".
     pub(super) fn use_case_set_apart(&self, use_case: &UseCase) -> bool {
         let back_office = self
-            .features
+            .generated
+            .features()
             .iter()
             .any(|f| f.slug == use_case.feature_slug && f.back_office);
         use_case.is_technical(back_office)
@@ -26,11 +27,12 @@ impl Docs {
     pub(super) fn entry_set_apart(&self, entry: &Entry) -> bool {
         match entry.kind {
             EntryKind::Feature => self
-                .features
+                .generated
+                .features()
                 .iter()
                 .any(|f| f.back_office && feature_id(f) == entry.id),
-            EntryKind::UseCase => self.use_cases.iter().any(|u| {
-                self.features.iter().any(|f| {
+            EntryKind::UseCase => self.generated.use_cases().iter().any(|u| {
+                self.generated.features().iter().any(|f| {
                     f.slug == u.feature_slug && format!("{}/{}", feature_id(f), u.slug) == entry.id
                 }) && self.use_case_set_apart(u)
             }),
@@ -67,7 +69,7 @@ impl Docs {
 
     /// The cited files that changed since generation, as `` `path` (modified) ``.
     pub(super) fn stale_files<'a>(&self, paths: impl IntoIterator<Item = &'a str>) -> Vec<String> {
-        let Some(freshness) = &self.freshness else {
+        let Some(freshness) = self.generated.freshness() else {
             return Vec::new();
         };
         let mut seen = Vec::new();
@@ -107,7 +109,12 @@ impl Docs {
     pub(super) fn unknown(&self, what: &str, id: &str, browse_with: &str) -> String {
         let mut out = format!("Not documented: no {what} `{id}`.");
         if what == "domain" {
-            let known: Vec<&str> = self.domains.iter().map(|d| d.slug.as_str()).collect();
+            let known: Vec<&str> = self
+                .generated
+                .domains()
+                .iter()
+                .map(|d| d.slug.as_str())
+                .collect();
             let _ = write!(out, " Known domains: {}.", known.join(", "));
         }
         let _ = writeln!(

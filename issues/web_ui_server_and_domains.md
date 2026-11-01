@@ -48,3 +48,38 @@ Browse the docs in a web interface
   `commit_scopes` of `.claude/cardinal.toml`; link ADR 0039 from `docs/ARCHITECTURE.md` and set it `Accepted`.
 * Escape everything that comes from the docs: names and narratives are LLM output and may hold HTML.
 * Keep the read model independent of HTTP (ADR 0039): a later hosted mode reuses it.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+`retrodoc ui` serves, from a new `retrodoc-web` crate (axum + askama, htmx and stylesheet embedded), the shared
+layout (tree, confidence and stale badges) and the home page of the domains; no-run and 404 pages. Out of scope: the
+domain, feature and use case pages (next issue: the tree links answer 404 until then), search, glossary, code.
+
+## Plan
+1. [x] Read model: a typed `GeneratedDocs` in `retrodoc-mcp` (domains, features, use cases, rules, glossary,
+   freshness, search index; `load` and accessors, no HTTP), `Docs` built on it; verified by the MCP tests unchanged
+   (pure refactor, ~300 lines).
+2. [ ] `retrodoc-web` crate: router, base layout with the tree, home, not-found and no-run pages, assets under
+   `/assets/`; verified by router tests (`oneshot`) over the MCP fixtures; makes true WEB-4 to WEB-12 (~700 lines,
+   htmx vendored minified).
+3. [ ] `retrodoc ui --path [--bind]` subcommand, `web` commit scope, docs (CLAUDE.md and ARCHITECTURE.md graphs,
+   `docs/crates/render-mcp-cli.md`, README), ADR 0039 `Accepted`; verified by a binary test on `--bind 127.0.0.1:0`
+   (URL printed, home page fetched) and a parse test of the default; makes true WEB-1 to WEB-3 (~250 lines).
+
+## Decisions
+- Mode: autonomous
+- Base commit: a736a458df0afebd44c7bf23f8bfe2c4486a87f8
+- The docs are read once at start (no reload per request); default bind `127.0.0.1:8730`.
+- Routes of the later pages, linked by the tree: `/domains/{domain}`, `/domains/{domain}/{feature}`,
+  `/domains/{domain}/{feature}/{use_case}`.
+
+## Deliverable 1 summary
+- done: `retrodoc_mcp::GeneratedDocs` (`read_model.rs`) holds the loaded artifacts, glossary, search index and
+  freshness with accessors and `features_of` / `use_cases_of`; `Docs` wraps it with the source access.
+- red: none (pure refactor, the MCP tests unchanged but one that set a private field, now through a test-only
+  `features_mut`).
+- Code review: 1 findings: `features_of` / `use_cases_of` unused while the tools repeated the filters; fixed, the
+  tools call them.

@@ -14,7 +14,7 @@ impl Docs {
     /// A domain (`billing`) and its features.
     #[must_use]
     pub fn get_domain(&self, id: &str) -> String {
-        let Some(domain) = self.domains.iter().find(|d| d.slug == id) else {
+        let Some(domain) = self.generated.domains().iter().find(|d| d.slug == id) else {
             return self.unknown("domain", id, "list_domains");
         };
         let mut out = format!(
@@ -23,17 +23,14 @@ impl Docs {
             domain.description,
             confidence_line(domain.confidence.as_ref())
         );
-        let features: Vec<&Feature> = self
-            .features
-            .iter()
-            .filter(|f| f.domain_slug == id)
-            .collect();
+        let features: Vec<&Feature> = self.generated.features_of(id).collect();
         if features.is_empty() {
             out.push_str("\nNo feature documented here.\n");
             return out;
         }
         let rules: Vec<&BusinessRule> = self
-            .rules
+            .generated
+            .rules()
             .iter()
             .filter(|r| features.iter().any(|f| r.belongs_to_feature(&f.slug)))
             .collect();

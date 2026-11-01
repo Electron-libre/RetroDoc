@@ -12,12 +12,12 @@ impl Docs {
     /// The best `limit` matches for `query`, or "Not documented".
     #[must_use]
     pub fn search_docs(&self, query: &str, limit: usize) -> String {
-        let found = self.index.search(query, limit);
+        let found = self.generated.index().search(query, limit);
         if found.hits.is_empty() {
             return format!(
                 "Not documented: nothing among {} entries matches `{query}`{}. \
                  Try other words, or `list_domains` to browse.\n",
-                self.index.len(),
+                self.generated.index().len(),
                 found.why_not_found()
             );
         }
@@ -47,10 +47,16 @@ impl Docs {
             }
             if entry.kind == EntryKind::Rule {
                 if let Some(feature) = self
-                    .rules
+                    .generated
+                    .rules()
                     .iter()
                     .find(|r| r.slug == entry.id)
-                    .and_then(|r| self.features.iter().find(|f| r.belongs_to_feature(&f.slug)))
+                    .and_then(|r| {
+                        self.generated
+                            .features()
+                            .iter()
+                            .find(|f| r.belongs_to_feature(&f.slug))
+                    })
                 {
                     let _ = writeln!(
                         out,

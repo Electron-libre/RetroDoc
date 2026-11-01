@@ -17,14 +17,16 @@ impl Docs {
         let slug = segments.next().unwrap_or_default();
         let feature_slug = segments.next();
         let found = self
-            .use_cases
+            .generated
+            .use_cases()
             .iter()
             .find(|u| u.slug == slug && feature_slug.is_none_or(|f| u.feature_slug == f));
         let Some(use_case) = found else {
             return self.unknown("use case", id, "get_feature");
         };
         let parent = self
-            .features
+            .generated
+            .features()
             .iter()
             .find(|f| f.slug == use_case.feature_slug)
             .map_or_else(|| use_case.feature_slug.clone(), feature_id);
@@ -73,7 +75,8 @@ impl Docs {
             let _ = writeln!(out, "{}. {} — {text}{cited}", step.order, step.actor.name);
         }
         let rules: Vec<&BusinessRule> = self
-            .rules
+            .generated
+            .rules()
             .iter()
             .filter(|r| r.belongs_to_feature(&use_case.feature_slug))
             .filter(|r| r.use_cases.contains(&use_case.slug))

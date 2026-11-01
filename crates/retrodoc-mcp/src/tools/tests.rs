@@ -146,14 +146,13 @@ fn what_the_docs_set_apart_is_marked_in_the_answers() {
 
 #[test]
 fn a_back_office_feature_is_marked_with_its_use_cases() {
-    let mut features = docs().features.clone();
-    features
+    let mut docs = docs();
+    docs.generated
+        .features_mut()
         .iter_mut()
         .find(|f| f.slug == "pay-invoice")
         .unwrap()
         .back_office = true;
-    let mut docs = docs();
-    docs.features = features;
     let out = docs.get_use_case("billing/pay-invoice/pay-by-card");
     assert!(out.contains("Administration and technical"));
     assert!(docs
