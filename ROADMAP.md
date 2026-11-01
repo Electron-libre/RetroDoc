@@ -158,6 +158,53 @@ The milestones up to "A large application, one bounded context at a time" are th
   - [rules_judge_prompt_feature_on_one_line](issues/done/rules_judge_prompt_feature_on_one_line.md)
   - [one_line_at_the_source](issues/done/one_line_at_the_source.md)
 
+## Browse the docs in a web interface
+
+- Goal: `retrodoc ui` serves the generated docs to a human in a browser: the tree of domains, features and use cases,
+  each page with its steps, actors, narrative, rules, diagram, confidence and freshness, the links to the existing
+  docs, the search, the glossary and the code the docs cite (ADR 0039).
+- Why: the results of a run are read file by file in Markdown; whoever takes an application over needs a structured
+  way to browse them, and the next milestones of the interface build on it.
+- State: in issues
+- Issues:
+  - [web_ui_server_and_domains](issues/web_ui_server_and_domains.md)
+  - [web_ui_feature_and_use_case_pages](issues/web_ui_feature_and_use_case_pages.md)
+  - [web_ui_search_glossary_and_collected_docs](issues/web_ui_search_glossary_and_collected_docs.md)
+  - [web_ui_cited_code_and_files_to_docs](issues/web_ui_cited_code_and_files_to_docs.md)
+  - [web_ui_rules_and_actors](issues/web_ui_rules_and_actors.md)
+
+## Explore the documentation debt and audit it
+
+- Goal: in the web interface, one filterable view of the debt (weak and unscored sections, unbacked narratives, set
+  apart use cases, existing docs contradicted or missing, files and entry points no doc covers, stale sections) and
+  an audit dashboard (overall confidence, business language, coverage, stale share, a heatmap domain by indicator,
+  cost per pass, progress of the bounded contexts), with a priority score that crosses the debt with the git churn
+  and the entry points.
+- Why: the debt report is one long page; deciding where to improve the docs needs to see where the debt
+  concentrates and what to fix first.
+- State: idea
+
+## Run history
+
+- Goal: a snapshot of the debt report and the figures at each `generate`, the trends across runs in the dashboard,
+  and the difference between two runs (added, removed, degraded sections).
+- Why: the report keeps the last state only, so nobody can tell whether the docs get better.
+- State: idea
+
+## Human review of the docs
+
+- Goal: mark a section validated, wrong or to review, with a comment, from the web interface; the reviews are kept
+  in `.retrodoc/`, shown in the debt report, the dashboard and the MCP answers.
+- Why: the confidence score is the model's view; a reader must know what a human has checked.
+- State: idea
+
+## Edit the docs
+
+- Goal: complete or correct a section from the web interface; a human change is kept by the next `generate` and
+  flagged when the code it rests on changes.
+- Why: the generated docs are a start; the team must be able to own them without losing their work at each run.
+- State: idea
+
 ## Pre-run cost estimate
 
 - Goal: before a run, an estimate of the calls and tokens of the whole pipeline, extrapolated from the measured ratios
