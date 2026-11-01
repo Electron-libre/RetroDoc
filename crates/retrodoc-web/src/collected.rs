@@ -22,7 +22,8 @@ pub fn collected_page(collected: &[ExistingDoc], path: &str) -> Option<Collected
     let doc = collected
         .iter()
         .find(|d| d.path.to_string_lossy().replace('\\', "/") == path)?;
-    let (html, title) = render(&doc.content);
+    let content = doc.content.replace("\r\n", "\n");
+    let (html, title) = render(without_front_matter(&content));
     Some(CollectedPage {
         path: path.to_string(),
         title: title.unwrap_or_else(|| path.to_string()),
@@ -46,7 +47,9 @@ fn render(markdown: &str) -> (String, Option<String>) {
                 ..
             }) => {
                 let text = heading_text(&markdown[range]);
-                title.get_or_insert_with(|| text.clone());
+                if title.is_none() && !text.is_empty() {
+                    title = Some(text.clone());
+                }
                 Event::Start(Tag::Heading {
                     level,
                     id: Some(CowStr::from(anchor(&text))),
@@ -74,6 +77,16 @@ fn render(markdown: &str) -> (String, Option<String>) {
     let mut out = String::new();
     html::push_html(&mut out, events.into_iter());
     (out, title)
+}
+
+/// `content` without its YAML front matter, by the rule the doc sections are
+/// read with (`retrodoc-ingest`, `signals`), so both see the same headings.
+fn without_front_matter(content: &str) -> &str {
+    let Some(rest) = content.strip_prefix("---\n") else {
+        return content;
+    };
+    rest.split_once("\n---\n")
+        .map_or(content, |(_, after)| after)
 }
 
 /// The text of a heading as the doc sections name it: its first line without

@@ -342,3 +342,30 @@ async fn the_search_page_shows_its_results_where_htmx_swaps_them() {
         "{page}"
     );
 }
+
+// spec: WEB-43
+#[tokio::test]
+async fn an_htmx_search_with_no_run_gets_a_fragment() {
+    let response = retrodoc_web::router(None, DocLinks::default(), collected())
+        .oneshot(
+            Request::get("/search?q=invoice")
+                .header("HX-Request", "true")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.headers()["vary"], "HX-Request");
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let fragment = String::from_utf8(body.to_vec()).unwrap();
+    assert!(
+        fragment.starts_with("<section class=\"results\""),
+        "{fragment}"
+    );
+    assert!(
+        fragment.contains("<code>retrodoc generate</code>"),
+        "{fragment}"
+    );
+}

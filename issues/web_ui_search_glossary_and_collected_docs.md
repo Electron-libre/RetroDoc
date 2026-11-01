@@ -59,6 +59,7 @@ the files a collected doc links to. Spec: `specs/web-ui.md` WEB-39 to WEB-51.
 3. [x] Search: the box in the layout, `/search?q=` with the hits of `GeneratedDocs::index` (limit 10, the default of
    `retrodoc search`) grouped by kind with confidence and link, the not-documented answer, a fragment for `htmx`;
    verified by router tests (~400 lines); makes true WEB-39, WEB-40, WEB-41, WEB-42, WEB-43.
+4. [x] Whole issue: `update-docs` over `5337f41..HEAD` and the fixes of its `high` review.
 
 ## Decisions
 - Mode: autonomous
@@ -122,3 +123,38 @@ feature page carry `id="rule-<slug>"` for the hits to land on; `corpus::feature_
 | real run | `retrodoc ui` on a saved linkding run: search, glossary and links checked with curl and headless Chrome |
 
 red: WEB-39, WEB-40, WEB-41, WEB-42, WEB-43: `/search` answered 404 and no page had `<form class="search"`.
+
+## Deliverable 4: docs and fixes of the whole-issue review
+
+done: `docs/ARCHITECTURE.md` names the new pages; fixes of the `/code-review high` over `5337f41..HEAD`.
+
+| check | result |
+|---|---|
+| tests | `just check` green, 2 more tests |
+| lint | clippy pedantic clean |
+| specs | 2 scenarios added (WEB-43, WEB-47) |
+| docs | `docs/ARCHITECTURE.md` |
+| code review | see below |
+
+red: none (the fixes came with their tests: WEB-43 the no-run fragment, WEB-47 the front matter and the empty heading).
+
+High review over the issue: 9 findings.
+- An `htmx` search with no run got the whole no-run page: fixed, a fragment with `Vary: HX-Request`.
+- A collected doc showed its YAML front matter as a heading and as its title: fixed, stripped as the doc sections do.
+- An empty first heading gave an empty title: fixed, the next heading or the path.
+- The link of a rule hit scanned features × rules: fixed, the rule found first.
+- Use cases listed twice in the glossary when two domains share a feature slug: not fixed, feature slugs are unique
+  in a run (the tree, `use_cases_of` and the rule slugs `<feature>-<n>` rest on it).
+- Two concepts whose names give the same anchor share an `id`: not fixed, the same rule as the forge anchors of WEB-48.
+- The glossary's use cases computed in concepts × use cases at start: not fixed, a few hundred of each on the
+  measured repos; done once, in `Site::new`.
+- No `hx-push-url` on the search: not fixed, the URL of the page under the results stays the page shown; the
+  form without `htmx` leads to `/search?q=`, linkable.
+- A third path normalizer (`glossary::plain`): not fixed, each compares a different source of paths.
+
+Code review: 1 finding (`/code-review low` of this deliverable).
+- The front matter was not stripped from a CRLF doc, nor an empty or unterminated one: CRLF fixed (read as LF, as the
+  doc sections do); the other two kept, the rule being the one the doc sections are split with, so both see the
+  same headings.
+
+not verified: the `htmx` swap in a browser.

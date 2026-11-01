@@ -117,15 +117,13 @@ fn href(docs: &GeneratedDocs, entry: &Entry) -> Option<String> {
                 .find(|u| format!("{}/{}", feature_id(f), u.slug) == entry.id)
                 .map(|u| use_case_href(f, u))
         }),
-        EntryKind::Rule => docs
-            .features()
-            .iter()
-            .find(|f| {
-                docs.rules()
-                    .iter()
-                    .any(|r| r.slug == entry.id && r.belongs_to_feature(&f.slug))
-            })
-            .map(|f| format!("{}#{}", feature_href(f), rule_anchor(&entry.id))),
+        EntryKind::Rule => {
+            let rule = docs.rules().iter().find(|r| r.slug == entry.id)?;
+            docs.features()
+                .iter()
+                .find(|f| rule.belongs_to_feature(&f.slug))
+                .map(|f| format!("{}#{}", feature_href(f), rule_anchor(&rule.slug)))
+        }
         EntryKind::Glossary => Some(format!("/glossary#{}", anchor(&entry.id))),
         EntryKind::Doc => Some(format!("/docs/{}", url_path(&entry.id))),
     }

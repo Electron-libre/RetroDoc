@@ -126,3 +126,26 @@ async fn a_path_that_is_not_a_collected_doc_is_not_found() {
         assert!(page.contains("<h1>Not found</h1>"), "{page}");
     }
 }
+
+// spec: WEB-47
+#[tokio::test]
+async fn the_front_matter_and_an_empty_heading_are_not_the_title() {
+    let docs = vec![ExistingDoc {
+        path: PathBuf::from("docs/setup.md"),
+        content: "---\ntitle: Old\nlayout: page\n---\n#\n\n## Setup\n\nRun it.\n".into(),
+    }];
+    let response = retrodoc_web::router(None, DocLinks::default(), docs)
+        .oneshot(
+            Request::get("/docs/docs/setup.md")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let page = String::from_utf8(body.to_vec()).unwrap();
+    assert!(page.contains("<title>Setup · RetroDoc</title>"), "{page}");
+    assert!(!article(&page).contains("layout"), "{page}");
+}

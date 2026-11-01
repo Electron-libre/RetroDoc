@@ -170,6 +170,8 @@ over browses its domains, features and use cases rather than reading the Markdow
 - (WEB-45) Given a repository with no glossary saved, then the page says no concept was found.
 - (WEB-46) Given a concept no use case uses, then it is listed with no use case.
 - (WEB-47) Given a repository with no run yet, then its collected docs are still served.
+- (WEB-47) Given a doc that opens on a YAML front matter, then the page shows the doc without it.
+- (WEB-43) Given a repository with no run yet, then an `htmx` search gets a fragment that says to run `generate`.
 - (WEB-48) Given two headings with the same text, then both carry the same anchor, as the links of WEB-23 do.
 - (WEB-50) Given `[x](javascript:alert(1))`, then the page shows `x` with no link; a relative link is kept.
 ## Non-goals

@@ -237,21 +237,29 @@ pub async fn glossary(State(site): State<Arc<Site>>) -> Response {
     )
 }
 
+/// The results `htmx` swaps under the box before a first `generate`.
+const NO_RUN_RESULTS: &str = "<section class=\"results\"><p>Nothing to search yet: run \
+    <code>retrodoc generate</code>, then restart <code>retrodoc ui</code>.</p></section>";
+
 pub async fn search(
     State(site): State<Arc<Site>>,
     headers: HeaderMap,
     RawQuery(query): RawQuery,
 ) -> Response {
+    // The same URL answers a fragment or a page: a cache must tell them apart.
+    let vary = [(header::VARY, "HX-Request")];
+    let htmx = headers.contains_key("HX-Request");
     let Some(docs) = site.docs() else {
-        return render(StatusCode::OK, &NoRun { tree: site.tree() });
+        if htmx {
+            return (vary, Html(NO_RUN_RESULTS)).into_response();
+        }
+        return (vary, render(StatusCode::OK, &NoRun { tree: site.tree() })).into_response();
     };
     let page = search_page(
         docs,
         &query_value(query.as_deref(), "q").unwrap_or_default(),
     );
-    // The same URL answers a fragment or a page: a cache must tell them apart.
-    let vary = [(header::VARY, "HX-Request")];
-    if headers.contains_key("HX-Request") {
+    if htmx {
         return (vary, render(StatusCode::OK, &SearchResults { page })).into_response();
     }
     let page = SearchTemplate {
