@@ -2,5 +2,6 @@
 
 pub mod config;
 pub mod model;
+pub mod text;
 
 pub use config::{Config, ConfigError, CONFIG_FILE_NAME};

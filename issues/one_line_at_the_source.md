@@ -50,7 +50,7 @@ the prompt lines are internal and not in the prints, so no saved run is asked ag
 ## Plan
 1. [x] Entities and vocabulary on one line: `one_line` on each entity of `rules_prompt` and each word of
    `use_cases_prompt`; verified by one test of each prompt with a name over several lines (no forged line).
-2. [ ] One `one_line` for the workspace: `retrodoc_core::text::one_line`, used by the pipeline (`text.rs` keeps no
+2. [x] One `one_line` for the workspace: `retrodoc_core::text::one_line`, used by the pipeline (`text.rs` keeps no
    copy) and the render (the copies of `rules.rs` and `doc_links.rs` and the closure of `markdown/agent_index.rs`
    removed); the `one_line` of the MCP server, which keeps the first line cut to a snippet, renamed `snippet`;
    verified by a test of `one_line` in the core and the existing render and MCP tests.
@@ -75,6 +75,24 @@ vocabulary of the use case prompt go through it.
 
 red: none traced (no spec); before the code the rules test stopped at `Entities: Order, Forged.` and the use case test
 at `Business vocabulary (main entities): Invoice, Payment`, the name cut over two lines.
+
+Code review: no findings
+
+Not verified: none. Decisions needed: none.
+
+## Summary of deliverable 2
+done: `retrodoc_core::text::one_line` is the only one (the pipeline re-exports it, the two render copies and the
+closure of the agent index removed); the MCP helper that keeps the first line cut to a snippet is named `snippet`.
+
+| check | result |
+|---|---|
+| tests | `just check` green |
+| lint | clippy pedantic clean |
+| specs | n/a (no behaviour changed) |
+| docs | `docs/crates/core-ingest.md` names `text.rs` |
+| code review | `low` |
+
+red: none (a move: the new core test passed on its first run, the render and MCP tests cover the uses).
 
 Code review: no findings
 

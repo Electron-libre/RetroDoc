@@ -5,7 +5,7 @@ use std::fmt::Write as _;
 use retrodoc_core::model::{BusinessRule, UseCase};
 
 use super::answer::{
-    confidence_line, confidence_short, last_segment, one_line, set_apart_tag, sources_section,
+    confidence_line, confidence_short, last_segment, set_apart_tag, snippet, sources_section,
     SET_APART_NOTE,
 };
 use super::Docs;
@@ -58,7 +58,7 @@ impl Docs {
                 feature_id(feature),
                 use_case.slug,
                 use_case.name,
-                one_line(&use_case.description),
+                snippet(&use_case.description),
                 confidence_short(use_case.confidence.as_ref()),
                 set_apart_tag(self.use_case_set_apart(use_case)),
             );

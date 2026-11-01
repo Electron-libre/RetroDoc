@@ -9,6 +9,7 @@ use std::path::Path;
 use retrodoc_core::model::{
     BusinessRule, Feature, RuleEvidence, RuleKind, UseCase, LOW_CONFIDENCE_THRESHOLD,
 };
+use retrodoc_core::text::one_line;
 
 use crate::doc_links::DocLinks;
 use crate::markdown::{feature_path, link, use_case_path};
@@ -33,10 +34,6 @@ fn tag(rule: &BusinessRule) -> String {
         Some(c) => format!("{}, {:.0}%", kind_label(rule.kind), c.value * 100.0),
         None => format!("{}, not scored", kind_label(rule.kind)),
     }
-}
-
-fn one_line(text: &str) -> String {
-    text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 fn evidence_line(evidence: &RuleEvidence) -> String {

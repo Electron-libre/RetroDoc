@@ -5,6 +5,7 @@ use std::io::{ErrorKind, Read};
 use std::path::{Component, Path, PathBuf};
 
 use retrodoc_core::model::Feature;
+pub(crate) use retrodoc_core::text::one_line;
 
 use crate::error::PipelineError;
 
@@ -115,11 +116,6 @@ pub(crate) fn truncate_chars(content: &str, max_chars: usize) -> String {
         None => content.to_string(),
         Some(head) => format!("{head}\n… (truncated)"),
     }
-}
-
-/// `text` on one line, so that it can't forge a line of the prompt or of the list it is written in.
-pub(crate) fn one_line(text: &str) -> String {
-    text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 /// `names` on one line, each on one line, separated by commas.

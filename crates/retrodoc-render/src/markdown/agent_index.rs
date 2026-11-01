@@ -4,6 +4,7 @@ use std::fmt::Write as _;
 use std::path::Path;
 
 use retrodoc_core::model::{ConfidenceScore, Domain, Feature, LOW_CONFIDENCE_THRESHOLD};
+use retrodoc_core::text::one_line;
 
 use super::{domain_readme_path, feature_path, link, short_confidence, TECHNICAL_HEADING};
 use crate::{AGENT_INDEX_PATH, RULES_INDEX_PATH};
@@ -11,7 +12,6 @@ use crate::{AGENT_INDEX_PATH, RULES_INDEX_PATH};
 /// The `llms.txt`-style entry point for agents that don't run the MCP server.
 pub(super) fn agent_index(domains: &[Domain], features: &[Feature], rule_count: usize) -> String {
     let index = Path::new(AGENT_INDEX_PATH);
-    let one_line = |text: &str| text.split_whitespace().collect::<Vec<_>>().join(" ");
     // `(⚠️ 30%)` below the threshold, so a weak page is visible before opening it.
     let score = |score: Option<&ConfidenceScore>| match score {
         Some(c) if c.value < LOW_CONFIDENCE_THRESHOLD => format!("⚠️ {:.0}%", c.value * 100.0),

@@ -7,6 +7,8 @@ use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
+use retrodoc_core::text::one_line;
+
 use crate::markdown::link;
 
 /// The item a doc section is about.
@@ -88,10 +90,6 @@ impl DocLinks {
         }
         md
     }
-}
-
-fn one_line(text: &str) -> String {
-    text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 /// The anchor a forge gives a heading: lowercase, spaces as `-`, punctuation dropped.

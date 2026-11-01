@@ -148,7 +148,8 @@ pub(super) fn truncate(text: &str, max: usize) -> String {
     format!("{cut}…")
 }
 
-pub(super) fn one_line(text: &str) -> String {
+/// The first line of `text`, trimmed and cut to `SNIPPET_CHARS` characters.
+pub(super) fn snippet(text: &str) -> String {
     truncate(
         text.lines().next().unwrap_or_default().trim(),
         SNIPPET_CHARS,
@@ -209,7 +210,7 @@ pub(super) fn rule_item(rule: &BusinessRule) -> String {
     format!(
         "- `{}` — {} ({}, {})",
         rule.slug,
-        one_line(&rule.statement),
+        snippet(&rule.statement),
         kind_label(rule.kind),
         confidence_short(rule.confidence.as_ref())
     )
@@ -219,13 +220,13 @@ pub(super) fn evidence_line(evidence: &RuleEvidence) -> String {
     match evidence {
         RuleEvidence::Code { source } => format!("Code: {}", location(source)),
         RuleEvidence::Test { phrase, path } => {
-            format!("Test: \"{}\" (`{path}`)", one_line(phrase))
+            format!("Test: \"{}\" (`{path}`)", snippet(phrase))
         }
         RuleEvidence::Doc { path, heading } if heading.is_empty() => {
             format!("Documentation: `{path}`")
         }
         RuleEvidence::Doc { path, heading } => {
-            format!("Documentation: `{path}`, section \"{}\"", one_line(heading))
+            format!("Documentation: `{path}`, section \"{}\"", snippet(heading))
         }
     }
 }

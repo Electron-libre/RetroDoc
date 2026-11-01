@@ -3,8 +3,9 @@
 Detail moved out of `CLAUDE.md`. Overview of all crates: `docs/ARCHITECTURE.md` §2.
 
 - **retrodoc-core**: shared domain model (`Domain`/`Feature`/`UseCase`/`Step`/`ConfidenceScore`/`BusinessRule` (ADR 0021, filled by the `rules` pass)
-  in `model.rs`) and `retrodoc.toml`
-  config (`config.rs`).
+  in `model.rs`), `retrodoc.toml`
+  config (`config.rs`) and the text helpers the pipeline, the render and the MCP server share (`text.rs`: `one_line`,
+  which keeps a name or a description from forging a line of a prompt or a list).
 - **retrodoc-ingest**: reads the target repo — file walker respecting `.gitignore` (`walker.rs`; classifies files as `Source`/`Test`/`Markdown`/`Other` —
   the built-in extensions and test conventions cover the reference set of `specs/language-agnostic.md`, the
   build scripts `*.gradle.kts`, `Package.swift`, the view templates `*.blade.php`, `*.html.php`, `*.tpl.php` and the root `project/` of an sbt build excepted, even when the roles call names their extension; tests are detected by directory (.NET `*Tests` projects, and for .NET files `*.Test`, `*UnitTest`, `*IntegrationTest`, `*.Specs`; Gradle test source sets `src/<set>Test/<jvm language>/` and the Android variants `src/testDebug/`, `src/androidTestRelease/` included) or file-name convention and kept out
