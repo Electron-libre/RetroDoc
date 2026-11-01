@@ -8,7 +8,7 @@ use retrodoc_mcp::search::SEARCH_LIMIT;
 use retrodoc_mcp::{Entry, EntryKind, GeneratedDocs};
 use retrodoc_render::anchor;
 
-use crate::view::{feature_href, rule_anchor, url_path, use_case_href, Confidence};
+use crate::view::{feature_href, rule_href, url_path, use_case_href, Confidence};
 
 /// The kinds in the order of the page, with their heading.
 const KINDS: [(EntryKind, &str); 6] = [
@@ -122,7 +122,7 @@ fn href(docs: &GeneratedDocs, entry: &Entry) -> Option<String> {
             docs.features()
                 .iter()
                 .find(|f| rule.belongs_to_feature(&f.slug))
-                .map(|f| format!("{}#{}", feature_href(f), rule_anchor(&rule.slug)))
+                .map(|f| rule_href(f, &rule.slug))
         }
         EntryKind::Glossary => Some(format!("/glossary#{}", anchor(&entry.id))),
         EntryKind::Doc => Some(format!("/docs/{}", url_path(&entry.id))),

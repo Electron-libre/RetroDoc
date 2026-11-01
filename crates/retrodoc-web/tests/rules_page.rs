@@ -110,9 +110,14 @@ fn generated_repo() -> tempfile::TempDir {
 }
 
 async fn get_with(root: &Path, path: &str, htmx: bool) -> (StatusCode, String) {
+    let headers: &[&str] = if htmx { &["HX-Request"] } else { &[] };
+    get_with_headers(root, path, headers).await
+}
+
+async fn get_with_headers(root: &Path, path: &str, headers: &[&str]) -> (StatusCode, String) {
     let mut request = Request::get(path);
-    if htmx {
-        request = request.header("HX-Request", "true");
+    for name in headers {
+        request = request.header(*name, "true");
     }
     let response = retrodoc_web::router(
         GeneratedDocs::load(root, &[]),
@@ -285,4 +290,38 @@ async fn with_no_run_the_rules_page_says_to_run_generate() {
     let (status, page) = get_with(dir.path(), "/rules", false).await;
     assert_eq!(status, StatusCode::OK);
     assert!(page.contains("retrodoc generate"), "{page}");
+}
+
+// spec: WEB-56
+#[tokio::test]
+async fn an_htmx_history_restore_gets_the_full_page() {
+    let repo = generated_repo();
+    let (_, page) = get_with_headers(
+        repo.path(),
+        "/rules?kind=limit",
+        &["HX-Request", "HX-History-Restore-Request"],
+    )
+    .await;
+    assert!(page.contains("<html"), "{page}");
+    assert!(page.contains("<form class=\"filters\""), "{page}");
+}
+
+// spec: WEB-55
+#[tokio::test]
+async fn each_feature_choice_names_its_domain() {
+    let repo = generated_repo();
+    let page = rules(repo.path(), "/rules").await;
+    assert!(
+        page.contains("<option value=\"ship-order\">Ship an order (Shipping)</option>"),
+        "{page}"
+    );
+}
+
+// spec: WEB-53
+#[tokio::test]
+async fn a_run_with_no_rule_says_so() {
+    let repo = generated_repo();
+    retrodoc_pipeline::save_rules(repo.path(), &[]).unwrap();
+    let page = rules(repo.path(), "/rules").await;
+    assert!(list(&page).contains("No business rule was found"), "{page}");
 }

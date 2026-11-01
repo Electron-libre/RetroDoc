@@ -1,6 +1,8 @@
 {% import "macros.html" as m %}
 <section id="rule-list">
-  {% if page.rules.is_empty() %}
+  {% if page.none_in_run %}
+  <p>No business rule was found in the code of the last run.</p>
+  {% else if page.rules.is_empty() %}
   <p>No rule matches.</p>
   {% else %}
   <ul class="rules">

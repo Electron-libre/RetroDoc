@@ -8,7 +8,7 @@ use std::collections::BTreeSet;
 use retrodoc_core::model::{ActorKind, Feature, RuleKind, UseCase};
 use retrodoc_mcp::GeneratedDocs;
 
-use crate::view::{feature_href, rule_anchor, use_case_href, Link};
+use crate::view::{feature_href, rule_href, use_case_href, Link};
 
 pub struct ActorsPage {
     /// The features with a use case that names an actor, in the order of
@@ -137,7 +137,7 @@ fn actor_row(
                     && cell.iter().any(|(u, _)| r.use_cases.contains(&u.slug))
             }) {
                 permissions.push(Link {
-                    href: format!("{}#{}", feature_href(feature), rule_anchor(&rule.slug)),
+                    href: rule_href(feature, &rule.slug),
                     name: rule.statement.clone(),
                 });
             }

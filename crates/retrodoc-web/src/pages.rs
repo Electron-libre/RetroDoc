@@ -9,9 +9,10 @@ use axum::http::{header, HeaderMap, StatusCode};
 use axum::response::{Html, IntoResponse, Response};
 use tokio::task::JoinError;
 
+use retrodoc_mcp::GeneratedDocs;
 use retrodoc_render::{TECHNICAL_HEADING, TECHNICAL_NOTE};
 
-use crate::actors::{actors_page, ActorsPage};
+use crate::actors::ActorsPage;
 use crate::assets::MERMAID;
 use crate::code::{code_page, Asked, CodePage};
 use crate::collected::{collected_page, CollectedPage};
@@ -89,7 +90,7 @@ struct GlossaryTemplate<'a> {
 #[template(path = "actors.html")]
 struct ActorsTemplate<'a> {
     tree: &'a [TreeDomain],
-    page: ActorsPage,
+    page: &'a ActorsPage,
 }
 
 #[derive(Template)]
@@ -261,14 +262,14 @@ pub async fn glossary(State(site): State<Arc<Site>>) -> Response {
 }
 
 pub async fn actors(State(site): State<Arc<Site>>) -> Response {
-    let Some(docs) = site.docs() else {
+    let Some(page) = site.actors() else {
         return render(StatusCode::OK, &NoRun { tree: site.tree() });
     };
     render(
         StatusCode::OK,
         &ActorsTemplate {
             tree: site.tree(),
-            page: actors_page(docs),
+            page,
         },
     )
 }
@@ -282,30 +283,20 @@ pub async fn rules(
     headers: HeaderMap,
     RawQuery(query): RawQuery,
 ) -> Response {
-    // The same URL answers a fragment or a page: a cache must tell them apart.
-    let vary = [(header::VARY, "HX-Request")];
-    let htmx = headers.contains_key("HX-Request");
-    let Some(docs) = site.docs() else {
-        if htmx {
-            return (vary, Html(NO_RUN_RULES)).into_response();
-        }
-        return (vary, render(StatusCode::OK, &NoRun { tree: site.tree() })).into_response();
-    };
-    let asked = |name| query_value(query.as_deref(), name).filter(|v| !v.is_empty());
+    let asked = |name| query_value(query.as_deref(), name).filter(|v: &String| !v.is_empty());
     let filter = RuleFilter {
         kind: asked("kind"),
         domain: asked("domain"),
         feature: asked("feature"),
     };
-    let page = rules_page(docs, &filter);
-    if htmx {
-        return (vary, render(StatusCode::OK, &RulesList { page })).into_response();
-    }
-    let page = RulesTemplate {
-        tree: site.tree(),
-        page,
-    };
-    (vary, render(StatusCode::OK, &page)).into_response()
+    fragment_or_page(
+        &site,
+        &headers,
+        NO_RUN_RULES,
+        |docs| rules_page(docs, &filter),
+        |page| RulesList { page },
+        |tree, page| RulesTemplate { tree, page },
+    )
 }
 
 /// The results `htmx` swaps under the box before a first `generate`.
@@ -317,27 +308,39 @@ pub async fn search(
     headers: HeaderMap,
     RawQuery(query): RawQuery,
 ) -> Response {
+    let query = query_value(query.as_deref(), "q").unwrap_or_default();
+    fragment_or_page(
+        &site,
+        &headers,
+        NO_RUN_RESULTS,
+        |docs| search_page(docs, &query),
+        |page| SearchResults { page },
+        |tree, page| SearchTemplate { tree, page },
+    )
+}
+
+/// The part of a page `htmx` swaps, `fragment`, for its requests, else the
+/// whole page; before a first `generate`, `no_run` or the no-run page. A
+/// history restore asks for the whole page: `htmx` swaps it into the body.
+fn fragment_or_page<'a, T, F: Template, P: Template>(
+    site: &'a Site,
+    headers: &HeaderMap,
+    no_run: &'static str,
+    build: impl FnOnce(&GeneratedDocs) -> T,
+    fragment: impl FnOnce(T) -> F,
+    page: impl FnOnce(&'a [TreeDomain], T) -> P,
+) -> Response {
     // The same URL answers a fragment or a page: a cache must tell them apart.
-    let vary = [(header::VARY, "HX-Request")];
-    let htmx = headers.contains_key("HX-Request");
-    let Some(docs) = site.docs() else {
-        if htmx {
-            return (vary, Html(NO_RUN_RESULTS)).into_response();
-        }
-        return (vary, render(StatusCode::OK, &NoRun { tree: site.tree() })).into_response();
+    let vary = [(header::VARY, "HX-Request, HX-History-Restore-Request")];
+    let htmx =
+        headers.contains_key("HX-Request") && !headers.contains_key("HX-History-Restore-Request");
+    let response = match (site.docs(), htmx) {
+        (None, true) => Html(no_run).into_response(),
+        (None, false) => render(StatusCode::OK, &NoRun { tree: site.tree() }),
+        (Some(docs), true) => render(StatusCode::OK, &fragment(build(docs))),
+        (Some(docs), false) => render(StatusCode::OK, &page(site.tree(), build(docs))),
     };
-    let page = search_page(
-        docs,
-        &query_value(query.as_deref(), "q").unwrap_or_default(),
-    );
-    if htmx {
-        return (vary, render(StatusCode::OK, &SearchResults { page })).into_response();
-    }
-    let page = SearchTemplate {
-        tree: site.tree(),
-        page,
-    };
-    (vary, render(StatusCode::OK, &page)).into_response()
+    (vary, response).into_response()
 }
 
 pub async fn code(

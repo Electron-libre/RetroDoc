@@ -4,6 +4,7 @@
 
 use std::collections::BTreeSet;
 
+use crate::actors::{actors_page, ActorsPage};
 use crate::files::{files_page, FilesPage};
 use crate::glossary::{glossary_page, GlossaryPage};
 use retrodoc_core::model::{
@@ -25,6 +26,7 @@ pub struct Site {
     files: Option<FilesPage>,
     collected: Vec<ExistingDoc>,
     glossary: Option<GlossaryPage>,
+    actors: Option<ActorsPage>,
 }
 
 impl Site {
@@ -34,6 +36,7 @@ impl Site {
         let source = docs.as_ref().and_then(GeneratedDocs::source_access);
         let files = docs.as_ref().map(files_page);
         let glossary = docs.as_ref().map(glossary_page);
+        let actors = docs.as_ref().map(actors_page);
         Self {
             docs,
             links,
@@ -42,7 +45,14 @@ impl Site {
             files,
             collected,
             glossary,
+            actors,
         }
+    }
+
+    /// The actors page, `None` with no run.
+    #[must_use]
+    pub fn actors(&self) -> Option<&ActorsPage> {
+        self.actors.as_ref()
     }
 
     /// The glossary page, `None` with no run.
@@ -267,6 +277,11 @@ pub(crate) fn feature_href(feature: &Feature) -> String {
 
 pub(crate) fn rule_anchor(slug: &str) -> String {
     format!("rule-{slug}")
+}
+
+/// The item of the rule `slug` on the page of its `feature`.
+pub(crate) fn rule_href(feature: &Feature, slug: &str) -> String {
+    format!("{}#{}", feature_href(feature), rule_anchor(slug))
 }
 
 pub(crate) fn use_case_href(feature: &Feature, use_case: &UseCase) -> String {

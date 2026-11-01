@@ -99,8 +99,8 @@ over browses its domains, features and use cases rather than reading the Markdow
   `/glossary#<anchor of its name>`, a collected doc to `/docs/<path>`.
 - **WEB-42** (deterministic) With no hit, the search page must say the topic is not documented, give the number of
   entries DSR-2 left out when there are any, and name the words of the query no entry has (DSR-4, DSR-5).
-- **WEB-43** (deterministic) A search request with the header `HX-Request` must be answered with the results alone,
-  without the layout of the page; any other with the full page.
+- **WEB-43** (deterministic) A search request with the header `HX-Request` and without `HX-History-Restore-Request`
+  must be answered with the results alone, without the layout of the page; any other with the full page.
 - **WEB-44** (deterministic) Every page must link to the glossary page.
 - **WEB-45** (deterministic) The glossary page, `/glossary`, must list every concept of the glossary of the last run,
   sorted by name ignoring case, each with its definition, under a heading whose anchor is `anchor` of its name.
@@ -124,9 +124,10 @@ over browses its domains, features and use cases rather than reading the Markdow
   `permission`, `state_transition`, `limit`, `computation`), of the domain `?domain=<slug>` and of the feature
   `?feature=<slug>`, each given, all of them when several are, and say no rule matches when none does.
 - **WEB-55** (deterministic) The rules page must show a form whose choices are the kinds, the domains and the
-  features of the run, the ones of the query selected, that asks the page again with them.
-- **WEB-56** (deterministic) A rules request with the header `HX-Request` must be answered with the list of the rules
-  alone, without the layout of the page; any other with the full page.
+  features of the run (each feature labelled with its domain), the ones of the query selected, that asks the page
+  again with them.
+- **WEB-56** (deterministic) A rules request with the header `HX-Request` and without `HX-History-Restore-Request` must
+  be answered with the list of the rules alone, without the layout of the page; any other with the full page.
 - **WEB-57** (deterministic) The actors page, `/actors`, must show a row per actor, the actors grouped by their exact
   name, the human ones then the system ones under their own heading, each group sorted by name ignoring case; the
   actors are the primary actors of the use cases and the actors of their steps.
@@ -199,6 +200,7 @@ over browses its domains, features and use cases rather than reading the Markdow
 - (WEB-50) Given `[x](javascript:alert(1))`, then the page shows `x` with no link; a relative link is kept.
 - (WEB-53) Given a rule whose feature is not in the run (artifacts of an older run), then it is listed without a link,
   and no `?domain=` keeps it.
+- (WEB-53) Given a run with no business rule, then the page says none was found rather than that none matches.
 - (WEB-54) Given a filter whose value names no kind, domain or feature of the run, then no rule matches.
 - (WEB-54) Given an empty filter value (`?kind=`), then it filters nothing, as when it is absent.
 - (WEB-57) Given `Clerk` and `clerk`, then they are two rows (no merging of the names).

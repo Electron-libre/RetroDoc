@@ -5,16 +5,27 @@ use retrodoc_core::model::{BusinessRule, Feature, RuleKind};
 use retrodoc_mcp::GeneratedDocs;
 use retrodoc_render::kind_label;
 
-use crate::view::{feature_href, rule_anchor, Confidence, Evidence, Link};
+use crate::view::{rule_href, Confidence, Evidence, Link};
 
-/// The kinds, each with its value in the query (its name in the artifacts).
-const KINDS: [(RuleKind, &str); 5] = [
-    (RuleKind::Validation, "validation"),
-    (RuleKind::Permission, "permission"),
-    (RuleKind::StateTransition, "state_transition"),
-    (RuleKind::Limit, "limit"),
-    (RuleKind::Computation, "computation"),
+/// The kinds, in the order of the form.
+const KINDS: [RuleKind; 5] = [
+    RuleKind::Validation,
+    RuleKind::Permission,
+    RuleKind::StateTransition,
+    RuleKind::Limit,
+    RuleKind::Computation,
 ];
+
+/// The value of `kind` in the query: its name in the artifacts.
+fn kind_value(kind: RuleKind) -> &'static str {
+    match kind {
+        RuleKind::Validation => "validation",
+        RuleKind::Permission => "permission",
+        RuleKind::StateTransition => "state_transition",
+        RuleKind::Limit => "limit",
+        RuleKind::Computation => "computation",
+    }
+}
 
 /// What the query asks: an empty value asks nothing.
 #[derive(Default)]
@@ -27,6 +38,8 @@ pub struct RuleFilter {
 pub struct RulesPage {
     /// The kind, the domain and the feature, in that order.
     pub filters: Vec<Filter>,
+    /// The run has no rule at all, whatever the filters.
+    pub none_in_run: bool,
     pub rules: Vec<RuleRow>,
 }
 
@@ -67,14 +80,15 @@ pub fn rules_page(docs: &GeneratedDocs, filter: &RuleFilter) -> RulesPage {
             kind: kind_label(rule.kind),
             confidence: Confidence::of(rule.confidence.as_ref()),
             feature: feature.map(|f| Link {
-                href: format!("{}#{}", feature_href(f), rule_anchor(&rule.slug)),
-                name: format!("{} ({})", f.name, domain_name(docs, &f.domain_slug)),
+                href: rule_href(f, &rule.slug),
+                name: feature_label(docs, f),
             }),
             evidence: rule.evidence.iter().map(Evidence::of).collect(),
         })
         .collect();
     RulesPage {
         filters: filters(docs, filter),
+        none_in_run: docs.rules().is_empty(),
         rules,
     }
 }
@@ -85,20 +99,22 @@ fn feature_of<'a>(docs: &'a GeneratedDocs, rule: &BusinessRule) -> Option<&'a Fe
         .find(|f| rule.belongs_to_feature(&f.slug))
 }
 
-fn domain_name<'a>(docs: &'a GeneratedDocs, slug: &'a str) -> &'a str {
-    docs.domains()
+/// `<feature> (<domain>)`: two domains may have features of the same name.
+fn feature_label(docs: &GeneratedDocs, feature: &Feature) -> String {
+    let domain = docs
+        .domains()
         .iter()
-        .find(|d| d.slug == slug)
-        .map_or(slug, |d| d.name.as_str())
+        .find(|d| d.slug == feature.domain_slug)
+        .map_or(feature.domain_slug.as_str(), |d| d.name.as_str());
+    format!("{} ({domain})", feature.name)
 }
 
 impl RuleFilter {
     fn keeps(&self, rule: &BusinessRule, feature: Option<&Feature>) -> bool {
-        let kind = self.kind.as_deref().is_none_or(|asked| {
-            KINDS
-                .iter()
-                .any(|(kind, value)| *kind == rule.kind && *value == asked)
-        });
+        let kind = self
+            .kind
+            .as_deref()
+            .is_none_or(|asked| kind_value(rule.kind) == asked);
         let domain = self
             .domain
             .as_deref()
@@ -123,7 +139,7 @@ fn filters(docs: &GeneratedDocs, filter: &RuleFilter) -> Vec<Filter> {
             label: "Kind",
             choices: KINDS
                 .iter()
-                .map(|(kind, value)| choice(value, kind_label(*kind), filter.kind.as_deref()))
+                .map(|kind| choice(kind_value(*kind), kind_label(*kind), filter.kind.as_deref()))
                 .collect(),
         },
         Filter {
@@ -141,7 +157,10 @@ fn filters(docs: &GeneratedDocs, filter: &RuleFilter) -> Vec<Filter> {
             choices: docs
                 .features()
                 .iter()
-                .map(|f| choice(&f.slug, &f.name, filter.feature.as_deref()))
+                .map(|f| {
+                    let label = feature_label(docs, f);
+                    choice(&f.slug, &label, filter.feature.as_deref())
+                })
                 .collect(),
         },
     ]

@@ -9,7 +9,7 @@ use retrodoc_mcp::source::{FileCommit, SourceAccess, SourceError, DEFAULT_LOG};
 use retrodoc_mcp::GeneratedDocs;
 
 use crate::view::{
-    feature_href, home_crumb, rule_anchor, stale_files, url_path, use_case_href, Link, StaleFile,
+    feature_href, home_crumb, rule_href, stale_files, url_path, use_case_href, Link, StaleFile,
 };
 
 /// Lines shown before and after the cited ones.
@@ -225,7 +225,7 @@ pub fn citations(docs: &GeneratedDocs) -> Vec<(Citer, BTreeSet<String>)> {
                 Citer {
                     kind: "Rule",
                     link: Link {
-                        href: format!("{}#{}", feature_href(feature), rule_anchor(&rule.slug)),
+                        href: rule_href(feature, &rule.slug),
                         name: rule.statement.clone(),
                     },
                 },

@@ -54,6 +54,9 @@ each actor. Out of scope: merging the spellings of an actor. Also: the rule cite
    (rules link), WEB-53, WEB-54, WEB-55, WEB-56, WEB-61.
 2. [x] Actors page: `/actors`, the matrix human then system, cells linking the use cases, permission rules per row,
    link from every page; verified by router tests in `tests/actors_page.rs`; makes true WEB-52, WEB-57 to WEB-60.
+3. [x] Fixes of the `high` review of the issue: htmx history restore gets the full page (rules and search), feature
+   choices labelled with their domain, a run with no rule says so, one `rule_href`, one fragment-or-page helper, the
+   actors page built once; verified by router tests; makes true WEB-43, WEB-53, WEB-55, WEB-56 as amended.
 
 ## Decisions
 - Mode: autonomous
@@ -78,3 +81,14 @@ each actor. Out of scope: merging the spellings of an actor. Also: the rule cite
   - fixed: a primary actor whose name the steps give both kinds was marked `starts` (and its permission rules
     listed) in both rows; it now starts its use cases in the human row only (scenario added to WEB-57, test red then green).
 - not verified: the layout of a wide matrix in a real browser.
+
+## Deliverable 3: fixes of the high review
+- done: `pages::fragment_or_page` shared by `/rules` and `/search`, a history restore (`HX-History-Restore-Request`)
+  answered with the full page; the feature choices read `<feature> (<domain>)`; "No business rule was found" when the
+  run has none; `view::rule_href` replaces four copies; `kind_value` is an exhaustive match; `/actors` built in
+  `Site::new`. WEB-43, WEB-55, WEB-56 amended, a WEB-53 scenario added.
+- red: WEB-43, WEB-53, WEB-55, WEB-56: the history restore got the fragment (no `<html`), no `(Shipping)` in the feature
+  choice, "No rule matches." for a run with no rule.
+- Code review: no findings (low review of this deliverable)
+- high review findings: 8; 7 fixed as above; not fixed: the linear lookups of a rule's feature and domain
+  (`rules.rs`), a few hundred string comparisons per request on a run, not worth a map.

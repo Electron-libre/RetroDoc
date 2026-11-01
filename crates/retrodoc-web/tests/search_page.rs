@@ -301,6 +301,24 @@ async fn an_htmx_request_gets_the_results_alone() {
     assert!(page.contains("<html"), "{page}");
 }
 
+// spec: WEB-43
+#[tokio::test]
+async fn an_htmx_history_restore_gets_the_full_search_page() {
+    let repo = generated_repo();
+    let request = Request::get("/search?q=invoice")
+        .header("HX-Request", "true")
+        .header("HX-History-Restore-Request", "true");
+    let response = retrodoc_web::router(load(repo.path()), DocLinks::default(), collected())
+        .oneshot(request.body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let page = String::from_utf8(body.to_vec()).unwrap();
+    assert!(page.contains("<html"), "{page}");
+}
+
 // spec: WEB-41
 #[tokio::test]
 async fn a_rule_whose_feature_is_not_in_the_run_has_no_link() {
@@ -355,7 +373,10 @@ async fn an_htmx_search_with_no_run_gets_a_fragment() {
         )
         .await
         .unwrap();
-    assert_eq!(response.headers()["vary"], "HX-Request");
+    assert_eq!(
+        response.headers()["vary"],
+        "HX-Request, HX-History-Restore-Request"
+    );
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();

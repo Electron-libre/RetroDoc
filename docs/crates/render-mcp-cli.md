@@ -81,14 +81,15 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   default `--limit` of `retrodoc search`, so both list the same hits) and groups the hits by kind (domain, feature, use
   case, rule, concept, collected doc), each linked to its page (a rule to `#rule-<slug>` on its feature page, a concept
   to its anchor of the glossary), or gives the not-documented answer with the left-out count and the unknown words; a
-  request with `HX-Request` gets `search_results.html` alone (`Vary: HX-Request`). The rules page, `/rules`
+  request with `HX-Request` gets `search_results.html` alone, unless it is an `htmx` history restore
+  (`HX-History-Restore-Request`, which swaps the whole body; `pages::fragment_or_page`, `Vary` naming both). The rules page, `/rules`
   (`rules::rules_page`, `rules.html`, linked from the header of every page), lists every rule in the order of the run
-  with its evidence and a link to its `#rule-<slug>` item, kept by `?kind=` (the artifact name of the kind),
+  with its evidence and a link to its `#rule-<slug>` item (`view::rule_href`), kept by `?kind=` (the artifact name of the kind),
   `?domain=` and `?feature=` (`rules::RuleFilter`, an empty value asks nothing; a rule whose feature is not in the run
   matches no domain nor feature); its form, submitted by `htmx` on change, swaps `rules_list.html` into `#rule-list`
-  (`Vary: HX-Request`). The actors page, `/actors` (`actors::actors_page`, `actors.html`, linked from the header of
-  every page), is a table per kind, human then system: a row per actor, grouped by its exact name (a primary actor no
-  step names counts as human), a column per feature with a use case that names an actor, a cell linking the use cases
+  the same way. The actors page, `/actors` (`actors::actors_page`, `actors.html`, linked from the header of
+  every page, built once in `Site::new`), is a table per kind, human then system: a row per actor, grouped by its exact name (a primary actor no
+  step names counts as human and starts its use cases in the human row of its name), a column per feature with a use case that names an actor, a cell linking the use cases
   it starts (`starts`) or takes part in, and the permission rules that apply to them. Tests:
   `tests/pages.rs` (home, tree, assets, `Host`), `tests/item_pages.rs` (the item pages), `tests/code_page.rs` (the
   page of a cited file, over a git repo), `tests/files_page.rs`, `tests/doc_pages.rs`, `tests/glossary_page.rs`, `tests/rules_page.rs`, `tests/actors_page.rs` and `tests/search_page.rs` ask the router without a socket (`tower::ServiceExt::oneshot`) over artifacts

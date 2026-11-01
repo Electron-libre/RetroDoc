@@ -7,7 +7,7 @@
 //! loads, turned into the plain view structs of [`view`]; only [`router`] and
 //! [`serve`] know HTTP. The docs are read once, at start.
 
-mod actors;
+pub mod actors;
 mod assets;
 pub mod code;
 pub mod collected;
