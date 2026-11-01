@@ -317,3 +317,42 @@ async fn serving_the_pages_writes_nothing_in_the_repository() {
     }
     assert_eq!(snapshot(repo.path()), before);
 }
+
+async fn status_with_host(host: &str) -> StatusCode {
+    let repo = generated_repo();
+    retrodoc_web::router(load(repo.path()))
+        .oneshot(
+            Request::get("/")
+                .header("host", host)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap()
+        .status()
+}
+
+// spec: WEB-13
+#[tokio::test]
+async fn a_host_that_is_neither_localhost_nor_an_address_is_refused() {
+    for host in [
+        "evil.example:8730",
+        "evil.example",
+        "localhost.evil.example",
+    ] {
+        assert_eq!(
+            status_with_host(host).await,
+            StatusCode::FORBIDDEN,
+            "{host}"
+        );
+    }
+    for host in [
+        "localhost:8730",
+        "LOCALHOST",
+        "127.0.0.1:8730",
+        "[::1]:8730",
+        "192.168.1.10:8730",
+    ] {
+        assert_eq!(status_with_host(host).await, StatusCode::OK, "{host}");
+    }
+}

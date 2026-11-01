@@ -68,6 +68,9 @@ domain, feature and use case pages (next issue: the tree links answer 404 until 
 3. [x] `retrodoc ui --path [--bind]` subcommand, `web` commit scope, docs (CLAUDE.md and ARCHITECTURE.md graphs,
    `docs/crates/render-mcp-cli.md`, README), ADR 0039 `Accepted`; verified by a binary test on `--bind 127.0.0.1:0`
    (URL printed, home page fetched) and a parse test of the default; makes true WEB-1 to WEB-3 (~250 lines).
+4. [x] Docs of the whole issue and fixes of the `high` review: `Host` check against DNS rebinding, warning on a
+   non-loopback `--bind`, tree built once, stale badges off the async workers through `Freshness::stale`, assets
+   cached; makes true WEB-13, WEB-14.
 
 ## Decisions
 - Mode: autonomous
@@ -97,3 +100,20 @@ domain, feature and use case pages (next issue: the tree links answer 404 until 
   docs (README, CLAUDE.md, ARCHITECTURE, crate docs, commands), ADR 0039 `Accepted`, `specs/web-ui.md` `accepted`.
 - red: WEB-2, WEB-3, WEB-9: `error: unrecognized subcommand 'ui'` (no URL printed); WEB-1 written with the command.
 - Code review: no findings.
+
+## Deliverable 4 summary
+- done: `update-docs` of `a736a45..HEAD` (where-to-change row of ARCHITECTURE) and the fixes of the `high` review
+  below; spec amended with WEB-13, WEB-14, back to `accepted`.
+- red: WEB-13: `assertion left == right failed: evil.example:8730` (200, not 403); WEB-14 written with the code.
+- High review, 10 findings:
+  - fixed: DNS rebinding (WEB-13); non-loopback `--bind` warned of (WEB-14; host names still refused by the
+    `SocketAddr` parser, as `--help` says "address"); stale check deduplicated through `Freshness::stale` and run in
+    `spawn_blocking`; tree built once; assets sent with `Cache-Control`.
+  - not fixed: the search index and collected docs loaded at start are unused yet: the search page of
+    `web_ui_search_glossary_and_collected_docs` needs them.
+  - not fixed: the `uncategorized` domain left out by `domain_models`: the Markdown pages and the MCP answers leave
+    it out the same way, not a change of this issue.
+  - not fixed: `Confidence::of` formats as the MCP answers do (`{:.0}%`, 0.497 shown 50% low): same rounding
+    everywhere; to share when the feature pages add the rationale.
+  - not fixed: `Docs::new` clones the glossary: only tests call it, `load` passes it by value.
+- Code review (low): no findings.

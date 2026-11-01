@@ -31,6 +31,10 @@ over browses its domains, features and use cases rather than reading the Markdow
 - **WEB-11** (deterministic) The pages must load their scripts and stylesheet from the interface itself, under
   `/assets/`, and from no other host.
 - **WEB-12** (deterministic) Serving the pages must not write any file in the repository.
+- **WEB-13** (deterministic) A request whose `Host` names neither `localhost` nor an IP address must be refused with the
+  status 403.
+- **WEB-14** (deterministic) With a `--bind` address that is not a loopback one, `retrodoc ui` must warn that the docs
+  are reachable from other machines.
 
 ## Scenarios
 
@@ -42,6 +46,8 @@ over browses its domains, features and use cases rather than reading the Markdow
   not an error.
 - (WEB-9) Given a repository where `retrodoc init` was never run, then the command fails like the other commands and
   asks to run `retrodoc init`.
+- (WEB-13) Given a page of another site that resolves its own name to `127.0.0.1` (DNS rebinding), then its requests
+  carry its name in `Host` and are refused; `localhost:8730`, `127.0.0.1:8730` and `[::1]:8730` are served.
 - (WEB-10) Given a domain named `<script>alert(1)</script>`, then the page shows the name as text.
 
 ## Non-goals

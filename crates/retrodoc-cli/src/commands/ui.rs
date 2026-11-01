@@ -20,6 +20,9 @@ pub async fn run(path: &Path, bind: SocketAddr) -> anyhow::Result<()> {
     if generated.is_none() {
         tracing::warn!("no features found — run `retrodoc generate`, then restart `retrodoc ui`");
     }
+    if let Some(warning) = exposure_warning(bind) {
+        tracing::warn!("{warning}");
+    }
     let listener = tokio::net::TcpListener::bind(bind)
         .await
         .with_context(|| format!("could not listen on {bind}"))?;
@@ -28,4 +31,28 @@ pub async fn run(path: &Path, bind: SocketAddr) -> anyhow::Result<()> {
     retrodoc_web::serve(listener, generated)
         .await
         .context("the web server stopped")
+}
+
+/// What to tell the user when `bind` is reachable from other machines: the
+/// server has no authentication.
+fn exposure_warning(bind: SocketAddr) -> Option<String> {
+    (!bind.ip().is_loopback()).then(|| {
+        format!(
+            "{bind} is not a loopback address: the docs are reachable from other machines, with no authentication"
+        )
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // spec: WEB-14 (internal: listening on every interface in a test would expose the machine)
+    #[test]
+    fn a_bind_address_other_than_loopback_is_warned_of() {
+        assert!(exposure_warning("127.0.0.1:8730".parse().unwrap()).is_none());
+        assert!(exposure_warning("[::1]:8730".parse().unwrap()).is_none());
+        let warning = exposure_warning("0.0.0.0:8730".parse().unwrap()).unwrap();
+        assert!(warning.contains("other machines"), "{warning}");
+    }
 }

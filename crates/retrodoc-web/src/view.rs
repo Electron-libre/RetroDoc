@@ -1,20 +1,24 @@
-//! What the pages show, computed from the read model once per request: plain
-//! data the templates only lay out, so the rules of what a page shows are
-//! tested without HTML.
+//! What the pages show, computed from the read model: plain data the
+//! templates only lay out, so the rules of what a page shows are tested
+//! without HTML.
+
+use std::collections::BTreeSet;
 
 use retrodoc_core::model::{ConfidenceScore, LOW_CONFIDENCE_THRESHOLD};
-use retrodoc_mcp::freshness::FileState;
 use retrodoc_mcp::GeneratedDocs;
 
-/// The docs the interface serves, `None` before a first `generate`.
+/// The docs the interface serves, `None` before a first `generate`, and the
+/// tree every page shows, built once since the docs don't change.
 pub struct Site {
     docs: Option<GeneratedDocs>,
+    tree: Vec<TreeDomain>,
 }
 
 impl Site {
     #[must_use]
     pub fn new(docs: Option<GeneratedDocs>) -> Self {
-        Self { docs }
+        let tree = docs.as_ref().map(tree).unwrap_or_default();
+        Self { docs, tree }
     }
 
     #[must_use]
@@ -24,8 +28,8 @@ impl Site {
 
     /// The tree of every page: empty with no run.
     #[must_use]
-    pub fn tree(&self) -> Vec<TreeDomain> {
-        self.docs.as_ref().map(tree).unwrap_or_default()
+    pub fn tree(&self) -> &[TreeDomain] {
+        &self.tree
     }
 }
 
@@ -107,21 +111,22 @@ pub struct DomainRow {
     pub use_cases: usize,
 }
 
-/// Every domain of the run, in its order.
+/// Every domain of the run, in its order. Reads the files the features cite
+/// to tell whether they changed since the run.
 #[must_use]
 pub fn domain_rows(docs: &GeneratedDocs) -> Vec<DomainRow> {
     docs.domains()
         .iter()
         .map(|domain| {
             let features: Vec<_> = docs.features_of(&domain.slug).collect();
-            let stale = docs.freshness().is_some_and(|freshness| {
-                features.iter().flat_map(|f| &f.source_paths).any(|path| {
-                    matches!(
-                        freshness.state(path),
-                        FileState::Modified | FileState::Deleted
-                    )
-                })
-            });
+            let cited: BTreeSet<&str> = features
+                .iter()
+                .flat_map(|f| &f.source_paths)
+                .map(String::as_str)
+                .collect();
+            let stale = docs
+                .freshness()
+                .is_some_and(|freshness| !freshness.stale(cited).is_empty());
             DomainRow {
                 slug: domain.slug.clone(),
                 name: domain.name.clone(),

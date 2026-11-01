@@ -12,33 +12,45 @@ use crate::view::{domain_rows, DomainRow, Site, TreeDomain};
 
 #[derive(Template)]
 #[template(path = "home.html")]
-struct Home {
-    tree: Vec<TreeDomain>,
+struct Home<'a> {
+    tree: &'a [TreeDomain],
     domains: Vec<DomainRow>,
 }
 
 #[derive(Template)]
 #[template(path = "no_run.html")]
-struct NoRun {
-    tree: Vec<TreeDomain>,
+struct NoRun<'a> {
+    tree: &'a [TreeDomain],
 }
 
 #[derive(Template)]
 #[template(path = "not_found.html")]
-struct NotFound {
-    tree: Vec<TreeDomain>,
+struct NotFound<'a> {
+    tree: &'a [TreeDomain],
 }
 
 pub async fn home(State(site): State<Arc<Site>>) -> Response {
-    match site.docs() {
-        Some(docs) => render(
+    if site.docs().is_none() {
+        return render(StatusCode::OK, &NoRun { tree: site.tree() });
+    }
+    // The stale badges read the cited files: off the async workers.
+    let rows = {
+        let site = Arc::clone(&site);
+        tokio::task::spawn_blocking(move || site.docs().map(domain_rows).unwrap_or_default()).await
+    };
+    match rows {
+        Ok(domains) => render(
             StatusCode::OK,
             &Home {
                 tree: site.tree(),
-                domains: domain_rows(docs),
+                domains,
             },
         ),
-        None => render(StatusCode::OK, &NoRun { tree: Vec::new() }),
+        Err(err) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("could not read the docs: {err}"),
+        )
+            .into_response(),
     }
 }
 

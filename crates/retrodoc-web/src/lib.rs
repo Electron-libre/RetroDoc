@@ -11,8 +11,13 @@ mod assets;
 mod pages;
 pub mod view;
 
+use std::net::IpAddr;
 use std::sync::Arc;
 
+use axum::extract::Request;
+use axum::http::{header, StatusCode};
+use axum::middleware::{self, Next};
+use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::Router;
 use retrodoc_mcp::GeneratedDocs;
@@ -26,7 +31,31 @@ pub fn router(docs: Option<GeneratedDocs>) -> Router {
         .route("/", get(pages::home))
         .route("/assets/{name}", get(assets::serve))
         .fallback(pages::not_found)
+        .layer(middleware::from_fn(refuse_foreign_host))
         .with_state(Arc::new(Site::new(docs)))
+}
+
+/// Refuses a request whose `Host` is a name other than `localhost`: a page of
+/// another site that resolves its own name to this machine (DNS rebinding)
+/// would otherwise read the docs. An IP address can't be rebound.
+async fn refuse_foreign_host(request: Request, next: Next) -> Response {
+    let foreign = request
+        .headers()
+        .get(header::HOST)
+        .is_some_and(|host| !host.to_str().is_ok_and(trusted_host));
+    if foreign {
+        return (StatusCode::FORBIDDEN, "unexpected Host header").into_response();
+    }
+    next.run(request).await
+}
+
+/// `localhost` or an IP address, with or without a port.
+fn trusted_host(host: &str) -> bool {
+    let name = match host.strip_prefix('[') {
+        Some(rest) => rest.split(']').next().unwrap_or_default(),
+        None => host.rsplit_once(':').map_or(host, |(name, _)| name),
+    };
+    name.eq_ignore_ascii_case("localhost") || name.parse::<IpAddr>().is_ok()
 }
 
 /// Serves the interface on `listener` until the process stops.

@@ -12,7 +12,7 @@ retrodoc-core.workspace = true
 retrodoc-mcp.workspace = true
 askama.workspace = true
 axum.workspace = true
-tokio = { workspace = true, features = ["net"] }
+tokio = { workspace = true, features = ["net", "rt"] }
 
 [dev-dependencies]
 retrodoc-pipeline.workspace = true

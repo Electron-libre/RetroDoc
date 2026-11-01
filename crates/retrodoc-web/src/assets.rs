@@ -15,5 +15,13 @@ pub async fn serve(Path(name): Path<String>) -> Response {
         "style.css" => ("text/css; charset=utf-8", STYLE),
         _ => return StatusCode::NOT_FOUND.into_response(),
     };
-    ([(header::CONTENT_TYPE, content_type)], body).into_response()
+    // Embedded in the binary: they change only with it.
+    (
+        [
+            (header::CONTENT_TYPE, content_type),
+            (header::CACHE_CONTROL, "public, max-age=3600"),
+        ],
+        body,
+    )
+        .into_response()
 }
