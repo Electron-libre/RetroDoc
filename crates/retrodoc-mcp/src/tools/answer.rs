@@ -148,10 +148,10 @@ pub(super) fn truncate(text: &str, max: usize) -> String {
     format!("{cut}…")
 }
 
-/// The first line of `text`, trimmed and cut to `SNIPPET_CHARS` characters.
+/// The first line of `text` that is not blank, trimmed and cut to `SNIPPET_CHARS` characters.
 pub(super) fn snippet(text: &str) -> String {
     truncate(
-        text.lines().next().unwrap_or_default().trim(),
+        text.trim_start().lines().next().unwrap_or_default().trim(),
         SNIPPET_CHARS,
     )
 }

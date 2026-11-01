@@ -18,6 +18,7 @@ use std::path::{Component, Path, PathBuf};
 use retrodoc_core::model::{
     BusinessRule, ConfidenceScore, Domain, Feature, UseCase, LOW_CONFIDENCE_THRESHOLD,
 };
+use retrodoc_core::text::one_line;
 
 use crate::doc_links::DocLinks;
 use crate::rules::index_page;
@@ -239,11 +240,7 @@ fn score_line(label: &str, score: Option<&ConfidenceScore>) -> String {
     };
     let mut line = format!("**{label}:** {flag}{:.0}%", score.value * 100.0);
     if let Some(why) = score.rationale.as_deref().filter(|r| !r.trim().is_empty()) {
-        let _ = write!(
-            line,
-            " — {}",
-            why.split_whitespace().collect::<Vec<_>>().join(" ")
-        );
+        let _ = write!(line, " — {}", one_line(why));
     }
     line
 }

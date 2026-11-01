@@ -26,7 +26,7 @@ use crate::artifact::{load_yaml, save_yaml, Artifact};
 use crate::cache::hash_content;
 use crate::error::PipelineError;
 use crate::response::complete_json;
-use crate::text::{char_prefix, without_last_chars};
+use crate::text::{char_prefix, one_line, without_last_chars};
 pub use evidence::{Evidence, Extract, ExtractKind};
 use sample::{Sample, SAMPLE_BUDGET};
 
@@ -330,10 +330,7 @@ fn resolve_claim(raw: RawClaim, sample: &Sample, max_chars: usize) -> Option<Cla
         RawClaim::Text(text) => (text, Vec::new()),
         RawClaim::Full { text, signals } => (text, signals),
     };
-    let text = cut_at_word(
-        &text.split_whitespace().collect::<Vec<_>>().join(" "),
-        max_chars,
-    );
+    let text = cut_at_word(&one_line(&text), max_chars);
     if text.is_empty() {
         return None;
     }

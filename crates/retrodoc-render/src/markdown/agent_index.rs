@@ -21,7 +21,7 @@ pub(super) fn agent_index(domains: &[Domain], features: &[Feature], rule_count: 
         let _ = writeln!(
             md,
             "{indent}- [{}]({}) ({}): {}",
-            f.name,
+            one_line(&f.name),
             link(index, &feature_path(f)),
             score(f.confidence.as_ref()),
             one_line(&f.description)
@@ -50,7 +50,7 @@ pub(super) fn agent_index(domains: &[Domain], features: &[Feature], rule_count: 
         let _ = writeln!(
             md,
             "- [{}]({}) ({}): {}",
-            domain.name,
+            one_line(&domain.name),
             link(index, &domain_readme_path(&domain.slug)),
             score(domain.confidence.as_ref()),
             one_line(&domain.description)

@@ -2,6 +2,8 @@
 
 use std::fmt::Write as _;
 
+use retrodoc_core::text::one_line;
+
 use super::answer::{confidence_short, snippet};
 use super::Docs;
 
@@ -23,7 +25,7 @@ impl Docs {
                 out,
                 "- `{}` — {}: {} ({}, {count} feature(s))",
                 domain.slug,
-                domain.name,
+                one_line(&domain.name),
                 snippet(&domain.description),
                 confidence_short(domain.confidence.as_ref()),
             );

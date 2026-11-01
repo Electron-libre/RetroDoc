@@ -54,6 +54,11 @@ the prompt lines are internal and not in the prints, so no saved run is asked ag
    copy) and the render (the copies of `rules.rs` and `doc_links.rs` and the closure of `markdown/agent_index.rs`
    removed); the `one_line` of the MCP server, which keeps the first line cut to a snippet, renamed `snippet`;
    verified by a test of `one_line` in the core and the existing render and MCP tests.
+3. [x] Fixes of the `high` review: on one line too the entry points and their outputs of the use case prompt, the
+   actors and the entities of the actors prompt (and of the use case prompt, through `Actors::prompt_section`), the
+   names of the agent index and of the MCP lists; the inline copies of `one_line` (brief claims, confidence rationale
+   of the render, i18n values of the ingest) replaced by it; `snippet` skips leading blank lines; verified by one
+   test each of the actors prompt, the use case prompt (extended), the agent index and the MCP lists.
 
 ## Decisions
 - Mode: autonomous
@@ -93,6 +98,30 @@ closure of the agent index removed); the MCP helper that keeps the first line cu
 | code review | `low` |
 
 red: none (a move: the new core test passed on its first run, the render and MCP tests cover the uses).
+
+Code review: no findings
+
+Not verified: none. Decisions needed: none.
+
+## Summary of deliverable 3
+done: the fixes of the `high` review of the issue (deliverable 3 of the plan).
+
+| check | result |
+|---|---|
+| tests | `just check` green |
+| lint | clippy pedantic clean |
+| specs | n/a (no spec of the prompt lines nor of the list items) |
+| docs | `docs/crates/core-ingest.md`: every other crate shares `text.rs` |
+| code review | `high` on the issue, then `low` on this deliverable |
+
+red: none traced (no spec); before the code the use case prompt showed the forged headers `=== [F4]`, `[F5]`,
+`[F6]`, the actors prompt a forged `- Admin` line, the agent index a forged `- [Forged](x.md)` item and the MCP list
+of domains a forged item, with a description lost behind a leading blank line.
+
+High review: 9 findings. Fixed: the entry points of the use case prompt, the actors and entities of the actors
+prompt, the names of the MCP lists and of the agent index, the inline copies of `one_line`, the crate doc, the blank
+first line of `snippet`. Not fixed: `snippet` keeps its first line only (decision 2 a); the altitude finding asks for
+approach 3, set aside at validation (decision 1 a).
 
 Code review: no findings
 

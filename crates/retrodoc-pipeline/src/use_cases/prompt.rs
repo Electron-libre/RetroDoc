@@ -1,7 +1,7 @@
 use super::*;
 
 use crate::features::tag;
-use crate::text::{feature_line, names_line};
+use crate::text::{feature_line, names_line, one_line};
 
 /// Per-file truncation and overall budget of code sent for one feature
 /// (the risks of PRODUCT.md "cost/volume"); files beyond the budget are left out of the
@@ -129,15 +129,15 @@ pub(super) fn use_cases_prompt(
                 prompt,
                 "- {} {} [{}] ({}): {}",
                 tag(position),
-                entry.name,
+                one_line(&entry.name),
                 entry.kind.label(),
                 file.display(),
-                entry.description
+                one_line(&entry.description)
             );
             let outputs: Vec<String> = entry
                 .outputs
                 .iter()
-                .map(|o| format!("{:?} {}", o.kind, o.description))
+                .map(|o| format!("{:?} {}", o.kind, one_line(&o.description)))
                 .collect();
             if !outputs.is_empty() {
                 let _ = write!(prompt, " → outputs: {}", outputs.join("; "));

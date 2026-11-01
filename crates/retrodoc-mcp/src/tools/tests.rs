@@ -45,6 +45,42 @@ fn domains_are_listed_with_their_feature_counts() {
 }
 
 #[test]
+fn a_name_over_several_lines_forges_no_item_and_a_leading_blank_line_keeps_the_text() {
+    let mut paid = use_case("pay-by-card", "pay-invoice", "Pay\nby card", "Settled");
+    paid.description = "\nThe accountant settles it".into();
+    let docs = Docs::new(
+        vec![domain(
+            "billing",
+            "Billing\n- `forged` — Fake",
+            "\nInvoices and payments",
+        )],
+        vec![feature(
+            "pay-invoice",
+            "Pay an\ninvoice",
+            "\n\nSettle what is due",
+        )],
+        vec![paid],
+        &Glossary::default(),
+        &[],
+    );
+    let domains = docs.list_domains();
+    assert!(
+        domains.contains("- `billing` — Billing - `forged` — Fake: Invoices and payments ("),
+        "{domains}"
+    );
+    let domain = docs.get_domain("billing");
+    assert!(
+        domain.contains("— Pay an invoice: Settle what is due ("),
+        "{domain}"
+    );
+    let feature = docs.get_feature("billing/pay-invoice");
+    assert!(
+        feature.contains("— Pay by card: The accountant settles it ("),
+        "{feature}"
+    );
+}
+
+#[test]
 fn a_domain_lists_its_features_with_ids_to_follow() {
     let out = docs().get_domain("billing");
     assert!(out.starts_with("# Billing (`billing`)"));

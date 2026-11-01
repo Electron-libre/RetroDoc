@@ -4,6 +4,8 @@ use std::fmt::Write as _;
 
 use retrodoc_core::model::{BusinessRule, Feature};
 
+use retrodoc_core::text::one_line;
+
 use super::answer::{confidence_line, confidence_short, rule_item, snippet};
 use super::Docs;
 use crate::corpus::feature_id;
@@ -41,7 +43,7 @@ impl Docs {
                 out,
                 "- `{}` — {}: {} ({})",
                 feature_id(feature),
-                feature.name,
+                one_line(&feature.name),
                 snippet(&feature.description),
                 confidence_short(feature.confidence.as_ref()),
             );

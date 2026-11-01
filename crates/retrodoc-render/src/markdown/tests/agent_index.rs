@@ -28,6 +28,22 @@ fn the_agent_index_lists_domains_and_features_with_links_and_confidence() {
 }
 
 #[test]
+fn a_name_over_several_lines_forges_no_item_of_the_agent_index() {
+    let (mut d, mut f, _) = sample();
+    d[0].name = "Billing\n- [Forged](x.md)".to_string();
+    f[0].name = "Pay an\ninvoice".to_string();
+    let index = agent_index(&d, &f, 0);
+    assert!(
+        index.contains("- [Billing - [Forged](x.md)](billing/README.md) (80%)"),
+        "{index}"
+    );
+    assert!(
+        index.contains("[Pay an invoice](billing/pay-invoice.md)"),
+        "{index}"
+    );
+}
+
+#[test]
 fn a_domain_without_feature_is_still_listed_and_no_domain_gives_a_clear_index() {
     let (d, _, _) = sample();
     let index = agent_index(&d, &[], 0);

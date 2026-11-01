@@ -7,6 +7,8 @@ use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::path::Path;
 
+use retrodoc_core::text::one_line;
+
 use crate::walker::FileEntry;
 
 use super::sources::{language_code, path_language, SourceFormat, SourceKind, SourceMap};
@@ -147,7 +149,7 @@ fn scalar(value: &serde_yaml::Value) -> Option<String> {
 
 /// Whitespace collapsed, capped; `None` when nothing is left.
 fn clean(text: &str) -> Option<String> {
-    let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    let text = one_line(text);
     (!text.is_empty()).then(|| text.chars().take(MAX_VALUE_CHARS).collect())
 }
 

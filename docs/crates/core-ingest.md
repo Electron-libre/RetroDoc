@@ -4,7 +4,7 @@ Detail moved out of `CLAUDE.md`. Overview of all crates: `docs/ARCHITECTURE.md` 
 
 - **retrodoc-core**: shared domain model (`Domain`/`Feature`/`UseCase`/`Step`/`ConfidenceScore`/`BusinessRule` (ADR 0021, filled by the `rules` pass)
   in `model.rs`), `retrodoc.toml`
-  config (`config.rs`) and the text helpers the pipeline, the render and the MCP server share (`text.rs`: `one_line`,
+  config (`config.rs`) and the text helpers every other crate shares (`text.rs`: `one_line`,
   which keeps a name or a description from forging a line of a prompt or a list).
 - **retrodoc-ingest**: reads the target repo — file walker respecting `.gitignore` (`walker.rs`; classifies files as `Source`/`Test`/`Markdown`/`Other` —
   the built-in extensions and test conventions cover the reference set of `specs/language-agnostic.md`, the
