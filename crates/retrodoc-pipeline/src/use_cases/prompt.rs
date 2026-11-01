@@ -1,7 +1,7 @@
 use super::*;
 
 use crate::features::tag;
-use crate::text::feature_line;
+use crate::text::{feature_line, names_line};
 
 /// Per-file truncation and overall budget of code sent for one feature
 /// (the risks of PRODUCT.md "cost/volume"); files beyond the budget are left out of the
@@ -116,7 +116,7 @@ pub(super) fn use_cases_prompt(
         let _ = write!(
             prompt,
             "\nBusiness vocabulary (main entities): {}\n",
-            vocabulary.join(", ")
+            names_line(vocabulary)
         );
     }
     if !actors.is_empty() {

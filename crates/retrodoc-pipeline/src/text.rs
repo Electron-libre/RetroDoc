@@ -122,6 +122,15 @@ pub(crate) fn one_line(text: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
+/// `names` on one line, each on one line, separated by commas.
+pub(crate) fn names_line(names: &[String]) -> String {
+    names
+        .iter()
+        .map(|name| one_line(name))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 /// The line that shows `feature` in a prompt: its name and description, on one line.
 pub(crate) fn feature_line(feature: &Feature) -> String {
     format!(

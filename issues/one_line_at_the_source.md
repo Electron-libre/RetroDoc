@@ -35,3 +35,47 @@ Business rules quality
 # Hints
 * A change of the user prompt is not in the prints of the passes: no saved run is asked again, so a run saved
   before keeps its answers.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Put on one line the two names still written raw in a prompt (the entities of the statement prompt, the business
+vocabulary of the use case prompt), and keep one `one_line` for the workspace, in `retrodoc-core`. Out of scope:
+approach 3 (one line where the passes read an answer or an artifact): it changes the artifacts, needs the same on
+load, and the render keeps descriptions over several lines in the page bodies. No spec, as for the issue before it:
+the prompt lines are internal and not in the prints, so no saved run is asked again.
+
+## Plan
+1. [x] Entities and vocabulary on one line: `one_line` on each entity of `rules_prompt` and each word of
+   `use_cases_prompt`; verified by one test of each prompt with a name over several lines (no forged line).
+2. [ ] One `one_line` for the workspace: `retrodoc_core::text::one_line`, used by the pipeline (`text.rs` keeps no
+   copy) and the render (the copies of `rules.rs` and `doc_links.rs` and the closure of `markdown/agent_index.rs`
+   removed); the `one_line` of the MCP server, which keeps the first line cut to a snippet, renamed `snippet`;
+   verified by a test of `one_line` in the core and the existing render and MCP tests.
+
+## Decisions
+- Mode: autonomous
+- No approach 3 (one line at the source): the artifacts and the page bodies keep their text.
+- The `one_line` of the MCP server keeps its behaviour (first line, cut to a snippet), renamed `snippet`.
+- Base commit: 752b875696a5453601561283936948575f2c437b
+
+## Summary of deliverable 1
+done: `text::names_line` puts each name of a list on one line; the entities of the statement prompt and the business
+vocabulary of the use case prompt go through it.
+
+| check | result |
+|---|---|
+| tests | `just check` green |
+| lint | clippy pedantic clean |
+| specs | n/a (no spec of the prompt lines) |
+| docs | n/a (`docs/crates/pipeline.md` does not describe the prompt lines) |
+| code review | `low` |
+
+red: none traced (no spec); before the code the rules test stopped at `Entities: Order, Forged.` and the use case test
+at `Business vocabulary (main entities): Invoice, Payment`, the name cut over two lines.
+
+Code review: no findings
+
+Not verified: none. Decisions needed: none.
