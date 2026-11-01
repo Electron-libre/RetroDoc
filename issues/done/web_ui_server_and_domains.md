@@ -117,3 +117,5 @@ domain, feature and use case pages (next issue: the tree links answer 404 until 
     everywhere; to share when the feature pages add the rationale.
   - not fixed: `Docs::new` clones the glossary: only tests call it, `load` passes it by value.
 - Code review (low): no findings.
+
+Done: all four deliverables committed; nothing left in this issue.
