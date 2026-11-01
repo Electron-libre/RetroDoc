@@ -169,3 +169,9 @@ saved reconciliation judgements like `render` does (no LLM call) and hands them 
   coding now overrides `*`.
 - not verified: the pages in a browser.
 - decisions needed: none.
+
+## Check in a browser
+
+Headless Chrome (`chromedriver`) over `retrodoc ui` on a saved linkding run (`~/retrodoc-runs/search_relevance/ld`):
+the domain, feature and use case pages render with their sections, badges and rationales; the diagram folded under
+"Technical details" is not drawn at load and is drawn on opening (an SVG of 786x617), its source kept under it.
