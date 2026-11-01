@@ -4,6 +4,26 @@ The notable changes of each version, newest first ([Keep a Changelog](https://ke
 [Semantic Versioning](https://semver.org/)). Each section is written by `just release <version>` from the commits,
 then reread before the release is committed.
 
+## [0.4.0] - 2026-11-01
+
+### Milestones
+
+- Business rules quality
+
+### Added
+
+- replay the rules judgement on the rules a run stated
+- show the rules judgement what is not business
+- give the rules replay the put-backs of the source run
+- leave out of the search the entries sharing only common words
+
+### Fixed
+
+- give the rules replay the evidence generate gives
+- read only the [rules] of the source run for the put-backs
+- name the unknown words in the not-documented search answer
+- keep every name of the prompts and lists on one line
+
 ## [0.3.0] - 2026-10-30
 
 ### Milestones

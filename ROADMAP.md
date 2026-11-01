@@ -149,6 +149,7 @@ The milestones up to "A large application, one bounded context at a time" are th
   `generate` gives.
 - Why: the rules are usable but still carry noise (`docs/findings.md` §6, follow-up of step 6).
 - State: done
+- Released: v0.4.0
 - Issues:
   - [rules_deduplication_and_noise](issues/done/rules_deduplication_and_noise.md)
   - [rules_replay_without_evidence](issues/done/rules_replay_without_evidence.md)
