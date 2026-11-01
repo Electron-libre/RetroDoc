@@ -23,7 +23,7 @@ a:hover { text-decoration: underline; }
   padding: 0.6rem 1rem;
   border-bottom: 1px solid var(--border);
 }
-.brand { font-weight: 600; color: var(--fg); }
+.brand { font-weight: 600; color: var(--fg); margin-right: 1.5rem; }
 .layout { display: flex; min-height: calc(100vh - 3rem); }
 .tree {
   flex: 0 0 18rem;
@@ -68,3 +68,8 @@ table.code td.number { color: #888; text-align: right; user-select: none; width:
 table.code pre { margin: 0; white-space: pre-wrap; word-break: break-all; }
 table.code tr.cited { background: #fff3c4; }
 table.code tr:target { outline: 1px solid #c9a400; }
+
+/* The files page: the tree of the source files with their citations. */
+table.files { border-collapse: collapse; }
+table.files td { padding: 0.1rem 0.5rem; }
+table.files tr.dir td:first-child { font-weight: 600; }

@@ -35,6 +35,11 @@ impl Freshness {
         }
     }
 
+    /// The source files of the last complete `generate`, in path order.
+    pub fn recorded_paths(&self) -> impl Iterator<Item = &str> {
+        self.recorded.paths()
+    }
+
     #[must_use]
     pub fn state(&self, path: &str) -> FileState {
         let Some(recorded) = self.recorded.get(path) else {

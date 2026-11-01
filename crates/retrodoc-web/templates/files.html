@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Files{% endblock %}
+{% block content %}
+<h1>Files</h1>
+<p>{{ page.cited }}/{{ page.total }} files cited by the docs. <span class="muted">A file opens its code, with what cites it.</span></p>
+<table class="files">
+  {% for row in page.rows %}
+  {% if row.dir %}
+  <tr id="{{ row.path }}" class="dir"><td style="padding-left: {{ row.depth + 1 }}rem">{{ row.name }}</td><td class="count">{{ row.cited }}/{{ row.total }} cited</td></tr>
+  {% else %}
+  <tr id="{{ row.path }}"><td style="padding-left: {{ row.depth + 1 }}rem">{% if let Some(href) = row.href %}<a href="{{ href }}">{{ row.name }}</a></td><td class="count">cited by {{ row.citers }}</td>{% else %}{{ row.name }}</td><td class="count"><span class="badge low">not cited</span></td>{% endif %}</tr>
+  {% endif %}
+  {% endfor %}
+</table>
+{% endblock %}

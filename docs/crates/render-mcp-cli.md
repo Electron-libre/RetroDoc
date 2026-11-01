@@ -61,9 +61,13 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   `?lines=<start>[-<end>]` shows 10 lines around the cited ones and marks them (rows `id="L<n>"`); a path no doc cites,
   or not plain, is the 404 page with nothing read, any other refusal a page that says why; then the last 10 commits
   (`SourceAccess::commits`), the features, use cases and rules citing it, and the stale badge. The cited lines of the
-  steps, the source files of a feature and the code evidence of a rule link to it (`view::code_href`). Tests:
-  `tests/pages.rs` (home, tree, assets, `Host`), `tests/item_pages.rs` (the item pages) and `tests/code_page.rs` (the
-  page of a cited file, over a git repo) ask the router without a socket (`tower::ServiceExt::oneshot`) over artifacts
+  steps, the source files of a feature and the code evidence of a rule link to it (`view::code_href`). The files page,
+  `/files` (`files::files_page`, `files.html`, linked from the header of every page), lays out as a tree the paths of the
+  files `source-hashes.json` recorded (`Freshness::recorded_paths`) and of the cited ones: a directory with its files
+  cited out of its files, a file with the features, use cases and rules citing it and a link to its page, or `not cited`
+  and no link. Tests:
+  `tests/pages.rs` (home, tree, assets, `Host`), `tests/item_pages.rs` (the item pages), `tests/code_page.rs` (the
+  page of a cited file, over a git repo) and `tests/files_page.rs` ask the router without a socket (`tower::ServiceExt::oneshot`) over artifacts
   saved in a temp dir. To update `htmx`, replace `assets/htmx.min.js` and the version in `assets.rs`; to update `mermaid`, gzip
   (`gzip -9 -n`) the `dist/mermaid.min.js` of its npm package (checked against the package integrity) into
   `assets/mermaid-<version>.min.js.gz` and change `MERMAID` and the file name in `assets.rs`.

@@ -9,6 +9,7 @@
 
 mod assets;
 pub mod code;
+pub mod files;
 mod pages;
 pub mod view;
 
@@ -38,6 +39,7 @@ pub fn router(docs: Option<GeneratedDocs>, links: DocLinks) -> Router {
             "/domains/{domain}/{feature}/{use_case}",
             get(pages::use_case),
         )
+        .route("/files", get(pages::files))
         .route("/code/{*path}", get(pages::code))
         .route("/assets/{name}", get(assets::serve))
         .fallback(pages::not_found)

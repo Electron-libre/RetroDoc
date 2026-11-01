@@ -56,7 +56,7 @@ Means: `SourceAccess` returns structured windows, commits and refusals (the MCP 
    the existing `source.rs` and MCP tool tests unchanged; pure refactor (~250 lines).
 2. [x] Code page `/code/<path>` and the links to it; verified by router tests (cited file at its lines, uncited and
    `..` paths 404, symlink refused, history, stale, citing items); makes true WEB-26 to WEB-33 (~700 lines).
-3. [ ] Files page `/files` and the link of every page to it; verified by router tests (tree, `1/2` share, uncited
+3. [x] Files page `/files` and the link of every page to it; verified by router tests (tree, `1/2` share, uncited
    file flagged, unrecorded cited file listed); makes true WEB-34 to WEB-37, spec `accepted` (~450 lines).
 
 ## Decisions
@@ -83,3 +83,9 @@ Code review: 4 findings
 - `Docs::with_source_access` duplicates `GeneratedDocs::source_access`: not fixed, the MCP takes its root explicitly
   and `GeneratedDocs::new` has none.
 - `?lines=x&lines=5` takes the first pair only: not fixed, no range is the documented answer to a malformed one.
+
+## Deliverable 3
+done: `/files` (`files::files_page`, `files.html`) over `Freshness::recorded_paths` and the cited paths; a `Files` link
+in the header of every page; spec `accepted`.
+red: WEB-34, WEB-35, WEB-36, WEB-37: status 404 for `/files` (no route), no `<a href="/files">` on the home page.
+Code review: no findings

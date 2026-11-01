@@ -84,6 +84,11 @@ impl SourceHashes {
         self.files.get(path).map(String::as_str)
     }
 
+    /// The files hashed, in path order.
+    pub fn paths(&self) -> impl Iterator<Item = &str> {
+        self.files.keys().map(String::as_str)
+    }
+
     /// Sets the hash of `path`.
     pub fn put(&mut self, path: &str, hash: &str) {
         self.files.insert(path.to_string(), hash.to_string());

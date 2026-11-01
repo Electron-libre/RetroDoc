@@ -13,6 +13,7 @@ use retrodoc_render::{TECHNICAL_HEADING, TECHNICAL_NOTE};
 
 use crate::assets::MERMAID;
 use crate::code::{cited_range, code_page, CodePage};
+use crate::files::{files_page, FilesPage};
 use crate::view::{
     domain_page, domain_rows, feature_page, use_case_page, DomainPage, DomainRow, FeaturePage,
     Site, TreeDomain, UseCasePage,
@@ -56,6 +57,13 @@ struct UseCaseTemplate<'a> {
 struct CodeTemplate<'a> {
     tree: &'a [TreeDomain],
     page: CodePage,
+}
+
+#[derive(Template)]
+#[template(path = "files.html")]
+struct FilesTemplate<'a> {
+    tree: &'a [TreeDomain],
+    page: FilesPage,
 }
 
 #[derive(Template)]
@@ -170,6 +178,19 @@ pub async fn use_case(
         Ok(None) => not_found(State(site)).await,
         Err(err) => read_failed(&err),
     }
+}
+
+pub async fn files(State(site): State<Arc<Site>>) -> Response {
+    let Some(docs) = site.docs() else {
+        return render(StatusCode::OK, &NoRun { tree: site.tree() });
+    };
+    render(
+        StatusCode::OK,
+        &FilesTemplate {
+            tree: site.tree(),
+            page: files_page(docs),
+        },
+    )
 }
 
 pub async fn code(
