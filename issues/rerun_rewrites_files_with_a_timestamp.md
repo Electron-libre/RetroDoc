@@ -1,5 +1,6 @@
 ---
-rank: 1900
+priority: low
+depends_on: []
 why: 'priority low (user, 2026-10-16): the rerun of the same smoke writes 3 files for a `generated_at` stamp; cosmetic for the smoke criterion'
 ---
 # Stop an unchanged rerun from rewriting files that hold a timestamp

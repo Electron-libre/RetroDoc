@@ -1,6 +1,7 @@
 ---
-rank: 1600
-why: 'low (high review of `framework_fixtures_through_generate`, 2026-10-30): test hygiene like `openrouter_tests_shared_fixtures`, next to it; before `git_log_follow_renames`'
+priority: low
+depends_on: []
+why: 'test hygiene like `openrouter_tests_shared_fixtures` (high review of `framework_fixtures_through_generate`, 2026-10-30)'
 ---
 # Move the CLI tests onto the shared test support
 

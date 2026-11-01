@@ -1,6 +1,7 @@
 ---
-rank: 1800
-why: 'priority low; remeasure after the big changes'
+priority: low
+depends_on: []
+why: 'remeasure after the big changes'
 ---
 # Reduce the remaining smoke warnings: invented business paths, dropped source rules and use cases without steps
 

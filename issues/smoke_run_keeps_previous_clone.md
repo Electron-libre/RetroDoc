@@ -1,6 +1,7 @@
 ---
-rank: 1200
-why: 'low (code review of the ledger issue, 2026-10-27): the skill''s copy rule covers it until then; before `git_log_follow_renames`, it protects the saved runs the planned measures read'
+priority: medium
+depends_on: []
+why: 'protects the saved runs the planned measures read; the copy rule of the skill covers it until then (code review of the ledger issue, 2026-10-27)'
 ---
 # Keep a smoke run that a measure still reads
 

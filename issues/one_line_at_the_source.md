@@ -1,6 +1,7 @@
 ---
-rank: 1050
-why: 'low (high review of `rules_judge_prompt_feature_on_one_line`, 2026-10-31): robustness, not seen on a run; after the search threshold, before the print of the prompts, which it may change'
+priority: medium
+depends_on: []
+why: 'the last open issue of the milestone `Business rules quality`, which can''t close without it; robustness, not seen on a run (high review of `rules_judge_prompt_feature_on_one_line`, 2026-10-31)'
 ---
 # Keep every name of a prompt or a list on one line, once
 
