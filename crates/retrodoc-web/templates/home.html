@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Domains{% endblock %}
+{% block content %}
+<h1>Domains</h1>
+{% if domains.is_empty() %}
+<p>The last run generated no domain.</p>
+{% else %}
+<table class="domains">
+  <thead>
+    <tr><th>Domain</th><th>Description</th><th>Confidence</th><th>Features</th><th>Use cases</th></tr>
+  </thead>
+  <tbody>
+    {% for domain in domains %}
+    <tr id="domain-{{ domain.slug }}">
+      <td><a href="/domains/{{ domain.slug }}">{{ domain.name }}</a>{% if domain.stale %} <span class="badge stale" title="A file it cites changed since the run">stale</span>{% endif %}</td>
+      <td>{{ domain.description }}</td>
+      <td><span class="badge{% if domain.confidence.low %} low{% endif %}">{{ domain.confidence.label }}</span></td>
+      <td class="count">{{ domain.features }}</td>
+      <td class="count">{{ domain.use_cases }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

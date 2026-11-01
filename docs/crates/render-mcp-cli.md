@@ -1,4 +1,4 @@
-# Crates: render, mcp and cli
+# Crates: render, mcp, web and cli
 
 Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and §9.
 
@@ -28,6 +28,16 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   cite, never an absolute path, a `..`, a path that is or goes through a symlink (even inside the repo), a binary or a
   file over 1 MiB; a line over 400 characters is cut. `git_log` leaves merge commits out. The two tools run in
   `spawn_blocking`.
+- **retrodoc-web** (`lib.rs` the router and `serve`, `view.rs` what the pages show as plain data, `pages.rs` the
+  handlers and their `askama` templates under `templates/`, `assets.rs` the vendored `htmx` and the stylesheet of
+  `assets/`, embedded with `include_str!` and served under `/assets/`): the local web interface of ADR 0039
+  (`specs/web-ui.md`). The docs are loaded once into `GeneratedDocs` (`None` before a first `generate`: the home page
+  says to run it); every page shares the layout of `base.html` (the tree of domains, features and use cases, linked to
+  `/domains/{domain}[/{feature}[/{use_case}]]`); the home page lists the domains with their confidence (flagged low
+  under `LOW_CONFIDENCE_THRESHOLD`), a stale badge when a file their features cite changed since the run
+  (`Freshness`), and their counts of features and use cases. The templates escape every text of the docs (LLM
+  output). Tests: `tests/pages.rs` asks the router without a socket (`tower::ServiceExt::oneshot`) over artifacts
+  saved in a temp dir. To update `htmx`, replace `assets/htmx.min.js` and the version in `assets.rs`.
 - **retrodoc-cli**: `clap` subcommands (`init`, `scan`, `generate`, `render`, `report`, `roles`, `brief`, `glossary`,
   `entry-points`, `business-read`, `actors`, `surface`, `benchmark`, `benchmark-table`, `search`, `mcp`). `generate` runs the whole pipeline then writes the docs (`--dry-run` previews, `--force`
   ignores caches, `--no-confidence` / `--confidence-sample N` / `--max-files N` bound the cost, see the pipeline bullet); `render` writes/previews the docs from the cached artifacts (no LLM call); `report` prints

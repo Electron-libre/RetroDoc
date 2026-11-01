@@ -62,7 +62,7 @@ domain, feature and use case pages (next issue: the tree links answer 404 until 
 1. [x] Read model: a typed `GeneratedDocs` in `retrodoc-mcp` (domains, features, use cases, rules, glossary,
    freshness, search index; `load` and accessors, no HTTP), `Docs` built on it; verified by the MCP tests unchanged
    (pure refactor, ~300 lines).
-2. [ ] `retrodoc-web` crate: router, base layout with the tree, home, not-found and no-run pages, assets under
+2. [x] `retrodoc-web` crate: router, base layout with the tree, home, not-found and no-run pages, assets under
    `/assets/`; verified by router tests (`oneshot`) over the MCP fixtures; makes true WEB-4 to WEB-12 (~700 lines,
    htmx vendored minified).
 3. [ ] `retrodoc ui --path [--bind]` subcommand, `web` commit scope, docs (CLAUDE.md and ARCHITECTURE.md graphs,
@@ -83,3 +83,11 @@ domain, feature and use case pages (next issue: the tree links answer 404 until 
   `features_mut`).
 - Code review: 1 findings: `features_of` / `use_cases_of` unused while the tools repeated the filters; fixed, the
   tools call them.
+
+## Deliverable 2 summary
+- done: crate `retrodoc-web` (router, `view.rs`, base layout with the tree, home, not-found and no-run pages,
+  `htmx` 2.0.11 and the stylesheet embedded under `/assets/`), `web` commit scope, crate docs and graphs.
+- red: WEB-4, WEB-5, WEB-6, WEB-7, WEB-8, WEB-9, WEB-10, WEB-11: the empty router answered 404 with no body
+  (`assertion left == right failed: left: 404, right: 200`); WEB-12 passed on the empty router already.
+- Escaping: askama writes numeric entities (`&#60;`), the WEB-10 test checks that form.
+- Code review: no findings.

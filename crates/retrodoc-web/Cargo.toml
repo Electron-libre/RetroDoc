@@ -1,0 +1,20 @@
+[package]
+name = "retrodoc-web"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+retrodoc-core.workspace = true
+retrodoc-mcp.workspace = true
+askama.workspace = true
+axum.workspace = true
+tokio = { workspace = true, features = ["net"] }
+
+[dev-dependencies]
+retrodoc-pipeline.workspace = true
+tempfile = "3"
+tower = { version = "0.5", features = ["util"] }

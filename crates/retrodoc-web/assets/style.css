@@ -1,0 +1,53 @@
+/* The stylesheet of the RetroDoc web interface. */
+:root {
+  --fg: #1f2328;
+  --muted: #656d76;
+  --border: #d0d7de;
+  --bg-side: #f6f8fa;
+  --link: #0969da;
+  --low: #9a6700;
+  --low-bg: #fff8c5;
+  --stale: #bc4c00;
+  --stale-bg: #fff1e5;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--fg);
+  line-height: 1.5;
+}
+a { color: var(--link); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.top {
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.brand { font-weight: 600; color: var(--fg); }
+.layout { display: flex; min-height: calc(100vh - 3rem); }
+.tree {
+  flex: 0 0 18rem;
+  padding: 1rem;
+  background: var(--bg-side);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  font-size: 0.9rem;
+}
+.tree ul { list-style: none; margin: 0; padding-left: 0.9rem; }
+.tree > ul { padding-left: 0; }
+.tree summary { cursor: pointer; }
+main { flex: 1; padding: 1rem 2rem; min-width: 0; }
+.muted { color: var(--muted); }
+table { border-collapse: collapse; width: 100%; }
+th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+td.count { text-align: right; }
+.badge {
+  display: inline-block;
+  padding: 0 0.4rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--border);
+  font-size: 0.8rem;
+}
+.badge.low { color: var(--low); background: var(--low-bg); border-color: var(--low); }
+.badge.stale { color: var(--stale); background: var(--stale-bg); border-color: var(--stale); }
+code { background: var(--bg-side); padding: 0 0.25rem; border-radius: 0.2rem; }

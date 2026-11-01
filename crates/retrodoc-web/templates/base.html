@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{% endblock %} · RetroDoc</title>
+  <link rel="stylesheet" href="/assets/style.css">
+  <script src="/assets/htmx.min.js" defer></script>
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="/">RetroDoc</a>
+  </header>
+  <div class="layout">
+    <nav class="tree" aria-label="Domains, features and use cases">
+      {% if tree.is_empty() %}
+      <p class="muted">No domain yet.</p>
+      {% else %}
+      <ul>
+        {% for domain in tree %}
+        <li>
+          <details>
+            <summary><a href="/domains/{{ domain.slug }}">{{ domain.name }}</a></summary>
+            <ul>
+              {% for feature in domain.features %}
+              <li>
+                <a href="/domains/{{ domain.slug }}/{{ feature.slug }}">{{ feature.name }}</a>
+                {% if !feature.use_cases.is_empty() %}
+                <ul>
+                  {% for use_case in feature.use_cases %}
+                  <li><a href="/domains/{{ domain.slug }}/{{ feature.slug }}/{{ use_case.slug }}">{{ use_case.name }}</a></li>
+                  {% endfor %}
+                </ul>
+                {% endif %}
+              </li>
+              {% endfor %}
+            </ul>
+          </details>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </nav>
+    <main>
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</body>
+</html>

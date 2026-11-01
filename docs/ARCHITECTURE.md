@@ -22,14 +22,15 @@ flowchart LR
 
 ## 2. The crates
 
-Seven crates; dependencies only point downwards (no cycles).
+Eight crates; dependencies only point downwards (no cycles).
 
 ```mermaid
 flowchart TD
     cli["<b>retrodoc-cli</b><br/>commands (clap)"]
     pipe["<b>retrodoc-pipeline</b><br/>LLM passes, caches, report"]
     render["<b>retrodoc-render</b><br/>Markdown/Mermaid files,<br/>diff, idempotent write"]
-    mcp["<b>retrodoc-mcp</b><br/>MCP server + lexical search<br/>over the generated docs"]
+    mcp["<b>retrodoc-mcp</b><br/>read model, MCP server +<br/>lexical search over the generated docs"]
+    web["<b>retrodoc-web</b><br/>local web interface<br/>over the generated docs"]
     ingest["<b>retrodoc-ingest</b><br/>walker, git history,<br/>existing docs"]
     llm["<b>retrodoc-llm</b><br/>LlmProvider trait +<br/>OpenRouter client"]
     core["<b>retrodoc-core</b><br/>domain model + config"]
@@ -39,6 +40,8 @@ flowchart TD
     cli --> ingest
     cli --> llm
     cli --> mcp
+    web --> mcp
+    web --> core
     mcp --> pipe
     mcp --> ingest
     mcp --> core
@@ -57,7 +60,8 @@ flowchart TD
 | `retrodoc-llm` | Talks to the model. `LlmProvider` is a trait; the implementation is `OpenRouterProvider`, for `openrouter` and `deepseek` (HTTP, retry with backoff on 429/5xx). `UsageProvider` wraps it to count calls and tokens per pass. |
 | `retrodoc-pipeline` | The brain: one module per pass, plus caches, fingerprints and the debt report. |
 | `retrodoc-render` | Turns the result into Markdown files, compares with disk, writes only what changed. |
-| `retrodoc-mcp` | Read-only access to the generated docs for LLM agents, without any LLM call. The BM25 search behind `retrodoc search` and the MCP server (`retrodoc mcp`, `rmcp`, stdio) with its seven read-only tools. |
+| `retrodoc-mcp` | Read-only access to the generated docs, without any LLM call: the typed read model `GeneratedDocs`, the BM25 search behind `retrodoc search` and the MCP server for LLM agents (`retrodoc mcp`, `rmcp`, stdio) with its seven read-only tools. |
+| `retrodoc-web` | The local web interface over the generated docs: HTML pages rendered on the server (`axum`, `askama`, vendored `htmx`) from the read model of `retrodoc-mcp`, no LLM call, nothing written ([ADR 0039](adr/0039-a-server-rendered-web-interface-over-the-generated-docs.md)). |
 | `retrodoc-cli` | The `retrodoc` binary: parses arguments and wires the crates together. |
 
 ## 3. The commands

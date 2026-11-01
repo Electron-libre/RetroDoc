@@ -41,7 +41,7 @@ re-ranked (the `rank` of each issue file), update its planned measures (skills `
 
 ## Architecture
 
-Cargo workspace, seven crates under `crates/`, dependency direction flows one way (no cycles):
+Cargo workspace, eight crates under `crates/`, dependency direction flows one way (no cycles):
 
 ```
 retrodoc-cli ──> retrodoc-pipeline ──> retrodoc-ingest ──> retrodoc-core
@@ -49,6 +49,7 @@ retrodoc-cli ──> retrodoc-pipeline ──> retrodoc-ingest ──> retrodoc-
              ──> retrodoc-ingest
 retrodoc-cli ──> retrodoc-render ──> retrodoc-core
 retrodoc-cli ──> retrodoc-mcp ──> retrodoc-pipeline, retrodoc-ingest, retrodoc-core
+retrodoc-web ──> retrodoc-mcp, retrodoc-core
 ```
 
 Per-crate detail (modules, passes, behaviours that span passes) lives in `docs/crates/`; read the file
@@ -63,7 +64,10 @@ of the crate you are about to touch. High-level view: `docs/ARCHITECTURE.md`. De
   the reference), plus incremental re-run, model per pass, resume, cost control, token accounting.
   → `docs/crates/pipeline.md`
 - **retrodoc-render**: writes the Markdown/Mermaid docs, deterministic and idempotent. → `docs/crates/render-mcp-cli.md`
-- **retrodoc-mcp**: read-only, LLM-free MCP server over the generated docs. → `docs/crates/render-mcp-cli.md`
+- **retrodoc-mcp**: the typed read model of the generated docs and the read-only, LLM-free MCP server over it.
+  → `docs/crates/render-mcp-cli.md`
+- **retrodoc-web**: local web interface, HTML rendered on the server from the read model (ADR 0039).
+  → `docs/crates/render-mcp-cli.md`
 - **retrodoc-cli**: `clap` subcommands (`init`, `scan`, `generate`, `render`, `report`, `roles`, `brief`, `glossary`,
   `entry-points`, `business-read`, `business-files`, `contexts`, `actors`, `surface`, `benchmark`, `benchmark-table`, `search`,
   `mcp`); logs go to stdout (stderr for `mcp`). → `docs/crates/render-mcp-cli.md`

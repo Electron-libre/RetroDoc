@@ -8,6 +8,7 @@ members = [
     "crates/retrodoc-mcp",
     "crates/retrodoc-pipeline",
     "crates/retrodoc-render",
+    "crates/retrodoc-web",
 ]
 
 [workspace.package]
@@ -54,6 +55,8 @@ serde_yaml = "0.9"
 similar = "2"
 rmcp = { version = "3", default-features = false, features = ["server", "macros", "transport-io"] }
 schemars = "1"
+axum = { version = "0.8", default-features = false, features = ["http1", "tokio"] }
+askama = "0.16"
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 
 retrodoc-core = { path = "crates/retrodoc-core" }
@@ -62,6 +65,7 @@ retrodoc-llm = { path = "crates/retrodoc-llm" }
 retrodoc-mcp = { path = "crates/retrodoc-mcp" }
 retrodoc-pipeline = { path = "crates/retrodoc-pipeline" }
 retrodoc-render = { path = "crates/retrodoc-render" }
+retrodoc-web = { path = "crates/retrodoc-web" }
 
 [workspace.lints.clippy]
 pedantic = { level = "warn", priority = -1 }
