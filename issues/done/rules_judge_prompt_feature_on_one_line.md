@@ -90,7 +90,7 @@ Findings of the `high` review not fixed here:
 - Saved runs are not asked again (the prints hash the raw fields): as the Approach chose, no forging was seen on
   a run and re-asking every feature would cost a paid run.
 - The entities and vocabulary lists, and the render and MCP copies of `one_line`, are left to
-  `issues/one_line_at_the_source.md`.
+  `issues/done/one_line_at_the_source.md`.
 
 ## Decisions
 - Mode: autonomous

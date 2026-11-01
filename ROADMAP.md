@@ -148,14 +148,14 @@ The milestones up to "A large application, one bounded context at a time" are th
 - Goal: rules without duplicates, plumbing or screen behaviour, measured on a replay that gets the evidence
   `generate` gives.
 - Why: the rules are usable but still carry noise (`docs/findings.md` §6, follow-up of step 6).
-- State: in issues
+- State: done
 - Issues:
   - [rules_deduplication_and_noise](issues/done/rules_deduplication_and_noise.md)
   - [rules_replay_without_evidence](issues/done/rules_replay_without_evidence.md)
   - [rules_plumbing_and_screen_noise](issues/done/rules_plumbing_and_screen_noise.md)
   - [rules_replay_without_put_back](issues/done/rules_replay_without_put_back.md)
   - [rules_judge_prompt_feature_on_one_line](issues/done/rules_judge_prompt_feature_on_one_line.md)
-  - [one_line_at_the_source](issues/one_line_at_the_source.md)
+  - [one_line_at_the_source](issues/done/one_line_at_the_source.md)
 
 ## Pre-run cost estimate
 
