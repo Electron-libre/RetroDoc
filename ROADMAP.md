@@ -171,4 +171,4 @@ The milestones up to "A large application, one bounded context at a time" are th
 - Why: the MCP server serves an external agent; a user without one has no way to question the docs.
 - State: in issues
 - Issues:
-  - [search_relevance_threshold](issues/search_relevance_threshold.md)
+  - [search_relevance_threshold](issues/done/search_relevance_threshold.md)

@@ -332,7 +332,7 @@ Steps, each shippable:
    hand-written BM25; the glossary is indexed too); checked on the `delivery_router` smoke repo: right use case found, but no synonym matching and no relevance threshold (an undocumented topic still returns entries sharing a common word).
    The MCP server (`retrodoc mcp`, seven tools, answers in Markdown with confidence and cited files) is also
    **implemented**; its stop-word and half-of-the-words filter does not fix that case with two-word queries.
-   Fixed (2026-10-31, `issues/search_relevance_threshold.md`, `specs/docs-search.md`): a hit must hold more than half
+   Fixed (2026-10-31, `issues/done/search_relevance_threshold.md`, `specs/docs-search.md`): a hit must hold more than half
    of the query's IDF weight. On 42 hand-written questions over three saved runs, no floor on the score separated
    documented from undocumented topics; this one keeps 19 of 21 documented (the two lost use a word the docs don't
    have: no synonyms) and answers "not documented" to 17 of 21 undocumented.
@@ -346,7 +346,7 @@ Steps, each shippable:
 Followed since 2026-10-30 by `issues/done/roles_second_pass_and_promoted_sources.md` (the source extensions below and the
 unclassified files of §2 step 1), `issues/done/actors_read_long_authorization_files.md` (truncation),
 `issues/done/narrative_checked_against_cited_code.md` (§2 step 4d) and
-`issues/search_relevance_threshold.md` (§4 step 1). Dropped: the labels of the view templates (below,
+`issues/done/search_relevance_threshold.md` (§4 step 1). Dropped: the labels of the view templates (below,
 `issues/done/view_template_labels.md`), the server-dependent causes of empty answers (not
 fixable in the code), the damping of base classes in the file ranking (§3 direction 1; the budget is opt-in and the
 contexts path bounds a large run), the verbs and the docs and commits as glossary sources (§2 step 2; the evidence
