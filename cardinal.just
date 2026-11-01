@@ -21,17 +21,20 @@ check-commits base head:
 close-issue issue:
     cardinal run close-issue {{issue}}
 
-# Which issue to work on next (the open issue of lowest rank that no branch or worktree has taken), and the issues without a rank; `--convert` turns a format 4 issues/queue.md into ranks.
+# Which issue to work on next (the first ready issue no branch or worktree has taken), the blocked ones and the problems of
+# the priorities and dependencies.
 next-issue *args:
     cardinal run next-issue {{args}}
 
-# Give an issue its own worktree `.claude/worktrees/<stem>` and branch `<stem>`, so two agents can work in parallel.
-start-issue issue:
-    cardinal run issue-worktree start {{issue}}
+# Open a worktree `../<repo>-<name>` (or `--path <dir>`) on a new branch `<name>` (or `--branch <branch>`) cut from the main branch, for an agent to work issues in parallel.
+[no-cd]
+open-worktree name *flags:
+    cardinal run worktree open {{name}} {{flags}}
 
-# Remove the worktree and the branch of an issue once its branch is merged into the main branch (rebase and one-commit squash included); `--force` for a squash of several commits, only after the user agreed.
-finish-issue stem *flags:
-    cardinal run issue-worktree finish {{stem}} {{flags}}
+# Remove a worktree (`<name>` for `../<repo>-<name>`, a path, or a branch) and its branch once merged into the main branch (fast-forward, rebase or squash); `--force` also drops work not on the main branch, only after the user agreed.
+[no-cd]
+close-worktree target *flags:
+    cardinal run worktree close {{target}} {{flags}}
 
 # Prepare a release: no argument prints the proposed version; `<version>` writes its CHANGELOG.md section to reread and commit; `<version> --tag` then creates the local tag (never pushed).
 release *args:

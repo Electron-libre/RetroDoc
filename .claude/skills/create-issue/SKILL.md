@@ -17,6 +17,11 @@ This skill writes it; `cardinal run check-issue` (`just check-issue`) enforces t
 3. **Write the file** in English, with this template:
 
    ```markdown
+   ---
+   priority: <high | medium | low>
+   depends_on: [<stem of an issue it needs>, ...]
+   why: '<why this priority>'
+   ---
    # <Title: what to achieve, imperative>
 
    # Goal
@@ -55,33 +60,25 @@ This skill writes it; `cardinal run check-issue` (`just check-issue`) enforces t
    just check-issue issues/<name>.md
    ```
 
-5. **Rank**: a new issue has a priority, so rank it. Run `just next-issue` (the open issues, lowest rank first),
-   read the issues around the candidate places, then open the file with a front matter
-
-   ```markdown
-   ---
-   rank: <n>
-   why: '<why here>'
-   ---
-   ```
-
-   at the place that value and dependencies justify (not by reflex at the end; the "why" names what it comes
-   after or unblocks): `<n>` halfway between the ranks of its neighbours (`rank` of the files, gaps of 100), never
-   editing another issue to make room (the `why` in single quotes, a `'` inside doubled); a tie with a neighbour is reported by `just next-issue` and settled by
-   `skill:prioritize-issues`. Say the rank and the
-   reason to the user, who can move it. If the new issue changes the case for others, say so and suggest
-   `skill:prioritize-issues` rather than silently reshuffling. Run `just next-issue` and check it lists the issue
-   at its place and reports no issue without a rank. Then attach it to a milestone of the `roadmap` documents of `.claude/cardinal.toml`: add its link
+5. **Prioritize**: a new issue has a priority and maybe dependencies, written in its front matter at step 3
+   (ADR 0021; omit `depends_on` when it needs no other issue; the `why` in single quotes, a `'` inside doubled).
+   Run `just next-issue` and read the open issues of its milestone: `depends_on` names the open or closed issues
+   it cannot start before (not a measure or a condition, which the `why` states); `priority` is `high` for what its
+   milestone cannot do without, `low` for a comfort, `medium` otherwise, never `high` by reflex. Never edit another
+   issue: when the new issue changes the case for others (one of them should now depend on it), say so and suggest
+   `skill:prioritize-issues`. Say the priority, the dependencies and the reason to the user, who can change them.
+   Then attach it to a milestone of the `roadmap` documents of `.claude/cardinal.toml`: add its link
    (relative to the roadmap file) under that milestone's issues, set a `shaped` milestone `in issues`, name it in
-   the `# Milestone` section of the issue and run `just check-issue` again; or tell the user it has none. An `idea`
+   the `# Milestone` section of the issue (the section `next-issue` orders it by); or tell the user it has none. An `idea`
    or `done` milestone takes an issue only on the user's agreement. Never create or reorder a milestone unasked: the
-   milestones, their order and their states are the user's.
+   milestones, their order and their states are the user's. Run `just check-issue` again and `just next-issue`,
+   and check it lists the issue at its place with no problem reported.
 6. **Commit**: commit the issue files alone (the new issue files and the roadmap file step 5 edited), added then named on
    the commit line (`git add <files>`, then `git commit -m <msg> -- <files>`), with
    `skill:commit-message`; other modified or staged files stay out of the commit. Two exceptions: an issue
    written inside another deliverable (a review finding) is committed with that deliverable, not on its own;
    when the roadmap file already held changes that are not this skill's, ask before committing.
-7. **Deliver**: give the path, rank, milestone, commit hash (if step 6 committed) and one line (no other recap), and
+7. **Deliver**: give the path, priority, dependencies, milestone, commit hash (if step 6 committed) and one line (no other recap), and
    offer to start `skill:issue-workflow` on it.
 
 ## Cut a shaped milestone into issues

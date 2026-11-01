@@ -10,10 +10,12 @@ The only ones the user can lift are those of step 3.6 and 3.8, through the Auton
 
 ## 0. Resume or start
 
-**Work where the session was started**: the main worktree, or the issue worktree the user opened for parallel work.
-Never create, enter or leave a worktree yourself (no `just start-issue`, no `EnterWorktree`). In a linked worktree,
-never redirect to the main one (`git -C`, its paths). Stop and ask the user when the issue is taken elsewhere: in the
-main worktree, a branch `<stem>` exists; in a linked one, its branch is not `<stem>`. Details: [details.md](details.md).
+**Work where the session was started**: the main worktree, or a worktree the user opened on the branch they picked.
+Never create, enter or leave a worktree yourself (no `just open-worktree`, no `EnterWorktree`). In a linked worktree,
+never redirect to the main one (`git -C`, its paths). **Claim the issue first**: `cardinal run issue-claim
+issues/<name>.md`; when it refuses (another session's claim, uncommitted changes), or the worktree lock refuses your
+commands (another session works in this worktree), stop and tell the user what it names. In the main worktree, also
+stop when a branch `<stem>` exists (an issue worktree of the former `start-issue`). Details: [details.md](details.md).
 
 Read the issue file. No `# Tracking` section: start at step 1. If `# Tracking` says `Plan: proposed`, the plan was never
 validated: redo the stop of step 2. Otherwise (`Plan: validated`, or no marker: planned before it existed) show where it stands in two `next` / `left` lines (the next unchecked
@@ -152,16 +154,16 @@ then consult once more to reconcile. The advisor never replaces a review or a st
 
 ## Merge back
 
-In the main worktree, the issue is closed as the Rules below say (`just close-issue`). In a linked worktree the issue is closed at the merge, which is
-the user's: on their agreement to close, follow [details.md](details.md), "Merge back" (rebase, then stop and print
-the commands left to the user).
+On the trunk (the branch of the main worktree), the issue is closed as the Rules below say (`just close-issue`). On
+another branch the merge is the host's: on the user's agreement to close, follow [details.md](details.md), "Merge
+back" (close on the branch, push it, open or update its pull request).
 
 ## Rules
 
 - After a `cardinal sync` that adds a hook, run `just check-cardinal` at once and the `cargo install` it prints: the
   live hooks call the installed `cardinal`, and one it refuses blocks every command, the install included.
 - When the issue is fully done, mark it in the issue and say what, if anything, remains. Then **ask the
-  user whether to close it** (in a linked worktree, see "Merge back"); on their agreement run `just close-issue issues/<name>.md` (moves it to
+  user whether to close it** (on a branch other than the trunk, see "Merge back"); on their agreement run `just close-issue issues/<name>.md` (moves it to
   `issues/done/` and rewrites `issues/<name>.md` to
   `issues/done/<name>.md` in every other document that cites it, relative Markdown links included) and include the
   move and those edits in the final commit. Never move it unasked. When it was the last open issue of its milestone
@@ -169,7 +171,8 @@ the commands left to the user).
   release to the user (`just release` prints the version it would number): theirs to trigger.
   The report of the close ends on a Markdown link to the next issue `close-issue` printed
   (`[<title>](issues/<stem>.md)`), or on its line saying there is none.
-- To know which issue comes next, run `just next-issue` (the open issue of lowest `rank` that no branch or
-  worktree has taken) instead of reading the issue files. An issue is taken when a branch named after its stem
-  exists or a worktree has it checked out; never start a taken one, `Every open issue is taken.` means
-  there is nothing to start. Reordering the issues is the user's call (`skill:prioritize-issues`).
+- To know which issue comes next, run `just next-issue` (the first ready issue, its `depends_on` all done, that
+  no claim, branch or worktree has taken) instead of reading the issue files. An issue is taken when a session claimed
+  it, a branch named after its stem exists or a worktree has it checked out, and stays so while its close waits for a
+  merge (`Merge pending:`); never start a taken or a `Blocked:` one, `Every open issue is taken.`
+  or `No ready issue` means there is nothing to start. Reordering the issues is the user's call (`skill:prioritize-issues`).

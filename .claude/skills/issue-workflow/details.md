@@ -15,42 +15,46 @@ An issue over the size limit of step 1 is cut where its parts can be delivered a
 the tools moved to it, then the cleanup), each under the limit. The cuts are proposed to the user before any file
 is written. The first cut keeps the original file (at creation, the name of the whole): its Goal, Approach and plan
 are narrowed to it, its Findings stay. Each other cut is a new issue written with steps 1 to 4 of
-`skill:create-issue` (not its rank, commit and deliver steps), citing the first in `# Findings` and the issue it needs in
-`# Hints` (`after <stem>`); its `rank` comes right after the one it needs. A split at step 2 takes the
+`skill:create-issue` (not its commit and deliver steps), citing the first in `# Findings`, with the priority of the
+first and the cut it needs in `depends_on`; an open issue that depended on the first names the cut it needs. A split at step 2 takes the
 deliverables of the other cuts out of the plan, and the new plan is validated again. In a linked worktree, write
-no cut: stop and leave the split to the user in the main worktree, where `start-issue` and `next-issue` see it.
+no cut: stop and leave the split to the user in the main worktree, where `next-issue` sees it.
 
-## Worktree of an issue
+## Worktree
 
-An issue usually runs in the main worktree. For parallel work the user opens one, from the main
-worktree: commit the issue with its rank (`start-issue` refuses an issue not committed on the main branch),
-`just start-issue issues/<name>.md` (creates `.claude/worktrees/<name>` on a branch `<name>` and adds
-`/.claude/worktrees/` to `.git/info/exclude`), then a plain `claude` launched in that directory. Not `claude
---worktree`, nor `EnterWorktree` from another session: Claude Code then isolates the session and refuses every
-command it cannot prove stays in the worktree. While the branch or worktree exists, `just next-issue` skips the issue.
-The hooks act on the work tree of their `cwd` (`lint-gate`, `review-gate`; `format-code` formats the project of the
-edited file); `cardinal run` finds the `cardinal.toml` of the worktree and runs the tools of the revision it pins (with
-a local source, those of the worktree's own crate). The session's project is the worktree: its hooks are declared by
-the worktree's own `.claude/settings.json`, so a hook a branch adds runs at once in that session.
+An issue usually runs in the main worktree, on the trunk. For parallel work the user opens another worktree on a
+branch they pick, with `git worktree add` or `just open-worktree <name>` (creates `../<repo>-<name>` on a branch
+`<name>`), and launches a plain `claude` there or opens it as an editor project. Not `claude --worktree`, nor `EnterWorktree` from another
+session: Claude Code then isolates the session and refuses every command it cannot prove stays in the worktree.
+Several issues may share a worktree, one after the other; the worktree outlives them.
+
+- **Claim**: `issue-claim` writes the ref `refs/cardinal/claims/<stem>` for the session (`CLAUDE_CODE_SESSION_ID`);
+  `just next-issue` then skips the issue in every worktree. It takes back a claim of the same session, or of the same
+  worktree whose session ended. A new claim needs the worktree clean outside `issues/`.
+- **Lock**: the `workspace-lock` hooks keep one live session per worktree; a second one has its edits and commands
+  refused. A crashed session's lock is freed when its process is gone.
+- **Hooks** act on the work tree of their `cwd` (`lint-gate`, `review-gate`; `format-code` formats the project of the
+  edited file); `cardinal run` finds the `cardinal.toml` of the worktree and runs the tools of the revision it pins
+  (with a local source, those of the worktree's own crate). The session's project is the worktree: its hooks are
+  declared by the worktree's own `.claude/settings.json`, so a hook a branch adds runs at once in that session.
 
 ## Merge back
 
-In a linked worktree, once the user agreed to close the issue:
+On a branch other than the trunk, once the user agreed to close the issue:
 
-1. Commit the last tracking (with the milestone set `done` when this was its last open issue, as the Rules of
-   `SKILL.md` say), then `git rebase <main branch>` (the branch checked out by the main worktree); a
-   conflict stops here, for the user.
+1. `just close-issue issues/<name>.md` on the branch: the claim becomes `merge pending` until the trunk holds the
+   close. Commit the move with the last tracking (the milestone set `done` when this was its last open issue, as the
+   Rules of `SKILL.md` say; a `low` review when `close-issue` rewrote documents outside `issues/`).
 2. Run `just check-cardinal`: when it names a hook the installed `cardinal` refuses (the branch adds a subcommand the
-   hooks call), run the `cargo install` it prints before going on. After the fast-forward the hooks of the main worktree
+   hooks call), run the `cargo install` it prints before going on. After the merge the hooks of the main worktree
    call it too, and one the installed `cardinal` refuses blocks every command, the install included.
-3. Stop and print, without running them, the commands left to the user in the main worktree: `git merge --ff-only
-   <name>` (when it refuses because the main branch moved, rebase again in the worktree), `just close-issue
-   issues/<name>.md` and the commit of the move (`docs: close ...`, with its `low` review when `close-issue` rewrote
-   documents outside `issues/`), then `just finish-issue <name>` (removes the worktree and the branch once merged and
-   clean).
-   No link to the next issue here: the `issues/` of the worktree is the branch's, so `close-issue` prints the next
-   issue in the main worktree.
+3. Push the branch to the remote the trunk tracks (`git push -u <remote> <branch>`), then, with the host's CLI (`gh`
+   on GitHub: `gh pr list --head <branch>`), open the pull request to the trunk when the branch has none, titled after
+   the issue, its body the summary of the deliverables; with one, the push updated it. Report its URL. No remote or no
+   CLI of the host: stop and print what is left to the user (the push, the pull request, or `git merge --ff-only
+   <branch>` in the main worktree).
+   Never rebase a pushed branch unasked. The merge is the host's (or the user's).
+   No link to the next issue here: the `issues/` of the worktree is the branch's.
 
-`close-issue` refuses in a linked worktree and an issue of one named by path from the main one, so an issue is never
-closed on an issue branch. `finish-issue` refuses inside the worktree it would remove, and a branch whose work is not
+`close-issue` refuses an issue of another worktree named by path. `close-worktree` refuses inside the worktree it would remove, and a branch whose work is not
 on the main branch unless `--force`.
