@@ -53,7 +53,7 @@ the files a collected doc links to. Spec: `specs/web-ui.md` WEB-39 to WEB-51.
 1. [x] Collected doc pages: `/docs/<path>` renders a doc `project_docs` returns with `pulldown-cmark` (raw HTML as
    text, unsafe schemes dropped, heading ids from `anchor`), served with or without a run, 404 otherwise; verified by
    router tests (~350 lines); makes true WEB-47, WEB-48, WEB-49, WEB-50, WEB-51.
-2. [ ] Glossary page: `/glossary` lists the merged concepts sorted by name with their definition, anchor and the use
+2. [x] Glossary page: `/glossary` lists the merged concepts sorted by name with their definition, anchor and the use
    cases that use them, linked from every page; verified by router tests (~300 lines); makes true WEB-44, WEB-45,
    WEB-46.
 3. [ ] Search: the box in the layout, `/search?q=` with the hits of `GeneratedDocs::index` (limit 10, the default of
@@ -81,6 +81,25 @@ done: `/docs/{*path}` renders a collected doc with `pulldown-cmark` (`collected.
 | code review | see below |
 
 red: WEB-47, WEB-48, WEB-49, WEB-50: no `<article>` in the 404 page the stub handler served (WEB-51 passed already on the fallback).
+
+Code review: no findings (`/code-review low`).
+
+not verified: the page in a browser (checked through the router only).
+
+## Deliverable 2: glossary page
+
+done: `/glossary` (`glossary.rs`, `glossary.html`) lists the merged concepts with their definition and the use cases
+that use them; a `Glossary` link in the header of every page.
+
+| check | result |
+|---|---|
+| tests | `just check` green, `tests/glossary_page.rs` 4 tests |
+| lint | clippy pedantic clean |
+| specs | WEB-44, WEB-45, WEB-46 traced |
+| docs | `docs/crates/render-mcp-cli.md`, `README.md` |
+| code review | see below |
+
+red: WEB-44, WEB-45, WEB-46: `/glossary` answered 404 and the header had no `href="/glossary"`.
 
 Code review: no findings (`/code-review low`).
 

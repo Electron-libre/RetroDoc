@@ -15,6 +15,7 @@ use crate::assets::MERMAID;
 use crate::code::{code_page, Asked, CodePage};
 use crate::collected::{collected_page, CollectedPage};
 use crate::files::FilesPage;
+use crate::glossary::GlossaryPage;
 use crate::view::{
     domain_page, domain_rows, feature_page, use_case_page, DomainPage, DomainRow, FeaturePage,
     Site, TreeDomain, UseCasePage,
@@ -72,6 +73,13 @@ struct FilesTemplate<'a> {
 struct CollectedTemplate<'a> {
     tree: &'a [TreeDomain],
     page: CollectedPage,
+}
+
+#[derive(Template)]
+#[template(path = "glossary.html")]
+struct GlossaryTemplate<'a> {
+    tree: &'a [TreeDomain],
+    page: &'a GlossaryPage,
 }
 
 #[derive(Template)]
@@ -195,6 +203,19 @@ pub async fn files(State(site): State<Arc<Site>>) -> Response {
     render(
         StatusCode::OK,
         &FilesTemplate {
+            tree: site.tree(),
+            page,
+        },
+    )
+}
+
+pub async fn glossary(State(site): State<Arc<Site>>) -> Response {
+    let Some(page) = site.glossary() else {
+        return render(StatusCode::OK, &NoRun { tree: site.tree() });
+    };
+    render(
+        StatusCode::OK,
+        &GlossaryTemplate {
             tree: site.tree(),
             page,
         },

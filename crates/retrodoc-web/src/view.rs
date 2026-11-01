@@ -5,6 +5,7 @@
 use std::collections::BTreeSet;
 
 use crate::files::{files_page, FilesPage};
+use crate::glossary::{glossary_page, GlossaryPage};
 use retrodoc_core::model::{
     ActorKind, BusinessRule, ConfidenceScore, Feature, RuleEvidence, SourceRef, Step, UseCase,
     LOW_CONFIDENCE_THRESHOLD,
@@ -23,6 +24,7 @@ pub struct Site {
     source: Option<SourceAccess>,
     files: Option<FilesPage>,
     collected: Vec<ExistingDoc>,
+    glossary: Option<GlossaryPage>,
 }
 
 impl Site {
@@ -31,6 +33,7 @@ impl Site {
         let tree = docs.as_ref().map(tree).unwrap_or_default();
         let source = docs.as_ref().and_then(GeneratedDocs::source_access);
         let files = docs.as_ref().map(files_page);
+        let glossary = docs.as_ref().map(glossary_page);
         Self {
             docs,
             links,
@@ -38,7 +41,14 @@ impl Site {
             source,
             files,
             collected,
+            glossary,
         }
+    }
+
+    /// The glossary page, `None` with no run.
+    #[must_use]
+    pub fn glossary(&self) -> Option<&GlossaryPage> {
+        self.glossary.as_ref()
     }
 
     /// The project's own Markdown docs, served with or without a run.

@@ -71,9 +71,13 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   one of the docs `retrodoc ui` collected (`project_docs`, the generated ones left out; served with no run too) with
   `pulldown-cmark`: its raw HTML shown as text, a link or an image of a scheme other than `http`, `https` or `mailto`
   reduced to its text, each heading with the `id` that `anchor` gives its first line without the `#` (the heading the
-  doc sections name, so the `/docs/<path>#<anchor>` links land on it). Tests:
+  doc sections name, so the `/docs/<path>#<anchor>` links land on it). The glossary page, `/glossary`
+  (`glossary::glossary_page`, `glossary.html`, linked from the header of every page, built once in `Site::new`), lists
+  the concepts of `Glossary::merged_entities` sorted by name ignoring case, each under a heading whose `id` is
+  `anchor` of its name, with its definition and the use cases that use it: one of their steps cites a file the concept
+  was read from, or a rule of their feature that applies to them names it. Tests:
   `tests/pages.rs` (home, tree, assets, `Host`), `tests/item_pages.rs` (the item pages), `tests/code_page.rs` (the
-  page of a cited file, over a git repo), `tests/files_page.rs` and `tests/doc_pages.rs` ask the router without a socket (`tower::ServiceExt::oneshot`) over artifacts
+  page of a cited file, over a git repo), `tests/files_page.rs`, `tests/doc_pages.rs` and `tests/glossary_page.rs` ask the router without a socket (`tower::ServiceExt::oneshot`) over artifacts
   saved in a temp dir. To update `htmx`, replace `assets/htmx.min.js` and the version in `assets.rs`; to update `mermaid`, gzip
   (`gzip -9 -n`) the `dist/mermaid.min.js` of its npm package (checked against the package integrity) into
   `assets/mermaid-<version>.min.js.gz` and change `MERMAID` and the file name in `assets.rs`.

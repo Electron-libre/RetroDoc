@@ -11,6 +11,7 @@ mod assets;
 pub mod code;
 pub mod collected;
 pub mod files;
+pub mod glossary;
 mod pages;
 pub mod view;
 
@@ -42,6 +43,7 @@ pub fn router(docs: Option<GeneratedDocs>, links: DocLinks, collected: Vec<Exist
             get(pages::use_case),
         )
         .route("/files", get(pages::files))
+        .route("/glossary", get(pages::glossary))
         .route("/code/{*path}", get(pages::code))
         .route("/docs/{*path}", get(pages::collected_doc))
         .route("/assets/{name}", get(assets::serve))
