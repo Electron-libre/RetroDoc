@@ -13,7 +13,8 @@ mod rules;
 
 pub use doc_links::{anchor, DocLink, DocLinks, ItemRef};
 pub use markdown::{
-    render, render_with_docs, render_with_rules, TECHNICAL_HEADING, TECHNICAL_NOTE,
+    render, render_with_docs, render_with_rules, source_ref_label, TECHNICAL_HEADING,
+    TECHNICAL_NOTE,
 };
 pub use plan::{plan, FileStatus, PlannedFile, WritePlan};
 pub use rules::kind_label;

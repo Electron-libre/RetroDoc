@@ -12,7 +12,7 @@ use retrodoc_core::model::{
 use retrodoc_core::text::one_line;
 
 use crate::doc_links::DocLinks;
-use crate::markdown::{feature_path, link, use_case_path};
+use crate::markdown::{feature_path, link, source_ref_label, use_case_path};
 
 /// The name of a kind of rule in the docs: `State transition`.
 #[must_use]
@@ -40,11 +40,7 @@ fn tag(rule: &BusinessRule) -> String {
 
 fn evidence_line(evidence: &RuleEvidence) -> String {
     match evidence {
-        RuleEvidence::Code { source } => match (source.start_line, source.end_line) {
-            (Some(s), Some(e)) if s != e => format!("Code: `{}:{s}-{e}`", source.path),
-            (Some(s), _) => format!("Code: `{}:{s}`", source.path),
-            _ => format!("Code: `{}`", source.path),
-        },
+        RuleEvidence::Code { source } => format!("Code: `{}`", source_ref_label(source)),
         RuleEvidence::Test { phrase, path } => {
             format!("Test: \"{}\" (`{path}`)", one_line(phrase))
         }

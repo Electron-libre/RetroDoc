@@ -31,3 +31,33 @@
 </ul>
 {% endif %}
 {% endmacro %}
+
+{% macro stale(files) %}
+{% if !files.is_empty() %}
+<p class="stale-files"><span class="badge stale" title="A file it cites changed since the run">stale</span> changed since the run:
+  {% for file in files %}<code>{{ file.path }}</code> ({{ file.state }}){% if !loop.last %}, {% endif %}{% endfor %}</p>
+{% endif %}
+{% endmacro %}
+
+{% macro rules(rules) %}
+{% if !rules.is_empty() %}
+<h2>Business rules</h2>
+<ul class="rules">
+  {% for rule in rules %}
+  <li>
+    {{ rule.statement }} <span class="muted">({{ rule.kind }}, {% call badge(rule.confidence) %}{% endcall %})</span>
+    <ul>
+      {% if !rule.entities.is_empty() %}<li>Entities: {{ rule.entities|join(", ") }}</li>{% endif %}
+      {% if !rule.use_cases.is_empty() %}<li>Use cases: {% for link in rule.use_cases %}<a href="{{ link.href }}">{{ link.name }}</a>{% if !loop.last %}, {% endif %}{% endfor %}</li>{% endif %}
+      {% for evidence in rule.evidence %}
+      <li>{{ evidence.kind }}: {% if evidence.kind == "Code" %}<code>{{ evidence.text }}</code>{% else %}“{{ evidence.text }}”{% endif %}{% if let Some(source) = evidence.source %} (<code>{{ source }}</code>){% endif %}</li>
+      {% endfor %}
+      {% for doc in rule.docs %}
+      <li>Existing doc: <a href="{{ doc.href }}"><code>{{ doc.path }}</code>{% if let Some(heading) = doc.heading %}, section “{{ heading }}”{% endif %}</a>{% if let Some(states) = doc.contradicts %} <span class="badge low">states otherwise</span> {{ states }}{% endif %}</li>
+      {% endfor %}
+    </ul>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% endmacro %}

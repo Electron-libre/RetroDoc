@@ -7,10 +7,13 @@ use askama::Template;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse, Response};
+use tokio::task::JoinError;
 
 use retrodoc_render::{TECHNICAL_HEADING, TECHNICAL_NOTE};
 
-use crate::view::{domain_page, domain_rows, DomainPage, DomainRow, Site, TreeDomain};
+use crate::view::{
+    domain_page, domain_rows, feature_page, DomainPage, DomainRow, FeaturePage, Site, TreeDomain,
+};
 
 #[derive(Template)]
 #[template(path = "home.html")]
@@ -24,6 +27,15 @@ struct Home<'a> {
 struct DomainTemplate<'a> {
     tree: &'a [TreeDomain],
     page: DomainPage,
+    technical_heading: &'static str,
+    technical_note: &'static str,
+}
+
+#[derive(Template)]
+#[template(path = "feature.html")]
+struct FeatureTemplate<'a> {
+    tree: &'a [TreeDomain],
+    page: FeaturePage,
     technical_heading: &'static str,
     technical_note: &'static str,
 }
@@ -44,12 +56,11 @@ pub async fn home(State(site): State<Arc<Site>>) -> Response {
     if site.docs().is_none() {
         return render(StatusCode::OK, &NoRun { tree: site.tree() });
     }
-    // The stale badges read the cited files: off the async workers.
-    let rows = {
-        let site = Arc::clone(&site);
-        tokio::task::spawn_blocking(move || site.docs().map(domain_rows).unwrap_or_default()).await
-    };
-    match rows {
+    match blocking(&site, |site| {
+        site.docs().map(domain_rows).unwrap_or_default()
+    })
+    .await
+    {
         Ok(domains) => render(
             StatusCode::OK,
             &Home {
@@ -57,12 +68,25 @@ pub async fn home(State(site): State<Arc<Site>>) -> Response {
                 domains,
             },
         ),
-        Err(err) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("could not read the docs: {err}"),
-        )
-            .into_response(),
+        Err(err) => read_failed(&err),
     }
+}
+
+/// Runs `build` off the async workers: the stale badges read the cited files.
+async fn blocking<T: Send + 'static>(
+    site: &Arc<Site>,
+    build: impl FnOnce(&Site) -> T + Send + 'static,
+) -> Result<T, JoinError> {
+    let site = Arc::clone(site);
+    tokio::task::spawn_blocking(move || build(&site)).await
+}
+
+fn read_failed(err: &JoinError) -> Response {
+    (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        format!("could not read the docs: {err}"),
+    )
+        .into_response()
 }
 
 pub async fn domain(State(site): State<Arc<Site>>, Path(slug): Path<String>) -> Response {
@@ -81,6 +105,30 @@ pub async fn domain(State(site): State<Arc<Site>>, Path(slug): Path<String>) -> 
             technical_note: TECHNICAL_NOTE,
         },
     )
+}
+
+pub async fn feature(
+    State(site): State<Arc<Site>>,
+    Path((domain, slug)): Path<(String, String)>,
+) -> Response {
+    let page = blocking(&site, move |site| {
+        site.docs()
+            .and_then(|docs| feature_page(docs, site.links(), &domain, &slug))
+    })
+    .await;
+    match page {
+        Ok(Some(page)) => render(
+            StatusCode::OK,
+            &FeatureTemplate {
+                tree: site.tree(),
+                page,
+                technical_heading: TECHNICAL_HEADING,
+                technical_note: TECHNICAL_NOTE,
+            },
+        ),
+        Ok(None) => not_found(State(site)).await,
+        Err(err) => read_failed(&err),
+    }
 }
 
 pub async fn not_found(State(site): State<Arc<Site>>) -> Response {

@@ -115,11 +115,7 @@ pub(super) fn step_item(step: &Step) -> String {
         let refs: Vec<String> = step
             .source_refs
             .iter()
-            .map(|r| match (r.start_line, r.end_line) {
-                (Some(s), Some(e)) if s != e => format!("`{}:{s}-{e}`", r.path),
-                (Some(s), _) => format!("`{}:{s}`", r.path),
-                _ => format!("`{}`", r.path),
-            })
+            .map(|r| format!("`{}`", super::source_ref_label(r)))
             .collect();
         let _ = writeln!(item, "   - Code: {}", refs.join(", "));
     }

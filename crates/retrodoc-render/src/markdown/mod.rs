@@ -16,7 +16,7 @@ use std::fmt::Write as _;
 use std::path::{Component, Path, PathBuf};
 
 use retrodoc_core::model::{
-    BusinessRule, ConfidenceScore, Domain, Feature, UseCase, LOW_CONFIDENCE_THRESHOLD,
+    BusinessRule, ConfidenceScore, Domain, Feature, SourceRef, UseCase, LOW_CONFIDENCE_THRESHOLD,
 };
 use retrodoc_core::text::one_line;
 
@@ -223,6 +223,16 @@ pub(crate) fn link(from: &Path, to: &Path) -> String {
             .map(|c| c.as_os_str().to_string_lossy().into_owned()),
     );
     parts.join("/")
+}
+
+/// Cited lines as the docs show them: `path:start-end`, `path:start`, or the path alone.
+#[must_use]
+pub fn source_ref_label(source: &SourceRef) -> String {
+    match (source.start_line, source.end_line) {
+        (Some(s), Some(e)) if s != e => format!("{}:{s}-{e}", source.path),
+        (Some(s), _) => format!("{}:{s}", source.path),
+        _ => source.path.clone(),
+    }
 }
 
 fn confidence_line(score: Option<&ConfidenceScore>) -> String {

@@ -5,9 +5,12 @@ use std::path::Path;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use retrodoc_core::model::{BusinessRule, ConfidenceScore, Feature, RuleKind, UseCase};
+use retrodoc_core::model::{
+    BusinessRule, ConfidenceScore, Feature, RuleEvidence, RuleKind, SourceRef, UseCase,
+};
 use retrodoc_mcp::GeneratedDocs;
-use retrodoc_pipeline::{DomainCluster, DomainMap};
+use retrodoc_pipeline::cache::hash_content;
+use retrodoc_pipeline::{DomainCluster, DomainMap, SourceHashes};
 use retrodoc_render::{DocLink, DocLinks, ItemRef};
 use tower::ServiceExt;
 
@@ -53,26 +56,60 @@ fn rule(slug: &str, statement: &str) -> BusinessRule {
     }
 }
 
-/// A run over `billing` (the business feature `pay-invoice`, the back-office
-/// feature `refund-tool`, a rule) and `delivery` (`assign-rider`).
+/// A run over `billing` (the business feature `pay-invoice` citing
+/// `app/invoice.rb` and `app/card.rb`, with a business and a technical use
+/// case and a rule; the back-office feature `refund-tool`) and `delivery`
+/// (`assign-rider`, no use case), the hashes of the cited files recorded.
 fn generated_repo() -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path();
+    std::fs::create_dir_all(root.join("app")).unwrap();
+    let mut hashes = SourceHashes::default();
+    for name in ["app/invoice.rb", "app/card.rb"] {
+        let content = format!("content of {name}");
+        std::fs::write(root.join(name), &content).unwrap();
+        hashes.put(name, &hash_content(&content));
+    }
+    hashes.save(root).unwrap();
+    let mut pay = feature("pay-invoice", "billing", false);
+    pay.source_paths = vec!["app/invoice.rb".into(), "app/card.rb".into()];
+    pay.entry_points = vec!["app/invoice.rb#pay".into()];
     retrodoc_pipeline::save_features(
         root,
         &[
-            feature("pay-invoice", "billing", false),
+            pay,
             feature("refund-tool", "billing", true),
             feature("assign-rider", "delivery", false),
         ],
     )
     .unwrap();
-    retrodoc_pipeline::save_use_cases(root, &[use_case("pay-by-card", "pay-invoice")]).unwrap();
-    retrodoc_pipeline::save_rules(
+    let mut by_card = use_case("pay-by-card", "pay-invoice");
+    by_card.description = "The customer pays by card".into();
+    by_card.confidence = Some(ConfidenceScore::new(0.9, None));
+    let mut retry = use_case("retry-job", "pay-invoice");
+    retry.business_language = Some(ConfidenceScore::new(0.1, None));
+    retrodoc_pipeline::save_use_cases(
         root,
-        &[rule("pay-invoice-1", "An invoice is paid within 30 days")],
+        &[by_card, retry, use_case("refund-now", "refund-tool")],
     )
     .unwrap();
+    let mut paid = rule("pay-invoice-1", "An invoice is paid within 30 days");
+    paid.entities = vec!["Invoice".into()];
+    paid.use_cases = vec!["pay-by-card".into()];
+    paid.evidence = vec![
+        RuleEvidence::Code {
+            source: SourceRef {
+                path: "app/invoice.rb".into(),
+                start_line: Some(4),
+                end_line: Some(9),
+            },
+        },
+        RuleEvidence::Test {
+            phrase: "refuses a late payment".into(),
+            path: "spec/invoice_spec.rb".into(),
+        },
+    ];
+    retrodoc_pipeline::save_rules(root, &[paid]).unwrap();
     DomainMap {
         domains: vec![
             DomainCluster {
@@ -112,6 +149,22 @@ fn doc_links() -> DocLinks {
                 contradicts: None,
             },
         ],
+    );
+    links.links.insert(
+        ItemRef::Feature("pay-invoice".into()),
+        vec![DocLink {
+            path: "docs/guide.md".into(),
+            heading: Some("Paying".into()),
+            contradicts: None,
+        }],
+    );
+    links.links.insert(
+        ItemRef::Rule("pay-invoice-1".into()),
+        vec![DocLink {
+            path: "docs/terms.md".into(),
+            heading: Some("Delays".into()),
+            contradicts: None,
+        }],
     );
     links
 }
@@ -230,4 +283,128 @@ async fn an_unknown_domain_is_the_not_found_page() {
     let (status, page) = get(repo.path(), "/domains/nope").await;
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert!(page.contains("<h1>Not found</h1>"), "{page}");
+}
+
+// spec: WEB-16, WEB-18
+#[tokio::test]
+async fn the_feature_page_shows_its_sections_in_the_order_of_the_markdown_page() {
+    let repo = generated_repo();
+    let page = page(repo.path(), "/domains/billing/pay-invoice").await;
+    assert_in_order(
+        main_of(&page),
+        &[
+            "<h1>Feature pay-invoice</h1>",
+            "What pay-invoice does",
+            "Confidence",
+            "80%",
+            "well covered",
+            "<h2>Use cases</h2>",
+            "href=\"/domains/billing/pay-invoice/pay-by-card\"",
+            "90%",
+            "The customer pays by card",
+            "<h2>Administration and technical</h2>",
+            "href=\"/domains/billing/pay-invoice/retry-job\"",
+            "<h2>Business rules</h2>",
+            "An invoice is paid within 30 days",
+            "Limit",
+            "30%",
+            "Invoice",
+            "href=\"/domains/billing/pay-invoice/pay-by-card\"",
+            "app/invoice.rb:4-9",
+            "refuses a late payment",
+            "spec/invoice_spec.rb",
+            "href=\"/docs/docs/terms.md#delays\"",
+            "<h2>Existing documentation</h2>",
+            "href=\"/docs/docs/guide.md#paying\"",
+            "<h2>Source files</h2>",
+            "app/invoice.rb",
+            "app/card.rb",
+            "<h2>Entry points</h2>",
+            "app/invoice.rb#pay",
+        ],
+    );
+    assert!(!page.contains("badge stale"), "{page}");
+    assert!(!main_of(&page).contains("back-office"), "{page}");
+}
+
+// spec: WEB-16
+#[tokio::test]
+async fn a_feature_with_no_use_case_says_none_could_be_derived() {
+    let repo = generated_repo();
+    let page = page(repo.path(), "/domains/delivery/assign-rider").await;
+    assert!(
+        main_of(&page).contains("None could be derived from the code."),
+        "{page}"
+    );
+}
+
+// spec: WEB-19
+#[tokio::test]
+async fn the_feature_page_has_a_breadcrumb_to_its_domain() {
+    let repo = generated_repo();
+    let page = page(repo.path(), "/domains/billing/pay-invoice").await;
+    let start = page.find("<nav class=\"crumbs\"").expect(&page);
+    let crumbs = &page[start..start + page[start..].find("</nav>").unwrap()];
+    assert_in_order(
+        crumbs,
+        &[
+            "href=\"/\"",
+            "href=\"/domains/billing\"",
+            "Billing",
+            "Feature pay-invoice",
+        ],
+    );
+}
+
+// spec: WEB-20
+#[tokio::test]
+async fn a_feature_citing_a_file_changed_since_the_run_is_flagged_stale_with_the_file() {
+    let repo = generated_repo();
+    std::fs::write(repo.path().join("app/card.rb"), "edited since the run").unwrap();
+    let page = page(repo.path(), "/domains/billing/pay-invoice").await;
+    let start = page.find("class=\"badge stale\"").expect(&page);
+    let flag = &page[start..start + page[start..].find("</p>").unwrap()];
+    assert!(flag.contains("app/card.rb"), "{flag}");
+    assert!(!flag.contains("app/invoice.rb"), "{flag}");
+}
+
+// spec: WEB-20
+#[tokio::test]
+async fn a_cited_file_with_no_recorded_hash_does_not_flag_the_feature() {
+    let repo = generated_repo();
+    SourceHashes::default().save(repo.path()).unwrap();
+    std::fs::write(repo.path().join("app/card.rb"), "edited since the run").unwrap();
+    let page = page(repo.path(), "/domains/billing/pay-invoice").await;
+    assert!(!page.contains("badge stale"), "{page}");
+}
+
+// spec: WEB-21
+#[tokio::test]
+async fn a_back_office_feature_is_flagged_on_its_page() {
+    let repo = generated_repo();
+    let page = page(repo.path(), "/domains/billing/refund-tool").await;
+    assert!(
+        main_of(&page).contains("class=\"badge set-apart\">back-office"),
+        "{page}"
+    );
+    // Every use case of a back-office feature is set apart.
+    assert_in_order(
+        main_of(&page),
+        &[
+            "All of them are set apart below.",
+            "<h2>Administration and technical</h2>",
+            "Use case refund-now",
+        ],
+    );
+}
+
+// spec: WEB-25
+#[tokio::test]
+async fn a_feature_asked_under_another_domain_or_unknown_is_the_not_found_page() {
+    let repo = generated_repo();
+    for path in ["/domains/delivery/pay-invoice", "/domains/billing/nope"] {
+        let (status, page) = get(repo.path(), path).await;
+        assert_eq!(status, StatusCode::NOT_FOUND, "{path}");
+        assert!(page.contains("<h1>Not found</h1>"), "{page}");
+    }
 }

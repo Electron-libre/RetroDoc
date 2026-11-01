@@ -32,6 +32,7 @@ pub fn router(docs: Option<GeneratedDocs>, links: DocLinks) -> Router {
     Router::new()
         .route("/", get(pages::home))
         .route("/domains/{domain}", get(pages::domain))
+        .route("/domains/{domain}/{feature}", get(pages::feature))
         .route("/assets/{name}", get(assets::serve))
         .fallback(pages::not_found)
         .layer(middleware::from_fn(refuse_foreign_host))

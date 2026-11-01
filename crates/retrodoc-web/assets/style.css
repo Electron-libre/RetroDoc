@@ -54,3 +54,4 @@ code { background: var(--bg-side); padding: 0 0.25rem; border-radius: 0.2rem; }
 .crumbs { font-size: 0.9rem; color: var(--muted); margin-bottom: 0.5rem; }
 .score { margin: 0.3rem 0; }
 .items li, .rules li, .docs li { margin: 0.25rem 0; }
+.badge.set-apart { color: var(--muted); background: var(--bg-side); }

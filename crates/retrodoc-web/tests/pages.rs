@@ -226,7 +226,7 @@ async fn a_cited_file_with_no_recorded_hash_is_not_judged() {
 #[tokio::test]
 async fn a_path_not_served_is_the_not_found_page() {
     let repo = generated_repo();
-    for path in ["/unknown", "/domains/billing/pay-invoice"] {
+    for path in ["/unknown", "/domains/billing/pay-invoice/pay-by-card/more"] {
         let (status, page, _) = get(load(repo.path()), path).await;
         assert_eq!(status, StatusCode::NOT_FOUND, "{path}");
         assert!(page.contains("<h1>Not found</h1>"), "{page}");

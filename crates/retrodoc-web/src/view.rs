@@ -4,9 +4,12 @@
 
 use std::collections::BTreeSet;
 
-use retrodoc_core::model::{ConfidenceScore, Feature, LOW_CONFIDENCE_THRESHOLD};
+use retrodoc_core::model::{
+    BusinessRule, ConfidenceScore, Feature, RuleEvidence, UseCase, LOW_CONFIDENCE_THRESHOLD,
+};
+use retrodoc_mcp::freshness::{FileState, Freshness};
 use retrodoc_mcp::GeneratedDocs;
-use retrodoc_render::{anchor, kind_label, DocLinks, ItemRef};
+use retrodoc_render::{anchor, kind_label, source_ref_label, DocLinks, ItemRef};
 
 /// The docs the interface serves, `None` before a first `generate`, and the
 /// tree every page shows, built once since the docs don't change.
@@ -211,8 +214,16 @@ fn home_crumb() -> Link {
     }
 }
 
+fn domain_href(slug: &str) -> String {
+    format!("/domains/{slug}")
+}
+
 fn feature_href(feature: &Feature) -> String {
     format!("/domains/{}/{}", feature.domain_slug, feature.slug)
+}
+
+fn use_case_href(feature: &Feature, use_case: &UseCase) -> String {
+    format!("{}/{}", feature_href(feature), use_case.slug)
 }
 
 fn feature_row(feature: &Feature) -> ItemRow {
@@ -274,5 +285,195 @@ pub fn domain_page(docs: &GeneratedDocs, links: &DocLinks, slug: &str) -> Option
         back_office: back_office.into_iter().map(feature_row).collect(),
         rules,
         docs: doc_items(links, &ItemRef::Domain(slug.to_string())),
+    })
+}
+
+/// A file a page cites that changed since the run.
+pub struct StaleFile {
+    pub path: String,
+    /// `modified` or `deleted`.
+    pub state: &'static str,
+}
+
+/// The files among `paths` modified or deleted since the run; none when the
+/// docs carry no freshness. Reads the files.
+fn stale_files<'a>(
+    freshness: Option<&Freshness>,
+    paths: impl IntoIterator<Item = &'a str>,
+) -> Vec<StaleFile> {
+    freshness
+        .map(|f| f.stale(paths))
+        .unwrap_or_default()
+        .into_iter()
+        .map(|(path, state)| StaleFile {
+            path: path.to_string(),
+            state: if state == FileState::Deleted {
+                "deleted"
+            } else {
+                "modified"
+            },
+        })
+        .collect()
+}
+
+/// What backs a rule: `Code` and the cited lines, `Test` and its phrase,
+/// `Documentation` and its section, with the file it comes from.
+pub struct Evidence {
+    pub kind: &'static str,
+    pub text: String,
+    pub source: Option<String>,
+}
+
+impl Evidence {
+    fn of(evidence: &RuleEvidence) -> Self {
+        match evidence {
+            RuleEvidence::Code { source } => Self {
+                kind: "Code",
+                text: source_ref_label(source),
+                source: None,
+            },
+            RuleEvidence::Test { phrase, path } => Self {
+                kind: "Test",
+                text: phrase.clone(),
+                source: Some(path.clone()),
+            },
+            RuleEvidence::Doc { path, heading } => Self {
+                kind: "Documentation",
+                text: heading.clone(),
+                source: Some(path.clone()),
+            },
+        }
+    }
+}
+
+/// A rule on the page of its feature or of a use case it applies to.
+pub struct RuleView {
+    pub statement: String,
+    pub kind: &'static str,
+    pub confidence: Confidence,
+    pub entities: Vec<String>,
+    /// The use cases of the page it applies to; none on a use case page.
+    pub use_cases: Vec<Link>,
+    pub evidence: Vec<Evidence>,
+    pub docs: Vec<DocItem>,
+}
+
+fn rule_view(
+    rule: &BusinessRule,
+    feature: &Feature,
+    use_cases: &[&UseCase],
+    links: &DocLinks,
+) -> RuleView {
+    RuleView {
+        statement: rule.statement.clone(),
+        kind: kind_label(rule.kind),
+        confidence: Confidence::of(rule.confidence.as_ref()),
+        entities: rule.entities.clone(),
+        use_cases: use_cases
+            .iter()
+            .filter(|u| rule.use_cases.contains(&u.slug))
+            .map(|u| Link {
+                href: use_case_href(feature, u),
+                name: u.name.clone(),
+            })
+            .collect(),
+        evidence: rule.evidence.iter().map(Evidence::of).collect(),
+        docs: doc_items(links, &ItemRef::Rule(rule.slug.clone())),
+    }
+}
+
+/// The page of a feature, its sections in the order of its Markdown page,
+/// then its entry points.
+pub struct FeaturePage {
+    pub crumbs: Vec<Link>,
+    pub name: String,
+    pub description: String,
+    pub confidence: Confidence,
+    pub back_office: bool,
+    pub stale: Vec<StaleFile>,
+    /// None at all: none could be derived from the code.
+    pub no_use_case: bool,
+    pub use_cases: Vec<ItemRow>,
+    /// The use cases `UseCase::is_technical` sets apart.
+    pub technical: Vec<ItemRow>,
+    pub rules: Vec<RuleView>,
+    pub docs: Vec<DocItem>,
+    pub source_files: Vec<String>,
+    pub entry_points: Vec<String>,
+}
+
+fn crumbs_to(docs: &GeneratedDocs, feature: Option<&Feature>, domain_slug: &str) -> Vec<Link> {
+    let domain_name = docs
+        .domains()
+        .iter()
+        .find(|d| d.slug == domain_slug)
+        .map_or_else(|| domain_slug.to_string(), |d| d.name.clone());
+    let mut crumbs = vec![
+        home_crumb(),
+        Link {
+            href: domain_href(domain_slug),
+            name: domain_name,
+        },
+    ];
+    if let Some(f) = feature {
+        crumbs.push(Link {
+            href: feature_href(f),
+            name: f.name.clone(),
+        });
+    }
+    crumbs
+}
+
+/// The feature `slug` of the domain `domain`, `None` when the run has no such
+/// feature in that domain.
+fn find_feature<'a>(docs: &'a GeneratedDocs, domain: &str, slug: &str) -> Option<&'a Feature> {
+    docs.features()
+        .iter()
+        .find(|f| f.slug == slug && f.domain_slug == domain)
+}
+
+/// The page of the feature `slug` of the domain `domain`, `None` when the run
+/// has no such feature there. Reads the files it cites to tell whether they
+/// changed since the run.
+#[must_use]
+pub fn feature_page(
+    docs: &GeneratedDocs,
+    links: &DocLinks,
+    domain: &str,
+    slug: &str,
+) -> Option<FeaturePage> {
+    let feature = find_feature(docs, domain, slug)?;
+    let use_cases: Vec<&UseCase> = docs.use_cases_of(slug).collect();
+    let row = |u: &&UseCase| ItemRow {
+        href: use_case_href(feature, u),
+        name: u.name.clone(),
+        confidence: Confidence::of(u.confidence.as_ref()),
+        description: u.description.trim().to_string(),
+    };
+    let (technical, business): (Vec<&UseCase>, Vec<&UseCase>) = use_cases
+        .iter()
+        .partition(|u| u.is_technical(feature.back_office));
+    Some(FeaturePage {
+        crumbs: crumbs_to(docs, None, domain),
+        name: feature.name.clone(),
+        description: feature.description.trim().to_string(),
+        confidence: Confidence::of(feature.confidence.as_ref()),
+        back_office: feature.back_office,
+        stale: stale_files(
+            docs.freshness(),
+            feature.source_paths.iter().map(String::as_str),
+        ),
+        no_use_case: use_cases.is_empty(),
+        use_cases: business.iter().map(row).collect(),
+        technical: technical.iter().map(row).collect(),
+        rules: docs
+            .rules()
+            .iter()
+            .filter(|r| r.belongs_to_feature(slug))
+            .map(|r| rule_view(r, feature, &use_cases, links))
+            .collect(),
+        docs: doc_items(links, &ItemRef::Feature(slug.to_string())),
+        source_files: feature.source_paths.clone(),
+        entry_points: feature.entry_points.clone(),
     })
 }

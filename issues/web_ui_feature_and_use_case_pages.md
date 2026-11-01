@@ -61,7 +61,7 @@ saved reconciliation judgements like `render` does (no LLM call) and hands them 
 1. [x] Domain page and doc links: render helpers made public, `DocLinks` from `ui` into the router, breadcrumb, domain
    template, 404 on unknown slugs; verified by router tests; makes true WEB-15, WEB-18 (domain), WEB-19, WEB-23,
    WEB-25 (domain).
-2. [ ] Feature page: use cases with the technical ones set apart, rules with evidence, existing docs, source files,
+2. [x] Feature page: use cases with the technical ones set apart, rules with evidence, existing docs, source files,
    entry points, stale and back-office badges; verified by router tests; makes true WEB-16, WEB-20 (feature), WEB-21,
    WEB-25 (feature under another domain).
 3. [ ] Use case page and diagrams: steps, narrative and its unbacked flag, business-language score, vendored
@@ -94,3 +94,24 @@ saved reconciliation judgements like `render` does (no LLM call) and hands them 
 | code review | see below |
 
 - red: WEB-15, WEB-18, WEB-19, WEB-23: `assertion left == right failed: /domains/billing` (404 before the route)
+
+## Deliverable 2: feature page
+
+- done: `/domains/<domain>/<feature>` served (`view::feature_page`, `feature.html`, macros `rules` and `stale`);
+  `retrodoc_render::source_ref_label` replaces the two copies of the cited-lines format; the WEB-8 test no longer
+  uses a feature link as the unserved path.
+
+| check | result |
+|---|---|
+| tests | `just check` green, 7 new tests in `tests/item_pages.rs` |
+| lint | clippy pedantic clean |
+| specs | no warning on `web-ui.md` |
+| docs | `docs/crates/render-mcp-cli.md` |
+| code review | see below |
+
+- red: WEB-16, WEB-18, WEB-19, WEB-20, WEB-21: `/domains/billing/pay-invoice` answered 404 before the route
+- Code review: 2 findings, none fixed: both assume two features of different domains share a slug; the pipeline makes
+  feature slugs unique across the run (`features::unique_slug`), and the use cases, rules and doc links are keyed by
+  the feature slug alone everywhere (Markdown pages, MCP).
+- not verified: the page on a real run (layout, long lists).
+- decisions needed: none.
