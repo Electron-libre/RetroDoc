@@ -12,8 +12,8 @@ use tokio::task::JoinError;
 use retrodoc_render::{TECHNICAL_HEADING, TECHNICAL_NOTE};
 
 use crate::assets::MERMAID;
-use crate::code::{cited_range, code_page, CodePage};
-use crate::files::{files_page, FilesPage};
+use crate::code::{code_page, Asked, CodePage};
+use crate::files::FilesPage;
 use crate::view::{
     domain_page, domain_rows, feature_page, use_case_page, DomainPage, DomainRow, FeaturePage,
     Site, TreeDomain, UseCasePage,
@@ -63,7 +63,7 @@ struct CodeTemplate<'a> {
 #[template(path = "files.html")]
 struct FilesTemplate<'a> {
     tree: &'a [TreeDomain],
-    page: FilesPage,
+    page: &'a FilesPage,
 }
 
 #[derive(Template)]
@@ -181,14 +181,14 @@ pub async fn use_case(
 }
 
 pub async fn files(State(site): State<Arc<Site>>) -> Response {
-    let Some(docs) = site.docs() else {
+    let Some(page) = site.files() else {
         return render(StatusCode::OK, &NoRun { tree: site.tree() });
     };
     render(
         StatusCode::OK,
         &FilesTemplate {
             tree: site.tree(),
-            page: files_page(docs),
+            page,
         },
     )
 }
@@ -198,10 +198,10 @@ pub async fn code(
     Path(path): Path<String>,
     RawQuery(query): RawQuery,
 ) -> Response {
-    let cited = cited_range(query.as_deref());
+    let asked = Asked::of(query.as_deref());
     let page = blocking(&site, move |site| {
         let source = site.source()?;
-        code_page(site.docs()?, source, &path, cited)
+        code_page(site.docs()?, source, &path, asked)
     })
     .await;
     match page {

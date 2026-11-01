@@ -58,6 +58,9 @@ Means: `SourceAccess` returns structured windows, commits and refusals (the MCP 
    `..` paths 404, symlink refused, history, stale, citing items); makes true WEB-26 to WEB-33 (~700 lines).
 3. [x] Files page `/files` and the link of every page to it; verified by router tests (tree, `1/2` share, uncited
    file flagged, unrecorded cited file listed); makes true WEB-34 to WEB-37, spec `accepted` (~450 lines).
+4. [x] Docs of the whole issue and the fixes of its `high` review: a range just past the end and an empty file
+   refused, a link to the next lines, one walk of the citations for both pages, the files page built once, `Docs::load`
+   through `GeneratedDocs::source_access`; verified by router tests; makes true WEB-38 (~250 lines).
 
 ## Decisions
 - Mode: autonomous
@@ -89,3 +92,21 @@ done: `/files` (`files::files_page`, `files.html`) over `Freshness::recorded_pat
 in the header of every page; spec `accepted`.
 red: WEB-34, WEB-35, WEB-36, WEB-37: status 404 for `/files` (no route), no `<a href="/files">` on the home page.
 Code review: no findings
+
+## Deliverable 4
+done: fixes of the `high` review: a cited range past the end and an empty file refused, a `Next lines` link
+(`?from=`), one walk of the citations (`code::citations`) for both pages, the files page built once with its counts
+bottom-up, `Docs::load` through `GeneratedDocs::source_access`; `ARCHITECTURE.md` and the crate doc updated.
+red: WEB-32, WEB-38: `?lines=505-510` showed lines 495-500 instead of the refusal; no `?from=201` link.
+High review: 10 findings
+- Range just past the end, empty file, no next link, citers counted two ways, `Docs::load` building its own access,
+  files counts recomputed per level and per request: fixed in this deliverable.
+- Rules scanned per feature in `citations`: not fixed, one pass per page over data read once; the files page now
+  computes it once.
+- `./` stripped in several places: not fixed, `SourceAccess` stays the one that decides what is served.
+- A rule citer links to the top of its feature page: noted in `issues/web_ui_rules_and_actors.md` (rule anchors).
+Code review: 3 findings
+- A rule counted under two features: not fixed, `BusinessRule::number_in` takes digits only after `<feature>-`, so a
+  rule belongs to one feature at most.
+- A rule or a use case belonging to no feature not counted on the files page: not fixed on purpose, the counts are
+  the items the code page lists as "Cited by", each with a page to link to.

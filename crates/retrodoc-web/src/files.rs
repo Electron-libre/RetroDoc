@@ -2,11 +2,11 @@
 //! each with the number of features, use cases and rules that cite it. Only
 //! paths: the lines of a file are on its page, for a cited file only.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
-use retrodoc_core::model::RuleEvidence;
 use retrodoc_mcp::GeneratedDocs;
 
+use crate::code::citations;
 use crate::view::code_href;
 
 /// The files page.
@@ -55,32 +55,28 @@ impl Dir {
         }
     }
 
-    /// Its files cited, and all its files.
-    fn counts(&self) -> (usize, usize) {
-        self.dirs.values().map(Dir::counts).fold(
-            (
-                self.files.values().filter(|n| **n > 0).count(),
-                self.files.len(),
-            ),
-            |(cited, total), (c, t)| (cited + c, total + t),
-        )
-    }
-
-    fn rows(&self, prefix: &str, depth: usize, rows: &mut Vec<FileRow>) {
+    /// Adds the rows of what it holds under `prefix`; returns its files
+    /// cited and all its files.
+    fn rows(&self, prefix: &str, depth: usize, rows: &mut Vec<FileRow>) -> (usize, usize) {
+        let (mut cited, mut total) = (0, 0);
         for (name, dir) in &self.dirs {
             let path = format!("{prefix}{name}/");
-            let (cited, total) = dir.counts();
+            let at = rows.len();
             rows.push(FileRow {
                 path: path.clone(),
                 name: format!("{name}/"),
                 depth,
                 dir: true,
-                cited,
-                total,
+                cited: 0,
+                total: 0,
                 citers: 0,
                 href: None,
             });
-            dir.rows(&path, depth + 1, rows);
+            let (dir_cited, dir_total) = dir.rows(&path, depth + 1, rows);
+            rows[at].cited = dir_cited;
+            rows[at].total = dir_total;
+            cited += dir_cited;
+            total += dir_total;
         }
         for (name, citers) in &self.files {
             let path = format!("{prefix}{name}");
@@ -94,12 +90,15 @@ impl Dir {
                 total: 0,
                 citers: *citers,
             });
+            cited += usize::from(*citers > 0);
+            total += 1;
         }
+        (cited, total)
     }
 }
 
 /// The tree of the files whose hash the last run recorded and of those the
-/// docs cite.
+/// docs cite: built once, the paths don't change while the server runs.
 #[must_use]
 pub fn files_page(docs: &GeneratedDocs) -> FilesPage {
     let mut citers = citers_by_file(docs);
@@ -112,40 +111,18 @@ pub fn files_page(docs: &GeneratedDocs) -> FilesPage {
     for (path, count) in &citers {
         root.insert(path, *count);
     }
-    let (cited, total) = root.counts();
     let mut rows = Vec::new();
-    root.rows("", 0, &mut rows);
+    let (cited, total) = root.rows("", 0, &mut rows);
     FilesPage { cited, total, rows }
 }
 
 /// For each cited file, the number of features, use cases and rules citing it.
 fn citers_by_file(docs: &GeneratedDocs) -> BTreeMap<String, usize> {
-    let plain = |path: &str| path.strip_prefix("./").unwrap_or(path).to_string();
-    let features = docs.features().iter().map(|f| {
-        f.source_paths
-            .iter()
-            .map(|p| plain(p))
-            .collect::<BTreeSet<_>>()
-    });
-    let use_cases = docs.use_cases().iter().map(|u| {
-        u.steps
-            .iter()
-            .flat_map(|s| &s.source_refs)
-            .map(|r| plain(&r.path))
-            .collect::<BTreeSet<_>>()
-    });
-    let rules = docs.rules().iter().map(|r| {
-        r.evidence
-            .iter()
-            .filter_map(|e| match e {
-                RuleEvidence::Code { source } => Some(plain(&source.path)),
-                _ => None,
-            })
-            .collect::<BTreeSet<_>>()
-    });
     let mut citers = BTreeMap::new();
-    for path in features.chain(use_cases).chain(rules).flatten() {
-        *citers.entry(path).or_default() += 1;
+    for (_, paths) in citations(docs) {
+        for path in paths {
+            *citers.entry(path).or_default() += 1;
+        }
     }
     citers
 }

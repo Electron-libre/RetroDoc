@@ -58,12 +58,14 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   pieces of the templates (score badge, breadcrumb, lists, existing docs) are the macros of `macros.html`. The
   templates escape every text of the docs (LLM output). The page of a cited file, `/code/{*path}` (`code::code_page`, `code.html`),
   reads it through the `SourceAccess` of `GeneratedDocs::source_access` (the same refusals and windows as `read_source`):
-  `?lines=<start>[-<end>]` shows 10 lines around the cited ones and marks them (rows `id="L<n>"`); a path no doc cites,
-  or not plain, is the 404 page with nothing read, any other refusal a page that says why; then the last 10 commits
-  (`SourceAccess::commits`), the features, use cases and rules citing it, and the stale badge. The cited lines of the
+  `?lines=<start>[-<end>]` shows 10 lines around the cited ones and marks them (rows `id="L<n>"`), `?from=<line>` the
+  window from a line (the "Next lines" link, `code::Asked`); a path no doc cites, or not plain, is the 404 page with
+  nothing read, any other refusal (a cited range past the end included) a page that says why; then the last 10 commits
+  (`SourceAccess::commits`), the features, use cases and rules citing it (`code::citations`, also behind the counts of
+  the files page), and the stale badge. The cited lines of the
   steps, the source files of a feature and the code evidence of a rule link to it (`view::code_href`). The files page,
   `/files` (`files::files_page`, `files.html`, linked from the header of every page), lays out as a tree the paths of the
-  files `source-hashes.json` recorded (`Freshness::recorded_paths`) and of the cited ones: a directory with its files
+  files `source-hashes.json` recorded (`Freshness::recorded_paths`) and of the cited ones, built once in `Site::new`: a directory with its files
   cited out of its files, a file with the features, use cases and rules citing it and a link to its page, or `not cited`
   and no link. Tests:
   `tests/pages.rs` (home, tree, assets, `Host`), `tests/item_pages.rs` (the item pages), `tests/code_page.rs` (the

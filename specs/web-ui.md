@@ -88,6 +88,8 @@ over browses its domains, features and use cases rather than reading the Markdow
 - **WEB-35** (deterministic) On the files page, a cited file must be a link to its page.
 - **WEB-36** (deterministic) On the files page, a file no doc cites must be flagged `not cited`, with no link.
 - **WEB-37** (deterministic) Every page must link to the files page.
+- **WEB-38** (deterministic) The page of a file whose window ends before its last line must link to the page showing
+  the next lines, `?from=<line>`, which shows the window from that line with no line marked.
 
 ## Scenarios
 
@@ -119,6 +121,10 @@ over browses its domains, features and use cases rather than reading the Markdow
 - (WEB-27) Given `?lines=` that is not a line or a range of lines, then the page shows the file from its first line,
   with no line marked.
 - (WEB-27) Given `?lines=1-3`, then the window starts at line 1.
+- (WEB-32) Given `?lines=` whose start is past the end of a file whose last lines are within the 10 lines before it,
+  then the page says the range is past the end rather than showing those last lines.
+- (WEB-32) Given an empty cited file, then the page says it is empty; with `?lines=`, that the range is past the end.
+- (WEB-38) Given cited lines wider than the window, then the link to the next lines follows the last line shown.
 - (WEB-28) Given a repository with no git history, then the page says the history is not available and still shows
   the lines.
 - (WEB-30) Given a file with no recorded hash, then the page is not flagged.

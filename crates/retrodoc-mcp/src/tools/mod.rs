@@ -63,7 +63,8 @@ impl Docs {
     /// `repo_root`.
     #[must_use]
     pub fn with_source_access(mut self, repo_root: &Path) -> Self {
-        self.source = Some(SourceAccess::new(repo_root, self.generated.cited_paths()));
+        self.generated = self.generated.with_repo_root(repo_root);
+        self.source = self.generated.source_access();
         self
     }
 
@@ -79,7 +80,10 @@ impl Docs {
     /// access to the code it cites. `None` before a first `generate`.
     #[must_use]
     pub fn load(repo_root: &Path, docs: &[ExistingDoc]) -> Option<Self> {
-        GeneratedDocs::load(repo_root, docs).map(|g| Self::from(g).with_source_access(repo_root))
+        GeneratedDocs::load(repo_root, docs).map(|generated| Self {
+            source: generated.source_access(),
+            generated,
+        })
     }
 
     #[must_use]

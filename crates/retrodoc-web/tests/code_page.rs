@@ -46,10 +46,10 @@ fn source(path: &str, start_line: Option<u32>, end_line: Option<u32>) -> SourceR
     }
 }
 
-/// 300 lines of `invoice line <n>`, line 5 of 500 characters.
+/// 500 lines of `invoice line <n>`, line 5 of 500 characters.
 fn invoice_code() -> String {
     let mut code = String::new();
-    for n in 1..=300 {
+    for n in 1..=500 {
         if n == 5 {
             let _ = writeln!(code, "{}", "x".repeat(500));
         } else {
@@ -214,7 +214,7 @@ async fn a_cited_file_shows_its_first_200_lines_numbered_and_long_lines_cut() {
     assert_eq!(shown_lines(&page), (1..=200).collect::<Vec<_>>());
     assert!(page.contains("invoice line 200"), "{page}");
     assert!(!page.contains("invoice line 201"), "{page}");
-    assert!(page.contains("lines 1-200 of 300"), "{page}");
+    assert!(page.contains("lines 1-200 of 500"), "{page}");
     assert!(page.contains(&"x".repeat(400)));
     assert!(!page.contains(&"x".repeat(401)));
     assert!(page.contains("line cut, 500 characters"), "{page}");
@@ -374,4 +374,42 @@ async fn cited_lines_source_files_and_code_evidence_link_to_the_code() {
         use_case.contains("<a href=\"/code/app/card.rb\"><code>app/card.rb</code></a>"),
         "{use_case}"
     );
+}
+
+// spec: WEB-32
+#[tokio::test]
+async fn a_range_just_past_the_end_or_on_an_empty_file_is_refused() {
+    let (_dir, root) = generated_repo();
+    let past = page(&root, "/code/app/invoice.rb?lines=505-510").await;
+    assert!(past.contains("line 505 is past the end"), "{past}");
+    assert_eq!(shown_lines(&past), Vec::<usize>::new());
+
+    std::fs::write(root.join("app/card.rb"), "").unwrap();
+    let empty = page(&root, "/code/app/card.rb").await;
+    assert!(empty.contains("The file is empty."), "{empty}");
+    assert!(!empty.contains("lines 0-0"), "{empty}");
+    let past = page(&root, "/code/app/card.rb?lines=5").await;
+    assert!(past.contains("line 5 is past the end"), "{past}");
+}
+
+// spec: WEB-38
+#[tokio::test]
+async fn a_window_before_the_end_links_to_the_next_lines() {
+    let (_dir, root) = generated_repo();
+    let top = page(&root, "/code/app/invoice.rb").await;
+    assert!(
+        top.contains("<a href=\"/code/app/invoice.rb?from=201#L201\">"),
+        "{top}"
+    );
+    let next = page(&root, "/code/app/invoice.rb?from=201").await;
+    assert_eq!(shown_lines(&next), (201..=400).collect::<Vec<_>>());
+    assert_eq!(cited_lines(&next), Vec::<usize>::new());
+    assert!(next.contains("?from=401#L401"), "{next}");
+    let last = page(&root, "/code/app/invoice.rb?from=401").await;
+    assert_eq!(shown_lines(&last), (401..=500).collect::<Vec<_>>());
+    assert!(!last.contains("?from="), "{last}");
+
+    let wide = page(&root, "/code/app/invoice.rb?lines=20-480").await;
+    assert_eq!(shown_lines(&wide), (10..=409).collect::<Vec<_>>());
+    assert!(wide.contains("?from=410#L410"), "{wide}");
 }

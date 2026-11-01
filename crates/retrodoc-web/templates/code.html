@@ -16,6 +16,8 @@
 <h2>Code</h2>
 {% if let Some(reason) = page.refused %}
 <p class="refused">{{ reason }}</p>
+{% else if page.empty %}
+<p class="muted">The file is empty.</p>
 {% else %}
 {% if let Some(shown) = page.shown %}<p class="muted">Showing {{ shown }}.</p>{% endif %}
 <table class="code">
@@ -23,6 +25,7 @@
   <tr id="L{{ line.number }}"{% if line.cited %} class="cited"{% endif %}><td class="number">{{ line.number }}</td><td><pre>{{ line.text }}{% if let Some(length) = line.cut_from %} <span class="muted">… (line cut, {{ length }} characters)</span>{% endif %}</pre></td></tr>
   {% endfor %}
 </table>
+{% if let Some(next) = page.next %}<p><a href="{{ next }}">Next lines</a></p>{% endif %}
 {% endif %}
 <h2>History</h2>
 {% if let Some(commits) = page.commits %}

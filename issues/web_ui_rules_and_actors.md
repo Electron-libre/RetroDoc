@@ -36,3 +36,5 @@ Browse the docs in a web interface
 
 * The actor names come from the LLM per use case: the same actor may be spelled two ways; group by the exact name
   and leave the merging out of scope.
+* The page of a cited file (`crates/retrodoc-web/src/code.rs`, `citers`) links a rule to the top of its feature page:
+  once the rules have a page or an anchor (`id` on their `<li>` in `macros.html`), link there.

@@ -4,6 +4,7 @@
 
 use std::collections::BTreeSet;
 
+use crate::files::{files_page, FilesPage};
 use retrodoc_core::model::{
     ActorKind, BusinessRule, ConfidenceScore, Feature, RuleEvidence, SourceRef, Step, UseCase,
     LOW_CONFIDENCE_THRESHOLD,
@@ -20,6 +21,7 @@ pub struct Site {
     links: DocLinks,
     tree: Vec<TreeDomain>,
     source: Option<SourceAccess>,
+    files: Option<FilesPage>,
 }
 
 impl Site {
@@ -27,12 +29,20 @@ impl Site {
     pub fn new(docs: Option<GeneratedDocs>, links: DocLinks) -> Self {
         let tree = docs.as_ref().map(tree).unwrap_or_default();
         let source = docs.as_ref().and_then(GeneratedDocs::source_access);
+        let files = docs.as_ref().map(files_page);
         Self {
             docs,
             links,
             tree,
             source,
+            files,
         }
+    }
+
+    /// The files page, `None` with no run.
+    #[must_use]
+    pub fn files(&self) -> Option<&FilesPage> {
+        self.files.as_ref()
     }
 
     /// The files the docs cite, `None` with no run.
@@ -252,7 +262,7 @@ fn feature_row(feature: &Feature) -> ItemRow {
 
 /// `path` as the path of a URL: every byte but the unreserved ones and `/`
 /// percent-encoded, so a `#`, a `?` or a space stays in the path.
-fn url_path(path: &str) -> String {
+pub(crate) fn url_path(path: &str) -> String {
     use std::fmt::Write as _;
     let mut url = String::with_capacity(path.len());
     for byte in path.bytes() {
