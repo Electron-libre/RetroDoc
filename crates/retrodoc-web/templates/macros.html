@@ -1,7 +1,11 @@
 {% macro badge(confidence) %}<span class="badge{% if confidence.low %} low{% endif %}">{{ confidence.label }}</span>{% endmacro %}
 
+{% macro badge_why(confidence) %}{% call badge(confidence) %}{% endcall %}{% if let Some(why) = confidence.rationale %} <span class="muted">{{ why }}</span>{% endif %}{% endmacro %}
+
+{% macro doc_link(doc) %}<a href="{{ doc.href }}"><code>{{ doc.path }}</code>{% if let Some(heading) = doc.heading %}, section “{{ heading }}”{% endif %}</a>{% if let Some(states) = doc.contradicts %} <span class="badge low">states otherwise</span> {{ states }}{% endif %}{% endmacro %}
+
 {% macro score(label, confidence) %}
-<p class="score"><strong>{{ label }}:</strong> {% call badge(confidence) %}{% endcall %}{% if let Some(why) = confidence.rationale %} <span class="muted">{{ why }}</span>{% endif %}</p>
+<p class="score"><strong>{{ label }}:</strong> {% call badge_why(confidence) %}{% endcall %}</p>
 {% endmacro %}
 
 {% macro crumbs(links, current) %}
@@ -13,7 +17,7 @@
 {% macro items(rows) %}
 <ul class="items">
   {% for row in rows %}
-  <li><a href="{{ row.href }}">{{ row.name }}</a> {% call badge(row.confidence) %}{% endcall %}{% if let Some(why) = row.confidence.rationale %} <span class="muted">{{ why }}</span>{% endif %}{% if !row.description.is_empty() %}: {{ row.description }}{% endif %}</li>
+  <li><a href="{{ row.href }}">{{ row.name }}</a> {% call badge_why(row.confidence) %}{% endcall %}{% if !row.description.is_empty() %}: {{ row.description }}{% endif %}</li>
   {% endfor %}
 </ul>
 {% endmacro %}
@@ -23,10 +27,7 @@
 <h2>Existing documentation</h2>
 <ul class="docs">
   {% for doc in docs %}
-  <li>
-    <a href="{{ doc.href }}"><code>{{ doc.path }}</code>{% if let Some(heading) = doc.heading %}, section “{{ heading }}”{% endif %}</a>
-    {% if let Some(states) = doc.contradicts %}<span class="badge low">states otherwise</span> {{ states }}{% endif %}
-  </li>
+  <li>{% call doc_link(doc) %}{% endcall %}</li>
   {% endfor %}
 </ul>
 {% endif %}
@@ -45,15 +46,15 @@
 <ul class="rules">
   {% for rule in rules %}
   <li>
-    {{ rule.statement }} <span class="muted">({{ rule.kind }}, {% call badge(rule.confidence) %}{% endcall %})</span>
+    {{ rule.statement }} <span class="muted">({{ rule.kind }}, {% call badge_why(rule.confidence) %}{% endcall %})</span>
     <ul>
       {% if !rule.entities.is_empty() %}<li>Entities: {{ rule.entities|join(", ") }}</li>{% endif %}
       {% if !rule.use_cases.is_empty() %}<li>Use cases: {% for link in rule.use_cases %}<a href="{{ link.href }}">{{ link.name }}</a>{% if !loop.last %}, {% endif %}{% endfor %}</li>{% endif %}
       {% for evidence in rule.evidence %}
-      <li>{{ evidence.kind }}: {% if evidence.kind == "Code" %}<code>{{ evidence.text }}</code>{% else %}“{{ evidence.text }}”{% endif %}{% if let Some(source) = evidence.source %} (<code>{{ source }}</code>){% endif %}</li>
+      <li>{{ evidence.kind }}: {% if evidence.code %}<code>{{ evidence.text }}</code>{% else %}“{{ evidence.text }}”{% endif %}{% if let Some(source) = evidence.source %} (<code>{{ source }}</code>){% endif %}</li>
       {% endfor %}
       {% for doc in rule.docs %}
-      <li>Existing doc: <a href="{{ doc.href }}"><code>{{ doc.path }}</code>{% if let Some(heading) = doc.heading %}, section “{{ heading }}”{% endif %}</a>{% if let Some(states) = doc.contradicts %} <span class="badge low">states otherwise</span> {{ states }}{% endif %}</li>
+      <li>Existing doc: {% call doc_link(doc) %}{% endcall %}</li>
       {% endfor %}
     </ul>
   </li>

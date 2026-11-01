@@ -88,6 +88,9 @@ over browses its domains, features and use cases rather than reading the Markdow
 - (WEB-20) Given a cited file with no recorded hash, then the page is not flagged.
 - (WEB-22) Given a narrative judged partly backed (`narrative_check` above 0), then it is not flagged.
 - (WEB-23) Given a doc section with no heading, then the link points to the file with no anchor.
+- (WEB-23) Given a doc path with a `#`, a `?` or a space, then they are percent-encoded in the link.
+- (WEB-24) Given a client whose `Accept-Encoding` does not name gzip, then the script, stored compressed, is refused
+  with the status 406.
 - (WEB-23) Given a doc page not served yet (collected docs are a later issue), then the link answers 404.
 - (WEB-25) Given a feature slug under the slug of another domain, then it answers 404 rather than the feature.
 

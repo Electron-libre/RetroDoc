@@ -67,6 +67,8 @@ saved reconciliation judgements like `render` does (no LLM call) and hands them 
 3. [x] Use case page and diagrams: steps, narrative and its unbacked flag, business-language score, vendored
    `mermaid` loaded only there, served with a long cache; verified by router tests; makes true WEB-17, WEB-20 (use
    case), WEB-22, WEB-24, WEB-25 (use case); spec `accepted`.
+4. [x] Fixes of the `high` review of the issue: rule rationale, encoded doc paths, gzip only to who accepts it,
+   shared doc-link macro; verified by router tests; makes true WEB-18 (rules), WEB-23, WEB-24 (scenarios).
 
 ## Decisions
 - Mode: autonomous
@@ -136,4 +138,34 @@ saved reconciliation judgements like `render` does (no LLM call) and hands them 
   so measured empty; `diagrams.js` now draws a folded diagram when its `<details>` first opens.
 - not verified: the drawing in a browser (no browser on this machine): `mermaid` reads the escaped source through
   `innerHTML` and `entityDecode` (read in its code), and the folded case relies on the `toggle` event.
+- decisions needed: none.
+
+## Deliverable 4: fixes of the `high` review
+
+`/code-review high 71f3f48..HEAD`: 10 findings.
+
+| finding | outcome |
+|---|---|
+| rule confidence shown without its rationale (domain, feature, use case pages) | fixed: `badge_why` macro, WEB-18 test |
+| doc path not percent-encoded in `/docs/` links | fixed: `view::url_path`, WEB-23 scenario and test |
+| `mermaid` sent gzipped whatever `Accept-Encoding`, no `Vary` | fixed: 406 to a client that refuses gzip, `Vary: accept-encoding`, WEB-24 scenario and test |
+| doc-link markup duplicated in two macros | fixed: `doc_link` macro |
+| template branching on the label `"Code"` | fixed: `Evidence::code` |
+| stale check ignores the files of the rule evidence | not fixed: WEB-20 judges the feature by its source files and the use case by its cited lines, as the home page and the MCP do |
+| `ui` reloads the artifacts to build the `DocLinks` | not fixed: one more parse at start; reconciling from `GeneratedDocs` needs a `DomainMap` it does not keep |
+| business language flagged under 0.5 while set apart under 0.8 | not fixed: the Markdown page flags it the same way (`score_line`); the two must agree |
+| `DomainRule` close to `RuleView` | not fixed: a domain rule shows its feature, not its evidence, like the Markdown page |
+| quadratic dedup of the cited paths | not fixed: a use case cites a few files |
+
+| check | result |
+|---|---|
+| tests | `just check` green, 3 new tests |
+| lint | clippy pedantic clean |
+| specs | 2 scenarios added to `web-ui.md` |
+| docs | `docs/crates/render-mcp-cli.md` |
+
+- red: WEB-18, WEB-23, WEB-24: `"backed by code alone" missing`, the raw `docs/C# guide?.md` href, 200 instead of 406
+- Code review (`low` of this deliverable): 1 finding, fixed: `gzip;q=0, *` was taken as accepting gzip; a named
+  coding now overrides `*`.
+- not verified: the pages in a browser.
 - decisions needed: none.

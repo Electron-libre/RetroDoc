@@ -19,7 +19,7 @@
 <h2>Business rules</h2>
 <ul class="rules">
   {% for rule in page.rules %}
-  <li>{{ rule.statement }} <span class="muted">({{ rule.kind }}, {% call m::badge(rule.confidence) %}{% endcall %})</span> — <a href="{{ rule.feature.href }}">{{ rule.feature.name }}</a></li>
+  <li>{{ rule.statement }} <span class="muted">({{ rule.kind }}, {% call m::badge_why(rule.confidence) %}{% endcall %})</span> — <a href="{{ rule.feature.href }}">{{ rule.feature.name }}</a></li>
   {% endfor %}
 </ul>
 {% endif %}

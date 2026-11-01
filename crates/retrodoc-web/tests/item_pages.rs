@@ -81,7 +81,10 @@ fn rule(slug: &str, statement: &str) -> BusinessRule {
         entities: Vec::new(),
         use_cases: Vec::new(),
         evidence: Vec::new(),
-        confidence: Some(ConfidenceScore::new(0.3, None)),
+        confidence: Some(ConfidenceScore::new(
+            0.3,
+            Some("backed by code alone".into()),
+        )),
     }
 }
 
@@ -638,6 +641,7 @@ async fn the_mermaid_script_is_served_compressed_with_a_long_cache() {
     let response = retrodoc_web::router(GeneratedDocs::load(repo.path(), &[]), doc_links())
         .oneshot(
             Request::get("/assets/mermaid-12.2.0.min.js")
+                .header("accept-encoding", "gzip")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -679,4 +683,87 @@ async fn a_use_case_unknown_or_asked_under_another_feature_is_the_not_found_page
         assert_eq!(status, StatusCode::NOT_FOUND, "{path}");
         assert!(page.contains("<h1>Not found</h1>"), "{page}");
     }
+}
+
+// spec: WEB-18
+#[tokio::test]
+async fn a_rule_is_shown_with_the_rationale_of_its_confidence() {
+    let repo = generated_repo();
+    for path in [
+        "/domains/billing",
+        "/domains/billing/pay-invoice",
+        PAY_BY_CARD,
+    ] {
+        let page = page(repo.path(), path).await;
+        assert_in_order(
+            main_of(&page),
+            &[
+                "An invoice is paid within 30 days",
+                "30%",
+                "backed by code alone",
+            ],
+        );
+    }
+}
+
+// spec: WEB-23
+#[tokio::test]
+async fn the_path_of_a_doc_link_is_encoded() {
+    let repo = generated_repo();
+    let mut links = DocLinks::default();
+    links.links.insert(
+        ItemRef::Domain("billing".into()),
+        vec![DocLink {
+            path: "docs/C# guide?.md".into(),
+            heading: Some("Set up".into()),
+            contradicts: None,
+        }],
+    );
+    let response = retrodoc_web::router(GeneratedDocs::load(repo.path(), &[]), links)
+        .oneshot(
+            Request::get("/domains/billing")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let page = String::from_utf8(body.to_vec()).unwrap();
+    assert!(
+        page.contains("href=\"/docs/docs/C%23%20guide%3F.md#set-up\""),
+        "{page}"
+    );
+}
+
+async fn mermaid_with(accept_encoding: Option<&str>) -> axum::response::Response {
+    let repo = generated_repo();
+    let mut request = Request::get("/assets/mermaid-12.2.0.min.js");
+    if let Some(encodings) = accept_encoding {
+        request = request.header("accept-encoding", encodings);
+    }
+    retrodoc_web::router(GeneratedDocs::load(repo.path(), &[]), doc_links())
+        .oneshot(request.body(Body::empty()).unwrap())
+        .await
+        .unwrap()
+}
+
+// spec: WEB-24
+#[tokio::test]
+async fn a_client_that_does_not_accept_gzip_is_not_sent_the_compressed_script() {
+    for refused in [None, Some("br"), Some("identity"), Some("gzip;q=0, *")] {
+        let response = mermaid_with(refused).await;
+        assert_eq!(response.status(), StatusCode::NOT_ACCEPTABLE, "{refused:?}");
+    }
+    for accepted in ["*", "br, GZIP;q=0.5"] {
+        assert_eq!(
+            mermaid_with(Some(accepted)).await.status(),
+            StatusCode::OK,
+            "{accepted}"
+        );
+    }
+    let response = mermaid_with(Some("gzip, deflate, br")).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.headers()["vary"], "accept-encoding");
 }

@@ -33,8 +33,8 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
 - **retrodoc-web** (`lib.rs` the router and `serve`, `view.rs` what the pages show as plain data, `pages.rs` the
   handlers and their `askama` templates under `templates/`, `assets.rs` the vendored `htmx`, `mermaid` and the stylesheet of
   `assets/`, embedded in the binary and served under `/assets/`, cached an hour; `mermaid` is stored gzipped,
-  `mermaid-<version>.min.js.gz` (5.5 MB plain), served with `Content-Encoding: gzip` and cached as immutable under its
-  versioned name): the local web interface of ADR 0039
+  `mermaid-<version>.min.js.gz` (5.5 MB plain), served with `Content-Encoding: gzip` (406 to a client whose `Accept-Encoding` does not name gzip) and
+  cached as immutable under its versioned name): the local web interface of ADR 0039
   (`specs/web-ui.md`). The docs are loaded once into `GeneratedDocs` (`None` before a first `generate`: the home page
   says to run it), and the tree built once; every page shares the layout of `base.html` (the tree of domains, features
   and use cases, linked to `/domains/{domain}[/{feature}[/{use_case}]]`); a request whose `Host` is a name other than
@@ -42,7 +42,7 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   under `LOW_CONFIDENCE_THRESHOLD`), a stale badge when a file their features cite changed since the run
   (`Freshness::stale`, read in `spawn_blocking` at each request), and their counts of features and use cases. The page of a domain (`view::domain_page`, `domain.html`) shows the
   sections of its Markdown page in the same order, with a breadcrumb; the back-office features under
-  `retrodoc_render::TECHNICAL_HEADING`, the existing docs as links to `/docs/<path>#<anchor>` (`retrodoc_render::anchor`,
+  `retrodoc_render::TECHNICAL_HEADING`, the existing docs as links to `/docs/<path>#<anchor>` (the path percent-encoded, `retrodoc_render::anchor`,
   the collected doc pages being a later issue) with what a contradicting one states otherwise. The page of a feature (`view::feature_page`, `feature.html`) does
   the same for its Markdown page (the use cases `UseCase::is_technical` sets apart under the same heading, the rules
   with their evidence and doc links, the source files) and adds its entry points, a back-office badge and the stale

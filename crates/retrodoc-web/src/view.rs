@@ -236,6 +236,21 @@ fn feature_row(feature: &Feature) -> ItemRow {
     }
 }
 
+/// `path` as the path of a URL: every byte but the unreserved ones and `/`
+/// percent-encoded, so a `#`, a `?` or a space stays in the path.
+fn url_path(path: &str) -> String {
+    use std::fmt::Write as _;
+    let mut url = String::with_capacity(path.len());
+    for byte in path.bytes() {
+        if byte.is_ascii_alphanumeric() || b"-._~/".contains(&byte) {
+            url.push(char::from(byte));
+        } else {
+            let _ = write!(url, "%{byte:02X}");
+        }
+    }
+    url
+}
+
 /// The doc sections behind `item`, linked to the page of the collected doc.
 fn doc_items(links: &DocLinks, item: &ItemRef) -> Vec<DocItem> {
     links
@@ -243,8 +258,8 @@ fn doc_items(links: &DocLinks, item: &ItemRef) -> Vec<DocItem> {
         .iter()
         .map(|doc| DocItem {
             href: match &doc.heading {
-                Some(h) => format!("/docs/{}#{}", doc.path, anchor(h)),
-                None => format!("/docs/{}", doc.path),
+                Some(h) => format!("/docs/{}#{}", url_path(&doc.path), anchor(h)),
+                None => format!("/docs/{}", url_path(&doc.path)),
             },
             path: doc.path.clone(),
             heading: doc.heading.clone(),
@@ -321,6 +336,8 @@ fn stale_files<'a>(
 /// `Documentation` and its section, with the file it comes from.
 pub struct Evidence {
     pub kind: &'static str,
+    /// The text is cited lines of code.
+    pub code: bool,
     pub text: String,
     pub source: Option<String>,
 }
@@ -330,16 +347,19 @@ impl Evidence {
         match evidence {
             RuleEvidence::Code { source } => Self {
                 kind: "Code",
+                code: true,
                 text: source_ref_label(source),
                 source: None,
             },
             RuleEvidence::Test { phrase, path } => Self {
                 kind: "Test",
+                code: false,
                 text: phrase.clone(),
                 source: Some(path.clone()),
             },
             RuleEvidence::Doc { path, heading } => Self {
                 kind: "Documentation",
+                code: false,
                 text: heading.clone(),
                 source: Some(path.clone()),
             },
