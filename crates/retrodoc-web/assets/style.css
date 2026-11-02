@@ -136,3 +136,5 @@ ul.hits { list-style: none; padding-left: 0; }
 .credit a { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--text-muted); text-decoration: none; }
 .credit a:hover { color: var(--gold-light); }
 .credit img { border-radius: 0.2rem; }
+.map svg g.node.linked { cursor: pointer; }
+.map svg g.node.linked:hover rect, .map svg g.node.linked:focus rect { stroke: var(--gold); }

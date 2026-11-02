@@ -7,6 +7,7 @@ use std::collections::BTreeSet;
 use crate::actors::{actors_page, ActorsPage};
 use crate::files::{files_page, FilesPage};
 use crate::glossary::{glossary_page, GlossaryPage};
+use crate::map::{map_page, MapPage};
 use crate::Project;
 use retrodoc_core::model::{
     ActorKind, BusinessRule, ConfidenceScore, Feature, RuleEvidence, SourceRef, Step, UseCase,
@@ -31,6 +32,7 @@ pub struct Site {
     collected: Vec<ExistingDoc>,
     glossary: Option<GlossaryPage>,
     actors: Option<ActorsPage>,
+    map: Option<MapPage>,
 }
 
 impl Site {
@@ -51,6 +53,7 @@ impl Site {
         let files = docs.as_ref().map(files_page);
         let glossary = docs.as_ref().map(glossary_page);
         let actors = docs.as_ref().map(actors_page);
+        let map = docs.as_ref().map(map_page);
         let start = match (&docs, &files, &glossary, &actors) {
             (Some(docs), Some(files), Some(glossary), Some(actors)) => {
                 start_links(docs, files, glossary, actors)
@@ -73,7 +76,14 @@ impl Site {
             collected,
             glossary,
             actors,
+            map,
         }
+    }
+
+    /// The map of the domains, `None` with no run.
+    #[must_use]
+    pub fn map(&self) -> Option<&MapPage> {
+        self.map.as_ref()
     }
 
     /// The actors page, `None` with no run.
@@ -143,7 +153,8 @@ impl Site {
 }
 
 /// The pages of reference with their counts as the pages they link to show
-/// them: a row per actor and kind, the concepts, the rules, the cited files.
+/// them: the domains, a row per actor and kind, the concepts, the rules, the
+/// cited files.
 fn start_links(
     docs: &GeneratedDocs,
     files: &FilesPage,
@@ -154,6 +165,7 @@ fn start_links(
     REFERENCE_PAGES
         .iter()
         .zip([
+            docs.domains().len(),
             actors,
             glossary.concepts.len(),
             docs.rules().len(),
@@ -208,7 +220,14 @@ pub fn plural(count: usize, one: &str, many: &str) -> String {
 }
 
 /// The pages of reference, in the order a first-time reader is pointed to them.
-pub const REFERENCE_PAGES: [ReferencePage; 4] = [
+pub const REFERENCE_PAGES: [ReferencePage; 5] = [
+    ReferencePage {
+        href: "/map",
+        name: "Map",
+        hint: "The domains drawn as a graph, linked by the concepts they share; each opens its features.",
+        group: Group::Read,
+        unit: ("domain", "domains"),
+    },
     ReferencePage {
         href: "/actors",
         name: "Actors",
@@ -252,7 +271,7 @@ pub struct StartLink {
 /// with no run.
 pub struct Shell {
     pub name: String,
-    /// The pages one reads through: the actors.
+    /// The pages one reads through: the map, the actors.
     pub read: Vec<&'static ReferencePage>,
     /// The pages one looks things up in: the glossary, the rules, the files.
     pub look_up: Vec<&'static ReferencePage>,

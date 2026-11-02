@@ -334,7 +334,7 @@ flowchart LR
 | Add or change a pipeline pass | `crates/retrodoc-pipeline/src/` (follow the existing pass + its fake-provider test) |
 | Change the generated Markdown | `crates/retrodoc-render/src/markdown/` (one file per page) |
 | Change what an agent can ask (MCP tools, search, code access) | `crates/retrodoc-mcp/src/` (`tools/` the answers, `server.rs` the wiring, `source.rs` the code access scope) |
-| Change what the web interface shows | `crates/retrodoc-web/` (`view.rs` what a page shows, `code.rs`, `files.rs`, `collected.rs`, `glossary.rs`, `rules.rs`, `actors.rs` and `search.rs` the other pages, `templates/` the layout, `pages.rs` the routes), `specs/web-ui.md`; the data comes from `GeneratedDocs` in `crates/retrodoc-mcp/src/read_model.rs` |
+| Change what the web interface shows | `crates/retrodoc-web/` (`view.rs` what a page shows, `code.rs`, `files.rs`, `collected.rs`, `glossary.rs`, `rules.rs`, `actors.rs`, `map.rs` and `search.rs` the other pages, `templates/` the layout, `pages.rs` the routes), `specs/web-ui.md`; the data comes from `GeneratedDocs` in `crates/retrodoc-mcp/src/read_model.rs` |
 | Add a CLI command | `crates/retrodoc-cli/src/commands/` + `main.rs` |
 | Change config options | `crates/retrodoc-core/src/config.rs` |
 | Understand why a design choice was made | `docs/adr/` (ADRs 0001–0014 were written retroactively from the history; 0015 to 0018 were written with the change; 0019 to 0023 decide the redesign of `docs/findings.md` §6 ahead of its implementation; 0024 adds DeepSeek as a provider; 0025 locates the business files with a pass of its own; 0026 to 0028 record measured steps of the redesign: mechanical confidence checks, chunking by parse, single read of the business files) |

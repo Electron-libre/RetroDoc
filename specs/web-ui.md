@@ -1,6 +1,6 @@
 ---
 id: WEB
-status: accepted
+status: draft
 adrs: [0039]
 ---
 
@@ -64,7 +64,8 @@ over browses its domains, features and use cases rather than reading the Markdow
 - **WEB-24** (deterministic) A page with a diagram must load the `mermaid` script from `/assets/` to draw it and keep
   the source of the diagram in the page; a page without a diagram must not load it.
 - **WEB-25** (deterministic) The status 404 and the not-found page must answer a domain, a feature or a use case
-  slug the last run does not have, or a feature asked under a domain it does not belong to.
+  slug the last run does not have, or a feature asked under a domain it does not belong to; a domain slug of a map
+  (`/map/<domain>`) too.
 - **WEB-26** (deterministic) The page of a file the docs cite, `/code/<path>`, must show its lines numbered, within the
   window `read_source` serves: from the first line, 200 lines by default and 400 at most, a line longer than 400
   characters cut.
@@ -148,15 +149,32 @@ over browses its domains, features and use cases rather than reading the Markdow
   product brief (`.retrodoc/cache/product.yaml`) has a purpose, show that purpose under it.
 - **WEB-65** (deterministic) The home page must show, in this order, the heading and purpose of WEB-64, the users of
   the saved product brief when it has some, a "Start here" section, then the domains of WEB-4.
-- **WEB-66** (deterministic) The "Start here" section of the home page must link to the actors, glossary, rules and
-  files pages, each with one line saying what the page holds and its count (actors, concepts, rules, cited files of
-  the run).
-- **WEB-67** (deterministic) The header of every page must group its links under "Read" (the actors page) and "Look up"
-  (the glossary, rules and files pages), each link with a title saying what its page holds.
+- **WEB-66** (deterministic) The "Start here" section of the home page must link to the map, actors, glossary, rules
+  and files pages, each with one line saying what the page holds and its count (domains, actors, concepts, rules,
+  cited files of the run).
+- **WEB-67** (deterministic) The header of every page must group its links under "Read" (the map and actors pages)
+  and "Look up" (the glossary, rules and files pages), each link with a title saying what its page holds.
 - **WEB-68** (deterministic) The page of a use case must link to the previous and the next use case of its feature, in
   the order of the run, each labelled with its name; the first has no previous link and the last no next one.
 - **WEB-69** (deterministic) Every page must end with a credit line showing the Meta Lambda logo, served from
   `/assets/`, and the text "Made by Meta Lambda", a link to `https://meta-lambda.com`.
+- **WEB-70** (deterministic) The map page, `/map`, must keep the source of a graph with a node per domain of the last
+  run, labelled with its name and its numbers of features and use cases, and an edge between two domains that share
+  a concept, labelled with the names of the concepts they share, the first 3 by name then the number of the others.
+  A domain uses a concept when one of the use cases of its features uses it (WEB-46).
+- **WEB-71** (deterministic) The map page must list each domain as a link to its map, `/map/<domain>`, with the
+  concepts it shares with each other domain, each concept a link to `/glossary#<anchor of its name>`.
+- **WEB-72** (deterministic) The map of a domain, `/map/<domain>`, must keep the source of a graph with a node per
+  feature of the domain, labelled with its name and its number of use cases, a node per human actor of their use
+  cases with an edge to each feature it starts a use case of (solid) or only takes part in (dotted), and a node per
+  concept their use cases use with an edge to each feature that uses it.
+- **WEB-73** (deterministic) The map of a domain must list each of its features as a link to its page, with its human
+  actors, each a link to the actors page, and its concepts, each a link to `/glossary#<anchor of its name>`.
+- **WEB-74** (deterministic) Each node of a map graph must have an id in its source that the link of its item in the
+  list of the page carries as `data-node`, so the drawn node opens the page of that link.
+- **WEB-75** (deterministic) Each label of a map graph must be written between double quotes, with a double quote of
+  the docs written `#quot;`.
+- **WEB-76** (deterministic) The page of a domain must link to its map.
 
 ## Scenarios
 
@@ -235,6 +253,13 @@ over browses its domains, features and use cases rather than reading the Markdow
 - (WEB-65) Given a brief with no user, then the home page shows no users line.
 - (WEB-66) Given a run with no business rule, then the rules link is still shown, with the count 0.
 - (WEB-68) Given a feature with a single use case, then its page has neither a previous nor a next link.
+- (WEB-70) Given a run with a single domain, then the graph has its node and no edge.
+- (WEB-70) Given a concept no use case uses, then it links no domain.
+- (WEB-72) Given an actor that both starts a use case of a feature and takes part in another, then their edge is
+  solid, once.
+- (WEB-72) Given a step whose actor is a system, then it is no node of the map.
+- (WEB-70, WEB-72) Given a repository with no run yet, then both pages say to run `retrodoc generate`.
+- (WEB-75) Given a feature named `a"] --> x["b`, then its label stays one node: `a#quot;] --> x[#quot;b`.
 
 ## Non-goals
 
@@ -257,3 +282,6 @@ over browses its domains, features and use cases rather than reading the Markdow
 - The colours of the interface (the charter of the Meta Lambda site) are no requirement: they are checked by eye, not
   by a test.
 - The docs are read once at start: the pages of a `generate` run while the server runs show after a restart of `ui`.
+- The maps draw no use case: a domain of a large application has hundreds; they are counted on their feature. Nor do
+  they draw use cases that call one another: the docs hold no such link.
+- The layout of a map is that of `mermaid`, drawn by the browser: how it reads is checked by eye, not by a test.

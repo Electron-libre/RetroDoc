@@ -18,6 +18,7 @@ use crate::code::{code_page, Asked, CodePage};
 use crate::collected::{collected_page, CollectedPage};
 use crate::files::FilesPage;
 use crate::glossary::GlossaryPage;
+use crate::map::MapPage;
 use crate::rules::{rules_page, RuleFilter, RulesPage};
 use crate::search::{query_value, search_page, Results, SearchPage};
 use crate::view::{
@@ -87,6 +88,14 @@ struct CollectedTemplate<'a> {
 struct GlossaryTemplate<'a> {
     shell: &'a Shell,
     page: &'a GlossaryPage,
+}
+
+#[derive(Template)]
+#[template(path = "map.html")]
+struct MapTemplate<'a> {
+    shell: &'a Shell,
+    page: &'a MapPage,
+    mermaid: &'static str,
 }
 
 #[derive(Template)]
@@ -273,6 +282,20 @@ pub async fn glossary(State(site): State<Arc<Site>>) -> Response {
         &GlossaryTemplate {
             shell: site.shell(),
             page,
+        },
+    )
+}
+
+pub async fn map(State(site): State<Arc<Site>>) -> Response {
+    let Some(page) = site.map() else {
+        return no_run_page(&site);
+    };
+    render(
+        StatusCode::OK,
+        &MapTemplate {
+            shell: site.shell(),
+            page,
+            mermaid: MERMAID,
         },
     )
 }

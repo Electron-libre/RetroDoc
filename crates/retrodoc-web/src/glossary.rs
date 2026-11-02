@@ -40,10 +40,25 @@ pub fn glossary_page(docs: &GeneratedDocs) -> GlossaryPage {
     GlossaryPage { concepts }
 }
 
-/// The use cases that use the concept `name`: one of their steps cites one of
-/// the `files` it was read from, or a rule that applies to them names it. In
-/// the order of the run.
+/// The use cases that use the concept `name`, as links to their pages.
 fn users(docs: &GeneratedDocs, name: &str, files: &[PathBuf]) -> Vec<Link> {
+    uses(docs, name, files)
+        .into_iter()
+        .map(|(feature, use_case)| Link {
+            href: use_case_href(feature, use_case),
+            name: use_case.name.clone(),
+        })
+        .collect()
+}
+
+/// The use cases that use the concept `name`, each with its feature: one of
+/// their steps cites one of the `files` it was read from, or a rule that
+/// applies to them names it. In the order of the run.
+pub(crate) fn uses<'a>(
+    docs: &'a GeneratedDocs,
+    name: &str,
+    files: &[PathBuf],
+) -> Vec<(&'a Feature, &'a UseCase)> {
     let files: Vec<String> = files.iter().map(|f| plain(&f.to_string_lossy())).collect();
     docs.features()
         .iter()
@@ -53,10 +68,6 @@ fn users(docs: &GeneratedDocs, name: &str, files: &[PathBuf]) -> Vec<Link> {
         })
         .filter(|(feature, use_case)| {
             cites_a_file(use_case, &files) || ruled(docs, feature, use_case, name)
-        })
-        .map(|(feature, use_case)| Link {
-            href: use_case_href(feature, use_case),
-            name: use_case.name.clone(),
         })
         .collect()
 }

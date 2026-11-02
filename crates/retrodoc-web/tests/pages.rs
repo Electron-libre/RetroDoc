@@ -373,6 +373,7 @@ async fn start_here_links_each_reference_page_with_what_it_holds_and_its_count()
     let page = home(repo.path()).await;
     let start = between(&page, "id=\"start-here\"", "</section>");
     for (href, count) in [
+        ("/map", "3 domains"),
         ("/actors", "0 actors"),
         ("/glossary", "0 concepts"),
         ("/rules", "0 rules"),
@@ -406,7 +407,7 @@ async fn the_header_groups_its_links_under_read_and_look_up_with_titles() {
         let (_, page, _) = get(docs, path).await;
         let header = between(&page, "<header", "</header>");
         for (group, hrefs) in [
-            ("Read", &["/actors"][..]),
+            ("Read", &["/map", "/actors"][..]),
             ("Look up", &["/glossary", "/rules", "/files"][..]),
         ] {
             let nav = between(header, &format!("aria-label=\"{group}\""), "</nav>");

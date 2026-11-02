@@ -13,6 +13,7 @@ pub mod code;
 pub mod collected;
 pub mod files;
 pub mod glossary;
+pub mod map;
 mod pages;
 pub mod rules;
 pub mod search;
@@ -64,6 +65,7 @@ pub fn router(
         .route("/files", get(pages::files))
         .route("/glossary", get(pages::glossary))
         .route("/rules", get(pages::rules))
+        .route("/map", get(pages::map))
         .route("/actors", get(pages::actors))
         .route("/search", get(pages::search))
         .route("/code/{*path}", get(pages::code))
