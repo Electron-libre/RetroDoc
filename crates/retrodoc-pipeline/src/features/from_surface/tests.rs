@@ -290,6 +290,7 @@ fn one_left_out(n: usize, request: &CompletionRequest) -> String {
 
 #[tokio::test]
 async fn the_entry_points_no_feature_claimed_are_placed_or_listed_as_unplaced() {
+    let (logs, _guard) = crate::testing::capture_logs();
     let dir = tempfile::tempdir().unwrap();
     let (domains, entries) = fixture();
     let llm = FakeLlm::replying(|n, r| Ok(one_left_out(n, r)));
@@ -305,6 +306,21 @@ async fn the_entry_points_no_feature_claimed_are_placed_or_listed_as_unplaced() 
     );
     let coverage = BehaviourCoverage::load(dir.path()).unwrap();
     assert_eq!(coverage.unplaced_entry_points, vec!["misc.rb#GET /ping"]);
+    // Left out by a slice is only an info: the warning is for what stays out after the placement.
+    let logs = logs.text();
+    let claimed: Vec<&str> = logs
+        .lines()
+        .filter(|l| l.contains("no feature claimed"))
+        .collect();
+    assert!(
+        !claimed.is_empty() && claimed.iter().all(|l| l.contains("INFO")),
+        "{logs}"
+    );
+    assert!(
+        logs.lines()
+            .any(|l| l.contains("WARN") && l.contains("no feature holds")),
+        "{logs}"
+    );
     // The placement is saved with the features.
     let saved = load_features(dir.path()).unwrap();
     assert_eq!(saved[0].entry_points.len(), 2);

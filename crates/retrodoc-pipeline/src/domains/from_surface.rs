@@ -99,7 +99,8 @@ fn surface_fingerprint(surface: &Surface, brief: &ProductBrief, model: String) -
 /// Builds the domains from the surface and persists them to `.retrodoc/cache/domains.yaml`.
 /// A resource or an entity the model leaves out, or places twice, is not lost: the first placement
 /// wins and what is left goes to the "uncategorized" domain. A name the surface does not know is
-/// dropped. The saved domains are reused while the surface, the brief and the model are unchanged.
+/// dropped, at info: nothing is lost. The saved domains are reused while the surface, the brief
+/// and the model are unchanged.
 ///
 /// # Errors
 ///
@@ -170,7 +171,7 @@ fn place(raw: RawSurfaceDomains, surface: &Surface) -> DomainMap {
                 let key = normalize(name);
                 let found = surface.resources.iter().find(|r| normalize(&r.name) == key);
                 if found.is_none() {
-                    tracing::warn!(resource = %name, "domain cites a resource the surface does not know, dropped");
+                    tracing::info!(resource = %name, "domain cites a resource the surface does not know, dropped");
                 }
                 found.filter(|_| free_resources.remove(&key))
             })
@@ -182,7 +183,7 @@ fn place(raw: RawSurfaceDomains, surface: &Surface) -> DomainMap {
                 let key = normalize(name);
                 let found = surface.entities.iter().find(|e| normalize(&e.name) == key);
                 if found.is_none() {
-                    tracing::warn!(entity = %name, "domain cites an entity the surface does not know, dropped");
+                    tracing::info!(entity = %name, "domain cites an entity the surface does not know, dropped");
                 }
                 found.filter(|_| free_entities.remove(&key))
             })

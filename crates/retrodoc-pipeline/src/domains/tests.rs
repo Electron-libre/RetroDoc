@@ -115,6 +115,28 @@ async fn domains_from_the_surface_hold_resources_and_entities_and_their_files() 
 }
 
 #[tokio::test]
+async fn a_name_the_surface_does_not_know_is_dropped_at_info() {
+    let (logs, _guard) = crate::testing::capture_logs();
+    let dir = tempfile::tempdir().unwrap();
+    let llm = FakeLlm::answering(
+        r#"{"domains":[{"slug":"ordering","name":"Ordering","description":"d",
+         "resources":["order","ghost"],"entities":["Order","Phantom"]}]}"#,
+    );
+
+    build_domains_from_surface(dir.path(), &shop_surface(), &ProductBrief::default(), &llm)
+        .await
+        .unwrap();
+
+    let logs = logs.text();
+    let dropped: Vec<&str> = logs
+        .lines()
+        .filter(|l| l.contains("does not know"))
+        .collect();
+    assert_eq!(dropped.len(), 2, "{logs}");
+    assert!(dropped.iter().all(|l| l.contains("INFO")), "{logs}");
+}
+
+#[tokio::test]
 async fn the_surface_domains_are_reused_while_the_surface_and_the_model_are_unchanged() {
     let dir = tempfile::tempdir().unwrap();
     let llm = FakeLlm::answering(SHOP_ANSWER);

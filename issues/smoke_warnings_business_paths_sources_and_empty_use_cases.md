@@ -83,7 +83,7 @@ about 23 runs passed through the sources pass, 44 through the business files and
 2. [x] Use cases without steps: steps written as plain strings are read as the step's text; a use case left
    with no step stays a `warn`, an entry with no slug, no name and no step (an empty placeholder) is `info`;
    verified by tests in `use_cases/tests.rs`.
-3. [ ] Surface passes: "entry points no feature claimed" is `info` at the slice, and a `warn` per domain only
+3. [x] Surface passes: "entry points no feature claimed" is `info` at the slice, and a `warn` per domain only
    for the entry points still unplaced after the placement; a name the surface does not know, cited by a domain, is `info`;
    verified by `capture_logs` tests in `features` and `domains`.
 
@@ -130,3 +130,24 @@ placeholder test on its `WARN … no steps use_case=` line
 Code review: no findings
 
 not verified: no smoke run (decided: no new LLM run); the cause of the empty slugs of 2026-10-14 stays unknown (raw answers not logged).
+
+## Deliverable 3: surface passes
+
+done: "entry points no feature claimed" (one domain call) is `info`, the `warn` stays on what the placement
+leaves out ("entry points no feature holds"); a resource or an entity the surface does not know, cited by a
+domain, is dropped at `info`.
+
+| check | result |
+|---|---|
+| tests | `just check` green |
+| docs | `docs/crates/pipeline.md`, doc of `build_domains_from_surface` |
+| code review | low, see below |
+
+red: none traced (no spec): the domains test failed on the two `WARN … does not know` lines, the placement
+test on `WARN … entry points no feature claimed`
+
+Code review: 1 findings
+
+- the comment above the `info` read as if this line warned: reworded (the warning is the placement's).
+
+not verified: no smoke run (decided: no new LLM run).

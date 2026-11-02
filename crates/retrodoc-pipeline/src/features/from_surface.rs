@@ -921,8 +921,9 @@ fn place_entry_points(
             confidence: None,
         });
     }
+    // An info: the placement call puts them into a feature, and warns of those it leaves out.
     if !free.is_empty() {
-        tracing::warn!(
+        tracing::info!(
             domain = %domain.slug,
             entry_points = free.len(),
             "entry points no feature claimed"
