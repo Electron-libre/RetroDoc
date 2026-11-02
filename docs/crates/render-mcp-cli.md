@@ -58,7 +58,8 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   files (read in `spawn_blocking`, like the home page); a feature asked under another domain is not found. The page of a use case (`view::use_case_page`, `use_case.html`)
   follows its Markdown page too: the narrative first (flagged unbacked when `narrative_check` is 0, the rule of the
   debt report), the steps and the diagram folded under "Technical details", or in the open without a narrative; the
-  stale files are those its steps cite. Only a page with a diagram loads `mermaid` and `diagrams.js` (the
+  stale files are those its steps cite; it ends on links to the previous and the next use case of its feature, in
+  the order of the run. Only a page with a diagram loads `mermaid` and `diagrams.js` (the
   `scripts` block of `base.html`), which draw the `<pre class="mermaid">`; the source stays readable under it. The `DocLinks` come
   from `retrodoc ui` (`commands::docs::item_doc_links`: the saved artifacts reconciled with the project docs and the
   saved judgements, no LLM call) through `router(docs, links, collected)`; an unknown slug answers the 404 page. The shared

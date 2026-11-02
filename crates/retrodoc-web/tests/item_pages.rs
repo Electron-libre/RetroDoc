@@ -433,6 +433,44 @@ async fn the_feature_page_has_a_breadcrumb_to_its_domain() {
     );
 }
 
+/// The previous / next links of a use case page, empty when it has none.
+fn sequence(page: &str) -> &str {
+    page.find("<nav class=\"sequence\"").map_or("", |start| {
+        &page[start..start + page[start..].find("</nav>").unwrap()]
+    })
+}
+
+// spec: WEB-68
+#[tokio::test]
+async fn a_use_case_links_to_the_previous_and_next_use_cases_of_its_feature() {
+    let repo = generated_repo();
+    let first = page(repo.path(), PAY_BY_CARD).await;
+    let links = sequence(&first);
+    assert!(!links.contains("Previous"), "{links}");
+    assert_in_order(
+        links,
+        &[
+            "href=\"/domains/billing/pay-invoice/retry-job\"",
+            "Use case retry-job",
+        ],
+    );
+    let last = page(repo.path(), "/domains/billing/pay-invoice/retry-job").await;
+    let links = sequence(&last);
+    assert!(!links.contains("Next"), "{links}");
+    assert_in_order(
+        links,
+        &["href=\"", "/pay-by-card\"", "Use case pay-by-card"],
+    );
+}
+
+// spec: WEB-68
+#[tokio::test]
+async fn the_single_use_case_of_a_feature_has_neither_previous_nor_next() {
+    let repo = generated_repo();
+    let page = page(repo.path(), "/domains/billing/refund-tool/refund-now").await;
+    assert_eq!(sequence(&page), "", "{page}");
+}
+
 // spec: WEB-20
 #[tokio::test]
 async fn a_feature_citing_a_file_changed_since_the_run_is_flagged_stale_with_the_file() {

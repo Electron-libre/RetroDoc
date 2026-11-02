@@ -100,3 +100,7 @@ ul.hits { list-style: none; padding-left: 0; }
 .card h3 { margin: 0 0 0.3rem; font-size: 1.05rem; }
 .card .description { margin: 0 0 0.4rem; }
 .card .facts { margin: 0; display: flex; gap: 0.8rem; align-items: center; color: var(--muted); font-size: 0.9rem; }
+
+/* The previous / next use cases of a feature, at the foot of a use case page. */
+.sequence { display: flex; justify-content: space-between; gap: 1rem; margin-top: 2rem; padding-top: 0.8rem; border-top: 1px solid var(--border); }
+.sequence .next { margin-left: auto; text-align: right; }

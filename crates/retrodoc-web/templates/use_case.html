@@ -34,6 +34,12 @@
 {% if let Some(diagram) = page.diagram %}<h2>Diagram</h2>{% call draw(diagram) %}{% endcall %}{% endif %}
 {% endif %}
 {% call m::existing_docs(page.docs) %}{% endcall %}
+{% if page.previous.is_some() || page.next.is_some() %}
+<nav class="sequence" aria-label="Use cases of this feature">
+  {% if let Some(previous) = page.previous %}<a class="previous" href="{{ previous.href }}">← Previous: {{ previous.name }}</a>{% endif %}
+  {% if let Some(next) = page.next %}<a class="next" href="{{ next.href }}">Next: {{ next.name }} →</a>{% endif %}
+</nav>
+{% endif %}
 {% endblock %}
 
 {% macro steps(steps) %}

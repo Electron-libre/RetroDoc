@@ -756,6 +756,9 @@ pub struct UseCasePage {
     pub steps: Vec<StepView>,
     pub diagram: Option<String>,
     pub docs: Vec<DocItem>,
+    /// The use cases of its feature before and after it, in the order of the run.
+    pub previous: Option<Link>,
+    pub next: Option<Link>,
 }
 
 /// The page of the use case `slug` of the feature `feature` of the domain
@@ -770,7 +773,13 @@ pub fn use_case_page(
     slug: &str,
 ) -> Option<UseCasePage> {
     let owner = find_feature(docs, domain, feature)?;
-    let use_case = docs.use_cases_of(feature).find(|u| u.slug == slug)?;
+    let siblings: Vec<&UseCase> = docs.use_cases_of(feature).collect();
+    let at = siblings.iter().position(|u| u.slug == slug)?;
+    let use_case = siblings[at];
+    let link = |sibling: &UseCase| Link {
+        href: format!("/domains/{domain}/{feature}/{}", sibling.slug),
+        name: sibling.name.clone(),
+    };
     let mut cited: Vec<&str> = Vec::new();
     for source in use_case.steps.iter().flat_map(|s| &s.source_refs) {
         if !cited.contains(&source.path.as_str()) {
@@ -826,5 +835,7 @@ pub fn use_case_page(
                 use_case: slug.to_string(),
             },
         ),
+        previous: at.checked_sub(1).map(|i| link(siblings[i])),
+        next: siblings.get(at + 1).map(|u| link(u)),
     })
 }

@@ -62,7 +62,7 @@ already exist (WEB-19). Out of scope: the debt view and dashboard (their own mil
 1. [x] Home page in sections: brief users, "Start here" links with a line and a count each, domains as cards;
    verified by `tests/pages.rs` page tests; makes true WEB-65, WEB-66.
 2. [x] Header links grouped "Read" / "Look up" with titles; verified by a page test on every route; makes true WEB-67.
-3. [ ] Previous / next links between the use cases of a feature; verified by `tests/item_pages.rs`; makes true WEB-68.
+3. [x] Previous / next links between the use cases of a feature; verified by `tests/item_pages.rs`; makes true WEB-68.
 4. [ ] Walk-through on the saved healthchecks run, headless Chrome screenshots before and after (no LLM call),
    findings in this issue; verified by the screenshots.
 
@@ -86,4 +86,10 @@ already exist (WEB-19). Out of scope: the debt view and dashboard (their own mil
   with what its page holds (the hints of the home page, `view::REFERENCE_PAGES`).
 - red: WEB-67: `no aria-label="Read" in <header class="top">`.
 - Screenshot: `~/retrodoc-runs/guided-entry-shots/d2-header.png`.
+
+## Deliverable 3
+
+- done: a use case page ends on links to the previous and the next use case of its feature, in the order of the run;
+  `specs/web-ui.md` back to `accepted` (every requirement traced).
+- red: WEB-68: `"href=\"/domains/billing/pay-invoice/retry-job\"" missing` (no sequence links on the page).
 
