@@ -170,7 +170,58 @@ fn main() {
     let skill = fs::read_to_string(dir.join("SKILL.md")).unwrap();
     let ledger_ok = skill.contains("~/retrodoc-runs/LEDGER.md") && skill.contains("## Ledger of measures") && skill.contains("**Before**") && skill.contains("**After**");
     println!("{} - the skill reads and appends the ledger of measures", if ledger_ok { "ok  " } else { "FAIL" });
+    // Each run gets a fresh name; the older runs of the repo are pruned unless the ledger names them or it is the latest.
+    let runs = tmp.join("runs");
+    fs::create_dir_all(&runs).unwrap();
+    let out = Command::new("git").args(["rev-parse", "--short=7", "HEAD"]).current_dir(dir).output().unwrap();
+    let commit = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    let run = |n: u32| format!("retrodoc-smoke-r-{commit}-{n}");
+    let prepare = || -> String {
+        let out = Command::new("rust-script")
+            .arg(&script)
+            .args(["prepare-run", "r"])
+            .env("RETRODOC_RUNS_DIR", &runs)
+            .output()
+            .expect("rust-script must be installed");
+        format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr))
+    };
+    let first = prepare();
+    let mut run_cases: Vec<(&str, bool, String)> = vec![("the first run of a repo is numbered 1", first.contains(&format!("name: {}\n", run(1))), first)];
+    // Three earlier runs, the legacy fixed-name run, and a run of another repo whose name starts the same way.
+    for entry in [run(1), run(2), run(3), "retrodoc-smoke-r".into(), format!("retrodoc-smoke-r-x-{commit}-1")] {
+        fs::create_dir_all(runs.join(&entry)).unwrap();
+        fs::write(runs.join(format!("{entry}.run1.log")), "log").unwrap();
+    }
+    let unlisted = prepare();
+    let all_kept = [run(1), run(2), run(3)].iter().all(|r| runs.join(r).exists());
+    run_cases.push(("with no ledger nothing is removed", all_kept && !unlisted.contains("removed"), unlisted.clone()));
+    run_cases.push(("the next run takes the number after the last one", unlisted.contains(&format!("name: {}\n", run(4))), unlisted));
+    // The ledger names run 1 and a run 20 that is not run 2.
+    fs::write(runs.join("LEDGER.md"), format!("| `{}/` (+ `.run1.log`) | `{}` |\n", run(1), run(20))).unwrap();
+    let pruned = prepare();
+    let exists = |entry: &str| runs.join(entry).exists();
+    run_cases.extend([
+        ("a run the ledger names is kept", exists(&run(1)) && exists(&format!("{}.run1.log", run(1))), pruned.clone()),
+        ("the latest run is kept though unlisted", exists(&run(3)), pruned.clone()),
+        (
+            "an older unlisted run is removed with its logs",
+            !exists(&run(2)) && !exists(&format!("{}.run1.log", run(2))) && pruned.contains(&format!("removed: {}\n", run(2))),
+            pruned.clone(),
+        ),
+        (
+            "the legacy fixed-name run and the runs of another repo are kept",
+            exists("retrodoc-smoke-r") && exists("retrodoc-smoke-r.run1.log") && exists(&format!("retrodoc-smoke-r-x-{commit}-1")),
+            pruned,
+        ),
+    ]);
     let mut failed = !config_ok || !timeout_ok || !refused_ok || !ledger_ok;
+    for (name, ok, output) in run_cases {
+        println!("{} - {name}", if ok { "ok  " } else { "FAIL" });
+        if !ok {
+            println!("       output: {}", output.trim());
+        }
+        failed |= !ok;
+    }
     for (name, (passed, output), should_pass, expected) in local_cases {
         let ok = passed == should_pass && output.contains(expected);
         println!("{} - {name}", if ok { "ok  " } else { "FAIL" });

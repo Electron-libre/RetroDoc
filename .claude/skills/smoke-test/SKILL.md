@@ -21,9 +21,10 @@ Logs and the clone stay in `~/retrodoc-runs` (`$RETRODOC_RUNS_DIR`).
 figures, artifacts); being outside git, it may name the repository. **Before** a smoke run, read it: when the
 question is a measure (counts of warnings, a `*_measure` example of `docs/dev/commands.md`), a saved complete run
 may answer it with no new run. Validating a change always needs a run of the current code. **After** the run,
-append its line. The next smoke run of the same repository deletes the clone and overwrites its logs
-(`.run1.log`, `.run2.log`, `.report.txt`): copy them to `~/retrodoc-runs/<issue stem>-<short commit>-<n>` first if a
-measure reads them, and list that copy in the reusable artifacts.
+append its line, and name the run in "Reusable artifacts" if a measure reads it. Each run gets a new name,
+`retrodoc-smoke-<repo-dir-name>-<short RetroDoc commit>-<n>`, so none is overwritten; before cloning, `smoke.rs` removes
+the older runs of the same repository that the ledger doesn't name, except the latest one (no ledger: nothing is
+removed). The runs named `retrodoc-smoke-<repo-dir-name>` of before this scheme are never touched.
 
 ## Run
 
@@ -35,12 +36,12 @@ just smoke <repo> --no-rules                  # no business rules (`[pipeline] r
 ```
 
 It takes minutes to hours, so launch it with `run_in_background` and read the logs
-(`~/retrodoc-runs/retrodoc-smoke-<repo-dir-name>.run1.log`, `.run2.log`, `.report.txt`) while it runs: progress lines
+(`~/retrodoc-runs/<run>.run1.log`, `.run2.log`, `.report.txt`; the first lines it prints give `<run>`) while it runs: progress lines
 show rank, percentage and ETA, and a "still waiting for the LLM (Ns)" line every 30 s means a slow call,
 not a stuck run.
 
 What `smoke.rs run` does: refuses to start if no server answers; clones the committed `HEAD` of the target
-into `~/retrodoc-runs` (the original is never touched, uncommitted changes are not tested); `retrodoc init` then points
+into a new run of `~/retrodoc-runs` (the original is never touched, uncommitted changes are not tested); `retrodoc init` then points
 `[llm]` at the local server; runs `generate`, `generate` again, then `report`; prints the verdict.
 
 ## Local LLM defaults

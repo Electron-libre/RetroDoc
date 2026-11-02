@@ -31,3 +31,45 @@ Expected outcome: a smoke run never deletes a run the ledger still needs.
 
 # Hints
 * `smoke.rs` is a project skill, not synced: it can change here.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+`smoke.rs run` must never delete or overwrite a run the ledger still lists, and the disk use must stay bounded.
+Out of scope: the existing fixed-name runs (`retrodoc-smoke-<repo>`), left untouched; the other scripts writing runs.
+Means: candidates (a) + (c): one fresh name per run, and pruning of only the unlisted older runs of the same repo.
+
+## Plan
+1. [x] Fresh run name and bounded pruning: each run is named `retrodoc-smoke-<repo>-<short RetroDoc commit>-<n>`
+   (`n` the first free number; clone dir plus `.run1.log`, `.run2.log`, `.report.txt`), so nothing is overwritten;
+   before cloning, the older runs of that repo under the new scheme are removed unless `LEDGER.md` names them (whole-name
+   match) or it is the most recent one (its ledger line may not be written yet); no ledger means nothing is removed;
+   the legacy fixed-name runs are never touched. An internal `prepare-run <repo name>` subcommand (like
+   `llm-target`) prints the chosen name and the removed runs; `SKILL.md` drops the copy-by-hand rule and gives the
+   new paths; verified by new cases of `test_smoke.rs` on a temporary `RETRODOC_RUNS_DIR` (fresh name, numbering,
+   listed run kept, latest unlisted kept, older unlisted removed, no ledger keeps all, legacy dir kept).
+
+## Decisions
+- Mode: autonomous
+- Base commit: af50fa589d5f6e48f5b160107f298064afced4f8
+- Old unlisted runs: removed, except the most recent (1 a).
+- Legacy fixed-name runs: never touched (2 a).
+
+## Summary of deliverable 1
+done: `smoke.rs` gives each run a new name and prunes only the unlisted older runs of the repo (latest kept); `SKILL.md` updated.
+
+| check | result |
+|---|---|
+| tests (`test_smoke.rs`) | pass |
+| `just check` | pass |
+| docs | `SKILL.md`, module doc of `smoke.rs`; nothing else cites the old layout |
+| code review (`low`) | 1 finding, fixed |
+
+red: none (no spec, harness): the 3 new cases failed with `usage: smoke.rs run <repo> | ...` (no `prepare-run`).
+
+Code review: 1 findings
+- unchecked exit status of `git rev-parse` (empty commit, a name never counted, the next clone fails): fixed, `die` before any removal.
+
+not verified: a real `just smoke` run (needs the local LLM).

@@ -2,7 +2,7 @@
 //! Smoke test of `retrodoc generate` against a real repository with a local LLM.
 //!
 //! - `smoke.rs run <repo> [--local igpu|hybrid] [--model M] [--base-url U] [--timeout-secs N] [--no-rules]`: clones `<repo>` (committed HEAD only, the
-//!   original is never touched) into the runs directory (`~/retrodoc-runs`), points it at the local LLM, runs `generate` twice and
+//!   original is never touched) into a new run of the runs directory (`~/retrodoc-runs`, see `prepare_run`), points it at the local LLM, runs `generate` twice and
 //!   `report`, then prints the verdict. `--local` picks the local server (default `igpu`, the Ollama iGPU instance; `hybrid`,
 //!   the llama-server); `--model` and `--base-url` override its values.
 //! - `smoke.rs evaluate <run1.log> <run2.log> <report.txt> <usage.json>`: only the verdict, from saved
@@ -205,11 +205,9 @@ fn run(args: &[String]) -> i32 {
         die(&format!("no LLM server answers on {host}; start it{start} or pass --base-url"));
     }
 
-    let name = Path::new(target).file_name().unwrap().to_string_lossy().into_owned();
-    let clone = runs_dir().join(format!("retrodoc-smoke-{name}"));
-    if clone.exists() {
-        fs::remove_dir_all(&clone).expect("remove the previous smoke clone");
-    }
+    let repo = Path::new(target).file_name().unwrap().to_string_lossy().into_owned();
+    let name = prepare_run(&repo);
+    let clone = runs_dir().join(&name);
     let cloned = Command::new("git").args(["clone", "-q", target]).arg(&clone).status().unwrap();
     if !cloned.success() {
         die("git clone of the target failed (is it a Git repository?)");
@@ -231,7 +229,7 @@ fn run(args: &[String]) -> i32 {
             .unwrap()
             .success()
     };
-    let log = |suffix: &str| runs_dir().join(format!("retrodoc-smoke-{name}.{suffix}"));
+    let log = |suffix: &str| runs_dir().join(format!("{name}.{suffix}"));
     let (log1, log2, rep) = (log("run1.log"), log("run2.log"), log("report.txt"));
 
     if !retrodoc(&["init"], &rep) {
@@ -271,6 +269,56 @@ fn run(args: &[String]) -> i32 {
     verdict(&problems)
 }
 
+/// The number of the run `entry` of the repo `repo` under the scheme `retrodoc-smoke-<repo>-<commit>-<n>`, if it is one
+/// (the run's directory, or one of its files `<run>.<suffix>`). A repo whose name extends `repo` does not match.
+fn run_number(entry: &str, repo: &str) -> Option<(String, u32)> {
+    let rest = entry.strip_prefix(&format!("retrodoc-smoke-{repo}-"))?;
+    let run_len = rest.find('.').unwrap_or(rest.len());
+    let (commit, n) = rest[..run_len].split_once('-')?;
+    let n = (!commit.is_empty() && commit.chars().all(|c| c.is_ascii_hexdigit()) && !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()))
+        .then(|| n.parse().ok())??;
+    Some((entry[..entry.len() - rest.len() + run_len].to_string(), n))
+}
+
+/// Whether `ledger` names the run `run` as a whole name (`…-1` is not named by `…-12`).
+fn ledger_names(ledger: &str, run: &str) -> bool {
+    ledger.match_indices(run).any(|(at, _)| !ledger[at + run.len()..].starts_with(|c: char| c.is_ascii_alphanumeric()))
+}
+
+/// The name of a new smoke run of `repo`: `retrodoc-smoke-<repo>-<short RetroDoc commit>-<n>`, `n` after the last run
+/// of the repo, so no run is overwritten. Removes the older runs of the repo (directory and files) except the ones
+/// `LEDGER.md` names and the latest one, whose ledger line may not be written yet; with no ledger, removes nothing.
+/// The fixed-name runs of before this scheme (`retrodoc-smoke-<repo>`) are never touched.
+fn prepare_run(repo: &str) -> String {
+    // The commit first: a failure must stop before anything is removed.
+    let commit = Command::new("git").args(["rev-parse", "--short=7", "HEAD"]).current_dir(project_root()).output().unwrap();
+    if !commit.status.success() {
+        die("git rev-parse HEAD of RetroDoc failed: the run can't be named after its commit");
+    }
+    let commit = String::from_utf8_lossy(&commit.stdout).trim().to_string();
+    let dir = runs_dir();
+    let entries: Vec<String> =
+        fs::read_dir(&dir).expect("read the runs directory").map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
+    let mut runs: Vec<(String, u32)> = entries.iter().filter_map(|e| run_number(e, repo)).collect();
+    runs.sort_by_key(|(_, n)| *n);
+    runs.dedup();
+    let next = runs.last().map_or(1, |(_, n)| n + 1);
+    if let Ok(ledger) = fs::read_to_string(dir.join("LEDGER.md")) {
+        let older = &runs[..runs.len().saturating_sub(1)];
+        for (run, _) in older.iter().filter(|(run, _)| !ledger_names(&ledger, run)) {
+            for entry in entries.iter().filter(|e| *e == run || e.strip_prefix(run.as_str()).is_some_and(|s| s.starts_with('.'))) {
+                let path = dir.join(entry);
+                let removed = if path.is_dir() { fs::remove_dir_all(&path) } else { fs::remove_file(&path) };
+                removed.unwrap_or_else(|e| die(&format!("remove {}: {e}", path.display())));
+            }
+            println!("removed: {run}");
+        }
+    }
+    let name = format!("retrodoc-smoke-{repo}-{commit}-{next}");
+    println!("name: {name}");
+    name
+}
+
 /// Where runs are kept: `$RETRODOC_RUNS_DIR`, else `~/retrodoc-runs` (not /tmp, which is wiped at reboot).
 fn runs_dir() -> PathBuf {
     let dir = std::env::var_os("RETRODOC_RUNS_DIR").map(PathBuf::from).unwrap_or_else(|| {
@@ -299,6 +347,11 @@ fn main() {
         Some("llm-target") => {
             let (model, base_url, start) = llm_target(&args[1..]);
             println!("{model}\n{base_url}\n{}", start.unwrap_or(""));
+            0
+        }
+        // Only for the test of the run names: `prepare-run <repo name>` prunes the older runs and prints the new name.
+        Some("prepare-run") if args.len() == 2 => {
+            prepare_run(&args[1]);
             0
         }
         Some("run") => run(&args[1..]),
