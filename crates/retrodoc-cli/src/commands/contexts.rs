@@ -33,7 +33,7 @@ pub async fn run(path: &Path, force: bool, tracker: &UsageTracker) -> anyhow::Re
         .map(Path::to_path_buf)
         .collect();
 
-    let llm = super::usage::pass_provider(&config.llm, tracker, "contexts")?;
+    let llm = super::usage::pass_provider(config, tracker, "contexts")?;
     println!("Mapping the bounded contexts…");
     let map = tracker
         .in_pass(

@@ -193,6 +193,29 @@ async fn an_unchanged_sample_reuses_the_brief_even_with_new_commits() {
     assert_eq!(llm.calls(), 2);
 }
 
+// spec: DLG-4 (internal: the brief's own print, asked through a scripted provider)
+#[tokio::test]
+async fn a_new_language_writes_the_brief_again_and_the_same_one_reuses_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let fake = std::sync::Arc::new(FakeLlm::answering(ANSWER));
+    build_brief(dir.path(), &signals(), fake.as_ref(), false)
+        .await
+        .unwrap();
+    let french = crate::InLanguage::new(fake.clone(), "French");
+    build_brief(dir.path(), &signals(), &french, false)
+        .await
+        .unwrap();
+    assert_eq!(fake.calls(), 2);
+    build_brief(dir.path(), &signals(), &french, false)
+        .await
+        .unwrap();
+    assert_eq!(fake.calls(), 2);
+    build_brief(dir.path(), &signals(), fake.as_ref(), false)
+        .await
+        .unwrap();
+    assert_eq!(fake.calls(), 3);
+}
+
 #[tokio::test]
 async fn a_hand_edit_is_kept_until_force() {
     let dir = tempfile::tempdir().unwrap();

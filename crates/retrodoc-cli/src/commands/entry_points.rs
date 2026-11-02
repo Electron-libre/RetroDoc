@@ -29,7 +29,7 @@ pub async fn run(path: &Path, tracker: &UsageTracker) -> anyhow::Result<()> {
         .collect::<BTreeSet<_>>()
         .len();
 
-    let llm = super::usage::pass_provider(&config.llm, tracker, "entry-points")?;
+    let llm = super::usage::pass_provider(config, tracker, "entry-points")?;
     tracker.set_pass("entry-points");
     println!("Reading entry points from {files} file(s)…");
     let inventory = retrodoc_pipeline::build_entry_points(

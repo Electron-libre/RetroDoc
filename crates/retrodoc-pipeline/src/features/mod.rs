@@ -33,12 +33,15 @@ pub fn save_features(repo_root: &Path, features: &[Feature]) -> Result<(), Pipel
 }
 
 /// Lowercases `raw` into a kebab-case slug made of `[a-z0-9-]` only, safe
-/// as a file name; falls back to `"unnamed"` when nothing usable remains.
+/// as a file name; an accented Latin letter keeps its base letter (DLG-5);
+/// falls back to `"unnamed"` when nothing usable remains.
 pub(crate) fn slugify(raw: &str) -> String {
     let mut slug = String::new();
-    for c in raw.chars() {
+    for c in raw.chars().flat_map(char::to_lowercase) {
         if c.is_ascii_alphanumeric() {
-            slug.push(c.to_ascii_lowercase());
+            slug.push(c);
+        } else if let Some(base) = latin_base(c) {
+            slug.push_str(base);
         } else if !slug.ends_with('-') {
             slug.push('-');
         }
@@ -49,6 +52,31 @@ pub(crate) fn slugify(raw: &str) -> String {
     } else {
         slug.to_string()
     }
+}
+
+/// The ASCII letters of a lowercase accented Latin letter, if it is one.
+fn latin_base(c: char) -> Option<&'static str> {
+    Some(match c {
+        'à' | 'á' | 'â' | 'ã' | 'ä' | 'å' | 'ā' | 'ă' | 'ą' => "a",
+        'ç' | 'ć' | 'č' => "c",
+        'ď' | 'đ' => "d",
+        'è' | 'é' | 'ê' | 'ë' | 'ē' | 'ė' | 'ę' | 'ě' => "e",
+        'ğ' => "g",
+        'ì' | 'í' | 'î' | 'ï' | 'ī' | 'į' | 'ı' => "i",
+        'ł' => "l",
+        'ñ' | 'ń' | 'ň' => "n",
+        'ò' | 'ó' | 'ô' | 'õ' | 'ö' | 'ø' | 'ō' | 'ő' => "o",
+        'ř' => "r",
+        'ś' | 'š' | 'ş' => "s",
+        'ť' | 'ţ' => "t",
+        'ù' | 'ú' | 'û' | 'ü' | 'ū' | 'ů' | 'ű' => "u",
+        'ý' | 'ÿ' => "y",
+        'ź' | 'ż' | 'ž' => "z",
+        'æ' => "ae",
+        'œ' => "oe",
+        'ß' => "ss",
+        _ => return None,
+    })
 }
 
 /// Slugifies `raw` and appends `-2`, `-3`… until it doesn't collide with

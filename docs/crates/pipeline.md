@@ -56,5 +56,13 @@ Behaviors that span passes:
   and time per pass (and the prompt tokens the server served from its cache, shown only when one reported any, TOK-4/5), plus the answers a pass could not parse and the units it skipped (`LlmProvider::note_unparseable_answer`, sent by `complete_json`; tokens only, no prices) and append the run to `.retrodoc/cache/usage.json`; kept apart from the
   rendered docs so reruns stay no-ops, and left alone by `generate --force`. `commands/usage.rs` builds the providers
   (`PassProviders`, `pass_provider`) the commands use.
+- `language.rs` (ADR 0041, `specs/docs-language.md`): `[output] language` set, `PassProviders` wraps the provider
+  of each pass of `WRITING_PASSES` (brief, contexts, glossary, entry points, actors, domains, features, use cases,
+  rules, confidence, reconcile) in `InLanguage`, which ends the system prompt of every request with `instruction`
+  (write the free text in the language, keep code identifiers, paths and given names) and whose `model()` is
+  `<model> in <language>`: the prints that hold the model redo their units when the language changes. The brief,
+  whose print holds no model, adds `LlmProvider::language` to its input hash when set; the contexts map has no
+  print and stays until `--force`. Unset, nothing is wrapped and every print is unchanged. `slugify` keeps the base
+  letter of an accented Latin letter (`électronique` → `electronique`).
 - `retrodoc_llm::HeartbeatProvider` (wrapped around the provider in the CLI) logs "still waiting for the
   LLM (Ns)" every 30 s, to tell a slow call from a stuck run.

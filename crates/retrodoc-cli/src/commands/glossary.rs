@@ -28,7 +28,7 @@ pub async fn run(path: &Path, tracker: &UsageTracker) -> anyhow::Result<()> {
         business_files.len()
     };
 
-    let llm = super::usage::pass_provider(&config.llm, tracker, "glossary")?;
+    let llm = super::usage::pass_provider(config, tracker, "glossary")?;
     tracker.set_pass("glossary");
     println!("Reading entities from {to_read} file(s)…");
     let glossary = retrodoc_pipeline::build_glossary(

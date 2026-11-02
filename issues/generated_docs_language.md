@@ -51,3 +51,52 @@ Docs in the reader's language
 * `bm25.rs` already strips English and French stop words: the search keeps working on French docs.
 * The glossary matches the names of the code (English identifiers) to the concepts: a translated concept name must
   keep its link to the identifier.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+`[output] language` makes the eleven writing passes write in that language through one instruction appended to
+their system prompt by a wrapped provider (ADR 0041), reruns them when it changes, and keeps accented names'
+slugs readable. Measure step 1 done (no LLM): the saved docs of the large private Rails app are in English (3,437
+"the", 2 "des"), but its commit messages are mostly English too, so no drift to measure there.
+
+## Plan
+1. [x] Language setting: `[output] language` (names and two-letter tags), `init` line, the wrapping provider on the
+   writing passes, the language in the print of the brief (the contexts map has none, reused until `--force`), accent-folding slugs, spec
+   `docs-language.md` and ADR 0041; verified by config, provider, rerun and slug tests; makes true DLG-1 to DLG-6.
+2. [ ] Measure on delivery_router with DeepSeek in French (paid, cents): docs in French, entity names
+   kept, rerun calls nothing, business-language and confidence scores against the English run of the same code;
+   a fix of the business-language score if a French narrative loses its entity names; verified by the measure
+   (ledger line) and a test of the fix if any.
+3. [ ] Non-goal of the render and web fixed text written, issue `localized_render_and_web_text` created; verified by
+   `just check-specs` and the issue checker.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 6f8eab027e5c34b3d1595e016cf0dbfa3b84bcda
+- Fixed text of the render and the web interface: stays in English, non-goal + its own issue (answer 1 a).
+- The paid DeepSeek measure of deliverable 2 runs without another stop (answer 2 a).
+
+## Deliverable 1: language setting
+
+done: `[output] language` (name or tag), `init` comment line, `InLanguage` provider on the eleven writing passes,
+`LlmProvider::language` in the brief print, accent-folding slugs, spec `docs-language.md` accepted, ADR 0041.
+
+| check | result |
+|---|---|
+| tests | `just check` green |
+| lint | clippy pedantic clean |
+| specs | DLG-1 to DLG-6 traced |
+| docs | README, ARCHITECTURE §8, pipeline.md, llm.md |
+| code review | low: no findings |
+
+red: DLG-1, DLG-2, DLG-6: `no method named language_name found for struct OutputConfig`; DLG-3, DLG-4: `unresolved
+import` of the language module, then the brief test panicked at `brief/tests.rs:208` (`calls() == 2`: the brief was reused);
+DLG-5: `left: "gestion-des-contrats-lectroniques"`.
+
+Code review: no findings (the only lead, trait methods InLanguage might hide, checked: all four are forwarded).
+
+not verified: the binary test of DLG-2/DLG-3 was written after the code (not seen red); a real model's answers in
+French (deliverable 2).

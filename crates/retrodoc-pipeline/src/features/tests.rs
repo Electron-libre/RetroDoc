@@ -7,6 +7,24 @@ fn slugify_produces_file_name_safe_kebab_case() {
     assert_eq!(slugify("???"), "unnamed");
 }
 
+// spec: DLG-5 (internal: the slug is the name of the folder the render writes, tested at its source)
+#[test]
+fn an_accented_latin_letter_keeps_its_base_letter_in_the_slug() {
+    assert_eq!(
+        slugify("Gestion des contrats électroniques"),
+        "gestion-des-contrats-electroniques"
+    );
+    assert_eq!(
+        slugify("Facturation et abonnements"),
+        "facturation-et-abonnements"
+    );
+    assert_eq!(
+        slugify("Größe ÀÇÉÎÑÔÙ œuvre Æther"),
+        "grosse-aceinou-oeuvre-aether"
+    );
+    assert_eq!(slugify("Заказы"), "unnamed");
+}
+
 #[test]
 fn unique_slug_suffixes_collisions() {
     let taken = ["login", "login-2"];

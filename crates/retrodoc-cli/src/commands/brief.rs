@@ -42,7 +42,7 @@ pub async fn run(
         return Ok(());
     }
 
-    let providers = super::usage::PassProviders::open(&config.llm, tracker, &["sources", "brief"])?;
+    let providers = super::usage::PassProviders::open(config, tracker, &["sources", "brief"])?;
     tracker.set_pass("sources");
     let sources = retrodoc_pipeline::infer_sources(
         repo_root,

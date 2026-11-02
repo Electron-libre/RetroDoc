@@ -23,7 +23,7 @@ pub async fn run(path: &Path, force: bool, tracker: &UsageTracker) -> anyhow::Re
     }
     let stack = rules.map(|r| r.stack).unwrap_or_default();
 
-    let llm = super::usage::pass_provider(&config.llm, tracker, "business-files")?;
+    let llm = super::usage::pass_provider(config, tracker, "business-files")?;
     let brief = super::brief::saved(repo_root);
     let map = locate(
         repo_root,

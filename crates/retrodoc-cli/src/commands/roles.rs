@@ -49,7 +49,7 @@ pub async fn run(path: &Path, force: bool, tracker: &UsageTracker) -> anyhow::Re
     {
         rules
     } else {
-        let llm = super::usage::pass_provider(&config.llm, tracker, "roles")?;
+        let llm = super::usage::pass_provider(config, tracker, "roles")?;
         tracker.set_pass("roles");
         retrodoc_pipeline::identify_roles(
             repo_root,

@@ -227,7 +227,14 @@ pub async fn build_brief(
         tracing::info!("no signal to write a product brief from");
         return Ok(None);
     }
-    let input_hash = hash_content(&sample.text_without_commits());
+    // The language the provider asks it in, if any (ADR 0041): none keeps the print of the runs before it.
+    let input_hash = match llm.language() {
+        None => hash_content(&sample.text_without_commits()),
+        Some(language) => hash_content(&format!(
+            "language {language}\0{}",
+            sample.text_without_commits()
+        )),
+    };
 
     if !force {
         if Artifact::Product.path(repo_root).exists() && ProductBrief::load(repo_root).is_none() {

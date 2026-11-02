@@ -58,7 +58,7 @@ pub async fn run(
         Some(benchmark::Judgement::load(&repo_root)?)
     } else if options.judge {
         let workspace = Workspace::open(&repo_root)?;
-        let llm = super::usage::pass_provider(&workspace.config.llm, tracker, "benchmark judge")?;
+        let llm = super::usage::pass_provider(&workspace.config, tracker, "benchmark judge")?;
         tracker.set_pass("benchmark judge");
         let judgement = benchmark::judge(
             llm.as_ref(),

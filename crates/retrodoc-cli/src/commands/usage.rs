@@ -6,11 +6,12 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::Context;
-use retrodoc_core::config::LlmConfig;
+use retrodoc_core::config::{Config, LlmConfig};
 use retrodoc_llm::{
     HeartbeatProvider, LlmProvider, OpenRouterProvider, UsageProvider, UsageTracker,
 };
 use retrodoc_pipeline::usage_log::{self, RunUsage};
+use retrodoc_pipeline::{InLanguage, WRITING_PASSES};
 
 /// The LLM provider of a command, counting its calls in `tracker`.
 pub fn provider(
@@ -26,7 +27,8 @@ pub fn provider(
 }
 
 /// The provider of every pass, sharing one when two passes have the same
-/// settings (`[llm.passes.<name>]` over `[llm]`, ADR 0023).
+/// settings (`[llm.passes.<name>]` over `[llm]`, ADR 0023). With `[output]
+/// language` set, the provider of a writing pass asks in it (ADR 0041).
 pub struct PassProviders {
     opened: Vec<(String, Arc<dyn LlmProvider>)>,
 }
@@ -38,15 +40,12 @@ impl PassProviders {
     /// # Errors
     ///
     /// Returns an error if a provider cannot be initialized.
-    pub fn open(
-        config: &LlmConfig,
-        tracker: &UsageTracker,
-        passes: &[&str],
-    ) -> anyhow::Result<Self> {
+    pub fn open(config: &Config, tracker: &UsageTracker, passes: &[&str]) -> anyhow::Result<Self> {
+        let language = config.output.language_name();
         let mut built: Vec<(LlmConfig, Arc<dyn LlmProvider>)> = Vec::new();
         let mut opened = Vec::new();
         for &pass in passes {
-            let pass_config = config.for_pass(pass);
+            let pass_config = config.llm.for_pass(pass);
             let shared = built.iter().find(|(known, _)| *known == pass_config);
             let provider = if let Some((_, provider)) = shared {
                 Arc::clone(provider)
@@ -57,6 +56,12 @@ impl PassProviders {
                 );
                 built.push((pass_config, Arc::clone(&provider)));
                 provider
+            };
+            let provider = match &language {
+                Some(language) if WRITING_PASSES.contains(&pass) => {
+                    Arc::new(InLanguage::new(provider, language)) as Arc<dyn LlmProvider>
+                }
+                _ => provider,
             };
             opened.push((pass.to_string(), provider));
         }
@@ -95,7 +100,7 @@ impl PassProviders {
 ///
 /// Returns an error if the provider cannot be initialized.
 pub fn pass_provider(
-    config: &LlmConfig,
+    config: &Config,
     tracker: &UsageTracker,
     pass: &str,
 ) -> anyhow::Result<Arc<dyn LlmProvider>> {
@@ -133,8 +138,8 @@ mod tests {
     use super::*;
     use retrodoc_core::config::Config;
 
-    fn config(raw: &str) -> LlmConfig {
-        toml::from_str::<Config>(raw).unwrap().llm
+    fn config(raw: &str) -> Config {
+        toml::from_str::<Config>(raw).unwrap()
     }
 
     #[test]
@@ -157,6 +162,38 @@ mod tests {
         assert!(Arc::ptr_eq(get("glossary"), get("roles")));
         assert!(!Arc::ptr_eq(get("glossary"), get("domains")));
         assert!(providers.get("actors").is_err());
+    }
+
+    // spec: DLG-3 (internal: which provider a pass gets is not visible from the binary without a server per pass)
+    #[test]
+    fn with_a_language_only_the_writing_passes_ask_in_it() {
+        std::env::set_var("RETRODOC_TEST_PASS_KEY", "unused");
+        let passes = [
+            "sources",
+            "roles",
+            "business-files",
+            "brief",
+            "use-cases",
+            "benchmark judge",
+        ];
+        let plain = config("[llm]\napi_key_env = \"RETRODOC_TEST_PASS_KEY\"\nmodel = \"m\"\n");
+        let providers = PassProviders::open(&plain, &UsageTracker::new(), &passes).unwrap();
+        for pass in passes {
+            assert_eq!(providers.get(pass).unwrap().model(), "m", "{pass}");
+        }
+
+        let french = config(
+            "[llm]\napi_key_env = \"RETRODOC_TEST_PASS_KEY\"\nmodel = \"m\"\n[output]\nlanguage = \"fr\"\n",
+        );
+        let providers = PassProviders::open(&french, &UsageTracker::new(), &passes).unwrap();
+        let language = |pass| providers.get(pass).unwrap().language().map(str::to_string);
+        for pass in ["sources", "roles", "business-files", "benchmark judge"] {
+            assert_eq!(language(pass), None, "{pass}");
+        }
+        for pass in ["brief", "use-cases"] {
+            assert_eq!(language(pass).as_deref(), Some("French"), "{pass}");
+        }
+        assert_eq!(providers.get("brief").unwrap().model(), "m in French");
     }
 
     #[test]

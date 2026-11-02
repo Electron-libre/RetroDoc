@@ -407,7 +407,26 @@ pub struct OutputConfig {
     /// Output folder for the generated docs, relative to the repo root.
     #[serde(default = "OutputConfig::default_docs_dir")]
     pub docs_dir: String,
+    /// The language the generated docs are written in: a name sent as written, or a two-letter tag of
+    /// [`LANGUAGE_TAGS`]. Unset: the model picks it (ADR 0041).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub language: Option<String>,
 }
+
+/// The two-letter tags `[output] language` takes for their English name.
+pub const LANGUAGE_TAGS: &[(&str, &str)] = &[
+    ("en", "English"),
+    ("fr", "French"),
+    ("de", "German"),
+    ("es", "Spanish"),
+    ("it", "Italian"),
+    ("pt", "Portuguese"),
+    ("nl", "Dutch"),
+];
+
+/// The line `init` writes, commented out, under `[output]`.
+const LANGUAGE_EXAMPLE: &str =
+    "# language = \"French\"  # the language of the generated docs: a name, or en, fr, de, es, it, pt, nl\n";
 
 /// Folder of the functional documentation, under the docs dir.
 pub const FUNCTIONAL_DIR: &str = "functional";
@@ -419,6 +438,21 @@ pub const META_DIR: &str = "_retrodoc";
 impl OutputConfig {
     fn default_docs_dir() -> String {
         "docs".to_string()
+    }
+
+    /// The name of the language the docs are written in, as the prompts give it: a tag of
+    /// [`LANGUAGE_TAGS`] becomes its name, any other value is kept trimmed. `None` when unset or blank.
+    #[must_use]
+    pub fn language_name(&self) -> Option<String> {
+        let value = self.language.as_deref()?.trim();
+        if value.is_empty() {
+            return None;
+        }
+        let name = LANGUAGE_TAGS
+            .iter()
+            .find(|(tag, _)| tag.eq_ignore_ascii_case(value))
+            .map_or(value, |(_, name)| name);
+        Some(name.to_string())
     }
 
     /// The directories `RetroDoc` writes its docs into, relative to the repo root.
@@ -433,6 +467,7 @@ impl Default for OutputConfig {
     fn default() -> Self {
         Self {
             docs_dir: Self::default_docs_dir(),
+            language: None,
         }
     }
 }
@@ -461,6 +496,8 @@ pub enum ConfigError {
         why: &'static str,
         fix: &'static str,
     },
+    #[error("[output] language is empty; name a language (\"French\") or delete the line in retrodoc.toml")]
+    EmptyLanguage,
     #[error("unknown pass in [llm.passes]: {}; valid names: {}", .0.join(", "), PASS_NAMES.join(", "))]
     UnknownPass(Vec<String>),
     #[error("could not serialize TOML: {0}")]
@@ -534,6 +571,9 @@ impl Config {
                 unknown.into_iter().map(str::to_string).collect(),
             ));
         }
+        if config.output.language.is_some() && config.output.language_name().is_none() {
+            return Err(ConfigError::EmptyLanguage);
+        }
         Ok(config)
     }
 
@@ -600,13 +640,24 @@ impl Config {
             });
         }
         let config = Config::default();
-        let raw = toml::to_string_pretty(&config)?;
+        let raw = with_language_example(&toml::to_string_pretty(&config)?);
         fs::write(&path, raw).map_err(|source| ConfigError::Write {
             path: path.display().to_string(),
             source,
         })?;
         Ok(config)
     }
+}
+
+/// `raw` with [`LANGUAGE_EXAMPLE`] at the end of its `[output]` section.
+fn with_language_example(raw: &str) -> String {
+    let Some(start) = raw.find("[output]\n") else {
+        return raw.to_string();
+    };
+    let end = raw[start..]
+        .find("\n\n")
+        .map_or(raw.len(), |blank| start + blank + 1);
+    format!("{}{LANGUAGE_EXAMPLE}{}", &raw[..end], &raw[end..])
 }
 
 #[cfg(test)]
@@ -726,6 +777,59 @@ mod tests {
         let read = Config::load(dir.path()).unwrap();
         assert_eq!(read.pipeline, PipelineConfig::default());
         assert!(read.pipeline.rules);
+    }
+
+    // spec: DLG-1 (internal: the absence of a key is read before any pass runs)
+    #[test]
+    fn no_language_key_reads_no_language() {
+        let config: Config = toml::from_str("[output]\ndocs_dir = \"docs\"").unwrap();
+        assert_eq!(config.output.language_name(), None);
+        assert_eq!(Config::default().output.language_name(), None);
+        let raw = toml::to_string_pretty(&Config::default()).unwrap();
+        assert!(!raw.contains("\nlanguage"), "{raw}");
+    }
+
+    // spec: DLG-2 (internal: the resolved name is what the prompts are given, tested through them in the CLI)
+    #[test]
+    fn a_language_is_a_name_or_a_common_two_letter_tag() {
+        let read = |value: &str| {
+            let raw = format!("[output]\nlanguage = \"{value}\"");
+            toml::from_str::<Config>(&raw)
+                .unwrap()
+                .output
+                .language_name()
+        };
+        assert_eq!(read("French").as_deref(), Some("French"));
+        assert_eq!(read("fr").as_deref(), Some("French"));
+        assert_eq!(read("DE").as_deref(), Some("German"));
+        assert_eq!(read("pt").as_deref(), Some("Portuguese"));
+        assert_eq!(
+            read(" Brazilian Portuguese ").as_deref(),
+            Some("Brazilian Portuguese")
+        );
+
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(
+            dir.path().join(CONFIG_FILE_NAME),
+            "[output]\nlanguage = \" \"\n",
+        )
+        .unwrap();
+        let message = Config::load(dir.path()).unwrap_err().to_string();
+        assert!(message.contains("[output] language"), "{message}");
+    }
+
+    // spec: DLG-6 (internal: the file init writes is read here, the binary adds nothing to it)
+    #[test]
+    fn init_writes_the_language_key_commented_out() {
+        let dir = tempfile::tempdir().unwrap();
+        Config::write_default(dir.path(), false).unwrap();
+        let written = fs::read_to_string(dir.path().join(CONFIG_FILE_NAME)).unwrap();
+        let output = &written[written.find("[output]").unwrap()..];
+        assert!(output.contains("\n# language = \"French\""), "{written}");
+        assert_eq!(
+            Config::load(dir.path()).unwrap().output.language_name(),
+            None
+        );
     }
 
     // spec: SET-4

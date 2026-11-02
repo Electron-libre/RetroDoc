@@ -21,12 +21,12 @@ globset.workspace = true
 regex.workspace = true
 schemars.workspace = true
 futures-util.workspace = true
+async-trait.workspace = true
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 tempfile = "3"
 git2.workspace = true
-async-trait.workspace = true
 tracing-subscriber.workspace = true
 reqwest.workspace = true
 

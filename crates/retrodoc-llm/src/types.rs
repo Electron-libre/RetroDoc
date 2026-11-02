@@ -90,4 +90,10 @@ pub trait LlmProvider: Send + Sync {
     fn model(&self) -> &str {
         ""
     }
+
+    /// The language this provider asks the answers in, when it asks one (ADR 0041). The passes whose
+    /// print holds no model put it in their print instead.
+    fn language(&self) -> Option<&str> {
+        None
+    }
 }

@@ -296,6 +296,12 @@ domains, features) while a cheap or local one does the many extractions. Passes 
 one provider. The model is part of each pass's fingerprint (§5), so changing it redoes the pass. See
 [ADR 0023](adr/0023-structured-outputs-and-a-model-per-pass.md).
 
+With `[output] language` set, the provider of each pass that writes text a reader sees is wrapped in
+`InLanguage` (`retrodoc-pipeline`), which ends every system prompt with one instruction naming the language and
+whose model names it too, so changing the language redoes those passes; the reading passes keep the plain
+provider. See [ADR 0041](adr/0041-the-language-of-the-docs-wraps-the-provider-of-a-writing-pass.md) and
+`specs/docs-language.md`.
+
 ## 9. Serving the docs to agents (MCP)
 
 A coding agent can query the generated docs instead of reading them all. `retrodoc mcp` is a read-only MCP

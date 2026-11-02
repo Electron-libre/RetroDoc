@@ -33,6 +33,7 @@ pub mod error;
 pub mod features;
 mod fingerprints;
 pub mod glossary;
+pub mod language;
 mod naming;
 mod per_feature;
 mod progress;
@@ -78,6 +79,7 @@ pub use entry_points::{
 pub use error::PipelineError;
 pub use features::{build_features_from_surface, entry_point_id, load_features, save_features};
 pub use glossary::{build_glossary, Entity, Glossary, MergedEntity};
+pub use language::{InLanguage, WRITING_PASSES};
 pub use ranking::{apply_budget, rank_files, Scope};
 pub use report::{build_report, domain_models, DebtReport};
 pub use roles::{identify_roles, FileRole, RoleMap, RoleRule, RoleRules};

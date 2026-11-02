@@ -87,7 +87,7 @@ pub async fn run(
     // The whole walk, before the budget: the only files a path of a saved artifact may read.
     let walked = WalkedFiles::new(repo_root, &ingest.files);
 
-    let llm = PassProviders::open(&config.llm, tracker, GENERATE_PASSES)?;
+    let llm = PassProviders::open(config, tracker, GENERATE_PASSES)?;
 
     let wanted = super::brief::EvidenceFor::of(config);
     let (brief, evidence) =
