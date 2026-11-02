@@ -607,7 +607,7 @@ async fn the_use_case_page_has_a_breadcrumb_to_its_domain_and_feature() {
     assert_in_order(
         crumbs,
         &[
-            "href=\"/\"",
+            "href=\"/\">Home</a>",
             "href=\"/domains/billing\"",
             "href=\"/domains/billing/pay-invoice\"",
             "Feature pay-invoice",

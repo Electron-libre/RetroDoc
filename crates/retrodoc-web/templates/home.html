@@ -22,7 +22,7 @@
     {% for link in start %}
     <li>
       <a href="{{ link.page.href }}">{{ link.page.name }}</a>
-      <span class="badge">{{ link.count }} {{ link.page.unit }}</span>
+      <span class="badge">{{ link.label }}</span>
       <span class="hint">{{ link.page.hint }}</span>
     </li>
     {% endfor %}
@@ -39,8 +39,8 @@
     <p class="description">{{ domain.description }}</p>
     <p class="facts">
       <span class="badge{% if domain.confidence.low %} low{% endif %}">{{ domain.confidence.label }}</span>
-      <span>{{ domain.features }} features</span>
-      <span>{{ domain.use_cases }} use cases</span>
+      <span>{{ domain.features_label() }}</span>
+      <span>{{ domain.use_cases_label() }}</span>
     </p>
   </article>
   {% endfor %}

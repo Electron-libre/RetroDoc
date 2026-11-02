@@ -103,6 +103,18 @@ Screenshots in `~/retrodoc-runs/guided-entry-shots/` (outside git), no LLM call.
 | Header | Files, Glossary, Rules, Actors flat | "Read: Actors", "Look up: Glossary, Rules, Files", each titled |
 | Use case | breadcrumb only; back to the tree to read the next one | a "Next" link to the next use case of the feature at its foot |
 
-Left: the root of the breadcrumb is still labelled "Domains" while the page it opens is now headed by the
-application and titled "Home".
+Found: the root of the breadcrumb was still labelled "Domains" while the page it opens is now headed by the
+application and titled "Home": relabelled "Home" in deliverable 5.
+
+## Deliverable 5: docs and review of the whole issue
+
+- done: `update-docs` over `af0a167..HEAD` (README line of `ui`); the root of the breadcrumb relabelled "Home".
+- red: none (a relabel; the WEB-19 test now asserts the label).
+- Code review (high, whole issue): 7 findings.
+  - fixed: counts of 1 in the singular (`1 feature`, `1 rule`); the actors count is a row per actor and kind, as on
+    the actors page; the previous / next links built by `use_case_href`; the header groups read from a `group` of each
+    page of reference, not from its position; the counts of "Start here" computed once in `Site::new`, with no dead
+    "no run" fallback.
+  - not fixed: "a feature slug shared by two domains mixes their use cases": the features pass makes slugs unique
+    across domains (`features/from_surface.rs`), and a use case names its feature by slug alone.
 

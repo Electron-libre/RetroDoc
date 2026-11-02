@@ -31,7 +31,7 @@ struct Home<'a> {
     shell: &'a Shell,
     purpose: Option<&'a str>,
     users: &'a [String],
-    start: Vec<StartLink>,
+    start: &'a [StartLink],
     domains: Vec<DomainRow>,
 }
 

@@ -25,6 +25,7 @@ pub struct Site {
     shell: Shell,
     purpose: Option<String>,
     users: Vec<String>,
+    start: Vec<StartLink>,
     source: Option<SourceAccess>,
     files: Option<FilesPage>,
     collected: Vec<ExistingDoc>,
@@ -42,14 +43,20 @@ impl Site {
     ) -> Self {
         let shell = Shell {
             name: project.name,
-            read: &REFERENCE_PAGES[..1],
-            look_up: &REFERENCE_PAGES[1..],
+            read: reference_pages(Group::Read),
+            look_up: reference_pages(Group::LookUp),
             tree: docs.as_ref().map(tree).unwrap_or_default(),
         };
         let source = docs.as_ref().and_then(GeneratedDocs::source_access);
         let files = docs.as_ref().map(files_page);
         let glossary = docs.as_ref().map(glossary_page);
         let actors = docs.as_ref().map(actors_page);
+        let start = match (&docs, &files, &glossary, &actors) {
+            (Some(docs), Some(files), Some(glossary), Some(actors)) => {
+                start_links(docs, files, glossary, actors)
+            }
+            _ => Vec::new(),
+        };
         Self {
             docs,
             links,
@@ -60,6 +67,7 @@ impl Site {
                 .into_iter()
                 .filter(|user| !user.trim().is_empty())
                 .collect(),
+            start,
             source,
             files,
             collected,
@@ -127,26 +135,50 @@ impl Site {
     }
 
     /// The pages the home page points a first-time reader to, with what each
-    /// holds and its count; the counts are 0 with no run.
+    /// holds and its count; empty with no run.
     #[must_use]
-    pub fn start_links(&self) -> Vec<StartLink> {
-        let actors = self.actors.as_ref().map_or(0, |page| {
-            page.groups
-                .iter()
-                .flat_map(|group| &group.rows)
-                .map(|row| row.name.as_str())
-                .collect::<BTreeSet<_>>()
-                .len()
-        });
-        let concepts = self.glossary.as_ref().map_or(0, |page| page.concepts.len());
-        let rules = self.docs.as_ref().map_or(0, |docs| docs.rules().len());
-        let files = self.files.as_ref().map_or(0, |page| page.cited);
-        REFERENCE_PAGES
-            .iter()
-            .zip([actors, concepts, rules, files])
-            .map(|(page, count)| StartLink { page, count })
-            .collect()
+    pub fn start_links(&self) -> &[StartLink] {
+        &self.start
     }
+}
+
+/// The pages of reference with their counts as the pages they link to show
+/// them: a row per actor and kind, the concepts, the rules, the cited files.
+fn start_links(
+    docs: &GeneratedDocs,
+    files: &FilesPage,
+    glossary: &GlossaryPage,
+    actors: &ActorsPage,
+) -> Vec<StartLink> {
+    let actors = actors.groups.iter().map(|group| group.rows.len()).sum();
+    REFERENCE_PAGES
+        .iter()
+        .zip([
+            actors,
+            glossary.concepts.len(),
+            docs.rules().len(),
+            files.cited,
+        ])
+        .map(|(page, count)| StartLink {
+            label: page.count(count),
+            page,
+        })
+        .collect()
+}
+
+/// How a reader uses a page of reference: reads through it or looks things up.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Group {
+    Read,
+    LookUp,
+}
+
+/// The pages of reference of `group`, in their order.
+fn reference_pages(group: Group) -> Vec<&'static ReferencePage> {
+    REFERENCE_PAGES
+        .iter()
+        .filter(|page| page.group == group)
+        .collect()
 }
 
 /// A page of reference beside the tree of the docs, as the header and the
@@ -156,8 +188,23 @@ pub struct ReferencePage {
     pub name: &'static str,
     /// What the page holds, in one line.
     pub hint: &'static str,
-    /// What its count counts, plural.
-    pub unit: &'static str,
+    pub group: Group,
+    /// What its count counts, singular then plural.
+    pub unit: (&'static str, &'static str),
+}
+
+impl ReferencePage {
+    /// `count` with its unit: `1 rule`, `2 rules`.
+    #[must_use]
+    pub fn count(&self, count: usize) -> String {
+        plural(count, self.unit.0, self.unit.1)
+    }
+}
+
+/// `count` with `one` when it is 1, else with `many`.
+#[must_use]
+pub fn plural(count: usize, one: &str, many: &str) -> String {
+    format!("{count} {}", if count == 1 { one } else { many })
 }
 
 /// The pages of reference, in the order a first-time reader is pointed to them.
@@ -166,33 +213,38 @@ pub const REFERENCE_PAGES: [ReferencePage; 4] = [
         href: "/actors",
         name: "Actors",
         hint: "Who uses the application, and which use cases each one starts or takes part in.",
-        unit: "actors",
+        group: Group::Read,
+        unit: ("actor", "actors"),
     },
     ReferencePage {
         href: "/glossary",
         name: "Glossary",
         hint:
             "The business concepts of the application, defined, with the use cases that use them.",
-        unit: "concepts",
+        group: Group::LookUp,
+        unit: ("concept", "concepts"),
     },
     ReferencePage {
         href: "/rules",
         name: "Rules",
         hint: "The business rules the code enforces, filtered by kind, domain or feature.",
-        unit: "rules",
+        group: Group::LookUp,
+        unit: ("rule", "rules"),
     },
     ReferencePage {
         href: "/files",
         name: "Files",
         hint: "The source files, with the docs that cite each one and those no doc covers.",
-        unit: "cited files",
+        group: Group::LookUp,
+        unit: ("cited file", "cited files"),
     },
 ];
 
 /// A page of reference on the home page, with its count.
 pub struct StartLink {
     pub page: &'static ReferencePage,
-    pub count: usize,
+    /// The count with its unit.
+    pub label: String,
 }
 
 /// What every page shows around its content: the name of the application,
@@ -201,9 +253,9 @@ pub struct StartLink {
 pub struct Shell {
     pub name: String,
     /// The pages one reads through: the actors.
-    pub read: &'static [ReferencePage],
+    pub read: Vec<&'static ReferencePage>,
     /// The pages one looks things up in: the glossary, the rules, the files.
-    pub look_up: &'static [ReferencePage],
+    pub look_up: Vec<&'static ReferencePage>,
     pub tree: Vec<TreeDomain>,
 }
 
@@ -293,6 +345,20 @@ pub struct DomainRow {
     pub use_cases: usize,
 }
 
+impl DomainRow {
+    /// Its number of features with their unit.
+    #[must_use]
+    pub fn features_label(&self) -> String {
+        plural(self.features, "feature", "features")
+    }
+
+    /// Its number of use cases with their unit.
+    #[must_use]
+    pub fn use_cases_label(&self) -> String {
+        plural(self.use_cases, "use case", "use cases")
+    }
+}
+
 /// Every domain of the run, in its order. Reads the files the features cite
 /// to tell whether they changed since the run.
 #[must_use]
@@ -374,7 +440,7 @@ pub struct DomainPage {
 pub(crate) fn home_crumb() -> Link {
     Link {
         href: "/".into(),
-        name: "Domains".into(),
+        name: "Home".into(),
     }
 }
 
@@ -777,7 +843,7 @@ pub fn use_case_page(
     let at = siblings.iter().position(|u| u.slug == slug)?;
     let use_case = siblings[at];
     let link = |sibling: &UseCase| Link {
-        href: format!("/domains/{domain}/{feature}/{}", sibling.slug),
+        href: use_case_href(owner, sibling),
         name: sibling.name.clone(),
     };
     let mut cited: Vec<&str> = Vec::new();

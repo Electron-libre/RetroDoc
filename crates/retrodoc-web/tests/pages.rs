@@ -195,6 +195,10 @@ async fn the_home_page_lists_every_domain_with_its_confidence_and_counts() {
         text(row(&page, "archive")),
         "Archive Old records not scored 0 features 0 use cases"
     );
+    assert_eq!(
+        text(row(&page, "delivery")),
+        "Delivery stale Orders brought to customers 40% 1 feature 0 use cases"
+    );
     assert!(row(&page, "billing").contains("href=\"/domains/billing\""));
 }
 
