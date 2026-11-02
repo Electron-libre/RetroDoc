@@ -199,7 +199,7 @@ The milestones up to "A large application, one bounded context at a time" are th
   - [language_native_names_and_regional_tags](issues/language_native_names_and_regional_tags.md)
   - [reconcile_across_languages](issues/done/reconcile_across_languages.md)
   - [reconcile_excerpt_by_identifiers](issues/reconcile_excerpt_by_identifiers.md)
-  - [render_removes_pages_of_renamed_items](issues/render_removes_pages_of_renamed_items.md)
+  - [render_removes_pages_of_renamed_items](issues/done/render_removes_pages_of_renamed_items.md)
 
 ## Explore the documentation debt and audit it
 
