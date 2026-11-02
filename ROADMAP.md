@@ -184,7 +184,7 @@ The milestones up to "A large application, one bounded context at a time" are th
 - Issues:
   - [web_ui_application_name](issues/done/web_ui_application_name.md)
   - [web_ui_guided_entry](issues/done/web_ui_guided_entry.md)
-  - [web_ui_meta_lambda_branding](issues/web_ui_meta_lambda_branding.md)
+  - [web_ui_meta_lambda_branding](issues/done/web_ui_meta_lambda_branding.md)
   - [web_ui_visual_map_of_the_docs](issues/web_ui_visual_map_of_the_docs.md)
 
 ## Docs in the reader's language
