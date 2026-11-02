@@ -127,10 +127,13 @@ pub(crate) fn names_line(names: &[String]) -> String {
         .join(", ")
 }
 
+/// What opens the line of a feature in a prompt: a text of the requests that show it.
+pub(crate) const FEATURE_LABEL: &str = "Feature: ";
+
 /// The line that shows `feature` in a prompt: its name and description, on one line.
 pub(crate) fn feature_line(feature: &Feature) -> String {
     format!(
-        "Feature: {} — {}\n",
+        "{FEATURE_LABEL}{} — {}\n",
         one_line(&feature.name),
         one_line(&feature.description)
     )

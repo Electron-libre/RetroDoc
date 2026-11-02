@@ -1205,8 +1205,8 @@ async fn the_print_of_a_feature_stays_the_same() {
         prints.into_iter().collect::<Vec<_>>(),
         vec![(
             "delivery/orders".to_string(),
-            "84afb1e428234980b4ae7fbbd979cc8c1d428827bfa7d079e83c20e7723aacda \
-             cc7c342c43aed24f2a3fc3f632a7586bccbe45120ca87e3b6c1af95fe0295156"
+            "170600530d363bed51b34f5b84656e1f2a0532407461b3ea558aeed801e08001 \
+             bc98eefc4e0f6316c3cbdfcbfa1dcd0c4a011616221b26d142ce996a4182ceb7"
                 .to_string()
         )]
     );
@@ -1283,5 +1283,33 @@ async fn a_rule_set_aside_without_its_whole_rule_states_the_feature_again() {
             .system_prompts()
             .contains(&prompt::RULES_SYSTEM_PROMPT.to_string()),
         "stated again"
+    );
+}
+
+// spec: RER-9 (internal: the judgement prompt is a constant of the binary, the test changes its print)
+#[tokio::test]
+async fn an_unparseable_judgement_asked_again_is_not_remembered() {
+    let dir = repo();
+    let first = judging(
+        &format!("{STORAGE},{LIMIT}"),
+        r#"{"rules":[{"n":1,"class":"storage"},{"n":2,"class":"business"}]}"#,
+    );
+    run(dir.path(), &first).await;
+    change_the_judgement(dir.path());
+
+    let garbled = judging("", "not json");
+    let rules = run(dir.path(), &garbled).await;
+    let slugs: Vec<&str> = rules.iter().map(|r| r.slug.as_str()).collect();
+    assert_eq!(slugs, ["orders-2"], "the saved rules are kept");
+
+    let again = judging(
+        "",
+        r#"{"rules":[{"n":1,"class":"storage"},{"n":2,"class":"business"}]}"#,
+    );
+    run(dir.path(), &again).await;
+    assert_eq!(
+        again.system_prompts(),
+        [judge::JUDGE_SYSTEM_PROMPT],
+        "judged again"
     );
 }

@@ -1673,7 +1673,7 @@ async fn the_print_of_a_feature_stays_the_same() {
         prints.into_iter().collect::<Vec<_>>(),
         vec![(
             "billing/idle".to_string(),
-            "7db7cf383f5503110b2a4882c4e10c156b6e4d6d6c3e28dea720bd249505e934".to_string()
+            "8a21efbf2399862a909fdc7ab26b8048e3fdaaf33046a3ee73e9ca0416b91a6d".to_string()
         )]
     );
 }
@@ -1718,4 +1718,15 @@ async fn a_feature_unanswered_after_its_use_cases_were_lost_is_asked_again() {
         .await
         .unwrap();
     assert_eq!(again.calls(), 1, "the second feature is asked again");
+}
+
+// spec: RER-10 (internal: the system prompt is assembled from constants of the binary)
+#[test]
+fn every_piece_of_the_system_prompt_is_a_text_of_the_request() {
+    let request = &prompt::USE_CASES_REQUEST;
+    let mut left = prompt::system_prompt(true, true);
+    for text in std::iter::once(request.system).chain(request.texts.iter().copied()) {
+        left = left.replacen(text, "", 1);
+    }
+    assert_eq!(left, "", "a piece of the system prompt is not in the print");
 }

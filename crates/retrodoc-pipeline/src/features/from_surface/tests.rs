@@ -1279,7 +1279,7 @@ async fn the_print_of_a_domain_stays_the_same() {
         prints.into_iter().collect::<Vec<_>>(),
         vec![(
             "orders/-".to_string(),
-            "fc0320be1f6bc613f83e6fae6a689289675c92912a5c617e345ec2ab43536dd4".to_string()
+            "8390e5d1899bcbc0a2abd587ea761aaf9e44d16c67ea7777ecd765da29350d08".to_string()
         )]
     );
 }

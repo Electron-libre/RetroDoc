@@ -1,7 +1,7 @@
 use super::*;
 
 use crate::features::tag;
-use crate::text::{feature_line, names_line, one_line};
+use crate::text::{feature_line, names_line, one_line, FEATURE_LABEL};
 
 /// Per-file truncation and overall budget of code sent for one feature
 /// (the risks of PRODUCT.md "cost/volume"); files beyond the budget are left out of the
@@ -83,6 +83,7 @@ pub(super) static USE_CASES_REQUEST: crate::request::Request<RawUseCases> =
             ENTRY_POINTS_ADDENDUM,
             ACTORS_ADDENDUM,
             ACTOR_KIND_ADDENDUM,
+            FEATURE_LABEL,
             VOCABULARY_LABEL,
             ACTORS_HEADER,
             ENTRY_POINTS_HEADER,

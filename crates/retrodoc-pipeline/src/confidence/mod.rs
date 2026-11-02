@@ -317,12 +317,29 @@ ONLY a JSON object {\"use_cases\":[{\"slug\":\"...\",\"narrative\":{\"verdict\":
 \"rationale\":\"...\"},\"steps\":[{\"order\":1,\"verdict\":\"...\",\"rationale\":\"...\"}]}]}, one \
 entry per use case below, using its slug. Judge each use case against the files it cites only.\n";
 
+const USE_CASE_LABEL: &str = "Use case: ";
+const BATCH_USE_CASE_LABEL: &str = "Use case [";
+const NARRATIVE_LABEL: &str = "Narrative: ";
+const CITES_LABEL: &str = "Cites: ";
+const STEPS_HEADER: &str = "\nSteps:\n";
+
 /// The request of one use case.
-static SINGLE: Request<RawVerdicts> = Request::new(CONFIDENCE_SYSTEM_PROMPT, &[]);
+static SINGLE: Request<RawVerdicts> = Request::new(
+    CONFIDENCE_SYSTEM_PROMPT,
+    &[USE_CASE_LABEL, NARRATIVE_LABEL, STEPS_HEADER],
+);
 
 /// The request of several use cases of a feature.
-static BATCH: Request<RawBatchVerdicts> =
-    Request::new(CONFIDENCE_SYSTEM_PROMPT, &[BATCH_INSTRUCTIONS]);
+static BATCH: Request<RawBatchVerdicts> = Request::new(
+    CONFIDENCE_SYSTEM_PROMPT,
+    &[
+        BATCH_INSTRUCTIONS,
+        BATCH_USE_CASE_LABEL,
+        NARRATIVE_LABEL,
+        CITES_LABEL,
+        STEPS_HEADER,
+    ],
+);
 
 /// What the saved scores were given by: the model and the two requests (ADR 0037, ADR 0040), so
 /// another of either scores them again.
@@ -548,7 +565,7 @@ fn narrative_of(use_case: &UseCase) -> Option<&str> {
 /// The narrative line of a use case in a prompt, empty without narrative.
 fn narrative_text(use_case: &UseCase) -> String {
     narrative_of(use_case)
-        .map(|n| format!("Narrative: {n}\n"))
+        .map(|n| format!("{NARRATIVE_LABEL}{n}\n"))
         .unwrap_or_default()
 }
 
@@ -666,7 +683,7 @@ fn confidence_prompt(
     code_of: &UseCase,
 ) -> (String, BTreeSet<String>) {
     let mut prompt = format!(
-        "Use case: {} — {}\n{}\nSteps:\n{}",
+        "{USE_CASE_LABEL}{} — {}\n{}{STEPS_HEADER}{}",
         use_case.name,
         use_case.description,
         narrative_text(use_case),
@@ -689,7 +706,7 @@ fn batch_prompt(
         let cites: Vec<&str> = cited_paths(&[code]).into_iter().collect();
         let _ = write!(
             prompt,
-            "\nUse case [{}]: {} — {}\n{}Cites: {}\n\nSteps:\n{}",
+            "\n{BATCH_USE_CASE_LABEL}{}]: {} — {}\n{}{CITES_LABEL}{}\n{STEPS_HEADER}{}",
             use_case.slug,
             use_case.name,
             use_case.description,

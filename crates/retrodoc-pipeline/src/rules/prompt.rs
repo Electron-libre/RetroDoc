@@ -11,7 +11,7 @@ use super::RuleInput;
 use crate::brief::{ExtractKind, ProductBrief};
 use crate::chunks::Splitter;
 use crate::request::Request;
-use crate::text::{feature_line, names_line, one_line};
+use crate::text::{feature_line, names_line, one_line, FEATURE_LABEL};
 use crate::use_cases::{focus_for, MAX_CHARS_PER_FILE, MAX_CHARS_PER_PROMPT};
 use crate::walked::WalkedFiles;
 
@@ -44,6 +44,7 @@ const SOURCE_FILES_HEADER: &str = "\nSource files:\n";
 pub(super) static STATEMENT: Request<RawRules> = Request::new(
     RULES_SYSTEM_PROMPT,
     &[
+        FEATURE_LABEL,
         ENTITIES_LABEL,
         USE_CASES_HEADER,
         TESTS_HEADER,

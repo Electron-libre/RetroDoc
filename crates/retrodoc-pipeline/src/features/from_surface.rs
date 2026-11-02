@@ -63,6 +63,7 @@ const KNOWN_FEATURES_HEADER: &str = "\nFeatures already found in the other entry
 domain (when an entry point below belongs to one of them, give that feature again with the same \
 slug and name; otherwise create new features):\n";
 const ENTRY_POINTS_HEADER: &str = "\nEntry points:\n";
+const OUTPUTS_LABEL: &str = " (outputs: ";
 const OMITTED_ENTRY_POINTS: &str = "more entry point(s) omitted from this list";
 
 static REQUEST: Request<RawSurfaceFeatures> = Request::new(
@@ -72,6 +73,7 @@ static REQUEST: Request<RawSurfaceFeatures> = Request::new(
         ENTITIES_HEADER,
         KNOWN_FEATURES_HEADER,
         ENTRY_POINTS_HEADER,
+        OUTPUTS_LABEL,
         OMITTED_ENTRY_POINTS,
     ],
 );
@@ -521,7 +523,7 @@ fn surface_features_prompt(
             e.point.resource
         );
         if !outputs.is_empty() {
-            let _ = write!(prompt, " (outputs: {})", outputs.join("; "));
+            let _ = write!(prompt, "{OUTPUTS_LABEL}{})", outputs.join("; "));
         }
         prompt.push('\n');
     }

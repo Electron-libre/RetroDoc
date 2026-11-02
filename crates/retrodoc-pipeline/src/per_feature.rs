@@ -163,8 +163,14 @@ pub(crate) async fn run<P: FeaturePass>(
                     Ok(true) => {
                         P::prints(prints).insert(key, print);
                     }
-                    // Asked again on the next run.
-                    Ok(false) if P::KEEP_UNANSWERED => pass.keep(feature, &mut done),
+                    // Asked again on the next run: with its saved results goes their print, so
+                    // that the next run tells what changed since them (the rules judgement alone).
+                    Ok(false) if P::KEEP_UNANSWERED => {
+                        pass.keep(feature, &mut done);
+                        if let Some(saved) = known.get(&key) {
+                            P::prints(prints).insert(key, saved.clone());
+                        }
+                    }
                     Ok(false) => continue,
                 }
                 // After each answer: a run killed later loses the call in flight, nothing more.

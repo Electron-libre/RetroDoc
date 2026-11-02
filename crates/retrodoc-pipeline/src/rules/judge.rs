@@ -19,7 +19,7 @@ use retrodoc_core::model::{BusinessRule, Feature, RuleEvidence, RuleKind};
 use serde::Deserialize;
 
 use crate::request::Request;
-use crate::text::{feature_line, one_line};
+use crate::text::{feature_line, one_line, FEATURE_LABEL};
 
 /// The question of the judgement: one class per rule.
 pub const JUDGE_SYSTEM_PROMPT: &str = "You are classifying the business rules found in \
@@ -57,10 +57,11 @@ const RULES_HEADER: &str = "\nRules:\n";
 
 /// The request of the judgement of the rules of a feature.
 pub(super) static JUDGEMENT: Request<RawVerdict> =
-    Request::new(JUDGE_SYSTEM_PROMPT, &[RULES_HEADER]);
+    Request::new(JUDGE_SYSTEM_PROMPT, &[FEATURE_LABEL, RULES_HEADER]);
 
 /// The request of the question on the kind of a feature (its user prompt is the feature line).
-pub(super) static KIND: Request<RawFeatureKind> = Request::new(FEATURE_SYSTEM_PROMPT, &[]);
+pub(super) static KIND: Request<RawFeatureKind> =
+    Request::new(FEATURE_SYSTEM_PROMPT, &[FEATURE_LABEL]);
 
 /// The classes that are noise.
 pub const NOISE: [&str; 4] = ["storage", "screen", "test", "technical"];

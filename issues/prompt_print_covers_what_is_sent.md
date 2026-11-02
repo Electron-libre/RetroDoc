@@ -72,6 +72,7 @@ Out of scope: the hand-editable artifacts (roles, sources, business-files, brief
 3. [x] Rules: statement and kind of feature on one request part, judgement on its own print; a feature whose
    judgement print alone changed is judged again from `rules-stated.yaml` and the rules set aside with their
    whole rule; verified by a test counting the calls (one judgement, no statement, then none); makes true RER-11.
+4. [x] Docs and fixes of the `high` review of the whole issue.
 
 ## Decisions
 - Mode: autonomous
@@ -113,3 +114,17 @@ Out of scope: the hand-editable artifacts (roles, sources, business-files, brief
      `judged`), so every one was dropped by it.
   2. `Plan::Reuse` keeping the old judgement part: `per_feature::run` stores the unit's new print on reuse.
   3. old prints with no space state every feature again: intended (RER-11 scenario, no migration); prints are hex.
+
+## Deliverable 4 (docs and `high` review of `e604dc8..HEAD`)
+- done: an unparseable re-judgement is asked again next run, not remembered (`judged` returns `None`, and
+  `per_feature` keeps the saved print of a feature not answered with its saved results); labels moved to
+  request texts (`FEATURE_LABEL` of `feature_line` in the rules and use cases requests, the confidence labels,
+  the features ` (outputs: `); the rules judged again only from `rules-stated.yaml`; `number_in` for the order;
+  `Last` built once; `judged_again` only when the print differs; a test that the use cases system prompt is
+  made of its request texts. Golden prints updated.
+- checks: tests ok, clippy ok, specs ok, docs `pipeline.md`.
+- red: RER-9: `assertion left == right failed: the saved rules are kept, left: ["orders-1", "orders-2"]`.
+- High review, 10 findings: 9 fixed (the use cases addenda list by a test); not fixed: the request and its
+  header picked apart in the reading passes (both constants of the same module, tying them adds API for no
+  case seen).
+- Code review: no findings

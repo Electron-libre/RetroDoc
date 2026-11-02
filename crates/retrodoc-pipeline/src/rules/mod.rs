@@ -155,15 +155,19 @@ pub async fn build_rules(
     let previous = saved.unwrap_or_default();
     let previous_aside = load_set_aside(repo_root).unwrap_or_default();
     let judgement = judgement_print(llm);
+    let last = Last {
+        prints: &known,
+        // `rules.yaml`, its fallback, holds the rules put back and merged: not what was judged.
+        stated: Artifact::RulesStated
+            .path(repo_root)
+            .exists()
+            .then_some(previous.as_slice()),
+        aside: &previous_aside,
+        judgement: &judgement,
+    };
     let (units, reach): (Vec<_>, BTreeMap<_, _>) = features
         .iter()
         .map(|feature| {
-            let last = Last {
-                prints: &known,
-                rules: &previous,
-                aside: &previous_aside,
-                judgement: &judgement,
-            };
             plan_unit(
                 repo_root, feature, use_cases, context, &last, &splitter, llm,
             )
@@ -232,7 +236,8 @@ impl<'a> FeaturePass for RulesPass<'a> {
                 )
                 .await
             }
-            Asking::Judge(rules) => judged(self.llm, feature, rules.clone()).await.map(Some),
+            // An unparseable verdict leaves the feature to the next run, its saved rules kept.
+            Asking::Judge(rules) => judged(self.llm, feature, rules.clone()).await,
         }
     }
 
@@ -332,21 +337,26 @@ async fn ask_rules(
     else {
         return Ok(None);
     };
-    judged(llm, feature, rules).await.map(Some)
+    // Not to lose the statement, an unparseable verdict keeps the rules as stated.
+    Ok(Some(
+        judged(llm, feature, rules.clone())
+            .await?
+            .unwrap_or_else(|| Asked::of(rules)),
+    ))
 }
 
 /// The `rules` of `feature` judged: those kept, and those dropped set aside with their class. No call
-/// for no rule; an unparseable verdict keeps them all.
+/// for no rule; `None` for an unparseable verdict.
 async fn judged(
     llm: &dyn LlmProvider,
     feature: &Feature,
     rules: Vec<BusinessRule>,
-) -> Result<Asked, PipelineError> {
+) -> Result<Option<Asked>, PipelineError> {
     if rules.is_empty() {
-        return Ok(Asked::of(rules));
+        return Ok(Some(Asked::of(rules)));
     }
     let Some((rules, dropped)) = judge_rules(llm, feature, &rules).await? else {
-        return Ok(Asked::of(rules));
+        return Ok(None);
     };
     let mut asked = Asked::of(rules);
     for (rule, class) in dropped {
@@ -359,7 +369,7 @@ async fn judged(
             rule: Some(rule),
         });
     }
-    Ok(asked)
+    Ok(Some(asked))
 }
 
 /// The rules of `feature` judged under the pass's request ([`JUDGE_SYSTEM_PROMPT`]): those kept and
@@ -483,29 +493,24 @@ enum Asking<'a> {
     Judge(Vec<BusinessRule>),
 }
 
-/// What the last run left: the prints of the pass, the rules as stated, what was set aside; and the
-/// judgement part of the prints of this run.
+/// What the last run left: the prints of the pass, the rules as stated (`None` without
+/// `rules-stated.yaml`), what was set aside; and the judgement part of the prints of this run.
 struct Last<'l> {
     prints: &'l BTreeMap<String, String>,
-    rules: &'l [BusinessRule],
+    stated: Option<&'l [BusinessRule]>,
     aside: &'l SetAside,
     judgement: &'l str,
 }
 
 /// The rules of `slug` as the last run stated them before its judgement: those it kept and those it
-/// set aside, in the order of their numbers; `None` when a rule set aside was saved without its whole
-/// rule (a run from before it was kept).
+/// set aside, in the order of their numbers; `None` without the rules as stated, or when a rule set
+/// aside was saved without its whole rule (a run from before it was kept).
 fn stated_before_judgement(last: &Last<'_>, slug: &str) -> Option<Vec<BusinessRule>> {
-    let mut rules = kept(last.rules, slug);
+    let mut rules = kept(last.stated?, slug);
     for aside in last.aside.rules.iter().filter(|r| r.feature == slug) {
         rules.push(aside.rule.clone()?);
     }
-    rules.sort_by_key(|rule| {
-        rule.slug
-            .rsplit('-')
-            .next()
-            .and_then(|n| n.parse::<u64>().ok())
-    });
+    rules.sort_by_key(|rule| rule.number_in(slug));
     Some(rules)
 }
 
@@ -537,14 +542,16 @@ fn plan_unit<'a>(
     let statement = statement_print(feature, &input, &own, context, llm, put_back);
     let print = format!("{statement} {}", last.judgement);
     let saved = last.prints.get(&key);
-    let judged_again = saved
-        .and_then(|saved| saved.split_once(' '))
-        .is_some_and(|(saved, _)| saved == statement)
-        .then(|| stated_before_judgement(last, &feature.slug))
-        .flatten();
+    let judged_again = || {
+        saved
+            .and_then(|saved| saved.split_once(' '))
+            .is_some_and(|(saved, _)| saved == statement)
+            .then(|| stated_before_judgement(last, &feature.slug))
+            .flatten()
+    };
     let plan = if saved == Some(&print) {
         Plan::Reuse
-    } else if let Some(rules) = judged_again {
+    } else if let Some(rules) = judged_again() {
         // A feature about tests, or one with no rule, has nothing to judge.
         if rules.is_empty() {
             Plan::Reuse
