@@ -61,7 +61,7 @@ already exist (WEB-19). Out of scope: the debt view and dashboard (their own mil
 ## Plan
 1. [x] Home page in sections: brief users, "Start here" links with a line and a count each, domains as cards;
    verified by `tests/pages.rs` page tests; makes true WEB-65, WEB-66.
-2. [ ] Header links grouped "Read" / "Look up" with titles; verified by a page test on every route; makes true WEB-67.
+2. [x] Header links grouped "Read" / "Look up" with titles; verified by a page test on every route; makes true WEB-67.
 3. [ ] Previous / next links between the use cases of a feature; verified by `tests/item_pages.rs`; makes true WEB-68.
 4. [ ] Walk-through on the saved healthchecks run, headless Chrome screenshots before and after (no LLM call),
    findings in this issue; verified by the screenshots.
@@ -79,4 +79,11 @@ already exist (WEB-19). Out of scope: the debt view and dashboard (their own mil
   files, each with what it holds and its count) and the domains as cards; `retrodoc ui` passes the brief's users.
 - red: WEB-65, WEB-66: `no Buyers who order goods in <main>`, `no id="start-here" in` the home page.
 - Before / after: `~/retrodoc-runs/guided-entry-shots/before-home.png`, `d1-home.png` (healthchecks run).
+
+## Deliverable 2
+
+- done: the header groups its links under "Read" (actors) and "Look up" (glossary, rules, files), each link titled
+  with what its page holds (the hints of the home page, `view::REFERENCE_PAGES`).
+- red: WEB-67: `no aria-label="Read" in <header class="top">`.
+- Screenshot: `~/retrodoc-runs/guided-entry-shots/d2-header.png`.
 

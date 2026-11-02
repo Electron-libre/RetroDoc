@@ -42,6 +42,8 @@ impl Site {
     ) -> Self {
         let shell = Shell {
             name: project.name,
+            read: &REFERENCE_PAGES[..1],
+            look_up: &REFERENCE_PAGES[1..],
             tree: docs.as_ref().map(tree).unwrap_or_default(),
         };
         let source = docs.as_ref().and_then(GeneratedDocs::source_access);
@@ -193,10 +195,15 @@ pub struct StartLink {
     pub count: usize,
 }
 
-/// What every page shows around its content: the name of the application and
-/// the tree of the docs, empty with no run.
+/// What every page shows around its content: the name of the application,
+/// the links of the header grouped by use, and the tree of the docs, empty
+/// with no run.
 pub struct Shell {
     pub name: String,
+    /// The pages one reads through: the actors.
+    pub read: &'static [ReferencePage],
+    /// The pages one looks things up in: the glossary, the rules, the files.
+    pub look_up: &'static [ReferencePage],
     pub tree: Vec<TreeDomain>,
 }
 

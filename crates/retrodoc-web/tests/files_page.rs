@@ -220,10 +220,10 @@ async fn every_page_links_to_the_files_page() {
         "/nope",
     ] {
         let (_, page) = get(GeneratedDocs::load(repo.path(), &[]), path).await;
-        assert!(page.contains("<a href=\"/files\">"), "{path}: {page}");
+        assert!(page.contains("<a href=\"/files\""), "{path}: {page}");
     }
     let (status, page) = get(None, "/files").await;
     assert_eq!(status, StatusCode::OK);
     assert!(page.contains("retrodoc generate"), "{page}");
-    assert!(page.contains("<a href=\"/files\">"), "{page}");
+    assert!(page.contains("<a href=\"/files\""), "{page}");
 }

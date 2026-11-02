@@ -46,7 +46,8 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   directory) and carries the purpose and the users of the saved product brief (`commands::brief::saved`: one that can't be read is warned of); a request whose `Host` is a name other than
   `localhost` is refused with 403 (DNS rebinding: an IP address can't be rebound); the home page, headed by the name
   and that purpose, shows the users of the brief, a "Start here" section (`Site::start_links`: the pages of
-  `view::REFERENCE_PAGES`, each with what it holds and its count), then the domains as cards with their confidence (flagged low
+  `view::REFERENCE_PAGES`, each with what it holds and its count; the header of every page groups the same pages
+  under "Read" and "Look up", `Shell::read` and `Shell::look_up`, with what each holds as the title of its link), then the domains as cards with their confidence (flagged low
   under `LOW_CONFIDENCE_THRESHOLD`), a stale badge when a file their features cite changed since the run
   (`Freshness::stale`, read in `spawn_blocking` at each request), and their counts of features and use cases. The page of a domain (`view::domain_page`, `domain.html`) shows the
   sections of its Markdown page in the same order, with a breadcrumb; the back-office features under

@@ -384,6 +384,37 @@ async fn start_here_links_each_reference_page_with_what_it_holds_and_its_count()
     }
 }
 
+// spec: WEB-67
+#[tokio::test]
+async fn the_header_groups_its_links_under_read_and_look_up_with_titles() {
+    let repo = generated_repo();
+    let empty = tempfile::tempdir().unwrap();
+    for (docs, path) in [
+        (load(repo.path()), "/"),
+        (
+            load(repo.path()),
+            "/domains/billing/pay-invoice/pay-by-card",
+        ),
+        (load(repo.path()), "/rules"),
+        (load(repo.path()), "/no-such-page"),
+        (load(empty.path()), "/"),
+    ] {
+        let (_, page, _) = get(docs, path).await;
+        let header = between(&page, "<header", "</header>");
+        for (group, hrefs) in [
+            ("Read", &["/actors"][..]),
+            ("Look up", &["/glossary", "/rules", "/files"][..]),
+        ] {
+            let nav = between(header, &format!("aria-label=\"{group}\""), "</nav>");
+            assert!(nav.contains(&format!(">{group}<")), "{path}: {nav}");
+            for href in hrefs {
+                let link = between(nav, &format!("href=\"{href}\""), "</a>");
+                assert!(link.contains(" title=\""), "{path}: {link}");
+            }
+        }
+    }
+}
+
 // spec: WEB-10
 #[tokio::test]
 async fn the_text_of_the_docs_is_escaped() {

@@ -27,6 +27,9 @@ a:hover { text-decoration: underline; }
   border-bottom: 1px solid var(--border);
 }
 .brand { font-weight: 600; color: var(--fg); margin-right: 1.5rem; }
+.top .links { display: flex; align-items: baseline; gap: 0.8rem; }
+.top .group { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.top .links + .links { padding-left: 1rem; border-left: 1px solid var(--border); }
 .purpose { font-size: 1.1rem; color: var(--muted); max-width: 48rem; }
 .layout { display: flex; min-height: calc(100vh - 3rem); }
 .tree {
