@@ -61,6 +61,7 @@ cache artifacts, never the rendered Markdown, so no parser depends on the headin
    empty and not-found pages; verified by router tests; makes true WEB-78 and starts WEB-77. (~500 lines)
 3. [x] Web item pages: the domain, feature, use case, rules, glossary, actors, map, files and code pages use the
    table; verified by a test that no English label is left on each page in French; makes true WEB-77. (~600 lines)
+4. [x] Fixes of the `high` review of the whole issue; verified by `just check` and the tests below.
 
 ## Decisions
 - Mode: autonomous
@@ -131,3 +132,39 @@ red: WEB-77: `Map of this domain left in <main>`
 Code review: no findings
 
 - No English text node is left in the templates but the credit line and the commands.
+
+## Deliverable 4: fixes of the high review
+
+done: the colon after a citer and after a shared domain comes from the table (`WebTexts::colon`); French counts take
+the singular for 0 (`WebTexts::count`); the page titles and the map crumb read `WebTexts::page_name(href)`, not an
+index; the search headings reuse the words of the docs table and the glossary page name; the domain and code pages
+call a `home_crumb` macro and lose their always-empty `crumbs`; a test guards that the web table of a tag shares the
+docs table of that tag.
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | pass |
+| specs | no change |
+| docs | none needed |
+| code review | no findings |
+
+red: none (fixes; the WEB-29 test now checks `Feature:` before the link)
+
+Code review: no findings
+
+High review: 10 findings.
+1. Citer colon dropped: fixed.
+2. French plural of 0: fixed.
+3. Native names and regional tags (`Français`, `fr-FR`) get English fixed text: outside DLG-2/DLG-7, issue
+   `issues/language_native_names_and_regional_tags.md`.
+4. `ui` or `render` after a language change but before `generate` mixes the new fixed text with the old generated
+   text: not fixed, the config is the source of the language and the next `generate` redoes the writing passes (DLG-4).
+5. Hard-coded colon on the map page: fixed.
+6. Reference pages read by index: fixed.
+7. Two `for_tag` matches: kept (one per crate), guarded by a test.
+8. `t` on every template rather than on `Shell`: kept, the htmx fragments have no `Shell` and one name keeps the
+   macros working in both.
+9. Dead `crumbs` fields: fixed.
+10. Duplicated strings: `search_features` and `search_glossary` removed; `existing_doc` and `states_otherwise` kept
+    (other forms, without the colon).

@@ -2,7 +2,7 @@
 {% import "macros.html" as m %}
 {% block title %}{{ page.name }}{% endblock %}
 {% block content %}
-{% call m::crumbs(page.crumbs, page.name) %}{% endcall %}
+{% call m::home_crumb(page.name) %}{% endcall %}
 <h1>{{ page.name }}</h1>
 <p>{{ page.description }}</p>
 <p><a href="{{ page.map }}">{{ t.map_of_this_domain }}</a>{{ t.map_of_this_domain_tail }}</p>

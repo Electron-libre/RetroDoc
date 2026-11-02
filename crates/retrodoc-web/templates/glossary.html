@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% block title %}{{ t.reference_pages[2].name }}{% endblock %}
+{% block title %}{{ t.page_name("/glossary") }}{% endblock %}
 {% block content %}
-<h1>{{ t.reference_pages[2].name }}</h1>
+<h1>{{ t.page_name("/glossary") }}</h1>
 {% if page.concepts.is_empty() %}
 <p class="muted">{{ t.no_concept }}</p>
 {% else %}

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% block title %}{{ t.reference_pages[1].name }}{% endblock %}
+{% block title %}{{ t.page_name("/actors") }}{% endblock %}
 {% block content %}
-<h1>{{ t.reference_pages[1].name }}</h1>
+<h1>{{ t.page_name("/actors") }}</h1>
 {% if page.groups.is_empty() %}
 <p class="muted">{{ t.no_actor }}</p>
 {% else %}

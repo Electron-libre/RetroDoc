@@ -313,7 +313,7 @@ fn domain_map_page(
     DomainMapPage {
         crumbs: vec![Link {
             href: "/map".into(),
-            name: texts.reference_pages[0].name.into(),
+            name: texts.page_name("/map").into(),
         }],
         name: domain.name.clone(),
         href: domain_href(slug),

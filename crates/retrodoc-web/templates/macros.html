@@ -8,6 +8,12 @@
 <p class="score"><strong>{{ label }}</strong> {% call badge_why(confidence) %}{% endcall %}</p>
 {% endmacro %}
 
+{% macro home_crumb(current) %}
+<nav class="crumbs" aria-label="{{ t.breadcrumb }}">
+  <a href="/">{{ t.home }}</a> › <span>{{ current }}</span>
+</nav>
+{% endmacro %}
+
 {% macro crumbs(links, current) %}
 <nav class="crumbs" aria-label="{{ t.breadcrumb }}">
   <a href="/">{{ t.home }}</a> › {% for link in links %}<a href="{{ link.href }}">{{ link.name }}</a> › {% endfor %}<span>{{ current }}</span>

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% block title %}{{ t.reference_pages[4].name }}{% endblock %}
+{% block title %}{{ t.page_name("/files") }}{% endblock %}
 {% block content %}
-<h1>{{ t.reference_pages[4].name }}</h1>
+<h1>{{ t.page_name("/files") }}</h1>
 <p>{{ page.cited }}/{{ page.total }} {{ t.files_cited }} <span class="muted">{{ t.files_hint }}</span></p>
 <table class="files">
   {% for row in page.rows %}

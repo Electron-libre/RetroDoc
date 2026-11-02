@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}{{ t.reference_pages[0].name }}{% endblock %}
+{% block title %}{{ t.page_name("/map") }}{% endblock %}
 {% block scripts %}
   <script src="/assets/{{ mermaid }}" defer></script>
   <script src="/assets/diagrams.js" defer></script>
 {% endblock %}
 {% block content %}
-<h1>{{ t.reference_pages[0].name }}</h1>
+<h1>{{ t.page_name("/map") }}</h1>
 {% if page.domains.is_empty() %}
 <p class="muted">{{ t.no_domain_generated }}</p>
 {% else %}
@@ -20,7 +20,7 @@
     {% if !domain.shared.is_empty() %}
     <ul>
       {% for shared in domain.shared %}
-      <li>{{ t.with }} <a href="{{ shared.with.href }}">{{ shared.with.name }}</a>: {% for concept in shared.concepts %}<a href="{{ concept.href }}">{{ concept.name }}</a>{% if !loop.last %}, {% endif %}{% endfor %}</li>
+      <li>{{ t.with }} <a href="{{ shared.with.href }}">{{ shared.with.name }}</a>{{ t.colon }} {% for concept in shared.concepts %}<a href="{{ concept.href }}">{{ concept.name }}</a>{% if !loop.last %}, {% endif %}{% endfor %}</li>
       {% endfor %}
     </ul>
     {% endif %}

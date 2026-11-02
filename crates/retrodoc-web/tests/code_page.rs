@@ -306,7 +306,9 @@ async fn the_page_of_a_file_lists_what_cites_it() {
     let (_dir, root) = generated_repo();
     let page = page(&root, "/code/app/invoice.rb").await;
     assert!(
-        page.contains("<a href=\"/domains/billing/pay-invoice\">Pay an invoice</a>"),
+        page.contains(
+            "<span class=\"muted\">Feature:</span> <a href=\"/domains/billing/pay-invoice\">Pay an invoice</a>"
+        ),
         "{page}"
     );
     assert!(

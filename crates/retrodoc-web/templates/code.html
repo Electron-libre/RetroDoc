@@ -2,14 +2,14 @@
 {% import "macros.html" as m %}
 {% block title %}{{ page.path }}{% endblock %}
 {% block content %}
-{% call m::crumbs(page.crumbs, page.path) %}{% endcall %}
+{% call m::home_crumb(page.path) %}{% endcall %}
 <h1><code>{{ page.path }}</code></h1>
 {% call m::stale(page.stale) %}{% endcall %}
 {% if !page.cited_by.is_empty() %}
 <h2>{{ t.cited_by }}</h2>
 <ul class="cited-by">
   {% for citer in page.cited_by %}
-  <li><span class="muted">{{ t.citer(*citer.kind) }}</span> <a href="{{ citer.link.href }}">{{ citer.link.name }}</a></li>
+  <li><span class="muted">{{ t.citer(*citer.kind) }}{{ t.colon }}</span> <a href="{{ citer.link.href }}">{{ citer.link.name }}</a></li>
   {% endfor %}
 </ul>
 {% endif %}

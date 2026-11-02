@@ -16,7 +16,6 @@ const CONTEXT: usize = 10;
 
 /// The page of a cited file.
 pub struct CodePage {
-    pub crumbs: Vec<Link>,
     pub path: String,
     pub stale: Vec<StaleFile>,
     /// `lines 30-52 of 300`, `None` when no line is shown.
@@ -124,7 +123,6 @@ pub fn code_page(
     };
     let plain = path.strip_prefix("./").unwrap_or(path);
     let mut page = CodePage {
-        crumbs: Vec::new(),
         path: plain.to_string(),
         stale: Vec::new(),
         shown: None,

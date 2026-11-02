@@ -7,7 +7,7 @@ use retrodoc_mcp::EntryKind;
 use retrodoc_render::Texts;
 
 use crate::code::CiterKind;
-use crate::view::{plural, EvidenceKind, Group, ReferencePage};
+use crate::view::{EvidenceKind, Group, ReferencePage};
 
 /// The fixed text of the pages in one language.
 #[derive(Debug)]
@@ -35,8 +35,10 @@ pub struct WebTexts {
     pub search: &'static str,
     pub search_intro: &'static str,
     pub results_for: &'static str,
-    pub search_features: &'static str,
-    pub search_glossary: &'static str,
+    /// A colon after a label, as the language writes it.
+    pub colon: &'static str,
+    /// Whether a count of 0 takes the singular, as in French.
+    pub zero_is_singular: bool,
     pub search_docs_heading: &'static str,
     pub not_documented: &'static str,
     /// `nothing among`, before the number of entries.
@@ -199,8 +201,8 @@ impl WebTexts {
         search_intro: "Search the domains, features, use cases, business rules, glossary and \
             existing docs, in the application's own words.",
         results_for: "Results for",
-        search_features: "Features",
-        search_glossary: "Glossary",
+        colon: ":",
+        zero_is_singular: false,
         search_docs_heading: "Existing docs",
         not_documented: "Not documented:",
         nothing_among: "nothing among",
@@ -349,8 +351,8 @@ impl WebTexts {
         search_intro: "Cherchez dans les domaines, fonctionnalités, cas d'usage, règles métier, \
             le glossaire et les docs existantes, avec les mots de l'application.",
         results_for: "Résultats pour",
-        search_features: "Fonctionnalités",
-        search_glossary: "Glossaire",
+        colon: " :",
+        zero_is_singular: true,
         search_docs_heading: "Docs existantes",
         not_documented: "Non documenté :",
         nothing_among: "rien parmi",
@@ -453,24 +455,41 @@ impl WebTexts {
     pub fn kind_heading(&self, kind: EntryKind) -> &'static str {
         match kind {
             EntryKind::Domain => self.domains,
-            EntryKind::Feature => self.search_features,
+            EntryKind::Feature => self.doc.features,
             EntryKind::UseCase => self.doc.use_cases,
             EntryKind::Rule => self.doc.business_rules,
-            EntryKind::Glossary => self.search_glossary,
+            EntryKind::Glossary => self.page_name("/glossary"),
             EntryKind::Doc => self.search_docs_heading,
         }
+    }
+
+    /// The name of the page of reference at `href`, its title.
+    #[must_use]
+    pub fn page_name(&self, href: &str) -> &'static str {
+        self.reference_pages
+            .iter()
+            .find(|page| page.href == href)
+            .map_or("", |page| page.name)
+    }
+
+    /// `count` with the singular of `unit` or its plural, by the rule of the language: `1 rule`,
+    /// `0 rules`, `0 règle`.
+    #[must_use]
+    pub fn count(&self, count: usize, unit: (&str, &str)) -> String {
+        let singular = count == 1 || (count == 0 && self.zero_is_singular);
+        format!("{count} {}", if singular { unit.0 } else { unit.1 })
     }
 
     /// `count` features with their unit.
     #[must_use]
     pub fn features(&self, count: usize) -> String {
-        plural(count, self.feature_unit.0, self.feature_unit.1)
+        self.count(count, self.feature_unit)
     }
 
     /// `count` use cases with their unit.
     #[must_use]
     pub fn use_cases(&self, count: usize) -> String {
-        plural(count, self.use_case_unit.0, self.use_case_unit.1)
+        self.count(count, self.use_case_unit)
     }
 
     /// What cites a file: a feature, a use case or a rule.
@@ -529,5 +548,31 @@ fn french_refusal(error: &SourceError) -> String {
         SourceError::NoHistory => {
             "Indisponible : ce dépôt n'a pas d'historique git lisible.".to_string()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_web_table_of_a_tag_shares_the_words_of_the_docs_table_of_that_tag() {
+        for tag in [None, Some("en"), Some("fr"), Some("de")] {
+            // The tables are constants, copied where used: compare a word, not an address.
+            assert_eq!(
+                WebTexts::for_tag(tag).doc.what_happens,
+                Texts::for_tag(tag).what_happens,
+                "{tag:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn zero_takes_the_singular_in_french_only() {
+        let unit = ("rule", "rules");
+        assert_eq!(WebTexts::ENGLISH.count(0, unit), "0 rules");
+        assert_eq!(WebTexts::ENGLISH.count(1, unit), "1 rule");
+        assert_eq!(WebTexts::FRENCH.count(0, ("règle", "règles")), "0 règle");
+        assert_eq!(WebTexts::FRENCH.count(2, ("règle", "règles")), "2 règles");
     }
 }

@@ -185,7 +185,7 @@ fn start_links(
             files.cited,
         ])
         .map(|(page, count)| StartLink {
-            label: page.count(count),
+            label: texts.count(count, page.unit),
             page,
         })
         .collect()
@@ -218,20 +218,6 @@ pub struct ReferencePage {
     pub group: Group,
     /// What its count counts, singular then plural.
     pub unit: (&'static str, &'static str),
-}
-
-impl ReferencePage {
-    /// `count` with its unit: `1 rule`, `2 rules`.
-    #[must_use]
-    pub fn count(&self, count: usize) -> String {
-        plural(count, self.unit.0, self.unit.1)
-    }
-}
-
-/// `count` with `one` when it is 1, else with `many`.
-#[must_use]
-pub fn plural(count: usize, one: &str, many: &str) -> String {
-    format!("{count} {}", if count == 1 { one } else { many })
 }
 
 /// A page of reference on the home page, with its count.
@@ -408,7 +394,6 @@ pub struct DocItem {
 
 /// The page of a domain, its sections in the order of its Markdown page.
 pub struct DomainPage {
-    pub crumbs: Vec<Link>,
     pub name: String,
     pub description: String,
     /// Its map.
@@ -542,7 +527,6 @@ pub fn domain_page(docs: &GeneratedDocs, links: &DocLinks, slug: &str) -> Option
         })
         .collect();
     Some(DomainPage {
-        crumbs: Vec::new(),
         name: domain.name.clone(),
         description: domain.description.trim().to_string(),
         map: map_href(slug),
