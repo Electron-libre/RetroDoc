@@ -39,6 +39,10 @@ Meta Lambda, with its logo, in a credit line that links to the site.
 
 * `specs/web-ui.md` amended (the credit line; the colours are no requirement).
 
+# Milestone
+
+Web interface for a first-time reader
+
 # Resources
 
 * The charter: `CHARTE.md` and `sass/assets/css/style.scss` of the Meta Lambda site repository (ask the user where).

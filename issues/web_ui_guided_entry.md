@@ -34,6 +34,10 @@ Ask the user which reading paths matter first, then candidates (can be combined)
 
 * `specs/web-ui.md` amended (the home page requirements).
 
+# Milestone
+
+Web interface for a first-time reader
+
 # Resources
 
 * `crates/retrodoc-web/src/pages.rs`, `templates/home.html`, `templates/base.html`.

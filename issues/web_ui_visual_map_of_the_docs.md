@@ -36,6 +36,10 @@ app) decides between 2 and 3.
 
 * `specs/web-ui.md` amended (the map page).
 
+# Milestone
+
+Web interface for a first-time reader
+
 # Resources
 
 * `crates/retrodoc-web/assets/diagrams.js`, `crates/retrodoc-web/src/assets.rs`.

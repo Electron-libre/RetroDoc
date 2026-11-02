@@ -36,6 +36,10 @@ issue says it does not.
 
 * The config spec and the specs of the writing passes amended; `specs/web-ui.md` if the interface follows.
 
+# Milestone
+
+Docs in the reader's language
+
 # Resources
 
 * `crates/retrodoc-core/src/config.rs`, the prompts of `crates/retrodoc-pipeline/src/` (one module per pass).

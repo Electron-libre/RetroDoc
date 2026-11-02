@@ -174,6 +174,28 @@ The milestones up to "A large application, one bounded context at a time" are th
   - [web_ui_cited_code_and_files_to_docs](issues/done/web_ui_cited_code_and_files_to_docs.md)
   - [web_ui_rules_and_actors](issues/done/web_ui_rules_and_actors.md)
 
+## Web interface for a first-time reader
+
+- Goal: the web interface names the application it documents, opens on a home page that tells what the application
+  does and where to start, draws the docs as a map to explore, and wears the Meta Lambda colours and credit.
+- Why: on a saved run (2026-11-02) a reader could not tell which application the docs were about nor where to start
+  reading.
+- State: in issues
+- Issues:
+  - [web_ui_application_name](issues/web_ui_application_name.md)
+  - [web_ui_guided_entry](issues/web_ui_guided_entry.md)
+  - [web_ui_meta_lambda_branding](issues/web_ui_meta_lambda_branding.md)
+  - [web_ui_visual_map_of_the_docs](issues/web_ui_visual_map_of_the_docs.md)
+
+## Docs in the reader's language
+
+- Goal: a `retrodoc.toml` setting chooses the language the generated docs are written in.
+- Why: the model writes in the language it picks (English on the saved runs); a team that reads another language
+  cannot take the docs as they are.
+- State: in issues
+- Issues:
+  - [generated_docs_language](issues/generated_docs_language.md)
+
 ## Explore the documentation debt and audit it
 
 - Goal: in the web interface, one filterable view of the debt (weak and unscored sections, unbacked narratives, set

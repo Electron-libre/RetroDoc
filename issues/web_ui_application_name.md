@@ -36,6 +36,10 @@ page; the render (`llms.txt`, the index Markdown) and the MCP read model can tak
 * `specs/web-ui.md` amended (new requirement after WEB-61); the specs of the brief or the config if the name comes
   from them.
 
+# Milestone
+
+Web interface for a first-time reader
+
 # Resources
 
 * `crates/retrodoc-web/templates/base.html`, `crates/retrodoc-web/src/pages.rs` (`home`).
