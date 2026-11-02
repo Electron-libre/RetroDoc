@@ -67,6 +67,7 @@ is set and nothing matched (REC-16). Out of scope: translating the queries, sema
    item matched to an English section by its entry point, an English item unchanged); makes true REC-2.
 2. [x] Warning: `generate` warns when the docs language is set, the corpus is not empty and no candidate has a section;
    verified by a test of the warning; makes true REC-16; the spec back to `accepted`.
+3. [x] Docs of the whole issue and fixes of its `high` review.
 
 ## Decisions
 - Mode: autonomous
@@ -85,3 +86,19 @@ red: REC-16: `generate_warns_when_the_docs_language_is_set_and_no_doc_section_ma
 warning.
 Code review: 1 finding. A run with no item at all would have warned of the language: fixed, the warning needs at least
 one item.
+
+## Deliverable 3 (docs and high review)
+done: `docs/ARCHITECTURE.md` says how the pass matches; the fixes of the `high` review (7 findings):
+* fixed: a route is searched without its verbs and parameters (`GET /export` matched any section saying "get");
+  on linkding, recall unchanged (blanked text: 13/16, false 2/4, items matched 179 of 330 instead of 180).
+* fixed: a legacy entry point name (`Class#method`) is kept whole, through `entry_point_name` of the core model.
+* fixed: the sections found by the most identifiers come first, then the best score (scores of queries apart hardly
+  compare).
+* fixed: the warning names the docs language as a possible cause, not the likely one (same language set).
+* issue: the judge's excerpt of a long section matched by an identifier (REC-15) →
+  `issues/reconcile_excerpt_by_identifiers.md`.
+* not fixed: identifiers searched only when the text and the name match nothing (measured: as a fallback the English
+  run is unchanged); identifiers built for every item (one search per identifier, only on the fallback).
+red: REC-2: `each identifier of the domain finds its own section`, left `[Bookmarks, Install, Tags]`: the `Install`
+section that says "get" matched `GET /export` while the verbs were kept.
+Code review: no findings.

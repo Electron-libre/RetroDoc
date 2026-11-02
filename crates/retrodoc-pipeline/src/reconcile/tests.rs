@@ -164,7 +164,8 @@ fn an_item_its_description_matches_nowhere_is_searched_with_its_name_alone() {
 fn an_item_its_text_matches_nowhere_is_searched_with_its_identifiers() {
     let docs = [doc(
         "README.md",
-        "# Bookmarks\nArchive a bookmark to hide it from the list.\n\n# Tags\nA Tag groups bookmarks.\n",
+        "# Bookmarks\nArchive a bookmark to hide it from the list.\n\n# Tags\nA Tag groups bookmarks.\n\n\
+         # Install\nGet the image, then post your settings.\n",
     )];
     let map = DomainMap {
         domains: vec![DomainCluster {
@@ -194,9 +195,9 @@ fn an_item_its_text_matches_nowhere_is_searched_with_its_identifiers() {
     };
     for label in ["classement/archivage", "classement/archivage/ranger"] {
         assert_eq!(
-            origins(label),
-            ["README.md#Bookmarks"],
-            "{label}: the name of its entry point finds it"
+            origins(label).first().map(String::as_str),
+            Some("README.md#Bookmarks"),
+            "{label}: the name of its entry point finds it first"
         );
     }
     let mut of_domain = origins("classement");
@@ -212,7 +213,7 @@ fn an_item_its_text_matches_nowhere_is_searched_with_its_identifiers() {
     );
     assert!(
         origins("classement/export").is_empty(),
-        "an identifier no section holds matches nothing"
+        "the verb of a route matches no section, `export` none either"
     );
 }
 

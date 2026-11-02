@@ -21,10 +21,10 @@ backed by the doc sections it rests on.
   its name and description (a rule: its statement) as the query, keeping at most 3 sections, best first, that share
   at least half of the query's content words; when no section does, the query is the name alone, under the same
   rule; when still none does, each of the item's identifiers is a query under the same rule, the sections ranked by
-  their best score: the names of its entry points (the part of an entry point id after the file path; a domain:
-  those of its features) and the entity names of a domain or a rule, which docs written in another language than
-  the generated ones share with them; an
-  item whose query has no content word is left out of the reconciliation (it can't be judged).
+  how many of them find a section, then by its best score: the names of its entry points (the part of an entry
+  point id after the file path, a route without its verbs and parameters; a domain: those of its features) and the
+  entity names of a domain or a rule, which docs written in another language than the generated ones share with
+  them; an item whose query has no content word is left out of the reconciliation (it can't be judged).
 - **REC-3** (deterministic) An item with no matched section must be `undocumented` without an LLM call; a business
   rule that cites a doc section of the corpus in its evidence must be `documented` by that section without an LLM
   call; a cited section no longer in the corpus is ignored.
@@ -68,7 +68,7 @@ backed by the doc sections it rests on.
   query word is shown from its start, cut to its share.
 - **REC-16** (deterministic) `generate` must warn when `[output] language` is set, the corpus is not empty and no
   item has a matched section: the warning says that no section of the project docs matched a generated item and
-  names the docs language as the likely cause.
+  names the docs language as a possible cause.
 
 ## Scenarios
 

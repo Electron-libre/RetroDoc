@@ -246,8 +246,8 @@ async fn reconcile_with_docs(
             !candidates.is_empty() && candidates.iter().all(|c| c.sections.is_empty());
         if !corpus.is_empty() && none_matched {
             tracing::warn!(
-                "no section of the project docs matched a generated item: the docs are written in \
-                 {language} ([output] language), the project docs likely in another language"
+                "no section of the project docs matched a generated item; if they are not written \
+                 in {language} ([output] language), only the names of the code can match them"
             );
         }
     }

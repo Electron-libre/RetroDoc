@@ -6,7 +6,7 @@
 
 use std::collections::BTreeMap;
 
-use retrodoc_core::model::{BusinessRule, Feature, RuleEvidence, UseCase};
+use retrodoc_core::model::{entry_point_name, BusinessRule, Feature, RuleEvidence, UseCase};
 use retrodoc_ingest::existing_docs::ExistingDoc;
 use retrodoc_ingest::signals::doc_sections;
 use serde::{Deserialize, Serialize};
@@ -127,7 +127,8 @@ pub fn corpus(docs: &[ExistingDoc]) -> Vec<Section> {
     sections
 }
 
-/// The names of `entry_points` (the part of an id after its file path), then `entities`, once each.
+/// The names of `entry_points` (without their file, a route without its verbs and parameters), then
+/// `entities`, once each.
 fn identifiers<'a>(
     entry_points: impl IntoIterator<Item = &'a String>,
     entities: &[String],
@@ -135,13 +136,29 @@ fn identifiers<'a>(
     let mut kept: Vec<String> = Vec::new();
     let of_entry_points = entry_points
         .into_iter()
-        .map(|id| id.split_once('#').map_or(id.as_str(), |(_, name)| name));
-    for name in of_entry_points.chain(entities.iter().map(String::as_str)) {
-        if !kept.iter().any(|k| k == name) {
-            kept.push(name.to_string());
+        .map(|id| without_verbs_and_parameters(entry_point_name(id)));
+    for name in of_entry_points.chain(entities.iter().cloned()) {
+        if !name.trim().is_empty() && !kept.contains(&name) {
+            kept.push(name);
         }
     }
     kept
+}
+
+/// `GET/POST /bookmarks/:id/archive` as `bookmarks archive`: a verb or an `id` is in any doc, so it
+/// would match sections that say nothing of the route. Any other name is kept as is.
+fn without_verbs_and_parameters(name: &str) -> String {
+    let Some((verbs, path)) = name.split_once(' ') else {
+        return name.to_string();
+    };
+    let is_verb = |v: &str| !v.is_empty() && v.chars().all(|c| c.is_ascii_uppercase());
+    if !verbs.split('/').all(is_verb) {
+        return name.to_string();
+    }
+    path.split(['/', ' '])
+        .filter(|s| !s.is_empty() && !s.starts_with([':', '{', '<']))
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn mean(values: impl Iterator<Item = f32>) -> Option<f32> {
@@ -295,17 +312,21 @@ pub fn candidates(items: Vec<Item>, corpus: &[Section]) -> Vec<Candidate> {
         .collect()
 }
 
-/// The documents [`Bm25::search`] finds for any of `queries`, each with its best score, best first; ties
-/// keep document order.
+/// The documents [`Bm25::search`] finds for any of `queries`, those found by the most queries first,
+/// then by their best score (the scores of different queries hardly compare); ties keep document order.
 fn best_of_each(index: &Bm25, queries: &[String]) -> Vec<(usize, f32)> {
-    let mut best: BTreeMap<usize, f32> = BTreeMap::new();
+    let mut best: BTreeMap<usize, (usize, f32)> = BTreeMap::new();
     for (doc, score) in queries.iter().flat_map(|q| index.search(q)) {
-        let kept = best.entry(doc).or_insert(score);
+        let (found_by, kept) = best.entry(doc).or_insert((0, score));
+        *found_by += 1;
         *kept = kept.max(score);
     }
-    let mut found: Vec<(usize, f32)> = best.into_iter().collect();
-    found.sort_by(|a, b| b.1.total_cmp(&a.1));
+    let mut found: Vec<(usize, (usize, f32))> = best.into_iter().collect();
+    found.sort_by(|a, b| b.1 .0.cmp(&a.1 .0).then(b.1 .1.total_cmp(&a.1 .1)));
     found
+        .into_iter()
+        .map(|(doc, (_, score))| (doc, score))
+        .collect()
 }
 
 /// Where an item stands against the existing docs.

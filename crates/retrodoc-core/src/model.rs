@@ -113,17 +113,23 @@ pub struct UseCase {
     pub narrative_check: Option<ConfidenceScore>,
 }
 
+/// The name of the entry point `id` (`<file>#<name>`), without its file; a name saved before ids as is.
+#[must_use]
+pub fn entry_point_name(id: &str) -> &str {
+    match id.split_once('#') {
+        // A file has a dot or a slash; `Class#method`, a name saved before ids, has neither.
+        Some((file, name)) if file.contains(['.', '/']) => name,
+        _ => id,
+    }
+}
+
 impl UseCase {
     /// The names of the entry points it covers, without the file of their id.
     #[must_use]
     pub fn entry_point_names(&self) -> Vec<&str> {
         self.entry_points
             .iter()
-            .map(|id| match id.split_once('#') {
-                // A file has a dot or a slash; `Class#method`, a name saved before ids, has neither.
-                Some((file, name)) if file.contains(['.', '/']) => name,
-                _ => id.as_str(),
-            })
+            .map(|id| entry_point_name(id))
             .collect()
     }
 
