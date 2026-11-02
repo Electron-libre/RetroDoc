@@ -11,13 +11,13 @@ fn slugify_produces_file_name_safe_kebab_case() {
 #[test]
 fn an_accented_latin_letter_keeps_its_base_letter_in_the_slug() {
     assert_eq!(
-        slugify("Gestion des contrats électroniques"),
-        "gestion-des-contrats-electroniques"
+        slugify("Préférences des clients"),
+        "preferences-des-clients"
     );
-    assert_eq!(
-        slugify("Facturation et abonnements"),
-        "facturation-et-abonnements"
-    );
+    assert_eq!(slugify("Suivi des livraisons"), "suivi-des-livraisons");
+    // Decomposed accents, a capital that lowercases to two chars, comma-below letters.
+    assert_eq!(slugify("Pre\u{301}fe\u{301}rences"), "preferences");
+    assert_eq!(slugify("İstanbul știință"), "istanbul-stiinta");
     assert_eq!(
         slugify("Größe ÀÇÉÎÑÔÙ œuvre Æther"),
         "grosse-aceinou-oeuvre-aether"

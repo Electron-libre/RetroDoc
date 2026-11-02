@@ -164,6 +164,14 @@ fn place(raw: RawSurfaceDomains, surface: &Surface) -> DomainMap {
     let mut domains: Vec<DomainCluster> = Vec::new();
 
     for domain in raw.domains {
+        // The model may answer an accented or spaced slug (a language set, ADR 0041): folded like a feature's.
+        // One with no Latin letter left gets a numbered `unnamed`, not merged with another such domain.
+        let slug = match crate::features::slugify(&domain.slug) {
+            slug if slug == "unnamed" => {
+                crate::features::unique_slug(&slug, domains.iter().map(|d| d.slug.as_str()))
+            }
+            slug => slug,
+        };
         let resources: Vec<&Resource> = domain
             .resources
             .iter()
@@ -189,14 +197,14 @@ fn place(raw: RawSurfaceDomains, surface: &Surface) -> DomainMap {
             })
             .collect();
         if resources.is_empty() && entities.is_empty() {
-            tracing::warn!(domain = %domain.slug, "domain with nothing placed in it, dropped");
+            tracing::warn!(domain = %slug, "domain with nothing placed in it, dropped");
             continue;
         }
-        if let Some(same) = domains.iter_mut().find(|d| d.slug == domain.slug) {
+        if let Some(same) = domains.iter_mut().find(|d| d.slug == slug) {
             extend(same, &resources, &entities);
         } else {
             let mut cluster = DomainCluster {
-                slug: domain.slug,
+                slug,
                 name: domain.name,
                 description: domain.description,
                 ..DomainCluster::default()

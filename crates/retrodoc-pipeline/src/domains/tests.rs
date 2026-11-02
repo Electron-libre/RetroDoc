@@ -114,6 +114,40 @@ async fn domains_from_the_surface_hold_resources_and_entities_and_their_files() 
     assert_eq!(saved.domains.len(), 3);
 }
 
+// spec: DLG-5 (internal: the slug the model answers is read here, before any page is written)
+#[tokio::test]
+async fn an_accented_domain_slug_of_the_answer_keeps_its_base_letters() {
+    let dir = tempfile::tempdir().unwrap();
+    let llm = FakeLlm::answering(
+        r#"{"domains":[{"slug":"Préférences_clients","name":"Préférences des clients","description":"d",
+         "resources":["order"],"entities":["Order"]}]}"#,
+    );
+
+    let map =
+        build_domains_from_surface(dir.path(), &shop_surface(), &ProductBrief::default(), &llm)
+            .await
+            .unwrap();
+
+    assert_eq!(map.domains[0].slug, "preferences-clients");
+}
+
+#[tokio::test]
+async fn two_domains_whose_slugs_leave_no_latin_letter_stay_apart() {
+    let dir = tempfile::tempdir().unwrap();
+    let llm = FakeLlm::answering(
+        r#"{"domains":[{"slug":"заказы","name":"Заказы","description":"d","resources":["order"],"entities":["Order"]},
+         {"slug":"счета","name":"Счета","description":"d","resources":["invoice"],"entities":["Invoice"]}]}"#,
+    );
+
+    let map =
+        build_domains_from_surface(dir.path(), &shop_surface(), &ProductBrief::default(), &llm)
+            .await
+            .unwrap();
+
+    let slugs: Vec<&str> = map.domains.iter().map(|d| d.slug.as_str()).collect();
+    assert_eq!(slugs[..2], ["unnamed", "unnamed-2"]);
+}
+
 #[tokio::test]
 async fn a_name_the_surface_does_not_know_is_dropped_at_info() {
     let (logs, _guard) = crate::testing::capture_logs();

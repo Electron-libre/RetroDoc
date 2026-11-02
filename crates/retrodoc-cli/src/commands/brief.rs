@@ -192,6 +192,8 @@ pub async fn for_generate(
         )
         .await
         .context("failed to write the product brief")?;
+    // No answer to write it in another language: the saved one rather than none; asked again next run.
+    let brief = brief.or_else(|| ProductBrief::load(repo_root));
     Ok((brief.unwrap_or_default(), evidence))
 }
 
@@ -469,6 +471,69 @@ mod tests {
         let again = calls();
         generate(brief_with(&french)).await;
         assert_eq!(calls(), again);
+    }
+
+    /// Answers every request with text no brief can be read from.
+    struct Unreadable;
+
+    #[async_trait::async_trait]
+    impl retrodoc_llm::LlmProvider for Unreadable {
+        async fn complete(
+            &self,
+            _: retrodoc_llm::CompletionRequest,
+        ) -> Result<retrodoc_llm::CompletionResponse, retrodoc_llm::LlmError> {
+            Ok(retrodoc_llm::CompletionResponse {
+                content: "not json".to_string(),
+                ..Default::default()
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn a_brief_that_cannot_be_written_in_the_new_language_leaves_the_saved_one() {
+        let dir = tempfile::tempdir().unwrap();
+        let ingest = retrodoc_ingest::IngestResult {
+            files: Vec::new(),
+            history_by_path: std::collections::HashMap::new(),
+            existing_docs: vec![retrodoc_ingest::existing_docs::ExistingDoc {
+                path: "README.md".into(),
+                content: "# Shop\nBuyers pay for their orders.\n".to_string(),
+            }],
+            commits: Vec::new(),
+        };
+        let plain: std::sync::Arc<dyn retrodoc_llm::LlmProvider> =
+            std::sync::Arc::new(Briefing::default());
+        let providers =
+            PassProviders::from_providers(vec![("sources", plain.clone()), ("brief", plain)]);
+        let (english, _) = for_generate(
+            dir.path(),
+            &ingest,
+            &providers,
+            EvidenceFor::default(),
+            &UsageTracker::new(),
+        )
+        .await
+        .unwrap();
+        let unreadable: std::sync::Arc<dyn retrodoc_llm::LlmProvider> =
+            std::sync::Arc::new(Unreadable);
+        let french: std::sync::Arc<dyn retrodoc_llm::LlmProvider> = std::sync::Arc::new(
+            retrodoc_pipeline::InLanguage::new(unreadable.clone(), "French"),
+        );
+        let providers =
+            PassProviders::from_providers(vec![("sources", unreadable), ("brief", french)]);
+
+        let (used, _) = for_generate(
+            dir.path(),
+            &ingest,
+            &providers,
+            EvidenceFor::default(),
+            &UsageTracker::new(),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(english.purpose.text, "Sells things.");
+        assert_eq!(used, english);
     }
 
     #[tokio::test]

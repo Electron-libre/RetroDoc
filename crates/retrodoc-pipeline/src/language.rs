@@ -9,8 +9,8 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use retrodoc_llm::{CompletionRequest, CompletionResponse, LlmError, LlmProvider, Role};
 
-/// The passes that write text a reader sees. The others (`sources`, `roles`, `business-files`, the
-/// benchmark judge) read the repository and keep the plain provider.
+/// The passes that write text a reader sees; every other pass of `PASS_NAMES` is one of
+/// [`READING_PASSES`].
 pub const WRITING_PASSES: &[&str] = &[
     "brief",
     "contexts",
@@ -25,13 +25,18 @@ pub const WRITING_PASSES: &[&str] = &[
     "reconcile",
 ];
 
+/// The passes that read the repository or judge the docs, whose answers no reader sees: they keep the
+/// plain provider, and their prints stay valid when the language changes.
+pub const READING_PASSES: &[&str] = &["sources", "roles", "business-files", "benchmark judge"];
+
 /// The instruction that ends the system prompt of a writing pass asked in `language`.
 #[must_use]
 pub fn instruction(language: &str) -> String {
     format!(
-        "Write every free text of your answer (names, descriptions, narratives, steps, rules, \
-         definitions, reasons) in {language}. Keep exactly as given the code identifiers, the file \
-         paths and the names this prompt gives you."
+        "Write every free text of your answer (the names of domains, features, use cases and \
+         actors, descriptions, narratives, steps, rules, definitions, reasons) in {language}. Keep \
+         exactly as given the code identifiers, the class and entity names of the code, the file \
+         paths and the names this prompt gives you; write a slug in lowercase ASCII kebab-case."
     )
 }
 
@@ -112,6 +117,23 @@ mod tests {
         assert!(system.ends_with(&instruction("French")), "{system}");
         assert!(instruction("French").contains("in French"));
         assert_eq!(fake.prompts()[0], "Files:");
+    }
+
+    #[test]
+    fn every_pass_either_writes_or_reads() {
+        for pass in retrodoc_core::config::PASS_NAMES {
+            let (writes, reads) = (WRITING_PASSES.contains(pass), READING_PASSES.contains(pass));
+            assert!(
+                writes != reads,
+                "{pass} must be in exactly one of the two lists"
+            );
+        }
+        for pass in WRITING_PASSES.iter().chain(READING_PASSES) {
+            assert!(
+                retrodoc_core::config::PASS_NAMES.contains(pass),
+                "{pass} is no pass"
+            );
+        }
     }
 
     // spec: DLG-4 (internal: the passes print the model of their provider, which carries the language)

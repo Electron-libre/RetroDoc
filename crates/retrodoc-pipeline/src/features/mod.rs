@@ -40,6 +40,8 @@ pub(crate) fn slugify(raw: &str) -> String {
     for c in raw.chars().flat_map(char::to_lowercase) {
         if c.is_ascii_alphanumeric() {
             slug.push(c);
+        } else if ('\u{300}'..='\u{36f}').contains(&c) {
+            // A combining accent (a decomposed letter): its base letter is already in.
         } else if let Some(base) = latin_base(c) {
             slug.push_str(base);
         } else if !slug.ends_with('-') {
@@ -67,8 +69,8 @@ fn latin_base(c: char) -> Option<&'static str> {
         'ñ' | 'ń' | 'ň' => "n",
         'ò' | 'ó' | 'ô' | 'õ' | 'ö' | 'ø' | 'ō' | 'ő' => "o",
         'ř' => "r",
-        'ś' | 'š' | 'ş' => "s",
-        'ť' | 'ţ' => "t",
+        'ś' | 'š' | 'ş' | 'ș' => "s",
+        'ť' | 'ţ' | 'ț' => "t",
         'ù' | 'ú' | 'û' | 'ü' | 'ū' | 'ů' | 'ű' => "u",
         'ý' | 'ÿ' => "y",
         'ź' | 'ż' | 'ž' => "z",

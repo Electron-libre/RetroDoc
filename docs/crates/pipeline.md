@@ -59,12 +59,13 @@ Behaviors that span passes:
 - `language.rs` (ADR 0041, `specs/docs-language.md`): `[output] language` set, `PassProviders` wraps the provider
   of each pass of `WRITING_PASSES` (brief, contexts, glossary, entry points, actors, domains, features, use cases,
   rules, confidence, reconcile) in `InLanguage`, which ends the system prompt of every request with `instruction`
-  (write the free text in the language, keep code identifiers, paths and given names) and whose `model()` is
+  (write the free text in the language, keep code identifiers, class and entity names, paths and given names, a slug
+  in lowercase ASCII; `READING_PASSES` holds the others, a test checks the two cover `PASS_NAMES`) and whose `model()` is
   `<model> in <language>`: the prints that hold the model redo their units when the language changes. The brief,
   whose print holds no model, adds `LlmProvider::language` to its input hash when set and saves it
   (`ProductBrief.language`): `generate`, which otherwise uses the saved brief as it is, writes an unedited one
-  asked in another language again; the contexts map has no
+  asked in another language again (an unusable answer leaves the saved one, asked again next run); the contexts map has no
   print and stays until `--force`. Unset, nothing is wrapped and every print is unchanged. `slugify` keeps the base
-  letter of an accented Latin letter (`électronique` → `electronique`).
+  letter of an accented Latin letter (`préférence` → `preference`, a domain slug of the answer included).
 - `retrodoc_llm::HeartbeatProvider` (wrapped around the provider in the CLI) logs "still waiting for the
   LLM (Ns)" every 30 s, to tell a slow call from a stuck run.

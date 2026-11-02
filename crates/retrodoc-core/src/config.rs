@@ -425,8 +425,13 @@ pub const LANGUAGE_TAGS: &[(&str, &str)] = &[
 ];
 
 /// The line `init` writes, commented out, under `[output]`.
-const LANGUAGE_EXAMPLE: &str =
-    "# language = \"French\"  # the language of the generated docs: a name, or en, fr, de, es, it, pt, nl\n";
+fn language_example() -> String {
+    let tags: Vec<&str> = LANGUAGE_TAGS.iter().map(|(tag, _)| *tag).collect();
+    format!(
+        "# language = \"French\"  # the language of the generated docs: a name, or {}\n",
+        tags.join(", ")
+    )
+}
 
 /// Folder of the functional documentation, under the docs dir.
 pub const FUNCTIONAL_DIR: &str = "functional";
@@ -448,9 +453,10 @@ impl OutputConfig {
         if value.is_empty() {
             return None;
         }
+        // A tag, or a known name in any case, gives one spelling: `french` and `fr` don't redo the passes.
         let name = LANGUAGE_TAGS
             .iter()
-            .find(|(tag, _)| tag.eq_ignore_ascii_case(value))
+            .find(|(tag, name)| tag.eq_ignore_ascii_case(value) || name.eq_ignore_ascii_case(value))
             .map_or(value, |(_, name)| name);
         Some(name.to_string())
     }
@@ -649,7 +655,7 @@ impl Config {
     }
 }
 
-/// `raw` with [`LANGUAGE_EXAMPLE`] at the end of its `[output]` section.
+/// `raw` with [`language_example`] at the end of its `[output]` section.
 fn with_language_example(raw: &str) -> String {
     let Some(start) = raw.find("[output]\n") else {
         return raw.to_string();
@@ -657,7 +663,7 @@ fn with_language_example(raw: &str) -> String {
     let end = raw[start..]
         .find("\n\n")
         .map_or(raw.len(), |blank| start + blank + 1);
-    format!("{}{LANGUAGE_EXAMPLE}{}", &raw[..end], &raw[end..])
+    format!("{}{}{}", &raw[..end], language_example(), &raw[end..])
 }
 
 #[cfg(test)]
@@ -801,6 +807,7 @@ mod tests {
         };
         assert_eq!(read("French").as_deref(), Some("French"));
         assert_eq!(read("fr").as_deref(), Some("French"));
+        assert_eq!(read("french").as_deref(), Some("French"));
         assert_eq!(read("DE").as_deref(), Some("German"));
         assert_eq!(read("pt").as_deref(), Some("Portuguese"));
         assert_eq!(

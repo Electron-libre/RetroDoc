@@ -28,7 +28,7 @@ saved results stay those of today.
   once, except the map of the contexts, which stays reused until `contexts --force` as today; a second `generate`
   with the same language must call no LLM.
 - **DLG-5** (deterministic) The slug of a name with accented Latin letters must keep their base letter
-  (`Gestion des contrats électroniques` → `gestion-des-contrats-electroniques`), and the slug of an ASCII name must
+  (`Préférences des clients` → `preferences-des-clients`), and the slug of an ASCII name must
   not change.
 - **DLG-6** (deterministic) `init` must write the `language` key commented out in `[output]`, with an example.
 
@@ -41,9 +41,8 @@ saved results stay those of today.
   in French while the entity names keep the spelling of the code.
 - (DLG-4) Given a finished run in English, when the user sets `language = "French"` and runs `generate`, then the
   writing passes are asked again and the reading passes reuse their results; a third run calls nothing.
-- (DLG-5) Given a domain named `Facturation et abonnements` then one named `Gestion des contrats électroniques`, when
-  the docs are written, then their folders are `facturation-et-abonnements` and
-  `gestion-des-contrats-electroniques`.
+- (DLG-5) Given a domain named `Suivi des livraisons` then one named `Préférences des clients`, when the
+  docs are written, then their folders are `suivi-des-livraisons` and `preferences-des-clients`.
 
 ## Non-goals
 

@@ -51,6 +51,7 @@ debt nobody has time to pay.
 | Incremental rerun, resume, cost recap per pass | yes | pre-run cost estimate |
 | Large applications documented one bounded context at a time | yes | |
 | Read-only MCP server and lexical search over the generated docs, for agents | yes | |
+| Generated docs written in a chosen language (`[output] language`) | yes | headings and web interface in that language |
 | Ask the documentation from RetroDoc itself (`ask` / `chat`) | | yes |
 | Technical documentation: components, C4 diagrams, deployment, APIs, linked to the domains and use cases | | yes |
 | Inputs from GitHub, GitLab and Jira (issues, tickets, pull requests) | | yes |

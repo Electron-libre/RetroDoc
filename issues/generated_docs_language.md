@@ -72,6 +72,7 @@ slugs readable. Measure step 1 done (no LLM): the saved docs of the large privat
    (ledger line) and a test of the fix if any.
 3. [x] Non-goal of the render and web fixed text written, issue `localized_render_and_web_text` created; verified by
    `just check-specs` and the issue checker.
+4. [x] Fixes of the `high` review of the whole issue and its docs.
 
 ## Decisions
 - Mode: autonomous
@@ -94,7 +95,7 @@ done: `[output] language` (name or tag), `init` comment line, `InLanguage` provi
 
 red: DLG-1, DLG-2, DLG-6: `no method named language_name found for struct OutputConfig`; DLG-3, DLG-4: `unresolved
 import` of the language module, then the brief test panicked at `brief/tests.rs:208` (`calls() == 2`: the brief was reused);
-DLG-5: `left: "gestion-des-contrats-lectroniques"`.
+DLG-5: `left: "pr-f-rences-des-clients"` (example renamed at the review; first seen on another French name).
 
 Code review: no findings (the only lead, trait methods InLanguage might hide, checked: all four are forwarded).
 
@@ -153,3 +154,30 @@ milestone, each depending on this one: `localized_render_and_web_text` (low), `r
 Code review: no findings
 
 red: none
+
+## Deliverable 4: fixes of the high review
+
+done: domain slugs of the answer folded like the feature slugs; combining accents and comma-below letters in slugs;
+an unusable French brief leaves the saved one; the instruction keeps the class and entity names of the code and asks
+ASCII slugs; a known language name in any case gives one spelling; `READING_PASSES` and a test that every pass is
+in exactly one list; the `init` comment built from `LANGUAGE_TAGS`; the binary test on the shared `support` server;
+the examples of DLG-5 replaced by neutral ones; `PRODUCT.md` capability row.
+
+| check | result |
+|---|---|
+| tests | `just check` green |
+| lint | clippy pedantic clean |
+| specs | DLG-5 scenario reworded, traced by the domain slug test too |
+| docs | pipeline.md, PRODUCT.md, ledger validity |
+| code review | low: 1 finding, fixed |
+
+Code review: 1 findings: two domains whose slugs keep no Latin letter merged under `unnamed`; fixed, they are
+numbered (`unnamed`, `unnamed-2`), test `two_domains_whose_slugs_leave_no_latin_letter_stay_apart`.
+
+red: DLG-5: `left: "Préférences_clients"` (domain slug), then `left: "pre-fe-rences"` (decomposed accents); the
+brief fallback test: `left: ProductBrief { purpose: "" ... }` (an empty brief instead of the saved one).
+
+High review, 10 findings: 9 fixed (above); not fixed: the language carried by `model()` and the brief's own check
+(the ADR 0041 choice, `InLanguage` stays the outermost wrapper so `language()` is never hidden).
+
+not verified: the reworded instruction against a real model (the measure ran the first wording).
