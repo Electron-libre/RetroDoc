@@ -443,6 +443,12 @@ pub const FUNCTIONAL_DIR: &str = "functional";
 /// existing documentation on the next run.
 pub const META_DIR: &str = "_retrodoc";
 
+/// Whether `subtag` is the region of a language tag: two letters or three digits (`FR`, `419`).
+fn is_region(subtag: &str) -> bool {
+    (subtag.len() == 2 && subtag.chars().all(|c| c.is_ascii_alphabetic()))
+        || (subtag.len() == 3 && subtag.chars().all(|c| c.is_ascii_digit()))
+}
+
 impl OutputConfig {
     fn default_docs_dir() -> String {
         "docs".to_string()
@@ -468,21 +474,21 @@ impl OutputConfig {
 
     /// The two-letter tag of [`LANGUAGE_TAGS`] of the language the docs are written in, found from
     /// its tag, its English or native name in any case and accents, or a regional tag (`fr-FR`,
-    /// `fr_FR`) by its first two letters (DLG-9): `None` when unset or when the language has no tag.
+    /// `fr_FR`, `es-419`) by its first two letters (DLG-9): `None` when unset or when the language
+    /// has no tag.
     #[must_use]
     pub fn language_tag(&self) -> Option<&'static str> {
+        // A tag is already its English name here.
         let value = fold_latin(&self.language_name()?);
         let regional = value
             .split_once(['-', '_'])
-            .filter(|(_, region)| !region.is_empty())
+            .filter(|(_, region)| is_region(region))
             .map(|(tag, _)| tag);
         LANGUAGE_TAGS
             .iter()
             .find(|(tag, english, native)| match regional {
                 Some(base) => *tag == base,
-                None => {
-                    *tag == value || fold_latin(english) == value || fold_latin(native) == value
-                }
+                None => english.eq_ignore_ascii_case(&value) || fold_latin(native) == value,
             })
             .map(|(tag, ..)| *tag)
     }
@@ -888,6 +894,9 @@ mod tests {
             ("fr_FR", Some("fr")),
             ("pt-BR", Some("pt")),
             (" EN-us ", Some("en")),
+            ("es-419", Some("es")),
+            ("en-dash", None),
+            ("it_whatever", None),
             ("zh-TW", None),
             ("Nihongo", None),
             ("fr-", None),

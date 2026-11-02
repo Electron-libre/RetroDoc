@@ -58,7 +58,7 @@ is: no pass is redone. Out of scope: the region in `lang`, non-Latin native name
    is shared), or the first two letters of `xx-YY`/`xx_YY`; verified by a core test (`pt-BR`, `Français`, `zh-TW`,
    prompts unchanged), the CLI French-docs test with `Français` and the web `lang_of` test with `fr-FR`; makes true
    DLG-9, DLG-7, WEB-78.
-2. [ ] Docs and `high` review of the issue.
+2. [x] Docs and `high` review of the issue.
 
 ## Decisions
 - Mode: autonomous
@@ -80,6 +80,31 @@ table of `slugify` moved to core) or a regional tag; `language_name` unchanged.
 
 red: DLG-9, DLG-7, WEB-78: `language_tag` of `Français` gave `None` instead of `Some("fr")`; the French-docs test found
 `## Use cases`.
+
+Code review: no findings
+
+not verified: none
+
+decisions needed: none
+
+## Deliverable 2 summary
+done: the fixes of the `high` review of the issue: a region is two letters or three digits (`en-dash` gives no tag),
+the dead tag comparison removed, `slugify` built on `fold_latin` (one accent table, `latin_base` private), a unit
+test of `fold_latin`, `fold_latin` named in `docs/crates/core-ingest.md`.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass (DLG-9 states what a region is) |
+| docs | `docs/crates/core-ingest.md` |
+
+red: DLG-9: none (tightening of a requirement under review fixes, the new cases written with the fix).
+
+`high` review: 7 findings. Fixed: the region read from any suffix, the dead check, the duplicated fold loop, the
+allocations for the English names (native names still folded per call, 7 small strings), the crate doc, the
+missing `fold_latin` test. Not fixed: `language_name` sends `Français` and `fr-FR` as written, so they print
+differently from `French`: the decision of the plan (no pass redone for the runs already using them).
 
 Code review: no findings
 

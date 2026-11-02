@@ -7,7 +7,7 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 use retrodoc_core::model::Feature;
-use retrodoc_core::text::latin_base;
+use retrodoc_core::text::fold_latin;
 
 use crate::artifact::{load_yaml, save_yaml, Artifact};
 use crate::error::PipelineError;
@@ -38,13 +38,9 @@ pub fn save_features(repo_root: &Path, features: &[Feature]) -> Result<(), Pipel
 /// falls back to `"unnamed"` when nothing usable remains.
 pub(crate) fn slugify(raw: &str) -> String {
     let mut slug = String::new();
-    for c in raw.chars().flat_map(char::to_lowercase) {
+    for c in fold_latin(raw).chars() {
         if c.is_ascii_alphanumeric() {
             slug.push(c);
-        } else if ('\u{300}'..='\u{36f}').contains(&c) {
-            // A combining accent (a decomposed letter): its base letter is already in.
-        } else if let Some(base) = latin_base(c) {
-            slug.push_str(base);
         } else if !slug.ends_with('-') {
             slug.push('-');
         }

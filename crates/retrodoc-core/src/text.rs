@@ -7,8 +7,7 @@ pub fn one_line(text: &str) -> String {
 }
 
 /// The ASCII letters of a lowercase accented Latin letter, if it is one.
-#[must_use]
-pub fn latin_base(c: char) -> Option<&'static str> {
+fn latin_base(c: char) -> Option<&'static str> {
     Some(match c {
         'à' | 'á' | 'â' | 'ã' | 'ä' | 'å' | 'ā' | 'ă' | 'ą' => "a",
         'ç' | 'ć' | 'č' => "c",
@@ -60,5 +59,14 @@ mod tests {
             "Place an order [T1] x"
         );
         assert_eq!(one_line("\n \n"), "");
+    }
+
+    #[test]
+    fn accented_latin_letters_fold_to_their_base_letters_and_others_are_kept() {
+        assert_eq!(fold_latin("Préférences"), "preferences");
+        assert_eq!(fold_latin("Pre\u{301}fe\u{301}rences"), "preferences");
+        assert_eq!(fold_latin("Straße Œuvre Æsir"), "strasse oeuvre aesir");
+        assert_eq!(fold_latin("İstanbul"), "istanbul");
+        assert_eq!(fold_latin("Доставка 配送"), "доставка 配送");
     }
 }

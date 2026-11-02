@@ -38,7 +38,8 @@ saved results stay those of today.
   `render` with the same artifacts and language must write no file.
 - **DLG-9** (deterministic) The two-letter tag of `[output] language` must be found from its tag, its English name or
   its native name (`Français`, `Deutsch`, `Español`, `Italiano`, `Português`, `Nederlands`, `English`), ignoring case
-  and accents, or from a regional tag (`fr-FR`, `fr_FR`, `pt-BR`) by its first two letters; the name the prompts are
+  and accents, or from a regional tag (the two letters, a `-` or `_`, then a region of two letters or three digits: `fr-FR`, `fr_FR`,
+  `pt-BR`, `es-419`) by its first two letters; the name the prompts are
   given stays the one DLG-2 says, so these spellings ask no pass again.
 
 ## Scenarios
@@ -57,6 +58,7 @@ saved results stay those of today.
   text is the French one.
 - (DLG-9) Given `language = "pt-BR"`, then the tag is `pt` and the prompts name `pt-BR`.
 - (DLG-9) Given `language = "zh-TW"` or `"Nihongo"`, then there is no tag.
+- (DLG-9) Given `language = "en-dash"`, then there is no tag: `dash` is not a region.
 - (DLG-5) Given a domain named `Suivi des livraisons` then one named `Préférences des clients`, when the
   docs are written, then their folders are `suivi-des-livraisons` and `preferences-des-clients`.
 
