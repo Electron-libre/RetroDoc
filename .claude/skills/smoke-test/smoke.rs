@@ -205,6 +205,11 @@ fn run(args: &[String]) -> i32 {
         die(&format!("no LLM server answers on {host}; start it{start} or pass --base-url"));
     }
 
+    // A target git can't clone must not cost the older runs.
+    let is_repo = Command::new("git").args(["-C", target, "rev-parse", "--git-dir"]).output().is_ok_and(|o| o.status.success());
+    if !is_repo {
+        die(&format!("{target} is not a Git repository"));
+    }
     let repo = Path::new(target).file_name().unwrap().to_string_lossy().into_owned();
     let name = prepare_run(&repo);
     let clone = runs_dir().join(&name);
@@ -269,26 +274,40 @@ fn run(args: &[String]) -> i32 {
     verdict(&problems)
 }
 
-/// The number of the run `entry` of the repo `repo` under the scheme `retrodoc-smoke-<repo>-<commit>-<n>`, if it is one
-/// (the run's directory, or one of its files `<run>.<suffix>`). A repo whose name extends `repo` does not match.
+/// The run `entry` belongs to under the scheme `retrodoc-smoke-<repo>-<commit>-<n>` (the run's directory, or one of its
+/// files `<run>.<suffix>`), with its number. The commit is the 7 hex digits `prepare_run` writes, so a repo whose name
+/// extends `repo` does not match.
 fn run_number(entry: &str, repo: &str) -> Option<(String, u32)> {
-    let rest = entry.strip_prefix(&format!("retrodoc-smoke-{repo}-"))?;
-    let run_len = rest.find('.').unwrap_or(rest.len());
-    let (commit, n) = rest[..run_len].split_once('-')?;
-    let n = (!commit.is_empty() && commit.chars().all(|c| c.is_ascii_hexdigit()) && !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()))
-        .then(|| n.parse().ok())??;
-    Some((entry[..entry.len() - rest.len() + run_len].to_string(), n))
+    // The prefix first: the repo name may hold a dot (`next.js`).
+    let prefix = format!("retrodoc-smoke-{repo}-");
+    let rest = entry.strip_prefix(&prefix)?;
+    let rest = rest.split('.').next()?;
+    let (commit, n) = rest.split_once('-')?;
+    if commit.len() != 7 || !commit.chars().all(|c| c.is_ascii_hexdigit()) || !n.chars().all(|c| c.is_ascii_digit()) {
+        return None;
+    }
+    Some((format!("{prefix}{rest}"), n.parse().ok()?))
 }
 
-/// Whether `ledger` names the run `run` as a whole name (`…-1` is not named by `…-12`).
-fn ledger_names(ledger: &str, run: &str) -> bool {
-    ledger.match_indices(run).any(|(at, _)| !ledger[at + run.len()..].starts_with(|c: char| c.is_ascii_alphanumeric()))
+/// Whether `text` names the run `run` as a whole name (`…-1` is not named by `…-12`).
+fn names_run(text: &str, run: &str) -> bool {
+    text.match_indices(run).any(|(at, _)| !text[at + run.len()..].starts_with(|c: char| c.is_ascii_alphanumeric()))
+}
+
+/// What names the runs to keep: `LEDGER.md`, then the `manifest.yaml` of the frozen inputs (their `source_run`).
+/// `None` when there is no ledger.
+fn kept_runs_text(dir: &Path) -> Option<String> {
+    let mut text = fs::read_to_string(dir.join("LEDGER.md")).ok()?;
+    for frozen in fs::read_dir(dir.join("frozen")).into_iter().flatten().flatten() {
+        text += &fs::read_to_string(frozen.path().join("manifest.yaml")).unwrap_or_default();
+    }
+    Some(text)
 }
 
 /// The name of a new smoke run of `repo`: `retrodoc-smoke-<repo>-<short RetroDoc commit>-<n>`, `n` after the last run
 /// of the repo, so no run is overwritten. Removes the older runs of the repo (directory and files) except the ones
-/// `LEDGER.md` names and the latest one, whose ledger line may not be written yet; with no ledger, removes nothing.
-/// The fixed-name runs of before this scheme (`retrodoc-smoke-<repo>`) are never touched.
+/// `LEDGER.md` or a frozen manifest names and the latest one, whose ledger line may not be written yet; with no
+/// ledger, removes nothing. The fixed-name runs of before this scheme (`retrodoc-smoke-<repo>`) are never touched.
 fn prepare_run(repo: &str) -> String {
     // The commit first: a failure must stop before anything is removed.
     let commit = Command::new("git").args(["rev-parse", "--short=7", "HEAD"]).current_dir(project_root()).output().unwrap();
@@ -300,13 +319,13 @@ fn prepare_run(repo: &str) -> String {
     let entries: Vec<String> =
         fs::read_dir(&dir).expect("read the runs directory").map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
     let mut runs: Vec<(String, u32)> = entries.iter().filter_map(|e| run_number(e, repo)).collect();
-    runs.sort_by_key(|(_, n)| *n);
+    runs.sort_by(|a, b| (a.1, &a.0).cmp(&(b.1, &b.0)));
     runs.dedup();
     let next = runs.last().map_or(1, |(_, n)| n + 1);
-    if let Ok(ledger) = fs::read_to_string(dir.join("LEDGER.md")) {
+    if let Some(kept) = kept_runs_text(&dir) {
         let older = &runs[..runs.len().saturating_sub(1)];
-        for (run, _) in older.iter().filter(|(run, _)| !ledger_names(&ledger, run)) {
-            for entry in entries.iter().filter(|e| *e == run || e.strip_prefix(run.as_str()).is_some_and(|s| s.starts_with('.'))) {
+        for (run, _) in older.iter().filter(|(run, _)| !names_run(&kept, run)) {
+            for entry in entries.iter().filter(|e| run_number(e, repo).is_some_and(|(r, _)| r == *run)) {
                 let path = dir.join(entry);
                 let removed = if path.is_dir() { fs::remove_dir_all(&path) } else { fs::remove_file(&path) };
                 removed.unwrap_or_else(|e| die(&format!("remove {}: {e}", path.display())));

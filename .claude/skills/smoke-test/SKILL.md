@@ -23,8 +23,10 @@ question is a measure (counts of warnings, a `*_measure` example of `docs/dev/co
 may answer it with no new run. Validating a change always needs a run of the current code. **After** the run,
 append its line, and name the run in "Reusable artifacts" if a measure reads it. Each run gets a new name,
 `retrodoc-smoke-<repo-dir-name>-<short RetroDoc commit>-<n>`, so none is overwritten; before cloning, `smoke.rs` removes
-the older runs of the same repository that the ledger doesn't name, except the latest one (no ledger: nothing is
-removed). The runs named `retrodoc-smoke-<repo-dir-name>` of before this scheme are never touched.
+the older runs of the same repository that neither the ledger nor a `frozen/*/manifest.yaml` names in full, except
+the latest one (no ledger: nothing is removed); a target that is not a Git repository stops before that. The commit
+in the name is `HEAD`: a run of uncommitted changes says so in its ledger line. Two repositories with the same
+directory name share the numbering and the pruning. The runs named `retrodoc-smoke-<repo-dir-name>` of before this scheme are never touched.
 
 ## Run
 

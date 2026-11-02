@@ -176,33 +176,54 @@ fn main() {
     let out = Command::new("git").args(["rev-parse", "--short=7", "HEAD"]).current_dir(dir).output().unwrap();
     let commit = String::from_utf8_lossy(&out.stdout).trim().to_string();
     let run = |n: u32| format!("retrodoc-smoke-r-{commit}-{n}");
-    let prepare = || -> String {
+    let prepare_repo = |repo: &str| -> String {
         let out = Command::new("rust-script")
             .arg(&script)
-            .args(["prepare-run", "r"])
+            .args(["prepare-run", repo])
             .env("RETRODOC_RUNS_DIR", &runs)
             .output()
             .expect("rust-script must be installed");
         format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr))
     };
+    let prepare = || prepare_repo("r");
     let first = prepare();
-    let mut run_cases: Vec<(&str, bool, String)> = vec![("the first run of a repo is numbered 1", first.contains(&format!("name: {}\n", run(1))), first)];
+    // A repo name with a dot is numbered like any other.
+    fs::create_dir_all(runs.join(format!("retrodoc-smoke-n.js-{commit}-1"))).unwrap();
+    let dotted = prepare_repo("n.js");
+    let mut run_cases: Vec<(&str, bool, String)> =
+        vec![("a repo name with a dot is numbered", dotted.contains(&format!("name: retrodoc-smoke-n.js-{commit}-2\n")), dotted)];
+    run_cases.push(("the first run of a repo is numbered 1", first.contains(&format!("name: {}\n", run(1))), first));
     // Three earlier runs, the legacy fixed-name run, and a run of another repo whose name starts the same way.
-    for entry in [run(1), run(2), run(3), "retrodoc-smoke-r".into(), format!("retrodoc-smoke-r-x-{commit}-1")] {
+    for entry in [run(1), run(2), run(3), run(5), "retrodoc-smoke-r".into(), format!("retrodoc-smoke-r-cafe-1-{commit}-1")] {
         fs::create_dir_all(runs.join(&entry)).unwrap();
         fs::write(runs.join(format!("{entry}.run1.log")), "log").unwrap();
     }
     let unlisted = prepare();
-    let all_kept = [run(1), run(2), run(3)].iter().all(|r| runs.join(r).exists());
+    let all_kept = [run(1), run(2), run(3), run(5)].iter().all(|r| runs.join(r).exists());
     run_cases.push(("with no ledger nothing is removed", all_kept && !unlisted.contains("removed"), unlisted.clone()));
-    run_cases.push(("the next run takes the number after the last one", unlisted.contains(&format!("name: {}\n", run(4))), unlisted));
+    run_cases.push(("the next run takes the number after the last one", unlisted.contains(&format!("name: {}\n", run(6))), unlisted));
     // The ledger names run 1 and a run 20 that is not run 2.
     fs::write(runs.join("LEDGER.md"), format!("| `{}/` (+ `.run1.log`) | `{}` |\n", run(1), run(20))).unwrap();
+    // Frozen inputs read the run 3 they were built from.
+    fs::create_dir_all(runs.join("frozen/r")).unwrap();
+    fs::write(runs.join("frozen/r/manifest.yaml"), format!("source_run: {}\n", runs.join(run(3)).display())).unwrap();
+    // A target that is not a Git repository stops before anything is removed (a listener stands in for the LLM server).
+    let server = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let base_url = format!("http://{}/v1/chat/completions", server.local_addr().unwrap());
+    let out = Command::new("rust-script")
+        .arg(&script)
+        .args(["run", "/nonexistent/r", "--base-url", &base_url])
+        .env("RETRODOC_RUNS_DIR", &runs)
+        .output()
+        .expect("rust-script must be installed");
+    let not_a_repo = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+    run_cases.push(("a failed start removes no run", !out.status.success() && not_a_repo.contains("not a Git repository") && runs.join(run(2)).exists(), not_a_repo));
     let pruned = prepare();
     let exists = |entry: &str| runs.join(entry).exists();
     run_cases.extend([
         ("a run the ledger names is kept", exists(&run(1)) && exists(&format!("{}.run1.log", run(1))), pruned.clone()),
-        ("the latest run is kept though unlisted", exists(&run(3)), pruned.clone()),
+        ("the latest run is kept though unlisted", exists(&run(5)), pruned.clone()),
+        ("a run that frozen inputs read is kept", exists(&run(3)), pruned.clone()),
         (
             "an older unlisted run is removed with its logs",
             !exists(&run(2)) && !exists(&format!("{}.run1.log", run(2))) && pruned.contains(&format!("removed: {}\n", run(2))),
@@ -210,7 +231,7 @@ fn main() {
         ),
         (
             "the legacy fixed-name run and the runs of another repo are kept",
-            exists("retrodoc-smoke-r") && exists("retrodoc-smoke-r.run1.log") && exists(&format!("retrodoc-smoke-r-x-{commit}-1")),
+            exists("retrodoc-smoke-r") && exists("retrodoc-smoke-r.run1.log") && exists(&format!("retrodoc-smoke-r-cafe-1-{commit}-1")),
             pruned,
         ),
     ]);

@@ -51,6 +51,10 @@ Means: candidates (a) + (c): one fresh name per run, and pruning of only the unl
    new paths; verified by new cases of `test_smoke.rs` on a temporary `RETRODOC_RUNS_DIR` (fresh name, numbering,
    listed run kept, latest unlisted kept, older unlisted removed, no ledger keeps all, legacy dir kept).
 
+2. [x] Fixes of the `high` review of the issue: runs sorted by `(n, name)` before dedup; the runs a frozen
+   `manifest.yaml` names are kept; the commit of a run name is exactly 7 hex digits; a target that is not a Git
+   repository stops before any removal; one parser of the run names; `SKILL.md` names the limits left.
+
 ## Decisions
 - Mode: autonomous
 - Base commit: af50fa589d5f6e48f5b160107f298064afced4f8
@@ -71,5 +75,35 @@ red: none (no spec, harness): the 3 new cases failed with `usage: smoke.rs run <
 
 Code review: 1 findings
 - unchecked exit status of `git rev-parse` (empty commit, a name never counted, the next clone fails): fixed, `die` before any removal.
+
+not verified: a real `just smoke` run (needs the local LLM).
+
+## Summary of deliverable 2
+done: fixes of the `high` review (10 findings) on `af50fa5..HEAD`.
+
+| check | result |
+|---|---|
+| tests (`test_smoke.rs`) | pass |
+| `just check` | pass |
+| docs | `SKILL.md` (frozen manifests, failed start, limits) |
+| code review (`low`) | 1 finding, fixed |
+
+red: none (no spec, harness): `a failed start removes no run` (runs removed, then `git clone of the target failed`),
+`a run that frozen inputs read is kept`.
+
+High review: 10 findings
+- dedup after a sort by number only: fixed (sort by `(n, name)`).
+- frozen `source_run` not protected: fixed (`frozen/*/manifest.yaml` read with the ledger).
+- legacy name `<repo>-<hex>-<n>` of another repo taken for a run: fixed (commit is exactly 7 hex digits; test sibling `r-cafe-1`).
+- pruning before a failing clone: fixed (target checked with `git rev-parse --git-dir` first).
+- removal filter re-parsing the names, `run_number` hard to read: fixed (one parser, simpler body).
+- test sibling with a non-hex part: fixed (`r-cafe-1`).
+- commit of a dirty tree in the name: not fixed, documented (the ledger rule already reuses only clean measures).
+- two repos with the same directory name: not fixed, documented (the fixed-name scheme had the same limit).
+- ledger mention not in full (glob, range): not fixed, documented (the skill asks to name the run in full).
+
+Code review: 1 findings
+- `run_number` cut the entry at the first dot before the prefix, so a repo name with a dot was never numbered: fixed
+  (prefix first), case `a repo name with a dot is numbered` added.
 
 not verified: a real `just smoke` run (needs the local LLM).
