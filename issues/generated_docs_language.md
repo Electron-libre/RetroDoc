@@ -70,7 +70,7 @@ slugs readable. Measure step 1 done (no LLM): the saved docs of the large privat
    kept, rerun calls nothing, business-language and confidence scores against the English run of the same code;
    a fix of the business-language score if a French narrative loses its entity names; verified by the measure
    (ledger line) and a test of the fix if any.
-3. [ ] Non-goal of the render and web fixed text written, issue `localized_render_and_web_text` created; verified by
+3. [x] Non-goal of the render and web fixed text written, issue `localized_render_and_web_text` created; verified by
    `just check-specs` and the issue checker.
 
 ## Decisions
@@ -136,3 +136,20 @@ Code review: no findings
 red: DLG-4: `no field language on type ProductBrief` (the generate test written before the field and the rewrite).
 
 not verified: a repository whose code and commits are not in English; figures over several runs (one run per language).
+
+## Deliverable 3: follow-up issues
+
+done: the non-goal of `specs/docs-language.md` names `localized_render_and_web_text`; three issues created under the
+milestone, each depending on this one: `localized_render_and_web_text` (low), `reconcile_across_languages`
+(medium), `render_removes_pages_of_renamed_items` (low).
+
+| check | result |
+|---|---|
+| tests | n/a (no code) |
+| specs | `just check-specs` green |
+| issues | `just check-issue` green, `just next-issue` lists them blocked by this issue |
+| code review | low: no findings |
+
+Code review: no findings
+
+red: none
