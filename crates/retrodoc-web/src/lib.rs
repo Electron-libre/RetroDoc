@@ -40,6 +40,8 @@ pub struct Project {
     /// The purpose of the product brief of the last run, shown on the home
     /// page; `None` with no brief.
     pub purpose: Option<String>,
+    /// The users of the product brief, shown on the home page.
+    pub users: Vec<String>,
 }
 
 /// The routes of the interface over the docs of `project`, `docs`, `None`

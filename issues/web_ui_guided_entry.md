@@ -48,3 +48,35 @@ Web interface for a first-time reader
 
 * The "Explore the documentation debt" milestone plans a debt view and a dashboard: the home page should leave them
   a place rather than build them.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+A first-time reader lands on a home page that says what the application does and who uses it, points to where to
+start, then lists the domains; the header says what each page holds; a use case links to its neighbours. Breadcrumbs
+already exist (WEB-19). Out of scope: the debt view and dashboard (their own milestone), the visual map (its issue).
+
+## Plan
+1. [x] Home page in sections: brief users, "Start here" links with a line and a count each, domains as cards;
+   verified by `tests/pages.rs` page tests; makes true WEB-65, WEB-66.
+2. [ ] Header links grouped "Read" / "Look up" with titles; verified by a page test on every route; makes true WEB-67.
+3. [ ] Previous / next links between the use cases of a feature; verified by `tests/item_pages.rs`; makes true WEB-68.
+4. [ ] Walk-through on the saved healthchecks run, headless Chrome screenshots before and after (no LLM call),
+   findings in this issue; verified by the screenshots.
+
+## Decisions
+- Mode: autonomous
+- Base commit: af0a1678fac753cd9f77c17ea53fc00fbe1ad6da
+- Reading path (2026-11-02): purpose, users, "Start here", then the domains (WEB-65).
+- The home page shows neither the external systems nor the open questions of the brief.
+- Header grouped "Read" / "Look up" with a title per link; previous / next between use cases kept.
+
+## Deliverable 1
+
+- done: the home page shows the purpose, the users of the brief, a "Start here" section (actors, glossary, rules,
+  files, each with what it holds and its count) and the domains as cards; `retrodoc ui` passes the brief's users.
+- red: WEB-65, WEB-66: `no Buyers who order goods in <main>`, `no id="start-here" in` the home page.
+- Before / after: `~/retrodoc-runs/guided-entry-shots/before-home.png`, `d1-home.png` (healthchecks run).
+

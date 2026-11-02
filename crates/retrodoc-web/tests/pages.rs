@@ -107,6 +107,7 @@ fn shop() -> Project {
     Project {
         name: "Shop and Co".into(),
         purpose: Some("Sells <b>goods</b> online".into()),
+        users: vec!["Buyers who order goods".into(), "Clerks".into()],
     }
 }
 
@@ -144,33 +145,41 @@ async fn home(root: &Path) -> String {
     body
 }
 
-/// The row of the domain `slug` in the list of the home page.
+/// The card of the domain `slug` on the home page.
 fn row<'a>(page: &'a str, slug: &str) -> &'a str {
-    let start = page
-        .find(&format!("<tr id=\"domain-{slug}\""))
-        .unwrap_or_else(|| panic!("no row for {slug} in {page}"));
-    let end = start + page[start..].find("</tr>").unwrap();
+    let id = page
+        .find(&format!("id=\"domain-{slug}\""))
+        .unwrap_or_else(|| panic!("no card for {slug} in {page}"));
+    let start = page[..id].rfind('<').unwrap();
+    let end = start + page[start..].find("</article>").unwrap();
     &page[start..end]
 }
 
-/// The text of the cells of a row, tags removed.
-fn cells(row: &str) -> Vec<String> {
-    row.split("<td")
-        .skip(1)
-        .map(|cell| {
-            let mut text = String::new();
-            let mut in_tag = true;
-            for c in cell.split("</td>").next().unwrap().chars() {
-                match c {
-                    '<' => in_tag = true,
-                    '>' => in_tag = false,
-                    c if !in_tag => text.push(c),
-                    _ => {}
-                }
+/// The text of `html`, tags removed and spaces collapsed.
+fn text(html: &str) -> String {
+    let mut text = String::new();
+    let mut in_tag = false;
+    for c in html.chars() {
+        match c {
+            '<' => in_tag = true,
+            '>' => {
+                in_tag = false;
+                text.push(' ');
             }
-            text.split_whitespace().collect::<Vec<_>>().join(" ")
-        })
-        .collect()
+            c if !in_tag => text.push(c),
+            _ => {}
+        }
+    }
+    text.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// The part of `page` from `from` to the next `to`.
+fn between<'a>(page: &'a str, from: &str, to: &str) -> &'a str {
+    let start = page
+        .find(from)
+        .unwrap_or_else(|| panic!("no {from} in {page}"));
+    let end = start + page[start..].find(to).unwrap();
+    &page[start..end]
 }
 
 // spec: WEB-4
@@ -179,12 +188,12 @@ async fn the_home_page_lists_every_domain_with_its_confidence_and_counts() {
     let repo = generated_repo();
     let page = home(repo.path()).await;
     assert_eq!(
-        cells(row(&page, "billing")),
-        ["Billing", "Invoices and payments", "80%", "2", "3"]
+        text(row(&page, "billing")),
+        "Billing Invoices and payments 80% 2 features 3 use cases"
     );
     assert_eq!(
-        cells(row(&page, "archive")),
-        ["Archive", "Old records", "not scored", "0", "0"]
+        text(row(&page, "archive")),
+        "Archive Old records not scored 0 features 0 use cases"
     );
     assert!(row(&page, "billing").contains("href=\"/domains/billing\""));
 }
@@ -308,13 +317,71 @@ async fn a_brief_with_no_purpose_leaves_the_home_page_with_the_name_and_domains(
     let repo = generated_repo();
     let project = Project {
         name: "Shop".into(),
-        purpose: None,
+        ..Project::default()
     };
     let (_, page, _) = get_project(project, load(repo.path()), "/").await;
     let main = &page[page.find("<main>").unwrap()..];
     assert!(main.contains("<h1>Shop</h1>"), "{main}");
     assert!(!main.contains("class=\"purpose\""), "{main}");
     assert!(row(&page, "billing").contains("Billing"));
+}
+
+// spec: WEB-65
+#[tokio::test]
+async fn the_home_page_shows_the_brief_then_where_to_start_then_the_domains() {
+    let repo = generated_repo();
+    let page = home(repo.path()).await;
+    let main = &page[page.find("<main>").unwrap()..];
+    let order: Vec<usize> = [
+        "<h1>Shop and Co</h1>",
+        "class=\"purpose\"",
+        "Buyers who order goods",
+        "Start here",
+        "id=\"domain-billing\"",
+    ]
+    .iter()
+    .map(|part| {
+        main.find(part)
+            .unwrap_or_else(|| panic!("no {part} in {main}"))
+    })
+    .collect();
+    assert!(order.is_sorted(), "{order:?}: {main}");
+    assert!(main.contains("Clerks"), "{main}");
+}
+
+// spec: WEB-65
+#[tokio::test]
+async fn a_brief_with_no_user_leaves_no_users_line() {
+    let repo = generated_repo();
+    let project = Project {
+        name: "Shop".into(),
+        users: vec!["  ".into()],
+        ..Project::default()
+    };
+    let (_, page, _) = get_project(project, load(repo.path()), "/").await;
+    assert!(!page.contains("class=\"users\""), "{page}");
+}
+
+// spec: WEB-66
+#[tokio::test]
+async fn start_here_links_each_reference_page_with_what_it_holds_and_its_count() {
+    let repo = generated_repo();
+    let page = home(repo.path()).await;
+    let start = between(&page, "id=\"start-here\"", "</section>");
+    for (href, count) in [
+        ("/actors", "0 actors"),
+        ("/glossary", "0 concepts"),
+        ("/rules", "0 rules"),
+        ("/files", "3 cited files"),
+    ] {
+        let item = between(start, &format!("href=\"{href}\""), "</li>");
+        assert!(text(item).contains(count), "{href}: {}", text(item));
+        let hint = between(item, "class=\"hint\">", "</");
+        assert!(
+            hint.len() > "class=\"hint\">".len(),
+            "no hint for {href}: {item}"
+        );
+    }
 }
 
 // spec: WEB-10

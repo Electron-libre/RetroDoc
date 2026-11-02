@@ -141,7 +141,7 @@ async fn the_front_matter_and_an_empty_heading_are_not_the_title() {
     }];
     let project = retrodoc_web::Project {
         name: "Shop".into(),
-        purpose: None,
+        ..retrodoc_web::Project::default()
     };
     let response = retrodoc_web::router(project, None, DocLinks::default(), docs)
         .oneshot(

@@ -22,7 +22,7 @@ use crate::rules::{rules_page, RuleFilter, RulesPage};
 use crate::search::{query_value, search_page, Results, SearchPage};
 use crate::view::{
     domain_page, domain_rows, feature_page, use_case_page, DomainPage, DomainRow, FeaturePage,
-    Shell, Site, UseCasePage,
+    Shell, Site, StartLink, UseCasePage,
 };
 
 #[derive(Template)]
@@ -30,6 +30,8 @@ use crate::view::{
 struct Home<'a> {
     shell: &'a Shell,
     purpose: Option<&'a str>,
+    users: &'a [String],
+    start: Vec<StartLink>,
     domains: Vec<DomainRow>,
 }
 
@@ -158,6 +160,8 @@ pub async fn home(State(site): State<Arc<Site>>) -> Response {
             &Home {
                 shell: site.shell(),
                 purpose: site.purpose(),
+                users: site.users(),
+                start: site.start_links(),
                 domains,
             },
         ),

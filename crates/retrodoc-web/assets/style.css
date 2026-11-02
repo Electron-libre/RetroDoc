@@ -86,3 +86,14 @@ ul.hits { list-style: none; padding-left: 0; }
 .filters label { display: flex; flex-direction: column; font-size: 0.9rem; }
 .matrix { overflow-x: auto; }
 .matrix th, .matrix td { white-space: nowrap; }
+
+/* The home page: the brief, where to start, the domains as cards. */
+.users ul { margin: 0.3rem 0; padding-left: 1.2rem; max-width: 48rem; }
+.start-links { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: 0.6rem; }
+.start-links li { border: 1px solid var(--border); border-radius: 0.4rem; padding: 0.5rem 0.7rem; }
+.start-links .hint { display: block; color: var(--muted); font-size: 0.9rem; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr)); gap: 0.8rem; }
+.card { border: 1px solid var(--border); border-radius: 0.4rem; padding: 0.6rem 0.9rem; }
+.card h3 { margin: 0 0 0.3rem; font-size: 1.05rem; }
+.card .description { margin: 0 0 0.4rem; }
+.card .facts { margin: 0; display: flex; gap: 0.8rem; align-items: center; color: var(--muted); font-size: 0.9rem; }

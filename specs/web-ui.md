@@ -1,6 +1,6 @@
 ---
 id: WEB
-status: accepted
+status: draft
 adrs: [0039]
 ---
 
@@ -146,6 +146,15 @@ over browses its domains, features and use cases rather than reading the Markdow
   ` · <name>`.
 - **WEB-64** (deterministic) The home page must have the name of the application as its heading and, when the saved
   product brief (`.retrodoc/cache/product.yaml`) has a purpose, show that purpose under it.
+- **WEB-65** (deterministic) The home page must show, in this order, the heading and purpose of WEB-64, the users of
+  the saved product brief when it has some, a "Start here" section, then the domains of WEB-4.
+- **WEB-66** (deterministic) The "Start here" section of the home page must link to the actors, glossary, rules and
+  files pages, each with one line saying what the page holds and its count (actors, concepts, rules, cited files of
+  the run).
+- **WEB-67** (deterministic) The header of every page must group its links under "Read" (the actors page) and "Look up"
+  (the glossary, rules and files pages), each link with a title saying what its page holds.
+- **WEB-68** (deterministic) The page of a use case must link to the previous and the next use case of its feature, in
+  the order of the run, each labelled with its name; the first has no previous link and the last no next one.
 
 ## Scenarios
 
@@ -221,6 +230,9 @@ over browses its domains, features and use cases rather than reading the Markdow
   application too.
 - (WEB-64) Given a run whose brief was not written (`product.yaml` missing), then the home page shows the name and the
   domains, with no purpose.
+- (WEB-65) Given a brief with no user, then the home page shows no users line.
+- (WEB-66) Given a run with no business rule, then the rules link is still shown, with the count 0.
+- (WEB-68) Given a feature with a single use case, then its page has neither a previous nor a next link.
 
 ## Non-goals
 
@@ -237,4 +249,7 @@ over browses its domains, features and use cases rather than reading the Markdow
 - No LLM call and no edit of the docs.
 - The name of the application is not asked of the LLM, nor read from the `origin` remote; the Markdown render and the
   MCP answers don't carry it.
+- The home page leaves the debt view and the audit dashboard to their milestone ("Explore the documentation debt and
+  audit it"): it links to neither until they exist. Nor does it show the external systems and the open
+  questions of the brief: only its purpose and its users.
 - The docs are read once at start: the pages of a `generate` run while the server runs show after a restart of `ui`.

@@ -37,16 +37,18 @@ pub async fn run(path: &Path, bind: SocketAddr) -> anyhow::Result<()> {
         .context("the web server stopped")
 }
 
-/// The application the pages name, with the purpose of the saved product
-/// brief (none, or one that can't be read and is warned of: no purpose).
+/// The application the pages name, with the purpose and the users of the
+/// saved product brief (none, or one that can't be read and is warned of:
+/// neither).
 fn project(workspace: &Workspace) -> Project {
+    let brief = brief::saved(&workspace.repo_root);
     Project {
         name: workspace
             .config
             .project
             .name_or_directory(&workspace.repo_root),
-        purpose: Some(brief::saved(&workspace.repo_root).purpose.text)
-            .filter(|purpose| !purpose.trim().is_empty()),
+        purpose: Some(brief.purpose.text).filter(|purpose| !purpose.trim().is_empty()),
+        users: brief.users.into_iter().map(|user| user.text).collect(),
     }
 }
 
@@ -64,7 +66,7 @@ fn exposure_warning(bind: SocketAddr) -> Option<String> {
 mod tests {
     use super::*;
 
-    // spec: WEB-62, WEB-64 (internal: `run` serves until stopped)
+    // spec: WEB-62, WEB-64, WEB-65 (internal: `run` serves until stopped)
     #[test]
     fn the_project_is_named_by_the_config_and_carries_the_saved_purpose() {
         let dir = tempfile::tempdir().unwrap();
@@ -74,6 +76,7 @@ mod tests {
         let unnamed = project(&Workspace::open(&root).unwrap());
         assert_eq!(unnamed.name, "shop");
         assert_eq!(unnamed.purpose, None);
+        assert_eq!(unnamed.users, Vec::<String>::new());
 
         std::fs::write(
             root.join("retrodoc.toml"),
@@ -82,12 +85,13 @@ mod tests {
         .unwrap();
         std::fs::write(
             root.join(".retrodoc/cache/product.yaml"),
-            "purpose:\n  text: Sells goods online\n",
+            "purpose:\n  text: Sells goods online\nusers:\n  - text: Buyers\n",
         )
         .unwrap();
         let named = project(&Workspace::open(&root).unwrap());
         assert_eq!(named.name, "Shop and Co");
         assert_eq!(named.purpose.as_deref(), Some("Sells goods online"));
+        assert_eq!(named.users, ["Buyers"]);
     }
 
     // spec: WEB-14 (internal: listening on every interface in a test would expose the machine)

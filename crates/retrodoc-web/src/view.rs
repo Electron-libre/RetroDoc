@@ -24,6 +24,7 @@ pub struct Site {
     links: DocLinks,
     shell: Shell,
     purpose: Option<String>,
+    users: Vec<String>,
     source: Option<SourceAccess>,
     files: Option<FilesPage>,
     collected: Vec<ExistingDoc>,
@@ -52,6 +53,11 @@ impl Site {
             links,
             shell,
             purpose: project.purpose.filter(|purpose| !purpose.trim().is_empty()),
+            users: project
+                .users
+                .into_iter()
+                .filter(|user| !user.trim().is_empty())
+                .collect(),
             source,
             files,
             collected,
@@ -111,6 +117,80 @@ impl Site {
     pub fn purpose(&self) -> Option<&str> {
         self.purpose.as_deref()
     }
+
+    /// The users of the product brief, the blank ones left out.
+    #[must_use]
+    pub fn users(&self) -> &[String] {
+        &self.users
+    }
+
+    /// The pages the home page points a first-time reader to, with what each
+    /// holds and its count; the counts are 0 with no run.
+    #[must_use]
+    pub fn start_links(&self) -> Vec<StartLink> {
+        let actors = self.actors.as_ref().map_or(0, |page| {
+            page.groups
+                .iter()
+                .flat_map(|group| &group.rows)
+                .map(|row| row.name.as_str())
+                .collect::<BTreeSet<_>>()
+                .len()
+        });
+        let concepts = self.glossary.as_ref().map_or(0, |page| page.concepts.len());
+        let rules = self.docs.as_ref().map_or(0, |docs| docs.rules().len());
+        let files = self.files.as_ref().map_or(0, |page| page.cited);
+        REFERENCE_PAGES
+            .iter()
+            .zip([actors, concepts, rules, files])
+            .map(|(page, count)| StartLink { page, count })
+            .collect()
+    }
+}
+
+/// A page of reference beside the tree of the docs, as the header and the
+/// home page point to it.
+pub struct ReferencePage {
+    pub href: &'static str,
+    pub name: &'static str,
+    /// What the page holds, in one line.
+    pub hint: &'static str,
+    /// What its count counts, plural.
+    pub unit: &'static str,
+}
+
+/// The pages of reference, in the order a first-time reader is pointed to them.
+pub const REFERENCE_PAGES: [ReferencePage; 4] = [
+    ReferencePage {
+        href: "/actors",
+        name: "Actors",
+        hint: "Who uses the application, and which use cases each one starts or takes part in.",
+        unit: "actors",
+    },
+    ReferencePage {
+        href: "/glossary",
+        name: "Glossary",
+        hint:
+            "The business concepts of the application, defined, with the use cases that use them.",
+        unit: "concepts",
+    },
+    ReferencePage {
+        href: "/rules",
+        name: "Rules",
+        hint: "The business rules the code enforces, filtered by kind, domain or feature.",
+        unit: "rules",
+    },
+    ReferencePage {
+        href: "/files",
+        name: "Files",
+        hint: "The source files, with the docs that cite each one and those no doc covers.",
+        unit: "cited files",
+    },
+];
+
+/// A page of reference on the home page, with its count.
+pub struct StartLink {
+    pub page: &'static ReferencePage,
+    pub count: usize,
 }
 
 /// What every page shows around its content: the name of the application and
