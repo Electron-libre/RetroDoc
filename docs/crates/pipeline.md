@@ -61,7 +61,9 @@ Behaviors that span passes:
   rules, confidence, reconcile) in `InLanguage`, which ends the system prompt of every request with `instruction`
   (write the free text in the language, keep code identifiers, paths and given names) and whose `model()` is
   `<model> in <language>`: the prints that hold the model redo their units when the language changes. The brief,
-  whose print holds no model, adds `LlmProvider::language` to its input hash when set; the contexts map has no
+  whose print holds no model, adds `LlmProvider::language` to its input hash when set and saves it
+  (`ProductBrief.language`): `generate`, which otherwise uses the saved brief as it is, writes an unedited one
+  asked in another language again; the contexts map has no
   print and stays until `--force`. Unset, nothing is wrapped and every print is unchanged. `slugify` keeps the base
   letter of an accented Latin letter (`électronique` → `electronique`).
 - `retrodoc_llm::HeartbeatProvider` (wrapped around the provider in the CLI) logs "still waiting for the

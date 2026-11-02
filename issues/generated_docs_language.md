@@ -66,7 +66,7 @@ slugs readable. Measure step 1 done (no LLM): the saved docs of the large privat
 1. [x] Language setting: `[output] language` (names and two-letter tags), `init` line, the wrapping provider on the
    writing passes, the language in the print of the brief (the contexts map has none, reused until `--force`), accent-folding slugs, spec
    `docs-language.md` and ADR 0041; verified by config, provider, rerun and slug tests; makes true DLG-1 to DLG-6.
-2. [ ] Measure on delivery_router with DeepSeek in French (paid, cents): docs in French, entity names
+2. [x] Measure on delivery_router with DeepSeek in French (paid, cents): docs in French, entity names
    kept, rerun calls nothing, business-language and confidence scores against the English run of the same code;
    a fix of the business-language score if a French narrative loses its entity names; verified by the measure
    (ledger line) and a test of the fix if any.
@@ -100,3 +100,39 @@ Code review: no findings (the only lead, trait methods InLanguage might hide, ch
 
 not verified: the binary test of DLG-2/DLG-3 was written after the code (not seen red); a real model's answers in
 French (deliverable 2).
+
+## Deliverable 2: measure in French, brief written again
+
+done: `generate` writes again an unedited saved brief asked in another language (`ProductBrief.language`); measured
+on delivery_router with deepseek-chat (ledger, 2026-11-02, `docs_language-6248f5d-{en,fr}`).
+
+| figure | English | French |
+|---|---|---|
+| domains / features / use cases / rules | 3 / 6 / 8 / 24 | 4 / 9 / 17 / 50 (one run each) |
+| confidence, business-language score | 96%, 100% | 87%, 99% |
+| judged recall, precision (domains; features) | 100, 100; 100, 100 | 100, 75; 100, 89 |
+| narratives rated business by the judge | 0 of 8 rated | 16 of 17 |
+| rerun at the same language | no call | no call |
+| reconciliation lines with the English README | 6 | 0 |
+
+- Entity names keep the code's spelling (Customer, Order); actors and descriptions are in French; one attribute got a
+  French gloss (`rider (livreur affecté)`).
+- The scores work on French docs: no fix of the business-language score needed.
+- Found: before the fix the brief stayed in English through `generate` (reused as it is), hence the fix.
+- Found, out of this issue: the reconciliation finds no section of English project docs for French items
+  (lexical match); the render leaves the pages of the English domains in `docs/` (an item renamed leaves its old
+  page). Both become issues in deliverable 3.
+
+| check | result |
+|---|---|
+| tests | `just check` green |
+| lint | clippy pedantic clean |
+| specs | DLG-4 traced by the generate brief test too |
+| docs | pipeline.md, ARCHITECTURE §4 |
+| code review | low: no findings |
+
+Code review: no findings
+
+red: DLG-4: `no field language on type ProductBrief` (the generate test written before the field and the rewrite).
+
+not verified: a repository whose code and commits are not in English; figures over several runs (one run per language).

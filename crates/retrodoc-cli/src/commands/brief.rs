@@ -132,7 +132,8 @@ impl GenerateEvidence {
 /// The brief `generate` frames its passes with: the saved one as it is
 /// (edited or not, it is refreshed by `retrodoc brief`, not behind the back
 /// of every other pass), otherwise one written now from the signals of the
-/// repository. Empty when there is no evidence or no usable answer. For the passes `with_evidence`
+/// repository; an unedited one asked in another language than the brief
+/// pass's is written again (DLG-4). Empty when there is no evidence or no usable answer. For the passes `with_evidence`
 /// names come the signals, searched for the extracts closest to a unit; the others get none.
 pub async fn for_generate(
     repo_root: &Path,
@@ -141,7 +142,10 @@ pub async fn for_generate(
     with_evidence: EvidenceFor,
     tracker: &UsageTracker,
 ) -> anyhow::Result<(ProductBrief, GenerateEvidence)> {
-    let saved_brief = Artifact::Product.path(repo_root).exists();
+    let language = providers.get("brief")?.language();
+    let in_another_language = ProductBrief::load(repo_root)
+        .is_some_and(|brief| !brief.edited() && brief.language.as_deref() != language);
+    let saved_brief = Artifact::Product.path(repo_root).exists() && !in_another_language;
     if !saved_brief {
         println!("Writing the product brief…");
     }
@@ -393,6 +397,78 @@ mod tests {
 
         assert_eq!(used.purpose.text, "Sells things.");
         assert_eq!(saved(dir.path()), used);
+    }
+
+    /// Answers every request with a brief, counting the calls.
+    #[derive(Default)]
+    struct Briefing(std::sync::atomic::AtomicUsize);
+
+    #[async_trait::async_trait]
+    impl retrodoc_llm::LlmProvider for Briefing {
+        async fn complete(
+            &self,
+            _: retrodoc_llm::CompletionRequest,
+        ) -> Result<retrodoc_llm::CompletionResponse, retrodoc_llm::LlmError> {
+            self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Ok(retrodoc_llm::CompletionResponse {
+                content: r#"{"purpose": {"text": "Sells things.", "signals": ["S1"]}}"#.to_string(),
+                ..Default::default()
+            })
+        }
+    }
+
+    // spec: DLG-4 (internal: the brief generate frames its passes with, asked through a scripted provider)
+    #[tokio::test]
+    async fn generate_writes_a_saved_brief_again_in_a_new_language() {
+        let dir = tempfile::tempdir().unwrap();
+        let ingest = retrodoc_ingest::IngestResult {
+            files: Vec::new(),
+            history_by_path: std::collections::HashMap::new(),
+            existing_docs: vec![retrodoc_ingest::existing_docs::ExistingDoc {
+                path: "README.md".into(),
+                content: "# Shop\nBuyers pay for their orders.\n".to_string(),
+            }],
+            commits: Vec::new(),
+        };
+        let llm = std::sync::Arc::new(Briefing::default());
+        let calls = || llm.0.load(std::sync::atomic::Ordering::SeqCst);
+        let plain: std::sync::Arc<dyn retrodoc_llm::LlmProvider> = llm.clone();
+        let french: std::sync::Arc<dyn retrodoc_llm::LlmProvider> =
+            std::sync::Arc::new(retrodoc_pipeline::InLanguage::new(plain.clone(), "French"));
+        let brief_with = |brief: &std::sync::Arc<dyn retrodoc_llm::LlmProvider>| {
+            PassProviders::from_providers(vec![
+                ("sources", plain.clone()),
+                ("brief", brief.clone()),
+            ])
+        };
+        let generate = |providers: PassProviders| {
+            let (root, ingest) = (dir.path(), &ingest);
+            async move {
+                for_generate(
+                    root,
+                    ingest,
+                    &providers,
+                    EvidenceFor::default(),
+                    &UsageTracker::new(),
+                )
+                .await
+                .unwrap()
+                .0
+            }
+        };
+
+        generate(brief_with(&plain)).await;
+        let english = calls();
+        assert_eq!(saved(dir.path()).language, None);
+
+        let used = generate(brief_with(&french)).await;
+        assert!(calls() > english, "the brief must be written again");
+        assert_eq!(used.language.as_deref(), Some("French"));
+        assert_eq!(saved(dir.path()), used);
+
+        let again = calls();
+        generate(brief_with(&french)).await;
+        assert_eq!(calls(), again);
     }
 
     #[tokio::test]

@@ -81,6 +81,9 @@ pub struct ProductBrief {
     /// file was edited by hand.
     #[serde(default)]
     pub content_hash: String,
+    /// The language it was asked in (`[output] language`, ADR 0041); none: the model's pick.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub language: Option<String>,
     #[serde(default)]
     pub purpose: Claim,
     /// Who uses the application or acts on it.
@@ -123,6 +126,7 @@ impl ProductBrief {
         let mut content = self.clone();
         content.input_hash.clear();
         content.content_hash.clear();
+        content.language = None;
         hash_content(&serde_yaml::to_string(&content).unwrap_or_default())
     }
 
@@ -263,6 +267,7 @@ pub async fn build_brief(
     };
     let mut brief = raw.resolve(&sample);
     brief.input_hash = input_hash;
+    brief.language = llm.language().map(str::to_string);
     brief.content_hash = brief.digest();
     brief.save(repo_root)?;
     Ok(Some(brief))
@@ -302,6 +307,7 @@ impl RawBrief {
         ProductBrief {
             input_hash: String::new(),
             content_hash: String::new(),
+            language: None,
             purpose: self
                 .purpose
                 .and_then(|c| resolve_claim(c, sample, MAX_PURPOSE_CHARS))
