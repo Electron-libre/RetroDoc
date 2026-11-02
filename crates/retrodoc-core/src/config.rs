@@ -732,7 +732,7 @@ mod tests {
         assert_eq!(parsed.output.docs_dir, config.output.docs_dir);
     }
 
-    // spec: RSA-6
+    // spec: RSA-6 (internal: the parsed settings are a library value no command prints)
     #[test]
     fn the_corrections_of_the_rules_pass_are_read_from_retrodoc_toml_and_init_writes_none() {
         let raw = r#"
@@ -763,7 +763,7 @@ mod tests {
         assert_eq!(parsed.output.docs_dir, "docs");
     }
 
-    // spec: SET-1
+    // spec: SET-1 (internal: the parsed settings are a library value no command prints)
     #[test]
     fn the_rules_pass_is_on_unless_turned_off_and_has_its_own_llm_section() {
         assert!(Config::default().pipeline.rules);
@@ -807,7 +807,7 @@ mod tests {
         assert!(written.contains("domains_from = \"surface\""), "{written}");
     }
 
-    // spec: SET-2
+    // spec: SET-2 (internal: the parsed settings are a library value no command prints)
     #[test]
     fn init_writes_the_default_settings_with_the_rules_on() {
         let dir = tempfile::tempdir().unwrap();
@@ -925,7 +925,7 @@ mod tests {
         );
     }
 
-    // spec: SET-4
+    // spec: SET-4 (internal: every removed key and parse error is tried on the parser, one binary run each would be slow)
     #[test]
     fn a_removed_key_stops_the_load_with_a_message_naming_it() {
         let dir = tempfile::tempdir().unwrap();
@@ -978,7 +978,7 @@ mod tests {
         );
     }
 
-    // spec: SET-4
+    // spec: SET-4 (internal: every removed key and parse error is tried on the parser, one binary run each would be slow)
     #[test]
     fn a_mistyped_key_keeps_the_position_of_the_parse_error() {
         let dir = tempfile::tempdir().unwrap();
@@ -991,7 +991,7 @@ mod tests {
         assert!(message.contains("line 3"), "{message}");
     }
 
-    // spec: SET-3
+    // spec: SET-3 (internal: the parsed settings are a library value no command prints)
     #[test]
     fn the_business_files_are_read_once_unless_turned_off() {
         assert!(Config::default().pipeline.business_read);

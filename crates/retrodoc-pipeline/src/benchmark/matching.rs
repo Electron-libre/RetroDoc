@@ -255,7 +255,7 @@ mod tests {
         assert_eq!(score.precision, Some(0.5));
     }
 
-    // spec: BSC-1
+    // spec: BSC-1 (internal: the scoring needs an LLM judge and a generated run through the binary)
     #[test]
     fn a_pair_adds_to_the_name() {
         // "Billing" is also a reference name, and the user says it holds "Payments" as well.
@@ -276,7 +276,7 @@ mod tests {
         assert!((score.recall.unwrap() - 2.0 / 3.0).abs() < 1e-6);
     }
 
-    // spec: BSC-1, BSC-2
+    // spec: BSC-1, BSC-2 (internal: the scoring needs an LLM judge and a generated run through the binary)
     #[test]
     fn a_merge_counts_for_each_reference_item_and_once_for_precision() {
         let score = score_of(
@@ -297,7 +297,7 @@ mod tests {
         assert_eq!(score.unmatched_reference, ["Other"]);
     }
 
-    // spec: BSC-2
+    // spec: BSC-2 (internal: the scoring needs an LLM judge and a generated run through the binary)
     #[test]
     fn a_split_counts_once_for_recall_and_each_time_for_precision() {
         let score = score_of(
@@ -314,7 +314,7 @@ mod tests {
         assert_eq!(score.unmatched_generated, ["Noise"]);
     }
 
-    // spec: BSC-3
+    // spec: BSC-3 (internal: the scoring needs an LLM judge and a generated run through the binary)
     #[test]
     fn a_pair_for_a_generated_name_absent_from_this_run_is_ignored() {
         let score = score_of(&["A"], &["B"], &[pair("Gone", "B")]).unwrap();
@@ -322,7 +322,7 @@ mod tests {
         assert_eq!(score.recall, Some(0.0));
     }
 
-    // spec: BSC-3
+    // spec: BSC-3 (internal: the scoring needs an LLM judge and a generated run through the binary)
     #[test]
     fn a_pair_naming_an_unknown_reference_item_is_an_error() {
         let error = score_of(&["A"], &["B"], &[pair("A", "Typo")])

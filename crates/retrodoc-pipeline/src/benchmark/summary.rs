@@ -150,7 +150,7 @@ mod tests {
         }
     }
 
-    // spec: BSC-2
+    // spec: BSC-2 (internal: the scoring needs an LLM judge and a generated run through the binary)
     #[test]
     fn a_merged_item_counts_once_in_the_matched_count() {
         let mut merged = score(Some(1.0), Some(1.0), &[], &[]);

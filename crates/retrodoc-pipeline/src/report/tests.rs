@@ -144,7 +144,7 @@ fn reconciliation() -> Reconciliation {
     )
 }
 
-// spec: REC-9
+// spec: REC-9 (internal: the input is a generated run, which only an LLM run produces through the binary)
 #[test]
 fn the_existing_docs_coverage_is_counted_per_domain() {
     let mut report = build_report(&DomainMap::default(), &[], &[]);
@@ -165,7 +165,7 @@ fn the_existing_docs_coverage_is_counted_per_domain() {
     assert!(md.contains("| ? | 1 | 0 | 0 | 1 | 0 |"), "{md}");
 }
 
-// spec: REC-10, REC-13
+// spec: REC-10, REC-13 (internal: the input is a generated run, which only an LLM run produces through the binary)
 #[test]
 fn the_undocumented_items_are_listed_by_importance_rules_among_them() {
     let mut report = build_report(&DomainMap::default(), &[], &[]);
@@ -184,7 +184,7 @@ fn the_undocumented_items_are_listed_by_importance_rules_among_them() {
     );
 }
 
-// spec: REC-11
+// spec: REC-11 (internal: the input is a generated run, which only an LLM run produces through the binary)
 #[test]
 fn each_contradiction_cites_both_sources_as_a_finding_to_check() {
     use crate::reconcile::{Contradiction, ItemKind, ItemVerdict, SectionRef, Status};
@@ -221,7 +221,7 @@ fn each_contradiction_cites_both_sources_as_a_finding_to_check() {
     );
 }
 
-// spec: REC-10
+// spec: REC-10 (internal: the input is a generated run, which only an LLM run produces through the binary)
 #[test]
 fn at_most_fifty_undocumented_items_are_listed() {
     let rules: Vec<BusinessRule> = (0..55)
@@ -284,7 +284,7 @@ fn what_the_rules_pass_set_aside_is_listed_to_be_checked() {
     assert!(md.contains("rules-set-aside.yaml"), "{md}");
 }
 
-// spec: RSA-7
+// spec: RSA-7 (internal: the input is a generated run, which only an LLM run produces through the binary)
 #[test]
 fn the_set_aside_lists_say_how_to_put_an_entry_back_and_mark_the_rules_put_back() {
     let aside = |slug: &str| AsideRule {

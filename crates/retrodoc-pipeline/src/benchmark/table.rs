@@ -624,7 +624,7 @@ mod tests {
         assert!(!text.contains("unjudged for domains"), "{text}");
     }
 
-    // spec: BSC-6
+    // spec: BSC-6 (internal: the reports of several scoring versions are built in memory, each would need a scored run through the binary)
     #[test]
     fn a_report_carries_the_scoring_version_and_an_old_one_loads_without() {
         let run = report(0.5, 6, 10, false);
@@ -637,7 +637,7 @@ mod tests {
         assert_eq!(old.scoring, None);
     }
 
-    // spec: BSC-7
+    // spec: BSC-7 (internal: the reports of several scoring versions are built in memory, each would need a scored run through the binary)
     #[test]
     fn no_change_is_shown_against_runs_scored_under_other_rules() {
         let now = [series("hidden", vec![report(0.75, 8, 10, false)])];
@@ -684,7 +684,7 @@ mod tests {
         assert!(text.contains("under scoring version none"), "{text}");
     }
 
-    // spec: BSC-9
+    // spec: BSC-9 (internal: the reports of several scoring versions are built in memory, each would need a scored run through the binary)
     #[test]
     fn a_series_of_mixed_scoring_versions_is_flagged() {
         let mut old = report(0.5, 6, 10, false);

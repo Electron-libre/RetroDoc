@@ -52,7 +52,7 @@ fn a_domain_without_feature_is_still_listed_and_no_domain_gives_a_clear_index() 
     assert!(empty.contains("No domain documented yet."), "{empty}");
 }
 
-// spec: RER-8
+// spec: RER-8 (internal: the input is a generated run, which only an LLM run produces through the binary)
 #[test]
 fn a_rerun_on_unchanged_artifacts_rewrites_nothing_including_the_index() {
     let (d, f, u) = sample();

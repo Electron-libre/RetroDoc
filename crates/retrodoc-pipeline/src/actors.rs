@@ -766,7 +766,7 @@ mod tests {
         assert!(warnings[0].contains(&first_unread), "{logs}");
     }
 
-    // spec: RER-3
+    // spec: RER-3 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
     #[tokio::test]
     async fn another_model_identifies_the_actors_again() {
         let dir = tempfile::tempdir().unwrap();

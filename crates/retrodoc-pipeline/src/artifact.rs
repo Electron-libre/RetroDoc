@@ -213,7 +213,7 @@ fn write(path: &Path, raw: &str) -> Result<(), PipelineError> {
 mod tests {
     use super::*;
 
-    // spec: RER-6
+    // spec: RER-6 (internal: the artifacts are written by LLM passes the binary cannot run without an LLM)
     #[test]
     fn a_save_replaces_the_file_and_leaves_nothing_beside_it() {
         let dir = tempfile::tempdir().unwrap();
@@ -245,7 +245,7 @@ mod tests {
         );
     }
 
-    // spec: RER-7
+    // spec: RER-7 (internal: the artifacts are written by LLM passes the binary cannot run without an LLM)
     #[test]
     fn force_clears_the_results_of_the_llm_passes_only() {
         let kept: Vec<_> = Artifact::ALL

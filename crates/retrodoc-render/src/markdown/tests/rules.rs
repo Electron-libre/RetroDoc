@@ -111,7 +111,7 @@ fn rules_are_on_the_pages_of_their_feature_use_cases_and_domain() {
     );
 }
 
-// spec: REC-12
+// spec: REC-12 (internal: the input is a generated run, which only an LLM run produces through the binary)
 #[test]
 fn the_pages_link_the_doc_sections_that_document_or_contradict_them() {
     use crate::{DocLink, DocLinks, ItemRef};

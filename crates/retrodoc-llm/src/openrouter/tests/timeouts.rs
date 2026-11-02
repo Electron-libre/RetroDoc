@@ -8,7 +8,7 @@ use super::request;
 use crate::{LlmError, LlmProvider};
 
 #[tokio::test]
-// spec: LTO-4
+// spec: LTO-4 (internal: a timeout shows through the binary only against a server that hangs)
 async fn a_timeout_is_named_and_not_retried() {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let addr = listener.local_addr().unwrap();
@@ -58,7 +58,7 @@ fn timeout_for(base_url: Option<&str>) -> Duration {
 }
 
 #[test]
-// spec: LTO-1
+// spec: LTO-1 (internal: a timeout shows through the binary only against a server that hangs)
 fn a_loopback_server_defaults_to_fifteen_minutes() {
     for url in [
         "http://localhost:11434/v1/chat/completions",
@@ -72,7 +72,7 @@ fn a_loopback_server_defaults_to_fifteen_minutes() {
 }
 
 #[test]
-// spec: LTO-2
+// spec: LTO-2 (internal: a timeout shows through the binary only against a server that hangs)
 fn a_hosted_endpoint_defaults_to_two_minutes() {
     for url in [
         None,
@@ -86,7 +86,7 @@ fn a_hosted_endpoint_defaults_to_two_minutes() {
 }
 
 #[test]
-// spec: LTO-3
+// spec: LTO-3 (internal: a timeout shows through the binary only against a server that hangs)
 fn a_configured_timeout_wins_over_both_defaults() {
     let mut config = LlmConfig {
         base_url: Some("http://127.0.0.1:11437/v1".to_string()),

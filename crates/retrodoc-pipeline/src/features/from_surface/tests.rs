@@ -496,7 +496,7 @@ async fn short_tags_stand_for_the_entry_points_of_a_domain() {
     assert_eq!(features[1].entry_points, vec!["orders.rb#GET /orders"]);
 }
 
-// spec: RER-5
+// spec: RER-5 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn a_killed_run_keeps_the_domains_done_and_the_rerun_resumes() {
     let dir = tempfile::tempdir().unwrap();

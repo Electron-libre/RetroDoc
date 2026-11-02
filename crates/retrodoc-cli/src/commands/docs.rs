@@ -235,7 +235,7 @@ pub fn load_docs(workspace: &super::workspace::Workspace) -> anyhow::Result<retr
 mod tests {
     use super::*;
 
-    // spec: REC-1
+    // spec: REC-1 (internal: the input is a generated run, which only an LLM run produces through the binary)
     #[test]
     fn the_generated_docs_are_not_matched_against_the_items() {
         let dir = tempfile::tempdir().unwrap();
@@ -293,7 +293,7 @@ mod tests {
         );
     }
 
-    // spec: REC-12
+    // spec: REC-12 (internal: the input is a generated run, which only an LLM run produces through the binary)
     #[test]
     fn the_pages_link_what_documents_or_contradicts_the_item_only() {
         use retrodoc_pipeline::reconcile::{

@@ -254,7 +254,7 @@ async fn a_quote_that_is_not_in_the_test_or_an_unknown_id_is_no_evidence() {
     assert_eq!(rules[0].evidence.len(), 1, "{:?}", rules[0].evidence);
 }
 
-// spec: RER-1, RER-3
+// spec: RER-1, RER-3 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn an_unchanged_feature_is_not_asked_again_but_a_new_model_or_code_is() {
     let dir = repo();
@@ -378,7 +378,7 @@ fn a_hosted_model_s_odd_shapes_cost_the_element_not_the_answer() {
     assert_eq!(tests, [("T2", ""), ("T1", "refuses an order")]);
 }
 
-// spec: RER-5
+// spec: RER-5 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn a_killed_run_keeps_the_rules_of_the_features_done_and_the_rerun_resumes() {
     let dir = repo();
@@ -771,7 +771,7 @@ async fn ask_with(
         .unwrap()
 }
 
-// spec: RSA-1
+// spec: RSA-1 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn a_feature_put_back_by_hand_is_not_asked_whether_it_is_about_tests() {
     let dir = repo();
@@ -794,7 +794,7 @@ async fn a_feature_put_back_by_hand_is_not_asked_whether_it_is_about_tests() {
     assert_eq!(load_set_aside(dir.path()).unwrap().features, []);
 }
 
-// spec: RSA-2
+// spec: RSA-2 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn putting_a_feature_back_or_taking_it_off_the_list_redoes_that_feature_only() {
     let dir = two_features_repo();
@@ -827,7 +827,7 @@ async fn putting_a_feature_back_or_taking_it_off_the_list_redoes_that_feature_on
     assert_eq!(unlisted.calls(), 1, "the question on `orders` only");
 }
 
-// spec: RSA-5
+// spec: RSA-5 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn a_feature_put_back_that_does_not_exist_is_warned_about() {
     let (logs, _guard) = crate::testing::capture_logs();
@@ -861,7 +861,7 @@ async fn dropping_storage(dir: &Path) {
     run(dir, &llm).await;
 }
 
-// spec: RSA-3, RSA-4
+// spec: RSA-3, RSA-4 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn a_rule_put_back_by_hand_is_published_with_its_evidence_without_a_call_until_unlisted() {
     let dir = repo();
@@ -897,7 +897,7 @@ async fn a_rule_put_back_by_hand_is_published_with_its_evidence_without_a_call_u
     assert_eq!(load_set_aside(dir.path()).unwrap().rules, [dropped]);
 }
 
-// spec: RSA-5
+// spec: RSA-5 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn a_rule_put_back_that_was_not_set_aside_is_warned_about_unless_it_is_published() {
     let (logs, _guard) = crate::testing::capture_logs();
@@ -922,7 +922,7 @@ async fn a_rule_put_back_that_was_not_set_aside_is_warned_about_unless_it_is_pub
     );
 }
 
-// spec: RSA-8
+// spec: RSA-8 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn a_rule_put_back_from_an_older_set_aside_file_is_warned_about_and_not_made_up() {
     let (logs, _guard) = crate::testing::capture_logs();

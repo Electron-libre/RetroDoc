@@ -325,7 +325,7 @@ async fn a_long_cited_file_is_shown_around_the_cited_lines() {
     assert!(!prompts[0].contains("def action_30"));
 }
 
-// spec: RER-3
+// spec: RER-3 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn another_model_scores_the_scored_use_cases_again() {
     let dir = tempfile::tempdir().unwrap();
@@ -490,7 +490,7 @@ fn mechanical_score_is_known_only_when_no_step_is_doubtful() {
     assert!(score.is_none());
 }
 
-// spec: RER-5
+// spec: RER-5 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn a_killed_run_keeps_the_scores_given_and_the_rerun_scores_the_rest() {
     let dir = tempfile::tempdir().unwrap();

@@ -448,7 +448,7 @@ mod tests {
         }
     }
 
-    // spec: BSC-5
+    // spec: BSC-5 (internal: the scoring needs an LLM judge and a generated run through the binary)
     #[tokio::test]
     async fn keeps_only_the_proposals_that_name_offered_items() {
         let llm = FakeLlm::answering(
@@ -477,7 +477,7 @@ mod tests {
         );
     }
 
-    // spec: BSC-5
+    // spec: BSC-5 (internal: the scoring needs an LLM judge and a generated run through the binary)
     #[tokio::test]
     async fn keeps_several_reference_items_for_one_generated_name() {
         let llm = FakeLlm::answering(
@@ -662,7 +662,7 @@ mod tests {
         );
     }
 
-    // spec: BSC-4
+    // spec: BSC-4 (internal: the scoring needs an LLM judge and a generated run through the binary)
     #[tokio::test]
     async fn no_call_when_there_is_nothing_to_pair() {
         let llm = FakeLlm::answering("{}");
@@ -944,7 +944,7 @@ mod tests {
         assert_eq!(Judgement::load(root).unwrap().unjudged, Unjudged::default());
     }
 
-    // spec: BSC-4
+    // spec: BSC-4 (internal: the scoring needs an LLM judge and a generated run through the binary)
     #[tokio::test]
     async fn offers_every_generated_feature_against_the_uncovered_reference_ones() {
         use crate::artifact::{save_yaml, Artifact};

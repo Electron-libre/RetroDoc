@@ -305,7 +305,7 @@ mod tests {
         report
     }
 
-    // spec: TOK-4
+    // spec: TOK-4 (internal: the token counts come from an LLM answer the binary cannot fake)
     #[test]
     fn recap_shows_the_cached_tokens_only_when_a_server_reported_some() {
         let text = recap(&with_cache());
@@ -322,7 +322,7 @@ mod tests {
         assert!(!plain.contains("cached"), "{plain}");
     }
 
-    // spec: TOK-4
+    // spec: TOK-4 (internal: the token counts come from an LLM answer the binary cannot fake)
     #[test]
     fn recap_shows_the_cached_tokens_of_each_model() {
         let mut cached = pass(
@@ -344,7 +344,7 @@ mod tests {
         );
     }
 
-    // spec: TOK-5
+    // spec: TOK-5 (internal: the token counts come from an LLM answer the binary cannot fake)
     #[test]
     fn the_cached_tokens_are_saved_and_an_old_history_without_them_loads_with_zero() {
         let dir = tempfile::tempdir().unwrap();

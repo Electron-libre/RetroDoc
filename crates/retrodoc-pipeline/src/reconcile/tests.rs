@@ -76,7 +76,7 @@ fn verdict(label: &str, entry_points: usize, confidence: Option<f32>) -> ItemVer
     }
 }
 
-// spec: REC-2
+// spec: REC-2 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[test]
 fn an_item_keeps_at_most_three_sections_sharing_half_of_its_words_best_first() {
     let docs = [doc(
@@ -118,7 +118,7 @@ fn an_item_keeps_at_most_three_sections_sharing_half_of_its_words_best_first() {
     assert!(!origins.contains(&"docs/guide.md#Riders".to_string()));
 }
 
-// spec: REC-2
+// spec: REC-2 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[test]
 fn an_item_its_description_matches_nowhere_is_searched_with_its_name_alone() {
     let docs = [doc(
@@ -159,7 +159,7 @@ fn an_item_its_description_matches_nowhere_is_searched_with_its_name_alone() {
     );
 }
 
-// spec: REC-2
+// spec: REC-2 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[test]
 fn an_item_its_text_matches_nowhere_is_searched_with_its_identifiers() {
     let docs = [doc(
@@ -217,7 +217,7 @@ fn an_item_its_text_matches_nowhere_is_searched_with_its_identifiers() {
     );
 }
 
-// spec: REC-2
+// spec: REC-2 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[test]
 fn every_kind_of_item_is_searched_with_its_name_and_description() {
     let map = DomainMap {
@@ -271,7 +271,7 @@ fn every_kind_of_item_is_searched_with_its_name_and_description() {
     );
 }
 
-// spec: REC-3
+// spec: REC-3 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[test]
 fn no_matching_section_is_undocumented_and_a_cited_doc_section_documents_a_rule() {
     let docs = [doc("README.md", "# Limits\nA cart holds ten items.\n")];
@@ -325,7 +325,7 @@ fn no_matching_section_is_undocumented_and_a_cited_doc_section_documents_a_rule(
     );
 }
 
-// spec: REC-10
+// spec: REC-10 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[test]
 fn undocumented_items_rank_by_entry_points_then_confidence_then_label() {
     let mut matched = verdict("m", 9, None);
@@ -352,7 +352,7 @@ fn undocumented_items_rank_by_entry_points_then_confidence_then_label() {
     );
 }
 
-// spec: REC-9
+// spec: REC-9 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[test]
 fn each_domain_counts_its_items_per_status() {
     let mut documented = verdict("x", 0, None);
@@ -449,7 +449,7 @@ use retrodoc_core::config::PipelineConfig;
 
 use crate::testing::FakeLlm;
 
-// spec: REC-4
+// spec: REC-4 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn the_llm_tells_covering_contradicting_and_unrelated_sections_apart() {
     let dir = tempfile::tempdir().unwrap();
@@ -508,7 +508,7 @@ async fn the_llm_tells_covering_contradicting_and_unrelated_sections_apart() {
     );
 }
 
-// spec: REC-4
+// spec: REC-4 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn items_go_to_the_llm_a_batch_at_a_time() {
     let dir = tempfile::tempdir().unwrap();
@@ -522,7 +522,7 @@ async fn items_go_to_the_llm_a_batch_at_a_time() {
     assert_eq!(llm.calls(), 2);
 }
 
-// spec: REC-5
+// spec: REC-5 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn a_contradiction_without_both_sides_or_an_unreadable_answer_decides_nothing() {
     let dir = tempfile::tempdir().unwrap();
@@ -555,7 +555,7 @@ async fn a_contradiction_without_both_sides_or_an_unreadable_answer_decides_noth
     assert_eq!(Judgements::load(dir.path()).items, []);
 }
 
-// spec: REC-6
+// spec: REC-6 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn an_unchanged_item_is_not_asked_again_a_changed_one_or_another_model_is() {
     let dir = tempfile::tempdir().unwrap();
@@ -596,7 +596,7 @@ async fn an_unchanged_item_is_not_asked_again_a_changed_one_or_another_model_is(
     assert_eq!(other.calls(), 1);
 }
 
-// spec: REC-7
+// spec: REC-7 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn the_verdicts_are_saved_and_read_while_the_texts_are_unchanged() {
     let dir = tempfile::tempdir().unwrap();
@@ -623,7 +623,7 @@ async fn the_verdicts_are_saved_and_read_while_the_texts_are_unchanged() {
     assert!(none.items.iter().all(|i| i.status == Status::Matched));
 }
 
-// spec: REC-8
+// spec: REC-8 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn nothing_matched_or_the_pass_off_makes_no_call() {
     let dir = tempfile::tempdir().unwrap();
@@ -648,7 +648,7 @@ async fn nothing_matched_or_the_pass_off_makes_no_call() {
         .exists());
 }
 
-// spec: REC-2
+// spec: REC-2 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[test]
 fn two_sections_of_one_file_under_the_same_heading_are_one_section() {
     let docs = [doc(
@@ -673,7 +673,7 @@ fn two_sections_of_one_file_under_the_same_heading_are_one_section() {
     );
 }
 
-// spec: REC-3
+// spec: REC-3 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[test]
 fn a_rule_citing_a_section_that_is_gone_is_matched_like_the_others() {
     let docs = [doc("README.md", "# Limits\nA cart holds ten items.\n")];
@@ -709,7 +709,7 @@ fn a_rule_citing_a_section_that_is_gone_is_matched_like_the_others() {
     assert_eq!(status, [Status::Matched, Status::Undocumented]);
 }
 
-// spec: REC-14
+// spec: REC-14 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn a_failing_llm_keeps_the_verdicts_got_and_fails_nothing() {
     let dir = tempfile::tempdir().unwrap();
@@ -747,7 +747,7 @@ fn sections_shown(llm: &FakeLlm) -> String {
     prompt[..end].to_string()
 }
 
-// spec: REC-15
+// spec: REC-15 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn a_section_within_its_share_is_shown_whole_even_past_the_old_cut() {
     let dir = tempfile::tempdir().unwrap();
@@ -772,7 +772,7 @@ async fn a_section_within_its_share_is_shown_whole_even_past_the_old_cut() {
     assert!(!shown.contains("[...]"), "{shown}");
 }
 
-// spec: REC-15
+// spec: REC-15 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn a_long_section_shows_the_paragraphs_of_each_of_its_items_in_turn() {
     let dir = tempfile::tempdir().unwrap();
@@ -820,7 +820,7 @@ async fn a_long_section_shows_the_paragraphs_of_each_of_its_items_in_turn() {
     assert!(n <= 36_000, "{n} chars");
 }
 
-// spec: REC-15
+// spec: REC-15 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn the_sections_of_a_request_share_its_budget_and_a_long_paragraph_is_cut() {
     let dir = tempfile::tempdir().unwrap();
@@ -855,7 +855,7 @@ async fn the_sections_of_a_request_share_its_budget_and_a_long_paragraph_is_cut(
     );
 }
 
-// spec: REC-15
+// spec: REC-15 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn a_long_section_none_of_whose_paragraphs_holds_a_query_word_is_shown_from_its_start() {
     let dir = tempfile::tempdir().unwrap();
@@ -885,7 +885,7 @@ async fn a_long_section_none_of_whose_paragraphs_holds_a_query_word_is_shown_fro
     assert!((35_900..=36_000).contains(&n), "{n} chars");
 }
 
-// spec: REC-6
+// spec: REC-6 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn a_verdict_given_before_the_rule_of_what_is_shown_changed_is_asked_again() {
     let dir = tempfile::tempdir().unwrap();
@@ -962,7 +962,7 @@ async fn a_verdict_given_before_the_prompt_was_compared_is_asked_again_once() {
     assert_eq!(calls, [1, 0]);
 }
 
-// spec: REC-15
+// spec: REC-15 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn a_paragraph_with_a_word_rare_in_the_section_beats_ones_with_its_common_words() {
     let dir = tempfile::tempdir().unwrap();
@@ -1019,7 +1019,7 @@ async fn shown_for(candidates: &[Candidate]) -> FakeLlm {
     llm
 }
 
-// spec: REC-15
+// spec: REC-15 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn a_long_paragraph_first_picked_leaves_room_for_the_other_items() {
     let text = format!(
@@ -1053,7 +1053,7 @@ async fn a_long_paragraph_first_picked_leaves_room_for_the_other_items() {
     );
 }
 
-// spec: REC-15
+// spec: REC-15 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn the_text_before_the_first_heading_has_no_heading_line_to_keep() {
     let text = format!(
@@ -1080,7 +1080,7 @@ async fn the_text_before_the_first_heading_has_no_heading_line_to_keep() {
     );
 }
 
-// spec: REC-15
+// spec: REC-15 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn a_fenced_block_with_blank_lines_is_one_paragraph_and_a_cut_one_is_closed() {
     let fence = "```json\n{\n\n  \"tag_names\": [\"a\"]\n}\n```";
@@ -1105,7 +1105,7 @@ async fn a_fenced_block_with_blank_lines_is_one_paragraph_and_a_cut_one_is_close
     assert_eq!(shown.matches("```").count() % 2, 0, "every fence is closed");
 }
 
-// spec: REC-15
+// spec: REC-15 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn a_blank_line_holding_spaces_splits_paragraphs() {
     let text = format!(
@@ -1124,7 +1124,7 @@ async fn a_blank_line_holding_spaces_splits_paragraphs() {
     assert!(shown.contains("[...]"), "{}", &shown[..200]);
 }
 
-// spec: REC-15
+// spec: REC-15 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn a_short_section_gives_its_unused_share_to_the_long_ones() {
     let long = format!("### Listing\n{}", filler(60));

@@ -122,7 +122,7 @@ pub fn anchor(heading: &str) -> String {
 mod tests {
     use super::*;
 
-    // spec: REC-12
+    // spec: REC-12 (internal: the input is a generated run, which only an LLM run produces through the binary)
     #[test]
     fn a_docs_dir_written_from_the_current_dir_links_the_same() {
         let doc = DocLink {

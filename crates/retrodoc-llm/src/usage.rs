@@ -551,7 +551,7 @@ mod tests {
         parse(json).unwrap().cached_tokens
     }
 
-    // spec: TOK-1
+    // spec: TOK-1 (internal: the token counts come from an LLM answer the binary cannot fake)
     #[test]
     fn the_cached_tokens_are_read_from_either_provider_field() {
         assert_eq!(
@@ -568,7 +568,7 @@ mod tests {
         );
     }
 
-    // spec: TOK-1
+    // spec: TOK-1 (internal: the token counts come from an LLM answer the binary cannot fake)
     #[test]
     fn a_zero_in_one_cache_field_does_not_hide_the_other() {
         assert_eq!(
@@ -579,7 +579,7 @@ mod tests {
         );
     }
 
-    // spec: TOK-2
+    // spec: TOK-2 (internal: the token counts come from an LLM answer the binary cannot fake)
     #[test]
     fn a_missing_or_malformed_cache_count_is_zero_and_keeps_the_other_counters() {
         for extra in [
@@ -605,7 +605,7 @@ mod tests {
         }
     }
 
-    // spec: TOK-3
+    // spec: TOK-3 (internal: the token counts come from an LLM answer the binary cannot fake)
     #[test]
     fn a_cache_count_above_the_prompt_is_capped() {
         assert_eq!(
@@ -614,7 +614,7 @@ mod tests {
         );
     }
 
-    // spec: TOK-3
+    // spec: TOK-3 (internal: the token counts come from an LLM answer the binary cannot fake)
     #[tokio::test(start_paused = true)]
     async fn the_cached_tokens_are_summed_per_model_pass_and_run() {
         let tracker = UsageTracker::new();

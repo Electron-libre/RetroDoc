@@ -250,7 +250,7 @@ async fn build_use_cases_tolerates_sloppy_steps_and_references() {
     assert_eq!(steps[0].source_refs[0].path, "a.rs");
 }
 
-// spec: RER-1, RER-2
+// spec: RER-1, RER-2 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn rerun_reuses_use_cases_until_a_file_changes() {
     let dir = tempfile::tempdir().unwrap();
@@ -286,7 +286,7 @@ async fn rerun_reuses_use_cases_until_a_file_changes() {
     assert!(redone[0].confidence.is_none());
 }
 
-// spec: RER-2
+// spec: RER-2 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn a_changed_file_redoes_only_the_feature_that_reads_it() {
     let dir = tempfile::tempdir().unwrap();
@@ -318,7 +318,7 @@ async fn a_changed_file_redoes_only_the_feature_that_reads_it() {
     assert!(provider.prompts()[2].contains("fn a() { changed }"));
 }
 
-// spec: RER-4
+// spec: RER-4 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn a_clean_empty_answer_is_remembered_until_the_feature_changes() {
     let dir = tempfile::tempdir().unwrap();
@@ -387,7 +387,7 @@ async fn use_cases_all_dropped_by_grounding_are_remembered() {
     );
 }
 
-// spec: RER-9
+// spec: RER-9 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn an_empty_answer_followed_by_a_garbled_one_is_retried_on_rerun() {
     let dir = tempfile::tempdir().unwrap();
@@ -1147,7 +1147,7 @@ fn use_case_reply(n: usize) -> String {
     )
 }
 
-// spec: RER-5
+// spec: RER-5 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn a_failed_run_keeps_the_features_done_and_the_rerun_resumes() {
     let dir = tempfile::tempdir().unwrap();
@@ -1172,7 +1172,7 @@ async fn a_failed_run_keeps_the_features_done_and_the_rerun_resumes() {
     assert_eq!(healthy.calls(), 1);
 }
 
-// spec: RER-5
+// spec: RER-5 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn a_killed_run_keeps_the_features_done_and_the_rerun_resumes() {
     let dir = tempfile::tempdir().unwrap();
@@ -1405,7 +1405,7 @@ async fn the_evidence_closest_to_a_feature_is_in_its_prompt_and_in_its_fingerpri
     assert_eq!(provider.calls(), 2);
 }
 
-// spec: RER-3
+// spec: RER-3 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[tokio::test]
 async fn another_model_derives_the_unchanged_features_again() {
     let dir = tempfile::tempdir().unwrap();
