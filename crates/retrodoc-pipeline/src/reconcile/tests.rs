@@ -161,6 +161,63 @@ fn an_item_its_description_matches_nowhere_is_searched_with_its_name_alone() {
 
 // spec: REC-2
 #[test]
+fn an_item_its_text_matches_nowhere_is_searched_with_its_identifiers() {
+    let docs = [doc(
+        "README.md",
+        "# Bookmarks\nArchive a bookmark to hide it from the list.\n\n# Tags\nA Tag groups bookmarks.\n",
+    )];
+    let map = DomainMap {
+        domains: vec![DomainCluster {
+            description: "Classement des favoris par étiquettes.".into(),
+            entities: vec!["Tag".into()],
+            ..domain("classement", "Classement")
+        }],
+    };
+    let mut archive = feature("archivage", "classement", "Mise de côté des favoris", 0);
+    archive.description = "Permet de ranger un favori hors de la liste.".into();
+    archive.entry_points = vec!["views/bookmarks.py#POST /bookmarks/:id/archive".into()];
+    let mut hide = use_case("ranger", "archivage", "Ranger un favori");
+    hide.entry_points = archive.entry_points.clone();
+    let mut unique = rule("archivage-1", "Une étiquette porte un nom unique.", vec![]);
+    unique.entities = vec!["Tag".into()];
+    let mut unmatched = feature("export", "classement", "Exportation", 0);
+    unmatched.entry_points = vec!["views/export.py#GET /export".into()];
+
+    let found = candidates(
+        items(&map, &[archive, unmatched], &[hide], &[unique]),
+        &corpus(&docs),
+    );
+
+    let origins = |label: &str| -> Vec<String> {
+        let c = found.iter().find(|c| c.item.label == label).unwrap();
+        c.sections.iter().map(|s| s.at.origin()).collect()
+    };
+    for label in ["classement/archivage", "classement/archivage/ranger"] {
+        assert_eq!(
+            origins(label),
+            ["README.md#Bookmarks"],
+            "{label}: the name of its entry point finds it"
+        );
+    }
+    let mut of_domain = origins("classement");
+    of_domain.sort();
+    assert_eq!(
+        of_domain,
+        ["README.md#Bookmarks", "README.md#Tags"],
+        "each identifier of the domain finds its own section"
+    );
+    assert_eq!(
+        origins("classement/archivage/archivage-1"),
+        ["README.md#Tags"]
+    );
+    assert!(
+        origins("classement/export").is_empty(),
+        "an identifier no section holds matches nothing"
+    );
+}
+
+// spec: REC-2
+#[test]
 fn every_kind_of_item_is_searched_with_its_name_and_description() {
     let map = DomainMap {
         domains: vec![
@@ -348,6 +405,7 @@ fn candidate(label: &str, query: &str, sections: &[(&str, &str)]) -> Candidate {
             entry_points: 0,
             confidence: None,
             cited_sections: Vec::new(),
+            identifiers: Vec::new(),
         },
         sections: sections.iter().map(|(o, t)| section(o, t)).collect(),
     }

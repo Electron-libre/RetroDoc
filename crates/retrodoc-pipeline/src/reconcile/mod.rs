@@ -59,6 +59,9 @@ pub struct Item {
     pub confidence: Option<f32>,
     /// Doc sections the item cites itself (`path#heading`): the evidence of a rule.
     pub cited_sections: Vec<String>,
+    /// Names kept in the code's spelling (entry points, entities), each searched alone when the name
+    /// matches nothing either: docs in another language than the item still share them.
+    pub identifiers: Vec<String>,
 }
 
 /// Where a doc section is: its file and its heading.
@@ -124,6 +127,23 @@ pub fn corpus(docs: &[ExistingDoc]) -> Vec<Section> {
     sections
 }
 
+/// The names of `entry_points` (the part of an id after its file path), then `entities`, once each.
+fn identifiers<'a>(
+    entry_points: impl IntoIterator<Item = &'a String>,
+    entities: &[String],
+) -> Vec<String> {
+    let mut kept: Vec<String> = Vec::new();
+    let of_entry_points = entry_points
+        .into_iter()
+        .map(|id| id.split_once('#').map_or(id.as_str(), |(_, name)| name));
+    for name in of_entry_points.chain(entities.iter().map(String::as_str)) {
+        if !kept.iter().any(|k| k == name) {
+            kept.push(name.to_string());
+        }
+    }
+    kept
+}
+
 fn mean(values: impl Iterator<Item = f32>) -> Option<f32> {
     let (sum, n) = values.fold((0.0_f32, 0_u32), |(s, n), v| (s + v, n + 1));
     #[allow(clippy::cast_precision_loss)]
@@ -156,6 +176,7 @@ pub fn items(
             entry_points: own().map(|f| f.entry_points.len()).sum(),
             confidence: mean(own().filter_map(|f| f.confidence.as_ref().map(|c| c.value))),
             cited_sections: Vec::new(),
+            identifiers: identifiers(own().flat_map(|f| &f.entry_points), &domain.entities),
         });
     }
     for feature in features {
@@ -168,6 +189,7 @@ pub fn items(
             entry_points: feature.entry_points.len(),
             confidence: feature.confidence.as_ref().map(|c| c.value),
             cited_sections: Vec::new(),
+            identifiers: identifiers(&feature.entry_points, &[]),
         });
     }
     for use_case in use_cases {
@@ -183,6 +205,7 @@ pub fn items(
             entry_points: use_case.entry_points.len(),
             confidence: use_case.confidence.as_ref().map(|c| c.value),
             cited_sections: Vec::new(),
+            identifiers: identifiers(&use_case.entry_points, &[]),
         });
     }
     for rule in rules {
@@ -206,6 +229,7 @@ pub fn items(
                     _ => None,
                 })
                 .collect(),
+            identifiers: identifiers([], &rule.entities),
         });
     }
     items
@@ -228,8 +252,8 @@ impl Candidate {
     }
 }
 
-/// Matches each item against `corpus`, with its name alone when its query matches nothing; an item whose
-/// query has no content word is left out.
+/// Matches each item against `corpus`, with its name alone when its query matches nothing, then with
+/// each of its identifiers; an item whose query has no content word is left out.
 #[must_use]
 pub fn candidates(items: Vec<Item>, corpus: &[Section]) -> Vec<Candidate> {
     // The path is not searched: a file named after a topic does not say what it states.
@@ -258,6 +282,9 @@ pub fn candidates(items: Vec<Item>, corpus: &[Section]) -> Vec<Candidate> {
             if found.is_empty() && item.name != item.query {
                 found = index.search(&item.name);
             }
+            if found.is_empty() {
+                found = best_of_each(&index, &item.identifiers);
+            }
             let sections = found
                 .into_iter()
                 .take(MAX_SECTIONS_PER_ITEM)
@@ -266,6 +293,19 @@ pub fn candidates(items: Vec<Item>, corpus: &[Section]) -> Vec<Candidate> {
             Some(Candidate { item, sections })
         })
         .collect()
+}
+
+/// The documents [`Bm25::search`] finds for any of `queries`, each with its best score, best first; ties
+/// keep document order.
+fn best_of_each(index: &Bm25, queries: &[String]) -> Vec<(usize, f32)> {
+    let mut best: BTreeMap<usize, f32> = BTreeMap::new();
+    for (doc, score) in queries.iter().flat_map(|q| index.search(q)) {
+        let kept = best.entry(doc).or_insert(score);
+        *kept = kept.max(score);
+    }
+    let mut found: Vec<(usize, f32)> = best.into_iter().collect();
+    found.sort_by(|a, b| b.1.total_cmp(&a.1));
+    found
 }
 
 /// Where an item stands against the existing docs.

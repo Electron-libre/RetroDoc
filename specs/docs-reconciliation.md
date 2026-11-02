@@ -1,7 +1,7 @@
 ---
 id: REC
-status: accepted
-adrs: [0019, 0033]
+status: draft
+adrs: [0019, 0033, 0041]
 ---
 
 # Reconciliation of the generated docs with the existing ones
@@ -20,7 +20,11 @@ backed by the doc sections it rests on.
 - **REC-2** (deterministic) Each domain, feature, use case and business rule must be matched against the corpus with
   its name and description (a rule: its statement) as the query, keeping at most 3 sections, best first, that share
   at least half of the query's content words; when no section does, the query is the name alone, under the same
-  rule; an item whose query has no content word is left out of the reconciliation (it can't be judged).
+  rule; when still none does, each of the item's identifiers is a query under the same rule, the sections ranked by
+  their best score: the names of its entry points (the part of an entry point id after the file path; a domain:
+  those of its features) and the entity names of a domain or a rule, which docs written in another language than
+  the generated ones share with them; an
+  item whose query has no content word is left out of the reconciliation (it can't be judged).
 - **REC-3** (deterministic) An item with no matched section must be `undocumented` without an LLM call; a business
   rule that cites a doc section of the corpus in its evidence must be `documented` by that section without an LLM
   call; a cited section no longer in the corpus is ignored.
@@ -62,6 +66,9 @@ backed by the doc sections it rests on.
   in the order of the section with `[...]` where paragraphs are left out. A paragraph longer than the share divided
   by the number of those items is cut to it, a code fence it opens closed; a section where no paragraph holds a
   query word is shown from its start, cut to its share.
+- **REC-16** (deterministic) `generate` must warn when `[output] language` is set, the corpus is not empty and no
+  item has a matched section: the warning says that no section of the project docs matched a generated item and
+  names the docs language as the likely cause.
 
 ## Scenarios
 
@@ -75,6 +82,12 @@ backed by the doc sections it rests on.
   or after the change, are sent to the LLM.
 - (REC-12) Given a use case page under `docs/functional/billing/pay-invoice.md` documented by
   `docs/guide.md#Paying`, then the page links `../../guide.md#paying`.
+
+- (REC-2) Given the docs language set to French, a feature named "Gestion des favoris" whose entry point is
+  `views/bookmarks.py#POST /bookmarks/:id/archive`, and an English section "Bookmarks" that documents archiving
+  bookmarks, then the feature is matched to that section.
+- (REC-16) Given the docs language set to French and an English README that shares no word with any item, then
+  `generate` warns that no doc section matched and names the docs language.
 
 - (REC-15) Given a 4,700-char section whose `Delete` paragraph is past its first 1,500 chars, matched to the use
   case "remove a bookmark" in a batch of 8 sections, then the `Delete` paragraph is shown to the judge.
