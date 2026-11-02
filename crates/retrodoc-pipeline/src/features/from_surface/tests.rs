@@ -1071,6 +1071,37 @@ async fn a_rerun_of_a_sliced_domain_asks_nothing_and_a_new_entry_point_redoes_it
     );
 }
 
+// spec: RER-12 (internal: the order is that of the saved features, the render only follows it)
+#[tokio::test]
+async fn a_rerun_keeps_the_order_of_a_feature_placed_into_from_an_earlier_slice() {
+    let dir = tempfile::tempdir().unwrap();
+    let (domains, entries) = big_domain();
+    // The second slice gives `b` then `c`; the placement puts an entry point of the first into `c`.
+    let answer = |_: usize, request: &CompletionRequest| -> Result<String, LlmError> {
+        let prompt = &request.messages[1].content;
+        Ok(if prompt.contains("Entry points to place") {
+            r#"{"placements":[{"entry_point":"a.rb#GET /a1","feature":"c"}]}"#
+        } else if prompt.contains("already found") {
+            r#"{"features":[{"slug":"b","name":"B","description":"d","entry_points":["E1"]},
+                {"slug":"c","name":"C","description":"d","entry_points":["E2"]}]}"#
+        } else {
+            r#"{"features":[{"slug":"a","name":"A","description":"d","entry_points":["E1"]}]}"#
+        }
+        .to_string())
+    };
+    let first = run(dir.path(), &domains, &entries, &FakeLlm::replying(answer)).await;
+    let slugs =
+        |features: &[Feature]| -> Vec<String> { features.iter().map(|f| f.slug.clone()).collect() };
+    assert_eq!(slugs(&first), ["a", "b", "c"]);
+    assert!(first[2].entry_points.contains(&"a.rb#GET /a1".to_string()));
+
+    let again = FakeLlm::replying(answer);
+    let features = run(dir.path(), &domains, &entries, &again).await;
+
+    assert_eq!(slugs(&features), slugs(&first), "the saved order is kept");
+    assert_eq!(again.calls(), 0, "nothing is asked again");
+}
+
 #[test]
 fn slices_hold_whole_files_and_a_file_over_the_limit_is_cut() {
     let many = |n: usize| -> Vec<EntryPoint> {

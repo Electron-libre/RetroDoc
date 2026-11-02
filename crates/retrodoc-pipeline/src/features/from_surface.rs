@@ -649,6 +649,7 @@ impl SurfaceRun<'_> {
         if !started {
             progress.skip();
         }
+        keep_saved_order(&mut domain_features, self.previous);
         Ok(domain_features)
     }
 
@@ -759,6 +760,21 @@ fn merge_features(domain_features: &mut Vec<Feature>, produced: Vec<Feature>) {
         same.source_paths.extend(feature.source_paths);
         same.source_paths.sort();
         same.source_paths.dedup();
+    }
+}
+
+/// Puts the features the previous run had back in its order, in the places they hold: a slice
+/// reused takes back every saved feature holding one of its entry points, so one born in a later
+/// slice would come up otherwise. The new features stay where their slice put them.
+fn keep_saved_order(domain_features: &mut [Feature], previous: &[Feature]) {
+    let saved = |f: &Feature| previous.iter().position(|p| p.slug == f.slug);
+    let slots: Vec<usize> = (0..domain_features.len())
+        .filter(|&i| saved(&domain_features[i]).is_some())
+        .collect();
+    let mut kept: Vec<Feature> = slots.iter().map(|&i| domain_features[i].clone()).collect();
+    kept.sort_by_key(|f| saved(f));
+    for (slot, feature) in slots.into_iter().zip(kept) {
+        domain_features[slot] = feature;
     }
 }
 

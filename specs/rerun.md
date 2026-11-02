@@ -38,6 +38,8 @@ repository makes no LLM call and rewrites no file.
 - **RER-11** (deterministic) The rules pass must compare the request of its statement (with the question on
   the kind of feature) apart from that of its judgement: a feature whose statement print is unchanged and whose
   judgement print changed must be judged again from its saved stated rules, with no statement call.
+- **RER-12** (deterministic) A feature reused from the saved result must keep the place it had among the
+  features of its domain, so that the rendered domain page and index list it at the same place.
 
 ## Scenarios
 
@@ -58,6 +60,9 @@ repository makes no LLM call and rewrites no file.
   next run makes one judgement call for that feature and no statement call, and the run after makes no call.
 - (RER-11) Given a run saved before the judgement had its own print, when `generate` runs again, then the
   rules of every feature are stated again once (no migration).
+- (RER-12) Given a domain asked in two slices, the second one giving the features `b` then `c`, and the
+  placement putting an entry point of the first slice into `c`, when `generate` runs again with no change,
+  then the features of the domain keep the order of the first run and the render plan holds no change.
 - (RER-4) Given a feature whose answer is `{"use_cases": []}` twice, when the run is repeated, then it makes
   no call; when a file of the feature changes, then it asks again.
 
