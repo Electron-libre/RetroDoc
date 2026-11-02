@@ -33,7 +33,7 @@ Browse the docs in a web interface
 * `crates/retrodoc-mcp/src/source.rs` (`SourceAccess`), `crates/retrodoc-mcp/src/tools/read_source.rs`,
   `crates/retrodoc-mcp/src/tools/git_log.rs`
 * `docs/adr/0016-read-only-llm-free-mcp-server-for-agents.md` (why the code access is narrow)
-* `issues/git_log_follow_renames.md`
+* `issues/done/git_log_follow_renames.md`
 
 # Hints
 

@@ -77,7 +77,7 @@ rather than guessing.
    file, long line, merge commits) and by a headless Claude Code agent on the `delivery_router` smoke repo,
    which read the cited code and history and got the exact refusals. Limits: an agent cannot check what the
    docs do not cite (it wanted the rider code that holds the real calculation); renames are not followed
-   (`issues/git_log_follow_renames.md`); the history walk is not bounded on a large repo.
+   (`issues/done/git_log_follow_renames.md`); the history walk is not bounded on a large repo.
 5. [x] Static agent index: `generate` writes an `llms.txt`-style index or an `AGENTS.md` section in the docs,
    deterministic so reruns stay no-ops. Verified by an idempotent render test. Can be moved before 3 and 4.
    Written as `functional/llms.txt` (decision: the fully generated area, no `AGENTS.md` section since it would
@@ -88,7 +88,7 @@ rather than guessing.
    with each deliverable through `update-docs`.
    ADR `0016` written, with a new section 9 in `docs/ARCHITECTURE.md` (diagram of the server); the other docs
    were updated with each deliverable. Follow-ups, each its own issue: `issues/done/stale_docs_after_failed_generate.md`,
-   `issues/done/mcp_freshness_cost.md`, `issues/git_log_follow_renames.md`.
+   `issues/done/mcp_freshness_cost.md`, `issues/done/git_log_follow_renames.md`.
 
 ## Decisions
 
