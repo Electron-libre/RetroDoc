@@ -53,3 +53,10 @@ sorting in the render.
 - red: RER-12: `the saved order is kept`, left `["a", "c", "b"]`, right `["a", "b", "c"]` (the order changed by the
   reuse also changed the print of the placement, which was asked again: 3 calls).
 - not verified: the rerun of the smoke on the large application (local run of about 1 h, not redone).
+
+## Review of the whole issue (high)
+- Code review: 6 findings. Fixed: the partial save after each slice keeps the saved order too; only the saved
+  features of the same domain count as saved; the slug lookup uses one map; the confidential repository name left
+  this file (it stays in the history of 0da7eee). Not fixed: the render plan in the test (the render follows the
+  feature order, RER-8 covers its idempotence); the order put back where reused features merge rather than after
+  (one function on both save paths is enough, `restricted` must keep taking back the placed entry points).

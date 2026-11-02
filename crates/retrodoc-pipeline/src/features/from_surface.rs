@@ -649,7 +649,7 @@ impl SurfaceRun<'_> {
         if !started {
             progress.skip();
         }
-        keep_saved_order(&mut domain_features, self.previous);
+        keep_saved_order(&mut domain_features, self.previous, &domain.slug);
         Ok(domain_features)
     }
 
@@ -680,6 +680,7 @@ impl SurfaceRun<'_> {
             old.retain(|f| !features.iter().any(|other| other.slug == f.slug));
             merge_features(&mut domain_features, old);
         }
+        keep_saved_order(&mut domain_features, self.previous, &domain.slug);
         let done = [features, &domain_features].concat();
         save_partial(
             self.repo_root,
@@ -763,16 +764,21 @@ fn merge_features(domain_features: &mut Vec<Feature>, produced: Vec<Feature>) {
     }
 }
 
-/// Puts the features the previous run had back in its order, in the places they hold: a slice
-/// reused takes back every saved feature holding one of its entry points, so one born in a later
-/// slice would come up otherwise. The new features stay where their slice put them.
-fn keep_saved_order(domain_features: &mut [Feature], previous: &[Feature]) {
-    let saved = |f: &Feature| previous.iter().position(|p| p.slug == f.slug);
+/// Puts the features the previous run had in the domain back in its order, in the places they
+/// hold: a slice reused takes back every saved feature holding one of its entry points, so one born
+/// in a later slice would come up otherwise. The new features stay where their slice put them.
+fn keep_saved_order(domain_features: &mut [Feature], previous: &[Feature], domain_slug: &str) {
+    let order: BTreeMap<&str, usize> = previous
+        .iter()
+        .filter(|p| p.domain_slug == domain_slug)
+        .enumerate()
+        .map(|(i, p)| (p.slug.as_str(), i))
+        .collect();
     let slots: Vec<usize> = (0..domain_features.len())
-        .filter(|&i| saved(&domain_features[i]).is_some())
+        .filter(|&i| order.contains_key(domain_features[i].slug.as_str()))
         .collect();
     let mut kept: Vec<Feature> = slots.iter().map(|&i| domain_features[i].clone()).collect();
-    kept.sort_by_key(|f| saved(f));
+    kept.sort_by_key(|f| order[f.slug.as_str()]);
     for (slot, feature) in slots.into_iter().zip(kept) {
         domain_features[slot] = feature;
     }
