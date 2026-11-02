@@ -63,7 +63,7 @@ already exist (WEB-19). Out of scope: the debt view and dashboard (their own mil
    verified by `tests/pages.rs` page tests; makes true WEB-65, WEB-66.
 2. [x] Header links grouped "Read" / "Look up" with titles; verified by a page test on every route; makes true WEB-67.
 3. [x] Previous / next links between the use cases of a feature; verified by `tests/item_pages.rs`; makes true WEB-68.
-4. [ ] Walk-through on the saved healthchecks run, headless Chrome screenshots before and after (no LLM call),
+4. [x] Walk-through on the saved healthchecks run, headless Chrome screenshots before and after (no LLM call),
    findings in this issue; verified by the screenshots.
 
 ## Decisions
@@ -92,4 +92,17 @@ already exist (WEB-19). Out of scope: the debt view and dashboard (their own mil
 - done: a use case page ends on links to the previous and the next use case of its feature, in the order of the run;
   `specs/web-ui.md` back to `accepted` (every requirement traced).
 - red: WEB-68: `"href=\"/domains/billing/pay-invoice/retry-job\"" missing` (no sequence links on the page).
+
+## Deliverable 4: walk-through on the saved healthchecks run
+
+Screenshots in `~/retrodoc-runs/guided-entry-shots/` (outside git), no LLM call.
+
+| Step | Before (`before-*.png`) | After (`after-*.png`) |
+|---|---|---|
+| Home | name, purpose, a table of 6 domains; nothing says what Files, Glossary, Rules, Actors hold | purpose, 4 users of the brief, "Start here" with what each page holds and its count (11 actors, 19 concepts, 346 rules, 50 cited files), 6 domain cards |
+| Header | Files, Glossary, Rules, Actors flat | "Read: Actors", "Look up: Glossary, Rules, Files", each titled |
+| Use case | breadcrumb only; back to the tree to read the next one | a "Next" link to the next use case of the feature at its foot |
+
+Left: the root of the breadcrumb is still labelled "Domains" while the page it opens is now headed by the
+application and titled "Home".
 
