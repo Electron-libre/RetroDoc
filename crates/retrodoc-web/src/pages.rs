@@ -18,7 +18,7 @@ use crate::code::{code_page, Asked, CodePage};
 use crate::collected::{collected_page, CollectedPage};
 use crate::files::FilesPage;
 use crate::glossary::GlossaryPage;
-use crate::map::MapPage;
+use crate::map::{domain_map_page, DomainMapPage, MapPage};
 use crate::rules::{rules_page, RuleFilter, RulesPage};
 use crate::search::{query_value, search_page, Results, SearchPage};
 use crate::view::{
@@ -95,6 +95,14 @@ struct GlossaryTemplate<'a> {
 struct MapTemplate<'a> {
     shell: &'a Shell,
     page: &'a MapPage,
+    mermaid: &'static str,
+}
+
+#[derive(Template)]
+#[template(path = "domain_map.html")]
+struct DomainMapTemplate<'a> {
+    shell: &'a Shell,
+    page: DomainMapPage,
     mermaid: &'static str,
 }
 
@@ -293,6 +301,23 @@ pub async fn map(State(site): State<Arc<Site>>) -> Response {
     render(
         StatusCode::OK,
         &MapTemplate {
+            shell: site.shell(),
+            page,
+            mermaid: MERMAID,
+        },
+    )
+}
+
+pub async fn domain_map(State(site): State<Arc<Site>>, Path(slug): Path<String>) -> Response {
+    let Some(docs) = site.docs() else {
+        return no_run_page(&site);
+    };
+    let Some(page) = domain_map_page(docs, &slug) else {
+        return not_found(State(site)).await;
+    };
+    render(
+        StatusCode::OK,
+        &DomainMapTemplate {
             shell: site.shell(),
             page,
             mermaid: MERMAID,

@@ -60,6 +60,24 @@ fn use_case(slug: &str, feature: &str, cited: &[&str]) -> UseCase {
     }
 }
 
+/// `use_case` started by `primary`, with a step of each human of `humans`.
+fn acted(mut use_case: UseCase, primary: Option<&str>, humans: &[&str]) -> UseCase {
+    use_case.primary_actor = primary.map(str::to_string);
+    for name in humans {
+        use_case.steps.push(Step {
+            order: u32::try_from(use_case.steps.len()).unwrap() + 1,
+            description: String::new(),
+            actor: Actor {
+                name: (*name).into(),
+                kind: ActorKind::Human,
+            },
+            action: String::new(),
+            source_refs: Vec::new(),
+        });
+    }
+    use_case
+}
+
 fn cluster(slug: &str, name: &str) -> DomainCluster {
     DomainCluster {
         slug: slug.into(),
@@ -84,7 +102,9 @@ fn concept(name: &str) -> ModelFile {
 /// A run over three domains: `billing` (two features, three use cases) and
 /// `delivery` (one feature, one use case) share the concepts `Address`,
 /// `Card`, `customer`, `Invoice` and `Zone`; `billing` alone uses `Plan`;
-/// `archive` has no feature; nothing uses `Unused`.
+/// `archive` has no feature; nothing uses `Unused`. `Clerk` starts
+/// `pay-by-card` and `cancel-now` and takes part in `pay-late`, which `buyer`
+/// takes part in; the steps of `System` are a system's.
 fn generated_repo() -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path();
@@ -101,13 +121,25 @@ fn generated_repo() -> tempfile::TempDir {
     retrodoc_pipeline::save_use_cases(
         root,
         &[
-            use_case("pay-by-card", "pay-invoice", &shared),
-            use_case(
-                "pay-late",
-                "pay-invoice",
-                &["app/invoice.rb", "app/zone.rb"],
+            acted(
+                use_case("pay-by-card", "pay-invoice", &shared),
+                Some("Clerk"),
+                &[],
             ),
-            use_case("cancel-now", "cancel-plan", &["app/plan.rb"]),
+            acted(
+                use_case(
+                    "pay-late",
+                    "pay-invoice",
+                    &["app/invoice.rb", "app/zone.rb"],
+                ),
+                None,
+                &["buyer", "Clerk"],
+            ),
+            acted(
+                use_case("cancel-now", "cancel-plan", &["app/plan.rb"]),
+                Some("Clerk"),
+                &["Clerk"],
+            ),
             use_case(
                 "assign",
                 "assign-rider",
@@ -219,14 +251,37 @@ fn data_nodes(html: &str) -> Vec<String> {
         .collect()
 }
 
-/// The ids of the nodes the source declares: `id["label"]`.
+/// The id and the rest of `line` when it declares a node: `id["label"]`,
+/// `id(["label"])`; an edge goes on after its id with a space.
+fn node_line(line: &str) -> Option<(&str, &str)> {
+    let line = line.trim();
+    let end = line.find(|c: char| !c.is_ascii_alphanumeric())?;
+    let (id, rest) = line.split_at(end);
+    (!id.is_empty() && rest.starts_with(['[', '('])).then_some((id, rest))
+}
+
+/// The ids of the nodes the source declares.
 fn node_ids(source: &str) -> Vec<String> {
     source
         .lines()
-        .map(str::trim)
-        .filter_map(|line| line.split_once("[\""))
+        .filter_map(node_line)
         .map(|(id, _)| id.to_string())
         .collect()
+}
+
+/// The id of the node whose label opens with `name`.
+fn node_of(source: &str, name: &str) -> String {
+    source
+        .lines()
+        .filter_map(node_line)
+        .find(|(_, rest)| {
+            rest.trim_start_matches(['[', '('])
+                .starts_with(&format!("\"{name}"))
+        })
+        .map_or_else(
+            || panic!("no node {name} in {source}"),
+            |(id, _)| id.to_string(),
+        )
 }
 
 // spec: WEB-70
@@ -342,4 +397,168 @@ async fn with_no_run_the_map_says_to_run_generate() {
     let (status, page) = get(repo.path(), "/map").await;
     assert_eq!(status, StatusCode::OK);
     assert!(page.contains("retrodoc generate"), "{page}");
+}
+
+// spec: WEB-72
+#[tokio::test]
+async fn the_map_of_a_domain_draws_its_features_with_their_use_case_counts() {
+    let repo = generated_repo();
+    let source = source(&page(repo.path(), "/map/billing").await);
+    assert!(source.starts_with("flowchart"), "{source}");
+    for label in [
+        "\"Feature pay-invoice<br>2 use cases\"",
+        "\"Feature cancel-plan<br>1 use case\"",
+    ] {
+        assert!(source.contains(label), "no {label} in {source}");
+    }
+    assert!(!source.contains("assign-rider"), "{source}");
+}
+
+// spec: WEB-72
+#[tokio::test]
+async fn an_actor_is_linked_solid_to_what_it_starts_and_dotted_to_what_it_only_takes_part_in() {
+    let repo = generated_repo();
+    let source = source(&page(repo.path(), "/map/billing").await);
+    let clerk = node_of(&source, "Clerk");
+    let buyer = node_of(&source, "buyer");
+    let pay = node_of(&source, "Feature pay-invoice");
+    let cancel = node_of(&source, "Feature cancel-plan");
+    let edges: Vec<&str> = source
+        .lines()
+        .map(str::trim)
+        .filter(|l| node_line(l).is_none() && l.starts_with(char::is_alphanumeric))
+        .collect();
+    for edge in [
+        format!("{clerk} --> {pay}"),
+        format!("{clerk} --> {cancel}"),
+        format!("{buyer} -.-> {pay}"),
+    ] {
+        assert_eq!(
+            edges.iter().filter(|e| **e == edge).count(),
+            1,
+            "{edge}: {source}"
+        );
+    }
+    assert!(
+        !edges
+            .iter()
+            .any(|e| e.starts_with(&format!("{clerk} -.->"))),
+        "{source}"
+    );
+    assert!(
+        !edges.iter().any(|e| e.starts_with(&format!("{buyer} -->"))),
+        "{source}"
+    );
+    assert!(!source.contains("\"System"), "{source}");
+}
+
+// spec: WEB-72
+#[tokio::test]
+async fn a_concept_is_linked_to_each_feature_that_uses_it() {
+    let repo = generated_repo();
+    let source = source(&page(repo.path(), "/map/billing").await);
+    let pay = node_of(&source, "Feature pay-invoice");
+    let cancel = node_of(&source, "Feature cancel-plan");
+    for (concept, feature) in [("Invoice", &pay), ("customer", &pay), ("Plan", &cancel)] {
+        let node = node_of(&source, concept);
+        assert!(
+            source.contains(&format!("{feature} --- {node}")),
+            "{concept}: {source}"
+        );
+    }
+    assert!(!source.contains("Unused"), "{source}");
+}
+
+// spec: WEB-73
+#[tokio::test]
+async fn the_map_of_a_domain_lists_its_features_with_their_actors_and_concepts() {
+    let repo = generated_repo();
+    let page = page(repo.path(), "/map/billing").await;
+    let list = list(&page);
+    let pay = &list[list
+        .find("href=\"/domains/billing/pay-invoice\"")
+        .expect("pay-invoice")..];
+    let pay = &pay[..pay
+        .find("href=\"/domains/billing/cancel-plan\"")
+        .expect("cancel-plan")];
+    for part in [
+        ">Clerk<",
+        ">buyer<",
+        "href=\"/actors\"",
+        "href=\"/glossary#invoice\"",
+    ] {
+        assert!(pay.contains(part), "{part}: {pay}");
+    }
+    assert!(!pay.contains("/glossary#plan"), "{pay}");
+}
+
+// spec: WEB-74
+#[tokio::test]
+async fn each_node_of_the_map_of_a_domain_is_the_link_of_its_item_in_the_list() {
+    let repo = generated_repo();
+    let page = page(repo.path(), "/map/billing").await;
+    let source = source(&page);
+    let mut nodes = node_ids(&source);
+    nodes.sort();
+    let mut linked = data_nodes(list(&page));
+    linked.sort();
+    linked.dedup();
+    assert_eq!(linked, nodes, "{page}");
+    let pay = node_of(&source, "Feature pay-invoice");
+    assert!(
+        page.contains(&format!(
+            "href=\"/domains/billing/pay-invoice\" data-node=\"{pay}\""
+        )),
+        "{page}"
+    );
+}
+
+// spec: WEB-75
+#[tokio::test]
+async fn a_double_quote_of_a_feature_name_stays_inside_its_label() {
+    let repo = generated_repo();
+    let mut features = retrodoc_pipeline::load_features(repo.path()).unwrap();
+    features[0].name = "a\"] --> x[\"b".into();
+    retrodoc_pipeline::save_features(repo.path(), &features).unwrap();
+    let source = source(&page(repo.path(), "/map/billing").await);
+    assert!(source.contains("\"a#quot;] --> x[#quot;b"), "{source}");
+}
+
+// spec: WEB-25
+#[tokio::test]
+async fn the_map_of_an_unknown_domain_is_the_not_found_page() {
+    let repo = generated_repo();
+    let (status, page) = get(repo.path(), "/map/nope").await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert!(page.contains("<h1>Not found</h1>"), "{page}");
+}
+
+// spec: WEB-72
+#[tokio::test]
+async fn with_no_run_the_map_of_a_domain_says_to_run_generate() {
+    let repo = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(repo.path().join(".retrodoc")).unwrap();
+    let (status, page) = get(repo.path(), "/map/billing").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(page.contains("retrodoc generate"), "{page}");
+}
+
+// spec: WEB-76
+#[tokio::test]
+async fn the_page_of_a_domain_links_to_its_map() {
+    let repo = generated_repo();
+    let page = page(repo.path(), "/domains/billing").await;
+    let main = &page[page.find("<main>").unwrap()..];
+    assert!(main.contains("href=\"/map/billing\""), "{main}");
+}
+
+// spec: WEB-73
+#[tokio::test]
+async fn the_actors_of_a_feature_are_sorted_by_name_ignoring_case() {
+    let repo = generated_repo();
+    let page = page(repo.path(), "/map/billing").await;
+    let list = list(&page);
+    let buyer = list.find(">buyer<").expect("buyer");
+    let clerk = list.find(">Clerk<").expect("Clerk");
+    assert!(buyer < clerk, "{list}");
 }

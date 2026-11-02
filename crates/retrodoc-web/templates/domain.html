@@ -5,6 +5,7 @@
 {% call m::crumbs(page.crumbs, page.name) %}{% endcall %}
 <h1>{{ page.name }}</h1>
 <p>{{ page.description }}</p>
+<p><a href="{{ page.map }}">Map of this domain</a>: its features, who uses them and the concepts they use.</p>
 {% call m::score("Confidence", page.confidence) %}{% endcall %}
 {% if !page.features.is_empty() %}
 <h2>Features</h2>

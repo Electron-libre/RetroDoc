@@ -78,7 +78,7 @@ between use cases (not in the docs), a new JS library (so no ADR amendment).
 ## Plan
 1. [x] Overview map: `/map`, its graph and list, the click from a drawn node (`diagrams.js`), the map in the header
    and "Start here"; verified by `tests/map_page.rs`; makes true WEB-66, WEB-67, WEB-70, WEB-71, WEB-74, WEB-75.
-2. [ ] Domain map: `/map/<domain>`, its graph and list, its 404, the link from the domain page; verified by
+2. [x] Domain map: `/map/<domain>`, its graph and list, its 404, the link from the domain page; verified by
    `tests/map_page.rs`; makes true WEB-25, WEB-72, WEB-73, WEB-76.
 
 ## Deliverable 1: overview map
@@ -92,6 +92,20 @@ between use cases (not in the docs), a new JS library (so no ADR amendment).
 - Code review: 1 findings
   - `/map/<domain>` links answer 404: the route is deliverable 2, by plan; not fixed here.
 - not verified: the `LR` layout was tried and dropped for `TB` by eye (edge labels crushed the nodes).
+
+## Deliverable 2: domain map
+
+- done: `/map/<domain>` draws the features (use case counts), the humans of their use cases (solid edge: starts one,
+  dotted: only takes part) and the concepts each feature uses, beside a list of links with `data-node`; unknown domain
+  is a 404; the domain page links to its map; the spec is `accepted` again.
+- checks: `just check` ok; docs updated (`render-mcp-cli.md`); headless Chrome on the 32-feature domain of the second
+  benchmark app: 58 nodes drawn, 58 linked, readable.
+- red: WEB-72, WEB-73, WEB-74, WEB-75, WEB-76: `/map/billing` answered 404 (`left: 404, right: 200`); WEB-25 passed
+  before the code (the fallback already answered 404).
+- Code review: 1 findings
+  - actors sorted with case, not ignoring it (`actor_parts` re-keyed by name): fixed, list kept in order; test
+    `the_actors_of_a_feature_are_sorted_by_name_ignoring_case`. Same name in two cases stays two nodes (WEB-57).
+- not verified: none.
 
 ## Decisions
 - Mode: autonomous

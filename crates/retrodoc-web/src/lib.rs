@@ -66,6 +66,7 @@ pub fn router(
         .route("/glossary", get(pages::glossary))
         .route("/rules", get(pages::rules))
         .route("/map", get(pages::map))
+        .route("/map/{domain}", get(pages::domain_map))
         .route("/actors", get(pages::actors))
         .route("/search", get(pages::search))
         .route("/code/{*path}", get(pages::code))

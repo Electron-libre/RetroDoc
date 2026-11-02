@@ -108,7 +108,11 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   same concepts (`glossary::uses`, the rule of the glossary page), labelled with the first three; each label is
   quoted, its `"` written `#quot;`. Beside it, the same domains as a list of links (`.map-links`), each carrying the
   id of its node as `data-node`: `diagrams.js` makes each drawn node open its link, since `securityLevel: "strict"`
-  refuses the `click` of a source. Tests:
+  refuses the `click` of a source. The map of a domain, `/map/{domain}` (`map::domain_map_page`, `domain_map.html`,
+  linked from the page of the domain), draws its features with their use case counts, the humans of their use cases
+  (a primary actor counts as one) with an edge to each feature, solid when the actor starts one of its use cases and
+  dotted when it only takes part in one, and the concepts each feature uses; its list gives each feature with its
+  actors and concepts, under the same `data-node` rule. Tests:
   `tests/pages.rs` (home, tree, assets, `Host`), `tests/item_pages.rs` (the item pages), `tests/code_page.rs` (the
   page of a cited file, over a git repo), `tests/files_page.rs`, `tests/doc_pages.rs`, `tests/glossary_page.rs`, `tests/rules_page.rs`, `tests/actors_page.rs`, `tests/map_page.rs` and `tests/search_page.rs` ask the router without a socket (`tower::ServiceExt::oneshot`) over artifacts
   saved in a temp dir. To update `htmx`, replace `assets/htmx.min.js` and the version in `assets.rs`; to update `mermaid`, gzip

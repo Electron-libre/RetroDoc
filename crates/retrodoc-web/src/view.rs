@@ -7,7 +7,7 @@ use std::collections::BTreeSet;
 use crate::actors::{actors_page, ActorsPage};
 use crate::files::{files_page, FilesPage};
 use crate::glossary::{glossary_page, GlossaryPage};
-use crate::map::{map_page, MapPage};
+use crate::map::{map_href, map_page, MapPage};
 use crate::Project;
 use retrodoc_core::model::{
     ActorKind, BusinessRule, ConfidenceScore, Feature, RuleEvidence, SourceRef, Step, UseCase,
@@ -448,6 +448,8 @@ pub struct DomainPage {
     pub crumbs: Vec<Link>,
     pub name: String,
     pub description: String,
+    /// Its map.
+    pub map: String,
     pub confidence: Confidence,
     pub features: Vec<ItemRow>,
     /// The back-office features, set apart.
@@ -587,6 +589,7 @@ pub fn domain_page(docs: &GeneratedDocs, links: &DocLinks, slug: &str) -> Option
         crumbs: vec![home_crumb()],
         name: domain.name.clone(),
         description: domain.description.trim().to_string(),
+        map: map_href(slug),
         confidence: Confidence::of(domain.confidence.as_ref()),
         features: business.into_iter().map(feature_row).collect(),
         back_office: back_office.into_iter().map(feature_row).collect(),
