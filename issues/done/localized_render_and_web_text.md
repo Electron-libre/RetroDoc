@@ -157,7 +157,7 @@ High review: 10 findings.
 1. Citer colon dropped: fixed.
 2. French plural of 0: fixed.
 3. Native names and regional tags (`Français`, `fr-FR`) get English fixed text: outside DLG-2/DLG-7, issue
-   `issues/language_native_names_and_regional_tags.md`.
+   `issues/done/language_native_names_and_regional_tags.md`.
 4. `ui` or `render` after a language change but before `generate` mixes the new fixed text with the old generated
    text: not fixed, the config is the source of the language and the next `generate` redoes the writing passes (DLG-4).
 5. Hard-coded colon on the map page: fixed.

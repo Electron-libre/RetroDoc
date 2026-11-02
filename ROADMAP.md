@@ -192,11 +192,11 @@ The milestones up to "A large application, one bounded context at a time" are th
 - Goal: a `retrodoc.toml` setting chooses the language the generated docs are written in.
 - Why: the model writes in the language it picks (English on the saved runs); a team that reads another language
   cannot take the docs as they are.
-- State: in issues
+- State: done
 - Issues:
   - [generated_docs_language](issues/done/generated_docs_language.md)
   - [localized_render_and_web_text](issues/done/localized_render_and_web_text.md)
-  - [language_native_names_and_regional_tags](issues/language_native_names_and_regional_tags.md)
+  - [language_native_names_and_regional_tags](issues/done/language_native_names_and_regional_tags.md)
   - [reconcile_across_languages](issues/done/reconcile_across_languages.md)
   - [reconcile_excerpt_by_identifiers](issues/done/reconcile_excerpt_by_identifiers.md)
   - [render_removes_pages_of_renamed_items](issues/done/render_removes_pages_of_renamed_items.md)
