@@ -12,7 +12,7 @@ use serde::de::DeserializeOwned;
 
 use crate::error::PipelineError;
 use crate::fingerprints::prompt_part;
-use crate::response::{complete_json, response_schema};
+use crate::response::{complete_json, complete_json_or_cut, response_schema, Answer};
 
 /// The request of a pass whose answer is of type `R`. An instruction or a section header of the
 /// user prompt is one of `texts`, never written inline where the prompt is built, so that it is in
@@ -80,6 +80,21 @@ impl<R: DeserializeOwned + JsonSchema> Request<R> {
         what: &str,
     ) -> Result<Option<R>, PipelineError> {
         complete_json::<R>(llm, system, user, what).await
+    }
+
+    /// Asks the request, an answer cut at the completion limit reported as such
+    /// ([`complete_json_or_cut`] with `stop_on_cut`).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error only if the LLM call itself fails.
+    pub(crate) async fn ask_or_cut(
+        &self,
+        llm: &dyn LlmProvider,
+        user: &str,
+        what: &str,
+    ) -> Result<Answer<R>, PipelineError> {
+        complete_json_or_cut::<R>(llm, self.system, user, what, true).await
     }
 }
 

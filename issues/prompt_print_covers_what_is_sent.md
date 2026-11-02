@@ -69,7 +69,7 @@ Out of scope: the hand-editable artifacts (roles, sources, business-files, brief
 2. [x] The other passes: domains, features (slice text), placement, use cases, actors (filter text),
    reconciliation, confidence moved to their requests; golden prints updated; verified by a test per pass
    that a saved print of the old part is asked again; makes true RER-10.
-3. [ ] Rules: statement and kind of feature on one request part, judgement on its own print; a feature whose
+3. [x] Rules: statement and kind of feature on one request part, judgement on its own print; a feature whose
    judgement print alone changed is judged again from `rules-stated.yaml` and the rules set aside with their
    whole rule; verified by a test counting the calls (one judgement, no statement, then none); makes true RER-11.
 
@@ -100,3 +100,16 @@ Out of scope: the hand-editable artifacts (roles, sources, business-files, brief
 - Code review: no findings
 - Decision: the layout of an item of input (`- name: description`, `Feature:`, `Steps:`) stays inline and is
   not in the print; only instructions and section headers are texts of a request (doc of `Request`).
+
+## Deliverable 3
+- done: rules on `STATEMENT`, `KIND`, `JUDGEMENT` requests; print of a feature `"<statement> <judgement>"`;
+  a feature whose statement part matches is judged again from `rules-stated.yaml` and the rules set aside
+  (sorted by number), or reused when it has none; a rule set aside without its whole rule states it again.
+  Spec RER accepted, ADR 0040 accepted.
+- checks: tests ok, clippy ok, specs ok, docs `pipeline.md`, ADR 0040.
+- red: RER-11: `called Option::unwrap() on a None value` (the saved print had no judgement part).
+- Code review: 3 findings, none fixed after checking:
+  1. rules set aside for another reason judged again: only the judgement creates an `AsideRule` (`rules/mod.rs`
+     `judged`), so every one was dropped by it.
+  2. `Plan::Reuse` keeping the old judgement part: `per_feature::run` stores the unit's new print on reuse.
+  3. old prints with no space state every feature again: intended (RER-11 scenario, no migration); prints are hex.

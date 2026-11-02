@@ -11,8 +11,11 @@
 //! One statement call per feature, asked again on two halves of its files (recursively, down to one
 //! file) when the server cuts the answer at its completion limit (`split.rs`).
 //!
-//! Incremental: a feature whose text, code, evidence, use cases and model are unchanged keeps its
-//! saved rules without a call; an answer that can't be parsed is retried on the next run.
+//! Incremental: a feature whose text, code, evidence, use cases, requests and model are unchanged keeps
+//! its saved rules without a call; an answer that can't be parsed is retried on the next run. The
+//! print of a feature has two parts, the statement (with the question on the kind of feature) and the
+//! judgement: when only the judgement part changed, the rules the last run stated are judged again,
+//! with no statement call (`specs/rerun.md` RER-11).
 //!
 //! What the LLM set aside, the user can put back in `[rules]` of `retrodoc.toml` (`specs/rules-set-aside.md`).
 
@@ -24,12 +27,10 @@ use retrodoc_core::model::{BusinessRule, Feature, UseCase};
 use retrodoc_llm::LlmProvider;
 
 use crate::artifact::{load_yaml, save_yaml, warn_on_error, Artifact};
-use crate::cache::hash_content;
 use crate::chunks::Splitter;
 use crate::error::PipelineError;
 use crate::fingerprints::{feature_key, file_part, fingerprint, model_part, Fingerprints};
 use crate::per_feature::{self, FeaturePass, Plan, Unit};
-use crate::response::complete_json;
 use crate::roles::load_splitter;
 use crate::text::feature_line;
 use crate::use_cases::UseCaseContext;
@@ -49,9 +50,9 @@ pub(crate) use self::dedup::code as cited_code;
 use self::dedup::{merge_duplicates, Reach};
 pub use self::input::RuleInput;
 pub(crate) use self::judge::judge_prompt;
-use self::judge::{keep_judged, RawFeatureKind, RawVerdict, FEATURE_SYSTEM_PROMPT};
+use self::judge::{keep_judged, JUDGEMENT, KIND};
 pub use self::judge::{JUDGE_SYSTEM_PROMPT, NOISE};
-use self::prompt::{rules_prompt, RULES_SYSTEM_PROMPT};
+use self::prompt::{rules_prompt, STATEMENT};
 use self::split::stated_rules;
 
 /// Loads a previously saved `rules.yaml`. Missing or unreadable: `None` (first run), not an error.
@@ -151,11 +152,20 @@ pub async fn build_rules(
     );
     warn_unknown_features(&context.put_back.keep_features, features);
     let splitter = load_splitter(repo_root);
+    let previous = saved.unwrap_or_default();
+    let previous_aside = load_set_aside(repo_root).unwrap_or_default();
+    let judgement = judgement_print(llm);
     let (units, reach): (Vec<_>, BTreeMap<_, _>) = features
         .iter()
         .map(|feature| {
+            let last = Last {
+                prints: &known,
+                rules: &previous,
+                aside: &previous_aside,
+                judgement: &judgement,
+            };
             plan_unit(
-                repo_root, feature, use_cases, context, &known, &splitter, llm,
+                repo_root, feature, use_cases, context, &last, &splitter, llm,
             )
         })
         .unzip();
@@ -164,8 +174,8 @@ pub async fn build_rules(
         llm,
         context,
         splitter: &splitter,
-        previous: saved.unwrap_or_default(),
-        previous_aside: load_set_aside(repo_root).unwrap_or_default(),
+        previous,
+        previous_aside,
     };
     let Stated { rules, mut aside } =
         per_feature::run(&pass, units, &mut prints, &known, concurrency).await?;
@@ -204,17 +214,26 @@ impl<'a> FeaturePass for RulesPass<'a> {
         &mut prints.rules
     }
 
-    async fn ask(&self, _feature: &Feature, asking: &Asking<'a>) -> Self::Answer {
-        ask_rules(
-            self.repo_root,
-            self.llm,
-            &asking.item,
-            &asking.prompt,
-            &asking.cited_files,
-            self.context,
-            self.splitter,
-        )
-        .await
+    async fn ask(&self, feature: &Feature, asking: &Asking<'a>) -> Self::Answer {
+        match asking {
+            Asking::State {
+                item,
+                prompt,
+                cited_files,
+            } => {
+                ask_rules(
+                    self.repo_root,
+                    self.llm,
+                    item,
+                    prompt,
+                    cited_files,
+                    self.context,
+                    self.splitter,
+                )
+                .await
+            }
+            Asking::Judge(rules) => judged(self.llm, feature, rules.clone()).await.map(Some),
+        }
     }
 
     fn keep(&self, feature: &Feature, done: &mut Stated) {
@@ -282,13 +301,13 @@ async fn ask_rules(
     let feature = item.feature;
     if item.put_back {
         tracing::info!(feature = %feature.slug, "feature put back by hand, not asked whether it is about tests");
-    } else if let Some(kind) = complete_json::<RawFeatureKind>(
-        llm,
-        FEATURE_SYSTEM_PROMPT,
-        &feature_line(feature),
-        &format!("kind of {}", feature.slug),
-    )
-    .await?
+    } else if let Some(kind) = KIND
+        .ask(
+            llm,
+            &feature_line(feature),
+            &format!("kind of {}", feature.slug),
+        )
+        .await?
     {
         if kind.is_about_tests() {
             tracing::info!(feature = %feature.slug, "feature about tests, no rules asked");
@@ -313,11 +332,21 @@ async fn ask_rules(
     else {
         return Ok(None);
     };
+    judged(llm, feature, rules).await.map(Some)
+}
+
+/// The `rules` of `feature` judged: those kept, and those dropped set aside with their class. No call
+/// for no rule; an unparseable verdict keeps them all.
+async fn judged(
+    llm: &dyn LlmProvider,
+    feature: &Feature,
+    rules: Vec<BusinessRule>,
+) -> Result<Asked, PipelineError> {
     if rules.is_empty() {
-        return Ok(Some(Asked::of(rules)));
+        return Ok(Asked::of(rules));
     }
     let Some((rules, dropped)) = judge_rules(llm, feature, &rules).await? else {
-        return Ok(Some(Asked::of(rules)));
+        return Ok(Asked::of(rules));
     };
     let mut asked = Asked::of(rules);
     for (rule, class) in dropped {
@@ -330,24 +359,25 @@ async fn ask_rules(
             rule: Some(rule),
         });
     }
-    Ok(Some(asked))
+    Ok(asked)
 }
 
-/// The rules of `feature` judged under the pass's [`JUDGE_SYSTEM_PROMPT`]: those kept and those
-/// dropped with their class; `None` when the answer can't be read, the rules then being kept as stated.
+/// The rules of `feature` judged under the pass's request ([`JUDGE_SYSTEM_PROMPT`]): those kept and
+/// those dropped with their class; `None` when the answer can't be read, the rules then being kept as
+/// stated.
 async fn judge_rules(
     llm: &dyn LlmProvider,
     feature: &Feature,
     rules: &[BusinessRule],
 ) -> Result<Option<Judged>, PipelineError> {
-    judge_rules_with(
-        llm,
-        JUDGE_SYSTEM_PROMPT,
-        &judge_prompt(feature, rules),
-        &feature.slug,
-        rules,
-    )
-    .await
+    Ok(JUDGEMENT
+        .ask(
+            llm,
+            &judge_prompt(feature, rules),
+            &format!("judgement of the rules of {}", feature.slug),
+        )
+        .await?
+        .map(|verdict| keep_judged(rules.to_vec(), &verdict)))
 }
 
 /// The rules kept and those dropped with their class.
@@ -366,14 +396,15 @@ pub(crate) async fn judge_rules_with(
     slug: &str,
     rules: &[BusinessRule],
 ) -> Result<Option<Judged>, PipelineError> {
-    Ok(complete_json::<RawVerdict>(
-        llm,
-        system,
-        user,
-        &format!("judgement of the rules of {slug}"),
-    )
-    .await?
-    .map(|verdict| keep_judged(rules.to_vec(), &verdict)))
+    Ok(JUDGEMENT
+        .ask_with_system(
+            llm,
+            system,
+            user,
+            &format!("judgement of the rules of {slug}"),
+        )
+        .await?
+        .map(|verdict| keep_judged(rules.to_vec(), &verdict)))
 }
 
 /// Warns about each slug of `keep_features` that names none of `features`.
@@ -440,11 +471,42 @@ struct Item<'a> {
     put_back: bool,
 }
 
-/// The call of a feature: the feature and its statement prompt.
-struct Asking<'a> {
-    item: Item<'a>,
-    prompt: String,
-    cited_files: Vec<String>,
+/// The call of a feature.
+enum Asking<'a> {
+    /// Its rules stated from its statement prompt, then judged.
+    State {
+        item: Item<'a>,
+        prompt: String,
+        cited_files: Vec<String>,
+    },
+    /// The rules the last run stated, judged again.
+    Judge(Vec<BusinessRule>),
+}
+
+/// What the last run left: the prints of the pass, the rules as stated, what was set aside; and the
+/// judgement part of the prints of this run.
+struct Last<'l> {
+    prints: &'l BTreeMap<String, String>,
+    rules: &'l [BusinessRule],
+    aside: &'l SetAside,
+    judgement: &'l str,
+}
+
+/// The rules of `slug` as the last run stated them before its judgement: those it kept and those it
+/// set aside, in the order of their numbers; `None` when a rule set aside was saved without its whole
+/// rule (a run from before it was kept).
+fn stated_before_judgement(last: &Last<'_>, slug: &str) -> Option<Vec<BusinessRule>> {
+    let mut rules = kept(last.rules, slug);
+    for aside in last.aside.rules.iter().filter(|r| r.feature == slug) {
+        rules.push(aside.rule.clone()?);
+    }
+    rules.sort_by_key(|rule| {
+        rule.slug
+            .rsplit('-')
+            .next()
+            .and_then(|n| n.parse::<u64>().ok())
+    });
+    Some(rules)
 }
 
 /// The plan of a feature, and what it reads (to tell which feature owns the code a rule cites).
@@ -453,7 +515,7 @@ fn plan_unit<'a>(
     feature: &'a Feature,
     use_cases: &'a [UseCase],
     context: &UseCaseContext,
-    known: &BTreeMap<String, String>,
+    last: &Last<'_>,
     splitter: &Splitter,
     llm: &dyn LlmProvider,
 ) -> (Unit<'a, Asking<'a>>, (String, Reach)) {
@@ -472,9 +534,23 @@ fn plan_unit<'a>(
         .filter(|u| u.feature_slug == feature.slug)
         .collect();
     let put_back = context.put_back.keep_features.contains(&feature.slug);
-    let print = rules_fingerprint(feature, &input, &own, context, llm, put_back);
-    let plan = if known.get(&key) == Some(&print) {
+    let statement = statement_print(feature, &input, &own, context, llm, put_back);
+    let print = format!("{statement} {}", last.judgement);
+    let saved = last.prints.get(&key);
+    let judged_again = saved
+        .and_then(|saved| saved.split_once(' '))
+        .is_some_and(|(saved, _)| saved == statement)
+        .then(|| stated_before_judgement(last, &feature.slug))
+        .flatten();
+    let plan = if saved == Some(&print) {
         Plan::Reuse
+    } else if let Some(rules) = judged_again {
+        // A feature about tests, or one with no rule, has nothing to judge.
+        if rules.is_empty() {
+            Plan::Reuse
+        } else {
+            Plan::Ask(Asking::Judge(rules))
+        }
     } else {
         let (prompt, cited_files) = rules_prompt(
             &context.walked,
@@ -487,7 +563,7 @@ fn plan_unit<'a>(
         if cited_files.is_empty() {
             Plan::Unreadable
         } else {
-            Plan::Ask(Asking {
+            Plan::Ask(Asking::State {
                 item: Item {
                     feature,
                     input,
@@ -510,10 +586,11 @@ fn plan_unit<'a>(
     )
 }
 
-/// Hash of everything the rules of a feature are derived from: its text, the content of its files,
-/// its entities, the evidence, its use cases, the brief, the three prompts (statement, kind, judgement), the model,
-/// and whether it is put back by hand (only when it is, so that the other features keep their print).
-fn rules_fingerprint(
+/// The statement part of the print of a feature: its text, the content of its files, its entities,
+/// the evidence, its use cases, the brief, the requests of the statement and of the question on the
+/// kind of feature, the model, and whether it is put back by hand (only when it is, so that the other
+/// features keep their print).
+fn statement_print(
     feature: &Feature,
     input: &RuleInput,
     use_cases: &[&UseCase],
@@ -544,13 +621,14 @@ fn rules_fingerprint(
                     .map(|u| format!("use case {} {}", u.slug, u.name)),
             )
             .chain(context.brief.print_part())
-            .chain(std::iter::once(format!(
-                "judgement {}",
-                hash_content(&format!(
-                    "{RULES_SYSTEM_PROMPT}\0{FEATURE_SYSTEM_PROMPT}\0{JUDGE_SYSTEM_PROMPT}"
-                ))
-            )))
+            .chain([STATEMENT.part().to_string(), KIND.part().to_string()])
             .chain(std::iter::once(model_part(llm)))
             .chain(put_back.then(|| "put back by hand".to_string())),
     )
+}
+
+/// The judgement part of the print of a feature: its request and the model, the same for every
+/// feature of a run.
+fn judgement_print(llm: &dyn LlmProvider) -> String {
+    fingerprint([JUDGEMENT.part().to_string(), model_part(llm)])
 }

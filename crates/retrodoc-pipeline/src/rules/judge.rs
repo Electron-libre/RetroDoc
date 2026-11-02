@@ -18,6 +18,7 @@ use std::fmt::Write as _;
 use retrodoc_core::model::{BusinessRule, Feature, RuleEvidence, RuleKind};
 use serde::Deserialize;
 
+use crate::request::Request;
 use crate::text::{feature_line, one_line};
 
 /// The question of the judgement: one class per rule.
@@ -51,6 +52,15 @@ the application is TESTED (its description speaks of tests, of verifying or chec
 scenario) rather than about something the application does for its users. Reply with ONLY a \
 single JSON object, no prose and no Markdown code fence: {\"about_tests\":true} or \
 {\"about_tests\":false}.";
+
+const RULES_HEADER: &str = "\nRules:\n";
+
+/// The request of the judgement of the rules of a feature.
+pub(super) static JUDGEMENT: Request<RawVerdict> =
+    Request::new(JUDGE_SYSTEM_PROMPT, &[RULES_HEADER]);
+
+/// The request of the question on the kind of a feature (its user prompt is the feature line).
+pub(super) static KIND: Request<RawFeatureKind> = Request::new(FEATURE_SYSTEM_PROMPT, &[]);
 
 /// The classes that are noise.
 pub const NOISE: [&str; 4] = ["storage", "screen", "test", "technical"];
@@ -100,7 +110,7 @@ struct RawClass {
 
 /// The prompt: the feature and its numbered rules, with their kind and what backs them.
 pub(crate) fn judge_prompt(feature: &Feature, rules: &[BusinessRule]) -> String {
-    let mut prompt = format!("{}\nRules:\n", feature_line(feature));
+    let mut prompt = format!("{}{RULES_HEADER}", feature_line(feature));
     for (n, rule) in rules.iter().enumerate() {
         let _ = writeln!(
             prompt,

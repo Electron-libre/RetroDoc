@@ -6,9 +6,11 @@ use std::path::Path;
 
 use retrodoc_core::model::{Feature, UseCase};
 
+use super::grounding::RawRules;
 use super::RuleInput;
 use crate::brief::{ExtractKind, ProductBrief};
 use crate::chunks::Splitter;
+use crate::request::Request;
 use crate::text::{feature_line, names_line, one_line};
 use crate::use_cases::{focus_for, MAX_CHARS_PER_FILE, MAX_CHARS_PER_PROMPT};
 use crate::walked::WalkedFiles;
@@ -32,6 +34,24 @@ JSON object, no prose and no Markdown code fence, matching this shape: {\"rules\
 \"tests\":[{\"id\":\"T1\",\"phrase\":\"...\"}],\"docs\":[\"D1\"]}]}. `use_cases` is copied \
 from the list of the prompt and may be empty.";
 
+const ENTITIES_LABEL: &str = "\nEntities: ";
+const USE_CASES_HEADER: &str = "\nUse cases:\n";
+const TESTS_HEADER: &str = "\nTest descriptions (they may be partly unrelated):\n";
+const DOCS_HEADER: &str = "\nDocumentation extracts (they may be partly unrelated):\n";
+const SOURCE_FILES_HEADER: &str = "\nSource files:\n";
+
+/// The request of the statement of the rules of a feature.
+pub(super) static STATEMENT: Request<RawRules> = Request::new(
+    RULES_SYSTEM_PROMPT,
+    &[
+        ENTITIES_LABEL,
+        USE_CASES_HEADER,
+        TESTS_HEADER,
+        DOCS_HEADER,
+        SOURCE_FILES_HEADER,
+    ],
+);
+
 /// Id of the `n`th (from 0) test extract or documentation extract.
 pub(super) fn evidence_id(kind: ExtractKind, n: usize) -> String {
     let letter = match kind {
@@ -53,10 +73,10 @@ pub(super) fn rules_prompt(
 ) -> (String, Vec<String>) {
     let mut prompt = format!("{}{}", brief.prompt_head(), feature_line(feature));
     if !input.entities.is_empty() {
-        let _ = write!(prompt, "\nEntities: {}\n", names_line(&input.entities));
+        let _ = writeln!(prompt, "{ENTITIES_LABEL}{}", names_line(&input.entities));
     }
     if !use_cases.is_empty() {
-        prompt.push_str("\nUse cases:\n");
+        prompt.push_str(USE_CASES_HEADER);
         for use_case in use_cases {
             let _ = writeln!(prompt, "- {}: {}", use_case.slug, one_line(&use_case.name));
         }
@@ -72,14 +92,14 @@ pub(super) fn rules_prompt(
             continue;
         }
         prompt.push_str(match kind {
-            ExtractKind::Test => "\nTest descriptions (they may be partly unrelated):\n",
-            ExtractKind::Doc => "\nDocumentation extracts (they may be partly unrelated):\n",
+            ExtractKind::Test => TESTS_HEADER,
+            ExtractKind::Doc => DOCS_HEADER,
         });
         for (n, text) in extracts.iter().enumerate() {
             let _ = writeln!(prompt, "[{}] {text}", evidence_id(kind, n));
         }
     }
-    prompt.push_str("\nSource files:\n");
+    prompt.push_str(SOURCE_FILES_HEADER);
     let focus = focus_for(feature, &input.entries);
     let mut included: Vec<String> = Vec::new();
     let mut budget = MAX_CHARS_PER_PROMPT;

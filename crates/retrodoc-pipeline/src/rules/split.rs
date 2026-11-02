@@ -16,13 +16,13 @@ use std::path::Path;
 use retrodoc_core::model::BusinessRule;
 use retrodoc_llm::LlmProvider;
 
-use super::grounding::{grounded_rules, RawRules};
-use super::prompt::{rules_prompt, RULES_SYSTEM_PROMPT};
+use super::grounding::grounded_rules;
+use super::prompt::{rules_prompt, STATEMENT};
 use super::Item;
 use crate::chunks::Splitter;
 use crate::error::PipelineError;
 use crate::naming::normalize;
-use crate::response::{complete_json_or_cut, Answer};
+use crate::response::Answer;
 use crate::use_cases::UseCaseContext;
 
 /// The rules `item`'s feature states, grounded; `None` when an answer can't be read.
@@ -42,14 +42,9 @@ pub(super) async fn stated_rules(
     let mut rules: Vec<BusinessRule> = Vec::new();
     while let Some((prompt, files)) = parts.pop_front() {
         asked += 1;
-        let answer = complete_json_or_cut::<RawRules>(
-            llm,
-            RULES_SYSTEM_PROMPT,
-            &prompt,
-            &format!("rules of {}", feature.slug),
-            true,
-        )
-        .await?;
+        let answer = STATEMENT
+            .ask_or_cut(llm, &prompt, &format!("rules of {}", feature.slug))
+            .await?;
         match answer {
             Answer::Read(raw) => {
                 let stated = raw.rules.len();

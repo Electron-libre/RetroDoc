@@ -1187,7 +1187,8 @@ fn a_statement_two_parts_make_is_kept_once_with_the_better_backed_copy_and_the_r
 }
 
 /// The saved prints must not change with a refactor: another print redoes every user's next run (changed
-/// on purpose with the examples of the judgement prompt, `issues/done/rules_plumbing_and_screen_noise.md`).
+/// on purpose with the examples of the judgement prompt, `issues/done/rules_plumbing_and_screen_noise.md`,
+/// and with the requests and the judgement part, ADR 0040).
 #[tokio::test]
 async fn the_print_of_a_feature_stays_the_same() {
     let dir = repo();
@@ -1204,7 +1205,83 @@ async fn the_print_of_a_feature_stays_the_same() {
         prints.into_iter().collect::<Vec<_>>(),
         vec![(
             "delivery/orders".to_string(),
-            "c5627927c2550b6c30de67292b43a44dee1bdd2a20cfb430b4e24314ac7774c0".to_string()
+            "84afb1e428234980b4ae7fbbd979cc8c1d428827bfa7d079e83c20e7723aacda \
+             cc7c342c43aed24f2a3fc3f632a7586bccbe45120ca87e3b6c1af95fe0295156"
+                .to_string()
         )]
+    );
+}
+
+/// The saved prints with the judgement part of every feature replaced, as a change of the judgement
+/// prompt alone leaves them.
+fn change_the_judgement(dir: &Path) {
+    let mut prints = crate::fingerprints::Fingerprints::load(dir);
+    for print in prints.rules.values_mut() {
+        let statement = print.split_once(' ').unwrap().0.to_string();
+        *print = format!("{statement} another-judgement");
+    }
+    prints.save(dir).unwrap();
+}
+
+// spec: RER-11 (internal: the judgement prompt is a constant of the binary, the test changes its print)
+#[tokio::test]
+async fn a_change_of_the_judgement_alone_judges_the_saved_rules_again_with_no_statement() {
+    let dir = repo();
+    let first = judging(
+        &format!("{STORAGE},{LIMIT}"),
+        r#"{"rules":[{"n":1,"class":"storage"},{"n":2,"class":"business"}]}"#,
+    );
+    assert_eq!(run(dir.path(), &first).await.len(), 1);
+    change_the_judgement(dir.path());
+
+    let again = judging(
+        "",
+        r#"{"rules":[{"n":1,"class":"business"},{"n":2,"class":"storage"}]}"#,
+    );
+    let rules = run(dir.path(), &again).await;
+
+    assert_eq!(again.system_prompts(), [judge::JUDGE_SYSTEM_PROMPT]);
+    let judged = &again.prompts()[0];
+    assert!(
+        judged.contains("1. [validation, code alone] An order is stored")
+            && judged.contains("2. [limit, code, test and doc]"),
+        "the rules as stated, in their order: {judged}"
+    );
+    let slugs: Vec<&str> = rules.iter().map(|r| r.slug.as_str()).collect();
+    assert_eq!(slugs, ["orders-1"]);
+    let aside = load_set_aside(dir.path()).unwrap();
+    let dropped: Vec<&str> = aside.rules.iter().map(|r| r.slug.as_str()).collect();
+    assert_eq!(dropped, ["orders-2"]);
+
+    let none = FakeLlm::answering("");
+    assert_eq!(run(dir.path(), &none).await.len(), 1);
+    assert_eq!(none.calls(), 0, "the run after makes no call");
+}
+
+// spec: RER-11 (internal: the judgement prompt is a constant of the binary, the test changes its print)
+#[tokio::test]
+async fn a_rule_set_aside_without_its_whole_rule_states_the_feature_again() {
+    let dir = repo();
+    let first = judging(
+        &format!("{STORAGE},{LIMIT}"),
+        r#"{"rules":[{"n":1,"class":"storage"},{"n":2,"class":"business"}]}"#,
+    );
+    run(dir.path(), &first).await;
+    change_the_judgement(dir.path());
+    let mut aside = load_set_aside(dir.path()).unwrap();
+    aside.rules[0].rule = None;
+    save_yaml(&Artifact::RulesSetAside.path(dir.path()), &aside).unwrap();
+
+    let again = judging(
+        &format!("{STORAGE},{LIMIT}"),
+        r#"{"rules":[{"n":1,"class":"storage"},{"n":2,"class":"business"}]}"#,
+    );
+    run(dir.path(), &again).await;
+
+    assert!(
+        again
+            .system_prompts()
+            .contains(&prompt::RULES_SYSTEM_PROMPT.to_string()),
+        "stated again"
     );
 }
