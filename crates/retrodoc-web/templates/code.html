@@ -6,39 +6,39 @@
 <h1><code>{{ page.path }}</code></h1>
 {% call m::stale(page.stale) %}{% endcall %}
 {% if !page.cited_by.is_empty() %}
-<h2>Cited by</h2>
+<h2>{{ t.cited_by }}</h2>
 <ul class="cited-by">
   {% for citer in page.cited_by %}
-  <li><span class="muted">{{ citer.kind }}:</span> <a href="{{ citer.link.href }}">{{ citer.link.name }}</a></li>
+  <li><span class="muted">{{ t.citer(*citer.kind) }}</span> <a href="{{ citer.link.href }}">{{ citer.link.name }}</a></li>
   {% endfor %}
 </ul>
 {% endif %}
-<h2>Code</h2>
+<h2>{{ t.code_heading }}</h2>
 {% if let Some(reason) = page.refused %}
 <p class="refused">{{ reason }}</p>
 {% else if page.empty %}
-<p class="muted">The file is empty.</p>
+<p class="muted">{{ t.file_empty }}</p>
 {% else %}
-{% if let Some(shown) = page.shown %}<p class="muted">Showing {{ shown }}.</p>{% endif %}
+{% if let Some(shown) = page.shown %}<p class="muted">{{ t.showing }} {{ shown }}.</p>{% endif %}
 <table class="code">
   {% for line in page.lines %}
-  <tr id="L{{ line.number }}"{% if line.cited %} class="cited"{% endif %}><td class="number">{{ line.number }}</td><td><pre>{{ line.text }}{% if let Some(length) = line.cut_from %} <span class="muted">… (line cut, {{ length }} characters)</span>{% endif %}</pre></td></tr>
+  <tr id="L{{ line.number }}"{% if line.cited %} class="cited"{% endif %}><td class="number">{{ line.number }}</td><td><pre>{{ line.text }}{% if let Some(length) = line.cut_from %} <span class="muted">… ({{ t.line_cut }} {{ length }} {{ t.characters }})</span>{% endif %}</pre></td></tr>
   {% endfor %}
 </table>
-{% if let Some(next) = page.next %}<p><a href="{{ next }}">Next lines</a></p>{% endif %}
+{% if let Some(next) = page.next %}<p><a href="{{ next }}">{{ t.next_lines }}</a></p>{% endif %}
 {% endif %}
-<h2>History</h2>
+<h2>{{ t.history }}</h2>
 {% if let Some(commits) = page.commits %}
 {% if commits.is_empty() %}
-<p class="muted">No commit touches this file (not committed yet?).</p>
+<p class="muted">{{ t.no_commit }}</p>
 {% else %}
 <ul class="history">
   {% for commit in commits %}
-  <li><code>{{ commit.short_id }}</code> · {{ commit.date }} · {{ commit.subject }}{% if let Some(old_path) = commit.renamed_from %} <span class="muted">(renamed from <code>{{ old_path }}</code>)</span>{% endif %}</li>
+  <li><code>{{ commit.short_id }}</code> · {{ commit.date }} · {{ commit.subject }}{% if let Some(old_path) = commit.renamed_from %} <span class="muted">({{ t.renamed_from }} <code>{{ old_path }}</code>)</span>{% endif %}</li>
   {% endfor %}
 </ul>
 {% endif %}
 {% else %}
-<p class="muted">The history is not available: this repository has no readable git history.</p>
+<p class="muted">{{ t.no_history }}</p>
 {% endif %}
 {% endblock %}

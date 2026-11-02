@@ -8,6 +8,7 @@ use std::collections::BTreeSet;
 use retrodoc_core::model::{ActorKind, Feature, RuleKind, UseCase};
 use retrodoc_mcp::GeneratedDocs;
 
+use crate::texts::WebTexts;
 use crate::view::{feature_href, rule_href, use_case_href, Link};
 
 pub struct ActorsPage {
@@ -43,7 +44,7 @@ pub struct Cell {
 
 /// The actors page of `docs`.
 #[must_use]
-pub fn actors_page(docs: &GeneratedDocs) -> ActorsPage {
+pub fn actors_page(docs: &GeneratedDocs, texts: &WebTexts) -> ActorsPage {
     let features: Vec<(&Feature, Vec<&UseCase>)> = docs
         .features()
         .iter()
@@ -85,8 +86,8 @@ pub fn actors_page(docs: &GeneratedDocs) -> ActorsPage {
             })
             .collect(),
         groups: [
-            ("human-actors", "People", sorted(human)),
-            ("system-actors", "Systems", sorted(system)),
+            ("human-actors", texts.people, sorted(human)),
+            ("system-actors", texts.systems, sorted(system)),
         ]
         .into_iter()
         .filter(|(_, _, rows)| !rows.is_empty())

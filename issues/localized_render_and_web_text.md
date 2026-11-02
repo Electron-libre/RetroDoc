@@ -59,7 +59,7 @@ cache artifacts, never the rendered Markdown, so no parser depends on the headin
    re-render that writes nothing; makes true DLG-7, DLG-8. (~450 lines)
 2. [x] Web layout: the language reaches `App`, `<html lang>`, a web texts table for the layout, nav, home, search,
    empty and not-found pages; verified by router tests; makes true WEB-78 and starts WEB-77. (~500 lines)
-3. [ ] Web item pages: the domain, feature, use case, rules, glossary, actors, map, files and code pages use the
+3. [x] Web item pages: the domain, feature, use case, rules, glossary, actors, map, files and code pages use the
    table; verified by a test that no English label is left on each page in French; makes true WEB-77. (~600 lines)
 
 ## Decisions
@@ -110,3 +110,24 @@ Code review: no findings
 
 - WEB-77 says the credit line of WEB-69 stays as it is (a brand line).
 - A count of 0 reads `0 fonctionnalités` in French (the singular is only for 1, as in English).
+
+## Deliverable 3
+
+done: the domain, feature, use case, rules, glossary, actors, map, files, code and collected doc pages and the macros
+take their fixed text from `WebTexts`; the kinds of a rule, an evidence and a citer stay enums the templates name; the
+breadcrumb macro writes the home link; the refusals of a cited file have a French wording (`MAX_FILE_BYTES` made public
+in `retrodoc-mcp` for it).
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | pass |
+| specs | WEB-77 traced on every page in `crates/retrodoc-web/tests/item_pages.rs` |
+| docs | `docs/crates/render-mcp-cli.md`, `docs/ARCHITECTURE.md` §8 |
+| code review | no findings |
+
+red: WEB-77: `Map of this domain left in <main>`
+
+Code review: no findings
+
+- No English text node is left in the templates but the credit line and the commands.

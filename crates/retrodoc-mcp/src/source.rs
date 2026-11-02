@@ -12,7 +12,7 @@ use std::path::{Component, Path, PathBuf};
 const DEFAULT_LINES: usize = 200;
 const MAX_LINES: usize = 400;
 /// Larger files are refused: they are data or generated code, not what a doc cites.
-const MAX_FILE_BYTES: u64 = 1024 * 1024;
+pub const MAX_FILE_BYTES: u64 = 1024 * 1024;
 /// Characters of one line shown: a minified bundle is one line of hundreds of KB.
 const MAX_LINE_CHARS: usize = 400;
 /// Commits `git_log` returns when the agent gives no limit, and the most it can ask for.

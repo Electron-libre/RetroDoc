@@ -1,16 +1,16 @@
 {% import "macros.html" as m %}
 <section id="rule-list">
   {% if page.none_in_run %}
-  <p>No business rule was found in the code of the last run.</p>
+  <p>{{ t.no_rule_in_run }}</p>
   {% else if page.rules.is_empty() %}
-  <p>No rule matches.</p>
+  <p>{{ t.no_rule_matches }}</p>
   {% else %}
   <ul class="rules">
     {% for rule in page.rules %}
     <li>
-      {{ rule.statement }} <span class="muted">({{ rule.kind }}, {% call m::badge_why(rule.confidence) %}{% endcall %})</span>
+      {{ rule.statement }} <span class="muted">({{ t.doc.kind(*rule.kind) }}, {% call m::badge_why(rule.confidence) %}{% endcall %})</span>
       <ul>
-        <li>Feature: {% if let Some(link) = rule.feature %}<a href="{{ link.href }}">{{ link.name }}</a>{% else %}<span class="muted">not in the run</span>{% endif %}</li>
+        <li>{{ t.rule_feature }} {% if let Some(link) = rule.feature %}<a href="{{ link.href }}">{{ link.name }}</a>{% else %}<span class="muted">{{ t.not_in_the_run }}</span>{% endif %}</li>
         {% for evidence in rule.evidence %}
         <li>{% call m::evidence(evidence) %}{% endcall %}</li>
         {% endfor %}

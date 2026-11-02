@@ -1,19 +1,19 @@
 {% extends "base.html" %}
-{% block title %}Glossary{% endblock %}
+{% block title %}{{ t.reference_pages[2].name }}{% endblock %}
 {% block content %}
-<h1>Glossary</h1>
+<h1>{{ t.reference_pages[2].name }}</h1>
 {% if page.concepts.is_empty() %}
-<p class="muted">No concept was found in the code of the last run.</p>
+<p class="muted">{{ t.no_concept }}</p>
 {% else %}
-<p class="muted">The business concepts read from the code, with the use cases that use them.</p>
+<p class="muted">{{ t.glossary_intro }}</p>
 {% for concept in page.concepts %}
 <section class="concept">
   <h2 id="{{ concept.anchor }}">{{ concept.name }}</h2>
   {% if !concept.definition.is_empty() %}<p>{{ concept.definition }}</p>{% endif %}
   {% if concept.use_cases.is_empty() %}
-  <p class="muted">No use case uses it.</p>
+  <p class="muted">{{ t.no_use_case_uses_it }}</p>
   {% else %}
-  <p>Used by:</p>
+  <p>{{ t.used_by }}</p>
   <ul>
     {% for use_case in concept.use_cases %}
     <li><a href="{{ use_case.href }}">{{ use_case.name }}</a></li>

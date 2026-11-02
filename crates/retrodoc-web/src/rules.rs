@@ -3,7 +3,8 @@
 
 use retrodoc_core::model::{BusinessRule, Feature, RuleKind};
 use retrodoc_mcp::GeneratedDocs;
-use retrodoc_render::Texts;
+
+use crate::texts::WebTexts;
 
 use crate::view::{rule_href, Confidence, Evidence, Link};
 
@@ -59,7 +60,7 @@ pub struct Choice {
 
 pub struct RuleRow {
     pub statement: String,
-    pub kind: &'static str,
+    pub kind: RuleKind,
     pub confidence: Confidence,
     /// Its item on the page of its feature, labelled with the feature and its
     /// domain; `None` when its feature is not in the run.
@@ -69,7 +70,7 @@ pub struct RuleRow {
 
 /// The rules page of `docs` for `filter`.
 #[must_use]
-pub fn rules_page(docs: &GeneratedDocs, filter: &RuleFilter) -> RulesPage {
+pub fn rules_page(docs: &GeneratedDocs, filter: &RuleFilter, texts: &WebTexts) -> RulesPage {
     let rules = docs
         .rules()
         .iter()
@@ -77,7 +78,7 @@ pub fn rules_page(docs: &GeneratedDocs, filter: &RuleFilter) -> RulesPage {
         .filter(|(rule, feature)| filter.keeps(rule, *feature))
         .map(|(rule, feature)| RuleRow {
             statement: rule.statement.clone(),
-            kind: Texts::ENGLISH.kind(rule.kind),
+            kind: rule.kind,
             confidence: Confidence::of(rule.confidence.as_ref()),
             feature: feature.map(|f| Link {
                 href: rule_href(f, &rule.slug),
@@ -87,7 +88,7 @@ pub fn rules_page(docs: &GeneratedDocs, filter: &RuleFilter) -> RulesPage {
         })
         .collect();
     RulesPage {
-        filters: filters(docs, filter),
+        filters: filters(docs, filter, texts),
         none_in_run: docs.rules().is_empty(),
         rules,
     }
@@ -127,7 +128,7 @@ impl RuleFilter {
     }
 }
 
-fn filters(docs: &GeneratedDocs, filter: &RuleFilter) -> Vec<Filter> {
+fn filters(docs: &GeneratedDocs, filter: &RuleFilter, texts: &WebTexts) -> Vec<Filter> {
     let choice = |value: &str, label: &str, asked: Option<&str>| Choice {
         value: value.to_string(),
         label: label.to_string(),
@@ -136,13 +137,13 @@ fn filters(docs: &GeneratedDocs, filter: &RuleFilter) -> Vec<Filter> {
     vec![
         Filter {
             name: "kind",
-            label: "Kind",
+            label: texts.kind,
             choices: KINDS
                 .iter()
                 .map(|kind| {
                     choice(
                         kind_value(*kind),
-                        Texts::ENGLISH.kind(*kind),
+                        texts.doc.kind(*kind),
                         filter.kind.as_deref(),
                     )
                 })
@@ -150,7 +151,7 @@ fn filters(docs: &GeneratedDocs, filter: &RuleFilter) -> Vec<Filter> {
         },
         Filter {
             name: "domain",
-            label: "Domain",
+            label: texts.domain,
             choices: docs
                 .domains()
                 .iter()
@@ -159,7 +160,7 @@ fn filters(docs: &GeneratedDocs, filter: &RuleFilter) -> Vec<Filter> {
         },
         Filter {
             name: "feature",
-            label: "Feature",
+            label: texts.feature,
             choices: docs
                 .features()
                 .iter()

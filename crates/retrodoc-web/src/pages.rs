@@ -10,7 +10,6 @@ use axum::response::{Html, IntoResponse, Response};
 use tokio::task::JoinError;
 
 use retrodoc_mcp::GeneratedDocs;
-use retrodoc_render::Texts;
 
 use crate::actors::ActorsPage;
 use crate::assets::MERMAID;
@@ -44,8 +43,6 @@ struct DomainTemplate<'a> {
     t: &'static WebTexts,
     shell: &'a Shell,
     page: DomainPage,
-    technical_heading: &'static str,
-    technical_note: &'static str,
 }
 
 #[derive(Template)]
@@ -54,8 +51,6 @@ struct FeatureTemplate<'a> {
     t: &'static WebTexts,
     shell: &'a Shell,
     page: FeaturePage,
-    technical_heading: &'static str,
-    technical_note: &'static str,
 }
 
 #[derive(Template)]
@@ -236,8 +231,6 @@ pub async fn domain(State(site): State<Arc<Site>>, Path(slug): Path<String>) -> 
             t: site.texts(),
             shell: site.shell(),
             page,
-            technical_heading: Texts::ENGLISH.technical_heading,
-            technical_note: Texts::ENGLISH.technical_note,
         },
     )
 }
@@ -258,8 +251,6 @@ pub async fn feature(
                 t: site.texts(),
                 shell: site.shell(),
                 page,
-                technical_heading: Texts::ENGLISH.technical_heading,
-                technical_note: Texts::ENGLISH.technical_note,
             },
         ),
         Ok(None) => not_found(State(site)).await,
@@ -366,10 +357,6 @@ pub async fn actors(State(site): State<Arc<Site>>) -> Response {
     )
 }
 
-/// The list `htmx` swaps under the form before a first `generate`.
-const NO_RUN_RULES: &str = "<section id=\"rule-list\"><p>No rule yet: run \
-    <code>retrodoc generate</code>, then restart <code>retrodoc ui</code>.</p></section>";
-
 pub async fn rules(
     State(site): State<Arc<Site>>,
     headers: HeaderMap,
@@ -384,8 +371,8 @@ pub async fn rules(
     fragment_or_page(
         &site,
         &headers,
-        NO_RUN_RULES,
-        |docs| rules_page(docs, &filter),
+        site.texts().no_run_rules,
+        |docs| rules_page(docs, &filter, site.texts()),
         |page| RulesList {
             t: site.texts(),
             page,
@@ -453,7 +440,7 @@ pub async fn code(
     let asked = Asked::of(query.as_deref());
     let page = blocking(&site, move |site| {
         let source = site.source()?;
-        code_page(site.docs()?, source, &path, asked)
+        code_page(site.docs()?, source, &path, asked, site.texts())
     })
     .await;
     match page {

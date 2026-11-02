@@ -1,17 +1,17 @@
 {% extends "base.html" %}
 {% import "macros.html" as m %}
-{% block title %}Map of {{ page.name }}{% endblock %}
+{% block title %}{{ t.map_of }} {{ page.name }}{% endblock %}
 {% block scripts %}
   <script src="/assets/{{ mermaid }}" defer></script>
   <script src="/assets/diagrams.js" defer></script>
 {% endblock %}
 {% block content %}
 {% call m::crumbs(page.crumbs, page.name) %}{% endcall %}
-<h1>Map of {{ page.name }}</h1>
+<h1>{{ t.map_of }} {{ page.name }}</h1>
 {% if page.features.is_empty() %}
-<p class="muted">This domain has no feature.</p>
+<p class="muted">{{ t.no_feature_in_domain }}</p>
 {% else %}
-<p class="muted">The features of <a href="{{ page.href }}">{{ page.name }}</a>, the people who start their use cases (solid arrow) or take part in them (dotted arrow), and the concepts they use.</p>
+<p class="muted">{{ t.domain_map_intro.0 }} <a href="{{ page.href }}">{{ page.name }}</a>{{ t.domain_map_intro.1 }}</p>
 <section class="map">
 <pre class="mermaid map-graph">{{ page.source }}</pre>
 <ul class="map-links">
@@ -20,10 +20,10 @@
     <a href="{{ feature.node.href }}" data-node="{{ feature.node.node }}">{{ feature.node.name }}</a>
     <span class="muted">{{ feature.counts }}</span>
     {% if !feature.actors.is_empty() %}
-    <br>Actors: {% for actor in feature.actors %}<a href="{{ actor.href }}" data-node="{{ actor.node }}">{{ actor.name }}</a>{% if !loop.last %}, {% endif %}{% endfor %}
+    <br>{{ t.actors_label }} {% for actor in feature.actors %}<a href="{{ actor.href }}" data-node="{{ actor.node }}">{{ actor.name }}</a>{% if !loop.last %}, {% endif %}{% endfor %}
     {% endif %}
     {% if !feature.concepts.is_empty() %}
-    <br>Concepts: {% for concept in feature.concepts %}<a href="{{ concept.href }}" data-node="{{ concept.node }}">{{ concept.name }}</a>{% if !loop.last %}, {% endif %}{% endfor %}
+    <br>{{ t.concepts_label }} {% for concept in feature.concepts %}<a href="{{ concept.href }}" data-node="{{ concept.node }}">{{ concept.name }}</a>{% if !loop.last %}, {% endif %}{% endfor %}
     {% endif %}
   </li>
   {% endfor %}

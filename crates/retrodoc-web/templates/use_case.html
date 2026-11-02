@@ -12,32 +12,32 @@
 <h1>{{ page.name }}</h1>
 {% call m::stale(page.stale) %}{% endcall %}
 <p>{{ page.description }}</p>
-{% call m::score("Confidence", page.confidence) %}{% endcall %}
-{% if let Some(business) = page.business_language %}{% call m::score("Business language", business) %}{% endcall %}{% endif %}
-{% if let Some(actor) = page.primary_actor %}<p><strong>Primary actor:</strong> {{ actor }}</p>{% endif %}
-{% if !page.triggered_by.is_empty() %}<p><strong>Triggered by:</strong> {% for name in page.triggered_by %}<code>{{ name }}</code>{% if !loop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+{% call m::score(t.doc.confidence, page.confidence) %}{% endcall %}
+{% if let Some(business) = page.business_language %}{% call m::score(t.doc.business_language, business) %}{% endcall %}{% endif %}
+{% if let Some(actor) = page.primary_actor %}<p><strong>{{ t.doc.primary_actor }}</strong> {{ actor }}</p>{% endif %}
+{% if !page.triggered_by.is_empty() %}<p><strong>{{ t.doc.triggered_by }}</strong> {% for name in page.triggered_by %}<code>{{ name }}</code>{% if !loop.last %}, {% endif %}{% endfor %}</p>{% endif %}
 {% if let Some(narrative) = page.narrative %}
-<h2>What happens</h2>
-{% if page.unbacked %}<p><span class="badge low" title="The confidence pass judged it unsupported by the cited code">unbacked</span>{% if let Some(why) = page.unbacked_rationale %} <span class="muted">{{ why }}</span>{% endif %}</p>{% endif %}
+<h2>{{ t.doc.what_happens }}</h2>
+{% if page.unbacked %}<p><span class="badge low" title="{{ t.unbacked_hint }}">{{ t.unbacked }}</span>{% if let Some(why) = page.unbacked_rationale %} <span class="muted">{{ why }}</span>{% endif %}</p>{% endif %}
 <p class="narrative">{{ narrative }}</p>
 {% call m::rules(page.rules) %}{% endcall %}
 <details class="technical">
-<summary>Technical details ({{ page.steps.len() }} step{% if page.steps.len() != 1 %}s{% endif %})</summary>
-<h3>Steps</h3>
+<summary>{{ (t.doc.technical_details)(page.steps.len()) }}</summary>
+<h3>{{ t.doc.steps }}</h3>
 {% call steps(page.steps) %}{% endcall %}
-{% if let Some(diagram) = page.diagram %}<h3>Diagram</h3>{% call draw(diagram) %}{% endcall %}{% endif %}
+{% if let Some(diagram) = page.diagram %}<h3>{{ t.doc.diagram }}</h3>{% call draw(diagram) %}{% endcall %}{% endif %}
 </details>
 {% else %}
 {% call m::rules(page.rules) %}{% endcall %}
-<h2>Steps</h2>
+<h2>{{ t.doc.steps }}</h2>
 {% call steps(page.steps) %}{% endcall %}
-{% if let Some(diagram) = page.diagram %}<h2>Diagram</h2>{% call draw(diagram) %}{% endcall %}{% endif %}
+{% if let Some(diagram) = page.diagram %}<h2>{{ t.doc.diagram }}</h2>{% call draw(diagram) %}{% endcall %}{% endif %}
 {% endif %}
 {% call m::existing_docs(page.docs) %}{% endcall %}
 {% if page.previous.is_some() || page.next.is_some() %}
-<nav class="sequence" aria-label="Use cases of this feature">
-  {% if let Some(previous) = page.previous %}<a class="previous" href="{{ previous.href }}">← Previous: {{ previous.name }}</a>{% endif %}
-  {% if let Some(next) = page.next %}<a class="next" href="{{ next.href }}">Next: {{ next.name }} →</a>{% endif %}
+<nav class="sequence" aria-label="{{ t.sequence_label }}">
+  {% if let Some(previous) = page.previous %}<a class="previous" href="{{ previous.href }}">← {{ t.previous }} {{ previous.name }}</a>{% endif %}
+  {% if let Some(next) = page.next %}<a class="next" href="{{ next.href }}">{{ t.next }} {{ next.name }} →</a>{% endif %}
 </nav>
 {% endif %}
 {% endblock %}
@@ -46,8 +46,8 @@
 <ol class="steps">
   {% for step in steps %}
   <li value="{{ step.order }}">
-    <strong>{{ step.actor }}</strong> <span class="muted">({% if step.human %}human{% else %}system{% endif %})</span> — {{ step.action }}{% if let Some(detail) = step.detail %}. {{ detail }}{% endif %}
-    {% if !step.cited.is_empty() %}<div class="cited">Code: {% for link in step.cited %}{% call m::code_link(link) %}{% endcall %}{% if !loop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+    <strong>{{ step.actor }}</strong> <span class="muted">({% if step.human %}{{ t.doc.human }}{% else %}{{ t.doc.system }}{% endif %})</span> — {{ step.action }}{% if let Some(detail) = step.detail %}. {{ detail }}{% endif %}
+    {% if !step.cited.is_empty() %}<div class="cited">{{ t.doc.code }} {% for link in step.cited %}{% call m::code_link(link) %}{% endcall %}{% if !loop.last %}, {% endif %}{% endfor %}</div>{% endif %}
   </li>
   {% endfor %}
 </ol>
@@ -55,5 +55,5 @@
 
 {% macro draw(diagram) %}
 <pre class="mermaid">{{ diagram }}</pre>
-<details class="diagram-source"><summary>Source of the diagram</summary><pre><code>{{ diagram }}</code></pre></details>
+<details class="diagram-source"><summary>{{ t.diagram_source }}</summary><pre><code>{{ diagram }}</code></pre></details>
 {% endmacro %}

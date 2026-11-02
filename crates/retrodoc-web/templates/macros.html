@@ -2,15 +2,15 @@
 
 {% macro badge_why(confidence) %}{% call badge(confidence) %}{% endcall %}{% if let Some(why) = confidence.rationale %} <span class="muted">{{ why }}</span>{% endif %}{% endmacro %}
 
-{% macro doc_link(doc) %}<a href="{{ doc.href }}"><code>{{ doc.path }}</code>{% if let Some(heading) = doc.heading %}, section “{{ heading }}”{% endif %}</a>{% if let Some(states) = doc.contradicts %} <span class="badge low">states otherwise</span> {{ states }}{% endif %}{% endmacro %}
+{% macro doc_link(doc) %}<a href="{{ doc.href }}"><code>{{ doc.path }}</code>{% if let Some(heading) = doc.heading %}, {{ t.doc.section }} “{{ heading }}”{% endif %}</a>{% if let Some(states) = doc.contradicts %} <span class="badge low">{{ t.states_otherwise }}</span> {{ states }}{% endif %}{% endmacro %}
 
 {% macro score(label, confidence) %}
-<p class="score"><strong>{{ label }}:</strong> {% call badge_why(confidence) %}{% endcall %}</p>
+<p class="score"><strong>{{ label }}</strong> {% call badge_why(confidence) %}{% endcall %}</p>
 {% endmacro %}
 
 {% macro crumbs(links, current) %}
-<nav class="crumbs" aria-label="Breadcrumb">
-  {% for link in links %}<a href="{{ link.href }}">{{ link.name }}</a> › {% endfor %}<span>{{ current }}</span>
+<nav class="crumbs" aria-label="{{ t.breadcrumb }}">
+  <a href="/">{{ t.home }}</a> › {% for link in links %}<a href="{{ link.href }}">{{ link.name }}</a> › {% endfor %}<span>{{ current }}</span>
 </nav>
 {% endmacro %}
 
@@ -24,7 +24,7 @@
 
 {% macro existing_docs(docs) %}
 {% if !docs.is_empty() %}
-<h2>Existing documentation</h2>
+<h2>{{ t.doc.existing_documentation }}</h2>
 <ul class="docs">
   {% for doc in docs %}
   <li>{% call doc_link(doc) %}{% endcall %}</li>
@@ -35,28 +35,28 @@
 
 {% macro stale(files) %}
 {% if !files.is_empty() %}
-<p class="stale-files"><span class="badge stale" title="A file it cites changed since the run">stale</span> changed since the run:
-  {% for file in files %}<code>{{ file.path }}</code> ({{ file.state }}){% if !loop.last %}, {% endif %}{% endfor %}</p>
+<p class="stale-files"><span class="badge stale" title="{{ t.stale_hint }}">{{ t.stale }}</span> {{ t.changed_since_the_run }}
+  {% for file in files %}<code>{{ file.path }}</code> ({% if file.deleted %}{{ t.deleted }}{% else %}{{ t.modified }}{% endif %}){% if !loop.last %}, {% endif %}{% endfor %}</p>
 {% endif %}
 {% endmacro %}
 
-{% macro evidence(evidence) %}{{ evidence.kind }}: {% if let Some(href) = evidence.code %}<a href="{{ href }}"><code>{{ evidence.text }}</code></a>{% else %}“{{ evidence.text }}”{% endif %}{% if let Some(source) = evidence.source %} (<code>{{ source }}</code>){% endif %}{% endmacro %}
+{% macro evidence(evidence) %}{{ t.evidence(*evidence.kind) }} {% if let Some(href) = evidence.code %}<a href="{{ href }}"><code>{{ evidence.text }}</code></a>{% else %}“{{ evidence.text }}”{% endif %}{% if let Some(source) = evidence.source %} (<code>{{ source }}</code>){% endif %}{% endmacro %}
 
 {% macro rules(rules) %}
 {% if !rules.is_empty() %}
-<h2>Business rules</h2>
+<h2>{{ t.doc.business_rules }}</h2>
 <ul class="rules">
   {% for rule in rules %}
   <li id="{{ rule.anchor }}">
-    {{ rule.statement }} <span class="muted">({{ rule.kind }}, {% call badge_why(rule.confidence) %}{% endcall %})</span>
+    {{ rule.statement }} <span class="muted">({{ t.doc.kind(*rule.kind) }}, {% call badge_why(rule.confidence) %}{% endcall %})</span>
     <ul>
-      {% if !rule.entities.is_empty() %}<li>Entities: {{ rule.entities|join(", ") }}</li>{% endif %}
-      {% if !rule.use_cases.is_empty() %}<li>Use cases: {% for link in rule.use_cases %}<a href="{{ link.href }}">{{ link.name }}</a>{% if !loop.last %}, {% endif %}{% endfor %}</li>{% endif %}
+      {% if !rule.entities.is_empty() %}<li>{{ t.doc.entities }} {{ rule.entities|join(", ") }}</li>{% endif %}
+      {% if !rule.use_cases.is_empty() %}<li>{{ t.doc.rule_use_cases }} {% for link in rule.use_cases %}<a href="{{ link.href }}">{{ link.name }}</a>{% if !loop.last %}, {% endif %}{% endfor %}</li>{% endif %}
       {% for evidence in rule.evidence %}
       <li>{% call evidence(evidence) %}{% endcall %}</li>
       {% endfor %}
       {% for doc in rule.docs %}
-      <li>Existing doc: {% call doc_link(doc) %}{% endcall %}</li>
+      <li>{{ t.doc.existing_doc }} {% call doc_link(doc) %}{% endcall %}</li>
       {% endfor %}
     </ul>
   </li>

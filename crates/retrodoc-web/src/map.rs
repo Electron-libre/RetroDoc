@@ -10,7 +10,8 @@ use retrodoc_mcp::GeneratedDocs;
 use retrodoc_render::anchor;
 
 use crate::glossary::uses;
-use crate::view::{domain_href, feature_href, home_crumb, plural, Link};
+use crate::texts::WebTexts;
+use crate::view::{domain_href, feature_href, Link};
 
 /// The concepts named on an edge, the others counted.
 const EDGE_CONCEPTS: usize = 3;
@@ -33,16 +34,16 @@ impl Maps {
 
 /// The maps of `docs`.
 #[must_use]
-pub fn maps(docs: &GeneratedDocs) -> Maps {
+pub fn maps(docs: &GeneratedDocs, texts: &'static WebTexts) -> Maps {
     let usage = concept_uses(docs);
     let humans = humans(docs);
     Maps {
-        overview: map_page(docs, &usage),
+        overview: map_page(docs, &usage, texts),
         domains: docs
             .domains()
             .iter()
             .map(|domain| {
-                let page = domain_map_page(docs, domain, &usage, &humans);
+                let page = domain_map_page(docs, domain, &usage, &humans, texts);
                 (domain.slug.clone(), page)
             })
             .collect(),
@@ -78,7 +79,7 @@ pub struct Shared {
 }
 
 /// The map of the domains of `docs`, whose concepts are used as `usage` says.
-fn map_page(docs: &GeneratedDocs, usage: &ConceptUses) -> MapPage {
+fn map_page(docs: &GeneratedDocs, usage: &ConceptUses, texts: &WebTexts) -> MapPage {
     let used = concepts_by_domain(usage);
     let domains: Vec<MapDomain> = docs
         .domains()
@@ -98,8 +99,8 @@ fn map_page(docs: &GeneratedDocs, usage: &ConceptUses) -> MapPage {
                 name: domain.name.clone(),
                 counts: format!(
                     "{}, {}",
-                    plural(features.len(), "feature", "features"),
-                    plural(use_cases, "use case", "use cases")
+                    texts.features(features.len()),
+                    texts.use_cases(use_cases)
                 ),
                 shared: docs
                     .domains()
@@ -271,6 +272,7 @@ fn domain_map_page(
     domain: &Domain,
     usage: &ConceptUses,
     humans: &BTreeMap<&str, bool>,
+    texts: &WebTexts,
 ) -> DomainMapPage {
     let slug = domain.slug.as_str();
     let features: Vec<&Feature> = docs.features_of(slug).collect();
@@ -291,11 +293,7 @@ fn domain_map_page(
                 href: feature_href(feature),
                 name: feature.name.clone(),
             },
-            counts: plural(
-                docs.use_cases_of(&feature.slug).count(),
-                "use case",
-                "use cases",
-            ),
+            counts: texts.use_cases(docs.use_cases_of(&feature.slug).count()),
             actors: parts
                 .iter()
                 .map(|(_, by_feature)| by_feature)
@@ -313,13 +311,10 @@ fn domain_map_page(
         .collect();
     let source = domain_source(&map_features, &actors, &concepts, &parts, &features);
     DomainMapPage {
-        crumbs: vec![
-            home_crumb(),
-            Link {
-                href: "/map".into(),
-                name: "Map".into(),
-            },
-        ],
+        crumbs: vec![Link {
+            href: "/map".into(),
+            name: texts.reference_pages[0].name.into(),
+        }],
         name: domain.name.clone(),
         href: domain_href(slug),
         source,

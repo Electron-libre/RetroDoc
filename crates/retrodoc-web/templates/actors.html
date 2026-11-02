@@ -1,20 +1,20 @@
 {% extends "base.html" %}
-{% block title %}Actors{% endblock %}
+{% block title %}{{ t.reference_pages[1].name }}{% endblock %}
 {% block content %}
-<h1>Actors</h1>
+<h1>{{ t.reference_pages[1].name }}</h1>
 {% if page.groups.is_empty() %}
-<p class="muted">No actor was found in the use cases of the last run.</p>
+<p class="muted">{{ t.no_actor }}</p>
 {% else %}
-<p class="muted">Who starts or takes part in the use cases of each feature, as the use cases name them.</p>
+<p class="muted">{{ t.actors_intro }}</p>
 {% for group in page.groups %}
 <h2>{{ group.heading }}</h2>
 <div class="matrix">
 <table id="{{ group.id }}">
   <thead>
     <tr>
-      <th scope="col">Actor</th>
+      <th scope="col">{{ t.actor }}</th>
       {% for feature in page.features %}<th scope="col"><a href="{{ feature.href }}">{{ feature.name }}</a></th>{% endfor %}
-      <th scope="col">Permission rules</th>
+      <th scope="col">{{ t.permission_rules }}</th>
     </tr>
   </thead>
   <tbody>
@@ -22,7 +22,7 @@
     <tr>
       <th scope="row">{{ row.name }}</th>
       {% for cell in row.cells %}
-      <td>{% for item in cell %}<a href="{{ item.use_case.href }}">{{ item.use_case.name }}</a>{% if item.starts %} <span class="badge">starts</span>{% endif %}{% if !loop.last %}<br>{% endif %}{% endfor %}</td>
+      <td>{% for item in cell %}<a href="{{ item.use_case.href }}">{{ item.use_case.name }}</a>{% if item.starts %} <span class="badge">{{ t.starts }}</span>{% endif %}{% if !loop.last %}<br>{% endif %}{% endfor %}</td>
       {% endfor %}
       <td>{% for rule in row.permissions %}<a href="{{ rule.href }}">{{ rule.name }}</a>{% if !loop.last %}<br>{% endif %}{% endfor %}</td>
     </tr>

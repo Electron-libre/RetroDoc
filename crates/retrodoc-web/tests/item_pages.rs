@@ -242,9 +242,17 @@ fn doc_links() -> DocLinks {
 }
 
 async fn get(root: &Path, path: &str) -> (StatusCode, String) {
+    get_in(root, path, Some("en")).await
+}
+
+/// [`get`] with the pages in the language of the tag `lang`.
+async fn get_in(root: &Path, path: &str, lang: Option<&'static str>) -> (StatusCode, String) {
     let docs = GeneratedDocs::load(root, &[]);
     let response = retrodoc_web::router(
-        retrodoc_web::Project::default(),
+        retrodoc_web::Project {
+            lang,
+            ..retrodoc_web::Project::default()
+        },
         docs,
         doc_links(),
         Vec::new(),
@@ -824,4 +832,89 @@ async fn a_client_that_does_not_accept_gzip_is_not_sent_the_compressed_script() 
     let response = mermaid_with(Some("gzip, deflate, br")).await;
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(response.headers()["vary"], "accept-encoding");
+}
+
+/// The English labels of the pages of the items and of reference, none of which a page in French
+/// must carry.
+const ENGLISH_LABELS: &[&str] = &[
+    "Map of this domain",
+    ">Features<",
+    "Business rules",
+    "Existing documentation",
+    "states otherwise",
+    ">Use cases<",
+    "Source files",
+    "Entry points",
+    "Primary actor",
+    "Triggered by",
+    "What happens",
+    "Technical details",
+    ">Steps<",
+    ">Diagram<",
+    "Source of the diagram",
+    "Previous:",
+    "Next:",
+    "Entities:",
+    "Code:",
+    "Test:",
+    "(human)",
+    "(system)",
+    ">Home<",
+    ">All<",
+    ">Filter<",
+    "Kind",
+    "Feature:",
+    "Glossary<",
+    "No concept was found",
+    "Actors<",
+    "People",
+    "Systems",
+    "Permission rules",
+    "Map<",
+    "Files<",
+    "files cited by the docs",
+    "cited by",
+    "Cited by",
+    "Showing",
+    "History",
+    "Confidence:",
+    "Business language:",
+    "not scored",
+];
+
+// spec: WEB-77
+#[tokio::test]
+async fn the_pages_of_the_items_and_of_reference_are_in_french() {
+    let repo = generated_repo();
+    let mut pages = String::new();
+    for path in [
+        "/domains/billing",
+        "/domains/billing/pay-invoice",
+        PAY_BY_CARD,
+        "/domains/billing/pay-invoice/retry-job",
+        "/rules",
+        "/glossary",
+        "/actors",
+        "/map",
+        "/map/billing",
+        "/files",
+        "/code/app/invoice.rb?lines=4-9",
+    ] {
+        let (status, page) = get_in(repo.path(), path, Some("fr")).await;
+        assert_eq!(status, StatusCode::OK, "{path}: {page}");
+        pages.push_str(main_of(&page));
+    }
+    for label in ENGLISH_LABELS {
+        assert!(!pages.contains(label), "{label} left in {pages}");
+    }
+    for label in [
+        "Carte de ce domaine",
+        "Ce qui se passe",
+        "Règles métier",
+        "Acteur principal :",
+        "Personnes",
+        "Historique",
+    ] {
+        assert!(pages.contains(label), "{label} missing from {pages}");
+    }
 }

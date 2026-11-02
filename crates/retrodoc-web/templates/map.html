@@ -1,15 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Map{% endblock %}
+{% block title %}{{ t.reference_pages[0].name }}{% endblock %}
 {% block scripts %}
   <script src="/assets/{{ mermaid }}" defer></script>
   <script src="/assets/diagrams.js" defer></script>
 {% endblock %}
 {% block content %}
-<h1>Map</h1>
+<h1>{{ t.reference_pages[0].name }}</h1>
 {% if page.domains.is_empty() %}
-<p class="muted">The last run generated no domain.</p>
+<p class="muted">{{ t.no_domain_generated }}</p>
 {% else %}
-<p class="muted">The domains of the application; two are linked when their use cases use the same concepts. Open a domain to see its features, their actors and their concepts.</p>
+<p class="muted">{{ t.map_intro }}</p>
 <section class="map">
 <pre class="mermaid map-graph">{{ page.source }}</pre>
 <ul class="map-links">
@@ -20,7 +20,7 @@
     {% if !domain.shared.is_empty() %}
     <ul>
       {% for shared in domain.shared %}
-      <li>with <a href="{{ shared.with.href }}">{{ shared.with.name }}</a>: {% for concept in shared.concepts %}<a href="{{ concept.href }}">{{ concept.name }}</a>{% if !loop.last %}, {% endif %}{% endfor %}</li>
+      <li>{{ t.with }} <a href="{{ shared.with.href }}">{{ shared.with.name }}</a>: {% for concept in shared.concepts %}<a href="{{ concept.href }}">{{ concept.name }}</a>{% if !loop.last %}, {% endif %}{% endfor %}</li>
       {% endfor %}
     </ul>
     {% endif %}

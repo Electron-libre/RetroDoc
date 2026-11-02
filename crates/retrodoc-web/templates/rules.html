@@ -1,19 +1,19 @@
 {% extends "base.html" %}
-{% block title %}Business rules{% endblock %}
+{% block title %}{{ t.doc.business_rules }}{% endblock %}
 {% block content %}
-<h1>Business rules</h1>
+<h1>{{ t.doc.business_rules }}</h1>
 <form class="filters" action="/rules" method="get" hx-get="/rules" hx-target="#rule-list" hx-swap="outerHTML" hx-trigger="change" hx-push-url="true">
   {% for filter in page.filters %}
   <label>{{ filter.label }}
     <select name="{{ filter.name }}">
-      <option value="">All</option>
+      <option value="">{{ t.all }}</option>
       {% for choice in filter.choices %}
       <option value="{{ choice.value }}"{% if choice.selected %} selected{% endif %}>{{ choice.label }}</option>
       {% endfor %}
     </select>
   </label>
   {% endfor %}
-  <button type="submit">Filter</button>
+  <button type="submit">{{ t.filter }}</button>
 </form>
 {% include "rules_list.html" %}
 {% endblock %}

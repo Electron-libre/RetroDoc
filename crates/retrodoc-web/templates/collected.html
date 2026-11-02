@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ page.title }}{% endblock %}
 {% block content %}
-<p class="muted">Existing doc <code>{{ page.path }}</code></p>
+<p class="muted">{{ t.existing_doc }} <code>{{ page.path }}</code></p>
 <article class="collected">
 {{ page.html|safe }}
 </article>

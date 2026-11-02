@@ -5,22 +5,22 @@
 {% call m::crumbs(page.crumbs, page.name) %}{% endcall %}
 <h1>{{ page.name }}</h1>
 <p>{{ page.description }}</p>
-<p><a href="{{ page.map }}">Map of this domain</a>: its features, who uses them and the concepts they use.</p>
-{% call m::score("Confidence", page.confidence) %}{% endcall %}
+<p><a href="{{ page.map }}">{{ t.map_of_this_domain }}</a>{{ t.map_of_this_domain_tail }}</p>
+{% call m::score(t.doc.confidence, page.confidence) %}{% endcall %}
 {% if !page.features.is_empty() %}
-<h2>Features</h2>
+<h2>{{ t.doc.features }}</h2>
 {% call m::items(page.features) %}{% endcall %}
 {% endif %}
 {% if !page.back_office.is_empty() %}
-<h2>{{ technical_heading }}</h2>
-<p class="muted">{{ technical_note }}</p>
+<h2>{{ t.doc.technical_heading }}</h2>
+<p class="muted">{{ t.doc.technical_note }}</p>
 {% call m::items(page.back_office) %}{% endcall %}
 {% endif %}
 {% if !page.rules.is_empty() %}
-<h2>Business rules</h2>
+<h2>{{ t.doc.business_rules }}</h2>
 <ul class="rules">
   {% for rule in page.rules %}
-  <li>{{ rule.statement }} <span class="muted">({{ rule.kind }}, {% call m::badge_why(rule.confidence) %}{% endcall %})</span> — <a href="{{ rule.feature.href }}">{{ rule.feature.name }}</a></li>
+  <li>{{ rule.statement }} <span class="muted">({{ t.doc.kind(*rule.kind) }}, {% call m::badge_why(rule.confidence) %}{% endcall %})</span> — <a href="{{ rule.feature.href }}">{{ rule.feature.name }}</a></li>
   {% endfor %}
 </ul>
 {% endif %}

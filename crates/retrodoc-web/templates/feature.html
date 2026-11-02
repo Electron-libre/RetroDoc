@@ -4,30 +4,30 @@
 {% block content %}
 {% call m::crumbs(page.crumbs, page.name) %}{% endcall %}
 <h1>{{ page.name }}</h1>
-{% if page.back_office %}<p><span class="badge set-apart">back-office</span> <span class="muted">{{ technical_note }}</span></p>{% endif %}
+{% if page.back_office %}<p><span class="badge set-apart">{{ t.back_office }}</span> <span class="muted">{{ t.doc.technical_note }}</span></p>{% endif %}
 {% call m::stale(page.stale) %}{% endcall %}
 <p>{{ page.description }}</p>
-{% call m::score("Confidence", page.confidence) %}{% endcall %}
-<h2>Use cases</h2>
+{% call m::score(t.doc.confidence, page.confidence) %}{% endcall %}
+<h2>{{ t.doc.use_cases }}</h2>
 {% if page.no_use_case %}
-<p>None could be derived from the code.</p>
+<p>{{ t.doc.no_use_case }}</p>
 {% else if page.use_cases.is_empty() %}
-<p>All of them are set apart below.</p>
+<p>{{ t.doc.all_set_apart }}</p>
 {% endif %}
 {% call m::items(page.use_cases) %}{% endcall %}
 {% if !page.technical.is_empty() %}
-<h2>{{ technical_heading }}</h2>
-<p class="muted">{{ technical_note }}</p>
+<h2>{{ t.doc.technical_heading }}</h2>
+<p class="muted">{{ t.doc.technical_note }}</p>
 {% call m::items(page.technical) %}{% endcall %}
 {% endif %}
 {% call m::rules(page.rules) %}{% endcall %}
 {% call m::existing_docs(page.docs) %}{% endcall %}
 {% if !page.source_files.is_empty() %}
-<h2>Source files</h2>
+<h2>{{ t.doc.source_files }}</h2>
 <ul>{% for link in page.source_files %}<li>{% call m::code_link(link) %}{% endcall %}</li>{% endfor %}</ul>
 {% endif %}
 {% if !page.entry_points.is_empty() %}
-<h2>Entry points</h2>
+<h2>{{ t.entry_points }}</h2>
 <ul>{% for id in page.entry_points %}<li><code>{{ id }}</code></li>{% endfor %}</ul>
 {% endif %}
 {% endblock %}

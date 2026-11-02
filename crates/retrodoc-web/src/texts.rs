@@ -2,10 +2,12 @@
 //! headings and messages around the docs. The words the pages share with the Markdown docs come
 //! from the table of `retrodoc-render` ([`WebTexts::doc`]). A language with no table keeps English.
 
+use retrodoc_mcp::source::{SourceError, MAX_FILE_BYTES};
 use retrodoc_mcp::EntryKind;
 use retrodoc_render::Texts;
 
-use crate::view::{plural, Group, ReferencePage};
+use crate::code::CiterKind;
+use crate::view::{plural, EvidenceKind, Group, ReferencePage};
 
 /// The fixed text of the pages in one language.
 #[derive(Debug)]
@@ -55,6 +57,82 @@ pub struct WebTexts {
     pub not_found: &'static str,
     pub page_missing: &'static str,
     pub back_to_domains: &'static str,
+    pub map_of_this_domain: &'static str,
+    /// After the link to the map of a domain.
+    pub map_of_this_domain_tail: &'static str,
+    pub back_office: &'static str,
+    pub entry_points: &'static str,
+    pub unbacked: &'static str,
+    pub unbacked_hint: &'static str,
+    pub diagram_source: &'static str,
+    pub sequence_label: &'static str,
+    pub previous: &'static str,
+    pub next: &'static str,
+    pub breadcrumb: &'static str,
+    /// The badge of a doc section that contradicts an item.
+    pub states_otherwise: &'static str,
+    pub changed_since_the_run: &'static str,
+    pub deleted: &'static str,
+    pub modified: &'static str,
+    pub all: &'static str,
+    pub filter: &'static str,
+    pub kind: &'static str,
+    pub domain: &'static str,
+    pub feature: &'static str,
+    pub use_case: &'static str,
+    pub rule: &'static str,
+    pub rule_feature: &'static str,
+    pub not_in_the_run: &'static str,
+    pub no_rule_in_run: &'static str,
+    pub no_rule_matches: &'static str,
+    /// The list `htmx` swaps under the form of the rules before a first `generate`.
+    pub no_run_rules: &'static str,
+    pub no_concept: &'static str,
+    pub glossary_intro: &'static str,
+    pub no_use_case_uses_it: &'static str,
+    pub used_by: &'static str,
+    pub no_actor: &'static str,
+    pub actors_intro: &'static str,
+    pub people: &'static str,
+    pub systems: &'static str,
+    pub actor: &'static str,
+    pub permission_rules: &'static str,
+    pub starts: &'static str,
+    pub map_intro: &'static str,
+    /// Before the domain a domain shares concepts with.
+    pub with: &'static str,
+    pub map_of: &'static str,
+    pub no_feature_in_domain: &'static str,
+    /// Before the link to the domain, then after it.
+    pub domain_map_intro: (&'static str, &'static str),
+    pub actors_label: &'static str,
+    pub concepts_label: &'static str,
+    /// After the counts of the files cited and of all the files.
+    pub files_cited: &'static str,
+    pub files_hint: &'static str,
+    pub dir_cited: &'static str,
+    pub cited_by_count: &'static str,
+    pub not_cited: &'static str,
+    pub cited_by: &'static str,
+    pub code_heading: &'static str,
+    pub file_empty: &'static str,
+    pub showing: &'static str,
+    /// Before the length of a line cut.
+    pub line_cut: &'static str,
+    pub characters: &'static str,
+    pub next_lines: &'static str,
+    pub history: &'static str,
+    pub no_commit: &'static str,
+    pub renamed_from: &'static str,
+    pub no_history: &'static str,
+    /// Above a collected doc.
+    pub existing_doc: &'static str,
+    /// The lines a page of a file shows: from, to, of how many.
+    pub shown: fn(usize, usize, usize) -> String,
+    /// Why the lines asked are not shown: the number of lines of the file, the first line asked.
+    pub past_end: fn(usize, usize) -> String,
+    /// Why a cited file can't be shown.
+    pub refusal: fn(&SourceError) -> String,
 }
 
 impl WebTexts {
@@ -139,6 +217,71 @@ impl WebTexts {
         not_found: "Not found",
         page_missing: "This page does not exist.",
         back_to_domains: "Back to the domains",
+        map_of_this_domain: "Map of this domain",
+        map_of_this_domain_tail: ": its features, who uses them and the concepts they use.",
+        back_office: "back-office",
+        entry_points: "Entry points",
+        unbacked: "unbacked",
+        unbacked_hint: "The confidence pass judged it unsupported by the cited code",
+        diagram_source: "Source of the diagram",
+        sequence_label: "Use cases of this feature",
+        previous: "Previous:",
+        next: "Next:",
+        breadcrumb: "Breadcrumb",
+        states_otherwise: "states otherwise",
+        changed_since_the_run: "changed since the run:",
+        deleted: "deleted",
+        modified: "modified",
+        all: "All",
+        filter: "Filter",
+        kind: "Kind",
+        domain: "Domain",
+        feature: "Feature",
+        use_case: "Use case",
+        rule: "Rule",
+        rule_feature: "Feature:",
+        not_in_the_run: "not in the run",
+        no_rule_in_run: "No business rule was found in the code of the last run.",
+        no_rule_matches: "No rule matches.",
+        no_run_rules: "<section id=\"rule-list\"><p>No rule yet: run <code>retrodoc generate</code>, then restart <code>retrodoc ui</code>.</p></section>",
+        no_concept: "No concept was found in the code of the last run.",
+        glossary_intro: "The business concepts read from the code, with the use cases that use them.",
+        no_use_case_uses_it: "No use case uses it.",
+        used_by: "Used by:",
+        no_actor: "No actor was found in the use cases of the last run.",
+        actors_intro: "Who starts or takes part in the use cases of each feature, as the use cases name them.",
+        people: "People",
+        systems: "Systems",
+        actor: "Actor",
+        permission_rules: "Permission rules",
+        starts: "starts",
+        map_intro: "The domains of the application; two are linked when their use cases use the same concepts. Open a domain to see its features, their actors and their concepts.",
+        with: "with",
+        map_of: "Map of",
+        no_feature_in_domain: "This domain has no feature.",
+        domain_map_intro: ("The features of", ", the people who start their use cases (solid arrow) or take part in them (dotted arrow), and the concepts they use."),
+        actors_label: "Actors:",
+        concepts_label: "Concepts:",
+        files_cited: "files cited by the docs.",
+        files_hint: "A file opens its code, with what cites it.",
+        dir_cited: "cited",
+        cited_by_count: "cited by",
+        not_cited: "not cited",
+        cited_by: "Cited by",
+        code_heading: "Code",
+        file_empty: "The file is empty.",
+        showing: "Showing",
+        line_cut: "line cut,",
+        characters: "characters",
+        next_lines: "Next lines",
+        history: "History",
+        no_commit: "No commit touches this file (not committed yet?).",
+        renamed_from: "renamed from",
+        no_history: "The history is not available: this repository has no readable git history.",
+        existing_doc: "Existing doc",
+        shown: |start, end, total| format!("lines {start}-{end} of {total}"),
+        past_end: |total, line| format!("The file has {total} lines: line {line} is past the end."),
+        refusal: SourceError::to_string,
     };
 
     pub const FRENCH: Self = Self {
@@ -228,6 +371,71 @@ impl WebTexts {
         not_found: "Page introuvable",
         page_missing: "Cette page n'existe pas.",
         back_to_domains: "Retour aux domaines",
+        map_of_this_domain: "Carte de ce domaine",
+        map_of_this_domain_tail: " : ses fonctionnalités, qui les utilise et les concepts qu'elles utilisent.",
+        back_office: "back-office",
+        entry_points: "Points d'entrée",
+        unbacked: "non étayé",
+        unbacked_hint: "La passe de confiance l'a jugé non étayé par le code cité",
+        diagram_source: "Source du diagramme",
+        sequence_label: "Cas d'usage de cette fonctionnalité",
+        previous: "Précédent :",
+        next: "Suivant :",
+        breadcrumb: "Fil d'Ariane",
+        states_otherwise: "affirme autre chose",
+        changed_since_the_run: "modifié depuis le run :",
+        deleted: "supprimé",
+        modified: "modifié",
+        all: "Tous",
+        filter: "Filtrer",
+        kind: "Type",
+        domain: "Domaine",
+        feature: "Fonctionnalité",
+        use_case: "Cas d'usage",
+        rule: "Règle",
+        rule_feature: "Fonctionnalité :",
+        not_in_the_run: "absente du run",
+        no_rule_in_run: "Aucune règle métier n'a été trouvée dans le code du dernier run.",
+        no_rule_matches: "Aucune règle ne correspond.",
+        no_run_rules: "<section id=\"rule-list\"><p>Pas encore de règle : lancez <code>retrodoc generate</code>, puis relancez <code>retrodoc ui</code>.</p></section>",
+        no_concept: "Aucun concept n'a été trouvé dans le code du dernier run.",
+        glossary_intro: "Les concepts métier lus dans le code, avec les cas d'usage qui les utilisent.",
+        no_use_case_uses_it: "Aucun cas d'usage ne l'utilise.",
+        used_by: "Utilisé par :",
+        no_actor: "Aucun acteur n'a été trouvé dans les cas d'usage du dernier run.",
+        actors_intro: "Qui lance les cas d'usage de chaque fonctionnalité ou y prend part, tels que les cas d'usage les nomment.",
+        people: "Personnes",
+        systems: "Systèmes",
+        actor: "Acteur",
+        permission_rules: "Règles de permission",
+        starts: "lance",
+        map_intro: "Les domaines de l'application ; deux sont reliés quand leurs cas d'usage utilisent les mêmes concepts. Ouvrez un domaine pour voir ses fonctionnalités, leurs acteurs et leurs concepts.",
+        with: "avec",
+        map_of: "Carte de",
+        no_feature_in_domain: "Ce domaine n'a aucune fonctionnalité.",
+        domain_map_intro: ("Les fonctionnalités de", ", les personnes qui lancent leurs cas d'usage (flèche pleine) ou y prennent part (flèche pointillée), et les concepts qu'elles utilisent."),
+        actors_label: "Acteurs :",
+        concepts_label: "Concepts :",
+        files_cited: "fichiers cités par la doc.",
+        files_hint: "Un fichier ouvre son code, avec ce qui le cite.",
+        dir_cited: "cités",
+        cited_by_count: "cité par",
+        not_cited: "non cité",
+        cited_by: "Cité par",
+        code_heading: "Code",
+        file_empty: "Le fichier est vide.",
+        showing: "Affichage des",
+        line_cut: "ligne coupée,",
+        characters: "caractères",
+        next_lines: "Lignes suivantes",
+        history: "Historique",
+        no_commit: "Aucun commit ne touche ce fichier (pas encore commité ?).",
+        renamed_from: "renommé depuis",
+        no_history: "L'historique n'est pas disponible : ce dépôt n'a pas d'historique git lisible.",
+        existing_doc: "Doc existante",
+        shown: |start, end, total| format!("lignes {start}-{end} sur {total}"),
+        past_end: |total, line| format!("Le fichier a {total} lignes : la ligne {line} est après la fin."),
+        refusal: french_refusal,
     };
 
     /// The table of the language of the two-letter `tag`: English for no tag or a language with
@@ -265,9 +473,61 @@ impl WebTexts {
         plural(count, self.use_case_unit.0, self.use_case_unit.1)
     }
 
+    /// What cites a file: a feature, a use case or a rule.
+    #[must_use]
+    pub fn citer(&self, kind: CiterKind) -> &'static str {
+        match kind {
+            CiterKind::Feature => self.feature,
+            CiterKind::UseCase => self.use_case,
+            CiterKind::Rule => self.rule,
+        }
+    }
+
+    /// What backs a rule, with its colon: `Code:`.
+    #[must_use]
+    pub fn evidence(&self, kind: EvidenceKind) -> &'static str {
+        match kind {
+            EvidenceKind::Code => self.doc.code,
+            EvidenceKind::Test => self.doc.test,
+            EvidenceKind::Documentation => self.doc.documentation,
+        }
+    }
+
     /// The label of a confidence badge: its percent, or not scored.
     #[must_use]
     pub fn confidence(&self, percent: Option<&String>) -> String {
         percent.map_or_else(|| self.doc.not_scored.to_string(), String::clone)
+    }
+}
+
+/// Why a cited file can't be shown, in French; the paths stay as written.
+fn french_refusal(error: &SourceError) -> String {
+    match error {
+        SourceError::NotPlain(path) => {
+            format!("Indisponible : `{path}` n'est pas un chemin dans le dépôt.")
+        }
+        SourceError::NotCited(path) => {
+            format!("Indisponible : `{path}` n'est cité par aucune doc.")
+        }
+        SourceError::Symlink(path) => format!(
+            "Indisponible : `{path}` est un lien symbolique, ou passe par un, et les liens ne sont \
+             pas suivis."
+        ),
+        SourceError::Gone(path) => format!("Indisponible : `{path}` n'existe plus dans le dépôt."),
+        SourceError::Unreadable(path) => format!("Indisponible : `{path}` n'a pas pu être lu."),
+        SourceError::TooLarge { path, size } => format!(
+            "Indisponible : `{path}` est trop gros pour être affiché ({size} octets, la limite est \
+             {MAX_FILE_BYTES})."
+        ),
+        SourceError::Binary(path) => format!("Indisponible : `{path}` est un fichier binaire."),
+        SourceError::PastEnd { path, total, start } => {
+            format!("`{path}` a {total} lignes : la ligne {start} est après la fin.")
+        }
+        SourceError::Reversed { start, end } => {
+            format!("La ligne de fin ({end}) est avant la ligne de début ({start}).")
+        }
+        SourceError::NoHistory => {
+            "Indisponible : ce dépôt n'a pas d'historique git lisible.".to_string()
+        }
     }
 }

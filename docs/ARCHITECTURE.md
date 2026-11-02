@@ -299,8 +299,9 @@ one provider. The model is part of each pass's fingerprint (§5), so changing it
 With `[output] language` set, the provider of each pass that writes text a reader sees is wrapped in
 `InLanguage` (`retrodoc-pipeline`), which ends every system prompt with one instruction naming the language and
 whose model names it too, so changing the language redoes those passes; the reading passes keep the plain
-provider. The fixed text the render writes around the generated text (headings, labels) follows the language
-too, from a table per language in `retrodoc-render` (English and French; English for any other). See
+provider. The fixed text around the generated text (the headings and labels of the render, the pages of
+`retrodoc ui` and their `lang`) follows the language too, from a table per language in `retrodoc-render` and
+`retrodoc-web` (English and French; English for any other). See
 [ADR 0041](adr/0041-the-language-of-the-docs-wraps-the-provider-of-a-writing-pass.md) and
 `specs/docs-language.md`.
 

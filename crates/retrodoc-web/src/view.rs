@@ -11,13 +11,13 @@ use crate::map::{map_href, maps, Maps};
 use crate::texts::WebTexts;
 use crate::Project;
 use retrodoc_core::model::{
-    ActorKind, BusinessRule, ConfidenceScore, Feature, RuleEvidence, SourceRef, Step, UseCase,
-    LOW_CONFIDENCE_THRESHOLD,
+    ActorKind, BusinessRule, ConfidenceScore, Feature, RuleEvidence, RuleKind, SourceRef, Step,
+    UseCase, LOW_CONFIDENCE_THRESHOLD,
 };
 use retrodoc_mcp::freshness::{FileState, Freshness};
 use retrodoc_mcp::source::SourceAccess;
 use retrodoc_mcp::{ExistingDoc, GeneratedDocs};
-use retrodoc_render::{anchor, source_ref_label, DocLinks, ItemRef, Texts};
+use retrodoc_render::{anchor, source_ref_label, DocLinks, ItemRef};
 
 /// The docs the interface serves, `None` before a first `generate`, and the
 /// frame every page shows, built once since the docs don't change.
@@ -56,8 +56,8 @@ impl Site {
         let source = docs.as_ref().and_then(GeneratedDocs::source_access);
         let files = docs.as_ref().map(files_page);
         let glossary = docs.as_ref().map(glossary_page);
-        let actors = docs.as_ref().map(actors_page);
-        let maps = docs.as_ref().map(maps);
+        let actors = docs.as_ref().map(|docs| actors_page(docs, texts));
+        let maps = docs.as_ref().map(|docs| maps(docs, texts));
         let start = match (&docs, &files, &glossary, &actors) {
             (Some(docs), Some(files), Some(glossary), Some(actors)) => {
                 start_links(texts, docs, files, glossary, actors)
@@ -390,7 +390,7 @@ pub struct ItemRow {
 /// A rule in the list of a domain, with the feature it belongs to.
 pub struct DomainRule {
     pub statement: String,
-    pub kind: &'static str,
+    pub kind: RuleKind,
     pub confidence: Confidence,
     pub feature: Link,
 }
@@ -419,13 +419,6 @@ pub struct DomainPage {
     pub back_office: Vec<ItemRow>,
     pub rules: Vec<DomainRule>,
     pub docs: Vec<DocItem>,
-}
-
-pub(crate) fn home_crumb() -> Link {
-    Link {
-        href: "/".into(),
-        name: "Home".into(),
-    }
 }
 
 pub(crate) fn domain_href(slug: &str) -> String {
@@ -539,7 +532,7 @@ pub fn domain_page(docs: &GeneratedDocs, links: &DocLinks, slug: &str) -> Option
                 .filter(|r| r.belongs_to_feature(&f.slug))
                 .map(move |r| DomainRule {
                     statement: r.statement.clone(),
-                    kind: Texts::ENGLISH.kind(r.kind),
+                    kind: r.kind,
                     confidence: Confidence::of(r.confidence.as_ref()),
                     feature: Link {
                         href: feature_href(f),
@@ -549,7 +542,7 @@ pub fn domain_page(docs: &GeneratedDocs, links: &DocLinks, slug: &str) -> Option
         })
         .collect();
     Some(DomainPage {
-        crumbs: vec![home_crumb()],
+        crumbs: Vec::new(),
         name: domain.name.clone(),
         description: domain.description.trim().to_string(),
         map: map_href(slug),
@@ -564,8 +557,8 @@ pub fn domain_page(docs: &GeneratedDocs, links: &DocLinks, slug: &str) -> Option
 /// A file a page cites that changed since the run.
 pub struct StaleFile {
     pub path: String,
-    /// `modified` or `deleted`.
-    pub state: &'static str,
+    /// Deleted, else modified.
+    pub deleted: bool,
 }
 
 /// The files among `paths` modified or deleted since the run; none when the
@@ -580,19 +573,23 @@ pub(crate) fn stale_files<'a>(
         .into_iter()
         .map(|(path, state)| StaleFile {
             path: path.to_string(),
-            state: if state == FileState::Deleted {
-                "deleted"
-            } else {
-                "modified"
-            },
+            deleted: state == FileState::Deleted,
         })
         .collect()
+}
+
+/// What backs a rule.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EvidenceKind {
+    Code,
+    Test,
+    Documentation,
 }
 
 /// What backs a rule: `Code` and the cited lines, `Test` and its phrase,
 /// `Documentation` and its section, with the file it comes from.
 pub struct Evidence {
-    pub kind: &'static str,
+    pub kind: EvidenceKind,
     /// The page of the cited lines of code.
     pub code: Option<String>,
     pub text: String,
@@ -603,19 +600,19 @@ impl Evidence {
     pub(crate) fn of(evidence: &RuleEvidence) -> Self {
         match evidence {
             RuleEvidence::Code { source } => Self {
-                kind: "Code",
+                kind: EvidenceKind::Code,
                 code: Some(CodeLink::of(source).href),
                 text: source_ref_label(source),
                 source: None,
             },
             RuleEvidence::Test { phrase, path } => Self {
-                kind: "Test",
+                kind: EvidenceKind::Test,
                 code: None,
                 text: phrase.clone(),
                 source: Some(path.clone()),
             },
             RuleEvidence::Doc { path, heading } => Self {
-                kind: "Documentation",
+                kind: EvidenceKind::Documentation,
                 code: None,
                 text: heading.clone(),
                 source: Some(path.clone()),
@@ -629,7 +626,7 @@ pub struct RuleView {
     /// The `id` of its item: `rule-<slug>`, what a search hit links to.
     pub anchor: String,
     pub statement: String,
-    pub kind: &'static str,
+    pub kind: RuleKind,
     pub confidence: Confidence,
     pub entities: Vec<String>,
     /// The use cases of the page it applies to; none on a use case page.
@@ -647,7 +644,7 @@ fn rule_view(
     RuleView {
         anchor: rule_anchor(&rule.slug),
         statement: rule.statement.clone(),
-        kind: Texts::ENGLISH.kind(rule.kind),
+        kind: rule.kind,
         confidence: Confidence::of(rule.confidence.as_ref()),
         entities: rule.entities.clone(),
         use_cases: use_cases
@@ -689,13 +686,10 @@ fn crumbs_to(docs: &GeneratedDocs, feature: Option<&Feature>, domain_slug: &str)
         .iter()
         .find(|d| d.slug == domain_slug)
         .map_or_else(|| domain_slug.to_string(), |d| d.name.clone());
-    let mut crumbs = vec![
-        home_crumb(),
-        Link {
-            href: domain_href(domain_slug),
-            name: domain_name,
-        },
-    ];
+    let mut crumbs = vec![Link {
+        href: domain_href(domain_slug),
+        name: domain_name,
+    }];
     if let Some(f) = feature {
         crumbs.push(Link {
             href: feature_href(f),
