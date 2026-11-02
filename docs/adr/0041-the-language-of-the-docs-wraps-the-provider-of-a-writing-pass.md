@@ -6,7 +6,7 @@ Status: Accepted
 
 The generated docs are written in the language the model picks: English on every saved run, the large private
 Rails app included, whose commit messages are mostly English. A team that reads another language wants them in
-it (`issues/generated_docs_language.md`). Eleven passes write text a reader sees (brief, contexts, glossary, entry
+it (`issues/done/generated_docs_language.md`). Eleven passes write text a reader sees (brief, contexts, glossary, entry
 points, actors, domains, features, use cases, rules, confidence, reconcile); their requests are constants of the
 binary (ADR 0040) and their prints hold the model of the pass (ADR 0023), except the brief, whose print hashes its
 input alone, and the contexts map, which has no print: it is reused until `contexts --force`.
