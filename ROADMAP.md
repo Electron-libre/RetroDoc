@@ -180,12 +180,12 @@ The milestones up to "A large application, one bounded context at a time" are th
   does and where to start, draws the docs as a map to explore, and wears the Meta Lambda colours and credit.
 - Why: on a saved run (2026-11-02) a reader could not tell which application the docs were about nor where to start
   reading.
-- State: in issues
+- State: done
 - Issues:
   - [web_ui_application_name](issues/done/web_ui_application_name.md)
   - [web_ui_guided_entry](issues/done/web_ui_guided_entry.md)
   - [web_ui_meta_lambda_branding](issues/done/web_ui_meta_lambda_branding.md)
-  - [web_ui_visual_map_of_the_docs](issues/web_ui_visual_map_of_the_docs.md)
+  - [web_ui_visual_map_of_the_docs](issues/done/web_ui_visual_map_of_the_docs.md)
 
 ## Docs in the reader's language
 
