@@ -1,0 +1,46 @@
+---
+priority: medium
+depends_on: [web_ui_application_name]
+why: 'a first-time reader does not know where to start; the home page is the entry of every other view, and it shows the application name of the other issue'
+---
+# Give the web interface a home page that tells where to start
+
+# Goal
+
+A reader who opens the interface for the first time knows what the application does, what the docs cover and where
+to start reading. Today the home page is a flat list of domains and features, beside a tree that repeats it, and the
+header lists Files, Glossary, Rules, Actors with no hint of what each holds or in which order to read them.
+
+# Findings
+
+* 2026-11-02, user feedback on a saved run of a public Django app (healthchecks): "the navigation is not that
+  intuitive; one does not know where to start".
+* The home page (`pages.rs`, `home`) shows the domain rows only; the product brief (purpose, users, capabilities,
+  external systems, open questions) is in `.retrodoc/cache/product.yaml` and is not shown anywhere in the interface.
+* The run has 6 domains and dozens of features: the home list is long before the first use case.
+
+# Approach
+
+Ask the user which reading paths matter first, then candidates (can be combined):
+
+1. A home page in sections: what the application does (the purpose and users of the brief), its main domains as
+   cards with one line and their counts, then "start here" links (the actors, the glossary, the debt).
+2. A short line under each header link saying what the page holds, or the links grouped (Read: domains, actors;
+   Look up: glossary, rules, files).
+3. Breadcrumbs on the domain, feature and use case pages, and "next / previous" between the use cases of a feature.
+4. Measure with a reader: a walk-through on the healthchecks run before and after, with headless Chrome screenshots.
+
+# Specs
+
+* `specs/web-ui.md` amended (the home page requirements).
+
+# Resources
+
+* `crates/retrodoc-web/src/pages.rs`, `templates/home.html`, `templates/base.html`.
+* `crates/retrodoc-mcp` read model (what the brief exposes).
+* ADR 0039; `PRODUCT.md` (the readers of the docs and what they need).
+
+# Hints
+
+* The "Explore the documentation debt" milestone plans a debt view and a dashboard: the home page should leave them
+  a place rather than build them.
