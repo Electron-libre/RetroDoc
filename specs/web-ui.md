@@ -28,8 +28,8 @@ over browses its domains, features and use cases rather than reading the Markdow
 - **WEB-9** (deterministic) On a repository initialized but with no run yet, the home page must answer with the status
   200 and say to run `retrodoc generate`.
 - **WEB-10** (deterministic) Every text that comes from the docs must be HTML-escaped in the pages.
-- **WEB-11** (deterministic) The pages must load their scripts and stylesheet from the interface itself, under
-  `/assets/`, and from no other host.
+- **WEB-11** (deterministic) The pages must load their scripts, stylesheet and images from the interface itself,
+  under `/assets/`, and from no other host.
 - **WEB-12** (deterministic) Serving the pages must not write any file in the repository.
 - **WEB-13** (deterministic) A request whose `Host` names neither `localhost` nor an IP address must be refused with the
   status 403.
@@ -155,6 +155,8 @@ over browses its domains, features and use cases rather than reading the Markdow
   (the glossary, rules and files pages), each link with a title saying what its page holds.
 - **WEB-68** (deterministic) The page of a use case must link to the previous and the next use case of its feature, in
   the order of the run, each labelled with its name; the first has no previous link and the last no next one.
+- **WEB-69** (deterministic) Every page must end with a credit line showing the Meta Lambda logo, served from
+  `/assets/`, and the text "Made by Meta Lambda", a link to `https://meta-lambda.com`.
 
 ## Scenarios
 
@@ -252,4 +254,6 @@ over browses its domains, features and use cases rather than reading the Markdow
 - The home page leaves the debt view and the audit dashboard to their milestone ("Explore the documentation debt and
   audit it"): it links to neither until they exist. Nor does it show the external systems and the open
   questions of the brief: only its purpose and its users.
+- The colours of the interface (the charter of the Meta Lambda site) are no requirement: they are checked by eye, not
+  by a test.
 - The docs are read once at start: the pages of a `generate` run while the server runs show after a restart of `ui`.

@@ -34,14 +34,17 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   a `SourceError` per refusal) that the tools lay out in Markdown and the web interface in HTML; the set of cited
   files is `GeneratedDocs::cited_paths`.
 - **retrodoc-web** (`lib.rs` the router and `serve`, `view.rs` what the pages show as plain data, `pages.rs` the
-  handlers and their `askama` templates under `templates/`, `assets.rs` the vendored `htmx`, `mermaid` and the stylesheet of
+  handlers and their `askama` templates under `templates/`, `assets.rs` the vendored `htmx`, `mermaid`, the stylesheet and the logo mark of
   `assets/`, embedded in the binary and served under `/assets/`, cached an hour; `mermaid` is stored gzipped,
   `mermaid-<version>.min.js.gz` (5.5 MB plain), served with `Content-Encoding: gzip` (406 to a client whose `Accept-Encoding` does not name gzip) and
   cached as immutable under its versioned name): the local web interface of ADR 0039
   (`specs/web-ui.md`). The docs are loaded once into `GeneratedDocs` (`None` before a first `generate`: the home page
   says to run it), and the tree built once; every page shares the layout of `base.html` (`view::Shell`: the name of the
-  application in the header and the title, and the tree of domains, features and use cases, linked to
-  `/domains/{domain}[/{feature}[/{use_case}]]`); the `Project` that `retrodoc ui` passes to `serve` (then `router`) names the
+  application in the header and the title, the tree of domains, features and use cases, linked to
+  `/domains/{domain}[/{feature}[/{use_case}]]`, and the footer crediting Meta Lambda with its logo); the stylesheet follows the colour
+  charter of the meta-lambda.com site (its `CHARTE.md`: dark surfaces, gold as the one accent, kept rare; red and green
+  only for failure and success, so the low-confidence and stale badges are gold), and `diagrams.js` reads its variables
+  into the `base` theme of `mermaid`; the `Project` that `retrodoc ui` passes to `serve` (then `router`) names the
   application (`ProjectConfig::name_or_directory`: `[project] name` of `retrodoc.toml`, else the repository's
   directory) and carries the purpose and the users of the saved product brief (`commands::brief::saved`: one that can't be read is warned of); a request whose `Host` is a name other than
   `localhost` is refused with 403 (DNS rebinding: an IP address can't be rebound); the home page, headed by the name
@@ -103,7 +106,8 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   page of a cited file, over a git repo), `tests/files_page.rs`, `tests/doc_pages.rs`, `tests/glossary_page.rs`, `tests/rules_page.rs`, `tests/actors_page.rs` and `tests/search_page.rs` ask the router without a socket (`tower::ServiceExt::oneshot`) over artifacts
   saved in a temp dir. To update `htmx`, replace `assets/htmx.min.js` and the version in `assets.rs`; to update `mermaid`, gzip
   (`gzip -9 -n`) the `dist/mermaid.min.js` of its npm package (checked against the package integrity) into
-  `assets/mermaid-<version>.min.js.gz` and change `MERMAID` and the file name in `assets.rs`.
+  `assets/mermaid-<version>.min.js.gz` and change `MERMAID` and the file name in `assets.rs`. The logo is `static/assets/img/logo-mark.svg` of the
+  meta-lambda.com site, copied as is.
 - **retrodoc-cli**: `clap` subcommands (`init`, `scan`, `generate`, `render`, `report`, `roles`, `brief`, `glossary`,
   `entry-points`, `business-read`, `actors`, `surface`, `benchmark`, `benchmark-table`, `search`, `mcp`, `ui`). `generate` runs the whole pipeline then writes the docs (`--dry-run` previews, `--force`
   ignores caches, `--no-confidence` / `--confidence-sample N` / `--max-files N` bound the cost, see the pipeline bullet); `render` writes/previews the docs from the cached artifacts (no LLM call); `report` prints

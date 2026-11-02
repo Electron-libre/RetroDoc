@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="t">
+  <title id="t">Meta Lambda</title>
+  <rect width="256" height="256" fill="#17171b"/>
+  <!-- Quine corners: quasi-quotation, the metalanguage speaking about the language -->
+  <path d="M57.9 45.8 H101.9 V56.8 H68.9 V89.8 H57.9 Z M198.1 210.2 H154.1 V199.2 H187.1 V166.2 H198.1 Z" fill="#c0c4c8"/>
+
+  <!-- lambda, both feet flat on the baseline -->
+  <path d="M91.0 74.8 L113.1 74.8 L169.1 181.2 L147.0 181.2 Z M120.4 119.8 L135.2 127.8 L106.0 181.2 L86.9 181.2 Z" fill="#d4af37"/>
+</svg>

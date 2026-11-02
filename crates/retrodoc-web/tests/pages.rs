@@ -434,7 +434,7 @@ async fn the_text_of_the_docs_is_escaped() {
     .unwrap();
     let page = home(repo.path()).await;
     assert!(!page.contains("<script>alert"), "{page}");
-    assert!(!page.contains("<img"), "{page}");
+    assert!(!page.contains("<img src=x"), "{page}");
     assert!(
         page.contains("&#60;script&#62;alert(1)&#60;/script&#62;"),
         "{page}"
@@ -443,26 +443,71 @@ async fn the_text_of_the_docs_is_escaped() {
 
 // spec: WEB-11
 #[tokio::test]
-async fn the_scripts_and_stylesheet_come_from_the_interface_itself() {
+async fn the_scripts_stylesheet_and_images_come_from_the_interface_itself() {
     let repo = generated_repo();
     let page = home(repo.path()).await;
-    let linked: Vec<&str> = page
-        .split(['"', '\''])
+    let loaded: Vec<&str> = page
+        .split(" src=\"")
+        .chain(page.split(" href=\"").filter(|v| v.contains(".css")))
         .skip(1)
-        .step_by(2)
-        .filter(|v| v.contains(".js") || v.contains(".css") || v.contains("//"))
+        .filter_map(|v| v.split('"').next())
         .collect();
-    assert_eq!(linked.len(), 2, "{linked:?}");
-    for link in &linked {
+    assert_eq!(loaded.len(), 3, "{loaded:?}");
+    for link in &loaded {
         assert!(link.starts_with("/assets/"), "{link} in {page}");
         let (status, body, content_type) = get(load(repo.path()), link).await;
         assert_eq!(status, StatusCode::OK, "{link}");
         assert!(body.len() > 100, "{link}");
         let content_type = content_type.unwrap();
         assert!(
-            content_type.starts_with("text/css") || content_type.starts_with("text/javascript"),
+            ["text/css", "text/javascript", "image/svg+xml"]
+                .iter()
+                .any(|kind| content_type.starts_with(kind)),
             "{content_type}"
         );
+    }
+}
+
+// spec: WEB-69
+#[tokio::test]
+async fn every_page_ends_with_the_credit_of_meta_lambda() {
+    let repo = generated_repo();
+    let empty = tempfile::tempdir().unwrap();
+    for (docs, path) in [
+        (load(repo.path()), "/"),
+        (load(repo.path()), "/domains/billing"),
+        (load(repo.path()), "/no-such-page"),
+        (load(empty.path()), "/"),
+    ] {
+        let (_, page, _) = get(docs, path).await;
+        let start = page
+            .find("<footer")
+            .unwrap_or_else(|| panic!("{path}: no footer in {page}"));
+        let footer = &page[start..page.find("</footer>").unwrap()];
+        assert!(
+            page[start..]
+                .trim_end()
+                .ends_with("</footer>\n</body>\n</html>"),
+            "{path}: the credit is not last"
+        );
+        assert!(
+            footer.contains("href=\"https://meta-lambda.com\""),
+            "{path}: {footer}"
+        );
+        assert!(
+            text(footer).contains("Made by Meta Lambda"),
+            "{path}: {footer}"
+        );
+        let logo = footer
+            .split("<img src=\"")
+            .nth(1)
+            .unwrap()
+            .split('"')
+            .next()
+            .unwrap();
+        let (status, _, content_type) = get(load(repo.path()), logo).await;
+        assert_eq!(status, StatusCode::OK, "{logo}");
+        assert_eq!(content_type.as_deref(), Some("image/svg+xml"), "{logo}");
     }
 }
 

@@ -52,3 +52,48 @@ Web interface for a first-time reader
 
 * The charter says gold must stay rare ("if it is everywhere, it signals nothing"): not every link in gold.
 * The logo is the user's: ask before committing it into this repository.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Restyle the interface on the charter of meta-lambda.com (dark surfaces, gold as the one rare accent) and add a credit
+line with the logo mark linking to the site. Out of scope: the site's fonts (system fonts stay), a light theme.
+Charter: `~/Code/meta-lambda.gitlab.io/CHARTE.md`; logo: its `static/assets/img/logo-mark.svg`.
+
+## Plan
+1. [x] Charter and credit: `style.css` mapped onto the charter variables (links in `--text` underlined `--gold-dark`,
+   gold for hover, the brand and the open tree item), badges, cited lines and code in charter colours, Mermaid theme
+   variables from the charter in `diagrams.js`, `logo-mark.svg` embedded and served as `image/svg+xml`, a footer in
+   `base.html`; verified by a page test of the footer and the logo asset, contrast checked against the charter's
+   table, screenshots with headless Chrome; makes true WEB-11 (images), WEB-69.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 5a40af06752732bbb692b2c0be6bcb1c5d0c747f
+- Logo: the user agreed to commit `logo-mark.svg` (full-bleed `#17171b`) into `crates/retrodoc-web/assets/`.
+- Badges: low confidence and stale are warnings: `--gold-dark` border, `--gold-light` text; red and green unused.
+- Mermaid: `base` theme with variables from the charter, not the built-in `dark` (blue and purple).
+- Credit: in a footer, not the header.
+
+## Deliverable 1
+
+- done: the stylesheet on the charter (links in `--text` underlined `--gold-dark`, gold for the brand, hover, focus,
+  table headers, inline code, cited lines; badges gold), Mermaid `base` theme read from the stylesheet's variables, the
+  logo mark served as `image/svg+xml`, a footer credit in `base.html`.
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | pass |
+| specs | pass, `web-ui` accepted again |
+| docs | `docs/crates/render-mcp-cli.md` |
+| code review | no findings |
+
+- Code review: no findings
+- red: WEB-11, WEB-69: `assertion left == right failed: ["/assets/htmx.min.js", "/assets/style.css"]` and `/: no footer in <!doctype html>`
+- The escape test of WEB-10 asserted no `<img` at all; narrowed to the injected `<img src=x`.
+- Contrast: only charter colours its table allows for text (`--text`, `--text-muted`, `--gold`, `--gold-light`); `--gold-dark` only for borders and underlines.
+- Screenshots (headless Chrome, a saved delivery_router run): home, feature, use case with its diagram unfolded, rules, cited file: readable.
+- not verified: the other Mermaid diagram kinds than the sequence diagram (none in the run).

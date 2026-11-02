@@ -1,4 +1,4 @@
-//! The scripts and stylesheet, vendored under `assets/` and embedded in the
+//! The scripts, stylesheet and logo, vendored under `assets/` and embedded in the
 //! binary: no CDN, so the interface works offline and leaks nothing.
 
 use axum::extract::Path;
@@ -15,6 +15,9 @@ const MERMAID_GZ: &[u8] = include_bytes!("../assets/mermaid-12.2.0.min.js.gz");
 pub const MERMAID: &str = "mermaid-12.2.0.min.js";
 const DIAGRAMS: &str = include_str!("../assets/diagrams.js");
 const STYLE: &str = include_str!("../assets/style.css");
+/// The logo mark of Meta Lambda, from `static/assets/img/logo-mark.svg` of the
+/// meta-lambda.com site, shown by the credit at the foot of every page.
+const LOGO: &str = include_str!("../assets/logo-mark.svg");
 
 const JAVASCRIPT: &str = "text/javascript; charset=utf-8";
 
@@ -44,6 +47,7 @@ pub async fn serve(Path(name): Path<String>, headers: HeaderMap) -> Response {
         "htmx.min.js" => (JAVASCRIPT, HTMX),
         "diagrams.js" => (JAVASCRIPT, DIAGRAMS),
         "style.css" => ("text/css; charset=utf-8", STYLE),
+        "logo-mark.svg" => ("image/svg+xml", LOGO),
         _ => return StatusCode::NOT_FOUND.into_response(),
     };
     // Embedded in the binary: they change only with it.

@@ -1,24 +1,37 @@
-/* The stylesheet of the RetroDoc web interface. */
+/* The stylesheet of the RetroDoc web interface, on the colour charter of the
+   meta-lambda.com site: dark surfaces, gold as the one accent, kept rare. */
 :root {
-  --fg: #1f2328;
-  --muted: #656d76;
-  --border: #d0d7de;
-  --bg-side: #f6f8fa;
-  --link: #0969da;
-  --low: #9a6700;
-  --low-bg: #fff8c5;
-  --stale: #bc4c00;
-  --stale-bg: #fff1e5;
+  color-scheme: dark;
+  --bg: #0e0e10;
+  --surface: #17171b;
+  --surface-2: #1f1f25;
+  --border: #2a2a31;
+  --text: #e8e6e1;
+  --text-muted: #9b978e;
+  --gold: #d4af37;
+  --gold-light: #e8c872;
+  /* Never for text: its contrast is too low. */
+  --gold-dark: #8f7328;
 }
 * { box-sizing: border-box; }
 body {
   margin: 0;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  color: var(--fg);
+  background: var(--bg);
+  color: var(--text);
   line-height: 1.5;
 }
-a { color: var(--link); text-decoration: none; }
-a:hover { text-decoration: underline; }
+::selection { background: var(--gold); color: var(--bg); }
+/* Links at rest in the text colour, underlined in discreet gold; gold on hover. */
+a {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: var(--gold-dark);
+  text-underline-offset: 0.2em;
+}
+a:hover { color: var(--gold-light); text-decoration-color: var(--gold-light); }
+a:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.top a, .tree a { text-decoration: none; }
 .top {
   display: flex;
   align-items: center;
@@ -26,16 +39,16 @@ a:hover { text-decoration: underline; }
   padding: 0.6rem 1rem;
   border-bottom: 1px solid var(--border);
 }
-.brand { font-weight: 600; color: var(--fg); margin-right: 1.5rem; }
+.brand { font-weight: 600; color: var(--gold); margin-right: 1.5rem; }
 .top .links { display: flex; align-items: baseline; gap: 0.8rem; }
-.top .group { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.top .group { color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
 .top .links + .links { padding-left: 1rem; border-left: 1px solid var(--border); }
-.purpose { font-size: 1.1rem; color: var(--muted); max-width: 48rem; }
+.purpose { font-size: 1.1rem; color: var(--text-muted); max-width: 48rem; }
 .layout { display: flex; min-height: calc(100vh - 3rem); }
 .tree {
   flex: 0 0 18rem;
   padding: 1rem;
-  background: var(--bg-side);
+  background: var(--surface);
   border-right: 1px solid var(--border);
   overflow-y: auto;
   font-size: 0.9rem;
@@ -44,8 +57,9 @@ a:hover { text-decoration: underline; }
 .tree > ul { padding-left: 0; }
 .tree summary { cursor: pointer; }
 main { flex: 1; padding: 1rem 2rem; min-width: 0; }
-.muted { color: var(--muted); }
+.muted { color: var(--text-muted); }
 table { border-collapse: collapse; width: 100%; }
+th { color: var(--gold-light); }
 th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--border); vertical-align: top; }
 td.count { text-align: right; }
 .badge {
@@ -53,28 +67,30 @@ td.count { text-align: right; }
   padding: 0 0.4rem;
   border-radius: 0.6rem;
   border: 1px solid var(--border);
+  color: var(--text-muted);
   font-size: 0.8rem;
 }
-.badge.low { color: var(--low); background: var(--low-bg); border-color: var(--low); }
-.badge.stale { color: var(--stale); background: var(--stale-bg); border-color: var(--stale); }
-code { background: var(--bg-side); padding: 0 0.25rem; border-radius: 0.2rem; }
-.crumbs { font-size: 0.9rem; color: var(--muted); margin-bottom: 0.5rem; }
+/* Low confidence and stale are warnings, not failures: no red, the label carries the meaning. */
+.badge.low, .badge.stale { color: var(--gold-light); border-color: var(--gold-dark); }
+code { color: var(--gold-light); background: var(--surface-2); padding: 0 0.25rem; border-radius: 0.2rem; }
+.crumbs { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.5rem; }
 .score { margin: 0.3rem 0; }
 .items li, .rules li, .docs li { margin: 0.25rem 0; }
-.badge.set-apart { color: var(--muted); background: var(--bg-side); }
+.badge.set-apart { background: var(--surface-2); }
 .narrative { font-size: 1.05rem; }
 .steps li { margin: 0.4rem 0; }
-.cited { font-size: 0.85rem; color: var(--muted); }
-pre { background: var(--bg-side); padding: 0.6rem; overflow-x: auto; }
-pre.mermaid { background: none; }
+.cited { font-size: 0.85rem; color: var(--text-muted); }
+pre { background: var(--surface); border: 1px solid var(--border); padding: 0.6rem; overflow-x: auto; }
+pre.mermaid { background: none; border: none; }
+pre code { color: var(--text); background: none; padding: 0; }
 
 /* The page of a cited file: numbered lines, the cited ones marked. */
 table.code { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
 table.code td { padding: 0 0.5rem; vertical-align: top; }
-table.code td.number { color: #888; text-align: right; user-select: none; width: 1%; }
-table.code pre { margin: 0; white-space: pre-wrap; word-break: break-all; }
-table.code tr.cited { background: #fff3c4; }
-table.code tr:target { outline: 1px solid #c9a400; }
+table.code td.number { color: var(--text-muted); text-align: right; user-select: none; width: 1%; }
+table.code pre { margin: 0; border: none; background: none; white-space: pre-wrap; word-break: break-all; }
+table.code tr.cited { background: color-mix(in srgb, var(--gold) 12%, transparent); }
+table.code tr:target { outline: 1px solid var(--gold); }
 
 /* The files page: the tree of the source files with their citations. */
 table.files { border-collapse: collapse; }
@@ -83,6 +99,13 @@ table.files tr.dir td:first-child { font-weight: 600; }
 .collected pre { overflow-x: auto; }
 .top form.search { margin-left: auto; }
 .top form.search input { padding: 0.25rem 0.5rem; min-width: 16rem; }
+input, select, button {
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+}
+input:focus-visible, select:focus-visible, button:focus-visible { outline: 1px solid var(--gold); }
 #search-results:not(:empty) { padding: 0 1rem; border-bottom: 1px solid var(--border); }
 ul.hits { list-style: none; padding-left: 0; }
 .filters { display: flex; flex-wrap: wrap; gap: 1rem; align-items: end; margin-bottom: 1rem; }
@@ -93,14 +116,20 @@ ul.hits { list-style: none; padding-left: 0; }
 /* The home page: the brief, where to start, the domains as cards. */
 .users ul { margin: 0.3rem 0; padding-left: 1.2rem; max-width: 48rem; }
 .start-links { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: 0.6rem; }
-.start-links li { border: 1px solid var(--border); border-radius: 0.4rem; padding: 0.5rem 0.7rem; }
-.start-links .hint { display: block; color: var(--muted); font-size: 0.9rem; }
+.start-links li { background: var(--surface); border: 1px solid var(--border); border-radius: 0.4rem; padding: 0.5rem 0.7rem; }
+.start-links .hint { display: block; color: var(--text-muted); font-size: 0.9rem; }
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr)); gap: 0.8rem; }
-.card { border: 1px solid var(--border); border-radius: 0.4rem; padding: 0.6rem 0.9rem; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 0.4rem; padding: 0.6rem 0.9rem; }
 .card h3 { margin: 0 0 0.3rem; font-size: 1.05rem; }
 .card .description { margin: 0 0 0.4rem; }
-.card .facts { margin: 0; display: flex; gap: 0.8rem; align-items: center; color: var(--muted); font-size: 0.9rem; }
+.card .facts { margin: 0; display: flex; gap: 0.8rem; align-items: center; color: var(--text-muted); font-size: 0.9rem; }
 
 /* The previous / next use cases of a feature, at the foot of a use case page. */
 .sequence { display: flex; justify-content: space-between; gap: 1rem; margin-top: 2rem; padding-top: 0.8rem; border-top: 1px solid var(--border); }
 .sequence .next { margin-left: auto; text-align: right; }
+
+/* The credit at the foot of every page. */
+.credit { padding: 0.8rem 1rem; border-top: 1px solid var(--border); font-size: 0.85rem; }
+.credit a { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--text-muted); text-decoration: none; }
+.credit a:hover { color: var(--gold-light); }
+.credit img { border-radius: 0.2rem; }
