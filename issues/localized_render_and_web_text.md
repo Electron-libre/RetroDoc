@@ -57,7 +57,7 @@ cache artifacts, never the rendered Markdown, so no parser depends on the headin
 1. [x] Render: `OutputConfig::language_tag()` in core, a `Texts` table (English, French) in `retrodoc-render` passed
    to every page, the CLI passes the one of the config; verified by render tests in French and German and a
    re-render that writes nothing; makes true DLG-7, DLG-8. (~450 lines)
-2. [ ] Web layout: the language reaches `App`, `<html lang>`, a web texts table for the layout, nav, home, search,
+2. [x] Web layout: the language reaches `App`, `<html lang>`, a web texts table for the layout, nav, home, search,
    empty and not-found pages; verified by router tests; makes true WEB-78 and starts WEB-77. (~500 lines)
 3. [ ] Web item pages: the domain, feature, use case, rules, glossary, actors, map, files and code pages use the
    table; verified by a test that no English label is left on each page in French; makes true WEB-77. (~600 lines)
@@ -87,3 +87,26 @@ Code review: no findings
 
 - The web spec amendment (WEB-77, WEB-78) is held back to deliverable 2, so `just check-specs` stays green.
 - The web keeps `Texts::ENGLISH` until deliverables 2 and 3.
+
+## Deliverable 2
+
+done: `WebTexts` table (English, French) in `retrodoc-web`, given to every template as `t`; `Project::lang` from
+`Project::lang_of`, `<html lang>`; the frame, home, search, no-run and not-found pages, the confidence badge and the
+reference pages in the table.
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | pass |
+| specs | WEB-77 (frame and these pages), WEB-78 traced in `crates/retrodoc-web/tests/pages.rs` |
+| docs | `docs/crates/render-mcp-cli.md`, `README.md` |
+| code review | no findings |
+
+red: WEB-77: `Search the docs left in <!doctype html><html lang="fr">` (checked by removing the French entry of
+`WebTexts::for_tag`; the first run of the new tests failed to compile, `Project` had no `lang`); WEB-78: same compile
+failure.
+
+Code review: no findings
+
+- WEB-77 says the credit line of WEB-69 stays as it is (a brand line).
+- A count of 0 reads `0 fonctionnalités` in French (the singular is only for 1, as in English).

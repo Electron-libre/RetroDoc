@@ -1,6 +1,6 @@
 {% extends "base.html" %}
-{% block title %}Not found{% endblock %}
+{% block title %}{{ t.not_found }}{% endblock %}
 {% block content %}
-<h1>Not found</h1>
-<p>This page does not exist. <a href="/">Back to the domains</a>.</p>
+<h1>{{ t.not_found }}</h1>
+<p>{{ t.page_missing }} <a href="/">{{ t.back_to_domains }}</a>.</p>
 {% endblock %}

@@ -8,6 +8,7 @@ use crate::actors::{actors_page, ActorsPage};
 use crate::files::{files_page, FilesPage};
 use crate::glossary::{glossary_page, GlossaryPage};
 use crate::map::{map_href, maps, Maps};
+use crate::texts::WebTexts;
 use crate::Project;
 use retrodoc_core::model::{
     ActorKind, BusinessRule, ConfidenceScore, Feature, RuleEvidence, SourceRef, Step, UseCase,
@@ -21,6 +22,7 @@ use retrodoc_render::{anchor, source_ref_label, DocLinks, ItemRef, Texts};
 /// The docs the interface serves, `None` before a first `generate`, and the
 /// frame every page shows, built once since the docs don't change.
 pub struct Site {
+    texts: &'static WebTexts,
     docs: Option<GeneratedDocs>,
     links: DocLinks,
     shell: Shell,
@@ -43,10 +45,12 @@ impl Site {
         links: DocLinks,
         collected: Vec<ExistingDoc>,
     ) -> Self {
+        let texts = WebTexts::for_tag(project.lang);
         let shell = Shell {
             name: project.name,
-            read: reference_pages(Group::Read),
-            look_up: reference_pages(Group::LookUp),
+            lang: project.lang,
+            read: reference_pages(texts, Group::Read),
+            look_up: reference_pages(texts, Group::LookUp),
             tree: docs.as_ref().map(tree).unwrap_or_default(),
         };
         let source = docs.as_ref().and_then(GeneratedDocs::source_access);
@@ -56,11 +60,12 @@ impl Site {
         let maps = docs.as_ref().map(maps);
         let start = match (&docs, &files, &glossary, &actors) {
             (Some(docs), Some(files), Some(glossary), Some(actors)) => {
-                start_links(docs, files, glossary, actors)
+                start_links(texts, docs, files, glossary, actors)
             }
             _ => Vec::new(),
         };
         Self {
+            texts,
             docs,
             links,
             shell,
@@ -126,6 +131,12 @@ impl Site {
         &self.links
     }
 
+    /// The fixed text of the pages, in the language of the docs.
+    #[must_use]
+    pub fn texts(&self) -> &'static WebTexts {
+        self.texts
+    }
+
     /// The header and the tree of every page.
     #[must_use]
     pub fn shell(&self) -> &Shell {
@@ -156,13 +167,15 @@ impl Site {
 /// them: the domains, a row per actor and kind, the concepts, the rules, the
 /// cited files.
 fn start_links(
+    texts: &'static WebTexts,
     docs: &GeneratedDocs,
     files: &FilesPage,
     glossary: &GlossaryPage,
     actors: &ActorsPage,
 ) -> Vec<StartLink> {
     let actors = actors.groups.iter().map(|group| group.rows.len()).sum();
-    REFERENCE_PAGES
+    texts
+        .reference_pages
         .iter()
         .zip([
             docs.domains().len(),
@@ -179,15 +192,16 @@ fn start_links(
 }
 
 /// How a reader uses a page of reference: reads through it or looks things up.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Group {
     Read,
     LookUp,
 }
 
 /// The pages of reference of `group`, in their order.
-fn reference_pages(group: Group) -> Vec<&'static ReferencePage> {
-    REFERENCE_PAGES
+fn reference_pages(texts: &'static WebTexts, group: Group) -> Vec<&'static ReferencePage> {
+    texts
+        .reference_pages
         .iter()
         .filter(|page| page.group == group)
         .collect()
@@ -195,6 +209,7 @@ fn reference_pages(group: Group) -> Vec<&'static ReferencePage> {
 
 /// A page of reference beside the tree of the docs, as the header and the
 /// home page point to it.
+#[derive(Debug)]
 pub struct ReferencePage {
     pub href: &'static str,
     pub name: &'static str,
@@ -219,46 +234,6 @@ pub fn plural(count: usize, one: &str, many: &str) -> String {
     format!("{count} {}", if count == 1 { one } else { many })
 }
 
-/// The pages of reference, in the order a first-time reader is pointed to them.
-pub const REFERENCE_PAGES: [ReferencePage; 5] = [
-    ReferencePage {
-        href: "/map",
-        name: "Map",
-        hint: "The domains drawn as a graph, linked by the concepts they share; each opens its features.",
-        group: Group::Read,
-        unit: ("domain", "domains"),
-    },
-    ReferencePage {
-        href: "/actors",
-        name: "Actors",
-        hint: "Who uses the application, and which use cases each one starts or takes part in.",
-        group: Group::Read,
-        unit: ("actor", "actors"),
-    },
-    ReferencePage {
-        href: "/glossary",
-        name: "Glossary",
-        hint:
-            "The business concepts of the application, defined, with the use cases that use them.",
-        group: Group::LookUp,
-        unit: ("concept", "concepts"),
-    },
-    ReferencePage {
-        href: "/rules",
-        name: "Rules",
-        hint: "The business rules the code enforces, filtered by kind, domain or feature.",
-        group: Group::LookUp,
-        unit: ("rule", "rules"),
-    },
-    ReferencePage {
-        href: "/files",
-        name: "Files",
-        hint: "The source files, with the docs that cite each one and those no doc covers.",
-        group: Group::LookUp,
-        unit: ("cited file", "cited files"),
-    },
-];
-
 /// A page of reference on the home page, with its count.
 pub struct StartLink {
     pub page: &'static ReferencePage,
@@ -271,6 +246,8 @@ pub struct StartLink {
 /// with no run.
 pub struct Shell {
     pub name: String,
+    /// The `lang` of the pages, `None` for a language with no tag.
+    pub lang: Option<&'static str>,
     /// The pages one reads through: the map, the actors.
     pub read: Vec<&'static ReferencePage>,
     /// The pages one looks things up in: the glossary, the rules, the files.
@@ -321,10 +298,10 @@ pub fn tree(docs: &GeneratedDocs) -> Vec<TreeDomain> {
         .collect()
 }
 
-/// A confidence score as a badge: `80%` or `not scored`, flagged low under
+/// A confidence score as a badge: `80%`, or `None` not scored, flagged low under
 /// [`LOW_CONFIDENCE_THRESHOLD`], with why the model gave it.
 pub struct Confidence {
-    pub label: String,
+    pub percent: Option<String>,
     pub low: bool,
     pub rationale: Option<String>,
 }
@@ -334,12 +311,12 @@ impl Confidence {
     pub fn of(score: Option<&ConfidenceScore>) -> Self {
         match score {
             None => Self {
-                label: "not scored".into(),
+                percent: None,
                 low: false,
                 rationale: None,
             },
             Some(s) => Self {
-                label: format!("{:.0}%", s.value * 100.0),
+                percent: Some(format!("{:.0}%", s.value * 100.0)),
                 low: s.value < LOW_CONFIDENCE_THRESHOLD,
                 rationale: s
                     .rationale
@@ -362,20 +339,6 @@ pub struct DomainRow {
     pub stale: bool,
     pub features: usize,
     pub use_cases: usize,
-}
-
-impl DomainRow {
-    /// Its number of features with their unit.
-    #[must_use]
-    pub fn features_label(&self) -> String {
-        plural(self.features, "feature", "features")
-    }
-
-    /// Its number of use cases with their unit.
-    #[must_use]
-    pub fn use_cases_label(&self) -> String {
-        plural(self.use_cases, "use case", "use cases")
-    }
 }
 
 /// Every domain of the run, in its order. Reads the files the features cite

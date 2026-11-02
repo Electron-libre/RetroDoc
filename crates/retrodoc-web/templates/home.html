@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Home{% endblock %}
+{% block title %}{{ t.home }}{% endblock %}
 {% block content %}
 <h1>{{ shell.name }}</h1>
 {% if let Some(purpose) = purpose %}
@@ -7,7 +7,7 @@
 {% endif %}
 {% if !users.is_empty() %}
 <section class="users">
-  <h2>Who uses it</h2>
+  <h2>{{ t.who_uses_it }}</h2>
   <ul>
     {% for user in users %}
     <li>{{ user }}</li>
@@ -16,8 +16,8 @@
 </section>
 {% endif %}
 <section class="start" id="start-here">
-  <h2>Start here</h2>
-  <p class="muted">Pick a domain below to read what the application does, or look things up across the docs:</p>
+  <h2>{{ t.start_here }}</h2>
+  <p class="muted">{{ t.start_intro }}</p>
   <ul class="start-links">
     {% for link in start %}
     <li>
@@ -28,19 +28,19 @@
     {% endfor %}
   </ul>
 </section>
-<h2>Domains</h2>
+<h2>{{ t.domains }}</h2>
 {% if domains.is_empty() %}
-<p>The last run generated no domain.</p>
+<p>{{ t.no_domain_generated }}</p>
 {% else %}
 <div class="cards">
   {% for domain in domains %}
   <article class="card" id="domain-{{ domain.slug }}">
-    <h3><a href="/domains/{{ domain.slug }}">{{ domain.name }}</a>{% if domain.stale %} <span class="badge stale" title="A file it cites changed since the run">stale</span>{% endif %}</h3>
+    <h3><a href="/domains/{{ domain.slug }}">{{ domain.name }}</a>{% if domain.stale %} <span class="badge stale" title="{{ t.stale_hint }}">{{ t.stale }}</span>{% endif %}</h3>
     <p class="description">{{ domain.description }}</p>
     <p class="facts">
-      <span class="badge{% if domain.confidence.low %} low{% endif %}">{{ domain.confidence.label }}</span>
-      <span>{{ domain.features_label() }}</span>
-      <span>{{ domain.use_cases_label() }}</span>
+      <span class="badge{% if domain.confidence.low %} low{% endif %}">{{ t.confidence(domain.confidence.percent.as_ref()) }}</span>
+      <span>{{ t.features(*domain.features) }}</span>
+      <span>{{ t.use_cases(*domain.use_cases) }}</span>
     </p>
   </article>
   {% endfor %}

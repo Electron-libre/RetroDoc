@@ -21,6 +21,7 @@ use crate::glossary::GlossaryPage;
 use crate::map::{DomainMapPage, MapPage};
 use crate::rules::{rules_page, RuleFilter, RulesPage};
 use crate::search::{query_value, search_page, Results, SearchPage};
+use crate::texts::WebTexts;
 use crate::view::{
     domain_page, domain_rows, feature_page, use_case_page, DomainPage, DomainRow, FeaturePage,
     Shell, Site, StartLink, UseCasePage,
@@ -29,6 +30,7 @@ use crate::view::{
 #[derive(Template)]
 #[template(path = "home.html")]
 struct Home<'a> {
+    t: &'static WebTexts,
     shell: &'a Shell,
     purpose: Option<&'a str>,
     users: &'a [String],
@@ -39,6 +41,7 @@ struct Home<'a> {
 #[derive(Template)]
 #[template(path = "domain.html")]
 struct DomainTemplate<'a> {
+    t: &'static WebTexts,
     shell: &'a Shell,
     page: DomainPage,
     technical_heading: &'static str,
@@ -48,6 +51,7 @@ struct DomainTemplate<'a> {
 #[derive(Template)]
 #[template(path = "feature.html")]
 struct FeatureTemplate<'a> {
+    t: &'static WebTexts,
     shell: &'a Shell,
     page: FeaturePage,
     technical_heading: &'static str,
@@ -57,6 +61,7 @@ struct FeatureTemplate<'a> {
 #[derive(Template)]
 #[template(path = "use_case.html")]
 struct UseCaseTemplate<'a> {
+    t: &'static WebTexts,
     shell: &'a Shell,
     page: UseCasePage,
     mermaid: &'static str,
@@ -65,6 +70,7 @@ struct UseCaseTemplate<'a> {
 #[derive(Template)]
 #[template(path = "code.html")]
 struct CodeTemplate<'a> {
+    t: &'static WebTexts,
     shell: &'a Shell,
     page: CodePage,
 }
@@ -72,6 +78,7 @@ struct CodeTemplate<'a> {
 #[derive(Template)]
 #[template(path = "files.html")]
 struct FilesTemplate<'a> {
+    t: &'static WebTexts,
     shell: &'a Shell,
     page: &'a FilesPage,
 }
@@ -79,6 +86,7 @@ struct FilesTemplate<'a> {
 #[derive(Template)]
 #[template(path = "collected.html")]
 struct CollectedTemplate<'a> {
+    t: &'static WebTexts,
     shell: &'a Shell,
     page: CollectedPage,
 }
@@ -86,6 +94,7 @@ struct CollectedTemplate<'a> {
 #[derive(Template)]
 #[template(path = "glossary.html")]
 struct GlossaryTemplate<'a> {
+    t: &'static WebTexts,
     shell: &'a Shell,
     page: &'a GlossaryPage,
 }
@@ -93,6 +102,7 @@ struct GlossaryTemplate<'a> {
 #[derive(Template)]
 #[template(path = "map.html")]
 struct MapTemplate<'a> {
+    t: &'static WebTexts,
     shell: &'a Shell,
     page: &'a MapPage,
     mermaid: &'static str,
@@ -101,6 +111,7 @@ struct MapTemplate<'a> {
 #[derive(Template)]
 #[template(path = "domain_map.html")]
 struct DomainMapTemplate<'a> {
+    t: &'static WebTexts,
     shell: &'a Shell,
     page: &'a DomainMapPage,
     mermaid: &'static str,
@@ -109,6 +120,7 @@ struct DomainMapTemplate<'a> {
 #[derive(Template)]
 #[template(path = "actors.html")]
 struct ActorsTemplate<'a> {
+    t: &'static WebTexts,
     shell: &'a Shell,
     page: &'a ActorsPage,
 }
@@ -116,6 +128,7 @@ struct ActorsTemplate<'a> {
 #[derive(Template)]
 #[template(path = "rules.html")]
 struct RulesTemplate<'a> {
+    t: &'static WebTexts,
     shell: &'a Shell,
     page: RulesPage,
 }
@@ -124,12 +137,14 @@ struct RulesTemplate<'a> {
 #[derive(Template)]
 #[template(path = "rules_list.html")]
 struct RulesList {
+    t: &'static WebTexts,
     page: RulesPage,
 }
 
 #[derive(Template)]
 #[template(path = "search.html")]
 struct SearchTemplate<'a> {
+    t: &'static WebTexts,
     shell: &'a Shell,
     page: SearchPage,
 }
@@ -138,12 +153,14 @@ struct SearchTemplate<'a> {
 #[derive(Template)]
 #[template(path = "search_results.html")]
 struct SearchResults {
+    t: &'static WebTexts,
     page: SearchPage,
 }
 
 #[derive(Template)]
 #[template(path = "no_run.html")]
 struct NoRun<'a> {
+    t: &'static WebTexts,
     shell: &'a Shell,
 }
 
@@ -152,6 +169,7 @@ fn no_run_page(site: &Site) -> Response {
     render(
         StatusCode::OK,
         &NoRun {
+            t: site.texts(),
             shell: site.shell(),
         },
     )
@@ -160,6 +178,7 @@ fn no_run_page(site: &Site) -> Response {
 #[derive(Template)]
 #[template(path = "not_found.html")]
 struct NotFound<'a> {
+    t: &'static WebTexts,
     shell: &'a Shell,
 }
 
@@ -175,6 +194,7 @@ pub async fn home(State(site): State<Arc<Site>>) -> Response {
         Ok(domains) => render(
             StatusCode::OK,
             &Home {
+                t: site.texts(),
                 shell: site.shell(),
                 purpose: site.purpose(),
                 users: site.users(),
@@ -213,6 +233,7 @@ pub async fn domain(State(site): State<Arc<Site>>, Path(slug): Path<String>) -> 
     render(
         StatusCode::OK,
         &DomainTemplate {
+            t: site.texts(),
             shell: site.shell(),
             page,
             technical_heading: Texts::ENGLISH.technical_heading,
@@ -234,6 +255,7 @@ pub async fn feature(
         Ok(Some(page)) => render(
             StatusCode::OK,
             &FeatureTemplate {
+                t: site.texts(),
                 shell: site.shell(),
                 page,
                 technical_heading: Texts::ENGLISH.technical_heading,
@@ -258,6 +280,7 @@ pub async fn use_case(
         Ok(Some(page)) => render(
             StatusCode::OK,
             &UseCaseTemplate {
+                t: site.texts(),
                 shell: site.shell(),
                 page,
                 mermaid: MERMAID,
@@ -275,6 +298,7 @@ pub async fn files(State(site): State<Arc<Site>>) -> Response {
     render(
         StatusCode::OK,
         &FilesTemplate {
+            t: site.texts(),
             shell: site.shell(),
             page,
         },
@@ -288,6 +312,7 @@ pub async fn glossary(State(site): State<Arc<Site>>) -> Response {
     render(
         StatusCode::OK,
         &GlossaryTemplate {
+            t: site.texts(),
             shell: site.shell(),
             page,
         },
@@ -301,6 +326,7 @@ pub async fn map(State(site): State<Arc<Site>>) -> Response {
     render(
         StatusCode::OK,
         &MapTemplate {
+            t: site.texts(),
             shell: site.shell(),
             page,
             mermaid: MERMAID,
@@ -318,6 +344,7 @@ pub async fn domain_map(State(site): State<Arc<Site>>, Path(slug): Path<String>)
     render(
         StatusCode::OK,
         &DomainMapTemplate {
+            t: site.texts(),
             shell: site.shell(),
             page,
             mermaid: MERMAID,
@@ -332,6 +359,7 @@ pub async fn actors(State(site): State<Arc<Site>>) -> Response {
     render(
         StatusCode::OK,
         &ActorsTemplate {
+            t: site.texts(),
             shell: site.shell(),
             page,
         },
@@ -358,14 +386,17 @@ pub async fn rules(
         &headers,
         NO_RUN_RULES,
         |docs| rules_page(docs, &filter),
-        |page| RulesList { page },
-        |shell, page| RulesTemplate { shell, page },
+        |page| RulesList {
+            t: site.texts(),
+            page,
+        },
+        |shell, page| RulesTemplate {
+            t: site.texts(),
+            shell,
+            page,
+        },
     )
 }
-
-/// The results `htmx` swaps under the box before a first `generate`.
-const NO_RUN_RESULTS: &str = "<section class=\"results\"><p>Nothing to search yet: run \
-    <code>retrodoc generate</code>, then restart <code>retrodoc ui</code>.</p></section>";
 
 pub async fn search(
     State(site): State<Arc<Site>>,
@@ -376,10 +407,17 @@ pub async fn search(
     fragment_or_page(
         &site,
         &headers,
-        NO_RUN_RESULTS,
+        site.texts().no_run_results,
         |docs| search_page(docs, &query),
-        |page| SearchResults { page },
-        |shell, page| SearchTemplate { shell, page },
+        |page| SearchResults {
+            t: site.texts(),
+            page,
+        },
+        |shell, page| SearchTemplate {
+            t: site.texts(),
+            shell,
+            page,
+        },
     )
 }
 
@@ -422,6 +460,7 @@ pub async fn code(
         Ok(Some(page)) => render(
             StatusCode::OK,
             &CodeTemplate {
+                t: site.texts(),
                 shell: site.shell(),
                 page,
             },
@@ -435,6 +474,7 @@ pub async fn not_found(State(site): State<Arc<Site>>) -> Response {
     render(
         StatusCode::NOT_FOUND,
         &NotFound {
+            t: site.texts(),
             shell: site.shell(),
         },
     )
@@ -458,6 +498,7 @@ pub async fn collected_doc(State(site): State<Arc<Site>>, Path(path): Path<Strin
     render(
         StatusCode::OK,
         &CollectedTemplate {
+            t: site.texts(),
             shell: site.shell(),
             page,
         },

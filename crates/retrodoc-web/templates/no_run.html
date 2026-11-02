@@ -1,6 +1,6 @@
 {% extends "base.html" %}
-{% block title %}No run yet{% endblock %}
+{% block title %}{{ t.no_run_title }}{% endblock %}
 {% block content %}
-<h1>No docs generated yet</h1>
-<p>This repository has no run yet. Run <code>retrodoc generate</code>, then restart <code>retrodoc ui</code>.</p>
+<h1>{{ t.no_run_heading }}</h1>
+<p>{{ t.no_run_text.0 }} <code>retrodoc generate</code>{{ t.no_run_text.1 }} <code>retrodoc ui</code>{{ t.no_run_text.2 }}</p>
 {% endblock %}

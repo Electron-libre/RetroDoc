@@ -10,14 +10,14 @@ use retrodoc_render::anchor;
 
 use crate::view::{feature_href, rule_href, url_path, use_case_href, Confidence};
 
-/// The kinds in the order of the page, with their heading.
-const KINDS: [(EntryKind, &str); 6] = [
-    (EntryKind::Domain, "Domains"),
-    (EntryKind::Feature, "Features"),
-    (EntryKind::UseCase, "Use cases"),
-    (EntryKind::Rule, "Business rules"),
-    (EntryKind::Glossary, "Glossary"),
-    (EntryKind::Doc, "Existing docs"),
+/// The kinds in the order of the page.
+const KINDS: [EntryKind; 6] = [
+    EntryKind::Domain,
+    EntryKind::Feature,
+    EntryKind::UseCase,
+    EntryKind::Rule,
+    EntryKind::Glossary,
+    EntryKind::Doc,
 ];
 
 pub struct SearchPage {
@@ -40,7 +40,7 @@ pub enum Results {
 }
 
 pub struct HitGroup {
-    pub heading: &'static str,
+    pub kind: EntryKind,
     /// Best first.
     pub hits: Vec<HitRow>,
 }
@@ -73,8 +73,8 @@ pub fn search_page(docs: &GeneratedDocs, query: &str) -> SearchPage {
         Results::Hits(
             KINDS
                 .iter()
-                .map(|(kind, heading)| HitGroup {
-                    heading,
+                .map(|kind| HitGroup {
+                    kind: *kind,
                     hits: found
                         .hits
                         .iter()

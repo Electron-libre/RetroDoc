@@ -113,7 +113,7 @@ existing_docs_paths = ["docs", "README.md"]    # Markdown taken as input
 
 [output]
 docs_dir = "docs"
-# language = "French"  # the language of the generated docs: a name, or en, fr, de, es, it, pt, nl; unset: the model picks (English in practice). Changing it redoes the writing passes; the headings of the docs are in French for fr, English for any other; the web interface stays in English
+# language = "French"  # the language of the generated docs: a name, or en, fr, de, es, it, pt, nl; unset: the model picks (English in practice). Changing it redoes the writing passes; the headings of the docs and the labels of the web interface are in French for fr, English for any other
 
 [pipeline]
 domains_from = "surface"  # "surface" (default): domains from the entities and entry points, features from the entry points; "contexts": a large application documented a bounded context at a time (see below). "files" was removed (ADR 0035)

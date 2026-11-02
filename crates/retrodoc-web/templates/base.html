@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html{% if let Some(lang) = shell.lang %} lang="{{ lang }}"{% endif %}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -11,23 +11,23 @@
 <body>
   <header class="top">
     <a class="brand" href="/">{{ shell.name }}</a>
-    <nav class="links" aria-label="Read">
-      <span class="group">Read</span>
+    <nav class="links" aria-label="{{ t.read }}">
+      <span class="group">{{ t.read }}</span>
       {% for page in shell.read %}<a href="{{ page.href }}" title="{{ page.hint }}">{{ page.name }}</a>{% endfor %}
     </nav>
-    <nav class="links" aria-label="Look up">
-      <span class="group">Look up</span>
+    <nav class="links" aria-label="{{ t.look_up }}">
+      <span class="group">{{ t.look_up }}</span>
       {% for page in shell.look_up %}<a href="{{ page.href }}" title="{{ page.hint }}">{{ page.name }}</a>{% endfor %}
     </nav>
     <form class="search" role="search" action="/search" method="get" hx-get="/search" hx-target="#search-results">
-      <input type="search" name="q" value="{% block query %}{% endblock %}" placeholder="Search the docs" aria-label="Search the docs">
+      <input type="search" name="q" value="{% block query %}{% endblock %}" placeholder="{{ t.search_docs }}" aria-label="{{ t.search_docs }}">
     </form>
   </header>
   <div id="search-results">{% block results %}{% endblock %}</div>
   <div class="layout">
-    <nav class="tree" aria-label="Domains, features and use cases">
+    <nav class="tree" aria-label="{{ t.tree_label }}">
       {% if shell.tree.is_empty() %}
-      <p class="muted">No domain yet.</p>
+      <p class="muted">{{ t.no_domain_yet }}</p>
       {% else %}
       <ul>
         {% for domain in shell.tree %}

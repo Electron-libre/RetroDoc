@@ -49,6 +49,7 @@ fn project(workspace: &Workspace) -> Project {
             .name_or_directory(&workspace.repo_root),
         purpose: Some(brief.purpose.text).filter(|purpose| !purpose.trim().is_empty()),
         users: brief.users.into_iter().map(|user| user.text).collect(),
+        lang: Project::lang_of(&workspace.config.output),
     }
 }
 

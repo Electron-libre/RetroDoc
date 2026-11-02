@@ -1,4 +1,4 @@
-{% macro badge(confidence) %}<span class="badge{% if confidence.low %} low{% endif %}">{{ confidence.label }}</span>{% endmacro %}
+{% macro badge(confidence) %}<span class="badge{% if confidence.low %} low{% endif %}">{{ t.confidence(confidence.percent.as_ref()) }}</span>{% endmacro %}
 
 {% macro badge_why(confidence) %}{% call badge(confidence) %}{% endcall %}{% if let Some(why) = confidence.rationale %} <span class="muted">{{ why }}</span>{% endif %}{% endmacro %}
 

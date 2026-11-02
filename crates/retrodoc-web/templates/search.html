@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}Search{% endblock %}
+{% block title %}{{ t.search }}{% endblock %}
 {% block query %}{{ page.query }}{% endblock %}
 {% block results %}{% include "search_results.html" %}{% endblock %}
 {% block content %}
-<h1>Search</h1>
-<p class="muted">Search the domains, features, use cases, business rules, glossary and existing docs, in the application's own words.</p>
+<h1>{{ t.search }}</h1>
+<p class="muted">{{ t.search_intro }}</p>
 {% endblock %}

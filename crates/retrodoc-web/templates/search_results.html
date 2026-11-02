@@ -1,10 +1,10 @@
 {% import "macros.html" as m %}
 {% if let Some(results) = page.results %}
-<section class="results" aria-label="Results for “{{ page.query }}”">
+<section class="results" aria-label="{{ t.results_for }} “{{ page.query }}”">
   {% match results %}
   {% when Results::Hits(groups) %}
   {% for group in groups %}
-  <h2>{{ group.heading }}</h2>
+  <h2>{{ t.kind_heading(*group.kind) }}</h2>
   <ul class="hits">
     {% for hit in group.hits %}
     <li>{% if let Some(href) = hit.href %}<a href="{{ href }}">{{ hit.title }}</a>{% else %}{{ hit.title }}{% endif %}{% if let Some(confidence) = hit.confidence %} {% call m::badge(confidence) %}{% endcall %}{% endif %}</li>
@@ -12,16 +12,16 @@
   </ul>
   {% endfor %}
   {% when Results::NotDocumented with { entries, left_out, unknown_words } %}
-  <p><strong>Not documented:</strong> nothing among {{ entries }} entries matches “{{ page.query }}”.</p>
+  <p><strong>{{ t.not_documented }}</strong> {{ t.nothing_among }} {{ entries }} {{ t.entries_match }} “{{ page.query }}”.</p>
   {% if !unknown_words.is_empty() %}
-  <p>No entry has {% for word in unknown_words %}<code>{{ word }}</code>{% if !loop.last %}, {% endif %}{% endfor %}.</p>
+  <p>{{ t.no_entry_has }} {% for word in unknown_words %}<code>{{ word }}</code>{% if !loop.last %}, {% endif %}{% endfor %}.</p>
   {% endif %}
   {% if *left_out == 1 %}
-  <p>1 entry shares only part of the query.</p>
+  <p>{{ t.one_left_out }}</p>
   {% else if *left_out > 1 %}
-  <p>{{ left_out }} entries share only part of the query.</p>
+  <p>{{ left_out }} {{ t.many_left_out }}</p>
   {% endif %}
-  {% if !unknown_words.is_empty() || *left_out > 0 %}<p class="muted">Try other words.</p>{% endif %}
+  {% if !unknown_words.is_empty() || *left_out > 0 %}<p class="muted">{{ t.try_other_words }}</p>{% endif %}
   {% endmatch %}
 </section>
 {% endif %}

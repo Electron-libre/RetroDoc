@@ -17,6 +17,7 @@ pub mod map;
 mod pages;
 pub mod rules;
 pub mod search;
+pub mod texts;
 pub mod view;
 
 use std::net::IpAddr;
@@ -28,6 +29,7 @@ use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::Router;
+use retrodoc_core::config::OutputConfig;
 use retrodoc_mcp::{ExistingDoc, GeneratedDocs};
 use retrodoc_render::DocLinks;
 use tokio::net::TcpListener;
@@ -43,6 +45,21 @@ pub struct Project {
     pub purpose: Option<String>,
     /// The users of the product brief, shown on the home page.
     pub users: Vec<String>,
+    /// The `lang` of the pages ([`Project::lang_of`]), which also picks the table of their fixed
+    /// text; `None` for a language with no tag.
+    pub lang: Option<&'static str>,
+}
+
+impl Project {
+    /// The `lang` of the pages for the docs language of `output`: `en` when none is set, the tag
+    /// of the language when it has one, else `None`.
+    #[must_use]
+    pub fn lang_of(output: &OutputConfig) -> Option<&'static str> {
+        if output.language_name().is_none() {
+            return Some("en");
+        }
+        output.language_tag()
+    }
 }
 
 /// The routes of the interface over the docs of `project`, `docs`, `None`

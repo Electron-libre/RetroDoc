@@ -108,6 +108,7 @@ fn shop() -> Project {
         name: "Shop and Co".into(),
         purpose: Some("Sells <b>goods</b> online".into()),
         users: vec!["Buyers who order goods".into(), "Clerks".into()],
+        lang: Some("en"),
     }
 }
 
@@ -593,5 +594,87 @@ async fn a_host_that_is_neither_localhost_nor_an_address_is_refused() {
         "192.168.1.10:8730",
     ] {
         assert_eq!(status_with_host(host).await, StatusCode::OK, "{host}");
+    }
+}
+
+/// [`shop`] in the language of the tag `lang`.
+fn shop_in(lang: Option<&'static str>) -> Project {
+    Project { lang, ..shop() }
+}
+
+/// The `<html>` tag of `page`.
+fn html_tag(page: &str) -> &str {
+    let start = page.find("<html").unwrap();
+    &page[start..=start + page[start..].find('>').unwrap()]
+}
+
+// spec: WEB-78
+#[tokio::test]
+async fn the_pages_carry_the_tag_of_the_docs_language() {
+    let repo = generated_repo();
+    for (lang, tag) in [
+        (Some("en"), "<html lang=\"en\">"),
+        (Some("de"), "<html lang=\"de\">"),
+        (None, "<html>"),
+    ] {
+        for path in ["/", "/domains/billing", "/unknown"] {
+            let (_, page, _) = get_project(shop_in(lang), load(repo.path()), path).await;
+            assert_eq!(html_tag(&page), tag, "{path}");
+        }
+    }
+    let lang = |language: Option<&str>| {
+        Project::lang_of(&retrodoc_core::config::OutputConfig {
+            docs_dir: "docs".into(),
+            language: language.map(str::to_string),
+        })
+    };
+    assert_eq!(lang(None), Some("en"));
+    assert_eq!(lang(Some("French")), Some("fr"));
+    assert_eq!(lang(Some("de")), Some("de"));
+    assert_eq!(lang(Some("Japanese")), None);
+}
+
+/// The English labels of the frame of every page and of the home, search, empty and not-found
+/// pages, none of which a page in French must carry.
+const ENGLISH_FRAME: &[&str] = &[
+    "Search the docs",
+    ">Read<",
+    ">Look up<",
+    "Who uses it",
+    "Start here",
+    ">Domains<",
+    "not scored",
+    "Not found",
+    "No docs generated yet",
+    ">Home<",
+];
+
+// spec: WEB-77
+#[tokio::test]
+async fn the_frame_and_the_home_search_and_not_found_pages_are_in_french() {
+    let repo = generated_repo();
+    let empty = tempfile::tempdir().unwrap();
+    let mut pages = String::new();
+    for (docs, path) in [
+        (load(repo.path()), "/"),
+        (load(repo.path()), "/unknown"),
+        (load(repo.path()), "/search?q=invoice"),
+        (load(repo.path()), "/search?q=zzzz"),
+        (load(empty.path()), "/"),
+    ] {
+        let (_, page, _) = get_project(shop_in(Some("fr")), docs, path).await;
+        pages.push_str(&page);
+    }
+    for label in ENGLISH_FRAME {
+        assert!(!pages.contains(label), "{label} left in {pages}");
+    }
+    for label in [
+        "Rechercher dans la doc",
+        "Commencer ici",
+        "Page introuvable",
+        "non évalué",
+        "Non documenté",
+    ] {
+        assert!(pages.contains(label), "{label} missing from {pages}");
     }
 }

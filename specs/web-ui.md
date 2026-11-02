@@ -175,6 +175,13 @@ over browses its domains, features and use cases rather than reading the Markdow
 - **WEB-75** (deterministic) Each label of a map graph must be written between double quotes, with a `#` of the docs
   written `#35;` and a double quote written `#quot;`.
 - **WEB-76** (deterministic) The page of a domain must link to its map.
+- **WEB-77** (deterministic) With `[output] language` naming French (`fr` or `French`, in any case), the fixed text
+  of every page (headings, labels, links, titles of the links, the placeholder of the search box, the messages of the
+  empty and not-found pages, but not the credit line of WEB-69) must be the French one; with no language or any other
+  language, the English one.
+- **WEB-78** (deterministic) The `<html>` element of every page must carry `lang` set to the tag of `[output]
+  language` in `LANGUAGE_TAGS` when it has one, `en` when no language is set, and no `lang` when the language has no
+  tag.
 
 ## Scenarios
 
@@ -197,6 +204,8 @@ over browses its domains, features and use cases rather than reading the Markdow
 - (WEB-18) Given a use case with no business-language score, then the page shows no business-language line.
 - (WEB-20) Given a cited file with no recorded hash, then the page is not flagged.
 - (WEB-22) Given a narrative judged partly backed (`narrative_check` above 0), then it is not flagged.
+- (WEB-78) Given `language = "German"`, then the pages carry `lang="de"` and the fixed text stays English.
+- (WEB-78) Given `language = "Japanese"`, then the pages carry no `lang`.
 - (WEB-23) Given a doc section with no heading, then the link points to the file with no anchor.
 - (WEB-23) Given a doc path with a `#`, a `?` or a space, then they are percent-encoded in the link.
 - (WEB-24) Given a client whose `Accept-Encoding` does not name gzip, then the script, stored compressed, is refused
