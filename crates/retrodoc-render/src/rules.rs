@@ -7,49 +7,42 @@ use std::fmt::Write as _;
 use std::path::Path;
 
 use retrodoc_core::model::{
-    BusinessRule, Feature, RuleEvidence, RuleKind, UseCase, LOW_CONFIDENCE_THRESHOLD,
+    BusinessRule, Feature, RuleEvidence, UseCase, LOW_CONFIDENCE_THRESHOLD,
 };
 use retrodoc_core::text::one_line;
 
 use crate::doc_links::DocLinks;
 use crate::markdown::{feature_path, link, source_ref_label, use_case_path};
-
-/// The name of a kind of rule in the docs: `State transition`.
-#[must_use]
-pub fn kind_label(kind: RuleKind) -> &'static str {
-    match kind {
-        RuleKind::Validation => "Validation",
-        RuleKind::Permission => "Permission",
-        RuleKind::StateTransition => "State transition",
-        RuleKind::Limit => "Limit",
-        RuleKind::Computation => "Computation",
-    }
-}
+use crate::texts::Texts;
 
 /// `Limit, ⚠️ 40%`: the kind and the confidence, flagged when below the threshold (a rule backed
 /// by code alone is a hypothesis).
-fn tag(rule: &BusinessRule) -> String {
+fn tag(rule: &BusinessRule, texts: &Texts) -> String {
+    let kind = texts.kind(rule.kind);
     match &rule.confidence {
         Some(c) if c.value < LOW_CONFIDENCE_THRESHOLD => {
-            format!("{}, ⚠️ {:.0}%", kind_label(rule.kind), c.value * 100.0)
+            format!("{kind}, ⚠️ {:.0}%", c.value * 100.0)
         }
-        Some(c) => format!("{}, {:.0}%", kind_label(rule.kind), c.value * 100.0),
-        None => format!("{}, not scored", kind_label(rule.kind)),
+        Some(c) => format!("{kind}, {:.0}%", c.value * 100.0),
+        None => format!("{kind}, {}", texts.not_scored),
     }
 }
 
-fn evidence_line(evidence: &RuleEvidence) -> String {
+fn evidence_line(evidence: &RuleEvidence, texts: &Texts) -> String {
     match evidence {
-        RuleEvidence::Code { source } => format!("Code: `{}`", source_ref_label(source)),
+        RuleEvidence::Code { source } => format!("{} `{}`", texts.code, source_ref_label(source)),
         RuleEvidence::Test { phrase, path } => {
-            format!("Test: \"{}\" (`{path}`)", one_line(phrase))
+            format!("{} \"{}\" (`{path}`)", texts.test, one_line(phrase))
         }
         RuleEvidence::Doc { path, heading } if heading.is_empty() => {
-            format!("Documentation: `{path}`")
+            format!("{} `{path}`", texts.documentation)
         }
-        RuleEvidence::Doc { path, heading } => {
-            format!("Documentation: `{path}`, section \"{}\"", one_line(heading))
-        }
+        RuleEvidence::Doc { path, heading } => format!(
+            "{} `{path}`, {} \"{}\"",
+            texts.documentation,
+            texts.section,
+            one_line(heading)
+        ),
     }
 }
 
@@ -61,15 +54,16 @@ pub(crate) fn rules_section(
     feature: &Feature,
     use_cases: &[&UseCase],
     docs: &DocLinks,
+    texts: &Texts,
 ) -> String {
     if rules.is_empty() {
         return String::new();
     }
-    let mut md = String::from("## Business rules\n\n");
+    let mut md = format!("## {}\n\n", texts.business_rules);
     for rule in rules {
-        let _ = writeln!(md, "- {} ({})", one_line(&rule.statement), tag(rule));
+        let _ = writeln!(md, "- {} ({})", one_line(&rule.statement), tag(rule, texts));
         if !rule.entities.is_empty() {
-            let _ = writeln!(md, "  - Entities: {}", rule.entities.join(", "));
+            let _ = writeln!(md, "  - {} {}", texts.entities, rule.entities.join(", "));
         }
         let applies: Vec<String> = use_cases
             .iter()
@@ -77,29 +71,33 @@ pub(crate) fn rules_section(
             .map(|u| format!("[{}]({})", u.name, link(from, &use_case_path(feature, u))))
             .collect();
         if !applies.is_empty() {
-            let _ = writeln!(md, "  - Use cases: {}", applies.join(", "));
+            let _ = writeln!(md, "  - {} {}", texts.rule_use_cases, applies.join(", "));
         }
         for evidence in &rule.evidence {
-            let _ = writeln!(md, "  - {}", evidence_line(evidence));
+            let _ = writeln!(md, "  - {}", evidence_line(evidence, texts));
         }
-        md.push_str(&docs.rule_lines(&rule.slug, from));
+        md.push_str(&docs.rule_lines(&rule.slug, from, texts));
     }
     md.push('\n');
     md
 }
 
 /// The rules of a domain, each with the feature it belongs to.
-pub(crate) fn domain_section(rules: &[(&Feature, &BusinessRule)], from: &Path) -> String {
+pub(crate) fn domain_section(
+    rules: &[(&Feature, &BusinessRule)],
+    from: &Path,
+    texts: &Texts,
+) -> String {
     if rules.is_empty() {
         return String::new();
     }
-    let mut md = String::from("## Business rules\n\n");
+    let mut md = format!("## {}\n\n", texts.business_rules);
     for (feature, rule) in rules {
         let _ = writeln!(
             md,
             "- {} ({}) — [{}]({})",
             one_line(&rule.statement),
-            tag(rule),
+            tag(rule, texts),
             feature.name,
             link(from, &feature_path(feature))
         );
@@ -110,7 +108,12 @@ pub(crate) fn domain_section(rules: &[(&Feature, &BusinessRule)], from: &Path) -
 
 /// All the rules grouped by entity (a rule on several entities appears under each; those on none
 /// under "Other rules"), each linking to its feature.
-pub(crate) fn index_page(rules: &[BusinessRule], features: &[Feature], from: &Path) -> String {
+pub(crate) fn index_page(
+    rules: &[BusinessRule],
+    features: &[Feature],
+    from: &Path,
+    texts: &Texts,
+) -> String {
     let mut by_entity: BTreeMap<String, Vec<&BusinessRule>> = BTreeMap::new();
     for rule in rules {
         if rule.entities.is_empty() {
@@ -120,12 +123,7 @@ pub(crate) fn index_page(rules: &[BusinessRule], features: &[Feature], from: &Pa
             by_entity.entry(entity.clone()).or_default().push(rule);
         }
     }
-    let mut md = format!(
-        "# Business rules\n\n> What is allowed, refused, limited and in which states, by entity: \
-         {} rule(s) stated from the code, tests and documentation. A rule backed by code alone \
-         (⚠️) is a hypothesis to check against the code.\n\n",
-        rules.len()
-    );
+    let mut md = (texts.rules_index_head)(rules.len());
     // The entities in name order, the rules on none last.
     let groups = by_entity
         .iter()
@@ -136,7 +134,7 @@ pub(crate) fn index_page(rules: &[BusinessRule], features: &[Feature], from: &Pa
             md,
             "## {}\n\n",
             if entity.is_empty() {
-                "Other rules"
+                texts.other_rules
             } else {
                 entity
             }
@@ -146,7 +144,12 @@ pub(crate) fn index_page(rules: &[BusinessRule], features: &[Feature], from: &Pa
             let place = feature.map_or_else(String::new, |f| {
                 format!(" — [{}]({})", f.name, link(from, &feature_path(f)))
             });
-            let _ = writeln!(md, "- {} ({}){place}", one_line(&rule.statement), tag(rule));
+            let _ = writeln!(
+                md,
+                "- {} ({}){place}",
+                one_line(&rule.statement),
+                tag(rule, texts)
+            );
         }
         md.push('\n');
     }

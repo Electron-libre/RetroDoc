@@ -10,14 +10,12 @@ mod doc_links;
 mod markdown;
 mod plan;
 mod rules;
+mod texts;
 
 pub use doc_links::{anchor, DocLink, DocLinks, ItemRef};
-pub use markdown::{
-    render, render_with_docs, render_with_rules, source_ref_label, TECHNICAL_HEADING,
-    TECHNICAL_NOTE,
-};
+pub use markdown::{render, render_with_docs, render_with_rules, source_ref_label};
 pub use plan::{plan, FileStatus, PlannedFile, WritePlan};
-pub use rules::kind_label;
+pub use texts::Texts;
 
 use std::path::PathBuf;
 

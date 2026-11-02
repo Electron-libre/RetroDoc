@@ -6,16 +6,22 @@ use std::path::Path;
 use retrodoc_core::model::{ConfidenceScore, Domain, Feature, LOW_CONFIDENCE_THRESHOLD};
 use retrodoc_core::text::one_line;
 
-use super::{domain_readme_path, feature_path, link, short_confidence, TECHNICAL_HEADING};
+use super::{domain_readme_path, feature_path, link, short_confidence};
+use crate::texts::Texts;
 use crate::{AGENT_INDEX_PATH, RULES_INDEX_PATH};
 
 /// The `llms.txt`-style entry point for agents that don't run the MCP server.
-pub(super) fn agent_index(domains: &[Domain], features: &[Feature], rule_count: usize) -> String {
+pub(super) fn agent_index(
+    domains: &[Domain],
+    features: &[Feature],
+    rule_count: usize,
+    texts: &Texts,
+) -> String {
     let index = Path::new(AGENT_INDEX_PATH);
     // `(⚠️ 30%)` below the threshold, so a weak page is visible before opening it.
     let score = |score: Option<&ConfidenceScore>| match score {
         Some(c) if c.value < LOW_CONFIDENCE_THRESHOLD => format!("⚠️ {:.0}%", c.value * 100.0),
-        other => short_confidence(other),
+        other => short_confidence(other, texts),
     };
     let feature_item = |md: &mut String, indent: &str, f: &Feature| {
         let _ = writeln!(
@@ -28,23 +34,9 @@ pub(super) fn agent_index(domains: &[Domain], features: &[Feature], rule_count: 
         );
     };
 
-    let mut md = String::from(
-        "# Functional documentation\n\n\
-         > What the application does, in business terms: domains, features and use cases derived \
-         from its code and history by RetroDoc. Every page carries a confidence score; below 50% \
-         (⚠️) the page is not backed by the code and must be checked against it.\n\n\
-         ## How to read it\n\n\
-         - Go from a domain to its features, then to their use cases: each page links to the next \
-         level and lists the source files it rests on.\n\
-         - The pages are generated and date from the last `retrodoc generate` run (see the \
-         [run metadata](../_retrodoc/run-metadata.json)): check the cited files if the code has \
-         changed since.\n\
-         - An agent that can run commands gets the same documentation, with a warning when the \
-         cited code changed, from the MCP server: `retrodoc mcp --path <repo>`.\n\n\
-         ## Domains\n\n",
-    );
+    let mut md = texts.agent_index_head.to_string();
     if domains.is_empty() {
-        md.push_str("No domain documented yet.\n");
+        let _ = writeln!(md, "{}", texts.no_domain);
     }
     for domain in domains {
         let _ = writeln!(
@@ -63,25 +55,18 @@ pub(super) fn agent_index(domains: &[Domain], features: &[Feature], rule_count: 
             feature_item(&mut md, "  ", f);
         }
         if own.iter().any(|f| f.back_office) {
-            let _ = writeln!(md, "  - {TECHNICAL_HEADING}:");
+            let _ = writeln!(md, "  - {}:", texts.technical_heading);
             for f in own.iter().filter(|f| f.back_office) {
                 feature_item(&mut md, "    ", f);
             }
         }
     }
     if rule_count > 0 {
-        let _ = write!(
-            md,
-            "\n## Business rules\n\n- [Business rules by entity]({}): {rule_count} rule(s) on what is \
-             allowed, refused, limited and in which states, each with its evidence; they are also on \
-             the pages of their feature, use cases and domain\n",
-            link(index, Path::new(RULES_INDEX_PATH))
-        );
+        md.push_str(&(texts.agent_index_rules)(
+            &link(index, Path::new(RULES_INDEX_PATH)),
+            rule_count,
+        ));
     }
-    md.push_str(
-        "\n## Optional\n\n\
-         - [Documentation debt report](../_retrodoc/coverage-report.md): the sections with a low \
-         confidence and the code that no domain covers\n",
-    );
+    md.push_str(texts.agent_index_optional);
     md
 }

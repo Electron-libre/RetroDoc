@@ -31,6 +31,11 @@ saved results stay those of today.
   (`Préférences des clients` → `preferences-des-clients`), and the slug of an ASCII name must
   not change.
 - **DLG-6** (deterministic) `init` must write the `language` key commented out in `[output]`, with an example.
+- **DLG-7** (deterministic) With `[output] language` naming French (`fr` or `French`, in any case), the fixed text of
+  the Markdown docs `generate` and `render` write (headings, labels, notes of the sections, the index for agents, the
+  rules index) must be the French one; with no language or any other language, the English one of today.
+- **DLG-8** (deterministic) The paths, slugs and anchors of the docs must not depend on the language, and a second
+  `render` with the same artifacts and language must write no file.
 
 ## Scenarios
 
@@ -41,13 +46,17 @@ saved results stay those of today.
   in French while the entity names keep the spelling of the code.
 - (DLG-4) Given a finished run in English, when the user sets `language = "French"` and runs `generate`, then the
   writing passes are asked again and the reading passes reuse their results; a third run calls nothing.
+- (DLG-7) Given `language = "fr"`, when the docs are written, then a use case page with a narrative reads
+  `## Ce qui se passe` and `**Confiance :**` instead of `## What happens` and `**Confidence:**`.
+- (DLG-7) Given `language = "German"`, when the docs are written, then the fixed text stays English.
 - (DLG-5) Given a domain named `Suivi des livraisons` then one named `Préférences des clients`, when the
   docs are written, then their folders are `suivi-des-livraisons` and `preferences-des-clients`.
 
 ## Non-goals
 
 - Translating docs already generated without asking the passes again: a language change redoes the writing passes.
-- The fixed text of the render and of the web interface (headings, labels, `<html lang>`): it stays in English,
-  tracked by `issues/localized_render_and_web_text.md`.
+- Fixed text in a language other than English and French: a language with no table keeps the English one.
+- The coverage report (`_retrodoc/coverage-report.md`), the output of the CLI and the text of the MCP tools stay in
+  English.
 - Scripts other than Latin in slugs (a name in Cyrillic or CJK falls back to what `slugify` does today).
 - Detecting the language of the repository to pick one by default.

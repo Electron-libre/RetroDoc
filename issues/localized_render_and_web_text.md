@@ -42,3 +42,48 @@ Docs in the reader's language
 * `crates/retrodoc-render/src/markdown/`, `crates/retrodoc-web/templates/`, `crates/retrodoc-core/src/config.rs`
   (`LANGUAGE_TAGS`).
 * `docs/crates/render-mcp-cli.md`, ADR 0041.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+The fixed text of the Markdown render and of the web pages follows `[output] language`: a French table beside the
+English one, chosen from the resolved tag; any other language keeps English. `<html lang>` from the tag. Out of
+scope: the coverage report, the CLI output, the MCP tools, paths and anchors. The MCP and web read models read the
+cache artifacts, never the rendered Markdown, so no parser depends on the headings.
+
+## Plan
+1. [x] Render: `OutputConfig::language_tag()` in core, a `Texts` table (English, French) in `retrodoc-render` passed
+   to every page, the CLI passes the one of the config; verified by render tests in French and German and a
+   re-render that writes nothing; makes true DLG-7, DLG-8. (~450 lines)
+2. [ ] Web layout: the language reaches `App`, `<html lang>`, a web texts table for the layout, nav, home, search,
+   empty and not-found pages; verified by router tests; makes true WEB-78 and starts WEB-77. (~500 lines)
+3. [ ] Web item pages: the domain, feature, use case, rules, glossary, actors, map, files and code pages use the
+   table; verified by a test that no English label is left on each page in French; makes true WEB-77. (~600 lines)
+
+## Decisions
+- Mode: autonomous
+- Base commit: 40fb1715566c4c6819be0029588f6e2ce40e78fe
+- A language name with no tag (`Japanese`) gives no `lang` attribute rather than a wrong `en`.
+- `llms.txt` and `rules.md` follow the language like the other pages.
+
+## Deliverable 1
+
+done: `Texts` table (English, French) in `retrodoc-render`, threaded through every page, `llms.txt` and `rules.md`;
+`OutputConfig::language_tag()`; the CLI picks the table from the config.
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | pass |
+| specs | DLG-7, DLG-8 traced by CLI tests |
+| docs | `docs/crates/render-mcp-cli.md`, `docs/ARCHITECTURE.md` §8, `README.md` |
+| code review | no findings |
+
+red: DLG-7, DLG-8: `## Use cases left in # Functional documentation`
+
+Code review: no findings
+
+- The web spec amendment (WEB-77, WEB-78) is held back to deliverable 2, so `just check-specs` stays green.
+- The web keeps `Texts::ENGLISH` until deliverables 2 and 3.

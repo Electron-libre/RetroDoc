@@ -7,12 +7,14 @@ use retrodoc_core::model::{BusinessRule, Feature, Step, UseCase};
 use super::{confidence_line, feature_path, link, score_line, trim_end, use_case_path};
 use crate::doc_links::{DocLinks, ItemRef};
 use crate::rules::rules_section;
+use crate::texts::Texts;
 
 pub(super) fn use_case_page(
     feature: &Feature,
     use_case: &UseCase,
     rules: &[&BusinessRule],
     docs: &DocLinks,
+    texts: &Texts,
 ) -> String {
     let path = use_case_path(feature, use_case);
     let mut md = format!("# {}\n\n", use_case.name);
@@ -23,16 +25,24 @@ pub(super) fn use_case_page(
         link(&path, &feature_path(feature))
     );
     let _ = writeln!(md, "{}\n", use_case.description.trim());
-    let _ = writeln!(md, "{}\n", confidence_line(use_case.confidence.as_ref()));
+    let _ = writeln!(
+        md,
+        "{}\n",
+        confidence_line(use_case.confidence.as_ref(), texts)
+    );
     if use_case.business_language.is_some() {
         let _ = writeln!(
             md,
             "{}\n",
-            score_line("Business language", use_case.business_language.as_ref())
+            score_line(
+                texts.business_language,
+                use_case.business_language.as_ref(),
+                texts
+            )
         );
     }
     if let Some(actor) = &use_case.primary_actor {
-        let _ = writeln!(md, "**Primary actor:** {actor}\n");
+        let _ = writeln!(md, "**{}** {actor}\n", texts.primary_actor);
     }
     if !use_case.entry_points.is_empty() {
         let names: Vec<String> = use_case
@@ -40,7 +50,7 @@ pub(super) fn use_case_page(
             .iter()
             .map(|n| format!("`{n}`"))
             .collect();
-        let _ = writeln!(md, "**Triggered by:** {}\n", names.join(", "));
+        let _ = writeln!(md, "**{}** {}\n", texts.triggered_by, names.join(", "));
     }
 
     // Two levels: the business narrative first, the technical steps and
@@ -51,30 +61,30 @@ pub(super) fn use_case_page(
         .as_deref()
         .map(str::trim)
         .filter(|n| !n.is_empty());
-    let (steps_heading, diagram_heading) = if let Some(narrative) = narrative {
-        let _ = write!(md, "## What happens\n\n{narrative}\n\n");
-        md.push_str(&rules_section(rules, &path, feature, &[], docs));
+    let level = if let Some(narrative) = narrative {
+        let _ = write!(md, "## {}\n\n{narrative}\n\n", texts.what_happens);
+        md.push_str(&rules_section(rules, &path, feature, &[], docs, texts));
         let _ = write!(
             md,
-            "<details>\n<summary>Technical details ({} step{})</summary>\n\n",
-            use_case.steps.len(),
-            if use_case.steps.len() == 1 { "" } else { "s" }
+            "<details>\n<summary>{}</summary>\n\n",
+            (texts.technical_details)(use_case.steps.len())
         );
-        ("### Steps", "### Diagram")
+        "###"
     } else {
-        md.push_str(&rules_section(rules, &path, feature, &[], docs));
-        ("## Steps", "## Diagram")
+        md.push_str(&rules_section(rules, &path, feature, &[], docs, texts));
+        "##"
     };
 
-    let _ = write!(md, "{steps_heading}\n\n");
+    let _ = write!(md, "{level} {}\n\n", texts.steps);
     for step in &use_case.steps {
-        md.push_str(&step_item(step));
+        md.push_str(&step_item(step, texts));
     }
 
     if let Some(diagram) = &use_case.diagram_mermaid {
         let _ = write!(
             md,
-            "\n{diagram_heading}\n\n```mermaid\n{}\n```\n",
+            "\n{level} {}\n\n```mermaid\n{}\n```\n",
+            texts.diagram,
             diagram.trim_end()
         );
     }
@@ -87,6 +97,7 @@ pub(super) fn use_case_page(
             use_case: use_case.slug.clone(),
         },
         &path,
+        texts,
     );
     if !existing.is_empty() {
         md.push('\n');
@@ -95,11 +106,11 @@ pub(super) fn use_case_page(
     trim_end(&md)
 }
 
-pub(super) fn step_item(step: &Step) -> String {
+pub(super) fn step_item(step: &Step, texts: &Texts) -> String {
     let kind = if step.actor.kind == retrodoc_core::model::ActorKind::Human {
-        "human"
+        texts.human
     } else {
-        "system"
+        texts.system
     };
     let mut item = format!(
         "{}. **{}** ({kind}) — {}",
@@ -117,7 +128,7 @@ pub(super) fn step_item(step: &Step) -> String {
             .iter()
             .map(|r| format!("`{}`", super::source_ref_label(r)))
             .collect();
-        let _ = writeln!(item, "   - Code: {}", refs.join(", "));
+        let _ = writeln!(item, "   - {} {}", texts.code, refs.join(", "));
     }
     item
 }

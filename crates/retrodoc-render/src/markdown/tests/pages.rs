@@ -19,7 +19,7 @@ fn a_step_with_one_text_shows_it_after_its_actor() {
         source_refs: Vec::new(),
     };
     assert_eq!(
-        step_item(&step),
+        step_item(&step, &crate::Texts::ENGLISH),
         "2. **System** (system) — Saves the invoice.\n"
     );
 }

@@ -16,7 +16,7 @@ use retrodoc_core::model::{
 use retrodoc_mcp::freshness::{FileState, Freshness};
 use retrodoc_mcp::source::SourceAccess;
 use retrodoc_mcp::{ExistingDoc, GeneratedDocs};
-use retrodoc_render::{anchor, kind_label, source_ref_label, DocLinks, ItemRef};
+use retrodoc_render::{anchor, source_ref_label, DocLinks, ItemRef, Texts};
 
 /// The docs the interface serves, `None` before a first `generate`, and the
 /// frame every page shows, built once since the docs don't change.
@@ -576,7 +576,7 @@ pub fn domain_page(docs: &GeneratedDocs, links: &DocLinks, slug: &str) -> Option
                 .filter(|r| r.belongs_to_feature(&f.slug))
                 .map(move |r| DomainRule {
                     statement: r.statement.clone(),
-                    kind: kind_label(r.kind),
+                    kind: Texts::ENGLISH.kind(r.kind),
                     confidence: Confidence::of(r.confidence.as_ref()),
                     feature: Link {
                         href: feature_href(f),
@@ -684,7 +684,7 @@ fn rule_view(
     RuleView {
         anchor: rule_anchor(&rule.slug),
         statement: rule.statement.clone(),
-        kind: kind_label(rule.kind),
+        kind: Texts::ENGLISH.kind(rule.kind),
         confidence: Confidence::of(rule.confidence.as_ref()),
         entities: rule.entities.clone(),
         use_cases: use_cases

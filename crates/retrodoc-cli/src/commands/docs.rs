@@ -54,6 +54,7 @@ pub fn publish(repo_root: &Path, config: &Config, dry_run: bool) -> anyhow::Resu
         &use_cases,
         &rules,
         &links,
+        retrodoc_render::Texts::for_tag(config.output.language_tag()),
         &report.to_markdown(),
         &metadata,
     )?;

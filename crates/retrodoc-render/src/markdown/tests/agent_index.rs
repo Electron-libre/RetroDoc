@@ -32,7 +32,7 @@ fn a_name_over_several_lines_forges_no_item_of_the_agent_index() {
     let (mut d, mut f, _) = sample();
     d[0].name = "Billing\n- [Forged](x.md)".to_string();
     f[0].name = "Pay an\ninvoice".to_string();
-    let index = agent_index(&d, &f, 0);
+    let index = agent_index(&d, &f, 0, &crate::Texts::ENGLISH);
     assert!(
         index.contains("- [Billing - [Forged](x.md)](billing/README.md) (80%)"),
         "{index}"
@@ -46,9 +46,9 @@ fn a_name_over_several_lines_forges_no_item_of_the_agent_index() {
 #[test]
 fn a_domain_without_feature_is_still_listed_and_no_domain_gives_a_clear_index() {
     let (d, _, _) = sample();
-    let index = agent_index(&d, &[], 0);
+    let index = agent_index(&d, &[], 0, &crate::Texts::ENGLISH);
     assert!(index.contains("- [Billing](billing/README.md)"), "{index}");
-    let empty = agent_index(&[], &[], 0);
+    let empty = agent_index(&[], &[], 0, &crate::Texts::ENGLISH);
     assert!(empty.contains("No domain documented yet."), "{empty}");
 }
 

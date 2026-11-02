@@ -22,6 +22,7 @@ use retrodoc_core::text::one_line;
 
 use crate::doc_links::DocLinks;
 use crate::rules::index_page;
+use crate::texts::Texts;
 use crate::{
     RenderedFile, RunMetadata, AGENT_INDEX_PATH, COVERAGE_REPORT_PATH, FUNCTIONAL_DIR,
     METADATA_PATH, RULES_INDEX_PATH,
@@ -37,14 +38,7 @@ use domain::domain_page;
 use feature::feature_page;
 use use_case::use_case_page;
 
-/// Where the docs put what is not the core of the business: back-office tools, and use cases
-/// that read as code or are weakly backed by it.
-pub const TECHNICAL_HEADING: &str = "Administration and technical";
-/// What the section [`TECHNICAL_HEADING`] holds, under it.
-pub const TECHNICAL_NOTE: &str =
-    "Back-office tools, and behaviours that read as code or that the code backs weakly.";
-
-/// Renders every file of the docs, paths relative to the docs dir. Pure and
+/// Renders every file of the docs in English, paths relative to the docs dir. Pure and
 /// deterministic: the same artifacts always give the same bytes (the run
 /// metadata's timestamp aside).
 ///
@@ -81,23 +75,27 @@ pub fn render_with_rules(
         use_cases,
         rules,
         &DocLinks::default(),
+        &Texts::ENGLISH,
         coverage_report,
         metadata,
     )
 }
 
 /// [`render_with_rules`] with the sections of the project's own docs that document or contradict
-/// each item, linked from its page (a rule: under it). Without links the files are the same.
+/// each item, linked from its page (a rule: under it), the fixed text from `texts`. Without links,
+/// and in English, the files are the same.
 ///
 /// # Errors
 ///
 /// Returns an error if the run metadata can't be serialized.
+#[allow(clippy::too_many_arguments)] // the artifacts of the run, then how and what to write around them
 pub fn render_with_docs(
     domains: &[Domain],
     features: &[Feature],
     use_cases: &[UseCase],
     rules: &[BusinessRule],
     docs: &DocLinks,
+    texts: &Texts,
     coverage_report: &str,
     metadata: &RunMetadata,
 ) -> Result<Vec<RenderedFile>, crate::RenderError> {
@@ -117,7 +115,7 @@ pub fn render_with_docs(
             .collect();
         files.push(RenderedFile {
             path: domain_readme_path(&domain.slug),
-            content: domain_page(domain, &domain_features, rules, docs),
+            content: domain_page(domain, &domain_features, rules, docs, texts),
         });
         for feature in domain_features {
             let own: Vec<&UseCase> = use_cases
@@ -130,7 +128,7 @@ pub fn render_with_docs(
                 .collect();
             files.push(RenderedFile {
                 path: feature_path(feature),
-                content: feature_page(feature, &own, &own_rules, docs),
+                content: feature_page(feature, &own, &own_rules, docs, texts),
             });
             for use_case in &own {
                 let applying: Vec<&BusinessRule> = own_rules
@@ -140,7 +138,7 @@ pub fn render_with_docs(
                     .collect();
                 files.push(RenderedFile {
                     path: use_case_path(feature, use_case),
-                    content: use_case_page(feature, use_case, &applying, docs),
+                    content: use_case_page(feature, use_case, &applying, docs, texts),
                 });
             }
         }
@@ -149,12 +147,12 @@ pub fn render_with_docs(
     if !rules.is_empty() {
         files.push(RenderedFile {
             path: PathBuf::from(RULES_INDEX_PATH),
-            content: index_page(rules, features, Path::new(RULES_INDEX_PATH)),
+            content: index_page(rules, features, Path::new(RULES_INDEX_PATH), texts),
         });
     }
     files.push(RenderedFile {
         path: PathBuf::from(AGENT_INDEX_PATH),
-        content: agent_index(domains, features, rules.len()),
+        content: agent_index(domains, features, rules.len(), texts),
     });
     files.push(RenderedFile {
         path: PathBuf::from(COVERAGE_REPORT_PATH),
@@ -235,30 +233,30 @@ pub fn source_ref_label(source: &SourceRef) -> String {
     }
 }
 
-fn confidence_line(score: Option<&ConfidenceScore>) -> String {
-    score_line("Confidence", score)
+fn confidence_line(score: Option<&ConfidenceScore>, texts: &Texts) -> String {
+    score_line(texts.confidence, score, texts)
 }
 
-/// `**<label>:** ⚠️ 40% — why`, the flag when below the threshold.
-fn score_line(label: &str, score: Option<&ConfidenceScore>) -> String {
+/// `**<label>** ⚠️ 40% — why`, the label with its colon, the flag when below the threshold.
+fn score_line(label: &str, score: Option<&ConfidenceScore>, texts: &Texts) -> String {
     let Some(score) = score else {
-        return format!("**{label}:** not scored");
+        return format!("**{label}** {}", texts.not_scored);
     };
     let flag = if score.value < LOW_CONFIDENCE_THRESHOLD {
         "⚠️ "
     } else {
         ""
     };
-    let mut line = format!("**{label}:** {flag}{:.0}%", score.value * 100.0);
+    let mut line = format!("**{label}** {flag}{:.0}%", score.value * 100.0);
     if let Some(why) = score.rationale.as_deref().filter(|r| !r.trim().is_empty()) {
         let _ = write!(line, " — {}", one_line(why));
     }
     line
 }
 
-fn short_confidence(score: Option<&ConfidenceScore>) -> String {
+fn short_confidence(score: Option<&ConfidenceScore>, texts: &Texts) -> String {
     score.map_or_else(
-        || "not scored".to_string(),
+        || texts.not_scored.to_string(),
         |c| format!("{:.0}%", c.value * 100.0),
     )
 }

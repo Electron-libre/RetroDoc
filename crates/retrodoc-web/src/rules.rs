@@ -3,7 +3,7 @@
 
 use retrodoc_core::model::{BusinessRule, Feature, RuleKind};
 use retrodoc_mcp::GeneratedDocs;
-use retrodoc_render::kind_label;
+use retrodoc_render::Texts;
 
 use crate::view::{rule_href, Confidence, Evidence, Link};
 
@@ -77,7 +77,7 @@ pub fn rules_page(docs: &GeneratedDocs, filter: &RuleFilter) -> RulesPage {
         .filter(|(rule, feature)| filter.keeps(rule, *feature))
         .map(|(rule, feature)| RuleRow {
             statement: rule.statement.clone(),
-            kind: kind_label(rule.kind),
+            kind: Texts::ENGLISH.kind(rule.kind),
             confidence: Confidence::of(rule.confidence.as_ref()),
             feature: feature.map(|f| Link {
                 href: rule_href(f, &rule.slug),
@@ -139,7 +139,13 @@ fn filters(docs: &GeneratedDocs, filter: &RuleFilter) -> Vec<Filter> {
             label: "Kind",
             choices: KINDS
                 .iter()
-                .map(|kind| choice(kind_value(*kind), kind_label(*kind), filter.kind.as_deref()))
+                .map(|kind| {
+                    choice(
+                        kind_value(*kind),
+                        Texts::ENGLISH.kind(*kind),
+                        filter.kind.as_deref(),
+                    )
+                })
                 .collect(),
         },
         Filter {

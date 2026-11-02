@@ -461,6 +461,17 @@ impl OutputConfig {
         Some(name.to_string())
     }
 
+    /// The two-letter tag of [`LANGUAGE_TAGS`] of the language the docs are written in: `None` when
+    /// unset or when the language has no tag.
+    #[must_use]
+    pub fn language_tag(&self) -> Option<&'static str> {
+        let name = self.language_name()?;
+        LANGUAGE_TAGS
+            .iter()
+            .find(|(_, known)| *known == name)
+            .map(|(tag, _)| *tag)
+    }
+
     /// The directories `RetroDoc` writes its docs into, relative to the repo root.
     #[must_use]
     pub fn generated_dirs(&self) -> [PathBuf; 2] {
@@ -823,6 +834,22 @@ mod tests {
         .unwrap();
         let message = Config::load(dir.path()).unwrap_err().to_string();
         assert!(message.contains("[output] language"), "{message}");
+    }
+
+    #[test]
+    fn the_tag_of_a_language_is_found_from_its_name_or_its_tag() {
+        let tag = |value: Option<&str>| {
+            OutputConfig {
+                docs_dir: "docs".into(),
+                language: value.map(str::to_string),
+            }
+            .language_tag()
+        };
+        assert_eq!(tag(Some("French")), Some("fr"));
+        assert_eq!(tag(Some("FR")), Some("fr"));
+        assert_eq!(tag(Some("german")), Some("de"));
+        assert_eq!(tag(Some("Japanese")), None);
+        assert_eq!(tag(None), None);
     }
 
     // spec: DLG-6 (internal: the file init writes is read here, the binary adds nothing to it)

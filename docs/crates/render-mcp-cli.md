@@ -4,14 +4,18 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
 
 - **retrodoc-render**: writes the Markdown/Mermaid output to the docs dir (`output.docs_dir`). Modules: `markdown/`
   (the entry points, paths and links in `mod.rs`; one file per page: `agent_index.rs`, `domain.rs`, `feature.rs`,
-  `use_case.rs`; the tests by topic in `tests/`), `rules.rs`, `doc_links.rs`, `plan.rs`. `render()` builds
+  `use_case.rs`; the tests by topic in `tests/`), `rules.rs`, `doc_links.rs`, `texts.rs`, `plan.rs`. `render()` builds
   the files in memory (deterministic), `plan()` compares them with the disk (created/updated + unified diff,
   stale files under `functional/` reported but never deleted), `WritePlan::apply()` writes only what differs.
   `_retrodoc/run-metadata.json` has a timestamp that is ignored when it's the only change, so reruns are no-ops. `functional/llms.txt` (`agent_index`) is the `llms.txt`-style entry point for agents that don't
   run the MCP server: domains and features with links and confidence, how to read them and a pointer to `retrodoc mcp`.
   The CLI drops generated docs (`functional/`, `_retrodoc/`) from the ingested existing docs.
-  The rules the web interface shares with the pages are public: `TECHNICAL_HEADING` / `TECHNICAL_NOTE`, `anchor`
-  (a heading's anchor), `kind_label` (a rule's kind), `source_ref_label` (cited lines, `path:start-end`), `DocLinks::of`.
+  The fixed text of the pages (headings, labels, notes, `llms.txt`, `rules.md`) comes from a `Texts` table
+  (`texts.rs`, `specs/docs-language.md` DLG-7): `Texts::ENGLISH` and `Texts::FRENCH`, picked by `Texts::for_tag` from
+  `OutputConfig::language_tag`, English for any language with no table; paths and anchors don't change with it.
+  `render` and `render_with_rules` write English, `render_with_docs` takes the table.
+  The rules the web interface shares with the pages are public: `Texts` (`technical_heading` / `technical_note`,
+  `kind` for a rule's kind), `anchor` (a heading's anchor), `source_ref_label` (cited lines, `path:start-end`), `DocLinks::of`.
   `render_with_docs` (`doc_links.rs`, `specs/docs-reconciliation.md`) adds, from the reconciliation of the debt report (`DocLinks`, built by the CLI's `doc_links`), an "Existing documentation" section to the page of each domain, feature and use case that a doc section documents or contradicts (relative link from the page to the doc file, anchor of the heading, `⚠️ states otherwise: …` for a contradiction), and an `Existing doc:` line under a rule on the feature and use case pages (not for a rule that cites the section in its evidence already). No link: the files of `render_with_rules`.
   What is not the core of the business is set apart (`issues/done/technical_and_back_office_use_cases.md`): on a feature page, the use cases for which `UseCase::is_technical` holds (the feature is `back_office`, business language under 0.8 or confidence under 0.6; a score not computed yet is no reason) go under "Administration and technical" after the business ones; a `back_office` feature (set by the features pass) is listed under that heading in its domain page and in `llms.txt`, not among the features. Nothing is dropped: the pages and the cache keep them all. The MCP answers keep everything and mark it: `get_feature` and `get_use_case` say so, and a list or a search result carries `[administration/technical]` (no change of ranking). The debt report says how many use cases and back-office features are set apart.
 - **retrodoc-mcp** (`corpus.rs`, `search.rs`, `freshness.rs`, `source.rs`, `read_model.rs`, `tools/` (`Docs` in `mod.rs`, one file per tool named after it, the pieces the answers share in `answer.rs`, the tests in `tests.rs`), `server.rs`): read-only access to the generated docs
@@ -55,7 +59,7 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   under `LOW_CONFIDENCE_THRESHOLD`), a stale badge when a file their features cite changed since the run
   (`Freshness::stale`, read in `spawn_blocking` at each request), and their counts of features and use cases. The page of a domain (`view::domain_page`, `domain.html`) shows the
   sections of its Markdown page in the same order, with a breadcrumb; the back-office features under
-  `retrodoc_render::TECHNICAL_HEADING`, the existing docs as links to `/docs/<path>#<anchor>` (the path percent-encoded, `retrodoc_render::anchor`)
+  `Texts::technical_heading`, the existing docs as links to `/docs/<path>#<anchor>` (the path percent-encoded, `retrodoc_render::anchor`)
   with what a contradicting one states otherwise. The page of a feature (`view::feature_page`, `feature.html`) does
   the same for its Markdown page (the use cases `UseCase::is_technical` sets apart under the same heading, the rules
   with their evidence and doc links, the source files) and adds its entry points, a back-office badge and the stale

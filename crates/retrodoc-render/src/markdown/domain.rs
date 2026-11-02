@@ -4,22 +4,25 @@ use std::fmt::Write as _;
 
 use retrodoc_core::model::{BusinessRule, Domain, Feature};
 
-use super::{
-    confidence_line, domain_readme_path, feature_path, link, short_confidence, trim_end,
-    TECHNICAL_HEADING, TECHNICAL_NOTE,
-};
+use super::{confidence_line, domain_readme_path, feature_path, link, short_confidence, trim_end};
 use crate::doc_links::{DocLinks, ItemRef};
 use crate::rules::domain_section;
+use crate::texts::Texts;
 
 pub(super) fn domain_page(
     domain: &Domain,
     features: &[&Feature],
     rules: &[BusinessRule],
     docs: &DocLinks,
+    texts: &Texts,
 ) -> String {
     let readme = domain_readme_path(&domain.slug);
     let mut md = format!("# {}\n\n{}\n\n", domain.name, domain.description.trim());
-    let _ = writeln!(md, "{}\n", confidence_line(domain.confidence.as_ref()));
+    let _ = writeln!(
+        md,
+        "{}\n",
+        confidence_line(domain.confidence.as_ref(), texts)
+    );
 
     let feature_item = |md: &mut String, f: &Feature| {
         let _ = writeln!(
@@ -27,14 +30,14 @@ pub(super) fn domain_page(
             "- [{}]({}) ({}): {}",
             f.name,
             link(&readme, &feature_path(f)),
-            short_confidence(f.confidence.as_ref()),
+            short_confidence(f.confidence.as_ref(), texts),
             f.description.trim()
         );
     };
 
     let business: Vec<&&Feature> = features.iter().filter(|f| !f.back_office).collect();
     if !business.is_empty() {
-        md.push_str("## Features\n\n");
+        let _ = write!(md, "## {}\n\n", texts.features);
         for f in business {
             feature_item(&mut md, f);
         }
@@ -42,7 +45,11 @@ pub(super) fn domain_page(
     }
 
     if features.iter().any(|f| f.back_office) {
-        let _ = write!(md, "## {TECHNICAL_HEADING}\n\n{TECHNICAL_NOTE}\n\n");
+        let _ = write!(
+            md,
+            "## {}\n\n{}\n\n",
+            texts.technical_heading, texts.technical_note
+        );
         for f in features.iter().filter(|f| f.back_office) {
             feature_item(&mut md, f);
         }
@@ -57,7 +64,7 @@ pub(super) fn domain_page(
                 .map(move |r| (*f, r))
         })
         .collect();
-    md.push_str(&domain_section(&own, &readme));
-    md.push_str(&docs.section(&ItemRef::Domain(domain.slug.clone()), &readme));
+    md.push_str(&domain_section(&own, &readme, texts));
+    md.push_str(&docs.section(&ItemRef::Domain(domain.slug.clone()), &readme, texts));
     trim_end(&md)
 }

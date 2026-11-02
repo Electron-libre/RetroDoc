@@ -10,7 +10,7 @@ use axum::response::{Html, IntoResponse, Response};
 use tokio::task::JoinError;
 
 use retrodoc_mcp::GeneratedDocs;
-use retrodoc_render::{TECHNICAL_HEADING, TECHNICAL_NOTE};
+use retrodoc_render::Texts;
 
 use crate::actors::ActorsPage;
 use crate::assets::MERMAID;
@@ -215,8 +215,8 @@ pub async fn domain(State(site): State<Arc<Site>>, Path(slug): Path<String>) -> 
         &DomainTemplate {
             shell: site.shell(),
             page,
-            technical_heading: TECHNICAL_HEADING,
-            technical_note: TECHNICAL_NOTE,
+            technical_heading: Texts::ENGLISH.technical_heading,
+            technical_note: Texts::ENGLISH.technical_note,
         },
     )
 }
@@ -236,8 +236,8 @@ pub async fn feature(
             &FeatureTemplate {
                 shell: site.shell(),
                 page,
-                technical_heading: TECHNICAL_HEADING,
-                technical_note: TECHNICAL_NOTE,
+                technical_heading: Texts::ENGLISH.technical_heading,
+                technical_note: Texts::ENGLISH.technical_note,
             },
         ),
         Ok(None) => not_found(State(site)).await,

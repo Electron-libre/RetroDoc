@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 use retrodoc_core::text::one_line;
 
 use crate::markdown::link;
+use crate::texts::Texts;
 
 /// The item a doc section is about.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -47,7 +48,7 @@ impl DocLinks {
 
     /// `- [`path`, section "heading"](link)`, flagged when it contradicts, from the page `from`
     /// (relative to the docs dir).
-    fn item(&self, doc: &DocLink, from: &Path) -> String {
+    fn item(&self, doc: &DocLink, from: &Path, texts: &Texts) -> String {
         // `./docs` and `docs` are the same dir: a `.` would count as one more level.
         let docs_dir: PathBuf = self
             .docs_dir
@@ -57,38 +58,43 @@ impl DocLinks {
         let target = link(&docs_dir.join(from), Path::new(&doc.path));
         let (label, target) = match &doc.heading {
             Some(h) => (
-                format!("`{}`, section \"{}\"", doc.path, one_line(h)),
+                format!("`{}`, {} \"{}\"", doc.path, texts.section, one_line(h)),
                 format!("{target}#{}", anchor(h)),
             ),
             None => (format!("`{}`", doc.path), target),
         };
         let mut item = format!("[{label}]({target})");
         if let Some(states) = &doc.contradicts {
-            let _ = write!(item, " ⚠️ states otherwise: {}", one_line(states));
+            let _ = write!(item, " ⚠️ {} {}", texts.states_otherwise, one_line(states));
         }
         item
     }
 
     /// The "Existing documentation" section of the page `from`; nothing for an item no section
     /// documents.
-    pub(crate) fn section(&self, item: &ItemRef, from: &Path) -> String {
+    pub(crate) fn section(&self, item: &ItemRef, from: &Path, texts: &Texts) -> String {
         let docs = self.of(item);
         if docs.is_empty() {
             return String::new();
         }
-        let mut md = String::from("## Existing documentation\n\n");
+        let mut md = format!("## {}\n\n", texts.existing_documentation);
         for doc in docs {
-            let _ = writeln!(md, "- {}", self.item(doc, from));
+            let _ = writeln!(md, "- {}", self.item(doc, from, texts));
         }
         md.push('\n');
         md
     }
 
     /// The lines under a rule in a list of the page `from`.
-    pub(crate) fn rule_lines(&self, rule_slug: &str, from: &Path) -> String {
+    pub(crate) fn rule_lines(&self, rule_slug: &str, from: &Path, texts: &Texts) -> String {
         let mut md = String::new();
         for doc in self.of(&ItemRef::Rule(rule_slug.to_string())) {
-            let _ = writeln!(md, "  - Existing doc: {}", self.item(doc, from));
+            let _ = writeln!(
+                md,
+                "  - {} {}",
+                texts.existing_doc,
+                self.item(doc, from, texts)
+            );
         }
         md
     }
@@ -130,11 +136,11 @@ mod tests {
         };
         let from = Path::new("functional/billing/pay.md");
         assert_eq!(
-            links("./docs").item(&doc, from),
-            links("docs").item(&doc, from)
+            links("./docs").item(&doc, from, &Texts::ENGLISH),
+            links("docs").item(&doc, from, &Texts::ENGLISH)
         );
         assert_eq!(
-            links(".").item(&doc, from),
+            links(".").item(&doc, from, &Texts::ENGLISH),
             "[`docs/guide.md`, section \"Paying\"](../../docs/guide.md#paying)"
         );
     }
