@@ -7,6 +7,7 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 use retrodoc_core::model::Feature;
+use retrodoc_core::text::latin_base;
 
 use crate::artifact::{load_yaml, save_yaml, Artifact};
 use crate::error::PipelineError;
@@ -54,31 +55,6 @@ pub(crate) fn slugify(raw: &str) -> String {
     } else {
         slug.to_string()
     }
-}
-
-/// The ASCII letters of a lowercase accented Latin letter, if it is one.
-fn latin_base(c: char) -> Option<&'static str> {
-    Some(match c {
-        'à' | 'á' | 'â' | 'ã' | 'ä' | 'å' | 'ā' | 'ă' | 'ą' => "a",
-        'ç' | 'ć' | 'č' => "c",
-        'ď' | 'đ' => "d",
-        'è' | 'é' | 'ê' | 'ë' | 'ē' | 'ė' | 'ę' | 'ě' => "e",
-        'ğ' => "g",
-        'ì' | 'í' | 'î' | 'ï' | 'ī' | 'į' | 'ı' => "i",
-        'ł' => "l",
-        'ñ' | 'ń' | 'ň' => "n",
-        'ò' | 'ó' | 'ô' | 'õ' | 'ö' | 'ø' | 'ō' | 'ő' => "o",
-        'ř' => "r",
-        'ś' | 'š' | 'ş' | 'ș' => "s",
-        'ť' | 'ţ' | 'ț' => "t",
-        'ù' | 'ú' | 'û' | 'ü' | 'ū' | 'ů' | 'ű' => "u",
-        'ý' | 'ÿ' => "y",
-        'ź' | 'ż' | 'ž' => "z",
-        'æ' => "ae",
-        'œ' => "oe",
-        'ß' => "ss",
-        _ => return None,
-    })
 }
 
 /// Slugifies `raw` and appends `-2`, `-3`… until it doesn't collide with

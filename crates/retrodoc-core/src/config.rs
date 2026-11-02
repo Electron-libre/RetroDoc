@@ -10,6 +10,8 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use crate::text::fold_latin;
+
 pub const CONFIG_FILE_NAME: &str = "retrodoc.toml";
 
 /// Keys `retrodoc.toml` no longer takes, as `(section, key, why)`: a file that still names one is refused with a
@@ -413,20 +415,21 @@ pub struct OutputConfig {
     pub language: Option<String>,
 }
 
-/// The two-letter tags `[output] language` takes for their English name.
-pub const LANGUAGE_TAGS: &[(&str, &str)] = &[
-    ("en", "English"),
-    ("fr", "French"),
-    ("de", "German"),
-    ("es", "Spanish"),
-    ("it", "Italian"),
-    ("pt", "Portuguese"),
-    ("nl", "Dutch"),
+/// The two-letter tags `[output] language` takes for their English name, with the native name
+/// their tag is also found from (DLG-9).
+pub const LANGUAGE_TAGS: &[(&str, &str, &str)] = &[
+    ("en", "English", "English"),
+    ("fr", "French", "Français"),
+    ("de", "German", "Deutsch"),
+    ("es", "Spanish", "Español"),
+    ("it", "Italian", "Italiano"),
+    ("pt", "Portuguese", "Português"),
+    ("nl", "Dutch", "Nederlands"),
 ];
 
 /// The line `init` writes, commented out, under `[output]`.
 fn language_example() -> String {
-    let tags: Vec<&str> = LANGUAGE_TAGS.iter().map(|(tag, _)| *tag).collect();
+    let tags: Vec<&str> = LANGUAGE_TAGS.iter().map(|(tag, ..)| *tag).collect();
     format!(
         "# language = \"French\"  # the language of the generated docs: a name, or {}\n",
         tags.join(", ")
@@ -456,20 +459,32 @@ impl OutputConfig {
         // A tag, or a known name in any case, gives one spelling: `french` and `fr` don't redo the passes.
         let name = LANGUAGE_TAGS
             .iter()
-            .find(|(tag, name)| tag.eq_ignore_ascii_case(value) || name.eq_ignore_ascii_case(value))
-            .map_or(value, |(_, name)| name);
+            .find(|(tag, name, _)| {
+                tag.eq_ignore_ascii_case(value) || name.eq_ignore_ascii_case(value)
+            })
+            .map_or(value, |(_, name, _)| name);
         Some(name.to_string())
     }
 
-    /// The two-letter tag of [`LANGUAGE_TAGS`] of the language the docs are written in: `None` when
-    /// unset or when the language has no tag.
+    /// The two-letter tag of [`LANGUAGE_TAGS`] of the language the docs are written in, found from
+    /// its tag, its English or native name in any case and accents, or a regional tag (`fr-FR`,
+    /// `fr_FR`) by its first two letters (DLG-9): `None` when unset or when the language has no tag.
     #[must_use]
     pub fn language_tag(&self) -> Option<&'static str> {
-        let name = self.language_name()?;
+        let value = fold_latin(&self.language_name()?);
+        let regional = value
+            .split_once(['-', '_'])
+            .filter(|(_, region)| !region.is_empty())
+            .map(|(tag, _)| tag);
         LANGUAGE_TAGS
             .iter()
-            .find(|(_, known)| *known == name)
-            .map(|(tag, _)| *tag)
+            .find(|(tag, english, native)| match regional {
+                Some(base) => *tag == base,
+                None => {
+                    *tag == value || fold_latin(english) == value || fold_latin(native) == value
+                }
+            })
+            .map(|(tag, ..)| *tag)
     }
 
     /// The directories `RetroDoc` writes its docs into, relative to the repo root.
@@ -850,6 +865,41 @@ mod tests {
         assert_eq!(tag(Some("german")), Some("de"));
         assert_eq!(tag(Some("Japanese")), None);
         assert_eq!(tag(None), None);
+    }
+
+    // spec: DLG-9 (internal: the tag and the name are read from the config before any page or prompt)
+    #[test]
+    fn the_tag_of_a_language_is_found_from_its_native_name_or_a_regional_tag() {
+        let output = |value: &str| OutputConfig {
+            docs_dir: "docs".into(),
+            language: Some(value.to_string()),
+        };
+        for (value, expected) in [
+            ("Français", Some("fr")),
+            ("francais", Some("fr")),
+            ("FRANÇAIS", Some("fr")),
+            ("Franc\u{327}ais", Some("fr")),
+            ("Deutsch", Some("de")),
+            ("espanol", Some("es")),
+            ("Italiano", Some("it")),
+            ("Português", Some("pt")),
+            ("nederlands", Some("nl")),
+            ("fr-FR", Some("fr")),
+            ("fr_FR", Some("fr")),
+            ("pt-BR", Some("pt")),
+            (" EN-us ", Some("en")),
+            ("zh-TW", None),
+            ("Nihongo", None),
+            ("fr-", None),
+            ("french-ish", None),
+        ] {
+            assert_eq!(output(value).language_tag(), expected, "{value}");
+        }
+        assert_eq!(
+            output("Français").language_name().as_deref(),
+            Some("Français")
+        );
+        assert_eq!(output("pt-BR").language_name().as_deref(), Some("pt-BR"));
     }
 
     // spec: DLG-6 (internal: the file init writes is read here, the binary adds nothing to it)

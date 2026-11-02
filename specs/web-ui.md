@@ -180,7 +180,7 @@ over browses its domains, features and use cases rather than reading the Markdow
   empty and not-found pages, but not the credit line of WEB-69) must be the French one; with no language or any other
   language, the English one.
 - **WEB-78** (deterministic) The `<html>` element of every page must carry `lang` set to the tag of `[output]
-  language` in `LANGUAGE_TAGS` when it has one, `en` when no language is set, and no `lang` when the language has no
+  language` in `LANGUAGE_TAGS`, found as DLG-9 says, when it has one, `en` when no language is set, and no `lang` when the language has no
   tag.
 
 ## Scenarios
@@ -206,6 +206,7 @@ over browses its domains, features and use cases rather than reading the Markdow
 - (WEB-22) Given a narrative judged partly backed (`narrative_check` above 0), then it is not flagged.
 - (WEB-78) Given `language = "German"`, then the pages carry `lang="de"` and the fixed text stays English.
 - (WEB-78) Given `language = "Japanese"`, then the pages carry no `lang`.
+- (WEB-78) Given `language = "Français"` or `"fr-FR"`, then the pages carry `lang="fr"`.
 - (WEB-23) Given a doc section with no heading, then the link points to the file with no anchor.
 - (WEB-23) Given a doc path with a `#`, a `?` or a space, then they are percent-encoded in the link.
 - (WEB-24) Given a client whose `Accept-Encoding` does not name gzip, then the script, stored compressed, is refused

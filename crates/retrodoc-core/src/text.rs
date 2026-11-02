@@ -6,6 +6,49 @@ pub fn one_line(text: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
+/// The ASCII letters of a lowercase accented Latin letter, if it is one.
+#[must_use]
+pub fn latin_base(c: char) -> Option<&'static str> {
+    Some(match c {
+        'à' | 'á' | 'â' | 'ã' | 'ä' | 'å' | 'ā' | 'ă' | 'ą' => "a",
+        'ç' | 'ć' | 'č' => "c",
+        'ď' | 'đ' => "d",
+        'è' | 'é' | 'ê' | 'ë' | 'ē' | 'ė' | 'ę' | 'ě' => "e",
+        'ğ' => "g",
+        'ì' | 'í' | 'î' | 'ï' | 'ī' | 'į' | 'ı' => "i",
+        'ł' => "l",
+        'ñ' | 'ń' | 'ň' => "n",
+        'ò' | 'ó' | 'ô' | 'õ' | 'ö' | 'ø' | 'ō' | 'ő' => "o",
+        'ř' => "r",
+        'ś' | 'š' | 'ş' | 'ș' => "s",
+        'ť' | 'ţ' | 'ț' => "t",
+        'ù' | 'ú' | 'û' | 'ü' | 'ū' | 'ů' | 'ű' => "u",
+        'ý' | 'ÿ' => "y",
+        'ź' | 'ż' | 'ž' => "z",
+        'æ' => "ae",
+        'œ' => "oe",
+        'ß' => "ss",
+        _ => return None,
+    })
+}
+
+/// `text` lowercased with its accented Latin letters, composed or decomposed, folded to their base
+/// letters, so that `Français` and `francais` compare equal; any other letter is kept.
+#[must_use]
+pub fn fold_latin(text: &str) -> String {
+    let mut folded = String::new();
+    for c in text.chars().flat_map(char::to_lowercase) {
+        if ('\u{300}'..='\u{36f}').contains(&c) {
+            // A combining accent (a decomposed letter): its base letter is already in.
+        } else if let Some(base) = latin_base(c) {
+            folded.push_str(base);
+        } else {
+            folded.push(c);
+        }
+    }
+    folded
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

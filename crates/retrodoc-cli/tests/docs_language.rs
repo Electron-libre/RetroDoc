@@ -168,6 +168,23 @@ fn the_fixed_text_of_the_docs_is_french_and_their_paths_are_not() {
     assert!(french.contains("**Confiance :**"), "{french}");
 }
 
+// spec: DLG-7, DLG-9
+#[test]
+fn a_native_name_or_a_regional_tag_of_french_gives_the_french_text() {
+    for language in ["Français", "fr_FR"] {
+        let (dir, _llm) = shop_with_unrelated_readme(Some(language));
+        assert!(generate(dir.path()).status.success());
+
+        let pages: String = functional_pages(dir.path())
+            .into_iter()
+            .map(|(_, c)| c)
+            .collect();
+
+        assert!(pages.contains("## Cas d'usage"), "{language}: {pages}");
+        assert!(!pages.contains("## Use cases"), "{language}: {pages}");
+    }
+}
+
 // spec: DLG-7
 #[test]
 fn a_language_with_no_table_keeps_the_english_text() {

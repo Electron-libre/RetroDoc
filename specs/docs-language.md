@@ -31,11 +31,15 @@ saved results stay those of today.
   (`Préférences des clients` → `preferences-des-clients`), and the slug of an ASCII name must
   not change.
 - **DLG-6** (deterministic) `init` must write the `language` key commented out in `[output]`, with an example.
-- **DLG-7** (deterministic) With `[output] language` naming French (`fr` or `French`, in any case), the fixed text of
+- **DLG-7** (deterministic) With `[output] language` naming French (found as DLG-9 says), the fixed text of
   the Markdown docs `generate` and `render` write (headings, labels, notes of the sections, the index for agents, the
   rules index) must be the French one; with no language or any other language, the English one of today.
 - **DLG-8** (deterministic) The paths, slugs and anchors of the docs must not depend on the language, and a second
   `render` with the same artifacts and language must write no file.
+- **DLG-9** (deterministic) The two-letter tag of `[output] language` must be found from its tag, its English name or
+  its native name (`Français`, `Deutsch`, `Español`, `Italiano`, `Português`, `Nederlands`, `English`), ignoring case
+  and accents, or from a regional tag (`fr-FR`, `fr_FR`, `pt-BR`) by its first two letters; the name the prompts are
+  given stays the one DLG-2 says, so these spellings ask no pass again.
 
 ## Scenarios
 
@@ -49,6 +53,10 @@ saved results stay those of today.
 - (DLG-7) Given `language = "fr"`, when the docs are written, then a use case page with a narrative reads
   `## Ce qui se passe` and `**Confiance :**` instead of `## What happens` and `**Confidence:**`.
 - (DLG-7) Given `language = "German"`, when the docs are written, then the fixed text stays English.
+- (DLG-7, DLG-9) Given `language = "Français"`, `"francais"` or `"fr_FR"`, when the docs are written, then their fixed
+  text is the French one.
+- (DLG-9) Given `language = "pt-BR"`, then the tag is `pt` and the prompts name `pt-BR`.
+- (DLG-9) Given `language = "zh-TW"` or `"Nihongo"`, then there is no tag.
 - (DLG-5) Given a domain named `Suivi des livraisons` then one named `Préférences des clients`, when the
   docs are written, then their folders are `suivi-des-livraisons` and `preferences-des-clients`.
 
@@ -60,3 +68,6 @@ saved results stay those of today.
   English.
 - Scripts other than Latin in slugs (a name in Cyrillic or CJK falls back to what `slugify` does today).
 - Detecting the language of the repository to pick one by default.
+- Keeping the region of a regional tag in the `lang` of the web pages (WEB-78): the fixed text has no regional
+  variant.
+- Native names written in another script than Latin, and names of more languages than those of `LANGUAGE_TAGS`.

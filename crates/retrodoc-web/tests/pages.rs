@@ -632,6 +632,8 @@ async fn the_pages_carry_the_tag_of_the_docs_language() {
     assert_eq!(lang(Some("French")), Some("fr"));
     assert_eq!(lang(Some("de")), Some("de"));
     assert_eq!(lang(Some("Japanese")), None);
+    assert_eq!(lang(Some("Français")), Some("fr"));
+    assert_eq!(lang(Some("fr-FR")), Some("fr"));
 }
 
 /// The English labels of the frame of every page and of the home, search, empty and not-found
