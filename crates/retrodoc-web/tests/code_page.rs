@@ -265,6 +265,26 @@ async fn the_page_of_a_file_lists_its_commits_without_their_author() {
     );
 }
 
+// spec: FHI-2
+#[tokio::test]
+async fn the_page_of_a_file_marks_the_commit_that_renamed_it() {
+    let (_dir, root) = generated_repo();
+    git(&root, &["mv", "app/invoice.rb", "app/bill.rb"]);
+    git(&root, &["commit", "-q", "-m", "rename invoices to bills"]);
+    git(&root, &["mv", "app/bill.rb", "app/invoice.rb"]);
+    git(&root, &["commit", "-q", "-m", "rename bills to invoices"]);
+    let page = page(&root, "/code/app/invoice.rb").await;
+    assert!(
+        page.contains("rename bills to invoices <span class=\"muted\">(renamed from <code>app/bill.rb</code>)</span>"),
+        "{page}"
+    );
+    assert!(
+        page.contains("rename invoices to bills <span class=\"muted\">(renamed from <code>app/invoice.rb</code>)</span>"),
+        "{page}"
+    );
+    assert!(page.contains("add invoices"), "{page}");
+}
+
 // spec: WEB-28
 #[tokio::test]
 async fn a_repository_with_no_history_still_shows_the_lines() {

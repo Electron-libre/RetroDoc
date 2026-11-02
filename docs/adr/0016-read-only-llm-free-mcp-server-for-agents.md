@@ -33,7 +33,7 @@ they stay possible later. The code lives in a new crate, `retrodoc-mcp`, which r
 - **Code access is narrow**: `read_source` and `git_log` take only files the docs cite, never an id or an
   arbitrary path. They refuse absolute paths, `..`, any path that is or goes through a symbolic link, binary
   files and files over 1 MiB; reads are windowed by lines and long lines are cut; `git_log` shows hash, date and
-  subject, without author names, and leaves merge commits out. They run off the async threads.
+  subject, without author names, follows renames and leaves merge commits out. They run off the async threads.
 - **A static entry point** for agents that do not run the server: `functional/llms.txt`, produced by `render()`
   with the docs, in the fully generated area. An `AGENTS.md` section was rejected because it would write
   outside the docs directory.
@@ -51,6 +51,6 @@ the scope. Limits that remain, each tracked as an issue:
 - After a `generate` that failed once the repo map was done, the cache is ahead of the docs and a changed file
   looks fresh (`issues/done/stale_docs_after_failed_generate.md`); and every answer re-reads the cited files
   (`issues/done/mcp_freshness_cost.md`).
-- An agent cannot check what the docs do not cite, and `git_log` does not follow renames
-  (`issues/git_log_follow_renames.md`).
+- An agent cannot check what the docs do not cite. `git_log` follows the renames of a cited file
+  (`specs/file-history.md`), but its previous names stay unreadable.
 - The server speaks MCP only over stdio, with no network authentication; HTTP is left for later.

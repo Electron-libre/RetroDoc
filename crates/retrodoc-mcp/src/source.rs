@@ -52,6 +52,8 @@ pub struct FileCommit {
     /// `YYYY-MM-DD`, or `unknown date`.
     pub date: String,
     pub subject: String,
+    /// The path the file had before this commit renamed it.
+    pub renamed_from: Option<String>,
 }
 
 /// Why a file can't be shown.
@@ -291,8 +293,9 @@ impl SourceAccess {
         })
     }
 
-    /// The last `limit` commits that changed the cited file `path`: short
-    /// hash, date and subject, no author.
+    /// The last `limit` commits that changed the cited file `path`, across
+    /// its renames: short hash, date, subject and the name a rename came
+    /// from, no author.
     ///
     /// # Errors
     ///
@@ -308,11 +311,15 @@ impl SourceAccess {
         }
         let mut out = format!("# History of `{path}` (last {} commit(s))\n\n", log.len());
         for commit in log {
-            let _ = writeln!(
+            let _ = write!(
                 out,
                 "- `{}` · {} · {}",
                 commit.short_id, commit.date, commit.subject
             );
+            if let Some(old_path) = &commit.renamed_from {
+                let _ = write!(out, " (renamed from `{old_path}`)");
+            }
+            out.push('\n');
         }
         Ok(out)
     }
@@ -340,6 +347,9 @@ impl SourceAccess {
                     |d| d.format("%Y-%m-%d").to_string(),
                 ),
                 subject: commit.subject,
+                renamed_from: commit
+                    .renamed_from
+                    .map(|path| path.to_string_lossy().into_owned()),
             })
             .collect())
     }

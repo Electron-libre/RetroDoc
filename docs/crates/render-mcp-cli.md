@@ -28,7 +28,8 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   behind the `rmcp` SDK (`serve_stdio`); tested end to end with an `rmcp` client over an in-memory pipe. `source.rs` (`SourceAccess`) backs `read_source` (a
   window of lines, 200 by default, 400 at most) and `git_log` (hash, date, subject, no author): only files the docs
   cite, never an absolute path, a `..`, a path that is or goes through a symlink (even inside the repo), a binary or a
-  file over 1 MiB; a line over 400 characters is cut. `git_log` leaves merge commits out. The two tools run in
+  file over 1 MiB; a line over 400 characters is cut. `git_log` leaves merge commits out and follows the renames of the file (`specs/file-history.md`), marking the commit
+  that renamed it. The two tools run in
   `spawn_blocking`. `SourceAccess` returns typed data (`window`: a `Window` of numbered `Line`s; `commits`: `FileCommit`s;
   a `SourceError` per refusal) that the tools lay out in Markdown and the web interface in HTML; the set of cited
   files is `GeneratedDocs::cited_paths`.

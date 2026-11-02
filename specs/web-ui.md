@@ -217,7 +217,6 @@ over browses its domains, features and use cases rather than reading the Markdow
 - The files and images a collected doc links to are not served: only the collected Markdown docs are.
 - No line of a file the docs don't cite is ever served: the files page shows only the path of such a file (ADR 0016).
 - No syntax highlighting: the code is plain text with line numbers.
-- The history of a file does not follow its renames (`issues/git_log_follow_renames.md`).
 - The diagram is drawn by the browser: whether `mermaid` succeeds on an LLM-written diagram is not required, only that
   its source stays in the page.
 - The actors page does not merge the spellings of an actor nor maps them to the actors list (`actors.yaml`).

@@ -34,7 +34,7 @@
 {% else %}
 <ul class="history">
   {% for commit in commits %}
-  <li><code>{{ commit.short_id }}</code> · {{ commit.date }} · {{ commit.subject }}</li>
+  <li><code>{{ commit.short_id }}</code> · {{ commit.date }} · {{ commit.subject }}{% if let Some(old_path) = commit.renamed_from %} <span class="muted">(renamed from <code>{{ old_path }}</code>)</span>{% endif %}</li>
   {% endfor %}
 </ul>
 {% endif %}

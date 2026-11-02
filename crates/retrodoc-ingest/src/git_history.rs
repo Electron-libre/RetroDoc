@@ -7,7 +7,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, TimeZone, Utc};
-use git2::{DiffOptions, Repository, Sort};
+use git2::{Delta, DiffFindOptions, DiffOptions, Repository, Sort};
 
 use crate::error::IngestError;
 
@@ -152,12 +152,16 @@ pub struct CommitSummary {
     pub committed_at: Option<DateTime<Utc>>,
     /// First line of the message.
     pub subject: String,
+    /// The path the file had before this commit renamed it.
+    pub renamed_from: Option<PathBuf>,
 }
 
 /// The `limit` most recent commits of `HEAD`'s history that changed the file
 /// `path` (relative to the repo root, taken literally, no glob), newest
-/// first, merge commits left out. A file that was renamed is followed no
-/// further than its current name; an unknown file or a repo without commits gives an empty list.
+/// first, merge commits left out. A file that was renamed is followed under
+/// its previous names, as `git log --follow` does (renames only, git's default
+/// similarity), and the commit that renamed it gives the name it had before;
+/// an unknown file or a repo without commits gives an empty list.
 ///
 /// # Errors
 ///
@@ -176,8 +180,9 @@ pub fn file_log(
     if limit == 0 || revwalk.push_head().is_err() {
         return Ok(log);
     }
+    let mut tracked = path.to_path_buf();
     let mut options = DiffOptions::new();
-    options.pathspec(path).disable_pathspec_match(true);
+    options.pathspec(&tracked).disable_pathspec_match(true);
 
     for oid in revwalk {
         let commit = repo.find_commit(oid?)?;
@@ -193,8 +198,21 @@ pub fn file_log(
             None
         };
         let diff = repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&tree), Some(&mut options))?;
-        if diff.deltas().len() == 0 {
+        let Some(delta) = diff.deltas().next() else {
             continue;
+        };
+        // Only a commit that adds the tracked path can have renamed it: the
+        // whole tree is compared there alone, to keep the walk cheap.
+        let renamed_from = match &parent_tree {
+            Some(parent_tree) if delta.status() == Delta::Added => {
+                rename_source(&repo, parent_tree, &tree, &tracked)?
+            }
+            _ => None,
+        };
+        if let Some(old_path) = &renamed_from {
+            tracked.clone_from(old_path);
+            options = DiffOptions::new();
+            options.pathspec(&tracked).disable_pathspec_match(true);
         }
         log.push(CommitSummary {
             short_id: commit.id().to_string().chars().take(8).collect(),
@@ -204,12 +222,29 @@ pub fn file_log(
                 .and_then(|m| m.lines().next())
                 .unwrap_or_default()
                 .to_string(),
+            renamed_from,
         });
         if log.len() == limit {
             break;
         }
     }
     Ok(log)
+}
+
+/// The path `path` had in `parent_tree` when the change to `tree` renamed it
+/// there (git's default similarity, copies left out).
+fn rename_source(
+    repo: &Repository,
+    parent_tree: &git2::Tree<'_>,
+    tree: &git2::Tree<'_>,
+    path: &Path,
+) -> Result<Option<PathBuf>, IngestError> {
+    let mut diff = repo.diff_tree_to_tree(Some(parent_tree), Some(tree), None)?;
+    diff.find_similar(Some(DiffFindOptions::new().renames(true)))?;
+    Ok(diff
+        .deltas()
+        .find(|delta| delta.status() == Delta::Renamed && delta.new_file().path() == Some(path))
+        .and_then(|delta| delta.old_file().path().map(Path::to_path_buf)))
 }
 
 #[cfg(test)]
