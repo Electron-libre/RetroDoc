@@ -31,12 +31,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::artifact::{load_yaml, save_yaml, Artifact, Retention};
 use crate::batched_read::{
-    attribute, pending_chunks, reading_instructions, unread_kept, BatchedRead, PendingChunk,
+    attribute, pending_chunks, reading_part, unread_kept, BatchedRead, PendingChunk,
 };
 use crate::brief::ProductBrief;
 use crate::chunks::Splitter;
 use crate::error::PipelineError;
 use crate::naming::normalize;
+use crate::request::Request;
 use crate::roles::{FileRole, RoleMap};
 use crate::text::read_file_lossy;
 
@@ -75,6 +76,14 @@ as given.";
 
 /// First line of the user prompt of the business files, before the files.
 pub(crate) const BUSINESS_HEADER: &str = "Business files:\n";
+
+/// The request of the model files.
+pub(crate) static GLOSSARY_REQUEST: Request<GlossaryResponse> =
+    Request::new(GLOSSARY_SYSTEM_PROMPT, &[GLOSSARY_HEADER]);
+
+/// The request of the business files.
+pub(crate) static BUSINESS_REQUEST: Request<GlossaryResponse> =
+    Request::new(BUSINESS_SYSTEM_PROMPT, &[BUSINESS_HEADER]);
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Association {
@@ -300,17 +309,17 @@ pub async fn build_glossary(
         splitter: &splitter,
         llm,
     };
-    let (prompt, header, unit) = if business.is_empty() {
-        (GLOSSARY_SYSTEM_PROMPT, GLOSSARY_HEADER, "model file(s)")
+    let (request, header, unit) = if business.is_empty() {
+        (&GLOSSARY_REQUEST, GLOSSARY_HEADER, "model file(s)")
     } else {
         // Where the business lives, located by its own pass: services and
         // plain domain classes as much as models.
-        (BUSINESS_SYSTEM_PROMPT, BUSINESS_HEADER, "business file(s)")
+        (&BUSINESS_REQUEST, BUSINESS_HEADER, "business file(s)")
     };
     reader
         .read(
             to_read,
-            prompt,
+            request,
             &format!("{}{header}", brief.prompt_head()),
             unit,
             &mut glossary,
@@ -347,7 +356,7 @@ impl EntityReader<'_> {
     async fn read(
         &self,
         paths: Vec<&Path>,
-        system_prompt: &'static str,
+        request: &Request<GlossaryResponse>,
         header: &str,
         unit: &'static str,
         glossary: &mut Glossary,
@@ -355,7 +364,7 @@ impl EntityReader<'_> {
         let pending = pending_chunks(
             self.repo_root,
             paths,
-            &reading_instructions(),
+            reading_part(),
             self.brief,
             self.llm,
             |path, content| {
@@ -374,7 +383,7 @@ impl EntityReader<'_> {
         BatchedRead {
             pass: "glossary",
             unit,
-            system_prompt,
+            request,
             header,
             attribute: attribute_entities,
             finish: |glossary: &mut Glossary, path, hash, entities| {

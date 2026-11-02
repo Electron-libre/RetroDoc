@@ -18,17 +18,18 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
 
 use retrodoc_llm::LlmProvider;
 use serde::de::DeserializeOwned;
 
 use crate::brief::ProductBrief;
-use crate::chunks::strip_part_marker;
+use crate::chunks::{part_marker, strip_part_marker};
 use crate::citations::resolve_cited_path;
 use crate::error::PipelineError;
-use crate::fingerprints::{fingerprint, hash_for_model, prompt_part};
+use crate::fingerprints::{fingerprint, hash_for_model};
 use crate::progress::Progress;
-use crate::response::complete_json;
+use crate::request::Request;
 use crate::text::read_file_lossy;
 
 /// Characters of code per LLM call.
@@ -44,8 +45,8 @@ pub(crate) struct BatchedRead<'a, R, T, S> {
     pub pass: &'static str,
     /// What a batch holds, for the progress lines ("model file(s)").
     pub unit: &'static str,
-    pub system_prompt: &'static str,
-    /// First line of the user prompt, before the files.
+    pub request: &'a Request<R>,
+    /// First line of the user prompt, before the files: the brief, then a text of the request.
     pub header: &'a str,
     /// What the answer found, by the file of the batch it belongs to.
     pub attribute: fn(R, &[PendingChunk]) -> BTreeMap<String, Vec<T>>,
@@ -98,9 +99,7 @@ impl<R: DeserializeOwned + schemars::JsonSchema, T, S> BatchedRead<'_, R, T, S> 
                         path.display()
                     );
                 }
-                let Some(response) =
-                    complete_json::<R>(llm, self.system_prompt, &prompt, self.pass).await?
-                else {
+                let Some(response) = self.request.ask(llm, &prompt, self.pass).await? else {
                     if group.len() > 1 {
                         tracing::warn!(
                             items = group.len(),
@@ -161,22 +160,23 @@ impl<R: DeserializeOwned + schemars::JsonSchema, T, S> BatchedRead<'_, R, T, S> 
     }
 }
 
-/// The fixed instructions of the three reading passes (glossary, entry points and their joint reading),
-/// for the hash of a file: one for all three, since the joint reading saves what the two others reuse
-/// (ADR 0028), so a change of any of them reads the files again (ADR 0037).
-pub(crate) fn reading_instructions() -> String {
-    prompt_part(&[
-        crate::glossary::GLOSSARY_SYSTEM_PROMPT,
-        crate::glossary::GLOSSARY_HEADER,
-        crate::glossary::BUSINESS_SYSTEM_PROMPT,
-        crate::glossary::BUSINESS_HEADER,
-        crate::entry_points::ENTRY_POINTS_SYSTEM_PROMPT,
-        crate::entry_points::ENTRY_POINTS_HEADER,
-        crate::business_read::BUSINESS_READ_SYSTEM_PROMPT,
-        crate::business_read::BUSINESS_READ_HEADER,
-        FILE_OPENS,
-        FILE_CLOSES,
-    ])
+/// The requests of the three reading passes (glossary, entry points and their joint reading) and the
+/// frame of a file in a batch, for the hash of a file: one part for all three, since the joint reading
+/// saves what the two others reuse (ADR 0028), so a change of any of them reads the files again (ADR
+/// 0037, ADR 0040). Computed once per process.
+pub(crate) fn reading_part() -> &'static str {
+    static PART: LazyLock<String> = LazyLock::new(|| {
+        fingerprint([
+            crate::glossary::GLOSSARY_REQUEST.part(),
+            crate::glossary::BUSINESS_REQUEST.part(),
+            crate::entry_points::ENTRY_POINTS_REQUEST.part(),
+            crate::business_read::BUSINESS_READ_REQUEST.part(),
+            FILE_OPENS,
+            FILE_CLOSES,
+            &part_marker(1, 2),
+        ])
+    });
+    &PART
 }
 
 /// What frames the path of a file in the prompt of a batch.
@@ -365,11 +365,13 @@ mod tests {
         done: Vec<(String, usize)>,
     }
 
+    static REQUEST: Request<Answer> = Request::new("system", &["Files:\n"]);
+
     fn spec() -> BatchedRead<'static, Answer, String, State> {
         BatchedRead {
             pass: "test",
             unit: "file(s)",
-            system_prompt: "system",
+            request: &REQUEST,
             header: "Files:\n",
             attribute: |answer, _| {
                 let mut found: BTreeMap<String, Vec<String>> = BTreeMap::new();

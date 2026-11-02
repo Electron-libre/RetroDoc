@@ -181,11 +181,16 @@ impl Splitter {
         let total = chunks.len();
         if total > 1 {
             for (i, chunk) in chunks.iter_mut().enumerate() {
-                *chunk = format!("(part {}/{total})\n{chunk}", i + 1);
+                *chunk = format!("{}{chunk}", part_marker(i + 1, total));
             }
         }
         chunks
     }
+}
+
+/// What marks the part `i` of the `total` parts of a file, before its text.
+pub(crate) fn part_marker(i: usize, total: usize) -> String {
+    format!("(part {i}/{total})\n")
 }
 
 /// `path` without the "(part i/n)" marker a model sometimes copies after the

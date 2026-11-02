@@ -39,6 +39,7 @@ mod progress;
 pub mod ranking;
 pub mod reconcile;
 pub mod report;
+mod request;
 mod response;
 pub mod roles;
 pub mod rules;

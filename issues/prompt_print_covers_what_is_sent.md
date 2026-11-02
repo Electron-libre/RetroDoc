@@ -50,3 +50,42 @@ list kept by hand.
 * Each widening re-asks the passes of every saved run once: weigh it against the measure budget
   (the measures ledger) and land the parts together.
 * The golden prints of features and use cases (`the_print_of_a_*_stays_the_same`) change with it.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Every LLM pass declares its request once (system prompt, answer type, fixed user prompt texts as constants);
+the call and the print both use it, so a schema or user-text change redoes the pass once (RER-10). The rules
+pass gets a statement print and a judgement print; a judgement change re-judges the saved statements (RER-11).
+Out of scope: the hand-editable artifacts (roles, sources, business-files, brief, contexts), the benchmark replays.
+
+## Plan
+1. [x] Request and reading passes: a `Request<R>` (system, user texts, schema of `R`, part hashed once per
+   process) taken by `complete_json`; glossary, business, entry points and joint reading moved to it, the brief
+   framing in its print part, `reading_instructions` built from the four requests; verified by unit tests of the
+   part (changes with the schema, with a user text) and the reading pass tests; makes true RER-10 (reading).
+2. [ ] The other passes: domains, features (slice text), placement, use cases, actors (filter text),
+   reconciliation, confidence moved to their requests; golden prints updated; verified by a test per pass
+   that a saved print of the old part is asked again; makes true RER-10.
+3. [ ] Rules: statement and kind of feature on one request part, judgement on its own print; a feature whose
+   judgement print alone changed is judged again from `rules-stated.yaml` and the rules set aside with their
+   whole rule; verified by a test counting the calls (one judgement, no statement, then none); makes true RER-11.
+
+## Decisions
+- Mode: autonomous
+- Base commit: e604dc8754244c9965625b0fc53d32ce265cf6cf
+- User prompt texts: constants declared in the request of each pass (not a sample render, not the prompt sent).
+- Cost: the three deliverables land together before any measure (one re-ask of every saved run).
+- Rules before the judgement: rebuilt from `rules-stated.yaml` and the rules set aside, no new artifact.
+
+## Deliverable 1
+- done: `request.rs` (`Request<R>`: system, user texts, schema; part hashed once), the four reading requests,
+  `reading_part` (requests, file frame, part marker) replacing `reading_instructions`; spec RER-10/RER-11 and
+  ADR 0040 drafted.
+- checks: tests ok, clippy ok, specs ok (RER draft), docs `pipeline.md`.
+- red: RER-10: `assertion left != right failed` (a part from the system prompt alone did not change with the
+  schema).
+- Code review: no findings
+- The brief framing is already covered: `ProductBrief::fingerprint` hashes the rendered section, titles included.

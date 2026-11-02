@@ -21,11 +21,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::artifact::{load_yaml, save_yaml, Artifact, Retention};
 use crate::batched_read::{
-    attribute, pending_chunks, reading_instructions, unread_kept, BatchedRead, PendingChunk,
+    attribute, pending_chunks, reading_part, unread_kept, BatchedRead, PendingChunk,
 };
 use crate::brief::ProductBrief;
 use crate::chunks::Splitter;
 use crate::error::PipelineError;
+use crate::request::Request;
 use crate::roles::{FileRole, RoleMap};
 use crate::slices::CodeIndex;
 
@@ -58,6 +59,10 @@ matching this shape: {\"entry_points\":[{\"file\":\"path as given\",\"kind\":\"h
 
 /// First line of the user prompt, before the files.
 pub(crate) const ENTRY_POINTS_HEADER: &str = "Files:\n";
+
+/// The request of the entry points.
+pub(crate) static ENTRY_POINTS_REQUEST: Request<EntryPointsResponse> =
+    Request::new(ENTRY_POINTS_SYSTEM_PROMPT, &[ENTRY_POINTS_HEADER]);
 
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, schemars::JsonSchema,
@@ -302,7 +307,7 @@ pub async fn build_entry_points(
     let pending = pending_chunks(
         repo_root,
         to_read,
-        &reading_instructions(),
+        reading_part(),
         brief,
         llm,
         |path, content| splitter.file_chunks(path, content, MAX_ENTRY_FILE_CHARS, "entry points"),
@@ -319,7 +324,7 @@ pub async fn build_entry_points(
     BatchedRead {
         pass: "entry points",
         unit: "file(s)",
-        system_prompt: ENTRY_POINTS_SYSTEM_PROMPT,
+        request: &ENTRY_POINTS_REQUEST,
         header: &format!("{}{ENTRY_POINTS_HEADER}", brief.prompt_head()),
         attribute: attribute_entry_points,
         finish: |inventory: &mut EntryPoints, path, hash, entry_points| {

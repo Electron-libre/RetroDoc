@@ -1,7 +1,7 @@
 ---
 id: RER
-status: accepted
-adrs: [0005, 0037]
+status: draft
+adrs: [0005, 0037, 0040]
 ---
 
 # Incremental rerun
@@ -31,9 +31,13 @@ repository makes no LLM call and rewrites no file.
 - **RER-8** (deterministic) Rendering again unchanged artifacts must rewrite no file, the index included.
 - **RER-9** (deterministic) An unparseable answer must not be remembered: the unit must be asked again on the
   next run. An LLM error leaves the unit not done, which RER-5 covers.
-- **RER-10** (deterministic) A unit saved under another system prompt must be asked again once, as for
-  another model (RER-3); the system prompts of a pass are constants of the binary (the reading passes add the
-  fixed text of their user prompts), so two runs of the same binary on the same input compare equal.
+- **RER-10** (deterministic) A unit saved under another request must be asked again once, as for another
+  model (RER-3). The request of a pass is what it sends besides its input: its system prompt, the JSON schema
+  of its answer type and the fixed text of its user prompt (the framing of the product brief included), all
+  constants of the binary, so two runs of the same binary on the same input compare equal.
+- **RER-11** (deterministic) The rules pass must compare the request of its statement (with the question on
+  the kind of feature) apart from that of its judgement: a feature whose statement print is unchanged and whose
+  judgement print changed must be judged again from its saved stated rules, with no statement call.
 
 ## Scenarios
 
@@ -46,6 +50,14 @@ repository makes no LLM call and rewrites no file.
 - (RER-10) Given a run saved before the prompts were compared, when `generate` runs again, then every
   unit of the reading, domains, features, placement, use cases, actors, reconciliation and confidence passes
   is asked again once (no migration).
+- (RER-10) Given a feature saved by the features pass, when a field is added to the answer type of the pass
+  and nothing else changes, then the feature is asked again on the next run.
+- (RER-10) Given the actors saved, when the fixed text of the actors user prompt changes, then they are asked
+  again on the next run.
+- (RER-11) Given the rules of a feature stated and judged, when only the judgement prompt changes, then the
+  next run makes one judgement call for that feature and no statement call, and the run after makes no call.
+- (RER-11) Given a run saved before the judgement had its own print, when `generate` runs again, then the
+  rules of every feature are stated again once (no migration).
 - (RER-4) Given a feature whose answer is `{"use_cases": []}` twice, when the run is repeated, then it makes
   no call; when a file of the feature changes, then it asks again.
 
@@ -54,6 +66,5 @@ repository makes no LLM call and rewrites no file.
 - The hand-editable artifacts (`roles`, `sources`, `business-files`, `brief`, `contexts`) are not redone when
   their prompt changes: they stay until `--force`, like an edit by hand.
 - A real prompt change is not told apart from a cosmetic one: any change of its text redoes the pass.
-- The `rules` pass keeps the print of its three prompts it had before (ADR 0037).
 - No single global "has anything changed" check: one edited file must not redo everything.
 - The cost of a first run, and the quality of what a pass writes, are other capabilities.

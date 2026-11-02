@@ -17,7 +17,7 @@ use std::path::PathBuf;
 use retrodoc_llm::LlmProvider;
 use serde::Deserialize;
 
-use crate::batched_read::{pending_chunks, reading_instructions, BatchedRead, PendingChunk};
+use crate::batched_read::{pending_chunks, reading_part, BatchedRead, PendingChunk};
 use crate::brief::ProductBrief;
 use crate::chunks::Splitter;
 use crate::entry_points::{
@@ -28,6 +28,7 @@ use crate::error::PipelineError;
 use crate::glossary::{
     attribute_entities, Entity, Glossary, GlossaryResponse, ModelFile, ResponseEntity,
 };
+use crate::request::Request;
 use crate::roles::RoleMap;
 
 // The wording of the two tasks is that of `glossary` (business prompt) and `entry_points`; keep them close.
@@ -65,8 +66,12 @@ Markdown code fence, matching this shape: {\"entry_points\":[{\"file\":\"path as
 /// First line of the user prompt, before the files.
 pub(crate) const BUSINESS_READ_HEADER: &str = "Business files:\n";
 
+/// The request of the joint reading.
+pub(crate) static BUSINESS_READ_REQUEST: Request<BusinessReadResponse> =
+    Request::new(BUSINESS_READ_SYSTEM_PROMPT, &[BUSINESS_READ_HEADER]);
+
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
-struct BusinessReadResponse {
+pub(crate) struct BusinessReadResponse {
     #[serde(default)]
     entry_points: Vec<ResponseEntry>,
     #[serde(default)]
@@ -144,7 +149,7 @@ pub async fn read_business_files(
     let pending = pending_chunks(
         repo_root,
         business.iter().map(PathBuf::as_path),
-        &reading_instructions(),
+        reading_part(),
         brief,
         glossary_llm,
         |path, content| splitter.file_chunks(path, content, MAX_ENTRY_FILE_CHARS, "business files"),
@@ -165,7 +170,7 @@ pub async fn read_business_files(
     BatchedRead {
         pass: "business files",
         unit: "file(s)",
-        system_prompt: BUSINESS_READ_SYSTEM_PROMPT,
+        request: &BUSINESS_READ_REQUEST,
         header: &format!("{}{BUSINESS_READ_HEADER}", brief.prompt_head()),
         attribute,
         finish: |state: &mut Both, path, hash, items| {
