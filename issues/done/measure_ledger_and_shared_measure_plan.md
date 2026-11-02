@@ -156,7 +156,7 @@ LLM run is made by this issue.
   * the issues no longer cite ledger group numbers (renumbering would break them), only "the planned measures";
   * the skill tests also check the **Before** and **After** rules.
 - not fixed: the copy rule stays text; protecting the clone in `smoke.rs` is
-  `issues/smoke_run_keeps_previous_clone.md` (new, ranked before `git_log_follow_renames`). The ledger rule
+  `issues/done/smoke_run_keeps_previous_clone.md` (new, ranked before `git_log_follow_renames`). The ledger rule
   is summarized in 4 places (CLAUDE.md, two skills, a line in `commands.md` and `agent-harness.md`): the two
   skills hold the detail, the others point to them.
 - checks: `just check` ok, `just test-harness` ok.
