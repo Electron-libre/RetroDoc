@@ -84,7 +84,7 @@ with no fingerprints (`benchmark/frozen.rs`).
 
 ## Deliverable 3 (high review of 2de90d2..7c64fe6)
 - done: findings 2, 3 (file marker), 5, 6 fixed; 1, 3 (chunk marker, brief framing, hand list), 4 and 8 go to
-  `issues/prompt_print_covers_what_is_sent.md`; 7 not fixed (a few KB hashed per unit, a few ms on a large run).
+  `issues/done/prompt_print_covers_what_is_sent.md`; 7 not fixed (a few KB hashed per unit, a few ms on a large run).
 - checks: tests ok, clippy ok, specs ok, docs updated.
 - red: none (the golden print of the use cases changed, updated).
 - not verified: no run on a saved repository.
