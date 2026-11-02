@@ -4,6 +4,35 @@ The notable changes of each version, newest first ([Keep a Changelog](https://ke
 [Semantic Versioning](https://semver.org/)). Each section is written by `just release <version>` from the commits,
 then reread before the release is committed.
 
+## [0.5.0] - 2026-11-02
+
+### Milestones
+
+- Browse the docs in a web interface
+
+### Added
+
+- serve the domains of the last run in a local web interface
+- add the ui command to browse the docs in a browser
+- show the page of a domain with its existing docs
+- show the page of a feature
+- show the page of a use case with its diagram drawn
+- show the cited code of a file with its history
+- show the tree of the source files with their citations
+- show the collected docs of the repository as pages
+- show the glossary with the use cases of each concept
+- search the docs from every page
+- list the business rules with filters by kind and place
+- show which actors take part in the use cases of each feature
+
+### Fixed
+
+- refuse foreign hosts and keep the pages off the async workers
+- show the rationale of the rules and encode the doc links
+- refuse a range past the end and link to the next lines
+- strip doc front matter and answer htmx with no run
+- keep the whole page on an htmx history restore
+
 ## [0.4.0] - 2026-11-01
 
 ### Milestones

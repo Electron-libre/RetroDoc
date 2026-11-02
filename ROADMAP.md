@@ -166,6 +166,7 @@ The milestones up to "A large application, one bounded context at a time" are th
 - Why: the results of a run are read file by file in Markdown; whoever takes an application over needs a structured
   way to browse them, and the next milestones of the interface build on it.
 - State: done
+- Released: v0.5.0
 - Issues:
   - [web_ui_server_and_domains](issues/done/web_ui_server_and_domains.md)
   - [web_ui_feature_and_use_case_pages](issues/done/web_ui_feature_and_use_case_pages.md)
