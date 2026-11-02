@@ -128,6 +128,16 @@ struct NoRun<'a> {
     shell: &'a Shell,
 }
 
+/// The page that says to run `generate`, the answer of a page before a first run.
+fn no_run_page(site: &Site) -> Response {
+    render(
+        StatusCode::OK,
+        &NoRun {
+            shell: site.shell(),
+        },
+    )
+}
+
 #[derive(Template)]
 #[template(path = "not_found.html")]
 struct NotFound<'a> {
@@ -136,12 +146,7 @@ struct NotFound<'a> {
 
 pub async fn home(State(site): State<Arc<Site>>) -> Response {
     if site.docs().is_none() {
-        return render(
-            StatusCode::OK,
-            &NoRun {
-                shell: site.shell(),
-            },
-        );
+        return no_run_page(&site);
     }
     match blocking(&site, |site| {
         site.docs().map(domain_rows).unwrap_or_default()
@@ -244,12 +249,7 @@ pub async fn use_case(
 
 pub async fn files(State(site): State<Arc<Site>>) -> Response {
     let Some(page) = site.files() else {
-        return render(
-            StatusCode::OK,
-            &NoRun {
-                shell: site.shell(),
-            },
-        );
+        return no_run_page(&site);
     };
     render(
         StatusCode::OK,
@@ -262,12 +262,7 @@ pub async fn files(State(site): State<Arc<Site>>) -> Response {
 
 pub async fn glossary(State(site): State<Arc<Site>>) -> Response {
     let Some(page) = site.glossary() else {
-        return render(
-            StatusCode::OK,
-            &NoRun {
-                shell: site.shell(),
-            },
-        );
+        return no_run_page(&site);
     };
     render(
         StatusCode::OK,
@@ -280,12 +275,7 @@ pub async fn glossary(State(site): State<Arc<Site>>) -> Response {
 
 pub async fn actors(State(site): State<Arc<Site>>) -> Response {
     let Some(page) = site.actors() else {
-        return render(
-            StatusCode::OK,
-            &NoRun {
-                shell: site.shell(),
-            },
-        );
+        return no_run_page(&site);
     };
     render(
         StatusCode::OK,
@@ -358,12 +348,7 @@ fn fragment_or_page<'a, T, F: Template, P: Template>(
         headers.contains_key("HX-Request") && !headers.contains_key("HX-History-Restore-Request");
     let response = match (site.docs(), htmx) {
         (None, true) => Html(no_run).into_response(),
-        (None, false) => render(
-            StatusCode::OK,
-            &NoRun {
-                shell: site.shell(),
-            },
-        ),
+        (None, false) => no_run_page(site),
         (Some(docs), true) => render(StatusCode::OK, &fragment(build(docs))),
         (Some(docs), false) => render(StatusCode::OK, &page(site.shell(), build(docs))),
     };

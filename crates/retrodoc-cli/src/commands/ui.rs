@@ -3,9 +3,9 @@ use std::path::Path;
 
 use anyhow::Context;
 use retrodoc_mcp::GeneratedDocs;
-use retrodoc_pipeline::brief::ProductBrief;
 use retrodoc_web::Project;
 
+use super::brief;
 use super::docs::{item_doc_links, project_docs};
 use super::workspace::Workspace;
 
@@ -20,13 +20,7 @@ pub async fn run(path: &Path, bind: SocketAddr) -> anyhow::Result<()> {
     let docs = project_docs(&workspace.repo_root, &workspace.config)?;
     let generated = GeneratedDocs::load(&workspace.repo_root, &docs);
     let links = item_doc_links(&workspace.repo_root, &workspace.config, &docs);
-    let project = Project {
-        name: workspace
-            .config
-            .project
-            .name_or_directory(&workspace.repo_root),
-        purpose: ProductBrief::load(&workspace.repo_root).map(|brief| brief.purpose.text),
-    };
+    let project = project(&workspace);
     if generated.is_none() {
         tracing::warn!("no features found — run `retrodoc generate`, then restart `retrodoc ui`");
     }
@@ -43,6 +37,19 @@ pub async fn run(path: &Path, bind: SocketAddr) -> anyhow::Result<()> {
         .context("the web server stopped")
 }
 
+/// The application the pages name, with the purpose of the saved product
+/// brief (none, or one that can't be read and is warned of: no purpose).
+fn project(workspace: &Workspace) -> Project {
+    Project {
+        name: workspace
+            .config
+            .project
+            .name_or_directory(&workspace.repo_root),
+        purpose: Some(brief::saved(&workspace.repo_root).purpose.text)
+            .filter(|purpose| !purpose.trim().is_empty()),
+    }
+}
+
 /// What to tell the user when `bind` is reachable from other machines: the
 /// server has no authentication.
 fn exposure_warning(bind: SocketAddr) -> Option<String> {
@@ -56,6 +63,32 @@ fn exposure_warning(bind: SocketAddr) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // spec: WEB-62, WEB-64 (internal: `run` serves until stopped)
+    #[test]
+    fn the_project_is_named_by_the_config_and_carries_the_saved_purpose() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("shop");
+        std::fs::create_dir_all(root.join(".retrodoc/cache")).unwrap();
+        std::fs::write(root.join("retrodoc.toml"), "").unwrap();
+        let unnamed = project(&Workspace::open(&root).unwrap());
+        assert_eq!(unnamed.name, "shop");
+        assert_eq!(unnamed.purpose, None);
+
+        std::fs::write(
+            root.join("retrodoc.toml"),
+            "[project]\nname = \"Shop and Co\"\n",
+        )
+        .unwrap();
+        std::fs::write(
+            root.join(".retrodoc/cache/product.yaml"),
+            "purpose:\n  text: Sells goods online\n",
+        )
+        .unwrap();
+        let named = project(&Workspace::open(&root).unwrap());
+        assert_eq!(named.name, "Shop and Co");
+        assert_eq!(named.purpose.as_deref(), Some("Sells goods online"));
+    }
 
     // spec: WEB-14 (internal: listening on every interface in a test would expose the machine)
     #[test]

@@ -144,8 +144,8 @@ over browses its domains, features and use cases rather than reading the Markdow
   `retrodoc.toml` when it is set and not blank, else the name of the directory of the repository.
 - **WEB-63** (deterministic) Every page must show the name of the application in its header and end its title with
   ` · <name>`.
-- **WEB-64** (deterministic) The home page must have the name of the application as its heading and, when the product
-  brief of the last run has a purpose, show that purpose under it.
+- **WEB-64** (deterministic) The home page must have the name of the application as its heading and, when the saved
+  product brief (`.retrodoc/cache/product.yaml`) has a purpose, show that purpose under it.
 
 ## Scenarios
 

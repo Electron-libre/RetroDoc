@@ -27,6 +27,7 @@ a:hover { text-decoration: underline; }
   border-bottom: 1px solid var(--border);
 }
 .brand { font-weight: 600; color: var(--fg); margin-right: 1.5rem; }
+.purpose { font-size: 1.1rem; color: var(--muted); max-width: 48rem; }
 .layout { display: flex; min-height: calc(100vh - 3rem); }
 .tree {
   flex: 0 0 18rem;

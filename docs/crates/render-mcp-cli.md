@@ -41,9 +41,9 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   (`specs/web-ui.md`). The docs are loaded once into `GeneratedDocs` (`None` before a first `generate`: the home page
   says to run it), and the tree built once; every page shares the layout of `base.html` (`view::Shell`: the name of the
   application in the header and the title, and the tree of domains, features and use cases, linked to
-  `/domains/{domain}[/{feature}[/{use_case}]]`); the `Project` that `retrodoc ui` passes to `router` names the
+  `/domains/{domain}[/{feature}[/{use_case}]]`); the `Project` that `retrodoc ui` passes to `serve` (then `router`) names the
   application (`ProjectConfig::name_or_directory`: `[project] name` of `retrodoc.toml`, else the repository's
-  directory) and carries the purpose of the saved product brief; a request whose `Host` is a name other than
+  directory) and carries the purpose of the saved product brief (`commands::brief::saved`: one that can't be read is warned of); a request whose `Host` is a name other than
   `localhost` is refused with 403 (DNS rebinding: an IP address can't be rebound); the home page, headed by the name
   and that purpose, lists the domains with their confidence (flagged low
   under `LOW_CONFIDENCE_THRESHOLD`), a stale badge when a file their features cite changed since the run

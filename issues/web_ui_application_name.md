@@ -78,3 +78,11 @@ no LLM field, no `origin` remote; the Markdown render and the MCP answers are ou
 - red: WEB-62, WEB-63, WEB-64: the tests did not compile (`retrodoc_web::Project` and `ProjectConfig` missing).
 - verified on the saved healthchecks run: header and titles name `rsa-hc` (its directory), home headed by it and the brief purpose.
 - follow-up: the Markdown render and the MCP answers don't carry the name (spec non-goal).
+
+## High review of the issue (fixes as deliverable 2)
+- Code review: 8 findings. Fixed: the wiring of `retrodoc ui` tested (`commands::ui::project`, WEB-62, WEB-64); an
+  unreadable `product.yaml` warned of (`commands::brief::saved`); WEB-64 says "the saved product brief" (the
+  `brief` command rewrites it without a run); the no-run page built by one helper; a style for `.purpose`; the crate
+  doc says `serve`. Not fixed: a blank name inside `retrodoc-web` (the CLI always resolves one, the web crate shows
+  what it is given) and a shared test helper for `Project::default()` (test-only churn).
+- red: none (the fixes reuse the red of deliverable 1).
