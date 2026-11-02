@@ -74,7 +74,7 @@ about 23 runs passed through the sources pass, 44 through the business files and
 | `ignoring business path …: no such source` | 5 in 4 runs | 8 in 3 runs | 6 are real linkding templates (not source files, the prompt leaves them out); 2 are `app/models/filter.rb` (lobsters, no such file, `tag_filter.rb` exists). Earlier: `route.rb` (`router.rb` exists), `querysets.py` (`queries.py`), `tags.py` (none) |
 | `dropping source rule …` | 7 in 6 runs | 0 | not reproduced since the sources pass reads the manifests and asks schema-constrained JSON |
 | `use case dropped: no steps` | 3 in 2 runs (local) | 0 | always an empty slug; raw answers not logged. `lenient_steps` drops every step that is not an object: steps written as plain strings give an empty use case |
-| `domain cites a resource/entity the surface does not know` | n/a | 9 in 1 run (Rails) | some are real code names the surface does not list (`ContractMultiple`, `Hybrid`, `Common` are workflow modules), others are inventions; nothing is lost, the resources no domain claims go to `uncategorized` |
+| `domain cites a resource/entity the surface does not know` | n/a | 9 in 1 run (Rails) | some are real code names the surface does not list (workflow modules), others are inventions; nothing is lost, the resources no domain claims go to `uncategorized` |
 | `entry points no feature claimed` | n/a | 6 in 1 run (Rails) | all placed afterwards: the run ends with `0 entry point(s) without a feature` |
 
 ## Plan
@@ -86,6 +86,7 @@ about 23 runs passed through the sources pass, 44 through the business files and
 3. [x] Surface passes: "entry points no feature claimed" is `info` at the slice, and a `warn` per domain only
    for the entry points still unplaced after the placement; a name the surface does not know, cited by a domain, is `info`;
    verified by `capture_logs` tests in `features` and `domains`.
+4. [x] Fixes of the `high` review of the issue; verified by tests in `use_cases` and `features`.
 
 ## Decisions
 - Mode: autonomous
@@ -149,5 +150,43 @@ test on `WARN … entry points no feature claimed`
 Code review: 1 findings
 
 - the comment above the `info` read as if this line warned: reworded (the warning is the placement's).
+
+not verified: no smoke run (decided: no new LLM run).
+
+## Deliverable 4: fixes of the high review (aeceb65..HEAD)
+
+done: placeholders are taken out of the answer before it is judged empty (an answer of placeholders alone is
+asked again and warned of); a use case is dropped with a `warn` when no step survives the grounding; only a
+step written as text takes the primary actor (a malformed actor stays no actor); a domain with no feature, or a
+run with no feature, warns of its entry points left out; the issue no longer quotes names of the private
+repository.
+
+| check | result |
+|---|---|
+| tests | `just check` green |
+| docs | `docs/crates/pipeline.md` |
+| code review | high on the issue, then low on this deliverable |
+
+red: none traced (no spec): the three new tests failed without the fixes (one call instead of two; `order`
+kept with no step; no warning for the featureless domain)
+
+High review: 10 findings
+- placeholders alone lose the feature silently: fixed.
+- a domain or a run with no feature warns of nothing: fixed.
+- a use case whose steps all fall is kept empty: fixed.
+- the filled actor is a name with no kind, so an unlisted name is a software component: not fixed, the
+  rule of a bare name outside the actors list (`a_step_is_one_text_and_its_actor_a_name`).
+- `{}` fails the whole answer (no default for `slug`, `name`): not fixed, unchanged behaviour (the answer is
+  retried), no measured case.
+- a malformed object actor replaced by the primary actor: fixed (text-only steps only).
+- a file path with a trailing `/` kept as a folder: outside this issue, `issues/business_path_with_trailing_slash.md`.
+- private names quoted in the issue: fixed in this file (still in the history of bfb105a..19fefd1, not pushed).
+- an invented path is `info` whatever the share invented: not fixed, decision of 2026-11-02 (question 1).
+- the primary actor rebuilt per step: fixed (built once).
+
+Code review: 1 findings
+- an object step with no `actor` no longer takes the primary actor: intended (finding 6 of the high review),
+  it is dropped with "step dropped: no actor" as before deliverable 2, and its use case, left with no step, is
+  dropped with a `warn` instead of being kept empty.
 
 not verified: no smoke run (decided: no new LLM run).

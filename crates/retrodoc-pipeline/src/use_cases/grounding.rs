@@ -27,6 +27,13 @@ pub(super) struct RawUseCase {
     pub(super) narrative: Option<String>,
 }
 
+impl RawUseCase {
+    /// An entry with no slug, no name and no step: a placeholder a model pads its answer with.
+    pub(super) fn is_placeholder(&self) -> bool {
+        self.slug.trim().is_empty() && self.name.trim().is_empty() && self.steps.is_empty()
+    }
+}
+
 /// A step as the prompt asks for it: what the schema sent with the request
 /// describes (`RawStep` is read from more shapes than that).
 #[derive(schemars::JsonSchema)]
@@ -51,9 +58,9 @@ enum ActorShape {
 /// without an actor, or "references" that are just notes, and a model may mix
 /// the shape asked for (`actor` name, `text`, `code`) with the one before
 /// (`actor` object, `description`, `action`, `source_refs`), even in one step.
-/// A step with no actor is done by the use case's primary actor (a step may be
-/// its text alone). Incomplete steps are dropped and incomplete references
-/// ignored, rather than rejecting the whole answer.
+/// A step written as its text alone is done by the use case's primary actor.
+/// Incomplete steps are dropped and incomplete references ignored, rather than
+/// rejecting the whole answer.
 #[derive(Debug)]
 pub(super) struct RawStep {
     /// The one text of the step (`text`), else its `description`.
@@ -62,6 +69,8 @@ pub(super) struct RawStep {
     pub(super) action: Option<String>,
     /// From `code`, then from `source_refs`.
     pub(super) code: Vec<RawCode>,
+    /// Written as a string, its text alone: its actor is the use case's primary actor.
+    pub(super) text_only: bool,
 }
 
 impl RawStep {
@@ -78,6 +87,7 @@ impl RawStep {
                 .iter()
                 .flat_map(|key| codes_of(step.get(*key)))
                 .collect(),
+            text_only: false,
         }
     }
 }
@@ -95,12 +105,12 @@ where
         .iter()
         .filter_map(|step| match step {
             serde_json::Value::Object(step) => Some(RawStep::of(step)),
-            // A step written as its text alone: its actor is the use case's primary actor.
             serde_json::Value::String(text) => Some(RawStep {
                 description: text.clone(),
                 actor: None,
                 action: None,
                 code: Vec::new(),
+                text_only: true,
             }),
             _ => None,
         })
@@ -165,7 +175,7 @@ impl FromText for Option<String> {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub(super) struct RawActor {
     pub(super) name: String,
     /// `human` or `system`; empty when the actor is given by its name alone.
@@ -202,19 +212,17 @@ pub(super) fn grounded_use_cases(
 ) -> Vec<UseCase> {
     let mut produced: Vec<UseCase> = Vec::new();
     for mut raw_use_case in raw.use_cases {
-        if raw_use_case.steps.is_empty() {
-            if raw_use_case.slug.trim().is_empty() && raw_use_case.name.trim().is_empty() {
-                // A placeholder the model pads its answer with: nothing is lost.
-                tracing::info!("use case dropped: empty");
-            } else {
-                tracing::warn!(use_case = %raw_use_case.slug, "use case dropped: no steps");
-            }
-            continue;
-        }
         if let Some(primary) = raw_use_case.primary_actor.as_deref() {
-            for step in raw_use_case.steps.iter_mut().filter(|s| s.actor.is_none()) {
-                step.actor = actor_of(&serde_json::Value::String(primary.to_string()));
+            let primary = actor_of(&serde_json::Value::String(primary.to_string()));
+            for step in raw_use_case.steps.iter_mut().filter(|s| s.text_only) {
+                step.actor.clone_from(&primary);
             }
+        }
+        let raw_steps = std::mem::take(&mut raw_use_case.steps);
+        let steps = ground_steps(raw_steps, cited_files, actors);
+        if steps.is_empty() {
+            tracing::warn!(use_case = %raw_use_case.slug, "use case dropped: no steps");
+            continue;
         }
         let taken = existing
             .iter()
@@ -227,7 +235,7 @@ pub(super) fn grounded_use_cases(
             feature_slug: feature.slug.clone(),
             name: raw_use_case.name,
             description: raw_use_case.description,
-            steps: ground_steps(raw_use_case.steps, cited_files, actors),
+            steps,
             business_language: None,
             entry_points: known_entry_points(&raw_use_case.entry_points, &input.entries),
             narrative: raw_use_case

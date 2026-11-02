@@ -148,6 +148,12 @@ pub(super) async fn place_unclaimed(
     let left = unclaimed(entry_points, features);
     let mut coverage = BehaviourCoverage::load(repo_root).unwrap_or_default();
     if left.is_empty() || features.is_empty() {
+        if !left.is_empty() {
+            tracing::warn!(
+                entry_points = left.len(),
+                "entry points no feature holds, there is no feature to place them in"
+            );
+        }
         coverage.unplaced_entry_points = left.iter().map(|u| u.id.clone()).collect();
         coverage.save(repo_root)?;
         *saved_print = None;

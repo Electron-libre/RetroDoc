@@ -996,6 +996,84 @@ async fn an_empty_placeholder_is_an_info_and_a_use_case_with_no_step_a_warning()
     );
 }
 
+#[tokio::test]
+async fn an_answer_of_placeholders_alone_is_an_empty_answer() {
+    let (logs, _guard) = crate::testing::capture_logs();
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.rs"), "fn a() {}\n").unwrap();
+    let provider = FakeLlm::answering(r#"{"use_cases":[{"slug":"","name":"","steps":[]}]}"#);
+
+    let use_cases = build_use_cases(
+        dir.path(),
+        &[feature("paying", &["a.rs"])],
+        &reading(dir.path()),
+        &provider,
+        1,
+    )
+    .await
+    .unwrap();
+
+    assert!(use_cases.is_empty());
+    assert_eq!(
+        provider.calls(),
+        2,
+        "asked once more, as for an empty answer"
+    );
+    let logs = logs.text();
+    assert!(
+        logs.lines()
+            .any(|l| l.contains("WARN") && l.contains("answered twice with no use case")),
+        "{logs}"
+    );
+}
+
+#[tokio::test]
+async fn a_use_case_whose_steps_all_fall_is_dropped_and_a_bad_actor_is_not_replaced() {
+    let (logs, _guard) = crate::testing::capture_logs();
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.rs"), "fn a() {}\n").unwrap();
+    let provider = FakeLlm::answering(
+        r#"{"use_cases":[
+          {"slug":"order","name":"Order","description":"d","steps":["Takes the order."]},
+          {"slug":"pay","name":"Pay","description":"d","primary_actor":"System","steps":[
+            {"actor":{"kind":"system"},"text":"Charges the card."},
+            {"actor":"System","text":"Sends the receipt."}]}]}"#,
+    );
+
+    let use_cases = build_use_cases(
+        dir.path(),
+        &[feature("ordering", &["a.rs"])],
+        &reading(dir.path()),
+        &provider,
+        1,
+    )
+    .await
+    .unwrap();
+
+    let slugs: Vec<&str> = use_cases.iter().map(|u| u.slug.as_str()).collect();
+    assert_eq!(
+        slugs,
+        ["pay"],
+        "no primary actor: the text-only step falls, then its use case"
+    );
+    let texts: Vec<&str> = use_cases[0]
+        .steps
+        .iter()
+        .map(|s| s.description.as_str())
+        .collect();
+    assert_eq!(
+        texts,
+        ["Sends the receipt."],
+        "a malformed actor is no actor, not the primary one"
+    );
+    let logs = logs.text();
+    assert!(
+        logs.lines()
+            .any(|l| l.contains("WARN") && l.contains("no steps") && l.contains("use_case=order")),
+        "{logs}"
+    );
+}
+
 /// A text field the model returns as an object (typically `primary_actor` copied from the
 /// shape of a step's `actor`) costs that field, not the feature, and without a retry.
 #[tokio::test]

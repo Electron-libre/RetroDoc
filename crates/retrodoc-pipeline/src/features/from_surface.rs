@@ -293,6 +293,13 @@ async fn place_per_domain(
                 .iter()
                 .map(|(file, entry)| entry_point_id(file, entry))
                 .collect();
+            if !ids.is_empty() {
+                tracing::warn!(
+                    domain = %domain.slug,
+                    entry_points = ids.len(),
+                    "entry points no feature holds, the domain has no feature"
+                );
+            }
             counts.insert(
                 domain.slug.clone(),
                 EntryCount {

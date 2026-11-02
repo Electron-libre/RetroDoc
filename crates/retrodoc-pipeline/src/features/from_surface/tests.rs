@@ -653,6 +653,33 @@ fn answer_by_domain() -> FakeLlm {
 }
 
 #[tokio::test]
+async fn the_entry_points_of_a_run_or_a_domain_with_no_feature_are_warned_of() {
+    let (logs, _guard) = crate::testing::capture_logs();
+    let (domains, entries) = fixture();
+    let llm = FakeLlm::answering(r#"{"features":[]}"#);
+    run(
+        tempfile::tempdir().unwrap().path(),
+        &domains,
+        &entries,
+        &llm,
+    )
+    .await;
+    let (domains, entries) = contexts_fixture();
+    run_keeping(
+        tempfile::tempdir().unwrap().path(),
+        &domains,
+        &entries,
+        &llm,
+    )
+    .await;
+
+    let logs = logs.text();
+    let warned = |what: &str| logs.lines().any(|l| l.contains("WARN") && l.contains(what));
+    assert!(warned("there is no feature to place them in"), "{logs}");
+    assert!(warned("the domain has no feature"), "{logs}");
+}
+
+#[tokio::test]
 async fn a_domain_without_resources_takes_the_entry_points_of_its_files_only() {
     let dir = tempfile::tempdir().unwrap();
     let (domains, entries) = contexts_fixture();

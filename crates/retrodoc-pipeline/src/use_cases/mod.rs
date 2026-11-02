@@ -103,6 +103,15 @@ async fn ask_use_cases(
                 &format!("use cases of {feature_slug}"),
             )
             .await?;
+        let raw = raw.map(|mut raw: RawUseCases| {
+            let before = raw.use_cases.len();
+            raw.use_cases.retain(|u| !u.is_placeholder());
+            if raw.use_cases.len() < before {
+                // Nothing is lost: an answer of placeholders alone is an empty answer.
+                tracing::info!(feature = %feature_slug, placeholders = before - raw.use_cases.len(), "use case dropped: empty");
+            }
+            raw
+        });
         match raw {
             Some(raw) if raw.use_cases.is_empty() => {
                 empty_answers += 1;
