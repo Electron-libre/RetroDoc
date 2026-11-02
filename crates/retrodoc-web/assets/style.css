@@ -20,6 +20,10 @@ body {
   background: var(--bg);
   color: var(--text);
   line-height: 1.5;
+  /* The layout stretches so that the credit ends the viewport on a short page. */
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
 }
 ::selection { background: var(--gold); color: var(--bg); }
 /* Links at rest in the text colour, underlined in discreet gold; gold on hover. */
@@ -44,7 +48,7 @@ a:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .top .group { color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
 .top .links + .links { padding-left: 1rem; border-left: 1px solid var(--border); }
 .purpose { font-size: 1.1rem; color: var(--text-muted); max-width: 48rem; }
-.layout { display: flex; min-height: calc(100vh - 3rem); }
+.layout { display: flex; flex: 1; }
 .tree {
   flex: 0 0 18rem;
   padding: 1rem;
@@ -59,7 +63,6 @@ a:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 main { flex: 1; padding: 1rem 2rem; min-width: 0; }
 .muted { color: var(--text-muted); }
 table { border-collapse: collapse; width: 100%; }
-th { color: var(--gold-light); }
 th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--border); vertical-align: top; }
 td.count { text-align: right; }
 .badge {
@@ -72,7 +75,7 @@ td.count { text-align: right; }
 }
 /* Low confidence and stale are warnings, not failures: no red, the label carries the meaning. */
 .badge.low, .badge.stale { color: var(--gold-light); border-color: var(--gold-dark); }
-code { color: var(--gold-light); background: var(--surface-2); padding: 0 0.25rem; border-radius: 0.2rem; }
+code { color: inherit; background: var(--surface-2); padding: 0 0.25rem; border-radius: 0.2rem; }
 .crumbs { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.5rem; }
 .score { margin: 0.3rem 0; }
 .items li, .rules li, .docs li { margin: 0.25rem 0; }
@@ -82,7 +85,7 @@ code { color: var(--gold-light); background: var(--surface-2); padding: 0 0.25re
 .cited { font-size: 0.85rem; color: var(--text-muted); }
 pre { background: var(--surface); border: 1px solid var(--border); padding: 0.6rem; overflow-x: auto; }
 pre.mermaid { background: none; border: none; }
-pre code { color: var(--text); background: none; padding: 0; }
+pre code { background: none; padding: 0; }
 
 /* The page of a cited file: numbered lines, the cited ones marked. */
 table.code { border-collapse: collapse; width: 100%; font-size: 0.85rem; }

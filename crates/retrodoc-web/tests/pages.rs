@@ -441,16 +441,33 @@ async fn the_text_of_the_docs_is_escaped() {
     );
 }
 
+/// The value of `attribute` (`src=`) in `tag`, quoted with `"` or `'`.
+fn attribute_value<'a>(tag: &'a str, attribute: &str) -> Option<&'a str> {
+    let rest = &tag[tag.find(&format!(" {attribute}"))? + attribute.len() + 1..];
+    let quote = rest.chars().next().filter(|c| *c == '"' || *c == '\'')?;
+    rest[1..].split(quote).next()
+}
+
 // spec: WEB-11
 #[tokio::test]
 async fn the_scripts_stylesheet_and_images_come_from_the_interface_itself() {
     let repo = generated_repo();
     let page = home(repo.path()).await;
+    // The `src` of every tag and the `href` of every `<link>`: what the page
+    // loads, unlike the `href` of a link the reader follows.
     let loaded: Vec<&str> = page
-        .split(" src=\"")
-        .chain(page.split(" href=\"").filter(|v| v.contains(".css")))
-        .skip(1)
-        .filter_map(|v| v.split('"').next())
+        .split('<')
+        .flat_map(|tag| {
+            let tag = &tag[..tag.find('>').unwrap_or(tag.len())];
+            let attributes: &[&str] = if tag.starts_with("link ") {
+                &["src=", "href="]
+            } else {
+                &["src="]
+            };
+            attributes
+                .iter()
+                .filter_map(move |attribute| attribute_value(tag, attribute))
+        })
         .collect();
     assert_eq!(loaded.len(), 3, "{loaded:?}");
     for link in &loaded {

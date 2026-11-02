@@ -64,7 +64,7 @@ Charter: `~/Code/meta-lambda.gitlab.io/CHARTE.md`; logo: its `static/assets/img/
 
 ## Plan
 1. [x] Charter and credit: `style.css` mapped onto the charter variables (links in `--text` underlined `--gold-dark`,
-   gold for hover, the brand and the open tree item), badges, cited lines and code in charter colours, Mermaid theme
+   gold for hover, focus and the brand; the tree marks no current item to colour), badges, cited lines and code in charter colours, Mermaid theme
    variables from the charter in `diagrams.js`, `logo-mark.svg` embedded and served as `image/svg+xml`, a footer in
    `base.html`; verified by a page test of the footer and the logo asset, contrast checked against the charter's
    table, screenshots with headless Chrome; makes true WEB-11 (images), WEB-69.
@@ -80,7 +80,7 @@ Charter: `~/Code/meta-lambda.gitlab.io/CHARTE.md`; logo: its `static/assets/img/
 ## Deliverable 1
 
 - done: the stylesheet on the charter (links in `--text` underlined `--gold-dark`, gold for the brand, hover, focus,
-  table headers, inline code, cited lines; badges gold), Mermaid `base` theme read from the stylesheet's variables, the
+  table headers, inline code, cited lines; badges gold; header and code set back to the text colour by deliverable 2), Mermaid `base` theme read from the stylesheet's variables, the
   logo mark served as `image/svg+xml`, a footer credit in `base.html`.
 
 | check | result |
@@ -97,3 +97,23 @@ Charter: `~/Code/meta-lambda.gitlab.io/CHARTE.md`; logo: its `static/assets/img/
 - Contrast: only charter colours its table allows for text (`--text`, `--text-muted`, `--gold`, `--gold-light`); `--gold-dark` only for borders and underlines.
 - Screenshots (headless Chrome, a saved delivery_router run): home, feature, use case with its diagram unfolded, rules, cited file: readable.
 - not verified: the other Mermaid diagram kinds than the sequence diagram (none in the run).
+
+## Deliverable 2: fixes of the high review of the issue
+
+- done: the 9 findings of the `high` review: the footer in the viewport of a short page (body as a flex column), the
+  Mermaid colours written in `diagrams.js` (a stylesheet cached from an older binary would leave them empty and make
+  `mermaid` throw) with the page background behind the labels, inline code and table headers back to the text colour
+  (gold kept rare; a link around a code path keeps its hover), the WEB-11 test reading the `src` of every tag and the
+  `href` of every `<link>` in either quote, the plan line no longer claiming an open tree item in gold.
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | pass |
+| specs | pass |
+| docs | `docs/crates/render-mcp-cli.md` (the colours of `diagrams.js`) |
+| code review | no findings |
+
+- Code review: no findings
+- red: none (fixes; the WEB-11 test was rewritten, it stays green on the current page)
+- Screenshots again: the 404 page shows the credit without scrolling; a use case diagram with neutral code paths.

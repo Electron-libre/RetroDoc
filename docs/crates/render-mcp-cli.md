@@ -43,8 +43,9 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   application in the header and the title, the tree of domains, features and use cases, linked to
   `/domains/{domain}[/{feature}[/{use_case}]]`, and the footer crediting Meta Lambda with its logo); the stylesheet follows the colour
   charter of the meta-lambda.com site (its `CHARTE.md`: dark surfaces, gold as the one accent, kept rare; red and green
-  only for failure and success, so the low-confidence and stale badges are gold), and `diagrams.js` reads its variables
-  into the `base` theme of `mermaid`; the `Project` that `retrodoc ui` passes to `serve` (then `router`) names the
+  only for failure and success, so the low-confidence and stale badges are gold), and `diagrams.js` writes the same
+  colours into the `base` theme of `mermaid` (written, not read from the stylesheet: an older cached one would leave
+  them empty); the `Project` that `retrodoc ui` passes to `serve` (then `router`) names the
   application (`ProjectConfig::name_or_directory`: `[project] name` of `retrodoc.toml`, else the repository's
   directory) and carries the purpose and the users of the saved product brief (`commands::brief::saved`: one that can't be read is warned of); a request whose `Host` is a name other than
   `localhost` is refused with 403 (DNS rebinding: an IP address can't be rebound); the home page, headed by the name

@@ -1,10 +1,17 @@
 // Draws the diagrams of the page (`<pre class="mermaid">`). One folded in a
 // closed `<details>` is drawn when it first opens: drawn hidden, it would
-// measure nothing. Their colours are those of the stylesheet's charter: boxes
-// on the raised surface, lines and borders muted, gold kept for the notes.
-const colour = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-const [surface, raised, border, text, muted, goldDark] =
-  ["--surface", "--surface-2", "--border", "--text", "--text-muted", "--gold-dark"].map(colour);
+// measure nothing. Their colours are those of the charter of `style.css`,
+// written here rather than read from its variables: a stylesheet still cached
+// from an older binary would leave them empty and `mermaid` would throw.
+const charter = {
+  bg: "#0e0e10",
+  raised: "#1f1f25",
+  border: "#2a2a31",
+  text: "#e8e6e1",
+  muted: "#9b978e",
+  goldDark: "#8f7328",
+};
+const { bg, raised, border, text, muted, goldDark } = charter;
 mermaid.initialize({
   startOnLoad: false,
   securityLevel: "strict",
@@ -12,17 +19,17 @@ mermaid.initialize({
   themeVariables: {
     darkMode: true,
     fontFamily: getComputedStyle(document.body).fontFamily,
-    background: surface,
+    background: bg,
     primaryColor: raised,
     primaryTextColor: text,
     primaryBorderColor: muted,
-    secondaryColor: surface,
-    tertiaryColor: surface,
+    secondaryColor: bg,
+    tertiaryColor: bg,
     lineColor: muted,
     textColor: text,
-    clusterBkg: surface,
+    clusterBkg: bg,
     clusterBorder: border,
-    edgeLabelBackground: surface,
+    edgeLabelBackground: bg,
     actorBkg: raised,
     actorBorder: muted,
     actorTextColor: text,
