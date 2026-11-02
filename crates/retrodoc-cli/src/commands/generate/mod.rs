@@ -231,6 +231,7 @@ async fn reconcile_with_docs(
         }
     };
     let rules = retrodoc_pipeline::load_rules(repo_root).unwrap_or_default();
+    let corpus = reconcile::corpus(&docs);
     let candidates = reconcile::candidates(
         reconcile::items(
             &DomainMap::load(repo_root).unwrap_or_default(),
@@ -238,8 +239,18 @@ async fn reconcile_with_docs(
             use_cases,
             &rules,
         ),
-        &reconcile::corpus(&docs),
+        &corpus,
     );
+    if let Some(language) = config.output.language_name() {
+        let none_matched =
+            !candidates.is_empty() && candidates.iter().all(|c| c.sections.is_empty());
+        if !corpus.is_empty() && none_matched {
+            tracing::warn!(
+                "no section of the project docs matched a generated item: the docs are written in \
+                 {language} ([output] language), the project docs likely in another language"
+            );
+        }
+    }
     tracker
         .in_pass(
             "reconcile",

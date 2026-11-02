@@ -65,7 +65,7 @@ is set and nothing matched (REC-16). Out of scope: translating the queries, sema
 1. [x] Identifiers query: `Item` carries its identifiers (entry point names; a domain: its features'; entity names of a
    domain or a rule), each searched alone when the text and the name match nothing; verified by tests of `candidates()` (a French
    item matched to an English section by its entry point, an English item unchanged); makes true REC-2.
-2. [ ] Warning: `generate` warns when the docs language is set, the corpus is not empty and no candidate has a section;
+2. [x] Warning: `generate` warns when the docs language is set, the corpus is not empty and no candidate has a section;
    verified by a test of the warning; makes true REC-16; the spec back to `accepted`.
 
 ## Decisions
@@ -77,3 +77,11 @@ done: `Item::identifiers` (entry point names, a domain its features'; entities o
 alone when the text and the name match nothing, sections ranked by their best score.
 red: REC-2: `classement/archivage: the name of its entry point finds it`, left `[]`, right `["README.md#Bookmarks"]`.
 Code review: no findings.
+
+## Deliverable 2 (warning)
+done: `generate` warns when `[output] language` is set, the corpus is not empty and no candidate has a section;
+the spec back to `accepted`.
+red: REC-16: `generate_warns_when_the_docs_language_is_set_and_no_doc_section_matched`: the run ended with no such
+warning.
+Code review: 1 finding. A run with no item at all would have warned of the language: fixed, the warning needs at least
+one item.
