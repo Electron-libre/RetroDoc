@@ -96,7 +96,7 @@ done: `docs/ARCHITECTURE.md` says how the pass matches; the fixes of the `high` 
   compare).
 * fixed: the warning names the docs language as a possible cause, not the likely one (same language set).
 * issue: the judge's excerpt of a long section matched by an identifier (REC-15) →
-  `issues/reconcile_excerpt_by_identifiers.md`.
+  `issues/done/reconcile_excerpt_by_identifiers.md`.
 * not fixed: identifiers searched only when the text and the name match nothing (measured: as a fallback the English
   run is unchanged); identifiers built for every item (one search per identifier, only on the fallback).
 red: REC-2: `each identifier of the domain finds its own section`, left `[Bookmarks, Install, Tags]`: the `Install`
