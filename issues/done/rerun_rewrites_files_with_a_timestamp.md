@@ -28,6 +28,8 @@ none, so that the smoke test criterion "the rerun is a no-op" holds on a large a
 
 Plan: validated
 
+Done: both deliverables committed; the smoke rerun on the large application is still to redo.
+
 ## Understanding
 The timestamp is not the cause: `plan.rs` already ignores `generated_at` when the metadata is the only change. The
 rerun log of the smoke shows the two other files, the domain `README.md` and `llms.txt`: five
@@ -57,6 +59,6 @@ sorting in the render.
 ## Review of the whole issue (high)
 - Code review: 6 findings. Fixed: the partial save after each slice keeps the saved order too; only the saved
   features of the same domain count as saved; the slug lookup uses one map; the confidential repository name left
-  this file (it stays in the history of 0da7eee). Not fixed: the render plan in the test (the render follows the
+  this file, and both commits were rewritten before the push to drop it. Not fixed: the render plan in the test (the render follows the
   feature order, RER-8 covers its idempotence); the order put back where reused features merge rather than after
   (one function on both save paths is enough, `restricted` must keep taking back the placed entry points).
