@@ -132,7 +132,8 @@ impl DocsServer {
 
     #[tool(
         description = "Show the recent commits (hash, date, subject) that changed a source file \
-                       the docs cite, to see how and why a behavior evolved. Only cited files."
+                       the docs cite, to see how and why a behavior evolved, across its renames \
+                       (the previous names are history only, not readable). Only cited files."
     )]
     async fn git_log(
         &self,

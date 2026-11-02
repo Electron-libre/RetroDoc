@@ -58,7 +58,11 @@ the mark. Spec: `specs/file-history.md` (FHI-1 to FHI-5). Old names stay unreada
 ## Plan
 1. [x] Follow renames: `CommitSummary`/`FileCommit` gain `renamed_from`, `file_log` switches the tracked path on a
    rename, `git_log` and `code.html` print `renamed from <old path>`, timing of `file_log` on a large repo noted;
-   verified by tests in `git_history.rs`, `source.rs` and `retrodoc-web/tests/code_page.rs`; makes true FHI-1 to FHI-5.
+   verified by tests in `retrodoc-mcp/tests/file_history.rs` (through `SourceAccess`, the boundary both callers
+   share, so `file_log` has no unit test of its own) and `retrodoc-web/tests/code_page.rs`; makes true FHI-1 to FHI-5.
+2. [x] Fixes of the `high` review: an exact rename found by blob id before the similarity search (cheaper, and
+   not capped by the rename limit on a big move), an empty file not followed, the MCP tool description, the
+   limits shared with `git log --follow` as non-goals; verified by `file_history.rs`; makes true FHI-1, FHI-6.
 
 ## Decisions
 - Mode: autonomous
@@ -76,3 +80,11 @@ the mark. Spec: `specs/file-history.md` (FHI-1 to FHI-5). Old names stay unreada
 - Measure: on llama.cpp (11,898 commits), a full walk for `LICENSE` (3 commits) takes 0.34 s, a renamed file 0.40 s
   for 21 commits, the same counts as `git log --follow --no-merges`: the walk is left unbounded.
 - not verified: the web test of FHI-2 was written before the code but not run red.
+
+### 2. Fixes of the high review
+- done: 8 findings of the `high` review over dd08d3b..441e4bc: exact rename first and empty file (findings 2, 3, 4),
+  tool description (7), plan text (8) fixed; branch order across a rename, rename in a merge, rename onto an
+  existing path (1, 5, 6) are the limits of `git log --follow` too, now non-goals of the spec.
+- red: FHI-1, FHI-6: the history of `lib/zz.rb` moved with 1,500 files stopped at the move; the empty
+  `pkg/__init__.py` was `renamed from old/__init__.py`.
+- not verified: none.

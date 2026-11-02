@@ -205,7 +205,7 @@ pub fn file_log(
         // whole tree is compared there alone, to keep the walk cheap.
         let renamed_from = match &parent_tree {
             Some(parent_tree) if delta.status() == Delta::Added => {
-                rename_source(&repo, parent_tree, &tree, &tracked)?
+                rename_source(&repo, parent_tree, &tree, &tracked, delta.new_file().id())?
             }
             _ => None,
         };
@@ -231,15 +231,30 @@ pub fn file_log(
     Ok(log)
 }
 
-/// The path `path` had in `parent_tree` when the change to `tree` renamed it
-/// there (git's default similarity, copies left out).
+/// The path `path` (holding the blob `blob`) had in `parent_tree` when the
+/// change to `tree` renamed it there: the deleted file with the same content
+/// first, else git's default similarity; copies and empty files left out, as
+/// `git log --follow` does.
 fn rename_source(
     repo: &Repository,
     parent_tree: &git2::Tree<'_>,
     tree: &git2::Tree<'_>,
     path: &Path,
+    blob: git2::Oid,
 ) -> Result<Option<PathBuf>, IngestError> {
+    if repo.find_blob(blob)?.size() == 0 {
+        return Ok(None);
+    }
     let mut diff = repo.diff_tree_to_tree(Some(parent_tree), Some(tree), None)?;
+    // An exact rename is found without scoring every pair of the commit, and
+    // whatever the number of files moved with it.
+    let exact = diff
+        .deltas()
+        .find(|delta| delta.status() == Delta::Deleted && delta.old_file().id() == blob)
+        .and_then(|delta| delta.old_file().path().map(Path::to_path_buf));
+    if exact.is_some() {
+        return Ok(exact);
+    }
     diff.find_similar(Some(DiffFindOptions::new().renames(true)))?;
     Ok(diff
         .deltas()

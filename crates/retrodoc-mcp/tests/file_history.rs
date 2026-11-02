@@ -168,3 +168,41 @@ fn a_merge_is_not_a_commit_of_the_history() {
         "{log}"
     );
 }
+
+// spec: FHI-1
+#[test]
+fn a_file_moved_with_many_others_is_followed() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    git(root, &["init", "-q"]);
+    for n in 0..1500 {
+        write(root, &format!("src/f{n:04}.rb"), &format!("file {n}\n"));
+    }
+    write(root, "src/zz.rb", &code(""));
+    commit_all(root, "add sources");
+    git(root, &["mv", "src", "lib"]);
+    commit_all(root, "move sources");
+    let access = SourceAccess::new(root, ["lib/zz.rb".to_string()]);
+    let log = access.git_log("lib/zz.rb", 10).unwrap();
+    assert_eq!(
+        subjects(&log),
+        ["move sources (renamed from `src/zz.rb`)", "add sources"],
+        "{log}"
+    );
+}
+
+// spec: FHI-6
+#[test]
+fn an_empty_file_is_not_followed() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    git(root, &["init", "-q"]);
+    write(root, "old/__init__.py", "");
+    commit_all(root, "add old package");
+    std::fs::remove_dir_all(root.join("old")).unwrap();
+    write(root, "pkg/__init__.py", "");
+    commit_all(root, "replace old package by pkg");
+    let access = SourceAccess::new(root, ["pkg/__init__.py".to_string()]);
+    let log = access.git_log("pkg/__init__.py", 10).unwrap();
+    assert_eq!(subjects(&log), ["replace old package by pkg"], "{log}");
+}

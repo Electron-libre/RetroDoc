@@ -23,6 +23,7 @@ file is not lost.
 - **FHI-4** (deterministic) `read_source` and `git_log` must refuse a previous name of a cited file that the docs do
   not cite.
 - **FHI-5** (deterministic) The history must leave merge commits out.
+- **FHI-6** (deterministic) The history must not follow an empty file to a deleted empty file.
 
 ## Scenarios
 
@@ -32,8 +33,11 @@ file is not lost.
 - (FHI-1) Given a limit lower than the number of commits, then the history stops at that limit, across the renames.
 - (FHI-2) Given that history, then the two rename commits are marked with the path they came from, and no other
   commit is marked.
+- (FHI-1) Given a file moved with 1,500 others in one commit, then its history goes on under its previous name.
 - (FHI-3) Given `a.rb` copied to `b.rb` with `a.rb` kept, when the history of `b.rb` is asked, then it lists only the
   commits since the copy.
+- (FHI-6) Given an empty `old/__init__.py` deleted and an empty `pkg/__init__.py` added in one commit, then the
+  history of `pkg/__init__.py` starts at that commit.
 - (FHI-4) Given `new.rb` cited and its former name `old.rb` not cited, then `git_log("old.rb")` and
   `read_source("old.rb")` answer that the file is not cited.
 
@@ -41,4 +45,7 @@ file is not lost.
 
 - Following a file renamed and rewritten in the same commit below git's default similarity (50%).
 - Following a file split into several files or merged from several.
+- A rename made in a merge commit, or onto a path that existed before (the old file replaced in the same commit).
+- On branches merged together, the commits of a branch that changed the file under its previous name after the
+  other branch renamed it: one path is tracked along the walk, as `git log --follow` does.
 - Bounding the walk of a file that rarely changes on a large repository (measured, not bounded, by this capability).
