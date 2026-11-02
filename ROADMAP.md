@@ -165,13 +165,13 @@ The milestones up to "A large application, one bounded context at a time" are th
   docs, the search, the glossary and the code the docs cite (ADR 0039).
 - Why: the results of a run are read file by file in Markdown; whoever takes an application over needs a structured
   way to browse them, and the next milestones of the interface build on it.
-- State: in issues
+- State: done
 - Issues:
   - [web_ui_server_and_domains](issues/done/web_ui_server_and_domains.md)
   - [web_ui_feature_and_use_case_pages](issues/done/web_ui_feature_and_use_case_pages.md)
   - [web_ui_search_glossary_and_collected_docs](issues/done/web_ui_search_glossary_and_collected_docs.md)
   - [web_ui_cited_code_and_files_to_docs](issues/done/web_ui_cited_code_and_files_to_docs.md)
-  - [web_ui_rules_and_actors](issues/web_ui_rules_and_actors.md)
+  - [web_ui_rules_and_actors](issues/done/web_ui_rules_and_actors.md)
 
 ## Explore the documentation debt and audit it
 

@@ -104,7 +104,7 @@ High review: 10 findings
 - Rules scanned per feature in `citations`: not fixed, one pass per page over data read once; the files page now
   computes it once.
 - `./` stripped in several places: not fixed, `SourceAccess` stays the one that decides what is served.
-- A rule citer links to the top of its feature page: noted in `issues/web_ui_rules_and_actors.md` (rule anchors).
+- A rule citer links to the top of its feature page: noted in `issues/done/web_ui_rules_and_actors.md` (rule anchors).
 Code review: 3 findings
 - A rule counted under two features: not fixed, `BusinessRule::number_in` takes digits only after `<feature>-`, so a
   rule belongs to one feature at most.
