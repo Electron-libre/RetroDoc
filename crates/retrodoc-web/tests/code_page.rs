@@ -172,10 +172,15 @@ fn generated_repo() -> (tempfile::TempDir, std::path::PathBuf) {
 
 async fn get(root: &Path, path: &str) -> (StatusCode, String) {
     let docs = GeneratedDocs::load(root, &[]);
-    let response = retrodoc_web::router(docs, DocLinks::default(), Vec::new())
-        .oneshot(Request::get(path).body(Body::empty()).unwrap())
-        .await
-        .unwrap();
+    let response = retrodoc_web::router(
+        retrodoc_web::Project::default(),
+        docs,
+        DocLinks::default(),
+        Vec::new(),
+    )
+    .oneshot(Request::get(path).body(Body::empty()).unwrap())
+    .await
+    .unwrap();
     let status = response.status();
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await

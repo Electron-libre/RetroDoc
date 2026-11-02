@@ -143,6 +143,7 @@ fn generated_repo() -> tempfile::TempDir {
 
 async fn get(root: &Path, path: &str) -> (StatusCode, String) {
     let response = retrodoc_web::router(
+        retrodoc_web::Project::default(),
         GeneratedDocs::load(root, &[]),
         DocLinks::default(),
         Vec::new(),

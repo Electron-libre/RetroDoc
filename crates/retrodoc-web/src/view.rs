@@ -7,6 +7,7 @@ use std::collections::BTreeSet;
 use crate::actors::{actors_page, ActorsPage};
 use crate::files::{files_page, FilesPage};
 use crate::glossary::{glossary_page, GlossaryPage};
+use crate::Project;
 use retrodoc_core::model::{
     ActorKind, BusinessRule, ConfidenceScore, Feature, RuleEvidence, SourceRef, Step, UseCase,
     LOW_CONFIDENCE_THRESHOLD,
@@ -17,11 +18,12 @@ use retrodoc_mcp::{ExistingDoc, GeneratedDocs};
 use retrodoc_render::{anchor, kind_label, source_ref_label, DocLinks, ItemRef};
 
 /// The docs the interface serves, `None` before a first `generate`, and the
-/// tree every page shows, built once since the docs don't change.
+/// frame every page shows, built once since the docs don't change.
 pub struct Site {
     docs: Option<GeneratedDocs>,
     links: DocLinks,
-    tree: Vec<TreeDomain>,
+    shell: Shell,
+    purpose: Option<String>,
     source: Option<SourceAccess>,
     files: Option<FilesPage>,
     collected: Vec<ExistingDoc>,
@@ -31,8 +33,16 @@ pub struct Site {
 
 impl Site {
     #[must_use]
-    pub fn new(docs: Option<GeneratedDocs>, links: DocLinks, collected: Vec<ExistingDoc>) -> Self {
-        let tree = docs.as_ref().map(tree).unwrap_or_default();
+    pub fn new(
+        project: Project,
+        docs: Option<GeneratedDocs>,
+        links: DocLinks,
+        collected: Vec<ExistingDoc>,
+    ) -> Self {
+        let shell = Shell {
+            name: project.name,
+            tree: docs.as_ref().map(tree).unwrap_or_default(),
+        };
         let source = docs.as_ref().and_then(GeneratedDocs::source_access);
         let files = docs.as_ref().map(files_page);
         let glossary = docs.as_ref().map(glossary_page);
@@ -40,7 +50,8 @@ impl Site {
         Self {
             docs,
             links,
-            tree,
+            shell,
+            purpose: project.purpose.filter(|purpose| !purpose.trim().is_empty()),
             source,
             files,
             collected,
@@ -89,11 +100,24 @@ impl Site {
         &self.links
     }
 
-    /// The tree of every page: empty with no run.
+    /// The header and the tree of every page.
     #[must_use]
-    pub fn tree(&self) -> &[TreeDomain] {
-        &self.tree
+    pub fn shell(&self) -> &Shell {
+        &self.shell
     }
+
+    /// The purpose of the product brief, `None` with no brief or an empty one.
+    #[must_use]
+    pub fn purpose(&self) -> Option<&str> {
+        self.purpose.as_deref()
+    }
+}
+
+/// What every page shows around its content: the name of the application and
+/// the tree of the docs, empty with no run.
+pub struct Shell {
+    pub name: String,
+    pub tree: Vec<TreeDomain>,
 }
 
 pub struct TreeDomain {

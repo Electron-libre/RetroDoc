@@ -243,10 +243,15 @@ fn doc_links() -> DocLinks {
 
 async fn get(root: &Path, path: &str) -> (StatusCode, String) {
     let docs = GeneratedDocs::load(root, &[]);
-    let response = retrodoc_web::router(docs, doc_links(), Vec::new())
-        .oneshot(Request::get(path).body(Body::empty()).unwrap())
-        .await
-        .unwrap();
+    let response = retrodoc_web::router(
+        retrodoc_web::Project::default(),
+        docs,
+        doc_links(),
+        Vec::new(),
+    )
+    .oneshot(Request::get(path).body(Body::empty()).unwrap())
+    .await
+    .unwrap();
     let status = response.status();
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
@@ -639,6 +644,7 @@ async fn only_a_page_with_a_diagram_loads_the_mermaid_script() {
 async fn the_mermaid_script_is_served_compressed_with_a_long_cache() {
     let repo = generated_repo();
     let response = retrodoc_web::router(
+        retrodoc_web::Project::default(),
         GeneratedDocs::load(repo.path(), &[]),
         doc_links(),
         Vec::new(),
@@ -723,14 +729,19 @@ async fn the_path_of_a_doc_link_is_encoded() {
             contradicts: None,
         }],
     );
-    let response = retrodoc_web::router(GeneratedDocs::load(repo.path(), &[]), links, Vec::new())
-        .oneshot(
-            Request::get("/domains/billing")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
+    let response = retrodoc_web::router(
+        retrodoc_web::Project::default(),
+        GeneratedDocs::load(repo.path(), &[]),
+        links,
+        Vec::new(),
+    )
+    .oneshot(
+        Request::get("/domains/billing")
+            .body(Body::empty())
+            .unwrap(),
+    )
+    .await
+    .unwrap();
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
@@ -748,6 +759,7 @@ async fn mermaid_with(accept_encoding: Option<&str>) -> axum::response::Response
         request = request.header("accept-encoding", encodings);
     }
     retrodoc_web::router(
+        retrodoc_web::Project::default(),
         GeneratedDocs::load(repo.path(), &[]),
         doc_links(),
         Vec::new(),

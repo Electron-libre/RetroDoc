@@ -50,3 +50,31 @@ Web interface for a first-time reader
 
 * A brief changed by the new field invalidates the saved briefs (their `input_hash`): the fallback must keep a run
   done before the change readable.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Name the documented application in the header, the titles and the home page of `retrodoc ui`, with the purpose of
+the brief under the home heading. Means: a `[project] name` key of `retrodoc.toml`, else the repository directory;
+no LLM field, no `origin` remote; the Markdown render and the MCP answers are out of scope (spec non-goal).
+
+## Plan
+1. [x] Application name in the web interface: `ProjectConfig` (`[project] name`) in `retrodoc-core`, the name and the
+   brief purpose resolved in `retrodoc ui` and passed to `retrodoc-web`, shown in `base.html` (brand, title) and
+   `home.html` (heading, purpose), the no-run page included; docs of the key; verified by router tests on the header,
+   the title and the home page and a test of the fallback; makes true WEB-62, WEB-63, WEB-64. About 250 lines.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 9147beb4ecd620d713846250ef2953e2eb4b674c
+- `init` does not write `[project] name`: the directory name is the default (answer 1 a).
+- The purpose is shown whenever it is not empty, sources or not (answer 2 a).
+
+## Summary of deliverable 1
+- done: `[project] name` (`ProjectConfig::name_or_directory`), a `Project` passed to `retrodoc_web::router` and
+  `serve`, the name in the header and the titles (`view::Shell`), the home page headed by it and the brief purpose.
+- red: WEB-62, WEB-63, WEB-64: the tests did not compile (`retrodoc_web::Project` and `ProjectConfig` missing).
+- verified on the saved healthchecks run: header and titles name `rsa-hc` (its directory), home headed by it and the brief purpose.
+- follow-up: the Markdown render and the MCP answers don't carry the name (spec non-goal).

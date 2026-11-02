@@ -33,10 +33,24 @@ use tokio::net::TcpListener;
 
 use view::Site;
 
-/// The routes of the interface over `docs`, `None` before a first `generate`,
-/// with the sections of the project's own docs behind each item and those
-/// docs, `collected`, served as pages.
-pub fn router(docs: Option<GeneratedDocs>, links: DocLinks, collected: Vec<ExistingDoc>) -> Router {
+/// The documented application, as every page names it.
+#[derive(Debug, Clone, Default)]
+pub struct Project {
+    pub name: String,
+    /// The purpose of the product brief of the last run, shown on the home
+    /// page; `None` with no brief.
+    pub purpose: Option<String>,
+}
+
+/// The routes of the interface over the docs of `project`, `docs`, `None`
+/// before a first `generate`, with the sections of the project's own docs
+/// behind each item and those docs, `collected`, served as pages.
+pub fn router(
+    project: Project,
+    docs: Option<GeneratedDocs>,
+    links: DocLinks,
+    collected: Vec<ExistingDoc>,
+) -> Router {
     Router::new()
         .route("/", get(pages::home))
         .route("/domains/{domain}", get(pages::domain))
@@ -55,7 +69,7 @@ pub fn router(docs: Option<GeneratedDocs>, links: DocLinks, collected: Vec<Exist
         .route("/assets/{name}", get(assets::serve))
         .fallback(pages::not_found)
         .layer(middleware::from_fn(refuse_foreign_host))
-        .with_state(Arc::new(Site::new(docs, links, collected)))
+        .with_state(Arc::new(Site::new(project, docs, links, collected)))
 }
 
 /// Refuses a request whose `Host` is a name other than `localhost`: a page of
@@ -88,9 +102,10 @@ fn trusted_host(host: &str) -> bool {
 /// When the server fails to accept connections.
 pub async fn serve(
     listener: TcpListener,
+    project: Project,
     docs: Option<GeneratedDocs>,
     links: DocLinks,
     collected: Vec<ExistingDoc>,
 ) -> std::io::Result<()> {
-    axum::serve(listener, router(docs, links, collected)).await
+    axum::serve(listener, router(project, docs, links, collected)).await
 }

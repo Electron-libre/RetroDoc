@@ -39,9 +39,13 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   `mermaid-<version>.min.js.gz` (5.5 MB plain), served with `Content-Encoding: gzip` (406 to a client whose `Accept-Encoding` does not name gzip) and
   cached as immutable under its versioned name): the local web interface of ADR 0039
   (`specs/web-ui.md`). The docs are loaded once into `GeneratedDocs` (`None` before a first `generate`: the home page
-  says to run it), and the tree built once; every page shares the layout of `base.html` (the tree of domains, features
-  and use cases, linked to `/domains/{domain}[/{feature}[/{use_case}]]`); a request whose `Host` is a name other than
-  `localhost` is refused with 403 (DNS rebinding: an IP address can't be rebound); the home page lists the domains with their confidence (flagged low
+  says to run it), and the tree built once; every page shares the layout of `base.html` (`view::Shell`: the name of the
+  application in the header and the title, and the tree of domains, features and use cases, linked to
+  `/domains/{domain}[/{feature}[/{use_case}]]`); the `Project` that `retrodoc ui` passes to `router` names the
+  application (`ProjectConfig::name_or_directory`: `[project] name` of `retrodoc.toml`, else the repository's
+  directory) and carries the purpose of the saved product brief; a request whose `Host` is a name other than
+  `localhost` is refused with 403 (DNS rebinding: an IP address can't be rebound); the home page, headed by the name
+  and that purpose, lists the domains with their confidence (flagged low
   under `LOW_CONFIDENCE_THRESHOLD`), a stale badge when a file their features cite changed since the run
   (`Freshness::stale`, read in `spawn_blocking` at each request), and their counts of features and use cases. The page of a domain (`view::domain_page`, `domain.html`) shows the
   sections of its Markdown page in the same order, with a breadcrumb; the back-office features under

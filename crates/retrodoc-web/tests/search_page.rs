@@ -115,10 +115,15 @@ async fn get_with(root: &Path, path: &str, htmx: bool) -> (StatusCode, String) {
     if htmx {
         request = request.header("HX-Request", "true");
     }
-    let response = retrodoc_web::router(load(root), DocLinks::default(), collected())
-        .oneshot(request.body(Body::empty()).unwrap())
-        .await
-        .unwrap();
+    let response = retrodoc_web::router(
+        retrodoc_web::Project::default(),
+        load(root),
+        DocLinks::default(),
+        collected(),
+    )
+    .oneshot(request.body(Body::empty()).unwrap())
+    .await
+    .unwrap();
     let status = response.status();
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
@@ -308,10 +313,15 @@ async fn an_htmx_history_restore_gets_the_full_search_page() {
     let request = Request::get("/search?q=invoice")
         .header("HX-Request", "true")
         .header("HX-History-Restore-Request", "true");
-    let response = retrodoc_web::router(load(repo.path()), DocLinks::default(), collected())
-        .oneshot(request.body(Body::empty()).unwrap())
-        .await
-        .unwrap();
+    let response = retrodoc_web::router(
+        retrodoc_web::Project::default(),
+        load(repo.path()),
+        DocLinks::default(),
+        collected(),
+    )
+    .oneshot(request.body(Body::empty()).unwrap())
+    .await
+    .unwrap();
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
@@ -364,15 +374,20 @@ async fn the_search_page_shows_its_results_where_htmx_swaps_them() {
 // spec: WEB-43
 #[tokio::test]
 async fn an_htmx_search_with_no_run_gets_a_fragment() {
-    let response = retrodoc_web::router(None, DocLinks::default(), collected())
-        .oneshot(
-            Request::get("/search?q=invoice")
-                .header("HX-Request", "true")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
+    let response = retrodoc_web::router(
+        retrodoc_web::Project::default(),
+        None,
+        DocLinks::default(),
+        collected(),
+    )
+    .oneshot(
+        Request::get("/search?q=invoice")
+            .header("HX-Request", "true")
+            .body(Body::empty())
+            .unwrap(),
+    )
+    .await
+    .unwrap();
     assert_eq!(
         response.headers()["vary"],
         "HX-Request, HX-History-Restore-Request"

@@ -22,20 +22,21 @@ use crate::rules::{rules_page, RuleFilter, RulesPage};
 use crate::search::{query_value, search_page, Results, SearchPage};
 use crate::view::{
     domain_page, domain_rows, feature_page, use_case_page, DomainPage, DomainRow, FeaturePage,
-    Site, TreeDomain, UseCasePage,
+    Shell, Site, UseCasePage,
 };
 
 #[derive(Template)]
 #[template(path = "home.html")]
 struct Home<'a> {
-    tree: &'a [TreeDomain],
+    shell: &'a Shell,
+    purpose: Option<&'a str>,
     domains: Vec<DomainRow>,
 }
 
 #[derive(Template)]
 #[template(path = "domain.html")]
 struct DomainTemplate<'a> {
-    tree: &'a [TreeDomain],
+    shell: &'a Shell,
     page: DomainPage,
     technical_heading: &'static str,
     technical_note: &'static str,
@@ -44,7 +45,7 @@ struct DomainTemplate<'a> {
 #[derive(Template)]
 #[template(path = "feature.html")]
 struct FeatureTemplate<'a> {
-    tree: &'a [TreeDomain],
+    shell: &'a Shell,
     page: FeaturePage,
     technical_heading: &'static str,
     technical_note: &'static str,
@@ -53,7 +54,7 @@ struct FeatureTemplate<'a> {
 #[derive(Template)]
 #[template(path = "use_case.html")]
 struct UseCaseTemplate<'a> {
-    tree: &'a [TreeDomain],
+    shell: &'a Shell,
     page: UseCasePage,
     mermaid: &'static str,
 }
@@ -61,42 +62,42 @@ struct UseCaseTemplate<'a> {
 #[derive(Template)]
 #[template(path = "code.html")]
 struct CodeTemplate<'a> {
-    tree: &'a [TreeDomain],
+    shell: &'a Shell,
     page: CodePage,
 }
 
 #[derive(Template)]
 #[template(path = "files.html")]
 struct FilesTemplate<'a> {
-    tree: &'a [TreeDomain],
+    shell: &'a Shell,
     page: &'a FilesPage,
 }
 
 #[derive(Template)]
 #[template(path = "collected.html")]
 struct CollectedTemplate<'a> {
-    tree: &'a [TreeDomain],
+    shell: &'a Shell,
     page: CollectedPage,
 }
 
 #[derive(Template)]
 #[template(path = "glossary.html")]
 struct GlossaryTemplate<'a> {
-    tree: &'a [TreeDomain],
+    shell: &'a Shell,
     page: &'a GlossaryPage,
 }
 
 #[derive(Template)]
 #[template(path = "actors.html")]
 struct ActorsTemplate<'a> {
-    tree: &'a [TreeDomain],
+    shell: &'a Shell,
     page: &'a ActorsPage,
 }
 
 #[derive(Template)]
 #[template(path = "rules.html")]
 struct RulesTemplate<'a> {
-    tree: &'a [TreeDomain],
+    shell: &'a Shell,
     page: RulesPage,
 }
 
@@ -110,7 +111,7 @@ struct RulesList {
 #[derive(Template)]
 #[template(path = "search.html")]
 struct SearchTemplate<'a> {
-    tree: &'a [TreeDomain],
+    shell: &'a Shell,
     page: SearchPage,
 }
 
@@ -124,18 +125,23 @@ struct SearchResults {
 #[derive(Template)]
 #[template(path = "no_run.html")]
 struct NoRun<'a> {
-    tree: &'a [TreeDomain],
+    shell: &'a Shell,
 }
 
 #[derive(Template)]
 #[template(path = "not_found.html")]
 struct NotFound<'a> {
-    tree: &'a [TreeDomain],
+    shell: &'a Shell,
 }
 
 pub async fn home(State(site): State<Arc<Site>>) -> Response {
     if site.docs().is_none() {
-        return render(StatusCode::OK, &NoRun { tree: site.tree() });
+        return render(
+            StatusCode::OK,
+            &NoRun {
+                shell: site.shell(),
+            },
+        );
     }
     match blocking(&site, |site| {
         site.docs().map(domain_rows).unwrap_or_default()
@@ -145,7 +151,8 @@ pub async fn home(State(site): State<Arc<Site>>) -> Response {
         Ok(domains) => render(
             StatusCode::OK,
             &Home {
-                tree: site.tree(),
+                shell: site.shell(),
+                purpose: site.purpose(),
                 domains,
             },
         ),
@@ -180,7 +187,7 @@ pub async fn domain(State(site): State<Arc<Site>>, Path(slug): Path<String>) -> 
     render(
         StatusCode::OK,
         &DomainTemplate {
-            tree: site.tree(),
+            shell: site.shell(),
             page,
             technical_heading: TECHNICAL_HEADING,
             technical_note: TECHNICAL_NOTE,
@@ -201,7 +208,7 @@ pub async fn feature(
         Ok(Some(page)) => render(
             StatusCode::OK,
             &FeatureTemplate {
-                tree: site.tree(),
+                shell: site.shell(),
                 page,
                 technical_heading: TECHNICAL_HEADING,
                 technical_note: TECHNICAL_NOTE,
@@ -225,7 +232,7 @@ pub async fn use_case(
         Ok(Some(page)) => render(
             StatusCode::OK,
             &UseCaseTemplate {
-                tree: site.tree(),
+                shell: site.shell(),
                 page,
                 mermaid: MERMAID,
             },
@@ -237,12 +244,17 @@ pub async fn use_case(
 
 pub async fn files(State(site): State<Arc<Site>>) -> Response {
     let Some(page) = site.files() else {
-        return render(StatusCode::OK, &NoRun { tree: site.tree() });
+        return render(
+            StatusCode::OK,
+            &NoRun {
+                shell: site.shell(),
+            },
+        );
     };
     render(
         StatusCode::OK,
         &FilesTemplate {
-            tree: site.tree(),
+            shell: site.shell(),
             page,
         },
     )
@@ -250,12 +262,17 @@ pub async fn files(State(site): State<Arc<Site>>) -> Response {
 
 pub async fn glossary(State(site): State<Arc<Site>>) -> Response {
     let Some(page) = site.glossary() else {
-        return render(StatusCode::OK, &NoRun { tree: site.tree() });
+        return render(
+            StatusCode::OK,
+            &NoRun {
+                shell: site.shell(),
+            },
+        );
     };
     render(
         StatusCode::OK,
         &GlossaryTemplate {
-            tree: site.tree(),
+            shell: site.shell(),
             page,
         },
     )
@@ -263,12 +280,17 @@ pub async fn glossary(State(site): State<Arc<Site>>) -> Response {
 
 pub async fn actors(State(site): State<Arc<Site>>) -> Response {
     let Some(page) = site.actors() else {
-        return render(StatusCode::OK, &NoRun { tree: site.tree() });
+        return render(
+            StatusCode::OK,
+            &NoRun {
+                shell: site.shell(),
+            },
+        );
     };
     render(
         StatusCode::OK,
         &ActorsTemplate {
-            tree: site.tree(),
+            shell: site.shell(),
             page,
         },
     )
@@ -295,7 +317,7 @@ pub async fn rules(
         NO_RUN_RULES,
         |docs| rules_page(docs, &filter),
         |page| RulesList { page },
-        |tree, page| RulesTemplate { tree, page },
+        |shell, page| RulesTemplate { shell, page },
     )
 }
 
@@ -315,7 +337,7 @@ pub async fn search(
         NO_RUN_RESULTS,
         |docs| search_page(docs, &query),
         |page| SearchResults { page },
-        |tree, page| SearchTemplate { tree, page },
+        |shell, page| SearchTemplate { shell, page },
     )
 }
 
@@ -328,7 +350,7 @@ fn fragment_or_page<'a, T, F: Template, P: Template>(
     no_run: &'static str,
     build: impl FnOnce(&GeneratedDocs) -> T,
     fragment: impl FnOnce(T) -> F,
-    page: impl FnOnce(&'a [TreeDomain], T) -> P,
+    page: impl FnOnce(&'a Shell, T) -> P,
 ) -> Response {
     // The same URL answers a fragment or a page: a cache must tell them apart.
     let vary = [(header::VARY, "HX-Request, HX-History-Restore-Request")];
@@ -336,9 +358,14 @@ fn fragment_or_page<'a, T, F: Template, P: Template>(
         headers.contains_key("HX-Request") && !headers.contains_key("HX-History-Restore-Request");
     let response = match (site.docs(), htmx) {
         (None, true) => Html(no_run).into_response(),
-        (None, false) => render(StatusCode::OK, &NoRun { tree: site.tree() }),
+        (None, false) => render(
+            StatusCode::OK,
+            &NoRun {
+                shell: site.shell(),
+            },
+        ),
         (Some(docs), true) => render(StatusCode::OK, &fragment(build(docs))),
-        (Some(docs), false) => render(StatusCode::OK, &page(site.tree(), build(docs))),
+        (Some(docs), false) => render(StatusCode::OK, &page(site.shell(), build(docs))),
     };
     (vary, response).into_response()
 }
@@ -358,7 +385,7 @@ pub async fn code(
         Ok(Some(page)) => render(
             StatusCode::OK,
             &CodeTemplate {
-                tree: site.tree(),
+                shell: site.shell(),
                 page,
             },
         ),
@@ -368,7 +395,12 @@ pub async fn code(
 }
 
 pub async fn not_found(State(site): State<Arc<Site>>) -> Response {
-    render(StatusCode::NOT_FOUND, &NotFound { tree: site.tree() })
+    render(
+        StatusCode::NOT_FOUND,
+        &NotFound {
+            shell: site.shell(),
+        },
+    )
 }
 
 fn render(status: StatusCode, page: &impl Template) -> Response {
@@ -389,7 +421,7 @@ pub async fn collected_doc(State(site): State<Arc<Site>>, Path(path): Path<Strin
     render(
         StatusCode::OK,
         &CollectedTemplate {
-            tree: site.tree(),
+            shell: site.shell(),
             page,
         },
     )

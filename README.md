@@ -85,6 +85,9 @@ verification pass, and `llm.concurrency` parallelizes the use cases, the rules a
 `retrodoc init` writes a `retrodoc.toml` at the root of the analyzed repo:
 
 ```toml
+# [project]
+# name = "Shop"                     # the name the web interface shows; unset: the name of the repository's directory
+
 [llm]
 provider = "openrouter"             # or "deepseek" (model "deepseek-chat", key in DEEPSEEK_API_KEY)
 api_key_env = "OPENROUTER_API_KEY"   # name of the variable, never the key itself

@@ -73,6 +73,8 @@ pub const ZERO_TEMPERATURE_PASSES: &[&str] = &[
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Config {
+    #[serde(default, skip_serializing_if = "ProjectConfig::is_empty")]
+    pub project: ProjectConfig,
     #[serde(default)]
     pub llm: LlmConfig,
     #[serde(default)]
@@ -85,6 +87,35 @@ pub struct Config {
     pub pipeline: PipelineConfig,
     #[serde(default, skip_serializing_if = "RulesConfig::is_empty")]
     pub rules: RulesConfig,
+}
+
+/// `[project]`: what the docs say of the documented application.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProjectConfig {
+    /// The name of the application the web interface shows; unset or blank:
+    /// the name of the repository's directory.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+}
+
+impl ProjectConfig {
+    fn is_empty(&self) -> bool {
+        self.name.is_none()
+    }
+
+    /// The name of the application of the repository at `repo_root`: `name`
+    /// when set and not blank, else the name of that directory.
+    #[must_use]
+    pub fn name_or_directory(&self, repo_root: &Path) -> String {
+        match self.name.as_deref().map(str::trim) {
+            Some(name) if !name.is_empty() => name.to_string(),
+            _ => repo_root.file_name().map_or_else(
+                || repo_root.display().to_string(),
+                |name| name.to_string_lossy().into_owned(),
+            ),
+        }
+    }
 }
 
 /// `[rules]`: what the user puts back of what the rules pass set aside on a judgement of the LLM
@@ -581,6 +612,26 @@ impl Config {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // spec: WEB-62 (internal: the name is resolved before the server starts, which a test would have to stop)
+    #[test]
+    fn the_application_is_named_by_the_project_key_else_by_its_directory() {
+        let root = Path::new("/work/shop");
+        let named = |name: Option<&str>| ProjectConfig {
+            name: name.map(String::from),
+        };
+        assert_eq!(
+            named(Some(" Shop & Co ")).name_or_directory(root),
+            "Shop & Co"
+        );
+        assert_eq!(named(Some("  ")).name_or_directory(root), "shop");
+        assert_eq!(named(None).name_or_directory(root), "shop");
+        let config: Config = toml::from_str("[project]\nname = \"Shop\"\n").unwrap();
+        assert_eq!(config.project.name_or_directory(root), "Shop");
+        assert!(!toml::to_string(&Config::default())
+            .unwrap()
+            .contains("[project]"));
+    }
 
     #[test]
     fn default_config_roundtrips_through_toml() {

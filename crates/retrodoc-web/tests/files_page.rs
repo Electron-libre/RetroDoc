@@ -120,10 +120,15 @@ fn generated_repo() -> tempfile::TempDir {
 }
 
 async fn get(docs: Option<GeneratedDocs>, path: &str) -> (StatusCode, String) {
-    let response = retrodoc_web::router(docs, DocLinks::default(), Vec::new())
-        .oneshot(Request::get(path).body(Body::empty()).unwrap())
-        .await
-        .unwrap();
+    let response = retrodoc_web::router(
+        retrodoc_web::Project::default(),
+        docs,
+        DocLinks::default(),
+        Vec::new(),
+    )
+    .oneshot(Request::get(path).body(Body::empty()).unwrap())
+    .await
+    .unwrap();
     let status = response.status();
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await

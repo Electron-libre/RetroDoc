@@ -42,10 +42,15 @@ fn collected() -> Vec<ExistingDoc> {
 
 async fn get(path: &str) -> (StatusCode, String) {
     // No run: the collected docs are served all the same.
-    let response = retrodoc_web::router(None, DocLinks::default(), collected())
-        .oneshot(Request::get(path).body(Body::empty()).unwrap())
-        .await
-        .unwrap();
+    let response = retrodoc_web::router(
+        retrodoc_web::Project::default(),
+        None,
+        DocLinks::default(),
+        collected(),
+    )
+    .oneshot(Request::get(path).body(Body::empty()).unwrap())
+    .await
+    .unwrap();
     let status = response.status();
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
@@ -134,7 +139,11 @@ async fn the_front_matter_and_an_empty_heading_are_not_the_title() {
         path: PathBuf::from("docs/setup.md"),
         content: "---\ntitle: Old\nlayout: page\n---\n#\n\n## Setup\n\nRun it.\n".into(),
     }];
-    let response = retrodoc_web::router(None, DocLinks::default(), docs)
+    let project = retrodoc_web::Project {
+        name: "Shop".into(),
+        purpose: None,
+    };
+    let response = retrodoc_web::router(project, None, DocLinks::default(), docs)
         .oneshot(
             Request::get("/docs/docs/setup.md")
                 .body(Body::empty())
@@ -146,6 +155,6 @@ async fn the_front_matter_and_an_empty_heading_are_not_the_title() {
         .await
         .unwrap();
     let page = String::from_utf8(body.to_vec()).unwrap();
-    assert!(page.contains("<title>Setup · RetroDoc</title>"), "{page}");
+    assert!(page.contains("<title>Setup · Shop</title>"), "{page}");
     assert!(!article(&page).contains("layout"), "{page}");
 }

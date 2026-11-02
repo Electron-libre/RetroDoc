@@ -120,6 +120,7 @@ async fn get_with_headers(root: &Path, path: &str, headers: &[&str]) -> (StatusC
         request = request.header(*name, "true");
     }
     let response = retrodoc_web::router(
+        retrodoc_web::Project::default(),
         GeneratedDocs::load(root, &[]),
         DocLinks::default(),
         Vec::new(),

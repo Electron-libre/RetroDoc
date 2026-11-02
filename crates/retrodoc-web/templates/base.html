@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}{% endblock %} · RetroDoc</title>
+  <title>{% block title %}{% endblock %} · {{ shell.name }}</title>
   <link rel="stylesheet" href="/assets/style.css">
   <script src="/assets/htmx.min.js" defer></script>
   {% block scripts %}{% endblock %}
 </head>
 <body>
   <header class="top">
-    <a class="brand" href="/">RetroDoc</a>
+    <a class="brand" href="/">{{ shell.name }}</a>
     <a href="/files">Files</a>
     <a href="/glossary">Glossary</a>
     <a href="/rules">Rules</a>
@@ -22,11 +22,11 @@
   <div id="search-results">{% block results %}{% endblock %}</div>
   <div class="layout">
     <nav class="tree" aria-label="Domains, features and use cases">
-      {% if tree.is_empty() %}
+      {% if shell.tree.is_empty() %}
       <p class="muted">No domain yet.</p>
       {% else %}
       <ul>
-        {% for domain in tree %}
+        {% for domain in shell.tree %}
         <li>
           <details>
             <summary><a href="/domains/{{ domain.slug }}">{{ domain.name }}</a></summary>

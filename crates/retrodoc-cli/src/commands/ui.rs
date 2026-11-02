@@ -3,6 +3,8 @@ use std::path::Path;
 
 use anyhow::Context;
 use retrodoc_mcp::GeneratedDocs;
+use retrodoc_pipeline::brief::ProductBrief;
+use retrodoc_web::Project;
 
 use super::docs::{item_doc_links, project_docs};
 use super::workspace::Workspace;
@@ -18,6 +20,13 @@ pub async fn run(path: &Path, bind: SocketAddr) -> anyhow::Result<()> {
     let docs = project_docs(&workspace.repo_root, &workspace.config)?;
     let generated = GeneratedDocs::load(&workspace.repo_root, &docs);
     let links = item_doc_links(&workspace.repo_root, &workspace.config, &docs);
+    let project = Project {
+        name: workspace
+            .config
+            .project
+            .name_or_directory(&workspace.repo_root),
+        purpose: ProductBrief::load(&workspace.repo_root).map(|brief| brief.purpose.text),
+    };
     if generated.is_none() {
         tracing::warn!("no features found — run `retrodoc generate`, then restart `retrodoc ui`");
     }
@@ -29,7 +38,7 @@ pub async fn run(path: &Path, bind: SocketAddr) -> anyhow::Result<()> {
         .with_context(|| format!("could not listen on {bind}"))?;
     let address = listener.local_addr()?;
     println!("Serving the docs at http://{address}/ (Ctrl+C to stop)");
-    retrodoc_web::serve(listener, generated, links, docs)
+    retrodoc_web::serve(listener, project, generated, links, docs)
         .await
         .context("the web server stopped")
 }

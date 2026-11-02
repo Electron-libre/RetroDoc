@@ -140,6 +140,12 @@ over browses its domains, features and use cases rather than reading the Markdow
   to a use case of its row, each a link to its item on the page of its feature.
 - **WEB-61** (deterministic) On the page of a cited file, a rule that cites it must link to its item on the page of
   its feature (`#rule-<slug>`).
+- **WEB-62** (deterministic) The name of the application must be the `name` of the `[project]` section of
+  `retrodoc.toml` when it is set and not blank, else the name of the directory of the repository.
+- **WEB-63** (deterministic) Every page must show the name of the application in its header and end its title with
+  ` · <name>`.
+- **WEB-64** (deterministic) The home page must have the name of the application as its heading and, when the product
+  brief of the last run has a purpose, show that purpose under it.
 
 ## Scenarios
 
@@ -210,6 +216,12 @@ over browses its domains, features and use cases rather than reading the Markdow
 - (WEB-59) Given an actor that both starts a use case and takes part in one of its steps, then the use case is linked
   once, marked as started.
 - (WEB-53, WEB-57) Given a repository with no run yet, then both pages say to run `retrodoc generate`.
+- (WEB-62) Given `name = "  "` under `[project]`, then the name is that of the repository's directory.
+- (WEB-63) Given a repository with no run yet, then the page that says to run `retrodoc generate` names the
+  application too.
+- (WEB-64) Given a run whose brief was not written (`product.yaml` missing), then the home page shows the name and the
+  domains, with no purpose.
+
 ## Non-goals
 
 - No synonym matching nor search-as-you-type: the search is that of `retrodoc search` (`specs/docs-search.md`).
@@ -223,4 +235,6 @@ over browses its domains, features and use cases rather than reading the Markdow
 - The rules page has no free-text filter: the search covers the rules (WEB-40).
 - No authentication nor several repositories: the server is for the local user (a hosted mode needs its own ADR).
 - No LLM call and no edit of the docs.
+- The name of the application is not asked of the LLM, nor read from the `origin` remote; the Markdown render and the
+  MCP answers don't carry it.
 - The docs are read once at start: the pages of a `generate` run while the server runs show after a restart of `ui`.

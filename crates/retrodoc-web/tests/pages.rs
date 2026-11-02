@@ -11,6 +11,7 @@ use retrodoc_mcp::GeneratedDocs;
 use retrodoc_pipeline::cache::hash_content;
 use retrodoc_pipeline::{DomainCluster, DomainMap, SourceHashes};
 use retrodoc_render::DocLinks;
+use retrodoc_web::Project;
 use tower::ServiceExt;
 
 fn feature(slug: &str, domain: &str, confidence: f32, path: &str) -> Feature {
@@ -101,8 +102,24 @@ fn load(root: &Path) -> Option<GeneratedDocs> {
     GeneratedDocs::load(root, &[])
 }
 
+/// The application the pages of these tests document.
+fn shop() -> Project {
+    Project {
+        name: "Shop and Co".into(),
+        purpose: Some("Sells <b>goods</b> online".into()),
+    }
+}
+
 async fn get(docs: Option<GeneratedDocs>, path: &str) -> (StatusCode, String, Option<String>) {
-    let response = retrodoc_web::router(docs, DocLinks::default(), Vec::new())
+    get_project(shop(), docs, path).await
+}
+
+async fn get_project(
+    project: Project,
+    docs: Option<GeneratedDocs>,
+    path: &str,
+) -> (StatusCode, String, Option<String>) {
+    let response = retrodoc_web::router(project, docs, DocLinks::default(), Vec::new())
         .oneshot(Request::get(path).body(Body::empty()).unwrap())
         .await
         .unwrap();
@@ -244,6 +261,62 @@ async fn a_repository_with_no_run_gets_a_page_saying_to_run_generate() {
     assert!(page.contains("<code>retrodoc generate</code>"), "{page}");
 }
 
+/// The text of the `<title>` of `page`.
+fn title(page: &str) -> &str {
+    let start = page.find("<title>").unwrap() + "<title>".len();
+    &page[start..start + page[start..].find("</title>").unwrap()]
+}
+
+// spec: WEB-63
+#[tokio::test]
+async fn every_page_names_the_application_in_its_header_and_title() {
+    let repo = generated_repo();
+    let empty = tempfile::tempdir().unwrap();
+    for (docs, path) in [
+        (load(repo.path()), "/"),
+        (load(repo.path()), "/domains/billing"),
+        (load(repo.path()), "/glossary"),
+        (load(repo.path()), "/no-such-page"),
+        (load(empty.path()), "/"),
+    ] {
+        let (_, page, _) = get(docs, path).await;
+        assert!(
+            title(&page).ends_with(" · Shop and Co"),
+            "{path}: {}",
+            title(&page)
+        );
+        let header = &page[page.find("<header").unwrap()..page.find("</header>").unwrap()];
+        assert!(header.contains("Shop and Co"), "{path}: {header}");
+    }
+}
+
+// spec: WEB-64
+#[tokio::test]
+async fn the_home_page_is_headed_by_the_application_and_its_purpose() {
+    let repo = generated_repo();
+    let page = home(repo.path()).await;
+    let main = &page[page.find("<main>").unwrap()..];
+    assert!(main.contains("<h1>Shop and Co</h1>"), "{main}");
+    assert!(main.contains("class=\"purpose\">Sells "), "{main}");
+    assert!(!main.contains("<b>goods"), "{main}");
+    assert!(row(&page, "billing").contains("Billing"));
+}
+
+// spec: WEB-64
+#[tokio::test]
+async fn a_brief_with_no_purpose_leaves_the_home_page_with_the_name_and_domains() {
+    let repo = generated_repo();
+    let project = Project {
+        name: "Shop".into(),
+        purpose: None,
+    };
+    let (_, page, _) = get_project(project, load(repo.path()), "/").await;
+    let main = &page[page.find("<main>").unwrap()..];
+    assert!(main.contains("<h1>Shop</h1>"), "{main}");
+    assert!(!main.contains("class=\"purpose\""), "{main}");
+    assert!(row(&page, "billing").contains("Billing"));
+}
+
 // spec: WEB-10
 #[tokio::test]
 async fn the_text_of_the_docs_is_escaped() {
@@ -321,7 +394,7 @@ async fn serving_the_pages_writes_nothing_in_the_repository() {
 
 async fn status_with_host(host: &str) -> StatusCode {
     let repo = generated_repo();
-    retrodoc_web::router(load(repo.path()), DocLinks::default(), Vec::new())
+    retrodoc_web::router(shop(), load(repo.path()), DocLinks::default(), Vec::new())
         .oneshot(
             Request::get("/")
                 .header("host", host)

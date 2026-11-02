@@ -1,7 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Domains{% endblock %}
 {% block content %}
-<h1>Domains</h1>
+<h1>{{ shell.name }}</h1>
+{% if let Some(purpose) = purpose %}
+<p class="purpose">{{ purpose }}</p>
+{% endif %}
+<h2>Domains</h2>
 {% if domains.is_empty() %}
 <p>The last run generated no domain.</p>
 {% else %}
