@@ -51,8 +51,9 @@ enum ActorShape {
 /// without an actor, or "references" that are just notes, and a model may mix
 /// the shape asked for (`actor` name, `text`, `code`) with the one before
 /// (`actor` object, `description`, `action`, `source_refs`), even in one step.
-/// Incomplete steps are dropped and incomplete references ignored, rather than
-/// rejecting the whole answer.
+/// A step with no actor is done by the use case's primary actor (a step may be
+/// its text alone). Incomplete steps are dropped and incomplete references
+/// ignored, rather than rejecting the whole answer.
 #[derive(Debug)]
 pub(super) struct RawStep {
     /// The one text of the step (`text`), else its `description`.
@@ -92,8 +93,17 @@ where
     };
     Ok(steps
         .iter()
-        .filter_map(serde_json::Value::as_object)
-        .map(RawStep::of)
+        .filter_map(|step| match step {
+            serde_json::Value::Object(step) => Some(RawStep::of(step)),
+            // A step written as its text alone: its actor is the use case's primary actor.
+            serde_json::Value::String(text) => Some(RawStep {
+                description: text.clone(),
+                actor: None,
+                action: None,
+                code: Vec::new(),
+            }),
+            _ => None,
+        })
         .collect())
 }
 
@@ -191,10 +201,20 @@ pub(super) fn grounded_use_cases(
     actors: &Actors,
 ) -> Vec<UseCase> {
     let mut produced: Vec<UseCase> = Vec::new();
-    for raw_use_case in raw.use_cases {
+    for mut raw_use_case in raw.use_cases {
         if raw_use_case.steps.is_empty() {
-            tracing::warn!(use_case = %raw_use_case.slug, "use case dropped: no steps");
+            if raw_use_case.slug.trim().is_empty() && raw_use_case.name.trim().is_empty() {
+                // A placeholder the model pads its answer with: nothing is lost.
+                tracing::info!("use case dropped: empty");
+            } else {
+                tracing::warn!(use_case = %raw_use_case.slug, "use case dropped: no steps");
+            }
             continue;
+        }
+        if let Some(primary) = raw_use_case.primary_actor.as_deref() {
+            for step in raw_use_case.steps.iter_mut().filter(|s| s.actor.is_none()) {
+                step.actor = actor_of(&serde_json::Value::String(primary.to_string()));
+            }
         }
         let taken = existing
             .iter()

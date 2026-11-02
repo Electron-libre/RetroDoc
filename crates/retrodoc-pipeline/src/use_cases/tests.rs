@@ -926,6 +926,76 @@ async fn a_human_actor_outside_the_known_list_is_kept_and_only_an_info() {
     assert!(!logs.contains("WARN"), "{logs}");
 }
 
+#[tokio::test]
+async fn steps_written_as_plain_texts_are_done_by_the_primary_actor() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.rs"), "fn a() {}\n").unwrap();
+    let provider = FakeLlm::answering(
+        r#"{"use_cases":[{"slug":"order","name":"Order","description":"d",
+          "primary_actor":"System","steps":["Takes the order.","Sends the receipt."]}]}"#,
+    );
+
+    let use_cases = build_use_cases(
+        dir.path(),
+        &[feature("ordering", &["a.rs"])],
+        &reading(dir.path()),
+        &provider,
+        1,
+    )
+    .await
+    .unwrap();
+
+    let steps: Vec<(&str, &str)> = use_cases[0]
+        .steps
+        .iter()
+        .map(|s| (s.actor.name.as_str(), s.description.as_str()))
+        .collect();
+    assert_eq!(
+        steps,
+        [
+            ("System", "Takes the order."),
+            ("System", "Sends the receipt.")
+        ]
+    );
+}
+
+#[tokio::test]
+async fn an_empty_placeholder_is_an_info_and_a_use_case_with_no_step_a_warning() {
+    let (logs, _guard) = crate::testing::capture_logs();
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("a.rs"), "fn a() {}\n").unwrap();
+    let provider = FakeLlm::answering(
+        r#"{"use_cases":[{"slug":"","name":"","steps":[]},
+          {"slug":"pay","name":"Pay","description":"d","steps":[]}]}"#,
+    );
+
+    let use_cases = build_use_cases(
+        dir.path(),
+        &[feature("paying", &["a.rs"])],
+        &reading(dir.path()),
+        &provider,
+        1,
+    )
+    .await
+    .unwrap();
+
+    assert!(use_cases.is_empty());
+    let logs = logs.text();
+    let dropped: Vec<&str> = logs
+        .lines()
+        .filter(|l| l.contains("use case dropped"))
+        .collect();
+    assert_eq!(dropped.len(), 2, "{logs}");
+    assert!(
+        dropped[0].contains("INFO") && dropped[0].contains("empty"),
+        "{logs}"
+    );
+    assert!(
+        dropped[1].contains("WARN") && dropped[1].contains("use_case=pay"),
+        "{logs}"
+    );
+}
+
 /// A text field the model returns as an object (typically `primary_actor` copied from the
 /// shape of a step's `actor`) costs that field, not the feature, and without a retry.
 #[tokio::test]

@@ -80,7 +80,7 @@ about 23 runs passed through the sources pass, 44 through the business files and
 ## Plan
 1. [x] Business paths: an existing file that is no source (a template) is ignored at `info` ("not a source
    file"); an invented path is `info` when the map keeps at least one entry (the empty map already warns); verified by `capture_logs` tests in `business_files/tests.rs`.
-2. [ ] Use cases without steps: steps written as plain strings are read as the step's text; a use case left
+2. [x] Use cases without steps: steps written as plain strings are read as the step's text; a use case left
    with no step stays a `warn`, an entry with no slug, no name and no step (an empty placeholder) is `info`;
    verified by tests in `use_cases/tests.rs`.
 3. [ ] Surface passes: "entry points no feature claimed" is `info` at the slice, and a `warn` per domain only
@@ -111,3 +111,22 @@ red: none traced (no spec): `an_ignored_path_is_info_while_the_map_keeps_an_entr
 Code review: no findings
 
 not verified: no smoke run (decided: no new LLM run).
+
+## Deliverable 2: use cases without steps
+
+done: a step written as its text alone is read; a step with no actor is done by the use case's
+`primary_actor` (the object steps too, before dropped with "no actor"); an empty placeholder is dropped at
+`info`, a named use case with no step stays a `warn`.
+
+| check | result |
+|---|---|
+| tests | `just check` green |
+| docs | `docs/crates/pipeline.md`, doc of `RawStep` |
+| code review | low, see below |
+
+red: none traced (no spec): the plain-text steps test panicked on `use_cases[0]` (the use case dropped), the
+placeholder test on its `WARN … no steps use_case=` line
+
+Code review: no findings
+
+not verified: no smoke run (decided: no new LLM run); the cause of the empty slugs of 2026-10-14 stays unknown (raw answers not logged).
