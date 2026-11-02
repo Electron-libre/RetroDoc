@@ -66,11 +66,17 @@ pub fn plan(docs_dir: &Path, mut files: Vec<RenderedFile>) -> Result<WritePlan, 
     }
 
     // The metadata carries a timestamp: when it is the only thing that
-    // changed, and so is the only file to rewrite, leave it alone.
+    // changed, and so is the only file to rewrite, leave it alone. The record
+    // alone changing (its first write by a version that keeps it) is no
+    // change of the docs either.
     let only_metadata_differs = planned
         .iter()
         .filter(|p| p.status != FileStatus::Unchanged)
-        .all(|p| p.file.path == Path::new(METADATA_PATH));
+        .all(|p| {
+            [METADATA_PATH, RENDERED_PAGES_PATH]
+                .map(Path::new)
+                .contains(&p.file.path.as_path())
+        });
     if only_metadata_differs {
         for p in &mut planned {
             if p.file.path == Path::new(METADATA_PATH) && same_but_timestamp(docs_dir, &p.file) {
@@ -89,9 +95,13 @@ pub fn plan(docs_dir: &Path, mut files: Vec<RenderedFile>) -> Result<WritePlan, 
     )?;
     not_produced.sort();
     let (removed, stale) = not_produced.into_iter().partition(|path| {
-        recorded.get(&record_key(path)).is_some_and(|hash| {
-            std::fs::read(docs_dir.join(path)).is_ok_and(|content| *hash == hash_of(&content))
-        })
+        let abs = docs_dir.join(path);
+        // A symlink is never removed: its target may be outside the docs.
+        let regular = std::fs::symlink_metadata(&abs).is_ok_and(|m| m.file_type().is_file());
+        regular
+            && recorded.get(&record_key(path)).is_some_and(|hash| {
+                std::fs::read(&abs).is_ok_and(|content| *hash == hash_of(&content))
+            })
     });
 
     Ok(WritePlan {
@@ -170,13 +180,13 @@ fn collect_markdown(
         }
     };
     for entry in entries {
-        let path = entry
-            .map_err(|source| RenderError::Read {
-                path: dir.to_path_buf(),
-                source,
-            })?
-            .path();
-        if path.is_dir() {
+        let entry = entry.map_err(|source| RenderError::Read {
+            path: dir.to_path_buf(),
+            source,
+        })?;
+        let path = entry.path();
+        // A symlinked folder is not walked: what it holds is not the docs'.
+        if entry.file_type().is_ok_and(|t| t.is_dir()) {
             collect_markdown(&path, docs_dir, produced, out)?;
         } else if path.extension().is_some_and(|e| e == "md") {
             if let Ok(rel) = path.strip_prefix(docs_dir) {
@@ -244,9 +254,9 @@ impl WritePlan {
         out
     }
 
-    /// Writes the created and updated files under `docs_dir` and removes the
-    /// [`removed`](Self::removed) ones, with the folders under `functional/`
-    /// they leave empty; returns how many files were written. Unchanged files
+    /// Removes the [`removed`](Self::removed) files, with the folders under
+    /// `functional/` they leave empty, then writes the created and updated
+    /// files under `docs_dir`; returns how many files were written. Unchanged files
     /// are not touched (mtime included).
     ///
     /// # Errors
@@ -254,6 +264,17 @@ impl WritePlan {
     /// Returns an error if a folder can't be created, a file written or a
     /// file removed.
     pub fn apply(&self, docs_dir: &Path) -> Result<usize, RenderError> {
+        // Removals first: should one fail, the record of the last run is
+        // still there, so the next run removes the page again.
+        for path in &self.removed {
+            let abs = docs_dir.join(path);
+            match std::fs::remove_file(&abs) {
+                Ok(()) => {}
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(source) => return Err(RenderError::Remove { path: abs, source }),
+            }
+            remove_empty_parents(&abs, &docs_dir.join(FUNCTIONAL_DIR));
+        }
         let mut written = 0;
         for p in &self.files {
             if p.status == FileStatus::Unchanged {
@@ -269,14 +290,6 @@ impl WritePlan {
             std::fs::write(&abs, &p.file.content)
                 .map_err(|source| RenderError::Write { path: abs, source })?;
             written += 1;
-        }
-        for path in &self.removed {
-            let abs = docs_dir.join(path);
-            std::fs::remove_file(&abs).map_err(|source| RenderError::Remove {
-                path: abs.clone(),
-                source,
-            })?;
-            remove_empty_parents(&abs, &docs_dir.join(FUNCTIONAL_DIR));
         }
         Ok(written)
     }
@@ -402,5 +415,51 @@ mod tests {
         assert!(!dir.path().join("functional/old/README.md").exists());
         assert!(dir.path().join("functional/old/edited.md").exists());
         assert!(dir.path().join("functional").is_dir());
+    }
+
+    // spec: RND-6 (internal: docs written by a version without the record can't be built through the binary)
+    #[test]
+    fn the_first_record_alone_keeps_the_metadata_of_up_to_date_docs() {
+        let dir = tempfile::tempdir().unwrap();
+        let old = r#"{"model":"m","commit":"c","generated_at":"2026-01-01T00:00:00Z"}"#;
+        let new = old.replace("2026-01-01", "2026-02-02");
+        std::fs::create_dir_all(dir.path().join("_retrodoc")).unwrap();
+        std::fs::write(dir.path().join(METADATA_PATH), old).unwrap();
+
+        let planned = plan(dir.path(), vec![file(METADATA_PATH, &new)]).unwrap();
+
+        let changed: Vec<_> = planned
+            .files
+            .iter()
+            .filter(|p| p.status != FileStatus::Unchanged)
+            .map(|p| p.file.path.clone())
+            .collect();
+        assert_eq!(changed, vec![PathBuf::from(RENDERED_PAGES_PATH)]);
+    }
+
+    // spec: RND-2 (internal: a symlink in the docs is not built from artifacts)
+    #[cfg(unix)]
+    #[test]
+    fn never_removes_through_a_symlink() {
+        let dir = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        std::fs::write(outside.path().join("x.md"), "a").unwrap();
+        std::fs::create_dir_all(dir.path().join("functional")).unwrap();
+        std::os::unix::fs::symlink(outside.path(), dir.path().join("functional/shared")).unwrap();
+        std::os::unix::fs::symlink(
+            outside.path().join("x.md"),
+            dir.path().join("functional/y.md"),
+        )
+        .unwrap();
+        let record =
+            r#"{"functional/shared/x.md":"H","functional/y.md":"H"}"#.replace('H', &hash_of(b"a"));
+        std::fs::create_dir_all(dir.path().join("_retrodoc")).unwrap();
+        std::fs::write(dir.path().join(RENDERED_PAGES_PATH), record).unwrap();
+
+        let planned = plan(dir.path(), Vec::new()).unwrap();
+        planned.apply(dir.path()).unwrap();
+
+        assert_eq!(planned.removed, Vec::<PathBuf>::new());
+        assert!(outside.path().join("x.md").exists());
     }
 }

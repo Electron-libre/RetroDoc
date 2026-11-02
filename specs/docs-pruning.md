@@ -36,6 +36,6 @@ since is kept and reported.
 
 ## Non-goals
 
-- Removing files outside `functional/`, or files other than Markdown pages.
+- Removing files outside `functional/`, files other than Markdown pages, a symlink or what a symlinked folder holds.
 - Keeping a hand edit of a page the run still produces: it is overwritten, as before.
 - A flag to remove the pages that were edited by hand.
