@@ -1,12 +1,13 @@
 ---
 name: issue-workflow
-description: Drive an issue file from `issues/` to done in validated deliverables (understanding, spec and plan written in the issue then validated in one stop, then per deliverable test, code, docs, review, human validation, issue update, commit). Use when the user hands over an issue file (e.g. `issues/foo.md`) or says to start, continue or resume an issue, so the process doesn't have to be re-explained in each prompt.
+description: Drive an issue file from `issues/` to done in validated deliverables (understanding, spec and plan written in the issue then validated in one stop, then per deliverable test, code, docs, review, human validation, issue update, commit). Use when the user hands over an issue file (e.g. `issues/foo.md`) or says to start, continue or resume an issue, or hands over the next few issues of the queue to chain, so the process doesn't have to be re-explained in each prompt.
 ---
 
 # Work an issue
 
 The user hands over an issue file in `issues/`. Never skip a validation stop: they are what makes the autonomy safe.
 The only ones the user can lift are those of step 3.6 and 3.8, through the Autonomous mode.
+Handed the next few issues of the queue to chain, follow [details.md](details.md), "Drive a queue".
 
 ## 0. Resume or start
 
@@ -17,8 +18,9 @@ issues/<name>.md`; when it refuses (another session's claim, uncommitted changes
 commands (another session works in this worktree), stop and tell the user what it names. In the main worktree, also
 stop when a branch `<stem>` exists (an issue worktree of the former `start-issue`). Details: [details.md](details.md).
 
-Read the issue file. No `# Tracking` section: start at step 1. If `# Tracking` says `Plan: proposed`, the plan was never
-validated: redo the stop of step 2. Otherwise (`Plan: validated`, or no marker: planned before it existed) show where it stands in two `next` / `left` lines (the next unchecked
+Read the issue file. A `Queue:` line in its `## Decisions`, `Plan: validated` and a plan of that queue not all ticked: resume the queue ([details.md](details.md), "Drive a
+queue"). No `# Tracking` section: start at step 1. If `# Tracking` says `Plan: proposed`, the plan was never
+validated: redo the stop of step 2. Otherwise (`Plan: validated`, signed or not, or no marker: planned before it existed) show where it stands in two `next` / `left` lines (the next unchecked
 deliverable with the recorded mode, the deliverables left by name) and continue at step 3 in the mode recorded there (none recorded:
 validation at each deliverable), unless the issue changes a capability whose spec is missing, still `draft` with no validated
 requirements, or not named in its `# Specs` section: then write the spec as step 1 says, keeping `# Tracking` as it is, and validate it (step 2) first. A plan whose
@@ -34,7 +36,8 @@ the console only shows the link and the questions.
 - **Delegate only a wide search** (a hunt through the whole history, not the `git log` of a resource; many files of a
   large repository) to a read-only `Explore` subagent asking for the paths and lines behind its conclusion; read back
   only those a decision rests on. Everything else stays in the main thread.
-- **Spec**, when the issue changes what a capability does (skip it for docs, harness, pure refactor, a measure): run
+- **Spec**, when the issue changes what a capability does, in a project that has `specs/README.md` (skip it for docs,
+  harness, pure refactor, a measure): run
   `skill:write-spec` up to its format check (requirements with stable ids, `deterministic`, left `draft`, a
   `[NEEDS CLARIFICATION: ...]` marker where you would guess); don't do its validation stop: step 2 replaces it. The
   tests of step 3 come from these requirements, not the other way round.
@@ -82,14 +85,16 @@ Show, and nothing else:
 
 **Wait for the user.** Apply their answers and corrections to the files (the answers go to `## Decisions`). When an
 answer changes the plan itself (deliverables, their order) rather than a detail, show the new plan lines and stop
-again. Then set `Plan: validated` and the base commit. The spec file is the record of the requirements; `## Decisions` doesn't copy them.
+again. Then set `Plan: validated by <name> <<email>> on <YYYY-MM-DD>` (the `user.name` and `user.email` of `git config`, today's
+date; either unset: ask the user, never guess one) and the base commit. The signature states who validated, it proves
+nothing: the agent reads that identity too. The spec file is the record of the requirements; `## Decisions` doesn't copy them.
 
 ## 3. For each deliverable, in order
 
 1. **Gather**: read the code and docs it touches (a wide search delegated as in step 1); ask about missing
    information (one batch of questions).
 2. **Test first**: write a behavior or end-to-end test that fails for the right reason. When the capability has a
-   spec, the test proves a requirement and carries `// spec: ABC-n` (placement in `specs/README.md`), through the
+   spec and the project has `specs/README.md`, the test proves a requirement and carries `// spec: ABC-n` (placement in `specs/README.md`), through the
    binary when that is cheap and stable, else internal with its reason, `// spec: ABC-n (internal: <reason>)`; the
    deliverable that traces the last untraced requirement sets the spec `accepted`. Follow the test
    conventions of the project (the `test_conventions` note of `.claude/cardinal.toml` says where they are written). Write
@@ -107,7 +112,7 @@ again. Then set `Plan: validated` and the base commit. The spec file is the reco
    Re-run `just check` after the fixes.
    The native `pre-commit` hook (`cardinal run review-gate native`) enforces it: `git commit` fails while the diff holds a file
    the last review never saw, so write the tracking and the summary of steps 6 and 7 in the issue **before**
-   the review (fixes to reviewed files pass; a diff under `issues/` only, or the close of an issue with the references `close-issue` rewrote, needs no review). Only the user can
+   the review, all but the signature of step 7, which waits for the validation of step 6 (fixes to reviewed files pass; a diff under `issues/` only, or the close of an issue with the references and the milestone state `close-issue` rewrote, needs no review). Only the user can
    waive the review: never do it yourself ([details.md](details.md), "Review waiver").
 6. **Human review (STOP, except in autonomous mode)**: show one line `done` (what changed, not the diff), a table `check | result` (tests, lint, specs, docs, code
    review), one line `red:` opening with the ids its tests trace, then the failure message the test of step 3.2 gave before
@@ -115,9 +120,11 @@ again. Then set `Plan: validated` and the base commit. The spec file is the reco
    deliverable with no test), then the line `Code review: <n> findings` (`Code review: no findings` if it came back clean; the
    count first, `cardinal run delivered-quality` reads it) with what was done about each, then the lists `not verified` (state it plainly) and `decisions needed`, empty when nothing applies. Wait for the
    user's validation. Don't commit before it. In autonomous mode, write this summary in the issue and go on.
-7. **Track**: tick the deliverable in the issue's `# Tracking` and note decisions or follow-ups.
-8. **Commit**: after validation (autonomous mode: right after step 7), run `skill:commit-message` (message per `AGENTS.md`, validated by its
-   checker). Commit only the files of this deliverable (leave unrelated or personal files such as
+7. **Track**: tick the deliverable in the issue's `# Tracking`, ending its line with who validated it at step 6 (`(validated by
+   <name> <<email>> on <YYYY-MM-DD>)`) or `(autonomous)` in autonomous mode, and note decisions or follow-ups.
+8. **Commit**: after validation (autonomous mode: right after step 7), run `skill:commit-message` (message per the project's convention,
+   validated by its checker), with the trailer `Validated-by: <name> <<email>>` of step 7 for a deliverable a person
+   validated, none for an autonomous one. Commit only the files of this deliverable (leave unrelated or personal files such as
    `settings.local.json`) and report the hash. If the user wants to commit themselves, output
    just the message.
 
@@ -135,7 +142,8 @@ can switch it at any time.
 
 - **Lifted**: step 3.6 stops and the wait before step 3.8. Write the 3.6 summary in the issue instead, then commit
   locally and chain into the next deliverable.
-- **Never lifted**: the review of step 3.5 and its checks, the `high` review of the whole issue, the stop of step 2;
+- **Never lifted**: the review of step 3.5 and its checks, the `high` review of the whole issue, the stop of step 2
+  (in a queue: grouped, never lifted);
   no push, deletion or history rewrite unasked.
 - **Stops the chain**: a blocking question, a decision the summary needs from the user, a review finding you can't
   settle, a failing check you can't fix (never commit or build on a red base). After the last deliverable, give the
@@ -147,7 +155,8 @@ When an advisor tool is available, consult it at these moments:
 
 - the plan written in `# Tracking`, before the stop of step 2 (on a resume or a re-stop, only if the plan changed);
 - a test or a check still red after a fix (step 3.3 or 3.5), before trying another approach;
-- after the `update-docs` of the whole issue, before its `high` review.
+- after the `update-docs` of the whole issue, before its `high` review;
+- the stale plan check of a queue that finds an overlap ([details.md](details.md), "Drive a queue"), before going on.
 
 Follow the advice unless a step fails empirically or primary evidence (code, test output, the spec) contradicts it;
 then consult once more to reconcile. The advisor never replaces a review or a stop. No minimum number of calls.
@@ -160,15 +169,21 @@ back" (close on the branch, push it, open or update its pull request).
 
 ## Rules
 
-- After a `cardinal sync` that adds a hook, run `just check-cardinal` at once and the `cargo install` it prints: the
+- After a `cardinal sync` that adds a hook, run `just check-cardinal` at once and the install it prints: the
   live hooks call the installed `cardinal`, and one it refuses blocks every command, the install included.
 - When the issue is fully done, mark it in the issue and say what, if anything, remains. Then **ask the
   user whether to close it** (on a branch other than the trunk, see "Merge back"); on their agreement run `just close-issue issues/<name>.md` (moves it to
   `issues/done/` and rewrites `issues/<name>.md` to
-  `issues/done/<name>.md` in every other document that cites it, relative Markdown links included) and include the
-  move and those edits in the final commit. Never move it unasked. When it was the last open issue of its milestone
-  in the `roadmap` documents of `.claude/cardinal.toml`, set that milestone `done` in the same commit, then propose a
-  release to the user (`just release` prints the version it would number): theirs to trigger.
+  `issues/done/<name>.md` in every other document that cites it, relative Markdown links included) and stages the
+  move and those edits; commit the close on its own with a bare `git commit`, never a `git add` of the old path, which
+  git refuses (a file it names `staged before the close:` goes in too: unstage it first unless it belongs to the close;
+  one named `not staged:` held changes of yours and stays out). Never move it unasked. When it was the last open issue of its milestone,
+  `close-issue` sets that milestone `done` itself and prints `milestone <name> done in <document>` (never edit the
+  `State:` line yourself: the commit gate lets only the tool's edit through); on that line, propose a release to
+  the user (`cardinal run release` with no argument prints the version it would number, without a prompt in auto
+  mode; not `just release`, a recipe the project may redefine) and stop: theirs to validate. On their go, run
+  `cardinal run release <version>` (a permission prompt, also in auto mode), let them reread the section, commit it
+  after its `low` review (the gate asks for it), then run `cardinal run release <version> --tag`; they push.
   The report of the close ends on a Markdown link to the next issue `close-issue` printed
   (`[<title>](issues/<stem>.md)`), or on its line saying there is none.
 - To know which issue comes next, run `just next-issue` (the first ready issue, its `depends_on` all done, that

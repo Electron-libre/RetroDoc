@@ -1,8 +1,5 @@
 # Reports to the user
 
-Talk to the user in the `user_language` of `.claude/cardinal.local.toml`, else of `.claude/cardinal.toml`; what the
-agent writes in the repository keeps the language the project requires.
-
 What the agent shows the user (stops, summaries, final report) is read at a glance:
 
 - Facts go in a table or a checklist, one fact per line; prose only for a decision the user must take.

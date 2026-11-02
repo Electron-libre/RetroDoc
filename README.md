@@ -165,7 +165,7 @@ just test-skill-scripts   # test the scripts of the smoke-test and quality-bench
 
 CI runs the Rust checks and the tests of the skill scripts (`.github/workflows/ci.yml`) and, from Cardinal (the shared harness), the specs, the synced files and the commit messages of pull requests (`.github/workflows/cardinal.yml`).
 
-Commit messages follow Conventional Commits, see [AGENTS.md](./AGENTS.md). Agent-specific guidance is in
+Commit messages follow Conventional Commits, see [.claude/skills/commit-message/conventional-commits.md](./.claude/skills/commit-message/conventional-commits.md). Agent-specific guidance is in
 [CLAUDE.md](./CLAUDE.md).
 
 ## License

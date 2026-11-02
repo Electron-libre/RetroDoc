@@ -33,7 +33,8 @@ Several issues may share a worktree, one after the other; the worktree outlives 
   worktree whose session ended. A new claim needs the worktree clean outside `issues/`.
 - **Lock**: the `workspace-lock` hooks keep one live session per worktree; a second one has its edits and commands
   refused. A crashed session's lock is freed when its process is gone, and the lock of a session with no work in
-  progress (a clean worktree, no issue claimed) goes to the next session that acts.
+  progress (a clean worktree, no issue claimed) goes to the next session that acts. A project that never runs two
+  sessions in one worktree turns the feature `workspace-lock` off; the claim stays.
 - **Hooks** act on the work tree of their `cwd` (`lint-gate`, `review-gate`; `format-code` formats the project of the
   edited file); `cardinal run` finds the `cardinal.toml` of the worktree and runs the tools of the revision it pins
   (with a local source, those of the worktree's own crate). The session's project is the worktree: its hooks are
@@ -44,10 +45,10 @@ Several issues may share a worktree, one after the other; the worktree outlives 
 On a branch other than the trunk, once the user agreed to close the issue:
 
 1. `just close-issue issues/<name>.md` on the branch: the claim becomes `merge pending` until the trunk holds the
-   close. Commit the move with the last tracking (the milestone set `done` when this was its last open issue, as the
-   Rules of `SKILL.md` say; a `low` review when `close-issue` rewrote documents outside `issues/`).
+   close. Commit what it staged (the move with the last tracking and what it rewrote, the milestone it set `done`
+   included) with a bare `git commit`, as the Rules of `SKILL.md` say; the commit needs no review.
 2. Run `just check-cardinal`: when it names a hook the installed `cardinal` refuses (the branch adds a subcommand the
-   hooks call), run the `cargo install` it prints before going on. After the merge the hooks of the main worktree
+   hooks call), run the install it prints before going on. After the merge the hooks of the main worktree
    call it too, and one the installed `cardinal` refuses blocks every command, the install included.
 3. Push the branch to the remote the trunk tracks (`git push -u <remote> <branch>`), then, with the host's CLI (`gh`
    on GitHub: `gh pr list --head <branch>`), open the pull request to the trunk when the branch has none, titled after
@@ -59,3 +60,45 @@ On a branch other than the trunk, once the user agreed to close the issue:
 
 `close-issue` refuses an issue of another worktree named by path. `close-worktree` refuses inside the worktree it would remove, and a branch whose work is not
 on the main branch unless `--force`.
+
+## Drive a queue
+
+When the user hands over the next few issues ("the next 2 issues", "chain the queue"), the session drives them one
+after the other, with no orchestrator subagent (ADR 0026): the reviews, the gates and the claims work as for one issue.
+A queue holds 3 issues at most, the number the user gave if smaller.
+
+1. **Take**: on a clean worktree, run `just next-issue`, claim the issue it offers (`cardinal run issue-claim`), and
+   repeat until the queue is full: a claimed issue is skipped, so the next run offers the next ready one, never a
+   blocked one. Take every claim before writing any file (a new claim needs a clean worktree, CLM-9).
+2. **Prepare**: step 1 for each issue, in order. Each plan adds to its `## Decisions` a line `Rests on:` naming the
+   spec ids, ADRs and files it reads or changes, and a line `Queue: <stem>, <stem>...` naming the queue in order.
+3. **One grouped stop**: the stop of step 2 for every issue at once, the links and summaries issue by issue, then one
+   questions table numbered across the queue, with the mode of each issue. Cross the `Rests on:` of each plan with
+   what the plans before it change, and raise each overlap as a question (keep, drop the issue from the queue,
+   reorder). Ask also whether to close each issue as soon as it is done (recommended: `delivered-quality` then counts
+   the work of each issue apart; else one close request at the end). The stop is grouped, never lifted. Apply the
+   answers and sign each plan as step 2 says; a dropped issue keeps `Plan: proposed`, loses its own `Queue:` line and leaves those of the others.
+   Then commit the issue files and the spec and ADR drafts of the whole queue in one commit, after its `low` review,
+   so no draft of a later issue sits in the diff of an earlier one. That commit is the base of the queue: the last one
+   that changed the `Queue:` line (`git log -1 --format=%H -G '^- Queue:' -- issues/<stem>.md`). Free the claim of a dropped issue last: read it (`git cat-file -p
+   refs/cardinal/claims/<stem>`) and, only when it names your session, delete it by compare-and-swap (`git
+   update-ref -d refs/cardinal/claims/<stem> <value read>`).
+4. **Chain**: steps 3.1 to 3.8 of each issue in the mode recorded for it, its `high` review included; the end of an
+   issue gives no final summary nor close request (step 7 does), and closes it at once when the user agreed to.
+   Before the next issue, check that `just check` is green, the commits of the issue are in `git log` and its
+   `# Tracking` is ticked.
+5. **Stale plan check**, before each issue after the first: cross the files of `git diff --name-only <base of the
+   queue>..HEAD` and the decisions the issues done added with the `Rests on:` of this one, and reread what overlaps.
+   No overlap: go. An overlap without impact: note it in `## Decisions` and go. An overlap that changes the plan: stop
+   the chain, set the issue back to `Plan: proposed` and do its own step 2 stop; the issues done stay committed. Once
+   the user validates it, the chain goes on with it, then the next ones, each with its own check; dropped, it leaves
+   the queue as in point 3.
+6. **Stops the chain**: the stops of the Autonomous mode, plus a stale plan.
+7. **Final report**: a table `issue | commits | state` (`done`, `closed`, `stopped: <why>`, `not started`), then,
+   unless they are closed already, one request to close the issues done; on the user's agreement, close each as the
+   Rules of `SKILL.md` say, one commit per close.
+
+**Resume**: an issue whose `## Decisions` holds a `Queue:` line belongs to a queue: after a compaction, a `/clear` or a
+resumed session, take the first issue of that line whose plan is not all ticked, run the stale plan check if another
+issue of the queue is done, and go on with the chain. Every plan of the line ticked: the queue is over, the issue is
+resumed alone (step 0 of `SKILL.md`), its close asked as there.

@@ -28,7 +28,7 @@ These rows hold for every project:
 | Behaviour of a capability that has a spec in `specs/` added, changed or dropped | `specs/<capability>.md` (requirement, scenario, status), the `// spec: ID` of the tests, `just check-specs` passing; the page of `docs/` or of the `root_docs` that describes the capability to its user; the `architecture` document of `.claude/cardinal.toml` when a component, a boundary or a flow changed |
 | Convention (lint, tests, harness) | `CLAUDE.md`, the page that describes the harness |
 | Commit scope added or removed (new crate or area) | `commit_scopes` in `.claude/cardinal.toml` |
-| A synced file (skill, script, `AGENTS.md`, `cardinal.just`, workflow) must change | not here: fix it in the Cardinal repository, then `cardinal sync` |
+| A synced file (skill, script, `AGENTS.md`, `cardinal*.just`, workflow) must change | not here: fix it in the Cardinal repository, then `cardinal sync` |
 | Any change | not `CHANGELOG.md`: `just release` writes its sections from the commits; only reread and reword the section it just wrote |
 | Decision that a future reader would undo by accident | a new ADR in `docs/adr/` |
 

@@ -37,6 +37,10 @@
       "Bash(just waive-review)",
       "Bash(just waive-review *)",
       "Edit(//**/claude-review-waived)"
+    ],
+    "ask": [
+      "Bash(cardinal run release *.*)",
+      "Bash(just release *.*)"
     ]
   },
   "hooks": {

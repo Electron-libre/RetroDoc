@@ -20,9 +20,9 @@ jobs:
           tool: just
       - name: Install cardinal (the release of the pinned revision, else built with the runner's cargo)
         run: sh .github/install_cardinal.sh
-      - name: Check the specs
+      - name: Check the specs (when the project has the recipe)
         run: |
-          if command -v cardinal >/dev/null; then just check-specs; else echo "cardinal not installed: check-specs skipped"; fi
+          if [ ! -f cardinal-specs.just ]; then echo "no cardinal-specs.just: check-specs skipped"; elif command -v cardinal >/dev/null; then just check-specs; else echo "cardinal not installed: check-specs skipped"; fi
       - name: Check that no synced file was edited
         run: |
           if command -v cardinal >/dev/null; then cardinal check; else echo "cardinal not installed: check-cardinal skipped"; fi

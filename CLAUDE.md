@@ -12,7 +12,7 @@ it's the source of truth for what each milestone covers, its state and its issue
 says what's still out of scope for v1 (technical/C4 docs, GitHub/GitLab/Jira connectors, multi-provider LLM). The
 dated findings behind the milestones are in `docs/findings.md`.
 
-Commit messages follow the Conventional Commits format described in `AGENTS.md`. Check `git log` to see
+Commit messages follow the Conventional Commits format described in `.claude/skills/commit-message/conventional-commits.md`. Check `git log` to see
 which milestones of `ROADMAP.md` are already done before assuming what's implemented.
 
 ## Index
@@ -27,7 +27,7 @@ Details live in separate files; read the one that matches the task:
   (`skill:write-spec`).
 - `docs/crates/`: per-crate detail. `docs/ARCHITECTURE.md`: high-level view. `docs/adr/`: decisions.
 - `ROADMAP.md`: milestones; `PRODUCT.md`: vision and v1 scope; `docs/findings.md`: dated findings; `CHANGELOG.md`: releases
-  (`just release`); `AGENTS.md`: commit format.
+  (`just release`); `.claude/skills/commit-message/conventional-commits.md`: commit format.
 
 Essentials: `just check` (fmt + clippy -D warnings + tests + spec traceability) must pass before committing; it
 needs the `cardinal` binary (`cargo install --git <source in .claude/cardinal.toml> cardinal --locked`); clippy is pedantic and warning-free; everything is in English; never name or quote
