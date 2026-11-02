@@ -181,6 +181,7 @@ The milestones up to "A large application, one bounded context at a time" are th
 - Why: on a saved run (2026-11-02) a reader could not tell which application the docs were about nor where to start
   reading.
 - State: done
+- Released: v0.6.0
 - Issues:
   - [web_ui_application_name](issues/done/web_ui_application_name.md)
   - [web_ui_guided_entry](issues/done/web_ui_guided_entry.md)
@@ -193,6 +194,7 @@ The milestones up to "A large application, one bounded context at a time" are th
 - Why: the model writes in the language it picks (English on the saved runs); a team that reads another language
   cannot take the docs as they are.
 - State: done
+- Released: v0.6.0
 - Issues:
   - [generated_docs_language](issues/done/generated_docs_language.md)
   - [localized_render_and_web_text](issues/done/localized_render_and_web_text.md)

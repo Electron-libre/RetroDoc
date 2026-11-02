@@ -4,6 +4,48 @@ The notable changes of each version, newest first ([Keep a Changelog](https://ke
 [Semantic Versioning](https://semver.org/)). Each section is written by `just release <version>` from the commits,
 then reread before the release is committed.
 
+## [0.6.0] - 2026-11-02
+
+### Milestones
+
+- Web interface for a first-time reader
+- Docs in the reader's language
+
+### Added
+
+- print the whole request of the reading passes
+- print the whole request of the other LLM passes
+- judge the saved rules again on a judgement change
+- follow renames in the history of a cited file
+- name the documented application in the web interface
+- open the home page on where to start reading
+- group the header links by how a reader uses them
+- link each use case to its neighbours in its feature
+- dress the interface in the Meta Lambda charter and credit
+- draw the domains as a map linked by their shared concepts
+- draw the map of a domain with its actors and concepts
+- write the generated docs in the language of the config
+- match doc sections by the identifiers of an item
+- warn when no doc section matches in another docs language
+- write the fixed text of the docs in French
+- write the frame of the pages in the language of the docs
+- write the pages of the items in the language of the docs
+- remove the pages no run produces any more
+- find the language tag from native names and regional tags
+
+### Fixed
+
+- follow exact renames on big moves and skip empty files
+- log the ignored business paths at info
+- read text-only steps and drop empty use cases at info
+- warn only of what the surface passes really lose
+- keep the saved order of the features a rerun reuses
+- keep the saved feature order in the partial saves
+- write a saved brief again when the docs language changed
+- search routes without their verbs in the reconciliation
+- remove the stale pages safely
+- read a region only as two letters or three digits
+
 ## [0.5.0] - 2026-11-02
 
 ### Milestones
