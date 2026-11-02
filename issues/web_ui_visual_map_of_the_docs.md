@@ -80,6 +80,7 @@ between use cases (not in the docs), a new JS library (so no ADR amendment).
    and "Start here"; verified by `tests/map_page.rs`; makes true WEB-66, WEB-67, WEB-70, WEB-71, WEB-74, WEB-75.
 2. [x] Domain map: `/map/<domain>`, its graph and list, its 404, the link from the domain page; verified by
    `tests/map_page.rs`; makes true WEB-25, WEB-72, WEB-73, WEB-76.
+3. [x] Fixes of the `high` review of the issue; verified by `tests/map_page.rs`; makes true WEB-72, WEB-75 (amended).
 
 ## Deliverable 1: overview map
 
@@ -105,6 +106,30 @@ between use cases (not in the docs), a new JS library (so no ADR amendment).
 - Code review: 1 findings
   - actors sorted with case, not ignoring it (`actor_parts` re-keyed by name): fixed, list kept in order; test
     `the_actors_of_a_feature_are_sorted_by_name_ignoring_case`. Same name in two cases stays two nodes (WEB-57).
+- not verified: none.
+
+## Deliverable 3: fixes of the `high` review
+
+- done: the maps are built once in `Site::new` (`map::maps`), the concepts of each use case read once for both; a
+  blank human and a primary actor the steps name a system only are no nodes (as on the actors page); `#` of a label
+  written `#35;` (WEB-75 amended); a node listed under several features wired once; the focus outline covers the
+  concept cylinders; `view::domain_href` reused.
+- checks: `just check` ok; docs updated (`render-mcp-cli.md`, spec); headless Chrome: 8/8 and 57/57 nodes linked.
+- red: WEB-72, WEB-75: `no #35; in source` and a `System` node drawn, on the code before the fixes.
+- Code review (high, issue): 10 findings
+  - blank human step actor drawn: fixed.
+  - primary actor named a system by the steps drawn as a human: fixed, rule of the actors page.
+  - domain map rebuilt at each request: fixed, built once.
+  - the glossary and the map each run `glossary::uses` at start: kept, once each at start; sharing it would tie the
+    glossary page to the map.
+  - counts of a domain computed apart from `domain_rows`: kept, `domain_rows` reads the cited files for the stale
+    badge, which the map needs not.
+  - `/domains/{slug}` hard-coded: fixed in `map.rs`; the copy in `search.rs` predates the issue, left.
+  - several listeners on one node: fixed.
+  - no focus outline on concept nodes: fixed.
+  - `#` read as an entity by `mermaid`: fixed.
+  - actor links to `/actors` with no anchor: kept, the actors page has no anchor per row (WEB-73 says the page).
+- Code review: no findings (low, on this deliverable)
 - not verified: none.
 
 ## Decisions

@@ -55,7 +55,11 @@ function linkNodes(pre) {
   const map = pre.closest(".map");
   const svg = map && pre.querySelector("svg");
   if (!svg) return;
+  const wired = new Set();
   for (const link of map.querySelectorAll("a[data-node]")) {
+    // An actor or a concept is listed under each of its features.
+    if (wired.has(link.dataset.node)) continue;
+    wired.add(link.dataset.node);
     const node = svg.querySelector(`g.node[id*="flowchart-${link.dataset.node}-"]`);
     if (!node) continue;
     node.classList.add("linked");

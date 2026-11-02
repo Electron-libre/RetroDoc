@@ -103,14 +103,15 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   every page, built once in `Site::new`), is a table per kind, human then system: a row per actor, grouped by its exact name (a primary actor no
   step names counts as human and starts its use cases in the human row of its name), a column per feature with a use case that names an actor, a cell linking the use cases
   it starts (`starts`) or takes part in, and the permission rules that apply to them. The map page, `/map`
-  (`map::map_page`, `map.html`, linked from the header of every page, built once in `Site::new`), keeps the source of
+  (`map.html`, linked from the header of every page; `map::maps` builds it and the map of each domain once in
+  `Site::new`, the concepts of each use case read once), keeps the source of
   a `mermaid` flowchart, a node per domain with its counts and an edge per pair of domains whose use cases use the
   same concepts (`glossary::uses`, the rule of the glossary page), labelled with the first three; each label is
-  quoted, its `"` written `#quot;`. Beside it, the same domains as a list of links (`.map-links`), each carrying the
+  quoted, its `#` written `#35;` and its `"` `#quot;`. Beside it, the same domains as a list of links (`.map-links`), each carrying the
   id of its node as `data-node`: `diagrams.js` makes each drawn node open its link, since `securityLevel: "strict"`
-  refuses the `click` of a source. The map of a domain, `/map/{domain}` (`map::domain_map_page`, `domain_map.html`,
+  refuses the `click` of a source. The map of a domain, `/map/{domain}` (`Maps::domain`, `domain_map.html`,
   linked from the page of the domain), draws its features with their use case counts, the humans of their use cases
-  (a primary actor counts as one) with an edge to each feature, solid when the actor starts one of its use cases and
+  (a primary actor counts as one unless the steps of the run name it a system only, as on the actors page) with an edge to each feature, solid when the actor starts one of its use cases and
   dotted when it only takes part in one, and the concepts each feature uses; its list gives each feature with its
   actors and concepts, under the same `data-node` rule. Tests:
   `tests/pages.rs` (home, tree, assets, `Host`), `tests/item_pages.rs` (the item pages), `tests/code_page.rs` (the

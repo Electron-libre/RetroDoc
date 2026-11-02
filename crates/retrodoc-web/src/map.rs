@@ -5,15 +5,49 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use retrodoc_core::model::{ActorKind, Feature};
+use retrodoc_core::model::{ActorKind, Domain, Feature};
 use retrodoc_mcp::GeneratedDocs;
 use retrodoc_render::anchor;
 
 use crate::glossary::uses;
-use crate::view::{feature_href, home_crumb, plural, Link};
+use crate::view::{domain_href, feature_href, home_crumb, plural, Link};
 
 /// The concepts named on an edge, the others counted.
 const EDGE_CONCEPTS: usize = 3;
+
+/// The map of the domains and the map of each domain, built once: the
+/// concepts each use case uses are found by reading the whole run.
+pub struct Maps {
+    pub overview: MapPage,
+    /// By domain slug.
+    domains: BTreeMap<String, DomainMapPage>,
+}
+
+impl Maps {
+    /// The map of the domain `slug`, `None` when the run has none.
+    #[must_use]
+    pub fn domain(&self, slug: &str) -> Option<&DomainMapPage> {
+        self.domains.get(slug)
+    }
+}
+
+/// The maps of `docs`.
+#[must_use]
+pub fn maps(docs: &GeneratedDocs) -> Maps {
+    let usage = concept_uses(docs);
+    let humans = humans(docs);
+    Maps {
+        overview: map_page(docs, &usage),
+        domains: docs
+            .domains()
+            .iter()
+            .map(|domain| {
+                let page = domain_map_page(docs, domain, &usage, &humans);
+                (domain.slug.clone(), page)
+            })
+            .collect(),
+    }
+}
 
 /// The map of the domains.
 pub struct MapPage {
@@ -43,10 +77,9 @@ pub struct Shared {
     pub concepts: Vec<Link>,
 }
 
-/// The map of the domains of `docs`.
-#[must_use]
-pub fn map_page(docs: &GeneratedDocs) -> MapPage {
-    let used = concepts_by_domain(docs);
+/// The map of the domains of `docs`, whose concepts are used as `usage` says.
+fn map_page(docs: &GeneratedDocs, usage: &ConceptUses) -> MapPage {
+    let used = concepts_by_domain(usage);
     let domains: Vec<MapDomain> = docs
         .domains()
         .iter()
@@ -132,14 +165,15 @@ fn edge_text(concepts: &[Link]) -> String {
 }
 
 /// `text` as a `mermaid` label: on one line, between double quotes, its own
-/// double quotes written `#quot;` so that it can't close the label.
+/// double quotes written `#quot;` so that it can't close the label, and its
+/// `#` written `#35;` so that `mermaid` reads no entity of the docs.
 fn label(text: &str) -> String {
     let line = text.split_whitespace().collect::<Vec<_>>().join(" ");
-    format!("\"{}\"", line.replace('"', "#quot;"))
+    format!("\"{}\"", line.replace('#', "#35;").replace('"', "#quot;"))
 }
 
 /// A concept of the glossary, ordered by name ignoring case.
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct Concept {
     key: String,
     name: String,
@@ -154,17 +188,34 @@ impl Concept {
     }
 }
 
-/// The concepts the use cases of each domain use, by domain slug.
-fn concepts_by_domain(docs: &GeneratedDocs) -> BTreeMap<&str, BTreeSet<Concept>> {
-    let mut used: BTreeMap<&str, BTreeSet<Concept>> = BTreeMap::new();
+/// Each concept some use case uses, sorted by name ignoring case, with the
+/// features of those use cases as `(domain slug, feature slug)`.
+type ConceptUses<'a> = Vec<(Concept, BTreeSet<(&'a str, &'a str)>)>;
+
+fn concept_uses(docs: &GeneratedDocs) -> ConceptUses<'_> {
+    let mut used: BTreeMap<Concept, BTreeSet<(&str, &str)>> = BTreeMap::new();
     for entity in docs.glossary().merged_entities() {
-        for (feature, _) in uses(docs, &entity.name, &entity.files) {
-            used.entry(feature.domain_slug.as_str())
-                .or_default()
-                .insert(Concept {
-                    key: entity.name.to_lowercase(),
-                    name: entity.name.clone(),
-                });
+        let features: BTreeSet<(&str, &str)> = uses(docs, &entity.name, &entity.files)
+            .into_iter()
+            .map(|(feature, _)| (feature.domain_slug.as_str(), feature.slug.as_str()))
+            .collect();
+        if !features.is_empty() {
+            let concept = Concept {
+                key: entity.name.to_lowercase(),
+                name: entity.name.clone(),
+            };
+            used.entry(concept).or_default().extend(features);
+        }
+    }
+    used.into_iter().collect()
+}
+
+/// The concepts the use cases of each domain use, by domain slug.
+fn concepts_by_domain<'a>(usage: &ConceptUses<'a>) -> BTreeMap<&'a str, BTreeSet<Concept>> {
+    let mut used: BTreeMap<&str, BTreeSet<Concept>> = BTreeMap::new();
+    for (concept, features) in usage {
+        for (domain, _) in features {
+            used.entry(domain).or_default().insert(concept.clone());
         }
     }
     used
@@ -213,13 +264,18 @@ enum Part {
     Starts,
 }
 
-/// The map of the domain `slug` of `docs`, `None` when the run has none.
-#[must_use]
-pub fn domain_map_page(docs: &GeneratedDocs, slug: &str) -> Option<DomainMapPage> {
-    let domain = docs.domains().iter().find(|d| d.slug == slug)?;
+/// The map of `domain`, whose concepts are used as `usage` says and whose
+/// humans are those `humans` gives.
+fn domain_map_page(
+    docs: &GeneratedDocs,
+    domain: &Domain,
+    usage: &ConceptUses,
+    humans: &BTreeMap<&str, bool>,
+) -> DomainMapPage {
+    let slug = domain.slug.as_str();
     let features: Vec<&Feature> = docs.features_of(slug).collect();
-    let parts = actor_parts(docs, &features);
-    let used = concepts_by_feature(docs, slug);
+    let parts = actor_parts(docs, &features, humans);
+    let used = concepts_by_feature(usage, slug);
     let actors = items(parts.iter().map(|(name, _)| name.clone()), "a", |_| {
         "/actors".to_string()
     });
@@ -256,7 +312,7 @@ pub fn domain_map_page(docs: &GeneratedDocs, slug: &str) -> Option<DomainMapPage
         })
         .collect();
     let source = domain_source(&map_features, &actors, &concepts, &parts, &features);
-    Some(DomainMapPage {
+    DomainMapPage {
         crumbs: vec![
             home_crumb(),
             Link {
@@ -265,10 +321,10 @@ pub fn domain_map_page(docs: &GeneratedDocs, slug: &str) -> Option<DomainMapPage
             },
         ],
         name: domain.name.clone(),
-        href: format!("/domains/{slug}"),
+        href: domain_href(slug),
         source,
         features: map_features,
-    })
+    }
 }
 
 /// `flowchart LR`: the actors, the features, the concepts, then an edge from
@@ -325,12 +381,27 @@ fn domain_source(
     format!("flowchart LR\n{}\n", lines.join("\n"))
 }
 
+/// Each name the steps of the run give an actor, with whether one of them
+/// names it a human.
+fn humans(docs: &GeneratedDocs) -> BTreeMap<&str, bool> {
+    let mut named: BTreeMap<&str, bool> = BTreeMap::new();
+    for step in docs.use_cases().iter().flat_map(|u| &u.steps) {
+        if !step.actor.name.trim().is_empty() {
+            *named.entry(step.actor.name.as_str()).or_default() |=
+                step.actor.kind == ActorKind::Human;
+        }
+    }
+    named
+}
+
 /// Each human of the use cases of `features`, sorted by name ignoring case,
 /// with how it takes part in the use cases of each feature (by slug). A
-/// primary actor is a human: it starts the use case.
+/// primary actor is a human, as on the actors page, unless the steps of the
+/// run (`humans`) name it a system only.
 fn actor_parts<'a>(
     docs: &'a GeneratedDocs,
     features: &[&'a Feature],
+    humans: &BTreeMap<&str, bool>,
 ) -> Vec<(String, BTreeMap<&'a str, Part>)> {
     let mut parts: BTreeMap<(String, String), BTreeMap<&str, Part>> = BTreeMap::new();
     for feature in features {
@@ -338,7 +409,7 @@ fn actor_parts<'a>(
             let starts = use_case
                 .primary_actor
                 .iter()
-                .filter(|name| !name.trim().is_empty())
+                .filter(|name| humans.get(name.as_str()).copied().unwrap_or(true))
                 .map(|name| (name, Part::Starts));
             let takes = use_case
                 .steps
@@ -346,6 +417,9 @@ fn actor_parts<'a>(
                 .filter(|step| step.actor.kind == ActorKind::Human)
                 .map(|step| (&step.actor.name, Part::Takes));
             for (name, part) in starts.chain(takes) {
+                if name.trim().is_empty() {
+                    continue;
+                }
                 let seen = parts
                     .entry((name.to_lowercase(), name.clone()))
                     .or_default()
@@ -364,27 +438,20 @@ fn actor_parts<'a>(
 /// The concepts the use cases of the domain `slug` use, sorted by name
 /// ignoring case, each with the slugs of the features that use it.
 fn concepts_by_feature<'a>(
-    docs: &'a GeneratedDocs,
+    usage: &ConceptUses<'a>,
     slug: &str,
 ) -> BTreeMap<Concept, BTreeSet<&'a str>> {
-    let mut used: BTreeMap<Concept, BTreeSet<&str>> = BTreeMap::new();
-    for entity in docs.glossary().merged_entities() {
-        let features: BTreeSet<&str> = uses(docs, &entity.name, &entity.files)
-            .into_iter()
-            .filter(|(feature, _)| feature.domain_slug == slug)
-            .map(|(feature, _)| feature.slug.as_str())
-            .collect();
-        if !features.is_empty() {
-            used.insert(
-                Concept {
-                    key: entity.name.to_lowercase(),
-                    name: entity.name.clone(),
-                },
-                features,
-            );
-        }
-    }
-    used
+    usage
+        .iter()
+        .filter_map(|(concept, features)| {
+            let own: BTreeSet<&str> = features
+                .iter()
+                .filter(|(domain, _)| *domain == slug)
+                .map(|(_, feature)| *feature)
+                .collect();
+            (!own.is_empty()).then(|| (concept.clone(), own))
+        })
+        .collect()
 }
 
 /// `names` as the nodes `<prefix>0`, `<prefix>1`… linked to `href` of each.

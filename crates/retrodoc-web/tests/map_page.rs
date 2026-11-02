@@ -562,3 +562,38 @@ async fn the_actors_of_a_feature_are_sorted_by_name_ignoring_case() {
     let clerk = list.find(">Clerk<").expect("Clerk");
     assert!(buyer < clerk, "{list}");
 }
+
+// spec: WEB-75
+#[tokio::test]
+async fn a_hash_of_a_name_is_no_entity_of_its_label() {
+    let repo = generated_repo();
+    let mut features = retrodoc_pipeline::load_features(repo.path()).unwrap();
+    features[0].name = "Ticket #12;".into();
+    retrodoc_pipeline::save_features(repo.path(), &features).unwrap();
+    let source = source(&page(repo.path(), "/map/billing").await);
+    assert!(source.contains("\"Ticket #35;12;<br>"), "{source}");
+}
+
+// spec: WEB-72
+#[tokio::test]
+async fn a_primary_actor_the_steps_name_a_system_and_a_blank_human_are_no_nodes() {
+    let repo = generated_repo();
+    let mut use_cases = retrodoc_pipeline::load_use_cases(repo.path()).unwrap();
+    for use_case in &mut use_cases {
+        if use_case.slug == "cancel-now" {
+            use_case.primary_actor = Some("System".into());
+        }
+        if use_case.slug == "pay-late" {
+            *use_case = acted(use_case.clone(), None, &["  "]);
+        }
+    }
+    retrodoc_pipeline::save_use_cases(repo.path(), &use_cases).unwrap();
+    let page = page(repo.path(), "/map/billing").await;
+    let source = source(&page);
+    assert!(!source.contains("\"System"), "{source}");
+    assert!(
+        !source.contains("([\"  \"])") && !source.contains("([\"\"])"),
+        "{source}"
+    );
+    assert!(!list(&page).contains("data-node=\"a2\""), "{page}");
+}

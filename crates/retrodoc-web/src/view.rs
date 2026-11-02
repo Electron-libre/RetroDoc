@@ -7,7 +7,7 @@ use std::collections::BTreeSet;
 use crate::actors::{actors_page, ActorsPage};
 use crate::files::{files_page, FilesPage};
 use crate::glossary::{glossary_page, GlossaryPage};
-use crate::map::{map_href, map_page, MapPage};
+use crate::map::{map_href, maps, Maps};
 use crate::Project;
 use retrodoc_core::model::{
     ActorKind, BusinessRule, ConfidenceScore, Feature, RuleEvidence, SourceRef, Step, UseCase,
@@ -32,7 +32,7 @@ pub struct Site {
     collected: Vec<ExistingDoc>,
     glossary: Option<GlossaryPage>,
     actors: Option<ActorsPage>,
-    map: Option<MapPage>,
+    maps: Option<Maps>,
 }
 
 impl Site {
@@ -53,7 +53,7 @@ impl Site {
         let files = docs.as_ref().map(files_page);
         let glossary = docs.as_ref().map(glossary_page);
         let actors = docs.as_ref().map(actors_page);
-        let map = docs.as_ref().map(map_page);
+        let maps = docs.as_ref().map(maps);
         let start = match (&docs, &files, &glossary, &actors) {
             (Some(docs), Some(files), Some(glossary), Some(actors)) => {
                 start_links(docs, files, glossary, actors)
@@ -76,14 +76,14 @@ impl Site {
             collected,
             glossary,
             actors,
-            map,
+            maps,
         }
     }
 
-    /// The map of the domains, `None` with no run.
+    /// The maps of the domains, `None` with no run.
     #[must_use]
-    pub fn map(&self) -> Option<&MapPage> {
-        self.map.as_ref()
+    pub fn maps(&self) -> Option<&Maps> {
+        self.maps.as_ref()
     }
 
     /// The actors page, `None` with no run.
@@ -465,7 +465,7 @@ pub(crate) fn home_crumb() -> Link {
     }
 }
 
-fn domain_href(slug: &str) -> String {
+pub(crate) fn domain_href(slug: &str) -> String {
     format!("/domains/{slug}")
 }
 

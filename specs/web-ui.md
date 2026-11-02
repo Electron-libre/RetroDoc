@@ -172,8 +172,8 @@ over browses its domains, features and use cases rather than reading the Markdow
   actors, each a link to the actors page, and its concepts, each a link to `/glossary#<anchor of its name>`.
 - **WEB-74** (deterministic) Each node of a map graph must have an id in its source that the link of its item in the
   list of the page carries as `data-node`, so the drawn node opens the page of that link.
-- **WEB-75** (deterministic) Each label of a map graph must be written between double quotes, with a double quote of
-  the docs written `#quot;`.
+- **WEB-75** (deterministic) Each label of a map graph must be written between double quotes, with a `#` of the docs
+  written `#35;` and a double quote written `#quot;`.
 - **WEB-76** (deterministic) The page of a domain must link to its map.
 
 ## Scenarios
@@ -258,8 +258,11 @@ over browses its domains, features and use cases rather than reading the Markdow
 - (WEB-72) Given an actor that both starts a use case of a feature and takes part in another, then their edge is
   solid, once.
 - (WEB-72) Given a step whose actor is a system, then it is no node of the map.
+- (WEB-72) Given a primary actor the steps of the run name a system only, then it is no node of the map, as it is no
+  human on the actors page; given a human step with a blank name, then it is no node either.
 - (WEB-70, WEB-72) Given a repository with no run yet, then both pages say to run `retrodoc generate`.
-- (WEB-75) Given a feature named `a"] --> x["b`, then its label stays one node: `a#quot;] --> x[#quot;b`.
+- (WEB-75) Given a feature named `a"] --> x["b`, then its label stays one node: `a#quot;] --> x[#quot;b`; given
+  `Ticket #12;`, then the label is `Ticket #35;12;`.
 
 ## Non-goals
 
