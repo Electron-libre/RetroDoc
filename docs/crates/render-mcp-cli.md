@@ -6,7 +6,10 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   (the entry points, paths and links in `mod.rs`; one file per page: `agent_index.rs`, `domain.rs`, `feature.rs`,
   `use_case.rs`; the tests by topic in `tests/`), `rules.rs`, `doc_links.rs`, `texts.rs`, `plan.rs`. `render()` builds
   the files in memory (deterministic), `plan()` compares them with the disk (created/updated + unified diff,
-  stale files under `functional/` reported but never deleted), `WritePlan::apply()` writes only what differs.
+  a page under `functional/` the run no longer produces is `removed` when it still has the hash recorded in
+  `_retrodoc/rendered-pages.json` (`RENDERED_PAGES_PATH`, written by `plan` with the other files), else `stale`:
+  reported, never deleted; `specs/docs-pruning.md`), `WritePlan::apply()` writes only what differs, removes the
+  `removed` pages and the folders they leave empty.
   `_retrodoc/run-metadata.json` has a timestamp that is ignored when it's the only change, so reruns are no-ops. `functional/llms.txt` (`agent_index`) is the `llms.txt`-style entry point for agents that don't
   run the MCP server: domains and features with links and confidence, how to read them and a pointer to `retrodoc mcp`.
   The CLI drops generated docs (`functional/`, `_retrodoc/`) from the ingested existing docs.

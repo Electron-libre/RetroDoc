@@ -27,7 +27,7 @@ reported as today.
 
 # Specs
 
-* A spec of the render if one is written; else `docs/crates/render-mcp-cli.md`.
+* `specs/docs-pruning.md` (RND).
 
 # Milestone
 
@@ -36,3 +36,33 @@ Docs in the reader's language
 # Resources
 
 * `crates/retrodoc-render/src/plan.rs` (`plan`, `stale`, `summary`), `docs/crates/render-mcp-cli.md`.
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+`generate` and `render` record the hash of each page they write under `functional/` (`_retrodoc/rendered-pages.json`)
+and remove a page no run produces any more when it still has its recorded hash; an edited or unrecorded page is kept
+and reported as today. Approach 1 of the issue; no `--prune` flag.
+
+## Plan
+1. [x] Record and prune: the record of the hashes in `plan`, the removal in `WritePlan::apply`, a "Removed" section in
+   the preview, empty folders removed; verified by tests of `plan.rs` and a CLI test that renames a domain in the saved
+   artifacts then runs `render` and `render --dry-run`; makes true RND-1 to RND-6.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 0b00c703bb396d63435bd496c49aefcd28e8c46e
+- Pages with no recorded hash (written before the record): kept and reported; no `--prune` flag.
+
+## Deliverable 1
+
+- done: `plan` records `_retrodoc/rendered-pages.json` and splits the pages no longer produced into `removed`
+  (recorded hash matches) and `stale`; `apply` removes the first and their empty folders; the preview lists
+  `remove  <path>`; the CLI prints the count.
+- red: RND-1, RND-2, RND-4, RND-5: `docs/_retrodoc/rendered-pages.json` not found, then `functional/orders` still
+  there and listed under "Not produced by this run". RND-3 and RND-6 were green before the code (they guard the
+  kept pages and the no-op rerun).
+- Preview: a `remove  <path>` line among `create`/`update` instead of a "Removed" heading (RND-2 amended).
+- not verified: a real run on delivery_router (English then French).

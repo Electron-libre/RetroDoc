@@ -229,17 +229,19 @@ flowchart LR
     art[(".retrodoc/cache/<br/>features, use-cases,<br/>domains")] --> rpt["build_report"]
     art --> rnd["render()<br/>files in memory,<br/>deterministic"]
     rpt --> rnd
-    rnd --> pl["plan()<br/>compare with disk:<br/>created / updated + diff"]
+    rnd --> pl["plan()<br/>compare with disk:<br/>created / updated + diff,<br/>removed / stale"]
     pl --> dry{"--dry-run ?"}
     dry -- yes --> show["print the diff only"]
-    dry -- no --> app["apply()<br/>write only files that differ"]
+    dry -- no --> app["apply()<br/>write only files that differ,<br/>remove the unedited stale pages"]
 ```
 
 Guarantees:
 
 - **Idempotent**: same artifacts → same bytes → nothing written. The timestamp in
   `_retrodoc/run-metadata.json` is ignored when it is the only difference.
-- **Non-destructive**: stale files under `functional/` are reported, never deleted.
+- **Non-destructive**: a page under `functional/` the run no longer produces (an item renamed or gone) is removed
+  only while its content still has the hash recorded in `_retrodoc/rendered-pages.json` when it was written; an edited
+  or unrecorded one is reported, never deleted (`specs/docs-pruning.md`).
 - **No feedback loop**: `functional/` and `_retrodoc/` are removed from the "existing docs" read at
   ingestion, so generated docs are never fed back to the LLM.
 
@@ -273,7 +275,8 @@ Guarantees:
     ├── functional/rules.md        #   (with `[pipeline] rules`) business rules by entity; also on the feature, use case and domain pages
     └── _retrodoc/
         ├── coverage-report.md     #   documentation debt report
-        └── run-metadata.json      #   model, commit, timestamp
+        ├── run-metadata.json      #   model, commit, timestamp
+        └── rendered-pages.json    #   hash of each page written under functional/ (removal of stale pages)
 ```
 
 ## 8. The LLM boundary

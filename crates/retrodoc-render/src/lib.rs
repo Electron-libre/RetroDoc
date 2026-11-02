@@ -28,6 +28,9 @@ pub const AGENT_INDEX_PATH: &str = "functional/llms.txt";
 pub const RULES_INDEX_PATH: &str = "functional/rules.md";
 /// Path of the run metadata, relative to the docs dir.
 pub const METADATA_PATH: &str = "_retrodoc/run-metadata.json";
+/// Path of the record of the pages written under `functional/` and the hash
+/// of their content, relative to the docs dir.
+pub const RENDERED_PAGES_PATH: &str = "_retrodoc/rendered-pages.json";
 /// Path of the coverage report, relative to the docs dir.
 pub const COVERAGE_REPORT_PATH: &str = "_retrodoc/coverage-report.md";
 
@@ -59,6 +62,12 @@ pub enum RenderError {
     },
     #[error("could not write {path}: {source}")]
     Write {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("could not remove {path}: {source}")]
+    Remove {
         path: PathBuf,
         #[source]
         source: std::io::Error,

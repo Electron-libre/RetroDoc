@@ -1,13 +1,19 @@
 //! Comparison of the rendered files with the docs dir: what would be
-//! created, updated or left alone, and the diff of each update.
+//! created, updated, removed or left alone, and the diff of each update.
+//!
+//! The pages written under `functional/` are recorded with the hash of their
+//! content (`RENDERED_PAGES_PATH`): a page no run produces any more is removed
+//! when it still has its recorded hash, and kept and reported otherwise, as it
+//! may hold hand-written content (`specs/docs-pruning.md`).
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
+use sha2::{Digest, Sha256};
 use similar::TextDiff;
 
-use crate::{RenderError, RenderedFile, FUNCTIONAL_DIR, METADATA_PATH};
+use crate::{RenderError, RenderedFile, FUNCTIONAL_DIR, METADATA_PATH, RENDERED_PAGES_PATH};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FileStatus {
@@ -27,17 +33,26 @@ pub struct PlannedFile {
 pub struct WritePlan {
     pub files: Vec<PlannedFile>,
     /// Markdown files under `functional/` that this run no longer produces
-    /// (a feature renamed or gone). Reported, never deleted: they may hold
+    /// and that still have the hash recorded when they were written: removed
+    /// by [`apply`](Self::apply).
+    pub removed: Vec<PathBuf>,
+    /// Markdown files under `functional/` that this run no longer produces
+    /// (a feature renamed or gone) and that were edited since they were
+    /// written, or never recorded. Reported, never deleted: they may hold
     /// hand-written content.
     pub stale: Vec<PathBuf>,
 }
 
-/// Compares `files` (paths relative to `docs_dir`) with what is on disk.
+/// Compares `files` (paths relative to `docs_dir`) with what is on disk, and
+/// adds the record of the pages they write under `functional/`.
 ///
 /// # Errors
 ///
 /// Returns an error if an existing file or folder can't be read.
-pub fn plan(docs_dir: &Path, files: Vec<RenderedFile>) -> Result<WritePlan, RenderError> {
+pub fn plan(docs_dir: &Path, mut files: Vec<RenderedFile>) -> Result<WritePlan, RenderError> {
+    let recorded = read_record(docs_dir);
+    files.push(record_of(&files));
+
     let mut planned = Vec::with_capacity(files.len());
     for file in files {
         let abs = docs_dir.join(&file.path);
@@ -65,19 +80,65 @@ pub fn plan(docs_dir: &Path, files: Vec<RenderedFile>) -> Result<WritePlan, Rend
     }
 
     let produced: BTreeSet<&Path> = planned.iter().map(|p| p.file.path.as_path()).collect();
-    let mut stale = Vec::new();
+    let mut not_produced = Vec::new();
     collect_markdown(
         &docs_dir.join(FUNCTIONAL_DIR),
         docs_dir,
         &produced,
-        &mut stale,
+        &mut not_produced,
     )?;
-    stale.sort();
+    not_produced.sort();
+    let (removed, stale) = not_produced.into_iter().partition(|path| {
+        recorded.get(&record_key(path)).is_some_and(|hash| {
+            std::fs::read(docs_dir.join(path)).is_ok_and(|content| *hash == hash_of(&content))
+        })
+    });
 
     Ok(WritePlan {
         files: planned,
+        removed,
         stale,
     })
+}
+
+/// The record of the Markdown pages `files` writes under `functional/`: path
+/// to hash of the content, sorted, so the same pages give the same bytes.
+fn record_of(files: &[RenderedFile]) -> RenderedFile {
+    let record: BTreeMap<String, String> = files
+        .iter()
+        .filter(|f| is_functional_page(&f.path))
+        .map(|f| (record_key(&f.path), hash_of(f.content.as_bytes())))
+        .collect();
+    let content = serde_json::to_string_pretty(&record).expect("a map of strings serializes");
+    RenderedFile {
+        path: PathBuf::from(RENDERED_PAGES_PATH),
+        content: content + "\n",
+    }
+}
+
+/// The record of the last run; empty when there is none or it can't be read,
+/// so that no page is removed.
+fn read_record(docs_dir: &Path) -> BTreeMap<String, String> {
+    std::fs::read_to_string(docs_dir.join(RENDERED_PAGES_PATH))
+        .ok()
+        .and_then(|raw| serde_json::from_str(&raw).ok())
+        .unwrap_or_default()
+}
+
+fn is_functional_page(path: &Path) -> bool {
+    path.starts_with(FUNCTIONAL_DIR) && path.extension().is_some_and(|e| e == "md")
+}
+
+/// A path of the record, with `/` on every platform.
+fn record_key(path: &Path) -> String {
+    path.components()
+        .map(|c| c.as_os_str().to_string_lossy())
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
+fn hash_of(content: &[u8]) -> String {
+    format!("{:x}", Sha256::digest(content))
 }
 
 fn same_but_timestamp(docs_dir: &Path, file: &RenderedFile) -> bool {
@@ -147,8 +208,9 @@ impl WritePlan {
             .count()
     }
 
-    /// One line per file that changes, then the diffs of the updates, then
-    /// the stale files; nothing but a one-line notice when all is up to date.
+    /// One line per file that changes or is removed, then the diffs of the
+    /// updates, then the stale files; nothing but a one-line notice when all
+    /// is up to date.
     #[must_use]
     pub fn preview(&self) -> String {
         let mut out = String::new();
@@ -159,6 +221,9 @@ impl WritePlan {
                 FileStatus::Unchanged => continue,
             };
             let _ = writeln!(out, "{label}  {}", p.file.path.display());
+        }
+        for path in &self.removed {
+            let _ = writeln!(out, "remove  {}", path.display());
         }
         if out.is_empty() {
             out.push_str("Docs are up to date, nothing to write.\n");
@@ -179,12 +244,15 @@ impl WritePlan {
         out
     }
 
-    /// Writes the created and updated files under `docs_dir`; returns how
-    /// many were written. Unchanged files are not touched (mtime included).
+    /// Writes the created and updated files under `docs_dir` and removes the
+    /// [`removed`](Self::removed) ones, with the folders under `functional/`
+    /// they leave empty; returns how many files were written. Unchanged files
+    /// are not touched (mtime included).
     ///
     /// # Errors
     ///
-    /// Returns an error if a folder can't be created or a file written.
+    /// Returns an error if a folder can't be created, a file written or a
+    /// file removed.
     pub fn apply(&self, docs_dir: &Path) -> Result<usize, RenderError> {
         let mut written = 0;
         for p in &self.files {
@@ -202,7 +270,28 @@ impl WritePlan {
                 .map_err(|source| RenderError::Write { path: abs, source })?;
             written += 1;
         }
+        for path in &self.removed {
+            let abs = docs_dir.join(path);
+            std::fs::remove_file(&abs).map_err(|source| RenderError::Remove {
+                path: abs.clone(),
+                source,
+            })?;
+            remove_empty_parents(&abs, &docs_dir.join(FUNCTIONAL_DIR));
+        }
         Ok(written)
+    }
+}
+
+/// Removes the folders of `file` left empty, up to `root` excluded; stops at
+/// the first one that still holds something.
+fn remove_empty_parents(file: &Path, root: &Path) {
+    let mut dir = file.parent();
+    while let Some(d) = dir.filter(|d| d.starts_with(root) && *d != root) {
+        // Fails on a folder that is not empty: the end of the walk.
+        if std::fs::remove_dir(d).is_err() {
+            break;
+        }
+        dir = d.parent();
     }
 }
 
@@ -224,7 +313,8 @@ mod tests {
 
         let first = plan(dir.path(), files.clone()).unwrap();
         assert_eq!(first.files[0].status, FileStatus::Created);
-        assert_eq!(first.apply(dir.path()).unwrap(), 1);
+        // The page and the record of its hash.
+        assert_eq!(first.apply(dir.path()).unwrap(), 2);
 
         let second = plan(dir.path(), files).unwrap();
         assert_eq!(second.change_count(), 0);
@@ -252,8 +342,10 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let old = r#"{"model":"m","commit":"c","generated_at":"2026-01-01T00:00:00Z"}"#;
         let new = r#"{"model":"m","commit":"c","generated_at":"2026-02-02T00:00:00Z"}"#;
-        std::fs::create_dir_all(dir.path().join("_retrodoc")).unwrap();
-        std::fs::write(dir.path().join(METADATA_PATH), old).unwrap();
+        plan(dir.path(), vec![file(METADATA_PATH, old)])
+            .unwrap()
+            .apply(dir.path())
+            .unwrap();
 
         let same = plan(dir.path(), vec![file(METADATA_PATH, new)]).unwrap();
         assert_eq!(same.change_count(), 0);
@@ -269,7 +361,8 @@ mod tests {
             vec![file(METADATA_PATH, new), file("functional/x.md", "x")],
         )
         .unwrap();
-        assert_eq!(with_doc.change_count(), 2);
+        // The metadata, the page and the record of its hash.
+        assert_eq!(with_doc.change_count(), 3);
     }
 
     #[test]
@@ -282,5 +375,32 @@ mod tests {
         assert_eq!(planned.stale, vec![PathBuf::from("functional/old/gone.md")]);
         planned.apply(dir.path()).unwrap();
         assert!(dir.path().join("functional/old/gone.md").exists());
+    }
+
+    // spec: RND-2, RND-3, RND-4 (internal: a folder that keeps a page, which the CLI tests can't build from artifacts)
+    #[test]
+    fn removes_a_recorded_page_and_keeps_its_folder_while_it_holds_another() {
+        let dir = tempfile::tempdir().unwrap();
+        let old = vec![
+            file("functional/old/README.md", "a"),
+            file("functional/old/edited.md", "b"),
+        ];
+        plan(dir.path(), old).unwrap().apply(dir.path()).unwrap();
+        std::fs::write(dir.path().join("functional/old/edited.md"), "b by hand").unwrap();
+
+        let planned = plan(dir.path(), vec![file("functional/new.md", "c")]).unwrap();
+        planned.apply(dir.path()).unwrap();
+
+        assert_eq!(
+            planned.removed,
+            vec![PathBuf::from("functional/old/README.md")]
+        );
+        assert_eq!(
+            planned.stale,
+            vec![PathBuf::from("functional/old/edited.md")]
+        );
+        assert!(!dir.path().join("functional/old/README.md").exists());
+        assert!(dir.path().join("functional/old/edited.md").exists());
+        assert!(dir.path().join("functional").is_dir());
     }
 }

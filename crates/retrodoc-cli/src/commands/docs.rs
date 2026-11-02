@@ -67,16 +67,21 @@ pub fn publish(repo_root: &Path, config: &Config, dry_run: bool) -> anyhow::Resu
     print!("{}", plan.preview());
     if dry_run {
         println!(
-            "\nDry run: {} file(s) would be written to {}, nothing was.",
+            "\nDry run: {} file(s) would be written to {} and {} removed, nothing was.",
             plan.change_count(),
-            config.output.docs_dir
+            config.output.docs_dir,
+            plan.removed.len()
         );
         return Ok(());
     }
     let written = plan
         .apply(&docs_dir)
         .with_context(|| format!("could not write to {}", docs_dir.display()))?;
-    println!("\n{written} file(s) written to {}.", config.output.docs_dir);
+    println!(
+        "\n{written} file(s) written to {} and {} removed.",
+        config.output.docs_dir,
+        plan.removed.len()
+    );
     Ok(())
 }
 

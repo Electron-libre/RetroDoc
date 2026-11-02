@@ -25,6 +25,7 @@ docs/
   _retrodoc/
     coverage-report.md                   # gaps and low-confidence sections
     run-metadata.json                    # model, date, analyzed commit
+    rendered-pages.json                  # hash of each page written, to remove the pages no run produces any more
 ```
 
 - **Grounded**: use cases are built from the code that actually runs (routes, handlers, models), and each
