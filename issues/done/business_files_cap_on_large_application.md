@@ -287,4 +287,4 @@ nothing, and the full smoke test passes its idempotence criteria: first run 85 c
 
 The verdict is still FAIL for the warnings of the first run (25: entities the local model attributes to an unknown
 file, a source rule that selects no file); they come from the model and are tracked by
-`issues/smoke_warnings_business_paths_sources_and_empty_use_cases.md`, not by this work.
+`issues/done/smoke_warnings_business_paths_sources_and_empty_use_cases.md`, not by this work.

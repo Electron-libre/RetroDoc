@@ -85,7 +85,7 @@ answers were never saved, and the rules dropped by grounding, deduplication and 
   167k out, 1 h 36.
 * Verdict FAIL on "no warning" only: 5 warnings, of which 3 are not about this issue (one file left
   unassigned by the domains clustering, two features whose use cases stayed empty:
-  `issues/smoke_warnings_business_paths_sources_and_empty_use_cases.md`) and 1 is the provider's
+  `issues/done/smoke_warnings_business_paths_sources_and_empty_use_cases.md`) and 1 is the provider's
   `finish_reason=length` warning, kept on purpose (other passes read it). The cut handled by the rules pass is
   now logged at info by `response.rs`, the pass warns when it gives up.
 * 202 rules published against 241 in the run before the change: the two runs differ in prompt and answers, so

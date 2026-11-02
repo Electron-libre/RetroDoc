@@ -190,3 +190,5 @@ Code review: 1 findings
   dropped with a `warn` instead of being kept empty.
 
 not verified: no smoke run (decided: no new LLM run).
+
+Done 2026-11-02: every kind sorted and its level set; nothing left but the unknown cause of the empty slugs of 2026-10-14 (raw answers not logged).

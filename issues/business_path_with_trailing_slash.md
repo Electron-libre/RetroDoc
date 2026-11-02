@@ -13,7 +13,7 @@ like a folder) is saved as the folder `lib/shop/order.rb/`. Expected: it resolve
 
 # Findings
 
-* Found by the `high` review of `issues/smoke_warnings_business_paths_sources_and_empty_use_cases.md`
+* Found by the `high` review of `issues/done/smoke_warnings_business_paths_sources_and_empty_use_cases.md`
   (2026-11-02), by reading the code; no saved log shows the case.
 
 # Approach
