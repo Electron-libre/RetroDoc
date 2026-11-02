@@ -54,3 +54,60 @@ the slug empty because the model answered an empty object, a use case with `step
 * The model answers differently each time: judge on several runs, not one.
 * Don't hide a real problem by lowering a warning: a skipped unit is lost documentation.
 * `testing::capture_logs` checks the level of a log in a test (single-threaded `#[tokio::test]` only).
+
+# Tracking
+
+Plan: validated
+
+## Understanding
+Sort each warning kind into model noise (nothing lost: `info`) or a lost piece of documentation (`warn`, or a fix
+of the cause), from the saved logs only. Out of scope: the `finish_reason=length` cut and its retry (a real limit
+of the server, already handled). No new LLM run.
+
+## Measure on the saved logs (2026-11-02, no LLM)
+
+Logs of `~/retrodoc-runs` (smoke and benchmark runs, all repositories, local and DeepSeek). Since 2026-10-16:
+about 23 runs passed through the sources pass, 44 through the business files and the use cases passes.
+
+| Kind | Up to 2026-10-15 | Since 2026-10-16 | What it is |
+|---|---|---|---|
+| `ignoring business path …: no such source` | 5 in 4 runs | 8 in 3 runs | 6 are real linkding templates (not source files, the prompt leaves them out); 2 are `app/models/filter.rb` (lobsters, no such file, `tag_filter.rb` exists). Earlier: `route.rb` (`router.rb` exists), `querysets.py` (`queries.py`), `tags.py` (none) |
+| `dropping source rule …` | 7 in 6 runs | 0 | not reproduced since the sources pass reads the manifests and asks schema-constrained JSON |
+| `use case dropped: no steps` | 3 in 2 runs (local) | 0 | always an empty slug; raw answers not logged. `lenient_steps` drops every step that is not an object: steps written as plain strings give an empty use case |
+| `domain cites a resource/entity the surface does not know` | n/a | 9 in 1 run (Rails) | some are real code names the surface does not list (`ContractMultiple`, `Hybrid`, `Common` are workflow modules), others are inventions; nothing is lost, the resources no domain claims go to `uncategorized` |
+| `entry points no feature claimed` | n/a | 6 in 1 run (Rails) | all placed afterwards: the run ends with `0 entry point(s) without a feature` |
+
+## Plan
+1. [x] Business paths: an existing file that is no source (a template) is ignored at `info` ("not a source
+   file"); an invented path is `info` when the map keeps at least one entry (the empty map already warns); verified by `capture_logs` tests in `business_files/tests.rs`.
+2. [ ] Use cases without steps: steps written as plain strings are read as the step's text; a use case left
+   with no step stays a `warn`, an entry with no slug, no name and no step (an empty placeholder) is `info`;
+   verified by tests in `use_cases/tests.rs`.
+3. [ ] Surface passes: "entry points no feature claimed" is `info` at the slice, and a `warn` per domain only
+   for the entry points still unplaced after the placement; a name the surface does not know, cited by a domain, is `info`;
+   verified by `capture_logs` tests in `features` and `domains`.
+
+## Decisions
+- Mode: autonomous
+- Base commit: aeceb65
+- Answers of 2026-11-02 (all recommendations): an invented business path is `info` while the map keeps an entry,
+  no near-miss resolution (`filter.rb` would become `tag_filter.rb`); an unknown name cited by a domain is
+  `info`; source rules unchanged (`warn` kept, 0 in the 23 runs since 2026-10-16); no debug run, steps written
+  as plain strings are read defensively.
+
+## Deliverable 1: business paths
+
+done: an ignored business path is logged at `info`, "not a source file" for a file that exists (a template),
+"no such source" for an invented one; the empty map keeps its `warn`.
+
+| check | result |
+|---|---|
+| tests | `just check` green |
+| docs | `docs/crates/pipeline.md`, module doc |
+| code review | low, see below |
+
+red: none traced (no spec): `an_ignored_path_is_info_while_the_map_keeps_an_entry` failed on the two `WARN … no such source` lines
+
+Code review: no findings
+
+not verified: no smoke run (decided: no new LLM run).

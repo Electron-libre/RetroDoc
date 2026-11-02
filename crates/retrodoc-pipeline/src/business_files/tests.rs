@@ -163,6 +163,50 @@ async fn paths_that_do_not_exist_or_are_not_source_are_dropped() {
 }
 
 #[tokio::test]
+async fn an_ignored_path_is_info_while_the_map_keeps_an_entry() {
+    let (dir, mut ingest) = library();
+    let template = "lib/shop/templates/order.html";
+    std::fs::create_dir_all(dir.path().join("lib/shop/templates")).unwrap();
+    std::fs::write(dir.path().join(template), "<p></p>").unwrap();
+    ingest.files.push(file(template, FileKind::Other));
+    let llm = FakeLlm::answering(answer(&[
+        ("lib/shop/order.rb", "an order"),
+        (template, "the order page"),
+        ("lib/shop/route.rb", "made up"),
+    ]));
+    let (logs, _guard) = crate::testing::capture_logs();
+
+    let map = infer(&dir, &ingest, &llm, false).await;
+
+    assert_eq!(map.entries.len(), 1);
+    let logs = logs.text();
+    let ignored: Vec<&str> = logs
+        .lines()
+        .filter(|l| l.contains("ignoring business path"))
+        .collect();
+    assert_eq!(ignored.len(), 2, "{logs}");
+    assert!(ignored.iter().all(|l| l.contains("INFO")), "{logs}");
+    assert!(ignored[0].contains("not a source file"), "{logs}");
+    assert!(ignored[1].contains("no such source"), "{logs}");
+}
+
+#[tokio::test]
+async fn a_map_left_empty_still_warns() {
+    let (dir, ingest) = library();
+    let llm = FakeLlm::answering(answer(&[("nowhere/x.rb", "made up")]));
+    let (logs, _guard) = crate::testing::capture_logs();
+
+    infer(&dir, &ingest, &llm, false).await;
+
+    let logs = logs.text();
+    assert!(
+        logs.lines()
+            .any(|l| l.contains("WARN") && l.contains("no business file that exists")),
+        "{logs}"
+    );
+}
+
+#[tokio::test]
 async fn nothing_usable_gives_an_empty_map_that_is_not_saved() {
     let (dir, ingest) = library();
     let llm = FakeLlm::answering(answer(&[("nowhere/x.rb", "made up")]));

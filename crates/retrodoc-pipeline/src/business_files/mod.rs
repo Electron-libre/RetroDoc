@@ -8,7 +8,8 @@
 //! names of the most changed files) with the titles of the docs and the
 //! vocabulary of the tests. It answers a ranked, bounded list of files and
 //! directories with a reason each. Paths that are no source file nor a
-//! folder holding one are dropped.
+//! folder holding one are dropped, at `info`: the
+//! empty map is the warning.
 //!
 //! The list is saved as `.retrodoc/cache/business-files.yaml`, reviewable
 //! and hand-editable, with three hashes: the shape of the tree and the
@@ -271,7 +272,11 @@ fn valid_entries(raw: Vec<RawEntry>, files: &[FileEntry]) -> Vec<BusinessEntry> 
                 reason: entry.reason.trim().to_string(),
             }),
             Some(_) => {}
-            None => tracing::warn!("ignoring business path {:?}: no such source", entry.path),
+            // Model noise: nothing is lost while the map keeps an entry, and a map left empty warns.
+            None if files.iter().any(|f| f.path == Path::new(bare)) => {
+                tracing::info!("ignoring business path {:?}: not a source file", entry.path);
+            }
+            None => tracing::info!("ignoring business path {:?}: no such source", entry.path),
         }
     }
     entries.truncate(MAX_ENTRIES);
