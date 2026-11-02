@@ -915,6 +915,7 @@ fn answers_per_slice(prompt: &str) -> String {
     )
 }
 
+// spec: RER-10 (internal: the texts of a request are constants of the binary, a test can't change them)
 #[tokio::test]
 async fn a_domain_over_the_prompt_limit_is_asked_in_slices_by_file_and_the_features_merge() {
     let dir = tempfile::tempdir().unwrap();
@@ -938,6 +939,11 @@ async fn a_domain_over_the_prompt_limit_is_asked_in_slices_by_file_and_the_featu
     assert!(prompts[1].contains("already found") && prompts[1].contains("all"));
     assert!(!prompts[0].contains("already found"));
     assert!(!prompts[0].contains("(b.rb)") && !prompts[1].contains("(a.rb)"));
+    // The instruction of a later slice is a text of the request, so it is in the print.
+    for text in [DOMAIN_LABEL, KNOWN_FEATURES_HEADER, ENTRY_POINTS_HEADER] {
+        assert!(REQUEST.texts.contains(&text));
+        assert!(prompts[1].contains(text), "{text}");
+    }
     let slugs: Vec<&str> = features.iter().map(|f| f.slug.as_str()).collect();
     assert_eq!(
         slugs,
@@ -1246,7 +1252,8 @@ async fn an_entry_point_placed_from_another_file_stays_in_its_feature_on_the_rer
 }
 
 /// The saved prints must not change with a refactor: another print redoes every user's next run. A
-/// prompt edit changes it on purpose (ADR 0037): update the print then.
+/// change of its request (prompt, schema, user prompt text) changes it on purpose (ADR 0037, ADR 0040):
+/// update the print then.
 #[tokio::test]
 async fn the_print_of_a_domain_stays_the_same() {
     let dir = tempfile::tempdir().unwrap();
@@ -1272,7 +1279,7 @@ async fn the_print_of_a_domain_stays_the_same() {
         prints.into_iter().collect::<Vec<_>>(),
         vec![(
             "orders/-".to_string(),
-            "a1766605c9212daa6f6c71cb52a7c7d352c816aa1d301c56f87af41f2e3dcd12".to_string()
+            "fc0320be1f6bc613f83e6fae6a689289675c92912a5c617e345ec2ab43536dd4".to_string()
         )]
     );
 }

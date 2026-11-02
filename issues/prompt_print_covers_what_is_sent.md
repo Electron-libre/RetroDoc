@@ -66,7 +66,7 @@ Out of scope: the hand-editable artifacts (roles, sources, business-files, brief
    process) taken by `complete_json`; glossary, business, entry points and joint reading moved to it, the brief
    framing in its print part, `reading_instructions` built from the four requests; verified by unit tests of the
    part (changes with the schema, with a user text) and the reading pass tests; makes true RER-10 (reading).
-2. [ ] The other passes: domains, features (slice text), placement, use cases, actors (filter text),
+2. [x] The other passes: domains, features (slice text), placement, use cases, actors (filter text),
    reconciliation, confidence moved to their requests; golden prints updated; verified by a test per pass
    that a saved print of the old part is asked again; makes true RER-10.
 3. [ ] Rules: statement and kind of feature on one request part, judgement on its own print; a feature whose
@@ -89,3 +89,14 @@ Out of scope: the hand-editable artifacts (roles, sources, business-files, brief
   schema).
 - Code review: no findings
 - The brief framing is already covered: `ProductBrief::fingerprint` hashes the rendered section, titles included.
+
+## Deliverable 2
+- done: domains, features (the later-slice instruction), placement, use cases (`ask_with_system`, the system
+  addenda as texts), actors (the entity filter), reconciliation (part cached, no longer hashed per candidate),
+  confidence (two requests in `confidence_model`) on their `Request`; golden prints updated; docs.
+- checks: tests ok, clippy ok, specs ok, docs `pipeline.md`, `ARCHITECTURE.md`.
+- red: RER-10: the golden prints `the_print_of_a_domain_stays_the_same` and `the_print_of_a_feature_stays_the_same`
+  failed (`left: fc0320be… right: a1766605…`), the print now holding the schema and texts.
+- Code review: no findings
+- Decision: the layout of an item of input (`- name: description`, `Feature:`, `Steps:`) stays inline and is
+  not in the print; only instructions and section headers are texts of a request (doc of `Request`).

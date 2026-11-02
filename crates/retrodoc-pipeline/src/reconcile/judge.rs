@@ -18,8 +18,8 @@ use super::{Candidate, ItemKind, Section};
 use crate::artifact::{load_yaml, save_yaml, Artifact};
 use crate::bm25::Bm25;
 use crate::error::PipelineError;
-use crate::fingerprints::{fingerprint, model_part, prompt_part};
-use crate::response::complete_json;
+use crate::fingerprints::{fingerprint, model_part};
+use crate::request::Request;
 use crate::text::{char_prefix, one_line, without_last_chars};
 
 /// Items judged in one request.
@@ -52,6 +52,11 @@ For contradicts, also write doc_states (what the section states, one sentence) a
 item states instead, one sentence). Reply with ONLY a single JSON object, no prose and no Markdown code \
 fence: {\"items\":[{\"n\":1,\"sections\":[{\"s\":\"S1\",\"answer\":\"covers\"},{\"s\":\"S2\",\
 \"answer\":\"contradicts\",\"doc_states\":\"...\",\"item_states\":\"...\"}]}]}.";
+
+const SECTIONS_HEADER: &str = "Sections of the existing documents:\n";
+const ITEMS_HEADER: &str = "\nItems of the generated documentation:\n";
+
+static REQUEST: Request<RawAnswer> = Request::new(SYSTEM_PROMPT, &[SECTIONS_HEADER, ITEMS_HEADER]);
 
 /// What a section is to an item.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -123,12 +128,12 @@ impl Judgements {
 
 impl Candidate {
     /// Hash of the item's text, of the origin and text of its sections, of [`SHOWN_RULE`] and of the
-    /// system prompt (ADR 0037).
+    /// request (ADR 0037, ADR 0040).
     #[must_use]
     pub fn fingerprint(&self) -> String {
         let mut parts = vec![
             SHOWN_RULE.to_string(),
-            prompt_part(&[SYSTEM_PROMPT]),
+            REQUEST.part().to_string(),
             self.item.kind.label().to_string(),
             self.item.query.clone(),
         ];
@@ -331,7 +336,7 @@ fn prompt(batch: &[&Candidate], numbers: &BTreeMap<String, usize>) -> String {
         .map(|(_, s)| s.text.trim().chars().count())
         .collect();
     let shares = shares(&lengths);
-    let mut prompt = String::from("Sections of the existing documents:\n");
+    let mut prompt = String::from(SECTIONS_HEADER);
     for ((n, section), share) in by_number.into_iter().zip(shares) {
         let origin = section.at.origin();
         let queries: Vec<&str> = batch
@@ -345,7 +350,7 @@ fn prompt(batch: &[&Candidate], numbers: &BTreeMap<String, usize>) -> String {
             shown(section, &queries, share)
         );
     }
-    prompt.push_str("\nItems of the generated documentation:\n");
+    prompt.push_str(ITEMS_HEADER);
     for (i, candidate) in batch.iter().enumerate() {
         let labels: Vec<String> = candidate
             .sections
@@ -458,13 +463,13 @@ pub async fn judge(
     );
     for batch in to_ask.chunks(MAX_ITEMS_PER_REQUEST) {
         let numbers = section_numbers(batch);
-        let asked = complete_json::<RawAnswer>(
-            llm,
-            SYSTEM_PROMPT,
-            &prompt(batch, &numbers),
-            "reconciliation with the existing docs",
-        )
-        .await;
+        let asked = REQUEST
+            .ask(
+                llm,
+                &prompt(batch, &numbers),
+                "reconciliation with the existing docs",
+            )
+            .await;
         let answer = match asked {
             Ok(answer) => answer,
             Err(err) => {

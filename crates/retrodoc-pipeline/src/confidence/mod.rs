@@ -41,10 +41,10 @@ use crate::artifact::warn_on_error;
 use crate::chunks::{Focus, Splitter};
 use crate::error::PipelineError;
 use crate::features::save_features;
-use crate::fingerprints::{prompt_part, Fingerprints};
+use crate::fingerprints::Fingerprints;
 use crate::glossary::Glossary;
 use crate::progress::Progress;
-use crate::response::complete_json;
+use crate::request::Request;
 use crate::roles::load_splitter;
 use crate::use_cases::save_use_cases;
 use crate::walked::WalkedFiles;
@@ -311,14 +311,23 @@ pub async fn score_confidence(
     prints.save(repo_root)
 }
 
-/// What the saved scores were given by: the model and the system prompt (ADR 0037), so another of
-/// either scores them again.
+/// The first lines of the prompt of several use cases.
+const BATCH_INSTRUCTIONS: &str = "Several use cases are checked against the same code. Reply with \
+ONLY a JSON object {\"use_cases\":[{\"slug\":\"...\",\"narrative\":{\"verdict\":\"...\",\
+\"rationale\":\"...\"},\"steps\":[{\"order\":1,\"verdict\":\"...\",\"rationale\":\"...\"}]}]}, one \
+entry per use case below, using its slug. Judge each use case against the files it cites only.\n";
+
+/// The request of one use case.
+static SINGLE: Request<RawVerdicts> = Request::new(CONFIDENCE_SYSTEM_PROMPT, &[]);
+
+/// The request of several use cases of a feature.
+static BATCH: Request<RawBatchVerdicts> =
+    Request::new(CONFIDENCE_SYSTEM_PROMPT, &[BATCH_INSTRUCTIONS]);
+
+/// What the saved scores were given by: the model and the two requests (ADR 0037, ADR 0040), so
+/// another of either scores them again.
 fn scored_by(llm: &dyn LlmProvider) -> String {
-    format!(
-        "{} {}",
-        llm.model(),
-        prompt_part(&[CONFIDENCE_SYSTEM_PROMPT])
-    )
+    format!("{} {} {}", llm.model(), SINGLE.part(), BATCH.part())
 }
 
 /// The `chosen` use cases by request: a feature's use cases mostly cite the same code, so they
@@ -373,13 +382,13 @@ async fn score_group(
     let mut answers: BTreeMap<&str, RawVerdicts> = BTreeMap::new();
     let raw = if asked.len() > 1 {
         let what = format!("confidence of {} use cases", asked.len());
-        complete_json::<RawBatchVerdicts>(
-            llm,
-            CONFIDENCE_SYSTEM_PROMPT,
-            &batch_prompt(walked, splitter, &asked, &code_of),
-            &what,
-        )
-        .await?
+        BATCH
+            .ask(
+                llm,
+                &batch_prompt(walked, splitter, &asked, &code_of),
+                &what,
+            )
+            .await?
     } else {
         None
     };
@@ -438,13 +447,9 @@ async fn score_use_case(
     llm: &dyn LlmProvider,
 ) -> Result<Option<Scored>, PipelineError> {
     let (prompt, _) = confidence_prompt(walked, splitter, part, code_of(use_case, part));
-    let Some(raw) = complete_json::<RawVerdicts>(
-        llm,
-        CONFIDENCE_SYSTEM_PROMPT,
-        &prompt,
-        &format!("confidence of {}", use_case.slug),
-    )
-    .await?
+    let Some(raw) = SINGLE
+        .ask(llm, &prompt, &format!("confidence of {}", use_case.slug))
+        .await?
     else {
         return Ok(None);
     };
@@ -679,12 +684,7 @@ fn batch_prompt(
     use_cases: &[&UseCase],
     code_of: &[&UseCase],
 ) -> String {
-    let mut prompt = String::from(
-        "Several use cases are checked against the same code. Reply with ONLY a JSON object \
-         {\"use_cases\":[{\"slug\":\"...\",\"narrative\":{\"verdict\":\"...\",\"rationale\":\"...\"},\
-         \"steps\":[{\"order\":1,\"verdict\":\"...\",\"rationale\":\"...\"}]}]}, one entry per use case \
-         below, using its slug. Judge each use case against the files it cites only.\n",
-    );
+    let mut prompt = String::from(BATCH_INSTRUCTIONS);
     for (use_case, code) in use_cases.iter().zip(code_of) {
         let cites: Vec<&str> = cited_paths(&[code]).into_iter().collect();
         let _ = write!(

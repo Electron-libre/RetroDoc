@@ -14,21 +14,23 @@ use crate::error::PipelineError;
 use crate::fingerprints::prompt_part;
 use crate::response::{complete_json, response_schema};
 
-/// The request of a pass whose answer is of type `R`. A text of the user prompt is one of
-/// `user_texts`, never written inline where the prompt is built, so that it is in the print.
+/// The request of a pass whose answer is of type `R`. An instruction or a section header of the
+/// user prompt is one of `texts`, never written inline where the prompt is built, so that it is in
+/// the print; the layout of an item of input (a `- name: description` line) is not.
 pub(crate) struct Request<R> {
     pub system: &'static str,
-    /// The fixed text of the user prompt, in any order.
-    pub user_texts: &'static [&'static str],
+    /// The other fixed texts it sends, in any order: those of the user prompt, and the pieces a
+    /// system prompt assembled per unit adds to `system`.
+    pub texts: &'static [&'static str],
     part: OnceLock<String>,
     answer: PhantomData<fn() -> R>,
 }
 
 impl<R> Request<R> {
-    pub(crate) const fn new(system: &'static str, user_texts: &'static [&'static str]) -> Self {
+    pub(crate) const fn new(system: &'static str, texts: &'static [&'static str]) -> Self {
         Self {
             system,
-            user_texts,
+            texts,
             part: OnceLock::new(),
             answer: PhantomData,
         }
@@ -37,14 +39,14 @@ impl<R> Request<R> {
 
 impl<R: DeserializeOwned + JsonSchema> Request<R> {
     /// The part of a fingerprint the request makes: the hash of the system prompt, of the schema
-    /// sent with it and of the user prompt texts, computed once per process.
+    /// sent with it and of its other texts, computed once per process.
     pub(crate) fn part(&self) -> &str {
         self.part.get_or_init(|| {
             let schema = response_schema::<R>();
             let schema = format!("schema {} {}", schema.name, schema.schema);
             let texts: Vec<&str> = [self.system, schema.as_str()]
                 .into_iter()
-                .chain(self.user_texts.iter().copied())
+                .chain(self.texts.iter().copied())
                 .collect();
             prompt_part(&texts)
         })
@@ -61,7 +63,23 @@ impl<R: DeserializeOwned + JsonSchema> Request<R> {
         user: &str,
         what: &str,
     ) -> Result<Option<R>, PipelineError> {
-        complete_json::<R>(llm, self.system, user, what).await
+        self.ask_with_system(llm, self.system, user, what).await
+    }
+
+    /// Asks the request with `system` in place of its own, a system prompt assembled for the unit
+    /// from `system` and some of `texts`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error only if the LLM call itself fails.
+    pub(crate) async fn ask_with_system(
+        &self,
+        llm: &dyn LlmProvider,
+        system: &str,
+        user: &str,
+        what: &str,
+    ) -> Result<Option<R>, PipelineError> {
+        complete_json::<R>(llm, system, user, what).await
     }
 }
 

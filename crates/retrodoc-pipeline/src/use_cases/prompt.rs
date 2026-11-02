@@ -68,6 +68,29 @@ invent steps. Reply with ONLY a single JSON object, no prose and no Markdown cod
 this shape: {\"use_cases\":[{\"slug\":\"kebab-case\",\"name\":\"...\",\"description\":\"...\",\
 \"steps\":[{\"actor\":\"...\",\"text\":\"...\",\"code\":[\"F1:10-24\"]}]}]}.";
 
+const VOCABULARY_LABEL: &str = "\nBusiness vocabulary (main entities): ";
+const ACTORS_HEADER: &str = "\nKnown actors:\n";
+const ENTRY_POINTS_HEADER: &str = "\nEntry points:\n";
+const OUTPUTS_LABEL: &str = " → outputs: ";
+const SOURCE_FILES_HEADER: &str = "\nSource files:\n";
+
+/// The request of a feature, every part of its system prompt whichever a unit is sent.
+pub(super) static USE_CASES_REQUEST: crate::request::Request<RawUseCases> =
+    crate::request::Request::new(
+        USE_CASES_SYSTEM_PROMPT,
+        &[
+            NARRATIVE_ADDENDUM,
+            ENTRY_POINTS_ADDENDUM,
+            ACTORS_ADDENDUM,
+            ACTOR_KIND_ADDENDUM,
+            VOCABULARY_LABEL,
+            ACTORS_HEADER,
+            ENTRY_POINTS_HEADER,
+            OUTPUTS_LABEL,
+            SOURCE_FILES_HEADER,
+        ],
+    );
+
 /// The system prompt: the base, the narrative request, and the parts that
 /// only apply when the feature has entry points / the actors are known.
 pub(super) fn system_prompt(has_entry_points: bool, has_actors: bool) -> String {
@@ -113,17 +136,13 @@ pub(super) fn use_cases_prompt(
         let _ = write!(prompt, "\n{evidence}");
     }
     if !vocabulary.is_empty() {
-        let _ = write!(
-            prompt,
-            "\nBusiness vocabulary (main entities): {}\n",
-            names_line(vocabulary)
-        );
+        let _ = writeln!(prompt, "{VOCABULARY_LABEL}{}", names_line(vocabulary));
     }
     if !actors.is_empty() {
-        let _ = write!(prompt, "\nKnown actors:\n{}", actors.prompt_section());
+        let _ = write!(prompt, "{ACTORS_HEADER}{}", actors.prompt_section());
     }
     if !input.entries.is_empty() {
-        prompt.push_str("\nEntry points:\n");
+        prompt.push_str(ENTRY_POINTS_HEADER);
         for (position, (file, entry)) in input.entries.iter().enumerate() {
             let _ = write!(
                 prompt,
@@ -140,12 +159,12 @@ pub(super) fn use_cases_prompt(
                 .map(|o| format!("{:?} {}", o.kind, one_line(&o.description)))
                 .collect();
             if !outputs.is_empty() {
-                let _ = write!(prompt, " → outputs: {}", outputs.join("; "));
+                let _ = write!(prompt, "{OUTPUTS_LABEL}{}", outputs.join("; "));
             }
             prompt.push('\n');
         }
     }
-    prompt.push_str("\nSource files:\n");
+    prompt.push_str(SOURCE_FILES_HEADER);
     let mut included: Vec<String> = Vec::new();
     let mut budget = MAX_CHARS_PER_PROMPT;
 

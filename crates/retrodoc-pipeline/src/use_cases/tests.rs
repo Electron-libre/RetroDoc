@@ -1648,7 +1648,8 @@ async fn a_file_a_saved_feature_or_entry_point_names_outside_the_walk_is_not_sho
 }
 
 /// The saved prints must not change with a refactor: another print redoes every user's next run. A
-/// prompt edit changes it on purpose (ADR 0037): update the print then.
+/// change of its request (prompt, schema, user prompt text) changes it on purpose (ADR 0037, ADR 0040):
+/// update the print then.
 #[tokio::test]
 async fn the_print_of_a_feature_stays_the_same() {
     let dir = tempfile::tempdir().unwrap();
@@ -1672,7 +1673,7 @@ async fn the_print_of_a_feature_stays_the_same() {
         prints.into_iter().collect::<Vec<_>>(),
         vec![(
             "billing/idle".to_string(),
-            "2ca4362ce67d20bc01b6fddd3ddcb6f3742ae8878e20f23a66822e450a79c45a".to_string()
+            "7db7cf383f5503110b2a4882c4e10c156b6e4d6d6c3e28dea720bd249505e934".to_string()
         )]
     );
 }

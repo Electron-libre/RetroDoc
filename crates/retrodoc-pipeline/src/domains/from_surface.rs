@@ -13,9 +13,9 @@ use serde::Deserialize;
 use super::{layer_named_domains, DomainCluster, DomainMap, UNCATEGORIZED_SLUG};
 use crate::brief::ProductBrief;
 use crate::error::PipelineError;
-use crate::fingerprints::{fingerprint, model_part, prompt_part, Fingerprints};
+use crate::fingerprints::{fingerprint, model_part, Fingerprints};
 use crate::naming::normalize;
-use crate::response::complete_json;
+use crate::request::Request;
 use crate::surface::{Resource, Surface};
 
 /// Entities and resources listed in the prompt, the best connected first.
@@ -34,6 +34,14 @@ never an action, a method or an endpoint: copy resource and entity names verbati
 Reply with ONLY a single JSON object, no prose and no Markdown code fence, matching this shape: \
 {\"domains\":[{\"slug\":\"kebab-case\",\"name\":\"...\",\"description\":\"one or two sentences\",\
 \"resources\":[\"...\"],\"entities\":[\"...\"]}]}.";
+
+const ENTITIES_HEADER: &str = "Business entities:\n";
+const RESOURCES_HEADER: &str = "\nResources (entry points by business object):\n";
+
+static REQUEST: Request<RawSurfaceDomains> = Request::new(
+    SURFACE_DOMAINS_SYSTEM_PROMPT,
+    &[ENTITIES_HEADER, RESOURCES_HEADER],
+);
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct RawSurfaceDomains {
@@ -56,7 +64,7 @@ struct RawSurfaceDomain {
 /// The names the model can cite, with no file path: a shown path made it answer with files.
 fn surface_prompt(surface: &Surface, brief: &ProductBrief) -> String {
     let mut prompt = brief.prompt_head();
-    prompt.push_str("Business entities:\n");
+    prompt.push_str(ENTITIES_HEADER);
     for entity in surface.entities.iter().take(MAX_ENTITIES) {
         let description: String = entity
             .description
@@ -65,7 +73,7 @@ fn surface_prompt(surface: &Surface, brief: &ProductBrief) -> String {
             .collect();
         let _ = writeln!(prompt, "- \"{}\": {description}", entity.name);
     }
-    prompt.push_str("\nResources (entry points by business object):\n");
+    prompt.push_str(RESOURCES_HEADER);
     for resource in surface.resources.iter().take(MAX_RESOURCES) {
         let _ = writeln!(
             prompt,
@@ -83,9 +91,7 @@ fn surface_fingerprint(surface: &Surface, brief: &ProductBrief, model: String) -
         std::iter::once("domains from the surface".to_string())
             .chain(surface.fingerprint_parts())
             .chain(brief.print_part())
-            .chain(std::iter::once(prompt_part(&[
-                SURFACE_DOMAINS_SYSTEM_PROMPT,
-            ])))
+            .chain(std::iter::once(REQUEST.part().to_string()))
             .chain(std::iter::once(model)),
     )
 }
@@ -120,16 +126,12 @@ pub async fn build_domains_from_surface(
     }
 
     let prompt = surface_prompt(surface, brief);
-    let raw = complete_json::<RawSurfaceDomains>(
-        llm,
-        SURFACE_DOMAINS_SYSTEM_PROMPT,
-        &prompt,
-        "domains from the surface",
-    )
-    .await?
-    .unwrap_or(RawSurfaceDomains {
-        domains: Vec::new(),
-    });
+    let raw = REQUEST
+        .ask(llm, &prompt, "domains from the surface")
+        .await?
+        .unwrap_or(RawSurfaceDomains {
+            domains: Vec::new(),
+        });
 
     let map = place(raw, surface);
     let layered = layer_named_domains(&map);

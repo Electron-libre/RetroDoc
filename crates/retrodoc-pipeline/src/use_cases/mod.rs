@@ -29,11 +29,8 @@ use crate::chunks::{Focus, Splitter};
 use crate::entry_points::{EntryPoint, EntryPoints};
 use crate::error::PipelineError;
 use crate::features::{entry_point_id, file_ranges, unique_slug};
-use crate::fingerprints::{
-    feature_key, file_part, fingerprint, model_part, prompt_part, Fingerprints,
-};
+use crate::fingerprints::{feature_key, file_part, fingerprint, model_part, Fingerprints};
 use crate::per_feature::{self, FeaturePass, Plan, Unit};
-use crate::response::complete_json;
 use crate::roles::load_splitter;
 use crate::slices::CodeIndex;
 use crate::walked::WalkedFiles;
@@ -48,7 +45,7 @@ use self::grounding::{grounded_use_cases, RawUseCases};
 pub(crate) use self::prompt::{
     focus_for, numbered_excerpt, MAX_CHARS_PER_FILE, MAX_CHARS_PER_PROMPT,
 };
-use self::prompt::{system_prompt, use_cases_prompt, Framing};
+use self::prompt::{system_prompt, use_cases_prompt, Framing, USE_CASES_REQUEST};
 
 /// How far from an entry point's file the code it runs is followed, and how
 /// many files are kept (see [`CodeIndex::slice`]).
@@ -98,13 +95,14 @@ async fn ask_use_cases(
 ) -> Result<Answer, PipelineError> {
     let mut empty_answers = 0;
     for attempt in 1..=2 {
-        let raw = complete_json::<RawUseCases>(
-            llm,
-            system_prompt,
-            prompt,
-            &format!("use cases of {feature_slug}"),
-        )
-        .await?;
+        let raw = USE_CASES_REQUEST
+            .ask_with_system(
+                llm,
+                system_prompt,
+                prompt,
+                &format!("use cases of {feature_slug}"),
+            )
+            .await?;
         match raw {
             Some(raw) if raw.use_cases.is_empty() => {
                 empty_answers += 1;
@@ -429,8 +427,7 @@ fn feature_fingerprint(
             .chain(files)
             .chain(brief.print_part())
             .chain((!evidence.is_empty()).then(|| evidence.to_string()))
-            // Every part of the system prompt, whichever a slice is sent.
-            .chain(std::iter::once(prompt_part(&[&system_prompt(true, true)])))
+            .chain(std::iter::once(USE_CASES_REQUEST.part().to_string()))
             .chain(std::iter::once(model_part(llm))),
     )
 }

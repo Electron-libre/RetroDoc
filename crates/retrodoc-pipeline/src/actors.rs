@@ -26,9 +26,9 @@ use crate::artifact::{load_yaml, save_yaml, Artifact};
 use crate::brief::ProductBrief;
 use crate::chunks::{Focus, Splitter};
 use crate::error::PipelineError;
-use crate::fingerprints::{fingerprint, model_part, prompt_part};
+use crate::fingerprints::{fingerprint, model_part};
 use crate::naming::normalize;
-use crate::response::complete_json;
+use crate::request::Request;
 use crate::surface::Surface;
 use crate::text::{one_line, read_file_lossy};
 use crate::use_cases::numbered_excerpt;
@@ -75,6 +75,10 @@ a `kind` (\"human\" or \"system\"), a one-sentence `description` of what it does
 application, and `evidence`, the file paths it is derived from. Reply with ONLY a single JSON \
 object, no prose and no Markdown code fence, matching this shape: {\"actors\":[{\"name\":\"...\",\
 \"kind\":\"human\",\"description\":\"...\",\"evidence\":[\"...\"]}]}.";
+
+const ENTITIES_HEADER: &str = "Business entities (keep those that stand for someone who acts):\n";
+
+static REQUEST: Request<RawActors> = Request::new(ACTORS_SYSTEM_PROMPT, &[ENTITIES_HEADER]);
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BusinessActor {
@@ -366,7 +370,7 @@ pub async fn build_actors(
             .map(|(path, text)| format!("{}\n{text}", path.display()))
             .chain(entity_lines.iter().cloned())
             .chain(brief.print_part())
-            .chain(std::iter::once(prompt_part(&[ACTORS_SYSTEM_PROMPT])))
+            .chain(std::iter::once(REQUEST.part().to_string()))
             .chain(std::iter::once(model_part(llm))),
     );
     if !force {
@@ -378,7 +382,7 @@ pub async fn build_actors(
 
     let mut prompt = brief.prompt_head();
     if !entity_lines.is_empty() {
-        prompt.push_str("Business entities (keep those that stand for someone who acts):\n");
+        prompt.push_str(ENTITIES_HEADER);
         for line in &entity_lines {
             let _ = writeln!(prompt, "{line}");
         }
@@ -387,9 +391,7 @@ pub async fn build_actors(
         let _ = write!(prompt, "\n--- {} ---\n{text}\n", path.display());
     }
 
-    let Some(raw) =
-        complete_json::<RawActors>(llm, ACTORS_SYSTEM_PROMPT, &prompt, "business actors").await?
-    else {
+    let Some(raw) = REQUEST.ask(llm, &prompt, "business actors").await? else {
         return Ok(Actors::default());
     };
 
@@ -563,6 +565,7 @@ mod tests {
         );
     }
 
+    // spec: RER-10 (internal: the texts of a request are constants of the binary, a test can't change them)
     #[tokio::test]
     async fn every_entity_is_offered_not_only_those_named_like_a_user() {
         let dir = tempfile::tempdir().unwrap();
@@ -594,6 +597,8 @@ mod tests {
         let prompt = &llm.prompts()[0];
         assert!(prompt.contains("- Rider: The Rider"));
         assert!(prompt.contains("- Order: The Order"));
+        // The filter of the entities is a text of the request, so it is in the print.
+        assert!(REQUEST.texts.contains(&ENTITIES_HEADER) && prompt.contains(ENTITIES_HEADER));
     }
 
     #[tokio::test]

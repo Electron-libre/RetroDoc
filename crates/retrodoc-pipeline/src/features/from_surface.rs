@@ -35,10 +35,10 @@ use crate::domains::{DomainCluster, DomainMap};
 use crate::entry_points::EntryFile;
 use crate::entry_points::{EntryPoint, EntryPoints};
 use crate::error::PipelineError;
-use crate::fingerprints::{fingerprint, model_part, prompt_part, Fingerprints};
+use crate::fingerprints::{fingerprint, model_part, Fingerprints};
 use crate::naming::normalize;
 use crate::progress::Progress;
-use crate::response::complete_json;
+use crate::request::Request;
 use crate::surface::Surface;
 
 /// Entry points listed in one prompt.
@@ -56,6 +56,25 @@ entry point goes in exactly one feature. Entry points are cited by their short i
 first word of each line of the list), copied verbatim. A feature is back_office (true) when it is an administration or back-office tool, used by the people who run the application rather than by its users or an external system (judged from its description, its routes and its files); otherwise false. Reply with ONLY a single JSON object, no prose and no \
 Markdown code fence, matching this shape: {\"features\":[{\"slug\":\"kebab-case\",\"name\":\"...\",\
 \"description\":\"one or two sentences\",\"back_office\":false,\"entry_points\":[\"...\"]}]}.";
+
+const DOMAIN_LABEL: &str = "Domain: ";
+const ENTITIES_HEADER: &str = "\nEntities:\n";
+const KNOWN_FEATURES_HEADER: &str = "\nFeatures already found in the other entry points of this \
+domain (when an entry point below belongs to one of them, give that feature again with the same \
+slug and name; otherwise create new features):\n";
+const ENTRY_POINTS_HEADER: &str = "\nEntry points:\n";
+const OMITTED_ENTRY_POINTS: &str = "more entry point(s) omitted from this list";
+
+static REQUEST: Request<RawSurfaceFeatures> = Request::new(
+    SURFACE_FEATURES_SYSTEM_PROMPT,
+    &[
+        DOMAIN_LABEL,
+        ENTITIES_HEADER,
+        KNOWN_FEATURES_HEADER,
+        ENTRY_POINTS_HEADER,
+        OMITTED_ENTRY_POINTS,
+    ],
+);
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct RawSurfaceFeatures {
@@ -420,9 +439,7 @@ fn domain_fingerprint(
             .chain(entities)
             .chain(brief.print_part())
             .chain((!close.is_empty()).then(|| close.to_string()))
-            .chain(std::iter::once(prompt_part(&[
-                SURFACE_FEATURES_SYSTEM_PROMPT,
-            ])))
+            .chain(std::iter::once(REQUEST.part().to_string()))
             .chain(std::iter::once(model_part(llm))),
     )
 }
@@ -445,7 +462,7 @@ fn surface_features_prompt(
     known: &[Feature],
 ) -> String {
     let mut prompt = format!(
-        "{}Domain: {} — {}\n",
+        "{}{DOMAIN_LABEL}{} — {}\n",
         brief.prompt_head(),
         domain.name,
         domain.description
@@ -454,7 +471,7 @@ fn surface_features_prompt(
         let _ = write!(prompt, "\n{evidence}");
     }
     if !domain.entities.is_empty() {
-        prompt.push_str("\nEntities:\n");
+        prompt.push_str(ENTITIES_HEADER);
         for name in &domain.entities {
             let description: String = entity_description(surface, name)
                 .chars()
@@ -464,11 +481,7 @@ fn surface_features_prompt(
         }
     }
     if !known.is_empty() {
-        prompt.push_str(
-            "\nFeatures already found in the other entry points of this domain (when an entry point \
-             below belongs to one of them, give that feature again with the same slug and name; \
-             otherwise create new features):\n",
-        );
+        prompt.push_str(KNOWN_FEATURES_HEADER);
         for feature in known.iter().take(MAX_KNOWN_FEATURES) {
             let description: String = feature
                 .description
@@ -482,7 +495,7 @@ fn surface_features_prompt(
             );
         }
     }
-    prompt.push_str("\nEntry points:\n");
+    prompt.push_str(ENTRY_POINTS_HEADER);
     for (position, e) in entries.iter().enumerate().take(MAX_ENTRIES_PER_PROMPT) {
         let description: String = e
             .point
@@ -515,7 +528,7 @@ fn surface_features_prompt(
     if entries.len() > MAX_ENTRIES_PER_PROMPT {
         let _ = writeln!(
             prompt,
-            "({} more entry point(s) omitted from this list)",
+            "({} {OMITTED_ENTRY_POINTS})",
             entries.len() - MAX_ENTRIES_PER_PROMPT
         );
     }
@@ -588,13 +601,7 @@ impl SurfaceRun<'_> {
             // An answer with no usable feature (ids copied wrongly) is asked once more.
             let mut produced: Vec<Feature> = Vec::new();
             for _ in 0..2 {
-                let answered = complete_json::<RawSurfaceFeatures>(
-                    self.llm,
-                    SURFACE_FEATURES_SYSTEM_PROMPT,
-                    &prompt,
-                    &what,
-                )
-                .await;
+                let answered = REQUEST.ask(self.llm, &prompt, &what).await;
                 let raw = match answered {
                     Ok(Some(raw)) => raw,
                     Ok(None) => continue,

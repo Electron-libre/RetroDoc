@@ -5,7 +5,7 @@
 
 use super::*;
 use crate::behaviour_coverage::BehaviourCoverage;
-use crate::fingerprints::prompt_part;
+use crate::request::Request;
 
 /// Entry points per placement call.
 const REPAIR_BATCH: usize = 60;
@@ -19,6 +19,14 @@ verbatim. Leave an entry point out of your \
 answer if no feature fits it; never invent a feature. Reply with ONLY a single JSON object, no \
 prose and no Markdown code fence, matching this shape: \
 {\"placements\":[{\"entry_point\":\"id\",\"feature\":\"slug\"}]}.";
+
+const FEATURES_HEADER: &str = "Features:\n";
+const ENTRY_POINTS_HEADER: &str = "\nEntry points to place:\n";
+
+static REQUEST: Request<RawPlacements> = Request::new(
+    PLACEMENT_SYSTEM_PROMPT,
+    &[FEATURES_HEADER, ENTRY_POINTS_HEADER],
+);
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct RawPlacements {
@@ -81,7 +89,7 @@ fn placement_print(
                     .map(|f| format!("feature {}\n{}\n{}", f.slug, f.name, f.description)),
             )
             .chain(brief.print_part())
-            .chain(std::iter::once(prompt_part(&[PLACEMENT_SYSTEM_PROMPT])))
+            .chain(std::iter::once(REQUEST.part().to_string()))
             .chain(std::iter::once(model_part(llm))),
     )
 }
@@ -91,7 +99,7 @@ fn placement_prompt(
     batch: &[&Unclaimed<'_>],
     brief: &ProductBrief,
 ) -> String {
-    let mut prompt = format!("{}Features:\n", brief.prompt_head());
+    let mut prompt = format!("{}{FEATURES_HEADER}", brief.prompt_head());
     for f in features.iter().take(MAX_FEATURES_SHOWN) {
         let _ = writeln!(
             prompt,
@@ -99,7 +107,7 @@ fn placement_prompt(
             f.slug, f.domain_slug, f.name, f.description
         );
     }
-    prompt.push_str("\nEntry points to place:\n");
+    prompt.push_str(ENTRY_POINTS_HEADER);
     for (position, u) in batch.iter().enumerate() {
         let description: String = u
             .point
@@ -164,13 +172,9 @@ pub(super) async fn place_unclaimed(
         .collect();
     for batch in &batches {
         let prompt = placement_prompt(features, batch, brief);
-        let raw = complete_json::<RawPlacements>(
-            llm,
-            PLACEMENT_SYSTEM_PROMPT,
-            &prompt,
-            "placement of the entry points left out",
-        )
-        .await?;
+        let raw = REQUEST
+            .ask(llm, &prompt, "placement of the entry points left out")
+            .await?;
         let Some(raw) = raw else { continue };
         for placement in raw.placements {
             let id = placement.entry_point.trim();
