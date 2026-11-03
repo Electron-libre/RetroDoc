@@ -42,3 +42,41 @@ and the test count is unchanged.
 # Hints
 * The tests that check the exact bytes of a request (headers, `max_tokens`, `reasoning_effort`) need the requests
   received: keep that channel in the shared `serve`.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-03
+
+## Understanding
+Share the mock server (`serve`, `http`), the provider (`provider(endpoint)`) and the requests in `tests/mod.rs`, and
+make `LTO-4` read its accept count without a sleep. Test code only: no production change, same test count. No spec
+(pure refactor of tests).
+
+## Plan
+1. [x] Shared fixtures and a deterministic `LTO-4`: `serve`/`http`/`OK_BODY`/`provider` move to `tests/mod.rs`, the
+   hand-written servers and literals of `completion.rs`, `fallbacks.rs`, `timeouts.rs` use them; `LTO-4` opens a
+   sentinel connection after the error and counts the connections the server accepted before it (the backlog is
+   FIFO), with no sleep; verified by `just check` green and the same test count (~250 lines). (autonomous)
+
+## Decisions
+- Mode: autonomous
+- Base commit: 39f550cf560a45c78d52c7a87849cb9a0f387ed4
+- The 429 response with `Retry-After` is passed raw to `serve` (`http()` takes no headers).
+
+## Deliverable 1 summary
+done: `serve`, `http`, `OK_BODY`, `provider` shared in `tests/mod.rs`; hand-written servers and provider literals
+gone; `LTO-4` counts the connections accepted before a sentinel, no sleep.
+
+| check | result |
+|---|---|
+| tests | 46 before, 46 after |
+| `just check` | green |
+| docs | no doc describes these fixtures |
+| code review | see below |
+
+red: none (refactor of tests, no new behaviour)
+
+Code review: no findings (`low` reads no test file: the diff is test code only)
+
+not verified: that `LTO-4` would fail on a retry (no production change made to prove it)
+decisions needed: none

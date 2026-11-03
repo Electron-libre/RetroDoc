@@ -1,10 +1,9 @@
-use std::sync::atomic::AtomicBool;
 use std::time::Duration;
 
 use retrodoc_core::config::LlmConfig;
 
 use super::super::{request_timeout, OpenRouterProvider};
-use super::request;
+use super::{provider, request};
 use crate::{LlmError, LlmProvider};
 
 #[tokio::test]
@@ -12,13 +11,12 @@ use crate::{LlmError, LlmProvider};
 async fn a_timeout_is_named_and_not_retried() {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let addr = listener.local_addr().unwrap();
-    let accepted = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
-    let seen = accepted.clone();
-    // Takes the connections and never answers.
+    let (tx, accepted) = std::sync::mpsc::channel();
+    // Takes the connections, reports each peer and never answers.
     std::thread::spawn(move || {
         let mut held = Vec::new();
-        while let Ok((stream, _)) = listener.accept() {
-            seen.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        while let Ok((stream, peer)) = listener.accept() {
+            let _ = tx.send(peer);
             held.push(stream);
         }
     });
@@ -27,18 +25,9 @@ async fn a_timeout_is_named_and_not_retried() {
             .timeout(Duration::from_millis(200))
             .build()
             .unwrap(),
-        api_key: "test-key".to_string(),
-        default_model: "m".to_string(),
-        endpoint: String::new(),
-        reasoning_effort: None,
-        temperature: None,
-        structured_output: true,
-        require_parameters: false,
-        schema_refused: AtomicBool::new(false),
-        temperature_refused: AtomicBool::new(false),
         timeout: Duration::from_millis(200),
-    }
-    .with_endpoint(format!("http://{addr}"));
+        ..provider(&format!("http://{addr}"))
+    };
 
     let error = provider.complete(request()).await.unwrap_err();
 
@@ -46,8 +35,12 @@ async fn a_timeout_is_named_and_not_retried() {
         matches!(&error, LlmError::Transport(m) if m.contains("timed out after 200ms") && m.contains("llm.timeout_secs")),
         "{error:?}"
     );
-    std::thread::sleep(Duration::from_millis(100));
-    assert_eq!(accepted.load(std::sync::atomic::Ordering::SeqCst), 1);
+    // The listener accepts in arrival order: every connection of the provider
+    // is accepted before this sentinel, opened once it gave up.
+    let sentinel = std::net::TcpStream::connect(addr).unwrap();
+    let sentinel = sentinel.local_addr().unwrap();
+    let before_sentinel = accepted.iter().take_while(|peer| *peer != sentinel).count();
+    assert_eq!(before_sentinel, 1);
 }
 
 fn timeout_for(base_url: Option<&str>) -> Duration {
