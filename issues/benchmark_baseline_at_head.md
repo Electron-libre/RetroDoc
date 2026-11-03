@@ -59,8 +59,8 @@ change: the committed output is the audited pairs and the figures in `docs/findi
 3. [x] Audit: hand check of the judge's domain and feature pairs of one run per series and application, strict and
    judged precision side by side; checked pairs added to `benchmark/<repo>/matches.yaml`; verified by
    `retrodoc benchmark --saved-judge` re-scores and `just check`. (autonomous)
-4. [ ] Record: dated entry in `docs/findings.md`, "Latest figures" of `PRODUCT.md`, ledger (measures, reusable
-   artifacts, G7 ticked); verified by `just check` and a reread.
+4. [x] Record: dated entry in `docs/findings.md`, "Latest figures" of `PRODUCT.md`, ledger (measures, reusable
+   artifacts, G7 ticked); verified by `just check` and a reread. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -92,3 +92,18 @@ new `source_run`); the former frozen inputs kept as `frozen/<repo>-before-dafea1
 red: none (measure, no test)
 
 Code review: no findings
+
+## Deliverable 4: record
+- done: section 9 of `docs/findings.md`, "Latest figures" of `PRODUCT.md`, ledger (3 measures, reusable artifacts,
+  G2 domains and G7 ticked); the audit's figures added to the findings of `judge_overstates_feature_precision`.
+- follow-up: that issue assumed an overstatement of 12 to 33 points; this audit finds 0 to 4. Its plan may shrink.
+
+| check | result |
+|---|---|
+| tests, lint, specs (`just check`) | pass |
+| code review (`low`) | 1 finding, fixed |
+
+red: none (docs)
+
+Code review: 1 findings
+- `PRODUCT.md`: the narratives range mixed the shown series into figures said hidden; now 82% on both (fixed).

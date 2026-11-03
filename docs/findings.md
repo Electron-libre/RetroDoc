@@ -513,3 +513,34 @@ Three maps of the same roles: 34, 40 and 44 contexts, 30%, 10% and 10% of the fi
 the files in the same context from one map to another, 4 slugs in all three; the context of 180 files in the
 first is cut under the limit in the next two. About 30 of the 44 names fit their files; the others are 5 technical
 contexts (UI components, configuration, front-end code, base classes), 3 catch-alls and 6 one-file contexts.
+
+## 9. Benchmark baseline at the current code (2026-11-03)
+
+Measured at dafea18 (`issues/benchmark_baseline_at_head.md`), hosted `deepseek-chat`, confidence on, 3 runs per
+series; the earlier whole runs (2026-10-28) predate the docs language, the narrative check, the new rules judgement
+and the reconciliation by identifiers. Mean (range); judged figures as the benchmark scored them at the run:
+
+| Figure | linkding hidden | linkding shown | Lobsters hidden | Lobsters shown |
+|---|---|---|---|---|
+| Domains recall / precision (judged) | 94% / 93% (80-100) | 100% / 96% | 90% / 72% (57-80) | 81% / 81% (67-100) |
+| Features recall / precision (judged) | 90% / 57% (51-65) | 82% / 56% (48-67) | 96% / 47% (42-49) | 99% / 47% (44-51) |
+| Narratives in business language (judge) | 82% | 84% | 82% | 80% |
+| Use cases fully in business language | 65% (53-81) | 53% (48-63) | 78% | 77% |
+| Domains, features, use cases | 6, 43, 112 | 7, 43, 115 | 9, 81, 208 | 9, 80, 216 |
+| Calls, time | 138, 6 min | 159, 7 min | 214, 12 min | 239, 13 min |
+
+Cost about $3.5 for the 12 runs (linkding about $0.2 a run, Lobsters about $0.4). Against the single Lobsters run of
+2026-10-28 (confidence off), the domains precision dropped (82% to 72%, range 57-80) and the
+calls rose from 126 to 214 (the confidence pass and the narrative check); the features stay where they
+were.
+
+Hand audit of the judge on one run per series (`benchmark/<repo>/matches.yaml` holds the checked pairs since): the
+judge was wrong on 3 of 20, 1 of 25, 0 of 33 and 1 of 33 feature pairs, and missed 3, 3, 8 and 6 right ones (most on
+Lobsters: search, private messages, moderation log, mod mail). On those runs the hand feature precision is 49%, 67%,
+45% and 46% against 53%, 67%, 45% and 48% judged: the judge overstates the precision by 0 to 4 points, its misses
+partly offsetting its false pairs. The precision stays the weakest figure: about a third of the unpaired features of
+Lobsters are technical (test data, development checks, caches, dumps), the rest are real features the reference
+leaves out (notifications, statistics).
+
+The inputs of both applications were re-frozen from a `hidden` run at this commit; three replays of the domains pass
+on linkding find 5 to 7 domains, judged 100% recall and precision each time (the baseline of 2026-10-23 was lost).

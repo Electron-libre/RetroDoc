@@ -21,6 +21,10 @@ hand audit on both benchmark applications, or a measure that says how far to tru
 * A generated feature now counts for each reference feature it holds
   (`issues/done/one_generated_name_for_several_reference_items.md`): a broad feature raises recall without lowering
   precision.
+* Baseline at dafea18 (`issues/benchmark_baseline_at_head.md`, 2026-11-03), one run per series audited by hand:
+  feature pairs wrong 3/20, 1/25 (linkding), 0/33, 1/33 (Lobsters); right pairs missed 3, 3, 8, 6; hand precision
+  49%, 67%, 45%, 46% against 53%, 67%, 45%, 48% judged. The overstatement is 0 to 4 points on these runs, not 12
+  to 33: the misses offset the false pairs. The checked pairs are in `matches.yaml`.
 
 # Approach
 1. Measure first on the runs of `benchmark_baseline_at_head`: label every judged feature pair by hand (right, wrong,

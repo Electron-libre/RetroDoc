@@ -112,9 +112,10 @@ Measured by `retrodoc benchmark` against hand-written references on public repos
 - a reader taking over an application finds the docs right and useful (not measured yet: milestone "Read by someone
   taking an application over" of `ROADMAP.md`).
 
-Latest figures (hosted `deepseek-chat`, 2026-10-28, before the docs language and the narrative check): Lobsters
-judged domains 100% recall / 82% precision, features 100% / 51%; linkding features by hand about 75% / 77%;
-narratives in business language 78% to 81%. Feature precision is the weakest figure.
+Latest figures (hosted `deepseek-chat`, 2026-11-03, 3 runs per series, repository docs hidden): linkding judged
+domains 94% recall / 93% precision, features 90% / 57%; Lobsters domains 90% / 72%, features 96% / 47%; narratives
+in business language 82% on both. Feature precision is the weakest figure; checked by hand on one run per series, the
+judge overstates it by 0 to 4 points (`docs/findings.md`, section 9).
 
 ## Constraints and assumptions
 
