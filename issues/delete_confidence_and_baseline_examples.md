@@ -42,13 +42,14 @@ Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-03
 ## Understanding
 Delete `narrative_check_measure`, `confidence_agreement` and `behaviour_baseline` with every live mention (Cargo
 entry, `docs/dev/commands.md`, `docs/crates/pipeline.md`, doc comments of `confidence/mod.rs` and `parsed_slices.rs`),
-plus a dated note in ADR 0026. Closed issues and the ledger keep their mentions. No export to drop: `mechanical_score`
-is still used by the use-cases replay and `StepTally` is its return type.
+plus a dated note in ADR 0026. Closed issues and the ledger keep their mentions. `mechanical_score` stays (the
+use-cases replay uses it through the `confidence` module).
 
 ## Plan
 1. [x] Delete the three examples and reword their mentions; ADR 0026 keeps the example name with a dated note
    pointing to `issues/done/deterministic_confidence_checks.md`; verified by `just check` and a grep finding no
    mention outside closed issues and this one. (autonomous)
+2. [x] Fixes of the `high` review of the whole issue; verified by `just check`. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -64,4 +65,15 @@ is still used by the use-cases replay and `StepTally` is its return type.
 - checks: `just check` passed; `deliverable-size` 514 lines; no mention left outside closed issues and this one;
   update-docs: `docs/crates/bench.md` and the map name no example individually (n/a).
 - red: none (deletions, no test).
+- Code review: no findings
+
+### Deliverable 2
+- done: the `high` review of `7b2b654..HEAD` found 5 points. Fixed: the root re-exports `mechanical_score` and
+  `StepTally` (added for `confidence_agreement`) dropped, the replay reaches them through `confidence`; `pipeline.md`
+  says the replay counts the steps `mechanical_score` passes, not the "grounded" ones; this tracking no longer says
+  no export is dropped; the ledger (outside git) notes on the still-valid `narrative_check_measure` baseline that the
+  tool is deleted and can be restored from git. Not fixed: narrowing `mechanical_score` to the passing count (its
+  score half is tested and reworking the API is outside a deletion).
+- checks: `just check` passed.
+- red: none (no behaviour change).
 - Code review: no findings

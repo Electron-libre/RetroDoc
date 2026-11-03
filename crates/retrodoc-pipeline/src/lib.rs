@@ -68,7 +68,7 @@ pub use bm25::{Bm25, Relevant};
 pub use brief::{build_brief, sample_chars, Claim, Evidence, ProductBrief};
 pub use business_files::{infer_business_files, BusinessEntry, BusinessMap};
 pub use business_read::read_business_files;
-pub use confidence::{mechanical_score, score_confidence, StepTally};
+pub use confidence::score_confidence;
 pub use contexts::{
     build_context_map, domain_vocabulary, domains_from_contexts, mark_done, plan_run,
     BoundedContext, ContextMap, Resolved, ResolvedContext, RunSlice,
