@@ -1,46 +1,23 @@
 //! The built-in stack tables cover the reference languages of `specs/language-agnostic.md`: their
 //! files are classified by `scan` with no LLM call.
 
+mod support;
+
 use std::path::Path;
-use std::process::Command;
 
-fn git(dir: &Path, args: &[&str]) {
-    let status = Command::new("git")
-        .args(["-c", "user.name=A", "-c", "user.email=a@example.com"])
-        .args(args)
-        .current_dir(dir)
-        .status()
-        .unwrap();
-    assert!(status.success());
-}
+use support::{repo_with_config, run, stdout_of};
 
-/// A committed repo holding `files` (empty content) and a `retrodoc.toml`.
+/// A committed repo holding `files` (with a line each) and a `retrodoc.toml` naming no server.
 fn repo(files: &[&str]) -> tempfile::TempDir {
-    let dir = tempfile::tempdir().unwrap();
-    for file in files {
-        let path = dir.path().join(file);
-        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-        std::fs::write(path, "x\n").unwrap();
-    }
-    std::fs::write(
-        dir.path().join("retrodoc.toml"),
+    let files: Vec<(&str, &str)> = files.iter().map(|file| (*file, "x\n")).collect();
+    repo_with_config(
+        &files,
         "[llm]\nmodel = \"m\"\nbase_url = \"http://127.0.0.1:9/chat/completions\"\n",
     )
-    .unwrap();
-    git(dir.path(), &["init", "-q"]);
-    git(dir.path(), &["add", "."]);
-    git(dir.path(), &["commit", "-q", "-m", "init"]);
-    dir
 }
 
 fn scan(dir: &Path) -> String {
-    let output = Command::new(env!("CARGO_BIN_EXE_retrodoc"))
-        .args(["scan", "--path"])
-        .arg(dir)
-        .output()
-        .unwrap();
-    assert!(output.status.success(), "{output:?}");
-    String::from_utf8(output.stdout).unwrap()
+    stdout_of(dir, "scan")
 }
 
 /// One file per extension of the reference set.
@@ -179,11 +156,7 @@ fn every_reference_manifest_is_read() {
 
 /// The number of manifests `brief --signals` reads.
 fn manifest_count(dir: &Path) -> Option<usize> {
-    let output = Command::new(env!("CARGO_BIN_EXE_retrodoc"))
-        .args(["brief", "--signals", "--path"])
-        .arg(dir)
-        .output()
-        .unwrap();
+    let output = run(dir, &["brief", "--signals"]);
     assert!(output.status.success(), "{output:?}");
     String::from_utf8(output.stdout)
         .unwrap()

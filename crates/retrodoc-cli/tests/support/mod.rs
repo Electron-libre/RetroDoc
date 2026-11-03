@@ -51,16 +51,25 @@ pub struct FakeLlm {
 impl FakeLlm {
     /// Serves `answer(call)` as the content of each completion.
     pub fn start(answer: impl Fn(&Call) -> String + Send + Sync + 'static) -> Self {
+        Self::listen(move |call| Reply::Content(answer(call)))
+    }
+
+    /// Answers every request with the HTTP `status` (e.g. `"400 Bad Request"`) and an error body.
+    pub fn failing(status: &'static str) -> Self {
+        Self::listen(move |_| Reply::Error(status, r#"{"error":"no"}"#.to_string()))
+    }
+
+    fn listen(reply: impl Fn(&Call) -> Reply + Send + Sync + 'static) -> Self {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let url = format!("http://{}/chat/completions", listener.local_addr().unwrap());
         let calls = Arc::new(Mutex::new(Vec::new()));
         let kept = Arc::clone(&calls);
-        let answer = Arc::new(answer);
+        let reply = Arc::new(reply);
         std::thread::spawn(move || {
             for stream in listener.incoming() {
                 let Ok(stream) = stream else { return };
-                let (kept, answer) = (Arc::clone(&kept), Arc::clone(&answer));
-                std::thread::spawn(move || serve(stream, &kept, answer.as_ref()));
+                let (kept, reply) = (Arc::clone(&kept), Arc::clone(&reply));
+                std::thread::spawn(move || serve(stream, &kept, reply.as_ref()));
             }
         });
         Self { url, calls }
@@ -80,11 +89,19 @@ impl FakeLlm {
     }
 }
 
+/// What the server sends back to one request.
+enum Reply {
+    /// A completion with this content.
+    Content(String),
+    /// An HTTP error: its status line and body.
+    Error(&'static str, String),
+}
+
 /// Answers the requests of one connection (the client keeps it alive) until it closes.
 fn serve(
     stream: TcpStream,
     kept: &Mutex<Vec<Call>>,
-    answer: &(dyn Fn(&Call) -> String + Send + Sync),
+    reply: &(dyn Fn(&Call) -> Reply + Send + Sync),
 ) {
     let mut reader = BufReader::new(stream.try_clone().unwrap());
     let mut stream = stream;
@@ -92,22 +109,26 @@ fn serve(
         let call = call_of(&body);
         kept.lock().unwrap().push(call.clone());
         // A pass with no script answers a 500 naming it, rather than a dropped connection.
-        let Ok(content) = std::panic::catch_unwind(AssertUnwindSafe(|| answer(&call))) else {
-            let message = format!("no script for the pass {}", call.pass);
-            let response = format!(
-                "HTTP/1.1 500 Internal Server Error\r\nContent-Length: {}\r\n\r\n{message}",
-                message.len()
-            );
-            let _ = stream.write_all(response.as_bytes());
-            return;
+        let reply =
+            std::panic::catch_unwind(AssertUnwindSafe(|| reply(&call))).unwrap_or_else(|_| {
+                Reply::Error(
+                    "500 Internal Server Error",
+                    format!("no script for the pass {}", call.pass),
+                )
+            });
+        let (status, payload) = match reply {
+            Reply::Content(content) => (
+                "200 OK",
+                json!({
+                    "model": "fake",
+                    "choices": [{"message": {"role": "assistant", "content": content}, "finish_reason": "stop"}],
+                })
+                .to_string(),
+            ),
+            Reply::Error(status, body) => (status, body),
         };
-        let payload = json!({
-            "model": "fake",
-            "choices": [{"message": {"role": "assistant", "content": content}, "finish_reason": "stop"}],
-        })
-        .to_string();
         let response = format!(
-            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{payload}",
+            "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{payload}",
             payload.len()
         );
         if stream.write_all(response.as_bytes()).is_err() {
@@ -275,7 +296,7 @@ impl App {
     }
 }
 
-fn git(dir: &Path, args: &[&str]) {
+pub fn git(dir: &Path, args: &[&str]) {
     let status = Command::new("git")
         .args(["-c", "user.name=A", "-c", "user.email=a@example.com"])
         .args(args)
@@ -285,22 +306,28 @@ fn git(dir: &Path, args: &[&str]) {
     assert!(status.success());
 }
 
+/// The `[llm]` section of a `retrodoc.toml` pointing at `llm`.
+pub fn llm_section(llm: &FakeLlm) -> String {
+    format!(
+        "[llm]\napi_key_env = \"RETRODOC_TEST_FAKE_LLM_KEY\"\nmodel = \"fake\"\nbase_url = \"{}\"\n",
+        llm.url
+    )
+}
+
 /// A repository of `files` with one commit, its `retrodoc.toml` pointing at `llm`.
 pub fn repo(files: &[(&str, &str)], llm: &FakeLlm) -> tempfile::TempDir {
+    repo_with_config(files, &llm_section(llm))
+}
+
+/// A repository of `files` with one commit and `config` as its `retrodoc.toml`.
+pub fn repo_with_config(files: &[(&str, &str)], config: &str) -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();
     for (file, text) in files {
         let path = dir.path().join(file);
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::fs::write(path, text).unwrap();
     }
-    std::fs::write(
-        dir.path().join("retrodoc.toml"),
-        format!(
-            "[llm]\napi_key_env = \"RETRODOC_TEST_FAKE_LLM_KEY\"\nmodel = \"fake\"\nbase_url = \"{}\"\n",
-            llm.url
-        ),
-    )
-    .unwrap();
+    std::fs::write(dir.path().join("retrodoc.toml"), config).unwrap();
     git(dir.path(), &["init", "-q"]);
     git(dir.path(), &["add", "."]);
     git(
@@ -317,8 +344,14 @@ pub fn generate(dir: &Path) -> Output {
 
 /// Runs the subcommand `command` on `dir`.
 pub fn retrodoc(dir: &Path, command: &str) -> Output {
+    run(dir, &[command])
+}
+
+/// Runs `args` (a subcommand and its options) on `dir`.
+pub fn run(dir: &Path, args: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_retrodoc"))
-        .args([command, "--path"])
+        .args(args)
+        .arg("--path")
         .arg(dir)
         .current_dir(dir)
         .env("RETRODOC_TEST_FAKE_LLM_KEY", "unused")
