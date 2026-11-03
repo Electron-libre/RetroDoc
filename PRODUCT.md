@@ -135,7 +135,9 @@ weakest figure, with the domains pass unchanged (`docs/findings.md`, section 10)
   the debt report lists the files no entry point reaches.
 - The measures are noisy: the spread between runs is as large as many effects, the LLM judge of the benchmark is
   wrong on a share of its pairs (within 4 points of a hand count on the baseline of 2026-11-03, 12 to 33 on earlier
-  audits; the runs count the pairs no hand has audited), and the references are not all checked by a human.
+  audits; the runs count the pairs no hand has audited), and the references rest on agents: their features cite
+  evidence and a blind second draft was settled against them, but no human who knows the applications has read them
+  (the disputed features move the judged feature figures by about 5 points of recall and 10 of precision).
 - Nobody outside the project has read the generated docs of an application they take over: the users of the table
   above are assumed, not met.
 

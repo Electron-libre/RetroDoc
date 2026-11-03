@@ -1,6 +1,6 @@
 ---
 id: BRE
-status: draft
+status: accepted
 adrs: []
 ---
 
@@ -11,7 +11,7 @@ adrs: []
 Every recall and precision of the quality benchmark rests on the hand-written reference, drafted by an agent. Each
 feature of a reference cites the evidence that backs it, in the repository at its pinned commit or in its
 maintainers' pages, so a script can check that the evidence exists and the figures can say how much of them rests on
-human-written docs and how much moves with the features two independent drafts disagreed on.
+human-written docs and how much moves with the features one of two independent drafts did not hold.
 
 ## Requirements
 

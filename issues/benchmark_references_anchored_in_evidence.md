@@ -74,8 +74,8 @@ use cases, rules, `matches.yaml` and `entry-points.yaml` (spec `benchmark-refere
    hidden, dd5cf43 baseline) and the error bar, in the ledger and this issue (`docs/findings.md` stops at
    2026-10-14); verified by the check and `just check`. (autonomous)
 3. [x] Lobsters: the same, from `about.html.erb` at the pinned commit and the meta stories it links (`url`). (autonomous)
-4. [ ] Docs: skill `quality-benchmark` (which figures rest on doc-backed items, the check before a benchmark),
-   `PRODUCT.md` risk, `docs/crates/bench.md`; verified by `update-docs` and the reviews.
+4. [x] Docs: skill `quality-benchmark` (which figures rest on doc-backed items, the check before a benchmark),
+   `PRODUCT.md` risk, `docs/crates/bench.md`; verified by `update-docs` and the reviews. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -141,4 +141,12 @@ use cases, rules, `matches.yaml` and `entry-points.yaml` (spec `benchmark-refere
   Recall falls 4 to 7 points: some added features (merge stories, standing) no generated name holds; the error bar
   is about 5 points on recall and 7 to 12 on precision.
 - red: none (data deliverable).
+- Code review: no findings
+
+## Deliverable 4
+- done: skill `quality-benchmark` (the evidence, the check and its error bar, pairing added or split features);
+  `PRODUCT.md` risk reworded; spec `benchmark-reference-evidence` accepted, its intent says what `disputed` marks.
+- update-docs: `docs/crates/bench.md`, `docs/dev/commands.md` done in deliverable 1; map rows: n/a (an example and a
+  module of the bench crate, covered by the crate page and the commands); no stale "checked by a human" left.
+- red: none (docs).
 - Code review: no findings

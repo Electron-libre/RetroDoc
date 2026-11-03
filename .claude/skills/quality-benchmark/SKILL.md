@@ -34,6 +34,22 @@ reference is written by hand per repository in `benchmark/<repo>/reference.yaml`
 domains, features, a sample of use cases and rules, the pinned commit) and the hand-written pairs in
 `benchmark/<repo>/matches.yaml`. Only **public** repositories go in the benchmark.
 
+Each feature of the linkding and Lobsters references cites its `evidence` (`doc`: a heading of the repo's
+human-written docs, `url`: a maintainers' page, `code`: a file), and `disputed` marks the features an independent
+draft did not hold (spec `benchmark-reference-evidence`; checked 2026-11-03, `checked:` of each reference). No
+human checked them: the evidence and the blind second draft stand in. After editing a reference, and with the
+figures of a benchmark, run the check; it fails on a cited path or heading missing at the pinned commit and prints
+the feature figures of the given reports without the disputed features, the error bar the reference adds:
+
+```sh
+cargo run -q -p retrodoc-bench --example reference_evidence -- benchmark/<repo>/reference.yaml \
+  ~/retrodoc-runs/retrodoc-benchmark-<repo>/source [<dir>/<series>/run-*.json]
+```
+
+A feature added to a reference has no pair in the saved `judge.yaml`: pair the generated names of the kept runs
+that hold it in `matches.yaml` before comparing; a feature renamed, merged or split leaves pairs to an unknown name,
+in `matches.yaml` and in the saved `judge.yaml` (keep a `.orig`), that fail the scoring until rewritten.
+
 Two applications decide whether a setting wins: `linkding` (Python/Django) and `lobsters` (Rails). Compare a
 setting on both: a gain on one only is not yet a gain. `delivery_router` (9 files) is a **smoke repository
 only**: its figures saturate (100% recall), it separates no two settings.
