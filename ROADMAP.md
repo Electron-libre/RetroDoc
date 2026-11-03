@@ -212,7 +212,7 @@ The milestones up to "A large application, one bounded context at a time" are th
   lines of `retrodoc-pipeline` are measuring tools.
 - State: in issues
 - Issues:
-  - [release_bumps_the_workspace_version](issues/release_bumps_the_workspace_version.md)
+  - [release_bumps_the_workspace_version](issues/done/release_bumps_the_workspace_version.md)
   - [measure_tooling_out_of_the_pipeline_crate](issues/measure_tooling_out_of_the_pipeline_crate.md)
 
 ## Measured quality at the current code
