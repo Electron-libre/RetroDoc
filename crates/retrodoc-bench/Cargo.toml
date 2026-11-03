@@ -41,14 +41,6 @@ name = "parsed_slices"
 test = true
 
 [[example]]
-name = "context_map_measure"
-test = true
-
-[[example]]
-name = "orphan_placement_measure"
-test = true
-
-[[example]]
 name = "placement_replay"
 test = true
 

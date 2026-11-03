@@ -13,7 +13,8 @@ needs the slices to be known before the code is read, and to stay the same from 
 domains of the `surface` path (ADR 0020) are built from what the reading found, and a domain change
 redoes the features and use cases of every unit it touches.
 
-Measured with no LLM call (`examples/context_map_measure.rs`): grouping the source files around the names of
+Measured with no LLM call (by an example deleted since, its figures in
+`issues/done/business_files_cap_on_large_application.md`): grouping the source files around the names of
 the entry point files gives real slices on a large Rails application (most of the 15 largest groups are a
 business object with its controllers, models, services and policies), but also technical groups, pairs that
 are one concept, and a third of the files in no group; on a Django application the names say nothing.
