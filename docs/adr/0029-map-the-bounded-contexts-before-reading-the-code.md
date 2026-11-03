@@ -82,3 +82,7 @@ to it by name. The map is for the `surface` path; the `files` path is unchanged.
   three maps of the same roles put the migrations and initializers in the support once, then in business
   contexts twice (`issues/context_map_spread_between_runs.md`). A context documented before holds fewer files
   then, so its hash changes and it is pending once again.
+* `contexts --force` keeps the slug and name of a saved context a new one shares more than half of the files
+  with, both ways, so the progress of the runs survives a new map; a one-file context is merged into the context
+  of its folder, or the support unless it is an entry point file. Three forced maps share 12 slugs instead of 4; the files keep their context about as often
+  (71% against 68%): the merges still depend on the answer (`docs/findings.md` §8).

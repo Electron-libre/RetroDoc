@@ -63,8 +63,8 @@ Measure of step 1 (no LLM, the 3 saved maps, `scratch/contexts_residual/spread_b
 3. [x] `--force` keeps the slug and name of a saved context its files mostly match, so its done mark carries over;
    verified by tests with a fake LLM (match, split, done kept); makes true CTX-3. (autonomous)
 4. [x] One-file contexts merged into the context of their folder, else the support; verified by a test; makes true CTX-4. (autonomous)
-5. [ ] Measure: 3 maps at the final code (~$0.05), then `docs/findings.md` §8, ADR 0029/0031 notes, the ledger;
-   sets the spec `accepted`.
+5. [x] Measure: 3 maps at the final code (~$0.05), then `docs/findings.md` §8, ADR 0029/0031 notes, the ledger;
+   sets the spec `accepted`. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -158,5 +158,62 @@ red: CTX-4: `left: ["contracts", "widgets", "api"], right: ["contracts"]`
 Code review: no findings
 
 not verified: the effect on a real map (deliverable 5).
+
+decisions needed: none
+
+## Deliverable 5
+Measure (3 forced maps chained from the saved map, `contexts-f778b9b-{1,2,3}.yaml`, 11 calls, 45.9k in / 8.0k out,
+~$0.02):
+
+| figure | before (2026-10-30) | temperature 0 only | issue code |
+|---|---|---|---|
+| contexts | 34 / 40 / 44 | 49 / 42 / 38 | 37 / 30 / 25 |
+| largest context | 180 / 143 / 146 | 159 / 140 / 154 | 118 / 150 / 144 |
+| one-file contexts | 0 / 5 / 6 | 2 / 3 / 0 | 0 / 0 / 0 |
+| support | 29 / 9 / 9% | 4 / 24 / 23% | 26 / 21 / 34% |
+| `infra` files in support | 96 / 1 / 0% | 0 / 98 / 1% | 100 / 100 / 100% |
+| files keeping their context (mean) | 68% | 70% | 71% |
+| merged group pairs kept together | 11-20% | 17-38% | 23-32% |
+| slugs in all three maps | 4 | 4 | 12 |
+
+Left (not in the requirements, a follow-up if wanted): the support still moves (UI components 25% to 63%), and
+catch-all or layer contexts remain (a UI components context of ~100 files, two catch-alls, an API, a PDF and a
+workflows context).
+
+done: findings §8, ADR 0029, README, ledger; spec CTX `accepted` (CTX-1 to CTX-4 traced); `update-docs` over the issue.
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | pass |
+| specs | pass, CTX accepted |
+| docs | `docs/findings.md`, ADR 0029, README |
+| code review | see below |
+
+red: none
+
+Code review (`high` over 63320ba..HEAD): 10 findings
+1. A one-file context joins the context of its layer folder, maybe unrelated: not fixed, the rule validated in CTX-4;
+   its behaviours stay documented, under that context.
+2. A one-file entry point context alone in its folder went to the support, its behaviours undocumented: fixed, it
+   keeps its context (CTX-4 amended, test).
+3. The map saved before the split kept its one-file contexts: fixed, merged before each save.
+4. A map of one-file contexts only was emptied, then asked again on every run: fixed, kept as it is (test, red
+   without the guard).
+5. A merge could push a context over 150 files after the size check: fixed, a context of 150 files or more takes
+   no merge (test).
+6. A kept name next to the new description: not fixed, the description is the answer's for the files the context
+   holds now.
+7. README said a done context stays done with the same files; the files read for it count too: fixed.
+8. The saved map resolved twice: fixed, once.
+9. The CLI rebuilds the technical complement: not fixed, display only, the filter has one definition.
+10. Slugs of the private application quoted in this issue: fixed, described generically (here and in the findings).
+
+The measure above is at f778b9b, before fixes 2 to 5: a one-file entry point context alone in its folder now
+stays, so a later map may hold a few one-file contexts.
+
+Code review (low, on the fixes): no findings; noted: several one-file contexts merged into one target can still take it past 150 files (sizes read before the merges).
+
+not verified: a forced map at the final code (the measure is at f778b9b).
 
 decisions needed: none

@@ -7,8 +7,8 @@
 //! those groups (name, size, a sample of files) and the folders no group reached, framed by the
 //! product brief, and merges the groups that serve one business concept into a context, sets the
 //! technical ones aside as support, and gives each orphan folder to a context. A group the answer
-//! forgot becomes a context of its own, so no file is lost; once the map is split, a context of a
-//! single file joins the context of its folder, or the support.
+//! forgot becomes a context of its own, so no file is lost; a context of a single file joins the
+//! context of its folder, or the support unless it is an entry point file.
 //!
 //! `contexts.yaml` keeps the rules (group names and folders per context), not the file lists: the
 //! files of a context are found again from the current tree by [`ContextMap::resolve`], so a new
@@ -446,6 +446,7 @@ pub async fn build_context_map(
     }
     // Read before the new map overwrites it: its slugs carry the progress of the runs.
     let saved = ContextMap::load(repo_root).unwrap_or_default();
+    let saved = (saved.resolve(sources, seeds), saved);
     let grouped = mechanical_groups(sources, seeds);
     if grouped.groups.is_empty() {
         if sources.is_empty() {
@@ -474,7 +475,7 @@ pub async fn build_context_map(
         return Ok(one_context_per_group(&grouped));
     };
     let map = keep_saved_slugs(
-        without_empty_contexts(map, sources, seeds),
+        merge_one_file_contexts(without_empty_contexts(map, sources, seeds), sources, seeds),
         &saved,
         sources,
         seeds,
@@ -512,14 +513,13 @@ pub async fn build_context_map(
 /// whose own slug is now taken by a kept one gets a slug of its own (`specs/context-map.md`, CTX-3).
 fn keep_saved_slugs(
     map: ContextMap,
-    saved: &ContextMap,
+    (before, saved): &(Resolved, ContextMap),
     sources: &[PathBuf],
     seeds: &[PathBuf],
 ) -> ContextMap {
     if saved.is_empty() {
         return map;
     }
-    let before = saved.resolve(sources, seeds);
     let now = map.resolve(sources, seeds);
     let ContextMap {
         mut contexts,
@@ -558,17 +558,22 @@ fn keep_saved_slugs(
     ContextMap { contexts, support }
 }
 
-/// The `map` with each context of a single file merged into the context that holds the most files
-/// of that file's folder (the first in the map on a tie), else into the support: a run of one file
-/// documents no business area (`specs/context-map.md`, CTX-4). Its groups and folders move whole.
+/// The `map` with each context of a single file merged into the context under the size limit that
+/// holds the most files of that file's folder (the first in the map on a tie), else into the
+/// support: a run of one file documents no business area (`specs/context-map.md`, CTX-4). An entry
+/// point file with no such context keeps its own, so its behaviours stay documented, and a map of
+/// one-file contexts only is left as it is, never emptied. Its groups and folders move whole.
 fn merge_one_file_contexts(map: ContextMap, sources: &[PathBuf], seeds: &[PathBuf]) -> ContextMap {
     let resolved = map.resolve(sources, seeds);
     let single = |i: usize| resolved.contexts[i].files.len() == 1;
+    if (0..resolved.contexts.len()).all(single) {
+        return map;
+    }
     let target = |file: &PathBuf| {
         let folder = file.parent();
         let mut best: Option<(usize, usize)> = None;
         for (j, other) in resolved.contexts.iter().enumerate() {
-            if single(j) {
+            if single(j) || other.files.len() >= MAX_CONTEXT_FILES {
                 continue;
             }
             let near = other.files.iter().filter(|f| f.parent() == folder).count();
@@ -581,6 +586,7 @@ fn merge_one_file_contexts(map: ContextMap, sources: &[PathBuf], seeds: &[PathBu
     let moves: Vec<(usize, Option<usize>)> = (0..resolved.contexts.len())
         .filter(|&i| single(i))
         .map(|i| (i, target(&resolved.contexts[i].files[0])))
+        .filter(|&(i, to)| to.is_some() || resolved.contexts[i].entry_files.is_empty())
         .collect();
     let ContextMap {
         mut contexts,

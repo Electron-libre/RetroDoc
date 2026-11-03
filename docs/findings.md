@@ -514,6 +514,17 @@ the files in the same context from one map to another, 4 slugs in all three; the
 first is cut under the limit in the next two. About 30 of the 44 names fit their files; the others are 5 technical
 contexts (UI components, configuration, front-end code, base classes), 3 catch-alls and 6 one-file contexts.
 
+Steadier map (`issues/context_map_spread_between_runs.md`, 2026-11-04, same roles, hosted `deepseek-chat`): the
+spread came most from the merges (of the pairs of groups one map puts together, 11% to 20% are together in
+another) and from the support (the migrations and initializers in the support in one map, in business contexts
+in the two others). Temperature 0 alone changed little (files keeping their context 70% against 68%, merged pairs
+26% against 16%). With the technical files left out before the call, a forced map keeping the slugs of the saved
+contexts it mostly matches and the one-file contexts merged, three chained forced maps: 37, 30, 25 contexts, the
+largest 150 files, none of one file, the technical files always in the support; files keeping their context 57%
+to 78% (mean 71%), merged pairs 23% to 32%; 12 slugs in all three (4 before), 12 to 21 slugs kept from one map to
+the next. Left: the support moves (21% to 34%, UI components 25% to 63%) and catch-all or layer contexts remain
+(UI components, catch-alls, API, PDF, workflows).
+
 ## 9. Benchmark baseline at the current code (2026-11-03)
 
 Measured at dafea18 (`issues/done/benchmark_baseline_at_head.md`), hosted `deepseek-chat`, confidence on, 3 runs per

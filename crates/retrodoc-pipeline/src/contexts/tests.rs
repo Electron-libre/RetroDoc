@@ -188,8 +188,7 @@ async fn a_group_the_answer_left_out_is_a_context_and_a_double_citation_keeps_th
     let map = build(dir.path(), &llm, false).await;
 
     let slugs: Vec<&str> = map.contexts.iter().map(|c| c.slug.as_str()).collect();
-    // `b` held nothing once g2 went to `a`; the left out `base` is one file, so it is support.
-    assert_eq!(slugs, ["a"]);
+    assert_eq!(slugs, ["a", "base"], "`b` held nothing once g2 went to `a`");
     assert_eq!(map.contexts[0].groups, ["contract", "company_contract"]);
     let resolved = map.resolve(&sources(), &seeds());
     let covered: usize = resolved.contexts.iter().map(|c| c.files.len()).sum();
@@ -450,8 +449,7 @@ async fn a_context_without_slug_and_name_is_named_after_its_first_group() {
     let map = build(dir.path(), &llm, false).await;
 
     let slugs: Vec<&str> = map.contexts.iter().map(|c| c.slug.as_str()).collect();
-    // The left out `base`, one file, goes to the support.
-    assert_eq!(slugs, ["contract", "company-contract"]);
+    assert_eq!(slugs, ["contract", "company-contract", "base"]);
 }
 
 /// The small application plus 160 task files and 5 rule files in `app/workflows`, which the first
@@ -622,8 +620,7 @@ async fn a_part_does_not_take_the_slug_of_a_context_left_whole() {
     let map = build_big(dir.path(), &llm).await;
 
     let slugs: Vec<&str> = map.contexts.iter().map(|c| c.slug.as_str()).collect();
-    // `base`, one file, is then merged into the support: the part kept `base-2` all the same.
-    assert_eq!(slugs, ["base-2", "tasks"]);
+    assert_eq!(slugs, ["base-2", "tasks", "base"]);
 }
 
 #[tokio::test]
@@ -1191,12 +1188,14 @@ async fn a_done_context_stays_done_when_a_forced_map_renames_its_files() {
 async fn a_one_file_context_joins_the_context_of_its_folder_or_the_support() {
     let dir = tempfile::tempdir().unwrap();
     let mut all = sources();
-    all.push(PathBuf::from("app/models/widget.rb"));
-    // `widgets` holds only the orphan model, `api` only the base controller.
+    all.extend(paths(&["app/models/widget.rb", "lib/pdf/renderer.rb"]));
+    // `widgets` holds only the orphan model, `pdf` only the renderer, `api` only the base
+    // controller, an entry point file.
     let llm = FakeLlm::answering(
         r#"{"contexts":[{"slug":"contracts","name":"Contracts","description":"d",
             "groups":["g1","g2"],"folders":["app/workflows/"]},
             {"slug":"widgets","name":"Widgets","description":"d","folders":["app/models/"]},
+            {"slug":"pdf","name":"Pdf","description":"d","folders":["lib/pdf/"]},
             {"slug":"api","name":"Api","description":"d","groups":["g3"]}],
             "support":{"folders":["db/migrate/"]}}"#,
     );
@@ -1212,13 +1211,79 @@ async fn a_one_file_context_joins_the_context_of_its_folder_or_the_support() {
     .await
     .unwrap();
 
+    // The entry point keeps its context: its behaviours stay documented.
     let slugs: Vec<&str> = map.contexts.iter().map(|c| c.slug.as_str()).collect();
-    assert_eq!(slugs, ["contracts"]);
+    assert_eq!(slugs, ["contracts", "api"]);
     let resolved = map.resolve(&all, &seeds());
     assert!(resolved.contexts[0]
         .files
         .contains(&PathBuf::from("app/models/widget.rb")));
     assert!(resolved
         .support
-        .contains(&PathBuf::from("app/controllers/api/base_controller.rb")));
+        .contains(&PathBuf::from("lib/pdf/renderer.rb")));
+}
+
+// spec: CTX-4 (internal: the CLI test of the map would need an LLM server)
+#[tokio::test]
+async fn a_map_of_one_file_contexts_only_is_kept() {
+    let dir = tempfile::tempdir().unwrap();
+    // The only entry point file is set aside: two contexts of one file each, no entry point.
+    let all = paths(&["lib/a/one.rb", "lib/b/two.rb", "app/main_controller.rb"]);
+    let llm = FakeLlm::answering(
+        r#"{"contexts":[{"slug":"a","name":"A","folders":["lib/a/"]},
+            {"slug":"b","name":"B","folders":["lib/b/"]}],"support":{"groups":["g1"]}}"#,
+    );
+
+    let map = build_context_map(
+        dir.path(),
+        &all,
+        &paths(&["app/main_controller.rb"]),
+        &ProductBrief::default(),
+        &llm,
+        false,
+    )
+    .await
+    .unwrap();
+
+    let slugs: Vec<&str> = map.contexts.iter().map(|c| c.slug.as_str()).collect();
+    assert_eq!(slugs, ["a", "b"], "never an empty map");
+}
+
+// spec: CTX-4 (internal: the CLI test of the map would need an LLM server)
+#[tokio::test]
+async fn a_one_file_context_never_joins_a_context_at_the_size_limit() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut all = big_sources();
+    all.push(PathBuf::from("app/workflows/tasks/extra.rb"));
+    // `contracts` holds `app/workflows` and the groups, 172 files; `extra` is in its folder, held by a
+    // rule as deep as the file itself. The split answer is unusable: `contracts` stays whole.
+    let llm = FakeLlm::replying(|n, _| {
+        Ok(match n {
+            0 => r#"{"contexts":[{"slug":"contracts","name":"C","groups":["g1","g2"],"folders":["app/workflows/"]},
+                {"slug":"extra","name":"E","folders":["app/workflows/tasks/extra.rb/"]}]}"#
+                .to_string(),
+            _ => r#"{"contexts":[]}"#.to_string(),
+        })
+    });
+
+    let map = build_context_map(
+        dir.path(),
+        &all,
+        &seeds(),
+        &ProductBrief::default(),
+        &llm,
+        false,
+    )
+    .await
+    .unwrap();
+
+    let resolved = map.resolve(&all, &seeds());
+    let contracts = resolved
+        .contexts
+        .iter()
+        .find(|c| c.slug == "contracts")
+        .unwrap();
+    let extra = PathBuf::from("app/workflows/tasks/extra.rb");
+    assert!(!contracts.files.contains(&extra));
+    assert!(resolved.support.contains(&extra));
 }

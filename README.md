@@ -132,7 +132,9 @@ rules = true              # state the business rules of each feature; false: a c
 contexts not done, as many as fit `--max-files` (default 150 files; a context is never cut), or the ones you
 name with `--context a,b`. A run reads only its slice, never redoes or changes the contexts already
 documented (a rerun with nothing left to do calls no LLM), and the docs gather every context done; the output
-lists the contexts left. An interrupted run resumes where it stopped.
+lists the contexts left. An interrupted run resumes where it stopped. The technical files (roles `infra` and
+`config`) are in no context. `retrodoc contexts --force` maps again: a new context that holds most of the files of
+a saved one takes its slug and name, so a context documented stays done while its files and the files read for it did not change.
 
 A pass whose model changes is redone on the next run (the model is part of what its cache is compared
 with); the first run after upgrading to this behavior redoes every pass once. `roles.yaml`,
