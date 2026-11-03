@@ -42,6 +42,9 @@ answers an HTTP error status (`source_hashes` needs a 400: a 500 is retried with
 1. [x] Shared support for the three tests: `repo_with_config` (files + any `retrodoc.toml`) under `repo`,
    `llm_section`, `run` (subcommand + arguments) under `retrodoc`, `FakeLlm::failing(status)`; the three tests use
    them and keep their counts and assertions; verified by the unchanged tests passing and `just check`. (autonomous)
+2. [x] Fixes of the `high` review: `docs_language` and `log_colors` drop their own runner and git loop for
+   `support`, the no-script 500 keeps a plain-text body without a JSON content type, the convention says which
+   tests start the binary themselves; verified by `just check`. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -60,6 +63,32 @@ done: `pass_models`, `source_hashes` and `stack_tables` run on `tests/support` (
 | code review | see below |
 
 red: none (refactor under unchanged green tests)
+Code review: no findings
+
+not verified: none
+decisions needed: none
+
+## Deliverable 2 summary
+done: `high` review fixes (see plan line 2).
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass |
+| docs | `docs/dev/conventions.md` narrowed to what is true |
+| code review | see below |
+
+red: none (refactor under unchanged green tests)
+
+`high` review: 9 findings. Fixed: the convention claimed too much, `log_colors`/`docs_language` kept their copies,
+the 500 claimed JSON. Not fixed: `pass_models` counts parsed requests only (reqwest always sends a JSON body
+with `Content-Length`, so a request to the default server is still counted); `structured_output` appended after
+`llm_section` (the function returns only the `[llm]` keys, documented); `manifest_count` not on `stdout_of`
+(`stdout_of` takes one command, widening it touches every caller for one test); the test never checks the model
+sent (pre-existing gap, not this issue's); `run` puts `--path` last (no caller ends on a positional); `calls()`
+cloned to count (test-only cost).
+
 Code review: no findings
 
 not verified: none

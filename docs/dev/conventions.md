@@ -14,8 +14,9 @@
 - A test that runs a whole `generate` through the binary uses `crates/retrodoc-cli/tests/support`: a local
   chat-completions server that recognises the pass of each request (schema name of the structured output), answers
   from a script (`App`: one entry point, one model) and keeps the requests for the assertions. The other CLI
-  tests that need a committed repository, a fake server or the binary use it too (`repo_with_config` for another
-  `retrodoc.toml`, `FakeLlm::failing` for an HTTP error, `run` for a subcommand with options) rather than their own copies.
+  tests that build a committed repository or a fake server use it too (`git`, `repo_with_config` for another
+  `retrodoc.toml`, `FakeLlm::failing` for an HTTP error, `run` for a subcommand with options) rather than their own
+  copies; tests over a hand-written `.retrodoc/` or a long-running server (`ui`, `mcp`) start the binary themselves.
 - Filesystem-touching tests use `tempfile::tempdir()` and, where git history matters, actually run `git
   init`/`git commit` in the tempdir (see `git_history.rs` and `walker.rs` tests) rather than mocking `git2`.
 - A test that proves a requirement of a spec in `specs/` carries `// spec: ABC-n` right above it; the rules are in

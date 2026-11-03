@@ -56,7 +56,7 @@ impl FakeLlm {
 
     /// Answers every request with the HTTP `status` (e.g. `"400 Bad Request"`) and an error body.
     pub fn failing(status: &'static str) -> Self {
-        Self::listen(move |_| Reply::Error(status, r#"{"error":"no"}"#.to_string()))
+        Self::listen(move |_| Reply::Error(status))
     }
 
     fn listen(reply: impl Fn(&Call) -> Reply + Send + Sync + 'static) -> Self {
@@ -93,8 +93,10 @@ impl FakeLlm {
 enum Reply {
     /// A completion with this content.
     Content(String),
-    /// An HTTP error: its status line and body.
-    Error(&'static str, String),
+    /// An HTTP error with a JSON body: its status line.
+    Error(&'static str),
+    /// A 500 in plain text naming the pass with no script.
+    NoScript(String),
 }
 
 /// Answers the requests of one connection (the client keeps it alive) until it closes.
@@ -109,14 +111,9 @@ fn serve(
         let call = call_of(&body);
         kept.lock().unwrap().push(call.clone());
         // A pass with no script answers a 500 naming it, rather than a dropped connection.
-        let reply =
-            std::panic::catch_unwind(AssertUnwindSafe(|| reply(&call))).unwrap_or_else(|_| {
-                Reply::Error(
-                    "500 Internal Server Error",
-                    format!("no script for the pass {}", call.pass),
-                )
-            });
-        let (status, payload) = match reply {
+        let reply = std::panic::catch_unwind(AssertUnwindSafe(|| reply(&call)))
+            .unwrap_or_else(|_| Reply::NoScript(call.pass.clone()));
+        let (status, payload, content_type) = match reply {
             Reply::Content(content) => (
                 "200 OK",
                 json!({
@@ -124,11 +121,21 @@ fn serve(
                     "choices": [{"message": {"role": "assistant", "content": content}, "finish_reason": "stop"}],
                 })
                 .to_string(),
+                "Content-Type: application/json\r\n",
             ),
-            Reply::Error(status, body) => (status, body),
+            Reply::Error(status) => (
+                status,
+                r#"{"error":"no"}"#.to_string(),
+                "Content-Type: application/json\r\n",
+            ),
+            Reply::NoScript(pass) => (
+                "500 Internal Server Error",
+                format!("no script for the pass {pass}"),
+                "",
+            ),
         };
         let response = format!(
-            "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{payload}",
+            "HTTP/1.1 {status}\r\n{content_type}Content-Length: {}\r\n\r\n{payload}",
             payload.len()
         );
         if stream.write_all(response.as_bytes()).is_err() {

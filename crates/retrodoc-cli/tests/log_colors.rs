@@ -1,6 +1,8 @@
 //! Logs written to a redirected output (a file, a pipe) must be plain text: the smoke test and anyone
 //! reading a saved log should not see ANSI escape codes around the level.
 
+mod support;
+
 use std::process::Command;
 
 /// Runs `retrodoc roles` against a closed port: the provider logs a `WARN` for each network retry,
@@ -9,26 +11,9 @@ use std::process::Command;
 fn redirected_logs_have_no_ansi_codes() {
     let dir = tempfile::tempdir().unwrap();
     std::fs::write(dir.path().join("main.rs"), "fn main() {}\n").unwrap();
-    for args in [
-        &["init", "-q"][..],
-        &["add", "."],
-        &[
-            "-c",
-            "user.name=t",
-            "-c",
-            "user.email=t@t",
-            "commit",
-            "-qm",
-            "init",
-        ],
-    ] {
-        let status = Command::new("git")
-            .args(args)
-            .current_dir(dir.path())
-            .status()
-            .unwrap();
-        assert!(status.success());
-    }
+    support::git(dir.path(), &["init", "-q"]);
+    support::git(dir.path(), &["add", "."]);
+    support::git(dir.path(), &["commit", "-q", "-m", "init"]);
     let retrodoc = |args: &[&str]| {
         Command::new(env!("CARGO_BIN_EXE_retrodoc"))
             .args(args)
