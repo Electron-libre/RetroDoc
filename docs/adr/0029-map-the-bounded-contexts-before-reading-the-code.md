@@ -80,7 +80,7 @@ to it by name. The map is for the `surface` path; the `files` path is unchanged.
   limit (`issues/done/contexts_residual_size_and_names.md`).
 * The files of roles `infra` and `config` are left out of the map before the call (`specs/context-map.md`):
   three maps of the same roles put the migrations and initializers in the support once, then in business
-  contexts twice (`issues/context_map_spread_between_runs.md`). A context documented before holds fewer files
+  contexts twice (`issues/done/context_map_spread_between_runs.md`). A context documented before holds fewer files
   then, so its hash changes and it is pending once again.
 * `contexts --force` keeps the slug and name of a saved context a new one shares more than half of the files
   with, both ways, so the progress of the runs survives a new map; a one-file context is merged into the context

@@ -514,7 +514,7 @@ the files in the same context from one map to another, 4 slugs in all three; the
 first is cut under the limit in the next two. About 30 of the 44 names fit their files; the others are 5 technical
 contexts (UI components, configuration, front-end code, base classes), 3 catch-alls and 6 one-file contexts.
 
-Steadier map (`issues/context_map_spread_between_runs.md`, 2026-11-04, same roles, hosted `deepseek-chat`): the
+Steadier map (`issues/done/context_map_spread_between_runs.md`, 2026-11-04, same roles, hosted `deepseek-chat`): the
 spread came most from the merges (of the pairs of groups one map puts together, 11% to 20% are together in
 another) and from the support (the migrations and initializers in the support in one map, in business contexts
 in the two others). Temperature 0 alone changed little (files keeping their context 70% against 68%, merged pairs

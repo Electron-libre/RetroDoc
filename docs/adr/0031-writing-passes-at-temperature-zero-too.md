@@ -29,7 +29,7 @@ without it, and it is not part of the fingerprints. This supersedes the list of 
   measured.
 * Docs already written keep their results until `generate --force` (not in the fingerprints).
 * `contexts` and `repo-map` can join the list once measured.
-* `contexts` joined it on 2026-11-04 (`issues/context_map_spread_between_runs.md`): on a large Rails application,
+* `contexts` joined it on 2026-11-04 (`issues/done/context_map_spread_between_runs.md`): on a large Rails application,
   3 maps of the same roles at 0 against 3 at the server's default, about as many files kept their context from one
   map to another (70% against 68%) and more pairs of groups merged together stayed so (26% against 16%); no harm,
   a small gain on the merges, within the spread of 3 maps.
