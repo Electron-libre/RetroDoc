@@ -4,11 +4,48 @@
 # Left out on purpose, judged wrong:
 #   Story lookup and access -> Browse the front page  (reading one story by its id, not the ranked lists)
 #   Account and Ban Emails  -> Manage my account      (e-mails sent on a ban or a password reset, not the settings)
+# Audit of 2026-11-03 (benchmark_baseline_at_head, dafea18, hidden-1 and shown-1). Judged wrong, left out:
+#   User standing -> View member profiles  (a moderator's view of a member's standing)
+#   Upvoted stories and comments -> Follow the site in a feed reader  (a member's upvoted list, no feed)
+#   Story publishing (domain) -> Votes and ranking  (it holds the listings only)
 domains:
   - generated: Stories and Comments
     reference: Stories
   - generated: Identity and Membership
     reference: Membership
+  # Audited 2026-11-03 (benchmark_baseline_at_head, dafea18): hidden-1 and shown-1, judge's pairs and missed ones.
+  - generated: Story publishing
+    reference: Stories
+  - generated: Story publishing
+    reference: Finding stories
+  - generated: Commenting and voting
+    reference: Discussion
+  - generated: Commenting and voting
+    reference: Votes and ranking
+  - generated: Identity and hats
+    reference: Membership
+  - generated: Accounts and settings
+    reference: Membership
+  - generated: Invitations
+    reference: Membership
+  - generated: Tagging and taxonomy
+    reference: Finding stories
+  - generated: Discussion and comments
+    reference: Discussion
+  - generated: Discussion and comments
+    reference: Votes and ranking
+  - generated: Membership and invitations
+    reference: Membership
+  - generated: Hats
+    reference: Membership
+  - generated: Community moderation
+    reference: Moderation
+  - generated: Mod mail
+    reference: Moderation
+  - generated: Messaging and notifications
+    reference: Discussion
+  - generated: Messaging and inbox
+    reference: Discussion
 features:
   - generated: Sign-in and role-based access
     reference: Sign in
@@ -117,3 +154,132 @@ features:
     reference: Browse by tag, domain or origin
   - generated: Story browsing and feeds
     reference: Follow the site in a feed reader
+  # Audited 2026-11-03 (benchmark_baseline_at_head, dafea18): hidden-1 and shown-1, judge's pairs and missed ones.
+  - generated: Story submission
+    reference: Submit a story
+  - generated: Story editing and management
+    reference: Edit and delete my story
+  - generated: Story title and tag suggestions
+    reference: Suggest a better title or tags
+  - generated: Hiding and saving stories
+    reference: Hide and save stories
+  - generated: Flagging stories
+    reference: Flag stories and comments
+  - generated: Flagging comments
+    reference: Flag stories and comments
+  - generated: Commenting
+    reference: Comment on a story
+  - generated: Commenting
+    reference: Edit and delete my comment
+  - generated: Commenting
+    reference: Take part by e-mail
+  - generated: Story voting
+    reference: Upvote stories and comments
+  - generated: Comment voting
+    reference: Upvote stories and comments
+  - generated: Story browsing and listings
+    reference: Browse the front page
+  - generated: Story browsing and listings
+    reference: Follow the site in a feed reader
+  - generated: Comment browsing
+    reference: Follow the site in a feed reader
+  - generated: Tag and category filtering
+    reference: Browse by tag, domain or origin
+  - generated: Domain and origin listings
+    reference: Browse by tag, domain or origin
+  - generated: Tag filters
+    reference: Filter out tags
+  - generated: Send invitations
+    reference: Invite a new member
+  - generated: Invitation requests
+    reference: Invite a new member
+  - generated: Manage invitation requests
+    reference: Invite a new member
+  - generated: Invited signup
+    reference: Sign up with an invitation
+  - generated: Sign in and sign out
+    reference: Sign in
+  - generated: Password reset
+    reference: Sign in
+  - generated: Request a hat
+    reference: Wear hats
+  - generated: Review hat requests
+    reference: Wear hats
+  - generated: Doff a hat
+    reference: Wear hats
+  - generated: User profiles and directory
+    reference: View member profiles
+  - generated: Moderating stories
+    reference: Moderate stories
+  - generated: Moderating comments
+    reference: Moderate comments
+  - generated: Moderating domains and origins
+    reference: Ban domains and origins
+  - generated: Manage tags
+    reference: Manage tags and categories
+  - generated: Manage categories
+    reference: Manage tags and categories
+  - generated: Webmentions
+    reference: Send webmentions
+  - generated: Submit and edit stories
+    reference: Submit a story
+  - generated: Submit and edit stories
+    reference: Edit and delete my story
+  - generated: Suggest title and tag changes
+    reference: Suggest a better title or tags
+  - generated: Save and hide stories
+    reference: Hide and save stories
+  - generated: Post and edit comments
+    reference: Comment on a story
+  - generated: Post and edit comments
+    reference: Edit and delete my comment
+  - generated: Reply and mention notifications
+    reference: Follow replies and mentions
+  - generated: Vote and flag stories
+    reference: Upvote stories and comments
+  - generated: Vote and flag comments
+    reference: Upvote stories and comments
+  - generated: Vote and flag stories
+    reference: Flag stories and comments
+  - generated: Vote and flag comments
+    reference: Flag stories and comments
+  - generated: Browse stories
+    reference: Browse the front page
+  - generated: Browse by tag and category
+    reference: Browse by tag, domain or origin
+  - generated: Browse by domain and origin
+    reference: Browse by tag, domain or origin
+  - generated: Filter tags
+    reference: Filter out tags
+  - generated: Browse stories
+    reference: Follow the site in a feed reader
+  - generated: Sending invitations
+    reference: Invite a new member
+  - generated: Account signup
+    reference: Sign up with an invitation
+  - generated: Login and sessions
+    reference: Sign in
+  - generated: Two-factor authentication
+    reference: Sign in
+  - generated: User administration
+    reference: Ban members and take away invitations
+  - generated: Domain moderation
+    reference: Ban domains and origins
+  - generated: Origin moderation
+    reference: Ban domains and origins
+  - generated: Administer tags
+    reference: Manage tags and categories
+  - generated: Administer categories
+    reference: Manage tags and categories
+  - generated: Share stories to Mastodon
+    reference: Post stories to Mastodon
+  - generated: Mod mail conversations
+    reference: Talk with the moderators
+  - generated: Mastodon posting
+    reference: Post stories to Mastodon
+  - generated: Mod mail messaging
+    reference: Talk with the moderators
+  - generated: Participant mod mail inbox
+    reference: Talk with the moderators
+  - generated: Username Renaming
+    reference: Manage my account

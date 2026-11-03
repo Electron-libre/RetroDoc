@@ -40,3 +40,55 @@ Measured quality at the current code
 * Paid run: ask the user first, with the estimated cost.
 * The judged precision is overstated (see `judge_overstates_feature_precision`): report the strict and judged figures
   side by side, and audit a sample of feature pairs by hand.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-03
+
+## Understanding
+One fresh whole-run baseline per benchmark application (linkding, Lobsters) at the current commit, hidden and
+shown, with its spread, confidence on; re-frozen inputs and the lost linkding domains replay baseline. No code
+change: the committed output is the audited pairs and the figures in `docs/findings.md` and `PRODUCT.md`.
+
+## Plan
+1. [x] Benchmark series: `just benchmark --provider deepseek --runs 3` on linkding then Lobsters, both series,
+   confidence on; verified by every run present in `table.md` (no `FAIL`) and a ledger line per application. (autonomous; no file of the repo, nothing to commit)
+2. [x] Re-freeze: `freeze_inputs` of both applications from a `hidden-1` clone of step 1 (the surface passes
+   changed since 7e2bf9a: 1,350 lines in `roles`, `entry_points`, `business_*`, `domains`, `brief`, `actors`),
+   then `pass_replay domains` x3 on linkding; verified by the manifests and a ledger line. (autonomous; nothing to commit)
+3. [x] Audit: hand check of the judge's domain and feature pairs of one run per series and application, strict and
+   judged precision side by side; checked pairs added to `benchmark/<repo>/matches.yaml`; verified by
+   `retrodoc benchmark --saved-judge` re-scores and `just check`. (autonomous)
+4. [ ] Record: dated entry in `docs/findings.md`, "Latest figures" of `PRODUCT.md`, ledger (measures, reusable
+   artifacts, G7 ticked); verified by `just check` and a reread.
+
+## Decisions
+- Mode: autonomous
+- Base commit: dafea18e80509629ec8675291a69e137e8129921
+- Runs: 3 per series, both applications, both series (about $4); re-freeze and domains replay x3 on linkding (cents).
+
+## Deliverable 1: benchmark series
+12 runs of 12, no `FAIL`; warnings of known kinds only (refused JSON schema, empty batched parts, `story.rb` cut, 6
+entry points no feature holds). Tables: `retrodoc-benchmark-linkding/1793704964/table.md`,
+`retrodoc-benchmark-lobsters/1793704970/table.md`; cost about $3.5, from the tokens.
+
+## Deliverable 2: re-freeze
+Both applications re-frozen from their `hidden-1` clone (copied to `benchmark_baseline_at_head-dafea18-<repo>-1`, the
+new `source_run`); the former frozen inputs kept as `frozen/<repo>-before-dafea18`. Linkding domains replay x3: 6
+(5-7) domains, judged 100%/100% each run.
+
+## Deliverable 3: audit
+- done: judge pairs of hidden-1 and shown-1 of each application checked by hand; right pairs and the right ones the
+  judge missed added to `matches.yaml`, wrong ones listed in its header; 12 runs re-scored `--saved-judge`.
+- Judge, on the 4 audited runs: wrong 3/20, 1/25 (linkding), 0/33, 1/33 (+1 doubtful) (Lobsters); right pairs missed
+  3, 8, 3 (+2 domains). Hand vs judged precision of features: 49% vs 53%, 67% vs 67%, 45% vs 45%, 46% vs 48%.
+
+| check | result |
+|---|---|
+| tests, lint, specs (`just check`) | pass |
+| size | 283 lines, within |
+| code review (`low`) | no findings |
+
+red: none (measure, no test)
+
+Code review: no findings

@@ -14,6 +14,11 @@
 #   RSS/Atom Feed(s) -> Share bookmarks, Use the REST API  (feeds are not in the reference)
 #   Save, edit and delete bookmarks -> Archive a bookmark; Search and filter bookmarks -> Read it later;
 #   Manage tags -> Tag automatically  (the reference features exist: Edit and delete, Search bookmarks, Tag bookmarks)
+# Audit of 2026-11-03 (benchmark_baseline_at_head, dafea18, hidden-1 and shown-1). Judged wrong, left out:
+#   Bulk Bookmark Actions, Instance and profile settings -> Administer data  (user bulk edit and settings pages, not the admin app)
+#   Asset management -> Save a PDF  (assets of snapshots, not the download of a PDF link)
+#   Bundle services -> Group bookmarks in bundles  (internal helpers, not a feature)
+#   User Preferences and Access, Instance administration (domains) -> Integrations  (API tokens or a settings page only)
 domains:
   - generated: Core Bookmarking Service
     reference: Bookmark management
@@ -22,6 +27,31 @@ domains:
   - generated: API and Integration
     reference: Integrations
   - generated: User Accounts and Preferences
+    reference: Accounts and administration
+  # Audited 2026-11-03 (benchmark_baseline_at_head, dafea18): hidden-1 and shown-1, judge's pairs and missed ones.
+  - generated: Bookmark Management
+    reference: Organisation and search
+  - generated: Bookmark Management
+    reference: Sharing
+  - generated: Snapshots and Assets
+    reference: Page archiving
+  - generated: User Preferences and Access
+    reference: Accounts and administration
+  - generated: Administration and Settings
+    reference: Accounts and administration
+  - generated: Bookmark management
+    reference: Organisation and search
+  - generated: Bookmark management
+    reference: Sharing
+  - generated: Tagging and bundles
+    reference: Organisation and search
+  - generated: Snapshots and assets
+    reference: Page archiving
+  - generated: User preferences
+    reference: Accounts and administration
+  - generated: API access
+    reference: Integrations
+  - generated: Instance administration
     reference: Accounts and administration
 features:
   - generated: Core Bookmark Management
@@ -219,3 +249,90 @@ features:
     reference: Save a bookmark
   - generated: Administration and background task monitoring
     reference: Manage users
+  # Audited 2026-11-03 (benchmark_baseline_at_head, dafea18): hidden-1 and shown-1, judge's pairs and missed ones.
+  - generated: Bookmark Management
+    reference: Save a bookmark
+  - generated: Bookmark Management
+    reference: Write notes on a bookmark
+  - generated: Bookmark Management
+    reference: Read it later
+  - generated: Bookmark Browsing and Search
+    reference: Search bookmarks
+  - generated: Bookmark Archiving
+    reference: Archive a bookmark
+  - generated: Admin Bookmark Management
+    reference: Administer data
+  - generated: Admin Data Management
+    reference: Administer data
+  - generated: Bookmark RSS Feeds
+    reference: Follow bookmarks in a feed reader
+  - generated: Shared Bookmarks
+    reference: Share bookmarks
+  - generated: Snapshot capture
+    reference: Archive a page as an HTML snapshot
+  - generated: Web Archive Snapshots
+    reference: Snapshot on the Internet Archive
+  - generated: Snapshot viewing
+    reference: Read a saved page
+  - generated: Bundle management
+    reference: Group bookmarks in bundles
+  - generated: Bundle API
+    reference: Group bookmarks in bundles
+  - generated: Bundle Preview
+    reference: Group bookmarks in bundles
+  - generated: Tag management
+    reference: Merge and rename tags
+  - generated: PWA Installation
+    reference: Install as an app
+  - generated: Create and edit bookmarks
+    reference: Save a bookmark
+  - generated: Create and edit bookmarks
+    reference: Edit and delete bookmarks
+  - generated: Create and edit bookmarks
+    reference: Write notes on a bookmark
+  - generated: Browse and search bookmarks
+    reference: Search bookmarks
+  - generated: Archive, share and read state
+    reference: Archive a bookmark
+  - generated: Archive, share and read state
+    reference: Read it later
+  - generated: Archive, share and read state
+    reference: Share bookmarks
+  - generated: Archived bookmarks
+    reference: Archive a bookmark
+  - generated: Shared bookmarks
+    reference: Share bookmarks
+  - generated: Bulk bookmark actions
+    reference: Edit and delete bookmarks
+  - generated: Bookmark feeds
+    reference: Follow bookmarks in a feed reader
+  - generated: Snapshots and metadata refresh
+    reference: Archive a page as an HTML snapshot
+  - generated: Snapshots and metadata refresh
+    reference: Snapshot on the Internet Archive
+  - generated: Automatic tagging
+    reference: Tag automatically
+  - generated: Bookmark administration
+    reference: Administer data
+  - generated: Bookmark REST API
+    reference: Use the REST API
+  - generated: Tag REST API
+    reference: Use the REST API
+  - generated: Bundle REST API
+    reference: Use the REST API
+  - generated: Asset viewing
+    reference: Read a saved page
+  - generated: Internet Archive fallback
+    reference: Snapshot on the Internet Archive
+  - generated: Account authentication
+    reference: Sign in
+  - generated: App installation and browser search
+    reference: Install as an app
+  - generated: SingleFile upload
+    reference: Archive a page as an HTML snapshot
+  - generated: User profile preferences
+    reference: Configure a profile
+  - generated: API token management
+    reference: Configure a profile
+  - generated: Instance and profile settings
+    reference: Configure a profile
