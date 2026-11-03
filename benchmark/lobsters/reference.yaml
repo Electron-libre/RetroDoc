@@ -19,13 +19,24 @@ domains:
     features:
       - name: Submit a story
         description: >-
-          Post a link or a text with a title and at least one tag; the title and the canonical URL are fetched
-          from the page, a preview shows the story before posting, and a URL already submitted is pointed out.
+          Post a link or a text with a title and at least one tag, optionally as its author; the title and the
+          canonical URL are fetched from the page, tracking parameters are stripped, a preview shows the story
+          before posting, a bookmarklet submits the page being read, and earlier submissions of the same URL
+          (fuzzy-matched) are pointed out; anyone can look up the discussions of a URL.
         use_cases:
           - Submit a link with tags
           - Submit a text story without a URL
           - Fetch the title of the linked page
           - Preview a story before posting it
+          - See the earlier discussions of a URL
+          - Submit the current page with the bookmarklet
+        evidence:
+          - doc: app/views/about/about.html.erb#Tags
+          - doc: app/views/about/about.html.erb#Other Technical Features
+          - doc: app/views/about/about.html.erb#Guidelines
+          - code: app/controllers/stories_controller.rb
+          - code: app/models/story.rb
+          - code: app/controllers/story_urls_controller.rb
       - name: Edit and delete my story
         description: >-
           The submitter edits a story shortly after posting, deletes or undeletes it, and can disown an old one
@@ -34,27 +45,72 @@ domains:
           - Edit my story
           - Delete my story
           - Disown an old story
+        evidence:
+          - code: app/controllers/stories_controller.rb
+          - code: app/models/story.rb
       - name: Suggest a better title or tags
         description: >-
           Members with enough karma suggest another title or other tags for someone else's story; the change is
-          applied once enough members suggested the same thing.
+          applied once enough members suggested the same thing, without a moderator, and is logged.
         use_cases:
           - Suggest new tags for a story
           - Suggest a new title for a story
-      - name: Hide and save stories
-        description: Hide a story from my lists, or save it to read later in my saved list.
+        evidence:
+          - doc: app/views/about/about.html.erb#Other Technical Features
+          - url: https://lobste.rs/s/z2dczs/suggesting_story_tag_title_changes
+          - code: app/controllers/suggestions_controller.rb
+          - code: app/models/suggested_title.rb
+          - code: app/models/suggested_tagging.rb
+      - name: Hide stories
+        description: >-
+          Hide a story so that it and its comments no longer show on the home page, the tag pages and in searches,
+          and unhide it from the list of hidden stories.
         use_cases:
           - Hide a story
+          - Unhide a story from my hidden list
+        evidence:
+          - doc: app/views/about/about.html.erb#Other Technical Features
+          - doc: app/views/about/about.html.erb#Flags
+          - code: app/controllers/stories_controller.rb
+          - code: app/models/hidden_story.rb
+          - code: app/controllers/home_controller.rb
+        disputed: 'Current had one feature "Hide and save stories", blind two; split, as hiding filters a story out of every list (own entry in the about page) while saving bookmarks it to read later: opposite intents, separate pages /hidden and /saved.'
+      - name: Save stories
+        description: Save a story to read it later from my saved list, and unsave it.
+        use_cases:
           - Save a story
           - Browse my saved stories
+        evidence:
+          - code: app/controllers/stories_controller.rb
+          - code: app/models/saved_story.rb
+          - code: app/controllers/home_controller.rb
+        disputed: 'Split out of current "Hide and save stories" as in the blind draft: bookmarking is a capability distinct from hiding.'
   - name: Discussion
     description: Talking about the stories.
     features:
+      - name: Read a story and its discussion
+        description: >-
+          The page of a story shows the link or the text, its tags, the stories merged into it, archive links and
+          cached text when the link is unavailable, and the threaded comments, with the comments that are new
+          since my last visit marked; short links lead to a story or a comment.
+        use_cases:
+          - Open the page of a story
+          - See the new comments since my last visit
+          - Open an archived copy of the link
+        evidence:
+          - code: app/controllers/stories_controller.rb
+          - code: app/views/stories/show.html.erb
+          - code: app/models/read_ribbon.rb
+          - code: app/models/story_text.rb
+        disputed: 'Blind only; added: the story page with unread-comment tracking (read ribbons) is the core reading capability and no current feature covers it.'
       - name: Comment on a story
-        description: Write a comment on a story or reply to a comment, in Markdown, in threads.
+        description: Write a comment on a story or reply to a comment, in Markdown, in threads, with a preview and mentions of members.
         use_cases:
           - Comment on a story
           - Reply to a comment
+        evidence:
+          - code: app/controllers/comments_controller.rb
+          - code: app/models/comment.rb
       - name: Edit and delete my comment
         description: >-
           The author edits a comment for a while after writing it, deletes it, undeletes it, or disowns an old one.
@@ -62,6 +118,10 @@ domains:
           - Edit my comment
           - Delete my comment
           - Disown an old comment
+        evidence:
+          - code: app/controllers/comments_controller.rb
+          - code: app/models/comment.rb
+        disputed: 'Merged into "Comment and reply" by the blind draft; kept separate (see Comment on a story).'
       - name: Follow replies and mentions
         description: >-
           Replies to my stories and comments and mentions of my username reach my inbox, and by e-mail or
@@ -69,18 +129,36 @@ domains:
         use_cases:
           - Read my unread replies in the inbox
           - Get an e-mail when someone mentions me
+        evidence:
+          - code: app/controllers/inbox_controller.rb
+          - code: app/models/notification.rb
+          - code: app/jobs/notify_comment_job.rb
+          - code: app/controllers/settings_controller.rb
       - name: Take part by e-mail
         description: >-
-          In mailing list mode new stories and comments are e-mailed to the member, who can reply by e-mail to
-          post a comment.
+          In mailing list mode new stories (with their extracted text) and comments are e-mailed to the member at
+          a private list address, who can reply by e-mail to post a comment; at this commit the settings show the
+          mode as temporarily disabled.
         use_cases:
           - Receive new stories and comments by e-mail
           - Reply to a comment by e-mail
+        evidence:
+          - doc: app/views/about/about.html.erb#Other Technical Features
+          - url: https://lobste.rs/s/jg3eet/lobsters_by_mail
+          - code: script/mail_new_activity.rb
+          - code: app/mailboxes/inbox_mailbox.rb
+          - code: app/views/settings/index.html.erb
       - name: Send private messages
-        description: Send a private message to another member, read the inbox and sent messages, delete them.
+        description: >-
+          Send a private message to another member without disclosing an e-mail address, read the inbox and sent
+          messages, keep one as unread, delete them.
         use_cases:
           - Send a private message
           - Delete messages
+        evidence:
+          - doc: app/views/about/about.html.erb#Other Technical Features
+          - code: app/controllers/messages_controller.rb
+          - code: app/models/message.rb
   - name: Votes and ranking
     description: What the community thinks of a story or a comment, and the order of the front page.
     features:
@@ -90,6 +168,11 @@ domains:
           - Upvote a story
           - Upvote a comment
           - Browse what I upvoted
+        evidence:
+          - doc: app/views/about/about.html.erb#Ranking
+          - code: app/models/vote.rb
+          - code: app/controllers/stories_controller.rb
+          - code: app/controllers/comments_controller.rb
       - name: Flag stories and comments
         description: >-
           Flag a story (off-topic, already posted, broken link, spam) or a comment (off-topic, me-too, troll,
@@ -97,28 +180,49 @@ domains:
         use_cases:
           - Flag a story as off-topic
           - Flag an unkind comment
+        evidence:
+          - doc: app/views/about/about.html.erb#Flags
+          - code: app/models/vote.rb
+          - code: app/controllers/stories_controller.rb
+          - code: app/controllers/comments_controller.rb
       - name: Browse the front page
         description: >-
           The hottest stories by votes, comments, tags and age, and the newest, the active, the recent and the
-          top stories of a period.
+          top stories of a period, and the latest comments of the whole site.
         use_cases:
           - Read the hottest stories
           - Read the newest stories
           - Read the top stories of the month
+          - Read the latest comments
+        evidence:
+          - doc: app/views/about/about.html.erb#Ranking
+          - code: app/controllers/home_controller.rb
+          - code: app/models/stories_paginator.rb
+          - code: app/controllers/comments_controller.rb
   - name: Finding stories
     description: Narrowing the stories down to what interests me.
     features:
       - name: Browse by tag, domain or origin
         description: >-
           List the stories of one tag, several tags or a category of tags, of a web domain, or of an origin (an
-          author on a domain).
+          author on a domain), and the directory of tags.
         use_cases:
           - Browse the stories of a tag
           - Browse the stories of a domain
+        evidence:
+          - doc: app/views/about/about.html.erb#Tags
+          - code: app/controllers/home_controller.rb
+          - code: app/controllers/tags_controller.rb
+          - code: app/controllers/origins_controller.rb
+          - code: app/models/origin.rb
       - name: Filter out tags
         description: Hide the stories carrying chosen tags, for members and for visitors alike.
         use_cases:
           - Filter out a tag
+        evidence:
+          - doc: app/views/about/about.html.erb#Tags
+          - code: app/controllers/filters_controller.rb
+          - code: app/models/tag_filter.rb
       - name: Search stories and comments
         description: >-
           Search words and phrases with tag, domain, title, submitter and commenter terms, in stories or comments,
@@ -126,85 +230,176 @@ domains:
         use_cases:
           - Search stories with a tag and a domain
           - Search the comments of a member
+        evidence:
+          - doc: app/views/about/about.html.erb#Other Technical Features
+          - code: app/controllers/search_controller.rb
+          - code: app/models/search.rb
+          - code: app/models/search_parser.rb
       - name: Follow the site in a feed reader
         description: >-
-          RSS feeds of the front page, the newest stories, a tag, a domain and the comments, private feeds with
-          the member's token, and a JSON version of the lists.
+          RSS feeds of the front page, the newest stories, a tag or several tags, a domain, the comments and a
+          member's comments, private feeds with the member's token that leave out their filtered tags, and a JSON
+          version of the lists, stories and comments.
         use_cases:
           - Subscribe to the feed of a tag
           - Subscribe to my private feed
+        evidence:
+          - doc: app/views/about/about.html.erb#Tags
+          - doc: app/views/about/about.html.erb#Other Technical Features
+          - code: app/views/home/stories.rss.builder
+          - code: app/views/comments/index.rss.builder
+          - code: app/controllers/home_controller.rb
   - name: Membership
     description: Who belongs to the community and how they present themselves.
     features:
       - name: Invite a new member
         description: >-
-          A member sends an invitation by e-mail; visitors may ask for an invitation, which members with enough
-          karma read and answer.
+          A member sends an invitation by e-mail; visitors may ask for an invitation and confirm their e-mail, and
+          members with enough karma read the requests and answer or delete them.
         use_cases:
           - Invite someone by e-mail
           - Request an invitation
           - Send an invitation for a request
+        evidence:
+          - doc: app/views/about/about.html.erb#Invitation Tree
+          - code: app/controllers/invitations_controller.rb
+          - code: app/models/invitation.rb
+          - code: app/models/invitation_request.rb
       - name: Sign up with an invitation
         description: Create an account from the link of an invitation, unless signups are open to everyone.
         use_cases:
           - Sign up from an invitation link
+        evidence:
+          - doc: app/views/about/about.html.erb#Invitation Tree
+          - code: app/controllers/signup_controller.rb
+          - code: app/models/invitation.rb
+        disputed: 'Merged into inviting by the blind draft; kept separate: the invitee (a visitor) creating an account is a different actor and capability from the member sending the invitation.'
       - name: Sign in
         description: Sign in with a username or e-mail and a password, with a second factor, or reset a forgotten password.
         use_cases:
           - Sign in with a password
           - Sign in with two-factor authentication
           - Reset a forgotten password
+        evidence:
+          - code: app/controllers/login_controller.rb
+          - code: app/mailers/password_reset_mailer.rb
       - name: Manage my account
         description: >-
-          Edit the profile, the preferences and the notification settings, link a Mastodon or GitHub account,
-          turn on two-factor authentication, or deactivate the account.
+          Edit the profile, the avatar, the password, the display preferences (color scheme, contrast, avatars,
+          story previews) and the notification settings, link a Mastodon or GitHub account, turn on two-factor
+          authentication, or deactivate the account and disown its contributions.
         use_cases:
           - Change my notification settings
           - Turn on two-factor authentication
           - Link my Mastodon account
           - Deactivate my account
+        evidence:
+          - code: app/controllers/settings_controller.rb
+          - code: app/views/settings/index.html.erb
+          - code: app/controllers/avatars_controller.rb
       - name: Wear hats
         description: >-
           A member requests a hat (a verified role, such as working on a project); a moderator approves or
-          rejects it; the member wears it on comments and messages and can doff it.
+          rejects it; the member wears it on comments and messages and can doff it; the list of hats is public.
         use_cases:
           - Request a hat
           - Approve a hat request
           - Wear a hat on a comment
+        evidence:
+          - doc: app/views/about/about.html.erb#Other Technical Features
+          - code: app/controllers/hats_controller.rb
+          - code: app/controllers/hat_requests_controller.rb
+          - code: app/models/hat.rb
+          - code: app/models/hat_request.rb
       - name: View member profiles
         description: >-
-          The profile of a member with their karma, stories, comments and hats, the tree of who invited whom, and
-          a member's own standing with the flags their comments received.
+          The profile of a member with their karma, inviter, hats, linked accounts, stories and comment threads,
+          and for a banned member who banned them and why; the tree of who invited whom.
         use_cases:
           - View the profile of a member
           - Browse the invitation tree
-          - Check my standing
+          - Read the threads of a member
+        evidence:
+          - doc: app/views/about/about.html.erb#Invitation Tree
+          - doc: app/views/about/about.html.erb#Transparency Policy
+          - code: app/controllers/users_controller.rb
+          - code: app/controllers/comments_controller.rb
+          - code: app/controllers/home_controller.rb
+      - name: Check my standing
+        description: >-
+          A member whose comments are flagged unusually often is warned and sees a standing page comparing their
+          flags to other commenters and listing the flagged comments.
+        use_cases:
+          - See the flag warning
+          - Review my flagged comments
+        evidence:
+          - doc: app/views/about/about.html.erb#Flags
+          - code: app/controllers/users_controller.rb
+          - code: app/views/users/standing.html.erb
+          - code: app/models/flagged_commenters.rb
+        disputed: 'Was a use case of current View member profiles, a feature of its own in the blind draft; split: a private self-assessment of flags received (only the member or a moderator may open it), not viewing a member.'
   - name: Moderation
     description: Keeping the site on topic, in the open.
     features:
       - name: Moderate stories
         description: >-
-          Moderators edit the title, URL and tags of a story, merge it into another one, delete or undelete it,
+          Moderators edit the title, URL and tags of a story, mark its link unavailable, delete or undelete it,
           giving a reason.
         use_cases:
-          - Merge a duplicate story
+          - Edit a story as a moderator
           - Delete a story with a reason
+        evidence:
+          - doc: app/views/about/about.html.erb#Transparency Policy
+          - code: app/controllers/mod/stories_controller.rb
+          - code: app/models/moderation.rb
+      - name: Merge stories
+        description: >-
+          Moderators merge stories on the same topic submitted within a week; the merged story leaves the lists,
+          its comments show under the original and its page redirects there.
+        use_cases:
+          - Merge a duplicate story
+          - Read the comments of a merged story
+        evidence:
+          - doc: app/views/about/about.html.erb#Other Technical Features
+          - url: https://lobste.rs/s/cqq0kg/story_merging
+          - code: app/controllers/mod/stories_controller.rb
+          - code: app/models/story.rb
+        disputed: 'Use case of current Moderate stories, own feature in the blind draft; split: the about page and a maintainers'' story present merging as a feature, and it changes what readers see (one discussion, redirect), unlike editing.'
       - name: Moderate comments
-        description: Moderators delete a comment with a reason; administrators move a comment to another parent.
+        description: Moderators delete a comment with a reason, and undelete it.
         use_cases:
           - Delete a comment as a moderator
-          - Move a comment to another parent
+        evidence:
+          - doc: app/views/about/about.html.erb#Transparency Policy
+          - code: app/controllers/mod/comments_controller.rb
+          - code: app/models/comment.rb
       - name: Ban members and take away invitations
         description: >-
-          Administrators ban or unban a member with a reason, and disable or enable a member's invitations and
-          suggestions.
+          Administrators ban or unban a member with a reason and notice, disable or enable a member's invitations
+          and suggestions, and reparent a member in the invitation tree; moderators keep private notes on members.
         use_cases:
           - Ban a member
           - Disable the invitations of a member
+          - Reparent a member in the invitation tree
+          - Write a moderator note on a member
+        evidence:
+          - doc: app/views/about/about.html.erb#Invitation Tree
+          - doc: app/views/about/about.html.erb#Transparency Policy
+          - code: app/controllers/users_controller.rb
+          - code: app/controllers/mod/reparents_controller.rb
+          - code: app/controllers/mod/notes_controller.rb
+          - code: app/models/mod_note.rb
+          - code: app/mailers/ban_notification_mailer.rb
       - name: Ban domains and origins
         description: Moderators ban a web domain or an origin with a reason, so its links can no longer be submitted.
         use_cases:
           - Ban a domain
+        evidence:
+          - doc: app/views/about/about.html.erb#Ranking
+          - code: app/controllers/mod/domains_ban_controller.rb
+          - code: app/controllers/mod/origins_ban_controller.rb
+          - code: app/models/domain.rb
+          - code: app/models/origin.rb
       - name: Manage tags and categories
         description: >-
           Administrators create and edit tags (description, category, hotness modifier, privileged, allowed to
@@ -212,18 +407,60 @@ domains:
         use_cases:
           - Create a tag
           - Edit a category
+        evidence:
+          - doc: app/views/about/about.html.erb#Tags
+          - code: app/controllers/mod/tags_controller.rb
+          - code: app/controllers/categories_controller.rb
+          - code: app/models/tag.rb
+          - code: app/models/category.rb
       - name: Read the moderation log
-        description: Every moderation action and its reason is listed publicly.
+        description: >-
+          Every moderation action and its reason, including the changes applied by suggestion quorums, is listed
+          publicly and can be filtered by moderator; the list of moderators and of banned IPs is public too.
         use_cases:
           - Browse the moderation log
+          - List the moderators
+          - List the banned IPs
+        evidence:
+          - doc: app/views/about/about.html.erb#Transparency Policy
+          - code: app/controllers/moderations_controller.rb
+          - code: app/models/moderation.rb
+          - code: app/controllers/banned_ips_controller.rb
+          - code: app/controllers/users_controller.rb
+      - name: View site statistics
+        description: A public page charts new and active users, stories, comments and votes month by month.
+        use_cases:
+          - View the site statistics
+        evidence:
+          - doc: app/views/about/about.html.erb#Transparency Policy
+          - code: app/controllers/stats_controller.rb
+          - code: app/models/stats.rb
+        disputed: 'Blind only; added: a public page linked from the about page''s transparency policy, no current feature covers it.'
       - name: Talk with the moderators
         description: >-
-          Moderators open mod mail conversations with members and keep notes on members; moderator dashboards
-          list the most flagged stories, comments and commenters.
+          Moderators open mod mail conversations with one or more members, referencing stories or comments, and
+          the members read and answer them.
         use_cases:
           - Open a mod mail conversation with a member
-          - Write a moderator note on a member
+          - Answer a mod mail
+        evidence:
+          - code: app/controllers/mod/mails_controller.rb
+          - code: app/controllers/mod_mails_controller.rb
+          - code: app/controllers/mod_mail_messages_controller.rb
+          - code: app/models/mod_mail.rb
+      - name: Review flagged content
+        description: >-
+          Moderator dashboards list the recent moderation activity and the most flagged stories, comments and
+          commenters of a period.
+        use_cases:
           - Review the most flagged comments
+          - Review the most flagged commenters
+        evidence:
+          - doc: app/views/about/about.html.erb#Flags
+          - code: app/controllers/mod/flagged_controller.rb
+          - code: app/controllers/mod/activities_controller.rb
+          - code: app/models/mod_activity.rb
+        disputed: 'Use case of current "Talk with the moderators", own feature in the blind draft; split: reviewing the flag queue (the about page''s moderation review queue) is not talking with members.'
   - name: Syndication
     description: Making the stories known outside the site.
     features:
@@ -232,10 +469,15 @@ domains:
           A bot account posts the hottest recent stories to Mastodon, and deletes the post of a deleted story.
         use_cases:
           - Post a front page story to Mastodon
+        evidence:
+          - doc: app/views/about/about.html.erb#Other Technical Features
+          - code: script/mastodon_post.rb
       - name: Send webmentions
         description: When a story links to a page that accepts webmentions, the site tells it so.
         use_cases:
           - Send a webmention for a new story
+        evidence:
+          - code: app/jobs/send_webmention_job.rb
 rules:
   - A story title has 3 to 150 characters, may not contain emoji or other graphics, and may not be all in capitals.
   - A story without a URL must have a text.
@@ -272,3 +514,10 @@ rules:
   - A hat can only be worn by the member who holds it.
   - Members who hid a story are not told about mentions in its comments.
   - Deactivating an account needs the password and the "I am sure" box.
+checked:
+  date: 2026-11-03
+  method: >-
+    Evidence cited per feature (the about page at the pinned commit, the maintainers' meta stories it links, the
+    code); a blind second draft from these sources, the disagreements settled from the code; `disputed` marks the
+    features one draft did not hold, the scope fixes are in the descriptions
+    (issues/benchmark_references_anchored_in_evidence.md).

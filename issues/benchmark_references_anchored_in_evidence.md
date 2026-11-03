@@ -73,7 +73,7 @@ use cases, rules, `matches.yaml` and `entry-points.yaml` (spec `benchmark-refere
    `checked`; `matches.yaml` follows renames; check passes; `--saved-judge` re-score of the kept runs (f95ada6
    hidden, dd5cf43 baseline) and the error bar, in the ledger and this issue (`docs/findings.md` stops at
    2026-10-14); verified by the check and `just check`. (autonomous)
-3. [ ] Lobsters: the same, from `about.html.erb` at the pinned commit and the meta stories it links (`url`).
+3. [x] Lobsters: the same, from `about.html.erb` at the pinned commit and the meta stories it links (`url`). (autonomous)
 4. [ ] Docs: skill `quality-benchmark` (which figures rest on doc-backed items, the check before a benchmark),
    `PRODUCT.md` risk, `docs/crates/bench.md`; verified by `update-docs` and the reviews.
 
@@ -115,3 +115,30 @@ use cases, rules, `matches.yaml` and `entry-points.yaml` (spec `benchmark-refere
   else `--saved-judge` fails (BSC-3).
 - red: none (data deliverable; the check of deliverable 1 passes on it).
 - Code review: 1 finding, not fixed: `without_disputed` counts a generated name matched only to disputed features as unmatched; intended (BRE-8: the score of the reference without them, where that name is an extra).
+
+## Deliverable 3
+- done: Lobsters reference settled (31 -> 37 features), evidence on each, 9 `disputed`, `checked`; `matches.yaml`:
+  pairs of Hide and save stories split by their words, flag review pairs moved, the generated names of the kept
+  runs that hold the added and split features paired by hand.
+- Online docs: `lobste.rs/about` is `app/views/about/about.html.erb` (cited at the pinned commit); 3 meta stories it
+  links cited as `url` (story merging, suggested titles and tags, mailing list mode).
+- Blind draft: 40 features in 11 domains, after merging 6 to fit the count the prompt suggested (a bias of the
+  prompt: no target count for the settlement). Settlement: 23 disagreements; Hide and save stories split; story page,
+  site statistics added; standing, merging, flag review split off; blind merges refused for comments, sign-up,
+  moderation of stories and comments; the moderators list and banned IPs read with the log; new-user restrictions
+  left in `rules`; 3 descriptions fixed from the code (no code moves a comment to another parent; mailing list mode
+  shown "temporarily disabled" at this commit; tags and categories are for administrators). Table:
+  `~/retrodoc-runs/references-evidence/lobsters-decisions.md`.
+- Backing: 27 features by the about page or a maintainers' story, 10 by code only.
+- Figures (judged features recall/precision, mean of 3; `--saved-judge`, no LLM):
+
+  | runs | before | after | after, without disputed |
+  |---|---|---|---|
+  | f95ada6 hidden | 98%/65% | 94%/72% | 97%/60% |
+  | dafea18 hidden | 96%/52% | 89%/55% | 95%/48% |
+  | dafea18 shown | 98%/51% | 93%/55% | 98%/46% |
+
+  Recall falls 4 to 7 points: some added features (merge stories, standing) no generated name holds; the error bar
+  is about 5 points on recall and 7 to 12 on precision.
+- red: none (data deliverable).
+- Code review: no findings

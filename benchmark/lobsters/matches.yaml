@@ -100,7 +100,7 @@ features:
   - generated: Origin banning
     reference: Ban domains and origins
   - generated: Flagged content review
-    reference: Talk with the moderators
+    reference: Review flagged content
   - generated: Moderator notes
     reference: Talk with the moderators
   - generated: Comment by Email
@@ -141,7 +141,9 @@ features:
   - generated: Story voting, flagging, hiding and saving
     reference: Flag stories and comments
   - generated: Story voting, flagging, hiding and saving
-    reference: Hide and save stories
+    reference: Hide stories
+  - generated: Story voting, flagging, hiding and saving
+    reference: Save stories
   - generated: Voting and flagging
     reference: Flag stories and comments
   - generated: Commenting and discussion
@@ -160,7 +162,9 @@ features:
   - generated: Story title and tag suggestions
     reference: Suggest a better title or tags
   - generated: Hiding and saving stories
-    reference: Hide and save stories
+    reference: Hide stories
+  - generated: Hiding and saving stories
+    reference: Save stories
   - generated: Flagging stories
     reference: Flag stories and comments
   - generated: Flagging comments
@@ -220,7 +224,9 @@ features:
   - generated: Suggest title and tag changes
     reference: Suggest a better title or tags
   - generated: Save and hide stories
-    reference: Hide and save stories
+    reference: Hide stories
+  - generated: Save and hide stories
+    reference: Save stories
   - generated: Post and edit comments
     reference: Comment on a story
   - generated: Post and edit comments
@@ -285,9 +291,9 @@ features:
   - generated: Suggest story title and tags
     reference: Suggest a better title or tags
   - generated: Save stories for later
-    reference: Hide and save stories
+    reference: Save stories
   - generated: Hide and flag stories
-    reference: Hide and save stories
+    reference: Hide stories
   - generated: Send webmentions
     reference: Post stories to Mastodon
   - generated: Post and reply to comments
@@ -307,7 +313,7 @@ features:
   - generated: Member profiles
     reference: View member profiles
   - generated: Moderation dashboard
-    reference: Talk with the moderators
+    reference: Review flagged content
   - generated: Moderation notes
     reference: Talk with the moderators
   - generated: Domain and origin browsing
@@ -328,6 +334,40 @@ features:
     reference: Manage my account
   - generated: Pushover notifications
     reference: Follow replies and mentions
+  # Reference checked against its evidence (2026-11-03): story page, statistics, standing and flag review added or
+  # split off, moderators list and banned IPs read with the log; the generated names of the kept runs that hold them.
+  - generated: Site statistics
+    reference: View site statistics
+  - generated: Site statistics and graphs
+    reference: View site statistics
+  - generated: User standing
+    reference: Check my standing
+  - generated: Flagged stories review
+    reference: Review flagged content
+  - generated: Flagged commenter monitoring
+    reference: Review flagged content
+  - generated: Moderation review of flagged content
+    reference: Review flagged content
+  - generated: Moderator dashboard
+    reference: Review flagged content
+  - generated: Story page viewing
+    reference: Read a story and its discussion
+  - generated: View a story
+    reference: Read a story and its discussion
+  - generated: View a story and its discussion
+    reference: Read a story and its discussion
+  - generated: Read comment threads
+    reference: Read a story and its discussion
+  - generated: Reading comments and threads
+    reference: Read a story and its discussion
+  - generated: Banned IPs
+    reference: Read the moderation log
+  - generated: Banned IP addresses
+    reference: Read the moderation log
+  - generated: Moderator listing
+    reference: Read the moderation log
+  - generated: Signup with invitation
+    reference: Sign up with an invitation
 rejected:
   domains:
     # it holds the listings only (audit of 2026-11-03)
