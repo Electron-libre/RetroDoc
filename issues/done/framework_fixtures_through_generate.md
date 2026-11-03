@@ -107,7 +107,7 @@ fixed in the deliverable that shows it if small, else filed as an issue.
 - not fixed: 2 (pass told apart by system prompt words for the three `Response` schemas: renaming those structs is a
   production change outside the issue; finding 6 now makes a miss explicit); 7 (each test runs its own
   `generate`, 0.1 s each; sharing a run would keep its temp dir in a static); 8 (duplicated helpers in the older CLI
-  tests: `issues/cli_tests_shared_support.md`); 10 (LNG-4 compares the system prompts only: the user prompts mix
+  tests: `issues/done/cli_tests_shared_support.md`); 10 (LNG-4 compares the system prompts only: the user prompts mix
   fixed headers with content and no generic split exists; `prompt_print_covers_what_is_sent` covers user-prompt
   text).
 - red: none (fixes of existing tests).
