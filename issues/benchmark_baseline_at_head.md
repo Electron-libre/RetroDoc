@@ -80,8 +80,9 @@ new `source_run`); the former frozen inputs kept as `frozen/<repo>-before-dafea1
 ## Deliverable 3: audit
 - done: judge pairs of hidden-1 and shown-1 of each application checked by hand; right pairs and the right ones the
   judge missed added to `matches.yaml`, wrong ones listed in its header; 12 runs re-scored `--saved-judge`.
-- Judge, on the 4 audited runs: wrong 3/20, 1/25 (linkding), 0/33, 1/33 (+1 doubtful) (Lobsters); right pairs missed
-  3, 8, 3 (+2 domains). Hand vs judged precision of features: 49% vs 53%, 67% vs 67%, 45% vs 45%, 46% vs 48%.
+- Judge, on the 4 audited runs (linkding hidden, shown, Lobsters hidden, shown): feature pairs wrong 3/20, 1/25, 0/33,
+  1/33 (+1 doubtful); right pairs missed, not already hand pairs: 0, 1, 2, 3 (+1 domain on each Lobsters run). Hand vs
+  judged-at-run feature precision: 49% / 53%, 67% / 67%, 45% / 42%, 46% / 44%.
 
 | check | result |
 |---|---|
@@ -96,7 +97,7 @@ Code review: no findings
 ## Deliverable 4: record
 - done: section 9 of `docs/findings.md`, "Latest figures" of `PRODUCT.md`, ledger (3 measures, reusable artifacts,
   G2 domains and G7 ticked); the audit's figures added to the findings of `judge_overstates_feature_precision`.
-- follow-up: that issue assumed an overstatement of 12 to 33 points; this audit finds 0 to 4. Its plan may shrink.
+- follow-up: that issue assumed an overstatement of 12 to 33 points; this audit finds within 4, both ways.
 
 | check | result |
 |---|---|
@@ -107,3 +108,20 @@ red: none (docs)
 
 Code review: 1 findings
 - `PRODUCT.md`: the narratives range mixed the shown series into figures said hidden; now 82% on both (fixed).
+
+## Deliverable 5: fixes of the `high` review
+- done: the judge's misses recounted without the pairs already in `matches.yaml` (findings, both issues); the Lobsters
+  domain precision given with the audited pairs (85%, 88%) beside the 72% at the run; redundant pairs (equal once
+  normalised) and names too generic to key on dropped from `matches.yaml`, the generic ones listed in its header; the
+  stale header line on bundles fixed; ranges for recall and precision in the findings table; `ROADMAP.md` Why line.
+- 12 runs re-scored again (`-rescored/`).
+
+| check | result |
+|---|---|
+| tests, lint, specs (`just check`) | pass |
+| code review (`low`) | 1 finding, fixed |
+
+red: none (docs and data)
+
+Code review: 1 findings
+- `ROADMAP.md`: the Why line kept the 51% of 2026-10-28 beside the new baseline; now 47% of 2026-11-03 (fixed).

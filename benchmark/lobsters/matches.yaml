@@ -8,6 +8,9 @@
 #   User standing -> View member profiles  (a moderator's view of a member's standing)
 #   Upvoted stories and comments -> Follow the site in a feed reader  (a member's upvoted list, no feed)
 #   Story publishing (domain) -> Votes and ranking  (it holds the listings only)
+#   Commenting -> Take part by e-mail; Story browsing and listings, Browse stories, Comment browsing -> Follow the site
+#     in a feed reader  (right in the audited runs, where the description names e-mail or feeds, but too generic
+#     to key on the name)
 domains:
   - generated: Stories and Comments
     reference: Stories
@@ -171,18 +174,12 @@ features:
     reference: Comment on a story
   - generated: Commenting
     reference: Edit and delete my comment
-  - generated: Commenting
-    reference: Take part by e-mail
   - generated: Story voting
     reference: Upvote stories and comments
   - generated: Comment voting
     reference: Upvote stories and comments
   - generated: Story browsing and listings
     reference: Browse the front page
-  - generated: Story browsing and listings
-    reference: Follow the site in a feed reader
-  - generated: Comment browsing
-    reference: Follow the site in a feed reader
   - generated: Tag and category filtering
     reference: Browse by tag, domain or origin
   - generated: Domain and origin listings
@@ -251,8 +248,6 @@ features:
     reference: Browse by tag, domain or origin
   - generated: Filter tags
     reference: Filter out tags
-  - generated: Browse stories
-    reference: Follow the site in a feed reader
   - generated: Sending invitations
     reference: Invite a new member
   - generated: Account signup
@@ -275,8 +270,6 @@ features:
     reference: Post stories to Mastodon
   - generated: Mod mail conversations
     reference: Talk with the moderators
-  - generated: Mastodon posting
-    reference: Post stories to Mastodon
   - generated: Mod mail messaging
     reference: Talk with the moderators
   - generated: Participant mod mail inbox

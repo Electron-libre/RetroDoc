@@ -221,9 +221,10 @@ The milestones up to "A large application, one bounded context at a time" are th
   can be believed, references a human has read, a feature precision raised on applications, and a steadier map of
   bounded contexts.
 - Why: the last whole benchmark predates the docs language, the narrative check and the new rules judgement
-  (2026-10-28); feature precision is the weakest figure (51% judged on Lobsters) and the judge overstates it by 12 to
-  33 points; three maps of the same large application gave 34, 40 and 44 contexts. The web milestones below show
-  these docs to readers: their quality comes first.
+  (2026-10-28); feature precision is the weakest figure (47% judged on Lobsters on the baseline of
+  2026-11-03, within 4 points of a hand count; earlier audits found the judge overstating it by 12 to 33); three
+  maps of the same large application gave 34, 40 and 44 contexts. The web milestones below show these docs to
+  readers: their quality comes first.
 - State: in issues
 - Issues:
   - [benchmark_baseline_at_head](issues/benchmark_baseline_at_head.md)

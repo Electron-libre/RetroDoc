@@ -518,29 +518,33 @@ contexts (UI components, configuration, front-end code, base classes), 3 catch-a
 
 Measured at dafea18 (`issues/benchmark_baseline_at_head.md`), hosted `deepseek-chat`, confidence on, 3 runs per
 series; the earlier whole runs (2026-10-28) predate the docs language, the narrative check, the new rules judgement
-and the reconciliation by identifiers. Mean (range); judged figures as the benchmark scored them at the run:
+and the reconciliation by identifiers. Mean (range), judged figures as the benchmark scored them at the run:
 
 | Figure | linkding hidden | linkding shown | Lobsters hidden | Lobsters shown |
 |---|---|---|---|---|
-| Domains recall / precision (judged) | 94% / 93% (80-100) | 100% / 96% | 90% / 72% (57-80) | 81% / 81% (67-100) |
-| Features recall / precision (judged) | 90% / 57% (51-65) | 82% / 56% (48-67) | 96% / 47% (42-49) | 99% / 47% (44-51) |
+| Domains recall (judged) | 94% (83-100) | 100% | 90% (86-100) | 81% (71-86) |
+| Domains precision (judged) | 93% (80-100) | 96% (89-100) | 72% (57-80) | 81% (67-100) |
+| Features recall (judged) | 90% (88-92) | 82% (79-88) | 96% (94-100) | 99% (97-100) |
+| Features precision (judged) | 57% (51-65) | 56% (48-67) | 47% (42-49) | 47% (44-51) |
 | Narratives in business language (judge) | 82% | 84% | 82% | 80% |
 | Use cases fully in business language | 65% (53-81) | 53% (48-63) | 78% | 77% |
 | Domains, features, use cases | 6, 43, 112 | 7, 43, 115 | 9, 81, 208 | 9, 80, 216 |
 | Calls, time | 138, 6 min | 159, 7 min | 214, 12 min | 239, 13 min |
 
 Cost about $3.5 for the 12 runs (linkding about $0.2 a run, Lobsters about $0.4). Against the single Lobsters run of
-2026-10-28 (confidence off), the domains precision dropped (82% to 72%, range 57-80) and the
-calls rose from 126 to 214 (the confidence pass and the narrative check); the features stay where they
-were.
+2026-10-28 (confidence off), the calls rose from 126 to 214 (the confidence pass and the narrative check) and the
+features stay where they were; the domains precision reads 72% against 82%, but the judge misses domain pairs
+(below): with the audited pairs it is 85% (80-89) hidden and 88% (78-100) shown.
 
-Hand audit of the judge on one run per series (`benchmark/<repo>/matches.yaml` holds the checked pairs since): the
-judge was wrong on 3 of 20, 1 of 25, 0 of 33 and 1 of 33 feature pairs, and missed 3, 3, 8 and 6 right ones (most on
-Lobsters: search, private messages, moderation log, mod mail). On those runs the hand feature precision is 49%, 67%,
-45% and 46% against 53%, 67%, 45% and 48% judged: the judge overstates the precision by 0 to 4 points, its misses
-partly offsetting its false pairs. The precision stays the weakest figure: about a third of the unpaired features of
+Hand audit of the judge on one run per series (`hidden-1`, `shown-1`): of the feature pairs it proposed, 3 of 20,
+1 of 25 (linkding), 0 of 33 and 1 of 33 (Lobsters) are wrong; of the right pairs not already in `matches.yaml`, it
+missed 0, 1, 2 and 3 features (mod mail, notifications, profile settings) and the messaging domain of both Lobsters
+runs. Hand feature precision against the judged one at the run: 49% / 53%, 67% / 67%, 45% / 42%, 46% / 44%: the
+judge errs both ways, within 4 points. Hand domain precision on Lobsters: 89% / 78% and 88% / 75%, the judge
+understates it. The precision of features stays the weakest figure: about a third of the unpaired features of
 Lobsters are technical (test data, development checks, caches, dumps), the rest are real features the reference
-leaves out (notifications, statistics).
+leaves out (notifications, statistics). The checked pairs are in `benchmark/<repo>/matches.yaml`, except names too
+generic to key on (listed in its header).
 
 The inputs of both applications were re-frozen from a `hidden` run at this commit; three replays of the domains pass
 on linkding find 5 to 7 domains, judged 100% recall and precision each time (the baseline of 2026-10-23 was lost).
