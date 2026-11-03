@@ -36,6 +36,11 @@ OPENROUTER_API_KEY=x cargo run -q -p retrodoc-pipeline --example placement_repla
 Saved runs, frozen inputs and measure outputs live in `~/retrodoc-runs`; its `LEDGER.md` (outside git) lists the
 measures already made and the runs to keep: read it before a replay, a benchmark or a smoke run, append a line after.
 
+Release: `just release <version>` writes the `CHANGELOG.md` section but not the version of the binary; set
+`[workspace.package] version` of `Cargo.toml` to `<version>` in the same commit (`cargo build` refreshes
+`Cargo.lock`), before `just release <version> --tag`. The test `crates/retrodoc-cli/tests/version.rs` fails while
+`retrodoc --version` differs from the newest `CHANGELOG.md` section.
+
 Scripts and dev commands are `just` recipes (`justfile`), `cardinal run` tools and `rust-script` files, not bash.
 
 Registry note: this environment has no direct network access to `crates.io` (plain HTTP is blocked), but

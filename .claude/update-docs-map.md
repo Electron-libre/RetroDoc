@@ -15,3 +15,4 @@ Read by `skill:update-docs`. Owned by the project: one row per kind of change, w
 | New or changed convention (lint, tests, language) | `docs/dev/conventions.md` |
 | Product-level scope change (new connector, doc type) | `PRODUCT.md` ("Capabilities", "Scope of v1") |
 | Public Rust API added or changed | doc comments: `# Errors` section on `pub fn` returning `Result`, `#[must_use]` on pure getters (clippy pedantic) |
+| Release process (version, `CHANGELOG.md`, tag) | `docs/dev/commands.md` (release note) |
