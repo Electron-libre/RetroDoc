@@ -97,7 +97,7 @@ public API (`retrodoc_mcp::tools::Docs`) unchanged. Out of scope: `server.rs` an
 - done: `tests.rs` imports `Docs`, the model types, `DomainMap`, `Glossary` and `Freshness` by name instead of
   through `use super::*` (finding 8: the tests depended on what `mod.rs` happens to import).
 - Findings 1 to 7 and 9 are on behaviour that predates the split (code moved unchanged): filed as
-  `issues/mcp_tools_answer_edge_cases.md`, ranked before `git_log_follow_renames`. Finding 10 (the issue still
+  `issues/done/mcp_tools_answer_edge_cases.md`, ranked before `git_log_follow_renames`. Finding 10 (the issue still
   open) is the close, asked of the user.
 - | check | result |
   |---|---|
