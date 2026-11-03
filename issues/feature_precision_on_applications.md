@@ -72,6 +72,9 @@ the references (`benchmark_references_checked_by_a_human`).
 5. [x] Candidate M, only if the too fine ones stay above a fifth of the unmatched after step 4: prompt rule that the
    notifications, settings pages and API of a capability go in its feature; replays x3 both applications.
    (autonomous; measured, not kept)
+5b. [x] Candidate T3: the operations commands, scripts and scheduled jobs (deployment, maintenance, backup) are
+   technical, a back-office tool is what an administrator uses in the application; replays x3 both applications;
+   kept. (autonomous)
 6. [ ] Whole benchmark of the pick (hidden series, 3 runs, both applications), record in `docs/findings.md`, "Latest figures" of
    `PRODUCT.md`, the ledger.
 
@@ -82,6 +85,8 @@ the references (`benchmark_references_checked_by_a_human`).
 - Whole benchmark: hidden series, 3 runs, both applications, about $1.8 (question 2 a).
 - Put-back key for a technical feature: a follow-up issue, not this one (question 3 a).
 - Paid replays of deliverables 2, 4 and 5 agreed, about $0.12 a series of 3 on both applications (question 4 a).
+- After deliverable 5: one more replay T3 (operations commands and jobs technical, about $0.1), then the whole
+  benchmark of the better of T2 and T3 (agreed 2026-11-03).
 
 ## Deliverable 1: classification
 - done: `docs/findings.md` §10, the Findings of this issue, the ledger; the spec draft `technical-features-set-aside`
@@ -180,3 +185,33 @@ Code review: no findings
   sets aside fewer technical ones. Lobsters run 3 again lost 14 entry points held by no feature (as T2 run 1).
 - Left: on linkding, backups, health check, deployment commands and admin provisioning stay features under T2: the
   rule "a back-office tool is not technical" keeps the operators' commands in.
+
+## Deliverable 5b: candidate T3
+- done: the back-office exception of the technical rule narrowed to the screens and actions an administrator uses
+  in the application, the commands, scripts and scheduled jobs of deployment, maintenance or backup made technical;
+  replays x3 (`feature_precision_on_applications-t3/`, about $0.1); kept, the pinned print updated.
+
+| | T2 | T3 |
+|---|---|---|
+| linkding features | 39 (39-40) | 36 (35-37) |
+| linkding recall / precision, judge | 93% / 53% (51-55) | 89% (88-92) / 58% (57-60) |
+| linkding set aside per run | 5-7 | 10 |
+| Lobsters features | 65 (64-67) | 69 (54-81) |
+| Lobsters recall / precision, judge | 91% (87-97) / 47% (44-51) | 95% (87-100) / 55% (53-57) |
+| Lobsters set aside per run | 15-17 | 19-22 |
+| entry points held by no feature, Lobsters | 31-43 | 31 every run |
+
+- Set aside now on linkding: backups, admin provisioning at deployment, database maintenance, secret key, health
+  check, besides the helpers; read by hand, none holds a reference feature (`Snapshot processing jobs` of run 2 is the
+  task workers, the snapshot routes stay in their feature).
+- not verified: hand precision; the linkding judged recall dips 4 points, its run 1 misses `Use the REST API` that
+  T2 found, inside the noise of an unaudited judge.
+
+| check | result |
+|---|---|
+| tests, lint, specs (`just check`) | pass |
+| code review (`low`) | no findings |
+
+red: none (a prompt refinement measured by the replays; the pinned print test covers the request)
+
+Code review: no findings
