@@ -516,7 +516,7 @@ contexts (UI components, configuration, front-end code, base classes), 3 catch-a
 
 ## 9. Benchmark baseline at the current code (2026-11-03)
 
-Measured at dafea18 (`issues/benchmark_baseline_at_head.md`), hosted `deepseek-chat`, confidence on, 3 runs per
+Measured at dafea18 (`issues/done/benchmark_baseline_at_head.md`), hosted `deepseek-chat`, confidence on, 3 runs per
 series; the earlier whole runs (2026-10-28) predate the docs language, the narrative check, the new rules judgement
 and the reconciliation by identifiers. Mean (range), judged figures as the benchmark scored them at the run:
 

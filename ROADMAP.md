@@ -227,7 +227,7 @@ The milestones up to "A large application, one bounded context at a time" are th
   readers: their quality comes first.
 - State: in issues
 - Issues:
-  - [benchmark_baseline_at_head](issues/benchmark_baseline_at_head.md)
+  - [benchmark_baseline_at_head](issues/done/benchmark_baseline_at_head.md)
   - [benchmark_references_checked_by_a_human](issues/benchmark_references_checked_by_a_human.md)
   - [judge_overstates_feature_precision](issues/judge_overstates_feature_precision.md)
   - [feature_precision_on_applications](issues/feature_precision_on_applications.md)
