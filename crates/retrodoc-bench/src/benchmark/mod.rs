@@ -5,6 +5,7 @@
 //! - [`matching`]: generated vs reference names (hand-written `matches.yaml` first), recall and precision.
 //! - [`metrics`]: the figures read from the artifacts of a run (`.retrodoc/cache/`), with no LLM call.
 
+pub mod evidence;
 pub mod frame;
 pub mod frozen;
 pub mod judge;
@@ -23,7 +24,9 @@ pub use frozen::{FrozenInputs, Manifest, ReplayPass};
 pub use judge::{judge, Judgement, NarrativeRating, Unaudited, Unjudged};
 pub use matching::{compare, Comparison, Matches, Pair, Rejected, Score, SCORING_VERSION};
 pub use metrics::{Cost, RunMetrics};
-pub use reference::{Reference, ReferenceDomain, ReferenceFeature};
+pub use reference::{
+    Checked, Evidence, EvidenceKind, Reference, ReferenceDomain, ReferenceFeature,
+};
 pub use replay::{replay_domains, replay_features, replay_table, RunFigures, Scoring};
 pub use replay_judgement::{
     parse_labels, replay_judgement, score_labels, JudgementFigures, LabelScore, GOOD, KEPT,

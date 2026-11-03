@@ -15,7 +15,7 @@ carry how much they move when the disputed items are taken out.
 # Findings
 * `issues/done/quality_benchmark.md`: "a human spot check of `matches.yaml` is still due".
 * `issues/done/benchmark_passes_on_fixed_inputs.md` (2026-10-24): "Checked by an agent, not by a human".
-* Today: linkding 30 features (188 lines), Lobsters 38 features (274 lines).
+* Today: linkding 24 features (188 lines), Lobsters 31 features (274 lines).
 * `PRODUCT.md`, risks: "the references are not all checked by a human".
 * Human-written sources exist (2026-11-03), at the pinned commits:
   * linkding: the maintainers' user docs, `docs/src/content/docs/` (15 pages, about 1,850 lines: search, archiving,
@@ -54,3 +54,37 @@ Measured quality at the current code
 * The online about page may be newer than the pinned commit: cite the copy in the repo first.
 * Changing a reference makes the earlier figures incomparable: re-score the kept runs in the same deliverable.
 * The blind draft must not see `reference.yaml`, `matches.yaml` nor the generated docs, or it is not independent.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-03
+
+## Understanding
+Make each feature of the linkding and Lobsters references cite checkable evidence, find the disputed ones by a blind
+second draft settled from the code, and give the error bar of the kept figures. Out of scope: evidence for domains,
+use cases, rules, `matches.yaml` and `entry-points.yaml` (spec `benchmark-reference-evidence`, non-goals).
+
+## Plan
+1. [x] Format and check: `evidence`, `disputed` and `checked` in `reference.rs`, example `reference_evidence` (paths
+   and headings checked in a tree, counts by backing, figures of saved reports without the disputed features);
+   verified by tests on temp trees and reports; makes true BRE-1 to BRE-9. (autonomous)
+2. [ ] linkding: blind second draft by a subagent (code and maintainers' docs, not the reference nor the generated
+   docs), diff, disagreements settled by another subagent from the code; evidence on each feature, `disputed`,
+   `checked`; `matches.yaml` follows renames; check passes; `--saved-judge` re-score of the kept runs (f95ada6
+   hidden, dd5cf43 baseline) and the error bar, in the ledger and `docs/findings.md`; verified by the check and
+   `just check`.
+3. [ ] Lobsters: the same, from `about.html.erb` at the pinned commit and the meta stories it links (`url`).
+4. [ ] Docs: skill `quality-benchmark` (which figures rest on doc-backed items, the check before a benchmark),
+   `PRODUCT.md` risk, `docs/crates/bench.md`; verified by `update-docs` and the reviews.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 52f991bee49a5b92d66fe048f6300361986e5430
+
+## Deliverable 1
+- done: `evidence`, `disputed`, `checked` in the reference; module `evidence` and example `reference_evidence`.
+- red: BRE-1, BRE-2, BRE-3, BRE-9: `no field evidence on type ReferenceFeature` (BRE-4 to BRE-8: tests written
+  with the module, not run red first).
+- not verified: the example on a reference with evidence (deliverables 2 and 3 write it).
+- The finding "linkding 30 features, Lobsters 38" was wrong: 24 and 31.
+- Code review: 2 findings, both fixed (a directory or a non-UTF-8 file read as missing; disputed count by name).

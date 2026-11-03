@@ -21,6 +21,16 @@ pub struct Reference {
     /// A sample of the business rules the product enforces, one sentence each.
     #[serde(default)]
     pub rules: Vec<String>,
+    /// When and how the features were checked against their evidence; `None` before it was done.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub checked: Option<Checked>,
+}
+
+/// `checked:` of a reference (spec `benchmark-reference-evidence`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Checked {
+    pub date: String,
+    pub method: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -37,6 +47,54 @@ pub struct ReferenceFeature {
     /// A sample of the use cases of the feature, by name (not exhaustive).
     #[serde(default)]
     pub use_cases: Vec<String>,
+    /// What backs the feature, checked by [`super::evidence::check_evidence`].
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub evidence: Vec<Evidence>,
+    /// Why the drafts of the reference disagreed on the feature and how it was settled; `None` when they
+    /// agreed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub disputed: Option<String>,
+}
+
+/// One item of `evidence`: exactly one of its fields is set ([`Reference::check`]).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Evidence {
+    /// `<path>` or `<path>#<heading>` of a human-written doc of the repository.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub doc: Option<String>,
+    /// A page of the maintainers, recorded, not fetched.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+    /// A route, controller, job or test file of the repository.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub code: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EvidenceKind {
+    Doc,
+    Url,
+    Code,
+}
+
+impl Evidence {
+    /// The kind and value of the item; `None` unless exactly one field is set and not blank.
+    #[must_use]
+    pub fn kind(&self) -> Option<(EvidenceKind, &str)> {
+        let set: Vec<_> = [
+            (EvidenceKind::Doc, &self.doc),
+            (EvidenceKind::Url, &self.url),
+            (EvidenceKind::Code, &self.code),
+        ]
+        .into_iter()
+        .filter_map(|(kind, value)| value.as_deref().map(|v| (kind, v)))
+        .collect();
+        match set.as_slice() {
+            [(kind, value)] if !value.trim().is_empty() => Some((*kind, value)),
+            _ => None,
+        }
+    }
 }
 
 impl Reference {
@@ -89,6 +147,14 @@ impl Reference {
                     "a feature of domain `{}` has no name",
                     domain.name
                 )));
+            }
+            for feature in &domain.features {
+                if feature.evidence.iter().any(|e| e.kind().is_none()) {
+                    return Err(invalid(format!(
+                        "an evidence item of feature `{}` needs exactly one of `doc`, `url`, `code`, not blank",
+                        feature.name
+                    )));
+                }
             }
         }
         Ok(())
@@ -167,6 +233,55 @@ rules:
             .unwrap_err()
             .to_string();
         assert!(error.contains("`commit` is empty"), "{error}");
+    }
+
+    // spec: BRE-1 (internal: the reference is read by the measuring tools, not by a command of its own)
+    #[test]
+    fn a_reference_without_evidence_loads() {
+        let reference = load(YAML).unwrap();
+        assert_eq!(reference.checked, None);
+        let feature = &reference.domains[0].features[0];
+        assert_eq!(feature.evidence, []);
+        assert_eq!(feature.disputed, None);
+    }
+
+    // spec: BRE-2, BRE-9 (internal: the reference is read by the measuring tools, not by a command of its own)
+    #[test]
+    fn reads_the_evidence_and_the_check() {
+        let yaml = YAML.replace(
+            "        use_cases: [Pay by card]\n",
+            "        use_cases: [Pay by card]\n        evidence:\n          - doc: docs/pay.md#Paying\n          - url: https://example.com/pay\n          - code: app/pay.py\n        disputed: only one draft held it\n",
+        ) + "checked:\n  date: 2026-11-04\n  method: blind second draft\n";
+        let reference = load(&yaml).unwrap();
+        let feature = &reference.domains[0].features[0];
+        let kinds: Vec<_> = feature.evidence.iter().map(|e| e.kind().unwrap()).collect();
+        assert_eq!(
+            kinds,
+            [
+                (EvidenceKind::Doc, "docs/pay.md#Paying"),
+                (EvidenceKind::Url, "https://example.com/pay"),
+                (EvidenceKind::Code, "app/pay.py"),
+            ]
+        );
+        assert_eq!(feature.disputed.as_deref(), Some("only one draft held it"));
+        let checked = reference.checked.unwrap();
+        assert_eq!(
+            (checked.date.as_str(), checked.method.as_str()),
+            ("2026-11-04", "blind second draft")
+        );
+    }
+
+    // spec: BRE-3 (internal: the reference is read by the measuring tools, not by a command of its own)
+    #[test]
+    fn refuses_an_evidence_item_without_exactly_one_kind() {
+        for item in ["{doc: a.md, code: b.py}", "{}", "{code: ' '}"] {
+            let yaml = YAML.replace(
+                "        use_cases: [Pay by card]\n",
+                &format!("        use_cases: [Pay by card]\n        evidence: [{item}]\n"),
+            );
+            let error = load(&yaml).unwrap_err().to_string();
+            assert!(error.contains("`Checkout`"), "{item}: {error}");
+        }
     }
 
     #[test]
