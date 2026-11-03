@@ -33,8 +33,8 @@ pub struct Docs {
 impl From<GeneratedDocs> for Docs {
     fn from(generated: GeneratedDocs) -> Self {
         Self {
+            source: generated.source_access(),
             generated,
-            source: None,
         }
     }
 }
@@ -82,10 +82,7 @@ impl Docs {
     /// access to the code it cites. `None` before a first `generate`.
     #[must_use]
     pub fn load(repo_root: &Path, docs: &[ExistingDoc]) -> Option<Self> {
-        GeneratedDocs::load(repo_root, docs).map(|generated| Self {
-            source: generated.source_access(),
-            generated,
-        })
+        GeneratedDocs::load(repo_root, docs).map(Self::from)
     }
 
     #[must_use]

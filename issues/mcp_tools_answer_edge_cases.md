@@ -74,6 +74,10 @@ non-blank line (b3956d2): only traced by the spec here, no code change.
 2. [x] Builders and lookups: `with_rules` rebuilds the index from the base entries (replaces), the source access is
    recomputed by `with_rules` too (order-free), `entry_set_apart` resolves by id, `stale_files` dedups with a
    `HashSet`; verified by tests of the builder orders and a second `with_rules`; no requirement (internal). (autonomous)
+3. [x] Fixes of the `high` review of the issue: `Docs::from` keeps the source access of the read model, one
+   `corpus::use_case_id` for the index and `get_use_case`, `entry_set_apart` reads a two-segment id and allocates
+   nothing; verified by tests of both builder orders, the `From` path and a set-apart use case of an undocumented
+   feature. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -113,5 +117,27 @@ non-blank line (b3956d2): only traced by the spec here, no code change.
 - red: none (no requirement); the two new tests failed before the code: the rule-only file was "not cited",
   a second `with_rules` still found the first rules.
 - Code review: no findings
+- not verified: none
+- decisions needed: none
+
+## Deliverable 3 (review `high` of `7916a8c..6034a19`, 8 findings)
+- done: findings 2, 3, 4, 6, 8 fixed (`From` source access, shared `use_case_id`, set-apart lookup on a
+  two-segment id and with no allocation, the builder orders tested both ways).
+- not fixed: 1 (two domains sharing a feature slug: a non-goal of `specs/mcp-server.md`, use cases point to their
+  feature by slug only, so they cannot be told apart); 5 (a few scans of the features per `get_use_case` call,
+  negligible next to the answer); 7 (the index built twice at load: predates this issue, a startup cost not
+  measured).
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | pass |
+| specs | n/a (no requirement changed) |
+| docs | n/a (internal) |
+| code review | low, see below |
+
+- red: none (no requirement); before the code, `Docs::from` answered "Not available", the set-apart use case of an
+  undocumented feature had no tag.
+- Code review: 0 findings
 - not verified: none
 - decisions needed: none

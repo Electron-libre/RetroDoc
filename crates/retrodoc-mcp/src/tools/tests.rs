@@ -4,6 +4,7 @@ use retrodoc_pipeline::{DomainMap, Glossary};
 use super::Docs;
 use crate::corpus::fixtures::*;
 use crate::freshness::Freshness;
+use crate::read_model::GeneratedDocs;
 
 fn docs() -> Docs {
     let mut weak = use_case(
@@ -603,9 +604,44 @@ fn the_code_only_a_rule_cites_can_be_read_whatever_the_order_of_the_builders() {
             end_line: None,
         },
     }];
-    let docs = docs.with_source_access(dir.path()).with_rules(rules);
+    let docs = docs
+        .with_source_access(dir.path())
+        .with_rules(rules.clone());
     let out = docs.read_source("app/ceiling.rb", None, None);
     assert!(out.starts_with("# `app/ceiling.rb`"), "{out}");
+    let docs = docs.with_rules(Vec::new()).with_rules(rules);
+    let out = docs.read_source("app/ceiling.rb", None, None);
+    assert!(out.starts_with("# `app/ceiling.rb`"), "{out}");
+}
+
+#[test]
+fn docs_made_from_a_read_model_with_a_repository_can_read_its_code() {
+    let (dir, _) = docs_over_a_generated_repo();
+    let generated = GeneratedDocs::new(
+        vec![domain("billing", "Billing", "Invoices and payments")],
+        vec![feature(
+            "pay-invoice",
+            "Pay an invoice",
+            "Settle what is due",
+        )],
+        vec![],
+        Glossary::default(),
+        &[],
+    )
+    .with_repo_root(dir.path());
+    let out = Docs::from(generated).read_source("app/invoice.rb", None, None);
+    assert!(out.starts_with("# `app/invoice.rb`"), "{out}");
+}
+
+#[test]
+fn a_set_apart_use_case_of_an_undocumented_feature_is_marked_in_the_search() {
+    let mut weak = use_case("pay-late", "pay-invoice", "Pay late", "Settled late");
+    weak.confidence = Some(ConfidenceScore::new(0.3, None));
+    let docs = Docs::new(vec![], vec![], vec![weak], &Glossary::default(), &[]);
+    let found = docs.search_docs("late", 10);
+    let hit = found.lines().find(|l| l.contains("Pay late")).unwrap();
+    assert!(hit.contains("`pay-invoice/pay-late`"), "{found}");
+    assert!(hit.contains("[administration/technical]"), "{found}");
 }
 
 #[test]

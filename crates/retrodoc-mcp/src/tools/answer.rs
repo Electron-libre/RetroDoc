@@ -10,7 +10,7 @@ use retrodoc_core::model::{
 };
 
 use super::Docs;
-use crate::corpus::{feature_id, Entry, EntryKind};
+use crate::corpus::{Entry, EntryKind};
 use crate::freshness::FileState;
 
 impl Docs {
@@ -27,16 +27,18 @@ impl Docs {
     /// Whether a search entry is a back-office feature or a use case set apart.
     pub(super) fn entry_set_apart(&self, entry: &Entry) -> bool {
         match entry.kind {
-            EntryKind::Feature => self
-                .generated
-                .features()
-                .iter()
-                .any(|f| f.back_office && feature_id(f) == entry.id),
-            // `domain/feature/use-case`: feature slugs are unique across domains.
+            EntryKind::Feature => entry.id.split_once('/').is_some_and(|(domain, slug)| {
+                self.generated
+                    .features()
+                    .iter()
+                    .any(|f| f.back_office && f.domain_slug == domain && f.slug == slug)
+            }),
+            // `[domain/]feature/use-case` (`corpus::use_case_id`): feature slugs are unique
+            // across domains.
             EntryKind::UseCase => entry
                 .id
                 .rsplit_once('/')
-                .and_then(|(feature, slug)| Some((feature.split_once('/')?.1, slug)))
+                .map(|(parent, slug)| (parent.rsplit('/').next().unwrap_or(parent), slug))
                 .is_some_and(|(feature, slug)| {
                     self.generated
                         .use_cases_of(feature)

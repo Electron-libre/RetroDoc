@@ -6,7 +6,7 @@ use retrodoc_core::model::{BusinessRule, UseCase};
 
 use super::answer::{confidence_line, location, SET_APART_NOTE};
 use super::Docs;
-use crate::corpus::feature_id;
+use crate::corpus::use_case_id;
 
 impl Docs {
     /// A use case, by its id (`billing/pay-invoice/pay-by-card`), the last two segments or its
@@ -39,7 +39,7 @@ impl Docs {
             several => {
                 let ids: Vec<String> = several
                     .iter()
-                    .map(|u| format!("`{}`", self.use_case_id(u)))
+                    .map(|u| format!("`{}`", use_case_id(u, self.generated.features())))
                     .collect();
                 return format!(
                     "Not documented: `{id}` names several use cases: {}. Use one of these ids.\n",
@@ -50,7 +50,7 @@ impl Docs {
         let mut out = format!(
             "# {} (`{}`)\n\n{}\n",
             use_case.name,
-            self.use_case_id(use_case),
+            use_case_id(use_case, self.generated.features()),
             confidence_line(use_case.confidence.as_ref())
         );
         if self.use_case_set_apart(use_case) {
@@ -100,16 +100,5 @@ impl Docs {
             .collect();
         out.push_str(&self.rules_section(&rules));
         out
-    }
-
-    /// `domain/feature/use-case`, or `feature/use-case` when the feature is not documented.
-    fn use_case_id(&self, use_case: &UseCase) -> String {
-        let parent = self
-            .generated
-            .features()
-            .iter()
-            .find(|f| f.slug == use_case.feature_slug)
-            .map_or_else(|| use_case.feature_slug.clone(), feature_id);
-        format!("{parent}/{}", use_case.slug)
     }
 }

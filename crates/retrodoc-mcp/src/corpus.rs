@@ -61,6 +61,17 @@ pub fn feature_id(feature: &Feature) -> String {
     format!("{}/{}", feature.domain_slug, feature.slug)
 }
 
+/// `<domain>/<feature>/<use case>`, or `<feature>/<use case>` when its feature is not among
+/// `features`.
+#[must_use]
+pub fn use_case_id(use_case: &UseCase, features: &[Feature]) -> String {
+    let parent = features
+        .iter()
+        .find(|f| f.slug == use_case.feature_slug)
+        .map_or_else(|| use_case.feature_slug.clone(), feature_id);
+    format!("{parent}/{}", use_case.slug)
+}
+
 fn domain_entries(domains: &[Domain]) -> Vec<Entry> {
     let mut entries = Vec::new();
     for domain in domains {
@@ -76,7 +87,7 @@ fn domain_entries(domains: &[Domain]) -> Vec<Entry> {
     entries
 }
 
-fn use_case_entry(use_case: &UseCase, feature_id: &str) -> Entry {
+fn use_case_entry(use_case: &UseCase, id: String) -> Entry {
     let mut sources: Vec<String> = Vec::new();
     for step in &use_case.steps {
         for source in &step.source_refs {
@@ -102,7 +113,7 @@ fn use_case_entry(use_case: &UseCase, feature_id: &str) -> Entry {
     );
     Entry {
         kind: EntryKind::UseCase,
-        id: format!("{feature_id}/{}", use_case.slug),
+        id,
         title: use_case.name.clone(),
         text,
         confidence: use_case.confidence.as_ref().map(|c| c.value),
@@ -196,11 +207,7 @@ pub fn build_entries(
         });
     }
     for use_case in use_cases {
-        let parent = features
-            .iter()
-            .find(|f| f.slug == use_case.feature_slug)
-            .map_or_else(|| use_case.feature_slug.clone(), feature_id);
-        entries.push(use_case_entry(use_case, &parent));
+        entries.push(use_case_entry(use_case, use_case_id(use_case, features)));
     }
     for entity in glossary.merged_entities() {
         let associations = entity
