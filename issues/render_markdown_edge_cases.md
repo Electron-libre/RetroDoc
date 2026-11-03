@@ -64,7 +64,7 @@ list item for the three pages. Checked: the passes cannot produce colliding slug
 
 ## Plan
 1. [x] Shared list item: one helper in `markdown/mod.rs` (link, score with its flag, description on one line) used by `agent_index.rs`, `domain.rs`, `feature.rs`; the flag kept in one place; verified by render tests through `retrodoc render` on edited artifacts; makes true MDR-1, MDR-2. (autonomous)
-2. [ ] Inverted range: `source_ref_label` puts the lower line first (the web UI shares it); `ActorKind` imported in `use_case.rs`; verified by a render test; makes true MDR-3.
+2. [x] Inverted range: `source_ref_label` puts the lower line first (the web UI shares it); `ActorKind` imported in `use_case.rs`; verified by a render test; makes true MDR-3. (autonomous)
 3. [ ] Path collisions: `render` fails naming the path when two files share one; the deep clone of the rules in `render_with_docs` replaced by references; `segment` guard traced; verified by render tests; makes true MDR-4, MDR-5.
 
 ## Decisions
@@ -89,3 +89,18 @@ Code review: no findings
 not verified: none.
 decisions needed: none.
 Follow-up: the per-feature rule filter of `domain_page` stays: `render_with_docs` filters the same rules per feature, but sharing it would only move the filter.
+
+## Deliverable 2 summary
+done: `source_ref_label` shows an inverted range with the lower line first (pages, rules, web UI); `ActorKind` imported in `use_case.rs`.
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | pass |
+| specs | pass |
+| docs | `docs/crates/render-mcp-cli.md` |
+| code review | see below |
+
+red: MDR-3: the step showed `app/orders_controller.rb:9-3`.
+Code review: no findings
+not verified: the web UI page itself (it calls the same `source_ref_label`).
+decisions needed: none.

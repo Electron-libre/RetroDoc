@@ -2,7 +2,7 @@
 
 use std::fmt::Write as _;
 
-use retrodoc_core::model::{BusinessRule, Feature, Step, UseCase};
+use retrodoc_core::model::{ActorKind, BusinessRule, Feature, Step, UseCase};
 
 use super::{confidence_line, feature_path, link, score_line, trim_end, use_case_path};
 use crate::doc_links::{DocLinks, ItemRef};
@@ -107,7 +107,7 @@ pub(super) fn use_case_page(
 }
 
 pub(super) fn step_item(step: &Step, texts: &Texts) -> String {
-    let kind = if step.actor.kind == retrodoc_core::model::ActorKind::Human {
+    let kind = if step.actor.kind == ActorKind::Human {
         texts.human
     } else {
         texts.system

@@ -139,3 +139,19 @@ fn a_weak_item_is_flagged_on_the_pages_as_in_the_agent_index() {
         "{index}"
     );
 }
+
+// spec: MDR-3
+#[test]
+fn an_inverted_range_is_shown_in_order() {
+    let (dir, _llm) = documented_shop();
+    edit(
+        dir.path(),
+        "use-cases.yaml",
+        "start_line: 1\n      end_line: 1",
+        "start_line: 9\n      end_line: 3",
+    );
+
+    let page = rendered(dir.path(), "orders/use-cases/list-orders/list-orders.md");
+
+    assert!(page.contains("`app/orders_controller.rb:3-9`"), "{page}");
+}

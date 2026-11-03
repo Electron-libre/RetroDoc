@@ -223,11 +223,12 @@ pub(crate) fn link(from: &Path, to: &Path) -> String {
     parts.join("/")
 }
 
-/// Cited lines as the docs show them: `path:start-end`, `path:start`, or the path alone.
+/// Cited lines as the docs show them: `path:start-end` (the lower line first, whatever order the
+/// model gave them in), `path:start`, or the path alone.
 #[must_use]
 pub fn source_ref_label(source: &SourceRef) -> String {
     match (source.start_line, source.end_line) {
-        (Some(s), Some(e)) if s != e => format!("{}:{s}-{e}", source.path),
+        (Some(s), Some(e)) if s != e => format!("{}:{}-{}", source.path, s.min(e), s.max(e)),
         (Some(s), _) => format!("{}:{s}", source.path),
         _ => source.path.clone(),
     }
