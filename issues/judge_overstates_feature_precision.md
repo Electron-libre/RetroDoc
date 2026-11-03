@@ -63,9 +63,9 @@ candidate (d): make the hand audit count and say, per run, how much of the judge
    moved there, both applications), judge proposals equal to a rejected pair dropped from the judged figures, the
    unaudited proposals counted in the run report, the summary and `benchmark-table`; `SCORING_VERSION` 3;
    verified by tests through the scoring and the table; makes true BSC-16, BSC-17, BSC-18. (autonomous)
-2. [ ] Re-score and record: the 12 runs of the baseline re-scored `--saved-judge` (no LLM call), judged against
+2. [x] Re-score and record: the 12 runs of the baseline re-scored `--saved-judge` (no LLM call), judged against
    hand precision and the unaudited counts in `docs/findings.md`, the ledger and the skill `quality-benchmark`
-   (audit step writes the wrong pairs to `rejected`); verified by the re-scored tables and `just check`.
+   (audit step writes the wrong pairs to `rejected`); verified by the re-scored tables and `just check`. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -90,3 +90,21 @@ red: BSC-16, BSC-18: the rejected `Bundle services` still counted as matched (`l
 services"]`); BSC-17: a rejected pair naming `Typo` scored without error.
 
 Code review: no findings
+
+## Deliverable 2: re-score and record
+- done: the 12 runs of the dafea18 baseline re-scored `--saved-judge` at dd5cf43
+  (`judge_overstates_feature_precision-dd5cf43-<repo>/`, 0 FAIL); figures in `docs/findings.md` section 9, the
+  "Latest figures" of `PRODUCT.md` and the ledger (measure line, G7 ticked). The skill was updated in deliverable 1.
+- Audited run-1s: judged feature precision = hand (49%, 67%, 45%, 46%), feature pairs unaudited 0, 0, 3, 1. Runs
+  2-3, never audited: 5 to 28 feature pairs unaudited each.
+
+| check | result |
+|---|---|
+| tests, lint, specs (`just check`) | pass |
+| code review (`low`) | 1 finding, deferred |
+
+red: none (measure and docs)
+
+Code review: 1 findings
+- `matching.rs`: `check_references` repeats the normalized lookup of the `reference_index` closure of `score`;
+  code of deliverable 1, left to the fixes of the `high` review of the issue.

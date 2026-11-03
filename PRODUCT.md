@@ -112,11 +112,11 @@ Measured by `retrodoc benchmark` against hand-written references on public repos
 - a reader taking over an application finds the docs right and useful (not measured yet: milestone "Read by someone
   taking an application over" of `ROADMAP.md`).
 
-Latest figures (hosted `deepseek-chat`, 2026-11-03, 3 runs per series, repository docs hidden): linkding judged
-domains 94% recall / 93% precision, features 90% / 57%; Lobsters domains 90% / 85% (72% before the audit of the
-judge's misses), features 96% / 47%; narratives in business language 82% on both. Feature precision is the weakest
-figure; checked by hand on one run per series, the judge's figure is within 4 points of it (`docs/findings.md`,
-section 9).
+Latest figures (hosted `deepseek-chat`, 2026-11-03, 3 runs per series, repository docs hidden, re-scored with the
+pairs rejected by hand): linkding judged domains 89% recall / 100% precision, features 90% / 57%; Lobsters domains
+90% / 85%, features 96% / 48%; narratives in business language 82% on both. Feature precision is the weakest
+figure; on the runs audited by hand the judged figure equals the hand one, and each run says how many of the judge's
+pairs no hand has audited (`docs/findings.md`, section 9).
 
 ## Constraints and assumptions
 
