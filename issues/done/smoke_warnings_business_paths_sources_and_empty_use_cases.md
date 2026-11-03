@@ -179,7 +179,7 @@ High review: 10 findings
 - `{}` fails the whole answer (no default for `slug`, `name`): not fixed, unchanged behaviour (the answer is
   retried), no measured case.
 - a malformed object actor replaced by the primary actor: fixed (text-only steps only).
-- a file path with a trailing `/` kept as a folder: outside this issue, `issues/business_path_with_trailing_slash.md`.
+- a file path with a trailing `/` kept as a folder: outside this issue, `issues/done/business_path_with_trailing_slash.md`.
 - private names quoted in the issue: fixed in this file (still in the history of bfb105a..19fefd1, not pushed).
 - an invented path is `info` whatever the share invented: not fixed, decision of 2026-11-02 (question 1).
 - the primary actor rebuilt per step: fixed (built once).
