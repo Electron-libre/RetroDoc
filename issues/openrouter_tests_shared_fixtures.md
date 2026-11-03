@@ -58,6 +58,8 @@ make `LTO-4` read its accept count without a sleep. Test code only: no productio
    sentinel connection after the error and counts the connections the server accepted before it (the backlog is
    FIFO), with no sleep; verified by `just check` green and the same test count (~250 lines). (autonomous)
 
+2. [x] High review fixes: `serve` reads the whole request (headers then `Content-Length` body), one test sends a user message again and checks its mapping, `LTO-4` waits with `recv_timeout`, `OK_BODY` replaces a local copy. (autonomous)
+
 ## Decisions
 - Mode: autonomous
 - Base commit: 39f550cf560a45c78d52c7a87849cb9a0f387ed4
@@ -80,3 +82,16 @@ Code review: no findings (`low` reads no test file: the diff is test code only)
 
 not verified: that `LTO-4` would fail on a retry (no production change made to prove it)
 decisions needed: none
+
+## High review (39f550c..a1cd352): 7 findings
+1. Empty `messages` no longer exercised the message mapping: fixed (the `max_tokens` test sends "hi" and checks it).
+2. Single `read` could lose a body sent in its own segment: fixed (`read_request`).
+3. `LTO-4` waited with no deadline: fixed (`recv_timeout` of 5 s; the connect to loopback is immediate).
+4. `with_endpoint` could go: not fixed, the issue forbids a change of the production code.
+5. `OK_PAYLOAD` duplicated `OK_BODY`: fixed.
+6. Raw 429 response: kept, decided at validation.
+7. A client built then dropped in `LTO-4`: not fixed, negligible in a test.
+
+## Deliverable 2 summary
+done: the fixes above. tests: 46, `just check` green. red: none (test hygiene).
+Code review: no findings

@@ -39,7 +39,9 @@ async fn a_timeout_is_named_and_not_retried() {
     // is accepted before this sentinel, opened once it gave up.
     let sentinel = std::net::TcpStream::connect(addr).unwrap();
     let sentinel = sentinel.local_addr().unwrap();
-    let before_sentinel = accepted.iter().take_while(|peer| *peer != sentinel).count();
+    let before_sentinel = std::iter::from_fn(|| accepted.recv_timeout(Duration::from_secs(5)).ok())
+        .take_while(|peer| *peer != sentinel)
+        .count();
     assert_eq!(before_sentinel, 1);
 }
 

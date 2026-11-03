@@ -1,11 +1,8 @@
 use std::time::Duration;
 
 use super::super::{OpenRouterProvider, MAX_COMPLETION_TOKENS};
-use super::{http, provider, request, serve};
-use crate::{CompletionResponse, LlmProvider, Usage};
-
-const OK_PAYLOAD: &str =
-    r#"{"model":"m","choices":[{"message":{"role":"assistant","content":"ok"}}]}"#;
+use super::{http, provider, request, serve, OK_BODY};
+use crate::{ChatMessage, CompletionRequest, CompletionResponse, LlmProvider, Role, Usage};
 
 #[tokio::test]
 async fn complete_parses_a_successful_response() {
@@ -71,31 +68,41 @@ async fn complete_waits_for_the_delay_the_server_asks_for_on_a_429() {
     let (url, _rx) = serve(vec![
         "HTTP/1.1 429 Too Many Requests\r\nRetry-After: 1\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
             .to_string(),
-        http("200 OK", OK_PAYLOAD),
+        http("200 OK", OK_BODY),
     ]);
 
     let started = std::time::Instant::now();
     let response = provider(&url).complete(request()).await.unwrap();
 
-    assert_eq!(response.content, "ok");
+    assert_eq!(response.content, "{}");
     // Retry-After: 1 plus the one-second margin, well above the 500 ms backoff.
     assert!(started.elapsed() >= Duration::from_secs(2));
 }
 
 #[tokio::test]
 async fn complete_caps_max_tokens_to_guard_against_a_runaway_local_model() {
-    let (url, rx) = serve(vec![http("200 OK", OK_PAYLOAD)]);
+    let (url, rx) = serve(vec![http("200 OK", OK_BODY)]);
 
-    provider(&url).complete(request()).await.unwrap();
+    provider(&url)
+        .complete(CompletionRequest {
+            messages: vec![ChatMessage {
+                role: Role::User,
+                content: "hi".to_string(),
+            }],
+            ..request()
+        })
+        .await
+        .unwrap();
 
     let request = rx.recv().unwrap();
     assert!(request.contains(&format!("\"max_tokens\":{MAX_COMPLETION_TOKENS}")));
+    assert!(request.contains(r#""messages":[{"role":"user","content":"hi"}]"#));
 }
 
 #[tokio::test]
 async fn reasoning_effort_is_sent_only_when_configured() {
     for (effort, expected) in [(Some("none"), true), (None, false)] {
-        let (url, rx) = serve(vec![http("200 OK", OK_PAYLOAD)]);
+        let (url, rx) = serve(vec![http("200 OK", OK_BODY)]);
 
         OpenRouterProvider {
             reasoning_effort: effort.map(str::to_string),

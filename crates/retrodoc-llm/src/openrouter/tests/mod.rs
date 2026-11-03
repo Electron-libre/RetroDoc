@@ -43,18 +43,44 @@ pub(super) fn serve(responses: Vec<String>) -> (String, std::sync::mpsc::Receive
     let addr = listener.local_addr().unwrap();
     let (tx, rx) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
-        use std::io::{Read, Write};
+        use std::io::Write;
         for payload in responses {
             let Ok((mut stream, _)) = listener.accept() else {
                 return;
             };
-            let mut buf = [0u8; 8192];
-            let n = stream.read(&mut buf).unwrap_or(0);
-            let _ = tx.send(String::from_utf8_lossy(&buf[..n]).to_string());
+            let _ = tx.send(read_request(&mut stream));
             let _ = stream.write_all(payload.as_bytes());
         }
     });
     (format!("http://{addr}"), rx)
+}
+
+/// Reads one request whole, its headers then the `Content-Length` bytes of
+/// its body, which may come in several segments.
+fn read_request(stream: &mut std::net::TcpStream) -> String {
+    use std::io::Read;
+    let mut received = Vec::new();
+    let mut buf = [0u8; 8192];
+    loop {
+        let text = String::from_utf8_lossy(&received);
+        if let Some(end) = text.find("\r\n\r\n") {
+            let length = text[..end]
+                .lines()
+                .find_map(|line| {
+                    let (name, value) = line.split_once(':')?;
+                    name.eq_ignore_ascii_case("content-length")
+                        .then(|| value.trim().parse::<usize>().ok())?
+                })
+                .unwrap_or(0);
+            if received.len() >= end + 4 + length {
+                return text.into_owned();
+            }
+        }
+        match stream.read(&mut buf) {
+            Ok(0) | Err(_) => return String::from_utf8_lossy(&received).into_owned(),
+            Ok(n) => received.extend_from_slice(&buf[..n]),
+        }
+    }
 }
 
 pub(super) fn http(status: &str, body: &str) -> String {
