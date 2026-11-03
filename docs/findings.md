@@ -557,3 +557,22 @@ linkding, 12 and 15 on Lobsters): a judged figure is as good as the share of its
 
 The inputs of both applications were re-frozen from a `hidden` run at this commit; three replays of the domains pass
 on linkding find 5 to 7 domains, judged 100% recall and precision each time (the baseline of 2026-10-23 was lost).
+
+## 10. Why generated features match no reference feature (2026-11-03)
+
+Hand classification of the unmatched features of the audited `hidden-1` runs of the dafea18 baseline (section 9),
+no LLM call (`issues/feature_precision_on_applications.md`):
+
+| Class | Lobsters (51 of 92) | linkding (22 of 43) |
+|---|---|---|
+| Technical: development, tests, deployment, operations, internal plumbing (test data, dev checks, caches, short ids, health, helpers) | 32 | 12 |
+| Too fine: a part of a reference feature (notifications of a message, two-factor setup of the account, favicons of a saved bookmark) | 10 | 9 |
+| Right, the judge missed the pair, or a real feature the reference leaves out | 7 | 1 |
+| Back-office the reference leaves out | 1 | 0 |
+| Wrong | 1 | 0 |
+
+The technical ones dominate: almost every feature with no HTTP route among its entry points is unmatched (33 of 37 on
+Lobsters, 10 of 13 on linkding), and the features with a route reach 67% and 60%. The `back_office` mark caught 30 of
+the 32 technical ones of Lobsters but 4 of 12 on linkding, and back-office features stay in the docs, listed apart.
+Ceilings, against the hand precision of 45% and 49%: the technical ones left out, 68% on both; the too fine ones also
+merged into their neighbour, about 82% and 95%.
