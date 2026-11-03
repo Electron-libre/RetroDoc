@@ -71,9 +71,9 @@ non-blank line (b3956d2): only traced by the spec here, no code change.
 1. [x] Id resolution and answer text: `get_feature` and `get_use_case` check the domain/feature segments, a use case
    slug alone lists its candidates when ambiguous, `unknown` drops the empty list; verified by tests in
    `tools/tests.rs`; makes true MCP-1 to MCP-6 (spec `accepted`). (autonomous)
-2. [ ] Builders and lookups: `with_rules` rebuilds the index from the base entries (replaces), the source access is
+2. [x] Builders and lookups: `with_rules` rebuilds the index from the base entries (replaces), the source access is
    recomputed by `with_rules` too (order-free), `entry_set_apart` resolves by id, `stale_files` dedups with a
-   `HashSet`; verified by tests of the builder orders and a second `with_rules`; no requirement (internal).
+   `HashSet`; verified by tests of the builder orders and a second `with_rules`; no requirement (internal). (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -94,6 +94,24 @@ non-blank line (b3956d2): only traced by the spec here, no code change.
 
 - red: MCP-2, MCP-3, MCP-4, MCP-5: `shipping/pay-invoice` and `shipping/pay-invoice/pay-by-card` answered the item,
   `pay-by-card` answered the first match, "Known domains: ." with no domain (MCP-1, MCP-6 were already true).
+- Code review: no findings
+- not verified: none
+- decisions needed: none
+
+## Deliverable 2
+- done: `with_rules` replaces the rules of the index and recomputes the source access (builder order free);
+  `entry_set_apart` reads the use case from its id (no `format!` per pair); `stale_files` dedups with a `HashSet`.
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | pass |
+| specs | n/a (no requirement: builders and lookups are internal) |
+| docs | n/a (no doc states the builder order) |
+| code review | low, no findings |
+
+- red: none (no requirement); the two new tests failed before the code: the rule-only file was "not cited",
+  a second `with_rules` still found the first rules.
 - Code review: no findings
 - not verified: none
 - decisions needed: none

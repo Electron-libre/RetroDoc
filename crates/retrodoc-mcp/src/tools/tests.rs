@@ -592,6 +592,35 @@ fn a_rule_warns_when_the_code_it_cites_changed_and_its_code_can_be_read() {
 }
 
 #[test]
+fn the_code_only_a_rule_cites_can_be_read_whatever_the_order_of_the_builders() {
+    let (dir, docs) = docs_over_a_generated_repo();
+    std::fs::write(dir.path().join("app/ceiling.rb"), "limit").unwrap();
+    let mut rules = rules();
+    rules[1].evidence = vec![RuleEvidence::Code {
+        source: SourceRef {
+            path: "app/ceiling.rb".into(),
+            start_line: None,
+            end_line: None,
+        },
+    }];
+    let docs = docs.with_source_access(dir.path()).with_rules(rules);
+    let out = docs.read_source("app/ceiling.rb", None, None);
+    assert!(out.starts_with("# `app/ceiling.rb`"), "{out}");
+}
+
+#[test]
+fn a_second_set_of_rules_replaces_the_first() {
+    let docs = docs()
+        .with_rules(rules())
+        .with_rules(vec![rules().remove(2)]);
+    let out = docs.search_docs("credit ceiling approval", 3);
+    assert!(out.starts_with("Not documented"), "{out}");
+    assert!(docs
+        .search_docs("cancelled plan renewing", 3)
+        .contains("`cancel-plan-1`"));
+}
+
+#[test]
 fn the_saved_rules_are_loaded_with_the_docs() {
     let dir = tempfile::tempdir().unwrap();
     retrodoc_pipeline::save_features(

@@ -1,6 +1,7 @@
 //! The pieces the answers of the tools share: confidence, rules, stale warnings, set-apart
 //! marks, and the answer to an unknown id.
 
+use std::collections::HashSet;
 use std::fmt::Write as _;
 
 use retrodoc_core::model::{
@@ -31,11 +32,16 @@ impl Docs {
                 .features()
                 .iter()
                 .any(|f| f.back_office && feature_id(f) == entry.id),
-            EntryKind::UseCase => self.generated.use_cases().iter().any(|u| {
-                self.generated.features().iter().any(|f| {
-                    f.slug == u.feature_slug && format!("{}/{}", feature_id(f), u.slug) == entry.id
-                }) && self.use_case_set_apart(u)
-            }),
+            // `domain/feature/use-case`: feature slugs are unique across domains.
+            EntryKind::UseCase => entry
+                .id
+                .rsplit_once('/')
+                .and_then(|(feature, slug)| Some((feature.split_once('/')?.1, slug)))
+                .is_some_and(|(feature, slug)| {
+                    self.generated
+                        .use_cases_of(feature)
+                        .any(|u| u.slug == slug && self.use_case_set_apart(u))
+                }),
             _ => false,
         }
     }
@@ -72,12 +78,8 @@ impl Docs {
         let Some(freshness) = self.generated.freshness() else {
             return Vec::new();
         };
-        let mut seen = Vec::new();
-        let paths = paths.into_iter().filter(|p| {
-            let new = !seen.contains(p);
-            seen.push(p);
-            new
-        });
+        let mut seen = HashSet::new();
+        let paths = paths.into_iter().filter(|p| seen.insert(*p));
         freshness
             .stale(paths)
             .into_iter()

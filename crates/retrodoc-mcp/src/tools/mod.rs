@@ -51,11 +51,13 @@ impl Docs {
         GeneratedDocs::new(domains, features, use_cases, glossary.clone(), docs).into()
     }
 
-    /// Adds the business rules: they appear in `get_feature`, `get_use_case` and `get_domain`, are
-    /// found by `search_docs`, and the code they cite can be read.
+    /// Sets the business rules, replacing any set before: they appear in `get_feature`,
+    /// `get_use_case` and `get_domain`, are found by `search_docs`, and the code they cite can be
+    /// read, whether the source access was given before or after.
     #[must_use]
     pub fn with_rules(mut self, rules: Vec<BusinessRule>) -> Self {
         self.generated = self.generated.with_rules(rules);
+        self.source = self.generated.source_access();
         self
     }
 

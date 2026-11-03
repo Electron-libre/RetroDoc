@@ -8,7 +8,7 @@ use retrodoc_core::model::{BusinessRule, Domain, Feature, RuleEvidence, UseCase}
 use retrodoc_ingest::existing_docs::ExistingDoc;
 use retrodoc_pipeline::{domain_models, DomainMap, Glossary};
 
-use crate::corpus::{build_entries, rule_entries};
+use crate::corpus::{build_entries, rule_entries, EntryKind};
 use crate::freshness::Freshness;
 use crate::search::SearchIndex;
 use crate::source::SourceAccess;
@@ -50,10 +50,11 @@ impl GeneratedDocs {
         }
     }
 
-    /// Adds the business rules, found by the search too.
+    /// Sets the business rules, found by the search too; a second call replaces the first rules.
     #[must_use]
     pub fn with_rules(mut self, rules: Vec<BusinessRule>) -> Self {
         let mut entries = self.index.entries().to_vec();
+        entries.retain(|e| e.kind != EntryKind::Rule);
         entries.extend(rule_entries(&rules, &self.features));
         self.index = SearchIndex::new(entries);
         self.rules = rules;
