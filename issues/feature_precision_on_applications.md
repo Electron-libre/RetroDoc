@@ -62,8 +62,8 @@ the references (`benchmark_references_checked_by_a_human`).
 ## Plan
 1. [x] Record the classification: dated entry in `docs/findings.md`, the Findings of this issue, the ledger; verified
    by `just check` and a reread. (autonomous)
-2. [ ] Replay baseline: `pass_replay features` x3 on the dafea18 frozen inputs of linkding and Lobsters (no features
-   replay exists on them), hand precision by the classes of step 1 on one run each; verified by a ledger line.
+2. [x] Replay baseline: `pass_replay features` x3 on the dafea18 frozen inputs of linkding and Lobsters (no features
+   replay exists on them), hand precision by the classes of step 1 on one run each; verified by a ledger line. (autonomous; nothing to commit but this tracking)
 3. [ ] Technical features set aside: `technical` in the features answer, set aside from `features.yaml`, the
    placement and the unplaced count, listed in the coverage and the debt report; verified by tests through the pass
    and the report with a fake LLM; makes true TEF-1 to TEF-7.
@@ -95,3 +95,18 @@ red: none (measure and docs)
 
 Code review: 1 findings
 - the plan line not ticked: ticked at the tracking step, as the workflow orders it.
+
+## Deliverable 2: replay baseline
+- done: `pass_replay features` x3 at fbdbf54 on both frozen inputs (`feature_precision_on_applications-fbdbf54/base-*`),
+  about $0.1.
+
+| | linkding | Lobsters |
+|---|---|---|
+| features | 45 (42-47) | 91 (90-92) |
+| recall, judge | 90% (88-96) | 98% (94-100) |
+| precision, judge | 50% (49-51) | 42% (41-43) |
+| run 1 unpaired, technical by hand | 12 of 22 | 31 of 62 |
+
+- not verified: the full hand precision of the replays (only the technical ones of run 1 counted); the Lobsters
+  judge leaves right pairs out on these unaudited runs (comments, sign in, flags among the 62), so compare judged
+  with judged.
