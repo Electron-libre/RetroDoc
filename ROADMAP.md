@@ -230,7 +230,7 @@ The milestones up to "A large application, one bounded context at a time" are th
 - State: in issues
 - Issues:
   - [benchmark_baseline_at_head](issues/done/benchmark_baseline_at_head.md)
-  - [benchmark_references_checked_by_a_human](issues/benchmark_references_checked_by_a_human.md)
+  - [benchmark_references_anchored_in_evidence](issues/benchmark_references_anchored_in_evidence.md)
   - [judge_overstates_feature_precision](issues/done/judge_overstates_feature_precision.md)
   - [feature_precision_on_applications](issues/done/feature_precision_on_applications.md)
   - [technical_feature_put_back](issues/technical_feature_put_back.md)
