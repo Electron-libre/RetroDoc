@@ -43,3 +43,33 @@ Release and code hygiene
 # Hints
 * `crates/retrodoc-bench/tests/benchmark_files.rs` and `parsed_slices.rs` refer to other examples
   (`entry_points_replay`, `behaviour_baseline`): check what a deletion breaks.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-03
+
+## Understanding
+Delete the one-off examples of `crates/retrodoc-bench/examples/` the user picks, with their `[[example]]` entry and
+their lines in `docs/dev/commands.md`, `docs/crates/pipeline.md` and the doc comments that name them (a note in ADRs
+0026, 0028, 0029 that the example is gone); fix the usage line of the kept ones. No change to the pipeline's code.
+
+## Plan
+1. [ ] Usage lines: the `//!` usage line of the kept examples says `-p retrodoc-bench`; verified by `just check` and a
+   grep for `-p retrodoc-pipeline --example` (~10 lines).
+2. [ ] Entry points and contexts: delete `context_map_measure`, `route_owner_measure`, `routing_duplicates_measure`,
+   `public_api_reach_measure`, `orphan_placement_measure`; verified by `just check` (~760 lines).
+3. [ ] Use cases: delete `technical_usecases_measure`, `form_pairs_measure`, `use_cases_answer_size_measure`;
+   verified by `just check` (~970 lines).
+4. [ ] Rules and code reading: delete `rules_answer_size_measure`, `rules_noise_measure`, `code_read_overlap`,
+   `read_overlap`, `features_by_domain_measure`; verified by `just check` (~980 lines).
+
+Kept: `pass_replay`, `freeze_inputs`, `entry_points_replay`, `rules_judge_replay`, `placement_replay`, `parsed_slices`
+(the only caller of `Follow::Parsed`, `Follow::ParsedThenLexical` and `CodeIndex::slice_with` of ADR 0027: deleting
+it leaves them dead).
+
+## Decisions
+- Mode: autonomous
+- Base commit: f8941084c61889b80ce101236ea6966007c8dc15
+- Pick: the 16 candidates but `parsed_slices` (answer 1 a).
+- Size: the pick is ~3,230 lines; `narrative_check_measure`, `confidence_agreement` and `behaviour_baseline` go to
+  the follow-up issue `delete_confidence_and_baseline_examples` (answer 2 a).
