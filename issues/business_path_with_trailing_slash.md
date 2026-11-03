@@ -37,6 +37,7 @@ instead of a folder entry. Out of scope: a spec of the business-files pass (none
 ## Plan
 1. [x] Resolve a trailing-slash file path: `valid_entries` tries the bare path as a source file before a folder;
    verified by a test in `business_files/tests.rs` (`lib/shop/order.rb/` gives `lib/shop/order.rb`). (autonomous)
+2. [x] High review fixes: `BusinessMap::files` agrees with `valid_entries`; verified by the same test. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -50,3 +51,12 @@ instead of a folder entry. Out of scope: a spec of the business-files pass (none
 - Code review: no findings
 - not verified: none.
 - decisions needed: none.
+
+## Deliverable 2 (high review fixes)
+- done: `BusinessMap::files` resolves a trailing-slash file like `valid_entries`; doc comment says so; the test
+  checks the dedupe of `order.rb/` and `order.rb` and the resolution of a saved `order.rb/`.
+- high review: 5 findings; fixed 1, 3, 4. Not fixed: 2 (a shared resolver is a refactor beyond the fix; the two
+  now agree), 5 (a map saved before keeps `order.rb/` in its text, but `files` resolves it to the file).
+- red: none (review fixes; the paths were already right through the folder branch).
+- Code review: no findings
+- Issue done; nothing left.

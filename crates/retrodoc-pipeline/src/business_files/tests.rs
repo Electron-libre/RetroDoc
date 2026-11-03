@@ -165,12 +165,26 @@ async fn paths_that_do_not_exist_or_are_not_source_are_dropped() {
 #[tokio::test]
 async fn a_file_written_like_a_folder_resolves_to_the_file() {
     let (dir, ingest) = library();
-    let llm = FakeLlm::answering(answer(&[("lib/shop/order.rb/", "an order")]));
+    let llm = FakeLlm::answering(answer(&[
+        ("lib/shop/order.rb/", "an order"),
+        ("lib/shop/order.rb", "again"),
+    ]));
 
     let map = infer(&dir, &ingest, &llm, false).await;
 
     let paths: Vec<_> = map.entries.iter().map(|e| e.path.as_str()).collect();
     assert_eq!(paths, ["lib/shop/order.rb"]);
+    let saved = BusinessMap {
+        entries: vec![BusinessEntry {
+            path: "lib/shop/order.rb/".into(),
+            reason: String::new(),
+        }],
+        ..BusinessMap::default()
+    };
+    assert_eq!(
+        saved.files(&ingest.files),
+        [PathBuf::from("lib/shop/order.rb")]
+    );
 }
 
 #[tokio::test]

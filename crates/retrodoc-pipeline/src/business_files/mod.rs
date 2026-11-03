@@ -142,8 +142,8 @@ impl BusinessMap {
         for entry in &self.entries {
             let path = entry.path.trim().trim_start_matches("./");
             let dir = path.trim_end_matches('/');
-            let matched: Vec<&Path> = if !path.ends_with('/') && sources.contains(Path::new(path)) {
-                vec![Path::new(path)]
+            let matched: Vec<&Path> = if sources.contains(Path::new(dir)) {
+                vec![Path::new(dir)]
             } else {
                 sources
                     .iter()
@@ -244,8 +244,9 @@ struct RawEntry {
     reason: String,
 }
 
-/// The entries that are a source file, or a folder holding one (written with
-/// a trailing `/`), once each, in the LLM's order, at most [`MAX_ENTRIES`].
+/// The entries that are a source file (even written with a trailing `/`), or
+/// a folder holding one (saved with a trailing `/`), once each, in the LLM's
+/// order, at most [`MAX_ENTRIES`].
 fn valid_entries(raw: Vec<RawEntry>, files: &[FileEntry]) -> Vec<BusinessEntry> {
     let sources: Vec<&Path> = files
         .iter()
