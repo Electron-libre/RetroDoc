@@ -60,8 +60,8 @@ Measure of step 1 (no LLM, the 3 saved maps, `scratch/contexts_residual/spread_b
    `contexts` to the passes at temperature 0 if the spread drops; verified by a test on the request sent; makes true CTX-1. (autonomous)
 2. [x] Technical files to the support before the call (roles `infra`, `config`); verified by a test with a fake LLM
    on the listing and the map; makes true CTX-2. (autonomous)
-3. [ ] `--force` keeps the slug and name of a saved context its files mostly match, so its done mark carries over;
-   verified by tests with a fake LLM (match, split, done kept); makes true CTX-3.
+3. [x] `--force` keeps the slug and name of a saved context its files mostly match, so its done mark carries over;
+   verified by tests with a fake LLM (match, split, done kept); makes true CTX-3. (autonomous)
 4. [ ] One-file contexts merged into the context of their folder, else the support; verified by a test; makes true CTX-4.
 5. [ ] Measure: 3 maps at the final code (~$0.05), then `docs/findings.md` §8, ADR 0029/0031 notes, the ledger;
    sets the spec `accepted`.
@@ -115,5 +115,27 @@ red: CTX-2: the prompt still listed `db/migrate/ | 1` (the stub kept every sourc
 Code review: no findings
 
 not verified: the effect on a real map (measured at deliverable 5).
+
+decisions needed: none
+
+## Deliverable 3
+done: a `--force` map gives a new context the slug and name of the saved context it shares more than half of the
+files with, both ways (one to one); a context whose own slug a kept one took gets `-2`; a done context whose files
+did not change stays done. Scenario of CTX-3 amended: a done context stays done only with the same files (its
+hash is over its files).
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | pass |
+| specs | pass, CTX draft |
+| docs | `docs/crates/pipeline.md`, `docs/ARCHITECTURE.md`, module doc |
+| code review | see below |
+
+red: CTX-3: `left: [("agreements", "Agreements"), ("contracts", "Company contracts")]`; done: `left: []`
+
+Code review: no findings
+
+not verified: a real `--force` map over a saved one (measured at deliverable 5).
 
 decisions needed: none

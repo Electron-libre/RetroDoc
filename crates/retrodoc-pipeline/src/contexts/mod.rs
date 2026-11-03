@@ -13,7 +13,8 @@
 //! files of a context are found again from the current tree by [`ContextMap::resolve`], so a new
 //! file joins a context by the same rules and a hand edit (moving a group or a folder) takes effect
 //! at once. The map is reused as it is until `retrodoc contexts --force`: the code changing never
-//! changes the map, which is what lets a context done stay done.
+//! changes the map, which is what lets a context done stay done. A forced map gives a new context
+//! the slug of the saved one it mostly matches (`keep_saved_slugs`), so the done ones stay done.
 //!
 //! A context over the limit is split by one more call. Its orphan files that share a name across
 //! layer folders are listed to that call as groups of their own (`groups::family_groups`).
@@ -442,6 +443,8 @@ pub async fn build_context_map(
             return Ok(saved);
         }
     }
+    // Read before the new map overwrites it: its slugs carry the progress of the runs.
+    let saved = ContextMap::load(repo_root).unwrap_or_default();
     let grouped = mechanical_groups(sources, seeds);
     if grouped.groups.is_empty() {
         if sources.is_empty() {
@@ -469,7 +472,12 @@ pub async fn build_context_map(
         tracing::warn!("the LLM answer for the contexts was unusable: one context per group");
         return Ok(one_context_per_group(&grouped));
     };
-    let map = without_empty_contexts(map, sources, seeds);
+    let map = keep_saved_slugs(
+        without_empty_contexts(map, sources, seeds),
+        &saved,
+        sources,
+        seeds,
+    );
     // Saved before the split: a failure there keeps the paid map.
     map.save(repo_root)?;
     let split = match split_large_contexts(map, &grouped, sources, seeds, brief, llm).await {
@@ -482,9 +490,67 @@ pub async fn build_context_map(
             return Err(error);
         }
     };
-    let split = without_empty_contexts(split, sources, seeds);
+    let split = keep_saved_slugs(
+        without_empty_contexts(split, sources, seeds),
+        &saved,
+        sources,
+        seeds,
+    );
     split.save(repo_root)?;
     Ok(split)
+}
+
+/// The `map` with each context that holds more than half of the files of a `saved` context, and
+/// more than half of whose files that context held, under the slug and name of the saved one: the
+/// runs mark a context done by its slug, so a context documented before stays done when its files
+/// did not change. Both halves make the pairs one to one (contexts never share a file). A context
+/// whose own slug is now taken by a kept one gets a slug of its own (`specs/context-map.md`, CTX-3).
+fn keep_saved_slugs(
+    map: ContextMap,
+    saved: &ContextMap,
+    sources: &[PathBuf],
+    seeds: &[PathBuf],
+) -> ContextMap {
+    if saved.is_empty() {
+        return map;
+    }
+    let before = saved.resolve(sources, seeds);
+    let now = map.resolve(sources, seeds);
+    let ContextMap {
+        mut contexts,
+        support,
+    } = map;
+    let mut kept: Vec<bool> = vec![false; contexts.len()];
+    for (i, new) in now.contexts.iter().enumerate() {
+        let files: BTreeSet<&PathBuf> = new.files.iter().collect();
+        let matched = saved
+            .contexts
+            .iter()
+            .zip(&before.contexts)
+            .find(|(_, old)| {
+                let shared = old.files.iter().filter(|f| files.contains(f)).count();
+                shared * 2 > files.len() && shared * 2 > old.files.len()
+            });
+        if let Some((old, _)) = matched {
+            if contexts[i].slug != old.slug {
+                tracing::info!(context = %contexts[i].slug, saved = %old.slug, "context keeps its saved slug");
+            }
+            contexts[i].slug.clone_from(&old.slug);
+            contexts[i].name.clone_from(&old.name);
+            kept[i] = true;
+        }
+    }
+    for i in 0..contexts.len() {
+        let taken = contexts
+            .iter()
+            .enumerate()
+            .any(|(j, other)| j != i && kept[j] && other.slug == contexts[i].slug);
+        if !kept[i] && taken {
+            let slugs: Vec<String> = contexts.iter().map(|c| c.slug.clone()).collect();
+            contexts[i].slug = unique_slug(&contexts[i].slug, slugs.iter().map(String::as_str));
+        }
+    }
+    ContextMap { contexts, support }
 }
 
 /// The map without the contexts that hold no file of the tree (every group of theirs was claimed by

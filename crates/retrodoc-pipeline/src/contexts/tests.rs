@@ -1103,3 +1103,82 @@ async fn a_part_does_not_take_the_slug_of_a_big_context_split_after_it() {
     assert_eq!(slugs, ["contracts-2", "tasks", "contracts"], "{map:?}");
     assert_still_big(&logs.text(), "contracts", 162, "too few entries to cut");
 }
+
+/// The answer of a `--force` map: the contract group alone under a new name, the company contracts
+/// and the workflows apart. `g1` = contract (3 files), `g2` = `company_contract` (2).
+const RENAMED: &str = r#"{"contexts":[{"slug":"agreements","name":"Agreements","description":"d",
+    "groups":["g1"],"folders":["app/workflows/"]},
+    {"slug":"contracts","name":"Company contracts","description":"d","groups":["g2"]}],
+    "support":{"groups":["g3"],"folders":["db/migrate/"]}}"#;
+
+// spec: CTX-3 (internal: the CLI test of the map would need an LLM server)
+#[tokio::test]
+async fn a_forced_map_keeps_the_slug_and_name_of_the_saved_context_its_files_match() {
+    let dir = tempfile::tempdir().unwrap();
+    // Saved: `contracts` = contract + company contract + workflows, 6 files.
+    build(dir.path(), &FakeLlm::answering(ANSWER), false).await;
+
+    let map = build(dir.path(), &FakeLlm::answering(RENAMED), true).await;
+
+    // `agreements` holds 4 of the 6 files of `contracts`, all of its own: it is `contracts`. The
+    // other context, named `contracts` by the answer, holds 2 of 6: it gets a slug of its own.
+    let slugs: Vec<(&str, &str)> = map
+        .contexts
+        .iter()
+        .map(|c| (c.slug.as_str(), c.name.as_str()))
+        .collect();
+    assert_eq!(
+        slugs,
+        [
+            ("contracts", "Contracts"),
+            ("contracts-2", "Company contracts")
+        ]
+    );
+    assert_eq!(
+        ContextMap::load(dir.path()).unwrap(),
+        map,
+        "saved as returned"
+    );
+}
+
+// spec: CTX-3 (internal: the CLI test of the map would need an LLM server)
+#[tokio::test]
+async fn a_saved_context_cut_in_halves_gives_its_slug_to_neither() {
+    let dir = tempfile::tempdir().unwrap();
+    build(dir.path(), &FakeLlm::answering(ANSWER), false).await;
+    // 3 and 3 of the 6 files of `contracts`: no more than half each.
+    let halves = r#"{"contexts":[{"slug":"a","name":"A","description":"d","groups":["g1"]},
+        {"slug":"b","name":"B","description":"d","groups":["g2"],"folders":["app/workflows/"]}],
+        "support":{"groups":["g3"],"folders":["db/migrate/"]}}"#;
+
+    let map = build(dir.path(), &FakeLlm::answering(halves), true).await;
+
+    let slugs: Vec<&str> = map.contexts.iter().map(|c| c.slug.as_str()).collect();
+    assert_eq!(slugs, ["a", "b"]);
+}
+
+// spec: CTX-3 (internal: the CLI test of the map would need an LLM server)
+#[tokio::test]
+async fn a_done_context_stays_done_when_a_forced_map_renames_its_files() {
+    let dir = tempfile::tempdir().unwrap();
+    let saved = build(dir.path(), &FakeLlm::answering(ANSWER), false).await;
+    let roles = crate::roles::RoleMap::default();
+    mark_done(
+        dir.path(),
+        &saved,
+        &sources(),
+        &seeds(),
+        &roles,
+        "contracts",
+    )
+    .unwrap();
+    let same_files = ANSWER.replace(
+        r#""slug":"Contracts","name":"Contracts""#,
+        r#""slug":"deals","name":"Deals""#,
+    );
+
+    let map = build(dir.path(), &FakeLlm::answering(same_files), true).await;
+
+    let slice = plan_run(dir.path(), &map, &sources(), &seeds(), &roles, &[], 1000).unwrap();
+    assert_eq!(slice.done, ["contracts"]);
+}

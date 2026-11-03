@@ -23,7 +23,8 @@ whose contexts hold business, not technical layers.
 
 - (CTX-1) Given `[llm.passes.contexts] temperature = 0.7`, when the map is made, then the call is sent at 0.7.
 - (CTX-2) Given a folder that holds only migrations and one that holds migrations and a model, when the map is made, then the first is not listed to the call and the second is listed with the model only.
-- (CTX-3) Given a saved context `billing` of 10 files and a new context holding 6 of them among 11 files, when the map is made with `--force`, then the new context is `billing` and a context `billing` documented before stays done when its files did not change.
+- (CTX-3) Given a saved context `billing` of 10 files and a new context holding 6 of them among 11 files, when the map is made with `--force`, then the new context is `billing`.
+- (CTX-3) Given a saved context `billing` documented and done, when the map made with `--force` gives its same files to a context `invoicing`, then that context is `billing` and stays done.
 - (CTX-3) Given a saved context of 10 files split into two new contexts of 5, when the map is made with `--force`, then neither takes its slug.
 - (CTX-4) Given a one-file context whose folder holds no file of another context, when the map is made, then the file goes to the support.
 
