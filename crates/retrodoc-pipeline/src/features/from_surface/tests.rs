@@ -1272,6 +1272,36 @@ fn features_merge_against_the_earlier_slices_only() {
     assert_eq!(features[0].description, "of a.rb#1");
 }
 
+#[test]
+fn a_feature_merged_from_a_later_slice_is_technical_only_when_both_are() {
+    let feature = |slug: &str, id: &str, technical: bool| Feature {
+        back_office: false,
+        technical,
+        slug: slug.to_string(),
+        domain_slug: "big".to_string(),
+        name: slug.to_string(),
+        description: String::new(),
+        source_paths: Vec::new(),
+        entry_points: vec![id.to_string()],
+        confidence: None,
+    };
+    let mut features = vec![
+        feature("tools", "a.rb#1", true),
+        feature("seed", "a.rb#2", true),
+    ];
+
+    merge_features(
+        &mut features,
+        vec![
+            feature("tools", "b.rb#3", false),
+            feature("seed", "b.rb#4", true),
+        ],
+    );
+
+    assert!(!features[0].technical, "a later answer kept it in the docs");
+    assert!(features[1].technical);
+}
+
 #[tokio::test]
 async fn the_entry_points_held_by_no_feature_are_counted_per_domain() {
     let dir = tempfile::tempdir().unwrap();
@@ -1357,7 +1387,7 @@ async fn the_print_of_a_domain_stays_the_same() {
         prints.into_iter().collect::<Vec<_>>(),
         vec![(
             "orders/-".to_string(),
-            "10acb515f66ffb05c8c09a046e1f77f5c8aade2bbbcaf546acc9338041820113".to_string()
+            "f720a6efd74f552792d0b63758f04ec7f2b8cec28ba923594f26af14c766724b".to_string()
         )]
     );
 }

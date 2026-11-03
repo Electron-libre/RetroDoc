@@ -234,6 +234,7 @@ The milestones up to "A large application, one bounded context at a time" are th
   - [judge_overstates_feature_precision](issues/done/judge_overstates_feature_precision.md)
   - [feature_precision_on_applications](issues/feature_precision_on_applications.md)
   - [technical_feature_put_back](issues/technical_feature_put_back.md)
+  - [domain_precision_after_technical_set_aside](issues/domain_precision_after_technical_set_aside.md)
   - [context_map_spread_between_runs](issues/context_map_spread_between_runs.md)
 
 ## A local model, measured

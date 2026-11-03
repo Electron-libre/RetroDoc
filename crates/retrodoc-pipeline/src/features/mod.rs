@@ -50,10 +50,12 @@ fn load_surface_features(repo_root: &Path) -> Option<Vec<Feature>> {
 /// Saves `features` as the features pass leaves them: the technical ones in
 /// `features-set-aside.yaml`, the others in `features.yaml`.
 fn save_surface_features(repo_root: &Path, features: &[Feature]) -> Result<(), PipelineError> {
-    let (technical, functional): (Vec<Feature>, Vec<Feature>) =
-        features.iter().cloned().partition(|f| f.technical);
-    save_features(repo_root, &functional)?;
-    save_yaml(&Artifact::FeaturesSetAside.path(repo_root), &technical)
+    let (technical, functional): (Vec<&Feature>, Vec<&Feature>) =
+        features.iter().partition(|f| f.technical);
+    // The set-aside first: a failure then leaves the previous `features.yaml`, whose technical
+    // features a rerun would ask again, rather than technical ones lost to the placement.
+    save_yaml(&Artifact::FeaturesSetAside.path(repo_root), &technical)?;
+    save_yaml(&Artifact::Features.path(repo_root), &functional)
 }
 
 /// Lowercases `raw` into a kebab-case slug made of `[a-z0-9-]` only, safe

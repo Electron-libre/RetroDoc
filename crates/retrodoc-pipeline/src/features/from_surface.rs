@@ -65,6 +65,9 @@ slug and name; otherwise create new features):\n";
 const ENTRY_POINTS_HEADER: &str = "\nEntry points:\n";
 const OUTPUTS_LABEL: &str = " (outputs: ";
 const OMITTED_ENTRY_POINTS: &str = "more entry point(s) omitted from this list";
+/// After the name of a known feature marked technical, so a later slice does not reuse it for a
+/// user-facing entry point.
+const TECHNICAL_MARK: &str = " (technical)";
 
 static REQUEST: Request<RawSurfaceFeatures> = Request::new(
     SURFACE_FEATURES_SYSTEM_PROMPT,
@@ -75,6 +78,7 @@ static REQUEST: Request<RawSurfaceFeatures> = Request::new(
         ENTRY_POINTS_HEADER,
         OUTPUTS_LABEL,
         OMITTED_ENTRY_POINTS,
+        TECHNICAL_MARK,
     ],
 );
 
@@ -500,9 +504,14 @@ fn surface_features_prompt(
                 .chars()
                 .take(MAX_DESCRIPTION_CHARS)
                 .collect();
+            let mark = if feature.technical {
+                TECHNICAL_MARK
+            } else {
+                ""
+            };
             let _ = writeln!(
                 prompt,
-                "- {}: {} — {description}",
+                "- {}: {}{mark} — {description}",
                 feature.slug, feature.name
             );
         }
@@ -744,7 +753,8 @@ pub(crate) fn file_ranges(files: &[&Path], limit: usize) -> Vec<std::ops::Range<
 }
 
 /// Adds `produced` to the features of a domain: a feature of the same slug or name is one feature,
-/// with the entry points and files of both and the description of the first.
+/// with the entry points and files of both and the description of the first; it is technical only
+/// when both are, so no entry point an answer kept in the docs is set aside.
 fn merge_features(domain_features: &mut Vec<Feature>, produced: Vec<Feature>) {
     // Against the features of the earlier slices only: one answer keeps its own features apart.
     let earlier = domain_features.len();
@@ -761,6 +771,7 @@ fn merge_features(domain_features: &mut Vec<Feature>, produced: Vec<Feature>) {
                 same.entry_points.push(id);
             }
         }
+        same.technical &= feature.technical;
         same.source_paths.extend(feature.source_paths);
         same.source_paths.sort();
         same.source_paths.dedup();

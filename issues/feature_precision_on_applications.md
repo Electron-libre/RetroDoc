@@ -77,6 +77,7 @@ the references (`benchmark_references_checked_by_a_human`).
    kept. (autonomous)
 6. [x] Whole benchmark of the pick (hidden series, 3 runs, both applications), record in `docs/findings.md`, "Latest figures" of
    `PRODUCT.md`, the ledger. (autonomous)
+7. [x] Docs and fixes of the `high` review. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -231,7 +232,7 @@ Code review: no findings
 
 - not verified: why the domains precision fell: the domains pass is unchanged since dafea18 and runs before the
   features; linkding now gives 8 domains each run (6 at dafea18), one with no feature.
-- decisions needed: a follow-up issue on the domain precision drop (proposed in the final summary).
+- follow-up: `issues/domain_precision_after_technical_set_aside.md` (filed with the fixes of the `high` review).
 
 | check | result |
 |---|---|
@@ -241,3 +242,26 @@ Code review: no findings
 red: none (measure and docs)
 
 Code review: no findings
+
+## Deliverable 7: docs and fixes of the `high` review
+- done: `docs/crates/pipeline.md` says the final rule; a feature merged from a later slice is technical only when both
+  answers are; the known features of the earlier slices carry `(technical)`; `features-set-aside.yaml` written
+  before `features.yaml`; no clone to split the features; the print of a domain updated (the mark is part of the
+  request; no domain of the measured runs was sliced, so the f95ada6 figures stand); follow-up issue on the domains.
+- not fixed: the files of a set-aside feature listed again under "Technical support" (they are absent from the
+  functional docs, which that list says); the table cells of the new section not escaped and the domain shown by its
+  slug (as the other tables of the report); the technical filter repeated in the placement helpers (the slice stays
+  mutable for the placement, the helpers take `&[Feature]`).
+
+| check | result |
+|---|---|
+| tests, lint, specs (`just check`) | pass |
+| code review (`low`) | no findings |
+
+red: none: `a_feature_merged_from_a_later_slice_is_technical_only_when_both_are` written with the fix (no spec id:
+a property of the slices, not a requirement of TEF)
+
+Code review: 8 findings (the `high` review of the issue)
+- 1, 2: slices merge and known features (fixed); 4: order of the two saves (fixed); 8: clones (fixed).
+- 3: empty domain page, outside TEF: `issues/domain_precision_after_technical_set_aside.md`.
+- 5, 6, 7: not fixed, reasons above.
