@@ -6,6 +6,8 @@
 #   Commenting -> Take part by e-mail; Story browsing and listings, Browse stories, Comment browsing -> Follow the site
 #     in a feed reader  (right in the audited runs, where the description names e-mail or feeds, but too generic
 #     to key on the name)
+#   Site operations and statistics, Email delivery (domains, 2026-11-04): site pages, statistics graphs, jobs and mail
+#     routing, as Site operations at dafea18; only one reference feature (View site statistics) fits a part of them
 domains:
   - generated: Stories and Comments
     reference: Stories
@@ -43,6 +45,58 @@ domains:
   - generated: Messaging and notifications
     reference: Discussion
   - generated: Messaging and inbox
+    reference: Discussion
+  # Audited 2026-11-04 (domain_precision_after_technical_set_aside): the domain pairs of the f95ada6 hidden runs and
+  # of the dafea18 hidden runs 2-3, judge's pairs and the ones it was not offered (BSC-4).
+  - generated: Story publishing and browsing
+    reference: Stories
+  - generated: Story publishing and browsing
+    reference: Finding stories
+  - generated: Comments and discussion
+    reference: Discussion
+  - generated: Commenting and discussion
+    reference: Discussion
+  - generated: Commenting
+    reference: Discussion
+  - generated: Discussion and voting
+    reference: Discussion
+  - generated: Discussion and voting
+    reference: Votes and ranking
+  - generated: Voting and scoring
+    reference: Votes and ranking
+  - generated: Voting and ranking
+    reference: Votes and ranking
+  - generated: Voting
+    reference: Votes and ranking
+  - generated: Tags and categories
+    reference: Finding stories
+  - generated: Tagging and categories
+    reference: Finding stories
+  - generated: Tag and category management
+    reference: Finding stories
+  - generated: Tagging
+    reference: Finding stories
+  - generated: Hats and identities
+    reference: Membership
+  - generated: Hat identities
+    reference: Membership
+  - generated: Membership and accounts
+    reference: Membership
+  - generated: Accounts and authentication
+    reference: Membership
+  - generated: Accounts and membership
+    reference: Membership
+  - generated: Invitations and signup
+    reference: Membership
+  - generated: Moderation and trust
+    reference: Moderation
+  - generated: Moderation and moderation log
+    reference: Moderation
+  - generated: Private messaging and notifications
+    reference: Discussion
+  - generated: Private messages and notifications
+    reference: Discussion
+  - generated: Messaging
     reference: Discussion
 features:
   - generated: Sign-in and role-based access
@@ -373,6 +427,9 @@ rejected:
     # it holds the listings only (audit of 2026-11-03)
     - generated: Story publishing
       reference: Votes and ranking
+    # submission, listing and search only, no posting outside the site (audit of 2026-11-04)
+    - generated: Story publishing
+      reference: Syndication
   features:
     # reading one story by its id, not the ranked lists
     - generated: Story lookup and access

@@ -621,3 +621,23 @@ real features the reference leaves out (statistics, information pages, moderator
 statistics, mail routing, job dashboard). Fewer features also mean fewer use cases and calls. The domain precision
 fell with the domains pass unchanged since dafea18 (linkding 8 domains each run against 6, one of them with no
 feature): not explained by this change, which runs after the domains.
+
+Fall of the domain precision explained (`issues/domain_precision_after_technical_set_aside.md`, no LLM call): it
+is mostly the judge's offer, not the domains pass. The judge is offered only the reference domains no generated
+domain covers (BSC-4), and `matches.yaml` gained domain pairs after the dafea18 runs were judged, so a second
+domain of an already covered reference domain (linkding `Administration`, `Appearance and Integrations`; Lobsters
+private messages, hats, membership) could not be paired at f95ada6, while the dafea18 re-scores keep the pairs
+their judge made on a fuller offer. The rest are the domains with no feature (linkding `feeds`, `import-export`:
+named for entities alone, no resource, nothing set aside) and the Lobsters site operations, unpaired at dafea18
+too. With every domain pair of the hidden runs of both commits audited into `matches.yaml` (`--saved-judge`; 0 to 2
+pairs left unaudited a run, those of the catch-all linkding `Bookmark Management`):
+
+| Figure | linkding dafea18 | linkding f95ada6 | Lobsters dafea18 | Lobsters f95ada6 |
+|---|---|---|---|---|
+| Domains precision | 95% (86-100) | 96% (88-100) | 88% (86-90) | 86% (82-89) |
+| Domains recall | 83% | 100% | 86% | 86% |
+| Domains | 6 (6-7) | 8 | 9 (7-11) | 9 (8-11) |
+
+The 8 domains of linkding sit in the range of dafea18 (5 to 9 over both series). The judge's offer stays as it is
+(a non-goal of the benchmark scoring), so a judged domain precision falls as `matches.yaml` grows: audit before
+reading a fall into it.

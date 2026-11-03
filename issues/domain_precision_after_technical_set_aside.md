@@ -36,3 +36,54 @@ Measured quality at the current code
 
 # Hints
 * The domain precision of the judge rests on unaudited pairs: audit before reading a fall into it.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-04
+
+## Understanding
+The fall is mostly a scoring artifact, not a drift of the domains pass (no LLM, from the saved f95ada6 and dafea18
+runs): BSC-4 offers the judge only the reference domains no generated domain covers, and `matches.yaml` gained
+domain pairs after the dafea18 runs were judged (a9b80d8, 482ddc3), so a second generated domain of an already
+covered reference domain (linkding `Administration`, `Appearance and Integrations`; Lobsters `Private messaging`,
+`Hat identities`, `Membership and accounts`) can no longer be paired, while the dafea18 re-scores keep the pairs
+their judge made on a fuller offer. The other unmatched ones are the domains with no feature (linkding `feeds`,
+`import-export`: entities only, no resource, nothing set aside) and Lobsters `Site operations`, unmatched at dafea18
+too. Hand reading of the unmatched domains: linkding 88%, 88%, 100% (8/8 with the too-fine `Import and Export`
+paired to Bookmark management), Lobsters 90%, 89%, 82%, against 100% and 85% at dafea18; the 8 domains of linkding
+are within the dafea18 range (5 to 9 over both series). Out of scope: changing what the judge is offered
+(non-goal of BSC, a follow-up issue) and the domains pass itself (candidate b, not needed).
+
+## Plan
+1. [x] Audit: the domain pairs read by hand added to `benchmark/{linkding,lobsters}/matches.yaml` (pairs and
+   rejected pairs), `--saved-judge` re-score of the f95ada6 runs (no LLM), finding in `docs/findings.md` §9, ledger
+   line; verified by `just check` and the re-scored table; ~80 lines. (autonomous)
+2. [ ] Domains with no feature left out of the docs: one filter of the published domains used by `domain_models`
+   (render, MCP, web), the agent index and the reconciliation items, the report lists them in a section of its own;
+   verified by tests through the binary of EDM-1, EDM-2, EDM-5, EDM-6, internal for EDM-3, EDM-4; makes true EDM-1
+   to EDM-6; ~350 lines.
+3. [ ] The benchmark counts the published domains only (matching, judge offer, metrics), `SCORING_VERSION` 4;
+   verified by a test of BSC-20 and a `--saved-judge` re-score of the f95ada6 and dafea18 hidden runs (no LLM);
+   makes true BSC-20 (amended in `specs/benchmark-scoring.md` with this deliverable: an
+   accepted spec cannot hold an untraced requirement); ~150 lines.
+4. [ ] Follow-up issue (`skill:create-issue`): the judge cannot pair a generated item with a reference item
+   already covered (BSC-4), so the judged precision falls as `matches.yaml` grows.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 4e272829561bf1de395be18ae8283b917fc6cd62
+- The judge's offer (BSC-4) is left as it is: a follow-up issue (deliverable 4).
+- The benchmark counts the published domains only (deliverable 3, scoring version 4).
+- A too-fine domain of one feature (linkding `Import and Export`) is paired with its parent reference domain.
+
+## Summaries
+
+### 1. Audit
+- done: every domain pair of the 12 hidden runs (f95ada6, dafea18) read by hand into `matches.yaml` (37 pairs, 3
+  rejected), finding in `docs/findings.md` §10, ledger line; audited domain precision linkding 95% -> 96%, Lobsters
+  88% -> 86%: no fall.
+- checks: `just check` ok; `--saved-judge` re-score of the 12 runs (`~/retrodoc-runs/domain_precision_after_technical_set_aside/`).
+- red: none (a measure, no test).
+- Code review: no findings
+- not verified: the feature pairs (not in scope).
+- decisions needed: none.

@@ -7,6 +7,7 @@
 #   Bookmark Management (domain) -> Organisation and search, Sharing  (right in the audited runs of 2026-11-03, but a
 #     catch-all name already paired with Bookmark management by its equal name: keyed on the name it would cover half
 #     the reference)
+#   Feeds (domain, 2026-11-04): no feature in its run, it is not published (spec featureless-domains)
 domains:
   - generated: Core Bookmarking Service
     reference: Bookmark management
@@ -31,6 +32,34 @@ domains:
     reference: Integrations
   - generated: Instance administration
     reference: Accounts and administration
+  # Audited 2026-11-04 (domain_precision_after_technical_set_aside): the domain pairs of the f95ada6 hidden runs and
+  # of the dafea18 hidden runs 2-3, judge's pairs and the ones it was not offered (BSC-4).
+  - generated: Bookmark Assets
+    reference: Page archiving
+  - generated: Archiving and Assets
+    reference: Page archiving
+  - generated: Archiving and Snapshots
+    reference: Page archiving
+  - generated: Snapshots
+    reference: Page archiving
+  - generated: Sharing and Feeds
+    reference: Sharing
+  - generated: Tagging
+    reference: Organisation and search
+  - generated: Bundles
+    reference: Organisation and search
+  - generated: Tags and Bundles
+    reference: Organisation and search
+  - generated: User Accounts and Access
+    reference: Accounts and administration
+  - generated: Administration
+    reference: Accounts and administration
+  - generated: Installation Administration
+    reference: Accounts and administration
+  - generated: Appearance and Integrations
+    reference: Integrations
+  - generated: Import and Export
+    reference: Bookmark management
 features:
   - generated: Core Bookmark Management
     reference: Save a bookmark
@@ -391,6 +420,11 @@ rejected:
     - generated: User Preferences and Access
       reference: Integrations
     - generated: Instance administration
+      reference: Integrations
+    # import and export of bookmark files, and the serializers of the REST API (audit of 2026-11-04)
+    - generated: Import and Export
+      reference: Integrations
+    - generated: API Serialization
       reference: Integrations
   features:
     # feeds are not sharing nor the API
