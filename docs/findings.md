@@ -561,7 +561,7 @@ on linkding find 5 to 7 domains, judged 100% recall and precision each time (the
 ## 10. Why generated features match no reference feature (2026-11-03)
 
 Hand classification of the unmatched features of the audited `hidden-1` runs of the dafea18 baseline (section 9),
-no LLM call (`issues/feature_precision_on_applications.md`):
+no LLM call (`issues/done/feature_precision_on_applications.md`):
 
 | Class | Lobsters (51 of 92) | linkding (22 of 43) |
 |---|---|---|
@@ -577,7 +577,7 @@ the 32 technical ones of Lobsters but 4 of 12 on linkding, and back-office featu
 Ceilings, against the hand precision of 45% and 49%: the technical ones left out, 68% on both; the too fine ones also
 merged into their neighbour, about 82% and 95%.
 
-Change measured (`issues/feature_precision_on_applications.md`): the features answer marks a feature `technical`
+Change measured (`issues/done/feature_precision_on_applications.md`): the features answer marks a feature `technical`
 (development, tests, deployment, maintenance or the internal plumbing, but not an exchange with an external system or
 a user nor a copy of what a user saved); such a feature leaves the docs for `features-set-aside.yaml` and the debt
 report. Replays x3 of the features pass on the frozen inputs of dafea18, judged figures (unaudited, to compare

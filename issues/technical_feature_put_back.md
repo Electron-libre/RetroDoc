@@ -13,7 +13,7 @@ that puts a technical feature back, held across reruns and `generate --force`, a
 for the features the rules pass takes for tests.
 
 # Findings
-* Hand classification of 2026-11-03 (`issues/feature_precision_on_applications.md`): of the unmatched generated
+* Hand classification of 2026-11-03 (`issues/done/feature_precision_on_applications.md`): of the unmatched generated
   features, 32 of 51 on Lobsters and 12 of 22 on linkding are technical; some, such as an inbound e-mail route or a
   mailing list job, sit close to a user feature, so a wrong mark is to be expected.
 * The rules pass already has this pattern: `[rules] keep_features`, `keep_rules` (`specs/rules-set-aside.md`).

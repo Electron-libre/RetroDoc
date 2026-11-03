@@ -42,7 +42,7 @@ can still see what was set aside.
 ## Non-goals
 
 - Whether the model marks the right features technical is not required here: the benchmark measures it
-  (`issues/feature_precision_on_applications.md`).
+  (`issues/done/feature_precision_on_applications.md`).
 - No key of `retrodoc.toml` to put a technical feature back (a follow-up issue,
   `issues/technical_feature_put_back.md`).
 - The back-office features stay in the docs, listed apart in their domain.
