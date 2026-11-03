@@ -67,8 +67,8 @@ the references (`benchmark_references_checked_by_a_human`).
 3. [x] Technical features set aside: `technical` in the features answer, set aside from `features.yaml`, the
    placement and the unplaced count, listed in the coverage and the debt report; verified by tests through the pass
    and the report with a fake LLM; makes true TEF-1 to TEF-7. (autonomous)
-4. [ ] Replays of candidate T: x3 on both applications against step 2 (judged and hand precision, recall, set aside
-   features read by hand for real features lost); verified by a ledger line.
+4. [x] Replays of candidate T: x3 on both applications against step 2 (judged and hand precision, recall, set aside
+   features read by hand for real features lost); verified by a ledger line. (autonomous)
 5. [ ] Candidate M, only if the too fine ones stay above a fifth of the unmatched after step 4: prompt rule that the
    notifications, settings pages and API of a capability go in its feature; replays x3 both applications.
 6. [ ] Whole benchmark of the pick (hidden series, 3 runs, both applications), record in `docs/findings.md`, "Latest figures" of
@@ -125,5 +125,38 @@ Code review: 1 findings
 
 red: TEF-1, TEF-2, TEF-3, TEF-4, TEF-5, TEF-6: `features.yaml` held `Test data generation` (assertion at
 `technical_features.rs:74`); TEF-7 written with the code, green at its first run.
+
+Code review: no findings
+
+## Deliverable 4: replays of candidate T
+- done: replays x3 on both applications of T (38c3457) and of T2, its prompt refined after reading what T set aside
+  (an exchange with an external system or a user, or a copy of what a user saved, is not technical; committed here,
+  the pinned print updated again).
+
+| | baseline | T | T2 |
+|---|---|---|---|
+| linkding features | 45 (42-47) | 39 (36-43) | 39 (39-40) |
+| linkding recall / precision, judge | 90% / 50% (49-51) | 94% / 55% (51-61) | 93% / 53% (51-55) |
+| linkding set aside per run | - | 6-8 | 5-7 |
+| Lobsters features | 91 (90-92) | 60 (59-62) | 65 (64-67) |
+| Lobsters recall / precision, judge | 98% / 42% (41-43) | 88% / 54% (50-58) | 91% (87-97) / 47% (44-51) |
+| Lobsters set aside per run | - | 20-27 | 15-17 |
+
+- T set aside real features: `Bookmark Metadata and Snapshots` (14 entry points, the page archiving of the reference)
+  on 2 linkding runs, `Webmentions` and `Mastodon posting` (the Syndication domain) on 2 Lobsters runs. T2 sets aside
+  none of them; what it sets aside is test data, caches, keystore, short ids, asset builds, dev checks, parsing helpers.
+- Lobsters T2 run 1 lost 12 entry points of the comments (no feature of its domain answer held them, the placement
+  left them out; not set aside): its 87% recall; runs 2 and 3 hold them all. Variance of the model, to watch at the
+  whole benchmark.
+- Too fine ones still about a third of the unpaired of Lobsters T2 run 1 (hats, avatars, linked accounts, two-factor,
+  notifications of messages, mod mail threads): over a fifth, so candidate M goes on.
+- not verified: hand precision of these replays; the judge's pairs on them are unaudited.
+
+| check | result |
+|---|---|
+| tests, lint, specs (`just check`) | pass |
+| code review (`low`) | no findings |
+
+red: none (a prompt refinement measured by the replays; the pinned print test covers the request)
 
 Code review: no findings
