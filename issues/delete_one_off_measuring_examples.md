@@ -60,8 +60,8 @@ their lines in `docs/dev/commands.md`, `docs/crates/pipeline.md` and the doc com
    `public_api_reach_measure`, `orphan_placement_measure`; verified by `just check` (~760 lines). (autonomous)
 3. [x] Use cases: delete `technical_usecases_measure`, `form_pairs_measure`, `use_cases_answer_size_measure`;
    verified by `just check` (~970 lines). (autonomous)
-4. [ ] Rules and code reading: delete `rules_answer_size_measure`, `rules_noise_measure`, `code_read_overlap`,
-   `read_overlap`, `features_by_domain_measure`; verified by `just check` (~980 lines).
+4. [x] Rules and code reading: delete `rules_answer_size_measure`, `rules_noise_measure`, `code_read_overlap`,
+   `read_overlap`, `features_by_domain_measure`; verified by `just check` (~980 lines). (autonomous)
 
 Kept: `pass_replay`, `freeze_inputs`, `entry_points_replay`, `rules_judge_replay`, `placement_replay`, `parsed_slices`
 (the only caller of `Follow::Parsed`, `Follow::ParsedThenLexical` and `CodeIndex::slice_with` of ADR 0027: deleting
@@ -94,5 +94,12 @@ it leaves them dead).
 - done: the three examples deleted with the `[[example]]` entry of `use_cases_answer_size_measure` and their
   `docs/dev/commands.md` lines; no other document named them.
 - checks: `just check` passed; `deliverable-size` 954 lines.
+- red: none (deletions, no test).
+- Code review: no findings
+
+### Deliverable 4
+- done: the five examples deleted with their `docs/dev/commands.md` lines; ADR 0028 points to the closed issue
+  holding the figure of `read_overlap`.
+- checks: `just check` passed; `deliverable-size` 968 lines.
 - red: none (deletions, no test).
 - Code review: no findings
