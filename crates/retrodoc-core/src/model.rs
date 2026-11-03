@@ -205,6 +205,17 @@ pub struct SourceRef {
     pub end_line: Option<u32>,
 }
 
+impl SourceRef {
+    /// The cited lines, the lower first whatever order the model gave them in: `(start, start)`
+    /// for a single line, `None` for the whole file.
+    #[must_use]
+    pub fn lines(&self) -> Option<(u32, u32)> {
+        let start = self.start_line?;
+        let end = self.end_line.unwrap_or(start);
+        Some((start.min(end), start.max(end)))
+    }
+}
+
 /// What a business rule constrains (ADR 0021).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -304,6 +315,20 @@ mod tests {
             confidence: confidence.map(|v| ConfidenceScore::new(v, None)),
             narrative_check: None,
         }
+    }
+
+    // spec: MDR-3 (internal: the web links and the MCP answers read the lines through it)
+    #[test]
+    fn the_cited_lines_come_lower_first() {
+        let source = |start, end| SourceRef {
+            path: "a.rs".into(),
+            start_line: start,
+            end_line: end,
+        };
+        assert_eq!(source(Some(9), Some(3)).lines(), Some((3, 9)));
+        assert_eq!(source(Some(3), Some(9)).lines(), Some((3, 9)));
+        assert_eq!(source(Some(4), None).lines(), Some((4, 4)));
+        assert_eq!(source(None, Some(4)).lines(), None);
     }
 
     #[test]

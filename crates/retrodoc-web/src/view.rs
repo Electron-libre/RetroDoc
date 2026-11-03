@@ -461,7 +461,10 @@ pub struct CodeLink {
 impl CodeLink {
     fn of(source: &SourceRef) -> Self {
         Self {
-            href: code_href(&source.path, source.start_line, source.end_line),
+            href: match source.lines() {
+                Some((start, end)) => code_href(&source.path, Some(start), Some(end)),
+                None => code_href(&source.path, None, None),
+            },
             label: source_ref_label(source),
         }
     }

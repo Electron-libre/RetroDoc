@@ -241,9 +241,9 @@ pub(super) fn evidence_line(evidence: &RuleEvidence) -> String {
 }
 
 pub(super) fn location(source: &SourceRef) -> String {
-    match (source.start_line, source.end_line) {
-        (Some(start), Some(end)) if start != end => format!("`{}:{start}-{end}`", source.path),
-        (Some(line), _) => format!("`{}:{line}`", source.path),
-        _ => format!("`{}`", source.path),
+    match source.lines() {
+        Some((start, end)) if start != end => format!("`{}:{start}-{end}`", source.path),
+        Some((line, _)) => format!("`{}:{line}`", source.path),
+        None => format!("`{}`", source.path),
     }
 }

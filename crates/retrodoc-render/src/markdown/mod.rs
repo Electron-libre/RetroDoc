@@ -233,14 +233,14 @@ pub(crate) fn link(from: &Path, to: &Path) -> String {
     parts.join("/")
 }
 
-/// Cited lines as the docs show them: `path:start-end` (the lower line first, whatever order the
-/// model gave them in), `path:start`, or the path alone.
+/// Cited lines as the docs show them: `path:start-end` (the lower line first, [`SourceRef::lines`]),
+/// `path:start`, or the path alone.
 #[must_use]
 pub fn source_ref_label(source: &SourceRef) -> String {
-    match (source.start_line, source.end_line) {
-        (Some(s), Some(e)) if s != e => format!("{}:{}-{}", source.path, s.min(e), s.max(e)),
-        (Some(s), _) => format!("{}:{s}", source.path),
-        _ => source.path.clone(),
+    match source.lines() {
+        Some((s, e)) if s != e => format!("{}:{s}-{e}", source.path),
+        Some((s, _)) => format!("{}:{s}", source.path),
+        None => source.path.clone(),
     }
 }
 
@@ -286,14 +286,14 @@ fn list_item(
 }
 
 /// `⚠️ ` below the threshold, so a weak item is visible before opening it.
-fn low_confidence_flag(score: Option<&ConfidenceScore>) -> &'static str {
+pub(crate) fn low_confidence_flag(score: Option<&ConfidenceScore>) -> &'static str {
     match score {
         Some(c) if c.value < LOW_CONFIDENCE_THRESHOLD => "⚠️ ",
         _ => "",
     }
 }
 
-fn short_confidence(score: Option<&ConfidenceScore>, texts: &Texts) -> String {
+pub(crate) fn short_confidence(score: Option<&ConfidenceScore>, texts: &Texts) -> String {
     score.map_or_else(
         || texts.not_scored.to_string(),
         |c| format!("{:.0}%", c.value * 100.0),

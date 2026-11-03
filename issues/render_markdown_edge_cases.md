@@ -67,6 +67,8 @@ list item for the three pages. Checked: the passes cannot produce colliding slug
 2. [x] Inverted range: `source_ref_label` puts the lower line first (the web UI shares it); `ActorKind` imported in `use_case.rs`; verified by a render test; makes true MDR-3. (autonomous)
 3. [x] Path collisions: `render` fails naming the path when two files share one; the deep clone of the rules in `render_with_docs` replaced by references; `segment` guard traced; verified by render tests; makes true MDR-4, MDR-5. (autonomous)
 
+4. [x] Review of the whole issue: findings of the `high` review fixed; verified by `just check`. (autonomous)
+
 ## Decisions
 - Mode: autonomous
 - Base commit: 2a172b9
@@ -118,4 +120,20 @@ done: `render` fails with `RenderError::PathCollision` naming the path when two 
 red: MDR-4: `render` succeeded on the domains `orders` and `Orders` (MDR-5 held already: the guard existed).
 Code review: no findings
 not verified: none.
+decisions needed: none.
+
+## Deliverable 4 summary (high review of 2a172b9..73a962c)
+done: `SourceRef::lines` orders the cited lines once in core, read by the Markdown label, the MCP answers (`location`) and the web links (`code_href`); the rule tag uses the shared flag; the collision message no longer guesses the cause; the tests check the indented item of `llms.txt` and that a failed render leaves the pages untouched.
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | pass |
+| specs | pass |
+| docs | `docs/crates/render-mcp-cli.md` |
+| code review | high: 10 findings; low: see below |
+
+red: MDR-3: the MCP `location` and the web link kept `9-3` (read from the review, no failing test written first: the core test was added with the fix).
+High review: 10 findings. Fixed: web link order, MCP location order, the order put in `SourceRef` (altitude), the `item` helper of the tests, the collision message, the "writes no page" check, the flag copy of the rule tag. Not fixed: the collision as a hard error (decision 3 a of the user), paths that differ only by case (non-goal of the spec), the per-feature rule filter of `domain_page` (see the follow-up above).
+Code review: no findings
+not verified: the web UI in a browser.
 decisions needed: none.

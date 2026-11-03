@@ -67,15 +67,24 @@ fn rendered(dir: &Path, page: &str) -> String {
     std::fs::read_to_string(dir.join("docs/functional").join(page)).unwrap()
 }
 
-/// The list item linking to `target` on `page`, with the lines that follow it up to the next item or heading.
+/// The list item linking to `target` on `page` (its indent included), with the lines that follow it up
+/// to the next item or heading.
 fn item<'a>(page: &'a str, target: &str) -> &'a str {
     let start = page
         .find(&format!("]({target})"))
-        .and_then(|at| page[..at].rfind("\n- "))
+        .and_then(|at| page[..at].rfind('\n'))
         .unwrap_or_else(|| panic!("no item to {target} in {page}"))
         + 1;
     let rest = &page[start..];
-    let end = rest.find("\n#").unwrap_or(rest.len());
+    // Up to the next item, at any indent, or the next heading.
+    let end = rest
+        .match_indices('\n')
+        .map(|(at, _)| at)
+        .find(|&at| {
+            let next = rest[at + 1..].trim_start_matches(' ');
+            next.starts_with("- ") || next.starts_with('#')
+        })
+        .unwrap_or(rest.len());
     rest[..end].trim_end()
 }
 
@@ -167,8 +176,12 @@ fn two_slugs_folded_into_one_path_fail_the_render() {
         "domains:\n- slug: Orders\n  name: Orders again\n  description: The same folder.\n",
     );
 
+    let readme = dir.path().join("docs/functional/orders/README.md");
+    let before = std::fs::read_to_string(&readme).unwrap();
+
     let output = render(dir.path());
 
+    assert_eq!(std::fs::read_to_string(&readme).unwrap(), before);
     let printed = format!(
         "{}{}",
         String::from_utf8_lossy(&output.stdout),

@@ -6,26 +6,25 @@ use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::path::Path;
 
-use retrodoc_core::model::{
-    BusinessRule, Feature, RuleEvidence, UseCase, LOW_CONFIDENCE_THRESHOLD,
-};
+use retrodoc_core::model::{BusinessRule, Feature, RuleEvidence, UseCase};
 use retrodoc_core::text::one_line;
 
 use crate::doc_links::DocLinks;
-use crate::markdown::{feature_path, link, source_ref_label, use_case_path};
+use crate::markdown::{
+    feature_path, link, low_confidence_flag, short_confidence, source_ref_label, use_case_path,
+};
 use crate::texts::Texts;
 
 /// `Limit, ⚠️ 40%`: the kind and the confidence, flagged when below the threshold (a rule backed
 /// by code alone is a hypothesis).
 fn tag(rule: &BusinessRule, texts: &Texts) -> String {
-    let kind = texts.kind(rule.kind);
-    match &rule.confidence {
-        Some(c) if c.value < LOW_CONFIDENCE_THRESHOLD => {
-            format!("{kind}, ⚠️ {:.0}%", c.value * 100.0)
-        }
-        Some(c) => format!("{kind}, {:.0}%", c.value * 100.0),
-        None => format!("{kind}, {}", texts.not_scored),
-    }
+    let score = rule.confidence.as_ref();
+    format!(
+        "{}, {}{}",
+        texts.kind(rule.kind),
+        low_confidence_flag(score),
+        short_confidence(score, texts)
+    )
 }
 
 fn evidence_line(evidence: &RuleEvidence, texts: &Texts) -> String {
