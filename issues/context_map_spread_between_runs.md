@@ -62,7 +62,7 @@ Measure of step 1 (no LLM, the 3 saved maps, `scratch/contexts_residual/spread_b
    on the listing and the map; makes true CTX-2. (autonomous)
 3. [x] `--force` keeps the slug and name of a saved context its files mostly match, so its done mark carries over;
    verified by tests with a fake LLM (match, split, done kept); makes true CTX-3. (autonomous)
-4. [ ] One-file contexts merged into the context of their folder, else the support; verified by a test; makes true CTX-4.
+4. [x] One-file contexts merged into the context of their folder, else the support; verified by a test; makes true CTX-4. (autonomous)
 5. [ ] Measure: 3 maps at the final code (~$0.05), then `docs/findings.md` §8, ADR 0029/0031 notes, the ledger;
    sets the spec `accepted`.
 
@@ -137,5 +137,26 @@ red: CTX-3: `left: [("agreements", "Agreements"), ("contracts", "Company contrac
 Code review: no findings
 
 not verified: a real `--force` map over a saved one (measured at deliverable 5).
+
+decisions needed: none
+
+## Deliverable 4
+done: once the map is split, a context of one file moves its groups and folders to the context holding the most
+files of its folder (first on a tie), else to the support. Three tests expected the left out one-file group `base`
+as a context: their expectations now put it in the support, what they check is unchanged.
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | pass |
+| specs | pass, CTX draft |
+| docs | `docs/crates/pipeline.md`, module doc |
+| code review | see below |
+
+red: CTX-4: `left: ["contracts", "widgets", "api"], right: ["contracts"]`
+
+Code review: no findings
+
+not verified: the effect on a real map (deliverable 5).
 
 decisions needed: none

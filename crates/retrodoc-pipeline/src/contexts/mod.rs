@@ -7,7 +7,8 @@
 //! those groups (name, size, a sample of files) and the folders no group reached, framed by the
 //! product brief, and merges the groups that serve one business concept into a context, sets the
 //! technical ones aside as support, and gives each orphan folder to a context. A group the answer
-//! forgot becomes a context of its own, so no file is lost.
+//! forgot becomes a context of its own, so no file is lost; once the map is split, a context of a
+//! single file joins the context of its folder, or the support.
 //!
 //! `contexts.yaml` keeps the rules (group names and folders per context), not the file lists: the
 //! files of a context are found again from the current tree by [`ContextMap::resolve`], so a new
@@ -491,7 +492,11 @@ pub async fn build_context_map(
         }
     };
     let split = keep_saved_slugs(
-        without_empty_contexts(split, sources, seeds),
+        merge_one_file_contexts(
+            without_empty_contexts(split, sources, seeds),
+            sources,
+            seeds,
+        ),
         &saved,
         sources,
         seeds,
@@ -550,6 +555,56 @@ fn keep_saved_slugs(
             contexts[i].slug = unique_slug(&contexts[i].slug, slugs.iter().map(String::as_str));
         }
     }
+    ContextMap { contexts, support }
+}
+
+/// The `map` with each context of a single file merged into the context that holds the most files
+/// of that file's folder (the first in the map on a tie), else into the support: a run of one file
+/// documents no business area (`specs/context-map.md`, CTX-4). Its groups and folders move whole.
+fn merge_one_file_contexts(map: ContextMap, sources: &[PathBuf], seeds: &[PathBuf]) -> ContextMap {
+    let resolved = map.resolve(sources, seeds);
+    let single = |i: usize| resolved.contexts[i].files.len() == 1;
+    let target = |file: &PathBuf| {
+        let folder = file.parent();
+        let mut best: Option<(usize, usize)> = None;
+        for (j, other) in resolved.contexts.iter().enumerate() {
+            if single(j) {
+                continue;
+            }
+            let near = other.files.iter().filter(|f| f.parent() == folder).count();
+            if near > 0 && best.is_none_or(|(_, most)| near > most) {
+                best = Some((j, near));
+            }
+        }
+        best.map(|(j, _)| j)
+    };
+    let moves: Vec<(usize, Option<usize>)> = (0..resolved.contexts.len())
+        .filter(|&i| single(i))
+        .map(|i| (i, target(&resolved.contexts[i].files[0])))
+        .collect();
+    let ContextMap {
+        mut contexts,
+        mut support,
+    } = map;
+    for &(i, to) in &moves {
+        let groups = std::mem::take(&mut contexts[i].groups);
+        let folders = std::mem::take(&mut contexts[i].folders);
+        tracing::info!(context = %contexts[i].slug, into = to.map_or("support", |j| contexts[j].slug.as_str()), "one-file context merged");
+        if let Some(j) = to {
+            contexts[j].groups.extend(groups);
+            contexts[j].folders.extend(folders);
+        } else {
+            support.groups.extend(groups);
+            support.folders.extend(folders);
+        }
+    }
+    let gone: BTreeSet<usize> = moves.iter().map(|&(i, _)| i).collect();
+    let contexts = contexts
+        .into_iter()
+        .enumerate()
+        .filter(|(i, _)| !gone.contains(i))
+        .map(|(_, context)| context)
+        .collect();
     ContextMap { contexts, support }
 }
 
