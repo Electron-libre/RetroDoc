@@ -155,3 +155,42 @@ fn an_inverted_range_is_shown_in_order() {
 
     assert!(page.contains("`app/orders_controller.rb:3-9`"), "{page}");
 }
+
+// spec: MDR-4
+#[test]
+fn two_slugs_folded_into_one_path_fail_the_render() {
+    let (dir, _llm) = documented_shop();
+    edit(
+        dir.path(),
+        "domains.yaml",
+        "domains:\n",
+        "domains:\n- slug: Orders\n  name: Orders again\n  description: The same folder.\n",
+    );
+
+    let output = render(dir.path());
+
+    let printed = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(!output.status.success(), "{printed}");
+    assert!(printed.contains("functional/orders/README.md"), "{printed}");
+}
+
+// spec: MDR-5
+#[test]
+fn a_hostile_slug_stays_in_the_docs_dir() {
+    let (dir, _llm) = documented_shop();
+    edit(
+        dir.path(),
+        "domains.yaml",
+        "slug: orders",
+        "slug: ../../etc",
+    );
+
+    let page = rendered(dir.path(), "etc/README.md");
+
+    assert!(page.starts_with("# Orders\n"), "{page}");
+    assert!(!dir.path().join("etc").exists());
+}

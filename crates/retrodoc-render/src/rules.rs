@@ -109,13 +109,13 @@ pub(crate) fn domain_section(
 /// All the rules grouped by entity (a rule on several entities appears under each; those on none
 /// under "Other rules"), each linking to its feature.
 pub(crate) fn index_page(
-    rules: &[BusinessRule],
+    rules: &[&BusinessRule],
     features: &[Feature],
     from: &Path,
     texts: &Texts,
 ) -> String {
     let mut by_entity: BTreeMap<String, Vec<&BusinessRule>> = BTreeMap::new();
-    for rule in rules {
+    for &rule in rules {
         if rule.entities.is_empty() {
             by_entity.entry(String::new()).or_default().push(rule);
         }

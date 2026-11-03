@@ -72,6 +72,8 @@ pub enum RenderError {
         #[source]
         source: std::io::Error,
     },
+    #[error("two items render to {path}: their slugs differ only by case or by characters a path can't hold")]
+    PathCollision { path: PathBuf },
     #[error("could not serialize the run metadata: {0}")]
     Serialize(#[from] serde_json::Error),
 }

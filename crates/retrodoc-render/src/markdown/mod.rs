@@ -12,6 +12,7 @@
 //! Use cases live in a folder per feature because use case slugs are only
 //! unique within their feature.
 
+use std::collections::BTreeSet;
 use std::fmt::Write as _;
 use std::path::{Component, Path, PathBuf};
 
@@ -44,7 +45,7 @@ use use_case::use_case_page;
 ///
 /// # Errors
 ///
-/// Returns an error if the run metadata can't be serialized.
+/// Returns an error if the run metadata can't be serialized, or if two items render to the same path.
 pub fn render(
     domains: &[Domain],
     features: &[Feature],
@@ -60,7 +61,7 @@ pub fn render(
 ///
 /// # Errors
 ///
-/// Returns an error if the run metadata can't be serialized.
+/// Returns an error if the run metadata can't be serialized, or if two items render to the same path.
 pub fn render_with_rules(
     domains: &[Domain],
     features: &[Feature],
@@ -87,7 +88,8 @@ pub fn render_with_rules(
 ///
 /// # Errors
 ///
-/// Returns an error if the run metadata can't be serialized.
+/// Returns an error if the run metadata can't be serialized, or if two items render to the same
+/// path (two slugs that differ only by case or by characters outside `[a-z0-9_-]`).
 #[allow(clippy::too_many_arguments)] // the artifacts of the run, then how and what to write around them
 pub fn render_with_docs(
     domains: &[Domain],
@@ -100,10 +102,9 @@ pub fn render_with_docs(
     metadata: &RunMetadata,
 ) -> Result<Vec<RenderedFile>, crate::RenderError> {
     // A rule of a feature that no longer exists would be on no page.
-    let rules: Vec<BusinessRule> = rules
+    let rules: Vec<&BusinessRule> = rules
         .iter()
         .filter(|r| features.iter().any(|f| r.belongs_to_feature(&f.slug)))
-        .cloned()
         .collect();
     let rules = rules.as_slice();
     let mut files = Vec::new();
@@ -124,6 +125,7 @@ pub fn render_with_docs(
                 .collect();
             let own_rules: Vec<&BusinessRule> = rules
                 .iter()
+                .copied()
                 .filter(|r| r.belongs_to_feature(&feature.slug))
                 .collect();
             files.push(RenderedFile {
@@ -162,6 +164,14 @@ pub fn render_with_docs(
         path: PathBuf::from(METADATA_PATH),
         content: format!("{}\n", serde_json::to_string_pretty(metadata)?),
     });
+    // The passes make the slugs distinct, but an edited or older artifact may hold two that
+    // `segment` folds into one: the last page would silently overwrite the first.
+    let mut paths = BTreeSet::new();
+    if let Some(file) = files.iter().find(|f| !paths.insert(&f.path)) {
+        return Err(crate::RenderError::PathCollision {
+            path: file.path.clone(),
+        });
+    }
     Ok(files)
 }
 

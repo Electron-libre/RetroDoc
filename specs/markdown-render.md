@@ -1,6 +1,6 @@
 ---
 id: MDR
-status: draft
+status: accepted
 adrs: []
 ---
 

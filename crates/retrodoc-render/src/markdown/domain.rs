@@ -12,7 +12,7 @@ use crate::texts::Texts;
 pub(super) fn domain_page(
     domain: &Domain,
     features: &[&Feature],
-    rules: &[BusinessRule],
+    rules: &[&BusinessRule],
     docs: &DocLinks,
     texts: &Texts,
 ) -> String {
@@ -62,7 +62,7 @@ pub(super) fn domain_page(
             rules
                 .iter()
                 .filter(|r| r.belongs_to_feature(&f.slug))
-                .map(move |r| (*f, r))
+                .map(move |r| (*f, *r))
         })
         .collect();
     md.push_str(&domain_section(&own, &readme, texts));

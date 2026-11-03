@@ -14,6 +14,8 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   run the MCP server: domains and features with links and confidence, how to read them and a pointer to `retrodoc mcp`.
   Its lists and those of the domain and feature pages share one item (`list_item`: link, score with ⚠️ below
   `LOW_CONFIDENCE_THRESHOLD`, name and description on one line; `specs/markdown-render.md`).
+  A slug becomes a path segment of `[a-z0-9_-]` (`segment`, also the guard against `..`); two items whose slugs fold
+  into one path fail the render (`RenderError::PathCollision`) rather than one page overwriting the other.
   The CLI drops generated docs (`functional/`, `_retrodoc/`) from the ingested existing docs.
   The fixed text of the pages (headings, labels, notes, `llms.txt`, `rules.md`) comes from a `Texts` table
   (`texts.rs`, `specs/docs-language.md` DLG-7): `Texts::ENGLISH` and `Texts::FRENCH`, picked by `Texts::for_tag` from
