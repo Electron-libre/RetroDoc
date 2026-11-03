@@ -4,7 +4,7 @@ use std::fmt::Write as _;
 
 use retrodoc_core::model::{BusinessRule, Domain, Feature};
 
-use super::{confidence_line, domain_readme_path, feature_path, link, short_confidence, trim_end};
+use super::{confidence_line, domain_readme_path, feature_path, link, list_item, trim_end};
 use crate::doc_links::{DocLinks, ItemRef};
 use crate::rules::domain_section;
 use crate::texts::Texts;
@@ -25,13 +25,14 @@ pub(super) fn domain_page(
     );
 
     let feature_item = |md: &mut String, f: &Feature| {
-        let _ = writeln!(
+        list_item(
             md,
-            "- [{}]({}) ({}): {}",
-            f.name,
-            link(&readme, &feature_path(f)),
-            short_confidence(f.confidence.as_ref(), texts),
-            f.description.trim()
+            "",
+            &f.name,
+            &link(&readme, &feature_path(f)),
+            f.confidence.as_ref(),
+            &f.description,
+            texts,
         );
     };
 

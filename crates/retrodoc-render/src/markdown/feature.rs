@@ -5,8 +5,7 @@ use std::fmt::Write as _;
 use retrodoc_core::model::{BusinessRule, Feature, UseCase};
 
 use super::{
-    confidence_line, domain_readme_path, feature_path, link, short_confidence, trim_end,
-    use_case_path,
+    confidence_line, domain_readme_path, feature_path, link, list_item, trim_end, use_case_path,
 };
 use crate::doc_links::{DocLinks, ItemRef};
 use crate::rules::rules_section;
@@ -39,13 +38,14 @@ pub(super) fn feature_page(
         .copied()
         .partition(|u| u.is_technical(feature.back_office));
     let use_case_item = |md: &mut String, u: &UseCase| {
-        let _ = writeln!(
+        list_item(
             md,
-            "- [{}]({}) ({}): {}",
-            u.name,
-            link(&path, &use_case_path(feature, u)),
-            short_confidence(u.confidence.as_ref(), texts),
-            u.description.trim()
+            "",
+            &u.name,
+            &link(&path, &use_case_path(feature, u)),
+            u.confidence.as_ref(),
+            &u.description,
+            texts,
         );
     };
     let _ = write!(md, "## {}\n\n", texts.use_cases);

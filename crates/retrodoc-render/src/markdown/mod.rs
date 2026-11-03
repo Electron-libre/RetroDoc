@@ -242,16 +242,44 @@ fn score_line(label: &str, score: Option<&ConfidenceScore>, texts: &Texts) -> St
     let Some(score) = score else {
         return format!("**{label}** {}", texts.not_scored);
     };
-    let flag = if score.value < LOW_CONFIDENCE_THRESHOLD {
-        "⚠️ "
-    } else {
-        ""
-    };
-    let mut line = format!("**{label}** {flag}{:.0}%", score.value * 100.0);
+    let mut line = format!(
+        "**{label}** {}{:.0}%",
+        low_confidence_flag(Some(score)),
+        score.value * 100.0
+    );
     if let Some(why) = score.rationale.as_deref().filter(|r| !r.trim().is_empty()) {
         let _ = write!(line, " — {}", one_line(why));
     }
     line
+}
+
+/// `- [name](link) (score): description` on one line, `indent` before it: the item of a list of
+/// the pages and of the agent index, `link` already relative to the page.
+fn list_item(
+    md: &mut String,
+    indent: &str,
+    name: &str,
+    link: &str,
+    score: Option<&ConfidenceScore>,
+    description: &str,
+    texts: &Texts,
+) {
+    let _ = writeln!(
+        md,
+        "{indent}- [{}]({link}) ({}{}): {}",
+        one_line(name),
+        low_confidence_flag(score),
+        short_confidence(score, texts),
+        one_line(description)
+    );
+}
+
+/// `⚠️ ` below the threshold, so a weak item is visible before opening it.
+fn low_confidence_flag(score: Option<&ConfidenceScore>) -> &'static str {
+    match score {
+        Some(c) if c.value < LOW_CONFIDENCE_THRESHOLD => "⚠️ ",
+        _ => "",
+    }
 }
 
 fn short_confidence(score: Option<&ConfidenceScore>, texts: &Texts) -> String {

@@ -52,3 +52,40 @@ them yet. Make the render robust to those inputs and give the pages one shared i
 # Hints
 * A change of the rendered bytes rewrites the pages at the next `generate`: say so in the summary.
 * `segment` is also a guard against path traversal (`hostile_slugs_cannot_escape_the_docs_dir`): keep it.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-03
+
+## Understanding
+Make the Markdown render robust to multi-line descriptions, inverted ranges and colliding paths, with one shared
+list item for the three pages. Checked: the passes cannot produce colliding slugs (features and use cases through
+`unique_slug`, domains merged by slug); a collision only comes from an edited or older artifact. Spec: `specs/markdown-render.md`.
+
+## Plan
+1. [x] Shared list item: one helper in `markdown/mod.rs` (link, score with its flag, description on one line) used by `agent_index.rs`, `domain.rs`, `feature.rs`; the flag kept in one place; verified by render tests through `retrodoc render` on edited artifacts; makes true MDR-1, MDR-2. (autonomous)
+2. [ ] Inverted range: `source_ref_label` puts the lower line first (the web UI shares it); `ActorKind` imported in `use_case.rs`; verified by a render test; makes true MDR-3.
+3. [ ] Path collisions: `render` fails naming the path when two files share one; the deep clone of the rules in `render_with_docs` replaced by references; `segment` guard traced; verified by render tests; makes true MDR-4, MDR-5.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 2a172b9
+- Flag on the pages: yes, ⚠️ before a weak score as in `llms.txt` (MDR-2).
+- Inverted range: both lines, the lower first (MDR-3).
+- Path collision: the render fails naming the path (MDR-4).
+
+## Deliverable 1 summary
+done: one `list_item` for the lists of `llms.txt`, the domain page and the feature page; the pages now flag a weak item with ⚠️ and collapse a multi-line name or description.
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | pass |
+| specs | pass |
+| docs | `docs/crates/render-mcp-cli.md` |
+| code review | see below |
+
+red: MDR-1, MDR-2: the domain item read `Lists the orders.\n\nBy date.`; the domain item had no `(⚠️ 30%)`.
+Code review: no findings
+not verified: none.
+decisions needed: none.
+Follow-up: the per-feature rule filter of `domain_page` stays: `render_with_docs` filters the same rules per feature, but sharing it would only move the filter.

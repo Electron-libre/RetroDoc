@@ -12,6 +12,8 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   `removed` pages and the folders they leave empty.
   `_retrodoc/run-metadata.json` has a timestamp that is ignored when it's the only change, so reruns are no-ops. `functional/llms.txt` (`agent_index`) is the `llms.txt`-style entry point for agents that don't
   run the MCP server: domains and features with links and confidence, how to read them and a pointer to `retrodoc mcp`.
+  Its lists and those of the domain and feature pages share one item (`list_item`: link, score with ⚠️ below
+  `LOW_CONFIDENCE_THRESHOLD`, name and description on one line; `specs/markdown-render.md`).
   The CLI drops generated docs (`functional/`, `_retrodoc/`) from the ingested existing docs.
   The fixed text of the pages (headings, labels, notes, `llms.txt`, `rules.md`) comes from a `Texts` table
   (`texts.rs`, `specs/docs-language.md` DLG-7): `Texts::ENGLISH` and `Texts::FRENCH`, picked by `Texts::for_tag` from
