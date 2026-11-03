@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
-use super::judge::{Judgement, NarrativeRating, Unjudged};
+use super::judge::{Judgement, NarrativeRating, Unaudited, Unjudged};
 use super::matching::{Comparison, SCORING_VERSION};
 use super::metrics::RunMetrics;
 use crate::error::PipelineError;
@@ -33,6 +33,9 @@ pub struct RunReport {
     /// The kinds the judge proposed no pair for, twice: their judged recall and precision are empty.
     #[serde(default, skip_serializing_if = "Unjudged::is_none")]
     pub unjudged: Unjudged,
+    /// The judge's proposals the hand audit has not seen, by kind.
+    #[serde(default, skip_serializing_if = "Unaudited::is_none")]
+    pub unaudited: Unaudited,
 }
 
 impl RunReport {
@@ -41,6 +44,7 @@ impl RunReport {
         metrics: RunMetrics,
         strict: Comparison,
         judged: Option<(Comparison, Judgement)>,
+        unaudited: Unaudited,
     ) -> Self {
         let (judged, narratives, unjudged) = match judged {
             Some((mut comparison, judgement)) => {
@@ -57,6 +61,7 @@ impl RunReport {
             judged,
             narratives,
             unjudged,
+            unaudited,
         }
     }
 }
@@ -223,8 +228,9 @@ fn show_versions(versions: &[Option<u32>]) -> String {
 /// by hand only cover part of what a run generates.
 const READING_NOTE: &str = "Recall and precision without a suffix count only the pairs written in \
 `matches.yaml` and names that are equal: an audited floor, which rises as the judge's pairs are \
-checked and copied there. The `(judged)` figures add the judge's proposals and are the main ones; \
-the judge shares the biases of the model that wrote the docs, so audit a sample of its pairs.\n";
+checked and copied there. The `(judged)` figures add the judge's proposals and are the main ones, \
+less the ones `matches.yaml` rejects; the judge shares the biases of the model that wrote the docs, \
+so audit its pairs: the ones not audited are counted, the judged figures rest on them unchecked.\n";
 
 #[derive(Clone, Copy)]
 enum Kind {
@@ -340,6 +346,18 @@ const FIGURES: &[Figure] = &[
         kind: Kind::Percent,
         scored: true,
         value: |r| r.judged.as_ref().and_then(|c| share(c.features.precision)),
+    },
+    Figure {
+        label: "Judge's domain pairs not audited",
+        kind: Kind::Count,
+        scored: true,
+        value: |r| r.unaudited.domains.map(count),
+    },
+    Figure {
+        label: "Judge's feature pairs not audited",
+        kind: Kind::Count,
+        scored: true,
+        value: |r| r.unaudited.features.map(count),
     },
     Figure {
         label: "Narratives in business language (judge)",
@@ -472,6 +490,7 @@ mod tests {
             }),
             strict,
             unjudged: Unjudged::default(),
+            unaudited: Unaudited::default(),
         }
     }
 
@@ -581,7 +600,12 @@ mod tests {
         let unjudged = |judgement: Judgement| {
             let run = report(0.5, 6, 10, true);
             let judged = run.strict.clone();
-            RunReport::new(run.metrics, run.strict, Some((judged, judgement)))
+            RunReport::new(
+                run.metrics,
+                run.strict,
+                Some((judged, judgement)),
+                Unaudited::default(),
+            )
         };
         let features_unjudged = Judgement {
             unjudged: Unjudged {
@@ -624,11 +648,37 @@ mod tests {
         assert!(!text.contains("unjudged for domains"), "{text}");
     }
 
+    // spec: BSC-18 (internal: the reports are built in memory)
+    #[test]
+    fn shows_the_mean_of_the_unaudited_pairs_and_loads_a_report_without() {
+        let unaudited = |features: Option<usize>| RunReport {
+            unaudited: Unaudited {
+                domains: Some(0),
+                features,
+            },
+            ..report(0.5, 6, 10, true)
+        };
+        let runs = vec![unaudited(Some(1)), unaudited(Some(5)), unaudited(None)];
+
+        let text = table(&[series("hidden", runs)], None);
+
+        assert_eq!(
+            row(&text, "Judge's feature pairs not audited"),
+            "| Judge's feature pairs not audited | 3 | 1–5 | 2 |  |  |"
+        );
+        assert!(text.contains("the ones not audited are counted"), "{text}");
+        let old: RunReport =
+            serde_json::from_value(serde_json::to_value(report(0.5, 6, 10, true)).unwrap())
+                .unwrap();
+        assert_eq!(old.unaudited, Unaudited::default());
+        assert!(!serde_json::to_string(&old).unwrap().contains("unaudited"));
+    }
+
     // spec: BSC-6 (internal: the reports of several scoring versions are built in memory, each would need a scored run through the binary)
     #[test]
     fn a_report_carries_the_scoring_version_and_an_old_one_loads_without() {
         let run = report(0.5, 6, 10, false);
-        let fresh = RunReport::new(run.metrics, run.strict, None);
+        let fresh = RunReport::new(run.metrics, run.strict, None, Unaudited::default());
         assert_eq!(fresh.scoring, Some(SCORING_VERSION));
 
         let mut old = serde_json::to_value(report(0.5, 6, 10, false)).unwrap();

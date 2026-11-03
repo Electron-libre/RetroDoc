@@ -1,5 +1,7 @@
 //! `retrodoc benchmark` without the judge: reads the artifacts of a run and a reference, no LLM.
 
+use std::fmt::Write as _;
+use std::path::Path;
 use std::process::Command;
 
 const REFERENCE: &str = "repository: https://example.com/shop
@@ -222,6 +224,134 @@ fn rescores_a_run_with_its_saved_judgement_and_no_llm() {
         report["scoring"],
         retrodoc_pipeline::benchmark::SCORING_VERSION
     );
+}
+
+/// A run of one domain and the `features` given, its saved judgement holding the feature pairs given.
+fn judged_run(features: &[&str], proposals: &[(&str, &str)]) -> tempfile::TempDir {
+    let dir = tempfile::tempdir().unwrap();
+    let cache = dir.path().join(".retrodoc/cache");
+    std::fs::create_dir_all(&cache).unwrap();
+    std::fs::write(
+        cache.join("domains.yaml"),
+        "domains:\n  - {slug: ordering, name: Ordering, description: d}\n",
+    )
+    .unwrap();
+    let features = features
+        .iter()
+        .enumerate()
+        .fold(String::new(), |mut out, (i, name)| {
+            let _ = writeln!(
+                out,
+                "- {{slug: f{i}, domain_slug: ordering, name: {name}, description: d}}"
+            );
+            out
+        });
+    std::fs::write(cache.join("features.yaml"), features).unwrap();
+    let proposals = proposals
+        .iter()
+        .fold(String::new(), |mut out, (generated, reference)| {
+            let _ = writeln!(
+                out,
+                "  - {{generated: {generated}, reference: {reference}}}"
+            );
+            out
+        });
+    std::fs::create_dir_all(dir.path().join(".retrodoc/benchmark")).unwrap();
+    std::fs::write(
+        dir.path().join(".retrodoc/benchmark/judge.yaml"),
+        format!(
+            "domains: []\nfeatures:\n{proposals}narratives: {{total: 0, rated: 0, business: 0}}\n"
+        ),
+    )
+    .unwrap();
+    std::fs::write(dir.path().join("reference.yaml"), REFERENCE).unwrap();
+    dir
+}
+
+/// `retrodoc benchmark --saved-judge --out` on the run in `dir`, with `matches` as its `matches.yaml`.
+fn rescore(dir: &Path, matches: &str) -> (std::process::Output, Option<serde_json::Value>) {
+    std::fs::write(dir.join("matches.yaml"), matches).unwrap();
+    let out = dir.join("run.json");
+    let output = retrodoc(&[
+        "benchmark",
+        "--path",
+        dir.to_str().unwrap(),
+        "--reference",
+        dir.join("reference.yaml").to_str().unwrap(),
+        "--saved-judge",
+        "--out",
+        out.to_str().unwrap(),
+    ]);
+    let report = std::fs::read_to_string(&out)
+        .ok()
+        .map(|raw| serde_json::from_str(&raw).unwrap());
+    (output, report)
+}
+
+// spec: BSC-16, BSC-18
+#[test]
+fn a_rejected_proposal_does_not_count_and_the_unaudited_ones_are_counted() {
+    let dir = judged_run(
+        &["Pay", "Give back", "Bundle services"],
+        &[
+            ("Pay", "Checkout"),
+            ("Give back", "Refund"),
+            ("Bundle services", "Refund"),
+        ],
+    );
+
+    let (output, report) = rescore(
+        dir.path(),
+        "features:\n  - {generated: Pay, reference: Checkout}\n\
+         rejected:\n  features:\n    - {generated: bundle-services, reference: refund}\n",
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        output.status.success(),
+        "{stdout}{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let report = report.unwrap();
+    assert_eq!(
+        report["judged"]["features"]["unmatched_generated"],
+        serde_json::json!(["Bundle services"])
+    );
+    assert_eq!(report["unaudited"]["features"], 1, "{report}");
+    assert_eq!(report["unaudited"]["domains"], 0, "{report}");
+    assert!(
+        stdout.contains("1 of the judge's pairs not audited by hand"),
+        "{stdout}"
+    );
+
+    let (output, report) = rescore(
+        dir.path(),
+        "features:\n  - {generated: Pay, reference: Checkout}\n",
+    );
+    assert!(output.status.success());
+    let report = report.unwrap();
+    assert_eq!(
+        report["judged"]["features"]["unmatched_generated"],
+        serde_json::json!([]),
+        "with no rejected pair, the proposals count as before"
+    );
+    assert_eq!(report["unaudited"]["features"], 2, "{report}");
+}
+
+// spec: BSC-17
+#[test]
+fn a_rejected_pair_naming_an_unknown_reference_item_is_an_error() {
+    let dir = judged_run(&["Pay"], &[("Pay", "Checkout")]);
+
+    let (output, _) = rescore(
+        dir.path(),
+        "rejected:\n  features:\n    - {generated: Pay, reference: Typo}\n",
+    );
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("`Typo`"), "{stderr}");
+    assert!(stderr.contains("matches.yaml"), "{stderr}");
 }
 
 #[test]

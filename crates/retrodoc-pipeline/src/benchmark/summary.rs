@@ -3,7 +3,7 @@
 use std::fmt::Write as _;
 use std::time::Duration;
 
-use super::judge::{Judgement, Unjudged};
+use super::judge::{Judgement, Unaudited, Unjudged};
 use super::matching::{Comparison, Score};
 use super::metrics::RunMetrics;
 use crate::progress::format_duration;
@@ -45,12 +45,13 @@ fn score_line(out: &mut String, label: &str, score: &Score) {
 }
 
 /// The figures of a run, its scores against the reference (hand-written pairs and equal names only)
-/// and, when the judge ran, the scores with its proposals next to its rating of the narratives.
+/// and, when the judge ran, the scores with its proposals, how many of them no hand has audited, and
+/// its rating of the narratives.
 #[must_use]
 pub fn summary(
     metrics: &RunMetrics,
     comparison: &Comparison,
-    judged: Option<(&Comparison, &Judgement)>,
+    judged: Option<(&Comparison, &Judgement, Unaudited)>,
 ) -> String {
     let mut out = String::new();
     let _ = writeln!(
@@ -84,15 +85,21 @@ pub fn summary(
     out.push('\n');
     score_line(&mut out, "Domains", &comparison.domains);
     score_line(&mut out, "Features", &comparison.features);
-    if let Some((with_judge, judgement)) = judged {
+    if let Some((with_judge, judgement, unaudited)) = judged {
         out.push('\n');
         out.push_str("With the judge's proposals (not yet in matches.yaml):\n");
-        for (label, score, unjudged) in [
-            ("Domains", &with_judge.domains, judgement.unjudged.domains),
+        for (label, score, unjudged, unaudited) in [
+            (
+                "Domains",
+                &with_judge.domains,
+                judgement.unjudged.domains,
+                unaudited.domains,
+            ),
             (
                 "Features",
                 &with_judge.features,
                 judgement.unjudged.features,
+                unaudited.features,
             ),
         ] {
             if unjudged {
@@ -100,6 +107,12 @@ pub fn summary(
                 let _ = writeln!(out, "{label}: unjudged ({})", Unjudged::REASON);
             } else {
                 score_line(&mut out, label, score);
+            }
+            if let Some(unaudited) = unaudited {
+                let _ = writeln!(
+                    out,
+                    "  {unaudited} of the judge's pairs not audited by hand"
+                );
             }
         }
         let rating = judgement.narratives;
@@ -240,7 +253,11 @@ mod tests {
             ..Judgement::default()
         };
 
-        let text = summary(&metrics(None), &comparison, Some((&judged, &judgement)));
+        let text = summary(
+            &metrics(None),
+            &comparison,
+            Some((&judged, &judgement, Unaudited::default())),
+        );
         let with_judge = text.split("With the judge's proposals").nth(1).unwrap();
 
         assert!(
@@ -274,7 +291,11 @@ mod tests {
             ..Judgement::default()
         };
 
-        let text = summary(&metrics(None), &comparison, Some((&judged, &judgement)));
+        let text = summary(
+            &metrics(None),
+            &comparison,
+            Some((&judged, &judgement, Unaudited::default())),
+        );
 
         assert!(!text.contains("Cost of"), "{text}");
         assert!(text.contains("With the judge's proposals"), "{text}");

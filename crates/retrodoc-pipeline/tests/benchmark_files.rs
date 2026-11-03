@@ -85,7 +85,7 @@ fn every_hand_written_pair_names_an_item_of_its_reference() {
         let keys: serde_yaml::Mapping = serde_yaml::from_str(&raw).unwrap();
         for key in keys.keys() {
             assert!(
-                matches!(key.as_str(), Some("domains" | "features")),
+                matches!(key.as_str(), Some("domains" | "features" | "rejected")),
                 "{}: unknown key {key:?}",
                 name(&dir)
             );
@@ -99,6 +99,8 @@ fn every_hand_written_pair_names_an_item_of_its_reference() {
             .collect();
         score(&[], &domains, &matches.domains, &path).unwrap();
         score(&[], &features, &matches.features, &path).unwrap();
+        score(&[], &domains, &matches.rejected.domains, &path).unwrap();
+        score(&[], &features, &matches.rejected.features, &path).unwrap();
     }
 }
 

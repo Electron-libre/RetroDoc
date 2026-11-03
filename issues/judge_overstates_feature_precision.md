@@ -48,3 +48,45 @@ Measured quality at the current code
 # Hints
 * `--saved-judge` re-scores without an LLM call: use it to compare scoring changes on the same answers.
 * A judge change makes the earlier judged figures incomparable: re-judge the baseline runs in the same deliverable.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-03
+
+## Understanding
+The baseline audit at dafea18 already answers step 1 and 2 of the Approach: the judge errs both ways within 4
+points, not 12 to 33, so no change of the judge (candidates a, b, c: b is already BSC-2). What is left is
+candidate (d): make the hand audit count and say, per run, how much of the judged figure no hand has checked.
+
+## Plan
+1. [x] Rejected pairs and unaudited count: `rejected` lists in `matches.yaml` (the wrong pairs now in its comments
+   moved there, both applications), judge proposals equal to a rejected pair dropped from the judged figures, the
+   unaudited proposals counted in the run report, the summary and `benchmark-table`; `SCORING_VERSION` 3;
+   verified by tests through the scoring and the table; makes true BSC-16, BSC-17, BSC-18. (autonomous)
+2. [ ] Re-score and record: the 12 runs of the baseline re-scored `--saved-judge` (no LLM call), judged against
+   hand precision and the unaudited counts in `docs/findings.md`, the ledger and the skill `quality-benchmark`
+   (audit step writes the wrong pairs to `rejected`); verified by the re-scored tables and `just check`.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 02d7c386be24b73e2b4ea3f2ae420847c8eeff5e
+- Scope: candidate (d) only, the judge unchanged (no paid re-judge).
+
+## Deliverable 1: rejected pairs and unaudited count
+- done: `rejected` lists in `matches.yaml` (10 domain and 16 feature pairs on linkding, 1 and 4 on Lobsters, moved
+  from the comments; the pairs too generic to key on stay as comments), dropped from the judged figures; the
+  unaudited proposals counted in the run report, the summary and `benchmark-table`; `SCORING_VERSION` 3; spec,
+  crate docs and the audit step of `quality-benchmark` updated (planned in deliverable 2, it belongs to this change).
+- Re-score of linkding `hidden-1` (dafea18, `--saved-judge`): features judged 49% (hand 49%), 0 feature pair
+  unaudited, 2 domain pairs unaudited (the catch-all `Bookmark Management`).
+
+| check | result |
+|---|---|
+| tests, lint, specs (`just check`) | pass |
+| size | 578 lines, within |
+| code review (`low`) | no findings |
+
+red: BSC-16, BSC-18: the rejected `Bundle services` still counted as matched (`left: []`, `right: ["Bundle
+services"]`); BSC-17: a rejected pair naming `Typo` scored without error.
+
+Code review: no findings

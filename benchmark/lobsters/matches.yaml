@@ -1,13 +1,8 @@
 # Pairs checked by hand from the judge's proposals of the first run (deepseek-chat, docs hidden, 2026-10-27).
 # `generated` is a name the model produced in a run, `reference` a name of reference.yaml.
 # A generated feature that holds several reference features (voting and flagging) is paired with each of them.
-# Left out on purpose, judged wrong:
-#   Story lookup and access -> Browse the front page  (reading one story by its id, not the ranked lists)
-#   Account and Ban Emails  -> Manage my account      (e-mails sent on a ban or a password reset, not the settings)
-# Audit of 2026-11-03 (benchmark_baseline_at_head, dafea18, hidden-1 and shown-1). Judged wrong, left out:
-#   User standing -> View member profiles  (a moderator's view of a member's standing)
-#   Upvoted stories and comments -> Follow the site in a feed reader  (a member's upvoted list, no feed)
-#   Story publishing (domain) -> Votes and ranking  (it holds the listings only)
+# `rejected` holds the judge's proposals checked by hand and judged wrong: they never count.
+# Left out on purpose, not rejected (audit of 2026-11-03):
 #   Commenting -> Take part by e-mail; Story browsing and listings, Browse stories, Comment browsing -> Follow the site
 #     in a feed reader  (right in the audited runs, where the description names e-mail or feeds, but too generic
 #     to key on the name)
@@ -276,3 +271,21 @@ features:
     reference: Talk with the moderators
   - generated: Username Renaming
     reference: Manage my account
+rejected:
+  domains:
+    # it holds the listings only (audit of 2026-11-03)
+    - generated: Story publishing
+      reference: Votes and ranking
+  features:
+    # reading one story by its id, not the ranked lists
+    - generated: Story lookup and access
+      reference: Browse the front page
+    # e-mails sent on a ban or a password reset, not the settings
+    - generated: Account and Ban Emails
+      reference: Manage my account
+    # a moderator's view of a member's standing (audit of 2026-11-03)
+    - generated: User standing
+      reference: View member profiles
+    # a member's upvoted list, no feed (audit of 2026-11-03)
+    - generated: Upvoted stories and comments
+      reference: Follow the site in a feed reader

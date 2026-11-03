@@ -54,6 +54,17 @@ change of these rules must not read as a change of quality between two benchmark
   say under the table how many runs are unjudged; the summary `retrodoc benchmark` prints must show an unjudged
   kind as unjudged instead of its judged recall and precision.
 
+- **BSC-16** (deterministic) `matches.yaml` must accept, for domains and for features, a list of rejected pairs
+  (a generated name and a reference name judged wrong by hand); a judge proposal equal to a rejected pair once
+  both names are normalized must not count in the judged figures; a `matches.yaml` with no rejected pair must
+  score as before.
+- **BSC-17** (deterministic) A rejected pair naming a reference item absent from the reference must fail the
+  scoring with an error naming the pair, as a hand pair does (BSC-3).
+- **BSC-18** (deterministic) A run report must carry, for domains and for features, how many of the judge's
+  proposals the hand audit has not seen (neither a hand pair nor a rejected pair); `retrodoc benchmark` must print
+  it beside the judged figures, and `benchmark-table` must show its mean and range per series; a report saved
+  without it must load, with no count.
+
 ## Scenarios
 
 - (BSC-1) Given `matches.yaml` pairs "Voting and flagging" with "Upvote stories and comments" and with "Flag stories
@@ -80,6 +91,12 @@ change of these rules must not read as a change of quality between two benchmark
 - (BSC-15) Given a run whose features are unjudged, then the printed summary reads, under the judge's proposals,
   that the features are unjudged and gives no judged feature recall or precision; the domains keep theirs.
 
+- (BSC-16) Given the judge proposes "Bundle services" for "Group bookmarks in bundles" and `matches.yaml` rejects
+  that pair, then "Bundle services" is not covered in the judged features and its proposal is not unaudited.
+- (BSC-18) Given 5 feature proposals of which 2 are hand pairs and 1 is rejected, then the report counts 2
+  unaudited feature proposals.
+- (BSC-18) Given a run whose features are unjudged, then it has no unaudited count for features.
+
 ## Non-goals
 
 - Re-scoring the previous series from its saved clones inside `benchmark-table`: `benchmark --saved-judge --out`
@@ -88,7 +105,10 @@ change of these rules must not read as a change of quality between two benchmark
   freezes the right pairs in `matches.yaml`.
 - Undoing a match by equal names: a pair adds a reference item, it never takes one away (a generated name equal
   to a reference name that means another capability has not been seen).
-- Rejecting a judge proposal in `matches.yaml`: a wrong proposal stays out of the hand-written figures only.
+- Telling a right unaudited proposal from a wrong one: the unaudited count says how much of the judged figure no
+  hand has checked, not how much of it is wrong.
+- Changing what the judge is shown or asked: on the audited runs of 2026-11-03 its feature precision was within 4
+  points of the hand one, and a change of the judge makes the earlier judged figures incomparable.
 - Marking unjudged the runs of a `judge.yaml` saved before BSC-12: they keep their figures; re-judging them is a
   paid run.
 - A looser matching of the proposals' names than `normalize` and BSC-14 (a part of a name, a synonym): the

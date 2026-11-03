@@ -65,9 +65,11 @@ benchmark of the same repository.
 The model renames domains and features on every run, so pairs written by hand cover only part of what
 a later run generates. The figures are therefore read like this:
 
-- **(judged)** figures: the hand-written pairs, equal names, **and the LLM judge's proposals**. They are
-  the main figures. The judge shares the biases of the model that generated the docs, hence the audit
-  below.
+- **(judged)** figures: the hand-written pairs, equal names, **and the LLM judge's proposals**, less the
+  ones `matches.yaml` rejects. They are the main figures. The judge shares the biases of the model that
+  generated the docs, hence the audit below.
+- **Judge's domain / feature pairs not audited**: the proposals that are neither a hand pair nor a rejected
+  one. The judged figures rest on them unchecked: at 0, a judged figure is a hand figure.
 - **Narratives in business language (judge)** and **use cases fully in business language (score 1)**: the
   two measures to follow. The mean of the deterministic score saturates near 95% and hides differences.
 - **no suffix** (strict): the hand-written pairs and equal names only. An audited floor, which rises as
@@ -88,7 +90,9 @@ a later run generates. The figures are therefore read like this:
    `reference.yaml`). Never copy a pair you did not check. A pair naming an unknown reference name
    makes the next run fail on purpose. A generated feature that holds several reference features
    (one "voting and flagging" for upvote and flag) gets one pair for each: it counts for each in recall,
-   once in precision.
+   once in precision. The pairs you find wrong go to its `rejected:` list (`domains:` and `features:`,
+   with the reason as a comment): the judged figures then leave them out. A pair right in the run but
+   too generic to key on its name stays out of both, noted in the header.
 4. A narrative the judge rated as technical is worth reading too: if the rating is wrong, say so in the
    report; there is no file to correct it.
 

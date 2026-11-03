@@ -1,27 +1,12 @@
 # Pairs checked by hand from the judge's proposals of the first two runs (docs hidden, docs shown).
 # `generated` is a name the model produced in a run, `reference` a name of reference.yaml.
-# Left out on purpose, judged wrong:
-#   Application Documentation (domain) -> Organisation and search  (it is the project's own docs site)
-#   RSS/Atom Feed Syndication          -> Share bookmarks          (feeds are not in the reference)
-#   System Administration (domain)     -> Accounts and administration (its files are the Django settings modules)
-#   Administration & Maintenance, Application Platform (domains) -> Accounts and administration (backups, wiring, migrations)
-#   Quality Assurance, Project Operations (domains) -> Organisation and search, Integrations (tests and build scripts)
+# `rejected` holds the judge's proposals checked by hand and judged wrong: they never count.
+# Left out on purpose, not rejected:
 #   Bookmark Details Modal, Bookmark Browsing, Global Site Settings, RSS/Atom Feeds: no reference feature fits
 #   (Bundle Management/Preview had none either until the reference gained Group bookmarks in bundles)
-# Audit of the judge's pairs of one run per series of the temperature benchmark (deepseek, docs hidden, writing
-# passes at the server default / at 0). Judged wrong, left out:
-#   Reader Mode Extraction, Read saved pages in reader mode -> Read it later  (reader view is not the to-read flag)
-#   Organize bookmarks into bundles -> Tag bookmarks, Archive a page as an HTML snapshot  (bundles are saved filters)
-#   RSS/Atom Feed(s) -> Share bookmarks, Use the REST API  (feeds are not in the reference)
-#   Save, edit and delete bookmarks -> Archive a bookmark; Search and filter bookmarks -> Read it later;
-#   Manage tags -> Tag automatically  (the reference features exist: Edit and delete, Search bookmarks, Tag bookmarks)
-# Audit of 2026-11-03 (benchmark_baseline_at_head, dafea18, hidden-1 and shown-1). Judged wrong, left out:
-#   Bulk Bookmark Actions, Instance and profile settings -> Administer data  (user bulk edit and settings pages, not the admin app)
-#   Asset management -> Save a PDF  (assets of snapshots, not the download of a PDF link)
-#   Bundle services -> Group bookmarks in bundles  (internal helpers, not a feature)
-#   User Preferences and Access, Instance administration (domains) -> Integrations  (API tokens or a settings page only)
-#   Bookmark Management (domain) -> Organisation and search, Sharing  (right in the audited runs, but a catch-all name
-#     already paired with Bookmark management by its equal name: keyed on the name it would cover half the reference)
+#   Bookmark Management (domain) -> Organisation and search, Sharing  (right in the audited runs of 2026-11-03, but a
+#     catch-all name already paired with Bookmark management by its equal name: keyed on the name it would cover half
+#     the reference)
 domains:
   - generated: Core Bookmarking Service
     reference: Bookmark management
@@ -323,3 +308,70 @@ features:
     reference: Archive a page as an HTML snapshot
   - generated: Instance and profile settings
     reference: Configure a profile
+rejected:
+  domains:
+    # it is the project's own docs site
+    - generated: Application Documentation
+      reference: Organisation and search
+    # its files are the Django settings modules
+    - generated: System Administration
+      reference: Accounts and administration
+    # backups, wiring, migrations
+    - generated: Administration & Maintenance
+      reference: Accounts and administration
+    - generated: Application Platform
+      reference: Accounts and administration
+    # tests and build scripts
+    - generated: Quality Assurance
+      reference: Organisation and search
+    - generated: Quality Assurance
+      reference: Integrations
+    - generated: Project Operations
+      reference: Organisation and search
+    - generated: Project Operations
+      reference: Integrations
+    # API tokens or a settings page only (audit of 2026-11-03)
+    - generated: User Preferences and Access
+      reference: Integrations
+    - generated: Instance administration
+      reference: Integrations
+  features:
+    # feeds are not sharing nor the API
+    - generated: RSS/Atom Feed Syndication
+      reference: Share bookmarks
+    - generated: RSS/Atom Feed
+      reference: Share bookmarks
+    - generated: RSS/Atom Feeds
+      reference: Share bookmarks
+    - generated: RSS/Atom Feed
+      reference: Use the REST API
+    - generated: RSS/Atom Feeds
+      reference: Use the REST API
+    # reader view is not the to-read flag (audit of the temperature benchmark)
+    - generated: Reader Mode Extraction
+      reference: Read it later
+    - generated: Read saved pages in reader mode
+      reference: Read it later
+    # bundles are saved filters
+    - generated: Organize bookmarks into bundles
+      reference: Tag bookmarks
+    - generated: Organize bookmarks into bundles
+      reference: Archive a page as an HTML snapshot
+    # the reference features exist: Edit and delete, Search bookmarks, Tag bookmarks
+    - generated: Save, edit and delete bookmarks
+      reference: Archive a bookmark
+    - generated: Search and filter bookmarks
+      reference: Read it later
+    - generated: Manage tags
+      reference: Tag automatically
+    # user bulk edit and settings pages, not the admin app (audit of 2026-11-03)
+    - generated: Bulk Bookmark Actions
+      reference: Administer data
+    - generated: Instance and profile settings
+      reference: Administer data
+    # assets of snapshots, not the download of a PDF link
+    - generated: Asset management
+      reference: Save a PDF
+    # internal helpers, not a feature
+    - generated: Bundle services
+      reference: Group bookmarks in bundles

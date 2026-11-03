@@ -87,13 +87,21 @@ pub async fn run(
     } else {
         None
     };
+    let unaudited = judged
+        .as_ref()
+        .map(|(_, judgement)| matches.unaudited(judgement))
+        .unwrap_or_default();
 
     print!(
         "{}",
-        benchmark::summary(&metrics, &comparison, judged.as_ref().map(|(c, j)| (c, j)))
+        benchmark::summary(
+            &metrics,
+            &comparison,
+            judged.as_ref().map(|(c, j)| (c, j, unaudited))
+        )
     );
     if let Some(out) = &options.out {
-        let report = benchmark::RunReport::new(metrics, comparison, judged);
+        let report = benchmark::RunReport::new(metrics, comparison, judged, unaudited);
         if let Some(parent) = out.parent() {
             std::fs::create_dir_all(parent)
                 .with_context(|| format!("could not create {}", parent.display()))?;

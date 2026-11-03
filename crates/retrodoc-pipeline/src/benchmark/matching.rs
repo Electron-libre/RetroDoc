@@ -25,7 +25,8 @@ use crate::naming::normalize;
 /// Version 1: a generated item counts for each reference item it stands for.
 /// Version 2: the judge's proposal of a name copied with its description counts for that name, and
 /// a kind the judge proposed no pair for, twice, has no judged recall and precision.
-pub const SCORING_VERSION: u32 = 2;
+/// Version 3: a judge proposal rejected by hand in `matches.yaml` does not count.
+pub const SCORING_VERSION: u32 = 3;
 
 /// `benchmark/<repo>/matches.yaml`: the pairs written by hand, kept between runs.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -34,6 +35,34 @@ pub struct Matches {
     pub domains: Vec<Pair>,
     #[serde(default)]
     pub features: Vec<Pair>,
+    /// The judge's proposals checked by hand and found wrong: they never count.
+    #[serde(default, skip_serializing_if = "Rejected::is_empty")]
+    pub rejected: Rejected,
+}
+
+/// The pairs of `matches.yaml` judged wrong by hand.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct Rejected {
+    #[serde(default)]
+    pub domains: Vec<Pair>,
+    #[serde(default)]
+    pub features: Vec<Pair>,
+}
+
+impl Rejected {
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.domains.is_empty() && self.features.is_empty()
+    }
+}
+
+impl Pair {
+    /// The same pair as `other` once both names are normalized.
+    #[must_use]
+    pub fn same_as(&self, other: &Pair) -> bool {
+        normalize(&self.generated) == normalize(&other.generated)
+            && normalize(&self.reference) == normalize(&other.reference)
+    }
 }
 
 /// A generated name and the reference name it stands for.
@@ -100,17 +129,7 @@ pub fn score(
         let wanted = normalize(name);
         reference.iter().position(|r| normalize(r) == wanted)
     };
-    for pair in pairs {
-        if reference_index(&pair.reference).is_none() {
-            return Err(PipelineError::InvalidReference {
-                path: matches_path.to_path_buf(),
-                reason: format!(
-                    "`{}` is paired with `{}`, which is not in the reference",
-                    pair.generated, pair.reference
-                ),
-            });
-        }
-    }
+    check_references(reference, pairs, matches_path)?;
 
     let mut matched = Vec::new();
     let mut unmatched_generated = Vec::new();
@@ -151,6 +170,27 @@ pub fn score(
     })
 }
 
+/// Fails naming the first of `pairs` whose reference name is not in `reference`.
+fn check_references(
+    reference: &[String],
+    pairs: &[Pair],
+    matches_path: &Path,
+) -> Result<(), PipelineError> {
+    match pairs.iter().find(|pair| {
+        let wanted = normalize(&pair.reference);
+        !reference.iter().any(|r| normalize(r) == wanted)
+    }) {
+        Some(pair) => Err(PipelineError::InvalidReference {
+            path: matches_path.to_path_buf(),
+            reason: format!(
+                "`{}` is paired with `{}`, which is not in the reference",
+                pair.generated, pair.reference
+            ),
+        }),
+        None => Ok(()),
+    }
+}
+
 /// Domains and features of one run against the reference.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Comparison {
@@ -163,7 +203,7 @@ pub struct Comparison {
 ///
 /// # Errors
 ///
-/// Same as [`score`].
+/// Same as [`score`], also for the rejected pairs of `matches`.
 pub fn compare(
     repo_root: &Path,
     reference: &Reference,
@@ -190,6 +230,12 @@ pub fn compare(
         .iter()
         .flat_map(|d| d.features.iter().map(|f| f.name.clone()))
         .collect();
+    check_references(&reference_domains, &matches.rejected.domains, matches_path)?;
+    check_references(
+        &reference_features,
+        &matches.rejected.features,
+        matches_path,
+    )?;
     Ok(Some(Comparison {
         domains: score(&domains, &reference_domains, &matches.domains, matches_path)?,
         features: score(

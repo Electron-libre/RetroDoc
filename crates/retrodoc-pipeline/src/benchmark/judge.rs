@@ -132,14 +132,66 @@ impl Judgement {
     }
 }
 
+/// How many of the judge's proposals the hand audit has not seen (neither a hand pair nor a rejected
+/// one), by kind; `None` for a kind not judged, or in a report saved before the count existed.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Unaudited {
+    #[serde(default)]
+    pub domains: Option<usize>,
+    #[serde(default)]
+    pub features: Option<usize>,
+}
+
+impl Unaudited {
+    /// No count for either kind.
+    #[must_use]
+    pub fn is_none(&self) -> bool {
+        self.domains.is_none() && self.features.is_none()
+    }
+}
+
 impl Matches {
-    /// The hand-written pairs followed by the judge's proposals; every pair counts, so a generated
-    /// name may stand for a reference item of each.
+    /// The hand-written pairs followed by the judge's proposals but the rejected ones; every pair
+    /// counts, so a generated name may stand for a reference item of each.
     #[must_use]
     pub fn with_proposals(&self, judgement: &Judgement) -> Matches {
+        let kept = |hand: &[Pair], proposals: &[Pair], rejected: &[Pair]| -> Vec<Pair> {
+            let proposals = proposals
+                .iter()
+                .filter(|p| !rejected.iter().any(|r| r.same_as(p)));
+            hand.iter().chain(proposals).cloned().collect()
+        };
         Matches {
-            domains: [self.domains.as_slice(), judgement.domains.as_slice()].concat(),
-            features: [self.features.as_slice(), judgement.features.as_slice()].concat(),
+            domains: kept(&self.domains, &judgement.domains, &self.rejected.domains),
+            features: kept(&self.features, &judgement.features, &self.rejected.features),
+            rejected: self.rejected.clone(),
+        }
+    }
+
+    /// The judge's proposals that are neither a hand pair nor a rejected one, by judged kind.
+    #[must_use]
+    pub fn unaudited(&self, judgement: &Judgement) -> Unaudited {
+        let count = |unjudged: bool, proposals: &[Pair], hand: &[Pair], rejected: &[Pair]| {
+            (!unjudged).then(|| {
+                proposals
+                    .iter()
+                    .filter(|p| !hand.iter().chain(rejected).any(|h| h.same_as(p)))
+                    .count()
+            })
+        };
+        Unaudited {
+            domains: count(
+                judgement.unjudged.domains,
+                &judgement.domains,
+                &self.domains,
+                &self.rejected.domains,
+            ),
+            features: count(
+                judgement.unjudged.features,
+                &judgement.features,
+                &self.features,
+                &self.rejected.features,
+            ),
         }
     }
 }
@@ -741,11 +793,47 @@ mod tests {
         assert_eq!(NarrativeRating::default().business_share(), None);
     }
 
+    // spec: BSC-18 (internal: the count is read from pairs built in memory)
+    #[test]
+    fn counts_the_proposals_neither_paired_nor_rejected_by_hand() {
+        let matches = Matches {
+            features: vec![pair("A", "One"), pair("b", "two")],
+            rejected: crate::benchmark::Rejected {
+                features: vec![pair("C", "Three")],
+                ..crate::benchmark::Rejected::default()
+            },
+            ..Matches::default()
+        };
+        let judgement = Judgement {
+            features: vec![
+                pair("A", "One"),
+                pair("B", "Two"),
+                pair("C", "Three"),
+                pair("D", "Four"),
+                pair("E", "Five"),
+            ],
+            ..Judgement::default()
+        };
+
+        let unaudited = matches.unaudited(&judgement);
+
+        assert_eq!(unaudited.features, Some(2));
+        assert_eq!(unaudited.domains, Some(0));
+        let unjudged = Judgement {
+            unjudged: Unjudged {
+                domains: false,
+                features: true,
+            },
+            ..judgement
+        };
+        assert_eq!(matches.unaudited(&unjudged).features, None);
+    }
+
     #[test]
     fn merges_the_manual_pairs_and_the_proposals() {
         let matches = Matches {
             domains: vec![pair("Billing", "Payments")],
-            features: vec![],
+            ..Matches::default()
         };
         let judgement = Judgement {
             domains: vec![pair("Billing", "Shipping"), pair("Parcels", "Shipping")],
