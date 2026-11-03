@@ -259,7 +259,8 @@ fn valid_entries(raw: Vec<RawEntry>, files: &[FileEntry]) -> Vec<BusinessEntry> 
         let bare = path.trim_end_matches('/');
         let kept = if bare.is_empty() {
             None
-        } else if !path.ends_with('/') && sources.contains(&Path::new(bare)) {
+        } else if sources.contains(&Path::new(bare)) {
+            // A file written like a folder (`order.rb/`) is still that file.
             Some(bare.to_string())
         } else if sources.iter().any(|file| file.starts_with(bare)) {
             Some(format!("{bare}/"))

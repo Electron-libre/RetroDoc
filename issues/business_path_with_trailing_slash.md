@@ -25,3 +25,28 @@ like a folder) is saved as the folder `lib/shop/order.rb/`. Expected: it resolve
 
 * `crates/retrodoc-pipeline/src/business_files/mod.rs` (`valid_entries`)
 * `crates/retrodoc-pipeline/src/business_files/tests.rs`
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-03
+
+## Understanding
+A business path written like a folder (`lib/shop/order.rb/`) whose bare form is a source file resolves to that file
+instead of a folder entry. Out of scope: a spec of the business-files pass (none exists; this is a bug fix).
+
+## Plan
+1. [x] Resolve a trailing-slash file path: `valid_entries` tries the bare path as a source file before a folder;
+   verified by a test in `business_files/tests.rs` (`lib/shop/order.rb/` gives `lib/shop/order.rb`). (autonomous)
+
+## Decisions
+- Mode: autonomous
+- Base commit: a830704ce8a7024c351127870bc4df49419875f0
+- No spec: a bug fix of a pass that has none (answer 1 a).
+
+## Deliverable 1
+- done: `valid_entries` tries the bare path as a source file first, so `lib/shop/order.rb/` resolves to the file.
+- red: none traced (no spec); `left: ["lib/shop/order.rb/"] right: ["lib/shop/order.rb"]`.
+- Checks: `just check` ok; size 14 lines.
+- Code review: no findings
+- not verified: none.
+- decisions needed: none.
