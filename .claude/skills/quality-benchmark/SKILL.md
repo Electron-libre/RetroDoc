@@ -18,7 +18,10 @@ artifacts to keep and the planned measures.
 - **Before** a replay or a benchmark, read it: a measure of the same pass with the same model and the same
   frozen inputs is reusable when the working tree is clean and
   `git diff <its commit>..HEAD -- crates/retrodoc-pipeline/src/<module> crates/retrodoc-bench/examples/pass_replay.rs crates/retrodoc-bench/src/benchmark crates/retrodoc-llm benchmark/<repo>`
-  is empty (`<module>` is the pass's directory: `use_cases` for `use-cases`); a change elsewhere in the
+  is empty (`<module>` is the pass's directory: `use_cases` for `use-cases`; for a measure older than the move
+  to `retrodoc-bench`, which changed only import lines, run it up to `25efa2d` with the old paths
+  `crates/retrodoc-pipeline/examples/pass_replay.rs crates/retrodoc-pipeline/src/benchmark`, then from `c3988a1`
+  with the new ones); a change elsewhere in the
   pipeline that the pass reads (shared prompts, parsing) also counts. Reuse it instead of running again, and
   check the planned measures for other issues one run can serve. A paid run still needs the user's go, with
   its estimated cost.

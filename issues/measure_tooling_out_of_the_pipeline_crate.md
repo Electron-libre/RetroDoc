@@ -67,6 +67,7 @@ measured), the reached private items exposed behind a `bench` feature, `crate::<
    `.claude/cardinal.toml` (`bench`), ADR 0042 accepted, the reuse rule of the ledger (outside git); verified by
    `just check` and a grep of `retrodoc-pipeline --example` and `retrodoc-pipeline/src/benchmark` left nowhere;
    est. ~150 lines. (autonomous)
+4. [x] Fixes of the `high` review of the issue. (autonomous)
 
 Examples named nowhere among skills, `docs/dev/commands.md`, the ledger's measures or an open issue (candidates to
 delete in the follow-up): `confidence_agreement` (ADR 0026 only), `orphan_placement_measure`, `read_overlap` (ADR
@@ -139,3 +140,26 @@ ADR 0042 accepted.
 red: none (docs)
 
 Code review: no findings
+
+## Deliverable 4: the `high` review of `25efa2d..HEAD`
+done: 8 of its 9 findings fixed: `just clippy` also lints the default build of the pipeline alone (the workspace
+turns `bench` on); the reuse rule of the skill `quality-benchmark` and of the ledger checks a measure older than the
+move with the old paths up to `25efa2d`; `UNCATEGORIZED_SLUG` back to `pub(crate)`, exposed by
+`bench_support::domains`; `rules::bench` `pub(crate)` and its dead `Judged` alias dropped; `judge_rules` calls
+`judge_rules_with` (in `rules/judge.rs`) instead of the replay holding a copy; unused `tracing-subscriber` dropped
+from `retrodoc-bench`; its root doc says the `bench_support` aliases hold only what the moved files reach.
+Not fixed: the `-p retrodoc-pipeline` usage comments of the 22 moved examples (editing them counts each moved file
+twice, ~10k lines): the follow-up issue.
+
+| check | result |
+|---|---|
+| tests | `just check` green |
+| lint | clean, workspace and the pipeline alone |
+| specs | untouched |
+| docs | `docs/crates/bench.md`, `docs/dev/commands.md` (the new lint) |
+| code review | `low`, 1 finding, not confirmed |
+
+red: none (refactor and docs)
+
+Code review: 1 findings
+- `JUDGEMENT` import maybe unused in `rules/mod.rs`: no change, it serves the fingerprint of the judgement (line 630) and `clippy -p retrodoc-pipeline --lib` is clean.

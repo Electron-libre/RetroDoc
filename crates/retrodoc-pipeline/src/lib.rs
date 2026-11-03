@@ -105,6 +105,11 @@ pub mod bench_support {
     pub mod artifact {
         pub use crate::artifact::{load_yaml, save_yaml, Artifact, Retention};
     }
+    pub mod domains {
+        pub use crate::domains::*;
+        /// The slug of the domain that holds what no other domain took.
+        pub const UNCATEGORIZED_SLUG: &str = crate::domains::UNCATEGORIZED_SLUG;
+    }
     pub mod naming {
         pub use crate::naming::normalize;
     }

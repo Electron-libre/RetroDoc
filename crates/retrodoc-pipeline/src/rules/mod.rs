@@ -45,41 +45,13 @@ mod split;
 #[cfg(test)]
 mod tests;
 
-/// What the replays of `retrodoc-bench` reach of the pass (ADR 0042), out of the default build.
+/// What the replays of `retrodoc-bench` reach of the pass, through `bench_support` (ADR 0042).
 #[cfg(feature = "bench")]
-#[doc(hidden)]
-pub mod bench {
-    use super::{keep_judged, BusinessRule, LlmProvider, PipelineError, JUDGEMENT};
+pub(crate) mod bench {
+    use super::BusinessRule;
 
     pub use super::dedup::code as cited_code;
-    pub use super::judge::judge_prompt;
-
-    /// The rules kept and those dropped with their class.
-    pub type Judged = super::Judged;
-
-    /// The judgement of `rules` (those of the feature `slug`) asked with `system` and `user`: the pass's
-    /// prompts, or a variant a replay measures.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the LLM call fails.
-    pub async fn judge_rules_with(
-        llm: &dyn LlmProvider,
-        system: &str,
-        user: &str,
-        slug: &str,
-        rules: &[BusinessRule],
-    ) -> Result<Option<Judged>, PipelineError> {
-        Ok(JUDGEMENT
-            .ask_with_system(
-                llm,
-                system,
-                user,
-                &format!("judgement of the rules of {slug}"),
-            )
-            .await?
-            .map(|verdict| keep_judged(rules.to_vec(), &verdict)))
-    }
+    pub use super::judge::{judge_prompt, judge_rules_with};
 
     /// [`super::kept`], for the replay of the judgement.
     #[must_use]
@@ -92,7 +64,7 @@ pub use self::aside::{AsideFeature, AsideRule, SetAside};
 use self::dedup::{merge_duplicates, Reach};
 pub use self::input::RuleInput;
 pub(crate) use self::judge::judge_prompt;
-use self::judge::{keep_judged, JUDGEMENT, KIND};
+use self::judge::{judge_rules_with, JUDGEMENT, KIND};
 pub use self::judge::{JUDGE_SYSTEM_PROMPT, NOISE};
 use self::prompt::{rules_prompt, STATEMENT};
 use self::split::stated_rules;
@@ -422,14 +394,14 @@ async fn judge_rules(
     feature: &Feature,
     rules: &[BusinessRule],
 ) -> Result<Option<Judged>, PipelineError> {
-    Ok(JUDGEMENT
-        .ask(
-            llm,
-            &judge_prompt(feature, rules),
-            &format!("judgement of the rules of {}", feature.slug),
-        )
-        .await?
-        .map(|verdict| keep_judged(rules.to_vec(), &verdict)))
+    judge_rules_with(
+        llm,
+        JUDGE_SYSTEM_PROMPT,
+        &judge_prompt(feature, rules),
+        &feature.slug,
+        rules,
+    )
+    .await
 }
 
 /// The rules kept and those dropped with their class.

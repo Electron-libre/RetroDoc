@@ -12,6 +12,8 @@ fmt:
 
 clippy:
     cargo clippy --workspace --all-targets -- -D warnings
+    # The workspace turns `bench` on (ADR 0042): the default build of the pipeline is linted alone.
+    cargo clippy -p retrodoc-pipeline --lib -- -D warnings
 
 test:
     cargo test --workspace

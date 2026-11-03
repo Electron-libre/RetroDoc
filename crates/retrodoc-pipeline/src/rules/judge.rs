@@ -16,8 +16,11 @@ use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
 use retrodoc_core::model::{BusinessRule, Feature, RuleEvidence, RuleKind};
+use retrodoc_llm::LlmProvider;
 use serde::Deserialize;
 
+use super::Judged;
+use crate::error::PipelineError;
 use crate::request::Request;
 use crate::text::{feature_line, one_line, FEATURE_LABEL};
 
@@ -107,6 +110,30 @@ struct RawClass {
     n: serde_json::Value,
     #[serde(default)]
     class: String,
+}
+
+/// The judgement of `rules` (those of the feature `slug`) asked with `system` and `user`: the pass's
+/// prompts, or a variant a replay measures.
+///
+/// # Errors
+///
+/// Returns an error if the LLM call fails.
+pub async fn judge_rules_with(
+    llm: &dyn LlmProvider,
+    system: &str,
+    user: &str,
+    slug: &str,
+    rules: &[BusinessRule],
+) -> Result<Option<Judged>, PipelineError> {
+    Ok(JUDGEMENT
+        .ask_with_system(
+            llm,
+            system,
+            user,
+            &format!("judgement of the rules of {slug}"),
+        )
+        .await?
+        .map(|verdict| keep_judged(rules.to_vec(), &verdict)))
 }
 
 /// The prompt: the feature and its numbered rules, with their kind and what backs them.

@@ -4,7 +4,8 @@ The measuring tools, kept out of the passes ([ADR 0042](../adr/0042-the-measurin
 `retrodoc benchmark` and `benchmark-table` call it, the examples of `examples/` are the replays and the measures of
 `docs/dev/commands.md` (`cargo run -p retrodoc-bench --example <name>`). It reaches the private items of the passes
 through the `bench` feature of `retrodoc-pipeline` (`bench_support`, `rules::bench`), absent from its default
-build, and its tests use the fake LLM of the `testing` feature. Its root names the modules of `retrodoc-pipeline`
+build (the workspace build turns it on, so `just clippy` also lints that default build alone), and its tests
+use the fake LLM of the `testing` feature. Its root names the modules of `retrodoc-pipeline`
 as its own, so the files moved from that crate kept their `crate::<module>` paths.
 
 | Module | Role |
