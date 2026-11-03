@@ -210,12 +210,12 @@ The milestones up to "A large application, one bounded context at a time" are th
   examples) live beside the pipeline instead of inside it.
 - Why: the audit of 2026-11-03 found the workspace still at `0.1.0` after the tag `v0.6.0`, and about 11k of the 44k
   lines of `retrodoc-pipeline` are measuring tools.
-- State: in issues
+- State: done
 - Issues:
   - [release_bumps_the_workspace_version](issues/done/release_bumps_the_workspace_version.md)
   - [measure_tooling_out_of_the_pipeline_crate](issues/done/measure_tooling_out_of_the_pipeline_crate.md)
   - [delete_one_off_measuring_examples](issues/done/delete_one_off_measuring_examples.md)
-  - [delete_confidence_and_baseline_examples](issues/delete_confidence_and_baseline_examples.md)
+  - [delete_confidence_and_baseline_examples](issues/done/delete_confidence_and_baseline_examples.md)
 
 ## Measured quality at the current code
 
