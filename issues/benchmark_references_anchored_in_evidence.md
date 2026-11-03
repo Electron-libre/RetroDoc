@@ -68,11 +68,11 @@ use cases, rules, `matches.yaml` and `entry-points.yaml` (spec `benchmark-refere
 1. [x] Format and check: `evidence`, `disputed` and `checked` in `reference.rs`, example `reference_evidence` (paths
    and headings checked in a tree, counts by backing, figures of saved reports without the disputed features);
    verified by tests on temp trees and reports; makes true BRE-1 to BRE-9. (autonomous)
-2. [ ] linkding: blind second draft by a subagent (code and maintainers' docs, not the reference nor the generated
+2. [x] linkding: blind second draft by a subagent (code and maintainers' docs, not the reference nor the generated
    docs), diff, disagreements settled by another subagent from the code; evidence on each feature, `disputed`,
    `checked`; `matches.yaml` follows renames; check passes; `--saved-judge` re-score of the kept runs (f95ada6
-   hidden, dd5cf43 baseline) and the error bar, in the ledger and `docs/findings.md`; verified by the check and
-   `just check`.
+   hidden, dd5cf43 baseline) and the error bar, in the ledger and this issue (`docs/findings.md` stops at
+   2026-10-14); verified by the check and `just check`. (autonomous)
 3. [ ] Lobsters: the same, from `about.html.erb` at the pinned commit and the meta stories it links (`url`).
 4. [ ] Docs: skill `quality-benchmark` (which figures rest on doc-backed items, the check before a benchmark),
    `PRODUCT.md` risk, `docs/crates/bench.md`; verified by `update-docs` and the reviews.
@@ -88,3 +88,30 @@ use cases, rules, `matches.yaml` and `entry-points.yaml` (spec `benchmark-refere
 - not verified: the example on a reference with evidence (deliverables 2 and 3 write it).
 - The finding "linkding 30 features, Lobsters 38" was wrong: 24 and 31.
 - Code review: 2 findings, both fixed (a directory or a non-UTF-8 file read as missing; disputed count by name).
+
+## Deliverable 2
+- done: linkding reference settled (24 -> 26 features), evidence on each, 4 `disputed`, `checked`; `matches.yaml`:
+  pairs of the dropped Save a PDF removed, metadata and bulk edit names moved to the split features, the generated
+  names of the kept runs that hold the 3 added features paired by hand.
+- Blind draft: 35 features in 9 domains. Settlement: 22 disagreements, 12 blind features merged into current
+  ones, 2 dropped (keyboard shortcuts, task monitor: not capabilities), Save a PDF merged into the HTML snapshot,
+  metadata and bulk edit split off, file attachments added, 9 descriptions fixed from the code (feeds, REST API
+  scope, extension search, sign-in methods). Table: `~/retrodoc-runs/references-evidence/linkding-decisions.md`.
+- `disputed` first marked 19 features, scope fixes included: without them precision fell 15 to 25 points because
+  the core features (search, save, archive) left the reference. Narrowed to the 4 features one draft did not hold.
+- Backing: 18 features by the user docs, 8 by code only (edit and delete, read later, archive, tag, merge tags,
+  bundles, feeds, reader view).
+- Figures (judged features recall/precision, mean of 3; `--saved-judge`, no LLM):
+
+  | runs | before | after | after, without disputed |
+  |---|---|---|---|
+  | f95ada6 hidden | 89%/63% | 88%/71% | 88%/60% |
+  | dafea18 hidden | 90%/57% | 91%/62% | 91%/57% |
+  | dafea18 shown | 83%/56% | 87%/59% | 88%/57% |
+
+  The precision gain comes from the hand pairs of the added features (generated metadata, bulk and asset features
+  had nothing to match); the error bar on precision is about 10 points, on recall 1 to 2.
+- The saved `judge.yaml` of 5 clones paired names with Save a PDF: retargeted to the HTML snapshot (`.orig` kept),
+  else `--saved-judge` fails (BSC-3).
+- red: none (data deliverable; the check of deliverable 1 passes on it).
+- Code review: 1 finding, not fixed: `without_disputed` counts a generated name matched only to disputed features as unmatched; intended (BRE-8: the score of the reference without them, where that name is an extra).

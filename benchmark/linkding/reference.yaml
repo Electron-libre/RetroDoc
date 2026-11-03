@@ -18,43 +18,118 @@ domains:
     features:
       - name: Save a bookmark
         description: >-
-          Add a URL with optional title, description, notes and tags; the title, description and
-          icon of the page are filled in automatically when not given.
+          Add a URL with optional title, description, notes and tags, marked unread or shared by default if
+          the profile says so; the form warns when the URL is already bookmarked, and can be opened pre-filled
+          from a link (bookmarklet, share sheet, other tools).
         use_cases:
           - Add a bookmark from the web interface
           - Add a bookmark from the browser extension or the bookmarklet
-          - Have the title and description of the page fetched automatically
+          - Get warned that the URL is already bookmarked
+        evidence:
+          - doc: docs/src/content/docs/index.mdx#Features
+          - doc: docs/src/content/docs/how-to.md#Using the bookmarklet on Android/Chrome
+          - code: bookmarks/views/bookmarks.py
+          - code: bookmarks/services/bookmarks.py
+          - code: bookmarks/templates/bookmarks/form.html
+          - code: bookmarks/templates/settings/bookmarklet.js
+          - code: bookmarks/tests/test_bookmark_new_view.py
       - name: Edit and delete bookmarks
-        description: Change the details of a bookmark, delete it, or edit or delete many at once.
+        description: Change the details of a single bookmark (URL, title, description, notes, tags, flags) or delete it.
         use_cases:
           - Edit a bookmark
-          - Bulk edit bookmarks
+          - Delete a bookmark
+        evidence:
+          - code: bookmarks/views/bookmarks.py
+          - code: bookmarks/services/bookmarks.py
+          - code: bookmarks/tests/test_bookmark_edit_view.py
+          - code: bookmarks/tests/test_bookmark_action_view.py
+      - name: Bulk edit bookmarks
+        description: >-
+          Select several bookmarks, or every bookmark matching the current search, and archive, unarchive,
+          delete, tag, untag, mark read or unread, share or unshare, refresh the metadata or snapshot them in one go.
+        use_cases:
+          - Select all bookmarks matching a search
+          - Add tags to many bookmarks
+          - Delete many bookmarks
+        evidence:
+          - doc: docs/src/content/docs/index.mdx#Features
+          - code: bookmarks/views/bookmarks.py
+          - code: bookmarks/templates/bookmarks/bulk_edit_bar.html
+          - code: bookmarks/tests/test_bookmark_action_view.py
+        disputed: 'Blind draft only (current had it inside Edit and delete bookmarks); added as a split: handle_action bulk_execute covers eleven operations across pages, and the Bulk editing card of the product page names it.'
       - name: Read it later
-        description: Mark a bookmark as to read, and mark it as read afterwards.
+        description: Mark a bookmark as to read, filter the unread ones, and mark it as read afterwards.
         use_cases:
           - Mark a bookmark to read later
+          - Mark a bookmark as read
+        evidence:
+          - code: bookmarks/views/bookmarks.py
+          - code: bookmarks/tests/test_bookmark_action_view.py
       - name: Archive a bookmark
-        description: Move a bookmark out of the main list without deleting it, and bring it back.
+        description: Move a bookmark out of the main list into the archived list without deleting it, and bring it back.
         use_cases:
           - Archive a bookmark
           - Unarchive a bookmark
+        evidence:
+          - code: bookmarks/views/bookmarks.py
+          - code: bookmarks/tests/test_bookmark_archived_view.py
       - name: Write notes on a bookmark
-        description: Attach Markdown notes to a bookmark.
+        description: Attach Markdown notes to a bookmark, rendered in the list and shown or hidden on demand.
         use_cases:
           - Add a Markdown note to a bookmark
+        evidence:
+          - doc: docs/src/content/docs/shortcuts.md
+          - code: bookmarks/templatetags/shared.py
+          - code: bookmarks/tests/test_bookmarks_list_template.py
+        disputed: 'Blind draft had notes only as a field of Save/Edit; kept as a feature: notes are rendered as Markdown in the list, toggled with a shortcut and governed by a profile setting (permanent_notes).'
+      - name: Automatic website metadata
+        description: >-
+          The title, description, favicon and preview image of the bookmarked page are fetched automatically
+          and can be refreshed on demand.
+        use_cases:
+          - Have the title and description of the page fetched automatically
+          - Show favicons and preview images
+          - Refresh the metadata of bookmarks
+        evidence:
+          - doc: docs/src/content/docs/index.mdx#Features
+          - doc: docs/src/content/docs/troubleshooting.md#Automatically detected title and description are incorrect
+          - code: bookmarks/services/website_loader.py
+          - code: bookmarks/services/favicon_loader.py
+          - code: bookmarks/services/preview_image_loader.py
+          - code: bookmarks/services/tasks.py
+          - code: bookmarks/tests/test_metadata_view.py
+        disputed: 'Blind draft only (current folded title/description/icon into Save a bookmark); added as a split: favicons, preview images and refresh are background tasks independent of saving, and the product page has a Metadata card.'
       - name: Import and export bookmarks
-        description: Bring bookmarks from, or take them to, another tool in the Netscape HTML format.
+        description: >-
+          Bring bookmarks from, or take them to, another tool in the Netscape HTML format, with their tags;
+          import also runs from the command line.
         use_cases:
           - Import bookmarks from a browser
           - Export all bookmarks
+        evidence:
+          - doc: docs/src/content/docs/index.mdx#Features
+          - doc: docs/src/content/docs/backups.md#Exporting bookmarks from the UI
+          - code: bookmarks/services/importer.py
+          - code: bookmarks/services/exporter.py
+          - code: bookmarks/management/commands/import_netscape.py
+          - code: bookmarks/tests/test_settings_import_view.py
+          - code: bookmarks/tests/test_settings_export_view.py
   - name: Organisation and search
     description: Finding bookmarks again.
     features:
       - name: Tag bookmarks
-        description: Label bookmarks with tags, and see or manage the tags in use.
+        description: >-
+          Label bookmarks with tags, and manage the tags in use on the tags page: list them with their
+          bookmark count, search and sort them, show the unused ones, create and delete tags.
         use_cases:
           - Tag a bookmark
+          - Create a tag
           - Delete unused tags
+        evidence:
+          - code: bookmarks/views/tags.py
+          - code: bookmarks/services/tags.py
+          - code: bookmarks/tests/test_tags_index_view.py
+          - code: bookmarks/tests/test_tags_new_view.py
       - name: Tag automatically
         description: >-
           Rules of the profile map a URL pattern (host, path, query, fragment) to tags that are added
@@ -62,100 +137,229 @@ domains:
         use_cases:
           - Define an auto tagging rule
           - See the tags a rule will add before saving
+        evidence:
+          - doc: docs/src/content/docs/auto-tagging.md
+          - code: bookmarks/services/auto_tagging.py
+          - code: bookmarks/tests/test_auto_tagging.py
       - name: Search bookmarks
         description: >-
-          Search words, phrases and tags with and, or, not and parentheses over the title,
-          description, notes and URL.
+          Search words, phrases and tags with and, or, not and parentheses over the title, description,
+          notes and URL; narrow the list by clicking tags in the tag cloud, filter by unread or shared state,
+          sort by date or title and save these as default preferences; linkding can also be added as a search
+          engine of the browser.
         use_cases:
           - Search with several words and a tag
           - Search with a boolean expression
+          - Sort and filter the bookmark list
+          - Browse by tag from the tag cloud
+        evidence:
+          - doc: docs/src/content/docs/search.md#Search Expressions
+          - doc: docs/src/content/docs/search.md#Examples
+          - code: bookmarks/services/search_query_parser.py
+          - code: bookmarks/queries.py
+          - code: bookmarks/templates/bookmarks/search.html
+          - code: bookmarks/templates/bookmarks/tag_cloud.html
+          - code: bookmarks/views/opensearch.py
+          - code: bookmarks/tests/test_search_query_parser.py
+          - code: bookmarks/tests/test_bookmark_search_form.py
       - name: Merge and rename tags
         description: Rename a tag, or merge several tags into one, across all the bookmarks that carry them.
         use_cases:
           - Merge two tags
           - Rename a tag
+        evidence:
+          - code: bookmarks/views/tags.py
+          - code: bookmarks/forms.py
+          - code: bookmarks/tests/test_tags_merge_view.py
+          - code: bookmarks/tests/test_tags_edit_view.py
       - name: Group bookmarks in bundles
         description: >-
-          A bundle is a saved filter (search words, tags to include and exclude) that lists the matching
-          bookmarks; bundles are created, ordered, edited and deleted.
+          A bundle is a saved filter (search words, tags of which any or all must be present, excluded tags,
+          unread and shared state) that lists the matching bookmarks; bundles are created, previewed, ordered,
+          edited and deleted.
         use_cases:
           - Create a bundle
           - Browse the bookmarks of a bundle
+        evidence:
+          - code: bookmarks/views/bundles.py
+          - code: bookmarks/services/bundles.py
+          - code: bookmarks/tests/test_bundles_new_view.py
+          - code: bookmarks/tests/test_bundles_index_view.py
   - name: Sharing
     description: Letting other people see bookmarks.
     features:
       - name: Share bookmarks
-        description: Make bookmarks visible to other users of the instance or to guests who are not signed in.
+        description: >-
+          Make bookmarks visible to other users of the instance, filtered by user, or to guests who are not
+          signed in; an administrator can make the shared bookmarks the landing page and pick the profile used
+          to display them to guests.
         use_cases:
           - Share a bookmark with other users
           - Browse the shared bookmarks as a guest
+        evidence:
+          - doc: docs/src/content/docs/index.mdx#Features
+          - code: bookmarks/views/bookmarks.py
+          - code: bookmarks/views/root.py
+          - code: bookmarks/views/settings.py
+          - code: bookmarks/tests/test_bookmark_shared_view.py
+          - code: bookmarks/tests/test_root_view.py
       - name: Follow bookmarks in a feed reader
         description: >-
-          Each user has a private RSS feed of their bookmarks, protected by a feed token, and a public feed
-          of the shared bookmarks.
+          Feeds protected by a feed token give a user's bookmarks, unread bookmarks or shared bookmarks, and a
+          public feed gives the publicly shared ones; each feed can be narrowed by a search query and a limit.
         use_cases:
           - Subscribe to the feed of my bookmarks
           - Subscribe to the feed of the shared bookmarks
+        evidence:
+          - code: bookmarks/feeds.py
+          - code: bookmarks/templates/settings/integrations.html
+          - code: bookmarks/tests/test_feeds.py
   - name: Page archiving
     description: Keeping a copy of the bookmarked pages.
     features:
       - name: Archive a page as an HTML snapshot
         description: >-
-          A snapshot of the page is created when a bookmark is added (server-side), or uploaded from the
-          SingleFile browser extension.
+          A snapshot of the page is created on the server when a bookmark is added, on demand or for all
+          bookmarks missing one; a URL that points to a PDF is downloaded instead. Snapshots can also be
+          uploaded from the SingleFile browser extension, alone or triggered by the linkding extension.
         use_cases:
           - Create a snapshot automatically when saving a bookmark
           - Upload a snapshot from the SingleFile extension
-      - name: Save a PDF
-        description: When the bookmarked URL is a PDF, the file is downloaded and kept with the bookmark.
-        use_cases:
           - Bookmark a link to a PDF
+        evidence:
+          - doc: docs/src/content/docs/archiving.md#Server-based Archiving
+          - doc: docs/src/content/docs/archiving.md#Using the Singlefile Browser Extension
+          - doc: docs/src/content/docs/archiving.md#Using the linkding Browser Extension
+          - code: bookmarks/services/assets.py
+          - code: bookmarks/services/singlefile.py
+          - code: bookmarks/services/tasks.py
+          - code: bookmarks/api/routes.py
+          - code: bookmarks/tests/test_assets_service.py
       - name: Snapshot on the Internet Archive
-        description: Ask the Wayback Machine to save the page in the background.
+        description: >-
+          When enabled in the profile, ask the Wayback Machine to save the page in the background and link the
+          archived copy from the bookmark.
         use_cases:
           - Create a Wayback Machine snapshot of a bookmark
+        evidence:
+          - doc: docs/src/content/docs/index.mdx#Features
+          - code: bookmarks/services/tasks.py
+          - code: bookmarks/services/wayback.py
+          - code: bookmarks/tests/test_bookmarks_tasks.py
       - name: Read a saved page
-        description: Open the details of a bookmark and read the saved copy of the page in a reader view.
+        description: >-
+          Open the details of a bookmark, see its snapshots and files, and read the latest snapshot in a
+          reader view or open a saved file in the browser.
         use_cases:
           - Read a saved page in the reader view
+          - Open the details of a bookmark
+        evidence:
+          - code: bookmarks/views/assets.py
+          - code: bookmarks/templates/bookmarks/read.html
+          - code: bookmarks/templates/bookmarks/details/form.html
+          - code: bookmarks/tests/test_bookmark_details_modal.py
+          - code: bookmarks/tests/test_bookmark_asset_view.py
+      - name: Attach files to a bookmark
+        description: Upload any file to a bookmark, open or download it, and delete it, from the details or the API, unless uploads are disabled.
+        use_cases:
+          - Upload a file to a bookmark
+          - Delete a file of a bookmark
+        evidence:
+          - doc: docs/src/content/docs/api.md#Bookmark Assets
+          - code: bookmarks/views/bookmarks.py
+          - code: bookmarks/services/assets.py
+          - code: bookmarks/templates/bookmarks/details/assets.html
+          - code: bookmarks/tests/test_bookmark_assets_api.py
+        disputed: 'Blind draft only (Bookmark files); added: upload_asset stores any user file next to the snapshots, a capability the current draft did not cover.'
   - name: Accounts and administration
     description: Who can sign in and what they can configure.
     features:
       - name: Sign in
         description: >-
-          Sign in with a username and password, with single sign-on (OIDC) or behind an authentication proxy.
+          Sign in with a username and password, with single sign-on (OIDC) or behind an authentication proxy;
+          sign out and change one's own password.
         use_cases:
           - Sign in with a password
           - Sign in through single sign-on
+          - Change my password
+        evidence:
+          - doc: docs/src/content/docs/options.md#`LD_ENABLE_OIDC`
+          - doc: docs/src/content/docs/options.md#`LD_ENABLE_AUTH_PROXY`
+          - code: bookmarks/views/auth.py
+          - code: bookmarks/middlewares.py
+          - code: bookmarks/tests/test_login_view.py
+          - code: bookmarks/tests/test_oidc_support.py
+          - code: bookmarks/tests/test_auth_proxy_support.py
+          - code: bookmarks/tests/test_password_change_view.py
       - name: Manage users
         description: An administrator adds and deletes users, changes passwords and grants staff status.
         use_cases:
           - Add a user
+        evidence:
+          - doc: docs/src/content/docs/admin.md#User management
+          - code: bookmarks/admin.py
       - name: Configure a profile
-        description: Each user sets display, search and sharing preferences and gets an API token.
+        description: >-
+          Each user sets display (theme, dates, descriptions, link target, visible actions, favicons, previews,
+          items per page, custom CSS), search, archiving and sharing preferences, and creates or deletes API tokens.
         use_cases:
           - Get an API token
           - Change the settings of a profile
+        evidence:
+          - doc: docs/src/content/docs/how-to.md#Increase the font size
+          - code: bookmarks/views/settings.py
+          - code: bookmarks/views/custom_css.py
+          - code: bookmarks/models.py
+          - code: bookmarks/tests/test_settings_general_view.py
+          - code: bookmarks/tests/test_settings_integrations_view.py
       - name: Administer data
         description: Staff use the admin app for raw access to users, bookmarks and tags, with bulk actions.
         use_cases:
           - Bulk archive bookmarks of a user from the admin app
+        evidence:
+          - doc: docs/src/content/docs/admin.md#Bookmark management
+          - doc: docs/src/content/docs/admin.md#Tag management
+          - code: bookmarks/admin.py
   - name: Integrations
     description: Using linkding from other tools.
     features:
       - name: Use the REST API
-        description: Third-party applications read and write bookmarks and tags with a token.
+        description: >-
+          Third-party applications authenticated by a token list, check, create, update, archive and delete
+          bookmarks, manage their files and snapshots, tags and bundles, and read the user profile.
         use_cases:
           - List bookmarks through the API
           - Create a bookmark through the API
+        evidence:
+          - doc: docs/src/content/docs/api.md#Authentication
+          - doc: docs/src/content/docs/api.md#Resources
+          - code: bookmarks/api/routes.py
+          - code: bookmarks/api/serializers.py
+          - code: bookmarks/tests/test_bookmarks_api.py
+          - code: bookmarks/tests/test_tags_api.py
+          - code: bookmarks/tests/test_bundles_api.py
       - name: Use the browser extensions
-        description: Firefox and Chrome extensions save the current page with tags, and show tags to be added.
+        description: >-
+          Firefox and Chrome extensions save the current page with tags (showing the tags auto tagging will add),
+          tell whether it is already bookmarked, and search bookmarks from the address bar.
         use_cases:
           - Save the current page from the extension
+          - Search bookmarks from the address bar
+        evidence:
+          - doc: docs/src/content/docs/browser-extension.md
+          - url: https://github.com/sissbruecker/linkding-extension
+          - code: bookmarks/api/routes.py
+          - code: bookmarks/tests/test_bookmarks_api.py
       - name: Install as an app
-        description: linkding can be installed as a Progressive Web App.
+        description: >-
+          linkding can be installed as a Progressive Web App with shortcuts, and then receives links from the
+          native share sheet of the phone.
         use_cases:
           - Install linkding as a PWA
+          - Share a link from another app to linkding
+        evidence:
+          - doc: docs/src/content/docs/how-to.md#Using the PWA (Progressive Web App) to save links using the native share sheet on Android
+          - code: bookmarks/views/manifest.py
 rules:
   - A search with several terms and no operator needs all of them to match (and is assumed).
   - "A tag is searched with a leading #, unless the lax tag search mode is on."
@@ -186,3 +390,9 @@ rules:
   - The landing page of the site is either the login page or the shared bookmarks page, and defaults to the login page.
   - A snapshot of a page is only taken when snapshots are enabled and background tasks are not disabled.
   - A bookmark URL must be a syntactically valid URL, unless URL validation is switched off.
+checked:
+  date: 2026-11-03
+  method: >-
+    Evidence cited per feature; a blind second draft from the code and the user docs, the disagreements settled from
+    the code; `disputed` marks the features one draft did not hold, the scope fixes are in the descriptions
+    (issues/benchmark_references_anchored_in_evidence.md).

@@ -76,7 +76,7 @@ features:
   - generated: Content Archiving
     reference: Archive a page as an HTML snapshot
   - generated: Web Metadata Enrichment
-    reference: Save a bookmark
+    reference: Automatic website metadata
   # Audited from the DeepSeek benchmark (3 runs per series): hidden-1 and shown-1. Where the judge's pair was wrong
   # and one reference feature clearly fits, that one is listed.
   - generated: Bookmark Creation and Management
@@ -114,11 +114,11 @@ features:
   - generated: Bookmark Snapshot Assets
     reference: Archive a page as an HTML snapshot
   - generated: Favicon and Preview Enrichment
-    reference: Save a bookmark
+    reference: Automatic website metadata
   - generated: Wayback Machine Archiving
     reference: Snapshot on the Internet Archive
   - generated: Web Metadata Extraction
-    reference: Save a bookmark
+    reference: Automatic website metadata
   - generated: Bookmark Mutations
     reference: Edit and delete bookmarks
   - generated: Bookmark Access Control
@@ -148,7 +148,7 @@ features:
   - generated: Import Bookmark File (Netscape)
     reference: Import and export bookmarks
   - generated: Bulk Edit Across Pages
-    reference: Edit and delete bookmarks
+    reference: Bulk edit bookmarks
   - generated: New Bookmark Form
     reference: Save a bookmark
   - generated: Edit Bookmark Form
@@ -166,7 +166,7 @@ features:
   - generated: Save and edit bookmarks
     reference: Save a bookmark
   - generated: Bulk edit bookmarks
-    reference: Edit and delete bookmarks
+    reference: Bulk edit bookmarks
   - generated: Archive bookmarks
     reference: Archive a bookmark
   - generated: Bookmark notes toggle
@@ -279,7 +279,7 @@ features:
   - generated: Archived bookmarks
     reference: Archive a bookmark
   - generated: Bulk bookmark actions
-    reference: Edit and delete bookmarks
+    reference: Bulk edit bookmarks
   - generated: Bookmark feeds
     reference: Follow bookmarks in a feed reader
   - generated: Snapshots and metadata refresh
@@ -315,8 +315,6 @@ features:
     reference: Archive a page as an HTML snapshot
   - generated: Bookmark snapshots and media
     reference: Snapshot on the Internet Archive
-  - generated: Bookmark snapshots and media
-    reference: Save a PDF
   - generated: Upload bookmark assets
     reference: Archive a page as an HTML snapshot
   - generated: View and read snapshots
@@ -327,6 +325,46 @@ features:
     reference: Configure a profile
   - generated: Admin site
     reference: Administer data
+  # Reference checked against its evidence (2026-11-03): metadata and bulk edit split off, file attachments added;
+  # the generated names of the kept runs that hold them.
+  - generated: Website Metadata and Asset Storage
+    reference: Automatic website metadata
+  - generated: Bulk Bookmark Actions
+    reference: Bulk edit bookmarks
+  - generated: Bookmark Metadata and Images
+    reference: Automatic website metadata
+  - generated: Bookmark Metadata and Previews
+    reference: Automatic website metadata
+  - generated: Bookmark metadata refresh
+    reference: Automatic website metadata
+  - generated: Favicons
+    reference: Automatic website metadata
+  - generated: Favicons and preview images
+    reference: Automatic website metadata
+  - generated: Favicons, previews and metadata refresh
+    reference: Automatic website metadata
+  - generated: Refresh bookmark metadata
+    reference: Automatic website metadata
+  - generated: Refresh metadata and load assets
+    reference: Automatic website metadata
+  - generated: Snapshots and metadata refresh
+    reference: Automatic website metadata
+  - generated: Snapshots, favicons and metadata refresh
+    reference: Automatic website metadata
+  - generated: Website metadata and auto-tagging
+    reference: Automatic website metadata
+  - generated: Upload bookmark assets
+    reference: Attach files to a bookmark
+  - generated: Bookmark asset management
+    reference: Attach files to a bookmark
+  - generated: Asset management
+    reference: Attach files to a bookmark
+  - generated: Bookmark asset API
+    reference: Attach files to a bookmark
+  - generated: Remove bookmark assets
+    reference: Attach files to a bookmark
+  - generated: Asset API
+    reference: Attach files to a bookmark
 rejected:
   domains:
     # it is the project's own docs site
@@ -384,9 +422,6 @@ rejected:
       reference: Administer data
     - generated: Instance and profile settings
       reference: Administer data
-    # assets of snapshots, not the download of a PDF link
-    - generated: Asset management
-      reference: Save a PDF
     # internal helpers, not a feature
     - generated: Bundle services
       reference: Group bookmarks in bundles
