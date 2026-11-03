@@ -129,8 +129,9 @@ The milestones up to "A large application, one bounded context at a time" are th
 
 - Goal: an application too large for one run documented in resumable, complementary runs, one bounded context at a
   time (`retrodoc contexts`, `domains_from = "contexts"`, ADR 0029, `docs/findings.md` §8).
-- Why: one run on a 1,676-file application stopped at 60 files; delivered and run on 8 of its 35 contexts, the quality
-  follow-ups and the contexts left are open.
+- Why: one run on a 1,676-file application stopped at 60 files; delivered and run on 8 of its 35 contexts. Running
+  the contexts left is use of the tool, not work on it; the spread of the map from run to run is in the milestone
+  "Measured quality at the current code".
 - State: done
 - Released: v0.3.0
 - Issues:
@@ -203,6 +204,52 @@ The milestones up to "A large application, one bounded context at a time" are th
   - [reconcile_excerpt_by_identifiers](issues/done/reconcile_excerpt_by_identifiers.md)
   - [render_removes_pages_of_renamed_items](issues/done/render_removes_pages_of_renamed_items.md)
 
+## Release and code hygiene
+
+- Goal: `retrodoc --version` gives the released version, and the measuring tools (benchmark, replays, `*_measure`
+  examples) live beside the pipeline instead of inside it.
+- Why: the audit of 2026-11-03 found the workspace still at `0.1.0` after the tag `v0.6.0`, and about 11k of the 44k
+  lines of `retrodoc-pipeline` are measuring tools.
+- State: in issues
+- Issues:
+  - [release_bumps_the_workspace_version](issues/release_bumps_the_workspace_version.md)
+  - [measure_tooling_out_of_the_pipeline_crate](issues/measure_tooling_out_of_the_pipeline_crate.md)
+
+## Measured quality at the current code
+
+- Goal: a benchmark baseline at the current code on the two benchmark applications, a judge whose feature precision
+  can be believed, references a human has read, a feature precision raised on applications, and a steadier map of
+  bounded contexts.
+- Why: the last whole benchmark predates the docs language, the narrative check and the new rules judgement
+  (2026-10-28); feature precision is the weakest figure (51% judged on Lobsters) and the judge overstates it by 12 to
+  33 points; three maps of the same large application gave 34, 40 and 44 contexts. The web milestones below show
+  these docs to readers: their quality comes first.
+- State: in issues
+- Issues:
+  - [benchmark_baseline_at_head](issues/benchmark_baseline_at_head.md)
+  - [benchmark_references_checked_by_a_human](issues/benchmark_references_checked_by_a_human.md)
+  - [judge_overstates_feature_precision](issues/judge_overstates_feature_precision.md)
+  - [feature_precision_on_applications](issues/feature_precision_on_applications.md)
+  - [context_map_spread_between_runs](issues/context_map_spread_between_runs.md)
+
+## A local model, measured
+
+- Goal: one complete benchmark run of an application on the local model, with its figures and duration next to the
+  hosted baseline, or the principle of `PRODUCT.md` that a small local model is a valid target amended.
+- Why: the only complete local attempt on linkding (2026-10-27) failed on the 120 s timeout; the loopback default is
+  900 s since, and no local run has been made again.
+- State: in issues
+- Issues:
+  - [complete_local_benchmark_run](issues/complete_local_benchmark_run.md)
+
+## Read by someone taking an application over
+
+- Goal: the generated docs of an application read by a person who takes it over (developer, product owner), with
+  what they found right, wrong, missing and useless, written as dated findings.
+- Why: the users of `PRODUCT.md` are assumed: only the author has read generated docs so far, and the benchmark
+  measures likeness to a reference, not use.
+- State: idea
+
 ## Explore the documentation debt and audit it
 
 - Goal: in the web interface, one filterable view of the debt (weak and unscored sections, unbacked narratives, set
@@ -247,6 +294,7 @@ The milestones up to "A large application, one bounded context at a time" are th
 - Goal: an internal `retrodoc ask` / `chat` agent answering from the generated docs, the collected docs, the git
   history and the code, with citations, confidence and freshness warnings (`docs/findings.md` §4, steps 2 to 4).
 - Why: the MCP server serves an external agent; a user without one has no way to question the docs.
-- State: in issues
+- State: idea
 - Issues:
-  - [search_relevance_threshold](issues/done/search_relevance_threshold.md)
+  - [search_relevance_threshold](issues/done/search_relevance_threshold.md) (the MCP server and the search, its
+    first form, are done)
