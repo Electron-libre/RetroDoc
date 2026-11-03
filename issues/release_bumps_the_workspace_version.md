@@ -53,6 +53,10 @@ until the version is bumped, so the release commit and its tag carry it.
    CHANGELOG section, the release step documented in `docs/dev/commands.md`; verified by the test (red at `0.1.0`,
    green at `0.6.0`) and `just check`; no spec (release hygiene, not a capability). (autonomous)
 
+2. [x] Fixes of the `high` review: the newest CHANGELOG heading is read whatever its form (only `Unreleased`
+   is skipped), so a `## [v0.7.0]` fails instead of falling back to `0.6.0`; verified by the test against a
+   temporarily edited CHANGELOG. (autonomous)
+
 ## Decisions
 - Mode: autonomous
 - Base commit: b5e73ed8e41f4049acdaa33eaeb986c5c0a4b6fe
@@ -67,3 +71,14 @@ until the version is bumped, so the release commit and its tag carry it.
 - Code review: no findings
 - not verified: nothing
 - decisions needed: none
+
+## Deliverable 2 summary (`high` review of b5e73ed..HEAD)
+- done: the test no longer skips a CHANGELOG heading that does not start with a digit.
+- red: none (no spec): with `## [v0.7.0]`, the old parser passed on `0.6.0`; now `right: "retrodoc v0.7.0"`.
+- Code review (high): 8 findings. Fixed: the skipped `v`-prefixed heading. Not fixed: the tag is not checked by the
+  test itself (Cardinal's `release --tag` runs no test; only the review of the release commit runs `just check`;
+  needs the upstream hook of option b); builds after a release report it (strict equality, no `-dev` versions, by
+  design); the tag `v0.6.0` itself still builds `0.1.0` (tags are not rewritten); `env!("CARGO_PKG_VERSION")`
+  instead of the binary (the binary is the end-to-end check); `include_str!` outside the crate (the crates are not
+  packaged); no spec (decided at validation); issue still open (closed on the user's agreement).
+- Code review (low): no findings

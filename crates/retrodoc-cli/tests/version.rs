@@ -11,7 +11,7 @@ fn the_version_is_the_one_of_the_latest_changelog_section() {
         .lines()
         .filter_map(|line| line.strip_prefix("## ["))
         .filter_map(|rest| rest.split_once(']').map(|(version, _)| version))
-        .find(|version| version.starts_with(|c: char| c.is_ascii_digit()))
+        .find(|version| !version.eq_ignore_ascii_case("unreleased"))
         .expect("CHANGELOG.md has a `## [x.y.z]` section");
     let out = Command::new(env!("CARGO_BIN_EXE_retrodoc"))
         .arg("--version")
