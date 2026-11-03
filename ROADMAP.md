@@ -214,7 +214,7 @@ The milestones up to "A large application, one bounded context at a time" are th
 - Issues:
   - [release_bumps_the_workspace_version](issues/done/release_bumps_the_workspace_version.md)
   - [measure_tooling_out_of_the_pipeline_crate](issues/done/measure_tooling_out_of_the_pipeline_crate.md)
-  - [delete_one_off_measuring_examples](issues/delete_one_off_measuring_examples.md)
+  - [delete_one_off_measuring_examples](issues/done/delete_one_off_measuring_examples.md)
   - [delete_confidence_and_baseline_examples](issues/delete_confidence_and_baseline_examples.md)
 
 ## Measured quality at the current code

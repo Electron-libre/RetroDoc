@@ -29,7 +29,7 @@ mention of them, their figures staying in the closed issues and the ledger of me
 Release and code hygiene
 
 # Resources
-* `issues/delete_one_off_measuring_examples.md` (the pick and how the other deletions were done).
+* `issues/done/delete_one_off_measuring_examples.md` (the pick and how the other deletions were done).
 * `docs/dev/commands.md`, `docs/crates/bench.md`, ADR 0026, ADR 0042.
 
 # Hints
