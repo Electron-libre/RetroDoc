@@ -58,8 +58,8 @@ their lines in `docs/dev/commands.md`, `docs/crates/pipeline.md` and the doc com
    grep for `-p retrodoc-pipeline --example` (~10 lines). (autonomous)
 2. [x] Entry points and contexts: delete `context_map_measure`, `route_owner_measure`, `routing_duplicates_measure`,
    `public_api_reach_measure`, `orphan_placement_measure`; verified by `just check` (~760 lines). (autonomous)
-3. [ ] Use cases: delete `technical_usecases_measure`, `form_pairs_measure`, `use_cases_answer_size_measure`;
-   verified by `just check` (~970 lines).
+3. [x] Use cases: delete `technical_usecases_measure`, `form_pairs_measure`, `use_cases_answer_size_measure`;
+   verified by `just check` (~970 lines). (autonomous)
 4. [ ] Rules and code reading: delete `rules_answer_size_measure`, `rules_noise_measure`, `code_read_overlap`,
    `read_overlap`, `features_by_domain_measure`; verified by `just check` (~980 lines).
 
@@ -87,5 +87,12 @@ it leaves them dead).
 - done: the five examples deleted with their `[[example]]` entries and `docs/dev/commands.md` lines;
   `docs/crates/pipeline.md` and ADR 0029 point to the closed issue holding the figures instead.
 - checks: `just check` passed; `deliverable-size` 755 lines; no mention left outside closed issues and this one.
+- red: none (deletions, no test).
+- Code review: no findings
+
+### Deliverable 3
+- done: the three examples deleted with the `[[example]]` entry of `use_cases_answer_size_measure` and their
+  `docs/dev/commands.md` lines; no other document named them.
+- checks: `just check` passed; `deliverable-size` 954 lines.
 - red: none (deletions, no test).
 - Code review: no findings
