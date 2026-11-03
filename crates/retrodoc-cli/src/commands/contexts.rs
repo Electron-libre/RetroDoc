@@ -24,7 +24,9 @@ pub async fn run(path: &Path, force: bool, tracker: &UsageTracker) -> anyhow::Re
         RoleRules::load(repo_root).context("no file roles saved — run `retrodoc roles` first")?;
     rules.promote_sources(&mut ingest.files);
     let role_map = rules.classify(&ingest.files);
-    let sources: Vec<_> = source_paths(&ingest).map(Path::to_path_buf).collect();
+    let all_sources: Vec<_> = source_paths(&ingest).map(Path::to_path_buf).collect();
+    // The technical files are support before the call.
+    let sources = retrodoc_pipeline::mapped_sources(&all_sources, &role_map);
     let known: BTreeSet<&Path> = sources.iter().map(PathBuf::as_path).collect();
     let seeds: Vec<PathBuf> = role_map
         .files_with(FileRole::EntryPoint)
@@ -57,7 +59,12 @@ pub async fn run(path: &Path, force: bool, tracker: &UsageTracker) -> anyhow::Re
         );
     }
 
-    let resolved = map.resolve(&sources, &seeds);
+    let mut resolved = map.resolve(&sources, &seeds);
+    let mapped: BTreeSet<&PathBuf> = sources.iter().collect();
+    resolved
+        .support
+        .extend(all_sources.iter().filter(|f| !mapped.contains(f)).cloned());
+    resolved.support.sort();
     println!("\nContexts, as saved (editable):");
     for context in &resolved.contexts {
         println!(

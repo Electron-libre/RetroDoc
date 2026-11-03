@@ -70,8 +70,8 @@ pub use business_files::{infer_business_files, BusinessEntry, BusinessMap};
 pub use business_read::read_business_files;
 pub use confidence::score_confidence;
 pub use contexts::{
-    build_context_map, domain_vocabulary, domains_from_contexts, mark_done, plan_run,
-    BoundedContext, ContextMap, Resolved, ResolvedContext, RunSlice,
+    build_context_map, domain_vocabulary, domains_from_contexts, mapped_sources, mark_done,
+    plan_run, BoundedContext, ContextMap, Resolved, ResolvedContext, RunSlice,
 };
 pub use diagrams::{attach_diagrams, sequence_diagram};
 pub use domains::{build_domains_from_surface, DomainCluster, DomainMap};

@@ -26,6 +26,7 @@ const DEFAULT_RUN_FILES: usize = 150;
 /// The repository, as the passes of a run see it.
 struct Repo<'a> {
     ingest: &'a IngestResult,
+    /// The sources of the map: the technical files left out.
     sources: &'a [PathBuf],
     seeds: &'a [PathBuf],
     role_map: &'a RoleMap,
@@ -50,7 +51,13 @@ pub(super) async fn run(
     else {
         anyhow::bail!("no file role could be identified, and the contexts are built from them");
     };
-    let sources: Vec<PathBuf> = source_paths(&ingest).map(Path::to_path_buf).collect();
+    // The technical files are in no context (`specs/context-map.md`, CTX-2).
+    let sources = retrodoc_pipeline::mapped_sources(
+        &source_paths(&ingest)
+            .map(Path::to_path_buf)
+            .collect::<Vec<_>>(),
+        &role_map,
+    );
     let seeds = entry_point_files(&role_map, &sources);
 
     // Not forced: the map is hand-editable, `retrodoc contexts --force` asks again.
@@ -345,11 +352,8 @@ async fn read_slice(
         )
         .await
         .context("failed to build the entry points inventory")?;
-    let entry_points = super::application_entry_points(
-        entry_points,
-        repo_root,
-        repo.sources.iter().map(PathBuf::as_path),
-    );
+    let entry_points =
+        super::application_entry_points(entry_points, repo_root, source_paths(repo.ingest));
     Ok((glossary, entry_points))
 }
 

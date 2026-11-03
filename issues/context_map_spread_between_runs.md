@@ -58,8 +58,8 @@ Measure of step 1 (no LLM, the 3 saved maps, `scratch/contexts_residual/spread_b
 ## Plan
 1. [x] Temperature 0 for `contexts`: measure 3 maps with `[llm.passes.contexts] temperature = 0` (~$0.05), then add
    `contexts` to the passes at temperature 0 if the spread drops; verified by a test on the request sent; makes true CTX-1. (autonomous)
-2. [ ] Technical files to the support before the call (roles `infra`, `config`); verified by a test with a fake LLM
-   on the listing and the map; makes true CTX-2.
+2. [x] Technical files to the support before the call (roles `infra`, `config`); verified by a test with a fake LLM
+   on the listing and the map; makes true CTX-2. (autonomous)
 3. [ ] `--force` keeps the slug and name of a saved context its files mostly match, so its done mark carries over;
    verified by tests with a fake LLM (match, split, done kept); makes true CTX-3.
 4. [ ] One-file contexts merged into the context of their folder, else the support; verified by a test; makes true CTX-4.
@@ -95,5 +95,25 @@ red: CTX-1: `left: None, right: Some(0.0)`
 Code review: no findings
 
 not verified: the request body sent at 0 (the config test proves the pass setting the provider reads).
+
+decisions needed: none
+
+## Deliverable 2
+done: `mapped_sources` leaves the `infra` and `config` files out of the map (`contexts` and `generate`); `contexts`
+lists them in the support. A context documented before loses its technical files, so it is pending once.
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | pass |
+| specs | pass, CTX draft |
+| docs | `docs/crates/pipeline.md`, ADR 0029, module doc |
+| code review | see below |
+
+red: CTX-2: the prompt still listed `db/migrate/ | 1` (the stub kept every source)
+
+Code review: no findings
+
+not verified: the effect on a real map (measured at deliverable 5).
 
 decisions needed: none

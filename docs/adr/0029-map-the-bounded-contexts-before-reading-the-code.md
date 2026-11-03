@@ -78,3 +78,7 @@ to it by name. The map is for the `surface` path; the `files` path is unchanged.
   large application it is the first part of a second-level split, which also keeps the folders the answer
   forgot; it is accepted above the limit rather than split a third time, the next maps cutting it under the
   limit (`issues/done/contexts_residual_size_and_names.md`).
+* The files of roles `infra` and `config` are left out of the map before the call (`specs/context-map.md`):
+  three maps of the same roles put the migrations and initializers in the support once, then in business
+  contexts twice (`issues/context_map_spread_between_runs.md`). A context documented before holds fewer files
+  then, so its hash changes and it is pending once again.

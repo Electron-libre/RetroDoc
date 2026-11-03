@@ -329,6 +329,60 @@ async fn the_prompt_lists_the_groups_with_ids_and_the_folders_of_the_orphans() {
     assert!(prompt.contains("db/migrate/ | 1"), "{prompt}");
 }
 
+// spec: CTX-2 (internal: the CLI test of the map would need an LLM server; `contexts` and `generate` both map `mapped_sources`)
+#[tokio::test]
+async fn the_technical_files_are_set_aside_before_the_call() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut all = sources();
+    all.extend(paths(&[
+        "app/models/schema_migration.rb",
+        "app/models/widget.rb",
+    ]));
+    let mut roles = crate::roles::RoleMap::default();
+    for file in &all {
+        let technical = file.starts_with("db/") || file.ends_with("schema_migration.rb");
+        let role = if technical {
+            crate::roles::FileRole::Infra
+        } else {
+            crate::roles::FileRole::Model
+        };
+        roles.roles.insert(file.clone(), role);
+    }
+    let llm = FakeLlm::answering(
+        r#"{"contexts":[{"slug":"contracts","name":"Contracts","description":"d",
+            "groups":["g1","g2"],"folders":["app/models/","db/migrate/"]}],"support":{"groups":["g3"]}}"#,
+    );
+
+    let mapped = mapped_sources(&all, &roles);
+    let map = build_context_map(
+        dir.path(),
+        &mapped,
+        &seeds(),
+        &ProductBrief::default(),
+        &llm,
+        false,
+    )
+    .await
+    .unwrap();
+
+    let prompt = &llm.prompts()[0];
+    assert!(!prompt.contains("db/migrate/"), "{prompt}");
+    assert!(!prompt.contains("schema_migration"), "{prompt}");
+    assert!(prompt.contains("app/models/ | 1 | widget.rb"), "{prompt}");
+    let resolved = map.resolve(&mapped, &seeds());
+    let in_contexts: Vec<&PathBuf> = resolved.contexts.iter().flat_map(|c| &c.files).collect();
+    assert!(in_contexts.contains(&&PathBuf::from("app/models/widget.rb")));
+    for technical in [
+        "db/migrate/20240101_create_things.rb",
+        "app/models/schema_migration.rb",
+    ] {
+        assert!(
+            !in_contexts.contains(&&PathBuf::from(technical)),
+            "{technical}"
+        );
+    }
+}
+
 #[tokio::test]
 async fn a_layer_folder_with_many_orphans_is_listed_by_sub_folder() {
     let dir = tempfile::tempdir().unwrap();

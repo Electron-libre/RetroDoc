@@ -1,7 +1,8 @@
 //! The map of the bounded contexts (`issues/done/business_files_cap_on_large_application.md`): the
 //! vertical slices a large application is documented in, one run at a time.
 //!
-//! It is built before any code is read, in two steps. The mechanical groups ([`groups`]) put the
+//! It is built before any code is read, over the source files but the technical ones
+//! ([`mapped_sources`]), in two steps. The mechanical groups ([`groups`]) put the
 //! source files around the names of the entry point files, with no LLM call. One call then reads
 //! those groups (name, size, a sample of files) and the folders no group reached, framed by the
 //! product brief, and merges the groups that serve one business concept into a context, sets the
@@ -30,6 +31,7 @@ use crate::error::PipelineError;
 use crate::features::{slugify, unique_slug};
 use crate::naming::normalize;
 use crate::response::complete_json;
+use crate::roles::{FileRole, RoleMap};
 
 mod domains;
 mod groups;
@@ -243,6 +245,23 @@ impl ContextMap {
         out.support.sort();
         out
     }
+}
+
+/// The `sources` a map is made of and resolved over: all but the technical files (roles `infra` and
+/// `config`), which are support before any call, so the map never gives a migration or an
+/// initializer to a business context (`specs/context-map.md`, CTX-2).
+#[must_use]
+pub fn mapped_sources(sources: &[PathBuf], roles: &RoleMap) -> Vec<PathBuf> {
+    sources
+        .iter()
+        .filter(|file| {
+            !matches!(
+                roles.roles.get(*file),
+                Some(FileRole::Infra | FileRole::Config)
+            )
+        })
+        .cloned()
+        .collect()
 }
 
 struct ListedGroup {
