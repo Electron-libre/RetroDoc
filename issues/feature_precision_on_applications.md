@@ -69,8 +69,9 @@ the references (`benchmark_references_checked_by_a_human`).
    and the report with a fake LLM; makes true TEF-1 to TEF-7. (autonomous)
 4. [x] Replays of candidate T: x3 on both applications against step 2 (judged and hand precision, recall, set aside
    features read by hand for real features lost); verified by a ledger line. (autonomous)
-5. [ ] Candidate M, only if the too fine ones stay above a fifth of the unmatched after step 4: prompt rule that the
+5. [x] Candidate M, only if the too fine ones stay above a fifth of the unmatched after step 4: prompt rule that the
    notifications, settings pages and API of a capability go in its feature; replays x3 both applications.
+   (autonomous; measured, not kept)
 6. [ ] Whole benchmark of the pick (hidden series, 3 runs, both applications), record in `docs/findings.md`, "Latest figures" of
    `PRODUCT.md`, the ledger.
 
@@ -160,3 +161,22 @@ Code review: no findings
 red: none (a prompt refinement measured by the replays; the pinned print test covers the request)
 
 Code review: no findings
+
+## Deliverable 5: candidate M
+- done: replays x3 on both applications of T2 plus the rule "keep a capability whole: its notifications, settings, API
+  endpoints and variants go in its feature" (`feature_precision_on_applications-m/`, about $0.1); not kept, the rule
+  reverted, nothing committed but this tracking.
+
+| | T2 | M |
+|---|---|---|
+| linkding features | 39 (39-40) | 36 (36-37) |
+| linkding recall / precision, judge | 93% / 53% (51-55) | 97% / 54% (51-58) |
+| Lobsters features | 65 (64-67) | 68 (66-70) |
+| Lobsters recall / precision, judge | 91% / 47% (44-51) | 96% / 51% (48-58) |
+| Lobsters set aside per run | 15-17 | 12-19 |
+
+- Why not kept: inside the ranges of T2; the too fine ones it aimed at stay (linkding: favicons, web archive
+  fallback, token, profile API, custom CSS; Lobsters: avatars, linked accounts, hats, message notifications), and it
+  sets aside fewer technical ones. Lobsters run 3 again lost 14 entry points held by no feature (as T2 run 1).
+- Left: on linkding, backups, health check, deployment commands and admin provisioning stay features under T2: the
+  rule "a back-office tool is not technical" keeps the operators' commands in.
