@@ -2,7 +2,7 @@
 //! (`issues/done/benchmark_passes_on_fixed_inputs.md`).
 //!
 //! Usage:
-//! `DEEPSEEK_API_KEY=x cargo run -q -p retrodoc-pipeline --example pass_replay -- <domains|features|use-cases|rules> <frozen dir> <benchmark dir> <model> [runs] [--freeze-first] [--brief off|head] [--evidence on|off]`
+//! `DEEPSEEK_API_KEY=x cargo run -q -p retrodoc-bench --example pass_replay -- <domains|features|use-cases|rules> <frozen dir> <benchmark dir> <model> [runs] [--freeze-first] [--brief off|head] [--evidence on|off]`
 //!
 //! - `pass`: `domains` (the clustering of the surface), `features` (on the frozen domains), `use-cases` (on
 //!   the frozen features) or `rules` (on the frozen features and use cases). The last two read the code, of

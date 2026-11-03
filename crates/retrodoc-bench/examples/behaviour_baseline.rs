@@ -2,7 +2,7 @@
 //! (`issues/done/behaviour_coverage_domains.md`, step 1): how many source files a behaviour reaches, and what the
 //! last `generate` cost per pass.
 //!
-//! Usage: `cargo run -q -p retrodoc-pipeline --example behaviour_baseline -- <run dir>...`
+//! Usage: `cargo run -q -p retrodoc-bench --example behaviour_baseline -- <run dir>...`
 //!
 //! A run dir is a checkout of the repository with its `.retrodoc/cache/` (the `entry-points.yaml`,
 //! `glossary.yaml`, `roles.yaml` and `usage.json` of a `generate`). A file is *reached* when it holds an

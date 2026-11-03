@@ -3,7 +3,7 @@
 //! with the lexical follow for what they do not resolve (what the use cases pass would use), and the parsed calls
 //! alone (what the parser sees).
 //!
-//! Usage: `cargo run -q -p retrodoc-pipeline --example parsed_slices -- [--detail] <run dir>...`
+//! Usage: `cargo run -q -p retrodoc-bench --example parsed_slices -- [--detail] <run dir>...`
 //!
 //! A run dir is a checkout of the repository with its `.retrodoc/cache/entry-points.yaml`. The slice of an
 //! entry-point file is cut with the depth and budget of the use cases pass (depth 2, 8 files), from that file

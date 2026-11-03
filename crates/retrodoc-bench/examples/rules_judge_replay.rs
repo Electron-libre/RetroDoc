@@ -3,7 +3,7 @@
 //! the judgement of the run, with the statements fixed.
 //!
 //! Usage:
-//! `DEEPSEEK_API_KEY=x cargo run -q -p retrodoc-pipeline --example rules_judge_replay -- <model> [runs] [--prompt <file>] [--labels <dir>] [--keep <dir>] [--neighbours] <run dir>...`
+//! `DEEPSEEK_API_KEY=x cargo run -q -p retrodoc-bench --example rules_judge_replay -- <model> [runs] [--prompt <file>] [--labels <dir>] [--keep <dir>] [--neighbours] <run dir>...`
 //!
 //! - `model`: a `DeepSeek` model, e.g. `deepseek-chat`; temperature 0, as the rules pass. `runs`: default 3.
 //! - `--prompt <file>`: the system prompt of the judgement (default: the pass's own).

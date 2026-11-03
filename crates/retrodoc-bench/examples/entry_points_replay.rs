@@ -2,7 +2,7 @@
 //! and actors, with no LLM call (`issues/done/business_files_for_entry_points_and_actors.md`).
 //!
 //! Usage:
-//! `cargo run -q -p retrodoc-pipeline --example entry_points_replay -- <reference.yaml> <tree> <dir>...`
+//! `cargo run -q -p retrodoc-bench --example entry_points_replay -- <reference.yaml> <tree> <dir>...`
 //!
 //! - `reference.yaml`: `benchmark/<repo>/entry-points.yaml`.
 //! - `tree`: a checkout of the repository at the commit of the benchmark (the files the rules are applied to).

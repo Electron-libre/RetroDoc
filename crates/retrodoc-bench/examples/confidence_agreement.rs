@@ -1,7 +1,7 @@
 //! Compares the mechanical checks of the confidence pass with the scores a model gave, on saved runs and
 //! with no LLM call (`issues/done/deterministic_confidence_checks.md`, step 3).
 //!
-//! Usage: `cargo run -q -p retrodoc-pipeline --example confidence_agreement -- <run dir>...`
+//! Usage: `cargo run -q -p retrodoc-bench --example confidence_agreement -- <run dir>...`
 //!
 //! A run dir is a checkout of the repository with its `.retrodoc/cache/` from a `generate` made before the
 //! checks existed (or with `--confidence-sample` covering every use case), so the saved `use-cases.yaml`

@@ -9,7 +9,7 @@
 //! - `readout (tournament)`: the same over every feature, in groups of 12 then a final between the winners.
 //!
 //! Usage:
-//! `OPENROUTER_API_KEY=x cargo run -q -p retrodoc-pipeline --example placement_replay -- <model> <base url> <run dir> <sample.yaml>`
+//! `OPENROUTER_API_KEY=x cargo run -q -p retrodoc-bench --example placement_replay -- <model> <base url> <run dir> <sample.yaml>`
 //!
 //! - `base url`: an OpenAI-compatible server that returns logprobs, without the `/v1/chat/completions` path.
 //! - `run dir`: a saved run with its `.retrodoc/cache` (`features.yaml`, `entry-points.yaml`).

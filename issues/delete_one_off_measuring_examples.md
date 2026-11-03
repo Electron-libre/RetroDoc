@@ -54,8 +54,8 @@ their lines in `docs/dev/commands.md`, `docs/crates/pipeline.md` and the doc com
 0026, 0028, 0029 that the example is gone); fix the usage line of the kept ones. No change to the pipeline's code.
 
 ## Plan
-1. [ ] Usage lines: the `//!` usage line of the kept examples says `-p retrodoc-bench`; verified by `just check` and a
-   grep for `-p retrodoc-pipeline --example` (~10 lines).
+1. [x] Usage lines: the `//!` usage line of the kept examples says `-p retrodoc-bench`; verified by `just check` and a
+   grep for `-p retrodoc-pipeline --example` (~10 lines). (autonomous)
 2. [ ] Entry points and contexts: delete `context_map_measure`, `route_owner_measure`, `routing_duplicates_measure`,
    `public_api_reach_measure`, `orphan_placement_measure`; verified by `just check` (~760 lines).
 3. [ ] Use cases: delete `technical_usecases_measure`, `form_pairs_measure`, `use_cases_answer_size_measure`;
@@ -73,3 +73,12 @@ it leaves them dead).
 - Pick: the 16 candidates but `parsed_slices` (answer 1 a).
 - Size: the pick is ~3,230 lines; `narrative_check_measure`, `confidence_agreement` and `behaviour_baseline` go to
   the follow-up issue `delete_confidence_and_baseline_examples` (answer 2 a).
+
+## Summaries
+
+### Deliverable 1
+- done: the usage line of the six kept examples and of the three of `delete_confidence_and_baseline_examples` names
+  `-p retrodoc-bench`; the examples deleted by the next deliverables are left as they are.
+- checks: `just check` passed; the grep finds `-p retrodoc-pipeline --example` only in the examples still to delete.
+- red: none (doc comments only, no test).
+- Code review: no findings
