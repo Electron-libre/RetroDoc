@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 
 use regex::RegexBuilder;
-use retrodoc_pipeline::benchmark::{matching::score, Matches, Reference};
+use retrodoc_bench::benchmark::{matching::score, Matches, Reference};
 use serde::Deserialize;
 
 /// The fields of `entry-points.yaml` that `examples/entry_points_replay.rs` reads.

@@ -19,10 +19,10 @@ use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
+use retrodoc_bench::benchmark::{parse_labels, replay_judgement, score_labels, LabelScore};
 use retrodoc_core::config::LlmConfig;
 use retrodoc_core::model::BusinessRule;
 use retrodoc_llm::{OpenRouterProvider, UsageProvider, UsageTracker};
-use retrodoc_pipeline::benchmark::{parse_labels, replay_judgement, score_labels, LabelScore};
 use retrodoc_pipeline::rules::{JUDGE_SYSTEM_PROMPT, NOISE};
 use retrodoc_pipeline::{load_features, Artifact};
 use serde_json::json;

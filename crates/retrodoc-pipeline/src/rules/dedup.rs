@@ -53,7 +53,8 @@ fn jaccard(a: &BTreeSet<String>, b: &BTreeSet<String>) -> f64 {
 }
 
 /// The cited ranges of code: path, first and last line (a missing line stands for the whole file).
-pub(crate) fn code(rule: &BusinessRule) -> Vec<(&str, u32, u32)> {
+#[must_use]
+pub fn code(rule: &BusinessRule) -> Vec<(&str, u32, u32)> {
     rule.evidence
         .iter()
         .filter_map(|e| match e {

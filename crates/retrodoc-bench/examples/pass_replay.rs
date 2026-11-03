@@ -26,13 +26,13 @@
 
 use std::path::{Path, PathBuf};
 
-use retrodoc_core::config::{LlmConfig, ZERO_TEMPERATURE_PASSES};
-use retrodoc_llm::{OpenRouterProvider, UsageProvider, UsageTracker};
-use retrodoc_pipeline::benchmark::{
+use retrodoc_bench::benchmark::{
     replay_domains, replay_features, replay_rules, replay_table, replay_use_cases, rule_table,
     tree_evidence, use_case_table, Frame, FrozenInputs, Judgement, Matches, Reference, RunFigures,
     Scoring,
 };
+use retrodoc_core::config::{LlmConfig, ZERO_TEMPERATURE_PASSES};
+use retrodoc_llm::{OpenRouterProvider, UsageProvider, UsageTracker};
 use retrodoc_pipeline::Artifact;
 use serde_json::json;
 

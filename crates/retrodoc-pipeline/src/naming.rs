@@ -4,7 +4,7 @@
 /// `ContractSigner`, `contract_signer`, `contract-signers` → `contractsigner`:
 /// lowercase, no separator, no plural `s` (kept on very short names, where it
 /// is more often part of the word: `bus`).
-pub(crate) fn normalize(name: &str) -> String {
+pub fn normalize(name: &str) -> String {
     let lower: String = name
         .chars()
         .filter(|c| c.is_alphanumeric())

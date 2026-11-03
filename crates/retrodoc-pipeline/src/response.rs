@@ -151,7 +151,7 @@ fn make_strict(value: &mut serde_json::Value) {
 /// # Errors
 ///
 /// Returns an error only if the LLM call itself fails.
-pub(crate) async fn complete_json<T: DeserializeOwned + JsonSchema>(
+pub async fn complete_json<T: DeserializeOwned + JsonSchema>(
     llm: &dyn LlmProvider,
     system_prompt: &str,
     user_prompt: &str,

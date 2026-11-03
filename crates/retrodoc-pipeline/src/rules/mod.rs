@@ -45,8 +45,50 @@ mod split;
 #[cfg(test)]
 mod tests;
 
+/// What the replays of `retrodoc-bench` reach of the pass (ADR 0042), out of the default build.
+#[cfg(feature = "bench")]
+#[doc(hidden)]
+pub mod bench {
+    use super::{keep_judged, BusinessRule, LlmProvider, PipelineError, JUDGEMENT};
+
+    pub use super::dedup::code as cited_code;
+    pub use super::judge::judge_prompt;
+
+    /// The rules kept and those dropped with their class.
+    pub type Judged = super::Judged;
+
+    /// The judgement of `rules` (those of the feature `slug`) asked with `system` and `user`: the pass's
+    /// prompts, or a variant a replay measures.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the LLM call fails.
+    pub async fn judge_rules_with(
+        llm: &dyn LlmProvider,
+        system: &str,
+        user: &str,
+        slug: &str,
+        rules: &[BusinessRule],
+    ) -> Result<Option<Judged>, PipelineError> {
+        Ok(JUDGEMENT
+            .ask_with_system(
+                llm,
+                system,
+                user,
+                &format!("judgement of the rules of {slug}"),
+            )
+            .await?
+            .map(|verdict| keep_judged(rules.to_vec(), &verdict)))
+    }
+
+    /// [`super::kept`], for the replay of the judgement.
+    #[must_use]
+    pub fn kept(previous: &[BusinessRule], slug: &str) -> Vec<BusinessRule> {
+        super::kept(previous, slug)
+    }
+}
+
 pub use self::aside::{AsideFeature, AsideRule, SetAside};
-pub(crate) use self::dedup::code as cited_code;
 use self::dedup::{merge_duplicates, Reach};
 pub use self::input::RuleInput;
 pub(crate) use self::judge::judge_prompt;
@@ -392,30 +434,6 @@ async fn judge_rules(
 
 /// The rules kept and those dropped with their class.
 pub(crate) type Judged = (Vec<BusinessRule>, Vec<(BusinessRule, String)>);
-
-/// The judgement of `rules` (those of the feature `slug`) asked with `system` and `user`: the pass's
-/// prompts, or a variant a replay measures.
-///
-/// # Errors
-///
-/// Returns an error if the LLM call fails.
-pub(crate) async fn judge_rules_with(
-    llm: &dyn LlmProvider,
-    system: &str,
-    user: &str,
-    slug: &str,
-    rules: &[BusinessRule],
-) -> Result<Option<Judged>, PipelineError> {
-    Ok(JUDGEMENT
-        .ask_with_system(
-            llm,
-            system,
-            user,
-            &format!("judgement of the rules of {slug}"),
-        )
-        .await?
-        .map(|verdict| keep_judged(rules.to_vec(), &verdict)))
-}
 
 /// Warns about each slug of `keep_features` that names none of `features`.
 fn warn_unknown_features(keep_features: &[String], features: &[Feature]) {

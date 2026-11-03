@@ -12,6 +12,7 @@ name = "retrodoc"
 path = "src/main.rs"
 
 [dependencies]
+retrodoc-bench.workspace = true
 retrodoc-core.workspace = true
 retrodoc-ingest.workspace = true
 retrodoc-llm.workspace = true

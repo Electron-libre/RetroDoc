@@ -15,7 +15,6 @@ pub mod actors;
 mod artifact;
 mod batched_read;
 pub mod behaviour_coverage;
-pub mod benchmark;
 pub mod bm25;
 pub mod brief;
 pub mod business_files;
@@ -48,8 +47,12 @@ pub mod slices;
 pub mod source_hashes;
 pub mod sources;
 pub mod surface;
-#[cfg(test)]
-mod testing;
+// Test support, also given to the tests of `retrodoc-bench` (feature `testing`, ADR 0042).
+#[cfg(any(test, feature = "testing"))]
+#[doc(hidden)]
+#[allow(clippy::must_use_candidate, clippy::return_self_not_must_use)]
+#[cfg_attr(not(test), allow(dead_code))]
+pub mod testing;
 mod text;
 pub mod usage_log;
 pub mod use_cases;
@@ -94,3 +97,32 @@ pub use surface::{Resource, Surface};
 pub use use_cases::{build_use_cases, load_use_cases, save_use_cases, UseCaseContext};
 pub use vocabulary::{score_business_language, score_unscored_business_language};
 pub use walked::WalkedFiles;
+
+/// The items of the passes the replays of `retrodoc-bench` reach (ADR 0042), out of the default build.
+#[cfg(feature = "bench")]
+#[doc(hidden)]
+pub mod bench_support {
+    pub mod artifact {
+        pub use crate::artifact::{load_yaml, save_yaml, Artifact, Retention};
+    }
+    pub mod naming {
+        pub use crate::naming::normalize;
+    }
+    pub mod progress {
+        pub use crate::progress::format_duration;
+    }
+    pub mod response {
+        pub use crate::response::complete_json;
+    }
+    pub mod rules {
+        pub use crate::rules::bench::{cited_code, judge_prompt, judge_rules_with, kept};
+        pub use crate::rules::{build_rules, JUDGE_SYSTEM_PROMPT};
+    }
+    pub mod text {
+        pub use crate::text::truncate_chars;
+        pub use retrodoc_core::text::one_line;
+    }
+    pub mod walked {
+        pub use crate::walked::WalkedFiles;
+    }
+}

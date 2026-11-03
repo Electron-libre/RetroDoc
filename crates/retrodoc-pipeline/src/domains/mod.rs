@@ -25,7 +25,7 @@ use self::prompt::layer_named_domains;
 
 pub use self::from_surface::build_domains_from_surface;
 
-pub(crate) const UNCATEGORIZED_SLUG: &str = "uncategorized";
+pub const UNCATEGORIZED_SLUG: &str = "uncategorized";
 
 /// Intermediate artifact (docs/ARCHITECTURE.md §4 step 3): the business domains of the application, each with the
 /// resources, entities and files it holds.

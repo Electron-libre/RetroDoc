@@ -1404,6 +1404,7 @@ name = "retrodoc-bench"
 version = "0.6.0"
 dependencies = [
  "async-trait",
+ "futures-util",
  "git2",
  "regex",
  "reqwest",
@@ -1411,11 +1412,13 @@ dependencies = [
  "retrodoc-ingest",
  "retrodoc-llm",
  "retrodoc-pipeline",
+ "schemars",
  "serde",
  "serde_json",
  "serde_yaml",
  "tempfile",
  "tokio",
+ "tracing",
  "tracing-subscriber",
 ]
 
@@ -1428,6 +1431,7 @@ dependencies = [
  "chrono",
  "clap",
  "dotenvy",
+ "retrodoc-bench",
  "retrodoc-core",
  "retrodoc-ingest",
  "retrodoc-llm",
@@ -1526,7 +1530,6 @@ version = "0.6.0"
 dependencies = [
  "async-trait",
  "futures-util",
- "git2",
  "globset",
  "regex",
  "retrodoc-core",

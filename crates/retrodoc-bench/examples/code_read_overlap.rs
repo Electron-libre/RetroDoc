@@ -30,12 +30,10 @@ use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
+use retrodoc_bench::benchmark::{replay_rules, replay_use_cases, Frame, FrozenInputs, Reference};
 use retrodoc_core::model::{Feature, UseCase};
 use retrodoc_llm::{
     CompletionRequest, CompletionResponse, LlmError, LlmProvider, Role, UsageTracker,
-};
-use retrodoc_pipeline::benchmark::{
-    replay_rules, replay_use_cases, Frame, FrozenInputs, Reference,
 };
 use std::sync::Mutex;
 

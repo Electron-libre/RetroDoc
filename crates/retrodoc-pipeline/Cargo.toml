@@ -22,10 +22,18 @@ regex.workspace = true
 schemars.workspace = true
 futures-util.workspace = true
 async-trait.workspace = true
+tempfile = { version = "3", optional = true }
+tracing-subscriber = { workspace = true, optional = true }
+tokio = { version = "1", features = ["time", "macros", "rt"], optional = true }
+
+[features]
+# The items of the passes the replays of `retrodoc-bench` reach (ADR 0042).
+bench = []
+# The fake LLM and the log capture of the unit tests, for the tests of `retrodoc-bench`.
+testing = ["dep:tempfile", "dep:tokio", "dep:tracing-subscriber"]
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 tempfile = "3"
-git2.workspace = true
 tracing-subscriber.workspace = true
 

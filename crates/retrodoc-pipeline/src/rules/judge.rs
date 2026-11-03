@@ -110,7 +110,8 @@ struct RawClass {
 }
 
 /// The prompt: the feature and its numbered rules, with their kind and what backs them.
-pub(crate) fn judge_prompt(feature: &Feature, rules: &[BusinessRule]) -> String {
+#[must_use]
+pub fn judge_prompt(feature: &Feature, rules: &[BusinessRule]) -> String {
     let mut prompt = format!("{}{RULES_HEADER}", feature_line(feature));
     for (n, rule) in rules.iter().enumerate() {
         let _ = writeln!(

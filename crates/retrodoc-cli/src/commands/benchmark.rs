@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::Context;
+use retrodoc_bench::benchmark::{self, Matches, Reference, RunMetrics};
 use retrodoc_llm::UsageTracker;
-use retrodoc_pipeline::benchmark::{self, Matches, Reference, RunMetrics};
 
 use super::workspace::{repo_root, Workspace};
 

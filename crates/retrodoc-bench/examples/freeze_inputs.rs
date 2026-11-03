@@ -10,7 +10,7 @@
 
 use std::path::Path;
 
-use retrodoc_pipeline::benchmark::{FrozenInputs, Manifest};
+use retrodoc_bench::benchmark::{FrozenInputs, Manifest};
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();

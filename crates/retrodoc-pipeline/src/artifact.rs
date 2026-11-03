@@ -152,7 +152,8 @@ impl Artifact {
 }
 
 /// Missing or unreadable (or no longer matching the type): `None`.
-pub(crate) fn load_yaml<T: DeserializeOwned>(path: &Path) -> Option<T> {
+#[must_use]
+pub fn load_yaml<T: DeserializeOwned>(path: &Path) -> Option<T> {
     serde_yaml::from_str(&std::fs::read_to_string(path).ok()?).ok()
 }
 
@@ -161,10 +162,12 @@ pub(crate) fn load_json<T: DeserializeOwned>(path: &Path) -> Option<T> {
     serde_json::from_str(&std::fs::read_to_string(path).ok()?).ok()
 }
 
-pub(crate) fn save_yaml<T: Serialize + ?Sized>(
-    path: &Path,
-    value: &T,
-) -> Result<(), PipelineError> {
+/// Writes `value` as YAML at `path`, creating its directory.
+///
+/// # Errors
+///
+/// The value can't be serialized or the file can't be written.
+pub fn save_yaml<T: Serialize + ?Sized>(path: &Path, value: &T) -> Result<(), PipelineError> {
     write(path, &serde_yaml::to_string(value)?)
 }
 

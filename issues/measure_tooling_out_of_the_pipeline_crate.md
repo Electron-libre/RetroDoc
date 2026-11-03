@@ -55,13 +55,13 @@ measured), the reached private items exposed behind a `bench` feature, `crate::<
    `git mv` the 22 examples and `tests/benchmark_files.rs` unchanged (they import `retrodoc_pipeline::benchmark`,
    still valid), move the `[[example]]` entries; verified by `just check` (examples built and tested under the new
    crate); est. ~120 lines. (autonomous)
-2. [ ] `benchmark/` in `retrodoc-bench`: `git mv src/benchmark/` unchanged; in `retrodoc-pipeline` a `bench` feature
+2. [x] `benchmark/` in `retrodoc-bench`: `git mv src/benchmark/` unchanged; in `retrodoc-pipeline` a `bench` feature
    with a `#[doc(hidden)] pub mod bench_support` (naming, text, progress, response, artifact, walked, the rules
    judgement items) and a `testing` feature for the fake LLM; the new root aliases the modules; the 5 files that
    import `retrodoc_pipeline::benchmark` and `retrodoc-cli` switch to `retrodoc_bench`; verified by `just check`
    (the benchmark unit tests run in the new crate) and `retrodoc benchmark-table` on a saved benchmark dir giving
    the same output as before; est. ~250 lines in the deliverable, ~2,450 in the issue total (5 moved files edited,
-   counted twice).
+   counted twice). (autonomous)
 3. [ ] Docs: crate graph of `CLAUDE.md` and `docs/ARCHITECTURE.md`, `docs/crates/` (a section for the new crate),
    `docs/dev/commands.md` (`-p retrodoc-bench`), skills `quality-benchmark`, `smoke-test`, `commit_scopes` of
    `.claude/cardinal.toml` (`bench`), ADR 0042 accepted, the reuse rule of the ledger (outside git); verified by
@@ -100,5 +100,24 @@ red: none (a move, no new behaviour; the moved tests are the check)
 
 Follow-up: the usage comment at the top of each moved example still says `-p retrodoc-pipeline`; fixing it edits
 moved files, counted twice: it goes to the follow-up issue that deletes the one-off examples.
+
+Code review: no findings
+
+## Deliverable 2
+done: `benchmark/` moved unchanged to `retrodoc-bench`, its root aliases the modules of `retrodoc-pipeline`;
+`retrodoc-pipeline` gains the features `bench` (`bench_support`, `rules::bench`, out of the default build) and
+`testing` (`FakeLlm`, `brief`, `capture_logs`); `judge_rules_with` moved into `rules::bench` and `truncate_chars`
+gated, both only served the replays; `UNCATEGORIZED_SLUG` public; `retrodoc-cli` and 5 files import `retrodoc_bench`.
+
+| check | result |
+|---|---|
+| tests | `just check` green (1,117 tests), the benchmark unit tests run in `retrodoc-bench` |
+| lint | clean in the workspace and for `retrodoc-pipeline` alone, with and without `bench` |
+| specs | untouched (refactor) |
+| behaviour | `benchmark-table` of the two rescored baselines of `dafea18`, alone and with `--previous`: output identical to the binary of `c7e765d` |
+| size | 206 lines; issue total 2,790 of 3,000 |
+| code review | `low`, clean |
+
+red: none (a move, no new behaviour)
 
 Code review: no findings

@@ -13,7 +13,7 @@ type Reply = Box<dyn Fn(usize, &CompletionRequest) -> Result<String, LlmError> +
 
 /// Answers with what its reply function says, counts its calls and keeps the
 /// prompts it receives.
-pub(crate) struct FakeLlm {
+pub struct FakeLlm {
     reply: Reply,
     calls: AtomicUsize,
     prompts: Mutex<Vec<(String, String)>>,
@@ -214,7 +214,7 @@ pub(crate) async fn killed<T>(pass: impl std::future::Future<Output = T>, llm: &
 }
 
 /// A brief with only a purpose, to check that a pass reads it.
-pub(crate) fn brief(purpose: &str) -> crate::brief::ProductBrief {
+pub fn brief(purpose: &str) -> crate::brief::ProductBrief {
     crate::brief::ProductBrief {
         purpose: crate::brief::Claim {
             text: purpose.to_string(),
@@ -284,7 +284,7 @@ mod tests {
 /// What a pass logged while a test ran, as plain text (one line per event,
 /// with its level), to check which events are warnings.
 #[derive(Clone, Default)]
-pub(crate) struct LogBuffer(Arc<Mutex<Vec<u8>>>);
+pub struct LogBuffer(Arc<Mutex<Vec<u8>>>);
 
 impl LogBuffer {
     pub fn text(&self) -> String {
@@ -344,7 +344,7 @@ impl MakeWriter<'_> for ThreadWriter {
 }
 
 /// Stops the capture of the current thread when dropped.
-pub(crate) struct CaptureGuard;
+pub struct CaptureGuard;
 
 impl Drop for CaptureGuard {
     fn drop(&mut self) {
@@ -358,7 +358,7 @@ impl Drop for CaptureGuard {
 /// One global subscriber serves every test: scoped subscribers made the
 /// callsite interest cache of `tracing` race between parallel tests and lose
 /// events.
-pub(crate) fn capture_logs() -> (LogBuffer, CaptureGuard) {
+pub fn capture_logs() -> (LogBuffer, CaptureGuard) {
     static INIT: std::sync::Once = std::sync::Once::new();
     INIT.call_once(|| {
         let subscriber = tracing_subscriber::fmt()

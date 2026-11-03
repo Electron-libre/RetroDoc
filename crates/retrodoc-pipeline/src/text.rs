@@ -111,7 +111,9 @@ pub(crate) fn first_chars(text: &str, max_chars: usize) -> &str {
 }
 
 /// `content` cut to its first `max_chars` characters, with a marker when it was cut.
-pub(crate) fn truncate_chars(content: &str, max_chars: usize) -> String {
+#[cfg(any(test, feature = "bench"))]
+#[must_use]
+pub fn truncate_chars(content: &str, max_chars: usize) -> String {
     match char_prefix(content, max_chars) {
         None => content.to_string(),
         Some(head) => format!("{head}\n… (truncated)"),

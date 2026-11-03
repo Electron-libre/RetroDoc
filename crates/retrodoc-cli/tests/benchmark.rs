@@ -222,7 +222,7 @@ fn rescores_a_run_with_its_saved_judgement_and_no_llm() {
     assert_eq!(report["narratives"]["business"], 3);
     assert_eq!(
         report["scoring"],
-        retrodoc_pipeline::benchmark::SCORING_VERSION
+        retrodoc_bench::benchmark::SCORING_VERSION
     );
 }
 
