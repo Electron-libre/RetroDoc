@@ -1403,7 +1403,6 @@ dependencies = [
 name = "retrodoc-bench"
 version = "0.6.0"
 dependencies = [
- "async-trait",
  "futures-util",
  "git2",
  "regex",

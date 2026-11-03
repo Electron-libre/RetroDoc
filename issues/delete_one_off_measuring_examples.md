@@ -62,6 +62,9 @@ their lines in `docs/dev/commands.md`, `docs/crates/pipeline.md` and the doc com
    verified by `just check` (~970 lines). (autonomous)
 4. [x] Rules and code reading: delete `rules_answer_size_measure`, `rules_noise_measure`, `code_read_overlap`,
    `read_overlap`, `features_by_domain_measure`; verified by `just check` (~980 lines). (autonomous)
+5. [x] Fixes of the `high` review of the whole issue: drop the re-exports of `retrodoc-pipeline` only the deleted
+   examples used and the `async-trait` dev-dependency of `retrodoc-bench`; ADRs 0028 and 0029 keep their text with a
+   note instead of a rewrite; verified by `just check` and clippy on the default build of the pipeline. (autonomous)
 
 Kept: `pass_replay`, `freeze_inputs`, `entry_points_replay`, `rules_judge_replay`, `placement_replay`, `parsed_slices`
 (the only caller of `Follow::Parsed`, `Follow::ParsedThenLexical` and `CodeIndex::slice_with` of ADR 0027: deleting
@@ -102,4 +105,14 @@ it leaves them dead).
   holding the figure of `read_overlap`.
 - checks: `just check` passed; `deliverable-size` 968 lines.
 - red: none (deletions, no test).
+- Code review: no findings
+
+### Deliverable 5
+- done: the `high` review of `f894108..HEAD` found 4 points, all fixed: the public re-exports `contexts_of`,
+  `family_groups`, `mechanical_groups`, `name_words`, `Groups`, `EntryOwners` (added for `context_map_measure` and
+  `route_owner_measure`) are private imports again; `async-trait` (used only by `code_read_overlap`) left the
+  dev-dependencies; ADRs 0028 and 0029 keep the original example name with a dated note (an accepted ADR is
+  immutable); the ledger (outside git) notes `form_pairs_measure` and `code_read_overlap` as deleted.
+- checks: `just check` passed; `cargo clippy -p retrodoc-pipeline --lib -D warnings` clean.
+- red: none (no behaviour change).
 - Code review: no findings

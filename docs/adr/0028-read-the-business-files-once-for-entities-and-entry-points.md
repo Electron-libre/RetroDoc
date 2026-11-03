@@ -7,7 +7,8 @@ Status: Accepted
 The glossary and the entry points passes read the same business files (the files `business_files` locates)
 with two prompts and two series of calls (ADR 0020 step 6). On the benchmark web application every file
 the glossary reads is also read by the entry points pass: 36% of the input of the two passes
-(by an example deleted since, its figures in `issues/done/single_read_per_business_file.md`).
+(`examples/read_overlap.rs`; deleted on 2026-11-03, its figures stay in
+`issues/done/single_read_per_business_file.md`).
 
 ## Decision
 

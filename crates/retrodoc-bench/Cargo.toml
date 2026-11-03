@@ -22,7 +22,6 @@ tracing.workspace = true
 [dev-dependencies]
 retrodoc-pipeline = { workspace = true, features = ["bench", "testing"] }
 regex.workspace = true
-async-trait.workspace = true
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 tempfile = "3"
 git2.workspace = true

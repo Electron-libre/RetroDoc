@@ -37,9 +37,8 @@ mod route_owner;
 mod run;
 
 pub use domains::{domain_vocabulary, domains_from_contexts};
-pub use groups::{contexts_of, family_groups, mechanical_groups, name_words, Groups};
-use groups::{group_of, group_words};
-pub use route_owner::EntryOwners;
+use groups::{family_groups, group_of, group_words, mechanical_groups, name_words, Groups};
+use route_owner::EntryOwners;
 pub use run::{mark_done, plan_run, RunSlice};
 
 /// Groups shown to the LLM, the largest first; the others go to the support.
