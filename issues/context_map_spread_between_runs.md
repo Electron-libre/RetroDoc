@@ -38,3 +38,62 @@ Measured quality at the current code
 # Hints
 * Never name the application in the repository: "a large Rails application" with figures only.
 * Paid runs: ask the user first.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-04
+
+## Understanding
+A `--force` map must keep the contexts already documented and stay close to the previous one, with no technical
+context. Out of scope: names that fit (a model's answer) and seeding the map with merged families (candidate (a)),
+unless the measure after deliverable 3 still shows the merges spread. Means: spec `specs/context-map.md` (CTX).
+
+Measure of step 1 (no LLM, the 3 saved maps, `scratch/contexts_residual/spread_by.py`, `groups.tsv`):
+* Files of a mechanical group follow their context in 72% of the pairs of maps, orphan files (folders) in 57%.
+* The merges spread most: of the pairs of groups put together in one map, 11% to 20% are together in the other.
+* The support moves: `infra` files 96%, 1%, 0% in support (migrations and initializers given to business contexts
+  in maps 2 and 3), `app/components` 85%, 2%, 2%.
+* The `contexts` pass is the one pass left at the server's temperature (ADR 0031).
+
+## Plan
+1. [x] Temperature 0 for `contexts`: measure 3 maps with `[llm.passes.contexts] temperature = 0` (~$0.05), then add
+   `contexts` to the passes at temperature 0 if the spread drops; verified by a test on the request sent; makes true CTX-1. (autonomous)
+2. [ ] Technical files to the support before the call (roles `infra`, `config`); verified by a test with a fake LLM
+   on the listing and the map; makes true CTX-2.
+3. [ ] `--force` keeps the slug and name of a saved context its files mostly match, so its done mark carries over;
+   verified by tests with a fake LLM (match, split, done kept); makes true CTX-3.
+4. [ ] One-file contexts merged into the context of their folder, else the support; verified by a test; makes true CTX-4.
+5. [ ] Measure: 3 maps at the final code (~$0.05), then `docs/findings.md` §8, ADR 0029/0031 notes, the ledger;
+   sets the spec `accepted`.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 63320ba
+- View layers stay out of the early support: only roles `infra` and `config` (question 1).
+- Paid measures approved: 3 maps at deliverable 1 and 3 at deliverable 5, ~$0.10 in all (question 2).
+- CTX-3 keeps the saved slug and name (question 3).
+
+## Deliverable 1
+Measure (3 maps at temperature 0, `contexts_residual-70546ad-2`, `contexts-t0-{1,2,3}.yaml`, `dump-t0-*.tsv`, 15 calls,
+51.7k in / 10.7k out, ~$0.02): 49, 42, 38 contexts; support 4%, 24%, 23%; files keeping their context 53% to 80%
+(mean 70% against 68% at the server's default); pairs of merged groups kept together 17% to 38% (mean 26% against
+16%); 4 slugs in all three; `infra` files in support 0%, 98%, 1%. No clear drop, no harm: `contexts` joins the passes
+at temperature 0 (ADR 0031 said so once measured), the support of the technical files is left to deliverable 2.
+
+done: `contexts` asked at temperature 0 unless set (map and split calls).
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | pass |
+| specs | pass, CTX draft |
+| docs | README, `docs/crates/llm.md`, `docs/crates/pipeline.md`, ADR 0031 |
+| code review | see below |
+
+red: CTX-1: `left: None, right: Some(0.0)`
+
+Code review: no findings
+
+not verified: the request body sent at 0 (the config test proves the pass setting the provider reads).
+
+decisions needed: none

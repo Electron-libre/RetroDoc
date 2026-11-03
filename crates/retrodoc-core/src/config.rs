@@ -55,10 +55,11 @@ pub const PASS_NAMES: &[&str] = &[
 
 /// The passes asked at temperature 0 unless the configuration sets one (ADR 0031,
 /// `issues/done/sampling_temperature_for_steadier_runs.md`): the ones that read facts out of the code and the
-/// repository, and the ones that write the docs. Left to the server's default: `contexts` (not measured) and the
+/// repository, the ones that write the docs, and the map of the contexts. Left to the server's default: the
 /// benchmark judge.
 pub const ZERO_TEMPERATURE_PASSES: &[&str] = &[
     "sources",
+    "contexts",
     "brief",
     "roles",
     "business-files",
@@ -1076,9 +1077,20 @@ mod tests {
         let unset = LlmConfig::default();
         assert_eq!(unset.for_pass("entry-points").temperature, Some(0.0));
         assert_eq!(unset.for_pass("domains").temperature, Some(0.0));
-        assert_eq!(unset.for_pass("contexts").temperature, None);
+        assert_eq!(unset.for_pass("benchmark judge").temperature, None);
         let pass: Config = toml::from_str("[llm.passes.glossary]\ntemperature = 0.5").unwrap();
         assert_eq!(pass.llm.for_pass("glossary").temperature, Some(0.5));
+    }
+
+    // spec: CTX-1 (internal: the map and split calls take the provider of this pass config; the request body needs a server to read)
+    #[test]
+    fn the_map_of_the_contexts_is_asked_at_temperature_0_unless_set() {
+        assert_eq!(
+            LlmConfig::default().for_pass("contexts").temperature,
+            Some(0.0)
+        );
+        let set: Config = toml::from_str("[llm.passes.contexts]\ntemperature = 0.7").unwrap();
+        assert_eq!(set.llm.for_pass("contexts").temperature, Some(0.7));
     }
 
     #[test]
