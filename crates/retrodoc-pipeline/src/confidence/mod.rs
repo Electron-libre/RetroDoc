@@ -143,7 +143,7 @@ fn verdict_value(verdict: &str) -> f32 {
 }
 
 /// How the mechanical checks judge the steps of one use case, for tools that
-/// compare them with a model's verdict (`examples/confidence_agreement.rs`).
+/// measure them with no LLM call (the use-cases replay of the benchmark).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct StepTally {
     pub passing: usize,

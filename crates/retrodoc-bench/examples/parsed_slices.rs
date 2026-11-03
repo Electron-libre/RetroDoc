@@ -7,7 +7,7 @@
 //!
 //! A run dir is a checkout of the repository with its `.retrodoc/cache/entry-points.yaml`. The slice of an
 //! entry-point file is cut with the depth and budget of the use cases pass (depth 2, 8 files), from that file
-//! alone (the pass starts from all the files of a feature), as `behaviour_baseline` does. One row per run, Markdown; with
+//! alone (the pass starts from all the files of a feature). One row per run, Markdown; with
 //! `--detail`, the files each way adds or loses, per entry-point file whose slices differ.
 
 #![allow(clippy::cast_precision_loss)] // counts of files: far below 2^52

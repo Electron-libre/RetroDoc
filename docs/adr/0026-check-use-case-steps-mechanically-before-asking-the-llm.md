@@ -31,6 +31,7 @@ mechanical ones come back for free.
 
 The pass makes fewer calls (4 instead of 8 on the small library). Scores of passing use cases are
 somewhat optimistic (the model marks `partial` where the code does not show a detail); the sample measures
-that gap (`examples/confidence_agreement.rs`). A step whose cited lines are wrong but whose names appear
+that gap (`examples/confidence_agreement.rs`; deleted on 2026-11-03, its figures stay in
+`issues/done/deterministic_confidence_checks.md`). A step whose cited lines are wrong but whose names appear
 elsewhere in the file is `Doubtful`, not `Pass`, so a wrong citation is sent to the model rather than
 trusted. Not measured on a large repository.

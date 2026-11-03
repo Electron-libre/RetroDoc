@@ -34,3 +34,34 @@ Release and code hygiene
 
 # Hints
 * `[[example]]` entries exist only for examples with `test = true`; the others are found by Cargo alone.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-03
+
+## Understanding
+Delete `narrative_check_measure`, `confidence_agreement` and `behaviour_baseline` with every live mention (Cargo
+entry, `docs/dev/commands.md`, `docs/crates/pipeline.md`, doc comments of `confidence/mod.rs` and `parsed_slices.rs`),
+plus a dated note in ADR 0026. Closed issues and the ledger keep their mentions. No export to drop: `mechanical_score`
+is still used by the use-cases replay and `StepTally` is its return type.
+
+## Plan
+1. [x] Delete the three examples and reword their mentions; ADR 0026 keeps the example name with a dated note
+   pointing to `issues/done/deterministic_confidence_checks.md`; verified by `just check` and a grep finding no
+   mention outside closed issues and this one. (autonomous)
+
+## Decisions
+- Mode: autonomous
+- Base commit: 7b2b654
+
+## Summary
+
+### Deliverable 1
+- done: the three examples deleted with the `[[example]]` entry of `behaviour_baseline` and its `docs/dev/commands.md`
+  line; `docs/crates/pipeline.md` and the doc comment of `StepTally` point to the use-cases replay, the remaining user
+  of `mechanical_score`; `parsed_slices.rs` no longer compares itself with `behaviour_baseline`; ADR 0026 keeps the
+  example name with a dated note pointing to `issues/done/deterministic_confidence_checks.md`.
+- checks: `just check` passed; `deliverable-size` 514 lines; no mention left outside closed issues and this one;
+  update-docs: `docs/crates/bench.md` and the map name no example individually (n/a).
+- red: none (deletions, no test).
+- Code review: no findings
