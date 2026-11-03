@@ -44,6 +44,7 @@ fn domains_are_listed_with_their_feature_counts() {
     );
 }
 
+// spec: MCP-6 (internal: the tool answer is checked without a JSON-RPC session)
 #[test]
 fn a_name_over_several_lines_forges_no_item_and_a_leading_blank_line_keeps_the_text() {
     let mut paid = use_case("pay-by-card", "pay-invoice", "Pay\nby card", "Settled");
@@ -102,6 +103,7 @@ fn a_domain_without_feature_says_so() {
     assert!(out.contains("No feature documented here."));
 }
 
+// spec: MCP-1 (internal: the tool answer is checked without a JSON-RPC session)
 #[test]
 fn a_domain_is_addressed_by_its_slug_alone() {
     let out = docs().get_domain("billing/payment");
@@ -182,6 +184,7 @@ fn a_low_confidence_answer_tells_the_agent_to_check_the_code() {
         .contains("confidence 30% (low)"));
 }
 
+// spec: MCP-5 (internal: the tool answer is checked without a JSON-RPC session)
 #[test]
 fn an_unknown_id_is_not_documented_and_points_to_the_way_out() {
     let docs = docs();
@@ -206,6 +209,82 @@ fn a_search_lists_ids_confidence_and_files_or_says_not_documented() {
     assert!(out.contains("- [feature] Cancel a plan (`billing/cancel-plan`, not scored)"));
     let out = docs.search_docs("zzzz", 5);
     assert!(out.starts_with("Not documented: nothing among"));
+}
+
+// spec: MCP-5 (internal: the tool answer is checked without a JSON-RPC session)
+#[test]
+fn an_unknown_domain_among_none_names_no_known_domain() {
+    let docs = Docs::new(vec![], vec![], vec![], &Glossary::default(), &[]);
+    let out = docs.get_domain("billing");
+    assert!(
+        out.starts_with("Not documented: no domain `billing`."),
+        "{out}"
+    );
+    assert!(!out.contains("Known domains"), "{out}");
+}
+
+// spec: MCP-2 (internal: the tool answer is checked without a JSON-RPC session)
+#[test]
+fn a_feature_id_whose_domain_is_wrong_is_not_documented() {
+    let docs = docs();
+    let out = docs.get_feature("shipping/pay-invoice");
+    assert!(
+        out.starts_with("Not documented: no feature `shipping/pay-invoice`."),
+        "{out}"
+    );
+    assert!(docs
+        .get_feature("billing/pay-invoice")
+        .starts_with("# Pay an invoice"));
+    assert!(docs
+        .get_feature("pay-invoice")
+        .starts_with("# Pay an invoice"));
+}
+
+// spec: MCP-3 (internal: the tool answer is checked without a JSON-RPC session)
+#[test]
+fn a_use_case_id_whose_feature_or_domain_is_wrong_is_not_documented() {
+    let docs = docs();
+    for id in [
+        "shipping/pay-invoice/pay-by-card",
+        "cancel-plan/pay-by-card",
+        "billing/cancel-plan/pay-by-card",
+    ] {
+        let out = docs.get_use_case(id);
+        assert!(
+            out.starts_with("Not documented: no use case"),
+            "{id}: {out}"
+        );
+    }
+    assert!(docs
+        .get_use_case("billing/pay-invoice/pay-by-card")
+        .starts_with("# Pay by card"));
+    assert!(docs
+        .get_use_case("pay-invoice/pay-by-card")
+        .starts_with("# Pay by card"));
+}
+
+// spec: MCP-4 (internal: the tool answer is checked without a JSON-RPC session)
+#[test]
+fn a_use_case_slug_alone_answers_its_use_case_or_lists_the_candidates() {
+    let docs = Docs::new(
+        vec![domain("billing", "Billing", "Invoices and payments")],
+        vec![
+            feature("pay-invoice", "Pay an invoice", "Settle what is due"),
+            feature("pay-order", "Pay an order", "Settle an order"),
+        ],
+        vec![
+            use_case("pay-by-card", "pay-invoice", "Pay by card", "Settled"),
+            use_case("pay-by-card", "pay-order", "Pay by card", "Settled"),
+            use_case("pay-late", "pay-invoice", "Pay late", "Settled late"),
+        ],
+        &Glossary::default(),
+        &[],
+    );
+    assert!(docs.get_use_case("pay-late").starts_with("# Pay late"));
+    let out = docs.get_use_case("pay-by-card");
+    assert!(out.starts_with("Not documented:"), "{out}");
+    assert!(out.contains("`billing/pay-invoice/pay-by-card`"), "{out}");
+    assert!(out.contains("`billing/pay-order/pay-by-card`"), "{out}");
 }
 
 // spec: DSR-3, DSR-4, DSR-5 (internal: the tool answer is checked without a JSON-RPC session)

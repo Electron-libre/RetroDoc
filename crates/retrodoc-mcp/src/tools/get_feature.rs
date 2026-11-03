@@ -7,19 +7,26 @@ use retrodoc_core::model::{BusinessRule, UseCase};
 use retrodoc_core::text::one_line;
 
 use super::answer::{
-    confidence_line, confidence_short, last_segment, set_apart_tag, snippet, sources_section,
-    SET_APART_NOTE,
+    confidence_line, confidence_short, set_apart_tag, snippet, sources_section, SET_APART_NOTE,
 };
 use super::Docs;
 use crate::corpus::feature_id;
 
 impl Docs {
-    /// A feature, by its id (`billing/pay-invoice`) or its slug alone, with
-    /// its use cases and the files it is grounded on.
+    /// A feature, by its id (`billing/pay-invoice`) or its slug alone (feature slugs are unique
+    /// across domains), with its use cases and the files it is grounded on.
     #[must_use]
     pub fn get_feature(&self, id: &str) -> String {
-        let slug = last_segment(id);
-        let Some(feature) = self.generated.features().iter().find(|f| f.slug == slug) else {
+        let (domain, slug) = match id.split_once('/') {
+            Some((domain, slug)) => (Some(domain), slug),
+            None => (None, id),
+        };
+        let found = self
+            .generated
+            .features()
+            .iter()
+            .find(|f| f.slug == slug && domain.is_none_or(|d| f.domain_slug == d));
+        let Some(feature) = found else {
             return self.unknown("feature", id, "get_domain");
         };
         let mut out = format!(

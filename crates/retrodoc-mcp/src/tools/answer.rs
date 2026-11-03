@@ -115,7 +115,9 @@ impl Docs {
                 .iter()
                 .map(|d| d.slug.as_str())
                 .collect();
-            let _ = write!(out, " Known domains: {}.", known.join(", "));
+            if !known.is_empty() {
+                let _ = write!(out, " Known domains: {}.", known.join(", "));
+            }
         }
         let _ = writeln!(
             out,
@@ -141,10 +143,6 @@ pub(super) fn set_apart_tag(set_apart: bool) -> &'static str {
     } else {
         ""
     }
-}
-
-pub(super) fn last_segment(id: &str) -> &str {
-    id.rsplit('/').next().unwrap_or(id)
 }
 
 pub(super) fn truncate(text: &str, max: usize) -> String {

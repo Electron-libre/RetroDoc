@@ -31,7 +31,7 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   cited files. `GeneratedDocs` (`read_model.rs`, `GeneratedDocs::load` reads `.retrodoc/cache/`, business rules and glossary included, + the collected docs) is the typed read model, independent of how it is answered (ADR 0039); `Docs` wraps it with the bounded source access and answers the seven tools in Markdown
   (`list_domains`, `get_domain`, `get_feature`, `get_use_case`, `search_docs`, `read_source`, `git_log`): ids to reuse, confidence (flagged below
   50%), cited files, a stale warning when a cited file no longer matches the hash recorded in `source-hashes.json` (`SourceHashes`, written only by a `generate` that went through every pass, hashes read before the features)
-  (`Freshness`, checked at every call; files without a recorded hash are not judged), and "Not documented" as a normal answer for an unknown id or an empty search. `server.rs` puts them
+  (`Freshness`, checked at every call; files without a recorded hash are not judged), and "Not documented" as a normal answer for an unknown id or an empty search; an id resolves only when every segment given matches, a slug alone when it is unambiguous (`specs/mcp-server.md`). `server.rs` puts them
   behind the `rmcp` SDK (`serve_stdio`); tested end to end with an `rmcp` client over an in-memory pipe. `source.rs` (`SourceAccess`) backs `read_source` (a
   window of lines, 200 by default, 400 at most) and `git_log` (hash, date, subject, no author): only files the docs
   cite, never an absolute path, a `..`, a path that is or goes through a symlink (even inside the repo), a binary or a

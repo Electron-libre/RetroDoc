@@ -2,38 +2,55 @@
 
 use std::fmt::Write as _;
 
-use retrodoc_core::model::BusinessRule;
+use retrodoc_core::model::{BusinessRule, UseCase};
 
 use super::answer::{confidence_line, location, SET_APART_NOTE};
 use super::Docs;
 use crate::corpus::feature_id;
 
 impl Docs {
-    /// A use case, by its id (`billing/pay-invoice/pay-by-card`) or the last
-    /// two segments, with its business narrative, steps and cited code.
+    /// A use case, by its id (`billing/pay-invoice/pay-by-card`), the last two segments or its
+    /// slug alone when no other use case has it, with its business narrative, steps and cited
+    /// code. Every segment given must match.
     #[must_use]
     pub fn get_use_case(&self, id: &str) -> String {
-        let mut segments = id.rsplit('/');
+        let mut segments = id.rsplitn(3, '/');
         let slug = segments.next().unwrap_or_default();
         let feature_slug = segments.next();
-        let found = self
+        let domain_slug = segments.next();
+        let found: Vec<&UseCase> = self
             .generated
             .use_cases()
             .iter()
-            .find(|u| u.slug == slug && feature_slug.is_none_or(|f| u.feature_slug == f));
-        let Some(use_case) = found else {
-            return self.unknown("use case", id, "get_feature");
+            .filter(|u| {
+                u.slug == slug
+                    && feature_slug.is_none_or(|f| u.feature_slug == f)
+                    && domain_slug.is_none_or(|d| {
+                        self.generated
+                            .features()
+                            .iter()
+                            .any(|f| f.slug == u.feature_slug && f.domain_slug == d)
+                    })
+            })
+            .collect();
+        let use_case = match found.as_slice() {
+            [] => return self.unknown("use case", id, "get_feature"),
+            [one] => *one,
+            several => {
+                let ids: Vec<String> = several
+                    .iter()
+                    .map(|u| format!("`{}`", self.use_case_id(u)))
+                    .collect();
+                return format!(
+                    "Not documented: `{id}` names several use cases: {}. Use one of these ids.\n",
+                    ids.join(", ")
+                );
+            }
         };
-        let parent = self
-            .generated
-            .features()
-            .iter()
-            .find(|f| f.slug == use_case.feature_slug)
-            .map_or_else(|| use_case.feature_slug.clone(), feature_id);
         let mut out = format!(
-            "# {} (`{parent}/{}`)\n\n{}\n",
+            "# {} (`{}`)\n\n{}\n",
             use_case.name,
-            use_case.slug,
+            self.use_case_id(use_case),
             confidence_line(use_case.confidence.as_ref())
         );
         if self.use_case_set_apart(use_case) {
@@ -83,5 +100,16 @@ impl Docs {
             .collect();
         out.push_str(&self.rules_section(&rules));
         out
+    }
+
+    /// `domain/feature/use-case`, or `feature/use-case` when the feature is not documented.
+    fn use_case_id(&self, use_case: &UseCase) -> String {
+        let parent = self
+            .generated
+            .features()
+            .iter()
+            .find(|f| f.slug == use_case.feature_slug)
+            .map_or_else(|| use_case.feature_slug.clone(), feature_id);
+        format!("{parent}/{}", use_case.slug)
     }
 }

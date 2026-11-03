@@ -55,3 +55,45 @@ bugs, fix those, and leave the intended ones documented, with no change to the a
 
 # Hints
 * Steps 3 to 5 do not change the answer of a well-formed id; step 2 does, so it is the one that needs a spec.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-03
+
+## Understanding
+Make the id resolution of `get_feature`/`get_use_case` check every segment given (spec `specs/mcp-server.md`), drop
+the empty "Known domains" clause, make the `Docs` builders order-free and fix the two quadratic lookups. Measured
+(2026-11-03, ~70 saved `features.yaml` of `~/retrodoc-runs`): no feature slug shared across domains, no description
+starting with a blank line; the pipeline makes feature slugs unique globally, and `snippet` already takes the first
+non-blank line (b3956d2): only traced by the spec here, no code change.
+
+## Plan
+1. [x] Id resolution and answer text: `get_feature` and `get_use_case` check the domain/feature segments, a use case
+   slug alone lists its candidates when ambiguous, `unknown` drops the empty list; verified by tests in
+   `tools/tests.rs`; makes true MCP-1 to MCP-6 (spec `accepted`). (autonomous)
+2. [ ] Builders and lookups: `with_rules` rebuilds the index from the base entries (replaces), the source access is
+   recomputed by `with_rules` too (order-free), `entry_set_apart` resolves by id, `stale_files` dedups with a
+   `HashSet`; verified by tests of the builder orders and a second `with_rules`; no requirement (internal).
+
+## Decisions
+- Mode: autonomous
+- Base commit: 7916a8c90d9cfc647a5760477ec41630909542bb
+- Wrong prefix (`shipping/pay-invoice`): answers "Not documented" (1 a).
+
+## Deliverable 1
+- done: `get_feature` and `get_use_case` check every segment given, a use case slug alone shared by several lists
+  the candidates, `unknown` drops the empty "Known domains" clause; spec `specs/mcp-server.md` accepted.
+
+| check | result |
+|---|---|
+| tests | pass (`just check`) |
+| lint | pass |
+| specs | MCP-1 to MCP-6 traced |
+| docs | `docs/crates/render-mcp-cli.md`, `docs/ARCHITECTURE.md` |
+| code review | low, no findings |
+
+- red: MCP-2, MCP-3, MCP-4, MCP-5: `shipping/pay-invoice` and `shipping/pay-invoice/pay-by-card` answered the item,
+  `pay-by-card` answered the first match, "Known domains: ." with no domain (MCP-1, MCP-6 were already true).
+- Code review: no findings
+- not verified: none
+- decisions needed: none

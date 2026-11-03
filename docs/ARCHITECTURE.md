@@ -331,7 +331,7 @@ flowchart LR
 ```
 
 - Answers are Markdown with the id to follow, the confidence (flagged below 50%) and the cited files;
-  an unknown id or an empty search is "Not documented", never an error.
+  an unknown id or an empty search is "Not documented", never an error; ids resolve as `specs/mcp-server.md` says.
 - `read_source` and `git_log` reach only files the docs cite, and refuse `..`, absolute paths, symbolic links,
   binary and very large files.
 - For agents that don't run the server, `render()` also writes `functional/llms.txt`, an index of the domains and
