@@ -87,7 +87,7 @@ pub fn summary(
     score_line(&mut out, "Features", &comparison.features);
     if let Some((with_judge, judgement, unaudited)) = judged {
         out.push('\n');
-        out.push_str("With the judge's proposals (not yet in matches.yaml):\n");
+        out.push_str("With the judge's proposals (less the ones matches.yaml rejects):\n");
         for (label, score, unjudged, unaudited) in [
             (
                 "Domains",

@@ -64,6 +64,8 @@ change of these rules must not read as a change of quality between two benchmark
   proposals the hand audit has not seen (neither a hand pair nor a rejected pair); `retrodoc benchmark` must print
   it beside the judged figures, and `benchmark-table` must show its mean and range per series; a report saved
   without it must load, with no count.
+- **BSC-19** (deterministic) A pair that is both a hand pair and a rejected pair of the same kind once both names are
+  normalized must fail the scoring with an error naming the pair.
 
 ## Scenarios
 

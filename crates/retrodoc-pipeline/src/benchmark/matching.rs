@@ -125,10 +125,7 @@ pub fn score(
     pairs: &[Pair],
     matches_path: &Path,
 ) -> Result<Score, PipelineError> {
-    let reference_index = |name: &str| {
-        let wanted = normalize(name);
-        reference.iter().position(|r| normalize(r) == wanted)
-    };
+    let reference_index = |name: &str| reference_index(reference, name);
     check_references(reference, pairs, matches_path)?;
 
     let mut matched = Vec::new();
@@ -170,20 +167,44 @@ pub fn score(
     })
 }
 
+/// The position in `reference` of the name equal to `name` once normalized.
+fn reference_index(reference: &[String], name: &str) -> Option<usize> {
+    let wanted = normalize(name);
+    reference.iter().position(|r| normalize(r) == wanted)
+}
+
 /// Fails naming the first of `pairs` whose reference name is not in `reference`.
 fn check_references(
     reference: &[String],
     pairs: &[Pair],
     matches_path: &Path,
 ) -> Result<(), PipelineError> {
-    match pairs.iter().find(|pair| {
-        let wanted = normalize(&pair.reference);
-        !reference.iter().any(|r| normalize(r) == wanted)
-    }) {
+    match pairs
+        .iter()
+        .find(|pair| reference_index(reference, &pair.reference).is_none())
+    {
         Some(pair) => Err(PipelineError::InvalidReference {
             path: matches_path.to_path_buf(),
             reason: format!(
                 "`{}` is paired with `{}`, which is not in the reference",
+                pair.generated, pair.reference
+            ),
+        }),
+        None => Ok(()),
+    }
+}
+
+/// Fails naming the first of `rejected` that is also one of the hand `pairs`.
+fn check_not_kept(
+    pairs: &[Pair],
+    rejected: &[Pair],
+    matches_path: &Path,
+) -> Result<(), PipelineError> {
+    match rejected.iter().find(|r| pairs.iter().any(|p| p.same_as(r))) {
+        Some(pair) => Err(PipelineError::InvalidReference {
+            path: matches_path.to_path_buf(),
+            reason: format!(
+                "`{}` with `{}` is both a pair and a rejected pair",
                 pair.generated, pair.reference
             ),
         }),
@@ -203,7 +224,8 @@ pub struct Comparison {
 ///
 /// # Errors
 ///
-/// Same as [`score`], also for the rejected pairs of `matches`.
+/// Same as [`score`], also for the rejected pairs of `matches`, and when a rejected pair is also a hand
+/// pair.
 pub fn compare(
     repo_root: &Path,
     reference: &Reference,
@@ -236,6 +258,8 @@ pub fn compare(
         &matches.rejected.features,
         matches_path,
     )?;
+    check_not_kept(&matches.domains, &matches.rejected.domains, matches_path)?;
+    check_not_kept(&matches.features, &matches.rejected.features, matches_path)?;
     Ok(Some(Comparison {
         domains: score(&domains, &reference_domains, &matches.domains, matches_path)?,
         features: score(

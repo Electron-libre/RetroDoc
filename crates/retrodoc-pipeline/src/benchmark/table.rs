@@ -43,16 +43,20 @@ impl RunReport {
     pub fn new(
         metrics: RunMetrics,
         strict: Comparison,
-        judged: Option<(Comparison, Judgement)>,
-        unaudited: Unaudited,
+        judged: Option<(Comparison, Judgement, Unaudited)>,
     ) -> Self {
-        let (judged, narratives, unjudged) = match judged {
-            Some((mut comparison, judgement)) => {
+        let (judged, narratives, unjudged, unaudited) = match judged {
+            Some((mut comparison, judgement, unaudited)) => {
                 let unjudged = judgement.unjudged;
                 unjudged.leave_out(&mut comparison);
-                (Some(comparison), Some(judgement.narratives), unjudged)
+                (
+                    Some(comparison),
+                    Some(judgement.narratives),
+                    unjudged,
+                    unaudited,
+                )
             }
-            None => (None, None, Unjudged::default()),
+            None => (None, None, Unjudged::default(), Unaudited::default()),
         };
         Self {
             scoring: Some(SCORING_VERSION),
@@ -603,8 +607,7 @@ mod tests {
             RunReport::new(
                 run.metrics,
                 run.strict,
-                Some((judged, judgement)),
-                Unaudited::default(),
+                Some((judged, judgement, Unaudited::default())),
             )
         };
         let features_unjudged = Judgement {
@@ -678,7 +681,7 @@ mod tests {
     #[test]
     fn a_report_carries_the_scoring_version_and_an_old_one_loads_without() {
         let run = report(0.5, 6, 10, false);
-        let fresh = RunReport::new(run.metrics, run.strict, None, Unaudited::default());
+        let fresh = RunReport::new(run.metrics, run.strict, None);
         assert_eq!(fresh.scoring, Some(SCORING_VERSION));
 
         let mut old = serde_json::to_value(report(0.5, 6, 10, false)).unwrap();

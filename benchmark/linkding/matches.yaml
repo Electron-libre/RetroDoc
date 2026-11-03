@@ -341,11 +341,7 @@ rejected:
       reference: Share bookmarks
     - generated: RSS/Atom Feed
       reference: Share bookmarks
-    - generated: RSS/Atom Feeds
-      reference: Share bookmarks
     - generated: RSS/Atom Feed
-      reference: Use the REST API
-    - generated: RSS/Atom Feeds
       reference: Use the REST API
     # reader view is not the to-read flag (audit of the temperature benchmark)
     - generated: Reader Mode Extraction

@@ -549,7 +549,8 @@ generic to key on (listed in its header).
 Re-scored at dd5cf43 (`issues/judge_overstates_feature_precision.md`, scoring version 3, no LLM call): the wrong
 pairs of the audit now sit in a `rejected` list of `matches.yaml` and no longer count, and each run counts the
 judge's pairs no hand has audited. On the audited runs the judged feature precision equals the hand one (49%, 67%,
-45%, 46%) with 0, 0, 3 and 1 feature pairs left unaudited; the means move by 1 point at most (Lobsters features 48%
+45%, 46%) with 0, 0, 3 and 1 feature pairs left unaudited (the pairs right in their run but too generic to key
+on their name, neither kept nor rejected); the means move by 1 point at most (Lobsters features 48%
 on both series), the linkding domains recall drops to 89% hidden and 94% shown (two pairs to `Integrations`
 rejected). On the runs not audited, 5 to 28 feature pairs per run rest on the judge alone (mean 13 and 5 on
 linkding, 12 and 15 on Lobsters): a judged figure is as good as the share of its pairs audited, not better.

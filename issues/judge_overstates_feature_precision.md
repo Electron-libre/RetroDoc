@@ -108,3 +108,23 @@ red: none (measure and docs)
 Code review: 1 findings
 - `matching.rs`: `check_references` repeats the normalized lookup of the `reference_index` closure of `score`;
   code of deliverable 1, left to the fixes of the `high` review of the issue.
+
+## Deliverable 3: docs and fixes of the `high` review
+- done: `PRODUCT.md` risk line (12 to 33 points was the earlier audits); BSC-19 (a pair both kept and rejected is an
+  error); one lookup of a reference name in `matching.rs`; `Unaudited` carried in the judged tuple of `RunReport::new`;
+  summary heading "less the ones matches.yaml rejects"; the plural `RSS/Atom Feeds` rejected pairs dropped (equal
+  once normalized); redundant serde attributes dropped; findings say what the 3 and 1 unaudited pairs are.
+- not fixed: a share of unaudited pairs instead of a count (the count reads against the number of features of the
+  run, beside it in the table; BSC-18 states a count).
+
+| check | result |
+|---|---|
+| tests, lint, specs (`just check`) | pass |
+| code review (`low`) | no findings |
+
+red: BSC-19: a pair both in `features` and `rejected.features` scored without error.
+
+Code review: no findings
+
+All deliverables done; nothing left. Final measure: on the audited runs the judged feature precision equals the
+hand one; the runs never audited say how many of their pairs rest on the judge alone.

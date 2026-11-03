@@ -354,6 +354,23 @@ fn a_rejected_pair_naming_an_unknown_reference_item_is_an_error() {
     assert!(stderr.contains("matches.yaml"), "{stderr}");
 }
 
+// spec: BSC-19
+#[test]
+fn a_pair_both_kept_and_rejected_is_an_error() {
+    let dir = judged_run(&["Pay"], &[("Pay", "Checkout")]);
+
+    let (output, _) = rescore(
+        dir.path(),
+        "features:\n  - {generated: Pay, reference: Checkout}\n\
+         rejected:\n  features:\n    - {generated: pay, reference: checkout}\n",
+    );
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("`pay`"), "{stderr}");
+    assert!(stderr.contains("both"), "{stderr}");
+}
+
 #[test]
 fn an_empty_directory_has_no_table() {
     let dir = tempfile::tempdir().unwrap();

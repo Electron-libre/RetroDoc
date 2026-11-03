@@ -134,8 +134,8 @@ pairs no hand has audited (`docs/findings.md`, section 9).
 - With behaviours as the coverage unit, a behaviour the entry point pass misses is a use case missing from the docs;
   the debt report lists the files no entry point reaches.
 - The measures are noisy: the spread between runs is as large as many effects, the LLM judge of the benchmark is
-  wrong on a share of its pairs (it overstates the feature precision by 12 to 33 points on the audited runs), and the
-  references are not all checked by a human.
+  wrong on a share of its pairs (within 4 points of a hand count on the baseline of 2026-11-03, 12 to 33 on earlier
+  audits; the runs count the pairs no hand has audited), and the references are not all checked by a human.
 - Nobody outside the project has read the generated docs of an application they take over: the users of the table
   above are assumed, not met.
 

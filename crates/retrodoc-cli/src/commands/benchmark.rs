@@ -83,25 +83,22 @@ pub async fn run(
             &matches_path,
         )?
         .context("no domains found, nothing to judge")?;
-        Some((with_judge, judgement))
+        let unaudited = matches.unaudited(&judgement);
+        Some((with_judge, judgement, unaudited))
     } else {
         None
     };
-    let unaudited = judged
-        .as_ref()
-        .map(|(_, judgement)| matches.unaudited(judgement))
-        .unwrap_or_default();
 
     print!(
         "{}",
         benchmark::summary(
             &metrics,
             &comparison,
-            judged.as_ref().map(|(c, j)| (c, j, unaudited))
+            judged.as_ref().map(|(c, j, u)| (c, j, *u))
         )
     );
     if let Some(out) = &options.out {
-        let report = benchmark::RunReport::new(metrics, comparison, judged, unaudited);
+        let report = benchmark::RunReport::new(metrics, comparison, judged);
         if let Some(parent) = out.parent() {
             std::fs::create_dir_all(parent)
                 .with_context(|| format!("could not create {}", parent.display()))?;

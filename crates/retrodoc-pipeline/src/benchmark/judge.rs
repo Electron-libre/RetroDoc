@@ -136,9 +136,7 @@ impl Judgement {
 /// one), by kind; `None` for a kind not judged, or in a report saved before the count existed.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Unaudited {
-    #[serde(default)]
     pub domains: Option<usize>,
-    #[serde(default)]
     pub features: Option<usize>,
 }
 
