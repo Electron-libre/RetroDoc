@@ -546,7 +546,7 @@ Lobsters are technical (test data, development checks, caches, dumps), the rest 
 leaves out (notifications, statistics). The checked pairs are in `benchmark/<repo>/matches.yaml`, except names too
 generic to key on (listed in its header).
 
-Re-scored at dd5cf43 (`issues/judge_overstates_feature_precision.md`, scoring version 3, no LLM call): the wrong
+Re-scored at dd5cf43 (`issues/done/judge_overstates_feature_precision.md`, scoring version 3, no LLM call): the wrong
 pairs of the audit now sit in a `rejected` list of `matches.yaml` and no longer count, and each run counts the
 judge's pairs no hand has audited. On the audited runs the judged feature precision equals the hand one (49%, 67%,
 45%, 46%) with 0, 0, 3 and 1 feature pairs left unaudited (the pairs right in their run but too generic to key
