@@ -103,7 +103,7 @@ fn concept(name: &str) -> ModelFile {
 /// A run over three domains: `billing` (two features, three use cases) and
 /// `delivery` (one feature, one use case) share the concepts `Address`,
 /// `Card`, `customer`, `Invoice` and `Zone`; `billing` alone uses `Plan`;
-/// `archive` has no feature; nothing uses `Unused`. `Clerk` starts
+/// `archive` has one feature and no use case; nothing uses `Unused`. `Clerk` starts
 /// `pay-by-card` and `cancel-now` and takes part in `pay-late`, which `buyer`
 /// takes part in; the steps of `System` are a system's.
 fn generated_repo() -> tempfile::TempDir {
@@ -115,6 +115,7 @@ fn generated_repo() -> tempfile::TempDir {
             feature("pay-invoice", "billing"),
             feature("cancel-plan", "billing"),
             feature("assign-rider", "delivery"),
+            feature("old-records", "archive"),
         ],
     )
     .unwrap();
@@ -294,7 +295,7 @@ async fn the_map_draws_a_node_per_domain_with_its_counts() {
     for label in [
         "\"Billing<br>2 features, 3 use cases\"",
         "\"Delivery<br>1 feature, 1 use case\"",
-        "\"Archive<br>0 features, 0 use cases\"",
+        "\"Archive<br>1 feature, 0 use cases\"",
     ] {
         assert!(source.contains(label), "no {label} in {source}");
     }

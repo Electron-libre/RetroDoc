@@ -11,6 +11,7 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
+use retrodoc_core::model::Feature;
 use serde::{Deserialize, Serialize};
 
 use crate::artifact::{load_yaml, save_yaml, Artifact};
@@ -82,5 +83,29 @@ impl DomainMap {
     #[must_use]
     pub fn load(repo_root: &Path) -> Option<Self> {
         load_yaml(&Artifact::Domains.path(repo_root))
+    }
+
+    /// The domains the docs publish: those at least one of `features` belongs to, the
+    /// "uncategorized" bucket left out (EDM).
+    pub fn published<'a>(
+        &'a self,
+        features: &'a [Feature],
+    ) -> impl Iterator<Item = &'a DomainCluster> + 'a {
+        self.domains
+            .iter()
+            .filter(|d| d.slug != UNCATEGORIZED_SLUG)
+            .filter(|d| features.iter().any(|f| f.domain_slug == d.slug))
+    }
+
+    /// The domains no feature of `features` belongs to, the "uncategorized" bucket left out: the
+    /// docs leave them out and the debt report lists them (EDM).
+    pub fn featureless<'a>(
+        &'a self,
+        features: &'a [Feature],
+    ) -> impl Iterator<Item = &'a DomainCluster> + 'a {
+        self.domains
+            .iter()
+            .filter(|d| d.slug != UNCATEGORIZED_SLUG)
+            .filter(|d| !features.iter().any(|f| f.domain_slug == d.slug))
     }
 }

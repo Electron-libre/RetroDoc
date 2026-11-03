@@ -175,6 +175,14 @@ fn two_slugs_folded_into_one_path_fail_the_render() {
         "domains:\n",
         "domains:\n- slug: Orders\n  name: Orders again\n  description: The same folder.\n",
     );
+    // A domain with no feature gets no page (EDM-1): give it one.
+    edit(
+        dir.path(),
+        "features.yaml",
+        "- slug: list-orders",
+        "- slug: count-orders\n  domain_slug: Orders\n  name: Count orders\n  description: Counts the orders.\n  \
+         source_paths: []\n  entry_points: []\n- slug: list-orders",
+    );
 
     let readme = dir.path().join("docs/functional/orders/README.md");
     let before = std::fs::read_to_string(&readme).unwrap();
@@ -200,6 +208,12 @@ fn a_hostile_slug_stays_in_the_docs_dir() {
         "domains.yaml",
         "slug: orders",
         "slug: ../../etc",
+    );
+    edit(
+        dir.path(),
+        "features.yaml",
+        "domain_slug: orders",
+        "domain_slug: ../../etc",
     );
 
     let page = rendered(dir.path(), "etc/README.md");

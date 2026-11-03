@@ -1,6 +1,6 @@
 ---
 id: EDM
-status: draft
+status: accepted
 adrs: [0020]
 ---
 
@@ -32,8 +32,6 @@ such a domain out and the debt report says it was left out.
   then `functional/orders/README.md` is written, no `functional/feeds/` exists and `llms.txt` does not name `feeds`.
 - (EDM-5) Given the domain `operations` whose two features were both set aside as technical, when the debt report is
   written, then it lists `operations` among the domains with no feature, with 2 features set aside.
-- (EDM-1) Given a rerun after the last feature of `feeds` was set aside, when the docs are rendered, then the page
-  of `feeds` written by the earlier run is removed (as any page the docs no longer hold, RND).
 
 ## Non-goals
 

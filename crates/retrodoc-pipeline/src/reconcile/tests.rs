@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use retrodoc_core::model::{ConfidenceScore, RuleKind};
 
 use super::*;
-use crate::domains::DomainCluster;
+use crate::domains::{DomainCluster, UNCATEGORIZED_SLUG};
 
 fn doc(path: &str, content: &str) -> ExistingDoc {
     ExistingDoc {
@@ -1149,4 +1149,18 @@ async fn a_short_section_gives_its_unused_share_to_the_long_ones() {
         (35_000..=36_000).contains(&n),
         "{n} chars: the share the short sections left"
     );
+}
+
+// spec: EDM-4 (internal: the items are the input of the reconciliation, which a run only shows through the LLM judgement of the matched sections)
+#[test]
+fn a_domain_with_no_feature_is_not_an_item() {
+    let map = DomainMap {
+        domains: vec![domain("orders", "Orders"), domain("feeds", "Feeds")],
+    };
+    let list = feature("list", "orders", "List orders", 1);
+
+    let found = items(&map, &[list], &[], &[]);
+
+    let labels: Vec<&str> = found.iter().map(|i| i.label.as_str()).collect();
+    assert_eq!(labels, ["orders", "orders/list"]);
 }

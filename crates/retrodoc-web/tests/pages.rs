@@ -55,8 +55,8 @@ fn cluster(slug: &str, name: &str, description: &str) -> DomainCluster {
 }
 
 /// A run over three domains: `billing` (two features, three use cases, 80%),
-/// `delivery` (40%, its cited file edited since the run) and `archive` (no
-/// feature, no score).
+/// `delivery` (40%, its cited file edited since the run) and `archive` (one
+/// feature citing no file, no score).
 fn generated_repo() -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path();
@@ -75,6 +75,11 @@ fn generated_repo() -> tempfile::TempDir {
             feature("pay-invoice", "billing", 0.8, "app/invoice.rb"),
             feature("cancel-plan", "billing", 0.8, "app/plan.rb"),
             feature("assign-rider", "delivery", 0.4, "app/rider.rb"),
+            Feature {
+                source_paths: Vec::new(),
+                confidence: None,
+                ..feature("old-records", "archive", 0.0, "")
+            },
         ],
     )
     .unwrap();
@@ -195,7 +200,7 @@ async fn the_home_page_lists_every_domain_with_its_confidence_and_counts() {
     );
     assert_eq!(
         text(row(&page, "archive")),
-        "Archive Old records not scored 0 features 0 use cases"
+        "Archive Old records not scored 1 feature 0 use cases"
     );
     assert_eq!(
         text(row(&page, "delivery")),

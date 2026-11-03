@@ -186,7 +186,7 @@ over browses its domains, features and use cases rather than reading the Markdow
 ## Scenarios
 
 - (WEB-2) Given `--bind 127.0.0.1:0`, then the URL printed gives the port the system picked.
-- (WEB-4) Given a domain with no feature, then it is listed with zero features and zero use cases.
+- (WEB-4) Given a domain with no feature, then it is not listed (EDM-3).
 - (WEB-4) Given a domain with no confidence score yet, then it is listed without a confidence, not as low.
 - (WEB-7) Given a cited file with no recorded hash (left out by the file budget), then the domain is not flagged.
 - (WEB-8) withdrawn: the feature pages are served (WEB-16); an unknown slug is WEB-25.

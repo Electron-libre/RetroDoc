@@ -34,10 +34,18 @@ impl DebtReport {
             })
             .collect();
         self.technical_features.sort();
+        for domain in &mut self.featureless_domains {
+            domain.set_aside = self
+                .technical_features
+                .iter()
+                .filter(|f| f.domain_slug == domain.slug)
+                .count();
+        }
     }
 
     /// The sections on what the behaviours leave out (`surface` runs only).
     pub(super) fn write_behaviour_sections(&self, md: &mut String) {
+        self.write_featureless_domains(md);
         self.write_technical_features(md);
         if !self.unplaced_entry_points.is_empty() {
             md.push_str(
@@ -81,6 +89,21 @@ impl DebtReport {
                     self.technical_support.len() - MAX_LISTED_SUPPORT
                 );
             }
+        }
+    }
+
+    /// The domains no feature belongs to, left out of the docs (EDM-5).
+    fn write_featureless_domains(&self, md: &mut String) {
+        if self.featureless_domains.is_empty() {
+            return;
+        }
+        md.push_str(
+            "\n## Domains with no feature\n\nNo feature belongs to these domains (named for \
+             entities alone, or with every feature set aside as technical); they are absent from \
+             the functional docs:\n\n| Domain | Features set aside |\n|---|---|\n",
+        );
+        for domain in &self.featureless_domains {
+            let _ = writeln!(md, "| {} | {} |", domain.name, domain.set_aside);
         }
     }
 

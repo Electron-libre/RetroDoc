@@ -58,10 +58,10 @@ are within the dafea18 range (5 to 9 over both series). Out of scope: changing w
 1. [x] Audit: the domain pairs read by hand added to `benchmark/{linkding,lobsters}/matches.yaml` (pairs and
    rejected pairs), `--saved-judge` re-score of the f95ada6 runs (no LLM), finding in `docs/findings.md` §9, ledger
    line; verified by `just check` and the re-scored table; ~80 lines. (autonomous)
-2. [ ] Domains with no feature left out of the docs: one filter of the published domains used by `domain_models`
+2. [x] Domains with no feature left out of the docs: one filter of the published domains used by `domain_models`
    (render, MCP, web), the agent index and the reconciliation items, the report lists them in a section of its own;
    verified by tests through the binary of EDM-1, EDM-2, EDM-5, EDM-6, internal for EDM-3, EDM-4; makes true EDM-1
-   to EDM-6; ~350 lines.
+   to EDM-6; ~350 lines. (autonomous)
 3. [ ] The benchmark counts the published domains only (matching, judge offer, metrics), `SCORING_VERSION` 4;
    verified by a test of BSC-20 and a `--saved-judge` re-score of the f95ada6 and dafea18 hidden runs (no LLM);
    makes true BSC-20 (amended in `specs/benchmark-scoring.md` with this deliverable: an
@@ -86,4 +86,16 @@ are within the dafea18 range (5 to 9 over both series). Out of scope: changing w
 - red: none (a measure, no test).
 - Code review: no findings
 - not verified: the feature pairs (not in scope).
+- decisions needed: none.
+
+### 2. Domains with no feature left out of the docs
+- done: `DomainMap::published` / `featureless` (pipeline); `domain_models` (render, MCP, web) and the
+  reconciliation items keep the published domains only; the debt report has a section "Domains with no feature"
+  with the features set aside of each; spec `featureless-domains` accepted; scenario WEB-4 amended (a domain with
+  no feature is not listed); the web and MDR fixtures that relied on a domain with no feature give it one.
+- checks: `just check` ok; docs `docs/crates/pipeline.md`, `docs/crates/render-mcp-cli.md`.
+- red: EDM-1, EDM-2: `assertion failed: !functional.join("feeds").exists()`; EDM-5, EDM-6: no "## Domains with no
+  feature" in the report; EDM-3, EDM-4: written after the filter, not seen red.
+- Code review: no findings
+- not verified: a real run (no LLM call in this deliverable).
 - decisions needed: none.

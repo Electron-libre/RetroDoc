@@ -38,6 +38,15 @@ pub struct TechnicalFeature {
     pub entry_points: usize,
 }
 
+/// A domain no feature belongs to, left out of the docs, as the debt report lists it (EDM-5).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FeaturelessDomain {
+    pub slug: String,
+    pub name: String,
+    /// Its features set aside as technical; filled with [`DebtReport::with_technical_features`].
+    pub set_aside: usize,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct WeakSection {
     /// e.g. `billing/payment/pay-invoice`.
@@ -72,6 +81,8 @@ pub struct DebtReport {
     /// Source files the clustering could not place in a domain: code with no
     /// documentation at all.
     pub uncategorized_files: Vec<PathBuf>,
+    /// Domains no feature belongs to, left out of the docs (EDM-5).
+    pub featureless_domains: Vec<FeaturelessDomain>,
     /// Source files left out by the file budget (`--max-files`): not
     /// analysed at all. Filled by the caller from the saved `Scope`.
     pub skipped_files: Vec<PathBuf>,
@@ -107,18 +118,27 @@ fn mean(values: impl Iterator<Item = f32>) -> Option<f32> {
 }
 
 /// Converts the clustering into the rendering model: the "uncategorized"
-/// bucket is left out (it belongs to the coverage report), and each domain
-/// carries the mean confidence of its features.
+/// bucket and the domains with no feature are left out (they belong to the
+/// coverage report, EDM), and each domain carries the mean confidence of its features.
 #[must_use]
 pub fn domain_models(map: &DomainMap, features: &[Feature]) -> Vec<Domain> {
-    map.domains
-        .iter()
-        .filter(|d| d.slug != UNCATEGORIZED_SLUG)
+    map.published(features)
         .map(|d| Domain {
             slug: d.slug.clone(),
             name: d.name.clone(),
             description: d.description.clone(),
             confidence: mean_confidence(features.iter().filter(|f| f.domain_slug == d.slug)),
+        })
+        .collect()
+}
+
+/// The domains no feature belongs to, their features set aside counted later (EDM-5).
+fn featureless_domains(map: &DomainMap, features: &[Feature]) -> Vec<FeaturelessDomain> {
+    map.featureless(features)
+        .map(|d| FeaturelessDomain {
+            slug: d.slug.clone(),
+            name: d.name.clone(),
+            set_aside: 0,
         })
         .collect()
 }
@@ -276,6 +296,7 @@ pub fn build_report(
         back_office_features: back_office.len(),
         unscored_use_cases,
         uncategorized_files,
+        featureless_domains: featureless_domains(domains, features),
         // Filled by the caller from the saved artifacts.
         ..DebtReport::default()
     }

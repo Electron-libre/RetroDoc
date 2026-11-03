@@ -12,7 +12,7 @@ use retrodoc_ingest::signals::doc_sections;
 use serde::{Deserialize, Serialize};
 
 use crate::bm25::{has_content_words, Bm25};
-use crate::domains::{DomainMap, UNCATEGORIZED_SLUG};
+use crate::domains::DomainMap;
 
 mod judge;
 
@@ -168,7 +168,7 @@ fn mean(values: impl Iterator<Item = f32>) -> Option<f32> {
 }
 
 /// The items of the saved artifacts, in the order domains, features, use cases, rules; the
-/// "uncategorized" bucket is not a domain.
+/// "uncategorized" bucket and the domains with no feature are not items (EDM-4).
 #[must_use]
 pub fn items(
     domains: &DomainMap,
@@ -178,11 +178,7 @@ pub fn items(
 ) -> Vec<Item> {
     let by_slug: BTreeMap<&str, &Feature> = features.iter().map(|f| (f.slug.as_str(), f)).collect();
     let mut items = Vec::new();
-    for domain in domains
-        .domains
-        .iter()
-        .filter(|d| d.slug != UNCATEGORIZED_SLUG)
-    {
+    for domain in domains.published(features) {
         let own = || features.iter().filter(|f| f.domain_slug == domain.slug);
         items.push(Item {
             kind: ItemKind::Domain,
