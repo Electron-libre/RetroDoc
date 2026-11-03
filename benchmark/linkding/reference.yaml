@@ -395,4 +395,4 @@ checked:
   method: >-
     Evidence cited per feature; a blind second draft from the code and the user docs, the disagreements settled from
     the code; `disputed` marks the features one draft did not hold, the scope fixes are in the descriptions
-    (issues/benchmark_references_anchored_in_evidence.md).
+    (issues/done/benchmark_references_anchored_in_evidence.md).

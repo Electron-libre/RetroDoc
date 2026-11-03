@@ -1,6 +1,6 @@
 //! Checks the evidence of a benchmark reference against a checkout of its repository, and re-reads saved
 //! run reports with the features marked `disputed` taken out, with no LLM call (spec
-//! `benchmark-reference-evidence`, `issues/benchmark_references_anchored_in_evidence.md`).
+//! `benchmark-reference-evidence`, `issues/done/benchmark_references_anchored_in_evidence.md`).
 //!
 //! Usage:
 //! `cargo run -q -p retrodoc-bench --example reference_evidence -- <reference.yaml> <tree> [<run.json>...]`
