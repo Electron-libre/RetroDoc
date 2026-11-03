@@ -62,11 +62,11 @@ measured), the reached private items exposed behind a `bench` feature, `crate::<
    (the benchmark unit tests run in the new crate) and `retrodoc benchmark-table` on a saved benchmark dir giving
    the same output as before; est. ~250 lines in the deliverable, ~2,450 in the issue total (5 moved files edited,
    counted twice). (autonomous)
-3. [ ] Docs: crate graph of `CLAUDE.md` and `docs/ARCHITECTURE.md`, `docs/crates/` (a section for the new crate),
+3. [x] Docs: crate graph of `CLAUDE.md` and `docs/ARCHITECTURE.md`, `docs/crates/` (a section for the new crate),
    `docs/dev/commands.md` (`-p retrodoc-bench`), skills `quality-benchmark`, `smoke-test`, `commit_scopes` of
    `.claude/cardinal.toml` (`bench`), ADR 0042 accepted, the reuse rule of the ledger (outside git); verified by
    `just check` and a grep of `retrodoc-pipeline --example` and `retrodoc-pipeline/src/benchmark` left nowhere;
-   est. ~150 lines.
+   est. ~150 lines. (autonomous)
 
 Examples named nowhere among skills, `docs/dev/commands.md`, the ledger's measures or an open issue (candidates to
 delete in the follow-up): `confidence_agreement` (ADR 0026 only), `orphan_placement_measure`, `read_overlap` (ADR
@@ -119,5 +119,23 @@ gated, both only served the replays; `UNCATEGORIZED_SLUG` public; `retrodoc-cli`
 | code review | `low`, clean |
 
 red: none (a move, no new behaviour)
+
+Code review: no findings
+
+## Deliverable 3
+done: crate graph and crate map of `CLAUDE.md`, `README.md` and `docs/ARCHITECTURE.md` (nine crates, a "where to go"
+row), `docs/crates/bench.md` (the `benchmark/` row moved from `docs/crates/pipeline.md`, the features), the reuse
+rule of the skill `quality-benchmark` and of the ledger, the open issue `benchmark_references_checked_by_a_human`,
+ADR 0042 accepted.
+
+| check | result |
+|---|---|
+| tests | `just check` green |
+| lint | clean |
+| specs | untouched |
+| docs | grep of `retrodoc-pipeline --example`, `retrodoc-pipeline/src/benchmark`, `retrodoc_pipeline::benchmark`: none left outside `issues/done/` and the usage comments of the moved examples (follow-up) |
+| code review | `low`, clean |
+
+red: none (docs)
 
 Code review: no findings

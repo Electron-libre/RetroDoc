@@ -33,7 +33,7 @@ Measured quality at the current code
 
 # Resources
 * `benchmark/linkding/`, `benchmark/lobsters/`, skill `quality-benchmark`.
-* `crates/retrodoc-pipeline/src/benchmark/reference.rs` (format of the reference).
+* `crates/retrodoc-bench/src/benchmark/reference.rs` (format of the reference).
 
 # Hints
 * The user's time is the cost here: keep the sheet short, one line per item.

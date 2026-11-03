@@ -41,7 +41,7 @@ re-ranked (the `priority` and `depends_on` of each issue file), update its plann
 
 ## Architecture
 
-Cargo workspace, eight crates under `crates/`, dependency direction flows one way (no cycles):
+Cargo workspace, nine crates under `crates/`, dependency direction flows one way (no cycles):
 
 ```
 retrodoc-cli ──> retrodoc-pipeline ──> retrodoc-ingest ──> retrodoc-core
@@ -51,6 +51,7 @@ retrodoc-cli ──> retrodoc-pipeline ──> retrodoc-ingest ──> retrodoc-
 retrodoc-cli ──> retrodoc-render ──> retrodoc-core
 retrodoc-cli ──> retrodoc-mcp ──> retrodoc-pipeline, retrodoc-ingest, retrodoc-core
 retrodoc-cli ──> retrodoc-web ──> retrodoc-mcp, retrodoc-render, retrodoc-core
+retrodoc-cli ──> retrodoc-bench ──> retrodoc-pipeline, retrodoc-ingest, retrodoc-llm, retrodoc-core
 ```
 
 Per-crate detail (modules, passes, behaviours that span passes) lives in `docs/crates/`; read the file
@@ -64,6 +65,9 @@ of the crate you are about to touch. High-level view: `docs/ARCHITECTURE.md`. De
 - **retrodoc-pipeline**: the multi-pass generation pipeline, one module per pass (the `//!` doc of each module is
   the reference), plus incremental re-run, model per pass, resume, cost control, token accounting.
   → `docs/crates/pipeline.md`
+- **retrodoc-bench**: the measuring tools (ADR 0042): the quality benchmark (scoring, judge, replays of one pass on
+  frozen inputs) and the measuring examples; reaches pass internals through the `bench` feature of the pipeline.
+  → `docs/crates/bench.md`
 - **retrodoc-render**: writes the Markdown/Mermaid docs, deterministic and idempotent. → `docs/crates/render-mcp-cli.md`
 - **retrodoc-mcp**: the typed read model of the generated docs and the read-only, LLM-free MCP server over it.
   → `docs/crates/render-mcp-cli.md`

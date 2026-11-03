@@ -22,7 +22,7 @@ flowchart LR
 
 ## 2. The crates
 
-Eight crates; dependencies only point downwards (no cycles).
+Nine crates; dependencies only point downwards (no cycles).
 
 ```mermaid
 flowchart TD
@@ -30,6 +30,7 @@ flowchart TD
     pipe["<b>retrodoc-pipeline</b><br/>LLM passes, caches, report"]
     render["<b>retrodoc-render</b><br/>Markdown/Mermaid files,<br/>diff, idempotent write"]
     mcp["<b>retrodoc-mcp</b><br/>read model, MCP server +<br/>lexical search over the generated docs"]
+    bench["<b>retrodoc-bench</b><br/>quality benchmark,<br/>replays, measures"]
     web["<b>retrodoc-web</b><br/>local web interface<br/>over the generated docs"]
     ingest["<b>retrodoc-ingest</b><br/>walker, git history,<br/>existing docs"]
     llm["<b>retrodoc-llm</b><br/>LlmProvider trait +<br/>OpenRouter client"]
@@ -41,6 +42,8 @@ flowchart TD
     cli --> llm
     cli --> mcp
     cli --> web
+    cli --> bench
+    bench --> pipe
     web --> mcp
     web --> render
     web --> core
@@ -61,6 +64,7 @@ flowchart TD
 | `retrodoc-ingest` | Reads the repo: files (honouring `.gitignore`, classified `Source`/`Test`/`Markdown`/`Other`), git history in one pass, existing docs, and the code structure (tree-sitter definitions and references, [ADR 0022](adr/0022-tree-sitter-for-code-structure.md), [ADR 0027](adr/0027-parse-to-cut-long-files-and-opt-in-short-bodies.md)). What it knows of given stacks only accelerates: every pass works without it ([ADR 0036](adr/0036-language-and-framework-agnostic-by-design.md), `specs/language-agnostic.md`). |
 | `retrodoc-llm` | Talks to the model. `LlmProvider` is a trait; the implementation is `OpenRouterProvider`, for `openrouter` and `deepseek` (HTTP, retry with backoff on 429/5xx). `UsageProvider` wraps it to count calls and tokens per pass. |
 | `retrodoc-pipeline` | The brain: one module per pass, plus caches, fingerprints and the debt report. |
+| `retrodoc-bench` | The measuring tools, out of the product code: the quality benchmark behind `retrodoc benchmark` and `benchmark-table`, the replays of one pass on frozen inputs and the measuring examples ([ADR 0042](adr/0042-the-measuring-tools-live-in-a-crate-of-their-own.md)). |
 | `retrodoc-render` | Turns the result into Markdown files, compares with disk, writes only what changed. |
 | `retrodoc-mcp` | Read-only access to the generated docs, without any LLM call: the typed read model `GeneratedDocs`, the BM25 search behind `retrodoc search` and the MCP server for LLM agents (`retrodoc mcp`, `rmcp`, stdio) with its seven read-only tools. |
 | `retrodoc-web` | The local web interface over the generated docs: HTML pages rendered on the server (`axum`, `askama`, vendored `htmx` and `mermaid`) from the read model of `retrodoc-mcp` and the rules of `retrodoc-render` (the doc links, the set-apart section), no LLM call, nothing written ([ADR 0039](adr/0039-a-server-rendered-web-interface-over-the-generated-docs.md)). |
@@ -344,6 +348,7 @@ flowchart LR
 |---|---|
 | Know what is planned / out of scope | `ROADMAP.md` (milestones), `PRODUCT.md` "Scope of v1" (out of scope) and "Risks", `docs/findings.md` (dated findings, §7: the review of 2026-10-12), `just next-issue` (the open issues by rank) |
 | Add or change a pipeline pass | `crates/retrodoc-pipeline/src/` (follow the existing pass + its fake-provider test) |
+| Change the benchmark, a replay or a measure | `crates/retrodoc-bench/` (`src/benchmark/`, `examples/`), `docs/crates/bench.md` |
 | Change the generated Markdown | `crates/retrodoc-render/src/markdown/` (one file per page) |
 | Change what an agent can ask (MCP tools, search, code access) | `crates/retrodoc-mcp/src/` (`tools/` the answers, `server.rs` the wiring, `source.rs` the code access scope) |
 | Change what the web interface shows | `crates/retrodoc-web/` (`view.rs` what a page shows, `code.rs`, `files.rs`, `collected.rs`, `glossary.rs`, `rules.rs`, `actors.rs`, `map.rs` and `search.rs` the other pages, `templates/` the layout, `pages.rs` the routes), `specs/web-ui.md`; the data comes from `GeneratedDocs` in `crates/retrodoc-mcp/src/read_model.rs` |
