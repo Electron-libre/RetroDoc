@@ -37,7 +37,7 @@ Measures (paid DeepSeek runs, hours-long local runs): `~/retrodoc-runs/LEDGER.md
 measure (commit, model, inputs, cost, figures, artifacts), the runs to keep and the planned measures of the
 queue. Read it before a paid or long run and reuse a measure of the same pass at the same code, model and
 inputs; append a line after; still ask before a paid run. When an issue is created or the issues are
-re-ranked (the `rank` of each issue file), update its planned measures (skills `quality-benchmark` and `smoke-test` give the details).
+re-ranked (the `priority` and `depends_on` of each issue file), update its planned measures (skills `quality-benchmark` and `smoke-test` give the details).
 
 ## Architecture
 
@@ -45,6 +45,7 @@ Cargo workspace, eight crates under `crates/`, dependency direction flows one wa
 
 ```
 retrodoc-cli ──> retrodoc-pipeline ──> retrodoc-ingest ──> retrodoc-core
+                                   ──> retrodoc-llm
              ──> retrodoc-llm      ──────────────────────> retrodoc-core
              ──> retrodoc-ingest
 retrodoc-cli ──> retrodoc-render ──> retrodoc-core

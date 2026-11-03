@@ -51,12 +51,12 @@ debt nobody has time to pay.
 | Incremental rerun, resume, cost recap per pass | yes | pre-run cost estimate |
 | Large applications documented one bounded context at a time | yes | |
 | Read-only MCP server and lexical search over the generated docs, for agents | yes | |
-| Generated docs written in a chosen language (`[output] language`) | yes | headings and web interface in that language |
+| Generated docs written in a chosen language (`[output] language`), headings and web interface in English or French | yes | fixed text in other languages, coverage report, CLI and MCP text |
 | Ask the documentation from RetroDoc itself (`ask` / `chat`) | | yes |
 | Technical documentation: components, C4 diagrams, deployment, APIs, linked to the domains and use cases | | yes |
 | Inputs from GitHub, GitLab and Jira (issues, tickets, pull requests) | | yes |
 | Automatic pull request with the generated docs | | yes |
-| Web interface: browse the docs, explore the debt, audit dashboard, run history, review | yes | edit the docs, hosted for a team |
+| Web interface: browse the docs (done), explore the debt, audit dashboard, run history, review (planned) | yes | edit the docs, hosted for a team |
 
 ## User journeys
 
@@ -108,13 +108,20 @@ Measured by `retrodoc benchmark` against hand-written references on public repos
 - recall and precision of the domains and features against the reference;
 - share of the use case narratives in business language;
 - calls, tokens and time per run, for a given size of business surface;
-- a rerun on an unchanged repository makes no LLM call and changes no file.
+- a rerun on an unchanged repository makes no LLM call and changes no file;
+- a reader taking over an application finds the docs right and useful (not measured yet: milestone "Read by someone
+  taking an application over" of `ROADMAP.md`).
+
+Latest figures (hosted `deepseek-chat`, 2026-10-28, before the docs language and the narrative check): Lobsters
+judged domains 100% recall / 82% precision, features 100% / 51%; linkding features by hand about 75% / 77%;
+narratives in business language 78% to 81%. Feature precision is the weakest figure.
 
 ## Constraints and assumptions
 
 - A Rust CLI, run locally on a clone; no data leaves the machine except the prompts sent to the chosen LLM endpoint.
 - The LLM recognises the stack and its conventions from the file tree and the manifests; a stack table only helps.
-- The quality is bounded by the model: a small local model is a valid target, at a lower quality and a longer run.
+- The quality is bounded by the model: a small local model is a valid target, at a lower quality and a longer run;
+  no complete run of a benchmark application on a local model has finished yet (milestone "A local model, measured").
 
 ## Risks
 
@@ -125,7 +132,10 @@ Measured by `retrodoc benchmark` against hand-written references on public repos
 - With behaviours as the coverage unit, a behaviour the entry point pass misses is a use case missing from the docs;
   the debt report lists the files no entry point reaches.
 - The measures are noisy: the spread between runs is as large as many effects, the LLM judge of the benchmark is
-  wrong on a share of its pairs, and the references are not all checked by a human.
+  wrong on a share of its pairs (it overstates the feature precision by 12 to 33 points on the audited runs), and the
+  references are not all checked by a human.
+- Nobody outside the project has read the generated docs of an application they take over: the users of the table
+  above are assumed, not met.
 
 ## Open questions
 

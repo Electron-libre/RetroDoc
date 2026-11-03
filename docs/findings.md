@@ -50,7 +50,7 @@ Already fixed (same session, commit `5543f28` and following):
   model is not deterministic, so this is one sample. Truncated JSON (`finish_reason=length`) is a separate
   problem, not covered.
 
-## 2. Phase 7 — business-level documentation (open)
+## 2. Phase 7 — business-level documentation
 
 Observed: the documentation is mostly technical and the business domain is barely perceptible. Example
 (the Rails test repo): a use case "Format children companies for UI selection" has actor "Developer", five steps that
@@ -200,7 +200,7 @@ Steps, each shippable and checkable on the Rails test repo:
 Validation: re-run on the Rails test repo and autoroute; compare actors, domain names and use-case titles by hand
 (a reader who doesn't know the code should be able to say what the product does).
 
-## 3. Phase 8 — scalability & cost control (open)
+## 3. Phase 8 — scalability & cost control
 
 Observed: the cost is linear in LLM calls — one per file, per directory, per domain unit, per feature, per
 use case, plus one **per use case** for confidence (about a third of all calls). 26 files already took 31
@@ -271,7 +271,7 @@ since Ollama has no `OLLAMA_NUM_PARALLEL` set.
 Validation: measure calls and wall time before/after on the Rails test repo `app/presenters/` (baseline above), then
 on a larger sparse-checkout (e.g. `app/models` + `app/services`).
 
-## 4. Phase 9 — ask the documentation (open)
+## 4. Phase 9 — ask the documentation
 
 Idea (2026-10-02): once the documentation is built, the ideal consumer is an agent that can be questioned
 about how the application works ("what happens when a contract is signed?", "who can cancel a
@@ -377,7 +377,7 @@ large application that gave no entry point (§2 step 3; not reproducible without
   JSON) depend on the server config — see the local LLM setup notes.
 - Truncation: the entry points and glossary passes chunk long files and the use cases/confidence passes show the relevant chunks of a long file; the actors pass still cuts long files.
 
-## 6. Phase 10 — top-down redesign (open)
+## 6. Phase 10 — top-down redesign
 
 Review of 2026-10-07: the pipeline climbs from the code to the business and its cost grows with the file
 count. Findings from the code: the existing docs reach one prompt as their first line only, commit
