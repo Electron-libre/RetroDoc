@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/retrodoc-bench",
     "crates/retrodoc-cli",
     "crates/retrodoc-core",
     "crates/retrodoc-ingest",
@@ -60,6 +61,7 @@ askama = "0.16"
 pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 
+retrodoc-bench = { path = "crates/retrodoc-bench" }
 retrodoc-core = { path = "crates/retrodoc-core" }
 retrodoc-ingest = { path = "crates/retrodoc-ingest" }
 retrodoc-llm = { path = "crates/retrodoc-llm" }

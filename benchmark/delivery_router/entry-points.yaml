@@ -1,6 +1,6 @@
 # Hand-made reference of the entry points and actors of the repository of `reference.yaml`, read from
 # `lib/` (a library: its public API is its entry points, ADR 0008). Used by
-# `cargo run -p retrodoc-pipeline --example entry_points_replay`.
+# `cargo run -p retrodoc-bench --example entry_points_replay`.
 repo: delivery_router
 # Where the entry points live: a pass that does not read these files cannot find them.
 files:

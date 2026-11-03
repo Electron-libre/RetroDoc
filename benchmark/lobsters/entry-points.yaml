@@ -1,7 +1,7 @@
 # Hand-made reference of the entry points and actors of the repository of `reference.yaml`, read from
 # `config/routes.rb` and the controllers, plus the inbound mailbox, the background jobs and the scripts run by
 # cron. Entry points are grouped by resource: a run covers a group when one of its entry points matches. Used by
-# `cargo run -p retrodoc-pipeline --example entry_points_replay`.
+# `cargo run -p retrodoc-bench --example entry_points_replay`.
 repo: lobsters
 # Where the entry points live: a pass that does not read these files cannot find them.
 files:

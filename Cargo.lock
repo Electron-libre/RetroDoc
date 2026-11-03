@@ -1400,6 +1400,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "retrodoc-bench"
+version = "0.6.0"
+dependencies = [
+ "async-trait",
+ "git2",
+ "regex",
+ "reqwest",
+ "retrodoc-core",
+ "retrodoc-ingest",
+ "retrodoc-llm",
+ "retrodoc-pipeline",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tempfile",
+ "tokio",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "retrodoc-cli"
 version = "0.6.0"
 dependencies = [
@@ -1509,7 +1529,6 @@ dependencies = [
  "git2",
  "globset",
  "regex",
- "reqwest",
  "retrodoc-core",
  "retrodoc-ingest",
  "retrodoc-llm",

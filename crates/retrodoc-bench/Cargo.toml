@@ -1,0 +1,54 @@
+[package]
+name = "retrodoc-bench"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+retrodoc-pipeline.workspace = true
+
+[dev-dependencies]
+retrodoc-core.workspace = true
+retrodoc-ingest.workspace = true
+retrodoc-llm.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+regex.workspace = true
+async-trait.workspace = true
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+tempfile = "3"
+git2.workspace = true
+tracing-subscriber.workspace = true
+reqwest.workspace = true
+
+[[example]]
+name = "entry_points_replay"
+test = true
+
+[[example]]
+name = "behaviour_baseline"
+test = true
+
+[[example]]
+name = "parsed_slices"
+test = true
+
+[[example]]
+name = "context_map_measure"
+test = true
+
+[[example]]
+name = "orphan_placement_measure"
+test = true
+
+[[example]]
+name = "placement_replay"
+test = true
+
+[[example]]
+name = "use_cases_answer_size_measure"
+test = true

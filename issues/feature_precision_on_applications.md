@@ -37,7 +37,7 @@ Measured quality at the current code
 
 # Resources
 * `crates/retrodoc-pipeline/src/features/` (`from_surface.rs`), `specs/` of the features pass if any.
-* `crates/retrodoc-pipeline/examples/pass_replay.rs`, the frozen inputs (outside git, skill `quality-benchmark`).
+* `crates/retrodoc-bench/examples/pass_replay.rs`, the frozen inputs (outside git, skill `quality-benchmark`).
 * `issues/done/brief_injection_experiments.md`, `issues/done/surface_domains_default_decision.md`.
 
 # Hints

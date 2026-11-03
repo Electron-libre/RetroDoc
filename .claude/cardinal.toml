@@ -6,7 +6,7 @@ rev = "c6fd376fa938ce1d1e8e6da4f118574ad078a583"  # default branch
 
 [project]
 # Scopes allowed in commit messages besides `docs` and `cardinal` (crates, areas).
-commit_scopes = ["core", "ingest", "llm", "pipeline", "render", "mcp", "web", "cli"]
+commit_scopes = ["core", "ingest", "llm", "pipeline", "bench", "render", "mcp", "web", "cli"]
 # Documents at the repository root that skills may cite besides AGENTS.md and CLAUDE.md.
 root_docs = ["README.md", "PRODUCT.md", "ROADMAP.md", "CHANGELOG.md"]
 # Directories that scripts do not scan besides .git, target and node_modules.

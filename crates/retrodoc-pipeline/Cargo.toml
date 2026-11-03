@@ -28,32 +28,4 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 tempfile = "3"
 git2.workspace = true
 tracing-subscriber.workspace = true
-reqwest.workspace = true
 
-[[example]]
-name = "entry_points_replay"
-test = true
-
-[[example]]
-name = "behaviour_baseline"
-test = true
-
-[[example]]
-name = "parsed_slices"
-test = true
-
-[[example]]
-name = "context_map_measure"
-test = true
-
-[[example]]
-name = "orphan_placement_measure"
-test = true
-
-[[example]]
-name = "placement_replay"
-test = true
-
-[[example]]
-name = "use_cases_answer_size_measure"
-test = true
