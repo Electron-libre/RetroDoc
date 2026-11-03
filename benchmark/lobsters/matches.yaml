@@ -271,6 +271,63 @@ features:
     reference: Talk with the moderators
   - generated: Username Renaming
     reference: Manage my account
+  # Audited 2026-11-03 (feature_precision_on_applications, f95ada6): hidden-1, judge's pairs and missed ones.
+  - generated: Browse story listings
+    reference: Browse the front page
+  - generated: Browse stories by tag
+    reference: Browse by tag, domain or origin
+  - generated: Browse stories by domain or origin
+    reference: Browse by tag, domain or origin
+  - generated: View a story and its discussion
+    reference: Comment on a story
+  - generated: Edit or delete own story
+    reference: Edit and delete my story
+  - generated: Suggest story title and tags
+    reference: Suggest a better title or tags
+  - generated: Save stories for later
+    reference: Hide and save stories
+  - generated: Hide and flag stories
+    reference: Hide and save stories
+  - generated: Send webmentions
+    reference: Post stories to Mastodon
+  - generated: Post and reply to comments
+    reference: Comment on a story
+  - generated: Edit comments
+    reference: Edit and delete my comment
+  - generated: Delete, undelete and disown comments
+    reference: Edit and delete my comment
+  - generated: Browse comment listings
+    reference: Follow the site in a feed reader
+  - generated: Reply to comments by email
+    reference: Take part by e-mail
+  - generated: Tag browsing
+    reference: Browse by tag, domain or origin
+  - generated: Sign up
+    reference: Sign up with an invitation
+  - generated: Member profiles
+    reference: View member profiles
+  - generated: Moderation dashboard
+    reference: Talk with the moderators
+  - generated: Moderation notes
+    reference: Talk with the moderators
+  - generated: Domain and origin browsing
+    reference: Browse by tag, domain or origin
+  - generated: Content disowning
+    reference: Edit and delete my story
+  - generated: Content disowning
+    reference: Edit and delete my comment
+  - generated: Comment reply and mention notifications
+    reference: Follow replies and mentions
+  - generated: Log in and log out
+    reference: Sign in
+  - generated: Moderation mail
+    reference: Talk with the moderators
+  - generated: Mastodon account link
+    reference: Manage my account
+  - generated: GitHub account link
+    reference: Manage my account
+  - generated: Pushover notifications
+    reference: Follow replies and mentions
 rejected:
   domains:
     # it holds the listings only (audit of 2026-11-03)
@@ -289,3 +346,6 @@ rejected:
     # a member's upvoted list, no feed (audit of 2026-11-03)
     - generated: Upvoted stories and comments
       reference: Follow the site in a feed reader
+    # a tag administration screen, not the browsing (audit of 2026-11-03, f95ada6)
+    - generated: Category administration
+      reference: Browse by tag, domain or origin

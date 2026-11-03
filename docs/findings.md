@@ -576,3 +576,37 @@ Lobsters, 10 of 13 on linkding), and the features with a route reach 67% and 60%
 the 32 technical ones of Lobsters but 4 of 12 on linkding, and back-office features stay in the docs, listed apart.
 Ceilings, against the hand precision of 45% and 49%: the technical ones left out, 68% on both; the too fine ones also
 merged into their neighbour, about 82% and 95%.
+
+Change measured (`issues/feature_precision_on_applications.md`): the features answer marks a feature `technical`
+(development, tests, deployment, maintenance or the internal plumbing, but not an exchange with an external system or
+a user nor a copy of what a user saved); such a feature leaves the docs for `features-set-aside.yaml` and the debt
+report. Replays x3 of the features pass on the frozen inputs of dafea18, judged figures (unaudited, to compare
+settings):
+
+| Setting | linkding recall / precision | Lobsters recall / precision |
+|---|---|---|
+| Baseline | 90% / 50% (49-51) | 98% / 42% (41-43) |
+| T: `technical`, first wording | 94% / 55% (51-61) | 88% / 54% (50-58) |
+| T2: external exchanges and saved copies not technical | 93% / 53% (51-55) | 91% / 47% (44-51) |
+| M: T2 and "keep a capability whole" (not kept) | 97% / 54% (51-58) | 96% / 51% (48-58) |
+| T3: T2 and operations commands and jobs technical (kept) | 89% / 58% (57-60) | 95% / 55% (53-57) |
+
+The first wording set aside real features (page snapshots, webmentions, Mastodon posting); the merge rule left the
+too fine features as they were. Whole benchmark of T3 at f95ada6, 3 runs, docs hidden, confidence on, the baseline
+re-scored with the same `matches.yaml`:
+
+| Figure | linkding dafea18 | linkding f95ada6 | Lobsters dafea18 | Lobsters f95ada6 |
+|---|---|---|---|---|
+| Features recall (judged) | 90% | 89% (83-92) | 96% | 98% (97-100) |
+| Features precision (judged) | 57% | 63% (59-66) | 52% | 65% (56-77) |
+| Features precision by hand, `hidden-1` | 49% | 68% | 45% | 78% |
+| Domains precision (judged) | 100% | 75% (62-88) | 85% | 64% (50-78) |
+| Features, use cases | 43, 112 | 34, 102 | 81, 208 | 66, 177 |
+| Calls, time | 138, 6 min | 121, 6 min | 214, 12 min | 183, 10 min |
+
+The unpaired features left by hand: on linkding too fine ones (asset API, custom CSS, integration settings, unused
+tag cleanup) and two technical (toasts, landing redirect); on Lobsters too fine ones (hats, avatars, upvoted list),
+real features the reference leaves out (statistics, information pages, moderator list) and three technical (flag
+statistics, mail routing, job dashboard). Fewer features also mean fewer use cases and calls. The domain precision
+fell with the domains pass unchanged since dafea18 (linkding 8 domains each run against 6, one of them with no
+feature): not explained by this change, which runs after the domains.

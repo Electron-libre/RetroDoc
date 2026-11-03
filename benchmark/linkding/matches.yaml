@@ -308,6 +308,25 @@ features:
     reference: Archive a page as an HTML snapshot
   - generated: Instance and profile settings
     reference: Configure a profile
+  # Audited 2026-11-03 (feature_precision_on_applications, f95ada6): hidden-1, judge's pairs and missed ones.
+  - generated: Bookmark search and listing
+    reference: Search bookmarks
+  - generated: Bookmark snapshots and media
+    reference: Archive a page as an HTML snapshot
+  - generated: Bookmark snapshots and media
+    reference: Snapshot on the Internet Archive
+  - generated: Bookmark snapshots and media
+    reference: Save a PDF
+  - generated: Upload bookmark assets
+    reference: Archive a page as an HTML snapshot
+  - generated: View and read snapshots
+    reference: Read a saved page
+  - generated: Progressive Web App Manifest
+    reference: Install as an app
+  - generated: User profile and preferences
+    reference: Configure a profile
+  - generated: Admin site
+    reference: Administer data
 rejected:
   domains:
     # it is the project's own docs site

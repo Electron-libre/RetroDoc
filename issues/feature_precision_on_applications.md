@@ -75,8 +75,8 @@ the references (`benchmark_references_checked_by_a_human`).
 5b. [x] Candidate T3: the operations commands, scripts and scheduled jobs (deployment, maintenance, backup) are
    technical, a back-office tool is what an administrator uses in the application; replays x3 both applications;
    kept. (autonomous)
-6. [ ] Whole benchmark of the pick (hidden series, 3 runs, both applications), record in `docs/findings.md`, "Latest figures" of
-   `PRODUCT.md`, the ledger.
+6. [x] Whole benchmark of the pick (hidden series, 3 runs, both applications), record in `docs/findings.md`, "Latest figures" of
+   `PRODUCT.md`, the ledger. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -213,5 +213,31 @@ Code review: no findings
 | code review (`low`) | no findings |
 
 red: none (a prompt refinement measured by the replays; the pinned print test covers the request)
+
+Code review: no findings
+
+## Deliverable 6: whole benchmark of T3
+- done: `just benchmark --provider deepseek --runs 3 --series hidden` at f95ada6 on both applications (no `FAIL`, no
+  warning, about $1.6); hand audit of `hidden-1` of each, the right pairs (the judge's and 8 it missed) added to
+  `matches.yaml`, 1 wrong one rejected, pairs equal once normalised left out; these runs and the dafea18 hidden runs
+  re-scored `--saved-judge` with the same pairs; `docs/findings.md` §10, "Latest figures" of `PRODUCT.md`, ledger.
+
+| figure | linkding dafea18 | linkding f95ada6 | Lobsters dafea18 | Lobsters f95ada6 |
+|---|---|---|---|---|
+| features recall, judged | 90% | 89% (83-92) | 96% | 98% (97-100) |
+| features precision, judged | 57% | 63% (59-66) | 52% | 65% (56-77) |
+| features precision by hand, `hidden-1` | 49% | 68% | 45% | 78% |
+| domains precision, judged | 100% | 75% (62-88) | 85% | 64% (50-78) |
+
+- not verified: why the domains precision fell: the domains pass is unchanged since dafea18 and runs before the
+  features; linkding now gives 8 domains each run (6 at dafea18), one with no feature.
+- decisions needed: a follow-up issue on the domain precision drop (proposed in the final summary).
+
+| check | result |
+|---|---|
+| tests, lint, specs (`just check`) | pass |
+| code review (`low`) | no findings |
+
+red: none (measure and docs)
 
 Code review: no findings
