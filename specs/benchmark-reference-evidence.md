@@ -35,6 +35,19 @@ human-written docs and how much moves with the features one of two independent d
   counts as matched when one of its reference features is not disputed.
 - **BRE-9** (deterministic) A reference must accept a `checked` entry with a `date` and a `method`, and the evidence
   check must print it, or say the reference has none.
+- **BRE-10** (deterministic) The evidence check must report each `doc` or `code` item whose path is absolute or
+  climbs out of the tree with `..`, as outside the repository.
+- **BRE-11** (deterministic) The evidence check must fail when the tree is a Git checkout whose `HEAD` is not the
+  `commit` of the reference, naming both commits.
+- **BRE-12** (deterministic) The evidence check must skip, with a line naming it, a saved report whose reference
+  features, paired or left unmatched, are not those of the reference, instead of printing its figures.
+- **BRE-13** (deterministic) A score without recall or precision (an unjudged kind) must keep them empty once the
+  disputed features are taken out.
+- **BRE-14** (deterministic) A reference, a domain, a feature or a `checked` entry with an unknown key must fail the
+  load naming the key.
+- **BRE-15** (deterministic) The evidence check must not read as a heading a line of a fenced code block or of the
+  front matter of a Markdown file, and must compare headings with their inner runs of spaces and line breaks taken
+  as one space.
 
 ## Scenarios
 
@@ -42,6 +55,8 @@ human-written docs and how much moves with the features one of two independent d
 - (BRE-3) Given an evidence item `{doc: a.md, code: b.py}`, then the load fails naming its feature.
 - (BRE-5) Given `doc: docs/search.md#Search syntax` and a file holding `## Search Syntax`, then nothing is reported;
   given `<h2>Story merging</h2>` in an `.erb` file and the heading `Story merging`, then nothing is reported.
+- (BRE-12) Given a report scored before Save a PDF was merged into another feature, then its line says it was scored
+  against another reference and prints no figure; so does a report that names none of a feature added since.
 - (BRE-8) Given a report whose judged features match "Save a bookmark" (not disputed) and "Read it later" (disputed)
   from two generated names, and a reference of 10 features with 1 disputed, then the judged recall without the
   disputed features is 1/9 and the precision counts one generated name of two as matched.

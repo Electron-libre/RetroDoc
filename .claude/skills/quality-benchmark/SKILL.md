@@ -39,7 +39,8 @@ human-written docs, `url`: a maintainers' page, `code`: a file), and `disputed` 
 draft did not hold (spec `benchmark-reference-evidence`; checked 2026-11-03, `checked:` of each reference). No
 human checked them: the evidence and the blind second draft stand in. After editing a reference, and with the
 figures of a benchmark, run the check; it fails on a cited path or heading missing at the pinned commit and prints
-the feature figures of the given reports without the disputed features, the error bar the reference adds:
+the feature figures of the given reports without the disputed features, the error bar the reference adds (a
+report scored against another version of the reference is skipped; the checkout must be at the pinned commit):
 
 ```sh
 cargo run -q -p retrodoc-bench --example reference_evidence -- benchmark/<repo>/reference.yaml \

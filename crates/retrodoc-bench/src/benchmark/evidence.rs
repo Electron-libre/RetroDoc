@@ -4,7 +4,8 @@
 
 use std::collections::BTreeSet;
 use std::fmt::Write as _;
-use std::path::Path;
+use std::path::{Component, Path};
+use std::process::Command;
 
 use super::matching::Score;
 use super::reference::{EvidenceKind, Reference, ReferenceFeature};
@@ -35,6 +36,14 @@ impl EvidenceCheck {
 #[must_use]
 pub fn check_evidence(reference: &Reference, tree: &Path) -> EvidenceCheck {
     let mut check = EvidenceCheck::default();
+    if let Some(head) = git_head(tree) {
+        if !head.starts_with(reference.commit.trim()) {
+            check.problems.push(format!(
+                "the tree is at `{head}`, the reference at `{}`",
+                reference.commit.trim()
+            ));
+        }
+    }
     for feature in features(reference) {
         let kinds: Vec<_> = feature.evidence.iter().filter_map(|e| e.kind()).collect();
         if kinds.is_empty() {
@@ -55,6 +64,16 @@ pub fn check_evidence(reference: &Reference, tree: &Path) -> EvidenceCheck {
                 (EvidenceKind::Doc, Some((path, heading))) => (path, Some(heading)),
                 _ => (value, None),
             };
+            if Path::new(path)
+                .components()
+                .any(|c| !matches!(c, Component::Normal(_) | Component::CurDir))
+            {
+                check.problems.push(format!(
+                    "`{}`: `{path}` is outside the repository",
+                    feature.name
+                ));
+                continue;
+            }
             if !tree.join(path).exists() {
                 check
                     .problems
@@ -63,7 +82,8 @@ pub fn check_evidence(reference: &Reference, tree: &Path) -> EvidenceCheck {
             }
             if let Some(heading) = heading {
                 let text = std::fs::read_to_string(tree.join(path)).unwrap_or_default();
-                if !headings(&text).any(|h| h.eq_ignore_ascii_case(heading.trim())) {
+                let wanted = one_line(heading);
+                if !headings(&text).any(|h| h.eq_ignore_ascii_case(&wanted)) {
                     check.problems.push(format!(
                         "`{}`: `{path}` has no heading `{heading}`",
                         feature.name
@@ -79,14 +99,67 @@ fn features(reference: &Reference) -> impl Iterator<Item = &ReferenceFeature> {
     reference.domains.iter().flat_map(|d| &d.features)
 }
 
-/// The Markdown headings and the HTML `h1` to `h6` of a file, trimmed, inner tags left out.
+/// The `HEAD` commit of `tree` when it is a Git checkout.
+fn git_head(tree: &Path) -> Option<String> {
+    if !tree.join(".git").exists() {
+        return None;
+    }
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(tree)
+        .args(["rev-parse", "HEAD"])
+        .output()
+        .ok()?;
+    output
+        .status
+        .success()
+        .then(|| String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+/// `text` with its runs of spaces and line breaks taken as one space, trimmed.
+fn one_line(text: &str) -> String {
+    text.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// The Markdown headings (outside the front matter and the fenced code blocks) and the HTML `h1` to `h6`
+/// of a file, on one line, inner tags left out.
 fn headings(text: &str) -> impl Iterator<Item = String> + '_ {
-    let markdown = text.lines().filter_map(|line| {
+    let mut markdown = Vec::new();
+    let mut lines = text.lines().peekable();
+    if lines.peek().is_some_and(|l| l.trim_end() == "---") {
+        lines.next();
+        for line in lines.by_ref() {
+            if line.trim_end() == "---" {
+                break;
+            }
+        }
+    }
+    let mut fence: Option<&str> = None;
+    for line in lines {
         let line = line.trim_start();
+        if let Some(open) = fence {
+            if line.starts_with(open) {
+                fence = None;
+            }
+            continue;
+        }
+        if line.starts_with("```") || line.starts_with("~~~") {
+            fence = Some(&line[..3]);
+            continue;
+        }
         let rest = line.trim_start_matches('#');
-        (line.len() != rest.len() && rest.starts_with(' '))
-            .then(|| rest.trim().trim_end_matches('#').trim().to_string())
-    });
+        let level = line.len() - rest.len();
+        if (1..=6).contains(&level) && rest.starts_with([' ', '\t']) {
+            let rest = rest.trim();
+            let closed = rest.trim_end_matches('#');
+            let rest = if closed.is_empty() || closed.ends_with([' ', '\t']) {
+                closed
+            } else {
+                rest
+            };
+            markdown.push(one_line(rest));
+        }
+    }
     let mut html = Vec::new();
     let mut rest = text;
     while let Some(start) = find_open_heading(rest) {
@@ -97,10 +170,10 @@ fn headings(text: &str) -> impl Iterator<Item = String> + '_ {
         let inner = after[..close]
             .split_once('>')
             .map_or("", |(_, inner)| inner);
-        html.push(strip_tags(inner).trim().to_string());
+        html.push(one_line(&strip_tags(inner)));
         rest = &after[close + 3..];
     }
-    markdown.chain(html)
+    markdown.into_iter().chain(html)
 }
 
 fn find_open_heading(text: &str) -> Option<usize> {
@@ -157,8 +230,12 @@ pub fn without_disputed(reference: &Reference, score: &Score) -> Score {
     #[allow(clippy::cast_precision_loss)] // counts of features: far below 2^23
     let ratio = |n: usize, d: usize| (d > 0).then(|| n as f32 / d as f32);
     Score {
-        recall: ratio(matched_reference.len(), kept),
-        precision: ratio(matched_generated.len(), generated.len()),
+        recall: score
+            .recall
+            .and_then(|_| ratio(matched_reference.len(), kept)),
+        precision: score
+            .precision
+            .and_then(|_| ratio(matched_generated.len(), generated.len())),
         unmatched_generated: generated
             .iter()
             .filter(|g| !matched_generated.contains(*g))
@@ -201,16 +278,50 @@ pub fn evidence_summary(
         let _ = writeln!(out, "- {problem}");
     }
     for (name, report) in reports {
-        let mut line = format!(
-            "{name}: features strict {}",
-            figures(reference, &report.strict.features)
+        let judged = report.judged.as_ref().map(|j| &j.features);
+        let _ = writeln!(
+            out,
+            "{}",
+            report_line(reference, name, &report.strict.features, judged)
         );
-        if let Some(judged) = &report.judged {
-            let _ = write!(line, ", judged {}", figures(reference, &judged.features));
-        }
-        let _ = writeln!(out, "{line}");
     }
     out
+}
+
+/// The figures of one saved report, or why they are skipped: a report that pairs a feature the reference
+/// does not hold was scored against another reference.
+fn report_line(
+    reference: &Reference,
+    name: &str,
+    strict: &Score,
+    judged: Option<&Score>,
+) -> String {
+    let known: BTreeSet<&str> = features(reference).map(|f| f.name.as_str()).collect();
+    for score in std::iter::once(strict).chain(judged) {
+        let named: BTreeSet<&str> = score
+            .matched
+            .iter()
+            .map(|(_, r)| r.as_str())
+            .chain(score.unmatched_reference.iter().map(String::as_str))
+            .collect();
+        let odd = named
+            .difference(&known)
+            .map(|r| format!("`{r}` is not in it"))
+            .chain(
+                known
+                    .difference(&named)
+                    .map(|r| format!("`{r}` is missing from the report")),
+            )
+            .next();
+        if let Some(odd) = odd {
+            return format!("{name}: scored against another reference ({odd}), skipped");
+        }
+    }
+    let mut line = format!("{name}: features strict {}", figures(reference, strict));
+    if let Some(judged) = judged {
+        let _ = write!(line, ", judged {}", figures(reference, judged));
+    }
+    line
 }
 
 /// `recall/precision -> recall/precision without the disputed features`, in percent.
@@ -386,8 +497,8 @@ mod tests {
 
     fn score(matched: &[(&str, &str)], unmatched_generated: &[&str]) -> Score {
         Score {
-            recall: None,
-            precision: None,
+            recall: Some(0.0),
+            precision: Some(0.0),
             matched: matched
                 .iter()
                 .map(|(g, r)| ((*g).to_string(), (*r).to_string()))
@@ -449,5 +560,129 @@ mod tests {
         });
         assert!(evidence_summary(&reference, &check, &[])
             .starts_with("Checked: 2026-11-04 (blind second draft)\n"));
+    }
+
+    // spec: BRE-10 (internal: a measuring tool run as a cargo example, not through the binary)
+    #[test]
+    fn reports_the_paths_outside_the_repository() {
+        let dir = tree(&[("app/pay.py", "")]);
+        let outside = dir.path().join("app/pay.py").display().to_string();
+        let reference = reference(vec![feature(
+            "Checkout",
+            &[
+                ("code", &outside),
+                ("doc", "../x/README.md#Intro"),
+                ("code", "app/../app/pay.py"),
+            ],
+            false,
+        )]);
+        let check = check_evidence(&reference, dir.path());
+        assert_eq!(
+            check.problems,
+            [
+                format!("`Checkout`: `{outside}` is outside the repository"),
+                "`Checkout`: `../x/README.md` is outside the repository".to_string(),
+                "`Checkout`: `app/../app/pay.py` is outside the repository".to_string(),
+            ]
+        );
+    }
+
+    // spec: BRE-11 (internal: a measuring tool run as a cargo example, not through the binary)
+    #[test]
+    fn refuses_a_tree_at_another_commit() {
+        let dir = tree(&[("a.py", "")]);
+        let repo = git2::Repository::init(dir.path()).unwrap();
+        let mut index = repo.index().unwrap();
+        index.add_path(Path::new("a.py")).unwrap();
+        let tree_id = index.write_tree().unwrap();
+        let signature = git2::Signature::now("t", "t@example.com").unwrap();
+        let head = repo
+            .commit(
+                Some("HEAD"),
+                &signature,
+                &signature,
+                "first",
+                &repo.find_tree(tree_id).unwrap(),
+                &[],
+            )
+            .unwrap()
+            .to_string();
+        let mut reference = reference(vec![feature("Checkout", &[("code", "a.py")], false)]);
+        reference.commit = "0123456".into();
+        let check = check_evidence(&reference, dir.path());
+        assert_eq!(
+            check.problems,
+            [format!(
+                "the tree is at `{head}`, the reference at `0123456`"
+            )]
+        );
+        reference.commit = head[..7].to_string();
+        assert!(check_evidence(&reference, dir.path()).is_clean());
+        assert!(check_evidence(&reference, tree(&[("a.py", "")]).path()).is_clean());
+    }
+
+    // spec: BRE-12 (internal: a measuring tool run as a cargo example, not through the binary)
+    #[test]
+    fn skips_a_report_scored_against_another_reference() {
+        let reference = reference(vec![feature("Checkout", &[], false)]);
+        let stale = score(&[("Pay", "Save a PDF")], &[]);
+        let mut current = score(&[("Pay", "Checkout")], &[]);
+        let text = report_line(&reference, "old.json", &stale, Some(&current));
+        assert_eq!(
+            text,
+            "old.json: scored against another reference (`Save a PDF` is not in it), skipped"
+        );
+        let mut unmatched = score(&[], &[]);
+        unmatched.unmatched_reference = vec!["Save a PDF".into()];
+        assert_eq!(
+            report_line(&reference, "old.json", &unmatched, None),
+            "old.json: scored against another reference (`Save a PDF` is not in it), skipped"
+        );
+        assert_eq!(
+            report_line(&reference, "old.json", &score(&[], &[]), None),
+            "old.json: scored against another reference (`Checkout` is missing from the report), skipped"
+        );
+        current.unmatched_generated = vec!["Other".into()];
+        let text = report_line(&reference, "new.json", &current, None);
+        assert!(text.contains("new.json: features strict"), "{text}");
+    }
+
+    // spec: BRE-13 (internal: a measuring tool run as a cargo example, not through the binary)
+    #[test]
+    fn an_unjudged_score_stays_unjudged() {
+        let reference = reference(vec![feature("Checkout", &[], false)]);
+        let unjudged = Score {
+            recall: None,
+            precision: None,
+            ..score(&[("Pay", "Checkout")], &["Other"])
+        };
+        let after = without_disputed(&reference, &unjudged);
+        assert_eq!((after.recall, after.precision), (None, None));
+    }
+
+    // spec: BRE-15 (internal: a measuring tool run as a cargo example, not through the binary)
+    #[test]
+    fn code_blocks_and_front_matter_hold_no_heading() {
+        let dir = tree(&[
+            (
+                "docs/x.md",
+                "---\n# Front\n---\n```sh\n# install the extension\n```\n## Using C#\n## Story\n",
+            ),
+            ("about.html.erb", "<h2 id=\"m\">Story\n    merging</h2>"),
+        ]);
+        let reference = reference(vec![
+            feature("Code", &[("doc", "docs/x.md#install the extension")], false),
+            feature("Front", &[("doc", "docs/x.md#Front")], false),
+            feature("Sharp", &[("doc", "docs/x.md#Using C#")], false),
+            feature("Wrapped", &[("doc", "about.html.erb#Story merging")], false),
+        ]);
+        let check = check_evidence(&reference, dir.path());
+        assert_eq!(
+            check.problems,
+            [
+                "`Code`: `docs/x.md` has no heading `install the extension`",
+                "`Front`: `docs/x.md` has no heading `Front`",
+            ]
+        );
     }
 }

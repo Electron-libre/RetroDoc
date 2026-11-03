@@ -76,6 +76,9 @@ use cases, rules, `matches.yaml` and `entry-points.yaml` (spec `benchmark-refere
 3. [x] Lobsters: the same, from `about.html.erb` at the pinned commit and the meta stories it links (`url`). (autonomous)
 4. [x] Docs: skill `quality-benchmark` (which figures rest on doc-backed items, the check before a benchmark),
    `PRODUCT.md` risk, `docs/crates/bench.md`; verified by `update-docs` and the reviews. (autonomous)
+5. [x] Fixes of the `high` review of the issue: stale reports skipped, unjudged kept empty, the checkout's commit
+   checked, unknown keys refused, paths outside the tree, headings in code blocks and front matter; verified by
+   tests; makes true BRE-10 to BRE-15. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -150,3 +153,17 @@ use cases, rules, `matches.yaml` and `entry-points.yaml` (spec `benchmark-refere
   module of the bench crate, covered by the crate page and the commands); no stale "checked by a human" left.
 - red: none (docs).
 - Code review: no findings
+
+## Deliverable 5 (the `high` review of the issue)
+- Code review high: 10 findings. Fixed: a report scored against another reference read as current (BRE-12: it
+  printed `88%/67% -> 91%/67%` for a dafea18 report naming Save a PDF), an unjudged score given figures (BRE-13),
+  the checkout's commit not checked (BRE-11), unknown keys ignored (BRE-14), paths outside the tree (BRE-10),
+  headings read in code blocks and front matter, wrapped HTML headings, `## Using C#` (BRE-15). Not fixed: the
+  error bar rebuilt from the saved `Score` instead of a re-score of the clone (the reports are what a benchmark
+  keeps; a re-score needs the clones and fails on pairs to the disputed features, BSC-3), duplicate generated
+  names collapsed for precision (one name counted once, BSC-2), HTML entities and front matter titles not read as
+  headings (none cited), a file re-read per heading (37 features), `ratio` next to `matching::share`.
+- red: BRE-10 to BRE-15: `cannot add &str to &str` and no `report_line` (tests written before the code); BRE-12
+  again after: the dafea18 report not skipped (its stale name was in `unmatched_reference`).
+- Figures of deliverables 2 and 3 unchanged by the fixes (same lines on the after reports).
+- Code review low: 1 finding, not fixed: an empty `commit` would pass the commit check (the load refuses it, `Reference::check`) and a tag would not (the references pin SHAs).

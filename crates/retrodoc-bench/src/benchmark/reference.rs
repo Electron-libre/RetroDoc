@@ -9,6 +9,7 @@ use crate::error::PipelineError;
 
 /// `benchmark/<repo>/reference.yaml`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Reference {
     /// Public repository, e.g. its GitHub URL.
     pub repository: String,
@@ -28,12 +29,14 @@ pub struct Reference {
 
 /// `checked:` of a reference (spec `benchmark-reference-evidence`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Checked {
     pub date: String,
     pub method: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ReferenceDomain {
     pub name: String,
     pub description: String,
@@ -41,6 +44,7 @@ pub struct ReferenceDomain {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ReferenceFeature {
     pub name: String,
     pub description: String,
@@ -281,6 +285,24 @@ rules:
             );
             let error = load(&yaml).unwrap_err().to_string();
             assert!(error.contains("`Checkout`"), "{item}: {error}");
+        }
+    }
+
+    // spec: BRE-14 (internal: the reference is read by the measuring tools, not by a command of its own)
+    #[test]
+    fn refuses_an_unknown_key() {
+        let typos = [
+            YAML.replace(
+                "        use_cases:",
+                "        dispute: one draft\n        use_cases:",
+            ),
+            YAML.replace("    features:", "    feature_list: []\n    features:"),
+            YAML.to_string() + "check: {date: x, method: y}\n",
+            YAML.to_string() + "checked: {date: x, method: y, by: z}\n",
+        ];
+        for (yaml, key) in typos.iter().zip(["dispute", "feature_list", "check", "by"]) {
+            let error = load(yaml).unwrap_err().to_string();
+            assert!(error.contains(key), "{key}: {error}");
         }
     }
 
