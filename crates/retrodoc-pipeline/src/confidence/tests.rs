@@ -46,6 +46,7 @@ fn use_case(feature: &str, steps: Vec<Step>) -> UseCase {
 fn feature(slug: &str) -> Feature {
     Feature {
         back_office: false,
+        technical: false,
         slug: slug.to_string(),
         domain_slug: "billing".to_string(),
         name: slug.to_string(),

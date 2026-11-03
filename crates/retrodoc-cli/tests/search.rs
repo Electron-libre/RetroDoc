@@ -9,6 +9,7 @@ use retrodoc_pipeline::{DomainCluster, DomainMap};
 fn feature(slug: &str, name: &str, description: &str) -> Feature {
     Feature {
         back_office: false,
+        technical: false,
         slug: slug.into(),
         domain_slug: "delivery".into(),
         name: name.into(),

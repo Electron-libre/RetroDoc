@@ -70,6 +70,10 @@ pub struct Feature {
     /// feature's files and its description. Its use cases are set apart in the docs.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub back_office: bool,
+    /// Serves only development, tests, deployment or the internal plumbing, as the LLM judged it:
+    /// set aside out of the functional docs (`features-set-aside.yaml`), never in `features.yaml`.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub technical: bool,
     /// `None` until the confidence pass (roadmap phase 5) has scored it.
     #[serde(default)]
     pub confidence: Option<ConfidenceScore>,

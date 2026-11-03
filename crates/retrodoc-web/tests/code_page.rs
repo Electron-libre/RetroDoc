@@ -65,6 +65,7 @@ fn invoice_code() -> String {
 /// case `pay-by-card` cites `app/invoice.rb:40-42` and `app/card.rb`; its rule
 /// cites `app/invoice.rb:40-42`. `app/other.rb` is cited by nothing. The hashes
 /// of the run are recorded, then `app/card.rb` is changed.
+#[allow(clippy::too_many_lines)] // a whole generated repository, written field by field
 fn generated_repo() -> (tempfile::TempDir, std::path::PathBuf) {
     let outer = tempfile::tempdir().unwrap();
     std::fs::write(outer.path().join("secret.txt"), "top secret").unwrap();
@@ -95,6 +96,7 @@ fn generated_repo() -> (tempfile::TempDir, std::path::PathBuf) {
         &root,
         &[Feature {
             back_office: false,
+            technical: false,
             slug: "pay-invoice".into(),
             domain_slug: "billing".into(),
             name: "Pay an invoice".into(),

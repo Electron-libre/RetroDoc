@@ -254,6 +254,7 @@ pub(crate) mod fixtures {
     pub fn feature(slug: &str, name: &str, description: &str) -> Feature {
         Feature {
             back_office: false,
+            technical: false,
             slug: slug.into(),
             domain_slug: "billing".into(),
             name: name.into(),

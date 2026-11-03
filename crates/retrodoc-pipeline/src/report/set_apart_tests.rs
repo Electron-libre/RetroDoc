@@ -7,6 +7,7 @@ fn the_report_counts_what_the_docs_set_apart() {
         domain_slug: "ops".into(),
         name: "Admin".into(),
         description: String::new(),
+        technical: false,
         source_paths: Vec::new(),
         entry_points: Vec::new(),
         back_office: true,

@@ -881,6 +881,7 @@ mod tests {
             root,
             &[Feature {
                 back_office: false,
+                technical: false,
                 slug: "checkout".to_string(),
                 domain_slug: "billing".to_string(),
                 name: "Checkout".to_string(),
@@ -977,6 +978,7 @@ mod tests {
             root,
             &[Feature {
                 back_office: false,
+                technical: false,
                 slug: "checkout".to_string(),
                 domain_slug: "billing".to_string(),
                 name: "Checkout".to_string(),
@@ -1056,6 +1058,7 @@ mod tests {
         save_yaml(&Artifact::Domains.path(root), &map).unwrap();
         let feature = |name: &str, description: &str| Feature {
             back_office: false,
+            technical: false,
             slug: name.to_lowercase(),
             domain_slug: "billing".to_string(),
             name: name.to_string(),

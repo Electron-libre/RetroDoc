@@ -141,7 +141,7 @@ What each pass hands to the next, and where it is saved:
 | 1 | ingest (`retrodoc-ingest`) | repo path | files, history, existing docs | — (recomputed) |
 | 1c | `ranking.rs` (only with a budget) | source files + roles + history + references | the N best-ranked files; the rest is left out | `scope.yaml` |
 | 3 | `domains/from_surface.rs` | the surface (entities, entry points by resource) + the brief | `DomainMap` (flat domains of resources and entities) | `domains.yaml` |
-| 4 | `features/from_surface/` + `behaviour_coverage.rs` | one domain + its entry points and entities | `Feature`s holding entry points; the entry points no feature holds and the files reached by no behaviour | `features.yaml`, `behaviour-coverage.yaml` |
+| 4 | `features/from_surface/` + `behaviour_coverage.rs` | one domain + its entry points and entities | `Feature`s holding entry points, the technical ones set aside; the entry points no feature holds and the files reached by no behaviour | `features.yaml`, `features-set-aside.yaml`, `behaviour-coverage.yaml` |
 | 5 | `use_cases/` | one feature + its entry points + the code they run (`slices.rs`) + the business actors (`actors.rs`), else its files' excerpts | `UseCase`s with steps and actors | `use-cases.yaml` |
 | 5b | `rules/` (`[pipeline] rules`, on by default, [ADR 0021](adr/0021-business-rules-as-a-model-object.md)) | one feature + the same code as its use cases + its entities + the closest doc sections and test descriptions | `BusinessRule`s with cited code, tests and docs, and a confidence; a feature about tests gets no rules (one question on its name and description), then a second call per feature drops the noise (storage, screen, test, technical), then the rule several features state is kept once (no LLM) | `rules-stated.yaml` (per feature), `rules-set-aside.yaml` (to check; `[rules]` of `retrodoc.toml` puts a wrong case back), `rules.yaml` |
 | 6 | `diagrams.rs` | use case steps (the technical level; each use case also carries a business `narrative`) | Mermaid text attached to each use case | `use-cases.yaml` |
@@ -258,6 +258,7 @@ Guarantees:
 │   ├── source-hashes.json         #   hash of each source file at the last complete run (MCP freshness)
 │   ├── domains.yaml               #   domain clustering
 │   ├── features.yaml              #   features (+ confidence)
+│   ├── features-set-aside.yaml    #   features the features pass marked technical, out of the docs, listed in the report
 │   ├── use-cases.yaml             #   use cases, steps, diagrams (+ confidence)
 │   ├── fingerprints.json          #   what the incremental re-run compares against
 │   ├── behaviour-coverage.yaml    #   entry points without a feature (per context in contexts mode) or without a use case (per feature), files reached by no behaviour

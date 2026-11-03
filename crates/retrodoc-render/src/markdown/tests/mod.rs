@@ -28,6 +28,7 @@ fn sample() -> (Vec<Domain>, Vec<Feature>, Vec<UseCase>) {
     let features = vec![
         Feature {
             back_office: false,
+            technical: false,
             slug: "pay-invoice".to_string(),
             domain_slug: "billing".to_string(),
             name: "Pay an invoice".to_string(),
@@ -38,6 +39,7 @@ fn sample() -> (Vec<Domain>, Vec<Feature>, Vec<UseCase>) {
         },
         Feature {
             back_office: false,
+            technical: false,
             slug: "list".to_string(),
             domain_slug: "billing".to_string(),
             name: "List".to_string(),

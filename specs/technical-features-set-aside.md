@@ -1,6 +1,6 @@
 ---
 id: TEF
-status: draft
+status: accepted
 adrs: [0020]
 ---
 
@@ -18,8 +18,8 @@ can still see what was set aside.
 
 - **TEF-1** (deterministic) A feature the features answer marks `technical` must not be saved in
   `.retrodoc/cache/features.yaml`.
-- **TEF-2** (deterministic) The entry points of a technical feature must be saved as set aside in
-  `.retrodoc/cache/behaviour-coverage.yaml`, with the domain and the name of the feature that held them.
+- **TEF-2** (deterministic) A technical feature must be saved in `.retrodoc/cache/features-set-aside.yaml`, with
+  its domain, its name and its entry points.
 - **TEF-3** (deterministic) An entry point set aside must not be given to the placement call of the entry points
   no feature claimed.
 - **TEF-4** (deterministic) An entry point set aside must not be counted among the entry points no feature holds,
@@ -33,8 +33,8 @@ can still see what was set aside.
 ## Scenarios
 
 - (TEF-1, TEF-2) Given a domain whose answer holds `Order checkout` and `Test data generation` marked technical,
-  when the features pass runs, then `features.yaml` holds `Order checkout` only and the coverage lists the entry
-  points of `Test data generation` under its domain and name.
+  when the features pass runs, then `features.yaml` holds `Order checkout` only and `features-set-aside.yaml` holds
+  `Test data generation` with its domain and its entry points.
 - (TEF-3, TEF-4) Given the same run, when the placement step looks for unclaimed entry points, then the entry
   points of `Test data generation` are not among them and no warning names them.
 - (TEF-6) Given a second run on unchanged inputs, then no LLM call is made and the same features are set aside.

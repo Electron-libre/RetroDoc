@@ -64,9 +64,9 @@ the references (`benchmark_references_checked_by_a_human`).
    by `just check` and a reread. (autonomous)
 2. [x] Replay baseline: `pass_replay features` x3 on the dafea18 frozen inputs of linkding and Lobsters (no features
    replay exists on them), hand precision by the classes of step 1 on one run each; verified by a ledger line. (autonomous; nothing to commit but this tracking)
-3. [ ] Technical features set aside: `technical` in the features answer, set aside from `features.yaml`, the
+3. [x] Technical features set aside: `technical` in the features answer, set aside from `features.yaml`, the
    placement and the unplaced count, listed in the coverage and the debt report; verified by tests through the pass
-   and the report with a fake LLM; makes true TEF-1 to TEF-7.
+   and the report with a fake LLM; makes true TEF-1 to TEF-7. (autonomous)
 4. [ ] Replays of candidate T: x3 on both applications against step 2 (judged and hand precision, recall, set aside
    features read by hand for real features lost); verified by a ledger line.
 5. [ ] Candidate M, only if the too fine ones stay above a fifth of the unmatched after step 4: prompt rule that the
@@ -110,3 +110,20 @@ Code review: 1 findings
 - not verified: the full hand precision of the replays (only the technical ones of run 1 counted); the Lobsters
   judge leaves right pairs out on these unaudited runs (comments, sign in, flags among the 62), so compare judged
   with judged.
+
+## Deliverable 3: technical features set aside
+- done: `technical` in the features answer (prompt and schema), `Feature.technical`; technical features saved in
+  `features-set-aside.yaml` (cleared by `--force`), never in `features.yaml`, read back as the previous run; held
+  entry points, never a placement target; debt report section "Technical features set aside"; `pass_replay` keeps
+  `features-set-aside-<n>.yaml`; spec `technical-features-set-aside` accepted; the pinned print of a domain updated
+  (the prompt changed on purpose: every domain is asked again once).
+
+| check | result |
+|---|---|
+| tests, lint, specs (`just check`) | pass |
+| code review (`low`) | no findings |
+
+red: TEF-1, TEF-2, TEF-3, TEF-4, TEF-5, TEF-6: `features.yaml` held `Test data generation` (assertion at
+`technical_features.rs:74`); TEF-7 written with the code, green at its first run.
+
+Code review: no findings

@@ -86,6 +86,7 @@ fn placement_print(
             .chain(
                 features
                     .iter()
+                    .filter(|f| !f.technical)
                     .map(|f| format!("feature {}\n{}\n{}", f.slug, f.name, f.description)),
             )
             .chain(brief.print_part())
@@ -100,7 +101,11 @@ fn placement_prompt(
     brief: &ProductBrief,
 ) -> String {
     let mut prompt = format!("{}{FEATURES_HEADER}", brief.prompt_head());
-    for f in features.iter().take(MAX_FEATURES_SHOWN) {
+    for f in features
+        .iter()
+        .filter(|f| !f.technical)
+        .take(MAX_FEATURES_SHOWN)
+    {
         let _ = writeln!(
             prompt,
             "- {} ({}): {} — {}",
@@ -145,9 +150,10 @@ pub(super) async fn place_unclaimed(
     saved_print: &mut Option<String>,
     llm: &dyn LlmProvider,
 ) -> Result<bool, PipelineError> {
+    // The entry points of a technical feature are held (TEF-3), but nothing is placed into it.
     let left = unclaimed(entry_points, features);
     let mut coverage = BehaviourCoverage::load(repo_root).unwrap_or_default();
-    if left.is_empty() || features.is_empty() {
+    if left.is_empty() || features.iter().all(|f| f.technical) {
         if !left.is_empty() {
             tracing::warn!(
                 entry_points = left.len(),
@@ -191,7 +197,10 @@ pub(super) async fn place_unclaimed(
                 tracing::warn!(entry_point = %id, "placement of an entry point not asked for, dropped");
                 continue;
             };
-            let Some(feature) = features.iter_mut().find(|f| f.slug == placement.feature) else {
+            let Some(feature) = features
+                .iter_mut()
+                .find(|f| f.slug == placement.feature && !f.technical)
+            else {
                 tracing::warn!(feature = %placement.feature, "placement in an unknown feature, dropped");
                 continue;
             };

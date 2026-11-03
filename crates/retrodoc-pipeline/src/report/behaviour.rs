@@ -2,8 +2,9 @@
 
 use std::fmt::Write as _;
 
-use super::DebtReport;
+use super::{DebtReport, TechnicalFeature};
 use crate::behaviour_coverage::BehaviourCoverage;
+use retrodoc_core::model::Feature;
 
 /// Technical support files listed in the Markdown report (the rest is only counted).
 const MAX_LISTED_SUPPORT: usize = 50;
@@ -21,8 +22,23 @@ impl DebtReport {
         }
     }
 
+    /// Adds the features the features pass set aside as technical (`features-set-aside.yaml`).
+    pub fn with_technical_features(&mut self, features: Option<Vec<Feature>>) {
+        self.technical_features = features
+            .unwrap_or_default()
+            .into_iter()
+            .map(|f| TechnicalFeature {
+                domain_slug: f.domain_slug,
+                name: f.name,
+                entry_points: f.entry_points.len(),
+            })
+            .collect();
+        self.technical_features.sort();
+    }
+
     /// The sections on what the behaviours leave out (`surface` runs only).
     pub(super) fn write_behaviour_sections(&self, md: &mut String) {
+        self.write_technical_features(md);
         if !self.unplaced_entry_points.is_empty() {
             md.push_str(
                 "\n## Entry points without a feature\n\nNo feature holds these entry points, so \
@@ -65,6 +81,25 @@ impl DebtReport {
                     self.technical_support.len() - MAX_LISTED_SUPPORT
                 );
             }
+        }
+    }
+
+    /// The features set aside as technical, per domain, to be checked (TEF-5).
+    fn write_technical_features(&self, md: &mut String) {
+        if self.technical_features.is_empty() {
+            return;
+        }
+        md.push_str(
+            "\n## Technical features set aside\n\nThe features pass took these features for \
+             development, tests, deployment or internal plumbing; they and their use cases are \
+             absent from the functional docs:\n\n| Domain | Feature | Entry points |\n|---|---|---|\n",
+        );
+        for feature in &self.technical_features {
+            let _ = writeln!(
+                md,
+                "| {} | {} | {} |",
+                feature.domain_slug, feature.name, feature.entry_points
+            );
         }
     }
 

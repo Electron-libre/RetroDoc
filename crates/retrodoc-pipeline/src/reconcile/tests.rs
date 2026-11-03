@@ -23,6 +23,7 @@ fn domain(slug: &str, name: &str) -> DomainCluster {
 fn feature(slug: &str, domain: &str, name: &str, entry_points: usize) -> Feature {
     Feature {
         back_office: false,
+        technical: false,
         slug: slug.to_string(),
         domain_slug: domain.to_string(),
         name: name.to_string(),

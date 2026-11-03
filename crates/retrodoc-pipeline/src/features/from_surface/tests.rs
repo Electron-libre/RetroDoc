@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use super::*;
+use crate::features::{load_features, load_technical_features, save_features};
 
 use crate::artifact::{Artifact, Retention};
 use crate::behaviour_coverage::{BehaviourCoverage, EntryCount};
@@ -431,6 +432,7 @@ fn an_entry_point_held_by_two_features_stays_with_the_domain_that_owns_it() {
         .collect();
     let held = |slug: &str, domain: &str, ids: &[&str]| Feature {
         back_office: false,
+        technical: false,
         slug: slug.to_string(),
         domain_slug: domain.to_string(),
         name: slug.to_string(),
@@ -546,6 +548,7 @@ async fn a_killed_run_does_not_bring_back_the_features_of_the_removed_files_path
         domain_slug: "billing".to_string(),
         name: "Billing".to_string(),
         description: "d".to_string(),
+        technical: false,
         source_paths: vec!["lib/billing.rb".to_string()],
         entry_points: Vec::new(),
         back_office: false,
@@ -1234,6 +1237,7 @@ async fn a_failed_slice_keeps_the_features_it_had() {
 fn features_merge_against_the_earlier_slices_only() {
     let feature = |slug: &str, name: &str, id: &str| Feature {
         back_office: false,
+        technical: false,
         slug: slug.to_string(),
         domain_slug: "big".to_string(),
         name: name.to_string(),
@@ -1353,7 +1357,73 @@ async fn the_print_of_a_domain_stays_the_same() {
         prints.into_iter().collect::<Vec<_>>(),
         vec![(
             "orders/-".to_string(),
-            "8390e5d1899bcbc0a2abd587ea761aaf9e44d16c67ea7777ecd765da29350d08".to_string()
+            "7f83927a0f260d0628748538e881b65bbee057be6c6db0469c160bddce8e9435".to_string()
         )]
+    );
+}
+
+// spec: TEF-7 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
+#[tokio::test]
+async fn a_feature_both_technical_and_back_office_is_set_aside_as_technical() {
+    let dir = tempfile::tempdir().unwrap();
+    let (domains, entries) = fixture();
+    let llm = FakeLlm::replying(|n, _| {
+        Ok(match n {
+            0 => {
+                r#"{"features":[{"slug":"place-order","name":"Place order","description":"d",
+                "entry_points":["E1"]},{"slug":"seed","name":"Seed orders","description":"d",
+                "back_office":true,"technical":true,"entry_points":["E2"]}]}"#
+            }
+            _ => {
+                r#"{"features":[{"slug":"list-routes","name":"List routes","description":"d",
+                "entry_points":["E1"]}]}"#
+            }
+        }
+        .to_string())
+    });
+
+    let features = run(dir.path(), &domains, &entries, &llm).await;
+
+    let slugs: Vec<&str> = features.iter().map(|f| f.slug.as_str()).collect();
+    assert_eq!(slugs, ["place-order", "list-routes"]);
+    let aside = load_technical_features(dir.path()).unwrap();
+    assert_eq!(aside.len(), 1);
+    assert_eq!(aside[0].slug, "seed");
+    assert!(aside[0].technical && !aside[0].back_office);
+    assert_eq!(aside[0].entry_points, ["orders.rb#POST /orders"]);
+}
+
+#[tokio::test]
+async fn nothing_is_placed_into_a_technical_feature() {
+    let dir = tempfile::tempdir().unwrap();
+    let (domains, entries) = fixture();
+    // The orders domain answers one technical feature and leaves `POST /orders` unclaimed.
+    let llm = FakeLlm::replying(|n, _| {
+        Ok(match n {
+            0 => {
+                r#"{"features":[{"slug":"seed","name":"Seed orders","description":"d",
+                "technical":true,"entry_points":["E1"]}]}"#
+            }
+            1 => {
+                r#"{"features":[{"slug":"list-routes","name":"List routes","description":"d",
+                "entry_points":["E1"]}]}"#
+            }
+            _ => r#"{"placements":[{"entry_point":"E1","feature":"seed"}]}"#,
+        }
+        .to_string())
+    });
+
+    run(dir.path(), &domains, &entries, &llm).await;
+
+    let prompts = llm.prompts();
+    let placement = prompts.last().unwrap();
+    assert!(!placement.contains("seed"), "{placement}");
+    let aside = load_technical_features(dir.path()).unwrap();
+    assert_eq!(aside[0].entry_points, ["orders.rb#GET /orders"]);
+    let coverage = BehaviourCoverage::load(dir.path()).unwrap();
+    // `GET /ping` belongs to no domain of the fixture.
+    assert_eq!(
+        coverage.unplaced_entry_points,
+        ["misc.rb#GET /ping", "orders.rb#POST /orders"]
     );
 }

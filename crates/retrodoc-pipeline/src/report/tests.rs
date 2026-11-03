@@ -10,6 +10,7 @@ use retrodoc_ingest::existing_docs::ExistingDoc;
 fn feature(slug: &str, domain: &str, score: Option<f32>) -> Feature {
     Feature {
         back_office: false,
+        technical: false,
         slug: slug.to_string(),
         domain_slug: domain.to_string(),
         name: slug.to_string(),

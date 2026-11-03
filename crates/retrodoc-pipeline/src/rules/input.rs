@@ -104,6 +104,7 @@ mod tests {
     fn feature(paths: &[&str]) -> Feature {
         Feature {
             back_office: false,
+            technical: false,
             slug: "refunds".into(),
             domain_slug: "billing".into(),
             name: "Refund an order".into(),

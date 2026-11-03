@@ -23,6 +23,7 @@ pub fn publish(repo_root: &Path, config: &Config, dry_run: bool) -> anyhow::Resu
         .map(|s| s.skipped)
         .unwrap_or_default();
     report.with_behaviour_coverage(retrodoc_pipeline::BehaviourCoverage::load(repo_root));
+    report.with_technical_features(retrodoc_pipeline::load_technical_features(repo_root));
     let rules = retrodoc_pipeline::load_rules(repo_root).unwrap_or_default();
     if rules.is_empty() && retrodoc_pipeline::Artifact::Rules.path(repo_root).exists() {
         tracing::warn!(
@@ -252,6 +253,7 @@ mod tests {
         write("docs/_retrodoc/coverage-report.md", "# Payment\nPayment.\n");
         let feature = |slug: &str, name: &str| retrodoc_core::model::Feature {
             back_office: false,
+            technical: false,
             slug: slug.into(),
             domain_slug: "billing".into(),
             name: name.into(),

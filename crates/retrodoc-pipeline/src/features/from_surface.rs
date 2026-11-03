@@ -26,7 +26,7 @@ use retrodoc_llm::LlmProvider;
 use serde::Deserialize;
 
 use self::repair::place_unclaimed;
-use super::{load_features, save_features, unique_slug};
+use super::{load_surface_features, save_surface_features, unique_slug};
 use crate::artifact::warn_on_error;
 use crate::artifact::Retention;
 use crate::behaviour_coverage::{BehaviourCoverage, EntryCount};
@@ -53,9 +53,9 @@ entry points (what users and systems can do: routes, commands, jobs, public API)
 points into the user-facing features of the domain: capabilities a user or an external system \
 would recognize, not technical layers. Every feature must list at least one entry point, and an \
 entry point goes in exactly one feature. Entry points are cited by their short id (E1, E2…, the \
-first word of each line of the list), copied verbatim. A feature is back_office (true) when it is an administration or back-office tool, used by the people who run the application rather than by its users or an external system (judged from its description, its routes and its files); otherwise false. Reply with ONLY a single JSON object, no prose and no \
+first word of each line of the list), copied verbatim. A feature is back_office (true) when it is an administration or back-office tool, used by the people who run the application rather than by its users or an external system (judged from its description, its routes and its files); otherwise false. A feature is technical (true) when neither a user of the application nor an external system would recognize it: it serves only development, tests, deployment or the internal plumbing (test or fake data, development checks, caches, identifiers, asset builds, backups, health checks, helpers other code calls); otherwise false. A back-office tool its operators use is not technical. Reply with ONLY a single JSON object, no prose and no \
 Markdown code fence, matching this shape: {\"features\":[{\"slug\":\"kebab-case\",\"name\":\"...\",\
-\"description\":\"one or two sentences\",\"back_office\":false,\"entry_points\":[\"...\"]}]}.";
+\"description\":\"one or two sentences\",\"back_office\":false,\"technical\":false,\"entry_points\":[\"...\"]}]}.";
 
 const DOMAIN_LABEL: &str = "Domain: ";
 const ENTITIES_HEADER: &str = "\nEntities:\n";
@@ -92,6 +92,8 @@ struct RawSurfaceFeature {
     description: String,
     #[serde(default)]
     back_office: bool,
+    #[serde(default)]
+    technical: bool,
     #[serde(default)]
     entry_points: Vec<String>,
 }
@@ -142,7 +144,7 @@ pub async fn build_features_from_surface(
     llm: &dyn LlmProvider,
     keep: Retention,
 ) -> Result<Vec<Feature>, PipelineError> {
-    let previous = load_features(repo_root).unwrap_or_default();
+    let previous = load_surface_features(repo_root).unwrap_or_default();
     let mut prints = Fingerprints::load(repo_root);
     let known_units = std::mem::take(&mut prints.features);
     let mut features: Vec<Feature> = Vec::new();
@@ -178,7 +180,7 @@ pub async fn build_features_from_surface(
     settle_duplicates(&mut features, &units);
     // Saved before the placement call: a failure there keeps the units done.
     prints.save(repo_root)?;
-    save_features(repo_root, &features)?;
+    save_surface_features(repo_root, &features)?;
     let placed = if keep == Retention::Others {
         place_per_domain(
             repo_root,
@@ -204,8 +206,9 @@ pub async fn build_features_from_surface(
     };
     prints.save(repo_root)?;
     if placed {
-        save_features(repo_root, &features)?;
+        save_surface_features(repo_root, &features)?;
     }
+    features.retain(|f| !f.technical);
     Ok(features)
 }
 
@@ -940,7 +943,9 @@ fn place_entry_points(
         let taken = existing.iter().chain(&produced).map(|f| f.slug.as_str());
         let slug = unique_slug(&raw_feature.slug, taken);
         produced.push(Feature {
-            back_office: raw_feature.back_office,
+            // A technical feature is set aside: whether its operators use it does not matter (TEF-7).
+            back_office: raw_feature.back_office && !raw_feature.technical,
+            technical: raw_feature.technical,
             slug,
             domain_slug: domain.slug.clone(),
             name: raw_feature.name,
@@ -996,7 +1001,7 @@ fn save_partial(
         features.push(old.clone());
     }
     warn_on_error(prints.save(repo_root));
-    warn_on_error(save_features(repo_root, &features));
+    warn_on_error(save_surface_features(repo_root, &features));
 }
 
 mod repair;

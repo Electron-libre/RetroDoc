@@ -415,7 +415,8 @@ async fn surface_pass(setup: &mut Setup) -> Result<(), Failure> {
             }
         }
         // RETRODOC_KEEP_FEATURES=<dir>: keep the result and the judgement of each run to audit them
-        // (`<pass>-<n>.yaml`, `judge-<n>.yaml`).
+        // (`<pass>-<n>.yaml`, `judge-<n>.yaml`, and the features set aside as technical,
+        // `features-set-aside-<n>.yaml`).
         let result = if setup.pass == "domains" {
             Artifact::Domains
         } else {
@@ -432,6 +433,12 @@ async fn surface_pass(setup: &mut Setup) -> Result<(), Failure> {
             &Judgement::path(work.path()),
             var,
             &format!("judge-{n}.yaml"),
+        )?;
+        keep(
+            work.path(),
+            Artifact::FeaturesSetAside,
+            var,
+            &format!("features-set-aside-{n}.yaml"),
         )?;
         eprintln!("run {n}/{}: {} {}", setup.runs, run.items, setup.pass);
         figures.push(run);

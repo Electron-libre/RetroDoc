@@ -14,6 +14,7 @@ use tower::ServiceExt;
 fn feature(slug: &str, domain: &str, name: &str) -> Feature {
     Feature {
         back_office: false,
+        technical: false,
         slug: slug.into(),
         domain_slug: domain.into(),
         name: name.into(),

@@ -33,6 +33,29 @@ pub fn save_features(repo_root: &Path, features: &[Feature]) -> Result<(), Pipel
     save_yaml(&Artifact::Features.path(repo_root), features)
 }
 
+/// Loads the features the features pass set aside as technical (`features-set-aside.yaml`).
+/// Missing or unreadable: `None`.
+#[must_use]
+pub fn load_technical_features(repo_root: &Path) -> Option<Vec<Feature>> {
+    load_yaml(&Artifact::FeaturesSetAside.path(repo_root))
+}
+
+/// The features of the last run of the features pass, those set aside as technical included.
+fn load_surface_features(repo_root: &Path) -> Option<Vec<Feature>> {
+    let mut features = load_features(repo_root)?;
+    features.extend(load_technical_features(repo_root).unwrap_or_default());
+    Some(features)
+}
+
+/// Saves `features` as the features pass leaves them: the technical ones in
+/// `features-set-aside.yaml`, the others in `features.yaml`.
+fn save_surface_features(repo_root: &Path, features: &[Feature]) -> Result<(), PipelineError> {
+    let (technical, functional): (Vec<Feature>, Vec<Feature>) =
+        features.iter().cloned().partition(|f| f.technical);
+    save_features(repo_root, &functional)?;
+    save_yaml(&Artifact::FeaturesSetAside.path(repo_root), &technical)
+}
+
 /// Lowercases `raw` into a kebab-case slug made of `[a-z0-9-]` only, safe
 /// as a file name; an accented Latin letter keeps its base letter (DLG-5);
 /// falls back to `"unnamed"` when nothing usable remains.

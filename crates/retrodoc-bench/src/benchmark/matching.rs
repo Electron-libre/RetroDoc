@@ -445,6 +445,7 @@ mod tests {
         save_yaml(&Artifact::Domains.path(root), &map).unwrap();
         let feature = |name: &str| Feature {
             back_office: false,
+            technical: false,
             slug: name.to_lowercase(),
             domain_slug: "ordering".to_string(),
             name: name.to_string(),

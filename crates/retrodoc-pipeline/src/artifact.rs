@@ -42,6 +42,8 @@ pub enum Artifact {
     Scope,
     Domains,
     Features,
+    /// The features the features pass marked technical, out of the functional docs.
+    FeaturesSetAside,
     UseCases,
     Rules,
     /// The rules as each feature stated them, before the same rule of several features is kept once;
@@ -57,7 +59,7 @@ pub enum Artifact {
 }
 
 impl Artifact {
-    pub const ALL: [Artifact; 21] = [
+    pub const ALL: [Artifact; 22] = [
         Artifact::SourceHashes,
         Artifact::Fingerprints,
         Artifact::Roles,
@@ -72,6 +74,7 @@ impl Artifact {
         Artifact::Scope,
         Artifact::Domains,
         Artifact::Features,
+        Artifact::FeaturesSetAside,
         Artifact::UseCases,
         Artifact::Rules,
         Artifact::RulesStated,
@@ -98,6 +101,7 @@ impl Artifact {
             Artifact::Scope => "scope.yaml",
             Artifact::Domains => "domains.yaml",
             Artifact::Features => "features.yaml",
+            Artifact::FeaturesSetAside => "features-set-aside.yaml",
             Artifact::UseCases => "use-cases.yaml",
             Artifact::Rules => "rules.yaml",
             Artifact::RulesStated => "rules-stated.yaml",
@@ -132,6 +136,7 @@ impl Artifact {
             | Artifact::EntryPoints
             | Artifact::Actors
             | Artifact::Features
+            | Artifact::FeaturesSetAside
             | Artifact::UseCases
             | Artifact::Rules
             | Artifact::RulesStated

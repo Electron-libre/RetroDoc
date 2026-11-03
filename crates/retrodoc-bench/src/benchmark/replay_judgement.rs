@@ -195,6 +195,7 @@ mod tests {
     fn feature(slug: &str) -> Feature {
         Feature {
             back_office: false,
+            technical: false,
             slug: slug.into(),
             domain_slug: "d".into(),
             name: slug.into(),

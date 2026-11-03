@@ -30,6 +30,14 @@ pub struct DomainDebt {
     pub confidence: Option<f32>,
 }
 
+/// A feature set aside as technical, as the debt report lists it.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct TechnicalFeature {
+    pub domain_slug: String,
+    pub name: String,
+    pub entry_points: usize,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct WeakSection {
     /// e.g. `billing/payment/pay-invoice`.
@@ -77,6 +85,9 @@ pub struct DebtReport {
     /// Source files reached by no behaviour: no entry point of a feature, no code run by one, no
     /// entity. Filled by the caller like `unplaced_entry_points`.
     pub technical_support: Vec<PathBuf>,
+    /// The features the features pass set aside as technical, out of the docs. Filled by the caller
+    /// with [`DebtReport::with_technical_features`].
+    pub technical_features: Vec<TechnicalFeature>,
     /// Where the items stand against the project's own docs. `None` until the caller adds it with
     /// [`DebtReport::with_reconciliation`].
     pub reconciliation: Option<Reconciliation>,
@@ -265,14 +276,8 @@ pub fn build_report(
         back_office_features: back_office.len(),
         unscored_use_cases,
         uncategorized_files,
-        skipped_files: Vec::new(),
-        unplaced_entry_points: Vec::new(),
-        entries_by_context: BTreeMap::new(),
-        entries_by_feature: BTreeMap::new(),
-        technical_support: Vec::new(),
-        reconciliation: None,
-        set_aside: None,
-        rules_put_back: BTreeSet::new(),
+        // Filled by the caller from the saved artifacts.
+        ..DebtReport::default()
     }
 }
 
