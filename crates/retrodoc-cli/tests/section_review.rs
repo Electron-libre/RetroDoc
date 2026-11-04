@@ -1,13 +1,14 @@
-//! The human reviews of the docs (`specs/section-review.md`): `.retrodoc/reviews.json` is outside
-//! the cache, so no `generate` touches it.
+//! The human reviews and edits of the docs (`specs/section-review.md`, `specs/section-edit.md`):
+//! `.retrodoc/reviews.json` and `.retrodoc/edits.json` are outside the cache, so no `generate`
+//! touches them.
 
 mod support;
 
 use support::{generate, run, App, FakeLlm};
 
-// spec: REV-8
+// spec: REV-8, SED-11
 #[test]
-fn generate_and_generate_force_keep_the_reviews() {
+fn generate_and_generate_force_keep_the_reviews_and_the_edits() {
     let app = App {
         stack: "Ruby",
         source_extensions: vec!["rb"],
@@ -45,6 +46,22 @@ fn generate_and_generate_force_keep_the_reviews() {
 }
 "#;
     std::fs::write(&reviews, saved).unwrap();
+    let edits = dir.path().join(".retrodoc/edits.json");
+    let edited = r#"{
+  "version": 1,
+  "edits": [
+    {
+      "kind": "domain",
+      "id": "orders",
+      "name": "Ordering",
+      "author": "A",
+      "edited_at": "2026-11-05T10:00:00Z",
+      "fingerprint": "0f"
+    }
+  ]
+}
+"#;
+    std::fs::write(&edits, edited).unwrap();
 
     for output in [
         generate(dir.path()),
@@ -58,4 +75,5 @@ fn generate_and_generate_force_keep_the_reviews() {
     }
 
     assert_eq!(std::fs::read_to_string(&reviews).unwrap(), saved);
+    assert_eq!(std::fs::read_to_string(&edits).unwrap(), edited);
 }

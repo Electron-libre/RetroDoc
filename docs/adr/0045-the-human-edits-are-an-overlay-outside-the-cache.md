@@ -1,6 +1,6 @@
 # 0045. The human edits are an overlay outside the cache
 
-Status: Proposed
+Status: Accepted
 
 ## Context
 

@@ -56,12 +56,12 @@ fn docs_with(narrative: &str) -> GeneratedDocs {
     )
 }
 
-fn docs() -> GeneratedDocs {
+pub(crate) fn docs() -> GeneratedDocs {
     docs_with("The clerk refunds the order.")
 }
 
 /// A git repository whose `user.name` is `name`.
-fn repo(name: &str) -> tempfile::TempDir {
+pub(crate) fn repo(name: &str) -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();
     for args in [&["init", "-q"][..], &["config", "user.name", name]] {
         let status = std::process::Command::new("git")
@@ -74,11 +74,11 @@ fn repo(name: &str) -> tempfile::TempDir {
     dir
 }
 
-fn feature_pay() -> Section {
+pub(crate) fn feature_pay() -> Section {
     Section::new(SectionKind::Feature, "pay")
 }
 
-fn refund() -> Section {
+pub(crate) fn refund() -> Section {
     Section::new(SectionKind::UseCase, "pay/refund")
 }
 
@@ -436,7 +436,7 @@ fn a_review_in_a_subfolder_of_a_repository_has_its_author() {
 
 /// The docs of [`docs`] whose feature `pay` has the source file `app/pay.rb` and whose use case
 /// `refund` cites `app/refund.rb`, each written in `root` when missing.
-fn docs_citing(root: &Path, narrative: &str) -> GeneratedDocs {
+pub(crate) fn docs_citing(root: &Path, narrative: &str) -> GeneratedDocs {
     use retrodoc_core::model::{Actor, ActorKind, SourceRef, Step};
     std::fs::create_dir_all(root.join("app")).unwrap();
     for name in ["pay", "refund"] {
@@ -472,7 +472,7 @@ fn docs_citing(root: &Path, narrative: &str) -> GeneratedDocs {
     .with_repo_root(root)
 }
 
-fn file_hash_of(root: &Path, path: &str) -> String {
+pub(crate) fn file_hash_of(root: &Path, path: &str) -> String {
     hash_content(&std::fs::read_to_string(root.join(path)).unwrap())
 }
 

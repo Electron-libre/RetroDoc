@@ -48,8 +48,8 @@ check. Means as the issue's, the save shared with `reviews` through a new module
 1. [x] Shared store: move the versioned load (version check, newest per section) and the save aside then rename of
    `reviews` into a `store` module generic over the record, `reviews` on it; verified by the REV tests unchanged and
    green; makes true no new requirement (refactor). (autonomous)
-2. [ ] Edits store: module `edits` (model, `record`, `remove`, `load`, `edits_path`) on `store`, spec
-   `specs/section-edit.md` accepted, ADR 0045; verified by tests per requirement; makes true SED-1 to SED-22.
+2. [x] Edits store: module `edits` (model, `record`, `remove`, `load`, `edits_path`) on `store`, spec
+   `specs/section-edit.md` accepted, ADR 0045; verified by tests per requirement; makes true SED-1 to SED-22. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -61,5 +61,15 @@ check. Means as the issue's, the save shared with `reviews` through a new module
   `reviews` on it (`ReviewsError` an alias of `StoreError`, `Reviews` of `Records<Review>`); the spec and ADR 0045
   drafts committed with it.
 - red: none (refactor, the REV tests unchanged and green).
+- Code review: no findings
+- not verified: none.
+
+## Deliverable 2 summary
+- done: module `retrodoc_mcp::edits` (`Fields`, `Edit`, `Edits`, `record`, `remove`, `load`, `edits_path`,
+  `EditsError`) on `store`, `reviews::cited_hashes` shared with it; spec `section-edit.md` and ADR 0045 accepted;
+  the `generate` test of the reviews also keeps an `edits.json` (SED-11); docs (ARCHITECTURE §2 and §7,
+  `docs/crates/render-mcp-cli.md`).
+- red: SED-1 to SED-10, SED-12 to SED-22: `not yet implemented` (stubs); SED-11 green at once (the file is outside
+  the cache, as REV-8).
 - Code review: no findings
 - not verified: none.

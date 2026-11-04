@@ -254,4 +254,4 @@ pub fn remove(repo_root: &Path, section: &Section) -> Result<(), ReviewsError> {
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
