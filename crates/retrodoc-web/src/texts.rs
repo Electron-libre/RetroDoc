@@ -3,7 +3,7 @@
 //! from the table of `retrodoc-render` ([`WebTexts::doc`]). A language with no table keeps English.
 
 use retrodoc_core::model::SetApartReason;
-use retrodoc_mcp::debt::{DebtKind, ItemKind};
+use retrodoc_mcp::debt::{DebtKind, ItemKind, Priority};
 use retrodoc_mcp::source::{SourceError, MAX_FILE_BYTES};
 use retrodoc_mcp::EntryKind;
 use retrodoc_render::Texts;
@@ -159,6 +159,12 @@ pub struct DebtTexts {
     pub item_kinds: [&'static str; 4],
     /// `entry point`, `entry points`, `file`, `files`.
     pub counted: [&'static str; 4],
+    /// The priority of an item and its parts: `Priority 2.10: weakness 1.00, 2 commits, 0 entry points`.
+    pub priority: fn(f64, f32, String, String) -> String,
+    /// `commit`, `commits`.
+    pub commits: [&'static str; 2],
+    /// The git history could not be read: no item counts a commit.
+    pub no_history: &'static str,
     /// Before what a contradicting section states, and before what the docs state.
     pub doc_states: &'static str,
     pub docs_state: &'static str,
@@ -389,6 +395,11 @@ impl WebTexts {
                 undocumented. Name the docs in <code>existing_docs_paths</code> of <code>retrodoc.toml</code>.",
             item_kinds: ["domain", "feature", "use case", "rule"],
             counted: ["entry point", "entry points", "file", "files"],
+            priority: |value, weakness, commits, entry_points| {
+                format!("Priority {value:.2}: weakness {weakness:.2}, {commits}, {entry_points}")
+            },
+            commits: ["commit", "commits"],
+            no_history: "The git history could not be read: every item counts 0 commits.",
             doc_states: "states",
             docs_state: "the generated docs state",
             no_run: "<section id=\"debt-list\"><p>No debt yet: run <code>retrodoc generate</code>, then restart <code>retrodoc ui</code>.</p></section>",
@@ -633,6 +644,11 @@ impl WebTexts {
                 contredit ou non documenté. Nommez les docs dans <code>existing_docs_paths</code> de <code>retrodoc.toml</code>.",
             item_kinds: ["domaine", "fonctionnalité", "cas d'usage", "règle"],
             counted: ["point d'entrée", "points d'entrée", "fichier", "fichiers"],
+            priority: |value, weakness, commits, entry_points| {
+                format!("Priorité {value:.2} : faiblesse {weakness:.2}, {commits}, {entry_points}")
+            },
+            commits: ["commit", "commits"],
+            no_history: "L'historique git n'a pas pu être lu : chaque élément compte 0 commit.",
             doc_states: "dit",
             docs_state: "la doc générée dit",
             no_run: "<section id=\"debt-list\"><p>Pas encore de dette : lancez <code>retrodoc generate</code>, puis relancez <code>retrodoc ui</code>.</p></section>",
@@ -764,6 +780,22 @@ impl WebTexts {
             ItemKind::Rule => 3,
         };
         self.debt.item_kinds[at]
+    }
+
+    /// The priority of a debt item and its parts.
+    #[must_use]
+    pub fn priority(&self, priority: &Priority) -> String {
+        let commits = format!(
+            "{} {}",
+            priority.commits,
+            self.debt.commits[usize::from(priority.commits != 1)]
+        );
+        (self.debt.priority)(
+            priority.value(),
+            priority.weakness,
+            commits,
+            self.counted(true, priority.entry_points),
+        )
     }
 
     /// `count` entry points, or `count` files.

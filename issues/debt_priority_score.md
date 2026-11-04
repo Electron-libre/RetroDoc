@@ -43,11 +43,12 @@ is sorted by it and each row shows the three parts. Churn read once when `retrod
 lobsters, 4,823 commits; 0.6 s on linkding), no new artifact. Out of scope: weights per kind, the MCP server.
 
 ## Plan
-1. [ ] Read model: the priority and its parts on each debt item, the debt list sorted by it, the churn given to the
+1. [x] Read model: the priority and its parts on each debt item, the debt list sorted by it, the churn given to the
    read model; verified by tests of `retrodoc-mcp/src/debt`; makes true DBT-8, DBT-23, DBT-24, DBT-25, DBT-26.
-2. [ ] Web and CLI: `retrodoc ui` reads the history at start, each debt row shows the priority and its parts, the
+   (autonomous)
+2. [x] Web and CLI: `retrodoc ui` reads the history at start, each debt row shows the priority and its parts, the
    page says when the commits are unknown; verified by tests of `retrodoc-web`; makes true DBT-27, DBT-28 (spec
-   `accepted`).
+   `accepted`). (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -59,5 +60,18 @@ lobsters, 4,823 commits; 0.6 s on linkding), no new artifact. Out of scope: weig
 - done: each debt item of the read model carries its `Priority` (weakness, commits, entry points), the list is sorted
   by it, the churn per file set by `GeneratedDocs::with_churn`.
 - red: DBT-8, DBT-23, DBT-24, DBT-25, DBT-26: `cannot find type Priority`, `no method named with_churn`.
-- Code review: pending
+- Code review: 1 findings
+  - a rule matched by its slug alone could take the files of a same-named rule of another feature: not fixed, a rule
+    slug is `<feature-slug>-<n>` and unique in the rules of a run, and a rule whose feature left the run (`?` in the
+    label) keeps its code evidence.
 - not verified: the order on a saved run (the churn is only read by `retrodoc ui` in deliverable 2).
+
+## Deliverable 2
+- done: `retrodoc ui` reads the churn at start (`GeneratedDocs::with_history`), each debt row shows its priority and
+  its parts, the page says when the git history could not be read; spec `accepted`.
+- red: DBT-25, DBT-27, DBT-8, DBT-28: `no associated function named with_history`.
+- Code review: no findings
+- Saved lobsters run (`benchmark_baseline_at_head-dafea18-lobsters-1`, 121 items, 106 set apart): the top 17 are set
+  apart moderation use cases (255 to 687 commits, 2 to 4 entry points, priority 13.7 to 17.2); the first low
+  confidence item is 18th, the unbacked narrative within the top 30, the folders reached by no behaviour last (0 entry
+  points).

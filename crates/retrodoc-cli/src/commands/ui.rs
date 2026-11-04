@@ -13,13 +13,14 @@ use super::workspace::Workspace;
 pub const DEFAULT_BIND: &str = "127.0.0.1:8730";
 
 /// Serves the generated docs as a web interface on `bind` until stopped;
-/// makes no LLM call and writes nothing. The docs are read once, here: a
-/// repository with no run yet gets a page saying to run `generate`.
+/// makes no LLM call and writes nothing. The docs and the git history that
+/// ranks their debt are read once, here: a repository with no run yet gets a
+/// page saying to run `generate`.
 pub async fn run(path: &Path, bind: SocketAddr) -> anyhow::Result<()> {
     let workspace = Workspace::open(path)?;
     let docs = project_docs(&workspace.repo_root, &workspace.config)?;
     let generated = GeneratedDocs::load(&workspace.repo_root, &docs)
-        .map(|generated| generated.reconciled(&docs));
+        .map(|generated| generated.reconciled(&docs).with_history());
     let links = item_doc_links(generated.as_ref(), &workspace.config);
     let project = project(&workspace);
     if generated.is_none() {

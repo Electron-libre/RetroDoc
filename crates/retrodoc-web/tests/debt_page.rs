@@ -453,6 +453,87 @@ async fn the_debt_page_is_in_french() {
     }
 }
 
+fn git(root: &Path, args: &[&str]) {
+    let status = std::process::Command::new("git")
+        .args([
+            "-c",
+            "user.name=T",
+            "-c",
+            "user.email=t@t",
+            "-c",
+            "commit.gpgsign=false",
+        ])
+        .args(args)
+        .current_dir(root)
+        .status()
+        .unwrap();
+    assert!(status.success(), "git {args:?}");
+}
+
+/// [`generated_repo`] under git, `app/pay-invoice.rb` changed by two commits and
+/// `app/ship-order.rb` by one.
+fn committed_repo() -> tempfile::TempDir {
+    let repo = generated_repo();
+    let root = repo.path();
+    let file = root.join("app/pay-invoice.rb");
+    let content = std::fs::read_to_string(&file).unwrap();
+    std::fs::write(&file, "before").unwrap();
+    git(root, &["init", "-q"]);
+    git(root, &["add", "app"]);
+    git(root, &["commit", "-q", "-m", "first"]);
+    std::fs::write(&file, content).unwrap();
+    git(root, &["commit", "-q", "-am", "second"]);
+    repo
+}
+
+async fn debt_with_history(root: &Path) -> String {
+    let docs = GeneratedDocs::load(root, &[]).map(GeneratedDocs::with_history);
+    let (status, page) = get_docs(None, docs, "/debt", &[]).await;
+    assert_eq!(status, StatusCode::OK, "{page}");
+    page
+}
+
+// spec: DBT-25, DBT-27, DBT-8
+#[tokio::test]
+async fn each_item_shows_its_priority_and_its_parts_from_the_history() {
+    let repo = committed_repo();
+    let page = debt_with_history(repo.path()).await;
+    let items = items(&page);
+
+    // 1 × (1 + ln 3): the two commits of the file its step cites.
+    assert!(items[0].contains("Pay by card"), "{}", items[0]);
+    assert!(
+        items[0].contains("Priority 2.10: weakness 1.00, 2 commits, 0 entry points"),
+        "{}",
+        items[0]
+    );
+    let low = items.last().unwrap();
+    assert!(low.contains("Low confidence"), "{low}");
+    assert!(
+        low.contains("Priority 1.47: weakness 0.70, 2 commits, 0 entry points"),
+        "{low}"
+    );
+    assert!(
+        items[2].contains("Priority 1.69: weakness 1.00, 1 commit, 0 entry points"),
+        "{}",
+        items[2]
+    );
+    assert!(!page.contains("could not be read"), "{page}");
+}
+
+// spec: DBT-28
+#[tokio::test]
+async fn without_a_git_history_the_page_says_the_commits_are_unknown() {
+    let repo = generated_repo();
+    let page = debt_with_history(repo.path()).await;
+
+    assert!(
+        list(&page).contains("The git history could not be read: every item counts 0 commits."),
+        "{page}"
+    );
+    assert!(items(&page)[0].contains("0 commits"), "{page}");
+}
+
 fn verdict(kind: ItemKind, label: &str, name: &str, status: Status) -> ItemVerdict {
     ItemVerdict {
         kind,

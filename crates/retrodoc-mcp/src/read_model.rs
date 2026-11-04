@@ -128,6 +128,27 @@ impl GeneratedDocs {
         self
     }
 
+    /// Reads the churn of [`Self::with_churn`] from the history of `HEAD` under the repository the
+    /// docs were loaded from (one walk); left unset, with a warning, when it can't be read.
+    #[must_use]
+    pub fn with_history(self) -> Self {
+        let Some(root) = self.repo_root.clone() else {
+            return self;
+        };
+        match retrodoc_ingest::git_history::collect_history(&root) {
+            Ok(history) => self.with_churn(
+                history
+                    .into_iter()
+                    .map(|(path, h)| (path.display().to_string(), h.commit_count))
+                    .collect(),
+            ),
+            Err(error) => {
+                tracing::warn!(%error, "no git history: the debt counts no commit");
+                self
+            }
+        }
+    }
+
     /// Reads what the last `generate` saved under `.retrodoc/cache/` plus the
     /// collected `docs`. `None` before a first `generate` (no features saved);
     /// use cases not saved yet count as none. The items are not reconciled with

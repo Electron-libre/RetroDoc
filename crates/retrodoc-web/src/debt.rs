@@ -46,6 +46,9 @@ pub struct DebtPage {
     pub no_score: bool,
     /// There is no collected doc: no item is listed as contradicted or undocumented.
     pub no_docs: bool,
+    /// Says the git history was not read, so no item counts a commit; `None` when it was, or with no
+    /// item.
+    pub history_note: Option<&'static str>,
     pub items: Vec<DebtRow>,
 }
 
@@ -65,8 +68,8 @@ pub struct DebtRow {
     pub changed: Vec<StaleFile>,
     /// What a doc item is: a domain, a feature, a use case or a rule.
     pub item_kind: Option<&'static str>,
-    /// The entry points of an undocumented item: `4 entry points`.
-    pub entry_points: Option<String>,
+    /// Its priority and its parts, its entry points among them.
+    pub priority: String,
     pub contradictions: Vec<ContradictionView>,
     pub folder: Option<FolderView>,
 }
@@ -110,6 +113,8 @@ pub fn debt_page(docs: &GeneratedDocs, filter: &DebtFilter, texts: &WebTexts) ->
         none_in_run: list.items.is_empty(),
         no_score: list.no_score,
         no_docs: list.no_docs,
+        history_note: (docs.churn().is_none() && !list.items.is_empty())
+            .then_some(texts.debt.no_history),
         items,
     }
 }
@@ -139,11 +144,9 @@ fn row(docs: &GeneratedDocs, item: &DebtItem, texts: &WebTexts) -> DebtRow {
             href: None,
         },
     };
-    let (item_kind, entry_points, contradictions) = match &item.subject {
+    let (item_kind, contradictions) = match &item.subject {
         Subject::DocItem(doc_item) => (
             Some(texts.item_kind(doc_item.kind)),
-            (item.kind == DebtKind::Undocumented)
-                .then(|| texts.counted(true, doc_item.entry_points)),
             doc_item
                 .contradictions
                 .iter()
@@ -157,7 +160,7 @@ fn row(docs: &GeneratedDocs, item: &DebtItem, texts: &WebTexts) -> DebtRow {
                 })
                 .collect(),
         ),
-        _ => (None, None, Vec::new()),
+        _ => (None, Vec::new()),
     };
     let folder = match &item.subject {
         Subject::Folder(folder) => Some(FolderView {
@@ -203,7 +206,7 @@ fn row(docs: &GeneratedDocs, item: &DebtItem, texts: &WebTexts) -> DebtRow {
             .map(|(path, state)| StaleFile::of(path, *state))
             .collect(),
         item_kind,
-        entry_points,
+        priority: texts.priority(&item.priority),
         contradictions,
         folder,
     }
