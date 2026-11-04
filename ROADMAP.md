@@ -311,7 +311,7 @@ The milestones up to "A large application, one bounded context at a time" are th
 - Why: the generated docs are a start; the team must be able to own them without losing their work at each run.
 - State: in issues
 - Issues:
-  - [edit_store](issues/edit_store.md)
+  - [edit_store](issues/done/edit_store.md)
   - [edits_in_read_model](issues/edits_in_read_model.md)
   - [web_edit_form](issues/web_edit_form.md)
   - [edit_outdated](issues/edit_outdated.md)
