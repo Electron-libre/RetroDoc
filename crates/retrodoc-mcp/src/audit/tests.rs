@@ -3,6 +3,7 @@ use retrodoc_pipeline::usage_log::{record_run, PassRecord, RunUsage};
 use retrodoc_pipeline::{Artifact, BoundedContext, ContextMap, Glossary};
 
 use super::*;
+use crate::reviews::Reviews;
 
 fn feature(slug: &str, domain: &str) -> Feature {
     Feature {
@@ -84,7 +85,7 @@ fn the_debt_is_counted_by_domain_and_kind_in_the_order_of_the_run() {
         use_case("lost", "gone", 0.1),
     ]);
 
-    let audit = audit(&docs);
+    let audit = audit(&docs, &Reviews::default());
 
     let rows: Vec<(&str, Vec<(usize, u8)>)> = audit
         .heatmap
@@ -182,7 +183,7 @@ fn the_figures_are_read_from_the_saved_coverage_usage_and_contexts() {
     )
     .unwrap();
 
-    let audit = audit(&docs(Vec::new()).with_repo_root(root));
+    let audit = audit(&docs(Vec::new()).with_repo_root(root), &Reviews::default());
 
     let coverage = audit.coverage.unwrap();
     assert_eq!(coverage.placed, Some(Share { count: 7, total: 8 }));
@@ -199,7 +200,10 @@ fn the_figures_are_read_from_the_saved_coverage_usage_and_contexts() {
 fn a_run_without_the_saved_figures_has_none_of_them() {
     let dir = tempfile::tempdir().unwrap();
 
-    let audit = audit(&docs(Vec::new()).with_repo_root(dir.path()));
+    let audit = audit(
+        &docs(Vec::new()).with_repo_root(dir.path()),
+        &Reviews::default(),
+    );
 
     assert_eq!(audit.confidence, None);
     assert_eq!(audit.business_language, None);

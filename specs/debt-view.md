@@ -1,7 +1,7 @@
 ---
 id: DBT
-status: accepted
-adrs: [0039]
+status: draft
+adrs: [0039, 0044]
 ---
 
 # Debt view of the docs
@@ -34,10 +34,11 @@ from top to bottom.
 - **DBT-7** (deterministic) An item of the kind "stale" must be listed for each feature and each use case flagged
   stale on its page (WEB-20), with the files that changed.
 - **DBT-8** (deterministic) The items must be ordered by their priority (DBT-23), the highest first, and items of
-  equal priority by kind in the order of DBT-2 to DBT-7, DBT-15, DBT-16, DBT-19 and DBT-20, then within a kind as
-  `retrodoc report` lists them (the lowest score first, then by section; the unbacked narratives by section; the
-  undocumented items most entry points first), the not scored, set apart, stale and contradicted ones in the order of
-  the run, a stale feature before its use cases, the folders of DBT-21 by path.
+  equal priority by kind in the order of DBT-2 to DBT-7, DBT-15, DBT-16, DBT-30, DBT-31, DBT-19 and DBT-20, then
+  within a kind as `retrodoc report` lists them (the lowest score first, then by section; the unbacked narratives by
+  section; the undocumented items most entry points first), the not scored, set apart, stale and contradicted ones in
+  the order of the run, a stale feature before its use cases, the reviewed sections as the reviews are saved (REV-15),
+  the folders of DBT-21 by path.
 - **DBT-9** (deterministic) The debt page must keep only the items of the kind `?kind=<kind>` and of the domain
   `?domain=<slug>`, each given, both when both are; an empty value filters nothing.
 - **DBT-10** (deterministic) The debt page must show a form whose choices are the kinds and the domains of the run,
@@ -85,10 +86,28 @@ from top to bottom.
 - **DBT-27** (deterministic) Each item must show its priority and its weight, weakness, commits and entry points.
 - **DBT-28** (deterministic) When the repository has no readable git history, the page must say the commits are
   unknown, and every item counts 0 commits.
-- **DBT-29** (deterministic) The weight of an item must be 1 for the kinds whose section the run suspects false (low
-  confidence, unbacked narrative, stale, contradicted), 0.5 for the kinds of a section missing or unreadable (not
-  scored, technical language, undocumented, entry point without a feature), and 0.25 for the kinds the docs leave out
-  by design (set apart, no domain, reached by no behaviour, not analysed).
+- **DBT-29** (deterministic) The weight of an item must be 1 for the kinds whose section the run or a human suspects
+  false (low confidence, unbacked narrative, stale, contradicted, marked wrong), 0.5 for the kinds of a section
+  missing, unreadable or left to check (not scored, technical language, undocumented, entry point without a feature,
+  to review), and 0.25 for the kinds the docs leave out by design (set apart, no domain, reached by no behaviour, not
+  analysed).
+- **DBT-30** (deterministic) An item of the kind "marked wrong" must be listed for each domain, feature and use case
+  of the run whose review (`specs/section-review.md`) has the status `wrong`, with the comment of the review as its
+  reason.
+- **DBT-31** (deterministic) An item of the kind "to review" must be listed for each domain, feature and use case of
+  the run whose review has the status `to_review`, with the comment of the review as its reason.
+- **DBT-32** (deterministic) The kinds low confidence, not scored, unbacked narrative and technical language must
+  leave out each feature and use case whose review has the status `validated` and a fingerprint (REV-6) equal to the
+  fingerprint of the section now.
+- **DBT-33** (deterministic) An item of a domain (DBT-30, DBT-31) must link to the page of the domain, its files being
+  the `source_paths` of the features of the domain and its entry points the sum of theirs (DBT-25, DBT-26).
+- **DBT-34** (deterministic) The debt page must read the reviews at each request, and when the file of the reviews
+  cannot be read, say so and list the debt as if no section was reviewed.
+- **DBT-35** (deterministic) The debt report of `retrodoc report` must list, under a heading "Sections marked wrong"
+  shown only when one is, each domain, feature and use case of the run marked wrong, with its kind, its label and the
+  comment of its review, in the order the reviews are saved (REV-15).
+- **DBT-36** (deterministic) When the file of the reviews cannot be read, `retrodoc report` must warn of it and print
+  the report without the reviews.
 
 ## Scenarios
 
@@ -114,10 +133,25 @@ from top to bottom.
 - (DBT-23, DBT-24, DBT-29) Given a set apart use case with 0 commits and 0 entry points, then its priority is 0.25.
 - (DBT-29) Given a use case scored 0.4, listed as low confidence and set apart for its confidence, then its low
   confidence item comes first (weight × weakness 0.6 against 0.25).
+- (DBT-32) Given a use case validated then rewritten by a later run (its fingerprint differs), then it is listed
+  again under the kinds of judgement it falls in.
+- (DBT-32) Given a validated use case that a section of the project's docs contradicts, or that is stale or set
+  apart, then it is still listed under those kinds.
+- (DBT-32) Given a validated domain, then its features and use cases are still listed under the kinds of judgement:
+  a review vouches for its own section only.
+- (DBT-30) Given a review of a section the run no longer holds, then no item is listed for it.
+- (DBT-30) Given a section marked wrong whose fingerprint differs from the one of its review, then it is still
+  listed as marked wrong (`issues/review_outdated.md` flags it outdated).
+- (DBT-30, DBT-31) Given a review with no comment, then its item shows no reason.
 - (DBT-19, DBT-20) Given a run with no saved behaviour coverage (not a `surface` run), then no item of the kinds
   "entry point without a feature" and "reached by no behaviour" is listed, and the page does not say so.
 
 ## Non-goals
+
+- A validated section still counts in the low-confidence, unscored, unbacked and technical lists of `retrodoc report`
+  and of `coverage-report.md`: they report the model's judgement; only the sections marked wrong are added to the
+  report (DBT-35).
+- A review whose section, or a file it cites, changed since is not told outdated here: `issues/review_outdated.md`.
 
 - The entry points a feature holds but no use case cites, the features set aside as technical, the domains with no
   feature and the rules set aside are not items: `retrodoc report` lists them, and they are not code no doc covers

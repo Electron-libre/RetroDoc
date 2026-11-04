@@ -34,3 +34,52 @@ Human review of the docs
   `audit.rs`.
 * The run snapshot (`specs/run-history.md`, RHI-5) counts the debt per kind: a new kind changes what a snapshot
   holds.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-04
+
+## Understanding
+A validated section, unchanged since its review (same fingerprint), leaves the four kinds of judgement of the debt;
+"marked wrong" and "to review" become kinds of the debt (heatmap columns, snapshot counts); the audit page shows the
+share reviewed per kind of section; `retrodoc report` lists the sections marked wrong. Out of scope: outdated
+reviews (`issues/review_outdated.md`), the lists of `coverage-report.md`.
+
+## Plan
+1. [x] Debt with the reviews: `debt` takes the reviews, validated sections leave the kinds of judgement, kinds
+   "marked wrong" and "to review" (domain items included), the debt page reads the reviews at each request and says
+   when they can't be read, the heatmap gets their columns; verified by tests of `/debt` and `/audit`; makes true
+   DBT-8, DBT-29 to DBT-34, AUD-6 (~700 lines). (autonomous)
+2. [ ] Snapshot: the debt counted by a `generate` takes the reviews into account; verified by a test of the history;
+   makes true RHI-14 (~150 lines).
+3. [ ] Audit page: the share of domains, features and use cases reviewed, by status; verified by tests of `/audit`;
+   makes true AUD-16, AUD-17 (~350 lines).
+4. [ ] `retrodoc report` lists the sections marked wrong; verified by a test of the binary; makes true DBT-35,
+   DBT-36 (~200 lines).
+
+## Decisions
+- Mode: autonomous
+- Base commit: 230236091dbd58d4004962ddcfb47383aa98cc17
+- The snapshot counts the debt with the reviews (RHI-14).
+- "to review" weighs 0.5 (DBT-29).
+- A section marked wrong or to review stays in the debt when its section changed since (DBT-30, DBT-31).
+
+## Deliverable 1
+done: the debt takes the reviews: validated sections leave the kinds of judgement, kinds "marked wrong" and "to
+review" (domains included), the debt page reads the reviews at each request, the heatmap has their columns.
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass (debt-view, audit-dashboard, run-history in `draft`) |
+| docs | `docs/crates/render-mcp-cli.md` |
+| code review | no findings |
+
+red: DBT-32, DBT-30, DBT-31, DBT-33, DBT-29, DBT-8, DBT-34, AUD-6: the validated use cases still listed as low
+confidence and not scored, no item "Marked wrong" nor "To review", no note of an unreadable `reviews.json`, no
+heatmap column "Marked wrong".
+
+Code review: no findings
+not verified: none
+decisions needed: none

@@ -98,7 +98,8 @@ pub struct HeatCellView {
 /// cited files and the saved figures.
 #[must_use]
 pub fn audit_page(docs: &GeneratedDocs, runs: &[SavedRun], texts: &WebTexts) -> AuditPage {
-    let audit = audit(docs);
+    // An unreadable file counts no review (AUD-17).
+    let audit = audit(docs, &crate::review::load(docs).unwrap_or_default());
     let confidence = |value: Option<f32>| {
         value.map(|value| Confidence::of(Some(&ConfidenceScore::new(value, None))))
     };

@@ -253,6 +253,8 @@ async fn the_heatmap_counts_the_debt_of_each_domain_by_kind_and_links_to_the_deb
             cell("0", ""),
             cell("0", ""),
             cell("0", ""),
+            cell("0", ""),
+            cell("0", ""),
         ]
     );
     assert_eq!(
@@ -264,6 +266,8 @@ async fn the_heatmap_counts_the_debt_of_each_domain_by_kind_and_links_to_the_deb
             cell("0", ""),
             cell("0", ""),
             cell("4", "2"),
+            cell("0", ""),
+            cell("0", ""),
             cell("0", ""),
             cell("0", ""),
         ]

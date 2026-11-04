@@ -137,7 +137,7 @@ fn cost(usage: &RunUsage) -> Cost {
 
 fn debt_counts(docs: &GeneratedDocs, report: retrodoc_pipeline::DebtReport) -> Vec<DebtCount> {
     let mut counts: BTreeMap<(DebtKind, Option<&str>), usize> = BTreeMap::new();
-    let debt = debt_of(docs, report);
+    let debt = debt_of(docs, report, &crate::reviews::Reviews::default());
     for item in debt.items.iter().filter(|i| i.kind != DebtKind::Stale) {
         *counts.entry((item.kind, item.domain())).or_default() += 1;
     }

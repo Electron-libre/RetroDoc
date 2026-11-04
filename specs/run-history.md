@@ -1,7 +1,7 @@
 ---
 id: RHI
-status: accepted
-adrs: [0039, 0043]
+status: draft
+adrs: [0039, 0043, 0044]
 ---
 
 # Run history
@@ -39,6 +39,9 @@ whether the docs get better, after the artifacts of the last run were rewritten.
 - **RHI-12** (deterministic) A snapshot that cannot be written must not make the `generate` fail: a warning says so.
 - **RHI-13** (deterministic) The saved snapshots must be readable as one list, oldest first, a file that cannot be
   read or is of a later format left out of it.
+- **RHI-14** (deterministic) The debt counted in the snapshot (RHI-5) must take into account the reviews saved when
+  the run ends, as the debt view does (DBT-30 to DBT-32), and count as if no section was reviewed, with a warning,
+  when their file cannot be read.
 
 ## Scenarios
 
@@ -56,6 +59,9 @@ whether the docs get better, after the artifacts of the last run were rewritten.
 
 ## Non-goals
 
+- A review given between two runs changes the debt the next snapshot counts, so a rerun that calls no LLM writes a
+  snapshot when the reviews changed (RHI-9): the trends show what a human checked (decided with the user on
+  2026-11-04).
 - No pruning: every snapshot is kept, a few kB each (chosen with the user on 2026-11-04).
 - No stale count: at the end of a `generate` nothing has changed since it.
 - No rule: the business rules are counted in the debt (DBT-15, DBT-16) only, not listed as sections.

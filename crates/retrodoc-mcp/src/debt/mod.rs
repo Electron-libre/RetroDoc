@@ -2,8 +2,9 @@
 //! (`specs/debt-view.md`): the sections of the docs that need a human, read
 //! from the same [`build_report`] as `retrodoc report`, plus the sections whose
 //! cited code changed since the run, judged at each call, then the items the
-//! project's docs contradict or leave out and the code no doc covers, by folder,
-//! sorted by a priority that crosses the weight of its kind and how weak each
+//! project's docs contradict or leave out, the sections a human marked wrong or
+//! to review and the code no doc covers, by folder, a section a human validated
+//! left out of the kinds that judge it, sorted by a priority that crosses the weight of its kind and how weak each
 //! item is with the commits of its busiest file and its entry points.
 
 use std::collections::BTreeMap;
@@ -17,6 +18,7 @@ use retrodoc_pipeline::{build_report, DebtReport, DomainMap, WeakSection};
 
 use crate::freshness::{FileState, Freshness};
 use crate::read_model::{GeneratedDocs, Uncovered};
+use crate::reviews::{self, Review, Reviews, SectionKind, Status};
 
 /// What makes a section need a human, in the order the debt lists them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -37,6 +39,10 @@ pub enum DebtKind {
     Contradicted,
     /// An item no section of the project's docs mentions.
     Undocumented,
+    /// A domain, feature or use case a human marked wrong.
+    MarkedWrong,
+    /// A domain, feature or use case a human left to review.
+    ToReview,
     /// The entry points of a folder that no feature holds.
     EntryPointWithoutFeature,
     /// The source files of a folder the clustering left in no domain.
@@ -48,7 +54,7 @@ pub enum DebtKind {
 }
 
 impl DebtKind {
-    pub const ALL: [Self; 12] = [
+    pub const ALL: [Self; 14] = [
         Self::LowConfidence,
         Self::NotScored,
         Self::UnbackedNarrative,
@@ -57,6 +63,8 @@ impl DebtKind {
         Self::Stale,
         Self::Contradicted,
         Self::Undocumented,
+        Self::MarkedWrong,
+        Self::ToReview,
         Self::EntryPointWithoutFeature,
         Self::NoDomain,
         Self::NoBehaviour,
@@ -64,7 +72,7 @@ impl DebtKind {
     ];
 
     /// The kinds whose items carry a domain, in the order of [`Self::ALL`].
-    pub const WITH_DOMAIN: [Self; 8] = [
+    pub const WITH_DOMAIN: [Self; 10] = [
         Self::LowConfidence,
         Self::NotScored,
         Self::UnbackedNarrative,
@@ -73,6 +81,8 @@ impl DebtKind {
         Self::Stale,
         Self::Contradicted,
         Self::Undocumented,
+        Self::MarkedWrong,
+        Self::ToReview,
     ];
 
     /// The value of `?kind=` of the debt page, also the name of the kind in the run history.
@@ -87,6 +97,8 @@ impl DebtKind {
             Self::Stale => "stale",
             Self::Contradicted => "contradicted",
             Self::Undocumented => "undocumented",
+            Self::MarkedWrong => "marked_wrong",
+            Self::ToReview => "to_review",
             Self::EntryPointWithoutFeature => "entry_point_without_feature",
             Self::NoDomain => "no_domain",
             Self::NoBehaviour => "no_behaviour",
@@ -95,17 +107,36 @@ impl DebtKind {
     }
 
     /// What an item of this kind weighs in its priority (DBT-29): 1 when its section may state
-    /// what is false, 0.5 when it is missing or unreadable, 0.25 when the docs leave it out by design.
+    /// what is false, 0.5 when it is missing, unreadable or left to check, 0.25 when the docs leave
+    /// it out by design.
     #[must_use]
     pub fn weight(self) -> f32 {
         match self {
-            Self::LowConfidence | Self::UnbackedNarrative | Self::Stale | Self::Contradicted => 1.0,
+            Self::LowConfidence
+            | Self::UnbackedNarrative
+            | Self::Stale
+            | Self::Contradicted
+            | Self::MarkedWrong => 1.0,
             Self::NotScored
             | Self::TechnicalLanguage
             | Self::Undocumented
-            | Self::EntryPointWithoutFeature => 0.5,
+            | Self::EntryPointWithoutFeature
+            | Self::ToReview => 0.5,
             Self::SetApart | Self::NoDomain | Self::NoBehaviour | Self::NotAnalysed => 0.25,
         }
+    }
+}
+
+impl DebtKind {
+    /// The kinds that judge a section, which a human validation of it removes (DBT-32).
+    fn judges(self) -> bool {
+        matches!(
+            self,
+            Self::LowConfidence
+                | Self::NotScored
+                | Self::UnbackedNarrative
+                | Self::TechnicalLanguage
+        )
     }
 }
 
@@ -114,6 +145,8 @@ impl DebtKind {
 pub enum Subject {
     /// A use case, or a feature.
     Section(Section),
+    /// A domain of the run, by its slug.
+    Domain(String),
     /// A domain, feature, use case or rule reconciled with the project's docs.
     DocItem(DocItem),
     /// A folder of the code no doc covers.
@@ -234,6 +267,7 @@ impl DebtItem {
     pub fn domain(&self) -> Option<&str> {
         match &self.subject {
             Subject::Section(section) => section.domain.as_deref(),
+            Subject::Domain(slug) => Some(slug),
             Subject::DocItem(item) => Some(item.domain.as_str()).filter(|d| *d != "?"),
             Subject::Folder(_) => None,
         }
@@ -244,6 +278,7 @@ impl DebtItem {
     pub fn label(&self) -> String {
         match &self.subject {
             Subject::Section(section) => section.label(),
+            Subject::Domain(slug) => slug.clone(),
             Subject::DocItem(item) => item.label.clone(),
             Subject::Folder(folder) => folder.path.clone(),
         }
@@ -263,10 +298,10 @@ pub struct DebtList {
     pub no_docs: bool,
 }
 
-/// The debt of `docs`, the stale sections judged now.
+/// The debt of `docs` with its `reviews`, the stale sections judged now.
 #[must_use]
-pub fn debt(docs: &GeneratedDocs) -> DebtList {
-    debt_of(docs, docs_report(docs))
+pub fn debt(docs: &GeneratedDocs, reviews: &Reviews) -> DebtList {
+    debt_of(docs, docs_report(docs), reviews)
 }
 
 /// The debt report of `docs`, as [`debt`] reads it.
@@ -276,9 +311,10 @@ pub fn docs_report(docs: &GeneratedDocs) -> DebtReport {
     build_report(&DomainMap::default(), docs.features(), docs.use_cases())
 }
 
-/// The debt of `docs` from its `report` ([`docs_report`]), the stale sections judged now.
+/// The debt of `docs` from its `report` ([`docs_report`]) and its `reviews`, the stale sections
+/// judged now.
 #[must_use]
-pub fn debt_of(docs: &GeneratedDocs, report: DebtReport) -> DebtList {
+pub fn debt_of(docs: &GeneratedDocs, report: DebtReport, reviews: &Reviews) -> DebtList {
     let no_score =
         !docs.use_cases().is_empty() && docs.use_cases().iter().all(|u| u.confidence.is_none());
     let mut items: Vec<DebtItem> = report
@@ -316,6 +352,8 @@ pub fn debt_of(docs: &GeneratedDocs, report: DebtReport) -> DebtList {
     if let Some(reconciliation) = &uncovered.reconciliation {
         items.extend(doc_items(reconciliation));
     }
+    items.retain(|item| !(item.kind.judges() && validated(docs, reviews, item)));
+    items.extend(reviewed(docs, reviews));
     items.extend(code_items(uncovered));
     for item in &mut items {
         item.priority = priority(docs, item);
@@ -334,6 +372,7 @@ pub fn debt_of(docs: &GeneratedDocs, report: DebtReport) -> DebtList {
 fn priority(docs: &GeneratedDocs, item: &DebtItem) -> Priority {
     let (files, entry_points) = match &item.subject {
         Subject::Section(section) => section_parts(docs, section),
+        Subject::Domain(slug) => domain_parts(docs, slug),
         Subject::DocItem(doc_item) => (doc_item_files(docs, doc_item), doc_item.entry_points),
         Subject::Folder(folder) => (
             folder
@@ -380,6 +419,88 @@ fn section_parts<'a>(docs: &'a GeneratedDocs, section: &Section) -> (Vec<&'a str
             feature.source_paths.iter().map(String::as_str).collect(),
             feature.entry_points.len(),
         ),
+    }
+}
+
+/// The files of the features of a domain, and the sum of their entry points.
+fn domain_parts<'a>(docs: &'a GeneratedDocs, slug: &str) -> (Vec<&'a str>, usize) {
+    let features = || docs.features().iter().filter(|f| f.domain_slug == slug);
+    (
+        features()
+            .flat_map(|f| f.source_paths.iter().map(String::as_str))
+            .collect(),
+        features().map(|f| f.entry_points.len()).sum(),
+    )
+}
+
+/// The section of the reviews (REV-1) a feature or use case of the debt names.
+fn review_section(section: &Section) -> reviews::Section {
+    match &section.use_case {
+        Some(use_case) => reviews::Section::new(
+            SectionKind::UseCase,
+            format!("{}/{use_case}", section.feature),
+        ),
+        None => reviews::Section::new(SectionKind::Feature, &section.feature),
+    }
+}
+
+/// Whether a human validated the section of `item` as the docs hold it now.
+fn validated(docs: &GeneratedDocs, reviews: &Reviews, item: &DebtItem) -> bool {
+    let Subject::Section(section) = &item.subject else {
+        return false;
+    };
+    let section = review_section(section);
+    reviews.get(&section).is_some_and(|review| {
+        review.status == Status::Validated
+            && reviews::fingerprint(docs, &section).as_ref() == Some(&review.fingerprint)
+    })
+}
+
+/// The sections of the run marked wrong, then those left to review, as the reviews are saved; the
+/// comment is the reason.
+fn reviewed<'a>(
+    docs: &'a GeneratedDocs,
+    reviews: &'a Reviews,
+) -> impl Iterator<Item = DebtItem> + 'a {
+    let of = move |kind: DebtKind, status: Status| {
+        reviews
+            .reviews()
+            .iter()
+            .filter(move |r| r.status == status)
+            .filter_map(move |r| {
+                Some(DebtItem {
+                    rationale: Some(r.comment.clone()).filter(|c| !c.trim().is_empty()),
+                    ..DebtItem::about(kind, reviewed_subject(docs, r)?)
+                })
+            })
+    };
+    of(DebtKind::MarkedWrong, Status::Wrong).chain(of(DebtKind::ToReview, Status::ToReview))
+}
+
+/// The subject of the section a review names; `None` when the run no longer holds it.
+fn reviewed_subject(docs: &GeneratedDocs, review: &Review) -> Option<Subject> {
+    let id = review.section.id.as_str();
+    let feature_section = |feature: &str, use_case: Option<&str>| {
+        let feature = docs.features().iter().find(|f| f.slug == feature)?;
+        Some(Subject::Section(Section {
+            domain: Some(feature.domain_slug.clone()),
+            feature: feature.slug.clone(),
+            use_case: use_case.map(str::to_string),
+        }))
+    };
+    match review.section.kind {
+        SectionKind::Domain => docs
+            .domains()
+            .iter()
+            .any(|d| d.slug == id)
+            .then(|| Subject::Domain(id.to_string())),
+        SectionKind::Feature => feature_section(id, None),
+        SectionKind::UseCase => {
+            let (feature, slug) = id.split_once('/')?;
+            docs.use_cases_of(feature)
+                .any(|u| u.slug == slug)
+                .then(|| feature_section(feature, Some(slug)))?
+        }
     }
 }
 

@@ -179,13 +179,13 @@ impl Site {
     /// The pages the home page points a first-time reader to, with what each
     /// holds and its count; empty with no run. The count of the debt items is
     /// that of the debt page now: its stale items are judged at each call, so it
-    /// reads the cited files.
+    /// reads the cited files, and the reviews.
     #[must_use]
     pub fn start_links(&self) -> Vec<StartLink> {
-        let debt = self
-            .docs
-            .as_ref()
-            .map_or(0, |docs| retrodoc_mcp::debt::debt(docs).items.len());
+        let debt = self.docs.as_ref().map_or(0, |docs| {
+            let reviews = crate::review::load(docs).unwrap_or_default();
+            retrodoc_mcp::debt::debt(docs, &reviews).items.len()
+        });
         self.start
             .iter()
             .map(|link| StartLink {

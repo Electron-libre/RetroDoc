@@ -6,6 +6,9 @@
   {% if page.no_docs %}
   <p class="muted">{{ t.debt.no_docs|safe }}</p>
   {% endif %}
+  {% if let Some(note) = page.reviews_note %}
+  <p class="muted">{{ note }}</p>
+  {% endif %}
   {% if let Some(note) = page.history_note %}
   <p class="muted">{{ note }}</p>
   {% endif %}

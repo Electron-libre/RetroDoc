@@ -14,6 +14,7 @@ pub use retrodoc_pipeline::{format_duration, RecordedProgress};
 
 use crate::debt::{debt_of, docs_report, DebtKind, DebtList};
 use crate::read_model::GeneratedDocs;
+use crate::reviews::Reviews;
 
 /// The highest level of a heatmap cell.
 pub const MAX_LEVEL: u8 = 4;
@@ -81,12 +82,13 @@ pub struct Audit {
     pub heatmap: Vec<HeatRow>,
 }
 
-/// The audit of `docs`; the files of the repository it was loaded from are read now.
+/// The audit of `docs` with its `reviews`; the files of the repository it was loaded from are
+/// read now.
 #[must_use]
-pub fn audit(docs: &GeneratedDocs) -> Audit {
+pub fn audit(docs: &GeneratedDocs, reviews: &Reviews) -> Audit {
     let report = docs_report(docs);
     let (confidence, business_language) = (report.overall, report.overall_business);
-    let debt = debt_of(docs, report);
+    let debt = debt_of(docs, report, reviews);
     let root = docs.repo_root();
     // The stale check reaches a use case through its feature only.
     let sections = docs.features().len()

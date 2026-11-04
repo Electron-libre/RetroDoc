@@ -100,7 +100,7 @@ fn the_weak_and_unscored_sections_are_listed_lowest_score_first() {
         ],
     );
 
-    let list = debt(&docs);
+    let list = debt(&docs, &Reviews::default());
 
     let low: Vec<_> = kinds(&list)
         .into_iter()
@@ -132,7 +132,7 @@ fn a_run_with_no_score_lists_no_unscored_use_case() {
         ],
     );
 
-    let list = debt(&docs);
+    let list = debt(&docs, &Reviews::default());
 
     assert!(list.no_score);
     assert!(list.items.is_empty(), "{:?}", kinds(&list));
@@ -159,7 +159,7 @@ fn unbacked_technical_and_set_apart_use_cases_have_their_own_kinds() {
         ],
     );
 
-    let list = debt(&docs);
+    let list = debt(&docs, &Reviews::default());
 
     assert_eq!(
         kinds(&list),
@@ -208,7 +208,7 @@ fn the_sections_citing_a_changed_file_are_stale() {
     )
     .with_freshness(Freshness::load(dir.path()));
 
-    let list = debt(&docs);
+    let list = debt(&docs, &Reviews::default());
 
     assert_eq!(
         kinds(&list),
@@ -231,7 +231,7 @@ fn the_sections_citing_a_changed_file_are_stale() {
 fn a_use_case_whose_feature_is_not_in_the_run_has_no_domain() {
     let docs = docs(vec![], vec![use_case("lost", "gone", Some(0.1))]);
 
-    let list = debt(&docs);
+    let list = debt(&docs, &Reviews::default());
 
     assert_eq!(list.items[0].domain(), None);
 }
@@ -284,7 +284,7 @@ fn the_contradicted_and_undocumented_items_follow_the_sections() {
         ..Uncovered::default()
     });
 
-    let list = debt(&docs);
+    let list = debt(&docs, &Reviews::default());
 
     let doc_kinds: Vec<_> = kinds(&list)
         .into_iter()
@@ -317,7 +317,7 @@ fn the_contradicted_and_undocumented_items_follow_the_sections() {
 fn with_no_collected_doc_no_item_is_compared() {
     let docs = docs(vec![feature("pay", "billing", Some(0.9))], vec![]);
 
-    let list = debt(&docs);
+    let list = debt(&docs, &Reviews::default());
 
     assert!(list.no_docs);
     assert!(list.items.is_empty(), "{:?}", kinds(&list));
@@ -338,7 +338,7 @@ fn the_code_no_doc_covers_is_listed_by_kind_and_folder() {
         }),
     });
 
-    let list = debt(&docs);
+    let list = debt(&docs, &Reviews::default());
 
     assert_eq!(
         kinds(&list),
@@ -375,7 +375,10 @@ fn an_entry_point_saved_before_ids_names_no_file() {
     assert_eq!(entry_file("app/x.rb#create"), Some("app/x.rb"));
     assert_eq!(uncovered.paths(), ["app/x.rb"]);
 
-    let list = debt(&docs(vec![], vec![]).with_uncovered(uncovered));
+    let list = debt(
+        &docs(vec![], vec![]).with_uncovered(uncovered),
+        &Reviews::default(),
+    );
 
     assert_eq!(
         kinds(&list),
@@ -412,7 +415,7 @@ fn the_priority_crosses_the_weight_the_weakness_the_commits_and_the_entry_points
     )
     .with_churn(churn(&[("pay.rb", 6)]));
 
-    let list = debt(&docs);
+    let list = debt(&docs, &Reviews::default());
 
     let low = priority_of(&list, DebtKind::LowConfidence, "billing/pay");
     assert_eq!(
@@ -450,6 +453,8 @@ fn the_weight_of_an_item_follows_the_tier_of_its_kind() {
             (Stale, 1.0),
             (Contradicted, 1.0),
             (Undocumented, 0.5),
+            (MarkedWrong, 1.0),
+            (ToReview, 0.5),
             (EntryPointWithoutFeature, 0.5),
             (NoDomain, 0.25),
             (NoBehaviour, 0.25),
@@ -526,7 +531,7 @@ fn the_commits_and_entry_points_come_from_the_files_and_entries_of_each_item() {
             ("app/x.rb", 7),
         ]));
 
-    let list = debt(&docs);
+    let list = debt(&docs, &Reviews::default());
 
     let parts = |kind, label| {
         let p = priority_of(&list, kind, label);
@@ -567,7 +572,7 @@ fn the_items_are_sorted_by_priority_then_by_kind() {
     )
     .with_churn(churn(&[("hot.rb", 50), ("ignored.rb", 3)]));
 
-    let list = debt(&docs);
+    let list = debt(&docs, &Reviews::default());
 
     assert_eq!(
         kinds(&list),
@@ -588,7 +593,7 @@ fn the_items_are_sorted_by_priority_then_by_kind() {
 fn with_no_history_every_item_counts_no_commit() {
     let docs = docs(vec![feature("pay", "billing", Some(0.1))], vec![]);
 
-    let list = debt(&docs);
+    let list = debt(&docs, &Reviews::default());
 
     assert_eq!(list.items[0].priority.commits, 0);
     assert!(docs.churn().is_none());
@@ -612,7 +617,7 @@ fn an_item_whose_feature_left_the_run_counts_no_commit() {
         })
         .with_churn(churn(&[("lost.rb", 9)]));
 
-    let list = debt(&docs);
+    let list = debt(&docs, &Reviews::default());
 
     assert_eq!(kinds(&list).len(), 3, "{:?}", kinds(&list));
     for item in &list.items {

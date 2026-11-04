@@ -150,7 +150,7 @@ pub struct WebTexts {
 pub struct DebtTexts {
     pub intro: &'static str,
     /// The name of each kind, in the order of `DebtKind::ALL`.
-    pub kinds: [&'static str; 12],
+    pub kinds: [&'static str; 14],
     /// Why a use case is set apart: its back-office feature, its business language, its confidence.
     pub reasons: [&'static str; 3],
     pub set_apart_for: &'static str,
@@ -174,6 +174,8 @@ pub struct DebtTexts {
     pub docs_state: &'static str,
     /// The list `htmx` swaps under the form before a first `generate`.
     pub no_run: &'static str,
+    /// The file of the reviews could not be read: the debt is listed as if no section was reviewed.
+    pub reviews_unreadable: &'static str,
 }
 
 /// The fixed text of the audit page.
@@ -458,6 +460,8 @@ impl WebTexts {
                 "Stale",
                 "Contradicted",
                 "Undocumented",
+                "Marked wrong",
+                "To review",
                 "Entry point without a feature",
                 "No domain",
                 "Reached by no behaviour",
@@ -484,6 +488,8 @@ impl WebTexts {
             doc_states: "states",
             docs_state: "the generated docs state",
             no_run: "<section id=\"debt-list\"><p>No debt yet: run <code>retrodoc generate</code>, then restart <code>retrodoc ui</code>.</p></section>",
+            reviews_unreadable: "The reviews could not be read: the debt is listed as if no section \
+                was reviewed.",
         },
         audit_page: AuditTexts {
             intro: "The figures of the last run, and where the debt of the docs concentrates: \
@@ -767,6 +773,8 @@ impl WebTexts {
                 "Périmé",
                 "Contredit",
                 "Non documenté",
+                "Marqué faux",
+                "À revoir",
                 "Point d'entrée sans fonctionnalité",
                 "Sans domaine",
                 "Atteint par aucun comportement",
@@ -793,6 +801,8 @@ impl WebTexts {
             doc_states: "dit",
             docs_state: "la doc générée dit",
             no_run: "<section id=\"debt-list\"><p>Pas encore de dette : lancez <code>retrodoc generate</code>, puis relancez <code>retrodoc ui</code>.</p></section>",
+            reviews_unreadable: "Les revues n'ont pas pu être lues : la dette est listée comme si \
+                aucune section n'avait été revue.",
         },
         audit_page: AuditTexts {
             intro: "Les chiffres du dernier run, et où se concentre la dette de la doc : chaque \
@@ -1009,10 +1019,12 @@ impl WebTexts {
             DebtKind::Stale => 5,
             DebtKind::Contradicted => 6,
             DebtKind::Undocumented => 7,
-            DebtKind::EntryPointWithoutFeature => 8,
-            DebtKind::NoDomain => 9,
-            DebtKind::NoBehaviour => 10,
-            DebtKind::NotAnalysed => 11,
+            DebtKind::MarkedWrong => 8,
+            DebtKind::ToReview => 9,
+            DebtKind::EntryPointWithoutFeature => 10,
+            DebtKind::NoDomain => 11,
+            DebtKind::NoBehaviour => 12,
+            DebtKind::NotAnalysed => 13,
         };
         self.debt.kinds[at]
     }

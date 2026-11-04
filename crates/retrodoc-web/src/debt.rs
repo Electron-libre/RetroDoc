@@ -6,6 +6,7 @@ use retrodoc_core::model::ConfidenceScore;
 use retrodoc_mcp::debt::{
     debt, entry_file, DebtItem, DebtKind, DocItem, ItemKind, Section, Subject,
 };
+use retrodoc_mcp::reviews::Reviews;
 use retrodoc_mcp::GeneratedDocs;
 
 use crate::rules::{Choice, Filter};
@@ -28,6 +29,9 @@ pub struct DebtPage {
     pub no_score: bool,
     /// There is no collected doc: no item is listed as contradicted or undocumented.
     pub no_docs: bool,
+    /// Says the file of the reviews could not be read, so the items take no review into account;
+    /// `None` when it was.
+    pub reviews_note: Option<&'static str>,
     /// Says the git history was not read, so no item counts a commit; `None` when it was, or with no
     /// item.
     pub history_note: Option<&'static str>,
@@ -83,7 +87,8 @@ pub struct FolderEntry {
 /// The debt page of `docs` for `filter`. Reads the cited files.
 #[must_use]
 pub fn debt_page(docs: &GeneratedDocs, filter: &DebtFilter, texts: &WebTexts) -> DebtPage {
-    let list = debt(docs);
+    let reviews = crate::review::load(docs);
+    let list = debt(docs, reviews.as_ref().unwrap_or(&Reviews::default()));
     let items = list
         .items
         .iter()
@@ -95,6 +100,7 @@ pub fn debt_page(docs: &GeneratedDocs, filter: &DebtFilter, texts: &WebTexts) ->
         none_in_run: list.items.is_empty(),
         no_score: list.no_score,
         no_docs: list.no_docs,
+        reviews_note: reviews.is_err().then_some(texts.debt.reviews_unreadable),
         history_note: (docs.churn().is_none() && !list.items.is_empty())
             .then_some(texts.debt.no_history),
         items,
@@ -118,6 +124,7 @@ impl DebtFilter {
 fn row(docs: &GeneratedDocs, item: &DebtItem, texts: &WebTexts) -> DebtRow {
     let named = match &item.subject {
         Subject::Section(section) => section_row(docs, section),
+        Subject::Domain(slug) => domain_row(docs, slug),
         Subject::DocItem(doc_item) => doc_item_row(docs, doc_item),
         Subject::Folder(_) => Named {
             domain: None,
@@ -231,6 +238,21 @@ fn doc_item_row(docs: &GeneratedDocs, item: &DocItem) -> Named {
             .filter(|_| matches!(item.kind, ItemKind::UseCase | ItemKind::Rule))
             .map(|f| f.name.clone()),
         href,
+    }
+}
+
+/// The name and the page of a domain of the run.
+fn domain_row(docs: &GeneratedDocs, slug: &str) -> Named {
+    let name = docs
+        .domains()
+        .iter()
+        .find(|d| d.slug == slug)
+        .map_or_else(|| slug.to_string(), |d| d.name.clone());
+    Named {
+        domain: Some(name.clone()),
+        name,
+        feature: None,
+        href: Some(crate::view::domain_href(slug)),
     }
 }
 

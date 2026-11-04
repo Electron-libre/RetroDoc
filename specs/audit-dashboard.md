@@ -1,7 +1,7 @@
 ---
 id: AUD
-status: accepted
-adrs: [0039, 0043]
+status: draft
+adrs: [0039, 0043, 0044]
 ---
 
 # Audit dashboard of the docs
@@ -32,7 +32,7 @@ saved (`specs/run-history.md`), so the same reader sees whether the docs get bet
   `contexts.yaml`, those whose chain finished as `fingerprints.json` records it, and the names of the others, pending,
   in the order of the map.
 - **AUD-6** (deterministic) The audit page must show a heatmap as a table with one row per domain of the run in the
-  order of the run and one column per kind of the debt view that carries a domain (DBT-2 to DBT-7, DBT-15, DBT-16) in
+  order of the run and one column per kind of the debt view that carries a domain (DBT-2 to DBT-7, DBT-15, DBT-16, DBT-30, DBT-31) in
   the order of DBT-8, each cell holding the number of debt items of that kind in that domain; a cell above 0 must link
   to `/debt?kind=<kind>&domain=<slug>`.
 - **AUD-7** (deterministic) A cell of the heatmap must carry a level from 0 to 4: 0 for no item, else
@@ -62,6 +62,12 @@ saved (`specs/run-history.md`), so the same reader sees whether the docs get bet
 - **AUD-15** (deterministic) With fewer than two saved snapshots, the audit page must say the trends need two runs of
   `retrodoc generate`, in place of the tables and charts of AUD-11 to AUD-14.
 
+- **AUD-16** (deterministic) The audit page must show, for the domains, the features and the use cases of the run
+  each, the number of those a human reviewed out of their number with its percentage rounded as AUD-3 says, and the
+  number of each status of the reviews (validated, wrong, to review).
+- **AUD-17** (deterministic) When the file of the reviews cannot be read, the audit page must say so in place of the
+  figures of AUD-16 and show the heatmap as if no section was reviewed; the other figures are still shown.
+
 ## Scenarios
 
 - (AUD-1) Given a run with no confidence score, then the page says the confidence is missing and still shows the
@@ -89,7 +95,13 @@ saved (`specs/run-history.md`), so the same reader sees whether the docs get bet
   shows two points and no line between them.
 - (AUD-15) Given a single saved snapshot, then the page says the trends need two runs and shows the other figures.
 
+- (AUD-16) Given a review of a feature the run no longer holds, then it is not counted.
+- (AUD-16) Given a run with no review, then each kind shows 0 reviewed out of its number, 0%.
+- (AUD-16) Given a use case whose feature is not in the run, then it is not counted in the total (AUD-3).
+
 ## Non-goals
+
+- A review whose section changed since is counted reviewed: telling it outdated is `issues/review_outdated.md`.
 
 - No money cost: the code has no price per model; the cost is the tokens and the time the server reported.
 - The progress of AUD-5 is as recorded at the end of each chain: a context whose files were edited since is still
