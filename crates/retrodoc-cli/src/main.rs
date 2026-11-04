@@ -117,6 +117,10 @@ enum Command {
         /// instead of calling the judge again: no LLM call.
         #[arg(long, conflicts_with = "judge")]
         saved_judge: bool,
+        /// With `--saved-judge`, make the judge's second call where the saved judgement lacks it
+        /// (a `judge.yaml` saved before it existed), keep the saved pairs and save the new ones.
+        #[arg(long, requires = "saved_judge")]
+        second_call: bool,
         /// Also write the figures of the run as JSON (for `benchmark-table`).
         #[arg(long)]
         out: Option<PathBuf>,
@@ -334,6 +338,7 @@ async fn main() -> anyhow::Result<()> {
             matches,
             judge,
             saved_judge,
+            second_call,
             out,
         } => {
             let options = commands::benchmark::BenchmarkOptions {
@@ -341,6 +346,7 @@ async fn main() -> anyhow::Result<()> {
                 matches,
                 judge,
                 saved_judge,
+                second_call,
                 out,
             };
             commands::benchmark::run(&path, &options, &tracker).await

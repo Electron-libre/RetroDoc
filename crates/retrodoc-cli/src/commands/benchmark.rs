@@ -16,6 +16,8 @@ pub struct BenchmarkOptions {
     pub judge: bool,
     /// Score with the judgement saved by an earlier `judge` run instead: no LLM call.
     pub saved_judge: bool,
+    /// With `saved_judge`, make the judge's second calls the saved judgement lacks and save them.
+    pub second_call: bool,
     /// Also write the figures of the run as JSON, for `benchmark-table`.
     pub out: Option<PathBuf>,
 }
@@ -55,7 +57,17 @@ pub async fn run(
     };
 
     let judgement = if options.saved_judge {
-        Some(benchmark::Judgement::load(&repo_root)?)
+        let mut judgement = benchmark::Judgement::load(&repo_root)?;
+        if options.second_call && !judgement.without_second_call().is_empty() {
+            second_calls(
+                &repo_root,
+                (&reference, &matches, &matches_path),
+                &mut judgement,
+                tracker,
+            )
+            .await?;
+        }
+        Some(judgement)
     } else if options.judge {
         let workspace = Workspace::open(&repo_root)?;
         let llm = super::usage::pass_provider(&workspace.config, tracker, "benchmark judge")?;
@@ -97,6 +109,9 @@ pub async fn run(
             judged.as_ref().map(|(c, j, u)| (c, j, *u))
         )
     );
+    if let Some((_, judgement, _)) = &judged {
+        print!("{}", second_call_note(judgement, &matches_path));
+    }
     if let Some(out) = &options.out {
         let report = benchmark::RunReport::new(metrics, comparison, judged);
         if let Some(parent) = out.parent() {
@@ -114,6 +129,44 @@ pub async fn run(
         );
     }
     Ok(())
+}
+
+/// Makes the judge's second calls `judgement` lacks and saves it in the run in `repo_root`.
+async fn second_calls(
+    repo_root: &Path,
+    (reference, matches, matches_path): (&Reference, &Matches, &Path),
+    judgement: &mut benchmark::Judgement,
+    tracker: &UsageTracker,
+) -> anyhow::Result<()> {
+    let workspace = Workspace::open(repo_root)?;
+    let llm = super::usage::pass_provider(&workspace.config, tracker, "benchmark judge")?;
+    tracker.set_pass("benchmark judge");
+    benchmark::second_calls(
+        llm.as_ref(),
+        repo_root,
+        reference,
+        matches,
+        matches_path,
+        judgement,
+    )
+    .await
+    .context("the judge failed")?;
+    judgement.save(repo_root)?;
+    Ok(())
+}
+
+/// The note on the judged kinds of `judgement` whose second call never ran; empty when none.
+fn second_call_note(judgement: &benchmark::Judgement, matches_path: &Path) -> String {
+    let kinds = judgement.without_second_call();
+    if kinds.is_empty() {
+        return String::new();
+    }
+    format!(
+        "\nThe judge's second call never ran for the {} of this run (a judge.yaml saved before it): \
+         their judged precision is biased low by the pairs of {}; `--saved-judge --second-call` makes it.\n",
+        kinds.join(" and "),
+        matches_path.display()
+    )
 }
 
 /// Prints the Markdown table of the benchmark saved in `dir` (`<dir>/<series>/*.json`, written by

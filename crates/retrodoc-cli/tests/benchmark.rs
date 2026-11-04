@@ -1,4 +1,7 @@
-//! `retrodoc benchmark` without the judge: reads the artifacts of a run and a reference, no LLM.
+//! `retrodoc benchmark`: reads the artifacts of a run and a reference, no LLM but the judge's second
+//! call, served by a fake LLM.
+
+mod support;
 
 use std::fmt::Write as _;
 use std::path::Path;
@@ -419,4 +422,84 @@ fn an_empty_directory_has_no_table() {
     assert!(!output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("no run found"), "{stderr}");
+}
+
+// spec: BSC-22
+#[test]
+fn a_saved_judgement_gets_its_second_call_alone() {
+    let dir = judged_run(
+        &["Pay and refund", "Checkout button"],
+        &[("Pay and refund", "Refund")],
+    );
+    let llm = support::FakeLlm::start(|_| {
+        r#"{"matches":[{"generated":"Checkout button","reference":"Checkout"}]}"#.to_string()
+    });
+    std::fs::write(dir.path().join("retrodoc.toml"), support::llm_section(&llm)).unwrap();
+    std::fs::write(
+        dir.path().join("matches.yaml"),
+        "features:\n  - {generated: Pay and refund, reference: Checkout}\n",
+    )
+    .unwrap();
+    let reference = dir.path().join("reference.yaml");
+    let out = dir.path().join("run.json");
+    let benchmark = |extra: &[&str]| {
+        let mut args = vec![
+            "benchmark",
+            "--reference",
+            reference.to_str().unwrap(),
+            "--saved-judge",
+            "--out",
+            out.to_str().unwrap(),
+        ];
+        args.extend_from_slice(extra);
+        let output = support::run(dir.path(), &args);
+        let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+        assert!(
+            output.status.success(),
+            "{stdout}{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        stdout
+    };
+
+    let before = benchmark(&[]);
+    assert!(
+        before.contains("second call") && before.contains("biased low"),
+        "{before}"
+    );
+    assert!(llm.calls().is_empty());
+
+    let after = benchmark(&["--second-call"]);
+    let calls = llm.calls();
+    assert_eq!(calls.len(), 1, "the domain is paired: one features call");
+    let (generated, offered) = calls[0].user.split_once("Reference features:").unwrap();
+    assert!(
+        generated.contains("- Checkout button:") && !generated.contains("- Pay and refund:"),
+        "{generated}"
+    );
+    assert!(
+        offered.contains("- Checkout:") && !offered.contains("- Refund:"),
+        "{offered}"
+    );
+    assert!(!after.contains("biased low"), "{after}");
+    let report: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&out).unwrap()).unwrap();
+    assert_eq!(report["judged"]["features"]["precision"], 1.0);
+    assert_eq!(report["judged"]["features"]["recall"], 1.0);
+    let saved = std::fs::read_to_string(dir.path().join(".retrodoc/benchmark/judge.yaml")).unwrap();
+    assert!(
+        saved.contains("generated: Pay and refund") && saved.contains("generated: Checkout button"),
+        "{saved}"
+    );
+
+    benchmark(&["--second-call"]);
+    assert_eq!(llm.calls().len(), 1, "every second call already ran");
+
+    let alone = retrodoc(&[
+        "benchmark",
+        "--reference",
+        reference.to_str().unwrap(),
+        "--second-call",
+    ]);
+    assert!(!alone.status.success(), "--second-call needs --saved-judge");
 }

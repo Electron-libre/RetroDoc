@@ -127,6 +127,24 @@ impl Judgement {
         crate::artifact::save_yaml(&Self::path(repo_root), self)
     }
 
+    /// The judged kinds whose second call ([`second_calls`]) never ran, as in a `judge.yaml` saved
+    /// before it existed: their judged precision is biased low by the pairs of `matches.yaml`.
+    #[must_use]
+    pub fn without_second_call(&self) -> Vec<&'static str> {
+        [
+            ("domains", self.second_call.domains, self.unjudged.domains),
+            (
+                "features",
+                self.second_call.features,
+                self.unjudged.features,
+            ),
+        ]
+        .into_iter()
+        .filter(|(_, ran, unjudged)| !ran && !unjudged)
+        .map(|(kind, _, _)| kind)
+        .collect()
+    }
+
     /// Reads the `judge.yaml` saved by an earlier [`judge`] of the run in `repo_root`, to re-score the
     /// run with no LLM call.
     ///

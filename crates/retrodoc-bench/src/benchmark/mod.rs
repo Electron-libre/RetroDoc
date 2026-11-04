@@ -21,7 +21,7 @@ pub mod table;
 
 pub use frame::{tree_evidence, Frame};
 pub use frozen::{FrozenInputs, Manifest, ReplayPass};
-pub use judge::{judge, Judgement, NarrativeRating, Unaudited, Unjudged};
+pub use judge::{judge, second_calls, Judgement, NarrativeRating, SecondCall, Unaudited, Unjudged};
 pub use matching::{compare, Comparison, Matches, Pair, Rejected, Score, SCORING_VERSION};
 pub use metrics::{Cost, RunMetrics};
 pub use reference::{

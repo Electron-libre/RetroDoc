@@ -55,7 +55,7 @@ first call, so the judged recall, stays as it is. Out of scope: changing the fir
 ## Plan
 1. [x] Measure: on the 12 saved hidden clones (f95ada6, dafea18), list the generated features and domains unpaired after the saved judgement whose right reference item is already covered, by hand, no LLM call; verified by a findings §10 entry and a ledger line; makes true the "measure first" of the issue. (autonomous)
 2. [x] Second call: `judge` makes the second call per kind, records it in `judge.yaml`, `SCORING_VERSION` 5; verified by judge tests with a scripted LLM; makes true BSC-4, BSC-21. (autonomous)
-3. [ ] `--saved-judge --second-call` and the note of a `judge.yaml` without the second call; verified by CLI tests; makes true BSC-22.
+3. [x] `--saved-judge --second-call` and the note of a `judge.yaml` without the second call; verified by CLI tests; makes true BSC-22. (autonomous)
 4. [ ] Baselines at scoring version 5: `--saved-judge --second-call` on the 12 clones (paid, cents, asked first), table against version 4, findings §10 and ledger; verified by the re-scored tables.
 
 ## Decisions
@@ -103,4 +103,22 @@ Code review: 1 finding
 - `second_calls` marked both kinds as run even for an unjudged kind it skipped: fixed, a kind is marked only when its call ran (asserted in the BSC-12 test).
 
 not verified: no LLM run yet (deliverable 4).
+decisions needed: none
+
+### 3. `--second-call`
+done: `benchmark --saved-judge --second-call` makes only the second calls the saved `judge.yaml` lacks and saves
+them; `--saved-judge` alone prints a note naming the kinds without it. Spec BSC accepted.
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | BSC-22 traced, spec `accepted` |
+| docs | `docs/crates/render-mcp-cli.md`, skill `quality-benchmark` |
+| code review | see below |
+
+red: BSC-22: the test panicked at `before.contains("second call")`: the re-score printed no note.
+Code review: no findings
+
+not verified: no real LLM call yet (deliverable 4).
 decisions needed: none
