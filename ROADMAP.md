@@ -283,7 +283,11 @@ The milestones up to "A large application, one bounded context at a time" are th
 - Goal: a snapshot of the debt report and the figures at each `generate`, the trends across runs in the dashboard,
   and the difference between two runs (added, removed, degraded sections).
 - Why: the report keeps the last state only, so nobody can tell whether the docs get better.
-- State: idea
+- State: in issues
+- Issues:
+  - [run_snapshot_at_generate](issues/run_snapshot_at_generate.md)
+  - [web_run_trends](issues/web_run_trends.md)
+  - [run_diff](issues/run_diff.md)
 
 ## Human review of the docs
 
