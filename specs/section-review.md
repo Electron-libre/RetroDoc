@@ -70,5 +70,5 @@ model's confidence.
 - No history of the reviews: a new review replaces the former one; git keeps the history of a versioned file.
 - No lock across processes: two processes saving at the same instant keep the last one's file whole (REV-9), not
   both.
-- Telling a review outdated (`issues/review_outdated.md`), showing the reviews (`issues/web_review_form.md`,
+- Telling a review outdated (`issues/review_outdated.md`), showing the reviews (`issues/done/web_review_form.md`,
   `issues/review_in_debt.md`, `issues/review_in_mcp.md`).
