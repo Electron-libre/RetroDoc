@@ -683,6 +683,21 @@ f95ada6 the second pairs are most of what stays unpaired (profile settings, cust
 linkding; hats, avatars, notifications, moderator mail on Lobsters). Paired, the judged precision no longer counts a
 too fine feature against the run; it reads as the share of the features that are neither technical nor wrong.
 
+Second call of the judge measured (scoring version 5, `benchmark --saved-judge --second-call` on the same 12 hidden
+clones, deepseek-chat, about 40 calls; the pairs of the first call kept, so the recalls do not move):
+
+| Figure | linkding dafea18 | linkding f95ada6 | Lobsters dafea18 | Lobsters f95ada6 |
+|---|---|---|---|---|
+| Features precision (judged), version 4 | 61% (56-70) | 71% (65-74) | 55% (50-59) | 72% (65-81) |
+| Features precision (judged), version 5 | 81% (73-85) | 92% (89-95) | 75% (71-77) | 91% (84-100) |
+| By hand, second pairs paired (above) | 76% | 93% | 72% | 92% |
+| Feature pairs not audited, version 5 | 24 (16-36) | 13 (7-17) | 29 (27-33) | 27 (17-32) |
+
+The judge pairs what the hand classing called second pairs, a little more on dafea18; the domains do not move (their
+pairs were audited, the second call proposes nothing for the unpaired ones). The second call's pairs are not audited:
+read the unaudited count next to the judged precision. The version 5 baselines are in
+`~/retrodoc-runs/judge_offer_hides_second_pairs/<repo>-v5/`.
+
 Set-aside lists read by hand on 2026-11-04 (`issues/done/technical_feature_put_back.md`, no LLM call): the 6 hidden runs
 of f95ada6 set aside 83 features (linkding 10, 11, 11; Lobsters 11, 29, 11) and none is a reference feature the docs
 lose. They are helpers, route files, operations scripts and jobs, test data and caches; the closest to a user

@@ -56,7 +56,7 @@ first call, so the judged recall, stays as it is. Out of scope: changing the fir
 1. [x] Measure: on the 12 saved hidden clones (f95ada6, dafea18), list the generated features and domains unpaired after the saved judgement whose right reference item is already covered, by hand, no LLM call; verified by a findings §10 entry and a ledger line; makes true the "measure first" of the issue. (autonomous)
 2. [x] Second call: `judge` makes the second call per kind, records it in `judge.yaml`, `SCORING_VERSION` 5; verified by judge tests with a scripted LLM; makes true BSC-4, BSC-21. (autonomous)
 3. [x] `--saved-judge --second-call` and the note of a `judge.yaml` without the second call; verified by CLI tests; makes true BSC-22. (autonomous)
-4. [ ] Baselines at scoring version 5: `--saved-judge --second-call` on the 12 clones (paid, cents, asked first), table against version 4, findings §10 and ledger; verified by the re-scored tables.
+4. [x] Baselines at scoring version 5: `--saved-judge --second-call` on the 12 clones (paid, cents, asked first), table against version 4, findings §10 and ledger; verified by the re-scored tables. (autonomous, paid run approved by the user)
 
 ## Decisions
 - Mode: autonomous
@@ -121,4 +121,22 @@ red: BSC-22: the test panicked at `before.contains("second call")`: the re-score
 Code review: no findings
 
 not verified: no real LLM call yet (deliverable 4).
+decisions needed: none
+
+### 4. Baselines at version 5
+done: second call run on the 12 hidden clones (~40 calls, ~$0.10); judged feature precision linkding 71% -> 92%,
+Lobsters 72% -> 91% at f95ada6, recalls unchanged; findings §10 and ledger.
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | unchanged |
+| docs | findings §10 |
+| code review | see below |
+
+red: none (a measure)
+Code review: no findings
+
+not verified: the second call's pairs are not audited by hand (13 to 29 a run, counted in the reports).
 decisions needed: none
