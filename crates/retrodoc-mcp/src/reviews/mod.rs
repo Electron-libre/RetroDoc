@@ -13,6 +13,7 @@ use chrono::{SecondsFormat, Utc};
 use retrodoc_core::model::Feature;
 use retrodoc_ingest::git_history::user_name;
 use retrodoc_pipeline::cache::hash_content;
+use retrodoc_pipeline::OutdatedReview;
 use serde::{Deserialize, Serialize};
 
 use crate::debt::use_case_cited_paths;
@@ -83,6 +84,23 @@ pub struct Outdated {
     pub rewritten: bool,
     /// The cited files modified or deleted since the review, in path order.
     pub changed: Vec<(String, FileState)>,
+}
+
+impl Outdated {
+    /// As the debt report holds it.
+    #[must_use]
+    pub fn report(&self) -> OutdatedReview {
+        OutdatedReview {
+            rewritten: self.rewritten,
+            changed: self.changed.iter().map(|(path, _)| path.clone()).collect(),
+        }
+    }
+
+    /// The reasons that apply, on one line ([`OutdatedReview::reasons`]).
+    #[must_use]
+    pub fn reasons(&self) -> String {
+        self.report().reasons()
+    }
 }
 
 /// The reviews of a repository, by kind then id.

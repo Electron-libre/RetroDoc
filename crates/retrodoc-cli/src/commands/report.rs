@@ -1,9 +1,9 @@
 use std::path::Path;
 
 use retrodoc_mcp::debt::{self, DebtKind, Subject};
-use retrodoc_mcp::reviews;
+use retrodoc_mcp::reviews::{self, Outdated};
 use retrodoc_pipeline::reconcile::ItemKind;
-use retrodoc_pipeline::{DomainMap, MarkedWrong, OutdatedReview};
+use retrodoc_pipeline::{DomainMap, MarkedWrong};
 
 use super::workspace::repo_root;
 
@@ -78,10 +78,7 @@ fn marked_wrong(
                 kind,
                 label: item.label(),
                 comment: item.rationale.unwrap_or_default(),
-                outdated: item.outdated.map(|outdated| OutdatedReview {
-                    rewritten: outdated.rewritten,
-                    changed: outdated.changed.into_iter().map(|(path, _)| path).collect(),
-                }),
+                outdated: item.outdated.as_ref().map(Outdated::report),
             })
         })
         .collect()

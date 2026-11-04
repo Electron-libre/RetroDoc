@@ -49,8 +49,8 @@ Out of scope: a debt kind of its own for an outdated validation; files a later r
    and of the binary; makes true DBT-32, DBT-37, DBT-38, AUD-18 (~350 lines). (autonomous)
 3. [x] Web pages: the review of a section and the badges of the lists flagged outdated (FR/EN texts); verified by
    tests of the pages; makes true WEB-89, WEB-90 (~250 lines). (autonomous)
-4. [ ] MCP answers: the review line and the warning of an outdated review; verified by tests of the tools; makes
-   true MCP-12, MCP-13 (~120 lines).
+4. [x] MCP answers: the review line and the warning of an outdated review; verified by tests of the tools; makes
+   true MCP-12, MCP-13 (~120 lines). (autonomous)
 5. [ ] Docs of the whole issue and fixes of its `high` review.
 
 ## Decisions
@@ -118,4 +118,24 @@ red: WEB-89, WEB-90: no "Outdated review" in the review block, no `badge review 
 
 Code review: no findings
 not verified: the look of the dashed "outdated" badge in a browser (only the HTML is tested)
+decisions needed: none
+
+## Deliverable 4
+done: the review line of `get_domain`, `get_feature` and `get_use_case` ends with `, outdated: <reasons>` for an
+outdated review, and the warning of a section marked wrong says the section changed since; `Outdated::report` and
+`reasons` shared with `retrodoc report`. The tests of MCP-7, MCP-8 and MCP-11 now write the real fingerprints. The
+five specs are `accepted`.
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass (all five `accepted`) |
+| docs | `docs/crates/render-mcp-cli.md` |
+| code review | see below |
+
+red: MCP-12, MCP-13: no `outdated:` in the review line, the warning still saying "Do not rely on it." alone.
+
+Code review: no findings
+not verified: none
 decisions needed: none

@@ -1,6 +1,6 @@
 ---
 id: REV
-status: draft
+status: accepted
 adrs: [0039, 0043, 0044]
 ---
 

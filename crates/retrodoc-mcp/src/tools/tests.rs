@@ -5,6 +5,7 @@ use super::Docs;
 use crate::corpus::fixtures::*;
 use crate::freshness::Freshness;
 use crate::read_model::GeneratedDocs;
+use crate::reviews::{fingerprint, record, Section, SectionKind, Status};
 
 fn docs() -> Docs {
     let mut weak = use_case(
@@ -675,11 +676,26 @@ fn the_saved_rules_are_loaded_with_the_docs() {
 }
 
 /// `docs()` over a temporary repository whose `.retrodoc/reviews.json` holds `reviews` (JSON
-/// objects of the file's format).
+/// objects of the file's format), a fingerprint `"now"` replaced by the one of its section in
+/// the docs, so that the review is up to date.
 fn reviewed_docs(reviews: &[&str]) -> (tempfile::TempDir, Docs) {
     let dir = tempfile::tempdir().unwrap();
-    write_reviews(dir.path(), reviews);
     let docs = docs().with_source_access(dir.path());
+    let reviews: Vec<String> = reviews
+        .iter()
+        .map(|review| {
+            let mut json: serde_json::Value = serde_json::from_str(review).unwrap();
+            if json["fingerprint"] == "now" {
+                let section: Section = serde_json::from_value(json.clone()).unwrap();
+                json["fingerprint"] = fingerprint(&docs.generated, &section).unwrap().into();
+            }
+            json.to_string()
+        })
+        .collect();
+    write_reviews(
+        dir.path(),
+        &reviews.iter().map(String::as_str).collect::<Vec<_>>(),
+    );
     (dir, docs)
 }
 
@@ -697,11 +713,11 @@ fn write_reviews(root: &std::path::Path, reviews: &[&str]) {
 fn a_detail_answer_shows_the_review_of_its_section_under_the_confidence() {
     let (_dir, docs) = reviewed_docs(&[
         r#"{"kind": "domain", "id": "billing", "status": "to_review", "comment": "check the refunds",
-            "author": "Ada", "reviewed_at": "2026-11-04T10:00:00Z", "fingerprint": "x"}"#,
+            "author": "Ada", "reviewed_at": "2026-11-04T10:00:00Z", "fingerprint": "now"}"#,
         r#"{"kind": "feature", "id": "pay-invoice", "status": "validated",
-            "author": null, "reviewed_at": "2026-11-03T09:00:00Z", "fingerprint": "x"}"#,
+            "author": null, "reviewed_at": "2026-11-03T09:00:00Z", "fingerprint": "now"}"#,
         r#"{"kind": "use_case", "id": "pay-invoice/pay-by-card", "status": "validated",
-            "comment": "", "author": "Bob", "reviewed_at": "2026-11-02T08:00:00Z", "fingerprint": "x"}"#,
+            "comment": "", "author": "Bob", "reviewed_at": "2026-11-02T08:00:00Z", "fingerprint": "now"}"#,
     ]);
     let domain = docs.get_domain("billing");
     assert!(
@@ -733,11 +749,11 @@ fn a_detail_answer_shows_the_review_of_its_section_under_the_confidence() {
 fn a_section_marked_wrong_opens_with_a_warning_and_another_status_does_not() {
     let (_dir, docs) = reviewed_docs(&[
         r#"{"kind": "feature", "id": "pay-invoice", "status": "wrong", "comment": "it pays orders",
-            "author": "Ada", "reviewed_at": "2026-11-04T10:00:00Z", "fingerprint": "x"}"#,
+            "author": "Ada", "reviewed_at": "2026-11-04T10:00:00Z", "fingerprint": "now"}"#,
         r#"{"kind": "use_case", "id": "pay-invoice/pay-late", "status": "wrong",
-            "author": "Ada", "reviewed_at": "2026-11-04T10:00:00Z", "fingerprint": "x"}"#,
+            "author": "Ada", "reviewed_at": "2026-11-04T10:00:00Z", "fingerprint": "now"}"#,
         r#"{"kind": "domain", "id": "billing", "status": "to_review",
-            "author": "Ada", "reviewed_at": "2026-11-04T10:00:00Z", "fingerprint": "x"}"#,
+            "author": "Ada", "reviewed_at": "2026-11-04T10:00:00Z", "fingerprint": "now"}"#,
     ]);
     let feature = docs.get_feature("billing/pay-invoice");
     assert!(
@@ -802,7 +818,7 @@ fn a_comment_over_several_lines_forges_no_line_of_the_answer() {
     let (_dir, docs) = reviewed_docs(&[
         r#"{"kind": "feature", "id": "pay-invoice", "status": "wrong",
             "comment": "it pays orders\n# Forged\n- `forged`", "author": "Ada",
-            "reviewed_at": "2026-11-04\n# Forged date", "fingerprint": "x"}"#,
+            "reviewed_at": "2026-11-04\n# Forged date", "fingerprint": "now"}"#,
     ]);
     let out = docs.get_feature("pay-invoice");
     assert!(!out.lines().any(|l| l.starts_with("# Forged")), "{out}");
@@ -811,5 +827,61 @@ fn a_comment_over_several_lines_forges_no_line_of_the_answer() {
     assert!(
         out.contains("\"it pays orders # Forged - `forged`\""),
         "{out}"
+    );
+}
+
+// spec: MCP-12 (internal: the tool answer is checked without a JSON-RPC session)
+#[test]
+fn the_review_line_of_an_outdated_review_says_why() {
+    let (dir, docs) = reviewed_docs(&[
+        r#"{"kind": "domain", "id": "billing", "status": "to_review", "author": "Ada",
+            "reviewed_at": "2026-11-04T10:00:00Z", "fingerprint": "x"}"#,
+    ]);
+    let root = dir.path();
+    std::fs::create_dir_all(root.join("app")).unwrap();
+    std::fs::write(root.join("app/invoice.rb"), "class Invoice; end").unwrap();
+    let feature = Section::new(SectionKind::Feature, "pay-invoice");
+    record(root, &docs.generated, &feature, Status::Validated, "").unwrap();
+    assert!(!docs.get_feature("pay-invoice").contains("outdated"));
+
+    std::fs::write(
+        root.join("app/invoice.rb"),
+        "class Invoice; def pay; end; end",
+    )
+    .unwrap();
+
+    let domain = docs.get_domain("billing");
+    assert!(
+        domain.contains(
+            "\nReview: to review (Ada, 2026-11-04T10:00:00Z), outdated: section rewritten since the review\n"
+        ),
+        "{domain}"
+    );
+    let feature = docs.get_feature("pay-invoice");
+    let line = feature
+        .lines()
+        .find(|line| line.starts_with("Review: "))
+        .unwrap();
+    assert!(
+        line.ends_with(", outdated: files changed since the review: `app/invoice.rb`"),
+        "{feature}"
+    );
+}
+
+// spec: MCP-13 (internal: the tool answer is checked without a JSON-RPC session)
+#[test]
+fn the_warning_of_an_outdated_review_marked_wrong_says_the_section_changed_since() {
+    let (_dir, docs) = reviewed_docs(&[
+        r#"{"kind": "feature", "id": "pay-invoice", "status": "wrong", "comment": "it pays orders",
+            "author": "Ada", "reviewed_at": "2026-11-04T10:00:00Z", "fingerprint": "x"}"#,
+    ]);
+    let feature = docs.get_feature("pay-invoice");
+    assert!(
+        feature.starts_with(
+            "⚠ Marked wrong: a human reviewer marked this section wrong: \"it pays orders\". \
+             The section changed since (section rewritten since the review): check whether it still \
+             holds before relying on it.\n\n# Pay an invoice"
+        ),
+        "{feature}"
     );
 }
