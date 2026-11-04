@@ -675,7 +675,7 @@ as on the fuller offers of the dafea18 runs.
 | Second pairs | 19 | 23 | 42 | 40 |
 | Technical | 31 | 7 | 56 | 11 |
 | Other | 0 | 0 | 12 | 5 |
-| Features precision (judged) | 62% (56-70) | 71% (65-74) | 55% (50-59) | 72% (65-81) |
+| Features precision (judged) | 61% (56-70) | 71% (65-74) | 55% (50-59) | 72% (65-81) |
 | The same, second pairs paired | 76% (73-79) | 93% (92-94) | 72% (67-80) | 92% (90-94) |
 
 The bias is 14 to 22 points of judged feature precision and grows as the run sets the technical features aside: at

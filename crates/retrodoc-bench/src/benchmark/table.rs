@@ -11,7 +11,7 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 
 use super::judge::{Judgement, NarrativeRating, Unaudited, Unjudged};
-use super::matching::{Comparison, SCORING_VERSION};
+use super::matching::{Comparison, SCORING_BEFORE_SECOND_CALL, SCORING_VERSION};
 use super::metrics::RunMetrics;
 use crate::error::PipelineError;
 use crate::progress::format_duration;
@@ -45,6 +45,12 @@ impl RunReport {
         strict: Comparison,
         judged: Option<(Comparison, Judgement, Unaudited)>,
     ) -> Self {
+        let scoring = match &judged {
+            Some((_, judgement, _)) if !judgement.without_second_call().is_empty() => {
+                SCORING_BEFORE_SECOND_CALL
+            }
+            _ => SCORING_VERSION,
+        };
         let (judged, narratives, unjudged, unaudited) = match judged {
             Some((mut comparison, judgement, unaudited)) => {
                 let unjudged = judgement.unjudged;
@@ -59,7 +65,7 @@ impl RunReport {
             None => (None, None, Unjudged::default(), Unaudited::default()),
         };
         Self {
-            scoring: Some(SCORING_VERSION),
+            scoring: Some(scoring),
             metrics,
             strict,
             judged,
@@ -155,8 +161,8 @@ pub fn table(current: &[Series], previous: Option<&[Series]>) -> String {
                     out,
                     "No change shown for recall, precision and the judge's rating: this series was \
                      scored under scoring version {}, the previous runs under {}; re-score the runs \
-                     of another version with `retrodoc benchmark --saved-judge --out` (version \
-                     {SCORING_VERSION}) to compare them.\n",
+                     of another version with `retrodoc benchmark --saved-judge --second-call --out` \
+                     (version {SCORING_VERSION}) to compare them.\n",
                     show_versions(&now_versions),
                     show_versions(&was_versions)
                 );

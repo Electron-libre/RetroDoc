@@ -517,15 +517,8 @@ pub async fn judge(
         unjudged,
         second_call: SecondCall::default(),
     };
-    second_calls(
-        llm,
-        repo_root,
-        reference,
-        matches,
-        matches_path,
-        &mut judgement,
-    )
-    .await?;
+    let run = (repo_root, reference, matches_path);
+    second_calls_on(llm, run, &items, matches, &comparison, &mut judgement).await?;
     Ok(Some(judgement))
 }
 
@@ -546,17 +539,33 @@ pub async fn second_calls(
     matches_path: &Path,
     judgement: &mut Judgement,
 ) -> Result<(), PipelineError> {
-    let before = compare(repo_root, reference, matches, matches_path)?;
-    let after = compare(
+    let Some(before) = compare(repo_root, reference, matches, matches_path)? else {
+        return Ok(());
+    };
+    let items = RunItems::load(repo_root, reference);
+    let run = (repo_root, reference, matches_path);
+    second_calls_on(llm, run, &items, matches, &before, judgement).await
+}
+
+/// [`second_calls`] given the items of the run and its `before` comparison, the one without the
+/// judge's pairs.
+async fn second_calls_on(
+    llm: &dyn LlmProvider,
+    (repo_root, reference, matches_path): (&Path, &Reference, &Path),
+    items: &RunItems,
+    matches: &Matches,
+    before: &Comparison,
+    judgement: &mut Judgement,
+) -> Result<(), PipelineError> {
+    let Some(after) = compare(
         repo_root,
         reference,
         &matches.with_proposals(judgement),
         matches_path,
-    )?;
-    let (Some(before), Some(after)) = (before, after) else {
+    )?
+    else {
         return Ok(());
     };
-    let items = RunItems::load(repo_root, reference);
     if !judgement.second_call.domains && !judgement.unjudged.domains {
         let generated = only(&items.generated_domains, &after.domains.unmatched_generated);
         let offered = except(
@@ -583,10 +592,10 @@ pub async fn second_calls(
     Ok(())
 }
 
-/// Adds to `pairs` the `new` ones it doesn't hold yet.
+/// Adds to `pairs` the `new` ones it doesn't hold yet, names normalized.
 fn add_new(pairs: &mut Vec<Pair>, new: Vec<Pair>) {
     for pair in new {
-        if !pairs.contains(&pair) {
+        if !pairs.iter().any(|p| p.same_as(&pair)) {
             pairs.push(pair);
         }
     }

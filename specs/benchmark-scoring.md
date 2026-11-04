@@ -70,14 +70,15 @@ change of these rules must not read as a change of quality between two benchmark
   counted among the generated domains: not in the strict and judged figures, not offered to the judge, not in the
   number of domains (EDM); a run with no `features.yaml` (a replay of the domains pass alone) counts every domain.
 - **BSC-21** (deterministic) A second call of the judge must offer the generated items that neither a pair, an
-  equal name nor a proposal of the first call covers, against the reference items the first call was not offered;
-  it must make no call when either side is empty, and a second call that proposes no pair must not mark the kind
-  unjudged. Its pairs count in the judged figures as the first call's do.
+  equal name nor a proposal of the first call that `matches.yaml` does not reject covers, against the reference
+  items the first call was not offered; it must make no call when either side is empty, and a second call that
+  proposes no pair must not mark the kind unjudged. Its pairs count in the judged figures as the first call's do.
 - **BSC-22** (deterministic) `judge.yaml` must record, by kind, that the second call ran; one saved before BSC-21
   must load as not run. `benchmark --saved-judge --second-call` must keep the saved pairs of the first call, make
   only the second calls not run yet, save their pairs in `judge.yaml` and score the run with both; `benchmark
   --saved-judge` alone must say, for each kind judged, that the second call never ran and its judged precision is
-  biased low by the pairs of `matches.yaml`.
+  biased low by the pairs of `matches.yaml`, and the report of a run judged without it must carry scoring version
+  4.
 
 ## Scenarios
 
@@ -128,6 +129,8 @@ change of these rules must not read as a change of quality between two benchmark
   hand has checked, not how much of it is wrong.
 - Changing what the first call of the judge is shown or asked: its pairs set the judged recall, and on the
   audited runs of 2026-11-03 its feature precision was within 4 points of the hand one.
+- Knowing what the first call was offered when the second runs apart (`--second-call`): its offer is rebuilt from
+  the current `matches.yaml`, so a reference item paired by hand since then may be offered twice.
 - Offering the reference items already covered in the first call: the second call keeps the recall of a run
   judged before BSC-21 as it was, and the second call holds fewer items.
 - Marking unjudged the runs of a `judge.yaml` saved before BSC-12: they keep their figures; re-judging them is a

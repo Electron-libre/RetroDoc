@@ -57,6 +57,7 @@ first call, so the judged recall, stays as it is. Out of scope: changing the fir
 2. [x] Second call: `judge` makes the second call per kind, records it in `judge.yaml`, `SCORING_VERSION` 5; verified by judge tests with a scripted LLM; makes true BSC-4, BSC-21. (autonomous)
 3. [x] `--saved-judge --second-call` and the note of a `judge.yaml` without the second call; verified by CLI tests; makes true BSC-22. (autonomous)
 4. [x] Baselines at scoring version 5: `--saved-judge --second-call` on the 12 clones (paid, cents, asked first), table against version 4, findings §10 and ledger; verified by the re-scored tables. (autonomous, paid run approved by the user)
+5. [x] Docs and fixes of the `high` review of the issue; verified by `cardinal run project-check` and the BSC-22 test; makes true BSC-21, BSC-22 as amended. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -139,4 +140,36 @@ red: none (a measure)
 Code review: no findings
 
 not verified: the second call's pairs are not audited by hand (13 to 29 a run, counted in the reports).
+decisions needed: none
+
+### 5. Fixes of the `high` review
+done: a report judged without the second call carries scoring version 4 and the table's hint names
+`--second-call`; `second_calls` reuses the comparison and items of `judge`; a second-call pair equal once normalized
+is not added again; BSC-21 says a rejected first-call proposal does not cover its item, BSC-22 the version 4 stamp, a
+non-goal the rebuilt first offer; docs say `--second-call` makes LLM calls; findings figure 62% made 61%.
+
+`high` review: 10 findings
+- v5 stamped on a report without the second call: fixed (version 4).
+- the first offer rebuilt from the current `matches.yaml`: not fixed, stated as a non-goal (the first offer is not saved).
+- an empty second call asked twice: not fixed, the validated decision (BSC-10 holds for every call).
+- the judgement lost when a second call fails: not fixed, as for the first calls and the narratives before it.
+- a rejected first-call proposal leaves its item to the second call: kept, the spec says so.
+- a second-call pair outliving the hand pair it relied on: not fixed, as any saved pair of the judge.
+- "no LLM call" next to `--second-call`: fixed.
+- 62% / 61%: fixed.
+- `compare` and `RunItems::load` repeated: fixed.
+- exact duplicate check: fixed (`same_as`).
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | BSC-21, BSC-22 amended, traced |
+| docs | `docs/ARCHITECTURE.md`, `docs/crates/render-mcp-cli.md`, findings §10 |
+| code review | see below |
+
+red: BSC-22: the scoring assertion would have read 5 for a run without the second call (written with the fix).
+Code review: no findings
+
+not verified: none.
 decisions needed: none

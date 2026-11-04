@@ -243,7 +243,8 @@ fn rescores_a_run_with_its_saved_judgement_and_no_llm() {
         "domains: []\n\
          features:\n  - {generated: Pay and refund, reference: Checkout}\n  \
          - {generated: Pay and refund, reference: Refund}\n\
-         narratives: {total: 4, rated: 4, business: 3}\n",
+         narratives: {total: 4, rated: 4, business: 3}\n\
+         second_call: {domains: true, features: true}\n",
     )
     .unwrap();
     // No `retrodoc.toml` and no key: a call to the judge would fail.
@@ -468,6 +469,13 @@ fn a_saved_judgement_gets_its_second_call_alone() {
         "{before}"
     );
     assert!(llm.calls().is_empty());
+    let report: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&out).unwrap()).unwrap();
+    assert_eq!(
+        report["scoring"],
+        retrodoc_bench::benchmark::SCORING_VERSION - 1,
+        "judged without the second call: the bias of version 4"
+    );
 
     let after = benchmark(&["--second-call"]);
     let calls = llm.calls();
@@ -486,6 +494,10 @@ fn a_saved_judgement_gets_its_second_call_alone() {
         serde_json::from_str(&std::fs::read_to_string(&out).unwrap()).unwrap();
     assert_eq!(report["judged"]["features"]["precision"], 1.0);
     assert_eq!(report["judged"]["features"]["recall"], 1.0);
+    assert_eq!(
+        report["scoring"],
+        retrodoc_bench::benchmark::SCORING_VERSION
+    );
     let saved = std::fs::read_to_string(dir.path().join(".retrodoc/benchmark/judge.yaml")).unwrap();
     assert!(
         saved.contains("generated: Pay and refund") && saved.contains("generated: Checkout button"),

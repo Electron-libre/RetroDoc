@@ -34,6 +34,10 @@ use crate::naming::normalize;
 /// (BSC-21).
 pub const SCORING_VERSION: u32 = 5;
 
+/// The version a run judged without the judge's second call is scored under: its judged precision
+/// keeps the bias of version 4.
+pub const SCORING_BEFORE_SECOND_CALL: u32 = 4;
+
 /// The domains of `map` the benchmark scores (BSC-20): the published ones, those a feature of
 /// `features` belongs to; with no `features.yaml` (a replay of the domains pass alone), every domain
 /// but the "uncategorized" bucket.
