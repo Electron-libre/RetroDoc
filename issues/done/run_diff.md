@@ -44,7 +44,7 @@ Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-04
 A page `/history` of `retrodoc ui` lists the saved snapshots and compares two of them (the last two by default, else
 `?from=`/`?to=`): sections added, removed, degraded (confidence or business language fallen by at least a threshold),
 newly or no longer set apart, each linked to its page when the served docs hold it. Out of scope: a CLI command, the
-sections that got better and the trends of the figures (`issues/web_run_trends.md`). Spec: `specs/history-page.md`.
+sections that got better and the trends of the figures (`issues/done/web_run_trends.md`). Spec: `specs/history-page.md`.
 
 ## Plan
 1. [x] Difference of two snapshots: `retrodoc_mcp::history` names each loaded snapshot by its file and computes the

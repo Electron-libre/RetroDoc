@@ -70,7 +70,7 @@ them, so whoever audits the docs sees which domains, features and use cases a `g
 
 - No CLI command: the difference is a web page (chosen with the user on 2026-11-04).
 - No section that got better: the page lists what was added, removed or made worse; the trends of the overall
-  figures are on the audit page (`issues/web_run_trends.md`).
+  figures are on the audit page (`issues/done/web_run_trends.md`).
 - No difference of the figures (overall scores, coverage, debt, cost): the trends show them.
 - No matching of a section renamed or moved: a section is the same in two runs only by its kind and id.
 - No business rule, glossary concept nor actor: the snapshot holds none (RHI-7).

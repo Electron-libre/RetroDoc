@@ -60,5 +60,5 @@ whether the docs get better, after the artifacts of the last run were rewritten.
 - No stale count: at the end of a `generate` nothing has changed since it.
 - No rule: the business rules are counted in the debt (DBT-15, DBT-16) only, not listed as sections.
 - What the pages show of the snapshots: the difference of two runs is the history page
-  (`specs/history-page.md`); the trends are `issues/web_run_trends.md`.
+  (`specs/history-page.md`); the trends are `issues/done/web_run_trends.md`.
 - No snapshot from the other commands (`roles`, `surface`…): they write no section.
