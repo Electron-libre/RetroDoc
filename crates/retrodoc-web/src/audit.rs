@@ -1,7 +1,6 @@
 //! What the audit page shows (`specs/audit-dashboard.md`): the figures of
-//! `retrodoc_mcp::audit` as text, and the heatmap of the debt, each cell
-//! linked to the debt page filtered on its domain and kind, then the trends of the saved runs
-//! (`crate::trends`).
+//! `retrodoc_mcp::audit` as text, the trends of the saved runs (`crate::trends`), and the heatmap
+//! of the debt, each cell linked to the debt page filtered on its domain and kind.
 
 use std::fmt::Write as _;
 

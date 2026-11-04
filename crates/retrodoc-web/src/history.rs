@@ -116,7 +116,11 @@ pub(crate) fn label(run: &SavedRun) -> String {
 
 /// `2026-11-04T10:00:00.123+00:00` → `2026-11-04 10:00:00 UTC`; another offset is kept as written.
 fn when(finished_at: &str) -> String {
-    let (time, rest) = finished_at.split_at(finished_at.len().min(19));
+    let cut = finished_at
+        .char_indices()
+        .nth(19)
+        .map_or(finished_at.len(), |(at, _)| at);
+    let (time, rest) = finished_at.split_at(cut);
     let zone = rest.trim_start_matches(|c: char| c == '.' || c.is_ascii_digit());
     let zone = match zone {
         "Z" | "+00:00" => "UTC",
@@ -288,5 +292,11 @@ mod tests {
             when("2026-11-04T12:00:00+02:00"),
             "2026-11-04 12:00:00 +02:00"
         );
+    }
+
+    // spec: HPG-1 (internal: a hand-edited file; `generate` writes ASCII)
+    #[test]
+    fn a_time_with_a_character_across_its_19th_byte_is_kept_whole() {
+        assert_eq!(when("2026-11-04T10:00:0é"), "2026-11-04 10:00:0é");
     }
 }

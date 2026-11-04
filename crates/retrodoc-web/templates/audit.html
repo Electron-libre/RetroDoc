@@ -55,7 +55,7 @@
       <figcaption>{{ chart.name }}</figcaption>
       <svg class="trend" role="img" aria-label="{{ chart.name }}{{ t.colon }} {{ t.audit_page.chart_note }}" viewBox="0 0 {{ chart.width }} {{ chart.height }}" width="{{ chart.width }}" height="{{ chart.height }}">
         {% for (y, text) in chart.grid %}<line class="trend-grid" x1="{{ chart.left }}" y1="{{ y }}" x2="{{ chart.right }}" y2="{{ y }}"/><text class="trend-axis" x="{{ chart.left - 6.0 }}" y="{{ y + 4.0 }}" text-anchor="end">{{ text }}</text>{% endfor %}
-        {% for (from, to) in chart.segments %}<line class="trend-line" x1="{{ from.x }}" y1="{{ from.y }}" x2="{{ to.x }}" y2="{{ to.y }}"/>{% endfor %}
+        {% for segment in chart.segments %}<line class="trend-line" x1="{{ segment.x1 }}" y1="{{ segment.y1 }}" x2="{{ segment.x2 }}" y2="{{ segment.y2 }}"/>{% endfor %}
         {% for point in chart.points %}<circle class="trend-point" cx="{{ point.x }}" cy="{{ point.y }}" r="4"><title>{{ point.title }}</title></circle>{% if point.newest %}<text class="trend-value" x="{{ point.x + 9.0 }}" y="{{ point.y + 4.0 }}">{{ point.value }}</text>{% endif %}{% endfor %}
       </svg>
     </figure>

@@ -48,6 +48,9 @@ Out of scope: trends of the stale share, the contexts and the cost (the snapshot
 2. [x] Trend charts: one SVG line chart per score, built from the same rows (skill `dataviz`), checked headless in
    Chrome; verified by `tests/audit_page.rs` (points, broken line, no chart for a score no run has); makes true AUD-14,
    spec `accepted`. (autonomous)
+3. [x] Review fixes of the `high` review of the issue: the scores round ties to even like the badges, the charts name
+   their score from the figure itself, a time cut on a character boundary, labels computed once, segments without
+   cloned strings, `--gold-chart`, the order of the page in the docs; verified by unit tests of `percent` and `when`. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -71,3 +74,12 @@ Out of scope: trends of the stale share, the contexts and the cost (the snapshot
 - red: AUD-14: `<svg class="trend" role="img" aria-label="Confidence` not in the page (panicked in `between`).
 - Code review: no findings
 - checked: headless Chrome screenshot of `/audit` over four hand-written snapshots.
+
+### 3. Review fixes
+- done: the 7 fixes of the `high` review (list in the plan line).
+- red: AUD-11, HPG-1: `percent(0.625)` gave 63% against the badge's 62%; `when` panicked on a character across
+  byte 19.
+- Code review: no findings
+- not fixed from the `high` review: the trends recomputed at each request (the audit page computes all its figures at
+  each request; a few runs cost microseconds); a kind absent from an older snapshot shown 0 rather than a dash (RHI-5:
+  every snapshot counts every kind, an absent kind has no item).

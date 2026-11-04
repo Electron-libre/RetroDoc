@@ -122,12 +122,12 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   `debt_list.html` into `#debt-list` like the rules page. The audit page, `/audit` (`audit::audit_page`, `audit.html`,
   under the "Audit" group of the header, not in "Start here"; `specs/audit-dashboard.md`), shows the figures of
   `retrodoc_mcp::audit::audit`, built at each request off the async workers, a line naming the command that produces
-  each missing one, and the heatmap as a table whose cells link to `/debt?kind=&domain=`, shaded by the classes
+  each missing one, the heatmap as a table whose cells link to `/debt?kind=&domain=`, shaded by the classes
   `level-0` to `level-4` of the stylesheet (one gold ramp checked with the dataviz validator, the count written in each
-  cell), then the trends of the snapshots `Site::new` loads (`trends::trends`, AUD-11 to AUD-15): a table of the
+  cell), and, between the figures and the heatmap, the trends of the snapshots `Site::new` loads (`trends::trends`, AUD-11 to AUD-15): a table of the
   overall figures and one of the debt per kind, newest first, a figure worse than in the run before marked `▼`, and
-  above them one SVG line chart per score drawn in the template (no client script; the gold `#a88a31` checked with the
-  dataviz validator), none with fewer than two runs. The history page, `/history` (`history::history_page`, `history.html`, in the "Audit" group of the header;
+  above them one SVG line chart per score drawn in the template (no client script; the gold `--gold-chart` checked with
+  the dataviz validator), none with fewer than two runs. The history page, `/history` (`history::history_page`, `history.html`, in the "Audit" group of the header;
   `specs/history-page.md`), lists the snapshots `Site::new` loads once and compares two of them, the newest two
   unless `?from=` and `?to=` name others, each section of `retrodoc_mcp::history::diff` linked to its page when the
   docs served hold it. The actors page, `/actors` (`actors::actors_page`, `actors.html`, linked from the header of

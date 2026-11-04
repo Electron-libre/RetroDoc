@@ -36,14 +36,20 @@ pub struct ChartView {
     /// One per run that has the score.
     pub points: Vec<ChartPoint>,
     /// Between two runs side by side that both have it.
-    pub segments: Vec<(ChartPoint, ChartPoint)>,
+    pub segments: Vec<Segment>,
     pub width: f32,
     pub height: f32,
     pub left: f32,
     pub right: f32,
 }
 
-#[derive(Clone)]
+pub struct Segment {
+    pub x1: f32,
+    pub y1: f32,
+    pub x2: f32,
+    pub y2: f32,
+}
+
 pub struct ChartPoint {
     pub x: f32,
     pub y: f32,
@@ -75,6 +81,8 @@ pub struct TrendCell {
 /// A figure of a run before it is shown.
 #[derive(Clone, Copy)]
 struct Figure {
+    /// The name of its column.
+    name: &'static str,
     value: Option<usize>,
     /// A count of debt: more is worse.
     lower_is_better: bool,
@@ -82,16 +90,18 @@ struct Figure {
 }
 
 impl Figure {
-    fn score(value: Option<usize>) -> Self {
+    fn score(name: &'static str, value: Option<usize>) -> Self {
         Self {
+            name,
             value,
             lower_is_better: false,
             unit: "%",
         }
     }
 
-    fn debt(count: usize) -> Self {
+    fn debt(name: &'static str, count: usize) -> Self {
         Self {
+            name,
             value: Some(count),
             lower_is_better: true,
             unit: "",
@@ -127,8 +137,8 @@ pub fn trends(runs: &[SavedRun], texts: &WebTexts) -> Option<TrendsView> {
         .map(|run| {
             let debt = kinds
                 .iter()
-                .map(|kind| Figure::debt(debt_of(&run.snapshot, *kind)));
-            (overall(&run.snapshot), debt.collect())
+                .map(|kind| Figure::debt(texts.debt_kind(*kind), debt_of(&run.snapshot, *kind)));
+            (overall(&run.snapshot, texts), debt.collect())
         })
         .collect();
     let cells = |now: &[Figure], then: Option<&[Figure]>| -> Vec<TrendCell> {
@@ -137,26 +147,31 @@ pub fn trends(runs: &[SavedRun], texts: &WebTexts) -> Option<TrendsView> {
             .map(|(at, figure)| figure.cell(then.map(|then| then[at])))
             .collect()
     };
-    let rows = runs
-        .iter()
-        .zip(&figures)
-        .enumerate()
-        .map(|(at, (run, now))| {
-            let then = at.checked_sub(1).map(|before| &figures[before]);
-            TrendRow {
-                finished: label(run),
-                commit: short_commit(&run.snapshot),
-                figures: cells(&now.0, then.map(|t| t.0.as_slice())),
-                debt: cells(&now.1, then.map(|t| t.1.as_slice())),
-            }
-        });
     let labels: Vec<String> = runs.iter().map(label).collect();
-    let charts = texts.audit_page.trend_columns[2..6]
+    let rows =
+        labels
+            .iter()
+            .zip(runs)
+            .zip(&figures)
+            .enumerate()
+            .map(|(at, ((label, run), now))| {
+                let then = at.checked_sub(1).map(|before| &figures[before]);
+                TrendRow {
+                    finished: label.clone(),
+                    commit: short_commit(&run.snapshot),
+                    figures: cells(&now.0, then.map(|t| t.0.as_slice())),
+                    debt: cells(&now.1, then.map(|t| t.1.as_slice())),
+                }
+            });
+    // The scores, read off the oldest run: every run has the same figures in the same order.
+    let charts = figures[0]
+        .0
         .iter()
         .enumerate()
-        .filter_map(|(at, name)| {
+        .filter(|(_, figure)| !figure.lower_is_better)
+        .filter_map(|(at, figure)| {
             let values: Vec<Option<usize>> = figures.iter().map(|f| f.0[at].value).collect();
-            chart(name, &values, &labels)
+            chart(figure.name, &values, &labels)
         })
         .collect();
     Some(TrendsView {
@@ -194,7 +209,15 @@ fn chart(name: &'static str, values: &[Option<usize>], labels: &[String]) -> Opt
             .to_vec(),
         segments: at
             .windows(2)
-            .filter_map(|pair| Some((pair[0].clone()?, pair[1].clone()?)))
+            .filter_map(|pair| {
+                let (from, to) = (pair[0].as_ref()?, pair[1].as_ref()?);
+                Some(Segment {
+                    x1: from.x,
+                    y1: from.y,
+                    x2: to.x,
+                    y2: to.y,
+                })
+            })
             .collect(),
         points: at.into_iter().flatten().collect(),
         width: WIDTH,
@@ -206,22 +229,23 @@ fn chart(name: &'static str, values: &[Option<usize>], labels: &[String]) -> Opt
 
 /// The confidence and the business language in rounded percents, the two shares of the coverage
 /// as the audit page rounds them, the debt items.
-fn overall(snapshot: &Snapshot) -> Vec<Figure> {
+fn overall(snapshot: &Snapshot, texts: &WebTexts) -> Vec<Figure> {
     let figures = &snapshot.figures;
     let coverage = figures.coverage.as_ref();
+    let [_, _, confidence, business, placed, cited, debt] = texts.audit_page.trend_columns;
     vec![
-        Figure::score(figures.confidence.map(percent)),
-        Figure::score(figures.business_language.map(percent)),
-        Figure::score(coverage.and_then(|c| c.placed).map(Share::percent)),
-        Figure::score(coverage.and_then(|c| c.cited).map(Share::percent)),
-        Figure::debt(figures.debt.iter().map(|d| d.count).sum()),
+        Figure::score(confidence, figures.confidence.map(percent)),
+        Figure::score(business, figures.business_language.map(percent)),
+        Figure::score(placed, coverage.and_then(|c| c.placed).map(Share::percent)),
+        Figure::score(cited, coverage.and_then(|c| c.cited).map(Share::percent)),
+        Figure::debt(debt, figures.debt.iter().map(|d| d.count).sum()),
     ]
 }
 
-/// `0.804` → `80`, as the badges of the pages round a score.
+/// `0.804` → `80`, as the badges of the pages round a score: a tie to even, as `{:.0}` does.
 #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 fn percent(score: f32) -> usize {
-    (score * 100.0).round().max(0.0) as usize
+    (score * 100.0).round_ties_even().max(0.0) as usize
 }
 
 fn debt_of(snapshot: &Snapshot, kind: DebtKind) -> usize {
@@ -232,4 +256,21 @@ fn debt_of(snapshot: &Snapshot, kind: DebtKind) -> usize {
         .filter(|d| d.kind == kind.key())
         .map(|d| d.count)
         .sum()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // spec: AUD-11 (internal: a score on a tie of the rounding, which no fixture of the page hits)
+    #[test]
+    fn a_score_rounds_as_its_badge_does() {
+        for score in [0.625_f32, 0.125, 0.805, 0.804] {
+            assert_eq!(
+                format!("{}%", percent(score)),
+                format!("{:.0}%", score * 100.0),
+                "{score}"
+            );
+        }
+    }
 }

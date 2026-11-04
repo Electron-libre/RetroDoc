@@ -12,6 +12,8 @@
   --gold-light: #e8c872;
   /* Never for text: its contrast is too low. */
   --gold-dark: #8f7328;
+  /* Level 3 of the heatmap, also the line of the charts of the trends. */
+  --gold-chart: #a88a31;
 }
 * { box-sizing: border-box; }
 body {
@@ -100,7 +102,7 @@ table.heatmap td a:hover { outline: 2px solid var(--gold-light); border-radius: 
 .level-0 { background: var(--surface); }
 .level-1 { background: #3d3520; color: var(--text); }
 .level-2 { background: #6f5c27; color: var(--text); }
-.level-3 { background: #a88a31; color: var(--bg); }
+.level-3 { background: var(--gold-chart); color: var(--bg); }
 .level-4 { background: #e8c872; color: var(--bg); }
 .legend { white-space: nowrap; margin-left: 0.5rem; }
 .swatch { display: inline-block; width: 1rem; height: 0.8rem; border-radius: 2px; vertical-align: middle; }
@@ -110,7 +112,7 @@ table.cost tfoot th, table.cost tfoot td { font-weight: 600; }
 table.trends td, table.trends-debt td { text-align: right; white-space: nowrap; }
 table.trends th[scope="row"], table.trends-debt th[scope="row"] { font-weight: normal; white-space: nowrap; }
 .worse { color: var(--gold-light); font-size: 0.85rem; }
-/* The charts of the trends: one series each, in the gold of level 3 of the heatmap (#a88a31, in
+/* The charts of the trends: one series each, in the gold of level 3 of the heatmap (--gold-chart, in
    the lightness band of a dark chart and 3:1 on the surface, checked with the dataviz validator);
    hairline grid, 2px line, 8px points ringed in the surface colour, the value of the newest run
    written beside it in the text colour. */
@@ -120,8 +122,8 @@ table.trends th[scope="row"], table.trends-debt th[scope="row"] { font-weight: n
 .trend { background: var(--surface); border-radius: 4px; }
 .trend-grid { stroke: var(--border); stroke-width: 1; }
 .trend-axis { fill: var(--text-muted); font-size: 10px; }
-.trend-line { stroke: #a88a31; stroke-width: 2; stroke-linecap: round; }
-.trend-point { fill: #a88a31; stroke: var(--surface); stroke-width: 2; }
+.trend-line { stroke: var(--gold-chart); stroke-width: 2; stroke-linecap: round; }
+.trend-point { fill: var(--gold-chart); stroke: var(--surface); stroke-width: 2; }
 .trend-value { fill: var(--text); font-size: 11px; }
 .narrative { font-size: 1.05rem; }
 .steps li { margin: 0.4rem 0; }
