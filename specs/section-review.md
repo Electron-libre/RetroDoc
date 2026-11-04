@@ -71,4 +71,4 @@ model's confidence.
 - No lock across processes: two processes saving at the same instant keep the last one's file whole (REV-9), not
   both.
 - Telling a review outdated (`issues/review_outdated.md`), showing the reviews (`issues/done/web_review_form.md`,
-  `issues/review_in_debt.md`, `issues/review_in_mcp.md`).
+  `issues/done/review_in_debt.md`, `issues/review_in_mcp.md`).
