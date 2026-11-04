@@ -297,7 +297,7 @@ The milestones up to "A large application, one bounded context at a time" are th
 - Why: the confidence score is the model's view; a reader must know what a human has checked.
 - State: in issues
 - Issues:
-  - [review_store](issues/review_store.md)
+  - [review_store](issues/done/review_store.md)
   - [web_review_form](issues/web_review_form.md)
   - [review_in_debt](issues/review_in_debt.md)
   - [review_in_mcp](issues/review_in_mcp.md)
