@@ -41,3 +41,33 @@ Human review of the docs
 # Hints
 * Decided with the user on 2026-11-04: the file is outside the cache; the author is the git `user.name`; only
   domains, features and use cases are reviewed (not the rules nor the glossary).
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-04
+
+## Understanding
+A `reviews` module of `retrodoc-mcp` that loads, sets, removes and saves the reviews of domains, features and use
+cases in `.retrodoc/reviews.json`, with the git author, the date and a fingerprint of the section. Out of scope: any
+page, debt, MCP or outdated logic (the other issues of the milestone); nothing calls the store yet but its tests.
+
+## Plan
+1. [x] Review store: `reviews` module (model, fingerprint, git author in `retrodoc-ingest`, load/save atomic,
+   set/remove), spec `specs/section-review.md`, ADR 0044; verified by unit tests of the module and one CLI test that
+   `generate --force` keeps the file; makes true REV-1 to REV-16. (autonomous)
+
+## Decisions
+- Mode: autonomous
+- Base commit: 62d0a2691c8abbaa1febdd28298e1ca246d0519e
+- Fingerprint: the whole section as saved, confidence included (1 a).
+- A review of a section the docs do not hold is refused (REV-16, 2 a).
+
+## Deliverable 1 summary
+- done: module `retrodoc_mcp::reviews` (`record`, `remove`, `load`, `fingerprint`), `git_history::user_name`,
+  spec `section-review.md` accepted, ADR 0044, docs (ARCHITECTURE §2 and §7, `docs/crates/`).
+- red: REV-1, REV-2, REV-3, REV-4, REV-5, REV-6, REV-7, REV-9, REV-10, REV-11, REV-12, REV-13, REV-14, REV-15, REV-16:
+  `not yet implemented` (stubs); REV-4 (`user_name`) and REV-8 (`generate` keeps the file) written with or after
+  the code, green at once (REV-8 already held: the file is outside the cache).
+- Code review: no findings
+- not verified: none. The `version` test of `retrodoc-cli` failed on `main` (0.8.0 released without the bump of
+  `[workspace.package] version`): fixed in a commit of its own before this one (decided with the user).

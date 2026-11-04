@@ -32,6 +32,17 @@ pub fn head_commit(repo_root: &Path) -> Option<String> {
     Some(head.id().to_string())
 }
 
+/// The `user.name` of the git config of the repository (its own config, then the user's and the
+/// system's); `None` when unset or not a repo.
+#[must_use]
+pub fn user_name(repo_root: &Path) -> Option<String> {
+    let config = Repository::open(repo_root).ok()?.config().ok()?;
+    config
+        .get_string("user.name")
+        .ok()
+        .filter(|name| !name.trim().is_empty())
+}
+
 /// The subject of a commit and who wrote it, as read by the one revwalk of
 /// the history; the raw material of the commit signals.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -335,6 +346,18 @@ mod tests {
         run_git(root, &["init", "-q"]);
         let history = collect_history(root).unwrap();
         assert!(history.is_empty());
+    }
+
+    // spec: REV-4 (internal: the git config of a repository; the binary writes no review yet)
+    #[test]
+    fn the_user_name_is_read_from_the_config_of_the_repo() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        assert_eq!(user_name(root), None);
+        run_git(root, &["init", "-q"]);
+        run_git(root, &["config", "user.name", "Ada Reviewer"]);
+
+        assert_eq!(user_name(root).as_deref(), Some("Ada Reviewer"));
     }
 
     fn commit_file(root: &Path, name: &str, content: &str, message: &str) {

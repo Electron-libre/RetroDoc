@@ -15,6 +15,7 @@ pub mod debt;
 pub mod freshness;
 pub mod history;
 pub mod read_model;
+pub mod reviews;
 pub mod search;
 pub mod server;
 pub mod source;

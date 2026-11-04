@@ -8,6 +8,7 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+chrono.workspace = true
 retrodoc-core.workspace = true
 retrodoc-ingest.workspace = true
 retrodoc-pipeline.workspace = true
