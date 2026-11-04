@@ -14,11 +14,10 @@ use std::path::Path;
 use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
-use super::matching::{compare, scored_domains, Comparison, Matches, Pair};
+use super::matching::{compare, saved_features, scored_domains, Comparison, Matches, Pair};
 use super::reference::Reference;
 use crate::domains::DomainMap;
 use crate::error::PipelineError;
-use crate::features::load_features;
 use crate::naming::normalize;
 use crate::response::complete_json;
 use crate::text::truncate_chars;
@@ -407,8 +406,9 @@ pub async fn judge(
         return Ok(None);
     };
     let map = DomainMap::load(repo_root).unwrap_or_default();
-    let saved = load_features(repo_root);
+    let saved = saved_features(repo_root);
     let generated_domains: Vec<Item> = scored_domains(&map, saved.as_deref())
+        .into_iter()
         .map(|d| Item {
             name: d.name.clone(),
             description: d.description.clone(),

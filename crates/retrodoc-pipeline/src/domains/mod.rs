@@ -89,23 +89,31 @@ impl DomainMap {
     /// "uncategorized" bucket left out (EDM).
     pub fn published<'a>(
         &'a self,
-        features: &'a [Feature],
+        features: &[Feature],
     ) -> impl Iterator<Item = &'a DomainCluster> + 'a {
-        self.domains
-            .iter()
-            .filter(|d| d.slug != UNCATEGORIZED_SLUG)
-            .filter(|d| features.iter().any(|f| f.domain_slug == d.slug))
+        let held = held_slugs(features);
+        self.without_uncategorized()
+            .filter(move |d| held.contains(&d.slug))
     }
 
     /// The domains no feature of `features` belongs to, the "uncategorized" bucket left out: the
     /// docs leave them out and the debt report lists them (EDM).
     pub fn featureless<'a>(
         &'a self,
-        features: &'a [Feature],
+        features: &[Feature],
     ) -> impl Iterator<Item = &'a DomainCluster> + 'a {
-        self.domains
-            .iter()
-            .filter(|d| d.slug != UNCATEGORIZED_SLUG)
-            .filter(|d| !features.iter().any(|f| f.domain_slug == d.slug))
+        let held = held_slugs(features);
+        self.without_uncategorized()
+            .filter(move |d| !held.contains(&d.slug))
     }
+
+    /// Every domain but the "uncategorized" bucket.
+    pub fn without_uncategorized(&self) -> impl Iterator<Item = &DomainCluster> {
+        self.domains.iter().filter(|d| d.slug != UNCATEGORIZED_SLUG)
+    }
+}
+
+/// The slugs of the domains `features` belong to.
+fn held_slugs(features: &[Feature]) -> BTreeSet<String> {
+    features.iter().map(|f| f.domain_slug.clone()).collect()
 }

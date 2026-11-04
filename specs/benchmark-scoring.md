@@ -29,7 +29,7 @@ change of these rules must not read as a change of quality between two benchmark
 - **BSC-6** (deterministic) A saved run report must carry the scoring version of the code that scored it; a report
   saved before the version existed must still load, with no version.
 - **BSC-7** (deterministic) `benchmark-table --previous` must show the previous figures and the change of the
-  recalls, precisions and judge's rating of a series only when every run of both sides carries the same scoring
+  recalls, precisions, judge's rating and number of domains of a series only when every run of both sides carries the same scoring
   version; otherwise it must leave them empty, keep them for the other figures, and say, under the series, which
   versions each side has and that the runs of another version must be re-scored to be compared.
 - **BSC-8** (deterministic) `benchmark --saved-judge` must score the run with the judge's proposals and rating

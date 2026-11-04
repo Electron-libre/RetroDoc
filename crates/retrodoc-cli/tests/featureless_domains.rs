@@ -100,9 +100,12 @@ fn the_debt_report_lists_the_domains_with_no_feature_out_of_its_domain_table() {
     assert!(report.contains("| Feeds | 0 |"), "{report}");
     assert!(report.contains("| Operations | 1 |"), "{report}");
     let table = report
-        .split("## Domains with no feature")
-        .next()
-        .unwrap_or_default();
-    assert!(!table.contains("| feeds |"), "{report}");
-    assert!(!table.contains("| operations |"), "{report}");
+        .split("## Domains\n")
+        .nth(1)
+        .and_then(|rest| rest.split("\n## ").next())
+        .unwrap_or_else(|| panic!("no domain table in {report}"));
+    assert!(table.contains("| orders |"), "{table}");
+    let lower = table.to_lowercase();
+    assert!(!lower.contains("feeds"), "{table}");
+    assert!(!lower.contains("operations"), "{table}");
 }

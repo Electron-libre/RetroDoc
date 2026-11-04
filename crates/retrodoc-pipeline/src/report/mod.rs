@@ -310,6 +310,21 @@ fn percent(value: Option<f32>) -> String {
 }
 
 impl DebtReport {
+    /// The domains no feature belongs to, left out of the docs (EDM-5).
+    fn write_featureless_domains(&self, md: &mut String) {
+        if self.featureless_domains.is_empty() {
+            return;
+        }
+        md.push_str(
+            "\n## Domains with no feature\n\nNo feature belongs to these domains (named for \
+             entities alone, or with every feature set aside as technical); they are absent from \
+             the functional docs:\n\n| Domain | Features set aside |\n|---|---|\n",
+        );
+        for domain in &self.featureless_domains {
+            let _ = writeln!(md, "| {} | {} |", domain.name, domain.set_aside);
+        }
+    }
+
     /// The use cases whose narrative the cited code contradicts, with the model's reason.
     fn write_narratives_section(&self, md: &mut String) {
         if self.unbacked_narratives.is_empty() {
@@ -407,6 +422,7 @@ impl DebtReport {
                 let _ = writeln!(md, "- `{}`", path.display());
             }
         }
+        self.write_featureless_domains(&mut md);
         self.write_behaviour_sections(&mut md);
         self.write_reconciliation_section(&mut md);
         self.write_set_aside_section(&mut md);

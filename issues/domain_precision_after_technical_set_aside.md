@@ -68,6 +68,10 @@ are within the dafea18 range (5 to 9 over both series). Out of scope: changing w
    accepted spec cannot hold an untraced requirement); ~150 lines. (autonomous)
 4. [x] Follow-up issue (`skill:create-issue`): the judge cannot pair a generated item with a reference item
    already covered (BSC-4), so the judged precision falls as `matches.yaml` grows. (autonomous: `issues/judge_offer_hides_second_pairs.md`)
+5. [x] Fixes of the `high` review of `4e27282..HEAD`: the number of domains follows the scoring version (BSC-7
+   amended); a `features.yaml` present but unreadable scores no feature, with a warning, not every domain;
+   `published` and `featureless` share one set of slugs; the section of the domains with no feature written with
+   the core sections, not the `surface` ones; the EDM-6 test reads the domain table itself. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -108,5 +112,17 @@ are within the dafea18 range (5 to 9 over both series). Out of scope: changing w
 - checks: `just check` ok; docs `docs/crates/bench.md`, `docs/findings.md`.
 - red: BSC-20: `Run: 2 domain(s), 1 feature(s)` printed, and the judge's prompt listed `- Feeds:`.
 - Code review: no findings
+- not verified: none.
+- decisions needed: none.
+
+### 5. Fixes of the high review
+- done: the review fixes listed in the plan.
+- checks: `just check` ok.
+- red: BSC-7: `| Domains | 3 | — | 1 | 3 | 0 |` shown against an older scoring version.
+- Code review: no findings
+- not fixed, with the reason: the `|` of a domain name in the report table (the other tables of the report don't
+  escape either: a matter for all of them); the second load of the artifacts by the judge after `compare` and one
+  view of the published domains for every reader (refactors outside the requirements; the readers that render or
+  count domains all go through `published` now).
 - not verified: none.
 - decisions needed: none.

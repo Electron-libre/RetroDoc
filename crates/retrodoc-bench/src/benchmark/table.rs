@@ -282,7 +282,8 @@ fn millis(value: f64) -> u64 {
 struct Figure {
     label: &'static str,
     kind: Kind,
-    /// Depends on the scoring rules ([`SCORING_VERSION`]): recall, precision, the judge's rating.
+    /// Depends on the scoring rules ([`SCORING_VERSION`]): recall, precision, the judge's rating, the number
+    /// of domains (BSC-20).
     scored: bool,
     value: fn(&RunReport) -> Option<f64>,
 }
@@ -384,7 +385,7 @@ const FIGURES: &[Figure] = &[
     Figure {
         label: "Domains",
         kind: Kind::Count,
-        scored: false,
+        scored: true,
         value: |r| Some(count(r.metrics.domains)),
     },
     Figure {
@@ -721,6 +722,11 @@ mod tests {
             row(&text, "LLM calls"),
             "| LLM calls | 10 | — | 1 | 25 | -15 |",
             "a figure the scoring rules don't touch keeps its change"
+        );
+        assert_eq!(
+            row(&text, "Domains"),
+            "| Domains | 3 | — | 1 |  |  |",
+            "the number of domains depends on the scoring rules (BSC-20)"
         );
 
         // Two sides with no version are not assumed to share the rules.

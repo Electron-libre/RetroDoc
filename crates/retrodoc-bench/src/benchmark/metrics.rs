@@ -7,9 +7,8 @@ use std::path::Path;
 use retrodoc_core::model::{Feature, UseCase};
 use serde::{Deserialize, Serialize};
 
-use super::matching::scored_domains;
+use super::matching::{saved_features, scored_domains};
 use crate::domains::{DomainMap, UNCATEGORIZED_SLUG};
-use crate::features::load_features;
 use crate::usage_log::{load_history, RunUsage};
 use crate::use_cases::load_use_cases;
 
@@ -75,8 +74,8 @@ impl RunMetrics {
     #[must_use]
     pub fn collect(repo_root: &Path) -> Option<Self> {
         let map = DomainMap::load(repo_root)?;
-        let saved = load_features(repo_root);
-        let domains = scored_domains(&map, saved.as_deref()).count();
+        let saved = saved_features(repo_root);
+        let domains = scored_domains(&map, saved.as_deref()).len();
         let features: Vec<Feature> = saved.unwrap_or_default();
         let use_cases: Vec<UseCase> = load_use_cases(repo_root).unwrap_or_default();
         Some(Self {

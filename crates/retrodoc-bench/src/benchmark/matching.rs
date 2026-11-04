@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use super::reference::Reference;
 use retrodoc_core::model::Feature;
 
+use crate::artifact::Artifact;
 use crate::domains::{DomainCluster, DomainMap};
 use crate::error::PipelineError;
 use crate::features::load_features;
@@ -31,21 +32,32 @@ use crate::naming::normalize;
 /// Version 4: a domain no feature belongs to is not counted (BSC-20).
 pub const SCORING_VERSION: u32 = 4;
 
-/// The domains of `map` the benchmark scores: the published ones, those a feature of `features`
-/// belongs to (BSC-20); with no `features.yaml` (a replay of the domains pass alone), every domain
+/// The domains of `map` the benchmark scores (BSC-20): the published ones, those a feature of
+/// `features` belongs to; with no `features.yaml` (a replay of the domains pass alone), every domain
 /// but the "uncategorized" bucket.
 pub(crate) fn scored_domains<'a>(
     map: &'a DomainMap,
     features: Option<&'a [Feature]>,
-) -> Box<dyn Iterator<Item = &'a DomainCluster> + 'a> {
+) -> Vec<&'a DomainCluster> {
     match features {
-        Some(features) => Box::new(map.published(features)),
-        None => Box::new(
-            map.domains
-                .iter()
-                .filter(|d| d.slug != crate::domains::UNCATEGORIZED_SLUG),
-        ),
+        Some(features) => map.published(features).collect(),
+        None => map.without_uncategorized().collect(),
     }
+}
+
+/// The features of the run in `repo_root` for [`scored_domains`]: `None` with no `features.yaml`, none
+/// (with a warning) when it is there but can't be read, so its domains are not scored as a replay's.
+pub(crate) fn saved_features(repo_root: &Path) -> Option<Vec<Feature>> {
+    if !Artifact::Features.path(repo_root).exists() {
+        return None;
+    }
+    Some(load_features(repo_root).unwrap_or_else(|| {
+        tracing::warn!(
+            "{} can't be read: the run is scored with no feature",
+            Artifact::Features.relative_path()
+        );
+        Vec::new()
+    }))
 }
 
 /// `benchmark/<repo>/matches.yaml`: the pairs written by hand, kept between runs.
@@ -255,8 +267,9 @@ pub fn compare(
     let Some(map) = DomainMap::load(repo_root) else {
         return Ok(None);
     };
-    let generated = load_features(repo_root);
+    let generated = saved_features(repo_root);
     let domains: Vec<String> = scored_domains(&map, generated.as_deref())
+        .into_iter()
         .map(|d| d.name.clone())
         .collect();
     let features: Vec<String> = generated
