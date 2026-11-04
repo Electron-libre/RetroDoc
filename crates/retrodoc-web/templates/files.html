@@ -8,7 +8,7 @@
   {% if row.dir %}
   <tr id="{{ row.path }}" class="dir"><td style="padding-left: {{ row.depth + 1 }}rem">{{ row.name }}</td><td class="count">{{ row.cited }}/{{ row.total }} {{ t.dir_cited }}</td></tr>
   {% else %}
-  <tr id="{{ row.path }}"><td style="padding-left: {{ row.depth + 1 }}rem">{% if let Some(href) = row.href %}<a href="{{ href }}">{{ row.name }}</a></td><td class="count">{{ t.cited_by_count }} {{ row.citers }}</td>{% else %}{{ row.name }}</td><td class="count"><span class="badge low">{{ t.not_cited }}</span></td>{% endif %}</tr>
+  <tr id="{{ row.path }}"><td style="padding-left: {{ row.depth + 1 }}rem">{% if let Some(href) = row.href %}<a href="{{ href }}">{{ row.name }}</a>{% else %}{{ row.name }}{% endif %}</td><td class="count">{% if row.citers > 0 %}{{ t.cited_by_count }} {{ row.citers }}{% else %}<span class="badge low">{{ t.not_cited }}</span>{% endif %}</td></tr>
   {% endif %}
   {% endfor %}
 </table>

@@ -78,16 +78,17 @@ over browses its domains, features and use cases rather than reading the Markdow
 - **WEB-30** (deterministic) The page of a file must be flagged as stale when the file was modified or deleted since
   the run.
 - **WEB-31** (deterministic) The status 404 and the not-found page must answer a `/code/` path that is not a plain
-  path inside the repository, or that no feature, step or rule cites.
+  path inside the repository, or that no feature, step or rule cites and no item of the debt page lists (DBT-21).
 - **WEB-32** (deterministic) The page of a cited file must say why and show none of its lines when `read_source`
   refuses to show it (a symbolic link on its way, deleted, binary, larger than 1 MB, a range past its end).
 - **WEB-33** (deterministic) Each cited line of a step, source file of a feature and code evidence of a rule must be a
   link to the page of its file, at its lines when it has some.
 - **WEB-34** (deterministic) The files page, `/files`, must show the tree of the source files of the last run (those
-  whose hash it recorded, and those the docs cite), each directory with the number of its files cited out of its
-  files, each file with the number of features, use cases and rules that cite it.
+  whose hash it recorded, those the docs cite and those the debt page lists), each directory with the number of its
+  files cited out of its files, each file with the number of features, use cases and rules that cite it.
 - **WEB-35** (deterministic) On the files page, a cited file must be a link to its page.
-- **WEB-36** (deterministic) On the files page, a file no doc cites must be flagged `not cited`, with no link.
+- **WEB-36** (deterministic) On the files page, a file no doc cites must be flagged `not cited`, with a link to its
+  page only when an item of the debt page lists it (DBT-21).
 - **WEB-37** (deterministic) Every page must link to the files page.
 - **WEB-38** (deterministic) The page of a file whose window ends before its last line must link to the page showing
   the next lines, `?from=<line>`, which shows the window from that line with no line marked.
@@ -224,8 +225,8 @@ over browses its domains, features and use cases rather than reading the Markdow
 - (WEB-28) Given a repository with no git history, then the page says the history is not available and still shows
   the lines.
 - (WEB-30) Given a file with no recorded hash, then the page is not flagged.
-- (WEB-31) Given `/code/../secret.txt`, `/code/%2E%2E/secret.txt` or an uncited file of the repository, then the
-  answer is 404 and holds none of its content.
+- (WEB-31) Given `/code/../secret.txt`, `/code/%2E%2E/secret.txt` or a file of the repository no doc cites and the
+  debt does not list, then the answer is 404 and holds none of its content.
 - (WEB-32) Given a cited symbolic link to a file outside the repository, then the page says links are not followed
   and holds none of the target's content.
 - (WEB-33) Given a cited reference with no line, then it links to the page of its file with no `lines`.

@@ -54,7 +54,15 @@ impl Site {
             audit: reference_pages(texts, Group::Audit),
             tree: docs.as_ref().map(tree).unwrap_or_default(),
         };
-        let source = docs.as_ref().and_then(GeneratedDocs::source_access);
+        // The files the debt lists are served too, though no doc cites them (`specs/debt-view.md`).
+        let source = docs.as_ref().and_then(|docs| {
+            let root = docs.repo_root()?;
+            let paths = docs
+                .cited_paths()
+                .into_iter()
+                .chain(docs.uncovered().paths());
+            Some(SourceAccess::new(root, paths))
+        });
         let files = docs.as_ref().map(files_page);
         let glossary = docs.as_ref().map(glossary_page);
         let actors = docs.as_ref().map(|docs| actors_page(docs, texts));

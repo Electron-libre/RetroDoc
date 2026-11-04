@@ -80,17 +80,19 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   artifacts with the project docs and the saved judgements, no LLM call) through `router(docs, links, collected)`; an unknown slug answers the 404 page. The shared
   pieces of the templates (score badge, breadcrumb, lists, existing docs) are the macros of `macros.html`. The
   templates escape every text of the docs (LLM output). The page of a cited file, `/code/{*path}` (`code::code_page`, `code.html`),
-  reads it through the `SourceAccess` of `GeneratedDocs::source_access` (the same refusals and windows as `read_source`):
+  reads it through a `SourceAccess` over the cited files and the files of the debt (`Uncovered::paths`, built by
+  `Site::new`; the MCP tools keep `GeneratedDocs::source_access`, the cited files only; the same refusals and windows
+  as `read_source`):
   `?lines=<start>[-<end>]` shows 10 lines around the cited ones and marks them (rows `id="L<n>"`), `?from=<line>` the
-  window from a line (the "Next lines" link, `code::Asked`); a path no doc cites, or not plain, is the 404 page with
+  window from a line (the "Next lines" link, `code::Asked`); a path no doc cites and the debt does not list, or not plain, is the 404 page with
   nothing read, any other refusal (a cited range past the end included) a page that says why; then the last 10 commits
   (`SourceAccess::commits`), the features, use cases and rules citing it (`code::citations`, also behind the counts of
   the files page; a rule linked to its `#rule-<slug>` item), and the stale badge. The cited lines of the
   steps, the source files of a feature and the code evidence of a rule link to it (`view::code_href`). The files page,
   `/files` (`files::files_page`, `files.html`, linked from the header of every page), lays out as a tree the paths of the
-  files `source-hashes.json` recorded (`Freshness::recorded_paths`) and of the cited ones, built once in `Site::new`: a directory with its files
-  cited out of its files, a file with the features, use cases and rules citing it and a link to its page, or `not cited`
-  and no link. The page of a collected doc, `/docs/{*path}` (`collected::collected_page`, `collected.html`), renders
+  files `source-hashes.json` recorded (`Freshness::recorded_paths`), of the cited ones and of those the debt lists, built
+  once in `Site::new`: a directory with its files cited out of its files, a file with the features, use cases and rules
+  citing it and a link to its page, or `not cited`, linked only when the debt lists it. The page of a collected doc, `/docs/{*path}` (`collected::collected_page`, `collected.html`), renders
   one of the docs `retrodoc ui` collected (`project_docs`, the generated ones left out; served with no run too) with
   `pulldown-cmark`: its raw HTML shown as text, a link or an image of a scheme other than `http`, `https` or `mailto`
   reduced to its text, each heading with the `id` that `anchor` gives its first line without the `#` (the heading the
@@ -113,7 +115,9 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   the same way. The debt page, `/debt` (`debt::debt_page`, `debt.html`, under the "Audit" group of the header and
   counted in "Start here"; `specs/debt-view.md`), lists the items of `retrodoc_mcp::debt::debt` (the stale ones judged
   at each request, off the async workers), each with its kind, the names of its section, feature and domain, its score
-  or its reasons and a link to its page, kept by `?kind=` and `?domain=` (`debt::DebtFilter`); its form swaps
+  or its reasons and a link to its page, a doc item with its kind, its entry points or the sections that contradict it
+  (linked to `/docs/`), a folder with its files or entry points folded under it (linked to `/code/`), kept by
+  `?kind=` and `?domain=` (`debt::DebtFilter`; a folder has no domain); its form swaps
   `debt_list.html` into `#debt-list` like the rules page. The audit page, `/audit` (`audit::audit_page`, `audit.html`,
   under the "Audit" group of the header, not in "Start here"; `specs/audit-dashboard.md`), shows the figures of
   `retrodoc_mcp::audit::audit`, built at each request off the async workers, a line naming the command that produces

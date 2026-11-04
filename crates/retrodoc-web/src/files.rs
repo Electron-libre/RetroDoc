@@ -1,8 +1,9 @@
 //! What the files page shows: the tree of the source files of the last run,
 //! each with the number of features, use cases and rules that cite it. Only
-//! paths: the lines of a file are on its page, for a cited file only.
+//! paths: the lines of a file are on its page, for a cited file or one the
+//! debt lists only.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use retrodoc_mcp::GeneratedDocs;
 
@@ -30,7 +31,7 @@ pub struct FileRow {
     pub total: usize,
     /// A file: the features, use cases and rules that cite it.
     pub citers: usize,
-    /// A cited file: its page.
+    /// A cited file, or one the debt lists: its page.
     pub href: Option<String>,
 }
 
@@ -40,6 +41,9 @@ struct Dir {
     /// Each file and the number of items that cite it.
     files: BTreeMap<String, usize>,
 }
+
+/// What the rows of a tree read: the files served though no doc cites them.
+struct Served<'a>(&'a BTreeSet<String>);
 
 impl Dir {
     fn insert(&mut self, path: &str, citers: usize) {
@@ -57,7 +61,13 @@ impl Dir {
 
     /// Adds the rows of what it holds under `prefix`; returns its files
     /// cited and all its files.
-    fn rows(&self, prefix: &str, depth: usize, rows: &mut Vec<FileRow>) -> (usize, usize) {
+    fn rows(
+        &self,
+        prefix: &str,
+        depth: usize,
+        served: &Served,
+        rows: &mut Vec<FileRow>,
+    ) -> (usize, usize) {
         let (mut cited, mut total) = (0, 0);
         for (name, dir) in &self.dirs {
             let path = format!("{prefix}{name}/");
@@ -72,7 +82,7 @@ impl Dir {
                 citers: 0,
                 href: None,
             });
-            let (dir_cited, dir_total) = dir.rows(&path, depth + 1, rows);
+            let (dir_cited, dir_total) = dir.rows(&path, depth + 1, served, rows);
             rows[at].cited = dir_cited;
             rows[at].total = dir_total;
             cited += dir_cited;
@@ -81,7 +91,8 @@ impl Dir {
         for (name, citers) in &self.files {
             let path = format!("{prefix}{name}");
             rows.push(FileRow {
-                href: (*citers > 0).then(|| code_href(&path, None, None)),
+                href: (*citers > 0 || served.0.contains(&path))
+                    .then(|| code_href(&path, None, None)),
                 path,
                 name: name.clone(),
                 depth,
@@ -97,8 +108,9 @@ impl Dir {
     }
 }
 
-/// The tree of the files whose hash the last run recorded and of those the
-/// docs cite: built once, the paths don't change while the server runs.
+/// The tree of the files whose hash the last run recorded, of those the docs
+/// cite and of those the debt lists: built once, the paths don't change while
+/// the server runs.
 #[must_use]
 pub fn files_page(docs: &GeneratedDocs) -> FilesPage {
     let mut citers = citers_by_file(docs);
@@ -107,12 +119,16 @@ pub fn files_page(docs: &GeneratedDocs) -> FilesPage {
             citers.entry(path.to_string()).or_default();
         }
     }
+    let debt: BTreeSet<String> = docs.uncovered().paths().into_iter().collect();
+    for path in &debt {
+        citers.entry(path.clone()).or_default();
+    }
     let mut root = Dir::default();
     for (path, count) in &citers {
         root.insert(path, *count);
     }
     let mut rows = Vec::new();
-    let (cited, total) = root.rows("", 0, &mut rows);
+    let (cited, total) = root.rows("", 0, &Served(&debt), &mut rows);
     FilesPage { cited, total, rows }
 }
 

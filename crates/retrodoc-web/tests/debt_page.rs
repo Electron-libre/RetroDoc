@@ -6,9 +6,12 @@ use std::path::Path;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use retrodoc_core::model::{Actor, ActorKind, ConfidenceScore, Feature, SourceRef, Step, UseCase};
-use retrodoc_mcp::GeneratedDocs;
+use retrodoc_mcp::{GeneratedDocs, Uncovered};
 use retrodoc_pipeline::cache::hash_content;
-use retrodoc_pipeline::{DomainCluster, DomainMap, SourceHashes};
+use retrodoc_pipeline::reconcile::{
+    Contradiction, ItemKind, ItemVerdict, Reconciliation, SectionRef, Status,
+};
+use retrodoc_pipeline::{BehaviourCoverage, DomainCluster, DomainMap, SourceHashes};
 use retrodoc_render::DocLinks;
 use retrodoc_web::Project;
 use tower::ServiceExt;
@@ -111,6 +114,15 @@ async fn get_in(
     path: &str,
     headers: &[&str],
 ) -> (StatusCode, String) {
+    get_docs(lang, GeneratedDocs::load(root, &[]), path, headers).await
+}
+
+async fn get_docs(
+    lang: Option<&'static str>,
+    docs: Option<GeneratedDocs>,
+    path: &str,
+    headers: &[&str],
+) -> (StatusCode, String) {
     let mut request = Request::get(path);
     for name in headers {
         request = request.header(*name, "true");
@@ -119,15 +131,10 @@ async fn get_in(
         lang,
         ..Project::default()
     };
-    let response = retrodoc_web::router(
-        project,
-        GeneratedDocs::load(root, &[]),
-        DocLinks::default(),
-        Vec::new(),
-    )
-    .oneshot(request.body(Body::empty()).unwrap())
-    .await
-    .unwrap();
+    let response = retrodoc_web::router(project, docs, DocLinks::default(), Vec::new())
+        .oneshot(request.body(Body::empty()).unwrap())
+        .await
+        .unwrap();
     let status = response.status();
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
@@ -299,6 +306,12 @@ async fn the_debt_form_offers_the_kinds_and_the_domains_with_the_asked_ones_sele
         "unbacked_narrative",
         "technical_language",
         "set_apart",
+        "contradicted",
+        "undocumented",
+        "entry_point_without_feature",
+        "no_domain",
+        "no_behaviour",
+        "not_analysed",
     ] {
         assert!(
             form.contains(&format!("<option value=\"{kind}\">")),
@@ -437,6 +450,207 @@ async fn the_debt_page_is_in_french() {
     for label in ["Low confidence", "Not scored", "Set apart", ">Stale<"] {
         assert!(!page.contains(label), "{label} left in {page}");
     }
+}
+
+fn verdict(kind: ItemKind, label: &str, name: &str, status: Status) -> ItemVerdict {
+    ItemVerdict {
+        kind,
+        label: label.into(),
+        domain: label.split('/').next().unwrap_or_default().into(),
+        name: name.into(),
+        entry_points: 4,
+        confidence: None,
+        status,
+        sections: Vec::new(),
+        contradictions: Vec::new(),
+    }
+}
+
+/// The run of [`generated_repo`] with what its docs leave out: a use case `README.md` contradicts,
+/// an undocumented rule and feature, files and an entry point no doc covers.
+fn uncovered_docs(root: &Path) -> GeneratedDocs {
+    let mut refund = verdict(
+        ItemKind::UseCase,
+        "billing/pay-invoice/refund",
+        "Refund <script>",
+        Status::Contradicted,
+    );
+    refund.contradictions = vec![Contradiction {
+        section: SectionRef::parse("README.md#Refunds and returns"),
+        doc_states: "Refunds within 60 days".into(),
+        item_states: "Refunds within 30 days".into(),
+    }];
+    let paths = |paths: &[&str]| paths.iter().map(Into::into).collect::<Vec<_>>();
+    for file in ["lib/c.rb", "app/a.rb", "app/b.rb"] {
+        std::fs::create_dir_all(root.join(file).parent().unwrap()).unwrap();
+        std::fs::write(root.join(file), "puts 1\n").unwrap();
+    }
+    GeneratedDocs::load(root, &[])
+        .unwrap()
+        .with_uncovered(Uncovered {
+            reconciliation: Some(Reconciliation {
+                items: vec![
+                    refund,
+                    verdict(
+                        ItemKind::Rule,
+                        "billing/pay-invoice/pay-invoice-1",
+                        "Paid within 30 days",
+                        Status::Undocumented,
+                    ),
+                    ItemVerdict {
+                        entry_points: 1,
+                        ..verdict(ItemKind::Feature, "?/gone", "Gone", Status::Undocumented)
+                    },
+                ],
+            }),
+            no_domain: Vec::new(),
+            skipped: Vec::new(),
+            coverage: Some(BehaviourCoverage {
+                unplaced_entry_points: vec!["app/a.rb#purge".into()],
+                technical_support: paths(&["app/a.rb", "app/b.rb", "lib/c.rb"]),
+                ..BehaviourCoverage::default()
+            }),
+        })
+}
+
+async fn uncovered_page(root: &Path, path: &str) -> String {
+    let (status, page) = get_docs(None, Some(uncovered_docs(root)), path, &[]).await;
+    assert_eq!(status, StatusCode::OK, "{page}");
+    page
+}
+
+// spec: DBT-15, DBT-18, WEB-10
+#[tokio::test]
+async fn a_contradicted_item_links_its_page_and_the_section_that_contradicts_it() {
+    let repo = generated_repo();
+    let page = uncovered_page(repo.path(), "/debt?kind=contradicted").await;
+    let items = items(&page);
+    assert_eq!(items.len(), 1, "{page}");
+    let item = items[0];
+    assert!(item.contains("Contradicted"), "{item}");
+    assert!(item.contains("use case"), "{item}");
+    assert!(
+        item.contains(
+            "<a href=\"/domains/billing/pay-invoice/refund\">Refund &#60;script&#62;</a>"
+        ),
+        "{item}"
+    );
+    assert!(item.contains("Billing"), "{item}");
+    assert!(
+        item.contains("href=\"/docs/README.md#refunds-and-returns\""),
+        "{item}"
+    );
+    assert!(item.contains("Refunds within 60 days"), "{item}");
+    assert!(item.contains("Refunds within 30 days"), "{item}");
+}
+
+// spec: DBT-16, DBT-18, DBT-9
+#[tokio::test]
+async fn an_undocumented_item_counts_its_entry_points_and_links_its_page() {
+    let repo = generated_repo();
+    let page = uncovered_page(repo.path(), "/debt?kind=undocumented").await;
+    let items: Vec<&str> = items(&page)
+        .into_iter()
+        .map(|item| item.split("</li>").next().unwrap_or_default())
+        .collect();
+    assert_eq!(items.len(), 2, "{page}");
+    assert!(items[0].contains("rule"), "{}", items[0]);
+    assert!(
+        items[0].contains(
+            "<a href=\"/domains/billing/pay-invoice#rule-pay-invoice-1\">Paid within 30 days</a>"
+        ),
+        "{}",
+        items[0]
+    );
+    assert!(items[0].contains("4 entry points"), "{}", items[0]);
+    assert!(items[1].contains("Gone"), "{}", items[1]);
+    assert!(!items[1].contains("<a href"), "{}", items[1]);
+
+    let billing = uncovered_page(repo.path(), "/debt?kind=undocumented&domain=billing").await;
+    assert_eq!(
+        list(&billing).matches("<li class=\"debt-item\"").count(),
+        1,
+        "{billing}"
+    );
+}
+
+// spec: DBT-17
+#[tokio::test]
+async fn with_no_collected_doc_the_page_says_there_is_nothing_to_compare() {
+    let repo = generated_repo();
+    let page = debt(repo.path(), "/debt").await;
+    assert!(
+        list(&page).contains("No project doc to compare the items with"),
+        "{page}"
+    );
+    let page = uncovered_page(repo.path(), "/debt").await;
+    assert!(
+        !list(&page).contains("No project doc to compare the items with"),
+        "{page}"
+    );
+}
+
+// spec: DBT-19, DBT-20, DBT-21, DBT-22, DBT-8
+#[tokio::test]
+async fn the_code_no_doc_covers_is_listed_by_folder_with_links_to_its_files() {
+    let repo = generated_repo();
+    let page = uncovered_page(repo.path(), "/debt").await;
+    let folders: Vec<&str> = items(&page)
+        .into_iter()
+        .filter(|i| i.contains("class=\"folder\""))
+        .collect();
+    assert_eq!(folders.len(), 3, "{page}");
+    assert!(
+        folders[0].contains("Entry point without a feature"),
+        "{}",
+        folders[0]
+    );
+    assert!(folders[0].contains("1 entry point"), "{}", folders[0]);
+    assert!(
+        folders[0].contains("<a href=\"/code/app/a.rb\">app/a.rb#purge</a>"),
+        "{}",
+        folders[0]
+    );
+    assert!(
+        folders[1].contains("Reached by no behaviour"),
+        "{}",
+        folders[1]
+    );
+    assert!(folders[1].contains("<code>app</code>"), "{}", folders[1]);
+    assert!(folders[1].contains("2 files"), "{}", folders[1]);
+    assert!(
+        folders[1].contains("<a href=\"/code/app/b.rb\">app/b.rb</a>"),
+        "{}",
+        folders[1]
+    );
+    assert!(folders[2].contains("<code>lib</code>"), "{}", folders[2]);
+    assert!(folders[2].contains("1 file<"), "{}", folders[2]);
+
+    let billing = uncovered_page(repo.path(), "/debt?domain=billing").await;
+    assert!(!list(&billing).contains("class=\"folder\""), "{billing}");
+}
+
+// spec: WEB-31, WEB-36, DBT-21
+#[tokio::test]
+async fn the_files_of_the_debt_are_served_though_no_doc_cites_them() {
+    let repo = generated_repo();
+    let (status, page) = get_docs(
+        None,
+        Some(uncovered_docs(repo.path())),
+        "/code/lib/c.rb",
+        &[],
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{page}");
+    assert!(page.contains("puts 1"), "{page}");
+
+    let (_, files) = get_docs(None, Some(uncovered_docs(repo.path())), "/files", &[]).await;
+    let row = between(&files, "id=\"lib/c.rb\"", "</tr>");
+    assert!(row.contains("href=\"/code/lib/c.rb\""), "{row}");
+    assert!(row.contains("not cited"), "{row}");
+
+    let (status, _) = get_in(None, repo.path(), "/code/lib/c.rb", &[]).await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "listed by no debt item");
 }
 
 fn between<'a>(text: &'a str, start: &str, end: &str) -> &'a str {

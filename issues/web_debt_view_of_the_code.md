@@ -51,9 +51,9 @@ hidden): 240 files reached by no behaviour, 247 undocumented items, 2 files with
 2. [x] Debt items of the new kinds in `retrodoc_mcp::debt` (contradicted, undocumented, the code side by folder), the
    heatmap of the audit gains the two kinds that carry a domain (AUD-6 amended); verified by internal tests; makes
    true DBT-8, DBT-15, DBT-16, DBT-17, DBT-19, DBT-20, DBT-21, DBT-22. ~450 lines. (autonomous)
-3. [ ] The page: rows of the new kinds (folder items folded with their files, links to `/code/` and `/docs/`), the
+3. [x] The page: rows of the new kinds (folder items folded with their files, links to `/code/` and `/docs/`), the
    kind filter, `/code/` serving the files of the debt, English and French texts; verified by router tests and a
-   check in headless Chrome; makes true DBT-18, DBT-21 (links) and the spec `accepted`. ~500 lines.
+   check in headless Chrome; makes true DBT-18, DBT-21 (links) and the spec `accepted`. ~500 lines. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -102,3 +102,26 @@ red: DBT-8, DBT-15, DBT-16, DBT-17, DBT-19, DBT-20, DBT-21, DBT-22: the 3 tests 
 Code review: no findings
 
 not verified: none. decisions needed: none.
+
+### 3. The page
+done: the debt page shows the doc items (their kind, name, domain, link to their page, entry points, the contradicting
+sections linked to `/docs/` with what each side states), the folders (their files or entry points folded, linked to
+`/code/`), the line on a project with no collected doc; `/code/` and the files page serve and link the files of the
+debt (WEB-31, WEB-34, WEB-36 amended); English and French texts; `specs/debt-view.md` accepted.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass (`debt-view` accepted) |
+| docs | `docs/crates/render-mcp-cli.md`, `README.md` |
+| headless Chrome | `/debt` on a saved Lobsters run with its docs shown: 291 undocumented, 97 set apart, 12 folders reached by no behaviour (150 files in `db/old_migrations`), 1 with no domain; a debt file answers 200 on `/code/` |
+| code review | no findings |
+
+red: DBT-15, DBT-16, DBT-17, DBT-18, DBT-19, DBT-20, DBT-21, DBT-22, WEB-31, WEB-36: 5 router tests failed on the
+missing rows (`assertion failed: item.contains("use case")`, `/code/lib/c.rb` answering 404)
+
+Code review: no findings
+
+not verified: the folding of a folder clicked in a browser (`<details>`, native); no saved run has a contradicted
+item, so the `/docs/` link of a contradiction is checked by the router test only. decisions needed: none.

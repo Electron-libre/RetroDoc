@@ -1,6 +1,6 @@
 ---
 id: DBT
-status: draft
+status: accepted
 adrs: [0039]
 ---
 

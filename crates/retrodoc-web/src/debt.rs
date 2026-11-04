@@ -3,12 +3,15 @@
 //! the names of its domain and section and a link to its page.
 
 use retrodoc_core::model::ConfidenceScore;
-use retrodoc_mcp::debt::{debt, DebtItem, DebtKind, Section, Subject};
+use retrodoc_mcp::debt::{
+    debt, entry_file, DebtItem, DebtKind, DocItem, ItemKind, Section, Subject,
+};
 use retrodoc_mcp::GeneratedDocs;
+use retrodoc_render::anchor;
 
 use crate::rules::{Choice, Filter};
 use crate::texts::WebTexts;
-use crate::view::{Confidence, StaleFile};
+use crate::view::{code_href, url_path, Confidence, Link, StaleFile};
 
 /// The value of `kind` in the query.
 pub(crate) fn kind_value(kind: DebtKind) -> &'static str {
@@ -42,6 +45,8 @@ pub struct DebtPage {
     pub none_in_run: bool,
     /// The run has no confidence score: no use case is listed as not scored.
     pub no_score: bool,
+    /// There is no collected doc: no item is listed as contradicted or undocumented.
+    pub no_docs: bool,
     pub items: Vec<DebtRow>,
 }
 
@@ -59,6 +64,29 @@ pub struct DebtRow {
     pub rationale: Option<String>,
     pub reasons: Vec<&'static str>,
     pub changed: Vec<StaleFile>,
+    /// What a doc item is: a domain, a feature, a use case or a rule.
+    pub item_kind: Option<&'static str>,
+    /// The entry points of an undocumented item: `4 entry points`.
+    pub entry_points: Option<String>,
+    pub contradictions: Vec<ContradictionView>,
+    pub folder: Option<FolderView>,
+}
+
+/// A section of the project's docs that contradicts an item.
+pub struct ContradictionView {
+    /// The section on the page of its collected doc.
+    pub section: Link,
+    pub doc_states: String,
+    pub item_states: String,
+}
+
+/// A folder of the code no doc covers: its files, or its entry points, each linked to the page of
+/// its file.
+pub struct FolderView {
+    pub path: String,
+    /// `3 files`, `1 entry point`.
+    pub count: String,
+    pub entries: Vec<Link>,
 }
 
 /// The debt page of `docs` for `filter`. Reads the cited files.
@@ -75,6 +103,7 @@ pub fn debt_page(docs: &GeneratedDocs, filter: &DebtFilter, texts: &WebTexts) ->
         filters: filters(docs, filter, texts),
         none_in_run: list.items.is_empty(),
         no_score: list.no_score,
+        no_docs: list.no_docs,
         items,
     }
 }
@@ -96,12 +125,54 @@ impl DebtFilter {
 fn row(docs: &GeneratedDocs, item: &DebtItem, texts: &WebTexts) -> DebtRow {
     let named = match &item.subject {
         Subject::Section(section) => section_row(docs, section),
-        Subject::DocItem(_) | Subject::Folder(_) => Named {
+        Subject::DocItem(doc_item) => doc_item_row(docs, doc_item),
+        Subject::Folder(_) => Named {
             domain: None,
             name: item.label(),
             feature: None,
             href: None,
         },
+    };
+    let (item_kind, entry_points, contradictions) = match &item.subject {
+        Subject::DocItem(doc_item) => (
+            Some(texts.item_kind(doc_item.kind)),
+            (item.kind == DebtKind::Undocumented)
+                .then(|| texts.counted(true, doc_item.entry_points)),
+            doc_item
+                .contradictions
+                .iter()
+                .map(|c| ContradictionView {
+                    section: Link {
+                        href: match &c.section.heading {
+                            Some(h) => format!("/docs/{}#{}", url_path(&c.section.path), anchor(h)),
+                            None => format!("/docs/{}", url_path(&c.section.path)),
+                        },
+                        name: c.section.origin(),
+                    },
+                    doc_states: c.doc_states.clone(),
+                    item_states: c.item_states.clone(),
+                })
+                .collect(),
+        ),
+        _ => (None, None, Vec::new()),
+    };
+    let folder = match &item.subject {
+        Subject::Folder(folder) => Some(FolderView {
+            path: folder.path.clone(),
+            count: texts.counted(
+                item.kind == DebtKind::EntryPointWithoutFeature,
+                folder.entries.len(),
+            ),
+            entries: folder
+                .entries
+                .iter()
+                .map(|entry| Link {
+                    href: code_href(entry_file(entry), None, None),
+                    name: entry.clone(),
+                })
+                .collect(),
+        }),
+        _ => None,
     };
     DebtRow {
         kind: texts.debt_kind(item.kind),
@@ -128,6 +199,10 @@ fn row(docs: &GeneratedDocs, item: &DebtItem, texts: &WebTexts) -> DebtRow {
             .iter()
             .map(|(path, state)| StaleFile::of(path, *state))
             .collect(),
+        item_kind,
+        entry_points,
+        contradictions,
+        folder,
     }
 }
 
@@ -137,6 +212,35 @@ struct Named {
     name: String,
     feature: Option<String>,
     href: Option<String>,
+}
+
+/// The names and the page of a doc item, from the run; its name and no link when its domain or
+/// feature is not in the run.
+fn doc_item_row(docs: &GeneratedDocs, item: &DocItem) -> Named {
+    let parts: Vec<&str> = item.label.split('/').collect();
+    let domain = docs.domains().iter().find(|d| d.slug == item.domain);
+    let feature = parts
+        .get(1)
+        .and_then(|slug| crate::view::find_feature(docs, &item.domain, slug));
+    let href = match (item.kind, parts.get(2)) {
+        (ItemKind::Domain, _) => domain.map(|d| crate::view::domain_href(&d.slug)),
+        (ItemKind::Feature, _) => feature.map(crate::view::feature_href),
+        (ItemKind::UseCase, Some(slug)) => feature.and_then(|f| {
+            docs.use_cases_of(&f.slug)
+                .find(|u| u.slug == *slug)
+                .map(|u| crate::view::use_case_href(f, u))
+        }),
+        (ItemKind::Rule, Some(slug)) => feature.map(|f| crate::view::rule_href(f, slug)),
+        _ => None,
+    };
+    Named {
+        domain: domain.map(|d| d.name.clone()),
+        name: item.name.clone(),
+        feature: feature
+            .filter(|_| matches!(item.kind, ItemKind::UseCase | ItemKind::Rule))
+            .map(|f| f.name.clone()),
+        href,
+    }
 }
 
 /// The names and the page of a section, from the run; its label and no link when its feature is

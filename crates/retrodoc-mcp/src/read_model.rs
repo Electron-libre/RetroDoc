@@ -42,6 +42,31 @@ pub struct Uncovered {
     pub coverage: Option<BehaviourCoverage>,
 }
 
+impl Uncovered {
+    /// The source files of the code no doc covers, the files of the entry points included, repeats
+    /// included.
+    #[must_use]
+    pub fn paths(&self) -> Vec<String> {
+        let coverage = self.coverage.as_ref();
+        let support = coverage.map(|c| c.technical_support.as_slice());
+        let mut paths: Vec<String> = [
+            &self.no_domain[..],
+            &self.skipped[..],
+            support.unwrap_or_default(),
+        ]
+        .into_iter()
+        .flatten()
+        .map(|p| p.display().to_string())
+        .collect();
+        paths.extend(coverage.into_iter().flat_map(|c| {
+            c.unplaced_entry_points
+                .iter()
+                .map(|id| crate::debt::entry_file(id).to_string())
+        }));
+        paths
+    }
+}
+
 impl GeneratedDocs {
     #[must_use]
     pub fn new(

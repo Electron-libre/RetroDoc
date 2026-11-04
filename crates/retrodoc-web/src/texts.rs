@@ -3,7 +3,7 @@
 //! from the table of `retrodoc-render` ([`WebTexts::doc`]). A language with no table keeps English.
 
 use retrodoc_core::model::SetApartReason;
-use retrodoc_mcp::debt::DebtKind;
+use retrodoc_mcp::debt::{DebtKind, ItemKind};
 use retrodoc_mcp::source::{SourceError, MAX_FILE_BYTES};
 use retrodoc_mcp::EntryKind;
 use retrodoc_render::Texts;
@@ -154,6 +154,14 @@ pub struct DebtTexts {
     pub none: &'static str,
     pub none_matches: &'static str,
     pub no_score: &'static str,
+    pub no_docs: &'static str,
+    /// What a doc item is: a domain, a feature, a use case, a rule.
+    pub item_kinds: [&'static str; 4],
+    /// `entry point`, `entry points`, `file`, `files`.
+    pub counted: [&'static str; 4],
+    /// Before what a contradicting section states, and before what the docs state.
+    pub doc_states: &'static str,
+    pub docs_state: &'static str,
     /// The list `htmx` swaps under the form before a first `generate`.
     pub no_run: &'static str,
 }
@@ -355,7 +363,8 @@ impl WebTexts {
         past_end: |total, line| format!("The file has {total} lines: line {line} is past the end."),
         debt: DebtTexts {
             intro: "The sections of the docs that need a human: to reread, to fix in the code or \
-                to document by hand.",
+                to document by hand; then the items the project's own docs contradict or leave out, \
+                and the code no doc covers, by folder.",
             kinds: [
                 "Low confidence",
                 "Not scored",
@@ -376,6 +385,12 @@ impl WebTexts {
             none_matches: "No item matches.",
             no_score: "The last run has no confidence score: its use cases are not listed as not \
                 scored. Run <code>retrodoc generate</code> again to score them.",
+            no_docs: "No project doc to compare the items with: none is listed as contradicted or \
+                undocumented. Name the docs in <code>existing_docs_paths</code> of <code>retrodoc.toml</code>.",
+            item_kinds: ["domain", "feature", "use case", "rule"],
+            counted: ["entry point", "entry points", "file", "files"],
+            doc_states: "states",
+            docs_state: "the docs state",
             no_run: "<section id=\"debt-list\"><p>No debt yet: run <code>retrodoc generate</code>, then restart <code>retrodoc ui</code>.</p></section>",
         },
         audit_page: AuditTexts {
@@ -592,7 +607,8 @@ impl WebTexts {
         past_end: |total, line| format!("Le fichier a {total} lignes : la ligne {line} est après la fin."),
         debt: DebtTexts {
             intro: "Les sections de la doc qui demandent un humain : à relire, à corriger dans le \
-                code ou à documenter à la main.",
+                code ou à documenter à la main ; puis les éléments que les docs du projet contredisent \
+                ou omettent, et le code qu'aucune doc ne couvre, par dossier.",
             kinds: [
                 "Confiance faible",
                 "Non évalué",
@@ -613,6 +629,12 @@ impl WebTexts {
             none_matches: "Aucun élément ne correspond.",
             no_score: "Le dernier run n'a aucun score de confiance : ses cas d'usage ne sont pas \
                 listés comme non évalués. Relancez <code>retrodoc generate</code> pour les évaluer.",
+            no_docs: "Aucune doc du projet à laquelle comparer les éléments : aucun n'est listé comme \
+                contredit ou non documenté. Nommez les docs dans <code>existing_docs_paths</code> de <code>retrodoc.toml</code>.",
+            item_kinds: ["domaine", "fonctionnalité", "cas d'usage", "règle"],
+            counted: ["point d'entrée", "points d'entrée", "fichier", "fichiers"],
+            doc_states: "dit",
+            docs_state: "la doc générée dit",
             no_run: "<section id=\"debt-list\"><p>Pas encore de dette : lancez <code>retrodoc generate</code>, puis relancez <code>retrodoc ui</code>.</p></section>",
         },
         audit_page: AuditTexts {
@@ -730,6 +752,25 @@ impl WebTexts {
             EvidenceKind::Test => self.doc.test,
             EvidenceKind::Documentation => self.doc.documentation,
         }
+    }
+
+    /// What a doc item is.
+    #[must_use]
+    pub fn item_kind(&self, kind: ItemKind) -> &'static str {
+        let at = match kind {
+            ItemKind::Domain => 0,
+            ItemKind::Feature => 1,
+            ItemKind::UseCase => 2,
+            ItemKind::Rule => 3,
+        };
+        self.debt.item_kinds[at]
+    }
+
+    /// `count` entry points, or `count` files.
+    #[must_use]
+    pub fn counted(&self, entry_points: bool, count: usize) -> String {
+        let at = 2 * usize::from(!entry_points) + usize::from(count != 1);
+        format!("{count} {}", self.debt.counted[at])
     }
 
     /// The name of a kind of debt.

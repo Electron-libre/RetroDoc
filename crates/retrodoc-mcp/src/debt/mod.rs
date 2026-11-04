@@ -297,11 +297,15 @@ fn code_items(uncovered: &Uncovered) -> Vec<DebtItem> {
     items
 }
 
-/// The directory of the file of `entry` (a path, or an entry point `<file>#<name>`), `.` for the
-/// root.
+/// The file of `entry`: a path, or an entry point `<file>#<name>`.
+#[must_use]
+pub fn entry_file(entry: &str) -> &str {
+    entry.split_once('#').map_or(entry, |(file, _)| file)
+}
+
+/// The directory of the file of `entry`, `.` for the root.
 fn folder_of(entry: &str) -> String {
-    let file = entry.split_once('#').map_or(entry, |(file, _)| file);
-    Path::new(file)
+    Path::new(entry_file(entry))
         .parent()
         .map(|p| p.display().to_string())
         .filter(|p| !p.is_empty())
