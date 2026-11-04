@@ -19,7 +19,7 @@ whose contexts hold business, not technical layers.
 - **CTX-3** (deterministic) A map made with `--force` over a saved map must give a new context the slug and the name of the saved context that holds more than half of its files, when more than half of that saved context's files are in it; a saved slug goes to one new context at most.
 - **CTX-4** (deterministic) A context of a single source file must be merged, before the map is saved, into the context under 150 files that holds the most files of its folder; with none, it must go to the support unless its file is an entry point file, which keeps its context; a map whose contexts all hold one file must be kept as it is.
 - **CTX-5** (deterministic) In a context of more than one source file, more than half of them from its folders rather than its groups, each folder file must, before the map is saved, be listed in the other context whose files write its name the most (a file's name as its class is written: `card_component.rb` gives `CardComponent`), else in the support when its role is `view` or `model`, else stay; a context left without any file is dropped.
-- **CTX-6** (deterministic) A context whose slug is a catch-all word (`misc`, `miscellaneous`, `other`, `others`, `general`, `common`, `shared`, `various`, alone or with `business`) must, before the map is saved, give each of its groups and folders to the other context whose files write the names of its files the most; a group no other context's file reaches becomes a context of its own, a folder goes to the support.
+- **CTX-6** (deterministic) A context whose slug is made of catch-all words only (`misc`, `miscellaneous`, `other`, `others`, `general`, `common`, `shared`, `various`, with `business` or not) must, before the map is saved, give each of its groups to the other context whose files write the class names of the group's files the most, else to a context of its own, and list each of its folder files in the other context whose files write its name the most, else in the support.
 - **CTX-7** (deterministic) A map made with `--force` over a saved map must list the groups and folders of the saved support to the map call as the support proposed.
 
 ## Scenarios
@@ -37,7 +37,8 @@ whose contexts hold business, not technical layers.
 - (CTX-5) Given a context made of the folder of components only, whose names no other context writes, when the map is made, then the components, views, go to the support and the context is dropped.
 - (CTX-5) Given the same context whose files have the role `logic`, when the map is made, then they stay and the context is kept.
 - (CTX-5) Given a context of 4 group files and 4 folder files, when the map is made, then it is kept as it is.
-- (CTX-6) Given a context `misc-business` of two groups, one whose files' names the context `billing` writes, when the map is made, then that group joins `billing` and the other becomes a context of its own.
+- (CTX-6) Given a context `misc-business` of two groups, one whose files' names the context `billing` writes, and a folder of files no context writes, when the map is made, then that group joins `billing`, the other becomes a context of its own, the folder files go to the support and `misc-business` is dropped.
+- (CTX-6) Given a context `general-settings`, when the map is made, then it is kept.
 - (CTX-7) Given a saved map whose support holds the group `base` and the folder `lib/tasks/`, when the map is made with `--force`, then the call lists both as the proposed support.
 
 ## Non-goals

@@ -181,3 +181,49 @@ async fn a_context_half_made_of_folder_files_is_kept() {
 
     assert_eq!(map.contexts[0].folders, ["app/components/inputs/"]);
 }
+
+// spec: CTX-6 (internal: the CLI test of the map would need an LLM server)
+#[tokio::test]
+async fn a_catch_all_context_gives_its_groups_and_files_to_the_contexts_that_use_them() {
+    let dir = tempfile::tempdir().unwrap();
+    let (sources, seeds) = write_tree(dir.path(), &[("app/models/billing.rb", "Card.find(id)")]);
+    let answer = r#"{"contexts":[
+        {"slug":"billing","name":"Billing","groups":["g2"]},
+        {"slug":"misc-business","name":"Misc","groups":["g1","g3"],
+         "folders":["app/components/inputs/"]}]}"#;
+
+    let map = map_of(
+        dir.path(),
+        (&sources, &seeds),
+        &roles(&sources, false),
+        answer,
+    )
+    .await;
+
+    assert_eq!(slugs(&map), ["billing", "user"]);
+    assert_eq!(map.contexts[0].groups, ["billing", "card"]);
+    let resolved = map.resolve(&sources, &seeds);
+    assert!(resolved
+        .support
+        .contains(&PathBuf::from("app/components/inputs/text_component.rb")));
+}
+
+// spec: CTX-6 (internal: the CLI test of the map would need an LLM server)
+#[tokio::test]
+async fn a_context_named_with_a_catch_all_word_among_others_is_kept() {
+    let dir = tempfile::tempdir().unwrap();
+    let (sources, seeds) = write_tree(dir.path(), &[("app/models/billing.rb", "Card")]);
+    let answer = r#"{"contexts":[
+        {"slug":"billing","name":"Billing","groups":["g2","g3"],"folders":["app/components/"]},
+        {"slug":"general-settings","name":"Settings","groups":["g1"]}]}"#;
+
+    let map = map_of(
+        dir.path(),
+        (&sources, &seeds),
+        &roles(&sources, false),
+        answer,
+    )
+    .await;
+
+    assert_eq!(slugs(&map), ["billing", "general-settings"]);
+}

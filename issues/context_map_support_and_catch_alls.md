@@ -70,8 +70,8 @@ migrations the role `model`, the groups named after a namespace word (`api`, `ad
 1. [x] Layer contexts spread: a context mostly made of folder files lists each folder file in the context whose files
    write its class name the most, else the support for a view or a model, else keeps it; verified by tests on maps
    built in memory; makes true CTX-5. (autonomous)
-2. [ ] Catch-all contexts spread: same placement for each group and folder of a context with a catch-all slug, the
-   prompt forbids such names; verified by tests; makes true CTX-6.
+2. [x] Catch-all contexts spread: same placement for each group and folder file of a context with a catch-all slug,
+   the prompt forbids such names; verified by tests; makes true CTX-6. (autonomous)
 3. [ ] Saved support proposed: a forced call lists the saved support as the proposed support; verified by a
    test on the request sent; makes true CTX-7.
 4. [ ] Measure and docs: deliverables 1 and 2 replayed on the 3 saved maps without LLM, then 3 forced maps chained
@@ -103,6 +103,27 @@ roles and reads the sources.
 | code review | see below |
 
 red: CTX-5: `assertion left == right failed: the group files stay, left: 7, right: 3`
+
+Code review: no findings
+
+not verified: the effect on the real maps (deliverable 4).
+
+decisions needed: none
+
+## Deliverable 2
+done: a context whose slug is made of catch-all words only gives each group to the context that writes the class
+names of its files the most, else to a context of its own, and each folder file likewise, else to the support; the
+prompt forbids catch-all names. Two split tests named a part `other`: renamed `partners`, what they check unchanged.
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass, CTX draft (CTX-6 traced) |
+| docs | `docs/crates/pipeline.md`, ADR 0029, module doc |
+| code review | see below |
+
+red: CTX-6: `left: ["billing", "misc-business"], right: ["billing", "user"]`
 
 Code review: no findings
 

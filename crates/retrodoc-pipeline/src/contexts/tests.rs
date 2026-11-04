@@ -827,7 +827,7 @@ async fn a_part_still_over_the_limit_is_split_again_once() {
         } else if prompt.contains("Context to split") {
             r#"{"contexts":[
                 {"slug":"life","name":"Life","groups":["g1"],"folders":["app/workflows/processes/a/","app/workflows/processes/b/","app/workflows/processes/c/"]},
-                {"slug":"other","name":"Other","groups":["g2"]}]}"#
+                {"slug":"partners","name":"Partners","groups":["g2"]}]}"#
         } else {
             ANSWER
         }
@@ -852,7 +852,7 @@ async fn a_part_still_over_the_limit_is_split_again_once() {
         "the map, the split, the split of the part left big"
     );
     let slugs: Vec<&str> = map.contexts.iter().map(|c| c.slug.as_str()).collect();
-    assert_eq!(slugs, ["life-a", "life-bc", "other"], "{map:?}");
+    assert_eq!(slugs, ["life-a", "life-bc", "partners"], "{map:?}");
     let resolved = map.resolve(&many, &seeds());
     assert!(resolved.contexts.iter().all(|c| c.files.len() <= 150));
 }
@@ -961,7 +961,7 @@ async fn a_part_still_over_the_limit_after_two_splits_is_not_asked_about_a_third
         } else if prompt.contains("Context to split") {
             r#"{"contexts":[
                 {"slug":"life","name":"Life","groups":["g1"],"folders":["app/workflows/processes/a/","app/workflows/processes/b/","app/workflows/processes/c/"]},
-                {"slug":"other","name":"Other","groups":["g2"]}]}"#
+                {"slug":"partners","name":"Partners","groups":["g2"]}]}"#
         } else {
             ANSWER
         }

@@ -47,7 +47,7 @@ pub use domains::{domain_vocabulary, domains_from_contexts};
 use groups::{family_groups, group_of, group_words, mechanical_groups, name_words, Groups};
 use route_owner::EntryOwners;
 pub use run::{mark_done, plan_run, RunSlice};
-use spread::{spread_layer_contexts, Written};
+use spread::{spread_catch_alls, spread_layer_contexts, Written};
 
 /// Groups shown to the LLM, the largest first; the others go to the support.
 const MAX_GROUPS: usize = 250;
@@ -75,7 +75,8 @@ names of the entry point files, with its size and a sample of its files) and FOL
 files that belong to no group. Merge the groups that serve the same business concept (an object \
 and its join with another one, an object and its variants) into one context named after a \
 business concept or activity, never after a technical layer or a kind of folder (services, \
-models, controllers, api, base, admin, jobs). Groups that are purely technical (a base class, a \
+models, controllers, api, base, admin, jobs), and never a catch-all (misc, other, general, \
+common, shared): a group that fits no other context is a context of its own. Groups that are purely technical (a base class, a \
 verb, framework plumbing, a technical namespace) go to `support`, which is not documented; a job, \
 a mailer or an API endpoint that does a business operation is not technical, it belongs with the \
 context it serves. Give each folder to the context its files serve, even when it is a layer \
@@ -523,9 +524,10 @@ pub async fn build_context_map(
     Ok(split)
 }
 
-/// The `map` without its layer contexts, its empty contexts and its one-file contexts
-/// (`specs/context-map.md`, CTX-4 and CTX-5).
+/// The `map` without its catch-all contexts, its layer contexts, its empty contexts and its
+/// one-file contexts (`specs/context-map.md`, CTX-4 to CTX-6).
 fn tidy(map: ContextMap, sources: &[PathBuf], seeds: &[PathBuf], written: &Written) -> ContextMap {
+    let map = spread_catch_alls(map, sources, seeds, written);
     let map = spread_layer_contexts(map, sources, seeds, written);
     merge_one_file_contexts(without_empty_contexts(map, sources, seeds), sources, seeds)
 }

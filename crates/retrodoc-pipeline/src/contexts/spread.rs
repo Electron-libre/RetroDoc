@@ -3,13 +3,14 @@
 //! library) is a layer, not a business area: each of its folder files goes to the context whose files
 //! write its name the most, a view or a model no other context writes goes to the support, and the
 //! others (the tasks of a workflow, written by their own context) stay. A layer folder mixes files
-//! that serve different contexts, so the files move one by one, listed in the map; no LLM call.
+//! that serve different contexts, so the files move one by one, listed in the map. A catch-all
+//! context (`misc`, `other`…) is spread the same way, its groups moving whole (CTX-6). No LLM call.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use super::groups::GENERIC_STEMS;
-use super::{BoundedContext, ContextMap, Resolved, Support};
+use super::{add_group, BoundedContext, ContextMap, Resolved, Support};
 use crate::roles::{FileRole, RoleMap};
 
 /// The identifiers each source file writes, read once from the tree (a file that can't be read
@@ -95,7 +96,7 @@ pub(super) fn spread_layer_contexts(
             continue;
         }
         for file in folder_files {
-            match most_written(file, &resolved, written, |j| j != i) {
+            match most_written(&[file], &resolved, written, |j| j != i) {
                 Some(j) => moves.push((file.clone(), Some(j))),
                 None if written.shared.contains(file) => moves.push((file.clone(), None)),
                 None => {}
@@ -112,6 +113,110 @@ pub(super) fn spread_layer_contexts(
         match to {
             Some(j) => contexts[j].files.push(file),
             None => support.files.push(file),
+        }
+    }
+    ContextMap { contexts, support }
+}
+
+/// Words a catch-all context is named with, with `business` or not.
+const CATCH_ALL_WORDS: &[&str] = &[
+    "misc",
+    "miscellaneous",
+    "other",
+    "others",
+    "general",
+    "common",
+    "shared",
+    "various",
+];
+
+fn is_catch_all(slug: &str) -> bool {
+    let words: Vec<&str> = slug.split('-').filter(|w| *w != "business").collect();
+    !words.is_empty() && words.iter().all(|w| CATCH_ALL_WORDS.contains(w))
+}
+
+/// The `map` without its catch-all contexts (a slug of catch-all words only): each group goes to
+/// the other context whose files write the class names of its files the most, else to a context of
+/// its own; each folder file is listed in the context that writes its name the most, else in the
+/// support. A catch-all context is left empty and dropped after.
+pub(super) fn spread_catch_alls(
+    map: ContextMap,
+    sources: &[PathBuf],
+    seeds: &[PathBuf],
+    written: &Written,
+) -> ContextMap {
+    let catch_all: Vec<bool> = map.contexts.iter().map(|c| is_catch_all(&c.slug)).collect();
+    if !catch_all.contains(&true) {
+        return map;
+    }
+    let resolved = map.resolve(sources, seeds);
+    let target = |j: usize| !catch_all[j];
+    // Each group as a context of its own: the files `resolve` gives it.
+    let one_per_group = ContextMap {
+        contexts: map
+            .contexts
+            .iter()
+            .flat_map(|c| &c.groups)
+            .map(|g| BoundedContext {
+                groups: vec![g.clone()],
+                ..BoundedContext::default()
+            })
+            .collect(),
+        support: Support::default(),
+    }
+    .resolve(sources, seeds);
+    let files_of_group = |k: usize| one_per_group.contexts[k].files.iter().collect::<Vec<_>>();
+    let mut group_moves: Vec<(String, Option<usize>)> = Vec::new();
+    let mut file_moves: Vec<(PathBuf, Option<usize>)> = Vec::new();
+    let mut k = 0;
+    for (i, context) in map.contexts.iter().enumerate() {
+        for group in &context.groups {
+            if catch_all[i] {
+                let to = most_written(&files_of_group(k), &resolved, written, target);
+                group_moves.push((group.clone(), to));
+            }
+            k += 1;
+        }
+    }
+    let grouped: BTreeSet<&PathBuf> = one_per_group
+        .contexts
+        .iter()
+        .flat_map(|c| &c.files)
+        .collect();
+    for (own, _) in resolved
+        .contexts
+        .iter()
+        .zip(&catch_all)
+        .filter(|(_, c)| **c)
+    {
+        for file in own.files.iter().filter(|f| !grouped.contains(f)) {
+            file_moves.push((
+                file.clone(),
+                most_written(&[file], &resolved, written, target),
+            ));
+        }
+    }
+    let ContextMap {
+        mut contexts,
+        mut support,
+    } = map;
+    for (context, _) in contexts.iter_mut().zip(&catch_all).filter(|(_, c)| **c) {
+        tracing::info!(context = %context.slug, "catch-all context spread");
+        context.groups.clear();
+        context.folders.clear();
+        context.files.clear();
+    }
+    for (file, to) in file_moves {
+        let file = file.to_string_lossy().into_owned();
+        match to {
+            Some(j) => contexts[j].files.push(file),
+            None => support.files.push(file),
+        }
+    }
+    for (group, to) in group_moves {
+        match to {
+            Some(j) => contexts[j].groups.push(group),
+            None => add_group(&mut contexts, &group),
         }
     }
     ContextMap { contexts, support }
@@ -136,15 +241,15 @@ fn groups_only(map: &ContextMap) -> ContextMap {
     }
 }
 
-/// The context among those `eligible` whose files write the class name of `file` the most, the
-/// first on a tie; `None` when none writes it.
+/// The context among those `eligible` whose files write the class names of `files` the most, the
+/// first on a tie; `None` when none writes one.
 fn most_written(
-    file: &Path,
+    files: &[&PathBuf],
     resolved: &Resolved,
     written: &Written,
     eligible: impl Fn(usize) -> bool,
 ) -> Option<usize> {
-    let name = class_name(file)?;
+    let names: Vec<String> = files.iter().filter_map(|f| class_name(f)).collect();
     let mut best: Option<(usize, usize)> = None;
     for (j, context) in resolved.contexts.iter().enumerate() {
         if !eligible(j) {
@@ -153,8 +258,8 @@ fn most_written(
         let count = context
             .files
             .iter()
-            .filter(|f| written.writes(f, &name))
-            .count();
+            .map(|f| names.iter().filter(|n| written.writes(f, n)).count())
+            .sum::<usize>();
         if count > 0 && best.is_none_or(|(_, most)| count > most) {
             best = Some((j, count));
         }
