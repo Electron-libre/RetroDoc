@@ -270,7 +270,7 @@ The milestones up to "A large application, one bounded context at a time" are th
 - State: in issues
 - Issues:
   - [web_debt_view_of_the_docs](issues/done/web_debt_view_of_the_docs.md)
-  - [web_debt_view_of_the_code](issues/web_debt_view_of_the_code.md)
+  - [web_debt_view_of_the_code](issues/done/web_debt_view_of_the_code.md)
   - [web_audit_dashboard](issues/done/web_audit_dashboard.md)
   - [debt_priority_score](issues/debt_priority_score.md)
 
