@@ -1,6 +1,6 @@
 ---
 id: SED
-status: accepted
+status: draft
 adrs: [0044, 0045]
 ---
 
@@ -54,6 +54,26 @@ it and no `generate` loses it.
 - **SED-22** (deterministic) Saving an edit or a review must leave the file of the other record
   (`.retrodoc/reviews.json`, `.retrodoc/edits.json`) as it was.
 
+- **SED-23** (deterministic) The read model must hold the name, the description and the narrative of an edited
+  section as its edit gives them, and a field the edit leaves out as generated.
+- **SED-24** (deterministic) An edit of a section the docs no longer hold must be left out by the readers and kept in
+  `.retrodoc/edits.json`.
+- **SED-25** (deterministic) An edit recorded from a read model that already holds edits must hold the fingerprint
+  and the hashes of its section as generated (SED-8, SED-9), the edits left out.
+- **SED-26** (deterministic) A review must hold the fingerprint of its section as the read model shows it, the edit
+  applied (REV-6), so that an edit made after the review makes it outdated (REV-20).
+- **SED-27** (deterministic) `retrodoc ui` must serve, from the first request after `.retrodoc/edits.json` changed,
+  the pages and the search with the edits the file holds then, without a restart.
+- **SED-28** (deterministic) `retrodoc mcp` must answer each tool call with the edits `.retrodoc/edits.json` holds
+  at that call.
+- **SED-29** (deterministic) `retrodoc ui` and `retrodoc mcp` must warn of a file of edits that cannot be read or is
+  of a later format, and show the docs as generated.
+- **SED-30** (deterministic) The Markdown that `render` and `generate` write must show the fields of an edited
+  section as its edit gives them, in place of the generated ones.
+- **SED-31** (deterministic) The same artifacts and the same edits must render the same files, byte for byte.
+- **SED-32** (deterministic) `render` and `generate` must fail with an error naming `.retrodoc/edits.json` when the
+  file cannot be read or is of a later format, and write no doc.
+
 ## Scenarios
 
 - (SED-2) Given a feature whose name only is edited, then its edit holds the name and no description nor narrative.
@@ -69,12 +89,21 @@ it and no `generate` loses it.
 - (SED-11) Given an edited section, when `generate --force` runs with no LLM call needed, then the edit is still in
   the file.
 - (SED-8) Given a feature edited twice, the docs unchanged between, then both edits hold the same fingerprint.
+- (SED-23) Given a use case whose narrative only is edited, then the read model shows the edited narrative and the
+  generated name and description.
+- (SED-25) Given a feature whose name is edited, when its description is edited next, then the second edit holds the
+  fingerprint of the generated feature, the same as the first.
+- (SED-26) Given a feature reviewed `validated`, when its description is edited, then the review is outdated as
+  "rewritten".
+- (SED-27) Given `retrodoc ui` serving a feature, when an edit of its name is saved, then the next page and the next
+  search show the new name.
+- (SED-32) Given an `edits.json` holding invalid JSON, when `render` runs, then it fails naming the file and the docs
+  dir is as it was.
 
 ## Non-goals
 
 - No edit of the steps, the business rules nor the glossary (decided with the user on 2026-11-05).
-- No change to the generated artifacts: the edits are an overlay, applied by the readers
-  (`issues/edits_in_read_model.md`).
+- No change to the generated artifacts: the edits are an overlay, applied by the readers.
 - No history of the edits: a new edit replaces the former one; git keeps the history of a versioned file.
 - No lock across processes: two processes saving at the same instant keep the last one's file whole (SED-12), not
   both.

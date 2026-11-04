@@ -1,6 +1,6 @@
 ---
 id: DSR
-status: accepted
+status: draft
 adrs: [0016]
 ---
 
@@ -23,6 +23,8 @@ topic from an undocumented one and say "not documented" rather than guess.
 - **DSR-4** (deterministic) The not-documented answer must give the number of entries that share words with the query
   but that DSR-2 left out, and ask for other words, when there are any.
 - **DSR-5** (deterministic) The not-documented answer must name the words of the query, as written, that no entry has.
+- **DSR-6** (deterministic) The search must find an edited section by the words of its edit, and not by the words
+  of the generated field the edit replaces (`specs/section-edit.md`).
 
 ## Scenarios
 

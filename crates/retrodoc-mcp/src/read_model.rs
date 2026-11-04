@@ -1,6 +1,7 @@
 //! The generated documentation as typed data, independent of how it is
 //! answered: the MCP tools turn it into Markdown for an LLM, the web interface
-//! into HTML pages (ADR 0039). Loaded once from what the last `generate` saved.
+//! into HTML pages (ADR 0039). Loaded once from what the last `generate` saved, the human edits
+//! applied over the sections (`specs/section-edit.md`).
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -10,16 +11,28 @@ use retrodoc_ingest::existing_docs::ExistingDoc;
 use retrodoc_pipeline::reconcile::{reconcile, Judgements, Reconciliation};
 use retrodoc_pipeline::{domain_models, BehaviourCoverage, DomainMap, Glossary, Scope};
 
-use crate::corpus::{build_entries, rule_entries, EntryKind};
+use crate::corpus::{build_entries, rule_entries, section_entries, EntryKind};
+use crate::edits::{self, Edits};
 use crate::freshness::Freshness;
 use crate::search::SearchIndex;
 use crate::source::SourceAccess;
 
-/// The artifacts of a run and the search index over them and the collected docs.
+/// The domains, features and use cases of a run.
+#[derive(Debug, Clone, Default)]
+pub struct Sections {
+    pub domains: Vec<Domain>,
+    pub features: Vec<Feature>,
+    pub use_cases: Vec<UseCase>,
+}
+
+/// The artifacts of a run, the human edits shown over them, and the search index over what is
+/// shown and the collected docs.
 pub struct GeneratedDocs {
-    domains: Vec<Domain>,
-    features: Vec<Feature>,
-    use_cases: Vec<UseCase>,
+    /// The sections as shown: the edits applied over the generated ones.
+    shown: Sections,
+    /// The sections as the run generated them.
+    generated: Sections,
+    edits: Edits,
     rules: Vec<BusinessRule>,
     glossary: Glossary,
     index: SearchIndex,
@@ -82,10 +95,15 @@ impl GeneratedDocs {
         let index = SearchIndex::new(build_entries(
             &domains, &features, &use_cases, &glossary, docs,
         ));
-        Self {
+        let generated = Sections {
             domains,
             features,
             use_cases,
+        };
+        Self {
+            shown: generated.clone(),
+            generated,
+            edits: Edits::default(),
             rules: Vec::new(),
             glossary,
             index,
@@ -101,9 +119,40 @@ impl GeneratedDocs {
     pub fn with_rules(mut self, rules: Vec<BusinessRule>) -> Self {
         let mut entries = self.index.entries().to_vec();
         entries.retain(|e| e.kind != EntryKind::Rule);
-        entries.extend(rule_entries(&rules, &self.features));
+        entries.extend(rule_entries(&rules, &self.shown.features));
         self.index = SearchIndex::new(entries);
         self.rules = rules;
+        self
+    }
+
+    /// Shows `edits` over the generated sections, in place of the edits shown before; an edit of a
+    /// section the docs don't hold is left out. The search then finds the edited text.
+    #[must_use]
+    pub fn with_edits(mut self, edits: Edits) -> Self {
+        self.shown = edits::apply(&self.generated, &edits);
+        self.edits = edits;
+        let mut entries = section_entries(
+            &self.shown.domains,
+            &self.shown.features,
+            &self.shown.use_cases,
+        );
+        entries.extend(
+            self.index
+                .entries()
+                .iter()
+                .filter(|e| {
+                    !matches!(
+                        e.kind,
+                        EntryKind::Domain
+                            | EntryKind::Feature
+                            | EntryKind::UseCase
+                            | EntryKind::Rule
+                    )
+                })
+                .cloned(),
+        );
+        entries.extend(rule_entries(&self.rules, &self.shown.features));
+        self.index = SearchIndex::new(entries);
         self
     }
 
@@ -151,7 +200,8 @@ impl GeneratedDocs {
     }
 
     /// Reads what the last `generate` saved under `.retrodoc/cache/` plus the
-    /// collected `docs`. `None` before a first `generate` (no features saved);
+    /// collected `docs`, with the edits of `.retrodoc/edits.json` shown over it (none, with a
+    /// warning, when the file can't be read). `None` before a first `generate` (no features saved);
     /// use cases not saved yet count as none. The items are not reconciled with
     /// the docs: [`Self::reconciled`] does it.
     #[must_use]
@@ -180,7 +230,8 @@ impl GeneratedDocs {
             .with_rules(rules)
             .with_freshness(Freshness::load(repo_root))
             .with_uncovered(uncovered)
-            .with_repo_root(repo_root),
+            .with_repo_root(repo_root)
+            .with_edits(saved_edits(repo_root)),
         )
     }
 
@@ -194,8 +245,9 @@ impl GeneratedDocs {
         };
         self.uncovered.reconciliation = Some(reconcile(
             &DomainMap::load(root).unwrap_or_default(),
-            &self.features,
-            &self.use_cases,
+            // The verdicts were given on the generated text.
+            &self.generated.features,
+            &self.generated.use_cases,
             &self.rules,
             docs,
             &Judgements::load(root),
@@ -245,8 +297,13 @@ impl GeneratedDocs {
     /// of the steps and the code evidence of the rules, repeats included.
     #[must_use]
     pub fn cited_paths(&self) -> Vec<String> {
-        let features = self.features.iter().flat_map(|f| f.source_paths.iter());
+        let features = self
+            .shown
+            .features
+            .iter()
+            .flat_map(|f| f.source_paths.iter());
         let steps = self
+            .shown
             .use_cases
             .iter()
             .flat_map(|u| &u.steps)
@@ -262,24 +319,45 @@ impl GeneratedDocs {
         features.chain(steps).chain(code).cloned().collect()
     }
 
+    /// The domains as shown, edited.
     #[must_use]
     pub fn domains(&self) -> &[Domain] {
-        &self.domains
+        &self.shown.domains
     }
 
+    /// The features as shown, edited.
     #[must_use]
     pub fn features(&self) -> &[Feature] {
-        &self.features
+        &self.shown.features
     }
 
+    /// The use cases as shown, edited.
     #[must_use]
     pub fn use_cases(&self) -> &[UseCase] {
-        &self.use_cases
+        &self.shown.use_cases
+    }
+
+    /// The sections as shown, edited.
+    #[must_use]
+    pub fn sections(&self) -> &Sections {
+        &self.shown
+    }
+
+    /// The sections as the run generated them, no edit applied.
+    #[must_use]
+    pub fn generated(&self) -> &Sections {
+        &self.generated
+    }
+
+    /// The edits shown over the sections, those of sections the docs don't hold included.
+    #[must_use]
+    pub fn edits(&self) -> &Edits {
+        &self.edits
     }
 
     #[cfg(test)]
     pub(crate) fn features_mut(&mut self) -> &mut [Feature] {
-        &mut self.features
+        &mut self.shown.features
     }
 
     #[must_use]
@@ -311,15 +389,27 @@ impl GeneratedDocs {
 
     /// The features of the domain `slug`, in order.
     pub fn features_of<'a>(&'a self, slug: &'a str) -> impl Iterator<Item = &'a Feature> + 'a {
-        self.features.iter().filter(move |f| f.domain_slug == slug)
+        self.shown
+            .features
+            .iter()
+            .filter(move |f| f.domain_slug == slug)
     }
 
     /// The use cases of the feature `slug`, in order.
     pub fn use_cases_of<'a>(&'a self, slug: &'a str) -> impl Iterator<Item = &'a UseCase> + 'a {
-        self.use_cases
+        self.shown
+            .use_cases
             .iter()
             .filter(move |u| u.feature_slug == slug)
     }
+}
+
+/// The edits saved under `repo_root`, none, with a warning, when the file can't be read.
+fn saved_edits(repo_root: &Path) -> Edits {
+    edits::load(repo_root).unwrap_or_else(|error| {
+        tracing::warn!("the docs are shown as generated, with no edit: {error}");
+        Edits::default()
+    })
 }
 
 #[cfg(test)]
@@ -412,5 +502,17 @@ mod tests {
             .find(|i| i.label == "billing/pay-invoice")
             .unwrap();
         assert_eq!(feature.status, Status::Undocumented);
+    }
+
+    // spec: SED-29 (internal: the load both servers share; their warning goes to the log)
+    #[test]
+    fn a_file_of_edits_that_cannot_be_read_shows_the_docs_as_generated() {
+        let dir = saved_run();
+        std::fs::write(dir.path().join(".retrodoc/edits.json"), "{ not json").unwrap();
+
+        let docs = GeneratedDocs::load(dir.path(), &[]).unwrap();
+
+        assert_eq!(docs.features()[0].name, "Pay an invoice");
+        assert_eq!(docs.edits().edits(), []);
     }
 }

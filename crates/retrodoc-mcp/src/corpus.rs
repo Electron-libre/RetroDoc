@@ -185,15 +185,12 @@ pub fn rule_entries(rules: &[BusinessRule], features: &[Feature]) -> Vec<Entry> 
         .collect()
 }
 
-/// Every searchable entry, in a stable order: domains, features, use cases,
-/// glossary, docs.
+/// The entries of the domains, features and use cases, in that order.
 #[must_use]
-pub fn build_entries(
+pub fn section_entries(
     domains: &[Domain],
     features: &[Feature],
     use_cases: &[UseCase],
-    glossary: &Glossary,
-    docs: &[ExistingDoc],
 ) -> Vec<Entry> {
     let mut entries = domain_entries(domains);
     for feature in features {
@@ -209,6 +206,20 @@ pub fn build_entries(
     for use_case in use_cases {
         entries.push(use_case_entry(use_case, use_case_id(use_case, features)));
     }
+    entries
+}
+
+/// Every searchable entry, in a stable order: domains, features, use cases,
+/// glossary, docs.
+#[must_use]
+pub fn build_entries(
+    domains: &[Domain],
+    features: &[Feature],
+    use_cases: &[UseCase],
+    glossary: &Glossary,
+    docs: &[ExistingDoc],
+) -> Vec<Entry> {
+    let mut entries = section_entries(domains, features, use_cases);
     for entity in glossary.merged_entities() {
         let associations = entity
             .associations

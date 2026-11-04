@@ -24,7 +24,7 @@ pub mod store;
 pub mod tools;
 
 pub use corpus::{build_entries, Entry, EntryKind};
-pub use read_model::{GeneratedDocs, Uncovered};
+pub use read_model::{GeneratedDocs, Sections, Uncovered};
 pub use retrodoc_ingest::ExistingDoc;
 pub use search::{Found, Hit, SearchIndex};
 pub use server::{serve_stdio, DocsServer, McpError};

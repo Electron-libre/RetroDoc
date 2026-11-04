@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::debt::use_case_cited_paths;
 use crate::freshness::{file_hash, state_against, FileState};
-use crate::read_model::GeneratedDocs;
+use crate::read_model::{GeneratedDocs, Sections};
 use crate::store::{kind_key, Record, Records, Store};
 
 #[derive(Debug, thiserror::Error)]
@@ -118,19 +118,28 @@ pub fn reviews_path(repo_root: &Path) -> PathBuf {
     repo_root.join(".retrodoc").join("reviews.json")
 }
 
-/// The fingerprint of `section` in `docs`, `None` when the docs lack it.
+/// The fingerprint of `section` in `docs` as they show it, the edits applied, `None` when the docs
+/// lack it.
 #[must_use]
 pub fn fingerprint(docs: &GeneratedDocs, section: &Section) -> Option<String> {
+    fingerprint_in(docs.sections(), section)
+}
+
+/// The fingerprint of `section` in `sections`, `None` when they lack it.
+pub(crate) fn fingerprint_in(sections: &Sections, section: &Section) -> Option<String> {
     let id = section.id.as_str();
     let saved = match section.kind {
-        SectionKind::Domain => serde_json::to_string(docs.domains().iter().find(|d| d.slug == id)?),
+        SectionKind::Domain => {
+            serde_json::to_string(sections.domains.iter().find(|d| d.slug == id)?)
+        }
         SectionKind::Feature => {
-            serde_json::to_string(docs.features().iter().find(|f| f.slug == id)?)
+            serde_json::to_string(sections.features.iter().find(|f| f.slug == id)?)
         }
         SectionKind::UseCase => {
             let (feature, slug) = id.split_once('/')?;
             serde_json::to_string(
-                docs.use_cases()
+                sections
+                    .use_cases
                     .iter()
                     .find(|u| u.feature_slug == feature && u.slug == slug)?,
             )

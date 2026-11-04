@@ -10,7 +10,7 @@ use chrono::{SecondsFormat, Utc};
 use retrodoc_ingest::git_history::user_name;
 use serde::{Deserialize, Serialize};
 
-use crate::read_model::GeneratedDocs;
+use crate::read_model::{GeneratedDocs, Sections};
 use crate::reviews;
 use crate::store::{kind_key, Record, Records, Section, SectionKind, Store, StoreError};
 
@@ -107,8 +107,44 @@ pub fn load(repo_root: &Path) -> Result<Edits, EditsError> {
     Ok(store(repo_root).load()?)
 }
 
-/// Records the edit of `section` in `docs`, the generated docs with no edit applied, replacing its
-/// former one.
+/// `sections` with `edits` applied: each field an edit gives replaces the generated one; an edit of
+/// a section they don't hold is left out.
+#[must_use]
+pub fn apply(sections: &Sections, edits: &Edits) -> Sections {
+    let mut shown = sections.clone();
+    let edit_of = |kind, id: String| edits.get(&Section::new(kind, id)).map(|e| &e.fields);
+    let replace = |text: &mut String, by: &Option<String>| {
+        if let Some(by) = by {
+            text.clone_from(by);
+        }
+    };
+    for domain in &mut shown.domains {
+        if let Some(fields) = edit_of(SectionKind::Domain, domain.slug.clone()) {
+            replace(&mut domain.name, &fields.name);
+            replace(&mut domain.description, &fields.description);
+        }
+    }
+    for feature in &mut shown.features {
+        if let Some(fields) = edit_of(SectionKind::Feature, feature.slug.clone()) {
+            replace(&mut feature.name, &fields.name);
+            replace(&mut feature.description, &fields.description);
+        }
+    }
+    for use_case in &mut shown.use_cases {
+        let id = format!("{}/{}", use_case.feature_slug, use_case.slug);
+        if let Some(fields) = edit_of(SectionKind::UseCase, id) {
+            replace(&mut use_case.name, &fields.name);
+            replace(&mut use_case.description, &fields.description);
+            if fields.narrative.is_some() {
+                use_case.narrative.clone_from(&fields.narrative);
+            }
+        }
+    }
+    shown
+}
+
+/// Records the edit of `section` in `docs`, replacing its former one; its fingerprint is taken on
+/// the section as generated, the edits `docs` shows left out (SED-25).
 ///
 /// # Errors
 ///
@@ -120,7 +156,7 @@ pub fn record(
     section: &Section,
     fields: Fields,
 ) -> Result<Edit, EditsError> {
-    let fingerprint = reviews::fingerprint(docs, section)
+    let fingerprint = reviews::fingerprint_in(docs.generated(), section)
         .ok_or_else(|| EditsError::UnknownSection(section.clone()))?;
     check(section, &fields)?;
     // Read before the lock: the saves of the process wait on it.

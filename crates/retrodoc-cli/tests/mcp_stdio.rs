@@ -103,3 +103,109 @@ fn a_repo_that_was_never_generated_is_refused_with_the_way_out() {
     assert!(String::from_utf8_lossy(&output.stderr).contains("run `retrodoc generate` first"));
     assert_eq!(output.stdout, Vec::<u8>::new());
 }
+
+/// `retrodoc mcp` on `repo`, initialized, answering one request at a time.
+struct Session {
+    child: std::process::Child,
+    stdin: std::process::ChildStdin,
+    lines: mpsc::Receiver<String>,
+    next_id: u32,
+}
+
+impl Session {
+    fn start(repo: &tempfile::TempDir) -> Self {
+        let mut child = Command::new(env!("CARGO_BIN_EXE_retrodoc"))
+            .args(["mcp", "--path"])
+            .arg(repo.path())
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap();
+        let stdin = child.stdin.take().unwrap();
+        let stdout = child.stdout.take().unwrap();
+        let (sender, lines) = mpsc::channel();
+        std::thread::spawn(move || {
+            for line in BufReader::new(stdout).lines().map_while(Result::ok) {
+                if sender.send(line).is_err() {
+                    break;
+                }
+            }
+        });
+        let mut session = Self {
+            child,
+            stdin,
+            lines,
+            next_id: 1,
+        };
+        session.request(
+            "initialize",
+            r#"{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"0"}}"#,
+        );
+        writeln!(
+            session.stdin,
+            r#"{{"jsonrpc":"2.0","method":"notifications/initialized"}}"#
+        )
+        .unwrap();
+        session
+    }
+
+    fn request(&mut self, method: &str, params: &str) -> String {
+        let id = self.next_id;
+        self.next_id += 1;
+        writeln!(
+            self.stdin,
+            r#"{{"jsonrpc":"2.0","id":{id},"method":"{method}","params":{params}}}"#
+        )
+        .unwrap();
+        self.lines
+            .recv_timeout(Duration::from_secs(20))
+            .expect("the server answered within 20 s")
+    }
+
+    /// The text the tool `name` answers with `arguments`.
+    fn call(&mut self, name: &str, arguments: &str) -> String {
+        let answer = self.request(
+            "tools/call",
+            &format!(r#"{{"name":"{name}","arguments":{arguments}}}"#),
+        );
+        let answer: serde_json::Value = serde_json::from_str(&answer).unwrap();
+        answer["result"]["content"][0]["text"]
+            .as_str()
+            .unwrap_or_else(|| panic!("no text in {answer}"))
+            .to_string()
+    }
+}
+
+impl Drop for Session {
+    fn drop(&mut self) {
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+    }
+}
+
+// spec: MCP-14
+#[test]
+fn the_answers_show_the_edited_sections() {
+    let repo = generated_repo();
+    std::fs::write(
+        repo.path().join(".retrodoc/edits.json"),
+        r#"{"version":1,"edits":[
+            {"kind":"domain","id":"billing","name":"Invoicing","author":null,
+             "edited_at":"2026-11-05T10:00:00Z","fingerprint":"f"},
+            {"kind":"feature","id":"pay-invoice","description":"Settle the invoice by card","author":null,
+             "edited_at":"2026-11-05T10:00:00Z","fingerprint":"f"}]}"#,
+    )
+    .unwrap();
+    let mut session = Session::start(&repo);
+
+    let domains = session.call("list_domains", "{}");
+    assert!(domains.contains("Invoicing"), "{domains}");
+    let feature = session.call("get_feature", r#"{"id":"billing/pay-invoice"}"#);
+    assert!(feature.contains("Settle the invoice by card"), "{feature}");
+    assert!(!feature.contains("Settle what is due"), "{feature}");
+    assert!(
+        feature.contains("Pay an invoice"),
+        "the name is not edited: {feature}"
+    );
+}

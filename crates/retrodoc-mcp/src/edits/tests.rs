@@ -1,6 +1,7 @@
 use super::*;
 use crate::reviews::tests::{docs, docs_citing, feature_pay, file_hash_of, refund, repo};
 use crate::reviews::{self, Status};
+use retrodoc_pipeline::Glossary;
 
 fn name(name: &str) -> Fields {
     Fields {
@@ -407,4 +408,92 @@ fn an_edit_and_a_review_leave_the_file_of_the_other_as_it_was() {
     reviews::record(root, &docs(), &billing(), Status::Wrong, "").unwrap();
     reviews::remove(root, &refund()).unwrap();
     assert_eq!(std::fs::read(edits_path(root)).unwrap(), edited);
+}
+
+// spec: SED-23 (internal: the overlay every reader shares, the pages and the answers test their own output)
+#[test]
+fn an_edit_replaces_the_fields_it_gives_and_keeps_the_others_as_generated() {
+    let dir = repo("A");
+    let root = dir.path();
+    let narrative = Fields {
+        narrative: Some("The manager refunds the order.".into()),
+        ..Fields::default()
+    };
+    record(root, &docs(), &refund(), narrative).unwrap();
+    record(root, &docs(), &billing(), name("Invoicing")).unwrap();
+
+    let shown = docs().with_edits(load(root).unwrap());
+
+    let use_case = shown
+        .use_cases()
+        .iter()
+        .find(|u| u.slug == "refund")
+        .unwrap();
+    assert_eq!(
+        use_case.narrative.as_deref(),
+        Some("The manager refunds the order.")
+    );
+    assert_eq!(use_case.name, "REFUND", "the name left out stays generated");
+    let domain = shown
+        .domains()
+        .iter()
+        .find(|d| d.slug == "billing")
+        .unwrap();
+    assert_eq!(domain.name, "Invoicing");
+    let generated = &shown.generated().use_cases[0];
+    assert_eq!(
+        generated.narrative.as_deref(),
+        Some("The clerk refunds the order."),
+        "the generated text kept beneath"
+    );
+}
+
+// spec: SED-24 (internal: the overlay every reader shares)
+#[test]
+fn an_edit_of_a_section_the_docs_no_longer_hold_is_left_out_and_kept() {
+    let dir = repo("A");
+    let root = dir.path();
+    record(root, &docs(), &feature_pay(), name("Payments")).unwrap();
+    let edits = load(root).unwrap();
+
+    let without_pay =
+        GeneratedDocs::new(Vec::new(), Vec::new(), Vec::new(), Glossary::default(), &[])
+            .with_edits(edits.clone());
+
+    assert_eq!(without_pay.features().len(), 0);
+    assert_eq!(without_pay.edits(), &edits);
+    assert_eq!(load(root).unwrap(), edits);
+}
+
+// spec: SED-25 (internal: the binary writes no edit yet, the web form will)
+#[test]
+fn an_edit_recorded_from_edited_docs_fingerprints_the_section_as_generated() {
+    let dir = repo("A");
+    let root = dir.path();
+    let first = record(root, &docs(), &feature_pay(), name("Payments")).unwrap();
+    let edited = docs().with_edits(load(root).unwrap());
+    assert_eq!(edited.features()[0].name, "Payments");
+
+    let description = Fields {
+        description: Some("Settle what is due.".into()),
+        ..Fields::default()
+    };
+    let second = record(root, &edited, &feature_pay(), description).unwrap();
+
+    assert_eq!(second.fingerprint, first.fingerprint);
+}
+
+// spec: SED-26 (internal: the binary writes no edit yet, the web form will)
+#[test]
+fn an_edit_made_after_a_review_makes_it_outdated() {
+    let dir = repo("A");
+    let root = dir.path();
+    let review = reviews::record(root, &docs(), &feature_pay(), Status::Validated, "").unwrap();
+    assert!(reviews::outdated(&docs(), &review).is_none());
+
+    record(root, &docs(), &feature_pay(), name("Payments")).unwrap();
+    let edited = docs().with_edits(load(root).unwrap());
+
+    let outdated = reviews::outdated(&edited, &review).unwrap();
+    assert!(outdated.rewritten);
 }

@@ -118,3 +118,31 @@ fn a_query_sharing_no_word_is_not_documented_without_a_count() {
     assert!(out.starts_with("not documented"), "{out}");
     assert!(!out.contains("share only"), "{out}");
 }
+
+/// Saves in `repo` the edit of the feature `assign-rider` a human would make.
+fn edit_assign_rider(repo: &tempfile::TempDir) {
+    std::fs::write(
+        repo.path().join(".retrodoc/edits.json"),
+        r#"{"version":1,"edits":[{"kind":"feature","id":"assign-rider","name":"Dispatch a courier",
+            "description":"The nearest courier is sent","author":null,
+            "edited_at":"2026-11-05T10:00:00Z","fingerprint":"f"}]}"#,
+    )
+    .unwrap();
+}
+
+// spec: DSR-6
+#[test]
+fn an_edited_section_is_found_by_its_edit_not_by_the_text_it_replaces() {
+    let repo = generated_repo();
+    edit_assign_rider(&repo);
+
+    assert_eq!(
+        titles(&search(&repo, "dispatch courier", "10")),
+        ["Dispatch a courier"]
+    );
+    assert_eq!(
+        titles(&search(&repo, "closest", "10")),
+        Vec::<&str>::new(),
+        "the generated description is replaced"
+    );
+}

@@ -1,6 +1,6 @@
 ---
 id: MCP
-status: accepted
+status: draft
 adrs: [0044]
 ---
 
@@ -43,6 +43,8 @@ item (`specs/section-review.md`), so the agent knows what was checked or rejecte
   reasons: the section rewritten since the review, the files changed since the review.
 - **MCP-13** (deterministic) The warning of a section marked `wrong` (MCP-8) whose review is outdated must say the
   section changed since it was marked wrong.
+- **MCP-14** (deterministic) `list_domains`, `get_domain`, `get_feature` and `get_use_case` must show the name, the
+  description and the narrative of an edited section as its edit gives them (`specs/section-edit.md`).
 
 ## Scenarios
 
