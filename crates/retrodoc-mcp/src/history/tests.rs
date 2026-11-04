@@ -256,9 +256,9 @@ fn a_snapshot_equal_to_the_last_but_for_commit_date_and_cost_is_not_saved() {
     assert!(third.is_some());
     let saved = load(root);
     assert_eq!(saved.len(), 2);
-    assert_eq!(saved[0].commit.as_deref(), Some("a"));
-    assert_eq!(saved[1].finished_at, "2026-11-06T09:00:00Z");
-    assert_eq!(saved[1].sections[4].confidence, Some(0.3));
+    assert_eq!(saved[0].snapshot.commit.as_deref(), Some("a"));
+    assert_eq!(saved[1].snapshot.finished_at, "2026-11-06T09:00:00Z");
+    assert_eq!(saved[1].snapshot.sections[4].confidence, Some(0.3));
 }
 
 // spec: RHI-1, RHI-11 (internal: two runs in the same second, which a test through the binary cannot time)
@@ -276,8 +276,9 @@ fn a_snapshot_named_like_a_saved_one_gets_a_name_of_its_own() {
         ["20261104T100000Z.json", "20261104T100000Z_2.json"]
     );
     let saved = load(root);
-    assert_eq!(saved.len(), 2);
-    assert_eq!(saved[1].sections[4].confidence, Some(0.3));
+    let names: Vec<&str> = saved.iter().map(|run| run.name.as_str()).collect();
+    assert_eq!(names, ["20261104T100000Z", "20261104T100000Z_2"]);
+    assert_eq!(saved[1].snapshot.sections[4].confidence, Some(0.3));
 }
 
 // spec: RHI-13 (internal: a damaged file, which no command writes)
@@ -295,7 +296,7 @@ fn a_file_that_cannot_be_read_is_left_out_of_the_list() {
     let saved = load(root);
 
     assert_eq!(saved.len(), 1);
-    assert_eq!(saved[0].finished_at, END);
+    assert_eq!(saved[0].snapshot.finished_at, END);
     assert_eq!(load(&root.join("missing")), Vec::new());
 }
 
@@ -334,7 +335,7 @@ fn a_snapshot_of_a_later_format_is_left_out_and_no_draft_is_left_behind() {
     save(root, &snapshot(&sample(), None, END, None)).unwrap();
 
     assert_eq!(load(root).len(), 1);
-    assert_eq!(load(root)[0].version, VERSION);
+    assert_eq!(load(root)[0].snapshot.version, VERSION);
     assert_eq!(
         files(root),
         ["20261103T000000Z.json", "20261104T100000Z.json"]

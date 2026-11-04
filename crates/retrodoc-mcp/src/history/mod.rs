@@ -16,6 +16,9 @@ use crate::audit::{entry_coverage, EntryCoverage};
 use crate::debt::{debt_of, docs_report, DebtKind};
 use crate::read_model::GeneratedDocs;
 
+mod diff;
+pub use diff::{diff, Fall, RunDiff, Score, FALL_THRESHOLD};
+
 /// The format of the snapshots written now; a reader skips a file it cannot read.
 pub const VERSION: u32 = 1;
 
@@ -64,7 +67,7 @@ pub struct DebtCount {
     pub count: usize,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SectionKind {
     Domain,
@@ -312,12 +315,25 @@ fn read(path: &Path) -> Option<Snapshot> {
     (snapshot.version <= VERSION).then_some(snapshot)
 }
 
+/// A saved snapshot and the name of its run.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SavedRun {
+    /// The name of its file without `.json`, unique among the saved runs.
+    pub name: String,
+    pub snapshot: Snapshot,
+}
+
 /// The saved snapshots, oldest first; a file that cannot be read, or of a later format, is left out.
 #[must_use]
-pub fn load(repo_root: &Path) -> Vec<Snapshot> {
+pub fn load(repo_root: &Path) -> Vec<SavedRun> {
     files(&history_dir(repo_root))
         .iter()
-        .filter_map(|path| read(path))
+        .filter_map(|path| {
+            Some(SavedRun {
+                name: path.file_stem()?.to_str()?.to_string(),
+                snapshot: read(path)?,
+            })
+        })
         .collect()
 }
 
