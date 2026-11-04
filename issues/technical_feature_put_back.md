@@ -17,8 +17,9 @@ for the features the rules pass takes for tests.
   features, 32 of 51 on Lobsters and 12 of 22 on linkding are technical; some, such as an inbound e-mail route or a
   mailing list job, sit close to a user feature, so a wrong mark is to be expected.
 * Set-aside lists of the whole benchmark at f95ada6 read by hand (2026-11-04): 83 features over the 6 hidden runs
-  (linkding 10, 11, 11; Lobsters 11, 29, 11), none a reference feature the docs lose; the closest (hat and
-  invitation routes, story card job, import helper) are parts of a feature the same run keeps. Not needed.
+  (linkding 10, 11, 11; Lobsters 11, 29, 11), none a reference feature the docs lose; the closest (linkding HTML
+  snapshot worker, hat and invitation routes, story card job, import helper) are parts of a feature the same run
+  keeps. Not needed on the benchmark repositories.
 * The rules pass already has this pattern: `[rules] keep_features`, `keep_rules` (`specs/rules-set-aside.md`).
 
 # Approach
@@ -55,6 +56,9 @@ card job, import helper). So the issue closes as not needed, no key added; out o
    `specs/technical-features-set-aside.md` (the put-back not needed, measured), a ledger line; verified by
    `cardinal run project-check` and a reread; then `cardinal run close-issue`. (autonomous)
 
+2. [x] Fixes of the `high` review: the claims narrowed to what was read (reference features, hidden runs, the
+   benchmark repositories), the snapshot worker named, the finding dated. (autonomous)
+
 ## Decisions
 - Mode: autonomous
 - Base commit: 46cf50cd63888a751f86385d641bc69f5338ba22
@@ -73,3 +77,18 @@ red: none (measure and docs)
 
 Code review: 1 findings
 - `docs/findings.md` cited the `issues/done/` path before the close: now the open path, which `close-issue` rewrites.
+
+## Deliverable 2: fixes of the `high` review
+- done: `docs/findings.md` and the spec non-goal say "reference feature", "6 hidden runs", "on the benchmark
+  repositories"; the linkding HTML snapshot worker named among the closest; the operator tasks absent from the
+  references said not judged; the finding dated 2026-11-04.
+
+| check | result |
+|---|---|
+| tests, lint, specs (`cardinal run project-check`) | pass |
+| code review (`low`) | no findings |
+
+red: none (docs)
+
+Code review: 5 findings (the `high` review of the issue)
+- 1, 3, 5: claims narrowed (fixed); 2: snapshot worker named (fixed); 4: date added (fixed).

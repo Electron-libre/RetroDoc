@@ -43,6 +43,6 @@ can still see what was set aside.
 
 - Whether the model marks the right features technical is not required here: the benchmark measures it
   (`issues/done/feature_precision_on_applications.md`).
-- No key of `retrodoc.toml` to put a technical feature back: of the 83 features set aside by the whole benchmark
-  at f95ada6, none was a real feature lost (`issues/technical_feature_put_back.md`).
+- No key of `retrodoc.toml` to put a technical feature back: of the 83 features set aside by the 6 hidden runs of
+  the benchmark at f95ada6, none was a reference feature the docs lose (`issues/technical_feature_put_back.md`).
 - The back-office features stay in the docs, listed apart in their domain.
