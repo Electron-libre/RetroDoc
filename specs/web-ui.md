@@ -154,7 +154,7 @@ over browses its domains, features and use cases rather than reading the Markdow
   files and debt pages, each with one line saying what the page holds and its count (domains, actors, concepts, rules,
   cited files of the run, debt items).
 - **WEB-67** (deterministic) The header of every page must group its links under "Read" (the map and actors pages),
-  "Look up" (the glossary, rules and files pages) and "Audit" (the debt page, DBT-13, and the dashboard, AUD-9), each link with a title saying
+  "Look up" (the glossary, rules and files pages) and "Audit" (the debt page, DBT-13, the dashboard, AUD-9, and the history page, HPG-15), each link with a title saying
   what its page holds.
 - **WEB-68** (deterministic) The page of a use case must link to the previous and the next use case of its feature, in
   the order of the run, each labelled with its name; the first has no previous link and the last no next one.

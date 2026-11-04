@@ -50,10 +50,10 @@ sections that got better and the trends of the figures (`issues/web_run_trends.m
 1. [x] Difference of two snapshots: `retrodoc_mcp::history` names each loaded snapshot by its file and computes the
    difference of two (added, removed, degraded over the threshold, set apart or no longer); verified by unit tests on
    built snapshots; makes true HPG-6 to HPG-11, HPG-13 at the level of the model (~400 lines). (autonomous)
-2. [ ] The page `/history`: the snapshots read at the start of `ui`, the list of the runs, the form, the defaults and
+2. [x] The page `/history`: the snapshots read at the start of `ui`, the list of the runs, the form, the defaults and
    the unknown run, the sections linked to their pages, fewer than two runs, the link in the "Audit" group of the
    header (WEB-67 amended), the English and French texts; verified by router tests over a temp repository; makes true
-   HPG-1 to HPG-15 and sets the spec `accepted` (~700 lines).
+   HPG-1 to HPG-15 and sets the spec `accepted` (~700 lines). (autonomous)
 3. [ ] Docs of the whole issue and fixes of the `high` review; verified by the tests of each fix.
 
 ## Decisions
@@ -74,3 +74,13 @@ sections that got better and the trends of the figures (`issues/web_run_trends.m
 - checks: project-check ok; deliverable size 381/1000.
 - Code review: no findings (`low`).
 - not verified: no page shows the difference yet (deliverable 2).
+
+## Deliverable 2: the page `/history`
+- done: `retrodoc-web` `history.rs` and `history.html`: the runs newest first, the form, the defaults and the unknown
+  run, the groups of the difference linked to the pages served; `Site` loads the snapshots once; "History" in the
+  "Audit" group (English and French); WEB-67 amended, spec `accepted`.
+- red: HPG-1 to HPG-8, HPG-10 to HPG-15, WEB-77: before the route, every test failed on `left: 404 right: 200`; the
+  header test on `href="/history" not in` the "Audit" nav.
+- checks: project-check ok; deliverable size 827/1000.
+- Code review: no findings (`low`).
+- not verified: the page in a browser and on a real repository (one snapshot at most exists in the saved runs).

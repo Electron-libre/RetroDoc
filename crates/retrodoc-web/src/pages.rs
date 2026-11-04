@@ -17,6 +17,7 @@ use crate::collected::{collected_page, CollectedPage};
 use crate::debt::{debt_page, DebtFilter, DebtPage};
 use crate::files::FilesPage;
 use crate::glossary::GlossaryPage;
+use crate::history::{history_page, HistoryPage};
 use crate::map::{DomainMapPage, MapPage};
 use crate::rules::{rules_page, RuleFilter, RulesPage};
 use crate::search::{query_value, search_page, Results, SearchPage};
@@ -470,6 +471,33 @@ pub async fn audit(State(site): State<Arc<Site>>) -> Response {
         Ok(None) => no_run_page(&site),
         Err(err) => read_failed(&err),
     }
+}
+
+#[derive(Template)]
+#[template(path = "history.html")]
+struct HistoryTemplate<'a> {
+    t: &'static WebTexts,
+    shell: &'a Shell,
+    page: HistoryPage,
+}
+
+pub async fn history(State(site): State<Arc<Site>>, RawQuery(query): RawQuery) -> Response {
+    let from = query_value(query.as_deref(), "from");
+    let to = query_value(query.as_deref(), "to");
+    render(
+        StatusCode::OK,
+        &HistoryTemplate {
+            t: site.texts(),
+            shell: site.shell(),
+            page: history_page(
+                site.history(),
+                site.docs(),
+                from.as_deref(),
+                to.as_deref(),
+                site.texts(),
+            ),
+        },
+    )
 }
 
 pub async fn search(

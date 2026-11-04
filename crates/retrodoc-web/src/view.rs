@@ -15,6 +15,7 @@ use retrodoc_core::model::{
     UseCase, LOW_CONFIDENCE_THRESHOLD,
 };
 use retrodoc_mcp::freshness::{FileState, Freshness};
+use retrodoc_mcp::history::{self, SavedRun};
 use retrodoc_mcp::source::SourceAccess;
 use retrodoc_mcp::{ExistingDoc, GeneratedDocs};
 use retrodoc_render::{anchor, source_ref_label, DocLinks, ItemRef};
@@ -35,6 +36,7 @@ pub struct Site {
     glossary: Option<GlossaryPage>,
     actors: Option<ActorsPage>,
     maps: Option<Maps>,
+    history: Vec<SavedRun>,
 }
 
 impl Site {
@@ -62,6 +64,12 @@ impl Site {
         let glossary = docs.as_ref().map(glossary_page);
         let actors = docs.as_ref().map(|docs| actors_page(docs, texts));
         let maps = docs.as_ref().map(|docs| maps(docs, texts));
+        // A snapshot is saved by a `generate`, which leaves docs: none without them.
+        let history = docs
+            .as_ref()
+            .and_then(GeneratedDocs::repo_root)
+            .map(history::load)
+            .unwrap_or_default();
         let start = match (&docs, &files, &glossary, &actors) {
             (Some(docs), Some(files), Some(glossary), Some(actors)) => {
                 start_links(texts, docs, files, glossary, actors)
@@ -86,7 +94,14 @@ impl Site {
             glossary,
             actors,
             maps,
+            history,
         }
+    }
+
+    /// The saved runs, oldest first.
+    #[must_use]
+    pub fn history(&self) -> &[SavedRun] {
+        &self.history
     }
 
     /// The maps of the domains, `None` with no run.

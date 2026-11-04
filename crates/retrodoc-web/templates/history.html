@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}{{ t.page_name("/history") }}{% endblock %}
+{% block content %}
+<h1>{{ t.page_name("/history") }}</h1>
+<p class="muted">{{ t.history_page.intro|safe }}</p>
+{% if !page.unknown.is_empty() %}
+<p id="history-unknown" class="muted">{{ t.history_page.unknown }} {% for name in page.unknown %}<code>{{ name }}</code>{% if !loop.last %}, {% endif %}{% endfor %}</p>
+{% endif %}
+{% if let Some(compared) = page.compared %}
+<form class="compare" action="/history" method="get">
+  <span>{{ t.history_page.compare }}</span>
+  <label>{{ t.history_page.from }}
+    <select name="from">
+      {% for run in page.runs %}
+      <option value="{{ run.name }}"{% if run.from %} selected{% endif %}>{{ run.finished }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>{{ t.history_page.to }}
+    <select name="to">
+      {% for run in page.runs %}
+      <option value="{{ run.name }}"{% if run.to %} selected{% endif %}>{{ run.finished }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <button type="submit">{{ t.history_page.show }}</button>
+</form>
+{% if compared.groups.is_empty() %}
+<p id="history-none">{{ t.history_page.no_difference }}</p>
+{% endif %}
+{% for group in compared.groups %}
+<section id="{{ group.id }}">
+  <h2>{{ group.heading }} <span class="muted">{{ group.sections.len() }}</span></h2>
+  <ul>
+    {% for section in group.sections %}
+    <li><span class="muted">{{ section.kind }}</span>
+      {% if let Some(href) = section.href %}<a href="{{ href }}">{{ section.name }}</a>{% else %}{{ section.name }} <span class="muted">({{ t.not_in_the_run }})</span>{% endif %}
+      {% if let Some(detail) = section.detail %}<span class="muted">{{ detail }}</span>{% endif %}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endfor %}
+{% else %}
+<p id="history-fewer" class="muted">{{ t.history_page.fewer|safe }}</p>
+{% endif %}
+<section id="history-runs">
+  <h2>{{ t.history_page.runs }}</h2>
+  <ul>
+    {% for run in page.runs %}
+    <li>{{ run.finished }} · {% if let Some(commit) = run.commit %}<code>{{ commit }}</code>{% else %}<span class="muted">{{ t.history_page.no_commit }}</span>{% endif %}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

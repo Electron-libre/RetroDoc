@@ -159,7 +159,7 @@ mod tests {
         sections.iter().map(|s| s.id.as_str()).collect()
     }
 
-    // spec: HPG-6, HPG-7 (internal: the difference of the model; the page shows it in deliverable 2)
+    // spec: HPG-6, HPG-7 (internal: each case of the difference on its own, which the page gathers)
     #[test]
     fn sections_are_added_and_removed_by_kind_and_id_in_the_order_of_their_run() {
         let from = run(vec![
@@ -185,7 +185,7 @@ mod tests {
         assert_eq!(diff.removed[0].kind, SectionKind::Feature);
     }
 
-    // spec: HPG-8, HPG-9 (internal: the difference of the model; the page shows it in deliverable 2)
+    // spec: HPG-8, HPG-9 (internal: each case of the difference on its own, which the page gathers)
     #[test]
     fn a_section_is_degraded_when_a_score_falls_by_the_threshold_and_both_runs_have_it() {
         let from = run(vec![
@@ -225,7 +225,7 @@ mod tests {
         assert!((fall.by() - 0.3).abs() < 1e-6);
     }
 
-    // spec: HPG-10, HPG-11 (internal: the difference of the model; the page shows it in deliverable 2)
+    // spec: HPG-10, HPG-11 (internal: each case of the difference on its own, which the page gathers)
     #[test]
     fn a_use_case_set_apart_in_one_run_only_is_newly_or_no_longer_set_apart() {
         let apart = |id: &str, reasons: &[&str]| SectionScores {
@@ -255,7 +255,7 @@ mod tests {
         assert_eq!(ids(&diff.no_longer_set_apart), ["pay/freed"]);
     }
 
-    // spec: HPG-13 (internal: the difference of the model; the page shows it in deliverable 2)
+    // spec: HPG-13 (internal: each case of the difference on its own, which the page gathers)
     #[test]
     fn a_run_compared_with_itself_or_a_better_one_makes_no_difference() {
         let from = run(vec![use_case("pay/refund", 0.5, Some(0.5))]);

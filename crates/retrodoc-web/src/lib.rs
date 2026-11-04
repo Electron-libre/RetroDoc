@@ -15,6 +15,7 @@ pub mod collected;
 pub mod debt;
 pub mod files;
 pub mod glossary;
+pub mod history;
 pub mod map;
 mod pages;
 pub mod rules;
@@ -86,6 +87,7 @@ pub fn router(
         .route("/rules", get(pages::rules))
         .route("/debt", get(pages::debt))
         .route("/audit", get(pages::audit))
+        .route("/history", get(pages::history))
         .route("/map", get(pages::map))
         .route("/map/{domain}", get(pages::domain_map))
         .route("/actors", get(pages::actors))

@@ -59,6 +59,6 @@ whether the docs get better, after the artifacts of the last run were rewritten.
 - No pruning: every snapshot is kept, a few kB each (chosen with the user on 2026-11-04).
 - No stale count: at the end of a `generate` nothing has changed since it.
 - No rule: the business rules are counted in the debt (DBT-15, DBT-16) only, not listed as sections.
-- No page reads the snapshots yet: the trends (`issues/web_run_trends.md`) and the difference
-  (`issues/run_diff.md`) do.
+- What the pages show of the snapshots: the difference of two runs is the history page
+  (`specs/history-page.md`); the trends are `issues/web_run_trends.md`.
 - No snapshot from the other commands (`roles`, `surface`…): they write no section.

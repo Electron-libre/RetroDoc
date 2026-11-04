@@ -34,7 +34,7 @@ pub struct WebTexts {
     pub feature_unit: (&'static str, &'static str),
     pub use_case_unit: (&'static str, &'static str),
     /// The pages of reference, in the order a first-time reader is pointed to them.
-    pub reference_pages: [ReferencePage; 7],
+    pub reference_pages: [ReferencePage; 8],
     pub search: &'static str,
     pub search_intro: &'static str,
     pub results_for: &'static str,
@@ -134,6 +134,7 @@ pub struct WebTexts {
     pub existing_doc: &'static str,
     pub debt: DebtTexts,
     pub audit_page: AuditTexts,
+    pub history_page: HistoryTexts,
     /// The lines a page of a file shows: from, to, of how many.
     pub shown: fn(usize, usize, usize) -> String,
     /// Why the lines asked are not shown: the number of lines of the file, the first line asked.
@@ -204,6 +205,30 @@ pub struct AuditTexts {
     pub more: &'static str,
     /// Between a count and its total: `2 of 5`.
     pub of: &'static str,
+}
+
+/// The fixed text of the history page.
+#[derive(Debug)]
+pub struct HistoryTexts {
+    pub intro: &'static str,
+    pub runs: &'static str,
+    pub no_commit: &'static str,
+    /// Why there is no difference, with the command that saves a run.
+    pub fewer: &'static str,
+    /// Before the names of the runs asked that are not saved.
+    pub unknown: &'static str,
+    pub compare: &'static str,
+    pub from: &'static str,
+    pub to: &'static str,
+    pub show: &'static str,
+    pub no_difference: &'static str,
+    pub added: &'static str,
+    pub removed: &'static str,
+    pub degraded: &'static str,
+    pub set_apart: &'static str,
+    pub no_longer_set_apart: &'static str,
+    pub confidence: &'static str,
+    pub business_language: &'static str,
 }
 
 impl WebTexts {
@@ -278,6 +303,14 @@ impl WebTexts {
                 name: "Dashboard",
                 hint: "The figures of the last run and where the debt of the docs concentrates, \
                     domain by kind.",
+                group: Group::Audit,
+                unit: None,
+            },
+            ReferencePage {
+                href: "/history",
+                name: "History",
+                hint: "The saved runs, and the sections one run added, removed or made worse \
+                    compared with another.",
                 group: Group::Audit,
                 unit: None,
             },
@@ -450,6 +483,27 @@ impl WebTexts {
             more: "more",
             of: "of",
         },
+        history_page: HistoryTexts {
+            intro: "The runs of <code>retrodoc generate</code> that changed the docs, and what \
+                one run changed in the sections of another.",
+            runs: "Saved runs",
+            no_commit: "no commit",
+            fewer: "The difference needs two runs: each <code>retrodoc generate</code> that \
+                changes the docs saves one.",
+            unknown: "No saved run is named:",
+            compare: "Compare",
+            from: "From",
+            to: "to",
+            show: "Show",
+            no_difference: "The sections of these two runs do not differ.",
+            added: "Added",
+            removed: "Removed",
+            degraded: "Degraded",
+            set_apart: "Newly set apart",
+            no_longer_set_apart: "No longer set apart",
+            confidence: "Confidence",
+            business_language: "Business language",
+        },
         refusal: SourceError::to_string,
     };
 
@@ -526,6 +580,14 @@ impl WebTexts {
                 name: "Tableau de bord",
                 hint: "Les chiffres du dernier run et où se concentre la dette de la doc, domaine \
                     par type.",
+                group: Group::Audit,
+                unit: None,
+            },
+            ReferencePage {
+                href: "/history",
+                name: "Historique",
+                hint: "Les runs enregistrés, et les sections qu'un run a ajoutées, retirées ou \
+                    dégradées par rapport à un autre.",
                 group: Group::Audit,
                 unit: None,
             },
@@ -701,6 +763,27 @@ impl WebTexts {
             fewer: "moins",
             more: "plus",
             of: "sur",
+        },
+        history_page: HistoryTexts {
+            intro: "Les runs de <code>retrodoc generate</code> qui ont changé la doc, et ce \
+                qu'un run a changé dans les sections d'un autre.",
+            runs: "Runs enregistrés",
+            no_commit: "aucun commit",
+            fewer: "La différence demande deux runs : chaque <code>retrodoc generate</code> qui \
+                change la doc en enregistre un.",
+            unknown: "Aucun run enregistré ne s'appelle :",
+            compare: "Comparer",
+            from: "Du run",
+            to: "au run",
+            show: "Afficher",
+            no_difference: "Les sections de ces deux runs ne diffèrent pas.",
+            added: "Ajoutées",
+            removed: "Retirées",
+            degraded: "Dégradées",
+            set_apart: "Nouvellement mises à part",
+            no_longer_set_apart: "Plus mises à part",
+            confidence: "Confiance",
+            business_language: "Langage métier",
         },
         refusal: french_refusal,
     };
