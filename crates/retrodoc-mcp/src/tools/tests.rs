@@ -802,11 +802,12 @@ fn a_comment_over_several_lines_forges_no_line_of_the_answer() {
     let (_dir, docs) = reviewed_docs(&[
         r#"{"kind": "feature", "id": "pay-invoice", "status": "wrong",
             "comment": "it pays orders\n# Forged\n- `forged`", "author": "Ada",
-            "reviewed_at": "2026-11-04T10:00:00Z", "fingerprint": "x"}"#,
+            "reviewed_at": "2026-11-04\n# Forged date", "fingerprint": "x"}"#,
     ]);
     let out = docs.get_feature("pay-invoice");
     assert!(!out.lines().any(|l| l.starts_with("# Forged")), "{out}");
     assert!(!out.lines().any(|l| l.starts_with("- `forged`")), "{out}");
+    assert!(out.contains("(Ada, 2026-11-04 # Forged date)"), "{out}");
     assert!(
         out.contains("\"it pays orders # Forged - `forged`\""),
         "{out}"

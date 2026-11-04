@@ -66,7 +66,6 @@ item (`specs/section-review.md`), so the agent knows what was checked or rejecte
 - No review in `list_domains` nor in the items listed inside an answer (the features of a domain, the use cases of
   a feature): the agent sees the review when it reads the item.
 - No review of a business rule (REV non-goal), and no outdated review (`issues/review_outdated.md`).
-
 - No fuzzy matching of ids (typos, case): `search_docs` finds what an id misses.
 - No resolution of two features sharing a slug across domains: the pipeline never produces them (slugs are made
   unique against every feature already produced), and a corpus built by hand with them reaches the first one only.

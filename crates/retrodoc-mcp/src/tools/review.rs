@@ -18,7 +18,7 @@ pub(super) struct ReviewNote {
 }
 
 impl Docs {
-    /// The review of `section`; none when the docs carry no repository.
+    /// The review of `section`; without a repository, the docs read as holding no review.
     pub(super) fn review_note(&self, section: &Section) -> ReviewNote {
         let loaded = self
             .generated
@@ -60,10 +60,15 @@ fn review_line(review: &Review) -> String {
     }
     match &review.author {
         Some(author) => {
-            let _ = write!(line, " ({}, {})", one_line(author), review.reviewed_at);
+            let _ = write!(
+                line,
+                " ({}, {})",
+                one_line(author),
+                one_line(&review.reviewed_at)
+            );
         }
         None => {
-            let _ = write!(line, " ({})", review.reviewed_at);
+            let _ = write!(line, " ({})", one_line(&review.reviewed_at));
         }
     }
     line

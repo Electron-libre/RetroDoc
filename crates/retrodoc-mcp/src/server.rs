@@ -71,7 +71,7 @@ impl DocsServer {
     }
 }
 
-/// Runs file and git work off the async threads, so that a slow history walk
+/// Runs file and git work (the cited code, its history, the stale files, `reviews.json`) off the async threads, so that a slow history walk
 /// doesn't keep the server from answering other requests.
 async fn blocking(work: impl FnOnce() -> String + Send + 'static) -> String {
     tokio::task::spawn_blocking(work)
@@ -91,7 +91,8 @@ impl DocsServer {
 
     #[tool(description = "Show one domain (e.g. `billing`) and its features and business rules.")]
     async fn get_domain(&self, Parameters(IdParams { id }): Parameters<IdParams>) -> String {
-        self.docs.get_domain(&id)
+        let docs = Arc::clone(&self.docs);
+        blocking(move || docs.get_domain(&id)).await
     }
 
     #[tool(
@@ -100,7 +101,8 @@ impl DocsServer {
                        their evidence)."
     )]
     async fn get_feature(&self, Parameters(IdParams { id }): Parameters<IdParams>) -> String {
-        self.docs.get_feature(&id)
+        let docs = Arc::clone(&self.docs);
+        blocking(move || docs.get_feature(&id)).await
     }
 
     #[tool(
@@ -110,7 +112,8 @@ impl DocsServer {
                        that apply to it."
     )]
     async fn get_use_case(&self, Parameters(IdParams { id }): Parameters<IdParams>) -> String {
-        self.docs.get_use_case(&id)
+        let docs = Arc::clone(&self.docs);
+        blocking(move || docs.get_use_case(&id)).await
     }
 
     #[tool(
@@ -164,7 +167,9 @@ impl DocsServer {
     instructions = "Functional documentation of an application, generated from its code and \
                     history. Browse with list_domains, get_domain, get_feature and get_use_case, \
                     or use search_docs. Each answer carries a confidence score and the files it \
-                    cites, and read_source and git_log show that code and its history; \"Not documented\" means the docs say nothing about it."
+                    cites; a domain, a feature and a use case also give their human review (validated, wrong, \
+                    to review), and open with a warning when a human marked them wrong: do not rely \
+                    on those. read_source and git_log show the code and its history; \"Not documented\" means the docs say nothing about it."
 )]
 impl ServerHandler for DocsServer {}
 
