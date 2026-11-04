@@ -194,6 +194,29 @@ pub fn plan_run(
     })
 }
 
+/// The contexts of the saved map, split as `fingerprints.json` records the end of their chain: a
+/// context whose files were edited since is still done until the next `plan_run` judges it.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct RecordedProgress {
+    /// Slugs, in the order of the map.
+    pub done: Vec<String>,
+    pub pending: Vec<String>,
+}
+
+/// The progress of the contexts of `contexts.yaml`, read without hashing a file. `None` when there
+/// is no map, or an empty one.
+#[must_use]
+pub fn recorded_progress(repo_root: &Path) -> Option<RecordedProgress> {
+    let map = ContextMap::load(repo_root).filter(|m| !m.is_empty())?;
+    let prints = Fingerprints::load(repo_root);
+    let (done, pending) = map
+        .contexts
+        .into_iter()
+        .map(|c| c.slug)
+        .partition(|slug| prints.contexts.contains_key(slug));
+    Some(RecordedProgress { done, pending })
+}
+
 /// Records that the whole chain of `slug` finished on the files as they are now, and forgets the
 /// contexts the map no longer has.
 ///

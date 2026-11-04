@@ -99,6 +99,12 @@ impl GeneratedDocs {
         self
     }
 
+    /// Where the docs were loaded from, `None` when they were not loaded from a repository.
+    #[must_use]
+    pub fn repo_root(&self) -> Option<&Path> {
+        self.repo_root.as_deref()
+    }
+
     /// The bounded access to the files the docs cite, `None` when the docs
     /// were not loaded from a repository.
     #[must_use]

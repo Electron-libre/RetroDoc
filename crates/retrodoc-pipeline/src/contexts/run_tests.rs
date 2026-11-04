@@ -257,6 +257,23 @@ fn a_context_the_map_no_longer_has_is_forgotten() {
     assert_eq!(kept, ["contracts"]);
 }
 
+// spec: AUD-5 (internal: the done contexts are recorded by a `generate`, which needs an LLM through the binary)
+#[test]
+fn the_recorded_progress_splits_the_contexts_of_the_map_in_its_order() {
+    let repo = repo();
+    assert_eq!(recorded_progress(repo.dir.path()), None);
+    repo.map.save(repo.dir.path()).unwrap();
+    let mut prints = Fingerprints::load(repo.dir.path());
+    prints.contexts.insert("invoices".into(), "h".into());
+    prints.contexts.insert("gone".into(), "h".into());
+    prints.save(repo.dir.path()).unwrap();
+
+    let progress = recorded_progress(repo.dir.path()).unwrap();
+
+    assert_eq!(progress.done, ["invoices"]);
+    assert_eq!(progress.pending, ["contracts", "users"]);
+}
+
 #[test]
 fn the_files_read_are_the_business_ones_and_what_the_entry_points_reference() {
     let repo = repo();

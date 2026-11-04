@@ -9,6 +9,7 @@
 //! The lexical search ([`SearchIndex`]) is also exposed alone by `retrodoc
 //! search`, to judge retrieval quality.
 
+pub mod audit;
 pub mod corpus;
 pub mod debt;
 pub mod freshness;

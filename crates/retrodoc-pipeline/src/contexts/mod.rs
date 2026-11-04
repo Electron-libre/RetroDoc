@@ -46,7 +46,7 @@ mod spread;
 pub use domains::{domain_vocabulary, domains_from_contexts};
 use groups::{family_groups, group_of, group_words, mechanical_groups, name_words, Groups};
 use route_owner::EntryOwners;
-pub use run::{mark_done, plan_run, RunSlice};
+pub use run::{mark_done, plan_run, recorded_progress, RecordedProgress, RunSlice};
 use spread::{most_written, spread_catch_alls, spread_layer_contexts, Written};
 
 /// Groups shown to the LLM, the largest first; the others go to the support.
