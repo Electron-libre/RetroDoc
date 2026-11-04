@@ -40,9 +40,7 @@ impl Place {
         match self {
             Self::Domain(slug) => Section::new(SectionKind::Domain, slug),
             Self::Feature { slug, .. } => Section::new(SectionKind::Feature, slug),
-            Self::UseCase { feature, slug, .. } => {
-                Section::new(SectionKind::UseCase, format!("{feature}/{slug}"))
-            }
+            Self::UseCase { feature, slug, .. } => Section::use_case(feature, slug),
         }
     }
 

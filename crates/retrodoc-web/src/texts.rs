@@ -204,10 +204,10 @@ pub struct AuditTexts {
     pub pending: &'static str,
     pub no_contexts: &'static str,
     pub reviews: &'static str,
-    /// What is reviewed: `domains`, `features`, `use cases`, then `reviewed`.
-    pub reviewed: [&'static str; 4],
-    /// The statuses of a review: validated, wrong, to review.
-    pub statuses: [&'static str; 3],
+    /// The domains, the features, the use cases reviewed.
+    pub reviewed: [&'static str; 3],
+    /// The file of the reviews could not be read: the share reviewed is missing.
+    pub reviews_unreadable: &'static str,
     pub heatmap: &'static str,
     pub heatmap_intro: &'static str,
     pub fewer: &'static str,
@@ -529,8 +529,9 @@ impl WebTexts {
             contexts_done: "contexts done",
             pending: "Pending:",
             reviews: "Human review",
-            reviewed: ["domains", "features", "use cases", "reviewed"],
-            statuses: ["validated", "wrong", "to review"],
+            reviewed: ["Domains reviewed", "Features reviewed", "Use cases reviewed"],
+            reviews_unreadable: "Missing: the reviews could not be read. Fix or remove \
+                <code>.retrodoc/reviews.json</code>; the heatmap counts no review meanwhile.",
             no_contexts: "Missing: no map of the bounded contexts. A \
                 <code>retrodoc generate</code> with <code>domains_from = \"contexts\"</code> \
                 maps them.",
@@ -845,8 +846,9 @@ impl WebTexts {
             contexts_done: "contextes terminés",
             pending: "En attente :",
             reviews: "Revue humaine",
-            reviewed: ["domaines", "fonctionnalités", "cas d'usage", "revus"],
-            statuses: ["validés", "faux", "à revoir"],
+            reviewed: ["Domaines revus", "Fonctionnalités revues", "Cas d'usage revus"],
+            reviews_unreadable: "Manquant : les revues n'ont pas pu être lues. Corrigez ou supprimez \
+                <code>.retrodoc/reviews.json</code> ; d'ici là, la carte de chaleur ne compte aucune revue.",
             no_contexts: "Manquant : aucune carte des contextes bornés. Un \
                 <code>retrodoc generate</code> avec <code>domains_from = \"contexts\"</code> \
                 les cartographie.",

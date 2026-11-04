@@ -35,6 +35,12 @@ impl Section {
             id: id.into(),
         }
     }
+
+    /// The use case `slug` of the feature `feature`: its id is `<feature>/<use case>`.
+    #[must_use]
+    pub fn use_case(feature: &str, slug: &str) -> Self {
+        Self::new(SectionKind::UseCase, format!("{feature}/{slug}"))
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

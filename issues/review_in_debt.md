@@ -56,6 +56,8 @@ reviews (`issues/review_outdated.md`), the lists of `coverage-report.md`.
    makes true AUD-16, AUD-17 (~350 lines). (autonomous)
 4. [x] `retrodoc report` lists the sections marked wrong; verified by a test of the binary; makes true DBT-35,
    DBT-36 (~200 lines). (autonomous)
+5. [x] Docs of the whole issue and fixes of its `high` review: README, one helper for the sections of the run a
+   review names, the French texts of the audit page; verified by the tests of deliverables 1 to 4. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -136,5 +138,29 @@ wrong" when one is; an unreadable `reviews.json` is warned of. The three specs a
 red: DBT-35, DBT-36: no heading "Sections marked wrong" in the report; no warning for an unreadable `reviews.json`.
 
 Code review: no findings
+not verified: none
+decisions needed: none
+
+## Deliverable 5
+done: README; the fixes of the `high` review of the issue (8 findings): `retrodoc report` lists the sections marked
+wrong from `debt::reviewed`, so it agrees with the debt view on the domains of the run; one constructor of the id of
+a use case (`reviews::Section::use_case`); the validated sections fingerprinted once per request; the audit counts by
+`HashSet`; the label of a reviewed kind chosen by its kind; the audit texts reworded so the French agrees (`Fonctionnalités
+revues : 1 sur 4 · Validé : 1, …`) and a text of the audit page of its own for an unreadable `reviews.json`.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass |
+| docs | `README.md`, `docs/crates/render-mcp-cli.md` |
+| code review | 2 findings |
+
+red: none (fixes under the tests of deliverables 1 to 4; the AUD-16 and AUD-17 tests updated to the new wording).
+
+Code review: 2 findings
+- the docs loaded with no warning when absent: not changed, `GeneratedDocs::load` is `None` only without features
+  or use cases, which `retrodoc report` refuses before; a comment says so.
+- `features` and `use_cases` now dead in `report::run`: not so, `build_report` and `add_doc_debt` still read them.
 not verified: none
 decisions needed: none

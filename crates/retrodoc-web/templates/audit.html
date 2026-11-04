@@ -48,10 +48,10 @@
     <h2>{{ t.audit_page.reviews }}</h2>
     {% if let Some(reviewed) = page.reviewed %}
     {% for kind in reviewed %}
-    <p><strong>{{ kind.share.percent }}%</strong> <span class="muted">{{ kind.share.count }} {{ t.audit_page.of }} {{ kind.share.total }} {{ kind.what }}{{ t.colon }} {{ kind.statuses }}</span></p>
+    <p><strong>{{ kind.share.percent }}%</strong> <span class="muted">{{ kind.what }}{{ t.colon }} {{ kind.share.count }} {{ t.audit_page.of }} {{ kind.share.total }} · {{ kind.statuses }}</span></p>
     {% endfor %}
     {% else %}
-    <p class="muted">{{ t.debt.reviews_unreadable }}</p>
+    <p class="muted">{{ t.audit_page.reviews_unreadable|safe }}</p>
     {% endif %}
   </section>
 </div>

@@ -1,7 +1,7 @@
 use std::path::Path;
 
-use retrodoc_core::model::{Feature, UseCase};
-use retrodoc_mcp::reviews::{self, Review, SectionKind, Status};
+use retrodoc_mcp::debt::{self, DebtKind, Subject};
+use retrodoc_mcp::reviews;
 use retrodoc_pipeline::reconcile::ItemKind;
 use retrodoc_pipeline::{DomainMap, MarkedWrong};
 
@@ -49,12 +49,10 @@ pub fn run(path: &Path) -> anyhow::Result<()> {
     );
     match reviews::load(&repo_root) {
         Ok(reviews) => {
-            report.marked_wrong = reviews
-                .reviews()
-                .iter()
-                .filter(|r| r.status == Status::Wrong)
-                .filter_map(|r| marked_wrong(r, &features, &use_cases))
-                .collect();
+            // `None` only without features or use cases, which the report refused above.
+            report.marked_wrong = retrodoc_mcp::GeneratedDocs::load(&repo_root, &[])
+                .map(|docs| marked_wrong(&docs, &reviews))
+                .unwrap_or_default();
         }
         Err(err) => tracing::warn!("the report lists no section marked wrong: {err}"),
     }
@@ -62,36 +60,25 @@ pub fn run(path: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// The section `review` names, with its comment; `None` when the run no longer holds it. A domain
-/// is in the run while a feature belongs to it, as the docs show it.
+/// The sections of the run marked wrong, as the debt view lists them (DBT-30).
 fn marked_wrong(
-    review: &Review,
-    features: &[Feature],
-    use_cases: &[UseCase],
-) -> Option<MarkedWrong> {
-    let id = review.section.id.as_str();
-    let feature = |slug: &str| features.iter().find(|f| f.slug == slug);
-    let (kind, label) = match review.section.kind {
-        SectionKind::Domain => {
-            features.iter().find(|f| f.domain_slug == id)?;
-            (ItemKind::Domain, id.to_string())
-        }
-        SectionKind::Feature => {
-            let feature = feature(id)?;
-            (ItemKind::Feature, format!("{}/{id}", feature.domain_slug))
-        }
-        SectionKind::UseCase => {
-            let (slug, use_case) = id.split_once('/')?;
-            let feature = feature(slug)?;
-            use_cases
-                .iter()
-                .find(|u| u.feature_slug == slug && u.slug == use_case)?;
-            (ItemKind::UseCase, format!("{}/{id}", feature.domain_slug))
-        }
-    };
-    Some(MarkedWrong {
-        kind,
-        label,
-        comment: review.comment.clone(),
-    })
+    docs: &retrodoc_mcp::GeneratedDocs,
+    reviews: &reviews::Reviews,
+) -> Vec<MarkedWrong> {
+    debt::reviewed(docs, reviews)
+        .filter(|item| item.kind == DebtKind::MarkedWrong)
+        .filter_map(|item| {
+            let kind = match &item.subject {
+                Subject::Domain(_) => ItemKind::Domain,
+                Subject::Section(section) if section.use_case.is_some() => ItemKind::UseCase,
+                Subject::Section(_) => ItemKind::Feature,
+                _ => return None,
+            };
+            Some(MarkedWrong {
+                kind,
+                label: item.label(),
+                comment: item.rationale.unwrap_or_default(),
+            })
+        })
+        .collect()
 }

@@ -11,7 +11,7 @@ use retrodoc_mcp::audit::{
 };
 use retrodoc_mcp::debt::DebtKind;
 use retrodoc_mcp::history::SavedRun;
-use retrodoc_mcp::reviews::Reviews;
+use retrodoc_mcp::reviews::{Reviews, SectionKind, Status};
 use retrodoc_mcp::GeneratedDocs;
 
 use crate::texts::WebTexts;
@@ -82,22 +82,32 @@ pub struct PassRow {
 /// The sections of one kind reviewed, as text.
 pub struct ReviewedView {
     pub share: ShareView,
-    /// `domains reviewed`.
-    pub what: String,
-    /// `0 validated, 1 wrong, 0 to review`.
+    /// `Domains reviewed`.
+    pub what: &'static str,
+    /// `Validated: 0, Wrong: 1, To review: 0`.
     pub statuses: String,
 }
 
 impl ReviewedView {
-    fn of(reviewed: &Reviewed, at: usize, texts: &WebTexts) -> Self {
-        let words = texts.audit_page.reviewed;
-        let [validated, wrong, to_review] = texts.audit_page.statuses;
+    fn of(reviewed: &Reviewed, texts: &WebTexts) -> Self {
+        let [domains, features, use_cases] = texts.audit_page.reviewed;
+        let status = |status| texts.review.status(status);
         Self {
             share: reviewed.share.into(),
-            what: format!("{} {}", words[at], words[3]),
+            what: match reviewed.kind {
+                SectionKind::Domain => domains,
+                SectionKind::Feature => features,
+                SectionKind::UseCase => use_cases,
+            },
             statuses: format!(
-                "{} {validated}, {} {wrong}, {} {to_review}",
-                reviewed.validated, reviewed.wrong, reviewed.to_review
+                "{}{colon} {}, {}{colon} {}, {}{colon} {}",
+                status(Status::Validated),
+                reviewed.validated,
+                status(Status::Wrong),
+                reviewed.wrong,
+                status(Status::ToReview),
+                reviewed.to_review,
+                colon = texts.colon,
             ),
         }
     }
@@ -172,8 +182,7 @@ pub fn audit_page(docs: &GeneratedDocs, runs: &[SavedRun], texts: &WebTexts) -> 
             audit
                 .reviewed
                 .iter()
-                .enumerate()
-                .map(|(at, reviewed)| ReviewedView::of(reviewed, at, texts))
+                .map(|reviewed| ReviewedView::of(reviewed, texts))
                 .collect()
         }),
         levels: (1..=MAX_LEVEL).collect(),

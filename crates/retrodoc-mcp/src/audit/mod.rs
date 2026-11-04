@@ -3,7 +3,7 @@
 //! cost of the last `generate`, the progress of the bounded contexts, the sections a human
 //! reviewed, and the debt items counted by domain and kind. Read at each call; a figure the run lacks is `None`.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 
 use retrodoc_pipeline::usage_log::load_history;
 use retrodoc_pipeline::{recorded_progress, BehaviourCoverage};
@@ -14,7 +14,7 @@ pub use retrodoc_pipeline::{format_duration, RecordedProgress};
 
 use crate::debt::{debt_of, docs_report, DebtKind, DebtList};
 use crate::read_model::GeneratedDocs;
-use crate::reviews::{Reviews, SectionKind, Status};
+use crate::reviews::{Reviews, Section, SectionKind, Status};
 
 /// The highest level of a heatmap cell.
 pub const MAX_LEVEL: u8 = 4;
@@ -177,15 +177,22 @@ pub(crate) fn entry_coverage(
 /// through its feature as the stale share counts it.
 fn reviewed(docs: &GeneratedDocs, reviews: &Reviews) -> [Reviewed; 3] {
     let features = docs.features();
-    let ids = |kind: SectionKind| -> Vec<String> {
+    let sections = |kind: SectionKind| -> HashSet<Section> {
         match kind {
-            SectionKind::Domain => docs.domains().iter().map(|d| d.slug.clone()).collect(),
-            SectionKind::Feature => features.iter().map(|f| f.slug.clone()).collect(),
+            SectionKind::Domain => docs
+                .domains()
+                .iter()
+                .map(|d| Section::new(kind, &d.slug))
+                .collect(),
+            SectionKind::Feature => features
+                .iter()
+                .map(|f| Section::new(kind, &f.slug))
+                .collect(),
             SectionKind::UseCase => features
                 .iter()
                 .flat_map(|f| {
                     docs.use_cases_of(&f.slug)
-                        .map(move |u| format!("{}/{}", f.slug, u.slug))
+                        .map(move |u| Section::use_case(&f.slug, &u.slug))
                 })
                 .collect(),
         }
@@ -196,11 +203,11 @@ fn reviewed(docs: &GeneratedDocs, reviews: &Reviews) -> [Reviewed; 3] {
         SectionKind::UseCase,
     ]
     .map(|kind| {
-        let ids = ids(kind);
+        let sections = sections(kind);
         let statuses: Vec<Status> = reviews
             .reviews()
             .iter()
-            .filter(|r| r.section.kind == kind && ids.contains(&r.section.id))
+            .filter(|r| sections.contains(&r.section))
             .map(|r| r.status)
             .collect();
         let count = |status: Status| statuses.iter().filter(|s| **s == status).count();
@@ -208,7 +215,7 @@ fn reviewed(docs: &GeneratedDocs, reviews: &Reviews) -> [Reviewed; 3] {
             kind,
             share: Share {
                 count: statuses.len(),
-                total: ids.len(),
+                total: sections.len(),
             },
             validated: count(Status::Validated),
             wrong: count(Status::Wrong),

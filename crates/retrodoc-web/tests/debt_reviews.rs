@@ -405,9 +405,9 @@ async fn the_audit_page_shows_the_share_of_each_kind_of_section_reviewed_by_stat
     let reviewed = reviewed(&get(root, "/audit").await);
 
     for line in [
-        "<strong>100%</strong> <span class=\"muted\">1 of 1 domains reviewed: 0 validated, 1 wrong, 0 to review</span>",
-        "<strong>0%</strong> <span class=\"muted\">0 of 1 features reviewed: 0 validated, 0 wrong, 0 to review</span>",
-        "<strong>50%</strong> <span class=\"muted\">1 of 2 use cases reviewed: 1 validated, 0 wrong, 0 to review</span>",
+        "<strong>100%</strong> <span class=\"muted\">Domains reviewed: 1 of 1 · Validated: 0, Wrong: 1, To review: 0</span>",
+        "<strong>0%</strong> <span class=\"muted\">Features reviewed: 0 of 1 · Validated: 0, Wrong: 0, To review: 0</span>",
+        "<strong>50%</strong> <span class=\"muted\">Use cases reviewed: 1 of 2 · Validated: 1, Wrong: 0, To review: 0</span>",
     ] {
         assert!(reviewed.contains(line), "{line} not in {reviewed}");
     }
@@ -430,10 +430,10 @@ async fn an_unreadable_file_of_reviews_is_said_on_the_audit_page() {
 
     let reviewed = reviewed(&page);
     assert!(
-        reviewed.contains("The reviews could not be read"),
+        reviewed.contains("Missing: the reviews could not be read"),
         "{reviewed}"
     );
-    assert!(!reviewed.contains("reviewed:"), "{reviewed}");
+    assert!(!reviewed.contains("Domains reviewed"), "{reviewed}");
     assert!(!page.contains("kind=marked_wrong"), "{page}");
     assert!(page.contains("id=\"audit-heatmap\""), "{page}");
 }

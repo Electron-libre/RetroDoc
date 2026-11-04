@@ -7,7 +7,7 @@
 //! left out of the kinds that judge it, sorted by a priority that crosses the weight of its kind and how weak each
 //! item is with the commits of its busiest file and its entry points.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::path::Path;
 
 use retrodoc_core::model::{RuleEvidence, SetApartReason, UseCase};
@@ -352,7 +352,11 @@ pub fn debt_of(docs: &GeneratedDocs, report: DebtReport, reviews: &Reviews) -> D
     if let Some(reconciliation) = &uncovered.reconciliation {
         items.extend(doc_items(reconciliation));
     }
-    items.retain(|item| !(item.kind.judges() && validated(docs, reviews, item)));
+    let validated = validated(docs, reviews);
+    items.retain(|item| {
+        !(item.kind.judges()
+            && matches!(&item.subject, Subject::Section(s) if validated.contains(&review_section(s))))
+    });
     items.extend(reviewed(docs, reviews));
     items.extend(code_items(uncovered));
     for item in &mut items {
@@ -436,29 +440,27 @@ fn domain_parts<'a>(docs: &'a GeneratedDocs, slug: &str) -> (Vec<&'a str>, usize
 /// The section of the reviews (REV-1) a feature or use case of the debt names.
 fn review_section(section: &Section) -> reviews::Section {
     match &section.use_case {
-        Some(use_case) => reviews::Section::new(
-            SectionKind::UseCase,
-            format!("{}/{use_case}", section.feature),
-        ),
+        Some(use_case) => reviews::Section::use_case(&section.feature, use_case),
         None => reviews::Section::new(SectionKind::Feature, &section.feature),
     }
 }
 
-/// Whether a human validated the section of `item` as the docs hold it now.
-fn validated(docs: &GeneratedDocs, reviews: &Reviews, item: &DebtItem) -> bool {
-    let Subject::Section(section) = &item.subject else {
-        return false;
-    };
-    let section = review_section(section);
-    reviews.get(&section).is_some_and(|review| {
-        review.status == Status::Validated
-            && reviews::fingerprint(docs, &section).as_ref() == Some(&review.fingerprint)
-    })
+/// The sections a human validated as the docs hold them now, each fingerprinted once.
+fn validated<'a>(docs: &GeneratedDocs, reviews: &'a Reviews) -> HashSet<&'a reviews::Section> {
+    reviews
+        .reviews()
+        .iter()
+        .filter(|r| {
+            r.status == Status::Validated
+                && reviews::fingerprint(docs, &r.section).as_ref() == Some(&r.fingerprint)
+        })
+        .map(|r| &r.section)
+        .collect()
 }
 
 /// The sections of the run marked wrong, then those left to review, as the reviews are saved; the
-/// comment is the reason.
-fn reviewed<'a>(
+/// comment is the reason. `retrodoc report` lists the ones marked wrong from them.
+pub fn reviewed<'a>(
     docs: &'a GeneratedDocs,
     reviews: &'a Reviews,
 ) -> impl Iterator<Item = DebtItem> + 'a {
