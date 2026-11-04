@@ -3,13 +3,15 @@
 //! cost of the last `generate`, the progress of the bounded contexts, and the debt items counted by
 //! domain and kind. Read at each call; a figure the run lacks is `None`.
 
+use std::collections::BTreeMap;
+
 use retrodoc_pipeline::usage_log::load_history;
-use retrodoc_pipeline::{build_report, recorded_progress, BehaviourCoverage, DomainMap};
+use retrodoc_pipeline::{recorded_progress, BehaviourCoverage};
 // What the figures are made of and how the recap of a run writes them, for whoever shows them.
 pub use retrodoc_pipeline::usage_log::{thousands, ModelRecord, PassRecord, RunUsage};
 pub use retrodoc_pipeline::{format_duration, RecordedProgress};
 
-use crate::debt::{debt, DebtKind, DebtList};
+use crate::debt::{debt_of, docs_report, DebtKind, DebtList};
 use crate::read_model::GeneratedDocs;
 
 /// The highest level of a heatmap cell.
@@ -23,12 +25,18 @@ pub struct Share {
 }
 
 impl Share {
-    /// Rounded to the unit, 0 of nothing.
+    /// Rounded to the unit, 0 of nothing; never 0 when some are counted nor 100 when some are
+    /// left out, so a share that rounds away still shows.
     #[must_use]
     pub fn percent(self) -> usize {
-        (self.count * 100 + self.total / 2)
+        let rounded = (self.count * 100 + self.total / 2)
             .checked_div(self.total)
-            .unwrap_or(0)
+            .unwrap_or(0);
+        if self.count == 0 || self.count >= self.total {
+            rounded
+        } else {
+            rounded.clamp(1, 99)
+        }
     }
 }
 
@@ -63,7 +71,7 @@ pub struct Audit {
     pub confidence: Option<f32>,
     pub business_language: Option<f32>,
     pub coverage: Option<EntryCoverage>,
-    /// Stale features and use cases, out of those of the run.
+    /// Stale features and use cases, out of the features of the run and their use cases.
     pub stale: Share,
     /// The last `generate` of the usage history.
     pub cost: Option<RunUsage>,
@@ -75,22 +83,30 @@ pub struct Audit {
 /// The audit of `docs`; the files of the repository it was loaded from are read now.
 #[must_use]
 pub fn audit(docs: &GeneratedDocs) -> Audit {
-    let report = build_report(&DomainMap::default(), docs.features(), docs.use_cases());
-    let debt = debt(docs);
+    let report = docs_report(docs);
+    let (confidence, business_language) = (report.overall, report.overall_business);
+    let debt = debt_of(docs, report);
     let root = docs.repo_root();
+    // The stale check reaches a use case through its feature only.
+    let sections = docs.features().len()
+        + docs
+            .features()
+            .iter()
+            .map(|f| docs.use_cases_of(&f.slug).count())
+            .sum::<usize>();
     Audit {
-        confidence: report.overall,
-        business_language: report.overall_business,
+        confidence,
+        business_language,
         coverage: root
             .and_then(BehaviourCoverage::load)
-            .and_then(|c| entry_coverage(&c)),
+            .and_then(|c| entry_coverage(docs, &c)),
         stale: Share {
             count: debt
                 .items
                 .iter()
                 .filter(|i| i.kind == DebtKind::Stale)
                 .count(),
-            total: docs.features().len() + docs.use_cases().len(),
+            total: sections,
         },
         cost: root.and_then(|root| {
             load_history(root)
@@ -103,7 +119,9 @@ pub fn audit(docs: &GeneratedDocs) -> Audit {
     }
 }
 
-fn entry_coverage(coverage: &BehaviourCoverage) -> Option<EntryCoverage> {
+/// The coverage of the domains and features of the run: the saved counts of the others are those
+/// of an older run.
+fn entry_coverage(docs: &GeneratedDocs, coverage: &BehaviourCoverage) -> Option<EntryCoverage> {
     let share = |pairs: Vec<(usize, usize)>| {
         (!pairs.is_empty()).then(|| Share {
             count: pairs.iter().map(|(count, _)| count).sum(),
@@ -113,14 +131,18 @@ fn entry_coverage(coverage: &BehaviourCoverage) -> Option<EntryCoverage> {
     let placed = share(
         coverage
             .by_domain
-            .values()
+            .iter()
+            .filter(|(slug, _)| docs.domains().iter().any(|d| &d.slug == *slug))
+            .map(|(_, c)| c)
             .map(|c| (c.entry_points.saturating_sub(c.unplaced), c.entry_points))
             .collect(),
     );
     let cited = share(
         coverage
             .by_feature
-            .values()
+            .iter()
+            .filter(|(slug, _)| docs.features().iter().any(|f| &f.slug == *slug))
+            .map(|(_, c)| c)
             .map(|c| {
                 (
                     c.entry_points.saturating_sub(c.uncovered.len()),
@@ -133,17 +155,29 @@ fn entry_coverage(coverage: &BehaviourCoverage) -> Option<EntryCoverage> {
 }
 
 fn heatmap(docs: &GeneratedDocs, debt: &DebtList) -> Vec<HeatRow> {
+    let mut by_cell: BTreeMap<(&str, usize), usize> = BTreeMap::new();
+    for item in &debt.items {
+        if let Some(domain) = item.section.domain.as_deref() {
+            let kind = DebtKind::ALL
+                .iter()
+                .position(|k| *k == item.kind)
+                .unwrap_or(0);
+            *by_cell.entry((domain, kind)).or_default() += 1;
+        }
+    }
     let counts: Vec<(String, Vec<usize>)> = docs
         .domains()
         .iter()
         .map(|domain| {
-            let of = |kind: DebtKind| {
-                debt.items
-                    .iter()
-                    .filter(|i| i.kind == kind && i.section.domain.as_deref() == Some(&domain.slug))
-                    .count()
-            };
-            (domain.slug.clone(), DebtKind::ALL.map(of).to_vec())
+            let row = (0..DebtKind::ALL.len())
+                .map(|kind| {
+                    by_cell
+                        .get(&(domain.slug.as_str(), kind))
+                        .copied()
+                        .unwrap_or(0)
+                })
+                .collect();
+            (domain.slug.clone(), row)
         })
         .collect();
     let max = counts

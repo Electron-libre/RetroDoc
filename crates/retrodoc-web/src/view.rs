@@ -170,11 +170,12 @@ impl Site {
             .iter()
             .map(|link| StartLink {
                 label: if link.page.href == "/debt" {
-                    self.texts.count(debt, link.page.unit)
+                    self.texts.count(debt, link.unit)
                 } else {
                     link.label.clone()
                 },
                 page: link.page,
+                unit: link.unit,
             })
             .collect()
     }
@@ -182,8 +183,8 @@ impl Site {
 
 /// The pages of reference with their counts as the pages they link to show
 /// them: the domains, a row per actor and kind, the concepts, the rules, the
-/// cited files; the debt items are counted at each call ([`Site::start_links`]). The dashboard
-/// counts nothing and is no line of it.
+/// cited files; the debt items are counted at each call ([`Site::start_links`]). A page with no
+/// unit, the dashboard, counts nothing and is no line of it.
 fn start_links(
     texts: &'static WebTexts,
     docs: &GeneratedDocs,
@@ -195,7 +196,7 @@ fn start_links(
     texts
         .reference_pages
         .iter()
-        .filter(|page| page.href != "/audit")
+        .filter_map(|page| page.unit.map(|unit| (page, unit)))
         .zip([
             docs.domains().len(),
             actors,
@@ -204,9 +205,10 @@ fn start_links(
             files.cited,
             0,
         ])
-        .map(|(page, count)| StartLink {
-            label: texts.count(count, page.unit),
+        .map(|((page, unit), count)| StartLink {
+            label: texts.count(count, unit),
             page,
+            unit,
         })
         .collect()
 }
@@ -237,8 +239,9 @@ pub struct ReferencePage {
     /// What the page holds, in one line.
     pub hint: &'static str,
     pub group: Group,
-    /// What its count counts, singular then plural.
-    pub unit: (&'static str, &'static str),
+    /// What its count counts, singular then plural; `None` for a page that counts nothing, left
+    /// out of the home page.
+    pub unit: Option<(&'static str, &'static str)>,
 }
 
 /// A page of reference on the home page, with its count.
@@ -246,6 +249,7 @@ pub struct StartLink {
     pub page: &'static ReferencePage,
     /// The count with its unit.
     pub label: String,
+    pub unit: (&'static str, &'static str),
 }
 
 /// What every page shows around its content: the name of the application,

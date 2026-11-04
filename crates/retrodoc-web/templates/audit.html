@@ -8,12 +8,12 @@
   <section id="audit-confidence">
     {% if let Some(confidence) = page.confidence %}
     <p class="score"><strong>{{ t.audit_page.confidence }}</strong> {% call m::badge(confidence) %}{% endcall %}</p>
-    {% if let Some(business) = page.business_language %}
-    <p class="score"><strong>{{ t.audit_page.business_language }}</strong> {% call m::badge(business) %}{% endcall %}</p>
-    {% endif %}
     {% else %}
     <h2>{{ t.audit_page.confidence }}</h2>
     <p class="muted">{{ t.audit_page.no_confidence|safe }}</p>
+    {% endif %}
+    {% if let Some(business) = page.business_language %}
+    <p class="score"><strong>{{ t.audit_page.business_language }}</strong> {% call m::badge(business) %}{% endcall %}</p>
     {% endif %}
   </section>
   <section id="audit-stale">
@@ -48,7 +48,7 @@
 <section id="audit-heatmap">
   <h2>{{ t.audit_page.heatmap }}</h2>
   <p class="muted">{{ t.audit_page.heatmap_intro }}
-    <span class="legend" aria-hidden="true">{{ t.audit_page.fewer }} {% for level in 1..=4 %}<span class="swatch level-{{ level }}"></span>{% endfor %} {{ t.audit_page.more }}</span></p>
+    <span class="legend" aria-hidden="true">{{ t.audit_page.fewer }} {% for level in page.levels %}<span class="swatch level-{{ level }}"></span>{% endfor %} {{ t.audit_page.more }}</span></p>
   <table class="heatmap">
     <thead>
       <tr><th scope="col">{{ t.domain }}</th>{% for kind in page.kinds %}<th scope="col">{{ kind }}</th>{% endfor %}</tr>

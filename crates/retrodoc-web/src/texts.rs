@@ -219,7 +219,7 @@ impl WebTexts {
                     "The domains drawn as a graph, linked by the concepts they share; each opens \
                     its features.",
                 group: Group::Read,
-                unit: ("domain", "domains"),
+                unit: Some(("domain", "domains")),
             },
             ReferencePage {
                 href: "/actors",
@@ -227,7 +227,7 @@ impl WebTexts {
                 hint: "Who uses the application, and which use cases each one starts or takes \
                     part in.",
                 group: Group::Read,
-                unit: ("actor", "actors"),
+                unit: Some(("actor", "actors")),
             },
             ReferencePage {
                 href: "/glossary",
@@ -235,28 +235,28 @@ impl WebTexts {
                 hint: "The business concepts of the application, defined, with the use cases \
                     that use them.",
                 group: Group::LookUp,
-                unit: ("concept", "concepts"),
+                unit: Some(("concept", "concepts")),
             },
             ReferencePage {
                 href: "/rules",
                 name: "Rules",
                 hint: "The business rules the code enforces, filtered by kind, domain or feature.",
                 group: Group::LookUp,
-                unit: ("rule", "rules"),
+                unit: Some(("rule", "rules")),
             },
             ReferencePage {
                 href: "/files",
                 name: "Files",
                 hint: "The source files, with the docs that cite each one and those no doc covers.",
                 group: Group::LookUp,
-                unit: ("cited file", "cited files"),
+                unit: Some(("cited file", "cited files")),
             },
             ReferencePage {
                 href: "/debt",
                 name: "Debt",
                 hint: "The sections of the docs that need a human, filtered by kind or domain.",
                 group: Group::Audit,
-                unit: ("item", "items"),
+                unit: Some(("item", "items")),
             },
             ReferencePage {
                 href: "/audit",
@@ -264,7 +264,7 @@ impl WebTexts {
                 hint: "The figures of the last run and where the debt of the docs concentrates, \
                     domain by kind.",
                 group: Group::Audit,
-                unit: ("figure", "figures"),
+                unit: None,
             },
         ],
         search: "Search",
@@ -444,7 +444,7 @@ impl WebTexts {
                     "Les domaines dessinés en graphe, reliés par les concepts qu'ils partagent ; \
                     chacun ouvre ses fonctionnalités.",
                 group: Group::Read,
-                unit: ("domaine", "domaines"),
+                unit: Some(("domaine", "domaines")),
             },
             ReferencePage {
                 href: "/actors",
@@ -452,7 +452,7 @@ impl WebTexts {
                 hint: "Qui utilise l'application, et quels cas d'usage chacun lance ou auxquels \
                     il prend part.",
                 group: Group::Read,
-                unit: ("acteur", "acteurs"),
+                unit: Some(("acteur", "acteurs")),
             },
             ReferencePage {
                 href: "/glossary",
@@ -460,7 +460,7 @@ impl WebTexts {
                 hint: "Les concepts métier de l'application, définis, avec les cas d'usage qui \
                     les utilisent.",
                 group: Group::LookUp,
-                unit: ("concept", "concepts"),
+                unit: Some(("concept", "concepts")),
             },
             ReferencePage {
                 href: "/rules",
@@ -468,7 +468,7 @@ impl WebTexts {
                 hint: "Les règles métier que le code applique, filtrées par type, domaine ou \
                     fonctionnalité.",
                 group: Group::LookUp,
-                unit: ("règle", "règles"),
+                unit: Some(("règle", "règles")),
             },
             ReferencePage {
                 href: "/files",
@@ -476,14 +476,14 @@ impl WebTexts {
                 hint: "Les fichiers sources, avec les docs qui citent chacun et ceux qu'aucune \
                     doc ne couvre.",
                 group: Group::LookUp,
-                unit: ("fichier cité", "fichiers cités"),
+                unit: Some(("fichier cité", "fichiers cités")),
             },
             ReferencePage {
                 href: "/debt",
                 name: "Dette",
                 hint: "Les sections de la doc qui demandent un humain, filtrées par type ou domaine.",
                 group: Group::Audit,
-                unit: ("élément", "éléments"),
+                unit: Some(("élément", "éléments")),
             },
             ReferencePage {
                 href: "/audit",
@@ -491,7 +491,7 @@ impl WebTexts {
                 hint: "Les chiffres du dernier run et où se concentre la dette de la doc, domaine \
                     par type.",
                 group: Group::Audit,
-                unit: ("chiffre", "chiffres"),
+                unit: None,
             },
         ],
         search: "Recherche",

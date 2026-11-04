@@ -307,13 +307,15 @@ async fn an_overall_confidence_below_the_threshold_is_flagged_low() {
 #[tokio::test]
 async fn a_run_with_no_confidence_says_it_is_missing_and_still_shows_the_heatmap() {
     let repo = generated_repo();
-    retrodoc_pipeline::save_use_cases(repo.path(), &[use_case("ship", "ship-order", None)])
-        .unwrap();
+    let mut ship = use_case("ship", "ship-order", None);
+    ship.business_language = Some(score(0.9));
+    retrodoc_pipeline::save_use_cases(repo.path(), &[ship]).unwrap();
 
     let page = audit(repo.path()).await;
 
     let confidence = between(&page, "id=\"audit-confidence\"", "</section>");
     assert!(confidence.contains("retrodoc generate"), "{confidence}");
+    assert!(confidence.contains("Business language"), "{confidence}");
     assert!(page.contains("<table class=\"heatmap\""), "{page}");
 }
 

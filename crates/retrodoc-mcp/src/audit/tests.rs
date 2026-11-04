@@ -106,7 +106,47 @@ fn the_debt_is_counted_by_domain_and_kind_in_the_order_of_the_run() {
     assert_eq!(rows, [("billing", row((2, 4))), ("auth", row((1, 2)))]);
     assert_eq!(audit.heatmap[0].cells[0].kind, DebtKind::LowConfidence);
     assert!(audit.confidence.is_some());
-    assert_eq!(audit.stale, Share { count: 0, total: 7 });
+    // `lost` is reached by no feature: the stale check never judges it.
+    assert_eq!(audit.stale, Share { count: 0, total: 6 });
+}
+
+// spec: AUD-3, AUD-2 (internal: the rounding of a share, which the page only writes)
+#[test]
+fn a_share_rounds_to_neither_0_nor_100_when_it_is_neither() {
+    assert_eq!(
+        Share {
+            count: 1,
+            total: 300
+        }
+        .percent(),
+        1
+    );
+    assert_eq!(
+        Share {
+            count: 299,
+            total: 300
+        }
+        .percent(),
+        99
+    );
+    assert_eq!(
+        Share {
+            count: 0,
+            total: 300
+        }
+        .percent(),
+        0
+    );
+    assert_eq!(
+        Share {
+            count: 300,
+            total: 300
+        }
+        .percent(),
+        100
+    );
+    assert_eq!(Share { count: 1, total: 4 }.percent(), 25);
+    assert_eq!(Share { count: 0, total: 0 }.percent(), 0);
 }
 
 // spec: AUD-2, AUD-4, AUD-5 (internal: the figures are read from artifacts only a `generate` with an LLM writes)
@@ -119,7 +159,9 @@ fn the_figures_are_read_from_the_saved_coverage_usage_and_contexts() {
     std::fs::write(
         &coverage,
         "by_domain:\n  billing: {entry_points: 4, unplaced: 1}\n  auth: {entry_points: 4, unplaced: 0}\n\
-         by_feature:\n  pay: {entry_points: 3, uncovered: ['a#x', 'a#y']}\n",
+         \x20 gone: {entry_points: 9, unplaced: 9}\n\
+         by_feature:\n  pay: {entry_points: 3, uncovered: ['a#x', 'a#y']}\n\
+         \x20 gone: {entry_points: 9, uncovered: []}\n",
     )
     .unwrap();
     record_run(root, run("generate", "features")).unwrap();

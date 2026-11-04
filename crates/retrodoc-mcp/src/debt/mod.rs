@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 
 use retrodoc_core::model::{SetApartReason, UseCase};
 pub use retrodoc_pipeline::Section;
-use retrodoc_pipeline::{build_report, DomainMap, WeakSection};
+use retrodoc_pipeline::{build_report, DebtReport, DomainMap, WeakSection};
 
 use crate::freshness::{FileState, Freshness};
 use crate::read_model::GeneratedDocs;
@@ -88,8 +88,19 @@ pub struct DebtList {
 /// The debt of `docs`, the stale sections judged now.
 #[must_use]
 pub fn debt(docs: &GeneratedDocs) -> DebtList {
+    debt_of(docs, docs_report(docs))
+}
+
+/// The debt report of `docs`, as [`debt`] reads it.
+#[must_use]
+pub fn docs_report(docs: &GeneratedDocs) -> DebtReport {
     // The domain map only adds the code no domain holds, not listed here.
-    let report = build_report(&DomainMap::default(), docs.features(), docs.use_cases());
+    build_report(&DomainMap::default(), docs.features(), docs.use_cases())
+}
+
+/// The debt of `docs` from its `report` ([`docs_report`]), the stale sections judged now.
+#[must_use]
+pub fn debt_of(docs: &GeneratedDocs, report: DebtReport) -> DebtList {
     let no_score =
         !docs.use_cases().is_empty() && docs.use_cases().iter().all(|u| u.confidence.is_none());
     let mut items: Vec<DebtItem> = report

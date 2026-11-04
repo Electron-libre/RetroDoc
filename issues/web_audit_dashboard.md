@@ -55,6 +55,11 @@ the code). Means differ: the contexts progress is read as `fingerprints.json` re
 2. [x] The page `/audit`: route, template, heatmap table and its shades in the stylesheet, missing figure lines,
    header link, English and French texts; verified by router tests and a check in headless Chrome; makes true AUD-1
    to AUD-10. ~600 lines. (autonomous)
+3. [x] Fixes of the `high` review of the issue: the business language shown without a confidence score, the coverage
+   of the domains and features of the run only, the stale total of the sections the stale check reaches, a share
+   never rounded to 0 or 100 when it is neither, the debt report built once, the dashboard left out of "Start here"
+   by its unit, the slug encoded in the cell links, the legend from `MAX_LEVEL`, the heatmap counted in one pass;
+   verified by new and amended tests; makes true AUD-1, AUD-2, AUD-3, AUD-6 (amended). (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -112,3 +117,28 @@ Code review: no findings
 
 not verified: the swatches of the legend and the hover outline in a light browser theme (the interface is dark
 only, decision 4). decisions needed: none.
+
+### 3. Fixes of the high review
+done: 9 of the 10 findings of the `high` review fixed (see the plan line); `debt::debt_of` and `debt::docs_report`
+let the audit build the report once; `ReferencePage::unit` is an `Option`.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass (AUD-1, AUD-2, AUD-3 amended, a non-goal added) |
+| docs | the spec; the doc comments |
+| code review | no findings |
+
+red: AUD-1, AUD-2, AUD-3, AUD-6: written after the fixes (the tests assert what the findings described: the business
+language without confidence, a saved count of a gone context, 1 of 300 at 1%, an orphan use case out of the total,
+`a&b` encoded).
+
+High review, finding not fixed: the progress of the contexts shown when the repository no longer runs with
+`domains_from = "contexts"`. The read model does not read the configuration; the spec says so in its non-goals. The
+per-pass sum of the tokens in the web crate is also kept: `PassUsage::total` works on the live report, not on the
+saved `PassRecord`.
+
+Code review: no findings
+
+not verified: none. decisions needed: none.

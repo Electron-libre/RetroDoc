@@ -2,9 +2,11 @@
 //! `retrodoc_mcp::audit` as text, and the heatmap of the debt, each cell
 //! linked to the debt page filtered on its domain and kind.
 
+use std::fmt::Write as _;
+
 use retrodoc_core::model::ConfidenceScore;
 use retrodoc_mcp::audit::{
-    audit, format_duration, thousands, ModelRecord, PassRecord, RecordedProgress, Share,
+    audit, format_duration, thousands, ModelRecord, PassRecord, RecordedProgress, Share, MAX_LEVEL,
 };
 use retrodoc_mcp::debt::DebtKind;
 use retrodoc_mcp::GeneratedDocs;
@@ -24,6 +26,8 @@ pub struct AuditPage {
     /// The names of the columns of the heatmap.
     pub kinds: Vec<&'static str>,
     pub rows: Vec<HeatRowView>,
+    /// The levels above 0, for the legend.
+    pub levels: Vec<u8>,
 }
 
 /// `count` of `total`, and its percentage.
@@ -129,6 +133,7 @@ pub fn audit_page(docs: &GeneratedDocs, texts: &WebTexts) -> AuditPage {
                 total: done.len() + pending.len(),
                 pending: pending.iter().map(|slug| domain_name(slug)).collect(),
             }),
+        levels: (1..=MAX_LEVEL).collect(),
         kinds: DebtKind::ALL.iter().map(|k| texts.debt_kind(*k)).collect(),
         rows: audit
             .heatmap
@@ -143,7 +148,11 @@ pub fn audit_page(docs: &GeneratedDocs, texts: &WebTexts) -> AuditPage {
                         level: cell.level,
                         kind: texts.debt_kind(cell.kind),
                         href: (cell.count > 0).then(|| {
-                            format!("/debt?kind={}&domain={}", kind_value(cell.kind), row.domain)
+                            format!(
+                                "/debt?kind={}&domain={}",
+                                kind_value(cell.kind),
+                                query_encoded(&row.domain)
+                            )
                         }),
                     })
                     .collect(),
@@ -173,5 +182,30 @@ fn pass_row<'a>(
         cached: thousands(cached),
         completion: thousands(completion),
         lower_bound: without > 0,
+    }
+}
+
+/// `value` as a query value: the unreserved characters kept, every other byte percent-encoded.
+fn query_encoded(value: &str) -> String {
+    let mut out = String::new();
+    for byte in value.bytes() {
+        if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b'~') {
+            out.push(char::from(byte));
+        } else {
+            let _ = write!(out, "%{byte:02X}");
+        }
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // spec: AUD-6 (internal: a slug the run writes is kebab-case; a hand-edited one may not be)
+    #[test]
+    fn a_domain_slug_is_encoded_in_the_link_of_its_cells() {
+        assert_eq!(query_encoded("billing-v2"), "billing-v2");
+        assert_eq!(query_encoded("a&b c#é"), "a%26b%20c%23%C3%A9");
     }
 }
