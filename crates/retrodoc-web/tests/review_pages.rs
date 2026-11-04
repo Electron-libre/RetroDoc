@@ -649,6 +649,43 @@ async fn a_failed_htmx_post_gets_the_error_and_the_form_with_its_comment() {
         );
         assert!(answer.body.contains(">Kept</textarea>"), "{}", answer.body);
     }
+    // The status sent stays selected, so saving again doesn't remove a review.
+    let answer = post(root, "/domains/billing/unknown", "status=wrong", true).await;
+    assert!(
+        answer.body.contains("<option value=\"wrong\" selected>"),
+        "{}",
+        answer.body
+    );
+}
+
+// spec: WEB-84
+#[tokio::test]
+async fn an_origin_that_is_not_text_is_refused_though_the_referer_matches() {
+    let dir = generated_repo();
+    let root = dir.path();
+    let request = Request::post("/domains/billing")
+        .header("host", "127.0.0.1:8730")
+        .header("content-type", "application/x-www-form-urlencoded")
+        .header(
+            "origin",
+            axum::http::HeaderValue::from_bytes(b"http://\xff").unwrap(),
+        )
+        .header("referer", "http://127.0.0.1:8730/domains/billing")
+        .body(Body::from("status=wrong"))
+        .unwrap();
+
+    let response = retrodoc_web::router(
+        Project::default(),
+        Some(load(root)),
+        DocLinks::default(),
+        Vec::new(),
+    )
+    .oneshot(request)
+    .await
+    .unwrap();
+
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    assert!(!reviews::reviews_path(root).exists());
 }
 
 /// The files of the repository and their bytes.

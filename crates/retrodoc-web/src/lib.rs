@@ -149,8 +149,10 @@ async fn refuse_cross_site(request: Request, next: Next) -> Response {
 /// Whether the `Origin` of a request, else its `Referer`, is the server
 /// itself, as its `Host` names it.
 fn same_origin(headers: &HeaderMap) -> bool {
-    let value = |name| headers.get(name).and_then(|v| v.to_str().ok());
-    let Some(host) = value(header::HOST) else {
+    // A header that is not text is kept as such: an `Origin` present never
+    // falls back to the `Referer`.
+    let value = |name| headers.get(name).map(|v| v.to_str().unwrap_or_default());
+    let Some(host) = value(header::HOST).filter(|host| !host.is_empty()) else {
         return false;
     };
     let own = format!("http://{host}");

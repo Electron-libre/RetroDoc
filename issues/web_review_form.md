@@ -55,7 +55,7 @@ are read from the file at each request (no copy in the shared state, so no lock 
    `303`, the 404, 400 and 500 answers; verified by router tests that post forms and read `reviews.json`, and a headless
    Chrome check of the swap; makes true WEB-12, WEB-81, WEB-83, WEB-84, WEB-85, WEB-86, WEB-88; sets the spec
    `accepted`. (autonomous)
-3. [ ] Docs of the whole issue and fixes of its `high` review.
+3. [x] Docs of the whole issue and fixes of its `high` review. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -91,5 +91,26 @@ are read from the file at each request (no copy in the shared state, so no lock 
   - A failed `htmx` save swapped in the error without the form: fixed, the form stays, holding the comment sent.
   - A 404 to `htmx` swapped the whole not-found page into the section: fixed, it gets the error fragment.
   Both covered by `a_failed_htmx_post_gets_the_error_and_the_form_with_its_comment`.
-- not verified: the status chosen is not kept by a failed save (only the comment); the headless check ran before
-  these two fixes, the router tests cover them.
+- not verified: the status chosen is not kept by a failed save (only the comment; fixed in deliverable 3); the
+  headless check ran before these two fixes, the router tests cover them.
+
+## Deliverable 3
+- done: `docs/ARCHITECTURE.md` (the web crate writes the reviews, the form, the modules); fixes of the `high` review
+  of the issue: a failed save keeps the status and the comment sent in the form; only an error answered with the
+  review is swapped (`before-swap` hook moved to the section, where `htmx` fires it); an `Origin` that is not text
+  never falls back to the `Referer`; the view of a save is built from the review saved, not from the file read
+  again; the status keys come from one table (`review::STATUSES`, form options included); the rows build their
+  section through `review::Place`; the use case page reads its review alone.
+- red: WEB-84, WEB-83: `left: 303` (non-text `Origin`), `<option value="wrong" selected>` missing from a failed save.
+- checks: tests, clippy, specs pass; headless Chrome on the copy of the linkding run: a save swaps "Validated by
+  <user.name>", a `400` swaps the error with the form and the comment kept.
+- `high` review: 10 findings; 7 fixed as above (with the positional labels of the statuses, now read by
+  `ReviewTexts::status` only); not changed:
+  - A `generate` while `ui` runs leaves the served docs stale for the saves: the non-goal "the docs are read once at
+    start" covers the pages; a save checks the docs the page showed.
+  - The home page drops the error of an unreadable `reviews.json`: WEB-87 names it on the pages of the sections.
+  - The id `<feature>/<use case>` built in `retrodoc-mcp` too (history, fingerprint): outside this crate, left as
+    REV-1 and RHI-7 define it; the web crate builds it in `Place::section` alone.
+- Code review: no findings
+- not verified: a plain-text error (a 403 of the cross-site check) left unswapped in a browser: the hook's
+  condition reads it, no browser page can send such a request to check it.

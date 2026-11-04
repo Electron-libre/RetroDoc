@@ -9,7 +9,7 @@ use axum::extract::{Path, State};
 use axum::http::{header, HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::Form;
-use retrodoc_mcp::reviews::{self, ReviewsError, Status};
+use retrodoc_mcp::reviews::{self, ReviewsError};
 use serde::Deserialize;
 
 use crate::pages::{blocking, not_found, read_failed, render};
@@ -26,7 +26,9 @@ pub struct ReviewForm {
     comment: String,
 }
 
-/// The review of the section and its form, swapped in place of the former ones by `htmx`.
+/// The review of the section and its form, swapped in place of the former ones by `htmx`; an
+/// error answered with it too, by the `before-swap` hook of the section (`htmx` fires its swap
+/// events on the target, not on the form).
 #[derive(Template)]
 #[template(path = "review.html")]
 struct ReviewFragment {
@@ -66,17 +68,6 @@ pub async fn use_case(
     save(site, place, &headers, form).await
 }
 
-/// The status a form sends: `None` for none, `Err` for a value outside the four.
-fn status(value: &str) -> Result<Option<Status>, ()> {
-    match value {
-        "" => Ok(None),
-        "validated" => Ok(Some(Status::Validated)),
-        "wrong" => Ok(Some(Status::Wrong)),
-        "to_review" => Ok(Some(Status::ToReview)),
-        _ => Err(()),
-    }
-}
-
 /// What a save came to.
 enum Saved {
     Done(ReviewView),
@@ -86,9 +77,11 @@ enum Saved {
 
 async fn save(site: Arc<Site>, place: Place, headers: &HeaderMap, form: ReviewForm) -> Response {
     let comment = form.comment.trim().to_string();
+    let sent = review_view::parse(form.status.trim());
     let failed = |code, error: &str| {
         if headers.contains_key("HX-Request") {
-            let review = ReviewView::failed(place.href(), error.to_string(), comment.clone());
+            let status = sent.flatten();
+            let review = ReviewView::failed(&place, error.to_string(), status, comment.clone());
             render(
                 code,
                 &ReviewFragment {
@@ -100,7 +93,7 @@ async fn save(site: Arc<Site>, place: Place, headers: &HeaderMap, form: ReviewFo
             (code, error.to_string()).into_response()
         }
     };
-    let Ok(status) = status(form.status.trim()) else {
+    let Some(status) = sent else {
         return failed(StatusCode::BAD_REQUEST, "unknown review status");
     };
     let at = place.clone();
@@ -116,12 +109,14 @@ async fn save(site: Arc<Site>, place: Place, headers: &HeaderMap, form: ReviewFo
             );
         };
         let section = at.section();
+        // The view of what was saved, not of the file read again: another request may have
+        // saved since.
         let done = match status {
-            Some(status) => reviews::record(root, docs, &section, status, &text).map(|_| ()),
-            None => reviews::remove(root, &section),
+            Some(status) => reviews::record(root, docs, &section, status, &text).map(Some),
+            None => reviews::remove(root, &section).map(|()| None),
         };
         match done {
-            Ok(()) => Saved::Done(ReviewView::of(&review_view::load(docs), &at)),
+            Ok(review) => Saved::Done(ReviewView::shown(&at, review.as_ref())),
             Err(ReviewsError::UnknownSection(_)) => Saved::NotFound,
             Err(err) => Saved::Failed(StatusCode::INTERNAL_SERVER_ERROR, err.to_string()),
         }

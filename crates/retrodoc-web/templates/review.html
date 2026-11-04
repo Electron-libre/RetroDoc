@@ -1,4 +1,4 @@
-<section class="review" id="review">
+<section class="review" id="review" hx-on:htmx:before-swap="if (event.detail.isError &amp;&amp; event.detail.serverResponse.startsWith('&lt;section class=&quot;review&quot;')) { event.detail.shouldSwap = true; event.detail.isError = false; }">
 {% if let Some(error) = review.error %}
 <p><strong>{{ t.review.heading }}</strong> <span class="badge low">{{ error }}</span></p>
 {% else if let Some(badge) = review.badge %}
@@ -7,12 +7,10 @@
 {% else %}
 <p><strong>{{ t.review.heading }}</strong> <span class="muted">{{ t.review.not_reviewed }}</span></p>
 {% endif %}
-<form class="filters" method="post" action="{{ review.action }}" hx-post="{{ review.action }}" hx-target="closest section" hx-swap="outerHTML" hx-on:htmx:before-swap="if (event.detail.xhr.status >= 400) { event.detail.shouldSwap = true; event.detail.isError = false; }">
+<form class="filters" method="post" action="{{ review.action }}" hx-post="{{ review.action }}" hx-target="closest section" hx-swap="outerHTML">
   <label>{{ t.review.status_label }} <select name="status">
-    <option value=""{% if review.selects("") %} selected{% endif %}>{{ t.review.no_status }}</option>
-    <option value="validated"{% if review.selects("validated") %} selected{% endif %}>{{ t.review.statuses[0] }}</option>
-    <option value="wrong"{% if review.selects("wrong") %} selected{% endif %}>{{ t.review.statuses[1] }}</option>
-    <option value="to_review"{% if review.selects("to_review") %} selected{% endif %}>{{ t.review.statuses[2] }}</option>
+    {% for option in review.options(t.review) %}<option value="{{ option.key }}"{% if option.selected %} selected{% endif %}>{{ option.label }}</option>
+    {% endfor %}
   </select></label>
   <label>{{ t.review.comment }} <textarea name="comment" rows="2">{{ review.comment }}</textarea></label>
   <button type="submit">{{ t.review.save }}</button>

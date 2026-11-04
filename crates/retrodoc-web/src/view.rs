@@ -8,7 +8,7 @@ use crate::actors::{actors_page, ActorsPage};
 use crate::files::{files_page, FilesPage};
 use crate::glossary::{glossary_page, GlossaryPage};
 use crate::map::{map_href, maps, Maps};
-use crate::review::ReviewBadge;
+use crate::review::{Place, ReviewBadge};
 use crate::texts::WebTexts;
 use crate::Project;
 use retrodoc_core::model::{
@@ -17,7 +17,7 @@ use retrodoc_core::model::{
 };
 use retrodoc_mcp::freshness::{FileState, Freshness};
 use retrodoc_mcp::history::{self, SavedRun};
-use retrodoc_mcp::reviews::{Reviews, Section, SectionKind};
+use retrodoc_mcp::reviews::Reviews;
 use retrodoc_mcp::source::SourceAccess;
 use retrodoc_mcp::{ExistingDoc, GeneratedDocs};
 use retrodoc_render::{anchor, source_ref_label, DocLinks, ItemRef};
@@ -397,10 +397,7 @@ pub fn domain_rows(docs: &GeneratedDocs, reviews: &Reviews) -> Vec<DomainRow> {
                 name: domain.name.clone(),
                 description: domain.description.clone(),
                 confidence: Confidence::of(domain.confidence.as_ref()),
-                review: ReviewBadge::of_section(
-                    reviews,
-                    &Section::new(SectionKind::Domain, &domain.slug),
-                ),
+                review: ReviewBadge::of_place(reviews, &Place::Domain(domain.slug.clone())),
                 stale,
                 features: features.len(),
                 use_cases: features
@@ -486,9 +483,12 @@ fn feature_row(feature: &Feature, reviews: &Reviews) -> ItemRow {
         href: feature_href(feature),
         name: feature.name.clone(),
         confidence: Confidence::of(feature.confidence.as_ref()),
-        review: ReviewBadge::of_section(
+        review: ReviewBadge::of_place(
             reviews,
-            &Section::new(SectionKind::Feature, &feature.slug),
+            &Place::Feature {
+                domain: feature.domain_slug.clone(),
+                slug: feature.slug.clone(),
+            },
         ),
         description: feature.description.trim().to_string(),
     }
@@ -794,9 +794,13 @@ pub fn feature_page(
         href: use_case_href(feature, u),
         name: u.name.clone(),
         confidence: Confidence::of(u.confidence.as_ref()),
-        review: ReviewBadge::of_section(
+        review: ReviewBadge::of_place(
             reviews,
-            &Section::new(SectionKind::UseCase, format!("{slug}/{}", u.slug)),
+            &Place::UseCase {
+                domain: domain.to_string(),
+                feature: slug.to_string(),
+                slug: u.slug.clone(),
+            },
         ),
         description: u.description.trim().to_string(),
     };

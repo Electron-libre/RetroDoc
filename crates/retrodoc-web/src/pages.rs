@@ -326,7 +326,7 @@ pub async fn use_case(
                 feature: feature.clone(),
                 slug: slug.clone(),
             };
-            let (_, review) = reviews_of(docs, &place);
+            let review = ReviewView::of(&review::load(docs), &place);
             use_case_page(docs, site.links(), &domain, &feature, &slug).map(|page| (page, review))
         })
     })
