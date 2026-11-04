@@ -54,8 +54,8 @@ reviews (`issues/review_outdated.md`), the lists of `coverage-report.md`.
    makes true RHI-14 (~150 lines). (autonomous)
 3. [x] Audit page: the share of domains, features and use cases reviewed, by status; verified by tests of `/audit`;
    makes true AUD-16, AUD-17 (~350 lines). (autonomous)
-4. [ ] `retrodoc report` lists the sections marked wrong; verified by a test of the binary; makes true DBT-35,
-   DBT-36 (~200 lines).
+4. [x] `retrodoc report` lists the sections marked wrong; verified by a test of the binary; makes true DBT-35,
+   DBT-36 (~200 lines). (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -116,6 +116,24 @@ count of each status; an unreadable `reviews.json` is said in its place.
 | code review | no findings |
 
 red: AUD-16, AUD-17: no section `audit-reviews` on the audit page.
+
+Code review: no findings
+not verified: none
+decisions needed: none
+
+## Deliverable 4
+done: `retrodoc report` lists the sections of the run marked wrong with their comment, under "Sections marked
+wrong" when one is; an unreadable `reviews.json` is warned of. The three specs are `accepted`.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass (debt-view, audit-dashboard, run-history `accepted`) |
+| docs | `docs/crates/render-mcp-cli.md`, `docs/crates/pipeline.md` |
+| code review | no findings |
+
+red: DBT-35, DBT-36: no heading "Sections marked wrong" in the report; no warning for an unreadable `reviews.json`.
 
 Code review: no findings
 not verified: none

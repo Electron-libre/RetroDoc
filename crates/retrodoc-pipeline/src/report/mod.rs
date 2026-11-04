@@ -15,7 +15,7 @@ use retrodoc_core::model::{
 
 use crate::behaviour_coverage::{EntryCount, FeatureCoverage};
 use crate::domains::DomainMap;
-use crate::reconcile::Reconciliation;
+use crate::reconcile::{ItemKind, Reconciliation};
 use crate::rules::SetAside;
 use crate::text::one_line;
 
@@ -146,6 +146,19 @@ pub struct DebtReport {
     pub set_aside: Option<SetAside>,
     /// The slugs of the rules of `set_aside` that `keep_rules` of `retrodoc.toml` puts back.
     pub rules_put_back: BTreeSet<String>,
+    /// The domains, features and use cases of the run a human marked wrong, as the reviews are
+    /// saved (`specs/debt-view.md` DBT-35).
+    pub marked_wrong: Vec<MarkedWrong>,
+}
+
+/// A section a human marked wrong, and the comment of the review.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MarkedWrong {
+    pub kind: ItemKind,
+    /// `<domain>`, `<domain>/<feature>` or `<domain>/<feature>/<use case>`.
+    pub label: String,
+    /// Empty when the review has none.
+    pub comment: String,
 }
 
 /// Skipped files listed in the Markdown report (the rest is only counted).
@@ -442,6 +455,8 @@ impl DebtReport {
             md.push('\n');
         }
 
+        self.write_marked_wrong(&mut md);
+
         if !self.set_apart_use_cases.is_empty() || self.back_office_features > 0 {
             let _ = write!(
                 md,
@@ -505,6 +520,24 @@ impl DebtReport {
             }
         }
         md
+    }
+}
+
+impl DebtReport {
+    /// The sections a human marked wrong, under their heading when there is one.
+    fn write_marked_wrong(&self, md: &mut String) {
+        if self.marked_wrong.is_empty() {
+            return;
+        }
+        md.push_str("\n## Sections marked wrong\n\n");
+        for section in &self.marked_wrong {
+            let _ = write!(md, "- {} `{}`", section.kind.label(), section.label);
+            let comment = one_line(&section.comment);
+            if !comment.is_empty() {
+                let _ = write!(md, ": {comment}");
+            }
+            md.push('\n');
+        }
     }
 }
 

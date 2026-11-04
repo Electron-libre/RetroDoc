@@ -1,6 +1,9 @@
 use std::path::Path;
 
-use retrodoc_pipeline::DomainMap;
+use retrodoc_core::model::{Feature, UseCase};
+use retrodoc_mcp::reviews::{self, Review, SectionKind, Status};
+use retrodoc_pipeline::reconcile::ItemKind;
+use retrodoc_pipeline::{DomainMap, MarkedWrong};
 
 use super::workspace::repo_root;
 
@@ -44,6 +47,51 @@ pub fn run(path: &Path) -> anyhow::Result<()> {
         &features,
         &use_cases,
     );
+    match reviews::load(&repo_root) {
+        Ok(reviews) => {
+            report.marked_wrong = reviews
+                .reviews()
+                .iter()
+                .filter(|r| r.status == Status::Wrong)
+                .filter_map(|r| marked_wrong(r, &features, &use_cases))
+                .collect();
+        }
+        Err(err) => tracing::warn!("the report lists no section marked wrong: {err}"),
+    }
     print!("{}", report.to_markdown());
     Ok(())
+}
+
+/// The section `review` names, with its comment; `None` when the run no longer holds it. A domain
+/// is in the run while a feature belongs to it, as the docs show it.
+fn marked_wrong(
+    review: &Review,
+    features: &[Feature],
+    use_cases: &[UseCase],
+) -> Option<MarkedWrong> {
+    let id = review.section.id.as_str();
+    let feature = |slug: &str| features.iter().find(|f| f.slug == slug);
+    let (kind, label) = match review.section.kind {
+        SectionKind::Domain => {
+            features.iter().find(|f| f.domain_slug == id)?;
+            (ItemKind::Domain, id.to_string())
+        }
+        SectionKind::Feature => {
+            let feature = feature(id)?;
+            (ItemKind::Feature, format!("{}/{id}", feature.domain_slug))
+        }
+        SectionKind::UseCase => {
+            let (slug, use_case) = id.split_once('/')?;
+            let feature = feature(slug)?;
+            use_cases
+                .iter()
+                .find(|u| u.feature_slug == slug && u.slug == use_case)?;
+            (ItemKind::UseCase, format!("{}/{id}", feature.domain_slug))
+        }
+    };
+    Some(MarkedWrong {
+        kind,
+        label,
+        comment: review.comment.clone(),
+    })
 }
