@@ -3,7 +3,7 @@
 //! `.retrodoc/cache/history/`, all kept, so the pages of the history see how the docs moved after
 //! the artifacts of the last run were rewritten. The figures are those of the audit page.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::io::{ErrorKind, Write as _};
 use std::path::{Path, PathBuf};
 
@@ -133,18 +133,15 @@ fn cost(usage: &RunUsage) -> Cost {
 }
 
 fn debt_counts(docs: &GeneratedDocs, report: retrodoc_pipeline::DebtReport) -> Vec<DebtCount> {
-    let mut counts: BTreeMap<(usize, Option<&str>), usize> = BTreeMap::new();
+    let mut counts: BTreeMap<(DebtKind, Option<&str>), usize> = BTreeMap::new();
     let debt = debt_of(docs, report);
     for item in debt.items.iter().filter(|i| i.kind != DebtKind::Stale) {
-        let kind = DebtKind::ALL.iter().position(|k| *k == item.kind);
-        *counts
-            .entry((kind.unwrap_or(usize::MAX), item.domain()))
-            .or_default() += 1;
+        *counts.entry((item.kind, item.domain())).or_default() += 1;
     }
     counts
         .into_iter()
         .map(|((kind, domain), count)| DebtCount {
-            kind: DebtKind::ALL[kind].key().to_string(),
+            kind: kind.key().to_string(),
             domain: domain.map(str::to_string),
             count,
         })
@@ -177,11 +174,14 @@ fn sections(docs: &GeneratedDocs) -> Vec<SectionScores> {
             f.confidence.as_ref().map(|c| c.value),
         )
     });
+    let back_office: HashSet<&str> = docs
+        .features()
+        .iter()
+        .filter(|f| f.back_office)
+        .map(|f| f.slug.as_str())
+        .collect();
     let use_cases = docs.use_cases().iter().map(|u| {
-        let back_office = docs
-            .features()
-            .iter()
-            .any(|f| f.slug == u.feature_slug && f.back_office);
+        let back_office = back_office.contains(u.feature_slug.as_str());
         SectionScores {
             business_language: u.business_language.as_ref().map(|c| c.value),
             narrative_check: u.narrative_check.as_ref().map(|c| c.value),
@@ -216,42 +216,59 @@ pub fn history_dir(repo_root: &Path) -> PathBuf {
 }
 
 /// Saves `snapshot` as a new file named by its end date, unless it equals the last one saved but
-/// for its commit, date and cost; never rewrites a saved one. The file written, `None` when none is.
+/// for its commit, date and cost; never rewrites a saved one, and never leaves a file cut short. The
+/// file written, `None` when none is.
 ///
 /// # Errors
 ///
 /// The folder or the file can't be written.
 pub fn save(repo_root: &Path, snapshot: &Snapshot) -> std::io::Result<Option<PathBuf>> {
-    if load(repo_root)
+    let dir = history_dir(repo_root);
+    // The newest file only: an unreadable one is not the run to compare with, so it never hides a
+    // change behind an older snapshot.
+    if files(&dir)
         .last()
+        .and_then(|path| read(path))
         .is_some_and(|last| last.figures == snapshot.figures && last.sections == snapshot.sections)
     {
         return Ok(None);
     }
-    let dir = history_dir(repo_root);
     std::fs::create_dir_all(&dir)?;
-    let json = serde_json::to_string_pretty(snapshot).map_err(std::io::Error::other)?;
     let stem = file_stem(&snapshot.finished_at);
-    for n in 1.. {
-        let path = if n == 1 {
-            dir.join(format!("{stem}.json"))
-        } else {
-            dir.join(format!("{stem}_{n}.json"))
-        };
-        match std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&path)
-        {
-            Ok(mut file) => {
-                file.write_all(json.as_bytes())?;
-                return Ok(Some(path));
-            }
+    // Written whole aside, under a name of this process, then linked under a name no file holds yet.
+    let draft = dir.join(format!(".{stem}.{}.tmp", std::process::id()));
+    let mut file = std::fs::File::create(&draft)?;
+    file.write_all(
+        serde_json::to_string_pretty(snapshot)
+            .map_err(std::io::Error::other)?
+            .as_bytes(),
+    )?;
+    file.sync_all()?;
+    let linked = link_aside(&draft, &dir, &stem);
+    std::fs::remove_file(&draft)?;
+    linked.map(Some)
+}
+
+/// Links `draft` under the first name of the runs of `stem` no file of `dir` holds.
+fn link_aside(draft: &Path, dir: &Path, stem: &str) -> std::io::Result<PathBuf> {
+    for n in 1..=u32::MAX {
+        let path = dir.join(file_name(stem, n));
+        match std::fs::hard_link(draft, &path) {
+            Ok(()) => return Ok(path),
             Err(e) if e.kind() == ErrorKind::AlreadyExists => {}
             Err(e) => return Err(e),
         }
     }
-    unreachable!("an unbounded range never ends")
+    Err(ErrorKind::AlreadyExists.into())
+}
+
+/// The `n`-th file of the runs ended in the second of `stem`, from 1.
+fn file_name(stem: &str, n: u32) -> String {
+    if n == 1 {
+        format!("{stem}.json")
+    } else {
+        format!("{stem}_{n}.json")
+    }
 }
 
 /// `2026-11-04T10:00:00.123+00:00` → `20261104T100000Z`: the date and time to the second.
@@ -265,26 +282,43 @@ fn file_stem(finished_at: &str) -> String {
     format!("{date}T{time}Z")
 }
 
-/// The saved snapshots, oldest first; a file that cannot be read is left out.
-#[must_use]
-pub fn load(repo_root: &Path) -> Vec<Snapshot> {
-    let Ok(dir) = std::fs::read_dir(history_dir(repo_root)) else {
+/// The snapshot files of `dir`, oldest first: by the date of their name, then by their number.
+fn files(dir: &Path) -> Vec<PathBuf> {
+    let Ok(entries) = std::fs::read_dir(dir) else {
         return Vec::new();
     };
-    let mut files: Vec<(Snapshot, String)> = dir
+    let mut files: Vec<(String, u32, PathBuf)> = entries
         .filter_map(Result::ok)
-        .filter(|e| e.path().extension().is_some_and(|x| x == "json"))
-        .filter_map(|e| {
-            let text = std::fs::read_to_string(e.path()).ok()?;
-            let snapshot: Snapshot = serde_json::from_str(&text).ok()?;
-            Some((snapshot, e.file_name().to_string_lossy().into_owned()))
+        .map(|e| e.path())
+        .filter_map(|path| {
+            let stem = path
+                .file_name()?
+                .to_str()?
+                .strip_suffix(".json")?
+                .to_string();
+            Some(match stem.split_once('_') {
+                Some((date, n)) => (date.to_string(), n.parse().ok()?, path),
+                None => (stem, 1, path),
+            })
         })
         .collect();
-    // Two runs of the same second: `X.json` before `X_2.json`, whatever the clock said.
-    files.sort_by(|(a, a_name), (b, b_name)| {
-        (&a.finished_at, a_name.len(), a_name).cmp(&(&b.finished_at, b_name.len(), b_name))
-    });
-    files.into_iter().map(|(snapshot, _)| snapshot).collect()
+    files.sort();
+    files.into_iter().map(|(_, _, path)| path).collect()
+}
+
+/// The snapshot of `path`, `None` when it cannot be read or is of a later format.
+fn read(path: &Path) -> Option<Snapshot> {
+    let snapshot: Snapshot = serde_json::from_str(&std::fs::read_to_string(path).ok()?).ok()?;
+    (snapshot.version <= VERSION).then_some(snapshot)
+}
+
+/// The saved snapshots, oldest first; a file that cannot be read, or of a later format, is left out.
+#[must_use]
+pub fn load(repo_root: &Path) -> Vec<Snapshot> {
+    files(&history_dir(repo_root))
+        .iter()
+        .filter_map(|path| read(path))
+        .collect()
 }
 
 #[cfg(test)]

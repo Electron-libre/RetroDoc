@@ -6,6 +6,7 @@ mod support;
 
 use std::path::{Path, PathBuf};
 use std::process::Output;
+use std::sync::{Arc, Mutex};
 
 use serde_json::Value;
 use support::{generate, git, run, warnings, App, FakeLlm};
@@ -129,15 +130,78 @@ fn a_rerun_that_changes_nothing_writes_no_snapshot_and_force_keeps_them() {
 
 // spec: RHI-10
 #[test]
-fn a_dry_run_or_a_failed_generate_writes_no_snapshot() {
+fn a_dry_run_writes_no_snapshot() {
     let (dir, _llm) = shop();
-    succeeded(&run(dir.path(), &["generate", "--dry-run"]));
-    assert_eq!(snapshots(dir.path()), []);
 
-    let failing = FakeLlm::failing("400 Bad Request");
-    let dir = support::repo(&[("app.rb", "class Order; end\n")], &failing);
-    assert!(!generate(dir.path()).status.success());
+    succeeded(&run(dir.path(), &["generate", "--dry-run"]));
+
     assert_eq!(snapshots(dir.path()), []);
+}
+
+// spec: RHI-10
+#[test]
+fn a_generate_that_fails_after_a_run_writes_no_snapshot() {
+    let (dir, llm) = shop();
+    succeeded(&generate(dir.path()));
+    // Any snapshot of the docs the first run left would now be new.
+    std::fs::remove_dir_all(history(dir.path())).unwrap();
+    let failing = FakeLlm::failing("400 Bad Request");
+    let config = dir.path().join("retrodoc.toml");
+    let raw = std::fs::read_to_string(&config).unwrap();
+    std::fs::write(&config, raw.replace(&llm.url, &failing.url)).unwrap();
+    std::fs::write(
+        dir.path().join("app/order.rb"),
+        "class Order\n  def total; end\nend\n",
+    )
+    .unwrap();
+
+    let output = generate(dir.path());
+
+    assert!(!output.status.success());
+    // The docs of the first run are still there to snapshot.
+    assert!(dir.path().join(".retrodoc/cache/features.yaml").exists());
+    assert_eq!(snapshots(dir.path()), []);
+}
+
+// spec: RHI-2
+#[test]
+fn the_snapshot_holds_the_commit_the_run_started_on() {
+    let repo: Arc<Mutex<Option<PathBuf>>> = Arc::default();
+    let app = App {
+        stack: "Ruby",
+        source_extensions: vec!["rb"],
+        chunk_boundaries: Vec::new(),
+        business: "app/",
+        entry: "app/orders_controller.rb",
+        model: "app/order.rb",
+    };
+    let during = Arc::clone(&repo);
+    // A commit made while the run asks the model.
+    let llm = FakeLlm::start(move |call| {
+        if let Some(dir) = during.lock().unwrap().take() {
+            git(&dir, &["commit", "-q", "--allow-empty", "-m", "Meanwhile"]);
+        }
+        app.answer(call)
+    });
+    let dir = support::repo(
+        &[
+            (
+                "app/orders_controller.rb",
+                "get '/orders' do\n  Order.all\nend\n",
+            ),
+            ("app/order.rb", "class Order\nend\n"),
+        ],
+        &llm,
+    );
+    let before = head(dir.path());
+    *repo.lock().unwrap() = Some(dir.path().to_path_buf());
+
+    succeeded(&generate(dir.path()));
+
+    assert_ne!(head(dir.path()), before);
+    let (_, text) = &snapshots(dir.path())[0];
+    let snapshot: Value = serde_json::from_str(text).unwrap();
+    assert_eq!(snapshot["commit"], before.as_str());
 }
 
 // spec: RHI-12

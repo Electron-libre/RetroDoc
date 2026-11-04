@@ -298,3 +298,45 @@ fn a_file_that_cannot_be_read_is_left_out_of_the_list() {
     assert_eq!(saved[0].finished_at, END);
     assert_eq!(load(&root.join("missing")), Vec::new());
 }
+
+// spec: RHI-9 (internal: a damaged newest file, which no command writes)
+#[test]
+fn a_snapshot_is_compared_with_the_newest_file_even_when_it_cannot_be_read() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    save(root, &snapshot(&sample(), None, END, None)).unwrap();
+    std::fs::write(history_dir(root).join("20261105T000000Z.json"), "{ cut").unwrap();
+
+    let rerun = save(
+        root,
+        &snapshot(&sample(), None, "2026-11-06T00:00:00Z", None),
+    )
+    .unwrap();
+
+    assert!(rerun.is_some());
+    assert_eq!(load(root).len(), 2);
+}
+
+// spec: RHI-1, RHI-13 (internal: a file of a later format, which this version never writes)
+#[test]
+fn a_snapshot_of_a_later_format_is_left_out_and_no_draft_is_left_behind() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    let mut later = snapshot(&sample(), None, "2026-11-03T00:00:00Z", None);
+    later.version = VERSION + 1;
+    std::fs::create_dir_all(history_dir(root)).unwrap();
+    std::fs::write(
+        history_dir(root).join("20261103T000000Z.json"),
+        serde_json::to_string(&later).unwrap(),
+    )
+    .unwrap();
+
+    save(root, &snapshot(&sample(), None, END, None)).unwrap();
+
+    assert_eq!(load(root).len(), 1);
+    assert_eq!(load(root)[0].version, VERSION);
+    assert_eq!(
+        files(root),
+        ["20261103T000000Z.json", "20261104T100000Z.json"]
+    );
+}

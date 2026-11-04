@@ -14,7 +14,9 @@ its end (`usage::finish`, `.retrodoc/cache/usage.json`, which keeps the last 20 
 
 At the end of a successful `generate` (not `--dry-run`), the CLI loads the read model as `retrodoc ui` does, and
 `retrodoc-mcp` (module `history`) builds the snapshot from it with the same functions as the audit page, then writes
-it as one JSON file per run under `.retrodoc/cache/history/`, named by the end date. A snapshot equal to the last one
+it as one JSON file per run under `.retrodoc/cache/history/`, named by the end date: written whole aside, then
+linked under a name no file holds, so a run cut short leaves no truncated snapshot and none is ever rewritten. The
+commit is the one of `HEAD` when the run started. A snapshot equal to the newest file
 but for the commit, the date and the cost is not written, so a no-op rerun stays a no-op. Every snapshot is kept;
 `--force` clears none of them.
 

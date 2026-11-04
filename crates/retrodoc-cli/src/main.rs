@@ -249,6 +249,18 @@ enum Command {
 }
 
 impl Command {
+    /// For a run that leaves a snapshot in the run history, the commit it reads, before it starts.
+    fn snapshot(&self) -> Option<commands::history::Head> {
+        match self {
+            Command::Generate {
+                path,
+                dry_run: false,
+                ..
+            } => Some(commands::history::head(path)),
+            _ => None,
+        }
+    }
+
     /// The commands that call the LLM, with the name and repo path their
     /// usage recap is filed under.
     fn counted(&self) -> Option<(&'static str, PathBuf)> {
@@ -300,7 +312,7 @@ async fn main() -> anyhow::Result<()> {
 
     let tracker = UsageTracker::new();
     let counted = cli.command.counted();
-    let snapshot = matches!(cli.command, Command::Generate { dry_run: false, .. });
+    let snapshot = cli.command.snapshot();
     let result = match cli.command {
         Command::Init { path, force } => commands::init::run(&path, force),
         Command::Scan { path } => commands::scan::run(&path),
@@ -376,12 +388,18 @@ async fn main() -> anyhow::Result<()> {
     result
 }
 
-/// Prints and saves the cost of the command `name` run on `path`, then the snapshot of the run
-/// when `snapshot` asks for one and the command succeeded.
-fn finish(path: &Path, name: &str, tracker: &UsageTracker, succeeded: bool, snapshot: bool) {
+/// Prints and saves the cost of the command `name` run on `path`, then, when the command
+/// succeeded, the snapshot of the run that read the commit `snapshot` holds, if any is asked.
+fn finish(
+    path: &Path,
+    name: &str,
+    tracker: &UsageTracker,
+    succeeded: bool,
+    snapshot: Option<commands::history::Head>,
+) {
     let usage = commands::usage::finish(path, name, tracker, succeeded);
-    if snapshot && succeeded {
-        commands::history::record(path, usage.as_ref());
+    if let Some(head) = snapshot.filter(|_| succeeded) {
+        commands::history::record(path, head, usage.as_ref());
     }
 }
 

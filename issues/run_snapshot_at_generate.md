@@ -65,6 +65,7 @@ CLI writes it after `usage::finish` (ADR 0043).
    verified by end-to-end tests through the binary with the fake LLM (first run writes, rerun writes none, dry-run
    and failure write none, `--force` keeps them); makes true RHI-1, RHI-10, RHI-12 and sets the spec `accepted`
    (~350 lines). (autonomous)
+3. [x] Docs of the whole issue and fixes of the `high` review; verified by the tests of each fix. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -91,3 +92,20 @@ CLI writes it after `usage::finish` (ADR 0043).
 - checks: project-check ok; deliverable size 248/1000.
 - Code review: no findings (`low`).
 - not verified: on a real repository (no smoke test run; the rerun no-op is covered by the fake LLM test).
+
+## Deliverable 3: docs of the issue and fixes of the `high` review
+- done: crate summaries in `CLAUDE.md` and `docs/ARCHITECTURE.md`; a snapshot is written aside then hard-linked
+  (no truncated file, none rewritten); `HEAD` read before the run; compared with the newest file even unreadable;
+  a later `VERSION` skipped; debt counted by `DebtKind` (now `Ord`); back-office features in a set; RHI-2, RHI-9,
+  RHI-13 amended and scenarios added.
+- red: RHI-10: with `.filter(|_| succeeded)` removed, `a_generate_that_fails_after_a_run_writes_no_snapshot` fails
+  (`left: [("20261104T161444Z.json", ...)] right: []`, checked by mutation); RHI-2: the commit test fails on the code
+  of deliverable 2 by reasoning (`HEAD` read after the run), not run.
+- `high` review, 10 findings: fixed 1 (atomic write), 2 (commit before the run), 3 (newest file), 4 (version),
+  5 (failed-run test), 9 (set of back-office features), 10 (kind as key); not fixed 6 (the stale hashes at the end
+  of a `generate`: one hash per cited file, nothing beside the LLM run), 7 (covered by 3: the newest file only is read
+  at save), 8 (reading the project's docs again: once per `generate`, nothing beside the LLM run).
+- checks: project-check ok; deliverable size 323/1000.
+- Code review: 2 findings (`low`), both fixed: the doc comment of `Command::counted` moved back above it; the draft
+  is named by the process too, so two runs ending in the same second never share it.
+- not verified: no smoke test on a real repository (the trends page will be the first reader).

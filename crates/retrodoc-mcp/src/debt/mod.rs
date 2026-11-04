@@ -19,7 +19,7 @@ use crate::freshness::{FileState, Freshness};
 use crate::read_model::{GeneratedDocs, Uncovered};
 
 /// What makes a section need a human, in the order the debt lists them.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum DebtKind {
     /// Confidence below `LOW_CONFIDENCE_THRESHOLD`.
     LowConfidence,

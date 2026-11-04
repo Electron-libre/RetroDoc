@@ -69,7 +69,8 @@ of the crate you are about to touch. High-level view: `docs/ARCHITECTURE.md`. De
   frozen inputs) and the measuring examples; reaches pass internals through the `bench` feature of the pipeline.
   → `docs/crates/bench.md`
 - **retrodoc-render**: writes the Markdown/Mermaid docs, deterministic and idempotent. → `docs/crates/render-mcp-cli.md`
-- **retrodoc-mcp**: the typed read model of the generated docs and the read-only, LLM-free MCP server over it.
+- **retrodoc-mcp**: the typed read model of the generated docs, the run history (a snapshot per `generate`), and
+  the read-only, LLM-free MCP server over it.
   → `docs/crates/render-mcp-cli.md`
 - **retrodoc-web**: local web interface, HTML rendered on the server from the read model (ADR 0039).
   → `docs/crates/render-mcp-cli.md`
