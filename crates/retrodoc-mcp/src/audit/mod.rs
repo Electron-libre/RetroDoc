@@ -1,7 +1,7 @@
 //! The figures of the audit page, independent of how they are shown (`specs/audit-dashboard.md`):
 //! the overall scores of the debt report, the coverage of the entry points, the stale share, the
-//! cost of the last `generate`, the progress of the bounded contexts, and the debt items counted by
-//! domain and kind. Read at each call; a figure the run lacks is `None`.
+//! cost of the last `generate`, the progress of the bounded contexts, the sections a human
+//! reviewed, and the debt items counted by domain and kind. Read at each call; a figure the run lacks is `None`.
 
 use std::collections::BTreeMap;
 
@@ -14,7 +14,7 @@ pub use retrodoc_pipeline::{format_duration, RecordedProgress};
 
 use crate::debt::{debt_of, docs_report, DebtKind, DebtList};
 use crate::read_model::GeneratedDocs;
-use crate::reviews::Reviews;
+use crate::reviews::{Reviews, SectionKind, Status};
 
 /// The highest level of a heatmap cell.
 pub const MAX_LEVEL: u8 = 4;
@@ -67,6 +67,16 @@ pub struct HeatRow {
     pub cells: Vec<HeatCell>,
 }
 
+/// The sections of one kind a human reviewed, out of those of the run, by status.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Reviewed {
+    pub kind: SectionKind,
+    pub share: Share,
+    pub validated: usize,
+    pub wrong: usize,
+    pub to_review: usize,
+}
+
 /// The figures of a run.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Audit {
@@ -78,6 +88,8 @@ pub struct Audit {
     /// The last `generate` of the usage history.
     pub cost: Option<RunUsage>,
     pub contexts: Option<RecordedProgress>,
+    /// The domains, then the features, then the use cases.
+    pub reviewed: [Reviewed; 3],
     /// One row per domain, in the order of the run.
     pub heatmap: Vec<HeatRow>,
 }
@@ -118,6 +130,7 @@ pub fn audit(docs: &GeneratedDocs, reviews: &Reviews) -> Audit {
                 .find(|run| run.command == "generate")
         }),
         contexts: root.and_then(recorded_progress),
+        reviewed: reviewed(docs, reviews),
         heatmap: heatmap(docs, &debt),
     }
 }
@@ -158,6 +171,50 @@ pub(crate) fn entry_coverage(
             .collect(),
     );
     (placed.is_some() || cited.is_some()).then_some(EntryCoverage { placed, cited })
+}
+
+/// The reviews of the domains, the features and the use cases the run holds, a use case reached
+/// through its feature as the stale share counts it.
+fn reviewed(docs: &GeneratedDocs, reviews: &Reviews) -> [Reviewed; 3] {
+    let features = docs.features();
+    let ids = |kind: SectionKind| -> Vec<String> {
+        match kind {
+            SectionKind::Domain => docs.domains().iter().map(|d| d.slug.clone()).collect(),
+            SectionKind::Feature => features.iter().map(|f| f.slug.clone()).collect(),
+            SectionKind::UseCase => features
+                .iter()
+                .flat_map(|f| {
+                    docs.use_cases_of(&f.slug)
+                        .map(move |u| format!("{}/{}", f.slug, u.slug))
+                })
+                .collect(),
+        }
+    };
+    [
+        SectionKind::Domain,
+        SectionKind::Feature,
+        SectionKind::UseCase,
+    ]
+    .map(|kind| {
+        let ids = ids(kind);
+        let statuses: Vec<Status> = reviews
+            .reviews()
+            .iter()
+            .filter(|r| r.section.kind == kind && ids.contains(&r.section.id))
+            .map(|r| r.status)
+            .collect();
+        let count = |status: Status| statuses.iter().filter(|s| **s == status).count();
+        Reviewed {
+            kind,
+            share: Share {
+                count: statuses.len(),
+                total: ids.len(),
+            },
+            validated: count(Status::Validated),
+            wrong: count(Status::Wrong),
+            to_review: count(Status::ToReview),
+        }
+    })
 }
 
 fn heatmap(docs: &GeneratedDocs, debt: &DebtList) -> Vec<HeatRow> {

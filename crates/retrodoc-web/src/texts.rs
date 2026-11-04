@@ -203,6 +203,11 @@ pub struct AuditTexts {
     pub contexts_done: &'static str,
     pub pending: &'static str,
     pub no_contexts: &'static str,
+    pub reviews: &'static str,
+    /// What is reviewed: `domains`, `features`, `use cases`, then `reviewed`.
+    pub reviewed: [&'static str; 4],
+    /// The statuses of a review: validated, wrong, to review.
+    pub statuses: [&'static str; 3],
     pub heatmap: &'static str,
     pub heatmap_intro: &'static str,
     pub fewer: &'static str,
@@ -523,6 +528,9 @@ impl WebTexts {
             contexts: "Bounded contexts",
             contexts_done: "contexts done",
             pending: "Pending:",
+            reviews: "Human review",
+            reviewed: ["domains", "features", "use cases", "reviewed"],
+            statuses: ["validated", "wrong", "to review"],
             no_contexts: "Missing: no map of the bounded contexts. A \
                 <code>retrodoc generate</code> with <code>domains_from = \"contexts\"</code> \
                 maps them.",
@@ -836,6 +844,9 @@ impl WebTexts {
             contexts: "Contextes bornés",
             contexts_done: "contextes terminés",
             pending: "En attente :",
+            reviews: "Revue humaine",
+            reviewed: ["domaines", "fonctionnalités", "cas d'usage", "revus"],
+            statuses: ["validés", "faux", "à revoir"],
             no_contexts: "Manquant : aucune carte des contextes bornés. Un \
                 <code>retrodoc generate</code> avec <code>domains_from = \"contexts\"</code> \
                 les cartographie.",

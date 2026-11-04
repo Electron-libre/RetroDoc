@@ -1,5 +1,5 @@
-//! What the human reviews change in the debt page and the heatmap of the audit page, asked of the
-//! router without a socket over the artifacts a run leaves and the reviews saved in
+//! What the human reviews change in the debt page and the audit page, asked of the router without
+//! a socket over the artifacts a run leaves and the reviews saved in
 //! `.retrodoc/reviews.json`.
 
 use std::path::Path;
@@ -361,4 +361,79 @@ async fn the_heatmap_counts_the_sections_marked_wrong_and_to_review() {
         heatmap.contains("href=\"/debt?kind=to_review&#38;domain=billing\""),
         "{heatmap}"
     );
+}
+
+/// The text of the figures of the reviews on the audit page.
+fn reviewed(page: &str) -> String {
+    let start = page.find("id=\"audit-reviews\"").expect(page);
+    let section = &page[start..];
+    section[..section.find("</section>").unwrap()].to_string()
+}
+
+// spec: AUD-16
+#[tokio::test]
+async fn the_audit_page_shows_the_share_of_each_kind_of_section_reviewed_by_status() {
+    let repo = generated_repo();
+    let root = repo.path();
+    review(root, SectionKind::Domain, "billing", Status::Wrong, "");
+    review(
+        root,
+        SectionKind::UseCase,
+        "pay-invoice/refund",
+        Status::Validated,
+        "",
+    );
+    review(
+        root,
+        SectionKind::Feature,
+        "ship-order",
+        Status::Validated,
+        "",
+    );
+    review(
+        root,
+        SectionKind::UseCase,
+        "ship-order/ship",
+        Status::ToReview,
+        "",
+    );
+    // The run no longer holds `ship-order` nor its domain: neither its review nor its use case
+    // count.
+    retrodoc_pipeline::save_features(root, &[feature("pay-invoice", "billing", "Pay an invoice")])
+        .unwrap();
+
+    let reviewed = reviewed(&get(root, "/audit").await);
+
+    for line in [
+        "<strong>100%</strong> <span class=\"muted\">1 of 1 domains reviewed: 0 validated, 1 wrong, 0 to review</span>",
+        "<strong>0%</strong> <span class=\"muted\">0 of 1 features reviewed: 0 validated, 0 wrong, 0 to review</span>",
+        "<strong>50%</strong> <span class=\"muted\">1 of 2 use cases reviewed: 1 validated, 0 wrong, 0 to review</span>",
+    ] {
+        assert!(reviewed.contains(line), "{line} not in {reviewed}");
+    }
+}
+
+// spec: AUD-17
+#[tokio::test]
+async fn an_unreadable_file_of_reviews_is_said_on_the_audit_page() {
+    let repo = generated_repo();
+    review(
+        repo.path(),
+        SectionKind::Domain,
+        "billing",
+        Status::Wrong,
+        "",
+    );
+    std::fs::write(reviews::reviews_path(repo.path()), "{ not json").unwrap();
+
+    let page = get(repo.path(), "/audit").await;
+
+    let reviewed = reviewed(&page);
+    assert!(
+        reviewed.contains("The reviews could not be read"),
+        "{reviewed}"
+    );
+    assert!(!reviewed.contains("reviewed:"), "{reviewed}");
+    assert!(!page.contains("kind=marked_wrong"), "{page}");
+    assert!(page.contains("id=\"audit-heatmap\""), "{page}");
 }

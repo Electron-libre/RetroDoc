@@ -52,8 +52,8 @@ reviews (`issues/review_outdated.md`), the lists of `coverage-report.md`.
    DBT-8, DBT-29 to DBT-34, AUD-6 (~700 lines). (autonomous)
 2. [x] Snapshot: the debt counted by a `generate` takes the reviews into account; verified by a test of the history;
    makes true RHI-14 (~150 lines). (autonomous)
-3. [ ] Audit page: the share of domains, features and use cases reviewed, by status; verified by tests of `/audit`;
-   makes true AUD-16, AUD-17 (~350 lines).
+3. [x] Audit page: the share of domains, features and use cases reviewed, by status; verified by tests of `/audit`;
+   makes true AUD-16, AUD-17 (~350 lines). (autonomous)
 4. [ ] `retrodoc report` lists the sections marked wrong; verified by a test of the binary; makes true DBT-35,
    DBT-36 (~200 lines).
 
@@ -98,6 +98,24 @@ unreadable file is warned of and counts no review.
 
 red: RHI-14: a rerun after a review wrote no snapshot (1 file, expected 2); no warning for an unreadable
 `reviews.json`.
+
+Code review: no findings
+not verified: none
+decisions needed: none
+
+## Deliverable 3
+done: the audit page shows, for the domains, features and use cases of the run, the share a human reviewed and the
+count of each status; an unreadable `reviews.json` is said in its place.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass (audit-dashboard `draft`) |
+| docs | `docs/crates/render-mcp-cli.md` |
+| code review | no findings |
+
+red: AUD-16, AUD-17: no section `audit-reviews` on the audit page.
 
 Code review: no findings
 not verified: none

@@ -6,10 +6,12 @@ use std::fmt::Write as _;
 
 use retrodoc_core::model::ConfidenceScore;
 use retrodoc_mcp::audit::{
-    audit, format_duration, thousands, ModelRecord, PassRecord, RecordedProgress, Share, MAX_LEVEL,
+    audit, format_duration, thousands, ModelRecord, PassRecord, RecordedProgress, Reviewed, Share,
+    MAX_LEVEL,
 };
 use retrodoc_mcp::debt::DebtKind;
 use retrodoc_mcp::history::SavedRun;
+use retrodoc_mcp::reviews::Reviews;
 use retrodoc_mcp::GeneratedDocs;
 
 use crate::texts::WebTexts;
@@ -24,6 +26,9 @@ pub struct AuditPage {
     pub stale: ShareView,
     pub cost: Option<CostView>,
     pub contexts: Option<ContextsView>,
+    /// The domains, features and use cases reviewed; `None` when the file of the reviews could
+    /// not be read.
+    pub reviewed: Option<Vec<ReviewedView>>,
     /// The names of the columns of the heatmap.
     pub kinds: Vec<&'static str>,
     pub rows: Vec<HeatRowView>,
@@ -74,6 +79,30 @@ pub struct PassRow {
     pub lower_bound: bool,
 }
 
+/// The sections of one kind reviewed, as text.
+pub struct ReviewedView {
+    pub share: ShareView,
+    /// `domains reviewed`.
+    pub what: String,
+    /// `0 validated, 1 wrong, 0 to review`.
+    pub statuses: String,
+}
+
+impl ReviewedView {
+    fn of(reviewed: &Reviewed, at: usize, texts: &WebTexts) -> Self {
+        let words = texts.audit_page.reviewed;
+        let [validated, wrong, to_review] = texts.audit_page.statuses;
+        Self {
+            share: reviewed.share.into(),
+            what: format!("{} {}", words[at], words[3]),
+            statuses: format!(
+                "{} {validated}, {} {wrong}, {} {to_review}",
+                reviewed.validated, reviewed.wrong, reviewed.to_review
+            ),
+        }
+    }
+}
+
 pub struct ContextsView {
     pub done: usize,
     pub total: usize,
@@ -98,8 +127,9 @@ pub struct HeatCellView {
 /// cited files and the saved figures.
 #[must_use]
 pub fn audit_page(docs: &GeneratedDocs, runs: &[SavedRun], texts: &WebTexts) -> AuditPage {
+    let reviews = crate::review::load(docs);
     // An unreadable file counts no review (AUD-17).
-    let audit = audit(docs, &crate::review::load(docs).unwrap_or_default());
+    let audit = audit(docs, reviews.as_ref().unwrap_or(&Reviews::default()));
     let confidence = |value: Option<f32>| {
         value.map(|value| Confidence::of(Some(&ConfidenceScore::new(value, None))))
     };
@@ -138,6 +168,14 @@ pub fn audit_page(docs: &GeneratedDocs, runs: &[SavedRun], texts: &WebTexts) -> 
                 total: done.len() + pending.len(),
                 pending: pending.iter().map(|slug| domain_name(slug)).collect(),
             }),
+        reviewed: reviews.is_ok().then(|| {
+            audit
+                .reviewed
+                .iter()
+                .enumerate()
+                .map(|(at, reviewed)| ReviewedView::of(reviewed, at, texts))
+                .collect()
+        }),
         levels: (1..=MAX_LEVEL).collect(),
         trends: trends(runs, texts),
         kinds: DebtKind::WITH_DOMAIN
