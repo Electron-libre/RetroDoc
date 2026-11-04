@@ -631,3 +631,18 @@ fn a_new_review_of_an_outdated_section_is_up_to_date() {
 
     assert_eq!(outdated(&docs, &review), None);
 }
+
+// spec: REV-21 (internal: a file of reviews edited by hand, or pulled from a branch)
+#[test]
+fn a_hashed_file_the_section_no_longer_cites_is_not_judged() {
+    let dir = repo("A");
+    let root = dir.path();
+    let docs = docs_citing(root, "");
+    let mut review = record(root, &docs, &feature_pay(), Status::Validated, "").unwrap();
+    std::fs::write(root.join("app/other.rb"), "edited").unwrap();
+    for path in ["app/other.rb", "/dev/null", "../outside.rb"] {
+        review.files.insert(path.into(), "x".into());
+    }
+
+    assert_eq!(outdated(&docs, &review), None);
+}

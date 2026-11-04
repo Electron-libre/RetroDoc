@@ -416,28 +416,29 @@ fn section_parts<'a>(docs: &'a GeneratedDocs, section: &Section) -> (Vec<&'a str
     let Some(feature) = docs.features().iter().find(|f| f.slug == section.feature) else {
         return (Vec::new(), 0);
     };
-    match &section.use_case {
+    let entry_points = match &section.use_case {
         Some(slug) => docs
             .use_cases()
             .iter()
             .find(|u| u.feature_slug == feature.slug && u.slug == *slug)
-            .map(|u| (use_case_cited_paths(u), u.entry_points.len()))
-            .unwrap_or_default(),
-        None => (
-            feature.source_paths.iter().map(String::as_str).collect(),
-            feature.entry_points.len(),
-        ),
-    }
+            .map_or(0, |u| u.entry_points.len()),
+        None => feature.entry_points.len(),
+    };
+    (
+        reviews::cited_paths(docs, &review_section(section)),
+        entry_points,
+    )
 }
 
 /// The files of the features of a domain, and the sum of their entry points.
 fn domain_parts<'a>(docs: &'a GeneratedDocs, slug: &str) -> (Vec<&'a str>, usize) {
-    let features = || docs.features().iter().filter(|f| f.domain_slug == slug);
     (
-        features()
-            .flat_map(|f| f.source_paths.iter().map(String::as_str))
-            .collect(),
-        features().map(|f| f.entry_points.len()).sum(),
+        reviews::cited_paths(docs, &reviews::Section::new(SectionKind::Domain, slug)),
+        docs.features()
+            .iter()
+            .filter(|f| f.domain_slug == slug)
+            .map(|f| f.entry_points.len())
+            .sum(),
     )
 }
 
@@ -471,10 +472,12 @@ pub fn reviewed<'a>(
             .iter()
             .filter(move |r| r.status == status)
             .filter_map(move |r| {
+                // The subject first: no file read for a section the run no longer holds.
+                let subject = reviewed_subject(docs, r)?;
                 Some(DebtItem {
                     rationale: Some(r.comment.clone()).filter(|c| !c.trim().is_empty()),
                     outdated: reviews::outdated(docs, r),
-                    ..DebtItem::about(kind, reviewed_subject(docs, r)?)
+                    ..DebtItem::about(kind, subject)
                 })
             })
     };

@@ -863,7 +863,7 @@ fn the_review_line_of_an_outdated_review_says_why() {
         .find(|line| line.starts_with("Review: "))
         .unwrap();
     assert!(
-        line.ends_with(", outdated: files changed since the review: `app/invoice.rb`"),
+        line.ends_with(", outdated: files changed since the review: `app/invoice.rb` (modified)"),
         "{feature}"
     );
 }

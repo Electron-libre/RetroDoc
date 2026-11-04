@@ -13,7 +13,7 @@ use chrono::{SecondsFormat, Utc};
 use retrodoc_core::model::Feature;
 use retrodoc_ingest::git_history::user_name;
 use retrodoc_pipeline::cache::hash_content;
-use retrodoc_pipeline::OutdatedReview;
+use retrodoc_pipeline::{ChangedFile, OutdatedReview};
 use serde::{Deserialize, Serialize};
 
 use crate::debt::use_case_cited_paths;
@@ -92,7 +92,14 @@ impl Outdated {
     pub fn report(&self) -> OutdatedReview {
         OutdatedReview {
             rewritten: self.rewritten,
-            changed: self.changed.iter().map(|(path, _)| path.clone()).collect(),
+            changed: self
+                .changed
+                .iter()
+                .map(|(path, state)| ChangedFile {
+                    path: path.clone(),
+                    deleted: *state == FileState::Deleted,
+                })
+                .collect(),
         }
     }
 
@@ -194,14 +201,17 @@ pub fn fingerprint(docs: &GeneratedDocs, section: &Section) -> Option<String> {
 }
 
 /// Why `review` is outdated in `docs` and the files of their repository now, `None` when it is
-/// not; docs that carry no repository judge no file.
+/// not; docs that carry no repository judge no file. Only the files the section cites now are
+/// read: the paths of a file of reviews are not trusted.
 #[must_use]
 pub fn outdated(docs: &GeneratedDocs, review: &Review) -> Option<Outdated> {
     let rewritten = fingerprint(docs, &review.section).as_ref() != Some(&review.fingerprint);
     let changed: Vec<(String, FileState)> = docs.repo_root().map_or_else(Vec::new, |root| {
+        let cited: HashSet<&str> = cited_paths(docs, &review.section).into_iter().collect();
         review
             .files
             .iter()
+            .filter(|(path, _)| cited.contains(path.as_str()))
             .map(|(path, hash)| (path.clone(), state_against(root, path, hash)))
             .filter(|(_, state)| matches!(state, FileState::Modified | FileState::Deleted))
             .collect()
@@ -211,7 +221,8 @@ pub fn outdated(docs: &GeneratedDocs, review: &Review) -> Option<Outdated> {
 
 /// The files `section` cites in `docs`: the source files of a feature, the files the steps of a
 /// use case cite, the source files of the features of a domain; each once, in order.
-fn cited_paths<'a>(docs: &'a GeneratedDocs, section: &'a Section) -> Vec<&'a str> {
+#[must_use]
+pub fn cited_paths<'a>(docs: &'a GeneratedDocs, section: &Section) -> Vec<&'a str> {
     let id = section.id.as_str();
     let source_paths = |of: &dyn Fn(&Feature) -> bool| -> Vec<&'a str> {
         docs.features()
@@ -225,7 +236,11 @@ fn cited_paths<'a>(docs: &'a GeneratedDocs, section: &'a Section) -> Vec<&'a str
         SectionKind::Feature => source_paths(&|f| f.slug == id),
         SectionKind::UseCase => id
             .split_once('/')
-            .and_then(|(feature, slug)| docs.use_cases_of(feature).find(|u| u.slug == slug))
+            .and_then(|(feature, slug)| {
+                docs.use_cases()
+                    .iter()
+                    .find(|u| u.feature_slug == feature && u.slug == slug)
+            })
             .map(use_case_cited_paths)
             .unwrap_or_default(),
     };

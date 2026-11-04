@@ -118,13 +118,12 @@ pub struct ReviewBadge {
 }
 
 impl ReviewBadge {
-    /// The badge of `review` of a section of `docs`.
     #[must_use]
-    pub fn of(docs: &GeneratedDocs, review: &Review) -> Self {
+    pub fn of(status: Status, outdated: bool) -> Self {
         Self {
-            status: review.status,
-            class: key(review.status),
-            outdated: reviews::outdated(docs, review).is_some(),
+            status,
+            class: key(status),
+            outdated,
         }
     }
 
@@ -133,7 +132,7 @@ impl ReviewBadge {
     pub fn of_place(docs: &GeneratedDocs, reviews: &Reviews, place: &Place) -> Option<Self> {
         reviews
             .get(&place.section())
-            .map(|review| Self::of(docs, review))
+            .map(|review| Self::of(review.status, reviews::outdated(docs, review).is_some()))
     }
 }
 
@@ -203,9 +202,10 @@ impl ReviewView {
                 ..Self::default()
             };
         };
+        let outdated = reviews::outdated(docs, review);
         Self {
             action: place.href(),
-            badge: Some(ReviewBadge::of(docs, review)),
+            badge: Some(ReviewBadge::of(review.status, outdated.is_some())),
             comment: review.comment.trim().to_string(),
             author: review
                 .author
@@ -216,9 +216,7 @@ impl ReviewView {
             date: review.reviewed_at.clone(),
             error: None,
             selected: Some(review.status),
-            outdated: reviews::outdated(docs, review)
-                .as_ref()
-                .map(OutdatedView::of),
+            outdated: outdated.as_ref().map(OutdatedView::of),
         }
     }
 

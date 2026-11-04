@@ -211,12 +211,11 @@ fn reviewed(docs: &GeneratedDocs, reviews: &Reviews) -> [Reviewed; 3] {
             .iter()
             .filter(|r| sections.contains(&r.section))
             .collect();
-        let statuses: Vec<Status> = of_run.iter().map(|r| r.status).collect();
-        let count = |status: Status| statuses.iter().filter(|s| **s == status).count();
+        let count = |status: Status| of_run.iter().filter(|r| r.status == status).count();
         Reviewed {
             kind,
             share: Share {
-                count: statuses.len(),
+                count: of_run.len(),
                 total: sections.len(),
             },
             validated: count(Status::Validated),

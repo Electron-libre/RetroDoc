@@ -50,7 +50,8 @@ model's confidence.
 - **REV-20** (deterministic) A review must be outdated, with the reason "rewritten", when the fingerprint of its
   section in the docs now (REV-6) differs from the one it holds.
 - **REV-21** (deterministic) A review must be outdated, with the files that changed, when a file it holds a hash of
-  now has another content or is deleted; a file that exists but cannot be read is not judged.
+  and its section cites now has another content or is deleted; a file that exists but cannot be read, or that the
+  section no longer cites, is not judged.
 - **REV-22** (deterministic) Whether a review is outdated must be judged when the review is read, never saved: an
   outdated review is kept as it was, and a new review of its section is up to date.
 

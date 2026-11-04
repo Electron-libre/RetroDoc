@@ -89,8 +89,8 @@ pub use language::{InLanguage, READING_PASSES, WRITING_PASSES};
 pub use progress::format_duration;
 pub use ranking::{apply_budget, rank_files, Scope};
 pub use report::{
-    build_report, domain_models, DebtReport, FeaturelessDomain, MarkedWrong, OutdatedReview,
-    Section, SetApartUseCase, TechnicalFeature, WeakSection,
+    build_report, domain_models, ChangedFile, DebtReport, FeaturelessDomain, MarkedWrong,
+    OutdatedReview, Section, SetApartUseCase, TechnicalFeature, WeakSection,
 };
 pub use roles::{identify_roles, FileRole, RoleMap, RoleRule, RoleRules};
 pub use rules::{

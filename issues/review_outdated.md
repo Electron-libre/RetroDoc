@@ -51,7 +51,7 @@ Out of scope: a debt kind of its own for an outdated validation; files a later r
    tests of the pages; makes true WEB-89, WEB-90 (~250 lines). (autonomous)
 4. [x] MCP answers: the review line and the warning of an outdated review; verified by tests of the tools; makes
    true MCP-12, MCP-13 (~120 lines). (autonomous)
-5. [ ] Docs of the whole issue and fixes of its `high` review.
+5. [x] Docs of the whole issue and fixes of its `high` review. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -138,4 +138,32 @@ red: MCP-12, MCP-13: no `outdated:` in the review line, the warning still saying
 
 Code review: no findings
 not verified: none
+decisions needed: none
+
+## Deliverable 5
+done: README and ARCHITECTURE say when a review is outdated; the fixes of the `high` review of the issue: only the
+files the section cites now are read (REV-21 amended: a path of `reviews.json` is not trusted), one list of the
+files of a section (`reviews::cited_paths`, also the files of the debt's priority), `retrodoc report` and the MCP
+answers say `(deleted)` or `(modified)` per file, the outdated review judged once per page, no file read for a
+review whose section the run no longer holds, the audit counts from one list.
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass |
+| docs | `README.md`, `docs/ARCHITECTURE.md`, `docs/crates/render-mcp-cli.md` |
+| code review | see below |
+
+red: REV-21: a hashed file the section no longer cites (`app/other.rb`, `/dev/null`, `../outside.rb`) judged
+modified or deleted.
+
+Code review: 10 findings (high review of the issue): fixed 1 (paths bounded to the cited files), 4 (one
+computation per page), 7 (subject first), 8 (one list of cited files), 9 (deleted or modified in the report), 10
+(audit counts); not fixed 2 (format version 1 kept: no released RetroDoc reads `reviews.json`, it came after 0.8.0),
+3 (the MCP server answers the docs it loaded: a review of a later run does not vouch for the section it shows, so
+"rewritten" is true of what the agent reads), 5 and 6 (one more hash per reviewed file and request; the cost of the
+check was measured small, `issues/done/mcp_freshness_cost.md`).
+Low review of this deliverable: no findings.
+not verified: the look of the dashed "outdated" badge in a browser (only the HTML is tested)
 decisions needed: none

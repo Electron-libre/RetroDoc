@@ -123,7 +123,7 @@ fn a_section_marked_wrong_whose_cited_file_changed_is_said_outdated() {
 
     assert_eq!(
         marked(&stdout_of(root, "report")),
-        "- feature `orders/list-orders`: Lists carts too (outdated: files changed since the review: `app/orders_controller.rb`)"
+        "- feature `orders/list-orders`: Lists carts too (outdated: files changed since the review: `app/orders_controller.rb` (modified))"
     );
 }
 

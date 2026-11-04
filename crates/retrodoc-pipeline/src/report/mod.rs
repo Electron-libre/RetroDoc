@@ -168,7 +168,15 @@ pub struct MarkedWrong {
 pub struct OutdatedReview {
     pub rewritten: bool,
     /// The cited files modified or deleted since the review, in path order.
-    pub changed: Vec<String>,
+    pub changed: Vec<ChangedFile>,
+}
+
+/// A file cited by a reviewed section that changed since the review.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChangedFile {
+    pub path: String,
+    /// Deleted, else modified.
+    pub deleted: bool,
 }
 
 impl OutdatedReview {
@@ -184,7 +192,10 @@ impl OutdatedReview {
             let files: Vec<String> = self
                 .changed
                 .iter()
-                .map(|f| format!("`{}`", one_line(f)))
+                .map(|f| {
+                    let state = if f.deleted { "deleted" } else { "modified" };
+                    format!("`{}` ({state})", one_line(&f.path))
+                })
                 .collect();
             reasons.push(format!(
                 "files changed since the review: {}",
