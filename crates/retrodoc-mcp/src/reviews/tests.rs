@@ -1,7 +1,10 @@
+use std::collections::BTreeMap;
+
 use retrodoc_core::model::{ConfidenceScore, Domain, Feature, UseCase};
 use retrodoc_pipeline::Glossary;
 
 use super::*;
+use crate::freshness::FileState;
 
 fn domain(slug: &str) -> Domain {
     Domain {
@@ -429,4 +432,201 @@ fn a_review_in_a_subfolder_of_a_repository_has_its_author() {
     let review = record(&sub, &docs(), &feature_pay(), Status::Validated, "").unwrap();
 
     assert_eq!(review.author.as_deref(), Some("Ada Reviewer"));
+}
+
+/// The docs of [`docs`] whose feature `pay` has the source file `app/pay.rb` and whose use case
+/// `refund` cites `app/refund.rb`, each written in `root` when missing.
+fn docs_citing(root: &Path, narrative: &str) -> GeneratedDocs {
+    use retrodoc_core::model::{Actor, ActorKind, SourceRef, Step};
+    std::fs::create_dir_all(root.join("app")).unwrap();
+    for name in ["pay", "refund"] {
+        let path = root.join(format!("app/{name}.rb"));
+        if !path.exists() {
+            std::fs::write(path, format!("class {name}; end")).unwrap();
+        }
+    }
+    let mut refund = use_case("refund", "pay", narrative);
+    refund.steps = vec![Step {
+        order: 1,
+        description: String::new(),
+        actor: Actor {
+            name: "Clerk".into(),
+            kind: ActorKind::Human,
+        },
+        action: String::new(),
+        source_refs: vec![SourceRef {
+            path: "app/refund.rb".into(),
+            start_line: Some(1),
+            end_line: None,
+        }],
+    }];
+    let mut pay = feature("pay", "billing");
+    pay.source_paths = vec!["app/pay.rb".into()];
+    GeneratedDocs::new(
+        vec![domain("billing"), domain("a")],
+        vec![pay, feature("a", "a")],
+        vec![refund, use_case("b", "a", "")],
+        Glossary::default(),
+        &[],
+    )
+}
+
+fn file_hash_of(root: &Path, path: &str) -> String {
+    hash_content(&std::fs::read_to_string(root.join(path)).unwrap())
+}
+
+// spec: REV-19 (internal: the format of the file the other crates read)
+#[test]
+fn a_review_holds_the_hash_of_each_file_its_section_cites() {
+    let dir = repo("A");
+    let root = dir.path();
+    let docs = docs_citing(root, "");
+    let billing = Section::new(SectionKind::Domain, "billing");
+
+    let feature = record(root, &docs, &feature_pay(), Status::Validated, "").unwrap();
+    let use_case = record(root, &docs, &refund(), Status::Validated, "").unwrap();
+    let domain = record(root, &docs, &billing, Status::Validated, "").unwrap();
+
+    let pay = ("app/pay.rb".to_string(), file_hash_of(root, "app/pay.rb"));
+    let refund = (
+        "app/refund.rb".to_string(),
+        file_hash_of(root, "app/refund.rb"),
+    );
+    assert_eq!(feature.files, BTreeMap::from([pay.clone()]));
+    assert_eq!(use_case.files, BTreeMap::from([refund]));
+    assert_eq!(domain.files, BTreeMap::from([pay]));
+    assert_eq!(load(root).unwrap().get(&feature_pay()).unwrap(), &feature);
+}
+
+// spec: REV-19 (internal: a file of the run gone from the disk)
+#[test]
+fn a_cited_file_that_cannot_be_read_gets_no_hash() {
+    let dir = repo("A");
+    let root = dir.path();
+    let docs = docs_citing(root, "");
+    std::fs::remove_file(root.join("app/pay.rb")).unwrap();
+
+    let review = record(root, &docs, &feature_pay(), Status::Validated, "").unwrap();
+
+    assert!(review.files.is_empty());
+}
+
+// spec: REV-20, REV-22 (internal: the rule the pages, the debt and the MCP answers read)
+#[test]
+fn a_review_of_a_rewritten_section_is_outdated() {
+    let dir = repo("A");
+    let root = dir.path();
+    let review = record(
+        root,
+        &docs_citing(root, "Before."),
+        &refund(),
+        Status::Validated,
+        "",
+    )
+    .unwrap();
+
+    assert_eq!(outdated(root, &docs_citing(root, "Before."), &review), None);
+    assert_eq!(
+        outdated(root, &docs_citing(root, "After."), &review),
+        Some(Outdated {
+            rewritten: true,
+            changed: Vec::new(),
+        })
+    );
+    assert_eq!(load(root).unwrap().get(&refund()), Some(&review));
+}
+
+// spec: REV-21 (internal: the rule the pages, the debt and the MCP answers read)
+#[test]
+fn a_review_whose_cited_file_changed_is_outdated_naming_it() {
+    let dir = repo("A");
+    let root = dir.path();
+    let docs = docs_citing(root, "");
+    let review = record(root, &docs, &feature_pay(), Status::Validated, "").unwrap();
+
+    std::fs::write(root.join("app/pay.rb"), "class Pay; def refund; end; end").unwrap();
+
+    assert_eq!(
+        outdated(root, &docs, &review),
+        Some(Outdated {
+            rewritten: false,
+            changed: vec![("app/pay.rb".into(), FileState::Modified)],
+        })
+    );
+}
+
+// spec: REV-20, REV-21 (internal: the rule the pages, the debt and the MCP answers read)
+#[test]
+fn a_rewritten_section_citing_a_deleted_file_is_outdated_for_both() {
+    let dir = repo("A");
+    let root = dir.path();
+    let review = record(
+        root,
+        &docs_citing(root, "Before."),
+        &refund(),
+        Status::Wrong,
+        "",
+    )
+    .unwrap();
+
+    let rewritten = docs_citing(root, "After.");
+    std::fs::remove_file(root.join("app/refund.rb")).unwrap();
+
+    assert_eq!(
+        outdated(root, &rewritten, &review),
+        Some(Outdated {
+            rewritten: true,
+            changed: vec![("app/refund.rb".into(), FileState::Deleted)],
+        })
+    );
+}
+
+// spec: REV-21 (internal: a file written by hand)
+#[test]
+fn a_review_with_no_file_hashes_is_outdated_only_when_rewritten() {
+    let dir = repo("A");
+    let root = dir.path();
+    let docs = docs_citing(root, "");
+    let mut review = record(root, &docs, &feature_pay(), Status::Validated, "").unwrap();
+    review.files.clear();
+
+    std::fs::write(root.join("app/pay.rb"), "edited").unwrap();
+
+    assert_eq!(outdated(root, &docs, &review), None);
+}
+
+// spec: REV-21 (internal: a file the process may not read)
+#[test]
+fn a_cited_file_that_exists_but_cannot_be_read_is_not_judged() {
+    let dir = repo("A");
+    let root = dir.path();
+    let docs = docs_citing(root, "");
+    let review = record(root, &docs, &feature_pay(), Status::Validated, "").unwrap();
+
+    // A folder in place of the file: it exists, reading it fails.
+    std::fs::remove_file(root.join("app/pay.rb")).unwrap();
+    std::fs::create_dir(root.join("app/pay.rb")).unwrap();
+
+    assert_eq!(outdated(root, &docs, &review), None);
+}
+
+// spec: REV-22 (internal: the rule the pages, the debt and the MCP answers read)
+#[test]
+fn a_new_review_of_an_outdated_section_is_up_to_date() {
+    let dir = repo("A");
+    let root = dir.path();
+    record(
+        root,
+        &docs_citing(root, "Before."),
+        &refund(),
+        Status::Validated,
+        "",
+    )
+    .unwrap();
+    std::fs::write(root.join("app/refund.rb"), "edited").unwrap();
+    let docs = docs_citing(root, "After.");
+
+    let review = record(root, &docs, &refund(), Status::Validated, "").unwrap();
+
+    assert_eq!(outdated(root, &docs, &review), None);
 }

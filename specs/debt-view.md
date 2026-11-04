@@ -1,6 +1,6 @@
 ---
 id: DBT
-status: accepted
+status: draft
 adrs: [0039, 0044]
 ---
 
@@ -97,8 +97,7 @@ from top to bottom.
 - **DBT-31** (deterministic) An item of the kind "to review" must be listed for each domain, feature and use case of
   the run whose review has the status `to_review`, with the comment of the review as its reason.
 - **DBT-32** (deterministic) The kinds low confidence, not scored, unbacked narrative and technical language must
-  leave out each feature and use case whose review has the status `validated` and a fingerprint (REV-6) equal to the
-  fingerprint of the section now.
+  leave out each feature and use case whose review has the status `validated` and is not outdated (REV-20, REV-21).
 - **DBT-33** (deterministic) An item of a domain (DBT-30, DBT-31) must link to the page of the domain, its files being
   the `source_paths` of the features of the domain and its entry points the sum of theirs (DBT-25, DBT-26).
 - **DBT-34** (deterministic) The debt page must read the reviews at each request, and when the file of the reviews
@@ -108,6 +107,10 @@ from top to bottom.
   comment of its review, in the order the reviews are saved (REV-15).
 - **DBT-36** (deterministic) When the file of the reviews cannot be read, `retrodoc report` must warn of it and print
   the report without the reviews.
+- **DBT-37** (deterministic) An item of the kinds "marked wrong" and "to review" whose review is outdated must say so,
+  with its reasons: the section rewritten, the files changed since the review.
+- **DBT-38** (deterministic) A section of "Sections marked wrong" of `retrodoc report` whose review is outdated must
+  say so, with its reasons as DBT-37 says.
 
 ## Scenarios
 
@@ -135,13 +138,15 @@ from top to bottom.
   confidence item comes first (weight × weakness 0.6 against 0.25).
 - (DBT-32) Given a use case validated then rewritten by a later run (its fingerprint differs), then it is listed
   again under the kinds of judgement it falls in.
+- (DBT-32) Given a feature validated, when one of its source files is edited after the review, then it is listed
+  again under the kinds of judgement it falls in, before any `generate`.
 - (DBT-32) Given a validated use case that a section of the project's docs contradicts, or that is stale or set
   apart, then it is still listed under those kinds.
 - (DBT-32) Given a validated domain, then its features and use cases are still listed under the kinds of judgement:
   a review vouches for its own section only.
 - (DBT-30) Given a review of a section the run no longer holds, then no item is listed for it.
 - (DBT-30) Given a section marked wrong whose fingerprint differs from the one of its review, then it is still
-  listed as marked wrong (`issues/review_outdated.md` flags it outdated).
+  listed as marked wrong, said outdated (DBT-37).
 - (DBT-30, DBT-31) Given a review with no comment, then its item shows no reason.
 - (DBT-19, DBT-20) Given a run with no saved behaviour coverage (not a `surface` run), then no item of the kinds
   "entry point without a feature" and "reached by no behaviour" is listed, and the page does not say so.
@@ -151,7 +156,8 @@ from top to bottom.
 - A validated section still counts in the low-confidence, unscored, unbacked and technical lists of `retrodoc report`
   and of `coverage-report.md`: they report the model's judgement; only the sections marked wrong are added to the
   report (DBT-35).
-- A review whose section, or a file it cites, changed since is not told outdated here: `issues/review_outdated.md`.
+- No kind of its own for an outdated validation: the section is back under the kinds of judgement it falls in, and
+  its page says the review is outdated (decided with the user on 2026-11-04).
 
 - The entry points a feature holds but no use case cites, the features set aside as technical, the domains with no
   feature and the rules set aside are not items: `retrodoc report` lists them, and they are not code no doc covers

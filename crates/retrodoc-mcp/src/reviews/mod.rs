@@ -3,16 +3,20 @@
 //! `.retrodoc/reviews.json`, outside the cache, so a `generate --force` keeps them and a team can
 //! version them.
 
+use std::collections::{BTreeMap, HashSet};
 use std::io::{ErrorKind, Write as _};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, PoisonError};
 
 use chrono::{SecondsFormat, Utc};
+use retrodoc_core::model::Feature;
 use retrodoc_ingest::git_history::user_name;
 use retrodoc_pipeline::cache::hash_content;
 use serde::{Deserialize, Serialize};
 
+use crate::debt::use_case_cited_paths;
+use crate::freshness::{file_hash, state_against, FileState};
 pub use crate::history::SectionKind;
 use crate::read_model::GeneratedDocs;
 
@@ -66,6 +70,19 @@ pub struct Review {
     pub reviewed_at: String,
     /// The fingerprint of the section as it was reviewed ([`fingerprint`]).
     pub fingerprint: String,
+    /// The hash of each file the section cited, as the file was when it was reviewed; none in a
+    /// review written by hand.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub files: BTreeMap<String, String>,
+}
+
+/// Why a review no longer vouches for its section as it is now.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Outdated {
+    /// The section in the docs differs from the one reviewed.
+    pub rewritten: bool,
+    /// The cited files modified or deleted since the review, in path order.
+    pub changed: Vec<(String, FileState)>,
 }
 
 /// The reviews of a repository, by kind then id.
@@ -158,6 +175,44 @@ pub fn fingerprint(docs: &GeneratedDocs, section: &Section) -> Option<String> {
     saved.ok().map(|json| hash_content(&json))
 }
 
+/// Why `review` is outdated in `docs` and the files of `repo_root` now, `None` when it is not.
+#[must_use]
+pub fn outdated(repo_root: &Path, docs: &GeneratedDocs, review: &Review) -> Option<Outdated> {
+    let rewritten = fingerprint(docs, &review.section).as_ref() != Some(&review.fingerprint);
+    let changed: Vec<(String, FileState)> = review
+        .files
+        .iter()
+        .map(|(path, hash)| (path.clone(), state_against(repo_root, path, hash)))
+        .filter(|(_, state)| matches!(state, FileState::Modified | FileState::Deleted))
+        .collect();
+    (rewritten || !changed.is_empty()).then_some(Outdated { rewritten, changed })
+}
+
+/// The files `section` cites in `docs`: the source files of a feature, the files the steps of a
+/// use case cite, the source files of the features of a domain; each once, in order.
+fn cited_paths<'a>(docs: &'a GeneratedDocs, section: &'a Section) -> Vec<&'a str> {
+    let id = section.id.as_str();
+    let source_paths = |of: &dyn Fn(&Feature) -> bool| -> Vec<&'a str> {
+        docs.features()
+            .iter()
+            .filter(|f| of(f))
+            .flat_map(|f| f.source_paths.iter().map(String::as_str))
+            .collect()
+    };
+    let mut paths = match section.kind {
+        SectionKind::Domain => source_paths(&|f| f.domain_slug == id),
+        SectionKind::Feature => source_paths(&|f| f.slug == id),
+        SectionKind::UseCase => id
+            .split_once('/')
+            .and_then(|(feature, slug)| docs.use_cases_of(feature).find(|u| u.slug == slug))
+            .map(use_case_cited_paths)
+            .unwrap_or_default(),
+    };
+    let mut seen = HashSet::new();
+    paths.retain(|path| seen.insert(*path));
+    paths
+}
+
 /// The reviews saved in `repo_root`, none when no file is.
 ///
 /// # Errors
@@ -222,6 +277,10 @@ pub fn record(
         author: user_name(repo_root),
         reviewed_at: Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true),
         fingerprint,
+        files: cited_paths(docs, section)
+            .into_iter()
+            .filter_map(|path| Some((path.to_string(), file_hash(repo_root, path).ok()?)))
+            .collect(),
     };
     reviews.set(review.clone());
     save(repo_root, &reviews)?;

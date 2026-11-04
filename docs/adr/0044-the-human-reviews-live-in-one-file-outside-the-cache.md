@@ -19,7 +19,8 @@ section, in a stable order so that a team can version it and read its diffs. `re
 through it. A save writes the whole file aside then renames it over the former one; a file that cannot be read or
 is of a later format is reported and never overwritten. The author is the `user.name` of the repository's git
 config: the interface runs locally, for the person at the keyboard. Each review keeps a fingerprint of the section
-as it was reviewed, so a later run can tell the review outdated.
+as it was reviewed and the hash of each file the section cites, so a later run, or an edit of the code, can tell
+the review outdated.
 
 Rejected: one file per review (a team's diff spreads over many files, and listing the reviews of a page reads them
 all); a field in the artifacts of the run (rewritten by each `generate`); an author typed in the form (an extra
@@ -30,5 +31,6 @@ field at each review, and nothing to check it against anyway).
 `retrodoc-mcp` gains a second writer besides the run history, and `retrodoc ui` will write through it. The saves of
 one process take turns, so two requests of the interface keep both reviews; two processes saving at the same instant
 keep one of the two files whole, not both: acceptable for a local, single-user interface. The
-fingerprint changes whenever any field of the section changes, the confidence included: the issue that flags an
-outdated review decides what it compares.
+fingerprint changes whenever any field of the section changes, the confidence included. A review is outdated, judged at
+each read and never saved, when that fingerprint or the content of a file it hashed changed since
+(`specs/section-review.md`, REV-19 to REV-22): an edit of the code outdates it before any `generate`.

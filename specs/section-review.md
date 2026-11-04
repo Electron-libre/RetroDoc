@@ -1,6 +1,6 @@
 ---
 id: REV
-status: accepted
+status: draft
 adrs: [0039, 0043, 0044]
 ---
 
@@ -44,6 +44,15 @@ model's confidence.
   as the newest of them only.
 - **REV-18** (deterministic) Reviews saved at the same time by one process (two requests of `retrodoc ui`) must all be
   kept.
+- **REV-19** (deterministic) A review must hold the hash of the content of each file its section cites, as the file
+  was when the review was given: the source files of a feature, the files the steps of a use case cite, the source
+  files of the features of a domain; a file that cannot be read gets no hash.
+- **REV-20** (deterministic) A review must be outdated, with the reason "rewritten", when the fingerprint of its
+  section in the docs now (REV-6) differs from the one it holds.
+- **REV-21** (deterministic) A review must be outdated, with the files that changed, when a file it holds a hash of
+  now has another content or is deleted; a file that exists but cannot be read is not judged.
+- **REV-22** (deterministic) Whether a review is outdated must be judged when the review is read, never saved: an
+  outdated review is kept as it was, and a new review of its section is up to date.
 
 ## Scenarios
 
@@ -63,6 +72,12 @@ model's confidence.
 - (REV-3) Given a review written by hand with no `comment`, then it loads with an empty comment.
 - (REV-1) Given two features of different domains sharing no slug, then a use case `a/b` and a feature `a` are two
   sections, never confused.
+- (REV-21) Given a feature validated, when one of its source files is edited and no `generate` runs, then its review
+  is outdated, naming that file.
+- (REV-21) Given a review written by hand with no file hashes, then it is outdated only when its section was
+  rewritten (REV-20).
+- (REV-20, REV-21) Given a use case rewritten and a file it cites deleted, then its review is outdated for both
+  reasons.
 
 ## Non-goals
 
@@ -70,5 +85,7 @@ model's confidence.
 - No history of the reviews: a new review replaces the former one; git keeps the history of a versioned file.
 - No lock across processes: two processes saving at the same instant keep the last one's file whole (REV-9), not
   both.
-- Telling a review outdated (`issues/review_outdated.md`), showing the reviews (`issues/done/web_review_form.md`,
-  `issues/done/review_in_debt.md`, `issues/done/review_in_mcp.md`).
+- Showing the reviews (`issues/done/web_review_form.md`, `issues/done/review_in_debt.md`,
+  `issues/done/review_in_mcp.md`).
+- No outdated review for a file the section did not cite when the review was given (a source file a later run adds
+  to the feature): the rewritten section (REV-20) tells it.

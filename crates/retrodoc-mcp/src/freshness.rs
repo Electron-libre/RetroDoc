@@ -45,15 +45,7 @@ impl Freshness {
         let Some(recorded) = self.recorded.get(path) else {
             return FileState::Unknown;
         };
-        match std::fs::read(self.repo_root.join(path)) {
-            // Hashed as `SourceHashes::capture` does: lossy UTF-8.
-            Ok(bytes) if hash_content(&String::from_utf8_lossy(&bytes)) == recorded => {
-                FileState::Fresh
-            }
-            Ok(_) => FileState::Modified,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => FileState::Deleted,
-            Err(_) => FileState::Unknown,
-        }
+        state_against(&self.repo_root, path, recorded)
     }
 
     /// The files among `paths` that are modified or deleted, in order, with
@@ -65,6 +57,28 @@ impl Freshness {
             .map(|path| (path, self.state(path)))
             .filter(|(_, state)| matches!(state, FileState::Modified | FileState::Deleted))
             .collect()
+    }
+}
+
+/// The hash of the content of `path` under `repo_root`, as `SourceHashes::capture` hashes it:
+/// lossy UTF-8.
+///
+/// # Errors
+///
+/// The file cannot be read.
+pub fn file_hash(repo_root: &Path, path: &str) -> std::io::Result<String> {
+    let bytes = std::fs::read(repo_root.join(path))?;
+    Ok(hash_content(&String::from_utf8_lossy(&bytes)))
+}
+
+/// The state of `path` under `repo_root` against the hash `recorded` of its former content.
+#[must_use]
+pub fn state_against(repo_root: &Path, path: &str, recorded: &str) -> FileState {
+    match file_hash(repo_root, path) {
+        Ok(hash) if hash == recorded => FileState::Fresh,
+        Ok(_) => FileState::Modified,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => FileState::Deleted,
+        Err(_) => FileState::Unknown,
     }
 }
 

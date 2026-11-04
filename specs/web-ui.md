@@ -1,6 +1,6 @@
 ---
 id: WEB
-status: accepted
+status: draft
 adrs: [0039, 0044]
 ---
 
@@ -209,6 +209,10 @@ over browses its domains, features and use cases rather than reading the Markdow
   `.retrodoc/reviews.json` that cannot be read or is of a later format (REV-10).
 - **WEB-88** (deterministic) A review `POST` must be answered with the status 500 and the error when
   `.retrodoc/reviews.json` cannot be read or is of a later format, the file left as it was (REV-11).
+- **WEB-89** (deterministic) The review of a section on its page must be flagged outdated when it is (REV-20,
+  REV-21), with its reasons: the section rewritten since the review, the files changed since the review.
+- **WEB-90** (deterministic) The badge of a review in a list of sections (WEB-80) must say when the review is
+  outdated.
 
 ## Scenarios
 
@@ -312,6 +316,8 @@ over browses its domains, features and use cases rather than reading the Markdow
   names that site and the request is refused; one with neither `Origin` nor `Referer` is refused too.
 - (WEB-84) Given `Origin: null` (a sandboxed frame, a `file://` page), then the request is refused.
 - (WEB-87, WEB-88) Given a `reviews.json` holding invalid JSON, then the pages of the sections are still served, naming it.
+- (WEB-89) Given an outdated review, when the form saves the same status again, then the review is no longer flagged
+  outdated (REV-22).
 
 ## Non-goals
 
@@ -328,7 +334,7 @@ over browses its domains, features and use cases rather than reading the Markdow
 - No LLM call and no edit of the docs: a review records a judgement and leaves the docs as they are.
 - No authentication of the reviewer: the author of a review is the `user.name` of the repository (REV-4), whoever
   sends the form.
-- Telling a review outdated is `issues/review_outdated.md`.
+- No reason of an outdated review in the badge of a list (WEB-90): the page of the section gives them.
 - The name of the application is not asked of the LLM, nor read from the `origin` remote; the Markdown render and the
   MCP answers don't carry it.
 - The home page links to the debt page (`specs/debt-view.md`) only, not to the audit dashboard

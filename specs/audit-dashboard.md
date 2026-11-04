@@ -1,6 +1,6 @@
 ---
 id: AUD
-status: accepted
+status: draft
 adrs: [0039, 0043, 0044]
 ---
 
@@ -65,6 +65,8 @@ saved (`specs/run-history.md`), so the same reader sees whether the docs get bet
 - **AUD-16** (deterministic) The audit page must show, for the domains, the features and the use cases of the run
   each, the number of those a human reviewed out of their number with its percentage rounded as AUD-3 says, and the
   number of each status of the reviews (validated, wrong, to review).
+- **AUD-18** (deterministic) The figures of AUD-16 must show, for each kind of section, the number of its reviews that
+  are outdated (REV-20, REV-21); an outdated review is still counted reviewed.
 - **AUD-17** (deterministic) When the file of the reviews cannot be read, the audit page must say so in place of the
   figures of AUD-16 and show the heatmap as if no section was reviewed; the other figures are still shown.
 
@@ -101,7 +103,7 @@ saved (`specs/run-history.md`), so the same reader sees whether the docs get bet
 
 ## Non-goals
 
-- A review whose section changed since is counted reviewed: telling it outdated is `issues/review_outdated.md`.
+- The heatmap does not tell an outdated validation: the debt it counts already holds the section again (DBT-32).
 
 - No money cost: the code has no price per model; the cost is the tokens and the time the server reported.
 - The progress of AUD-5 is as recorded at the end of each chain: a context whose files were edited since is still

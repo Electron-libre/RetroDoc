@@ -1,6 +1,6 @@
 ---
 id: MCP
-status: accepted
+status: draft
 adrs: [0044]
 ---
 
@@ -39,6 +39,10 @@ item (`specs/section-review.md`), so the agent knows what was checked or rejecte
   without it.
 - **MCP-11** (deterministic) A comment over several lines must show on one line in the review line and the warning,
   so that it forges no line of the answer.
+- **MCP-12** (deterministic) The review line of an outdated review (REV-20, REV-21) must say it is outdated, with its
+  reasons: the section rewritten since the review, the files changed since the review.
+- **MCP-13** (deterministic) The warning of a section marked `wrong` (MCP-8) whose review is outdated must say the
+  section changed since it was marked wrong.
 
 ## Scenarios
 
@@ -65,7 +69,7 @@ item (`specs/section-review.md`), so the agent knows what was checked or rejecte
 
 - No review in `list_domains` nor in the items listed inside an answer (the features of a domain, the use cases of
   a feature): the agent sees the review when it reads the item.
-- No review of a business rule (REV non-goal), and no outdated review (`issues/review_outdated.md`).
+- No review of a business rule (REV non-goal).
 - No fuzzy matching of ids (typos, case): `search_docs` finds what an id misses.
 - No resolution of two features sharing a slug across domains: the pipeline never produces them (slugs are made
   unique against every feature already produced), and a corpus built by hand with them reaches the first one only.
