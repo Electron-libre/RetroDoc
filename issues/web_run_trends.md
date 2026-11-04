@@ -29,5 +29,5 @@ Run history
 
 # Resources
 * `crates/retrodoc-web/src/` (the audit page and its templates), `crates/retrodoc-mcp/src/audit`.
-* The spec of the run history written by `issues/run_snapshot_at_generate.md`.
+* The spec of the run history written by `issues/done/run_snapshot_at_generate.md`.
 * Skill `dataviz` before drawing the chart; the browsers of the machine to check the page headless.

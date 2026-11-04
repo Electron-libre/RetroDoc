@@ -30,7 +30,7 @@ Run history
 
 # Resources
 * `crates/retrodoc-web/src/` (the pages, the "Audit" group of the header), `crates/retrodoc-mcp/src/read_model.rs`.
-* The spec of the run history written by `issues/run_snapshot_at_generate.md`; ADR 0039.
+* The spec of the run history written by `issues/done/run_snapshot_at_generate.md`; ADR 0039.
 
 # Hints
 * The repeated runs of a benchmark series (the saved runs of the measures, same code, same inputs) show how much the scores

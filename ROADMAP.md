@@ -285,7 +285,7 @@ The milestones up to "A large application, one bounded context at a time" are th
 - Why: the report keeps the last state only, so nobody can tell whether the docs get better.
 - State: in issues
 - Issues:
-  - [run_snapshot_at_generate](issues/run_snapshot_at_generate.md)
+  - [run_snapshot_at_generate](issues/done/run_snapshot_at_generate.md)
   - [web_run_trends](issues/web_run_trends.md)
   - [run_diff](issues/run_diff.md)
 
