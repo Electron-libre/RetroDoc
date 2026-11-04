@@ -11,7 +11,6 @@ use retrodoc_mcp::audit::{
 use retrodoc_mcp::debt::DebtKind;
 use retrodoc_mcp::GeneratedDocs;
 
-use crate::debt::kind_value;
 use crate::texts::WebTexts;
 use crate::view::Confidence;
 
@@ -153,7 +152,7 @@ pub fn audit_page(docs: &GeneratedDocs, texts: &WebTexts) -> AuditPage {
                         href: (cell.count > 0).then(|| {
                             format!(
                                 "/debt?kind={}&domain={}",
-                                kind_value(cell.kind),
+                                cell.kind.key(),
                                 query_encoded(&row.domain)
                             )
                         }),

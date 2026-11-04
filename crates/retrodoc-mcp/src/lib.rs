@@ -13,6 +13,7 @@ pub mod audit;
 pub mod corpus;
 pub mod debt;
 pub mod freshness;
+pub mod history;
 pub mod read_model;
 pub mod search;
 pub mod server;

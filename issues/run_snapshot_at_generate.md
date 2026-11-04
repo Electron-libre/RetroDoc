@@ -45,3 +45,39 @@ Run history
 # Hints
 * A rerun that calls no LLM must stay a no-op on the artifacts (smoke-test criterion): the snapshot must not break it.
 * No LLM call is needed: a saved run of the measures gives the inputs of the tests and a first snapshot.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-04
+
+## Understanding
+At the end of each successful `generate`, write a JSON snapshot (figures of `/audit`, debt per kind and domain without
+stale, cost, scores of every domain, feature and use case) as one file per run under `.retrodoc/cache/history/`,
+skipped when equal to the last one but for commit, date and cost. Out of scope: any page reading them (the two other
+issues of the milestone). Means: the snapshot is built in `retrodoc-mcp` (module `history`) from the read model, the
+CLI writes it after `usage::finish` (ADR 0043).
+
+## Plan
+1. [x] Snapshot and store: `retrodoc_mcp::history` builds the snapshot from `GeneratedDocs` and a `RunUsage`, saves it
+   (one file per run, unique name, no-op skip) and loads the list; verified by unit tests on fixture docs; makes true
+   RHI-2 to RHI-9, RHI-11, RHI-13 (~550 lines). (autonomous)
+2. [ ] Write at generate: the CLI writes the snapshot after a successful, non dry-run `generate`, warning on failure;
+   verified by end-to-end tests through the binary with the fake LLM (first run writes, rerun writes none, dry-run
+   and failure write none, `--force` keeps them); makes true RHI-1, RHI-10, RHI-12 and sets the spec `accepted`
+   (~350 lines).
+
+## Decisions
+- Mode: autonomous
+- Base commit: 78b0a3fc459f8111567cc0b10420fa4b73080bab
+- Storage: one file per run under `.retrodoc/cache/history/` (ADR 0043), chosen at validation.
+
+## Deliverable 1: snapshot and store
+- done: `retrodoc_mcp::history` builds the snapshot from the read model (same report, coverage and debt as `/audit`),
+  saves one file per run with a unique name, skips a no-op, loads the list oldest first; `DebtKind::key` moved from
+  the web crate to name the kinds.
+- red: RHI-9: with the skip removed, `a_snapshot_equal_to_the_last_but_for_commit_date_and_cost_is_not_saved` fails
+  with `left: Some(".../history/20261105T090000Z.json") right: None` (checked by mutation: tests and code were written
+  in one go, the other tests were not seen red).
+- checks: project-check ok (fmt, clippy, tests, specs); deliverable size 748/1000.
+- Code review: no findings (`low`).
+- not verified: nothing writes a snapshot yet (deliverable 2).

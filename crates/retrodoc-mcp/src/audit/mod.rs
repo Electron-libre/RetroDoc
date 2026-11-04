@@ -7,6 +7,7 @@ use std::collections::BTreeMap;
 
 use retrodoc_pipeline::usage_log::load_history;
 use retrodoc_pipeline::{recorded_progress, BehaviourCoverage};
+use serde::{Deserialize, Serialize};
 // What the figures are made of and how the recap of a run writes them, for whoever shows them.
 pub use retrodoc_pipeline::usage_log::{thousands, ModelRecord, PassRecord, RunUsage};
 pub use retrodoc_pipeline::{format_duration, RecordedProgress};
@@ -18,7 +19,7 @@ use crate::read_model::GeneratedDocs;
 pub const MAX_LEVEL: u8 = 4;
 
 /// `count` out of `total`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Share {
     pub count: usize,
     pub total: usize,
@@ -41,7 +42,7 @@ impl Share {
 }
 
 /// The entry points the docs reach; at least one of the two is known.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EntryCoverage {
     /// Held by a feature, out of those of the bounded contexts.
     pub placed: Option<Share>,
@@ -121,7 +122,10 @@ pub fn audit(docs: &GeneratedDocs) -> Audit {
 
 /// The coverage of the domains and features of the run: the saved counts of the others are those
 /// of an older run.
-fn entry_coverage(docs: &GeneratedDocs, coverage: &BehaviourCoverage) -> Option<EntryCoverage> {
+pub(crate) fn entry_coverage(
+    docs: &GeneratedDocs,
+    coverage: &BehaviourCoverage,
+) -> Option<EntryCoverage> {
     let share = |pairs: Vec<(usize, usize)>| {
         (!pairs.is_empty()).then(|| Share {
             count: pairs.iter().map(|(count, _)| count).sum(),

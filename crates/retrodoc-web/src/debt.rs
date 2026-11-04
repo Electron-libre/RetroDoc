@@ -12,24 +12,6 @@ use crate::rules::{Choice, Filter};
 use crate::texts::WebTexts;
 use crate::view::{code_href, doc_section_href, Confidence, Link, StaleFile};
 
-/// The value of `kind` in the query.
-pub(crate) fn kind_value(kind: DebtKind) -> &'static str {
-    match kind {
-        DebtKind::LowConfidence => "low_confidence",
-        DebtKind::NotScored => "not_scored",
-        DebtKind::UnbackedNarrative => "unbacked_narrative",
-        DebtKind::TechnicalLanguage => "technical_language",
-        DebtKind::SetApart => "set_apart",
-        DebtKind::Stale => "stale",
-        DebtKind::Contradicted => "contradicted",
-        DebtKind::Undocumented => "undocumented",
-        DebtKind::EntryPointWithoutFeature => "entry_point_without_feature",
-        DebtKind::NoDomain => "no_domain",
-        DebtKind::NoBehaviour => "no_behaviour",
-        DebtKind::NotAnalysed => "not_analysed",
-    }
-}
-
 /// What the query asks: an empty value asks nothing.
 #[derive(Default)]
 pub struct DebtFilter {
@@ -124,7 +106,7 @@ impl DebtFilter {
         let kind = self
             .kind
             .as_deref()
-            .is_none_or(|asked| kind_value(item.kind) == asked);
+            .is_none_or(|asked| item.kind.key() == asked);
         let domain = self
             .domain
             .as_deref()
@@ -296,13 +278,7 @@ fn filters(docs: &GeneratedDocs, filter: &DebtFilter, texts: &WebTexts) -> Vec<F
             label: texts.kind,
             choices: DebtKind::ALL
                 .iter()
-                .map(|kind| {
-                    choice(
-                        kind_value(*kind),
-                        texts.debt_kind(*kind),
-                        filter.kind.as_deref(),
-                    )
-                })
+                .map(|kind| choice(kind.key(), texts.debt_kind(*kind), filter.kind.as_deref()))
                 .collect(),
         },
         Filter {

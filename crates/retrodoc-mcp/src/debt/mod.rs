@@ -75,6 +75,25 @@ impl DebtKind {
         Self::Undocumented,
     ];
 
+    /// The value of `?kind=` of the debt page, also the name of the kind in the run history.
+    #[must_use]
+    pub fn key(self) -> &'static str {
+        match self {
+            Self::LowConfidence => "low_confidence",
+            Self::NotScored => "not_scored",
+            Self::UnbackedNarrative => "unbacked_narrative",
+            Self::TechnicalLanguage => "technical_language",
+            Self::SetApart => "set_apart",
+            Self::Stale => "stale",
+            Self::Contradicted => "contradicted",
+            Self::Undocumented => "undocumented",
+            Self::EntryPointWithoutFeature => "entry_point_without_feature",
+            Self::NoDomain => "no_domain",
+            Self::NoBehaviour => "no_behaviour",
+            Self::NotAnalysed => "not_analysed",
+        }
+    }
+
     /// What an item of this kind weighs in its priority (DBT-29): 1 when its section may state
     /// what is false, 0.5 when it is missing or unreadable, 0.25 when the docs leave it out by design.
     #[must_use]
