@@ -34,3 +34,32 @@ Edit the docs
 # Resources
 * `crates/retrodoc-mcp/src/reviews/mod.rs` (the store to mirror), ADR 0044, `specs/section-review.md`.
 * A new ADR: the edits as an overlay over the generated artifacts, outside the cache.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-05
+
+## Understanding
+A store of the human edits (name, description, narrative of a use case) per section, in `.retrodoc/edits.json`,
+loaded and saved like the reviews. Out of scope: applying the edits (`edits_in_read_model`), the form, the outdated
+check. Means as the issue's, the save shared with `reviews` through a new module.
+
+## Plan
+1. [x] Shared store: move the versioned load (version check, newest per section) and the save aside then rename of
+   `reviews` into a `store` module generic over the record, `reviews` on it; verified by the REV tests unchanged and
+   green; makes true no new requirement (refactor). (autonomous)
+2. [ ] Edits store: module `edits` (model, `record`, `remove`, `load`, `edits_path`) on `store`, spec
+   `specs/section-edit.md` accepted, ADR 0045; verified by tests per requirement; makes true SED-1 to SED-22.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 5ccc0602ff15409cc2283c59f345a8c912434a20
+- 1 a: a blank field is refused (SED-5); 2 a: an edit that changes no field is refused (SED-4).
+
+## Deliverable 1 summary
+- done: module `retrodoc_mcp::store` (`Section`, `Record`, `Records`, `Store::load` and `Store::change`, `StoreError`),
+  `reviews` on it (`ReviewsError` an alias of `StoreError`, `Reviews` of `Records<Review>`); the spec and ADR 0045
+  drafts committed with it.
+- red: none (refactor, the REV tests unchanged and green).
+- Code review: no findings
+- not verified: none.
