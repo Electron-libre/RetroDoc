@@ -1303,3 +1303,31 @@ async fn a_one_file_context_never_joins_a_context_at_the_size_limit() {
     assert!(!contracts.files.contains(&extra));
     assert!(resolved.support.contains(&extra));
 }
+
+// spec: CTX-7 (internal: the CLI test of the map would need an LLM server)
+#[tokio::test]
+async fn a_forced_map_proposes_the_saved_support_to_the_call() {
+    let dir = tempfile::tempdir().unwrap();
+    // The saved map sets aside the group `base` (`g3`) and the folder `db/migrate/`.
+    build(dir.path(), &FakeLlm::answering(ANSWER), false).await;
+    let llm = FakeLlm::answering(ANSWER);
+
+    build(dir.path(), &llm, true).await;
+
+    let prompt = &llm.prompts()[0];
+    assert!(
+        prompt.contains("Support of the previous map, proposed: groups g3; folders db/migrate/"),
+        "{prompt}"
+    );
+}
+
+// spec: CTX-7 (internal: the CLI test of the map would need an LLM server)
+#[tokio::test]
+async fn a_first_map_proposes_no_support() {
+    let dir = tempfile::tempdir().unwrap();
+    let llm = FakeLlm::answering(ANSWER);
+
+    build(dir.path(), &llm, false).await;
+
+    assert!(!llm.prompts()[0].contains("Support of the previous map"));
+}

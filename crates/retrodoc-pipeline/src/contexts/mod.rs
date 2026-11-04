@@ -378,7 +378,9 @@ impl Listing {
         Self { groups, folders }
     }
 
-    fn prompt(&self, brief: &ProductBrief) -> String {
+    /// The prompt listing the groups and folders; those of `proposed` that are listed (the support
+    /// of the saved map, for a forced map) are proposed as support (`specs/context-map.md`, CTX-7).
+    fn prompt(&self, brief: &ProductBrief, proposed: &Support) -> String {
         let mut prompt = brief.prompt_head();
         prompt.push_str("Groups (id | files | name | sample):\n");
         for group in &self.groups {
@@ -402,6 +404,32 @@ impl Listing {
                     folder.sample.join(", ")
                 );
             }
+        }
+        let groups: Vec<&str> = self
+            .groups
+            .iter()
+            .filter(|g| proposed.groups.contains(&g.name))
+            .map(|g| g.id.as_str())
+            .collect();
+        let folders: Vec<&str> = self
+            .folders
+            .iter()
+            .filter(|f| proposed.folders.contains(&f.path))
+            .map(|f| f.path.as_str())
+            .collect();
+        let mut parts = Vec::new();
+        if !groups.is_empty() {
+            parts.push(format!("groups {}", groups.join(", ")));
+        }
+        if !folders.is_empty() {
+            parts.push(format!("folders {}", folders.join(", ")));
+        }
+        if !parts.is_empty() {
+            let _ = writeln!(
+                prompt,
+                "\nSupport of the previous map, proposed: {} (keep them in `support` unless one serves a context)",
+                parts.join("; ")
+            );
         }
         prompt
     }
@@ -489,7 +517,7 @@ pub async fn build_context_map(
     let answer = complete_json::<Response>(
         llm,
         SYSTEM_PROMPT,
-        &listing.prompt(brief),
+        &listing.prompt(brief, &saved.1.support),
         "map of the contexts",
     )
     .await?;
@@ -831,7 +859,7 @@ async fn split_context(
         "Context to split: {} - {}\n\n{}",
         context.name,
         context.description,
-        listing.prompt(brief)
+        listing.prompt(brief, &Support::default())
     );
     let what = format!("split of the context {}", context.slug);
     let Some(raw) = complete_json::<Response>(llm, SPLIT_SYSTEM_PROMPT, &prompt, &what).await?
