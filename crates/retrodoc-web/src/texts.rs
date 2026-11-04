@@ -268,6 +268,13 @@ pub struct ReviewTexts {
     pub no_status: &'static str,
     pub comment: &'static str,
     pub save: &'static str,
+    /// Before the reasons of an outdated review.
+    pub outdated: &'static str,
+    pub rewritten: &'static str,
+    /// Before the files changed since the review.
+    pub files_changed: &'static str,
+    /// Before the number of outdated reviews on the audit page.
+    pub outdated_count: &'static str,
 }
 
 impl ReviewTexts {
@@ -590,6 +597,10 @@ impl WebTexts {
             no_status: "No review",
             comment: "Comment",
             save: "Save",
+            outdated: "Outdated review",
+            rewritten: "section rewritten since the review",
+            files_changed: "files changed since the review:",
+            outdated_count: "Outdated",
         },
         refusal: SourceError::to_string,
     };
@@ -908,6 +919,10 @@ impl WebTexts {
             no_status: "Pas de relecture",
             comment: "Commentaire",
             save: "Enregistrer",
+            outdated: "Relecture périmée",
+            rewritten: "section réécrite depuis la relecture",
+            files_changed: "fichiers modifiés depuis la relecture :",
+            outdated_count: "Périmées",
         },
         refusal: french_refusal,
     };

@@ -6,6 +6,8 @@
 
 {% macro review_badge(review) %}{% if let Some(badge) = review %} <span class="badge review {{ badge.class }}">{{ t.review.status(*badge.status) }}</span>{% endif %}{% endmacro %}
 
+{% macro outdated(outdated) %}{% if let Some(o) = outdated %}<span class="why outdated">{{ t.review.outdated }}{{ t.colon }} {% if o.rewritten %}{{ t.review.rewritten }}{% if !o.changed.is_empty() %}; {% endif %}{% endif %}{% if !o.changed.is_empty() %}{{ t.review.files_changed }} {% for file in o.changed %}<code>{{ file.path }}</code> ({% if file.deleted %}{{ t.deleted }}{% else %}{{ t.modified }}{% endif %}){% if !loop.last %}, {% endif %}{% endfor %}{% endif %}</span>{% endif %}{% endmacro %}
+
 {% macro score(label, confidence) %}
 <p class="score"><strong>{{ label }}</strong> {% call badge_why(confidence) %}{% endcall %}</p>
 {% endmacro %}

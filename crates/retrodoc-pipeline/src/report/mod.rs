@@ -159,6 +159,40 @@ pub struct MarkedWrong {
     pub label: String,
     /// Empty when the review has none.
     pub comment: String,
+    /// Why the review no longer vouches for the section as it is now (DBT-38).
+    pub outdated: Option<OutdatedReview>,
+}
+
+/// Why a review no longer vouches for its section: rewritten since, or its cited files changed.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct OutdatedReview {
+    pub rewritten: bool,
+    /// The cited files modified or deleted since the review, in path order.
+    pub changed: Vec<String>,
+}
+
+impl OutdatedReview {
+    /// The reasons that apply, as `retrodoc report` prints them after "outdated:": the section
+    /// rewritten since the review, the files changed since the review.
+    #[must_use]
+    pub fn reasons(&self) -> String {
+        let mut reasons = Vec::new();
+        if self.rewritten {
+            reasons.push("section rewritten since the review".to_string());
+        }
+        if !self.changed.is_empty() {
+            let files: Vec<String> = self
+                .changed
+                .iter()
+                .map(|f| format!("`{}`", one_line(f)))
+                .collect();
+            reasons.push(format!(
+                "files changed since the review: {}",
+                files.join(", ")
+            ));
+        }
+        reasons.join("; ")
+    }
 }
 
 /// Skipped files listed in the Markdown report (the rest is only counted).
@@ -535,6 +569,9 @@ impl DebtReport {
             let comment = one_line(&section.comment);
             if !comment.is_empty() {
                 let _ = write!(md, ": {comment}");
+            }
+            if let Some(outdated) = &section.outdated {
+                let _ = write!(md, " (outdated: {})", outdated.reasons());
             }
             md.push('\n');
         }

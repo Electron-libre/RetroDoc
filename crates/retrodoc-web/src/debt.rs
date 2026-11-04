@@ -9,6 +9,7 @@ use retrodoc_mcp::debt::{
 use retrodoc_mcp::reviews::Reviews;
 use retrodoc_mcp::GeneratedDocs;
 
+use crate::review::OutdatedView;
 use crate::rules::{Choice, Filter};
 use crate::texts::WebTexts;
 use crate::view::{code_href, doc_section_href, Confidence, Link, StaleFile};
@@ -52,6 +53,8 @@ pub struct DebtRow {
     pub rationale: Option<String>,
     pub reasons: Vec<&'static str>,
     pub changed: Vec<StaleFile>,
+    /// Why the review of a section marked wrong or to review is outdated.
+    pub outdated: Option<OutdatedView>,
     /// What a doc item is: a domain, a feature, a use case or a rule.
     pub item_kind: Option<&'static str>,
     /// Its priority and its parts, its entry points among them.
@@ -194,6 +197,7 @@ fn row(docs: &GeneratedDocs, item: &DebtItem, texts: &WebTexts) -> DebtRow {
             .iter()
             .map(|(path, state)| StaleFile::of(path, *state))
             .collect(),
+        outdated: item.outdated.as_ref().map(OutdatedView::of),
         item_kind,
         priority: texts.priority(&item.priority),
         contradictions,

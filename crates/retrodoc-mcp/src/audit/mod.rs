@@ -14,7 +14,7 @@ pub use retrodoc_pipeline::{format_duration, RecordedProgress};
 
 use crate::debt::{debt_of, docs_report, DebtKind, DebtList};
 use crate::read_model::GeneratedDocs;
-use crate::reviews::{Reviews, Section, SectionKind, Status};
+use crate::reviews::{self, Review, Reviews, Section, SectionKind, Status};
 
 /// The highest level of a heatmap cell.
 pub const MAX_LEVEL: u8 = 4;
@@ -75,6 +75,8 @@ pub struct Reviewed {
     pub validated: usize,
     pub wrong: usize,
     pub to_review: usize,
+    /// The reviews among them that are outdated (`reviews::outdated`).
+    pub outdated: usize,
 }
 
 /// The figures of a run.
@@ -204,12 +206,12 @@ fn reviewed(docs: &GeneratedDocs, reviews: &Reviews) -> [Reviewed; 3] {
     ]
     .map(|kind| {
         let sections = sections(kind);
-        let statuses: Vec<Status> = reviews
+        let of_run: Vec<&Review> = reviews
             .reviews()
             .iter()
             .filter(|r| sections.contains(&r.section))
-            .map(|r| r.status)
             .collect();
+        let statuses: Vec<Status> = of_run.iter().map(|r| r.status).collect();
         let count = |status: Status| statuses.iter().filter(|s| **s == status).count();
         Reviewed {
             kind,
@@ -220,6 +222,10 @@ fn reviewed(docs: &GeneratedDocs, reviews: &Reviews) -> [Reviewed; 3] {
             validated: count(Status::Validated),
             wrong: count(Status::Wrong),
             to_review: count(Status::ToReview),
+            outdated: of_run
+                .iter()
+                .filter(|r| reviews::outdated(docs, r).is_some())
+                .count(),
         }
     })
 }

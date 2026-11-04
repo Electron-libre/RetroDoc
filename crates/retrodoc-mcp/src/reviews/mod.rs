@@ -175,16 +175,19 @@ pub fn fingerprint(docs: &GeneratedDocs, section: &Section) -> Option<String> {
     saved.ok().map(|json| hash_content(&json))
 }
 
-/// Why `review` is outdated in `docs` and the files of `repo_root` now, `None` when it is not.
+/// Why `review` is outdated in `docs` and the files of their repository now, `None` when it is
+/// not; docs that carry no repository judge no file.
 #[must_use]
-pub fn outdated(repo_root: &Path, docs: &GeneratedDocs, review: &Review) -> Option<Outdated> {
+pub fn outdated(docs: &GeneratedDocs, review: &Review) -> Option<Outdated> {
     let rewritten = fingerprint(docs, &review.section).as_ref() != Some(&review.fingerprint);
-    let changed: Vec<(String, FileState)> = review
-        .files
-        .iter()
-        .map(|(path, hash)| (path.clone(), state_against(repo_root, path, hash)))
-        .filter(|(_, state)| matches!(state, FileState::Modified | FileState::Deleted))
-        .collect();
+    let changed: Vec<(String, FileState)> = docs.repo_root().map_or_else(Vec::new, |root| {
+        review
+            .files
+            .iter()
+            .map(|(path, hash)| (path.clone(), state_against(root, path, hash)))
+            .filter(|(_, state)| matches!(state, FileState::Modified | FileState::Deleted))
+            .collect()
+    });
     (rewritten || !changed.is_empty()).then_some(Outdated { rewritten, changed })
 }
 

@@ -32,6 +32,7 @@
       {% if let Some(domain) = item.domain %}<span class="muted">{{ t.domain }}{{ t.colon }} {{ domain }}</span>{% endif %}
       {% if let Some(score) = item.score %}{% call m::badge(score) %}{% endcall %}{% endif %}
       {% if let Some(why) = item.rationale %}<span class="why">{{ why }}</span>{% endif %}
+      {% call m::outdated(item.outdated) %}{% endcall %}
       {% if !item.reasons.is_empty() %}<span class="why">{{ t.debt.set_apart_for }} {% for reason in item.reasons %}{{ reason }}{% if !loop.last %}, {% endif %}{% endfor %}</span>{% endif %}
       <span class="muted priority">{{ item.priority }}</span>
       {% for c in item.contradictions %}<span class="why"><a href="{{ c.section.href }}">{{ c.section.name }}</a> {{ t.debt.doc_states }}{{ t.colon }} {{ c.doc_states }}; {{ t.debt.docs_state }}{{ t.colon }} {{ c.item_states }}</span>{% endfor %}

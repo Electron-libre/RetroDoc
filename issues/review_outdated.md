@@ -44,9 +44,9 @@ Out of scope: a debt kind of its own for an outdated validation; files a later r
 1. [x] Store and rule: `Review` holds the hashes of its cited files (REV-19), `reviews::outdated` judges a review
    against the docs and the files now; verified by unit tests of `reviews`; makes true REV-19 to REV-22 (~300 lines).
    (autonomous)
-2. [ ] Debt, report and audit: an outdated validation stays in the kinds of judgement, the items marked wrong or to
+2. [x] Debt, report and audit: an outdated validation stays in the kinds of judgement, the items marked wrong or to
    review and the report say outdated, the audit counts the outdated reviews; verified by tests of `/debt`, `/audit`
-   and of the binary; makes true DBT-32, DBT-37, DBT-38, AUD-18 (~350 lines).
+   and of the binary; makes true DBT-32, DBT-37, DBT-38, AUD-18 (~350 lines). (autonomous)
 3. [ ] Web pages: the review of a section and the badges of the lists flagged outdated (FR/EN texts); verified by
    tests of the pages; makes true WEB-89, WEB-90 (~250 lines).
 4. [ ] MCP answers: the review line and the warning of an outdated review; verified by tests of the tools; makes
@@ -75,6 +75,27 @@ outdated when its section was rewritten or a hashed file was modified or deleted
 
 red: REV-19, REV-20, REV-21: `files` empty (`left: {}`), `outdated` answering `None` for a rewritten section, a
 modified and a deleted file; REV-21 (no hashes, unreadable file) and REV-22 green at once (stub answering `None`).
+
+Code review: no findings
+not verified: none
+decisions needed: none
+
+## Deliverable 2
+done: a validated section whose review is outdated stays in the kinds of judgement; the items marked wrong or to
+review say why their review is outdated (debt page, `outdated` macro); `retrodoc report` adds `(outdated: …)` to a
+section marked wrong (`OutdatedReview`); the audit page counts the outdated reviews of each kind. `reviews::outdated`
+now reads the repository from the docs.
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass (in `draft`) |
+| docs | `docs/crates/render-mcp-cli.md` |
+| code review | see below |
+
+red: DBT-32, DBT-37, DBT-38, AUD-18: the refund still left out after its cited file changed, no "Outdated review" on
+the items, no `(outdated: …)` in the report, no `Outdated:` count on the audit page.
 
 Code review: no findings
 not verified: none

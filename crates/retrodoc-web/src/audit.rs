@@ -100,13 +100,15 @@ impl ReviewedView {
                 SectionKind::UseCase => use_cases,
             },
             statuses: format!(
-                "{}{colon} {}, {}{colon} {}, {}{colon} {}",
+                "{}{colon} {}, {}{colon} {}, {}{colon} {} · {}{colon} {}",
                 status(Status::Validated),
                 reviewed.validated,
                 status(Status::Wrong),
                 reviewed.wrong,
                 status(Status::ToReview),
                 reviewed.to_review,
+                texts.review.outdated_count,
+                reviewed.outdated,
                 colon = texts.colon,
             ),
         }

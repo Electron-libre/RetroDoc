@@ -18,7 +18,7 @@ use retrodoc_pipeline::{build_report, DebtReport, DomainMap, WeakSection};
 
 use crate::freshness::{FileState, Freshness};
 use crate::read_model::{GeneratedDocs, Uncovered};
-use crate::reviews::{self, Review, Reviews, SectionKind, Status};
+use crate::reviews::{self, Outdated, Review, Reviews, SectionKind, Status};
 
 /// What makes a section need a human, in the order the debt lists them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -199,6 +199,9 @@ pub struct DebtItem {
     pub reasons: Vec<SetApartReason>,
     /// The cited files of a [`DebtKind::Stale`] section that changed, in order.
     pub changed: Vec<(String, FileState)>,
+    /// Why the review of a [`DebtKind::MarkedWrong`] or [`DebtKind::ToReview`] section no longer
+    /// vouches for it as it is now.
+    pub outdated: Option<Outdated>,
     pub priority: Priority,
 }
 
@@ -250,6 +253,7 @@ impl DebtItem {
             rationale: None,
             reasons: Vec::new(),
             changed: Vec::new(),
+            outdated: None,
             priority: Priority::default(),
         }
     }
@@ -445,15 +449,12 @@ fn review_section(section: &Section) -> reviews::Section {
     }
 }
 
-/// The sections a human validated as the docs hold them now, each fingerprinted once.
+/// The sections a human validated whose review is not outdated.
 fn validated<'a>(docs: &GeneratedDocs, reviews: &'a Reviews) -> HashSet<&'a reviews::Section> {
     reviews
         .reviews()
         .iter()
-        .filter(|r| {
-            r.status == Status::Validated
-                && reviews::fingerprint(docs, &r.section).as_ref() == Some(&r.fingerprint)
-        })
+        .filter(|r| r.status == Status::Validated && reviews::outdated(docs, r).is_none())
         .map(|r| &r.section)
         .collect()
 }
@@ -472,6 +473,7 @@ pub fn reviewed<'a>(
             .filter_map(move |r| {
                 Some(DebtItem {
                     rationale: Some(r.comment.clone()).filter(|c| !c.trim().is_empty()),
+                    outdated: reviews::outdated(docs, r),
                     ..DebtItem::about(kind, reviewed_subject(docs, r)?)
                 })
             })

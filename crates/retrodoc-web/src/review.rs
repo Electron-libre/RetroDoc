@@ -2,11 +2,13 @@
 //! `.retrodoc/reviews.json` at each request, so a review saved while the server runs shows on the
 //! next page without a restart.
 
-use retrodoc_mcp::reviews::{self, Review, Reviews, ReviewsError, Section, SectionKind, Status};
+use retrodoc_mcp::reviews::{
+    self, Outdated, Review, Reviews, ReviewsError, Section, SectionKind, Status,
+};
 use retrodoc_mcp::GeneratedDocs;
 
 use crate::texts::ReviewTexts;
-use crate::view::find_feature;
+use crate::view::{find_feature, StaleFile};
 
 /// The reviews of the repository of `docs`, none when the docs carry no repository.
 ///
@@ -128,6 +130,26 @@ impl ReviewBadge {
         reviews
             .get(&place.section())
             .map(|review| Self::of(review.status))
+    }
+}
+
+/// Why a review is outdated, as text.
+pub struct OutdatedView {
+    pub rewritten: bool,
+    pub changed: Vec<StaleFile>,
+}
+
+impl OutdatedView {
+    #[must_use]
+    pub fn of(outdated: &Outdated) -> Self {
+        Self {
+            rewritten: outdated.rewritten,
+            changed: outdated
+                .changed
+                .iter()
+                .map(|(path, state)| StaleFile::of(path, *state))
+                .collect(),
+        }
     }
 }
 

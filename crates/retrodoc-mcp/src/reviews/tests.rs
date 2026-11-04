@@ -469,6 +469,7 @@ fn docs_citing(root: &Path, narrative: &str) -> GeneratedDocs {
         Glossary::default(),
         &[],
     )
+    .with_repo_root(root)
 }
 
 fn file_hash_of(root: &Path, path: &str) -> String {
@@ -525,9 +526,9 @@ fn a_review_of_a_rewritten_section_is_outdated() {
     )
     .unwrap();
 
-    assert_eq!(outdated(root, &docs_citing(root, "Before."), &review), None);
+    assert_eq!(outdated(&docs_citing(root, "Before."), &review), None);
     assert_eq!(
-        outdated(root, &docs_citing(root, "After."), &review),
+        outdated(&docs_citing(root, "After."), &review),
         Some(Outdated {
             rewritten: true,
             changed: Vec::new(),
@@ -547,7 +548,7 @@ fn a_review_whose_cited_file_changed_is_outdated_naming_it() {
     std::fs::write(root.join("app/pay.rb"), "class Pay; def refund; end; end").unwrap();
 
     assert_eq!(
-        outdated(root, &docs, &review),
+        outdated(&docs, &review),
         Some(Outdated {
             rewritten: false,
             changed: vec![("app/pay.rb".into(), FileState::Modified)],
@@ -573,7 +574,7 @@ fn a_rewritten_section_citing_a_deleted_file_is_outdated_for_both() {
     std::fs::remove_file(root.join("app/refund.rb")).unwrap();
 
     assert_eq!(
-        outdated(root, &rewritten, &review),
+        outdated(&rewritten, &review),
         Some(Outdated {
             rewritten: true,
             changed: vec![("app/refund.rb".into(), FileState::Deleted)],
@@ -592,7 +593,7 @@ fn a_review_with_no_file_hashes_is_outdated_only_when_rewritten() {
 
     std::fs::write(root.join("app/pay.rb"), "edited").unwrap();
 
-    assert_eq!(outdated(root, &docs, &review), None);
+    assert_eq!(outdated(&docs, &review), None);
 }
 
 // spec: REV-21 (internal: a file the process may not read)
@@ -607,7 +608,7 @@ fn a_cited_file_that_exists_but_cannot_be_read_is_not_judged() {
     std::fs::remove_file(root.join("app/pay.rb")).unwrap();
     std::fs::create_dir(root.join("app/pay.rb")).unwrap();
 
-    assert_eq!(outdated(root, &docs, &review), None);
+    assert_eq!(outdated(&docs, &review), None);
 }
 
 // spec: REV-22 (internal: the rule the pages, the debt and the MCP answers read)
@@ -628,5 +629,5 @@ fn a_new_review_of_an_outdated_section_is_up_to_date() {
 
     let review = record(root, &docs, &refund(), Status::Validated, "").unwrap();
 
-    assert_eq!(outdated(root, &docs, &review), None);
+    assert_eq!(outdated(&docs, &review), None);
 }

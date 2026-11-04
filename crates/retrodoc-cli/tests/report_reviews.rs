@@ -5,6 +5,8 @@ mod support;
 
 use std::path::Path;
 
+use retrodoc_mcp::reviews;
+
 use support::{generate, retrodoc, stdout_of, warnings, App, FakeLlm};
 
 /// A shop documented by `generate`: the domain `orders`, its feature `list-orders` and its use
@@ -78,10 +80,50 @@ fn the_report_lists_the_sections_of_the_run_marked_wrong_with_their_comment() {
         .nth(1)
         .and_then(|rest| rest.split("\n## ").next())
         .unwrap_or_else(|| panic!("no {HEADING} in {report}"));
+    // Fingerprints written by hand: every review is outdated (DBT-38).
     assert_eq!(
         section.trim(),
-        "- domain `orders`: Mixes orders and carts\n\
-         - use case `orders/list-orders/list-orders`"
+        "- domain `orders`: Mixes orders and carts (outdated: section rewritten since the review)\n\
+         - use case `orders/list-orders/list-orders` (outdated: section rewritten since the review)"
+    );
+}
+
+// spec: DBT-38
+#[test]
+fn a_section_marked_wrong_whose_cited_file_changed_is_said_outdated() {
+    let (dir, _llm) = shop();
+    let root = dir.path();
+    let docs = retrodoc_mcp::GeneratedDocs::load(root, &[]).unwrap();
+    let section = reviews::Section::new(reviews::SectionKind::Feature, "list-orders");
+    reviews::record(
+        root,
+        &docs,
+        &section,
+        reviews::Status::Wrong,
+        "Lists carts too",
+    )
+    .unwrap();
+    let marked = |report: &str| {
+        report
+            .lines()
+            .find(|line| line.starts_with("- feature `orders/list-orders`"))
+            .unwrap_or_else(|| panic!("no feature in {report}"))
+            .to_string()
+    };
+    assert_eq!(
+        marked(&stdout_of(root, "report")),
+        "- feature `orders/list-orders`: Lists carts too"
+    );
+
+    std::fs::write(
+        root.join("app/orders_controller.rb"),
+        "get '/orders' do\n  Order.open\nend\n",
+    )
+    .unwrap();
+
+    assert_eq!(
+        marked(&stdout_of(root, "report")),
+        "- feature `orders/list-orders`: Lists carts too (outdated: files changed since the review: `app/orders_controller.rb`)"
     );
 }
 

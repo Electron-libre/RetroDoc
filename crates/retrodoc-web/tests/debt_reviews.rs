@@ -201,6 +201,82 @@ async fn a_validated_section_rewritten_since_is_listed_again() {
     );
 }
 
+// spec: DBT-32
+#[tokio::test]
+async fn a_validated_section_whose_cited_file_changed_is_listed_again() {
+    let repo = generated_repo();
+    let root = repo.path();
+    std::fs::create_dir_all(root.join("app")).unwrap();
+    std::fs::write(root.join("app/pay-invoice.rb"), "class PayInvoice; end").unwrap();
+    review(
+        root,
+        SectionKind::UseCase,
+        "pay-invoice/refund",
+        Status::Validated,
+        "",
+    );
+    let refund = pair("Low confidence", "/domains/billing/pay-invoice/refund");
+    assert!(!listed(&get(root, "/debt").await).contains(&refund));
+
+    std::fs::write(
+        root.join("app/pay-invoice.rb"),
+        "class PayInvoice; def refund; end; end",
+    )
+    .unwrap();
+
+    let page = get(root, "/debt").await;
+    assert!(listed(&page).contains(&refund), "{page}");
+}
+
+// spec: DBT-37
+#[tokio::test]
+async fn an_item_marked_wrong_or_to_review_says_its_review_is_outdated() {
+    let repo = generated_repo();
+    let root = repo.path();
+    std::fs::create_dir_all(root.join("app")).unwrap();
+    std::fs::write(root.join("app/ship-order.rb"), "class ShipOrder; end").unwrap();
+    review(root, SectionKind::Feature, "ship-order", Status::Wrong, "");
+    review(
+        root,
+        SectionKind::UseCase,
+        "pay-invoice/pay-by-card",
+        Status::ToReview,
+        "",
+    );
+    let page = get(root, "/debt").await;
+    assert!(!page.contains("Outdated review"), "{page}");
+
+    std::fs::write(
+        root.join("app/ship-order.rb"),
+        "class ShipOrder; def ship; end; end",
+    )
+    .unwrap();
+    let mut rewritten = use_cases();
+    rewritten[1].description = "Pays the invoice by card.".into();
+    retrodoc_pipeline::save_use_cases(root, &rewritten).unwrap();
+
+    let page = get(root, "/debt").await;
+    let item = |kind: &str| {
+        items(&page)
+            .into_iter()
+            .find(|item| item.contains(&format!("class=\"badge kind\">{kind}</span>")))
+            .unwrap_or_else(|| panic!("no {kind} in {page}"))
+    };
+    let wrong = item("Marked wrong");
+    assert!(
+        wrong.contains(
+            "Outdated review: files changed since the review: <code>app/ship-order.rb</code> (modified)"
+        ),
+        "{wrong}"
+    );
+    assert!(!wrong.contains("rewritten"), "{wrong}");
+    let to_review = item("To review");
+    assert!(
+        to_review.contains("Outdated review: section rewritten since the review"),
+        "{to_review}"
+    );
+}
+
 // spec: DBT-30, DBT-31, DBT-33, DBT-29, DBT-8
 #[tokio::test]
 async fn a_section_marked_wrong_or_to_review_enters_the_debt_with_its_comment() {
@@ -405,9 +481,43 @@ async fn the_audit_page_shows_the_share_of_each_kind_of_section_reviewed_by_stat
     let reviewed = reviewed(&get(root, "/audit").await);
 
     for line in [
-        "<strong>100%</strong> <span class=\"muted\">Domains reviewed: 1 of 1 · Validated: 0, Wrong: 1, To review: 0</span>",
-        "<strong>0%</strong> <span class=\"muted\">Features reviewed: 0 of 1 · Validated: 0, Wrong: 0, To review: 0</span>",
-        "<strong>50%</strong> <span class=\"muted\">Use cases reviewed: 1 of 2 · Validated: 1, Wrong: 0, To review: 0</span>",
+        "<strong>100%</strong> <span class=\"muted\">Domains reviewed: 1 of 1 · Validated: 0, Wrong: 1, To review: 0 · Outdated: 0</span>",
+        "<strong>0%</strong> <span class=\"muted\">Features reviewed: 0 of 1 · Validated: 0, Wrong: 0, To review: 0 · Outdated: 0</span>",
+        "<strong>50%</strong> <span class=\"muted\">Use cases reviewed: 1 of 2 · Validated: 1, Wrong: 0, To review: 0 · Outdated: 0</span>",
+    ] {
+        assert!(reviewed.contains(line), "{line} not in {reviewed}");
+    }
+}
+
+// spec: AUD-18
+#[tokio::test]
+async fn the_audit_page_counts_the_outdated_reviews_of_each_kind() {
+    let repo = generated_repo();
+    let root = repo.path();
+    review(root, SectionKind::Domain, "billing", Status::Wrong, "");
+    review(
+        root,
+        SectionKind::UseCase,
+        "pay-invoice/refund",
+        Status::Validated,
+        "",
+    );
+    review(
+        root,
+        SectionKind::UseCase,
+        "ship-order/ship",
+        Status::Validated,
+        "",
+    );
+    let mut rewritten = use_cases();
+    rewritten[0].description = "Refunds the paid invoice.".into();
+    retrodoc_pipeline::save_use_cases(root, &rewritten).unwrap();
+
+    let reviewed = reviewed(&get(root, "/audit").await);
+
+    for line in [
+        "Domains reviewed: 1 of 2 · Validated: 0, Wrong: 1, To review: 0 · Outdated: 0</span>",
+        "Use cases reviewed: 2 of 3 · Validated: 2, Wrong: 0, To review: 0 · Outdated: 1</span>",
     ] {
         assert!(reviewed.contains(line), "{line} not in {reviewed}");
     }
