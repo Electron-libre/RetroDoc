@@ -507,7 +507,9 @@ fn the_commits_and_entry_points_come_from_the_files_and_entries_of_each_item() {
         .with_rules(vec![rule])
         .with_uncovered(Uncovered {
             reconciliation: Some(reconciliation),
-            no_domain: vec![PathBuf::from("lib/a.rb"), PathBuf::from("lib/b.rb")],
+            no_domain: ["lib/a.rb", "lib/b.rb", "lib/c.rb"]
+                .map(PathBuf::from)
+                .to_vec(),
             coverage: Some(BehaviourCoverage {
                 unplaced_entry_points: vec!["app/x.rb#create".into(), "app/x.rb#delete".into()],
                 ..BehaviourCoverage::default()
@@ -519,8 +521,8 @@ fn the_commits_and_entry_points_come_from_the_files_and_entries_of_each_item() {
             ("money.rb", 10),
             ("refund.rb", 100),
             ("rule.rb", 1000),
-            ("lib/a.rb", 2),
-            ("lib/b.rb", 3),
+            ("lib/a.rb", 10),
+            ("lib/b.rb", 4),
             ("app/x.rb", 7),
         ]));
 
@@ -546,7 +548,8 @@ fn the_commits_and_entry_points_come_from_the_files_and_entries_of_each_item() {
         (1000, 0)
     );
     assert_eq!(parts(DebtKind::Undocumented, "?/gone"), (0, 0));
-    assert_eq!(parts(DebtKind::NoDomain, "lib"), (3, 0));
+    // lib/c.rb, never committed, counts 0.
+    assert_eq!(parts(DebtKind::NoDomain, "lib"), (10, 0));
     assert_eq!(parts(DebtKind::EntryPointWithoutFeature, "app"), (7, 2));
 }
 

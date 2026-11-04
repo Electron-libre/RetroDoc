@@ -65,6 +65,8 @@ scope: folding the items a larger one holds (a domain stays above its features, 
 1. [x] Weight per kind and max of the commits: `Priority` gains the weight, the commits are the max over the files,
    the debt row shows the weight; verified by tests of `retrodoc-mcp/src/debt` and `retrodoc-web`, and the order of
    the four saved runs re-dumped; makes true DBT-23, DBT-25, DBT-27, DBT-29 (spec `accepted`). (autonomous)
+2. [x] Fixes of the `high` review of the whole issue; verified by tests of `retrodoc-mcp/src/debt`; makes true DBT-25,
+   DBT-29. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -84,3 +86,19 @@ scope: folding the items a larger one holds (a domain stays above its features, 
   (lobsters shown).
 - Code review: no findings
 - not verified: nothing left.
+
+## Deliverable 2 (high review)
+- done: the DBT-29 scenario rewritten on a reachable score (0.4: low confidence and set apart for its confidence),
+  the DBT-25 scenario of a folder of 10, 4 and 0 commits tested, the doc of `DebtList::items` says the order by
+  priority.
+- red: none (the folder fixture changed under green code: the max was already right).
+- High review: 6 findings
+  - the DBT-29 scenario at 0.6 cannot happen (threshold 0.5): fixed.
+  - the DBT-25 scenario 10, 4, 0 untested: fixed.
+  - one hot shared file (routes, schema) gives every item citing it the same commits: not fixed, the max is decision
+    2 a, measured on four runs; the sum ranked items by their size instead.
+  - `value()` recomputed in the sort: not fixed, as in `issues/done/debt_priority_score.md` (a few thousand items).
+  - `Priority::weight` derived from the kind, its default 1: not fixed, `debt_of` sets the priority of every item
+    before it leaves the list; the weight stays in `Priority` so `value()` and the row read one struct.
+  - the doc of `DebtList::items` said the order by kind: fixed.
+- Code review: no findings

@@ -234,8 +234,8 @@ impl DebtItem {
 /// The debt of a run.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct DebtList {
-    /// By kind, then as `retrodoc report` lists them; the set apart and stale ones in the
-    /// order of the run.
+    /// The highest priority first; equal priorities by kind, then as `retrodoc report` lists
+    /// them, the set apart and stale ones in the order of the run.
     pub items: Vec<DebtItem>,
     /// The run has use cases and none has a confidence: none is listed as not scored.
     pub no_score: bool,

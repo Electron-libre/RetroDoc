@@ -112,8 +112,8 @@ from top to bottom.
 - (DBT-25) Given a file of the run no commit of the history changed (not committed yet), then it counts 0 commits.
 - (DBT-25) Given a doc item whose feature is no longer in the run, then it counts 0 commits.
 - (DBT-23, DBT-24, DBT-29) Given a set apart use case with 0 commits and 0 entry points, then its priority is 0.25.
-- (DBT-29) Given a low confidence use case scored 0.6 and a set apart use case of the same files and entry points,
-  then the low confidence one is listed first (weight × weakness 0.4 against 0.25).
+- (DBT-29) Given a use case scored 0.4, listed as low confidence and set apart for its confidence, then its low
+  confidence item comes first (weight × weakness 0.6 against 0.25).
 - (DBT-19, DBT-20) Given a run with no saved behaviour coverage (not a `surface` run), then no item of the kinds
   "entry point without a feature" and "reached by no behaviour" is listed, and the page does not say so.
 
