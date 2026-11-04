@@ -116,7 +116,7 @@ async fn save(site: Arc<Site>, place: Place, headers: &HeaderMap, form: ReviewFo
             None => reviews::remove(root, &section).map(|()| None),
         };
         match done {
-            Ok(review) => Saved::Done(ReviewView::shown(&at, review.as_ref())),
+            Ok(review) => Saved::Done(ReviewView::shown(docs, &at, review.as_ref())),
             Err(ReviewsError::UnknownSection(_)) => Saved::NotFound,
             Err(err) => Saved::Failed(StatusCode::INTERNAL_SERVER_ERROR, err.to_string()),
         }

@@ -397,7 +397,7 @@ pub fn domain_rows(docs: &GeneratedDocs, reviews: &Reviews) -> Vec<DomainRow> {
                 name: domain.name.clone(),
                 description: domain.description.clone(),
                 confidence: Confidence::of(domain.confidence.as_ref()),
-                review: ReviewBadge::of_place(reviews, &Place::Domain(domain.slug.clone())),
+                review: ReviewBadge::of_place(docs, reviews, &Place::Domain(domain.slug.clone())),
                 stale,
                 features: features.len(),
                 use_cases: features
@@ -478,12 +478,13 @@ pub(crate) fn use_case_href(feature: &Feature, use_case: &UseCase) -> String {
     format!("{}/{}", feature_href(feature), use_case.slug)
 }
 
-fn feature_row(feature: &Feature, reviews: &Reviews) -> ItemRow {
+fn feature_row(docs: &GeneratedDocs, feature: &Feature, reviews: &Reviews) -> ItemRow {
     ItemRow {
         href: feature_href(feature),
         name: feature.name.clone(),
         confidence: Confidence::of(feature.confidence.as_ref()),
         review: ReviewBadge::of_place(
+            docs,
             reviews,
             &Place::Feature {
                 domain: feature.domain_slug.clone(),
@@ -605,11 +606,11 @@ pub fn domain_page(
         confidence: Confidence::of(domain.confidence.as_ref()),
         features: business
             .into_iter()
-            .map(|f| feature_row(f, reviews))
+            .map(|f| feature_row(docs, f, reviews))
             .collect(),
         back_office: back_office
             .into_iter()
-            .map(|f| feature_row(f, reviews))
+            .map(|f| feature_row(docs, f, reviews))
             .collect(),
         rules,
         docs: doc_items(links, &ItemRef::Domain(slug.to_string())),
@@ -617,6 +618,7 @@ pub fn domain_page(
 }
 
 /// A file a page cites that changed since the run.
+#[derive(Debug)]
 pub struct StaleFile {
     pub path: String,
     /// Deleted, else modified.
@@ -795,6 +797,7 @@ pub fn feature_page(
         name: u.name.clone(),
         confidence: Confidence::of(u.confidence.as_ref()),
         review: ReviewBadge::of_place(
+            docs,
             reviews,
             &Place::UseCase {
                 domain: domain.to_string(),

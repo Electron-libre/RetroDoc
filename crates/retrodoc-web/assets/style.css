@@ -186,4 +186,5 @@ ul.hits { list-style: none; padding-left: 0; }
 /* The status of a human review: the label carries the meaning, the colour only backs it. */
 .badge.review.validated { color: var(--text); border-color: var(--text-muted); }
 .badge.review.wrong, .badge.review.to_review { color: var(--gold-light); border-color: var(--gold-dark); }
+.badge.review.outdated { color: var(--text-muted); border-style: dashed; }
 .review .comment { white-space: pre-wrap; }

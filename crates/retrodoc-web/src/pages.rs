@@ -281,7 +281,7 @@ pub async fn domain(State(site): State<Arc<Site>>, Path(slug): Path<String>) -> 
 /// section at `place`, with the error when they can't.
 fn reviews_of(docs: &GeneratedDocs, place: &Place) -> (Reviews, ReviewView) {
     let loaded = review::load(docs);
-    let view = ReviewView::of(&loaded, place);
+    let view = ReviewView::of(docs, &loaded, place);
     (loaded.unwrap_or_default(), view)
 }
 
@@ -326,7 +326,7 @@ pub async fn use_case(
                 feature: feature.clone(),
                 slug: slug.clone(),
             };
-            let review = ReviewView::of(&review::load(docs), &place);
+            let review = ReviewView::of(docs, &review::load(docs), &place);
             use_case_page(docs, site.links(), &domain, &feature, &slug).map(|page| (page, review))
         })
     })

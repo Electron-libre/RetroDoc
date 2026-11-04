@@ -47,8 +47,8 @@ Out of scope: a debt kind of its own for an outdated validation; files a later r
 2. [x] Debt, report and audit: an outdated validation stays in the kinds of judgement, the items marked wrong or to
    review and the report say outdated, the audit counts the outdated reviews; verified by tests of `/debt`, `/audit`
    and of the binary; makes true DBT-32, DBT-37, DBT-38, AUD-18 (~350 lines). (autonomous)
-3. [ ] Web pages: the review of a section and the badges of the lists flagged outdated (FR/EN texts); verified by
-   tests of the pages; makes true WEB-89, WEB-90 (~250 lines).
+3. [x] Web pages: the review of a section and the badges of the lists flagged outdated (FR/EN texts); verified by
+   tests of the pages; makes true WEB-89, WEB-90 (~250 lines). (autonomous)
 4. [ ] MCP answers: the review line and the warning of an outdated review; verified by tests of the tools; makes
    true MCP-12, MCP-13 (~120 lines).
 5. [ ] Docs of the whole issue and fixes of its `high` review.
@@ -99,4 +99,23 @@ the items, no `(outdated: …)` in the report, no `Outdated:` count on the audit
 
 Code review: no findings
 not verified: none
+decisions needed: none
+
+## Deliverable 3
+done: the review of a section on its page says why it is outdated (`ReviewView::outdated`, the `outdated` macro, now
+imported by `review.html`); the badge of an outdated review in the lists of the home, domain and feature pages has an
+"outdated" badge beside it (FR "relecture périmée"); saving the review again makes it up to date.
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass (in `draft`) |
+| docs | `docs/crates/render-mcp-cli.md` |
+| code review | see below |
+
+red: WEB-89, WEB-90: no "Outdated review" in the review block, no `badge review outdated` in the rows.
+
+Code review: no findings
+not verified: the look of the dashed "outdated" badge in a browser (only the HTML is tested)
 decisions needed: none

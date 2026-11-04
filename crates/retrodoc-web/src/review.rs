@@ -113,27 +113,32 @@ pub fn parse(value: &str) -> Option<Option<Status>> {
 pub struct ReviewBadge {
     pub status: Status,
     pub class: &'static str,
+    /// The review no longer vouches for the section as it is now (`reviews::outdated`).
+    pub outdated: bool,
 }
 
 impl ReviewBadge {
+    /// The badge of `review` of a section of `docs`.
     #[must_use]
-    pub fn of(status: Status) -> Self {
+    pub fn of(docs: &GeneratedDocs, review: &Review) -> Self {
         Self {
-            status,
-            class: key(status),
+            status: review.status,
+            class: key(review.status),
+            outdated: reviews::outdated(docs, review).is_some(),
         }
     }
 
     /// The badge of the review of the section at `place`, `None` when it has none.
     #[must_use]
-    pub fn of_place(reviews: &Reviews, place: &Place) -> Option<Self> {
+    pub fn of_place(docs: &GeneratedDocs, reviews: &Reviews, place: &Place) -> Option<Self> {
         reviews
             .get(&place.section())
-            .map(|review| Self::of(review.status))
+            .map(|review| Self::of(docs, review))
     }
 }
 
 /// Why a review is outdated, as text.
+#[derive(Debug)]
 pub struct OutdatedView {
     pub rewritten: bool,
     pub changed: Vec<StaleFile>,
@@ -175,21 +180,23 @@ pub struct ReviewView {
     pub error: Option<String>,
     /// The status the form selects: that of the review, or the one sent by a save that failed.
     pub selected: Option<Status>,
+    /// Why the review no longer vouches for the section as it is now.
+    pub outdated: Option<OutdatedView>,
 }
 
 impl ReviewView {
-    /// The review of the section at `place` among `loaded`.
+    /// The review of the section at `place` of `docs` among `loaded`.
     #[must_use]
-    pub fn of(loaded: &Result<Reviews, ReviewsError>, place: &Place) -> Self {
+    pub fn of(docs: &GeneratedDocs, loaded: &Result<Reviews, ReviewsError>, place: &Place) -> Self {
         match loaded {
             Err(err) => Self::failed(place, err.to_string(), None, String::new()),
-            Ok(reviews) => Self::shown(place, reviews.get(&place.section())),
+            Ok(reviews) => Self::shown(docs, place, reviews.get(&place.section())),
         }
     }
 
-    /// `review` of the section at `place`, none when it has no review.
+    /// `review` of the section at `place` of `docs`, none when it has no review.
     #[must_use]
-    pub fn shown(place: &Place, review: Option<&Review>) -> Self {
+    pub fn shown(docs: &GeneratedDocs, place: &Place, review: Option<&Review>) -> Self {
         let Some(review) = review else {
             return Self {
                 action: place.href(),
@@ -198,7 +205,7 @@ impl ReviewView {
         };
         Self {
             action: place.href(),
-            badge: Some(ReviewBadge::of(review.status)),
+            badge: Some(ReviewBadge::of(docs, review)),
             comment: review.comment.trim().to_string(),
             author: review
                 .author
@@ -209,6 +216,9 @@ impl ReviewView {
             date: review.reviewed_at.clone(),
             error: None,
             selected: Some(review.status),
+            outdated: reviews::outdated(docs, review)
+                .as_ref()
+                .map(OutdatedView::of),
         }
     }
 

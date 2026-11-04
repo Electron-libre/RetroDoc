@@ -273,6 +273,8 @@ pub struct ReviewTexts {
     pub rewritten: &'static str,
     /// Before the files changed since the review.
     pub files_changed: &'static str,
+    /// Beside the badge of an outdated review in a list.
+    pub outdated_badge: &'static str,
     /// Before the number of outdated reviews on the audit page.
     pub outdated_count: &'static str,
 }
@@ -600,6 +602,7 @@ impl WebTexts {
             outdated: "Outdated review",
             rewritten: "section rewritten since the review",
             files_changed: "files changed since the review:",
+            outdated_badge: "outdated",
             outdated_count: "Outdated",
         },
         refusal: SourceError::to_string,
@@ -922,6 +925,7 @@ impl WebTexts {
             outdated: "Relecture périmée",
             rewritten: "section réécrite depuis la relecture",
             files_changed: "fichiers modifiés depuis la relecture :",
+            outdated_badge: "relecture périmée",
             outdated_count: "Périmées",
         },
         refusal: french_refusal,

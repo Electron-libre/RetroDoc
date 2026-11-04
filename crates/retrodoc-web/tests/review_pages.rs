@@ -723,3 +723,116 @@ async fn a_review_sent_writes_the_reviews_file_alone() {
     assert_eq!(after, before);
     assert!(reviews_file.exists());
 }
+
+/// The run of [`generated_repo`] whose feature `refund` has the source file `app/refund.rb`,
+/// written in the repository.
+fn repo_with_a_cited_file() -> tempfile::TempDir {
+    let dir = generated_repo();
+    let root = dir.path();
+    let mut refund = feature("refund");
+    refund.source_paths = vec!["app/refund.rb".into()];
+    retrodoc_pipeline::save_features(root, &[feature("pay-invoice"), refund]).unwrap();
+    std::fs::create_dir_all(root.join("app")).unwrap();
+    std::fs::write(root.join("app/refund.rb"), "class Refund; end").unwrap();
+    dir
+}
+
+// spec: WEB-89
+#[tokio::test]
+async fn the_review_of_a_section_says_it_is_outdated_and_why() {
+    let dir = repo_with_a_cited_file();
+    let root = dir.path();
+    record(root, SectionKind::Feature, "refund", Status::Validated, "");
+    record(root, SectionKind::Feature, "pay-invoice", Status::Wrong, "");
+    let (_, page) = get(root, "/domains/billing/refund").await;
+    assert!(!review_block(&page).contains("Outdated review"), "{page}");
+
+    std::fs::write(
+        root.join("app/refund.rb"),
+        "class Refund; def undo; end; end",
+    )
+    .unwrap();
+    let mut rewritten = feature("pay-invoice");
+    rewritten.description = "Pays an invoice by card or cash".into();
+    let mut refund = feature("refund");
+    refund.source_paths = vec!["app/refund.rb".into()];
+    retrodoc_pipeline::save_features(root, &[rewritten, refund]).unwrap();
+
+    let (_, page) = get(root, "/domains/billing/refund").await;
+    let block = review_block(&page);
+    assert!(
+        block.contains(
+            "Outdated review: files changed since the review: <code>app/refund.rb</code> (modified)"
+        ),
+        "{block}"
+    );
+    let (_, page) = get(root, "/domains/billing/pay-invoice").await;
+    let block = review_block(&page);
+    assert!(
+        block.contains("Outdated review: section rewritten since the review</span>"),
+        "{block}"
+    );
+}
+
+// spec: WEB-89
+#[tokio::test]
+async fn saving_an_outdated_review_again_makes_it_up_to_date() {
+    let dir = repo_with_a_cited_file();
+    let root = dir.path();
+    record(root, SectionKind::Feature, "refund", Status::Validated, "");
+    std::fs::write(
+        root.join("app/refund.rb"),
+        "class Refund; def undo; end; end",
+    )
+    .unwrap();
+    let (_, page) = get(root, "/domains/billing/refund").await;
+    assert!(review_block(&page).contains("Outdated review"), "{page}");
+
+    let answer = post(
+        root,
+        "/domains/billing/refund",
+        "status=validated&comment=",
+        true,
+    )
+    .await;
+
+    assert_eq!(answer.status, StatusCode::OK, "{}", answer.body);
+    assert!(!answer.body.contains("Outdated review"), "{}", answer.body);
+    let (_, page) = get(root, "/domains/billing/refund").await;
+    assert!(!review_block(&page).contains("Outdated review"), "{page}");
+}
+
+// spec: WEB-90
+#[tokio::test]
+async fn the_badge_of_an_outdated_review_in_a_list_says_so() {
+    let dir = repo_with_a_cited_file();
+    let root = dir.path();
+    record(root, SectionKind::Domain, "billing", Status::Validated, "");
+    record(root, SectionKind::Feature, "refund", Status::Validated, "");
+    record(root, SectionKind::Feature, "pay-invoice", Status::Wrong, "");
+    record(
+        root,
+        SectionKind::UseCase,
+        "pay-invoice/pay-by-card",
+        Status::Validated,
+        "",
+    );
+    std::fs::write(root.join("app/refund.rb"), "edited").unwrap();
+    let mut card = use_case("pay-by-card");
+    card.description = "Pays by card".into();
+    retrodoc_pipeline::save_use_cases(root, &[card, use_case("pay-by-cash")]).unwrap();
+
+    let outdated = "<span class=\"badge review outdated\">outdated</span>";
+    let (_, home) = get(root, "/").await;
+    // The domain cites the files of its features.
+    let billing = row(&home, "/domains/billing");
+    assert!(billing.contains(outdated), "{billing}");
+    let (_, domain) = get(root, "/domains/billing").await;
+    let refund = row(&domain, "/domains/billing/refund");
+    assert!(refund.contains(outdated), "{refund}");
+    let pay = row(&domain, "/domains/billing/pay-invoice");
+    assert!(!pay.contains(outdated), "{pay}");
+    let (_, feature) = get(root, "/domains/billing/pay-invoice").await;
+    let card = row(&feature, "/domains/billing/pay-invoice/pay-by-card");
+    assert!(card.contains(outdated), "{card}");
+}
