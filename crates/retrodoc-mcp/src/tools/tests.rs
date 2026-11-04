@@ -673,3 +673,142 @@ fn the_saved_rules_are_loaded_with_the_docs() {
     assert!(docs.get_feature("pay-invoice").contains("`pay-invoice-1`"));
     assert_eq!(docs.index().len(), 2);
 }
+
+/// `docs()` over a temporary repository whose `.retrodoc/reviews.json` holds `reviews` (JSON
+/// objects of the file's format).
+fn reviewed_docs(reviews: &[&str]) -> (tempfile::TempDir, Docs) {
+    let dir = tempfile::tempdir().unwrap();
+    write_reviews(dir.path(), reviews);
+    let docs = docs().with_source_access(dir.path());
+    (dir, docs)
+}
+
+fn write_reviews(root: &std::path::Path, reviews: &[&str]) {
+    std::fs::create_dir_all(root.join(".retrodoc")).unwrap();
+    std::fs::write(
+        root.join(".retrodoc/reviews.json"),
+        format!(r#"{{"version": 1, "reviews": [{}]}}"#, reviews.join(",")),
+    )
+    .unwrap();
+}
+
+// spec: MCP-7 (internal: the tool answer is checked without a JSON-RPC session)
+#[test]
+fn a_detail_answer_shows_the_review_of_its_section_under_the_confidence() {
+    let (_dir, docs) = reviewed_docs(&[
+        r#"{"kind": "domain", "id": "billing", "status": "to_review", "comment": "check the refunds",
+            "author": "Ada", "reviewed_at": "2026-11-04T10:00:00Z", "fingerprint": "x"}"#,
+        r#"{"kind": "feature", "id": "pay-invoice", "status": "validated",
+            "author": null, "reviewed_at": "2026-11-03T09:00:00Z", "fingerprint": "x"}"#,
+        r#"{"kind": "use_case", "id": "pay-invoice/pay-by-card", "status": "validated",
+            "comment": "", "author": "Bob", "reviewed_at": "2026-11-02T08:00:00Z", "fingerprint": "x"}"#,
+    ]);
+    let domain = docs.get_domain("billing");
+    assert!(
+        domain.contains(
+            "Confidence: 80%\nReview: to review — \"check the refunds\" (Ada, 2026-11-04T10:00:00Z)\n"
+        ),
+        "{domain}"
+    );
+    let feature = docs.get_feature("pay-invoice");
+    assert!(
+        feature.contains("\nReview: validated (2026-11-03T09:00:00Z)\n"),
+        "{feature}"
+    );
+    // The slug alone names the same section as `pay-invoice/pay-by-card`.
+    let use_case = docs.get_use_case("pay-by-card");
+    assert!(
+        use_case.contains("\nReview: validated (Bob, 2026-11-02T08:00:00Z)\n"),
+        "{use_case}"
+    );
+    let unreviewed = docs.get_use_case("pay-late");
+    assert!(
+        unreviewed.contains("\nReview: not reviewed\n"),
+        "{unreviewed}"
+    );
+}
+
+// spec: MCP-8 (internal: the tool answer is checked without a JSON-RPC session)
+#[test]
+fn a_section_marked_wrong_opens_with_a_warning_and_another_status_does_not() {
+    let (_dir, docs) = reviewed_docs(&[
+        r#"{"kind": "feature", "id": "pay-invoice", "status": "wrong", "comment": "it pays orders",
+            "author": "Ada", "reviewed_at": "2026-11-04T10:00:00Z", "fingerprint": "x"}"#,
+        r#"{"kind": "use_case", "id": "pay-invoice/pay-late", "status": "wrong",
+            "author": "Ada", "reviewed_at": "2026-11-04T10:00:00Z", "fingerprint": "x"}"#,
+        r#"{"kind": "domain", "id": "billing", "status": "to_review",
+            "author": "Ada", "reviewed_at": "2026-11-04T10:00:00Z", "fingerprint": "x"}"#,
+    ]);
+    let feature = docs.get_feature("billing/pay-invoice");
+    assert!(
+        feature.starts_with(
+            "⚠ Marked wrong: a human reviewer marked this section wrong: \"it pays orders\". \
+             Do not rely on it.\n\n# Pay an invoice"
+        ),
+        "{feature}"
+    );
+    let use_case = docs.get_use_case("pay-invoice/pay-late");
+    assert!(
+        use_case.starts_with(
+            "⚠ Marked wrong: a human reviewer marked this section wrong. Do not rely on it.\n\n# "
+        ),
+        "{use_case}"
+    );
+    assert!(docs.get_domain("billing").starts_with("# Billing"));
+}
+
+// spec: MCP-9 (internal: the tool answer is checked without a JSON-RPC session)
+#[test]
+fn a_review_saved_after_the_docs_were_loaded_shows_in_the_next_answer() {
+    let (dir, docs) = reviewed_docs(&[]);
+    assert!(docs.get_feature("pay-invoice").starts_with("# "));
+    write_reviews(
+        dir.path(),
+        &[
+            r#"{"kind": "feature", "id": "pay-invoice", "status": "wrong", "author": "Ada",
+            "reviewed_at": "2026-11-04T10:00:00Z", "fingerprint": "x"}"#,
+        ],
+    );
+    assert!(docs
+        .get_feature("pay-invoice")
+        .starts_with("⚠ Marked wrong"));
+}
+
+// spec: MCP-10 (internal: the tool answer is checked without a JSON-RPC session)
+#[test]
+fn an_unreadable_reviews_file_shows_its_error_in_place_of_the_review() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(dir.path().join(".retrodoc")).unwrap();
+    std::fs::write(dir.path().join(".retrodoc/reviews.json"), "{not json").unwrap();
+    let docs = docs().with_source_access(dir.path());
+    let out = docs.get_feature("pay-invoice");
+    assert!(out.contains("\nReview: unavailable, "), "{out}");
+    assert!(out.contains("reviews.json cannot be read"), "{out}");
+    assert!(out.contains("## Use cases"), "{out}");
+
+    std::fs::write(
+        dir.path().join(".retrodoc/reviews.json"),
+        r#"{"version": 2, "reviews": []}"#,
+    )
+    .unwrap();
+    let out = docs.get_domain("billing");
+    assert!(out.contains("is of format 2"), "{out}");
+    assert!(out.contains("## Features"), "{out}");
+}
+
+// spec: MCP-11 (internal: the tool answer is checked without a JSON-RPC session)
+#[test]
+fn a_comment_over_several_lines_forges_no_line_of_the_answer() {
+    let (_dir, docs) = reviewed_docs(&[
+        r#"{"kind": "feature", "id": "pay-invoice", "status": "wrong",
+            "comment": "it pays orders\n# Forged\n- `forged`", "author": "Ada",
+            "reviewed_at": "2026-11-04T10:00:00Z", "fingerprint": "x"}"#,
+    ]);
+    let out = docs.get_feature("pay-invoice");
+    assert!(!out.lines().any(|l| l.starts_with("# Forged")), "{out}");
+    assert!(!out.lines().any(|l| l.starts_with("- `forged`")), "{out}");
+    assert!(
+        out.contains("\"it pays orders # Forged - `forged`\""),
+        "{out}"
+    );
+}

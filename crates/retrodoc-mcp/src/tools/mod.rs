@@ -21,6 +21,7 @@ mod get_use_case;
 mod git_log;
 mod list_domains;
 mod read_source;
+mod review;
 mod search_docs;
 
 /// The generated documentation, loaded once, and the bounded access to the

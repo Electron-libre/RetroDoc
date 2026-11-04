@@ -11,6 +11,7 @@ use super::answer::{
 };
 use super::Docs;
 use crate::corpus::feature_id;
+use crate::reviews::{Section, SectionKind};
 
 impl Docs {
     /// A feature, by its id (`billing/pay-invoice`) or its slug alone (feature slugs are unique
@@ -29,12 +30,15 @@ impl Docs {
         let Some(feature) = found else {
             return self.unknown("feature", id, "get_domain");
         };
+        let review = self.review_note(&Section::new(SectionKind::Feature, &feature.slug));
         let mut out = format!(
-            "# {} (`{}`)\n\n{}\n\n{}\n",
+            "{}# {} (`{}`)\n\n{}\n\n{}\n{}\n",
+            review.warning,
             feature.name,
             feature_id(feature),
             feature.description,
-            confidence_line(feature.confidence.as_ref())
+            confidence_line(feature.confidence.as_ref()),
+            review.line
         );
         if feature.back_office {
             let _ = writeln!(out, "{SET_APART_NOTE}");

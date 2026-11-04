@@ -9,6 +9,7 @@ use retrodoc_core::text::one_line;
 use super::answer::{confidence_line, confidence_short, rule_item, snippet};
 use super::Docs;
 use crate::corpus::feature_id;
+use crate::reviews::{Section, SectionKind};
 
 impl Docs {
     /// A domain (`billing`) and its features.
@@ -17,11 +18,14 @@ impl Docs {
         let Some(domain) = self.generated.domains().iter().find(|d| d.slug == id) else {
             return self.unknown("domain", id, "list_domains");
         };
+        let review = self.review_note(&Section::new(SectionKind::Domain, id));
         let mut out = format!(
-            "# {} (`{id}`)\n\n{}\n\n{}\n",
+            "{}# {} (`{id}`)\n\n{}\n\n{}\n{}\n",
+            review.warning,
             domain.name,
             domain.description,
-            confidence_line(domain.confidence.as_ref())
+            confidence_line(domain.confidence.as_ref()),
+            review.line
         );
         let features: Vec<&Feature> = self.generated.features_of(id).collect();
         if features.is_empty() {

@@ -7,6 +7,7 @@ use retrodoc_core::model::{BusinessRule, UseCase};
 use super::answer::{confidence_line, location, SET_APART_NOTE};
 use super::Docs;
 use crate::corpus::use_case_id;
+use crate::reviews::Section;
 
 impl Docs {
     /// A use case, by its id (`billing/pay-invoice/pay-by-card`), the last two segments or its
@@ -47,11 +48,14 @@ impl Docs {
                 );
             }
         };
+        let review = self.review_note(&Section::use_case(&use_case.feature_slug, &use_case.slug));
         let mut out = format!(
-            "# {} (`{}`)\n\n{}\n",
+            "{}# {} (`{}`)\n\n{}\n{}\n",
+            review.warning,
             use_case.name,
             use_case_id(use_case, self.generated.features()),
-            confidence_line(use_case.confidence.as_ref())
+            confidence_line(use_case.confidence.as_ref()),
+            review.line
         );
         if self.use_case_set_apart(use_case) {
             let _ = writeln!(out, "{SET_APART_NOTE}");
