@@ -287,7 +287,7 @@ The milestones up to "A large application, one bounded context at a time" are th
 - Issues:
   - [run_snapshot_at_generate](issues/done/run_snapshot_at_generate.md)
   - [web_run_trends](issues/web_run_trends.md)
-  - [run_diff](issues/run_diff.md)
+  - [run_diff](issues/done/run_diff.md)
 
 ## Human review of the docs
 
