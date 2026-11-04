@@ -1401,7 +1401,7 @@ dependencies = [
 
 [[package]]
 name = "retrodoc-bench"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "futures-util",
  "git2",
@@ -1422,7 +1422,7 @@ dependencies = [
 
 [[package]]
 name = "retrodoc-cli"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1447,7 +1447,7 @@ dependencies = [
 
 [[package]]
 name = "retrodoc-core"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "chrono",
  "serde",
@@ -1459,7 +1459,7 @@ dependencies = [
 
 [[package]]
 name = "retrodoc-ingest"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "chrono",
  "git2",
@@ -1493,7 +1493,7 @@ dependencies = [
 
 [[package]]
 name = "retrodoc-llm"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "async-trait",
  "reqwest",
@@ -1507,7 +1507,7 @@ dependencies = [
 
 [[package]]
 name = "retrodoc-mcp"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "retrodoc-core",
  "retrodoc-ingest",
@@ -1524,7 +1524,7 @@ dependencies = [
 
 [[package]]
 name = "retrodoc-pipeline"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "async-trait",
  "futures-util",
@@ -1547,7 +1547,7 @@ dependencies = [
 
 [[package]]
 name = "retrodoc-render"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "retrodoc-core",
  "serde",
@@ -1560,7 +1560,7 @@ dependencies = [
 
 [[package]]
 name = "retrodoc-web"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "askama",
  "axum",

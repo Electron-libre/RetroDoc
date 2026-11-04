@@ -4,6 +4,71 @@ The notable changes of each version, newest first ([Keep a Changelog](https://ke
 [Semantic Versioning](https://semver.org/)). Each section is written by `cardinal run release <version>` from the commits,
 then reread before the release is committed.
 
+## [0.7.0] - 2026-11-04
+
+### Milestones
+
+- Release and code hygiene
+- Measured quality at the current code
+- Explore the documentation debt and audit it
+
+### Added
+
+- reject wrong judge pairs and count the unaudited ones
+- set aside the features the features pass marks technical
+- check the evidence of the benchmark reference
+- ask the map of the contexts at temperature 0
+- leave the technical files out of the map of the contexts
+- keep the slugs of the contexts a forced map matches
+- merge the one-file contexts of the map
+- leave the domains with no feature out of the docs
+- count only the domains a feature belongs to
+- spread the files of a layer context to their users
+- spread the catch-all contexts of the map
+- propose the saved support to a forced map call
+- pair the unpaired items with the covered reference ones
+- add the judge's second call to a saved judgement
+- list the debt of the docs as typed items
+- show the debt of the docs on a filterable page
+- give the figures of the audit of the docs
+- show an audit dashboard of the docs
+- keep what the docs leave out in the read model
+- list the code no doc covers and the project docs in the debt
+- show the code no doc covers and the project docs in the debt
+- rank the debt items by weakness, churn and entry points
+- show the priority of each debt item, churn read at start
+- weigh the debt items by kind, commits of the busiest file
+
+### Fixed
+
+- resolve an id only when every segment given matches
+- make the docs builders order-free and the lookups linear
+- keep the source access through From and share the use case id
+- share one list item and keep it on one line
+- show an inverted line range with the lower line first
+- fail the render when two items fold into one path
+- order the cited lines once for the docs, MCP and web
+- resolve a business path with a trailing slash to its file
+- resolve a trailing-slash file the same way when reading
+- report the released version 0.6.0 and guard it
+- read the newest changelog heading whatever its form
+- correct the judge audit of the benchmark baseline
+- refuse a pair both kept and rejected in matches.yaml
+- lint the default build of the pipeline, one judgement path
+- keep external exchanges out of the technical features
+- treat operations commands and jobs as technical features
+- keep slice merges of technical features in the docs
+- make the reference evidence check refuse stale inputs
+- keep the one-file entry point contexts of the map
+- tie the number of domains to the scoring version
+- place each file of a layer context once, before the split
+- stamp version 4 on a run judged without the second call
+- count the debt items at each request of the home page
+- correct the figures of the audit dashboard
+- correct the debt view of the code after review
+- count no commit for a debt item whose feature left the run
+- make the scenarios of the debt priority reachable and tested
+
 ## [0.6.0] - 2026-11-02
 
 ### Milestones

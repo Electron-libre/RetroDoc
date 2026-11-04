@@ -211,6 +211,7 @@ The milestones up to "A large application, one bounded context at a time" are th
 - Why: the audit of 2026-11-03 found the workspace still at `0.1.0` after the tag `v0.6.0`, and about 11k of the 44k
   lines of `retrodoc-pipeline` are measuring tools.
 - State: done
+- Released: v0.7.0
 - Issues:
   - [release_bumps_the_workspace_version](issues/done/release_bumps_the_workspace_version.md)
   - [measure_tooling_out_of_the_pipeline_crate](issues/done/measure_tooling_out_of_the_pipeline_crate.md)
@@ -228,6 +229,7 @@ The milestones up to "A large application, one bounded context at a time" are th
   maps of the same large application gave 34, 40 and 44 contexts. The web milestones below show these docs to
   readers: their quality comes first.
 - State: done
+- Released: v0.7.0
 - Issues:
   - [benchmark_baseline_at_head](issues/done/benchmark_baseline_at_head.md)
   - [benchmark_references_anchored_in_evidence](issues/done/benchmark_references_anchored_in_evidence.md)
@@ -268,6 +270,7 @@ The milestones up to "A large application, one bounded context at a time" are th
 - Why: the debt report is one long page; deciding where to improve the docs needs to see where the debt
   concentrates and what to fix first.
 - State: done
+- Released: v0.7.0
 - Issues:
   - [web_debt_view_of_the_docs](issues/done/web_debt_view_of_the_docs.md)
   - [web_debt_view_of_the_code](issues/done/web_debt_view_of_the_code.md)
