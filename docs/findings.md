@@ -646,3 +646,9 @@ Since then (scoring version 4) the docs leave out a domain with no feature and t
 (`specs/featureless-domains.md`, BSC-20). Same audited runs re-scored: linkding 8 to 7 domains in two runs of three
 (`feeds`, `import-export`), domains precision 100% (all three runs) against 95% at dafea18; Lobsters unchanged
 (86% against 88%: no domain without a feature).
+
+Set-aside lists read by hand (`issues/technical_feature_put_back.md`, no LLM call): the 6 hidden runs of
+f95ada6 set aside 83 features (linkding 10, 11, 11; Lobsters 11, 29, 11) and none is a reference feature the docs
+lose. They are helpers, route files, operations scripts and jobs, test data and caches; the closest to a user
+feature (the hat and invitation routes, the story card job, an import helper) are parts of a feature the same run
+keeps in `features.yaml`. No key to put a technical feature back is needed at this code.
