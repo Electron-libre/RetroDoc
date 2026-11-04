@@ -256,6 +256,11 @@ pub struct ReviewTexts {
     pub by: &'static str,
     /// Validated, wrong, to review.
     pub statuses: [&'static str; 3],
+    pub status_label: &'static str,
+    /// The choice of the form that removes the review.
+    pub no_status: &'static str,
+    pub comment: &'static str,
+    pub save: &'static str,
 }
 
 impl ReviewTexts {
@@ -566,6 +571,10 @@ impl WebTexts {
             not_reviewed: "Not reviewed",
             by: "by",
             statuses: ["Validated", "Wrong", "To review"],
+            status_label: "Status",
+            no_status: "No review",
+            comment: "Comment",
+            save: "Save",
         },
         refusal: SourceError::to_string,
     };
@@ -872,6 +881,10 @@ impl WebTexts {
             not_reviewed: "Non relu",
             by: "par",
             statuses: ["Validé", "Faux", "À revoir"],
+            status_label: "Statut",
+            no_status: "Pas de relecture",
+            comment: "Commentaire",
+            save: "Enregistrer",
         },
         refusal: french_refusal,
     };

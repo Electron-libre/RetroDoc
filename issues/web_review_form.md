@@ -51,10 +51,10 @@ are read from the file at each request (no copy in the shared state, so no lock 
 1. [x] Show the reviews: the review block on the pages of a domain, a feature and a use case, the status badge in the
    rows of the home, domain and feature pages, the error of an unreadable file, English and French texts; verified by
    tests of the router over a `reviews.json` written by `reviews::record`; makes true WEB-79, WEB-80, WEB-82, WEB-87. (autonomous)
-2. [ ] The form: a `POST` on the URL of each section page, the `Origin`/`Referer` check, the `htmx` fragment or the
+2. [x] The form: a `POST` on the URL of each section page, the `Origin`/`Referer` check, the `htmx` fragment or the
    `303`, the 404, 400 and 500 answers; verified by router tests that post forms and read `reviews.json`, and a headless
    Chrome check of the swap; makes true WEB-12, WEB-81, WEB-83, WEB-84, WEB-85, WEB-86, WEB-88; sets the spec
-   `accepted`.
+   `accepted`. (autonomous)
 3. [ ] Docs of the whole issue and fixes of its `high` review.
 
 ## Decisions
@@ -76,3 +76,20 @@ are read from the file at each request (no copy in the shared state, so no lock 
   - The home page drops the error of an unreadable `reviews.json` (no badge): not changed, WEB-87 names the error on
     the pages of the sections, which the home page links to.
 - not verified: the badges in a browser (the headless check comes with the form, deliverable 2).
+
+## Deliverable 2
+- done: a form under the review of each section posts to the URL of its page, records or removes the review through
+  the store, answers the review alone to `htmx` and a `303` otherwise; every request but `GET` and `HEAD` is refused
+  unless its `Origin` (else `Referer`) is the server itself; 404, 400 and 500 answers; the spec is `accepted`.
+- red: WEB-12, WEB-81, WEB-83, WEB-84, WEB-85, WEB-86, WEB-88: `left: 405` (no `POST` route), `no form` in the review
+  block.
+- checks: tests, clippy, specs pass (`cardinal run project-check`); docs: `docs/crates/render-mcp-cli.md`,
+  `README.md`, the doc of `commands::ui::run`; headless Chrome on a copy of a saved linkding run: the swap shows
+  "Wrong by <user.name>, <date>" in place, the home card gets the badge, `reviews.json` holds the review; two
+  cross-site `POST`s with `curl` (foreign `Origin`, none) got 403.
+- Code review: 2 findings
+  - A failed `htmx` save swapped in the error without the form: fixed, the form stays, holding the comment sent.
+  - A 404 to `htmx` swapped the whole not-found page into the section: fixed, it gets the error fragment.
+  Both covered by `a_failed_htmx_post_gets_the_error_and_the_form_with_its_comment`.
+- not verified: the status chosen is not kept by a failed save (only the comment); the headless check ran before
+  these two fixes, the router tests cover them.

@@ -1,11 +1,12 @@
 //! The local web interface over the generated docs (ADR 0039): an `axum`
 //! router that renders HTML pages on the server from `askama` templates, with
 //! its scripts and stylesheet embedded in the binary. It calls no LLM and
-//! writes nothing.
+//! writes nothing but the human reviews a form sends ([`review_form`]).
 //!
 //! The pages are built from [`GeneratedDocs`], the read model `retrodoc-mcp`
 //! loads, turned into the plain view structs of [`view`]; only [`router`] and
-//! [`serve`] know HTTP. The docs are read once, at start.
+//! [`serve`] know HTTP. The docs are read once, at start; the reviews at each
+//! request.
 
 pub mod actors;
 mod assets;
@@ -19,6 +20,7 @@ pub mod history;
 pub mod map;
 mod pages;
 pub mod review;
+mod review_form;
 pub mod rules;
 pub mod search;
 pub mod texts;
@@ -29,7 +31,7 @@ use std::net::IpAddr;
 use std::sync::Arc;
 
 use axum::extract::Request;
-use axum::http::{header, StatusCode};
+use axum::http::{header, HeaderMap, Method, StatusCode};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
@@ -78,11 +80,17 @@ pub fn router(
 ) -> Router {
     Router::new()
         .route("/", get(pages::home))
-        .route("/domains/{domain}", get(pages::domain))
-        .route("/domains/{domain}/{feature}", get(pages::feature))
+        .route(
+            "/domains/{domain}",
+            get(pages::domain).post(review_form::domain),
+        )
+        .route(
+            "/domains/{domain}/{feature}",
+            get(pages::feature).post(review_form::feature),
+        )
         .route(
             "/domains/{domain}/{feature}/{use_case}",
-            get(pages::use_case),
+            get(pages::use_case).post(review_form::use_case),
         )
         .route("/files", get(pages::files))
         .route("/glossary", get(pages::glossary))
@@ -98,6 +106,7 @@ pub fn router(
         .route("/docs/{*path}", get(pages::collected_doc))
         .route("/assets/{name}", get(assets::serve))
         .fallback(pages::not_found)
+        .layer(middleware::from_fn(refuse_cross_site))
         .layer(middleware::from_fn(refuse_foreign_host))
         .with_state(Arc::new(Site::new(project, docs, links, collected)))
 }
@@ -123,6 +132,35 @@ fn trusted_host(host: &str) -> bool {
         None => host.rsplit_once(':').map_or(host, |(name, _)| name),
     };
     name.eq_ignore_ascii_case("localhost") || name.parse::<IpAddr>().is_ok()
+}
+
+/// Refuses a request that may change something (any method but `GET` and
+/// `HEAD`) unless it comes from a page of this server: its `Origin`, else its
+/// `Referer`, is `http://` and its `Host`. A form of another site would
+/// otherwise save a review in the user's name.
+async fn refuse_cross_site(request: Request, next: Next) -> Response {
+    let safe = matches!(*request.method(), Method::GET | Method::HEAD);
+    if !safe && !same_origin(request.headers()) {
+        return (StatusCode::FORBIDDEN, "cross-site request").into_response();
+    }
+    next.run(request).await
+}
+
+/// Whether the `Origin` of a request, else its `Referer`, is the server
+/// itself, as its `Host` names it.
+fn same_origin(headers: &HeaderMap) -> bool {
+    let value = |name| headers.get(name).and_then(|v| v.to_str().ok());
+    let Some(host) = value(header::HOST) else {
+        return false;
+    };
+    let own = format!("http://{host}");
+    match (value(header::ORIGIN), value(header::REFERER)) {
+        (Some(origin), _) => origin == own,
+        (None, Some(referer)) => referer
+            .strip_prefix(&own)
+            .is_some_and(|rest| rest.is_empty() || rest.starts_with('/')),
+        (None, None) => false,
+    }
 }
 
 /// Serves the interface on `listener` until the process stops.

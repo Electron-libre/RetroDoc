@@ -147,13 +147,13 @@ table.files tr.dir td:first-child { font-weight: 600; }
 .collected pre { overflow-x: auto; }
 .top form.search { margin-left: auto; }
 .top form.search input { padding: 0.25rem 0.5rem; min-width: 16rem; }
-input, select, button {
+input, select, textarea, button {
   color: var(--text);
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: 0.25rem;
 }
-input:focus-visible, select:focus-visible, button:focus-visible { outline: 1px solid var(--gold); }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible { outline: 1px solid var(--gold); }
 #search-results:not(:empty) { padding: 0 1rem; border-bottom: 1px solid var(--border); }
 ul.hits { list-style: none; padding-left: 0; }
 .filters { display: flex; flex-wrap: wrap; gap: 1rem; align-items: end; margin-bottom: 1rem; }

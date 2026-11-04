@@ -13,6 +13,7 @@ retrodoc-mcp.workspace = true
 retrodoc-render.workspace = true
 askama.workspace = true
 pulldown-cmark.workspace = true
+serde.workspace = true
 axum.workspace = true
 tokio = { workspace = true, features = ["net", "rt"] }
 

@@ -7,7 +7,7 @@ use askama::Template;
 use axum::extract::{Path, RawQuery, State};
 use axum::http::{header, HeaderMap, StatusCode};
 use axum::response::{Html, IntoResponse, Response};
-use retrodoc_mcp::reviews::{Reviews, Section, SectionKind};
+use retrodoc_mcp::reviews::Reviews;
 use retrodoc_mcp::GeneratedDocs;
 use tokio::task::JoinError;
 
@@ -21,7 +21,7 @@ use crate::files::FilesPage;
 use crate::glossary::GlossaryPage;
 use crate::history::{history_page, HistoryPage};
 use crate::map::{DomainMapPage, MapPage};
-use crate::review::{self, ReviewView};
+use crate::review::{self, Place, ReviewView};
 use crate::rules::{rules_page, RuleFilter, RulesPage};
 use crate::search::{query_value, search_page, Results, SearchPage};
 use crate::texts::WebTexts;
@@ -238,7 +238,7 @@ pub async fn home(State(site): State<Arc<Site>>) -> Response {
 }
 
 /// Runs `build` off the async workers: the stale badges read the cited files.
-async fn blocking<T: Send + 'static>(
+pub(crate) async fn blocking<T: Send + 'static>(
     site: &Arc<Site>,
     build: impl FnOnce(&Site) -> T + Send + 'static,
 ) -> Result<T, JoinError> {
@@ -246,7 +246,7 @@ async fn blocking<T: Send + 'static>(
     tokio::task::spawn_blocking(move || build(&site)).await
 }
 
-fn read_failed(err: &JoinError) -> Response {
+pub(crate) fn read_failed(err: &JoinError) -> Response {
     (
         StatusCode::INTERNAL_SERVER_ERROR,
         format!("could not read the docs: {err}"),
@@ -257,7 +257,7 @@ fn read_failed(err: &JoinError) -> Response {
 pub async fn domain(State(site): State<Arc<Site>>, Path(slug): Path<String>) -> Response {
     let page = blocking(&site, move |site| {
         site.docs().and_then(|docs| {
-            let (reviews, review) = reviews_of(docs, &Section::new(SectionKind::Domain, &slug));
+            let (reviews, review) = reviews_of(docs, &Place::Domain(slug.clone()));
             domain_page(docs, site.links(), &reviews, &slug).map(|page| (page, review))
         })
     })
@@ -277,11 +277,11 @@ pub async fn domain(State(site): State<Arc<Site>>, Path(slug): Path<String>) -> 
     }
 }
 
-/// The reviews of the repository of `docs`, none when they can't be read, and the review of
-/// `section`, with the error when they can't.
-fn reviews_of(docs: &GeneratedDocs, section: &Section) -> (Reviews, ReviewView) {
+/// The reviews of the repository of `docs`, none when they can't be read, and the review of the
+/// section at `place`, with the error when they can't.
+fn reviews_of(docs: &GeneratedDocs, place: &Place) -> (Reviews, ReviewView) {
     let loaded = review::load(docs);
-    let view = ReviewView::of(&loaded, section);
+    let view = ReviewView::of(&loaded, place);
     (loaded.unwrap_or_default(), view)
 }
 
@@ -291,7 +291,11 @@ pub async fn feature(
 ) -> Response {
     let page = blocking(&site, move |site| {
         site.docs().and_then(|docs| {
-            let (reviews, review) = reviews_of(docs, &Section::new(SectionKind::Feature, &slug));
+            let place = Place::Feature {
+                domain: domain.clone(),
+                slug: slug.clone(),
+            };
+            let (reviews, review) = reviews_of(docs, &place);
             feature_page(docs, site.links(), &reviews, &domain, &slug).map(|page| (page, review))
         })
     })
@@ -317,8 +321,12 @@ pub async fn use_case(
 ) -> Response {
     let page = blocking(&site, move |site| {
         site.docs().and_then(|docs| {
-            let section = Section::new(SectionKind::UseCase, format!("{feature}/{slug}"));
-            let (_, review) = reviews_of(docs, &section);
+            let place = Place::UseCase {
+                domain: domain.clone(),
+                feature: feature.clone(),
+                slug: slug.clone(),
+            };
+            let (_, review) = reviews_of(docs, &place);
             use_case_page(docs, site.links(), &domain, &feature, &slug).map(|page| (page, review))
         })
     })
@@ -612,7 +620,7 @@ pub async fn not_found(State(site): State<Arc<Site>>) -> Response {
     )
 }
 
-fn render(status: StatusCode, page: &impl Template) -> Response {
+pub(crate) fn render(status: StatusCode, page: &impl Template) -> Response {
     match page.render() {
         Ok(html) => (status, Html(html)).into_response(),
         Err(err) => (

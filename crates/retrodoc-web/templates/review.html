@@ -7,4 +7,14 @@
 {% else %}
 <p><strong>{{ t.review.heading }}</strong> <span class="muted">{{ t.review.not_reviewed }}</span></p>
 {% endif %}
+<form class="filters" method="post" action="{{ review.action }}" hx-post="{{ review.action }}" hx-target="closest section" hx-swap="outerHTML" hx-on:htmx:before-swap="if (event.detail.xhr.status >= 400) { event.detail.shouldSwap = true; event.detail.isError = false; }">
+  <label>{{ t.review.status_label }} <select name="status">
+    <option value=""{% if review.selects("") %} selected{% endif %}>{{ t.review.no_status }}</option>
+    <option value="validated"{% if review.selects("validated") %} selected{% endif %}>{{ t.review.statuses[0] }}</option>
+    <option value="wrong"{% if review.selects("wrong") %} selected{% endif %}>{{ t.review.statuses[1] }}</option>
+    <option value="to_review"{% if review.selects("to_review") %} selected{% endif %}>{{ t.review.statuses[2] }}</option>
+  </select></label>
+  <label>{{ t.review.comment }} <textarea name="comment" rows="2">{{ review.comment }}</textarea></label>
+  <button type="submit">{{ t.review.save }}</button>
+</form>
 </section>

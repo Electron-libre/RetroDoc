@@ -769,11 +769,8 @@ fn crumbs_to(docs: &GeneratedDocs, feature: Option<&Feature>, domain_slug: &str)
 
 /// The feature `slug` of the domain `domain`, `None` when the run has no such
 /// feature in that domain.
-pub(crate) fn find_feature<'a>(
-    docs: &'a GeneratedDocs,
-    domain: &str,
-    slug: &str,
-) -> Option<&'a Feature> {
+#[must_use]
+pub fn find_feature<'a>(docs: &'a GeneratedDocs, domain: &str, slug: &str) -> Option<&'a Feature> {
     docs.features()
         .iter()
         .find(|f| f.slug == slug && f.domain_slug == domain)

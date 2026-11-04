@@ -156,8 +156,9 @@ enum Command {
         path: PathBuf,
     },
     /// Serves the generated documentation in a local web interface: the
-    /// domains, features and use cases of the last `generate` run. Read-only,
-    /// no LLM call; the URL is printed at start.
+    /// domains, features and use cases of the last `generate` run, each with a
+    /// form to review it (saved in `.retrodoc/reviews.json`, the only write).
+    /// No LLM call; the URL is printed at start.
     Ui {
         #[arg(long, default_value = ".")]
         path: PathBuf,
