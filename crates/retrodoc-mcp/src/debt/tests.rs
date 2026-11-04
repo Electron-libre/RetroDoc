@@ -109,13 +109,13 @@ fn the_weak_and_unscored_sections_are_listed_lowest_score_first() {
     assert_eq!(
         low,
         [
-            (DebtKind::NotScored, "billing/pay/check".to_string()),
             (DebtKind::LowConfidence, "auth/orphan".to_string()),
             (DebtKind::LowConfidence, "billing/pay/void".to_string()),
             (DebtKind::LowConfidence, "billing/pay/refund".to_string()),
+            (DebtKind::NotScored, "billing/pay/check".to_string()),
         ]
     );
-    let void = &low_items(&list)[2];
+    let void = &low_items(&list)[1];
     assert_eq!(void.score, Some(0.3));
     assert_eq!(void.rationale.as_deref(), Some("why void"));
     assert!(!list.no_score);
@@ -168,21 +168,21 @@ fn unbacked_technical_and_set_apart_use_cases_have_their_own_kinds() {
                 DebtKind::UnbackedNarrative,
                 "billing/pay/unbacked".to_string()
             ),
-            (DebtKind::SetApart, "billing/pay/helper".to_string()),
-            (DebtKind::SetApart, "auth/admin/reimport".to_string()),
             (
                 DebtKind::TechnicalLanguage,
                 "billing/pay/helper".to_string()
             ),
+            (DebtKind::SetApart, "billing/pay/helper".to_string()),
+            (DebtKind::SetApart, "auth/admin/reimport".to_string()),
         ]
     );
     assert_eq!(list.items[0].rationale.as_deref(), Some("not in the code"));
-    assert_eq!(list.items[3].score, Some(0.2));
+    assert_eq!(list.items[1].score, Some(0.2));
     assert_eq!(
-        list.items[1].reasons,
+        list.items[2].reasons,
         [SetApartReason::BusinessLanguage, SetApartReason::Confidence]
     );
-    assert_eq!(list.items[2].reasons, [SetApartReason::BackOffice]);
+    assert_eq!(list.items[3].reasons, [SetApartReason::BackOffice]);
 }
 
 // spec: DBT-7, DBT-8 (internal: the read model of the debt page, shown by DBT-1)
@@ -293,8 +293,8 @@ fn the_contradicted_and_undocumented_items_follow_the_sections() {
     assert_eq!(
         doc_kinds,
         [
-            (DebtKind::Undocumented, "billing/pay/pay-1".to_string()),
             (DebtKind::Contradicted, "billing/pay/refund".to_string()),
+            (DebtKind::Undocumented, "billing/pay/pay-1".to_string()),
             (DebtKind::Undocumented, "billing".to_string()),
         ]
     );
@@ -399,9 +399,9 @@ fn priority_of<'a>(list: &'a DebtList, kind: DebtKind, label: &str) -> &'a Prior
         .priority
 }
 
-// spec: DBT-23, DBT-24 (internal: the read model of the debt page, shown by DBT-27)
+// spec: DBT-23, DBT-24, DBT-29 (internal: the read model of the debt page, shown by DBT-27)
 #[test]
-fn the_priority_crosses_the_weakness_the_commits_and_the_entry_points() {
+fn the_priority_crosses_the_weight_the_weakness_the_commits_and_the_entry_points() {
     let mut weak = feature("pay", "billing", Some(0.2));
     weak.entry_points = vec!["pay.rb#create".into(), "pay.rb#update".into()];
     let mut admin = feature("admin", "auth", Some(0.9));
@@ -415,19 +415,47 @@ fn the_priority_crosses_the_weakness_the_commits_and_the_entry_points() {
     let list = debt(&docs);
 
     let low = priority_of(&list, DebtKind::LowConfidence, "billing/pay");
-    assert_eq!((low.weakness, low.commits, low.entry_points), (0.8, 6, 2));
+    assert_eq!(
+        (low.weight, low.weakness, low.commits, low.entry_points),
+        (1.0, 0.8, 6, 2)
+    );
     let expected = f64::from(0.8_f32) * (1.0 + 6_f64.ln_1p()) * (1.0 + 2_f64.ln_1p());
     assert!((low.value() - expected).abs() < 1e-9, "{}", low.value());
     let set_apart = priority_of(&list, DebtKind::SetApart, "auth/admin/reimport");
     assert_eq!(
         (
+            set_apart.weight,
             set_apart.weakness,
             set_apart.commits,
             set_apart.entry_points
         ),
-        (1.0, 0, 0)
+        (0.25, 1.0, 0, 0)
     );
-    assert!((set_apart.value() - 1.0).abs() < 1e-9);
+    assert!((set_apart.value() - 0.25).abs() < 1e-9);
+}
+
+// spec: DBT-29 (internal: the read model of the debt page, shown by DBT-27)
+#[test]
+fn the_weight_of_an_item_follows_the_tier_of_its_kind() {
+    use DebtKind::*;
+    let weights: Vec<(DebtKind, f32)> = DebtKind::ALL.iter().map(|k| (*k, k.weight())).collect();
+    assert_eq!(
+        weights,
+        [
+            (LowConfidence, 1.0),
+            (NotScored, 0.5),
+            (UnbackedNarrative, 1.0),
+            (TechnicalLanguage, 0.5),
+            (SetApart, 0.25),
+            (Stale, 1.0),
+            (Contradicted, 1.0),
+            (Undocumented, 0.5),
+            (EntryPointWithoutFeature, 0.5),
+            (NoDomain, 0.25),
+            (NoBehaviour, 0.25),
+            (NotAnalysed, 0.25),
+        ]
+    );
 }
 
 // spec: DBT-25, DBT-26 (internal: the read model of the debt page, shown by DBT-27)
@@ -502,27 +530,27 @@ fn the_commits_and_entry_points_come_from_the_files_and_entries_of_each_item() {
         let p = priority_of(&list, kind, label);
         (p.commits, p.entry_points)
     };
-    // refund.rb, and money.rb once though two steps cite it.
+    // The busiest of refund.rb and money.rb, which two steps cite.
     assert_eq!(
         parts(DebtKind::LowConfidence, "billing/pay/refund"),
-        (110, 1)
+        (100, 1)
     );
     assert_eq!(
         parts(DebtKind::Undocumented, "billing/pay/refund"),
-        (110, 1)
+        (100, 1)
     );
-    assert_eq!(parts(DebtKind::Undocumented, "billing"), (11, 3));
-    assert_eq!(parts(DebtKind::Undocumented, "billing/pay"), (11, 0));
+    assert_eq!(parts(DebtKind::Undocumented, "billing"), (10, 3));
+    assert_eq!(parts(DebtKind::Undocumented, "billing/pay"), (10, 0));
     assert_eq!(
         parts(DebtKind::Undocumented, "billing/pay/pay-1"),
-        (1010, 0)
+        (1000, 0)
     );
     assert_eq!(parts(DebtKind::Undocumented, "?/gone"), (0, 0));
-    assert_eq!(parts(DebtKind::NoDomain, "lib"), (5, 0));
+    assert_eq!(parts(DebtKind::NoDomain, "lib"), (3, 0));
     assert_eq!(parts(DebtKind::EntryPointWithoutFeature, "app"), (7, 2));
 }
 
-// spec: DBT-8, DBT-25 (internal: the read model of the debt page, shown by DBT-27)
+// spec: DBT-8, DBT-25, DBT-29 (internal: the read model of the debt page, shown by DBT-27)
 #[test]
 fn the_items_are_sorted_by_priority_then_by_kind() {
     let docs = docs(
@@ -541,13 +569,13 @@ fn the_items_are_sorted_by_priority_then_by_kind() {
     assert_eq!(
         kinds(&list),
         [
-            (DebtKind::SetApart, "billing/pay/hot".to_string()),
             (DebtKind::LowConfidence, "billing/pay/hot".to_string()),
+            (DebtKind::SetApart, "billing/pay/hot".to_string()),
+            (DebtKind::LowConfidence, "billing/pay/void".to_string()),
+            (DebtKind::LowConfidence, "billing/pay/refund".to_string()),
             (DebtKind::NotScored, "billing/pay/check".to_string()),
             (DebtKind::SetApart, "billing/pay/refund".to_string()),
             (DebtKind::SetApart, "billing/pay/void".to_string()),
-            (DebtKind::LowConfidence, "billing/pay/void".to_string()),
-            (DebtKind::LowConfidence, "billing/pay/refund".to_string()),
         ]
     );
 }

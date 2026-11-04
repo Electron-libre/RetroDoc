@@ -3,10 +3,10 @@
 //! from the same [`build_report`] as `retrodoc report`, plus the sections whose
 //! cited code changed since the run, judged at each call, then the items the
 //! project's docs contradict or leave out and the code no doc covers, by folder,
-//! sorted by a priority that crosses how weak each item is with the commits of
-//! its files and its entry points.
+//! sorted by a priority that crosses the weight of its kind and how weak each
+//! item is with the commits of its busiest file and its entry points.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use retrodoc_core::model::{RuleEvidence, SetApartReason, UseCase};
@@ -74,6 +74,20 @@ impl DebtKind {
         Self::Contradicted,
         Self::Undocumented,
     ];
+
+    /// What an item of this kind weighs in its priority (DBT-29): 1 when its section may state
+    /// what is false, 0.5 when it is missing or unreadable, 0.25 when the docs leave it out by design.
+    #[must_use]
+    pub fn weight(self) -> f32 {
+        match self {
+            Self::LowConfidence | Self::UnbackedNarrative | Self::Stale | Self::Contradicted => 1.0,
+            Self::NotScored
+            | Self::TechnicalLanguage
+            | Self::Undocumented
+            | Self::EntryPointWithoutFeature => 0.5,
+            Self::SetApart | Self::NoDomain | Self::NoBehaviour | Self::NotAnalysed => 0.25,
+        }
+    }
 }
 
 /// What a debt item is about.
@@ -139,9 +153,11 @@ pub struct DebtItem {
 /// What fixing an item first is worth, and its parts (`specs/debt-view.md`, DBT-23).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Priority {
+    /// The weight of its kind ([`DebtKind::weight`]).
+    pub weight: f32,
     /// `1 − score` for an item with a score, else 1.
     pub weakness: f32,
-    /// The commits of the history that changed its files, each file counted once.
+    /// The commits of the history that changed the busiest of its files.
     pub commits: u32,
     pub entry_points: usize,
 }
@@ -149,6 +165,7 @@ pub struct Priority {
 impl Default for Priority {
     fn default() -> Self {
         Self {
+            weight: 1.0,
             weakness: 1.0,
             commits: 0,
             entry_points: 0,
@@ -157,11 +174,12 @@ impl Default for Priority {
 }
 
 impl Priority {
-    /// `weakness × (1 + ln(1 + commits)) × (1 + ln(1 + entry points))`.
+    /// `weight × weakness × (1 + ln(1 + commits)) × (1 + ln(1 + entry points))`.
     #[must_use]
     pub fn value(&self) -> f64 {
         let entry_points = u32::try_from(self.entry_points).unwrap_or(u32::MAX);
-        f64::from(self.weakness)
+        f64::from(self.weight)
+            * f64::from(self.weakness)
             * (1.0 + f64::from(self.commits).ln_1p())
             * (1.0 + f64::from(entry_points).ln_1p())
     }
@@ -292,7 +310,8 @@ pub fn debt_of(docs: &GeneratedDocs, report: DebtReport) -> DebtList {
     }
 }
 
-/// The priority of `item`: its weakness, the commits of its files and its entry points.
+/// The priority of `item`: the weight of its kind, its weakness, the commits of its busiest file and
+/// its entry points.
 fn priority(docs: &GeneratedDocs, item: &DebtItem) -> Priority {
     let (files, entry_points) = match &item.subject {
         Subject::Section(section) => section_parts(docs, section),
@@ -313,12 +332,12 @@ fn priority(docs: &GeneratedDocs, item: &DebtItem) -> Priority {
     let commits = docs.churn().map_or(0, |churn| {
         files
             .into_iter()
-            .collect::<BTreeSet<_>>()
-            .into_iter()
-            .filter_map(|path| churn.get(path))
-            .fold(0_u32, |sum, c| sum.saturating_add(*c))
+            .filter_map(|path| churn.get(path).copied())
+            .max()
+            .unwrap_or(0)
     });
     Priority {
+        weight: item.kind.weight(),
         weakness: item.score.map_or(1.0, |score| 1.0 - score),
         commits,
         entry_points,

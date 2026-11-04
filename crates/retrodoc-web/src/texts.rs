@@ -159,8 +159,9 @@ pub struct DebtTexts {
     pub item_kinds: [&'static str; 4],
     /// `entry point`, `entry points`, `file`, `files`.
     pub counted: [&'static str; 4],
-    /// The priority of an item and its parts: `Priority 2.10: weakness 1.00, 2 commits, 0 entry points`.
-    pub priority: fn(f64, f32, String, String) -> String,
+    /// The priority of an item and its parts: `Priority 0.52: weight 0.25, weakness 1.00, 2 commits, 0
+    /// entry points`.
+    pub priority: fn(f64, f32, f32, String, String) -> String,
     /// `commit`, `commits`.
     pub commits: [&'static str; 2],
     /// The git history could not be read: no item counts a commit.
@@ -395,8 +396,11 @@ impl WebTexts {
                 undocumented. Name the docs in <code>existing_docs_paths</code> of <code>retrodoc.toml</code>.",
             item_kinds: ["domain", "feature", "use case", "rule"],
             counted: ["entry point", "entry points", "file", "files"],
-            priority: |value, weakness, commits, entry_points| {
-                format!("Priority {value:.2}: weakness {weakness:.2}, {commits}, {entry_points}")
+            priority: |value, weight, weakness, commits, entry_points| {
+                format!(
+                    "Priority {value:.2}: weight {weight:.2}, weakness {weakness:.2}, {commits}, \
+                     {entry_points}"
+                )
             },
             commits: ["commit", "commits"],
             no_history: "The git history could not be read: every item counts 0 commits.",
@@ -644,8 +648,11 @@ impl WebTexts {
                 contredit ou non documenté. Nommez les docs dans <code>existing_docs_paths</code> de <code>retrodoc.toml</code>.",
             item_kinds: ["domaine", "fonctionnalité", "cas d'usage", "règle"],
             counted: ["point d'entrée", "points d'entrée", "fichier", "fichiers"],
-            priority: |value, weakness, commits, entry_points| {
-                format!("Priorité {value:.2} : faiblesse {weakness:.2}, {commits}, {entry_points}")
+            priority: |value, weight, weakness, commits, entry_points| {
+                format!(
+                    "Priorité {value:.2} : poids {weight:.2}, faiblesse {weakness:.2}, {commits}, \
+                     {entry_points}"
+                )
             },
             commits: ["commit", "commits"],
             no_history: "L'historique git n'a pas pu être lu : chaque élément compte 0 commit.",
@@ -789,6 +796,7 @@ impl WebTexts {
         let [entry_point, entry_points] = [self.debt.counted[0], self.debt.counted[1]];
         (self.debt.priority)(
             priority.value(),
+            priority.weight,
             priority.weakness,
             self.count(
                 usize::try_from(priority.commits).unwrap_or(usize::MAX),

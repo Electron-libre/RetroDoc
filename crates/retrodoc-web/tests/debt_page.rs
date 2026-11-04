@@ -182,8 +182,9 @@ async fn the_debt_page_lists_each_section_that_needs_a_human() {
     let page = debt(repo.path(), "/debt").await;
     let items = items(&page);
 
-    // Weaker than the others at 30% (0.7 against 1): last.
-    let low = items[4];
+    // Below the stale sections (weight 1, weakness 0.7 against 1), above the not scored and set
+    // apart ones (weight 0.5 and 0.25).
+    let low = items[2];
     assert!(low.contains("Low confidence"), "{low}");
     assert!(low.contains("Billing"), "{low}");
     assert!(
@@ -207,23 +208,23 @@ async fn the_debt_page_lists_each_section_that_needs_a_human() {
     assert_eq!(
         kinds,
         [
+            "Stale",
+            "Stale",
+            "Low confidence",
             "Not scored",
-            "Set apart",
-            "Stale",
-            "Stale",
-            "Low confidence"
+            "Set apart"
         ],
         "{page}"
     );
-    assert!(items[0].contains("/domains/billing/pay-invoice/pay-by-card"));
-    assert!(items[1].contains("confidence"), "{}", items[1]);
+    assert!(items[3].contains("/domains/billing/pay-invoice/pay-by-card"));
+    assert!(items[4].contains("confidence"), "{}", items[4]);
     assert!(
-        items[2].contains("<a href=\"/domains/shipping/ship-order\">Ship an order</a>"),
+        items[0].contains("<a href=\"/domains/shipping/ship-order\">Ship an order</a>"),
         "{}",
-        items[2]
+        items[0]
     );
-    assert!(items[2].contains("app/ship-order.rb"), "{}", items[2]);
-    assert!(items[3].contains("/domains/shipping/ship-order/ship"));
+    assert!(items[0].contains("app/ship-order.rb"), "{}", items[0]);
+    assert!(items[1].contains("/domains/shipping/ship-order/ship"));
 }
 
 // spec: DBT-3
@@ -495,30 +496,39 @@ async fn debt_with_history(root: &Path) -> String {
     page
 }
 
-// spec: DBT-25, DBT-27, DBT-8
+// spec: DBT-25, DBT-27, DBT-8, DBT-29
 #[tokio::test]
 async fn each_item_shows_its_priority_and_its_parts_from_the_history() {
     let repo = committed_repo();
     let page = debt_with_history(repo.path()).await;
     let items = items(&page);
 
-    // 1 × (1 + ln 3): the two commits of the file its step cites.
-    assert!(items[0].contains("Pay by card"), "{}", items[0]);
-    assert!(
-        items[0].contains("Priority 2.10: weakness 1.00, 2 commits, 0 entry points"),
-        "{}",
-        items[0]
+    let shows = |at: usize, kind: &str, priority: &str| {
+        let item: &str = items[at];
+        assert!(item.contains(kind), "{item}");
+        assert!(item.contains(priority), "{item}");
+    };
+    // 1 × 1 × (1 + ln 2): the one commit of the file its steps cite.
+    shows(
+        0,
+        "Stale",
+        "Priority 1.69: weight 1.00, weakness 1.00, 1 commit, 0 entry points",
     );
-    let low = items.last().unwrap();
-    assert!(low.contains("Low confidence"), "{low}");
-    assert!(
-        low.contains("Priority 1.47: weakness 0.70, 2 commits, 0 entry points"),
-        "{low}"
+    // 1 × 0.7 × (1 + ln 3): the two commits of the file its step cites.
+    shows(
+        2,
+        "Low confidence",
+        "Priority 1.47: weight 1.00, weakness 0.70, 2 commits, 0 entry points",
     );
-    assert!(
-        items[2].contains("Priority 1.69: weakness 1.00, 1 commit, 0 entry points"),
-        "{}",
-        items[2]
+    shows(
+        3,
+        "Pay by card",
+        "Priority 1.05: weight 0.50, weakness 1.00, 2 commits, 0 entry points",
+    );
+    shows(
+        4,
+        "Set apart",
+        "Priority 0.52: weight 0.25, weakness 1.00, 2 commits, 0 entry points",
     );
     assert!(!page.contains("could not be read"), "{page}");
 }
