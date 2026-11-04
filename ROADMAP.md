@@ -267,7 +267,12 @@ The milestones up to "A large application, one bounded context at a time" are th
   and the entry points.
 - Why: the debt report is one long page; deciding where to improve the docs needs to see where the debt
   concentrates and what to fix first.
-- State: idea
+- State: in issues
+- Issues:
+  - [web_debt_view_of_the_docs](issues/web_debt_view_of_the_docs.md)
+  - [web_debt_view_of_the_code](issues/web_debt_view_of_the_code.md)
+  - [web_audit_dashboard](issues/web_audit_dashboard.md)
+  - [debt_priority_score](issues/debt_priority_score.md)
 
 ## Run history
 
