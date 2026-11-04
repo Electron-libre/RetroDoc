@@ -40,6 +40,10 @@ model's confidence.
 - **REV-15** (deterministic) The reviews must be saved in a stable order (by kind, then id), so that a file under
   version control changes only on the lines of the reviews that changed.
 - **REV-16** (deterministic) A review of a section the docs do not hold must be refused, and nothing saved.
+- **REV-17** (deterministic) A file holding several reviews of one section (two teammates' files merged) must load
+  as the newest of them only.
+- **REV-18** (deterministic) Reviews saved at the same time by one process (two requests of `retrodoc ui`) must all be
+  kept.
 
 ## Scenarios
 
@@ -54,6 +58,9 @@ model's confidence.
   in the file.
 - (REV-6) Given a use case whose narrative was rewritten by a later run, then its fingerprint differs from the one
   saved with its review.
+- (REV-4) Given RetroDoc run on a subfolder of a git repository, then the author is the `user.name` of that
+  repository.
+- (REV-3) Given a review written by hand with no `comment`, then it loads with an empty comment.
 - (REV-1) Given two features of different domains sharing no slug, then a use case `a/b` and a feature `a` are two
   sections, never confused.
 
@@ -61,6 +68,7 @@ model's confidence.
 
 - No review of a business rule nor of a glossary term (decided with the user on 2026-11-04).
 - No history of the reviews: a new review replaces the former one; git keeps the history of a versioned file.
-- No lock across processes: two writers at the same instant keep the last one's file whole (REV-9), not both.
+- No lock across processes: two processes saving at the same instant keep the last one's file whole (REV-9), not
+  both.
 - Telling a review outdated (`issues/review_outdated.md`), showing the reviews (`issues/web_review_form.md`,
   `issues/review_in_debt.md`, `issues/review_in_mcp.md`).

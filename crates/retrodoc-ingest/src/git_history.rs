@@ -32,11 +32,11 @@ pub fn head_commit(repo_root: &Path) -> Option<String> {
     Some(head.id().to_string())
 }
 
-/// The `user.name` of the git config of the repository (its own config, then the user's and the
-/// system's); `None` when unset or not a repo.
+/// The `user.name` of the git config of the repository holding `folder`, found upwards (its own
+/// config, then the user's and the system's); `None` when unset or in no repo.
 #[must_use]
-pub fn user_name(repo_root: &Path) -> Option<String> {
-    let config = Repository::open(repo_root).ok()?.config().ok()?;
+pub fn user_name(folder: &Path) -> Option<String> {
+    let config = Repository::discover(folder).ok()?.config().ok()?;
     config
         .get_string("user.name")
         .ok()

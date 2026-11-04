@@ -5,6 +5,8 @@
 
 use std::io::{ErrorKind, Write as _};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Mutex, PoisonError};
 
 use chrono::{SecondsFormat, Utc};
 use retrodoc_ingest::git_history::user_name;
@@ -50,6 +52,7 @@ pub struct Review {
     pub section: Section,
     pub status: Status,
     /// Empty when none was given.
+    #[serde(default)]
     pub comment: String,
     /// The `user.name` of the git config, `None` when unset.
     pub author: Option<String>,
@@ -88,6 +91,15 @@ impl Reviews {
     }
 }
 
+/// The kind as the file names it.
+fn kind_key(kind: SectionKind) -> &'static str {
+    match kind {
+        SectionKind::Domain => "domain",
+        SectionKind::Feature => "feature",
+        SectionKind::UseCase => "use_case",
+    }
+}
+
 /// The version of the file, read before the rest.
 #[derive(Deserialize)]
 struct Version {
@@ -107,7 +119,7 @@ pub enum ReviewsError {
     Unreadable { path: PathBuf, reason: String },
     #[error("{} is of format {version}, this RetroDoc reads up to {VERSION}", path.display())]
     LaterFormat { path: PathBuf, version: u32 },
-    #[error("the docs hold no {:?} {}", .0.kind, .0.id)]
+    #[error("the docs hold no {} {}", kind_key(.0.kind), .0.id)]
     UnknownSection(Section),
     #[error("the reviews cannot be saved: {0}")]
     Io(#[from] std::io::Error),
@@ -160,7 +172,15 @@ pub fn load(repo_root: &Path) -> Result<Reviews, ReviewsError> {
         return Err(ReviewsError::LaterFormat { path, version });
     }
     let mut file: File = serde_json::from_str(&text).map_err(|e| unreadable(path, &e))?;
-    file.reviews.sort_by(|a, b| a.section.cmp(&b.section));
+    // The newest review of a section first, then the others of that section dropped: a file merged
+    // by hand may hold several.
+    file.reviews.sort_by(|a, b| {
+        a.section
+            .cmp(&b.section)
+            .then_with(|| b.reviewed_at.cmp(&a.reviewed_at))
+    });
+    file.reviews
+        .dedup_by(|later, kept| later.section == kept.section);
     Ok(Reviews {
         reviews: file.reviews,
     })
@@ -187,6 +207,7 @@ pub fn record(
 ) -> Result<Review, ReviewsError> {
     let fingerprint =
         fingerprint(docs, section).ok_or_else(|| ReviewsError::UnknownSection(section.clone()))?;
+    let _saving = SAVING.lock().unwrap_or_else(PoisonError::into_inner);
     let mut reviews = load(repo_root)?;
     let review = Review {
         section: section.clone(),
@@ -207,6 +228,7 @@ pub fn record(
 ///
 /// The file cannot be read or written.
 pub fn remove(repo_root: &Path, section: &Section) -> Result<(), ReviewsError> {
+    let _saving = SAVING.lock().unwrap_or_else(PoisonError::into_inner);
     let mut reviews = load(repo_root)?;
     if reviews.get(section).is_none() {
         return Ok(());
@@ -215,25 +237,42 @@ pub fn remove(repo_root: &Path, section: &Section) -> Result<(), ReviewsError> {
     save(repo_root, &reviews)
 }
 
+/// Held from the load to the save of a change, so two requests of one process never save over each
+/// other's change.
+static SAVING: Mutex<()> = Mutex::new(());
+
+/// Tells apart the drafts of the saves of one process.
+static DRAFTS: AtomicU64 = AtomicU64::new(0);
+
 /// Writes `reviews` whole aside, then renames it over the former file, so no reader sees a file
 /// cut short. Called after a [`load`] that succeeded, so it never replaces a file it can't read.
 fn save(repo_root: &Path, reviews: &Reviews) -> Result<(), ReviewsError> {
     let path = reviews_path(repo_root);
     let dir = path.parent().unwrap_or(repo_root);
     std::fs::create_dir_all(dir)?;
-    let draft = dir.join(format!(".reviews.{}.tmp", std::process::id()));
     let file = File {
         version: VERSION,
         reviews: reviews.reviews.clone(),
     };
     let mut json = serde_json::to_string_pretty(&file).map_err(std::io::Error::other)?;
     json.push('\n');
-    let mut out = std::fs::File::create(&draft)?;
-    out.write_all(json.as_bytes())?;
-    out.sync_all()?;
-    std::fs::rename(&draft, &path).inspect_err(|_| {
+    let draft = dir.join(format!(
+        ".reviews.{}.{}.tmp",
+        std::process::id(),
+        DRAFTS.fetch_add(1, Ordering::Relaxed)
+    ));
+    let saved = std::fs::File::create_new(&draft)
+        .and_then(|mut out| {
+            out.write_all(json.as_bytes())?;
+            out.sync_all()
+        })
+        .and_then(|()| std::fs::rename(&draft, &path));
+    if saved.is_err() {
         let _ = std::fs::remove_file(&draft);
-    })?;
+    }
+    saved?;
+    // The new name itself on the disk, past a crash of the machine.
+    std::fs::File::open(dir)?.sync_all()?;
     Ok(())
 }
 

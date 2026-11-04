@@ -55,6 +55,10 @@ page, debt, MCP or outdated logic (the other issues of the milestone); nothing c
 1. [x] Review store: `reviews` module (model, fingerprint, git author in `retrodoc-ingest`, load/save atomic,
    set/remove), spec `specs/section-review.md`, ADR 0044; verified by unit tests of the module and one CLI test that
    `generate --force` keeps the file; makes true REV-1 to REV-16. (autonomous)
+2. [x] Fixes of the `high` review: drafts unique per save and removed on any failure, saves of one process in turn,
+   the folder synced after the rename, the newest of duplicate reviews kept, a missing comment read as empty, the
+   kind named as in the file, the author found from a subfolder; verified by new unit tests; makes true REV-17,
+   REV-18. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -71,3 +75,14 @@ page, debt, MCP or outdated logic (the other issues of the milestone); nothing c
 - Code review: no findings
 - not verified: none. The `version` test of `retrodoc-cli` failed on `main` (0.8.0 released without the bump of
   `[workspace.package] version`): fixed in a commit of its own before this one (decided with the user).
+
+## Deliverable 2 summary
+- done: the fixes of the `high` review of the issue; spec amended with REV-17 (duplicates of a merged file) and
+  REV-18 (saves of one process), plus two scenarios (REV-3, REV-4).
+- red: REV-3, REV-4, REV-16, REV-17, REV-18: `missing field comment`, author `None` in a subfolder, `the docs hold no
+  Feature ship`, two reviews loaded instead of one, scoped threads panicking on the shared draft.
+- Code review: 10 findings (high review of the issue): fixed 1 (unique draft), 2 (one save at a time), 3 (draft
+  removed on any failure), 4 (duplicates), 5 (REV-15 test reads the file), 6 (comment default, full CLI fixture),
+  7 (kind in the error), 9 (`Repository::discover`), 10 (folder synced); not fixed 8 (reuse the pipeline's
+  `artifact::write`): it writes a fixed `<name>.tmp` draft, the very collision of finding 1.
+- not verified: none.

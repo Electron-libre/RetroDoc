@@ -299,20 +299,29 @@ fn the_reviews_are_saved_by_kind_then_id() {
         record(dir.path(), &docs(), &section, Status::Validated, "").unwrap();
     }
 
-    let order: Vec<(SectionKind, String)> = load(dir.path())
+    // As written on disk: `load` sorts too.
+    let saved: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(reviews_path(dir.path())).unwrap()).unwrap();
+    let order: Vec<String> = saved["reviews"]
+        .as_array()
         .unwrap()
-        .reviews()
         .iter()
-        .map(|r| (r.section.kind, r.section.id.clone()))
+        .map(|r| {
+            format!(
+                "{} {}",
+                r["kind"].as_str().unwrap(),
+                r["id"].as_str().unwrap()
+            )
+        })
         .collect();
     assert_eq!(
         order,
         [
-            (SectionKind::Domain, "a".to_string()),
-            (SectionKind::Domain, "billing".to_string()),
-            (SectionKind::Feature, "a".to_string()),
-            (SectionKind::Feature, "pay".to_string()),
-            (SectionKind::UseCase, "pay/refund".to_string()),
+            "domain a",
+            "domain billing",
+            "feature a",
+            "feature pay",
+            "use_case pay/refund",
         ]
     );
 }
@@ -332,5 +341,92 @@ fn a_review_of_a_section_the_docs_lack_is_refused() {
     .unwrap_err();
 
     assert!(matches!(error, ReviewsError::UnknownSection(_)));
+    assert_eq!(error.to_string(), "the docs hold no feature ship");
     assert!(!reviews_path(dir.path()).exists());
+}
+
+// spec: REV-17 (internal: a file merged by hand)
+#[test]
+fn several_reviews_of_one_section_load_as_the_newest() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = reviews_path(dir.path());
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    let review = |status: &str, at: &str| {
+        format!(
+            r#"{{"kind": "feature", "id": "pay", "status": "{status}", "comment": "", "author": null, "reviewed_at": "{at}", "fingerprint": "f"}}"#
+        )
+    };
+    let newest = review("wrong", "2026-11-05T09:00:00Z");
+    let older = review("validated", "2026-11-04T09:00:00Z");
+    std::fs::write(
+        &path,
+        format!(r#"{{"version": 1, "reviews": [{newest}, {older}]}}"#),
+    )
+    .unwrap();
+
+    let reviews = load(dir.path()).unwrap();
+
+    assert_eq!(reviews.reviews().len(), 1);
+    assert_eq!(reviews.get(&feature_pay()).unwrap().status, Status::Wrong);
+}
+
+// spec: REV-3 (internal: a file written by hand)
+#[test]
+fn a_review_with_no_comment_loads_with_an_empty_one() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = reviews_path(dir.path());
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    std::fs::write(
+        &path,
+        r#"{"version": 1, "reviews": [{"kind": "feature", "id": "pay", "status": "validated", "author": null, "reviewed_at": "2026-11-04T09:00:00Z", "fingerprint": "f"}]}"#,
+    )
+    .unwrap();
+
+    assert_eq!(
+        load(dir.path())
+            .unwrap()
+            .get(&feature_pay())
+            .unwrap()
+            .comment,
+        ""
+    );
+}
+
+// spec: REV-18 (internal: the requests of the web server run on threads of one process)
+#[test]
+fn reviews_saved_at_the_same_time_by_one_process_are_all_kept() {
+    let dir = repo("A");
+    let docs = docs();
+    let sections = [
+        Section::new(SectionKind::Domain, "billing"),
+        Section::new(SectionKind::Domain, "a"),
+        Section::new(SectionKind::Feature, "pay"),
+        Section::new(SectionKind::Feature, "a"),
+        Section::new(SectionKind::UseCase, "pay/refund"),
+        Section::new(SectionKind::UseCase, "a/b"),
+    ];
+
+    for _ in 0..5 {
+        std::thread::scope(|scope| {
+            for section in &sections {
+                scope.spawn(|| record(dir.path(), &docs, section, Status::Validated, "").unwrap());
+            }
+        });
+        assert_eq!(load(dir.path()).unwrap().reviews().len(), sections.len());
+        for section in &sections {
+            remove(dir.path(), section).unwrap();
+        }
+    }
+}
+
+// spec: REV-4 (internal: the binary writes no review yet)
+#[test]
+fn a_review_in_a_subfolder_of_a_repository_has_its_author() {
+    let dir = repo("Ada Reviewer");
+    let sub = dir.path().join("services/billing");
+    std::fs::create_dir_all(&sub).unwrap();
+
+    let review = record(&sub, &docs(), &feature_pay(), Status::Validated, "").unwrap();
+
+    assert_eq!(review.author.as_deref(), Some("Ada Reviewer"));
 }

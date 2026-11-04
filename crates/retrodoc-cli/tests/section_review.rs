@@ -29,8 +29,21 @@ fn generate_and_generate_force_keep_the_reviews() {
     );
     let reviews = dir.path().join(".retrodoc/reviews.json");
     std::fs::create_dir_all(reviews.parent().unwrap()).unwrap();
-    let saved =
-        r#"{"version": 1, "reviews": [{"kind": "domain", "id": "orders", "status": "validated"}]}"#;
+    let saved = r#"{
+  "version": 1,
+  "reviews": [
+    {
+      "kind": "domain",
+      "id": "orders",
+      "status": "validated",
+      "comment": "Checked with the team.",
+      "author": "A",
+      "reviewed_at": "2026-11-04T10:00:00Z",
+      "fingerprint": "0f"
+    }
+  ]
+}
+"#;
     std::fs::write(&reviews, saved).unwrap();
 
     for output in [

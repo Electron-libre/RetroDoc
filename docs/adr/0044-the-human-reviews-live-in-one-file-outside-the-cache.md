@@ -27,7 +27,8 @@ field at each review, and nothing to check it against anyway).
 
 ## Consequences
 
-`retrodoc-mcp` gains a second writer besides the run history, and `retrodoc ui` will write through it. Two writers
-at the same instant keep one of the two files whole, not both: acceptable for a local, single-user interface. The
+`retrodoc-mcp` gains a second writer besides the run history, and `retrodoc ui` will write through it. The saves of
+one process take turns, so two requests of the interface keep both reviews; two processes saving at the same instant
+keep one of the two files whole, not both: acceptable for a local, single-user interface. The
 fingerprint changes whenever any field of the section changes, the confidence included: the issue that flags an
 outdated review decides what it compares.
