@@ -43,7 +43,7 @@ Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-04
 A validated section, unchanged since its review (same fingerprint), leaves the four kinds of judgement of the debt;
 "marked wrong" and "to review" become kinds of the debt (heatmap columns, snapshot counts); the audit page shows the
 share reviewed per kind of section; `retrodoc report` lists the sections marked wrong. Out of scope: outdated
-reviews (`issues/review_outdated.md`), the lists of `coverage-report.md`.
+reviews (`issues/done/review_outdated.md`), the lists of `coverage-report.md`.
 
 ## Plan
 1. [x] Debt with the reviews: `debt` takes the reviews, validated sections leave the kinds of judgement, kinds
