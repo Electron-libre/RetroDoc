@@ -2,6 +2,7 @@
 priority: medium
 why: 'a product principle with no evidence behind it; free in money but hours of machine time, so after the hosted baseline'
 depends_on: [benchmark_baseline_at_head]
+on_hold: 'the local model is not a priority for now (user, 2026-11-04)'
 ---
 # Run a complete benchmark on the local model
 
