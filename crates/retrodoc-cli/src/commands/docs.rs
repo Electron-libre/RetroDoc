@@ -98,27 +98,22 @@ pub fn without_generated(
         .collect()
 }
 
-/// The doc sections behind the items of the last run, from the reconciliation of its saved
-/// artifacts with `docs` and the saved judgements (no LLM call); none before a first `generate`.
+/// The doc sections behind the items of the last run, from the reconciliation `generated` made
+/// when it was loaded (no LLM call); none before a first `generate` or with no collected doc.
 pub fn item_doc_links(
-    repo_root: &Path,
+    generated: Option<&retrodoc_mcp::GeneratedDocs>,
     config: &Config,
-    docs: &[retrodoc_ingest::ExistingDoc],
 ) -> retrodoc_render::DocLinks {
-    let Some(features) = retrodoc_pipeline::load_features(repo_root) else {
-        return retrodoc_render::DocLinks::default();
-    };
-    let use_cases = retrodoc_pipeline::load_use_cases(repo_root).unwrap_or_default();
-    let rules = retrodoc_pipeline::load_rules(repo_root).unwrap_or_default();
-    let reconciliation = retrodoc_pipeline::reconcile::reconcile(
-        &DomainMap::load(repo_root).unwrap_or_default(),
-        &features,
-        &use_cases,
-        &rules,
-        docs,
-        &retrodoc_pipeline::reconcile::Judgements::load(repo_root),
-    );
-    doc_links(&reconciliation, &rules, &config.output.docs_dir)
+    generated
+        .and_then(|g| {
+            let reconciliation = g.uncovered().reconciliation.as_ref()?;
+            Some(doc_links(
+                reconciliation,
+                g.rules(),
+                &config.output.docs_dir,
+            ))
+        })
+        .unwrap_or_default()
 }
 
 /// The doc sections each item page links: those that document or contradict the item. A rule that

@@ -1,7 +1,7 @@
 use super::*;
 
 use crate::behaviour_coverage::BehaviourCoverage;
-use crate::domains::DomainCluster;
+use crate::domains::{DomainCluster, UNCATEGORIZED_SLUG};
 use crate::rules::{AsideFeature, AsideRule};
 use retrodoc_core::config::RulesConfig;
 use retrodoc_core::model::{BusinessRule, RuleEvidence};

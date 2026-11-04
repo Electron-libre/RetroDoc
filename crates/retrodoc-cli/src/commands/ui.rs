@@ -19,7 +19,7 @@ pub async fn run(path: &Path, bind: SocketAddr) -> anyhow::Result<()> {
     let workspace = Workspace::open(path)?;
     let docs = project_docs(&workspace.repo_root, &workspace.config)?;
     let generated = GeneratedDocs::load(&workspace.repo_root, &docs);
-    let links = item_doc_links(&workspace.repo_root, &workspace.config, &docs);
+    let links = item_doc_links(generated.as_ref(), &workspace.config);
     let project = project(&workspace);
     if generated.is_none() {
         tracing::warn!("no features found — run `retrodoc generate`, then restart `retrodoc ui`");

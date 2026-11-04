@@ -14,7 +14,7 @@ use retrodoc_core::model::{
 };
 
 use crate::behaviour_coverage::{EntryCount, FeatureCoverage};
-use crate::domains::{DomainMap, UNCATEGORIZED_SLUG};
+use crate::domains::DomainMap;
 use crate::reconcile::Reconciliation;
 use crate::rules::SetAside;
 use crate::text::one_line;
@@ -334,12 +334,7 @@ pub fn build_report(
     technical_use_cases.sort_by(by_score);
     unbacked_narratives.sort_by(|a, b| a.section.cmp(&b.section));
 
-    let uncategorized_files = domains
-        .domains
-        .iter()
-        .filter(|d| d.slug == UNCATEGORIZED_SLUG)
-        .flat_map(|d| d.paths.iter().cloned())
-        .collect();
+    let uncategorized_files = domains.uncategorized_paths().cloned().collect();
 
     DebtReport {
         overall: mean(

@@ -6,7 +6,8 @@ use std::path::{Path, PathBuf};
 
 use retrodoc_core::model::{BusinessRule, Domain, Feature, RuleEvidence, UseCase};
 use retrodoc_ingest::existing_docs::ExistingDoc;
-use retrodoc_pipeline::{domain_models, DomainMap, Glossary};
+use retrodoc_pipeline::reconcile::{reconcile, Judgements, Reconciliation};
+use retrodoc_pipeline::{domain_models, BehaviourCoverage, DomainMap, Glossary, Scope};
 
 use crate::corpus::{build_entries, rule_entries, EntryKind};
 use crate::freshness::Freshness;
@@ -22,8 +23,23 @@ pub struct GeneratedDocs {
     glossary: Glossary,
     index: SearchIndex,
     freshness: Option<Freshness>,
+    uncovered: Uncovered,
     /// Where the docs were loaded from, to read the code they cite.
     repo_root: Option<PathBuf>,
+}
+
+/// What the docs leave out, read once with them (`specs/debt-view.md`).
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Uncovered {
+    /// Where the items stand against the collected docs, from the saved verdicts (no LLM call);
+    /// `None` when there is no collected doc to compare them with.
+    pub reconciliation: Option<Reconciliation>,
+    /// Source files the clustering left in no domain.
+    pub no_domain: Vec<PathBuf>,
+    /// Source files the file budget left out, in path order.
+    pub skipped: Vec<PathBuf>,
+    /// The saved behaviour coverage, `None` but for a `surface` run.
+    pub coverage: Option<BehaviourCoverage>,
 }
 
 impl GeneratedDocs {
@@ -46,6 +62,7 @@ impl GeneratedDocs {
             glossary,
             index,
             freshness: None,
+            uncovered: Uncovered::default(),
             repo_root: None,
         }
     }
@@ -68,9 +85,16 @@ impl GeneratedDocs {
         self
     }
 
+    /// Sets what the docs leave out.
+    #[must_use]
+    pub fn with_uncovered(mut self, uncovered: Uncovered) -> Self {
+        self.uncovered = uncovered;
+        self
+    }
+
     /// Reads what the last `generate` saved under `.retrodoc/cache/` plus the
-    /// collected `docs`. `None` before a first `generate` (no features saved);
-    /// use cases not saved yet count as none.
+    /// collected `docs`, and reconciles the items with them. `None` before a
+    /// first `generate` (no features saved); use cases not saved yet count as none.
     #[must_use]
     pub fn load(repo_root: &Path, docs: &[ExistingDoc]) -> Option<Self> {
         let features = retrodoc_pipeline::load_features(repo_root)?;
@@ -78,6 +102,23 @@ impl GeneratedDocs {
         let map = DomainMap::load(repo_root).unwrap_or_default();
         let glossary = Glossary::load(repo_root).unwrap_or_default();
         let rules = retrodoc_pipeline::load_rules(repo_root).unwrap_or_default();
+        let uncovered = Uncovered {
+            reconciliation: (!docs.is_empty()).then(|| {
+                reconcile(
+                    &map,
+                    &features,
+                    &use_cases,
+                    &rules,
+                    docs,
+                    &Judgements::load(repo_root),
+                )
+            }),
+            no_domain: map.uncategorized_paths().cloned().collect(),
+            skipped: Scope::load(repo_root)
+                .map(|s| s.skipped)
+                .unwrap_or_default(),
+            coverage: BehaviourCoverage::load(repo_root),
+        };
         Some(
             Self::new(
                 domain_models(&map, &features),
@@ -88,6 +129,7 @@ impl GeneratedDocs {
             )
             .with_rules(rules)
             .with_freshness(Freshness::load(repo_root))
+            .with_uncovered(uncovered)
             .with_repo_root(repo_root),
         )
     }
@@ -175,6 +217,12 @@ impl GeneratedDocs {
         self.freshness.as_ref()
     }
 
+    /// What the docs leave out; nothing when the docs were built without it (tests).
+    #[must_use]
+    pub fn uncovered(&self) -> &Uncovered {
+        &self.uncovered
+    }
+
     /// The features of the domain `slug`, in order.
     pub fn features_of<'a>(&'a self, slug: &'a str) -> impl Iterator<Item = &'a Feature> + 'a {
         self.features.iter().filter(move |f| f.domain_slug == slug)
@@ -185,5 +233,96 @@ impl GeneratedDocs {
         self.use_cases
             .iter()
             .filter(move |u| u.feature_slug == slug)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use retrodoc_core::model::Feature;
+    use retrodoc_ingest::existing_docs::ExistingDoc;
+    use retrodoc_pipeline::reconcile::Status;
+    use retrodoc_pipeline::{BehaviourCoverage, DomainCluster, DomainMap, Scope};
+
+    use super::GeneratedDocs;
+
+    fn saved_run() -> tempfile::TempDir {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        retrodoc_pipeline::save_features(
+            root,
+            &[Feature {
+                back_office: false,
+                technical: false,
+                slug: "pay-invoice".into(),
+                domain_slug: "billing".into(),
+                name: "Pay an invoice".into(),
+                description: String::new(),
+                source_paths: vec!["app/pay.rb".into()],
+                entry_points: Vec::new(),
+                confidence: None,
+            }],
+        )
+        .unwrap();
+        let cluster = |slug: &str, paths: &[&str]| DomainCluster {
+            slug: slug.into(),
+            name: slug.into(),
+            paths: paths.iter().map(PathBuf::from).collect(),
+            ..DomainCluster::default()
+        };
+        DomainMap {
+            domains: vec![
+                cluster("billing", &["app/pay.rb"]),
+                cluster("uncategorized", &["lib/odd.rb"]),
+            ],
+        }
+        .save(root)
+        .unwrap();
+        Scope {
+            max_files: 1,
+            analysed: 1,
+            skipped: vec!["vendor/big.rb".into()],
+        }
+        .save(root)
+        .unwrap();
+        BehaviourCoverage {
+            unplaced_entry_points: vec!["app/admin.rb#purge".into()],
+            technical_support: vec!["lib/util.rb".into()],
+            ..BehaviourCoverage::default()
+        }
+        .save(root)
+        .unwrap();
+        dir
+    }
+
+    #[test]
+    fn the_load_keeps_what_the_docs_leave_out() {
+        let dir = saved_run();
+        let docs = GeneratedDocs::load(dir.path(), &[]).unwrap();
+        let uncovered = docs.uncovered();
+        assert_eq!(uncovered.no_domain, [PathBuf::from("lib/odd.rb")]);
+        assert_eq!(uncovered.skipped, [PathBuf::from("vendor/big.rb")]);
+        let coverage = uncovered.coverage.as_ref().unwrap();
+        assert_eq!(coverage.unplaced_entry_points, ["app/admin.rb#purge"]);
+        assert_eq!(coverage.technical_support, [PathBuf::from("lib/util.rb")]);
+        assert_eq!(uncovered.reconciliation, None, "no collected doc");
+    }
+
+    #[test]
+    fn the_load_reconciles_the_items_with_the_collected_docs() {
+        let dir = saved_run();
+        let collected = [ExistingDoc {
+            path: "README.md".into(),
+            content: "# Shipping\n\nParcels leave on Monday.\n".into(),
+        }];
+        let docs = GeneratedDocs::load(dir.path(), &collected).unwrap();
+        let reconciliation = docs.uncovered().reconciliation.as_ref().unwrap();
+        let feature = reconciliation
+            .items
+            .iter()
+            .find(|i| i.label == "billing/pay-invoice")
+            .unwrap();
+        assert_eq!(feature.status, Status::Undocumented);
     }
 }

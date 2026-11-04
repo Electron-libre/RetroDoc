@@ -107,6 +107,14 @@ impl DomainMap {
             .filter(move |d| !held.contains(&d.slug))
     }
 
+    /// The source files of the "uncategorized" bucket: code no domain holds.
+    pub fn uncategorized_paths(&self) -> impl Iterator<Item = &PathBuf> {
+        self.domains
+            .iter()
+            .filter(|d| d.slug == UNCATEGORIZED_SLUG)
+            .flat_map(|d| &d.paths)
+    }
+
     /// Every domain but the "uncategorized" bucket.
     pub fn without_uncategorized(&self) -> impl Iterator<Item = &DomainCluster> {
         self.domains.iter().filter(|d| d.slug != UNCATEGORIZED_SLUG)
