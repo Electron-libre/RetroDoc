@@ -59,8 +59,8 @@ the edge cases of the layout.
    it can't read), the search index is built over the shown sections, `edits::record` fingerprints the generated
    sections, a review the shown ones; verified by read model, search and MCP tool tests; makes true SED-23 to SED-26,
    SED-29 (load), MCP-14, DSR-6. (~450 lines)
-2. [ ] `publish` applies the same edits before the report and the render, fails on a file it can't read; verified by
-   a CLI test of `render` with an edit, twice, and with a broken file; makes true SED-30, SED-31, SED-32. (~200 lines)
+2. [x] `publish` applies the same edits before the report and the render, fails on a file it can't read; verified by
+   a CLI test of `render` with an edit, twice, and with a broken file; makes true SED-30, SED-31, SED-32. (~200 lines) (autonomous)
 3. [ ] Live edits: `retrodoc mcp` re-reads `edits.json` at each tool call and `retrodoc ui` at each request,
    re-applying the overlay (and rebuilding the site and the index) only when its content changed; verified by
    server tests saving an edit between two requests; makes true SED-27, SED-28, SED-29. (~400 lines)
@@ -89,3 +89,25 @@ generated text when it can't be read.
 
 red: SED-25: second edit fingerprint `6f46…` ≠ first `05bd…` with `record` on the shown sections; DSR-6: search
 `dispatch courier` gave `[]`; MCP-14: `list_domains` lacked `Invoicing` (the overlay left out of `load`).
+
+## Deliverable 2: `publish` applies the edits
+
+done: `render` and `generate` lay the edits over the domains, features and use cases they render (and over the
+features and use cases of the debt report; the reconciliation keeps the generated text its verdicts judged); an
+`edits.json` that can't be read fails them before any doc is written.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass |
+| docs | `docs/crates/render-mcp-cli.md` |
+| code review | low, clean |
+
+red: SED-30, SED-32: the domain page kept "Orders of the shop." (the edit was not rendered); SED-31 passed before
+the code (the render was already idempotent, the test guards it with edits).
+
+Code review: no findings
+
+not verified: `generate` failing at its render step on a broken `edits.json` (same `publish`, tested through
+`render`). decisions needed: none.

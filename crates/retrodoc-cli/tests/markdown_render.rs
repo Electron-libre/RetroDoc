@@ -1,5 +1,5 @@
 //! The render stays robust to the edge cases an LLM can put in the artifacts
-//! (`specs/markdown-render.md`).
+//! (`specs/markdown-render.md`) and writes the human edits over them (`specs/section-edit.md`).
 
 mod support;
 
@@ -220,4 +220,121 @@ fn a_hostile_slug_stays_in_the_docs_dir() {
 
     assert!(page.starts_with("# Orders\n"), "{page}");
     assert!(!dir.path().join("etc").exists());
+}
+
+/// Saves the edits a human would make of the domain `orders`, the feature `list-orders` and the
+/// narrative of its use case.
+fn edit_the_shop(dir: &Path) {
+    std::fs::write(
+        dir.join(".retrodoc/edits.json"),
+        r#"{"version":1,"edits":[
+            {"kind":"domain","id":"orders","description":"What the customers bought.","author":null,
+             "edited_at":"2026-11-05T10:00:00Z","fingerprint":"f"},
+            {"kind":"feature","id":"list-orders","name":"Browse the orders","author":null,
+             "edited_at":"2026-11-05T10:00:00Z","fingerprint":"f"},
+            {"kind":"use_case","id":"list-orders/list-orders","narrative":"The customer reads past orders.",
+             "author":null,"edited_at":"2026-11-05T10:00:00Z","fingerprint":"f"}]}"#,
+    )
+    .unwrap();
+}
+
+// spec: SED-30
+#[test]
+fn the_rendered_docs_show_the_edited_fields() {
+    let (dir, _llm) = documented_shop();
+    edit_the_shop(dir.path());
+
+    let domain = rendered(dir.path(), "orders/README.md");
+    let use_case = rendered(dir.path(), "orders/use-cases/list-orders/list-orders.md");
+
+    assert!(domain.contains("What the customers bought."), "{domain}");
+    assert!(!domain.contains("Orders of the shop."), "{domain}");
+    assert_eq!(
+        item(&domain, "list-orders.md"),
+        "- [Browse the orders](list-orders.md) (100%): Lists the orders."
+    );
+    assert!(
+        use_case.contains("The customer reads past orders."),
+        "{use_case}"
+    );
+    assert!(
+        !use_case.contains("The customer lists the orders."),
+        "{use_case}"
+    );
+}
+
+// spec: SED-31
+#[test]
+fn the_same_artifacts_and_edits_render_the_same_bytes() {
+    let (dir, _llm) = documented_shop();
+    edit_the_shop(dir.path());
+    let snapshot = |dir: &Path| -> Vec<(std::path::PathBuf, Vec<u8>)> {
+        let root = dir.join("docs/functional");
+        let mut files: Vec<_> = walk(&root)
+            .into_iter()
+            .filter(|path| path.file_name().is_some_and(|name| name != "metadata.json"))
+            .map(|path| {
+                (
+                    path.strip_prefix(&root).unwrap().to_path_buf(),
+                    std::fs::read(&path).unwrap(),
+                )
+            })
+            .collect();
+        files.sort();
+        files
+    };
+
+    assert!(render(dir.path()).status.success());
+    let first = snapshot(dir.path());
+    let output = render(dir.path());
+
+    assert!(output.status.success());
+    assert_eq!(snapshot(dir.path()), first);
+    assert!(
+        String::from_utf8_lossy(&output.stdout).contains("0 file(s) written"),
+        "{}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+}
+
+/// The files under `dir`, at any depth.
+fn walk(dir: &Path) -> Vec<std::path::PathBuf> {
+    let mut files = Vec::new();
+    for entry in std::fs::read_dir(dir).unwrap() {
+        let path = entry.unwrap().path();
+        if path.is_dir() {
+            files.extend(walk(&path));
+        } else {
+            files.push(path);
+        }
+    }
+    files
+}
+
+// spec: SED-32
+#[test]
+fn a_file_of_edits_that_cannot_be_read_fails_the_render_and_writes_no_doc() {
+    let (dir, _llm) = documented_shop();
+    let page = dir.path().join("docs/functional/orders/README.md");
+    let before = std::fs::read_to_string(&page).unwrap();
+    edit_the_shop(dir.path());
+    assert!(render(dir.path()).status.success());
+    assert_ne!(
+        std::fs::read_to_string(&page).unwrap(),
+        before,
+        "the edit was written"
+    );
+    std::fs::write(dir.path().join(".retrodoc/edits.json"), "{ not json").unwrap();
+    let written = std::fs::read_to_string(&page).unwrap();
+
+    let output = render(dir.path());
+
+    assert!(!output.status.success());
+    let said = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(said.contains(".retrodoc/edits.json"), "{said}");
+    assert_eq!(std::fs::read_to_string(&page).unwrap(), written);
 }

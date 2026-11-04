@@ -5,8 +5,8 @@ use retrodoc_core::config::Config;
 use retrodoc_pipeline::DomainMap;
 use retrodoc_render::RunMetadata;
 
-/// Renders the docs from the artifacts in `.retrodoc/cache/` and writes them
-/// under the configured docs dir. With `dry_run`, only previews what would
+/// Renders the docs from the artifacts in `.retrodoc/cache/`, the human edits of
+/// `.retrodoc/edits.json` shown over them, and writes them under the configured docs dir. With `dry_run`, only previews what would
 /// change (files and diffs) and writes nothing. Files whose content already
 /// matches are left untouched, so a rerun on unchanged artifacts is a no-op.
 pub fn publish(repo_root: &Path, config: &Config, dry_run: bool) -> anyhow::Result<()> {
@@ -17,8 +17,19 @@ pub fn publish(repo_root: &Path, config: &Config, dry_run: bool) -> anyhow::Resu
         anyhow::bail!("no features/use cases found — run `retrodoc generate` first");
     };
     let domains = DomainMap::load(repo_root).unwrap_or_default();
+    // Before anything is written: docs without the team's corrections would overwrite theirs.
+    let edits = retrodoc_mcp::edits::load(repo_root)
+        .context("the docs are not written: the human edits cannot be read")?;
+    let shown = retrodoc_mcp::edits::apply(
+        &retrodoc_mcp::Sections {
+            domains: retrodoc_pipeline::domain_models(&domains, &features),
+            features: features.clone(),
+            use_cases: use_cases.clone(),
+        },
+        &edits,
+    );
 
-    let mut report = retrodoc_pipeline::build_report(&domains, &features, &use_cases);
+    let mut report = retrodoc_pipeline::build_report(&domains, &shown.features, &shown.use_cases);
     report.skipped_files = retrodoc_pipeline::Scope::load(repo_root)
         .map(|s| s.skipped)
         .unwrap_or_default();
@@ -50,9 +61,9 @@ pub fn publish(repo_root: &Path, config: &Config, dry_run: bool) -> anyhow::Resu
         .map(|r| doc_links(r, &rules, &config.output.docs_dir))
         .unwrap_or_default();
     let files = retrodoc_render::render_with_docs(
-        &retrodoc_pipeline::domain_models(&domains, &features),
-        &features,
-        &use_cases,
+        &shown.domains,
+        &shown.features,
+        &shown.use_cases,
         &rules,
         &links,
         retrodoc_render::Texts::for_tag(config.output.language_tag()),
