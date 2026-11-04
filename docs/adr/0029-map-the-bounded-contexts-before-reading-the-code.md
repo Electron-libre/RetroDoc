@@ -95,4 +95,5 @@ to it by name. The map is for the `surface` path; the `files` path is unchanged.
   (`issues/context_map_support_and_catch_alls.md`). The map call now needs the roles and reads the source files.
   A catch-all context (`misc`, `other`…) is spread the same way, its groups moving whole. A forced map's call
   is shown the saved support as a proposal, not kept mechanically: a first map that set a business group aside
-  must not hold it there for good.
+  must not hold it there for good. Three forced maps: 109 files moving in or out of the support instead of 538,
+  files keeping their context 81% instead of 71%, but more contexts of a single group (`docs/findings.md` §8).

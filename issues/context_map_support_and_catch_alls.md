@@ -74,9 +74,9 @@ migrations the role `model`, the groups named after a namespace word (`api`, `ad
    the prompt forbids such names; verified by tests; makes true CTX-6. (autonomous)
 3. [x] Saved support proposed: a forced call lists the saved support as the proposed support; verified by a
    test on the request sent; makes true CTX-7. (autonomous)
-4. [ ] Measure and docs: deliverables 1 and 2 replayed on the 3 saved maps without LLM, then 3 forced maps chained
+4. [x] Measure and docs: deliverables 1 and 2 replayed on the 3 saved maps without LLM, then 3 forced maps chained
    from the saved one (~$0.06, asked first); findings §8, ADR 0029, spec `accepted`, ledger; verified by the figures
-   against the f778b9b baseline.
+   against the f778b9b baseline. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -148,5 +148,58 @@ red: CTX-7: `prompt has no line "Support of the previous map, proposed: groups g
 Code review: no findings
 
 not verified: the effect on the real maps (deliverable 4).
+
+decisions needed: none
+
+## Deliverable 4
+Replay without LLM of CTX-6 then CTX-5 on the 3 saved maps at f778b9b (`replay_rules.py` beside the dumps; folder
+files taken as the orphan files, no split after):
+
+| figure | f778b9b | replayed |
+|---|---|---|
+| support | 26 / 21 / 34% | 33 / 29 / 35% |
+| views in support | 25 / 30 / 63% | 77 / 74 / 63% |
+| files moving in or out of the support | 538 | 408 |
+| files keeping their context (mean of 6 pairs) | 71% | 73% |
+| catch-all contexts | 1 / 0 / 1 | 0 / 0 / 0 |
+| layer contexts (> half orphan files) | 8 / 7 / 3 | 3 / 3 / 2 |
+
+Left in layer contexts: the workflow tasks and steps (role `logic`, written by no other context), kept on purpose.
+
+Measure: 3 forced maps chained from the saved map at 639e22a (11 calls, 51.3k in, 16.7k out, ~$0.02):
+
+| figure | f778b9b | 639e22a |
+|---|---|---|
+| contexts | 37 / 30 / 25 | 54 / 62 / 31 |
+| contexts of a single group | not counted | 26 / 41 / 20 |
+| support | 26 / 21 / 34% | 25 / 31 / 31% |
+| files moving in or out of the support | 538 | 109 |
+| views in support | 25 / 30 / 63% | 56 / 60 / 63% |
+| files keeping their context (mean) | 71% | 81% |
+| merged group pairs kept together | 23-32% | 8-26% |
+| slugs in all three maps | 12 | 17 |
+| layer contexts | 8 / 7 / 3 | 3 / 1 / 0 |
+| contexts named as a catch-all | 1 / 0 / 1 | 0 / 0 / 0 |
+
+Left (follow-ups if wanted): more contexts of a single group (the prompt now says a group that fits no context is a
+context of its own); groups named after a technical word (a namespace, a verb) mapped as contexts; one catch-all
+named after a business word (27 groups, 144 files) that the word list does not catch; the migrations have the role
+`model` (roles pass), so CTX-2 keeps them in the map.
+
+done: findings §8, ADR 0029, spec `accepted`, ledger.
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass, CTX accepted |
+| docs | `docs/findings.md`, ADR 0029 |
+| code review | see below |
+
+red: none
+
+Code review: no findings
+
+not verified: none
 
 decisions needed: none

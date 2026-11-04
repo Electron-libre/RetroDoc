@@ -525,6 +525,21 @@ to 78% (mean 71%), merged pairs 23% to 32%; 12 slugs in all three (4 before), 12
 the next. Left: the support moves (21% to 34%, UI components 25% to 63%) and catch-all or layer contexts remain
 (UI components, catch-alls, API, PDF, workflows).
 
+Support and catch-alls (`issues/context_map_support_and_catch_alls.md`, 2026-11-04, same roles, hosted
+`deepseek-chat`): without LLM, on the three maps above, half of the files moving in and out of the support were whole
+groups the answer set aside in one map only, half orphan folders; the layer contexts were orphan folders (UI
+components, a folder of models, a library) and the catch-alls many small groups. A layer folder mixes files that
+serve different contexts: moved whole, the top-level folder of models went to one context and the workflow tasks,
+written by their own context only, to the support. So the files of a layer context are placed one by one, by the
+context that writes their class name, views and models nobody writes going to the support; a catch-all context is
+spread the same way; the saved support is proposed to a forced call. Three chained forced maps at 639e22a: files
+moving in or out of the support 109 against 538, support 25/31/31%, views in support 56 to 63% (25 to 63% before),
+files keeping their context 69% to 93% (mean 81%, 71% before), 17 slugs in all three (12), no catch-all named as
+such, layer contexts 3/1/0 (8/7/3). But 54/62/31 contexts (37/30/25), with 20 to 41 contexts of a single group, and
+merged pairs kept together 8% to 26% (23% to 32%): the answer now leaves more groups alone. Left: groups named after
+a technical word (a namespace, a verb) mapped as contexts of their own, and one catch-all named after a business
+word (27 groups, 144 files) that the word list does not catch.
+
 ## 9. Benchmark baseline at the current code (2026-11-03)
 
 Measured at dafea18 (`issues/done/benchmark_baseline_at_head.md`), hosted `deepseek-chat`, confidence on, 3 runs per

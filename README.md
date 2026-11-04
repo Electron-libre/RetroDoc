@@ -128,12 +128,14 @@ rules = true              # state the business rules of each feature; false: a c
 
 **A large application, in several runs.** With `domains_from = "contexts"`, `retrodoc contexts` (or the first
 `generate`) maps the application into bounded contexts from the names of its entry point files and one LLM call
-(`contexts.yaml`, editable: move a group or a folder, rename a context); each `generate` then documents the next
+(`contexts.yaml`, editable: move a group, a folder or a file, rename a context); each `generate` then documents the next
 contexts not done, as many as fit `--max-files` (default 150 files; a context is never cut), or the ones you
 name with `--context a,b`. A run reads only its slice, never redoes or changes the contexts already
 documented (a rerun with nothing left to do calls no LLM), and the docs gather every context done; the output
 lists the contexts left. An interrupted run resumes where it stopped. The technical files (roles `infra` and
-`config`) are in no context. `retrodoc contexts --force` maps again: a new context that holds most of the files of
+`config`) are in no context; the files of a context made of layer folders (UI components, models) go to the contexts
+that name them, and a catch-all context (`misc`, `other`) is spread the same way. `retrodoc contexts --force` maps
+again, the saved support proposed to the call: a new context that holds most of the files of
 a saved one takes its slug and name, so a context documented stays done while its files and the files read for it did not change.
 
 A pass whose model changes is redone on the next run (the model is part of what its cache is compared
