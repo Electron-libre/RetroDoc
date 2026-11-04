@@ -18,7 +18,7 @@ Expected: the first items of the page are the ones a human should fix first, acr
   no behaviour are last (0 entry points).
 * The sum of the commits over the files of an item ranks a domain at or above each of its features (its files are
   the union of theirs), and a folder of many files left out by the budget can rank high on its commits alone (finding
-  of the review of `issues/debt_priority_score.md`, not measured on a run).
+  of the review of `issues/done/debt_priority_score.md`, not measured on a run).
 
 # Approach
 1. Measure first: dump the order of the items of a saved run or two (lobsters, linkding) with their parts, to see
@@ -36,7 +36,7 @@ Explore the documentation debt and audit it
 
 # Resources
 * `crates/retrodoc-mcp/src/debt/mod.rs` (`priority`, `Priority`), `specs/debt-view.md`.
-* `issues/debt_priority_score.md` (its `# Tracking` and the review findings).
+* `issues/done/debt_priority_score.md` (its `# Tracking` and the review findings).
 
 # Hints
 * No LLM call is needed: the saved runs of the measures and `retrodoc ui` give the order.

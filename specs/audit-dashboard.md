@@ -71,6 +71,6 @@ by kind, so whoever audits the docs decides where to improve them first, then op
   The page does not read the configuration either: a repository that left `domains_from = "contexts"` keeps its
   saved map, and the page still shows its progress.
 - The kinds of the code no doc covers (DBT-19, DBT-20) carry no domain and have no column; the priority across the
-  cells is `issues/debt_priority_score.md`.
+  cells is `issues/done/debt_priority_score.md`.
 - No chart library: the heatmap is an HTML table, its shades in the stylesheet (ADR 0039).
 - The page calls no LLM; its figures are read at each request.
