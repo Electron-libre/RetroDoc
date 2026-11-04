@@ -227,7 +227,7 @@ The milestones up to "A large application, one bounded context at a time" are th
   2026-11-03, within 4 points of a hand count; earlier audits found the judge overstating it by 12 to 33); three
   maps of the same large application gave 34, 40 and 44 contexts. The web milestones below show these docs to
   readers: their quality comes first.
-- State: in issues
+- State: done
 - Issues:
   - [benchmark_baseline_at_head](issues/done/benchmark_baseline_at_head.md)
   - [benchmark_references_anchored_in_evidence](issues/done/benchmark_references_anchored_in_evidence.md)
@@ -235,7 +235,7 @@ The milestones up to "A large application, one bounded context at a time" are th
   - [feature_precision_on_applications](issues/done/feature_precision_on_applications.md)
   - [technical_feature_put_back](issues/done/technical_feature_put_back.md)
   - [domain_precision_after_technical_set_aside](issues/done/domain_precision_after_technical_set_aside.md)
-  - [judge_offer_hides_second_pairs](issues/judge_offer_hides_second_pairs.md)
+  - [judge_offer_hides_second_pairs](issues/done/judge_offer_hides_second_pairs.md)
   - [context_map_spread_between_runs](issues/done/context_map_spread_between_runs.md)
   - [context_map_support_and_catch_alls](issues/done/context_map_support_and_catch_alls.md)
 

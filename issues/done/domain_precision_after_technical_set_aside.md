@@ -67,7 +67,7 @@ are within the dafea18 range (5 to 9 over both series). Out of scope: changing w
    makes true BSC-20 (amended in `specs/benchmark-scoring.md` with this deliverable: an
    accepted spec cannot hold an untraced requirement); ~150 lines. (autonomous)
 4. [x] Follow-up issue (`skill:create-issue`): the judge cannot pair a generated item with a reference item
-   already covered (BSC-4), so the judged precision falls as `matches.yaml` grows. (autonomous: `issues/judge_offer_hides_second_pairs.md`)
+   already covered (BSC-4), so the judged precision falls as `matches.yaml` grows. (autonomous: `issues/done/judge_offer_hides_second_pairs.md`)
 5. [x] Fixes of the `high` review of `4e27282..HEAD`: the number of domains follows the scoring version (BSC-7
    amended); a `features.yaml` present but unreadable scores no feature, with a warning, not every domain;
    `published` and `featureless` share one set of slugs; the section of the domains with no feature written with

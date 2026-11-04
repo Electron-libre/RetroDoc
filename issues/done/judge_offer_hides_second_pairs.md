@@ -47,6 +47,8 @@ Measured quality at the current code
 
 Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-04
 
+Done: every deliverable committed (dda25a8..f0130a9); nothing left.
+
 ## Understanding
 A second judge call offers the generated items left unpaired after the first one against the reference items the
 first call was not offered (the covered ones): the judged precision no longer falls as `matches.yaml` grows, and the

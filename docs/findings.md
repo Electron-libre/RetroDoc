@@ -662,7 +662,7 @@ Since then (scoring version 4) the docs leave out a domain with no feature and t
 (`feeds`, `import-export`), domains precision 100% (all three runs) against 95% at dafea18; Lobsters unchanged
 (86% against 88%: no domain without a feature).
 
-Second pairs the judge's offer hides, read by hand on 2026-11-04 (`issues/judge_offer_hides_second_pairs.md`, no LLM
+Second pairs the judge's offer hides, read by hand on 2026-11-04 (`issues/done/judge_offer_hides_second_pairs.md`, no LLM
 call): the generated features left unpaired by the saved judgements of the 12 hidden runs at scoring version 4, each
 classed as a second pair (its right reference feature is already covered, so the judge was not offered it: a part of
 it or a second name for it), technical, or other (a real feature the reference leaves out, or a reference feature the
