@@ -622,7 +622,7 @@ statistics, mail routing, job dashboard). Fewer features also mean fewer use cas
 fell with the domains pass unchanged since dafea18 (linkding 8 domains each run against 6, one of them with no
 feature): not explained by this change, which runs after the domains.
 
-Fall of the domain precision explained (`issues/domain_precision_after_technical_set_aside.md`, no LLM call): it
+Fall of the domain precision explained (`issues/done/domain_precision_after_technical_set_aside.md`, no LLM call): it
 is mostly the judge's offer, not the domains pass. The judge is offered only the reference domains no generated
 domain covers (BSC-4), and `matches.yaml` gained domain pairs after the dafea18 runs were judged, so a second
 domain of an already covered reference domain (linkding `Administration`, `Appearance and Integrations`; Lobsters

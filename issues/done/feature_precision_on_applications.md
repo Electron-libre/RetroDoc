@@ -232,7 +232,7 @@ Code review: no findings
 
 - not verified: why the domains precision fell: the domains pass is unchanged since dafea18 and runs before the
   features; linkding now gives 8 domains each run (6 at dafea18), one with no feature.
-- follow-up: `issues/domain_precision_after_technical_set_aside.md` (filed with the fixes of the `high` review).
+- follow-up: `issues/done/domain_precision_after_technical_set_aside.md` (filed with the fixes of the `high` review).
 
 | check | result |
 |---|---|
@@ -263,5 +263,5 @@ a property of the slices, not a requirement of TEF)
 
 Code review: 8 findings (the `high` review of the issue)
 - 1, 2: slices merge and known features (fixed); 4: order of the two saves (fixed); 8: clones (fixed).
-- 3: empty domain page, outside TEF: `issues/domain_precision_after_technical_set_aside.md`.
+- 3: empty domain page, outside TEF: `issues/done/domain_precision_after_technical_set_aside.md`.
 - 5, 6, 7: not fixed, reasons above.
