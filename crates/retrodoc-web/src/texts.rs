@@ -2,6 +2,8 @@
 //! headings and messages around the docs. The words the pages share with the Markdown docs come
 //! from the table of `retrodoc-render` ([`WebTexts::doc`]). A language with no table keeps English.
 
+use retrodoc_core::model::SetApartReason;
+use retrodoc_mcp::debt::DebtKind;
 use retrodoc_mcp::source::{SourceError, MAX_FILE_BYTES};
 use retrodoc_mcp::EntryKind;
 use retrodoc_render::Texts;
@@ -16,6 +18,7 @@ pub struct WebTexts {
     pub doc: &'static Texts,
     pub read: &'static str,
     pub look_up: &'static str,
+    pub audit: &'static str,
     pub search_docs: &'static str,
     pub tree_label: &'static str,
     pub no_domain_yet: &'static str,
@@ -31,7 +34,7 @@ pub struct WebTexts {
     pub feature_unit: (&'static str, &'static str),
     pub use_case_unit: (&'static str, &'static str),
     /// The pages of reference, in the order a first-time reader is pointed to them.
-    pub reference_pages: [ReferencePage; 5],
+    pub reference_pages: [ReferencePage; 6],
     pub search: &'static str,
     pub search_intro: &'static str,
     pub results_for: &'static str,
@@ -129,6 +132,7 @@ pub struct WebTexts {
     pub no_history: &'static str,
     /// Above a collected doc.
     pub existing_doc: &'static str,
+    pub debt: DebtTexts,
     /// The lines a page of a file shows: from, to, of how many.
     pub shown: fn(usize, usize, usize) -> String,
     /// Why the lines asked are not shown: the number of lines of the file, the first line asked.
@@ -137,11 +141,28 @@ pub struct WebTexts {
     pub refusal: fn(&SourceError) -> String,
 }
 
+/// The fixed text of the debt page.
+#[derive(Debug)]
+pub struct DebtTexts {
+    pub intro: &'static str,
+    /// The name of each kind, in the order of `DebtKind::ALL`.
+    pub kinds: [&'static str; 6],
+    /// Why a use case is set apart: its back-office feature, its business language, its confidence.
+    pub reasons: [&'static str; 3],
+    pub set_apart_for: &'static str,
+    pub none: &'static str,
+    pub none_matches: &'static str,
+    pub no_score: &'static str,
+    /// The list `htmx` swaps under the form before a first `generate`.
+    pub no_run: &'static str,
+}
+
 impl WebTexts {
     pub const ENGLISH: Self = Self {
         doc: &Texts::ENGLISH,
         read: "Read",
         look_up: "Look up",
+        audit: "Audit",
         search_docs: "Search the docs",
         tree_label: "Domains, features and use cases",
         no_domain_yet: "No domain yet.",
@@ -195,6 +216,13 @@ impl WebTexts {
                 hint: "The source files, with the docs that cite each one and those no doc covers.",
                 group: Group::LookUp,
                 unit: ("cited file", "cited files"),
+            },
+            ReferencePage {
+                href: "/debt",
+                name: "Debt",
+                hint: "The sections of the docs that need a human, filtered by kind or domain.",
+                group: Group::Audit,
+                unit: ("item", "items"),
             },
         ],
         search: "Search",
@@ -283,6 +311,25 @@ impl WebTexts {
         existing_doc: "Existing doc",
         shown: |start, end, total| format!("lines {start}-{end} of {total}"),
         past_end: |total, line| format!("The file has {total} lines: line {line} is past the end."),
+        debt: DebtTexts {
+            intro: "The sections of the docs that need a human: to reread, to fix in the code or \
+                to document by hand.",
+            kinds: [
+                "Low confidence",
+                "Not scored",
+                "Unbacked narrative",
+                "Technical language",
+                "Set apart",
+                "Stale",
+            ],
+            reasons: ["back-office feature", "business language", "confidence"],
+            set_apart_for: "Set apart for:",
+            none: "No section of the docs needs a human.",
+            none_matches: "No item matches.",
+            no_score: "The last run has no confidence score: its use cases are not listed as not \
+                scored. Run <code>retrodoc generate</code> again to score them.",
+            no_run: "<section id=\"debt-list\"><p>No debt yet: run <code>retrodoc generate</code>, then restart <code>retrodoc ui</code>.</p></section>",
+        },
         refusal: SourceError::to_string,
     };
 
@@ -290,6 +337,7 @@ impl WebTexts {
         doc: &Texts::FRENCH,
         read: "Lire",
         look_up: "Consulter",
+        audit: "Auditer",
         search_docs: "Rechercher dans la doc",
         tree_label: "Domaines, fonctionnalités et cas d'usage",
         no_domain_yet: "Aucun domaine pour l'instant.",
@@ -345,6 +393,13 @@ impl WebTexts {
                     doc ne couvre.",
                 group: Group::LookUp,
                 unit: ("fichier cité", "fichiers cités"),
+            },
+            ReferencePage {
+                href: "/debt",
+                name: "Dette",
+                hint: "Les sections de la doc qui demandent un humain, filtrées par type ou domaine.",
+                group: Group::Audit,
+                unit: ("élément", "éléments"),
             },
         ],
         search: "Recherche",
@@ -437,6 +492,25 @@ impl WebTexts {
         existing_doc: "Doc existante",
         shown: |start, end, total| format!("lignes {start}-{end} sur {total}"),
         past_end: |total, line| format!("Le fichier a {total} lignes : la ligne {line} est après la fin."),
+        debt: DebtTexts {
+            intro: "Les sections de la doc qui demandent un humain : à relire, à corriger dans le \
+                code ou à documenter à la main.",
+            kinds: [
+                "Confiance faible",
+                "Non évalué",
+                "Récit non étayé",
+                "Langage technique",
+                "Mis à part",
+                "Périmé",
+            ],
+            reasons: ["fonctionnalité back-office", "langage métier", "confiance"],
+            set_apart_for: "Mis à part pour :",
+            none: "Aucune section de la doc n'a besoin d'un humain.",
+            none_matches: "Aucun élément ne correspond.",
+            no_score: "Le dernier run n'a aucun score de confiance : ses cas d'usage ne sont pas \
+                listés comme non évalués. Relancez <code>retrodoc generate</code> pour les évaluer.",
+            no_run: "<section id=\"debt-list\"><p>Pas encore de dette : lancez <code>retrodoc generate</code>, puis relancez <code>retrodoc ui</code>.</p></section>",
+        },
         refusal: french_refusal,
     };
 
@@ -509,6 +583,23 @@ impl WebTexts {
             EvidenceKind::Code => self.doc.code,
             EvidenceKind::Test => self.doc.test,
             EvidenceKind::Documentation => self.doc.documentation,
+        }
+    }
+
+    /// The name of a kind of debt.
+    #[must_use]
+    pub fn debt_kind(&self, kind: DebtKind) -> &'static str {
+        let at = DebtKind::ALL.iter().position(|k| *k == kind).unwrap_or(0);
+        self.debt.kinds[at]
+    }
+
+    /// Why a use case is set apart.
+    #[must_use]
+    pub fn set_apart_reason(&self, reason: SetApartReason) -> &'static str {
+        match reason {
+            SetApartReason::BackOffice => self.debt.reasons[0],
+            SetApartReason::BusinessLanguage => self.debt.reasons[1],
+            SetApartReason::Confidence => self.debt.reasons[2],
         }
     }
 

@@ -9,12 +9,11 @@ use axum::http::{header, HeaderMap, StatusCode};
 use axum::response::{Html, IntoResponse, Response};
 use tokio::task::JoinError;
 
-use retrodoc_mcp::GeneratedDocs;
-
 use crate::actors::ActorsPage;
 use crate::assets::MERMAID;
 use crate::code::{code_page, Asked, CodePage};
 use crate::collected::{collected_page, CollectedPage};
+use crate::debt::{debt_page, DebtFilter, DebtPage};
 use crate::files::FilesPage;
 use crate::glossary::GlossaryPage;
 use crate::map::{DomainMapPage, MapPage};
@@ -126,6 +125,22 @@ struct RulesTemplate<'a> {
     t: &'static WebTexts,
     shell: &'a Shell,
     page: RulesPage,
+}
+
+#[derive(Template)]
+#[template(path = "debt.html")]
+struct DebtTemplate<'a> {
+    t: &'static WebTexts,
+    shell: &'a Shell,
+    page: DebtPage,
+}
+
+/// The list alone, swapped under the form by `htmx`.
+#[derive(Template)]
+#[template(path = "debt_list.html")]
+struct DebtList {
+    t: &'static WebTexts,
+    page: DebtPage,
 }
 
 /// The list alone, swapped under the form by `htmx`.
@@ -372,7 +387,8 @@ pub async fn rules(
         &site,
         &headers,
         site.texts().no_run_rules,
-        |docs| rules_page(docs, &filter, site.texts()),
+        site.docs()
+            .map(|docs| rules_page(docs, &filter, site.texts())),
         |page| RulesList {
             t: site.texts(),
             page,
@@ -385,6 +401,42 @@ pub async fn rules(
     )
 }
 
+pub async fn debt(
+    State(site): State<Arc<Site>>,
+    headers: HeaderMap,
+    RawQuery(query): RawQuery,
+) -> Response {
+    let asked = |name| query_value(query.as_deref(), name).filter(|v: &String| !v.is_empty());
+    let filter = DebtFilter {
+        kind: asked("kind"),
+        domain: asked("domain"),
+    };
+    // The stale items read the cited files.
+    let built = blocking(&site, move |site| {
+        site.docs()
+            .map(|docs| debt_page(docs, &filter, site.texts()))
+    })
+    .await;
+    match built {
+        Ok(built) => fragment_or_page(
+            &site,
+            &headers,
+            site.texts().debt.no_run,
+            built,
+            |page| DebtList {
+                t: site.texts(),
+                page,
+            },
+            |shell, page| DebtTemplate {
+                t: site.texts(),
+                shell,
+                page,
+            },
+        ),
+        Err(err) => read_failed(&err),
+    }
+}
+
 pub async fn search(
     State(site): State<Arc<Site>>,
     headers: HeaderMap,
@@ -395,7 +447,7 @@ pub async fn search(
         &site,
         &headers,
         site.texts().no_run_results,
-        |docs| search_page(docs, &query),
+        site.docs().map(|docs| search_page(docs, &query)),
         |page| SearchResults {
             t: site.texts(),
             page,
@@ -415,7 +467,7 @@ fn fragment_or_page<'a, T, F: Template, P: Template>(
     site: &'a Site,
     headers: &HeaderMap,
     no_run: &'static str,
-    build: impl FnOnce(&GeneratedDocs) -> T,
+    built: Option<T>,
     fragment: impl FnOnce(T) -> F,
     page: impl FnOnce(&'a Shell, T) -> P,
 ) -> Response {
@@ -423,11 +475,11 @@ fn fragment_or_page<'a, T, F: Template, P: Template>(
     let vary = [(header::VARY, "HX-Request, HX-History-Restore-Request")];
     let htmx =
         headers.contains_key("HX-Request") && !headers.contains_key("HX-History-Restore-Request");
-    let response = match (site.docs(), htmx) {
+    let response = match (built, htmx) {
         (None, true) => Html(no_run).into_response(),
         (None, false) => no_run_page(site),
-        (Some(docs), true) => render(StatusCode::OK, &fragment(build(docs))),
-        (Some(docs), false) => render(StatusCode::OK, &page(site.shell(), build(docs))),
+        (Some(built), true) => render(StatusCode::OK, &fragment(built)),
+        (Some(built), false) => render(StatusCode::OK, &page(site.shell(), built)),
     };
     (vary, response).into_response()
 }

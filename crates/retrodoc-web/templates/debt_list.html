@@ -1,0 +1,26 @@
+{% import "macros.html" as m %}
+<section id="debt-list">
+  {% if page.no_score %}
+  <p class="muted">{{ t.debt.no_score|safe }}</p>
+  {% endif %}
+  {% if page.none_in_run %}
+  <p>{{ t.debt.none }}</p>
+  {% else if page.items.is_empty() %}
+  <p>{{ t.debt.none_matches }}</p>
+  {% else %}
+  <ul class="debt">
+    {% for item in page.items %}
+    <li class="debt-item">
+      <span class="badge kind">{{ item.kind }}</span>
+      {% if let Some(href) = item.href %}<a href="{{ href }}">{{ item.name }}</a>{% else %}{{ item.name }} <span class="muted">({{ t.not_in_the_run }})</span>{% endif %}
+      {% if let Some(feature) = item.feature %}<span class="muted">{{ t.feature }}{{ t.colon }} {{ feature }}</span>{% endif %}
+      {% if let Some(domain) = item.domain %}<span class="muted">{{ t.domain }}{{ t.colon }} {{ domain }}</span>{% endif %}
+      {% if let Some(score) = item.score %}{% call m::badge(score) %}{% endcall %}{% endif %}
+      {% if let Some(why) = item.rationale %}<span class="why">{{ why }}</span>{% endif %}
+      {% if !item.reasons.is_empty() %}<span class="why">{{ t.debt.set_apart_for }} {% for reason in item.reasons %}{{ reason }}{% if !loop.last %}, {% endif %}{% endfor %}</span>{% endif %}
+      {% if !item.changed.is_empty() %}<span class="why">{{ t.changed_since_the_run }} {% for file in item.changed %}<code>{{ file.path }}</code> ({% if file.deleted %}{{ t.deleted }}{% else %}{{ t.modified }}{% endif %}){% if !loop.last %}, {% endif %}{% endfor %}</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>

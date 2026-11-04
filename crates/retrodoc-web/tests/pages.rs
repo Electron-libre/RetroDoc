@@ -385,6 +385,8 @@ async fn start_here_links_each_reference_page_with_what_it_holds_and_its_count()
         ("/glossary", "0 concepts"),
         ("/rules", "0 rules"),
         ("/files", "3 cited files"),
+        // The count of the debt items is that of DBT-13.
+        ("/debt", " item"),
     ] {
         let item = between(start, &format!("href=\"{href}\""), "</li>");
         assert!(text(item).contains(count), "{href}: {}", text(item));
@@ -416,6 +418,7 @@ async fn the_header_groups_its_links_under_read_and_look_up_with_titles() {
         for (group, hrefs) in [
             ("Read", &["/map", "/actors"][..]),
             ("Look up", &["/glossary", "/rules", "/files"][..]),
+            ("Audit", &["/debt"][..]),
         ] {
             let nav = between(header, &format!("aria-label=\"{group}\""), "</nav>");
             assert!(nav.contains(&format!(">{group}<")), "{path}: {nav}");

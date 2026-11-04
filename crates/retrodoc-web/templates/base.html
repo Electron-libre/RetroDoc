@@ -19,6 +19,10 @@
       <span class="group">{{ t.look_up }}</span>
       {% for page in shell.look_up %}<a href="{{ page.href }}" title="{{ page.hint }}">{{ page.name }}</a>{% endfor %}
     </nav>
+    <nav class="links" aria-label="{{ t.audit }}">
+      <span class="group">{{ t.audit }}</span>
+      {% for page in shell.audit %}<a href="{{ page.href }}" title="{{ page.hint }}">{{ page.name }}</a>{% endfor %}
+    </nav>
     <form class="search" role="search" action="/search" method="get" hx-get="/search" hx-target="#search-results">
       <input type="search" name="q" value="{% block query %}{% endblock %}" placeholder="{{ t.search_docs }}" aria-label="{{ t.search_docs }}">
     </form>

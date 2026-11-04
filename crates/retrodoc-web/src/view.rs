@@ -51,6 +51,7 @@ impl Site {
             lang: project.lang,
             read: reference_pages(texts, Group::Read),
             look_up: reference_pages(texts, Group::LookUp),
+            audit: reference_pages(texts, Group::Audit),
             tree: docs.as_ref().map(tree).unwrap_or_default(),
         };
         let source = docs.as_ref().and_then(GeneratedDocs::source_access);
@@ -165,7 +166,7 @@ impl Site {
 
 /// The pages of reference with their counts as the pages they link to show
 /// them: the domains, a row per actor and kind, the concepts, the rules, the
-/// cited files.
+/// cited files, the debt items (the stale ones judged now).
 fn start_links(
     texts: &'static WebTexts,
     docs: &GeneratedDocs,
@@ -183,6 +184,7 @@ fn start_links(
             glossary.concepts.len(),
             docs.rules().len(),
             files.cited,
+            retrodoc_mcp::debt::debt(docs).items.len(),
         ])
         .map(|(page, count)| StartLink {
             label: texts.count(count, page.unit),
@@ -191,11 +193,12 @@ fn start_links(
         .collect()
 }
 
-/// How a reader uses a page of reference: reads through it or looks things up.
+/// How a reader uses a page of reference: reads through it, looks things up, or audits the docs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Group {
     Read,
     LookUp,
+    Audit,
 }
 
 /// The pages of reference of `group`, in their order.
@@ -238,6 +241,8 @@ pub struct Shell {
     pub read: Vec<&'static ReferencePage>,
     /// The pages one looks things up in: the glossary, the rules, the files.
     pub look_up: Vec<&'static ReferencePage>,
+    /// The pages one audits the docs with: the debt.
+    pub audit: Vec<&'static ReferencePage>,
     pub tree: Vec<TreeDomain>,
 }
 

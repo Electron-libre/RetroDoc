@@ -64,8 +64,8 @@ coverage, reconciliation, which need the config and the docs) goes to `web_debt_
 2. [x] Debt items in the read model: `retrodoc_mcp::debt` builds the typed items (kind, domain, section, score or
    reason) from the report and the freshness, independent of HTTP; verified by internal tests; makes true DBT-2 to
    DBT-8. ~400 lines. (autonomous)
-3. [ ] The page `/debt`: route, template, filters swapped by `htmx`, header link and "Start here" line, English and
-   French texts; verified by router tests and a check in headless Chrome; makes true DBT-1, DBT-9 to DBT-14. ~600 lines.
+3. [x] The page `/debt`: route, template, filters swapped by `htmx`, header link and "Start here" line, English and
+   French texts; verified by router tests and a check in headless Chrome; makes true DBT-1, DBT-9 to DBT-14. ~600 lines. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -115,3 +115,25 @@ red: DBT-2, DBT-3, DBT-4, DBT-5, DBT-6, DBT-7, DBT-8: 5 tests failed on the empt
 Code review: no findings
 
 not verified: none. decisions needed: none.
+
+### 3. The debt page
+done: `/debt` (`debt.rs`, `debt.html`, `debt_list.html`), filters by kind and domain swapped by `htmx`, the "Audit"
+group of the header and the "Start here" line with the count of items, English and French texts; `fragment_or_page`
+takes the page built (the debt is built off the async workers); WEB-66, WEB-67 and a non-goal of `specs/web-ui.md`
+amended; `specs/debt-view.md` accepted.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass (`debt-view` accepted) |
+| docs | `docs/crates/render-mcp-cli.md`, `docs/ARCHITECTURE.md`, `README.md` |
+| headless Chrome | `/debt` and `/` on a saved run: 73 items, the Audit link, the "Start here" line |
+| code review | no findings |
+
+red: DBT-1, DBT-3, DBT-9, DBT-10, DBT-11, DBT-12, DBT-13, DBT-14, WEB-77: 9 tests failed on `/debt` answering 404
+(`assertion left == right failed: left: 404`)
+
+Code review: no findings
+
+not verified: the `htmx` swap of the filters clicked in a browser (the fragment is tested through the router). decisions needed: none.

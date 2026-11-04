@@ -80,6 +80,12 @@ code { color: inherit; background: var(--surface-2); padding: 0 0.25rem; border-
 .score { margin: 0.3rem 0; }
 .items li, .rules li, .docs li { margin: 0.25rem 0; }
 .badge.set-apart { background: var(--surface-2); }
+/* The debt page: one line per item, its kind first, why it needs a human under it. */
+.debt { list-style: none; padding-left: 0; }
+.debt li { margin: 0.5rem 0; padding-bottom: 0.4rem; border-bottom: 1px solid var(--border); }
+.debt .muted { margin-left: 0.5rem; font-size: 0.9rem; }
+.debt .badge.kind { min-width: 9rem; text-align: center; margin-right: 0.4rem; }
+.debt .why { display: block; margin-top: 0.2rem; font-size: 0.9rem; color: var(--text-muted); }
 .narrative { font-size: 1.05rem; }
 .steps li { margin: 0.4rem 0; }
 .cited { font-size: 0.85rem; color: var(--text-muted); }

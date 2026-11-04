@@ -110,7 +110,11 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   with its evidence and a link to its `#rule-<slug>` item (`view::rule_href`), kept by `?kind=` (the artifact name of the kind),
   `?domain=` and `?feature=` (`rules::RuleFilter`, an empty value asks nothing; a rule whose feature is not in the run
   matches no domain nor feature); its form, submitted by `htmx` on change, swaps `rules_list.html` into `#rule-list`
-  the same way. The actors page, `/actors` (`actors::actors_page`, `actors.html`, linked from the header of
+  the same way. The debt page, `/debt` (`debt::debt_page`, `debt.html`, under the "Audit" group of the header and
+  counted in "Start here"; `specs/debt-view.md`), lists the items of `retrodoc_mcp::debt::debt` (the stale ones judged
+  at each request, off the async workers), each with its kind, the names of its section, feature and domain, its score
+  or its reasons and a link to its page, kept by `?kind=` and `?domain=` (`debt::DebtFilter`); its form swaps
+  `debt_list.html` into `#debt-list` like the rules page. The actors page, `/actors` (`actors::actors_page`, `actors.html`, linked from the header of
   every page, built once in `Site::new`), is a table per kind, human then system: a row per actor, grouped by its exact name (a primary actor no
   step names counts as human and starts its use cases in the human row of its name), a column per feature with a use case that names an actor, a cell linking the use cases
   it starts (`starts`) or takes part in, and the permission rules that apply to them. The map page, `/map`
