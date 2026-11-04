@@ -4,7 +4,7 @@
   <p class="muted">{{ t.debt.no_score|safe }}</p>
   {% endif %}
   {% if page.none_in_run %}
-  <p>{{ t.debt.none }}</p>
+  {% if !page.no_score %}<p>{{ t.debt.none }}</p>{% endif %}
   {% else if page.items.is_empty() %}
   <p>{{ t.debt.none_matches }}</p>
   {% else %}

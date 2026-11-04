@@ -66,6 +66,10 @@ coverage, reconciliation, which need the config and the docs) goes to `web_debt_
    DBT-8. ~400 lines. (autonomous)
 3. [x] The page `/debt`: route, template, filters swapped by `htmx`, header link and "Start here" line, English and
    French texts; verified by router tests and a check in headless Chrome; makes true DBT-1, DBT-9 to DBT-14. ~600 lines. (autonomous)
+4. [x] Fixes of the `high` review of the issue: the "Start here" count of the debt judged at each request, each cited
+   file hashed once per call, the misleading "no section needs a human" on a run with no score (DBT-11 amended), the
+   kind labels by `match`, `find_feature` and `StaleFile::of` shared, the sections sorted without allocating; verified
+   by two new router tests; makes true DBT-11, DBT-13. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -137,3 +141,25 @@ red: DBT-1, DBT-3, DBT-9, DBT-10, DBT-11, DBT-12, DBT-13, DBT-14, WEB-77: 9 test
 Code review: no findings
 
 not verified: the `htmx` swap of the filters clicked in a browser (the fragment is tested through the router). decisions needed: none.
+
+### 4. Fixes of the high review
+done: 6 of the 7 findings of the `high` review fixed (see the plan line).
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass (DBT-11 amended) |
+| docs | none beyond the doc comments |
+| code review | no findings |
+
+red: DBT-3, DBT-11, DBT-13: written after the fix (the two tests assert what the findings described: a count of 5 left
+after a file deleted, the "needs a human" line next to the no-score note).
+
+High review, finding not fixed: the debt report rebuilt at each request rather than once at start. It reads the
+in-memory docs loaded once, so what it shows is the same; its cost (a sort over the use cases) is small next to the
+reads of the stale check.
+
+Code review: no findings
+
+not verified: none. decisions needed: none.

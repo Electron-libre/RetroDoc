@@ -3,6 +3,8 @@
 //! from the same [`build_report`] as `retrodoc report`, plus the sections whose
 //! cited code changed since the run, judged at each call.
 
+use std::collections::BTreeMap;
+
 use retrodoc_core::model::{SetApartReason, UseCase};
 pub use retrodoc_pipeline::Section;
 use retrodoc_pipeline::{build_report, DomainMap, WeakSection};
@@ -136,13 +138,20 @@ pub fn use_case_cited_paths(use_case: &UseCase) -> Vec<&str> {
     cited
 }
 
-/// Each feature then its use cases, in the order of the run, whose cited files changed.
+/// Each feature then its use cases, in the order of the run, whose cited files changed. Each file
+/// is read once, however many sections cite it.
 fn stale(docs: &GeneratedDocs, freshness: &Freshness) -> Vec<DebtItem> {
-    let item = |section: Section, paths: Vec<&str>| {
-        let changed: Vec<(String, FileState)> = freshness
-            .stale(paths)
+    let mut states: BTreeMap<String, FileState> = BTreeMap::new();
+    let mut item = |section: Section, paths: Vec<&str>| {
+        let changed: Vec<(String, FileState)> = paths
             .into_iter()
-            .map(|(path, state)| (path.to_string(), state))
+            .map(|path| {
+                let state = *states
+                    .entry(path.to_string())
+                    .or_insert_with(|| freshness.state(path));
+                (path.to_string(), state)
+            })
+            .filter(|(_, state)| matches!(state, FileState::Modified | FileState::Deleted))
             .collect();
         (!changed.is_empty()).then(|| DebtItem {
             changed,

@@ -4,7 +4,6 @@
 
 use retrodoc_core::model::ConfidenceScore;
 use retrodoc_mcp::debt::{debt, DebtItem, DebtKind, Section};
-use retrodoc_mcp::freshness::FileState;
 use retrodoc_mcp::GeneratedDocs;
 
 use crate::rules::{Choice, Filter};
@@ -94,10 +93,9 @@ fn row(docs: &GeneratedDocs, item: &DebtItem, texts: &WebTexts) -> DebtRow {
         feature,
         use_case,
     } = &item.section;
-    let feature = docs
-        .features()
-        .iter()
-        .find(|f| f.slug == *feature && Some(&f.domain_slug) == domain.as_ref());
+    let feature = domain
+        .as_deref()
+        .and_then(|domain| crate::view::find_feature(docs, domain, feature));
     let domain_name = feature.map(|f| {
         docs.domains()
             .iter()
@@ -138,10 +136,7 @@ fn row(docs: &GeneratedDocs, item: &DebtItem, texts: &WebTexts) -> DebtRow {
         changed: item
             .changed
             .iter()
-            .map(|(path, state)| StaleFile {
-                path: path.clone(),
-                deleted: *state == FileState::Deleted,
-            })
+            .map(|(path, state)| StaleFile::of(path, *state))
             .collect(),
     }
 }

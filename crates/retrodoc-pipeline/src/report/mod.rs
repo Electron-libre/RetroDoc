@@ -49,8 +49,9 @@ pub struct FeaturelessDomain {
     pub set_aside: usize,
 }
 
-/// The section of the docs an item of the report points to: a use case, or a feature.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// The section of the docs an item of the report points to: a use case, or a feature. Ordered as
+/// its [`Section::label`], a domain not known first.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Section {
     /// `None` when the feature is not in the run (artifacts of an older run).
     pub domain: Option<String>,
@@ -327,11 +328,11 @@ pub fn build_report(
     let by_score = |a: &WeakSection, b: &WeakSection| {
         a.score
             .total_cmp(&b.score)
-            .then_with(|| a.section.label().cmp(&b.section.label()))
+            .then_with(|| a.section.cmp(&b.section))
     };
     weak_sections.sort_by(by_score);
     technical_use_cases.sort_by(by_score);
-    unbacked_narratives.sort_by_key(|w| w.section.label());
+    unbacked_narratives.sort_by(|a, b| a.section.cmp(&b.section));
 
     let uncategorized_files = domains
         .domains

@@ -39,8 +39,8 @@ report of `retrodoc report` from top to bottom.
   `?domain=<slug>`, each given, both when both are; an empty value filters nothing.
 - **DBT-10** (deterministic) The debt page must show a form whose choices are the kinds and the domains of the run,
   the ones of the query selected, that asks the page again with them.
-- **DBT-11** (deterministic) The debt page must say no section needs a human when the run has no item, and that no
-  item matches when the filters keep none.
+- **DBT-11** (deterministic) The debt page must say no section needs a human when the run has no item and is scored
+  (DBT-3 says the rest), and that no item matches when the filters keep none.
 - **DBT-12** (deterministic) A debt request must be answered, with the header `HX-Request` and without
   `HX-History-Restore-Request`, with the list of the items alone, without the layout of the page; any other with
   the full page.

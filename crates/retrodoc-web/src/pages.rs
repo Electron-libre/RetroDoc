@@ -32,7 +32,7 @@ struct Home<'a> {
     shell: &'a Shell,
     purpose: Option<&'a str>,
     users: &'a [String],
-    start: &'a [StartLink],
+    start: Vec<StartLink>,
     domains: Vec<DomainRow>,
 }
 
@@ -197,18 +197,21 @@ pub async fn home(State(site): State<Arc<Site>>) -> Response {
         return no_run_page(&site);
     }
     match blocking(&site, |site| {
-        site.docs().map(domain_rows).unwrap_or_default()
+        (
+            site.docs().map(domain_rows).unwrap_or_default(),
+            site.start_links(),
+        )
     })
     .await
     {
-        Ok(domains) => render(
+        Ok((domains, start)) => render(
             StatusCode::OK,
             &Home {
                 t: site.texts(),
                 shell: site.shell(),
                 purpose: site.purpose(),
                 users: site.users(),
-                start: site.start_links(),
+                start,
                 domains,
             },
         ),

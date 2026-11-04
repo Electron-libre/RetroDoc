@@ -157,16 +157,32 @@ impl Site {
     }
 
     /// The pages the home page points a first-time reader to, with what each
-    /// holds and its count; empty with no run.
+    /// holds and its count; empty with no run. The count of the debt items is
+    /// that of the debt page now: its stale items are judged at each call, so it
+    /// reads the cited files.
     #[must_use]
-    pub fn start_links(&self) -> &[StartLink] {
-        &self.start
+    pub fn start_links(&self) -> Vec<StartLink> {
+        let debt = self
+            .docs
+            .as_ref()
+            .map_or(0, |docs| retrodoc_mcp::debt::debt(docs).items.len());
+        self.start
+            .iter()
+            .map(|link| StartLink {
+                label: if link.page.href == "/debt" {
+                    self.texts.count(debt, link.page.unit)
+                } else {
+                    link.label.clone()
+                },
+                page: link.page,
+            })
+            .collect()
     }
 }
 
 /// The pages of reference with their counts as the pages they link to show
 /// them: the domains, a row per actor and kind, the concepts, the rules, the
-/// cited files, the debt items (the stale ones judged now).
+/// cited files; the debt items are counted at each call ([`Site::start_links`]).
 fn start_links(
     texts: &'static WebTexts,
     docs: &GeneratedDocs,
@@ -184,7 +200,7 @@ fn start_links(
             glossary.concepts.len(),
             docs.rules().len(),
             files.cited,
-            retrodoc_mcp::debt::debt(docs).items.len(),
+            0,
         ])
         .map(|(page, count)| StartLink {
             label: texts.count(count, page.unit),
@@ -563,11 +579,17 @@ pub(crate) fn stale_files<'a>(
         .map(|f| f.stale(paths))
         .unwrap_or_default()
         .into_iter()
-        .map(|(path, state)| StaleFile {
+        .map(|(path, state)| StaleFile::of(path, state))
+        .collect()
+}
+
+impl StaleFile {
+    pub(crate) fn of(path: &str, state: FileState) -> Self {
+        Self {
             path: path.to_string(),
             deleted: state == FileState::Deleted,
-        })
-        .collect()
+        }
+    }
 }
 
 /// What backs a rule.
@@ -693,7 +715,11 @@ fn crumbs_to(docs: &GeneratedDocs, feature: Option<&Feature>, domain_slug: &str)
 
 /// The feature `slug` of the domain `domain`, `None` when the run has no such
 /// feature in that domain.
-fn find_feature<'a>(docs: &'a GeneratedDocs, domain: &str, slug: &str) -> Option<&'a Feature> {
+pub(crate) fn find_feature<'a>(
+    docs: &'a GeneratedDocs,
+    domain: &str,
+    slug: &str,
+) -> Option<&'a Feature> {
     docs.features()
         .iter()
         .find(|f| f.slug == slug && f.domain_slug == domain)

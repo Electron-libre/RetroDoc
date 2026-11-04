@@ -589,7 +589,14 @@ impl WebTexts {
     /// The name of a kind of debt.
     #[must_use]
     pub fn debt_kind(&self, kind: DebtKind) -> &'static str {
-        let at = DebtKind::ALL.iter().position(|k| *k == kind).unwrap_or(0);
+        let at = match kind {
+            DebtKind::LowConfidence => 0,
+            DebtKind::NotScored => 1,
+            DebtKind::UnbackedNarrative => 2,
+            DebtKind::TechnicalLanguage => 3,
+            DebtKind::SetApart => 4,
+            DebtKind::Stale => 5,
+        };
         self.debt.kinds[at]
     }
 

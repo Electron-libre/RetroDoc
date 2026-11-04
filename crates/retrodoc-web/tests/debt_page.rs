@@ -232,6 +232,23 @@ async fn a_run_with_no_score_says_so_rather_than_listing_every_use_case() {
     assert!(!list(&page).contains("Not scored"), "{page}");
 }
 
+// spec: DBT-3, DBT-11
+#[tokio::test]
+async fn a_run_with_no_score_and_nothing_else_does_not_say_the_docs_need_no_human() {
+    let clean = tempfile::tempdir().unwrap();
+    let mut unscored = feature("pay-invoice", "billing", "Pay an invoice");
+    unscored.confidence = None;
+    retrodoc_pipeline::save_features(clean.path(), &[unscored]).unwrap();
+    retrodoc_pipeline::save_use_cases(
+        clean.path(),
+        &[use_case("refund", "pay-invoice", "Refund", None)],
+    )
+    .unwrap();
+    let page = debt(clean.path(), "/debt").await;
+    assert!(list(&page).contains("no confidence score"), "{page}");
+    assert!(!list(&page).contains("needs a human"), "{page}");
+}
+
 // spec: DBT-9
 #[tokio::test]
 async fn the_debt_page_keeps_the_items_of_the_kind_and_the_domain_asked() {
@@ -362,6 +379,35 @@ async fn every_page_links_to_the_debt_page_under_audit_and_the_home_page_counts_
     let start = between(&home, "id=\"start-here\"", "</section>");
     let item = between(start, "href=\"/debt\"", "</li>");
     assert!(item.contains("5 items"), "{item}");
+}
+
+// spec: DBT-13
+#[tokio::test]
+async fn the_count_of_the_home_page_follows_a_file_changed_after_the_start() {
+    let repo = generated_repo();
+    let router = retrodoc_web::router(
+        Project::default(),
+        GeneratedDocs::load(repo.path(), &[]),
+        DocLinks::default(),
+        Vec::new(),
+    );
+    let count = |router: axum::Router| async move {
+        let response = router
+            .oneshot(Request::get("/").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let page = String::from_utf8(body.to_vec()).unwrap();
+        let start = between(&page, "id=\"start-here\"", "</section>").to_string();
+        between(&start, "href=\"/debt\"", "</li>").to_string()
+    };
+    assert!(count(router.clone()).await.contains("5 items"));
+    // The feature `pay-invoice` and its two use cases cite it.
+    std::fs::remove_file(repo.path().join("app/pay-invoice.rb")).unwrap();
+    let after = count(router).await;
+    assert!(after.contains("8 items"), "{after}");
 }
 
 // spec: DBT-14
