@@ -296,6 +296,7 @@ The milestones up to "A large application, one bounded context at a time" are th
   in `.retrodoc/`, shown in the debt report, the dashboard and the MCP answers.
 - Why: the confidence score is the model's view; a reader must know what a human has checked.
 - State: done
+- Released: v0.9.0
 - Issues:
   - [review_store](issues/done/review_store.md)
   - [web_review_form](issues/done/web_review_form.md)

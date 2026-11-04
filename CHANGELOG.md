@@ -4,6 +4,34 @@ The notable changes of each version, newest first ([Keep a Changelog](https://ke
 [Semantic Versioning](https://semver.org/)). Each section is written by `cardinal run release <version>` from the commits,
 then reread before the release is committed.
 
+## [0.9.0] - 2026-11-05
+
+### Milestones
+
+- Human review of the docs
+
+### Added
+
+- store the human reviews of the docs sections
+- show the human review of each section on its page
+- review a section from its page with an htmx form
+- count the human reviews in the debt of the docs
+- count the human reviews in the debt of the run snapshot
+- show the share of the reviewed sections on the audit page
+- list the sections marked wrong in the debt report
+- give the human review of a section in the MCP answers
+- tell a review outdated when its section or files changed
+- keep an outdated validation in the debt and say outdated
+- flag an outdated review on its page and in the lists
+- say an outdated review in the answers of the sections
+
+### Fixed
+
+- keep every review a save of the web interface makes
+- keep the review form whole when a save fails
+- keep the review answers off the async threads and on one line
+- read only the cited files to tell a review outdated
+
 ## [0.8.0] - 2026-11-04
 
 ### Milestones
