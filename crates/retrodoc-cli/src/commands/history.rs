@@ -1,11 +1,12 @@
 //! The snapshot of a finished `generate` (`specs/run-history.md`, ADR 0043): the docs it left,
-//! read back as `retrodoc ui` reads them, saved in the run history.
+//! read back as `retrodoc ui` reads them, its debt counted with the human reviews saved then,
+//! saved in the run history.
 
 use std::path::Path;
 
 use retrodoc_ingest::git_history::head_commit;
-use retrodoc_mcp::history;
 use retrodoc_mcp::GeneratedDocs;
+use retrodoc_mcp::{history, reviews};
 use retrodoc_pipeline::usage_log::RunUsage;
 
 use super::docs::project_docs;
@@ -39,7 +40,17 @@ fn save(path: &Path, Head(commit): Head, usage: Option<&RunUsage>) -> anyhow::Re
         || chrono::Utc::now().to_rfc3339(),
         |u| u.finished_at.clone(),
     );
-    let snapshot = history::snapshot(&generated.reconciled(&docs), commit, &finished_at, usage);
+    let reviews = reviews::load(root).unwrap_or_else(|error| {
+        tracing::warn!("the debt of the snapshot counts no review: {error}");
+        reviews::Reviews::default()
+    });
+    let snapshot = history::snapshot(
+        &generated.reconciled(&docs),
+        &reviews,
+        commit,
+        &finished_at,
+        usage,
+    );
     if let Some(file) = history::save(root, &snapshot)? {
         tracing::info!("snapshot of the run saved in {}", file.display());
     }

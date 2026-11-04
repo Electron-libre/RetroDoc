@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use crate::audit::{entry_coverage, EntryCoverage};
 use crate::debt::{debt_of, docs_report, DebtKind};
 use crate::read_model::GeneratedDocs;
+use crate::reviews::Reviews;
 
 mod diff;
 pub use diff::{diff, Fall, RunDiff, Score, FALL_THRESHOLD};
@@ -93,10 +94,11 @@ pub struct SectionScores {
 }
 
 /// The snapshot of the run of `docs`, reconciled with the project's docs when it has some, that
-/// read `commit`, ended at `finished_at` and cost `usage`.
+/// read `commit`, ended at `finished_at` and cost `usage`, its debt counted with `reviews`.
 #[must_use]
 pub fn snapshot(
     docs: &GeneratedDocs,
+    reviews: &Reviews,
     commit: Option<String>,
     finished_at: &str,
     usage: Option<&RunUsage>,
@@ -115,7 +117,7 @@ pub fn snapshot(
                 .repo_root()
                 .and_then(BehaviourCoverage::load)
                 .and_then(|c| entry_coverage(docs, &c)),
-            debt: debt_counts(docs, report),
+            debt: debt_counts(docs, report, reviews),
         },
         sections: sections(docs),
     }
@@ -135,9 +137,13 @@ fn cost(usage: &RunUsage) -> Cost {
     }
 }
 
-fn debt_counts(docs: &GeneratedDocs, report: retrodoc_pipeline::DebtReport) -> Vec<DebtCount> {
+fn debt_counts(
+    docs: &GeneratedDocs,
+    report: retrodoc_pipeline::DebtReport,
+    reviews: &Reviews,
+) -> Vec<DebtCount> {
     let mut counts: BTreeMap<(DebtKind, Option<&str>), usize> = BTreeMap::new();
-    let debt = debt_of(docs, report, &crate::reviews::Reviews::default());
+    let debt = debt_of(docs, report, reviews);
     for item in debt.items.iter().filter(|i| i.kind != DebtKind::Stale) {
         *counts.entry((item.kind, item.domain())).or_default() += 1;
     }

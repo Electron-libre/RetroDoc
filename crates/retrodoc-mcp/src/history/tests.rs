@@ -104,7 +104,13 @@ fn files(root: &Path) -> Vec<String> {
 // spec: RHI-2, RHI-3, RHI-6 (internal: the content of the snapshot; through the binary a fake run per figure)
 #[test]
 fn the_snapshot_holds_the_commit_date_scores_and_cost_of_the_run() {
-    let snapshot = snapshot(&sample(), Some("abc123".into()), END, Some(&usage(END)));
+    let snapshot = snapshot(
+        &sample(),
+        &Reviews::default(),
+        Some("abc123".into()),
+        END,
+        Some(&usage(END)),
+    );
 
     assert_eq!(snapshot.version, VERSION);
     assert_eq!(snapshot.commit.as_deref(), Some("abc123"));
@@ -135,6 +141,7 @@ fn a_figure_the_run_lacks_is_absent() {
 
     let snapshot = snapshot(
         &docs(vec![bare]).with_repo_root(dir.path()),
+        &Reviews::default(),
         None,
         END,
         None,
@@ -160,7 +167,13 @@ fn the_coverage_is_the_one_of_the_audit_page() {
     )
     .unwrap();
 
-    let snapshot = snapshot(&sample().with_repo_root(dir.path()), None, END, None);
+    let snapshot = snapshot(
+        &sample().with_repo_root(dir.path()),
+        &Reviews::default(),
+        None,
+        END,
+        None,
+    );
 
     let coverage = snapshot.figures.coverage.unwrap();
     assert_eq!(coverage.placed, Some(Share { count: 3, total: 4 }));
@@ -175,7 +188,7 @@ fn the_debt_is_counted_by_kind_and_domain_without_the_stale_items() {
         ..Uncovered::default()
     });
 
-    let snapshot = snapshot(&docs, None, END, None);
+    let snapshot = snapshot(&docs, &Reviews::default(), None, END, None);
 
     let counts: Vec<(&str, Option<&str>, usize)> = snapshot
         .figures
@@ -199,7 +212,7 @@ fn the_debt_is_counted_by_kind_and_domain_without_the_stale_items() {
 // spec: RHI-7, RHI-8 (internal: the sections of the snapshot, from fixture docs)
 #[test]
 fn every_domain_feature_and_use_case_is_listed_in_the_order_of_the_run() {
-    let snapshot = snapshot(&sample(), None, END, None);
+    let snapshot = snapshot(&sample(), &Reviews::default(), None, END, None);
 
     let ids: Vec<(SectionKind, &str, &str)> = snapshot
         .sections
@@ -236,9 +249,14 @@ fn a_snapshot_equal_to_the_last_but_for_commit_date_and_cost_is_not_saved() {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path();
 
-    let first = save(root, &snapshot(&sample(), Some("a".into()), END, None)).unwrap();
+    let first = save(
+        root,
+        &snapshot(&sample(), &Reviews::default(), Some("a".into()), END, None),
+    )
+    .unwrap();
     let rerun = snapshot(
         &sample(),
+        &Reviews::default(),
         Some("b".into()),
         "2026-11-05T09:00:00Z",
         Some(&usage(END)),
@@ -247,7 +265,13 @@ fn a_snapshot_equal_to_the_last_but_for_commit_date_and_cost_is_not_saved() {
     let changed = docs(vec![use_case("refund", "pay", 0.3)]);
     let third = save(
         root,
-        &snapshot(&changed, Some("b".into()), "2026-11-06T09:00:00Z", None),
+        &snapshot(
+            &changed,
+            &Reviews::default(),
+            Some("b".into()),
+            "2026-11-06T09:00:00Z",
+            None,
+        ),
     )
     .unwrap();
 
@@ -267,9 +291,17 @@ fn a_snapshot_named_like_a_saved_one_gets_a_name_of_its_own() {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path();
 
-    save(root, &snapshot(&sample(), None, END, None)).unwrap();
+    save(
+        root,
+        &snapshot(&sample(), &Reviews::default(), None, END, None),
+    )
+    .unwrap();
     let changed = docs(vec![use_case("refund", "pay", 0.3)]);
-    save(root, &snapshot(&changed, None, END, None)).unwrap();
+    save(
+        root,
+        &snapshot(&changed, &Reviews::default(), None, END, None),
+    )
+    .unwrap();
 
     assert_eq!(
         files(root),
@@ -286,7 +318,11 @@ fn a_snapshot_named_like_a_saved_one_gets_a_name_of_its_own() {
 fn a_file_that_cannot_be_read_is_left_out_of_the_list() {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path();
-    save(root, &snapshot(&sample(), None, END, None)).unwrap();
+    save(
+        root,
+        &snapshot(&sample(), &Reviews::default(), None, END, None),
+    )
+    .unwrap();
     std::fs::write(
         history_dir(root).join("20261103T000000Z.json"),
         "{ not json",
@@ -305,12 +341,22 @@ fn a_file_that_cannot_be_read_is_left_out_of_the_list() {
 fn a_snapshot_is_compared_with_the_newest_file_even_when_it_cannot_be_read() {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path();
-    save(root, &snapshot(&sample(), None, END, None)).unwrap();
+    save(
+        root,
+        &snapshot(&sample(), &Reviews::default(), None, END, None),
+    )
+    .unwrap();
     std::fs::write(history_dir(root).join("20261105T000000Z.json"), "{ cut").unwrap();
 
     let rerun = save(
         root,
-        &snapshot(&sample(), None, "2026-11-06T00:00:00Z", None),
+        &snapshot(
+            &sample(),
+            &Reviews::default(),
+            None,
+            "2026-11-06T00:00:00Z",
+            None,
+        ),
     )
     .unwrap();
 
@@ -323,7 +369,13 @@ fn a_snapshot_is_compared_with_the_newest_file_even_when_it_cannot_be_read() {
 fn a_snapshot_of_a_later_format_is_left_out_and_no_draft_is_left_behind() {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path();
-    let mut later = snapshot(&sample(), None, "2026-11-03T00:00:00Z", None);
+    let mut later = snapshot(
+        &sample(),
+        &Reviews::default(),
+        None,
+        "2026-11-03T00:00:00Z",
+        None,
+    );
     later.version = VERSION + 1;
     std::fs::create_dir_all(history_dir(root)).unwrap();
     std::fs::write(
@@ -332,7 +384,11 @@ fn a_snapshot_of_a_later_format_is_left_out_and_no_draft_is_left_behind() {
     )
     .unwrap();
 
-    save(root, &snapshot(&sample(), None, END, None)).unwrap();
+    save(
+        root,
+        &snapshot(&sample(), &Reviews::default(), None, END, None),
+    )
+    .unwrap();
 
     assert_eq!(load(root).len(), 1);
     assert_eq!(load(root)[0].snapshot.version, VERSION);

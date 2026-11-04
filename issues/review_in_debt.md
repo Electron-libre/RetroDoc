@@ -50,8 +50,8 @@ reviews (`issues/review_outdated.md`), the lists of `coverage-report.md`.
    "marked wrong" and "to review" (domain items included), the debt page reads the reviews at each request and says
    when they can't be read, the heatmap gets their columns; verified by tests of `/debt` and `/audit`; makes true
    DBT-8, DBT-29 to DBT-34, AUD-6 (~700 lines). (autonomous)
-2. [ ] Snapshot: the debt counted by a `generate` takes the reviews into account; verified by a test of the history;
-   makes true RHI-14 (~150 lines).
+2. [x] Snapshot: the debt counted by a `generate` takes the reviews into account; verified by a test of the history;
+   makes true RHI-14 (~150 lines). (autonomous)
 3. [ ] Audit page: the share of domains, features and use cases reviewed, by status; verified by tests of `/audit`;
    makes true AUD-16, AUD-17 (~350 lines).
 4. [ ] `retrodoc report` lists the sections marked wrong; verified by a test of the binary; makes true DBT-35,
@@ -79,6 +79,25 @@ review" (domains included), the debt page reads the reviews at each request, the
 red: DBT-32, DBT-30, DBT-31, DBT-33, DBT-29, DBT-8, DBT-34, AUD-6: the validated use cases still listed as low
 confidence and not scored, no item "Marked wrong" nor "To review", no note of an unreadable `reviews.json`, no
 heatmap column "Marked wrong".
+
+Code review: no findings
+not verified: none
+decisions needed: none
+
+## Deliverable 2
+done: the snapshot of a `generate` counts the debt with the reviews `reviews.json` holds when the run ends; an
+unreadable file is warned of and counts no review.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass (run-history `draft`) |
+| docs | `docs/crates/render-mcp-cli.md` |
+| code review | no findings |
+
+red: RHI-14: a rerun after a review wrote no snapshot (1 file, expected 2); no warning for an unreadable
+`reviews.json`.
 
 Code review: no findings
 not verified: none

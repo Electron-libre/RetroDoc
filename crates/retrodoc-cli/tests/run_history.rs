@@ -221,3 +221,72 @@ fn a_snapshot_that_cannot_be_written_only_warns() {
         "{warnings:?}"
     );
 }
+
+/// The debt counts of the newest snapshot, as `(kind, domain, count)`.
+fn newest_debt(dir: &Path) -> Vec<(String, Option<String>, u64)> {
+    let files = snapshots(dir);
+    let snapshot: Value = serde_json::from_str(&files.last().unwrap().1).unwrap();
+    snapshot["figures"]["debt"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|d| {
+            (
+                d["kind"].as_str().unwrap().to_string(),
+                d["domain"].as_str().map(str::to_string),
+                d["count"].as_u64().unwrap(),
+            )
+        })
+        .collect()
+}
+
+fn write_reviews(dir: &Path, json: &str) {
+    std::fs::write(dir.join(".retrodoc/reviews.json"), json).unwrap();
+}
+
+const ORDERS_WRONG: &str = r#"{"version": 1, "reviews": [{"kind": "domain", "id": "orders",
+  "status": "wrong", "comment": "", "author": null, "reviewed_at": "2026-11-04T10:00:00Z",
+  "fingerprint": "x"}]}"#;
+
+// spec: RHI-14
+#[test]
+fn the_snapshot_counts_the_debt_with_the_reviews_saved_when_the_run_ends() {
+    let (dir, _llm) = shop();
+    succeeded(&generate(dir.path()));
+    let marked = |debt: &[(String, Option<String>, u64)]| {
+        debt.iter().any(|(kind, domain, count)| {
+            kind == "marked_wrong" && domain.as_deref() == Some("orders") && *count == 1
+        })
+    };
+    assert!(!marked(&newest_debt(dir.path())));
+
+    write_reviews(dir.path(), ORDERS_WRONG);
+    succeeded(&generate(dir.path()));
+
+    // A rerun that calls no LLM writes a snapshot: the debt changed.
+    assert_eq!(snapshots(dir.path()).len(), 2);
+    assert!(
+        marked(&newest_debt(dir.path())),
+        "{:?}",
+        newest_debt(dir.path())
+    );
+}
+
+// spec: RHI-14
+#[test]
+fn an_unreadable_file_of_reviews_is_warned_of_and_counts_no_review() {
+    let (dir, _llm) = shop();
+    succeeded(&generate(dir.path()));
+    let before = snapshots(dir.path());
+
+    write_reviews(dir.path(), "{ not json");
+    let output = generate(dir.path());
+
+    succeeded(&output);
+    let warnings = warnings(&output);
+    assert!(
+        warnings.iter().any(|w| w.contains("reviews")),
+        "{warnings:?}"
+    );
+    assert_eq!(snapshots(dir.path()), before);
+}
