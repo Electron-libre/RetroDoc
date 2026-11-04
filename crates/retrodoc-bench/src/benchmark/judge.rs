@@ -14,9 +14,9 @@ use std::path::Path;
 use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
-use super::matching::{compare, Comparison, Matches, Pair};
+use super::matching::{compare, scored_domains, Comparison, Matches, Pair};
 use super::reference::Reference;
-use crate::domains::{DomainMap, UNCATEGORIZED_SLUG};
+use crate::domains::DomainMap;
 use crate::error::PipelineError;
 use crate::features::load_features;
 use crate::naming::normalize;
@@ -407,16 +407,14 @@ pub async fn judge(
         return Ok(None);
     };
     let map = DomainMap::load(repo_root).unwrap_or_default();
-    let features = load_features(repo_root).unwrap_or_default();
-    let generated_domains: Vec<Item> = map
-        .domains
-        .iter()
-        .filter(|d| d.slug != UNCATEGORIZED_SLUG)
+    let saved = load_features(repo_root);
+    let generated_domains: Vec<Item> = scored_domains(&map, saved.as_deref())
         .map(|d| Item {
             name: d.name.clone(),
             description: d.description.clone(),
         })
         .collect();
+    let features = saved.unwrap_or_default();
     let generated_features: Vec<Item> = features
         .iter()
         .map(|f| Item {
@@ -710,6 +708,63 @@ mod tests {
                 && text.contains("what=\"features\""),
             "{text}"
         );
+    }
+
+    // spec: BSC-20 (internal: the judge's answers come from a fake LLM)
+    #[tokio::test]
+    async fn a_domain_with_no_feature_is_not_offered_to_the_judge() {
+        use crate::artifact::{save_yaml, Artifact};
+        use crate::domains::{DomainCluster, DomainMap};
+        use crate::features::save_features;
+        use retrodoc_core::model::Feature;
+
+        let reference: Reference = serde_yaml::from_str(
+            "repository: r\ncommit: c\npurpose: p\nactors: []\ndomains:\n  - name: Payments\n    description: Getting paid\n    features:\n      - {name: Pay, description: Pay a bill}\n",
+        )
+        .unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let domain = |slug: &str, name: &str| DomainCluster {
+            slug: slug.to_string(),
+            name: name.to_string(),
+            ..DomainCluster::default()
+        };
+        let map = DomainMap {
+            domains: vec![domain("billing", "Billing"), domain("feeds", "Feeds")],
+        };
+        save_yaml(&Artifact::Domains.path(root), &map).unwrap();
+        save_features(
+            root,
+            &[Feature {
+                back_office: false,
+                technical: false,
+                slug: "checkout".to_string(),
+                domain_slug: "billing".to_string(),
+                name: "Checkout".to_string(),
+                description: "Paying".to_string(),
+                source_paths: vec![],
+                entry_points: Vec::new(),
+                confidence: None,
+            }],
+        )
+        .unwrap();
+        let llm =
+            FakeLlm::answering(r#"{"matches":[{"generated":"Billing","reference":"Payments"}]}"#);
+
+        judge(
+            &llm,
+            root,
+            &reference,
+            &Matches::default(),
+            Path::new("m.yaml"),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+
+        let prompt = &llm.prompts()[0];
+        assert!(prompt.contains("- Billing"), "{prompt}");
+        assert!(!prompt.contains("Feeds"), "{prompt}");
     }
 
     // spec: BSC-4 (internal: the scoring needs an LLM judge and a generated run through the binary)

@@ -66,6 +66,9 @@ change of these rules must not read as a change of quality between two benchmark
   without it must load, with no count.
 - **BSC-19** (deterministic) A pair that is both a hand pair and a rejected pair of the same kind once both names are
   normalized must fail the scoring with an error naming the pair.
+- **BSC-20** (deterministic) In a run that saved its features, a domain that no feature belongs to must not be
+  counted among the generated domains: not in the strict and judged figures, not offered to the judge, not in the
+  number of domains (EDM); a run with no `features.yaml` (a replay of the domains pass alone) counts every domain.
 
 ## Scenarios
 
@@ -98,6 +101,8 @@ change of these rules must not read as a change of quality between two benchmark
 - (BSC-18) Given 5 feature proposals of which 2 are hand pairs and 1 is rejected, then the report counts 2
   unaudited feature proposals.
 - (BSC-18) Given a run whose features are unjudged, then it has no unaudited count for features.
+- (BSC-20) Given a run with the domains "Bookmarks" and "Feeds" and features in "Bookmarks" only, and a reference
+  of one domain covered by "Bookmarks", then the domain precision is 1/1 and the run counts 1 domain.
 
 ## Non-goals
 

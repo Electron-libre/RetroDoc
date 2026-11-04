@@ -70,6 +70,47 @@ fn prints_the_scores_of_a_run_against_the_reference() {
     );
 }
 
+// spec: BSC-20
+#[test]
+fn a_domain_with_no_feature_is_not_counted() {
+    let dir = tempfile::tempdir().unwrap();
+    let cache = dir.path().join(".retrodoc/cache");
+    std::fs::create_dir_all(&cache).unwrap();
+    std::fs::write(
+        cache.join("domains.yaml"),
+        "domains:\n  - {slug: ordering, name: Ordering, description: d}\n  \
+         - {slug: feeds, name: Feeds, description: d}\n",
+    )
+    .unwrap();
+    std::fs::write(
+        cache.join("features.yaml"),
+        "- {slug: checkout, domain_slug: ordering, name: Checkout, description: d}\n",
+    )
+    .unwrap();
+    let reference = dir.path().join("reference.yaml");
+    std::fs::write(&reference, REFERENCE).unwrap();
+
+    let output = retrodoc(&[
+        "benchmark",
+        "--path",
+        dir.path().to_str().unwrap(),
+        "--reference",
+        reference.to_str().unwrap(),
+    ]);
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(output.status.success(), "{stdout}");
+    assert!(
+        stdout.contains("Run: 1 domain(s), 1 feature(s)"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("Domains: recall 100%, precision 100%"),
+        "{stdout}"
+    );
+    assert!(!stdout.contains("Feeds"), "{stdout}");
+}
+
 #[test]
 fn says_to_generate_first_when_the_run_is_missing() {
     let dir = tempfile::tempdir().unwrap();

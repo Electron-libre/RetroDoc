@@ -7,6 +7,7 @@ use std::path::Path;
 use retrodoc_core::model::{Feature, UseCase};
 use serde::{Deserialize, Serialize};
 
+use super::matching::scored_domains;
 use crate::domains::{DomainMap, UNCATEGORIZED_SLUG};
 use crate::features::load_features;
 use crate::usage_log::{load_history, RunUsage};
@@ -74,11 +75,12 @@ impl RunMetrics {
     #[must_use]
     pub fn collect(repo_root: &Path) -> Option<Self> {
         let map = DomainMap::load(repo_root)?;
-        let features: Vec<Feature> = load_features(repo_root).unwrap_or_default();
+        let saved = load_features(repo_root);
+        let domains = scored_domains(&map, saved.as_deref()).count();
+        let features: Vec<Feature> = saved.unwrap_or_default();
         let use_cases: Vec<UseCase> = load_use_cases(repo_root).unwrap_or_default();
-        let real = || map.domains.iter().filter(|d| d.slug != UNCATEGORIZED_SLUG);
         Some(Self {
-            domains: real().count(),
+            domains,
             features: features.len(),
             use_cases: use_cases.len(),
             uncategorized_files: map
@@ -242,8 +244,8 @@ mod tests {
         let metrics = RunMetrics::collect(root).unwrap();
 
         assert_eq!(
-            metrics.domains, 2,
-            "the uncategorized bucket is not a domain"
+            metrics.domains, 1,
+            "the uncategorized bucket and `shipping`, with no feature, are not counted"
         );
         assert_eq!(metrics.features, 3);
         assert_eq!(metrics.use_cases, 4);

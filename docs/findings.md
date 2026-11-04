@@ -641,3 +641,8 @@ pairs left unaudited a run, those of the catch-all linkding `Bookmark Management
 The 8 domains of linkding sit in the range of dafea18 (5 to 9 over both series). The judge's offer stays as it is
 (a non-goal of the benchmark scoring), so a judged domain precision falls as `matches.yaml` grows: audit before
 reading a fall into it.
+
+Since then (scoring version 4) the docs leave out a domain with no feature and the benchmark no longer counts it
+(`specs/featureless-domains.md`, BSC-20). Same audited runs re-scored: linkding 8 to 7 domains in two runs of three
+(`feeds`, `import-export`), domains precision 100% (all three runs) against 95% at dafea18; Lobsters unchanged
+(86% against 88%: no domain without a feature).

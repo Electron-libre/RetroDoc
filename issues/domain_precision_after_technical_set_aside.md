@@ -62,10 +62,10 @@ are within the dafea18 range (5 to 9 over both series). Out of scope: changing w
    (render, MCP, web), the agent index and the reconciliation items, the report lists them in a section of its own;
    verified by tests through the binary of EDM-1, EDM-2, EDM-5, EDM-6, internal for EDM-3, EDM-4; makes true EDM-1
    to EDM-6; ~350 lines. (autonomous)
-3. [ ] The benchmark counts the published domains only (matching, judge offer, metrics), `SCORING_VERSION` 4;
+3. [x] The benchmark counts the published domains only (matching, judge offer, metrics), `SCORING_VERSION` 4;
    verified by a test of BSC-20 and a `--saved-judge` re-score of the f95ada6 and dafea18 hidden runs (no LLM);
    makes true BSC-20 (amended in `specs/benchmark-scoring.md` with this deliverable: an
-   accepted spec cannot hold an untraced requirement); ~150 lines.
+   accepted spec cannot hold an untraced requirement); ~150 lines. (autonomous)
 4. [ ] Follow-up issue (`skill:create-issue`): the judge cannot pair a generated item with a reference item
    already covered (BSC-4), so the judged precision falls as `matches.yaml` grows.
 
@@ -98,4 +98,15 @@ are within the dafea18 range (5 to 9 over both series). Out of scope: changing w
   feature" in the report; EDM-3, EDM-4: written after the filter, not seen red.
 - Code review: no findings
 - not verified: a real run (no LLM call in this deliverable).
+- decisions needed: none.
+
+### 3. The benchmark counts the published domains only
+- done: `scored_domains` (bench): the matching, the judge's offer and the domain count of `RunMetrics` keep the
+  domains a feature belongs to, every domain when the run saved no features (domains replay); `SCORING_VERSION` 4;
+  BSC-20 added; re-score of the 12 hidden runs at version 4: linkding f95ada6 100% (7 domains in two runs), Lobsters
+  unchanged; finding and ledger line.
+- checks: `just check` ok; docs `docs/crates/bench.md`, `docs/findings.md`.
+- red: BSC-20: `Run: 2 domain(s), 1 feature(s)` printed, and the judge's prompt listed `- Feeds:`.
+- Code review: no findings
+- not verified: none.
 - decisions needed: none.
