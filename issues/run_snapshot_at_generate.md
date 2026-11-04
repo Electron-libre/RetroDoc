@@ -61,10 +61,10 @@ CLI writes it after `usage::finish` (ADR 0043).
 1. [x] Snapshot and store: `retrodoc_mcp::history` builds the snapshot from `GeneratedDocs` and a `RunUsage`, saves it
    (one file per run, unique name, no-op skip) and loads the list; verified by unit tests on fixture docs; makes true
    RHI-2 to RHI-9, RHI-11, RHI-13 (~550 lines). (autonomous)
-2. [ ] Write at generate: the CLI writes the snapshot after a successful, non dry-run `generate`, warning on failure;
+2. [x] Write at generate: the CLI writes the snapshot after a successful, non dry-run `generate`, warning on failure;
    verified by end-to-end tests through the binary with the fake LLM (first run writes, rerun writes none, dry-run
    and failure write none, `--force` keeps them); makes true RHI-1, RHI-10, RHI-12 and sets the spec `accepted`
-   (~350 lines).
+   (~350 lines). (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -81,3 +81,13 @@ CLI writes it after `usage::finish` (ADR 0043).
 - checks: project-check ok (fmt, clippy, tests, specs); deliverable size 748/1000.
 - Code review: no findings (`low`).
 - not verified: nothing writes a snapshot yet (deliverable 2).
+
+## Deliverable 2: write at generate
+- done: `retrodoc generate` (not `--dry-run`, succeeded) saves the snapshot after the cost (`commands/history.rs`,
+  `usage::finish` now returns the run it saved); a failure only warns; spec `accepted`.
+- red: RHI-1, RHI-2, RHI-6, RHI-7, RHI-12: `a_generate_leaves_a_snapshot...` failed with `left: 0 right: 1` (no file
+  written), `a_snapshot_that_cannot_be_written_only_warns` found no warning; the RHI-9, RHI-10, RHI-11 tests passed
+  before the code (nothing was written then), proven red at deliverable 1 for RHI-9.
+- checks: project-check ok; deliverable size 248/1000.
+- Code review: no findings (`low`).
+- not verified: on a real repository (no smoke test run; the rerun no-op is covered by the fake LLM test).

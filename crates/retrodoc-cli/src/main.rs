@@ -1,7 +1,7 @@
 mod commands;
 
 use std::io::IsTerminal;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use clap::{Parser, Subcommand};
 use retrodoc_llm::UsageTracker;
@@ -300,6 +300,7 @@ async fn main() -> anyhow::Result<()> {
 
     let tracker = UsageTracker::new();
     let counted = cli.command.counted();
+    let snapshot = matches!(cli.command, Command::Generate { dry_run: false, .. });
     let result = match cli.command {
         Command::Init { path, force } => commands::init::run(&path, force),
         Command::Scan { path } => commands::scan::run(&path),
@@ -370,9 +371,18 @@ async fn main() -> anyhow::Result<()> {
         Command::Contexts { path, force } => commands::contexts::run(&path, force, &tracker).await,
     };
     if let Some((name, path)) = counted {
-        commands::usage::finish(&path, name, &tracker, result.is_ok());
+        finish(&path, name, &tracker, result.is_ok(), snapshot);
     }
     result
+}
+
+/// Prints and saves the cost of the command `name` run on `path`, then the snapshot of the run
+/// when `snapshot` asks for one and the command succeeded.
+fn finish(path: &Path, name: &str, tracker: &UsageTracker, succeeded: bool, snapshot: bool) {
+    let usage = commands::usage::finish(path, name, tracker, succeeded);
+    if snapshot && succeeded {
+        commands::history::record(path, usage.as_ref());
+    }
 }
 
 #[cfg(test)]

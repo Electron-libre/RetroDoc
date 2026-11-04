@@ -112,25 +112,31 @@ pub fn pass_provider(
 /// `.retrodoc/cache/usage.json`. A failed command that never reached the LLM
 /// prints nothing (there is nothing to report); a failed one that did still
 /// shows what it spent. A run without any call is not saved. Saving is
-/// best effort: it never turns a finished command into a failure.
-pub fn finish(path: &Path, command: &str, tracker: &UsageTracker, succeeded: bool) {
+/// best effort: it never turns a finished command into a failure. The run
+/// as saved, `None` without any call.
+pub fn finish(
+    path: &Path,
+    command: &str,
+    tracker: &UsageTracker,
+    succeeded: bool,
+) -> Option<RunUsage> {
     tracker.end_pass();
     let report = tracker.report();
     let calls = report.total().calls;
     if calls == 0 && !succeeded {
-        return;
+        return None;
     }
     print!("\n{}", usage_log::recap(&report));
     if calls == 0 {
-        return;
+        return None;
     }
-    let Ok(repo_root) = path.canonicalize() else {
-        return;
-    };
     let run = RunUsage::new(command, &chrono::Utc::now().to_rfc3339(), &report);
-    if let Err(error) = usage_log::record_run(&repo_root, run) {
-        tracing::warn!("could not save the usage history: {error}");
+    if let Ok(repo_root) = path.canonicalize() {
+        if let Err(error) = usage_log::record_run(&repo_root, run.clone()) {
+            tracing::warn!("could not save the usage history: {error}");
+        }
     }
+    Some(run)
 }
 
 #[cfg(test)]
