@@ -137,21 +137,46 @@ impl UseCase {
             .collect()
     }
 
-    /// Whether the docs set this use case apart from the business ones: it belongs to a
-    /// back-office feature, or reads under the business-language or confidence threshold (a
-    /// score not yet computed is not a reason).
+    /// Whether the docs set this use case apart from the business ones: it has a reason of
+    /// [`UseCase::set_apart_reasons`].
     #[must_use]
     pub fn is_technical(&self, feature_back_office: bool) -> bool {
-        feature_back_office
-            || self
-                .business_language
-                .as_ref()
-                .is_some_and(|s| s.value < MIN_BUSINESS_LANGUAGE)
-            || self
-                .confidence
-                .as_ref()
-                .is_some_and(|s| s.value < MIN_USE_CASE_CONFIDENCE)
+        !self.set_apart_reasons(feature_back_office).is_empty()
     }
+
+    /// Why the docs set this use case apart: it belongs to a back-office feature, or reads under
+    /// the business-language or confidence threshold (a score not yet computed is not a reason).
+    #[must_use]
+    pub fn set_apart_reasons(&self, feature_back_office: bool) -> Vec<SetApartReason> {
+        let below = |score: Option<&ConfidenceScore>, threshold| {
+            score.is_some_and(|s: &ConfidenceScore| s.value < threshold)
+        };
+        [
+            (feature_back_office, SetApartReason::BackOffice),
+            (
+                below(self.business_language.as_ref(), MIN_BUSINESS_LANGUAGE),
+                SetApartReason::BusinessLanguage,
+            ),
+            (
+                below(self.confidence.as_ref(), MIN_USE_CASE_CONFIDENCE),
+                SetApartReason::Confidence,
+            ),
+        ]
+        .into_iter()
+        .filter_map(|(applies, reason)| applies.then_some(reason))
+        .collect()
+    }
+}
+
+/// Why the docs set a use case apart under "Administration and technical".
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SetApartReason {
+    /// Its feature is a back-office one.
+    BackOffice,
+    /// Its business-language score is below [`MIN_BUSINESS_LANGUAGE`].
+    BusinessLanguage,
+    /// Its confidence is below [`MIN_USE_CASE_CONFIDENCE`].
+    Confidence,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -365,6 +390,14 @@ mod tests {
         assert!(!use_case(Some(0.8), Some(0.6)).is_technical(false));
         // Not scored yet is no reason to set it apart.
         assert!(!use_case(None, None).is_technical(false));
+        assert_eq!(
+            use_case(Some(0.79), Some(0.59)).set_apart_reasons(true),
+            [
+                SetApartReason::BackOffice,
+                SetApartReason::BusinessLanguage,
+                SetApartReason::Confidence
+            ]
+        );
     }
 
     fn rule() -> BusinessRule {

@@ -9,7 +9,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::path::PathBuf;
 
-use retrodoc_core::model::{ConfidenceScore, Domain, Feature, UseCase, LOW_CONFIDENCE_THRESHOLD};
+use retrodoc_core::model::{
+    ConfidenceScore, Domain, Feature, SetApartReason, UseCase, LOW_CONFIDENCE_THRESHOLD,
+};
 
 use crate::behaviour_coverage::{EntryCount, FeatureCoverage};
 use crate::domains::{DomainMap, UNCATEGORIZED_SLUG};
@@ -47,12 +49,49 @@ pub struct FeaturelessDomain {
     pub set_aside: usize,
 }
 
+/// The section of the docs an item of the report points to: a use case, or a feature.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Section {
+    /// `None` when the feature is not in the run (artifacts of an older run).
+    pub domain: Option<String>,
+    pub feature: String,
+    pub use_case: Option<String>,
+}
+
+impl Section {
+    fn of_use_case(use_case: &UseCase, feature_domain: &BTreeMap<&str, &str>) -> Self {
+        Self {
+            domain: feature_domain
+                .get(use_case.feature_slug.as_str())
+                .map(|d| (*d).to_string()),
+            feature: use_case.feature_slug.clone(),
+            use_case: Some(use_case.slug.clone()),
+        }
+    }
+
+    /// `domain/feature/use-case`, or `domain/feature`; `?` for a domain not known.
+    #[must_use]
+    pub fn label(&self) -> String {
+        let domain = self.domain.as_deref().unwrap_or("?");
+        match &self.use_case {
+            Some(use_case) => format!("{domain}/{}/{use_case}", self.feature),
+            None => format!("{domain}/{}", self.feature),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct WeakSection {
-    /// e.g. `billing/payment/pay-invoice`.
-    pub label: String,
+    pub section: Section,
     pub score: f32,
     pub rationale: Option<String>,
+}
+
+/// A use case the docs set apart under "Administration and technical", and why.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SetApartUseCase {
+    pub section: Section,
+    pub reasons: Vec<SetApartReason>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -73,11 +112,11 @@ pub struct DebtReport {
     /// what the cited lines do not show, which is mostly true of the code around them.
     pub unbacked_narratives: Vec<WeakSection>,
     /// Use cases the docs set apart under "Administration and technical"
-    /// (`UseCase::is_technical`), and the features marked back-office.
-    pub set_apart_use_cases: usize,
+    /// (`UseCase::is_technical`), in the order of the run, and the features marked back-office.
+    pub set_apart_use_cases: Vec<SetApartUseCase>,
     pub back_office_features: usize,
     /// Use cases the confidence pass could not score.
-    pub unscored_use_cases: Vec<String>,
+    pub unscored_use_cases: Vec<Section>,
     /// Source files the clustering could not place in a domain: code with no
     /// documentation at all.
     pub uncategorized_files: Vec<PathBuf>,
@@ -192,6 +231,46 @@ fn domain_debts(
     domain_debts
 }
 
+/// The use cases the docs set apart, in the order of the run, with their reasons.
+fn set_apart(
+    use_cases: &[UseCase],
+    back_office: &BTreeSet<&str>,
+    feature_domain: &BTreeMap<&str, &str>,
+) -> Vec<SetApartUseCase> {
+    use_cases
+        .iter()
+        .filter_map(|u| {
+            let reasons = u.set_apart_reasons(back_office.contains(u.feature_slug.as_str()));
+            (!reasons.is_empty()).then(|| SetApartUseCase {
+                section: Section::of_use_case(u, feature_domain),
+                reasons,
+            })
+        })
+        .collect()
+}
+
+/// The features below the threshold that have no use case: only then does a feature get its own
+/// line, no use case explaining its low score.
+fn weak_features<'a>(
+    features: &'a [Feature],
+    use_cases: &'a [UseCase],
+) -> impl Iterator<Item = WeakSection> + 'a {
+    features.iter().filter_map(|feature| {
+        let c = feature.confidence.as_ref()?;
+        (c.value < LOW_CONFIDENCE_THRESHOLD
+            && !use_cases.iter().any(|u| u.feature_slug == feature.slug))
+        .then(|| WeakSection {
+            section: Section {
+                domain: Some(feature.domain_slug.clone()),
+                feature: feature.slug.clone(),
+                use_case: None,
+            },
+            score: c.value,
+            rationale: c.rationale.clone(),
+        })
+    })
+}
+
 /// Builds the report from the pipeline artifacts.
 #[must_use]
 pub fn build_report(
@@ -211,24 +290,17 @@ pub fn build_report(
         .filter(|f| f.back_office)
         .map(|f| f.slug.as_str())
         .collect();
-    let set_apart_use_cases = use_cases
-        .iter()
-        .filter(|u| u.is_technical(back_office.contains(u.feature_slug.as_str())))
-        .count();
+    let set_apart_use_cases = set_apart(use_cases, &back_office, &feature_domain);
     let mut weak_sections: Vec<WeakSection> = Vec::new();
     let mut unscored_use_cases = Vec::new();
     let mut technical_use_cases: Vec<WeakSection> = Vec::new();
     let mut unbacked_narratives: Vec<WeakSection> = Vec::new();
     for use_case in use_cases {
-        let domain = feature_domain
-            .get(use_case.feature_slug.as_str())
-            .copied()
-            .unwrap_or("?");
-        let label = format!("{domain}/{}/{}", use_case.feature_slug, use_case.slug);
+        let section = Section::of_use_case(use_case, &feature_domain);
         if let Some(b) = &use_case.business_language {
             if b.value < LOW_CONFIDENCE_THRESHOLD {
                 technical_use_cases.push(WeakSection {
-                    label: label.clone(),
+                    section: section.clone(),
                     score: b.value,
                     rationale: b.rationale.clone(),
                 });
@@ -236,39 +308,30 @@ pub fn build_report(
         }
         if let Some(n) = use_case.narrative_check.as_ref().filter(|n| n.value <= 0.0) {
             unbacked_narratives.push(WeakSection {
-                label: label.clone(),
+                section: section.clone(),
                 score: n.value,
                 rationale: n.rationale.clone(),
             });
         }
         match &use_case.confidence {
             Some(c) if c.value < LOW_CONFIDENCE_THRESHOLD => weak_sections.push(WeakSection {
-                label,
+                section,
                 score: c.value,
                 rationale: c.rationale.clone(),
             }),
             Some(_) => {}
-            None => unscored_use_cases.push(label),
+            None => unscored_use_cases.push(section),
         }
     }
-    for feature in features {
-        if let Some(c) = &feature.confidence {
-            // A feature only gets its own line when no use case explains its
-            // low score (i.e. it has none).
-            if c.value < LOW_CONFIDENCE_THRESHOLD
-                && !use_cases.iter().any(|u| u.feature_slug == feature.slug)
-            {
-                weak_sections.push(WeakSection {
-                    label: format!("{}/{}", feature.domain_slug, feature.slug),
-                    score: c.value,
-                    rationale: c.rationale.clone(),
-                });
-            }
-        }
-    }
-    weak_sections.sort_by(|a, b| a.score.total_cmp(&b.score).then(a.label.cmp(&b.label)));
-    technical_use_cases.sort_by(|a, b| a.score.total_cmp(&b.score).then(a.label.cmp(&b.label)));
-    unbacked_narratives.sort_by(|a, b| a.label.cmp(&b.label));
+    weak_sections.extend(weak_features(features, use_cases));
+    let by_score = |a: &WeakSection, b: &WeakSection| {
+        a.score
+            .total_cmp(&b.score)
+            .then_with(|| a.section.label().cmp(&b.section.label()))
+    };
+    weak_sections.sort_by(by_score);
+    technical_use_cases.sort_by(by_score);
+    unbacked_narratives.sort_by_key(|w| w.section.label());
 
     let uncategorized_files = domains
         .domains
@@ -332,7 +395,7 @@ impl DebtReport {
         }
         md.push_str("\n## Narratives the cited code contradicts\n\n");
         for w in &self.unbacked_narratives {
-            let _ = write!(md, "- `{}` — unsupported", w.label);
+            let _ = write!(md, "- `{}` — unsupported", w.section.label());
             if let Some(why) = &w.rationale {
                 let _ = write!(md, ": {}", one_line(why));
             }
@@ -376,19 +439,20 @@ impl DebtReport {
             md.push_str("None.\n");
         }
         for w in &self.weak_sections {
-            let _ = write!(md, "- `{}` — {}", w.label, percent(Some(w.score)));
+            let _ = write!(md, "- `{}` — {}", w.section.label(), percent(Some(w.score)));
             if let Some(why) = &w.rationale {
                 let _ = write!(md, ": {why}");
             }
             md.push('\n');
         }
 
-        if self.set_apart_use_cases > 0 || self.back_office_features > 0 {
+        if !self.set_apart_use_cases.is_empty() || self.back_office_features > 0 {
             let _ = write!(
                 md,
                 "\n## Set apart in the docs\n\n{} use case(s) and {} back-office feature(s) are listed \
                  under \"Administration and technical\" instead of among the business ones.\n",
-                self.set_apart_use_cases, self.back_office_features
+                self.set_apart_use_cases.len(),
+                self.back_office_features
             );
         }
 
@@ -399,7 +463,7 @@ impl DebtReport {
                 LOW_CONFIDENCE_THRESHOLD * 100.0
             );
             for w in &self.technical_use_cases {
-                let _ = write!(md, "- `{}` — {}", w.label, percent(Some(w.score)));
+                let _ = write!(md, "- `{}` — {}", w.section.label(), percent(Some(w.score)));
                 if let Some(why) = &w.rationale {
                     let _ = write!(md, ": {why}");
                 }
@@ -411,8 +475,8 @@ impl DebtReport {
 
         if !self.unscored_use_cases.is_empty() {
             md.push_str("\n## Not scored\n\n");
-            for label in &self.unscored_use_cases {
-                let _ = writeln!(md, "- `{label}`");
+            for section in &self.unscored_use_cases {
+                let _ = writeln!(md, "- `{}`", section.label());
             }
         }
 

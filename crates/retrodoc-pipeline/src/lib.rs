@@ -86,7 +86,10 @@ pub use features::{
 pub use glossary::{build_glossary, Entity, Glossary, MergedEntity};
 pub use language::{InLanguage, READING_PASSES, WRITING_PASSES};
 pub use ranking::{apply_budget, rank_files, Scope};
-pub use report::{build_report, domain_models, DebtReport, FeaturelessDomain, TechnicalFeature};
+pub use report::{
+    build_report, domain_models, DebtReport, FeaturelessDomain, Section, SetApartUseCase,
+    TechnicalFeature, WeakSection,
+};
 pub use roles::{identify_roles, FileRole, RoleMap, RoleRule, RoleRules};
 pub use rules::{
     build_rules, load_rules, load_set_aside, save_rules, AsideFeature, AsideRule, RuleInput,

@@ -367,13 +367,18 @@ fn aggregates_per_domain_and_lists_debt() {
         (2, 2)
     );
     // Lowest first; "orphan" has no use case so it is listed itself.
-    let labels: Vec<&str> = report
+    let labels: Vec<String> = report
         .weak_sections
         .iter()
-        .map(|w| w.label.as_str())
+        .map(|w| w.section.label())
         .collect();
     assert_eq!(labels, ["auth/orphan", "billing/pay/pay-invoice"]);
-    assert_eq!(report.unscored_use_cases, ["auth/login/mystery"]);
+    let unscored: Vec<String> = report
+        .unscored_use_cases
+        .iter()
+        .map(Section::label)
+        .collect();
+    assert_eq!(unscored, ["auth/login/mystery"]);
     assert_eq!(report.uncategorized_files, [PathBuf::from("x.rs")]);
 
     let mut report = report;
@@ -403,10 +408,16 @@ fn technical_sounding_use_cases_get_their_own_section() {
     let report = build_report(&DomainMap::default(), &features, &[readable, technical]);
 
     assert_eq!(report.technical_use_cases.len(), 1);
-    assert_eq!(report.technical_use_cases[0].label, "billing/pay/helper");
+    assert_eq!(
+        report.technical_use_cases[0].section.label(),
+        "billing/pay/helper"
+    );
     // 0.2 is under both the debt threshold and the one that sets a use case apart.
     assert_eq!(
-        (report.set_apart_use_cases, report.back_office_features),
+        (
+            report.set_apart_use_cases.len(),
+            report.back_office_features
+        ),
         (1, 0)
     );
     assert!((report.overall_business.unwrap() - 0.55).abs() < 1e-6);
