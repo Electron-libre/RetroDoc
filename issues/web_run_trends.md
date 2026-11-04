@@ -45,9 +45,9 @@ Out of scope: trends of the stale share, the contexts and the cost (the snapshot
 1. [x] Trend tables: the rows of the snapshots in `retrodoc-web` (`trends.rs`), the two tables, the worse marks and
    the line of fewer than two runs on `/audit`, texts en/fr; verified by `tests/audit_page.rs` over saved snapshots;
    makes true AUD-11, AUD-12, AUD-13, AUD-15. (autonomous)
-2. [ ] Trend charts: one SVG line chart per score, built from the same rows (skill `dataviz`), checked headless in
+2. [x] Trend charts: one SVG line chart per score, built from the same rows (skill `dataviz`), checked headless in
    Chrome; verified by `tests/audit_page.rs` (points, broken line, no chart for a score no run has); makes true AUD-14,
-   spec `accepted`.
+   spec `accepted`. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -64,3 +64,10 @@ Out of scope: trends of the stale share, the contexts and the cost (the snapshot
 - red: AUD-11, AUD-12, AUD-13, AUD-15: `<table class="trends"` not in the page (panicked in `between`).
 - Code review: no findings
 - not verified: the page in a browser (with deliverable 2).
+
+### 2. Trend charts
+- done: one SVG line chart per score above the trend tables, a point per run with the score (tooltip `<title>`),
+  the line broken across a run that lacks it, the newest value labelled; spec `accepted`.
+- red: AUD-14: `<svg class="trend" role="img" aria-label="Confidence` not in the page (panicked in `between`).
+- Code review: no findings
+- checked: headless Chrome screenshot of `/audit` over four hand-written snapshots.

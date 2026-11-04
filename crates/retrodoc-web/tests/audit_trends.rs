@@ -311,3 +311,76 @@ async fn the_trends_are_in_french() {
     assert!(page.contains("Tendances"), "{page}");
     assert!(page.contains("▼ pire"), "{page}");
 }
+
+/// The chart of `score`: its points' titles and its number of line segments.
+fn chart(page: &str, score: &str) -> (Vec<String>, usize) {
+    let svg = between(
+        page,
+        &format!("<svg class=\"trend\" role=\"img\" aria-label=\"{score}"),
+        "</svg>",
+    );
+    let points = svg
+        .split("<circle")
+        .skip(1)
+        .map(|point| text_of(between(point, "<title>", "</title>")))
+        .collect();
+    (points, svg.matches("<line class=\"trend-line\"").count())
+}
+
+// spec: AUD-14
+#[tokio::test]
+async fn each_score_has_a_line_chart_with_a_point_per_run_that_has_it_and_breaks_across_one_that_lacks_it(
+) {
+    let repo = served_repo();
+    with_history(repo.path());
+
+    let page = audit(repo.path()).await;
+
+    let trends = between(&page, "<section id=\"audit-trends\"", "</section>");
+    assert!(
+        trends.find("<svg").unwrap() < trends.find("<table").unwrap(),
+        "{trends}"
+    );
+    assert_eq!(
+        chart(&page, "Confidence"),
+        (
+            vec![
+                "2026-11-01 10:00:00 UTC: 80%".to_string(),
+                "2026-11-02 10:00:00 UTC: 80%".to_string(),
+                "2026-11-03 10:00:00 UTC: 60%".to_string(),
+            ],
+            2
+        )
+    );
+    assert_eq!(
+        chart(&page, "Business language"),
+        (
+            vec![
+                "2026-11-01 10:00:00 UTC: 70%".to_string(),
+                "2026-11-03 10:00:00 UTC: 80%".to_string(),
+            ],
+            0
+        )
+    );
+    assert_eq!(chart(&page, "Cited by a use case").0.len(), 2);
+}
+
+// spec: AUD-14
+#[tokio::test]
+async fn a_score_no_saved_run_has_gets_no_chart() {
+    let repo = served_repo();
+    for (day, confidence) in [(1, 0.8), (2, 0.7)] {
+        let figures = Figures {
+            confidence: Some(confidence),
+            business_language: None,
+            coverage: None,
+            debt: Vec::new(),
+        };
+        save(repo.path(), &run(day, None, figures)).unwrap();
+    }
+
+    let page = audit(repo.path()).await;
+
+    assert_eq!(page.matches("<svg class=\"trend\"").count(), 1, "{page}");
+    assert!(page.contains("aria-label=\"Confidence"), "{page}");
+}

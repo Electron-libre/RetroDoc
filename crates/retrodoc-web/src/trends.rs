@@ -1,6 +1,6 @@
 //! The trends of the audit page (`specs/audit-dashboard.md`, AUD-11 to AUD-15): the figures of
 //! each run the history saved, newest first, each marked when it is worse than in the run just
-//! before it as shown.
+//! before it as shown, and a line chart per score drawn on the server as SVG (AUD-14).
 
 use retrodoc_mcp::audit::Share;
 use retrodoc_mcp::debt::DebtKind;
@@ -14,6 +14,45 @@ pub struct TrendsView {
     pub runs: Vec<TrendRow>,
     /// The names of the kinds of the debt table.
     pub kinds: Vec<&'static str>,
+    /// One per score some run has, in the order of the columns of the table.
+    pub charts: Vec<ChartView>,
+}
+
+/// The width and height of the box of a chart, and where its plot sits in it: the runs evenly
+/// spaced from `LEFT` to `RIGHT`, 0% at `BOTTOM`, 100% at `TOP`; the room to the right holds the
+/// value of the newest run.
+const WIDTH: f32 = 240.0;
+const HEIGHT: f32 = 100.0;
+const LEFT: f32 = 34.0;
+const RIGHT: f32 = 200.0;
+const TOP: f32 = 10.0;
+const BOTTOM: f32 = 90.0;
+
+/// A score over the runs, oldest left.
+pub struct ChartView {
+    pub name: &'static str,
+    /// The heights of the gridlines and their labels: 0%, 50%, 100%.
+    pub grid: Vec<(f32, &'static str)>,
+    /// One per run that has the score.
+    pub points: Vec<ChartPoint>,
+    /// Between two runs side by side that both have it.
+    pub segments: Vec<(ChartPoint, ChartPoint)>,
+    pub width: f32,
+    pub height: f32,
+    pub left: f32,
+    pub right: f32,
+}
+
+#[derive(Clone)]
+pub struct ChartPoint {
+    pub x: f32,
+    pub y: f32,
+    /// The value, `80%`.
+    pub value: String,
+    /// When its run ended and the value, its tooltip.
+    pub title: String,
+    /// The newest point, labelled with its value.
+    pub newest: bool,
 }
 
 pub struct TrendRow {
@@ -111,9 +150,57 @@ pub fn trends(runs: &[SavedRun], texts: &WebTexts) -> Option<TrendsView> {
                 debt: cells(&now.1, then.map(|t| t.1.as_slice())),
             }
         });
+    let labels: Vec<String> = runs.iter().map(label).collect();
+    let charts = texts.audit_page.trend_columns[2..6]
+        .iter()
+        .enumerate()
+        .filter_map(|(at, name)| {
+            let values: Vec<Option<usize>> = figures.iter().map(|f| f.0[at].value).collect();
+            chart(name, &values, &labels)
+        })
+        .collect();
     Some(TrendsView {
+        charts,
         runs: rows.rev().collect(),
         kinds: kinds.iter().map(|kind| texts.debt_kind(*kind)).collect(),
+    })
+}
+
+/// The chart of the percents `values` of the runs that ended at `labels`, `None` when no run has
+/// one.
+#[allow(clippy::cast_precision_loss)]
+fn chart(name: &'static str, values: &[Option<usize>], labels: &[String]) -> Option<ChartView> {
+    let step = (RIGHT - LEFT) / (values.len().max(2) - 1) as f32;
+    let y = |percent: usize| BOTTOM - (BOTTOM - TOP) * percent as f32 / 100.0;
+    let newest = values.iter().rposition(Option::is_some)?;
+    let at: Vec<Option<ChartPoint>> = values
+        .iter()
+        .zip(labels)
+        .enumerate()
+        .map(|(run, (value, label))| {
+            value.map(|value| ChartPoint {
+                x: LEFT + step * run as f32,
+                y: y(value),
+                value: format!("{value}%"),
+                title: format!("{label}: {value}%"),
+                newest: run == newest,
+            })
+        })
+        .collect();
+    Some(ChartView {
+        name,
+        grid: [(0, "0%"), (50, "50%"), (100, "100%")]
+            .map(|(percent, text)| (y(percent), text))
+            .to_vec(),
+        segments: at
+            .windows(2)
+            .filter_map(|pair| Some((pair[0].clone()?, pair[1].clone()?)))
+            .collect(),
+        points: at.into_iter().flatten().collect(),
+        width: WIDTH,
+        height: HEIGHT,
+        left: LEFT,
+        right: RIGHT,
     })
 }
 

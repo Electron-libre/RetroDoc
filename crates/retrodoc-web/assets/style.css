@@ -110,6 +110,19 @@ table.cost tfoot th, table.cost tfoot td { font-weight: 600; }
 table.trends td, table.trends-debt td { text-align: right; white-space: nowrap; }
 table.trends th[scope="row"], table.trends-debt th[scope="row"] { font-weight: normal; white-space: nowrap; }
 .worse { color: var(--gold-light); font-size: 0.85rem; }
+/* The charts of the trends: one series each, in the gold of level 3 of the heatmap (#a88a31, in
+   the lightness band of a dark chart and 3:1 on the surface, checked with the dataviz validator);
+   hairline grid, 2px line, 8px points ringed in the surface colour, the value of the newest run
+   written beside it in the text colour. */
+.trend-charts { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; margin: 0.5rem 0 1rem; }
+.trend-charts figure { margin: 0; }
+.trend-charts figcaption { font-size: 0.9rem; color: var(--text-muted); }
+.trend { background: var(--surface); border-radius: 4px; }
+.trend-grid { stroke: var(--border); stroke-width: 1; }
+.trend-axis { fill: var(--text-muted); font-size: 10px; }
+.trend-line { stroke: #a88a31; stroke-width: 2; stroke-linecap: round; }
+.trend-point { fill: #a88a31; stroke: var(--surface); stroke-width: 2; }
+.trend-value { fill: var(--text); font-size: 11px; }
 .narrative { font-size: 1.05rem; }
 .steps li { margin: 0.4rem 0; }
 .cited { font-size: 0.85rem; color: var(--text-muted); }

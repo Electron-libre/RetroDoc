@@ -215,6 +215,8 @@ pub struct AuditTexts {
     pub trends_debt: &'static str,
     /// After a figure worse than in the run before.
     pub worse: &'static str,
+    /// What a chart of the trends shows, for a screen reader.
+    pub chart_note: &'static str,
 }
 
 /// The fixed text of the history page.
@@ -510,6 +512,7 @@ impl WebTexts {
             ],
             trends_debt: "Debt items by kind",
             worse: "worse",
+            chart_note: "over the saved runs, oldest left; the table below holds the figures",
         },
         history_page: HistoryTexts {
             intro: "The runs of <code>retrodoc generate</code> that changed the docs, and what \
@@ -808,6 +811,8 @@ impl WebTexts {
             ],
             trends_debt: "Éléments de dette par type",
             worse: "pire",
+            chart_note: "au fil des runs enregistrés, le plus ancien à gauche ; le tableau ci-dessous \
+                donne les chiffres",
         },
         history_page: HistoryTexts {
             intro: "Les runs de <code>retrodoc generate</code> qui ont changé la doc, et ce \
