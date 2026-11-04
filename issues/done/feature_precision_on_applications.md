@@ -91,7 +91,7 @@ the references (`benchmark_references_checked_by_a_human`).
 
 ## Deliverable 1: classification
 - done: `docs/findings.md` §10, the Findings of this issue, the ledger; the spec draft `technical-features-set-aside`
-  and the follow-up `issues/technical_feature_put_back.md` (in the milestone) go with it.
+  and the follow-up `issues/done/technical_feature_put_back.md` (in the milestone) go with it.
 
 | check | result |
 |---|---|
