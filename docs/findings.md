@@ -662,6 +662,27 @@ Since then (scoring version 4) the docs leave out a domain with no feature and t
 (`feeds`, `import-export`), domains precision 100% (all three runs) against 95% at dafea18; Lobsters unchanged
 (86% against 88%: no domain without a feature).
 
+Second pairs the judge's offer hides, read by hand on 2026-11-04 (`issues/judge_offer_hides_second_pairs.md`, no LLM
+call): the generated features left unpaired by the saved judgements of the 12 hidden runs at scoring version 4, each
+classed as a second pair (its right reference feature is already covered, so the judge was not offered it: a part of
+it or a second name for it), technical, or other (a real feature the reference leaves out, or a reference feature the
+judge was offered and missed). The judge's prompt pairs a dedicated part with its reference feature when it is offered,
+as on the fuller offers of the dafea18 runs.
+
+| Figure | linkding dafea18 | linkding f95ada6 | Lobsters dafea18 | Lobsters f95ada6 |
+|---|---|---|---|---|
+| Unpaired features | 50 | 30 | 110 | 56 |
+| Second pairs | 19 | 23 | 42 | 40 |
+| Technical | 31 | 7 | 56 | 11 |
+| Other | 0 | 0 | 12 | 5 |
+| Features precision (judged) | 62% (56-70) | 71% (65-74) | 55% (50-59) | 72% (65-81) |
+| The same, second pairs paired | 76% (73-79) | 93% (92-94) | 72% (67-80) | 92% (90-94) |
+
+The bias is 14 to 22 points of judged feature precision and grows as the run sets the technical features aside: at
+f95ada6 the second pairs are most of what stays unpaired (profile settings, custom CSS, OpenSearch and REST API parts on
+linkding; hats, avatars, notifications, moderator mail on Lobsters). Paired, the judged precision no longer counts a
+too fine feature against the run; it reads as the share of the features that are neither technical nor wrong.
+
 Set-aside lists read by hand on 2026-11-04 (`issues/done/technical_feature_put_back.md`, no LLM call): the 6 hidden runs
 of f95ada6 set aside 83 features (linkding 10, 11, 11; Lobsters 11, 29, 11) and none is a reference feature the docs
 lose. They are helpers, route files, operations scripts and jobs, test data and caches; the closest to a user

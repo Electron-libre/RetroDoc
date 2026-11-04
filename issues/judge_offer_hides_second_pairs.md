@@ -42,3 +42,46 @@ Measured quality at the current code
 
 # Hints
 * A change of the judge makes the earlier judged figures incomparable: re-judge the baselines in the same issue.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-04
+
+## Understanding
+A second judge call offers the generated items left unpaired after the first one against the reference items the
+first call was not offered (the covered ones): the judged precision no longer falls as `matches.yaml` grows, and the
+first call, so the judged recall, stays as it is. Out of scope: changing the first call, a single all-against-all call.
+
+## Plan
+1. [x] Measure: on the 12 saved hidden clones (f95ada6, dafea18), list the generated features and domains unpaired after the saved judgement whose right reference item is already covered, by hand, no LLM call; verified by a findings §10 entry and a ledger line; makes true the "measure first" of the issue. (autonomous)
+2. [ ] Second call: `judge` makes the second call per kind, records it in `judge.yaml`, `SCORING_VERSION` 5; verified by judge tests with a scripted LLM; makes true BSC-4, BSC-21.
+3. [ ] `--saved-judge --second-call` and the note of a `judge.yaml` without the second call; verified by CLI tests; makes true BSC-22.
+4. [ ] Baselines at scoring version 5: `--saved-judge --second-call` on the 12 clones (paid, cents, asked first), table against version 4, findings §10 and ledger; verified by the re-scored tables.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 94956a25a14bb96cbf52b6c920320bb9100c3db7
+- Re-judge the baselines with the second call alone on the saved `judge.yaml` (`--saved-judge --second-call`), not a whole new judgement.
+- A second call that proposes no pair, twice, is warned about and does not mark the kind unjudged.
+
+## Summaries
+
+### 1. Measure
+done: findings §10 counts the second pairs the offer hides (linkding 23 of 30, Lobsters 40 of 56 unpaired features
+at f95ada6): judged feature precision 71% to 93% and 72% to 92% once paired; ledger line added. Spec BSC amended
+(draft).
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass; draft warnings on BSC-10, 12, 14, 19 wording (unchanged requirements) |
+| docs | findings §10 |
+| code review | see below |
+
+red: none (a measure, no test)
+Code review: 1 finding
+- the range of the bias read 14 to 21 points, 22 on linkding f95ada6: fixed.
+
+not verified: the classing is one reader's; a part counted as a second pair is the judge's rule when offered, not checked by a judge call.
+decisions needed: none

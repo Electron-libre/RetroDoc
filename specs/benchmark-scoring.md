@@ -1,6 +1,6 @@
 ---
 id: BSC
-status: accepted
+status: draft
 adrs: []
 ---
 
@@ -21,9 +21,9 @@ change of these rules must not read as a change of quality between two benchmark
   covers.
 - **BSC-3** (deterministic) A pair that names a reference item absent from the reference must fail the scoring with
   an error naming the pair; a pair whose generated name is absent from the run must be ignored.
-- **BSC-4** (deterministic) The judge must be offered every generated item, the ones already paired included, and
-  only the reference items that no generated item covers; it must make no call when every reference item is covered
-  or nothing was generated.
+- **BSC-4** (deterministic) The first call of the judge must be offered every generated item, the ones already
+  paired included, and only the reference items that no generated item covers; it must make no call when every
+  reference item is covered or nothing was generated.
 - **BSC-5** (deterministic) The judge's proposals must keep several reference items for one generated name; a
   proposal naming an item that was not offered, or repeating a pair already proposed, must be dropped.
 - **BSC-6** (deterministic) A saved run report must carry the scoring version of the code that scored it; a report
@@ -69,6 +69,15 @@ change of these rules must not read as a change of quality between two benchmark
 - **BSC-20** (deterministic) In a run that saved its features, a domain that no feature belongs to must not be
   counted among the generated domains: not in the strict and judged figures, not offered to the judge, not in the
   number of domains (EDM); a run with no `features.yaml` (a replay of the domains pass alone) counts every domain.
+- **BSC-21** (deterministic) A second call of the judge must offer the generated items that neither a pair, an
+  equal name nor a proposal of the first call covers, against the reference items the first call was not offered;
+  it must make no call when either side is empty, and a second call that proposes no pair must not mark the kind
+  unjudged. Its pairs count in the judged figures as the first call's do.
+- **BSC-22** (deterministic) `judge.yaml` must record, by kind, that the second call ran; one saved before BSC-21
+  must load as not run. `benchmark --saved-judge --second-call` must keep the saved pairs of the first call, make
+  only the second calls not run yet, save their pairs in `judge.yaml` and score the run with both; `benchmark
+  --saved-judge` alone must say, for each kind judged, that the second call never ran and its judged precision is
+  biased low by the pairs of `matches.yaml`.
 
 ## Scenarios
 
@@ -103,6 +112,9 @@ change of these rules must not read as a change of quality between two benchmark
 - (BSC-18) Given a run whose features are unjudged, then it has no unaudited count for features.
 - (BSC-20) Given a run with the domains "Bookmarks" and "Feeds" and features in "Bookmarks" only, and a reference
   of one domain covered by "Bookmarks", then the domain precision is 1/1 and the run counts 1 domain.
+- (BSC-21) Given the reference domain "Administration" covered by a pair of "Settings" in `matches.yaml` and an
+  unpaired generated domain "User administration", then the second call offers "User administration" against
+  "Administration", and its pair raises the judged domain precision, not the recall.
 
 ## Non-goals
 
@@ -114,8 +126,10 @@ change of these rules must not read as a change of quality between two benchmark
   to a reference name that means another capability has not been seen).
 - Telling a right unaudited proposal from a wrong one: the unaudited count says how much of the judged figure no
   hand has checked, not how much of it is wrong.
-- Changing what the judge is shown or asked: on the audited runs of 2026-11-03 its feature precision was within 4
-  points of the hand one, and a change of the judge makes the earlier judged figures incomparable.
+- Changing what the first call of the judge is shown or asked: its pairs set the judged recall, and on the
+  audited runs of 2026-11-03 its feature precision was within 4 points of the hand one.
+- Offering the reference items already covered in the first call: the second call keeps the recall of a run
+  judged before BSC-21 as it was, and the second call holds fewer items.
 - Marking unjudged the runs of a `judge.yaml` saved before BSC-12: they keep their figures; re-judging them is a
   paid run.
 - A looser matching of the proposals' names than `normalize` and BSC-14 (a part of a name, a synonym): the
