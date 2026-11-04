@@ -34,7 +34,7 @@
   <ul>
     {% for section in group.sections %}
     <li><span class="muted">{{ section.kind }}</span>
-      {% if let Some(href) = section.href %}<a href="{{ href }}">{{ section.name }}</a>{% else %}{{ section.name }} <span class="muted">({{ t.not_in_the_run }})</span>{% endif %}
+      {% if let Some(href) = section.href %}<a href="{{ href }}">{{ section.name }}</a>{% else %}{{ section.name }} <span class="muted">({{ t.history_page.no_page }})</span>{% endif %}
       {% if let Some(detail) = section.detail %}<span class="muted">{{ detail }}</span>{% endif %}</li>
     {% endfor %}
   </ul>

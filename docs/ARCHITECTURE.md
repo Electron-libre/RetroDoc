@@ -274,7 +274,7 @@ Guarantees:
 │   ├── actors.yaml                #   (phase 7) business actors, reused while its input hash is unchanged
 │   ├── reconciliation.yaml        #   verdicts of the existing doc sections on the items (ADR 0033), with the fingerprints they hold for
 │   ├── usage.json                 #   calls, tokens (and cached prompt tokens) and time per pass of the last 20 runs (see ADR 0015)
-│   └── history/                   #   one snapshot per `generate` that changed the docs: figures, debt, scores per section; all kept, `--force` included (ADR 0043); `diff.rs` compares two of them (`specs/history-page.md`)
+│   └── history/                   #   one snapshot per `generate` that changed the docs: figures, debt, scores per section; all kept, `--force` included (ADR 0043); the history page compares two (`specs/history-page.md`)
 └── docs/                          # output dir (`output.docs_dir`)
     ├── functional/llms.txt        #   index for agents that don't run the MCP server
     ├── functional/<domain>/…      #   README per domain, feature pages, use-case pages

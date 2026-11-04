@@ -14,11 +14,12 @@ them, so whoever audits the docs sees which domains, features and use cases a `g
 ## Requirements
 
 - **HPG-1** (deterministic) The history page, `/history`, must list the saved snapshots (RHI-13), newest first, each
-  with the date and time it ended and the first 7 characters of its commit, or a line saying it had none.
+  with the date and time it ended and its zone (`UTC` for a UTC time), the number of its file after it when several
+  runs ended in the same second (RHI-1), and the first 7 characters of its commit, or a line saying it had none.
 - **HPG-2** (deterministic) With no `?from=` nor `?to=`, the history page must compare the newest snapshot (the "to"
   run) with the one before it (the "from" run).
 - **HPG-3** (deterministic) The history page must compare the two snapshots `?from=` and `?to=` name by their file name
-  without `.json`, whichever is the older.
+  without `.json`, `from` as the earlier state even when it is the newer run.
 - **HPG-4** (deterministic) A `from` or a `to` that names no saved snapshot must be replaced by its value of HPG-2,
   with a line saying the run asked for is unknown.
 - **HPG-5** (deterministic) The history page must show a form with one choice of the saved runs for `from` and one for
@@ -36,7 +37,7 @@ them, so whoever audits the docs sees which domains, features and use cases a `g
 - **HPG-11** (deterministic) The history page must list as no longer set apart each use case of both runs set apart
   in the "from" run and not in the "to" run.
 - **HPG-12** (deterministic) Each section of the difference must be a link to its page when the docs the interface
-  serves hold it, and its name as text otherwise.
+  serves hold it, and its name as text, marked as having no page, otherwise.
 - **HPG-13** (deterministic) When the two compared runs differ by none of HPG-6 to HPG-11, the history page must say
   their sections do not differ.
 - **HPG-14** (deterministic) With fewer than two saved snapshots, the history page must list them and say the
@@ -57,6 +58,11 @@ them, so whoever audits the docs sees which domains, features and use cases a `g
 - (HPG-9) Given a use case with a business language in the "from" run and none in the "to" run, then it is not
   degraded on it.
 - (HPG-12) Given a section of the "from" run removed since, then it is shown as text, with no link.
+- (HPG-4) Given a single saved run and `?from=` naming none, then the page says the run asked for is unknown and
+  that the difference needs two runs.
+- (HPG-1) Given two runs ended in the same second, then the second is listed with its number, `(2)`.
+- (HPG-8) Given a fall shown in rounded percents, then the fall shown is the rounded fall, not the difference of the
+  rounded percents.
 - (HPG-14) Given a repository with no run yet, then the page says the difference needs two runs.
 - (HPG-1) Given a history file that cannot be read, then it is not listed (RHI-13).
 

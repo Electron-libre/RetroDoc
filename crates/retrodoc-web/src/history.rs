@@ -2,10 +2,16 @@
 //! first, and the difference of two of them from `retrodoc_mcp::history::diff`, each section linked
 //! to its page when the docs served hold it.
 
-use retrodoc_mcp::history::{diff, Fall, SavedRun, Score, SectionKind, SectionScores};
+use std::collections::{HashMap, HashSet};
+
+use retrodoc_core::model::{Feature, UseCase};
+use retrodoc_mcp::history::{
+    diff, set_apart_reason, Fall, SavedRun, Score, SectionKind, SectionScores,
+};
 use retrodoc_mcp::GeneratedDocs;
 
 use crate::texts::WebTexts;
+use crate::view::{domain_href, feature_href, use_case_href};
 
 pub struct HistoryPage {
     /// Newest first.
@@ -59,18 +65,17 @@ pub fn history_page(
     texts: &WebTexts,
 ) -> HistoryPage {
     let mut unknown = Vec::new();
-    let mut pick = |asked: Option<&str>, default: usize| {
-        let asked = asked.filter(|name| !name.is_empty());
-        let found = asked.and_then(|name| runs.iter().position(|run| run.name == name));
+    let mut find = |asked: Option<&str>| {
+        let asked = asked.filter(|name| !name.is_empty())?;
+        let found = runs.iter().position(|run| run.name == asked);
         if found.is_none() {
-            unknown.extend(asked.map(str::to_string));
+            unknown.push(asked.to_string());
         }
-        found.unwrap_or(default)
+        found
     };
-    let picked = (runs.len() >= 2).then(|| {
-        let from = pick(from, runs.len() - 2);
-        (from, pick(to, runs.len() - 1))
-    });
+    let (from, to) = (find(from), find(to));
+    let picked =
+        (runs.len() >= 2).then(|| (from.unwrap_or(runs.len() - 2), to.unwrap_or(runs.len() - 1)));
     let compared = picked.map(|(from, to)| Compared {
         groups: groups(&runs[from], &runs[to], docs, texts),
     });
@@ -81,13 +86,7 @@ pub fn history_page(
             .rev()
             .map(|(at, run)| RunView {
                 name: run.name.clone(),
-                finished: run
-                    .snapshot
-                    .finished_at
-                    .chars()
-                    .take(19)
-                    .collect::<String>()
-                    .replace('T', " "),
+                finished: label(run),
                 commit: run
                     .snapshot
                     .commit
@@ -102,6 +101,28 @@ pub fn history_page(
     }
 }
 
+/// When `run` ended, with the number of its file when it is not the first of its second.
+fn label(run: &SavedRun) -> String {
+    let when = when(&run.snapshot.finished_at);
+    match run.name.split_once('_') {
+        Some((_, n)) => format!("{when} ({n})"),
+        None => when,
+    }
+}
+
+/// `2026-11-04T10:00:00.123+00:00` → `2026-11-04 10:00:00 UTC`; another offset is kept as written.
+fn when(finished_at: &str) -> String {
+    let (time, rest) = finished_at.split_at(finished_at.len().min(19));
+    let zone = rest.trim_start_matches(|c: char| c == '.' || c.is_ascii_digit());
+    let zone = match zone {
+        "Z" | "+00:00" => "UTC",
+        other => other,
+    };
+    format!("{} {zone}", time.replace('T', " "))
+        .trim_end()
+        .to_string()
+}
+
 fn groups(
     from: &SavedRun,
     to: &SavedRun,
@@ -109,6 +130,7 @@ fn groups(
     texts: &WebTexts,
 ) -> Vec<ChangeGroup> {
     let diff = diff(&from.snapshot, &to.snapshot);
+    let pages = docs.map(Pages::of);
     let page = &texts.history_page;
     let changed = |section: &SectionScores, detail: Option<String>| ChangedSection {
         kind: match section.kind {
@@ -117,7 +139,7 @@ fn groups(
             SectionKind::UseCase => texts.use_case,
         },
         name: section.name.clone(),
-        href: docs.and_then(|docs| href(docs, section)),
+        href: pages.as_ref().and_then(|pages| pages.href(section)),
         detail,
     };
     let plain = |sections: Vec<&SectionScores>| -> Vec<ChangedSection> {
@@ -127,7 +149,7 @@ fn groups(
         section
             .set_apart
             .iter()
-            .map(|key| reason(key, texts))
+            .map(|key| set_apart_reason(key).map_or(key.as_str(), |r| texts.set_apart_reason(r)))
             .collect::<Vec<_>>()
             .join(", ")
     };
@@ -172,7 +194,7 @@ fn groups(
     .collect()
 }
 
-/// `Confidence 90% → 50% (−40)`.
+/// `Confidence 90% → 50% (−40)`, the fall rounded on its own.
 fn fell(fall: &Fall, texts: &WebTexts) -> String {
     let score = match fall.score {
         Score::Confidence => texts.history_page.confidence,
@@ -183,43 +205,84 @@ fn fell(fall: &Fall, texts: &WebTexts) -> String {
         "{score} {}% → {}% (−{})",
         percent(fall.from),
         percent(fall.to),
-        percent(fall.from) - percent(fall.to)
+        percent(fall.by())
     )
 }
 
-/// The name of a reason a use case is set apart, as the snapshot keys it.
-fn reason(key: &str, texts: &WebTexts) -> String {
-    let at = match key {
-        "back_office" => 0,
-        "business_language" => 1,
-        "confidence" => 2,
-        other => return other.to_string(),
-    };
-    texts.debt.reasons[at].to_string()
+/// The pages of the docs served, looked up by the id of a section.
+struct Pages<'a> {
+    domains: HashSet<&'a str>,
+    features: HashMap<&'a str, &'a Feature>,
+    use_cases: HashMap<(&'a str, &'a str), &'a UseCase>,
 }
 
-/// The page of `section` in `docs`, `None` when they don't hold it.
-fn href(docs: &GeneratedDocs, section: &SectionScores) -> Option<String> {
-    let feature_href = |slug: &str| {
-        docs.features()
-            .iter()
-            .find(|f| f.slug == slug)
-            .map(|f| format!("/domains/{}/{}", f.domain_slug, f.slug))
-    };
-    match section.kind {
-        SectionKind::Domain => docs
-            .domains()
-            .iter()
-            .any(|d| d.slug == section.id)
-            .then(|| format!("/domains/{}", section.id)),
-        SectionKind::Feature => feature_href(&section.id),
-        SectionKind::UseCase => {
-            let (feature, slug) = section.id.split_once('/')?;
-            docs.use_cases()
+impl<'a> Pages<'a> {
+    fn of(docs: &'a GeneratedDocs) -> Self {
+        Self {
+            domains: docs.domains().iter().map(|d| d.slug.as_str()).collect(),
+            features: docs
+                .features()
                 .iter()
-                .any(|u| u.feature_slug == feature && u.slug == slug)
-                .then(|| feature_href(feature).map(|f| format!("{f}/{slug}")))
-                .flatten()
+                .map(|f| (f.slug.as_str(), f))
+                .collect(),
+            use_cases: docs
+                .use_cases()
+                .iter()
+                .map(|u| ((u.feature_slug.as_str(), u.slug.as_str()), u))
+                .collect(),
         }
+    }
+
+    /// The page of `section`, `None` when the docs don't hold it.
+    fn href(&self, section: &SectionScores) -> Option<String> {
+        match section.kind {
+            SectionKind::Domain => self
+                .domains
+                .contains(section.id.as_str())
+                .then(|| domain_href(&section.id)),
+            SectionKind::Feature => self
+                .features
+                .get(section.id.as_str())
+                .map(|f| feature_href(f)),
+            SectionKind::UseCase => {
+                let (feature, slug) = section.id.split_once('/')?;
+                let use_case = self.use_cases.get(&(feature, slug))?;
+                Some(use_case_href(self.features.get(feature)?, use_case))
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // spec: HPG-8 (internal: a fall whose rounded percents differ by less than the rounded fall)
+    #[test]
+    fn the_fall_shown_is_the_rounded_fall() {
+        let fall = Fall {
+            score: Score::Confidence,
+            from: 0.894_99,
+            to: 0.695,
+        };
+
+        assert_eq!(
+            fell(&fall, &WebTexts::ENGLISH),
+            "Confidence 89% → 70% (−20)"
+        );
+    }
+
+    // spec: HPG-1 (internal: a time with an offset, which `generate` never writes)
+    #[test]
+    fn a_time_keeps_its_zone() {
+        assert_eq!(
+            when("2026-11-04T10:00:00.123+00:00"),
+            "2026-11-04 10:00:00 UTC"
+        );
+        assert_eq!(when("2026-11-04T10:00:00Z"), "2026-11-04 10:00:00 UTC");
+        assert_eq!(
+            when("2026-11-04T12:00:00+02:00"),
+            "2026-11-04 12:00:00 +02:00"
+        );
     }
 }

@@ -54,7 +54,7 @@ sections that got better and the trends of the figures (`issues/web_run_trends.m
    the unknown run, the sections linked to their pages, fewer than two runs, the link in the "Audit" group of the
    header (WEB-67 amended), the English and French texts; verified by router tests over a temp repository; makes true
    HPG-1 to HPG-15 and sets the spec `accepted` (~700 lines). (autonomous)
-3. [ ] Docs of the whole issue and fixes of the `high` review; verified by the tests of each fix.
+3. [x] Docs of the whole issue and fixes of the `high` review; verified by the tests of each fix. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -82,5 +82,20 @@ sections that got better and the trends of the figures (`issues/web_run_trends.m
 - red: HPG-1 to HPG-8, HPG-10 to HPG-15, WEB-77: before the route, every test failed on `left: 404 right: 200`; the
   header test on `href="/history" not in` the "Audit" nav.
 - checks: project-check ok; deliverable size 827/1000.
+- Code review: no findings (`low`).
+- not verified: the page in a browser and on a real repository (one snapshot at most exists in the saved runs).
+
+## Deliverable 3: docs of the issue and fixes of the `high` review
+- done: docs were updated with each deliverable (`README.md`, `docs/ARCHITECTURE.md`, `docs/crates/render-mcp-cli.md`,
+  `specs/run-history.md`); the `high` review fixes below; HPG-1, HPG-3, HPG-12 amended, scenarios added.
+- red: HPG-1, HPG-4, HPG-8, HPG-12: `left: "2026-11-04 10:00:00" right: "... UTC"`, `left: "... (−19)" right:
+  "... (−20)"`, the same-second run not told apart, `id="history-unknown" not in` the page of one run, `(no page)`
+  not in the added group.
+- `high` review, 10 findings, all fixed: 1 (runs of the same second told apart by their number), 2 (`no page`
+  rather than `not in the run`), 3 (an unknown run named with fewer than two runs), 4 (HPG-3 worded as the code
+  does), 5 (the zone shown, `UTC`), 6 (the fall rounded on its own), 7 (`history::set_apart_reason` reads the key
+  back, the label from `WebTexts::set_apart_reason`), 8 (the links from the `view` helpers), 9 (one lookup of the
+  pages per request), 10 (the note of the cache tree names the page, not a source file).
+- checks: project-check ok; deliverable size 234/1000.
 - Code review: no findings (`low`).
 - not verified: the page in a browser and on a real repository (one snapshot at most exists in the saved runs).

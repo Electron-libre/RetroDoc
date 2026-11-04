@@ -341,3 +341,12 @@ fn a_snapshot_of_a_later_format_is_left_out_and_no_draft_is_left_behind() {
         ["20261103T000000Z.json", "20261104T100000Z.json"]
     );
 }
+
+// spec: HPG-10 (internal: the keys of the reasons a page reads back)
+#[test]
+fn each_reason_is_read_back_from_its_key() {
+    for reason in REASONS {
+        assert_eq!(set_apart_reason(reason_key(reason)), Some(reason));
+    }
+    assert_eq!(set_apart_reason("later"), None);
+}

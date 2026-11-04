@@ -227,6 +227,27 @@ async fn the_runs_are_listed_newest_first_with_their_date_and_commit() {
     assert!(runs.contains("bbbbbbb"), "{runs}");
     assert!(!runs.contains("bbbbbbb2"), "{runs}");
     assert!(runs.contains("no commit"), "{runs}");
+    assert!(runs.contains("2026-11-03 10:00:00 UTC"), "{runs}");
+}
+
+// spec: HPG-1
+#[tokio::test]
+async fn runs_ended_in_the_same_second_are_told_apart_by_their_number() {
+    let repo = served_repo();
+    save(repo.path(), &run(1, None, Vec::new())).unwrap();
+    let other = run(
+        1,
+        None,
+        vec![section(SectionKind::Domain, "billing", "Billing")],
+    );
+    save(repo.path(), &other).unwrap();
+
+    let page = get(repo.path(), "/history").await;
+
+    let runs = between(&page, "id=\"history-runs\"", "</section>");
+    assert!(runs.contains("2026-11-01 10:00:00 UTC (2)"), "{runs}");
+    let to = between(&page, "name=\"to\"", "</select>");
+    assert!(to.contains("2026-11-01 10:00:00 UTC (2)"), "{to}");
 }
 
 // spec: HPG-2, HPG-5, HPG-12
@@ -268,6 +289,7 @@ async fn two_runs_picked_are_compared_section_by_section() {
     let added = between(&page, "id=\"history-added\"", "</section>");
     assert!(added.contains("cancel"), "{added}");
     assert!(!added.contains("href="), "{added}");
+    assert!(added.contains("(no page)"), "{added}");
     let removed = between(&page, "id=\"history-removed\"", "</section>");
     let at = positions(removed, &["Legacy", "Old feature", "gone"]);
     assert!(at[0] < at[1] && at[1] < at[2], "{removed}");
@@ -333,7 +355,7 @@ async fn an_unknown_run_is_replaced_by_its_default() {
     assert!(removed.contains("cancel"), "{removed}");
 }
 
-// spec: HPG-14
+// spec: HPG-4, HPG-14
 #[tokio::test]
 async fn with_fewer_than_two_runs_the_page_says_the_difference_needs_two() {
     let repo = served_repo();
@@ -341,10 +363,12 @@ async fn with_fewer_than_two_runs_the_page_says_the_difference_needs_two() {
     let first = run(1, Some("aaaaaaa1111"), Vec::new());
     save(repo.path(), &first).unwrap();
 
-    let one = get(repo.path(), "/history").await;
+    let one = get(repo.path(), "/history?from=typo").await;
     let no_run = get(empty.path(), "/history").await;
 
     assert!(one.contains("2026-11-01 10:00:00"), "{one}");
+    let unknown = between(&one, "id=\"history-unknown\"", "</p>");
+    assert!(unknown.contains("typo"), "{unknown}");
     for page in [one, no_run] {
         let note = between(&page, "id=\"history-fewer\"", "</p>");
         assert!(note.contains("retrodoc generate"), "{note}");

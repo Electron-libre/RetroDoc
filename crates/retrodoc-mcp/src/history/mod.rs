@@ -204,12 +204,24 @@ fn sections(docs: &GeneratedDocs) -> Vec<SectionScores> {
     domains.chain(features).chain(use_cases).collect()
 }
 
+const REASONS: [SetApartReason; 3] = [
+    SetApartReason::BackOffice,
+    SetApartReason::BusinessLanguage,
+    SetApartReason::Confidence,
+];
+
 fn reason_key(reason: SetApartReason) -> &'static str {
     match reason {
         SetApartReason::BackOffice => "back_office",
         SetApartReason::BusinessLanguage => "business_language",
         SetApartReason::Confidence => "confidence",
     }
+}
+
+/// The reason a key of [`SectionScores::set_apart`] names, `None` for a key of no reason.
+#[must_use]
+pub fn set_apart_reason(key: &str) -> Option<SetApartReason> {
+    REASONS.into_iter().find(|r| reason_key(*r) == key)
 }
 
 /// Where the snapshots of `repo_root` are saved.
