@@ -284,6 +284,7 @@ The milestones up to "A large application, one bounded context at a time" are th
   and the difference between two runs (added, removed, degraded sections).
 - Why: the report keeps the last state only, so nobody can tell whether the docs get better.
 - State: done
+- Released: v0.8.0
 - Issues:
   - [run_snapshot_at_generate](issues/done/run_snapshot_at_generate.md)
   - [web_run_trends](issues/done/web_run_trends.md)

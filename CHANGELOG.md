@@ -4,6 +4,27 @@ The notable changes of each version, newest first ([Keep a Changelog](https://ke
 [Semantic Versioning](https://semver.org/)). Each section is written by `cardinal run release <version>` from the commits,
 then reread before the release is committed.
 
+## [0.8.0] - 2026-11-04
+
+### Milestones
+
+- Run history
+
+### Added
+
+- build and store a snapshot of the figures of a run
+- save the snapshot of the run at the end of generate
+- compute the difference between two saved runs
+- compare two saved runs on a history page
+- show the trends of the saved runs on the audit page
+- draw a line chart per score of the audit trends
+
+### Fixed
+
+- write a snapshot atomically, with the commit the run read
+- tell runs apart and round falls on the history page
+- round the trends like the badges and cut a time on a character
+
 ## [0.7.0] - 2026-11-04
 
 ### Milestones
