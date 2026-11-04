@@ -3,6 +3,9 @@
 //! - it proposes pairs between the generated domains/features, the ones already paired included (a
 //!   generated item may hold several reference items), and the reference items that no generated item
 //!   covers (a pair is a proposal: the user reads it, fixes it and freezes it in `matches.yaml`);
+//! - a second call proposes pairs between the generated items still unpaired and the reference items the
+//!   first call was not offered, so a second item of a covered reference item does not count as imprecise
+//!   because `matches.yaml` holds more pairs;
 //! - it rates whether each use case narrative reads as business language, in batches.
 //!
 //! The judge shares the biases of the model that generated the docs, so its verdicts are saved apart
@@ -85,15 +88,27 @@ impl Unjudged {
     }
 }
 
+/// The kinds whose second call ([`second_calls`]) ran; a `judge.yaml` saved before it existed has none.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SecondCall {
+    #[serde(default)]
+    pub domains: bool,
+    #[serde(default)]
+    pub features: bool,
+}
+
 /// What the judge said about one run: written to `judge.yaml`.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Judgement {
+    /// The pairs of both calls.
     pub domains: Vec<Pair>,
     pub features: Vec<Pair>,
     pub narratives: NarrativeRating,
     /// Absent from the file when every kind was judged, as in the files saved before it existed.
     #[serde(default, skip_serializing_if = "Unjudged::is_none")]
     pub unjudged: Unjudged,
+    #[serde(default)]
+    pub second_call: SecondCall,
 }
 
 impl Judgement {
@@ -388,9 +403,50 @@ struct RawRating {
     business: bool,
 }
 
+/// The generated and reference items of a run, as shown to the judge.
+struct RunItems {
+    generated_domains: Vec<Item>,
+    generated_features: Vec<Item>,
+    reference_domains: Vec<Item>,
+    reference_features: Vec<Item>,
+}
+
+impl RunItems {
+    fn load(repo_root: &Path, reference: &Reference) -> Self {
+        let map = DomainMap::load(repo_root).unwrap_or_default();
+        let saved = saved_features(repo_root);
+        let item = |name: &str, description: &str| Item {
+            name: name.to_string(),
+            description: description.to_string(),
+        };
+        RunItems {
+            generated_domains: scored_domains(&map, saved.as_deref())
+                .into_iter()
+                .map(|d| item(&d.name, &d.description))
+                .collect(),
+            generated_features: saved
+                .unwrap_or_default()
+                .iter()
+                .map(|f| item(&f.name, &f.description))
+                .collect(),
+            reference_domains: reference
+                .domains
+                .iter()
+                .map(|d| item(&d.name, &d.description))
+                .collect(),
+            reference_features: reference
+                .domains
+                .iter()
+                .flat_map(|d| &d.features)
+                .map(|f| item(&f.name, &f.description))
+                .collect(),
+        }
+    }
+}
+
 /// The whole judgement of the run in `repo_root`: proposals for the reference domains and features
-/// left uncovered by `matches`, the hand-written pairs, and the rating of the narratives. `None` when the run
-/// has no clustering.
+/// left uncovered by `matches`, the hand-written pairs, the [`second_calls`] and the rating of the
+/// narratives. `None` when the run has no clustering.
 ///
 /// # Errors
 ///
@@ -405,67 +461,117 @@ pub async fn judge(
     let Some(comparison) = compare(repo_root, reference, matches, matches_path)? else {
         return Ok(None);
     };
-    let map = DomainMap::load(repo_root).unwrap_or_default();
-    let saved = saved_features(repo_root);
-    let generated_domains: Vec<Item> = scored_domains(&map, saved.as_deref())
-        .into_iter()
-        .map(|d| Item {
-            name: d.name.clone(),
-            description: d.description.clone(),
-        })
-        .collect();
-    let features = saved.unwrap_or_default();
-    let generated_features: Vec<Item> = features
-        .iter()
-        .map(|f| Item {
-            name: f.name.clone(),
-            description: f.description.clone(),
-        })
-        .collect();
-    let reference_domains: Vec<Item> = reference
-        .domains
-        .iter()
-        .map(|d| Item {
-            name: d.name.clone(),
-            description: d.description.clone(),
-        })
-        .collect();
-    let reference_features: Vec<Item> = reference
-        .domains
-        .iter()
-        .flat_map(|d| &d.features)
-        .map(|f| Item {
-            name: f.name.clone(),
-            description: f.description.clone(),
-        })
-        .collect();
-
-    let offered_domains = only(&reference_domains, &comparison.domains.unmatched_reference);
-    let domains = propose_matches(llm, "domains", &generated_domains, &offered_domains).await?;
+    let items = RunItems::load(repo_root, reference);
+    let offered_domains = only(
+        &items.reference_domains,
+        &comparison.domains.unmatched_reference,
+    );
+    let domains =
+        propose_matches(llm, "domains", &items.generated_domains, &offered_domains).await?;
     let offered_features = only(
-        &reference_features,
+        &items.reference_features,
         &comparison.features.unmatched_reference,
     );
-    let features = propose_matches(llm, "features", &generated_features, &offered_features).await?;
+    let features = propose_matches(
+        llm,
+        "features",
+        &items.generated_features,
+        &offered_features,
+    )
+    .await?;
     // `propose_matches` only comes back empty from a call after asking twice.
     let unjudged = |pairs: &[Pair], generated: &[Item], offered: &[Item]| {
         pairs.is_empty() && !generated.is_empty() && !offered.is_empty()
     };
     let unjudged = Unjudged {
-        domains: unjudged(&domains, &generated_domains, &offered_domains),
-        features: unjudged(&features, &generated_features, &offered_features),
+        domains: unjudged(&domains, &items.generated_domains, &offered_domains),
+        features: unjudged(&features, &items.generated_features, &offered_features),
     };
     let narratives: Vec<String> = load_use_cases(repo_root)
         .unwrap_or_default()
         .into_iter()
         .filter_map(|u| u.narrative)
         .collect();
-    Ok(Some(Judgement {
+    let mut judgement = Judgement {
         domains,
         features,
         narratives: rate_narratives(llm, &narratives).await?,
         unjudged,
-    }))
+        second_call: SecondCall::default(),
+    };
+    second_calls(
+        llm,
+        repo_root,
+        reference,
+        matches,
+        matches_path,
+        &mut judgement,
+    )
+    .await?;
+    Ok(Some(judgement))
+}
+
+/// The second call of each kind not made yet in `judgement`: the generated items that neither a pair
+/// of `matches`, an equal name nor a proposal of the first call covers, against the reference items
+/// the first call was not offered (the ones `matches` covers). Its pairs are added to `judgement`, the
+/// kind is marked as having had it; an unjudged kind gets no call and no mark. A call that proposes no
+/// pair is a normal answer: it doesn't mark the kind unjudged.
+///
+/// # Errors
+///
+/// Same as [`super::matching::compare`], or if an LLM call fails.
+pub async fn second_calls(
+    llm: &dyn LlmProvider,
+    repo_root: &Path,
+    reference: &Reference,
+    matches: &Matches,
+    matches_path: &Path,
+    judgement: &mut Judgement,
+) -> Result<(), PipelineError> {
+    let before = compare(repo_root, reference, matches, matches_path)?;
+    let after = compare(
+        repo_root,
+        reference,
+        &matches.with_proposals(judgement),
+        matches_path,
+    )?;
+    let (Some(before), Some(after)) = (before, after) else {
+        return Ok(());
+    };
+    let items = RunItems::load(repo_root, reference);
+    if !judgement.second_call.domains && !judgement.unjudged.domains {
+        let generated = only(&items.generated_domains, &after.domains.unmatched_generated);
+        let offered = except(
+            &items.reference_domains,
+            &before.domains.unmatched_reference,
+        );
+        let pairs = propose_matches(llm, "domains", &generated, &offered).await?;
+        add_new(&mut judgement.domains, pairs);
+        judgement.second_call.domains = true;
+    }
+    if !judgement.second_call.features && !judgement.unjudged.features {
+        let generated = only(
+            &items.generated_features,
+            &after.features.unmatched_generated,
+        );
+        let offered = except(
+            &items.reference_features,
+            &before.features.unmatched_reference,
+        );
+        let pairs = propose_matches(llm, "features", &generated, &offered).await?;
+        add_new(&mut judgement.features, pairs);
+        judgement.second_call.features = true;
+    }
+    Ok(())
+}
+
+/// Adds to `pairs` the `new` ones it doesn't hold yet.
+fn add_new(pairs: &mut Vec<Pair>, new: Vec<Pair>) {
+    for pair in new {
+        if !pairs.contains(&pair) {
+            pairs.push(pair);
+        }
+    }
 }
 
 /// The `items` named in `names`.
@@ -473,6 +579,15 @@ fn only(items: &[Item], names: &[String]) -> Vec<Item> {
     items
         .iter()
         .filter(|i| names.contains(&i.name))
+        .cloned()
+        .collect()
+}
+
+/// The `items` not named in `names`.
+fn except(items: &[Item], names: &[String]) -> Vec<Item> {
+    items
+        .iter()
+        .filter(|i| !names.contains(&i.name))
         .cloned()
         .collect()
 }
@@ -891,8 +1006,7 @@ mod tests {
         let judgement = Judgement {
             domains: vec![pair("Billing", "Shipping"), pair("Parcels", "Shipping")],
             features: vec![pair("Checkout", "Pay")],
-            narratives: NarrativeRating::default(),
-            unjudged: Unjudged::default(),
+            ..Judgement::default()
         };
 
         let merged = matches.with_proposals(&judgement);
@@ -1068,10 +1182,18 @@ mod tests {
                 features: true
             }
         );
+        assert_eq!(
+            judgement.second_call,
+            SecondCall {
+                domains: true,
+                features: false
+            },
+            "an unjudged kind gets no second call"
+        );
         judgement.save(root).unwrap();
         let saved = std::fs::read_to_string(Judgement::path(root)).unwrap();
         assert!(saved.contains("unjudged:\n  features: true"), "{saved}");
-        assert!(!saved.contains("domains: true"), "{saved}");
+        assert!(!saved.contains("unjudged:\n  domains"), "{saved}");
         assert_eq!(Judgement::load(root).unwrap(), judgement);
 
         let judged = Judgement {
@@ -1130,8 +1252,11 @@ mod tests {
             ],
         )
         .unwrap();
-        let llm =
-            FakeLlm::answering(r#"{"matches":[{"generated":"Checkout","reference":"Refund"}]}"#);
+        let llm = FakeLlm::sequence(&[
+            r#"{"matches":[{"generated":"Checkout","reference":"Refund"}]}"#,
+            r#"{"matches":[]}"#,
+            r#"{"matches":[]}"#,
+        ]);
 
         let judgement = judge(
             &llm,
@@ -1147,7 +1272,11 @@ mod tests {
         .unwrap();
 
         assert_eq!(judgement.features, [pair("Checkout", "Refund")]);
-        assert_eq!(llm.calls(), 1, "the domain is covered: no call for it");
+        assert_eq!(
+            llm.calls(),
+            3,
+            "the domain is covered and paired: no call for it; the second features call asked twice"
+        );
         let prompt = &llm.prompts()[0];
         let (generated, reference_part) = prompt.split_once("Reference features:").unwrap();
         assert!(
@@ -1169,6 +1298,136 @@ mod tests {
         )
         .await
         .unwrap();
-        assert_eq!(covered.calls(), 0, "every reference item is covered");
+        assert!(
+            covered
+                .prompts()
+                .iter()
+                .all(|p| !p.contains("- Checkout: Paying")),
+            "every reference item is covered: no first call, only the second one for Newsletter"
+        );
+    }
+
+    /// A run with a covered reference domain and feature, and a generated domain and feature left
+    /// unpaired: the `matches.yaml` and the reference to judge it with.
+    fn run_with_second_items(root: &Path) -> (Reference, Matches) {
+        use crate::artifact::{save_yaml, Artifact};
+        use crate::domains::{DomainCluster, DomainMap};
+        use crate::features::save_features;
+        use retrodoc_core::model::Feature;
+
+        let reference: Reference = serde_yaml::from_str(
+            "repository: r\ncommit: c\npurpose: p\nactors: []\ndomains:\n  - name: Administration\n    description: Run the site\n    features:\n      - {name: Manage users, description: Add and remove users}\n",
+        )
+        .unwrap();
+        let domain = |slug: &str, name: &str| DomainCluster {
+            slug: slug.to_string(),
+            name: name.to_string(),
+            ..DomainCluster::default()
+        };
+        let map = DomainMap {
+            domains: vec![
+                domain("settings", "Settings"),
+                domain("users", "User administration"),
+            ],
+        };
+        save_yaml(&Artifact::Domains.path(root), &map).unwrap();
+        let feature = |domain: &str, name: &str| Feature {
+            back_office: false,
+            technical: false,
+            slug: name.to_lowercase().replace(' ', "-"),
+            domain_slug: domain.to_string(),
+            name: name.to_string(),
+            description: String::new(),
+            source_paths: vec![],
+            entry_points: Vec::new(),
+            confidence: None,
+        };
+        save_features(
+            root,
+            &[
+                feature("settings", "Manage users"),
+                feature("users", "User list"),
+            ],
+        )
+        .unwrap();
+        let matches = Matches {
+            domains: vec![pair("Settings", "Administration")],
+            ..Matches::default()
+        };
+        (reference, matches)
+    }
+
+    // spec: BSC-21 (internal: the judge's answers come from a fake LLM)
+    #[tokio::test]
+    async fn a_second_call_pairs_the_unpaired_items_with_the_covered_reference_ones() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let (reference, matches) = run_with_second_items(root);
+        let llm = FakeLlm::sequence(&[
+            r#"{"matches":[{"generated":"User administration","reference":"Administration"}]}"#,
+            r#"{"matches":[{"generated":"User list","reference":"Manage users"}]}"#,
+        ]);
+
+        let judgement = judge(&llm, root, &reference, &matches, Path::new("m.yaml"))
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(
+            judgement.domains,
+            [pair("User administration", "Administration")]
+        );
+        assert_eq!(judgement.features, [pair("User list", "Manage users")]);
+        assert_eq!(
+            judgement.second_call,
+            SecondCall {
+                domains: true,
+                features: true
+            }
+        );
+        assert_eq!(
+            llm.calls(),
+            2,
+            "every reference item is covered: no first call"
+        );
+        let (generated, offered) = llm.prompts()[0]
+            .split_once("Reference domains:")
+            .map(|(g, r)| (g.to_string(), r.to_string()))
+            .unwrap();
+        assert!(
+            generated.contains("- User administration:") && !generated.contains("- Settings:"),
+            "{generated}"
+        );
+        assert!(offered.contains("- Administration:"), "{offered}");
+        let strict = compare(root, &reference, &matches, Path::new("m.yaml"))
+            .unwrap()
+            .unwrap();
+        let judged = compare(
+            root,
+            &reference,
+            &matches.with_proposals(&judgement),
+            Path::new("m.yaml"),
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!(strict.domains.precision, Some(0.5));
+        assert_eq!(judged.domains.precision, Some(1.0));
+        assert_eq!(judged.domains.recall, strict.domains.recall);
+    }
+
+    // spec: BSC-21 (internal: the judge's answers come from a fake LLM)
+    #[tokio::test]
+    async fn a_second_call_with_no_pair_leaves_the_kind_judged() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let (reference, matches) = run_with_second_items(root);
+        let silent = FakeLlm::answering(r#"{"matches":[]}"#);
+        let judgement = judge(&silent, root, &reference, &matches, Path::new("m.yaml"))
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(silent.calls(), 4, "each second call asked twice");
+        assert_eq!(judgement.unjudged, Unjudged::default());
+        assert!(judgement.domains.is_empty() && judgement.features.is_empty());
     }
 }

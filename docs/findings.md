@@ -653,9 +653,9 @@ pairs left unaudited a run, those of the catch-all linkding `Bookmark Management
 | Domains recall | 83% | 100% | 86% | 86% |
 | Domains | 6 (6-7) | 8 | 9 (7-11) | 9 (8-11) |
 
-The 8 domains of linkding sit in the range of dafea18 (5 to 9 over both series). The judge's offer stays as it is
-(a non-goal of the benchmark scoring), so a judged domain precision falls as `matches.yaml` grows: audit before
-reading a fall into it.
+The 8 domains of linkding sit in the range of dafea18 (5 to 9 over both series). Up to scoring version 4 the
+judge's offer stayed as it was, so a judged domain precision fell as `matches.yaml` grew: audit before reading a
+fall into a figure of that version (version 5 adds a second call of the judge, below).
 
 Since then (scoring version 4) the docs leave out a domain with no feature and the benchmark no longer counts it
 (`specs/featureless-domains.md`, BSC-20). Same audited runs re-scored: linkding 8 to 7 domains in two runs of three

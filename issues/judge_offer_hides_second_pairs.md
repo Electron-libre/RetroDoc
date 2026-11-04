@@ -54,7 +54,7 @@ first call, so the judged recall, stays as it is. Out of scope: changing the fir
 
 ## Plan
 1. [x] Measure: on the 12 saved hidden clones (f95ada6, dafea18), list the generated features and domains unpaired after the saved judgement whose right reference item is already covered, by hand, no LLM call; verified by a findings §10 entry and a ledger line; makes true the "measure first" of the issue. (autonomous)
-2. [ ] Second call: `judge` makes the second call per kind, records it in `judge.yaml`, `SCORING_VERSION` 5; verified by judge tests with a scripted LLM; makes true BSC-4, BSC-21.
+2. [x] Second call: `judge` makes the second call per kind, records it in `judge.yaml`, `SCORING_VERSION` 5; verified by judge tests with a scripted LLM; makes true BSC-4, BSC-21. (autonomous)
 3. [ ] `--saved-judge --second-call` and the note of a `judge.yaml` without the second call; verified by CLI tests; makes true BSC-22.
 4. [ ] Baselines at scoring version 5: `--saved-judge --second-call` on the 12 clones (paid, cents, asked first), table against version 4, findings §10 and ledger; verified by the re-scored tables.
 
@@ -84,4 +84,23 @@ Code review: 1 finding
 - the range of the bias read 14 to 21 points, 22 on linkding f95ada6: fixed.
 
 not verified: the classing is one reader's; a part counted as a second pair is the judge's rule when offered, not checked by a judge call.
+decisions needed: none
+
+### 2. Second call
+done: `judge` ends with `second_calls`: per kind, the generated items still unpaired against the reference items
+`matches.yaml` covers, recorded in `judge.yaml` (`second_call`), skipped for an unjudged kind; `SCORING_VERSION` 5.
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | BSC-4, BSC-21 traced |
+| docs | `docs/crates/bench.md`, `docs/ARCHITECTURE.md`, findings §10 |
+| code review | see below |
+
+red: BSC-21: `assertion left == right failed, left: [], right: [Pair { generated: "User administration", reference: "Administration" }]`
+Code review: 1 finding
+- `second_calls` marked both kinds as run even for an unjudged kind it skipped: fixed, a kind is marked only when its call ran (asserted in the BSC-12 test).
+
+not verified: no LLM run yet (deliverable 4).
 decisions needed: none

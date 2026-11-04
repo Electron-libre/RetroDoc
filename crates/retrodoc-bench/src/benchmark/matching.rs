@@ -30,7 +30,9 @@ use crate::naming::normalize;
 /// a kind the judge proposed no pair for, twice, has no judged recall and precision.
 /// Version 3: a judge proposal rejected by hand in `matches.yaml` does not count.
 /// Version 4: a domain no feature belongs to is not counted (BSC-20).
-pub const SCORING_VERSION: u32 = 4;
+/// Version 5: a second judge call pairs the unpaired generated items with the covered reference ones
+/// (BSC-21).
+pub const SCORING_VERSION: u32 = 5;
 
 /// The domains of `map` the benchmark scores (BSC-20): the published ones, those a feature of
 /// `features` belongs to; with no `features.yaml` (a replay of the domains pass alone), every domain
