@@ -66,8 +66,8 @@ are within the dafea18 range (5 to 9 over both series). Out of scope: changing w
    verified by a test of BSC-20 and a `--saved-judge` re-score of the f95ada6 and dafea18 hidden runs (no LLM);
    makes true BSC-20 (amended in `specs/benchmark-scoring.md` with this deliverable: an
    accepted spec cannot hold an untraced requirement); ~150 lines. (autonomous)
-4. [ ] Follow-up issue (`skill:create-issue`): the judge cannot pair a generated item with a reference item
-   already covered (BSC-4), so the judged precision falls as `matches.yaml` grows.
+4. [x] Follow-up issue (`skill:create-issue`): the judge cannot pair a generated item with a reference item
+   already covered (BSC-4), so the judged precision falls as `matches.yaml` grows. (autonomous: `issues/judge_offer_hides_second_pairs.md`)
 
 ## Decisions
 - Mode: autonomous
