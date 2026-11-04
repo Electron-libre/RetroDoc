@@ -4,8 +4,9 @@ import 'cardinal.just'
 default:
     @just --list
 
-# Format, lint (warning-free) and test the whole workspace.
-check: fmt clippy test check-specs check-cardinal
+# Format, lint (warning-free), test the whole workspace and check the specs (`check_command`, then the specs).
+check:
+    cardinal run project-check
 
 fmt:
     cargo fmt --all

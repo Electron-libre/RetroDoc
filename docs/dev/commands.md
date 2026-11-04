@@ -8,7 +8,7 @@ cargo test -p retrodoc-pipeline cache::tests::hash_changes_with_content  # run a
 cargo clippy --workspace --all-targets  # lint (see Lints below — must be warning-free)
 cargo clippy -p retrodoc-pipeline --lib  # the default build of the pipeline alone, without the `bench` feature the workspace turns on
 cargo fmt --all                         # format
-just check                              # fmt + clippy -D warnings + tests + check-specs + check-cardinal in one go
+just check                              # `cardinal run project-check`: the `check_command` of `.claude/cardinal.toml` (fmt + clippy -D warnings + tests + check-cardinal), then check-specs
 just check-cardinal                     # fail when a file synced from Cardinal (the shared harness) was edited locally (needs the `cardinal` binary: `cargo install --git <source in .claude/cardinal.toml> cardinal --locked`)
 just check-specs                        # validate specs/*.md and trace their requirements to the tests (`// spec: ID`; needs `cardinal`)
 just spec-coverage                      # test files that cite no requirement of an accepted spec, largest first

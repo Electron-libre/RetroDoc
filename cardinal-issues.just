@@ -9,6 +9,10 @@ close-issue issue:
 next-issue *args:
     cardinal run next-issue {{args}}
 
+# The milestones of the roadmap documents: state, release, open issues (`--open` hides the released ones). Writes nothing.
+roadmap *args:
+    cardinal run roadmap {{args}}
+
 # Validate a new issue file against the create-issue template.
 check-issue issue:
     cardinal run check-issue {{issue}}

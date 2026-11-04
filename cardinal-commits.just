@@ -2,7 +2,7 @@
 
 # Validate a commit message against the commit convention (default: HEAD).
 check-commit rev="HEAD":
-    git log -1 --format=%B {{rev}} | cardinal run commit-check
+    cardinal run commit-check {{rev}}
 
 # Validate every non-merge commit of base..head (used by CI on pull requests).
 check-commits base head:

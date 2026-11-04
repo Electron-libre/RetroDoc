@@ -29,7 +29,7 @@ Details live in separate files; read the one that matches the task:
 - `ROADMAP.md`: milestones; `PRODUCT.md`: vision and v1 scope; `docs/findings.md`: dated findings; `CHANGELOG.md`: releases
   (`just release`); `.claude/skills/commit-message/conventional-commits.md`: commit format.
 
-Essentials: `just check` (fmt + clippy -D warnings + tests + spec traceability) must pass before committing; it
+Essentials: `cardinal run project-check` (`just check`: fmt + clippy -D warnings + tests + spec traceability) must pass before committing; it
 needs the `cardinal` binary (`cargo install --git <source in .claude/cardinal.toml> cardinal --locked`); clippy is pedantic and warning-free; everything is in English; never name or quote
 confidential smoke-test repos in committed files.
 

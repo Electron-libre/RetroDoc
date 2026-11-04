@@ -36,4 +36,4 @@ or drift from it here); a project without that file turned it off and follows it
 
 ## Check an existing commit
 
-`just check-commit` validates the message of `HEAD` (or `just check-commit <rev>`).
+`cardinal run commit-check HEAD` validates the message of `HEAD` (or of `<rev>`).

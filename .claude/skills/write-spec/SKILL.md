@@ -7,7 +7,7 @@ description: Write a new spec in `specs/` or amend an existing one (numbered req
 
 A spec is `specs/<capability>.md`: what a capability must do, stated so that a test can prove
 it. The format, the requirement kind and the statuses are in `specs/README.md` (single source of truth:
-don't restate them here). This skill is the procedure; `cardinal run check-specs` (`just check-specs`) enforces the
+don't restate them here). This skill is the procedure; `cardinal run check-specs` enforces the
 mechanical rules. Don't implement anything here: the tests come after the user validated the spec.
 
 ## Procedure
@@ -31,7 +31,7 @@ mechanical rules. Don't implement anything here: the tests come after the user v
    * each requirement is observable from outside (an exit code, an output, a file), not a property of the code;
    * each boundary a requirement draws (a limit, an empty input, an error) has a scenario;
    * the non-goals cover what a reader would assume the capability does.
-4. **Validate the format**: run `just check-specs` and read the lines that name the spec you edited (other specs
+4. **Validate the format**: run `cardinal run check-specs` and read the lines that name the spec you edited (other specs
    may have their own problems). A problem must be fixed. A wording warning on a requirement you wrote or changed
    is fixed, or kept when it is a false positive and said so in the report; one on a requirement you did not touch
    is left as is. A clarification warning is expected: it becomes a question of the next
@@ -42,14 +42,14 @@ mechanical rules. Don't implement anything here: the tests come after the user v
 6. **Trace**: write the tests from the requirements; each carries `// spec: ID` placed as `specs/README.md`
    says. Prove a requirement through the binary when that test is cheap and stable; otherwise an internal test is
    the proof, its citation giving the reason (`// spec: ID (internal: <reason>)`): never write a long or fragile
-   end-to-end test only to silence the boundary warning. When every requirement is traced, set `accepted`; `just check-specs` then enforces it.
+   end-to-end test only to silence the boundary warning. When every requirement is traced, set `accepted`; `cardinal run check-specs` then enforces it.
 
 ## Bootstrap the spec of an existing capability
 
 A capability that predates its spec has tests no spec states. Its spec is read back from the code and the tests, not
 from an intended change; it runs the procedure above with these differences:
 
-1. **Pick**: `just spec-coverage` lists the test files that cite no requirement of an `accepted` spec, largest first;
+1. **Pick**: `cardinal run spec-coverage` lists the test files that cite no requirement of an `accepted` spec, largest first;
    the user picks the capability (or names one).
 2. **Read** the code of the capability and every test that drives it.
 3. **State only what a test already proves**: one requirement per obligation a test checks, worded from the

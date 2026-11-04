@@ -9,7 +9,7 @@ fails when one drifted, and the fix belongs in the central repository. What is s
 `.claude/cardinal.toml` (commit scopes, root documents, roadmap, confidentiality note) and
 `.claude/update-docs-map.md` (which documents to update after a change).
 
-The `cardinal` binary (needed by `just check-cardinal`, `just check-specs`, hence `just check`, and by the hooks) is installed from
+The `cardinal` binary (needed by `just check-cardinal`, `just check-specs`, hence `cardinal run project-check`, and by the hooks) is installed from
 the central repository (`cargo install --git <source in .claude/cardinal.toml> cardinal --locked`); `cardinal update` moves the
 project to the head of the central repository and syncs, `cardinal sync` refreshes the copies.
 
@@ -50,7 +50,7 @@ Skills in `.claude/skills/`:
 - `evaluate-harness`: report whether recent Cardinal revisions made the agent more efficient, the work better and the rules
   better followed, plus the fixed context each revision costs and the skills nobody calls.
 
-Specs (`specs/`, ADR 0032): `cardinal run check-specs` (`just check-specs`, part of `just check`) validates the format of
+Specs (`specs/`, ADR 0032): `cardinal run check-specs` (`just check-specs`, part of `cardinal run project-check`) validates the format of
 each spec and fails when an `accepted` spec has a `deterministic` requirement no test cites with `// spec: ID`, or a test
 cites an unknown id; it warns when a requirement is proven only by tests under `src` with no `// spec: ID (internal: <reason>)`.
 `just spec-coverage` lists the test files that cite no requirement of an accepted spec, largest first.

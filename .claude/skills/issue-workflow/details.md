@@ -4,9 +4,9 @@ The cases `SKILL.md` leaves out, read when one of them comes up.
 
 ## Review waiver
 
-Only the user can waive the review of step 3.5, with `just waive-review`: it creates the waiver of the current
-worktree (also in a linked worktree, where the waiver is per worktree). Never create that file nor run that recipe
-yourself. Deny rules of `.claude/settings.json` refuse the recipe and an edit of the file; naming them (commit
+Only the user can waive the review of step 3.5, with `cardinal run waive-review`: it creates the waiver of the current
+worktree (also in a linked worktree, where the waiver is per worktree). Never create that file nor run that tool
+yourself. Deny rules of `.claude/settings.json` refuse it, its `just` alias and an edit of the file; naming them (commit
 message, `grep`) is fine.
 
 ## Split an issue
@@ -23,13 +23,13 @@ no cut: stop and leave the split to the user in the main worktree, where `next-i
 ## Worktree
 
 An issue usually runs in the main worktree, on the trunk. For parallel work the user opens another worktree on a
-branch they pick, with `git worktree add` or `just open-worktree <name>` (creates `../<repo>-<name>` on a branch
+branch they pick, with `git worktree add` or `cardinal run worktree open <name>` (creates `../<repo>-<name>` on a branch
 `<name>`), and launches a plain `claude` there or opens it as an editor project. Not `claude --worktree`, nor `EnterWorktree` from another
 session: Claude Code then isolates the session and refuses every command it cannot prove stays in the worktree.
 Several issues may share a worktree, one after the other; the worktree outlives them.
 
 - **Claim**: `issue-claim` writes the ref `refs/cardinal/claims/<stem>` for the session (`CLAUDE_CODE_SESSION_ID`);
-  `just next-issue` then skips the issue in every worktree. It takes back a claim of the same session, or of the same
+  `cardinal run next-issue` then skips the issue in every worktree. It takes back a claim of the same session, or of the same
   worktree whose session ended. A new claim needs the worktree clean outside `issues/`.
 - **Lock**: the `workspace-lock` hooks keep one live session per worktree; a second one has its edits and commands
   refused. A crashed session's lock is freed when its process is gone, and the lock of a session with no work in
@@ -44,10 +44,10 @@ Several issues may share a worktree, one after the other; the worktree outlives 
 
 On a branch other than the trunk, once the user agreed to close the issue:
 
-1. `just close-issue issues/<name>.md` on the branch: the claim becomes `merge pending` until the trunk holds the
+1. `cardinal run close-issue issues/<name>.md` on the branch: the claim becomes `merge pending` until the trunk holds the
    close. Commit what it staged (the move with the last tracking and what it rewrote, the milestone it set `done`
-   included) with a bare `git commit`, as the Rules of `SKILL.md` say; the commit needs no review.
-2. Run `just check-cardinal`: when it names a hook the installed `cardinal` refuses (the branch adds a subcommand the
+   included) with a bare `git commit` and a message from `skill:commit-message`, as the Rules of `SKILL.md` say; the commit needs no review.
+2. Run `cardinal check`: when it names a hook the installed `cardinal` refuses (the branch adds a subcommand the
    hooks call), run the install it prints before going on. After the merge the hooks of the main worktree
    call it too, and one the installed `cardinal` refuses blocks every command, the install included.
 3. Push the branch to the remote the trunk tracks (`git push -u <remote> <branch>`), then, with the host's CLI (`gh`
@@ -58,7 +58,7 @@ On a branch other than the trunk, once the user agreed to close the issue:
    Never rebase a pushed branch unasked. The merge is the host's (or the user's).
    No link to the next issue here: the `issues/` of the worktree is the branch's.
 
-`close-issue` refuses an issue of another worktree named by path. `close-worktree` refuses inside the worktree it would remove, and a branch whose work is not
+`close-issue` refuses an issue of another worktree named by path. `cardinal run worktree close` refuses inside the worktree it would remove, and a branch whose work is not
 on the main branch unless `--force`.
 
 ## Drive a queue
@@ -67,7 +67,7 @@ When the user hands over the next few issues ("the next 2 issues", "chain the qu
 after the other, with no orchestrator subagent (ADR 0026): the reviews, the gates and the claims work as for one issue.
 A queue holds 3 issues at most, the number the user gave if smaller.
 
-1. **Take**: on a clean worktree, run `just next-issue`, claim the issue it offers (`cardinal run issue-claim`), and
+1. **Take**: on a clean worktree, run `cardinal run next-issue`, claim the issue it offers (`cardinal run issue-claim`), and
    repeat until the queue is full: a claimed issue is skipped, so the next run offers the next ready one, never a
    blocked one. Take every claim before writing any file (a new claim needs a clean worktree, CLM-9).
 2. **Prepare**: step 1 for each issue, in order. Each plan adds to its `## Decisions` a line `Rests on:` naming the
@@ -85,7 +85,7 @@ A queue holds 3 issues at most, the number the user gave if smaller.
    update-ref -d refs/cardinal/claims/<stem> <value read>`).
 4. **Chain**: steps 3.1 to 3.8 of each issue in the mode recorded for it, its `high` review included; the end of an
    issue gives no final summary nor close request (step 7 does), and closes it at once when the user agreed to.
-   Before the next issue, check that `just check` is green, the commits of the issue are in `git log` and its
+   Before the next issue, check that `cardinal run project-check` is green, the commits of the issue are in `git log` and its
    `# Tracking` is ticked.
 5. **Stale plan check**, before each issue after the first: cross the files of `git diff --name-only <base of the
    queue>..HEAD` and the decisions the issues done added with the `Rests on:` of this one, and reread what overlaps.

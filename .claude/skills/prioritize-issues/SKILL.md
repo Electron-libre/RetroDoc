@@ -6,13 +6,15 @@ description: Review the `priority` and `depends_on` of the open issues by readin
 # Prioritize the issues
 
 Each open issue declares in its front matter `priority: high | medium | low`, the issues it needs, `depends_on:
-[<stem>, ...]`, and `why: '<the reason for the priority>'` (ADR 0021); `just next-issue` derives the order: the ready
-issues by the milestone order of the `roadmap` documents, then priority, then age; then the blocked ones. Don't
-implement anything here.
+[<stem>, ...]`, and `why: '<the reason for the priority>'` (ADR 0021); `cardinal run next-issue` derives the order: the ready
+issues by the milestone order of the `roadmap` documents, then priority, then age; then the blocked ones, then those
+on hold (an `on_hold: '<reason>'` key, or a milestone with a `- On hold: <reason>` field), which it never offers.
+Putting work on hold or lifting a hold is the user's call: propose it, never write it unasked. Don't implement
+anything here.
 
 ## Procedure
 
-1. **Current state**: `just next-issue` (also reports a missing priority, an unknown dependency, a cycle and an
+1. **Current state**: `cardinal run next-issue` (also reports a missing priority, an unknown dependency, a cycle and an
    unknown milestone). An issue still carrying a `rank: <n>` (a project updated from the format 5) has no priority
    yet: this pass converts it, its `rank` removed.
 2. **Context**: the `roadmap` and `architecture` documents of `.claude/cardinal.toml`, the ADRs in `docs/adr/` that the issues cite, `git log --oneline -30` (what just
@@ -29,12 +31,12 @@ implement anything here.
    of a milestone are `high`, lower the ones that are not needed first. Keep what nothing argues against: don't
    reshuffle for the sake of it.
 5. **Propose, then STOP**: show the user, in that language, a table `issue | priority | depends_on | why` with only
-   the issues that change and the reason for each, then the order `just next-issue` will print, then the issues
+   the issues that change and the reason for each, then the order `cardinal run next-issue` will print, then the issues
    over the size limit with their proposed cuts. You never reorder the milestones (the user's call): when the
    priorities argue for it, say so as a question. Ask for validation or corrections.
 6. **Apply** on their agreement: split the issues as validated (`skill:issue-workflow` `details.md`, "Split an
    issue"), rewrite the front matter of each changed issue (`priority`, `depends_on`, `why`; a `rank` removed;
-   nothing else of the file), run `just next-issue` and check it prints the proposed order with no problem
+   nothing else of the file), run `cardinal run next-issue` and check it prints the proposed order with no problem
    reported. When something changed, commit the re-prioritized issue files alone,
    with the issue files the split wrote or narrowed, added then named on the commit line (`git add <files>`, then
    `git commit -m <msg> -- <files>`), with `skill:commit-message`; ask first when one of those files held changes that are not this skill's.

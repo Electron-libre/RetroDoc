@@ -25,11 +25,11 @@ These rows hold for every project:
 
 | Change | Update |
 |---|---|
-| Behaviour of a capability that has a spec in `specs/` added, changed or dropped | `specs/<capability>.md` (requirement, scenario, status), the `// spec: ID` of the tests, `just check-specs` passing; the page of `docs/` or of the `root_docs` that describes the capability to its user; the `architecture` document of `.claude/cardinal.toml` when a component, a boundary or a flow changed |
+| Behaviour of a capability that has a spec in `specs/` added, changed or dropped | `specs/<capability>.md` (requirement, scenario, status), the `// spec: ID` of the tests, `cardinal run check-specs` passing; the page of `docs/` or of the `root_docs` that describes the capability to its user; the `architecture` document of `.claude/cardinal.toml` when a component, a boundary or a flow changed |
 | Convention (lint, tests, harness) | `CLAUDE.md`, the page that describes the harness |
 | Commit scope added or removed (new crate or area) | `commit_scopes` in `.claude/cardinal.toml` |
 | A synced file (skill, script, `AGENTS.md`, `cardinal*.just`, workflow) must change | not here: fix it in the Cardinal repository, then `cardinal sync` |
-| Any change | not `CHANGELOG.md`: `just release` writes its sections from the commits; only reread and reword the section it just wrote |
+| Any change | not `CHANGELOG.md`: `cardinal run release` writes its sections from the commits; only reread and reword the section it just wrote |
 | Decision that a future reader would undo by accident | a new ADR in `docs/adr/` |
 
 ## 3. Detect stale statements
@@ -51,7 +51,7 @@ rg -n "<name>" CLAUDE.md AGENTS.md docs/ <root_docs> <architecture>
 
 ## 5. Verify
 
-- `just check` if code or doc comments changed.
+- `cardinal run project-check` if code or doc comments changed.
 - Re-run the grep from step 3: no old name should remain unless intentionally historical.
 
 ## 6. Report
