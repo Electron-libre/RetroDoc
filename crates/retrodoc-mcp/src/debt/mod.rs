@@ -2,12 +2,14 @@
 //! (`specs/debt-view.md`): the sections of the docs that need a human, read
 //! from the same [`build_report`] as `retrodoc report`, plus the sections whose
 //! cited code changed since the run, judged at each call, then the items the
-//! project's docs contradict or leave out and the code no doc covers, by folder.
+//! project's docs contradict or leave out and the code no doc covers, by folder,
+//! sorted by a priority that crosses how weak each item is with the commits of
+//! its files and its entry points.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-use retrodoc_core::model::{SetApartReason, UseCase};
+use retrodoc_core::model::{Feature, RuleEvidence, SetApartReason, UseCase};
 pub use retrodoc_pipeline::reconcile::{Contradiction, ItemKind};
 use retrodoc_pipeline::reconcile::{ItemVerdict, Reconciliation};
 pub use retrodoc_pipeline::Section;
@@ -131,6 +133,38 @@ pub struct DebtItem {
     pub reasons: Vec<SetApartReason>,
     /// The cited files of a [`DebtKind::Stale`] section that changed, in order.
     pub changed: Vec<(String, FileState)>,
+    pub priority: Priority,
+}
+
+/// What fixing an item first is worth, and its parts (`specs/debt-view.md`, DBT-23).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Priority {
+    /// `1 − score` for an item with a score, else 1.
+    pub weakness: f32,
+    /// The commits of the history that changed its files, each file counted once.
+    pub commits: u32,
+    pub entry_points: usize,
+}
+
+impl Default for Priority {
+    fn default() -> Self {
+        Self {
+            weakness: 1.0,
+            commits: 0,
+            entry_points: 0,
+        }
+    }
+}
+
+impl Priority {
+    /// `weakness × (1 + ln(1 + commits)) × (1 + ln(1 + entry points))`.
+    #[must_use]
+    pub fn value(&self) -> f64 {
+        let entry_points = u32::try_from(self.entry_points).unwrap_or(u32::MAX);
+        f64::from(self.weakness)
+            * (1.0 + f64::from(self.commits).ln_1p())
+            * (1.0 + f64::from(entry_points).ln_1p())
+    }
 }
 
 impl DebtItem {
@@ -146,6 +180,7 @@ impl DebtItem {
             rationale: None,
             reasons: Vec::new(),
             changed: Vec::new(),
+            priority: Priority::default(),
         }
     }
 
@@ -245,10 +280,105 @@ pub fn debt_of(docs: &GeneratedDocs, report: DebtReport) -> DebtList {
         items.extend(doc_items(reconciliation));
     }
     items.extend(code_items(uncovered));
+    for item in &mut items {
+        item.priority = priority(docs, item);
+    }
+    // Stable: equal priorities keep the order by kind.
+    items.sort_by(|a, b| b.priority.value().total_cmp(&a.priority.value()));
     DebtList {
         items,
         no_score,
         no_docs: uncovered.reconciliation.is_none(),
+    }
+}
+
+/// The priority of `item`: its weakness, the commits of its files and its entry points.
+fn priority(docs: &GeneratedDocs, item: &DebtItem) -> Priority {
+    let (files, entry_points) = match &item.subject {
+        Subject::Section(section) => section_parts(docs, section),
+        Subject::DocItem(doc_item) => (doc_item_files(docs, doc_item), doc_item.entry_points),
+        Subject::Folder(folder) => (
+            folder
+                .entries
+                .iter()
+                .filter_map(|e| entry_file(e))
+                .collect(),
+            if item.kind == DebtKind::EntryPointWithoutFeature {
+                folder.entries.len()
+            } else {
+                0
+            },
+        ),
+    };
+    let commits = docs.churn().map_or(0, |churn| {
+        files
+            .into_iter()
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .filter_map(|path| churn.get(path))
+            .fold(0_u32, |sum, c| sum.saturating_add(*c))
+    });
+    Priority {
+        weakness: item.score.map_or(1.0, |score| 1.0 - score),
+        commits,
+        entry_points,
+    }
+}
+
+/// The files and the number of entry points of a use case, or of a feature; none when it is not in
+/// the run.
+fn section_parts<'a>(docs: &'a GeneratedDocs, section: &Section) -> (Vec<&'a str>, usize) {
+    match &section.use_case {
+        Some(slug) => docs
+            .use_cases()
+            .iter()
+            .find(|u| u.feature_slug == section.feature && u.slug == *slug)
+            .map(|u| (use_case_cited_paths(u), u.entry_points.len())),
+        None => docs
+            .features()
+            .iter()
+            .find(|f| f.slug == section.feature)
+            .map(|f| {
+                (
+                    f.source_paths.iter().map(String::as_str).collect(),
+                    f.entry_points.len(),
+                )
+            }),
+    }
+    .unwrap_or_default()
+}
+
+/// The files of a reconciled item, from its label `<domain>/<feature>/<use case or rule>`; none
+/// when it is no longer in the run.
+fn doc_item_files<'a>(docs: &'a GeneratedDocs, item: &DocItem) -> Vec<&'a str> {
+    let parts: Vec<&str> = item.label.split('/').collect();
+    let features_paths = |keep: &dyn Fn(&Feature) -> bool| -> Vec<&'a str> {
+        docs.features()
+            .iter()
+            .filter(|f| keep(f))
+            .flat_map(|f| f.source_paths.iter().map(String::as_str))
+            .collect()
+    };
+    match (item.kind, parts.as_slice()) {
+        (ItemKind::Domain, [domain]) => features_paths(&|f| f.domain_slug == *domain),
+        (ItemKind::Feature, [_, feature]) => features_paths(&|f| f.slug == *feature),
+        (ItemKind::UseCase, [_, feature, use_case]) => docs
+            .use_cases()
+            .iter()
+            .filter(|u| u.feature_slug == *feature && u.slug == *use_case)
+            .flat_map(use_case_cited_paths)
+            .collect(),
+        (ItemKind::Rule, [_, _, rule]) => docs
+            .rules()
+            .iter()
+            .filter(|r| r.slug == *rule)
+            .flat_map(|r| &r.evidence)
+            .filter_map(|e| match e {
+                RuleEvidence::Code { source } => Some(source.path.as_str()),
+                _ => None,
+            })
+            .collect(),
+        _ => Vec::new(),
     }
 }
 

@@ -1,6 +1,6 @@
 ---
 id: DBT
-status: accepted
+status: draft
 adrs: [0039]
 ---
 
@@ -33,10 +33,11 @@ from top to bottom.
   business language or its confidence.
 - **DBT-7** (deterministic) An item of the kind "stale" must be listed for each feature and each use case flagged
   stale on its page (WEB-20), with the files that changed.
-- **DBT-8** (deterministic) The items must be ordered by kind in the order of DBT-2 to DBT-7, DBT-15, DBT-16, DBT-19
-  and DBT-20, and within a kind as `retrodoc report` lists them (the lowest score first, then by section; the unbacked
-  narratives by section; the undocumented items most entry points first), the not scored, set apart, stale and
-  contradicted ones in the order of the run, a stale feature before its use cases, the folders of DBT-21 by path.
+- **DBT-8** (deterministic) The items must be ordered by their priority (DBT-23), the highest first, and items of
+  equal priority by kind in the order of DBT-2 to DBT-7, DBT-15, DBT-16, DBT-19 and DBT-20, then within a kind as
+  `retrodoc report` lists them (the lowest score first, then by section; the unbacked narratives by section; the
+  undocumented items most entry points first), the not scored, set apart, stale and contradicted ones in the order of
+  the run, a stale feature before its use cases, the folders of DBT-21 by path.
 - **DBT-9** (deterministic) The debt page must keep only the items of the kind `?kind=<kind>` and of the domain
   `?domain=<slug>`, each given, both when both are; an empty value filters nothing.
 - **DBT-10** (deterministic) The debt page must show a form whose choices are the kinds and the domains of the run,
@@ -71,6 +72,20 @@ from top to bottom.
 - **DBT-22** (deterministic) The items of DBT-19 and DBT-20 must carry no domain: a `?domain=` filter keeps none of
   them.
 
+- **DBT-23** (deterministic) The priority of an item must be `weakness × (1 + ln(1 + commits)) × (1 + ln(1 + entry
+  points))`, from the three parts of DBT-24 to DBT-26.
+- **DBT-24** (deterministic) The weakness of an item must be `1 − score` for an item with a score (DBT-2, DBT-5) and 1
+  for any other.
+- **DBT-25** (deterministic) The commits of an item must be the sum, over its files each counted once, of the commits
+  of the history of `HEAD` read when `retrodoc ui` starts that changed the file: the `source_paths` of a feature, the
+  files the steps of a use case cite, the files of the features of a domain, the files of the code evidence of a rule,
+  the files of the entries of a folder.
+- **DBT-26** (deterministic) The entry points of an item must be those of its feature or use case, the number of
+  entry points of a doc item (DBT-16), the number of entry points of a folder of DBT-19, and 0 for a folder of DBT-20.
+- **DBT-27** (deterministic) Each item must show its priority and its weakness, commits and entry points.
+- **DBT-28** (deterministic) When the repository has no readable git history, the page must say the commits are
+  unknown, and every item counts 0 commits.
+
 ## Scenarios
 
 - (DBT-1) Given a use case whose feature is not in the run (artifacts of an older run), then it is listed without a
@@ -89,6 +104,10 @@ from top to bottom.
   `app` with 2 files and `lib` with 1.
 - (DBT-21) Given an entry point `app/x.rb#create`, then it is listed under the folder `app` and links to the page of
   `app/x.rb`.
+- (DBT-25) Given a use case whose steps cite the same file twice, then the commits of that file are counted once.
+- (DBT-25) Given a file of the run no commit of the history changed (not committed yet), then it counts 0 commits.
+- (DBT-25) Given a doc item whose feature is no longer in the run, then it counts 0 commits.
+- (DBT-23, DBT-24) Given a set apart use case with 0 commits and 0 entry points, then its priority is 1.
 - (DBT-19, DBT-20) Given a run with no saved behaviour coverage (not a `surface` run), then no item of the kinds
   "entry point without a feature" and "reached by no behaviour" is listed, and the page does not say so.
 
@@ -98,7 +117,9 @@ from top to bottom.
   feature and the rules set aside are not items: `retrodoc report` lists them, and they are not code no doc covers
   nor a disagreement with the project's docs.
 - The items `matched` by sections no verdict judged are not listed: the next `generate` judges them.
-- No priority across the kinds: the order is fixed until `issues/debt_priority_score.md` ranks the items.
+- No weight per kind: every item without a score weighs 1, whatever its kind.
+- The commits are those of the history when `retrodoc ui` starts, not when the run was made; a renamed file counts
+  only the commits under its current name, as `scan` counts them.
 - The page does not replace `retrodoc report` nor `coverage-report.md`, and calls no LLM (ADR 0039).
 - The stale items are judged when the page is asked, the other items read once at start, like the other pages; the
   reconciliation is computed once at start from the saved verdicts, never judged again by the page.

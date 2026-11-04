@@ -2,6 +2,7 @@
 //! answered: the MCP tools turn it into Markdown for an LLM, the web interface
 //! into HTML pages (ADR 0039). Loaded once from what the last `generate` saved.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use retrodoc_core::model::{BusinessRule, Domain, Feature, RuleEvidence, UseCase};
@@ -24,6 +25,8 @@ pub struct GeneratedDocs {
     index: SearchIndex,
     freshness: Option<Freshness>,
     uncovered: Uncovered,
+    /// The commits of the history that changed each file; `None` when it was not read.
+    churn: Option<HashMap<String, u32>>,
     /// Where the docs were loaded from, to read the code they cite.
     repo_root: Option<PathBuf>,
 }
@@ -88,6 +91,7 @@ impl GeneratedDocs {
             index,
             freshness: None,
             uncovered: Uncovered::default(),
+            churn: None,
             repo_root: None,
         }
     }
@@ -114,6 +118,13 @@ impl GeneratedDocs {
     #[must_use]
     pub fn with_uncovered(mut self, uncovered: Uncovered) -> Self {
         self.uncovered = uncovered;
+        self
+    }
+
+    /// Sets the commits of the history that changed each file, by path, which rank the debt.
+    #[must_use]
+    pub fn with_churn(mut self, churn: HashMap<String, u32>) -> Self {
+        self.churn = Some(churn);
         self
     }
 
@@ -181,6 +192,13 @@ impl GeneratedDocs {
     #[must_use]
     pub fn repo_root(&self) -> Option<&Path> {
         self.repo_root.as_deref()
+    }
+
+    /// The commits of the history that changed each file, by path; `None` when the history was
+    /// not read.
+    #[must_use]
+    pub fn churn(&self) -> Option<&HashMap<String, u32>> {
+        self.churn.as_ref()
     }
 
     /// The bounded access to the files the docs cite, `None` when the docs

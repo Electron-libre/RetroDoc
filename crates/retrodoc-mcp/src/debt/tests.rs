@@ -1,5 +1,6 @@
 use retrodoc_core::model::{
-    Actor, ActorKind, ConfidenceScore, Domain, Feature, SetApartReason, SourceRef, Step, UseCase,
+    Actor, ActorKind, BusinessRule, ConfidenceScore, Domain, Feature, RuleEvidence, SetApartReason,
+    SourceRef, Step, UseCase,
 };
 use retrodoc_pipeline::cache::hash_content;
 use retrodoc_pipeline::reconcile::{
@@ -7,6 +8,7 @@ use retrodoc_pipeline::reconcile::{
 };
 use retrodoc_pipeline::{BehaviourCoverage, Glossary, SourceHashes};
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use super::*;
@@ -69,6 +71,13 @@ fn docs(features: Vec<Feature>, use_cases: Vec<UseCase>) -> GeneratedDocs {
     GeneratedDocs::new(domains, features, use_cases, Glossary::default(), &[])
 }
 
+fn low_items(list: &DebtList) -> Vec<&DebtItem> {
+    list.items
+        .iter()
+        .filter(|i| i.kind != DebtKind::SetApart)
+        .collect()
+}
+
 fn kinds(list: &DebtList) -> Vec<(DebtKind, String)> {
     list.items.iter().map(|i| (i.kind, i.label())).collect()
 }
@@ -100,14 +109,15 @@ fn the_weak_and_unscored_sections_are_listed_lowest_score_first() {
     assert_eq!(
         low,
         [
+            (DebtKind::NotScored, "billing/pay/check".to_string()),
             (DebtKind::LowConfidence, "auth/orphan".to_string()),
             (DebtKind::LowConfidence, "billing/pay/void".to_string()),
             (DebtKind::LowConfidence, "billing/pay/refund".to_string()),
-            (DebtKind::NotScored, "billing/pay/check".to_string()),
         ]
     );
-    assert_eq!(list.items[1].score, Some(0.3));
-    assert_eq!(list.items[1].rationale.as_deref(), Some("why void"));
+    let void = &low_items(&list)[2];
+    assert_eq!(void.score, Some(0.3));
+    assert_eq!(void.rationale.as_deref(), Some("why void"));
     assert!(!list.no_score);
 }
 
@@ -158,21 +168,21 @@ fn unbacked_technical_and_set_apart_use_cases_have_their_own_kinds() {
                 DebtKind::UnbackedNarrative,
                 "billing/pay/unbacked".to_string()
             ),
+            (DebtKind::SetApart, "billing/pay/helper".to_string()),
+            (DebtKind::SetApart, "auth/admin/reimport".to_string()),
             (
                 DebtKind::TechnicalLanguage,
                 "billing/pay/helper".to_string()
             ),
-            (DebtKind::SetApart, "billing/pay/helper".to_string()),
-            (DebtKind::SetApart, "auth/admin/reimport".to_string()),
         ]
     );
     assert_eq!(list.items[0].rationale.as_deref(), Some("not in the code"));
-    assert_eq!(list.items[1].score, Some(0.2));
+    assert_eq!(list.items[3].score, Some(0.2));
     assert_eq!(
-        list.items[2].reasons,
+        list.items[1].reasons,
         [SetApartReason::BusinessLanguage, SetApartReason::Confidence]
     );
-    assert_eq!(list.items[3].reasons, [SetApartReason::BackOffice]);
+    assert_eq!(list.items[2].reasons, [SetApartReason::BackOffice]);
 }
 
 // spec: DBT-7, DBT-8 (internal: the read model of the debt page, shown by DBT-1)
@@ -283,18 +293,23 @@ fn the_contradicted_and_undocumented_items_follow_the_sections() {
     assert_eq!(
         doc_kinds,
         [
-            (DebtKind::Contradicted, "billing/pay/refund".to_string()),
             (DebtKind::Undocumented, "billing/pay/pay-1".to_string()),
+            (DebtKind::Contradicted, "billing/pay/refund".to_string()),
             (DebtKind::Undocumented, "billing".to_string()),
         ]
     );
     assert!(!list.no_docs);
-    let Subject::DocItem(item) = &list.items[list.items.len() - 3].subject else {
+    let contradicted = list
+        .items
+        .iter()
+        .find(|i| i.kind == DebtKind::Contradicted)
+        .unwrap();
+    let Subject::DocItem(item) = &contradicted.subject else {
         panic!("not a doc item");
     };
     assert_eq!(item.kind, ItemKind::UseCase);
     assert_eq!(item.contradictions.len(), 2);
-    assert_eq!(list.items[list.items.len() - 3].domain(), Some("billing"));
+    assert_eq!(contradicted.domain(), Some("billing"));
 }
 
 // spec: DBT-17 (internal: the read model of the debt page, shown by DBT-1)
@@ -369,4 +384,181 @@ fn an_entry_point_saved_before_ids_names_no_file() {
             (DebtKind::EntryPointWithoutFeature, "app".to_string()),
         ]
     );
+}
+
+fn churn(counts: &[(&str, u32)]) -> HashMap<String, u32> {
+    counts.iter().map(|(p, c)| ((*p).to_string(), *c)).collect()
+}
+
+fn priority_of<'a>(list: &'a DebtList, kind: DebtKind, label: &str) -> &'a Priority {
+    &list
+        .items
+        .iter()
+        .find(|i| i.kind == kind && i.label() == label)
+        .unwrap_or_else(|| panic!("no {kind:?} {label}"))
+        .priority
+}
+
+// spec: DBT-23, DBT-24 (internal: the read model of the debt page, shown by DBT-27)
+#[test]
+fn the_priority_crosses_the_weakness_the_commits_and_the_entry_points() {
+    let mut weak = feature("pay", "billing", Some(0.2));
+    weak.entry_points = vec!["pay.rb#create".into(), "pay.rb#update".into()];
+    let mut admin = feature("admin", "auth", Some(0.9));
+    admin.back_office = true;
+    let docs = docs(
+        vec![weak, admin],
+        vec![use_case("reimport", "admin", Some(0.9))],
+    )
+    .with_churn(churn(&[("pay.rb", 6)]));
+
+    let list = debt(&docs);
+
+    let low = priority_of(&list, DebtKind::LowConfidence, "billing/pay");
+    assert_eq!((low.weakness, low.commits, low.entry_points), (0.8, 6, 2));
+    let expected = f64::from(0.8_f32) * (1.0 + 6_f64.ln_1p()) * (1.0 + 2_f64.ln_1p());
+    assert!((low.value() - expected).abs() < 1e-9, "{}", low.value());
+    let set_apart = priority_of(&list, DebtKind::SetApart, "auth/admin/reimport");
+    assert_eq!(
+        (
+            set_apart.weakness,
+            set_apart.commits,
+            set_apart.entry_points
+        ),
+        (1.0, 0, 0)
+    );
+    assert!((set_apart.value() - 1.0).abs() < 1e-9);
+}
+
+// spec: DBT-25, DBT-26 (internal: the read model of the debt page, shown by DBT-27)
+#[test]
+fn the_commits_and_entry_points_come_from_the_files_and_entries_of_each_item() {
+    let mut refund = use_case("refund", "pay", Some(0.1));
+    refund.steps.push(refund.steps[0].clone());
+    refund.steps[1].source_refs.push(SourceRef {
+        path: "money.rb".into(),
+        start_line: None,
+        end_line: None,
+    });
+    refund.entry_points = vec!["refund.rb#create".into()];
+    let mut pay = feature("pay", "billing", Some(0.9));
+    pay.source_paths = vec!["pay.rb".into(), "money.rb".into()];
+    let mut rule = BusinessRule {
+        slug: "pay-1".into(),
+        statement: String::new(),
+        kind: retrodoc_core::model::RuleKind::Validation,
+        entities: Vec::new(),
+        use_cases: Vec::new(),
+        evidence: Vec::new(),
+        confidence: None,
+    };
+    rule.evidence = ["money.rb", "money.rb", "rule.rb"]
+        .map(|path| RuleEvidence::Code {
+            source: SourceRef {
+                path: path.into(),
+                start_line: None,
+                end_line: None,
+            },
+        })
+        .to_vec();
+    let reconciliation = Reconciliation {
+        items: vec![
+            verdict(ItemKind::Domain, "billing", Status::Undocumented, 3),
+            verdict(ItemKind::Feature, "billing/pay", Status::Undocumented, 0),
+            verdict(
+                ItemKind::UseCase,
+                "billing/pay/refund",
+                Status::Undocumented,
+                1,
+            ),
+            verdict(ItemKind::Rule, "billing/pay/pay-1", Status::Undocumented, 0),
+            verdict(ItemKind::Feature, "?/gone", Status::Undocumented, 0),
+        ],
+    };
+    let docs = docs(vec![pay], vec![refund])
+        .with_rules(vec![rule])
+        .with_uncovered(Uncovered {
+            reconciliation: Some(reconciliation),
+            no_domain: vec![PathBuf::from("lib/a.rb"), PathBuf::from("lib/b.rb")],
+            coverage: Some(BehaviourCoverage {
+                unplaced_entry_points: vec!["app/x.rb#create".into(), "app/x.rb#delete".into()],
+                ..BehaviourCoverage::default()
+            }),
+            ..Uncovered::default()
+        })
+        .with_churn(churn(&[
+            ("pay.rb", 1),
+            ("money.rb", 10),
+            ("refund.rb", 100),
+            ("rule.rb", 1000),
+            ("lib/a.rb", 2),
+            ("lib/b.rb", 3),
+            ("app/x.rb", 7),
+        ]));
+
+    let list = debt(&docs);
+
+    let parts = |kind, label| {
+        let p = priority_of(&list, kind, label);
+        (p.commits, p.entry_points)
+    };
+    // refund.rb, and money.rb once though two steps cite it.
+    assert_eq!(
+        parts(DebtKind::LowConfidence, "billing/pay/refund"),
+        (110, 1)
+    );
+    assert_eq!(
+        parts(DebtKind::Undocumented, "billing/pay/refund"),
+        (110, 1)
+    );
+    assert_eq!(parts(DebtKind::Undocumented, "billing"), (11, 3));
+    assert_eq!(parts(DebtKind::Undocumented, "billing/pay"), (11, 0));
+    assert_eq!(
+        parts(DebtKind::Undocumented, "billing/pay/pay-1"),
+        (1010, 0)
+    );
+    assert_eq!(parts(DebtKind::Undocumented, "?/gone"), (0, 0));
+    assert_eq!(parts(DebtKind::NoDomain, "lib"), (5, 0));
+    assert_eq!(parts(DebtKind::EntryPointWithoutFeature, "app"), (7, 2));
+}
+
+// spec: DBT-8, DBT-25 (internal: the read model of the debt page, shown by DBT-27)
+#[test]
+fn the_items_are_sorted_by_priority_then_by_kind() {
+    let docs = docs(
+        vec![feature("pay", "billing", Some(0.9))],
+        vec![
+            use_case("refund", "pay", Some(0.3)),
+            use_case("void", "pay", Some(0.1)),
+            use_case("check", "pay", None),
+            use_case("hot", "pay", Some(0.4)),
+        ],
+    )
+    .with_churn(churn(&[("hot.rb", 50), ("ignored.rb", 3)]));
+
+    let list = debt(&docs);
+
+    assert_eq!(
+        kinds(&list),
+        [
+            (DebtKind::SetApart, "billing/pay/hot".to_string()),
+            (DebtKind::LowConfidence, "billing/pay/hot".to_string()),
+            (DebtKind::NotScored, "billing/pay/check".to_string()),
+            (DebtKind::SetApart, "billing/pay/refund".to_string()),
+            (DebtKind::SetApart, "billing/pay/void".to_string()),
+            (DebtKind::LowConfidence, "billing/pay/void".to_string()),
+            (DebtKind::LowConfidence, "billing/pay/refund".to_string()),
+        ]
+    );
+}
+
+// spec: DBT-25 (internal: the read model of the debt page, shown by DBT-28)
+#[test]
+fn with_no_history_every_item_counts_no_commit() {
+    let docs = docs(vec![feature("pay", "billing", Some(0.1))], vec![]);
+
+    let list = debt(&docs);
+
+    assert_eq!(list.items[0].priority.commits, 0);
+    assert!(docs.churn().is_none());
 }

@@ -182,7 +182,8 @@ async fn the_debt_page_lists_each_section_that_needs_a_human() {
     let page = debt(repo.path(), "/debt").await;
     let items = items(&page);
 
-    let low = items[0];
+    // Weaker than the others at 30% (0.7 against 1): last.
+    let low = items[4];
     assert!(low.contains("Low confidence"), "{low}");
     assert!(low.contains("Billing"), "{low}");
     assert!(
@@ -206,23 +207,23 @@ async fn the_debt_page_lists_each_section_that_needs_a_human() {
     assert_eq!(
         kinds,
         [
-            "Low confidence",
             "Not scored",
             "Set apart",
             "Stale",
-            "Stale"
+            "Stale",
+            "Low confidence"
         ],
         "{page}"
     );
-    assert!(items[1].contains("/domains/billing/pay-invoice/pay-by-card"));
-    assert!(items[2].contains("confidence"), "{}", items[2]);
+    assert!(items[0].contains("/domains/billing/pay-invoice/pay-by-card"));
+    assert!(items[1].contains("confidence"), "{}", items[1]);
     assert!(
-        items[3].contains("<a href=\"/domains/shipping/ship-order\">Ship an order</a>"),
+        items[2].contains("<a href=\"/domains/shipping/ship-order\">Ship an order</a>"),
         "{}",
-        items[3]
+        items[2]
     );
-    assert!(items[3].contains("app/ship-order.rb"), "{}", items[3]);
-    assert!(items[4].contains("/domains/shipping/ship-order/ship"));
+    assert!(items[2].contains("app/ship-order.rb"), "{}", items[2]);
+    assert!(items[3].contains("/domains/shipping/ship-order/ship"));
 }
 
 // spec: DBT-3
