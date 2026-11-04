@@ -256,6 +256,7 @@ The milestones up to "A large application, one bounded context at a time" are th
 - Why: the users of `PRODUCT.md` are assumed: only the author has read generated docs so far, and the benchmark
   measures likeness to a reference, not use.
 - State: idea
+- On hold: deferred by the user (2026-11-04).
 
 ## Explore the documentation debt and audit it
 
