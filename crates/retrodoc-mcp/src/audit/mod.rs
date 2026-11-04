@@ -58,7 +58,7 @@ pub struct HeatCell {
     pub level: u8,
 }
 
-/// A domain of the run and its cells, in the order of [`DebtKind::ALL`].
+/// A domain of the run and its cells, in the order of [`DebtKind::WITH_DOMAIN`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HeatRow {
     pub domain: String,
@@ -157,11 +157,8 @@ fn entry_coverage(docs: &GeneratedDocs, coverage: &BehaviourCoverage) -> Option<
 fn heatmap(docs: &GeneratedDocs, debt: &DebtList) -> Vec<HeatRow> {
     let mut by_cell: BTreeMap<(&str, usize), usize> = BTreeMap::new();
     for item in &debt.items {
-        if let Some(domain) = item.section.domain.as_deref() {
-            let kind = DebtKind::ALL
-                .iter()
-                .position(|k| *k == item.kind)
-                .unwrap_or(0);
+        let kind = DebtKind::WITH_DOMAIN.iter().position(|k| *k == item.kind);
+        if let (Some(domain), Some(kind)) = (item.domain(), kind) {
             *by_cell.entry((domain, kind)).or_default() += 1;
         }
     }
@@ -169,7 +166,7 @@ fn heatmap(docs: &GeneratedDocs, debt: &DebtList) -> Vec<HeatRow> {
         .domains()
         .iter()
         .map(|domain| {
-            let row = (0..DebtKind::ALL.len())
+            let row = (0..DebtKind::WITH_DOMAIN.len())
                 .map(|kind| {
                     by_cell
                         .get(&(domain.slug.as_str(), kind))
@@ -190,7 +187,7 @@ fn heatmap(docs: &GeneratedDocs, debt: &DebtList) -> Vec<HeatRow> {
         .into_iter()
         .map(|(domain, row)| HeatRow {
             domain,
-            cells: DebtKind::ALL
+            cells: DebtKind::WITH_DOMAIN
                 .iter()
                 .zip(row)
                 .map(|(kind, count)| HeatCell {

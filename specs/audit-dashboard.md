@@ -31,8 +31,9 @@ by kind, so whoever audits the docs decides where to improve them first, then op
   `contexts.yaml`, those whose chain finished as `fingerprints.json` records it, and the names of the others, pending,
   in the order of the map.
 - **AUD-6** (deterministic) The audit page must show a heatmap as a table with one row per domain of the run in the
-  order of the run and one column per kind of the debt view in the order of DBT-8, each cell holding the number of
-  debt items of that kind in that domain; a cell above 0 must link to `/debt?kind=<kind>&domain=<slug>`.
+  order of the run and one column per kind of the debt view that carries a domain (DBT-2 to DBT-7, DBT-15, DBT-16) in
+  the order of DBT-8, each cell holding the number of debt items of that kind in that domain; a cell above 0 must link
+  to `/debt?kind=<kind>&domain=<slug>`.
 - **AUD-7** (deterministic) A cell of the heatmap must carry a level from 0 to 4: 0 for no item, else
   `ceil(4 × count / max)` where `max` is the largest count of the table; the count is written in every cell above 0,
   so the colour is never the only carrier of the figure.
@@ -69,7 +70,7 @@ by kind, so whoever audits the docs decides where to improve them first, then op
   counted done until the next `generate` plans it again (judging it needs the roles and the file walk of `generate`).
   The page does not read the configuration either: a repository that left `domains_from = "contexts"` keeps its
   saved map, and the page still shows its progress.
-- The kinds of the code no doc covers and of the project docs join the heatmap with
-  `issues/web_debt_view_of_the_code.md`; the priority across the cells is `issues/debt_priority_score.md`.
+- The kinds of the code no doc covers (DBT-19, DBT-20) carry no domain and have no column; the priority across the
+  cells is `issues/debt_priority_score.md`.
 - No chart library: the heatmap is an HTML table, its shades in the stylesheet (ADR 0039).
 - The page calls no LLM; its figures are read at each request.

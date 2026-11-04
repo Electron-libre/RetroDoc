@@ -230,9 +230,17 @@ async fn the_heatmap_counts_the_debt_of_each_domain_by_kind_and_links_to_the_deb
     let page = audit(repo.path()).await;
 
     let table = between(&page, "<table class=\"heatmap\"", "</table>");
-    for kind in ["Low confidence", "Not scored", "Set apart", "Stale"] {
+    for kind in [
+        "Low confidence",
+        "Not scored",
+        "Set apart",
+        "Stale",
+        "Contradicted",
+        "Undocumented",
+    ] {
         assert!(table.contains(kind), "{kind} not a column of {table}");
     }
+    assert!(!table.contains("No domain"), "{table}");
     let cell = |level: &str, text: &str| (level.to_string(), text.to_string());
     assert_eq!(
         row(&page, "Billing"),
@@ -242,6 +250,8 @@ async fn the_heatmap_counts_the_debt_of_each_domain_by_kind_and_links_to_the_deb
             cell("0", ""),
             cell("0", ""),
             cell("2", "1"),
+            cell("0", ""),
+            cell("0", ""),
             cell("0", ""),
         ]
     );
@@ -254,6 +264,8 @@ async fn the_heatmap_counts_the_debt_of_each_domain_by_kind_and_links_to_the_deb
             cell("0", ""),
             cell("0", ""),
             cell("4", "2"),
+            cell("0", ""),
+            cell("0", ""),
         ]
     );
     let stale = between(table, "<td class=\"level-4\"", "</td>");

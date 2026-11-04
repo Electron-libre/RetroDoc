@@ -147,7 +147,7 @@ pub struct WebTexts {
 pub struct DebtTexts {
     pub intro: &'static str,
     /// The name of each kind, in the order of `DebtKind::ALL`.
-    pub kinds: [&'static str; 6],
+    pub kinds: [&'static str; 12],
     /// Why a use case is set apart: its back-office feature, its business language, its confidence.
     pub reasons: [&'static str; 3],
     pub set_apart_for: &'static str,
@@ -363,6 +363,12 @@ impl WebTexts {
                 "Technical language",
                 "Set apart",
                 "Stale",
+                "Contradicted",
+                "Undocumented",
+                "Entry point without a feature",
+                "No domain",
+                "Reached by no behaviour",
+                "Not analysed",
             ],
             reasons: ["back-office feature", "business language", "confidence"],
             set_apart_for: "Set apart for:",
@@ -594,6 +600,12 @@ impl WebTexts {
                 "Langage technique",
                 "Mis à part",
                 "Périmé",
+                "Contredit",
+                "Non documenté",
+                "Point d'entrée sans fonctionnalité",
+                "Sans domaine",
+                "Atteint par aucun comportement",
+                "Non analysé",
             ],
             reasons: ["fonctionnalité back-office", "langage métier", "confiance"],
             set_apart_for: "Mis à part pour :",
@@ -730,6 +742,12 @@ impl WebTexts {
             DebtKind::TechnicalLanguage => 3,
             DebtKind::SetApart => 4,
             DebtKind::Stale => 5,
+            DebtKind::Contradicted => 6,
+            DebtKind::Undocumented => 7,
+            DebtKind::EntryPointWithoutFeature => 8,
+            DebtKind::NoDomain => 9,
+            DebtKind::NoBehaviour => 10,
+            DebtKind::NotAnalysed => 11,
         };
         self.debt.kinds[at]
     }

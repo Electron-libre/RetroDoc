@@ -98,7 +98,7 @@ fn the_debt_is_counted_by_domain_and_kind_in_the_order_of_the_run() {
         .collect();
     // A use case low in confidence is also set apart.
     let row = |low: (usize, u8)| {
-        let mut cells = vec![(0, 0); DebtKind::ALL.len()];
+        let mut cells = vec![(0, 0); DebtKind::WITH_DOMAIN.len()];
         cells[0] = low;
         cells[4] = low;
         cells

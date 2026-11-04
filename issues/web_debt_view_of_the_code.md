@@ -48,9 +48,9 @@ hidden): 240 files reached by no behaviour, 247 undocumented items, 2 files with
    saved verdicts), the files with no domain, the skipped files and the behaviour coverage; `retrodoc ui` builds the
    item links from that reconciliation instead of reconciling twice; verified by internal tests; makes true nothing
    alone (prepares DBT-15 to DBT-21). ~300 lines.
-2. [ ] Debt items of the new kinds in `retrodoc_mcp::debt` (contradicted, undocumented, the code side by folder), the
+2. [x] Debt items of the new kinds in `retrodoc_mcp::debt` (contradicted, undocumented, the code side by folder), the
    heatmap of the audit gains the two kinds that carry a domain (AUD-6 amended); verified by internal tests; makes
-   true DBT-8, DBT-15, DBT-16, DBT-17, DBT-19, DBT-20, DBT-21, DBT-22. ~450 lines.
+   true DBT-8, DBT-15, DBT-16, DBT-17, DBT-19, DBT-20, DBT-21, DBT-22. ~450 lines. (autonomous)
 3. [ ] The page: rows of the new kinds (folder items folded with their files, links to `/code/` and `/docs/`), the
    kind filter, `/code/` serving the files of the debt, English and French texts; verified by router tests and a
    check in headless Chrome; makes true DBT-18, DBT-21 (links) and the spec `accepted`. ~500 lines.
@@ -80,5 +80,25 @@ amended (draft).
 | code review | pending |
 
 red: none (no requirement traced: the two load tests failed to compile on the missing `uncovered`)
+
+not verified: none. decisions needed: none.
+
+### 2. Debt items of the new kinds
+done: `DebtKind` gains six kinds; a `DebtItem` is about a `Subject` (a section, a `DocItem` of the reconciliation, a
+`Folder` of code), with `domain()` and `label()`; `DebtList::no_docs`; the heatmap counts `DebtKind::WITH_DOMAIN`
+(AUD-6 amended); the web names the new kinds (English, French) and lists them by label until deliverable 3.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass (AUD-6 amended) |
+| docs | `docs/crates/render-mcp-cli.md` |
+| code review | no findings |
+
+red: DBT-8, DBT-15, DBT-16, DBT-17, DBT-19, DBT-20, DBT-21, DBT-22: the 3 tests failed to compile on the missing
+`Subject`, `DebtKind::Contradicted` and `DebtList::no_docs`; AUD-6: 8 cells where 6 were expected
+
+Code review: no findings
 
 not verified: none. decisions needed: none.

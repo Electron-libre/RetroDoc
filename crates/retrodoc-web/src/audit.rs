@@ -134,7 +134,10 @@ pub fn audit_page(docs: &GeneratedDocs, texts: &WebTexts) -> AuditPage {
                 pending: pending.iter().map(|slug| domain_name(slug)).collect(),
             }),
         levels: (1..=MAX_LEVEL).collect(),
-        kinds: DebtKind::ALL.iter().map(|k| texts.debt_kind(*k)).collect(),
+        kinds: DebtKind::WITH_DOMAIN
+            .iter()
+            .map(|k| texts.debt_kind(*k))
+            .collect(),
         rows: audit
             .heatmap
             .into_iter()

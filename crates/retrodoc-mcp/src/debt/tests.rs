@@ -2,10 +2,16 @@ use retrodoc_core::model::{
     Actor, ActorKind, ConfidenceScore, Domain, Feature, SetApartReason, SourceRef, Step, UseCase,
 };
 use retrodoc_pipeline::cache::hash_content;
-use retrodoc_pipeline::{Glossary, SourceHashes};
+use retrodoc_pipeline::reconcile::{
+    Contradiction, ItemKind, ItemVerdict, Reconciliation, SectionRef, Status,
+};
+use retrodoc_pipeline::{BehaviourCoverage, Glossary, SourceHashes};
+
+use std::path::PathBuf;
 
 use super::*;
 use crate::freshness::FileState;
+use crate::read_model::Uncovered;
 
 fn feature(slug: &str, domain: &str, confidence: Option<f32>) -> Feature {
     Feature {
@@ -64,10 +70,7 @@ fn docs(features: Vec<Feature>, use_cases: Vec<UseCase>) -> GeneratedDocs {
 }
 
 fn kinds(list: &DebtList) -> Vec<(DebtKind, String)> {
-    list.items
-        .iter()
-        .map(|i| (i.kind, i.section.label()))
-        .collect()
+    list.items.iter().map(|i| (i.kind, i.label())).collect()
 }
 
 // spec: DBT-2, DBT-3, DBT-8 (internal: the read model of the debt page, shown by DBT-1)
@@ -220,5 +223,125 @@ fn a_use_case_whose_feature_is_not_in_the_run_has_no_domain() {
 
     let list = debt(&docs);
 
-    assert_eq!(list.items[0].section.domain, None);
+    assert_eq!(list.items[0].domain(), None);
+}
+
+fn verdict(kind: ItemKind, label: &str, status: Status, entry_points: usize) -> ItemVerdict {
+    ItemVerdict {
+        kind,
+        label: label.into(),
+        domain: label.split('/').next().unwrap_or_default().into(),
+        name: format!("name of {label}"),
+        entry_points,
+        confidence: None,
+        status,
+        sections: Vec::new(),
+        contradictions: Vec::new(),
+    }
+}
+
+// spec: DBT-15, DBT-16, DBT-8 (internal: the read model of the debt page, shown by DBT-1)
+#[test]
+fn the_contradicted_and_undocumented_items_follow_the_sections() {
+    let mut contradicted = verdict(
+        ItemKind::UseCase,
+        "billing/pay/refund",
+        Status::Contradicted,
+        1,
+    );
+    contradicted.contradictions = ["README.md#Refunds", "docs/faq.md"]
+        .map(|origin| Contradiction {
+            section: SectionRef::parse(origin),
+            doc_states: format!("{origin} says 60 days"),
+            item_states: "30 days".into(),
+        })
+        .to_vec();
+    let reconciliation = Reconciliation {
+        items: vec![
+            verdict(ItemKind::Domain, "billing", Status::Undocumented, 1),
+            contradicted,
+            verdict(ItemKind::Feature, "billing/pay", Status::Matched, 3),
+            verdict(ItemKind::Feature, "auth/login", Status::Documented, 3),
+            verdict(ItemKind::Rule, "billing/pay/pay-1", Status::Undocumented, 4),
+        ],
+    };
+    let docs = docs(
+        vec![feature("pay", "billing", Some(0.9))],
+        vec![use_case("refund", "pay", None)],
+    )
+    .with_uncovered(Uncovered {
+        reconciliation: Some(reconciliation),
+        ..Uncovered::default()
+    });
+
+    let list = debt(&docs);
+
+    let doc_kinds: Vec<_> = kinds(&list)
+        .into_iter()
+        .filter(|(k, _)| matches!(k, DebtKind::Contradicted | DebtKind::Undocumented))
+        .collect();
+    assert_eq!(
+        doc_kinds,
+        [
+            (DebtKind::Contradicted, "billing/pay/refund".to_string()),
+            (DebtKind::Undocumented, "billing/pay/pay-1".to_string()),
+            (DebtKind::Undocumented, "billing".to_string()),
+        ]
+    );
+    assert!(!list.no_docs);
+    let Subject::DocItem(item) = &list.items[list.items.len() - 3].subject else {
+        panic!("not a doc item");
+    };
+    assert_eq!(item.kind, ItemKind::UseCase);
+    assert_eq!(item.contradictions.len(), 2);
+    assert_eq!(list.items[list.items.len() - 3].domain(), Some("billing"));
+}
+
+// spec: DBT-17 (internal: the read model of the debt page, shown by DBT-1)
+#[test]
+fn with_no_collected_doc_no_item_is_compared() {
+    let docs = docs(vec![feature("pay", "billing", Some(0.9))], vec![]);
+
+    let list = debt(&docs);
+
+    assert!(list.no_docs);
+    assert!(list.items.is_empty(), "{:?}", kinds(&list));
+}
+
+// spec: DBT-19, DBT-20, DBT-21, DBT-22, DBT-8 (internal: the read model of the debt page, shown by DBT-1)
+#[test]
+fn the_code_no_doc_covers_is_listed_by_kind_and_folder() {
+    let paths = |paths: &[&str]| paths.iter().map(PathBuf::from).collect::<Vec<_>>();
+    let docs = docs(vec![feature("pay", "billing", Some(0.9))], vec![]).with_uncovered(Uncovered {
+        reconciliation: None,
+        no_domain: paths(&["Rakefile"]),
+        skipped: paths(&["vendor/a.rb"]),
+        coverage: Some(BehaviourCoverage {
+            unplaced_entry_points: vec!["app/x.rb#create".into(), "app/x.rb#delete".into()],
+            technical_support: paths(&["lib/c.rb", "app/b.rb", "app/a.rb"]),
+            ..BehaviourCoverage::default()
+        }),
+    });
+
+    let list = debt(&docs);
+
+    assert_eq!(
+        kinds(&list),
+        [
+            (DebtKind::EntryPointWithoutFeature, "app".to_string()),
+            (DebtKind::NoDomain, ".".to_string()),
+            (DebtKind::NoBehaviour, "app".to_string()),
+            (DebtKind::NoBehaviour, "lib".to_string()),
+            (DebtKind::NotAnalysed, "vendor".to_string()),
+        ]
+    );
+    let Subject::Folder(app) = &list.items[2].subject else {
+        panic!("not a folder");
+    };
+    assert_eq!(app.entries, ["app/b.rb", "app/a.rb"]);
+    let Subject::Folder(entries) = &list.items[0].subject else {
+        panic!("not a folder");
+    };
+    assert_eq!(entries.entries, ["app/x.rb#create", "app/x.rb#delete"]);
+    assert!(list.items.iter().all(|i| i.domain().is_none()));
 }

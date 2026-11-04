@@ -3,7 +3,7 @@
 //! the names of its domain and section and a link to its page.
 
 use retrodoc_core::model::ConfidenceScore;
-use retrodoc_mcp::debt::{debt, DebtItem, DebtKind, Section};
+use retrodoc_mcp::debt::{debt, DebtItem, DebtKind, Section, Subject};
 use retrodoc_mcp::GeneratedDocs;
 
 use crate::rules::{Choice, Filter};
@@ -19,6 +19,12 @@ pub(crate) fn kind_value(kind: DebtKind) -> &'static str {
         DebtKind::TechnicalLanguage => "technical_language",
         DebtKind::SetApart => "set_apart",
         DebtKind::Stale => "stale",
+        DebtKind::Contradicted => "contradicted",
+        DebtKind::Undocumented => "undocumented",
+        DebtKind::EntryPointWithoutFeature => "entry_point_without_feature",
+        DebtKind::NoDomain => "no_domain",
+        DebtKind::NoBehaviour => "no_behaviour",
+        DebtKind::NotAnalysed => "not_analysed",
     }
 }
 
@@ -82,43 +88,27 @@ impl DebtFilter {
         let domain = self
             .domain
             .as_deref()
-            .is_none_or(|asked| item.section.domain.as_deref() == Some(asked));
+            .is_none_or(|asked| item.domain() == Some(asked));
         kind && domain
     }
 }
 
 fn row(docs: &GeneratedDocs, item: &DebtItem, texts: &WebTexts) -> DebtRow {
-    let Section {
-        domain,
-        feature,
-        use_case,
-    } = &item.section;
-    let feature = domain
-        .as_deref()
-        .and_then(|domain| crate::view::find_feature(docs, domain, feature));
-    let domain_name = feature.map(|f| {
-        docs.domains()
-            .iter()
-            .find(|d| d.slug == f.domain_slug)
-            .map_or_else(|| f.domain_slug.clone(), |d| d.name.clone())
-    });
-    let use_case = use_case.as_deref().map(|slug| {
-        docs.use_cases_of(&item.section.feature)
-            .find(|u| u.slug == slug)
-    });
-    let (name, href) = match (feature, use_case) {
-        (Some(f), None) => (f.name.clone(), Some(crate::view::feature_href(f))),
-        (Some(f), Some(Some(u))) => (u.name.clone(), Some(crate::view::use_case_href(f, u))),
-        _ => (item.section.label(), None),
+    let named = match &item.subject {
+        Subject::Section(section) => section_row(docs, section),
+        Subject::DocItem(_) | Subject::Folder(_) => Named {
+            domain: None,
+            name: item.label(),
+            feature: None,
+            href: None,
+        },
     };
     DebtRow {
         kind: texts.debt_kind(item.kind),
-        domain: domain_name,
-        name,
-        feature: feature
-            .filter(|_| item.section.use_case.is_some())
-            .map(|f| f.name.clone()),
-        href,
+        domain: named.domain,
+        name: named.name,
+        feature: named.feature,
+        href: named.href,
         score: item
             .score
             .map(|value| Confidence::of(Some(&ConfidenceScore::new(value, None)))),
@@ -138,6 +128,46 @@ fn row(docs: &GeneratedDocs, item: &DebtItem, texts: &WebTexts) -> DebtRow {
             .iter()
             .map(|(path, state)| StaleFile::of(path, *state))
             .collect(),
+    }
+}
+
+/// How a row names its subject.
+struct Named {
+    domain: Option<String>,
+    name: String,
+    feature: Option<String>,
+    href: Option<String>,
+}
+
+/// The names and the page of a section, from the run; its label and no link when its feature is
+/// not in the run.
+fn section_row(docs: &GeneratedDocs, section: &Section) -> Named {
+    let feature = section
+        .domain
+        .as_deref()
+        .and_then(|domain| crate::view::find_feature(docs, domain, &section.feature));
+    let domain = feature.map(|f| {
+        docs.domains()
+            .iter()
+            .find(|d| d.slug == f.domain_slug)
+            .map_or_else(|| f.domain_slug.clone(), |d| d.name.clone())
+    });
+    let use_case = section
+        .use_case
+        .as_deref()
+        .map(|slug| docs.use_cases_of(&section.feature).find(|u| u.slug == slug));
+    let (name, href) = match (feature, use_case) {
+        (Some(f), None) => (f.name.clone(), Some(crate::view::feature_href(f))),
+        (Some(f), Some(Some(u))) => (u.name.clone(), Some(crate::view::use_case_href(f, u))),
+        _ => (section.label(), None),
+    };
+    Named {
+        domain,
+        name,
+        feature: feature
+            .filter(|_| section.use_case.is_some())
+            .map(|f| f.name.clone()),
+        href,
     }
 }
 

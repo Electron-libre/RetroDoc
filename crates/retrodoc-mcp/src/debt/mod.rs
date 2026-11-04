@@ -1,16 +1,20 @@
 //! The documentation debt as typed items, independent of how it is shown
 //! (`specs/debt-view.md`): the sections of the docs that need a human, read
 //! from the same [`build_report`] as `retrodoc report`, plus the sections whose
-//! cited code changed since the run, judged at each call.
+//! cited code changed since the run, judged at each call, then the items the
+//! project's docs contradict or leave out and the code no doc covers, by folder.
 
 use std::collections::BTreeMap;
+use std::path::Path;
 
 use retrodoc_core::model::{SetApartReason, UseCase};
+pub use retrodoc_pipeline::reconcile::{Contradiction, ItemKind};
+use retrodoc_pipeline::reconcile::{ItemVerdict, Reconciliation};
 pub use retrodoc_pipeline::Section;
 use retrodoc_pipeline::{build_report, DebtReport, DomainMap, WeakSection};
 
 use crate::freshness::{FileState, Freshness};
-use crate::read_model::GeneratedDocs;
+use crate::read_model::{GeneratedDocs, Uncovered};
 
 /// What makes a section need a human, in the order the debt lists them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -27,24 +31,99 @@ pub enum DebtKind {
     SetApart,
     /// A file it cites was modified or deleted since the run.
     Stale,
+    /// An item a section of the project's docs contradicts.
+    Contradicted,
+    /// An item no section of the project's docs mentions.
+    Undocumented,
+    /// The entry points of a folder that no feature holds.
+    EntryPointWithoutFeature,
+    /// The source files of a folder the clustering left in no domain.
+    NoDomain,
+    /// The source files of a folder no behaviour reaches.
+    NoBehaviour,
+    /// The source files of a folder the file budget left out.
+    NotAnalysed,
 }
 
 impl DebtKind {
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 12] = [
         Self::LowConfidence,
         Self::NotScored,
         Self::UnbackedNarrative,
         Self::TechnicalLanguage,
         Self::SetApart,
         Self::Stale,
+        Self::Contradicted,
+        Self::Undocumented,
+        Self::EntryPointWithoutFeature,
+        Self::NoDomain,
+        Self::NoBehaviour,
+        Self::NotAnalysed,
     ];
+
+    /// The kinds whose items carry a domain, in the order of [`Self::ALL`].
+    pub const WITH_DOMAIN: [Self; 8] = [
+        Self::LowConfidence,
+        Self::NotScored,
+        Self::UnbackedNarrative,
+        Self::TechnicalLanguage,
+        Self::SetApart,
+        Self::Stale,
+        Self::Contradicted,
+        Self::Undocumented,
+    ];
+}
+
+/// What a debt item is about.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Subject {
+    /// A use case, or a feature.
+    Section(Section),
+    /// A domain, feature, use case or rule reconciled with the project's docs.
+    DocItem(DocItem),
+    /// A folder of the code no doc covers.
+    Folder(Folder),
+}
+
+/// An item of the reconciliation with the project's docs.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DocItem {
+    pub kind: ItemKind,
+    /// `<domain>/<feature>/<use case or rule>`, `?` for a domain or feature not in the run.
+    pub label: String,
+    pub domain: String,
+    pub name: String,
+    pub entry_points: usize,
+    /// The sections that contradict it, and what each side states.
+    pub contradictions: Vec<Contradiction>,
+}
+
+impl DocItem {
+    fn of(verdict: &ItemVerdict) -> Self {
+        Self {
+            kind: verdict.kind,
+            label: verdict.label.clone(),
+            domain: verdict.domain.clone(),
+            name: verdict.name.clone(),
+            entry_points: verdict.entry_points,
+            contradictions: verdict.contradictions.clone(),
+        }
+    }
+}
+
+/// A folder and its files or entry points (`<file>#<name>`) of one kind, in the order of the run.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Folder {
+    /// The directory of its files, `.` for the root of the repository.
+    pub path: String,
+    pub entries: Vec<String>,
 }
 
 /// A section of the docs that needs a human, and why.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DebtItem {
     pub kind: DebtKind,
-    pub section: Section,
+    pub subject: Subject,
     /// The low confidence or business-language score.
     pub score: Option<f32>,
     pub rationale: Option<String>,
@@ -56,9 +135,13 @@ pub struct DebtItem {
 
 impl DebtItem {
     fn new(kind: DebtKind, section: Section) -> Self {
+        Self::about(kind, Subject::Section(section))
+    }
+
+    fn about(kind: DebtKind, subject: Subject) -> Self {
         Self {
             kind,
-            section,
+            subject,
             score: None,
             rationale: None,
             reasons: Vec::new(),
@@ -73,6 +156,26 @@ impl DebtItem {
             ..Self::new(kind, weak.section.clone())
         }
     }
+
+    /// The domain of its section or doc item; `None` for a folder, or a domain not in the run.
+    #[must_use]
+    pub fn domain(&self) -> Option<&str> {
+        match &self.subject {
+            Subject::Section(section) => section.domain.as_deref(),
+            Subject::DocItem(item) => Some(item.domain.as_str()).filter(|d| *d != "?"),
+            Subject::Folder(_) => None,
+        }
+    }
+
+    /// The label of its section or doc item, or the path of its folder.
+    #[must_use]
+    pub fn label(&self) -> String {
+        match &self.subject {
+            Subject::Section(section) => section.label(),
+            Subject::DocItem(item) => item.label.clone(),
+            Subject::Folder(folder) => folder.path.clone(),
+        }
+    }
 }
 
 /// The debt of a run.
@@ -83,6 +186,9 @@ pub struct DebtList {
     pub items: Vec<DebtItem>,
     /// The run has use cases and none has a confidence: none is listed as not scored.
     pub no_score: bool,
+    /// There is no collected doc to compare the items with: none is listed as contradicted or
+    /// undocumented.
+    pub no_docs: bool,
 }
 
 /// The debt of `docs`, the stale sections judged now.
@@ -134,7 +240,72 @@ pub fn debt_of(docs: &GeneratedDocs, report: DebtReport) -> DebtList {
     if let Some(freshness) = docs.freshness() {
         items.extend(stale(docs, freshness));
     }
-    DebtList { items, no_score }
+    let uncovered = docs.uncovered();
+    if let Some(reconciliation) = &uncovered.reconciliation {
+        items.extend(doc_items(reconciliation));
+    }
+    items.extend(code_items(uncovered));
+    DebtList {
+        items,
+        no_score,
+        no_docs: uncovered.reconciliation.is_none(),
+    }
+}
+
+/// The contradicted items in the order of the run, then the undocumented ones as `retrodoc report`
+/// lists them.
+fn doc_items(reconciliation: &Reconciliation) -> impl Iterator<Item = DebtItem> + '_ {
+    let of = |kind: DebtKind| {
+        move |verdict: &ItemVerdict| DebtItem::about(kind, Subject::DocItem(DocItem::of(verdict)))
+    };
+    let contradicted = reconciliation.contradicted();
+    let undocumented = reconciliation.undocumented();
+    contradicted
+        .into_iter()
+        .map(of(DebtKind::Contradicted))
+        .chain(undocumented.into_iter().map(of(DebtKind::Undocumented)))
+}
+
+/// The code no doc covers, one item per kind and folder, the folders by path.
+fn code_items(uncovered: &Uncovered) -> Vec<DebtItem> {
+    let coverage = uncovered.coverage.as_ref();
+    let display = |paths: &[std::path::PathBuf]| -> Vec<String> {
+        paths.iter().map(|p| p.display().to_string()).collect()
+    };
+    let kinds = [
+        (
+            DebtKind::EntryPointWithoutFeature,
+            coverage.map(|c| c.unplaced_entry_points.clone()),
+        ),
+        (DebtKind::NoDomain, Some(display(&uncovered.no_domain))),
+        (
+            DebtKind::NoBehaviour,
+            coverage.map(|c| display(&c.technical_support)),
+        ),
+        (DebtKind::NotAnalysed, Some(display(&uncovered.skipped))),
+    ];
+    let mut items = Vec::new();
+    for (kind, entries) in kinds {
+        let mut folders: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        for entry in entries.unwrap_or_default() {
+            folders.entry(folder_of(&entry)).or_default().push(entry);
+        }
+        items.extend(folders.into_iter().map(|(path, entries)| {
+            DebtItem::about(kind, Subject::Folder(Folder { path, entries }))
+        }));
+    }
+    items
+}
+
+/// The directory of the file of `entry` (a path, or an entry point `<file>#<name>`), `.` for the
+/// root.
+fn folder_of(entry: &str) -> String {
+    let file = entry.split_once('#').map_or(entry, |(file, _)| file);
+    Path::new(file)
+        .parent()
+        .map(|p| p.display().to_string())
+        .filter(|p| !p.is_empty())
+        .unwrap_or_else(|| ".".to_string())
 }
 
 /// The files the steps of `use_case` cite, each once, in order.
