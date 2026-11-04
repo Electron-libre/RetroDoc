@@ -50,6 +50,7 @@ check. Means as the issue's, the save shared with `reviews` through a new module
    green; makes true no new requirement (refactor). (autonomous)
 2. [x] Edits store: module `edits` (model, `record`, `remove`, `load`, `edits_path`) on `store`, spec
    `specs/section-edit.md` accepted, ADR 0045; verified by tests per requirement; makes true SED-1 to SED-22. (autonomous)
+3. [x] Fixes of the `high` review of the issue; verified by the tests of SED and REV; makes true SED-18 (layout). (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -72,4 +73,18 @@ check. Means as the issue's, the save shared with `reviews` through a new module
 - red: SED-1 to SED-10, SED-12 to SED-22: `not yet implemented` (stubs); SED-11 green at once (the file is outside
   the cache, as REV-8).
 - Code review: no findings
+- not verified: none.
+
+## Deliverable 3 summary
+- done: the fixes of the `high` review of the issue: the files saved in the order of the structs (`Saved`, version
+  first; `serde_json::Map` sorted the keys), the path in the save error (`StoreError::Io`), `UnknownSection` out of
+  the store (`ReviewsError` and `EditsError` each hold it), the author and the hashes read before the lock, a missing
+  records key named in the load error, no lifetime on `Store`.
+- red: SED-18: the layout assertion added to `the_edits_are_saved_by_kind_then_id` (keys in struct order), which the
+  `Map` of the save sorted alphabetically.
+- Code review: 9 findings (high review of the issue): fixed 1 (key order), 3 (path in the save error), 4
+  (`UnknownSection`), 5 (I/O out of the lock), 6 (missing key), 7 (lifetime); not fixed 2 (fingerprint of edited
+  docs): no reader applies the edits yet, logged in `issues/edits_in_read_model.md`; 8 (`edits()`/`reviews()`
+  forward to `all()`): `reviews()` has callers in three crates, `edits()` mirrors it; 9 (trim): the form decides,
+  logged in `issues/web_edit_form.md`.
 - not verified: none.

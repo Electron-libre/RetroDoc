@@ -8,6 +8,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use serde::de::DeserializeOwned;
+use serde::ser::SerializeMap as _;
 use serde::{Deserialize, Serialize};
 
 pub use crate::history::SectionKind;
@@ -102,18 +103,19 @@ pub enum StoreError {
         version: u32,
         supported: u32,
     },
-    #[error("the docs hold no {} {}", kind_key(.0.kind), .0.id)]
-    UnknownSection(Section),
-    #[error("the file cannot be saved: {0}")]
-    Io(#[from] std::io::Error),
+    #[error("{} cannot be saved: {source}", path.display())]
+    Io {
+        path: PathBuf,
+        source: std::io::Error,
+    },
 }
 
 /// The file of records stored at `path`, of format `version` at most, the records under the key
 /// `key`.
-pub(crate) struct Store<'a> {
+pub(crate) struct Store {
     pub path: PathBuf,
     pub version: u32,
-    pub key: &'a str,
+    pub key: &'static str,
 }
 
 /// The version of a file, read before the rest.
@@ -122,7 +124,7 @@ struct Version {
     version: u32,
 }
 
-impl Store<'_> {
+impl Store {
     /// The records saved, none when no file is.
     pub fn load<R: Record>(&self) -> Result<Records<R>, StoreError> {
         let path = &self.path;
@@ -144,8 +146,11 @@ impl Store<'_> {
         }
         let mut file: serde_json::Map<String, serde_json::Value> =
             serde_json::from_str(&text).map_err(|e| unreadable(path, &e))?;
-        let mut records: Vec<R> = serde_json::from_value(file.remove(self.key).unwrap_or_default())
-            .map_err(|e| unreadable(path, &e))?;
+        let records = file
+            .remove(self.key)
+            .ok_or_else(|| unreadable(path, &format!("missing field `{}`", self.key)))?;
+        let mut records: Vec<R> =
+            serde_json::from_value(records).map_err(|e| unreadable(path, &e))?;
         // The newest record of a section first, then the others of that section dropped: a file
         // merged by hand may hold several.
         records.sort_by(|a, b| {
@@ -180,15 +185,21 @@ impl Store<'_> {
         records: &Records<R>,
         _held: &MutexGuard<'_, ()>,
     ) -> Result<(), StoreError> {
+        self.write(records).map_err(|source| StoreError::Io {
+            path: self.path.clone(),
+            source,
+        })
+    }
+
+    fn write<R: Record>(&self, records: &Records<R>) -> std::io::Result<()> {
         let path = &self.path;
         let dir = path.parent().unwrap_or(Path::new("."));
         std::fs::create_dir_all(dir)?;
-        let mut file = serde_json::Map::new();
-        file.insert("version".into(), self.version.into());
-        file.insert(
-            self.key.into(),
-            serde_json::to_value(&records.records).map_err(std::io::Error::other)?,
-        );
+        let file = Saved {
+            version: self.version,
+            key: self.key,
+            records: &records.records,
+        };
         let mut json = serde_json::to_string_pretty(&file).map_err(std::io::Error::other)?;
         json.push('\n');
         let draft = dir.join(format!(
@@ -210,6 +221,23 @@ impl Store<'_> {
         // The new name itself on the disk, past a crash of the machine.
         std::fs::File::open(dir)?.sync_all()?;
         Ok(())
+    }
+}
+
+/// The file as saved: its version first, then its records, each field in the order of its
+/// struct, so a versioned file keeps its layout from one save to the next.
+struct Saved<'a, R> {
+    version: u32,
+    key: &'static str,
+    records: &'a [R],
+}
+
+impl<R: Serialize> Serialize for Saved<'_, R> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut map = serializer.serialize_map(Some(2))?;
+        map.serialize_entry("version", &self.version)?;
+        map.serialize_entry(self.key, self.records)?;
+        map.end()
     }
 }
 

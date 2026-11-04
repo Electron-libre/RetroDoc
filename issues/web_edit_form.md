@@ -15,6 +15,9 @@ section was edited by a human (author, date), shows the generated text it replac
   `htmx`, refuses a cross-site `POST` (`refuse_cross_site`, WEB-84) and answers a fragment to `htmx`, a redirect
   otherwise.
 * 2026-11-05: `specs/web-ui.md` lists "no edit of the docs" as a non-goal: this issue amends it.
+* 2026-11-05: `edits::record` refuses a blank field (SED-5) but saves the others as given: a textarea sends
+  surrounding whitespace and newlines; decide whether the form or the store trims them (high review of
+  `edit_store`).
 
 # Approach
 1. An edit form beside the review form, the fields filled with the text shown; a `POST` saves the edit, an empty

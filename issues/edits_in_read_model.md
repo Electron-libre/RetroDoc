@@ -15,6 +15,10 @@ beneath, so the docs a team corrected say the same thing in the browser, to an a
   builds the search index once, in `GeneratedDocs::new`; `retrodoc ui` and `retrodoc mcp` load it once at start.
 * 2026-11-05: `render` and `generate` write the Markdown from the artifacts (`publish` in
   `crates/retrodoc-cli/src/commands/docs.rs`), not through the read model.
+* 2026-11-05: `edits::record` takes the fingerprint (SED-8) and the cited hashes from the `GeneratedDocs` it is given,
+  which must be the generated docs with no edit applied, while a review judges the edited ones: once the overlay is
+  applied in the read model, keep the generated sections reachable as their own value (a distinct type, or the
+  overlay dropped inside `record`) so the form can't hand the edited docs to it (high review of `edit_store`).
 
 # Approach
 1. Apply the edits over the domains, features and use cases when the docs are loaded, keeping the generated

@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::read_model::GeneratedDocs;
 use crate::reviews;
-use crate::store::{Record, Records, Section, SectionKind, Store, StoreError};
+use crate::store::{kind_key, Record, Records, Section, SectionKind, Store, StoreError};
 
 /// The format of the file written now.
 pub const VERSION: u32 = 1;
@@ -71,7 +71,9 @@ impl Edits {
 
 #[derive(Debug, thiserror::Error)]
 pub enum EditsError {
-    #[error("only a use case has a narrative, not the {} {}", crate::store::kind_key(.0.kind), .0.id)]
+    #[error("the docs hold no {} {}", kind_key(.0.kind), .0.id)]
+    UnknownSection(Section),
+    #[error("only a use case has a narrative, not the {} {}", kind_key(.0.kind), .0.id)]
     NoNarrative(Section),
     #[error("the edit changes no field")]
     NothingEdited,
@@ -88,7 +90,7 @@ pub fn edits_path(repo_root: &Path) -> PathBuf {
 }
 
 /// The file of the edits of `repo_root`.
-fn store(repo_root: &Path) -> Store<'static> {
+fn store(repo_root: &Path) -> Store {
     Store {
         path: edits_path(repo_root),
         version: VERSION,
@@ -119,17 +121,18 @@ pub fn record(
     fields: Fields,
 ) -> Result<Edit, EditsError> {
     let fingerprint = reviews::fingerprint(docs, section)
-        .ok_or_else(|| StoreError::UnknownSection(section.clone()))?;
+        .ok_or_else(|| EditsError::UnknownSection(section.clone()))?;
     check(section, &fields)?;
+    // Read before the lock: the saves of the process wait on it.
+    let edit = Edit {
+        section: section.clone(),
+        fields,
+        author: user_name(repo_root),
+        edited_at: Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true),
+        fingerprint,
+        files: reviews::cited_hashes(repo_root, docs, section),
+    };
     Ok(store(repo_root).change(|edits| {
-        let edit = Edit {
-            section: section.clone(),
-            fields,
-            author: user_name(repo_root),
-            edited_at: Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true),
-            fingerprint,
-            files: reviews::cited_hashes(repo_root, docs, section),
-        };
         edits.set(edit.clone());
         (true, edit)
     })?)

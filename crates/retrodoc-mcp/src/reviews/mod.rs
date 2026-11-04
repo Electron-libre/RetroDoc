@@ -16,8 +16,16 @@ use serde::{Deserialize, Serialize};
 use crate::debt::use_case_cited_paths;
 use crate::freshness::{file_hash, state_against, FileState};
 use crate::read_model::GeneratedDocs;
-use crate::store::{Record, Records, Store};
-pub use crate::store::{Section, SectionKind, StoreError as ReviewsError};
+use crate::store::{kind_key, Record, Records, Store};
+
+#[derive(Debug, thiserror::Error)]
+pub enum ReviewsError {
+    #[error("the docs hold no {} {}", kind_key(.0.kind), .0.id)]
+    UnknownSection(Section),
+    #[error(transparent)]
+    Store(#[from] StoreError),
+}
+pub use crate::store::{Section, SectionKind, StoreError};
 
 /// The format of the file written now.
 pub const VERSION: u32 = 1;
@@ -181,7 +189,7 @@ pub fn cited_paths<'a>(docs: &'a GeneratedDocs, section: &Section) -> Vec<&'a st
 }
 
 /// The file of the reviews of `repo_root`.
-fn store(repo_root: &Path) -> Store<'static> {
+fn store(repo_root: &Path) -> Store {
     Store {
         path: reviews_path(repo_root),
         version: VERSION,
@@ -195,7 +203,7 @@ fn store(repo_root: &Path) -> Store<'static> {
 ///
 /// The file cannot be read or is of a later format.
 pub fn load(repo_root: &Path) -> Result<Reviews, ReviewsError> {
-    store(repo_root).load()
+    Ok(store(repo_root).load()?)
 }
 
 /// Records the review of `section` in `docs`, replacing its former one.
@@ -212,19 +220,20 @@ pub fn record(
 ) -> Result<Review, ReviewsError> {
     let fingerprint =
         fingerprint(docs, section).ok_or_else(|| ReviewsError::UnknownSection(section.clone()))?;
-    store(repo_root).change(|reviews| {
-        let review = Review {
-            section: section.clone(),
-            status,
-            comment: comment.to_string(),
-            author: user_name(repo_root),
-            reviewed_at: Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true),
-            fingerprint,
-            files: cited_hashes(repo_root, docs, section),
-        };
+    // Read before the lock: the saves of the process wait on it.
+    let review = Review {
+        section: section.clone(),
+        status,
+        comment: comment.to_string(),
+        author: user_name(repo_root),
+        reviewed_at: Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true),
+        fingerprint,
+        files: cited_hashes(repo_root, docs, section),
+    };
+    Ok(store(repo_root).change(|reviews| {
         reviews.set(review.clone());
         (true, review)
-    })
+    })?)
 }
 
 /// The hash of each file `section` cites in `docs`, as it is now in `repo_root`; a file that
@@ -246,11 +255,11 @@ pub(crate) fn cited_hashes(
 ///
 /// The file cannot be read or written.
 pub fn remove(repo_root: &Path, section: &Section) -> Result<(), ReviewsError> {
-    store(repo_root).change(|reviews: &mut Reviews| {
+    Ok(store(repo_root).change(|reviews: &mut Reviews| {
         let held = reviews.get(section).is_some();
         reviews.unset(section);
         (held, ())
-    })
+    })?)
 }
 
 #[cfg(test)]

@@ -275,8 +275,24 @@ fn the_edits_are_saved_by_kind_then_id() {
     }
 
     // As written on disk: `load` sorts too.
-    let saved: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(edits_path(dir.path())).unwrap()).unwrap();
+    let text = std::fs::read_to_string(edits_path(dir.path())).unwrap();
+    // The keys in the order of the structs, whatever the features of `serde_json`.
+    let at = |key: &str| text.find(&format!("\"{key}\"")).unwrap();
+    let keys = [
+        "version",
+        "edits",
+        "kind",
+        "id",
+        "name",
+        "author",
+        "edited_at",
+        "fingerprint",
+    ];
+    assert!(
+        keys.windows(2).all(|pair| at(pair[0]) < at(pair[1])),
+        "{text}"
+    );
+    let saved: serde_json::Value = serde_json::from_str(&text).unwrap();
     let order: Vec<String> = saved["edits"]
         .as_array()
         .unwrap()
@@ -314,10 +330,7 @@ fn an_edit_of_a_section_the_docs_lack_is_refused() {
     )
     .unwrap_err();
 
-    assert!(matches!(
-        error,
-        EditsError::Store(StoreError::UnknownSection(_))
-    ));
+    assert!(matches!(error, EditsError::UnknownSection(_)));
     assert_eq!(error.to_string(), "the docs hold no feature ship");
     assert!(!edits_path(dir.path()).exists());
 }

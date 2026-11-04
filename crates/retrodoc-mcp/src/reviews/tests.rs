@@ -209,7 +209,7 @@ fn an_unreadable_file_is_reported_and_kept() {
 
     assert!(matches!(
         load(dir.path()),
-        Err(ReviewsError::Unreadable { .. })
+        Err(ReviewsError::Store(StoreError::Unreadable { .. }))
     ));
     assert!(record(dir.path(), &docs(), &refund(), Status::Validated, "").is_err());
     assert!(remove(dir.path(), &refund()).is_err());
@@ -226,7 +226,9 @@ fn a_file_of_a_later_format_is_reported_and_kept() {
     std::fs::write(&path, &later).unwrap();
 
     let error = load(dir.path()).unwrap_err();
-    assert!(matches!(error, ReviewsError::LaterFormat { version, .. } if version == VERSION + 1));
+    assert!(
+        matches!(error, ReviewsError::Store(StoreError::LaterFormat { version, .. }) if version == VERSION + 1)
+    );
     assert!(error.to_string().contains(&(VERSION + 1).to_string()));
     assert!(record(dir.path(), &docs(), &refund(), Status::Validated, "").is_err());
     assert_eq!(std::fs::read_to_string(&path).unwrap(), later);
