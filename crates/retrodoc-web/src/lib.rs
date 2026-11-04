@@ -18,6 +18,7 @@ pub mod glossary;
 pub mod history;
 pub mod map;
 mod pages;
+pub mod review;
 pub mod rules;
 pub mod search;
 pub mod texts;

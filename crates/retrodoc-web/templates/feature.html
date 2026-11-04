@@ -8,6 +8,7 @@
 {% call m::stale(page.stale) %}{% endcall %}
 <p>{{ page.description }}</p>
 {% call m::score(t.doc.confidence, page.confidence) %}{% endcall %}
+{% include "review.html" %}
 <h2>{{ t.doc.use_cases }}</h2>
 {% if page.no_use_case %}
 <p>{{ t.doc.no_use_case }}</p>

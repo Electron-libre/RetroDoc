@@ -4,6 +4,7 @@
 
 use retrodoc_core::model::SetApartReason;
 use retrodoc_mcp::debt::{DebtKind, ItemKind, Priority};
+use retrodoc_mcp::reviews::Status;
 use retrodoc_mcp::source::{SourceError, MAX_FILE_BYTES};
 use retrodoc_mcp::EntryKind;
 use retrodoc_render::Texts;
@@ -135,6 +136,7 @@ pub struct WebTexts {
     pub debt: DebtTexts,
     pub audit_page: AuditTexts,
     pub history_page: HistoryTexts,
+    pub review: ReviewTexts,
     /// The lines a page of a file shows: from, to, of how many.
     pub shown: fn(usize, usize, usize) -> String,
     /// Why the lines asked are not shown: the number of lines of the file, the first line asked.
@@ -243,6 +245,29 @@ pub struct HistoryTexts {
     pub no_longer_set_apart: &'static str,
     pub confidence: &'static str,
     pub business_language: &'static str,
+}
+
+/// The fixed text of the review of a section.
+#[derive(Debug)]
+pub struct ReviewTexts {
+    pub heading: &'static str,
+    pub not_reviewed: &'static str,
+    /// Before the author of a review.
+    pub by: &'static str,
+    /// Validated, wrong, to review.
+    pub statuses: [&'static str; 3],
+}
+
+impl ReviewTexts {
+    /// The label of `status`.
+    #[must_use]
+    pub fn status(&self, status: Status) -> &'static str {
+        match status {
+            Status::Validated => self.statuses[0],
+            Status::Wrong => self.statuses[1],
+            Status::ToReview => self.statuses[2],
+        }
+    }
 }
 
 impl WebTexts {
@@ -535,6 +560,12 @@ impl WebTexts {
             no_longer_set_apart: "No longer set apart",
             confidence: "Confidence",
             business_language: "Business language",
+        },
+        review: ReviewTexts {
+            heading: "Review",
+            not_reviewed: "Not reviewed",
+            by: "by",
+            statuses: ["Validated", "Wrong", "To review"],
         },
         refusal: SourceError::to_string,
     };
@@ -835,6 +866,12 @@ impl WebTexts {
             no_longer_set_apart: "Plus mises à part",
             confidence: "Confiance",
             business_language: "Langage métier",
+        },
+        review: ReviewTexts {
+            heading: "Relecture",
+            not_reviewed: "Non relu",
+            by: "par",
+            statuses: ["Validé", "Faux", "À revoir"],
         },
         refusal: french_refusal,
     };

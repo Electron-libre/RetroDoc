@@ -13,6 +13,7 @@
 {% call m::stale(page.stale) %}{% endcall %}
 <p>{{ page.description }}</p>
 {% call m::score(t.doc.confidence, page.confidence) %}{% endcall %}
+{% include "review.html" %}
 {% if let Some(business) = page.business_language %}{% call m::score(t.doc.business_language, business) %}{% endcall %}{% endif %}
 {% if let Some(actor) = page.primary_actor %}<p><strong>{{ t.doc.primary_actor }}</strong> {{ actor }}</p>{% endif %}
 {% if !page.triggered_by.is_empty() %}<p><strong>{{ t.doc.triggered_by }}</strong> {% for name in page.triggered_by %}<code>{{ name }}</code>{% if !loop.last %}, {% endif %}{% endfor %}</p>{% endif %}

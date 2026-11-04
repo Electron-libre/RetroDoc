@@ -1,7 +1,7 @@
 ---
 id: WEB
-status: accepted
-adrs: [0039]
+status: draft
+adrs: [0039, 0044]
 ---
 
 # Web interface
@@ -30,7 +30,8 @@ over browses its domains, features and use cases rather than reading the Markdow
 - **WEB-10** (deterministic) Every text that comes from the docs must be HTML-escaped in the pages.
 - **WEB-11** (deterministic) The pages must load their scripts, stylesheet and images from the interface itself,
   under `/assets/`, and from no other host.
-- **WEB-12** (deterministic) Serving the pages must not write any file in the repository.
+- **WEB-12** (deterministic) Serving the pages must not write any file in the repository other than
+  `.retrodoc/reviews.json`, which only a review sent from a page (WEB-81) writes.
 - **WEB-13** (deterministic) A request whose `Host` names neither `localhost` nor an IP address must be refused with the
   status 403.
 - **WEB-14** (deterministic) With a `--bind` address that is not a loopback one, `retrodoc ui` must warn that the docs
@@ -185,6 +186,30 @@ over browses its domains, features and use cases rather than reading the Markdow
   language` in `LANGUAGE_TAGS`, found as DLG-9 says, when it has one, `en` when no language is set, and no `lang` when the language has no
   tag.
 
+- **WEB-79** (deterministic) The page of a domain, a feature or a use case must show, after its confidence, the review
+  of its section (REV-1): its status as a badge, its comment, its author and its date; with no review, that it is not
+  reviewed.
+- **WEB-80** (deterministic) Each row of a list of sections must show the status of its review as a badge beside its
+  confidence, and no badge when it has no review: the domains of the home page, the features of the page of a domain,
+  the use cases of the page of a feature.
+- **WEB-81** (deterministic) The page of a domain, a feature or a use case must hold a form, sent with `htmx`, that
+  sends by a `POST` to the URL of the page a status (`validated`, `wrong`, `to_review`, or none) and a comment; a
+  status records the review of the section with the comment (REV-12), none removes its review (REV-13).
+- **WEB-82** (deterministic) The reviews must be read from `.retrodoc/reviews.json` at each request, so that a page
+  shows a review sent before it without a restart of `retrodoc ui`.
+- **WEB-83** (deterministic) A review `POST` with the header `HX-Request` must be answered with the review of the
+  section and its form alone, swapped in place of the former ones; any other with a redirect `303` to the page.
+- **WEB-84** (deterministic) A `POST` must be refused with the status 403, and nothing saved, unless its `Origin`
+  header, else with no `Origin` its `Referer`, is `http://` followed by the value of its `Host` header.
+- **WEB-85** (deterministic) A review `POST` to a section the last run does not have, or before a first run, must be
+  answered with the status 404, and nothing saved.
+- **WEB-86** (deterministic) A review `POST` whose status is not one of the four of WEB-81 must be answered with the
+  status 400, and nothing saved.
+- **WEB-87** (deterministic) The page of a section must show, in place of its review, the error of a
+  `.retrodoc/reviews.json` that cannot be read or is of a later format (REV-10).
+- **WEB-88** (deterministic) A review `POST` must be answered with the status 500 and the error when
+  `.retrodoc/reviews.json` cannot be read or is of a later format, the file left as it was (REV-11).
+
 ## Scenarios
 
 - (WEB-2) Given `--bind 127.0.0.1:0`, then the URL printed gives the port the system picked.
@@ -276,6 +301,18 @@ over browses its domains, features and use cases rather than reading the Markdow
 - (WEB-75) Given a feature named `a"] --> x["b`, then its label stays one node: `a#quot;] --> x[#quot;b`; given
   `Ticket #12;`, then the label is `Ticket #35;12;`.
 
+- (WEB-79) Given a review with no author (no `user.name`), then the page shows its status, comment and date only.
+- (WEB-80) Given a feature marked `wrong`, then its row on the page of its domain carries the badge, and its use
+  cases' rows on its own page carry none.
+- (WEB-81) Given a feature validated, when the form sends `wrong` with the comment "misses the refunds", then
+  `reviews.json` holds one review of it, wrong, with that comment.
+- (WEB-81) Given a reviewed use case, when the form sends no status, then the use case has no review and the other
+  reviews are kept.
+- (WEB-84) Given a page of another site posting a form to `http://127.0.0.1:8730/domains/billing`, then its `Origin`
+  names that site and the request is refused; one with neither `Origin` nor `Referer` is refused too.
+- (WEB-84) Given `Origin: null` (a sandboxed frame, a `file://` page), then the request is refused.
+- (WEB-87, WEB-88) Given a `reviews.json` holding invalid JSON, then the pages of the sections are still served, naming it.
+
 ## Non-goals
 
 - No synonym matching nor search-as-you-type: the search is that of `retrodoc search` (`specs/docs-search.md`).
@@ -288,7 +325,10 @@ over browses its domains, features and use cases rather than reading the Markdow
 - The actors page does not merge the spellings of an actor nor maps them to the actors list (`actors.yaml`).
 - The rules page has no free-text filter: the search covers the rules (WEB-40).
 - No authentication nor several repositories: the server is for the local user (a hosted mode needs its own ADR).
-- No LLM call and no edit of the docs.
+- No LLM call and no edit of the docs: a review records a judgement and leaves the docs as they are.
+- No authentication of the reviewer: the author of a review is the `user.name` of the repository (REV-4), whoever
+  sends the form.
+- Telling a review outdated is `issues/review_outdated.md`.
 - The name of the application is not asked of the LLM, nor read from the `origin` remote; the Markdown render and the
   MCP answers don't carry it.
 - The home page links to the debt page (`specs/debt-view.md`) only, not to the audit dashboard

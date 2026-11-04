@@ -1,0 +1,10 @@
+<section class="review" id="review">
+{% if let Some(error) = review.error %}
+<p><strong>{{ t.review.heading }}</strong> <span class="badge low">{{ error }}</span></p>
+{% else if let Some(badge) = review.badge %}
+<p><strong>{{ t.review.heading }}</strong> <span class="badge review {{ badge.class }}">{{ t.review.status(*badge.status) }}</span> <span class="muted">{% if let Some(author) = review.author %}{{ t.review.by }} {{ author }}, {% endif %}{{ review.date }}</span></p>
+{% if !review.comment.is_empty() %}<p class="comment">{{ review.comment }}</p>{% endif %}
+{% else %}
+<p><strong>{{ t.review.heading }}</strong> <span class="muted">{{ t.review.not_reviewed }}</span></p>
+{% endif %}
+</section>

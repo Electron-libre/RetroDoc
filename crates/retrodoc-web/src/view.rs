@@ -8,6 +8,7 @@ use crate::actors::{actors_page, ActorsPage};
 use crate::files::{files_page, FilesPage};
 use crate::glossary::{glossary_page, GlossaryPage};
 use crate::map::{map_href, maps, Maps};
+use crate::review::ReviewBadge;
 use crate::texts::WebTexts;
 use crate::Project;
 use retrodoc_core::model::{
@@ -16,6 +17,7 @@ use retrodoc_core::model::{
 };
 use retrodoc_mcp::freshness::{FileState, Freshness};
 use retrodoc_mcp::history::{self, SavedRun};
+use retrodoc_mcp::reviews::{Reviews, Section, SectionKind};
 use retrodoc_mcp::source::SourceAccess;
 use retrodoc_mcp::{ExistingDoc, GeneratedDocs};
 use retrodoc_render::{anchor, source_ref_label, DocLinks, ItemRef};
@@ -366,16 +368,18 @@ pub struct DomainRow {
     pub name: String,
     pub description: String,
     pub confidence: Confidence,
+    pub review: Option<ReviewBadge>,
     /// A file one of its features cites was modified or deleted since the run.
     pub stale: bool,
     pub features: usize,
     pub use_cases: usize,
 }
 
-/// Every domain of the run, in its order. Reads the files the features cite
-/// to tell whether they changed since the run.
+/// Every domain of the run, in its order, with the status of its review among
+/// `reviews`. Reads the files the features cite to tell whether they changed
+/// since the run.
 #[must_use]
-pub fn domain_rows(docs: &GeneratedDocs) -> Vec<DomainRow> {
+pub fn domain_rows(docs: &GeneratedDocs, reviews: &Reviews) -> Vec<DomainRow> {
     docs.domains()
         .iter()
         .map(|domain| {
@@ -393,6 +397,10 @@ pub fn domain_rows(docs: &GeneratedDocs) -> Vec<DomainRow> {
                 name: domain.name.clone(),
                 description: domain.description.clone(),
                 confidence: Confidence::of(domain.confidence.as_ref()),
+                review: ReviewBadge::of_section(
+                    reviews,
+                    &Section::new(SectionKind::Domain, &domain.slug),
+                ),
                 stale,
                 features: features.len(),
                 use_cases: features
@@ -415,6 +423,7 @@ pub struct ItemRow {
     pub href: String,
     pub name: String,
     pub confidence: Confidence,
+    pub review: Option<ReviewBadge>,
     pub description: String,
 }
 
@@ -472,11 +481,15 @@ pub(crate) fn use_case_href(feature: &Feature, use_case: &UseCase) -> String {
     format!("{}/{}", feature_href(feature), use_case.slug)
 }
 
-fn feature_row(feature: &Feature) -> ItemRow {
+fn feature_row(feature: &Feature, reviews: &Reviews) -> ItemRow {
     ItemRow {
         href: feature_href(feature),
         name: feature.name.clone(),
         confidence: Confidence::of(feature.confidence.as_ref()),
+        review: ReviewBadge::of_section(
+            reviews,
+            &Section::new(SectionKind::Feature, &feature.slug),
+        ),
         description: feature.description.trim().to_string(),
     }
 }
@@ -555,9 +568,15 @@ fn doc_items(links: &DocLinks, item: &ItemRef) -> Vec<DocItem> {
         .collect()
 }
 
-/// The page of the domain `slug`, `None` when the run has no such domain.
+/// The page of the domain `slug`, its features with the status of their review
+/// among `reviews`; `None` when the run has no such domain.
 #[must_use]
-pub fn domain_page(docs: &GeneratedDocs, links: &DocLinks, slug: &str) -> Option<DomainPage> {
+pub fn domain_page(
+    docs: &GeneratedDocs,
+    links: &DocLinks,
+    reviews: &Reviews,
+    slug: &str,
+) -> Option<DomainPage> {
     let domain = docs.domains().iter().find(|d| d.slug == slug)?;
     let features: Vec<&Feature> = docs.features_of(slug).collect();
     let (back_office, business): (Vec<&Feature>, Vec<&Feature>) =
@@ -584,8 +603,14 @@ pub fn domain_page(docs: &GeneratedDocs, links: &DocLinks, slug: &str) -> Option
         description: domain.description.trim().to_string(),
         map: map_href(slug),
         confidence: Confidence::of(domain.confidence.as_ref()),
-        features: business.into_iter().map(feature_row).collect(),
-        back_office: back_office.into_iter().map(feature_row).collect(),
+        features: business
+            .into_iter()
+            .map(|f| feature_row(f, reviews))
+            .collect(),
+        back_office: back_office
+            .into_iter()
+            .map(|f| feature_row(f, reviews))
+            .collect(),
         rules,
         docs: doc_items(links, &ItemRef::Domain(slug.to_string())),
     })
@@ -754,13 +779,15 @@ pub(crate) fn find_feature<'a>(
         .find(|f| f.slug == slug && f.domain_slug == domain)
 }
 
-/// The page of the feature `slug` of the domain `domain`, `None` when the run
-/// has no such feature there. Reads the files it cites to tell whether they
-/// changed since the run.
+/// The page of the feature `slug` of the domain `domain`, its use cases with
+/// the status of their review among `reviews`; `None` when the run has no such
+/// feature there. Reads the files it cites to tell whether they changed since
+/// the run.
 #[must_use]
 pub fn feature_page(
     docs: &GeneratedDocs,
     links: &DocLinks,
+    reviews: &Reviews,
     domain: &str,
     slug: &str,
 ) -> Option<FeaturePage> {
@@ -770,6 +797,10 @@ pub fn feature_page(
         href: use_case_href(feature, u),
         name: u.name.clone(),
         confidence: Confidence::of(u.confidence.as_ref()),
+        review: ReviewBadge::of_section(
+            reviews,
+            &Section::new(SectionKind::UseCase, format!("{slug}/{}", u.slug)),
+        ),
         description: u.description.trim().to_string(),
     };
     let (technical, business): (Vec<&UseCase>, Vec<&UseCase>) = use_cases

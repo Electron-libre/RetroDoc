@@ -183,3 +183,7 @@ ul.hits { list-style: none; padding-left: 0; }
 .credit img { border-radius: 0.2rem; }
 .map svg g.node.linked { cursor: pointer; }
 .map svg g.node.linked:hover :is(rect, path, polygon), .map svg g.node.linked:focus :is(rect, path, polygon) { stroke: var(--gold); }
+/* The status of a human review: the label carries the meaning, the colour only backs it. */
+.badge.review.validated { color: var(--text); border-color: var(--text-muted); }
+.badge.review.wrong, .badge.review.to_review { color: var(--gold-light); border-color: var(--gold-dark); }
+.review .comment { white-space: pre-wrap; }

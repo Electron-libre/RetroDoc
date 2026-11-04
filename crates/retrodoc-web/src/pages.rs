@@ -7,6 +7,8 @@ use askama::Template;
 use axum::extract::{Path, RawQuery, State};
 use axum::http::{header, HeaderMap, StatusCode};
 use axum::response::{Html, IntoResponse, Response};
+use retrodoc_mcp::reviews::{Reviews, Section, SectionKind};
+use retrodoc_mcp::GeneratedDocs;
 use tokio::task::JoinError;
 
 use crate::actors::ActorsPage;
@@ -19,6 +21,7 @@ use crate::files::FilesPage;
 use crate::glossary::GlossaryPage;
 use crate::history::{history_page, HistoryPage};
 use crate::map::{DomainMapPage, MapPage};
+use crate::review::{self, ReviewView};
 use crate::rules::{rules_page, RuleFilter, RulesPage};
 use crate::search::{query_value, search_page, Results, SearchPage};
 use crate::texts::WebTexts;
@@ -43,6 +46,7 @@ struct Home<'a> {
 struct DomainTemplate<'a> {
     t: &'static WebTexts,
     shell: &'a Shell,
+    review: ReviewView,
     page: DomainPage,
 }
 
@@ -51,6 +55,7 @@ struct DomainTemplate<'a> {
 struct FeatureTemplate<'a> {
     t: &'static WebTexts,
     shell: &'a Shell,
+    review: ReviewView,
     page: FeaturePage,
 }
 
@@ -59,6 +64,7 @@ struct FeatureTemplate<'a> {
 struct UseCaseTemplate<'a> {
     t: &'static WebTexts,
     shell: &'a Shell,
+    review: ReviewView,
     page: UseCasePage,
     mermaid: &'static str,
 }
@@ -208,7 +214,9 @@ pub async fn home(State(site): State<Arc<Site>>) -> Response {
     }
     match blocking(&site, |site| {
         (
-            site.docs().map(domain_rows).unwrap_or_default(),
+            site.docs()
+                .map(|docs| domain_rows(docs, &review::load(docs).unwrap_or_default()))
+                .unwrap_or_default(),
             site.start_links(),
         )
     })
@@ -247,20 +255,34 @@ fn read_failed(err: &JoinError) -> Response {
 }
 
 pub async fn domain(State(site): State<Arc<Site>>, Path(slug): Path<String>) -> Response {
-    let Some(page) = site
-        .docs()
-        .and_then(|docs| domain_page(docs, site.links(), &slug))
-    else {
-        return not_found(State(site)).await;
-    };
-    render(
-        StatusCode::OK,
-        &DomainTemplate {
-            t: site.texts(),
-            shell: site.shell(),
-            page,
-        },
-    )
+    let page = blocking(&site, move |site| {
+        site.docs().and_then(|docs| {
+            let (reviews, review) = reviews_of(docs, &Section::new(SectionKind::Domain, &slug));
+            domain_page(docs, site.links(), &reviews, &slug).map(|page| (page, review))
+        })
+    })
+    .await;
+    match page {
+        Ok(Some((page, review))) => render(
+            StatusCode::OK,
+            &DomainTemplate {
+                t: site.texts(),
+                shell: site.shell(),
+                review,
+                page,
+            },
+        ),
+        Ok(None) => not_found(State(site)).await,
+        Err(err) => read_failed(&err),
+    }
+}
+
+/// The reviews of the repository of `docs`, none when they can't be read, and the review of
+/// `section`, with the error when they can't.
+fn reviews_of(docs: &GeneratedDocs, section: &Section) -> (Reviews, ReviewView) {
+    let loaded = review::load(docs);
+    let view = ReviewView::of(&loaded, section);
+    (loaded.unwrap_or_default(), view)
 }
 
 pub async fn feature(
@@ -268,16 +290,19 @@ pub async fn feature(
     Path((domain, slug)): Path<(String, String)>,
 ) -> Response {
     let page = blocking(&site, move |site| {
-        site.docs()
-            .and_then(|docs| feature_page(docs, site.links(), &domain, &slug))
+        site.docs().and_then(|docs| {
+            let (reviews, review) = reviews_of(docs, &Section::new(SectionKind::Feature, &slug));
+            feature_page(docs, site.links(), &reviews, &domain, &slug).map(|page| (page, review))
+        })
     })
     .await;
     match page {
-        Ok(Some(page)) => render(
+        Ok(Some((page, review))) => render(
             StatusCode::OK,
             &FeatureTemplate {
                 t: site.texts(),
                 shell: site.shell(),
+                review,
                 page,
             },
         ),
@@ -291,16 +316,20 @@ pub async fn use_case(
     Path((domain, feature, slug)): Path<(String, String, String)>,
 ) -> Response {
     let page = blocking(&site, move |site| {
-        site.docs()
-            .and_then(|docs| use_case_page(docs, site.links(), &domain, &feature, &slug))
+        site.docs().and_then(|docs| {
+            let section = Section::new(SectionKind::UseCase, format!("{feature}/{slug}"));
+            let (_, review) = reviews_of(docs, &section);
+            use_case_page(docs, site.links(), &domain, &feature, &slug).map(|page| (page, review))
+        })
     })
     .await;
     match page {
-        Ok(Some(page)) => render(
+        Ok(Some((page, review))) => render(
             StatusCode::OK,
             &UseCaseTemplate {
                 t: site.texts(),
                 shell: site.shell(),
+                review,
                 page,
                 mermaid: MERMAID,
             },

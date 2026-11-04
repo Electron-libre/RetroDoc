@@ -4,6 +4,8 @@
 
 {% macro doc_link(doc) %}<a href="{{ doc.href }}"><code>{{ doc.path }}</code>{% if let Some(heading) = doc.heading %}, {{ t.doc.section }} “{{ heading }}”{% endif %}</a>{% if let Some(states) = doc.contradicts %} <span class="badge low">{{ t.states_otherwise }}</span> {{ states }}{% endif %}{% endmacro %}
 
+{% macro review_badge(review) %}{% if let Some(badge) = review %} <span class="badge review {{ badge.class }}">{{ t.review.status(*badge.status) }}</span>{% endif %}{% endmacro %}
+
 {% macro score(label, confidence) %}
 <p class="score"><strong>{{ label }}</strong> {% call badge_why(confidence) %}{% endcall %}</p>
 {% endmacro %}
@@ -23,7 +25,7 @@
 {% macro items(rows) %}
 <ul class="items">
   {% for row in rows %}
-  <li><a href="{{ row.href }}">{{ row.name }}</a> {% call badge_why(row.confidence) %}{% endcall %}{% if !row.description.is_empty() %}: {{ row.description }}{% endif %}</li>
+  <li><a href="{{ row.href }}">{{ row.name }}</a> {% call badge_why(row.confidence) %}{% endcall %}{% call review_badge(row.review) %}{% endcall %}{% if !row.description.is_empty() %}: {{ row.description }}{% endif %}</li>
   {% endfor %}
 </ul>
 {% endmacro %}
