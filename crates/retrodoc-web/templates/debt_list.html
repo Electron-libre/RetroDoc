@@ -17,7 +17,7 @@
       <span class="badge kind">{{ item.kind }}</span>
       {% if let Some(folder) = item.folder %}
       <code>{{ folder.path }}</code>
-      <details class="folder"><summary>{{ folder.count }}</summary><ul>{% for entry in folder.entries %}<li><a href="{{ entry.href }}">{{ entry.name }}</a></li>{% endfor %}</ul></details>
+      <details class="folder"><summary>{{ folder.count }}</summary><ul>{% for entry in folder.entries %}<li>{% if let Some(href) = entry.href %}<a href="{{ href }}">{{ entry.name }}</a>{% else %}{{ entry.name }}{% endif %}</li>{% endfor %}</ul></details>
       {% else %}
       {% if let Some(kind) = item.item_kind %}<span class="muted">{{ kind }}</span>{% endif %}
       {% if let Some(href) = item.href %}<a href="{{ href }}">{{ item.name }}</a>{% else %}{{ item.name }} <span class="muted">({{ t.not_in_the_run }})</span>{% endif %}

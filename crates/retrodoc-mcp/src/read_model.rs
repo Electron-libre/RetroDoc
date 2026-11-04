@@ -61,7 +61,7 @@ impl Uncovered {
         paths.extend(coverage.into_iter().flat_map(|c| {
             c.unplaced_entry_points
                 .iter()
-                .map(|id| crate::debt::entry_file(id).to_string())
+                .filter_map(|id| crate::debt::entry_file(id).map(str::to_string))
         }));
         paths
     }
@@ -118,8 +118,9 @@ impl GeneratedDocs {
     }
 
     /// Reads what the last `generate` saved under `.retrodoc/cache/` plus the
-    /// collected `docs`, and reconciles the items with them. `None` before a
-    /// first `generate` (no features saved); use cases not saved yet count as none.
+    /// collected `docs`. `None` before a first `generate` (no features saved);
+    /// use cases not saved yet count as none. The items are not reconciled with
+    /// the docs: [`Self::reconciled`] does it.
     #[must_use]
     pub fn load(repo_root: &Path, docs: &[ExistingDoc]) -> Option<Self> {
         let features = retrodoc_pipeline::load_features(repo_root)?;
@@ -128,16 +129,7 @@ impl GeneratedDocs {
         let glossary = Glossary::load(repo_root).unwrap_or_default();
         let rules = retrodoc_pipeline::load_rules(repo_root).unwrap_or_default();
         let uncovered = Uncovered {
-            reconciliation: (!docs.is_empty()).then(|| {
-                reconcile(
-                    &map,
-                    &features,
-                    &use_cases,
-                    &rules,
-                    docs,
-                    &Judgements::load(repo_root),
-                )
-            }),
+            reconciliation: None,
             no_domain: map.uncategorized_paths().cloned().collect(),
             skipped: Scope::load(repo_root)
                 .map(|s| s.skipped)
@@ -159,6 +151,25 @@ impl GeneratedDocs {
         )
     }
 
+    /// Reconciles the items with the collected `docs` from the verdicts saved under the repository
+    /// the docs were loaded from (no LLM call): what [`Uncovered::reconciliation`] holds; none with no
+    /// collected doc.
+    #[must_use]
+    pub fn reconciled(mut self, docs: &[ExistingDoc]) -> Self {
+        let Some(root) = self.repo_root.as_deref().filter(|_| !docs.is_empty()) else {
+            return self;
+        };
+        self.uncovered.reconciliation = Some(reconcile(
+            &DomainMap::load(root).unwrap_or_default(),
+            &self.features,
+            &self.use_cases,
+            &self.rules,
+            docs,
+            &Judgements::load(root),
+        ));
+        self
+    }
+
     /// Lets [`Self::source_access`] read the code under `repo_root`.
     #[must_use]
     pub fn with_repo_root(mut self, repo_root: &Path) -> Self {
@@ -178,6 +189,16 @@ impl GeneratedDocs {
     pub fn source_access(&self) -> Option<SourceAccess> {
         let root = self.repo_root.as_deref()?;
         Some(SourceAccess::new(root, self.cited_paths()))
+    }
+
+    /// The bounded access to the files the docs cite and to those of the code no doc covers
+    /// ([`Uncovered::paths`]), for a human auditing the debt; `None` when the docs were not loaded
+    /// from a repository.
+    #[must_use]
+    pub fn source_access_with_debt(&self) -> Option<SourceAccess> {
+        let root = self.repo_root.as_deref()?;
+        let paths = self.cited_paths().into_iter().chain(self.uncovered.paths());
+        Some(SourceAccess::new(root, paths))
     }
 
     /// The files the docs cite: the source files of the features, the lines
@@ -341,7 +362,9 @@ mod tests {
             path: "README.md".into(),
             content: "# Shipping\n\nParcels leave on Monday.\n".into(),
         }];
-        let docs = GeneratedDocs::load(dir.path(), &collected).unwrap();
+        let docs = GeneratedDocs::load(dir.path(), &collected)
+            .unwrap()
+            .reconciled(&collected);
         let reconciliation = docs.uncovered().reconciliation.as_ref().unwrap();
         let feature = reconciliation
             .items

@@ -42,9 +42,6 @@ struct Dir {
     files: BTreeMap<String, usize>,
 }
 
-/// What the rows of a tree read: the files served though no doc cites them.
-struct Served<'a>(&'a BTreeSet<String>);
-
 impl Dir {
     fn insert(&mut self, path: &str, citers: usize) {
         match path.split_once('/') {
@@ -65,7 +62,8 @@ impl Dir {
         &self,
         prefix: &str,
         depth: usize,
-        served: &Served,
+        // The files served though no doc cites them.
+        served: &BTreeSet<String>,
         rows: &mut Vec<FileRow>,
     ) -> (usize, usize) {
         let (mut cited, mut total) = (0, 0);
@@ -91,8 +89,7 @@ impl Dir {
         for (name, citers) in &self.files {
             let path = format!("{prefix}{name}");
             rows.push(FileRow {
-                href: (*citers > 0 || served.0.contains(&path))
-                    .then(|| code_href(&path, None, None)),
+                href: (*citers > 0 || served.contains(&path)).then(|| code_href(&path, None, None)),
                 path,
                 name: name.clone(),
                 depth,
@@ -128,7 +125,7 @@ pub fn files_page(docs: &GeneratedDocs) -> FilesPage {
         root.insert(path, *count);
     }
     let mut rows = Vec::new();
-    let (cited, total) = root.rows("", 0, &Served(&debt), &mut rows);
+    let (cited, total) = root.rows("", 0, &debt, &mut rows);
     FilesPage { cited, total, rows }
 }
 

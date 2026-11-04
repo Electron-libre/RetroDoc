@@ -390,7 +390,7 @@ impl WebTexts {
             item_kinds: ["domain", "feature", "use case", "rule"],
             counted: ["entry point", "entry points", "file", "files"],
             doc_states: "states",
-            docs_state: "the docs state",
+            docs_state: "the generated docs state",
             no_run: "<section id=\"debt-list\"><p>No debt yet: run <code>retrodoc generate</code>, then restart <code>retrodoc ui</code>.</p></section>",
         },
         audit_page: AuditTexts {

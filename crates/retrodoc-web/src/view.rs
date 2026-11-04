@@ -55,14 +55,9 @@ impl Site {
             tree: docs.as_ref().map(tree).unwrap_or_default(),
         };
         // The files the debt lists are served too, though no doc cites them (`specs/debt-view.md`).
-        let source = docs.as_ref().and_then(|docs| {
-            let root = docs.repo_root()?;
-            let paths = docs
-                .cited_paths()
-                .into_iter()
-                .chain(docs.uncovered().paths());
-            Some(SourceAccess::new(root, paths))
-        });
+        let source = docs
+            .as_ref()
+            .and_then(GeneratedDocs::source_access_with_debt);
         let files = docs.as_ref().map(files_page);
         let glossary = docs.as_ref().map(glossary_page);
         let actors = docs.as_ref().map(|docs| actors_page(docs, texts));
@@ -523,16 +518,21 @@ pub fn code_href(path: &str, start: Option<u32>, end: Option<u32>) -> String {
     }
 }
 
+/// The page of the collected doc `path`, at its section `heading` when given.
+pub(crate) fn doc_section_href(path: &str, heading: Option<&str>) -> String {
+    match heading {
+        Some(h) => format!("/docs/{}#{}", url_path(path), anchor(h)),
+        None => format!("/docs/{}", url_path(path)),
+    }
+}
+
 /// The doc sections behind `item`, linked to the page of the collected doc.
 fn doc_items(links: &DocLinks, item: &ItemRef) -> Vec<DocItem> {
     links
         .of(item)
         .iter()
         .map(|doc| DocItem {
-            href: match &doc.heading {
-                Some(h) => format!("/docs/{}#{}", url_path(&doc.path), anchor(h)),
-                None => format!("/docs/{}", url_path(&doc.path)),
-            },
+            href: doc_section_href(&doc.path, doc.heading.as_deref()),
             path: doc.path.clone(),
             heading: doc.heading.clone(),
             contradicts: doc.contradicts.clone(),

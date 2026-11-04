@@ -7,11 +7,10 @@ use retrodoc_mcp::debt::{
     debt, entry_file, DebtItem, DebtKind, DocItem, ItemKind, Section, Subject,
 };
 use retrodoc_mcp::GeneratedDocs;
-use retrodoc_render::anchor;
 
 use crate::rules::{Choice, Filter};
 use crate::texts::WebTexts;
-use crate::view::{code_href, url_path, Confidence, Link, StaleFile};
+use crate::view::{code_href, doc_section_href, Confidence, Link, StaleFile};
 
 /// The value of `kind` in the query.
 pub(crate) fn kind_value(kind: DebtKind) -> &'static str {
@@ -86,7 +85,14 @@ pub struct FolderView {
     pub path: String,
     /// `3 files`, `1 entry point`.
     pub count: String,
-    pub entries: Vec<Link>,
+    pub entries: Vec<FolderEntry>,
+}
+
+/// A file, or an entry point, of a folder.
+pub struct FolderEntry {
+    /// The page of its file; `None` for an entry point saved before ids, which names no file.
+    pub href: Option<String>,
+    pub name: String,
 }
 
 /// The debt page of `docs` for `filter`. Reads the cited files.
@@ -143,10 +149,7 @@ fn row(docs: &GeneratedDocs, item: &DebtItem, texts: &WebTexts) -> DebtRow {
                 .iter()
                 .map(|c| ContradictionView {
                     section: Link {
-                        href: match &c.section.heading {
-                            Some(h) => format!("/docs/{}#{}", url_path(&c.section.path), anchor(h)),
-                            None => format!("/docs/{}", url_path(&c.section.path)),
-                        },
+                        href: doc_section_href(&c.section.path, c.section.heading.as_deref()),
                         name: c.section.origin(),
                     },
                     doc_states: c.doc_states.clone(),
@@ -166,8 +169,8 @@ fn row(docs: &GeneratedDocs, item: &DebtItem, texts: &WebTexts) -> DebtRow {
             entries: folder
                 .entries
                 .iter()
-                .map(|entry| Link {
-                    href: code_href(entry_file(entry), None, None),
+                .map(|entry| FolderEntry {
+                    href: entry_file(entry).map(|file| code_href(file, None, None)),
                     name: entry.clone(),
                 })
                 .collect(),
@@ -234,7 +237,10 @@ fn doc_item_row(docs: &GeneratedDocs, item: &DocItem) -> Named {
         _ => None,
     };
     Named {
-        domain: domain.map(|d| d.name.clone()),
+        domain: domain.map_or_else(
+            || Some(item.domain.clone()).filter(|d| d != "?"),
+            |d| Some(d.name.clone()),
+        ),
         name: item.name.clone(),
         feature: feature
             .filter(|_| matches!(item.kind, ItemKind::UseCase | ItemKind::Rule))

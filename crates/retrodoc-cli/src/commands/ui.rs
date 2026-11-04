@@ -18,7 +18,8 @@ pub const DEFAULT_BIND: &str = "127.0.0.1:8730";
 pub async fn run(path: &Path, bind: SocketAddr) -> anyhow::Result<()> {
     let workspace = Workspace::open(path)?;
     let docs = project_docs(&workspace.repo_root, &workspace.config)?;
-    let generated = GeneratedDocs::load(&workspace.repo_root, &docs);
+    let generated = GeneratedDocs::load(&workspace.repo_root, &docs)
+        .map(|generated| generated.reconciled(&docs));
     let links = item_doc_links(generated.as_ref(), &workspace.config);
     let project = project(&workspace);
     if generated.is_none() {

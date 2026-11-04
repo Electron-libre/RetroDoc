@@ -345,3 +345,28 @@ fn the_code_no_doc_covers_is_listed_by_kind_and_folder() {
     assert_eq!(entries.entries, ["app/x.rb#create", "app/x.rb#delete"]);
     assert!(list.items.iter().all(|i| i.domain().is_none()));
 }
+
+// spec: DBT-21 (internal: the read model of the debt page, shown by DBT-1)
+#[test]
+fn an_entry_point_saved_before_ids_names_no_file() {
+    let uncovered = Uncovered {
+        coverage: Some(BehaviourCoverage {
+            unplaced_entry_points: vec!["Billing#purge".into(), "app/x.rb#create".into()],
+            ..BehaviourCoverage::default()
+        }),
+        ..Uncovered::default()
+    };
+    assert_eq!(entry_file("Billing#purge"), None);
+    assert_eq!(entry_file("app/x.rb#create"), Some("app/x.rb"));
+    assert_eq!(uncovered.paths(), ["app/x.rb"]);
+
+    let list = debt(&docs(vec![], vec![]).with_uncovered(uncovered));
+
+    assert_eq!(
+        kinds(&list),
+        [
+            (DebtKind::EntryPointWithoutFeature, ".".to_string()),
+            (DebtKind::EntryPointWithoutFeature, "app".to_string()),
+        ]
+    );
+}

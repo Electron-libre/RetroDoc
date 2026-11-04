@@ -297,15 +297,19 @@ fn code_items(uncovered: &Uncovered) -> Vec<DebtItem> {
     items
 }
 
-/// The file of `entry`: a path, or an entry point `<file>#<name>`.
+/// The file of `entry`: a path, or an entry point `<file>#<name>`; `None` for a `Class#method`
+/// saved before ids, which names no file (`retrodoc_core::model::entry_point_name`).
 #[must_use]
-pub fn entry_file(entry: &str) -> &str {
-    entry.split_once('#').map_or(entry, |(file, _)| file)
+pub fn entry_file(entry: &str) -> Option<&str> {
+    match entry.split_once('#') {
+        Some((file, _)) => file.contains(['.', '/']).then_some(file),
+        None => Some(entry),
+    }
 }
 
-/// The directory of the file of `entry`, `.` for the root.
+/// The directory of the file of `entry`, `.` for the root or no file.
 fn folder_of(entry: &str) -> String {
-    Path::new(entry_file(entry))
+    Path::new(entry_file(entry).unwrap_or_default())
         .parent()
         .map(|p| p.display().to_string())
         .filter(|p| !p.is_empty())

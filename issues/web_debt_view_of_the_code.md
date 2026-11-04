@@ -54,6 +54,9 @@ hidden): 240 files reached by no behaviour, 247 undocumented items, 2 files with
 3. [x] The page: rows of the new kinds (folder items folded with their files, links to `/code/` and `/docs/`), the
    kind filter, `/code/` serving the files of the debt, English and French texts; verified by router tests and a
    check in headless Chrome; makes true DBT-18, DBT-21 (links) and the spec `accepted`. ~500 lines. (autonomous)
+4. [x] Fixes of the `high` review of the issue: legacy entry point ids, the reconciliation out of `load` (ui only),
+   the source access with the debt in the read model, the doc section link shared, the domain of a doc item, the
+   English wording; verified by a new internal test; makes true DBT-21. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -125,3 +128,33 @@ Code review: no findings
 
 not verified: the folding of a folder clicked in a browser (`<details>`, native); no saved run has a contradicted
 item, so the `/docs/` link of a contradiction is checked by the router test only. decisions needed: none.
+
+### 4. Fixes of the high review
+done: 7 of the 10 findings of the `high` review fixed: an entry point saved before ids (`Class#method`) names no
+file (`entry_file` returns `None`, no link, not served); the reconciliation moved out of `GeneratedDocs::load` into
+`GeneratedDocs::reconciled`, called by `retrodoc ui` only (`retrodoc mcp` no longer pays it);
+`GeneratedDocs::source_access_with_debt` holds the rule of the files served; `view::doc_section_href` shared; a doc
+item whose domain has no page shows its slug; "the generated docs state"; the `Served` wrapper dropped.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass |
+| docs | `docs/crates/render-mcp-cli.md`, `docs/ARCHITECTURE.md` |
+| code review | 1 finding, not applicable |
+
+red: DBT-21: written after the fix (the test asserts what the finding described: `Billing#purge` under `.`, no file).
+
+High review, findings not fixed:
+- The audit builds the folder items it does not count: a few thousand strings per request at most, small next to
+  the reads of the stale check.
+- The audit reads `behaviour-coverage.yaml` at each request rather than from the read model: AUD reads its figures
+  at each request by its spec; the debt list reads it once, like the other pages (DBT non-goal).
+- The links of the doc items parse the label of the reconciliation (`<domain>/<feature>/<slug>`): the CLI's
+  `doc_links` reads it the same way, and a slug holds no `/`.
+
+Code review: 1 finding: `retrodoc mcp` no longer reconciles at load; not applicable, no MCP tool reads the debt (the
+docs say `retrodoc mcp` does not read it).
+
+not verified: none. decisions needed: none.
