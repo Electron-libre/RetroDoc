@@ -135,6 +135,7 @@ impl GeneratedDocs {
         let Some(root) = self.repo_root.clone() else {
             return self;
         };
+        tracing::info!("reading the git history that ranks the debt");
         match retrodoc_ingest::git_history::collect_history(&root) {
             Ok(history) => self.with_churn(
                 history

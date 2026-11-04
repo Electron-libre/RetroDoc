@@ -9,7 +9,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-use retrodoc_core::model::{Feature, RuleEvidence, SetApartReason, UseCase};
+use retrodoc_core::model::{RuleEvidence, SetApartReason, UseCase};
 pub use retrodoc_pipeline::reconcile::{Contradiction, ItemKind};
 use retrodoc_pipeline::reconcile::{ItemVerdict, Reconciliation};
 pub use retrodoc_pipeline::Section;
@@ -325,49 +325,47 @@ fn priority(docs: &GeneratedDocs, item: &DebtItem) -> Priority {
     }
 }
 
-/// The files and the number of entry points of a use case, or of a feature; none when it is not in
-/// the run.
+/// The files and the number of entry points of a use case, or of a feature; none when its feature
+/// is not in the run.
 fn section_parts<'a>(docs: &'a GeneratedDocs, section: &Section) -> (Vec<&'a str>, usize) {
+    let Some(feature) = docs.features().iter().find(|f| f.slug == section.feature) else {
+        return (Vec::new(), 0);
+    };
     match &section.use_case {
         Some(slug) => docs
             .use_cases()
             .iter()
-            .find(|u| u.feature_slug == section.feature && u.slug == *slug)
-            .map(|u| (use_case_cited_paths(u), u.entry_points.len())),
-        None => docs
-            .features()
-            .iter()
-            .find(|f| f.slug == section.feature)
-            .map(|f| {
-                (
-                    f.source_paths.iter().map(String::as_str).collect(),
-                    f.entry_points.len(),
-                )
-            }),
+            .find(|u| u.feature_slug == feature.slug && u.slug == *slug)
+            .map(|u| (use_case_cited_paths(u), u.entry_points.len()))
+            .unwrap_or_default(),
+        None => (
+            feature.source_paths.iter().map(String::as_str).collect(),
+            feature.entry_points.len(),
+        ),
     }
-    .unwrap_or_default()
 }
 
 /// The files of a reconciled item, from its label `<domain>/<feature>/<use case or rule>`; none
-/// when it is no longer in the run.
+/// when its feature is no longer in the run (`?`).
 fn doc_item_files<'a>(docs: &'a GeneratedDocs, item: &DocItem) -> Vec<&'a str> {
     let parts: Vec<&str> = item.label.split('/').collect();
-    let features_paths = |keep: &dyn Fn(&Feature) -> bool| -> Vec<&'a str> {
-        docs.features()
-            .iter()
-            .filter(|f| keep(f))
-            .flat_map(|f| f.source_paths.iter().map(String::as_str))
-            .collect()
+    let section = |feature: &str, use_case: Option<&str>| Section {
+        domain: Some(item.domain.clone()),
+        feature: feature.to_string(),
+        use_case: use_case.map(str::to_string),
     };
     match (item.kind, parts.as_slice()) {
-        (ItemKind::Domain, [domain]) => features_paths(&|f| f.domain_slug == *domain),
-        (ItemKind::Feature, [_, feature]) => features_paths(&|f| f.slug == *feature),
-        (ItemKind::UseCase, [_, feature, use_case]) => docs
-            .use_cases()
+        (_, ["?", ..]) => Vec::new(),
+        (ItemKind::Domain, [domain]) => docs
+            .features()
             .iter()
-            .filter(|u| u.feature_slug == *feature && u.slug == *use_case)
-            .flat_map(use_case_cited_paths)
+            .filter(|f| f.domain_slug == *domain)
+            .flat_map(|f| f.source_paths.iter().map(String::as_str))
             .collect(),
+        (ItemKind::Feature, [_, feature]) => section_parts(docs, &section(feature, None)).0,
+        (ItemKind::UseCase, [_, feature, use_case]) => {
+            section_parts(docs, &section(feature, Some(use_case))).0
+        }
         (ItemKind::Rule, [_, _, rule]) => docs
             .rules()
             .iter()

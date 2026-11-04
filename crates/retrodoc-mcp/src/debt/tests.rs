@@ -562,3 +562,29 @@ fn with_no_history_every_item_counts_no_commit() {
     assert_eq!(list.items[0].priority.commits, 0);
     assert!(docs.churn().is_none());
 }
+
+// spec: DBT-25 (internal: the read model of the debt page, shown by DBT-27)
+#[test]
+fn an_item_whose_feature_left_the_run_counts_no_commit() {
+    let reconciliation = Reconciliation {
+        items: vec![verdict(
+            ItemKind::UseCase,
+            "?/gone/lost",
+            Status::Undocumented,
+            0,
+        )],
+    };
+    let docs = docs(vec![], vec![use_case("lost", "gone", Some(0.1))])
+        .with_uncovered(Uncovered {
+            reconciliation: Some(reconciliation),
+            ..Uncovered::default()
+        })
+        .with_churn(churn(&[("lost.rb", 9)]));
+
+    let list = debt(&docs);
+
+    assert_eq!(kinds(&list).len(), 3, "{:?}", kinds(&list));
+    for item in &list.items {
+        assert_eq!(item.priority.commits, 0, "{:?} {}", item.kind, item.label());
+    }
+}

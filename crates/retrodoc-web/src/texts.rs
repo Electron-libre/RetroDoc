@@ -785,16 +785,16 @@ impl WebTexts {
     /// The priority of a debt item and its parts.
     #[must_use]
     pub fn priority(&self, priority: &Priority) -> String {
-        let commits = format!(
-            "{} {}",
-            priority.commits,
-            self.debt.commits[usize::from(priority.commits != 1)]
-        );
+        let [commit, commits] = self.debt.commits;
+        let [entry_point, entry_points] = [self.debt.counted[0], self.debt.counted[1]];
         (self.debt.priority)(
             priority.value(),
             priority.weakness,
-            commits,
-            self.counted(true, priority.entry_points),
+            self.count(
+                usize::try_from(priority.commits).unwrap_or(usize::MAX),
+                (commit, commits),
+            ),
+            self.count(priority.entry_points, (entry_point, entry_points)),
         )
     }
 

@@ -434,7 +434,7 @@ async fn the_debt_page_of_a_repository_with_no_run_says_to_run_generate() {
     assert!(fragment.contains("retrodoc generate"), "{fragment}");
 }
 
-// spec: WEB-77, DBT-1
+// spec: WEB-77, DBT-1, DBT-27
 #[tokio::test]
 async fn the_debt_page_is_in_french() {
     let repo = generated_repo();
@@ -451,6 +451,8 @@ async fn the_debt_page_is_in_french() {
     for label in ["Low confidence", "Not scored", "Set apart", ">Stale<"] {
         assert!(!page.contains(label), "{label} left in {page}");
     }
+    // Zero takes the singular in French.
+    assert!(page.contains("0 commit, 0 point d&#39;entrée"), "{page}");
 }
 
 fn git(root: &Path, args: &[&str]) {

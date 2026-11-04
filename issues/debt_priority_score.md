@@ -49,6 +49,8 @@ lobsters, 4,823 commits; 0.6 s on linkding), no new artifact. Out of scope: weig
 2. [x] Web and CLI: `retrodoc ui` reads the history at start, each debt row shows the priority and its parts, the
    page says when the commits are unknown; verified by tests of `retrodoc-web`; makes true DBT-27, DBT-28 (spec
    `accepted`). (autonomous)
+3. [x] Fixes of the `high` review of the whole issue; verified by tests of `retrodoc-mcp/src/debt` and
+   `retrodoc-web`; makes true DBT-25, DBT-27. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -75,3 +77,24 @@ lobsters, 4,823 commits; 0.6 s on linkding), no new artifact. Out of scope: weig
   apart moderation use cases (255 to 687 commits, 2 to 4 entry points, priority 13.7 to 17.2); the first low
   confidence item is 18th, the unbacked narrative within the top 30, the folders reached by no behaviour last (0 entry
   points).
+
+## Deliverable 3 (high review)
+- done: an item whose feature left the run counts 0 commits (doc items and sections, the file lookup shared by
+  `section_parts`), zero commits and entry points take the singular in French, a log line before the history walk of
+  `retrodoc ui`, the README sentence reordered.
+- red: DBT-25: `SetApart ?/gone/lost` counted 9 commits; DBT-27: `0 commits, 0 points d'entrée` in French.
+- High review: 9 findings
+  - French plural of zero: fixed.
+  - the history walk blocks the start of `retrodoc ui`: a log line added; the walk at start is decision 1 a (1.5 s on
+    lobsters).
+  - an unborn `HEAD` gives an empty churn and no note: not fixed, the history is readable and every file has 0 commits.
+  - the sum over files favours large items (a domain over its features, a big folder left out): not fixed, the
+    formula of DBT-25 validated; a decision for the user (see the lobsters run of deliverable 2).
+  - an item whose feature left the run counted commits: fixed.
+  - linear lookups per item and `value()` recomputed in the sort: not fixed, a few million comparisons at most per
+    request on the largest runs measured.
+  - the file lookup of feature and use-case doc items duplicated `section_parts`: fixed; the rule evidence filter
+    shared with `cited_paths` left as is (one line).
+  - the `git` test helper duplicated across test crates: not fixed, no shared test crate.
+  - the README clause misplaced: fixed.
+- Code review: no findings
