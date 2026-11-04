@@ -67,6 +67,7 @@ pub(super) async fn run(
                 repo_root,
                 &sources,
                 &seeds,
+                &role_map,
                 &signals.brief,
                 llm.get("contexts")?.as_ref(),
                 false,

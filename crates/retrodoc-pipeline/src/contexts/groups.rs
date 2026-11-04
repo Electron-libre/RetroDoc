@@ -51,7 +51,7 @@ fn singular(word: &str) -> String {
 }
 
 /// File stems that name a role in a folder, not a business object: the object is the folder's.
-const GENERIC_STEMS: &[&str] = &[
+pub(super) const GENERIC_STEMS: &[&str] = &[
     "index", "mod", "main", "init", "url", "urls", "route", "view", "handler",
 ];
 

@@ -7,10 +7,12 @@
 //! those groups (name, size, a sample of files) and the folders no group reached, framed by the
 //! product brief, and merges the groups that serve one business concept into a context, sets the
 //! technical ones aside as support, and gives each orphan folder to a context. A group the answer
-//! forgot becomes a context of its own, so no file is lost; a context of a single file joins the
-//! context of its folder, or the support unless it is an entry point file.
+//! forgot becomes a context of its own, so no file is lost; the files of a layer context go to the
+//! contexts that write their names ([`spread`]); a context of a single file joins the context of its
+//! folder, or the support unless it is an entry point file.
 //!
-//! `contexts.yaml` keeps the rules (group names and folders per context), not the file lists: the
+//! `contexts.yaml` keeps the rules (group names and folders per context, and the files placed one by
+//! one), not the file lists of the contexts: the
 //! files of a context are found again from the current tree by [`ContextMap::resolve`], so a new
 //! file joins a context by the same rules and a hand edit (moving a group or a folder) takes effect
 //! at once. The map is reused as it is until `retrodoc contexts --force`: the code changing never
@@ -39,11 +41,13 @@ mod domains;
 mod groups;
 mod route_owner;
 mod run;
+mod spread;
 
 pub use domains::{domain_vocabulary, domains_from_contexts};
 use groups::{family_groups, group_of, group_words, mechanical_groups, name_words, Groups};
 use route_owner::EntryOwners;
 pub use run::{mark_done, plan_run, RunSlice};
+use spread::{spread_layer_contexts, Written};
 
 /// Groups shown to the LLM, the largest first; the others go to the support.
 const MAX_GROUPS: usize = 250;
@@ -113,6 +117,10 @@ pub struct BoundedContext {
     /// Folders (with a trailing `/`) whose files belong to this context when no group claims them.
     #[serde(default)]
     pub folders: Vec<String>,
+    /// Files that belong to this context whatever their group or folder: the files of a layer
+    /// context placed one by one (CTX-5).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub files: Vec<String>,
 }
 
 /// What is documented in no context.
@@ -122,6 +130,8 @@ pub struct Support {
     pub groups: Vec<String>,
     #[serde(default)]
     pub folders: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub files: Vec<String>,
 }
 
 /// The saved artifact, `contexts.yaml`, editable by hand.
@@ -178,7 +188,8 @@ impl ContextMap {
         features.sort_by_key(|f| position(&f.domain_slug));
     }
 
-    /// The `sources` of the current tree by context. A file joins the context of the group its
+    /// The `sources` of the current tree by context. A file listed by a context or the support
+    /// goes there; otherwise it joins the context of the group its
     /// name or its directories give (the longest name first), else the context of the longest
     /// folder that holds it, else the support. `seeds` are the entry point files.
     #[must_use]
@@ -203,6 +214,15 @@ impl ContextMap {
         folders.extend(self.support.folders.iter().map(|f| (folder(f), None)));
         folders.sort_by_key(|(dir, _)| std::cmp::Reverse(dir.components().count()));
         let seed_set: BTreeSet<&PathBuf> = seeds.iter().collect();
+        let mut listed: BTreeMap<PathBuf, Option<usize>> = BTreeMap::new();
+        for (i, context) in self.contexts.iter().enumerate() {
+            for file in &context.files {
+                listed.entry(folder(file)).or_insert(Some(i));
+            }
+        }
+        for file in &self.support.files {
+            listed.entry(folder(file)).or_insert(None);
+        }
 
         let mut out = Resolved {
             contexts: self
@@ -224,12 +244,15 @@ impl ContextMap {
             let group = own
                 .filter(|name| names.contains(name))
                 .or_else(|| group_of(file, &names));
-            let owner = group.map(|group| owner_of_group[&group]).or_else(|| {
-                folders
-                    .iter()
-                    .find(|(dir, _)| file.starts_with(dir))
-                    .map(|(_, owner)| *owner)
-            });
+            let owner = listed.get(file).copied();
+            let owner = owner
+                .or_else(|| group.map(|group| owner_of_group[&group]))
+                .or_else(|| {
+                    folders
+                        .iter()
+                        .find(|(dir, _)| file.starts_with(dir))
+                        .map(|(_, owner)| *owner)
+                });
             match owner {
                 Some(Some(i)) => {
                     out.contexts[i].files.push(file.clone());
@@ -415,7 +438,8 @@ struct RawSupport {
 
 /// The map of the contexts of the repo: the saved `contexts.yaml` as it is (edits included), or
 /// the one the LLM answers over the mechanical groups of `sources` around the `seeds` (the entry
-/// point files), saved for next time. `force` asks again whatever the file holds. An answer that
+/// point files), saved for next time; `roles` say which files of a layer context are views or
+/// models, and the files of `sources` are read for the names they write. `force` asks again whatever the file holds. An answer that
 /// can't be read gives one context per group and is not saved, so the next run asks again. A saved
 /// file that can't be read is left alone.
 ///
@@ -426,6 +450,7 @@ pub async fn build_context_map(
     repo_root: &Path,
     sources: &[PathBuf],
     seeds: &[PathBuf],
+    roles: &RoleMap,
     brief: &ProductBrief,
     llm: &dyn LlmProvider,
     force: bool,
@@ -474,12 +499,8 @@ pub async fn build_context_map(
         tracing::warn!("the LLM answer for the contexts was unusable: one context per group");
         return Ok(one_context_per_group(&grouped));
     };
-    let map = keep_saved_slugs(
-        merge_one_file_contexts(without_empty_contexts(map, sources, seeds), sources, seeds),
-        &saved,
-        sources,
-        seeds,
-    );
+    let written = Written::read(repo_root, sources, roles);
+    let map = keep_saved_slugs(tidy(map, sources, seeds, &written), &saved, sources, seeds);
     // Saved before the split: a failure there keeps the paid map.
     map.save(repo_root)?;
     let split = match split_large_contexts(map, &grouped, sources, seeds, brief, llm).await {
@@ -493,17 +514,20 @@ pub async fn build_context_map(
         }
     };
     let split = keep_saved_slugs(
-        merge_one_file_contexts(
-            without_empty_contexts(split, sources, seeds),
-            sources,
-            seeds,
-        ),
+        tidy(split, sources, seeds, &written),
         &saved,
         sources,
         seeds,
     );
     split.save(repo_root)?;
     Ok(split)
+}
+
+/// The `map` without its layer contexts, its empty contexts and its one-file contexts
+/// (`specs/context-map.md`, CTX-4 and CTX-5).
+fn tidy(map: ContextMap, sources: &[PathBuf], seeds: &[PathBuf], written: &Written) -> ContextMap {
+    let map = spread_layer_contexts(map, sources, seeds, written);
+    merge_one_file_contexts(without_empty_contexts(map, sources, seeds), sources, seeds)
 }
 
 /// The `map` with each context that holds more than half of the files of a `saved` context, and
@@ -595,13 +619,16 @@ fn merge_one_file_contexts(map: ContextMap, sources: &[PathBuf], seeds: &[PathBu
     for &(i, to) in &moves {
         let groups = std::mem::take(&mut contexts[i].groups);
         let folders = std::mem::take(&mut contexts[i].folders);
+        let files = std::mem::take(&mut contexts[i].files);
         tracing::info!(context = %contexts[i].slug, into = to.map_or("support", |j| contexts[j].slug.as_str()), "one-file context merged");
         if let Some(j) = to {
             contexts[j].groups.extend(groups);
             contexts[j].folders.extend(folders);
+            contexts[j].files.extend(files);
         } else {
             support.groups.extend(groups);
             support.folders.extend(folders);
+            support.files.extend(files);
         }
     }
     let gone: BTreeSet<usize> = moves.iter().map(|&(i, _)| i).collect();
@@ -844,6 +871,8 @@ async fn split_context(
     );
     first.folders.sort();
     first.folders.dedup();
+    // The files placed one by one stay together, on the first part.
+    first.files.extend(context.files.iter().cloned());
     tracing::info!(
         context = %context.slug,
         parts = parts.contexts.len(),
@@ -862,6 +891,7 @@ fn whole_application() -> ContextMap {
                 .to_string(),
             groups: Vec::new(),
             folders: vec![String::new()],
+            files: Vec::new(),
         }],
         support: Support::default(),
     }
@@ -898,6 +928,7 @@ fn add_group(contexts: &mut Vec<BoundedContext>, group: &str) {
         description: String::new(),
         groups: vec![group.to_string()],
         folders: Vec::new(),
+        files: Vec::new(),
     });
 }
 
@@ -1031,6 +1062,7 @@ fn place_cited(
                 description: context.description,
                 groups,
                 folders,
+                files: Vec::new(),
             });
         }
     }
@@ -1059,6 +1091,8 @@ fn place_cited(
     (map, free)
 }
 
+#[cfg(test)]
+mod spread_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]

@@ -34,7 +34,11 @@ context are found again from the current tree by `ContextMap::resolve`, so a new
 same rules, a hand edit takes effect at once, and a file in no rule is support. The map is reused as it is
 until `retrodoc contexts --force`: the code changing never changes it, which is what lets a context done
 stay done. Rejected: a map recomputed from the tree at each run (the slices would move under the
-fingerprints), and a stored list of files (stale as soon as a file is added).
+fingerprints), and a stored list of files (stale as soon as a file is added). Amended: a context may also list
+files, which go to it whatever their group or folder: the files of a layer context (a context made mostly of
+orphan folders) placed one by one after the call, since a layer folder mixes files that serve different
+contexts (`specs/context-map.md`, CTX-5). A new file still follows the groups and the folders; a listed file
+that is gone matches nothing.
 
 A context of more than 150 files is too big for one run (the central context of an application often
 regroups several sub-domains: editing, signing, amending a contract…), so one more call splits it into
@@ -86,3 +90,6 @@ to it by name. The map is for the `surface` path; the `files` path is unchanged.
   with, both ways, so the progress of the runs survives a new map; a one-file context is merged into the context
   of its folder, or the support unless it is an entry point file. Three forced maps share 12 slugs instead of 4; the files keep their context about as often
   (71% against 68%): the merges still depend on the answer (`docs/findings.md` §8).
+* A layer context (more than half of its files from its folders) gives each folder file to the context whose
+  files write its class name the most, else to the support when it is a view or a model; the others stay
+  (`issues/context_map_support_and_catch_alls.md`). The map call now needs the roles and reads the source files.

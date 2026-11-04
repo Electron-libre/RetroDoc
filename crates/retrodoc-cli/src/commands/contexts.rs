@@ -44,6 +44,7 @@ pub async fn run(path: &Path, force: bool, tracker: &UsageTracker) -> anyhow::Re
                 repo_root,
                 &sources,
                 &seeds,
+                &role_map,
                 &super::brief::saved(repo_root),
                 llm.as_ref(),
                 force,
