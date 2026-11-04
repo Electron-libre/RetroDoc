@@ -205,6 +205,16 @@ pub struct AuditTexts {
     pub more: &'static str,
     /// Between a count and its total: `2 of 5`.
     pub of: &'static str,
+    pub trends: &'static str,
+    pub trends_intro: &'static str,
+    /// Why there are no trends, with the command that saves a run.
+    pub no_trends: &'static str,
+    /// The columns of the trends: the run, its commit, the confidence, the business language, the
+    /// two shares of the coverage, the debt items.
+    pub trend_columns: [&'static str; 7],
+    pub trends_debt: &'static str,
+    /// After a figure worse than in the run before.
+    pub worse: &'static str,
 }
 
 /// The fixed text of the history page.
@@ -484,6 +494,22 @@ impl WebTexts {
             fewer: "fewer",
             more: "more",
             of: "of",
+            trends: "Trends",
+            trends_intro: "The figures of each saved run of <code>retrodoc generate</code>, newest \
+                first; a figure worse than in the run before is marked ▼.",
+            no_trends: "The trends need two runs: each <code>retrodoc generate</code> that changes \
+                the docs saves one.",
+            trend_columns: [
+                "Run",
+                "Commit",
+                "Confidence",
+                "Business language",
+                "Placed in a feature",
+                "Cited by a use case",
+                "Debt items",
+            ],
+            trends_debt: "Debt items by kind",
+            worse: "worse",
         },
         history_page: HistoryTexts {
             intro: "The runs of <code>retrodoc generate</code> that changed the docs, and what \
@@ -766,6 +792,22 @@ impl WebTexts {
             fewer: "moins",
             more: "plus",
             of: "sur",
+            trends: "Tendances",
+            trends_intro: "Les chiffres de chaque run enregistré de <code>retrodoc generate</code>, \
+                du plus récent au plus ancien ; un chiffre pire qu'au run précédent est marqué ▼.",
+            no_trends: "Les tendances demandent deux runs : chaque <code>retrodoc generate</code> \
+                qui change la doc en enregistre un.",
+            trend_columns: [
+                "Run",
+                "Commit",
+                "Confiance",
+                "Langage métier",
+                "Tenus par une fonctionnalité",
+                "Cités par un cas d'usage",
+                "Éléments de dette",
+            ],
+            trends_debt: "Éléments de dette par type",
+            worse: "pire",
         },
         history_page: HistoryTexts {
             intro: "Les runs de <code>retrodoc generate</code> qui ont changé la doc, et ce \

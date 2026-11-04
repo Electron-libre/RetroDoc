@@ -6,7 +6,7 @@ use std::collections::{HashMap, HashSet};
 
 use retrodoc_core::model::{Feature, UseCase};
 use retrodoc_mcp::history::{
-    diff, set_apart_reason, Fall, SavedRun, Score, SectionKind, SectionScores,
+    diff, set_apart_reason, Fall, SavedRun, Score, SectionKind, SectionScores, Snapshot,
 };
 use retrodoc_mcp::GeneratedDocs;
 
@@ -87,11 +87,7 @@ pub fn history_page(
             .map(|(at, run)| RunView {
                 name: run.name.clone(),
                 finished: label(run),
-                commit: run
-                    .snapshot
-                    .commit
-                    .as_ref()
-                    .map(|c| c.chars().take(7).collect()),
+                commit: short_commit(&run.snapshot),
                 from: picked.is_some_and(|(from, _)| from == at),
                 to: picked.is_some_and(|(_, to)| to == at),
             })
@@ -101,8 +97,16 @@ pub fn history_page(
     }
 }
 
+/// The first 7 characters of the commit `snapshot` read, `None` with no commit.
+pub(crate) fn short_commit(snapshot: &Snapshot) -> Option<String> {
+    snapshot
+        .commit
+        .as_ref()
+        .map(|c| c.chars().take(7).collect())
+}
+
 /// When `run` ended, with the number of its file when it is not the first of its second.
-fn label(run: &SavedRun) -> String {
+pub(crate) fn label(run: &SavedRun) -> String {
     let when = when(&run.snapshot.finished_at);
     match run.name.split_once('_') {
         Some((_, n)) => format!("{when} ({n})"),

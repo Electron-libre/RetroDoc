@@ -1,7 +1,7 @@
 ---
 id: AUD
-status: accepted
-adrs: [0039]
+status: draft
+adrs: [0039, 0043]
 ---
 
 # Audit dashboard of the docs
@@ -10,7 +10,8 @@ adrs: [0039]
 
 The audit page of `retrodoc ui`, `/audit`, shows the figures of the last run and where its debt concentrates, domain
 by kind, so whoever audits the docs decides where to improve them first, then opens the debt view
-(`specs/debt-view.md`) on the cell they picked.
+(`specs/debt-view.md`) on the cell they picked. Its trends show how the figures moved across the runs the history
+saved (`specs/run-history.md`), so the same reader sees whether the docs get better and which run made them worse.
 
 ## Requirements
 
@@ -43,6 +44,23 @@ by kind, so whoever audits the docs decides where to improve them first, then op
 - **AUD-9** (deterministic) The "Audit" group of the header of every page must link to the audit page, with a title
   saying what it holds.
 - **AUD-10** (deterministic) On a repository with no run yet, the audit page must say to run `retrodoc generate`.
+- **AUD-11** (deterministic) The audit page must show a table of the trends with one row per saved snapshot (RHI-13),
+  newest first, each with the date, time and zone it ended and the first 7 characters of its commit as the history
+  page writes them (HPG-1), then its overall confidence, its overall business language, the two shares of its entry
+  point coverage (AUD-2) as percentages rounded to the unit, and the number of its debt items; a figure the snapshot
+  lacks is shown as a dash.
+- **AUD-12** (deterministic) The audit page must show a table of the debt of the trends with one row per saved
+  snapshot, newest first, and one column per kind of the debt view in the order of DBT-8 that has an item in at least
+  one snapshot, each cell holding the number of items of that kind summed over the domains (RHI-5).
+- **AUD-13** (deterministic) The tables of AUD-11 and AUD-12 must mark in text, not by its colour only, each figure
+  worse than in the run just before it as shown (a score or a share lower, a count of debt higher); a figure the run
+  before lacks is not marked.
+- **AUD-14** (deterministic) The audit page must show, above the tables, one line chart per score of AUD-11 that at
+  least one snapshot has, drawn on the server as SVG (ADR 0039), the runs evenly spaced oldest left, the scale from
+  0 to 100%, one point per run that has the score, the line broken across a run that lacks it; the tables stay the
+  carrier of the figures.
+- **AUD-15** (deterministic) With fewer than two saved snapshots, the audit page must say the trends need two runs of
+  `retrodoc generate`, in place of the tables and charts of AUD-11 to AUD-14.
 
 ## Scenarios
 
@@ -62,6 +80,14 @@ by kind, so whoever audits the docs decides where to improve them first, then op
 - (AUD-7) Given a table whose largest count is 8, then a cell of 1 is at level 1, of 3 at level 2, of 8 at level 4.
 - (AUD-6) Given a domain slug `a&b`, then the link of its cells encodes it: `domain=a%26b`.
 - (AUD-6, AUD-10) Given a domain named `<script>`, then it is shown as text (WEB-10).
+- (AUD-11) Given a snapshot with no business language, then its cell shows a dash.
+- (AUD-12) Given a kind with no item in any snapshot, then it has no column.
+- (AUD-13) Given a confidence of `0.804` then `0.796`, shown 80% both, then it is not marked worse.
+- (AUD-13) Given a debt of 4 items then 6, then the newer count is marked worse; given 6 then 4, it is not.
+- (AUD-13) Given a run whose snapshot before it has no coverage, then its coverage is not marked.
+- (AUD-14) Given three runs whose middle one has no business language, then the chart of the business language
+  shows two points and no line between them.
+- (AUD-15) Given a single saved snapshot, then the page says the trends need two runs and shows the other figures.
 
 ## Non-goals
 
@@ -74,3 +100,8 @@ by kind, so whoever audits the docs decides where to improve them first, then op
   cells is `issues/done/debt_priority_score.md`.
 - No chart library: the heatmap is an HTML table, its shades in the stylesheet (ADR 0039).
 - The page calls no LLM; its figures are read at each request.
+- The trends hold no stale share and no progress of the contexts: the snapshot holds neither (RHI-5, RHI-9), and the
+  cost of each run is not trended (the token counts of a rerun are not comparable to a first run's).
+- The snapshots are read once at start, like the history page (HPG): a `generate` run while the server runs shows
+  after a restart of `ui`.
+- No chart of the debt: its counts have no common scale across kinds; the table of AUD-12 carries them.

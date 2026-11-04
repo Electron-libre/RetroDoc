@@ -31,3 +31,36 @@ Run history
 * `crates/retrodoc-web/src/` (the audit page and its templates), `crates/retrodoc-mcp/src/audit`.
 * The spec of the run history written by `issues/done/run_snapshot_at_generate.md`.
 * Skill `dataviz` before drawing the chart; the browsers of the machine to check the page headless.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-04
+
+## Understanding
+The audit page gains the trends of the saved snapshots: a table of the figures and one of the debt per kind, newest
+first, the worse figures marked, and one server-drawn SVG line chart per score; fewer than two snapshots says so.
+Out of scope: trends of the stale share, the contexts and the cost (the snapshot lacks them or they don't compare).
+
+## Plan
+1. [x] Trend tables: the rows of the snapshots in `retrodoc-web` (`trends.rs`), the two tables, the worse marks and
+   the line of fewer than two runs on `/audit`, texts en/fr; verified by `tests/audit_page.rs` over saved snapshots;
+   makes true AUD-11, AUD-12, AUD-13, AUD-15. (autonomous)
+2. [ ] Trend charts: one SVG line chart per score, built from the same rows (skill `dataviz`), checked headless in
+   Chrome; verified by `tests/audit_page.rs` (points, broken line, no chart for a score no run has); makes true AUD-14,
+   spec `accepted`.
+
+## Decisions
+- Mode: autonomous
+- Base commit: e8acb9573f0111efbc2dba7d2a938c41affa4675
+- A figure is marked worse as soon as its shown (rounded) value is worse than the run before it, no threshold (1 a).
+- No chart of the debt: the table per kind carries it (2 a).
+- With one snapshot, only the line saying the trends need two runs (3 a).
+- The runs are evenly spaced on the charts, not by date.
+
+## Summaries
+
+### 1. Trend tables
+- done: `/audit` shows the trends of the saved runs (figures table, debt-per-kind table, `▼` marks, line under two runs), en/fr.
+- red: AUD-11, AUD-12, AUD-13, AUD-15: `<table class="trends"` not in the page (panicked in `between`).
+- Code review: no findings
+- not verified: the page in a browser (with deliverable 2).

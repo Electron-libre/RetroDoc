@@ -107,6 +107,9 @@ table.heatmap td a:hover { outline: 2px solid var(--gold-light); border-radius: 
 table.cost td, table.cost thead th:not(:first-child) { text-align: right; }
 .figures details summary { cursor: pointer; }
 table.cost tfoot th, table.cost tfoot td { font-weight: 600; }
+table.trends td, table.trends-debt td { text-align: right; white-space: nowrap; }
+table.trends th[scope="row"], table.trends-debt th[scope="row"] { font-weight: normal; white-space: nowrap; }
+.worse { color: var(--gold-light); font-size: 0.85rem; }
 .narrative { font-size: 1.05rem; }
 .steps li { margin: 0.4rem 0; }
 .cited { font-size: 0.85rem; color: var(--text-muted); }

@@ -45,6 +45,37 @@
     {% endif %}
   </section>
 </div>
+<section id="audit-trends">
+  <h2>{{ t.audit_page.trends }}</h2>
+  {% if let Some(trends) = page.trends %}
+  <p class="muted">{{ t.audit_page.trends_intro|safe }}</p>
+  <table class="trends">
+    <thead>
+      <tr>{% for column in t.audit_page.trend_columns %}<th scope="col">{{ column }}</th>{% endfor %}</tr>
+    </thead>
+    <tbody>
+      {% for run in trends.runs %}
+      <tr><th scope="row">{{ run.finished }}</th><td>{% if let Some(commit) = run.commit %}<code>{{ commit }}</code>{% else %}<span class="muted">{{ t.history_page.no_commit }}</span>{% endif %}</td>{% for cell in run.figures %}{% call m::trend_cell(cell) %}{% endcall %}{% endfor %}</tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if !trends.kinds.is_empty() %}
+  <h3>{{ t.audit_page.trends_debt }}</h3>
+  <table class="trends-debt">
+    <thead>
+      <tr><th scope="col">{{ t.audit_page.trend_columns[0] }}</th>{% for kind in trends.kinds %}<th scope="col">{{ kind }}</th>{% endfor %}</tr>
+    </thead>
+    <tbody>
+      {% for run in trends.runs %}
+      <tr><th scope="row">{{ run.finished }}</th>{% for cell in run.debt %}{% call m::trend_cell(cell) %}{% endcall %}{% endfor %}</tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+  {% else %}
+  <p class="muted">{{ t.audit_page.no_trends|safe }}</p>
+  {% endif %}
+</section>
 <section id="audit-heatmap">
   <h2>{{ t.audit_page.heatmap }}</h2>
   <p class="muted">{{ t.audit_page.heatmap_intro }}

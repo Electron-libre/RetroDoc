@@ -1,6 +1,7 @@
 //! What the audit page shows (`specs/audit-dashboard.md`): the figures of
 //! `retrodoc_mcp::audit` as text, and the heatmap of the debt, each cell
-//! linked to the debt page filtered on its domain and kind.
+//! linked to the debt page filtered on its domain and kind, then the trends of the saved runs
+//! (`crate::trends`).
 
 use std::fmt::Write as _;
 
@@ -9,9 +10,11 @@ use retrodoc_mcp::audit::{
     audit, format_duration, thousands, ModelRecord, PassRecord, RecordedProgress, Share, MAX_LEVEL,
 };
 use retrodoc_mcp::debt::DebtKind;
+use retrodoc_mcp::history::SavedRun;
 use retrodoc_mcp::GeneratedDocs;
 
 use crate::texts::WebTexts;
+use crate::trends::{trends, TrendsView};
 use crate::view::Confidence;
 
 pub struct AuditPage {
@@ -27,6 +30,8 @@ pub struct AuditPage {
     pub rows: Vec<HeatRowView>,
     /// The levels above 0, for the legend.
     pub levels: Vec<u8>,
+    /// `None` with fewer than two saved runs.
+    pub trends: Option<TrendsView>,
 }
 
 /// `count` of `total`, and its percentage.
@@ -90,9 +95,10 @@ pub struct HeatCellView {
     pub href: Option<String>,
 }
 
-/// The audit page of `docs`. Reads the cited files and the saved figures.
+/// The audit page of `docs` and the trends of `runs`, the saved runs oldest first. Reads the
+/// cited files and the saved figures.
 #[must_use]
-pub fn audit_page(docs: &GeneratedDocs, texts: &WebTexts) -> AuditPage {
+pub fn audit_page(docs: &GeneratedDocs, runs: &[SavedRun], texts: &WebTexts) -> AuditPage {
     let audit = audit(docs);
     let confidence = |value: Option<f32>| {
         value.map(|value| Confidence::of(Some(&ConfidenceScore::new(value, None))))
@@ -133,6 +139,7 @@ pub fn audit_page(docs: &GeneratedDocs, texts: &WebTexts) -> AuditPage {
                 pending: pending.iter().map(|slug| domain_name(slug)).collect(),
             }),
         levels: (1..=MAX_LEVEL).collect(),
+        trends: trends(runs, texts),
         kinds: DebtKind::WITH_DOMAIN
             .iter()
             .map(|k| texts.debt_kind(*k))

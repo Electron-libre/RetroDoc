@@ -76,3 +76,5 @@
 {% macro pass_row(pass) %}
 <tr><th scope="row">{{ pass.name }}</th><td>{{ pass.duration }}</td><td>{{ pass.calls }}</td><td>{{ pass.prompt }}</td><td>{{ pass.cached }}</td><td>{{ pass.completion }}{% if pass.lower_bound %} <span class="muted">({{ t.audit_page.lower_bound }})</span>{% endif %}</td></tr>
 {% endmacro %}
+
+{% macro trend_cell(cell) %}<td>{% if let Some(text) = cell.text %}{{ text }}{% else %}<span class="muted">–</span>{% endif %}{% if cell.worse %} <span class="worse">▼ {{ t.audit_page.worse }}</span>{% endif %}</td>{% endmacro %}

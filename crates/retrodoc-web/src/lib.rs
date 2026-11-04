@@ -21,6 +21,7 @@ mod pages;
 pub mod rules;
 pub mod search;
 pub mod texts;
+pub mod trends;
 pub mod view;
 
 use std::net::IpAddr;

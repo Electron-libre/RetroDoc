@@ -456,7 +456,8 @@ pub async fn audit(State(site): State<Arc<Site>>) -> Response {
     }
     // The stale share reads the cited files.
     let built = blocking(&site, |site| {
-        site.docs().map(|docs| audit_page(docs, site.texts()))
+        site.docs()
+            .map(|docs| audit_page(docs, site.history(), site.texts()))
     })
     .await;
     match built {

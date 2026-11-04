@@ -124,7 +124,9 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   `retrodoc_mcp::audit::audit`, built at each request off the async workers, a line naming the command that produces
   each missing one, and the heatmap as a table whose cells link to `/debt?kind=&domain=`, shaded by the classes
   `level-0` to `level-4` of the stylesheet (one gold ramp checked with the dataviz validator, the count written in each
-  cell). The history page, `/history` (`history::history_page`, `history.html`, in the "Audit" group of the header;
+  cell), then the trends of the snapshots `Site::new` loads (`trends::trends`, AUD-11 to AUD-15): a table of the
+  overall figures and one of the debt per kind, newest first, a figure worse than in the run before marked `▼`, none
+  with fewer than two runs. The history page, `/history` (`history::history_page`, `history.html`, in the "Audit" group of the header;
   `specs/history-page.md`), lists the snapshots `Site::new` loads once and compares two of them, the newest two
   unless `?from=` and `?to=` name others, each section of `retrodoc_mcp::history::diff` linked to its page when the
   docs served hold it. The actors page, `/actors` (`actors::actors_page`, `actors.html`, linked from the header of
