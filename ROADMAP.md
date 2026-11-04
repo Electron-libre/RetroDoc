@@ -295,7 +295,13 @@ The milestones up to "A large application, one bounded context at a time" are th
 - Goal: mark a section validated, wrong or to review, with a comment, from the web interface; the reviews are kept
   in `.retrodoc/`, shown in the debt report, the dashboard and the MCP answers.
 - Why: the confidence score is the model's view; a reader must know what a human has checked.
-- State: idea
+- State: in issues
+- Issues:
+  - [review_store](issues/review_store.md)
+  - [web_review_form](issues/web_review_form.md)
+  - [review_in_debt](issues/review_in_debt.md)
+  - [review_in_mcp](issues/review_in_mcp.md)
+  - [review_outdated](issues/review_outdated.md)
 
 ## Edit the docs
 
