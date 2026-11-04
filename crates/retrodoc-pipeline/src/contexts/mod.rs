@@ -47,7 +47,7 @@ pub use domains::{domain_vocabulary, domains_from_contexts};
 use groups::{family_groups, group_of, group_words, mechanical_groups, name_words, Groups};
 use route_owner::EntryOwners;
 pub use run::{mark_done, plan_run, RunSlice};
-use spread::{spread_catch_alls, spread_layer_contexts, Written};
+use spread::{most_written, spread_catch_alls, spread_layer_contexts, Written};
 
 /// Groups shown to the LLM, the largest first; the others go to the support.
 const MAX_GROUPS: usize = 250;
@@ -95,7 +95,7 @@ business sub-domains (an activity, a stage of the business process, a kind of ob
 given what the product is for, the context, its GROUPS of files (each named after a business \
 object, with its size and a sample of its files) and its FOLDERS of files that belong to no group. \
 Split it into 2 to 8 sub-contexts, each named after a business concept or activity, never after a \
-technical layer or a kind of folder, and named after what most of its files are about: read the \
+technical layer or a kind of folder nor a catch-all (misc, other, general, common, shared), and named after what most of its files are about: read the \
 samples before naming a part, and name it after its main subject, not after the first file you see. \
 Some groups are a business family whose files sit in several layer folders (rules, tasks, \
 processes): keep such a group whole in one sub-context, never cut it by folder. Cite groups by their id (g1, g2…) and folders as listed, \
@@ -532,7 +532,9 @@ pub async fn build_context_map(
     let map = keep_saved_slugs(tidy(map, sources, seeds, &written), &saved, sources, seeds);
     // Saved before the split: a failure there keeps the paid map.
     map.save(repo_root)?;
-    let split = match split_large_contexts(map, &grouped, sources, seeds, brief, llm).await {
+    let split = match split_large_contexts(map, &grouped, sources, seeds, &written, brief, llm)
+        .await
+    {
         Ok(split) => split,
         Err(error) => {
             tracing::warn!(
@@ -542,8 +544,14 @@ pub async fn build_context_map(
             return Err(error);
         }
     };
+    // Not spread again: a part of a split is often made of folders, and nothing would split what
+    // a spread made big.
     let split = keep_saved_slugs(
-        tidy(split, sources, seeds, &written),
+        merge_one_file_contexts(
+            without_empty_contexts(split, sources, seeds),
+            sources,
+            seeds,
+        ),
         &saved,
         sources,
         seeds,
@@ -553,7 +561,7 @@ pub async fn build_context_map(
 }
 
 /// The `map` without its catch-all contexts, its layer contexts, its empty contexts and its
-/// one-file contexts (`specs/context-map.md`, CTX-4 to CTX-6).
+/// one-file contexts (`specs/context-map.md`, CTX-4 to CTX-6), before the split.
 fn tidy(map: ContextMap, sources: &[PathBuf], seeds: &[PathBuf], written: &Written) -> ContextMap {
     let map = spread_catch_alls(map, sources, seeds, written);
     let map = spread_layer_contexts(map, sources, seeds, written);
@@ -698,6 +706,7 @@ async fn split_large_contexts(
     grouped: &Groups,
     sources: &[PathBuf],
     seeds: &[PathBuf],
+    written: &Written,
     brief: &ProductBrief,
     llm: &dyn LlmProvider,
 ) -> Result<ContextMap, PipelineError> {
@@ -715,7 +724,16 @@ async fn split_large_contexts(
         if !big.contains(&true) {
             break;
         }
-        map = split_once(map, resolved, &big, &mut whole, grouped, brief, llm).await?;
+        map = split_once(
+            map,
+            resolved,
+            &big,
+            &mut whole,
+            (grouped, written),
+            brief,
+            llm,
+        )
+        .await?;
     }
     let left = map.resolve(sources, seeds);
     for (context, own) in map.contexts.iter().zip(&left.contexts) {
@@ -763,7 +781,7 @@ async fn split_once(
     resolved: Resolved,
     big: &[bool],
     whole: &mut BTreeMap<String, Whole>,
-    grouped: &Groups,
+    (grouped, written): (&Groups, &Written),
     brief: &ProductBrief,
     llm: &dyn LlmProvider,
 ) -> Result<ContextMap, PipelineError> {
@@ -777,7 +795,7 @@ async fn split_once(
             out.push(context);
             continue;
         }
-        match split_context(&context, &own.files, grouped, brief, llm).await? {
+        match split_context(&context, &own.files, grouped, written, brief, llm).await? {
             Ok(parts) => {
                 slugs.retain(|s| *s != context.slug);
                 for mut part in parts {
@@ -812,9 +830,20 @@ async fn split_context(
     context: &BoundedContext,
     files: &[PathBuf],
     grouped: &Groups,
+    written: &Written,
     brief: &ProductBrief,
     llm: &dyn LlmProvider,
 ) -> Result<Result<Vec<BoundedContext>, Whole>, PipelineError> {
+    // The files placed one by one are not listed to the call: they follow the part that writes
+    // their names once the parts are known.
+    let listed: BTreeSet<PathBuf> = context.files.iter().map(PathBuf::from).collect();
+    let all_files = files;
+    let files: Vec<PathBuf> = files
+        .iter()
+        .filter(|f| !listed.contains(*f))
+        .cloned()
+        .collect();
+    let files = files.as_slice();
     let in_context: BTreeSet<&PathBuf> = files.iter().collect();
     let groups: BTreeMap<String, BTreeSet<PathBuf>> = grouped
         .groups
@@ -901,14 +930,32 @@ async fn split_context(
     );
     first.folders.sort();
     first.folders.dedup();
-    // The files placed one by one stay together, on the first part.
-    first.files.extend(context.files.iter().cloned());
+    place_listed(&mut parts.contexts, &listed, all_files, written);
     tracing::info!(
         context = %context.slug,
         parts = parts.contexts.len(),
         "large context split"
     );
     Ok(Ok(parts.contexts))
+}
+
+/// Each of the `listed` files of a context just split goes to the part whose files write its name
+/// the most, else to the first part.
+fn place_listed(
+    parts: &mut [BoundedContext],
+    listed: &BTreeSet<PathBuf>,
+    files: &[PathBuf],
+    written: &Written,
+) {
+    let resolved = ContextMap {
+        contexts: parts.to_vec(),
+        support: Support::default(),
+    }
+    .resolve(files, &[]);
+    for file in listed {
+        let to = most_written(&[file], &resolved, written, |_| true).unwrap_or(0);
+        parts[to].files.push(file.to_string_lossy().into_owned());
+    }
 }
 
 /// One context for every source file: the empty folder is a prefix of all of them.
@@ -935,6 +982,14 @@ fn one_context_per_group(grouped: &Groups) -> ContextMap {
     map
 }
 
+/// `word` with its first letter in upper case.
+fn capitalized(word: &str) -> String {
+    let mut chars = word.chars();
+    chars.next().map_or_else(String::new, |first| {
+        first.to_uppercase().chain(chars).collect()
+    })
+}
+
 /// A context of its own for a group, or the group added to the context of that slug.
 fn add_group(contexts: &mut Vec<BoundedContext>, group: &str) {
     let slug = slugify(group);
@@ -944,12 +999,7 @@ fn add_group(contexts: &mut Vec<BoundedContext>, group: &str) {
     }
     let name = group
         .split('_')
-        .map(|w| {
-            let mut chars = w.chars();
-            chars.next().map_or_else(String::new, |first| {
-                first.to_uppercase().chain(chars).collect()
-            })
-        })
+        .map(capitalized)
         .collect::<Vec<_>>()
         .join(" ");
     contexts.push(BoundedContext {

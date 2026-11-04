@@ -227,3 +227,105 @@ async fn a_context_named_with_a_catch_all_word_among_others_is_kept() {
 
     assert_eq!(slugs(&map), ["billing", "general-settings"]);
 }
+
+// spec: CTX-5 (internal: the CLI test of the map would need an LLM server)
+#[tokio::test]
+async fn a_file_placed_once_is_listed_once_whatever_the_order_of_the_contexts() {
+    let dir = tempfile::tempdir().unwrap();
+    let (sources, seeds) = write_tree(
+        dir.path(),
+        &[
+            (
+                "app/models/billing.rb",
+                "ButtonComponent InputComponent SelectComponent TextComponent",
+            ),
+            ("app/controllers/billings_controller.rb", "TextComponent"),
+            ("app/controllers/users_controller.rb", "TextComponent"),
+        ],
+    );
+    let answer = r#"{"contexts":[
+        {"slug":"ui","name":"UI","groups":["g1"],"folders":["app/components/inputs/"]},
+        {"slug":"users","name":"Users","groups":["g3"]},
+        {"slug":"billing","name":"Billing","groups":["g2"]}]}"#;
+
+    let map = map_of(
+        dir.path(),
+        (&sources, &seeds),
+        &roles(&sources, true),
+        answer,
+    )
+    .await;
+
+    let mut listed: Vec<&String> = map
+        .contexts
+        .iter()
+        .flat_map(|c| &c.files)
+        .chain(&map.support.files)
+        .collect();
+    let all = listed.len();
+    listed.sort();
+    listed.dedup();
+    assert_eq!(listed.len(), all, "{map:?}");
+    let billing = map.contexts.iter().find(|c| c.slug == "billing").unwrap();
+    assert_eq!(billing.files.len(), 4, "{map:?}");
+}
+
+// spec: CTX-5 (internal: the CLI test of the map would need an LLM server)
+#[tokio::test]
+async fn a_split_gives_each_listed_file_to_the_part_that_writes_its_name() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut sources = vec![
+        PathBuf::from("app/controllers/contracts_controller.rb"),
+        PathBuf::from("app/controllers/company_contracts_controller.rb"),
+        PathBuf::from("app/models/contract.rb"),
+        PathBuf::from("app/components/card_widget.rb"),
+        PathBuf::from("app/components/list_widget.rb"),
+    ];
+    sources.extend((0..160).map(|i| PathBuf::from(format!("app/workflows/tasks/task_{i}.rb"))));
+    sources.extend((0..5).map(|i| PathBuf::from(format!("app/workflows/rules/rule_{i}.rb"))));
+    for file in &sources {
+        let path = dir.path().join(file);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let text = if file.ends_with("task_0.rb") {
+            "CardWidget ListWidget"
+        } else {
+            ""
+        };
+        std::fs::write(path, text).unwrap();
+    }
+    let seeds: Vec<PathBuf> = sources[..2].to_vec();
+    // `g1` = contract (2 files), `g2` = company_contract (1).
+    let llm = FakeLlm::replying(|n, _| {
+        Ok(if n == 0 {
+            r#"{"contexts":[
+                {"slug":"contracts","name":"Contracts","groups":["g1","g2"],"folders":["app/workflows/"]},
+                {"slug":"ui","name":"UI","folders":["app/components/"]}]}"#
+        } else {
+            r#"{"contexts":[
+                {"slug":"approvals","name":"Approvals","groups":["g1"],"folders":["app/workflows/rules/"]},
+                {"slug":"tasks","name":"Tasks","groups":["g2"],"folders":["app/workflows/tasks/"]}]}"#
+        }
+        .to_string())
+    });
+
+    let map = build_context_map(
+        dir.path(),
+        &sources,
+        &seeds,
+        &roles(&sources, true),
+        &ProductBrief::default(),
+        &llm,
+        false,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(slugs(&map), ["approvals", "tasks"], "{map:?}");
+    let resolved = map.resolve(&sources, &seeds);
+    assert!(
+        resolved.contexts[1]
+            .files
+            .contains(&PathBuf::from("app/components/card_widget.rb")),
+        "{map:?}"
+    );
+}

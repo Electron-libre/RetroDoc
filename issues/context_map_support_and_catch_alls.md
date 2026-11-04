@@ -77,6 +77,7 @@ migrations the role `model`, the groups named after a namespace word (`api`, `ad
 4. [x] Measure and docs: deliverables 1 and 2 replayed on the 3 saved maps without LLM, then 3 forced maps chained
    from the saved one (~$0.06, asked first); findings §8, ADR 0029, spec `accepted`, ledger; verified by the figures
    against the f778b9b baseline. (autonomous)
+5. [x] Fixes of the `high` review over the issue; verified by tests; keeps CTX-5 and CTX-6 true. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -201,5 +202,40 @@ red: none
 Code review: no findings
 
 not verified: none
+
+decisions needed: none
+
+## Deliverable 5
+done: fixes of the `high` review over e369bae..dd80bfb.
+
+Code review (`high`): 8 findings
+1. A file already listed counted as a folder file and listed again by the second spread: fixed, listed files are
+   neither counted nor moved (test).
+2. The spread ran again after the split, undoing parts made of folders and growing contexts no split followed:
+   fixed, the spread runs before the split only; the split prompt forbids catch-all names too.
+3. `class_name` kept the inner extensions (`card_component.html.erb` gave `CardComponent.html`): fixed (test).
+4. A split put every listed file on its first part: fixed, the listed files are left out of the split call and go to
+   the part that writes their name the most, else the first (test).
+5. The groups of the support were left out when a catch-all's files were grouped, so a support file could fall back
+   to a context's group: fixed.
+6. Every source file was read on every map: fixed, read the first time a name is asked.
+7. Linear search in the layer check: fixed, a set.
+8. Capitalisation duplicated between `class_name` and `add_group`: fixed, `capitalized`.
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass, CTX accepted |
+| docs | `docs/crates/pipeline.md` |
+| code review | see below |
+
+red: CTX-5: `listed.len() 4 != 7` (a file listed in two places), `CardComponent.html != CardComponent`, the listed
+component on the first part instead of `tasks`
+
+Code review (`low`, on the fixes): 1 finding
+1. The doc comment of `add_group` landed on the new `capitalized`: fixed.
+
+not verified: the measure of deliverable 4 is at 639e22a, before fixes 1, 2 and 4 (no new paid run).
 
 decisions needed: none
