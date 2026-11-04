@@ -32,8 +32,9 @@ report of `retrodoc report` from top to bottom.
   business language or its confidence.
 - **DBT-7** (deterministic) An item of the kind "stale" must be listed for each feature and each use case flagged
   stale on its page (WEB-20), with the files that changed.
-- **DBT-8** (deterministic) The items must be ordered by kind in the order of DBT-2 to DBT-7, and within a kind the
-  lowest score first, then in the order of the run.
+- **DBT-8** (deterministic) The items must be ordered by kind in the order of DBT-2 to DBT-7, and within a kind as
+  `retrodoc report` lists them (the lowest score first, then by section; the unbacked narratives by section), the not
+  scored, set apart and stale ones in the order of the run, a stale feature before its use cases.
 - **DBT-9** (deterministic) The debt page must keep only the items of the kind `?kind=<kind>` and of the domain
   `?domain=<slug>`, each given, both when both are; an empty value filters nothing.
 - **DBT-10** (deterministic) The debt page must show a form whose choices are the kinds and the domains of the run,

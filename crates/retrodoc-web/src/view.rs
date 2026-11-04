@@ -812,12 +812,7 @@ pub fn use_case_page(
         href: use_case_href(owner, sibling),
         name: sibling.name.clone(),
     };
-    let mut cited: Vec<&str> = Vec::new();
-    for source in use_case.steps.iter().flat_map(|s| &s.source_refs) {
-        if !cited.contains(&source.path.as_str()) {
-            cited.push(&source.path);
-        }
-    }
+    let cited = retrodoc_mcp::debt::use_case_cited_paths(use_case);
     // As the debt report counts them: a narrative partly backed states what
     // the cited lines do not show, mostly true of the code around them.
     let unbacked = use_case

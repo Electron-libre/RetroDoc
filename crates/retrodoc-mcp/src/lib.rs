@@ -10,6 +10,7 @@
 //! search`, to judge retrieval quality.
 
 pub mod corpus;
+pub mod debt;
 pub mod freshness;
 pub mod read_model;
 pub mod search;

@@ -61,9 +61,9 @@ coverage, reconciliation, which need the config and the docs) goes to `web_debt_
 1. [x] Report sections carry their slugs: `WeakSection` and the unscored use cases name their domain, feature and
    use case, and the report lists the set apart use cases with their reason (the Markdown unchanged); verified by
    the report tests; makes true nothing alone (prepares DBT-2 to DBT-6). ~250 lines. (autonomous)
-2. [ ] Debt items in the read model: `retrodoc_mcp::debt` builds the typed items (kind, domain, section, score or
+2. [x] Debt items in the read model: `retrodoc_mcp::debt` builds the typed items (kind, domain, section, score or
    reason) from the report and the freshness, independent of HTTP; verified by internal tests; makes true DBT-2 to
-   DBT-8. ~400 lines.
+   DBT-8. ~400 lines. (autonomous)
 3. [ ] The page `/debt`: route, template, filters swapped by `htmx`, header link and "Start here" line, English and
    French texts; verified by router tests and a check in headless Chrome; makes true DBT-1, DBT-9 to DBT-14. ~600 lines.
 
@@ -91,6 +91,26 @@ Markdown of the report unchanged.
 | code review | no findings |
 
 red: none (no requirement traced yet; the tests failed to compile on the missing `Section` and `SetApartReason`)
+
+Code review: no findings
+
+not verified: none. decisions needed: none.
+
+### 2. Debt items in the read model
+done: `retrodoc_mcp::debt::debt` lists the `DebtItem`s (kind, section, score, rationale, set apart reasons, changed
+files) from `build_report` and the freshness; `use_case_cited_paths` shared with the use case page; DBT-8 amended to
+the order of the report.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass |
+| docs | `docs/crates/render-mcp-cli.md` |
+| code review | no findings |
+
+red: DBT-2, DBT-3, DBT-4, DBT-5, DBT-6, DBT-7, DBT-8: 5 tests failed on the empty list of the stub
+(`assertion left == right failed`)
 
 Code review: no findings
 
