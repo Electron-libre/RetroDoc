@@ -525,7 +525,7 @@ to 78% (mean 71%), merged pairs 23% to 32%; 12 slugs in all three (4 before), 12
 the next. Left: the support moves (21% to 34%, UI components 25% to 63%) and catch-all or layer contexts remain
 (UI components, catch-alls, API, PDF, workflows).
 
-Support and catch-alls (`issues/context_map_support_and_catch_alls.md`, 2026-11-04, same roles, hosted
+Support and catch-alls (`issues/done/context_map_support_and_catch_alls.md`, 2026-11-04, same roles, hosted
 `deepseek-chat`): without LLM, on the three maps above, half of the files moving in and out of the support were whole
 groups the answer set aside in one map only, half orphan folders; the layer contexts were orphan folders (UI
 components, a folder of models, a library) and the catch-alls many small groups. A layer folder mixes files that

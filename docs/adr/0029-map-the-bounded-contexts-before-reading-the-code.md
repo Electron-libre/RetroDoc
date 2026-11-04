@@ -92,7 +92,7 @@ to it by name. The map is for the `surface` path; the `files` path is unchanged.
   (71% against 68%): the merges still depend on the answer (`docs/findings.md` §8).
 * A layer context (more than half of its files from its folders) gives each folder file to the context whose
   files write its class name the most, else to the support when it is a view or a model; the others stay
-  (`issues/context_map_support_and_catch_alls.md`). The map call now needs the roles and reads the source files.
+  (`issues/done/context_map_support_and_catch_alls.md`). The map call now needs the roles and reads the source files.
   A catch-all context (`misc`, `other`…) is spread the same way, its groups moving whole. A forced map's call
   is shown the saved support as a proposal, not kept mechanically: a first map that set a business group aside
   must not hold it there for good. Three forced maps: 109 files moving in or out of the support instead of 538,
