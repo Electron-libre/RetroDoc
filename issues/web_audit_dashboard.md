@@ -52,9 +52,9 @@ the code). Means differ: the contexts progress is read as `fingerprints.json` re
    coverage, stale share, last `generate` of `usage.json`, contexts from `contexts.yaml` and `fingerprints.json`) and
    the heatmap cells with their levels, independent of HTTP; verified by internal tests; makes true nothing alone
    (prepares AUD-1 to AUD-8). ~450 lines. (autonomous)
-2. [ ] The page `/audit`: route, template, heatmap table and its shades in the stylesheet, missing figure lines,
+2. [x] The page `/audit`: route, template, heatmap table and its shades in the stylesheet, missing figure lines,
    header link, English and French texts; verified by router tests and a check in headless Chrome; makes true AUD-1
-   to AUD-10. ~600 lines.
+   to AUD-10. ~600 lines. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -87,3 +87,28 @@ set apart: the expectation was wrong, not the code.
 Code review: no findings
 
 not verified: none. decisions needed: none.
+
+### 2. The audit page
+done: `/audit` (`audit.rs`, `audit.html`, the `pass_row` macro), its figures with a line naming the command of each
+missing one, the heatmap with its 4 gold levels (adjacent steps 15 apart in OKLab, the count in every cell, text
+contrast 5.2 at least), the "Dashboard" link of the "Audit" group, English and French texts; WEB-67 and a non-goal
+of `specs/web-ui.md` amended; `specs/audit-dashboard.md` accepted; the mcp audit module re-exports the usage types
+and their formatters (`retrodoc-web` does not depend on the pipeline).
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass (`audit-dashboard` accepted) |
+| docs | `docs/crates/render-mcp-cli.md`, `docs/ARCHITECTURE.md`, `README.md`, `specs/web-ui.md` |
+| headless Chrome | `/audit` on a saved run: figures, heatmap, cost table; a cell's link gives the 102 items of its domain and kind on `/debt` |
+| code review | no findings |
+
+red: AUD-1, AUD-2, AUD-3, AUD-4, AUD-5, AUD-6, AUD-7, AUD-8, AUD-9, AUD-10: 7 tests failed on `/audit` answering
+404 before the route (`assertion left == right failed: left: 404`); the confidence test then failed on a wrong
+expectation (the mean of 30% and 90% is 60%, not low), fixed in the test, and a test of the low flag added.
+
+Code review: no findings
+
+not verified: the swatches of the legend and the hover outline in a light browser theme (the interface is dark
+only, decision 4). decisions needed: none.

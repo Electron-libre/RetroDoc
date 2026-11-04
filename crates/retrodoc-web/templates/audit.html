@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% import "macros.html" as m %}
+{% block title %}{{ t.page_name("/audit") }}{% endblock %}
+{% block content %}
+<h1>{{ t.page_name("/audit") }}</h1>
+<p class="muted">{{ t.audit_page.intro }}</p>
+<div class="figures">
+  <section id="audit-confidence">
+    {% if let Some(confidence) = page.confidence %}
+    <p class="score"><strong>{{ t.audit_page.confidence }}</strong> {% call m::badge(confidence) %}{% endcall %}</p>
+    {% if let Some(business) = page.business_language %}
+    <p class="score"><strong>{{ t.audit_page.business_language }}</strong> {% call m::badge(business) %}{% endcall %}</p>
+    {% endif %}
+    {% else %}
+    <h2>{{ t.audit_page.confidence }}</h2>
+    <p class="muted">{{ t.audit_page.no_confidence|safe }}</p>
+    {% endif %}
+  </section>
+  <section id="audit-stale">
+    <h2>{{ t.audit_page.stale }}</h2>
+    <p><strong>{{ page.stale.percent }}%</strong> <span class="muted">{{ page.stale.count }} {{ t.audit_page.of }} {{ page.stale.total }} {{ t.audit_page.stale_sections }}</span></p>
+  </section>
+  <section id="audit-coverage">
+    <h2>{{ t.audit_page.coverage }}</h2>
+    {% if let Some(coverage) = page.coverage %}
+    {% if let Some(share) = coverage.placed %}
+    <p><strong>{{ share.percent }}%</strong> <span class="muted">{{ share.count }} {{ t.audit_page.of }} {{ share.total }} {{ t.audit_page.placed }}</span></p>
+    {% endif %}
+    {% if let Some(share) = coverage.cited %}
+    <p><strong>{{ share.percent }}%</strong> <span class="muted">{{ share.count }} {{ t.audit_page.of }} {{ share.total }} {{ t.audit_page.cited }}</span></p>
+    {% endif %}
+    {% else %}
+    <p class="muted">{{ t.audit_page.no_coverage|safe }}</p>
+    {% endif %}
+  </section>
+  <section id="audit-contexts">
+    <h2>{{ t.audit_page.contexts }}</h2>
+    {% if let Some(contexts) = page.contexts %}
+    <p><strong>{{ contexts.done }} {{ t.audit_page.of }} {{ contexts.total }}</strong> <span class="muted">{{ t.audit_page.contexts_done }}</span></p>
+    {% if !contexts.pending.is_empty() %}
+    <details class="muted"><summary>{{ t.audit_page.pending }} {{ contexts.pending.len() }}</summary>{% for name in contexts.pending %}{{ name }}{% if !loop.last %}, {% endif %}{% endfor %}</details>
+    {% endif %}
+    {% else %}
+    <p class="muted">{{ t.audit_page.no_contexts|safe }}</p>
+    {% endif %}
+  </section>
+</div>
+<section id="audit-heatmap">
+  <h2>{{ t.audit_page.heatmap }}</h2>
+  <p class="muted">{{ t.audit_page.heatmap_intro }}
+    <span class="legend" aria-hidden="true">{{ t.audit_page.fewer }} {% for level in 1..=4 %}<span class="swatch level-{{ level }}"></span>{% endfor %} {{ t.audit_page.more }}</span></p>
+  <table class="heatmap">
+    <thead>
+      <tr><th scope="col">{{ t.domain }}</th>{% for kind in page.kinds %}<th scope="col">{{ kind }}</th>{% endfor %}</tr>
+    </thead>
+    <tbody>
+      {% for row in page.rows %}
+      <tr><th scope="row">{{ row.domain }}</th>{% for cell in row.cells %}<td class="level-{{ cell.level }}" title="{{ cell.kind }} · {{ row.domain }}{{ t.colon }} {{ cell.count }}">{% if let Some(href) = cell.href %}<a href="{{ href }}">{{ cell.count }}</a>{% endif %}</td>{% endfor %}</tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+<section id="audit-cost">
+  <h2>{{ t.audit_page.cost }}</h2>
+  {% if let Some(cost) = page.cost %}
+  <p class="muted">{{ t.audit_page.finished }} {{ cost.finished }}</p>
+  <table class="cost">
+    <thead>
+      <tr>{% for column in t.audit_page.cost_columns %}<th scope="col">{{ column }}</th>{% endfor %}</tr>
+    </thead>
+    <tbody>
+      {% for pass in cost.passes %}
+      {% call m::pass_row(pass) %}{% endcall %}
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      {% call m::pass_row(cost.total) %}{% endcall %}
+    </tfoot>
+  </table>
+  {% else %}
+  <p class="muted">{{ t.audit_page.no_cost|safe }}</p>
+  {% endif %}
+</section>
+{% endblock %}
+

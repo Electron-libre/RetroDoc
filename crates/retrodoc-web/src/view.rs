@@ -182,7 +182,8 @@ impl Site {
 
 /// The pages of reference with their counts as the pages they link to show
 /// them: the domains, a row per actor and kind, the concepts, the rules, the
-/// cited files; the debt items are counted at each call ([`Site::start_links`]).
+/// cited files; the debt items are counted at each call ([`Site::start_links`]). The dashboard
+/// counts nothing and is no line of it.
 fn start_links(
     texts: &'static WebTexts,
     docs: &GeneratedDocs,
@@ -194,6 +195,7 @@ fn start_links(
     texts
         .reference_pages
         .iter()
+        .filter(|page| page.href != "/audit")
         .zip([
             docs.domains().len(),
             actors,
@@ -257,7 +259,7 @@ pub struct Shell {
     pub read: Vec<&'static ReferencePage>,
     /// The pages one looks things up in: the glossary, the rules, the files.
     pub look_up: Vec<&'static ReferencePage>,
-    /// The pages one audits the docs with: the debt.
+    /// The pages one audits the docs with: the debt, the dashboard.
     pub audit: Vec<&'static ReferencePage>,
     pub tree: Vec<TreeDomain>,
 }

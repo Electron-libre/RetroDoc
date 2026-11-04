@@ -9,6 +9,7 @@
 
 pub mod actors;
 mod assets;
+pub mod audit;
 pub mod code;
 pub mod collected;
 pub mod debt;
@@ -84,6 +85,7 @@ pub fn router(
         .route("/glossary", get(pages::glossary))
         .route("/rules", get(pages::rules))
         .route("/debt", get(pages::debt))
+        .route("/audit", get(pages::audit))
         .route("/map", get(pages::map))
         .route("/map/{domain}", get(pages::domain_map))
         .route("/actors", get(pages::actors))

@@ -124,7 +124,8 @@ pub fn record_run(repo_root: &Path, run: RunUsage) -> Result<(), PipelineError> 
 }
 
 /// `12400` → `12,400`.
-fn thousands(n: u64) -> String {
+#[must_use]
+pub fn thousands(n: u64) -> String {
     let digits = n.to_string();
     let mut out = String::new();
     for (i, c) in digits.chars().enumerate() {

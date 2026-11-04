@@ -3,10 +3,11 @@
 //! cost of the last `generate`, the progress of the bounded contexts, and the debt items counted by
 //! domain and kind. Read at each call; a figure the run lacks is `None`.
 
-use retrodoc_pipeline::usage_log::{load_history, RunUsage};
-use retrodoc_pipeline::{
-    build_report, recorded_progress, BehaviourCoverage, DomainMap, RecordedProgress,
-};
+use retrodoc_pipeline::usage_log::load_history;
+use retrodoc_pipeline::{build_report, recorded_progress, BehaviourCoverage, DomainMap};
+// What the figures are made of and how the recap of a run writes them, for whoever shows them.
+pub use retrodoc_pipeline::usage_log::{thousands, ModelRecord, PassRecord, RunUsage};
+pub use retrodoc_pipeline::{format_duration, RecordedProgress};
 
 use crate::debt::{debt, DebtKind, DebtList};
 use crate::read_model::GeneratedDocs;

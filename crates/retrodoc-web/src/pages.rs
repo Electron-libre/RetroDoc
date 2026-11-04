@@ -11,6 +11,7 @@ use tokio::task::JoinError;
 
 use crate::actors::ActorsPage;
 use crate::assets::MERMAID;
+use crate::audit::{audit_page, AuditPage};
 use crate::code::{code_page, Asked, CodePage};
 use crate::collected::{collected_page, CollectedPage};
 use crate::debt::{debt_page, DebtFilter, DebtPage};
@@ -125,6 +126,14 @@ struct RulesTemplate<'a> {
     t: &'static WebTexts,
     shell: &'a Shell,
     page: RulesPage,
+}
+
+#[derive(Template)]
+#[template(path = "audit.html")]
+struct AuditTemplate<'a> {
+    t: &'static WebTexts,
+    shell: &'a Shell,
+    page: AuditPage,
 }
 
 #[derive(Template)]
@@ -436,6 +445,29 @@ pub async fn debt(
                 page,
             },
         ),
+        Err(err) => read_failed(&err),
+    }
+}
+
+pub async fn audit(State(site): State<Arc<Site>>) -> Response {
+    if site.docs().is_none() {
+        return no_run_page(&site);
+    }
+    // The stale share reads the cited files.
+    let built = blocking(&site, |site| {
+        site.docs().map(|docs| audit_page(docs, site.texts()))
+    })
+    .await;
+    match built {
+        Ok(Some(page)) => render(
+            StatusCode::OK,
+            &AuditTemplate {
+                t: site.texts(),
+                shell: site.shell(),
+                page,
+            },
+        ),
+        Ok(None) => no_run_page(&site),
         Err(err) => read_failed(&err),
     }
 }

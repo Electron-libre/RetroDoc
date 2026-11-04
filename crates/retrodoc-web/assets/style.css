@@ -86,6 +86,27 @@ code { color: inherit; background: var(--surface-2); padding: 0 0.25rem; border-
 .debt .muted { margin-left: 0.5rem; font-size: 0.9rem; }
 .debt .badge.kind { min-width: 9rem; text-align: center; margin-right: 0.4rem; }
 .debt .why { display: block; margin-top: 0.2rem; font-size: 0.9rem; color: var(--text-muted); }
+/* The audit page: the figures in a grid, then the heatmap of the debt. One hue, the gold, from
+   the surface to gold-light in 4 steps 15 apart in OKLab; the count is written in every cell
+   above 0, in the text colour on the 2 dark steps and the background colour on the 2 bright ones
+   (contrast 5.2 at least), so the shade never carries the figure alone. */
+.figures { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 0 2rem; }
+.figures h2 { font-size: 1rem; margin-bottom: 0.3rem; }
+table.heatmap { width: auto; border-collapse: separate; border-spacing: 2px; }
+table.heatmap th[scope="col"] { font-size: 0.8rem; font-weight: normal; color: var(--text-muted); vertical-align: bottom; }
+table.heatmap td { min-width: 5rem; text-align: center; border: none; border-radius: 4px; padding: 0; }
+table.heatmap td a { display: block; padding: 0.4rem 0.6rem; color: inherit; text-decoration: none; }
+table.heatmap td a:hover { outline: 2px solid var(--gold-light); border-radius: 4px; }
+.level-0 { background: var(--surface); }
+.level-1 { background: #3d3520; color: var(--text); }
+.level-2 { background: #6f5c27; color: var(--text); }
+.level-3 { background: #a88a31; color: var(--bg); }
+.level-4 { background: #e8c872; color: var(--bg); }
+.legend { white-space: nowrap; margin-left: 0.5rem; }
+.swatch { display: inline-block; width: 1rem; height: 0.8rem; border-radius: 2px; vertical-align: middle; }
+table.cost td, table.cost thead th:not(:first-child) { text-align: right; }
+.figures details summary { cursor: pointer; }
+table.cost tfoot th, table.cost tfoot td { font-weight: 600; }
 .narrative { font-size: 1.05rem; }
 .steps li { margin: 0.4rem 0; }
 .cited { font-size: 0.85rem; color: var(--text-muted); }

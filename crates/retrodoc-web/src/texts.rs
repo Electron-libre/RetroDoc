@@ -34,7 +34,7 @@ pub struct WebTexts {
     pub feature_unit: (&'static str, &'static str),
     pub use_case_unit: (&'static str, &'static str),
     /// The pages of reference, in the order a first-time reader is pointed to them.
-    pub reference_pages: [ReferencePage; 6],
+    pub reference_pages: [ReferencePage; 7],
     pub search: &'static str,
     pub search_intro: &'static str,
     pub results_for: &'static str,
@@ -133,6 +133,7 @@ pub struct WebTexts {
     /// Above a collected doc.
     pub existing_doc: &'static str,
     pub debt: DebtTexts,
+    pub audit_page: AuditTexts,
     /// The lines a page of a file shows: from, to, of how many.
     pub shown: fn(usize, usize, usize) -> String,
     /// Why the lines asked are not shown: the number of lines of the file, the first line asked.
@@ -155,6 +156,39 @@ pub struct DebtTexts {
     pub no_score: &'static str,
     /// The list `htmx` swaps under the form before a first `generate`.
     pub no_run: &'static str,
+}
+
+/// The fixed text of the audit page.
+#[derive(Debug)]
+pub struct AuditTexts {
+    pub intro: &'static str,
+    pub confidence: &'static str,
+    pub business_language: &'static str,
+    /// Why the run has no confidence score, with the command that scores it.
+    pub no_confidence: &'static str,
+    pub coverage: &'static str,
+    pub placed: &'static str,
+    pub cited: &'static str,
+    pub no_coverage: &'static str,
+    pub stale: &'static str,
+    pub stale_sections: &'static str,
+    pub cost: &'static str,
+    pub finished: &'static str,
+    /// The columns of the cost: the pass, its duration, calls, prompt, cached and completion tokens.
+    pub cost_columns: [&'static str; 6],
+    pub total: &'static str,
+    pub lower_bound: &'static str,
+    pub no_cost: &'static str,
+    pub contexts: &'static str,
+    pub contexts_done: &'static str,
+    pub pending: &'static str,
+    pub no_contexts: &'static str,
+    pub heatmap: &'static str,
+    pub heatmap_intro: &'static str,
+    pub fewer: &'static str,
+    pub more: &'static str,
+    /// Between a count and its total: `2 of 5`.
+    pub of: &'static str,
 }
 
 impl WebTexts {
@@ -223,6 +257,14 @@ impl WebTexts {
                 hint: "The sections of the docs that need a human, filtered by kind or domain.",
                 group: Group::Audit,
                 unit: ("item", "items"),
+            },
+            ReferencePage {
+                href: "/audit",
+                name: "Dashboard",
+                hint: "The figures of the last run and where the debt of the docs concentrates, \
+                    domain by kind.",
+                group: Group::Audit,
+                unit: ("figure", "figures"),
             },
         ],
         search: "Search",
@@ -330,6 +372,48 @@ impl WebTexts {
                 scored. Run <code>retrodoc generate</code> again to score them.",
             no_run: "<section id=\"debt-list\"><p>No debt yet: run <code>retrodoc generate</code>, then restart <code>retrodoc ui</code>.</p></section>",
         },
+        audit_page: AuditTexts {
+            intro: "The figures of the last run, and where the debt of the docs concentrates: \
+                each cell opens the debt of its domain and kind.",
+            confidence: "Overall confidence",
+            business_language: "Business language",
+            no_confidence: "Missing: the last run has no confidence score. Run \
+                <code>retrodoc generate</code> to score its use cases.",
+            coverage: "Entry points",
+            placed: "held by a feature",
+            cited: "cited by a use case",
+            no_coverage: "Missing: no coverage of the entry points saved. A \
+                <code>retrodoc generate</code> with <code>domains_from = \"contexts\"</code> or \
+                <code>\"surface\"</code> saves it.",
+            stale: "Stale sections",
+            stale_sections: "features and use cases cite a file changed since the run",
+            cost: "Cost of the last generate",
+            finished: "Finished on",
+            cost_columns: [
+                "Pass",
+                "Duration",
+                "Calls",
+                "Prompt tokens",
+                "Cached tokens",
+                "Completion tokens",
+            ],
+            total: "Total",
+            lower_bound: "lower bound: some calls reported no tokens",
+            no_cost: "Missing: no <code>retrodoc generate</code> in the usage history of this \
+                repository.",
+            contexts: "Bounded contexts",
+            contexts_done: "contexts done",
+            pending: "Pending:",
+            no_contexts: "Missing: no map of the bounded contexts. A \
+                <code>retrodoc generate</code> with <code>domains_from = \"contexts\"</code> \
+                maps them.",
+            heatmap: "Where the debt is",
+            heatmap_intro: "The debt items of each domain by kind; the brighter the gold of a cell, the \
+                more items.",
+            fewer: "fewer",
+            more: "more",
+            of: "of",
+        },
         refusal: SourceError::to_string,
     };
 
@@ -400,6 +484,14 @@ impl WebTexts {
                 hint: "Les sections de la doc qui demandent un humain, filtrées par type ou domaine.",
                 group: Group::Audit,
                 unit: ("élément", "éléments"),
+            },
+            ReferencePage {
+                href: "/audit",
+                name: "Tableau de bord",
+                hint: "Les chiffres du dernier run et où se concentre la dette de la doc, domaine \
+                    par type.",
+                group: Group::Audit,
+                unit: ("chiffre", "chiffres"),
             },
         ],
         search: "Recherche",
@@ -510,6 +602,48 @@ impl WebTexts {
             no_score: "Le dernier run n'a aucun score de confiance : ses cas d'usage ne sont pas \
                 listés comme non évalués. Relancez <code>retrodoc generate</code> pour les évaluer.",
             no_run: "<section id=\"debt-list\"><p>Pas encore de dette : lancez <code>retrodoc generate</code>, puis relancez <code>retrodoc ui</code>.</p></section>",
+        },
+        audit_page: AuditTexts {
+            intro: "Les chiffres du dernier run, et où se concentre la dette de la doc : chaque \
+                case ouvre la dette de son domaine et de son type.",
+            confidence: "Confiance globale",
+            business_language: "Langage métier",
+            no_confidence: "Manquant : le dernier run n'a aucun score de confiance. Lancez \
+                <code>retrodoc generate</code> pour évaluer ses cas d'usage.",
+            coverage: "Points d'entrée",
+            placed: "tenus par une fonctionnalité",
+            cited: "cités par un cas d'usage",
+            no_coverage: "Manquant : aucune couverture des points d'entrée enregistrée. Un \
+                <code>retrodoc generate</code> avec <code>domains_from = \"contexts\"</code> ou \
+                <code>\"surface\"</code> l'enregistre.",
+            stale: "Sections périmées",
+            stale_sections: "fonctionnalités et cas d'usage citent un fichier modifié depuis le run",
+            cost: "Coût du dernier generate",
+            finished: "Terminé le",
+            cost_columns: [
+                "Passe",
+                "Durée",
+                "Appels",
+                "Tokens du prompt",
+                "Tokens en cache",
+                "Tokens de réponse",
+            ],
+            total: "Total",
+            lower_bound: "minimum : des appels n'ont rapporté aucun token",
+            no_cost: "Manquant : aucun <code>retrodoc generate</code> dans l'historique d'usage \
+                de ce dépôt.",
+            contexts: "Contextes bornés",
+            contexts_done: "contextes terminés",
+            pending: "En attente :",
+            no_contexts: "Manquant : aucune carte des contextes bornés. Un \
+                <code>retrodoc generate</code> avec <code>domains_from = \"contexts\"</code> \
+                les cartographie.",
+            heatmap: "Où est la dette",
+            heatmap_intro: "Les éléments de dette de chaque domaine par type ; plus l'or d'une case est vif, \
+                plus il y en a.",
+            fewer: "moins",
+            more: "plus",
+            of: "sur",
         },
         refusal: french_refusal,
     };

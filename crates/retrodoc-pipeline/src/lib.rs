@@ -86,6 +86,7 @@ pub use features::{
 };
 pub use glossary::{build_glossary, Entity, Glossary, MergedEntity};
 pub use language::{InLanguage, READING_PASSES, WRITING_PASSES};
+pub use progress::format_duration;
 pub use ranking::{apply_budget, rank_files, Scope};
 pub use report::{
     build_report, domain_models, DebtReport, FeaturelessDomain, Section, SetApartUseCase,

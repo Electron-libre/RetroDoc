@@ -11,7 +11,7 @@ use crate::texts::WebTexts;
 use crate::view::{Confidence, StaleFile};
 
 /// The value of `kind` in the query.
-fn kind_value(kind: DebtKind) -> &'static str {
+pub(crate) fn kind_value(kind: DebtKind) -> &'static str {
     match kind {
         DebtKind::LowConfidence => "low_confidence",
         DebtKind::NotScored => "not_scored",

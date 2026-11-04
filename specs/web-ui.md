@@ -153,7 +153,7 @@ over browses its domains, features and use cases rather than reading the Markdow
   files and debt pages, each with one line saying what the page holds and its count (domains, actors, concepts, rules,
   cited files of the run, debt items).
 - **WEB-67** (deterministic) The header of every page must group its links under "Read" (the map and actors pages),
-  "Look up" (the glossary, rules and files pages) and "Audit" (the debt page, DBT-13), each link with a title saying
+  "Look up" (the glossary, rules and files pages) and "Audit" (the debt page, DBT-13, and the dashboard, AUD-9), each link with a title saying
   what its page holds.
 - **WEB-68** (deterministic) The page of a use case must link to the previous and the next use case of its feature, in
   the order of the run, each labelled with its name; the first has no previous link and the last no next one.
@@ -290,8 +290,8 @@ over browses its domains, features and use cases rather than reading the Markdow
 - No LLM call and no edit of the docs.
 - The name of the application is not asked of the LLM, nor read from the `origin` remote; the Markdown render and the
   MCP answers don't carry it.
-- The home page leaves the audit dashboard to its milestone ("Explore the documentation debt and audit it"): it links
-  to the debt page (`specs/debt-view.md`) only. Nor does it show the external systems and the open questions of the
+- The home page links to the debt page (`specs/debt-view.md`) only, not to the audit dashboard
+  (`specs/audit-dashboard.md`), which counts nothing; the header links to both. Nor does it show the external systems and the open questions of the
   brief: only its purpose and its users.
 - The colours of the interface (the charter of the Meta Lambda site) are no requirement: they are checked by eye, not
   by a test.
