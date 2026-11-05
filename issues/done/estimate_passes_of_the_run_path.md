@@ -105,7 +105,7 @@ passes of the path; a test that every tracked pass but `business-read` is in `PA
 next to `passes_of`, its copy of the path table dropped (the binary tests cover it); the doc of `passes.rs` says the
 provider lookups still name their pass.
 Not fixed: providers of the passes turned off still opened, and the `get`/`concurrency` literals: outside EST-11 and
-SET-9, in `issues/open_only_the_passes_the_run_calls.md`; the hand-kept path tag (a drift fails at once, naming the
+SET-9, in `issues/done/open_only_the_passes_the_run_calls.md`; the hand-kept path tag (a drift fails at once, naming the
 pass); the `contexts` bool of `estimate::print` (it drives the budget, not the passes).
 
 | check | result |
@@ -123,4 +123,4 @@ Code review: no findings
 not verified: nothing beyond deliverable 1.
 decisions needed: none
 
-All deliverables done; follow-up in `issues/open_only_the_passes_the_run_calls.md`.
+All deliverables done; follow-up in `issues/done/open_only_the_passes_the_run_calls.md`.

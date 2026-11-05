@@ -322,7 +322,7 @@ The milestones up to "A large application, one bounded context at a time" are th
 - Goal: before a run, an estimate of the calls and tokens of the whole pipeline, extrapolated from the measured ratios
   of `usage.json`.
 - Why: the token recap gives the cost after the run only (step 2 of the token accounting, `docs/findings.md` §3).
-- State: in issues
+- State: done
 - Issues:
   - [pass_ratios_from_usage_history](issues/done/pass_ratios_from_usage_history.md)
   - [pre_run_estimate](issues/done/pre_run_estimate.md)
@@ -330,7 +330,7 @@ The milestones up to "A large application, one bounded context at a time" are th
   - [estimate_business_read](issues/done/estimate_business_read.md)
   - [recap_passes_not_estimated](issues/done/recap_passes_not_estimated.md)
   - [estimate_passes_of_the_run_path](issues/done/estimate_passes_of_the_run_path.md)
-  - [open_only_the_passes_the_run_calls](issues/open_only_the_passes_the_run_calls.md)
+  - [open_only_the_passes_the_run_calls](issues/done/open_only_the_passes_the_run_calls.md)
 
 ## Ask the documentation
 
