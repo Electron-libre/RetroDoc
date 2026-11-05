@@ -30,7 +30,7 @@ Edit the docs
 
 # Resources
 * `crates/retrodoc-cli/src/commands/docs.rs` (`publish`), `crates/retrodoc-render/src/markdown/`,
-  `crates/retrodoc-render/src/texts.rs`, `issues/web_edit_form.md`.
+  `crates/retrodoc-render/src/texts.rs`, `issues/done/web_edit_form.md`.
 
 # Hints
 * The same artifacts and edits must render the same bytes (SED-31): the date is the edit's, not the render's.
