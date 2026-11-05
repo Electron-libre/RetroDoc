@@ -15,6 +15,7 @@ use retrodoc_mcp::edits::{self, EditsError, Fields};
 use retrodoc_mcp::GeneratedDocs;
 use serde::Deserialize;
 
+use crate::edit::is_edited;
 use crate::pages::{blocking, not_found, read_failed, render};
 use crate::review::Place;
 use crate::texts::WebTexts;
@@ -60,7 +61,7 @@ impl EditFormView {
             name: shown.name.unwrap_or_default(),
             description: shown.description.unwrap_or_default(),
             narrative: is_use_case(place).then(|| shown.narrative.unwrap_or_default()),
-            edited: docs.edits().get(&section).is_some(),
+            edited: is_edited(docs, place),
             error: None,
         }
     }
@@ -140,11 +141,11 @@ fn clean(text: &str) -> String {
 }
 
 /// The fields of `form` that change the text generated (WEB-95): an empty one, or one equal to
-/// the generated text, left out.
+/// the generated text, both cleaned as a browser sends them back (WEB-94), left out.
 fn changed(form: &EditForm, generated: &Fields) -> Fields {
     let keep = |sent: Option<&str>, generated: Option<&str>| {
         let text = clean(sent?);
-        (!text.is_empty() && text != generated.unwrap_or_default().trim()).then_some(text)
+        (!text.is_empty() && text != clean(generated.unwrap_or_default())).then_some(text)
     };
     Fields {
         name: keep(Some(&form.name), generated.name.as_deref()),
@@ -156,7 +157,7 @@ fn changed(form: &EditForm, generated: &Fields) -> Fields {
 /// Records or removes the edit of the section at `place` of `docs`.
 fn write(docs: &GeneratedDocs, place: &Place, form: &EditForm) -> Saved {
     let section = place.section();
-    let edited = docs.edits().get(&section).is_some();
+    let edited = is_edited(docs, place);
     let failed = |code, error: String| Saved::Failed(code, error, edited);
     // Only a use case has a narrative (SED-3): refused before the store is read, a revert
     // included.
@@ -186,7 +187,6 @@ fn write(docs: &GeneratedDocs, place: &Place, form: &EditForm) -> Saved {
     match done {
         Ok(()) => Saved::Done,
         Err(EditsError::UnknownSection(_)) => Saved::NotFound,
-        Err(err @ EditsError::NoNarrative(_)) => failed(StatusCode::BAD_REQUEST, err.to_string()),
         Err(err) => failed(StatusCode::INTERNAL_SERVER_ERROR, err.to_string()),
     }
 }

@@ -312,6 +312,22 @@ async fn the_form_saves_only_the_fields_it_changes_trimmed() {
         )]
     );
 
+    // A generated text with a CR LF line end comes back from the browser with a line feed alone.
+    retrodoc_pipeline::save_use_cases(
+        root,
+        &[use_case("The clerk takes the card.\r\nThen he pays.")],
+    )
+    .unwrap();
+    edits::remove(root, &Section::use_case("pay-invoice", "pay-by-card")).unwrap();
+    let round_trip =
+        "name=Pay+by+card&description=&narrative=The+clerk+takes+the+card.%0D%0AThen+he+pays.";
+    post(root, &format!("/edit{USE_CASE}"), round_trip, false).await;
+    assert_eq!(
+        saved(root),
+        Vec::new(),
+        "the narrative sent back as generated"
+    );
+    retrodoc_pipeline::save_use_cases(root, &[use_case("The clerk takes the card.")]).unwrap();
     let unchanged = "name=Pay+by+card&description=&narrative=The+clerk+takes+the+card.";
     post(root, &format!("/edit{USE_CASE}"), unchanged, false).await;
     assert_eq!(saved(root), Vec::new(), "every field left out: no edit");

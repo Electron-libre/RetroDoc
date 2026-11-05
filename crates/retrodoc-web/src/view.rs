@@ -395,13 +395,14 @@ pub fn domain_rows(docs: &GeneratedDocs, reviews: &Reviews) -> Vec<DomainRow> {
             let stale = docs
                 .freshness()
                 .is_some_and(|freshness| !freshness.stale(cited).is_empty());
+            let place = Place::Domain(domain.slug.clone());
             DomainRow {
                 slug: domain.slug.clone(),
                 name: domain.name.clone(),
                 description: domain.description.clone(),
                 confidence: Confidence::of(domain.confidence.as_ref()),
-                review: ReviewBadge::of_place(docs, reviews, &Place::Domain(domain.slug.clone())),
-                edited: is_edited(docs, &Place::Domain(domain.slug.clone())),
+                review: ReviewBadge::of_place(docs, reviews, &place),
+                edited: is_edited(docs, &place),
                 stale,
                 features: features.len(),
                 use_cases: features

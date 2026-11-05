@@ -237,7 +237,7 @@ over browses its domains, features and use cases rather than reading the Markdow
   status 400 (SED-3), and nothing saved.
 - **WEB-99** (deterministic) An edit `POST` must be answered with the status 500 and the error when
   `.retrodoc/edits.json` cannot be read or is of a later format, the file left as it was (SED-14); with the header
-  `HX-Request`, as the edit of the section and its form alone, the fields as sent, swapped in place of the former
+  `HX-Request`, as the edit form of the section alone, the fields as sent, swapped in place of the former
   ones.
 - **WEB-100** (deterministic) Each row of a list of sections (WEB-80) must show a mark when its section holds a human
   edit, and none when it holds none.

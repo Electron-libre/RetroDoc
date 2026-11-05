@@ -55,6 +55,8 @@ the store; a field equal to the generated text is left out (WEB-95); success rel
    `tests/edit_pages.rs` through the router; makes true WEB-93 to WEB-99, WEB-12 (amended). ~650 lines. (autonomous)
 2. [x] Mark of an edited section in the lists and the generated text folded under the edit; verified by
    `tests/edit_pages.rs`; makes true WEB-100, WEB-92 (amended). ~250 lines. (autonomous)
+3. [x] Docs of the whole issue and fixes of its `high` review; verified by `tests/edit_pages.rs`; makes true
+   WEB-95, WEB-99 (reworded). (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -96,6 +98,33 @@ unfolded when outdated; `web-ui` back to `accepted`.
 | code review | no findings |
 
 red: WEB-92, WEB-100: `folded: <section class="edit">` (no `<details class="generated">`), the row with no `badge edited`.
+Code review: no findings
+not verified: none.
+decisions needed: none.
+
+## Deliverable 3 summary
+done: `update-docs` over `21c1374..HEAD` (`fields_in` in the crate doc) and the fixes of the `high` review.
+
+| check | result |
+|---|---|
+| tests | pass (`project-check`) |
+| lint | pass |
+| specs | pass; WEB-99 reworded: the form alone is answered |
+| docs | `docs/crates/render-mcp-cli.md` |
+| code review | high: 9 findings; low: no findings |
+
+red: WEB-95: a generated narrative with a CR LF line end, sent back as is, recorded as an edit.
+High review, 9 findings:
+1. generated text not cleaned before the comparison (CR LF): fixed, `clean` on both sides, test added.
+2. saving an outdated edit re-fingerprints the fields left unchanged: not fixed, the rule of SED-36 (as REV-22): a
+   save over the new generated text, which the page unfolds, is the human's judgement.
+3. the revert button read `get().is_some()`, the mark `changed()`: fixed, both use `edit::is_edited`.
+4. WEB-99 said "the edit and its form": fixed, the spec now says the form alone.
+5. `Place::Domain` built twice per row: fixed.
+6. `fields_in` clones the three fields: not fixed, a few strings per page.
+7. `labels` repeats `fields` capitalised: not fixed, a capitalisation rule per language costs more than three words.
+8. `NoNarrative` arm unreachable: removed.
+9. doc line over 100 columns: rewrapped.
 Code review: no findings
 not verified: none.
 decisions needed: none.

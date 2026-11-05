@@ -1,7 +1,7 @@
 //! The human edit of a section on its page (`specs/web-ui.md` WEB-91, WEB-92): the fields it
 //! changes, its author and its date, why it is outdated when it is, and the text the last run
-//! generated for each of those fields, folded unless it is outdated. The edits are those the docs show, kept current by
-//! `retrodoc ui` (`retrodoc_mcp::edits::Live`).
+//! generated for each of those fields, folded unless it is outdated. The edits are those the docs
+//! show, kept current by `retrodoc ui` (`retrodoc_mcp::edits::Live`).
 
 use retrodoc_mcp::edits::{self, Field};
 use retrodoc_mcp::GeneratedDocs;
