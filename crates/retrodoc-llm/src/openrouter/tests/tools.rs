@@ -237,6 +237,20 @@ async fn the_reasoning_of_an_answer_reaches_the_caller_with_its_calls() {
     assert_eq!(response.tool_calls.len(), 1);
 }
 
+// spec: TCL-17 (internal: the answer is served by the mock server of the provider's tests)
+#[tokio::test]
+async fn an_empty_reasoning_is_kept_and_a_missing_one_is_none() {
+    let answer = |reasoning: &str| {
+        format!(
+            r#"{{"model":"m","choices":[{{"message":{{"role":"assistant","content":"ok"{reasoning}}}}}]}}"#
+        )
+    };
+    let (_, empty) = exchange(request(), &answer(r#","reasoning_content":"""#)).await;
+    let (_, missing) = exchange(request(), &answer("")).await;
+    assert_eq!(empty.reasoning.as_deref(), Some(""));
+    assert_eq!(missing.reasoning, None);
+}
+
 // spec: TCL-18 (internal: the wire body is only visible to the mock server of the provider's tests)
 #[tokio::test]
 async fn the_reasoning_of_an_assistant_message_is_sent_back_only_when_it_has_one() {

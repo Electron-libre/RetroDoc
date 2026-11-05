@@ -194,7 +194,7 @@ async fn a_refusal_of_the_tools_fails_at_once_naming_the_tools_and_the_model() {
         assert_eq!(rx.try_iter().count(), 1, "{status}: no fallback");
         assert!(err.contains("refuses tools"), "{err}");
         assert!(err.contains("`m`"), "{err}");
-        assert!(err.contains("support tool"), "{err}");
+        assert!(err.contains(body), "{err}");
     }
 }
 
@@ -231,4 +231,28 @@ async fn a_refusal_of_the_schema_with_the_tools_falls_back_without_the_schema() 
     let sent: Vec<String> = rx.try_iter().collect();
     assert_eq!(sent.len(), 2);
     assert!(!sent[1].contains("response_format"));
+}
+
+// spec: TCL-15 (internal: the refusal is served by the mock server of the provider's tests)
+#[tokio::test]
+async fn a_client_error_naming_the_tools_without_refusing_them_keeps_the_fallback() {
+    for body in [
+        r#"{"error":"temperature is not supported with tools"}"#,
+        r#"{"error":"Tool calling is not supported with JSON mode"}"#,
+        r#"{"error":"messages with role 'tool' must be a response to a preceding message with 'tool_calls'"}"#,
+    ] {
+        let (url, rx) = serve(vec![
+            http("400 Bad Request", body),
+            http("400 Bad Request", body),
+            http("400 Bad Request", body),
+            http("400 Bad Request", body),
+        ]);
+        let err = temperature_provider(&url, Some(0.0))
+            .complete(tools_request())
+            .await
+            .unwrap_err()
+            .to_string();
+        assert_eq!(rx.try_iter().count(), 4, "{body}: the fallback runs");
+        assert!(!err.contains("refuses tools"), "{err}");
+    }
 }

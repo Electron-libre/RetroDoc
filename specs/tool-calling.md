@@ -43,8 +43,9 @@ the native OpenAI-compatible format, and each round is counted like any other ca
 - **TCL-14** (deterministic) A tool call without an id must reach the caller with an id no other call of the answer
   has.
 - **TCL-15** (deterministic) The provider must not send again without its temperature or its schema a request that
-  offers tools and fails with a client error (400, 404 or 422) whose body names the tools and neither the
-  temperature nor the schema (`temperature`, `response_format`, `schema`).
+  offers tools and fails with a client error (400, 404 or 422) whose body says the tools or function calling are not
+  supported and names neither the temperature nor the schema (`temperature`, `response_format`, `schema`, `json`,
+  `structured`).
 - **TCL-16** (deterministic) The error of a request refused as in TCL-15 must say that the model or its server
   refuses tools, and name the model and the server's answer.
 - **TCL-17** (deterministic) An answer whose message holds a `reasoning_content` must give it to the caller with the
@@ -65,7 +66,8 @@ the native OpenAI-compatible format, and each round is counted like any other ca
   support tools`, then one request only is sent and the error names the tools and the model.
 - (TCL-15) Given a request offering tools, when the server answers 400 `unknown field temperature`, then the
   fallback without the temperature runs as for a request without tools; so does it for 400 `response_format is not
-  supported together with tools` (the pair refused, ADR 0046).
+  supported together with tools` (the pair refused, ADR 0046) and for 400 `messages with role 'tool' must be a
+  response to a preceding message with 'tool_calls'` (a history error, no refusal).
 - (TCL-17, TCL-18) Given an answer with `reasoning_content: "look up the domains"` and a call, when the agent sends
   its next round, then the assistant message of that call holds `reasoning_content: "look up the domains"`.
 - (TCL-9) Given a loop of three rounds, then the tracker counts three calls and the sum of their tokens.

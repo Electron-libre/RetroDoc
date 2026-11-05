@@ -312,6 +312,11 @@ impl OpenRouterProvider {
         request.json_schema.as_ref()
     }
 
+    /// The model the request asks for, else the configured one.
+    fn model_of<'a>(&'a self, request: &'a CompletionRequest) -> &'a str {
+        request.model.as_deref().unwrap_or(&self.default_model)
+    }
+
     /// The temperature to send, unless unset or a server already refused it.
     fn temperature_to_send(&self) -> Option<f32> {
         if self.temperature_refused.load(Ordering::Relaxed) {
@@ -328,7 +333,7 @@ impl OpenRouterProvider {
         schema: Option<&ResponseSchema>,
         temperature: Option<f32>,
     ) -> Result<CompletionResponse, Failure> {
-        let model = request.model.as_deref().unwrap_or(&self.default_model);
+        let model = self.model_of(request);
         let body = ApiRequest {
             model,
             messages: request
@@ -448,8 +453,8 @@ impl LlmProvider for OpenRouterProvider {
             Ok(response) => return Ok(response),
             Err(failure) => failure,
         };
-        if !request.tools.is_empty() && failure.names_the_tools() {
-            let model = request.model.as_deref().unwrap_or(&self.default_model);
+        if !request.tools.is_empty() && failure.refuses_the_tools() {
+            let model = self.model_of(&request);
             return Err(LlmError::InvalidResponse(format!(
                 "the model `{model}` or its server refuses tools: {}",
                 failure.into_error(self.timeout)
@@ -540,7 +545,7 @@ async fn decode_success(
         usage: usage::parse(parsed.usage),
         truncated,
         tool_calls,
-        reasoning: choice.message.reasoning_content.filter(|r| !r.is_empty()),
+        reasoning: choice.message.reasoning_content,
     })
 }
 
@@ -602,20 +607,30 @@ impl Failure {
         )
     }
 
-    /// A refused parameter whose answer names the tools and neither the
-    /// temperature nor the schema: the model or its server does not take the
-    /// tools, and no fallback would change that. One that also names a
-    /// parameter the fallback drops (the pair refused) is left to it.
-    fn names_the_tools(&self) -> bool {
+    /// A refused parameter whose answer says the tools are not supported
+    /// ("does not support tools", "support tool use", "does not support
+    /// Function Calling") and names neither the temperature nor the schema:
+    /// the model or its server does not take the tools, and no fallback would
+    /// change that. One that also names a parameter the fallback drops (the
+    /// pair refused) is left to it, and so is one about the tool messages of
+    /// the history, which says nothing of support.
+    fn refuses_the_tools(&self) -> bool {
         let Failure::Http { body, .. } = self else {
             return false;
         };
         let body = body.to_ascii_lowercase();
         self.may_be_a_refused_parameter()
-            && body.contains("tool")
-            && !["temperature", "response_format", "schema"]
-                .iter()
-                .any(|parameter| body.contains(parameter))
+            && body.contains("support")
+            && (body.contains("tool") || body.contains("function call"))
+            && ![
+                "temperature",
+                "response_format",
+                "schema",
+                "json",
+                "structured",
+            ]
+            .iter()
+            .any(|parameter| body.contains(parameter))
     }
 
     async fn from_response(response: reqwest::Response) -> Self {

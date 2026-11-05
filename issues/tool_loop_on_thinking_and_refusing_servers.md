@@ -79,6 +79,20 @@ with its calls. Out of scope: a text protocol for servers without tools (ADR 004
 - Code review: no findings (a note that the two crate docs cite different ids: by design, TCL-19 is the agent's).
 - not verified: that `deepseek-reasoner` sent a `reasoning_content` in that loop (the body is not logged), so whether
   it refuses a round without one is still unknown.
+3. [x] Fixes of the `high` review of the issue: a refusal is a body saying the tools or function calling are not
+   supported, without `temperature`, `response_format`, `schema`, `json` or `structured` (so a pair refusal or a
+   history error keeps the fallback, "does not support Function Calling" is a refusal); an empty `reasoning_content`
+   is kept; `model_of` shared by the body and the error. (autonomous)
+
+## Deliverable 3
+
+- done: the fixes above, tests for each case; follow-up issue `reasoning_of_openrouter_and_ollama_given_back` for the
+  `reasoning` of OpenRouter and Ollama.
+- red: TCL-15, TCL-17: the history error and `Function Calling` cases, and the empty reasoning, were new tests
+  written with the fix (not run red first).
+- High review: 8 findings: 6 fixed (pair refusals in other words, history errors, `Function Calling`, empty
+  reasoning, temperature exclusion untested, model duplicated); OpenRouter/Ollama `reasoning` became an issue; a
+  constructor from the response instead of `with_reasoning` not done (one loop, the agent, gives a reasoning back).
 
 ## Decisions
 - Mode: autonomous
