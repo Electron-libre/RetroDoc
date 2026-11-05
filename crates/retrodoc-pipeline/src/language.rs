@@ -25,9 +25,16 @@ pub const WRITING_PASSES: &[&str] = &[
     "reconcile",
 ];
 
-/// The passes that read the repository or judge the docs, whose answers no reader sees: they keep the
-/// plain provider, and their prints stay valid when the language changes.
-pub const READING_PASSES: &[&str] = &["sources", "roles", "business-files", "benchmark judge"];
+/// The passes that read the repository or judge the docs, whose answers no reader sees, and `ask`, which
+/// answers in the language of its question: they keep the plain provider, and their prints stay valid when
+/// the language changes.
+pub const READING_PASSES: &[&str] = &[
+    "sources",
+    "roles",
+    "business-files",
+    "benchmark judge",
+    "ask",
+];
 
 /// The instruction that ends the system prompt of a writing pass asked in `language`.
 #[must_use]

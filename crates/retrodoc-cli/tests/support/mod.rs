@@ -21,6 +21,18 @@ pub struct Call {
     pub pass: String,
     pub system: String,
     pub user: String,
+    /// The names of the tools the request offered.
+    pub tools: Vec<String>,
+    /// The content of each tool result of its messages.
+    pub tool_results: Vec<String>,
+}
+
+/// One answer of a server scripted by [`FakeLlm::turns`].
+pub enum Turn {
+    /// A text answer.
+    Text(String),
+    /// Calls to tools: `(id, name, arguments)`.
+    Calls(Vec<(&'static str, &'static str, String)>),
 }
 
 impl Call {
@@ -52,6 +64,14 @@ impl FakeLlm {
     /// Serves `answer(call)` as the content of each completion.
     pub fn start(answer: impl Fn(&Call) -> String + Send + Sync + 'static) -> Self {
         Self::listen(move |call| Reply::Content(answer(call)))
+    }
+
+    /// Answers each request with a text or tool calls, as the rounds of a tool loop.
+    pub fn turns(answer: impl Fn(&Call) -> Turn + Send + Sync + 'static) -> Self {
+        Self::listen(move |call| match answer(call) {
+            Turn::Text(text) => Reply::Content(text),
+            Turn::Calls(calls) => Reply::Calls(calls),
+        })
     }
 
     /// Answers every request with the HTTP `status` (e.g. `"400 Bad Request"`) and an error body.
@@ -93,6 +113,8 @@ impl FakeLlm {
 enum Reply {
     /// A completion with this content.
     Content(String),
+    /// A completion calling these tools: `(id, name, arguments)`.
+    Calls(Vec<(&'static str, &'static str, String)>),
     /// An HTTP error with a JSON body: its status line.
     Error(&'static str),
     /// A 500 in plain text naming the pass with no script.
@@ -119,6 +141,21 @@ fn serve(
                 json!({
                     "model": "fake",
                     "choices": [{"message": {"role": "assistant", "content": content}, "finish_reason": "stop"}],
+                })
+                .to_string(),
+                "Content-Type: application/json\r\n",
+            ),
+            Reply::Calls(calls) => (
+                "200 OK",
+                json!({
+                    "model": "fake",
+                    "choices": [{"message": {"role": "assistant", "content": null, "tool_calls": calls
+                        .iter()
+                        .map(|(id, name, arguments)| json!({
+                            "id": id, "type": "function",
+                            "function": {"name": name, "arguments": arguments},
+                        }))
+                        .collect::<Vec<_>>()}, "finish_reason": "tool_calls"}],
                 })
                 .to_string(),
                 "Content-Type: application/json\r\n",
@@ -178,10 +215,25 @@ fn call_of(body: &Value) -> Call {
     let schema = body["response_format"]["json_schema"]["name"]
         .as_str()
         .unwrap_or_default();
+    let tools = body["tools"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|t| t["function"]["name"].as_str().map(String::from))
+        .collect();
+    let tool_results = body["messages"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|m| m["role"] == "tool")
+        .filter_map(|m| m["content"].as_str().map(String::from))
+        .collect();
     Call {
         pass: pass_of(schema, &system).to_string(),
         system,
         user,
+        tools,
+        tool_results,
     }
 }
 

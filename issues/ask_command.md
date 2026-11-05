@@ -59,9 +59,9 @@ model. Out of scope: `chat`, misses fed to the debt report, answer quality, thin
    tools, spec and ADR 0047 drafts; verified by unit tests with `FakeLlm::scripted`; makes true ASK-1 to ASK-6. (autonomous)
 2. [x] Sources checked against the tool results: names in code spans of the text held by a tool result, with their
    kind (a lookup added to `Docs`), "no source" note; verified by unit tests; makes true ASK-7 to ASK-9. (autonomous)
-3. [ ] `retrodoc ask` in `retrodoc-cli`: pass `ask` in `PASS_NAMES`, `[llm.passes.ask]`, `--max-rounds`, tokens in the
+3. [x] `retrodoc ask` in `retrodoc-cli`: pass `ask` in `PASS_NAMES`, `[llm.passes.ask]`, `--max-rounds`, tokens in the
    recap, read-only, error before a first `generate`; architecture docs, commit scope `agent`; verified by binary
-   tests with the fake HTTP server answering tool calls; makes true ASK-12 to ASK-16.
+   tests with the fake HTTP server answering tool calls; makes true ASK-12 to ASK-16. (autonomous)
 4. [ ] Warnings: low confidence and stale files of the sources, from the read model; verified by unit tests and one
    binary test; makes true ASK-10, ASK-11; spec `accepted`.
 5. [ ] Docs of the whole issue and fixes of its `high` review.
@@ -94,3 +94,14 @@ model. Out of scope: `chat`, misses fed to the debt report, answer quality, thin
   render, before the code.
 - Code review: no findings
 - not verified: nothing left out.
+
+## Deliverable 3 summary
+- done: `retrodoc ask "<question>" [--max-rounds N]` (`commands/ask.rs`): docs loaded first (fails before any call
+  without a `generate`), provider of the pass `ask` (`PASS_NAMES`, `[llm.passes.ask]`, kept out of `[output]
+  language`: a reading pass), calls counted under `ask`, prints `Answer::render`; the fake HTTP server of the binary
+  tests answers tool calls (`Turn`, `FakeLlm::turns`); `main` sets the logs in `init_logs` (over 100 lines
+  otherwise). Docs: README, CLAUDE.md, ARCHITECTURE §3, `render-mcp-cli.md`.
+- checks: tests ok, clippy ok, specs ok (ASK draft, ASK-10 and ASK-11 left), docs updated.
+- red: ASK-6, ASK-12, ASK-13, ASK-14, ASK-15, ASK-16: `error: unrecognized subcommand 'ask'`.
+- Code review: no findings
+- not verified: no real model call (a paid or local run is for the user to ask).

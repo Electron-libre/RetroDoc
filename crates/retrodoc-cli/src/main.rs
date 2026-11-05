@@ -141,6 +141,20 @@ enum Command {
         #[arg(long)]
         previous: Option<PathBuf>,
     },
+    /// Answers a question about the application from the generated
+    /// documentation: the LLM reads it with the read-only tools of the MCP
+    /// server (and the code and history it cites), then the answer is printed
+    /// with the sources it rests on. Needs a `generate` run; settings in
+    /// `[llm.passes.ask]`.
+    Ask {
+        /// The question, in the words of the application.
+        question: String,
+        #[arg(long, default_value = ".")]
+        path: PathBuf,
+        /// Rounds of tool calls before the LLM must answer from what it read.
+        #[arg(long, default_value_t = retrodoc_agent::DEFAULT_MAX_ROUNDS)]
+        max_rounds: usize,
+    },
     /// Searches the generated documentation (domains, features, use cases,
     /// glossary) and the collected docs, lexically, from the artifacts of the
     /// last `generate` run. No LLM call: shows what the MCP server will find.
@@ -286,6 +300,7 @@ impl Command {
             Command::Glossary { path } => Some(("glossary", path.clone())),
             Command::EntryPoints { path } => Some(("entry-points", path.clone())),
             Command::Actors { path, .. } => Some(("actors", path.clone())),
+            Command::Ask { path, .. } => Some(("ask", path.clone())),
             Command::Benchmark {
                 path, judge: true, ..
             } => Some(("benchmark", path.clone())),
@@ -299,28 +314,7 @@ async fn main() -> anyhow::Result<()> {
     // API keys may live in a `.env` (current directory or a parent); variables already set win.
     let _ = dotenvy::dotenv();
     let cli = Cli::parse();
-    // The logs go to stdout (plain text when redirected to a file or a pipe: saved logs, smoke
-    // test), except for `mcp`, whose stdout carries the protocol.
-    let logs_to_stderr = matches!(cli.command, Command::Mcp { .. });
-    let ansi = if logs_to_stderr {
-        std::io::stderr().is_terminal()
-    } else {
-        std::io::stdout().is_terminal()
-    };
-    let writer = if logs_to_stderr {
-        BoxMakeWriter::new(std::io::stderr)
-    } else {
-        BoxMakeWriter::new(std::io::stdout)
-    };
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
-        )
-        .without_time()
-        .with_writer(writer)
-        .with_ansi(ansi)
-        .init();
+    init_logs(&cli.command);
 
     let tracker = UsageTracker::new();
     let mut ending = Ending::of(&cli.command);
@@ -382,6 +376,11 @@ async fn main() -> anyhow::Result<()> {
         }
         Command::Mcp { path } => commands::mcp::run(&path).await,
         Command::Ui { path, bind } => commands::ui::run(&path, bind).await,
+        Command::Ask {
+            question,
+            path,
+            max_rounds,
+        } => commands::ask::run(&path, &question, max_rounds, &tracker).await,
         Command::Search { query, path, limit } => commands::search::run(&path, &query, limit),
         Command::Surface { path } => commands::surface::run(&path),
         Command::Roles { path, force } => commands::roles::run(&path, force, &tracker).await,
@@ -397,6 +396,32 @@ async fn main() -> anyhow::Result<()> {
     };
     ending.finish(&tracker, result.is_ok());
     result
+}
+
+/// Sets the logs up for `command`.
+fn init_logs(command: &Command) {
+    // The logs go to stdout (plain text when redirected to a file or a pipe: saved logs, smoke
+    // test), except for `mcp`, whose stdout carries the protocol.
+    let logs_to_stderr = matches!(*command, Command::Mcp { .. });
+    let ansi = if logs_to_stderr {
+        std::io::stderr().is_terminal()
+    } else {
+        std::io::stdout().is_terminal()
+    };
+    let writer = if logs_to_stderr {
+        BoxMakeWriter::new(std::io::stderr)
+    } else {
+        BoxMakeWriter::new(std::io::stdout)
+    };
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
+        .without_time()
+        .with_writer(writer)
+        .with_ansi(ansi)
+        .init();
 }
 
 /// What the end of a command records, read from the command before it starts: the name and path its cost

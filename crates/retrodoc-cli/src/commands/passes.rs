@@ -19,3 +19,5 @@ pub const USE_CASES: &str = "use-cases";
 pub const RULES: &str = "rules";
 pub const CONFIDENCE: &str = "confidence";
 pub const RECONCILE: &str = "reconcile";
+/// The agent of `retrodoc ask`, not a pass of `generate`.
+pub const ASK: &str = "ask";

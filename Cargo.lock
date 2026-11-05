@@ -1443,6 +1443,7 @@ dependencies = [
  "chrono",
  "clap",
  "dotenvy",
+ "retrodoc-agent",
  "retrodoc-bench",
  "retrodoc-core",
  "retrodoc-ingest",

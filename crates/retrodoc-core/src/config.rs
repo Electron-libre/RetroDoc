@@ -51,6 +51,7 @@ pub const PASS_NAMES: &[&str] = &[
     "confidence",
     "reconcile",
     "benchmark judge",
+    "ask",
 ];
 
 /// The passes asked at temperature 0 unless the configuration sets one (ADR 0031,

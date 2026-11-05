@@ -78,5 +78,5 @@ of the crate you are about to touch. High-level view: `docs/ARCHITECTURE.md`. De
 - **retrodoc-web**: local web interface, HTML rendered on the server from the read model (ADR 0039).
   → `docs/crates/render-mcp-cli.md`
 - **retrodoc-cli**: `clap` subcommands (`init`, `scan`, `generate`, `render`, `report`, `roles`, `brief`, `glossary`,
-  `entry-points`, `business-read`, `business-files`, `contexts`, `actors`, `surface`, `benchmark`, `benchmark-table`, `search`,
+  `entry-points`, `business-read`, `business-files`, `contexts`, `actors`, `surface`, `benchmark`, `benchmark-table`, `ask`, `search`,
   `mcp`, `ui`); logs go to stdout (stderr for `mcp`). → `docs/crates/render-mcp-cli.md`

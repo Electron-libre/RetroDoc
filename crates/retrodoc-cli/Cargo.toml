@@ -16,6 +16,7 @@ retrodoc-bench.workspace = true
 retrodoc-core.workspace = true
 retrodoc-ingest.workspace = true
 retrodoc-llm.workspace = true
+retrodoc-agent.workspace = true
 retrodoc-mcp.workspace = true
 retrodoc-pipeline.workspace = true
 retrodoc-render.workspace = true
