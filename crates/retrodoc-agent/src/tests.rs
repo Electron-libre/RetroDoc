@@ -408,7 +408,7 @@ fn docs_with_long_features(first: usize, second: usize) -> Arc<Docs> {
 // spec: ASK-24 (internal: the rounds are scripted with the fake provider, which the binary cannot take)
 #[tokio::test]
 async fn a_result_past_the_budget_of_the_question_is_refused_with_its_size() {
-    let docs = docs_with_long_features(58_900, 2000);
+    let docs = docs_with_long_features(38_900, 2000);
     let llm = FakeLlm::scripted(vec![
         calls(vec![
             call("c1", "get_feature", r#"{"id":"billing/huge"}"#),
@@ -422,7 +422,7 @@ async fn a_result_past_the_budget_of_the_question_is_refused_with_its_size() {
 
     let used = docs.get_feature("billing/huge").chars().count();
     let large = docs.get_feature("billing/large").chars().count();
-    assert!(used + large > 60_000 && used < 60_000);
+    assert!(used + large > 40_000 && used < 40_000);
     let [huge, _error, refused, small] = answer.tool_results.as_slice() else {
         panic!("four results: {:?}", answer.tool_results);
     };
@@ -430,7 +430,7 @@ async fn a_result_past_the_budget_of_the_question_is_refused_with_its_size() {
     assert!(
         refused.starts_with("Error:")
             && refused.contains(&large.to_string())
-            && refused.contains(&(60_000 - used).to_string())
+            && refused.contains(&(40_000 - used).to_string())
             && refused.contains("answer"),
         "{}",
         &refused[..refused.len().min(200)]

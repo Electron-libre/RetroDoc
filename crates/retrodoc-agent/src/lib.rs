@@ -33,9 +33,9 @@ Answer in the language of the question.";
 pub const MAX_CALLS_PER_ROUND: usize = 6;
 
 /// Characters of the tool results of a question, errors left out, past which a result is refused
-/// (ASK-24): about 15k tokens, half the 32k context of the local model, leaving room for the
-/// prompts, the history and the answer.
-pub const MAX_RESULT_CHARS: usize = 60_000;
+/// (ASK-24): 13k to 16k tokens of code or non-English text (2.5 to 3 characters a token), half the
+/// 32k context of the local model, leaving room for the prompts, the reasoning and the answer.
+pub const MAX_RESULT_CHARS: usize = 40_000;
 
 const LAST_ROUND: &str =
     "You have used all your tool calls. Answer the question now from what the \

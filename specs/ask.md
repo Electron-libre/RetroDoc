@@ -58,7 +58,7 @@ warnings those sources carry (low confidence, code changed since the docs), so t
   an error telling the model to make fewer calls per round or to answer.
 - **ASK-24** (deterministic) A call must be answered with an error giving the size of its result and what is left of
   the budget, telling the model to narrow its call or to answer, when that result would bring the tool results of the
-  question, error results left out, past 60000 characters.
+  question, error results left out, past 40000 characters.
 
 ## Scenarios
 
@@ -79,7 +79,7 @@ warnings those sources carry (low confidence, code changed since the docs), so t
   last request holds the system prompt and one user message: the question, `list_domains` with its arguments and its
   result, then the demand of the answer; the error of `get_feature` is left out.
 - (ASK-23) Given a round of 7 calls, then the first 6 get their tool's answer and the 7th the error.
-- (ASK-24) Given 59000 characters of results already read, when a result of 2000 characters comes,
+- (ASK-24) Given 39000 characters of results already read, when a result of 2000 characters comes,
   then it is answered with the error naming 2000 and 1000, and a later result of 500 characters still passes.
 
 ## Non-goals

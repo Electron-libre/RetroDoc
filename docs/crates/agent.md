@@ -8,7 +8,7 @@ refuses gets the error as its result, so the model can correct it. The calls of 
 `Tools::DocsOnly` (the `ask_replay` measure of `retrodoc-bench`) leaves out `read_source` and `git_log`, the sentence
 of the system prompt that names them, and answers a call to a tool not offered with the names of the offered ones (ASK-21). The first answer without tool calls is the
 answer. The tool results of a question are bounded so they fit the context of a local model: the calls of a round past
-`MAX_CALLS_PER_ROUND` (6) and a result that would bring the results past `MAX_RESULT_CHARS` (60000 characters,
+`MAX_CALLS_PER_ROUND` (6) and a result that would bring the results past `MAX_RESULT_CHARS` (40000 characters,
 errors left out) are answered with an error telling the model to narrow down or answer (ASK-23, ASK-24).
 After `max_rounds` rounds of calls (`DEFAULT_MAX_ROUNDS`, 8) one last request offers no tool and asks for the
 answer from what was read; it sends the system prompt and one user message, the question then each call that got
