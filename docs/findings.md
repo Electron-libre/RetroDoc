@@ -360,7 +360,7 @@ Steps, each shippable:
    have: no synonyms) and answers "not documented" to 17 of 21 undocumented.
    Freshness warnings are implemented too (current hash of each cited file against `source-hashes.json`, which only a `generate` that went through every pass writes, so a run that failed after the repo map leaves it describing the docs still on disk; until the first complete run after upgrading, files are not judged). `read_source` and `git_log` are implemented as well, limited to the files the docs cite (no `..`, no symlink at all, no binary or very large file, long lines cut, no author names, merge commits left out).
 2. Tool calling support in `retrodoc-llm` (or the JSON-action fallback). **Implemented** (2026-11-05,
-   `issues/tool_calling_in_llm.md`, ADR 0046, `specs/tool-calling.md`): native `tools` / `tool_calls` only, after a
+   `issues/done/tool_calling_in_llm.md`, ADR 0046, `specs/tool-calling.md`): native `tools` / `tool_calls` only, after a
    real call showed the local Ollama and DeepSeek both take them; no JSON-action fallback.
 3. `retrodoc ask` with citations, confidence and freshness warnings.
 4. Interactive `chat` with conversation memory; code and git history tools.

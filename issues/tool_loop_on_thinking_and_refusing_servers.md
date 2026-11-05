@@ -11,7 +11,7 @@ model whose reasoning must be given back with its calls, and a model or server t
 tool loop runs on a DeepSeek thinking model, and a refusal of the tools surfaces at once with a clear error.
 
 # Findings
-* 2026-11-05, `high` review of `issues/tool_calling_in_llm.md`, read from the code: `ApiResponseMessage`
+* 2026-11-05, `high` review of `issues/done/tool_calling_in_llm.md`, read from the code: `ApiResponseMessage`
   (`crates/retrodoc-llm/src/openrouter/mod.rs`) drops `reasoning_content` and `ChatMessage` cannot carry it. The
   DeepSeek docs ask, in thinking mode, the `reasoning_content` of an assistant turn that called tools to be sent back
   within the same question; not checked on a real call (only `deepseek-chat` was, 2026-11-05, ledger).
