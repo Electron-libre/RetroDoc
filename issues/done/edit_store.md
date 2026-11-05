@@ -84,7 +84,7 @@ check. Means as the issue's, the save shared with `reviews` through a new module
   `Map` of the save sorted alphabetically.
 - Code review: 9 findings (high review of the issue): fixed 1 (key order), 3 (path in the save error), 4
   (`UnknownSection`), 5 (I/O out of the lock), 6 (missing key), 7 (lifetime); not fixed 2 (fingerprint of edited
-  docs): no reader applies the edits yet, logged in `issues/edits_in_read_model.md`; 8 (`edits()`/`reviews()`
+  docs): no reader applies the edits yet, logged in `issues/done/edits_in_read_model.md`; 8 (`edits()`/`reviews()`
   forward to `all()`): `reviews()` has callers in three crates, `edits()` mirrors it; 9 (trim): the form decides,
   logged in `issues/web_edit_form.md`.
 - not verified: none.

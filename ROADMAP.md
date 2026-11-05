@@ -312,7 +312,7 @@ The milestones up to "A large application, one bounded context at a time" are th
 - State: in issues
 - Issues:
   - [edit_store](issues/done/edit_store.md)
-  - [edits_in_read_model](issues/edits_in_read_model.md)
+  - [edits_in_read_model](issues/done/edits_in_read_model.md)
   - [web_edit_form](issues/web_edit_form.md)
   - [edit_outdated](issues/edit_outdated.md)
   - [edit_mark_in_markdown](issues/edit_mark_in_markdown.md)

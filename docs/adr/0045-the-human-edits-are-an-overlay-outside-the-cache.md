@@ -25,7 +25,7 @@ review of an edited section judges the edited text); one file per edit (as ADR 0
 
 ## Consequences
 
-Each reader of the docs must apply the edits, or it shows the generated text: `issues/edits_in_read_model.md` does
+Each reader of the docs must apply the edits, or it shows the generated text: `issues/done/edits_in_read_model.md` does
 it for the read model, the search, `render` and the MCP answers. A team versions two small files of human work under
 `.retrodoc/`. The fingerprint of an edit is the one of the generated section, so it stays the same until a run
 rewrites that section.
