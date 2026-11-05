@@ -153,3 +153,22 @@ states. Calls, tokens and seconds of the pass alone come with each. A change in 
 asks for new frozen inputs (`--freeze-first` on `domains`, `features` and `use-cases`, in that order, rewrites
 the frozen artifact of the `surface` path from the first run); say which model wrote them. The judge is the
 model of the replay, so it shares its biases: use the figures to compare settings, not as absolute values.
+
+## The answers of `retrodoc ask`
+
+`benchmark/<repo>/questions.yaml` holds questions with known answers (spec `ask-question-set`): documented ones
+naming the reference feature that answers them, undocumented ones naming the words of what the application does not
+do. Check it after editing it or the reference (no LLM), then ask it on a saved run of the benchmark (paid, about
+$0.19 on linkding for both variants; `--dry-run` prints the groups first, `--rejudge` judges the saved answers again):
+
+```sh
+cargo run -q -p retrodoc-bench --example question_set -- benchmark/<repo>/questions.yaml \
+  benchmark/<repo>/reference.yaml ~/retrodoc-runs/retrodoc-benchmark-<repo>/source
+set -a; . ./.env; set +a
+cargo run -q -p retrodoc-bench --example ask_replay -- <saved run> benchmark/<repo> deepseek-chat \
+  ~/retrodoc-runs/<issue>-<commit>-<n>
+```
+
+Read the `uncovered` group (questions whose feature the run's docs miss) for what the code tools bring, and the
+`undocumented` group for answers that invent. Write a question by the method of `issues/ask_question_set.md`,
+never one to review by hand.

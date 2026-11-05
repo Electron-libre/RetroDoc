@@ -118,6 +118,8 @@ async fn start(args: &[String]) -> Result<(), Failure> {
         let agent = UsageProvider::new(provider(model, None)?, tracker.clone());
         eprintln!("{name}: {} questions", set.questions.len());
         let records = ask_questions(&agent, &judge, &docs, &set, &pairs, tools, max_rounds).await;
+        // A former judgement kept aside belongs to former answers.
+        let _ = std::fs::remove_file(out.join(format!("answers-{key}.before-rejudge.yaml")));
         std::fs::write(
             out.join(format!("answers-{key}.yaml")),
             serde_yaml::to_string(&records)?,

@@ -174,32 +174,30 @@ pub fn check_questions(set: &QuestionSet, reference: &Reference, tree: &Path) ->
     problems
 }
 
-/// The text files under `tree` (`.git` left out, files that are not UTF-8 skipped), by path relative
-/// to it, lowercased.
+/// Files larger than this are not searched for the absent terms: data, not what the application does.
+const MAX_SEARCHED_BYTES: u64 = 2_000_000;
+
+/// The text files under `tree` its ignore files keep (`.git` left out; files that are not UTF-8 or
+/// larger than [`MAX_SEARCHED_BYTES`] skipped), by path relative to it, lowercased.
 fn text_files(tree: &Path) -> Vec<(String, String)> {
-    let mut files = Vec::new();
-    let mut dirs = vec![tree.to_path_buf()];
-    while let Some(dir) = dirs.pop() {
-        let Ok(entries) = std::fs::read_dir(&dir) else {
-            continue;
-        };
-        for entry in entries.flatten() {
-            let path = entry.path();
-            let Ok(kind) = entry.file_type() else {
-                continue;
-            };
-            if kind.is_dir() {
-                if entry.file_name() != ".git" {
-                    dirs.push(path);
-                }
-            } else if kind.is_file() {
-                if let Ok(text) = std::fs::read_to_string(&path) {
-                    let relative = path.strip_prefix(tree).unwrap_or(&path);
-                    files.push((relative.display().to_string(), text.to_lowercase()));
-                }
-            }
-        }
-    }
+    let mut files: Vec<(String, String)> = ignore::WalkBuilder::new(tree)
+        .hidden(false)
+        .require_git(false)
+        .filter_entry(|entry| entry.file_name() != ".git")
+        .build()
+        .flatten()
+        .filter(|entry| entry.file_type().is_some_and(|t| t.is_file()))
+        .filter(|entry| {
+            entry
+                .metadata()
+                .is_ok_and(|m| m.len() <= MAX_SEARCHED_BYTES)
+        })
+        .filter_map(|entry| {
+            let text = std::fs::read_to_string(entry.path()).ok()?;
+            let relative = entry.path().strip_prefix(tree).unwrap_or(entry.path());
+            Some((relative.display().to_string(), text.to_lowercase()))
+        })
+        .collect();
     files.sort();
     files
 }
@@ -344,6 +342,9 @@ mod tests {
         .unwrap();
         std::fs::create_dir(tree.path().join(".git")).unwrap();
         std::fs::write(tree.path().join(".git/config"), "totp\n").unwrap();
+        std::fs::write(tree.path().join(".gitignore"), "node_modules/\n").unwrap();
+        std::fs::create_dir(tree.path().join("node_modules")).unwrap();
+        std::fs::write(tree.path().join("node_modules/otp.js"), "// TOTP\n").unwrap();
         let set = set("questions:
   - {id: otp, question: Q?, expected: E, absent_terms: [TOTP, 2fa]}
 ");

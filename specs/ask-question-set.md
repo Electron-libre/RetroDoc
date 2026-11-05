@@ -21,12 +21,13 @@ read by hand.
 - **AQS-2** (deterministic) The check of a question set must report each documented question whose `feature` is not
   a feature of the reference, or is a `disputed` one.
 - **AQS-3** (deterministic) The check must report each undocumented question one of whose `absent_terms` appears in a
-  file of the checkout (case ignored, whole words, `.git` left out), naming the term and the file.
+  text file of the checkout that its ignore files keep (case ignored, whole words, `.git` and files over 2 MB left
+  out), naming the term and the file.
 - **AQS-4** (deterministic) The check must fail when the checkout is a Git checkout whose `HEAD` is not the `commit`
   of the reference, or when it reports a question.
 - **AQS-5** (deterministic) Each documented question must be classed `covered` when the saved run pairs a generated
-  feature with its reference feature (a hand pair of `matches.yaml` not rejected, or a pair of the run's
-  `judge.yaml`), else `uncovered`.
+  feature with its reference feature, as the benchmark scoring pairs them (a hand pair of `matches.yaml`, a pair of
+  the run's `judge.yaml` that `matches.yaml` does not reject, or the same name once normalized), else `uncovered`.
 - **AQS-6** (deterministic) A blank answer must be judged `not documented` without the LLM judge.
 - **AQS-7** (deterministic) Any other answer must take the verdict, `right`, `wrong` or `not documented`, of one call
   to the LLM judge given the question, the expected answer and the text of the answer; the judge's prompt says that

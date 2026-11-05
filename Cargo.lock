@@ -1419,6 +1419,7 @@ version = "0.10.0"
 dependencies = [
  "futures-util",
  "git2",
+ "ignore",
  "regex",
  "reqwest",
  "retrodoc-agent",

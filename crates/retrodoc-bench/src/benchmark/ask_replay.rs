@@ -1,7 +1,7 @@
 //! The answers of `retrodoc ask` on a question set (spec `ask-question-set`,
 //! `issues/ask_question_set.md`): each question asked to the agent on a saved run, with or without
-//! the code tools, then judged by rule where it can (not documented, source hit) and by one LLM call
-//! otherwise (right or wrong). Example `ask_replay`.
+//! the code tools, then judged by one LLM call (right, wrong or not documented; a blank answer is not
+//! documented by rule) and its source hit by rule. Example `ask_replay`.
 
 use std::fmt::Write as _;
 use std::sync::Arc;
@@ -49,9 +49,10 @@ impl Group {
 pub enum Verdict {
     Right,
     Wrong,
-    /// The answer says "Not documented", or is blank: judged by rule.
+    /// The answer only says the docs do not cover the question (by the judge), or is blank (by rule).
     NotDocumented,
-    /// The question could not be asked: the call to the LLM failed.
+    /// The question could not be asked (the agent's call failed: `answered` is false), or its
+    /// answer could not be judged (the judge's call failed, or its reply could not be read).
     Failed,
 }
 
@@ -86,10 +87,17 @@ pub struct AnswerRecord {
     /// one, or a use case of one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_hit: Option<bool>,
+    /// Whether the agent answered; false when its call failed. A saved record without it answered.
+    #[serde(default = "answered_by_default")]
+    pub answered: bool,
     pub rounds: usize,
     pub text: String,
     pub sources: Vec<String>,
     pub warnings: Vec<String>,
+}
+
+fn answered_by_default() -> bool {
+    true
 }
 
 /// The generated features of the run that stand for each reference feature: the hand pairs of
@@ -179,13 +187,29 @@ without answering it. Any other answer is \"wrong\". Reply in JSON: {\"verdict\"
 
 #[derive(Debug, Deserialize, JsonSchema)]
 struct RawVerdict {
-    verdict: String,
+    verdict: RawKind,
     reason: String,
 }
 
+/// The verdicts the judge may give; any other reply can't be read.
+#[derive(Debug, Deserialize, JsonSchema)]
+enum RawKind {
+    #[serde(rename = "right", alias = "Right")]
+    Right,
+    #[serde(rename = "wrong", alias = "Wrong")]
+    Wrong,
+    #[serde(
+        rename = "not documented",
+        alias = "Not documented",
+        alias = "not_documented",
+        alias = "not-documented"
+    )]
+    NotDocumented,
+}
+
 /// Judges the text of an answer to `question`: a blank text is not documented by rule; any other
-/// takes the verdict of one call to `judge` (right, wrong or not documented), with its reason. An
-/// answer the judge leaves unreadable is wrong, with that reason.
+/// takes the verdict of one call to `judge` (right, wrong or not documented), with its reason. A
+/// reply of the judge that can't be read leaves the answer failed, with that reason.
 ///
 /// # Errors
 ///
@@ -211,43 +235,36 @@ pub async fn judge_answer(
     .await?;
     let Some(raw) = raw else {
         return Ok((
-            Verdict::Wrong,
-            Some("the judge's answer could not be read".into()),
+            Verdict::Failed,
+            Some("judge: its reply could not be read".into()),
         ));
     };
-    let verdict = match raw
-        .verdict
-        .trim()
-        .to_lowercase()
-        .replace(['-', '_'], " ")
-        .as_str()
-    {
-        "right" => Verdict::Right,
-        "not documented" => Verdict::NotDocumented,
-        _ => Verdict::Wrong,
+    let verdict = match raw.verdict {
+        RawKind::Right => Verdict::Right,
+        RawKind::Wrong => Verdict::Wrong,
+        RawKind::NotDocumented => Verdict::NotDocumented,
     };
     Ok((verdict, Some(raw.reason)))
 }
 
-/// Judges again the saved `records` of `set` with `judge`, keeping the answers; a failed question
-/// stays failed. A question of a record no longer in `set` is left as it was.
+/// Judges again the saved `records` of `set` with `judge`, keeping the answers: a question the
+/// agent did not answer stays failed, an answer whose judgement failed is judged again, and one
+/// whose new judgement fails keeps its former verdict. A record no longer in `set` is left as it was.
 pub async fn rejudge(judge: &dyn LlmProvider, set: &QuestionSet, records: &mut [AnswerRecord]) {
     for record in records.iter_mut() {
-        if record.verdict == Verdict::Failed {
+        if !record.answered {
             continue;
         }
         let Some(question) = set.questions.iter().find(|q| q.id == record.id) else {
             continue;
         };
         match judge_answer(judge, question, &record.text).await {
+            Ok((Verdict::Failed, _)) | Err(_) if record.verdict != Verdict::Failed => {}
             Ok((verdict, reason)) => {
                 record.verdict = verdict;
                 record.reason = reason;
             }
-            Err(error) => {
-                record.verdict = Verdict::Failed;
-                record.reason = Some(format!("judge: {error}"));
-            }
+            Err(error) => record.reason = Some(format!("judge: {error}")),
         }
     }
 }
@@ -273,6 +290,7 @@ pub async fn ask_questions(
             verdict: Verdict::Failed,
             reason: None,
             source_hit: None,
+            answered: false,
             rounds: 0,
             text: String::new(),
             sources: Vec::new(),
@@ -288,6 +306,7 @@ pub async fn ask_questions(
         .await
         {
             Ok(answer) => {
+                record.answered = true;
                 record.rounds = answer.rounds;
                 record.sources = answer.sources.iter().map(ToString::to_string).collect();
                 record.warnings = answer.warnings.iter().map(ToString::to_string).collect();
@@ -369,22 +388,18 @@ pub fn ask_table(variants: &[Variant<'_>], judge: &CallTotals) -> String {
     }
     out.push_str("\n| calls of | mean rounds | calls | prompt tokens (cached) | completion tokens |\n|---|---|---|---|---|\n");
     for variant in variants {
-        let asked = variant
-            .records
-            .iter()
-            .filter(|r| r.verdict != Verdict::Failed)
-            .count();
+        let answered = variant.records.iter().filter(|r| r.answered).count();
         #[allow(clippy::cast_precision_loss)]
-        let rounds = if asked == 0 {
+        let rounds = if answered == 0 {
             0.0
         } else {
             variant
                 .records
                 .iter()
-                .filter(|r| r.verdict != Verdict::Failed)
+                .filter(|r| r.answered)
                 .map(|r| r.rounds)
                 .sum::<usize>() as f64
-                / asked as f64
+                / answered as f64
         };
         let _ = writeln!(
             out,
@@ -571,31 +586,78 @@ mod tests {
 
     // spec: AQS-7 (internal: the judge is the fake provider, which the binary cannot take)
     #[tokio::test]
-    async fn saved_answers_are_judged_again_and_failed_ones_kept() {
-        let judge = FakeLlm::answering(r#"{"verdict":"right","reason":"Agrees."}"#);
-        let set = QuestionSet {
-            questions: vec![question("a", None), question("b", None)],
-        };
-        let record = |id: &str, verdict| AnswerRecord {
+    async fn the_verdict_is_one_the_judge_may_give_or_the_answer_is_failed() {
+        let judge = FakeLlm::sequence(&[
+            r#"{"verdict":"Right","reason":"Agrees."}"#,
+            r#"{"verdict":"correct","reason":"Agrees."}"#,
+            r#"{"verdict":"correct","reason":"Agrees."}"#,
+        ]);
+        let q = question("pdf", None);
+        assert_eq!(
+            judge_answer(&judge, &q, "No.").await.unwrap().0,
+            Verdict::Right
+        );
+        assert_eq!(
+            judge_answer(&judge, &q, "No.").await.unwrap(),
+            (
+                Verdict::Failed,
+                Some("judge: its reply could not be read".into())
+            )
+        );
+    }
+
+    fn saved(id: &str, verdict: Verdict, answered: bool) -> AnswerRecord {
+        AnswerRecord {
             id: id.into(),
             group: Group::Undocumented,
             verdict,
             reason: None,
             source_hit: None,
+            answered,
             rounds: 1,
-            text: "No.".into(),
+            text: if answered {
+                "No.".into()
+            } else {
+                String::new()
+            },
             sources: Vec::new(),
             warnings: Vec::new(),
+        }
+    }
+
+    // spec: AQS-7 (internal: the judge is the fake provider, which the binary cannot take)
+    #[tokio::test]
+    async fn saved_answers_are_judged_again_and_unanswered_ones_kept() {
+        let judge = FakeLlm::answering(r#"{"verdict":"right","reason":"Agrees."}"#);
+        let set = QuestionSet {
+            questions: vec![
+                question("a", None),
+                question("b", None),
+                question("c", None),
+            ],
         };
         let mut records = vec![
-            record("a", Verdict::NotDocumented),
-            record("b", Verdict::Failed),
+            saved("a", Verdict::NotDocumented, true),
+            saved("b", Verdict::Failed, false),
+            saved("c", Verdict::Failed, true),
         ];
         rejudge(&judge, &set, &mut records).await;
-        assert_eq!(records[0].verdict, Verdict::Right);
+        let verdicts: Vec<_> = records.iter().map(|r| r.verdict).collect();
+        assert_eq!(verdicts, [Verdict::Right, Verdict::Failed, Verdict::Right]);
         assert_eq!(records[0].reason.as_deref(), Some("Agrees."));
-        assert_eq!(records[1].verdict, Verdict::Failed);
-        assert_eq!(judge.calls(), 1);
+        assert_eq!(judge.calls(), 2);
+    }
+
+    // spec: AQS-7 (internal: the judge is the fake provider, which the binary cannot take)
+    #[tokio::test]
+    async fn a_failed_rejudgement_keeps_the_former_verdict() {
+        let judge = FakeLlm::failing_after(0, |_| String::new());
+        let set = QuestionSet {
+            questions: vec![question("a", None)],
+        };
+        let mut records = vec![saved("a", Verdict::Right, true)];
+        rejudge(&judge, &set, &mut records).await;
+        assert_eq!(records[0].verdict, Verdict::Right);
     }
 
     // spec: AQS-9, AQS-11 (internal: the agent and the judge are fake providers, which the binary cannot take)
@@ -636,6 +698,7 @@ mod tests {
             ]
         );
         assert!(records[1].reason.is_some());
+        assert!(!records[1].answered && records[0].answered && records[2].answered);
         let share = &records[0];
         assert_eq!(share.rounds, 1);
         assert_eq!(share.reason.as_deref(), Some("Agrees."));
@@ -652,6 +715,7 @@ mod tests {
             verdict,
             reason: None,
             source_hit,
+            answered: verdict != Verdict::Failed,
             rounds,
             text: String::new(),
             sources: Vec::new(),

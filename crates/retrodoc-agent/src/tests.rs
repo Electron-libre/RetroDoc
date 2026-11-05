@@ -282,11 +282,10 @@ async fn null_arguments_are_an_empty_object() {
 #[tokio::test]
 async fn without_the_code_tools_neither_is_offered_named_nor_run() {
     let llm = FakeLlm::scripted(vec![
-        calls(vec![call(
-            "c1",
-            "read_source",
-            r#"{"path":"app/invoice.rb"}"#,
-        )]),
+        calls(vec![
+            call("c1", "read_source", r#"{"path":"app/invoice.rb"}"#),
+            call("c2", "search", r#"{"query":"invoice"}"#),
+        ]),
         FakeTurn::Text("Not documented.".into()),
     ]);
     let answer = ask_with(&llm, docs(), "How is an invoice paid?", 8, Tools::DocsOnly)
@@ -299,9 +298,8 @@ async fn without_the_code_tools_neither_is_offered_named_nor_run() {
         !system.contains("read_source") && !system.contains("git_log"),
         "{system}"
     );
-    assert!(
-        answer.tool_results[0].starts_with("Error: unknown tool `read_source`"),
-        "{}",
-        answer.tool_results[0]
-    );
+    let offered = "the tools are list_domains, get_domain, get_feature, get_use_case, search_docs.";
+    for (result, tool) in answer.tool_results.iter().zip(["read_source", "search"]) {
+        assert_eq!(*result, format!("Error: unknown tool `{tool}`; {offered}"));
+    }
 }

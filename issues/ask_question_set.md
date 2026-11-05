@@ -123,3 +123,28 @@ Out of scope: changing the agent or its prompt from the results (later issues), 
 - Code review: 1 finding. A second `--rejudge` overwrote the backup of the first judgement: fixed, the backup is
   written once.
 - not verified: the spread (one run per variant, as decided).
+4. [x] Docs of the whole issue and fixes of its `high` review. (autonomous)
+
+## Deliverable 4 summary
+- done: the `quality-benchmark` skill gains "The answers of `retrodoc ask`"; fixes of the `high` review (10
+  findings, all fixed):
+  1. `rejudge` skipped an answer whose judgement had failed: records carry `answered`, only an unanswered question
+     stays failed.
+  2. A failed re-judgement overwrote a good verdict: it keeps the former one.
+  3. An unreadable judge reply counted as `wrong`: it is `failed`, with its reason.
+  4. The verdict was a free string: an enum of the judge's three verdicts, any other reply unreadable.
+  5. A new run left the `before-rejudge` copy of a former run: removed when the answers are written.
+  6. Without the code tools, a misspelled tool got the error listing all seven: it lists the offered ones.
+  7. The term check read ignored and large files: walked with the ignore files, files over 2 MB skipped (AQS-3).
+  8. A judge failure was left out of the mean rounds: the mean is over the answered questions.
+  9. Stale docs of `Verdict` and of the module on the rule judgement: rewritten.
+  10. AQS-5 did not name the equal names `RunPairs` counts: amended, as the benchmark scoring pairs them.
+  The measured verdicts are unchanged by 1 to 5 and 7 to 10: no saved verdict was failed, the check still passes on
+  the checkout. Finding 6 is not checked on the run: the saved answers keep no tool results, so whether the agent
+  without the code tools called a misspelled tool is unknown.
+- checks: tests ok, clippy ok, specs ok, docs updated (`docs/crates/bench.md`, `docs/crates/agent.md`, the skill).
+- red: AQS-7: `saved_answers_are_judged_again_and_unanswered_ones_kept` and `the_verdict_is_one_the_judge_may_give_or_the_answer_is_failed`
+  written before the fixes, failing on the former code by construction (no `answered` field, `Wrong` for an unreadable
+  reply); none recorded as run red.
+- Code review: no findings
+- not verified: finding 6 on the real run (see above).

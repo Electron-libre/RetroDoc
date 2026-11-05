@@ -14,6 +14,7 @@ retrodoc-ingest.workspace = true
 retrodoc-llm.workspace = true
 retrodoc-mcp.workspace = true
 retrodoc-pipeline = { workspace = true, features = ["bench"] }
+ignore.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 serde_yaml.workspace = true

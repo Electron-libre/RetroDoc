@@ -245,10 +245,16 @@ pub async fn ask_with(
             response.tool_calls.clone(),
         ));
         for call in response.tool_calls {
-            let result = if offered.offers(&call.name) {
+            // All the tools: the tool's own error names an unknown one. Some: say which are offered.
+            let result = if offered == Tools::All || tools.iter().any(|t| t.name == call.name) {
                 run_tool(&docs, &call).await
             } else {
-                format!("Error: unknown tool `{}`; it is not offered.", call.name)
+                let names: Vec<&str> = tools.iter().map(|t| t.name.as_str()).collect();
+                format!(
+                    "Error: unknown tool `{}`; the tools are {}.",
+                    call.name,
+                    names.join(", ")
+                )
             };
             messages.push(ChatMessage::tool_result(call.id, result.clone()));
             answer.tool_results.push(result);
