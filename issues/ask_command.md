@@ -44,3 +44,43 @@ Ask the documentation
 # Hints
 * Over the size limit of one deliverable: the crate and its loop, then the command, then the warnings.
 * The misses ("not documented") could feed the debt report: out of scope here, an issue of its own later.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-05
+
+## Understanding
+`retrodoc ask "<question>"`: a bounded tool loop over the seven read-only tools of `Docs`, then the answer, its
+sources (code-span names a tool result held) and its warnings (low confidence, stale files) computed from the read
+model. Out of scope: `chat`, misses fed to the debt report, answer quality, thinking models (own issues).
+
+## Plan
+1. [x] Crate `retrodoc-agent` and its loop: tools, dispatch to `Docs`, bounded rounds with a last request without
+   tools, spec and ADR 0047 drafts; verified by unit tests with `FakeLlm::scripted`; makes true ASK-1 to ASK-6. (autonomous)
+2. [ ] Sources checked against the tool results: names in code spans of the text held by a tool result, with their
+   kind (a lookup added to `Docs`), "no source" note; verified by unit tests; makes true ASK-7 to ASK-9.
+3. [ ] `retrodoc ask` in `retrodoc-cli`: pass `ask` in `PASS_NAMES`, `[llm.passes.ask]`, `--max-rounds`, tokens in the
+   recap, read-only, error before a first `generate`; architecture docs, commit scope `agent`; verified by binary
+   tests with the fake HTTP server answering tool calls; makes true ASK-12 to ASK-16.
+4. [ ] Warnings: low confidence and stale files of the sources, from the read model; verified by unit tests and one
+   binary test; makes true ASK-10, ASK-11; spec `accepted`.
+5. [ ] Docs of the whole issue and fixes of its `high` review.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 9952baba1920d568c6bef03eec907c5681f6f98f
+- The usage history is written in `.retrodoc/` like the other commands that call the LLM; nothing else (1a).
+- At the round limit, one last request without tools asks for the answer (2a).
+- 8 rounds by default, `--max-rounds` changes it (3a).
+- An answer with no verified source is shown with a note that no source of the docs backs it (4a).
+
+## Deliverable 1 summary
+- done: crate `retrodoc-agent` (`ask`: bounded tool loop, last request without tools) over
+  `retrodoc_mcp::catalog` (the seven read tools as data and `Docs::call_read_tool`), which the MCP server now uses
+  for its descriptions, schemas and defaults; ADR 0047 accepted; architecture docs, `docs/crates/agent.md`, commit
+  scope `agent` (moved here from deliverable 3: the crate lands here).
+- checks: tests ok, clippy ok, specs ok (ASK draft), docs updated.
+- red: ASK-6: the tests were written with the code; with the last-round message removed, the test fails
+  (`assertion left == right failed`, `crates/retrodoc-agent/src/tests.rs:155`).
+- Code review: no findings
+- not verified: no real model call yet (the command comes in deliverable 3).

@@ -1403,6 +1403,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "retrodoc-agent"
+version = "0.10.0"
+dependencies = [
+ "retrodoc-core",
+ "retrodoc-llm",
+ "retrodoc-mcp",
+ "retrodoc-pipeline",
+ "tokio",
+]
+
+[[package]]
 name = "retrodoc-bench"
 version = "0.10.0"
 dependencies = [

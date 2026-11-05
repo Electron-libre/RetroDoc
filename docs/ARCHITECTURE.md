@@ -22,13 +22,14 @@ flowchart LR
 
 ## 2. The crates
 
-Nine crates; dependencies only point downwards (no cycles).
+Ten crates; dependencies only point downwards (no cycles).
 
 ```mermaid
 flowchart TD
     cli["<b>retrodoc-cli</b><br/>commands (clap)"]
     pipe["<b>retrodoc-pipeline</b><br/>LLM passes, caches, report"]
     render["<b>retrodoc-render</b><br/>Markdown/Mermaid files,<br/>diff, idempotent write"]
+    agent["<b>retrodoc-agent</b><br/>the ask agent: a tool loop<br/>over the read-only tools"]
     mcp["<b>retrodoc-mcp</b><br/>read model, MCP server +<br/>lexical search over the generated docs"]
     bench["<b>retrodoc-bench</b><br/>quality benchmark,<br/>replays, measures"]
     web["<b>retrodoc-web</b><br/>local web interface<br/>over the generated docs"]
@@ -43,6 +44,9 @@ flowchart TD
     cli --> mcp
     cli --> web
     cli --> bench
+    cli --> agent
+    agent --> mcp
+    agent --> llm
     bench --> pipe
     web --> mcp
     web --> render
@@ -67,6 +71,7 @@ flowchart TD
 | `retrodoc-bench` | The measuring tools, out of the product code: the quality benchmark behind `retrodoc benchmark` and `benchmark-table`, the replays of one pass on frozen inputs and the measuring examples ([ADR 0042](adr/0042-the-measuring-tools-live-in-a-crate-of-their-own.md)). |
 | `retrodoc-render` | Turns the result into Markdown files, compares with disk, writes only what changed. |
 | `retrodoc-mcp` | Read-only access to the generated docs, without any LLM call: the typed read model `GeneratedDocs`, the BM25 search behind `retrodoc search` and the MCP server for LLM agents (`retrodoc mcp`, `rmcp`, stdio) with its seven read-only tools; also the snapshots of the run history that `generate` saves and the difference between two of them ([ADR 0043](adr/0043-the-run-history-is-one-snapshot-file-per-run.md)), and the stores of the human reviews and edits of the sections ([ADR 0044](adr/0044-the-human-reviews-live-in-one-file-outside-the-cache.md), [ADR 0045](adr/0045-the-human-edits-are-an-overlay-outside-the-cache.md)). |
+| `retrodoc-agent` | The agent of `retrodoc ask`: a model answers a question by calling the seven read-only tools of `retrodoc-mcp` in a bounded number of rounds, then once more without tools; it writes nothing ([ADR 0047](adr/0047-the-ask-agent-is-a-crate-over-the-read-only-tools.md), `specs/ask.md`). |
 | `retrodoc-web` | The local web interface over the generated docs: HTML pages rendered on the server (`axum`, `askama`, vendored `htmx` and `mermaid`) from the read model of `retrodoc-mcp` and the rules of `retrodoc-render` (the doc links, the set-apart section), no LLM call; it writes only the human reviews its forms send, through the store of `retrodoc-mcp` ([ADR 0039](adr/0039-a-server-rendered-web-interface-over-the-generated-docs.md)). |
 | `retrodoc-cli` | The `retrodoc` binary: parses arguments and wires the crates together. |
 

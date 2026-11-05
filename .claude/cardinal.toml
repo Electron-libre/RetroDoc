@@ -8,7 +8,7 @@ rev = "7e952eca8b0247fac59abf7d2ea88fab12b7e09a"  # default branch
 # The project's check (format, lint, tests); `cardinal run project-check` runs it, then the specs.
 check_command = "just fmt clippy test check-cardinal"
 # Scopes allowed in commit messages besides `docs` and `cardinal` (crates, areas).
-commit_scopes = ["core", "ingest", "llm", "pipeline", "bench", "render", "mcp", "web", "cli"]
+commit_scopes = ["core", "ingest", "llm", "pipeline", "bench", "render", "mcp", "agent", "web", "cli"]
 # Documents at the repository root that skills may cite besides AGENTS.md and CLAUDE.md.
 root_docs = ["README.md", "PRODUCT.md", "ROADMAP.md", "CHANGELOG.md"]
 # Directories that scripts do not scan besides .git, target and node_modules.

@@ -7,17 +7,14 @@ use std::sync::Arc;
 
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_handler, tool_router, ServerHandler, ServiceExt};
-use schemars::JsonSchema;
-use serde::Deserialize;
 
+use crate::catalog::{
+    self, IdParams, LogParams, SearchParams, SourceParams, GET_DOMAIN, GET_FEATURE, GET_USE_CASE,
+    GIT_LOG, LIST_DOMAINS, READ_SOURCE, SEARCH_DOCS,
+};
 use crate::edits::Live;
 use crate::source::DEFAULT_LOG;
 use crate::tools::Docs;
-
-/// Hits returned by `search_docs` when the agent gives no limit, and the most
-/// it can ask for.
-const DEFAULT_LIMIT: usize = 5;
-const MAX_LIMIT: usize = 20;
 
 #[derive(Debug, thiserror::Error)]
 pub enum McpError {
@@ -31,38 +28,6 @@ pub enum McpError {
 pub struct DocsServer {
     /// Each call answers with the edits saved at that call (`specs/section-edit.md` SED-28).
     docs: Arc<Live<Docs>>,
-}
-
-#[derive(Deserialize, JsonSchema)]
-struct IdParams {
-    /// The id as shown by the other tools (e.g. `billing/pay-invoice`).
-    id: String,
-}
-
-#[derive(Deserialize, JsonSchema)]
-struct SourceParams {
-    /// A file cited by the docs, relative to the repository root (e.g. `app/invoice.rb`).
-    path: String,
-    /// First line to show, 1-based (default 1).
-    start_line: Option<usize>,
-    /// Last line to show, inclusive (default: 200 lines from `start_line`, at most 400).
-    end_line: Option<usize>,
-}
-
-#[derive(Deserialize, JsonSchema)]
-struct LogParams {
-    /// A file cited by the docs, relative to the repository root.
-    path: String,
-    /// Maximum number of commits (default 10, at most 50).
-    limit: Option<usize>,
-}
-
-#[derive(Deserialize, JsonSchema)]
-struct SearchParams {
-    /// What to look for, in the application's own words.
-    query: String,
-    /// Maximum number of results (default 5, at most 20).
-    limit: Option<usize>,
 }
 
 impl DocsServer {
@@ -90,46 +55,30 @@ async fn blocking(work: impl FnOnce() -> String + Send + 'static) -> String {
 
 #[tool_router]
 impl DocsServer {
-    #[tool(
-        description = "List the functional domains of the application with a description and a \
-                       confidence score. Start here to find your way."
-    )]
+    #[tool(description = LIST_DOMAINS)]
     async fn list_domains(&self) -> String {
         self.docs.current().list_domains()
     }
 
-    #[tool(description = "Show one domain (e.g. `billing`) and its features and business rules.")]
+    #[tool(description = GET_DOMAIN)]
     async fn get_domain(&self, Parameters(IdParams { id }): Parameters<IdParams>) -> String {
         let docs = self.docs.current();
         blocking(move || docs.get_domain(&id)).await
     }
 
-    #[tool(
-        description = "Show one feature (e.g. `billing/pay-invoice`): what it does, the files it \
-                       rests on, its use cases and its business rules (what is allowed, refused, limited, with \
-                       their evidence)."
-    )]
+    #[tool(description = GET_FEATURE)]
     async fn get_feature(&self, Parameters(IdParams { id }): Parameters<IdParams>) -> String {
         let docs = self.docs.current();
         blocking(move || docs.get_feature(&id)).await
     }
 
-    #[tool(
-        description = "Show one use case (e.g. `billing/pay-invoice/pay-by-card`): who does what \
-                       and why, the steps, and the code each step cites. A low confidence means \
-                       the claim is not backed by the code: verify before relying on it. Lists the business rules \
-                       that apply to it."
-    )]
+    #[tool(description = GET_USE_CASE)]
     async fn get_use_case(&self, Parameters(IdParams { id }): Parameters<IdParams>) -> String {
         let docs = self.docs.current();
         blocking(move || docs.get_use_case(&id)).await
     }
 
-    #[tool(
-        description = "Show lines of a source file that the docs cite, with line numbers, to \
-                       check a claim against the code. Only cited files can be read; use the \
-                       paths given by get_feature and get_use_case."
-    )]
+    #[tool(description = READ_SOURCE)]
     async fn read_source(
         &self,
         Parameters(SourceParams {
@@ -142,11 +91,7 @@ impl DocsServer {
         blocking(move || docs.read_source(&path, start_line, end_line)).await
     }
 
-    #[tool(
-        description = "Show the recent commits (hash, date, subject) that changed a source file \
-                       the docs cite, to see how and why a behavior evolved, across its renames \
-                       (the previous names are history only, not readable). Only cited files."
-    )]
+    #[tool(description = GIT_LOG)]
     async fn git_log(
         &self,
         Parameters(LogParams { path, limit }): Parameters<LogParams>,
@@ -155,16 +100,12 @@ impl DocsServer {
         blocking(move || docs.git_log(&path, limit.unwrap_or(DEFAULT_LOG))).await
     }
 
-    #[tool(
-        description = "Search the generated documentation (including business rules) and the project's \
-                       own docs with the words of a question. Answers `Not documented` when nothing matches: say so \
-                       rather than guess."
-    )]
+    #[tool(description = SEARCH_DOCS)]
     async fn search_docs(
         &self,
         Parameters(SearchParams { query, limit }): Parameters<SearchParams>,
     ) -> String {
-        let limit = limit.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT);
+        let limit = catalog::search_limit(limit);
         self.docs.current().search_docs(&query, limit)
     }
 }
