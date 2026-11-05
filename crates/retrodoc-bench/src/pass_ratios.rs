@@ -12,6 +12,7 @@
 //! estimate extrapolates (entry points per file read, features per domain, use cases per feature…).
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -621,6 +622,49 @@ pub fn ratio_table(runs: &[RunMeasure]) -> RatioTable {
     }
 }
 
+impl RatioTable {
+    /// The table as YAML, each run, spread and application row on one line (flow mappings, the JSON
+    /// subset of YAML), so the file reads as a table and stays short; `serde_yaml` reads it back.
+    ///
+    /// # Errors
+    ///
+    /// Returns a message when a value can't be serialized.
+    pub fn to_yaml(&self) -> Result<String, String> {
+        fn flow<T: Serialize + ?Sized>(value: &T) -> Result<String, String> {
+            serde_json::to_string(value).map_err(|e| e.to_string())
+        }
+        let mut out = String::from("runs:\n");
+        for run in &self.runs {
+            let _ = writeln!(out, "- {}", flow(run)?);
+        }
+        out += "passes:\n";
+        for pass in &self.passes {
+            let _ = write!(
+                out,
+                "- pass: {}\n  unit: {}\n  fixed: {}\n  per_unit: {}\n  applications:\n",
+                flow(&pass.pass)?,
+                flow(pass.unit)?,
+                pass.fixed,
+                flow(&pass.per_unit)?,
+            );
+            for row in &pass.applications {
+                let _ = writeln!(out, "  - {}", flow(row)?);
+            }
+        }
+        let _ = write!(out, "no_call: {}\nyields:\n", flow(&self.no_call)?);
+        for item in &self.yields {
+            let _ = write!(
+                out,
+                "- name: {}\n  spread: {}\n  applications: {}\n",
+                flow(item.name)?,
+                flow(&item.spread)?,
+                flow(&item.applications)?,
+            );
+        }
+        Ok(out)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -826,6 +870,23 @@ mod tests {
         assert_eq!(features.applications.len(), 3);
         assert!(features.applications[2].indicative);
         assert_eq!(features.applications[2].per_unit.unwrap().calls, 30.0);
+    }
+
+    #[test]
+    fn writes_a_compact_yaml_that_reads_back_as_the_table() {
+        let dir = run_dir(&first_run());
+        let table = ratio_table(&[measure_run(&entry(dir.path(), "app")).unwrap()]);
+        let yaml = table.to_yaml().unwrap();
+        let read: Value = serde_yaml::from_str(&yaml).unwrap();
+        assert_eq!(read, serde_yaml::to_value(&table).unwrap());
+        // A pass of one application: its name, unit, fixed, spread, the list key and the row.
+        let passes = &yaml[yaml.find("passes:").unwrap()..yaml.find("no_call:").unwrap()];
+        let longest = passes
+            .split("\n- pass:")
+            .skip(1)
+            .map(|p| p.trim_end().lines().count())
+            .max();
+        assert_eq!(longest, Some(6));
     }
 
     #[test]

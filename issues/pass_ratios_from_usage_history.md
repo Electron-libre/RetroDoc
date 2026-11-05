@@ -59,9 +59,9 @@ feature), median and range across applications, from the saved runs only. Out of
    matched reconcile items), writes the ratio table (per run, then median and range per application); verified by
    tests on hand-built run directories (a rerun and a run with `repo-map` left out, calls without usage counted apart,
    fixed-cost passes marked) (autonomous).
-2. [ ] The table: run over the saved runs, kept as a data file with the runs it comes from (no private name), the
+2. [x] The table: run over the saved runs, kept as a data file with the runs it comes from (no private name), the
    finding dated in `docs/findings.md` §3 point 7 (the old per-file ratios superseded), `docs/crates/bench.md`,
-   `docs/dev/commands.md`; the ledger line; verified by rebuilding it identical from the runs.
+   `docs/dev/commands.md`; the ledger line; verified by rebuilding it identical from the runs (autonomous).
 
 ## Decisions
 - Mode: autonomous
@@ -84,3 +84,15 @@ feature), median and range across applications, from the saved runs only. Out of
   `entry-points.yaml` outside them; `features` makes one call per domain of `domains.yaml` (`uncategorized` included)
   plus the placements; a pass turned off (`rules = false`, the benchmark runs) is absent from the history and its
   runs are left out of that pass.
+
+## Deliverable 2
+- done: `crates/retrodoc-pipeline/data/pass-ratios.yaml` from 22 runs (manifest `pass-ratios-runs.yaml` next to the
+  runs, outside git), the dated finding in `docs/findings.md` §3 point 7, `docs/crates/pipeline.md`, the ledger line.
+- `RatioTable::to_yaml`: one line per run, spread and application row (1,295 lines in block YAML, over the size
+  limit of a deliverable; 181 now, the same values read back, tested).
+- checks: rebuilt twice, byte-identical; no private name in the table (`large private Rails application`);
+  `cardinal run project-check` green.
+- red: none (a data file).
+- Code review: no findings (`low`).
+- not verified: the large private Rails app runs at older code with a local model (indicative, out of the spread);
+  `rules` measured on two applications only (the benchmark runs turn it off); no Rust application among the runs.

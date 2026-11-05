@@ -257,6 +257,18 @@ Directions:
    characters per token); the later passes depend on earlier outputs, so extrapolate with measured ratios (the Rails test repo:
    325 files gave 77 features and 183 use cases, ~0.24 and ~0.56 per file). Output tokens (use case JSON, up to 8,192
    per call) are the hardest to predict; an estimate made before any measurement can be off by 2-3x.
+   2026-11-05, measured (`issues/pass_ratios_from_usage_history.md`, no LLM call): the first complete `generate` of
+   22 saved runs (delivery_router, healthchecks, linkding, Lobsters, deepseek-flash, 2026-10-27 to 11-03; a large
+   private Rails app as indicative only) give `crates/retrodoc-pipeline/data/pass-ratios.yaml`, rebuilt by the example
+   `pass_ratios`. Medians across the four applications: the six fixed passes (`sources`, `brief`, `roles`,
+   `business-files`, `actors`, `domains`) about one call each and ~26k prompt / ~3.8k completion tokens a run;
+   `business-read` 0.16 calls (0.09-0.26) and ~430 prompt tokens per 1,000 characters read, `entry-points` 0.13;
+   `features` 1.0 call and ~2.6k tokens per domain; `use-cases` 1.02 calls, ~10k prompt (2.9k-11.8k) and ~750
+   completion tokens per feature, the largest share; `rules` 3 calls and ~6.7k per feature (measured on two
+   applications only, the benchmark runs turn it off); `confidence` 0.30 calls and ~770 tokens per use case;
+   `reconcile` 0.13 calls per reconciled item; no call without usage. Yields: 2.4 entry points per file read, 7 domains
+   (3.5-9.6), 5.5 features per domain (2.4-7.9), 2.7 use cases per feature (1.5-3.4). The per-file ratios above
+   predate the top-down redesign: the extrapolation now goes by domain and feature, not by file.
 
 First full `generate` on a real repo (2026-10-02, the Rails test repo, sparse-checkout `app/services` +
 `app/policies` + `app/controllers`: 325 source files; `qwen3.6:35b-a3b`, `concurrency = 2`, default batching):

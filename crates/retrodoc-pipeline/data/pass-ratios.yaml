@@ -1,0 +1,181 @@
+# The calls and tokens of each LLM pass of `generate` per unit of its input, measured on saved runs
+# (issues/pass_ratios_from_usage_history.md). Generated, do not edit: rebuild with
+# `cargo run -q -p retrodoc-bench --example pass_ratios -- <runs.yaml> <this file>`.
+# Calls without usage make the token sums a lower bound; `indicative` applications are out of the spread.
+runs:
+- {"application":"delivery_router (small Ruby library)","commit":"6248f5d","models":["deepseek-flash"],"finished_at":"2026-11-02T15:51:26.844447440+00:00"}
+- {"application":"delivery_router (small Ruby library)","commit":"a9be099","models":["deepseek-flash"],"finished_at":"2026-10-27T07:52:53.768901391+00:00"}
+- {"application":"healthchecks (Django)","commit":"a9be099","models":["deepseek-flash"],"finished_at":"2026-10-27T07:58:46.611301492+00:00"}
+- {"application":"linkding (Django)","commit":"dafea18","models":["deepseek-flash"],"finished_at":"2026-11-03T11:29:31.272199339+00:00"}
+- {"application":"linkding (Django)","commit":"dafea18","models":["deepseek-flash"],"finished_at":"2026-11-03T11:36:15.003123521+00:00"}
+- {"application":"linkding (Django)","commit":"dafea18","models":["deepseek-flash"],"finished_at":"2026-11-03T11:42:28.950668137+00:00"}
+- {"application":"linkding (Django)","commit":"dafea18","models":["deepseek-flash"],"finished_at":"2026-11-03T11:49:59.507593775+00:00"}
+- {"application":"linkding (Django)","commit":"dafea18","models":["deepseek-flash"],"finished_at":"2026-11-03T11:57:26.393365301+00:00"}
+- {"application":"linkding (Django)","commit":"dafea18","models":["deepseek-flash"],"finished_at":"2026-11-03T12:04:59.461234298+00:00"}
+- {"application":"linkding (Django)","commit":"f95ada6","models":["deepseek-flash"],"finished_at":"2026-11-03T16:19:44.928111217+00:00"}
+- {"application":"linkding (Django)","commit":"f95ada6","models":["deepseek-flash"],"finished_at":"2026-11-03T16:25:57.660241531+00:00"}
+- {"application":"linkding (Django)","commit":"f95ada6","models":["deepseek-flash"],"finished_at":"2026-11-03T16:31:48.595221317+00:00"}
+- {"application":"Lobsters (Rails)","commit":"dafea18","models":["deepseek-flash"],"finished_at":"2026-11-03T11:35:49.383426907+00:00"}
+- {"application":"Lobsters (Rails)","commit":"dafea18","models":["deepseek-flash"],"finished_at":"2026-11-03T11:47:22.365595477+00:00"}
+- {"application":"Lobsters (Rails)","commit":"dafea18","models":["deepseek-flash"],"finished_at":"2026-11-03T11:59:19.984190689+00:00"}
+- {"application":"Lobsters (Rails)","commit":"dafea18","models":["deepseek-flash"],"finished_at":"2026-11-03T12:12:33.046034131+00:00"}
+- {"application":"Lobsters (Rails)","commit":"dafea18","models":["deepseek-flash"],"finished_at":"2026-11-03T12:25:31.407182444+00:00"}
+- {"application":"Lobsters (Rails)","commit":"dafea18","models":["deepseek-flash"],"finished_at":"2026-11-03T12:38:57.207371788+00:00"}
+- {"application":"Lobsters (Rails)","commit":"f95ada6","models":["deepseek-flash"],"finished_at":"2026-11-03T16:41:46.989909459+00:00"}
+- {"application":"Lobsters (Rails)","commit":"f95ada6","models":["deepseek-flash"],"finished_at":"2026-11-03T16:51:55.067599973+00:00"}
+- {"application":"Lobsters (Rails)","commit":"f95ada6","models":["deepseek-flash"],"finished_at":"2026-11-03T17:02:21.140520265+00:00"}
+- {"application":"large private Rails application","commit":"unknown (2026-10-15/16 smoke","models":["deepseek-flash","qwen3.6:35b-a3b"],"finished_at":"2026-10-23T09:31:34.780021674+00:00","generates":4,"indicative":true}
+passes:
+- pass: "sources"
+  unit: "run"
+  fixed: true
+  per_unit: {"calls":{"median":1.0,"min":1.0,"max":2.0},"prompt_tokens":{"median":4658.5,"min":480.0,"max":17016.0},"cached_tokens":{"median":4273.778,"min":192.0,"max":8448.0},"completion_tokens":{"median":82.0,"min":5.0,"max":150.0}}
+  applications:
+  - {"application":"delivery_router (small Ruby library)","runs":2,"units":2.0,"calls":2,"calls_without_usage":0,"prompt_tokens":960,"cached_tokens":384,"completion_tokens":10,"per_unit":{"calls":1.0,"prompt_tokens":480.0,"cached_tokens":192.0,"completion_tokens":5.0}}
+  - {"application":"healthchecks (Django)","runs":1,"units":1.0,"calls":2,"calls_without_usage":0,"prompt_tokens":17016,"cached_tokens":8448,"completion_tokens":138,"per_unit":{"calls":2.0,"prompt_tokens":17016.0,"cached_tokens":8448.0,"completion_tokens":138.0}}
+  - {"application":"linkding (Django)","runs":9,"units":9.0,"calls":9,"calls_without_usage":0,"prompt_tokens":35919,"cached_tokens":30848,"completion_tokens":234,"per_unit":{"calls":1.0,"prompt_tokens":3991.0,"cached_tokens":3427.556,"completion_tokens":26.0}}
+  - {"application":"Lobsters (Rails)","runs":9,"units":9.0,"calls":9,"calls_without_usage":0,"prompt_tokens":47934,"cached_tokens":46080,"completion_tokens":1350,"per_unit":{"calls":1.0,"prompt_tokens":5326.0,"cached_tokens":5120.0,"completion_tokens":150.0}}
+  - {"application":"large private Rails application","indicative":true,"runs":1,"units":1.0,"calls":2,"calls_without_usage":0,"prompt_tokens":25584,"cached_tokens":0,"completion_tokens":206,"per_unit":{"calls":2.0,"prompt_tokens":25584.0,"cached_tokens":0.0,"completion_tokens":206.0}}
+- pass: "brief"
+  unit: "run"
+  fixed: true
+  per_unit: {"calls":{"median":1.0,"min":1.0,"max":2.0},"prompt_tokens":{"median":5497.166,"min":646.0,"max":10832.0},"cached_tokens":{"median":4437.333,"min":320.0,"max":5376.0},"completion_tokens":{"median":1064.222,"min":427.0,"max":2590.0}}
+  applications:
+  - {"application":"delivery_router (small Ruby library)","runs":2,"units":2.0,"calls":2,"calls_without_usage":0,"prompt_tokens":1292,"cached_tokens":640,"completion_tokens":854,"per_unit":{"calls":1.0,"prompt_tokens":646.0,"cached_tokens":320.0,"completion_tokens":427.0}}
+  - {"application":"healthchecks (Django)","runs":1,"units":1.0,"calls":2,"calls_without_usage":0,"prompt_tokens":10832,"cached_tokens":5376,"completion_tokens":2590,"per_unit":{"calls":2.0,"prompt_tokens":10832.0,"cached_tokens":5376.0,"completion_tokens":2590.0}}
+  - {"application":"linkding (Django)","runs":9,"units":9.0,"calls":9,"calls_without_usage":0,"prompt_tokens":52713,"cached_tokens":39936,"completion_tokens":9337,"per_unit":{"calls":1.0,"prompt_tokens":5857.0,"cached_tokens":4437.333,"completion_tokens":1037.444}}
+  - {"application":"Lobsters (Rails)","runs":9,"units":9.0,"calls":9,"calls_without_usage":0,"prompt_tokens":46236,"cached_tokens":39936,"completion_tokens":9819,"per_unit":{"calls":1.0,"prompt_tokens":5137.333,"cached_tokens":4437.333,"completion_tokens":1091.0}}
+  - {"application":"large private Rails application","indicative":true,"runs":1,"units":1.0,"calls":1,"calls_without_usage":0,"prompt_tokens":5514,"cached_tokens":0,"completion_tokens":695,"per_unit":{"calls":1.0,"prompt_tokens":5514.0,"cached_tokens":0.0,"completion_tokens":695.0}}
+- pass: "roles"
+  unit: "run"
+  fixed: true
+  per_unit: {"calls":{"median":1.055,"min":1.0,"max":1.333},"prompt_tokens":{"median":5095.833,"min":1179.0,"max":8229.0},"cached_tokens":{"median":622.222,"min":512.0,"max":682.667},"completion_tokens":{"median":851.611,"min":152.5,"max":958.556}}
+  applications:
+  - {"application":"delivery_router (small Ruby library)","runs":2,"units":2.0,"calls":2,"calls_without_usage":0,"prompt_tokens":2358,"cached_tokens":1152,"completion_tokens":305,"per_unit":{"calls":1.0,"prompt_tokens":1179.0,"cached_tokens":576.0,"completion_tokens":152.5}}
+  - {"application":"healthchecks (Django)","runs":1,"units":1.0,"calls":1,"calls_without_usage":0,"prompt_tokens":8229,"cached_tokens":512,"completion_tokens":799,"per_unit":{"calls":1.0,"prompt_tokens":8229.0,"cached_tokens":512.0,"completion_tokens":799.0}}
+  - {"application":"linkding (Django)","runs":9,"units":9.0,"calls":10,"calls_without_usage":0,"prompt_tokens":36354,"cached_tokens":6016,"completion_tokens":8138,"per_unit":{"calls":1.111,"prompt_tokens":4039.333,"cached_tokens":668.444,"completion_tokens":904.222}}
+  - {"application":"Lobsters (Rails)","runs":9,"units":9.0,"calls":12,"calls_without_usage":0,"prompt_tokens":55371,"cached_tokens":6144,"completion_tokens":8627,"per_unit":{"calls":1.333,"prompt_tokens":6152.333,"cached_tokens":682.667,"completion_tokens":958.556}}
+  - {"application":"large private Rails application","indicative":true,"runs":1,"units":1.0,"calls":1,"calls_without_usage":0,"prompt_tokens":12555,"cached_tokens":0,"completion_tokens":1834,"per_unit":{"calls":1.0,"prompt_tokens":12555.0,"cached_tokens":0.0,"completion_tokens":1834.0}}
+- pass: "business-files"
+  unit: "run"
+  fixed: true
+  per_unit: {"calls":{"median":1.0,"min":1.0,"max":1.0},"prompt_tokens":{"median":6326.389,"min":1032.0,"max":11174.0},"cached_tokens":{"median":174.222,"min":128.0,"max":213.333},"completion_tokens":{"median":829.445,"min":219.0,"max":899.444}}
+  applications:
+  - {"application":"delivery_router (small Ruby library)","runs":2,"units":2.0,"calls":2,"calls_without_usage":0,"prompt_tokens":2064,"cached_tokens":384,"completion_tokens":438,"per_unit":{"calls":1.0,"prompt_tokens":1032.0,"cached_tokens":192.0,"completion_tokens":219.0}}
+  - {"application":"healthchecks (Django)","runs":1,"units":1.0,"calls":1,"calls_without_usage":0,"prompt_tokens":11174,"cached_tokens":128,"completion_tokens":846,"per_unit":{"calls":1.0,"prompt_tokens":11174.0,"cached_tokens":128.0,"completion_tokens":846.0}}
+  - {"application":"linkding (Django)","runs":9,"units":9.0,"calls":9,"calls_without_usage":0,"prompt_tokens":46019,"cached_tokens":1920,"completion_tokens":7316,"per_unit":{"calls":1.0,"prompt_tokens":5113.222,"cached_tokens":213.333,"completion_tokens":812.889}}
+  - {"application":"Lobsters (Rails)","runs":9,"units":9.0,"calls":9,"calls_without_usage":0,"prompt_tokens":67856,"cached_tokens":1408,"completion_tokens":8095,"per_unit":{"calls":1.0,"prompt_tokens":7539.556,"cached_tokens":156.444,"completion_tokens":899.444}}
+  - {"application":"large private Rails application","indicative":true,"runs":1,"units":1.0,"calls":1,"calls_without_usage":0,"prompt_tokens":18836,"cached_tokens":0,"completion_tokens":984,"per_unit":{"calls":1.0,"prompt_tokens":18836.0,"cached_tokens":0.0,"completion_tokens":984.0}}
+- pass: "business-read"
+  unit: "1,000 characters of business files read"
+  fixed: false
+  per_unit: {"calls":{"median":0.157,"min":0.094,"max":0.256},"prompt_tokens":{"median":432.028,"min":322.463,"max":514.744},"cached_tokens":{"median":123.55,"min":81.719,"max":154.086},"completion_tokens":{"median":55.778,"min":15.483,"max":353.846}}
+  applications:
+  - {"application":"delivery_router (small Ruby library)","runs":2,"units":7.8,"calls":2,"calls_without_usage":0,"prompt_tokens":4015,"cached_tokens":896,"completion_tokens":2760,"per_unit":{"calls":0.256,"prompt_tokens":514.744,"cached_tokens":114.872,"completion_tokens":353.846}}
+  - {"application":"healthchecks (Django)","runs":1,"units":180.129,"calls":17,"calls_without_usage":0,"prompt_tokens":58085,"cached_tokens":14720,"completion_tokens":2789,"per_unit":{"calls":0.094,"prompt_tokens":322.463,"cached_tokens":81.719,"completion_tokens":15.483}}
+  - {"application":"linkding (Django)","runs":9,"units":1985.388,"calls":333,"calls_without_usage":0,"prompt_tokens":836724,"cached_tokens":305920,"completion_tokens":99415,"per_unit":{"calls":0.168,"prompt_tokens":421.441,"cached_tokens":154.086,"completion_tokens":50.073}}
+  - {"application":"Lobsters (Rails)","runs":9,"units":1769.555,"calls":258,"calls_without_usage":0,"prompt_tokens":783232,"cached_tokens":233984,"completion_tokens":108795,"per_unit":{"calls":0.146,"prompt_tokens":442.615,"cached_tokens":132.228,"completion_tokens":61.482}}
+  - {"application":"large private Rails application","indicative":true,"runs":1,"units":225.071,"calls":23,"calls_without_usage":0,"prompt_tokens":75221,"cached_tokens":0,"completion_tokens":11396,"per_unit":{"calls":0.102,"prompt_tokens":334.21,"cached_tokens":0.0,"completion_tokens":50.633}}
+- pass: "entry-points"
+  unit: "1,000 characters of entry point files read"
+  fixed: false
+  per_unit: {"calls":{"median":0.133,"min":0.099,"max":0.158},"prompt_tokens":{"median":387.212,"min":330.452,"max":423.678},"cached_tokens":{"median":103.391,"min":73.305,"max":115.622},"completion_tokens":{"median":69.238,"min":67.059,"max":137.251}}
+  applications:
+  - {"application":"delivery_router (small Ruby library)","runs":2,"units":0.0,"calls":0,"calls_without_usage":0,"prompt_tokens":0,"cached_tokens":0,"completion_tokens":0,"per_unit":null}
+  - {"application":"healthchecks (Django)","runs":1,"units":171.12,"calls":17,"calls_without_usage":0,"prompt_tokens":56547,"cached_tokens":12544,"completion_tokens":11848,"per_unit":{"calls":0.099,"prompt_tokens":330.452,"cached_tokens":73.305,"completion_tokens":69.238}}
+  - {"application":"linkding (Django)","runs":9,"units":367.543,"calls":58,"calls_without_usage":0,"prompt_tokens":142317,"cached_tokens":42496,"completion_tokens":24647,"per_unit":{"calls":0.158,"prompt_tokens":387.212,"cached_tokens":115.622,"completion_tokens":67.059}}
+  - {"application":"Lobsters (Rails)","runs":9,"units":1350.674,"calls":180,"calls_without_usage":0,"prompt_tokens":572251,"cached_tokens":139648,"completion_tokens":185382,"per_unit":{"calls":0.133,"prompt_tokens":423.678,"cached_tokens":103.391,"completion_tokens":137.251}}
+  - {"application":"large private Rails application","indicative":true,"runs":1,"units":639.258,"calls":61,"calls_without_usage":0,"prompt_tokens":199057,"cached_tokens":0,"completion_tokens":92663,"per_unit":{"calls":0.095,"prompt_tokens":311.388,"cached_tokens":0.0,"completion_tokens":144.954}}
+- pass: "actors"
+  unit: "run"
+  fixed: true
+  per_unit: {"calls":{"median":1.0,"min":1.0,"max":1.0},"prompt_tokens":{"median":2219.833,"min":647.0,"max":2745.889},"cached_tokens":{"median":81.778,"min":0.0,"max":128.0},"completion_tokens":{"median":466.5,"min":176.5,"max":596.444}}
+  applications:
+  - {"application":"delivery_router (small Ruby library)","runs":2,"units":2.0,"calls":2,"calls_without_usage":0,"prompt_tokens":1294,"cached_tokens":128,"completion_tokens":353,"per_unit":{"calls":1.0,"prompt_tokens":647.0,"cached_tokens":64.0,"completion_tokens":176.5}}
+  - {"application":"healthchecks (Django)","runs":1,"units":1.0,"calls":1,"calls_without_usage":0,"prompt_tokens":1771,"cached_tokens":0,"completion_tokens":549,"per_unit":{"calls":1.0,"prompt_tokens":1771.0,"cached_tokens":0.0,"completion_tokens":549.0}}
+  - {"application":"linkding (Django)","runs":9,"units":9.0,"calls":9,"calls_without_usage":0,"prompt_tokens":24018,"cached_tokens":896,"completion_tokens":3456,"per_unit":{"calls":1.0,"prompt_tokens":2668.667,"cached_tokens":99.556,"completion_tokens":384.0}}
+  - {"application":"Lobsters (Rails)","runs":9,"units":9.0,"calls":9,"calls_without_usage":0,"prompt_tokens":24713,"cached_tokens":1152,"completion_tokens":5368,"per_unit":{"calls":1.0,"prompt_tokens":2745.889,"cached_tokens":128.0,"completion_tokens":596.444}}
+  - {"application":"large private Rails application","indicative":true,"runs":1,"units":1.0,"calls":1,"calls_without_usage":0,"prompt_tokens":3772,"cached_tokens":0,"completion_tokens":348,"per_unit":{"calls":1.0,"prompt_tokens":3772.0,"cached_tokens":0.0,"completion_tokens":348.0}}
+- pass: "domains"
+  unit: "run"
+  fixed: true
+  per_unit: {"calls":{"median":1.0,"min":1.0,"max":1.0},"prompt_tokens":{"median":2343.333,"min":678.0,"max":3986.667},"cached_tokens":{"median":46.222,"min":0.0,"max":85.333},"completion_tokens":{"median":525.167,"min":151.0,"max":844.889}}
+  applications:
+  - {"application":"delivery_router (small Ruby library)","runs":2,"units":2.0,"calls":2,"calls_without_usage":0,"prompt_tokens":1356,"cached_tokens":128,"completion_tokens":302,"per_unit":{"calls":1.0,"prompt_tokens":678.0,"cached_tokens":64.0,"completion_tokens":151.0}}
+  - {"application":"healthchecks (Django)","runs":1,"units":1.0,"calls":1,"calls_without_usage":0,"prompt_tokens":2320,"cached_tokens":0,"completion_tokens":489,"per_unit":{"calls":1.0,"prompt_tokens":2320.0,"cached_tokens":0.0,"completion_tokens":489.0}}
+  - {"application":"linkding (Django)","runs":9,"units":9.0,"calls":9,"calls_without_usage":0,"prompt_tokens":21300,"cached_tokens":768,"completion_tokens":5052,"per_unit":{"calls":1.0,"prompt_tokens":2366.667,"cached_tokens":85.333,"completion_tokens":561.333}}
+  - {"application":"Lobsters (Rails)","runs":9,"units":9.0,"calls":9,"calls_without_usage":0,"prompt_tokens":35880,"cached_tokens":256,"completion_tokens":7604,"per_unit":{"calls":1.0,"prompt_tokens":3986.667,"cached_tokens":28.444,"completion_tokens":844.889}}
+  - {"application":"large private Rails application","indicative":true,"runs":1,"units":1.0,"calls":1,"calls_without_usage":0,"prompt_tokens":5732,"cached_tokens":0,"completion_tokens":916,"per_unit":{"calls":1.0,"prompt_tokens":5732.0,"cached_tokens":0.0,"completion_tokens":916.0}}
+- pass: "features"
+  unit: "domain"
+  fixed: false
+  per_unit: {"calls":{"median":1.015,"min":0.857,"max":1.081},"prompt_tokens":{"median":2571.742,"min":707.429,"max":3965.5},"cached_tokens":{"median":543.086,"min":182.857,"max":583.442},"completion_tokens":{"median":337.087,"min":121.571,"max":504.744}}
+  applications:
+  - {"application":"delivery_router (small Ruby library)","runs":2,"units":7.0,"calls":6,"calls_without_usage":0,"prompt_tokens":4952,"cached_tokens":1280,"completion_tokens":851,"per_unit":{"calls":0.857,"prompt_tokens":707.429,"cached_tokens":182.857,"completion_tokens":121.571}}
+  - {"application":"healthchecks (Django)","runs":1,"units":7.0,"calls":7,"calls_without_usage":0,"prompt_tokens":15482,"cached_tokens":3840,"completion_tokens":2213,"per_unit":{"calls":1.0,"prompt_tokens":2211.714,"cached_tokens":548.571,"completion_tokens":316.143}}
+  - {"application":"linkding (Django)","runs":9,"units":65.0,"calls":67,"calls_without_usage":0,"prompt_tokens":190565,"cached_tokens":34944,"completion_tokens":23272,"per_unit":{"calls":1.031,"prompt_tokens":2931.769,"cached_tokens":537.6,"completion_tokens":358.031}}
+  - {"application":"Lobsters (Rails)","runs":9,"units":86.0,"calls":93,"calls_without_usage":0,"prompt_tokens":341033,"cached_tokens":50176,"completion_tokens":43408,"per_unit":{"calls":1.081,"prompt_tokens":3965.5,"cached_tokens":583.442,"completion_tokens":504.744}}
+  - {"application":"large private Rails application","indicative":true,"runs":1,"units":7.0,"calls":11,"calls_without_usage":0,"prompt_tokens":62060,"cached_tokens":0,"completion_tokens":14158,"per_unit":{"calls":1.571,"prompt_tokens":8865.714,"cached_tokens":0.0,"completion_tokens":2022.571}}
+- pass: "use-cases"
+  unit: "feature"
+  fixed: false
+  per_unit: {"calls":{"median":1.019,"min":1.0,"max":1.053},"prompt_tokens":{"median":9988.524,"min":2883.353,"max":11788.382},"cached_tokens":{"median":1129.584,"min":745.412,"max":1222.212},"completion_tokens":{"median":752.274,"min":600.412,"max":1370.263}}
+  applications:
+  - {"application":"delivery_router (small Ruby library)","runs":2,"units":17.0,"calls":17,"calls_without_usage":0,"prompt_tokens":49017,"cached_tokens":12672,"completion_tokens":10207,"per_unit":{"calls":1.0,"prompt_tokens":2883.353,"cached_tokens":745.412,"completion_tokens":600.412}}
+  - {"application":"healthchecks (Django)","runs":1,"units":38.0,"calls":40,"calls_without_usage":0,"prompt_tokens":375596,"cached_tokens":39936,"completion_tokens":52070,"per_unit":{"calls":1.053,"prompt_tokens":9884.105,"cached_tokens":1050.947,"completion_tokens":1370.263}}
+  - {"application":"linkding (Django)","runs":9,"units":362.0,"calls":368,"calls_without_usage":0,"prompt_tokens":3653645,"cached_tokens":437376,"completion_tokens":275058,"per_unit":{"calls":1.017,"prompt_tokens":10092.942,"cached_tokens":1208.221,"completion_tokens":759.829}}
+  - {"application":"Lobsters (Rails)","runs":9,"units":680.0,"calls":695,"calls_without_usage":0,"prompt_tokens":8016100,"cached_tokens":831104,"completion_tokens":506408,"per_unit":{"calls":1.022,"prompt_tokens":11788.382,"cached_tokens":1222.212,"completion_tokens":744.718}}
+  - {"application":"large private Rails application","indicative":true,"runs":1,"units":85.0,"calls":131,"calls_without_usage":0,"prompt_tokens":1293622,"cached_tokens":0,"completion_tokens":385012,"per_unit":{"calls":1.541,"prompt_tokens":15219.082,"cached_tokens":0.0,"completion_tokens":4529.553}}
+- pass: "rules"
+  unit: "feature"
+  fixed: false
+  per_unit: {"calls":{"median":3.0,"min":3.0,"max":3.0},"prompt_tokens":{"median":6694.287,"min":3186.706,"max":10201.868},"cached_tokens":{"median":809.313,"min":496.941,"max":1121.684},"completion_tokens":{"median":856.441,"min":650.882,"max":1062.0}}
+  applications:
+  - {"application":"delivery_router (small Ruby library)","runs":2,"units":17.0,"calls":51,"calls_without_usage":0,"prompt_tokens":54174,"cached_tokens":8448,"completion_tokens":11065,"per_unit":{"calls":3.0,"prompt_tokens":3186.706,"cached_tokens":496.941,"completion_tokens":650.882}}
+  - {"application":"healthchecks (Django)","runs":1,"units":38.0,"calls":114,"calls_without_usage":0,"prompt_tokens":387671,"cached_tokens":42624,"completion_tokens":40356,"per_unit":{"calls":3.0,"prompt_tokens":10201.868,"cached_tokens":1121.684,"completion_tokens":1062.0}}
+  - {"application":"large private Rails application","indicative":true,"runs":1,"units":85.0,"calls":170,"calls_without_usage":0,"prompt_tokens":802297,"cached_tokens":0,"completion_tokens":139372,"per_unit":{"calls":2.0,"prompt_tokens":9438.788,"cached_tokens":0.0,"completion_tokens":1639.671}}
+- pass: "confidence"
+  unit: "use case"
+  fixed: false
+  per_unit: {"calls":{"median":0.304,"min":0.269,"max":0.313},"prompt_tokens":{"median":770.865,"min":245.269,"max":865.532},"cached_tokens":{"median":34.462,"min":0.0,"max":49.782},"completion_tokens":{"median":42.462,"min":11.462,"max":49.054}}
+  applications:
+  - {"application":"delivery_router (small Ruby library)","runs":2,"units":26.0,"calls":7,"calls_without_usage":0,"prompt_tokens":6377,"cached_tokens":512,"completion_tokens":298,"per_unit":{"calls":0.269,"prompt_tokens":245.269,"cached_tokens":19.692,"completion_tokens":11.462}}
+  - {"application":"healthchecks (Django)","runs":1,"units":129.0,"calls":39,"calls_without_usage":0,"prompt_tokens":92122,"cached_tokens":0,"completion_tokens":6328,"per_unit":{"calls":0.302,"prompt_tokens":714.124,"cached_tokens":0.0,"completion_tokens":49.054}}
+  - {"application":"linkding (Django)","runs":9,"units":988.0,"calls":309,"calls_without_usage":0,"prompt_tokens":817675,"cached_tokens":48640,"completion_tokens":44833,"per_unit":{"calls":0.313,"prompt_tokens":827.606,"cached_tokens":49.231,"completion_tokens":45.378}}
+  - {"application":"Lobsters (Rails)","runs":9,"units":1805.0,"calls":551,"calls_without_usage":0,"prompt_tokens":1562286,"cached_tokens":89856,"completion_tokens":71378,"per_unit":{"calls":0.305,"prompt_tokens":865.532,"cached_tokens":49.782,"completion_tokens":39.545}}
+  - {"application":"large private Rails application","indicative":true,"runs":1,"units":762.0,"calls":133,"calls_without_usage":0,"prompt_tokens":284106,"cached_tokens":0,"completion_tokens":40450,"per_unit":{"calls":0.175,"prompt_tokens":372.843,"cached_tokens":0.0,"completion_tokens":53.084}}
+- pass: "reconcile"
+  unit: "reconciled item"
+  fixed: false
+  per_unit: {"calls":{"median":0.128,"min":0.125,"max":0.4},"prompt_tokens":{"median":418.523,"min":163.2,"max":582.347},"cached_tokens":{"median":90.463,"min":51.2,"max":229.405},"completion_tokens":{"median":28.067,"min":22.0,"max":35.217}}
+  applications:
+  - {"application":"delivery_router (small Ruby library)","runs":2,"units":5.0,"calls":2,"calls_without_usage":0,"prompt_tokens":816,"cached_tokens":256,"completion_tokens":110,"per_unit":{"calls":0.4,"prompt_tokens":163.2,"cached_tokens":51.2,"completion_tokens":22.0}}
+  - {"application":"healthchecks (Django)","runs":1,"units":208.0,"calls":26,"calls_without_usage":0,"prompt_tokens":86084,"cached_tokens":19584,"completion_tokens":6128,"per_unit":{"calls":0.125,"prompt_tokens":413.865,"cached_tokens":94.154,"completion_tokens":29.462}}
+  - {"application":"linkding (Django)","runs":9,"units":475.0,"calls":61,"calls_without_usage":0,"prompt_tokens":276615,"cached_tokens":41216,"completion_tokens":16728,"per_unit":{"calls":0.128,"prompt_tokens":582.347,"cached_tokens":86.771,"completion_tokens":35.217}}
+  - {"application":"Lobsters (Rails)","runs":9,"units":592.0,"calls":75,"calls_without_usage":0,"prompt_tokens":250523,"cached_tokens":135808,"completion_tokens":15790,"per_unit":{"calls":0.127,"prompt_tokens":423.181,"cached_tokens":229.405,"completion_tokens":26.672}}
+no_call: ["glossary"]
+yields:
+- name: "characters per business file"
+  spread: {"median":3890.09,"min":433.333,"max":6034.614}
+  applications: {"Lobsters (Rails)":3276.954,"delivery_router (small Ruby library)":433.333,"healthchecks (Django)":4503.225,"large private Rails application":3751.183,"linkding (Django)":6034.614}
+- name: "characters per entry point file"
+  spread: {"median":2606.688,"min":2100.582,"max":6337.778}
+  applications: {"Lobsters (Rails)":2100.582,"healthchecks (Django)":6337.778,"large private Rails application":2403.226,"linkding (Django)":2606.688}
+- name: "entry points per file read"
+  spread: {"median":2.355,"min":1.5,"max":2.77}
+  applications: {"Lobsters (Rails)":2.47,"delivery_router (small Ruby library)":1.5,"healthchecks (Django)":2.239,"large private Rails application":2.613,"linkding (Django)":2.77}
+- name: "domains per run"
+  spread: {"median":7.111,"min":3.5,"max":9.556}
+  applications: {"Lobsters (Rails)":9.556,"delivery_router (small Ruby library)":3.5,"healthchecks (Django)":7.0,"large private Rails application":7.0,"linkding (Django)":7.222}
+- name: "entry points per domain"
+  spread: {"median":20.73,"min":3.857,"max":33.977}
+  applications: {"Lobsters (Rails)":33.977,"delivery_router (small Ruby library)":3.857,"healthchecks (Django)":21.429,"large private Rails application":121.714,"linkding (Django)":20.031}
+- name: "features per domain"
+  spread: {"median":5.499,"min":2.429,"max":7.907}
+  applications: {"Lobsters (Rails)":7.907,"delivery_router (small Ruby library)":2.429,"healthchecks (Django)":5.429,"large private Rails application":12.143,"linkding (Django)":5.569}
+- name: "use cases per feature"
+  spread: {"median":2.692,"min":1.529,"max":3.395}
+  applications: {"Lobsters (Rails)":2.654,"delivery_router (small Ruby library)":1.529,"healthchecks (Django)":3.395,"large private Rails application":8.965,"linkding (Django)":2.729}
+- name: "reconciled items per feature"
+  spread: {"median":1.092,"min":0.294,"max":5.474}
+  applications: {"Lobsters (Rails)":0.871,"delivery_router (small Ruby library)":0.294,"healthchecks (Django)":5.474,"linkding (Django)":1.312}

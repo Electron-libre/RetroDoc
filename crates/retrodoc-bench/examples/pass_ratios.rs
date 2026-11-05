@@ -57,7 +57,7 @@ fn main() -> ExitCode {
             }
         }
     }
-    let yaml = match serde_yaml::to_string(&ratio_table(&runs)) {
+    let yaml = match ratio_table(&runs).to_yaml() {
         Ok(yaml) => format!("{HEADER}{yaml}"),
         Err(error) => {
             eprintln!("{error}");
