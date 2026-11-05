@@ -11,6 +11,7 @@ pub mod glossary;
 pub mod history;
 pub mod init;
 pub mod mcp;
+pub mod passes;
 pub mod render;
 pub mod report;
 pub mod roles;

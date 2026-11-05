@@ -17,8 +17,9 @@ use retrodoc_pipeline::{
     SourceHashes, Surface,
 };
 
+use super::super::passes;
 use super::super::workspace::source_paths;
-use super::{GenerateOptions, Run, Signals, BUSINESS_READ, VOCABULARY_SIZE};
+use super::{GenerateOptions, Run, Signals, VOCABULARY_SIZE};
 
 /// Files one run reads when `--max-files` says nothing: the size above which a context is split.
 pub(super) const DEFAULT_RUN_FILES: usize = 150;
@@ -62,7 +63,7 @@ pub(super) async fn run(
 
     // Not forced: the map is hand-editable, `retrodoc contexts --force` asks again.
     let map = tracker
-        .in_pass("contexts", async {
+        .in_pass(passes::CONTEXTS, async {
             retrodoc_pipeline::build_context_map(
                 repo_root,
                 &sources,
@@ -138,7 +139,7 @@ async fn document(
     let surface = Surface::new(&glossary, &entry_points);
     let actors = tracker
         .in_pass(
-            "actors",
+            passes::ACTORS,
             super::identify_actors(run, repo.ingest, &surface, &signals.brief, true),
         )
         .await?;
@@ -153,7 +154,7 @@ async fn document(
     println!("\nDeriving features from the entry points…");
     let mut features = tracker
         .in_pass(
-            "features",
+            passes::FEATURES,
             retrodoc_pipeline::build_features_from_surface(
                 repo_root,
                 &in_run,
@@ -178,7 +179,7 @@ async fn document(
         retrodoc_pipeline::domain_vocabulary(&everywhere, &glossary, VOCABULARY_SIZE);
     let mut use_cases = tracker
         .in_pass(
-            "use-cases",
+            passes::USE_CASES,
             super::derive_use_cases(run, &features, &context, &surface, super::Scoring::NewOnly),
         )
         .await?;
@@ -312,7 +313,7 @@ async fn read_slice(
     if config.pipeline.business_read {
         tracker
             .in_pass(
-                BUSINESS_READ,
+                passes::BUSINESS_READ,
                 retrodoc_pipeline::read_business_files(
                     repo_root,
                     &roles,
@@ -327,7 +328,7 @@ async fn read_slice(
     }
     let glossary = tracker
         .in_pass(
-            "glossary",
+            passes::GLOSSARY,
             retrodoc_pipeline::build_glossary(
                 repo_root,
                 &roles,
@@ -341,7 +342,7 @@ async fn read_slice(
         .context("failed to build the glossary")?;
     let entry_points = tracker
         .in_pass(
-            "entry-points",
+            passes::ENTRY_POINTS,
             retrodoc_pipeline::build_entry_points(
                 repo_root,
                 &roles,

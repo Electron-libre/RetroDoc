@@ -5,6 +5,7 @@ use anyhow::Context;
 use retrodoc_llm::UsageTracker;
 use retrodoc_pipeline::{Artifact, ContextMap, FileRole, RoleRules};
 
+use super::passes;
 use super::workspace::{source_paths, Workspace};
 
 /// Support files listed after the contexts.
@@ -39,7 +40,7 @@ pub async fn run(path: &Path, force: bool, tracker: &UsageTracker) -> anyhow::Re
     println!("Mapping the bounded contexts…");
     let map = tracker
         .in_pass(
-            "contexts",
+            passes::CONTEXTS,
             retrodoc_pipeline::build_context_map(
                 repo_root,
                 &sources,

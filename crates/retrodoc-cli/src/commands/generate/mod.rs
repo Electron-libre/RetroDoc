@@ -16,35 +16,32 @@ mod contexts;
 mod estimate;
 mod print;
 
+use super::passes;
 use super::usage::PassProviders;
 use super::workspace::{source_paths, Workspace};
 
 /// Number of main entity names given to the use cases as business vocabulary.
 const VOCABULARY_SIZE: usize = 40;
 
-/// The joint reading of the business files, tracked as a pass of its own; it has no provider of its own and
-/// calls those of the glossary and the entry points.
-const BUSINESS_READ: &str = "business-read";
-
 /// The passes `generate` tracks, in the order it runs them, each with the path it belongs to (`None`: both):
-/// the estimate, its recap and the providers opened share this list. Each but [`BUSINESS_READ`] has its own
+/// the estimate, its recap and the providers opened share this list. Each but [`passes::BUSINESS_READ`] has its own
 /// LLM settings.
 const TRACKED_PASSES: &[(&str, Option<DomainsFrom>)] = &[
-    ("sources", None),
-    ("brief", None),
-    ("roles", None),
-    ("business-files", Some(DomainsFrom::Surface)),
-    ("contexts", Some(DomainsFrom::Contexts)),
-    (BUSINESS_READ, None),
-    ("glossary", None),
-    ("entry-points", None),
-    ("actors", None),
-    ("domains", Some(DomainsFrom::Surface)),
-    ("features", None),
-    ("use-cases", None),
-    ("rules", None),
-    ("confidence", None),
-    ("reconcile", None),
+    (passes::SOURCES, None),
+    (passes::BRIEF, None),
+    (passes::ROLES, None),
+    (passes::BUSINESS_FILES, Some(DomainsFrom::Surface)),
+    (passes::CONTEXTS, Some(DomainsFrom::Contexts)),
+    (passes::BUSINESS_READ, None),
+    (passes::GLOSSARY, None),
+    (passes::ENTRY_POINTS, None),
+    (passes::ACTORS, None),
+    (passes::DOMAINS, Some(DomainsFrom::Surface)),
+    (passes::FEATURES, None),
+    (passes::USE_CASES, None),
+    (passes::RULES, None),
+    (passes::CONFIDENCE, None),
+    (passes::RECONCILE, None),
 ];
 
 /// The passes a run on `path` tracks, in their order.
@@ -118,7 +115,7 @@ pub async fn run(
 
     let with_provider: Vec<&str> = passes_of(config.pipeline.domains_from)
         .into_iter()
-        .filter(|&pass| pass != BUSINESS_READ)
+        .filter(|&pass| pass != passes::BUSINESS_READ)
         .collect();
     let llm = PassProviders::open(config, tracker, &with_provider)?;
 
@@ -147,7 +144,7 @@ pub async fn run(
         build_surface(&run, &mut ingest, &signals.brief).await?;
     let actors = tracker
         .in_pass(
-            "actors",
+            passes::ACTORS,
             identify_actors(&run, &ingest, &surface, &signals.brief, false),
         )
         .await?;
@@ -172,7 +169,7 @@ pub async fn run(
     let context = use_case_context(&run, entry_points, &ingest, actors, &surface, signals);
     let mut use_cases = tracker
         .in_pass(
-            "use-cases",
+            passes::USE_CASES,
             derive_use_cases(&run, &features, &context, &surface, Every),
         )
         .await?;
@@ -231,7 +228,7 @@ async fn finish_chain(
     derive_rules(run, features, use_cases, context).await?;
     run.tracker
         .in_pass(
-            "confidence",
+            passes::CONFIDENCE,
             run_confidence(run, features, use_cases, confidence),
         )
         .await?;
@@ -286,7 +283,7 @@ async fn reconcile_with_docs(
     }
     tracker
         .in_pass(
-            "reconcile",
+            passes::RECONCILE,
             reconcile::judge(
                 repo_root,
                 llm.get("reconcile")?.as_ref(),
@@ -399,7 +396,7 @@ async fn features_from_surface(
     } = *run;
     let domain_map = tracker
         .in_pass(
-            "domains",
+            passes::DOMAINS,
             cluster_domains_from_surface(run, surface, &signals.brief),
         )
         .await?;
@@ -408,7 +405,7 @@ async fn features_from_surface(
     println!("\nDeriving features from the entry points…");
     let features = tracker
         .in_pass(
-            "features",
+            passes::FEATURES,
             retrodoc_pipeline::build_features_from_surface(
                 repo_root,
                 &domain_map,
@@ -520,7 +517,7 @@ async fn derive_rules(
     let rules = run
         .tracker
         .in_pass(
-            "rules",
+            passes::RULES,
             retrodoc_pipeline::build_rules(
                 run.repo_root,
                 features,
@@ -557,7 +554,7 @@ async fn identify_file_roles(
     println!("Identifying the stack and the file roles…");
     let rules = tracker
         .in_pass(
-            "roles",
+            passes::ROLES,
             retrodoc_pipeline::identify_roles(
                 repo_root,
                 ingest,
@@ -617,7 +614,7 @@ async fn build_surface(
         println!("Reading the business files once for the entities and the entry points…");
         tracker
             .in_pass(
-                BUSINESS_READ,
+                passes::BUSINESS_READ,
                 retrodoc_pipeline::read_business_files(
                     repo_root,
                     &role_map,
@@ -634,7 +631,7 @@ async fn build_surface(
     println!("Reading the business entities…");
     let glossary = tracker
         .in_pass(
-            "glossary",
+            passes::GLOSSARY,
             retrodoc_pipeline::build_glossary(
                 repo_root,
                 &role_map,
@@ -649,7 +646,7 @@ async fn build_surface(
     println!("Reading the entry points…");
     let entry_points = tracker
         .in_pass(
-            "entry-points",
+            passes::ENTRY_POINTS,
             retrodoc_pipeline::build_entry_points(
                 repo_root,
                 &role_map,

@@ -52,8 +52,8 @@ constants. Measured from the code: the contexts path runs `roles`, `contexts`, `
 1. [x] Passes per path: each entry of `TRACKED_PASSES` says its path (both, surface, contexts), the estimate and
    `PassProviders::open` take the passes of the run's path; verified by `generate --estimate` on each path (through
    the binary) and a surface `generate` with an unopenable `[llm.passes.contexts]`; makes true EST-11, SET-9. (autonomous)
-2. [ ] Named constants: one constant per tracked pass, used by the list and every `in_pass` site of `generate`
-   (`generate/`, `brief.rs`, `business_files.rs`, `contexts.rs`); verified by the existing tests (pure refactor).
+2. [x] Named constants: one constant per tracked pass, used by the list and every `in_pass` site of `generate`
+   (`generate/`, `brief.rs`, `business_files.rs`, `contexts.rs`); verified by the existing tests (pure refactor). (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -77,4 +77,23 @@ the `contexts` pass`.
 Code review: no findings
 
 not verified: a real run on the contexts path (no scripted test reaches it end to end).
+decisions needed: none
+
+## Deliverable 2
+done: `commands/passes.rs` holds one constant per tracked pass; `TRACKED_PASSES`, the estimate and every `in_pass`
+site of `generate` use them (the standalone `business-read` command's `set_pass` left as is).
+
+| check | result |
+|---|---|
+| tests | pass (pure refactor) |
+| lint | pass |
+| specs | n/a |
+| docs | `docs/crates/render-mcp-cli.md` |
+| code review | see below |
+
+red: none
+
+Code review: no findings
+
+not verified: nothing beyond deliverable 1.
 decisions needed: none

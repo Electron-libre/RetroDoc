@@ -5,6 +5,7 @@ use retrodoc_ingest::IngestResult;
 use retrodoc_llm::{LlmProvider, UsageTracker};
 use retrodoc_pipeline::{Artifact, BusinessMap, ProductBrief, RoleRules};
 
+use super::passes;
 use super::workspace::Workspace;
 
 /// Locates the business files (one LLM call, or the saved
@@ -67,7 +68,7 @@ pub async fn locate(
     println!("Locating the business files…");
     let map = tracker
         .in_pass(
-            "business-files",
+            passes::BUSINESS_FILES,
             retrodoc_pipeline::infer_business_files(repo_root, ingest, stack, brief, llm, force),
         )
         .await

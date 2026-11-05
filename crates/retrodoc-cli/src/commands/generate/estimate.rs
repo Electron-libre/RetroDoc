@@ -9,16 +9,17 @@ use retrodoc_ingest::{FileKind, IngestResult};
 use retrodoc_pipeline::estimate::{estimate, EstimateInputs, RatioTable, RunEstimate};
 use retrodoc_pipeline::{Artifact, RoleRules, SourceHashes};
 
-use super::{passes_of, Confidence, GenerateOptions, BUSINESS_READ};
+use super::super::passes;
+use super::{passes_of, Confidence, GenerateOptions};
 
 /// The fixed passes and the artifact a rerun reuses them from. `domains` is left out: it is redone
 /// whenever a file changed.
 const FIXED_ARTIFACTS: &[(&str, Artifact)] = &[
-    ("sources", Artifact::SignalSources),
-    ("brief", Artifact::Product),
-    ("roles", Artifact::Roles),
-    ("business-files", Artifact::BusinessFiles),
-    ("actors", Artifact::Actors),
+    (passes::SOURCES, Artifact::SignalSources),
+    (passes::BRIEF, Artifact::Product),
+    (passes::ROLES, Artifact::Roles),
+    (passes::BUSINESS_FILES, Artifact::BusinessFiles),
+    (passes::ACTORS, Artifact::Actors),
 ];
 
 /// Prints the estimate of the run `options` asks on the walked repository, and returns it to be saved with
@@ -56,21 +57,21 @@ pub(super) fn print(
         .collect();
     let mut off = Vec::new();
     if matches!(options.confidence, Confidence::Skip) {
-        off.push("confidence");
+        off.push(passes::CONFIDENCE);
     }
     if !config.pipeline.rules {
-        off.push("rules");
+        off.push(passes::RULES);
     }
     if !config.pipeline.reconcile || ingest.existing_docs.is_empty() {
-        off.push("reconcile");
+        off.push(passes::RECONCILE);
     }
     // Without the joint reading, the glossary and the entry points read their files apart: not measured. It
     // needs one model for both passes, else each reads alone.
     let unmeasured: &[&str] = if joint_reading(config) {
         &[]
     } else {
-        off.push(BUSINESS_READ);
-        &["glossary", "entry-points"]
+        off.push(passes::BUSINESS_READ);
+        &[passes::GLOSSARY, passes::ENTRY_POINTS]
     };
     let confidence_sample = match options.confidence {
         Confidence::Sample(sample) => sample,
@@ -96,17 +97,18 @@ pub(super) fn print(
 /// for both passes (`retrodoc_pipeline::read_business_files`).
 fn joint_reading(config: &Config) -> bool {
     config.pipeline.business_read
-        && config.llm.for_pass("glossary").model == config.llm.for_pass("entry-points").model
+        && config.llm.for_pass(passes::GLOSSARY).model
+            == config.llm.for_pass(passes::ENTRY_POINTS).model
 }
 
 /// The model each pass asks; `business-read` asks that of the glossary (the same as the entry points' when
 /// it runs).
-fn pass_models<'a>(config: &Config, passes: &[&'a str]) -> Vec<(&'a str, String)> {
-    passes
+fn pass_models<'a>(config: &Config, names: &[&'a str]) -> Vec<(&'a str, String)> {
+    names
         .iter()
         .map(|&pass| {
-            let provider = if pass == BUSINESS_READ {
-                "glossary"
+            let provider = if pass == passes::BUSINESS_READ {
+                passes::GLOSSARY
             } else {
                 pass
             };
@@ -174,13 +176,16 @@ mod tests {
                 .filter(|pass| !left_out.contains(pass))
                 .collect()
         };
-        assert_eq!(passes_of(DomainsFrom::Surface), without(&["contexts"]));
+        assert_eq!(
+            passes_of(DomainsFrom::Surface),
+            without(&[passes::CONTEXTS])
+        );
         assert_eq!(
             passes_of(DomainsFrom::Contexts),
-            without(&["business-files", "domains"])
+            without(&[passes::BUSINESS_FILES, passes::DOMAINS])
         );
         // The joint reading runs before the glossary, which reads its answer.
         let at = |pass| all.iter().position(|&p| p == pass).expect(pass);
-        assert!(at(BUSINESS_READ) < at("glossary"));
+        assert!(at(passes::BUSINESS_READ) < at(passes::GLOSSARY));
     }
 }

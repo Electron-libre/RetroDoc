@@ -8,6 +8,7 @@ use retrodoc_ingest::IngestResult;
 use retrodoc_llm::UsageTracker;
 use retrodoc_pipeline::{Artifact, Claim, Evidence, ProductBrief};
 
+use super::passes;
 use super::usage::PassProviders;
 use super::workspace::Workspace;
 
@@ -154,7 +155,7 @@ pub async fn for_generate(
     } else {
         tracker
             .in_pass(
-                "sources",
+                passes::SOURCES,
                 retrodoc_pipeline::infer_sources(
                     repo_root,
                     ingest,
@@ -182,7 +183,7 @@ pub async fn for_generate(
     let evidence = GenerateEvidence::new(&all, with_evidence);
     let brief = tracker
         .in_pass(
-            "brief",
+            passes::BRIEF,
             retrodoc_pipeline::build_brief(
                 repo_root,
                 &all,
