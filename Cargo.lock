@@ -1421,9 +1421,11 @@ dependencies = [
  "git2",
  "regex",
  "reqwest",
+ "retrodoc-agent",
  "retrodoc-core",
  "retrodoc-ingest",
  "retrodoc-llm",
+ "retrodoc-mcp",
  "retrodoc-pipeline",
  "schemars",
  "serde",
@@ -1432,6 +1434,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

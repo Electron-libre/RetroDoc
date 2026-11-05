@@ -5,6 +5,7 @@
 //! - [`matching`]: generated vs reference names (hand-written `matches.yaml` first), recall and precision.
 //! - [`metrics`]: the figures read from the artifacts of a run (`.retrodoc/cache/`), with no LLM call.
 
+pub mod ask_replay;
 pub mod evidence;
 pub mod frame;
 pub mod frozen;

@@ -49,6 +49,8 @@ warnings those sources carry (low confidence, code changed since the docs), so t
 - **ASK-19** (deterministic) The JSON schema of the arguments of a tool must not give a property a list of types nor
   a `format`, which some servers refuse.
 - **ASK-20** (deterministic) A tool call whose arguments are `null` must be answered as a call with `{}`.
+- **ASK-21** (deterministic) The agent asked without the code tools must offer neither `read_source` nor `git_log`,
+  and its system prompt must not name them.
 
 ## Scenarios
 

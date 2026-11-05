@@ -48,6 +48,8 @@ flowchart TD
     agent --> mcp
     agent --> llm
     bench --> pipe
+    bench --> agent
+    bench --> mcp
     web --> mcp
     web --> render
     web --> core

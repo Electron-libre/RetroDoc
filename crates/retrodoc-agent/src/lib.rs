@@ -14,11 +14,16 @@ use retrodoc_mcp::{read_tools, Docs, Source, Warning};
 /// enough to go from a search to a use case and its code, few enough for a local model's context.
 pub const DEFAULT_MAX_ROUNDS: usize = 8;
 
-const SYSTEM_PROMPT: &str = "You answer questions about how an application works, from its \
+const SYSTEM_PROMPT_START: &str = "You answer questions about how an application works, from its \
 functional documentation, which you read with the tools. Find your way with search_docs or \
-list_domains, then read the features and use cases with get_feature and get_use_case. Go down to \
+list_domains, then read the features and use cases with get_feature and get_use_case. ";
+
+/// The sentence of the system prompt that sends the model to the code tools, left out without them.
+const CODE_TOOLS_HINT: &str = "Go down to \
 the code with read_source and git_log only when the question is technical, or when the docs have \
-a low confidence or say the code changed since they were written. Answer from what the tools \
+a low confidence or say the code changed since they were written. ";
+
+const SYSTEM_PROMPT_END: &str = "Answer from what the tools \
 showed, never from what you assume. Name each domain, feature, use case and file you rely on by \
 its id or path in backticks, as the tools show it (e.g. `billing/pay-invoice`, `app/invoice.rb`). \
 When the tools show nothing relevant, answer \"Not documented\" and say what you looked for. \
@@ -28,6 +33,35 @@ const LAST_ROUND: &str =
     "You have used all your tool calls. Answer the question now from what the \
 tools showed, naming the ids and paths you rely on in backticks; answer \"Not documented\" if \
 they showed nothing relevant.";
+
+/// The tools that read the code and its history, which [`Tools::DocsOnly`] leaves out.
+const CODE_TOOLS: [&str; 2] = ["read_source", "git_log"];
+
+/// The tools offered to the model.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Tools {
+    /// The seven read-only tools of the MCP server.
+    #[default]
+    All,
+    /// The tools of the docs only, without `read_source` and `git_log`: to measure what reading the
+    /// code brings (`issues/ask_question_set.md`).
+    DocsOnly,
+}
+
+impl Tools {
+    fn offers(self, name: &str) -> bool {
+        self == Tools::All || !CODE_TOOLS.contains(&name)
+    }
+
+    fn system_prompt(self) -> String {
+        let hint = if self == Tools::All {
+            CODE_TOOLS_HINT
+        } else {
+            ""
+        };
+        format!("{SYSTEM_PROMPT_START}{hint}{SYSTEM_PROMPT_END}")
+    }
+}
 
 /// What the agent answered, with the tool results it read to answer.
 #[derive(Debug, Clone, Default)]
@@ -163,9 +197,27 @@ pub async fn ask(
     question: &str,
     max_rounds: usize,
 ) -> Result<Answer, LlmError> {
-    let tools = tool_specs();
+    ask_with(llm, docs, question, max_rounds, Tools::All).await
+}
+
+/// [`ask`] with the tools `offered`; a call to a tool not offered is answered as unknown.
+///
+/// # Errors
+///
+/// Returns the error of a call to the LLM.
+pub async fn ask_with(
+    llm: &dyn LlmProvider,
+    docs: Arc<Docs>,
+    question: &str,
+    max_rounds: usize,
+    offered: Tools,
+) -> Result<Answer, LlmError> {
+    let tools: Vec<ToolSpec> = tool_specs()
+        .into_iter()
+        .filter(|tool| offered.offers(&tool.name))
+        .collect();
     let mut messages = vec![
-        ChatMessage::new(Role::System, SYSTEM_PROMPT),
+        ChatMessage::new(Role::System, offered.system_prompt()),
         ChatMessage::new(Role::User, question),
     ];
     let mut answer = Answer::default();
@@ -193,7 +245,11 @@ pub async fn ask(
             response.tool_calls.clone(),
         ));
         for call in response.tool_calls {
-            let result = run_tool(&docs, &call).await;
+            let result = if offered.offers(&call.name) {
+                run_tool(&docs, &call).await
+            } else {
+                format!("Error: unknown tool `{}`; it is not offered.", call.name)
+            };
             messages.push(ChatMessage::tool_result(call.id, result.clone()));
             answer.tool_results.push(result);
         }

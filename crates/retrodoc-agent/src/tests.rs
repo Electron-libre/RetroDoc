@@ -277,3 +277,31 @@ async fn null_arguments_are_an_empty_object() {
 
     assert_eq!(answer.tool_results, [docs.list_domains()]);
 }
+
+// spec: ASK-21 (internal: the tools offered are seen through the fake provider only; the option is the bench's)
+#[tokio::test]
+async fn without_the_code_tools_neither_is_offered_named_nor_run() {
+    let llm = FakeLlm::scripted(vec![
+        calls(vec![call(
+            "c1",
+            "read_source",
+            r#"{"path":"app/invoice.rb"}"#,
+        )]),
+        FakeTurn::Text("Not documented.".into()),
+    ]);
+    let answer = ask_with(&llm, docs(), "How is an invoice paid?", 8, Tools::DocsOnly)
+        .await
+        .unwrap();
+    let docs_tools: Vec<String> = READ_TOOLS[..5].iter().map(ToString::to_string).collect();
+    assert_eq!(llm.tools()[0], docs_tools);
+    let system = &llm.system_prompts()[0];
+    assert!(
+        !system.contains("read_source") && !system.contains("git_log"),
+        "{system}"
+    );
+    assert!(
+        answer.tool_results[0].starts_with("Error: unknown tool `read_source`"),
+        "{}",
+        answer.tool_results[0]
+    );
+}

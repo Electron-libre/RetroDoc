@@ -20,6 +20,8 @@ pub enum FakeTurn {
     Text(String),
     /// Calls to tools, with the text some servers write next to them (often empty).
     Calls { text: String, calls: Vec<ToolCall> },
+    /// A failed call, like a dropped connection.
+    Fail,
 }
 
 /// Answers with what its reply function says, counts its calls and keeps the
@@ -221,6 +223,7 @@ impl LlmProvider for FakeLlm {
         let (mut content, tool_calls) = match (self.reply)(n, &request)? {
             FakeTurn::Text(text) => (text, Vec::new()),
             FakeTurn::Calls { text, calls } => (text, calls),
+            FakeTurn::Fail => return Err(LlmError::Transport("down".to_string())),
         };
         let truncated = self
             .truncate_over

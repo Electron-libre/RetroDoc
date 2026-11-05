@@ -8,9 +8,11 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+retrodoc-agent.workspace = true
 retrodoc-core.workspace = true
 retrodoc-ingest.workspace = true
 retrodoc-llm.workspace = true
+retrodoc-mcp.workspace = true
 retrodoc-pipeline = { workspace = true, features = ["bench"] }
 serde.workspace = true
 serde_json.workspace = true
@@ -20,6 +22,7 @@ futures-util.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
+tracing-subscriber.workspace = true
 retrodoc-pipeline = { workspace = true, features = ["bench", "testing"] }
 regex.workspace = true
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }

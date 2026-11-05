@@ -51,7 +51,7 @@ retrodoc-cli ──> retrodoc-pipeline ──> retrodoc-ingest ──> retrodoc-
 retrodoc-cli ──> retrodoc-render ──> retrodoc-core
 retrodoc-cli ──> retrodoc-mcp ──> retrodoc-pipeline, retrodoc-ingest, retrodoc-core
 retrodoc-cli ──> retrodoc-web ──> retrodoc-mcp, retrodoc-render, retrodoc-core
-retrodoc-cli ──> retrodoc-bench ──> retrodoc-pipeline, retrodoc-ingest, retrodoc-llm, retrodoc-core
+retrodoc-cli ──> retrodoc-bench ──> retrodoc-agent, retrodoc-mcp, retrodoc-pipeline, retrodoc-ingest, retrodoc-llm, retrodoc-core
 retrodoc-cli ──> retrodoc-agent ──> retrodoc-mcp, retrodoc-llm
 ```
 

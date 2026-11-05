@@ -65,11 +65,11 @@ Out of scope: changing the agent or its prompt from the results (later issues), 
 1. [x] Question set and its check: `benchmark/linkding/questions.yaml` written by the method above, its loader and
    check in `retrodoc-bench` (`benchmark/questions.rs`), example `question_set` (check only, no LLM); verified by unit
    tests and the check passing on the checkout; makes true AQS-1 to AQS-4, AQS-12. ~700 lines. (autonomous)
-2. [ ] The agent without the code tools (`retrodoc-agent`: the tools offered and the prompt follow a flag) and the
+2. [x] The agent without the code tools (`retrodoc-agent`: the tools offered and the prompt follow a flag) and the
    runner with its judge in `retrodoc-bench` (`benchmark/ask_replay.rs`, example `ask_replay <run> <questions>
    <model>`: both variants, answers and judgements saved as YAML, the table printed); `retrodoc-bench` gains
    `retrodoc-agent`, `retrodoc-mcp`; verified by unit tests with `FakeLlm`; makes true ASK-21, AQS-5 to AQS-11, spec
-   `accepted`. ~800 lines.
+   `accepted`. ~800 lines. (autonomous)
 3. [ ] The paid run (estimate shown, go asked first): both variants on the saved run, figures and cost in the
    ledger and `docs/findings.md` §4. ~60 lines.
 4. [ ] Docs of the whole issue and fixes of its `high` review.
@@ -95,3 +95,16 @@ Out of scope: changing the agent or its prompt from the results (later issues), 
 - Code review: 1 finding. A blank `commit` of the reference would make the commit check pass any tree: not fixed,
   `Reference::load` refuses a blank `commit` before the check runs.
 - not verified: nothing.
+
+## Deliverable 2 summary
+- done: `retrodoc_agent::ask_with` and `Tools` (`DocsOnly`: no `read_source`/`git_log` offered, named or run);
+  `benchmark/ask_replay.rs` (`RunPairs`, `judge_answer`, `ask_questions`, `ask_table`) and the example `ask_replay`
+  (`--dry-run`: groups with no LLM); `FakeTurn::Fail` in the fake LLM; `retrodoc-bench` depends on
+  `retrodoc-agent` and `retrodoc-mcp`. Dry run on the saved run: 18 covered, 4 uncovered, 22 undocumented.
+  Specs `ask-question-set` accepted, `ask` gains ASK-21.
+- checks: tests ok, clippy ok, specs ok (all traced), docs updated (CLAUDE.md, ARCHITECTURE, `docs/crates/bench.md`,
+  `docs/crates/agent.md`, `docs/dev/commands.md`).
+- red: ASK-21: `cannot find function ask_with`, `cannot find type Tools` (the test before the code); AQS-5 to AQS-11:
+  the tests were written with the code and passed at once.
+- Code review: no findings
+- not verified: no real model call (deliverable 3).

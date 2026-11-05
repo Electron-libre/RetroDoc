@@ -1,6 +1,6 @@
 ---
 id: AQS
-status: draft
+status: accepted
 adrs: [0042, 0047]
 ---
 
