@@ -100,7 +100,7 @@ fn features(reference: &Reference) -> impl Iterator<Item = &ReferenceFeature> {
 }
 
 /// The `HEAD` commit of `tree` when it is a Git checkout.
-fn git_head(tree: &Path) -> Option<String> {
+pub(super) fn git_head(tree: &Path) -> Option<String> {
     if !tree.join(".git").exists() {
         return None;
     }

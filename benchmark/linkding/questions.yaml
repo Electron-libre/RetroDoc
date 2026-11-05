@@ -1,0 +1,227 @@
+# Question set of `retrodoc ask` on linkding (spec `ask-question-set`, `issues/ask_question_set.md`).
+#
+# Documented questions: one per feature of `reference.yaml` that is not `disputed`, in the words of a user,
+# drawn from its description or one of its use cases, avoiding the words of its name where it can; `expected`
+# condenses the description to what answers the question.
+# Undocumented questions: a capability common to bookmark managers or self-hosted web apps that linkding does
+# not have; `absent_terms` are its distinctive words, none of which appears in the checkout at the pinned commit
+# (checked by the example `question_set`). A right answer says the application does not do it, or that the docs
+# do not say so.
+#
+# Check: cargo run -q -p retrodoc-bench --example question_set -- benchmark/linkding/questions.yaml \
+#   benchmark/linkding/reference.yaml ~/retrodoc-runs/retrodoc-benchmark-linkding/source
+questions:
+  # Documented
+  - id: save-a-link
+    question: How do I keep a link to a web page so I can find it again later, and what can I add to it?
+    expected: >-
+      Add it as a bookmark from the web interface (or the browser extension or bookmarklet) with its URL and
+      optional title, description, notes and tags; the form warns when the URL is already saved.
+    feature: Save a bookmark
+  - id: change-or-remove
+    question: Can I fix the title of a link I saved, or get rid of it altogether?
+    expected: Yes, a bookmark can be edited (URL, title, description, notes, tags, flags) or deleted.
+    feature: Edit and delete bookmarks
+  - id: to-read
+    question: Can I flag links I have not read yet and list only those?
+    expected: >-
+      Yes, a bookmark can be marked unread ("read it later"), the list filtered to the unread ones, and marked
+      as read afterwards.
+    feature: Read it later
+  - id: hide-without-deleting
+    question: How do I get a link out of my main list without losing it?
+    expected: Archive the bookmark; it moves to the archived list and can be unarchived later.
+    feature: Archive a bookmark
+  - id: move-from-browser
+    question: Can I bring in the links I already have in my web browser, and take everything out again?
+    expected: >-
+      Yes, bookmarks are imported from and exported to the Netscape HTML bookmark format with their tags; the
+      import can also run from the command line.
+    feature: Import and export bookmarks
+  - id: labels
+    question: How do I label my links, and can I clean up the labels nobody uses any more?
+    expected: >-
+      With tags; the tags page lists them with their bookmark count, can be searched and sorted, shows the unused
+      ones, and creates and deletes tags.
+    feature: Tag bookmarks
+  - id: label-by-site
+    question: Can every link from a given website get a label without my typing it each time?
+    expected: >-
+      Yes, auto tagging rules of the profile map a URL pattern (host, path, query, fragment) to tags added when a
+      bookmark is created or updated.
+    feature: Tag automatically
+  - id: find-again
+    question: How do I find a link again when I only remember a couple of words, and can I combine conditions?
+    expected: >-
+      Search words, phrases and tags with and, or, not and parentheses over the title, description, notes and
+      URL, narrow by tag, unread or shared state, and sort the results.
+    feature: Search bookmarks
+  - id: combine-labels
+    question: I have two labels that mean the same thing; can I turn them into one?
+    expected: Yes, tags can be merged into one, or renamed, across all the bookmarks that carry them.
+    feature: Merge and rename tags
+  - id: saved-filter
+    question: Can I keep a ready-made view of my links, for example everything with some tags but not others?
+    expected: >-
+      Yes, a bundle is a saved filter (search words, tags any or all of which must be present, excluded tags,
+      unread and shared state) listing the matching bookmarks; bundles are created, ordered, edited and deleted.
+    feature: Group bookmarks in bundles
+  - id: let-others-see
+    question: Can people who use the same installation, or visitors who have no account, see some of my links?
+    expected: >-
+      Yes, bookmarks can be shared with the other users, or publicly with guests who are not signed in; an
+      administrator can make the shared bookmarks the landing page.
+    feature: Share bookmarks
+  - id: rss
+    question: Can I follow my saved links from an RSS reader?
+    expected: >-
+      Yes, feeds protected by a feed token give one's bookmarks, unread bookmarks or shared bookmarks, and a public
+      feed the publicly shared ones; each can be narrowed by a search query and a limit.
+    feature: Follow bookmarks in a feed reader
+  - id: page-disappears
+    question: If a page I saved goes offline later, can I still see what it looked like?
+    expected: >-
+      Yes, an HTML snapshot of the page is created on the server when it is saved, on demand or for all bookmarks
+      missing one; a link to a PDF is downloaded; snapshots can also be uploaded from the SingleFile extension.
+    feature: Archive a page as an HTML snapshot
+  - id: wayback
+    question: Can the application send my links to the Wayback Machine?
+    expected: >-
+      Yes, when enabled in the profile, it asks the Internet Archive to save the page in the background and links
+      the archived copy from the bookmark.
+    feature: Snapshot on the Internet Archive
+  - id: read-offline-copy
+    question: Where do I read the copy of a page that was kept for me?
+    expected: >-
+      In the details of the bookmark, which show its snapshots and files; the latest snapshot opens in a reader
+      view, or a saved file opens in the browser.
+    feature: Read a saved page
+  - id: log-in
+    question: What are the ways to log in, and can I change my own password?
+    expected: >-
+      With a username and password, with single sign-on (OIDC) or behind an authentication proxy; a user can sign
+      out and change their own password.
+    feature: Sign in
+  - id: add-people
+    question: How does an administrator give a colleague an account?
+    expected: An administrator adds users, and also deletes them, changes their passwords and grants staff status.
+    feature: Manage users
+  - id: preferences
+    question: What can I change about how the application looks and behaves for me, and how do I get a key for scripts?
+    expected: >-
+      Profile settings: theme, dates, descriptions, link target, visible actions, favicons, previews, items per
+      page, custom CSS, search, archiving and sharing preferences; the profile also creates and deletes API tokens.
+    feature: Configure a profile
+  - id: raw-data
+    question: Is there a back office where staff can work on everyone's data directly?
+    expected: >-
+      Yes, staff use the admin app for raw access to users, bookmarks and tags, with bulk actions.
+    feature: Administer data
+  - id: other-programs
+    question: Can another program read or add my links automatically?
+    expected: >-
+      Yes, through the REST API authenticated by a token: list, check, create, update, archive and delete
+      bookmarks, manage their files, snapshots, tags and bundles, and read the user profile.
+    feature: Use the REST API
+  - id: from-the-toolbar
+    question: Can I save the page I am looking at without leaving it, and search my links from the address bar?
+    expected: >-
+      Yes, the Firefox and Chrome extensions save the current page with tags, tell whether it is already saved,
+      and search bookmarks from the address bar.
+    feature: Use the browser extensions
+  - id: phone
+    question: Can I put the application on my phone's home screen and send it links from other apps?
+    expected: >-
+      Yes, it installs as a Progressive Web App with shortcuts, and then receives links from the phone's share
+      sheet.
+    feature: Install as an app
+
+  # Undocumented
+  - id: one-time-code
+    question: Can I protect my account with a one-time code from an authenticator app when I log in?
+    expected: No, the application has no two-factor authentication of its own.
+    absent_terms: [two-factor, 2fa]
+  - id: highlight-passages
+    question: Can I highlight passages of a saved page and write annotations next to them?
+    expected: No, the application has no highlights or annotations on page content.
+    absent_terms: [annotations, highlighter]
+  - id: broken-links
+    question: Does the application tell me when a saved link no longer works?
+    expected: No, it does not check links for link rot.
+    absent_terms: [dead link, linkrot]
+  - id: weekly-email
+    question: Can I get a weekly email summing up what I saved?
+    expected: No, the application sends no newsletter or digest email.
+    absent_terms: [newsletter, digest email, email digest]
+  - id: vote
+    question: Can users vote on the links others share, so the best ones come first?
+    expected: No, there is no voting on shared bookmarks.
+    absent_terms: [upvote, downvote]
+  - id: pay
+    question: How do I pay for a premium plan, and where are my invoices?
+    expected: No, the application has no paid plans, payments or invoices.
+    absent_terms: [stripe, invoice]
+  - id: due-date
+    question: Can I set a date by which I want to read a link and be reminded of it?
+    expected: No, the application has no due dates or reminders.
+    absent_terms: [remind, due date, deadline]
+  - id: translate
+    question: Can the application translate a saved page into my language?
+    expected: No, it translates no page content.
+    absent_terms: [deepl]
+  - id: ai-summary
+    question: Can it write a short summary of an article with AI when I save it?
+    expected: No, the application has no AI summaries.
+    absent_terms: [openai, llm, summarize]
+  - id: e-reader
+    question: Can I send my saved articles to my e-reader as an ebook?
+    expected: No, there is no EPUB or e-reader export.
+    absent_terms: [epub, kindle, e-reader]
+  - id: stars
+    question: Can I give my links a rating out of five stars?
+    expected: No, bookmarks have no rating.
+    absent_terms: [rating]
+  - id: webhook
+    question: Can the application call one of my URLs each time I save a link?
+    expected: No, there are no webhooks.
+    absent_terms: [webhook, webhooks]
+  - id: secret-links
+    question: Are my private links encrypted so that even the server administrator cannot read them?
+    expected: No, bookmarks are not encrypted in the application.
+    absent_terms: [encrypt, encrypted]
+  - id: suggestions
+    question: Does the application suggest new links I might like, based on what I saved?
+    expected: No, it makes no recommendations.
+    absent_terms: [recommend, recommendation]
+  - id: reading-time
+    question: Does it show how many minutes an article takes to read?
+    expected: No, there is no reading time estimate.
+    absent_terms: [reading time]
+  - id: chat-app
+    question: Can new links be posted to our team's Slack channel automatically?
+    expected: No, there is no Slack or chat integration.
+    absent_terms: [slack]
+  - id: auto-delete
+    question: Can links remove themselves after a number of days?
+    expected: No, bookmarks do not expire.
+    absent_terms: [expire, expiry]
+  - id: qr
+    question: Can I get a QR code for a link to open it on my phone?
+    expected: No, the application makes no QR codes.
+    absent_terms: [qr code, qrcode]
+  - id: usage-charts
+    question: Is there a dashboard with charts of how many links I save each month?
+    expected: No, there are no statistics or analytics.
+    absent_terms: [analytics, statistics]
+  - id: company-accounts
+    question: Can I create an organisation with teams, each with its own space of links?
+    expected: No, there are users and sharing, but no organisations or teams.
+    absent_terms: [organization, organisation, team]
+  - id: board
+    question: Can I lay out my links as cards in columns on a Kanban board?
+    expected: No, there is no board view.
+    absent_terms: [kanban]
+  - id: saml
+    question: Can our users log in through our company's SAML identity provider?
+    expected: No, single sign-on is through OIDC only, not SAML.
+    absent_terms: [saml]
