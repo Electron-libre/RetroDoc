@@ -13,7 +13,7 @@ sets them against their range as misses. Expected: the estimate and the opened p
 path the run takes, and the `in_pass` names can't drift from the list.
 
 # Findings
-* 2026-11-05 (the `high` review of `issues/recap_passes_not_estimated.md`): `contexts.rs` tracks `contexts`, `actors`,
+* 2026-11-05 (the `high` review of `issues/done/recap_passes_not_estimated.md`): `contexts.rs` tracks `contexts`, `actors`,
   `features`, `use-cases`, `business-read`, `glossary` and `entry-points` (plus `roles` through
   `identify_file_roles`); it computes its domains locally (`domains_from_contexts`) and never runs `business-files`.
   The estimate already counted those before `TRACKED_PASSES` (pre-existing).

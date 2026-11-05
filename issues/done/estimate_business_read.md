@@ -74,7 +74,7 @@ EST-5 already require it.
 - red: EST-5: `business-read` line `6-21 call(s)…` without `off in this run` when the two models differ.
 - Code review: no findings
 - High review findings: 1, 2 (two models) fixed; 7 (table test) fixed; 8 (simplification) fixed; 3, 4 (recap
-  silent on a pass not estimated, order copied by hand) → `issues/recap_passes_not_estimated.md`; 5 (no role
+  silent on a pass not estimated, order copied by hand) → `issues/done/recap_passes_not_estimated.md`; 5 (no role
   rules or no business file: the run skips the pass, the estimate can't know it before the roles and the
   business-files passes) not fixed, the recap shows it below the range, which is what TOK-7 is for; 6 (the CLI
   test doesn't check the total) not fixed: the total is the sum the pipeline unit tests cover.
