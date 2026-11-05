@@ -1,6 +1,6 @@
 ---
 id: DSR
-status: draft
+status: accepted
 adrs: [0016]
 ---
 

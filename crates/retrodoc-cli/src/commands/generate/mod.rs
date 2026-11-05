@@ -84,6 +84,9 @@ pub async fn run(
     } = *options;
     let (workspace, mut ingest) = open_workspace(path, force)?;
     let (repo_root, config) = (&workspace.repo_root, &workspace.config);
+    // The render refuses a file of edits it can't read: refused before any LLM call is paid for.
+    retrodoc_mcp::edits::load(repo_root)
+        .context("nothing was run: the human edits cannot be read")?;
     // The whole walk, before the budget: the only files a path of a saved artifact may read.
     let walked = WalkedFiles::new(repo_root, &ingest.files);
 

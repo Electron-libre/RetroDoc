@@ -255,7 +255,7 @@ Guarantees:
 <target repo>/
 ├── retrodoc.toml                  # config (LLM model, ignores, docs dir) — you edit this
 ├── .retrodoc/reviews.json         # the human reviews of the sections, outside the cache: no `generate` touches it (ADR 0044, `specs/section-review.md`)
-├── .retrodoc/edits.json           # the human edits of the sections, an overlay outside the cache: no `generate` touches it (ADR 0045, `specs/section-edit.md`)
+├── .retrodoc/edits.json           # the human edits of the sections, an overlay outside the cache: no `generate` touches it, every reader (pages, MCP, search, rendered Markdown) shows it (ADR 0045, `specs/section-edit.md`)
 ├── .retrodoc/cache/               # intermediate artifacts (pipeline state)
 │   ├── source-hashes.json         #   hash of each source file at the last complete run (MCP freshness)
 │   ├── domains.yaml               #   domain clustering

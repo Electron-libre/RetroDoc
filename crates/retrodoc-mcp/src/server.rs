@@ -70,9 +70,12 @@ impl DocsServer {
     pub fn new(docs: Docs) -> Self {
         let root = docs.repo_root().map(Path::to_path_buf);
         Self {
-            docs: Arc::new(Live::new(docs, root.as_deref(), |docs: &Docs, edits| {
-                (docs.edits() != &edits).then(|| docs.clone().with_edits(edits))
-            })),
+            docs: Arc::new(Live::new(
+                docs,
+                root.as_deref(),
+                |docs: &Docs| Some(docs.edits()),
+                |docs: &Docs, edits| docs.clone().with_edits(edits),
+            )),
         }
     }
 }

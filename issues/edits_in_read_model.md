@@ -64,6 +64,7 @@ the edge cases of the layout.
 3. [x] Live edits: `retrodoc mcp` re-reads `edits.json` at each tool call and `retrodoc ui` at each request,
    re-applying the overlay (and rebuilding the site and the index) only when its content changed; verified by
    server tests saving an edit between two requests; makes true SED-27, SED-28, SED-29. (~400 lines) (autonomous)
+4. [x] Docs of the whole issue and the fixes of its `high` review; makes true SED-33. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -132,3 +133,32 @@ Code review: no findings
 
 not verified: an unreadable `edits.json` at start is warned of twice (the load, then the first request), not
 otherwise harmful. decisions needed: none.
+
+## Deliverable 4: docs of the issue and fixes of the `high` review
+
+done: specs SED, MCP, DSR back to `accepted`; follow-up issue `edit_mark_in_markdown` (decision 2a); fixes of the
+`high` review: `generate` refuses an unreadable `edits.json` before its first LLM call; `apply` takes the sections
+by value and leaves out a blank field written by hand (SED-33); `load` builds the index once over the shown
+sections; `Live` compares the edits itself and reuses `saved_edits`; the web rebuild takes the links and the
+collected docs from the site; the doc of `Edit::fingerprint` points to the generated sections.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass, SED, MCP, DSR `accepted` |
+| docs | `docs/crates/render-mcp-cli.md`, `docs/ARCHITECTURE.md`, `ROADMAP.md` |
+| code review | high on the issue, then low on this deliverable |
+
+red: SED-32: `generate` with a broken `edits.json` called the LLM (`unreachable!` in the fake); SED-33: none, `apply`
+was changed before its test.
+
+High review: 10 findings; fixed 1, 4 to 10. Not fixed:
+- 2 (the lock held during a rebuild on a tokio worker): `FromRef` is synchronous; a rebuild happens only on a change
+  of the edits, on a local single-user server; noted in the crate docs.
+- 3 (the history snapshot holds the edited names): the snapshot records the docs as shown, with the debt of the
+  reviews judged on the shown sections; an edit between two runs is a true change of the docs it records.
+
+Code review: no findings
+
+not verified: none. decisions needed: none.

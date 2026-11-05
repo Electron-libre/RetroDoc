@@ -44,8 +44,9 @@ pub struct Edit {
     pub author: Option<String>,
     /// RFC 3339, UTC, to the second.
     pub edited_at: String,
-    /// The fingerprint of the generated section when it was edited
-    /// ([`crate::reviews::fingerprint`]).
+    /// The fingerprint of the section as generated when it was edited, the edits left out
+    /// (`reviews::fingerprint_in` over [`GeneratedDocs::generated`], not [`crate::reviews::fingerprint`],
+    /// which fingerprints the section as shown).
     pub fingerprint: String,
     /// The hash of each file the section cited, as the file was when it was edited; none in an
     /// edit written by hand.
@@ -112,14 +113,14 @@ pub fn load(repo_root: &Path) -> Result<Edits, EditsError> {
 }
 
 /// `sections` with `edits` applied: each field an edit gives replaces the generated one; an edit of
-/// a section they don't hold is left out.
+/// a section they don't hold, and a blank field of an edit written by hand, are left out.
 #[must_use]
-pub fn apply(sections: &Sections, edits: &Edits) -> Sections {
-    let mut shown = sections.clone();
+pub fn apply(mut shown: Sections, edits: &Edits) -> Sections {
     let edit_of = |kind, id: String| edits.get(&Section::new(kind, id)).map(|e| &e.fields);
+    let given = |field: &Option<String>| field.clone().filter(|text| !text.trim().is_empty());
     let replace = |text: &mut String, by: &Option<String>| {
-        if let Some(by) = by {
-            text.clone_from(by);
+        if let Some(by) = given(by) {
+            *text = by;
         }
     };
     for domain in &mut shown.domains {
@@ -139,8 +140,8 @@ pub fn apply(sections: &Sections, edits: &Edits) -> Sections {
         if let Some(fields) = edit_of(SectionKind::UseCase, id) {
             replace(&mut use_case.name, &fields.name);
             replace(&mut use_case.description, &fields.description);
-            if fields.narrative.is_some() {
-                use_case.narrative.clone_from(&fields.narrative);
+            if let Some(narrative) = given(&fields.narrative) {
+                use_case.narrative = Some(narrative);
             }
         }
     }

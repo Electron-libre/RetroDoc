@@ -95,17 +95,21 @@ impl LiveSite {
             .as_ref()
             .and_then(GeneratedDocs::repo_root)
             .map(Path::to_path_buf);
-        let site = Site::new(project.clone(), docs, links.clone(), collected.clone());
+        let site = Site::new(project.clone(), docs, links, collected);
         let rebuild = move |site: &Site, edits| {
-            let docs = site.docs().filter(|docs| docs.edits() != &edits)?;
-            Some(Site::new(
+            Site::new(
                 project.clone(),
-                Some(docs.clone().with_edits(edits)),
-                links.clone(),
-                collected.clone(),
-            ))
+                site.docs().cloned().map(|docs| docs.with_edits(edits)),
+                site.links().clone(),
+                site.collected().to_vec(),
+            )
         };
-        Self(Arc::new(Live::new(site, root.as_deref(), rebuild)))
+        Self(Arc::new(Live::new(
+            site,
+            root.as_deref(),
+            |site: &Site| site.docs().map(GeneratedDocs::edits),
+            rebuild,
+        )))
     }
 }
 

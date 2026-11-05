@@ -5,10 +5,13 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, PoisonError, RwLock};
 
-use super::{edits_path, load, Edits};
+use super::{edits_path, Edits};
+use crate::read_model::saved_edits;
 
-/// What builds the docs that show other edits, `None` when they already show those.
-type Rebuild<T> = Box<dyn Fn(&T, Edits) -> Option<T> + Send + Sync>;
+/// The edits docs show, `None` for docs with no section to edit.
+type Shows<T> = Box<dyn Fn(&T) -> Option<&Edits> + Send + Sync>;
+/// What builds the docs that show other edits.
+type Rebuild<T> = Box<dyn Fn(&T, Edits) -> T + Send + Sync>;
 
 /// The docs of a server, `T`, rebuilt by `rebuild` when the edits saved under their repository
 /// change.
@@ -16,20 +19,23 @@ pub struct Live<T> {
     current: RwLock<Arc<T>>,
     /// `None` for docs that were not loaded from a repository: nothing to watch.
     watch: Option<Mutex<Watch>>,
+    shows: Shows<T>,
     rebuild: Rebuild<T>,
 }
 
 impl<T> Live<T> {
     /// `docs` loaded from `repo_root`, rebuilt by `rebuild` with the edits saved there when they
-    /// change; `rebuild` answers `None` when the docs already show the edits it is given.
+    /// differ from those `shows` tells the docs show.
     pub fn new(
         docs: T,
         repo_root: Option<&Path>,
-        rebuild: impl Fn(&T, Edits) -> Option<T> + Send + Sync + 'static,
+        shows: impl Fn(&T) -> Option<&Edits> + Send + Sync + 'static,
+        rebuild: impl Fn(&T, Edits) -> T + Send + Sync + 'static,
     ) -> Self {
         Self {
             current: RwLock::new(Arc::new(docs)),
             watch: repo_root.map(|root| Mutex::new(Watch::new(root))),
+            shows: Box::new(shows),
             rebuild: Box::new(rebuild),
         }
     }
@@ -41,7 +47,8 @@ impl<T> Live<T> {
             let mut watch = watch.lock().unwrap_or_else(PoisonError::into_inner);
             if let Some(edits) = watch.changed() {
                 let shown = Arc::clone(&self.read());
-                if let Some(rebuilt) = (self.rebuild)(&shown, edits) {
+                if (self.shows)(&shown).is_some_and(|shows| shows != &edits) {
+                    let rebuilt = (self.rebuild)(&shown, edits);
                     *self.current.write().unwrap_or_else(PoisonError::into_inner) =
                         Arc::new(rebuilt);
                 }
@@ -86,9 +93,6 @@ impl Watch {
             return None;
         }
         self.seen = content;
-        Some(load(&self.repo_root).unwrap_or_else(|error| {
-            tracing::warn!("the docs are shown as generated, with no edit: {error}");
-            Edits::default()
-        }))
+        Some(saved_edits(&self.repo_root))
     }
 }

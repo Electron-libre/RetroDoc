@@ -130,7 +130,7 @@ impl GeneratedDocs {
     /// section the docs don't hold is left out. The search then finds the edited text.
     #[must_use]
     pub fn with_edits(mut self, edits: Edits) -> Self {
-        self.shown = edits::apply(&self.generated, &edits);
+        self.shown = edits::apply(self.generated.clone(), &edits);
         self.edits = edits;
         let mut entries = section_entries(
             &self.shown.domains,
@@ -220,20 +220,28 @@ impl GeneratedDocs {
                 .unwrap_or_default(),
             coverage: BehaviourCoverage::load(repo_root),
         };
-        Some(
-            Self::new(
-                domain_models(&map, &features),
-                features,
-                use_cases,
-                glossary,
-                docs,
-            )
-            .with_rules(rules)
-            .with_freshness(Freshness::load(repo_root))
-            .with_uncovered(uncovered)
-            .with_repo_root(repo_root)
-            .with_edits(saved_edits(repo_root)),
+        let generated = Sections {
+            domains: domain_models(&map, &features),
+            features,
+            use_cases,
+        };
+        let edits = saved_edits(repo_root);
+        // The index built once, over the sections as shown.
+        let shown = edits::apply(generated.clone(), &edits);
+        let mut loaded = Self::new(
+            shown.domains,
+            shown.features,
+            shown.use_cases,
+            glossary,
+            docs,
         )
+        .with_rules(rules)
+        .with_freshness(Freshness::load(repo_root))
+        .with_uncovered(uncovered)
+        .with_repo_root(repo_root);
+        loaded.generated = generated;
+        loaded.edits = edits;
+        Some(loaded)
     }
 
     /// Reconciles the items with the collected `docs` from the verdicts saved under the repository
@@ -406,7 +414,7 @@ impl GeneratedDocs {
 }
 
 /// The edits saved under `repo_root`, none, with a warning, when the file can't be read.
-fn saved_edits(repo_root: &Path) -> Edits {
+pub(crate) fn saved_edits(repo_root: &Path) -> Edits {
     edits::load(repo_root).unwrap_or_else(|error| {
         tracing::warn!("the docs are shown as generated, with no edit: {error}");
         Edits::default()

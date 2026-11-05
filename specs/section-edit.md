@@ -1,6 +1,6 @@
 ---
 id: SED
-status: draft
+status: accepted
 adrs: [0044, 0045]
 ---
 
@@ -73,6 +73,8 @@ it and no `generate` loses it.
 - **SED-31** (deterministic) The same artifacts and the same edits must render the same files, byte for byte.
 - **SED-32** (deterministic) `render` and `generate` must fail with an error naming `.retrodoc/edits.json` when the
   file cannot be read or is of a later format, and write no doc.
+- **SED-33** (deterministic) A blank field of an edit written by hand in `.retrodoc/edits.json` must be left out by
+  the readers, the generated text shown in its place.
 
 ## Scenarios
 

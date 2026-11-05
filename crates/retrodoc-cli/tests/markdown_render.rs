@@ -338,3 +338,43 @@ fn a_file_of_edits_that_cannot_be_read_fails_the_render_and_writes_no_doc() {
     assert!(said.contains(".retrodoc/edits.json"), "{said}");
     assert_eq!(std::fs::read_to_string(&page).unwrap(), written);
 }
+
+// spec: SED-32
+#[test]
+fn a_file_of_edits_that_cannot_be_read_fails_generate_before_any_llm_call() {
+    let llm = FakeLlm::start(|_| unreachable!("no call expected"));
+    let dir = support::repo(&[("app/order.rb", "class Order\nend\n")], &llm);
+    std::fs::create_dir_all(dir.path().join(".retrodoc")).unwrap();
+    std::fs::write(dir.path().join(".retrodoc/edits.json"), "{ not json").unwrap();
+
+    let output = generate(dir.path());
+
+    assert!(!output.status.success());
+    let said = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(said.contains(".retrodoc/edits.json"), "{said}");
+    assert_eq!(llm.calls().len(), 0);
+    assert!(!dir.path().join("docs/functional").exists());
+}
+
+// spec: SED-33
+#[test]
+fn a_blank_field_written_by_hand_shows_the_generated_text() {
+    let (dir, _llm) = documented_shop();
+    std::fs::write(
+        dir.path().join(".retrodoc/edits.json"),
+        r#"{"version":1,"edits":[{"kind":"feature","id":"list-orders","name":"  ","author":null,
+            "edited_at":"2026-11-05T10:00:00Z","fingerprint":"f"}]}"#,
+    )
+    .unwrap();
+
+    let domain = rendered(dir.path(), "orders/README.md");
+
+    assert_eq!(
+        item(&domain, "list-orders.md"),
+        "- [List orders](list-orders.md) (100%): Lists the orders."
+    );
+}

@@ -21,7 +21,7 @@ pub fn publish(repo_root: &Path, config: &Config, dry_run: bool) -> anyhow::Resu
     let edits = retrodoc_mcp::edits::load(repo_root)
         .context("the docs are not written: the human edits cannot be read")?;
     let shown = retrodoc_mcp::edits::apply(
-        &retrodoc_mcp::Sections {
+        retrodoc_mcp::Sections {
             domains: retrodoc_pipeline::domain_models(&domains, &features),
             features: features.clone(),
             use_cases: use_cases.clone(),
