@@ -155,6 +155,17 @@ enum Command {
         #[arg(long, default_value_t = retrodoc_agent::DEFAULT_MAX_ROUNDS)]
         max_rounds: usize,
     },
+    /// Questions the generated documentation in a conversation: each line
+    /// read is a question answered like `ask`, after the earlier questions
+    /// and answers, until `exit`, `quit` or the end of the input. Settings in
+    /// `[llm.passes.ask]`.
+    Chat {
+        #[arg(long, default_value = ".")]
+        path: PathBuf,
+        /// Rounds of tool calls per question before the LLM must answer.
+        #[arg(long, default_value_t = retrodoc_agent::DEFAULT_MAX_ROUNDS)]
+        max_rounds: usize,
+    },
     /// Searches the generated documentation (domains, features, use cases,
     /// glossary) and the collected docs, lexically, from the artifacts of the
     /// last `generate` run. No LLM call: shows what the MCP server will find.
@@ -301,6 +312,7 @@ impl Command {
             Command::EntryPoints { path } => Some(("entry-points", path.clone())),
             Command::Actors { path, .. } => Some(("actors", path.clone())),
             Command::Ask { path, .. } => Some(("ask", path.clone())),
+            Command::Chat { path, .. } => Some(("chat", path.clone())),
             Command::Benchmark {
                 path, judge: true, ..
             } => Some(("benchmark", path.clone())),
@@ -381,6 +393,9 @@ async fn main() -> anyhow::Result<()> {
             path,
             max_rounds,
         } => commands::ask::run(&path, &question, max_rounds, &tracker).await,
+        Command::Chat { path, max_rounds } => {
+            commands::chat::run(&path, max_rounds, &tracker).await
+        }
         Command::Search { query, path, limit } => commands::search::run(&path, &query, limit),
         Command::Surface { path } => commands::surface::run(&path),
         Command::Roles { path, force } => commands::roles::run(&path, force, &tracker).await,

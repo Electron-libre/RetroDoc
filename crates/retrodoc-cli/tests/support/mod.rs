@@ -25,6 +25,8 @@ pub struct Call {
     pub tools: Vec<String>,
     /// The content of each tool result of its messages.
     pub tool_results: Vec<String>,
+    /// The role and content of each of its messages, in order.
+    pub messages: Vec<(String, String)>,
 }
 
 /// One answer of a server scripted by [`FakeLlm::turns`].
@@ -33,6 +35,8 @@ pub enum Turn {
     Text(String),
     /// Calls to tools: `(id, name, arguments)`.
     Calls(Vec<(&'static str, &'static str, String)>),
+    /// An HTTP error with a JSON body: its status line (e.g. `"400 Bad Request"`).
+    Error(&'static str),
 }
 
 impl Call {
@@ -71,6 +75,7 @@ impl FakeLlm {
         Self::listen(move |call| match answer(call) {
             Turn::Text(text) => Reply::Content(text),
             Turn::Calls(calls) => Reply::Calls(calls),
+            Turn::Error(status) => Reply::Error(status),
         })
     }
 
@@ -228,12 +233,22 @@ fn call_of(body: &Value) -> Call {
         .filter(|m| m["role"] == "tool")
         .filter_map(|m| m["content"].as_str().map(String::from))
         .collect();
+    let messages = body["messages"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|m| {
+            let text = |key: &str| m[key].as_str().unwrap_or_default().to_string();
+            (text("role"), text("content"))
+        })
+        .collect();
     Call {
         pass: pass_of(schema, &system).to_string(),
         system,
         user,
         tools,
         tool_results,
+        messages,
     }
 }
 
@@ -417,6 +432,29 @@ pub fn run(dir: &Path, args: &[&str]) -> Output {
         .env_remove("RUST_LOG")
         .output()
         .unwrap()
+}
+
+/// Runs `args` on `dir` with `input` as its standard input.
+pub fn run_with_input(dir: &Path, args: &[&str], input: &str) -> Output {
+    let mut child = Command::new(env!("CARGO_BIN_EXE_retrodoc"))
+        .args(args)
+        .arg("--path")
+        .arg(dir)
+        .current_dir(dir)
+        .env("RETRODOC_TEST_FAKE_LLM_KEY", "unused")
+        .env_remove("RUST_LOG")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(input.as_bytes())
+        .unwrap();
+    child.wait_with_output().unwrap()
 }
 
 /// The stdout of the subcommand `command` on `dir`, which must succeed.

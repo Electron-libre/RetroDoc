@@ -38,9 +38,9 @@ Out of scope: summarising dropped turns, saving a conversation, a line editor. S
 1. [x] Conversation in `retrodoc-agent`: a `Conversation` holding the kept turns, `ask` reused through it with an
    empty memory, the fold and the source check widened to the memory; verified by unit tests with `FakeLlm`; makes
    true CHT-2 to CHT-7. (autonomous)
-2. [ ] `retrodoc chat` in the CLI: a loop over stdin lines, errors printed and the loop going on, recap at the end;
+2. [x] `retrodoc chat` in the CLI: a loop over stdin lines, errors printed and the loop going on, recap at the end;
    docs (`docs/crates/agent.md`, `render-mcp-cli.md`, README, `specs/ask.md` non-goal); verified by binary tests
-   with a scripted stdin and the fake HTTP server; makes true CHT-1, CHT-8, CHT-9.
+   with a scripted stdin and the fake HTTP server; makes true CHT-1, CHT-8, CHT-9. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -64,3 +64,20 @@ Code review: 1 finding
   eat the budget of the tool results, CHT-5).
 
 not verified: none. decisions needed: none.
+
+## Deliverable 2 summary
+done: `retrodoc chat` in the CLI over `Conversation`; docs (README, CLAUDE.md, ARCHITECTURE, render-mcp-cli), spec
+`accepted`.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass, CHT-1 to CHT-9 traced |
+| docs | README, CLAUDE.md, `docs/ARCHITECTURE.md`, `docs/crates/render-mcp-cli.md`, `specs/ask.md` |
+| code review | see below |
+
+red: CHT-1, CHT-8, CHT-9: error: unrecognized subcommand 'chat'
+Code review: no findings
+
+not verified: a run on a real model (no paid run asked). decisions needed: none.

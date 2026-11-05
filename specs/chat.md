@@ -1,6 +1,6 @@
 ---
 id: CHT
-status: draft
+status: accepted
 adrs: [0047]
 ---
 

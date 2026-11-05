@@ -73,10 +73,10 @@ of the crate you are about to touch. High-level view: `docs/ARCHITECTURE.md`. De
 - **retrodoc-mcp**: the typed read model of the generated docs, the run history (a snapshot per `generate`), and
   the read-only, LLM-free MCP server over it.
   → `docs/crates/render-mcp-cli.md`
-- **retrodoc-agent**: the agent of `ask`, a bounded tool loop over the read-only tools of `retrodoc-mcp` (ADR 0047).
+- **retrodoc-agent**: the agent of `ask` and `chat`, a bounded tool loop over the read-only tools of `retrodoc-mcp` (ADR 0047).
   → `docs/crates/agent.md`
 - **retrodoc-web**: local web interface, HTML rendered on the server from the read model (ADR 0039).
   → `docs/crates/render-mcp-cli.md`
 - **retrodoc-cli**: `clap` subcommands (`init`, `scan`, `generate`, `render`, `report`, `roles`, `brief`, `glossary`,
-  `entry-points`, `business-read`, `business-files`, `contexts`, `actors`, `surface`, `benchmark`, `benchmark-table`, `ask`, `search`,
+  `entry-points`, `business-read`, `business-files`, `contexts`, `actors`, `surface`, `benchmark`, `benchmark-table`, `ask`, `chat`, `search`,
   `mcp`, `ui`); logs go to stdout (stderr for `mcp`). → `docs/crates/render-mcp-cli.md`
