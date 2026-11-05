@@ -1,5 +1,5 @@
 //! The question set of `retrodoc ask` on a benchmark repository (spec `ask-question-set`,
-//! `issues/ask_question_set.md`): questions whose answer is known, documented ones naming the reference
+//! `issues/done/ask_question_set.md`): questions whose answer is known, documented ones naming the reference
 //! feature that answers them, undocumented ones naming the words of what the application does not do.
 //! [`check_questions`] checks them against the reference and a checkout of the repository. Example
 //! `question_set`.

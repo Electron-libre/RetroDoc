@@ -44,7 +44,7 @@ pub enum Tools {
     #[default]
     All,
     /// The tools of the docs only, without `read_source` and `git_log`: to measure what reading the
-    /// code brings (`issues/ask_question_set.md`).
+    /// code brings (`issues/done/ask_question_set.md`).
     DocsOnly,
 }
 

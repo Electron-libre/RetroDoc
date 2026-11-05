@@ -366,7 +366,7 @@ Steps, each shippable:
    `issues/done/ask_command.md`, ADR 0047, `specs/ask.md`): a bounded loop over the seven read-only tools (8 rounds, then
    one request without tools), the sources kept only when a tool result showed them, the warnings computed from the
    read model.
-   Measured (2026-11-05, `issues/ask_question_set.md`, `specs/ask-question-set.md`): 44 questions on linkding with
+   Measured (2026-11-05, `issues/done/ask_question_set.md`, `specs/ask-question-set.md`): 44 questions on linkding with
    known answers (22 documented, one per reference feature not disputed; 22 on what the application does not do,
    with words checked absent from the repository), asked with deepseek-chat on a saved `hidden` benchmark run (docs
    generated without the repository's own), judged by an LLM judge at temperature 0:

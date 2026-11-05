@@ -1,5 +1,5 @@
 //! The answers of `retrodoc ask` on a question set (spec `ask-question-set`,
-//! `issues/ask_question_set.md`): each question asked to the agent on a saved run, with or without
+//! `issues/done/ask_question_set.md`): each question asked to the agent on a saved run, with or without
 //! the code tools, then judged by one LLM call (right, wrong or not documented; a blank answer is not
 //! documented by rule) and its source hit by rule. Example `ask_replay`.
 

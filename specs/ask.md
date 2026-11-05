@@ -71,6 +71,6 @@ warnings those sources carry (low confidence, code changed since the docs), so t
 
 - The interactive `chat` and its memory (`issues/chat_command.md`).
 - Feeding the questions answered "not documented" to the debt report.
-- The quality of the answers, measured on a question set (`issues/ask_question_set.md`).
+- The quality of the answers, measured on a question set (`issues/done/ask_question_set.md`).
 - A thinking model or a server that refuses tools (`issues/tool_loop_on_thinking_and_refusing_servers.md`).
 - Retrieval by embeddings: the lexical search of `specs/docs-search.md` only.

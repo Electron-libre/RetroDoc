@@ -1,5 +1,5 @@
 //! Checks the question set of `retrodoc ask` on a benchmark repository against its reference and a
-//! checkout of the repository, with no LLM call (spec `ask-question-set`, `issues/ask_question_set.md`).
+//! checkout of the repository, with no LLM call (spec `ask-question-set`, `issues/done/ask_question_set.md`).
 //!
 //! Usage:
 //! `cargo run -q -p retrodoc-bench --example question_set -- <questions.yaml> <reference.yaml> <tree>`

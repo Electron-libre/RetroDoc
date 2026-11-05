@@ -1,6 +1,6 @@
 //! Asks the question set of a benchmark repository to the agent of `retrodoc ask` on a saved run,
 //! with all the tools then without the code tools, and judges each answer (spec `ask-question-set`,
-//! `issues/ask_question_set.md`). Paid: about 90 agent requests per variant on linkding.
+//! `issues/done/ask_question_set.md`). Paid: about 90 agent requests per variant on linkding.
 //!
 //! Usage:
 //! `DEEPSEEK_API_KEY=x cargo run -q -p retrodoc-bench --example ask_replay -- <run dir> <benchmark dir> <model> <out dir> [--max-rounds N] [--only all|docs]`

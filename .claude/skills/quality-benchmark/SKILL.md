@@ -170,5 +170,5 @@ cargo run -q -p retrodoc-bench --example ask_replay -- <saved run> benchmark/<re
 ```
 
 Read the `uncovered` group (questions whose feature the run's docs miss) for what the code tools bring, and the
-`undocumented` group for answers that invent. Write a question by the method of `issues/ask_question_set.md`,
+`undocumented` group for answers that invent. Write a question by the method of `issues/done/ask_question_set.md`,
 never one to review by hand.

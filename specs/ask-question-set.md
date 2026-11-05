@@ -64,6 +64,6 @@ read by hand.
 ## Non-goals
 
 - Writing the questions: they are written by hand (by the agent) following the method of
-  `issues/ask_question_set.md`, then checked by AQS-2 to AQS-4.
+  `issues/done/ask_question_set.md`, then checked by AQS-2 to AQS-4.
 - Partial credit: an answer is right or wrong; the judge's reason is saved for the reader.
 - Repositories other than the benchmark ones; private repositories never get a question set.

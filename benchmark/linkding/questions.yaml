@@ -1,4 +1,4 @@
-# Question set of `retrodoc ask` on linkding (spec `ask-question-set`, `issues/ask_question_set.md`).
+# Question set of `retrodoc ask` on linkding (spec `ask-question-set`, `issues/done/ask_question_set.md`).
 #
 # Documented questions: one per feature of `reference.yaml` that is not `disputed`, in the words of a user,
 # drawn from its description or one of its use cases, avoiding the words of its name where it can; `expected`

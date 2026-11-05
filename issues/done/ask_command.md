@@ -140,4 +140,4 @@ model. Out of scope: `chat`, misses fed to the debt report, answer quality, thin
   `left: [Source { kind: Feature, id: "billing/pay-invoice" }, …] right: []`, a blank render, `Error: invalid arguments
   for list_domains: not a JSON object`; ASK-19: written with its fix (the catalog test widened).
 - Code review: no findings
-- not verified: no real model call (`issues/ask_question_set.md` measures the answers).
+- not verified: no real model call (`issues/done/ask_question_set.md` measures the answers).
