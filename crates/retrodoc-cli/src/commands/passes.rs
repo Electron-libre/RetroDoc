@@ -1,5 +1,6 @@
 //! The names of the passes `generate` tracks (`UsageTracker::in_pass`), shared by the call sites, the list the
-//! estimate and the providers are drawn from, and the estimate: a name can't drift between them.
+//! estimate and the providers are drawn from, and the estimate, so a tracked name can't drift from the
+//! estimate. The provider lookups (`PassProviders::get`) still name their pass by hand.
 
 pub const SOURCES: &str = "sources";
 pub const BRIEF: &str = "brief";

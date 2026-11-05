@@ -63,3 +63,25 @@ fn the_settings_of_a_pass_of_the_other_path_do_not_stop_generate() {
         String::from_utf8_lossy(&output.stderr)
     );
 }
+
+// spec: SET-9
+#[test]
+fn the_settings_of_a_surface_pass_do_not_stop_a_contexts_run() {
+    let llm = FakeLlm::start(|_| r#"{"domains":[]}"#.to_string());
+    let dir = repo_with_config(
+        &[("app.rb", "class Order; end\n")],
+        &format!(
+            "{}structured_output = false\n[pipeline]\ndomains_from = \"contexts\"\n\
+             [llm.passes.business-files]\napi_key_env = \"RETRODOC_TEST_UNSET_KEY\"\n\
+             [llm.passes.domains]\napi_key_env = \"RETRODOC_TEST_UNSET_KEY\"\n",
+            llm_section(&llm)
+        ),
+    );
+
+    let output = support::run(dir.path(), &["generate", "--no-confidence"]);
+
+    // The scripted answers give no role, which stops the run later: only the settings are checked here.
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(!stderr.contains("LLM settings"), "{stderr}");
+    assert!(!llm.calls().is_empty(), "{stderr}");
+}

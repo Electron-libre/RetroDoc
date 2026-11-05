@@ -772,3 +772,27 @@ async fn run_confidence(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_joint_reading_is_tracked_before_the_glossary_on_both_paths() {
+        for path in [DomainsFrom::Surface, DomainsFrom::Contexts] {
+            let tracked = passes_of(path);
+            let at = |pass| tracked.iter().position(|&p| p == pass).expect(pass);
+            // The glossary reads the answer of the joint reading.
+            assert!(at(passes::BUSINESS_READ) < at(passes::GLOSSARY));
+        }
+    }
+
+    #[test]
+    fn every_tracked_pass_with_settings_can_be_configured() {
+        for &(pass, _) in TRACKED_PASSES {
+            if pass != passes::BUSINESS_READ {
+                assert!(retrodoc_core::config::PASS_NAMES.contains(&pass), "{pass}");
+            }
+        }
+    }
+}

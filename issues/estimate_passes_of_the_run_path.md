@@ -54,6 +54,7 @@ constants. Measured from the code: the contexts path runs `roles`, `contexts`, `
    the binary) and a surface `generate` with an unopenable `[llm.passes.contexts]`; makes true EST-11, SET-9. (autonomous)
 2. [x] Named constants: one constant per tracked pass, used by the list and every `in_pass` site of `generate`
    (`generate/`, `brief.rs`, `business_files.rs`, `contexts.rs`); verified by the existing tests (pure refactor). (autonomous)
+3. [x] Fixes of the `high` review of the issue: see `## Deliverable 3`. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -97,3 +98,29 @@ Code review: no findings
 
 not verified: nothing beyond deliverable 1.
 decisions needed: none
+
+## Deliverable 3
+done: fixes of the `high` review (8 findings): a SET-9 test on the contexts path; `saved_fixed` filtered by the
+passes of the path; a test that every tracked pass but `business-read` is in `PASS_NAMES`; the order test moved
+next to `passes_of`, its copy of the path table dropped (the binary tests cover it); the doc of `passes.rs` says the
+provider lookups still name their pass.
+Not fixed: providers of the passes turned off still opened, and the `get`/`concurrency` literals: outside EST-11 and
+SET-9, in `issues/open_only_the_passes_the_run_calls.md`; the hand-kept path tag (a drift fails at once, naming the
+pass); the `contexts` bool of `estimate::print` (it drives the budget, not the passes).
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | SET-9 traced on both paths |
+| docs | n/a (no behaviour change beyond deliverable 1) |
+| code review | see below |
+
+red: SET-9: with `domains` tagged on both paths, the contexts run stopped on `LLM settings of the `domains` pass`.
+
+Code review: no findings
+
+not verified: nothing beyond deliverable 1.
+decisions needed: none
+
+All deliverables done; follow-up in `issues/open_only_the_passes_the_run_calls.md`.

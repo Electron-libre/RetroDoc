@@ -52,6 +52,7 @@ pub(super) fn print(
     let saved_fixed: Vec<&str> = FIXED_ARTIFACTS
         .iter()
         .filter(|(_, artifact)| !(options.force && artifact.cleared_by_force()))
+        .filter(|(pass, _)| passes.contains(pass))
         .filter(|(_, artifact)| artifact.path(repo_root).is_file())
         .map(|(pass, _)| *pass)
         .collect();
@@ -160,32 +161,4 @@ fn changed_since_last_run(
             .min(added)
     });
     Some(changed + room)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::super::TRACKED_PASSES;
-    use super::*;
-
-    #[test]
-    fn each_path_tracks_its_passes_in_their_order() {
-        let all: Vec<&str> = TRACKED_PASSES.iter().map(|&(pass, _)| pass).collect();
-        let without = |left_out: &[&str]| -> Vec<&str> {
-            all.iter()
-                .copied()
-                .filter(|pass| !left_out.contains(pass))
-                .collect()
-        };
-        assert_eq!(
-            passes_of(DomainsFrom::Surface),
-            without(&[passes::CONTEXTS])
-        );
-        assert_eq!(
-            passes_of(DomainsFrom::Contexts),
-            without(&[passes::BUSINESS_FILES, passes::DOMAINS])
-        );
-        // The joint reading runs before the glossary, which reads its answer.
-        let at = |pass| all.iter().position(|&p| p == pass).expect(pass);
-        assert!(at(passes::BUSINESS_READ) < at(passes::GLOSSARY));
-    }
 }
