@@ -4,6 +4,50 @@ The notable changes of each version, newest first ([Keep a Changelog](https://ke
 [Semantic Versioning](https://semver.org/)). Each section is written by `cardinal run release <version>` from the commits,
 then reread before the release is committed.
 
+## [0.10.0] - 2026-11-05
+
+### Milestones
+
+- Edit the docs
+- Pre-run cost estimate
+
+### Added
+
+- store the human edits of the docs sections
+- show the human edits over the generated sections
+- render the human edits in the written docs
+- show an edit saved while the servers run
+- list an edit outdated by a later run in the debt
+- say in the answers when a section is a human edit
+- show the human edit of a section on its page
+- edit a section from its page with an htmx form
+- mark edited sections in lists and fold their generated text
+- mark the edited sections in the rendered Markdown
+- measure the calls and tokens of each pass per unit of input
+- keep the measured ratios of each pass for the estimate
+- measure the cost of each pass per source file
+- estimate the calls and tokens of a run before it
+- print the estimate of a generate before its first call
+- save the estimate of a generate with its run
+- set each pass of the recap against its estimate
+- report how the saved estimates of the measured runs held
+
+### Fixed
+
+- keep the layout of the files of reviews and edits
+- refuse unreadable edits before a run and ignore blank fields
+- name only the fields an edit changes as shown
+- clean the generated text too before comparing an edit
+- keep the mark of an edit on one line
+- refuse a measured run whose artifacts are not its own
+- estimate the files and models a generate really uses
+- keep the estimate comparison honest
+- estimate the joint reading of the business files
+- turn the joint reading off when its two models differ
+- show the passes the estimate leaves out in the recap
+- estimate and open only the passes of the run path
+- open only the providers of the passes the run calls
+
 ## [0.9.0] - 2026-11-05
 
 ### Milestones

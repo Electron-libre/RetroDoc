@@ -310,6 +310,7 @@ The milestones up to "A large application, one bounded context at a time" are th
   flagged when the code it rests on changes.
 - Why: the generated docs are a start; the team must be able to own them without losing their work at each run.
 - State: done
+- Released: v0.10.0
 - Issues:
   - [edit_store](issues/done/edit_store.md)
   - [edits_in_read_model](issues/done/edits_in_read_model.md)
@@ -323,6 +324,7 @@ The milestones up to "A large application, one bounded context at a time" are th
   of `usage.json`.
 - Why: the token recap gives the cost after the run only (step 2 of the token accounting, `docs/findings.md` §3).
 - State: done
+- Released: v0.10.0
 - Issues:
   - [pass_ratios_from_usage_history](issues/done/pass_ratios_from_usage_history.md)
   - [pre_run_estimate](issues/done/pre_run_estimate.md)
