@@ -45,6 +45,7 @@ the table from the misses (it stays rebuilt by hand), an estimate for the other 
    verified by unit tests of `recap` and the CLI test; makes true TOK-7 (~350 lines) (autonomous).
 3. [x] The `pass_ratios` measuring example reports, per pass, the runs within range and the median miss of the
    others, from the estimates of the measured runs; verified by tests of `pass_ratios`; makes true TOK-8 (~300 lines) (autonomous).
+4. [x] Docs of the whole issue and fixes of its `high` review; makes true the amended TOK-6, TOK-7, TOK-8 (autonomous).
 
 ## Decisions
 - Mode: autonomous
@@ -83,3 +84,22 @@ the table from the misses (it stays rebuilt by hand), an estimate for the other 
 - Code review: no findings (`low`).
 - red: TOK-8: the two tests failed to compile (`cannot find function estimate_report`).
 - not verified: on the saved runs of `~/retrodoc-runs` (none holds an estimate yet: they predate deliverable 1).
+
+## Review of the whole issue (`high`)
+Code review: 7 findings.
+- Fixed: a token count below its range when calls reported no usage is a lower bound, not a miss
+  (`PassEstimate::against`, `Against::LowerBound`; TOK-7, TOK-8 amended); a failed run is neither compared nor saved
+  with its estimate (TOK-6, TOK-7 amended); an estimate the binary can't read is dropped and its run kept
+  (`lenient_estimate`, TOK-6 amended), so a later change of `Basis` can't wipe the history; the report splits the
+  misses above and below the range, each with its median (TOK-8 amended); the comparison is shared by the recap and
+  the report (`PassEstimate::is_compared`, `against`); `&mut Option` instead of a `OnceLock`.
+- Not fixed here: `business-read` is never estimated (it is not in `GENERATE_PASSES`): a bug of the estimate (EST-1),
+  outside this issue's requirements: `issues/estimate_business_read.md`.
+- Docs of the whole issue: `README.md` (cost control), `docs/findings.md` §3 point 5, `docs/crates/pipeline.md`,
+  `docs/crates/bench.md`.
+- checks: tests 18/18 of `usage_log`, 14/14 of `pass_ratios`, the CLI suite, `cardinal run project-check` green;
+  spec `accepted`.
+- red: TOK-6, TOK-7, TOK-8: the five new tests failed before the fixes (the estimate saved with a failed run, the
+  history with an unreadable estimate loaded as empty, no lower bound in the recap nor the report, the misses not
+  split).
+- Fixes reviewed (`low`): Code review: no findings.

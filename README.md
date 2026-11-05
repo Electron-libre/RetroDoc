@@ -79,7 +79,9 @@ Run `retrodoc <command> --help` for the details.
 
 Before its first LLM call, `generate` prints an estimate of the calls and tokens of each pass and in total, a range
 extrapolated from runs measured on other applications (a rerun with nothing changed is estimated at zero);
-`generate --estimate` prints it and stops, with no LLM call and nothing written. Tokens only, no price.
+`generate --estimate` prints it and stops, with no LLM call and nothing written. Tokens only, no price. The recap
+at the end of the run sets each pass against its range (within it, or the miss in percent), and `.retrodoc/cache/usage.json`
+keeps both.
 To bound a run: `--max-files N` keeps only the best-ranked files (the features still come from every
 entry point; with `contexts` it is the reading budget of a run), `--no-confidence` / `--confidence-sample N` limit the
 verification pass, and `llm.concurrency` parallelizes the use cases, the rules and the confidence checks.

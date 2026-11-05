@@ -165,6 +165,76 @@ impl Range {
     }
 }
 
+/// What a pass measured, to set against its estimate.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Measured {
+    pub calls: u64,
+    /// Among `calls`, those that reported no token usage: the token counts are then a lower bound.
+    pub calls_without_usage: u64,
+    pub prompt_tokens: u64,
+    pub completion_tokens: u64,
+}
+
+/// How a measured figure stands against its range.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Against {
+    Within,
+    Missed(Miss),
+    /// Below the range, but a token count some calls of the pass left out: a lower bound, no miss.
+    LowerBound(Miss),
+}
+
+/// One figure of a pass set against its range: its label (`calls`, `tokens in`, `tokens out`), the measured
+/// figure and how it stands.
+pub type Figure = (&'static str, u64, Against);
+
+impl PassEstimate {
+    /// Whether the estimate allows a call or a token to this pass.
+    #[must_use]
+    pub fn is_estimated(&self) -> bool {
+        self.calls.above_zero()
+            || self.prompt_tokens.above_zero()
+            || self.completion_tokens.above_zero()
+    }
+
+    /// Whether this pass is set against its estimate: estimated, or it made a call.
+    #[must_use]
+    pub fn is_compared(&self, measured: Measured) -> bool {
+        self.is_estimated() || measured.calls > 0
+    }
+
+    /// The calls, prompt tokens and completion tokens `measured` against their ranges.
+    #[must_use]
+    pub fn against(&self, measured: Measured) -> [Figure; 3] {
+        let token = |figure: u64, range: Range| match range.miss(figure) {
+            None => Against::Within,
+            Some(miss) if !miss.above && measured.calls_without_usage > 0 => {
+                Against::LowerBound(miss)
+            }
+            Some(miss) => Against::Missed(miss),
+        };
+        [
+            (
+                "calls",
+                measured.calls,
+                self.calls
+                    .miss(measured.calls)
+                    .map_or(Against::Within, Against::Missed),
+            ),
+            (
+                "tokens in",
+                measured.prompt_tokens,
+                token(measured.prompt_tokens, self.prompt_tokens),
+            ),
+            (
+                "tokens out",
+                measured.completion_tokens,
+                token(measured.completion_tokens, self.completion_tokens),
+            ),
+        ]
+    }
+}
+
 /// A measured figure out of its estimated range.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Miss {

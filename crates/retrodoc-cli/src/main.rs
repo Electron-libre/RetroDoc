@@ -2,7 +2,6 @@ mod commands;
 
 use std::io::IsTerminal;
 use std::path::PathBuf;
-use std::sync::OnceLock;
 
 use clap::{Parser, Subcommand};
 use retrodoc_llm::UsageTracker;
@@ -324,7 +323,7 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let tracker = UsageTracker::new();
-    let ending = Ending::of(&cli.command);
+    let mut ending = Ending::of(&cli.command);
     let result = match cli.command {
         Command::Init { path, force } => commands::init::run(&path, force),
         Command::Scan { path } => commands::scan::run(&path),
@@ -351,7 +350,7 @@ async fn main() -> anyhow::Result<()> {
                 max_files,
                 contexts: context,
             };
-            commands::generate::run(&path, &options, &tracker, &ending.estimate).await
+            commands::generate::run(&path, &options, &tracker, &mut ending.estimate).await
         }
         Command::Render { path, dry_run } => commands::render::run(&path, dry_run),
         Command::Report { path } => commands::report::run(&path),
@@ -406,7 +405,7 @@ async fn main() -> anyhow::Result<()> {
 struct Ending {
     counted: Option<(&'static str, PathBuf)>,
     snapshot: Option<commands::history::Head>,
-    estimate: OnceLock<RunEstimate>,
+    estimate: Option<RunEstimate>,
 }
 
 impl Ending {
@@ -414,7 +413,7 @@ impl Ending {
         Self {
             counted: command.counted(),
             snapshot: command.snapshot(),
-            estimate: OnceLock::new(),
+            estimate: None,
         }
     }
 
@@ -424,7 +423,8 @@ impl Ending {
         let Some((name, path)) = self.counted else {
             return;
         };
-        let usage = commands::usage::finish(&path, name, tracker, succeeded, self.estimate.get());
+        let usage =
+            commands::usage::finish(&path, name, tracker, succeeded, self.estimate.as_ref());
         if let Some(head) = self.snapshot.filter(|_| succeeded) {
             commands::history::record(&path, head, usage.as_ref());
         }

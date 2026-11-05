@@ -114,8 +114,9 @@ pub fn pass_provider(
 /// prints nothing (there is nothing to report); a failed one that did still
 /// shows what it spent. A run without any call is not saved. Saving is
 /// best effort: it never turns a finished command into a failure. The
-/// `estimate` printed before the run (`generate`) is saved with it. The run
-/// as saved, `None` without any call.
+/// `estimate` printed before the run (`generate`) is set against it and
+/// saved with it when the run succeeded: a failed one never reached the
+/// passes it estimated. The run as saved, `None` without any call.
 pub fn finish(
     path: &Path,
     command: &str,
@@ -124,6 +125,7 @@ pub fn finish(
     estimate: Option<&RunEstimate>,
 ) -> Option<RunUsage> {
     tracker.end_pass();
+    let estimate = estimate.filter(|_| succeeded);
     let report = tracker.report();
     let calls = report.total().calls;
     if calls == 0 && !succeeded {
@@ -147,9 +149,32 @@ pub fn finish(
 mod tests {
     use super::*;
     use retrodoc_core::config::Config;
+    use retrodoc_pipeline::estimate::Range;
 
     fn config(raw: &str) -> Config {
         toml::from_str::<Config>(raw).unwrap()
+    }
+
+    // spec: TOK-6, TOK-7 (internal: a run that fails after a call needs an LLM failing mid-run)
+    #[test]
+    fn a_failed_run_is_saved_without_its_estimate() {
+        let dir = tempfile::tempdir().unwrap();
+        let tracker = UsageTracker::new();
+        tracker.set_pass("brief");
+        tracker.record("m", None);
+        let estimate = RunEstimate {
+            source_files: 1,
+            changed_files: None,
+            passes: Vec::new(),
+            calls: Range::default(),
+            prompt_tokens: Range::default(),
+            completion_tokens: Range::default(),
+        };
+
+        let run = finish(dir.path(), "generate", &tracker, false, Some(&estimate)).unwrap();
+
+        assert_eq!(run.estimate, None);
+        assert_eq!(usage_log::load_history(dir.path())[0].estimate, None);
     }
 
     #[test]

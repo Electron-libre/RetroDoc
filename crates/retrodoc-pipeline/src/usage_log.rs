@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::artifact::{self, Artifact};
 use crate::error::PipelineError;
-use crate::estimate::{Range, RunEstimate};
+use crate::estimate::{Against, Measured, RunEstimate};
 use crate::progress::format_duration;
 
 /// Runs kept in the history, the oldest dropped first.
@@ -34,8 +34,13 @@ pub struct RunUsage {
     pub finished_at: String,
     pub wall_ms: u64,
     pub passes: Vec<PassRecord>,
-    /// The estimate printed before the run (`generate` only); absent from an older history.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// The estimate printed before the run (`generate` only); absent from an older history, and dropped when
+    /// it can't be read (written by a binary whose estimate differs), so that the run still loads.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "lenient_estimate"
+    )]
     pub estimate: Option<RunEstimate>,
 }
 
@@ -61,6 +66,14 @@ pub struct ModelRecord {
     /// Among `prompt_tokens`, those served from the server's prompt cache.
     #[serde(default)]
     pub cached_tokens: u64,
+}
+
+fn lenient_estimate<'de, D>(deserializer: D) -> Result<Option<RunEstimate>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    Ok(serde_json::from_value(value).ok())
 }
 
 fn millis(duration: Duration) -> u64 {
@@ -249,28 +262,24 @@ pub fn recap_against(report: &UsageReport, estimate: Option<&RunEstimate>) -> St
         .passes
         .iter()
         .filter_map(|pass| {
-            let measured = report
+            let totals = report
                 .passes
                 .iter()
                 .find(|p| p.name == pass.pass)
                 .map(PassUsage::total)
                 .unwrap_or_default();
-            let estimated = pass.calls.above_zero()
-                || pass.prompt_tokens.above_zero()
-                || pass.completion_tokens.above_zero();
-            (estimated || measured.calls > 0).then(|| {
-                let misses: Vec<String> = [
-                    ("calls", measured.calls, pass.calls),
-                    ("tokens in", measured.prompt_tokens, pass.prompt_tokens),
-                    (
-                        "tokens out",
-                        measured.completion_tokens,
-                        pass.completion_tokens,
-                    ),
-                ]
-                .into_iter()
-                .filter_map(|(what, figure, range)| miss(what, figure, range))
-                .collect();
+            let measured = Measured {
+                calls: totals.calls,
+                calls_without_usage: totals.calls_without_usage,
+                prompt_tokens: totals.prompt_tokens,
+                completion_tokens: totals.completion_tokens,
+            };
+            pass.is_compared(measured).then(|| {
+                let misses: Vec<String> = pass
+                    .against(measured)
+                    .into_iter()
+                    .filter_map(|(what, figure, against)| miss(what, figure, against))
+                    .collect();
                 let text = if misses.is_empty() {
                     "within the range".to_string()
                 } else {
@@ -291,16 +300,21 @@ pub fn recap_against(report: &UsageReport, estimate: Option<&RunEstimate>) -> St
     out
 }
 
-/// `calls 360 above 300 (+20%)`, or `None` when `figure` is within `range`.
-fn miss(what: &str, figure: u64, range: Range) -> Option<String> {
-    let miss = range.miss(figure)?;
+/// `calls 360 above 300 (+20%)`, `tokens in 100 below 400, a lower bound`, or `None` within the range.
+fn miss(what: &str, figure: u64, against: Against) -> Option<String> {
+    let (miss, note) = match against {
+        Against::Within => return None,
+        Against::Missed(miss) => (
+            miss,
+            miss.percent
+                .map(|percent| format!(" ({percent:+}%)"))
+                .unwrap_or_default(),
+        ),
+        Against::LowerBound(miss) => (miss, ", a lower bound".to_string()),
+    };
     let side = if miss.above { "above" } else { "below" };
-    let percent = miss
-        .percent
-        .map(|percent| format!(" ({percent:+}%)"))
-        .unwrap_or_default();
     Some(format!(
-        "{what} {} {side} {}{percent}",
+        "{what} {} {side} {}{note}",
         thousands(figure),
         thousands(miss.bound)
     ))
@@ -309,7 +323,7 @@ fn miss(what: &str, figure: u64, range: Range) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::estimate::{Basis, PassEstimate};
+    use crate::estimate::{Basis, PassEstimate, Range};
 
     fn pass(name: &str, secs: u64, models: &[(&str, u64, u64, u64, u64)]) -> PassUsage {
         PassUsage {
@@ -550,9 +564,37 @@ mod tests {
 
     // spec: TOK-7 (internal: the token counts come from an LLM answer the binary cannot fake)
     #[test]
+    fn a_token_count_below_its_range_is_a_lower_bound_when_calls_reported_no_usage() {
+        let report = UsageReport {
+            passes: vec![pass("brief", 1, &[("m", 2, 1, 100, 10)])],
+        };
+        let estimate = estimate_of(vec![estimated("brief", Basis::PerRun, (1, 2), (400, 600))]);
+        let text = recap_against(&report, Some(&estimate));
+        assert!(
+            text.contains("tokens in 100 below 400, a lower bound"),
+            "{text}"
+        );
+        assert!(!text.contains('%'), "{text}");
+    }
+
+    // spec: TOK-7 (internal: the token counts come from an LLM answer the binary cannot fake)
+    #[test]
     fn recap_without_an_estimate_is_unchanged() {
         assert_eq!(recap_against(&report(), None), recap(&report()));
         assert!(!recap(&report()).contains("estimate"));
+    }
+
+    // spec: TOK-6 (internal: a history written by another binary)
+    #[test]
+    fn a_history_whose_estimate_can_not_be_read_still_loads_its_runs() {
+        let dir = tempfile::tempdir().unwrap();
+        record_run(dir.path(), RunUsage::new("roles", "x", &report())).unwrap();
+        let other = r#"{"runs":[{"command":"generate","finished_at":"x","wall_ms":1,"passes":[],
+            "estimate":{"source_files":1,"passes":[{"pass":"p","basis":"guessed"}]}}]}"#;
+        std::fs::write(Artifact::Usage.path(dir.path()), other).unwrap();
+        let back = load_history(dir.path());
+        assert_eq!(back.len(), 1);
+        assert_eq!(back[0].estimate, None);
     }
 
     #[test]

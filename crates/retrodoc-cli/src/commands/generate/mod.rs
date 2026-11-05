@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
 
 use anyhow::Context;
 use retrodoc_core::config::{Config, DomainsFrom};
@@ -80,7 +79,7 @@ pub async fn run(
     path: &Path,
     options: &GenerateOptions,
     tracker: &UsageTracker,
-    printed: &OnceLock<RunEstimate>,
+    printed: &mut Option<RunEstimate>,
 ) -> anyhow::Result<()> {
     let GenerateOptions {
         dry_run,
@@ -91,7 +90,7 @@ pub async fn run(
     } = *options;
     let (workspace, mut ingest) = open_workspace(path, force && !options.estimate)?;
     let (repo_root, config) = (&workspace.repo_root, &workspace.config);
-    let _ = printed.set(estimate::print(repo_root, config, options, &ingest));
+    *printed = Some(estimate::print(repo_root, config, options, &ingest));
     if options.estimate {
         return Ok(());
     }
