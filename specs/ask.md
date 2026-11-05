@@ -51,6 +51,13 @@ warnings those sources carry (low confidence, code changed since the docs), so t
 - **ASK-20** (deterministic) A tool call whose arguments are `null` must be answered as a call with `{}`.
 - **ASK-21** (deterministic) The agent asked without the code tools must offer neither `read_source` nor `git_log`,
   and its system prompt must not name them.
+- **ASK-22** (deterministic) The last request of ASK-6 must hold no assistant tool call and no tool result: each call
+  of the question (its tool and arguments) and its result must reach it as the text of a user message.
+- **ASK-23** (deterministic) Each call of a round beyond the first 6 must be answered, without running its tool, with
+  an error telling the model to make fewer calls per round or to answer.
+- **ASK-24** (deterministic) A call must be answered with an error giving the size of its result and what is left of
+  the budget, telling the model to narrow its call or to answer, when that result would bring the tool results of the
+  question, error results left out, past 60000 characters.
 
 ## Scenarios
 
@@ -67,10 +74,17 @@ warnings those sources carry (low confidence, code changed since the docs), so t
 - (ASK-11) Given the source `billing/pay-invoice/pay-by-card` whose step cites `app/invoice.rb`, modified since the
   last `generate`, then the answer warns that `app/invoice.rb` changed.
 
+- (ASK-22) Given `--max-rounds 1` and a round calling `list_domains`, then the last request holds the system prompt,
+  the question and one user message naming `list_domains`, its arguments and its result, then asking for the answer.
+- (ASK-23) Given a round of 7 calls, then the first 6 get their tool's answer and the 7th the error.
+- (ASK-24) Given 59000 characters of results already read, when a `read_source` result of 2000 characters comes,
+  then it is answered with the error naming 2000 and 1000, and a later result of 500 characters still passes.
+
 ## Non-goals
 
 - The interactive `chat` and its memory (`issues/chat_command.md`).
 - Feeding the questions answered "not documented" to the debt report.
 - The quality of the answers, measured on a question set (`issues/done/ask_question_set.md`).
 - A thinking model or a server that refuses tools (`issues/done/tool_loop_on_thinking_and_refusing_servers.md`).
+- A budget in tokens: the characters stand for them; the figures fit the 32k context of the local model.
 - Retrieval by embeddings: the lexical search of `specs/docs-search.md` only.

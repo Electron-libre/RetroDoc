@@ -157,6 +157,21 @@ fn max_rounds_bounds_the_rounds_of_tool_calls() {
     assert_eq!(calls[0].tools, Vec::<String>::new());
 }
 
+// spec: ASK-22
+#[test]
+fn the_last_request_sends_no_tool_result() {
+    let llm = navigating();
+    let dir = generated_repo(&llm_section(&llm));
+
+    let out = stdout(&run(dir.path(), &["ask", QUESTION, "--max-rounds", "1"]));
+
+    let calls = llm.calls();
+    assert_eq!(calls.len(), 2, "{out}");
+    assert_eq!(calls[0].tools.len(), 7);
+    assert_eq!(calls[1].tools, Vec::<String>::new());
+    assert_eq!(calls[1].tool_results, Vec::<String>::new());
+}
+
 // spec: ASK-15
 #[test]
 fn the_question_writes_nothing_outside_the_workspace() {

@@ -29,6 +29,14 @@ its id or path in backticks, as the tools show it (e.g. `billing/pay-invoice`, `
 When the tools show nothing relevant, answer \"Not documented\" and say what you looked for. \
 Answer in the language of the question.";
 
+/// Calls of one round answered by their tool; the next ones get an error (ASK-23).
+pub const MAX_CALLS_PER_ROUND: usize = 6;
+
+/// Characters of the tool results of a question, errors left out, past which a result is refused
+/// (ASK-24): about 15k tokens, half the 32k context of the local model, leaving room for the
+/// prompts, the history and the answer.
+pub const MAX_RESULT_CHARS: usize = 60_000;
+
 const LAST_ROUND: &str =
     "You have used all your tool calls. Answer the question now from what the \
 tools showed, naming the ids and paths you rely on in backticks; answer \"Not documented\" if \
@@ -186,7 +194,9 @@ fn closing_run(text: &str, run: usize) -> Option<usize> {
 }
 
 /// Asks `question` to `llm`, which answers with the read-only tools over `docs`, in at most
-/// `max_rounds` rounds of tool calls; then one last request without tools asks for the answer.
+/// `max_rounds` rounds of tool calls, the calls and results bounded by [`MAX_CALLS_PER_ROUND`] and
+/// [`MAX_RESULT_CHARS`]; then one last request, without tools nor tool history (the calls and
+/// results folded into text), asks for the answer.
 ///
 /// # Errors
 ///
@@ -221,18 +231,27 @@ pub async fn ask_with(
         ChatMessage::new(Role::User, question),
     ];
     let mut answer = Answer::default();
+    let mut read: Vec<(ToolCall, String)> = Vec::new();
+    let mut used = 0;
     loop {
         let offer = answer.rounds < max_rounds;
-        if !offer {
-            messages.push(ChatMessage::new(Role::User, LAST_ROUND));
-        }
-        let response = llm
-            .complete(CompletionRequest {
+        let request = if offer {
+            CompletionRequest {
                 messages: messages.clone(),
-                tools: if offer { tools.clone() } else { Vec::new() },
+                tools: tools.clone(),
                 ..Default::default()
-            })
-            .await?;
+            }
+        } else {
+            CompletionRequest {
+                messages: vec![
+                    messages[0].clone(),
+                    messages[1].clone(),
+                    ChatMessage::new(Role::User, folded(&read)),
+                ],
+                ..Default::default()
+            }
+        };
+        let response = llm.complete(request).await?;
         if !offer || response.tool_calls.is_empty() {
             answer.sources = checked_sources(&response.content, &answer.tool_results, &docs);
             answer.warnings = warnings_of(&docs, answer.sources.clone()).await;
@@ -244,10 +263,15 @@ pub async fn ask_with(
             ChatMessage::assistant_calls(response.content, response.tool_calls.clone())
                 .with_reasoning(response.reasoning),
         );
-        for call in response.tool_calls {
+        for (index, call) in response.tool_calls.into_iter().enumerate() {
             // All the tools: the tool's own error names an unknown one. Some: say which are offered.
-            let result = if offered == Tools::All || tools.iter().any(|t| t.name == call.name) {
-                run_tool(&docs, &call).await
+            let result = if index >= MAX_CALLS_PER_ROUND {
+                format!(
+                    "Error: at most {MAX_CALLS_PER_ROUND} calls per round are run; make fewer \
+                     calls per round, or answer from what the tools showed."
+                )
+            } else if offered == Tools::All || tools.iter().any(|t| t.name == call.name) {
+                within_budget(run_tool(&docs, &call).await, &mut used)
             } else {
                 let names: Vec<&str> = tools.iter().map(|t| t.name.as_str()).collect();
                 format!(
@@ -256,10 +280,50 @@ pub async fn ask_with(
                     names.join(", ")
                 )
             };
-            messages.push(ChatMessage::tool_result(call.id, result.clone()));
-            answer.tool_results.push(result);
+            messages.push(ChatMessage::tool_result(call.id.clone(), result.clone()));
+            answer.tool_results.push(result.clone());
+            read.push((call, result));
         }
     }
+}
+
+/// `result`, counted in the characters `used` by the question, or the error that refuses it when
+/// it would bring them past [`MAX_RESULT_CHARS`]; an error result is not counted.
+fn within_budget(result: String, used: &mut usize) -> String {
+    if result.starts_with("Error:") {
+        return result;
+    }
+    let size = result.chars().count();
+    let left = MAX_RESULT_CHARS - *used;
+    if size > left {
+        return format!(
+            "Error: this result holds {size} characters and {left} are left of the budget of \
+             the question; narrow the call (a shorter range of lines, a precise id) or answer \
+             from what the tools showed."
+        );
+    }
+    *used += size;
+    result
+}
+
+/// The last request's message: each call of the question and its result as text, then the
+/// demand of the answer, so the history holds no tool call a server could refuse without tools.
+fn folded(read: &[(ToolCall, String)]) -> String {
+    let mut text = String::new();
+    if !read.is_empty() {
+        text.push_str("Your tool calls and what they returned:\n\n");
+        for (call, result) in read {
+            let _ = write!(
+                text,
+                "## `{}` `{}`\n\n{}\n\n",
+                call.name,
+                call.arguments,
+                result.trim_end()
+            );
+        }
+    }
+    text.push_str(LAST_ROUND);
+    text
 }
 
 /// The read-only tools of the MCP server as tools of a request.

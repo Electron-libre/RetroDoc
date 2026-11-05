@@ -40,3 +40,34 @@ Ask the documentation
 # Resources
 * `specs/ask.md` (ASK-6), ADR 0046, ADR 0047, `docs/crates/agent.md`, `crates/retrodoc-agent/src/lib.rs`,
   `issues/done/tool_loop_on_thinking_and_refusing_servers.md` (the other server cases of the loop).
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-05
+
+## Understanding
+Bound what the tool results of one question can add to the context (calls per round, characters in all) and make
+the last request free of any tool history, so every server accepts it and the model always answers. Out of scope: a
+`tool_choice` field (not needed once the history is folded), a budget in tokens. Means: fold the history into text
+rather than `tool_choice: none`, which needs no paid check and no server support.
+
+## Plan
+1. [x] Budget and folded last request: `ask_with` answers the calls past 6 in a round and the results past 60000
+   characters with an error, and its last request folds each call and result into one user message; verified by
+   tests with the scripted `FakeLlm` in `crates/retrodoc-agent/src/tests.rs` and the end-to-end `ask` test; makes
+   true ASK-22, ASK-23, ASK-24. (autonomous)
+
+## Decisions
+- Mode: autonomous
+- Base commit: 59fd8e2ced9f7139a0eadc99f5abf4a2d3a96291
+- Last request: the history folded into text, not `tool_choice: none` (1 a).
+- Budget: 6 calls per round, 60000 characters per question (2 a).
+
+## Deliverable 1
+- done: `ask_with` answers the calls past 6 in a round and a result past 60000 characters with an error, and its
+  last request folds the calls and results into one user message (no tool history).
+- red: ASK-22, ASK-23, ASK-24: roles `[System, User, Assistant, Tool, User]` instead of `[System, User, User]`; the
+  7th call ran `list_domains`; the result over the budget was returned whole; end to end, the last request sent the
+  tool result.
+- Code review: no findings.
+- not verified: a real call on a local model or `OpenRouter` (fakes only).

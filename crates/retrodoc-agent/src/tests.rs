@@ -8,6 +8,11 @@ use retrodoc_mcp::SourceKind;
 use super::*;
 
 fn docs() -> Arc<Docs> {
+    docs_with(Vec::new())
+}
+
+/// The docs of one domain `billing` and its feature `pay-invoice`, plus `more` features.
+fn docs_with(more: Vec<Feature>) -> Arc<Docs> {
     let domain = Domain {
         slug: "billing".into(),
         name: "Billing".into(),
@@ -25,9 +30,11 @@ fn docs() -> Arc<Docs> {
         entry_points: Vec::new(),
         confidence: None,
     };
+    let mut features = vec![feature];
+    features.extend(more);
     Arc::new(Docs::new(
         vec![domain],
-        vec![feature],
+        features,
         Vec::new(),
         &Glossary::default(),
         &[],
@@ -321,4 +328,101 @@ async fn the_reasoning_of_a_round_that_called_tools_is_given_back_in_the_next() 
     let second = &llm.messages()[1];
     let assistant = second.iter().find(|m| m.role == Role::Assistant).unwrap();
     assert_eq!(assistant.reasoning.as_deref(), Some("look up the domains"));
+}
+
+// spec: ASK-22 (internal: the messages of the last request are seen through the fake provider only)
+#[tokio::test]
+async fn the_last_request_holds_the_calls_and_results_as_text_only() {
+    let llm = FakeLlm::scripted(vec![calls(vec![call("c1", "list_domains", "{}")])]);
+    let docs = docs();
+    ask(&llm, Arc::clone(&docs), "What is billed?", 1)
+        .await
+        .unwrap();
+
+    let last = llm.messages().pop().unwrap();
+    let roles: Vec<Role> = last.iter().map(|m| m.role).collect();
+    assert_eq!(roles, [Role::System, Role::User, Role::User]);
+    assert!(last.iter().all(|m| m.tool_calls.is_empty()));
+    assert_eq!(last[1].content, "What is billed?");
+    let folded = &last[2].content;
+    for part in [
+        "`list_domains`",
+        "`{}`",
+        docs.list_domains().as_str(),
+        "Answer the question now",
+    ] {
+        assert!(folded.contains(part), "{part} not in {folded}");
+    }
+    assert!(folded.find("`list_domains`") < folded.find("Answer the question now"));
+}
+
+// spec: ASK-23 (internal: the rounds are scripted with the fake provider, which the binary cannot take)
+#[tokio::test]
+async fn the_calls_of_a_round_past_the_sixth_are_refused() {
+    let seven = (1..=7)
+        .map(|n| call(&format!("c{n}"), "list_domains", "{}"))
+        .collect();
+    let llm = FakeLlm::scripted(vec![calls(seven), FakeTurn::Text("Billing.".into())]);
+    let docs = docs();
+    let answer = ask(&llm, Arc::clone(&docs), "?", 8).await.unwrap();
+
+    let (run, refused) = answer.tool_results.split_at(6);
+    assert!(run.iter().all(|r| *r == docs.list_domains()), "{run:?}");
+    let [refused] = refused else {
+        panic!("seven results: {:?}", answer.tool_results);
+    };
+    assert!(
+        refused.starts_with("Error:") && refused.contains("6 calls") && refused.contains("answer"),
+        "{refused}"
+    );
+}
+
+/// The docs of [`docs`] with two more features whose descriptions are `first` and `second`
+/// characters long.
+fn docs_with_long_features(first: usize, second: usize) -> Arc<Docs> {
+    let feature = |slug: &str, length: usize| Feature {
+        back_office: false,
+        technical: false,
+        slug: slug.into(),
+        domain_slug: "billing".into(),
+        name: slug.into(),
+        description: "x".repeat(length),
+        source_paths: Vec::new(),
+        entry_points: Vec::new(),
+        confidence: None,
+    };
+    docs_with(vec![feature("huge", first), feature("large", second)])
+}
+
+// spec: ASK-24 (internal: the rounds are scripted with the fake provider, which the binary cannot take)
+#[tokio::test]
+async fn a_result_past_the_budget_of_the_question_is_refused_with_its_size() {
+    let docs = docs_with_long_features(58_900, 2000);
+    let llm = FakeLlm::scripted(vec![
+        calls(vec![
+            call("c1", "get_feature", r#"{"id":"billing/huge"}"#),
+            call("c2", "get_feature", r#"{"slug":"x"}"#),
+            call("c3", "get_feature", r#"{"id":"billing/large"}"#),
+            call("c4", "list_domains", "{}"),
+        ]),
+        FakeTurn::Text("Billing.".into()),
+    ]);
+    let answer = ask(&llm, Arc::clone(&docs), "?", 8).await.unwrap();
+
+    let used = docs.get_feature("billing/huge").chars().count();
+    let large = docs.get_feature("billing/large").chars().count();
+    assert!(used + large > 60_000 && used < 60_000);
+    let [huge, _error, refused, small] = answer.tool_results.as_slice() else {
+        panic!("four results: {:?}", answer.tool_results);
+    };
+    assert_eq!(*huge, docs.get_feature("billing/huge"));
+    assert!(
+        refused.starts_with("Error:")
+            && refused.contains(&large.to_string())
+            && refused.contains(&(60_000 - used).to_string())
+            && refused.contains("answer"),
+        "{}",
+        &refused[..refused.len().min(200)]
+    );
+    assert_eq!(*small, docs.list_domains());
 }

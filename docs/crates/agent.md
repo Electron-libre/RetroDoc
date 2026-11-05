@@ -7,8 +7,12 @@ the call the MCP server makes, run off the async threads; a call to an unknown t
 refuses gets the error as its result, so the model can correct it. The calls of a round go back in the history with the reasoning of the answer that made them, if the model wrote one (a thinking model, TCL-19). `ask_with` takes the tools offered:
 `Tools::DocsOnly` (the `ask_replay` measure of `retrodoc-bench`) leaves out `read_source` and `git_log`, the sentence
 of the system prompt that names them, and answers a call to a tool not offered with the names of the offered ones (ASK-21). The first answer without tool calls is the
-answer. After `max_rounds` rounds of calls (`DEFAULT_MAX_ROUNDS`, 8) one last request offers no tool and asks for the
-answer from what was read. `Answer` holds its text, the tool results of the question, the rounds and its sources:
+answer. The tool results of a question are bounded so they fit the context of a local model: the calls of a round past
+`MAX_CALLS_PER_ROUND` (6) and a result that would bring the results past `MAX_RESULT_CHARS` (60000 characters,
+errors left out) are answered with an error telling the model to narrow down or answer (ASK-23, ASK-24).
+After `max_rounds` rounds of calls (`DEFAULT_MAX_ROUNDS`, 8) one last request offers no tool and asks for the
+answer from what was read; it sends the system prompt, the question and one user message folding each call and its
+result into text, so no server refuses a tool history without tools (ASK-22). `Answer` holds its text, the tool results of the question, the rounds and its sources:
 the names the text gives in code spans (a run of backticks closed by a run of as many, a fenced block skipped) that
 `Docs::source_named` resolves (a domain, a feature, a use case, a cited file, by its full id or path) and whose full id
 a tool result of the question showed; an error, a "Not documented" or a "Not available" result shows nothing, and a
