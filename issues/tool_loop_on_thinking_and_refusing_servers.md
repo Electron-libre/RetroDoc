@@ -41,3 +41,36 @@ Ask the documentation
 # Hints
 * `reasoning_content` must not be sent back for a model that never sent one: other servers may refuse the field.
 * The fallback also serves passes without tools: keep its behaviour for them (ADR 0023).
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-05
+
+## Understanding
+A refusal of the tools fails at once with an error naming the tools and the model, without the temperature/schema
+fallback (kept as is for every other failure); the `reasoning_content` of a thinking model is read and sent back
+with its calls. Out of scope: a text protocol for servers without tools (ADR 0046), streaming of the reasoning.
+
+## Plan
+1. [x] Refusal of tools: `complete` skips the fallback when the request offers tools and the 400/404/422 body names
+   the tools, and the error says the model or server refuses tools; verified by fake-server tests in
+   `openrouter/tests/fallbacks.rs`; makes true TCL-15, TCL-16. (autonomous)
+2. [ ] Reasoning given back: an optional `reasoning` in `CompletionResponse` and `ChatMessage`, read from
+   `reasoning_content`, sent back only when set, carried by the agent of `ask`; verified by fake-server tests in
+   `openrouter/tests/tools.rs` and a fake-provider test of the agent, then one real tool loop on a DeepSeek thinking
+   model (cents); makes true TCL-17, TCL-18, TCL-19.
+
+## Deliverable 1
+
+- done: a 400/404/422 naming the tools to a request offering tools fails at once, without the fallback, with an
+  error naming the model and saying it refuses tools; the fallback is unchanged otherwise.
+- red: TCL-15, TCL-16: `called Result::unwrap_err() on an Ok value` (the fallback without the temperature succeeded).
+- Code review: 1 finding: a body naming the tools and a parameter (the pair refused) skipped the fallback; fixed,
+  such a body is left to the fallback (test with `response_format is not supported together with tools`).
+- not verified: on a real Ollama or OpenRouter refusal (bodies taken from the issue's findings).
+
+## Decisions
+- Mode: autonomous
+- Base commit: ace08063e1bee8d7be5550ed2bc846ab4df4d237
+- Real check (1 a): one real tool loop after deliverable 2, not a probe before it.
+- Model of the real check (2 a): `deepseek-reasoner`.

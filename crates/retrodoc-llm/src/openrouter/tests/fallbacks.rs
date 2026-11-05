@@ -154,3 +154,81 @@ async fn a_server_refusing_both_the_temperature_and_the_schema_gets_the_plain_re
     assert_eq!(sent.len(), 4);
     assert!(!sent[3].contains("temperature") && !sent[3].contains("response_format"));
 }
+
+fn tools_request() -> CompletionRequest {
+    CompletionRequest {
+        tools: vec![crate::ToolSpec {
+            name: "list_domains".to_string(),
+            description: "The domains.".to_string(),
+            parameters: serde_json::json!({"type": "object"}),
+        }],
+        ..schema_request()
+    }
+}
+
+// spec: TCL-15, TCL-16 (internal: the refusal is served by the mock server of the provider's tests)
+#[tokio::test]
+async fn a_refusal_of_the_tools_fails_at_once_naming_the_tools_and_the_model() {
+    let refusals = [
+        (
+            "400 Bad Request",
+            r#"{"error":"registry.ollama.ai/library/m does not support tools"}"#,
+        ),
+        (
+            "404 Not Found",
+            r#"{"error":{"message":"No endpoints found that support tool use."}}"#,
+        ),
+    ];
+    for (status, body) in refusals {
+        let (url, rx) = serve(vec![
+            http(status, body),
+            http("200 OK", OK_BODY),
+            http("200 OK", OK_BODY),
+            http("200 OK", OK_BODY),
+        ]);
+        let err = temperature_provider(&url, Some(0.0))
+            .complete(tools_request())
+            .await
+            .unwrap_err()
+            .to_string();
+        assert_eq!(rx.try_iter().count(), 1, "{status}: no fallback");
+        assert!(err.contains("refuses tools"), "{err}");
+        assert!(err.contains("`m`"), "{err}");
+        assert!(err.contains("support tool"), "{err}");
+    }
+}
+
+// spec: TCL-15 (internal: the refusal is served by the mock server of the provider's tests)
+#[tokio::test]
+async fn a_refused_temperature_falls_back_on_a_request_offering_tools() {
+    let (url, rx) = serve(vec![
+        http(
+            "400 Bad Request",
+            r#"{"error":"unknown field temperature"}"#,
+        ),
+        http("200 OK", OK_BODY),
+    ]);
+    temperature_provider(&url, Some(0.0))
+        .complete(tools_request())
+        .await
+        .unwrap();
+    let sent: Vec<String> = rx.try_iter().collect();
+    assert_eq!(sent.len(), 2);
+    assert!(!sent[1].contains("temperature"));
+}
+
+// spec: TCL-15 (internal: the refusal is served by the mock server of the provider's tests)
+#[tokio::test]
+async fn a_refusal_of_the_schema_with_the_tools_falls_back_without_the_schema() {
+    let (url, rx) = serve(vec![
+        http(
+            "400 Bad Request",
+            r#"{"error":"response_format is not supported together with tools"}"#,
+        ),
+        http("200 OK", OK_BODY),
+    ]);
+    provider(&url).complete(tools_request()).await.unwrap();
+    let sent: Vec<String> = rx.try_iter().collect();
+    assert_eq!(sent.len(), 2);
+    assert!(!sent[1].contains("response_format"));
+}

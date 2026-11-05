@@ -1,6 +1,6 @@
 ---
 id: TCL
-status: accepted
+status: draft
 adrs: [0046]
 ---
 
@@ -42,6 +42,17 @@ the native OpenAI-compatible format, and each round is counted like any other ca
   arguments `{}`.
 - **TCL-14** (deterministic) A tool call without an id must reach the caller with an id no other call of the answer
   has.
+- **TCL-15** (deterministic) The provider must not send again without its temperature or its schema a request that
+  offers tools and fails with a client error (400, 404 or 422) whose body names the tools and neither the
+  temperature nor the schema (`temperature`, `response_format`, `schema`).
+- **TCL-16** (deterministic) The error of a request refused as in TCL-15 must say that the model or its server
+  refuses tools, and name the model and the server's answer.
+- **TCL-17** (deterministic) An answer whose message holds a `reasoning_content` must give it to the caller with the
+  text and the tool calls.
+- **TCL-18** (deterministic) An assistant message that carries a reasoning must be sent with it as its
+  `reasoning_content`; one without a reasoning must not send the field.
+- **TCL-19** (deterministic) The agent of `ask` must give back, in the history of its next round, the reasoning of
+  each answer that called tools.
 
 ## Scenarios
 
@@ -50,6 +61,13 @@ the native OpenAI-compatible format, and each round is counted like any other ca
 - (TCL-5, TCL-6) Given the history user question, assistant call `call_1`, tool result `- Billing`, when it is sent,
   then the body holds the assistant message with its `tool_calls` and a `tool` message with `tool_call_id: call_1`.
 - (TCL-4) Given an answer `{"content": null, "tool_calls": [...]}`, then the call succeeds with an empty text.
+- (TCL-15, TCL-16) Given a request offering tools with a temperature set, when the server answers 400 `model does not
+  support tools`, then one request only is sent and the error names the tools and the model.
+- (TCL-15) Given a request offering tools, when the server answers 400 `unknown field temperature`, then the
+  fallback without the temperature runs as for a request without tools; so does it for 400 `response_format is not
+  supported together with tools` (the pair refused, ADR 0046).
+- (TCL-17, TCL-18) Given an answer with `reasoning_content: "look up the domains"` and a call, when the agent sends
+  its next round, then the assistant message of that call holds `reasoning_content: "look up the domains"`.
 - (TCL-9) Given a loop of three rounds, then the tracker counts three calls and the sum of their tokens.
 
 ## Non-goals

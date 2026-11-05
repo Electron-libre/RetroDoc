@@ -440,6 +440,13 @@ impl LlmProvider for OpenRouterProvider {
             Ok(response) => return Ok(response),
             Err(failure) => failure,
         };
+        if !request.tools.is_empty() && failure.names_the_tools() {
+            let model = request.model.as_deref().unwrap_or(&self.default_model);
+            return Err(LlmError::InvalidResponse(format!(
+                "the model `{model}` or its server refuses tools: {}",
+                failure.into_error(self.timeout)
+            )));
+        }
         // A server may not know `temperature` or `response_format` (or this
         // model not take them). Try again without one, then the other, then
         // both; only if a request works are the parameters left out of it the
@@ -584,6 +591,22 @@ impl Failure {
             Failure::Http { status, .. }
                 if [400, 404, 422].contains(&status.as_u16())
         )
+    }
+
+    /// A refused parameter whose answer names the tools and neither the
+    /// temperature nor the schema: the model or its server does not take the
+    /// tools, and no fallback would change that. One that also names a
+    /// parameter the fallback drops (the pair refused) is left to it.
+    fn names_the_tools(&self) -> bool {
+        let Failure::Http { body, .. } = self else {
+            return false;
+        };
+        let body = body.to_ascii_lowercase();
+        self.may_be_a_refused_parameter()
+            && body.contains("tool")
+            && !["temperature", "response_format", "schema"]
+                .iter()
+                .any(|parameter| body.contains(parameter))
     }
 
     async fn from_response(response: reqwest::Response) -> Self {
