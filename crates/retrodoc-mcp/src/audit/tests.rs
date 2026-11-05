@@ -61,6 +61,7 @@ fn run(command: &str, pass: &str) -> RunUsage {
             unparseable: 0,
             skipped: 0,
         }],
+        estimate: None,
     }
 }
 

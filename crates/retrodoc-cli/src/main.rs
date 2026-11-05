@@ -1,10 +1,12 @@
 mod commands;
 
 use std::io::IsTerminal;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
+use std::sync::OnceLock;
 
 use clap::{Parser, Subcommand};
 use retrodoc_llm::UsageTracker;
+use retrodoc_pipeline::estimate::RunEstimate;
 use tracing_subscriber::fmt::writer::BoxMakeWriter;
 
 /// `RetroDoc` — catch up on a project's documentation debt with AI agents.
@@ -322,8 +324,7 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let tracker = UsageTracker::new();
-    let counted = cli.command.counted();
-    let snapshot = cli.command.snapshot();
+    let ending = Ending::of(&cli.command);
     let result = match cli.command {
         Command::Init { path, force } => commands::init::run(&path, force),
         Command::Scan { path } => commands::scan::run(&path),
@@ -350,7 +351,7 @@ async fn main() -> anyhow::Result<()> {
                 max_files,
                 contexts: context,
             };
-            commands::generate::run(&path, &options, &tracker).await
+            commands::generate::run(&path, &options, &tracker, &ending.estimate).await
         }
         Command::Render { path, dry_run } => commands::render::run(&path, dry_run),
         Command::Report { path } => commands::report::run(&path),
@@ -395,24 +396,38 @@ async fn main() -> anyhow::Result<()> {
         }
         Command::Contexts { path, force } => commands::contexts::run(&path, force, &tracker).await,
     };
-    if let Some((name, path)) = counted {
-        finish(&path, name, &tracker, result.is_ok(), snapshot);
-    }
+    ending.finish(&tracker, result.is_ok());
     result
 }
 
-/// Prints and saves the cost of the command `name` run on `path`, then, when the command
-/// succeeded, the snapshot of the run that read the commit `snapshot` holds, if any is asked.
-fn finish(
-    path: &Path,
-    name: &str,
-    tracker: &UsageTracker,
-    succeeded: bool,
+/// What the end of a command records, read from the command before it starts: the name and path its cost
+/// is filed under ([`Command::counted`]), the commit its snapshot reads ([`Command::snapshot`]), and the
+/// estimate `generate` printed before its first call.
+struct Ending {
+    counted: Option<(&'static str, PathBuf)>,
     snapshot: Option<commands::history::Head>,
-) {
-    let usage = commands::usage::finish(path, name, tracker, succeeded);
-    if let Some(head) = snapshot.filter(|_| succeeded) {
-        commands::history::record(path, head, usage.as_ref());
+    estimate: OnceLock<RunEstimate>,
+}
+
+impl Ending {
+    fn of(command: &Command) -> Self {
+        Self {
+            counted: command.counted(),
+            snapshot: command.snapshot(),
+            estimate: OnceLock::new(),
+        }
+    }
+
+    /// Prints and saves the cost of the command, with its estimate, then, when it succeeded, the snapshot
+    /// of the run, if any is asked.
+    fn finish(self, tracker: &UsageTracker, succeeded: bool) {
+        let Some((name, path)) = self.counted else {
+            return;
+        };
+        let usage = commands::usage::finish(&path, name, tracker, succeeded, self.estimate.get());
+        if let Some(head) = self.snapshot.filter(|_| succeeded) {
+            commands::history::record(&path, head, usage.as_ref());
+        }
     }
 }
 

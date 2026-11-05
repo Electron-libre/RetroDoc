@@ -1,11 +1,13 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 use anyhow::Context;
 use retrodoc_core::config::{Config, DomainsFrom};
 use retrodoc_core::model::{Feature, UseCase};
 use retrodoc_ingest::IngestResult;
 use retrodoc_llm::UsageTracker;
+use retrodoc_pipeline::estimate::RunEstimate;
 use retrodoc_pipeline::{
     Actors, Artifact, CodeIndex, DomainMap, EntryPoints, Evidence, ProductBrief, RoleMap, Scope,
     SourceHashes, Surface, UseCaseContext, WalkedFiles,
@@ -72,11 +74,13 @@ pub struct GenerateOptions {
 /// a bounded context at a time with `domains_from = "contexts"`),
 /// then features and use cases with Mermaid diagrams, and finally the
 /// confidence cross-check, and writes the docs (or previews them with
-/// `dry_run`). `force` wipes the caches first so nothing is reused.
+/// `dry_run`). `force` wipes the caches first so nothing is reused. The estimate
+/// printed before the first call is left in `printed`, to be saved with the run.
 pub async fn run(
     path: &Path,
     options: &GenerateOptions,
     tracker: &UsageTracker,
+    printed: &OnceLock<RunEstimate>,
 ) -> anyhow::Result<()> {
     let GenerateOptions {
         dry_run,
@@ -87,7 +91,7 @@ pub async fn run(
     } = *options;
     let (workspace, mut ingest) = open_workspace(path, force && !options.estimate)?;
     let (repo_root, config) = (&workspace.repo_root, &workspace.config);
-    estimate::print(repo_root, config, options, &ingest);
+    let _ = printed.set(estimate::print(repo_root, config, options, &ingest));
     if options.estimate {
         return Ok(());
     }

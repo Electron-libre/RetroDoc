@@ -147,3 +147,28 @@ fn a_rerun_is_estimated_on_the_changed_files() {
     assert!(out.contains("(1 of 2 source file(s) changed"), "{out}");
     assert!(!out.contains("LLM estimate: 0 call(s)"), "{out}");
 }
+
+// spec: TOK-6
+#[test]
+fn the_estimate_is_saved_with_the_run_in_the_usage_history() {
+    let llm = FakeLlm::start(|_| r#"{"domains":[]}"#.to_string());
+    let dir = repo(&llm);
+
+    stdout(&run(dir.path(), &["generate", "--no-confidence"]));
+
+    let raw = std::fs::read_to_string(dir.path().join(".retrodoc/cache/usage.json")).unwrap();
+    let history: serde_json::Value = serde_json::from_str(&raw).unwrap();
+    let estimate = &history["runs"][0]["estimate"];
+    assert_eq!(estimate["source_files"], 2, "{raw}");
+    let passes = estimate["passes"].as_array().expect("the passes estimated");
+    let confidence = passes
+        .iter()
+        .find(|p| p["pass"] == "confidence")
+        .expect("confidence");
+    assert_eq!(confidence["basis"], "off", "{raw}");
+    let use_cases = passes
+        .iter()
+        .find(|p| p["pass"] == "use-cases")
+        .expect("use-cases");
+    assert!(use_cases["calls"]["high"].as_u64().unwrap() > 0, "{raw}");
+}

@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use retrodoc_core::config::{Config, DomainsFrom};
 use retrodoc_ingest::{FileKind, IngestResult};
-use retrodoc_pipeline::estimate::{estimate, EstimateInputs, RatioTable};
+use retrodoc_pipeline::estimate::{estimate, EstimateInputs, RatioTable, RunEstimate};
 use retrodoc_pipeline::{Artifact, RoleRules, SourceHashes};
 
 use super::{Confidence, GenerateOptions, GENERATE_PASSES};
@@ -21,13 +21,14 @@ const FIXED_ARTIFACTS: &[(&str, Artifact)] = &[
     ("actors", Artifact::Actors),
 ];
 
-/// Prints the estimate of the run `options` asks on the walked repository.
+/// Prints the estimate of the run `options` asks on the walked repository, and returns it to be saved with
+/// the run.
 pub(super) fn print(
     repo_root: &Path,
     config: &Config,
     options: &GenerateOptions,
     ingest: &IngestResult,
-) {
+) -> RunEstimate {
     let contexts = config.pipeline.domains_from == DomainsFrom::Contexts;
     let passes: Vec<&str> = GENERATE_PASSES
         .iter()
@@ -92,7 +93,9 @@ pub(super) fn print(
         .iter()
         .map(|&pass| (pass, config.llm.for_pass(pass).model))
         .collect();
-    print!("{}", estimate(&inputs, table).render(&models, table));
+    let estimate = estimate(&inputs, table);
+    print!("{}", estimate.render(&models, table));
+    estimate
 }
 
 /// The source files of the walk, with the languages a saved `roles.yaml` promotes, as the run will see them.

@@ -64,4 +64,4 @@ so that a costly run is seen before it is paid for. Tokens and calls only, no pr
 - Pricing: no amount of money is shown (ADR 0015).
 - A threshold or a confirmation before the run: the estimate is a display.
 - Predicting what a new binary (changed prompts) or another model redoes on a rerun: the printed estimate says so.
-- Comparing the estimate with what the run cost (`issues/estimate_against_actual.md`).
+- Comparing the estimate with what the run cost: `specs/token-accounting.md` (TOK-6 to TOK-8).

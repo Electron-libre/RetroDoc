@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::artifact::{self, Artifact};
 use crate::error::PipelineError;
+use crate::estimate::RunEstimate;
 use crate::progress::format_duration;
 
 /// Runs kept in the history, the oldest dropped first.
@@ -33,6 +34,9 @@ pub struct RunUsage {
     pub finished_at: String,
     pub wall_ms: u64,
     pub passes: Vec<PassRecord>,
+    /// The estimate printed before the run (`generate` only); absent from an older history.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub estimate: Option<RunEstimate>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -64,6 +68,7 @@ fn millis(duration: Duration) -> u64 {
 }
 
 impl RunUsage {
+    /// The run as `report` measured it, with no estimate.
     #[must_use]
     pub fn new(command: &str, finished_at: &str, report: &UsageReport) -> Self {
         Self {
@@ -92,6 +97,7 @@ impl RunUsage {
                         .collect(),
                 })
                 .collect(),
+            estimate: None,
         }
     }
 }
@@ -235,6 +241,7 @@ mod tests {
     use retrodoc_llm::PassUsage;
 
     use super::*;
+    use crate::estimate::{Basis, PassEstimate, Range};
 
     fn pass(name: &str, secs: u64, models: &[(&str, u64, u64, u64, u64)]) -> PassUsage {
         PassUsage {
@@ -362,6 +369,40 @@ mod tests {
         let back = load_history(dir.path());
         assert_eq!(back[0].passes[0].models[0].prompt_tokens, 5);
         assert_eq!(back[0].passes[0].models[0].cached_tokens, 0);
+    }
+
+    fn an_estimate() -> RunEstimate {
+        let range = |low, high| Range { low, high };
+        RunEstimate {
+            source_files: 12,
+            changed_files: Some(3),
+            passes: vec![PassEstimate {
+                pass: "use-cases".to_string(),
+                basis: Basis::PerSourceFile,
+                calls: range(2, 9),
+                prompt_tokens: range(1_000, 9_000),
+                completion_tokens: range(100, 900),
+            }],
+            calls: range(2, 9),
+            prompt_tokens: range(1_000, 9_000),
+            completion_tokens: range(100, 900),
+        }
+    }
+
+    // spec: TOK-6 (internal: an older history is a file no binary of today writes)
+    #[test]
+    fn the_estimate_is_saved_with_its_run_and_an_old_history_loads_without_one() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut run = RunUsage::new("generate", "2026-11-05T00:00:00Z", &report());
+        run.estimate = Some(an_estimate());
+        record_run(dir.path(), run.clone()).unwrap();
+        assert_eq!(load_history(dir.path()), vec![run]);
+
+        let old = r#"{"runs":[{"command":"generate","finished_at":"x","wall_ms":1,"passes":[]}]}"#;
+        std::fs::write(Artifact::Usage.path(dir.path()), old).unwrap();
+        let back = load_history(dir.path());
+        assert_eq!(back.len(), 1);
+        assert_eq!(back[0].estimate, None);
     }
 
     #[test]

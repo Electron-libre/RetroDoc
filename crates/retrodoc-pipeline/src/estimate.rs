@@ -10,7 +10,7 @@
 
 use std::sync::LazyLock;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::usage_log;
 
@@ -126,7 +126,7 @@ pub struct EstimateInputs<'a> {
 }
 
 /// A low and a high bound.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Range {
     pub low: u64,
     pub high: u64,
@@ -140,7 +140,8 @@ impl Range {
 }
 
 /// Why a pass is estimated as it is.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum Basis {
     /// Its measured cost per source file, times the files to read.
     PerSourceFile,
@@ -156,7 +157,8 @@ pub enum Basis {
     Unmeasured,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// The estimate of one pass, as printed and as saved with its run in the usage history.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PassEstimate {
     pub pass: String,
     pub basis: Basis,
@@ -165,7 +167,8 @@ pub struct PassEstimate {
     pub completion_tokens: Range,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// The estimate of a run, as printed and as saved with it in the usage history (`usage_log::RunUsage`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RunEstimate {
     /// The source files of the run and, on a rerun, those changed (from [`EstimateInputs`]).
     pub source_files: usize,

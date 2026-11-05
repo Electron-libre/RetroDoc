@@ -136,6 +136,7 @@ fn with_saved_figures(root: &Path) {
         finished_at: format!("2026-11-0{day}T10:00:00Z"),
         wall_ms: 150_000,
         passes,
+        estimate: None,
     };
     let passes = vec![pass("features", 3, 0), pass("use_cases", 2, 1)];
     record_run(root, run("generate", 2, passes)).unwrap();

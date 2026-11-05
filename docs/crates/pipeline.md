@@ -52,7 +52,7 @@ Behaviors that span passes:
   `FakeLlm::hanging_after` and `testing::killed`.
 - **Cost control**: `llm.concurrency` (default 1) parallelizes the use cases, rules and confidence passes (requests go out that many at a time, the answers are used in the order of the features or use cases, so the result is the same as one at a time; a failure keeps the units before it).
 - **Token accounting**: `generate`, `roles`, `glossary`, `entry-points` and `actors` end with a recap of calls, tokens
-  and time per pass (and the prompt tokens the server served from its cache, shown only when one reported any, TOK-4/5), plus the answers a pass could not parse and the units it skipped (`LlmProvider::note_unparseable_answer`, sent by `complete_json`; tokens only, no prices) and append the run to `.retrodoc/cache/usage.json`; kept apart from the
+  and time per pass (and the prompt tokens the server served from its cache, shown only when one reported any, TOK-4/5), plus the answers a pass could not parse and the units it skipped (`LlmProvider::note_unparseable_answer`, sent by `complete_json`; tokens only, no prices) and append the run to `.retrodoc/cache/usage.json` (with, for `generate`, the estimate printed before it, `RunUsage::estimate`, TOK-6; the CLI carries it from `generate` to the end of the command); kept apart from the
   rendered docs so reruns stay no-ops, and left alone by `generate --force`. `commands/usage.rs` builds the providers
   (`PassProviders`, `pass_provider`) the commands use.
 - `language.rs` (ADR 0041, `specs/docs-language.md`): `[output] language` set, `PassProviders` wraps the provider

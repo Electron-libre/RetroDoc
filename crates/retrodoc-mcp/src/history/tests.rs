@@ -85,6 +85,7 @@ fn usage(finished_at: &str) -> RunUsage {
             pass("features", vec![model(2, 100)]),
             pass("confidence", vec![model(3, 50), model(1, 7)]),
         ],
+        estimate: None,
     }
 }
 

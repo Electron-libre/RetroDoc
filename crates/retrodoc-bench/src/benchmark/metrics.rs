@@ -205,6 +205,7 @@ mod tests {
                     }],
                 })
                 .collect(),
+            estimate: None,
         }
     }
 

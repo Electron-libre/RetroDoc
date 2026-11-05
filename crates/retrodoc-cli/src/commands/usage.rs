@@ -10,6 +10,7 @@ use retrodoc_core::config::{Config, LlmConfig};
 use retrodoc_llm::{
     HeartbeatProvider, LlmProvider, OpenRouterProvider, UsageProvider, UsageTracker,
 };
+use retrodoc_pipeline::estimate::RunEstimate;
 use retrodoc_pipeline::usage_log::{self, RunUsage};
 use retrodoc_pipeline::{InLanguage, WRITING_PASSES};
 
@@ -112,13 +113,15 @@ pub fn pass_provider(
 /// `.retrodoc/cache/usage.json`. A failed command that never reached the LLM
 /// prints nothing (there is nothing to report); a failed one that did still
 /// shows what it spent. A run without any call is not saved. Saving is
-/// best effort: it never turns a finished command into a failure. The run
+/// best effort: it never turns a finished command into a failure. The
+/// `estimate` printed before the run (`generate`) is saved with it. The run
 /// as saved, `None` without any call.
 pub fn finish(
     path: &Path,
     command: &str,
     tracker: &UsageTracker,
     succeeded: bool,
+    estimate: Option<&RunEstimate>,
 ) -> Option<RunUsage> {
     tracker.end_pass();
     let report = tracker.report();
@@ -130,7 +133,8 @@ pub fn finish(
     if calls == 0 {
         return None;
     }
-    let run = RunUsage::new(command, &chrono::Utc::now().to_rfc3339(), &report);
+    let mut run = RunUsage::new(command, &chrono::Utc::now().to_rfc3339(), &report);
+    run.estimate = estimate.cloned();
     if let Ok(repo_root) = path.canonicalize() {
         if let Err(error) = usage_log::record_run(&repo_root, run.clone()) {
             tracing::warn!("could not save the usage history: {error}");
