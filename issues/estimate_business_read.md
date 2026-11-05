@@ -14,7 +14,7 @@ estimate gives `business-read` its range in the order of the run and counts it i
 recap sets it against that range; with `business_read = false`, the pass shows as off.
 
 # Findings
-* 2026-11-05 (the `high` review of `issues/estimate_against_actual.md`): `GENERATE_PASSES`
+* 2026-11-05 (the `high` review of `issues/done/estimate_against_actual.md`): `GENERATE_PASSES`
   (`crates/retrodoc-cli/src/commands/generate/mod.rs`) has no `business-read`; `data/pass-ratios.yaml` has a
   `business-read` row; `generate` runs `tracker.in_pass("business-read", ...)` (`generate/mod.rs`,
   `generate/contexts.rs`); `off.push("business-read")` in `generate/estimate.rs` has no effect, the pass not being

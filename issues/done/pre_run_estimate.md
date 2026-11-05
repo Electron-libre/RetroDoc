@@ -104,7 +104,7 @@ Means: each pass that scales is costed per source file (one measured range per p
 - checks: tests 4/4 of `run_estimate`, 9/9 of `estimate`, `cardinal run project-check` green, docs updated.
 - red: EST-1, EST-2, EST-3, EST-7, EST-8, EST-9: the four CLI tests failed with the print taken out (no
   `LLM estimate:` in the output); the code was written before them, the red checked after.
-- not verified: the bounds against a real paid run (`issues/estimate_against_actual.md`); the contexts path has no
+- not verified: the bounds against a real paid run (`issues/done/estimate_against_actual.md`); the contexts path has no
   test of its own (its budget and its unmeasured `contexts` pass, unit-tested only).
 
 ## Review of the whole issue (`high`)
