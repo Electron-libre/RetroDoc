@@ -309,13 +309,13 @@ The milestones up to "A large application, one bounded context at a time" are th
 - Goal: complete or correct a section from the web interface; a human change is kept by the next `generate` and
   flagged when the code it rests on changes.
 - Why: the generated docs are a start; the team must be able to own them without losing their work at each run.
-- State: in issues
+- State: done
 - Issues:
   - [edit_store](issues/done/edit_store.md)
   - [edits_in_read_model](issues/done/edits_in_read_model.md)
   - [web_edit_form](issues/done/web_edit_form.md)
   - [edit_outdated](issues/done/edit_outdated.md)
-  - [edit_mark_in_markdown](issues/edit_mark_in_markdown.md)
+  - [edit_mark_in_markdown](issues/done/edit_mark_in_markdown.md)
 
 ## Pre-run cost estimate
 
