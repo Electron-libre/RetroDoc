@@ -44,6 +44,11 @@ enum Command {
         /// intermediate artifacts in `.retrodoc/cache/` are still updated.
         #[arg(long)]
         dry_run: bool,
+        /// Print the estimate of the calls and tokens of the run (printed
+        /// anyway before the first LLM call) and stop: no LLM call, nothing
+        /// written.
+        #[arg(long)]
+        estimate: bool,
         /// Ignore the caches and redo every LLM pass from scratch.
         #[arg(long)]
         force: bool,
@@ -256,6 +261,7 @@ impl Command {
             Command::Generate {
                 path,
                 dry_run: false,
+                estimate: false,
                 ..
             } => Some(commands::history::head(path)),
             _ => None,
@@ -266,7 +272,11 @@ impl Command {
     /// usage recap is filed under.
     fn counted(&self) -> Option<(&'static str, PathBuf)> {
         match self {
-            Command::Generate { path, .. } => Some(("generate", path.clone())),
+            Command::Generate {
+                path,
+                estimate: false,
+                ..
+            } => Some(("generate", path.clone())),
             Command::Roles { path, .. } => Some(("roles", path.clone())),
             Command::Brief { path, .. } => Some(("brief", path.clone())),
             Command::BusinessFiles { path, .. } => Some(("business-files", path.clone())),
@@ -320,6 +330,7 @@ async fn main() -> anyhow::Result<()> {
         Command::Generate {
             path,
             dry_run,
+            estimate,
             force,
             no_confidence,
             confidence_sample,
@@ -333,6 +344,7 @@ async fn main() -> anyhow::Result<()> {
             };
             let options = commands::generate::GenerateOptions {
                 dry_run,
+                estimate,
                 force,
                 confidence,
                 max_files,

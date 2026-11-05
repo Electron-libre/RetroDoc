@@ -64,7 +64,7 @@ During development, replace `retrodoc` with `cargo run -p retrodoc-cli --`.
 |---|---|
 | `init` | Create a default `retrodoc.toml` |
 | `scan` | Summarize the repo (files, history, docs) without writing; the languages a saved `roles.yaml` names count as source |
-| `generate` | Run the whole pipeline and write the docs (`--dry-run`, `--force`, `--no-confidence`, `--confidence-sample N`, `--max-files N`) |
+| `generate` | Run the whole pipeline and write the docs (`--dry-run`, `--estimate`, `--force`, `--no-confidence`, `--confidence-sample N`, `--max-files N`) |
 | `render` | Write the docs from the cached artifacts of the last run, no LLM call; a section a human edited in `retrodoc ui` shows the edited text, marked with its author and date |
 | `report` | Print the documentation debt report, with the sections a human marked wrong in `retrodoc ui`, no LLM call |
 | `mcp` | Serve the generated docs to LLM agents (Claude Code, Cursor…) as a read-only MCP server over stdio, no LLM call; a domain, feature or use case gives its human review, says when the review is outdated (the section rewritten or its code changed since) and warns when it was marked wrong; an edited section says it is a human edit, and an outdated edit ends with the text the last run generated. Point the agent at `retrodoc mcp --path <repo>` |
@@ -77,6 +77,9 @@ Run `retrodoc <command> --help` for the details.
 
 ### Controlling cost on a large repo
 
+Before its first LLM call, `generate` prints an estimate of the calls and tokens of each pass and in total, a range
+extrapolated from runs measured on other applications (a rerun with nothing changed is estimated at zero);
+`generate --estimate` prints it and stops, with no LLM call and nothing written. Tokens only, no price.
 To bound a run: `--max-files N` keeps only the best-ranked files (the features still come from every
 entry point; with `contexts` it is the reading budget of a run), `--no-confidence` / `--confidence-sample N` limit the
 verification pass, and `llm.concurrency` parallelizes the use cases, the rules and the confidence checks.

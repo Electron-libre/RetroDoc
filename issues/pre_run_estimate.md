@@ -58,9 +58,9 @@ Means: each pass that scales is costed per source file (one measured range per p
 2. [x] `retrodoc_pipeline::estimate`: the table embedded and read, a pure estimate from the inputs of EST-3 (files
    to read, files changed since the last complete run, passes turned off, confidence sample, docs present, `force`);
    verified by unit tests; makes true EST-4, EST-5, EST-6, EST-7, EST-8, EST-10 (autonomous).
-3. [ ] `generate`: the estimate printed before the first call, `--estimate` that stops there, the rerun inputs read
+3. [x] `generate`: the estimate printed before the first call, `--estimate` that stops there, the rerun inputs read
    from `source-hashes.json` and the saved artifacts; docs; verified by CLI tests; makes true EST-1, EST-2, EST-3,
-   EST-9.
+   EST-9 (autonomous).
 
 ## Decisions
 - Mode: autonomous
@@ -91,3 +91,17 @@ Means: each pass that scales is costed per source file (one measured range per p
 - red: EST-4, EST-5, EST-6, EST-7, EST-8, EST-9: `not yet implemented` (the body was `todo!()`); EST-10 passed at
   once (the table already existed).
 - not verified: the bounds on a real repository (deliverable 3 prints them).
+
+## Deliverable 3
+- Code review: no findings (`low`).
+- done: `generate` prints the estimate after the walk, before the edits check and any call (`generate/estimate.rs`);
+  `--estimate` stops there (not counted, no snapshot, `--force` clears nothing); changed files from the saved
+  `source-hashes.json` hashed again (a file the roles promote is not taken for removed), the added ones within the
+  room the budget leaves (the contexts path: per run); the fixed passes reuse their saved artifact unless `--force`
+  clears it; models off the measured one grouped by model; spec `accepted`; README, `render-mcp-cli.md`,
+  `ARCHITECTURE.md`.
+- checks: tests 4/4 of `run_estimate`, 9/9 of `estimate`, `cardinal run project-check` green, docs updated.
+- red: EST-1, EST-2, EST-3, EST-7, EST-8, EST-9: the four CLI tests failed with the print taken out (no
+  `LLM estimate:` in the output); the code was written before them, the red checked after.
+- not verified: the bounds against a real paid run (`issues/estimate_against_actual.md`); the contexts path has no
+  test of its own (its budget and its unmeasured `contexts` pass, unit-tested only).

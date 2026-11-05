@@ -222,7 +222,8 @@ entry points (keyed on them and the domain's entities) and the use cases read th
 (features, use cases, rules, confidence) and every artifact is written beside then renamed, so a run
 that fails or is killed mid-pass loses the call in flight and the next run resumes there. The
 `llm.concurrency` (use cases, rules and confidence) setting and the `--no-confidence` / `--confidence-sample` /
-`--max-files` flags bound the cost of a run.
+`--max-files` flags bound the cost of a run, which `generate` estimates before its first call (`--estimate` stops
+there; `specs/run-estimate.md`).
 
 ## 6. Publishing the docs (no LLM)
 

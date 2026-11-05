@@ -12,6 +12,8 @@ use std::sync::LazyLock;
 
 use serde::Deserialize;
 
+use crate::usage_log;
+
 /// The table of measured ratios, as `retrodoc-bench` writes it (the fields the estimate reads).
 #[derive(Debug, Clone, Deserialize)]
 pub struct RatioTable {
@@ -111,7 +113,7 @@ pub struct EstimateInputs<'a> {
     /// On a rerun without `--force`, the source files changed, added or removed since the last complete run;
     /// `None` on a first run or with `--force`: every file is read again.
     pub changed_files: Option<usize>,
-    /// The fixed-cost passes whose saved artifact exists (a rerun reuses it).
+    /// The fixed-cost passes whose saved artifact the run reuses (none that `--force` clears).
     pub saved_fixed: &'a [&'a str],
     /// The passes the run turns off (`--no-confidence`, `[pipeline] rules = false`, reconcile with no docs).
     pub off: &'a [&'a str],
@@ -179,6 +181,98 @@ impl RunEstimate {
     }
 }
 
+/// How the estimate of a run is shown: the files it reads and the model of each pass.
+#[derive(Debug, Clone, Default)]
+pub struct Shown<'a> {
+    pub source_files: usize,
+    /// On a rerun, the files changed since the last complete run.
+    pub changed_files: Option<usize>,
+    /// The model of each pass, by name.
+    pub models: &'a [(&'a str, String)],
+}
+
+impl RunEstimate {
+    /// The estimate in the form of the recap printed at the end of a run (`usage_log::recap`): the total, then
+    /// one line per pass, then what the figures rest on.
+    #[must_use]
+    pub fn render(&self, shown: &Shown, table: &RatioTable) -> String {
+        use std::fmt::Write as _;
+
+        let measured = table.measured_models();
+        let span = |r: Range| {
+            if r.low == r.high {
+                usage_log::thousands(r.low)
+            } else {
+                format!(
+                    "{}-{}",
+                    usage_log::thousands(r.low),
+                    usage_log::thousands(r.high)
+                )
+            }
+        };
+        let read = match shown.changed_files {
+            Some(changed) => format!(
+                "{changed} of {} source file(s) changed since the last complete run",
+                shown.source_files
+            ),
+            None => format!("{} source file(s) to read", shown.source_files),
+        };
+        let mut out = format!(
+            "LLM estimate: {} call(s), {} tokens in, {} tokens out ({read}).\n",
+            span(self.calls),
+            span(self.prompt_tokens),
+            span(self.completion_tokens),
+        );
+        let width = self.passes.iter().map(|p| p.pass.len()).max().unwrap_or(0);
+        for pass in &self.passes {
+            let figures = match pass.basis {
+                Basis::Off => "off in this run".to_string(),
+                Basis::Cached => "reused from the cache".to_string(),
+                Basis::NoCall => "no call measured".to_string(),
+                Basis::Unmeasured => "not measured, counted as zero".to_string(),
+                Basis::PerRun | Basis::PerSourceFile => format!(
+                    "{:>13} call(s)  {:>19} in  {:>17} out",
+                    span(pass.calls),
+                    span(pass.prompt_tokens),
+                    span(pass.completion_tokens)
+                ),
+            };
+            let _ = writeln!(out, "  {:<width$}  {figures}", pass.pass);
+        }
+        let _ = writeln!(
+            out,
+            "  Extrapolated from the calls and tokens measured on saved runs with {} (lowest to highest \
+             application); a rerun redoes more when the prompts of the binary or the model of a pass changed.",
+            measured.join(", ")
+        );
+        let estimated: Vec<&str> = self
+            .passes
+            .iter()
+            .filter(|p| matches!(p.basis, Basis::PerRun | Basis::PerSourceFile))
+            .map(|p| p.pass.as_str())
+            .collect();
+        let mut other: Vec<(&str, Vec<&str>)> = Vec::new();
+        for (pass, model) in shown.models {
+            if measured.contains(model) || !estimated.contains(pass) {
+                continue;
+            }
+            match other.iter_mut().find(|(known, _)| known == model) {
+                Some((_, passes)) => passes.push(pass),
+                None => other.push((model, vec![pass])),
+            }
+        }
+        for (model, passes) in other {
+            let which = if passes.len() == estimated.len() {
+                "every pass".to_string()
+            } else {
+                passes.join(", ")
+            };
+            let _ = writeln!(out, "  Run on {model}, not the measured model: {which}.");
+        }
+        out
+    }
+}
+
 /// Estimates a run from what it knows before its first call and the measured `table`.
 #[must_use]
 pub fn estimate(inputs: &EstimateInputs, table: &RatioTable) -> RunEstimate {
@@ -225,7 +319,8 @@ fn estimate_pass(
         return zero(Basis::Unmeasured);
     };
     let (basis, spread, times) = if measured.fixed {
-        let reused = inputs.changed_files.is_some() && inputs.saved_fixed.contains(&name);
+        // Source hashes are saved once every pass went through: nothing changed since, nothing to redo.
+        let reused = inputs.changed_files == Some(0) || inputs.saved_fixed.contains(&name);
         (Basis::PerRun, measured.per_unit, usize::from(!reused))
     } else {
         (Basis::PerSourceFile, measured.per_source_file, files)
@@ -487,7 +582,6 @@ yields: []
     fn a_rerun_with_nothing_changed_costs_nothing() {
         let inputs = EstimateInputs {
             changed_files: Some(0),
-            saved_fixed: &["brief"],
             ..first_run(200)
         };
         let estimate = estimate(&inputs, &table());
@@ -517,6 +611,65 @@ yields: []
         assert_eq!(
             of(&estimate_of(&unsaved), "brief").calls,
             Range { low: 1, high: 2 }
+        );
+        // A brief written by `retrodoc brief` before the first `generate` is reused too.
+        let briefed = EstimateInputs {
+            saved_fixed: &["brief"],
+            ..first_run(200)
+        };
+        assert_eq!(of(&estimate_of(&briefed), "brief").basis, Basis::Cached);
+    }
+
+    // spec: EST-9 (internal: the CLI tests cover the printing, this the wording of each case)
+    #[test]
+    fn renders_the_ranges_the_basis_and_the_models_off_the_measured_one() {
+        let inputs = EstimateInputs {
+            off: &["confidence"],
+            ..first_run(200)
+        };
+        let table = table();
+        let estimate = estimate(&inputs, &table);
+        let models = [
+            ("brief", "m1".to_string()),
+            ("use-cases", "local".to_string()),
+        ];
+        let text = estimate.render(
+            &Shown {
+                source_files: 200,
+                changed_files: None,
+                models: &models,
+            },
+            &table,
+        );
+        assert!(
+            text.starts_with("LLM estimate: 101-302 call(s), 101,000-302,000 tokens in"),
+            "{text}"
+        );
+        assert!(text.contains("(200 source file(s) to read)"), "{text}");
+        assert!(text.contains("confidence  off in this run"), "{text}");
+        assert!(
+            text.contains("contexts    not measured, counted as zero"),
+            "{text}"
+        );
+        assert!(text.contains("measured on saved runs with m1"), "{text}");
+        assert!(
+            text.contains("Run on local, not the measured model: use-cases."),
+            "{text}"
+        );
+        let local = [
+            ("brief", "local".to_string()),
+            ("use-cases", "local".to_string()),
+        ];
+        let text = estimate.render(
+            &Shown {
+                models: &local,
+                ..Shown::default()
+            },
+            &table,
+        );
+        assert!(
+            text.contains("Run on local, not the measured model: every pass."),
+            "{text}"
         );
     }
 

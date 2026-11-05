@@ -12,6 +12,7 @@ use retrodoc_pipeline::{
 };
 
 mod contexts;
+mod estimate;
 mod print;
 
 use super::usage::PassProviders;
@@ -52,6 +53,8 @@ pub enum Confidence {
 pub struct GenerateOptions {
     /// Preview the docs instead of writing them.
     pub dry_run: bool,
+    /// Print the estimate of the run and stop, before any LLM call and any write.
+    pub estimate: bool,
     /// Wipe the caches first so nothing is reused.
     pub force: bool,
     pub confidence: Confidence,
@@ -82,8 +85,12 @@ pub async fn run(
         max_files,
         ..
     } = *options;
-    let (workspace, mut ingest) = open_workspace(path, force)?;
+    let (workspace, mut ingest) = open_workspace(path, force && !options.estimate)?;
     let (repo_root, config) = (&workspace.repo_root, &workspace.config);
+    estimate::print(repo_root, config, options, &ingest);
+    if options.estimate {
+        return Ok(());
+    }
     // The render refuses a file of edits it can't read: refused before any LLM call is paid for.
     retrodoc_mcp::edits::load(repo_root)
         .context("nothing was run: the human edits cannot be read")?;
