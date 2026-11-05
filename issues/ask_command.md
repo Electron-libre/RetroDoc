@@ -1,0 +1,46 @@
+---
+priority: high
+depends_on: [tool_calling_in_llm]
+why: 'the command the milestone is for: a user without an external agent can question the docs'
+---
+# Answer a question about the application with `retrodoc ask`
+
+# Goal
+The MCP server serves an external agent; a user without one has no way to question the generated docs. Expected:
+`retrodoc ask "<question>"` answers from the generated docs, the collected docs and, when needed, the code and the
+git history, citing the features, use cases and files it relied on, warning when an answer rests on a low
+confidence or on docs older than the code, and saying "not documented" rather than guessing (steps 3 and 4 of
+`docs/findings.md` §4, without the interactive chat).
+
+# Findings
+* 2026-11-05, read from the code: the read-only tools exist as methods of `retrodoc_mcp::Docs` (`list_domains`,
+  `get_domain`, `get_feature`, `get_use_case`, `search_docs`, `read_source`, `git_log`), with confidence, freshness,
+  reviews and edits already in their answers (`specs/mcp-server.md`, `specs/docs-search.md`).
+* The search answers "not documented" to 17 of 21 undocumented topics and keeps 19 of 21 documented ones
+  (`issues/done/search_relevance_threshold.md`); the two lost use a word the docs don't have.
+
+# Approach
+1. A new crate `retrodoc-agent` (tool loop, prompts), depending on `retrodoc-llm`, `retrodoc-mcp` and
+   `retrodoc-core`: the model navigates with the tools of `Docs`, in a bounded number of rounds (a local model has a
+   small context).
+2. The answer: its text, then the sources it cited (checked against the tool results, not trusted from the
+   model), then the warnings the tools gave (confidence below the threshold, stale files).
+3. `retrodoc ask` in `retrodoc-cli`, with the LLM settings of a new pass (`[llm.passes.ask]`), its tokens counted;
+   read-only, no write to the target repository.
+4. Tests with a fake provider scripting the tool calls, like the pipeline passes.
+
+# Specs
+* A new spec `specs/ask.md`, written at `issue-workflow` step 1.
+
+# Milestone
+Ask the documentation
+
+# Resources
+* `docs/findings.md` §4 (design, requirements, risks), `docs/crates/render-mcp-cli.md`, `crates/retrodoc-mcp/src/tools/`,
+  `specs/mcp-server.md`, `specs/docs-search.md`, ADR 0016.
+* The new crate changes the architecture diagram of `CLAUDE.md` and `docs/ARCHITECTURE.md` §2, and
+  `commit_scopes` in `.claude/cardinal.toml`.
+
+# Hints
+* Over the size limit of one deliverable: the crate and its loop, then the command, then the warnings.
+* The misses ("not documented") could feed the debt report: out of scope here, an issue of its own later.
