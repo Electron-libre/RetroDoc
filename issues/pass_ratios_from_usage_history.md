@@ -42,3 +42,45 @@ Pre-run cost estimate
 # Hints
 * No paid run: the saved runs are the input. Name no private repository in the table; describe it generically.
 * Calls without usage make the token sums a lower bound: count them apart.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-05
+
+## Understanding
+Per LLM pass of `generate`, the calls and tokens (prompt, cached, completion, calls without usage apart) per unit
+of its input, and the yields the estimate extrapolates (entry points per file, features per domain, use cases per
+feature), median and range across applications, from the saved runs only. Out of scope: the estimate itself.
+
+## Plan
+1. [x] `pass_ratios` in `retrodoc-bench` (module + example): reads a directory of runs, keeps the complete first
+   `generate` of each (every pass from `sources` on, no `repo-map`), counts the units from the artifacts of the same
+   `.retrodoc/cache/` (business files read and their characters, entry point files, domains, features, use cases,
+   matched reconcile items), writes the ratio table (per run, then median and range per application); verified by
+   tests on hand-built run directories (a rerun and a run with `repo-map` left out, calls without usage counted apart,
+   fixed-cost passes marked) (autonomous).
+2. [ ] The table: run over the saved runs, kept as a data file with the runs it comes from (no private name), the
+   finding dated in `docs/findings.md` §3 point 7 (the old per-file ratios superseded), `docs/crates/bench.md`,
+   `docs/dev/commands.md`; the ledger line; verified by rebuilding it identical from the runs.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 2c86324de655b54b0a86c1037b1baa3ba2b9972b
+- The large private Rails app (its only runs: 2026-10-15/16, local model, older code, resumed over 3 `generate`):
+  included as indicative, out of the median (user, 2026-11-05).
+- The table lives in `crates/retrodoc-pipeline/data/pass-ratios.yaml`, embedded by the estimate (user, 2026-11-05).
+- No saved run of a Rust application: the small application is delivery_router (Ruby).
+- Units (to confirm at gather from the code of each pass): fixed cost `sources`, `brief`, `roles` (a second call for
+  unmatched files), `business-files`, `actors`, `domains`; `business-read` per file read and per 1,000 characters;
+  `entry-points` per entry point file; `features` per domain (the `uncategorized` one included); `use-cases` and
+  `rules` per feature; `confidence` per use case; `reconcile` per item matched to a section.
+
+## Deliverable 1
+- done: `retrodoc_bench::pass_ratios` (`measure_run`, `ratio_table`) and the example `pass_ratios`.
+- checks: tests 6/6 of `pass_ratios`, `cardinal run project-check` green, docs (`bench.md`, `commands.md`, crate root).
+- red: none (no spec, a measure; the tests were written with the module, not before it).
+- Code review: no findings (`low`).
+- Units confirmed at gather: `business-read` reads the files of `glossary.yaml` `models`; `entry-points` the files of
+  `entry-points.yaml` outside them; `features` makes one call per domain of `domains.yaml` (`uncategorized` included)
+  plus the placements; a pass turned off (`rules = false`, the benchmark runs) is absent from the history and its
+  runs are left out of that pass.
