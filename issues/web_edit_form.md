@@ -39,3 +39,45 @@ Edit the docs
 # Hints
 * `htmx` keeps the swap of an error answer only through the `before-swap` hook of the review section: a fragment
   must start with its `<section`, whitespace included.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-05
+
+## Understanding
+A form on the page of a domain, feature or use case writes its edit (name, description, narrative) through
+`edits::record`/`edits::remove`; the lists mark an edited section and the page folds the generated text under the
+edit. Out of scope: steps, rules, glossary; per-field revert. The form trims and normalises line ends (WEB-94), not
+the store; a field equal to the generated text is left out (WEB-95); success reloads the page (`HX-Redirect`).
+
+## Plan
+1. [x] Edit form and its `POST` (`edit_form.rs`, `/edit/domains/…` routes, `edit.html` form, texts en/fr); verified by
+   `tests/edit_pages.rs` through the router; makes true WEB-93 to WEB-99, WEB-12 (amended). ~650 lines. (autonomous)
+2. [ ] Mark of an edited section in the lists and the generated text folded under the edit; verified by
+   `tests/edit_pages.rs`; makes true WEB-100, WEB-92 (amended). ~250 lines.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 21c137465c5c4ded2a4a0d2afa7d80162b84e611
+- 2026-11-05 (user, `ok`): the form trims and turns `\r\n` into `\n` (not the store); a field equal to the
+  generated text is left out; a saved edit answers `HX-Redirect` (whole page reload); one button removes the whole
+  edit, emptying a field removes that field.
+- 2026-11-05 (agent): the form posts to `/edit<page URL>`, not `<page URL>/edit`, which would shadow a feature
+  or a use case whose slug is `edit` (axum prefers a static segment).
+
+## Deliverable 1 summary
+done: edit form folded under the review of each section page, `POST /edit<page>` saving through `edits::record`/`remove`.
+
+| check | result |
+|---|---|
+| tests | pass (`project-check`) |
+| lint | pass |
+| specs | pass (`web-ui` back to `draft` until WEB-100 is traced) |
+| docs | README, `ARCHITECTURE.md`, `docs/crates/render-mcp-cli.md` |
+| code review | 1 finding, fixed |
+
+red: WEB-93, WEB-94, WEB-95, WEB-96, WEB-97, WEB-98, WEB-99: `no edit form in <!doctype html>` and `left: 404` (no route).
+Code review: 1 findings: a narrative refused for a domain or a feature answered the form without its revert button on
+an edited section (`edited` forced to `false`); fixed, the refusal moved into `write`, test added.
+not verified: the form in a real browser (htmx `HX-Redirect`, the submitter `action=revert`): checked in deliverable 2.
+decisions needed: none.

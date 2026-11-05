@@ -177,3 +177,330 @@ async fn an_outdated_edit_is_flagged_with_the_new_generated_text() {
         "{page}"
     );
 }
+
+/// What the router answered a `POST`.
+struct Answer {
+    status: StatusCode,
+    location: Option<String>,
+    redirect: Option<String>,
+    body: String,
+}
+
+async fn post(root: &Path, path: &str, form: &str, htmx: bool) -> Answer {
+    let mut request = Request::post(path)
+        .header("host", "127.0.0.1:8730")
+        .header("origin", "http://127.0.0.1:8730")
+        .header("content-type", "application/x-www-form-urlencoded");
+    if htmx {
+        request = request.header("hx-request", "true");
+    }
+    let docs = GeneratedDocs::load(root, &[]);
+    let response = retrodoc_web::router(Project::default(), docs, DocLinks::default(), Vec::new())
+        .oneshot(request.body(Body::from(form.to_string())).unwrap())
+        .await
+        .unwrap();
+    let header = |name: &str| {
+        response
+            .headers()
+            .get(name)
+            .map(|v| v.to_str().unwrap().to_string())
+    };
+    let (status, location, redirect) =
+        (response.status(), header("location"), header("hx-redirect"));
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    Answer {
+        status,
+        location,
+        redirect,
+        body: String::from_utf8(body.to_vec()).unwrap(),
+    }
+}
+
+/// The edits saved, as the store loads them.
+fn saved(root: &Path) -> Vec<(Section, Fields)> {
+    edits::load(root)
+        .unwrap()
+        .edits()
+        .iter()
+        .map(|e| (e.section.clone(), e.fields.clone()))
+        .collect()
+}
+
+/// The edit form of a section page.
+fn form_block(page: &str) -> &str {
+    let start = page
+        .find("<section class=\"edit-form\"")
+        .unwrap_or_else(|| panic!("no edit form in {page}"));
+    let end = start + page[start..].find("</section>").unwrap();
+    &page[start..end]
+}
+
+const USE_CASE: &str = "/domains/billing/pay-invoice/pay-by-card";
+const FEATURE: &str = "/domains/billing/pay-invoice";
+
+// spec: WEB-93
+#[tokio::test]
+async fn the_edit_form_is_filled_with_the_text_the_page_shows() {
+    let repo = generated_repo();
+    let root = repo.path();
+    edit(
+        root,
+        &Section::new(SectionKind::Feature, "pay-invoice"),
+        Fields {
+            name: Some("Settle <an> invoice".into()),
+            ..Fields::default()
+        },
+    );
+
+    let use_case = get(root, USE_CASE).await;
+    let form = form_block(&use_case);
+    assert!(
+        form.contains(&format!("hx-post=\"/edit{USE_CASE}\"")),
+        "{form}"
+    );
+    assert!(form.contains("value=\"Pay by card\""), "{form}");
+    assert!(
+        form.contains("name=\"narrative\" rows=\"8\">The clerk takes the card.</textarea>"),
+        "{form}"
+    );
+    assert!(
+        use_case.find("<section class=\"review\"").unwrap()
+            < use_case.find("<section class=\"edit-form\"").unwrap(),
+        "the form after the review: {use_case}"
+    );
+
+    let feature = get(root, FEATURE).await;
+    let form = form_block(&feature);
+    assert!(
+        form.contains("value=\"Settle &#60;an&#62; invoice\""),
+        "{form}"
+    );
+    assert!(form.contains(">What pay-invoice does</textarea>"), "{form}");
+    assert!(!form.contains("name=\"narrative\""), "{form}");
+    let domain = get(root, "/domains/billing").await;
+    assert!(
+        form_block(&domain).contains("hx-post=\"/edit/domains/billing\""),
+        "{domain}"
+    );
+}
+
+// spec: WEB-94
+// spec: WEB-95
+#[tokio::test]
+async fn the_form_saves_only_the_fields_it_changes_trimmed() {
+    let repo = generated_repo();
+    let root = repo.path();
+
+    let answer = post(
+        root,
+        &format!("/edit{USE_CASE}"),
+        "name=Pay+by+card&description=&narrative=+Refunds.%0D%0AThen+the+receipt.%0D%0A",
+        false,
+    )
+    .await;
+
+    assert_eq!(answer.status, StatusCode::SEE_OTHER, "{}", answer.body);
+    assert_eq!(
+        saved(root),
+        vec![(
+            Section::use_case("pay-invoice", "pay-by-card"),
+            Fields {
+                narrative: Some("Refunds.\nThen the receipt.".into()),
+                ..Fields::default()
+            }
+        )]
+    );
+
+    let unchanged = "name=Pay+by+card&description=&narrative=The+clerk+takes+the+card.";
+    post(root, &format!("/edit{USE_CASE}"), unchanged, false).await;
+    assert_eq!(saved(root), Vec::new(), "every field left out: no edit");
+}
+
+// spec: WEB-95
+#[tokio::test]
+async fn emptying_the_only_edited_field_removes_the_edit() {
+    let repo = generated_repo();
+    let root = repo.path();
+    let feature = Section::new(SectionKind::Feature, "pay-invoice");
+    edit(
+        root,
+        &feature,
+        Fields {
+            name: Some("Settle an invoice".into()),
+            ..Fields::default()
+        },
+    );
+    edit(
+        root,
+        &Section::new(SectionKind::Feature, "refund"),
+        Fields {
+            name: Some("Give back".into()),
+            ..Fields::default()
+        },
+    );
+
+    post(
+        root,
+        &format!("/edit{FEATURE}"),
+        "name=+&description=What+pay-invoice+does",
+        false,
+    )
+    .await;
+
+    let left: Vec<Section> = saved(root).into_iter().map(|(s, _)| s).collect();
+    assert_eq!(left, vec![Section::new(SectionKind::Feature, "refund")]);
+}
+
+// spec: WEB-96
+#[tokio::test]
+async fn the_back_button_brings_the_generated_text_back() {
+    let repo = generated_repo();
+    let root = repo.path();
+    let unedited = get(root, FEATURE).await;
+    assert!(
+        !form_block(&unedited).contains("value=\"revert\""),
+        "{unedited}"
+    );
+    edit(
+        root,
+        &Section::new(SectionKind::Feature, "pay-invoice"),
+        Fields {
+            description: Some("Pays what is due.".into()),
+            ..Fields::default()
+        },
+    );
+    let edited = get(root, FEATURE).await;
+    assert!(
+        form_block(&edited).contains("name=\"action\" value=\"revert\""),
+        "{edited}"
+    );
+
+    let answer = post(
+        root,
+        &format!("/edit{FEATURE}"),
+        "action=revert&name=Feature+pay-invoice&description=Pays+what+is+due.",
+        false,
+    )
+    .await;
+
+    assert_eq!(answer.status, StatusCode::SEE_OTHER, "{}", answer.body);
+    assert_eq!(saved(root), Vec::new());
+    let page = get(root, FEATURE).await;
+    assert!(page.contains("<p>What pay-invoice does</p>"), "{page}");
+}
+
+// spec: WEB-97
+#[tokio::test]
+async fn a_saved_edit_reloads_the_page() {
+    let repo = generated_repo();
+    let root = repo.path();
+    let form = "name=Settle+an+invoice&description=What+pay-invoice+does";
+
+    let htmx = post(root, &format!("/edit{FEATURE}"), form, true).await;
+    assert_eq!(htmx.status, StatusCode::OK, "{}", htmx.body);
+    assert_eq!(htmx.redirect.as_deref(), Some(FEATURE));
+
+    let plain = post(root, &format!("/edit{FEATURE}"), form, false).await;
+    assert_eq!(plain.status, StatusCode::SEE_OTHER);
+    assert_eq!(plain.location.as_deref(), Some(FEATURE));
+    assert!(get(root, FEATURE)
+        .await
+        .contains("<h1>Settle an invoice</h1>"));
+}
+
+// spec: WEB-98
+#[tokio::test]
+async fn an_edit_of_a_section_the_run_lacks_or_of_a_narrative_it_lacks_is_refused() {
+    let repo = generated_repo();
+    let root = repo.path();
+
+    let missing = post(root, "/edit/domains/billing/nope", "name=X", false).await;
+    assert_eq!(missing.status, StatusCode::NOT_FOUND);
+    let elsewhere = post(root, "/edit/domains/other/pay-invoice", "name=X", true).await;
+    assert_eq!(elsewhere.status, StatusCode::NOT_FOUND);
+    let narrative = post(
+        root,
+        &format!("/edit{FEATURE}"),
+        "name=X&narrative=Y",
+        false,
+    )
+    .await;
+    assert_eq!(narrative.status, StatusCode::BAD_REQUEST);
+    assert_eq!(saved(root), Vec::new());
+    let refund = Section::new(SectionKind::Feature, "refund");
+    let fields = Fields {
+        name: Some("Give back".into()),
+        ..Fields::default()
+    };
+    edit(root, &refund, fields.clone());
+    let refused = post(
+        root,
+        "/edit/domains/billing/refund",
+        "name=X&narrative=Y",
+        true,
+    )
+    .await;
+    assert_eq!(refused.status, StatusCode::BAD_REQUEST);
+    assert!(
+        refused.body.contains("value=\"revert\""),
+        "the edited section keeps its revert button: {}",
+        refused.body
+    );
+    assert_eq!(saved(root), vec![(refund, fields)]);
+
+    let empty = tempfile::tempdir().unwrap();
+    let no_run = post(empty.path(), "/edit/domains/billing", "name=X", false).await;
+    assert_eq!(no_run.status, StatusCode::NOT_FOUND);
+}
+
+// spec: WEB-99
+#[tokio::test]
+async fn an_unreadable_file_of_edits_fails_the_save_and_is_left_as_it_was() {
+    let repo = generated_repo();
+    let root = repo.path();
+    let path = edits::edits_path(root);
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    std::fs::write(&path, "{ not json").unwrap();
+    let form = "name=Settle+%3Cit%3E&description=What+pay-invoice+does";
+
+    let plain = post(root, &format!("/edit{FEATURE}"), form, false).await;
+    assert_eq!(plain.status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert!(plain.body.contains("edits.json"), "{}", plain.body);
+
+    let htmx = post(root, &format!("/edit{FEATURE}"), form, true).await;
+    assert_eq!(htmx.status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert!(
+        htmx.body.starts_with("<section class=\"edit-form\""),
+        "{}",
+        htmx.body
+    );
+    assert!(htmx.body.contains("edits.json"), "{}", htmx.body);
+    assert!(
+        htmx.body.contains("value=\"Settle &#60;it&#62;\""),
+        "the fields as sent: {}",
+        htmx.body
+    );
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "{ not json");
+}
+
+// spec: WEB-84
+#[tokio::test]
+async fn an_edit_from_another_site_is_refused() {
+    let repo = generated_repo();
+    let root = repo.path();
+    let request = Request::post(format!("/edit{FEATURE}"))
+        .header("host", "127.0.0.1:8730")
+        .header("origin", "http://evil.example")
+        .header("content-type", "application/x-www-form-urlencoded")
+        .body(Body::from("name=X"))
+        .unwrap();
+    let docs = GeneratedDocs::load(root, &[]);
+    let response = retrodoc_web::router(Project::default(), docs, DocLinks::default(), Vec::new())
+        .oneshot(request)
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    assert_eq!(saved(root), Vec::new());
+}

@@ -127,5 +127,5 @@ it and no `generate` loses it.
 - No history of the edits: a new edit replaces the former one; git keeps the history of a versioned file.
 - No lock across processes: two processes saving at the same instant keep the last one's file whole (SED-12), not
   both.
-- The form that writes an edit (`issues/web_edit_form.md`).
+- The form that writes an edit: `specs/web-ui.md` (WEB-93 to WEB-99).
 - No merge of an outdated edit with the new generated text: the team rewrites or drops it.

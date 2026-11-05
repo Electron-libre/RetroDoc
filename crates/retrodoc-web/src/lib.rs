@@ -16,6 +16,7 @@ pub mod code;
 pub mod collected;
 pub mod debt;
 pub mod edit;
+pub mod edit_form;
 pub mod files;
 pub mod glossary;
 pub mod history;
@@ -37,7 +38,7 @@ use axum::extract::{FromRef, Request};
 use axum::http::{header, HeaderMap, Method, StatusCode};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::Router;
 use retrodoc_core::config::OutputConfig;
 use retrodoc_mcp::edits::Live;
@@ -136,6 +137,12 @@ pub fn router(
         .route(
             "/domains/{domain}/{feature}/{use_case}",
             get(pages::use_case).post(review_form::use_case),
+        )
+        .route("/edit/domains/{slug}", post(edit_form::domain))
+        .route("/edit/domains/{domain}/{slug}", post(edit_form::feature))
+        .route(
+            "/edit/domains/{domain}/{feature}/{slug}",
+            post(edit_form::use_case),
         )
         .route("/files", get(pages::files))
         .route("/glossary", get(pages::glossary))

@@ -10,6 +10,7 @@
 {% call m::score(t.doc.confidence, page.confidence) %}{% endcall %}
 {% include "edit.html" %}
 {% include "review.html" %}
+{% include "edit_form.html" %}
 <h2>{{ t.doc.use_cases }}</h2>
 {% if page.no_use_case %}
 <p>{{ t.doc.no_use_case }}</p>

@@ -18,6 +18,7 @@ use crate::code::{code_page, Asked, CodePage};
 use crate::collected::{collected_page, CollectedPage};
 use crate::debt::{debt_page, DebtFilter, DebtPage};
 use crate::edit::EditView;
+use crate::edit_form::EditFormView;
 use crate::files::FilesPage;
 use crate::glossary::GlossaryPage;
 use crate::history::{history_page, HistoryPage};
@@ -49,6 +50,7 @@ struct DomainTemplate<'a> {
     shell: &'a Shell,
     edit: Option<EditView>,
     review: ReviewView,
+    edit_form: EditFormView,
     page: DomainPage,
 }
 
@@ -59,6 +61,7 @@ struct FeatureTemplate<'a> {
     shell: &'a Shell,
     edit: Option<EditView>,
     review: ReviewView,
+    edit_form: EditFormView,
     page: FeaturePage,
 }
 
@@ -69,6 +72,7 @@ struct UseCaseTemplate<'a> {
     shell: &'a Shell,
     edit: Option<EditView>,
     review: ReviewView,
+    edit_form: EditFormView,
     page: UseCasePage,
     mermaid: &'static str,
 }
@@ -264,18 +268,21 @@ pub async fn domain(State(site): State<Arc<Site>>, Path(slug): Path<String>) -> 
             let place = Place::Domain(slug.clone());
             let (reviews, review) = reviews_of(docs, &place);
             let edit = EditView::of(docs, &place, site.texts());
-            domain_page(docs, site.links(), &reviews, &slug).map(|page| (page, edit, review))
+            let edit_form = EditFormView::of(docs, &place);
+            domain_page(docs, site.links(), &reviews, &slug)
+                .map(|page| (page, edit, review, edit_form))
         })
     })
     .await;
     match page {
-        Ok(Some((page, edit, review))) => render(
+        Ok(Some((page, edit, review, edit_form))) => render(
             StatusCode::OK,
             &DomainTemplate {
                 t: site.texts(),
                 shell: site.shell(),
                 edit,
                 review,
+                edit_form,
                 page,
             },
         ),
@@ -304,19 +311,21 @@ pub async fn feature(
             };
             let (reviews, review) = reviews_of(docs, &place);
             let edit = EditView::of(docs, &place, site.texts());
+            let edit_form = EditFormView::of(docs, &place);
             feature_page(docs, site.links(), &reviews, &domain, &slug)
-                .map(|page| (page, edit, review))
+                .map(|page| (page, edit, review, edit_form))
         })
     })
     .await;
     match page {
-        Ok(Some((page, edit, review))) => render(
+        Ok(Some((page, edit, review, edit_form))) => render(
             StatusCode::OK,
             &FeatureTemplate {
                 t: site.texts(),
                 shell: site.shell(),
                 edit,
                 review,
+                edit_form,
                 page,
             },
         ),
@@ -338,19 +347,21 @@ pub async fn use_case(
             };
             let review = ReviewView::of(docs, &review::load(docs), &place);
             let edit = EditView::of(docs, &place, site.texts());
+            let edit_form = EditFormView::of(docs, &place);
             use_case_page(docs, site.links(), &domain, &feature, &slug)
-                .map(|page| (page, edit, review))
+                .map(|page| (page, edit, review, edit_form))
         })
     })
     .await;
     match page {
-        Ok(Some((page, edit, review))) => render(
+        Ok(Some((page, edit, review, edit_form))) => render(
             StatusCode::OK,
             &UseCaseTemplate {
                 t: site.texts(),
                 shell: site.shell(),
                 edit,
                 review,
+                edit_form,
                 page,
                 mermaid: MERMAID,
             },

@@ -1,6 +1,6 @@
 ---
 id: WEB
-status: accepted
+status: draft
 adrs: [0039, 0044]
 ---
 
@@ -31,7 +31,8 @@ over browses its domains, features and use cases rather than reading the Markdow
 - **WEB-11** (deterministic) The pages must load their scripts, stylesheet and images from the interface itself,
   under `/assets/`, and from no other host.
 - **WEB-12** (deterministic) Serving the pages must not write any file in the repository other than
-  `.retrodoc/reviews.json`, which only a review sent from a page (WEB-81) writes.
+  `.retrodoc/reviews.json`, which only a review sent from a page (WEB-81) writes, and `.retrodoc/edits.json`, which
+  only an edit sent from a page (WEB-93) writes.
 - **WEB-13** (deterministic) A request whose `Host` names neither `localhost` nor an IP address must be refused with the
   status 403.
 - **WEB-14** (deterministic) With a `--bind` address that is not a loopback one, `retrodoc ui` must warn that the docs
@@ -218,7 +219,28 @@ over browses its domains, features and use cases rather than reading the Markdow
   date; a section with no edit shows none.
 - **WEB-92** (deterministic) The edit of a section on its page must be flagged outdated when it is (SED-34, SED-35),
   with its reasons as WEB-89 says, and show, beside each field the edit changes, the text the last run generated for
-  it.
+  it: folded under the edit when the edit is not outdated, unfolded when it is.
+- **WEB-93** (deterministic) The page of a domain, a feature or a use case must hold a form, sent with `htmx`, that
+  sends by a `POST` to `/edit` followed by the URL of the page (`/edit/domains/<domain>`, a path no page has) its name,
+  its description and, for a use case, its narrative, each filled with the text the page shows (SED-23).
+- **WEB-94** (deterministic) A field the edit form sends must be saved with its surrounding whitespace trimmed and
+  the carriage return of each line end a browser sends (CR LF) dropped.
+- **WEB-95** (deterministic) A field of the edit form must be left out of the edit (SED-2) when it is sent empty or
+  equal, once trimmed (WEB-94), to the text the last run generated for it, so that a form that leaves every field out
+  removes the edit of the section (SED-16).
+- **WEB-96** (deterministic) The edit form of an edited section must hold a button that brings the generated text
+  back: it removes the edit of the section (SED-16).
+- **WEB-97** (deterministic) An edit `POST` saved with the header `HX-Request` must be answered with the header
+  `HX-Redirect` naming the page, so that the whole page shows the edit; any other with a redirect `303` to the page.
+- **WEB-98** (deterministic) An edit `POST` to a section the last run does not have, or before a first run, must be
+  answered with the status 404, and nothing saved; one that sends a narrative for a domain or a feature, with the
+  status 400 (SED-3), and nothing saved.
+- **WEB-99** (deterministic) An edit `POST` must be answered with the status 500 and the error when
+  `.retrodoc/edits.json` cannot be read or is of a later format, the file left as it was (SED-14); with the header
+  `HX-Request`, as the edit of the section and its form alone, the fields as sent, swapped in place of the former
+  ones.
+- **WEB-100** (deterministic) Each row of a list of sections (WEB-80) must show a mark when its section holds a human
+  edit, and none when it holds none.
 
 ## Scenarios
 
@@ -324,6 +346,11 @@ over browses its domains, features and use cases rather than reading the Markdow
 - (WEB-87, WEB-88) Given a `reviews.json` holding invalid JSON, then the pages of the sections are still served, naming it.
 - (WEB-92) Given a use case whose narrative is edited, when a later run rewrites it, then its page shows the edited
   narrative, the edit outdated as "rewritten" and the new generated narrative.
+- (WEB-95) Given a use case shown as generated, when the form sends its name and description unchanged and a new
+  narrative, then the edit holds the narrative only.
+- (WEB-95) Given a feature whose name is edited, when the form sends the name emptied, then the feature has no edit.
+- (WEB-94) Given a narrative of two lines typed in a textarea, ending with a line end, then the edit holds the two
+  lines joined by a line feed alone, with no line end after them.
 - (WEB-89) Given an outdated review, when the form saves the same status again, then the review is no longer flagged
   outdated (REV-22).
 
@@ -339,7 +366,10 @@ over browses its domains, features and use cases rather than reading the Markdow
 - The actors page does not merge the spellings of an actor nor maps them to the actors list (`actors.yaml`).
 - The rules page has no free-text filter: the search covers the rules (WEB-40).
 - No authentication nor several repositories: the server is for the local user (a hosted mode needs its own ADR).
-- No LLM call and no edit of the docs: a review records a judgement and leaves the docs as they are.
+- No LLM call: a review records a judgement and leaves the docs as they are; an edit (WEB-93) is an overlay over the
+  generated text, which the artifacts keep (`specs/section-edit.md`).
+- The edit form changes the name, the description and the narrative only: no steps, business rules nor glossary
+  (`specs/section-edit.md`); no button per field brings one field back: emptying it does.
 - No authentication of the reviewer: the author of a review is the `user.name` of the repository (REV-4), whoever
   sends the form.
 - No reason of an outdated review in the badge of a list (WEB-90): the page of the section gives them.

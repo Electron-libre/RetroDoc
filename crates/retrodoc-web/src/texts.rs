@@ -264,6 +264,15 @@ pub struct EditTexts {
     /// Above the text the last run generated for the fields of an outdated edit.
     pub generated: &'static str,
     pub outdated: OutdatedTexts,
+    /// The summary of the folded edit form.
+    pub form_heading: &'static str,
+    /// The labels of the fields of the form, in the order of `Field::ALL`.
+    pub labels: [&'static str; 3],
+    /// Under the fields: what an empty one or one left as generated does.
+    pub form_hint: &'static str,
+    pub save: &'static str,
+    /// The button that removes the edit.
+    pub revert: &'static str,
 }
 
 /// Why a review or an edit is outdated, in words.
@@ -635,6 +644,11 @@ impl WebTexts {
                 rewritten: "section rewritten since the edit",
                 files_changed: "files changed since the edit:",
             },
+            form_heading: "Edit this section",
+            labels: ["Name", "Description", "Narrative"],
+            form_hint: "An empty field, or one left as generated, keeps the generated text.",
+            save: "Save the edit",
+            revert: "Back to the generated text",
         },
         refusal: SourceError::to_string,
     };
@@ -971,6 +985,11 @@ impl WebTexts {
                 rewritten: "section réécrite depuis la correction",
                 files_changed: "fichiers modifiés depuis la correction :",
             },
+            form_heading: "Corriger cette section",
+            labels: ["Nom", "Description", "Récit"],
+            form_hint: "Un champ vide, ou laissé tel que généré, garde le texte généré.",
+            save: "Enregistrer la correction",
+            revert: "Revenir au texte généré",
         },
         refusal: french_refusal,
     };

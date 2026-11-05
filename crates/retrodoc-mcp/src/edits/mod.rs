@@ -218,24 +218,30 @@ pub fn outdated(docs: &GeneratedDocs, edit: &Edit) -> Option<Outdated> {
 /// case with no narrative; none when `docs` don't hold its section.
 #[must_use]
 pub fn generated(docs: &GeneratedDocs, edit: &Edit) -> Option<Vec<(Field, String)>> {
-    let (name, description, narrative) = match reviews::find_in(docs.generated(), &edit.section)? {
+    let fields = fields_in(docs.generated(), &edit.section)?;
+    Some(
+        edit.changed()
+            .into_iter()
+            .map(|field| (field, fields.get(field).unwrap_or_default().to_string()))
+            .collect(),
+    )
+}
+
+/// The name, the description and, for a use case, the narrative of `section` in `sections`
+/// ([`GeneratedDocs::sections`] as shown, [`GeneratedDocs::generated`] as generated); `None` when
+/// they lack it.
+#[must_use]
+pub fn fields_in(sections: &Sections, section: &Section) -> Option<Fields> {
+    let (name, description, narrative) = match reviews::find_in(sections, section)? {
         Found::Domain(d) => (&d.name, &d.description, None),
         Found::Feature(f) => (&f.name, &f.description, None),
         Found::UseCase(u) => (&u.name, &u.description, u.narrative.as_ref()),
     };
-    Some(
-        edit.changed()
-            .into_iter()
-            .map(|field| {
-                let text = match field {
-                    Field::Name => Some(name),
-                    Field::Description => Some(description),
-                    Field::Narrative => narrative,
-                };
-                (field, text.cloned().unwrap_or_default())
-            })
-            .collect(),
-    )
+    Some(Fields {
+        name: Some(name.clone()),
+        description: Some(description.clone()),
+        narrative: narrative.cloned(),
+    })
 }
 
 /// Records the edit of `section` in `docs`, replacing its former one; its fingerprint is taken on
