@@ -44,7 +44,7 @@ fn generated_repo(config: &str) -> tempfile::TempDir {
 /// A model that reads the feature, then answers naming it, its file and a feature it never read.
 fn navigating() -> FakeLlm {
     FakeLlm::turns(|call| {
-        if call.tool_results.is_empty() {
+        if call.tool_results.is_empty() && !call.tools.is_empty() {
             Turn::Calls(vec![(
                 "c1",
                 "get_feature",
@@ -170,6 +170,14 @@ fn the_last_request_sends_no_tool_result() {
     assert_eq!(calls[0].tools.len(), 7);
     assert_eq!(calls[1].tools, Vec::<String>::new());
     assert_eq!(calls[1].tool_results, Vec::<String>::new());
+    let folded = &calls[1].user;
+    assert!(
+        folded.starts_with(QUESTION)
+            && folded.contains("get_feature")
+            && folded.contains("# List orders (`orders/list-orders`)"),
+        "{folded}"
+    );
+    assert!(out.contains("Sources:"), "{out}");
 }
 
 // spec: ASK-15

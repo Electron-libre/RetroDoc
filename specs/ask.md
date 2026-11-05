@@ -51,8 +51,9 @@ warnings those sources carry (low confidence, code changed since the docs), so t
 - **ASK-20** (deterministic) A tool call whose arguments are `null` must be answered as a call with `{}`.
 - **ASK-21** (deterministic) The agent asked without the code tools must offer neither `read_source` nor `git_log`,
   and its system prompt must not name them.
-- **ASK-22** (deterministic) The last request of ASK-6 must hold no assistant tool call and no tool result: each call
-  of the question (its tool and arguments) and its result must reach it as the text of a user message.
+- **ASK-22** (deterministic) The last request of ASK-6 must send the system prompt and one user message only: the
+  question, then each call of the question that got no error (its tool and arguments) with its result as text, then
+  the demand of the answer; no assistant tool call nor tool result.
 - **ASK-23** (deterministic) Each call of a round beyond the first 6 must be answered, without running its tool, with
   an error telling the model to make fewer calls per round or to answer.
 - **ASK-24** (deterministic) A call must be answered with an error giving the size of its result and what is left of
@@ -74,10 +75,11 @@ warnings those sources carry (low confidence, code changed since the docs), so t
 - (ASK-11) Given the source `billing/pay-invoice/pay-by-card` whose step cites `app/invoice.rb`, modified since the
   last `generate`, then the answer warns that `app/invoice.rb` changed.
 
-- (ASK-22) Given `--max-rounds 1` and a round calling `list_domains`, then the last request holds the system prompt,
-  the question and one user message naming `list_domains`, its arguments and its result, then asking for the answer.
+- (ASK-22) Given `--max-rounds 1` and a round calling `list_domains` and `get_feature` with `{"slug": "x"}`, then the
+  last request holds the system prompt and one user message: the question, `list_domains` with its arguments and its
+  result, then the demand of the answer; the error of `get_feature` is left out.
 - (ASK-23) Given a round of 7 calls, then the first 6 get their tool's answer and the 7th the error.
-- (ASK-24) Given 59000 characters of results already read, when a `read_source` result of 2000 characters comes,
+- (ASK-24) Given 59000 characters of results already read, when a result of 2000 characters comes,
   then it is answered with the error naming 2000 and 1000, and a later result of 500 characters still passes.
 
 ## Non-goals

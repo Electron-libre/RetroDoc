@@ -57,6 +57,10 @@ rather than `tool_choice: none`, which needs no paid check and no server support
    tests with the scripted `FakeLlm` in `crates/retrodoc-agent/src/tests.rs` and the end-to-end `ask` test; makes
    true ASK-22, ASK-23, ASK-24. (autonomous)
 
+2. [x] Fixes of the `high` review: the last request holds one user message (the question, the calls that got no
+   error with their results, the demand), the arguments outside code spans, the calls kept without a copy of their
+   results; the end-to-end ASK-22 test checks the folded text; verified by the ASK-22 tests. (autonomous)
+
 ## Decisions
 - Mode: autonomous
 - Base commit: 59fd8e2ced9f7139a0eadc99f5abf4a2d3a96291
@@ -71,3 +75,18 @@ rather than `tool_choice: none`, which needs no paid check and no server support
   tool result.
 - Code review: no findings.
 - not verified: a real call on a local model or `OpenRouter` (fakes only).
+
+## Deliverable 2
+- done: the fixes of the `high` review of the issue (findings 1, 3, 4, 5, 6, 8 below).
+- red: ASK-22: roles `[System, User, User]` instead of `[System, User]`; end to end, the second user message missed
+  the question.
+- Code review (`high`, whole issue): 8 findings.
+  1. Two user messages in a row, refused by some chat templates: fixed, one user message.
+  2. 60000 characters may exceed 15k tokens on code or French, and reasoning is not bounded: not fixed, the figure
+     was validated (2 a); a decision for the user.
+  3. End-to-end ASK-22 test did not check the folded text: fixed.
+  4. Arguments in a code span break on backticks or empty text: fixed, plain `Arguments:` line.
+  5. A third copy of each result for the fold: fixed, the calls zipped with `tool_results`.
+  6. Error results copied into the fold: fixed, left out; the assistant's text of the rounds stays out.
+  7. The fold lives in the agent, not the provider: not fixed, the agent is the only tool loop; `chat` can move it.
+  8. The ASK-24 scenario named `read_source`, the test uses `get_feature`: fixed, the scenario names any result.

@@ -332,8 +332,11 @@ async fn the_reasoning_of_a_round_that_called_tools_is_given_back_in_the_next() 
 
 // spec: ASK-22 (internal: the messages of the last request are seen through the fake provider only)
 #[tokio::test]
-async fn the_last_request_holds_the_calls_and_results_as_text_only() {
-    let llm = FakeLlm::scripted(vec![calls(vec![call("c1", "list_domains", "{}")])]);
+async fn the_last_request_holds_the_question_and_the_results_as_one_user_message() {
+    let llm = FakeLlm::scripted(vec![calls(vec![
+        call("c1", "list_domains", "{}"),
+        call("c2", "get_feature", r#"{"slug":"x"}"#),
+    ])]);
     let docs = docs();
     ask(&llm, Arc::clone(&docs), "What is billed?", 1)
         .await
@@ -341,19 +344,27 @@ async fn the_last_request_holds_the_calls_and_results_as_text_only() {
 
     let last = llm.messages().pop().unwrap();
     let roles: Vec<Role> = last.iter().map(|m| m.role).collect();
-    assert_eq!(roles, [Role::System, Role::User, Role::User]);
+    assert_eq!(roles, [Role::System, Role::User]);
     assert!(last.iter().all(|m| m.tool_calls.is_empty()));
-    assert_eq!(last[1].content, "What is billed?");
-    let folded = &last[2].content;
-    for part in [
-        "`list_domains`",
-        "`{}`",
-        docs.list_domains().as_str(),
-        "Answer the question now",
-    ] {
-        assert!(folded.contains(part), "{part} not in {folded}");
-    }
-    assert!(folded.find("`list_domains`") < folded.find("Answer the question now"));
+    let folded = &last[1].content;
+    assert!(folded.starts_with("What is billed?"), "{folded}");
+    let at = |part: &str| {
+        folded
+            .find(part)
+            .unwrap_or_else(|| panic!("{part} not in {folded}"))
+    };
+    let order = [
+        at("What is billed?"),
+        at("list_domains"),
+        at("Arguments: {}"),
+        at(docs.list_domains().trim_end()),
+        at("Answer the question now"),
+    ];
+    assert!(order.is_sorted(), "{folded}");
+    assert!(
+        !folded.contains("get_feature") && !folded.contains("Error"),
+        "{folded}"
+    );
 }
 
 // spec: ASK-23 (internal: the rounds are scripted with the fake provider, which the binary cannot take)

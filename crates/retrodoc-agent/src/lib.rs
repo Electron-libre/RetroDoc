@@ -231,7 +231,7 @@ pub async fn ask_with(
         ChatMessage::new(Role::User, question),
     ];
     let mut answer = Answer::default();
-    let mut read: Vec<(ToolCall, String)> = Vec::new();
+    let mut called: Vec<ToolCall> = Vec::new();
     let mut used = 0;
     loop {
         let offer = answer.rounds < max_rounds;
@@ -245,8 +245,7 @@ pub async fn ask_with(
             CompletionRequest {
                 messages: vec![
                     messages[0].clone(),
-                    messages[1].clone(),
-                    ChatMessage::new(Role::User, folded(&read)),
+                    ChatMessage::new(Role::User, folded(question, &called, &answer.tool_results)),
                 ],
                 ..Default::default()
             }
@@ -281,8 +280,8 @@ pub async fn ask_with(
                 )
             };
             messages.push(ChatMessage::tool_result(call.id.clone(), result.clone()));
-            answer.tool_results.push(result.clone());
-            read.push((call, result));
+            answer.tool_results.push(result);
+            called.push(call);
         }
     }
 }
@@ -306,16 +305,22 @@ fn within_budget(result: String, used: &mut usize) -> String {
     result
 }
 
-/// The last request's message: each call of the question and its result as text, then the
-/// demand of the answer, so the history holds no tool call a server could refuse without tools.
-fn folded(read: &[(ToolCall, String)]) -> String {
-    let mut text = String::new();
+/// The one user message of the last request: the question, each call that got no error with its
+/// result as text, then the demand of the answer. No tool history, which a server may refuse in a
+/// request without tools, and no second user message in a row, which some chat templates refuse.
+fn folded(question: &str, calls: &[ToolCall], results: &[String]) -> String {
+    let mut text = format!("{question}\n\n");
+    let read: Vec<_> = calls
+        .iter()
+        .zip(results)
+        .filter(|(_, result)| !result.starts_with("Error:"))
+        .collect();
     if !read.is_empty() {
         text.push_str("Your tool calls and what they returned:\n\n");
         for (call, result) in read {
             let _ = write!(
                 text,
-                "## `{}` `{}`\n\n{}\n\n",
+                "## Call of {}\n\nArguments: {}\n\n{}\n\n",
                 call.name,
                 call.arguments,
                 result.trim_end()

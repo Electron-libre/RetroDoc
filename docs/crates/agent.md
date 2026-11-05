@@ -11,8 +11,9 @@ answer. The tool results of a question are bounded so they fit the context of a 
 `MAX_CALLS_PER_ROUND` (6) and a result that would bring the results past `MAX_RESULT_CHARS` (60000 characters,
 errors left out) are answered with an error telling the model to narrow down or answer (ASK-23, ASK-24).
 After `max_rounds` rounds of calls (`DEFAULT_MAX_ROUNDS`, 8) one last request offers no tool and asks for the
-answer from what was read; it sends the system prompt, the question and one user message folding each call and its
-result into text, so no server refuses a tool history without tools (ASK-22). `Answer` holds its text, the tool results of the question, the rounds and its sources:
+answer from what was read; it sends the system prompt and one user message, the question then each call that got
+no error with its result as text, so no server refuses a tool history without tools nor two user messages in a row
+(ASK-22). `Answer` holds its text, the tool results of the question, the rounds and its sources:
 the names the text gives in code spans (a run of backticks closed by a run of as many, a fenced block skipped) that
 `Docs::source_named` resolves (a domain, a feature, a use case, a cited file, by its full id or path) and whose full id
 a tool result of the question showed; an error, a "Not documented" or a "Not available" result shows nothing, and a
