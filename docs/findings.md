@@ -270,6 +270,11 @@ Directions:
    `reconcile` 0.13 calls per reconciled item; no call without usage. Yields: 2.4 entry points per file read, 7 domains
    (3.5-9.6), 5.5 features per domain (2.4-7.9), 2.7 use cases per feature (1.5-3.4). The per-file ratios above
    predate the top-down redesign: the extrapolation now goes by domain and feature, not by file.
+   2026-11-05, same runs: chaining the yields multiplies their extremes (13 to 256 use cases for one repository), so
+   the table also gives each pass per source file (`source-hashes.json`, the input known before a run): `use-cases`
+   0.22 calls (0.09-0.94) and ~2.3k prompt tokens (0.8k-2.7k) per source file, `confidence` 0.18 (0.08-0.39),
+   `business-read` 0.09 (0.04-0.21); the small Ruby library (9 source files) gives every upper bound, its fixed
+   passes weighing on few files.
 
 First full `generate` on a real repo (2026-10-02, the Rails test repo, sparse-checkout `app/services` +
 `app/policies` + `app/controllers`: 325 source files; `qwen3.6:35b-a3b`, `concurrency = 2`, default batching):

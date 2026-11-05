@@ -41,3 +41,44 @@ Pre-run cost estimate
 
 # Hints
 * No LLM call to make the estimate, and no new file in the docs dir (reruns stay no-ops).
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-05
+
+## Understanding
+Before the first LLM call of `generate` (and alone with a new `--estimate`), a low-high range of calls, prompt and
+completion tokens per pass and in total, from the source files to read and the measured table, zero for what the
+run turns off or the cache saves. Out of scope: prices, a confirmation, the comparison with the actual cost.
+Means: each pass that scales is costed per source file (one measured range per pass), not by chaining the yields.
+
+## Plan
+1. [x] The table gains the cost of each pass per source file (the files of `source-hashes.json` of each run) and is
+   rebuilt from the same runs, no LLM; verified by the tests of `pass_ratios` and a byte-identical rebuild (autonomous).
+2. [ ] `retrodoc_pipeline::estimate`: the table embedded and read, a pure estimate from the inputs of EST-3 (files
+   to read, files changed since the last complete run, passes turned off, confidence sample, docs present, `force`);
+   verified by unit tests; makes true EST-4, EST-5, EST-6, EST-7, EST-8, EST-10.
+3. [ ] `generate`: the estimate printed before the first call, `--estimate` that stops there, the rerun inputs read
+   from `source-hashes.json` and the saved artifacts; docs; verified by CLI tests; makes true EST-1, EST-2, EST-3,
+   EST-9.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 00fcf8ea083aee14d565a07c66af1d4bee3de89b
+- `--estimate` prints the estimate and stops; `--dry-run` keeps its meaning (it still runs the LLM passes) (user, 2026-11-05).
+- Each pass that scales is costed per source file, measured directly, bounds the lowest and highest application;
+  the yields are not chained (user, 2026-11-05).
+- `domains_from = "contexts"`: the same estimate on the files the run reads (its budget), the `contexts` pass
+  named as unmeasured (user, 2026-11-05).
+- A rerun with changed files: the passes that scale on the changed files only; the display says a new binary or
+  another model redoes more (user, 2026-11-05).
+
+## Deliverable 1
+- Code review: no findings (`low`).
+- done: `Units::source_files` (from `source-hashes.json`), `per_source_file` per application and spread per pass,
+  yield `source files per run`; table rebuilt from the same 22 runs (byte-identical twice); dated finding in
+  `docs/findings.md` §3 point 7; `bench.md`, `pipeline.md`, `commands.md`.
+- checks: tests 11/11 of `pass_ratios`, `cardinal run project-check` green, docs updated.
+- red: none (a measure, no spec requirement): the new assertions failed to compile before the fields existed.
+- not verified: the per-source-file spread is wide (`use-cases` 0.09-0.94 calls per file); the small Ruby library
+  (9 files) gives every upper bound.

@@ -83,6 +83,8 @@ pub enum Unit {
     UseCase,
     /// An item of `reconciliation.yaml` (an item matched to a section of the project's docs).
     ReconcileItem,
+    /// A source file of `source-hashes.json`: no pass's own unit, what the estimate knows before the run.
+    SourceFile,
 }
 
 impl Unit {
@@ -110,6 +112,7 @@ impl Unit {
             Self::Feature => "feature",
             Self::UseCase => "use case",
             Self::ReconcileItem => "reconciled item",
+            Self::SourceFile => "source file",
         }
     }
 }
@@ -117,6 +120,9 @@ impl Unit {
 /// The units of one run, counted from its artifacts.
 #[derive(Debug, Clone, Default, PartialEq, Serialize)]
 pub struct Units {
+    /// The source files of `source-hashes.json` (saved by a `generate` that went through every pass): what
+    /// the pre-run estimate knows of a repository. Zero when the run saved none.
+    pub source_files: u64,
     pub business_files: u64,
     pub business_chars: u64,
     pub entry_point_files: u64,
@@ -141,10 +147,12 @@ impl Units {
             Unit::Feature => self.features as f64,
             Unit::UseCase => self.use_cases as f64,
             Unit::ReconcileItem => self.reconcile_items as f64,
+            Unit::SourceFile => self.source_files as f64,
         }
     }
 
     fn add(&mut self, other: &Self) {
+        self.source_files += other.source_files;
         self.business_files += other.business_files;
         self.business_chars += other.business_chars;
         self.entry_point_files += other.entry_point_files;
@@ -339,7 +347,20 @@ fn count_units(root: &Path) -> Result<Units, String> {
         .into_iter()
         .filter(|file| !business.contains(file))
         .collect();
+    let source_files = std::fs::read_to_string(cache.join("source-hashes.json"))
+        .ok()
+        .map_or(Ok(0), |raw| {
+            serde_json::from_str::<serde_json::Value>(&raw)
+                .map(|hashes| {
+                    hashes
+                        .get("files")
+                        .and_then(serde_json::Value::as_object)
+                        .map_or(0, |files| files.len() as u64)
+                })
+                .map_err(|e| format!("{}: source-hashes.json: {e}", root.display()))
+        })?;
     let mut units = Units {
+        source_files,
         business_files: business.len() as u64,
         entry_point_files: outside.len() as u64,
         ..Units::default()
@@ -434,6 +455,9 @@ pub struct ApplicationRatio {
     pub cost: PassCost,
     /// `None` when the application has none of the unit.
     pub per_unit: Option<PerUnit<f64>>,
+    /// The cost per source file of the runs (`None` when one of them saved no source hashes): what the
+    /// pre-run estimate multiplies, the units of the later passes being unknown before the run.
+    pub per_source_file: Option<PerUnit<f64>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -443,6 +467,8 @@ pub struct PassRatio {
     pub fixed: bool,
     /// Across the applications not marked indicative; `None` when none has the unit.
     pub per_unit: Option<PerUnit<Spread>>,
+    /// The same across the applications, per source file.
+    pub per_source_file: Option<PerUnit<Spread>>,
     pub applications: Vec<ApplicationRatio>,
 }
 
@@ -522,12 +548,12 @@ fn per_unit(cost: &PassCost, units: f64) -> Option<PerUnit<f64>> {
     })
 }
 
-fn spread_of(rows: &[&ApplicationRatio]) -> Option<PerUnit<Spread>> {
+fn spread_of(
+    rows: &[&ApplicationRatio],
+    of: fn(&ApplicationRatio) -> Option<&PerUnit<f64>>,
+) -> Option<PerUnit<Spread>> {
     let pick = |f: fn(&PerUnit<f64>) -> f64| -> Option<Spread> {
-        let values: Vec<f64> = rows
-            .iter()
-            .filter_map(|r| r.per_unit.as_ref().map(f))
-            .collect();
+        let values: Vec<f64> = rows.iter().filter_map(|r| of(r).map(f)).collect();
         Spread::of(&values)
     };
     Some(PerUnit {
@@ -547,6 +573,9 @@ fn ratio(numerator: u64, denominator: u64) -> Option<f64> {
 type YieldOf = fn(&Units, u64) -> Option<f64>;
 
 const YIELDS: &[(&str, YieldOf)] = &[
+    ("source files per run", |u, runs| {
+        ratio(u.source_files, runs)
+    }),
     ("characters per business file", |u, _| {
         ratio(u.business_chars, u.business_files)
     }),
@@ -572,6 +601,34 @@ const YIELDS: &[(&str, YieldOf)] = &[
         }
     }),
 ];
+
+/// The sums of `pass` over the runs of `app` that ran it; `None` when none did.
+fn application_ratio(app: &Application, pass: &str, unit: Unit) -> Option<ApplicationRatio> {
+    let mut cost = PassCost::default();
+    let mut units = 0.0;
+    let mut ran = 0;
+    // `None` once a run that ran the pass saved no source hashes.
+    let mut source_files = Some(0.0);
+    for run in &app.runs {
+        if let Some((_, c)) = run.passes.iter().find(|(name, _)| name == pass) {
+            cost.add(c);
+            units += run.units.of(unit);
+            ran += 1;
+            source_files = source_files
+                .filter(|_| run.units.source_files > 0)
+                .map(|n| n + run.units.of(Unit::SourceFile));
+        }
+    }
+    (ran > 0).then(|| ApplicationRatio {
+        application: app.name.to_string(),
+        indicative: app.indicative,
+        runs: ran,
+        units: round(units),
+        per_unit: per_unit(&cost, units),
+        per_source_file: source_files.and_then(|n| per_unit(&cost, n)),
+        cost,
+    })
+}
 
 /// Builds the table from measured runs, in their order.
 #[must_use]
@@ -600,33 +657,15 @@ pub fn ratio_table(runs: &[RunMeasure]) -> RatioTable {
         // Only the runs that ran the pass count: one turned off (`rules = false`) is absent from the history.
         let rows: Vec<ApplicationRatio> = apps
             .iter()
-            .filter_map(|app| {
-                let mut cost = PassCost::default();
-                let mut units = 0.0;
-                let mut ran = 0;
-                for run in &app.runs {
-                    if let Some((_, c)) = run.passes.iter().find(|(pass, _)| pass == name) {
-                        cost.add(c);
-                        units += run.units.of(unit);
-                        ran += 1;
-                    }
-                }
-                (ran > 0).then(|| ApplicationRatio {
-                    application: app.name.to_string(),
-                    indicative: app.indicative,
-                    runs: ran,
-                    units: round(units),
-                    per_unit: per_unit(&cost, units),
-                    cost,
-                })
-            })
+            .filter_map(|app| application_ratio(app, name, unit))
             .collect();
         let counted: Vec<&ApplicationRatio> = rows.iter().filter(|r| !r.indicative).collect();
         passes.push(PassRatio {
             pass: name.to_string(),
             unit: unit.label(),
             fixed: unit == Unit::Run,
-            per_unit: spread_of(&counted),
+            per_unit: spread_of(&counted, |r| r.per_unit.as_ref()),
+            per_source_file: spread_of(&counted, |r| r.per_source_file.as_ref()),
             applications: rows,
         });
     }
@@ -693,11 +732,12 @@ impl RatioTable {
         for pass in &self.passes {
             let _ = write!(
                 out,
-                "- pass: {}\n  unit: {}\n  fixed: {}\n  per_unit: {}\n  applications:\n",
+                "- pass: {}\n  unit: {}\n  fixed: {}\n  per_unit: {}\n  per_source_file: {}\n  applications:\n",
                 flow(&pass.pass)?,
                 flow(pass.unit)?,
                 pass.fixed,
                 flow(&pass.per_unit)?,
+                flow(&pass.per_source_file)?,
             );
             for row in &pass.applications {
                 let _ = writeln!(out, "  - {}", flow(row)?);
@@ -739,8 +779,8 @@ mod tests {
         json!({"command": "generate", "finished_at": "2026-11-03T11:00:00Z", "wall_ms": 1, "passes": passes})
     }
 
-    /// A run of 2 business files (4,000 characters), 1 entry point file outside them (1,000), 3 entry
-    /// points, 2 domains, 4 features, 8 use cases, 5 reconciled items.
+    /// A run of 4 source files, 2 business files (4,000 characters), 1 entry point file outside them
+    /// (1,000), 3 entry points, 2 domains, 4 features, 8 use cases, 5 reconciled items.
     fn run_dir(history: &[serde_json::Value]) -> tempfile::TempDir {
         let dir = tempfile::tempdir().unwrap();
         let cache = dir.path().join(".retrodoc/cache");
@@ -775,6 +815,11 @@ mod tests {
         )
         .unwrap();
         std::fs::write(cache.join("use-cases.yaml"), "[1, 2, 3, 4, 5, 6, 7, 8]\n").unwrap();
+        std::fs::write(
+            cache.join("source-hashes.json"),
+            r#"{"files": {"app/a.rb": "1", "app/b.rb": "2", "app/c.rb": "3", "app/d.rb": "4"}}"#,
+        )
+        .unwrap();
         std::fs::write(
             cache.join("reconciliation.yaml"),
             "items: [1, 2, 3, 4, 5]\n",
@@ -813,6 +858,7 @@ mod tests {
         assert_eq!(
             run.units,
             Units {
+                source_files: 4,
                 business_files: 2,
                 business_chars: 4000,
                 entry_point_files: 1,
@@ -853,6 +899,12 @@ mod tests {
         assert_eq!(sources.per_unit.unwrap().prompt_tokens.median, 100.0);
         assert_eq!(table.no_call, vec!["glossary".to_string()]);
 
+        let per_file = of("use-cases").per_source_file.unwrap();
+        assert_eq!(per_file.calls.median, 1.0);
+        assert_eq!(per_file.prompt_tokens.median, 1000.0);
+        assert_eq!(per_file.completion_tokens.median, 200.0);
+        assert_eq!(sources.per_source_file.unwrap().calls.median, 0.25);
+
         let yield_of = |name: &str| {
             table
                 .yields
@@ -866,6 +918,17 @@ mod tests {
         assert_eq!(yield_of("entry points per file read"), 1.0);
         assert_eq!(yield_of("features per domain"), 2.0);
         assert_eq!(yield_of("use cases per feature"), 2.0);
+        assert_eq!(yield_of("source files per run"), 4.0);
+    }
+
+    #[test]
+    fn leaves_the_cost_per_source_file_out_when_a_run_saved_no_source_hashes() {
+        let dir = run_dir(&first_run());
+        std::fs::remove_file(dir.path().join(".retrodoc/cache/source-hashes.json")).unwrap();
+        let run = measure_run(&entry(dir.path(), "app")).unwrap();
+        assert_eq!(run.units.source_files, 0);
+        let table = ratio_table(&[run]);
+        assert!(table.passes.iter().all(|p| p.per_source_file.is_none()));
     }
 
     #[test]
@@ -980,14 +1043,14 @@ mod tests {
         let yaml = table.to_yaml().unwrap();
         let read: Value = serde_yaml::from_str(&yaml).unwrap();
         assert_eq!(read, serde_yaml::to_value(&table).unwrap());
-        // A pass of one application: its name, unit, fixed, spread, the list key and the row.
+        // A pass of one application: its name, unit, fixed, two spreads, the list key and the row.
         let passes = &yaml[yaml.find("passes:").unwrap()..yaml.find("no_call:").unwrap()];
         let longest = passes
             .split("\n- pass:")
             .skip(1)
             .map(|p| p.trim_end().lines().count())
             .max();
-        assert_eq!(longest, Some(6));
+        assert_eq!(longest, Some(7));
     }
 
     #[test]
