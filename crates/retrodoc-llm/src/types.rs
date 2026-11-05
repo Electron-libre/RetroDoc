@@ -116,31 +116,28 @@ pub struct ToolCall {
 /// The reasoning a thinking model sent with an answer, each field as its
 /// server named it, so it goes back in the same fields and in no other
 /// (TCL-17, TCL-18). A field the server did not send is `None`.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Reasoning {
     /// `reasoning_content`, the field of `DeepSeek`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reasoning_content: Option<String>,
     /// `reasoning`, the field of `OpenRouter` and Ollama.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reasoning: Option<String>,
     /// `reasoning_details`, the typed entries of `OpenRouter` (encrypted ones
     /// included), kept as the JSON the server sent (TCL-20).
+    #[serde(
+        default,
+        rename = "reasoning_details",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub details: Option<serde_json::Value>,
 }
 
 impl Reasoning {
-    /// The reasoning of an answer, `None` when the server sent no field of it.
-    #[must_use]
-    pub fn of_answer(
-        reasoning_content: Option<String>,
-        reasoning: Option<String>,
-        details: Option<serde_json::Value>,
-    ) -> Option<Self> {
-        let sent = reasoning_content.is_some() || reasoning.is_some() || details.is_some();
-        sent.then_some(Self {
-            reasoning_content,
-            reasoning,
-            details,
-        })
+    /// This reasoning, `None` when the server sent no field of it.
+    pub(crate) fn if_sent(self) -> Option<Self> {
+        (self != Self::default()).then_some(self)
     }
 }
 

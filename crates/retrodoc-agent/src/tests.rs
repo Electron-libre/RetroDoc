@@ -1,5 +1,5 @@
 use retrodoc_core::model::{ConfidenceScore, Domain, Feature};
-use retrodoc_llm::ToolCall;
+use retrodoc_llm::{Reasoning, ToolCall};
 use retrodoc_pipeline::testing::{FakeLlm, FakeTurn};
 use retrodoc_pipeline::Glossary;
 
@@ -314,9 +314,14 @@ async fn without_the_code_tools_neither_is_offered_named_nor_run() {
 // spec: TCL-19 (internal: the rounds are scripted with the fake provider, which the binary cannot take)
 #[tokio::test]
 async fn the_reasoning_of_a_round_that_called_tools_is_given_back_in_the_next() {
+    let reasoning = Reasoning {
+        reasoning: Some("look up the domains".into()),
+        details: Some(serde_json::json!([{"type": "reasoning.encrypted", "data": "x"}])),
+        ..Reasoning::default()
+    };
     let llm = FakeLlm::scripted(vec![
         FakeTurn::Reasoned {
-            reasoning: "look up the domains".into(),
+            reasoning: reasoning.clone(),
             calls: vec![call("c1", "list_domains", "{}")],
         },
         FakeTurn::Text("Billing.".into()),
@@ -327,11 +332,7 @@ async fn the_reasoning_of_a_round_that_called_tools_is_given_back_in_the_next() 
 
     let second = &llm.messages()[1];
     let assistant = second.iter().find(|m| m.role == Role::Assistant).unwrap();
-    let reasoning = assistant.reasoning.as_ref().unwrap();
-    assert_eq!(
-        reasoning.reasoning_content.as_deref(),
-        Some("look up the domains")
-    );
+    assert_eq!(assistant.reasoning.as_ref(), Some(&reasoning));
 }
 
 // spec: ASK-22 (internal: the messages of the last request are seen through the fake provider only)

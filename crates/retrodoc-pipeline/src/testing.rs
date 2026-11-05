@@ -22,7 +22,7 @@ pub enum FakeTurn {
     Calls { text: String, calls: Vec<ToolCall> },
     /// Calls to tools with the reasoning a thinking model wrote before them, and no text.
     Reasoned {
-        reasoning: String,
+        reasoning: Reasoning,
         calls: Vec<ToolCall>,
     },
     /// A failed call, like a dropped connection.
@@ -228,14 +228,7 @@ impl LlmProvider for FakeLlm {
         let (mut content, tool_calls, reasoning) = match (self.reply)(n, &request)? {
             FakeTurn::Text(text) => (text, Vec::new(), None),
             FakeTurn::Calls { text, calls } => (text, calls, None),
-            FakeTurn::Reasoned { reasoning, calls } => (
-                String::new(),
-                calls,
-                Some(Reasoning {
-                    reasoning_content: Some(reasoning),
-                    ..Reasoning::default()
-                }),
-            ),
+            FakeTurn::Reasoned { reasoning, calls } => (String::new(), calls, Some(reasoning)),
             FakeTurn::Fail => return Err(LlmError::Transport("down".to_string())),
         };
         let truncated = self

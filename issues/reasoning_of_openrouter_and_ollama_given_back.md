@@ -54,9 +54,17 @@ scope: showing the reasoning to the user, asking for it (`reasoning_effort` stay
    read in `ApiResponseMessage`, sent by `ApiMessage` only when present; agent and fake provider follow; verified by
    tests in `openrouter/tests/tools.rs` (OpenRouter-shaped and Ollama-shaped answers, round trip) and the agent test;
    makes true TCL-17, TCL-18, TCL-20 (~250 lines). (autonomous)
+2. [x] Fixes of the `high` review: the reasoning fields declared once (serde on `Reasoning`, flattened in the wire
+   messages), `of_answer` crate-private, the fake provider scripts any `Reasoning` so the agent test covers
+   `reasoning` and `reasoning_details`, a test of empty fields sent back; verified by the agent test and
+   `openrouter/tests/tools.rs`; makes true TCL-18, TCL-19, TCL-20 (~80 lines). (autonomous)
 
 ## Decisions
 - Mode: autonomous
+- `high` review findings 1 to 3 (a refused foreign `reasoning_details`, both fields sent back, the reasoning outside
+  the agent's budget) need a real OpenRouter call: follow-up issue
+  `issues/reasoning_given_back_on_a_real_openrouter_call.md`. Finding 4 (echo every unknown reasoning-like field)
+  not fixed: it would send fields the spec does not name, against TCL-18.
 - Base commit: 2443ab9ae7f365f097b0a26050315e53c1c8241e
 - OpenRouter probe: none (no key on the machine); its fields are followed from its docs and tested on a simulated
   OpenRouter-shaped answer; the exact shape of a real `reasoning_details` is not checked on a real call.
@@ -78,4 +86,23 @@ red: TCL-17, TCL-18, TCL-20: `unresolved import crate::Reasoning`, `no field rea
 Code review: no findings
 
 not verified: a real OpenRouter call (no key; decision 1 a); a model that degrades without its reasoning.
+decisions needed: none
+
+## Summary of deliverable 2
+done: `Reasoning` (de)serialized by serde and flattened in both wire messages; `if_sent` crate-private; the fake
+provider scripts a whole `Reasoning`; empty `reasoning` and `reasoning_details` checked sent back.
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass |
+| docs | n/a (no behaviour change) |
+| code review | low, no findings |
+
+red: TCL-19: `mismatched types: expected String, found Reasoning` (the fake provider scripted `reasoning_content` only)
+
+Code review: no findings
+
+not verified: a real OpenRouter call (follow-up issue).
 decisions needed: none

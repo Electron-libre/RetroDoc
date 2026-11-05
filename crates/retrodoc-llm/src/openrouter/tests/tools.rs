@@ -340,7 +340,12 @@ async fn each_reasoning_field_is_sent_back_only_when_the_server_sent_it() {
                         ..Reasoning::default()
                     },
                 )),
-                ChatMessage::assistant_calls("", vec![call]),
+                ChatMessage::assistant_calls("", vec![call.clone()]),
+                ChatMessage::assistant_calls("", vec![call]).with_reasoning(Some(Reasoning {
+                    reasoning: Some(String::new()),
+                    details: Some(serde_json::json!([])),
+                    ..Reasoning::default()
+                })),
             ],
             ..reasoned_request()
         },
@@ -363,6 +368,8 @@ async fn each_reasoning_field_is_sent_back_only_when_the_server_sent_it() {
     for field in ["reasoning", "reasoning_details"] {
         assert!(messages[3].get(field).is_none(), "{}", messages[3]);
     }
+    assert_eq!(messages[5]["reasoning"], "");
+    assert_eq!(messages[5]["reasoning_details"], serde_json::json!([]));
     for message in [&messages[0], &messages[2], &messages[4]] {
         for field in ["reasoning_content", "reasoning", "reasoning_details"] {
             assert!(message.get(field).is_none(), "{message}");
