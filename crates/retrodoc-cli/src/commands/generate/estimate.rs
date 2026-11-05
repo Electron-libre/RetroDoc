@@ -175,29 +175,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_estimated_passes_follow_the_order_generate_tracks() {
-        let surface = estimated_passes(false);
-        assert_eq!(
-            surface,
-            [
-                "sources",
-                "brief",
-                "roles",
-                "business-files",
-                "business-read",
-                "glossary",
-                "entry-points",
-                "actors",
-                "domains",
-                "features",
-                "use-cases",
-                "rules",
-                "confidence",
-                "reconcile",
-            ]
-        );
-        let contexts = estimated_passes(true);
-        assert_eq!(contexts[4], "contexts");
-        assert_eq!(contexts.len(), surface.len() + 1);
+    fn the_estimated_passes_are_the_tracked_ones_in_their_order() {
+        assert_eq!(estimated_passes(true), TRACKED_PASSES);
+        let surface: Vec<&str> = TRACKED_PASSES
+            .iter()
+            .copied()
+            .filter(|&pass| pass != "contexts")
+            .collect();
+        assert_eq!(estimated_passes(false), surface);
+        // The joint reading runs before the glossary, which reads its answer.
+        let at = |pass| TRACKED_PASSES.iter().position(|&p| p == pass).expect(pass);
+        assert!(at(BUSINESS_READ) < at("glossary"));
     }
 }

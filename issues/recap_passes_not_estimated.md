@@ -51,6 +51,8 @@ must take its pass list from the same list as `generate`. Out of scope: estimati
    `glossary`), the providers opened from it minus `business-read`, `estimated_passes` filtering it instead of
    inserting by hand; verified by the existing estimate tests and a test that `estimated_passes(true)` equals
    `TRACKED_PASSES`; refactor, no requirement. (autonomous)
+3. [x] Review fixes of the `high` review of the issue: the order test compares with `TRACKED_PASSES`; the findings
+   out of scope go to `issues/estimate_passes_of_the_run_path.md`. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -87,3 +89,27 @@ from it minus `business-read`, `estimated_passes` only filters it, both `in_pass
 red: none (refactor; the guard test `the_estimated_passes_follow_the_order_generate_tracks` passed before and after)
 
 Code review: no findings
+
+## Deliverable 3 (high review of b7695374..HEAD)
+done: the test of the estimated passes compares them with `TRACKED_PASSES` instead of a copied list; a follow-up
+issue `estimate_passes_of_the_run_path` (ROADMAP, ledger).
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass |
+| docs | `ROADMAP.md` (follow-up issue); update-docs over the range: nothing else stale |
+| code review | 6 findings (high), see below; low review of the fixes: no findings |
+
+red: none (test rewrite)
+
+Code review: 6 findings
+- contexts path estimates `business-files` and `domains` it never runs: pre-existing (the list was the same before),
+  to `estimate_passes_of_the_run_path`.
+- `in_pass` sites still use literals: to `estimate_passes_of_the_run_path`; the recap row is the guard of this issue.
+- the test copied the list: fixed.
+- providers opened for passes of the other path: pre-existing, to `estimate_passes_of_the_run_path`.
+- the `!= BUSINESS_READ` filter: not fixed, one special case; a pair per entry waits for a second one.
+- `unlabelled` shows as `not estimated`: not fixed, calls outside any pass are not estimated either, and the
+  recap above already names that bucket the same way.
