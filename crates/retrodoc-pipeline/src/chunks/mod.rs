@@ -27,7 +27,7 @@ pub(crate) use excerpt::Focus;
 
 /// A file longer than this many chunks is cut there (a 40 KB controller is
 /// already 8 calls): the rest is logged as not read.
-const MAX_CHUNKS_PER_FILE: usize = 8;
+pub(crate) const MAX_CHUNKS_PER_FILE: usize = 8;
 
 /// What the LLM is told about the regex dialect of [`ChunkBoundary::pattern`]
 /// (models happily write lookaheads, which the `regex` crate rejects).

@@ -62,6 +62,7 @@ feature), median and range across applications, from the saved runs only. Out of
 2. [x] The table: run over the saved runs, kept as a data file with the runs it comes from (no private name), the
    finding dated in `docs/findings.md` §3 point 7 (the old per-file ratios superseded), `docs/crates/bench.md`,
    `docs/dev/commands.md`; the ledger line; verified by rebuilding it identical from the runs (autonomous).
+3. [x] Fixes of the `high` review of the whole issue (autonomous).
 
 ## Decisions
 - Mode: autonomous
@@ -96,3 +97,15 @@ feature), median and range across applications, from the saved runs only. Out of
 - Code review: no findings (`low`).
 - not verified: the large private Rails app runs at older code with a local model (indicative, out of the spread);
   `rules` measured on two applications only (the benchmark runs turn it off); no Rust application among the runs.
+
+## Review of the whole issue (`high`)
+Code review: 10 findings.
+- Fixed: a glossary read apart from the business files, a command before the first `generate` or a `generate` after
+  it that called the LLM, and fewer `generate` in the history than asked now refuse the run; the characters of a file
+  are counted up to what the readings send (40,000) and read lossily; one indicative run marks its application; the
+  files missing from a tree are in the table; the commit of the indicative run is quoted in the manifest; the dated
+  finding gives the date and models of the indicative run.
+- Not fixed: the artifacts are read untyped, on purpose: the indicative run's are of an older format the typed
+  loaders may refuse, and the tests cover the shapes read.
+- Fixes reviewed (`low`): Code review: no findings.
+- Table rebuilt: the medians move by less than 3% (business-read 0.157 -> 0.158 calls per 1,000 characters).

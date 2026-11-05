@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
 
 use crate::usage_log::{load_history, RunUsage};
+use retrodoc_pipeline::bench_support::reading::MAX_READ_CHARS_PER_FILE;
 
 /// The runs to measure (a file kept next to them, outside git: it names their paths).
 #[derive(Debug, Clone, Deserialize)]
@@ -37,7 +38,8 @@ pub struct RunEntry {
     /// How many `generate` of the history, from the first, make the run (more than one: a resumed run).
     #[serde(default = "one")]
     pub generates: usize,
-    /// Shown per application but left out of the median and the range.
+    /// Shown per application but left out of the median and the range; one indicative run makes its whole
+    /// application so.
     #[serde(default)]
     pub indicative: bool,
 }
@@ -195,18 +197,39 @@ pub struct RunMeasure {
 ///
 /// # Errors
 ///
-/// Returns a message when the run is no first complete `generate` (no history, a rerun, a `repo-map` pass)
-/// or an artifact can't be read.
+/// Returns a message when the run is no first complete `generate` whose artifacts are its own (no
+/// history, fewer `generate` than [`RunEntry::generates`], a rerun, a `repo-map` pass, a command before it or
+/// a `generate` after it that called the LLM, a glossary read apart from the business files) or an artifact
+/// can't be read.
 pub fn measure_run(entry: &RunEntry) -> Result<RunMeasure, String> {
     let at = entry.path.display();
-    let generates: Vec<RunUsage> = load_history(&entry.path)
-        .into_iter()
-        .filter(|run| run.command == "generate")
-        .take(entry.generates.max(1))
-        .collect();
-    let Some(first) = generates.first() else {
+    let history = load_history(&entry.path);
+    let Some(start) = history.iter().position(|run| run.command == "generate") else {
         return Err(format!("{at}: no generate in its usage history"));
     };
+    if let Some(before) = history[..start].iter().find(|run| made_calls(run)) {
+        return Err(format!(
+            "{at}: a `{}` before its first generate called the LLM: the generate reused what it read",
+            before.command
+        ));
+    }
+    let wanted = entry.generates.max(1);
+    let mut all = history[start..]
+        .iter()
+        .filter(|run| run.command == "generate");
+    let generates: Vec<&RunUsage> = all.by_ref().take(wanted).collect();
+    if generates.len() < wanted {
+        return Err(format!(
+            "{at}: {wanted} generate asked, its history holds {}",
+            generates.len()
+        ));
+    }
+    if all.any(made_calls) {
+        return Err(format!(
+            "{at}: a later generate called the LLM: the artifacts may be its own, not the measured run's"
+        ));
+    }
+    let first = generates[0];
     let sources_called = first
         .passes
         .iter()
@@ -222,6 +245,12 @@ pub fn measure_run(entry: &RunEntry) -> Result<RunMeasure, String> {
         for pass in &run.passes {
             if pass.name == "repo-map" {
                 return Err(format!("{at}: it ran the removed `repo-map` pass"));
+            }
+            if pass.name == "glossary" && pass.models.iter().any(|m| m.calls > 0) {
+                return Err(format!(
+                    "{at}: its glossary read the business files apart (no joint `business-read`), \
+                     which the units of this table don't measure"
+                ));
             }
             let mut cost = PassCost::default();
             for model in &pass.models {
@@ -253,6 +282,20 @@ pub fn measure_run(entry: &RunEntry) -> Result<RunMeasure, String> {
         passes,
         units: count_units(&entry.path)?,
     })
+}
+
+fn made_calls(run: &RunUsage) -> bool {
+    run.passes
+        .iter()
+        .any(|pass| pass.models.iter().any(|m| m.calls > 0))
+}
+
+/// The characters of a file the readings send, at most [`MAX_READ_CHARS_PER_FILE`]; `None` when it is
+/// missing.
+fn read_chars(root: &Path, file: &str) -> Option<u64> {
+    let bytes = std::fs::read(root.join(file)).ok()?;
+    let chars = String::from_utf8_lossy(&bytes).chars().count();
+    Some(chars.min(MAX_READ_CHARS_PER_FILE) as u64)
 }
 
 fn load_yaml(cache: &Path, name: &str) -> Result<Option<Value>, String> {
@@ -302,15 +345,15 @@ fn count_units(root: &Path) -> Result<Units, String> {
         ..Units::default()
     };
     for file in &business {
-        match std::fs::read_to_string(root.join(file)) {
-            Ok(text) => units.business_chars += text.chars().count() as u64,
-            Err(_) => units.missing_files += 1,
+        match read_chars(root, file) {
+            Some(chars) => units.business_chars += chars,
+            None => units.missing_files += 1,
         }
     }
     for file in &outside {
-        match std::fs::read_to_string(root.join(file)) {
-            Ok(text) => units.entry_point_chars += text.chars().count() as u64,
-            Err(_) => units.missing_files += 1,
+        match read_chars(root, file) {
+            Some(chars) => units.entry_point_chars += chars,
+            None => units.missing_files += 1,
         }
     }
     units.entry_points = entry_point_files
@@ -421,6 +464,14 @@ pub struct RunSource {
     pub generates: usize,
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub indicative: bool,
+    /// Files read missing from the run's tree: their characters are not counted.
+    #[serde(skip_serializing_if = "is_zero")]
+    pub missing_files: u64,
+}
+
+#[allow(clippy::trivially_copy_pass_by_ref)]
+fn is_zero(n: &u64) -> bool {
+    *n == 0
 }
 
 #[allow(clippy::trivially_copy_pass_by_ref)]
@@ -448,7 +499,7 @@ fn applications(runs: &[RunMeasure]) -> Vec<Application<'_>> {
     for run in runs {
         match apps.iter_mut().find(|app| app.name == run.application) {
             Some(app) => {
-                app.indicative &= run.indicative;
+                app.indicative |= run.indicative;
                 app.runs.push(run);
             }
             None => apps.push(Application {
@@ -614,6 +665,7 @@ pub fn ratio_table(runs: &[RunMeasure]) -> RatioTable {
                 finished_at: run.finished_at.clone(),
                 generates: run.generates,
                 indicative: run.indicative,
+                missing_files: run.units.missing_files,
             })
             .collect(),
         passes,
@@ -833,7 +885,11 @@ mod tests {
     fn merges_a_resumed_run_and_ignores_the_later_reruns() {
         let mut history = first_run();
         history.push(generate(&[pass("use-cases", 4, 0, 4000, 0, 800)]));
-        history.push(generate(&[pass("use-cases", 9, 0, 9, 0, 9)]));
+        history.push(generate(&[pass("use-cases", 0, 0, 0, 0, 0)]));
+        history.push(
+            json!({"command": "benchmark", "finished_at": "x", "wall_ms": 1,
+            "passes": [pass("benchmark judge", 5, 0, 50, 0, 5)]}),
+        );
         let dir = run_dir(&history);
         let mut resumed = entry(dir.path(), "app");
         resumed.generates = 2;
@@ -845,6 +901,44 @@ mod tests {
             .unwrap();
         assert_eq!(use_cases.1.calls, 8);
         assert_eq!(run.generates, 2);
+    }
+
+    #[test]
+    fn refuses_a_run_whose_artifacts_another_command_wrote() {
+        let refused = |history: Vec<serde_json::Value>, generates: usize, says: &str| {
+            let dir = run_dir(&history);
+            let mut run = entry(dir.path(), "app");
+            run.generates = generates;
+            let error = measure_run(&run).unwrap_err();
+            assert!(error.contains(says), "{error}");
+        };
+        let mut later = first_run();
+        later.push(generate(&[pass("use-cases", 3, 0, 30, 0, 3)]));
+        refused(later, 1, "a later generate");
+
+        let mut before = vec![
+            json!({"command": "business-read", "finished_at": "x", "wall_ms": 1,
+            "passes": [pass("business-read", 4, 0, 8000, 0, 400)]}),
+        ];
+        before.extend(first_run());
+        refused(before, 1, "`business-read` before");
+
+        refused(first_run(), 2, "2 generate asked, its history holds 1");
+
+        let mut apart = first_run();
+        apart[0]["passes"][2] = pass("glossary", 3, 0, 300, 0, 30);
+        refused(apart, 1, "glossary read the business files apart");
+    }
+
+    #[test]
+    fn counts_a_long_file_up_to_what_the_readings_send() {
+        let dir = run_dir(&first_run());
+        let long = "a".repeat(MAX_READ_CHARS_PER_FILE + 10_000);
+        std::fs::write(dir.path().join("app/a.rb"), long).unwrap();
+        std::fs::write(dir.path().join("app/b.rb"), [0xff_u8, b'b']).unwrap();
+        let run = measure_run(&entry(dir.path(), "app")).unwrap();
+        assert_eq!(run.units.business_chars, MAX_READ_CHARS_PER_FILE as u64 + 2);
+        assert_eq!(run.units.missing_files, 0);
     }
 
     #[test]
@@ -870,6 +964,13 @@ mod tests {
         assert_eq!(features.applications.len(), 3);
         assert!(features.applications[2].indicative);
         assert_eq!(features.applications[2].per_unit.unwrap().calls, 30.0);
+
+        let mut flagged = entry(small.path(), "medium");
+        flagged.indicative = true;
+        let mixed = ratio_table(&[runs[1].clone(), measure_run(&flagged).unwrap()]);
+        let features = mixed.passes.iter().find(|p| p.pass == "features").unwrap();
+        assert!(features.applications[0].indicative);
+        assert_eq!(features.per_unit, None);
     }
 
     #[test]

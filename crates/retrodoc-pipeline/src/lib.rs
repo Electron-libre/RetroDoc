@@ -123,6 +123,12 @@ pub mod bench_support {
     pub mod progress {
         pub use crate::progress::format_duration;
     }
+    pub mod reading {
+        /// The characters of one file the business and entry point readings send at most (chunks of
+        /// about `MAX_ENTRY_FILE_CHARS`, the rest past `MAX_CHUNKS_PER_FILE` not read).
+        pub const MAX_READ_CHARS_PER_FILE: usize =
+            crate::entry_points::MAX_ENTRY_FILE_CHARS * crate::chunks::MAX_CHUNKS_PER_FILE;
+    }
     pub mod response {
         pub use crate::response::complete_json;
     }

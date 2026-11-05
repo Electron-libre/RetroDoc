@@ -258,11 +258,12 @@ Directions:
    325 files gave 77 features and 183 use cases, ~0.24 and ~0.56 per file). Output tokens (use case JSON, up to 8,192
    per call) are the hardest to predict; an estimate made before any measurement can be off by 2-3x.
    2026-11-05, measured (`issues/pass_ratios_from_usage_history.md`, no LLM call): the first complete `generate` of
-   22 saved runs (delivery_router, healthchecks, linkding, Lobsters, deepseek-flash, 2026-10-27 to 11-03; a large
-   private Rails app as indicative only) give `crates/retrodoc-pipeline/data/pass-ratios.yaml`, rebuilt by the example
+   21 saved runs (delivery_router, healthchecks, linkding, Lobsters, deepseek-flash, 2026-10-27 to 11-03) and a
+   large private Rails app as indicative only (local model and deepseek-flash, 2026-10-15 to 10-23, out of the medians) give `crates/retrodoc-pipeline/data/pass-ratios.yaml`, rebuilt by the example
    `pass_ratios`. Medians across the four applications: the six fixed passes (`sources`, `brief`, `roles`,
    `business-files`, `actors`, `domains`) about one call each and ~26k prompt / ~3.8k completion tokens a run;
-   `business-read` 0.16 calls (0.09-0.26) and ~430 prompt tokens per 1,000 characters read, `entry-points` 0.13;
+   `business-read` 0.16 calls (0.10-0.26) and ~440 prompt tokens per 1,000 characters read (up to the 40,000 a
+   file is read), `entry-points` 0.13;
    `features` 1.0 call and ~2.6k tokens per domain; `use-cases` 1.02 calls, ~10k prompt (2.9k-11.8k) and ~750
    completion tokens per feature, the largest share; `rules` 3 calls and ~6.7k per feature (measured on two
    applications only, the benchmark runs turn it off); `confidence` 0.30 calls and ~770 tokens per use case;
