@@ -7,7 +7,7 @@ use retrodoc_mcp::reviews::{
 };
 use retrodoc_mcp::GeneratedDocs;
 
-use crate::texts::{ReviewTexts, WebTexts};
+use crate::texts::{OutdatedTexts, ReviewTexts, WebTexts};
 use crate::view::{find_feature, StaleFile};
 
 /// The reviews of the repository of `docs`, none when the docs carry no repository.
@@ -160,18 +160,13 @@ impl OutdatedView {
         }
     }
 
-    /// What it opens with, then the reason "rewritten", then the words before the changed files,
-    /// in the language of `t`.
+    /// Its words in the language of `t`: of an edit or of a review.
     #[must_use]
-    pub fn labels(&self, t: &WebTexts) -> [&'static str; 3] {
+    pub fn texts(&self, t: &'static WebTexts) -> &'static OutdatedTexts {
         if self.edit {
-            [t.edit.outdated, t.edit.rewritten, t.edit.files_changed]
+            &t.edit.outdated
         } else {
-            [
-                t.review.outdated,
-                t.review.rewritten,
-                t.review.files_changed,
-            ]
+            &t.review.outdated
         }
     }
 

@@ -53,7 +53,8 @@ pub struct DebtRow {
     pub rationale: Option<String>,
     pub reasons: Vec<&'static str>,
     pub changed: Vec<StaleFile>,
-    /// Why the review of a section marked wrong or to review is outdated.
+    /// Why the review of a section marked wrong or to review is outdated, or why the edit of an
+    /// outdated edit is.
     pub outdated: Option<OutdatedView>,
     /// What a doc item is: a domain, a feature, a use case or a rule.
     pub item_kind: Option<&'static str>,

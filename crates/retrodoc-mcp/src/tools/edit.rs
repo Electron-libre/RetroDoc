@@ -7,7 +7,7 @@ use std::fmt::Write as _;
 use retrodoc_core::text::one_line;
 
 use super::Docs;
-use crate::edits::{self, Edit, Field, Fields};
+use crate::edits::{self, Edit, Field};
 use crate::reviews::Section;
 
 /// The edit of a section as an answer shows it; both parts empty with no edit.
@@ -25,7 +25,11 @@ impl Docs {
         let Some(edit) = self.generated.edits().get(section) else {
             return EditNote::default();
         };
-        let mut line = format!("Edit: human edit of {}", field_names(&edit.fields));
+        let changed = edit.changed();
+        if changed.is_empty() {
+            return EditNote::default();
+        }
+        let mut line = format!("Edit: human edit of {}", field_names(&changed));
         match edit
             .author
             .as_deref()
@@ -64,11 +68,8 @@ impl Docs {
              edited fields:\n",
         );
         for (field, text) in fields {
-            let heading = match field {
-                Field::Name => "Name",
-                Field::Description => "Description",
-                Field::Narrative => "Narrative",
-            };
+            let key = field.key();
+            let heading = format!("{}{}", key[..1].to_uppercase(), &key[1..]);
             let _ = write!(out, "\n### {heading}\n\n{}\n", text.trim_end());
         }
         out
@@ -76,10 +77,9 @@ impl Docs {
 }
 
 /// `the name`, `the name and the description`, `the name, the description and the narrative`.
-fn field_names(fields: &Fields) -> String {
+fn field_names(fields: &[Field]) -> String {
     let names: Vec<String> = fields
-        .given()
-        .into_iter()
+        .iter()
         .map(|field| format!("the {}", field.key()))
         .collect();
     match names.as_slice() {

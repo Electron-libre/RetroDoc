@@ -33,15 +33,17 @@ impl EditView {
     #[must_use]
     pub fn of(docs: &GeneratedDocs, place: &Place, t: &WebTexts) -> Option<Self> {
         let edit = docs.edits().get(&place.section())?;
+        let changed = edit.changed();
+        if changed.is_empty() {
+            return None;
+        }
         let outdated = edits::outdated(docs, edit);
         let generated = match outdated {
             Some(_) => edits::generated(docs, edit).unwrap_or_default(),
             None => Vec::new(),
         };
         Some(Self {
-            fields: edit
-                .fields
-                .given()
+            fields: changed
                 .into_iter()
                 .map(|field| field_label(&t.edit, field))
                 .collect::<Vec<_>>()
@@ -66,9 +68,8 @@ impl EditView {
 }
 
 fn field_label(texts: &EditTexts, field: Field) -> &'static str {
-    match field {
-        Field::Name => texts.fields[0],
-        Field::Description => texts.fields[1],
-        Field::Narrative => texts.fields[2],
-    }
+    Field::ALL
+        .iter()
+        .position(|f| *f == field)
+        .map_or("", |at| texts.fields[at])
 }

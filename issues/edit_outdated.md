@@ -51,6 +51,8 @@ generated text. Out of scope: the edit form (`web_edit_form`), the Markdown mark
    text at the end; verified by tool tests; makes true MCP-15, MCP-16. (autonomous)
 3. [x] Web: the edit of a section on its page (fields, author, date), flagged outdated with the generated text beside
    each field; verified by page tests; makes true WEB-91, WEB-92. (autonomous)
+4. [x] Fixes of the `high` review of the issue; verified by the tests of SED, DBT, MCP and WEB; makes true SED-33
+   (the fields named as edited), DBT-39, MCP-15. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -85,3 +87,17 @@ generated text. Out of scope: the edit form (`web_edit_form`), the Markdown mark
 - red: WEB-91, WEB-92: `no edit block in <page>`.
 - Code review: no findings
 - not verified: the look of the edit block in a browser (colours are no requirement, WEB non-goal).
+
+## Deliverable 4 summary
+- done: `Edit::changed` (the fields shown as edited: no blank one, no narrative outside a use case) read by the edit
+  line, the page, `edits::generated` and the debt, an edit with none neither shown nor listed; `check` on
+  `Field::ALL`; `reviews::find_in` (`Found`) shared by `fingerprint_in` and `edits::generated`; `OutdatedTexts` in
+  place of the positional labels; `debt_kind` by the position in `DebtKind::ALL`; the doc of `DebtRow::outdated`.
+- red: SED-33: `no method named changed` (compile error); the MCP-15 and DBT-39 tests written with the fix, not run
+  red apart.
+- Code review: 9 findings (high review of the issue): fixed 1, 2, 3 (blank or misplaced fields), 5 (positional
+  labels), 6 (`debt_kind`), 7 (field list on `Field::ALL`), 8 (`find_in`, for the fingerprint and the generated
+  text; `cited_paths` and `section_subject` read other things than the section), 9 (doc comment); not fixed 4
+  (the cited files hashed by both the review and the edit of a page): a page reads the few files its section cites,
+  as the reviews already do.
+- not verified: none.

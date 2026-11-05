@@ -495,7 +495,12 @@ pub fn reviewed<'a>(
 
 /// The sections of the run whose edit is outdated, as the edits are saved (DBT-39).
 fn outdated_edits(docs: &GeneratedDocs) -> impl Iterator<Item = DebtItem> + '_ {
-    docs.edits().edits().iter().filter_map(move |edit| {
+    let shown = docs
+        .edits()
+        .edits()
+        .iter()
+        .filter(|edit| !edit.changed().is_empty());
+    shown.filter_map(move |edit| {
         // The subject first: no file read for a section the run no longer holds.
         let subject = section_subject(docs, &edit.section)?;
         Some(DebtItem {

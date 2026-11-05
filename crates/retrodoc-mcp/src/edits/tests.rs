@@ -597,3 +597,30 @@ fn an_outdated_edit_saved_again_is_no_longer_outdated() {
     let shown = docs_citing(root, "After.").with_edits(load(root).unwrap());
     assert_eq!(outdated(&shown, &again), None);
 }
+
+fn hand_written(kind: SectionKind, id: &str, fields: Fields) -> Edit {
+    Edit {
+        section: Section::new(kind, id),
+        fields,
+        author: None,
+        edited_at: "2026-11-05T10:00:00Z".into(),
+        fingerprint: "f".into(),
+        files: BTreeMap::new(),
+    }
+}
+
+// spec: SED-33 (internal: what the edit line, the page and the debt name as edited)
+#[test]
+fn the_fields_an_edit_changes_leave_out_a_blank_one_and_a_narrative_outside_a_use_case() {
+    let fields = Fields {
+        name: Some("  ".into()),
+        description: Some("Pays.".into()),
+        narrative: Some("The clerk pays.".into()),
+    };
+
+    let feature = hand_written(SectionKind::Feature, "pay", fields.clone());
+    let use_case = hand_written(SectionKind::UseCase, "pay/refund", fields);
+
+    assert_eq!(feature.changed(), [Field::Description]);
+    assert_eq!(use_case.changed(), [Field::Description, Field::Narrative]);
+}

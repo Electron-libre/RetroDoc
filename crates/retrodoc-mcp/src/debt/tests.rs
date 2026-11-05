@@ -625,3 +625,37 @@ fn an_item_whose_feature_left_the_run_counts_no_commit() {
         assert_eq!(item.priority.commits, 0, "{:?} {}", item.kind, item.label());
     }
 }
+
+// spec: DBT-39, SED-33 (internal: a file of edits written by hand, the page tests the listing)
+#[test]
+fn an_edit_that_changes_no_shown_field_is_no_debt() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(dir.path().join(".retrodoc")).unwrap();
+    std::fs::write(
+        dir.path().join(".retrodoc/edits.json"),
+        r#"{"version":1,"edits":[
+            {"kind":"feature","id":"pay","name":" ","author":null,
+             "edited_at":"2026-11-05T10:00:00Z","fingerprint":"f"},
+            {"kind":"feature","id":"weak","name":"Weak","author":null,
+             "edited_at":"2026-11-05T10:00:00Z","fingerprint":"f"}]}"#,
+    )
+    .unwrap();
+    let docs = docs(
+        vec![
+            feature("pay", "billing", Some(0.9)),
+            feature("weak", "billing", Some(0.9)),
+        ],
+        Vec::new(),
+    )
+    .with_edits(crate::edits::load(dir.path()).unwrap());
+
+    let list = debt(&docs, &Reviews::default());
+
+    let edited: Vec<String> = list
+        .items
+        .iter()
+        .filter(|i| i.kind == DebtKind::OutdatedEdit)
+        .map(DebtItem::label)
+        .collect();
+    assert_eq!(edited, ["billing/weak"]);
+}

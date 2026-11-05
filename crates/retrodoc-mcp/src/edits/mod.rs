@@ -11,7 +11,7 @@ use retrodoc_ingest::git_history::user_name;
 use serde::{Deserialize, Serialize};
 
 use crate::read_model::{GeneratedDocs, Sections};
-use crate::reviews::{self, Outdated};
+use crate::reviews::{self, Found, Outdated};
 use crate::store::{kind_key, Record, Records, Section, SectionKind, Store, StoreError};
 
 mod live;
@@ -96,13 +96,22 @@ impl Fields {
             Field::Narrative => self.narrative.as_deref(),
         }
     }
+}
 
-    /// The fields it gives, in the order of [`Field::ALL`].
+impl Edit {
+    /// The fields it changes as the readers show them, in the order of [`Field::ALL`]: a blank
+    /// one (SED-33) and a narrative outside a use case, which a file written by hand may hold,
+    /// left out.
     #[must_use]
-    pub fn given(&self) -> Vec<Field> {
+    pub fn changed(&self) -> Vec<Field> {
         Field::ALL
             .into_iter()
-            .filter(|field| self.get(*field).is_some())
+            .filter(|field| *field != Field::Narrative || self.section.kind == SectionKind::UseCase)
+            .filter(|field| {
+                self.fields
+                    .get(*field)
+                    .is_some_and(|text| !text.trim().is_empty())
+            })
             .collect()
     }
 }
@@ -205,35 +214,17 @@ pub fn outdated(docs: &GeneratedDocs, edit: &Edit) -> Option<Outdated> {
     )
 }
 
-/// The text the run generated for each field `edit` changes, in the order of [`Field::ALL`]
-/// (empty for a use case with no narrative); none when `docs` don't hold its section.
+/// The text the run generated for each field `edit` changes ([`Edit::changed`]), empty for a use
+/// case with no narrative; none when `docs` don't hold its section.
 #[must_use]
 pub fn generated(docs: &GeneratedDocs, edit: &Edit) -> Option<Vec<(Field, String)>> {
-    let sections = docs.generated();
-    let id = edit.section.id.as_str();
-    let (name, description, narrative) = match edit.section.kind {
-        SectionKind::Domain => sections
-            .domains
-            .iter()
-            .find(|d| d.slug == id)
-            .map(|d| (&d.name, &d.description, None))?,
-        SectionKind::Feature => sections
-            .features
-            .iter()
-            .find(|f| f.slug == id)
-            .map(|f| (&f.name, &f.description, None))?,
-        SectionKind::UseCase => {
-            let (feature, slug) = id.split_once('/')?;
-            sections
-                .use_cases
-                .iter()
-                .find(|u| u.feature_slug == feature && u.slug == slug)
-                .map(|u| (&u.name, &u.description, u.narrative.as_ref()))?
-        }
+    let (name, description, narrative) = match reviews::find_in(docs.generated(), &edit.section)? {
+        Found::Domain(d) => (&d.name, &d.description, None),
+        Found::Feature(f) => (&f.name, &f.description, None),
+        Found::UseCase(u) => (&u.name, &u.description, u.narrative.as_ref()),
     };
     Some(
-        edit.fields
-            .given()
+        edit.changed()
             .into_iter()
             .map(|field| {
                 let text = match field {
@@ -283,19 +274,15 @@ fn check(section: &Section, fields: &Fields) -> Result<(), EditsError> {
     if fields.narrative.is_some() && section.kind != SectionKind::UseCase {
         return Err(EditsError::NoNarrative(section.clone()));
     }
-    let given = [
-        ("name", &fields.name),
-        ("description", &fields.description),
-        ("narrative", &fields.narrative),
-    ];
-    if given.iter().all(|(_, field)| field.is_none()) {
+    let given: Vec<(Field, &str)> = Field::ALL
+        .into_iter()
+        .filter_map(|field| Some((field, fields.get(field)?)))
+        .collect();
+    if given.is_empty() {
         return Err(EditsError::NothingEdited);
     }
-    match given
-        .iter()
-        .find(|(_, field)| field.as_deref().is_some_and(|text| text.trim().is_empty()))
-    {
-        Some((name, _)) => Err(EditsError::Blank(name)),
+    match given.iter().find(|(_, text)| text.trim().is_empty()) {
+        Some((field, _)) => Err(EditsError::Blank(field.key())),
         None => Ok(()),
     }
 }

@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use chrono::{SecondsFormat, Utc};
-use retrodoc_core::model::Feature;
+use retrodoc_core::model::{Domain, Feature, UseCase};
 use retrodoc_ingest::git_history::user_name;
 use retrodoc_pipeline::cache::hash_content;
 use retrodoc_pipeline::{ChangedFile, OutdatedReview};
@@ -134,25 +134,45 @@ pub fn fingerprint(docs: &GeneratedDocs, section: &Section) -> Option<String> {
 
 /// The fingerprint of `section` in `sections`, `None` when they lack it.
 pub(crate) fn fingerprint_in(sections: &Sections, section: &Section) -> Option<String> {
-    let id = section.id.as_str();
-    let saved = match section.kind {
-        SectionKind::Domain => {
-            serde_json::to_string(sections.domains.iter().find(|d| d.slug == id)?)
-        }
-        SectionKind::Feature => {
-            serde_json::to_string(sections.features.iter().find(|f| f.slug == id)?)
-        }
-        SectionKind::UseCase => {
-            let (feature, slug) = id.split_once('/')?;
-            serde_json::to_string(
-                sections
-                    .use_cases
-                    .iter()
-                    .find(|u| u.feature_slug == feature && u.slug == slug)?,
-            )
-        }
+    let saved = match find_in(sections, section)? {
+        Found::Domain(domain) => serde_json::to_string(domain),
+        Found::Feature(feature) => serde_json::to_string(feature),
+        Found::UseCase(use_case) => serde_json::to_string(use_case),
     };
     saved.ok().map(|json| hash_content(&json))
+}
+
+/// A section found in [`Sections`].
+pub(crate) enum Found<'a> {
+    Domain(&'a Domain),
+    Feature(&'a Feature),
+    UseCase(&'a UseCase),
+}
+
+/// `section` in `sections`, by its kind and id (`<feature>/<use case>` for a use case), `None`
+/// when they lack it.
+pub(crate) fn find_in<'a>(sections: &'a Sections, section: &Section) -> Option<Found<'a>> {
+    let id = section.id.as_str();
+    match section.kind {
+        SectionKind::Domain => sections
+            .domains
+            .iter()
+            .find(|d| d.slug == id)
+            .map(Found::Domain),
+        SectionKind::Feature => sections
+            .features
+            .iter()
+            .find(|f| f.slug == id)
+            .map(Found::Feature),
+        SectionKind::UseCase => {
+            let (feature, slug) = id.split_once('/')?;
+            sections
+                .use_cases
+                .iter()
+                .find(|u| u.feature_slug == feature && u.slug == slug)
+                .map(Found::UseCase)
+        }
+    }
 }
 
 /// Why `review` is outdated in `docs` and the files of their repository now, `None` when it is

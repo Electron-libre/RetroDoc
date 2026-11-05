@@ -973,3 +973,33 @@ fn the_answer_of_an_outdated_edit_says_why_and_ends_with_the_generated_text() {
         "{out}"
     );
 }
+
+// spec: MCP-15, SED-33 (internal: a file of edits written by hand)
+#[test]
+fn an_edit_that_changes_no_shown_field_gives_no_edit_line() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(dir.path().join(".retrodoc")).unwrap();
+    std::fs::write(
+        dir.path().join(".retrodoc/edits.json"),
+        r#"{"version":1,"edits":[
+            {"kind":"domain","id":"billing","narrative":"A story","author":null,
+             "edited_at":"2026-11-05T10:00:00Z","fingerprint":"f"},
+            {"kind":"feature","id":"pay-invoice","name":" ","description":"Pays.","author":null,
+             "edited_at":"2026-11-05T10:00:00Z","fingerprint":"f"}]}"#,
+    )
+    .unwrap();
+    let docs = docs()
+        .with_source_access(dir.path())
+        .with_edits(edits::load(dir.path()).unwrap());
+
+    let domain = docs.get_domain("billing");
+    let feature = docs.get_feature("pay-invoice");
+
+    assert!(!domain.contains("Edit:"), "{domain}");
+    assert!(!domain.contains("## Generated text"), "{domain}");
+    assert!(
+        feature.contains("\nEdit: human edit of the description (2026-11-05T10:00:00Z), outdated"),
+        "{feature}"
+    );
+    assert!(!feature.contains("### Name"), "{feature}");
+}
