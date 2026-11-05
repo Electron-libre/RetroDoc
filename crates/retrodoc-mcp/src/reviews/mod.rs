@@ -101,6 +101,12 @@ impl Outdated {
     pub fn reasons(&self) -> String {
         self.report().reasons()
     }
+
+    /// The reasons that apply to an edit, on one line ([`OutdatedReview::reasons_since`]).
+    #[must_use]
+    pub fn edit_reasons(&self) -> String {
+        self.report().reasons_since("edit")
+    }
 }
 
 /// The reviews of a repository, by kind then id.

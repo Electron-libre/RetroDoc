@@ -3,8 +3,10 @@ use retrodoc_pipeline::{DomainMap, Glossary};
 
 use super::Docs;
 use crate::corpus::fixtures::*;
+use crate::edits::{self, Edit, Fields};
 use crate::freshness::Freshness;
 use crate::read_model::GeneratedDocs;
+use crate::reviews::tests::repo;
 use crate::reviews::{fingerprint, record, Section, SectionKind, Status};
 
 fn docs() -> Docs {
@@ -883,5 +885,91 @@ fn the_warning_of_an_outdated_review_marked_wrong_says_the_section_changed_since
              holds before relying on it.\n\n# Pay an invoice"
         ),
         "{feature}"
+    );
+}
+
+fn edited(docs: Docs, root: &std::path::Path, section: &Section, fields: Fields) -> (Docs, Edit) {
+    let edit = edits::record(root, &docs.generated, section, fields).unwrap();
+    (docs.with_edits(edits::load(root).unwrap()), edit)
+}
+
+// spec: MCP-15 (internal: the tool answer is checked without a JSON-RPC session)
+#[test]
+fn the_answer_of_an_edited_section_says_it_is_a_human_edit() {
+    let dir = repo("Ada");
+    let narrative = Fields {
+        narrative: Some("The clerk pays at the desk.".into()),
+        ..Fields::default()
+    };
+    let (docs, edit) = edited(
+        docs().with_source_access(dir.path()),
+        dir.path(),
+        &Section::use_case("pay-invoice", "pay-by-card"),
+        narrative,
+    );
+
+    let out = docs.get_use_case("pay-by-card");
+
+    assert!(out.contains("\nThe clerk pays at the desk.\n"), "{out}");
+    assert!(
+        out.contains(&format!(
+            "\nReview: not reviewed\nEdit: human edit of the narrative (Ada, {})\n",
+            edit.edited_at
+        )),
+        "{out}"
+    );
+    assert!(!out.contains("outdated"), "{out}");
+    assert!(!out.contains("## Generated text"), "{out}");
+    assert!(!docs.get_feature("pay-invoice").contains("Edit:"));
+    assert!(!docs.get_domain("billing").contains("Edit:"));
+}
+
+// spec: MCP-16 (internal: the tool answer is checked without a JSON-RPC session)
+#[test]
+fn the_answer_of_an_outdated_edit_says_why_and_ends_with_the_generated_text() {
+    let dir = repo("Ada");
+    let fields = Fields {
+        name: Some("Settle an invoice".into()),
+        description: Some("Pays what is due.".into()),
+        ..Fields::default()
+    };
+    let (_, edit) = edited(
+        docs().with_source_access(dir.path()),
+        dir.path(),
+        &Section::new(SectionKind::Feature, "pay-invoice"),
+        fields,
+    );
+    let rerun = Docs::new(
+        vec![domain("billing", "Billing", "Invoices and payments")],
+        vec![feature(
+            "pay-invoice",
+            "Pay an invoice",
+            "Settle\nwhat is due by card",
+        )],
+        Vec::new(),
+        &Glossary::default(),
+        &[],
+    )
+    .with_source_access(dir.path())
+    .with_edits(edits::load(dir.path()).unwrap());
+
+    let out = rerun.get_feature("pay-invoice");
+
+    assert!(out.starts_with("# Settle an invoice"), "{out}");
+    assert!(
+        out.contains(&format!(
+            "\nEdit: human edit of the name and the description (Ada, {}), outdated: section \
+             rewritten since the edit\n",
+            edit.edited_at
+        )),
+        "{out}"
+    );
+    assert!(
+        out.ends_with(
+            "\n## Generated text\n\nThe edit is outdated: the last run generated, in place of the \
+             edited fields:\n\n### Name\n\nPay an invoice\n\n### Description\n\nSettle\nwhat is \
+             due by card\n"
+        ),
+        "{out}"
     );
 }

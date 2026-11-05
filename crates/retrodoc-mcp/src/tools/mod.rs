@@ -16,6 +16,7 @@ use crate::search::SearchIndex;
 use crate::source::SourceAccess;
 
 mod answer;
+mod edit;
 mod get_domain;
 mod get_feature;
 mod get_use_case;

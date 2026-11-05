@@ -47,8 +47,8 @@ generated text. Out of scope: the edit form (`web_edit_form`), the Markdown mark
 1. [x] Rule and debt: `reviews::outdated` split into a shared judgement over a fingerprint and file hashes, against
    the sections as shown (review) or as generated (edit); `edits::outdated`; the debt kind "outdated edit" (key,
    weight, order, web label); verified by tests per requirement; makes true SED-34 to SED-37, DBT-39. (autonomous)
-2. [ ] MCP: the edit line of `get_domain`, `get_feature`, `get_use_case`, outdated with its reasons and the generated
-   text at the end; verified by tool tests; makes true MCP-15, MCP-16.
+2. [x] MCP: the edit line of `get_domain`, `get_feature`, `get_use_case`, outdated with its reasons and the generated
+   text at the end; verified by tool tests; makes true MCP-15, MCP-16. (autonomous)
 3. [ ] Web: the edit of a section on its page (fields, author, date), flagged outdated with the generated text beside
    each field; verified by page tests; makes true WEB-91, WEB-92.
 
@@ -65,5 +65,14 @@ generated text. Out of scope: the edit form (`web_edit_form`), the Markdown mark
   WEB-92) wait for deliverables 2 and 3.
 - red: DBT-39: `assertion left == right failed: left 0, right 1` (no "Outdated edit" item); SED-34 to SED-37:
   written with `edits::outdated`, red as a compile error before it existed (not run red apart).
+- Code review: no findings
+- not verified: none.
+
+## Deliverable 2 summary
+- done: `tools/edit.rs`, the `Edit:` line of `get_domain`, `get_feature`, `get_use_case` after the review line (the
+  fields, the author, the date, `outdated: …` with `Outdated::edit_reasons`, "since the edit"), and `## Generated
+  text` ending the answer of an outdated edit; `OutdatedReview::reasons_since`; the MCP-14 stdio test reads its
+  outdated edit's generated text at the end only; spec MCP-15, MCP-16.
+- red: MCP-15, MCP-16: the answers had no `Edit:` line (`assertion failed: out.contains(...)`).
 - Code review: no findings
 - not verified: none.

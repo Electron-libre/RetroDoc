@@ -48,14 +48,17 @@ impl Docs {
                 );
             }
         };
-        let review = self.review_note(&Section::use_case(&use_case.feature_slug, &use_case.slug));
+        let section = Section::use_case(&use_case.feature_slug, &use_case.slug);
+        let review = self.review_note(&section);
+        let edit = self.edit_note(&section);
         let mut out = format!(
-            "{}# {} (`{}`)\n\n{}\n{}\n",
+            "{}# {} (`{}`)\n\n{}\n{}\n{}",
             review.warning,
             use_case.name,
             use_case_id(use_case, self.generated.features()),
             confidence_line(use_case.confidence.as_ref()),
-            review.line
+            review.line,
+            edit.line
         );
         if self.use_case_set_apart(use_case) {
             let _ = writeln!(out, "{SET_APART_NOTE}");
@@ -103,6 +106,7 @@ impl Docs {
             .filter(|r| r.use_cases.contains(&use_case.slug))
             .collect();
         out.push_str(&self.rules_section(&rules));
+        out.push_str(&edit.generated);
         out
     }
 }

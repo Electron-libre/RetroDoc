@@ -30,15 +30,18 @@ impl Docs {
         let Some(feature) = found else {
             return self.unknown("feature", id, "get_domain");
         };
-        let review = self.review_note(&Section::new(SectionKind::Feature, &feature.slug));
+        let section = Section::new(SectionKind::Feature, &feature.slug);
+        let review = self.review_note(&section);
+        let edit = self.edit_note(&section);
         let mut out = format!(
-            "{}# {} (`{}`)\n\n{}\n\n{}\n{}\n",
+            "{}# {} (`{}`)\n\n{}\n\n{}\n{}\n{}",
             review.warning,
             feature.name,
             feature_id(feature),
             feature.description,
             confidence_line(feature.confidence.as_ref()),
-            review.line
+            review.line,
+            edit.line
         );
         if feature.back_office {
             let _ = writeln!(out, "{SET_APART_NOTE}");
@@ -58,6 +61,7 @@ impl Docs {
         if use_cases.is_empty() {
             out.push_str("\nNo use case documented for this feature.\n");
             out.push_str(&self.rules_section(&rules));
+            out.push_str(&edit.generated);
             return out;
         }
         out.push_str("\n## Use cases\n\n");
@@ -75,6 +79,7 @@ impl Docs {
         }
         out.push_str("\nUse `get_use_case` with an id to see the steps.\n");
         out.push_str(&self.rules_section(&rules));
+        out.push_str(&edit.generated);
         out
     }
 }

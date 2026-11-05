@@ -203,7 +203,10 @@ fn the_answers_show_the_edited_sections() {
     assert!(domains.contains("Invoicing"), "{domains}");
     let feature = session.call("get_feature", r#"{"id":"billing/pay-invoice"}"#);
     assert!(feature.contains("Settle the invoice by card"), "{feature}");
-    assert!(!feature.contains("Settle what is due"), "{feature}");
+    // The fingerprint `f` makes the edit outdated: the generated text ends the answer only.
+    let (shown, generated) = feature.split_once("\n## Generated text\n").unwrap();
+    assert!(!shown.contains("Settle what is due"), "{feature}");
+    assert!(generated.contains("Settle what is due"), "{feature}");
     assert!(
         feature.contains("Pay an invoice"),
         "the name is not edited: {feature}"

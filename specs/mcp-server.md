@@ -45,6 +45,12 @@ item (`specs/section-review.md`), so the agent knows what was checked or rejecte
   section changed since it was marked wrong.
 - **MCP-14** (deterministic) `list_domains`, `get_domain`, `get_feature` and `get_use_case` must show the name, the
   description and the narrative of an edited section as its edit gives them (`specs/section-edit.md`).
+- **MCP-15** (deterministic) `get_domain`, `get_feature` and `get_use_case` must show, on the line after the review
+  line, that the section answered is a human edit: the fields it changes, its author when it has one and its date; a
+  section with no edit shows no such line.
+- **MCP-16** (deterministic) The edit line of an outdated edit (SED-34, SED-35) must say it is outdated, with its
+  reasons as MCP-12 says, and the answer must end with the generated text of each field the edit changes, so the
+  agent sees what the code now says.
 
 ## Scenarios
 
@@ -66,9 +72,15 @@ item (`specs/section-review.md`), so the agent knows what was checked or rejecte
 - (MCP-8) Given a domain marked `to_review`, then its answer has no warning.
 - (MCP-9) Given the server started before any review, when a feature is marked wrong, then the next `get_feature`
   of it opens with the warning.
+- (MCP-15) Given a use case whose narrative is edited by A, then `get_use_case` shows the edited narrative and the
+  line `Edit: human edit of the narrative (A, <date>)`.
+- (MCP-16) Given a feature whose name is edited, when a later run renames it, then `get_feature` shows the edited
+  name, the edit outdated as "rewritten", and the generated name at the end.
 
 ## Non-goals
 
+- No edit line in `list_domains` nor in the items listed inside an answer: the edited text shows there (MCP-14),
+  the edit line in the answer of the section.
 - No review in `list_domains` nor in the items listed inside an answer (the features of a domain, the use cases of
   a feature): the agent sees the review when it reads the item.
 - No review of a business rule (REV non-goal).

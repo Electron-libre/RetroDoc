@@ -184,9 +184,16 @@ impl OutdatedReview {
     /// rewritten since the review, the files changed since the review.
     #[must_use]
     pub fn reasons(&self) -> String {
+        self.reasons_since("review")
+    }
+
+    /// The reasons that apply, said of the human work `what` (`review`, `edit`): the section
+    /// rewritten since it, the files changed since it.
+    #[must_use]
+    pub fn reasons_since(&self, what: &str) -> String {
         let mut reasons = Vec::new();
         if self.rewritten {
-            reasons.push("section rewritten since the review".to_string());
+            reasons.push(format!("section rewritten since the {what}"));
         }
         if !self.changed.is_empty() {
             let files: Vec<String> = self
@@ -198,7 +205,7 @@ impl OutdatedReview {
                 })
                 .collect();
             reasons.push(format!(
-                "files changed since the review: {}",
+                "files changed since the {what}: {}",
                 files.join(", ")
             ));
         }
