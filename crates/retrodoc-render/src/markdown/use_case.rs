@@ -14,10 +14,11 @@ pub(super) fn use_case_page(
     use_case: &UseCase,
     rules: &[&BusinessRule],
     docs: &DocLinks,
+    edit_mark: &str,
     texts: &Texts,
 ) -> String {
     let path = use_case_path(feature, use_case);
-    let mut md = format!("# {}\n\n", use_case.name);
+    let mut md = format!("# {}\n\n{edit_mark}", use_case.name);
     let _ = writeln!(
         md,
         "[← {}]({})\n",

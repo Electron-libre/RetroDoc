@@ -34,3 +34,43 @@ Edit the docs
 
 # Hints
 * The same artifacts and edits must render the same bytes (SED-31): the date is the edit's, not the render's.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-05
+
+## Understanding
+`publish` passes a mark per edited section (fields, author, date) to the render, which writes one line under the
+heading of the page of an edited domain, feature or use case, in the words of the web page (SED-38). Out of scope:
+the mark in lists and `llms.txt`, the outdated state (web only).
+
+## Plan
+1. [x] Edit mark in the Markdown pages: `EditMarks` (by `ItemRef`) in `retrodoc-render`, a new argument of
+   `render_with_docs`, the wording (`Human edit`, field names, `by`) moved from the web `EditTexts` into the render
+   `Texts` and read by the web page through `t.doc`; `publish` builds the marks from the edits; verified by a render
+   test and a CLI `render` test; makes true SED-38. ~340 lines. (autonomous)
+2. [ ] Docs of the whole issue and fixes of its `high` review.
+
+## Decisions
+- Mode: autonomous
+- Base commit: c86f28ecadb0089a8c3ea6ee0d2d1a80f1686102
+- 2026-11-05 (user, `ok`): the mark on the page of the section only, not in the lists nor `llms.txt`; no outdated
+  state in the Markdown (web only).
+
+## Deliverable 1 summary
+done: `**Human edit** <fields> *by <author>, <date>*` under the heading of the page of an edited domain, feature or
+use case; the web page reads the same words from the render `Texts`; `section-edit` back to `accepted`.
+
+| check | result |
+|---|---|
+| tests | pass (`project-check`) |
+| lint | pass |
+| specs | pass, `section-edit` accepted |
+| docs | README (`render`), `docs/crates/render-mcp-cli.md` |
+| code review | 1 finding, fixed |
+
+red: SED-38: `left: "[← Domain overview](README.md)"`, the line under the heading of the feature page.
+Code review: 1 findings: `edit_marks` inserted between the doc comment of `without_generated` and its `fn`; fixed,
+moved above it.
+not verified: none.
+decisions needed: none.

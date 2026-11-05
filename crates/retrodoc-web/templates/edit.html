@@ -1,7 +1,7 @@
 {%- import "macros.html" as m -%}
 {% if let Some(edit) = edit %}
 <section class="edit">
-<p><strong>{{ t.edit.heading }}</strong> {{ edit.fields }} <span class="muted">{% if let Some(author) = edit.author %}{{ t.review.by }} {{ author }}, {% endif %}{{ edit.date }}</span></p>
+<p><strong>{{ t.doc.human_edit }}</strong> {{ edit.fields }} <span class="muted">{% if let Some(author) = edit.author %}{{ t.doc.edited_by }} {{ author }}, {% endif %}{{ edit.date }}</span></p>
 {% if edit.outdated.is_some() %}<p>{% call m::outdated(edit.outdated) %}{% endcall %}</p>{% endif %}
 {% if !edit.generated.is_empty() %}
 <details class="generated"{% if edit.outdated.is_some() %} open{% endif %}>

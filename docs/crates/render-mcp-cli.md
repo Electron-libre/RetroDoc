@@ -19,7 +19,10 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   The CLI drops generated docs (`functional/`, `_retrodoc/`) from the ingested existing docs.
   The CLI (`commands::docs::publish`, behind `render` and `generate`) renders the sections with the human edits of
   `.retrodoc/edits.json` laid over them (`retrodoc_mcp::edits::apply`, `specs/section-edit.md` SED-30 to SED-32): the
-  render crate never sees an edit; a file of edits that can't be read fails the command before any doc is written,
+  render crate never sees an edit, only an `EditMark` per edited section (`edit_marks.rs`: the fields it changes, its
+  author, its date, keyed by `ItemRef`), which writes `**Human edit** name *by A, <date>*` on the line under the
+  heading of its page (SED-38), in the words the web page reads from the same `Texts` (`human_edit`,
+  `edited_fields`, `edited_by`); a file of edits that can't be read fails the command before any doc is written,
   and `generate` before its first LLM call.
   The fixed text of the pages (headings, labels, notes, `llms.txt`, `rules.md`) comes from a `Texts` table
   (`texts.rs`, `specs/docs-language.md` DLG-7): `Texts::ENGLISH` and `Texts::FRENCH`, picked by `Texts::for_tag` from

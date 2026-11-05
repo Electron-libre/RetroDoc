@@ -4,7 +4,7 @@ use retrodoc_core::model::{BusinessRule, ConfidenceScore, SourceRef};
 
 use super::super::{render, render_with_docs, render_with_rules};
 use super::{meta, page, sample};
-use crate::Texts;
+use crate::{EditMarks, Texts};
 
 fn rules() -> Vec<BusinessRule> {
     use retrodoc_core::model::{RuleEvidence, RuleKind};
@@ -148,9 +148,22 @@ fn the_pages_link_the_doc_sections_that_document_or_contradict_them() {
         ItemRef::Rule("pay-invoice-2".into()),
         vec![link("docs/guide.md", Some("Limits"), None)],
     );
-    let files =
-        || render_with_docs(&d, &f, &u, &rules(), &docs, &Texts::ENGLISH, "r", &meta()).unwrap();
-    let files = files();
+    let with_links = |docs: &DocLinks| {
+        let none = EditMarks::default();
+        render_with_docs(
+            &d,
+            &f,
+            &u,
+            &rules(),
+            docs,
+            &none,
+            &Texts::ENGLISH,
+            "r",
+            &meta(),
+        )
+        .unwrap()
+    };
+    let files = with_links(&docs);
 
     let domain = page(&files, "functional/billing/README.md");
     assert!(
@@ -181,23 +194,10 @@ fn the_pages_link_the_doc_sections_that_document_or_contradict_them() {
         "{use_case}"
     );
     assert!(!page(&files, "functional/billing/list.md").contains("Existing documentation"));
-    assert_eq!(
-        files,
-        render_with_docs(&d, &f, &u, &rules(), &docs, &Texts::ENGLISH, "r", &meta()).unwrap()
-    );
+    assert_eq!(files, with_links(&docs));
     assert_eq!(
         render_with_rules(&d, &f, &u, &rules(), "r", &meta()).unwrap(),
-        render_with_docs(
-            &d,
-            &f,
-            &u,
-            &rules(),
-            &DocLinks::default(),
-            &Texts::ENGLISH,
-            "r",
-            &meta()
-        )
-        .unwrap()
+        with_links(&DocLinks::default())
     );
 }
 

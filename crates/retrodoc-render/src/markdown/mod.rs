@@ -21,7 +21,8 @@ use retrodoc_core::model::{
 };
 use retrodoc_core::text::one_line;
 
-use crate::doc_links::DocLinks;
+use crate::doc_links::{DocLinks, ItemRef};
+use crate::edit_marks::{mark_of, EditMarks};
 use crate::rules::index_page;
 use crate::texts::Texts;
 use crate::{
@@ -76,6 +77,7 @@ pub fn render_with_rules(
         use_cases,
         rules,
         &DocLinks::default(),
+        &EditMarks::default(),
         &Texts::ENGLISH,
         coverage_report,
         metadata,
@@ -83,8 +85,9 @@ pub fn render_with_rules(
 }
 
 /// [`render_with_rules`] with the sections of the project's own docs that document or contradict
-/// each item, linked from its page (a rule: under it), the fixed text from `texts`. Without links,
-/// and in English, the files are the same.
+/// each item, linked from its page (a rule: under it), and the mark of the human edit of each
+/// edited domain, feature and use case under the heading of its page, the fixed text from `texts`.
+/// Without links nor marks, and in English, the files are the same.
 ///
 /// # Errors
 ///
@@ -97,6 +100,7 @@ pub fn render_with_docs(
     use_cases: &[UseCase],
     rules: &[BusinessRule],
     docs: &DocLinks,
+    edits: &EditMarks,
     texts: &Texts,
     coverage_report: &str,
     metadata: &RunMetadata,
@@ -116,7 +120,14 @@ pub fn render_with_docs(
             .collect();
         files.push(RenderedFile {
             path: domain_readme_path(&domain.slug),
-            content: domain_page(domain, &domain_features, rules, docs, texts),
+            content: domain_page(
+                domain,
+                &domain_features,
+                rules,
+                docs,
+                &mark_of(edits, &ItemRef::Domain(domain.slug.clone()), texts),
+                texts,
+            ),
         });
         for feature in domain_features {
             let own: Vec<&UseCase> = use_cases
@@ -130,7 +141,14 @@ pub fn render_with_docs(
                 .collect();
             files.push(RenderedFile {
                 path: feature_path(feature),
-                content: feature_page(feature, &own, &own_rules, docs, texts),
+                content: feature_page(
+                    feature,
+                    &own,
+                    &own_rules,
+                    docs,
+                    &mark_of(edits, &ItemRef::Feature(feature.slug.clone()), texts),
+                    texts,
+                ),
             });
             for use_case in &own {
                 let applying: Vec<&BusinessRule> = own_rules
@@ -140,7 +158,21 @@ pub fn render_with_docs(
                     .collect();
                 files.push(RenderedFile {
                     path: use_case_path(feature, use_case),
-                    content: use_case_page(feature, use_case, &applying, docs, texts),
+                    content: use_case_page(
+                        feature,
+                        use_case,
+                        &applying,
+                        docs,
+                        &mark_of(
+                            edits,
+                            &ItemRef::UseCase {
+                                feature: feature.slug.clone(),
+                                use_case: use_case.slug.clone(),
+                            },
+                            texts,
+                        ),
+                        texts,
+                    ),
                 });
             }
         }

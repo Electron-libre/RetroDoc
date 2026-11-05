@@ -7,7 +7,9 @@ use retrodoc_mcp::edits::{self, Field};
 use retrodoc_mcp::GeneratedDocs;
 
 use crate::review::{OutdatedView, Place};
-use crate::texts::{EditTexts, WebTexts};
+use retrodoc_render::EditedField;
+
+use crate::texts::WebTexts;
 
 /// The edit of a section as its page shows it.
 #[derive(Debug)]
@@ -43,7 +45,7 @@ impl EditView {
         Some(Self {
             fields: changed
                 .into_iter()
-                .map(|field| field_label(&t.edit, field))
+                .map(|field| field_label(t, field))
                 .collect::<Vec<_>>()
                 .join(", "),
             author: edit
@@ -57,7 +59,7 @@ impl EditView {
             generated: generated
                 .into_iter()
                 .map(|(field, text)| GeneratedField {
-                    label: field_label(&t.edit, field),
+                    label: field_label(t, field),
                     text,
                 })
                 .collect(),
@@ -74,9 +76,10 @@ pub fn is_edited(docs: &GeneratedDocs, place: &Place) -> bool {
         .is_some_and(|edit| !edit.changed().is_empty())
 }
 
-fn field_label(texts: &EditTexts, field: Field) -> &'static str {
-    Field::ALL
-        .iter()
-        .position(|f| *f == field)
-        .map_or("", |at| texts.fields[at])
+fn field_label(t: &WebTexts, field: Field) -> &'static str {
+    t.doc.edited_field(match field {
+        Field::Name => EditedField::Name,
+        Field::Description => EditedField::Description,
+        Field::Narrative => EditedField::Narrative,
+    })
 }

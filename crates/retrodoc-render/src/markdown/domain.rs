@@ -14,10 +14,15 @@ pub(super) fn domain_page(
     features: &[&Feature],
     rules: &[&BusinessRule],
     docs: &DocLinks,
+    edit_mark: &str,
     texts: &Texts,
 ) -> String {
     let readme = domain_readme_path(&domain.slug);
-    let mut md = format!("# {}\n\n{}\n\n", domain.name, domain.description.trim());
+    let mut md = format!(
+        "# {}\n\n{edit_mark}{}\n\n",
+        domain.name,
+        domain.description.trim()
+    );
     let _ = writeln!(
         md,
         "{}\n",

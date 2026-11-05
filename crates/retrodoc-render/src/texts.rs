@@ -3,6 +3,8 @@
 
 use retrodoc_core::model::RuleKind;
 
+use crate::edit_marks::EditedField;
+
 /// The fixed text of the docs in one language. The labels that end a line before a value carry
 /// their colon, written as the language writes it (`Confidence:`, `Confiance :`).
 #[derive(Debug)]
@@ -55,6 +57,12 @@ pub struct Texts {
     /// of rules.
     pub agent_index_rules: fn(&str, usize) -> String,
     pub agent_index_optional: &'static str,
+    /// The mark of a section a person edited, before the fields it changes (SED-38, WEB-91).
+    pub human_edit: &'static str,
+    /// The name, the description and the narrative, as the mark of an edit names them.
+    pub edited_fields: [&'static str; 3],
+    /// Before the author of an edit.
+    pub edited_by: &'static str,
 }
 
 impl Texts {
@@ -131,6 +139,9 @@ impl Texts {
         agent_index_optional: "\n## Optional\n\n\
              - [Documentation debt report](../_retrodoc/coverage-report.md): the sections with a low \
              confidence and the code that no domain covers\n",
+        human_edit: "Human edit",
+        edited_fields: ["name", "description", "narrative"],
+        edited_by: "by",
     };
 
     pub const FRENCH: Self = Self {
@@ -210,6 +221,9 @@ impl Texts {
         agent_index_optional: "\n## Optionnel\n\n\
              - [Rapport de dette documentaire](../_retrodoc/coverage-report.md) : les sections de \
              faible confiance et le code qu'aucun domaine ne couvre\n",
+        human_edit: "Correction humaine",
+        edited_fields: ["nom", "description", "récit"],
+        edited_by: "par",
     };
 
     /// The table of the language of the two-letter `tag` (`OutputConfig::language_tag`): English
@@ -219,6 +233,17 @@ impl Texts {
         match tag {
             Some("fr") => &Self::FRENCH,
             _ => &Self::ENGLISH,
+        }
+    }
+
+    /// The name of `field` in the mark of an edit: `narrative`.
+    #[must_use]
+    pub fn edited_field(&self, field: EditedField) -> &'static str {
+        let [name, description, narrative] = self.edited_fields;
+        match field {
+            EditedField::Name => name,
+            EditedField::Description => description,
+            EditedField::Narrative => narrative,
         }
     }
 

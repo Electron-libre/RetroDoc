@@ -7,12 +7,14 @@
 //! [`WritePlan::apply`] writes only the files that actually differ.
 
 mod doc_links;
+mod edit_marks;
 mod markdown;
 mod plan;
 mod rules;
 mod texts;
 
 pub use doc_links::{anchor, DocLink, DocLinks, ItemRef};
+pub use edit_marks::{EditMark, EditMarks, EditedField};
 pub use markdown::{render, render_with_docs, render_with_rules, source_ref_label};
 pub use plan::{plan, FileStatus, PlannedFile, WritePlan};
 pub use texts::Texts;

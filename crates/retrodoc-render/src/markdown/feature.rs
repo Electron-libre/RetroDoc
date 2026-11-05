@@ -16,10 +16,11 @@ pub(super) fn feature_page(
     use_cases: &[&UseCase],
     rules: &[&BusinessRule],
     docs: &DocLinks,
+    edit_mark: &str,
     texts: &Texts,
 ) -> String {
     let path = feature_path(feature);
-    let mut md = format!("# {}\n\n", feature.name);
+    let mut md = format!("# {}\n\n{edit_mark}", feature.name);
     let _ = writeln!(
         md,
         "[← {}]({})\n",

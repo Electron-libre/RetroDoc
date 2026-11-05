@@ -66,6 +66,7 @@ pub fn publish(repo_root: &Path, config: &Config, dry_run: bool) -> anyhow::Resu
         &shown.use_cases,
         &rules,
         &links,
+        &edit_marks(&edits),
         retrodoc_render::Texts::for_tag(config.output.language_tag()),
         &report.to_markdown(),
         &metadata,
@@ -95,6 +96,51 @@ pub fn publish(repo_root: &Path, config: &Config, dry_run: bool) -> anyhow::Resu
         plan.removed.len()
     );
     Ok(())
+}
+
+/// The mark of each edit that changes a field the readers show (SED-33, SED-38), by the item of
+/// its page; an edit of a section the docs no longer hold marks no page.
+fn edit_marks(edits: &retrodoc_mcp::edits::Edits) -> retrodoc_render::EditMarks {
+    use retrodoc_mcp::edits::Field;
+    use retrodoc_mcp::store::SectionKind;
+    use retrodoc_render::{EditMark, EditedField, ItemRef};
+
+    edits
+        .edits()
+        .iter()
+        .filter_map(|edit| {
+            let fields: Vec<EditedField> = edit
+                .changed()
+                .into_iter()
+                .map(|field| match field {
+                    Field::Name => EditedField::Name,
+                    Field::Description => EditedField::Description,
+                    Field::Narrative => EditedField::Narrative,
+                })
+                .collect();
+            if fields.is_empty() {
+                return None;
+            }
+            let id = edit.section.id.clone();
+            let item = match edit.section.kind {
+                SectionKind::Domain => ItemRef::Domain(id),
+                SectionKind::Feature => ItemRef::Feature(id),
+                SectionKind::UseCase => {
+                    let (feature, use_case) = id.split_once('/')?;
+                    ItemRef::UseCase {
+                        feature: feature.to_string(),
+                        use_case: use_case.to_string(),
+                    }
+                }
+            };
+            let mark = EditMark {
+                fields,
+                author: edit.author.clone(),
+                edited_at: edit.edited_at.clone(),
+            };
+            Some((item, mark))
+        })
+        .collect()
 }
 
 /// Drops from the input docs what `RetroDoc` itself generated into the docs

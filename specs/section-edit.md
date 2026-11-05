@@ -88,6 +88,11 @@ it and no `generate` loses it.
 - **SED-37** (deterministic) An outdated edit must be kept in `.retrodoc/edits.json` and still shown over its
   section (SED-23): the team decides whether to update or drop it.
 
+- **SED-38** (deterministic) The Markdown page of an edited domain, feature or use case must hold, on the line under
+  its heading, the mark of its human edit: the fields it changes, its author when it has one and its date (SED-7), in
+  the docs language and in the words of its web page (WEB-91); a section with no edit, or whose edit changes no field
+  the readers show (SED-33), holds none.
+
 ## Scenarios
 
 - (SED-2) Given a feature whose name only is edited, then its edit holds the name and no description nor narrative.
@@ -117,6 +122,9 @@ it and no `generate` loses it.
   as "rewritten" and the feature still shows the edited name.
 - (SED-34) Given a feature whose name is edited, when its description is edited next, then the edit is not outdated:
   the generated feature is the same.
+- (SED-38) Given a feature whose name is edited by A on 2026-11-05T10:00:00Z, when `render` runs, then the line
+  under the heading of its page reads `**Human edit** name *by A, 2026-11-05T10:00:00Z*`, and its domain's page has
+  no mark.
 - (SED-35) Given a use case edited, when a file one of its steps cites is deleted, then the edit is outdated with the
   file deleted.
 
@@ -128,4 +136,6 @@ it and no `generate` loses it.
 - No lock across processes: two processes saving at the same instant keep the last one's file whole (SED-12), not
   both.
 - The form that writes an edit: `specs/web-ui.md` (WEB-93 to WEB-99).
+- No mark of an edit in the lists of sections of the Markdown (a domain's features, `llms.txt`), and no word of an
+  outdated edit there: the web page shows both (WEB-92, WEB-100).
 - No merge of an outdated edit with the new generated text: the team rewrites or drops it.

@@ -297,6 +297,48 @@ fn the_same_artifacts_and_edits_render_the_same_bytes() {
     );
 }
 
+/// The line under the `# ` heading of `page`.
+fn under_heading(page: &str) -> &str {
+    page.lines()
+        .skip_while(|line| !line.starts_with("# "))
+        .nth(2)
+        .unwrap_or_default()
+}
+
+// spec: SED-38
+#[test]
+fn the_page_of_an_edited_section_says_who_edited_it_and_when() {
+    let (dir, _llm) = documented_shop();
+    std::fs::write(
+        dir.path().join(".retrodoc/edits.json"),
+        r#"{"version":1,"edits":[
+            {"kind":"domain","id":"orders","description":"  ","author":"B",
+             "edited_at":"2026-11-04T09:00:00Z","fingerprint":"f"},
+            {"kind":"feature","id":"list-orders","name":"Browse the orders","author":"A",
+             "edited_at":"2026-11-05T10:00:00Z","fingerprint":"f"},
+            {"kind":"use_case","id":"list-orders/list-orders","description":"Reads the orders.",
+             "narrative":"The customer reads past orders.","author":null,
+             "edited_at":"2026-11-05T11:00:00Z","fingerprint":"f"}]}"#,
+    )
+    .unwrap();
+
+    let domain = rendered(dir.path(), "orders/README.md");
+    let feature = rendered(dir.path(), "orders/list-orders.md");
+    let use_case = rendered(dir.path(), "orders/use-cases/list-orders/list-orders.md");
+
+    assert_eq!(
+        under_heading(&feature),
+        "**Human edit** name *by A, 2026-11-05T10:00:00Z*",
+        "{feature}"
+    );
+    assert_eq!(
+        under_heading(&use_case),
+        "**Human edit** description, narrative *2026-11-05T11:00:00Z*",
+        "{use_case}"
+    );
+    assert!(!domain.contains("Human edit"), "{domain}");
+}
+
 /// The files under `dir`, at any depth.
 fn walk(dir: &Path) -> Vec<std::path::PathBuf> {
     let mut files = Vec::new();
