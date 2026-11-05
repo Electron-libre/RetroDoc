@@ -37,3 +37,44 @@ Pre-run cost estimate
 # Resources
 * `crates/retrodoc-cli/src/commands/generate/mod.rs` (`TRACKED_PASSES`), `generate/contexts.rs`, `generate/estimate.rs`
   (`estimated_passes`), `crates/retrodoc-cli/src/commands/usage.rs` (`PassProviders::open`).
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-05
+
+## Understanding
+The estimate and `PassProviders::open` follow the passes of the path the run takes; the `in_pass` sites use named
+constants. Measured from the code: the contexts path runs `roles`, `contexts`, `business-read`, `glossary`,
+`entry-points`, `actors`, `features`, `use-cases`, `rules`, `confidence`, `reconcile` (`finish_chain`), never
+`business-files` nor `domains`; both paths start with `sources`, `brief`. Out of scope: the `llm.get` literals.
+
+## Plan
+1. [x] Passes per path: each entry of `TRACKED_PASSES` says its path (both, surface, contexts), the estimate and
+   `PassProviders::open` take the passes of the run's path; verified by `generate --estimate` on each path (through
+   the binary) and a surface `generate` with an unopenable `[llm.passes.contexts]`; makes true EST-11, SET-9. (autonomous)
+2. [ ] Named constants: one constant per tracked pass, used by the list and every `in_pass` site of `generate`
+   (`generate/`, `brief.rs`, `business_files.rs`, `contexts.rs`); verified by the existing tests (pure refactor).
+
+## Decisions
+- Mode: autonomous
+- Base commit: fda71379c341f2280eaa2c8d777a38eb641c9f89
+
+## Deliverable 1
+done: each entry of `TRACKED_PASSES` names its path; `passes_of(domains_from)` feeds the estimate and
+`PassProviders::open`.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | EST-11, SET-9 traced |
+| docs | `docs/crates/render-mcp-cli.md`, `docs/crates/pipeline.md` |
+| code review | see below |
+
+red: EST-11, SET-9: the contexts estimate named `business-files`; the surface `generate` stopped on `LLM settings of
+the `contexts` pass`.
+
+Code review: no findings
+
+not verified: a real run on the contexts path (no scripted test reaches it end to end).
+decisions needed: none

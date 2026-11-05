@@ -44,6 +44,8 @@ so that a costly run is seen before it is paid for. Tokens and calls only, no pr
   (estimated at zero calls).
 - **EST-10** (deterministic) The table of ratios must be embedded in the binary: a missing or unreadable table is a
   build or test failure, never a run-time one.
+- **EST-11** (deterministic) The estimate must hold only the passes of the path the run takes (`[pipeline]
+  domains_from`): `contexts` on the `contexts` path only, `business-files` and `domains` on the `surface` path only.
 
 ## Scenarios
 
@@ -54,6 +56,8 @@ so that a costly run is seen before it is paid for. Tokens and calls only, no pr
 - (EST-4) Given 200 source files and a table where `use-cases` costs between 0.5 and 1.5 calls per source file, when
   the estimate is made, then `use-cases` is estimated between 100 and 300 calls.
 - (EST-5) Given `--no-confidence`, when the estimate is made, then the confidence pass is at zero.
+- (EST-11) Given `domains_from = "contexts"`, when `generate --estimate` runs, then `contexts` is estimated and
+  neither `business-files` nor `domains` is named; given the `surface` path, `contexts` is not named.
 - (EST-7) Given a `generate` that went through every pass and nothing changed since, when `generate --estimate`
   runs, then every pass and the total are at zero.
 - (EST-8) Given 10 of 200 source files changed since the last complete run, when the estimate is made, then the

@@ -253,3 +253,48 @@ fn the_joint_reading_is_off_when_the_glossary_and_the_entry_points_ask_two_model
     assert!(line("business-read").contains("off in this run"), "{out}");
     assert!(line("glossary").contains("not measured"), "{out}");
 }
+
+/// The passes the estimate names, the first word of each line of its block.
+fn estimated_passes(out: &str) -> Vec<String> {
+    let block = &out[out.find("LLM estimate: ").expect("an estimate")..];
+    block
+        .lines()
+        .skip(1)
+        .take_while(|line| line.starts_with("  "))
+        .filter_map(|line| line.split_whitespace().next().map(str::to_string))
+        .collect()
+}
+
+// spec: EST-11
+#[test]
+fn the_contexts_path_is_estimated_without_the_passes_of_the_surface() {
+    let llm = FakeLlm::start(|_| r#"{"domains":[]}"#.to_string());
+    let dir = repo_with_config(
+        FILES,
+        &format!(
+            "{}structured_output = false\n[pipeline]\ndomains_from = \"contexts\"\n",
+            llm_section(&llm)
+        ),
+    );
+
+    let out = stdout(&run(dir.path(), &["generate", "--estimate"]));
+
+    let passes = estimated_passes(&out);
+    assert!(passes.iter().any(|p| p == "contexts"), "{out}");
+    for pass in ["business-files", "domains"] {
+        assert!(!passes.iter().any(|p| p == pass), "{pass}: {out}");
+    }
+}
+
+// spec: EST-11
+#[test]
+fn the_surface_path_is_estimated_without_the_contexts() {
+    let llm = FakeLlm::start(|_| r#"{"domains":[]}"#.to_string());
+    let dir = repo(&llm);
+
+    let out = stdout(&run(dir.path(), &["generate", "--estimate"]));
+
+    let passes = estimated_passes(&out);
+    assert!(passes.iter().any(|p| p == "business-files"), "{out}");
+    assert!(!passes.iter().any(|p| p == "contexts"), "{out}");
+}

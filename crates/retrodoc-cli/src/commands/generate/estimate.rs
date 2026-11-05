@@ -9,7 +9,7 @@ use retrodoc_ingest::{FileKind, IngestResult};
 use retrodoc_pipeline::estimate::{estimate, EstimateInputs, RatioTable, RunEstimate};
 use retrodoc_pipeline::{Artifact, RoleRules, SourceHashes};
 
-use super::{Confidence, GenerateOptions, BUSINESS_READ, TRACKED_PASSES};
+use super::{passes_of, Confidence, GenerateOptions, BUSINESS_READ};
 
 /// The fixed passes and the artifact a rerun reuses them from. `domains` is left out: it is redone
 /// whenever a file changed.
@@ -30,7 +30,7 @@ pub(super) fn print(
     ingest: &IngestResult,
 ) -> RunEstimate {
     let contexts = config.pipeline.domains_from == DomainsFrom::Contexts;
-    let passes = estimated_passes(contexts);
+    let passes = passes_of(config.pipeline.domains_from);
     let sources = source_files(repo_root, ingest);
     let budget = options.max_files.or(config.ingest.max_files);
     // On the surface path the passes still read every entry point whatever the budget; with the contexts,
@@ -90,16 +90,6 @@ pub(super) fn print(
     let estimate = estimate(&inputs, table);
     print!("{}", estimate.render(&models, table));
     estimate
-}
-
-/// The LLM passes of the run in the order `generate` tracks them (`TRACKED_PASSES`), `contexts` only on its
-/// path.
-fn estimated_passes(contexts: bool) -> Vec<&'static str> {
-    TRACKED_PASSES
-        .iter()
-        .copied()
-        .filter(|&pass| contexts || pass != "contexts")
-        .collect()
 }
 
 /// Whether the run reads the business files once for the glossary and the entry points: on, and one model
@@ -172,19 +162,25 @@ fn changed_since_last_run(
 
 #[cfg(test)]
 mod tests {
+    use super::super::TRACKED_PASSES;
     use super::*;
 
     #[test]
-    fn the_estimated_passes_are_the_tracked_ones_in_their_order() {
-        assert_eq!(estimated_passes(true), TRACKED_PASSES);
-        let surface: Vec<&str> = TRACKED_PASSES
-            .iter()
-            .copied()
-            .filter(|&pass| pass != "contexts")
-            .collect();
-        assert_eq!(estimated_passes(false), surface);
+    fn each_path_tracks_its_passes_in_their_order() {
+        let all: Vec<&str> = TRACKED_PASSES.iter().map(|&(pass, _)| pass).collect();
+        let without = |left_out: &[&str]| -> Vec<&str> {
+            all.iter()
+                .copied()
+                .filter(|pass| !left_out.contains(pass))
+                .collect()
+        };
+        assert_eq!(passes_of(DomainsFrom::Surface), without(&["contexts"]));
+        assert_eq!(
+            passes_of(DomainsFrom::Contexts),
+            without(&["business-files", "domains"])
+        );
         // The joint reading runs before the glossary, which reads its answer.
-        let at = |pass| TRACKED_PASSES.iter().position(|&p| p == pass).expect(pass);
+        let at = |pass| all.iter().position(|&p| p == pass).expect(pass);
         assert!(at(BUSINESS_READ) < at("glossary"));
     }
 }

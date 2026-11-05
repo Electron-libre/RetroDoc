@@ -32,6 +32,8 @@ The `[pipeline]` and `[brief]` sections of `retrodoc.toml` turn passes and readi
   `files` path (`domains_from = "files"` in `[pipeline]`, `batch_chars` in `[llm]`, a `[llm.passes.repo-map]`
   section), with no run of another path, and an error that names the setting, says it was removed (ADR 0035)
   and tells what to change.
+- **SET-9** (deterministic) `generate` must open the LLM settings of the passes of the path it takes only (`[pipeline]
+  domains_from`): settings of a pass of the other path that can't be opened (an API key missing) must not stop it.
 
 ## Scenarios
 
@@ -51,6 +53,8 @@ The `[pipeline]` and `[brief]` sections of `retrodoc.toml` turn passes and readi
 - (SET-8) Given a `retrodoc.toml` that `init` wrote between 2026-10-09 and 2026-10-28, with
   `domains_from = "files"` in it, when any command loads the config, then it stops with `domains_from = "files"
   was removed` and the advice to delete the line or set `surface`, not a bare unknown-variant error.
+- (SET-9) Given the `surface` path and a `[llm.passes.contexts]` naming an API key variable that is not set, when
+  `generate` runs, then it goes through its passes as if the section were not there.
 
 ## Non-goals
 

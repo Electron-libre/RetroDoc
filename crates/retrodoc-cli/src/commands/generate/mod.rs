@@ -26,25 +26,35 @@ const VOCABULARY_SIZE: usize = 40;
 /// calls those of the glossary and the entry points.
 const BUSINESS_READ: &str = "business-read";
 
-/// The passes `generate` tracks, in the order it runs them: the estimate and its recap share this list. Each
-/// but [`BUSINESS_READ`] has its own LLM settings.
-const TRACKED_PASSES: &[&str] = &[
-    "sources",
-    "brief",
-    "roles",
-    "business-files",
-    "contexts",
-    BUSINESS_READ,
-    "glossary",
-    "entry-points",
-    "actors",
-    "domains",
-    "features",
-    "use-cases",
-    "rules",
-    "confidence",
-    "reconcile",
+/// The passes `generate` tracks, in the order it runs them, each with the path it belongs to (`None`: both):
+/// the estimate, its recap and the providers opened share this list. Each but [`BUSINESS_READ`] has its own
+/// LLM settings.
+const TRACKED_PASSES: &[(&str, Option<DomainsFrom>)] = &[
+    ("sources", None),
+    ("brief", None),
+    ("roles", None),
+    ("business-files", Some(DomainsFrom::Surface)),
+    ("contexts", Some(DomainsFrom::Contexts)),
+    (BUSINESS_READ, None),
+    ("glossary", None),
+    ("entry-points", None),
+    ("actors", None),
+    ("domains", Some(DomainsFrom::Surface)),
+    ("features", None),
+    ("use-cases", None),
+    ("rules", None),
+    ("confidence", None),
+    ("reconcile", None),
 ];
+
+/// The passes a run on `path` tracks, in their order.
+fn passes_of(path: DomainsFrom) -> Vec<&'static str> {
+    TRACKED_PASSES
+        .iter()
+        .filter(|(_, only)| only.is_none_or(|only| only == path))
+        .map(|&(pass, _)| pass)
+        .collect()
+}
 
 /// What the confidence pass does in this run.
 #[derive(Debug, Clone, Copy)]
@@ -106,9 +116,8 @@ pub async fn run(
     // The whole walk, before the budget: the only files a path of a saved artifact may read.
     let walked = WalkedFiles::new(repo_root, &ingest.files);
 
-    let with_provider: Vec<&str> = TRACKED_PASSES
-        .iter()
-        .copied()
+    let with_provider: Vec<&str> = passes_of(config.pipeline.domains_from)
+        .into_iter()
         .filter(|&pass| pass != BUSINESS_READ)
         .collect();
     let llm = PassProviders::open(config, tracker, &with_provider)?;
