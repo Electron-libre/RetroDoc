@@ -3,6 +3,8 @@ use retrodoc_llm::ToolCall;
 use retrodoc_pipeline::testing::{FakeLlm, FakeTurn};
 use retrodoc_pipeline::Glossary;
 
+use retrodoc_mcp::SourceKind;
+
 use super::*;
 
 fn docs() -> Arc<Docs> {
@@ -162,4 +164,63 @@ async fn after_the_last_round_the_model_is_asked_to_answer_without_tools() {
     let answer = ask(&llm, docs(), "?", 0).await.unwrap();
     assert_eq!(answer.text, "Answer at call 0.");
     assert_eq!(answer.rounds, 0);
+}
+
+fn source(kind: SourceKind, id: &str) -> Source {
+    Source {
+        kind,
+        id: id.into(),
+    }
+}
+
+// spec: ASK-7, ASK-8 (internal: the rounds are scripted with the fake provider, which the binary cannot take)
+#[tokio::test]
+async fn the_sources_are_the_names_of_the_text_a_tool_result_held() {
+    let llm = FakeLlm::scripted(vec![
+        calls(vec![call("c1", "get_feature", r#"{"id":"pay-invoice"}"#)]),
+        FakeTurn::Text(
+            "Paid in `billing/pay-invoice` (`app/invoice.rb:3`, `app/invoice.rb`); refunds in \
+             `billing/refund`; see `billing` and `pay-invoice`."
+                .into(),
+        ),
+    ]);
+    let answer = ask(&llm, docs(), "How is an invoice paid?", 8)
+        .await
+        .unwrap();
+
+    assert_eq!(
+        answer.sources,
+        [
+            source(SourceKind::Feature, "billing/pay-invoice"),
+            source(SourceKind::File, "app/invoice.rb"),
+            source(SourceKind::Domain, "billing"),
+        ]
+    );
+}
+
+// spec: ASK-8, ASK-9 (internal: the rounds are scripted with the fake provider, which the binary cannot take)
+#[tokio::test]
+async fn an_answer_whose_names_no_tool_showed_has_no_source_and_says_so() {
+    let llm = FakeLlm::scripted(vec![FakeTurn::Text("It is `billing/pay-invoice`.".into())]);
+    let answer = ask(&llm, docs(), "?", 8).await.unwrap();
+
+    assert!(answer.sources.is_empty(), "{:?}", answer.sources);
+    let shown = answer.render();
+    assert!(
+        shown.starts_with("It is `billing/pay-invoice`.\n"),
+        "{shown}"
+    );
+    assert!(shown.contains(NO_SOURCE), "{shown}");
+}
+
+// spec: ASK-7 (internal: the rounds are scripted with the fake provider, which the binary cannot take)
+#[tokio::test]
+async fn the_rendered_answer_lists_its_sources_after_its_text() {
+    let llm = FakeLlm::scripted(vec![
+        calls(vec![call("c1", "list_domains", "{}")]),
+        FakeTurn::Text("See `billing`.".into()),
+    ]);
+    let shown = ask(&llm, docs(), "?", 8).await.unwrap().render();
+
+    assert_eq!(shown, "See `billing`.\n\nSources:\n- domain `billing`\n");
 }

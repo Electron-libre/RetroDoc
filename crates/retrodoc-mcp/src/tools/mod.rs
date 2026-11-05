@@ -25,6 +25,9 @@ mod list_domains;
 mod read_source;
 mod review;
 mod search_docs;
+mod sources;
+
+pub use sources::{Source, SourceKind};
 
 /// The generated documentation, loaded once (the server re-applies the edits when they change), and the
 /// bounded access to the

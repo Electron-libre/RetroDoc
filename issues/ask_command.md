@@ -57,8 +57,8 @@ model. Out of scope: `chat`, misses fed to the debt report, answer quality, thin
 ## Plan
 1. [x] Crate `retrodoc-agent` and its loop: tools, dispatch to `Docs`, bounded rounds with a last request without
    tools, spec and ADR 0047 drafts; verified by unit tests with `FakeLlm::scripted`; makes true ASK-1 to ASK-6. (autonomous)
-2. [ ] Sources checked against the tool results: names in code spans of the text held by a tool result, with their
-   kind (a lookup added to `Docs`), "no source" note; verified by unit tests; makes true ASK-7 to ASK-9.
+2. [x] Sources checked against the tool results: names in code spans of the text held by a tool result, with their
+   kind (a lookup added to `Docs`), "no source" note; verified by unit tests; makes true ASK-7 to ASK-9. (autonomous)
 3. [ ] `retrodoc ask` in `retrodoc-cli`: pass `ask` in `PASS_NAMES`, `[llm.passes.ask]`, `--max-rounds`, tokens in the
    recap, read-only, error before a first `generate`; architecture docs, commit scope `agent`; verified by binary
    tests with the fake HTTP server answering tool calls; makes true ASK-12 to ASK-16.
@@ -84,3 +84,13 @@ model. Out of scope: `chat`, misses fed to the debt report, answer quality, thin
   (`assertion left == right failed`, `crates/retrodoc-agent/src/tests.rs:155`).
 - Code review: no findings
 - not verified: no real model call yet (the command comes in deliverable 3).
+
+## Deliverable 2 summary
+- done: `Docs::source_named` (`retrodoc-mcp`, `tools/sources.rs`) resolves a name to a domain, feature, use case or
+  cited file by its full id; the agent keeps as sources the code spans of the answer that resolve and that a tool
+  result held; `Answer::render` shows the text then the sources, or the no-source note.
+- checks: tests ok, clippy ok, specs ok (ASK draft), docs updated (`docs/crates/agent.md`, `render-mcp-cli.md`).
+- red: ASK-7, ASK-8, ASK-9: `left: [] right: [Source { kind: Feature, id: "billing/pay-invoice" }, …]` and an empty
+  render, before the code.
+- Code review: no findings
+- not verified: nothing left out.

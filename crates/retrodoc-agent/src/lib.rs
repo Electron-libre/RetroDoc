@@ -2,12 +2,13 @@
 //! application by navigating the generated docs with the read-only tools of the MCP server, in a
 //! bounded number of rounds. Nothing here writes; the tools answer from [`Docs`].
 
+use std::fmt::Write as _;
 use std::sync::Arc;
 
 use retrodoc_llm::{
     ChatMessage, CompletionRequest, LlmError, LlmProvider, Role, ToolCall, ToolSpec,
 };
-use retrodoc_mcp::{read_tools, Docs};
+use retrodoc_mcp::{read_tools, Docs, Source};
 
 /// Rounds of tool calls before the agent asks for the answer without tools, unless set otherwise:
 /// enough to go from a search to a use case and its code, few enough for a local model's context.
@@ -37,6 +38,53 @@ pub struct Answer {
     pub tool_results: Vec<String>,
     /// The rounds that held tool calls.
     pub rounds: usize,
+    /// What the answer rests on, checked against the tool results.
+    pub sources: Vec<Source>,
+}
+
+/// The note of an answer with no source.
+pub const NO_SOURCE: &str = "No source of the docs backs this answer.";
+
+impl Answer {
+    /// The answer as the user reads it: its text, then its sources.
+    #[must_use]
+    pub fn render(&self) -> String {
+        let mut out = format!("{}\n", self.text.trim_end());
+        if self.sources.is_empty() {
+            let _ = write!(out, "\n{NO_SOURCE}\n");
+        } else {
+            out.push_str("\nSources:\n");
+            for source in &self.sources {
+                let _ = writeln!(out, "- {source}");
+            }
+        }
+        out
+    }
+}
+
+/// The names the text gives in code spans that resolve in `docs` and that a tool result held, in
+/// the order of the text, each once.
+fn checked_sources(text: &str, tool_results: &[String], docs: &Docs) -> Vec<Source> {
+    let held = |name: &str| tool_results.iter().any(|result| result.contains(name));
+    let mut sources: Vec<Source> = Vec::new();
+    for name in code_spans(text) {
+        let Some(source) = docs.source_named(name) else {
+            continue;
+        };
+        if (held(name) || held(&source.id)) && !sources.contains(&source) {
+            sources.push(source);
+        }
+    }
+    sources
+}
+
+/// The text of each inline code span (`` `x` ``) of `text`.
+fn code_spans(text: &str) -> impl Iterator<Item = &str> {
+    text.split('`')
+        .skip(1)
+        .step_by(2)
+        .map(str::trim)
+        .filter(|span| !span.is_empty() && !span.contains('\n'))
 }
 
 /// Asks `question` to `llm`, which answers with the read-only tools over `docs`, in at most
@@ -70,6 +118,7 @@ pub async fn ask(
             })
             .await?;
         if !offer || response.tool_calls.is_empty() {
+            answer.sources = checked_sources(&response.content, &answer.tool_results, &docs);
             answer.text = response.content;
             return Ok(answer);
         }
