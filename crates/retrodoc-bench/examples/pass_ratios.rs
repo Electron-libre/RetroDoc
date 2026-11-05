@@ -1,5 +1,5 @@
 //! Measures the calls and tokens of each LLM pass of `generate` per unit of its input on saved runs, with
-//! no LLM call (`retrodoc_bench::pass_ratios`, `issues/pass_ratios_from_usage_history.md`).
+//! no LLM call (`retrodoc_bench::pass_ratios`, `issues/done/pass_ratios_from_usage_history.md`).
 //!
 //! Usage:
 //! `cargo run -q -p retrodoc-bench --example pass_ratios -- <runs.yaml> [<out.yaml>]`
@@ -17,7 +17,7 @@ use std::process::ExitCode;
 use retrodoc_bench::pass_ratios::{measure_run, ratio_table, RunManifest};
 
 const HEADER: &str = "# The calls and tokens of each LLM pass of `generate` per unit of its input, measured on \
-saved runs\n# (issues/pass_ratios_from_usage_history.md). Generated, do not edit: rebuild with\n# `cargo run -q -p \
+saved runs\n# (issues/done/pass_ratios_from_usage_history.md). Generated, do not edit: rebuild with\n# `cargo run -q -p \
 retrodoc-bench --example pass_ratios -- <runs.yaml> <this file>`.\n# Calls without usage make the token sums a lower \
 bound; `indicative` applications are out of the spread.\n";
 

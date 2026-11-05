@@ -1,5 +1,5 @@
 # The calls and tokens of each LLM pass of `generate` per unit of its input, measured on saved runs
-# (issues/pass_ratios_from_usage_history.md). Generated, do not edit: rebuild with
+# (issues/done/pass_ratios_from_usage_history.md). Generated, do not edit: rebuild with
 # `cargo run -q -p retrodoc-bench --example pass_ratios -- <runs.yaml> <this file>`.
 # Calls without usage make the token sums a lower bound; `indicative` applications are out of the spread.
 runs:

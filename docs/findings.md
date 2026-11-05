@@ -257,7 +257,7 @@ Directions:
    characters per token); the later passes depend on earlier outputs, so extrapolate with measured ratios (the Rails test repo:
    325 files gave 77 features and 183 use cases, ~0.24 and ~0.56 per file). Output tokens (use case JSON, up to 8,192
    per call) are the hardest to predict; an estimate made before any measurement can be off by 2-3x.
-   2026-11-05, measured (`issues/pass_ratios_from_usage_history.md`, no LLM call): the first complete `generate` of
+   2026-11-05, measured (`issues/done/pass_ratios_from_usage_history.md`, no LLM call): the first complete `generate` of
    21 saved runs (delivery_router, healthchecks, linkding, Lobsters, deepseek-flash, 2026-10-27 to 11-03) and a
    large private Rails app as indicative only (local model and deepseek-flash, 2026-10-15 to 10-23, out of the medians) give `crates/retrodoc-pipeline/data/pass-ratios.yaml`, rebuilt by the example
    `pass_ratios`. Medians across the four applications: the six fixed passes (`sources`, `brief`, `roles`,

@@ -1,5 +1,5 @@
 //! The calls and tokens of each LLM pass of `generate` per unit of its input, measured on saved runs with no
-//! LLM call (`issues/pass_ratios_from_usage_history.md`), for the pre-run estimate.
+//! LLM call (`issues/done/pass_ratios_from_usage_history.md`), for the pre-run estimate.
 //!
 //! A run is a directory whose `.retrodoc/cache/` holds the `usage.json` of its `generate` and the artifacts
 //! of the same run. Only a first run measures a ratio (a rerun reuses its cached units and calls nothing for
