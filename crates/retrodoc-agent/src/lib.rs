@@ -157,8 +157,8 @@ impl Conversation {
         question: &str,
         max_rounds: usize,
     ) -> Result<Answer, LlmError> {
-        let turns: Vec<Turn> = self.turns.iter().cloned().collect();
-        let answer = answer_after(llm, docs, &turns, question, max_rounds, Tools::All).await?;
+        let turns = self.turns.make_contiguous();
+        let answer = answer_after(llm, docs, turns, question, max_rounds, Tools::All).await?;
         let text = answer.text.trim();
         self.turns.push_back(Turn {
             question: question.to_string(),
@@ -172,7 +172,8 @@ impl Conversation {
     }
 
     /// The questions and answers kept, oldest first.
-    pub fn turns(&self) -> impl Iterator<Item = (&str, &str)> {
+    #[cfg(test)]
+    fn turns(&self) -> impl Iterator<Item = (&str, &str)> {
         self.turns
             .iter()
             .map(|turn| (turn.question.as_str(), turn.answer.as_str()))
@@ -393,9 +394,10 @@ fn within_budget(result: String, used: &mut usize) -> String {
     result
 }
 
-/// The one user message of the last request: the earlier turns of a conversation, the question, each call that got no error with its
-/// result as text, then the demand of the answer. No tool history, which a server may refuse in a
-/// request without tools, and no second user message in a row, which some chat templates refuse.
+/// The one user message of the last request: the earlier turns of a conversation, the question,
+/// each call that got no error with its result as text, then the demand of the answer. No tool
+/// history, which a server may refuse in a request without tools, and no second user message in a
+/// row, which some chat templates refuse.
 fn folded(earlier: &[Turn], question: &str, calls: &[ToolCall], results: &[String]) -> String {
     let mut text = String::new();
     if !earlier.is_empty() {

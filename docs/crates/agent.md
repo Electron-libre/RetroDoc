@@ -33,4 +33,5 @@ naming what an earlier answer rested on keeps it as a source (CHT-6); a failed q
 the same loop with no earlier turn.
 
 Tested in `src/tests.rs` with the scripted `FakeLlm` of `retrodoc-pipeline` (feature `testing`), and through the binary
-in `crates/retrodoc-cli/tests/ask.rs`, whose fake HTTP server answers tool calls (`Turn`).
+in `crates/retrodoc-cli/tests/ask.rs` and `chat.rs`, whose fake HTTP server answers tool calls or an HTTP error
+(`Turn`) and keeps the messages of each request (`Call::messages`).

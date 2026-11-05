@@ -81,3 +81,27 @@ red: CHT-1, CHT-8, CHT-9: error: unrecognized subcommand 'chat'
 Code review: no findings
 
 not verified: a run on a real model (no paid run asked). decisions needed: none.
+3. [x] Fixes of the `high` review of the issue: Ctrl-C ends the chat with its recap (CHT-10, stdin read by a thread
+   of its own), `exit`/`quit` in any case, a byte that is not UTF-8 replaced (CHT-1), no copy of the memory per
+   question, `Conversation::turns` test-only, docs. (autonomous)
+
+## Deliverable 3 summary
+done: the fixes of the `high` review (findings 1, 4, 5, 6, 7, 8, 9).
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass, CHT-10 added and traced |
+| docs | `docs/crates/agent.md`, `docs/crates/render-mcp-cli.md` |
+| code review | see below |
+
+red: CHT-1, CHT-10: `EXIT` sent as a question (2 calls, 1 expected); the recap missing after an interrupt (a hang
+once the read was pending, fixed by the reader thread)
+
+High review of the issue: 9 findings; not fixed: a turn longer than the memory empties it (CHT-4, validated), a
+blank answer kept as `NO_ANSWER` (an empty assistant message is refused by some servers), the eviction loop re-sums
+at most a handful of turns (negligible).
+Code review: no findings
+
+not verified: Ctrl-C in a real terminal (tested with SIGINT on a pipe). decisions needed: none.

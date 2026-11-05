@@ -16,7 +16,7 @@ are kept, so a follow-up does not restate its context, within a memory bounded f
 
 - **CHT-1** (deterministic) `retrodoc chat` must read one question per line of its input, answer each, print each
   answer like `retrodoc ask` (text, sources, warnings), and end at the end of the input or on a line `exit` or
-  `quit`; a blank line is no question.
+  `quit` in any case; a blank line is no question, and a byte that is not UTF-8 is read as a replacement character.
 - **CHT-2** (deterministic) The request of a question must send, after the system prompt and before the question,
   each earlier question kept in memory as a user message followed by its answer as an assistant message, oldest
   first.
@@ -35,6 +35,8 @@ are kept, so a follow-up does not restate its context, within a memory bounded f
 - **CHT-9** (deterministic) `retrodoc chat` must call the model with the settings of the pass `ask`, count its
   tokens under the pass `ask` in the recap printed at its end, write no file of the target repository other than its
   usage history in `.retrodoc/`, and fail before any LLM call on a repository with no generated docs.
+- **CHT-10** (deterministic) An interrupt (Ctrl-C) must end `retrodoc chat` like the end of its input, the recap of
+  its calls printed and saved.
 
 ## Scenarios
 
@@ -45,6 +47,7 @@ are kept, so a follow-up does not restate its context, within a memory bounded f
   and the third only.
 - (CHT-6) Given a first answer whose source is `orders/list-orders`, when the second answer names
   `` `orders/list-orders` `` without a tool call, then it is a source of the second answer.
+- (CHT-10) Given a question answered, when the user presses Ctrl-C, then the recap counts its calls.
 - (CHT-8) Given a server that fails the first question, then the error is printed and the second question is
   answered.
 

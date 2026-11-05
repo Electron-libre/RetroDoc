@@ -174,3 +174,75 @@ fn without_generated_docs_the_chat_fails_before_any_call() {
     assert!(stderr.contains("retrodoc generate"), "{stderr}");
     assert!(llm.calls().is_empty());
 }
+
+// spec: CHT-1
+#[test]
+fn exit_ends_the_chat_in_any_case_and_a_byte_not_utf8_is_still_a_question() {
+    let llm = answering();
+    let dir = generated_repo(&llm_section(&llm));
+
+    let out = success(&run_with_input(
+        dir.path(),
+        &["chat"],
+        "caf\u{e9}?\nEXIT\nNever asked\n",
+    ));
+    assert_eq!(llm.calls().len(), 1, "{out}");
+
+    let mut child = std::process::Command::new(env!("CARGO_BIN_EXE_retrodoc"))
+        .args(["chat", "--path"])
+        .arg(dir.path())
+        .env("RETRODOC_TEST_FAKE_LLM_KEY", "unused")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    std::io::Write::write_all(child.stdin.as_mut().unwrap(), b"caf\xe9?\n").unwrap();
+    drop(child.stdin.take());
+    let out = child.wait_with_output().unwrap();
+    assert!(out.status.success());
+    assert!(
+        String::from_utf8_lossy(&out.stdout).contains("About caf\u{fffd}?"),
+        "{}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+}
+
+// spec: CHT-10
+#[test]
+fn an_interrupt_ends_the_chat_with_the_recap_of_its_calls() {
+    let llm = answering();
+    let dir = generated_repo(&llm_section(&llm));
+    let mut child = std::process::Command::new(env!("CARGO_BIN_EXE_retrodoc"))
+        .args(["chat", "--path"])
+        .arg(dir.path())
+        .env("RETRODOC_TEST_FAKE_LLM_KEY", "unused")
+        .env_remove("RUST_LOG")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut stdin = child.stdin.take().unwrap();
+    std::io::Write::write_all(&mut stdin, b"And by whom?\n").unwrap();
+    let start = std::time::Instant::now();
+    while llm.calls().is_empty() {
+        assert!(start.elapsed().as_secs() < 30, "no call");
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    std::thread::sleep(std::time::Duration::from_millis(300));
+    let killed = std::process::Command::new("kill")
+        .args(["-INT", &child.id().to_string()])
+        .status()
+        .unwrap();
+    assert!(killed.success());
+    let out = child.wait_with_output().unwrap();
+    drop(stdin);
+
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(out.status.success(), "{stdout}");
+    assert!(
+        stdout
+            .lines()
+            .any(|l| l.contains("ask") && l.contains("1 call")),
+        "{stdout}"
+    );
+}
