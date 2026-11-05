@@ -53,6 +53,23 @@ fn passes_of(path: DomainsFrom) -> Vec<&'static str> {
         .collect()
 }
 
+/// The passes of its path the run turns off by its settings, the estimate's and the providers' list: no call
+/// is estimated for them and their LLM settings are not opened (SET-9). The joint reading, which has no
+/// provider of its own, is left to the estimate.
+fn passes_off(config: &Config, confidence: Confidence, ingest: &IngestResult) -> Vec<&'static str> {
+    let mut off = Vec::new();
+    if matches!(confidence, Confidence::Skip) {
+        off.push(passes::CONFIDENCE);
+    }
+    if !config.pipeline.rules {
+        off.push(passes::RULES);
+    }
+    if !config.pipeline.reconcile || ingest.existing_docs.is_empty() {
+        off.push(passes::RECONCILE);
+    }
+    off
+}
+
 /// What the confidence pass does in this run.
 #[derive(Debug, Clone, Copy)]
 pub enum Confidence {
@@ -113,9 +130,10 @@ pub async fn run(
     // The whole walk, before the budget: the only files a path of a saved artifact may read.
     let walked = WalkedFiles::new(repo_root, &ingest.files);
 
+    let off = passes_off(config, confidence, &ingest);
     let with_provider: Vec<&str> = passes_of(config.pipeline.domains_from)
         .into_iter()
-        .filter(|&pass| pass != passes::BUSINESS_READ)
+        .filter(|pass| *pass != passes::BUSINESS_READ && !off.contains(pass))
         .collect();
     let llm = PassProviders::open(config, tracker, &with_provider)?;
 
@@ -260,6 +278,10 @@ async fn reconcile_with_docs(
             return Ok(());
         }
     };
+    // No docs: the pass is off and its provider not opened.
+    if docs.is_empty() {
+        return Ok(());
+    }
     let rules = retrodoc_pipeline::load_rules(repo_root).unwrap_or_default();
     let corpus = reconcile::corpus(&docs);
     let candidates = reconcile::candidates(
@@ -286,7 +308,7 @@ async fn reconcile_with_docs(
             passes::RECONCILE,
             reconcile::judge(
                 repo_root,
-                llm.get("reconcile")?.as_ref(),
+                llm.get(passes::RECONCILE)?.as_ref(),
                 &config.pipeline,
                 &candidates,
             ),
@@ -370,7 +392,7 @@ async fn identify_actors(
         &source_files,
         surface,
         brief,
-        llm.get("actors")?.as_ref(),
+        llm.get(passes::ACTORS)?.as_ref(),
         force,
     )
     .await
@@ -413,7 +435,7 @@ async fn features_from_surface(
                 surface,
                 &signals.brief,
                 &signals.evidence,
-                llm.get("features")?.as_ref(),
+                llm.get(passes::FEATURES)?.as_ref(),
                 retrodoc_pipeline::Retention::OnlyRead,
             ),
         )
@@ -443,7 +465,7 @@ async fn cluster_domains_from_surface(
         run.repo_root,
         surface,
         brief,
-        run.llm.get("domains")?.as_ref(),
+        run.llm.get(passes::DOMAINS)?.as_ref(),
     )
     .await
     .context("failed to build the domains from the surface")
@@ -467,8 +489,8 @@ async fn derive_use_cases(
         repo_root,
         features,
         context,
-        run.llm.get("use-cases")?.as_ref(),
-        run.concurrency("use-cases"),
+        run.llm.get(passes::USE_CASES)?.as_ref(),
+        run.concurrency(passes::USE_CASES),
     )
     .await
     .context("failed to derive the use cases")?;
@@ -523,8 +545,8 @@ async fn derive_rules(
                 features,
                 use_cases,
                 context,
-                run.llm.get("rules")?.as_ref(),
-                run.concurrency("rules"),
+                run.llm.get(passes::RULES)?.as_ref(),
+                run.concurrency(passes::RULES),
             ),
         )
         .await
@@ -559,7 +581,7 @@ async fn identify_file_roles(
                 repo_root,
                 ingest,
                 brief,
-                llm.get("roles")?.as_ref(),
+                llm.get(passes::ROLES)?.as_ref(),
                 force,
             ),
         )
@@ -602,7 +624,7 @@ async fn build_surface(
         ingest,
         &stack,
         brief,
-        llm.get("business-files")?.as_ref(),
+        llm.get(passes::BUSINESS_FILES)?.as_ref(),
         force,
         tracker,
     )
@@ -620,8 +642,8 @@ async fn build_surface(
                     &role_map,
                     &business_files,
                     brief,
-                    llm.get("glossary")?.as_ref(),
-                    llm.get("entry-points")?.as_ref(),
+                    llm.get(passes::GLOSSARY)?.as_ref(),
+                    llm.get(passes::ENTRY_POINTS)?.as_ref(),
                 ),
             )
             .await
@@ -637,7 +659,7 @@ async fn build_surface(
                 &role_map,
                 &business_files,
                 brief,
-                llm.get("glossary")?.as_ref(),
+                llm.get(passes::GLOSSARY)?.as_ref(),
                 retrodoc_pipeline::Retention::OnlyRead,
             ),
         )
@@ -652,7 +674,7 @@ async fn build_surface(
                 &role_map,
                 &business_files,
                 brief,
-                llm.get("entry-points")?.as_ref(),
+                llm.get(passes::ENTRY_POINTS)?.as_ref(),
                 retrodoc_pipeline::Retention::OnlyRead,
             ),
         )
@@ -757,9 +779,9 @@ async fn run_confidence(
                 run.walked,
                 features,
                 use_cases,
-                run.llm.get("confidence")?.as_ref(),
+                run.llm.get(passes::CONFIDENCE)?.as_ref(),
                 sample,
-                run.concurrency("confidence"),
+                run.concurrency(passes::CONFIDENCE),
             )
             .await
             .context("failed to score the confidence")

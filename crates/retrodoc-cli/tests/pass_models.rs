@@ -66,6 +66,32 @@ fn the_settings_of_a_pass_of_the_other_path_do_not_stop_generate() {
 
 // spec: SET-9
 #[test]
+fn the_settings_of_the_passes_the_run_turns_off_do_not_stop_generate() {
+    let llm = FakeLlm::start(|_| r#"{"domains":[]}"#.to_string());
+    // No project docs: the reconcile pass is off too.
+    let dir = repo_with_config(
+        &[("app.rb", "class Order; end\n")],
+        &format!(
+            "{}structured_output = false\n[pipeline]\nrules = false\n\
+             [llm.passes.rules]\napi_key_env = \"RETRODOC_TEST_UNSET_KEY\"\n\
+             [llm.passes.confidence]\napi_key_env = \"RETRODOC_TEST_UNSET_KEY\"\n\
+             [llm.passes.reconcile]\napi_key_env = \"RETRODOC_TEST_UNSET_KEY\"\n",
+            llm_section(&llm)
+        ),
+    );
+
+    let output = support::run(dir.path(), &["generate", "--no-confidence"]);
+
+    assert!(
+        output.status.success(),
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+// spec: SET-9
+#[test]
 fn the_settings_of_a_surface_pass_do_not_stop_a_contexts_run() {
     let llm = FakeLlm::start(|_| r#"{"domains":[]}"#.to_string());
     let dir = repo_with_config(

@@ -4,6 +4,7 @@ use anyhow::Context;
 use retrodoc_llm::UsageTracker;
 use retrodoc_pipeline::{Artifact, BusinessMap, RoleRules};
 
+use super::passes;
 use super::usage::PassProviders;
 use super::workspace::Workspace;
 
@@ -23,7 +24,7 @@ pub async fn run(path: &Path, tracker: &UsageTracker) -> anyhow::Result<()> {
         .map(|map| map.files(&ingest.files))
         .context("no business files found — run `retrodoc business-files` first")?;
 
-    let llm = PassProviders::open(config, tracker, &["glossary", "entry-points"])?;
+    let llm = PassProviders::open(config, tracker, &[passes::GLOSSARY, passes::ENTRY_POINTS])?;
     tracker.set_pass("business-read");
     println!(
         "Reading {} business file(s) for the entities and the entry points…",
@@ -34,8 +35,8 @@ pub async fn run(path: &Path, tracker: &UsageTracker) -> anyhow::Result<()> {
         &role_map,
         &business_files,
         &super::brief::saved(repo_root),
-        llm.get("glossary")?.as_ref(),
-        llm.get("entry-points")?.as_ref(),
+        llm.get(passes::GLOSSARY)?.as_ref(),
+        llm.get(passes::ENTRY_POINTS)?.as_ref(),
     )
     .await
     .context("failed to read the business files")?;

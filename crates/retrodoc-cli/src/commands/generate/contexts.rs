@@ -70,7 +70,7 @@ pub(super) async fn run(
                 &seeds,
                 &role_map,
                 &signals.brief,
-                llm.get("contexts")?.as_ref(),
+                llm.get(passes::CONTEXTS)?.as_ref(),
                 false,
             )
             .await
@@ -162,7 +162,7 @@ async fn document(
                 &surface,
                 &signals.brief,
                 &signals.evidence,
-                llm.get("features")?.as_ref(),
+                llm.get(passes::FEATURES)?.as_ref(),
                 Retention::Others,
             ),
         )
@@ -319,8 +319,8 @@ async fn read_slice(
                     &roles,
                     files,
                     brief,
-                    llm.get("glossary")?.as_ref(),
-                    llm.get("entry-points")?.as_ref(),
+                    llm.get(passes::GLOSSARY)?.as_ref(),
+                    llm.get(passes::ENTRY_POINTS)?.as_ref(),
                 ),
             )
             .await
@@ -334,7 +334,7 @@ async fn read_slice(
                 &roles,
                 files,
                 brief,
-                llm.get("glossary")?.as_ref(),
+                llm.get(passes::GLOSSARY)?.as_ref(),
                 Retention::Others,
             ),
         )
@@ -348,7 +348,7 @@ async fn read_slice(
                 &roles,
                 files,
                 brief,
-                llm.get("entry-points")?.as_ref(),
+                llm.get(passes::ENTRY_POINTS)?.as_ref(),
                 Retention::Others,
             ),
         )

@@ -10,7 +10,7 @@ use retrodoc_pipeline::estimate::{estimate, EstimateInputs, RatioTable, RunEstim
 use retrodoc_pipeline::{Artifact, RoleRules, SourceHashes};
 
 use super::super::passes;
-use super::{passes_of, Confidence, GenerateOptions};
+use super::{passes_of, passes_off, Confidence, GenerateOptions};
 
 /// The fixed passes and the artifact a rerun reuses them from. `domains` is left out: it is redone
 /// whenever a file changed.
@@ -56,16 +56,7 @@ pub(super) fn print(
         .filter(|(_, artifact)| artifact.path(repo_root).is_file())
         .map(|(pass, _)| *pass)
         .collect();
-    let mut off = Vec::new();
-    if matches!(options.confidence, Confidence::Skip) {
-        off.push(passes::CONFIDENCE);
-    }
-    if !config.pipeline.rules {
-        off.push(passes::RULES);
-    }
-    if !config.pipeline.reconcile || ingest.existing_docs.is_empty() {
-        off.push(passes::RECONCILE);
-    }
+    let mut off = passes_off(config, options.confidence, ingest);
     // Without the joint reading, the glossary and the entry points read their files apart: not measured. It
     // needs one model for both passes, else each reads alone.
     let unmeasured: &[&str] = if joint_reading(config) {

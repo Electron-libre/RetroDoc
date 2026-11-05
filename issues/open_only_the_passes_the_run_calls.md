@@ -34,3 +34,31 @@ Pre-run cost estimate
 # Resources
 * `crates/retrodoc-cli/src/commands/generate/mod.rs` (`passes_of`, `TRACKED_PASSES`), `generate/estimate.rs`
   (`print`), `crates/retrodoc-cli/src/commands/usage.rs` (`PassProviders`), `commands/passes.rs`.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-05
+
+## Understanding
+`generate` opens the providers of the passes it calls only: those of its path minus those turned off (rules,
+confidence, reconcile), one list shared with the estimate; every `get`/`concurrency` site (generate, `brief`,
+`business-read`) names its pass by a constant of `commands/passes.rs`. Out of scope: the other commands' pass lists.
+
+## Plan
+1. [x] Open only the passes the run calls: a `passes_off` function of the run's settings shared by the estimate and
+   `PassProviders::open`, the reconcile returning before its provider when there are no project docs, the constants
+   at every `get` and `concurrency` site; verified by binary tests (`rules = false` and `--no-confidence` with an
+   unset API key on that pass: `generate` succeeds); makes true SET-9 (extended). (autonomous)
+
+## Decisions
+- Mode: autonomous
+- Spec: SET-9 extended rather than a new requirement (same rule).
+- Base commit: 0b989891ef84beafee4f335b0db76b765aec3422
+
+## Summary of deliverable 1
+- done: `generate::passes_off` (confidence, rules, reconcile) feeds both the estimate and `PassProviders::open`;
+  the reconcile returns before its provider without project docs; every provider lookup and concurrency names
+  its pass by a constant of `commands/passes.rs` (`generate/`, `brief`, `business-read`).
+- red: SET-9: `Error: LLM settings of the `rules` pass ... environment variable RETRODOC_TEST_UNSET_KEY is not set`
+- Code review: no findings
+- not verified: no run on a real repository (no behaviour change for a run whose settings all open).

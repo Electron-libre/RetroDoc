@@ -43,12 +43,13 @@ pub async fn run(
         return Ok(());
     }
 
-    let providers = super::usage::PassProviders::open(config, tracker, &["sources", "brief"])?;
+    let providers =
+        super::usage::PassProviders::open(config, tracker, &[passes::SOURCES, passes::BRIEF])?;
     tracker.set_pass("sources");
     let sources = retrodoc_pipeline::infer_sources(
         repo_root,
         &ingest,
-        providers.get("sources")?.as_ref(),
+        providers.get(passes::SOURCES)?.as_ref(),
         force,
     )
     .await
@@ -56,10 +57,14 @@ pub async fn run(
     let all =
         signals::collect(repo_root, &ingest, &sources).context("could not collect the signals")?;
     tracker.set_pass("brief");
-    let brief =
-        retrodoc_pipeline::build_brief(repo_root, &all, providers.get("brief")?.as_ref(), force)
-            .await
-            .context("failed to write the product brief")?;
+    let brief = retrodoc_pipeline::build_brief(
+        repo_root,
+        &all,
+        providers.get(passes::BRIEF)?.as_ref(),
+        force,
+    )
+    .await
+    .context("failed to write the product brief")?;
     let Some(brief) = brief else {
         anyhow::bail!(
             "no product brief (no signal, or the LLM answer was unusable, see the warnings above)"
@@ -143,7 +148,7 @@ pub async fn for_generate(
     with_evidence: EvidenceFor,
     tracker: &UsageTracker,
 ) -> anyhow::Result<(ProductBrief, GenerateEvidence)> {
-    let language = providers.get("brief")?.language();
+    let language = providers.get(passes::BRIEF)?.language();
     let in_another_language = ProductBrief::load(repo_root)
         .is_some_and(|brief| !brief.edited() && brief.language.as_deref() != language);
     let saved_brief = Artifact::Product.path(repo_root).exists() && !in_another_language;
@@ -159,7 +164,7 @@ pub async fn for_generate(
                 retrodoc_pipeline::infer_sources(
                     repo_root,
                     ingest,
-                    providers.get("sources")?.as_ref(),
+                    providers.get(passes::SOURCES)?.as_ref(),
                     false,
                 ),
             )
@@ -187,7 +192,7 @@ pub async fn for_generate(
             retrodoc_pipeline::build_brief(
                 repo_root,
                 &all,
-                providers.get("brief")?.as_ref(),
+                providers.get(passes::BRIEF)?.as_ref(),
                 false,
             ),
         )
