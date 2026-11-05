@@ -12,7 +12,7 @@ a rename only fails at run time, during a paid run. Expected: the providers open
 and every lookup uses the constants of `commands/passes.rs`.
 
 # Findings
-* 2026-11-05 (the `high` review of `issues/estimate_passes_of_the_run_path.md`): `PassProviders::open` takes
+* 2026-11-05 (the `high` review of `issues/done/estimate_passes_of_the_run_path.md`): `PassProviders::open` takes
   `passes_of(domains_from)` minus `business-read`; the passes turned off (`[pipeline] rules = false`,
   `--no-confidence`, `[pipeline] reconcile = false` or a repo without Markdown docs) are still opened, read from
   the code, not reproduced. The estimate already computes these passes (`off` in `generate/estimate.rs::print`).

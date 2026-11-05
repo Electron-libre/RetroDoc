@@ -52,7 +52,7 @@ must take its pass list from the same list as `generate`. Out of scope: estimati
    inserting by hand; verified by the existing estimate tests and a test that `estimated_passes(true)` equals
    `TRACKED_PASSES`; refactor, no requirement. (autonomous)
 3. [x] Review fixes of the `high` review of the issue: the order test compares with `TRACKED_PASSES`; the findings
-   out of scope go to `issues/estimate_passes_of_the_run_path.md`. (autonomous)
+   out of scope go to `issues/done/estimate_passes_of_the_run_path.md`. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -114,4 +114,4 @@ Code review: 6 findings
 - `unlabelled` shows as `not estimated`: not fixed, calls outside any pass are not estimated either, and the
   recap above already names that bucket the same way.
 
-Done: all deliverables committed (2ce5aff, 403f1f5, be242f8); left: `issues/estimate_passes_of_the_run_path.md`.
+Done: all deliverables committed (2ce5aff, 403f1f5, be242f8); left: `issues/done/estimate_passes_of_the_run_path.md`.
