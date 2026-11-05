@@ -47,11 +47,15 @@ pub struct Answer {
 /// The note of an answer with no source.
 pub const NO_SOURCE: &str = "No source of the docs backs this answer.";
 
+/// The text shown for an answer whose text is blank.
+pub const NO_ANSWER: &str = "The model gave no answer.";
+
 impl Answer {
     /// The answer as the user reads it: its text, then its sources, then their warnings.
     #[must_use]
     pub fn render(&self) -> String {
-        let mut out = format!("{}\n", self.text.trim_end());
+        let text = self.text.trim_end();
+        let mut out = format!("{}\n", if text.is_empty() { NO_ANSWER } else { text });
         if self.sources.is_empty() {
             let _ = write!(out, "\n{NO_SOURCE}\n");
         } else {
@@ -70,20 +74,33 @@ impl Answer {
     }
 }
 
-/// The names the text gives in code spans that resolve in `docs` and that a tool result held, in
-/// the order of the text, each once.
+/// The names the text gives in code spans that resolve in `docs` and whose full id or path a tool
+/// result showed, in the order of the text, each once.
 fn checked_sources(text: &str, tool_results: &[String], docs: &Docs) -> Vec<Source> {
-    let held = |name: &str| tool_results.iter().any(|result| result.contains(name));
+    let shown: Vec<&str> = tool_results.iter().filter_map(|r| shown(r)).collect();
     let mut sources: Vec<Source> = Vec::new();
     for name in code_spans(text) {
         let Some(source) = docs.source_named(name) else {
             continue;
         };
-        if (held(name) || held(&source.id)) && !sources.contains(&source) {
+        if shown.iter().any(|r| r.contains(&source.id)) && !sources.contains(&source) {
             sources.push(source);
         }
     }
     sources
+}
+
+/// What a tool result showed of the docs: nothing for an error, a "Not documented" or a "Not
+/// available" answer, which repeat the call; a search without the query it repeats as its title.
+fn shown(result: &str) -> Option<&str> {
+    const NOTHING: [&str; 3] = ["Error:", "Not documented", "Not available"];
+    if NOTHING.iter().any(|start| result.starts_with(start)) {
+        return None;
+    }
+    Some(match result.split_once('\n') {
+        Some((title, rest)) if title.starts_with("# Results for `") => rest,
+        _ => result,
+    })
 }
 
 /// What `sources` warn of; hashing the files they cite reads them, off the async threads.
@@ -94,13 +111,44 @@ async fn warnings_of(docs: &Arc<Docs>, sources: Vec<Source>) -> Vec<Warning> {
         .unwrap_or_default()
 }
 
-/// The text of each inline code span (`` `x` ``) of `text`.
+/// The text of each inline code span of `text` that holds no line break, trimmed: a run of
+/// backticks opens a span that only a run of as many closes (a span of two backticks may hold one,
+/// a fenced block is skipped whole).
 fn code_spans(text: &str) -> impl Iterator<Item = &str> {
-    text.split('`')
-        .skip(1)
-        .step_by(2)
-        .map(str::trim)
-        .filter(|span| !span.is_empty() && !span.contains('\n'))
+    let mut rest = text;
+    std::iter::from_fn(move || loop {
+        let open = rest.find('`')?;
+        let run = backticks_at(rest, open);
+        let body = &rest[open + run..];
+        let Some(close) = closing_run(body, run) else {
+            rest = body;
+            continue;
+        };
+        let span = body[..close].trim();
+        rest = &body[close + run..];
+        if !span.is_empty() && !span.contains('\n') {
+            return Some(span);
+        }
+    })
+}
+
+/// The length of the run of backticks that starts at `at` in `text`.
+fn backticks_at(text: &str, at: usize) -> usize {
+    text[at..].len() - text[at..].trim_start_matches('`').len()
+}
+
+/// Where the next run of exactly `run` backticks starts in `text`.
+fn closing_run(text: &str, run: usize) -> Option<usize> {
+    let mut from = 0;
+    while let Some(at) = text[from..].find('`') {
+        let start = from + at;
+        let length = backticks_at(text, start);
+        if length == run {
+            return Some(start);
+        }
+        from = start + length;
+    }
+    None
 }
 
 /// Asks `question` to `llm`, which answers with the read-only tools over `docs`, in at most

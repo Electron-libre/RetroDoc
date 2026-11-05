@@ -7,7 +7,9 @@
 //! the seven tools from it in
 //! Markdown; [`serve_stdio`] puts them behind an MCP server (`retrodoc mcp`).
 //! The lexical search ([`SearchIndex`]) is also exposed alone by `retrodoc
-//! search`, to judge retrieval quality.
+//! search`, to judge retrieval quality. [`catalog`] gives the read-only tools as data and a call by
+//! name, and [`Docs::source_named`] and [`Docs::warnings_of`] check the sources of an answer: both
+//! serve the `ask` agent of `retrodoc-agent` (ADR 0047), which holds the LLM.
 
 pub mod audit;
 pub mod catalog;

@@ -26,7 +26,7 @@ warnings those sources carry (low confidence, code changed since the docs), so t
 - **ASK-6** (deterministic) The agent must make one last request offering no tool, asking the model to answer from
   what it read, after `max_rounds` answers holding tool calls (8 unless `--max-rounds` sets it).
 - **ASK-7** (deterministic) The sources of an answer must be the domains, features, use cases and files its text
-  names in a code span that a tool result of the same question held, each with its kind.
+  names in a code span whose full id or path a tool result of the same question held, each with its kind.
 - **ASK-8** (deterministic) A name of the text that no tool result of the question held must not be listed as a
   source.
 - **ASK-9** (deterministic) An answer with no source must say that no source of the docs backs it.
@@ -43,6 +43,12 @@ warnings those sources carry (low confidence, code changed since the docs), so t
   history in `.retrodoc/`.
 - **ASK-16** (deterministic) `retrodoc ask` on a repository with no generated docs must fail with a message asking
   for `retrodoc generate`, before any LLM call.
+- **ASK-17** (deterministic) A name that only an error, a "Not documented" or a "Not available" tool result, or the
+  query a search repeats, held must not be listed as a source.
+- **ASK-18** (deterministic) An answer whose text is blank must say that the model gave no answer.
+- **ASK-19** (deterministic) The JSON schema of the arguments of a tool must not give a property a list of types nor
+  a `format`, which some servers refuse.
+- **ASK-20** (deterministic) A tool call whose arguments are `null` must be answered as a call with `{}`.
 
 ## Scenarios
 
@@ -52,6 +58,10 @@ warnings those sources carry (low confidence, code changed since the docs), so t
   request offers no tool and its text is the answer.
 - (ASK-7, ASK-8) Given the text names `` `billing/pay-invoice` `` that `get_feature` returned and
   `` `billing/refund` `` that no tool returned, then only `billing/pay-invoice` is a source, as a feature.
+- (ASK-17) Given a call `get_feature` for `orders/list-orders` answered "Not documented: no feature
+  `orders/list-orders`", when the text names `` `orders/list-orders` ``, then it is no source.
+- (ASK-7) Given a text holding a fenced block of three backticks or a span of two before `` `billing` ``, then a
+  span closes only on a run of as many backticks and `billing` stays a candidate source.
 - (ASK-11) Given the source `billing/pay-invoice/pay-by-card` whose step cites `app/invoice.rb`, modified since the
   last `generate`, then the answer warns that `app/invoice.rb` changed.
 

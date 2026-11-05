@@ -75,15 +75,22 @@ impl Docs {
         out
     }
 
-    /// The cited files that changed since generation, as `` `path` (modified) ``.
-    pub(super) fn stale_files<'a>(&self, paths: impl IntoIterator<Item = &'a str>) -> Vec<String> {
+    /// The cited files that changed since generation, each once, in order, with their state; none
+    /// without the hashes of a generation.
+    pub(super) fn stale_states<'a>(
+        &self,
+        paths: impl IntoIterator<Item = &'a str>,
+    ) -> Vec<(&'a str, FileState)> {
         let Some(freshness) = self.generated.freshness() else {
             return Vec::new();
         };
         let mut seen = HashSet::new();
-        let paths = paths.into_iter().filter(|p| seen.insert(*p));
-        freshness
-            .stale(paths)
+        freshness.stale(paths.into_iter().filter(|p| seen.insert(*p)))
+    }
+
+    /// The cited files that changed since generation, as `` `path` (modified) ``.
+    pub(super) fn stale_files<'a>(&self, paths: impl IntoIterator<Item = &'a str>) -> Vec<String> {
+        self.stale_states(paths)
             .into_iter()
             .map(|(path, state)| {
                 let what = if state == FileState::Deleted {

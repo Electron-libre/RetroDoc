@@ -91,14 +91,26 @@ pub fn read_tools() -> Vec<ReadTool> {
     ]
 }
 
+/// The names of the read-only tools, for the error of an unknown one.
+fn tool_names() -> String {
+    read_tools()
+        .iter()
+        .map(|t| t.name)
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 fn tool<P: JsonSchema>(name: &'static str, description: &'static str) -> ReadTool {
     let mut parameters = schemars::schema_for!(P).to_value();
     if let Some(object) = parameters.as_object_mut() {
         object.remove("$schema");
         object.remove("title");
-        object
+        let properties = object
             .entry("properties")
             .or_insert_with(|| serde_json::json!({}));
+        if let Some(properties) = properties.as_object_mut() {
+            properties.values_mut().for_each(plain_property);
+        }
     }
     ReadTool {
         name,
@@ -107,17 +119,34 @@ fn tool<P: JsonSchema>(name: &'static str, description: &'static str) -> ReadToo
     }
 }
 
+/// One type and no `format` for a property: schemars gives an optional one the types
+/// `["integer", "null"]` and an unsigned one `format: uint`, which some servers refuse. That it is
+/// optional, `required` says already.
+fn plain_property(property: &mut serde_json::Value) {
+    let Some(property) = property.as_object_mut() else {
+        return;
+    };
+    property.remove("format");
+    let single = property
+        .get("type")
+        .and_then(serde_json::Value::as_array)
+        .and_then(|types| types.iter().find(|t| *t != "null").cloned());
+    if let Some(single) = single {
+        property.insert("type".into(), single);
+    }
+}
+
 /// Why a call could not be made: the tool is unknown or its arguments don't fit it.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum CallError {
-    #[error("unknown tool `{0}`; the tools are list_domains, get_domain, get_feature, get_use_case, search_docs, read_source and git_log")]
+    #[error("unknown tool `{0}`; the tools are {}", tool_names())]
     UnknownTool(String),
     #[error("invalid arguments for `{tool}`: {reason}")]
     InvalidArguments { tool: String, reason: String },
 }
 
 impl Docs {
-    /// Answers the read-only tool `name` with `arguments` (a JSON object as text; empty is `{}`),
+    /// Answers the read-only tool `name` with `arguments` (a JSON object as text; empty or `null` is `{}`),
     /// with the defaults and the bounds of the MCP server. Reads files and git: call it off the
     /// async threads.
     ///
@@ -125,7 +154,7 @@ impl Docs {
     ///
     /// Returns an error when the tool is unknown or the arguments are not an object it accepts.
     pub fn call_read_tool(&self, name: &str, arguments: &str) -> Result<String, CallError> {
-        let arguments = if arguments.trim().is_empty() {
+        let arguments = if arguments.trim().is_empty() || arguments.trim() == "null" {
             "{}"
         } else {
             arguments
@@ -203,6 +232,7 @@ mod tests {
         )
     }
 
+    // spec: ASK-19 (internal: the schemas are read from the catalog the agent offers)
     #[test]
     fn the_catalog_holds_the_seven_read_tools_each_with_an_object_schema() {
         let tools = read_tools();
@@ -221,10 +251,19 @@ mod tests {
         );
         for tool in &tools {
             assert_eq!(tool.parameters["type"], "object", "{}", tool.name);
+            let text = tool.parameters.to_string();
+            assert!(
+                !text.contains("\"format\"") && !text.contains("\"null\""),
+                "{text}"
+            );
             assert!(tool.parameters["properties"].is_object(), "{}", tool.name);
             assert_ne!(tool.description, "");
         }
         let get_feature = &tools[2].parameters;
+        assert_eq!(
+            tools[5].parameters["properties"]["start_line"]["type"],
+            "integer"
+        );
         assert_eq!(get_feature["required"], serde_json::json!(["id"]));
     }
 

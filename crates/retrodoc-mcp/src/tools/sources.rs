@@ -160,24 +160,14 @@ impl Docs {
                     confidence: score.value,
                 });
             }
-            for path in cited {
-                if !files.contains(&path) {
-                    files.push(path);
-                }
-            }
+            files.extend(cited);
         }
         let stale = self
-            .generated
-            .freshness()
-            .map_or_else(Vec::new, |freshness| {
-                freshness
-                    .stale(files)
-                    .into_iter()
-                    .map(|(path, state)| Warning::Stale {
-                        path: path.to_string(),
-                        deleted: state == FileState::Deleted,
-                    })
-                    .collect()
+            .stale_states(files)
+            .into_iter()
+            .map(|(path, state)| Warning::Stale {
+                path: path.to_string(),
+                deleted: state == FileState::Deleted,
             });
         low.into_iter().chain(stale).collect()
     }

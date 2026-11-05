@@ -224,3 +224,56 @@ async fn the_rendered_answer_lists_its_sources_after_its_text() {
 
     assert_eq!(shown, "See `billing`.\n\nSources:\n- domain `billing`\n");
 }
+
+// spec: ASK-17 (internal: the rounds are scripted with the fake provider, which the binary cannot take)
+#[tokio::test]
+async fn a_name_only_a_failed_call_or_a_search_echo_held_is_no_source() {
+    let llm = FakeLlm::scripted(vec![
+        calls(vec![
+            call("c1", "get_feature", r#"{"id":"shop/pay-invoice"}"#),
+            call("c2", "search_docs", r#"{"query":"refunds"}"#),
+            call("c3", "get_domain", r#"{"id":"nowhere"}"#),
+        ]),
+        FakeTurn::Text("See `pay-invoice`, `billing/pay-invoice` and `billing`.".into()),
+    ]);
+    let answer = ask(&llm, docs(), "?", 8).await.unwrap();
+
+    assert!(
+        answer.tool_results[0].starts_with("Not documented"),
+        "{:?}",
+        answer.tool_results
+    );
+    assert!(answer.tool_results[1].starts_with("Not documented"));
+    assert!(answer.tool_results[2].contains("Known domains: billing"));
+    assert_eq!(answer.sources, []);
+}
+
+// spec: ASK-7 (internal: the code spans are read from a text the test gives)
+#[test]
+fn a_span_closes_only_on_a_run_of_as_many_backticks() {
+    let text = "Run ``a ` b`` then:\n```ruby\n`ls`\n```\nand `` ` `` or `billing` and `app/x.rb`.";
+    let spans: Vec<&str> = code_spans(text).collect();
+    assert_eq!(spans, ["a ` b", "`", "billing", "app/x.rb"]);
+}
+
+// spec: ASK-18 (internal: the rounds are scripted with the fake provider, which the binary cannot take)
+#[tokio::test]
+async fn a_blank_answer_says_the_model_gave_none() {
+    let llm = FakeLlm::scripted(vec![calls(vec![call("c", "list_domains", "{}")])]);
+    let shown = ask(&llm, docs(), "?", 1).await.unwrap().render();
+
+    assert!(shown.starts_with(NO_ANSWER), "{shown}");
+}
+
+// spec: ASK-20 (internal: the rounds are scripted with the fake provider, which the binary cannot take)
+#[tokio::test]
+async fn null_arguments_are_an_empty_object() {
+    let llm = FakeLlm::scripted(vec![
+        calls(vec![call("c", "list_domains", "null")]),
+        FakeTurn::Text("Billing.".into()),
+    ]);
+    let docs = docs();
+    let answer = ask(&llm, Arc::clone(&docs), "?", 8).await.unwrap();
+
+    assert_eq!(answer.tool_results, [docs.list_domains()]);
+}

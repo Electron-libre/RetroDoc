@@ -64,7 +64,7 @@ model. Out of scope: `chat`, misses fed to the debt report, answer quality, thin
    tests with the fake HTTP server answering tool calls; makes true ASK-12 to ASK-16. (autonomous)
 4. [x] Warnings: low confidence and stale files of the sources, from the read model; verified by unit tests and one
    binary test; makes true ASK-10, ASK-11; spec `accepted`. (autonomous)
-5. [ ] Docs of the whole issue and fixes of its `high` review.
+5. [x] Docs of the whole issue and fixes of its `high` review. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -117,3 +117,27 @@ model. Out of scope: `chat`, misses fed to the debt report, answer quality, thin
   [Stale { path: "app/mailer.rb", deleted: false }]`, and no `Warnings:` in the output of `retrodoc ask`.
 - Code review: no findings
 - not verified: no real model call.
+
+## Deliverable 5 summary
+- done: docs of the whole issue (README crate count, `docs/findings.md` §4 step 3, `retrodoc-mcp` crate doc,
+  `docs/crates/agent.md`); fixes of the `high` review, spec amended (ASK-7 reworded, ASK-17 to ASK-20 added).
+- `high` review: 10 findings.
+  1. A failed call echoing a name made it a source: fixed, a source needs its full id in a result that showed
+     something (ASK-17).
+  2. No budget of the tool results per round or in all: issue `issues/ask_loop_always_answers.md`.
+  3. The last request drops the tools with a tool history some servers refuse: same issue (not checked on a real call).
+  4. Code spans read by parity of backticks: fixed, runs of equal length (ASK-7 scenario).
+  5. A blank last answer printed as an empty answer: fixed, `NO_ANSWER` (ASK-18).
+  6. schemars schemas with `["integer","null"]` and `format`: fixed in the catalog (ASK-19).
+  7. Arguments `null` refused: fixed, read as `{}` (ASK-20).
+  8. `cited_paths` rebuilt per lookup: not fixed, an answer holds a few dozen spans and the cost is nothing next to a
+     call to the LLM.
+  9. Stale lookup duplicated: fixed, `Docs::stale_states` shared by the tools and the warnings.
+  10. Unknown-tool list hardcoded: fixed, drawn from `read_tools`; the server keeps its typed `rmcp` handlers, which
+     share the descriptions, schemas' structs and defaults of the catalog.
+- checks: tests ok, clippy ok, specs ok (accepted, all traced), docs updated.
+- red: ASK-7, ASK-17, ASK-18, ASK-20: `left: ["b", "then:", "ls", …] right: ["a ` b", "`", "billing", "app/x.rb"]`,
+  `left: [Source { kind: Feature, id: "billing/pay-invoice" }, …] right: []`, a blank render, `Error: invalid arguments
+  for list_domains: not a JSON object`; ASK-19: written with its fix (the catalog test widened).
+- Code review: no findings
+- not verified: no real model call (`issues/ask_question_set.md` measures the answers).
