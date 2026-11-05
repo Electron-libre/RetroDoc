@@ -15,8 +15,9 @@ pub const DEFAULT_BIND: &str = "127.0.0.1:8730";
 /// Serves the generated docs as a web interface on `bind` until stopped;
 /// makes no LLM call and writes nothing but the reviews its forms send
 /// (`.retrodoc/reviews.json`). The docs and the git history that
-/// ranks their debt are read once, here: a repository with no run yet gets a
-/// page saying to run `generate`.
+/// ranks their debt are read once, here, the docs rebuilt when the human edits
+/// saved beside them change: a repository with no run yet gets a page saying
+/// to run `generate`.
 pub async fn run(path: &Path, bind: SocketAddr) -> anyhow::Result<()> {
     let workspace = Workspace::open(path)?;
     let docs = project_docs(&workspace.repo_root, &workspace.config)?;

@@ -2,6 +2,7 @@
 //! [`Docs`] function. Read-only and LLM-free, it answers over stdio for the
 //! agent that launched it (`retrodoc mcp`).
 
+use std::path::Path;
 use std::sync::Arc;
 
 use rmcp::handler::server::wrapper::Parameters;
@@ -9,6 +10,7 @@ use rmcp::{tool, tool_handler, tool_router, ServerHandler, ServiceExt};
 use schemars::JsonSchema;
 use serde::Deserialize;
 
+use crate::edits::Live;
 use crate::source::DEFAULT_LOG;
 use crate::tools::Docs;
 
@@ -27,7 +29,8 @@ pub enum McpError {
 
 #[derive(Clone)]
 pub struct DocsServer {
-    docs: Arc<Docs>,
+    /// Each call answers with the edits saved at that call (`specs/section-edit.md` SED-28).
+    docs: Arc<Live<Docs>>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -65,8 +68,11 @@ struct SearchParams {
 impl DocsServer {
     #[must_use]
     pub fn new(docs: Docs) -> Self {
+        let root = docs.repo_root().map(Path::to_path_buf);
         Self {
-            docs: Arc::new(docs),
+            docs: Arc::new(Live::new(docs, root.as_deref(), |docs: &Docs, edits| {
+                (docs.edits() != &edits).then(|| docs.clone().with_edits(edits))
+            })),
         }
     }
 }
@@ -86,12 +92,12 @@ impl DocsServer {
                        confidence score. Start here to find your way."
     )]
     async fn list_domains(&self) -> String {
-        self.docs.list_domains()
+        self.docs.current().list_domains()
     }
 
     #[tool(description = "Show one domain (e.g. `billing`) and its features and business rules.")]
     async fn get_domain(&self, Parameters(IdParams { id }): Parameters<IdParams>) -> String {
-        let docs = Arc::clone(&self.docs);
+        let docs = self.docs.current();
         blocking(move || docs.get_domain(&id)).await
     }
 
@@ -101,7 +107,7 @@ impl DocsServer {
                        their evidence)."
     )]
     async fn get_feature(&self, Parameters(IdParams { id }): Parameters<IdParams>) -> String {
-        let docs = Arc::clone(&self.docs);
+        let docs = self.docs.current();
         blocking(move || docs.get_feature(&id)).await
     }
 
@@ -112,7 +118,7 @@ impl DocsServer {
                        that apply to it."
     )]
     async fn get_use_case(&self, Parameters(IdParams { id }): Parameters<IdParams>) -> String {
-        let docs = Arc::clone(&self.docs);
+        let docs = self.docs.current();
         blocking(move || docs.get_use_case(&id)).await
     }
 
@@ -129,7 +135,7 @@ impl DocsServer {
             end_line,
         }): Parameters<SourceParams>,
     ) -> String {
-        let docs = Arc::clone(&self.docs);
+        let docs = self.docs.current();
         blocking(move || docs.read_source(&path, start_line, end_line)).await
     }
 
@@ -142,7 +148,7 @@ impl DocsServer {
         &self,
         Parameters(LogParams { path, limit }): Parameters<LogParams>,
     ) -> String {
-        let docs = Arc::clone(&self.docs);
+        let docs = self.docs.current();
         blocking(move || docs.git_log(&path, limit.unwrap_or(DEFAULT_LOG))).await
     }
 
@@ -156,7 +162,7 @@ impl DocsServer {
         Parameters(SearchParams { query, limit }): Parameters<SearchParams>,
     ) -> String {
         let limit = limit.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT);
-        self.docs.search_docs(&query, limit)
+        self.docs.current().search_docs(&query, limit)
     }
 }
 

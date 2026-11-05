@@ -129,6 +129,7 @@ impl std::fmt::Display for SourceError {
     }
 }
 
+#[derive(Clone)]
 pub struct SourceAccess {
     repo_root: PathBuf,
     cited: BTreeSet<String>,

@@ -209,3 +209,28 @@ fn the_answers_show_the_edited_sections() {
         "the name is not edited: {feature}"
     );
 }
+
+// spec: SED-28, SED-29
+#[test]
+fn each_call_answers_with_the_edits_saved_at_that_call() {
+    let repo = generated_repo();
+    let mut session = Session::start(&repo);
+    let id = r#"{"id":"billing/pay-invoice"}"#;
+    assert!(session.call("get_feature", id).contains("Pay an invoice"));
+
+    std::fs::write(
+        repo.path().join(".retrodoc/edits.json"),
+        r#"{"version":1,"edits":[{"kind":"feature","id":"pay-invoice","name":"Settle a bill",
+            "author":null,"edited_at":"2026-11-05T10:00:00Z","fingerprint":"f"}]}"#,
+    )
+    .unwrap();
+
+    let edited = session.call("get_feature", id);
+    assert!(edited.contains("Settle a bill"), "{edited}");
+    let found = session.call("search_docs", r#"{"query":"bill"}"#);
+    assert!(found.contains("Settle a bill"), "{found}");
+
+    std::fs::write(repo.path().join(".retrodoc/edits.json"), "{ not json").unwrap();
+    let generated = session.call("get_feature", id);
+    assert!(generated.contains("Pay an invoice"), "{generated}");
+}

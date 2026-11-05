@@ -80,6 +80,11 @@ fn start(repo: &tempfile::TempDir, bind: &str) -> (Server, String) {
 
 /// The status line and body of `GET /` at `url` (`http://host:port/`).
 fn get_home(url: &str) -> (String, String) {
+    get(url, "/")
+}
+
+/// The status line and body of `GET <path>` at `url` (`http://host:port/`).
+fn get(url: &str, path: &str) -> (String, String) {
     let host = url
         .strip_prefix("http://")
         .unwrap()
@@ -88,7 +93,7 @@ fn get_home(url: &str) -> (String, String) {
     let mut stream = TcpStream::connect(&host).unwrap();
     write!(
         stream,
-        "GET / HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n"
+        "GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n"
     )
     .unwrap();
     let mut response = String::new();
@@ -122,4 +127,30 @@ fn a_repository_never_initialized_asks_for_init() {
     assert!(!output.status.success());
     let text = String::from_utf8_lossy(&output.stderr);
     assert!(text.contains("retrodoc init"), "{text}");
+}
+
+// spec: SED-27, SED-29
+#[test]
+fn an_edit_saved_while_the_server_runs_shows_at_the_next_request() {
+    let repo = generated_repo();
+    let (_server, url) = start(&repo, "127.0.0.1:0");
+    let page = |path: &str| get(&url, path).1;
+    assert!(page("/domains/billing/pay-invoice").contains("Pay an invoice"));
+
+    std::fs::write(
+        repo.path().join(".retrodoc/edits.json"),
+        r#"{"version":1,"edits":[{"kind":"feature","id":"pay-invoice","name":"Settle a bill",
+            "author":null,"edited_at":"2026-11-05T10:00:00Z","fingerprint":"f"}]}"#,
+    )
+    .unwrap();
+
+    let edited = page("/domains/billing/pay-invoice");
+    assert!(edited.contains("Settle a bill"), "{edited}");
+    assert!(!edited.contains("Pay an invoice"), "{edited}");
+    let found = page("/search?q=bill");
+    assert!(found.contains("Settle a bill"), "{found}");
+
+    std::fs::write(repo.path().join(".retrodoc/edits.json"), "{ not json").unwrap();
+    let generated = page("/domains/billing/pay-invoice");
+    assert!(generated.contains("Pay an invoice"), "{generated}");
 }

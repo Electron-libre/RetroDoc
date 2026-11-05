@@ -9,6 +9,7 @@ use retrodoc_core::model::{BusinessRule, Domain, Feature, UseCase};
 use retrodoc_ingest::existing_docs::ExistingDoc;
 use retrodoc_pipeline::Glossary;
 
+use crate::edits::Edits;
 use crate::freshness::Freshness;
 use crate::read_model::GeneratedDocs;
 use crate::search::SearchIndex;
@@ -24,8 +25,10 @@ mod read_source;
 mod review;
 mod search_docs;
 
-/// The generated documentation, loaded once, and the bounded access to the
+/// The generated documentation, loaded once (the server re-applies the edits when they change), and the
+/// bounded access to the
 /// code it cites that `read_source` and `git_log` need.
+#[derive(Clone)]
 pub struct Docs {
     generated: GeneratedDocs,
     source: Option<SourceAccess>,
@@ -84,6 +87,26 @@ impl Docs {
     #[must_use]
     pub fn load(repo_root: &Path, docs: &[ExistingDoc]) -> Option<Self> {
         GeneratedDocs::load(repo_root, docs).map(Self::from)
+    }
+
+    /// Shows `edits` over the generated sections, in place of those shown before
+    /// ([`GeneratedDocs::with_edits`]).
+    #[must_use]
+    pub fn with_edits(mut self, edits: Edits) -> Self {
+        self.generated = self.generated.with_edits(edits);
+        self
+    }
+
+    /// The edits shown over the sections.
+    #[must_use]
+    pub fn edits(&self) -> &Edits {
+        self.generated.edits()
+    }
+
+    /// Where the docs were loaded from, `None` when they were not loaded from a repository.
+    #[must_use]
+    pub fn repo_root(&self) -> Option<&Path> {
+        self.generated.repo_root()
     }
 
     #[must_use]

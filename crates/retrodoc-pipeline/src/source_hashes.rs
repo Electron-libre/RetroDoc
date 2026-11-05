@@ -17,7 +17,7 @@ use crate::cache::hash_content;
 use crate::error::PipelineError;
 use crate::text::read_file_lossy;
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SourceHashes {
     #[serde(default)]
     files: BTreeMap<String, String>,

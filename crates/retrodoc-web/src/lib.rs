@@ -5,8 +5,9 @@
 //!
 //! The pages are built from [`GeneratedDocs`], the read model `retrodoc-mcp`
 //! loads, turned into the plain view structs of [`view`]; only [`router`] and
-//! [`serve`] know HTTP. The docs are read once, at start; the reviews at each
-//! request.
+//! [`serve`] know HTTP. The docs are read once, at start, and rebuilt when the
+//! edits saved beside them change ([`retrodoc_mcp::edits::Live`]); the reviews
+//! and the edits are read at each request.
 
 pub mod actors;
 mod assets;
@@ -28,15 +29,17 @@ pub mod trends;
 pub mod view;
 
 use std::net::IpAddr;
+use std::path::Path;
 use std::sync::Arc;
 
-use axum::extract::Request;
+use axum::extract::{FromRef, Request};
 use axum::http::{header, HeaderMap, Method, StatusCode};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::Router;
 use retrodoc_core::config::OutputConfig;
+use retrodoc_mcp::edits::Live;
 use retrodoc_mcp::{ExistingDoc, GeneratedDocs};
 use retrodoc_render::DocLinks;
 use tokio::net::TcpListener;
@@ -66,6 +69,43 @@ impl Project {
             return Some("en");
         }
         output.language_tag()
+    }
+}
+
+/// The site the pages are built from, rebuilt when the edits saved beside its docs change
+/// (`specs/section-edit.md` SED-27): a handler that asks for the `Arc<Site>` state gets the site
+/// with the edits saved at its request.
+#[derive(Clone)]
+struct LiveSite(Arc<Live<Site>>);
+
+impl FromRef<LiveSite> for Arc<Site> {
+    fn from_ref(live: &LiveSite) -> Self {
+        live.0.current()
+    }
+}
+
+impl LiveSite {
+    fn new(
+        project: Project,
+        docs: Option<GeneratedDocs>,
+        links: DocLinks,
+        collected: Vec<ExistingDoc>,
+    ) -> Self {
+        let root = docs
+            .as_ref()
+            .and_then(GeneratedDocs::repo_root)
+            .map(Path::to_path_buf);
+        let site = Site::new(project.clone(), docs, links.clone(), collected.clone());
+        let rebuild = move |site: &Site, edits| {
+            let docs = site.docs().filter(|docs| docs.edits() != &edits)?;
+            Some(Site::new(
+                project.clone(),
+                Some(docs.clone().with_edits(edits)),
+                links.clone(),
+                collected.clone(),
+            ))
+        };
+        Self(Arc::new(Live::new(site, root.as_deref(), rebuild)))
     }
 }
 
@@ -108,7 +148,7 @@ pub fn router(
         .fallback(pages::not_found)
         .layer(middleware::from_fn(refuse_cross_site))
         .layer(middleware::from_fn(refuse_foreign_host))
-        .with_state(Arc::new(Site::new(project, docs, links, collected)))
+        .with_state(LiveSite::new(project, docs, links, collected))
 }
 
 /// Refuses a request whose `Host` is a name other than `localhost`: a page of

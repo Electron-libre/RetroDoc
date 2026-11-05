@@ -11,6 +11,7 @@ const TITLE_WEIGHT: usize = 3;
 /// interface always: the same list for the same query.
 pub const SEARCH_LIMIT: usize = 10;
 
+#[derive(Clone)]
 pub struct SearchIndex {
     entries: Vec<Entry>,
     bm25: Bm25,

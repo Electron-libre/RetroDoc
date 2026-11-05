@@ -14,6 +14,10 @@ use crate::read_model::{GeneratedDocs, Sections};
 use crate::reviews;
 use crate::store::{kind_key, Record, Records, Section, SectionKind, Store, StoreError};
 
+mod live;
+
+pub use live::Live;
+
 /// The format of the file written now.
 pub const VERSION: u32 = 1;
 

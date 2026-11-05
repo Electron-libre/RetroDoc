@@ -19,6 +19,7 @@ pub enum FileState {
     Unknown,
 }
 
+#[derive(Clone)]
 pub struct Freshness {
     repo_root: PathBuf,
     recorded: SourceHashes,

@@ -27,6 +27,7 @@ pub struct Sections {
 
 /// The artifacts of a run, the human edits shown over them, and the search index over what is
 /// shown and the collected docs.
+#[derive(Clone)]
 pub struct GeneratedDocs {
     /// The sections as shown: the edits applied over the generated ones.
     shown: Sections,

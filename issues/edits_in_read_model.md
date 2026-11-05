@@ -61,9 +61,9 @@ the edge cases of the layout.
    SED-29 (load), MCP-14, DSR-6. (~450 lines)
 2. [x] `publish` applies the same edits before the report and the render, fails on a file it can't read; verified by
    a CLI test of `render` with an edit, twice, and with a broken file; makes true SED-30, SED-31, SED-32. (~200 lines) (autonomous)
-3. [ ] Live edits: `retrodoc mcp` re-reads `edits.json` at each tool call and `retrodoc ui` at each request,
+3. [x] Live edits: `retrodoc mcp` re-reads `edits.json` at each tool call and `retrodoc ui` at each request,
    re-applying the overlay (and rebuilding the site and the index) only when its content changed; verified by
-   server tests saving an edit between two requests; makes true SED-27, SED-28, SED-29. (~400 lines)
+   server tests saving an edit between two requests; makes true SED-27, SED-28, SED-29. (~400 lines) (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -111,3 +111,24 @@ Code review: no findings
 
 not verified: `generate` failing at its render step on a broken `edits.json` (same `publish`, tested through
 `render`). decisions needed: none.
+
+## Deliverable 3: live edits
+
+done: `edits::Live` reads `.retrodoc/edits.json` at each request and rebuilds the docs when the edits it holds
+differ from those shown; `retrodoc mcp` answers each call through it, `retrodoc ui` gets the rebuilt `Site` through
+a `FromRef` state, the handlers unchanged; a file that can't be read shows the generated text, with a warning.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass |
+| docs | `docs/crates/render-mcp-cli.md`, doc comments of `ui.rs`, `tools/mod.rs`, `retrodoc-web` |
+| code review | low, clean |
+
+red: SED-27, SED-28, SED-29: the second `get_feature` and the page after the save still showed "Pay an invoice".
+
+Code review: no findings
+
+not verified: an unreadable `edits.json` at start is warned of twice (the load, then the first request), not
+otherwise harmful. decisions needed: none.
