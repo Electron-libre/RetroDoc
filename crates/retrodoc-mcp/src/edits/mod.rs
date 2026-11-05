@@ -11,7 +11,7 @@ use retrodoc_ingest::git_history::user_name;
 use serde::{Deserialize, Serialize};
 
 use crate::read_model::{GeneratedDocs, Sections};
-use crate::reviews;
+use crate::reviews::{self, Outdated};
 use crate::store::{kind_key, Record, Records, Section, SectionKind, Store, StoreError};
 
 mod live;
@@ -146,6 +146,20 @@ pub fn apply(mut shown: Sections, edits: &Edits) -> Sections {
         }
     }
     shown
+}
+
+/// Why `edit` no longer corrects its section as `docs` generated it and the files of their
+/// repository are now (SED-34, SED-35), `None` when it does: the rule of the reviews
+/// ([`reviews::outdated`]), against the section as generated, the edits left out.
+#[must_use]
+pub fn outdated(docs: &GeneratedDocs, edit: &Edit) -> Option<Outdated> {
+    reviews::judge(
+        docs,
+        docs.generated(),
+        &edit.section,
+        &edit.fingerprint,
+        &edit.files,
+    )
 }
 
 /// Records the edit of `section` in `docs`, replacing its former one; its fingerprint is taken on

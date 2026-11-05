@@ -32,7 +32,7 @@ saved (`specs/run-history.md`), so the same reader sees whether the docs get bet
   `contexts.yaml`, those whose chain finished as `fingerprints.json` records it, and the names of the others, pending,
   in the order of the map.
 - **AUD-6** (deterministic) The audit page must show a heatmap as a table with one row per domain of the run in the
-  order of the run and one column per kind of the debt view that carries a domain (DBT-2 to DBT-7, DBT-15, DBT-16, DBT-30, DBT-31) in
+  order of the run and one column per kind of the debt view that carries a domain (DBT-2 to DBT-7, DBT-15, DBT-16, DBT-30, DBT-31, DBT-39) in
   the order of DBT-8, each cell holding the number of debt items of that kind in that domain; a cell above 0 must link
   to `/debt?kind=<kind>&domain=<slug>`.
 - **AUD-7** (deterministic) A cell of the heatmap must carry a level from 0 to 4: 0 for no item, else

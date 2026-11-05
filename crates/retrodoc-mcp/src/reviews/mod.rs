@@ -69,7 +69,8 @@ impl Record for Review {
     }
 }
 
-/// Why a review no longer vouches for its section as it is now.
+/// Why a review no longer vouches for its section as it is now, or an edit no longer corrects the
+/// section as generated now.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Outdated {
     /// The section in the docs differs from the one reviewed.
@@ -153,11 +154,29 @@ pub(crate) fn fingerprint_in(sections: &Sections, section: &Section) -> Option<S
 /// read: the paths of a file of reviews are not trusted.
 #[must_use]
 pub fn outdated(docs: &GeneratedDocs, review: &Review) -> Option<Outdated> {
-    let rewritten = fingerprint(docs, &review.section).as_ref() != Some(&review.fingerprint);
+    judge(
+        docs,
+        docs.sections(),
+        &review.section,
+        &review.fingerprint,
+        &review.files,
+    )
+}
+
+/// Why the human work on `section`, which saw it as `fingerprint` in `sections` and its cited
+/// files as `files`, is outdated in `docs` now (REV-20, REV-21, shared with the edits, SED-34,
+/// SED-35), `None` when it is not.
+pub(crate) fn judge(
+    docs: &GeneratedDocs,
+    sections: &Sections,
+    section: &Section,
+    fingerprint: &str,
+    files: &BTreeMap<String, String>,
+) -> Option<Outdated> {
+    let rewritten = fingerprint_in(sections, section).as_deref() != Some(fingerprint);
     let changed: Vec<(String, FileState)> = docs.repo_root().map_or_else(Vec::new, |root| {
-        let cited: HashSet<&str> = cited_paths(docs, &review.section).into_iter().collect();
-        review
-            .files
+        let cited: HashSet<&str> = cited_paths(docs, section).into_iter().collect();
+        files
             .iter()
             .filter(|(path, _)| cited.contains(path.as_str()))
             .map(|(path, hash)| (path.clone(), state_against(root, path, hash)))

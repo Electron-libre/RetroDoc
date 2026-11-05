@@ -34,7 +34,7 @@ from top to bottom.
 - **DBT-7** (deterministic) An item of the kind "stale" must be listed for each feature and each use case flagged
   stale on its page (WEB-20), with the files that changed.
 - **DBT-8** (deterministic) The items must be ordered by their priority (DBT-23), the highest first, and items of
-  equal priority by kind in the order of DBT-2 to DBT-7, DBT-15, DBT-16, DBT-30, DBT-31, DBT-19 and DBT-20, then
+  equal priority by kind in the order of DBT-2 to DBT-7, DBT-15, DBT-16, DBT-30, DBT-31, DBT-39, DBT-19 and DBT-20, then
   within a kind as `retrodoc report` lists them (the lowest score first, then by section; the unbacked narratives by
   section; the undocumented items most entry points first), the not scored, set apart, stale and contradicted ones in
   the order of the run, a stale feature before its use cases, the reviewed sections as the reviews are saved (REV-15),
@@ -89,7 +89,7 @@ from top to bottom.
 - **DBT-29** (deterministic) The weight of an item must be 1 for the kinds whose section the run or a human suspects
   false (low confidence, unbacked narrative, stale, contradicted, marked wrong), 0.5 for the kinds of a section
   missing, unreadable or left to check (not scored, technical language, undocumented, entry point without a feature,
-  to review), and 0.25 for the kinds the docs leave out by design (set apart, no domain, reached by no behaviour, not
+  to review, outdated edit), and 0.25 for the kinds the docs leave out by design (set apart, no domain, reached by no behaviour, not
   analysed).
 - **DBT-30** (deterministic) An item of the kind "marked wrong" must be listed for each domain, feature and use case
   of the run whose review (`specs/section-review.md`) has the status `wrong`, with the comment of the review as its
@@ -111,6 +111,9 @@ from top to bottom.
   with its reasons: the section rewritten, the files changed since the review.
 - **DBT-38** (deterministic) A section of "Sections marked wrong" of `retrodoc report` whose review is outdated must
   say so, with its reasons as DBT-37 says.
+- **DBT-39** (deterministic) An item of the kind "outdated edit" must be listed for each domain, feature and use case
+  of the run whose human edit is outdated (`specs/section-edit.md` SED-34, SED-35), with its reasons as DBT-37 says;
+  its weight (DBT-29) is 0.5, a section left to check.
 
 ## Scenarios
 
@@ -148,6 +151,8 @@ from top to bottom.
 - (DBT-30) Given a section marked wrong whose fingerprint differs from the one of its review, then it is still
   listed as marked wrong, said outdated (DBT-37).
 - (DBT-30, DBT-31) Given a review with no comment, then its item shows no reason.
+- (DBT-39) Given a feature edited, when a later run rewrites it, then it is listed as an outdated edit, "rewritten";
+  an edit of a section the run no longer holds lists no item (SED-24).
 - (DBT-19, DBT-20) Given a run with no saved behaviour coverage (not a `surface` run), then no item of the kinds
   "entry point without a feature" and "reached by no behaviour" is listed, and the page does not say so.
 
@@ -158,6 +163,7 @@ from top to bottom.
   report (DBT-35).
 - No kind of its own for an outdated validation: the section is back under the kinds of judgement it falls in, and
   its page says the review is outdated (decided with the user on 2026-11-04).
+- An edit that is not outdated is no debt, and `retrodoc report` lists no outdated edit: the debt page does.
 
 - The entry points a feature holds but no use case cites, the features set aside as technical, the domains with no
   feature and the rules set aside are not items: `retrodoc report` lists them, and they are not code no doc covers

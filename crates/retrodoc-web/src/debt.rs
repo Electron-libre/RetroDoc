@@ -197,7 +197,14 @@ fn row(docs: &GeneratedDocs, item: &DebtItem, texts: &WebTexts) -> DebtRow {
             .iter()
             .map(|(path, state)| StaleFile::of(path, *state))
             .collect(),
-        outdated: item.outdated.as_ref().map(OutdatedView::of),
+        outdated: item
+            .outdated
+            .as_ref()
+            .map(if item.kind == DebtKind::OutdatedEdit {
+                OutdatedView::of_edit
+            } else {
+                OutdatedView::of
+            }),
         item_kind,
         priority: texts.priority(&item.priority),
         contradictions,

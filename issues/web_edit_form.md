@@ -22,7 +22,8 @@ section was edited by a human (author, date), shows the generated text it replac
 # Approach
 1. An edit form beside the review form, the fields filled with the text shown; a `POST` saves the edit, an empty
    field or "back to the generated text" removes its part of the edit.
-2. The mark "edited by a human" on the page and in the lists of sections, and the generated text folded under it.
+2. The mark "edited by a human" in the lists of sections, and the generated text folded under the edit on the page;
+   the edit on the page (fields, author, date, outdated) is shown by `edit_outdated` (WEB-91, WEB-92).
 3. The same checks as the review form: same origin, a section of the run, a store that can't be read.
 
 # Specs

@@ -76,6 +76,18 @@ it and no `generate` loses it.
 - **SED-33** (deterministic) A blank field of an edit written by hand in `.retrodoc/edits.json` must be left out by
   the readers, the generated text shown in its place.
 
+- **SED-34** (deterministic) An edit must be outdated, with the reason "rewritten", when the fingerprint of its
+  section as generated, the edits left out, differs from the one it holds (SED-8): a later `generate` rewrote the text
+  it corrects.
+- **SED-35** (deterministic) An edit must be outdated, with the files that changed, when a file it holds a hash of
+  (SED-9) and its section still cites was modified or deleted since the edit; a file it holds no hash of is not
+  judged, and an edit of docs that carry no repository judges no file.
+- **SED-36** (deterministic) Whether an edit is outdated must be judged when the edit is read, never saved, by the
+  rule of the reviews (REV-20 to REV-22): an edit saved again over the same generated section and files is no longer
+  outdated.
+- **SED-37** (deterministic) An outdated edit must be kept in `.retrodoc/edits.json` and still shown over its
+  section (SED-23): the team decides whether to update or drop it.
+
 ## Scenarios
 
 - (SED-2) Given a feature whose name only is edited, then its edit holds the name and no description nor narrative.
@@ -101,6 +113,12 @@ it and no `generate` loses it.
   search show the new name.
 - (SED-32) Given an `edits.json` holding invalid JSON, when `render` runs, then it fails naming the file and the docs
   dir is as it was.
+- (SED-34) Given a feature whose name is edited, when a later run rewrites its description, then the edit is outdated
+  as "rewritten" and the feature still shows the edited name.
+- (SED-34) Given a feature whose name is edited, when its description is edited next, then the edit is not outdated:
+  the generated feature is the same.
+- (SED-35) Given a use case edited, when a file one of its steps cites is deleted, then the edit is outdated with the
+  file deleted.
 
 ## Non-goals
 
@@ -109,4 +127,5 @@ it and no `generate` loses it.
 - No history of the edits: a new edit replaces the former one; git keeps the history of a versioned file.
 - No lock across processes: two processes saving at the same instant keep the last one's file whole (SED-12), not
   both.
-- When an edit is outdated (`issues/edit_outdated.md`), and the form that writes it (`issues/web_edit_form.md`).
+- The form that writes an edit (`issues/web_edit_form.md`).
+- No merge of an outdated edit with the new generated text: the team rewrites or drops it.

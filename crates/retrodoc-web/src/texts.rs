@@ -137,6 +137,7 @@ pub struct WebTexts {
     pub audit_page: AuditTexts,
     pub history_page: HistoryTexts,
     pub review: ReviewTexts,
+    pub edit: EditTexts,
     /// The lines a page of a file shows: from, to, of how many.
     pub shown: fn(usize, usize, usize) -> String,
     /// Why the lines asked are not shown: the number of lines of the file, the first line asked.
@@ -150,7 +151,7 @@ pub struct WebTexts {
 pub struct DebtTexts {
     pub intro: &'static str,
     /// The name of each kind, in the order of `DebtKind::ALL`.
-    pub kinds: [&'static str; 14],
+    pub kinds: [&'static str; 15],
     /// Why a use case is set apart: its back-office feature, its business language, its confidence.
     pub reasons: [&'static str; 3],
     pub set_apart_for: &'static str,
@@ -252,6 +253,16 @@ pub struct HistoryTexts {
     pub no_longer_set_apart: &'static str,
     pub confidence: &'static str,
     pub business_language: &'static str,
+}
+
+/// The fixed text of the human edit of a section.
+#[derive(Debug)]
+pub struct EditTexts {
+    /// Before the reasons of an outdated edit.
+    pub outdated: &'static str,
+    pub rewritten: &'static str,
+    /// Before the files changed since the edit.
+    pub files_changed: &'static str,
 }
 
 /// The fixed text of the review of a section.
@@ -476,6 +487,7 @@ impl WebTexts {
                 "Undocumented",
                 "Marked wrong",
                 "To review",
+                "Outdated edit",
                 "Entry point without a feature",
                 "No domain",
                 "Reached by no behaviour",
@@ -604,6 +616,11 @@ impl WebTexts {
             files_changed: "files changed since the review:",
             outdated_badge: "outdated",
             outdated_count: "Outdated",
+        },
+        edit: EditTexts {
+            outdated: "Outdated edit",
+            rewritten: "section rewritten since the edit",
+            files_changed: "files changed since the edit:",
         },
         refusal: SourceError::to_string,
     };
@@ -798,6 +815,7 @@ impl WebTexts {
                 "Non documenté",
                 "Marqué faux",
                 "À revoir",
+                "Correction périmée",
                 "Point d'entrée sans fonctionnalité",
                 "Sans domaine",
                 "Atteint par aucun comportement",
@@ -928,6 +946,11 @@ impl WebTexts {
             outdated_badge: "relecture périmée",
             outdated_count: "Périmées",
         },
+        edit: EditTexts {
+            outdated: "Correction périmée",
+            rewritten: "section réécrite depuis la correction",
+            files_changed: "fichiers modifiés depuis la correction :",
+        },
         refusal: french_refusal,
     };
 
@@ -1053,10 +1076,11 @@ impl WebTexts {
             DebtKind::Undocumented => 7,
             DebtKind::MarkedWrong => 8,
             DebtKind::ToReview => 9,
-            DebtKind::EntryPointWithoutFeature => 10,
-            DebtKind::NoDomain => 11,
-            DebtKind::NoBehaviour => 12,
-            DebtKind::NotAnalysed => 13,
+            DebtKind::OutdatedEdit => 10,
+            DebtKind::EntryPointWithoutFeature => 11,
+            DebtKind::NoDomain => 12,
+            DebtKind::NoBehaviour => 13,
+            DebtKind::NotAnalysed => 14,
         };
         self.debt.kinds[at]
     }

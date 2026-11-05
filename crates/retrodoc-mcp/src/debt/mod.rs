@@ -16,9 +16,10 @@ use retrodoc_pipeline::reconcile::{ItemVerdict, Reconciliation};
 pub use retrodoc_pipeline::Section;
 use retrodoc_pipeline::{build_report, DebtReport, DomainMap, WeakSection};
 
+use crate::edits;
 use crate::freshness::{FileState, Freshness};
 use crate::read_model::{GeneratedDocs, Uncovered};
-use crate::reviews::{self, Outdated, Review, Reviews, SectionKind, Status};
+use crate::reviews::{self, Outdated, Reviews, SectionKind, Status};
 
 /// What makes a section need a human, in the order the debt lists them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -43,6 +44,8 @@ pub enum DebtKind {
     MarkedWrong,
     /// A domain, feature or use case a human left to review.
     ToReview,
+    /// A domain, feature or use case whose human edit no longer corrects it as generated now.
+    OutdatedEdit,
     /// The entry points of a folder that no feature holds.
     EntryPointWithoutFeature,
     /// The source files of a folder the clustering left in no domain.
@@ -54,7 +57,7 @@ pub enum DebtKind {
 }
 
 impl DebtKind {
-    pub const ALL: [Self; 14] = [
+    pub const ALL: [Self; 15] = [
         Self::LowConfidence,
         Self::NotScored,
         Self::UnbackedNarrative,
@@ -65,6 +68,7 @@ impl DebtKind {
         Self::Undocumented,
         Self::MarkedWrong,
         Self::ToReview,
+        Self::OutdatedEdit,
         Self::EntryPointWithoutFeature,
         Self::NoDomain,
         Self::NoBehaviour,
@@ -72,7 +76,7 @@ impl DebtKind {
     ];
 
     /// The kinds whose items carry a domain, in the order of [`Self::ALL`].
-    pub const WITH_DOMAIN: [Self; 10] = [
+    pub const WITH_DOMAIN: [Self; 11] = [
         Self::LowConfidence,
         Self::NotScored,
         Self::UnbackedNarrative,
@@ -83,6 +87,7 @@ impl DebtKind {
         Self::Undocumented,
         Self::MarkedWrong,
         Self::ToReview,
+        Self::OutdatedEdit,
     ];
 
     /// The value of `?kind=` of the debt page, also the name of the kind in the run history.
@@ -99,6 +104,7 @@ impl DebtKind {
             Self::Undocumented => "undocumented",
             Self::MarkedWrong => "marked_wrong",
             Self::ToReview => "to_review",
+            Self::OutdatedEdit => "outdated_edit",
             Self::EntryPointWithoutFeature => "entry_point_without_feature",
             Self::NoDomain => "no_domain",
             Self::NoBehaviour => "no_behaviour",
@@ -121,7 +127,8 @@ impl DebtKind {
             | Self::TechnicalLanguage
             | Self::Undocumented
             | Self::EntryPointWithoutFeature
-            | Self::ToReview => 0.5,
+            | Self::ToReview
+            | Self::OutdatedEdit => 0.5,
             Self::SetApart | Self::NoDomain | Self::NoBehaviour | Self::NotAnalysed => 0.25,
         }
     }
@@ -200,7 +207,8 @@ pub struct DebtItem {
     /// The cited files of a [`DebtKind::Stale`] section that changed, in order.
     pub changed: Vec<(String, FileState)>,
     /// Why the review of a [`DebtKind::MarkedWrong`] or [`DebtKind::ToReview`] section no longer
-    /// vouches for it as it is now.
+    /// vouches for it as it is now, or the edit of a [`DebtKind::OutdatedEdit`] one no longer
+    /// corrects it as generated now.
     pub outdated: Option<Outdated>,
     pub priority: Priority,
 }
@@ -362,6 +370,7 @@ pub fn debt_of(docs: &GeneratedDocs, report: DebtReport, reviews: &Reviews) -> D
             && matches!(&item.subject, Subject::Section(s) if validated.contains(&review_section(s))))
     });
     items.extend(reviewed(docs, reviews));
+    items.extend(outdated_edits(docs));
     items.extend(code_items(uncovered));
     for item in &mut items {
         item.priority = priority(docs, item);
@@ -473,7 +482,7 @@ pub fn reviewed<'a>(
             .filter(move |r| r.status == status)
             .filter_map(move |r| {
                 // The subject first: no file read for a section the run no longer holds.
-                let subject = reviewed_subject(docs, r)?;
+                let subject = section_subject(docs, &r.section)?;
                 Some(DebtItem {
                     rationale: Some(r.comment.clone()).filter(|c| !c.trim().is_empty()),
                     outdated: reviews::outdated(docs, r),
@@ -484,9 +493,21 @@ pub fn reviewed<'a>(
     of(DebtKind::MarkedWrong, Status::Wrong).chain(of(DebtKind::ToReview, Status::ToReview))
 }
 
-/// The subject of the section a review names; `None` when the run no longer holds it.
-fn reviewed_subject(docs: &GeneratedDocs, review: &Review) -> Option<Subject> {
-    let id = review.section.id.as_str();
+/// The sections of the run whose edit is outdated, as the edits are saved (DBT-39).
+fn outdated_edits(docs: &GeneratedDocs) -> impl Iterator<Item = DebtItem> + '_ {
+    docs.edits().edits().iter().filter_map(move |edit| {
+        // The subject first: no file read for a section the run no longer holds.
+        let subject = section_subject(docs, &edit.section)?;
+        Some(DebtItem {
+            outdated: Some(edits::outdated(docs, edit)?),
+            ..DebtItem::about(DebtKind::OutdatedEdit, subject)
+        })
+    })
+}
+
+/// The subject of the section a review or an edit names; `None` when the run no longer holds it.
+fn section_subject(docs: &GeneratedDocs, section: &reviews::Section) -> Option<Subject> {
+    let id = section.id.as_str();
     let feature_section = |feature: &str, use_case: Option<&str>| {
         let feature = docs.features().iter().find(|f| f.slug == feature)?;
         Some(Subject::Section(Section {
@@ -495,7 +516,7 @@ fn reviewed_subject(docs: &GeneratedDocs, review: &Review) -> Option<Subject> {
             use_case: use_case.map(str::to_string),
         }))
     };
-    match review.section.kind {
+    match section.kind {
         SectionKind::Domain => docs
             .domains()
             .iter()

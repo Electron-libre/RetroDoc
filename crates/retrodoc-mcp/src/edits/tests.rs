@@ -1,4 +1,5 @@
 use super::*;
+use crate::freshness::FileState;
 use crate::reviews::tests::{docs, docs_citing, feature_pay, file_hash_of, refund, repo};
 use crate::reviews::{self, Status};
 use retrodoc_pipeline::Glossary;
@@ -112,7 +113,7 @@ fn a_blank_field_is_refused() {
     assert!(!edits_path(dir.path()).exists());
 }
 
-// spec: SED-8 (internal: what `edit_outdated` will compare)
+// spec: SED-8 (internal: what `outdated` compares)
 #[test]
 fn an_edit_holds_the_fingerprint_of_the_generated_section() {
     let dir = repo("A");
@@ -126,7 +127,7 @@ fn an_edit_holds_the_fingerprint_of_the_generated_section() {
     assert_eq!(second.fingerprint, generated);
 }
 
-// spec: SED-9 (internal: what `edit_outdated` will compare)
+// spec: SED-9 (internal: what `outdated` compares)
 #[test]
 fn an_edit_holds_the_hash_of_each_file_its_section_cites() {
     let dir = repo("A");
@@ -496,4 +497,103 @@ fn an_edit_made_after_a_review_makes_it_outdated() {
 
     let outdated = reviews::outdated(&edited, &review).unwrap();
     assert!(outdated.rewritten);
+}
+
+// spec: SED-34, SED-37 (internal: the rule the pages, the debt and the MCP answers read)
+#[test]
+fn an_edit_of_a_section_rewritten_since_is_outdated_and_still_shown() {
+    let dir = repo("A");
+    let root = dir.path();
+    let edit = record(
+        root,
+        &docs_citing(root, "Before."),
+        &refund(),
+        name("Refund"),
+    )
+    .unwrap();
+    let shown = |narrative| docs_citing(root, narrative).with_edits(load(root).unwrap());
+
+    assert_eq!(outdated(&shown("Before."), &edit), None);
+    let rewritten = shown("After.");
+    assert_eq!(
+        outdated(&rewritten, &edit),
+        Some(Outdated {
+            rewritten: true,
+            changed: Vec::new(),
+        })
+    );
+    assert_eq!(rewritten.use_cases()[0].name, "Refund");
+    assert_eq!(load(root).unwrap().get(&refund()), Some(&edit));
+}
+
+// spec: SED-34 (internal: the rule the pages, the debt and the MCP answers read)
+#[test]
+fn an_edit_followed_by_another_field_is_not_outdated() {
+    let dir = repo("A");
+    let root = dir.path();
+    record(root, &docs(), &feature_pay(), name("Payments")).unwrap();
+    let description = Fields {
+        description: Some("Settle what is due.".into()),
+        ..Fields::default()
+    };
+    let edited = docs().with_edits(load(root).unwrap());
+    let edit = record(root, &edited, &feature_pay(), description).unwrap();
+
+    let shown = docs().with_edits(load(root).unwrap());
+
+    assert_eq!(outdated(&shown, &edit), None);
+}
+
+// spec: SED-35 (internal: the rule the pages, the debt and the MCP answers read)
+#[test]
+fn an_edit_whose_cited_file_was_deleted_is_outdated_naming_it() {
+    let dir = repo("A");
+    let root = dir.path();
+    let docs = docs_citing(root, "");
+    let edit = record(root, &docs, &refund(), name("Refund")).unwrap();
+
+    std::fs::remove_file(root.join("app/refund.rb")).unwrap();
+
+    assert_eq!(
+        outdated(&docs, &edit),
+        Some(Outdated {
+            rewritten: false,
+            changed: vec![("app/refund.rb".into(), FileState::Deleted)],
+        })
+    );
+}
+
+// spec: SED-35 (internal: a file written by hand)
+#[test]
+fn an_edit_with_no_file_hashes_judges_no_file() {
+    let dir = repo("A");
+    let root = dir.path();
+    let docs = docs_citing(root, "");
+    let mut edit = record(root, &docs, &feature_pay(), name("Payments")).unwrap();
+    edit.files.clear();
+
+    std::fs::write(root.join("app/pay.rb"), "edited").unwrap();
+
+    assert_eq!(outdated(&docs, &edit), None);
+}
+
+// spec: SED-36 (internal: the rule the pages, the debt and the MCP answers read)
+#[test]
+fn an_outdated_edit_saved_again_is_no_longer_outdated() {
+    let dir = repo("A");
+    let root = dir.path();
+    let edit = record(
+        root,
+        &docs_citing(root, "Before."),
+        &refund(),
+        name("Refund"),
+    )
+    .unwrap();
+    let rewritten = docs_citing(root, "After.").with_edits(load(root).unwrap());
+    assert!(outdated(&rewritten, &edit).is_some());
+
+    let again = record(root, &rewritten, &refund(), edit.fields.clone()).unwrap();
+
+    let shown = docs_citing(root, "After.").with_edits(load(root).unwrap());
+    assert_eq!(outdated(&shown, &again), None);
 }

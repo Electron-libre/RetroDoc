@@ -7,6 +7,7 @@ use std::path::Path;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use retrodoc_core::model::{Actor, ActorKind, ConfidenceScore, Feature, SourceRef, Step, UseCase};
+use retrodoc_mcp::edits::{self, Fields};
 use retrodoc_mcp::reviews::{self, Section, SectionKind, Status};
 use retrodoc_mcp::GeneratedDocs;
 use retrodoc_pipeline::{DomainCluster, DomainMap};
@@ -546,4 +547,66 @@ async fn an_unreadable_file_of_reviews_is_said_on_the_audit_page() {
     assert!(!reviewed.contains("Domains reviewed"), "{reviewed}");
     assert!(!page.contains("kind=marked_wrong"), "{page}");
     assert!(page.contains("id=\"audit-heatmap\""), "{page}");
+}
+
+fn edit_name(root: &Path, kind: SectionKind, id: &str, name: &str) {
+    let docs = GeneratedDocs::load(root, &[]).unwrap();
+    let fields = Fields {
+        name: Some(name.into()),
+        ..Fields::default()
+    };
+    edits::record(root, &docs, &Section::new(kind, id), fields).unwrap();
+}
+
+// spec: DBT-39, DBT-29
+#[tokio::test]
+async fn an_edit_of_a_section_rewritten_since_enters_the_debt() {
+    let repo = generated_repo();
+    let root = repo.path();
+    edit_name(
+        root,
+        SectionKind::Feature,
+        "ship-order",
+        "Dispatch an order",
+    );
+    edit_name(
+        root,
+        SectionKind::UseCase,
+        "pay-invoice/pay-by-card",
+        "Card",
+    );
+    let page = get(root, "/debt").await;
+    assert!(!page.contains("kind\">Outdated edit</span>"), "{page}");
+
+    let mut rewritten = feature("ship-order", "shipping", "Ship an order");
+    rewritten.description = "Sends the parcel.".into();
+    retrodoc_pipeline::save_features(
+        root,
+        &[
+            feature("pay-invoice", "billing", "Pay an invoice"),
+            rewritten,
+        ],
+    )
+    .unwrap();
+    let mut use_cases = use_cases();
+    use_cases.retain(|u| u.slug != "pay-by-card");
+    retrodoc_pipeline::save_use_cases(root, &use_cases).unwrap();
+
+    let page = get(root, "/debt").await;
+    let edited: Vec<String> = items(&page)
+        .into_iter()
+        .filter(|item| item.contains("class=\"badge kind\">Outdated edit</span>"))
+        .collect();
+    assert_eq!(edited.len(), 1, "{page}");
+    assert!(
+        edited[0].contains("/domains/shipping/ship-order\""),
+        "{}",
+        edited[0]
+    );
+    assert!(
+        edited[0].contains("Outdated edit: section rewritten since the edit"),
+        "{}",
+        edited[0]
+    );
+    assert!(edited[0].contains("weight 0.50"), "{}", edited[0]);
 }

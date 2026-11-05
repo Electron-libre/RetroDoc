@@ -7,7 +7,7 @@ use retrodoc_mcp::reviews::{
 };
 use retrodoc_mcp::GeneratedDocs;
 
-use crate::texts::ReviewTexts;
+use crate::texts::{ReviewTexts, WebTexts};
 use crate::view::{find_feature, StaleFile};
 
 /// The reviews of the repository of `docs`, none when the docs carry no repository.
@@ -136,23 +136,51 @@ impl ReviewBadge {
     }
 }
 
-/// Why a review is outdated, as text.
+/// Why a review or an edit is outdated, as text.
 #[derive(Debug)]
 pub struct OutdatedView {
+    /// Of an edit, not of a review: says "since the edit".
+    pub edit: bool,
     pub rewritten: bool,
     pub changed: Vec<StaleFile>,
 }
 
 impl OutdatedView {
+    /// Of a review.
     #[must_use]
     pub fn of(outdated: &Outdated) -> Self {
         Self {
+            edit: false,
             rewritten: outdated.rewritten,
             changed: outdated
                 .changed
                 .iter()
                 .map(|(path, state)| StaleFile::of(path, *state))
                 .collect(),
+        }
+    }
+
+    /// What it opens with, then the reason "rewritten", then the words before the changed files,
+    /// in the language of `t`.
+    #[must_use]
+    pub fn labels(&self, t: &WebTexts) -> [&'static str; 3] {
+        if self.edit {
+            [t.edit.outdated, t.edit.rewritten, t.edit.files_changed]
+        } else {
+            [
+                t.review.outdated,
+                t.review.rewritten,
+                t.review.files_changed,
+            ]
+        }
+    }
+
+    /// Of an edit.
+    #[must_use]
+    pub fn of_edit(outdated: &Outdated) -> Self {
+        Self {
+            edit: true,
+            ..Self::of(outdated)
         }
     }
 }

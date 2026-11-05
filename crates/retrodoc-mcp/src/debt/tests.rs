@@ -455,6 +455,7 @@ fn the_weight_of_an_item_follows_the_tier_of_its_kind() {
             (Undocumented, 0.5),
             (MarkedWrong, 1.0),
             (ToReview, 0.5),
+            (OutdatedEdit, 0.5),
             (EntryPointWithoutFeature, 0.5),
             (NoDomain, 0.25),
             (NoBehaviour, 0.25),
