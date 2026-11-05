@@ -344,6 +344,7 @@ The milestones up to "A large application, one bounded context at a time" are th
   - [search_relevance_threshold](issues/done/search_relevance_threshold.md) (the MCP server and the search, its
     first form, are done)
   - [tool_calling_in_llm](issues/tool_calling_in_llm.md)
+  - [tool_loop_on_thinking_and_refusing_servers](issues/tool_loop_on_thinking_and_refusing_servers.md)
   - [ask_command](issues/ask_command.md)
   - [ask_question_set](issues/ask_question_set.md)
   - [chat_command](issues/chat_command.md)

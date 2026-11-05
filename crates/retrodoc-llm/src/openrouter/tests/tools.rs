@@ -149,3 +149,72 @@ async fn the_calls_and_results_of_a_history_are_sent_back() {
         ])
     );
 }
+
+/// The answer of a server sending `message`, the message of its only choice.
+async fn answer_to(message: &str) -> Result<crate::CompletionResponse, crate::LlmError> {
+    let (url, _rx) = serve(vec![http(
+        "200 OK",
+        &format!(r#"{{"model":"m","choices":[{{"message":{message}}}]}}"#),
+    )]);
+    provider(&url).complete(request()).await
+}
+
+// spec: TCL-11 (internal: the answer is served by the mock server of the provider's tests)
+#[tokio::test]
+async fn a_null_tool_calls_field_is_a_text_answer() {
+    let response = answer_to(r#"{"role":"assistant","content":"ok","tool_calls":null}"#)
+        .await
+        .unwrap();
+    assert_eq!(response.content, "ok");
+    assert_eq!(response.tool_calls, []);
+}
+
+// spec: TCL-12 (internal: the answer is served by the mock server of the provider's tests)
+#[tokio::test]
+async fn a_message_with_no_text_nor_call_is_an_invalid_response() {
+    for message in [
+        r#"{"role":"assistant","content":null}"#,
+        r#"{"role":"assistant"}"#,
+    ] {
+        let result = answer_to(message).await;
+        assert!(
+            matches!(result, Err(crate::LlmError::InvalidResponse(_))),
+            "{message}: {result:?}"
+        );
+    }
+}
+
+// spec: TCL-13 (internal: the answer is served by the mock server of the provider's tests)
+#[tokio::test]
+async fn null_or_missing_arguments_are_an_empty_object() {
+    let response = answer_to(
+        r#"{"role":"assistant","tool_calls":[
+            {"id":"a","type":"function","function":{"name":"t","arguments":null}},
+            {"id":"b","type":"function","function":{"name":"t"}}]}"#,
+    )
+    .await
+    .unwrap();
+    let arguments: Vec<_> = response
+        .tool_calls
+        .iter()
+        .map(|c| c.arguments.as_str())
+        .collect();
+    assert_eq!(arguments, ["{}", "{}"]);
+}
+
+// spec: TCL-14 (internal: the answer is served by the mock server of the provider's tests)
+#[tokio::test]
+async fn calls_without_an_id_get_distinct_ones() {
+    let response = answer_to(
+        r#"{"role":"assistant","tool_calls":[
+            {"type":"function","function":{"name":"t","arguments":"{}"}},
+            {"id":"","type":"function","function":{"name":"t","arguments":"{}"}},
+            {"id":"call_0","type":"function","function":{"name":"t","arguments":"{}"}}]}"#,
+    )
+    .await
+    .unwrap();
+    let ids: std::collections::BTreeSet<_> =
+        response.tool_calls.iter().map(|c| c.id.as_str()).collect();
+    assert_eq!(ids.len(), 3, "{ids:?}");
+    assert!(!ids.contains(""), "{ids:?}");
+}

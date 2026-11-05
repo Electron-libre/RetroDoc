@@ -148,32 +148,18 @@ mod tests {
         assert_eq!(fake.language(), None);
     }
 
-    /// Answers one tool call and keeps the request it received.
-    #[derive(Default)]
-    struct Calling(std::sync::Mutex<Option<CompletionRequest>>);
-
-    #[async_trait]
-    impl LlmProvider for Calling {
-        async fn complete(
-            &self,
-            request: CompletionRequest,
-        ) -> Result<CompletionResponse, LlmError> {
-            *self.0.lock().unwrap() = Some(request);
-            Ok(CompletionResponse {
-                tool_calls: vec![retrodoc_llm::ToolCall {
-                    id: "call_1".to_string(),
-                    name: "list_domains".to_string(),
-                    arguments: "{}".to_string(),
-                }],
-                ..Default::default()
-            })
-        }
-    }
-
     // spec: TCL-8 (internal: the language wrapper lives in the pipeline, which no binary runs a tool loop through yet)
     #[tokio::test]
     async fn a_request_asked_in_a_language_keeps_its_tools_and_their_calls() {
-        let inner = Arc::new(Calling::default());
+        let call = retrodoc_llm::ToolCall {
+            id: "call_1".to_string(),
+            name: "list_domains".to_string(),
+            arguments: "{}".to_string(),
+        };
+        let inner = Arc::new(FakeLlm::scripted(vec![crate::testing::FakeTurn::Calls {
+            text: String::new(),
+            calls: vec![call],
+        }]));
         let llm = InLanguage::new(inner.clone(), "French");
         let tool = retrodoc_llm::ToolSpec {
             name: "list_domains".to_string(),
@@ -189,9 +175,7 @@ mod tests {
             .await
             .unwrap();
 
-        let sent = inner.0.lock().unwrap().take().unwrap();
-        assert_eq!(sent.tools.len(), 1);
-        assert_eq!(sent.tools[0].name, "list_domains");
+        assert_eq!(inner.tools(), [vec!["list_domains".to_string()]]);
         assert_eq!(response.tool_calls[0].id, "call_1");
     }
 }

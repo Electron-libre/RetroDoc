@@ -178,8 +178,9 @@ struct ApiResponseMessage {
     /// `null` or missing when the model only calls tools.
     #[serde(default)]
     content: Option<String>,
+    /// Missing, or `null` from some servers, when the model calls no tool.
     #[serde(default)]
-    tool_calls: Vec<ApiResponseToolCall>,
+    tool_calls: Option<Vec<ApiResponseToolCall>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -193,7 +194,8 @@ struct ApiResponseToolCall {
 struct ApiResponseFunction {
     name: String,
     /// A string holding JSON in the `OpenAI` format; some servers send the
-    /// object itself, kept as its JSON text.
+    /// object itself, kept as its JSON text. `null` or missing is `{}`, which
+    /// a server takes back in the history where an empty text is refused.
     #[serde(default)]
     arguments: serde_json::Value,
 }
@@ -202,7 +204,7 @@ impl From<ApiResponseToolCall> for ToolCall {
     fn from(call: ApiResponseToolCall) -> Self {
         let arguments = match call.function.arguments {
             serde_json::Value::String(text) => text,
-            serde_json::Value::Null => String::new(),
+            serde_json::Value::Null => "{}".to_string(),
             other => other.to_string(),
         };
         Self {
@@ -506,6 +508,12 @@ async fn decode_success(
              context length or shrink the prompt"
         );
     }
+    let tool_calls = tool_calls_with_ids(choice.message.tool_calls.unwrap_or_default());
+    if choice.message.content.is_none() && tool_calls.is_empty() {
+        return Err(LlmError::InvalidResponse(
+            "the answer holds no text and no tool call".to_string(),
+        ));
+    }
     let model = if parsed.model.is_empty() {
         requested_model.to_string()
     } else {
@@ -516,13 +524,28 @@ async fn decode_success(
         model,
         usage: usage::parse(parsed.usage),
         truncated,
-        tool_calls: choice
-            .message
-            .tool_calls
-            .into_iter()
-            .map(ToolCall::from)
-            .collect(),
+        tool_calls,
     })
+}
+
+/// The calls of an answer, each with an id: a server that sends none (or an
+/// empty one) gets one no other call of the answer has, so each result can
+/// name the call it answers.
+fn tool_calls_with_ids(calls: Vec<ApiResponseToolCall>) -> Vec<ToolCall> {
+    let mut calls: Vec<ToolCall> = calls.into_iter().map(ToolCall::from).collect();
+    let mut taken: std::collections::HashSet<String> =
+        calls.iter().map(|call| call.id.clone()).collect();
+    for (index, call) in calls.iter_mut().enumerate() {
+        if call.id.is_empty() {
+            let mut id = format!("call_{index}");
+            while taken.contains(&id) {
+                id.push('_');
+            }
+            taken.insert(id.clone());
+            call.id = id;
+        }
+    }
+    calls
 }
 
 /// Why a call did not give an answer.

@@ -18,8 +18,8 @@ type Reply = Box<dyn Fn(usize, &CompletionRequest) -> Result<FakeTurn, LlmError>
 pub enum FakeTurn {
     /// A text answer.
     Text(String),
-    /// Calls to tools, with an empty text.
-    Calls(Vec<ToolCall>),
+    /// Calls to tools, with the text some servers write next to them (often empty).
+    Calls { text: String, calls: Vec<ToolCall> },
 }
 
 /// Answers with what its reply function says, counts its calls and keeps the
@@ -29,6 +29,7 @@ pub struct FakeLlm {
     calls: AtomicUsize,
     prompts: Mutex<Vec<(String, String)>>,
     messages: Mutex<Vec<Vec<ChatMessage>>>,
+    tools: Mutex<Vec<Vec<String>>>,
     schemas: Mutex<Vec<Option<serde_json::Value>>>,
     model: String,
     /// How long a call takes (none: it answers at once), to make calls overlap.
@@ -78,6 +79,7 @@ impl FakeLlm {
             calls: AtomicUsize::new(0),
             prompts: Mutex::new(Vec::new()),
             messages: Mutex::new(Vec::new()),
+            tools: Mutex::new(Vec::new()),
             schemas: Mutex::new(Vec::new()),
             model: "test-model".to_string(),
             delay: None,
@@ -169,6 +171,11 @@ impl FakeLlm {
         self.messages.lock().unwrap().clone()
     }
 
+    /// The names of the tools each call received offered.
+    pub fn tools(&self) -> Vec<Vec<String>> {
+        self.tools.lock().unwrap().clone()
+    }
+
     /// The JSON schema each call received asked for, if any.
     pub fn schemas(&self) -> Vec<Option<serde_json::Value>> {
         self.schemas.lock().unwrap().clone()
@@ -203,13 +210,17 @@ impl LlmProvider for FakeLlm {
         };
         self.prompts.lock().unwrap().push((prompt(0), prompt(1)));
         self.messages.lock().unwrap().push(request.messages.clone());
+        self.tools
+            .lock()
+            .unwrap()
+            .push(request.tools.iter().map(|tool| tool.name.clone()).collect());
         self.schemas
             .lock()
             .unwrap()
             .push(request.json_schema.as_ref().map(|s| s.schema.clone()));
         let (mut content, tool_calls) = match (self.reply)(n, &request)? {
             FakeTurn::Text(text) => (text, Vec::new()),
-            FakeTurn::Calls(calls) => (String::new(), calls),
+            FakeTurn::Calls { text, calls } => (text, calls),
         };
         let truncated = self
             .truncate_over
@@ -322,17 +333,27 @@ mod tests {
             arguments: "{}".to_string(),
         };
         let llm = FakeLlm::scripted(vec![
-            FakeTurn::Calls(vec![call.clone()]),
+            FakeTurn::Calls {
+                text: "Let me look.".to_string(),
+                calls: vec![call.clone()],
+            },
             FakeTurn::Text("Billing.".to_string()),
         ]);
 
-        let first = llm.complete(request("s", "Which domains?")).await.unwrap();
+        let mut first_request = request("s", "Which domains?");
+        first_request.tools = vec![retrodoc_llm::ToolSpec {
+            name: "list_domains".to_string(),
+            description: "List the domains".to_string(),
+            parameters: serde_json::json!({"type": "object"}),
+        }];
+        let first = llm.complete(first_request).await.unwrap();
         assert_eq!(first.tool_calls, vec![call.clone()]);
-        assert_eq!(first.content, "");
+        assert_eq!(first.content, "Let me look.");
         let mut second = request("s", "Which domains?");
-        second
-            .messages
-            .push(ChatMessage::assistant_calls("", first.tool_calls));
+        second.messages.push(ChatMessage::assistant_calls(
+            first.content,
+            first.tool_calls,
+        ));
         second
             .messages
             .push(ChatMessage::tool_result("call_1", "- Billing"));
@@ -346,6 +367,7 @@ mod tests {
         assert_eq!(received[1][3].role, Role::Tool);
         assert_eq!(received[1][3].tool_call_id.as_deref(), Some("call_1"));
         assert_eq!(received[1][3].content, "- Billing");
+        assert_eq!(llm.tools(), [vec!["list_domains".to_string()], vec![]]);
     }
 }
 

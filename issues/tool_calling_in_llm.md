@@ -57,6 +57,9 @@ JSON-action fallback (ADR 0046: the local Ollama takes native tools, checked on 
    wire tests on the mock server and by wrapper tests; makes true TCL-1 to TCL-9. (autonomous)
 2. [x] `FakeLlm` scripts tool calls and records the full messages of each request; verified by its own test; makes
    true TCL-10. (autonomous)
+3. [x] Findings of the `high` review: a `null` `tool_calls`, a message with no text nor call, `null` arguments and a
+   missing id read safely; `FakeLlm` records the tools offered and scripts a text next to the calls; verified by wire
+   and fake tests; makes true TCL-11 to TCL-14. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -86,3 +89,19 @@ JSON-action fallback (ADR 0046: the local Ollama takes native tools, checked on 
 - Code review: no findings
 - red: TCL-10: `no associated function or constant named scripted found for struct FakeLlm`.
 - not verified: nothing.
+
+## Deliverable 3 summary
+- done: `tool_calls: null` read as none (TCL-11), no text and no call an invalid response again (TCL-12), `null`
+  arguments are `{}` (TCL-13), a call without an id gets a distinct one (TCL-14); `FakeLlm` records the tools offered
+  and `FakeTurn::Calls` carries a text; the language test uses `FakeLlm`. New issue
+  `issues/tool_loop_on_thinking_and_refusing_servers.md` for the `reasoning_content` of DeepSeek thinking mode and
+  the fallback loop on a refusal of tools.
+- checks: `project-check` passes.
+- Code review: no findings
+- red: TCL-11, TCL-12, TCL-13, TCL-14: `error decoding response body` on `tool_calls: null`, `Ok` with an empty text
+  for `content: null`, arguments `["", ""]`, ids `{"", "call_0"}`.
+- high review: 9 findings; fixed 1 (`null` `tool_calls`), 2 (`null` content without calls), 3 (`null` arguments),
+  6 (missing id), 7 (`FakeLlm` records tools), 9 (text next to calls); 4 (`reasoning_content`) and 5 (fallback on a
+  refusal of tools) to the new issue; 8 not fixed: `prompts` stays for its many callers, the clone of each history is
+  a test fake's cost on short loops.
+- not verified: nothing new.

@@ -34,6 +34,14 @@ the native OpenAI-compatible format, and each round is counted like any other ca
   its tokens, like a call without tools.
 - **TCL-10** (deterministic) The fake provider of the tests must answer a scripted sequence of tool calls and texts
   and record the messages of each request it received, tool calls and results included.
+- **TCL-11** (deterministic) An answer whose message holds `"tool_calls": null` must be read as an answer without
+  tool calls, not as an invalid response.
+- **TCL-12** (deterministic) An answer whose message has a `null` or missing `content` and no tool call must fail the
+  call as an invalid response.
+- **TCL-13** (deterministic) A tool call whose arguments are `null` or missing must reach the caller with the
+  arguments `{}`.
+- **TCL-14** (deterministic) A tool call without an id must reach the caller with an id no other call of the answer
+  has.
 
 ## Scenarios
 
