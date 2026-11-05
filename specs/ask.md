@@ -1,6 +1,6 @@
 ---
 id: ASK
-status: draft
+status: accepted
 adrs: [0016, 0046, 0047]
 ---
 

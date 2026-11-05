@@ -62,8 +62,8 @@ model. Out of scope: `chat`, misses fed to the debt report, answer quality, thin
 3. [x] `retrodoc ask` in `retrodoc-cli`: pass `ask` in `PASS_NAMES`, `[llm.passes.ask]`, `--max-rounds`, tokens in the
    recap, read-only, error before a first `generate`; architecture docs, commit scope `agent`; verified by binary
    tests with the fake HTTP server answering tool calls; makes true ASK-12 to ASK-16. (autonomous)
-4. [ ] Warnings: low confidence and stale files of the sources, from the read model; verified by unit tests and one
-   binary test; makes true ASK-10, ASK-11; spec `accepted`.
+4. [x] Warnings: low confidence and stale files of the sources, from the read model; verified by unit tests and one
+   binary test; makes true ASK-10, ASK-11; spec `accepted`. (autonomous)
 5. [ ] Docs of the whole issue and fixes of its `high` review.
 
 ## Decisions
@@ -105,3 +105,15 @@ model. Out of scope: `chat`, misses fed to the debt report, answer quality, thin
 - red: ASK-6, ASK-12, ASK-13, ASK-14, ASK-15, ASK-16: `error: unrecognized subcommand 'ask'`.
 - Code review: no findings
 - not verified: no real model call (a paid or local run is for the user to ask).
+
+## Deliverable 4 summary
+- done: `Warning` and `Docs::warnings_of` (`retrodoc-mcp`, `tools/sources.rs`): low confidence of the features and
+  use cases among the sources, then the files among them or cited by them changed since the generation, each once;
+  the agent sets them on `Answer` (off the async threads) and `render` prints them after the sources. Spec `ask`
+  accepted.
+- checks: tests ok, clippy ok, specs ok (accepted, all traced), docs updated (README, ARCHITECTURE §3,
+  `docs/crates/agent.md`, `render-mcp-cli.md`).
+- red: ASK-10, ASK-11, ASK-12: `left: None right: Some(LowConfidence { … confidence: 0.3 })`, `left: [] right:
+  [Stale { path: "app/mailer.rb", deleted: false }]`, and no `Warnings:` in the output of `retrodoc ask`.
+- Code review: no findings
+- not verified: no real model call.

@@ -30,4 +30,4 @@ pub use read_model::{GeneratedDocs, Sections, Uncovered};
 pub use retrodoc_ingest::ExistingDoc;
 pub use search::{Found, Hit, SearchIndex};
 pub use server::{serve_stdio, DocsServer, McpError};
-pub use tools::{Docs, Source, SourceKind};
+pub use tools::{Docs, Source, SourceKind, Warning};

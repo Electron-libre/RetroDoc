@@ -185,3 +185,36 @@ fn without_generated_docs_the_command_fails_before_any_call() {
     assert!(stderr.contains("retrodoc generate"), "{stderr}");
     assert!(llm.calls().is_empty());
 }
+
+// spec: ASK-10, ASK-11, ASK-12
+#[test]
+fn the_warnings_of_the_sources_are_printed_after_them() {
+    let llm = navigating();
+    let dir = generated_repo(&llm_section(&llm));
+    let mut features = retrodoc_pipeline::load_features(dir.path()).unwrap();
+    features[0].confidence = Some(retrodoc_core::model::ConfidenceScore::new(0.3, None));
+    retrodoc_pipeline::save_features(dir.path(), &features).unwrap();
+    let mut hashes = retrodoc_pipeline::SourceHashes::default();
+    hashes.put(
+        "app/order.rb",
+        &retrodoc_pipeline::cache::hash_content("class Order; end\n"),
+    );
+    hashes.save(dir.path()).unwrap();
+    std::fs::write(
+        dir.path().join("app/order.rb"),
+        "class Order; def x; end; end\n",
+    )
+    .unwrap();
+
+    let out = stdout(&run(dir.path(), &["ask", QUESTION]));
+
+    let sources = out.find("Sources:\n").unwrap_or_else(|| panic!("{out}"));
+    let warnings = out
+        .find(
+            "Warnings:\n\
+             - low confidence (30%) in feature `orders/list-orders`: the code may not back it\n\
+             - `app/order.rb` was modified since the docs were generated\n",
+        )
+        .unwrap_or_else(|| panic!("{out}"));
+    assert!(sources < warnings, "{out}");
+}

@@ -8,7 +8,7 @@ use std::sync::Arc;
 use retrodoc_llm::{
     ChatMessage, CompletionRequest, LlmError, LlmProvider, Role, ToolCall, ToolSpec,
 };
-use retrodoc_mcp::{read_tools, Docs, Source};
+use retrodoc_mcp::{read_tools, Docs, Source, Warning};
 
 /// Rounds of tool calls before the agent asks for the answer without tools, unless set otherwise:
 /// enough to go from a search to a use case and its code, few enough for a local model's context.
@@ -40,13 +40,15 @@ pub struct Answer {
     pub rounds: usize,
     /// What the answer rests on, checked against the tool results.
     pub sources: Vec<Source>,
+    /// What the sources warn of: low confidence, code changed since the docs.
+    pub warnings: Vec<Warning>,
 }
 
 /// The note of an answer with no source.
 pub const NO_SOURCE: &str = "No source of the docs backs this answer.";
 
 impl Answer {
-    /// The answer as the user reads it: its text, then its sources.
+    /// The answer as the user reads it: its text, then its sources, then their warnings.
     #[must_use]
     pub fn render(&self) -> String {
         let mut out = format!("{}\n", self.text.trim_end());
@@ -56,6 +58,12 @@ impl Answer {
             out.push_str("\nSources:\n");
             for source in &self.sources {
                 let _ = writeln!(out, "- {source}");
+            }
+        }
+        if !self.warnings.is_empty() {
+            out.push_str("\nWarnings:\n");
+            for warning in &self.warnings {
+                let _ = writeln!(out, "- {warning}");
             }
         }
         out
@@ -76,6 +84,14 @@ fn checked_sources(text: &str, tool_results: &[String], docs: &Docs) -> Vec<Sour
         }
     }
     sources
+}
+
+/// What `sources` warn of; hashing the files they cite reads them, off the async threads.
+async fn warnings_of(docs: &Arc<Docs>, sources: Vec<Source>) -> Vec<Warning> {
+    let docs = Arc::clone(docs);
+    tokio::task::spawn_blocking(move || docs.warnings_of(&sources))
+        .await
+        .unwrap_or_default()
 }
 
 /// The text of each inline code span (`` `x` ``) of `text`.
@@ -119,6 +135,7 @@ pub async fn ask(
             .await?;
         if !offer || response.tool_calls.is_empty() {
             answer.sources = checked_sources(&response.content, &answer.tool_results, &docs);
+            answer.warnings = warnings_of(&docs, answer.sources.clone()).await;
             answer.text = response.content;
             return Ok(answer);
         }

@@ -165,7 +165,7 @@ pub(super) fn snippet(text: &str) -> String {
     )
 }
 
-pub(super) fn percent(value: f32) -> String {
+pub(crate) fn percent(value: f32) -> String {
     format!("{:.0}%", value * 100.0)
 }
 

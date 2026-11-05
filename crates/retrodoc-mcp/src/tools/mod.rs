@@ -27,7 +27,7 @@ mod review;
 mod search_docs;
 mod sources;
 
-pub use sources::{Source, SourceKind};
+pub use sources::{Source, SourceKind, Warning};
 
 /// The generated documentation, loaded once (the server re-applies the edits when they change), and the
 /// bounded access to the
