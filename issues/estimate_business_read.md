@@ -65,3 +65,16 @@ EST-5 already require it.
 - red: EST-1, EST-5, TOK-7: `business-read estimated` / `business-read named` (no `business-read` line in the estimate).
 - Code review: 1 findings: business-read both listed and off with `business_read = false`; not fixed, EST-5 wants it named `off in this run` like `confidence`, its models left out by `render`.
 - not verified: a real run (the ratio row is the measured one; no paid run made).
+2. [x] Fixes of the `high` review: the joint reading off when the glossary and the entry points ask two models (it
+   makes no call then, EST-5 amended), its model that of the glossary, `business-read` in the embedded table test,
+   `estimated_passes` simplified; verified by `the_joint_reading_is_off_when_the_glossary_and_the_entry_points_ask_two_models`. (autonomous)
+
+## Deliverable 2 summary
+- done: fixes of the `high` review (8 findings).
+- red: EST-5: `business-read` line `6-21 call(s)…` without `off in this run` when the two models differ.
+- Code review: no findings
+- High review findings: 1, 2 (two models) fixed; 7 (table test) fixed; 8 (simplification) fixed; 3, 4 (recap
+  silent on a pass not estimated, order copied by hand) → `issues/recap_passes_not_estimated.md`; 5 (no role
+  rules or no business file: the run skips the pass, the estimate can't know it before the roles and the
+  business-files passes) not fixed, the recap shows it below the range, which is what TOK-7 is for; 6 (the CLI
+  test doesn't check the total) not fixed: the total is the sum the pipeline unit tests cover.

@@ -28,7 +28,7 @@ so that a costly run is seen before it is paid for. Tokens and calls only, no pr
 - **EST-5** (deterministic) A pass the run turns off must be estimated at zero: the confidence pass with
   `--no-confidence`, the rules pass with `[pipeline] rules = false`, the reconcile pass with `[pipeline] reconcile =
   false` or when the repo has no Markdown docs of its own, the business-read pass with `[pipeline] business_read =
-  false` (the glossary and the entry points then read their files apart, which no measured run did: they are named
+  false` or when the glossary and the entry points ask two models (the joint reading needs one) (the glossary and the entry points then read their files apart, which no measured run did: they are named
   as not measured, at zero).
 - **EST-6** (deterministic) With `--confidence-sample N`, the high bound of the confidence pass must add `N` calls,
   each costed at the measured tokens of one confidence call.

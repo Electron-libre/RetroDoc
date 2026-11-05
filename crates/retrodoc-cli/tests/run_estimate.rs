@@ -229,3 +229,27 @@ fn the_joint_reading_turned_off_is_estimated_off() {
         .expect("business-read named");
     assert!(line.contains("off in this run"), "{out}");
 }
+
+// spec: EST-5
+#[test]
+fn the_joint_reading_is_off_when_the_glossary_and_the_entry_points_ask_two_models() {
+    let llm = FakeLlm::start(|_| r#"{"domains":[]}"#.to_string());
+    let dir = repo_with_config(
+        FILES,
+        &format!(
+            "{}structured_output = false\n[llm.passes.entry-points]\nmodel = \"other\"\n",
+            llm_section(&llm)
+        ),
+    );
+
+    let out = stdout(&run(dir.path(), &["generate", "--estimate"]));
+
+    let line = |pass: &str| {
+        out.lines()
+            .find(|line| line.starts_with(&format!("  {pass} ")))
+            .unwrap_or_else(|| panic!("{pass} named: {out}"))
+            .to_string()
+    };
+    assert!(line("business-read").contains("off in this run"), "{out}");
+    assert!(line("glossary").contains("not measured"), "{out}");
+}

@@ -67,8 +67,9 @@ pub(super) fn print(
     if !config.pipeline.reconcile || ingest.existing_docs.is_empty() {
         off.push("reconcile");
     }
-    // Without the joint reading, the glossary and the entry points read their files apart: not measured.
-    let unmeasured: &[&str] = if config.pipeline.business_read {
+    // Without the joint reading, the glossary and the entry points read their files apart: not measured. It
+    // needs one model for both passes, else each reads alone.
+    let unmeasured: &[&str] = if joint_reading(config) {
         &[]
     } else {
         off.push(BUSINESS_READ);
@@ -98,36 +99,38 @@ pub(super) fn print(
 /// provider of its own, plus the joint reading of the business files (`business-read`), which calls the
 /// providers of the glossary and the entry points and runs before them.
 fn estimated_passes(contexts: bool) -> Vec<&'static str> {
-    GENERATE_PASSES
+    let mut passes: Vec<&str> = GENERATE_PASSES
         .iter()
         .copied()
         .filter(|&pass| contexts || pass != "contexts")
-        .flat_map(|pass| {
-            if pass == "glossary" {
-                vec![BUSINESS_READ, pass]
-            } else {
-                vec![pass]
-            }
-        })
-        .collect()
+        .collect();
+    if let Some(glossary) = passes.iter().position(|&pass| pass == "glossary") {
+        passes.insert(glossary, BUSINESS_READ);
+    }
+    passes
 }
 
-/// The model each pass asks; `business-read` asks those of the glossary and the entry points.
+/// Whether the run reads the business files once for the glossary and the entry points: on, and one model
+/// for both passes (`retrodoc_pipeline::read_business_files`).
+fn joint_reading(config: &Config) -> bool {
+    config.pipeline.business_read
+        && config.llm.for_pass("glossary").model == config.llm.for_pass("entry-points").model
+}
+
+/// The model each pass asks; `business-read` asks that of the glossary (the same as the entry points' when
+/// it runs).
 fn pass_models<'a>(config: &Config, passes: &[&'a str]) -> Vec<(&'a str, String)> {
-    let mut models = Vec::new();
-    for &pass in passes {
-        if pass == BUSINESS_READ {
-            for provider in ["glossary", "entry-points"] {
-                let model = config.llm.for_pass(provider).model;
-                if !models.contains(&(pass, model.clone())) {
-                    models.push((pass, model));
-                }
-            }
-        } else {
-            models.push((pass, config.llm.for_pass(pass).model));
-        }
-    }
-    models
+    passes
+        .iter()
+        .map(|&pass| {
+            let provider = if pass == BUSINESS_READ {
+                "glossary"
+            } else {
+                pass
+            };
+            (pass, config.llm.for_pass(provider).model)
+        })
+        .collect()
 }
 
 /// The source files of the walk, with the languages a saved `roles.yaml` promotes, as the run will see them.
