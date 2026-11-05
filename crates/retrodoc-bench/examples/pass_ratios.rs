@@ -9,12 +9,15 @@
 //! - `out.yaml`: where to write the table (default: printed), e.g.
 //!   `crates/retrodoc-pipeline/data/pass-ratios.yaml`.
 //!
+//! Also prints on stderr how the estimates the runs printed before their first call held
+//! (`estimate_report`, TOK-8): the table is rebuilt from the measured runs whatever they say.
+//!
 //! Exits with 2 when a run is no first complete `generate` or can't be read.
 
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use retrodoc_bench::pass_ratios::{measure_run, ratio_table, RunManifest};
+use retrodoc_bench::pass_ratios::{estimate_report, measure_run, ratio_table, RunManifest};
 
 const HEADER: &str = "# The calls and tokens of each LLM pass of `generate` per unit of its input, measured on \
 saved runs\n# (issues/done/pass_ratios_from_usage_history.md). Generated, do not edit: rebuild with\n# `cargo run -q -p \
@@ -57,6 +60,7 @@ fn main() -> ExitCode {
             }
         }
     }
+    eprint!("{}", estimate_report(&runs));
     let yaml = match ratio_table(&runs).to_yaml() {
         Ok(yaml) => format!("{HEADER}{yaml}"),
         Err(error) => {

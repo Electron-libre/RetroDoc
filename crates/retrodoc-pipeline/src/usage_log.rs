@@ -255,9 +255,9 @@ pub fn recap_against(report: &UsageReport, estimate: Option<&RunEstimate>) -> St
                 .find(|p| p.name == pass.pass)
                 .map(PassUsage::total)
                 .unwrap_or_default();
-            let estimated = pass.calls.high > 0
-                || pass.prompt_tokens.high > 0
-                || pass.completion_tokens.high > 0;
+            let estimated = pass.calls.above_zero()
+                || pass.prompt_tokens.above_zero()
+                || pass.completion_tokens.above_zero();
             (estimated || measured.calls > 0).then(|| {
                 let misses: Vec<String> = [
                     ("calls", measured.calls, pass.calls),
@@ -293,24 +293,16 @@ pub fn recap_against(report: &UsageReport, estimate: Option<&RunEstimate>) -> St
 
 /// `calls 360 above 300 (+20%)`, or `None` when `figure` is within `range`.
 fn miss(what: &str, figure: u64, range: Range) -> Option<String> {
-    let (side, bound) = if figure > range.high {
-        ("above", range.high)
-    } else if figure < range.low {
-        ("below", range.low)
-    } else {
-        return None;
-    };
-    let percent = if bound == 0 {
-        String::new()
-    } else {
-        #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
-        let percent = ((figure as f64 - bound as f64) / bound as f64 * 100.0).round() as i64;
-        format!(" ({percent:+}%)")
-    };
+    let miss = range.miss(figure)?;
+    let side = if miss.above { "above" } else { "below" };
+    let percent = miss
+        .percent
+        .map(|percent| format!(" ({percent:+}%)"))
+        .unwrap_or_default();
     Some(format!(
         "{what} {} {side} {}{percent}",
         thousands(figure),
-        thousands(bound)
+        thousands(miss.bound)
     ))
 }
 

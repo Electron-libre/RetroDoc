@@ -1,6 +1,6 @@
 ---
 id: TOK
-status: draft
+status: accepted
 adrs: [0015]
 ---
 

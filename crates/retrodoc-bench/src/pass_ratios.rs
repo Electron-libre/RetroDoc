@@ -20,6 +20,7 @@ use serde_yaml::Value;
 
 use crate::usage_log::{load_history, RunUsage};
 use retrodoc_pipeline::bench_support::reading::MAX_READ_CHARS_PER_FILE;
+use retrodoc_pipeline::estimate::{Range, RunEstimate};
 
 /// The runs to measure (a file kept next to them, outside git: it names their paths).
 #[derive(Debug, Clone, Deserialize)]
@@ -199,6 +200,9 @@ pub struct RunMeasure {
     /// In the order of the pipeline.
     pub passes: Vec<(String, PassCost)>,
     pub units: Units,
+    /// The estimate its `generate` printed before its first call (TOK-6); none in an older history, nor for a
+    /// resumed run, whose estimate covers its first `generate` only.
+    pub estimate: Option<RunEstimate>,
 }
 
 /// Measures one run.
@@ -289,6 +293,11 @@ pub fn measure_run(entry: &RunEntry) -> Result<RunMeasure, String> {
         models: models.into_iter().collect(),
         passes,
         units: count_units(&entry.path)?,
+        estimate: if generates.len() == 1 {
+            first.estimate.clone()
+        } else {
+            None
+        },
     })
 }
 
@@ -757,6 +766,82 @@ impl RatioTable {
     }
 }
 
+/// One figure of a pass over the runs: how many were compared, and the miss in percent of each that missed
+/// (`None` against a zero bound).
+type Held = (u64, Vec<Option<i64>>);
+
+/// How the estimates the measured runs printed before their first call held (TOK-8): per pass estimated or that
+/// made a call, for its calls, prompt tokens and completion tokens, how many runs fell within the range and the
+/// median miss of the others, in percent of the bound missed (a miss against a zero bound has none).
+#[must_use]
+pub fn estimate_report(runs: &[RunMeasure]) -> String {
+    let estimated: Vec<(&RunMeasure, &RunEstimate)> = runs
+        .iter()
+        .filter_map(|run| run.estimate.as_ref().map(|estimate| (run, estimate)))
+        .collect();
+    if estimated.is_empty() {
+        return "Estimates against the measured runs: none holds an estimate.\n".to_string();
+    }
+    let mut out = format!(
+        "Estimates against the measured runs ({} of {} runs hold one):\n",
+        estimated.len(),
+        runs.len()
+    );
+    // Per pass, in the order first met: per figure, the runs compared and the percents of their misses.
+    let mut rows: Vec<(&str, [Held; 3])> = Vec::new();
+    for (run, estimate) in &estimated {
+        for pass in &estimate.passes {
+            let cost = run
+                .passes
+                .iter()
+                .find(|(name, _)| *name == pass.pass)
+                .map(|(_, cost)| *cost)
+                .unwrap_or_default();
+            let figures: [(u64, Range); 3] = [
+                (cost.calls, pass.calls),
+                (cost.prompt_tokens, pass.prompt_tokens),
+                (cost.completion_tokens, pass.completion_tokens),
+            ];
+            if cost.calls == 0 && figures.iter().all(|(_, range)| !range.above_zero()) {
+                continue;
+            }
+            let index = rows
+                .iter()
+                .position(|(name, _)| *name == pass.pass)
+                .unwrap_or_else(|| {
+                    rows.push((pass.pass.as_str(), Default::default()));
+                    rows.len() - 1
+                });
+            for ((compared, misses), (figure, range)) in rows[index].1.iter_mut().zip(figures) {
+                *compared += 1;
+                if let Some(miss) = range.miss(figure) {
+                    misses.push(miss.percent);
+                }
+            }
+        }
+    }
+    let width = rows.iter().map(|(name, _)| name.len()).max().unwrap_or(0);
+    for (name, figures) in rows {
+        let cells: Vec<String> = ["calls", "tokens in", "tokens out"]
+            .into_iter()
+            .zip(figures)
+            .map(|(what, (compared, misses))| {
+                let within = compared - misses.len() as u64;
+                #[allow(clippy::cast_precision_loss)]
+                let percents: Vec<f64> = misses.iter().flatten().map(|&p| p as f64).collect();
+                let median = Spread::of(&percents).map_or(String::new(), |spread| {
+                    #[allow(clippy::cast_possible_truncation)]
+                    let median = spread.median.round() as i64;
+                    format!(" (median miss {median:+}%)")
+                });
+                format!("{what} {within}/{compared} within{median}")
+            })
+            .collect();
+        let _ = writeln!(out, "  {name:<width$}  {}", cells.join(", "));
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1072,5 +1157,61 @@ mod tests {
         assert_eq!(rules.applications.len(), 1);
         assert_eq!(rules.applications[0].runs, 1);
         assert_eq!(rules.per_unit.unwrap().calls.median, 2.0);
+    }
+
+    /// The first run, with an estimate of `use-cases` (it made 4 calls, 4,000 tokens in, 800 out).
+    fn estimated_run(calls: (u64, u64)) -> Vec<serde_json::Value> {
+        let mut history = first_run();
+        let range = |low: u64, high: u64| json!({"low": low, "high": high});
+        history[0]["estimate"] = json!({
+            "source_files": 4, "changed_files": null,
+            "passes": [
+                {"pass": "use-cases", "basis": "per-source-file", "calls": range(calls.0, calls.1),
+                 "prompt_tokens": range(1000, 5000), "completion_tokens": range(100, 400)},
+                {"pass": "rules", "basis": "off", "calls": range(0, 0), "prompt_tokens": range(0, 0),
+                 "completion_tokens": range(0, 0)}
+            ],
+            "calls": range(0, 0), "prompt_tokens": range(0, 0), "completion_tokens": range(0, 0)
+        });
+        history
+    }
+
+    // spec: TOK-8 (internal: a measuring example over saved runs, outside the binary)
+    #[test]
+    fn reports_how_the_estimates_of_the_measured_runs_held() {
+        let within = run_dir(&estimated_run((2, 6)));
+        let above = run_dir(&estimated_run((1, 2)));
+        let without = run_dir(&first_run());
+        let runs = [
+            measure_run(&entry(within.path(), "app")).unwrap(),
+            measure_run(&entry(above.path(), "app")).unwrap(),
+            measure_run(&entry(without.path(), "other")).unwrap(),
+        ];
+
+        let report = estimate_report(&runs);
+
+        assert!(
+            report.starts_with("Estimates against the measured runs (2 of 3 runs hold one):\n"),
+            "{report}"
+        );
+        assert!(
+            report.contains(
+                "use-cases  calls 1/2 within (median miss +100%), tokens in 2/2 within, \
+                 tokens out 0/2 within (median miss +100%)"
+            ),
+            "{report}"
+        );
+        assert!(!report.contains("rules"), "{report}");
+    }
+
+    // spec: TOK-8 (internal: a measuring example over saved runs, outside the binary)
+    #[test]
+    fn says_when_no_measured_run_holds_an_estimate() {
+        let dir = run_dir(&first_run());
+        let runs = [measure_run(&entry(dir.path(), "app")).unwrap()];
+        assert_eq!(
+            estimate_report(&runs),
+            "Estimates against the measured runs: none holds an estimate.\n"
+        );
     }
 }

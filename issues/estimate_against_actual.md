@@ -43,8 +43,8 @@ the table from the misses (it stays rebuilt by hand), an estimate for the other 
    true TOK-6 (~300 lines) (autonomous).
 2. [x] The recap of `generate` shows, per pass, within the range or the bound missed and the miss in percent;
    verified by unit tests of `recap` and the CLI test; makes true TOK-7 (~350 lines) (autonomous).
-3. [ ] The `pass_ratios` measuring example reports, per pass, the runs within range and the median miss of the
-   others, from the estimates of the measured runs; verified by tests of `pass_ratios`; makes true TOK-8 (~300 lines).
+3. [x] The `pass_ratios` measuring example reports, per pass, the runs within range and the median miss of the
+   others, from the estimates of the measured runs; verified by tests of `pass_ratios`; makes true TOK-8 (~300 lines) (autonomous).
 
 ## Decisions
 - Mode: autonomous
@@ -73,3 +73,13 @@ the table from the misses (it stays rebuilt by hand), an estimate for the other 
   before `recap_against` existed.
 - Code review: no findings (`low`).
 - not verified: the figures of a real paid run.
+
+## Deliverable 3
+- done: `RunMeasure::estimate` (the estimate of a run's first `generate`, none for a resumed run);
+  `pass_ratios::estimate_report` (per pass and figure: the runs within range, the median miss of the others), printed
+  on stderr by the example `pass_ratios`; `Range::miss` and `Miss` shared with the recap; `docs/crates/bench.md`,
+  `docs/dev/commands.md`.
+- checks: tests 12/12 of `pass_ratios`, `cardinal run project-check` green, docs updated; spec `accepted`.
+- Code review: no findings (`low`).
+- red: TOK-8: the two tests failed to compile (`cannot find function estimate_report`).
+- not verified: on the saved runs of `~/retrodoc-runs` (none holds an estimate yet: they predate deliverable 1).

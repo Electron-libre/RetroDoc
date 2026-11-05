@@ -137,6 +137,43 @@ impl Range {
         self.low += other.low;
         self.high += other.high;
     }
+
+    /// Whether the bounds allow anything above zero.
+    #[must_use]
+    pub fn above_zero(self) -> bool {
+        self.high > 0
+    }
+
+    /// How a measured `figure` missed the range: `None` within it.
+    #[must_use]
+    pub fn miss(self, figure: u64) -> Option<Miss> {
+        let (above, bound) = if figure > self.high {
+            (true, self.high)
+        } else if figure < self.low {
+            (false, self.low)
+        } else {
+            return None;
+        };
+        #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
+        let percent = (bound > 0)
+            .then(|| ((figure as f64 - bound as f64) / bound as f64 * 100.0).round() as i64);
+        Some(Miss {
+            above,
+            bound,
+            percent,
+        })
+    }
+}
+
+/// A measured figure out of its estimated range.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Miss {
+    /// Above the high bound, else below the low one.
+    pub above: bool,
+    /// The bound missed.
+    pub bound: u64,
+    /// The miss in percent of the bound, signed; `None` against a bound of zero.
+    pub percent: Option<i64>,
 }
 
 /// Why a pass is estimated as it is.
