@@ -113,3 +113,5 @@ Code review: 6 findings
 - the `!= BUSINESS_READ` filter: not fixed, one special case; a pair per entry waits for a second one.
 - `unlabelled` shows as `not estimated`: not fixed, calls outside any pass are not estimated either, and the
   recap above already names that bucket the same way.
+
+Done: all deliverables committed (2ce5aff, 403f1f5, be242f8); left: `issues/estimate_passes_of_the_run_path.md`.
