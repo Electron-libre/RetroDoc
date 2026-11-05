@@ -37,3 +37,31 @@ Pre-run cost estimate
 # Resources
 * `crates/retrodoc-cli/src/commands/generate/estimate.rs`, `crates/retrodoc-cli/src/commands/generate/mod.rs`
   (`GENERATE_PASSES`), `crates/retrodoc-pipeline/src/estimate.rs`, `specs/run-estimate.md`.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-05
+
+## Understanding
+The estimate lists the passes as `generate` tracks them: `business-read` inserted before `glossary`, estimated per
+source file from its ratio row, counted in the total, `off in this run` with `business_read = false`; its model is
+the one of `glossary` (and of `entry-points` when it differs), whose providers it calls. No spec change: EST-1 and
+EST-5 already require it.
+
+## Plan
+1. [x] Estimate `business-read`: the estimated passes built apart from `GENERATE_PASSES` in
+   `generate/estimate.rs`, `business-read` before `glossary`; verified by CLI tests in `tests/run_estimate.rs` (the
+   block names `business-read` with a range when on, `off in this run` with `business_read = false`, the recap sets
+   it against the estimate); makes true EST-1, EST-5, TOK-7. (autonomous)
+
+## Decisions
+- Mode: autonomous
+- Base commit: 4fd92251948eccb07ad1864ca247e589d9d8c970
+- Model shown for `business-read`: the one of `glossary`, plus the one of `entry-points` when it differs (1 a).
+
+## Deliverable 1 summary
+- done: `business-read` estimated before `glossary`, in the total and the recap comparison, `off in this run` with
+  `business_read = false`; its models are those of `glossary` and `entry-points`.
+- red: EST-1, EST-5, TOK-7: `business-read estimated` / `business-read named` (no `business-read` line in the estimate).
+- Code review: 1 findings: business-read both listed and off with `business_read = false`; not fixed, EST-5 wants it named `off in this run` like `confidence`, its models left out by `render`.
+- not verified: a real run (the ratio row is the measured one; no paid run made).

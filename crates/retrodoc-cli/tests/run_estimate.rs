@@ -186,3 +186,46 @@ fn the_recap_of_generate_sets_the_passes_against_the_estimate() {
     assert!(against.contains("  brief "), "{against}");
     assert!(!against.contains("confidence"), "{against}");
 }
+
+// spec: EST-1, TOK-7
+#[test]
+fn the_joint_reading_of_the_business_files_is_estimated_before_the_glossary() {
+    let llm = FakeLlm::start(|_| r#"{"domains":[]}"#.to_string());
+    let dir = repo(&llm);
+
+    let out = stdout(&run(dir.path(), &["generate", "--no-confidence"]));
+
+    let block = &out[out.find("LLM estimate: ").expect("an estimate")..];
+    let line = block
+        .lines()
+        .find(|line| line.starts_with("  business-read "))
+        .expect("business-read estimated");
+    assert!(line.contains("call(s)"), "{block}");
+    let read = block.find("  business-read ").unwrap();
+    let glossary = block.find("  glossary ").expect("glossary estimated");
+    assert!(read < glossary, "{block}");
+    let recap = &out[out.find("LLM usage: ").expect("a recap")..];
+    let against = &recap[recap.find("Against the estimate:").expect("the comparison")..];
+    assert!(against.contains("    business-read "), "{against}");
+}
+
+// spec: EST-5
+#[test]
+fn the_joint_reading_turned_off_is_estimated_off() {
+    let llm = FakeLlm::start(|_| r#"{"domains":[]}"#.to_string());
+    let dir = repo_with_config(
+        FILES,
+        &format!(
+            "{}structured_output = false\n[pipeline]\nbusiness_read = false\n",
+            llm_section(&llm)
+        ),
+    );
+
+    let out = stdout(&run(dir.path(), &["generate", "--estimate"]));
+
+    let line = out
+        .lines()
+        .find(|line| line.starts_with("  business-read "))
+        .expect("business-read named");
+    assert!(line.contains("off in this run"), "{out}");
+}

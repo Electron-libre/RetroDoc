@@ -11,6 +11,9 @@ use retrodoc_pipeline::{Artifact, RoleRules, SourceHashes};
 
 use super::{Confidence, GenerateOptions, GENERATE_PASSES};
 
+/// The joint reading of the business files, tracked as a pass of its own.
+const BUSINESS_READ: &str = "business-read";
+
 /// The fixed passes and the artifact a rerun reuses them from. `domains` is left out: it is redone
 /// whenever a file changed.
 const FIXED_ARTIFACTS: &[(&str, Artifact)] = &[
@@ -30,11 +33,7 @@ pub(super) fn print(
     ingest: &IngestResult,
 ) -> RunEstimate {
     let contexts = config.pipeline.domains_from == DomainsFrom::Contexts;
-    let passes: Vec<&str> = GENERATE_PASSES
-        .iter()
-        .copied()
-        .filter(|&pass| contexts || pass != "contexts")
-        .collect();
+    let passes = estimated_passes(contexts);
     let sources = source_files(repo_root, ingest);
     let budget = options.max_files.or(config.ingest.max_files);
     // On the surface path the passes still read every entry point whatever the budget; with the contexts,
@@ -72,7 +71,7 @@ pub(super) fn print(
     let unmeasured: &[&str] = if config.pipeline.business_read {
         &[]
     } else {
-        off.push("business-read");
+        off.push(BUSINESS_READ);
         &["glossary", "entry-points"]
     };
     let confidence_sample = match options.confidence {
@@ -89,13 +88,46 @@ pub(super) fn print(
         confidence_sample,
     };
     let table = RatioTable::embedded();
-    let models: Vec<(&str, String)> = passes
-        .iter()
-        .map(|&pass| (pass, config.llm.for_pass(pass).model))
-        .collect();
+    let models = pass_models(config, &passes);
     let estimate = estimate(&inputs, table);
     print!("{}", estimate.render(&models, table));
     estimate
+}
+
+/// The LLM passes of the run in the order `generate` tracks them: those of `GENERATE_PASSES`, each with a
+/// provider of its own, plus the joint reading of the business files (`business-read`), which calls the
+/// providers of the glossary and the entry points and runs before them.
+fn estimated_passes(contexts: bool) -> Vec<&'static str> {
+    GENERATE_PASSES
+        .iter()
+        .copied()
+        .filter(|&pass| contexts || pass != "contexts")
+        .flat_map(|pass| {
+            if pass == "glossary" {
+                vec![BUSINESS_READ, pass]
+            } else {
+                vec![pass]
+            }
+        })
+        .collect()
+}
+
+/// The model each pass asks; `business-read` asks those of the glossary and the entry points.
+fn pass_models<'a>(config: &Config, passes: &[&'a str]) -> Vec<(&'a str, String)> {
+    let mut models = Vec::new();
+    for &pass in passes {
+        if pass == BUSINESS_READ {
+            for provider in ["glossary", "entry-points"] {
+                let model = config.llm.for_pass(provider).model;
+                if !models.contains(&(pass, model.clone())) {
+                    models.push((pass, model));
+                }
+            }
+        } else {
+            models.push((pass, config.llm.for_pass(pass).model));
+        }
+    }
+    models
 }
 
 /// The source files of the walk, with the languages a saved `roles.yaml` promotes, as the run will see them.
