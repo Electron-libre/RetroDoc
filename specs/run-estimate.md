@@ -19,24 +19,29 @@ so that a costly run is seen before it is paid for. Tokens and calls only, no pr
 - **EST-2** (deterministic) `generate --estimate` must print the estimate and stop: no LLM call, no file written
   under `.retrodoc/` nor under the docs dir.
 - **EST-3** (deterministic) The estimate must be computed without any LLM call, from what the run knows before it:
-  the source files the walk found within the file budget (`--max-files`, `ingest.max_files`), whether the repo has
-  Markdown docs of its own, the settings of the run, and the ratios of the measured table.
+  the source files the walk found, with the languages a saved `roles.yaml` promotes (within the file budget on the
+  `domains_from = "contexts"` path only: on the surface path every entry point is read whatever the budget), whether
+  the repo has Markdown docs of its own, the settings of the run, and the ratios of the measured table.
 - **EST-4** (deterministic) A pass that scales with its input must be estimated as the number of source files to
   read times its measured cost per source file, its bounds the lowest and the highest application of the table; a
   fixed-cost pass as its cost per run, with the same bounds.
 - **EST-5** (deterministic) A pass the run turns off must be estimated at zero: the confidence pass with
   `--no-confidence`, the rules pass with `[pipeline] rules = false`, the reconcile pass with `[pipeline] reconcile =
-  false` or when the repo has no Markdown docs of its own.
+  false` or when the repo has no Markdown docs of its own, the business-read pass with `[pipeline] business_read =
+  false` (the glossary and the entry points then read their files apart, which no measured run did: they are named
+  as not measured, at zero).
 - **EST-6** (deterministic) With `--confidence-sample N`, the high bound of the confidence pass must add `N` calls,
   each costed at the measured tokens of one confidence call.
 - **EST-7** (deterministic) The estimate must be zero calls and zero tokens for every pass on a rerun without
   `--force` whose source files all have the hash saved by the last complete `generate`.
 - **EST-8** (deterministic) The estimate must cost the passes that scale with their input on the changed files only
   on a rerun without `--force` where some source files changed, were added or were removed since the last complete
-  `generate`, and a fixed-cost pass at zero when its saved artifact exists.
+  `generate`, and a fixed-cost pass from zero when its saved artifact exists (reused while its own fingerprint
+  holds, which the estimate can't tell).
 - **EST-9** (deterministic) The printed estimate must say that its figures are extrapolated from measured ratios,
-  name the model of each pass when it is not the model the ratios were measured with, and name any pass the table
-  has no ratio for (estimated at zero calls).
+  name the models that answered the measured runs next to the models the run asks (a server may answer under
+  another name than the one asked, so they are not compared), and name any pass the table has no ratio for
+  (estimated at zero calls).
 - **EST-10** (deterministic) The table of ratios must be embedded in the binary: a missing or unreadable table is a
   build or test failure, never a run-time one.
 
@@ -52,7 +57,7 @@ so that a costly run is seen before it is paid for. Tokens and calls only, no pr
 - (EST-7) Given a `generate` that went through every pass and nothing changed since, when `generate --estimate`
   runs, then every pass and the total are at zero.
 - (EST-8) Given 10 of 200 source files changed since the last complete run, when the estimate is made, then the
-  passes that scale are estimated on 10 files and `brief` is at zero.
+  passes that scale are estimated on 10 files and `brief` from zero calls.
 
 ## Non-goals
 

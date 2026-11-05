@@ -75,7 +75,9 @@ Behaviors that span passes:
   (`docs/crates/bench.md`), never edited by hand.
 - `estimate.rs`: the pre-run estimate (`specs/run-estimate.md`), no LLM: `estimate` gives each pass of the run a
   low and a high bound of calls, prompt and completion tokens from `EstimateInputs` (the source files to read, those
-  changed since the last complete run, the fixed passes whose artifact is saved, the passes turned off,
-  `--confidence-sample`) and the table above, embedded (`RatioTable::embedded`): a scaling pass at its cost per
-  source file, a fixed one at its cost per run, between the lowest and the highest application; a pass the table
-  doesn't know is `Basis::Unmeasured`, at zero.
+  changed since the last complete run, the fixed passes whose artifact is saved, the passes turned off or run
+  otherwise than measured, `--confidence-sample`) and the table above, embedded (`RatioTable::embedded`): a scaling
+  pass at its cost per source file, a fixed one at its cost per run (from zero when its artifact is saved, all zero
+  when no file changed), between the lowest and the highest application; a pass the table doesn't know is
+  `Basis::Unmeasured`, at zero. `RunEstimate::render` shows the models that answered the measured runs next to
+  those the run asks, without comparing them (a server may answer under another name).

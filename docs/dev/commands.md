@@ -43,6 +43,7 @@ Manual CLI smoke test (no real OpenRouter call needed to check the error path):
 ```sh
 cargo run -p retrodoc-cli -- init --path <target-repo>
 cargo run -p retrodoc-cli -- scan --path <target-repo>
+cargo run -p retrodoc-cli -- generate --path <target-repo> --estimate   # calls and tokens expected, no LLM call
 OPENROUTER_API_KEY=... cargo run -p retrodoc-cli -- generate --path <target-repo>
 cargo run -p retrodoc-cli -- ui --path <target-repo>   # then open the URL it prints (127.0.0.1:8730)
 ```

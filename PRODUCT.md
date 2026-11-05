@@ -48,7 +48,7 @@ debt nobody has time to pay.
 | Functional documentation: domains → features → use cases (narrative, steps, actors) → business rules → diagrams | yes | |
 | Confidence score per section and documentation debt report (gaps, low confidence, undocumented behaviours) | yes | |
 | Reconciliation with the existing docs: covered, contradicted or undocumented items | yes | |
-| Incremental rerun, resume, cost recap per pass | yes | pre-run cost estimate |
+| Incremental rerun, resume, cost recap per pass, pre-run estimate of calls and tokens | yes | |
 | Large applications documented one bounded context at a time | yes | |
 | Read-only MCP server and lexical search over the generated docs, for agents | yes | |
 | Generated docs written in a chosen language (`[output] language`), headings and web interface in English or French | yes | fixed text in other languages, coverage report, CLI and MCP text |

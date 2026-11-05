@@ -61,6 +61,7 @@ Means: each pass that scales is costed per source file (one measured range per p
 3. [x] `generate`: the estimate printed before the first call, `--estimate` that stops there, the rerun inputs read
    from `source-hashes.json` and the saved artifacts; docs; verified by CLI tests; makes true EST-1, EST-2, EST-3,
    EST-9 (autonomous).
+4. [x] Docs of the whole issue and fixes of its `high` review (autonomous).
 
 ## Decisions
 - Mode: autonomous
@@ -105,3 +106,20 @@ Means: each pass that scales is costed per source file (one measured range per p
   `LLM estimate:` in the output); the code was written before them, the red checked after.
 - not verified: the bounds against a real paid run (`issues/estimate_against_actual.md`); the contexts path has no
   test of its own (its budget and its unmeasured `contexts` pass, unit-tested only).
+
+## Review of the whole issue (`high`)
+Code review: 9 findings.
+- Fixed: the model asked (`deepseek-chat`) and the one the server answers with (`deepseek-flash`) are shown side by
+  side, no longer compared (EST-9 amended); the source files count the languages a saved `roles.yaml` promotes; the
+  budget no longer cuts the surface path, whose passes read every entry point (EST-3 amended); `business_read =
+  false` turns `business-read` off and names `glossary` and `entry-points` unmeasured (EST-5); a saved fixed
+  artifact gives its pass a range from zero, its fingerprint deciding (EST-8 amended); the files removed free their
+  room in the budget; `Shown` and `RunEstimate::unmeasured` removed (the estimate carries its counts).
+- Not fixed: the saved source files hashed again at start: the estimate of a rerun needs them, a read of the tree
+  with no LLM call; the bench reads `source-hashes.json` untyped like the other artifacts of the module, on purpose
+  (older formats), and malformed JSON is already an error.
+- Docs of the whole issue: `PRODUCT.md` (capability), `docs/findings.md` §3 point 5, `ARCHITECTURE.md` §3,
+  `docs/dev/commands.md`.
+- checks: tests 9/9 of `estimate`, 5/5 of `run_estimate`, `cardinal run project-check` green.
+- red: EST-3: the new budget test fails before the fix (`1 source file(s) to read`).
+- Fixes reviewed (`low`): Code review: no findings.

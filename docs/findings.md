@@ -234,7 +234,9 @@ Directions:
    repo map pass's expected calls and characters up front (`estimate_repo_map`, from the caches; exact on a first
    run, a lower bound for directories afterwards; the later passes depend on its output, so they are not
    estimated). 2026-11-05: removed with the repo map pass (`d5255d5`); nothing estimates a run any more, the
-   milestone "Pre-run cost estimate" of `ROADMAP.md` brings it back for the whole pipeline. A failed LLM call in the features or use cases pass now saves the units done so far (unreached
+   milestone "Pre-run cost estimate" of `ROADMAP.md` brings it back for the whole pipeline. 2026-11-05: delivered
+   (`specs/run-estimate.md`): `generate` prints the range of calls and tokens of every pass before its first call,
+   `--estimate` alone. A failed LLM call in the features or use cases pass now saves the units done so far (unreached
    units keep their previous results), so the rerun resumes there.
 6. ~~Directory summaries regenerated on every run~~ — **delivered**: cached in `repo-map.json` by the hash of
    the listing sent to the LLM (children's summaries), so a changed file only invalidates its folder and

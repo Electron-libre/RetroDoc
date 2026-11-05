@@ -71,6 +71,20 @@ fn estimate_prints_the_estimate_and_stops_before_any_call_or_write() {
     assert!(!out.contains("LLM usage"), "{out}");
 }
 
+// spec: EST-3
+#[test]
+fn the_budget_does_not_cut_the_files_of_the_surface_path() {
+    let llm = FakeLlm::start(|_| r#"{"domains":[]}"#.to_string());
+    let dir = repo(&llm);
+
+    let out = stdout(&run(
+        dir.path(),
+        &["generate", "--estimate", "--max-files", "1"],
+    ));
+
+    assert!(out.contains("(2 source file(s) to read)"), "{out}");
+}
+
 // spec: EST-1, EST-9
 #[test]
 fn generate_prints_the_estimate_before_its_first_call() {
@@ -93,13 +107,10 @@ fn generate_prints_the_estimate_before_its_first_call() {
         "{block}"
     );
     assert!(
-        block.contains("Extrapolated from the calls and tokens measured"),
+        block.contains("Extrapolated from the calls and tokens of saved runs"),
         "{block}"
     );
-    assert!(
-        block.contains("Run on fake, not the measured model: every pass."),
-        "{block}"
-    );
+    assert!(block.contains("this run asks fake."), "{block}");
 }
 
 // spec: EST-7, EST-3

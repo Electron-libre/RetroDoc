@@ -5,11 +5,10 @@
 use std::path::{Path, PathBuf};
 
 use retrodoc_core::config::{Config, DomainsFrom};
-use retrodoc_ingest::IngestResult;
-use retrodoc_pipeline::estimate::{estimate, EstimateInputs, RatioTable, Shown};
-use retrodoc_pipeline::{Artifact, SourceHashes};
+use retrodoc_ingest::{FileKind, IngestResult};
+use retrodoc_pipeline::estimate::{estimate, EstimateInputs, RatioTable};
+use retrodoc_pipeline::{Artifact, RoleRules, SourceHashes};
 
-use super::super::workspace::source_paths;
 use super::{Confidence, GenerateOptions, GENERATE_PASSES};
 
 /// The fixed passes and the artifact a rerun reuses them from. `domains` is left out: it is redone
@@ -35,20 +34,22 @@ pub(super) fn print(
         .copied()
         .filter(|&pass| contexts || pass != "contexts")
         .collect();
-    let walked = source_paths(ingest).count();
+    let sources = source_files(repo_root, ingest);
     let budget = options.max_files.or(config.ingest.max_files);
-    let budget = if contexts {
-        Some(budget.unwrap_or(super::contexts::DEFAULT_RUN_FILES))
+    // On the surface path the passes still read every entry point whatever the budget; with the contexts,
+    // the budget is what one run reads, a slice of its own.
+    let source_files = if contexts {
+        sources
+            .len()
+            .min(budget.unwrap_or(super::contexts::DEFAULT_RUN_FILES))
     } else {
-        budget
+        sources.len()
     };
-    let source_files = budget.map_or(walked, |budget| walked.min(budget));
     let changed_files = if options.force {
         None
     } else {
-        // With the contexts, each run reads a slice of its own: the budget is not shared with the saved files.
-        let shared_budget = if contexts { None } else { budget };
-        changed_since_last_run(repo_root, ingest, shared_budget).map(|n| n.min(source_files))
+        changed_since_last_run(repo_root, &sources, if contexts { None } else { budget })
+            .map(|n| n.min(source_files))
     };
     let saved_fixed: Vec<&str> = FIXED_ARTIFACTS
         .iter()
@@ -66,6 +67,13 @@ pub(super) fn print(
     if !config.pipeline.reconcile || ingest.existing_docs.is_empty() {
         off.push("reconcile");
     }
+    // Without the joint reading, the glossary and the entry points read their files apart: not measured.
+    let unmeasured: &[&str] = if config.pipeline.business_read {
+        &[]
+    } else {
+        off.push("business-read");
+        &["glossary", "entry-points"]
+    };
     let confidence_sample = match options.confidence {
         Confidence::Sample(sample) => sample,
         Confidence::Skip => None,
@@ -76,6 +84,7 @@ pub(super) fn print(
         changed_files,
         saved_fixed: &saved_fixed,
         off: &off,
+        unmeasured,
         confidence_sample,
     };
     let table = RatioTable::embedded();
@@ -83,19 +92,27 @@ pub(super) fn print(
         .iter()
         .map(|&pass| (pass, config.llm.for_pass(pass).model))
         .collect();
-    let shown = Shown {
-        source_files,
-        changed_files,
-        models: &models,
-    };
-    print!("{}", estimate(&inputs, table).render(&shown, table));
+    print!("{}", estimate(&inputs, table).render(&models, table));
+}
+
+/// The source files of the walk, with the languages a saved `roles.yaml` promotes, as the run will see them.
+fn source_files(repo_root: &Path, ingest: &IngestResult) -> Vec<PathBuf> {
+    let mut files = ingest.files.clone();
+    if let Some(rules) = RoleRules::load(repo_root) {
+        super::super::roles::promote_sources(&rules, &mut files);
+    }
+    files
+        .into_iter()
+        .filter(|file| file.kind == FileKind::Source)
+        .map(|file| file.path)
+        .collect()
 }
 
 /// The source files changed, removed or added since the last complete `generate`; `None` when there was
-/// none. A file added counts within the room `budget` leaves besides the saved files.
+/// none. A file added counts within the room `budget` leaves besides the saved files still there.
 fn changed_since_last_run(
     repo_root: &Path,
-    ingest: &IngestResult,
+    sources: &[PathBuf],
     budget: Option<usize>,
 ) -> Option<usize> {
     if !Artifact::SourceHashes.path(repo_root).is_file() {
@@ -110,11 +127,15 @@ fn changed_since_last_run(
         .paths()
         .filter(|path| now.get(path) != saved.get(path))
         .count();
-    let added = source_paths(ingest)
+    let removed = saved.paths().filter(|path| now.get(path).is_none()).count();
+    let added = sources
+        .iter()
         .filter(|path| saved.get(&path.to_string_lossy()).is_none())
         .count();
     let room = budget.map_or(added, |budget| {
-        budget.saturating_sub(saved_paths.len()).min(added)
+        budget
+            .saturating_sub(saved_paths.len() - removed)
+            .min(added)
     });
     Some(changed + room)
 }
