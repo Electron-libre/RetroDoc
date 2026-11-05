@@ -4,7 +4,7 @@ The agent of `retrodoc ask` ([ADR 0047](../adr/0047-the-ask-agent-is-a-crate-ove
 `specs/ask.md`). `ask` sends the question with a system prompt and offers the seven read-only tools of
 `retrodoc_mcp::catalog` (`read_tools`, never a writing one). Each tool call is answered by `Docs::call_read_tool`,
 the call the MCP server makes, run off the async threads; a call to an unknown tool or with arguments the tool
-refuses gets the error as its result, so the model can correct it. `ask_with` takes the tools offered:
+refuses gets the error as its result, so the model can correct it. The calls of a round go back in the history with the reasoning of the answer that made them, if the model wrote one (a thinking model, TCL-19). `ask_with` takes the tools offered:
 `Tools::DocsOnly` (the `ask_replay` measure of `retrodoc-bench`) leaves out `read_source` and `git_log`, the sentence
 of the system prompt that names them, and answers a call to a tool not offered with the names of the offered ones (ASK-21). The first answer without tool calls is the
 answer. After `max_rounds` rounds of calls (`DEFAULT_MAX_ROUNDS`, 8) one last request offers no tool and asks for the

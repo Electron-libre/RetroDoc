@@ -54,6 +54,10 @@ struct ApiMessage<'a> {
     tool_calls: Vec<ApiToolCall<'a>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     tool_call_id: Option<&'a str>,
+    /// The reasoning a thinking model gave with its calls, sent back only
+    /// when it gave one (TCL-18).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reasoning_content: Option<&'a str>,
 }
 
 impl<'a> ApiMessage<'a> {
@@ -75,6 +79,7 @@ impl<'a> ApiMessage<'a> {
                 })
                 .collect(),
             tool_call_id: message.tool_call_id.as_deref(),
+            reasoning_content: message.reasoning.as_deref(),
         }
     }
 }
@@ -181,6 +186,9 @@ struct ApiResponseMessage {
     /// Missing, or `null` from some servers, when the model calls no tool.
     #[serde(default)]
     tool_calls: Option<Vec<ApiResponseToolCall>>,
+    /// The reasoning of a thinking model (`DeepSeek`), to give back with the calls.
+    #[serde(default)]
+    reasoning_content: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -532,6 +540,7 @@ async fn decode_success(
         usage: usage::parse(parsed.usage),
         truncated,
         tool_calls,
+        reasoning: choice.message.reasoning_content.filter(|r| !r.is_empty()),
     })
 }
 

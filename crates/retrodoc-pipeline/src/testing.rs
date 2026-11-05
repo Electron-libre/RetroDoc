@@ -20,6 +20,11 @@ pub enum FakeTurn {
     Text(String),
     /// Calls to tools, with the text some servers write next to them (often empty).
     Calls { text: String, calls: Vec<ToolCall> },
+    /// Calls to tools with the reasoning a thinking model wrote before them, and no text.
+    Reasoned {
+        reasoning: String,
+        calls: Vec<ToolCall>,
+    },
     /// A failed call, like a dropped connection.
     Fail,
 }
@@ -220,9 +225,10 @@ impl LlmProvider for FakeLlm {
             .lock()
             .unwrap()
             .push(request.json_schema.as_ref().map(|s| s.schema.clone()));
-        let (mut content, tool_calls) = match (self.reply)(n, &request)? {
-            FakeTurn::Text(text) => (text, Vec::new()),
-            FakeTurn::Calls { text, calls } => (text, calls),
+        let (mut content, tool_calls, reasoning) = match (self.reply)(n, &request)? {
+            FakeTurn::Text(text) => (text, Vec::new(), None),
+            FakeTurn::Calls { text, calls } => (text, calls, None),
+            FakeTurn::Reasoned { reasoning, calls } => (String::new(), calls, Some(reasoning)),
             FakeTurn::Fail => return Err(LlmError::Transport("down".to_string())),
         };
         let truncated = self
@@ -236,6 +242,7 @@ impl LlmProvider for FakeLlm {
             model: self.model.clone(),
             truncated,
             tool_calls,
+            reasoning,
             ..Default::default()
         })
     }

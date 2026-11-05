@@ -240,10 +240,10 @@ pub async fn ask_with(
             return Ok(answer);
         }
         answer.rounds += 1;
-        messages.push(ChatMessage::assistant_calls(
-            response.content,
-            response.tool_calls.clone(),
-        ));
+        messages.push(
+            ChatMessage::assistant_calls(response.content, response.tool_calls.clone())
+                .with_reasoning(response.reasoning),
+        );
         for call in response.tool_calls {
             // All the tools: the tool's own error names an unknown one. Some: say which are offered.
             let result = if offered == Tools::All || tools.iter().any(|t| t.name == call.name) {

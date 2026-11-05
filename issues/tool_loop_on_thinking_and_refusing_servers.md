@@ -55,10 +55,10 @@ with its calls. Out of scope: a text protocol for servers without tools (ADR 004
 1. [x] Refusal of tools: `complete` skips the fallback when the request offers tools and the 400/404/422 body names
    the tools, and the error says the model or server refuses tools; verified by fake-server tests in
    `openrouter/tests/fallbacks.rs`; makes true TCL-15, TCL-16. (autonomous)
-2. [ ] Reasoning given back: an optional `reasoning` in `CompletionResponse` and `ChatMessage`, read from
+2. [x] Reasoning given back: an optional `reasoning` in `CompletionResponse` and `ChatMessage`, read from
    `reasoning_content`, sent back only when set, carried by the agent of `ask`; verified by fake-server tests in
    `openrouter/tests/tools.rs` and a fake-provider test of the agent, then one real tool loop on a DeepSeek thinking
-   model (cents); makes true TCL-17, TCL-18, TCL-19.
+   model (cents); makes true TCL-17, TCL-18, TCL-19. (autonomous)
 
 ## Deliverable 1
 
@@ -68,6 +68,17 @@ with its calls. Out of scope: a text protocol for servers without tools (ADR 004
 - Code review: 1 finding: a body naming the tools and a parameter (the pair refused) skipped the fallback; fixed,
   such a body is left to the fallback (test with `response_format is not supported together with tools`).
 - not verified: on a real Ollama or OpenRouter refusal (bodies taken from the issue's findings).
+
+## Deliverable 2
+
+- done: `CompletionResponse.reasoning` read from `reasoning_content`, `ChatMessage::with_reasoning` sends it back
+  only when set, the agent of `ask` gives it back with each round's calls; `FakeTurn::Reasoned` in the fake provider.
+- red: TCL-17, TCL-18, TCL-19: `no field reasoning on type CompletionResponse`, `no method with_reasoning`.
+- real check: `retrodoc ask` on a copy of the saved linkding run with `deepseek-reasoner`: 8 tool rounds and an
+  answer with 14 sources, 9 calls, < $0.01 (ledger).
+- Code review: no findings (a note that the two crate docs cite different ids: by design, TCL-19 is the agent's).
+- not verified: that `deepseek-reasoner` sent a `reasoning_content` in that loop (the body is not logged), so whether
+  it refuses a round without one is still unknown.
 
 ## Decisions
 - Mode: autonomous

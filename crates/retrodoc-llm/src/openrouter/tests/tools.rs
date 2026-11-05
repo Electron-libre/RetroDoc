@@ -218,3 +218,52 @@ async fn calls_without_an_id_get_distinct_ones() {
     assert_eq!(ids.len(), 3, "{ids:?}");
     assert!(!ids.contains(""), "{ids:?}");
 }
+
+// spec: TCL-17 (internal: the answer is served by the mock server of the provider's tests)
+#[tokio::test]
+async fn the_reasoning_of_an_answer_reaches_the_caller_with_its_calls() {
+    let (_, response) = exchange(
+        CompletionRequest {
+            tools: vec![list_domains()],
+            ..request()
+        },
+        r#"{"model":"m","choices":[{"finish_reason":"tool_calls","message":{"role":"assistant","content":"",
+            "reasoning_content":"look up the domains",
+            "tool_calls":[{"id":"call_1","type":"function","function":{"name":"list_domains","arguments":"{}"}}]}}]}"#,
+    )
+    .await;
+
+    assert_eq!(response.reasoning.as_deref(), Some("look up the domains"));
+    assert_eq!(response.tool_calls.len(), 1);
+}
+
+// spec: TCL-18 (internal: the wire body is only visible to the mock server of the provider's tests)
+#[tokio::test]
+async fn the_reasoning_of_an_assistant_message_is_sent_back_only_when_it_has_one() {
+    let call = ToolCall {
+        id: "call_1".to_string(),
+        name: "list_domains".to_string(),
+        arguments: "{}".to_string(),
+    };
+    let (body, _) = exchange(
+        CompletionRequest {
+            messages: vec![
+                ChatMessage::new(Role::User, "Which domains?"),
+                ChatMessage::assistant_calls("", vec![call.clone()])
+                    .with_reasoning(Some("look up the domains".to_string())),
+                ChatMessage::tool_result("call_1", "- Billing"),
+                ChatMessage::assistant_calls("", vec![call]),
+            ],
+            tools: vec![list_domains()],
+            ..request()
+        },
+        OK_BODY,
+    )
+    .await;
+
+    let messages = body["messages"].as_array().unwrap();
+    assert_eq!(messages[1]["reasoning_content"], "look up the domains");
+    for message in [&messages[0], &messages[2], &messages[3]] {
+        assert!(message.get("reasoning_content").is_none(), "{message}");
+    }
+}

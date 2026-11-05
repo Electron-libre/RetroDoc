@@ -303,3 +303,22 @@ async fn without_the_code_tools_neither_is_offered_named_nor_run() {
         assert_eq!(*result, format!("Error: unknown tool `{tool}`; {offered}"));
     }
 }
+
+// spec: TCL-19 (internal: the rounds are scripted with the fake provider, which the binary cannot take)
+#[tokio::test]
+async fn the_reasoning_of_a_round_that_called_tools_is_given_back_in_the_next() {
+    let llm = FakeLlm::scripted(vec![
+        FakeTurn::Reasoned {
+            reasoning: "look up the domains".into(),
+            calls: vec![call("c1", "list_domains", "{}")],
+        },
+        FakeTurn::Text("Billing.".into()),
+    ]);
+    ask(&llm, docs(), "What is billed?", DEFAULT_MAX_ROUNDS)
+        .await
+        .unwrap();
+
+    let second = &llm.messages()[1];
+    let assistant = second.iter().find(|m| m.role == Role::Assistant).unwrap();
+    assert_eq!(assistant.reasoning.as_deref(), Some("look up the domains"));
+}

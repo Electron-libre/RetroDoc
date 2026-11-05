@@ -14,6 +14,9 @@ pub struct ChatMessage {
     pub tool_calls: Vec<ToolCall>,
     /// The call a [`Role::Tool`] message answers.
     pub tool_call_id: Option<String>,
+    /// The reasoning a thinking model wrote before the calls of an assistant
+    /// message, given back with them (`reasoning_content`, TCL-18).
+    pub reasoning: Option<String>,
 }
 
 impl ChatMessage {
@@ -25,6 +28,7 @@ impl ChatMessage {
             content: content.into(),
             tool_calls: Vec::new(),
             tool_call_id: None,
+            reasoning: None,
         }
     }
 
@@ -36,6 +40,13 @@ impl ChatMessage {
             tool_calls,
             ..Self::new(Role::Assistant, content)
         }
+    }
+
+    /// The same message with the reasoning of the answer it gives back
+    /// (none: no `reasoning_content` is sent, as a server may refuse it).
+    #[must_use]
+    pub fn with_reasoning(self, reasoning: Option<String>) -> Self {
+        Self { reasoning, ..self }
     }
 
     /// The result of the call `call_id`.
@@ -123,6 +134,10 @@ pub struct CompletionResponse {
     /// The tools the model asked for, in the order of the answer (empty for
     /// a text answer).
     pub tool_calls: Vec<ToolCall>,
+    /// The reasoning of a thinking model (`reasoning_content`), to give back
+    /// with its calls ([`ChatMessage::with_reasoning`]); none when the server
+    /// sent none.
+    pub reasoning: Option<String>,
 }
 
 #[derive(Debug, thiserror::Error)]
