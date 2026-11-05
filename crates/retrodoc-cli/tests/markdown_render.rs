@@ -322,9 +322,12 @@ fn the_page_of_an_edited_section_says_who_edited_it_and_when() {
     )
     .unwrap();
 
-    let domain = rendered(dir.path(), "orders/README.md");
     let feature = rendered(dir.path(), "orders/list-orders.md");
-    let use_case = rendered(dir.path(), "orders/use-cases/list-orders/list-orders.md");
+    let page = |path: &str| {
+        std::fs::read_to_string(dir.path().join("docs/functional").join(path)).unwrap()
+    };
+    let domain = page("orders/README.md");
+    let use_case = page("orders/use-cases/list-orders/list-orders.md");
 
     assert_eq!(
         under_heading(&feature),

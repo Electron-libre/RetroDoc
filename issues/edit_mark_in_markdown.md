@@ -49,7 +49,7 @@ the mark in lists and `llms.txt`, the outdated state (web only).
    `render_with_docs`, the wording (`Human edit`, field names, `by`) moved from the web `EditTexts` into the render
    `Texts` and read by the web page through `t.doc`; `publish` builds the marks from the edits; verified by a render
    test and a CLI `render` test; makes true SED-38. ~340 lines. (autonomous)
-2. [ ] Docs of the whole issue and fixes of its `high` review.
+2. [x] Docs of the whole issue and fixes of its `high` review; verified by the SED-38 tests. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -72,5 +72,36 @@ use case; the web page reads the same words from the render `Texts`; `section-ed
 red: SED-38: `left: "[← Domain overview](README.md)"`, the line under the heading of the feature page.
 Code review: 1 findings: `edit_marks` inserted between the doc comment of `without_generated` and its `fn`; fixed,
 moved above it.
+not verified: none.
+decisions needed: none.
+
+## Deliverable 2 summary
+done: `update-docs` over `c86f28e..HEAD` (nothing more: README and `render-mcp-cli.md` done in deliverable 1) and the
+fixes of the `high` review.
+
+| check | result |
+|---|---|
+| tests | pass (`project-check`) |
+| lint | pass |
+| specs | pass; the SED-38 scenario moved after SED-35 |
+| docs | n/a, done in deliverable 1 |
+| code review | high: 10 findings; low: no findings |
+
+red: none (the hardened test of the author passes once `one_line` is applied; no new requirement).
+High review, 10 findings:
+1. author and date not on one line: fixed, `one_line` on both, the unit test gives an author with a newline.
+2. an edited name with a newline cuts the heading: not fixed, the heading predates this issue (SED-30) and a
+   generated name has the same risk; outside SED-38.
+3. no outdated state in the mark: not fixed, decided with the user (web only).
+4. `apply` and `changed` decide the fields apart: not fixed, both keep the non-blank fields and a narrative of a use
+   case only; one would need `apply` to return marks, a change of the mcp API outside this issue.
+5. `Field` → `EditedField` match in two crates: not fixed, neither crate may depend on the other's enum; five lines.
+6. `mark_of` checks the fields again: kept as the guard of a public type, the doc now says a mark with none is not
+   written.
+7. `edited_fields` by position: not fixed, the pattern of the web `labels`; one table per language.
+8. the CLI test rendered three times: fixed, one render.
+9. an `ItemRef` built per page: not fixed, a few strings per page.
+10. the SED-38 scenario out of order: fixed.
+Code review: no findings
 not verified: none.
 decisions needed: none.

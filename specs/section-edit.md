@@ -122,11 +122,11 @@ it and no `generate` loses it.
   as "rewritten" and the feature still shows the edited name.
 - (SED-34) Given a feature whose name is edited, when its description is edited next, then the edit is not outdated:
   the generated feature is the same.
+- (SED-35) Given a use case edited, when a file one of its steps cites is deleted, then the edit is outdated with the
+  file deleted.
 - (SED-38) Given a feature whose name is edited by A on 2026-11-05T10:00:00Z, when `render` runs, then the line
   under the heading of its page reads `**Human edit** name *by A, 2026-11-05T10:00:00Z*`, and its domain's page has
   no mark.
-- (SED-35) Given a use case edited, when a file one of its steps cites is deleted, then the edit is outdated with the
-  file deleted.
 
 ## Non-goals
 

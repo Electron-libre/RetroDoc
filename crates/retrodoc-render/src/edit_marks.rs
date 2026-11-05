@@ -5,6 +5,8 @@
 
 use std::collections::BTreeMap;
 
+use retrodoc_core::text::one_line;
+
 use crate::doc_links::ItemRef;
 use crate::texts::Texts;
 
@@ -19,7 +21,8 @@ pub enum EditedField {
 /// What the page of an edited section says of its edit.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EditMark {
-    /// The fields the edit changes, in the order the page names them; never empty.
+    /// The fields the edit changes, in the order the page names them; a mark with none is not
+    /// written.
     pub fields: Vec<EditedField>,
     pub author: Option<String>,
     /// The date of the edit, not of the render, so that the same edits render the same bytes.
@@ -37,10 +40,11 @@ impl EditMark {
             .iter()
             .map(|field| texts.edited_field(*field))
             .collect();
+        // One line whatever a file written by hand holds: the mark must stay under the heading.
         let by = self
             .author
             .as_deref()
-            .map(str::trim)
+            .map(one_line)
             .filter(|author| !author.is_empty())
             .map(|author| format!("{} {author}, ", texts.edited_by))
             .unwrap_or_default();
@@ -48,7 +52,7 @@ impl EditMark {
             "**{}** {} *{by}{}*",
             texts.human_edit,
             fields.join(", "),
-            self.edited_at
+            one_line(&self.edited_at)
         )
     }
 }
@@ -71,14 +75,14 @@ mod tests {
     fn the_mark_names_the_fields_the_author_and_the_date_in_the_docs_language() {
         let mark = EditMark {
             fields: vec![EditedField::Name, EditedField::Narrative],
-            author: Some("A".to_string()),
+            author: Some(" A\n B ".to_string()),
             edited_at: "2026-11-05T10:00:00Z".to_string(),
         };
         let marks = EditMarks::from([(ItemRef::Feature("pay".into()), mark)]);
 
         assert_eq!(
             mark_of(&marks, &ItemRef::Feature("pay".into()), &Texts::FRENCH),
-            "**Correction humaine** nom, récit *par A, 2026-11-05T10:00:00Z*\n\n"
+            "**Correction humaine** nom, récit *par A B, 2026-11-05T10:00:00Z*\n\n"
         );
         assert_eq!(
             mark_of(&marks, &ItemRef::Domain("pay".into()), &Texts::FRENCH),
