@@ -230,14 +230,12 @@ mod tests {
     use retrodoc_llm::{ChatMessage, Role};
 
     fn request(system: &str, user: &str) -> CompletionRequest {
-        let message = |role, content: &str| ChatMessage {
-            role,
-            content: content.to_string(),
-        };
+        let message = |role, content: &str| ChatMessage::new(role, content);
         CompletionRequest {
             messages: vec![message(Role::System, system), message(Role::User, user)],
             model: None,
             json_schema: None,
+            tools: Vec::new(),
         }
     }
 

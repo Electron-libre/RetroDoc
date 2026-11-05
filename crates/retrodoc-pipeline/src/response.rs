@@ -68,17 +68,12 @@ async fn complete_raw(
     let response = llm
         .complete(CompletionRequest {
             messages: vec![
-                ChatMessage {
-                    role: Role::System,
-                    content: system_prompt.to_string(),
-                },
-                ChatMessage {
-                    role: Role::User,
-                    content: user_prompt.to_string(),
-                },
+                ChatMessage::new(Role::System, system_prompt),
+                ChatMessage::new(Role::User, user_prompt),
             ],
             model: None,
             json_schema: json_schema.cloned(),
+            tools: Vec::new(),
         })
         .await?;
     Ok(response)

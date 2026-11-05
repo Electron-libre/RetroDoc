@@ -146,4 +146,3 @@ weakest figure, with the domains pass unchanged (`docs/findings.md`, section 10)
 - The default model (quality against cost) for hosted and local runs.
 - Whether the lexical search is enough on business vocabulary that differs from the code's, or embeddings are needed
   (to measure, not assume).
-- For `ask` / `chat`: tool calling in the provider interface, or a JSON-action protocol that local models follow.

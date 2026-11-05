@@ -357,7 +357,7 @@ mod tests {
                 content: "ok".to_string(),
                 model: self.model.to_string(),
                 usage: self.usage,
-                truncated: false,
+                ..Default::default()
             })
         }
     }
@@ -367,6 +367,7 @@ mod tests {
             messages: Vec::new(),
             model: None,
             json_schema: None,
+            tools: Vec::new(),
         }
     }
 

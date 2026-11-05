@@ -318,6 +318,12 @@ provider. The fixed text around the generated text (the headings and labels of t
 [ADR 0041](adr/0041-the-language-of-the-docs-wraps-the-provider-of-a-writing-pass.md) and
 `specs/docs-language.md`.
 
+A request can also offer tools (`CompletionRequest.tools`), an answer carry the calls the model asks for
+(`CompletionResponse.tool_calls`), and the next request give their results back (an assistant message with its calls,
+a `Role::Tool` message per result), in the native OpenAI-compatible format; every wrapper passes them through and
+each round is counted as one call. No pass uses them: they are for the agent that answers questions over the docs.
+See [ADR 0046](adr/0046-tool-calls-use-the-native-openai-format.md) and `specs/tool-calling.md`.
+
 ## 9. Serving the docs to agents (MCP)
 
 A coding agent can query the generated docs instead of reading them all. `retrodoc mcp` is a read-only MCP

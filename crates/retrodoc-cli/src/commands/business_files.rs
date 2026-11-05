@@ -104,8 +104,7 @@ mod tests {
                 content: r#"{"business":[{"path":"lib/order.rb","reason":"an order"}]}"#
                     .to_string(),
                 model: "test".to_string(),
-                usage: None,
-                truncated: false,
+                ..Default::default()
             })
         }
     }

@@ -297,17 +297,12 @@ async fn json_format(
         let refs: Vec<&str> = batch.iter().map(String::as_str).collect();
         let request = CompletionRequest {
             messages: vec![
-                ChatMessage {
-                    role: Role::System,
-                    content: PLACEMENT_SYSTEM_PROMPT.into(),
-                },
-                ChatMessage {
-                    role: Role::User,
-                    content: json_prompt(features, &refs),
-                },
+                ChatMessage::new(Role::System, PLACEMENT_SYSTEM_PROMPT),
+                ChatMessage::new(Role::User, json_prompt(features, &refs)),
             ],
             model: None,
             json_schema: Some(placement_schema()),
+            tools: Vec::new(),
         };
         let started = Instant::now();
         let response = provider

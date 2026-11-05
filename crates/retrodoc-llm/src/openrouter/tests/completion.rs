@@ -85,10 +85,7 @@ async fn complete_caps_max_tokens_to_guard_against_a_runaway_local_model() {
 
     provider(&url)
         .complete(CompletionRequest {
-            messages: vec![ChatMessage {
-                role: Role::User,
-                content: "hi".to_string(),
-            }],
+            messages: vec![ChatMessage::new(Role::User, "hi")],
             ..request()
         })
         .await

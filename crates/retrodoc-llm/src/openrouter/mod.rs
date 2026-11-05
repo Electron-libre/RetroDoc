@@ -9,7 +9,10 @@ use retrodoc_core::config::LlmConfig;
 use serde::{Deserialize, Serialize};
 
 use crate::usage;
-use crate::{CompletionRequest, CompletionResponse, LlmError, LlmProvider, ResponseSchema};
+use crate::{
+    ChatMessage, CompletionRequest, CompletionResponse, LlmError, LlmProvider, ResponseSchema,
+    ToolCall, ToolSpec,
+};
 
 const OPENROUTER_ENDPOINT: &str = "https://openrouter.ai/api/v1/chat/completions";
 /// Endpoint of the `DeepSeek` API, which speaks the same chat-completions format.
@@ -45,13 +48,84 @@ const MAX_COMPLETION_TOKENS: u32 = 8_192;
 #[derive(Debug, Serialize)]
 struct ApiMessage<'a> {
     role: &'a str,
-    content: &'a str,
+    /// `null` for an assistant message that only calls tools.
+    content: Option<&'a str>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    tool_calls: Vec<ApiToolCall<'a>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tool_call_id: Option<&'a str>,
+}
+
+impl<'a> ApiMessage<'a> {
+    fn from_message(message: &'a ChatMessage) -> Self {
+        let only_calls = message.content.is_empty() && !message.tool_calls.is_empty();
+        Self {
+            role: message.role.as_api_str(),
+            content: (!only_calls).then_some(message.content.as_str()),
+            tool_calls: message
+                .tool_calls
+                .iter()
+                .map(|call| ApiToolCall {
+                    id: &call.id,
+                    kind: "function",
+                    function: ApiFunctionCall {
+                        name: &call.name,
+                        arguments: &call.arguments,
+                    },
+                })
+                .collect(),
+            tool_call_id: message.tool_call_id.as_deref(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+struct ApiToolCall<'a> {
+    id: &'a str,
+    #[serde(rename = "type")]
+    kind: &'static str,
+    function: ApiFunctionCall<'a>,
+}
+
+#[derive(Debug, Serialize)]
+struct ApiFunctionCall<'a> {
+    name: &'a str,
+    arguments: &'a str,
+}
+
+#[derive(Debug, Serialize)]
+struct ApiTool<'a> {
+    #[serde(rename = "type")]
+    kind: &'static str,
+    function: ApiFunction<'a>,
+}
+
+#[derive(Debug, Serialize)]
+struct ApiFunction<'a> {
+    name: &'a str,
+    description: &'a str,
+    parameters: &'a serde_json::Value,
+}
+
+impl<'a> ApiTool<'a> {
+    fn from_spec(tool: &'a ToolSpec) -> Self {
+        Self {
+            kind: "function",
+            function: ApiFunction {
+                name: &tool.name,
+                description: &tool.description,
+                parameters: &tool.parameters,
+            },
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
 struct ApiRequest<'a> {
     model: &'a str,
     messages: Vec<ApiMessage<'a>>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    tools: Vec<ApiTool<'a>>,
     max_tokens: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
     reasoning_effort: Option<&'a str>,
@@ -101,7 +175,42 @@ struct ApiChoice {
 
 #[derive(Debug, Deserialize)]
 struct ApiResponseMessage {
-    content: String,
+    /// `null` or missing when the model only calls tools.
+    #[serde(default)]
+    content: Option<String>,
+    #[serde(default)]
+    tool_calls: Vec<ApiResponseToolCall>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ApiResponseToolCall {
+    #[serde(default)]
+    id: String,
+    function: ApiResponseFunction,
+}
+
+#[derive(Debug, Deserialize)]
+struct ApiResponseFunction {
+    name: String,
+    /// A string holding JSON in the `OpenAI` format; some servers send the
+    /// object itself, kept as its JSON text.
+    #[serde(default)]
+    arguments: serde_json::Value,
+}
+
+impl From<ApiResponseToolCall> for ToolCall {
+    fn from(call: ApiResponseToolCall) -> Self {
+        let arguments = match call.function.arguments {
+            serde_json::Value::String(text) => text,
+            serde_json::Value::Null => String::new(),
+            other => other.to_string(),
+        };
+        Self {
+            id: call.id,
+            name: call.function.name,
+            arguments,
+        }
+    }
 }
 
 /// `OpenRouter` provider (<https://openrouter.ai>).
@@ -215,11 +324,9 @@ impl OpenRouterProvider {
             messages: request
                 .messages
                 .iter()
-                .map(|m| ApiMessage {
-                    role: m.role.as_api_str(),
-                    content: &m.content,
-                })
+                .map(ApiMessage::from_message)
                 .collect(),
+            tools: request.tools.iter().map(ApiTool::from_spec).collect(),
             max_tokens: MAX_COMPLETION_TOKENS,
             reasoning_effort: self.reasoning_effort.as_deref(),
             temperature,
@@ -405,10 +512,16 @@ async fn decode_success(
         parsed.model
     };
     Ok(CompletionResponse {
-        content: choice.message.content,
+        content: choice.message.content.unwrap_or_default(),
         model,
         usage: usage::parse(parsed.usage),
         truncated,
+        tool_calls: choice
+            .message
+            .tool_calls
+            .into_iter()
+            .map(ToolCall::from)
+            .collect(),
     })
 }
 

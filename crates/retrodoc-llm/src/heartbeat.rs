@@ -92,6 +92,7 @@ mod tests {
             messages: Vec::new(),
             model: None,
             json_schema: None,
+            tools: Vec::new(),
         }
     }
 

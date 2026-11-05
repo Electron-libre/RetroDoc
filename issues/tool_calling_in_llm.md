@@ -41,3 +41,40 @@ Ask the documentation
 * Structured output (`json_schema`) and tools together: some servers refuse both in one request; the agent's
   final answer may need a separate shape.
 * The fake provider of the tests must script tool calls, like the pipeline passes script their answers.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-05
+
+## Understanding
+A request can offer tools, an answer can carry tool calls, the next request gives the results back, in the native
+OpenAI-compatible format, through every wrapper and counted per round. Out of scope: the agent loop (`ask`) and the
+JSON-action fallback (ADR 0046: the local Ollama takes native tools, checked on a real call).
+
+## Plan
+1. [x] Native tool calls: `ToolSpec`, `ToolCall`, `Role::Tool` and the call fields of `ChatMessage`, `tools` of
+   `CompletionRequest`, `tool_calls` of `CompletionResponse`, sent and read by `OpenRouterProvider`; verified by
+   wire tests on the mock server and by wrapper tests; makes true TCL-1 to TCL-9. (autonomous)
+2. [ ] `FakeLlm` scripts tool calls and records the full messages of each request; verified by its own test; makes
+   true TCL-10.
+
+## Decisions
+- Mode: autonomous
+- Base commit: c907cccad20742a01bfe771e6ceb961645486634
+- Real calls before the ADR (1 a): DeepSeek (`deepseek-chat`, served as `deepseek-flash`) and Ollama both answer
+  `tool_calls` and take the `tool` message back; DeepSeek writes text next to its calls, so an assistant message
+  keeps its text with its calls. Ledger line of 2026-11-05.
+- `reasoning_content` (2 a): not needed, the runs use `deepseek-chat` (no thinking mode); not carried.
+- llama-server hybrid not probed (3 a); no JSON-action fallback (4 a).
+
+## Deliverable 1 summary
+- done: `ToolSpec`, `ToolCall`, `Role::Tool`, `ChatMessage::{new, assistant_calls, tool_result}`,
+  `CompletionRequest.tools` (now `Default`), `CompletionResponse.tool_calls`; `OpenRouterProvider` sends `tools`, the
+  calls and results of the history, reads `tool_calls` and a `null` content; ADR 0046, `specs/tool-calling.md`, docs.
+- checks: tests, clippy, fmt, specs (`project-check`) pass; docs updated (ARCHITECTURE §8, `docs/crates/llm.md`,
+  findings §4, PRODUCT open question removed).
+- red: TCL-1, TCL-3, TCL-4, TCL-5, TCL-6, TCL-7: `tools` absent from the body (`left: Null`), `error decoding response
+  body` on a `null` content, the history sent without `tool_calls` nor `tool_call_id`. TCL-2, TCL-8, TCL-9 green from
+  the start (no field sent before; the wrappers already pass the request and the answer through whole).
+- Code review: no findings
+- not verified: `OpenRouter` and the hybrid llama-server not called for real (user's choice, 3 a).
