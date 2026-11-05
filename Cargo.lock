@@ -1410,6 +1410,7 @@ dependencies = [
  "retrodoc-llm",
  "retrodoc-mcp",
  "retrodoc-pipeline",
+ "serde_json",
  "tokio",
 ]
 
