@@ -251,7 +251,8 @@ pub fn recap(report: &UsageReport) -> String {
 
 /// The [`recap`], then, with the `estimate` printed before the run, each pass of it that was estimated or made a
 /// call set against its range: within it, or each figure that missed, the bound missed and the miss in percent
-/// of that bound (none against a bound of zero).
+/// of that bound (none against a bound of zero); then each pass that made calls the estimate does not hold, as
+/// not estimated.
 #[must_use]
 pub fn recap_against(report: &UsageReport, estimate: Option<&RunEstimate>) -> String {
     let mut out = recap(report);
@@ -288,6 +289,14 @@ pub fn recap_against(report: &UsageReport, estimate: Option<&RunEstimate>) -> St
                 (pass.pass.as_str(), text)
             })
         })
+        .chain(
+            report
+                .passes
+                .iter()
+                .filter(|p| p.total().calls > 0)
+                .filter(|p| !estimate.passes.iter().any(|pass| pass.pass == p.name))
+                .map(|p| (p.name.as_str(), "not estimated".to_string())),
+        )
         .collect();
     if rows.is_empty() {
         return out;
@@ -548,6 +557,30 @@ mod tests {
         );
         // Estimated at zero and made no call: no line.
         assert!(!text.contains("confidence"), "{text}");
+    }
+
+    // spec: TOK-7 (internal: the token counts come from an LLM answer the binary cannot fake)
+    #[test]
+    fn a_pass_with_calls_the_estimate_does_not_hold_shows_as_not_estimated() {
+        let report = UsageReport {
+            passes: vec![
+                pass("business-read", 1, &[("m", 4, 0, 4_000, 400)]),
+                pass("brief", 1, &[("m", 1, 0, 500, 100)]),
+                pass("domains", 1, &[]),
+            ],
+        };
+        let estimate = estimate_of(vec![estimated("brief", Basis::PerRun, (1, 2), (400, 600))]);
+
+        let text = recap_against(&report, Some(&estimate));
+
+        let against = text
+            .split("Against the estimate:\n")
+            .nth(1)
+            .unwrap_or_default();
+        assert_eq!(
+            against, "    brief          within the range\n    business-read  not estimated\n",
+            "{text}"
+        );
     }
 
     // spec: TOK-7 (internal: the token counts come from an LLM answer the binary cannot fake)

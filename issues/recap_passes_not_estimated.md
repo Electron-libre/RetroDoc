@@ -35,3 +35,39 @@ Pre-run cost estimate
 # Resources
 * `crates/retrodoc-pipeline/src/usage_log.rs` (`recap_against`), `crates/retrodoc-cli/src/commands/generate/estimate.rs`,
   `crates/retrodoc-cli/src/commands/generate/mod.rs` (`GENERATE_PASSES`), `specs/token-accounting.md`.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-05
+
+## Understanding
+The recap must show, as `not estimated`, a pass that made calls and that the estimate doesn't hold, and the estimate
+must take its pass list from the same list as `generate`. Out of scope: estimating such a pass.
+
+## Plan
+1. [x] Recap: after the rows of the estimate, each pass of `report.passes` with calls absent from `estimate.passes`
+   gets a row `not estimated`; verified by a unit test in `usage_log.rs`; makes true TOK-7 (amended). (autonomous)
+2. [ ] One list: `TRACKED_PASSES` in `generate/mod.rs` (the order of the `in_pass` calls, `business-read` before
+   `glossary`), the providers opened from it minus `business-read`, `estimated_passes` filtering it instead of
+   inserting by hand; verified by the existing estimate tests and a test that `estimated_passes(true)` equals
+   `TRACKED_PASSES`; refactor, no requirement.
+
+## Decisions
+- Mode: autonomous
+- Base commit: b7695374f6c5928a8de5ce04896881feed38d27b
+- Deliverable 2 kept (question 1 a).
+
+## Deliverable 1
+done: `recap_against` adds a `not estimated` row for each pass with calls the estimate doesn't hold; TOK-7 amended.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass |
+| docs | `specs/token-accounting.md`, `docs/crates/pipeline.md` |
+| code review | clean |
+
+red: TOK-7: `left: "    brief  within the range\n"` (no `business-read  not estimated` row)
+
+Code review: no findings

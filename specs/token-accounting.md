@@ -32,8 +32,9 @@ estimate printed before the run (`specs/run-estimate.md`), so that an estimate t
 - **TOK-7** (deterministic) The recap of a `generate` that succeeded must show, per pass of its estimate that was
   estimated or made a call, whether the measured calls, prompt tokens and completion tokens fell within their range
   and, for each that did not, the bound it missed and the miss in percent of that bound, a token count below its range
-  said to be a lower bound when some calls of the pass reported no usage; a failed run or one with no estimate must
-  keep the recap of today.
+  said to be a lower bound when some calls of the pass reported no usage; a pass that made calls and that the
+  estimate does not hold must show as not estimated; a failed run or one with no estimate must keep the recap of
+  today.
 - **TOK-8** (deterministic) The measuring tool of the ratio table must report, per pass, over the measured runs whose
   history holds an estimate, how many fell within the range of their calls, prompt tokens and completion tokens, how
   many above and below it with the median miss of each side, leaving out a token count below its range when some
@@ -56,6 +57,8 @@ estimate printed before the run (`specs/run-estimate.md`), so that an estimate t
   is printed, then the pass gets no line; had it made calls, it would get one, as a miss above zero.
 - (TOK-7) Given a `generate` that fails in its `domains` pass, when the recap is printed, then it sets no pass
   against the estimate, and the run is saved with no estimate.
+- (TOK-7) Given an estimate without `business-read` and a run that made 4 calls in it, when the recap is printed,
+  then `business-read` shows as not estimated, after the passes of the estimate.
 - (TOK-7) Given a miss above a high bound of zero, when the recap is printed, then it shows the bound and the
   measured figure, without a percent.
 
