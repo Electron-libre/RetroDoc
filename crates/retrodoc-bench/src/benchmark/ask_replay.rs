@@ -167,12 +167,15 @@ impl RunPairs {
 }
 
 const JUDGE_SYSTEM_PROMPT: &str = "You judge the answer of an assistant to a question about an \
-application, against the expected answer written by someone who knows the application. The answer \
-is right when it agrees with the expected answer on what the question asks: it may say more, or \
-say it in other words, but it must not contradict it nor claim the application does something the \
-expected answer says it does not. When the expected answer says the application does not do \
-something, an answer saying the application does not do it, or that nothing shows it does, is \
-right. Reply in JSON: {\"verdict\": \"right\" or \"wrong\", \"reason\": \"<one sentence>\"}.";
+application, against the expected answer written by someone who knows the application. The \
+verdict is \"right\" when the answer agrees with the expected answer on what the question asks: \
+it may say more, or say it in other words, or say that a detail is not documented, but it must \
+not contradict the expected answer nor claim the application does something the expected answer \
+says it does not. When the expected answer says the application does not do something, an answer \
+saying the application does not do it, or that nothing shows it does, is right. The verdict is \
+\"not documented\" when the answer only says the documentation does not cover the question, \
+without answering it. Any other answer is \"wrong\". Reply in JSON: {\"verdict\": \"right\", \
+\"wrong\" or \"not documented\", \"reason\": \"<one sentence>\"}.";
 
 #[derive(Debug, Deserialize, JsonSchema)]
 struct RawVerdict {
@@ -180,9 +183,9 @@ struct RawVerdict {
     reason: String,
 }
 
-/// Judges the text of an answer to `question`: "Not documented" (case ignored) or a blank text by
-/// rule, otherwise right or wrong by one call to `judge`, with its reason. An answer the judge
-/// leaves unreadable is wrong, with that reason.
+/// Judges the text of an answer to `question`: a blank text is not documented by rule; any other
+/// takes the verdict of one call to `judge` (right, wrong or not documented), with its reason. An
+/// answer the judge leaves unreadable is wrong, with that reason.
 ///
 /// # Errors
 ///
@@ -192,7 +195,7 @@ pub async fn judge_answer(
     question: &Question,
     text: &str,
 ) -> Result<(Verdict, Option<String>), PipelineError> {
-    if text.trim().is_empty() || text.to_lowercase().contains("not documented") {
+    if text.trim().is_empty() {
         return Ok((Verdict::NotDocumented, None));
     }
     let user = format!(
@@ -206,16 +209,47 @@ pub async fn judge_answer(
         "benchmark judge (answer)",
     )
     .await?;
-    Ok(match raw {
-        Some(raw) if raw.verdict.trim().eq_ignore_ascii_case("right") => {
-            (Verdict::Right, Some(raw.reason))
-        }
-        Some(raw) => (Verdict::Wrong, Some(raw.reason)),
-        None => (
+    let Some(raw) = raw else {
+        return Ok((
             Verdict::Wrong,
             Some("the judge's answer could not be read".into()),
-        ),
-    })
+        ));
+    };
+    let verdict = match raw
+        .verdict
+        .trim()
+        .to_lowercase()
+        .replace(['-', '_'], " ")
+        .as_str()
+    {
+        "right" => Verdict::Right,
+        "not documented" => Verdict::NotDocumented,
+        _ => Verdict::Wrong,
+    };
+    Ok((verdict, Some(raw.reason)))
+}
+
+/// Judges again the saved `records` of `set` with `judge`, keeping the answers; a failed question
+/// stays failed. A question of a record no longer in `set` is left as it was.
+pub async fn rejudge(judge: &dyn LlmProvider, set: &QuestionSet, records: &mut [AnswerRecord]) {
+    for record in records.iter_mut() {
+        if record.verdict == Verdict::Failed {
+            continue;
+        }
+        let Some(question) = set.questions.iter().find(|q| q.id == record.id) else {
+            continue;
+        };
+        match judge_answer(judge, question, &record.text).await {
+            Ok((verdict, reason)) => {
+                record.verdict = verdict;
+                record.reason = reason;
+            }
+            Err(error) => {
+                record.verdict = Verdict::Failed;
+                record.reason = Some(format!("judge: {error}"));
+            }
+        }
+    }
 }
 
 /// Asks each question of `set` to `agent` over `docs` with the tools `offered`, then judges each
@@ -488,20 +522,13 @@ mod tests {
 
     // spec: AQS-6 (internal: the judge is the fake provider, which the binary cannot take)
     #[tokio::test]
-    async fn not_documented_and_blank_answers_are_judged_by_rule() {
+    async fn a_blank_answer_is_not_documented_by_rule() {
         let judge = FakeLlm::answering(r#"{"verdict":"right","reason":"r"}"#);
         let q = question("pdf", None);
-        for text in [
-            "Not documented: I searched for PDF export.",
-            "  ",
-            "It is NOT DOCUMENTED.",
-        ] {
-            assert_eq!(
-                judge_answer(&judge, &q, text).await.unwrap(),
-                (Verdict::NotDocumented, None),
-                "{text}"
-            );
-        }
+        assert_eq!(
+            judge_answer(&judge, &q, "  \n").await.unwrap(),
+            (Verdict::NotDocumented, None)
+        );
         assert_eq!(judge.calls(), 0);
     }
 
@@ -511,27 +538,64 @@ mod tests {
         let judge = FakeLlm::sequence(&[
             r#"{"verdict":"right","reason":"Same as expected."}"#,
             r#"{"verdict":"wrong","reason":"Claims a PDF export."}"#,
+            r#"{"verdict":"not documented","reason":"Says the docs are silent."}"#,
         ]);
         let q = question("pdf", None);
+        let answers = [
+            "No, it can't; how it prints is not documented.",
+            "Yes, from the menu.",
+            "Not documented: I searched for PDF export.",
+        ];
+        let mut verdicts = Vec::new();
+        for text in answers {
+            verdicts.push(judge_answer(&judge, &q, text).await.unwrap().0);
+        }
         assert_eq!(
-            judge_answer(&judge, &q, "No, it can't.").await.unwrap(),
-            (Verdict::Right, Some("Same as expected.".into()))
+            verdicts,
+            [Verdict::Right, Verdict::Wrong, Verdict::NotDocumented]
         );
-        assert_eq!(
-            judge_answer(&judge, &q, "Yes, from the menu.")
-                .await
-                .unwrap(),
-            (Verdict::Wrong, Some("Claims a PDF export.".into()))
-        );
-        assert_eq!(judge.calls(), 2);
+        assert_eq!(judge.calls(), 3);
         let prompt = &judge.prompts()[0];
         assert!(
             prompt.contains("Question pdf?")
                 && prompt.contains("Expected pdf.")
-                && prompt.contains("No, it can't."),
+                && prompt.contains("No, it can't;"),
             "{prompt}"
         );
-        assert!(judge.system_prompts()[0].contains("does not do it"));
+        let system = &judge.system_prompts()[0];
+        assert!(
+            system.contains("does not do it") && system.contains("without answering it"),
+            "{system}"
+        );
+    }
+
+    // spec: AQS-7 (internal: the judge is the fake provider, which the binary cannot take)
+    #[tokio::test]
+    async fn saved_answers_are_judged_again_and_failed_ones_kept() {
+        let judge = FakeLlm::answering(r#"{"verdict":"right","reason":"Agrees."}"#);
+        let set = QuestionSet {
+            questions: vec![question("a", None), question("b", None)],
+        };
+        let record = |id: &str, verdict| AnswerRecord {
+            id: id.into(),
+            group: Group::Undocumented,
+            verdict,
+            reason: None,
+            source_hit: None,
+            rounds: 1,
+            text: "No.".into(),
+            sources: Vec::new(),
+            warnings: Vec::new(),
+        };
+        let mut records = vec![
+            record("a", Verdict::NotDocumented),
+            record("b", Verdict::Failed),
+        ];
+        rejudge(&judge, &set, &mut records).await;
+        assert_eq!(records[0].verdict, Verdict::Right);
+        assert_eq!(records[0].reason.as_deref(), Some("Agrees."));
+        assert_eq!(records[1].verdict, Verdict::Failed);
+        assert_eq!(judge.calls(), 1);
     }
 
     // spec: AQS-9, AQS-11 (internal: the agent and the judge are fake providers, which the binary cannot take)
@@ -568,7 +632,7 @@ mod tests {
             [
                 ("share", Group::Covered, Verdict::Right, Some(true)),
                 ("import", Group::Uncovered, Verdict::Failed, None),
-                ("otp", Group::Undocumented, Verdict::NotDocumented, None),
+                ("otp", Group::Undocumented, Verdict::Right, None),
             ]
         );
         assert!(records[1].reason.is_some());

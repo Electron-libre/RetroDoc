@@ -27,11 +27,11 @@ read by hand.
 - **AQS-5** (deterministic) Each documented question must be classed `covered` when the saved run pairs a generated
   feature with its reference feature (a hand pair of `matches.yaml` not rejected, or a pair of the run's
   `judge.yaml`), else `uncovered`.
-- **AQS-6** (deterministic) An answer whose text holds "Not documented" (case ignored), or is blank, must be judged
-  `not documented` without the LLM judge.
-- **AQS-7** (deterministic) Any other answer must take the verdict, `right` or `wrong`, of one call to the LLM judge
-  given the question, the expected answer and the text of the answer; the judge's prompt says that, for an
-  undocumented question, an answer saying the application does not do it is right.
+- **AQS-6** (deterministic) A blank answer must be judged `not documented` without the LLM judge.
+- **AQS-7** (deterministic) Any other answer must take the verdict, `right`, `wrong` or `not documented`, of one call
+  to the LLM judge given the question, the expected answer and the text of the answer; the judge's prompt says that
+  an answer saying the application does not do something the expected answer says it does not do is right, and that
+  `not documented` is an answer that says the docs do not cover the question without answering it.
 - **AQS-8** (deterministic) The answer to a covered question must count as `source hit` when one of its sources is a
   generated feature paired with the expected reference feature, or a use case of one.
 - **AQS-9** (deterministic) A question whose `ask` fails must be recorded as `failed` with its error, counted apart,
@@ -54,8 +54,9 @@ read by hand.
   when the set is checked, then the check reports `totp` in `settings.py`.
 - (AQS-5) Given a saved `judge.yaml` pairing `Bookmark sharing` with the reference feature `Share bookmarks`, when the
   question on `Share bookmarks` is classed, then it is `covered`.
-- (AQS-6) Given the answer "Not documented: I searched for PDF export.", when it is judged, then it is
-  `not documented` and the judge is not called.
+- (AQS-6) Given a blank answer, when it is judged, then it is `not documented` and the judge is not called.
+- (AQS-7) Given the answer "Yes, from the search box; the sort order is not documented.", when it is judged, then the
+  judge's verdict is taken, not a rule on the words "not documented".
 - (AQS-9) Given a provider that fails on the second question, when the run goes on, then the second is `failed` and
   the third is judged.
 

@@ -11,16 +11,20 @@
 //! - `model`: a `DeepSeek` model, for the agent (default temperature, as `ask`) and the judge (at 0).
 //! - `out dir`: where `answers-all.yaml`, `answers-docs.yaml` and `table.md` are written.
 //! - `--max-rounds`: rounds of tool calls of the agent (default that of `ask`); `--only`: one variant;
-//!   `--dry-run`: prints the group of each question against the run and stops, with no LLM call.
+//!   `--dry-run`: prints the group of each question against the run and stops, with no LLM call;
+//!   `--rejudge`: judges again the `answers-<variant>.yaml` of `out dir` (the former kept as
+//!   `answers-<variant>.before-rejudge.yaml` at the first re-judgement) and writes `table-rejudged.md`, with no agent call.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use retrodoc_agent::{Tools, DEFAULT_MAX_ROUNDS};
-use retrodoc_bench::benchmark::ask_replay::{ask_questions, ask_table, RunPairs, Variant};
+use retrodoc_bench::benchmark::ask_replay::{
+    ask_questions, ask_table, rejudge, AnswerRecord, RunPairs, Variant,
+};
 use retrodoc_bench::benchmark::{Judgement, Matches, QuestionSet, Reference};
 use retrodoc_core::config::{Config, LlmConfig};
-use retrodoc_llm::{OpenRouterProvider, UsageProvider, UsageTracker};
+use retrodoc_llm::{CallTotals, OpenRouterProvider, UsageProvider, UsageTracker};
 use retrodoc_mcp::Docs;
 use serde_json::json;
 
@@ -52,15 +56,17 @@ fn tracing_subscriber_init() {
 }
 
 async fn start(args: &[String]) -> Result<(), Failure> {
-    let usage = "usage: ask_replay <run dir> <benchmark dir> <model> <out dir> [--max-rounds N] [--only all|docs] [--dry-run]";
+    let usage = "usage: ask_replay <run dir> <benchmark dir> <model> <out dir> [--max-rounds N] [--only all|docs] [--dry-run] [--rejudge]";
     let [run, bench, model, out, rest @ ..] = args else {
         return Err(usage.into());
     };
-    let (mut max_rounds, mut only, mut dry_run) = (DEFAULT_MAX_ROUNDS, None, false);
+    let (mut max_rounds, mut only, mut dry_run, mut again) =
+        (DEFAULT_MAX_ROUNDS, None, false, false);
     let mut rest = rest.iter();
     while let Some(flag) = rest.next() {
-        if flag == "--dry-run" {
-            dry_run = true;
+        if flag == "--dry-run" || flag == "--rejudge" {
+            dry_run |= flag == "--dry-run";
+            again |= flag == "--rejudge";
             continue;
         }
         let value = rest.next().ok_or(usage)?;
@@ -95,11 +101,14 @@ async fn start(args: &[String]) -> Result<(), Failure> {
         }
         return Ok(());
     }
+    let judge_tracker = UsageTracker::new();
+    let judge = UsageProvider::new(provider(model, Some(0.0))?, judge_tracker.clone());
+    if again {
+        return rejudge_saved(&judge, &judge_tracker, &set, &out, only.as_deref()).await;
+    }
     let docs = Arc::new(load_docs(run)?);
     std::fs::create_dir_all(&out)?;
 
-    let judge_tracker = UsageTracker::new();
-    let judge = UsageProvider::new(provider(model, Some(0.0))?, judge_tracker.clone());
     let mut results = Vec::new();
     for (key, name, tools) in VARIANTS {
         if only.as_ref().is_some_and(|o| o != key) {
@@ -130,6 +139,50 @@ async fn start(args: &[String]) -> Result<(), Failure> {
         ask_table(&variants, &judge_tracker.report().total())
     );
     std::fs::write(out.join("table.md"), &table)?;
+    print!("{table}");
+    Ok(())
+}
+
+/// Judges again the saved answers of each variant in `out`, keeping the former ones aside.
+async fn rejudge_saved(
+    judge: &dyn retrodoc_llm::LlmProvider,
+    judge_tracker: &UsageTracker,
+    set: &QuestionSet,
+    out: &Path,
+    only: Option<&str>,
+) -> Result<(), Failure> {
+    let mut results = Vec::new();
+    for (key, name, _) in VARIANTS {
+        let path = out.join(format!("answers-{key}.yaml"));
+        if only.is_some_and(|o| o != key) || !path.exists() {
+            continue;
+        }
+        let mut records: Vec<AnswerRecord> =
+            serde_yaml::from_str(&std::fs::read_to_string(&path)?)?;
+        // The first judgement is kept once: a second re-judgement must not overwrite it.
+        let before = out.join(format!("answers-{key}.before-rejudge.yaml"));
+        if !before.exists() {
+            std::fs::copy(&path, &before)?;
+        }
+        eprintln!("{name}: judging {} answers again", records.len());
+        rejudge(judge, set, &mut records).await;
+        std::fs::write(&path, serde_yaml::to_string(&records)?)?;
+        results.push((name, records));
+    }
+    let variants: Vec<Variant<'_>> = results
+        .iter()
+        .map(|(name, records)| Variant {
+            name,
+            records,
+            agent: CallTotals::default(),
+        })
+        .collect();
+    let table = format!(
+        "Saved answers of {} judged again (the calls of the agents are those of `table.md`).\n\n{}",
+        out.display(),
+        ask_table(&variants, &judge_tracker.report().total())
+    );
+    std::fs::write(out.join("table-rejudged.md"), &table)?;
     print!("{table}");
     Ok(())
 }

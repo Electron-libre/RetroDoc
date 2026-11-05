@@ -365,7 +365,29 @@ Steps, each shippable:
 3. `retrodoc ask` with citations, confidence and freshness warnings. **Implemented** (2026-11-05,
    `issues/done/ask_command.md`, ADR 0047, `specs/ask.md`): a bounded loop over the seven read-only tools (8 rounds, then
    one request without tools), the sources kept only when a tool result showed them, the warnings computed from the
-   read model; no real model call checked yet (`issues/ask_question_set.md`).
+   read model.
+   Measured (2026-11-05, `issues/ask_question_set.md`, `specs/ask-question-set.md`): 44 questions on linkding with
+   known answers (22 documented, one per reference feature not disputed; 22 on what the application does not do,
+   with words checked absent from the repository), asked with deepseek-chat on a saved `hidden` benchmark run (docs
+   generated without the repository's own), judged by an LLM judge at temperature 0:
+
+   | tools | covered (18) | uncovered (4) | undocumented (22) | mean rounds | prompt tokens |
+   |---|---|---|---|---|---|
+   | all seven | 17 right, 1 wrong | 3 right, 1 wrong | 22 right | 5.5 | 878k |
+   | without `read_source`, `git_log` | 17 right, 1 not documented | 1 right, 2 wrong, 1 not documented | 21 right, 1 not documented | 4.3 | 535k |
+
+   - The agent invents nothing on the undocumented half: 0 wrong of 44 answers, with or without the code.
+   - The code tools help where the docs miss a feature ("uncovered": the run's features stand for no reference
+     feature): 3 of 4 right against 1 of 4 (auto tagging found in `profile.auto_tagging_rules`, user creation in
+     the admin), for 28% more rounds and 64% more prompt tokens. On the covered questions they change nothing.
+   - The errors come from the docs: the browser extensions live in another repository, so neither variant finds
+     them; with the code, one answer on bundles said no tag can be excluded, against the docs.
+   - A source of the answer is the expected feature, or one of its use cases, for 17 of 18 covered questions in
+     both variants.
+   - "Not documented" can't be judged by rule: 6 of the 7 covered answers holding the words were right, the words
+     only qualified a detail ("Yes ... the sort order is not documented"); the LLM judge decides it (AQS-7). Judged
+     twice, the judge changed 1 verdict of 13 (an answer missing the profile switch of the Wayback Machine).
+   - Cost: about $0.19 (agent $0.16, judge $0.03). One run per variant: a sample, not a spread.
 4. Interactive `chat` with conversation memory; code and git history tools.
 
 ## 5. Smaller open items

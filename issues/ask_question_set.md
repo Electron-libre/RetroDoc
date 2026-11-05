@@ -70,8 +70,8 @@ Out of scope: changing the agent or its prompt from the results (later issues), 
    <model>`: both variants, answers and judgements saved as YAML, the table printed); `retrodoc-bench` gains
    `retrodoc-agent`, `retrodoc-mcp`; verified by unit tests with `FakeLlm`; makes true ASK-21, AQS-5 to AQS-11, spec
    `accepted`. ~800 lines. (autonomous)
-3. [ ] The paid run (estimate shown, go asked first): both variants on the saved run, figures and cost in the
-   ledger and `docs/findings.md` §4. ~60 lines.
+3. [x] The paid run (estimate shown, go asked first): both variants on the saved run, figures and cost in the
+   ledger and `docs/findings.md` §4. ~60 lines. (autonomous; go of the user for the run)
 4. [ ] Docs of the whole issue and fixes of its `high` review.
 
 ## Decisions
@@ -108,3 +108,18 @@ Out of scope: changing the agent or its prompt from the results (later issues), 
   the tests were written with the code and passed at once.
 - Code review: no findings
 - not verified: no real model call (deliverable 3).
+
+## Deliverable 3 summary
+- done: the paid run (`~/retrodoc-runs/ask_question_set-4786b97-1/`, ~$0.19), figures in `docs/findings.md` §4 and
+  the ledger. The rule of AQS-6 ("Not documented" in the text) misjudged 6 of 7 covered answers that held the words
+  for a detail: spec amended (AQS-6 a blank answer only, AQS-7 a three-way verdict of the judge), `rejudge` and
+  `ask_replay --rejudge` added, the saved answers judged again (no agent call).
+- result: all tools 42/44 right (covered 17/18, uncovered 3/4, undocumented 22/22); without the code tools 39/44
+  (17/18, 1/4, 21/22); no answer invents on the undocumented half; the code tools cost 28% more rounds.
+- checks: tests ok, clippy ok, specs ok, docs updated (`docs/findings.md`, `docs/crates/bench.md`,
+  `docs/dev/commands.md`).
+- red: AQS-7: `left: [... ("otp", Undocumented, Right, None)] right: [... NotDocumented ...]` (the run test still
+  expected the rule); the rule's failure itself was seen on the real answers.
+- Code review: 1 finding. A second `--rejudge` overwrote the backup of the first judgement: fixed, the backup is
+  written once.
+- not verified: the spread (one run per variant, as decided).
