@@ -325,7 +325,7 @@ The milestones up to "A large application, one bounded context at a time" are th
 - State: in issues
 - Issues:
   - [pass_ratios_from_usage_history](issues/done/pass_ratios_from_usage_history.md)
-  - [pre_run_estimate](issues/pre_run_estimate.md)
+  - [pre_run_estimate](issues/done/pre_run_estimate.md)
   - [estimate_against_actual](issues/estimate_against_actual.md)
 
 ## Ask the documentation

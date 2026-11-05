@@ -1,5 +1,5 @@
 //! The calls and tokens a `generate` will cost, estimated before its first LLM call
-//! (`specs/run-estimate.md`, `issues/pre_run_estimate.md`). No LLM call: a pure function of what the run knows
+//! (`specs/run-estimate.md`, `issues/done/pre_run_estimate.md`). No LLM call: a pure function of what the run knows
 //! before it (the source files to read, those changed since the last complete run, the passes it turns off) and
 //! of the ratios measured on saved runs (`data/pass-ratios.yaml`, embedded, built by the example `pass_ratios` of
 //! `retrodoc-bench`).
