@@ -94,7 +94,7 @@ Code review: 7 findings.
   misses above and below the range, each with its median (TOK-8 amended); the comparison is shared by the recap and
   the report (`PassEstimate::is_compared`, `against`); `&mut Option` instead of a `OnceLock`.
 - Not fixed here: `business-read` is never estimated (it is not in `GENERATE_PASSES`): a bug of the estimate (EST-1),
-  outside this issue's requirements: `issues/estimate_business_read.md`.
+  outside this issue's requirements: `issues/done/estimate_business_read.md`.
 - Docs of the whole issue: `README.md` (cost control), `docs/findings.md` §3 point 5, `docs/crates/pipeline.md`,
   `docs/crates/bench.md`.
 - checks: tests 18/18 of `usage_log`, 14/14 of `pass_ratios`, the CLI suite, `cardinal run project-check` green;

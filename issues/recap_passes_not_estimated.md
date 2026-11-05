@@ -13,7 +13,7 @@ that is what hid `business-read`. Expected: such a pass shows in the comparison 
 estimated passes can't drift from the passes `generate` tracks.
 
 # Findings
-* 2026-11-05 (the `high` review of `issues/estimate_business_read.md`): `recap_against`
+* 2026-11-05 (the `high` review of `issues/done/estimate_business_read.md`): `recap_against`
   (`crates/retrodoc-pipeline/src/usage_log.rs`) builds its rows from `estimate.passes` only; a pass in
   `report.passes` absent from the estimate is never printed there.
 * `estimated_passes` (`crates/retrodoc-cli/src/commands/generate/estimate.rs`) copies by hand the order of the
