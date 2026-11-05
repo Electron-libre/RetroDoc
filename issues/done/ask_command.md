@@ -124,7 +124,7 @@ model. Out of scope: `chat`, misses fed to the debt report, answer quality, thin
 - `high` review: 10 findings.
   1. A failed call echoing a name made it a source: fixed, a source needs its full id in a result that showed
      something (ASK-17).
-  2. No budget of the tool results per round or in all: issue `issues/ask_loop_always_answers.md`.
+  2. No budget of the tool results per round or in all: issue `issues/done/ask_loop_always_answers.md`.
   3. The last request drops the tools with a tool history some servers refuse: same issue (not checked on a real call).
   4. Code spans read by parity of backticks: fixed, runs of equal length (ASK-7 scenario).
   5. A blank last answer printed as an empty answer: fixed, `NO_ANSWER` (ASK-18).
