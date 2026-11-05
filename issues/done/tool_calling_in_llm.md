@@ -94,7 +94,7 @@ JSON-action fallback (ADR 0046: the local Ollama takes native tools, checked on 
 - done: `tool_calls: null` read as none (TCL-11), no text and no call an invalid response again (TCL-12), `null`
   arguments are `{}` (TCL-13), a call without an id gets a distinct one (TCL-14); `FakeLlm` records the tools offered
   and `FakeTurn::Calls` carries a text; the language test uses `FakeLlm`. New issue
-  `issues/tool_loop_on_thinking_and_refusing_servers.md` for the `reasoning_content` of DeepSeek thinking mode and
+  `issues/done/tool_loop_on_thinking_and_refusing_servers.md` for the `reasoning_content` of DeepSeek thinking mode and
   the fallback loop on a refusal of tools.
 - checks: `project-check` passes.
 - Code review: no findings

@@ -11,7 +11,7 @@ loop. Expected: the reasoning these servers send is given back in the form each 
 (a thought signature, say) runs the agent of `retrodoc ask`.
 
 # Findings
-* 2026-11-05, `high` review of `issues/tool_loop_on_thinking_and_refusing_servers.md`, read from the code, not
+* 2026-11-05, `high` review of `issues/done/tool_loop_on_thinking_and_refusing_servers.md`, read from the code, not
   checked on a real call: OpenRouter returns the reasoning as `reasoning` and `reasoning_details`, Ollama's
   OpenAI-compatible endpoint as `reasoning`; `ApiResponseMessage` (`crates/retrodoc-llm/src/openrouter/mod.rs`)
   reads neither.

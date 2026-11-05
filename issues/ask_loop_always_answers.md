@@ -39,4 +39,4 @@ Ask the documentation
 
 # Resources
 * `specs/ask.md` (ASK-6), ADR 0046, ADR 0047, `docs/crates/agent.md`, `crates/retrodoc-agent/src/lib.rs`,
-  `issues/tool_loop_on_thinking_and_refusing_servers.md` (the other server cases of the loop).
+  `issues/done/tool_loop_on_thinking_and_refusing_servers.md` (the other server cases of the loop).
