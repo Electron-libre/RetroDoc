@@ -53,8 +53,8 @@ the store; a field equal to the generated text is left out (WEB-95); success rel
 ## Plan
 1. [x] Edit form and its `POST` (`edit_form.rs`, `/edit/domains/…` routes, `edit.html` form, texts en/fr); verified by
    `tests/edit_pages.rs` through the router; makes true WEB-93 to WEB-99, WEB-12 (amended). ~650 lines. (autonomous)
-2. [ ] Mark of an edited section in the lists and the generated text folded under the edit; verified by
-   `tests/edit_pages.rs`; makes true WEB-100, WEB-92 (amended). ~250 lines.
+2. [x] Mark of an edited section in the lists and the generated text folded under the edit; verified by
+   `tests/edit_pages.rs`; makes true WEB-100, WEB-92 (amended). ~250 lines. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -80,4 +80,22 @@ red: WEB-93, WEB-94, WEB-95, WEB-96, WEB-97, WEB-98, WEB-99: `no edit form in <!
 Code review: 1 findings: a narrative refused for a domain or a feature answered the form without its revert button on
 an edited section (`edited` forced to `false`); fixed, the refusal moved into `write`, test added.
 not verified: the form in a real browser (htmx `HX-Redirect`, the submitter `action=revert`): checked in deliverable 2.
+decisions needed: none.
+
+## Deliverable 2 summary
+done: "edited" mark in the rows of the home, domain and feature pages; the generated text folded under an edit,
+unfolded when outdated; `web-ui` back to `accepted`.
+
+| check | result |
+|---|---|
+| tests | pass (`project-check`) |
+| lint | pass |
+| specs | pass, `web-ui` accepted |
+| docs | README, `docs/crates/render-mcp-cli.md` |
+| browser | headless Chrome on a copy of a linkding run: save (`HX-Redirect` reload), revert, error swapped in place with the fields as sent |
+| code review | no findings |
+
+red: WEB-92, WEB-100: `folded: <section class="edit">` (no `<details class="generated">`), the row with no `badge edited`.
+Code review: no findings
+not verified: none.
 decisions needed: none.

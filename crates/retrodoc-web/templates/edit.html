@@ -4,11 +4,13 @@
 <p><strong>{{ t.edit.heading }}</strong> {{ edit.fields }} <span class="muted">{% if let Some(author) = edit.author %}{{ t.review.by }} {{ author }}, {% endif %}{{ edit.date }}</span></p>
 {% if edit.outdated.is_some() %}<p>{% call m::outdated(edit.outdated) %}{% endcall %}</p>{% endif %}
 {% if !edit.generated.is_empty() %}
-<p><strong>{{ t.edit.generated }}</strong></p>
-<dl class="generated">
+<details class="generated"{% if edit.outdated.is_some() %} open{% endif %}>
+<summary>{{ t.edit.generated }}</summary>
+<dl>
 {% for field in edit.generated %}<dt>{{ field.label }}</dt><dd>{{ field.text }}</dd>
 {% endfor %}
 </dl>
+</details>
 {% endif %}
 </section>
 {% endif %}

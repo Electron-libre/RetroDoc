@@ -1,6 +1,6 @@
 //! The human edit of a section on its page (`specs/web-ui.md` WEB-91, WEB-92): the fields it
-//! changes, its author and its date, and, when it is outdated, why and the text the last run
-//! generated for each of those fields. The edits are those the docs show, kept current by
+//! changes, its author and its date, why it is outdated when it is, and the text the last run
+//! generated for each of those fields, folded unless it is outdated. The edits are those the docs show, kept current by
 //! `retrodoc ui` (`retrodoc_mcp::edits::Live`).
 
 use retrodoc_mcp::edits::{self, Field};
@@ -17,7 +17,8 @@ pub struct EditView {
     pub author: Option<String>,
     pub date: String,
     pub outdated: Option<OutdatedView>,
-    /// The text the last run generated for each field it changes; empty when it is not outdated.
+    /// The text the last run generated for each field it changes, folded on the page unless the
+    /// edit is outdated.
     pub generated: Vec<GeneratedField>,
 }
 
@@ -38,10 +39,7 @@ impl EditView {
             return None;
         }
         let outdated = edits::outdated(docs, edit);
-        let generated = match outdated {
-            Some(_) => edits::generated(docs, edit).unwrap_or_default(),
-            None => Vec::new(),
-        };
+        let generated = edits::generated(docs, edit).unwrap_or_default();
         Some(Self {
             fields: changed
                 .into_iter()
@@ -65,6 +63,15 @@ impl EditView {
                 .collect(),
         })
     }
+}
+
+/// Whether the section at `place` of `docs` shows a human edit: one that changes a field as the
+/// readers show it ([`retrodoc_mcp::edits::Edit::changed`]), the mark of its row (WEB-100).
+#[must_use]
+pub fn is_edited(docs: &GeneratedDocs, place: &Place) -> bool {
+    docs.edits()
+        .get(&place.section())
+        .is_some_and(|edit| !edit.changed().is_empty())
 }
 
 fn field_label(texts: &EditTexts, field: Field) -> &'static str {

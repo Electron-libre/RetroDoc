@@ -5,6 +5,7 @@
 use std::collections::BTreeSet;
 
 use crate::actors::{actors_page, ActorsPage};
+use crate::edit::is_edited;
 use crate::files::{files_page, FilesPage};
 use crate::glossary::{glossary_page, GlossaryPage};
 use crate::map::{map_href, maps, Maps};
@@ -369,6 +370,8 @@ pub struct DomainRow {
     pub description: String,
     pub confidence: Confidence,
     pub review: Option<ReviewBadge>,
+    /// It holds a human edit (WEB-100).
+    pub edited: bool,
     /// A file one of its features cites was modified or deleted since the run.
     pub stale: bool,
     pub features: usize,
@@ -398,6 +401,7 @@ pub fn domain_rows(docs: &GeneratedDocs, reviews: &Reviews) -> Vec<DomainRow> {
                 description: domain.description.clone(),
                 confidence: Confidence::of(domain.confidence.as_ref()),
                 review: ReviewBadge::of_place(docs, reviews, &Place::Domain(domain.slug.clone())),
+                edited: is_edited(docs, &Place::Domain(domain.slug.clone())),
                 stale,
                 features: features.len(),
                 use_cases: features
@@ -421,6 +425,8 @@ pub struct ItemRow {
     pub name: String,
     pub confidence: Confidence,
     pub review: Option<ReviewBadge>,
+    /// It holds a human edit (WEB-100).
+    pub edited: bool,
     pub description: String,
 }
 
@@ -479,18 +485,16 @@ pub(crate) fn use_case_href(feature: &Feature, use_case: &UseCase) -> String {
 }
 
 fn feature_row(docs: &GeneratedDocs, feature: &Feature, reviews: &Reviews) -> ItemRow {
+    let place = Place::Feature {
+        domain: feature.domain_slug.clone(),
+        slug: feature.slug.clone(),
+    };
     ItemRow {
         href: feature_href(feature),
         name: feature.name.clone(),
         confidence: Confidence::of(feature.confidence.as_ref()),
-        review: ReviewBadge::of_place(
-            docs,
-            reviews,
-            &Place::Feature {
-                domain: feature.domain_slug.clone(),
-                slug: feature.slug.clone(),
-            },
-        ),
+        review: ReviewBadge::of_place(docs, reviews, &place),
+        edited: is_edited(docs, &place),
         description: feature.description.trim().to_string(),
     }
 }
@@ -792,20 +796,20 @@ pub fn feature_page(
 ) -> Option<FeaturePage> {
     let feature = find_feature(docs, domain, slug)?;
     let use_cases: Vec<&UseCase> = docs.use_cases_of(slug).collect();
-    let row = |u: &&UseCase| ItemRow {
-        href: use_case_href(feature, u),
-        name: u.name.clone(),
-        confidence: Confidence::of(u.confidence.as_ref()),
-        review: ReviewBadge::of_place(
-            docs,
-            reviews,
-            &Place::UseCase {
-                domain: domain.to_string(),
-                feature: slug.to_string(),
-                slug: u.slug.clone(),
-            },
-        ),
-        description: u.description.trim().to_string(),
+    let row = |u: &&UseCase| {
+        let place = Place::UseCase {
+            domain: domain.to_string(),
+            feature: slug.to_string(),
+            slug: u.slug.clone(),
+        };
+        ItemRow {
+            href: use_case_href(feature, u),
+            name: u.name.clone(),
+            confidence: Confidence::of(u.confidence.as_ref()),
+            review: ReviewBadge::of_place(docs, reviews, &place),
+            edited: is_edited(docs, &place),
+            description: u.description.trim().to_string(),
+        }
     };
     let (technical, business): (Vec<&UseCase>, Vec<&UseCase>) = use_cases
         .iter()

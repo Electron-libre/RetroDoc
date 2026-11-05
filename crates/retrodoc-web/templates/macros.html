@@ -4,6 +4,8 @@
 
 {% macro doc_link(doc) %}<a href="{{ doc.href }}"><code>{{ doc.path }}</code>{% if let Some(heading) = doc.heading %}, {{ t.doc.section }} “{{ heading }}”{% endif %}</a>{% if let Some(states) = doc.contradicts %} <span class="badge low">{{ t.states_otherwise }}</span> {{ states }}{% endif %}{% endmacro %}
 
+{% macro edited_badge(edited) %}{% if edited %} <span class="badge edited">{{ t.edit.badge }}</span>{% endif %}{% endmacro %}
+
 {% macro review_badge(review) %}{% if let Some(badge) = review %} <span class="badge review {{ badge.class }}">{{ t.review.status(*badge.status) }}</span>{% if badge.outdated %} <span class="badge review outdated">{{ t.review.outdated_badge }}</span>{% endif %}{% endif %}{% endmacro %}
 
 {% macro outdated(outdated) %}{% if let Some(o) = outdated %}{% let words = o.texts(t) %}<span class="why outdated">{{ words.heading }}{{ t.colon }} {% if o.rewritten %}{{ words.rewritten }}{% if !o.changed.is_empty() %}; {% endif %}{% endif %}{% if !o.changed.is_empty() %}{{ words.files_changed }} {% for file in o.changed %}<code>{{ file.path }}</code> ({% if file.deleted %}{{ t.deleted }}{% else %}{{ t.modified }}{% endif %}){% if !loop.last %}, {% endif %}{% endfor %}{% endif %}</span>{% endif %}{% endmacro %}
@@ -27,7 +29,7 @@
 {% macro items(rows) %}
 <ul class="items">
   {% for row in rows %}
-  <li><a href="{{ row.href }}">{{ row.name }}</a> {% call badge_why(row.confidence) %}{% endcall %}{% call review_badge(row.review) %}{% endcall %}{% if !row.description.is_empty() %}: {{ row.description }}{% endif %}</li>
+  <li><a href="{{ row.href }}">{{ row.name }}</a> {% call badge_why(row.confidence) %}{% endcall %}{% call review_badge(row.review) %}{% endcall %}{% call edited_badge(row.edited) %}{% endcall %}{% if !row.description.is_empty() %}: {{ row.description }}{% endif %}</li>
   {% endfor %}
 </ul>
 {% endmacro %}

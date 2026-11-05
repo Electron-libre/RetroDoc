@@ -39,7 +39,7 @@
     <h3><a href="/domains/{{ domain.slug }}">{{ domain.name }}</a>{% if domain.stale %} <span class="badge stale" title="{{ t.stale_hint }}">{{ t.stale }}</span>{% endif %}</h3>
     <p class="description">{{ domain.description }}</p>
     <p class="facts">
-      <span class="badge{% if domain.confidence.low %} low{% endif %}">{{ t.confidence(domain.confidence.percent.as_ref()) }}</span>{% call m::review_badge(domain.review) %}{% endcall %}
+      <span class="badge{% if domain.confidence.low %} low{% endif %}">{{ t.confidence(domain.confidence.percent.as_ref()) }}</span>{% call m::review_badge(domain.review) %}{% endcall %}{% call m::edited_badge(domain.edited) %}{% endcall %}
       <span>{{ t.features(*domain.features) }}</span>
       <span>{{ t.use_cases(*domain.use_cases) }}</span>
     </p>

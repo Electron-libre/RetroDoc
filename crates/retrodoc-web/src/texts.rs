@@ -261,9 +261,11 @@ pub struct EditTexts {
     pub heading: &'static str,
     /// The name, the description and the narrative, in the order of `Field::ALL`.
     pub fields: [&'static str; 3],
-    /// Above the text the last run generated for the fields of an outdated edit.
+    /// The summary of the text the last run generated for the fields of an edit.
     pub generated: &'static str,
     pub outdated: OutdatedTexts,
+    /// The mark of an edited section in a list.
+    pub badge: &'static str,
     /// The summary of the folded edit form.
     pub form_heading: &'static str,
     /// The labels of the fields of the form, in the order of `Field::ALL`.
@@ -644,6 +646,7 @@ impl WebTexts {
                 rewritten: "section rewritten since the edit",
                 files_changed: "files changed since the edit:",
             },
+            badge: "edited",
             form_heading: "Edit this section",
             labels: ["Name", "Description", "Narrative"],
             form_hint: "An empty field, or one left as generated, keeps the generated text.",
@@ -985,6 +988,7 @@ impl WebTexts {
                 rewritten: "section réécrite depuis la correction",
                 files_changed: "fichiers modifiés depuis la correction :",
             },
+            badge: "corrigée",
             form_heading: "Corriger cette section",
             labels: ["Nom", "Description", "Récit"],
             form_hint: "Un champ vide, ou laissé tel que généré, garde le texte généré.",
