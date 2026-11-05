@@ -15,6 +15,10 @@ loop. Expected: the reasoning these servers send is given back in the form each 
   checked on a real call: OpenRouter returns the reasoning as `reasoning` and `reasoning_details`, Ollama's
   OpenAI-compatible endpoint as `reasoning`; `ApiResponseMessage` (`crates/retrodoc-llm/src/openrouter/mod.rs`)
   reads neither.
+* 2026-11-06, local probe, Ollama 0.40.7 on :11435, `qwen3.6:35b-a3b` (thinking + tools), `/v1/chat/completions`:
+  the answer to a tool round holds `reasoning` (no `reasoning_content`, no `reasoning_details`). The next round with
+  `reasoning` given back is accepted (HTTP 200) and the reasoning is read (1,843 prompt tokens against 324 without);
+  without it, the round is not refused either. OpenRouter not probed: no key on the machine.
 
 # Approach
 1. Check on one real call per server (OpenRouter: cents, ask first; Ollama: local) which field comes back and
@@ -34,3 +38,44 @@ Ask the documentation
 
 # Hints
 * `reasoning_details` is a list of typed objects (encrypted ones included): give it back as received, not as text.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-06
+
+## Understanding
+Keep every reasoning field a server sends (`reasoning_content` of DeepSeek, `reasoning` of Ollama and OpenRouter,
+`reasoning_details` of OpenRouter, the latter as raw JSON) and give each back in its own field, none other. Out of
+scope: showing the reasoning to the user, asking for it (`reasoning_effort` stays as is).
+
+## Plan
+1. [x] Reasoning fields kept and given back: `Reasoning` struct (`reasoning_content`, `reasoning`,
+   `reasoning_details` as `serde_json::Value`) replaces `Option<String>` in `CompletionResponse` and `ChatMessage`;
+   read in `ApiResponseMessage`, sent by `ApiMessage` only when present; agent and fake provider follow; verified by
+   tests in `openrouter/tests/tools.rs` (OpenRouter-shaped and Ollama-shaped answers, round trip) and the agent test;
+   makes true TCL-17, TCL-18, TCL-20 (~250 lines). (autonomous)
+
+## Decisions
+- Mode: autonomous
+- Base commit: 2443ab9ae7f365f097b0a26050315e53c1c8241e
+- OpenRouter probe: none (no key on the machine); its fields are followed from its docs and tested on a simulated
+  OpenRouter-shaped answer; the exact shape of a real `reasoning_details` is not checked on a real call.
+
+## Summary of deliverable 1
+done: `Reasoning` keeps `reasoning_content`, `reasoning` and `reasoning_details` (raw JSON) and each goes back in its
+own field only; spec back to `accepted`; `docs/crates/llm.md` updated.
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass, TCL-20 traced |
+| docs | `docs/crates/llm.md` |
+| code review | low, no findings |
+
+red: TCL-17, TCL-18, TCL-20: `unresolved import crate::Reasoning`, `no field reasoning_content on type String`
+
+Code review: no findings
+
+not verified: a real OpenRouter call (no key; decision 1 a); a model that degrades without its reasoning.
+decisions needed: none

@@ -1,7 +1,7 @@
 //! Tool calls on the wire (`specs/tool-calling.md`).
 
 use super::{http, provider, request, serve, OK_BODY};
-use crate::{ChatMessage, CompletionRequest, LlmProvider, Role, ToolCall, ToolSpec};
+use crate::{ChatMessage, CompletionRequest, LlmProvider, Reasoning, Role, ToolCall, ToolSpec};
 
 fn list_domains() -> ToolSpec {
     ToolSpec {
@@ -219,27 +219,83 @@ async fn calls_without_an_id_get_distinct_ones() {
     assert!(!ids.contains(""), "{ids:?}");
 }
 
+/// An answer holding one call to `list_domains` and the reasoning fields `fields` (a JSON fragment
+/// starting with a comma, or empty).
+fn reasoned_answer(fields: &str) -> String {
+    format!(
+        r#"{{"model":"m","choices":[{{"finish_reason":"tool_calls","message":{{"role":"assistant","content":""{fields},
+            "tool_calls":[{{"id":"call_1","type":"function","function":{{"name":"list_domains","arguments":"{{}}"}}}}]}}}}]}}"#
+    )
+}
+
+fn reasoned_request() -> CompletionRequest {
+    CompletionRequest {
+        tools: vec![list_domains()],
+        ..request()
+    }
+}
+
 // spec: TCL-17 (internal: the answer is served by the mock server of the provider's tests)
 #[tokio::test]
-async fn the_reasoning_of_an_answer_reaches_the_caller_with_its_calls() {
+async fn the_reasoning_content_of_an_answer_reaches_the_caller_with_its_calls() {
     let (_, response) = exchange(
-        CompletionRequest {
-            tools: vec![list_domains()],
-            ..request()
-        },
-        r#"{"model":"m","choices":[{"finish_reason":"tool_calls","message":{"role":"assistant","content":"",
-            "reasoning_content":"look up the domains",
-            "tool_calls":[{"id":"call_1","type":"function","function":{"name":"list_domains","arguments":"{}"}}]}}]}"#,
+        reasoned_request(),
+        &reasoned_answer(r#","reasoning_content":"look up the domains""#),
     )
     .await;
 
-    assert_eq!(response.reasoning.as_deref(), Some("look up the domains"));
+    let reasoning = response.reasoning.unwrap();
+    assert_eq!(
+        reasoning.reasoning_content.as_deref(),
+        Some("look up the domains")
+    );
+    assert_eq!((reasoning.reasoning, reasoning.details), (None, None));
     assert_eq!(response.tool_calls.len(), 1);
 }
 
 // spec: TCL-17 (internal: the answer is served by the mock server of the provider's tests)
 #[tokio::test]
-async fn an_empty_reasoning_is_kept_and_a_missing_one_is_none() {
+async fn the_reasoning_of_an_ollama_answer_reaches_the_caller_under_its_field() {
+    let (_, response) = exchange(
+        reasoned_request(),
+        &reasoned_answer(r#","reasoning":"look up the domains""#),
+    )
+    .await;
+
+    let reasoning = response.reasoning.unwrap();
+    assert_eq!(reasoning.reasoning.as_deref(), Some("look up the domains"));
+    assert_eq!(
+        (reasoning.reasoning_content, reasoning.details),
+        (None, None)
+    );
+}
+
+// spec: TCL-17, TCL-20 (internal: the answer is served by the mock server of the provider's tests)
+#[tokio::test]
+async fn the_reasoning_details_of_an_openrouter_answer_reach_the_caller_as_sent() {
+    let (_, response) = exchange(
+        reasoned_request(),
+        &reasoned_answer(
+            r#","reasoning":"look up","reasoning_details":[
+                {"type":"reasoning.encrypted","data":"x","id":"r1","format":"f","index":0}]"#,
+        ),
+    )
+    .await;
+
+    let reasoning = response.reasoning.unwrap();
+    assert_eq!(reasoning.reasoning.as_deref(), Some("look up"));
+    assert_eq!(
+        reasoning.details,
+        Some(serde_json::json!([
+            {"type": "reasoning.encrypted", "data": "x", "id": "r1", "format": "f", "index": 0}
+        ]))
+    );
+    assert_eq!(reasoning.reasoning_content, None);
+}
+
+// spec: TCL-17 (internal: the answer is served by the mock server of the provider's tests)
+#[tokio::test]
+async fn an_empty_reasoning_is_kept_and_a_missing_or_null_one_is_none() {
     let answer = |reasoning: &str| {
         format!(
             r#"{{"model":"m","choices":[{{"message":{{"role":"assistant","content":"ok"{reasoning}}}}}]}}"#
@@ -247,37 +303,69 @@ async fn an_empty_reasoning_is_kept_and_a_missing_one_is_none() {
     };
     let (_, empty) = exchange(request(), &answer(r#","reasoning_content":"""#)).await;
     let (_, missing) = exchange(request(), &answer("")).await;
-    assert_eq!(empty.reasoning.as_deref(), Some(""));
+    let (_, null) = exchange(
+        request(),
+        &answer(r#","reasoning":null,"reasoning_details":null"#),
+    )
+    .await;
+    assert_eq!(
+        empty.reasoning.and_then(|r| r.reasoning_content).as_deref(),
+        Some("")
+    );
     assert_eq!(missing.reasoning, None);
+    assert_eq!(null.reasoning, None);
 }
 
-// spec: TCL-18 (internal: the wire body is only visible to the mock server of the provider's tests)
+// spec: TCL-18, TCL-20 (internal: the wire body is only visible to the mock server of the provider's tests)
 #[tokio::test]
-async fn the_reasoning_of_an_assistant_message_is_sent_back_only_when_it_has_one() {
-    let call = ToolCall {
-        id: "call_1".to_string(),
-        name: "list_domains".to_string(),
-        arguments: "{}".to_string(),
-    };
+async fn each_reasoning_field_is_sent_back_only_when_the_server_sent_it() {
+    let (_, answered) = exchange(
+        reasoned_request(),
+        &reasoned_answer(
+            r#","reasoning":"look up","reasoning_details":[{"type":"reasoning.encrypted","data":"x"}]"#,
+        ),
+    )
+    .await;
+    let call = answered.tool_calls[0].clone();
     let (body, _) = exchange(
         CompletionRequest {
             messages: vec![
                 ChatMessage::new(Role::User, "Which domains?"),
                 ChatMessage::assistant_calls("", vec![call.clone()])
-                    .with_reasoning(Some("look up the domains".to_string())),
+                    .with_reasoning(answered.reasoning),
                 ChatMessage::tool_result("call_1", "- Billing"),
+                ChatMessage::assistant_calls("", vec![call.clone()]).with_reasoning(Some(
+                    Reasoning {
+                        reasoning_content: Some("look up the domains".to_string()),
+                        ..Reasoning::default()
+                    },
+                )),
                 ChatMessage::assistant_calls("", vec![call]),
             ],
-            tools: vec![list_domains()],
-            ..request()
+            ..reasoned_request()
         },
         OK_BODY,
     )
     .await;
 
     let messages = body["messages"].as_array().unwrap();
-    assert_eq!(messages[1]["reasoning_content"], "look up the domains");
-    for message in [&messages[0], &messages[2], &messages[3]] {
-        assert!(message.get("reasoning_content").is_none(), "{message}");
+    assert_eq!(messages[1]["reasoning"], "look up");
+    assert_eq!(
+        messages[1]["reasoning_details"],
+        serde_json::json!([{"type": "reasoning.encrypted", "data": "x"}])
+    );
+    assert!(
+        messages[1].get("reasoning_content").is_none(),
+        "{}",
+        messages[1]
+    );
+    assert_eq!(messages[3]["reasoning_content"], "look up the domains");
+    for field in ["reasoning", "reasoning_details"] {
+        assert!(messages[3].get(field).is_none(), "{}", messages[3]);
+    }
+    for message in [&messages[0], &messages[2], &messages[4]] {
+        for field in ["reasoning_content", "reasoning", "reasoning_details"] {
+            assert!(message.get(field).is_none(), "{message}");
+        }
     }
 }

@@ -10,8 +10,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::usage;
 use crate::{
-    ChatMessage, CompletionRequest, CompletionResponse, LlmError, LlmProvider, ResponseSchema,
-    ToolCall, ToolSpec,
+    ChatMessage, CompletionRequest, CompletionResponse, LlmError, LlmProvider, Reasoning,
+    ResponseSchema, ToolCall, ToolSpec,
 };
 
 const OPENROUTER_ENDPOINT: &str = "https://openrouter.ai/api/v1/chat/completions";
@@ -54,15 +54,20 @@ struct ApiMessage<'a> {
     tool_calls: Vec<ApiToolCall<'a>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     tool_call_id: Option<&'a str>,
-    /// The reasoning a thinking model gave with its calls, sent back only
-    /// when it gave one (TCL-18).
+    /// The reasoning a thinking model gave with its calls, each field sent
+    /// back only when its server sent it (TCL-18, TCL-20).
     #[serde(skip_serializing_if = "Option::is_none")]
     reasoning_content: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reasoning: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reasoning_details: Option<&'a serde_json::Value>,
 }
 
 impl<'a> ApiMessage<'a> {
     fn from_message(message: &'a ChatMessage) -> Self {
         let only_calls = message.content.is_empty() && !message.tool_calls.is_empty();
+        let reasoning = message.reasoning.as_ref();
         Self {
             role: message.role.as_api_str(),
             content: (!only_calls).then_some(message.content.as_str()),
@@ -79,7 +84,9 @@ impl<'a> ApiMessage<'a> {
                 })
                 .collect(),
             tool_call_id: message.tool_call_id.as_deref(),
-            reasoning_content: message.reasoning.as_deref(),
+            reasoning_content: reasoning.and_then(|r| r.reasoning_content.as_deref()),
+            reasoning: reasoning.and_then(|r| r.reasoning.as_deref()),
+            reasoning_details: reasoning.and_then(|r| r.details.as_ref()),
         }
     }
 }
@@ -186,9 +193,15 @@ struct ApiResponseMessage {
     /// Missing, or `null` from some servers, when the model calls no tool.
     #[serde(default)]
     tool_calls: Option<Vec<ApiResponseToolCall>>,
-    /// The reasoning of a thinking model (`DeepSeek`), to give back with the calls.
+    /// The reasoning of a thinking model, to give back with the calls in the
+    /// field it came in: `reasoning_content` (`DeepSeek`), `reasoning`
+    /// (`OpenRouter`, Ollama), `reasoning_details` (`OpenRouter`, as sent).
     #[serde(default)]
     reasoning_content: Option<String>,
+    #[serde(default)]
+    reasoning: Option<String>,
+    #[serde(default)]
+    reasoning_details: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -545,7 +558,11 @@ async fn decode_success(
         usage: usage::parse(parsed.usage),
         truncated,
         tool_calls,
-        reasoning: choice.message.reasoning_content,
+        reasoning: Reasoning::of_answer(
+            choice.message.reasoning_content,
+            choice.message.reasoning,
+            choice.message.reasoning_details,
+        ),
     })
 }
 

@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use retrodoc_llm::{
-    ChatMessage, CompletionRequest, CompletionResponse, LlmError, LlmProvider, ToolCall,
+    ChatMessage, CompletionRequest, CompletionResponse, LlmError, LlmProvider, Reasoning, ToolCall,
 };
 use tracing_subscriber::fmt::MakeWriter;
 
@@ -228,7 +228,14 @@ impl LlmProvider for FakeLlm {
         let (mut content, tool_calls, reasoning) = match (self.reply)(n, &request)? {
             FakeTurn::Text(text) => (text, Vec::new(), None),
             FakeTurn::Calls { text, calls } => (text, calls, None),
-            FakeTurn::Reasoned { reasoning, calls } => (String::new(), calls, Some(reasoning)),
+            FakeTurn::Reasoned { reasoning, calls } => (
+                String::new(),
+                calls,
+                Some(Reasoning {
+                    reasoning_content: Some(reasoning),
+                    ..Reasoning::default()
+                }),
+            ),
             FakeTurn::Fail => return Err(LlmError::Transport("down".to_string())),
         };
         let truncated = self

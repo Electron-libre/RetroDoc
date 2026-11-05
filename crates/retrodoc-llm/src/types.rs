@@ -15,8 +15,8 @@ pub struct ChatMessage {
     /// The call a [`Role::Tool`] message answers.
     pub tool_call_id: Option<String>,
     /// The reasoning a thinking model wrote before the calls of an assistant
-    /// message, given back with them (`reasoning_content`, TCL-18).
-    pub reasoning: Option<String>,
+    /// message, given back with them in the fields its server sent (TCL-18).
+    pub reasoning: Option<Reasoning>,
 }
 
 impl ChatMessage {
@@ -43,9 +43,9 @@ impl ChatMessage {
     }
 
     /// The same message with the reasoning of the answer it gives back
-    /// (none: no `reasoning_content` is sent, as a server may refuse it).
+    /// (none: no reasoning field is sent, as a server may refuse one).
     #[must_use]
-    pub fn with_reasoning(self, reasoning: Option<String>) -> Self {
+    pub fn with_reasoning(self, reasoning: Option<Reasoning>) -> Self {
         Self { reasoning, ..self }
     }
 
@@ -113,6 +113,37 @@ pub struct ToolCall {
     pub arguments: String,
 }
 
+/// The reasoning a thinking model sent with an answer, each field as its
+/// server named it, so it goes back in the same fields and in no other
+/// (TCL-17, TCL-18). A field the server did not send is `None`.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Reasoning {
+    /// `reasoning_content`, the field of `DeepSeek`.
+    pub reasoning_content: Option<String>,
+    /// `reasoning`, the field of `OpenRouter` and Ollama.
+    pub reasoning: Option<String>,
+    /// `reasoning_details`, the typed entries of `OpenRouter` (encrypted ones
+    /// included), kept as the JSON the server sent (TCL-20).
+    pub details: Option<serde_json::Value>,
+}
+
+impl Reasoning {
+    /// The reasoning of an answer, `None` when the server sent no field of it.
+    #[must_use]
+    pub fn of_answer(
+        reasoning_content: Option<String>,
+        reasoning: Option<String>,
+        details: Option<serde_json::Value>,
+    ) -> Option<Self> {
+        let sent = reasoning_content.is_some() || reasoning.is_some() || details.is_some();
+        sent.then_some(Self {
+            reasoning_content,
+            reasoning,
+            details,
+        })
+    }
+}
+
 /// A JSON schema the answer should follow (sent as `response_format`).
 #[derive(Debug, Clone)]
 pub struct ResponseSchema {
@@ -134,10 +165,9 @@ pub struct CompletionResponse {
     /// The tools the model asked for, in the order of the answer (empty for
     /// a text answer).
     pub tool_calls: Vec<ToolCall>,
-    /// The reasoning of a thinking model (`reasoning_content`), to give back
-    /// with its calls ([`ChatMessage::with_reasoning`]); none when the server
-    /// sent none.
-    pub reasoning: Option<String>,
+    /// The reasoning of a thinking model, to give back with its calls
+    /// ([`ChatMessage::with_reasoning`]); none when the server sent none.
+    pub reasoning: Option<Reasoning>,
 }
 
 #[derive(Debug, thiserror::Error)]

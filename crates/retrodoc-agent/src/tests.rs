@@ -327,7 +327,11 @@ async fn the_reasoning_of_a_round_that_called_tools_is_given_back_in_the_next() 
 
     let second = &llm.messages()[1];
     let assistant = second.iter().find(|m| m.role == Role::Assistant).unwrap();
-    assert_eq!(assistant.reasoning.as_deref(), Some("look up the domains"));
+    let reasoning = assistant.reasoning.as_ref().unwrap();
+    assert_eq!(
+        reasoning.reasoning_content.as_deref(),
+        Some("look up the domains")
+    );
 }
 
 // spec: ASK-22 (internal: the messages of the last request are seen through the fake provider only)

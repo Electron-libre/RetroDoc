@@ -48,12 +48,16 @@ the native OpenAI-compatible format, and each round is counted like any other ca
   `structured`).
 - **TCL-16** (deterministic) The error of a request refused as in TCL-15 must say that the model or its server
   refuses tools, and name the model and the server's answer.
-- **TCL-17** (deterministic) An answer whose message holds a `reasoning_content` must give it to the caller with the
-  text and the tool calls.
-- **TCL-18** (deterministic) An assistant message that carries a reasoning must be sent with it as its
-  `reasoning_content`; one without a reasoning must not send the field.
+- **TCL-17** (deterministic) The reasoning of an answer must reach the caller with the text and the tool calls, each
+  of the fields `reasoning_content`, `reasoning` and `reasoning_details` the message holds under the field the server
+  sent it in.
+- **TCL-18** (deterministic) An assistant message that carries a reasoning must be sent with each of its fields
+  under the name the server sent it in (`reasoning_content`, `reasoning`, `reasoning_details`); a field the server did
+  not send must not be sent, and a message without a reasoning sends none of them.
 - **TCL-19** (deterministic) The agent of `ask` must give back, in the history of its next round, the reasoning of
   each answer that called tools.
+- **TCL-20** (deterministic) A `reasoning_details` must be given back as the JSON the server sent, every entry and
+  key unchanged (encrypted ones included), never rewritten as text.
 
 ## Scenarios
 
@@ -70,6 +74,9 @@ the native OpenAI-compatible format, and each round is counted like any other ca
   response to a preceding message with 'tool_calls'` (a history error, no refusal).
 - (TCL-17, TCL-18) Given an answer with `reasoning_content: "look up the domains"` and a call, when the agent sends
   its next round, then the assistant message of that call holds `reasoning_content: "look up the domains"`.
+- (TCL-17, TCL-18, TCL-20) Given an `OpenRouter` answer with `reasoning: "look up"` and `reasoning_details: [{"type":
+  "reasoning.encrypted", "data": "x"}]` and a call, when the agent sends its next round, then the assistant message
+  holds the same `reasoning` and `reasoning_details` and no `reasoning_content`.
 - (TCL-9) Given a loop of three rounds, then the tracker counts three calls and the sum of their tokens.
 
 ## Non-goals
