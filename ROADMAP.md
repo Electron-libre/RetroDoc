@@ -349,4 +349,4 @@ The milestones up to "A large application, one bounded context at a time" are th
   - [ask_command](issues/done/ask_command.md)
   - [ask_loop_always_answers](issues/done/ask_loop_always_answers.md)
   - [ask_question_set](issues/done/ask_question_set.md)
-  - [chat_command](issues/chat_command.md)
+  - [chat_command](issues/done/chat_command.md)
