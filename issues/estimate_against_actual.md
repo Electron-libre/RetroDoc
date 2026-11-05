@@ -41,8 +41,8 @@ the table from the misses (it stays rebuilt by hand), an estimate for the other 
 1. [x] The estimate of `generate` saved with its run in `usage.json` (`RunUsage::estimate`, optional), carried from
    `generate` to the end of the command; verified by unit tests of `usage_log` and a CLI test on a fake LLM; makes
    true TOK-6 (~300 lines) (autonomous).
-2. [ ] The recap of `generate` shows, per pass, within the range or the bound missed and the miss in percent;
-   verified by unit tests of `recap` and the CLI test; makes true TOK-7 (~350 lines).
+2. [x] The recap of `generate` shows, per pass, within the range or the bound missed and the miss in percent;
+   verified by unit tests of `recap` and the CLI test; makes true TOK-7 (~350 lines) (autonomous).
 3. [ ] The `pass_ratios` measuring example reports, per pass, the runs within range and the median miss of the
    others, from the estimates of the measured runs; verified by tests of `pass_ratios`; makes true TOK-8 (~300 lines).
 
@@ -63,3 +63,13 @@ the table from the misses (it stays rebuilt by hand), an estimate for the other 
 - not verified: a real paid run (the fake LLM only).
 - The end of a command (`counted`, `snapshot`, the estimate) is one `Ending` in `main.rs`: `main` was over the
   line limit of clippy.
+
+## Deliverable 2
+- done: `usage_log::recap_against` (the recap, then `Against the estimate:` per pass estimated or that made a call:
+  `within the range`, or each figure missed with its bound and the miss in percent, none against a zero bound),
+  printed at the end of a counted command; `docs/crates/pipeline.md`.
+- checks: tests 7/7 of `run_estimate`, 16/16 of `usage_log`, `cardinal run project-check` green, docs updated.
+- red: TOK-7: the CLI test failed with the plain recap (`the comparison` not found); the unit tests failed to compile
+  before `recap_against` existed.
+- Code review: no findings (`low`).
+- not verified: the figures of a real paid run.

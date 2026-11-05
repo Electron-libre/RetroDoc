@@ -129,7 +129,7 @@ pub fn finish(
     if calls == 0 && !succeeded {
         return None;
     }
-    print!("\n{}", usage_log::recap(&report));
+    print!("\n{}", usage_log::recap_against(&report, estimate));
     if calls == 0 {
         return None;
     }

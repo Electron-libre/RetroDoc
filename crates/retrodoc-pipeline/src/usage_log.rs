@@ -14,12 +14,12 @@ use std::fmt::Write as _;
 use std::path::Path;
 use std::time::Duration;
 
-use retrodoc_llm::{CallTotals, UsageReport};
+use retrodoc_llm::{CallTotals, PassUsage, UsageReport};
 use serde::{Deserialize, Serialize};
 
 use crate::artifact::{self, Artifact};
 use crate::error::PipelineError;
-use crate::estimate::RunEstimate;
+use crate::estimate::{Range, RunEstimate};
 use crate::progress::format_duration;
 
 /// Runs kept in the history, the oldest dropped first.
@@ -236,12 +236,88 @@ pub fn recap(report: &UsageReport) -> String {
     out
 }
 
+/// The [`recap`], then, with the `estimate` printed before the run, each pass of it that was estimated or made a
+/// call set against its range: within it, or each figure that missed, the bound missed and the miss in percent
+/// of that bound (none against a bound of zero).
+#[must_use]
+pub fn recap_against(report: &UsageReport, estimate: Option<&RunEstimate>) -> String {
+    let mut out = recap(report);
+    let Some(estimate) = estimate else {
+        return out;
+    };
+    let rows: Vec<(&str, String)> = estimate
+        .passes
+        .iter()
+        .filter_map(|pass| {
+            let measured = report
+                .passes
+                .iter()
+                .find(|p| p.name == pass.pass)
+                .map(PassUsage::total)
+                .unwrap_or_default();
+            let estimated = pass.calls.high > 0
+                || pass.prompt_tokens.high > 0
+                || pass.completion_tokens.high > 0;
+            (estimated || measured.calls > 0).then(|| {
+                let misses: Vec<String> = [
+                    ("calls", measured.calls, pass.calls),
+                    ("tokens in", measured.prompt_tokens, pass.prompt_tokens),
+                    (
+                        "tokens out",
+                        measured.completion_tokens,
+                        pass.completion_tokens,
+                    ),
+                ]
+                .into_iter()
+                .filter_map(|(what, figure, range)| miss(what, figure, range))
+                .collect();
+                let text = if misses.is_empty() {
+                    "within the range".to_string()
+                } else {
+                    misses.join("; ")
+                };
+                (pass.pass.as_str(), text)
+            })
+        })
+        .collect();
+    if rows.is_empty() {
+        return out;
+    }
+    out.push_str("  Against the estimate:\n");
+    let width = rows.iter().map(|(name, _)| name.len()).max().unwrap_or(0);
+    for (name, text) in rows {
+        let _ = writeln!(out, "    {name:<width$}  {text}");
+    }
+    out
+}
+
+/// `calls 360 above 300 (+20%)`, or `None` when `figure` is within `range`.
+fn miss(what: &str, figure: u64, range: Range) -> Option<String> {
+    let (side, bound) = if figure > range.high {
+        ("above", range.high)
+    } else if figure < range.low {
+        ("below", range.low)
+    } else {
+        return None;
+    };
+    let percent = if bound == 0 {
+        String::new()
+    } else {
+        #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
+        let percent = ((figure as f64 - bound as f64) / bound as f64 * 100.0).round() as i64;
+        format!(" ({percent:+}%)")
+    };
+    Some(format!(
+        "{what} {} {side} {}{percent}",
+        thousands(figure),
+        thousands(bound)
+    ))
+}
+
 #[cfg(test)]
 mod tests {
-    use retrodoc_llm::PassUsage;
-
     use super::*;
-    use crate::estimate::{Basis, PassEstimate, Range};
+    use crate::estimate::{Basis, PassEstimate};
 
     fn pass(name: &str, secs: u64, models: &[(&str, u64, u64, u64, u64)]) -> PassUsage {
         PassUsage {
@@ -403,6 +479,88 @@ mod tests {
         let back = load_history(dir.path());
         assert_eq!(back.len(), 1);
         assert_eq!(back[0].estimate, None);
+    }
+
+    fn estimated(pass: &str, basis: Basis, calls: (u64, u64), prompt: (u64, u64)) -> PassEstimate {
+        PassEstimate {
+            pass: pass.to_string(),
+            basis,
+            calls: Range {
+                low: calls.0,
+                high: calls.1,
+            },
+            prompt_tokens: Range {
+                low: prompt.0,
+                high: prompt.1,
+            },
+            completion_tokens: Range {
+                low: 0,
+                high: if calls.1 > 0 { 1_000 } else { 0 },
+            },
+        }
+    }
+
+    fn estimate_of(passes: Vec<PassEstimate>) -> RunEstimate {
+        RunEstimate {
+            source_files: 1,
+            changed_files: None,
+            passes,
+            calls: Range::default(),
+            prompt_tokens: Range::default(),
+            completion_tokens: Range::default(),
+        }
+    }
+
+    // spec: TOK-7 (internal: the token counts come from an LLM answer the binary cannot fake)
+    #[test]
+    fn recap_sets_each_pass_against_its_estimate() {
+        let report = UsageReport {
+            passes: vec![
+                pass("brief", 1, &[("m", 1, 0, 500, 100)]),
+                pass("use-cases", 1, &[("m", 360, 0, 50_000, 900)]),
+            ],
+        };
+        let estimate = estimate_of(vec![
+            estimated("brief", Basis::PerRun, (1, 2), (400, 600)),
+            estimated(
+                "use-cases",
+                Basis::PerSourceFile,
+                (100, 300),
+                (80_000, 90_000),
+            ),
+            estimated("confidence", Basis::Off, (0, 0), (0, 0)),
+        ]);
+
+        let text = recap_against(&report, Some(&estimate));
+
+        assert!(text.contains("Against the estimate:"), "{text}");
+        assert!(text.contains("brief      within the range"), "{text}");
+        assert!(text.contains("calls 360 above 300 (+20%)"), "{text}");
+        assert!(
+            text.contains("tokens in 50,000 below 80,000 (-38%)"),
+            "{text}"
+        );
+        // Estimated at zero and made no call: no line.
+        assert!(!text.contains("confidence"), "{text}");
+    }
+
+    // spec: TOK-7 (internal: the token counts come from an LLM answer the binary cannot fake)
+    #[test]
+    fn a_miss_above_a_zero_bound_has_no_percent() {
+        let report = UsageReport {
+            passes: vec![pass("confidence", 1, &[("m", 3, 0, 30, 10)])],
+        };
+        let off = estimated("confidence", Basis::Off, (0, 0), (0, 0));
+        let text = recap_against(&report, Some(&estimate_of(vec![off])));
+        assert!(text.contains("confidence  calls 3 above 0;"), "{text}");
+        assert!(!text.contains('%'), "{text}");
+    }
+
+    // spec: TOK-7 (internal: the token counts come from an LLM answer the binary cannot fake)
+    #[test]
+    fn recap_without_an_estimate_is_unchanged() {
+        assert_eq!(recap_against(&report(), None), recap(&report()));
+        assert!(!recap(&report()).contains("estimate"));
     }
 
     #[test]

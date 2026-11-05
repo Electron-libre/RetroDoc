@@ -172,3 +172,17 @@ fn the_estimate_is_saved_with_the_run_in_the_usage_history() {
         .expect("use-cases");
     assert!(use_cases["calls"]["high"].as_u64().unwrap() > 0, "{raw}");
 }
+
+// spec: TOK-7
+#[test]
+fn the_recap_of_generate_sets_the_passes_against_the_estimate() {
+    let llm = FakeLlm::start(|_| r#"{"domains":[]}"#.to_string());
+    let dir = repo(&llm);
+
+    let out = stdout(&run(dir.path(), &["generate", "--no-confidence"]));
+
+    let recap = &out[out.find("LLM usage: ").expect("a recap")..];
+    let against = &recap[recap.find("Against the estimate:").expect("the comparison")..];
+    assert!(against.contains("  brief "), "{against}");
+    assert!(!against.contains("confidence"), "{against}");
+}
