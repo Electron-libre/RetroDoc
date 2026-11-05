@@ -2,6 +2,7 @@
 //! application by navigating the generated docs with the read-only tools of the MCP server, in a
 //! bounded number of rounds. Nothing here writes; the tools answer from [`Docs`].
 
+use std::collections::VecDeque;
 use std::fmt::Write as _;
 use std::sync::Arc;
 
@@ -36,6 +37,10 @@ pub const MAX_CALLS_PER_ROUND: usize = 6;
 /// (ASK-24): 13k to 16k tokens of code or non-English text (2.5 to 3 characters a token), half the
 /// 32k context of the local model, leaving room for the prompts, the reasoning and the answer.
 pub const MAX_RESULT_CHARS: usize = 40_000;
+
+/// Characters of the earlier questions and answers a [`Conversation`] keeps (CHT-4): a quarter of
+/// the budget of the tool results, which it shrinks by as much (CHT-5).
+pub const MAX_MEMORY_CHARS: usize = 10_000;
 
 const LAST_ROUND: &str =
     "You have used all your tool calls. Answer the question now from what the \
@@ -116,16 +121,80 @@ impl Answer {
     }
 }
 
+/// An earlier question of a [`Conversation`], with the text of its answer and its sources.
+#[derive(Debug, Clone)]
+struct Turn {
+    question: String,
+    answer: String,
+    sources: Vec<Source>,
+}
+
+impl Turn {
+    fn chars(&self) -> usize {
+        self.question.chars().count() + self.answer.chars().count()
+    }
+}
+
+/// Questions asked one after the other (`specs/chat.md`): each is answered like [`ask`], after the
+/// earlier questions and answers kept, their tool results left out, the oldest dropped past
+/// [`MAX_MEMORY_CHARS`].
+#[derive(Debug, Clone, Default)]
+pub struct Conversation {
+    turns: VecDeque<Turn>,
+}
+
+impl Conversation {
+    /// Asks `question` after the turns kept, like [`ask`], then keeps it with its answer; a failed
+    /// question is not kept.
+    ///
+    /// # Errors
+    ///
+    /// Returns the error of a call to the LLM.
+    pub async fn ask(
+        &mut self,
+        llm: &dyn LlmProvider,
+        docs: Arc<Docs>,
+        question: &str,
+        max_rounds: usize,
+    ) -> Result<Answer, LlmError> {
+        let turns: Vec<Turn> = self.turns.iter().cloned().collect();
+        let answer = answer_after(llm, docs, &turns, question, max_rounds, Tools::All).await?;
+        let text = answer.text.trim();
+        self.turns.push_back(Turn {
+            question: question.to_string(),
+            answer: if text.is_empty() { NO_ANSWER } else { text }.to_string(),
+            sources: answer.sources.clone(),
+        });
+        while self.turns.iter().map(Turn::chars).sum::<usize>() > MAX_MEMORY_CHARS {
+            self.turns.pop_front();
+        }
+        Ok(answer)
+    }
+
+    /// The questions and answers kept, oldest first.
+    pub fn turns(&self) -> impl Iterator<Item = (&str, &str)> {
+        self.turns
+            .iter()
+            .map(|turn| (turn.question.as_str(), turn.answer.as_str()))
+    }
+}
+
 /// The names the text gives in code spans that resolve in `docs` and whose full id or path a tool
-/// result showed, in the order of the text, each once.
-fn checked_sources(text: &str, tool_results: &[String], docs: &Docs) -> Vec<Source> {
+/// result showed, or that an earlier turn had as a source, in the order of the text, each once.
+fn checked_sources(
+    text: &str,
+    tool_results: &[String],
+    earlier: &[Turn],
+    docs: &Docs,
+) -> Vec<Source> {
     let shown: Vec<&str> = tool_results.iter().filter_map(|r| shown(r)).collect();
     let mut sources: Vec<Source> = Vec::new();
     for name in code_spans(text) {
         let Some(source) = docs.source_named(name) else {
             continue;
         };
-        if shown.iter().any(|r| r.contains(&source.id)) && !sources.contains(&source) {
+        let kept = earlier.iter().any(|turn| turn.sources.contains(&source));
+        if (kept || shown.iter().any(|r| r.contains(&source.id))) && !sources.contains(&source) {
             sources.push(source);
         }
     }
@@ -222,17 +291,32 @@ pub async fn ask_with(
     max_rounds: usize,
     offered: Tools,
 ) -> Result<Answer, LlmError> {
+    answer_after(llm, docs, &[], question, max_rounds, offered).await
+}
+
+/// [`ask_with`] after the `earlier` turns of a conversation, sent as messages before the question
+/// and taken off the budget of the tool results.
+async fn answer_after(
+    llm: &dyn LlmProvider,
+    docs: Arc<Docs>,
+    earlier: &[Turn],
+    question: &str,
+    max_rounds: usize,
+    offered: Tools,
+) -> Result<Answer, LlmError> {
     let tools: Vec<ToolSpec> = tool_specs()
         .into_iter()
         .filter(|tool| offered.offers(&tool.name))
         .collect();
-    let mut messages = vec![
-        ChatMessage::new(Role::System, offered.system_prompt()),
-        ChatMessage::new(Role::User, question),
-    ];
+    let mut messages = vec![ChatMessage::new(Role::System, offered.system_prompt())];
+    for turn in earlier {
+        messages.push(ChatMessage::new(Role::User, turn.question.clone()));
+        messages.push(ChatMessage::new(Role::Assistant, turn.answer.clone()));
+    }
+    messages.push(ChatMessage::new(Role::User, question));
     let mut answer = Answer::default();
     let mut called: Vec<ToolCall> = Vec::new();
-    let mut used = 0;
+    let mut used = earlier.iter().map(Turn::chars).sum::<usize>();
     loop {
         let offer = answer.rounds < max_rounds;
         let request = if offer {
@@ -245,14 +329,18 @@ pub async fn ask_with(
             CompletionRequest {
                 messages: vec![
                     messages[0].clone(),
-                    ChatMessage::new(Role::User, folded(question, &called, &answer.tool_results)),
+                    ChatMessage::new(
+                        Role::User,
+                        folded(earlier, question, &called, &answer.tool_results),
+                    ),
                 ],
                 ..Default::default()
             }
         };
         let response = llm.complete(request).await?;
         if !offer || response.tool_calls.is_empty() {
-            answer.sources = checked_sources(&response.content, &answer.tool_results, &docs);
+            answer.sources =
+                checked_sources(&response.content, &answer.tool_results, earlier, &docs);
             answer.warnings = warnings_of(&docs, answer.sources.clone()).await;
             answer.text = response.content;
             return Ok(answer);
@@ -293,7 +381,7 @@ fn within_budget(result: String, used: &mut usize) -> String {
         return result;
     }
     let size = result.chars().count();
-    let left = MAX_RESULT_CHARS - *used;
+    let left = MAX_RESULT_CHARS.saturating_sub(*used);
     if size > left {
         return format!(
             "Error: this result holds {size} characters and {left} are left of the budget of \
@@ -305,11 +393,23 @@ fn within_budget(result: String, used: &mut usize) -> String {
     result
 }
 
-/// The one user message of the last request: the question, each call that got no error with its
+/// The one user message of the last request: the earlier turns of a conversation, the question, each call that got no error with its
 /// result as text, then the demand of the answer. No tool history, which a server may refuse in a
 /// request without tools, and no second user message in a row, which some chat templates refuse.
-fn folded(question: &str, calls: &[ToolCall], results: &[String]) -> String {
-    let mut text = format!("{question}\n\n");
+fn folded(earlier: &[Turn], question: &str, calls: &[ToolCall], results: &[String]) -> String {
+    let mut text = String::new();
+    if !earlier.is_empty() {
+        text.push_str("The conversation so far:\n\n");
+        for turn in earlier {
+            let _ = write!(
+                text,
+                "## Question\n\n{}\n\n## Your answer\n\n{}\n\n",
+                turn.question, turn.answer
+            );
+        }
+        text.push_str("The question now:\n\n");
+    }
+    let _ = write!(text, "{question}\n\n");
     let read: Vec<_> = calls
         .iter()
         .zip(results)

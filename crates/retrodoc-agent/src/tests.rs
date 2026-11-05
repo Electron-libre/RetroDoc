@@ -437,3 +437,168 @@ async fn a_result_past_the_budget_of_the_question_is_refused_with_its_size() {
     );
     assert_eq!(*small, docs.list_domains());
 }
+
+const PAID: &str = "Invoices are paid in `billing/pay-invoice`.";
+
+/// A conversation whose first question read `billing/pay-invoice`, then answered naming it.
+async fn after_a_first_question(llm: &FakeLlm, docs: &Arc<Docs>) -> Conversation {
+    let mut conversation = Conversation::default();
+    conversation
+        .ask(llm, Arc::clone(docs), "How is an invoice paid?", 8)
+        .await
+        .unwrap();
+    conversation
+}
+
+fn reading_then(texts: &[&str]) -> FakeLlm {
+    let mut turns = vec![
+        calls(vec![call(
+            "c1",
+            "get_feature",
+            r#"{"id":"billing/pay-invoice"}"#,
+        )]),
+        FakeTurn::Text(PAID.into()),
+    ];
+    turns.extend(texts.iter().map(|t| FakeTurn::Text((*t).into())));
+    FakeLlm::scripted(turns)
+}
+
+// spec: CHT-2, CHT-3 (internal: the messages of a request are seen through the fake provider only)
+#[tokio::test]
+async fn a_follow_up_is_sent_after_the_earlier_question_and_answer_without_their_tools() {
+    let llm = reading_then(&["By card."]);
+    let docs = docs();
+    let mut conversation = after_a_first_question(&llm, &docs).await;
+    conversation
+        .ask(&llm, Arc::clone(&docs), "And how else?", 8)
+        .await
+        .unwrap();
+
+    let third = &llm.messages()[2];
+    let sent: Vec<(Role, &str)> = third.iter().map(|m| (m.role, m.content.as_str())).collect();
+    assert_eq!(
+        sent[1..],
+        [
+            (Role::User, "How is an invoice paid?"),
+            (Role::Assistant, PAID),
+            (Role::User, "And how else?"),
+        ]
+    );
+    assert_eq!(sent[0].0, Role::System);
+    assert!(third.iter().all(|m| m.tool_calls.is_empty()));
+}
+
+// spec: CHT-4 (internal: the memory is a value of the agent the binary does not show)
+#[tokio::test]
+async fn the_oldest_turns_are_dropped_past_the_memory_budget() {
+    let long = "a".repeat(3999);
+    let llm = FakeLlm::scripted(vec![FakeTurn::Text(long)]);
+    let docs = docs();
+    let mut conversation = Conversation::default();
+    for question in ["1", "2", "3"] {
+        conversation
+            .ask(&llm, Arc::clone(&docs), question, 8)
+            .await
+            .unwrap();
+    }
+    let kept: Vec<&str> = conversation.turns().map(|(q, _)| q).collect();
+    assert_eq!(kept, ["2", "3"]);
+
+    let llm = FakeLlm::scripted(vec![FakeTurn::Text("b".repeat(MAX_MEMORY_CHARS))]);
+    conversation
+        .ask(&llm, Arc::clone(&docs), "4", 8)
+        .await
+        .unwrap();
+    assert_eq!(conversation.turns().count(), 0);
+}
+
+// spec: CHT-5 (internal: the rounds are scripted with the fake provider, which the binary cannot take)
+#[tokio::test]
+async fn the_memory_takes_its_size_off_the_budget_of_the_tool_results() {
+    let docs = docs_with_long_features(35_000, 10);
+    let memory = "m".repeat(6000);
+    let llm = FakeLlm::scripted(vec![
+        FakeTurn::Text(memory),
+        calls(vec![call("c1", "get_feature", r#"{"id":"billing/huge"}"#)]),
+        FakeTurn::Text("Billing.".into()),
+    ]);
+    let mut conversation = Conversation::default();
+    conversation
+        .ask(&llm, Arc::clone(&docs), "q", 8)
+        .await
+        .unwrap();
+    let answer = conversation
+        .ask(&llm, Arc::clone(&docs), "r", 8)
+        .await
+        .unwrap();
+
+    let left = 40_000 - 6001;
+    let refused = &answer.tool_results[0];
+    assert!(
+        refused.starts_with("Error:") && refused.contains(&format!("{left} are left")),
+        "{}",
+        &refused[..refused.len().min(200)]
+    );
+}
+
+// spec: CHT-6 (internal: the sources are checked against tool results scripted with the fake provider)
+#[tokio::test]
+async fn a_follow_up_keeps_as_source_what_an_earlier_answer_rested_on() {
+    let llm = reading_then(&["Still `billing/pay-invoice`, not `billing/refund`."]);
+    let docs = docs();
+    let mut conversation = after_a_first_question(&llm, &docs).await;
+    let answer = conversation
+        .ask(&llm, Arc::clone(&docs), "Where again?", 8)
+        .await
+        .unwrap();
+
+    let ids: Vec<&str> = answer.sources.iter().map(|s| s.id.as_str()).collect();
+    assert_eq!(ids, ["billing/pay-invoice"]);
+}
+
+// spec: CHT-7 (internal: the messages of the last request are seen through the fake provider only)
+#[tokio::test]
+async fn the_last_request_of_a_follow_up_folds_the_earlier_turns_in_its_user_message() {
+    let llm = reading_then(&["By card."]);
+    let docs = docs();
+    let mut conversation = after_a_first_question(&llm, &docs).await;
+    conversation
+        .ask(&llm, Arc::clone(&docs), "And how else?", 0)
+        .await
+        .unwrap();
+
+    let last = llm.messages().pop().unwrap();
+    let roles: Vec<Role> = last.iter().map(|m| m.role).collect();
+    assert_eq!(roles, [Role::System, Role::User]);
+    let folded = &last[1].content;
+    let at = |part: &str| {
+        folded
+            .find(part)
+            .unwrap_or_else(|| panic!("{part} not in {folded}"))
+    };
+    let order = [
+        at("How is an invoice paid?"),
+        at(PAID),
+        at("And how else?"),
+        at("Answer the question now"),
+    ];
+    assert!(order.is_sorted(), "{folded}");
+}
+
+// spec: CHT-8 (internal: a failed call is scripted with the fake provider)
+#[tokio::test]
+async fn a_failed_question_is_not_kept() {
+    let llm = FakeLlm::scripted(vec![FakeTurn::Text(PAID.into()), FakeTurn::Fail]);
+    let docs = docs();
+    let mut conversation = Conversation::default();
+    conversation
+        .ask(&llm, Arc::clone(&docs), "How is an invoice paid?", 8)
+        .await
+        .unwrap();
+    assert!(conversation
+        .ask(&llm, Arc::clone(&docs), "And how else?", 8)
+        .await
+        .is_err());
+    let kept: Vec<&str> = conversation.turns().map(|(q, _)| q).collect();
+    assert_eq!(kept, ["How is an invoice paid?"]);
+}

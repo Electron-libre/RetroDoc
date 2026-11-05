@@ -24,3 +24,43 @@ Ask the documentation
 
 # Resources
 * `docs/findings.md` §4 (step 4), `issues/done/ask_command.md`.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-05
+
+## Understanding
+`retrodoc chat` answers questions one after the other like `ask`, earlier questions and answers kept as messages
+(tool results never resent), the oldest turns dropped past a memory budget that also shrinks the tool budget.
+Out of scope: summarising dropped turns, saving a conversation, a line editor. Spec: `specs/chat.md`.
+
+## Plan
+1. [x] Conversation in `retrodoc-agent`: a `Conversation` holding the kept turns, `ask` reused through it with an
+   empty memory, the fold and the source check widened to the memory; verified by unit tests with `FakeLlm`; makes
+   true CHT-2 to CHT-7. (autonomous)
+2. [ ] `retrodoc chat` in the CLI: a loop over stdin lines, errors printed and the loop going on, recap at the end;
+   docs (`docs/crates/agent.md`, `render-mcp-cli.md`, README, `specs/ask.md` non-goal); verified by binary tests
+   with a scripted stdin and the fake HTTP server; makes true CHT-1, CHT-8, CHT-9.
+
+## Decisions
+- Mode: autonomous
+- Base commit: c0cc02ea6fab46df4142051c8e6f39a794ed4c10
+- Answers (2026-11-05): memory keeps question + answer text only; sources of kept turns count as shown; settings and recap of the pass `ask`; memory of 10000 characters.
+
+## Deliverable 1 summary
+done: `Conversation` in `retrodoc-agent`, `ask` is the same loop with no earlier turn.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass |
+| docs | `docs/crates/agent.md` |
+| code review | see below |
+
+red: CHT-2, CHT-3, CHT-4, CHT-5, CHT-6, CHT-7, CHT-8: cannot find type `Conversation` in this scope
+Code review: 1 finding
+- A turn longer than `MAX_MEMORY_CHARS` alone empties the memory: not fixed, CHT-4 requires it (a longer memory would
+  eat the budget of the tool results, CHT-5).
+
+not verified: none. decisions needed: none.
