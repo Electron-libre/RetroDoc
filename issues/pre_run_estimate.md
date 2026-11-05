@@ -55,9 +55,9 @@ Means: each pass that scales is costed per source file (one measured range per p
 ## Plan
 1. [x] The table gains the cost of each pass per source file (the files of `source-hashes.json` of each run) and is
    rebuilt from the same runs, no LLM; verified by the tests of `pass_ratios` and a byte-identical rebuild (autonomous).
-2. [ ] `retrodoc_pipeline::estimate`: the table embedded and read, a pure estimate from the inputs of EST-3 (files
+2. [x] `retrodoc_pipeline::estimate`: the table embedded and read, a pure estimate from the inputs of EST-3 (files
    to read, files changed since the last complete run, passes turned off, confidence sample, docs present, `force`);
-   verified by unit tests; makes true EST-4, EST-5, EST-6, EST-7, EST-8, EST-10.
+   verified by unit tests; makes true EST-4, EST-5, EST-6, EST-7, EST-8, EST-10 (autonomous).
 3. [ ] `generate`: the estimate printed before the first call, `--estimate` that stops there, the rerun inputs read
    from `source-hashes.json` and the saved artifacts; docs; verified by CLI tests; makes true EST-1, EST-2, EST-3,
    EST-9.
@@ -82,3 +82,12 @@ Means: each pass that scales is costed per source file (one measured range per p
 - red: none (a measure, no spec requirement): the new assertions failed to compile before the fields existed.
 - not verified: the per-source-file spread is wide (`use-cases` 0.09-0.94 calls per file); the small Ruby library
   (9 files) gives every upper bound.
+
+## Deliverable 2
+- Code review: no findings (`low`).
+- done: `retrodoc_pipeline::estimate` (`estimate`, `EstimateInputs`, `RatioTable::embedded`, `Basis`), the table
+  embedded; `docs/crates/pipeline.md`.
+- checks: tests 8/8 of `estimate`, `cardinal run project-check` green, docs updated.
+- red: EST-4, EST-5, EST-6, EST-7, EST-8, EST-9: `not yet implemented` (the body was `todo!()`); EST-10 passed at
+  once (the table already existed).
+- not verified: the bounds on a real repository (deliverable 3 prints them).

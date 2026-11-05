@@ -29,6 +29,7 @@ pub mod diagrams;
 pub mod domains;
 pub mod entry_points;
 pub mod error;
+pub mod estimate;
 pub mod features;
 mod fingerprints;
 pub mod glossary;
