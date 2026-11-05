@@ -22,13 +22,19 @@ use super::workspace::{source_paths, Workspace};
 /// Number of main entity names given to the use cases as business vocabulary.
 const VOCABULARY_SIZE: usize = 40;
 
-/// The passes `generate` runs, each with its own LLM settings.
-const GENERATE_PASSES: &[&str] = &[
+/// The joint reading of the business files, tracked as a pass of its own; it has no provider of its own and
+/// calls those of the glossary and the entry points.
+const BUSINESS_READ: &str = "business-read";
+
+/// The passes `generate` tracks, in the order it runs them: the estimate and its recap share this list. Each
+/// but [`BUSINESS_READ`] has its own LLM settings.
+const TRACKED_PASSES: &[&str] = &[
     "sources",
     "brief",
     "roles",
     "business-files",
     "contexts",
+    BUSINESS_READ,
     "glossary",
     "entry-points",
     "actors",
@@ -100,7 +106,12 @@ pub async fn run(
     // The whole walk, before the budget: the only files a path of a saved artifact may read.
     let walked = WalkedFiles::new(repo_root, &ingest.files);
 
-    let llm = PassProviders::open(config, tracker, GENERATE_PASSES)?;
+    let with_provider: Vec<&str> = TRACKED_PASSES
+        .iter()
+        .copied()
+        .filter(|&pass| pass != BUSINESS_READ)
+        .collect();
+    let llm = PassProviders::open(config, tracker, &with_provider)?;
 
     let wanted = super::brief::EvidenceFor::of(config);
     let (brief, evidence) =
@@ -597,7 +608,7 @@ async fn build_surface(
         println!("Reading the business files once for the entities and the entry points…");
         tracker
             .in_pass(
-                "business-read",
+                BUSINESS_READ,
                 retrodoc_pipeline::read_business_files(
                     repo_root,
                     &role_map,

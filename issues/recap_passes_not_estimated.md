@@ -47,10 +47,10 @@ must take its pass list from the same list as `generate`. Out of scope: estimati
 ## Plan
 1. [x] Recap: after the rows of the estimate, each pass of `report.passes` with calls absent from `estimate.passes`
    gets a row `not estimated`; verified by a unit test in `usage_log.rs`; makes true TOK-7 (amended). (autonomous)
-2. [ ] One list: `TRACKED_PASSES` in `generate/mod.rs` (the order of the `in_pass` calls, `business-read` before
+2. [x] One list: `TRACKED_PASSES` in `generate/mod.rs` (the order of the `in_pass` calls, `business-read` before
    `glossary`), the providers opened from it minus `business-read`, `estimated_passes` filtering it instead of
    inserting by hand; verified by the existing estimate tests and a test that `estimated_passes(true)` equals
-   `TRACKED_PASSES`; refactor, no requirement.
+   `TRACKED_PASSES`; refactor, no requirement. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -69,5 +69,21 @@ done: `recap_against` adds a `not estimated` row for each pass with calls the es
 | code review | clean |
 
 red: TOK-7: `left: "    brief  within the range\n"` (no `business-read  not estimated` row)
+
+Code review: no findings
+
+## Deliverable 2
+done: `TRACKED_PASSES` (with `BUSINESS_READ`) in `generate/mod.rs` replaces `GENERATE_PASSES`; the providers are opened
+from it minus `business-read`, `estimated_passes` only filters it, both `in_pass("business-read")` use the constant.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass |
+| docs | n/a (no doc names `GENERATE_PASSES`; doc comments updated) |
+| code review | clean |
+
+red: none (refactor; the guard test `the_estimated_passes_follow_the_order_generate_tracks` passed before and after)
 
 Code review: no findings

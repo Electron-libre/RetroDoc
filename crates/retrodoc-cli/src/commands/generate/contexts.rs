@@ -18,7 +18,7 @@ use retrodoc_pipeline::{
 };
 
 use super::super::workspace::source_paths;
-use super::{GenerateOptions, Run, Signals, VOCABULARY_SIZE};
+use super::{GenerateOptions, Run, Signals, BUSINESS_READ, VOCABULARY_SIZE};
 
 /// Files one run reads when `--max-files` says nothing: the size above which a context is split.
 pub(super) const DEFAULT_RUN_FILES: usize = 150;
@@ -312,7 +312,7 @@ async fn read_slice(
     if config.pipeline.business_read {
         tracker
             .in_pass(
-                "business-read",
+                BUSINESS_READ,
                 retrodoc_pipeline::read_business_files(
                     repo_root,
                     &roles,

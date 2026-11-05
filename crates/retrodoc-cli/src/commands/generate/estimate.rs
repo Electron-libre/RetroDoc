@@ -9,10 +9,7 @@ use retrodoc_ingest::{FileKind, IngestResult};
 use retrodoc_pipeline::estimate::{estimate, EstimateInputs, RatioTable, RunEstimate};
 use retrodoc_pipeline::{Artifact, RoleRules, SourceHashes};
 
-use super::{Confidence, GenerateOptions, GENERATE_PASSES};
-
-/// The joint reading of the business files, tracked as a pass of its own.
-const BUSINESS_READ: &str = "business-read";
+use super::{Confidence, GenerateOptions, BUSINESS_READ, TRACKED_PASSES};
 
 /// The fixed passes and the artifact a rerun reuses them from. `domains` is left out: it is redone
 /// whenever a file changed.
@@ -95,19 +92,14 @@ pub(super) fn print(
     estimate
 }
 
-/// The LLM passes of the run in the order `generate` tracks them: those of `GENERATE_PASSES`, each with a
-/// provider of its own, plus the joint reading of the business files (`business-read`), which calls the
-/// providers of the glossary and the entry points and runs before them.
+/// The LLM passes of the run in the order `generate` tracks them (`TRACKED_PASSES`), `contexts` only on its
+/// path.
 fn estimated_passes(contexts: bool) -> Vec<&'static str> {
-    let mut passes: Vec<&str> = GENERATE_PASSES
+    TRACKED_PASSES
         .iter()
         .copied()
         .filter(|&pass| contexts || pass != "contexts")
-        .collect();
-    if let Some(glossary) = passes.iter().position(|&pass| pass == "glossary") {
-        passes.insert(glossary, BUSINESS_READ);
-    }
-    passes
+        .collect()
 }
 
 /// Whether the run reads the business files once for the glossary and the entry points: on, and one model
@@ -176,4 +168,36 @@ fn changed_since_last_run(
             .min(added)
     });
     Some(changed + room)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_estimated_passes_follow_the_order_generate_tracks() {
+        let surface = estimated_passes(false);
+        assert_eq!(
+            surface,
+            [
+                "sources",
+                "brief",
+                "roles",
+                "business-files",
+                "business-read",
+                "glossary",
+                "entry-points",
+                "actors",
+                "domains",
+                "features",
+                "use-cases",
+                "rules",
+                "confidence",
+                "reconcile",
+            ]
+        );
+        let contexts = estimated_passes(true);
+        assert_eq!(contexts[4], "contexts");
+        assert_eq!(contexts.len(), surface.len() + 1);
+    }
 }
