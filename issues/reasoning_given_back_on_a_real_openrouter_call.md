@@ -11,7 +11,7 @@ no real OpenRouter call checked it. Expected: one tool loop of `retrodoc ask` th
 runs to its answer, without a refused round, without the reasoning sent twice, and within the agent's budget.
 
 # Findings
-* 2026-11-06, `high` review of `issues/reasoning_of_openrouter_and_ollama_given_back.md`, read from the code, not
+* 2026-11-06, `high` review of `issues/done/reasoning_of_openrouter_and_ollama_given_back.md`, read from the code, not
   checked on a real call (no OpenRouter key on the machine):
   1. An encrypted `reasoning_details` is given back as received; a round routed to another upstream than the one
      that signed it may answer 400, and nothing sends it again without the reasoning, so `ask`/`chat` fails.
