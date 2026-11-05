@@ -5,6 +5,7 @@ use anyhow::Context;
 use retrodoc_llm::UsageTracker;
 use retrodoc_pipeline::{Artifact, BusinessMap, FileRole, RoleRules};
 
+use super::passes;
 use super::workspace::Workspace;
 
 /// Reads the entry points (routes, commands, jobs, public API…) and their
@@ -30,7 +31,7 @@ pub async fn run(path: &Path, tracker: &UsageTracker) -> anyhow::Result<()> {
         .len();
 
     let llm = super::usage::pass_provider(config, tracker, "entry-points")?;
-    tracker.set_pass("entry-points");
+    tracker.set_pass(passes::ENTRY_POINTS);
     println!("Reading entry points from {files} file(s)…");
     let inventory = retrodoc_pipeline::build_entry_points(
         repo_root,

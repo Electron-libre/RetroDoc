@@ -45,7 +45,7 @@ pub async fn run(
 
     let providers =
         super::usage::PassProviders::open(config, tracker, &[passes::SOURCES, passes::BRIEF])?;
-    tracker.set_pass("sources");
+    tracker.set_pass(passes::SOURCES);
     let sources = retrodoc_pipeline::infer_sources(
         repo_root,
         &ingest,
@@ -56,7 +56,7 @@ pub async fn run(
     .context("failed to locate the schema and translations")?;
     let all =
         signals::collect(repo_root, &ingest, &sources).context("could not collect the signals")?;
-    tracker.set_pass("brief");
+    tracker.set_pass(passes::BRIEF);
     let brief = retrodoc_pipeline::build_brief(
         repo_root,
         &all,

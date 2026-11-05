@@ -5,6 +5,7 @@ use retrodoc_ingest::{FileEntry, FileKind, Promotion};
 use retrodoc_llm::UsageTracker;
 use retrodoc_pipeline::{Artifact, FileRole, RoleRules};
 
+use super::passes;
 use super::workspace::Workspace;
 
 /// Unclassified files listed after the distribution.
@@ -50,7 +51,7 @@ pub async fn run(path: &Path, force: bool, tracker: &UsageTracker) -> anyhow::Re
         rules
     } else {
         let llm = super::usage::pass_provider(config, tracker, "roles")?;
-        tracker.set_pass("roles");
+        tracker.set_pass(passes::ROLES);
         retrodoc_pipeline::identify_roles(
             repo_root,
             &ingest,

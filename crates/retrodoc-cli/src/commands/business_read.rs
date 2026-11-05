@@ -25,7 +25,7 @@ pub async fn run(path: &Path, tracker: &UsageTracker) -> anyhow::Result<()> {
         .context("no business files found — run `retrodoc business-files` first")?;
 
     let llm = PassProviders::open(config, tracker, &[passes::GLOSSARY, passes::ENTRY_POINTS])?;
-    tracker.set_pass("business-read");
+    tracker.set_pass(passes::BUSINESS_READ);
     println!(
         "Reading {} business file(s) for the entities and the entry points…",
         business_files.len()

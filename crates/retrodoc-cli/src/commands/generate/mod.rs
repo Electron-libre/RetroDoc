@@ -150,6 +150,7 @@ pub async fn run(
         config,
         walked: &walked,
         llm: &llm,
+        off: &off,
         tracker,
         force,
     };
@@ -223,6 +224,8 @@ struct Run<'a> {
     /// The files of the walk, which the paths of the saved artifacts are read from.
     walked: &'a WalkedFiles,
     llm: &'a PassProviders,
+    /// The passes the run turns off ([`passes_off`]), whose providers were not opened.
+    off: &'a [&'static str],
     tracker: &'a UsageTracker,
     /// Ask again what is kept until then (`--force`).
     force: bool,
@@ -253,8 +256,8 @@ async fn finish_chain(
     reconcile_with_docs(run, features, use_cases).await
 }
 
-/// Asks whether the doc sections matched to the items cover or contradict them; nothing unless
-/// `[pipeline] reconcile` is on. Docs that can't be read leave the verdicts as they were.
+/// Asks whether the doc sections matched to the items cover or contradict them; nothing when the run
+/// turns the pass off (`[pipeline] reconcile = false`, or no project docs when it started). Docs that can't be read leave the verdicts as they were.
 async fn reconcile_with_docs(
     run: &Run<'_>,
     features: &[Feature],
@@ -268,7 +271,8 @@ async fn reconcile_with_docs(
         tracker,
         ..
     } = *run;
-    if !config.pipeline.reconcile {
+    // Off, or no project docs when the run started: its provider was not opened.
+    if run.off.contains(&passes::RECONCILE) {
         return Ok(());
     }
     let docs = match super::docs::project_docs(repo_root, config) {
@@ -278,10 +282,6 @@ async fn reconcile_with_docs(
             return Ok(());
         }
     };
-    // No docs: the pass is off and its provider not opened.
-    if docs.is_empty() {
-        return Ok(());
-    }
     let rules = retrodoc_pipeline::load_rules(repo_root).unwrap_or_default();
     let corpus = reconcile::corpus(&docs);
     let candidates = reconcile::candidates(
@@ -529,7 +529,7 @@ async fn derive_rules(
     use_cases: &[UseCase],
     context: &UseCaseContext,
 ) -> anyhow::Result<()> {
-    if !run.config.pipeline.rules {
+    if run.off.contains(&passes::RULES) {
         return Ok(());
     }
     println!(

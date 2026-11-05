@@ -50,6 +50,10 @@ confidence, reconcile), one list shared with the estimate; every `get`/`concurre
    at every `get` and `concurrency` site; verified by binary tests (`rules = false` and `--no-confidence` with an
    unset API key on that pass: `generate` succeeds); makes true SET-9 (extended). (autonomous)
 
+2. [x] Fixes of the `high` review: the passes turned off decided once and carried by `Run` (the rules and
+   reconcile guards read them), the `set_pass` names of the one-pass commands on the constants, the reconcile
+   tests and scenario of SET-9, the crate doc; verified by `tests/pass_models.rs`; makes true SET-9. (autonomous)
+
 ## Decisions
 - Mode: autonomous
 - Spec: SET-9 extended rather than a new requirement (same rule).
@@ -62,3 +66,16 @@ confidence, reconcile), one list shared with the estimate; every `get`/`concurre
 - red: SET-9: `Error: LLM settings of the `rules` pass ... environment variable RETRODOC_TEST_UNSET_KEY is not set`
 - Code review: no findings
 - not verified: no run on a real repository (no behaviour change for a run whose settings all open).
+
+## Summary of deliverable 2 (fixes of the `high` review)
+- done: `Run::off` carries `passes_off`, the rules and reconcile guards test it (a doc added during the run no
+  longer reaches an unopened provider); `set_pass` of `brief`, `business-read`, `glossary`, `entry-points`,
+  `actors`, `roles` on the constants; two SET-9 tests for the reconcile pass; scenario and crate doc.
+- red: SET-9: `reconcile = false` with docs failed at the base commit with `LLM settings of the `reconcile` pass`
+  (the test of the docs case guards the provider still opened, green before and after).
+- High review: 8 findings. Fixed: 1, 2 (`Run::off`), 5 (`set_pass`), 6 (tests), 7 (scenario), 8 (crate doc).
+  Not fixed: 3, stale judgements kept when every doc is gone: harmless, the report matches them against the
+  current docs and a verdict is keyed by the section text; 4, the docs read again at the reconcile: older than
+  this issue, and the drift it caused is gone with `Run::off`.
+- Code review (low): 1 finding, not fixed: a second scenario tagged SET-9 is the convention of `specs/README.md` (a
+  scenario names the requirement it illustrates; several per requirement elsewhere, AUD-1, AUD-13).

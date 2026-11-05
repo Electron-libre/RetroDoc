@@ -90,6 +90,53 @@ fn the_settings_of_the_passes_the_run_turns_off_do_not_stop_generate() {
     );
 }
 
+/// A repository with project docs whose `[llm.passes.reconcile]` names an API key variable that is not set.
+fn repo_with_docs_and_a_reconcile_key_unset(pipeline: &str, llm: &FakeLlm) -> tempfile::TempDir {
+    repo_with_config(
+        &[
+            ("app.rb", "class Order; end\n"),
+            ("README.md", "# Orders\n\nCustomers list their orders.\n"),
+        ],
+        &format!(
+            "{}structured_output = false\n[pipeline]\n{pipeline}\
+             [llm.passes.reconcile]\napi_key_env = \"RETRODOC_TEST_UNSET_KEY\"\n",
+            llm_section(llm)
+        ),
+    )
+}
+
+// spec: SET-9
+#[test]
+fn the_settings_of_the_reconcile_pass_turned_off_do_not_stop_generate() {
+    let llm = FakeLlm::start(|_| r#"{"domains":[]}"#.to_string());
+    let dir = repo_with_docs_and_a_reconcile_key_unset("reconcile = false\n", &llm);
+
+    let output = support::run(dir.path(), &["generate", "--no-confidence"]);
+
+    assert!(
+        output.status.success(),
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+// spec: SET-9
+#[test]
+fn the_reconcile_pass_is_opened_when_the_project_has_docs() {
+    let llm = FakeLlm::start(|_| r#"{"domains":[]}"#.to_string());
+    let dir = repo_with_docs_and_a_reconcile_key_unset("", &llm);
+
+    let output = support::run(dir.path(), &["generate", "--no-confidence"]);
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(!output.status.success());
+    assert!(
+        stderr.contains("LLM settings of the `reconcile` pass"),
+        "{stderr}"
+    );
+}
+
 // spec: SET-9
 #[test]
 fn the_settings_of_a_surface_pass_do_not_stop_a_contexts_run() {

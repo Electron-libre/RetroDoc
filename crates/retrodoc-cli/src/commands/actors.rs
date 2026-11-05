@@ -5,6 +5,7 @@ use retrodoc_core::model::ActorKind;
 use retrodoc_llm::UsageTracker;
 use retrodoc_pipeline::{Artifact, EntryPoints, Glossary, RoleRules, Surface};
 
+use super::passes;
 use super::workspace::{source_paths, Workspace};
 
 /// Identifies the business actors (who uses the application, in business
@@ -27,7 +28,7 @@ pub async fn run(path: &Path, force: bool, tracker: &UsageTracker) -> anyhow::Re
     );
 
     let llm = super::usage::pass_provider(config, tracker, "actors")?;
-    tracker.set_pass("actors");
+    tracker.set_pass(passes::ACTORS);
     let candidates = retrodoc_pipeline::authorization_files(&source_files);
     println!(
         "Identifying the actors ({} authorization file(s) found, {} entit(ies) known)…",

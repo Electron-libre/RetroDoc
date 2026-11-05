@@ -1,6 +1,6 @@
-//! The names of the passes `generate` tracks (`UsageTracker::in_pass`), shared by the call sites, the list the
-//! estimate and the providers are drawn from, the estimate and the provider lookups (`PassProviders::get`,
-//! `Run::concurrency`), so a name can't drift from one to the other.
+//! The names of the passes `generate` tracks (`UsageTracker::in_pass`, `set_pass` in the commands of one
+//! pass), shared by the call sites, the list the estimate and the providers are drawn from, the estimate and
+//! the provider lookups (`PassProviders::get`, `Run::concurrency`), so a name can't drift from one to the other.
 
 pub const SOURCES: &str = "sources";
 pub const BRIEF: &str = "brief";

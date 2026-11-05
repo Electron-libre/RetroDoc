@@ -60,6 +60,9 @@ The `[pipeline]` and `[brief]` sections of `retrodoc.toml` turn passes and readi
 - (SET-9) Given `rules = false` under `[pipeline]` and a `[llm.passes.rules]` naming an API key variable that is not
   set, when `generate` runs, then it goes through its passes as if the section were not there; the same for the
   confidence pass with `--no-confidence`.
+- (SET-9) Given a `[llm.passes.reconcile]` naming an API key variable that is not set, when `generate` runs on a
+  repository with no project docs, or with `reconcile = false` under `[pipeline]`, then it goes through its passes;
+  on a repository with project docs and the pass on, it stops before any call, naming the `reconcile` pass.
 
 ## Non-goals
 

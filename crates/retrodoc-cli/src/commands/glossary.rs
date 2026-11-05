@@ -4,6 +4,7 @@ use anyhow::Context;
 use retrodoc_llm::UsageTracker;
 use retrodoc_pipeline::{Artifact, BusinessMap, FileRole, RoleRules};
 
+use super::passes;
 use super::workspace::Workspace;
 
 /// Reads the business entities of the files `retrodoc business-files` located
@@ -29,7 +30,7 @@ pub async fn run(path: &Path, tracker: &UsageTracker) -> anyhow::Result<()> {
     };
 
     let llm = super::usage::pass_provider(config, tracker, "glossary")?;
-    tracker.set_pass("glossary");
+    tracker.set_pass(passes::GLOSSARY);
     println!("Reading entities from {to_read} file(s)…");
     let glossary = retrodoc_pipeline::build_glossary(
         repo_root,
