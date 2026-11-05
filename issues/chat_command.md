@@ -23,4 +23,4 @@ of the model.
 Ask the documentation
 
 # Resources
-* `docs/findings.md` §4 (step 4), `issues/ask_command.md`.
+* `docs/findings.md` §4 (step 4), `issues/done/ask_command.md`.

@@ -363,7 +363,7 @@ Steps, each shippable:
    `issues/done/tool_calling_in_llm.md`, ADR 0046, `specs/tool-calling.md`): native `tools` / `tool_calls` only, after a
    real call showed the local Ollama and DeepSeek both take them; no JSON-action fallback.
 3. `retrodoc ask` with citations, confidence and freshness warnings. **Implemented** (2026-11-05,
-   `issues/ask_command.md`, ADR 0047, `specs/ask.md`): a bounded loop over the seven read-only tools (8 rounds, then
+   `issues/done/ask_command.md`, ADR 0047, `specs/ask.md`): a bounded loop over the seven read-only tools (8 rounds, then
    one request without tools), the sources kept only when a tool result showed them, the warnings computed from the
    read model; no real model call checked yet (`issues/ask_question_set.md`).
 4. Interactive `chat` with conversation memory; code and git history tools.

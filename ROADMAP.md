@@ -345,7 +345,7 @@ The milestones up to "A large application, one bounded context at a time" are th
     first form, are done)
   - [tool_calling_in_llm](issues/done/tool_calling_in_llm.md)
   - [tool_loop_on_thinking_and_refusing_servers](issues/tool_loop_on_thinking_and_refusing_servers.md)
-  - [ask_command](issues/ask_command.md)
+  - [ask_command](issues/done/ask_command.md)
   - [ask_loop_always_answers](issues/ask_loop_always_answers.md)
   - [ask_question_set](issues/ask_question_set.md)
   - [chat_command](issues/chat_command.md)

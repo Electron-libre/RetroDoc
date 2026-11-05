@@ -13,7 +13,7 @@ within a budget, and the last request is accepted by the servers that refuse a t
 model always gets to answer.
 
 # Findings
-* 2026-11-05, `high` review of `issues/ask_command.md`, read from the code, not seen on a real run: one round may hold
+* 2026-11-05, `high` review of `issues/done/ask_command.md`, read from the code, not seen on a real run: one round may hold
   any number of calls; a `read_source` result reaches 400 lines of up to 400 characters, so a round of many reads
   can push the messages past a local model's context, and the next request fails (`crates/retrodoc-agent/src/lib.rs`,
   `ask`).
