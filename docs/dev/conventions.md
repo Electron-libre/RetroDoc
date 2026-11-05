@@ -9,7 +9,7 @@
   crate opts in via `[lints] workspace = true`). Any new `pub fn` returning `Result` needs a `# Errors` doc
   section; getters with no side effects need `#[must_use]`. Keep clippy warning-free before committing.
 - Pipeline code that calls an `LlmProvider` is tested with a fake in-`#[cfg(test)]` implementation of the
-  trait (`FakeLlm` in `testing.rs`: canned or scripted answers, call count, recorded prompts) rather than hitting the network — follow that pattern for
+  trait (`FakeLlm` in `testing.rs`: canned or scripted answers, tool calls of a scripted loop (`FakeLlm::scripted`), call count, recorded prompts and messages) rather than hitting the network — follow that pattern for
   new pipeline passes instead of adding integration tests that need `OPENROUTER_API_KEY`.
 - A test that runs a whole `generate` through the binary uses `crates/retrodoc-cli/tests/support`: a local
   chat-completions server that recognises the pass of each request (schema name of the structured output), answers

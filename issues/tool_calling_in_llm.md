@@ -55,8 +55,8 @@ JSON-action fallback (ADR 0046: the local Ollama takes native tools, checked on 
 1. [x] Native tool calls: `ToolSpec`, `ToolCall`, `Role::Tool` and the call fields of `ChatMessage`, `tools` of
    `CompletionRequest`, `tool_calls` of `CompletionResponse`, sent and read by `OpenRouterProvider`; verified by
    wire tests on the mock server and by wrapper tests; makes true TCL-1 to TCL-9. (autonomous)
-2. [ ] `FakeLlm` scripts tool calls and records the full messages of each request; verified by its own test; makes
-   true TCL-10.
+2. [x] `FakeLlm` scripts tool calls and records the full messages of each request; verified by its own test; makes
+   true TCL-10. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -78,3 +78,11 @@ JSON-action fallback (ADR 0046: the local Ollama takes native tools, checked on 
   the start (no field sent before; the wrappers already pass the request and the answer through whole).
 - Code review: no findings
 - not verified: `OpenRouter` and the hybrid llama-server not called for real (user's choice, 3 a).
+
+## Deliverable 2 summary
+- done: `FakeLlm::scripted` answers a script of `FakeTurn::Calls` / `FakeTurn::Text`, `FakeLlm::messages` keeps the
+  messages of each request; spec `accepted` (every requirement traced), ADR 0046 `Accepted`; conventions doc.
+- checks: `project-check` passes (tests, clippy, fmt, specs).
+- Code review: no findings
+- red: TCL-10: `no associated function or constant named scripted found for struct FakeLlm`.
+- not verified: nothing.

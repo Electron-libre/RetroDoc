@@ -1,6 +1,6 @@
 # 0046. Tool calls use the native OpenAI-compatible format
 
-Status: Proposed
+Status: Accepted
 
 ## Context
 

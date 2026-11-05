@@ -6,10 +6,21 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use retrodoc_llm::{CompletionRequest, CompletionResponse, LlmError, LlmProvider};
+use retrodoc_llm::{
+    ChatMessage, CompletionRequest, CompletionResponse, LlmError, LlmProvider, ToolCall,
+};
 use tracing_subscriber::fmt::MakeWriter;
 
-type Reply = Box<dyn Fn(usize, &CompletionRequest) -> Result<String, LlmError> + Send + Sync>;
+type Reply = Box<dyn Fn(usize, &CompletionRequest) -> Result<FakeTurn, LlmError> + Send + Sync>;
+
+/// One answer of a [`FakeLlm::scripted`] provider.
+#[derive(Debug, Clone)]
+pub enum FakeTurn {
+    /// A text answer.
+    Text(String),
+    /// Calls to tools, with an empty text.
+    Calls(Vec<ToolCall>),
+}
 
 /// Answers with what its reply function says, counts its calls and keeps the
 /// prompts it receives.
@@ -17,6 +28,7 @@ pub struct FakeLlm {
     reply: Reply,
     calls: AtomicUsize,
     prompts: Mutex<Vec<(String, String)>>,
+    messages: Mutex<Vec<Vec<ChatMessage>>>,
     schemas: Mutex<Vec<Option<serde_json::Value>>>,
     model: String,
     /// How long a call takes (none: it answers at once), to make calls overlap.
@@ -44,14 +56,28 @@ impl FakeLlm {
         Self::replying(move |n, _| Ok(texts[n.min(texts.len() - 1)].clone()))
     }
 
+    /// Each turn in order, tool calls or text, as the rounds of a tool loop; the last one repeats.
+    pub fn scripted(turns: Vec<FakeTurn>) -> Self {
+        Self::with_reply(Box::new(move |n, _| {
+            Ok(turns[n.min(turns.len() - 1)].clone())
+        }))
+    }
+
     /// Answers from the rank of the call (from 0) and the request.
     pub fn replying(
         reply: impl Fn(usize, &CompletionRequest) -> Result<String, LlmError> + Send + Sync + 'static,
     ) -> Self {
+        Self::with_reply(Box::new(move |n, request| {
+            reply(n, request).map(FakeTurn::Text)
+        }))
+    }
+
+    fn with_reply(reply: Reply) -> Self {
         Self {
-            reply: Box::new(reply),
+            reply,
             calls: AtomicUsize::new(0),
             prompts: Mutex::new(Vec::new()),
+            messages: Mutex::new(Vec::new()),
             schemas: Mutex::new(Vec::new()),
             model: "test-model".to_string(),
             delay: None,
@@ -138,6 +164,11 @@ impl FakeLlm {
             .collect()
     }
 
+    /// The messages of each call received, tool calls and results included.
+    pub fn messages(&self) -> Vec<Vec<ChatMessage>> {
+        self.messages.lock().unwrap().clone()
+    }
+
     /// The JSON schema each call received asked for, if any.
     pub fn schemas(&self) -> Vec<Option<serde_json::Value>> {
         self.schemas.lock().unwrap().clone()
@@ -171,11 +202,15 @@ impl LlmProvider for FakeLlm {
                 .unwrap_or_default()
         };
         self.prompts.lock().unwrap().push((prompt(0), prompt(1)));
+        self.messages.lock().unwrap().push(request.messages.clone());
         self.schemas
             .lock()
             .unwrap()
             .push(request.json_schema.as_ref().map(|s| s.schema.clone()));
-        let mut content = (self.reply)(n, &request)?;
+        let (mut content, tool_calls) = match (self.reply)(n, &request)? {
+            FakeTurn::Text(text) => (text, Vec::new()),
+            FakeTurn::Calls(calls) => (String::new(), calls),
+        };
         let truncated = self
             .truncate_over
             .is_some_and(|over| prompt(1).len() > over);
@@ -186,6 +221,7 @@ impl LlmProvider for FakeLlm {
             content,
             model: self.model.clone(),
             truncated,
+            tool_calls,
             ..Default::default()
         })
     }
@@ -227,7 +263,7 @@ pub fn brief(purpose: &str) -> crate::brief::ProductBrief {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use retrodoc_llm::{ChatMessage, Role};
+    use retrodoc_llm::{ChatMessage, Role, ToolCall};
 
     fn request(system: &str, user: &str) -> CompletionRequest {
         let message = |role, content: &str| ChatMessage::new(role, content);
@@ -276,6 +312,40 @@ mod tests {
         ));
         // A failed call is still a call received.
         assert_eq!(llm.calls(), 2);
+    }
+    // spec: TCL-10 (internal: the fake provider is test support, which no binary runs)
+    #[tokio::test]
+    async fn it_answers_a_script_of_tool_calls_and_texts_and_keeps_the_messages() {
+        let call = ToolCall {
+            id: "call_1".to_string(),
+            name: "list_domains".to_string(),
+            arguments: "{}".to_string(),
+        };
+        let llm = FakeLlm::scripted(vec![
+            FakeTurn::Calls(vec![call.clone()]),
+            FakeTurn::Text("Billing.".to_string()),
+        ]);
+
+        let first = llm.complete(request("s", "Which domains?")).await.unwrap();
+        assert_eq!(first.tool_calls, vec![call.clone()]);
+        assert_eq!(first.content, "");
+        let mut second = request("s", "Which domains?");
+        second
+            .messages
+            .push(ChatMessage::assistant_calls("", first.tool_calls));
+        second
+            .messages
+            .push(ChatMessage::tool_result("call_1", "- Billing"));
+        let answer = llm.complete(second).await.unwrap();
+
+        assert_eq!(answer.content, "Billing.");
+        assert_eq!(answer.tool_calls, []);
+        let received = llm.messages();
+        assert_eq!(received.len(), 2);
+        assert_eq!(received[1][2].tool_calls, vec![call]);
+        assert_eq!(received[1][3].role, Role::Tool);
+        assert_eq!(received[1][3].tool_call_id.as_deref(), Some("call_1"));
+        assert_eq!(received[1][3].content, "- Billing");
     }
 }
 
