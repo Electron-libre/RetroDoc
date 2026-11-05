@@ -145,8 +145,11 @@ fn an_edit_saved_while_the_server_runs_shows_at_the_next_request() {
     .unwrap();
 
     let edited = page("/domains/billing/pay-invoice");
-    assert!(edited.contains("Settle a bill"), "{edited}");
-    assert!(!edited.contains("Pay an invoice"), "{edited}");
+    assert!(edited.contains("<h1>Settle a bill</h1>"), "{edited}");
+    // The fingerprint `f` makes the edit outdated: the generated name shows in its block only.
+    let block = &edited[edited.find("<section class=\"edit\"").unwrap()..];
+    let shown = edited.replace(&block[..block.find("</section>").unwrap()], "");
+    assert!(!shown.contains("Pay an invoice"), "{edited}");
     let found = page("/search?q=bill");
     assert!(found.contains("Settle a bill"), "{found}");
 

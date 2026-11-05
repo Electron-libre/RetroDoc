@@ -213,6 +213,12 @@ over browses its domains, features and use cases rather than reading the Markdow
   REV-21), with its reasons: the section rewritten since the review, the files changed since the review.
 - **WEB-90** (deterministic) The badge of a review in a list of sections (WEB-80) must say when the review is
   outdated.
+- **WEB-91** (deterministic) The page of an edited domain, feature or use case (`specs/section-edit.md`) must say,
+  before its review, that the section holds a human edit: the fields it changes, its author when it has one and its
+  date; a section with no edit shows none.
+- **WEB-92** (deterministic) The edit of a section on its page must be flagged outdated when it is (SED-34, SED-35),
+  with its reasons as WEB-89 says, and show, beside each field the edit changes, the text the last run generated for
+  it.
 
 ## Scenarios
 
@@ -316,6 +322,8 @@ over browses its domains, features and use cases rather than reading the Markdow
   names that site and the request is refused; one with neither `Origin` nor `Referer` is refused too.
 - (WEB-84) Given `Origin: null` (a sandboxed frame, a `file://` page), then the request is refused.
 - (WEB-87, WEB-88) Given a `reviews.json` holding invalid JSON, then the pages of the sections are still served, naming it.
+- (WEB-92) Given a use case whose narrative is edited, when a later run rewrites it, then its page shows the edited
+  narrative, the edit outdated as "rewritten" and the new generated narrative.
 - (WEB-89) Given an outdated review, when the form saves the same status again, then the review is no longer flagged
   outdated (REV-22).
 

@@ -64,6 +64,49 @@ impl Record for Edit {
     }
 }
 
+/// A field of a section a human can edit.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Field {
+    Name,
+    Description,
+    Narrative,
+}
+
+impl Field {
+    pub const ALL: [Self; 3] = [Self::Name, Self::Description, Self::Narrative];
+
+    /// Its name in the file of the edits.
+    #[must_use]
+    pub fn key(self) -> &'static str {
+        match self {
+            Self::Name => "name",
+            Self::Description => "description",
+            Self::Narrative => "narrative",
+        }
+    }
+}
+
+impl Fields {
+    /// The text it gives for `field`.
+    #[must_use]
+    pub fn get(&self, field: Field) -> Option<&str> {
+        match field {
+            Field::Name => self.name.as_deref(),
+            Field::Description => self.description.as_deref(),
+            Field::Narrative => self.narrative.as_deref(),
+        }
+    }
+
+    /// The fields it gives, in the order of [`Field::ALL`].
+    #[must_use]
+    pub fn given(&self) -> Vec<Field> {
+        Field::ALL
+            .into_iter()
+            .filter(|field| self.get(*field).is_some())
+            .collect()
+    }
+}
+
 /// The edits of a repository, by kind then id.
 pub type Edits = Records<Edit>;
 
@@ -159,6 +202,48 @@ pub fn outdated(docs: &GeneratedDocs, edit: &Edit) -> Option<Outdated> {
         &edit.section,
         &edit.fingerprint,
         &edit.files,
+    )
+}
+
+/// The text the run generated for each field `edit` changes, in the order of [`Field::ALL`]
+/// (empty for a use case with no narrative); none when `docs` don't hold its section.
+#[must_use]
+pub fn generated(docs: &GeneratedDocs, edit: &Edit) -> Option<Vec<(Field, String)>> {
+    let sections = docs.generated();
+    let id = edit.section.id.as_str();
+    let (name, description, narrative) = match edit.section.kind {
+        SectionKind::Domain => sections
+            .domains
+            .iter()
+            .find(|d| d.slug == id)
+            .map(|d| (&d.name, &d.description, None))?,
+        SectionKind::Feature => sections
+            .features
+            .iter()
+            .find(|f| f.slug == id)
+            .map(|f| (&f.name, &f.description, None))?,
+        SectionKind::UseCase => {
+            let (feature, slug) = id.split_once('/')?;
+            sections
+                .use_cases
+                .iter()
+                .find(|u| u.feature_slug == feature && u.slug == slug)
+                .map(|u| (&u.name, &u.description, u.narrative.as_ref()))?
+        }
+    };
+    Some(
+        edit.fields
+            .given()
+            .into_iter()
+            .map(|field| {
+                let text = match field {
+                    Field::Name => Some(name),
+                    Field::Description => Some(description),
+                    Field::Narrative => narrative,
+                };
+                (field, text.cloned().unwrap_or_default())
+            })
+            .collect(),
     )
 }
 

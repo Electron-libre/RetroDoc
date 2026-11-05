@@ -15,6 +15,7 @@ pub mod audit;
 pub mod code;
 pub mod collected;
 pub mod debt;
+pub mod edit;
 pub mod files;
 pub mod glossary;
 pub mod history;

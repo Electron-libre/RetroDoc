@@ -49,8 +49,8 @@ generated text. Out of scope: the edit form (`web_edit_form`), the Markdown mark
    weight, order, web label); verified by tests per requirement; makes true SED-34 to SED-37, DBT-39. (autonomous)
 2. [x] MCP: the edit line of `get_domain`, `get_feature`, `get_use_case`, outdated with its reasons and the generated
    text at the end; verified by tool tests; makes true MCP-15, MCP-16. (autonomous)
-3. [ ] Web: the edit of a section on its page (fields, author, date), flagged outdated with the generated text beside
-   each field; verified by page tests; makes true WEB-91, WEB-92.
+3. [x] Web: the edit of a section on its page (fields, author, date), flagged outdated with the generated text beside
+   each field; verified by page tests; makes true WEB-91, WEB-92. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -76,3 +76,12 @@ generated text. Out of scope: the edit form (`web_edit_form`), the Markdown mark
 - red: MCP-15, MCP-16: the answers had no `Edit:` line (`assertion failed: out.contains(...)`).
 - Code review: no findings
 - not verified: none.
+
+## Deliverable 3 summary
+- done: `retrodoc-web` `edit.rs` and `edit.html`: on the page of a domain, a feature, a use case, before the review,
+  the edit (fields, author, date), flagged outdated with the text the last run generated per field;
+  `retrodoc_mcp::edits::{Field, generated}` shared with the MCP answers; `EditTexts` (English, French); the SED-27 ui
+  test narrowed to the title (its fake fingerprint makes the edit outdated); spec WEB-91, WEB-92.
+- red: WEB-91, WEB-92: `no edit block in <page>`.
+- Code review: no findings
+- not verified: the look of the edit block in a browser (colours are no requirement, WEB non-goal).

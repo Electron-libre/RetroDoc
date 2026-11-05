@@ -17,6 +17,7 @@ use crate::audit::{audit_page, AuditPage};
 use crate::code::{code_page, Asked, CodePage};
 use crate::collected::{collected_page, CollectedPage};
 use crate::debt::{debt_page, DebtFilter, DebtPage};
+use crate::edit::EditView;
 use crate::files::FilesPage;
 use crate::glossary::GlossaryPage;
 use crate::history::{history_page, HistoryPage};
@@ -46,6 +47,7 @@ struct Home<'a> {
 struct DomainTemplate<'a> {
     t: &'static WebTexts,
     shell: &'a Shell,
+    edit: Option<EditView>,
     review: ReviewView,
     page: DomainPage,
 }
@@ -55,6 +57,7 @@ struct DomainTemplate<'a> {
 struct FeatureTemplate<'a> {
     t: &'static WebTexts,
     shell: &'a Shell,
+    edit: Option<EditView>,
     review: ReviewView,
     page: FeaturePage,
 }
@@ -64,6 +67,7 @@ struct FeatureTemplate<'a> {
 struct UseCaseTemplate<'a> {
     t: &'static WebTexts,
     shell: &'a Shell,
+    edit: Option<EditView>,
     review: ReviewView,
     page: UseCasePage,
     mermaid: &'static str,
@@ -257,17 +261,20 @@ pub(crate) fn read_failed(err: &JoinError) -> Response {
 pub async fn domain(State(site): State<Arc<Site>>, Path(slug): Path<String>) -> Response {
     let page = blocking(&site, move |site| {
         site.docs().and_then(|docs| {
-            let (reviews, review) = reviews_of(docs, &Place::Domain(slug.clone()));
-            domain_page(docs, site.links(), &reviews, &slug).map(|page| (page, review))
+            let place = Place::Domain(slug.clone());
+            let (reviews, review) = reviews_of(docs, &place);
+            let edit = EditView::of(docs, &place, site.texts());
+            domain_page(docs, site.links(), &reviews, &slug).map(|page| (page, edit, review))
         })
     })
     .await;
     match page {
-        Ok(Some((page, review))) => render(
+        Ok(Some((page, edit, review))) => render(
             StatusCode::OK,
             &DomainTemplate {
                 t: site.texts(),
                 shell: site.shell(),
+                edit,
                 review,
                 page,
             },
@@ -296,16 +303,19 @@ pub async fn feature(
                 slug: slug.clone(),
             };
             let (reviews, review) = reviews_of(docs, &place);
-            feature_page(docs, site.links(), &reviews, &domain, &slug).map(|page| (page, review))
+            let edit = EditView::of(docs, &place, site.texts());
+            feature_page(docs, site.links(), &reviews, &domain, &slug)
+                .map(|page| (page, edit, review))
         })
     })
     .await;
     match page {
-        Ok(Some((page, review))) => render(
+        Ok(Some((page, edit, review))) => render(
             StatusCode::OK,
             &FeatureTemplate {
                 t: site.texts(),
                 shell: site.shell(),
+                edit,
                 review,
                 page,
             },
@@ -327,16 +337,19 @@ pub async fn use_case(
                 slug: slug.clone(),
             };
             let review = ReviewView::of(docs, &review::load(docs), &place);
-            use_case_page(docs, site.links(), &domain, &feature, &slug).map(|page| (page, review))
+            let edit = EditView::of(docs, &place, site.texts());
+            use_case_page(docs, site.links(), &domain, &feature, &slug)
+                .map(|page| (page, edit, review))
         })
     })
     .await;
     match page {
-        Ok(Some((page, review))) => render(
+        Ok(Some((page, edit, review))) => render(
             StatusCode::OK,
             &UseCaseTemplate {
                 t: site.texts(),
                 shell: site.shell(),
+                edit,
                 review,
                 page,
                 mermaid: MERMAID,

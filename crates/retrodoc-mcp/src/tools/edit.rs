@@ -7,8 +7,8 @@ use std::fmt::Write as _;
 use retrodoc_core::text::one_line;
 
 use super::Docs;
-use crate::edits::{self, Edit, Fields};
-use crate::reviews::{Section, SectionKind};
+use crate::edits::{self, Edit, Field, Fields};
+use crate::reviews::Section;
 
 /// The edit of a section as an answer shows it; both parts empty with no edit.
 #[derive(Default)]
@@ -55,45 +55,21 @@ impl Docs {
 
     /// The generated text of each field `edit` changes, under a heading of its own.
     fn generated_text(&self, edit: &Edit) -> String {
-        let sections = self.generated.generated();
-        let id = edit.section.id.as_str();
-        let found = match edit.section.kind {
-            SectionKind::Domain => sections
-                .domains
-                .iter()
-                .find(|d| d.slug == id)
-                .map(|d| (&d.name, &d.description, None)),
-            SectionKind::Feature => sections
-                .features
-                .iter()
-                .find(|f| f.slug == id)
-                .map(|f| (&f.name, &f.description, None)),
-            SectionKind::UseCase => id.split_once('/').and_then(|(feature, slug)| {
-                sections
-                    .use_cases
-                    .iter()
-                    .find(|u| u.feature_slug == feature && u.slug == slug)
-                    .map(|u| (&u.name, &u.description, u.narrative.as_ref()))
-            }),
-        };
         // The answer found the section: the docs hold it.
-        let Some((name, description, narrative)) = found else {
+        let Some(fields) = edits::generated(&self.generated, edit) else {
             return String::new();
         };
         let mut out = String::from(
             "\n## Generated text\n\nThe edit is outdated: the last run generated, in place of the \
              edited fields:\n",
         );
-        let empty = String::new();
-        for (heading, given, text) in [
-            ("Name", &edit.fields.name, Some(name)),
-            ("Description", &edit.fields.description, Some(description)),
-            ("Narrative", &edit.fields.narrative, narrative),
-        ] {
-            if given.is_some() {
-                let text = text.unwrap_or(&empty);
-                let _ = write!(out, "\n### {heading}\n\n{}\n", text.trim_end());
-            }
+        for (field, text) in fields {
+            let heading = match field {
+                Field::Name => "Name",
+                Field::Description => "Description",
+                Field::Narrative => "Narrative",
+            };
+            let _ = write!(out, "\n### {heading}\n\n{}\n", text.trim_end());
         }
         out
     }
@@ -101,18 +77,14 @@ impl Docs {
 
 /// `the name`, `the name and the description`, `the name, the description and the narrative`.
 fn field_names(fields: &Fields) -> String {
-    let names: Vec<&str> = [
-        ("the name", &fields.name),
-        ("the description", &fields.description),
-        ("the narrative", &fields.narrative),
-    ]
-    .into_iter()
-    .filter(|(_, field)| field.is_some())
-    .map(|(name, _)| name)
-    .collect();
+    let names: Vec<String> = fields
+        .given()
+        .into_iter()
+        .map(|field| format!("the {}", field.key()))
+        .collect();
     match names.as_slice() {
         [] => String::new(),
-        [one] => (*one).to_string(),
+        [one] => one.clone(),
         [first @ .., last] => format!("{} and {last}", first.join(", ")),
     }
 }

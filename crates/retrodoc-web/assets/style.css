@@ -188,3 +188,4 @@ ul.hits { list-style: none; padding-left: 0; }
 .badge.review.wrong, .badge.review.to_review { color: var(--gold-light); border-color: var(--gold-dark); }
 .badge.review.outdated { color: var(--text-muted); border-style: dashed; }
 .review .comment { white-space: pre-wrap; }
+.edit .generated dd { white-space: pre-wrap; margin: 0 0 0.5em 1em; }
