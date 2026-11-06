@@ -1,6 +1,7 @@
 //! What the search page shows: the hits of the index `search_docs` and
 //! `retrodoc search` answer from, up to [`SEARCH_LIMIT`], grouped by kind, or
-//! the not-documented answer.
+//! the not-documented answer; the hits panel of the search box shows the same
+//! hits as one list, each with its kind.
 
 use retrodoc_core::model::ConfidenceScore;
 use retrodoc_mcp::corpus::feature_id;
@@ -8,6 +9,7 @@ use retrodoc_mcp::search::SEARCH_LIMIT;
 use retrodoc_mcp::{Entry, EntryKind, GeneratedDocs};
 use retrodoc_render::anchor;
 
+use crate::audit::query_encoded;
 use crate::view::{feature_href, rule_href, url_path, use_case_href, Confidence};
 
 /// The kinds in the order of the page.
@@ -45,11 +47,40 @@ pub struct HitGroup {
     pub hits: Vec<HitRow>,
 }
 
+impl SearchPage {
+    /// The hits of the panel, in the order of the page, each with its kind.
+    #[must_use]
+    pub fn panel_rows(&self) -> Vec<(EntryKind, &HitRow)> {
+        match &self.results {
+            Some(Results::Hits(groups)) => groups
+                .iter()
+                .flat_map(|group| group.hits.iter().map(|hit| (group.kind, hit)))
+                .collect(),
+            _ => Vec::new(),
+        }
+    }
+
+    /// The search page of the query, the link at the foot of the panel.
+    #[must_use]
+    pub fn page_href(&self) -> String {
+        format!("/search?q={}", query_encoded(&self.query))
+    }
+}
+
 pub struct HitRow {
     pub title: String,
     /// `None` for a rule whose feature is not in the run.
     pub href: Option<String>,
     pub confidence: Option<Confidence>,
+}
+
+/// The fewest characters of a query searched as it is typed (WEB-43).
+pub const PANEL_MIN_CHARS: usize = 2;
+
+/// Whether the panel answers `query`: it holds [`PANEL_MIN_CHARS`] once trimmed.
+#[must_use]
+pub fn panel_answers(query: &str) -> bool {
+    query.trim().chars().count() >= PANEL_MIN_CHARS
 }
 
 /// The search page of `query` over `docs`.

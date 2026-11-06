@@ -171,7 +171,15 @@ table.files tr.dir td:first-child { font-weight: 600; }
 .collected pre { overflow-x: auto; }
 .top form.search { margin-left: auto; }
 .top form.search input { min-width: 16rem; }
-#search-results:not(:empty) { padding: 0 1rem; border-bottom: 1px solid var(--border); }
+/* The hits panel under the search box, filled as the query is typed; hidden while empty. */
+.search-panel { position: absolute; top: calc(100% + var(--space-1)); right: 0; z-index: 10; width: max(100%, 26rem); max-height: 70vh; overflow-y: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 0.5); padding: var(--space-1); }
+.search-panel:empty { display: none; }
+.search-panel .hit { display: flex; align-items: baseline; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); color: var(--text); text-decoration: none; }
+.search-panel a.hit:hover, .search-panel .hit[aria-selected="true"] { background: var(--surface-2); }
+.search-panel .hit .title { flex: 1; min-width: 0; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+.search-panel .hit .kind { color: var(--text-muted); font-size: var(--text-xs); white-space: nowrap; }
+.search-panel .hit.all { color: var(--gold-light); font-size: var(--text-sm); border-top: 1px solid var(--border); border-radius: 0; margin-top: var(--space-1); }
+.search-panel .empty { margin: var(--space-2) var(--space-3); padding: 0; border: none; text-align: left; font-size: var(--text-sm); }
 ul.hits { list-style: none; padding-left: 0; }
 .matrix { overflow-x: auto; }
 .matrix th, .matrix td { white-space: nowrap; }
@@ -379,6 +387,7 @@ form.ask .keys { font-size: 0.85em; margin-left: auto; }
   .top .links + .links { padding-left: 0; border-left: none; }
   .top form.search { margin-left: 0; width: 100%; }
   .top form.search input { width: 100%; min-width: 0; }
+  .search-panel { width: 100%; }
   .layout { flex-direction: column; }
   .tree { flex: none; max-height: 40vh; border-right: none; border-bottom: 1px solid var(--border); }
   main { padding: var(--space-4); }

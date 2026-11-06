@@ -112,12 +112,13 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   the concepts of `Glossary::merged_entities` sorted by name ignoring case, each under a heading whose `id` is
   `anchor` of its name, with its definition and the use cases that use it: one of their steps cites a file the concept
   was read from, or a rule of their feature that applies to them names it. Every page has a search box in its header
-  (`base.html`, a GET form to `/search`, which `htmx` submits to swap the results into `#search-results`); `/search?q=`
+  (`base.html`, a GET form to `/search`; while it is typed, its box asks `/search` with `htmx` 300 ms after the last change, `hx-sync` replacing a request still running, and swaps the hits panel into `#search-panel` under the box); `/search?q=`
   (`search::search_page`, `search.html`) asks `GeneratedDocs::index` with `retrodoc_mcp::search::SEARCH_LIMIT` (also the
   default `--limit` of `retrodoc search`, so both list the same hits) and groups the hits by kind (domain, feature, use
   case, rule, concept, collected doc), each linked to its page (a rule to `#rule-<slug>` on its feature page, a concept
   to its anchor of the glossary), or gives the not-documented answer with the left-out count and the unknown words; a
-  request with `HX-Request` gets `search_results.html` alone, unless it is an `htmx` history restore
+  request with `HX-Request` gets the hits panel alone (`search_panel.html`: the same hits as one list, each with its
+  kind, then a link to the full page; an empty answer under `search::PANEL_MIN_CHARS` characters), unless it is an `htmx` history restore
   (`HX-History-Restore-Request`, which swaps the whole body; `pages::fragment_or_page`, `Vary` naming both). The rules page, `/rules`
   (`rules::rules_page`, `rules.html`, linked from the header of every page), lists every rule in the order of the run
   with its evidence and a link to its `#rule-<slug>` item (`view::rule_href`), kept by `?kind=` (the artifact name of the kind),

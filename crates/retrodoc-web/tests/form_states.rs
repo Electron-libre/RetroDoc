@@ -101,10 +101,17 @@ fn opening(form: &str) -> &str {
     &form[..form.find('>').unwrap()]
 }
 
-/// Asserts that `form` holds an indicator saying `text`, that `htmx` shows while it is sent.
+/// Asserts that `form` holds an indicator saying `text`, that `htmx` shows while it is sent: the
+/// form's, or that of its search box, which sends as it is typed (WEB-39).
 fn assert_indicator(form: &str, text: &str) {
+    let search_box = form
+        .find("<input type=\"search\"")
+        .map(|start| opening(&form[start..]));
     assert!(
-        opening(form).contains("hx-indicator=\"find .indicator\""),
+        search_box.map_or_else(
+            || opening(form).contains("hx-indicator=\"find .indicator\""),
+            |input| input.contains("hx-indicator=\"next .indicator\"")
+        ),
         "{form}"
     );
     assert!(

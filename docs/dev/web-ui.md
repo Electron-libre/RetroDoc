@@ -53,7 +53,8 @@ spacing steps `--space-1` to `--space-6`, the radius `--radius-sm`, `--radius`, 
 | notice | `{% call m::notice(saved, text) %}` above the buttons | gold-light word that fades out in 4 s (stays with reduced motion) |
 | composer | `form.ask textarea`, `.keys` beside the button, `assets/ask.js` | one line growing to 12 (`field-sizing: content`, a script fallback); Enter sends, Shift+Enter breaks the line |
 | suggestions | `ul.suggestions`, `button.secondary.suggestion` above the ask form | secondary buttons that wrap, normal weight; only on an empty conversation |
-| indicator | `<span class="indicator" role="status">` in the form, `hx-indicator="find .indicator"` on it | hidden; a spinner and a muted word while the request runs |
+| indicator | `<span class="indicator" role="status">` in the form, `hx-indicator="find .indicator"` on it (`next .indicator` on the search box, which sends itself) | hidden; a spinner and a muted word while the request runs |
+| hits panel | `#search-panel.search-panel` in `form.search`, filled with `search_panel.html` | under the box, on the surface; a row per hit: title (two lines at most), muted kind, badge; the gold link to the full page at its foot; hidden while empty |
 
 Tests find some forms and buttons by their exact markup (`<form class="filters"`, `<button type="submit" disabled>`):
 add a variant class after the existing attributes.

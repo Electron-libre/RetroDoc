@@ -1,0 +1,10 @@
+{% import "macros.html" as m %}
+{% if let Some(results) = page.results %}
+{% for (kind, hit) in page.panel_rows() %}
+{% if let Some(href) = hit.href %}<a class="hit" href="{{ href }}">{% else %}<span class="hit">{% endif %}<span class="title">{{ hit.title }}</span> <span class="kind">{{ t.hit_kind(*kind) }}</span>{% if let Some(confidence) = hit.confidence %} {% call m::badge(confidence) %}{% endcall %}{% endif %}{% if hit.href.is_some() %}</a>{% else %}</span>{% endif %}
+{% endfor %}
+{% if let Results::NotDocumented with { entries, left_out: _, unknown_words: _ } = results %}
+<p class="empty"><strong>{{ t.not_documented }}</strong> {{ t.nothing_among }} {{ entries }} {{ t.entries_match }} “{{ page.query }}”.</p>
+{% endif %}
+<a class="hit all" href="{{ page.page_href() }}">{{ t.all_results }} “{{ page.query }}”</a>
+{% endif %}

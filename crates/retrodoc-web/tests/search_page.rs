@@ -164,6 +164,20 @@ async fn every_page_shows_a_search_box_sending_to_the_search_page() {
         assert!(form.contains("action=\"/search\""), "{form}");
         assert!(form.contains("method=\"get\""), "{form}");
         assert!(form.contains("name=\"q\""), "{form}");
+        let input = &form[form.find("<input").unwrap()..];
+        let input = &input[..input.find('>').unwrap()];
+        for attribute in [
+            "hx-get=\"/search\"",
+            "hx-trigger=\"input changed delay:300ms, search\"",
+            "hx-sync=\"this:replace\"",
+            "hx-target=\"#search-panel\"",
+        ] {
+            assert!(input.contains(attribute), "{attribute} in {input}");
+        }
+        assert!(
+            form.contains("<div id=\"search-panel\" class=\"search-panel\""),
+            "{form}"
+        );
     }
 }
 
@@ -291,20 +305,104 @@ async fn an_empty_query_shows_no_result() {
 
 // spec: WEB-43
 #[tokio::test]
-async fn an_htmx_request_gets_the_results_alone() {
+async fn an_htmx_request_gets_the_panel_alone() {
     let repo = generated_repo();
     let (status, fragment) = get_with(repo.path(), "/search?q=invoice", true).await;
     assert_eq!(status, StatusCode::OK);
     assert!(
-        fragment
-            .trim_start()
-            .starts_with("<section class=\"results\""),
+        fragment.trim_start().starts_with("<a class=\"hit\""),
         "{fragment}"
     );
     assert!(!fragment.contains("<html"), "{fragment}");
     assert!(!fragment.contains("<nav class=\"tree\""), "{fragment}");
     let (_, page) = get_with(repo.path(), "/search?q=invoice", false).await;
     assert!(page.contains("<html"), "{page}");
+}
+
+// spec: WEB-43
+#[tokio::test]
+async fn an_htmx_query_under_two_characters_gets_an_empty_answer() {
+    let repo = generated_repo();
+    for query in ["", "i", "+i+", "%C3%A9"] {
+        let (status, fragment) = get_with(repo.path(), &format!("/search?q={query}"), true).await;
+        assert_eq!(status, StatusCode::OK, "{query}");
+        assert_eq!(fragment, "", "{query}");
+    }
+    let (_, page) = get_with(repo.path(), "/search?q=i", false).await;
+    assert!(page.contains("<section class=\"results\""), "{page}");
+}
+
+// spec: WEB-109
+#[tokio::test]
+async fn the_panel_lists_each_hit_with_its_kind_then_the_search_page() {
+    let repo = generated_repo();
+    let (_, panel) = get_with(repo.path(), "/search?q=invoice", true).await;
+    let rows: Vec<&str> = panel.split("<a class=\"hit").skip(1).collect();
+    let expected = [
+        ("/domains/billing\"", "Domain"),
+        ("/domains/billing/pay-invoice\"", "Feature"),
+        ("/domains/billing/pay-invoice/by-card\"", "Use case"),
+        (
+            "/domains/billing/pay-invoice#rule-pay-invoice-1\"",
+            "Business rule",
+        ),
+        ("/glossary#invoice-line\"", "Concept"),
+        ("/docs/docs/invoice%20fees.md\"", "Existing doc"),
+    ];
+    assert_eq!(rows.len(), expected.len() + 1, "{panel}");
+    for (row, (href, kind)) in rows.iter().zip(expected) {
+        assert!(row.contains(href), "{href} in {row}");
+        assert!(
+            row.contains(&format!("<span class=\"kind\">{kind}</span>")),
+            "{kind} in {row}"
+        );
+    }
+    assert!(
+        rows[1].contains("<span class=\"title\">Pay an invoice</span>"),
+        "{}",
+        rows[1]
+    );
+    assert!(rows[1].contains("80%"), "{}", rows[1]);
+    assert!(!rows[4].contains("badge"), "{}", rows[4]);
+    let all = rows.last().unwrap();
+    assert!(
+        all.starts_with(" all\" href=\"/search?q=invoice\""),
+        "{all}"
+    );
+}
+
+// spec: WEB-109
+#[tokio::test]
+async fn the_panel_shows_the_hits_of_the_search_page() {
+    let repo = generated_repo();
+    let (_, panel) = get_with(repo.path(), "/search?q=ledger", true).await;
+    assert_eq!(
+        panel.matches("<a class=\"hit\"").count(),
+        SEARCH_LIMIT,
+        "{panel}"
+    );
+    assert!(
+        panel.contains("<a class=\"hit all\" href=\"/search?q=ledger\""),
+        "{panel}"
+    );
+    let (_, panel) = get_with(repo.path(), "/search?q=pay+invoice", true).await;
+    assert!(
+        panel.contains("<a class=\"hit all\" href=\"/search?q=pay%20invoice\""),
+        "{panel}"
+    );
+}
+
+// spec: WEB-109
+#[tokio::test]
+async fn the_panel_with_no_hit_says_not_documented() {
+    let repo = generated_repo();
+    let (_, panel) = get_with(repo.path(), "/search?q=zzqx", true).await;
+    assert!(panel.contains("Not documented"), "{panel}");
+    assert!(!panel.contains("<a class=\"hit\""), "{panel}");
+    assert!(
+        panel.contains("<a class=\"hit all\" href=\"/search?q=zzqx\""),
+        "{panel}"
+    );
 }
 
 // spec: WEB-43
@@ -354,20 +452,18 @@ async fn a_rule_whose_feature_is_not_in_the_run_has_no_link() {
 
 // spec: WEB-43
 #[tokio::test]
-async fn the_search_page_shows_its_results_where_htmx_swaps_them() {
+async fn the_search_page_shows_its_results_in_its_content() {
     let repo = generated_repo();
     let page = search(repo.path(), "invoice").await;
-    let target = page.find("<div id=\"search-results\">").expect(&page);
-    assert!(
-        page[target..]
-            .trim_start_matches("<div id=\"search-results\">")
-            .trim_start()
-            .starts_with("<section class=\"results\""),
-        "{page}"
-    );
+    let main = &page[page.find("<main>").expect(&page)..];
+    assert!(main.contains("<section class=\"results\""), "{page}");
     assert_eq!(
         page.matches("<section class=\"results\"").count(),
         1,
+        "{page}"
+    );
+    assert!(
+        page.contains("<div id=\"search-panel\" class=\"search-panel\"></div>"),
         "{page}"
     );
 }
@@ -397,10 +493,7 @@ async fn an_htmx_search_with_no_run_gets_a_fragment() {
         .await
         .unwrap();
     let fragment = String::from_utf8(body.to_vec()).unwrap();
-    assert!(
-        fragment.starts_with("<section class=\"results\""),
-        "{fragment}"
-    );
+    assert!(fragment.starts_with("<p class=\"empty\""), "{fragment}");
     assert!(
         fragment.contains("<code>retrodoc generate</code>"),
         "{fragment}"

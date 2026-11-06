@@ -1,6 +1,6 @@
 ---
 id: WEB
-status: accepted
+status: draft
 adrs: [0039, 0044, 0048]
 ---
 
@@ -94,7 +94,9 @@ over browses its domains, features and use cases rather than reading the Markdow
 - **WEB-37** (deterministic) Every page must link to the files page.
 - **WEB-38** (deterministic) The page of a file whose window ends before its last line must link to the page showing
   the next lines, `?from=<line>`, which shows the window from that line with no line marked.
-- **WEB-39** (deterministic) Every page must show a search box that sends its query to `/search?q=<query>`.
+- **WEB-39** (deterministic) Every page must show a search box that sends its query to `/search?q=<query>` on
+  submit, and as an `htmx` request while it is typed, 300 ms after the last change, the answer to a request still
+  running replaced by that of the last one.
 - **WEB-40** (deterministic) The search page must show the hits the index of `search_docs` returns for the query, by
   the same relevance rule (DSR-1, DSR-2), at most 10, grouped by kind in the order domain, feature, use case, rule,
   concept, collected doc, best first within a kind.
@@ -104,7 +106,9 @@ over browses its domains, features and use cases rather than reading the Markdow
 - **WEB-42** (deterministic) With no hit, the search page must say the topic is not documented, give the number of
   entries DSR-2 left out when there are any, and name the words of the query no entry has (DSR-4, DSR-5).
 - **WEB-43** (deterministic) A search request with the header `HX-Request` and without `HX-History-Restore-Request`
-  must be answered with the results alone, without the layout of the page; any other with the full page.
+  must be answered with the hits panel of WEB-109 alone, without the layout of the page, empty when the query holds
+  fewer than 2 characters once trimmed; any other with the full page, which shows the results of WEB-40 to WEB-42 in
+  its content.
 - **WEB-44** (deterministic) Every page must link to the glossary page.
 - **WEB-45** (deterministic) The glossary page, `/glossary`, must list every concept of the glossary of the last run,
   sorted by name ignoring case, each with its definition, under a heading whose anchor is `anchor` of its name.
@@ -273,6 +277,19 @@ over browses its domains, features and use cases rather than reading the Markdow
   WEB-56, must say how many filters the query gives a non-empty value (`1 active filter`, `2 active filters`) with a
   link that resets them, to the page with no query; with no active filter it shows neither.
 
+- **WEB-109** (deterministic) The hits panel must list the hits of WEB-40 in its order, each with its title, the
+  name of its kind, its confidence when it has one and the link of WEB-41, then a link to the search page of the
+  query; with no hit, it says the topic is not documented, with the link to the search page.
+- **WEB-110** (deterministic) The search box must be a combobox: `role="combobox"`, `aria-autocomplete="list"`,
+  `aria-controls` naming the hits panel, `aria-expanded` true while the panel shows an answer; the panel a
+  `role="listbox"` whose hits and link to the search page are each a `role="option"` with an `id` of its own.
+- **WEB-111** (deterministic) On every page, the key `/` pressed outside a field (an input, a text area, a select,
+  an editable element) must put the focus in the search box and select its text, and not be typed.
+- **WEB-112** (deterministic) In the search box, the keys must drive the panel: the arrows Down and Up move its
+  active option (`aria-activedescendant`, `aria-selected`), from the last to the first and back; Enter follows the
+  link of the active option, and with none submits the box; Escape, and a click outside the box and the panel, close
+  the panel.
+
 ## Scenarios
 
 - (WEB-2) Given `--bind 127.0.0.1:0`, then the URL printed gives the port the system picked.
@@ -331,6 +348,11 @@ over browses its domains, features and use cases rather than reading the Markdow
 - (WEB-47) Given a repository with no run yet, then its collected docs are still served.
 - (WEB-47) Given a doc that opens on a YAML front matter, then the page shows the doc without it.
 - (WEB-43) Given a repository with no run yet, then an `htmx` search gets a fragment that says to run `generate`.
+- (WEB-43) Given the query `a`, then an `htmx` search gets an empty answer, and a submit the search page.
+- (WEB-43, WEB-109) Given a box emptied, then the `htmx` search gets an empty answer and the panel closes.
+- (WEB-109) Given more than 10 hits, then the panel shows the 10 of the search page and its link to the full page.
+- (WEB-112) Given the last option active, when Down is pressed, then the first is active.
+- (WEB-111) Given the focus in the question field of the ask page, when `/` is pressed, then it is typed there.
 - (WEB-48) Given two headings with the same text, then both carry the same anchor, as the links of WEB-23 do.
 - (WEB-50) Given `[x](javascript:alert(1))`, then the page shows `x` with no link; a relative link is kept.
 - (WEB-53) Given a rule whose feature is not in the run (artifacts of an older run), then it is listed without a link,
@@ -391,7 +413,9 @@ over browses its domains, features and use cases rather than reading the Markdow
 
 ## Non-goals
 
-- No synonym matching nor search-as-you-type: the search is that of `retrodoc search` (`specs/docs-search.md`).
+- No synonym matching nor matching of a word being typed: the search, also as it is typed, is that of
+  `retrodoc search` (`specs/docs-search.md`); a word is matched once typed whole.
+- The delay of the search as it is typed is not adapted to the size of the run.
 - The glossary shows no attributes nor associations of a concept, and has no page per concept.
 - The files and images a collected doc links to are not served: only the collected Markdown docs are.
 - No line of a file the docs don't cite is ever served: the files page shows only the path of such a file (ADR 0016).

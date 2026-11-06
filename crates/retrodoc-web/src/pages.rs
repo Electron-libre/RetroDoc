@@ -25,7 +25,7 @@ use crate::history::{history_page, HistoryPage};
 use crate::map::{DomainMapPage, MapPage};
 use crate::review::{self, Place, ReviewView, SavedForm};
 use crate::rules::{rules_page, RuleFilter, RulesPage};
-use crate::search::{query_value, search_page, Results, SearchPage};
+use crate::search::{panel_answers, query_value, search_page, Results, SearchPage};
 use crate::texts::WebTexts;
 use crate::view::{
     domain_page, domain_rows, feature_page, use_case_page, DomainPage, DomainRow, FeaturePage,
@@ -183,10 +183,10 @@ struct SearchTemplate<'a> {
     page: SearchPage,
 }
 
-/// The results alone, swapped under the box by `htmx`.
+/// The hits panel alone, swapped under the box by `htmx` as the query is typed.
 #[derive(Template)]
-#[template(path = "search_results.html")]
-struct SearchResults {
+#[template(path = "search_panel.html")]
+struct SearchPanel {
     t: &'static WebTexts,
     page: SearchPage,
 }
@@ -624,12 +624,15 @@ pub async fn search(
     RawQuery(query): RawQuery,
 ) -> Response {
     let query = query_value(query.as_deref(), "q").unwrap_or_default();
+    if is_htmx(&headers) && !panel_answers(&query) {
+        return ([(header::VARY, FRAGMENT_VARY)], Html("")).into_response();
+    }
     fragment_or_page(
         &site,
         &headers,
         site.texts().no_run_results,
         site.docs().map(|docs| search_page(docs, &query)),
-        |page| SearchResults {
+        |page| SearchPanel {
             t: site.texts(),
             page,
         },
@@ -639,6 +642,14 @@ pub async fn search(
             page,
         },
     )
+}
+
+/// The headers a page that also answers a fragment varies on.
+const FRAGMENT_VARY: &str = "HX-Request, HX-History-Restore-Request";
+
+/// Whether `htmx` asks for a fragment: a history restore asks for the page.
+fn is_htmx(headers: &HeaderMap) -> bool {
+    headers.contains_key("HX-Request") && !headers.contains_key("HX-History-Restore-Request")
 }
 
 /// The part of a page `htmx` swaps, `fragment`, for its requests, else the
@@ -653,9 +664,8 @@ fn fragment_or_page<'a, T, F: Template, P: Template>(
     page: impl FnOnce(&'a Shell, T) -> P,
 ) -> Response {
     // The same URL answers a fragment or a page: a cache must tell them apart.
-    let vary = [(header::VARY, "HX-Request, HX-History-Restore-Request")];
-    let htmx =
-        headers.contains_key("HX-Request") && !headers.contains_key("HX-History-Restore-Request");
+    let vary = [(header::VARY, FRAGMENT_VARY)];
+    let htmx = is_htmx(headers);
     let response = match (built, htmx) {
         (None, true) => Html(no_run).into_response(),
         (None, false) => no_run_page(site),

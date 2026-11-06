@@ -37,3 +37,41 @@ A web interface that invites to act
 # Hints
 * WEB-11: the script is served from `/assets/`, embedded like `diagrams.js`.
 * The search index is loaded once; check the latency per keystroke on a large run before choosing the delay.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-06
+
+## Understanding
+Search as the user types (300 ms after the last change, from 2 characters, the server answering an empty panel
+below that), the hits as a combobox panel under the box (title, kind, confidence, link to the full page), `/` to
+focus the box, arrows/Enter/Escape in a small embedded script. Out of scope: matching a word being typed (the index
+stays that of `retrodoc search`). The minimum length is enforced by the server, so the trigger stays plain `htmx`.
+
+## Plan
+1. [x] Live panel: `hx-trigger="input changed delay:300ms, search"` and `hx-sync` on the box, the panel template
+   (`search_panel.html`) targeted inside the search form, the full page showing its results in its content, the
+   panel styles; latency per keystroke measured on the largest run of the runs directory; verified by
+   `tests/search_page.rs`; makes true WEB-39, WEB-43, WEB-109; ~350 lines. (autonomous)
+2. [ ] Keyboard: `assets/search.js` (embedded, served from `/assets/`), the combobox attributes of WEB-110, `/`,
+   arrows, Enter, Escape, click outside; verified by `tests/search_page.rs` reading the served markup and script
+   (internal: the keys run in the browser) and a check by hand in headless Chrome; makes true WEB-110 to WEB-112;
+   ~300 lines.
+
+## Decisions
+- Mode: autonomous
+- Base commit: a4fa88671d55caa9e58718779490cec5ea79e320
+- Minimum query length: 2 characters once trimmed (1 a); the panel is a flat list in the order of WEB-40, the kind on each row (2 a).
+
+## Deliverable 1: live panel
+- done: the box sends itself as it is typed (`hx-trigger`, `hx-sync`), `search_panel.html` swapped into
+  `#search-panel` under the box, an empty answer under 2 characters, the search page shows its results in its
+  content, the panel styles; docs `docs/crates/render-mcp-cli.md`, `docs/dev/web-ui.md`.
+- checks: project-check green; size 308 lines; panel checked in headless Chrome at 1440 and 390 px
+  (`screenshots/live-search` of the runs directory).
+- Latency: < 1 ms per `htmx` search on the largest saved run (about 4 MB of artifacts); the 300 ms delay only
+  spares the requests of a word being typed.
+- red: WEB-39, WEB-43, WEB-109: the box had no `hx-trigger` (`hx-get="/search"` missing on the input), the fragment
+  was `<section class="results"`, no hit row with its kind, no empty answer for `i`.
+- Code review: 1 finding. Fixed: a stale doc comment of `no_run_results` left above the new one.
+- not verified: none. decisions needed: none.

@@ -53,6 +53,10 @@ pub struct WebTexts {
     /// Whether a count of 0 takes the singular, as in French.
     pub zero_is_singular: bool,
     pub search_docs_heading: &'static str,
+    /// The kind of a hit of the search panel: domain, feature, use case, rule, concept, collected doc.
+    pub hit_kinds: [&'static str; 6],
+    /// The link of the search panel to the search page, before the query.
+    pub all_results: &'static str,
     pub not_documented: &'static str,
     /// `nothing among`, before the number of entries.
     pub nothing_among: &'static str,
@@ -63,7 +67,7 @@ pub struct WebTexts {
     /// After the number of entries that share only part of the query.
     pub many_left_out: &'static str,
     pub try_other_words: &'static str,
-    /// The results `htmx` swaps under the box before a first `generate`.
+    /// The search panel before a first `generate`.
     pub no_run_results: &'static str,
     pub no_run_title: &'static str,
     pub no_run_heading: &'static str,
@@ -499,6 +503,15 @@ impl WebTexts {
         colon: ":",
         zero_is_singular: false,
         search_docs_heading: "Existing docs",
+        hit_kinds: [
+            "Domain",
+            "Feature",
+            "Use case",
+            "Business rule",
+            "Concept",
+            "Existing doc",
+        ],
+        all_results: "All results for",
         not_documented: "Not documented:",
         nothing_among: "nothing among",
         entries_match: "entries matches",
@@ -506,8 +519,8 @@ impl WebTexts {
         one_left_out: "1 entry shares only part of the query.",
         many_left_out: "entries share only part of the query.",
         try_other_words: "Try other words.",
-        no_run_results: "<section class=\"results\"><p class=\"empty\">Nothing to search yet: run \
-            <code>retrodoc generate</code>, then restart <code>retrodoc ui</code>.</p></section>",
+        no_run_results: "<p class=\"empty\">Nothing to search yet: run \
+            <code>retrodoc generate</code>, then restart <code>retrodoc ui</code>.</p>",
         no_run_title: "No run yet",
         no_run_heading: "No docs generated yet",
         no_run_text: ("This repository has no run yet. Run", ", then restart", "."),
@@ -876,6 +889,15 @@ impl WebTexts {
         colon: " :",
         zero_is_singular: true,
         search_docs_heading: "Docs existantes",
+        hit_kinds: [
+            "Domaine",
+            "Fonctionnalité",
+            "Cas d'usage",
+            "Règle métier",
+            "Concept",
+            "Doc existante",
+        ],
+        all_results: "Tous les résultats pour",
         not_documented: "Non documenté :",
         nothing_among: "rien parmi",
         entries_match: "entrées ne correspond à",
@@ -883,8 +905,8 @@ impl WebTexts {
         one_left_out: "1 entrée ne partage qu'une partie de la requête.",
         many_left_out: "entrées ne partagent qu'une partie de la requête.",
         try_other_words: "Essayez d'autres mots.",
-        no_run_results: "<section class=\"results\"><p class=\"empty\">Rien à chercher pour l'instant : lancez \
-            <code>retrodoc generate</code>, puis relancez <code>retrodoc ui</code>.</p></section>",
+        no_run_results: "<p class=\"empty\">Rien à chercher pour l'instant : lancez \
+            <code>retrodoc generate</code>, puis relancez <code>retrodoc ui</code>.</p>",
         no_run_title: "Pas encore de run",
         no_run_heading: "Aucune doc générée pour l'instant",
         no_run_text: (
@@ -1171,6 +1193,20 @@ impl WebTexts {
             Some("fr") => &Self::FRENCH,
             _ => &Self::ENGLISH,
         }
+    }
+
+    /// The kind of a hit of the search panel.
+    #[must_use]
+    pub fn hit_kind(&self, kind: EntryKind) -> &'static str {
+        let index = match kind {
+            EntryKind::Domain => 0,
+            EntryKind::Feature => 1,
+            EntryKind::UseCase => 2,
+            EntryKind::Rule => 3,
+            EntryKind::Glossary => 4,
+            EntryKind::Doc => 5,
+        };
+        self.hit_kinds[index]
     }
 
     /// The heading of the hits of `kind` on the search page.
