@@ -4,7 +4,7 @@
 {% block content %}
 {% call m::home_crumb(page.name) %}{% endcall %}
 <h1>{{ page.name }}</h1>
-{% call m::section_actions("", t.section_actions) %}{% endcall %}
+{% call m::section_actions("", t.section_actions, false) %}{% endcall %}
 <p>{{ page.description }}</p>
 <p><a href="{{ page.map }}">{{ t.map_of_this_domain }}</a>{{ t.map_of_this_domain_tail }}</p>
 {% call m::score(t.doc.confidence, page.confidence) %}{% endcall %}

@@ -64,6 +64,8 @@ links to the existing forms, `?edit=1` unfolds the edit form on the server (no s
 4. [x] Fixes of the `high` review of the issue: the debt actions named by their section, `forms.js` drops
    `?edit=1`, no main action with no domain, `StartLink` and `DebtRow` without derived fields; verified by the
    tests of WEB-115, WEB-116. (autonomous)
+5. [x] Quiet actions on the debt rows: secondary "Review", quiet "Edit"; verified by the test of WEB-115
+   and the screenshots. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -103,3 +105,10 @@ links to the existing forms, `?edit=1` unfolds the edit form on the server (no s
   tests of WEB-116 cover); not fixed: the round trip of "Edit" to the server, the means the user chose (answer 2 a).
 - Code review: no findings (`low`, this deliverable)
 - not verified: the `forms.js` change runs only in a browser.
+
+## Deliverable 5: quiet actions on the debt rows
+- done: on the rows of the debt list, "Review" is secondary and "Edit" quiet, the gold kept for the pages of a
+  section (screenshots: 46 gold buttons on the debt page of linkding); decided by the user.
+- red: none (a change of look, the test of WEB-115 follows the markup).
+- Code review: no findings
+- not verified: nothing.

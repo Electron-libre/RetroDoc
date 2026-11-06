@@ -36,7 +36,7 @@
       {% call m::outdated(item.outdated) %}{% endcall %}
       {% if !item.reasons.is_empty() %}<span class="why">{{ t.debt.set_apart_for }} {% for reason in item.reasons %}{{ reason }}{% if !loop.last %}, {% endif %}{% endfor %}</span>{% endif %}
       <span class="muted priority">{{ item.priority }}</span>
-      {% if item.actions %}{% if let Some(href) = item.href %}{% call m::section_actions(href, item.name) %}{% endcall %}{% endif %}{% endif %}
+      {% if item.actions %}{% if let Some(href) = item.href %}{% call m::section_actions(href, item.name, true) %}{% endcall %}{% endif %}{% endif %}
       {% for c in item.contradictions %}<span class="why"><a href="{{ c.section.href }}">{{ c.section.name }}</a> {{ t.debt.doc_states }}{{ t.colon }} {{ c.doc_states }}; {{ t.debt.docs_state }}{{ t.colon }} {{ c.item_states }}</span>{% endfor %}
       {% if !item.changed.is_empty() %}<span class="why">{{ t.changed_since_the_run }} {% for file in item.changed %}<code>{{ file.path }}</code> ({% if file.deleted %}{{ t.deleted }}{% else %}{{ t.modified }}{% endif %}){% if !loop.last %}, {% endif %}{% endfor %}</span>{% endif %}
     </li>

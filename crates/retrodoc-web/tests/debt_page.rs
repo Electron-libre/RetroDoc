@@ -818,13 +818,13 @@ async fn each_item_of_a_section_offers_to_review_or_edit_it() {
         );
         assert!(
             actions.contains(&format!(
-                "<a class=\"button\" href=\"{href}#review\">Review</a>"
+                "<a class=\"button secondary\" href=\"{href}#review\">Review</a>"
             )),
             "{actions}"
         );
         assert!(
             actions.contains(&format!(
-                "<a class=\"button secondary\" href=\"{href}?edit=1#edit-form\">Edit</a>"
+                "<a class=\"button quiet\" href=\"{href}?edit=1#edit-form\">Edit</a>"
             )),
             "{actions}"
         );

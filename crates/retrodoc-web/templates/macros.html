@@ -114,4 +114,5 @@
 
 {% macro trend_cell(cell) %}<td>{% if let Some(text) = cell.text %}{{ text }}{% else %}<span class="muted">–</span>{% endif %}{% if cell.worse %} <span class="worse">▼ {{ t.audit_page.worse }}</span>{% endif %}</td>{% endmacro %}
 
-{% macro section_actions(href, label) %}<nav class="section-actions" aria-label="{{ label }}"><a class="button" href="{{ href }}#review">{{ t.review.act }}</a> <a class="button secondary" href="{{ href }}?edit=1#edit-form">{{ t.edit.act }}</a></nav>{% endmacro %}
+{# `in_list`: the actions of a row of a list, quieter than the one of a page, so that the gold stays rare. #}
+{% macro section_actions(href, label, in_list) %}<nav class="section-actions" aria-label="{{ label }}"><a class="button{% if in_list %} secondary{% endif %}" href="{{ href }}#review">{{ t.review.act }}</a> <a class="button {% if in_list %}quiet{% else %}secondary{% endif %}" href="{{ href }}?edit=1#edit-form">{{ t.edit.act }}</a></nav>{% endmacro %}
