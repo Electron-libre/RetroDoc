@@ -35,3 +35,45 @@ A web interface that invites to act
 # Resources
 * `crates/retrodoc-web/src/collected.rs` (`render`, `narrative_html`), `view.rs`, `edit.rs`, `edit_form.rs`, `ask.rs`
 * `specs/web-ui.md` WEB-49, WEB-50, WEB-118 to WEB-120
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-06
+
+## Understanding
+A narrative (page, generated text of its edit, preview) renders its headings without ids, two levels down, and
+resolves its relative links against its use case's Markdown page to `/docs/<path>`, else as text. Out of scope: the
+ask page (keeps the rules of a collected doc), links to other generated pages. The preview moves to
+`/preview/domains/<d>/<f>/<u>` so it knows the use case. Measure: 18,223 narratives of `~/retrodoc-runs`, 0 links,
+0 headings: the fix is for human edits.
+
+## Plan
+1. [x] Headings: a narrative renders with its own options (no heading id, level + 2, capped at `h6`); verified by
+   page and preview tests; makes true WEB-122. (autonomous)
+2. [ ] Links: resolve a relative link of a narrative against the Markdown page of its use case to a collected doc,
+   else text; the preview route takes the use case path (404 when unknown); verified by page, edit and preview
+   tests; makes true WEB-123, WEB-119, WEB-120 (amended).
+
+## Decisions
+- Mode: autonomous
+- Base commit: 2cc0c0f07d0f8f04951585461eece23cc8172b2a
+- Headings: no id, level + 2, capped at `h6` (1 a). Links: resolved to a collected doc, else text; preview route
+  takes the use case path (2 a). Ask page out of scope, a non-goal (3 a).
+
+## Deliverable 1 summary
+done: a narrative renders its headings two levels down (`h6` at most) with no `id`, on its page, in the generated
+text of its edit and in the preview.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass (WEB-123 still untraced, spec `draft`) |
+| docs | `docs/crates/render-mcp-cli.md` |
+| code review | see below |
+
+red: WEB-122: `<h3>Paying</h3>` missing, the page held `<h1 id="paying">Paying</h1>`
+
+Code review: no findings
+
+not verified: none. decisions needed: none.

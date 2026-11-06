@@ -740,3 +740,55 @@ async fn the_back_button_asks_for_a_confirmation() {
     // The form sends it, so the indicator and the disabled buttons of the form apply.
     assert!(!button.contains("hx-post"), "{button}");
 }
+
+// spec: WEB-122
+#[tokio::test]
+async fn the_headings_of_a_narrative_sit_under_its_section_with_no_id() {
+    let repo = generated_repo();
+    let root = repo.path();
+    let narrative =
+        "# Paying\n\nThe clerk takes the card.\n\n## Refusal\n\nIt is refused.\n\n#### Detail";
+    edit(
+        root,
+        &Section::use_case("pay-invoice", "pay-by-card"),
+        Fields {
+            narrative: Some(narrative.into()),
+            ..Fields::default()
+        },
+    );
+    let expected = ["<h3>Paying</h3>", "<h4>Refusal</h4>", "<h6>Detail</h6>"];
+
+    let page = get(root, USE_CASE).await;
+    // The last one: the generated text of the edit comes first.
+    let start = page.rfind("<div class=\"narrative\">").expect(&page);
+    let body = &page[start..start + page[start..].find("</div>").unwrap()];
+    let preview = preview_block(form_block(&page)).expect(&page);
+    for rendered in [body, preview] {
+        for heading in expected {
+            assert!(rendered.contains(heading), "{heading} in {rendered}");
+        }
+    }
+    assert!(!page.contains("id=\"paying\""), "{page}");
+
+    let answer = post(
+        root,
+        "/preview",
+        &format!(
+            "narrative={}",
+            narrative
+                .replace('#', "%23")
+                .replace('\n', "%0A")
+                .replace(' ', "+")
+        ),
+        true,
+    )
+    .await;
+    for heading in expected {
+        assert!(
+            answer.body.contains(heading),
+            "{heading} in {}",
+            answer.body
+        );
+    }
+    assert!(!answer.body.contains(" id="), "{}", answer.body);
+}

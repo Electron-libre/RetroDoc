@@ -1,9 +1,10 @@
 //! The page of a collected Markdown doc (and the narrative of a use case, WEB-118): the doc rendered to HTML with its raw
 //! HTML shown as text and its links of an unsafe scheme dropped (a doc of the
 //! repository is not trusted more than the LLM output), each heading carrying
-//! the anchor the links of the item pages point to.
+//! the anchor the links of the item pages point to. A narrative shown inside its page keeps
+//! the first two rules, its headings set under the section that holds it, with no anchor.
 
-use pulldown_cmark::{html, CowStr, Event, Options, Parser, Tag, TagEnd};
+use pulldown_cmark::{html, CowStr, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 use retrodoc_mcp::ExistingDoc;
 use retrodoc_render::anchor;
 
@@ -23,7 +24,7 @@ pub fn collected_page(collected: &[ExistingDoc], path: &str) -> Option<Collected
         .iter()
         .find(|d| d.path.to_string_lossy().replace('\\', "/") == path)?;
     let content = doc.content.replace("\r\n", "\n");
-    let (html, title) = render(without_front_matter(&content));
+    let (html, title) = render(without_front_matter(&content), Flavour::Doc);
     Some(CollectedPage {
         path: path.to_string(),
         title: title.unwrap_or_else(|| path.to_string()),
@@ -33,20 +34,29 @@ pub fn collected_page(collected: &[ExistingDoc], path: &str) -> Option<Collected
 
 /// The HTML of `markdown`, rendered as a collected doc is: raw HTML as text, unsafe links dropped.
 pub(crate) fn markdown_html(markdown: &str) -> String {
-    render(markdown).0
+    render(markdown, Flavour::Doc).0
 }
 
 /// The narrative of a use case rendered as its page and the preview of its edit show it (WEB-118),
-/// its line ends and surrounding whitespace cleaned as a save cleans them (WEB-94); `None` when it
-/// is blank.
+/// its line ends and surrounding whitespace cleaned as a save cleans them (WEB-94), its headings
+/// under the `h2` of its section with no anchor (WEB-122); `None` when it is blank.
 pub(crate) fn narrative_html(narrative: &str) -> Option<String> {
     let narrative = narrative.replace("\r\n", "\n");
     let narrative = narrative.trim();
-    (!narrative.is_empty()).then(|| markdown_html(narrative))
+    (!narrative.is_empty()).then(|| render(narrative, Flavour::Narrative).0)
+}
+
+/// What the Markdown is rendered as.
+#[derive(Clone, Copy)]
+enum Flavour {
+    /// A page of its own: each heading at its level, with its anchor.
+    Doc,
+    /// A section inside a page: each heading two levels down, with no anchor (WEB-122).
+    Narrative,
 }
 
 /// The HTML of `markdown` and the text of its first heading.
-fn render(markdown: &str) -> (String, Option<String>) {
+fn render(markdown: &str, flavour: Flavour) -> (String, Option<String>) {
     let options = Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH;
     let mut events = Vec::new();
     let mut title = None;
@@ -64,12 +74,19 @@ fn render(markdown: &str) -> (String, Option<String>) {
                 if title.is_none() && !text.is_empty() {
                     title = Some(text.clone());
                 }
+                let (level, id) = match flavour {
+                    Flavour::Doc => (level, Some(CowStr::from(anchor(&text)))),
+                    Flavour::Narrative => (two_levels_down(level), None),
+                };
                 Event::Start(Tag::Heading {
                     level,
-                    id: Some(CowStr::from(anchor(&text))),
+                    id,
                     classes,
                     attrs,
                 })
+            }
+            Event::End(TagEnd::Heading(level)) if matches!(flavour, Flavour::Narrative) => {
+                Event::End(TagEnd::Heading(two_levels_down(level)))
             }
             Event::Start(Tag::Link { ref dest_url, .. }) if !safe_url(dest_url) => {
                 dropped.push(TagEnd::Link);
@@ -91,6 +108,16 @@ fn render(markdown: &str) -> (String, Option<String>) {
     let mut out = String::new();
     html::push_html(&mut out, events.into_iter());
     (out, title)
+}
+
+/// `level` two levels down, `h6` at most: under the `h2` of the section of a narrative.
+fn two_levels_down(level: HeadingLevel) -> HeadingLevel {
+    match level {
+        HeadingLevel::H1 => HeadingLevel::H3,
+        HeadingLevel::H2 => HeadingLevel::H4,
+        HeadingLevel::H3 => HeadingLevel::H5,
+        _ => HeadingLevel::H6,
+    }
 }
 
 /// `content` without its YAML front matter, by the rule the doc sections are

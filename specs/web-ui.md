@@ -1,6 +1,6 @@
 ---
 id: WEB
-status: accepted
+status: draft
 adrs: [0039, 0044, 0048]
 ---
 
@@ -308,14 +308,22 @@ over browses its domains, features and use cases rather than reading the Markdow
   generated for its edit (WEB-92), rendered from Markdown by the rules of a collected doc: its raw HTML shown as
   text (WEB-49), a link or an image whose URL has an unsafe scheme shown as its text alone (WEB-50).
 - **WEB-119** (deterministic) The edit form of a use case must hold a preview of its narrative, filled with the
-  narrative the form holds rendered as WEB-118, that the form asks again with `htmx` by a `POST` to `/preview` of
-  its field `narrative` when that field changes (`hx-trigger="input changed delay:500ms"`), the answer swapped into
+  narrative the form holds rendered as WEB-118, that the form asks again with `htmx` by a `POST` to `/preview`
+  followed by the URL of the page of the use case (`/preview/domains/<d>/<f>/<u>`) of its field `narrative` when that field changes (`hx-trigger="input changed delay:500ms"`), the answer swapped into
   the preview; the form of a domain or of a feature holds none.
-- **WEB-120** (deterministic) A `POST` to `/preview` must be answered with the status 200 and the `narrative` it
-  sends rendered as WEB-118, without the layout of a page, empty when the narrative is empty or absent, with no
-  file written (WEB-12).
+- **WEB-120** (deterministic) A `POST` to `/preview/domains/<d>/<f>/<u>` must be answered with the status 200 and
+  the `narrative` it sends rendered as the narrative of that use case (WEB-118), without the layout of a page, empty
+  when the narrative is empty or absent, with no file written (WEB-12); the status 404 when the last run has no such
+  use case.
 - **WEB-121** (deterministic) The button of the edit form that brings the generated text back (WEB-96) must ask for
   a confirmation before it is sent (its `data-confirm`, read by `forms.js`), in a text that says the edit is removed.
+- **WEB-122** (deterministic) A heading of a narrative rendered as WEB-118 must carry no `id` and be shown two
+  levels below its Markdown level, under the `h2` of its section: `#` as an `h3`, `##` as an `h4`, any deeper level
+  as an `h6`.
+- **WEB-123** (deterministic) A relative link or image of a narrative rendered as WEB-118 must be resolved against
+  the path of the Markdown page of its use case (`<docs dir>/functional/<domain>/use-cases/<feature>/<use case>.md`
+  from the repository root): to `/docs/<path>`, its fragment kept, when a collected doc is at the resolved path;
+  else shown as its text alone. A link of a fragment alone is kept as written.
 
 ## Scenarios
 
@@ -441,9 +449,17 @@ over browses its domains, features and use cases rather than reading the Markdow
 - (WEB-118, WEB-120) Given a narrative holding `<script>alert(1)</script>`, then the page and the preview show it as
   text.
 - (WEB-120) Given a narrative holding `[x](javascript:alert(1))`, then the preview shows `x` with no link.
+- (WEB-122) Given a narrative shown on the page and in the preview of its edit, then no `id` of the page comes from
+  it, so none is repeated.
+- (WEB-123) Given `[guide](../../../../../guide.md#setup)` in a narrative whose page is under `docs/` and a collected
+  `guide.md`, then the link leads to `/docs/guide.md#setup`.
+- (WEB-123) Given a relative link that climbs above the repository root, or a root path (`/guide.md`), then it is
+  shown as its text alone.
 
 ## Non-goals
 
+- No resolution of a link of a narrative to another generated page (a feature, a use case): it is shown as its text
+  alone. The answers of the ask page keep the rules of a collected doc.
 - No preview of the name nor of the description: the pages show them as plain text. Without JavaScript the preview
   shows the narrative of the page and is not asked again, and the revert is sent with no confirmation.
 
