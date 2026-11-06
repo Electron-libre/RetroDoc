@@ -9,7 +9,7 @@
 {% endfor %}
 {% if let Some(running) = running %}{% include "running.html" %}{% endif %}
 </div>
-{% if !suggestions.is_empty() %}<ul class="suggestions" aria-label="{{ t.ask.suggested }}">
+{% if !suggestions.is_empty() %}<ul class="suggestions" aria-label="{{ t.ask.suggested }}" hidden>
 {% for suggestion in suggestions %}  <li><button type="button" class="secondary suggestion" data-question="{{ suggestion }}">{{ suggestion }}</button></li>
 {% endfor %}</ul>
 {% endif %}<form class="ask" method="post" action="/ask" hx-post="/ask" hx-target="#exchanges" hx-swap="beforeend" hx-indicator="find .indicator" hx-disabled-elt="find button" hx-on::after-request="if (event.detail.successful) this.reset()">

@@ -267,6 +267,9 @@ async fn the_question_field_is_a_composer() {
         "htmx:afterSettle",
         "scrollIntoView",
         "focus",
+        "pointer: coarse",
+        "activeElement",
+        "clientHeight",
     ] {
         assert!(script.contains(part), "{part} in {script}");
     }
@@ -368,10 +371,39 @@ async fn an_empty_conversation_suggests_questions_from_the_docs() {
         page.contains("data-question=\"What does the domain Orders cover?\""),
         "{page}"
     );
+    // Shown by the script, which alone makes them fill the field.
+    assert!(
+        page.contains("<ul class=\"suggestions\" aria-label=\"Suggested questions\" hidden>"),
+        "{page}"
+    );
     let script = body(send(&router, get_request("/assets/ask.js", None)).await).await;
-    for part in [".suggestion", "data-question", ".suggestions"] {
+    for part in [
+        ".suggestion",
+        "data-question",
+        ".suggestions",
+        "hidden = false",
+    ] {
         assert!(script.contains(part), "{part} in {script}");
     }
+}
+
+// spec: WAK-43
+#[tokio::test]
+async fn a_site_with_no_docs_suggests_nothing() {
+    let router = retrodoc_web::router_with(
+        project(Some("en")),
+        None,
+        DocLinks::default(),
+        Vec::new(),
+        Some(Asking {
+            llm: navigating(),
+            max_rounds: 8,
+        }),
+    );
+
+    let page = body(send(&router, get_request("/ask", None)).await).await;
+
+    assert!(suggestions(&page).is_empty(), "{page}");
 }
 
 // spec: WAK-43

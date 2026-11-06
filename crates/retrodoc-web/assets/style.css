@@ -322,6 +322,8 @@ form.ask textarea { field-sizing: content; resize: none; overflow-y: auto; min-h
 ul.suggestions { display: flex; flex-wrap: wrap; gap: var(--space-2); list-style: none; margin: var(--space-4) 0 0; padding: 0; max-width: 48rem; }
 ul.suggestions button { white-space: normal; text-align: left; font-weight: normal; padding: var(--space-2) var(--space-3); line-height: 1.4; }
 form.ask .keys { font-size: 0.85em; margin-left: auto; }
+/* On a touch device Enter breaks the line and the button sends (WAK-41): no keys to tell. */
+@media (pointer: coarse) { form.ask .keys { display: none; } }
 
 /* The empty state: a page or a list with nothing to show says so in a dashed frame. */
 .empty {

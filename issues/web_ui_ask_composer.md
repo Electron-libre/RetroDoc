@@ -55,6 +55,9 @@ LLM call to build the suggestions, a change of the routes or of the streaming. M
 2. [x] Suggested questions: built in `ask.rs` from the purpose question and the first 3 domains of the last run,
    texts in English and French, buttons filling the field; verified by `ask_page.rs` tests (empty session shows
    them, a session with an exchange does not); makes true WAK-43, WAK-44; spec back to `accepted`. (autonomous)
+3. [x] Fixes of the `high` review: no focus taken from another field, no suggestion with no docs, Enter breaks the
+   line on a touch device, suggestions shown by the script only, borders of the growth read from the field; verified
+   by `ask_page.rs` and the browser check; amends WAK-41, WAK-43, WAK-45. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -86,4 +89,19 @@ LLM call to build the suggestions, a change of the routes or of the streaming. M
 - browser check (same setup): 4 suggestions shown, a click fills the field with the focus and sends nothing, Enter then
   sends it and the suggestions go.
 - not verified: none beyond deliverable 1.
+
+## Deliverable 3 (fixes of the `high` review)
+- done: the fixes of plan line 3; WAK-41, WAK-43, WAK-45 amended.
+- checks: tests ok, clippy ok, specs ok, docs ok (`render-mcp-cli.md`).
+- Code review: no findings.
+- red: WAK-41, WAK-43, WAK-45: no `pointer: coarse` nor `activeElement` in `ask.js`, the purpose question suggested
+  with no docs, the suggestions not `hidden`.
+- browser check: the same as deliverables 1 and 2, and an answer that comes while the focus is in the search field
+  leaves it there.
+- `high` review, not fixed: Enter swallowed while a question runs (the button says it is disabled; a newline would
+  be sent with the next question); Ctrl/Alt/Meta+Enter also send (as most chats); a suggestion replaces a draft (they
+  show only on an empty conversation); the button state kept by the `hx-on` of `#exchanges` and the rest by `ask.js`
+  (WAK-15 is traced on that markup); `form_of` not used by the older tests, and the script checked by its parts
+  (stated as internal).
+- not verified: the growth fallback (Chrome has `field-sizing`), a real touch device, an IME.
 

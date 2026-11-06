@@ -18,7 +18,7 @@ use axum::routing::{get, post};
 use axum::{Form, Router};
 use retrodoc_agent::{Answer, Conversation, Step};
 use retrodoc_llm::{CallTotals, LlmProvider, UsageProvider, UsageTracker};
-use retrodoc_mcp::{Docs, GeneratedDocs, Source, SourceKind};
+use retrodoc_mcp::{Docs, Source, SourceKind};
 use serde::Deserialize;
 use tokio::sync::watch;
 
@@ -366,10 +366,14 @@ struct AskPage<'a> {
 const SUGGESTED_DOMAINS: usize = 3;
 
 /// The questions suggested to an empty conversation: the purpose of the application, then the
-/// first domains of the run, in the order of the docs (WAK-43).
+/// first domains of the run, in the order of the docs; none with no docs, which no question can be
+/// asked of (WAK-43).
 fn suggestions(site: &Site) -> Vec<String> {
     let texts = &site.texts().ask;
-    let domains = site.docs().map(GeneratedDocs::domains).unwrap_or_default();
+    let Some(docs) = site.docs() else {
+        return Vec::new();
+    };
+    let domains = docs.domains();
     std::iter::once(texts.purpose_question.to_owned())
         .chain(
             domains

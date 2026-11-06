@@ -3,11 +3,13 @@
 // stylesheet capping it at 12 lines (WAK-42); once the answer of a question replaces its running
 // exchange, the field gets the focus back and the exchange is scrolled into view (WAK-45); the
 // button to start over shows once the conversation holds an exchange (WAK-46); a suggested question
-// fills the field without sending it (WAK-44), and the suggestions go once a question is sent.
+// fills the field without sending it (WAK-44): they show only with this script, and go once a
+// question is sent. On a touch device Enter breaks the line: its keyboard has no Shift+Enter.
 (function () {
   "use strict";
 
   const sizesItself = window.CSS && CSS.supports("field-sizing", "content");
+  const touch = window.matchMedia("(pointer: coarse)");
 
   function field() {
     return document.querySelector("form.ask textarea");
@@ -17,8 +19,10 @@
     if (sizesItself || !area) {
       return;
     }
+    // The height set holds the borders, the scroll height does not.
+    const borders = area.offsetHeight - area.clientHeight;
     area.style.height = "auto";
-    area.style.height = area.scrollHeight + 2 + "px";
+    area.style.height = area.scrollHeight + borders + "px";
   }
 
   document.addEventListener("keydown", function (event) {
@@ -27,7 +31,13 @@
       return;
     }
     // An input method composing a word takes Enter for itself (keyCode 229 in older browsers).
-    if (event.key !== "Enter" || event.shiftKey || event.isComposing || event.keyCode === 229) {
+    if (
+      event.key !== "Enter" ||
+      event.shiftKey ||
+      event.isComposing ||
+      event.keyCode === 229 ||
+      touch.matches
+    ) {
       return;
     }
     event.preventDefault();
@@ -87,11 +97,16 @@
       return;
     }
     waiting = false;
+    // The reader who went to another field meanwhile keeps their place.
+    const area = field();
+    const active = document.activeElement;
+    if (active && active !== area && active.matches("input, textarea, select")) {
+      return;
+    }
     const answered = exchanges.lastElementChild;
     if (answered) {
       answered.scrollIntoView({ block: "start", behavior: "smooth" });
     }
-    const area = field();
     if (area) {
       area.focus({ preventScroll: true });
     }
@@ -99,6 +114,10 @@
 
   document.addEventListener("htmx:afterSettle", follow);
   document.addEventListener("DOMContentLoaded", function () {
+    const suggestions = document.querySelector("ul.suggestions");
+    if (suggestions) {
+      suggestions.hidden = false;
+    }
     grow(field());
     follow();
   });

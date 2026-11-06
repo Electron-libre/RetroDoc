@@ -180,10 +180,12 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   first error, so the extension does not connect it again, and asks once); both answer 404 for a question not of the session of the
   cookie. The button of the form stays disabled while a running exchange is on the page (`hx-on::after-settle` of
   `#exchanges`). `assets/ask.js`, loaded by `ask.html`, makes the form a composer: Enter sends (through
-  `requestSubmit`, so `htmx` sends it), Shift+Enter or a running input method composition does not; the field grows
+  `requestSubmit`, so `htmx` sends it), Shift+Enter, a running input method composition or a touch device
+  (`pointer: coarse`, whose keyboard has no Shift+Enter) does not; the field grows
   with its text (`field-sizing: content` in `style.css`, the script's fallback elsewhere, capped at 12 lines); once a
-  running exchange is replaced, it scrolls the exchange into view and gives the field the focus back, and it shows
-  the start-over form, `hidden` on a page with no exchange (WAK-41, WAK-42, WAK-45, WAK-46). A page with no exchange nor question running suggests questions (`ask::suggestions`: `AskTexts::purpose_question`, then `AskTexts::domain_question` for the first 3 domains of the run, WAK-43), buttons whose `data-question` `ask.js` puts in the field without sending it, and drops once an exchange shows (WAK-44). A failed call is an exchange showing the error, the turn not kept. Each question is asked through a
+  running exchange is replaced, it scrolls the exchange into view and gives the field the focus back unless the
+  focus is in another field, and it shows
+  the start-over form, `hidden` on a page with no exchange (WAK-41, WAK-42, WAK-45, WAK-46). A page with no exchange nor question running suggests questions (`ask::suggestions`: `AskTexts::purpose_question`, then `AskTexts::domain_question` for the first 3 domains of the run, none with no docs, WAK-43), buttons rendered `hidden` that `ask.js` shows, whose `data-question` `ask.js` puts in the field without sending it, and drops once an exchange shows (WAK-44). A failed call is an exchange showing the error, the turn not kept. Each question is asked through a
   `UsageProvider` of its own around the provider of the pass `ask` (which still counts for the recap of `ui`), and
   its exchange shows the `CallTotals` of the question and of the session since it started or was reset
   (`Session::spent`), with the calls whose server sent no usage counted apart (`AskTexts::cost`). Tests:

@@ -103,17 +103,19 @@ leaving the browser; without `--ask` the interface calls no LLM (ADR 0048).
   a question running (WAK-29) or no docs must be answered, with its status, as the error alone with the headers
   `HX-Retarget` and `HX-Reswap` that put it in place of the error slot of the form, beside the question field
   (`role="alert"`); the form keeps the question it sent.
-- **WAK-41** (deterministic) In the question field, the key Enter must send the form, unless Shift is held or a
-  composition of an input method runs, and Shift+Enter break the line.
+- **WAK-41** (deterministic) In the question field, on a device whose main pointer is fine (a mouse), the key Enter
+  must send the form, unless Shift is held or a composition of an input method runs, and Shift+Enter break the line;
+  on a touch device, Enter breaks the line and the button sends.
 - **WAK-42** (deterministic) The question field must start at one line and grow with its text up to 12 lines, then
   scroll.
-- **WAK-43** (deterministic) The page `/ask` of a session with no exchange and no question running must show the
+- **WAK-43** (deterministic) The page `/ask` of a session with no exchange and no question running, over generated
+  docs and in a browser that runs its scripts, must show the
   suggested questions: a fixed one on the purpose of the application, then one per domain of the last run, the
   first 3 in the order of the docs, and none once the session holds an exchange or a question running.
 - **WAK-44** (deterministic) A suggested question must be a button that puts its text in the question field and
   gives it the focus, without sending it.
-- **WAK-45** (deterministic) Once the answer or the error of a question replaces its running exchange, the question
-  field must get the focus back and the exchange be scrolled into view.
+- **WAK-45** (deterministic) Once the answer or the error of a question replaces its running exchange, unless the
+  focus is in another field, the question field must get the focus back and the exchange be scrolled into view.
 - **WAK-46** (deterministic) The button of WAK-22 must be a quiet action, set apart from the send button, and be
   shown only while the session holds an exchange or a question running.
 
