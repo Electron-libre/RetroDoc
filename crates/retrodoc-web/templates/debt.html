@@ -4,9 +4,10 @@
 {% block content %}
 <h1>{{ t.page_name("/debt") }}</h1>
 <p class="muted">{{ t.debt.intro }}</p>
-<form class="filters" action="/debt" method="get" hx-get="/debt" hx-target="#debt-list" hx-swap="outerHTML" hx-trigger="change" hx-push-url="true">
+<form class="filters" action="/debt" method="get" hx-get="/debt" hx-target="#debt-list" hx-swap="outerHTML" hx-trigger="change" hx-push-url="true" hx-indicator="find .indicator">
   {% call m::filter_fields(page.filters) %}{% endcall %}
   <button type="submit" class="secondary">{{ t.filter }}</button>
+  <span class="indicator" role="status">{{ t.loading }}</span>
 </form>
 {% include "debt_list.html" %}
 {% endblock %}

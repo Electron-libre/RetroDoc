@@ -24,6 +24,12 @@ pub struct WebTexts {
     pub look_up: &'static str,
     pub audit: &'static str,
     pub search_docs: &'static str,
+    /// The indicator of a form that writes (review, edit) while it is sent.
+    pub saving: &'static str,
+    /// The indicator of the ask form while its question is sent.
+    pub sending: &'static str,
+    /// The indicator of the search and the filters while they load.
+    pub loading: &'static str,
     pub tree_label: &'static str,
     pub no_domain_yet: &'static str,
     pub home: &'static str,
@@ -374,6 +380,9 @@ impl WebTexts {
         look_up: "Look up",
         audit: "Audit",
         search_docs: "Search the docs",
+        saving: "Saving…",
+        sending: "Sending…",
+        loading: "Loading…",
         tree_label: "Domains, features and use cases",
         no_domain_yet: "No domain yet.",
         home: "Home",
@@ -727,6 +736,9 @@ impl WebTexts {
         look_up: "Consulter",
         audit: "Auditer",
         search_docs: "Rechercher dans la doc",
+        saving: "Enregistrement…",
+        sending: "Envoi…",
+        loading: "Chargement…",
         tree_label: "Domaines, fonctionnalités et cas d'usage",
         no_domain_yet: "Aucun domaine pour l'instant.",
         home: "Accueil",

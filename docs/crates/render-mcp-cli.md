@@ -55,7 +55,9 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   handlers and their `askama` templates under `templates/`, `assets.rs` the vendored `htmx`, `mermaid`, the stylesheet and the logo mark of
   `assets/`, embedded in the binary and served under `/assets/`, cached an hour; `mermaid` is stored gzipped,
   `mermaid-<version>.min.js.gz` (5.5 MB plain), served with `Content-Encoding: gzip` (406 to a client whose `Accept-Encoding` does not name gzip) and
-  cached as immutable under its versioned name): the local web interface of ADR 0039
+  cached as immutable under its versioned name; `base.html` turns off the indicator styles `htmx` would inject, the
+  stylesheet draws `.indicator`, which every form `htmx` sends holds and shows while its request runs, the forms that
+  write also disabling their buttons, WEB-102): the local web interface of ADR 0039
   (`specs/web-ui.md`). The docs are loaded once into `GeneratedDocs` (`None` before a first `generate`: the home page
   says to run it), and the tree built once, the whole `Site` rebuilt at the first request after the edits of
   `.retrodoc/edits.json` changed (`LiveSite`, a `FromRef` state over `edits::Live`, so the handlers keep their

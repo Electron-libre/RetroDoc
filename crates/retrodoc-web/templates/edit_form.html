@@ -2,7 +2,7 @@
 <details{% if edit_form.error.is_some() %} open{% endif %}>
 <summary>{{ t.edit.form_heading }}</summary>
 {% if let Some(error) = edit_form.error %}<p><span class="badge low">{{ error }}</span></p>{% endif %}
-<form class="edit-fields" method="post" action="{{ edit_form.action }}" hx-post="{{ edit_form.action }}" hx-target="closest section" hx-swap="outerHTML">
+<form class="edit-fields" method="post" action="{{ edit_form.action }}" hx-post="{{ edit_form.action }}" hx-target="closest section" hx-swap="outerHTML" hx-indicator="find .indicator" hx-disabled-elt="find button">
   <label class="field"><span class="field-label">{{ t.edit.labels[0] }}</span> <input name="name" value="{{ edit_form.name }}"></label>
   <label class="field"><span class="field-label">{{ t.edit.labels[1] }}</span> <textarea name="description" rows="3">{{ edit_form.description }}</textarea></label>
   {% if let Some(narrative) = edit_form.narrative %}<label class="field"><span class="field-label">{{ t.edit.labels[2] }}</span> <textarea name="narrative" rows="8">{{ narrative }}</textarea></label>{% endif %}
@@ -10,6 +10,7 @@
   <div class="actions">
     <button type="submit">{{ t.edit.save }}</button>
     {% if edit_form.edited %}<button type="submit" name="action" value="revert" class="quiet">{{ t.edit.revert }}</button>{% endif %}
+    <span class="indicator" role="status">{{ t.saving }}</span>
   </div>
 </form>
 </details>

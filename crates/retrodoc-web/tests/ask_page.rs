@@ -201,7 +201,7 @@ async fn without_ask_there_is_no_ask_page() {
     assert!(body(page).await.contains("<h1>Not found</h1>"));
 }
 
-// spec: WAK-6
+// spec: WAK-6, WEB-102
 #[tokio::test]
 async fn the_ask_page_holds_the_form() {
     let dir = generated_repo();
@@ -215,6 +215,12 @@ async fn the_ask_page_holds_the_form() {
     let form = &form[..form.find("</form>").unwrap()];
     assert!(form.contains("hx-post=\"/ask\""), "{form}");
     assert!(form.contains("name=\"question\""), "{form}");
+    assert!(form.contains("hx-indicator=\"find .indicator\""), "{form}");
+    assert!(form.contains("hx-disabled-elt=\"find button\""), "{form}");
+    assert!(
+        form.contains("<span class=\"indicator\" role=\"status\">Sending…</span>"),
+        "{form}"
+    );
     assert!(
         page.contains("<script src=\"/assets/htmx-ext-sse.min.js\" defer></script>"),
         "{page}"

@@ -1,6 +1,6 @@
 ---
 id: WAK
-status: accepted
+status: draft
 adrs: [0039, 0047, 0048, 0049]
 ---
 
@@ -99,6 +99,10 @@ leaving the browser; without `--ask` the interface calls no LLM (ADR 0048).
   says it stopped, served by WAK-31 and WAK-33 with the status 200, and leave its session free for the next question.
 - **WAK-39** (deterministic) The stream of WAK-31 must send a comment at least every 15 seconds while the question
   runs, so that a connection idle while the model answers is not cut.
+- **WAK-40** (deterministic) A question `POST` with the header `HX-Request` refused for a blank question (WAK-17),
+  a question running (WAK-29) or no docs must be answered, with its status, as the error alone with the headers
+  `HX-Retarget` and `HX-Reswap` that put it in place of the error slot of the form, beside the question field
+  (`role="alert"`); the form keeps the question it sent.
 
 ## Scenarios
 

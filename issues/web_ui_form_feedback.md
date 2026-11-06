@@ -45,3 +45,45 @@ A web interface that invites to act
 # Hints
 * Every new text exists in English and French (`texts.rs`, WEB-7x on the language of the interface).
 * The forms also work without JavaScript (plain `POST` and `303`): keep that path.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-06
+
+## Understanding
+Every form that writes (review, edit, ask) shows pending (indicator + buttons disabled), saved (a fading notice) and
+refused (the error inside the form, input kept); search and filters get the pending indicator. Out of scope: new
+behaviour of the forms, the look as a requirement (checked by eye). Findings corrected: the review and edit forms
+already swap their HTML error fragments (inline `before-swap` hooks, WEB-99); the ask form and plain-text errors show
+nothing. Means: one page-wide rule in `base.html` (swap an HTML error, else a page notice) replaces the inline hooks;
+the saved notice rides `?saved=<form>` on the redirects (works without JavaScript, and the edit's `HX-Redirect` reloads
+the page) and the review fragment.
+
+## Plan
+1. [x] Pending: an indicator component (`.indicator`, text EN/FR) in the review, edit, ask, search and filter forms,
+   `hx-indicator` + `hx-disabled-elt` on the three forms that write, htmx's injected indicator styles off; verified by
+   markup tests of each page; makes true WEB-102. (autonomous)
+2. [ ] Errors: a `.form-error` slot above the buttons of each form (`role="alert"`), the review and edit failures
+   rendered there; the ask refusals answered as the error fragment with `HX-Retarget`/`HX-Reswap`; one page-wide
+   `before-swap`/`response-error` rule in `base.html` and a page notice region, the inline hooks removed; verified by
+   tests of the answers (status, headers, fields kept) and of the base markup; makes true WEB-105, WEB-106, WAK-40.
+3. [ ] Saved: `?saved=review|edit` on the `303` and `HX-Redirect`, the notice in the review fragment and on the pages
+   (fades by CSS, the parameter dropped from the address bar once shown), texts EN/FR, `docs/dev/web-ui.md` states and
+   screenshots; verified by tests of the redirects and of the pages with and without `?saved`; makes true WEB-83,
+   WEB-97 (amended), WEB-103, WEB-104.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 891eb2879fd515a40886476886657e58f5d11c97
+- Saved notice: `?saved=review|edit` on the redirects (the `303` and the `HX-Redirect`) plus the notice in the review
+  fragment; the parameter dropped from the address bar once shown.
+- Fixed error messages (unknown status, no such section, blank question, a question running, no docs) translated EN/FR
+  in `texts.rs` (deliverable 2).
+
+## Deliverable 1: pending
+- done: `.indicator` (spinner + word, EN/FR) in the review, edit, ask, search, debt and rules forms; `hx-indicator`
+  on each, `hx-disabled-elt` on the three that write; htmx's own indicator styles off.
+- checks: tests ok, clippy ok, specs ok (WEB-102 traced), docs (`docs/dev/web-ui.md`, `docs/crates/render-mcp-cli.md`).
+- red: WEB-102: `no hx-indicator="find .indicator"` in the opening tag of each form (assertion failed at form_states.rs).
+- Code review: no findings
+- not verified: the look in a browser (shot with deliverable 3).

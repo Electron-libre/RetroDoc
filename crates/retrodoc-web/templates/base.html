@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{% endblock %} · {{ shell.name }}</title>
+  <meta name="htmx-config" content='{"includeIndicatorStyles":false}'>
   <link rel="stylesheet" href="/assets/style.css">
   <script src="/assets/htmx.min.js" defer></script>
   {% block scripts %}{% endblock %}
@@ -24,8 +25,9 @@
       {% for page in shell.audit %}<a href="{{ page.href }}" title="{{ page.hint }}">{{ page.name }}</a>{% endfor %}
     </nav>
     {% if shell.ask %}<a class="ask-link" href="/ask" title="{{ t.ask.hint }}">{{ t.ask.link }}</a>{% endif %}
-    <form class="search" role="search" action="/search" method="get" hx-get="/search" hx-target="#search-results">
+    <form class="search" role="search" action="/search" method="get" hx-get="/search" hx-target="#search-results" hx-indicator="find .indicator">
       <input type="search" name="q" value="{% block query %}{% endblock %}" placeholder="{{ t.search_docs }}" aria-label="{{ t.search_docs }}">
+      <span class="indicator" role="status">{{ t.loading }}</span>
     </form>
   </header>
   <div id="search-results">{% block results %}{% endblock %}</div>

@@ -1,6 +1,6 @@
 ---
 id: WEB
-status: accepted
+status: draft
 adrs: [0039, 0044, 0048]
 ---
 
@@ -199,7 +199,8 @@ over browses its domains, features and use cases rather than reading the Markdow
 - **WEB-82** (deterministic) The reviews must be read from `.retrodoc/reviews.json` at each request, so that a page
   shows a review sent before it without a restart of `retrodoc ui`.
 - **WEB-83** (deterministic) A review `POST` with the header `HX-Request` must be answered with the review of the
-  section and its form alone, swapped in place of the former ones; any other with a redirect `303` to the page.
+  section and its form alone, swapped in place of the former ones; any other with a redirect `303` to the page
+  followed by `?saved=review`.
 - **WEB-84** (deterministic) A `POST` must be refused with the status 403, and nothing saved, unless its `Origin`
   header, else with no `Origin` its `Referer`, is `http://` followed by the value of its `Host` header.
 - **WEB-85** (deterministic) A review `POST` to a section the last run does not have, or before a first run, must be
@@ -231,7 +232,8 @@ over browses its domains, features and use cases rather than reading the Markdow
 - **WEB-96** (deterministic) The edit form of an edited section must hold a button that brings the generated text
   back: it removes the edit of the section (SED-16).
 - **WEB-97** (deterministic) An edit `POST` saved with the header `HX-Request` must be answered with the header
-  `HX-Redirect` naming the page, so that the whole page shows the edit; any other with a redirect `303` to the page.
+  `HX-Redirect` naming the page followed by `?saved=edit`, so that the whole page shows the edit; any other with a
+  redirect `303` to the same URL.
 - **WEB-98** (deterministic) An edit `POST` to a section the last run does not have, or before a first run, must be
   answered with the status 404, and nothing saved; one that sends a narrative for a domain or a feature, with the
   status 400 (SED-3), and nothing saved.
@@ -243,6 +245,21 @@ over browses its domains, features and use cases rather than reading the Markdow
   edit, and none when it holds none.
 - **WEB-101** (deterministic) The header of every page must link to the ask page, `/ask` (`specs/web-ask.md`), when
   `retrodoc ui` was started with `--ask`, and only then.
+- **WEB-102** (deterministic) The review form, the edit form and the ask form must each hold an indicator that says,
+  in the language of the interface, that the form is being sent, shown while its request runs (`hx-indicator`), and
+  disable their buttons while it runs (`hx-disabled-elt`); the search form of the header and the filters of the debt
+  and rules pages likewise hold such an indicator, their controls kept enabled.
+- **WEB-103** (deterministic) The answer of WEB-83 to a review saved must hold, in the form, a notice that says the
+  review is saved (`role="status"`); the review form of a page asked without `?saved=review` holds none.
+- **WEB-104** (deterministic) The page of a domain, a feature or a use case asked with `?saved=review` must show the
+  notice of WEB-103 in its review form, and asked with `?saved=edit`, a notice in its edit form that says the edit is
+  saved; another value of `saved`, or none, shows no notice.
+- **WEB-105** (deterministic) A review or an edit `POST` with the header `HX-Request` that is refused (WEB-85,
+  WEB-86, WEB-98) or fails (WEB-88, WEB-99) must be answered, with its status, as the form of the section alone, the
+  fields as sent, the error inside the form above its buttons (`role="alert"`), swapped in place of the former form.
+- **WEB-106** (deterministic) Every page must swap an error answer (4xx, 5xx) to an `htmx` request when it is HTML
+  (WEB-105, WAK-40), and show any other error answer in a notice of the page that names its status and its text,
+  leaving the form as it was.
 
 ## Scenarios
 
@@ -353,6 +370,10 @@ over browses its domains, features and use cases rather than reading the Markdow
 - (WEB-95) Given a feature whose name is edited, when the form sends the name emptied, then the feature has no edit.
 - (WEB-94) Given a narrative of two lines typed in a textarea, ending with a line end, then the edit holds the two
   lines joined by a line feed alone, with no line end after them.
+- (WEB-104) Given a section with no review, when its page is asked with `?saved=review`, then the form shows the
+  notice: the parameter says a save happened, the page does not check it.
+- (WEB-105) Given an edit form whose name and description were changed, when the save fails, then the form answered
+  holds the changed name and description, not the text of the page.
 - (WEB-89) Given an outdated review, when the form saves the same status again, then the review is no longer flagged
   outdated (REV-22).
 
@@ -375,6 +396,8 @@ over browses its domains, features and use cases rather than reading the Markdow
 - No authentication of the reviewer: the author of a review is the `user.name` of the repository (REV-4), whoever
   sends the form.
 - No reason of an outdated review in the badge of a list (WEB-90): the page of the section gives them.
+- The look of the states of a form (the indicator, the notice that fades) is no requirement: it is checked by eye in
+  `docs/dev/web-ui.md`; a test checks the markup that `htmx` reads, not what a browser draws.
 - The name of the application is not asked of the LLM, nor read from the `origin` remote; the Markdown render and the
   MCP answers don't carry it.
 - The home page links to the debt page (`specs/debt-view.md`) only, not to the audit dashboard

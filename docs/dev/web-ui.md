@@ -46,6 +46,7 @@ spacing steps `--space-1` to `--space-6`, the radius `--radius-sm`, `--radius`, 
 | badge | `.badge` (`low`, `stale`, `review …`, `edited`) | pill, the label carries the meaning |
 | card | `.card`, `.start-links li` | surface, border lit on hover |
 | empty state | `<p class="empty">` | a dashed frame, muted text |
+| indicator | `<span class="indicator" role="status">` in the form, `hx-indicator="find .indicator"` on it | hidden; a spinner and a muted word while the request runs |
 
 Tests find some forms and buttons by their exact markup (`<form class="filters"`, `<button type="submit" disabled>`):
 add a variant class after the existing attributes.
