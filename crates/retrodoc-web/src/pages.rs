@@ -39,8 +39,30 @@ struct Home<'a> {
     shell: &'a Shell,
     purpose: Option<&'a str>,
     users: &'a [String],
+    main_action: MainAction,
     start: Vec<StartLink>,
     domains: Vec<DomainRow>,
+}
+
+/// The primary button of the home page: the debt while it has items, else the map (WEB-116).
+struct MainAction {
+    href: &'static str,
+    label: String,
+}
+
+impl MainAction {
+    fn of(start: &[StartLink], texts: &WebTexts) -> Self {
+        match start.iter().find(|link| link.page.href == "/debt") {
+            Some(debt) if debt.count > 0 => Self {
+                href: debt.page.href,
+                label: (texts.review_debt)(debt.count),
+            },
+            _ => Self {
+                href: "/map",
+                label: texts.read_map.to_owned(),
+            },
+        }
+    }
 }
 
 #[derive(Template)]
@@ -237,6 +259,7 @@ pub async fn home(State(site): State<Arc<Site>>) -> Response {
                 shell: site.shell(),
                 purpose: site.purpose(),
                 users: site.users(),
+                main_action: MainAction::of(&start, site.texts()),
                 start,
                 domains,
             },

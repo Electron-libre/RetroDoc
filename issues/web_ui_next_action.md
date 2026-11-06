@@ -59,8 +59,8 @@ links to the existing forms, `?edit=1` unfolds the edit form on the server (no s
 1. [x] Section actions: buttons under the heading of the domain, feature and use case pages, `?edit=1` unfolds the
    edit form; verified by page tests; makes true WEB-113, WEB-114. (autonomous)
 2. [x] Debt row actions: "Review" and "Edit" on the items of sections; verified by debt page tests; makes true WEB-115. (autonomous)
-3. [ ] Home main action and empty states of home and map; verified by home and map tests; sets the spec `accepted`;
-   makes true WEB-116, WEB-117.
+3. [x] Home main action and empty states of home and map; verified by home and map tests; sets the spec `accepted`;
+   makes true WEB-116, WEB-117. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -78,5 +78,13 @@ links to the existing forms, `?edit=1` unfolds the edit form on the server (no s
 - done: the items of a domain, a feature or a use case of the run offer "Review" and "Edit"; rules, folders and
   sections the run lacks offer none.
 - red: WEB-115: `no actions in` the first item of `/debt`.
+- Code review: no findings
+- not verified: the look in a browser, checked at the end of the issue.
+
+## Deliverable 3: home main action and empty states
+- done: the home page leads to the debt page with its count, to the map with none; a run with no domain says why
+  and to run `retrodoc scan` then `retrodoc generate`, on the home and map pages; the spec back to `accepted`.
+- red: WEB-116, WEB-117: no `<p class="main-action">` on the home page; the empty state said only "The last run
+  generated no domain."
 - Code review: no findings
 - not verified: the look in a browser, checked at the end of the issue.

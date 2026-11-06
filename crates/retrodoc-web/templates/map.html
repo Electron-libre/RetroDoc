@@ -7,7 +7,7 @@
 {% block content %}
 <h1>{{ t.page_name("/map") }}</h1>
 {% if page.domains.is_empty() %}
-<p class="empty">{{ t.no_domain_generated }}</p>
+<p class="empty">{{ t.no_domain_generated|safe }}</p>
 {% else %}
 <p class="muted">{{ t.map_intro }}</p>
 <section class="map">

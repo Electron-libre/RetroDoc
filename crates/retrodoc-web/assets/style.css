@@ -68,6 +68,7 @@ a:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .top .group { color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
 .top .links + .links { padding-left: 1rem; border-left: 1px solid var(--border); }
 .purpose { font-size: 1.1rem; color: var(--text-muted); max-width: 48rem; }
+.main-action { margin: var(--space-3) 0 var(--space-5); }
 .layout { display: flex; flex: 1; }
 .tree {
   flex: 0 0 18rem;

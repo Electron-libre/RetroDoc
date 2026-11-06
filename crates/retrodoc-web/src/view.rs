@@ -205,6 +205,11 @@ impl Site {
                 },
                 page: link.page,
                 unit: link.unit,
+                count: if link.page.href == "/debt" {
+                    debt
+                } else {
+                    link.count
+                },
             })
             .collect()
     }
@@ -238,6 +243,7 @@ fn start_links(
             label: texts.count(count, unit),
             page,
             unit,
+            count,
         })
         .collect()
 }
@@ -279,6 +285,8 @@ pub struct StartLink {
     /// The count with its unit.
     pub label: String,
     pub unit: (&'static str, &'static str),
+    /// The count the label gives.
+    pub count: usize,
 }
 
 /// What every page shows around its content: the name of the application,

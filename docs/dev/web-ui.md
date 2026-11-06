@@ -48,7 +48,8 @@ spacing steps `--space-1` to `--space-6`, the radius `--radius-sm`, `--radius`, 
 | table | `<table>`, `<thead>` | muted header, row lit on hover (not the heatmap nor the code) |
 | badge | `.badge` (`low`, `stale`, `review …`, `edited`) | pill, the label carries the meaning |
 | card | `.card`, `.start-links li` | surface, border lit on hover |
-| empty state | `<p class="empty">` | a dashed frame, muted text |
+| empty state | `<p class="empty">` | a dashed frame, muted text; says why it is empty and what to run or open |
+| main action | `<p class="main-action">` under the heading of the home page | one primary button: the debt while it has items, else the map |
 | form error | `{% call m::form_error(error) %}` above the buttons; `#ask-error` on the ask form | framed, the gold edge at its left; hidden when empty |
 | page error | `#page-error` at the top of `<main>`, filled by `assets/forms.js` | same frame, for an error answer that is not HTML |
 | notice | `{% call m::notice(saved, text) %}` above the buttons | gold-light word that fades out in 4 s (stays with reduced motion) |

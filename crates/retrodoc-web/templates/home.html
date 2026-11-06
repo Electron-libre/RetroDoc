@@ -6,6 +6,7 @@
 {% if let Some(purpose) = purpose %}
 <p class="purpose">{{ purpose }}</p>
 {% endif %}
+<p class="main-action"><a class="button" href="{{ main_action.href }}">{{ main_action.label }}</a></p>
 {% if !users.is_empty() %}
 <section class="users">
   <h2>{{ t.who_uses_it }}</h2>
@@ -31,7 +32,7 @@
 </section>
 <h2>{{ t.domains }}</h2>
 {% if domains.is_empty() %}
-<p class="empty">{{ t.no_domain_generated }}</p>
+<p class="empty">{{ t.no_domain_generated|safe }}</p>
 {% else %}
 <div class="cards">
   {% for domain in domains %}

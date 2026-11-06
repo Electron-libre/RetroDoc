@@ -48,7 +48,12 @@ pub struct WebTexts {
     pub start_here: &'static str,
     pub start_intro: &'static str,
     pub domains: &'static str,
+    /// Why the last run has no domain and what to run (WEB-117), HTML.
     pub no_domain_generated: &'static str,
+    /// The main action of the home page: the debt, by its count of items (WEB-116).
+    pub review_debt: fn(usize) -> String,
+    /// The main action of the home page with no debt: the map.
+    pub read_map: &'static str,
     pub stale: &'static str,
     pub stale_hint: &'static str,
     /// The unit of a count of features, singular then plural.
@@ -444,7 +449,17 @@ impl WebTexts {
         start_intro: "Pick a domain below to read what the application does, or look things up \
             across the docs:",
         domains: "Domains",
-        no_domain_generated: "The last run generated no domain.",
+        no_domain_generated: "The last run grouped no source file into a domain. Run \
+            <code>retrodoc scan</code> to see the source files the run reads, then \
+            <code>retrodoc generate</code>.",
+        review_debt: |count| {
+            if count == 1 {
+                "Review the item that needs a human".to_owned()
+            } else {
+                format!("Review the {count} items that need a human")
+            }
+        },
+        read_map: "Read the map of the domains",
         stale: "stale",
         stale_hint: "A file it cites changed since the run",
         feature_unit: ("feature", "features"),
@@ -831,7 +846,17 @@ impl WebTexts {
         start_intro: "Choisissez un domaine ci-dessous pour lire ce que fait l'application, ou \
             cherchez dans toute la doc :",
         domains: "Domaines",
-        no_domain_generated: "Le dernier run n'a produit aucun domaine.",
+        no_domain_generated: "Le dernier run n'a regroupé aucun fichier source dans un domaine. \
+            Lancez <code>retrodoc scan</code> pour voir les fichiers source que lit le run, puis \
+            <code>retrodoc generate</code>.",
+        review_debt: |count| {
+            if count == 1 {
+                "Relire l'élément qui demande un humain".to_owned()
+            } else {
+                format!("Relire les {count} éléments qui demandent un humain")
+            }
+        },
+        read_map: "Lire la carte des domaines",
         stale: "périmé",
         stale_hint: "Un fichier qu'il cite a changé depuis le run",
         feature_unit: ("fonctionnalité", "fonctionnalités"),

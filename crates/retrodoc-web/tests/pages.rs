@@ -689,3 +689,113 @@ async fn the_frame_and_the_home_search_and_not_found_pages_are_in_french() {
         assert!(pages.contains(label), "{label} missing from {pages}");
     }
 }
+
+/// A run that grouped no source file into a domain.
+fn no_domain_repo() -> tempfile::TempDir {
+    let dir = tempfile::tempdir().unwrap();
+    retrodoc_pipeline::save_features(dir.path(), &[]).unwrap();
+    retrodoc_pipeline::save_use_cases(dir.path(), &[]).unwrap();
+    DomainMap { domains: vec![] }.save(dir.path()).unwrap();
+    dir
+}
+
+/// The main action of the home page, from its opening tag to its end.
+fn main_action(page: &str) -> &str {
+    between(page, "<p class=\"main-action\">", "</p>")
+}
+
+// spec: WEB-116
+#[tokio::test]
+async fn the_home_page_leads_to_the_debt_with_its_count() {
+    let repo = generated_repo();
+    let page = home(repo.path()).await;
+    let start = between(&page, "id=\"start-here\"", "</section>");
+    let debt = text(between(start, "href=\"/debt\"", "</li>"));
+    let count: usize = debt
+        .split_whitespace()
+        .find_map(|word| word.parse().ok())
+        .unwrap_or_else(|| panic!("no count in {debt}"));
+    assert!(count > 1, "{debt}");
+    let action = main_action(&page);
+    assert!(
+        action.contains(&format!(
+            "<a class=\"button\" href=\"/debt\">Review the {count} items that need a human</a>"
+        )),
+        "{action}"
+    );
+    let main = &page[page.find("<main>").unwrap()..];
+    let order: Vec<usize> = [
+        "class=\"purpose\"",
+        "class=\"main-action\"",
+        "class=\"users\"",
+    ]
+    .iter()
+    .map(|part| {
+        main.find(part)
+            .unwrap_or_else(|| panic!("no {part} in {main}"))
+    })
+    .collect();
+    assert!(order.is_sorted(), "{order:?}: {main}");
+}
+
+// spec: WEB-116
+#[tokio::test]
+async fn with_no_debt_the_home_page_leads_to_the_map() {
+    let repo = no_domain_repo();
+    let page = home(repo.path()).await;
+    assert!(
+        main_action(&page)
+            .contains("<a class=\"button\" href=\"/map\">Read the map of the domains</a>"),
+        "{page}"
+    );
+}
+
+// spec: WEB-117
+#[tokio::test]
+async fn a_run_with_no_domain_says_why_and_what_to_run() {
+    let repo = no_domain_repo();
+    for path in ["/", "/map"] {
+        let (status, page, _) = get(load(repo.path()), path).await;
+        assert_eq!(status, StatusCode::OK, "{page}");
+        let empty = between(&page, "<p class=\"empty\">", "</p>");
+        assert!(
+            empty.contains("grouped no source file into a domain"),
+            "{path}: {empty}"
+        );
+        assert!(
+            empty.contains("<code>retrodoc scan</code>"),
+            "{path}: {empty}"
+        );
+        assert!(
+            empty.contains("<code>retrodoc generate</code>"),
+            "{path}: {empty}"
+        );
+        assert!(
+            empty.find("retrodoc scan") < empty.find("retrodoc generate"),
+            "{empty}"
+        );
+    }
+}
+
+// spec: WEB-77, WEB-116, WEB-117
+#[tokio::test]
+async fn the_main_action_and_the_empty_run_are_worded_in_french() {
+    let project = Project {
+        lang: Some("fr"),
+        ..shop()
+    };
+    let repo = generated_repo();
+    let (_, page, _) = get_project(project.clone(), load(repo.path()), "/").await;
+    assert!(
+        main_action(&page).contains("éléments qui demandent un humain</a>"),
+        "{page}"
+    );
+    let repo = no_domain_repo();
+    let (_, page, _) = get_project(project, load(repo.path()), "/").await;
+    assert!(
+        main_action(&page).contains(">Lire la carte des domaines</a>"),
+        "{page}"
+    );
+    assert!(page.contains("<code>retrodoc scan</code>"), "{page}");
+    assert!(page.contains("Lancez"), "{page}");
+}
