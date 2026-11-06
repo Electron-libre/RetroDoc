@@ -340,6 +340,7 @@ The milestones up to "A large application, one bounded context at a time" are th
   history and the code, with citations, confidence and freshness warnings (`docs/findings.md` §4, steps 2 to 4).
 - Why: the MCP server serves an external agent; a user without one has no way to question the docs.
 - State: done
+- Released: v0.11.0
 - Issues:
   - [search_relevance_threshold](issues/done/search_relevance_threshold.md) (the MCP server and the search, its
     first form, are done)

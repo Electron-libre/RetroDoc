@@ -4,6 +4,39 @@ The notable changes of each version, newest first ([Keep a Changelog](https://ke
 [Semantic Versioning](https://semver.org/)). Each section is written by `cardinal run release <version>` from the commits,
 then reread before the release is committed.
 
+## [0.11.0] - 2026-11-06
+
+### Milestones
+
+- Ask the documentation
+
+### Added
+
+- let a provider offer tools and read the calls of the model
+- answer a question with a bounded loop over the read tools
+- list the sources of an answer, checked against the tools
+- answer a question about the application with retrodoc ask
+- warn of the low confidence and stale code of the sources
+- check a question set of retrodoc ask on linkding
+- ask the question set with and without the code tools
+- judge "not documented" by the LLM, measure ask on linkding
+- give the reasoning of a thinking model back with its calls
+- bound the tool results of ask and fold its last request
+- keep the earlier questions of a conversation
+- add retrodoc chat over the conversation of the agent
+- give back the reasoning of OpenRouter and Ollama
+
+### Fixed
+
+- read the odd tool calls of a server safely
+- keep as sources only what a tool showed, read spans whole
+- keep the judgements of ask answers sound on failures
+- report a refusal of the tools at once, without the fallback
+- tell a refusal of the tools from other errors naming them
+- send the last request of ask as one user message
+- lower the budget of the tool results of ask to 40000
+- end retrodoc chat on Ctrl-C with the recap of its calls
+
 ## [0.10.0] - 2026-11-05
 
 ### Milestones
