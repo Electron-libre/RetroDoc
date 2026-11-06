@@ -39,20 +39,24 @@ struct Home<'a> {
     shell: &'a Shell,
     purpose: Option<&'a str>,
     users: &'a [String],
-    main_action: MainAction,
+    main_action: Option<MainAction>,
     start: Vec<StartLink>,
     domains: Vec<DomainRow>,
 }
 
-/// The primary button of the home page: the debt while it has items, else the map (WEB-116).
+/// The primary button of the home page: the debt while it has items, else the map; none with no
+/// domain, whose empty state says what to run (WEB-116).
 struct MainAction {
     href: &'static str,
     label: String,
 }
 
 impl MainAction {
-    fn of(start: &[StartLink], texts: &WebTexts) -> Self {
-        match start.iter().find(|link| link.page.href == "/debt") {
+    fn of(start: &[StartLink], domains: &[DomainRow], texts: &WebTexts) -> Option<Self> {
+        if domains.is_empty() {
+            return None;
+        }
+        Some(match start.iter().find(|link| link.page.href == "/debt") {
             Some(debt) if debt.count > 0 => Self {
                 href: debt.page.href,
                 label: (texts.review_debt)(debt.count),
@@ -61,7 +65,7 @@ impl MainAction {
                 href: "/map",
                 label: texts.read_map.to_owned(),
             },
-        }
+        })
     }
 }
 
@@ -259,7 +263,7 @@ pub async fn home(State(site): State<Arc<Site>>) -> Response {
                 shell: site.shell(),
                 purpose: site.purpose(),
                 users: site.users(),
-                main_action: MainAction::of(&start, site.texts()),
+                main_action: MainAction::of(&start, &domains, site.texts()),
                 start,
                 domains,
             },

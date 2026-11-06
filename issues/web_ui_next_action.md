@@ -61,6 +61,9 @@ links to the existing forms, `?edit=1` unfolds the edit form on the server (no s
 2. [x] Debt row actions: "Review" and "Edit" on the items of sections; verified by debt page tests; makes true WEB-115. (autonomous)
 3. [x] Home main action and empty states of home and map; verified by home and map tests; sets the spec `accepted`;
    makes true WEB-116, WEB-117. (autonomous)
+4. [x] Fixes of the `high` review of the issue: the debt actions named by their section, `forms.js` drops
+   `?edit=1`, no main action with no domain, `StartLink` and `DebtRow` without derived fields; verified by the
+   tests of WEB-115, WEB-116. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -88,3 +91,15 @@ links to the existing forms, `?edit=1` unfolds the edit form on the server (no s
   generated no domain."
 - Code review: no findings
 - not verified: the look in a browser, checked at the end of the issue.
+
+## Deliverable 4: fixes of the `high` review
+- done: the actions of a debt item labelled with its section; `forms.js` drops `?edit=1` like `?saved=`; no main
+  action on the home page with no domain (WEB-116 amended), a run with no debt tested on its own; `StartLink::label`
+  and `DebtRow::section` removed for the fields they derived from.
+- red: WEB-115: `named by its section`; WEB-116: `class="main-action"` shown with no domain.
+- Code review (`high`, whole issue): 8 findings: 6 fixed here (a11y label, same-URL Edit, `?edit=1` kept in the
+  address bar, dead-end map button, redundant `StartLink::label`, redundant `DebtRow::section`); 1 partly (the
+  `/debt` literal compared once in `start_links` instead of twice, still matched by `MainAction::of`, which the
+  tests of WEB-116 cover); not fixed: the round trip of "Edit" to the server, the means the user chose (answer 2 a).
+- Code review: no findings (`low`, this deliverable)
+- not verified: the `forms.js` change runs only in a browser.

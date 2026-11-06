@@ -198,11 +198,6 @@ impl Site {
         self.start
             .iter()
             .map(|link| StartLink {
-                label: if link.page.href == "/debt" {
-                    self.texts.count(debt, link.unit)
-                } else {
-                    link.label.clone()
-                },
                 page: link.page,
                 unit: link.unit,
                 count: if link.page.href == "/debt" {
@@ -239,12 +234,7 @@ fn start_links(
             files.cited,
             0,
         ])
-        .map(|((page, unit), count)| StartLink {
-            label: texts.count(count, unit),
-            page,
-            unit,
-            count,
-        })
+        .map(|((page, unit), count)| StartLink { page, unit, count })
         .collect()
 }
 
@@ -282,10 +272,7 @@ pub struct ReferencePage {
 /// A page of reference on the home page, with its count.
 pub struct StartLink {
     pub page: &'static ReferencePage,
-    /// The count with its unit.
-    pub label: String,
     pub unit: (&'static str, &'static str),
-    /// The count the label gives.
     pub count: usize,
 }
 

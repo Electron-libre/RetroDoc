@@ -738,16 +738,57 @@ async fn the_home_page_leads_to_the_debt_with_its_count() {
     assert!(order.is_sorted(), "{order:?}: {main}");
 }
 
+/// A run over `billing` whose one feature and one use case are scored high and cite a file not
+/// changed since: no section needs a human.
+fn healthy_repo() -> tempfile::TempDir {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    std::fs::create_dir_all(root.join("app")).unwrap();
+    let content = "content of app/invoice.rb";
+    std::fs::write(root.join("app/invoice.rb"), content).unwrap();
+    let mut hashes = SourceHashes::default();
+    hashes.put("app/invoice.rb", &hash_content(content));
+    hashes.save(root).unwrap();
+    retrodoc_pipeline::save_features(
+        root,
+        &[feature("pay-invoice", "billing", 0.9, "app/invoice.rb")],
+    )
+    .unwrap();
+    retrodoc_pipeline::save_use_cases(
+        root,
+        &[UseCase {
+            confidence: Some(ConfidenceScore::new(0.9, None)),
+            business_language: Some(ConfidenceScore::new(0.9, None)),
+            ..use_case("pay-by-card", "pay-invoice")
+        }],
+    )
+    .unwrap();
+    DomainMap {
+        domains: vec![cluster("billing", "Billing", "Invoices and payments")],
+    }
+    .save(root)
+    .unwrap();
+    dir
+}
+
 // spec: WEB-116
 #[tokio::test]
 async fn with_no_debt_the_home_page_leads_to_the_map() {
-    let repo = no_domain_repo();
+    let repo = healthy_repo();
     let page = home(repo.path()).await;
     assert!(
         main_action(&page)
             .contains("<a class=\"button\" href=\"/map\">Read the map of the domains</a>"),
         "{page}"
     );
+}
+
+// spec: WEB-116
+#[tokio::test]
+async fn with_no_domain_the_home_page_shows_no_main_action() {
+    let repo = no_domain_repo();
+    let page = home(repo.path()).await;
+    assert!(!page.contains("class=\"main-action\""), "{page}");
 }
 
 // spec: WEB-117
@@ -790,12 +831,14 @@ async fn the_main_action_and_the_empty_run_are_worded_in_french() {
         main_action(&page).contains("éléments qui demandent un humain</a>"),
         "{page}"
     );
-    let repo = no_domain_repo();
-    let (_, page, _) = get_project(project, load(repo.path()), "/").await;
+    let repo = healthy_repo();
+    let (_, page, _) = get_project(project.clone(), load(repo.path()), "/").await;
     assert!(
         main_action(&page).contains(">Lire la carte des domaines</a>"),
         "{page}"
     );
+    let repo = no_domain_repo();
+    let (_, page, _) = get_project(project, load(repo.path()), "/").await;
     assert!(page.contains("<code>retrodoc scan</code>"), "{page}");
     assert!(page.contains("Lancez"), "{page}");
 }

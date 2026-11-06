@@ -49,9 +49,9 @@ pub struct DebtRow {
     pub feature: Option<String>,
     /// The page of its section; `None` when its feature is not in the run.
     pub href: Option<String>,
-    /// The page of the domain, feature or use case of the run the item is about, whose review and
-    /// edit it offers (WEB-115); `None` for a rule, a folder or a section the run lacks.
-    pub section: Option<String>,
+    /// Whether the item offers the review and edit of the page of its section (WEB-115): a
+    /// domain, a feature or a use case of the run, not a rule.
+    pub actions: bool,
     pub score: Option<Confidence>,
     pub rationale: Option<String>,
     pub reasons: Vec<&'static str>,
@@ -184,10 +184,10 @@ fn row(docs: &GeneratedDocs, item: &DebtItem, texts: &WebTexts) -> DebtRow {
         }),
         _ => None,
     };
-    let section = match &item.subject {
-        Subject::Section(_) | Subject::Domain(_) => named.href.clone(),
-        Subject::DocItem(doc_item) if doc_item.kind != ItemKind::Rule => named.href.clone(),
-        Subject::DocItem(_) | Subject::Folder(_) => None,
+    let actions = match &item.subject {
+        Subject::Section(_) | Subject::Domain(_) => true,
+        Subject::DocItem(doc_item) => doc_item.kind != ItemKind::Rule,
+        Subject::Folder(_) => false,
     };
     DebtRow {
         kind: texts.debt_kind(item.kind),
@@ -195,7 +195,7 @@ fn row(docs: &GeneratedDocs, item: &DebtItem, texts: &WebTexts) -> DebtRow {
         name: named.name,
         feature: named.feature,
         href: named.href,
-        section,
+        actions,
         score: item
             .score
             .map(|value| Confidence::of(Some(&ConfidenceScore::new(value, None)))),

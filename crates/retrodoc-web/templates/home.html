@@ -6,7 +6,9 @@
 {% if let Some(purpose) = purpose %}
 <p class="purpose">{{ purpose }}</p>
 {% endif %}
+{% if let Some(main_action) = main_action %}
 <p class="main-action"><a class="button" href="{{ main_action.href }}">{{ main_action.label }}</a></p>
+{% endif %}
 {% if !users.is_empty() %}
 <section class="users">
   <h2>{{ t.who_uses_it }}</h2>
@@ -24,7 +26,7 @@
     {% for link in start %}
     <li>
       <a href="{{ link.page.href }}">{{ link.page.name }}</a>
-      <span class="badge">{{ link.label }}</span>
+      <span class="badge">{{ t.count(*link.count, *link.unit) }}</span>
       <span class="hint">{{ link.page.hint }}</span>
     </li>
     {% endfor %}

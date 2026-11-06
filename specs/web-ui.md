@@ -296,10 +296,11 @@ over browses its domains, features and use cases rather than reading the Markdow
 - **WEB-114** (deterministic) The page of a domain, a feature or a use case asked with `?edit=1` must show its edit
   form unfolded; with another value of `edit`, or none, folded unless WEB-104 or an error unfolds it.
 - **WEB-115** (deterministic) Each item of the debt page whose section is a domain, a feature or a use case of the
-  run must offer the actions "Review" and "Edit", links to that section as WEB-113 gives them; an item of a rule, a
-  folder or a section the run does not have offers none.
+  run must offer the actions "Review" and "Edit", links to that section as WEB-113 gives them, the group of the two
+  labelled with the name of the section; an item of a rule, a folder or a section the run does not have offers none.
 - **WEB-116** (deterministic) The home page must show, under its heading and purpose, a primary button to the debt
-  page labelled with the number of its items when the run has some, and to the map page when it has none.
+  page labelled with the number of its items when the run has some, to the map page when it has none, and no button
+  when the run has no domain (WEB-117 says what to do).
 - **WEB-117** (deterministic) The home page and the map page of a run with no domain must say why (no source file
   was grouped into a domain) and what to run: `retrodoc scan` to see the source files the run reads, then
   `retrodoc generate`.

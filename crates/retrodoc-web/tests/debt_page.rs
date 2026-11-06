@@ -811,6 +811,11 @@ async fn each_item_of_a_section_offers_to_review_or_edit_it() {
         let actions = actions(item).unwrap_or_else(|| panic!("no actions in {item}"));
         let link = &item[item.find("<a href=\"").unwrap() + "<a href=\"".len()..];
         let href = &link[..link.find('"').unwrap()];
+        let name = &link[link.find("\">").unwrap() + 2..link.find("</a>").unwrap()];
+        assert!(
+            actions.contains(&format!("aria-label=\"{name}\"")),
+            "named by its section: {actions}"
+        );
         assert!(
             actions.contains(&format!(
                 "<a class=\"button\" href=\"{href}#review\">Review</a>"

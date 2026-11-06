@@ -10,7 +10,7 @@
 {% block content %}
 {% call m::crumbs(page.crumbs, page.name) %}{% endcall %}
 <h1>{{ page.name }}</h1>
-{% call m::section_actions("") %}{% endcall %}
+{% call m::section_actions("", t.section_actions) %}{% endcall %}
 {% call m::stale(page.stale) %}{% endcall %}
 <p>{{ page.description }}</p>
 {% call m::score(t.doc.confidence, page.confidence) %}{% endcall %}

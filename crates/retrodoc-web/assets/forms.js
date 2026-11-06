@@ -2,13 +2,15 @@
 // error answer by default. One that names its swap (`HX-Reswap`) is the form again, the error in it
 // and the fields as sent: it is swapped. Any other (a refusal in plain text, a not-found page, a
 // server that failed) is shown in the notice of the page, the form left as it was. A page asked after a save (`?saved=review`, WEB-104) says
-// so once: the parameter is dropped from the address bar, so a reload doesn't say it again.
+// so once: the parameter is dropped from the address bar, so a reload doesn't say it again; so is
+// `?edit=1` (WEB-114), so that the button "Edit" reloads the page and unfolds the form again.
 (function () {
   "use strict";
 
   const url = new URL(window.location.href);
-  if (url.searchParams.has("saved")) {
+  if (url.searchParams.has("saved") || url.searchParams.has("edit")) {
     url.searchParams.delete("saved");
+    url.searchParams.delete("edit");
     window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
   }
 
