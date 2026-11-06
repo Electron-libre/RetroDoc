@@ -1,7 +1,9 @@
 {%- import "macros.html" as m -%}
-<section class="review" id="review" hx-on:htmx:before-swap="if (event.detail.isError &amp;&amp; event.detail.serverResponse.startsWith('&lt;section class=&quot;review&quot;')) { event.detail.shouldSwap = true; event.detail.isError = false; }">
+<section class="review" id="review">
 {% if let Some(error) = review.error %}
 <p><strong>{{ t.review.heading }}</strong> <span class="badge low">{{ error }}</span></p>
+{% else if review.form_error.is_some() %}
+<p><strong>{{ t.review.heading }}</strong></p>
 {% else if let Some(badge) = review.badge %}
 <p><strong>{{ t.review.heading }}</strong> <span class="badge review {{ badge.class }}">{{ t.review.status(*badge.status) }}</span> <span class="muted">{% if let Some(author) = review.author %}{{ t.review.by }} {{ author }}, {% endif %}{{ review.date }}</span></p>
 {% if !review.comment.is_empty() %}<p class="comment">{{ review.comment }}</p>{% endif %}
@@ -15,6 +17,7 @@
     {% endfor %}
   </select></label>
   <label class="field wide"><span class="field-label">{{ t.review.comment }}</span> <textarea name="comment" rows="2">{{ review.comment }}</textarea></label>
+  {% call m::form_error(review.form_error) %}{% endcall %}
   <button type="submit">{{ t.review.save }}</button>
   <span class="indicator" role="status">{{ t.saving }}</span>
 </form>

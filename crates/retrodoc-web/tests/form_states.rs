@@ -180,3 +180,148 @@ async fn htmx_injects_no_indicator_style_of_its_own() {
         "{page}"
     );
 }
+
+/// What a `POST` sent by `htmx` from the served page got: its status and its body.
+async fn post_htmx(
+    root: &Path,
+    path: &str,
+    form: &str,
+    lang: Option<&'static str>,
+) -> (StatusCode, String) {
+    let project = Project {
+        name: "Shop".into(),
+        lang,
+        ..Project::default()
+    };
+    let docs = GeneratedDocs::load(root, &[]).unwrap();
+    let request = Request::post(path)
+        .header("host", "127.0.0.1:8730")
+        .header("origin", "http://127.0.0.1:8730")
+        .header("hx-request", "true")
+        .header("content-type", "application/x-www-form-urlencoded")
+        .body(Body::from(form.to_string()))
+        .unwrap();
+    let response = retrodoc_web::router(project, Some(docs), DocLinks::default(), Vec::new())
+        .oneshot(request)
+        .await
+        .unwrap();
+    let status = response.status();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    (status, String::from_utf8(body.to_vec()).unwrap())
+}
+
+/// Asserts that `form` holds the error `text` above its first button.
+fn assert_error_above_buttons(form: &str, text: &str) {
+    let error = format!("<p class=\"form-error\" role=\"alert\">{text}</p>");
+    let at = form
+        .find(&error)
+        .unwrap_or_else(|| panic!("no {error} in {form}"));
+    assert!(at < form.find("<button").unwrap(), "{form}");
+}
+
+// spec: WEB-105
+#[tokio::test]
+async fn a_refused_review_shows_its_error_in_the_form_with_the_fields_as_sent() {
+    let dir = generated_repo();
+    let root = dir.path();
+    for (path, form_sent, code, error) in [
+        (
+            "/domains/billing",
+            "status=approved&comment=Kept",
+            StatusCode::BAD_REQUEST,
+            "Unknown review status.",
+        ),
+        (
+            "/domains/billing/unknown",
+            "status=wrong&comment=Kept",
+            StatusCode::NOT_FOUND,
+            "The last run has no such section.",
+        ),
+    ] {
+        let (status, body) = post_htmx(root, path, form_sent, Some("en")).await;
+        assert_eq!(status, code, "{body}");
+        assert!(body.starts_with("<section class=\"review\""), "{body}");
+        let form = form(&body, "<form");
+        assert_error_above_buttons(form, error);
+        assert!(form.contains(">Kept</textarea>"), "{form}");
+    }
+}
+
+// spec: WEB-77, WEB-105
+#[tokio::test]
+async fn the_errors_of_the_forms_are_worded_in_french() {
+    let dir = generated_repo();
+    let root = dir.path();
+    let (_, body) = post_htmx(root, "/domains/billing", "status=approved", Some("fr")).await;
+    assert_error_above_buttons(form(&body, "<form"), "Statut de revue inconnu.");
+    let (_, body) = post_htmx(
+        root,
+        "/edit/domains/billing",
+        "name=N&description=D&narrative=X",
+        Some("fr"),
+    )
+    .await;
+    assert_error_above_buttons(
+        form(&body, "<form"),
+        "Seul un cas d’utilisation a un récit.",
+    );
+}
+
+// spec: WEB-105
+#[tokio::test]
+async fn a_refused_edit_shows_its_error_in_the_form_with_the_fields_as_sent() {
+    let dir = generated_repo();
+    let root = dir.path();
+    for (path, form_sent, code, error) in [
+        (
+            "/edit/domains/billing",
+            "name=Changed+name&description=Changed+text&narrative=X",
+            StatusCode::BAD_REQUEST,
+            "Only a use case has a narrative.",
+        ),
+        (
+            "/edit/domains/billing/unknown",
+            "name=Changed+name&description=Changed+text",
+            StatusCode::NOT_FOUND,
+            "The last run has no such section.",
+        ),
+    ] {
+        let (status, body) = post_htmx(root, path, form_sent, Some("en")).await;
+        assert_eq!(status, code, "{body}");
+        assert!(body.starts_with("<section class=\"edit-form\""), "{body}");
+        let form = form(&body, "<form");
+        assert_error_above_buttons(form, error);
+        assert!(form.contains("value=\"Changed name\""), "{form}");
+        assert!(form.contains(">Changed text</textarea>"), "{form}");
+    }
+}
+
+// spec: WEB-106
+#[tokio::test]
+async fn every_page_swaps_an_html_error_and_shows_any_other_in_a_notice() {
+    let dir = generated_repo();
+    let root = dir.path();
+    let page = get(root, "/domains/billing").await;
+    assert!(
+        page.contains("<script src=\"/assets/forms.js\" defer></script>"),
+        "{page}"
+    );
+    assert!(
+        page.contains("<p class=\"page-error\" id=\"page-error\" role=\"alert\" hidden></p>"),
+        "{page}"
+    );
+    // One rule for the page, no hook of its own in a section.
+    assert!(!page.contains("before-swap"), "{page}");
+
+    let script = get(root, "/assets/forms.js").await;
+    for part in [
+        "htmx:beforeSwap",
+        "htmx:responseError",
+        "text/html",
+        "page-error",
+    ] {
+        assert!(script.contains(part), "{part} in {script}");
+    }
+}

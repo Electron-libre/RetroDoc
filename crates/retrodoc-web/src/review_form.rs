@@ -27,8 +27,7 @@ pub struct ReviewForm {
 }
 
 /// The review of the section and its form, swapped in place of the former ones by `htmx`; an
-/// error answered with it too, by the `before-swap` hook of the section (`htmx` fires its swap
-/// events on the target, not on the form).
+/// error answered with it too, the error in the form, which `forms.js` swaps as any HTML error.
 #[derive(Template)]
 #[template(path = "review.html")]
 struct ReviewFragment {
@@ -94,7 +93,7 @@ async fn save(site: Arc<Site>, place: Place, headers: &HeaderMap, form: ReviewFo
         }
     };
     let Some(status) = sent else {
-        return failed(StatusCode::BAD_REQUEST, "unknown review status");
+        return failed(StatusCode::BAD_REQUEST, site.texts().errors.unknown_status);
     };
     let at = place.clone();
     let text = comment.clone();
@@ -105,7 +104,7 @@ async fn save(site: Arc<Site>, place: Place, headers: &HeaderMap, form: ReviewFo
         let Some(root) = docs.repo_root() else {
             return Saved::Failed(
                 StatusCode::INTERNAL_SERVER_ERROR,
-                "the docs carry no repository to save the reviews in".into(),
+                site.texts().errors.no_repository.into(),
             );
         };
         let section = at.section();
@@ -136,7 +135,7 @@ async fn save(site: Arc<Site>, place: Place, headers: &HeaderMap, form: ReviewFo
         }
         // The fragment to `htmx`, which swaps an error too; the not-found page otherwise.
         Ok(Saved::NotFound) if htmx => {
-            failed(StatusCode::NOT_FOUND, "the last run has no such section")
+            failed(StatusCode::NOT_FOUND, site.texts().errors.no_section)
         }
         Ok(Saved::NotFound) => not_found(State(Arc::clone(&site))).await,
         Ok(Saved::Failed(code, error)) => failed(code, &error),

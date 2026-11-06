@@ -253,6 +253,11 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .top form.search { position: relative; }
 .top form.search .indicator { position: absolute; right: var(--space-2); top: 50%; transform: translateY(-50%); }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* Why a form was refused, above its buttons; why a request failed, at the top of the page. */
+.form-error, .page-error { margin: 0; padding: var(--space-2) var(--space-3); color: var(--text); font-size: var(--text-sm); background: var(--surface-2); border: 1px solid var(--gold-dark); border-left: 3px solid var(--gold); border-radius: var(--radius-sm); }
+.form-error:empty { display: none; }
+.page-error { margin-bottom: var(--space-4); }
 @media (prefers-reduced-motion: reduce) { .indicator::before { animation: none; } }
 
 /* Fields: the label above the control, the hint below. */

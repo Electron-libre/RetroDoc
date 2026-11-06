@@ -7,6 +7,7 @@
   <meta name="htmx-config" content='{"includeIndicatorStyles":false}'>
   <link rel="stylesheet" href="/assets/style.css">
   <script src="/assets/htmx.min.js" defer></script>
+  <script src="/assets/forms.js" defer></script>
   {% block scripts %}{% endblock %}
 </head>
 <body>
@@ -62,6 +63,7 @@
       {% endif %}
     </nav>
     <main>
+      <p class="page-error" id="page-error" role="alert" hidden></p>
       {% block content %}{% endblock %}
     </main>
   </div>

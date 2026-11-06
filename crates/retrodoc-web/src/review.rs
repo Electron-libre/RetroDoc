@@ -197,9 +197,10 @@ pub struct ReviewView {
     pub comment: String,
     pub author: Option<String>,
     pub date: String,
-    /// Why the reviews cannot be read or the review cannot be saved, shown in place of the
-    /// review.
+    /// Why the reviews cannot be read, shown in place of the review.
     pub error: Option<String>,
+    /// Why the review sent was refused or not saved, shown in the form above its buttons.
+    pub form_error: Option<String>,
     /// The status the form selects: that of the review, or the one sent by a save that failed.
     pub selected: Option<Status>,
     /// Why the review no longer vouches for the section as it is now.
@@ -211,7 +212,11 @@ impl ReviewView {
     #[must_use]
     pub fn of(docs: &GeneratedDocs, loaded: &Result<Reviews, ReviewsError>, place: &Place) -> Self {
         match loaded {
-            Err(err) => Self::failed(place, err.to_string(), None, String::new()),
+            Err(err) => Self {
+                action: place.href(),
+                error: Some(err.to_string()),
+                ..Self::default()
+            },
             Ok(reviews) => Self::shown(docs, place, reviews.get(&place.section())),
         }
     }
@@ -238,19 +243,20 @@ impl ReviewView {
                 .map(str::to_string),
             date: review.reviewed_at.clone(),
             error: None,
+            form_error: None,
             selected: Some(review.status),
             outdated: outdated.as_ref().map(OutdatedView::of),
         }
     }
 
-    /// `error` in place of the review of the section at `place`, the form holding again what was
-    /// sent, `status` and `comment`, so that saving again sends the same.
+    /// `error` in the form of the review of the section at `place`, the form holding again what
+    /// was sent, `status` and `comment`, so that saving again sends the same.
     #[must_use]
     pub fn failed(place: &Place, error: String, status: Option<Status>, comment: String) -> Self {
         Self {
             action: place.href(),
             comment,
-            error: Some(error),
+            form_error: Some(error),
             selected: status,
             ..Self::default()
         }

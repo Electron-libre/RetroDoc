@@ -423,22 +423,44 @@ struct QuestionForm {
     question: String,
 }
 
+/// Why a question was refused, put by `htmx` in place of the error slot of the form, beside the
+/// question it keeps (WAK-40).
+#[derive(Template)]
+#[template(
+    source = r#"<p class="form-error" id="ask-error" role="alert">{{ error }}</p>"#,
+    ext = "html"
+)]
+struct AskError {
+    error: &'static str,
+}
+
+/// A question refused with `code` because of `error`: the error alone to `htmx`, retargeted to
+/// the slot of the form; the text otherwise.
+fn refused(code: StatusCode, error: &'static str, htmx: bool) -> Response {
+    if !htmx {
+        return (code, error).into_response();
+    }
+    let mut response = render(code, &AskError { error });
+    let headers = response.headers_mut();
+    headers.insert("HX-Retarget", HeaderValue::from_static("#ask-error"));
+    headers.insert("HX-Reswap", HeaderValue::from_static("outerHTML"));
+    response
+}
+
 async fn question(
     State(state): State<AskState>,
     headers: HeaderMap,
     Form(form): Form<QuestionForm>,
 ) -> Response {
+    let site: Arc<Site> = state.site.0.current();
+    let htmx = headers.contains_key("HX-Request");
+    let errors = &site.texts().errors;
     let question = form.question.trim().to_string();
     if question.is_empty() {
-        return (StatusCode::BAD_REQUEST, "the question is empty").into_response();
+        return refused(StatusCode::BAD_REQUEST, errors.blank_question, htmx);
     }
-    let site: Arc<Site> = state.site.0.current();
     let Some(docs) = state.docs(&site) else {
-        return (
-            StatusCode::NOT_FOUND,
-            "no docs to ask: run `retrodoc generate`",
-        )
-            .into_response();
+        return refused(StatusCode::NOT_FOUND, errors.no_docs, htmx);
     };
     // The question runs in a task of its own, so the page and the other sessions are served while
     // the model answers; it runs to its end whether a page follows it or not (WAK-35).
@@ -450,11 +472,7 @@ async fn question(
         };
         // Two questions asked from the same history would each drop the other from it.
         if session.running.is_some() {
-            return (
-                StatusCode::CONFLICT,
-                "a question of this conversation is running",
-            )
-                .into_response();
+            return refused(StatusCode::CONFLICT, errors.question_running, htmx);
         }
         session.asked += 1;
         let running = Arc::new(Running {
@@ -475,7 +493,7 @@ async fn question(
         conversation,
         docs,
     ));
-    let response = if headers.contains_key("HX-Request") {
+    let response = if htmx {
         render(
             StatusCode::OK,
             &RunningFragment {

@@ -556,6 +556,48 @@ async fn a_blank_question_is_refused_without_a_call() {
     assert_eq!(llm.calls(), 0);
 }
 
+/// Asserts that `response` puts the error `text` in place of the error slot of the form.
+async fn assert_form_error(response: Response<Body>, code: StatusCode, text: &str) {
+    assert_eq!(response.status(), code);
+    assert_eq!(response.headers()["hx-retarget"], "#ask-error");
+    assert_eq!(response.headers()["hx-reswap"], "outerHTML");
+    assert_eq!(
+        body(response).await,
+        format!("<p class=\"form-error\" id=\"ask-error\" role=\"alert\">{text}</p>")
+    );
+}
+
+// spec: WAK-40
+#[tokio::test]
+async fn a_refused_question_shows_its_error_beside_the_field() {
+    let dir = generated_repo();
+    let llm = Arc::new(FakeLlm::hanging_after(0, |_| String::new()));
+    let router = router(dir.path(), Some(llm));
+
+    let page = body(send(&router, get_request("/ask", None)).await).await;
+    let form = &page[page.find("<form class=\"ask\"").expect(&page)..];
+    assert!(
+        form.contains("<p class=\"form-error\" id=\"ask-error\" role=\"alert\"></p>"),
+        "{form}"
+    );
+
+    let blank = send(&router, post_request("/ask", "question=+", None, true)).await;
+    assert_form_error(blank, StatusCode::BAD_REQUEST, "The question is empty.").await;
+
+    let (cookie, _) = send_question(&router, "How are orders listed?", None).await;
+    let second = send(
+        &router,
+        post_request("/ask", "question=And+refunds%3F", Some(&cookie), true),
+    )
+    .await;
+    assert_form_error(
+        second,
+        StatusCode::CONFLICT,
+        "A question of this conversation is running.",
+    )
+    .await;
+}
+
 // spec: WAK-13
 #[tokio::test]
 async fn the_ask_page_is_in_french_with_a_french_language() {

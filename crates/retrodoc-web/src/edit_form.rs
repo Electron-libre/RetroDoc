@@ -1,7 +1,8 @@
 //! The form of the human edit of a section (`specs/web-ui.md`, WEB-93 to WEB-99): a `POST` to
 //! `/edit` followed by the URL of the page of the section records its edit through the store of
 //! `retrodoc-mcp`, the fields it leaves as generated left out, or removes it, and answers `htmx`
-//! with a reload of the page, else a redirect to it. The path sits under `/edit`, not after the
+//! with a reload of the page, else a redirect to it; a refusal answers `htmx` with the form alone,
+//! the error in it. The path sits under `/edit`, not after the
 //! page's: a feature or a use case may be named `edit`.
 
 use std::sync::Arc;
@@ -18,7 +19,7 @@ use serde::Deserialize;
 use crate::edit::is_edited;
 use crate::pages::{blocking, not_found, read_failed, render};
 use crate::review::Place;
-use crate::texts::WebTexts;
+use crate::texts::{ErrorTexts, WebTexts};
 use crate::view::Site;
 
 /// What the form sends; a field it leaves out is empty, but for the narrative, which only the
@@ -86,8 +87,8 @@ fn is_use_case(place: &Place) -> bool {
     matches!(place, Place::UseCase { .. })
 }
 
-/// The edit form alone, answered to `htmx` when a save failed and swapped in place of the former
-/// one by the `before-swap` hook of its section.
+/// The edit form alone, answered to `htmx` when a save failed, the error in the form, and swapped
+/// in place of the former one by `forms.js`, as any HTML error.
 #[derive(Template)]
 #[template(path = "edit_form.html")]
 struct EditFormFragment {
@@ -155,7 +156,7 @@ fn changed(form: &EditForm, generated: &Fields) -> Fields {
 }
 
 /// Records or removes the edit of the section at `place` of `docs`.
-fn write(docs: &GeneratedDocs, place: &Place, form: &EditForm) -> Saved {
+fn write(docs: &GeneratedDocs, place: &Place, form: &EditForm, errors: &ErrorTexts) -> Saved {
     let section = place.section();
     let edited = is_edited(docs, place);
     let failed = |code, error: String| Saved::Failed(code, error, edited);
@@ -164,13 +165,13 @@ fn write(docs: &GeneratedDocs, place: &Place, form: &EditForm) -> Saved {
     if form.narrative.is_some() && !is_use_case(place) {
         return failed(
             StatusCode::BAD_REQUEST,
-            "only a use case has a narrative".into(),
+            errors.narrative_of_use_case_only.into(),
         );
     }
     let Some(root) = docs.repo_root() else {
         return failed(
             StatusCode::INTERNAL_SERVER_ERROR,
-            "the docs carry no repository to save the edits in".into(),
+            errors.no_repository.into(),
         );
     };
     let fields = if form.action == "revert" {
@@ -197,7 +198,7 @@ async fn save(site: Arc<Site>, place: Place, headers: &HeaderMap, form: EditForm
     let saved = blocking(&site, move |site| {
         let saved = match site.docs().filter(|docs| at.in_docs(docs)) {
             None => Saved::NotFound,
-            Some(docs) => write(docs, &at, &sent),
+            Some(docs) => write(docs, &at, &sent, &site.texts().errors),
         };
         (saved, sent)
     })
@@ -225,7 +226,7 @@ async fn save(site: Arc<Site>, place: Place, headers: &HeaderMap, form: EditForm
         }
         Ok((Saved::NotFound, form)) if htmx => failed(
             StatusCode::NOT_FOUND,
-            "the last run has no such section".into(),
+            site.texts().errors.no_section.into(),
             false,
             &form,
         ),

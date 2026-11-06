@@ -46,6 +46,8 @@ spacing steps `--space-1` to `--space-6`, the radius `--radius-sm`, `--radius`, 
 | badge | `.badge` (`low`, `stale`, `review …`, `edited`) | pill, the label carries the meaning |
 | card | `.card`, `.start-links li` | surface, border lit on hover |
 | empty state | `<p class="empty">` | a dashed frame, muted text |
+| form error | `{% call m::form_error(error) %}` above the buttons; `#ask-error` on the ask form | framed, the gold edge at its left; hidden when empty |
+| page error | `#page-error` at the top of `<main>`, filled by `assets/forms.js` | same frame, for an error answer that is not HTML |
 | indicator | `<span class="indicator" role="status">` in the form, `hx-indicator="find .indicator"` on it | hidden; a spinner and a muted word while the request runs |
 
 Tests find some forms and buttons by their exact markup (`<form class="filters"`, `<button type="submit" disabled>`):

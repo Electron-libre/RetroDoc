@@ -63,10 +63,10 @@ the page) and the review fragment.
 1. [x] Pending: an indicator component (`.indicator`, text EN/FR) in the review, edit, ask, search and filter forms,
    `hx-indicator` + `hx-disabled-elt` on the three forms that write, htmx's injected indicator styles off; verified by
    markup tests of each page; makes true WEB-102. (autonomous)
-2. [ ] Errors: a `.form-error` slot above the buttons of each form (`role="alert"`), the review and edit failures
+2. [x] Errors: a `.form-error` slot above the buttons of each form (`role="alert"`), the review and edit failures
    rendered there; the ask refusals answered as the error fragment with `HX-Retarget`/`HX-Reswap`; one page-wide
    `before-swap`/`response-error` rule in `base.html` and a page notice region, the inline hooks removed; verified by
-   tests of the answers (status, headers, fields kept) and of the base markup; makes true WEB-105, WEB-106, WAK-40.
+   tests of the answers (status, headers, fields kept) and of the base markup; makes true WEB-105, WEB-106, WAK-40. (autonomous)
 3. [ ] Saved: `?saved=review|edit` on the `303` and `HX-Redirect`, the notice in the review fragment and on the pages
    (fades by CSS, the parameter dropped from the address bar once shown), texts EN/FR, `docs/dev/web-ui.md` states and
    screenshots; verified by tests of the redirects and of the pages with and without `?saved`; makes true WEB-83,
@@ -87,3 +87,15 @@ the page) and the review fragment.
 - red: WEB-102: `no hx-indicator="find .indicator"` in the opening tag of each form (assertion failed at form_states.rs).
 - Code review: no findings
 - not verified: the look in a browser (shot with deliverable 3).
+
+## Deliverable 2: errors
+- done: the error of a refused or failed review or edit in its form above the buttons (`.form-error`), the fields as
+  sent; the ask refusals (400, 404, 409) answered to `htmx` as the error alone retargeted to `#ask-error`;
+  `assets/forms.js` swaps an HTML error answer and shows any other in `#page-error`, the inline `before-swap` hooks
+  removed; the fixed reasons EN/FR (`WebTexts::errors`).
+- checks: tests ok, clippy ok, specs ok (WEB-105, WEB-106, WAK-40 traced), docs (`docs/dev/web-ui.md`,
+  `docs/crates/render-mcp-cli.md`).
+- red: WEB-105, WEB-106, WAK-40: `no <p class="form-error" role="alert">…</p>` in the form answered; no
+  `/assets/forms.js` in the page; `hx-retarget` header missing on the ask refusals.
+- Code review: no findings
+- not verified: in a browser (driven with deliverable 3).
