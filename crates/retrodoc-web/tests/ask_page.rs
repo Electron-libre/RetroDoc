@@ -295,6 +295,114 @@ async fn starting_over_is_a_quiet_action_shown_only_with_a_conversation() {
     assert!(script.contains("form.ask-reset"), "{script}");
 }
 
+/// A run over the domains `orders`, `billing`, `delivery` and `stock`, a feature in each.
+fn four_domains_repo() -> tempfile::TempDir {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    let names = [
+        ("orders", "Orders"),
+        ("billing", "Billing"),
+        ("delivery", "Delivery"),
+        ("stock", "Stock"),
+    ];
+    let features: Vec<Feature> = names
+        .iter()
+        .map(|(slug, name)| Feature {
+            back_office: false,
+            technical: false,
+            slug: format!("manage-{slug}"),
+            domain_slug: (*slug).into(),
+            name: format!("Manage {name}"),
+            description: format!("The {slug} are managed"),
+            source_paths: Vec::new(),
+            entry_points: Vec::new(),
+            confidence: None,
+        })
+        .collect();
+    retrodoc_pipeline::save_features(root, &features).unwrap();
+    DomainMap {
+        domains: names
+            .iter()
+            .map(|(slug, name)| DomainCluster {
+                slug: (*slug).into(),
+                name: (*name).into(),
+                description: format!("{name} of the shop"),
+                ..DomainCluster::default()
+            })
+            .collect(),
+    }
+    .save(root)
+    .unwrap();
+    dir
+}
+
+/// The text of each suggested question of `page`.
+fn suggestions(page: &str) -> Vec<&str> {
+    page.split("<button type=\"button\" class=\"secondary suggestion\"")
+        .skip(1)
+        .map(|button| {
+            let text = &button[button.find('>').unwrap() + 1..];
+            &text[..text.find("</button>").unwrap()]
+        })
+        .collect()
+}
+
+// spec: WAK-43, WAK-44
+#[tokio::test]
+async fn an_empty_conversation_suggests_questions_from_the_docs() {
+    let dir = four_domains_repo();
+    let router = router(dir.path(), Some(navigating()));
+
+    let page = body(send(&router, get_request("/ask", None)).await).await;
+
+    assert_eq!(
+        suggestions(&page),
+        [
+            "What is this application for?",
+            "What does the domain Orders cover?",
+            "What does the domain Billing cover?",
+            "What does the domain Delivery cover?",
+        ]
+    );
+    assert!(
+        page.contains("data-question=\"What does the domain Orders cover?\""),
+        "{page}"
+    );
+    let script = body(send(&router, get_request("/assets/ask.js", None)).await).await;
+    for part in [".suggestion", "data-question", ".suggestions"] {
+        assert!(script.contains(part), "{part} in {script}");
+    }
+}
+
+// spec: WAK-43
+#[tokio::test]
+async fn a_conversation_with_an_exchange_suggests_nothing() {
+    let dir = four_domains_repo();
+    let router = router(dir.path(), Some(navigating()));
+    let (cookie, _) = ask(&router, "How are the orders listed?", None).await;
+
+    let page = body(send(&router, get_request("/ask", Some(&cookie))).await).await;
+
+    assert!(suggestions(&page).is_empty(), "{page}");
+}
+
+// spec: WAK-43
+#[tokio::test]
+async fn the_suggested_questions_are_in_french_with_a_french_language() {
+    let dir = four_domains_repo();
+    let router = router_in(dir.path(), Some(navigating()), Some("fr"));
+
+    let page = body(send(&router, get_request("/ask", None)).await).await;
+
+    assert_eq!(
+        suggestions(&page)[..2],
+        [
+            "À quoi sert cette application ?",
+            "Que couvre le domaine Orders ?"
+        ]
+    );
+}
+
 // spec: WAK-14, WAK-15, WAK-30, WAK-32, WAK-33, WAK-35
 #[tokio::test]
 async fn a_question_is_answered_at_once_with_its_running_exchange() {

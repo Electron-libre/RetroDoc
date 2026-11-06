@@ -2,7 +2,8 @@
 // its line (WAK-41); the field grows with its text where the browser has no `field-sizing`, the
 // stylesheet capping it at 12 lines (WAK-42); once the answer of a question replaces its running
 // exchange, the field gets the focus back and the exchange is scrolled into view (WAK-45); the
-// button to start over shows once the conversation holds an exchange (WAK-46).
+// button to start over shows once the conversation holds an exchange (WAK-46); a suggested question
+// fills the field without sending it (WAK-44), and the suggestions go once a question is sent.
 (function () {
   "use strict";
 
@@ -38,6 +39,18 @@
     area.form.requestSubmit();
   });
 
+  document.addEventListener("click", function (event) {
+    const suggestion = event.target instanceof Element && event.target.closest("button.suggestion");
+    const area = field();
+    if (!suggestion || !area) {
+      return;
+    }
+    area.value = suggestion.getAttribute("data-question");
+    grow(area);
+    area.focus();
+    area.setSelectionRange(area.value.length, area.value.length);
+  });
+
   document.addEventListener("input", function (event) {
     if (event.target instanceof HTMLTextAreaElement && event.target.matches("form.ask textarea")) {
       grow(event.target);
@@ -57,8 +70,14 @@
       return;
     }
     const reset = document.querySelector("form.ask-reset");
-    if (reset && exchanges.querySelector("article.exchange")) {
-      reset.hidden = false;
+    if (exchanges.querySelector("article.exchange")) {
+      if (reset) {
+        reset.hidden = false;
+      }
+      const suggestions = document.querySelector("ul.suggestions");
+      if (suggestions) {
+        suggestions.remove();
+      }
     }
     if (exchanges.querySelector(".running")) {
       waiting = true;

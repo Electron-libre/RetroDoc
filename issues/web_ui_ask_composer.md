@@ -52,9 +52,9 @@ LLM call to build the suggestions, a change of the routes or of the streaming. M
    scroll after the `answer` swap), `rows="1"` + CSS, reset button quiet and shown only with an exchange or a running
    question; verified by `ask_page.rs` tests on the page markup and the served script; makes true WAK-41, WAK-42,
    WAK-45, WAK-46. (autonomous)
-2. [ ] Suggested questions: built in `ask.rs` from the purpose question and the first 3 domains of the last run,
+2. [x] Suggested questions: built in `ask.rs` from the purpose question and the first 3 domains of the last run,
    texts in English and French, buttons filling the field; verified by `ask_page.rs` tests (empty session shows
-   them, a session with an exchange does not); makes true WAK-43, WAK-44; spec back to `accepted`.
+   them, a session with an exchange does not); makes true WAK-43, WAK-44; spec back to `accepted`. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -75,4 +75,15 @@ LLM call to build the suggestions, a change of the routes or of the streaming. M
   breaks the line, the field grows 39 → 60 → 270 px (capped), Enter sends and clears it, the focus is back in the field
   after the answer, the reset shows.
 - not verified: an input method composition (IME) with a real keyboard; a browser without `field-sizing` (Firefox).
+
+## Deliverable 2
+- done: `ask::suggestions` (the purpose question, then the first 3 domains of the run, English and French),
+  `ul.suggestions` above the form on an empty conversation, `ask.js` fills the field on a click and drops them once an
+  exchange shows; spec `accepted`.
+- checks: tests ok, clippy ok, specs ok, docs ok (`render-mcp-cli.md`, `web-ui.md`).
+- red: WAK-43, WAK-44: the page held no suggested question (`left: []`).
+- Code review: no findings.
+- browser check (same setup): 4 suggestions shown, a click fills the field with the focus and sends nothing, Enter then
+  sends it and the suggestions go.
+- not verified: none beyond deliverable 1.
 

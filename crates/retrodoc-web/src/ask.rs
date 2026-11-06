@@ -18,7 +18,7 @@ use axum::routing::{get, post};
 use axum::{Form, Router};
 use retrodoc_agent::{Answer, Conversation, Step};
 use retrodoc_llm::{CallTotals, LlmProvider, UsageProvider, UsageTracker};
-use retrodoc_mcp::{Docs, Source, SourceKind};
+use retrodoc_mcp::{Docs, GeneratedDocs, Source, SourceKind};
 use serde::Deserialize;
 use tokio::sync::watch;
 
@@ -358,6 +358,26 @@ struct AskPage<'a> {
     shell: &'a Shell,
     exchanges: Vec<ExchangeView>,
     running: Option<RunningView>,
+    /// The questions suggested to a conversation with no exchange (WAK-43); empty otherwise.
+    suggestions: Vec<String>,
+}
+
+/// How many domains of the last run the suggested questions name (WAK-43).
+const SUGGESTED_DOMAINS: usize = 3;
+
+/// The questions suggested to an empty conversation: the purpose of the application, then the
+/// first domains of the run, in the order of the docs (WAK-43).
+fn suggestions(site: &Site) -> Vec<String> {
+    let texts = &site.texts().ask;
+    let domains = site.docs().map(GeneratedDocs::domains).unwrap_or_default();
+    std::iter::once(texts.purpose_question.to_owned())
+        .chain(
+            domains
+                .iter()
+                .take(SUGGESTED_DOMAINS)
+                .map(|domain| (texts.domain_question)(&domain.name)),
+        )
+        .collect()
 }
 
 /// A question running, as the page shows it.
@@ -399,7 +419,7 @@ async fn page(State(state): State<AskState>, headers: HeaderMap) -> Response {
         .sessions()
         .get(cookie(&headers).as_deref())
         .map(|session| {
-            let exchanges = session
+            let exchanges: Vec<ExchangeView> = session
                 .exchanges
                 .iter()
                 .map(|exchange| ExchangeView::of(exchange, &texts.ask))
@@ -407,11 +427,17 @@ async fn page(State(state): State<AskState>, headers: HeaderMap) -> Response {
             (exchanges, session.running.as_deref().map(RunningView::of))
         })
         .unwrap_or_default();
+    let suggestions = if exchanges.is_empty() && running.is_none() {
+        suggestions(&site)
+    } else {
+        Vec::new()
+    };
     let page = AskPage {
         t: texts,
         shell: site.shell(),
         exchanges,
         running,
+        suggestions,
     };
     render(StatusCode::OK, &page)
 }

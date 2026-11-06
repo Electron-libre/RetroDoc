@@ -169,6 +169,12 @@ pub struct AskTexts {
     pub send: &'static str,
     /// Which keys send the question and which break its line (WAK-41).
     pub keys: &'static str,
+    /// The label of the list of suggested questions (WAK-43).
+    pub suggested: &'static str,
+    /// The suggested question on the purpose of the application.
+    pub purpose_question: &'static str,
+    /// The suggested question on a domain, given its name.
+    pub domain_question: fn(&str) -> String,
     /// Shown while a question runs.
     pub waiting: &'static str,
     pub start_over: &'static str,
@@ -745,6 +751,9 @@ impl WebTexts {
             question: "Your question",
             send: "Ask",
             keys: "Enter sends, Shift+Enter breaks the line.",
+            suggested: "Suggested questions",
+            purpose_question: "What is this application for?",
+            domain_question: |name| format!("What does the domain {name} cover?"),
             waiting: "Reading the docs to answer…",
             start_over: "Start over",
             sources: "Sources",
@@ -1120,6 +1129,9 @@ impl WebTexts {
             question: "Votre question",
             send: "Demander",
             keys: "Entrée envoie, Maj+Entrée va à la ligne.",
+            suggested: "Questions suggérées",
+            purpose_question: "À quoi sert cette application ?",
+            domain_question: |name| format!("Que couvre le domaine {name} ?"),
             waiting: "Lecture de la doc pour répondre…",
             start_over: "Recommencer",
             sources: "Sources",

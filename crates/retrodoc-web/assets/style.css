@@ -318,6 +318,9 @@ form.ask-reset { margin: 0 0 var(--space-4); }
 /* The question field starts at one line and grows with its text up to 12 lines (WAK-42); ask.js
    grows it where `field-sizing` is not supported. */
 form.ask textarea { field-sizing: content; resize: none; overflow-y: auto; min-height: calc(1lh + 2 * var(--space-2) + 2px); max-height: calc(12lh + 2 * var(--space-2) + 2px); }
+/* The suggested questions of an empty conversation (WAK-43): they wrap, unlike the other buttons. */
+ul.suggestions { display: flex; flex-wrap: wrap; gap: var(--space-2); list-style: none; margin: var(--space-4) 0 0; padding: 0; max-width: 48rem; }
+ul.suggestions button { white-space: normal; text-align: left; font-weight: normal; padding: var(--space-2) var(--space-3); line-height: 1.4; }
 form.ask .keys { font-size: 0.85em; margin-left: auto; }
 
 /* The empty state: a page or a list with nothing to show says so in a dashed frame. */
