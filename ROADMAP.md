@@ -361,6 +361,7 @@ The milestones up to "A large application, one bounded context at a time" are th
 - Why: `ask` and `chat` run in the terminal only, while the reader browses the docs in the web interface, where the
   pages of the sources of an answer live.
 - State: done
+- Released: v0.12.0
 - Issues:
   - [web_ask_page](issues/done/web_ask_page.md)
   - [web_ask_streamed_steps_and_cost](issues/done/web_ask_streamed_steps_and_cost.md)

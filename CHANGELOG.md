@@ -4,6 +4,24 @@ The notable changes of each version, newest first ([Keep a Changelog](https://ke
 [Semantic Versioning](https://semver.org/)). Each section is written by `cardinal run release <version>` from the commits,
 then reread before the release is committed.
 
+## [0.12.0] - 2026-11-06
+
+### Milestones
+
+- Ask the documentation in the web interface
+
+### Added
+
+- `retrodoc ui --ask` serves an ask page that questions the docs like `chat`, each answer with its sources linked to
+  their pages and its warnings
+- the ask page shows each tool call of the agent as it runs, then the calls and tokens of the question and of the
+  conversation
+
+### Fixed
+
+- the ask page stays responsive while a question runs, and its sessions stay apart
+- a question of the ask page ends with an exchange when its stream breaks or its task stops, and keeps its session
+
 ## [0.11.0] - 2026-11-06
 
 ### Milestones
