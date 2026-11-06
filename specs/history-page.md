@@ -1,6 +1,6 @@
 ---
 id: HPG
-status: accepted
+status: draft
 adrs: [0039, 0043]
 ---
 
@@ -22,8 +22,12 @@ them, so whoever audits the docs sees which domains, features and use cases a `g
   without `.json`, `from` as the earlier state even when it is the newer run.
 - **HPG-4** (deterministic) A `from` or a `to` that names no saved snapshot must be replaced by its value of HPG-2,
   with a line saying the run asked for is unknown.
-- **HPG-5** (deterministic) The history page must show a form with one choice of the saved runs for `from` and one for
-  `to`, the compared runs selected, that sends them to `/history` as `?from=` and `?to=`.
+- **HPG-5** (deterministic) With two saved snapshots or more, the list of HPG-1 must be a form that gives each run a
+  radio choice `from` and a radio choice `to`, the compared runs checked, that sends them to `/history` as `?from=`
+  and `?to=`: on any change (`hx-trigger="change"`, its URL pushed, the form and the difference swapped), its submit
+  button inside `<noscript>`.
+- **HPG-16** (deterministic) With two saved snapshots or more, the history page must show a link that swaps the
+  compared runs, to `/history?from=<to>&to=<from>` of the runs compared.
 - **HPG-6** (deterministic) The history page must list as added the sections (domain, feature, use case, by their kind
   and id of RHI-7) of the "to" run that the "from" run lacks, grouped by kind, in the order of the "to" run.
 - **HPG-7** (deterministic) The history page must list as removed the sections of the "from" run that the "to" run

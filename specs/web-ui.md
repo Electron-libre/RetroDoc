@@ -1,6 +1,6 @@
 ---
 id: WEB
-status: accepted
+status: draft
 adrs: [0039, 0044, 0048]
 ---
 
@@ -128,8 +128,8 @@ over browses its domains, features and use cases rather than reading the Markdow
   `permission`, `state_transition`, `limit`, `computation`), of the domain `?domain=<slug>` and of the feature
   `?feature=<slug>`, each given, all of them when several are, and say no rule matches when none does.
 - **WEB-55** (deterministic) The rules page must show a form whose choices are the kinds, the domains and the
-  features of the run (each feature labelled with its domain), the ones of the query selected, that asks the page
-  again with them.
+  features of the run (each feature labelled with its domain), the ones of the query selected, in the shape of
+  WEB-107, that asks the page again with them.
 - **WEB-56** (deterministic) A rules request with the header `HX-Request` and without `HX-History-Restore-Request` must
   be answered with the list of the rules alone, without the layout of the page; any other with the full page.
 - **WEB-57** (deterministic) The actors page, `/actors`, must show a row per actor, the actors grouped by their exact
@@ -264,6 +264,14 @@ over browses its domains, features and use cases rather than reading the Markdow
   its swap with the header `HX-Reswap` (WEB-105, WAK-40), and show any other error answer in a notice of the page
   that names its status, and its text when it is not HTML, leaving the form as it was; a request sent clears the
   errors of the form that sends it.
+- **WEB-107** (deterministic) The filter forms of the debt (DBT-10) and rules (WEB-55) pages must offer the kinds as
+  a group of radio choices (`fieldset`), the first "All" with an empty value, the kind of the query checked, "All"
+  when the query gives none or an empty one; the domains and the features as selects whose first choice "All" has
+  an empty value. The form asks the page again on any change (`hx-trigger="change"`, its URL pushed), and its submit
+  button is inside `<noscript>`.
+- **WEB-108** (deterministic) The list of the debt and rules pages, in the page and in the fragment of DBT-12 and
+  WEB-56, must say how many filters the query gives a non-empty value (`1 active filter`, `2 active filters`) with a
+  link that resets them, to the page with no query; with no active filter it shows neither.
 
 ## Scenarios
 

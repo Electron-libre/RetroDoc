@@ -39,17 +39,55 @@ pub struct RuleFilter {
 pub struct RulesPage {
     /// The kind, the domain and the feature, in that order.
     pub filters: Vec<Filter>,
+    /// The filters the query gives a value.
+    pub active: usize,
     /// The run has no rule at all, whatever the filters.
     pub none_in_run: bool,
     pub rules: Vec<RuleRow>,
 }
 
-/// A select of the form.
+/// A filter of the form: a group of chips (radio choices) or a select, "All" first.
 pub struct Filter {
     /// The name of its query parameter.
     pub name: &'static str,
     pub label: &'static str,
+    /// Radio choices rather than a select: for the few kinds, not the domains nor features.
+    pub chips: bool,
+    /// The query gives it no value: "All" is the choice.
+    pub all: bool,
     pub choices: Vec<Choice>,
+}
+
+impl Filter {
+    /// A filter of `name` whose choices are `(value, label)`, the one `asked` selected.
+    pub fn new<'a>(
+        name: &'static str,
+        label: &'static str,
+        chips: bool,
+        asked: Option<&str>,
+        choices: impl IntoIterator<Item = (&'a str, &'a str)>,
+    ) -> Self {
+        Self {
+            name,
+            label,
+            chips,
+            all: asked.is_none(),
+            choices: choices
+                .into_iter()
+                .map(|(value, label)| Choice {
+                    value: value.to_string(),
+                    label: label.to_string(),
+                    selected: asked == Some(value),
+                })
+                .collect(),
+        }
+    }
+}
+
+/// How many of `filters` the query gives a value.
+#[must_use]
+pub fn active_filters(filters: &[Filter]) -> usize {
+    filters.iter().filter(|filter| !filter.all).count()
 }
 
 pub struct Choice {
@@ -87,8 +125,10 @@ pub fn rules_page(docs: &GeneratedDocs, filter: &RuleFilter, texts: &WebTexts) -
             evidence: rule.evidence.iter().map(Evidence::of).collect(),
         })
         .collect();
+    let filters = filters(docs, filter, texts);
     RulesPage {
-        filters: filters(docs, filter, texts),
+        active: active_filters(&filters),
+        filters,
         none_in_run: docs.rules().is_empty(),
         rules,
     }
@@ -129,46 +169,36 @@ impl RuleFilter {
 }
 
 fn filters(docs: &GeneratedDocs, filter: &RuleFilter, texts: &WebTexts) -> Vec<Filter> {
-    let choice = |value: &str, label: &str, asked: Option<&str>| Choice {
-        value: value.to_string(),
-        label: label.to_string(),
-        selected: asked == Some(value),
-    };
+    let features: Vec<(&str, String)> = docs
+        .features()
+        .iter()
+        .map(|f| (f.slug.as_str(), feature_label(docs, f)))
+        .collect();
     vec![
-        Filter {
-            name: "kind",
-            label: texts.kind,
-            choices: KINDS
+        Filter::new(
+            "kind",
+            texts.kind,
+            true,
+            filter.kind.as_deref(),
+            KINDS
                 .iter()
-                .map(|kind| {
-                    choice(
-                        kind_value(*kind),
-                        texts.doc.kind(*kind),
-                        filter.kind.as_deref(),
-                    )
-                })
-                .collect(),
-        },
-        Filter {
-            name: "domain",
-            label: texts.domain,
-            choices: docs
-                .domains()
+                .map(|kind| (kind_value(*kind), texts.doc.kind(*kind))),
+        ),
+        Filter::new(
+            "domain",
+            texts.domain,
+            false,
+            filter.domain.as_deref(),
+            docs.domains()
                 .iter()
-                .map(|d| choice(&d.slug, &d.name, filter.domain.as_deref()))
-                .collect(),
-        },
-        Filter {
-            name: "feature",
-            label: texts.feature,
-            choices: docs
-                .features()
-                .iter()
-                .map(|f| {
-                    let label = feature_label(docs, f);
-                    choice(&f.slug, &label, filter.feature.as_deref())
-                })
-                .collect(),
-        },
+                .map(|d| (d.slug.as_str(), d.name.as_str())),
+        ),
+        Filter::new(
+            "feature",
+            texts.feature,
+            false,
+            filter.feature.as_deref(),
+            features.iter().map(|(slug, label)| (*slug, label.as_str())),
+        ),
     ]
 }

@@ -10,7 +10,7 @@ use retrodoc_mcp::reviews::Reviews;
 use retrodoc_mcp::GeneratedDocs;
 
 use crate::review::OutdatedView;
-use crate::rules::{Choice, Filter};
+use crate::rules::{active_filters, Filter};
 use crate::texts::WebTexts;
 use crate::view::{code_href, doc_section_href, Confidence, Link, StaleFile};
 
@@ -24,6 +24,8 @@ pub struct DebtFilter {
 pub struct DebtPage {
     /// The kind and the domain, in that order.
     pub filters: Vec<Filter>,
+    /// The filters the query gives a value.
+    pub active: usize,
     /// The run has no item at all, whatever the filters.
     pub none_in_run: bool,
     /// The run has no confidence score: no use case is listed as not scored.
@@ -99,8 +101,10 @@ pub fn debt_page(docs: &GeneratedDocs, filter: &DebtFilter, texts: &WebTexts) ->
         .filter(|item| filter.keeps(item))
         .map(|item| row(docs, item, texts))
         .collect();
+    let filters = filters(docs, filter, texts);
     DebtPage {
-        filters: filters(docs, filter, texts),
+        active: active_filters(&filters),
+        filters,
         none_in_run: list.items.is_empty(),
         no_score: list.no_score,
         no_docs: list.no_docs,
@@ -301,28 +305,24 @@ fn section_row(docs: &GeneratedDocs, section: &Section) -> Named {
 }
 
 fn filters(docs: &GeneratedDocs, filter: &DebtFilter, texts: &WebTexts) -> Vec<Filter> {
-    let choice = |value: &str, label: &str, asked: Option<&str>| Choice {
-        value: value.to_string(),
-        label: label.to_string(),
-        selected: asked == Some(value),
-    };
     vec![
-        Filter {
-            name: "kind",
-            label: texts.kind,
-            choices: DebtKind::ALL
+        Filter::new(
+            "kind",
+            texts.kind,
+            true,
+            filter.kind.as_deref(),
+            DebtKind::ALL
                 .iter()
-                .map(|kind| choice(kind.key(), texts.debt_kind(*kind), filter.kind.as_deref()))
-                .collect(),
-        },
-        Filter {
-            name: "domain",
-            label: texts.domain,
-            choices: docs
-                .domains()
+                .map(|kind| (kind.key(), texts.debt_kind(*kind))),
+        ),
+        Filter::new(
+            "domain",
+            texts.domain,
+            false,
+            filter.domain.as_deref(),
+            docs.domains()
                 .iter()
-                .map(|d| choice(&d.slug, &d.name, filter.domain.as_deref()))
-                .collect(),
-        },
+                .map(|d| (d.slug.as_str(), d.name.as_str())),
+        ),
     ]
 }

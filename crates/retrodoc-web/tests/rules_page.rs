@@ -268,9 +268,69 @@ async fn the_form_offers_the_kinds_domains_and_features_with_the_query_selected(
             "{value}: {form}"
         );
     }
-    assert!(form.contains("value=\"permission\" selected"), "{form}");
+    assert!(
+        form.contains("<input type=\"radio\" name=\"kind\" value=\"permission\" checked>"),
+        "{form}"
+    );
     assert!(form.contains("value=\"ship-order\" selected"), "{form}");
-    assert!(!form.contains("value=\"limit\" selected"), "{form}");
+    assert!(!form.contains("value=\"limit\" checked"), "{form}");
+}
+
+// spec: WEB-107
+#[tokio::test]
+async fn the_kinds_are_chips_the_domains_and_features_selects_and_the_button_needs_no_script() {
+    let repo = generated_repo();
+    let page = rules(repo.path(), "/rules").await;
+    let form = &page[page.find("<form class=\"filters\"").expect(&page)..];
+    let form = &form[..form.find("</form>").unwrap()];
+    assert!(form.contains("hx-trigger=\"change\""), "{form}");
+    assert!(form.contains("hx-push-url=\"true\""), "{form}");
+    let kinds = &form[form.find("<fieldset").expect(form)..form.find("</fieldset>").unwrap()];
+    assert!(
+        kinds.contains("<input type=\"radio\" name=\"kind\" value=\"\" checked>"),
+        "{kinds}"
+    );
+    assert!(kinds.contains("value=\"validation\">"), "{kinds}");
+    for name in ["domain", "feature"] {
+        let select = &form[form.find(&format!("<select name=\"{name}\"")).expect(form)..];
+        assert!(
+            select.contains("<option value=\"\">All</option>"),
+            "{name}: {select}"
+        );
+    }
+    let noscript = &form[form.find("<noscript>").expect(form)..];
+    assert!(noscript.contains("<button type=\"submit\""), "{noscript}");
+    assert_eq!(form.matches("<button").count(), 1, "{form}");
+    // An unknown kind checks no choice, "All" included: no rule matches it.
+    let page = rules(repo.path(), "/rules?kind=rate").await;
+    let form = &page[page.find("<form class=\"filters\"").expect(&page)..];
+    let form = &form[..form.find("</form>").unwrap()];
+    assert!(!form.contains("checked"), "{form}");
+}
+
+// spec: WEB-108
+#[tokio::test]
+async fn the_list_counts_the_active_filters_and_links_their_reset() {
+    let repo = generated_repo();
+    let page = rules(repo.path(), "/rules").await;
+    let list = &page[page.find("id=\"rule-list\"").expect(&page)..];
+    assert!(!list.contains("active filter"), "{list}");
+    assert!(!list.contains("Reset filters"), "{list}");
+
+    let page = rules(repo.path(), "/rules?kind=limit&domain=").await;
+    let list = &page[page.find("id=\"rule-list\"").expect(&page)..];
+    assert!(list.contains("1 active filter"), "{list}");
+    assert!(
+        list.contains("<a href=\"/rules\">Reset filters</a>"),
+        "{list}"
+    );
+
+    let (_, fragment) = get_with(repo.path(), "/rules?kind=limit&domain=billing", true).await;
+    assert!(fragment.contains("2 active filters"), "{fragment}");
+    assert!(
+        fragment.contains("<a href=\"/rules\">Reset filters</a>"),
+        "{fragment}"
+    );
 }
 
 // spec: WEB-56

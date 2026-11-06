@@ -303,6 +303,33 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); }
    in a column. The review and the edit forms sit in a panel. */
 .filters, form.compare { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3) var(--space-4); margin: var(--space-3) 0 var(--space-5); }
 .filters .field.wide { flex: 1 1 20rem; max-width: 36rem; }
+/* The kinds of a filter as chips: the radio hidden but focusable, the checked chip lit; a select with a value
+   other than "All" is lit the same way. The count of the active filters and their reset head the list. */
+fieldset.chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); border: 0; padding: 0; margin: 0; min-width: 0; }
+fieldset.chips legend { padding: 0; margin-bottom: var(--space-1); }
+.chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: calc(var(--control-height) - var(--space-2));
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s;
+}
+.chip input { position: absolute; inset: 0; opacity: 0; margin: 0; min-height: 0; cursor: pointer; }
+.chip:hover { border-color: var(--text-muted); }
+.chip:has(input:checked) { border-color: var(--gold); color: var(--gold-light); }
+.chip:has(input:focus-visible) { outline: 2px solid var(--gold); outline-offset: 2px; }
+.filters select:has(option:checked:not([value=""])) { border-color: var(--gold); color: var(--gold-light); }
+/* With chips the labels align at the top; a long select never runs past a narrow screen. */
+form.filters:has(fieldset.chips) { align-items: flex-start; }
+.filters .field { max-width: 100%; }
+.filters select { max-width: 100%; }
+.filter-state { color: var(--text-muted); font-size: var(--text-sm); margin: 0 0 var(--space-3); }
 section.review, section.edit-form {
   background: var(--surface);
   border: 1px solid var(--border);

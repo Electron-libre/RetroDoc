@@ -81,6 +81,14 @@
 
 {% macro filter_fields(filters) %}
 {% for filter in filters %}
+{% if filter.chips %}
+<fieldset class="chips"><legend class="field-label">{{ filter.label }}</legend>
+  <label class="chip"><input type="radio" name="{{ filter.name }}" value=""{% if filter.all %} checked{% endif %}> {{ t.all }}</label>
+  {% for choice in filter.choices %}
+  <label class="chip"><input type="radio" name="{{ filter.name }}" value="{{ choice.value }}"{% if choice.selected %} checked{% endif %}> {{ choice.label }}</label>
+  {% endfor %}
+</fieldset>
+{% else %}
 <label class="field"><span class="field-label">{{ filter.label }}</span>
   <select name="{{ filter.name }}">
     <option value="">{{ t.all }}</option>
@@ -89,7 +97,13 @@
     {% endfor %}
   </select>
 </label>
+{% endif %}
 {% endfor %}
+<noscript><button type="submit" class="secondary">{{ t.filter }}</button></noscript>
+{% endmacro %}
+
+{% macro active_filters(active, reset) %}
+{% if active > 0 %}<p class="filter-state">{{ t.count(*active, *t.active_filter_unit) }} · <a href="{{ reset }}">{{ t.reset_filters }}</a></p>{% endif %}
 {% endmacro %}
 
 {% macro code_link(link) %}<a href="{{ link.href }}"><code>{{ link.label }}</code></a>{% endmacro %}

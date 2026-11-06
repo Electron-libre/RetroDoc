@@ -5,7 +5,6 @@
 <h1>{{ t.doc.business_rules }}</h1>
 <form class="filters" action="/rules" method="get" hx-get="/rules" hx-target="#rule-list" hx-swap="outerHTML" hx-trigger="change" hx-push-url="true" hx-indicator="find .indicator">
   {% call m::filter_fields(page.filters) %}{% endcall %}
-  <button type="submit" class="secondary">{{ t.filter }}</button>
   <span class="indicator" role="status">{{ t.loading }}</span>
 </form>
 {% include "rules_list.html" %}

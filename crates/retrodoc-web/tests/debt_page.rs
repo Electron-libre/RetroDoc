@@ -316,11 +316,17 @@ async fn the_debt_form_offers_the_kinds_and_the_domains_with_the_asked_ones_sele
         "not_analysed",
     ] {
         assert!(
-            form.contains(&format!("<option value=\"{kind}\">")),
+            form.contains(&format!(
+                "<input type=\"radio\" name=\"kind\" value=\"{kind}\">"
+            )),
             "{kind}: {form}"
         );
     }
-    assert!(form.contains("<option value=\"stale\" selected>"), "{form}");
+    assert!(
+        form.contains("<input type=\"radio\" name=\"kind\" value=\"stale\" checked>"),
+        "{form}"
+    );
+    assert!(!form.contains("value=\"\" checked"), "{form}");
     assert!(
         form.contains("<option value=\"billing\">Billing</option>"),
         "{form}"
@@ -328,6 +334,38 @@ async fn the_debt_form_offers_the_kinds_and_the_domains_with_the_asked_ones_sele
     assert!(
         form.contains("<option value=\"shipping\" selected>Shipping</option>"),
         "{form}"
+    );
+}
+
+// spec: WEB-107, WEB-108
+#[tokio::test]
+async fn the_debt_filters_apply_on_change_and_the_list_counts_them() {
+    let repo = generated_repo();
+    let page = debt(repo.path(), "/debt").await;
+    let form = between(&page, "<form class=\"filters\"", "</form>");
+    assert!(form.contains("hx-trigger=\"change\""), "{form}");
+    assert!(
+        form.contains("<input type=\"radio\" name=\"kind\" value=\"\" checked>"),
+        "{form}"
+    );
+    assert!(form.contains("<option value=\"\">All</option>"), "{form}");
+    assert!(
+        between(form, "<noscript>", "</noscript>").contains("<button type=\"submit\""),
+        "{form}"
+    );
+    assert!(!list(&page).contains("Reset filters"), "{page}");
+
+    let (_, fragment) = get_in(
+        None,
+        repo.path(),
+        "/debt?kind=stale&domain=shipping",
+        &["HX-Request"],
+    )
+    .await;
+    assert!(fragment.contains("2 active filters"), "{fragment}");
+    assert!(
+        fragment.contains("<a href=\"/debt\">Reset filters</a>"),
+        "{fragment}"
     );
 }
 

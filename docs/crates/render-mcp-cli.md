@@ -65,7 +65,7 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   application in the header and the title, the tree of domains, features and use cases, linked to
   `/domains/{domain}[/{feature}[/{use_case}]]`, and the footer crediting Meta Lambda with its logo); the stylesheet follows the colour
   charter of the meta-lambda.com site (its `CHARTE.md`: dark surfaces, gold as the one accent, kept rare; red and green
-  only for failure and success, so the low-confidence and stale badges are gold) and builds one set of components (buttons primary, `secondary`, `quiet`; `.field` with its `.field-label` and `.hint`; tables, badges, cards, `.empty`; the macro `filter_fields` of the debt and rules filters) on the design variables of `:root`, stacking the tree above the content on a narrow screen (`docs/dev/web-ui.md`), and `diagrams.js` writes the same
+  only for failure and success, so the low-confidence and stale badges are gold) and builds one set of components (buttons primary, `secondary`, `quiet`; `.field` with its `.field-label` and `.hint`; tables, badges, cards, `.empty`; the macro `filter_fields` of the debt and rules filters: a `rules::Filter` with `chips` as a group of radio chips, else a select, "All" first) on the design variables of `:root`, stacking the tree above the content on a narrow screen (`docs/dev/web-ui.md`), and `diagrams.js` writes the same
   colours into the `base` theme of `mermaid` (written, not read from the stylesheet: an older cached one would leave
   them empty); the `Project` that `retrodoc ui` passes to `serve` (then `router`) names the
   application (`ProjectConfig::name_or_directory`: `[project] name` of `retrodoc.toml`, else the repository's
@@ -122,8 +122,9 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   (`rules::rules_page`, `rules.html`, linked from the header of every page), lists every rule in the order of the run
   with its evidence and a link to its `#rule-<slug>` item (`view::rule_href`), kept by `?kind=` (the artifact name of the kind),
   `?domain=` and `?feature=` (`rules::RuleFilter`, an empty value asks nothing; a rule whose feature is not in the run
-  matches no domain nor feature); its form, submitted by `htmx` on change, swaps `rules_list.html` into `#rule-list`
-  the same way. The debt page, `/debt` (`debt::debt_page`, `debt.html`, under the "Audit" group of the header and
+  matches no domain nor feature); its form, submitted by `htmx` on change (its button left to `<noscript>`), swaps
+  `rules_list.html` into `#rule-list` the same way, the list heading with the count of the active filters and a link
+  that resets them (`rules::active_filters`, the `active_filters` macro), refreshed with it. The debt page, `/debt` (`debt::debt_page`, `debt.html`, under the "Audit" group of the header and
   counted in "Start here"; `specs/debt-view.md`), lists the items of `retrodoc_mcp::debt::debt` (the stale ones judged
   at each request, off the async workers, with the reviews read then: a `reviews.json` that can't be read is said, and
   the debt listed as if no section was reviewed), highest priority first, each with its priority and its parts (weight,

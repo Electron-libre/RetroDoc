@@ -40,6 +40,7 @@ spacing steps `--space-1` to `--space-6`, the radius `--radius-sm`, `--radius`, 
 | | `class="quiet"` | text only: revert, start over |
 | field | `<label class="field"><span class="field-label">…</span> <control></label>`, `.hint` below | label above the control; `.field.wide` grows in a line of fields |
 | form layouts | `.filters`, `form.compare` | fields on one line, the button at their foot |
+| filter | `{% call m::filter_fields(filters) %}` in `form.filters`, `{% call m::active_filters(n, reset) %}` atop the list | the kinds as `fieldset.chips` of `.chip` radios, the others as selects; the checked chip and a select off "All" lit gold; the button in `<noscript>` |
 | | `.edit-fields`, `form.ask` | fields in a column, `.actions` for the buttons |
 | | `section.review`, `section.edit-form` | a panel on the surface |
 | table | `<table>`, `<thead>` | muted header, row lit on hover (not the heatmap nor the code) |
