@@ -25,7 +25,7 @@ in `docs/findings.md` and the closed issues in `issues/done/`.
 - State: in issues
 - Issues:
   - [web_ui_components](issues/done/web_ui_components.md)
-  - [web_ui_form_feedback](issues/web_ui_form_feedback.md)
+  - [web_ui_form_feedback](issues/done/web_ui_form_feedback.md)
   - [web_ui_filters_and_compare](issues/web_ui_filters_and_compare.md)
   - [web_ui_live_search](issues/web_ui_live_search.md)
   - [web_ui_next_action](issues/web_ui_next_action.md)
