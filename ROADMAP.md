@@ -353,3 +353,14 @@ The milestones up to "A large application, one bounded context at a time" are th
   - [chat_command](issues/done/chat_command.md)
   - [reasoning_given_back_on_a_real_openrouter_call](issues/done/reasoning_given_back_on_a_real_openrouter_call.md)
   - [encrypted_reasoning_given_back_on_a_paid_openrouter_model](issues/done/encrypted_reasoning_given_back_on_a_paid_openrouter_model.md)
+
+## Ask the documentation in the web interface
+
+- Goal: `retrodoc ui --ask` questions the docs from the web interface, a conversation like `retrodoc chat` whose
+  answers link their sources to the pages of the interface, with the steps of the agent shown as it runs.
+- Why: `ask` and `chat` run in the terminal only, while the reader browses the docs in the web interface, where the
+  pages of the sources of an answer live.
+- State: in issues
+- Issues:
+  - [web_ask_page](issues/web_ask_page.md)
+  - [web_ask_streamed_steps_and_cost](issues/web_ask_streamed_steps_and_cost.md)
