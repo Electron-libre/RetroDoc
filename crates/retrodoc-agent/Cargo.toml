@@ -10,10 +10,10 @@ workspace = true
 [dependencies]
 retrodoc-llm.workspace = true
 retrodoc-mcp.workspace = true
+serde_json.workspace = true
 tokio.workspace = true
 
 [dev-dependencies]
 retrodoc-core.workspace = true
 retrodoc-pipeline = { workspace = true, features = ["testing"] }
-serde_json.workspace = true
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }

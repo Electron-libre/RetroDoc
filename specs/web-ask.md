@@ -1,7 +1,7 @@
 ---
 id: WAK
-status: accepted
-adrs: [0039, 0047, 0048]
+status: draft
+adrs: [0039, 0047, 0048, 0049]
 ---
 
 # Ask the documentation from the web interface
@@ -40,13 +40,13 @@ leaving the browser; without `--ask` the interface calls no LLM (ADR 0048).
 - **WAK-12** (deterministic) An answer with no source must say that no source of the docs backs it (ASK-9), and one
   whose text is blank that the model gave no answer (ASK-18).
 - **WAK-13** (deterministic) Each warning of an answer (ASK-10, ASK-11) must be shown under its sources.
-- **WAK-14** (deterministic) A question `POST` with the header `HX-Request` must be answered with the exchange alone,
-  without the layout of the page, for the form to add it after the former ones; any other with a redirect `303` to
-  `/ask`.
-- **WAK-15** (deterministic) The form of `/ask` must name an indicator that says the docs are being read, shown by
-  `htmx` while the question runs, and disable its button while it runs.
-- **WAK-16** (deterministic) A question whose LLM call fails must be answered with the status 200 and an exchange that
-  shows the error, the question not kept in the conversation (CHT-8).
+- **WAK-14** (deterministic) A question `POST` with the header `HX-Request` must be answered at once, before the model
+  answers, with the running exchange of WAK-30 alone, without the layout of the page, for the form to add it after
+  the former ones; any other must be answered with a redirect `303` to `/ask` once the question is answered.
+- **WAK-15** (deterministic) The running exchange must say that the docs are being read, and the button of the form
+  must stay disabled from the sending of a question until its answer or its error is shown.
+- **WAK-16** (deterministic) A question whose LLM call fails must end with an exchange that shows the error, served
+  with the status 200 by WAK-31 and WAK-33, the question not kept in the conversation (CHT-8).
 - **WAK-17** (deterministic) A blank question must be answered with the status 400, and no LLM call.
 - **WAK-18** (deterministic) A question sent to `/ask` without the cookie of a session kept in memory must start a
   new session and set the cookie `retrodoc_ask` to its id, `HttpOnly`, `SameSite=Strict`, `Path=/`; the id must be 128
@@ -72,6 +72,27 @@ leaving the browser; without `--ask` the interface calls no LLM (ADR 0048).
   the recap of WAK-23.
 - **WAK-29** (deterministic) A question sent while another question of the same session runs must be answered with
   the status 409, and no LLM call.
+- **WAK-30** (deterministic) The running exchange of a question must show the question and the list of its steps, and
+  connect with the `htmx` SSE extension, served by the interface as `htmx` is (ADR 0039), to
+  `/ask/questions/<n>/events`, `<n>` the number of the question in its session.
+- **WAK-31** (deterministic) `/ask/questions/<n>/events` must answer `text/event-stream`: one event `step` per tool
+  call of the question (ASK-25), in order and from the first one on each connection, its data an item of the list
+  of steps naming the tool and its target; then one event `answer` whose data is the exchange as WAK-8 to WAK-13
+  show it, or its error (WAK-16); then the stream must end.
+- **WAK-32** (deterministic) The running exchange must add each `step` to its list and be replaced by the data of the
+  event `answer`.
+- **WAK-33** (deterministic) When its stream fails, the running exchange must be replaced by the answer of
+  `/ask/questions/<n>`, the exchange alone, served once the question has ended.
+- **WAK-34** (deterministic) `/ask/questions/<n>` and its events must be answered with the status 404 when the cookie
+  names no session kept in memory or one that holds no question `<n>`, running or among its exchanges.
+- **WAK-35** (deterministic) A question sent must run to its end when no page follows it (a tab closed), its exchange
+  kept in its session; the page `/ask` must show a question still running as its running exchange (WAK-30).
+- **WAK-36** (deterministic) Each exchange that ended must show, under its answer or its error, the LLM calls of the
+  question with their tokens in (and among them those served from the cache) and out, then the same sums for the
+  session since it started or was reset (WAK-22); the calls whose server reported no usage must be counted apart,
+  their tokens not estimated.
+- **WAK-37** (deterministic) The calls and tokens of WAK-36 must be those the recap of WAK-23 counts for the same
+  calls.
 
 ## Scenarios
 
@@ -86,10 +107,19 @@ leaving the browser; without `--ask` the interface calls no LLM (ADR 0048).
   then a new session starts.
 - (WAK-20) Given 33 sessions started one after the other, then the first is no longer kept and the last 32 are.
 - (WAK-14) Given a browser without scripts, then its question is redirected to `/ask`, which shows the exchange.
+- (WAK-31) Given a question that calls `get_feature` for `orders/list-orders`, then answers, when its stream is read
+  after the question ended, then it holds the step `get_feature` `orders/list-orders`, then the answer, then ends.
+- (WAK-34) Given the question 1 of a session, when `/ask/questions/1` is asked with the cookie of another session,
+  then it is answered with 404.
+- (WAK-36) Given a first question of 2 calls of 100 tokens in and 10 out each, then a second of 1 call, then the
+  second exchange shows 1 call, 100 tokens in and 10 out for the question, and 3 calls, 300 and 30 for the session.
+- (WAK-36) Given a question failing after one answered call, then its exchange shows the error and that call.
 
 ## Non-goals
 
-- No step of the agent nor cost shown as it runs: the streaming is another issue (`issues/web_ask_streamed_steps_and_cost.md`).
+- No answer text streamed word by word: the answer shows whole once the question has ended.
+- No cost in money: the calls and tokens only, the price of a token depending on the provider and its plan.
+- No way to stop a running question from the page: it ends within its rounds (ASK-6).
 - The wall time of the pass `ask` in the recap of `ui --ask` is the time the server ran, not the time spent
   answering: the calls of concurrent sessions would close the pass of one another.
 - No conversation saved on disk nor resumed after a restart of `ui`: the sessions live in memory.

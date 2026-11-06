@@ -121,6 +121,34 @@ impl Answer {
     }
 }
 
+/// A tool call of the agent, as an observer is told of it (ASK-25).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Step {
+    /// The tool named by the call.
+    pub tool: String,
+    /// What it reads: the `id`, else the `query`, else the `path` of its arguments.
+    pub target: Option<String>,
+}
+
+impl Step {
+    fn of(call: &ToolCall) -> Self {
+        let arguments = serde_json::from_str::<serde_json::Value>(&call.arguments).ok();
+        let target = arguments.as_ref().and_then(|arguments| {
+            ["id", "query", "path"]
+                .iter()
+                .find_map(|key| arguments.get(key)?.as_str())
+                .map(str::to_string)
+        });
+        Self {
+            tool: call.name.clone(),
+            target,
+        }
+    }
+}
+
+/// What is told each tool call of a question as it runs.
+pub type Observer<'a> = &'a (dyn Fn(Step) + Send + Sync);
+
 /// An earlier question of a [`Conversation`], with the text of its answer and its sources.
 #[derive(Debug, Clone)]
 struct Turn {
@@ -157,8 +185,33 @@ impl Conversation {
         question: &str,
         max_rounds: usize,
     ) -> Result<Answer, LlmError> {
+        self.ask_observed(llm, docs, question, max_rounds, &|_| {})
+            .await
+    }
+
+    /// [`Conversation::ask`], telling `observer` each tool call before its result goes back to the
+    /// model (ASK-25).
+    ///
+    /// # Errors
+    ///
+    /// Returns the error of a call to the LLM.
+    pub async fn ask_observed(
+        &mut self,
+        llm: &dyn LlmProvider,
+        docs: Arc<Docs>,
+        question: &str,
+        max_rounds: usize,
+        observer: Observer<'_>,
+    ) -> Result<Answer, LlmError> {
         let turns = self.turns.make_contiguous();
-        let answer = answer_after(llm, docs, turns, question, max_rounds, Tools::All).await?;
+        let asked = Asked {
+            earlier: turns,
+            question,
+            max_rounds,
+            offered: Tools::All,
+            observer,
+        };
+        let answer = answer_after(llm, docs, asked).await?;
         let text = answer.text.trim();
         self.turns.push_back(Turn {
             question: question.to_string(),
@@ -292,19 +345,40 @@ pub async fn ask_with(
     max_rounds: usize,
     offered: Tools,
 ) -> Result<Answer, LlmError> {
-    answer_after(llm, docs, &[], question, max_rounds, offered).await
+    let asked = Asked {
+        earlier: &[],
+        question,
+        max_rounds,
+        offered,
+        observer: &|_| {},
+    };
+    answer_after(llm, docs, asked).await
 }
 
-/// [`ask_with`] after the `earlier` turns of a conversation, sent as messages before the question
-/// and taken off the budget of the tool results.
+/// A question and how it is asked.
+struct Asked<'a> {
+    /// The turns of a conversation before it, sent as messages before the question and taken off
+    /// the budget of the tool results.
+    earlier: &'a [Turn],
+    question: &'a str,
+    max_rounds: usize,
+    offered: Tools,
+    observer: Observer<'a>,
+}
+
+/// [`ask_with`] after the earlier turns of a conversation, telling the observer each call.
 async fn answer_after(
     llm: &dyn LlmProvider,
     docs: Arc<Docs>,
-    earlier: &[Turn],
-    question: &str,
-    max_rounds: usize,
-    offered: Tools,
+    asked: Asked<'_>,
 ) -> Result<Answer, LlmError> {
+    let Asked {
+        earlier,
+        question,
+        max_rounds,
+        offered,
+        observer,
+    } = asked;
     let tools: Vec<ToolSpec> = tool_specs()
         .into_iter()
         .filter(|tool| offered.offers(&tool.name))
@@ -352,6 +426,7 @@ async fn answer_after(
                 .with_reasoning(response.reasoning),
         );
         for (index, call) in response.tool_calls.into_iter().enumerate() {
+            observer(Step::of(&call));
             // All the tools: the tool's own error names an unknown one. Some: say which are offered.
             let result = if index >= MAX_CALLS_PER_ROUND {
                 format!(

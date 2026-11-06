@@ -59,6 +59,10 @@ warnings those sources carry (low confidence, code changed since the docs), so t
 - **ASK-24** (deterministic) A call must be answered with an error giving the size of its result and what is left of
   the budget, telling the model to narrow its call or to answer, when that result would bring the tool results of the
   question, error results left out, past 40000 characters.
+- **ASK-25** (deterministic) The agent asked with an observer must tell it each tool call of the question, in order,
+  before its result is sent back, as the tool named and its target: the `id`, else the `query`, else the `path` of
+  its arguments, none when they hold none of them or are not a JSON object; the answer must be the same as without an
+  observer.
 
 ## Scenarios
 
@@ -79,6 +83,8 @@ warnings those sources carry (low confidence, code changed since the docs), so t
   last request holds the system prompt and one user message: the question, `list_domains` with its arguments and its
   result, then the demand of the answer; the error of `get_feature` is left out.
 - (ASK-23) Given a round of 7 calls, then the first 6 get their tool's answer and the 7th the error.
+- (ASK-25) Given a round calling `get_feature` with `{"id": "orders/list-orders"}` and `list_domains`, then the
+  observer is told `get_feature` with the target `orders/list-orders`, then `list_domains` with none.
 - (ASK-24) Given 39000 characters of results already read, when a result of 2000 characters comes,
   then it is answered with the error naming 2000 and 1000, and a later result of 500 characters still passes.
 

@@ -607,3 +607,49 @@ async fn a_failed_question_is_not_kept() {
     let kept: Vec<&str> = conversation.turns().map(|(q, _)| q).collect();
     assert_eq!(kept, ["How is an invoice paid?"]);
 }
+
+// spec: ASK-25 (internal: the rounds are scripted with the fake provider, which the binary cannot take)
+#[tokio::test]
+async fn the_observer_is_told_each_call_with_its_target_and_the_answer_is_unchanged() {
+    let script = || {
+        FakeLlm::scripted(vec![
+            calls(vec![
+                call("c1", "get_feature", r#"{"id":"billing/pay-invoice"}"#),
+                call("c2", "list_domains", "{}"),
+                call("c3", "search_docs", r#"{"query":"refund"}"#),
+                call("c4", "read_source", r#"{"path":"app/invoice.rb"}"#),
+                call("c5", "get_domain", "not json"),
+            ]),
+            FakeTurn::Text("Paid in `billing/pay-invoice`.".into()),
+        ])
+    };
+    let steps = std::sync::Mutex::new(Vec::new());
+    let tell = |step: Step| steps.lock().unwrap().push(step);
+    let watched = script();
+    let observed = Conversation::default()
+        .ask_observed(&watched, docs(), "How?", 8, &tell)
+        .await
+        .unwrap();
+    let plain = Conversation::default()
+        .ask(&script(), docs(), "How?", 8)
+        .await
+        .unwrap();
+
+    let step = |tool: &str, target: Option<&str>| Step {
+        tool: tool.into(),
+        target: target.map(Into::into),
+    };
+    assert_eq!(
+        *steps.lock().unwrap(),
+        [
+            step("get_feature", Some("billing/pay-invoice")),
+            step("list_domains", None),
+            step("search_docs", Some("refund")),
+            step("read_source", Some("app/invoice.rb")),
+            step("get_domain", None),
+        ]
+    );
+    assert_eq!(observed.text, plain.text);
+    assert_eq!(observed.tool_results, plain.tool_results);
+    assert_eq!(observed.sources, plain.sources);
+}
