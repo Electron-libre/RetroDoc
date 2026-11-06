@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/assets/style.css">
   <script src="/assets/htmx.min.js" defer></script>
   <script src="/assets/forms.js" defer></script>
+  <script src="/assets/search.js" defer></script>
   {% block scripts %}{% endblock %}
 </head>
 <body>
@@ -27,9 +28,9 @@
     </nav>
     {% if shell.ask %}<a class="ask-link" href="/ask" title="{{ t.ask.hint }}">{{ t.ask.link }}</a>{% endif %}
     <form class="search" role="search" action="/search" method="get">
-      <input type="search" name="q" value="{% block query %}{% endblock %}" placeholder="{{ t.search_docs }}" aria-label="{{ t.search_docs }}" autocomplete="off" hx-get="/search" hx-trigger="input changed delay:300ms, search" hx-sync="this:replace" hx-target="#search-panel" hx-indicator="next .indicator">
+      <input type="search" name="q" value="{% block query %}{% endblock %}" placeholder="{{ t.search_docs }}" aria-label="{{ t.search_docs }}" role="combobox" aria-autocomplete="list" aria-controls="search-panel" aria-expanded="false" autocomplete="off" hx-get="/search" hx-trigger="input changed delay:300ms, search" hx-sync="this:replace" hx-target="#search-panel" hx-indicator="next .indicator">
       <span class="indicator" role="status">{{ t.loading }}</span>
-      <div id="search-panel" class="search-panel"></div>
+      <div id="search-panel" class="search-panel" role="listbox" aria-label="{{ t.search_docs }}"></div>
     </form>
   </header>
   <div class="layout">

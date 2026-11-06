@@ -53,10 +53,10 @@ stays that of `retrodoc search`). The minimum length is enforced by the server, 
    (`search_panel.html`) targeted inside the search form, the full page showing its results in its content, the
    panel styles; latency per keystroke measured on the largest run of the runs directory; verified by
    `tests/search_page.rs`; makes true WEB-39, WEB-43, WEB-109; ~350 lines. (autonomous)
-2. [ ] Keyboard: `assets/search.js` (embedded, served from `/assets/`), the combobox attributes of WEB-110, `/`,
+2. [x] Keyboard: `assets/search.js` (embedded, served from `/assets/`), the combobox attributes of WEB-110, `/`,
    arrows, Enter, Escape, click outside; verified by `tests/search_page.rs` reading the served markup and script
    (internal: the keys run in the browser) and a check by hand in headless Chrome; makes true WEB-110 to WEB-112;
-   ~300 lines.
+   ~300 lines. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -75,3 +75,14 @@ stays that of `retrodoc search`). The minimum length is enforced by the server, 
   was `<section class="results"`, no hit row with its kind, no empty answer for `i`.
 - Code review: 1 finding. Fixed: a stale doc comment of `no_run_results` left above the new one.
 - not verified: none. decisions needed: none.
+
+## Deliverable 2: keyboard
+- done: the box a combobox over the panel (`role`, `aria-*`, an `id` per option), `assets/search.js` embedded and
+  loaded by every page (`/`, arrows, Enter, Escape, click outside), the active hit lit; spec `accepted` (WEB-109 to
+  WEB-112 traced); docs `docs/crates/render-mcp-cli.md`, `docs/dev/web-ui.md`.
+- checks: project-check green; checked by hand in headless Chrome on the English `delivery_router` run: `/` focuses
+  and selects (and is typed in a field), Down/Up wrap through the 10 hits and the link to the full page, Escape and
+  a click outside close, Down opens again, Enter follows the active hit, Enter with none opens `/search?q=order`.
+- red: WEB-110, WEB-111, WEB-112: no `role="combobox"` on the box, no `/assets/search.js` in the pages.
+- Code review: no findings
+- not verified: a screen reader (the ARIA markup is tested, not read aloud). decisions needed: none.

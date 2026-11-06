@@ -365,10 +365,7 @@ async fn the_panel_lists_each_hit_with_its_kind_then_the_search_page() {
     assert!(rows[1].contains("80%"), "{}", rows[1]);
     assert!(!rows[4].contains("badge"), "{}", rows[4]);
     let all = rows.last().unwrap();
-    assert!(
-        all.starts_with(" all\" href=\"/search?q=invoice\""),
-        "{all}"
-    );
+    assert!(all.contains(" href=\"/search?q=invoice\""), "{all}");
 }
 
 // spec: WEB-109
@@ -382,12 +379,14 @@ async fn the_panel_shows_the_hits_of_the_search_page() {
         "{panel}"
     );
     assert!(
-        panel.contains("<a class=\"hit all\" href=\"/search?q=ledger\""),
+        panel.contains(
+            "<a class=\"hit all\" role=\"option\" id=\"search-hit-all\" href=\"/search?q=ledger\""
+        ),
         "{panel}"
     );
     let (_, panel) = get_with(repo.path(), "/search?q=pay+invoice", true).await;
     assert!(
-        panel.contains("<a class=\"hit all\" href=\"/search?q=pay%20invoice\""),
+        panel.contains("<a class=\"hit all\" role=\"option\" id=\"search-hit-all\" href=\"/search?q=pay%20invoice\""),
         "{panel}"
     );
 }
@@ -400,7 +399,9 @@ async fn the_panel_with_no_hit_says_not_documented() {
     assert!(panel.contains("Not documented"), "{panel}");
     assert!(!panel.contains("<a class=\"hit\""), "{panel}");
     assert!(
-        panel.contains("<a class=\"hit all\" href=\"/search?q=zzqx\""),
+        panel.contains(
+            "<a class=\"hit all\" role=\"option\" id=\"search-hit-all\" href=\"/search?q=zzqx\""
+        ),
         "{panel}"
     );
 }
@@ -463,7 +464,7 @@ async fn the_search_page_shows_its_results_in_its_content() {
         "{page}"
     );
     assert!(
-        page.contains("<div id=\"search-panel\" class=\"search-panel\"></div>"),
+        page.contains("<div id=\"search-panel\" class=\"search-panel\" role=\"listbox\" aria-label=\"Search the docs\"></div>"),
         "{page}"
     );
 }
@@ -498,4 +499,72 @@ async fn an_htmx_search_with_no_run_gets_a_fragment() {
         fragment.contains("<code>retrodoc generate</code>"),
         "{fragment}"
     );
+}
+
+// spec: WEB-110
+#[tokio::test]
+async fn the_search_box_is_a_combobox_over_the_panel() {
+    let repo = generated_repo();
+    let (_, page) = get_with(repo.path(), "/", false).await;
+    let input = &page[page.find("<input type=\"search\"").expect(&page)..];
+    let input = &input[..input.find('>').unwrap()];
+    for attribute in [
+        "role=\"combobox\"",
+        "aria-autocomplete=\"list\"",
+        "aria-controls=\"search-panel\"",
+        "aria-expanded=\"false\"",
+    ] {
+        assert!(input.contains(attribute), "{attribute} in {input}");
+    }
+    assert!(
+        page.contains("<div id=\"search-panel\" class=\"search-panel\" role=\"listbox\""),
+        "{page}"
+    );
+    let (_, panel) = get_with(repo.path(), "/search?q=invoice", true).await;
+    let options: Vec<&str> = panel
+        .split("role=\"option\" id=\"")
+        .skip(1)
+        .map(|rest| &rest[..rest.find('"').unwrap()])
+        .collect();
+    assert_eq!(options.len(), 7, "{panel}");
+    let mut unique = options.clone();
+    unique.sort_unstable();
+    unique.dedup();
+    assert_eq!(unique.len(), options.len(), "{options:?}");
+    assert_eq!(
+        panel.matches("class=\"hit").count(),
+        options.len(),
+        "{panel}"
+    );
+}
+
+// spec: WEB-111, WEB-112 (internal: the keys run in the browser, the test reads what it is served)
+#[tokio::test]
+async fn the_keys_of_the_search_box_are_in_its_script() {
+    let repo = generated_repo();
+    let (_, page) = get_with(repo.path(), "/glossary", false).await;
+    assert!(
+        page.contains("<script src=\"/assets/search.js\" defer></script>"),
+        "{page}"
+    );
+    let (status, script) = get_with(repo.path(), "/assets/search.js", false).await;
+    assert_eq!(status, StatusCode::OK);
+    for part in [
+        "\"/\"",
+        "isContentEditable",
+        "\"TEXTAREA\"",
+        "\"SELECT\"",
+        ".select()",
+        "\"ArrowDown\"",
+        "\"ArrowUp\"",
+        "\"Enter\"",
+        "\"Escape\"",
+        "aria-activedescendant",
+        "aria-selected",
+        "aria-expanded",
+        "htmx:afterSwap",
+        "preventDefault",
+    ] {
+        assert!(script.contains(part), "{part} in search.js");
+    }
 }

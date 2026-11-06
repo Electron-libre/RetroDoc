@@ -480,7 +480,7 @@ async fn the_scripts_stylesheet_and_images_come_from_the_interface_itself() {
                 .filter_map(move |attribute| attribute_value(tag, attribute))
         })
         .collect();
-    assert_eq!(loaded.len(), 4, "{loaded:?}");
+    assert_eq!(loaded.len(), 5, "{loaded:?}");
     for link in &loaded {
         assert!(link.starts_with("/assets/"), "{link} in {page}");
         let (status, body, content_type) = get(load(repo.path()), link).await;
