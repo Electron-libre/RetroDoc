@@ -1,7 +1,7 @@
 ---
 id: WEB
 status: accepted
-adrs: [0039, 0044]
+adrs: [0039, 0044, 0048]
 ---
 
 # Web interface
@@ -32,7 +32,7 @@ over browses its domains, features and use cases rather than reading the Markdow
   under `/assets/`, and from no other host.
 - **WEB-12** (deterministic) Serving the pages must not write any file in the repository other than
   `.retrodoc/reviews.json`, which only a review sent from a page (WEB-81) writes, and `.retrodoc/edits.json`, which
-  only an edit sent from a page (WEB-93) writes.
+  only an edit sent from a page (WEB-93) writes, and, with `--ask`, the usage history of its calls (WAK-23).
 - **WEB-13** (deterministic) A request whose `Host` names neither `localhost` nor an IP address must be refused with the
   status 403.
 - **WEB-14** (deterministic) With a `--bind` address that is not a loopback one, `retrodoc ui` must warn that the docs
@@ -241,6 +241,8 @@ over browses its domains, features and use cases rather than reading the Markdow
   ones.
 - **WEB-100** (deterministic) Each row of a list of sections (WEB-80) must show a mark when its section holds a human
   edit, and none when it holds none.
+- **WEB-101** (deterministic) The header of every page must link to the ask page, `/ask` (`specs/web-ask.md`), when
+  `retrodoc ui` was started with `--ask`, and only then.
 
 ## Scenarios
 
@@ -366,7 +368,7 @@ over browses its domains, features and use cases rather than reading the Markdow
 - The actors page does not merge the spellings of an actor nor maps them to the actors list (`actors.yaml`).
 - The rules page has no free-text filter: the search covers the rules (WEB-40).
 - No authentication nor several repositories: the server is for the local user (a hosted mode needs its own ADR).
-- No LLM call: a review records a judgement and leaves the docs as they are; an edit (WEB-93) is an overlay over the
+- No LLM call without `--ask` (ADR 0048, `specs/web-ask.md`): a review records a judgement and leaves the docs as they are; an edit (WEB-93) is an overlay over the
   generated text, which the artifacts keep (`specs/section-edit.md`).
 - The edit form changes the name, the description and the narrative only: no steps, business rules nor glossary
   (`specs/section-edit.md`); no button per field brings one field back: emptying it does.

@@ -50,7 +50,7 @@ retrodoc-cli ──> retrodoc-pipeline ──> retrodoc-ingest ──> retrodoc-
              ──> retrodoc-ingest
 retrodoc-cli ──> retrodoc-render ──> retrodoc-core
 retrodoc-cli ──> retrodoc-mcp ──> retrodoc-pipeline, retrodoc-ingest, retrodoc-core
-retrodoc-cli ──> retrodoc-web ──> retrodoc-mcp, retrodoc-render, retrodoc-core
+retrodoc-cli ──> retrodoc-web ──> retrodoc-agent, retrodoc-llm, retrodoc-mcp, retrodoc-render, retrodoc-core
 retrodoc-cli ──> retrodoc-bench ──> retrodoc-agent, retrodoc-mcp, retrodoc-pipeline, retrodoc-ingest, retrodoc-llm, retrodoc-core
 retrodoc-cli ──> retrodoc-agent ──> retrodoc-mcp, retrodoc-llm
 ```
@@ -75,7 +75,7 @@ of the crate you are about to touch. High-level view: `docs/ARCHITECTURE.md`. De
   → `docs/crates/render-mcp-cli.md`
 - **retrodoc-agent**: the agent of `ask` and `chat`, a bounded tool loop over the read-only tools of `retrodoc-mcp` (ADR 0047).
   → `docs/crates/agent.md`
-- **retrodoc-web**: local web interface, HTML rendered on the server from the read model (ADR 0039).
+- **retrodoc-web**: local web interface, HTML rendered on the server from the read model (ADR 0039), the ask page of `ui --ask` (ADR 0048).
   → `docs/crates/render-mcp-cli.md`
 - **retrodoc-cli**: `clap` subcommands (`init`, `scan`, `generate`, `render`, `report`, `roles`, `brief`, `glossary`,
   `entry-points`, `business-read`, `business-files`, `contexts`, `actors`, `surface`, `benchmark`, `benchmark-table`, `ask`, `chat`, `search`,

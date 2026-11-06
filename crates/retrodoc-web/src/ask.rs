@@ -1,6 +1,6 @@
 //! The ask page of `retrodoc ui --ask` (`specs/web-ask.md`, ADR 0048): a question posted to `/ask`
 //! is answered by the agent of `retrodoc-agent` in the conversation of the browser session, whose id
-//! a cookie carries; the sessions live in memory.
+//! a cookie carries; the sessions live in memory, at most [`MAX_SESSIONS`].
 
 use std::collections::VecDeque;
 use std::fmt::Write as _;
@@ -10,7 +10,7 @@ use askama::Template;
 use axum::extract::State;
 use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::{Form, Router};
 use retrodoc_agent::{Answer, Conversation};
 use retrodoc_llm::LlmProvider;
@@ -22,6 +22,12 @@ use crate::pages::render;
 use crate::texts::{AskTexts, WebTexts};
 use crate::view::{Shell, Site};
 use crate::LiveSite;
+
+/// The sessions kept in memory; a new one past them drops the one used least recently (WAK-20).
+pub const MAX_SESSIONS: usize = 32;
+
+/// The exchanges a session keeps for its page (WAK-21).
+pub const MAX_EXCHANGES: usize = 50;
 
 /// The cookie that carries the id of the session.
 const COOKIE: &str = "retrodoc_ask";
@@ -57,6 +63,9 @@ impl Sessions {
             let entry = self.0.remove(at);
             self.0.push(entry.clone());
             return (entry.0, entry.1, false);
+        }
+        if self.0.len() >= MAX_SESSIONS {
+            self.0.remove(0);
         }
         let id = new_id();
         let session = Arc::new(tokio::sync::Mutex::new(Session::default()));
@@ -125,6 +134,7 @@ pub(crate) fn routes(site: LiveSite, asking: Asking) -> Router {
     };
     Router::new()
         .route("/ask", get(page).post(question))
+        .route("/ask/reset", post(reset))
         .with_state(state)
 }
 
@@ -270,6 +280,9 @@ async fn question(
     let exchange = Exchange { question, outcome };
     let view = ExchangeView::of(&exchange, &site.texts().ask);
     session.exchanges.push_back(exchange);
+    while session.exchanges.len() > MAX_EXCHANGES {
+        session.exchanges.pop_front();
+    }
     drop(session);
     let response = if headers.contains_key("HX-Request") {
         render(
@@ -282,6 +295,14 @@ async fn question(
     } else {
         (StatusCode::SEE_OTHER, [(header::LOCATION, "/ask")]).into_response()
     };
+    with_cookie(response, &id, new)
+}
+
+/// Empties the exchanges and the conversation of the session (WAK-22).
+async fn reset(State(state): State<AskState>, headers: HeaderMap) -> Response {
+    let (id, session, new) = state.open(&headers);
+    *session.lock().await = Session::default();
+    let response = (StatusCode::SEE_OTHER, [(header::LOCATION, "/ask")]).into_response();
     with_cookie(response, &id, new)
 }
 
@@ -306,5 +327,23 @@ mod tests {
             placed.href.as_deref(),
             Some("/domains/billing/pay-invoice/by-card")
         );
+    }
+
+    // spec: WAK-20 (internal: 33 sessions through the router would only count cookies)
+    #[test]
+    fn past_the_bound_the_session_used_least_recently_is_dropped() {
+        let mut sessions = Sessions::default();
+        let (first, _, _) = sessions.open(None);
+        let (second, _, _) = sessions.open(None);
+        for _ in 2..MAX_SESSIONS {
+            sessions.open(None);
+        }
+        // The first, used again, is no longer the least recent: the second goes.
+        assert!(!sessions.open(Some(&first)).2);
+        sessions.open(None);
+
+        assert!(!sessions.open(Some(&first)).2);
+        assert!(sessions.open(Some(&second)).2);
+        assert_eq!(sessions.0.len(), MAX_SESSIONS);
     }
 }

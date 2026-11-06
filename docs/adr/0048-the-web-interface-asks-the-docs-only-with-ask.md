@@ -1,6 +1,6 @@
 # 0048. The web interface asks the docs only with `--ask`
 
-Status: Proposed
+Status: Accepted
 
 ## Context
 

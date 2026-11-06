@@ -195,6 +195,7 @@ ul.hits { list-style: none; padding-left: 0; }
 .edit-fields button { align-self: flex-start; }
 
 /* The ask page (`specs/web-ask.md`). */
+.top .ask-link { font-weight: 600; }
 .exchange { border-left: 3px solid var(--gold-dark); padding: 0.25rem 0 0.25rem 1rem; margin: 1rem 0; }
 .exchange h3 { font-size: 1rem; margin: 0.75rem 0 0.25rem; }
 form.ask { display: flex; flex-direction: column; gap: 0.5rem; margin: 1rem 0 0.5rem; }

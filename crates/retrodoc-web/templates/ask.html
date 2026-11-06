@@ -12,4 +12,7 @@
   <button type="submit">{{ t.ask.send }}</button>
 </form>
 <p id="ask-waiting" class="htmx-indicator">{{ t.ask.waiting }}</p>
+<form method="post" action="/ask/reset">
+  <button type="submit">{{ t.ask.start_over }}</button>
+</form>
 {% endblock %}

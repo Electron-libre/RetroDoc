@@ -57,6 +57,7 @@ impl Site {
             read: reference_pages(texts, Group::Read),
             look_up: reference_pages(texts, Group::LookUp),
             audit: reference_pages(texts, Group::Audit),
+            ask: false,
             tree: docs.as_ref().map(tree).unwrap_or_default(),
         };
         // The files the debt lists are served too, though no doc cites them (`specs/debt-view.md`).
@@ -151,6 +152,13 @@ impl Site {
     #[must_use]
     pub fn links(&self) -> &DocLinks {
         &self.links
+    }
+
+    /// The site whose header links to the ask page when `ask` (WEB-101).
+    #[must_use]
+    pub fn with_ask_link(mut self, ask: bool) -> Self {
+        self.shell.ask = ask;
+        self
     }
 
     /// The fixed text of the pages, in the language of the docs.
@@ -286,6 +294,8 @@ pub struct Shell {
     pub look_up: Vec<&'static ReferencePage>,
     /// The pages one audits the docs with: the debt, the dashboard.
     pub audit: Vec<&'static ReferencePage>,
+    /// Whether the header links to the ask page (`retrodoc ui --ask`, WEB-101).
+    pub ask: bool,
     pub tree: Vec<TreeDomain>,
 }
 

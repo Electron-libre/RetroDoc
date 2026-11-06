@@ -32,6 +32,7 @@ pub mod texts;
 pub mod trends;
 pub mod view;
 
+use std::future::Future;
 use std::net::IpAddr;
 use std::path::Path;
 use std::sync::Arc;
@@ -48,7 +49,7 @@ use retrodoc_mcp::{ExistingDoc, GeneratedDocs};
 use retrodoc_render::DocLinks;
 use tokio::net::TcpListener;
 
-pub use ask::Asking;
+pub use ask::{Asking, MAX_EXCHANGES, MAX_SESSIONS};
 use view::Site;
 
 /// The documented application, as every page names it.
@@ -95,12 +96,13 @@ impl LiveSite {
         docs: Option<GeneratedDocs>,
         links: DocLinks,
         collected: Vec<ExistingDoc>,
+        ask: bool,
     ) -> Self {
         let root = docs
             .as_ref()
             .and_then(GeneratedDocs::repo_root)
             .map(Path::to_path_buf);
-        let site = Site::new(project.clone(), docs, links, collected);
+        let site = Site::new(project.clone(), docs, links, collected).with_ask_link(ask);
         let rebuild = move |site: &Site, edits| {
             Site::new(
                 project.clone(),
@@ -108,6 +110,7 @@ impl LiveSite {
                 site.links().clone(),
                 site.collected().to_vec(),
             )
+            .with_ask_link(ask)
         };
         Self(Arc::new(Live::new(
             site,
@@ -138,7 +141,7 @@ pub fn router_with(
     collected: Vec<ExistingDoc>,
     asking: Option<Asking>,
 ) -> Router {
-    let live = LiveSite::new(project, docs, links, collected);
+    let live = LiveSite::new(project, docs, links, collected, asking.is_some());
     let pages = Router::new()
         .route("/", get(pages::home))
         .route(
@@ -237,7 +240,8 @@ fn same_origin(headers: &HeaderMap) -> bool {
     }
 }
 
-/// Serves the interface on `listener` until the process stops.
+/// Serves the interface on `listener`, with the ask page when `asking` is given, until
+/// `shutdown` completes; the requests in flight are answered first.
 ///
 /// # Errors
 ///
@@ -248,6 +252,13 @@ pub async fn serve(
     docs: Option<GeneratedDocs>,
     links: DocLinks,
     collected: Vec<ExistingDoc>,
+    asking: Option<Asking>,
+    shutdown: impl Future<Output = ()> + Send + 'static,
 ) -> std::io::Result<()> {
-    axum::serve(listener, router(project, docs, links, collected)).await
+    axum::serve(
+        listener,
+        router_with(project, docs, links, collected, asking),
+    )
+    .with_graceful_shutdown(shutdown)
+    .await
 }

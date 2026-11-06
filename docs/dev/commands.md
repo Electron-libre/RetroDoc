@@ -48,6 +48,7 @@ cargo run -p retrodoc-cli -- scan --path <target-repo>
 cargo run -p retrodoc-cli -- generate --path <target-repo> --estimate   # calls and tokens expected, no LLM call
 OPENROUTER_API_KEY=... cargo run -p retrodoc-cli -- generate --path <target-repo>
 cargo run -p retrodoc-cli -- ui --path <target-repo>   # then open the URL it prints (127.0.0.1:8730)
+cargo run -p retrodoc-cli -- ui --ask --path <target-repo>   # with the ask page, LLM calls of the pass `ask` (needs the API key)
 ```
 
 API keys may live in a git-ignored `.env` (read by the CLI at startup, `dotenvy`; variables already set win).

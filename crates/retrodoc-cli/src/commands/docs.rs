@@ -276,12 +276,14 @@ pub fn project_docs(
     Ok(without_generated(docs, config))
 }
 
+/// Why a command that reads the generated docs stops before a first `generate`.
+pub const NO_DOCS: &str = "no features/use cases found — run `retrodoc generate` first";
+
 /// The generated docs the `search` and `mcp` commands answer from: the
 /// artifacts of the last `generate` run and the project's own Markdown docs.
 pub fn load_docs(workspace: &super::workspace::Workspace) -> anyhow::Result<retrodoc_mcp::Docs> {
     let docs = project_docs(&workspace.repo_root, &workspace.config)?;
-    retrodoc_mcp::Docs::load(&workspace.repo_root, &docs)
-        .context("no features/use cases found — run `retrodoc generate` first")
+    retrodoc_mcp::Docs::load(&workspace.repo_root, &docs).context(NO_DOCS)
 }
 
 #[cfg(test)]

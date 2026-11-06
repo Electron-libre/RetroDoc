@@ -1,6 +1,6 @@
 ---
 id: WAK
-status: draft
+status: accepted
 adrs: [0039, 0047, 0048]
 ---
 

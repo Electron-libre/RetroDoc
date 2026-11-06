@@ -188,14 +188,22 @@ enum Command {
     },
     /// Serves the generated documentation in a local web interface: the
     /// domains, features and use cases of the last `generate` run, each with a
-    /// form to review it (saved in `.retrodoc/reviews.json`, the only write).
-    /// No LLM call; the URL is printed at start.
+    /// form to review and edit it (saved in `.retrodoc/reviews.json` and
+    /// `.retrodoc/edits.json`). No LLM call unless `--ask`; the URL is printed
+    /// at start.
     Ui {
         #[arg(long, default_value = ".")]
         path: PathBuf,
         /// Address to listen on (`127.0.0.1:0` picks a free port).
         #[arg(long, default_value = commands::ui::DEFAULT_BIND)]
         bind: std::net::SocketAddr,
+        /// Serve an ask page that questions the docs with the LLM, like
+        /// `chat`, with the settings of `[llm.passes.ask]`.
+        #[arg(long)]
+        ask: bool,
+        /// With `--ask`, rounds of tool calls per question before the LLM must answer.
+        #[arg(long, default_value_t = retrodoc_agent::DEFAULT_MAX_ROUNDS)]
+        max_rounds: usize,
     },
     /// Prints the application surface (entities, entry points by resource)
     /// from the saved artifacts, before the entry points `generate` leaves
@@ -313,6 +321,9 @@ impl Command {
             Command::Actors { path, .. } => Some(("actors", path.clone())),
             Command::Ask { path, .. } => Some(("ask", path.clone())),
             Command::Chat { path, .. } => Some(("chat", path.clone())),
+            Command::Ui {
+                path, ask: true, ..
+            } => Some(("ui", path.clone())),
             Command::Benchmark {
                 path, judge: true, ..
             } => Some(("benchmark", path.clone())),
@@ -387,7 +398,15 @@ async fn main() -> anyhow::Result<()> {
             commands::benchmark::table(&dir, previous.as_deref())
         }
         Command::Mcp { path } => commands::mcp::run(&path).await,
-        Command::Ui { path, bind } => commands::ui::run(&path, bind).await,
+        Command::Ui {
+            path,
+            bind,
+            ask,
+            max_rounds,
+        } => {
+            let ask = ask.then_some(max_rounds);
+            commands::ui::run(&path, bind, ask, &tracker).await
+        }
         Command::Ask {
             question,
             path,

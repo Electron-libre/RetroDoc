@@ -2,27 +2,45 @@ use std::net::SocketAddr;
 use std::path::Path;
 
 use anyhow::Context;
+use retrodoc_llm::UsageTracker;
 use retrodoc_mcp::GeneratedDocs;
-use retrodoc_web::Project;
+use retrodoc_web::{Asking, Project};
 
 use super::brief;
-use super::docs::{item_doc_links, project_docs};
+use super::docs::{item_doc_links, project_docs, NO_DOCS};
 use super::workspace::Workspace;
+use super::{passes, usage};
 
 /// Where `retrodoc ui` listens without `--bind`: this machine only.
 pub const DEFAULT_BIND: &str = "127.0.0.1:8730";
 
-/// Serves the generated docs as a web interface on `bind` until stopped;
-/// makes no LLM call and writes nothing but the reviews its forms send
-/// (`.retrodoc/reviews.json`). The docs and the git history that
-/// ranks their debt are read once, here, the docs rebuilt when the human edits
-/// saved beside them change: a repository with no run yet gets a page saying
-/// to run `generate`.
-pub async fn run(path: &Path, bind: SocketAddr) -> anyhow::Result<()> {
+/// Serves the generated docs as a web interface on `bind` until Ctrl-C;
+/// makes no LLM call, unless `ask` gives the rounds of the ask page
+/// (`specs/web-ask.md`), and writes nothing but the reviews and edits its
+/// forms send. The docs and the git history that ranks their debt are read
+/// once, here, the docs rebuilt when the human edits saved beside them change:
+/// a repository with no run yet gets a page saying to run `generate`, but
+/// with `ask` it fails, as `ask` does, before it listens; so does a missing
+/// key of the pass `ask`, whose calls `tracker` counts.
+pub async fn run(
+    path: &Path,
+    bind: SocketAddr,
+    ask: Option<usize>,
+    tracker: &UsageTracker,
+) -> anyhow::Result<()> {
     let workspace = Workspace::open(path)?;
     let docs = project_docs(&workspace.repo_root, &workspace.config)?;
     let generated = GeneratedDocs::load(&workspace.repo_root, &docs)
         .map(|generated| generated.reconciled(&docs).with_history());
+    let asking = match ask {
+        Some(max_rounds) => {
+            anyhow::ensure!(generated.is_some(), NO_DOCS);
+            let llm = usage::pass_provider(&workspace.config, tracker, passes::ASK)?;
+            tracker.set_pass(passes::ASK);
+            Some(Asking { llm, max_rounds })
+        }
+        None => None,
+    };
     let links = item_doc_links(generated.as_ref(), &workspace.config);
     let project = project(&workspace);
     if generated.is_none() {
@@ -36,7 +54,10 @@ pub async fn run(path: &Path, bind: SocketAddr) -> anyhow::Result<()> {
         .with_context(|| format!("could not listen on {bind}"))?;
     let address = listener.local_addr()?;
     println!("Serving the docs at http://{address}/ (Ctrl+C to stop)");
-    retrodoc_web::serve(listener, project, generated, links, docs)
+    let interrupt = async {
+        let _ = tokio::signal::ctrl_c().await;
+    };
+    retrodoc_web::serve(listener, project, generated, links, docs, asking, interrupt)
         .await
         .context("the web server stopped")
 }

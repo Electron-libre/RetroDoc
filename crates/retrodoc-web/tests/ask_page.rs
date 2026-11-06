@@ -383,3 +383,62 @@ async fn the_ask_page_is_in_french_with_a_french_language() {
     );
     assert!(exchange.contains("confiance faible (20 %)"), "{exchange}");
 }
+
+// spec: WEB-101
+#[tokio::test]
+async fn the_header_links_to_the_ask_page_only_with_ask() {
+    let dir = generated_repo();
+    let llm: Arc<dyn LlmProvider> = navigating();
+
+    let with = body(send(&router(dir.path(), Some(llm)), get_request("/", None)).await).await;
+    let without = body(send(&router(dir.path(), None), get_request("/", None)).await).await;
+
+    let header = &with[..with.find("</header>").unwrap()];
+    assert!(header.contains("href=\"/ask\""), "{header}");
+    assert!(!without.contains("href=\"/ask\""), "{without}");
+}
+
+// spec: WAK-22
+#[tokio::test]
+async fn starting_over_empties_the_exchanges_and_the_conversation() {
+    let dir = generated_repo();
+    let llm = navigating();
+    let router = router(dir.path(), Some(llm.clone()));
+    let (cookie, _) = ask(&router, "How are the orders listed?", None).await;
+    let page = body(send(&router, get_request("/ask", Some(&cookie))).await).await;
+    assert!(page.contains("action=\"/ask/reset\""), "{page}");
+
+    let response = send(
+        &router,
+        post_request("/ask/reset", "", Some(&cookie), false),
+    )
+    .await;
+    ask(&router, "By whom?", Some(&cookie)).await;
+
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+    assert_eq!(response.headers()[header::LOCATION], "/ask");
+    assert_eq!(last_roles(&llm), [Role::System, Role::User]);
+    let page = body(send(&router, get_request("/ask", Some(&cookie))).await).await;
+    assert!(!page.contains("How are the orders listed?"), "{page}");
+    assert!(page.contains("By whom?"), "{page}");
+}
+
+// spec: WAK-21
+#[tokio::test]
+async fn a_session_keeps_its_last_exchanges_for_its_page() {
+    let dir = generated_repo();
+    let router = router(dir.path(), Some(Arc::new(FakeLlm::answering("Yes."))));
+    let (cookie, _) = ask(&router, "Question 0?", None).await;
+    for n in 1..=retrodoc_web::MAX_EXCHANGES {
+        ask(&router, &format!("Question {n}?"), Some(&cookie)).await;
+    }
+
+    let page = body(send(&router, get_request("/ask", Some(&cookie))).await).await;
+
+    assert_eq!(
+        page.matches("class=\"exchange\"").count(),
+        retrodoc_web::MAX_EXCHANGES
+    );
+    assert!(!page.contains("Question 0?"), "{page}");
+    assert!(page.contains("Question 1?"), "{page}");
+}

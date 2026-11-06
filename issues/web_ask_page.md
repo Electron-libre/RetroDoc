@@ -58,11 +58,11 @@ the pass `ask` and saved when Ctrl-C stops `ui`. Out of scope: the steps and cos
    `/ask` page and `POST /ask` (htmx fragment or 303), answer Markdown, sources as links, warnings, error exchange,
    blank question 400, waiting indicator, session cookie, English and French texts; verified by router
    tests with the fake provider (TCL-10); makes true WAK-2, WAK-6 to WAK-19. (autonomous)
-2. [ ] Sessions bounded, start over and the header link (WEB-101), `retrodoc ui --ask` in the CLI: 32 sessions least recently used dropped, 50
+2. [x] Sessions bounded, start over and the header link (WEB-101), `retrodoc ui --ask` in the CLI: 32 sessions least recently used dropped, 50
    exchanges kept, `POST /ask/reset`; the flag building the provider of the pass `ask`, failing at start with no
    docs or no key, the pass `ask` counted, graceful stop on Ctrl-C with the recap saved under `ui`; verified by binary
    tests with the fake LLM server (`tests/support`); makes true WAK-1, WAK-3 to WAK-5,
-   WAK-20 to WAK-24.
+   WAK-20 to WAK-24. (autonomous)
 3. [ ] Docs of the whole issue and fixes of the `high` review (`docs/crates/render-mcp-cli.md`, `docs/ARCHITECTURE.md`,
    README, CLAUDE.md diagram); verified by `project-check` and the review.
 
@@ -91,3 +91,14 @@ the pass `ask` and saved when Ctrl-C stops `ui`. Out of scope: the steps and cos
 - not verified: the page in a real browser (htmx indicator, swap); done with deliverable 2, once `ui --ask` exists.
 - decisions needed: none.
 
+
+## Deliverable 2
+- done: `retrodoc ui --ask [--max-rounds N]` builds the provider of the pass `ask`, fails at start with no docs or no
+  key, stops gracefully on Ctrl-C with the recap saved under `ui`; 32 sessions and 50 exchanges kept, `POST
+  /ask/reset`, the header link (WEB-101); `specs/web-ask.md` and ADR 0048 accepted; the docs of deliverable 1 applied.
+- red: WAK-3, WAK-4, WAK-5, WAK-23, WAK-24: `error: unexpected argument '--ask' found`.
+- checks: project-check passed; deliverable-size 456; check-specs clean, spec accepted.
+- Code review: 1 findings
+  - `NO_DOCS` split the doc comment of `load_docs`: fixed.
+- not verified: the page in a real browser (htmx indicator, swap, reset): asked at the end of the issue.
+- decisions needed: none.

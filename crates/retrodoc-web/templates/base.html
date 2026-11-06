@@ -23,6 +23,7 @@
       <span class="group">{{ t.audit }}</span>
       {% for page in shell.audit %}<a href="{{ page.href }}" title="{{ page.hint }}">{{ page.name }}</a>{% endfor %}
     </nav>
+    {% if shell.ask %}<a class="ask-link" href="/ask" title="{{ t.ask.hint }}">{{ t.ask.link }}</a>{% endif %}
     <form class="search" role="search" action="/search" method="get" hx-get="/search" hx-target="#search-results">
       <input type="search" name="q" value="{% block query %}{% endblock %}" placeholder="{{ t.search_docs }}" aria-label="{{ t.search_docs }}">
     </form>
