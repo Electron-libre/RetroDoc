@@ -325,3 +325,82 @@ async fn every_page_swaps_an_html_error_and_shows_any_other_in_a_notice() {
         assert!(script.contains(part), "{part} in {script}");
     }
 }
+
+/// The section of `page` whose opening tag starts with `opening`, up to its end.
+fn section<'a>(page: &'a str, opening: &str) -> &'a str {
+    let start = page
+        .find(opening)
+        .unwrap_or_else(|| panic!("no {opening} in {page}"));
+    let end = start + page[start..].find("</section>").unwrap();
+    &page[start..end]
+}
+
+const REVIEW: &str = "<section class=\"review\"";
+const EDIT: &str = "<section class=\"edit-form\"";
+
+fn notice(text: &str) -> String {
+    format!("<p class=\"notice\" role=\"status\">{text}</p>")
+}
+
+// spec: WEB-103
+#[tokio::test]
+async fn a_saved_review_says_so_in_its_form() {
+    let dir = generated_repo();
+    let root = dir.path();
+
+    let (status, body) = post_htmx(root, "/domains/billing", "status=wrong", Some("en")).await;
+
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert!(
+        form(&body, "<form").contains(&notice("Review saved.")),
+        "{body}"
+    );
+    let page = get(root, "/domains/billing").await;
+    assert!(!page.contains("class=\"notice\""), "{page}");
+}
+
+// spec: WEB-104
+#[tokio::test]
+async fn a_page_asked_after_a_save_says_what_was_saved() {
+    let dir = generated_repo();
+    let root = dir.path();
+    for path in [
+        "/domains/billing",
+        "/domains/billing/pay-invoice",
+        "/domains/billing/pay-invoice/pay-by-card",
+    ] {
+        let page = get(root, &format!("{path}?saved=review")).await;
+        assert!(
+            section(&page, REVIEW).contains(&notice("Review saved.")),
+            "{page}"
+        );
+        assert!(!section(&page, EDIT).contains("class=\"notice\""), "{page}");
+
+        let page = get(root, &format!("{path}?saved=edit")).await;
+        let edit = section(&page, EDIT);
+        assert!(
+            form(edit, "<form").contains(&notice("Edit saved.")),
+            "{edit}"
+        );
+        // Folded, the form would hide the notice.
+        assert!(edit.contains("<details open>"), "{edit}");
+        assert!(
+            !section(&page, REVIEW).contains("class=\"notice\""),
+            "{page}"
+        );
+
+        let page = get(root, &format!("{path}?saved=other")).await;
+        assert!(!page.contains("class=\"notice\""), "{page}");
+    }
+}
+
+// spec: WEB-77, WEB-104
+#[tokio::test]
+async fn the_saved_notices_are_worded_in_french() {
+    let dir = generated_repo();
+    let root = dir.path();
+    let (_, page) = get_in(root, "/domains/billing?saved=review", Some("fr")).await;
+    assert!(page.contains(&notice("Revue enregistrée.")), "{page}");
+    let (_, page) = get_in(root, "/domains/billing?saved=edit", Some("fr")).await;
+    assert!(page.contains(&notice("Correction enregistrée.")), "{page}");
+}

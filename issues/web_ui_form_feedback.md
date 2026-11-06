@@ -67,10 +67,10 @@ the page) and the review fragment.
    rendered there; the ask refusals answered as the error fragment with `HX-Retarget`/`HX-Reswap`; one page-wide
    `before-swap`/`response-error` rule in `base.html` and a page notice region, the inline hooks removed; verified by
    tests of the answers (status, headers, fields kept) and of the base markup; makes true WEB-105, WEB-106, WAK-40. (autonomous)
-3. [ ] Saved: `?saved=review|edit` on the `303` and `HX-Redirect`, the notice in the review fragment and on the pages
+3. [x] Saved: `?saved=review|edit` on the `303` and `HX-Redirect`, the notice in the review fragment and on the pages
    (fades by CSS, the parameter dropped from the address bar once shown), texts EN/FR, `docs/dev/web-ui.md` states and
    screenshots; verified by tests of the redirects and of the pages with and without `?saved`; makes true WEB-83,
-   WEB-97 (amended), WEB-103, WEB-104.
+   WEB-97 (amended), WEB-103, WEB-104. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -99,3 +99,17 @@ the page) and the review fragment.
   `/assets/forms.js` in the page; `hx-retarget` header missing on the ask refusals.
 - Code review: no findings
 - not verified: in a browser (driven with deliverable 3).
+
+## Deliverable 3: saved
+- done: `?saved=review|edit` on the `303` and the `HX-Redirect`; the notice (`.notice`, fades out in 4 s, EN/FR) in
+  the review answered after a save and in the form the page names; the edit form unfolded to show it; `forms.js`
+  drops the parameter from the address bar; specs back to `accepted`.
+- checks: tests ok, clippy ok, specs ok (WEB-83, WEB-97, WEB-103, WEB-104 traced), docs (`docs/dev/web-ui.md`,
+  `docs/crates/render-mcp-cli.md`).
+- red: WEB-83, WEB-97, WEB-103, WEB-104: `Location` `/domains/billing` instead of `/domains/billing?saved=review`,
+  `HX-Redirect` without `?saved=edit`, no `<p class="notice" role="status">` in the forms.
+- Code review: no findings
+- verified in headless Chrome on a copy of the English `delivery_router` run: indicator, review saved and faded,
+  review refused with its comment kept, edit saved with `?saved` dropped, plain 404 in the page notice, blank question
+  refused with the question kept (shots in `~/retrodoc-runs/screenshots/form-feedback`).
+- not verified: a real slow request (the indicator was forced by its class).

@@ -7,6 +7,7 @@
 {% macro edited_badge(edited) %}{% if edited %} <span class="badge edited">{{ t.edit.badge }}</span>{% endif %}{% endmacro %}
 
 {% macro form_error(error) %}{% if let Some(error) = error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}{% endmacro %}
+{% macro notice(shown, text) %}{% if shown %}<p class="notice" role="status">{{ text }}</p>{% endif %}{% endmacro %}
 {% macro review_badge(review) %}{% if let Some(badge) = review %} <span class="badge review {{ badge.class }}">{{ t.review.status(*badge.status) }}</span>{% if badge.outdated %} <span class="badge review outdated">{{ t.review.outdated_badge }}</span>{% endif %}{% endif %}{% endmacro %}
 
 {% macro outdated(outdated) %}{% if let Some(o) = outdated %}{% let words = o.texts(t) %}<span class="why outdated">{{ words.heading }}{{ t.colon }} {% if o.rewritten %}{{ words.rewritten }}{% if !o.changed.is_empty() %}; {% endif %}{% endif %}{% if !o.changed.is_empty() %}{{ words.files_changed }} {% for file in o.changed %}<code>{{ file.path }}</code> ({% if file.deleted %}{{ t.deleted }}{% else %}{{ t.modified }}{% endif %}){% if !loop.last %}, {% endif %}{% endfor %}{% endif %}</span>{% endif %}{% endmacro %}

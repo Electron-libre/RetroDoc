@@ -340,6 +340,8 @@ pub struct EditTexts {
     /// Under the fields: what an empty one or one left as generated does.
     pub form_hint: &'static str,
     pub save: &'static str,
+    /// The notice of a save.
+    pub saved: &'static str,
     /// The button that removes the edit.
     pub revert: &'static str,
 }
@@ -368,6 +370,8 @@ pub struct ReviewTexts {
     pub no_status: &'static str,
     pub comment: &'static str,
     pub save: &'static str,
+    /// The notice of a save.
+    pub saved: &'static str,
     pub outdated: OutdatedTexts,
     /// Beside the badge of an outdated review in a list.
     pub outdated_badge: &'static str,
@@ -699,6 +703,7 @@ impl WebTexts {
             no_status: "No review",
             comment: "Comment",
             save: "Save",
+            saved: "Review saved.",
             outdated: OutdatedTexts {
                 heading: "Outdated review",
                 rewritten: "section rewritten since the review",
@@ -728,6 +733,7 @@ impl WebTexts {
             labels: ["Name", "Description", "Narrative"],
             form_hint: "An empty field, or one left as generated, keeps the generated text.",
             save: "Save the edit",
+            saved: "Edit saved.",
             revert: "Back to the generated text",
         },
         ask: AskTexts {
@@ -1071,6 +1077,7 @@ impl WebTexts {
             no_status: "Pas de relecture",
             comment: "Commentaire",
             save: "Enregistrer",
+            saved: "Revue enregistrée.",
             outdated: OutdatedTexts {
                 heading: "Relecture périmée",
                 rewritten: "section réécrite depuis la relecture",
@@ -1100,6 +1107,7 @@ impl WebTexts {
             labels: ["Nom", "Description", "Récit"],
             form_hint: "Un champ vide, ou laissé tel que généré, garde le texte généré.",
             save: "Enregistrer la correction",
+            saved: "Correction enregistrée.",
             revert: "Revenir au texte généré",
         },
         ask: AskTexts {

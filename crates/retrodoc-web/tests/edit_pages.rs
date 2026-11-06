@@ -415,11 +415,12 @@ async fn a_saved_edit_reloads_the_page() {
 
     let htmx = post(root, &format!("/edit{FEATURE}"), form, true).await;
     assert_eq!(htmx.status, StatusCode::OK, "{}", htmx.body);
-    assert_eq!(htmx.redirect.as_deref(), Some(FEATURE));
+    let saved = format!("{FEATURE}?saved=edit");
+    assert_eq!(htmx.redirect.as_deref(), Some(saved.as_str()));
 
     let plain = post(root, &format!("/edit{FEATURE}"), form, false).await;
     assert_eq!(plain.status, StatusCode::SEE_OTHER);
-    assert_eq!(plain.location.as_deref(), Some(FEATURE));
+    assert_eq!(plain.location.as_deref(), Some(saved.as_str()));
     assert!(get(root, FEATURE)
         .await
         .contains("<h1>Settle an invoice</h1>"));

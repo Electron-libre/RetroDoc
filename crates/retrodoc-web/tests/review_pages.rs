@@ -534,7 +534,10 @@ async fn an_htmx_post_gets_the_review_alone_and_another_a_redirect_to_the_page()
 
     let redirected = post(root, "/domains/billing", "status=validated&comment=", false).await;
     assert_eq!(redirected.status, StatusCode::SEE_OTHER);
-    assert_eq!(redirected.location.as_deref(), Some("/domains/billing"));
+    assert_eq!(
+        redirected.location.as_deref(),
+        Some("/domains/billing?saved=review")
+    );
 }
 
 // spec: WEB-84

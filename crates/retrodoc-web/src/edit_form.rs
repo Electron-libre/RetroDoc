@@ -49,6 +49,8 @@ pub struct EditFormView {
     pub edited: bool,
     /// Why the last save failed, the fields kept as sent.
     pub error: Option<String>,
+    /// Whether the form says that the edit was saved (WEB-104).
+    pub saved: bool,
 }
 
 impl EditFormView {
@@ -64,6 +66,7 @@ impl EditFormView {
             narrative: is_use_case(place).then(|| shown.narrative.unwrap_or_default()),
             edited: is_edited(docs, place),
             error: None,
+            saved: false,
         }
     }
 
@@ -75,12 +78,18 @@ impl EditFormView {
             narrative: is_use_case(place).then(|| form.narrative.clone().unwrap_or_default()),
             edited,
             error: Some(error),
+            saved: false,
         }
     }
 }
 
 fn action(place: &Place) -> String {
     format!("/edit{}", place.href())
+}
+
+/// The page of the section at `place`, asked to say that its edit was saved (WEB-97, WEB-104).
+fn saved_href(place: &Place) -> String {
+    format!("{}?saved=edit", place.href())
 }
 
 fn is_use_case(place: &Place) -> bool {
@@ -219,11 +228,13 @@ async fn save(site: Arc<Site>, place: Place, headers: &HeaderMap, form: EditForm
     };
     match saved {
         Ok((Saved::Done, _)) if htmx => {
-            (StatusCode::OK, [("HX-Redirect", place.href())]).into_response()
+            (StatusCode::OK, [("HX-Redirect", saved_href(&place))]).into_response()
         }
-        Ok((Saved::Done, _)) => {
-            (StatusCode::SEE_OTHER, [(header::LOCATION, place.href())]).into_response()
-        }
+        Ok((Saved::Done, _)) => (
+            StatusCode::SEE_OTHER,
+            [(header::LOCATION, saved_href(&place))],
+        )
+            .into_response(),
         Ok((Saved::NotFound, form)) if htmx => failed(
             StatusCode::NOT_FOUND,
             site.texts().errors.no_section.into(),

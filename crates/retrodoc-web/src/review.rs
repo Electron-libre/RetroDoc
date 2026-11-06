@@ -201,6 +201,8 @@ pub struct ReviewView {
     pub error: Option<String>,
     /// Why the review sent was refused or not saved, shown in the form above its buttons.
     pub form_error: Option<String>,
+    /// Whether the form says that the review was saved (WEB-103, WEB-104).
+    pub saved: bool,
     /// The status the form selects: that of the review, or the one sent by a save that failed.
     pub selected: Option<Status>,
     /// Why the review no longer vouches for the section as it is now.
@@ -244,6 +246,7 @@ impl ReviewView {
             date: review.reviewed_at.clone(),
             error: None,
             form_error: None,
+            saved: false,
             selected: Some(review.status),
             outdated: outdated.as_ref().map(OutdatedView::of),
         }

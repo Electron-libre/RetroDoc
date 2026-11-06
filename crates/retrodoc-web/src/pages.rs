@@ -262,13 +262,18 @@ pub(crate) fn read_failed(err: &JoinError) -> Response {
         .into_response()
 }
 
-pub async fn domain(State(site): State<Arc<Site>>, Path(slug): Path<String>) -> Response {
+pub async fn domain(
+    State(site): State<Arc<Site>>,
+    Path(slug): Path<String>,
+    RawQuery(query): RawQuery,
+) -> Response {
+    let after = AfterSave::of(query.as_deref());
     let page = blocking(&site, move |site| {
         site.docs().and_then(|docs| {
             let place = Place::Domain(slug.clone());
             let (reviews, review) = reviews_of(docs, &place);
             let edit = EditView::of(docs, &place, site.texts());
-            let edit_form = EditFormView::of(docs, &place);
+            let (review, edit_form) = after.shown(review, EditFormView::of(docs, &place));
             domain_page(docs, site.links(), &reviews, &slug)
                 .map(|page| (page, edit, review, edit_form))
         })
@@ -291,6 +296,34 @@ pub async fn domain(State(site): State<Arc<Site>>, Path(slug): Path<String>) -> 
     }
 }
 
+/// What the forms of a section saved, as the redirect after a save names it (`?saved=review`,
+/// `?saved=edit`), so that its page says so (WEB-104).
+#[derive(Debug)]
+struct AfterSave {
+    saved: Option<String>,
+}
+
+impl AfterSave {
+    fn of(query: Option<&str>) -> Self {
+        Self {
+            saved: query_value(query, "saved"),
+        }
+    }
+
+    /// `review` and `edit_form`, the one that was saved saying so.
+    fn shown(&self, review: ReviewView, edit_form: EditFormView) -> (ReviewView, EditFormView) {
+        let review = ReviewView {
+            saved: self.saved.as_deref() == Some("review"),
+            ..review
+        };
+        let edit_form = EditFormView {
+            saved: self.saved.as_deref() == Some("edit"),
+            ..edit_form
+        };
+        (review, edit_form)
+    }
+}
+
 /// The reviews of the repository of `docs`, none when they can't be read, and the review of the
 /// section at `place`, with the error when they can't.
 fn reviews_of(docs: &GeneratedDocs, place: &Place) -> (Reviews, ReviewView) {
@@ -302,7 +335,9 @@ fn reviews_of(docs: &GeneratedDocs, place: &Place) -> (Reviews, ReviewView) {
 pub async fn feature(
     State(site): State<Arc<Site>>,
     Path((domain, slug)): Path<(String, String)>,
+    RawQuery(query): RawQuery,
 ) -> Response {
+    let after = AfterSave::of(query.as_deref());
     let page = blocking(&site, move |site| {
         site.docs().and_then(|docs| {
             let place = Place::Feature {
@@ -311,7 +346,7 @@ pub async fn feature(
             };
             let (reviews, review) = reviews_of(docs, &place);
             let edit = EditView::of(docs, &place, site.texts());
-            let edit_form = EditFormView::of(docs, &place);
+            let (review, edit_form) = after.shown(review, EditFormView::of(docs, &place));
             feature_page(docs, site.links(), &reviews, &domain, &slug)
                 .map(|page| (page, edit, review, edit_form))
         })
@@ -337,7 +372,9 @@ pub async fn feature(
 pub async fn use_case(
     State(site): State<Arc<Site>>,
     Path((domain, feature, slug)): Path<(String, String, String)>,
+    RawQuery(query): RawQuery,
 ) -> Response {
+    let after = AfterSave::of(query.as_deref());
     let page = blocking(&site, move |site| {
         site.docs().and_then(|docs| {
             let place = Place::UseCase {
@@ -347,7 +384,7 @@ pub async fn use_case(
             };
             let review = ReviewView::of(docs, &review::load(docs), &place);
             let edit = EditView::of(docs, &place, site.texts());
-            let edit_form = EditFormView::of(docs, &place);
+            let (review, edit_form) = after.shown(review, EditFormView::of(docs, &place));
             use_case_page(docs, site.links(), &domain, &feature, &slug)
                 .map(|page| (page, edit, review, edit_form))
         })

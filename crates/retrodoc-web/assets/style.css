@@ -257,6 +257,11 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 /* Why a form was refused, above its buttons; why a request failed, at the top of the page. */
 .form-error, .page-error { margin: 0; padding: var(--space-2) var(--space-3); color: var(--text); font-size: var(--text-sm); background: var(--surface-2); border: 1px solid var(--gold-dark); border-left: 3px solid var(--gold); border-radius: var(--radius-sm); }
 .form-error:empty { display: none; }
+
+/* The notice of a save: shown, then faded out; it stays for a reader who asked for less motion. */
+.notice { margin: 0; color: var(--gold-light); font-size: var(--text-sm); animation: fade-out 4s ease-in forwards; }
+@keyframes fade-out { 0%, 75% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
+@media (prefers-reduced-motion: reduce) { .notice { animation: none; } }
 .page-error { margin-bottom: var(--space-4); }
 @media (prefers-reduced-motion: reduce) { .indicator::before { animation: none; } }
 

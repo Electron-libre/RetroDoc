@@ -18,6 +18,7 @@
   </select></label>
   <label class="field wide"><span class="field-label">{{ t.review.comment }}</span> <textarea name="comment" rows="2">{{ review.comment }}</textarea></label>
   {% call m::form_error(review.form_error) %}{% endcall %}
+  {% call m::notice(review.saved, t.review.saved) %}{% endcall %}
   <button type="submit">{{ t.review.save }}</button>
   <span class="indicator" role="status">{{ t.saving }}</span>
 </form>

@@ -1,6 +1,6 @@
 {%- import "macros.html" as m -%}
 <section class="edit-form" id="edit-form">
-<details{% if edit_form.error.is_some() %} open{% endif %}>
+<details{% if edit_form.error.is_some() || edit_form.saved %} open{% endif %}>
 <summary>{{ t.edit.form_heading }}</summary>
 <form class="edit-fields" method="post" action="{{ edit_form.action }}" hx-post="{{ edit_form.action }}" hx-target="closest section" hx-swap="outerHTML" hx-indicator="find .indicator" hx-disabled-elt="find button">
   <label class="field"><span class="field-label">{{ t.edit.labels[0] }}</span> <input name="name" value="{{ edit_form.name }}"></label>
@@ -8,6 +8,7 @@
   {% if let Some(narrative) = edit_form.narrative %}<label class="field"><span class="field-label">{{ t.edit.labels[2] }}</span> <textarea name="narrative" rows="8">{{ narrative }}</textarea></label>{% endif %}
   <p class="hint">{{ t.edit.form_hint }}</p>
   {% call m::form_error(edit_form.error) %}{% endcall %}
+  {% call m::notice(edit_form.saved, t.edit.saved) %}{% endcall %}
   <div class="actions">
     <button type="submit">{{ t.edit.save }}</button>
     {% if edit_form.edited %}<button type="submit" name="action" value="revert" class="quiet">{{ t.edit.revert }}</button>{% endif %}

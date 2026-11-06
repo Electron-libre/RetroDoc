@@ -127,11 +127,15 @@ async fn save(site: Arc<Site>, place: Place, headers: &HeaderMap, form: ReviewFo
             StatusCode::OK,
             &ReviewFragment {
                 t: site.texts(),
-                review,
+                review: ReviewView {
+                    saved: true,
+                    ..review
+                },
             },
         ),
         Ok(Saved::Done(_)) => {
-            (StatusCode::SEE_OTHER, [(header::LOCATION, place.href())]).into_response()
+            let saved = format!("{}?saved=review", place.href());
+            (StatusCode::SEE_OTHER, [(header::LOCATION, saved)]).into_response()
         }
         // The fragment to `htmx`, which swaps an error too; the not-found page otherwise.
         Ok(Saved::NotFound) if htmx => {

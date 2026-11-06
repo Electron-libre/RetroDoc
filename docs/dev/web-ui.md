@@ -48,6 +48,7 @@ spacing steps `--space-1` to `--space-6`, the radius `--radius-sm`, `--radius`, 
 | empty state | `<p class="empty">` | a dashed frame, muted text |
 | form error | `{% call m::form_error(error) %}` above the buttons; `#ask-error` on the ask form | framed, the gold edge at its left; hidden when empty |
 | page error | `#page-error` at the top of `<main>`, filled by `assets/forms.js` | same frame, for an error answer that is not HTML |
+| notice | `{% call m::notice(saved, text) %}` above the buttons | gold-light word that fades out in 4 s (stays with reduced motion) |
 | indicator | `<span class="indicator" role="status">` in the form, `hx-indicator="find .indicator"` on it | hidden; a spinner and a muted word while the request runs |
 
 Tests find some forms and buttons by their exact markup (`<form class="filters"`, `<button type="submit" disabled>`):
@@ -55,8 +56,8 @@ add a variant class after the existing attributes.
 
 ## States of the forms
 
-Each form shows each state that applies to it; a cross marks the states it must show. Pending, saved and error are
-the work of `web_ui_form_feedback`.
+Each form shows each state that applies to it; a cross marks the states it must show. Their behaviour is WEB-102 to
+WEB-106 and WAK-40; `assets/forms.js` swaps the HTML error answers and drops `?saved` from the address bar.
 
 | form | page | rest | hover | focus | disabled | pending | saved | error |
 |---|---|---|---|---|---|---|---|---|
@@ -73,5 +74,5 @@ the work of `web_ui_form_feedback`.
 - **focus**: a 2 px gold outline on the control the keyboard reached (`:focus-visible`).
 - **disabled**: dimmed, the pointer not allowed, no hover.
 - **pending**: the request is running: the submit button disabled, an indicator shown.
-- **saved**: a short notice that the change was written.
+- **saved**: a short notice that the change was written, faded out after a few seconds.
 - **error**: the message beside the field, the input kept.
