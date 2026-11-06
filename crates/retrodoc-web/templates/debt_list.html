@@ -13,9 +13,9 @@
   <p class="muted">{{ note }}</p>
   {% endif %}
   {% if page.none_in_run %}
-  {% if !page.no_score %}<p>{{ t.debt.none }}</p>{% endif %}
+  {% if !page.no_score %}<p class="empty">{{ t.debt.none }}</p>{% endif %}
   {% else if page.items.is_empty() %}
-  <p>{{ t.debt.none_matches }}</p>
+  <p class="empty">{{ t.debt.none_matches }}</p>
   {% else %}
   <ul class="debt">
     {% for item in page.items %}

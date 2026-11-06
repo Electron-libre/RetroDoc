@@ -31,7 +31,7 @@
 </section>
 <h2>{{ t.domains }}</h2>
 {% if domains.is_empty() %}
-<p>{{ t.no_domain_generated }}</p>
+<p class="empty">{{ t.no_domain_generated }}</p>
 {% else %}
 <div class="cards">
   {% for domain in domains %}

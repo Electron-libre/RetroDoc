@@ -77,6 +77,19 @@
 {% endif %}
 {% endmacro %}
 
+{% macro filter_fields(filters) %}
+{% for filter in filters %}
+<label class="field"><span class="field-label">{{ filter.label }}</span>
+  <select name="{{ filter.name }}">
+    <option value="">{{ t.all }}</option>
+    {% for choice in filter.choices %}
+    <option value="{{ choice.value }}"{% if choice.selected %} selected{% endif %}>{{ choice.label }}</option>
+    {% endfor %}
+  </select>
+</label>
+{% endfor %}
+{% endmacro %}
+
 {% macro code_link(link) %}<a href="{{ link.href }}"><code>{{ link.label }}</code></a>{% endmacro %}
 
 {% macro pass_row(pass) %}

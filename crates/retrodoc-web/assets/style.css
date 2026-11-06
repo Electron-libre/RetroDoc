@@ -82,15 +82,21 @@ a:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 main { flex: 1; padding: 1rem 2rem; min-width: 0; }
 .muted { color: var(--text-muted); }
 table { border-collapse: collapse; width: 100%; }
-th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+th, td { text-align: left; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); vertical-align: top; }
+thead th { color: var(--text-muted); font-size: var(--text-sm); font-weight: 600; border-bottom-color: var(--text-muted); }
+/* A row lights up under the pointer, except in the heatmap and the code, whose cells carry their own colour. */
+table:not(.heatmap, .code) tbody tr:hover, table.files tr:hover { background: var(--surface); }
 td.count { text-align: right; }
 .badge {
   display: inline-block;
-  padding: 0 0.4rem;
-  border-radius: 0.6rem;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
   border: 1px solid var(--border);
   color: var(--text-muted);
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  white-space: nowrap;
+  vertical-align: 0.1em;
 }
 /* Low confidence and stale are warnings, not failures: no red, the label carries the meaning. */
 .badge.low, .badge.stale { color: var(--gold-light); border-color: var(--gold-dark); }
@@ -163,28 +169,20 @@ table.files td { padding: 0.1rem 0.5rem; }
 table.files tr.dir td:first-child { font-weight: 600; }
 .collected pre { overflow-x: auto; }
 .top form.search { margin-left: auto; }
-.top form.search input { padding: 0.25rem 0.5rem; min-width: 16rem; }
-input, select, textarea, button {
-  color: var(--text);
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 0.25rem;
-}
-input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible { outline: 1px solid var(--gold); }
+.top form.search input { min-width: 16rem; }
 #search-results:not(:empty) { padding: 0 1rem; border-bottom: 1px solid var(--border); }
 ul.hits { list-style: none; padding-left: 0; }
-.filters { display: flex; flex-wrap: wrap; gap: 1rem; align-items: end; margin-bottom: 1rem; }
-.filters label { display: flex; flex-direction: column; font-size: 0.9rem; }
 .matrix { overflow-x: auto; }
 .matrix th, .matrix td { white-space: nowrap; }
 
 /* The home page: the brief, where to start, the domains as cards. */
 .users ul { margin: 0.3rem 0; padding-left: 1.2rem; max-width: 48rem; }
 .start-links { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: 0.6rem; }
-.start-links li { background: var(--surface); border: 1px solid var(--border); border-radius: 0.4rem; padding: 0.5rem 0.7rem; }
+.start-links li { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-2) var(--space-3); }
 .start-links .hint { display: block; color: var(--text-muted); font-size: 0.9rem; }
-.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr)); gap: 0.8rem; }
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: 0.4rem; padding: 0.6rem 0.9rem; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr)); gap: var(--space-3); }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-3) var(--space-4); }
+.card:hover, .start-links li:hover { border-color: var(--text-muted); }
 .card h3 { margin: 0 0 0.3rem; font-size: 1.05rem; }
 .card .description { margin: 0 0 0.4rem; }
 .card .facts { margin: 0; display: flex; gap: 0.8rem; align-items: center; color: var(--text-muted); font-size: 0.9rem; }
@@ -207,13 +205,113 @@ ul.hits { list-style: none; padding-left: 0; }
 .review .comment { white-space: pre-wrap; }
 .badge.edited { color: var(--gold-light); border-color: var(--gold-dark); border-style: dashed; }
 .edit .generated dd { white-space: pre-wrap; margin: 0 0 0.5em 1em; }
-.edit-fields { display: flex; flex-direction: column; gap: 0.75rem; max-width: 48rem; }
-.edit-fields label { display: flex; flex-direction: column; font-size: 0.9rem; }
-.edit-fields button { align-self: flex-start; }
 
 /* The ask page (`specs/web-ask.md`). */
 .top .ask-link { font-weight: 600; }
 .exchange { border-left: 3px solid var(--gold-dark); padding: 0.25rem 0 0.25rem 1rem; margin: 1rem 0; }
 .exchange h3 { font-size: 1rem; margin: 0.75rem 0 0.25rem; }
-form.ask { display: flex; flex-direction: column; gap: 0.5rem; margin: 1rem 0 0.5rem; }
-form.ask textarea { width: 100%; }
+
+/* The components (`docs/dev/web-ui.md`): headings, buttons, fields, the forms that lay them out, the empty state. */
+h1 { font-size: var(--text-2xl); line-height: 1.2; margin: var(--space-2) 0 var(--space-3); }
+h2 { font-size: var(--text-xl); line-height: 1.25; margin: var(--space-6) 0 var(--space-3); }
+h3 { font-size: var(--text-lg); }
+
+/* Buttons: primary in gold for the one action of a form, secondary on the surface, quiet for the actions that
+   undo or go back (revert, start over). */
+button, .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--control-height);
+  padding: 0 var(--space-4);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  color: var(--bg);
+  background: var(--gold);
+  border: 1px solid var(--gold);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background-color 0.12s, border-color 0.12s, color 0.12s;
+}
+button:hover:not(:disabled), .button:hover { color: var(--bg); background: var(--gold-light); border-color: var(--gold-light); }
+:is(button, .button).secondary { color: var(--text); background: var(--surface-2); border-color: var(--border); }
+:is(button, .button).secondary:hover:not(:disabled) { color: var(--text); background: var(--surface-2); border-color: var(--text-muted); }
+:is(button, .button).quiet { color: var(--text-muted); background: transparent; border-color: transparent; font-weight: normal; }
+:is(button, .button).quiet:hover:not(:disabled) { color: var(--text); background: transparent; border-color: var(--border); }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Fields: the label above the control, the hint below. */
+input, select, textarea {
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  min-height: var(--control-height);
+  padding: var(--space-1) var(--space-3);
+  transition: border-color 0.12s;
+}
+textarea { padding: var(--space-2) var(--space-3); line-height: 1.5; resize: vertical; width: 100%; }
+/* The arrow of a select, drawn in the muted text colour. */
+select {
+  appearance: none;
+  padding-right: var(--space-6);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%239b978e' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--space-3) center;
+  cursor: pointer;
+}
+input::placeholder, textarea::placeholder { color: var(--text-muted); }
+:is(input, select, textarea):hover:not(:disabled) { border-color: var(--text-muted); }
+:is(input, select, textarea, button, .button, summary):focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+:is(input, select, textarea):disabled { opacity: 0.45; cursor: not-allowed; }
+.field { display: flex; flex-direction: column; gap: var(--space-1); }
+.field-label { font-size: var(--text-sm); font-weight: 600; }
+.hint { color: var(--text-muted); font-size: var(--text-xs); }
+.field .hint, form > .hint { margin: 0; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+
+/* The forms: filters and run comparison on one line, review on one line with the comment wider, edit and ask
+   in a column. The review and the edit forms sit in a panel. */
+.filters, form.compare { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3) var(--space-4); margin: var(--space-3) 0 var(--space-5); }
+.filters .field.wide { flex: 1 1 20rem; max-width: 36rem; }
+.filters .field.wide textarea { min-height: var(--control-height); }
+section.review, section.edit-form {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+  margin: var(--space-4) 0;
+}
+section.review > p:first-child { margin-top: 0; }
+section.review form.filters { margin-bottom: 0; }
+section.edit-form summary { cursor: pointer; font-weight: 600; }
+.edit-fields, form.ask { display: flex; flex-direction: column; gap: var(--space-4); max-width: 48rem; margin: var(--space-4) 0; }
+form.ask-reset { margin: 0 0 var(--space-4); }
+
+/* The empty state: a page or a list with nothing to show says so in a dashed frame. */
+.empty {
+  padding: var(--space-5);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* A narrow screen: the tree goes above the content, the search takes the whole width. */
+@media (max-width: 48rem) {
+  .top { flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
+  .brand { margin-right: 0; }
+  .top .links + .links { padding-left: 0; border-left: none; }
+  .top form.search { margin-left: 0; width: 100%; }
+  .top form.search input { width: 100%; min-width: 0; }
+  .layout { flex-direction: column; }
+  .tree { flex: none; max-height: 40vh; border-right: none; border-bottom: 1px solid var(--border); }
+  main { padding: var(--space-4); }
+}

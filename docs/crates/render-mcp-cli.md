@@ -63,7 +63,7 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   application in the header and the title, the tree of domains, features and use cases, linked to
   `/domains/{domain}[/{feature}[/{use_case}]]`, and the footer crediting Meta Lambda with its logo); the stylesheet follows the colour
   charter of the meta-lambda.com site (its `CHARTE.md`: dark surfaces, gold as the one accent, kept rare; red and green
-  only for failure and success, so the low-confidence and stale badges are gold), and `diagrams.js` writes the same
+  only for failure and success, so the low-confidence and stale badges are gold) and builds one set of components (buttons primary, `secondary`, `quiet`; `.field` with its `.field-label` and `.hint`; tables, badges, cards, `.empty`; the macro `filter_fields` of the debt and rules filters) on the design variables of `:root`, stacking the tree above the content on a narrow screen (`docs/dev/web-ui.md`), and `diagrams.js` writes the same
   colours into the `base` theme of `mermaid` (written, not read from the stylesheet: an older cached one would leave
   them empty); the `Project` that `retrodoc ui` passes to `serve` (then `router`) names the
   application (`ProjectConfig::name_or_directory`: `[project] name` of `retrodoc.toml`, else the repository's

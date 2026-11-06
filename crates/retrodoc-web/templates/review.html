@@ -10,11 +10,11 @@
 <p><strong>{{ t.review.heading }}</strong> <span class="muted">{{ t.review.not_reviewed }}</span></p>
 {% endif %}
 <form class="filters" method="post" action="{{ review.action }}" hx-post="{{ review.action }}" hx-target="closest section" hx-swap="outerHTML">
-  <label>{{ t.review.status_label }} <select name="status">
+  <label class="field"><span class="field-label">{{ t.review.status_label }}</span> <select name="status">
     {% for option in review.options(t.review) %}<option value="{{ option.key }}"{% if option.selected %} selected{% endif %}>{{ option.label }}</option>
     {% endfor %}
   </select></label>
-  <label>{{ t.review.comment }} <textarea name="comment" rows="2">{{ review.comment }}</textarea></label>
+  <label class="field wide"><span class="field-label">{{ t.review.comment }}</span> <textarea name="comment" rows="2">{{ review.comment }}</textarea></label>
   <button type="submit">{{ t.review.save }}</button>
 </form>
 </section>

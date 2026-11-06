@@ -8,25 +8,25 @@
 {% endif %}
 {% if let Some(compared) = page.compared %}
 <form class="compare" action="/history" method="get">
-  <span>{{ t.history_page.compare }}</span>
-  <label>{{ t.history_page.from }}
+  <span class="field-label">{{ t.history_page.compare }}</span>
+  <label class="field"><span class="field-label">{{ t.history_page.from }}</span>
     <select name="from">
       {% for run in page.runs %}
       <option value="{{ run.name }}"{% if run.from %} selected{% endif %}>{{ run.finished }}</option>
       {% endfor %}
     </select>
   </label>
-  <label>{{ t.history_page.to }}
+  <label class="field"><span class="field-label">{{ t.history_page.to }}</span>
     <select name="to">
       {% for run in page.runs %}
       <option value="{{ run.name }}"{% if run.to %} selected{% endif %}>{{ run.finished }}</option>
       {% endfor %}
     </select>
   </label>
-  <button type="submit">{{ t.history_page.show }}</button>
+  <button type="submit" class="secondary">{{ t.history_page.show }}</button>
 </form>
 {% if compared.groups.is_empty() %}
-<p id="history-none">{{ t.history_page.no_difference }}</p>
+<p id="history-none" class="empty">{{ t.history_page.no_difference }}</p>
 {% endif %}
 {% for group in compared.groups %}
 <section id="{{ group.id }}">

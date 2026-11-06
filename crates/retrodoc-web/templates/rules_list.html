@@ -1,9 +1,9 @@
 {% import "macros.html" as m %}
 <section id="rule-list">
   {% if page.none_in_run %}
-  <p>{{ t.no_rule_in_run }}</p>
+  <p class="empty">{{ t.no_rule_in_run }}</p>
   {% else if page.rules.is_empty() %}
-  <p>{{ t.no_rule_matches }}</p>
+  <p class="empty">{{ t.no_rule_matches }}</p>
   {% else %}
   <ul class="rules">
     {% for rule in page.rules %}

@@ -1,20 +1,12 @@
 {% extends "base.html" %}
+{% import "macros.html" as m %}
 {% block title %}{{ t.page_name("/debt") }}{% endblock %}
 {% block content %}
 <h1>{{ t.page_name("/debt") }}</h1>
 <p class="muted">{{ t.debt.intro }}</p>
 <form class="filters" action="/debt" method="get" hx-get="/debt" hx-target="#debt-list" hx-swap="outerHTML" hx-trigger="change" hx-push-url="true">
-  {% for filter in page.filters %}
-  <label>{{ filter.label }}
-    <select name="{{ filter.name }}">
-      <option value="">{{ t.all }}</option>
-      {% for choice in filter.choices %}
-      <option value="{{ choice.value }}"{% if choice.selected %} selected{% endif %}>{{ choice.label }}</option>
-      {% endfor %}
-    </select>
-  </label>
-  {% endfor %}
-  <button type="submit">{{ t.filter }}</button>
+  {% call m::filter_fields(page.filters) %}{% endcall %}
+  <button type="submit" class="secondary">{{ t.filter }}</button>
 </form>
 {% include "debt_list.html" %}
 {% endblock %}

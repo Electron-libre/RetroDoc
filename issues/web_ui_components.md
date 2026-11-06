@@ -68,10 +68,10 @@ and error states of the forms (`web_ui_form_feedback`), only listed in the check
    checklist of the states of each form in `docs/dev/web-ui.md`, the design variables in `:root` (spacing,
    radius, type scale; no visible change); "before" screenshots of `delivery_router` taken; verified by
    `scripts/test_screenshots.rs` and the screenshots; ~400 lines. (autonomous)
-2. [ ] Components: buttons, fields, selects, text areas, tables, badges, cards, empty state in `style.css`, the
+2. [x] Components: buttons, fields, selects, text areas, tables, badges, cards, empty state in `style.css`, the
    macros `button`/`field` in `macros.html` where they remove repetition, applied to every template; "after"
    screenshots compared with "before"; verified by the web tests (`cargo test -p retrodoc-web`) and the screenshots
-   at both widths; ~700 lines.
+   at both widths; ~700 lines. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -92,3 +92,17 @@ and error states of the forms (`web_ui_form_feedback`), only listed in the check
 - Code review: 1 finding. Fixed: a PNG left by an earlier run under the same label could pass for a new shot; the
   file is now removed before Chrome runs.
 - not verified: none. decisions needed: none.
+
+## Deliverable 2: components
+- done: the components in `style.css` (headings, buttons primary/secondary/quiet with hover, focus and disabled,
+  fields with label and hint, selects with their arrow, text areas, tables with a muted header and a lit row,
+  badges as pills, cards, `.empty`, the form layouts, the review and edit forms in a panel, a narrow layout
+  stacking the tree above the content); applied to every template with a form or an empty state; the macro
+  `filter_fields` shared by the debt and rules filters; `docs/dev/web-ui.md` lists the components. "After"
+  screenshots in `screenshots/after-d2` of the runs directory, compared with `before-bc18817`.
+- checks: project-check green (the web tests unchanged and passing), size 233 lines (+ docs).
+- red: none (a look, no requirement; the web tests guard the markup they assert, kept as is).
+- not verified: the run comparison form (that run has no saved runs, so the history page does not show it); the
+  hover and focus states seen only in the CSS, not on a screenshot.
+- Code review: no findings.
+- decisions needed: none.

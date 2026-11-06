@@ -3,7 +3,7 @@
 {% block content %}
 <h1>{{ t.page_name("/actors") }}</h1>
 {% if page.groups.is_empty() %}
-<p class="muted">{{ t.no_actor }}</p>
+<p class="empty">{{ t.no_actor }}</p>
 {% else %}
 <p class="muted">{{ t.actors_intro }}</p>
 {% for group in page.groups %}

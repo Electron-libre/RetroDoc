@@ -3,7 +3,7 @@
 {% block content %}
 <h1>{{ t.page_name("/glossary") }}</h1>
 {% if page.concepts.is_empty() %}
-<p class="muted">{{ t.no_concept }}</p>
+<p class="empty">{{ t.no_concept }}</p>
 {% else %}
 <p class="muted">{{ t.glossary_intro }}</p>
 {% for concept in page.concepts %}

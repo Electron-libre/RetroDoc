@@ -29,6 +29,25 @@ accent, kept rare; `--gold-dark` never for text; `diagrams.js` copies the colour
 spacing steps `--space-1` to `--space-6`, the radius `--radius-sm`, `--radius`, `--radius-pill`, the type scale
 `--text-xs` to `--text-2xl` and `--control-height`. A component uses them rather than a literal value.
 
+## Components
+
+| component | markup | look |
+|---|---|---|
+| button | `<button>` (or `.button` on a link) | primary: gold, the one action of a form |
+| | `class="secondary"` | on the surface: filter, show |
+| | `class="quiet"` | text only: revert, start over |
+| field | `<label class="field"><span class="field-label">…</span> <control></label>`, `.hint` below | label above the control; `.field.wide` grows in a line of fields |
+| form layouts | `.filters`, `form.compare` | fields on one line, the button at their foot |
+| | `.edit-fields`, `form.ask` | fields in a column, `.actions` for the buttons |
+| | `section.review`, `section.edit-form` | a panel on the surface |
+| table | `<table>`, `<thead>` | muted header, row lit on hover (not the heatmap nor the code) |
+| badge | `.badge` (`low`, `stale`, `review …`, `edited`) | pill, the label carries the meaning |
+| card | `.card`, `.start-links li` | surface, border lit on hover |
+| empty state | `<p class="empty">` | a dashed frame, muted text |
+
+Tests find some forms and buttons by their exact markup (`<form class="filters"`, `<button type="submit" disabled>`):
+add a variant class after the existing attributes.
+
 ## States of the forms
 
 Each form shows each state that applies to it; a cross marks the states it must show. Pending, saved and error are
