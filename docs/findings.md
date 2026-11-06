@@ -754,3 +754,17 @@ feature (the linkding HTML snapshot worker, the hat and invitation routes, the s
 parts of a feature the same run keeps in `features.yaml`, its entry points left out of it. Operator tasks the
 references leave out (Lobsters database dump, privacy wipe, Mastodon list sync) were not judged. No key to put a
 technical feature back is needed on the benchmark repositories at this code.
+
+## 11. Encrypted reasoning given back through OpenRouter, not measured (2026-11-06)
+
+`retrodoc-llm` gives a `reasoning_details` back as the server sent it, encrypted entries included (TCL-20). An entry
+`reasoning.encrypted` is signed by the upstream that wrote it: given back on a round OpenRouter routes to another
+upstream (AI Studio then Vertex for Gemini, OpenAI then Azure for GPT), it may answer 400, and nothing sends the round
+again without it, so `ask` and `chat` would stop on that round. Not measured: the four free thinking models probed
+send `reasoning.text` only (`issues/done/reasoning_given_back_on_a_real_openrouter_call.md`), and the paid probe was
+dropped, the project spends no OpenRouter credits
+(`issues/done/encrypted_reasoning_given_back_on_a_paid_openrouter_model.md`). The agent runs on DeepSeek, which sends
+`reasoning_content`, never encrypted. A user on a paid thinking model through OpenRouter who meets that 400 can pin
+one upstream (OpenRouter provider routing) or turn the reasoning off; the probe script that measures it,
+`reasoning_openrouter_probe/scripts/probe_encrypted.py <model> <upstream A> <upstream B>` in the runs directory, pins
+round 1 to A and sends round 2 to A and to B, with and without the reasoning.
