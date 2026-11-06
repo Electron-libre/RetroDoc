@@ -28,8 +28,8 @@ adrs: [0005]       # ADR numbers that justify the spec
 
 ### Requirements
 
-One list item per requirement (every top-level item under `## Requirements` is one), `- **<ID>-<n>** (deterministic) <statement>`. The statement holds exactly one "must" or "must
-not" (two obligations are two requirements) and none of the vague words `should`, `may`, `etc.`, `appropriate`, `fast`; text in a code span or in double quotes is not checked. The ids are stable once the spec is `accepted`: tests and issues cite them; a dropped requirement keeps
+One list item per requirement (every top-level item under `## Requirements`, outside a fenced block or an HTML comment, is one), `- **<ID>-<n>** (deterministic) <statement>`. The statement holds exactly one "must" or "must
+not" (two obligations are two requirements) and none of the vague words `should`, `may`, `etc.`, `appropriate`, `fast`; text in a code span or in double quotes is not checked. A statement may wrap onto the lines that follow its item, up to the end of its paragraph as CommonMark reads it (a blank line, an item, a heading, a fenced block, a quote, an HTML block or a thematic break ends it). The ids are stable once the spec is `accepted`: tests and issues cite them; a dropped requirement keeps
 its number (start its statement with `withdrawn:`, which exempts it from the check) and a new one takes the next number.
 
 The kind, `deterministic`, says that a test with no network and no external service (fakes, temp dirs, pure
@@ -57,7 +57,7 @@ blank reason. A stack that keeps its internal tests elsewhere names those direct
 
 A point the writer cannot settle from the repo or the issue is marked where it belongs, never guessed:
 `[NEEDS CLARIFICATION: <question>]`, on one line. A `draft` spec may hold markers; an `accepted` one may not. A marker
-in a code span or a fenced code block is an example, not a question.
+in a code span or a code block is an example, not a question.
 
 ### Scenarios
 
