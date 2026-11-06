@@ -382,6 +382,8 @@ pub struct EditTexts {
     pub saved: &'static str,
     /// The button that removes the edit.
     pub revert: &'static str,
+    /// The question the revert asks before it is sent (WEB-121).
+    pub revert_confirm: &'static str,
     /// The action of a section that leads to its edit form, unfolded (WEB-113).
     pub act: &'static str,
 }
@@ -803,6 +805,7 @@ impl WebTexts {
             save: "Save the edit",
             saved: "Edit saved.",
             revert: "Back to the generated text",
+            revert_confirm: "Remove the edit and show the generated text again?",
             act: "Edit",
         },
         ask: AskTexts {
@@ -1208,6 +1211,7 @@ impl WebTexts {
             save: "Enregistrer la correction",
             saved: "Correction enregistrée.",
             revert: "Revenir au texte généré",
+            revert_confirm: "Supprimer la correction et revenir au texte généré ?",
             act: "Corriger",
         },
         ask: AskTexts {

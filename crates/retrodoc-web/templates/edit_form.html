@@ -12,7 +12,7 @@
   {% call m::notice(edit_form.saved, t.edit.saved) %}{% endcall %}
   <div class="actions">
     <button type="submit">{{ t.edit.save }}</button>
-    {% if edit_form.edited %}<button type="submit" name="action" value="revert" class="quiet">{{ t.edit.revert }}</button>{% endif %}
+    {% if edit_form.edited %}<button type="submit" name="action" value="revert" hx-post="{{ edit_form.action }}" hx-confirm="{{ t.edit.revert_confirm }}" class="quiet">{{ t.edit.revert }}</button>{% endif %}
     <span class="indicator" role="status">{{ t.saving }}</span>
   </div>
 </form>

@@ -711,3 +711,31 @@ async fn the_preview_renders_the_narrative_sent_and_writes_nothing() {
     }
     assert_eq!(files_under(root), before);
 }
+
+// spec: WEB-121
+#[tokio::test]
+async fn the_back_button_asks_for_a_confirmation() {
+    let repo = generated_repo();
+    let root = repo.path();
+    edit(
+        root,
+        &Section::new(SectionKind::Feature, "pay-invoice"),
+        Fields {
+            description: Some("Pays what is due.".into()),
+            ..Fields::default()
+        },
+    );
+    let page = get(root, FEATURE).await;
+    let form = form_block(&page);
+    let start = form.find("value=\"revert\"").expect(form);
+    let button = &form[start..start + form[start..].find('>').unwrap()];
+    assert!(
+        button.contains("hx-confirm=\"Remove the edit and show the generated text again?\""),
+        "{button}"
+    );
+    // The request is the button's own: `htmx` reads no `hx-confirm` of the button of a form it sends.
+    assert!(
+        button.contains(&format!("hx-post=\"/edit{FEATURE}\"")),
+        "{button}"
+    );
+}

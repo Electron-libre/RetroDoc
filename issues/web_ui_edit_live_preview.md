@@ -51,8 +51,8 @@ revert with `hx-confirm` (WEB-121). Out of scope: a preview of the name or the d
 2. [x] Preview: `POST /preview` answering the rendered fragment, the preview block in the edit form of a use case
    filled at render and wired with `hx-post`/`hx-trigger`; verified by tests of `edit_pages.rs` (fragment, escaping,
    empty narrative, no file written, no preview on a domain or feature form); makes true WEB-119, WEB-120. (autonomous)
-3. [ ] Confirm the revert: `hx-confirm` on the revert button with a text of `texts.rs`; verified by a test of
-   `edit_pages.rs`; makes true WEB-121, spec back to `accepted`.
+3. [x] Confirm the revert: `hx-confirm` on the revert button with a text of `texts.rs`; verified by a test of
+   `edit_pages.rs`; makes true WEB-121, spec back to `accepted`. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -99,5 +99,28 @@ Checked in headless Chrome on a copy of a saved run (`~/retrodoc-runs/live-previ
 Code review: no findings
 
 not verified: the preview on a 500 px wide window.
+
+decisions needed: none
+
+## Deliverable 3
+done: the button "back to the generated text" asks for a confirmation (`hx-confirm`, on its own `hx-post` to the
+same URL: `htmx` 2.0.11 reads no `hx-confirm` of the submit button of a form it sends); spec `accepted`.
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass, `specs/web-ui.md` accepted |
+| docs | `docs/crates/render-mcp-cli.md` |
+| code review | see below |
+
+red: WEB-121: no `hx-confirm` on the revert button.
+
+Checked in headless Chrome: with `hx-confirm` alone on the button, no dialog and the edit removed at once; with its own
+`hx-post`, the dialog shows, dismissing keeps the edit, accepting removes it.
+
+Code review: no findings
+
+not verified: none
 
 decisions needed: none
