@@ -198,6 +198,20 @@ fn between<'a>(text: &'a str, start: &str, end: &str) -> &'a str {
     &rest[..to]
 }
 
+/// The values of the radio choices `name` of `page` that are checked.
+fn checked<'a>(page: &'a str, name: &str) -> Vec<&'a str> {
+    let opening = format!("<input type=\"radio\" name=\"{name}\" value=\"");
+    page.split(opening.as_str())
+        .skip(1)
+        .filter_map(|rest| {
+            let (value, rest) = rest.split_once('"')?;
+            rest[..rest.find('>')?]
+                .contains(" checked")
+                .then_some(value)
+        })
+        .collect()
+}
+
 /// The positions of `needles` in `text`, which must hold each.
 fn positions(text: &str, needles: &[&str]) -> Vec<usize> {
     needles
@@ -246,8 +260,10 @@ async fn runs_ended_in_the_same_second_are_told_apart_by_their_number() {
 
     let runs = between(&page, "id=\"history-runs\"", "</section>");
     assert!(runs.contains("2026-11-01 10:00:00 UTC (2)"), "{runs}");
-    let to = between(&page, "name=\"to\"", "</select>");
-    assert!(to.contains("2026-11-01 10:00:00 UTC (2)"), "{to}");
+    assert!(
+        runs.contains("aria-label=\"To 2026-11-01 10:00:00 UTC (2)\""),
+        "{runs}"
+    );
 }
 
 // spec: HPG-2, HPG-5, HPG-12
@@ -260,14 +276,12 @@ async fn by_default_the_newest_run_is_compared_with_the_one_before_it() {
 
     let form = between(&page, "<form class=\"compare\"", "</form>");
     assert!(form.contains("action=\"/history\""), "{form}");
-    let from = between(form, "name=\"from\"", "</select>");
+    assert_eq!(checked(form, "from"), ["20261102T100000Z"], "{form}");
+    assert_eq!(checked(form, "to"), ["20261103T100000Z"], "{form}");
     assert!(
-        from.contains("value=\"20261102T100000Z\" selected"),
-        "{from}"
+        form.contains("name=\"from\" value=\"20261101T100000Z\""),
+        "{form}"
     );
-    assert!(from.contains("value=\"20261101T100000Z\""), "{from}");
-    let to = between(form, "name=\"to\"", "</select>");
-    assert!(to.contains("value=\"20261103T100000Z\" selected"), "{to}");
     let added = between(&page, "id=\"history-added\"", "</section>");
     assert!(added.contains("&#60;script&#62;"), "{added}");
     assert!(!added.contains("href="), "{added}");
@@ -346,11 +360,7 @@ async fn an_unknown_run_is_replaced_by_its_default() {
 
     let unknown = between(&page, "id=\"history-unknown\"", "</p>");
     assert!(unknown.contains("nope"), "{unknown}");
-    let from = between(&page, "name=\"from\"", "</select>");
-    assert!(
-        from.contains("value=\"20261102T100000Z\" selected"),
-        "{from}"
-    );
+    assert_eq!(checked(&page, "from"), ["20261102T100000Z"], "{page}");
     let removed = between(&page, "id=\"history-removed\"", "</section>");
     assert!(removed.contains("cancel"), "{removed}");
 }
@@ -375,6 +385,58 @@ async fn with_fewer_than_two_runs_the_page_says_the_difference_needs_two() {
         assert!(!page.contains("<form class=\"compare\""), "{page}");
     }
     assert!(history_dir(empty.path()).read_dir().is_err());
+}
+
+// spec: HPG-5
+#[tokio::test]
+async fn the_runs_list_is_the_comparison_form_sent_on_change() {
+    let repo = served_repo();
+    with_history(repo.path());
+
+    let page = get(repo.path(), "/history").await;
+
+    let form = between(&page, "<form class=\"compare\"", "</form>");
+    let opening = &form[..form.find('>').unwrap()];
+    for attribute in [
+        "hx-get=\"/history\"",
+        "hx-trigger=\"change\"",
+        "hx-push-url=\"true\"",
+        "hx-select=\"#history-body\"",
+        "hx-target=\"#history-body\"",
+    ] {
+        assert!(opening.contains(attribute), "{attribute}: {opening}");
+    }
+    assert!(form.contains("id=\"history-runs\""), "{form}");
+    assert_eq!(form.matches("name=\"from\"").count(), 3, "{form}");
+    assert_eq!(form.matches("name=\"to\"").count(), 3, "{form}");
+    assert!(!form.contains("<select"), "{form}");
+    let noscript = between(form, "<noscript>", "</noscript>");
+    assert!(noscript.contains("<button type=\"submit\""), "{noscript}");
+    assert_eq!(form.matches("<button").count(), 1, "{form}");
+    let body = between(&page, "<div id=\"history-body\">", "id=\"history-added\"");
+    assert!(body.contains("<form class=\"compare\""), "{body}");
+}
+
+// spec: HPG-16
+#[tokio::test]
+async fn a_link_swaps_the_compared_runs() {
+    let repo = served_repo();
+    with_history(repo.path());
+
+    let page = get(
+        repo.path(),
+        "/history?from=20261101T100000Z&to=20261103T100000Z",
+    )
+    .await;
+
+    assert!(
+        page.contains("href=\"/history?from=20261103T100000Z&amp;to=20261101T100000Z\""),
+        "{page}"
+    );
+    let one = tempfile::tempdir().unwrap();
+    save(one.path(), &run(1, None, Vec::new())).unwrap();
+    let page = get(one.path(), "/history").await;
+    assert!(!page.contains("href=\"/history?from="), "{page}");
 }
 
 // spec: HPG-15

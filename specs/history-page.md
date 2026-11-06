@@ -1,6 +1,6 @@
 ---
 id: HPG
-status: draft
+status: accepted
 adrs: [0039, 0043]
 ---
 

@@ -49,8 +49,8 @@ free-text filter.
 1. [x] Filters of the debt and rules pages: kind chips, selects, `<noscript>` button, active count and reset link in
    the list, CSS; verified by tests in `debt_page.rs` and `rules_page.rs` and before/after screenshots; makes true
    WEB-107, WEB-108, WEB-55, DBT-10. (autonomous)
-2. [ ] Run comparison of the history page: runs table with `from`/`to` radios, `htmx` swap on change, swap link;
-   verified by tests in `history_page.rs` and screenshots; makes true HPG-5, HPG-16.
+2. [x] Run comparison of the history page: runs table with `from`/`to` radios, `htmx` swap on change, swap link;
+   verified by tests in `history_page.rs` and screenshots; makes true HPG-5, HPG-16. (autonomous)
 3. [ ] Docs of the whole issue (`docs/dev/web-ui.md` components) and the fixes of the `high` review.
 
 ## Decisions
@@ -70,5 +70,17 @@ free-text filter.
   the list.
 - not verified: the change of a chip in a real browser click (the radios and `hx-trigger="change"` only checked in
   the markup); the keyboard focus ring of a chip seen only in the CSS.
+- Code review: no findings.
+- decisions needed: none.
+
+## Deliverable 2: run comparison of the history page
+- done: with two runs or more the runs table is the comparison form (a `from` and a `to` radio per run, the compared
+  rows lit), sent on change and swapped into `#history-body` with `hx-select`, the button in `<noscript>`, a link
+  that swaps the runs; a long history scrolls within the table. The three specs back to `accepted`.
+- checks: tests, lint, specs (`cardinal run project-check`), docs (`docs/dev/web-ui.md`, `docs/crates/render-mcp-cli.md`);
+  shots `history-compare-*` in `screenshots/before-abe9792` and `screenshots/after-filters`, the scratch copy seeded
+  with the three snapshots of the tests.
+- red: HPG-5, HPG-16: the form had no `hx-get`, the runs no radio, no swap link.
+- not verified: a click on a radio or the swap link in a real browser (the `htmx` attributes checked in the markup).
 - Code review: no findings.
 - decisions needed: none.

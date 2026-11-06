@@ -3,27 +3,31 @@
 {% block content %}
 <h1>{{ t.page_name("/history") }}</h1>
 <p class="muted">{{ t.history_page.intro|safe }}</p>
+<div id="history-body">
 {% if !page.unknown.is_empty() %}
 <p id="history-unknown" class="muted">{{ t.history_page.unknown }} {% for name in page.unknown %}<code>{{ name }}</code>{% if !loop.last %}, {% endif %}{% endfor %}</p>
 {% endif %}
 {% if let Some(compared) = page.compared %}
-<form class="compare" action="/history" method="get">
-  <span class="field-label">{{ t.history_page.compare }}</span>
-  <label class="field"><span class="field-label">{{ t.history_page.from }}</span>
-    <select name="from">
+<form class="compare" action="/history" method="get" hx-get="/history" hx-target="#history-body" hx-select="#history-body" hx-swap="outerHTML" hx-trigger="change" hx-push-url="true" hx-indicator="find .indicator">
+<section id="history-runs">
+  <h2>{{ t.history_page.runs }}</h2>
+  <table class="runs">
+    <thead><tr><th scope="col">{{ t.history_page.from }}</th><th scope="col">{{ t.history_page.to }}</th><th scope="col">{{ t.history_page.ended }}</th><th scope="col">{{ t.history_page.commit }}</th></tr></thead>
+    <tbody>
       {% for run in page.runs %}
-      <option value="{{ run.name }}"{% if run.from %} selected{% endif %}>{{ run.finished }}</option>
+      <tr{% if run.from || run.to %} class="compared"{% endif %}>
+        <td><input type="radio" name="from" value="{{ run.name }}"{% if run.from %} checked{% endif %} aria-label="{{ t.history_page.from }} {{ run.finished }}"></td>
+        <td><input type="radio" name="to" value="{{ run.name }}"{% if run.to %} checked{% endif %} aria-label="{{ t.history_page.to }} {{ run.finished }}"></td>
+        <td>{{ run.finished }}</td>
+        <td>{% if let Some(commit) = run.commit %}<code>{{ commit }}</code>{% else %}<span class="muted">{{ t.history_page.no_commit }}</span>{% endif %}</td>
+      </tr>
       {% endfor %}
-    </select>
-  </label>
-  <label class="field"><span class="field-label">{{ t.history_page.to }}</span>
-    <select name="to">
-      {% for run in page.runs %}
-      <option value="{{ run.name }}"{% if run.to %} selected{% endif %}>{{ run.finished }}</option>
-      {% endfor %}
-    </select>
-  </label>
-  <button type="submit" class="secondary">{{ t.history_page.show }}</button>
+    </tbody>
+  </table>
+</section>
+<p class="actions"><a href="/history?from={{ compared.to }}&amp;to={{ compared.from }}" hx-get="/history?from={{ compared.to }}&amp;to={{ compared.from }}" hx-target="#history-body" hx-select="#history-body" hx-swap="outerHTML" hx-push-url="true">⇅ {{ t.history_page.swap }}</a>
+  <noscript><button type="submit" class="secondary">{{ t.history_page.show }}</button></noscript>
+  <span class="indicator" role="status">{{ t.loading }}</span></p>
 </form>
 {% if compared.groups.is_empty() %}
 <p id="history-none" class="empty">{{ t.history_page.no_difference }}</p>
@@ -42,7 +46,6 @@
 {% endfor %}
 {% else %}
 <p id="history-fewer" class="muted">{{ t.history_page.fewer|safe }}</p>
-{% endif %}
 <section id="history-runs">
   <h2>{{ t.history_page.runs }}</h2>
   <ul>
@@ -51,4 +54,6 @@
     {% endfor %}
   </ul>
 </section>
+{% endif %}
+</div>
 {% endblock %}

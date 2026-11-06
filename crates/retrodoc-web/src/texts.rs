@@ -306,9 +306,12 @@ pub struct HistoryTexts {
     pub fewer: &'static str,
     /// Before the names of the runs asked that are not saved.
     pub unknown: &'static str,
-    pub compare: &'static str,
+    /// The heads of the columns of the runs: the choice of the "from" run, of the "to" run, the end, the commit.
     pub from: &'static str,
     pub to: &'static str,
+    pub ended: &'static str,
+    pub commit: &'static str,
+    pub swap: &'static str,
     pub show: &'static str,
     pub no_difference: &'static str,
     /// After a section the docs served don't hold.
@@ -693,9 +696,11 @@ impl WebTexts {
             fewer: "The difference needs two runs: each <code>retrodoc generate</code> that \
                 changes the docs saves one.",
             unknown: "No saved run is named:",
-            compare: "Compare",
             from: "From",
-            to: "to",
+            to: "To",
+            ended: "Ended",
+            commit: "Commit",
+            swap: "Swap the runs",
             show: "Show",
             no_difference: "The sections of these two runs do not differ.",
             no_page: "no page",
@@ -1073,9 +1078,11 @@ impl WebTexts {
             fewer: "La différence demande deux runs : chaque <code>retrodoc generate</code> qui \
                 change la doc en enregistre un.",
             unknown: "Aucun run enregistré ne s'appelle :",
-            compare: "Comparer",
-            from: "Du run",
-            to: "au run",
+            from: "Depuis",
+            to: "Vers",
+            ended: "Fin",
+            commit: "Commit",
+            swap: "Inverser les runs",
             show: "Afficher",
             no_difference: "Les sections de ces deux runs ne diffèrent pas.",
             no_page: "pas de page",

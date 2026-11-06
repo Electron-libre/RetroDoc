@@ -145,7 +145,9 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   the dataviz validator), none with fewer than two runs. The history page, `/history` (`history::history_page`, `history.html`, in the "Audit" group of the header;
   `specs/history-page.md`), lists the snapshots `Site::new` loads once and compares two of them, the newest two
   unless `?from=` and `?to=` name others, each section of `retrodoc_mcp::history::diff` linked to its page when the
-  docs served hold it. The actors page, `/actors` (`actors::actors_page`, `actors.html`, linked from the header of
+  docs served hold it; with two runs or more the table of the runs is the comparison form (a `from` and a `to` radio
+  per run, a link that swaps them), sent by `htmx` on change and answered with the full page, of which
+  `hx-select` swaps `#history-body`. The actors page, `/actors` (`actors::actors_page`, `actors.html`, linked from the header of
   every page, built once in `Site::new`), is a table per kind, human then system: a row per actor, grouped by its exact name (a primary actor no
   step names counts as human and starts its use cases in the human row of its name), a column per feature with a use case that names an actor, a cell linking the use cases
   it starts (`starts`) or takes part in, and the permission rules that apply to them. The map page, `/map`

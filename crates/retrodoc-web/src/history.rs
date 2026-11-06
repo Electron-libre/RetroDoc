@@ -35,6 +35,9 @@ pub struct RunView {
 
 /// The difference of the two compared runs, by group; a group with no section is left out.
 pub struct Compared {
+    /// The names of the compared runs, the values of `?from=` and `?to=`.
+    pub from: String,
+    pub to: String,
     pub groups: Vec<ChangeGroup>,
 }
 
@@ -77,6 +80,8 @@ pub fn history_page(
     let picked =
         (runs.len() >= 2).then(|| (from.unwrap_or(runs.len() - 2), to.unwrap_or(runs.len() - 1)));
     let compared = picked.map(|(from, to)| Compared {
+        from: runs[from].name.clone(),
+        to: runs[to].name.clone(),
         groups: groups(&runs[from], &runs[to], docs, texts),
     });
     HistoryPage {
