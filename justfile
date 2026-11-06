@@ -19,6 +19,11 @@ clippy:
 test:
     cargo test --workspace
 
+# Set the version of the workspace and of its crates in the lock file (`release_version_command` of `release`).
+set-version version:
+    sed -i 's/^version = "[0-9.]*"$/version = "{{version}}"/' Cargo.toml
+    cargo update --workspace --offline
+
 # Test the scripts of the project's own skills (smoke-test, quality-benchmark). Requires `rust-script`. Prints
 # nothing on success, and only the lines of the failing script that are not `ok` otherwise.
 test-skill-scripts:

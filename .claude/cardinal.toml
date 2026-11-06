@@ -14,7 +14,11 @@ root_docs = ["README.md", "PRODUCT.md", "ROADMAP.md", "CHANGELOG.md"]
 # Directories that scripts do not scan besides .git, target and node_modules.
 skipped_dirs = [".retrodoc"]
 # Where the agent finds the context of the project (issue-workflow, create-issue, prioritize-issues).
-roadmap = ["ROADMAP.md", "PRODUCT.md"]
+roadmap = ["ROADMAP.md", "PRODUCT.md", "ROADMAP-done.md"]
+# Where `release` moves the released milestones, so `ROADMAP.md` keeps the ones still to land.
+roadmap_archive = "ROADMAP-done.md"
+# Run by `release` with the version as last argument: sets the version of the workspace.
+release_version_command = "just set-version"
 architecture = "docs/ARCHITECTURE.md"
 # Where the rules for writing tests are (issue-workflow, step "test first").
 test_conventions = "docs/dev/conventions.md"

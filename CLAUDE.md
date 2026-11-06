@@ -13,7 +13,8 @@ says what's still out of scope for v1 (technical/C4 docs, GitHub/GitLab/Jira con
 dated findings behind the milestones are in `docs/findings.md`.
 
 Commit messages follow the Conventional Commits format described in `.claude/skills/commit-message/conventional-commits.md`. Check `git log` to see
-which milestones of `ROADMAP.md` are already done before assuming what's implemented.
+which milestones of `ROADMAP.md` are already done before assuming what's implemented; the released ones are moved to
+`ROADMAP-done.md`.
 
 ## Index
 
@@ -26,7 +27,7 @@ Details live in separate files; read the one that matches the task:
   (ADR 0032). Read the spec of a capability before touching it; a change of behaviour starts by amending it
   (`skill:write-spec`).
 - `docs/crates/`: per-crate detail. `docs/ARCHITECTURE.md`: high-level view. `docs/adr/`: decisions.
-- `ROADMAP.md`: milestones; `PRODUCT.md`: vision and v1 scope; `docs/findings.md`: dated findings; `CHANGELOG.md`: releases
+- `ROADMAP.md`: milestones (the released ones in `ROADMAP-done.md`); `PRODUCT.md`: vision and v1 scope; `docs/findings.md`: dated findings; `CHANGELOG.md`: releases
   (`just release`); `.claude/skills/commit-message/conventional-commits.md`: commit format.
 
 Essentials: `cardinal run project-check` (`just check`: fmt + clippy -D warnings + tests + spec traceability) must pass before committing; it
