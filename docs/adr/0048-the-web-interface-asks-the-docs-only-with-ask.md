@@ -28,4 +28,4 @@ unlike `chat`).
 The architecture diagram gains `retrodoc-web ──> retrodoc-agent, retrodoc-llm`. The sessions are lost at a restart,
 and the server, with no authentication, keeps binding to `127.0.0.1` by default: anyone who reaches it can spend the
 key. `ui` stops gracefully on Ctrl-C so its recap is printed and saved. Showing the steps of the agent and the cost
-as a question runs is a follow-up (`issues/web_ask_streamed_steps_and_cost.md`).
+as a question runs is a follow-up (`issues/done/web_ask_streamed_steps_and_cost.md`).

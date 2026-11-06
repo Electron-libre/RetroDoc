@@ -360,7 +360,7 @@ The milestones up to "A large application, one bounded context at a time" are th
   answers link their sources to the pages of the interface, with the steps of the agent shown as it runs.
 - Why: `ask` and `chat` run in the terminal only, while the reader browses the docs in the web interface, where the
   pages of the sources of an answer live.
-- State: in issues
+- State: done
 - Issues:
   - [web_ask_page](issues/done/web_ask_page.md)
-  - [web_ask_streamed_steps_and_cost](issues/web_ask_streamed_steps_and_cost.md)
+  - [web_ask_streamed_steps_and_cost](issues/done/web_ask_streamed_steps_and_cost.md)
