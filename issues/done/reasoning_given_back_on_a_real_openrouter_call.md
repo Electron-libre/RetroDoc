@@ -74,7 +74,7 @@ any fix before the probe says one is needed; the fixes are planned after it, at 
    `reasoning_details` only, none); verified by the answer reached without a refused round and the `prompt_tokens`
    of each variant; recorded in this issue's Findings and the measures ledger (`docs/findings.md` stops at 2026-10-14: later
    findings live in the issues). No code change. (autonomous)
-2. [ ] Fixes the probe calls for (candidates of the Approach: send `reasoning_details` only when both came; a retry
+2. [x] ~~Fixes the probe calls for~~ dropped: none called for (decision of 2026-11-06); (candidates of the Approach: send `reasoning_details` only when both came; a retry
    without the reasoning on a 400 naming it; the reasoning counted in the agent's budget), each with its spec
    amendment (TCL-18, a new TCL requirement, `specs/ask.md`); planned and validated at a second stop after 1.
 
@@ -85,4 +85,7 @@ any fix before the probe says one is needed; the fixes are planned after it, at 
 - Model: a free OpenRouter model (`:free`, no credits), thinking and with tools; risk 1 needs encrypted entries,
   which the free (open-weight) models may not send: if none does, risk 1 stays unverified and is said so.
 - Deliverable 1 done: risk 2 refuted, risk 3 small on open-weight models, risk 1 unverifiable without a paid model
-  sending encrypted reasoning. Deliverable 2 waits for the user: no fix is called for by what was measured.
+  sending encrypted reasoning.
+- Deliverable 2 dropped (user, 2026-11-06): no fix; risk 1 moves to
+  [encrypted_reasoning_given_back_on_a_paid_openrouter_model](../encrypted_reasoning_given_back_on_a_paid_openrouter_model.md).
+- Issue done.

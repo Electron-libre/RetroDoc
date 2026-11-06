@@ -350,4 +350,5 @@ The milestones up to "A large application, one bounded context at a time" are th
   - [ask_loop_always_answers](issues/done/ask_loop_always_answers.md)
   - [ask_question_set](issues/done/ask_question_set.md)
   - [chat_command](issues/done/chat_command.md)
-  - [reasoning_given_back_on_a_real_openrouter_call](issues/reasoning_given_back_on_a_real_openrouter_call.md)
+  - [reasoning_given_back_on_a_real_openrouter_call](issues/done/reasoning_given_back_on_a_real_openrouter_call.md)
+  - [encrypted_reasoning_given_back_on_a_paid_openrouter_model](issues/encrypted_reasoning_given_back_on_a_paid_openrouter_model.md)

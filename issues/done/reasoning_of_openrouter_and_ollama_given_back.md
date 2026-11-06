@@ -63,7 +63,7 @@ scope: showing the reasoning to the user, asking for it (`reasoning_effort` stay
 - Mode: autonomous
 - `high` review findings 1 to 3 (a refused foreign `reasoning_details`, both fields sent back, the reasoning outside
   the agent's budget) need a real OpenRouter call: follow-up issue
-  `issues/reasoning_given_back_on_a_real_openrouter_call.md`. Finding 4 (echo every unknown reasoning-like field)
+  `issues/done/reasoning_given_back_on_a_real_openrouter_call.md`. Finding 4 (echo every unknown reasoning-like field)
   not fixed: it would send fields the spec does not name, against TCL-18.
 - Base commit: 2443ab9ae7f365f097b0a26050315e53c1c8241e
 - OpenRouter probe: none (no key on the machine); its fields are followed from its docs and tested on a simulated
