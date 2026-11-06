@@ -919,3 +919,31 @@ async fn the_pages_of_the_items_and_of_reference_are_in_french() {
         assert!(pages.contains(label), "{label} missing from {pages}");
     }
 }
+
+// spec: WEB-118
+#[tokio::test]
+async fn the_narrative_of_a_use_case_is_rendered_as_markdown_its_raw_html_as_text() {
+    let repo = generated_repo();
+    let mut by_card = saved_use_case(repo.path(), "pay-by-card");
+    by_card.narrative = Some(
+        "The customer pays **by card**.\n\nThen <script>alert(1)</script> [x](javascript:alert(1)) [the guide](docs/guide.md)"
+            .into(),
+    );
+    save_use_cases(repo.path(), &[by_card]);
+    let page = page(repo.path(), PAY_BY_CARD).await;
+    let start = page.find("<div class=\"narrative\">").expect(&page);
+    let narrative = &page[start..start + page[start..].find("</div>").unwrap()];
+    assert!(
+        narrative.contains("<strong>by card</strong>"),
+        "{narrative}"
+    );
+    assert!(
+        narrative.contains("&lt;script&gt;alert(1)&lt;/script&gt;"),
+        "{narrative}"
+    );
+    assert!(!narrative.contains("javascript:"), "{narrative}");
+    assert!(
+        narrative.contains("<a href=\"docs/guide.md\">the guide</a>"),
+        "{narrative}"
+    );
+}

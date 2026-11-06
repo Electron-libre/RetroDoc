@@ -1,6 +1,6 @@
 ---
 id: WEB
-status: accepted
+status: draft
 adrs: [0039, 0044, 0048]
 ---
 
@@ -304,6 +304,18 @@ over browses its domains, features and use cases rather than reading the Markdow
 - **WEB-117** (deterministic) The home page and the map page of a run with no domain must say why (no source file
   was grouped into a domain) and what to run: `retrodoc scan` to see the source files the run reads, then
   `retrodoc generate`.
+- **WEB-118** (deterministic) The page of a use case must show its narrative rendered from Markdown by the rules of a
+  collected doc: its raw HTML shown as text (WEB-49), a link or an image whose URL has an unsafe scheme shown as its
+  text alone (WEB-50).
+- **WEB-119** (deterministic) The edit form of a use case must hold a preview of its narrative, filled with the
+  narrative the form holds rendered as WEB-118, that the form asks again with `htmx` by a `POST` to `/preview` of
+  its field `narrative` when that field changes (`hx-trigger="input changed delay:500ms"`), the answer swapped into
+  the preview; the form of a domain or of a feature holds none.
+- **WEB-120** (deterministic) A `POST` to `/preview` must be answered with the status 200 and the `narrative` it
+  sends rendered as WEB-118, without the layout of a page, empty when the narrative is empty or absent, with no
+  file written (WEB-12).
+- **WEB-121** (deterministic) The button of the edit form that brings the generated text back (WEB-96) must ask for
+  a confirmation before it is sent (`hx-confirm`), in a text that says the edit is removed.
 
 ## Scenarios
 
@@ -426,7 +438,14 @@ over browses its domains, features and use cases rather than reading the Markdow
 - (WEB-89) Given an outdated review, when the form saves the same status again, then the review is no longer flagged
   outdated (REV-22).
 
+- (WEB-118, WEB-120) Given a narrative holding `<script>alert(1)</script>`, then the page and the preview show it as
+  text.
+- (WEB-120) Given a narrative holding `[x](javascript:alert(1))`, then the preview shows `x` with no link.
+
 ## Non-goals
+
+- No preview of the name nor of the description: the pages show them as plain text. Without JavaScript the preview
+  shows the narrative of the page and is not asked again, and the revert is sent with no confirmation.
 
 - No synonym matching nor matching of a word being typed: the search, also as it is typed, is that of
   `retrodoc search` (`specs/docs-search.md`); a word is matched once typed whole.

@@ -166,7 +166,7 @@ async fn an_outdated_edit_is_flagged_with_the_new_generated_text() {
     assert!(block.contains("The clerk scans the card."), "{block}");
     assert!(
         page.contains(
-            "<p class=\"narrative\">The manager &#60;b&#62;approves&#60;/b&#62; the card."
+            "<div class=\"narrative\"><p>The manager &lt;b&gt;approves&lt;/b&gt; the card."
         ),
         "the edited narrative shown, escaped: {page}"
     );

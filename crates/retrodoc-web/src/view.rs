@@ -5,6 +5,7 @@
 use std::collections::BTreeSet;
 
 use crate::actors::{actors_page, ActorsPage};
+use crate::collected::markdown_html;
 use crate::edit::is_edited;
 use crate::files::{files_page, FilesPage};
 use crate::glossary::{glossary_page, GlossaryPage};
@@ -885,7 +886,8 @@ pub struct UseCasePage {
     /// The names of the entry points that trigger it.
     pub triggered_by: Vec<String>,
     pub stale: Vec<StaleFile>,
-    pub narrative: Option<String>,
+    /// The narrative rendered from Markdown as a collected doc is (WEB-118), safe to insert as is.
+    pub narrative_html: Option<String>,
     /// The confidence pass judged the narrative unsupported by the cited code.
     pub unbacked: bool,
     pub unbacked_rationale: Option<String>,
@@ -940,12 +942,12 @@ pub fn use_case_page(
             .map(str::to_string)
             .collect(),
         stale: stale_files(docs.freshness(), cited),
-        narrative: use_case
+        narrative_html: use_case
             .narrative
             .as_deref()
             .map(str::trim)
             .filter(|n| !n.is_empty())
-            .map(str::to_string),
+            .map(markdown_html),
         unbacked: unbacked.is_some(),
         unbacked_rationale: unbacked.and_then(|check| Confidence::of(Some(check)).rationale),
         rules: docs

@@ -83,8 +83,8 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   the same for its Markdown page (the use cases `UseCase::is_technical` sets apart under the same heading, the rules
   with their evidence and doc links, the source files) and adds its entry points, a back-office badge and the stale
   files (read in `spawn_blocking`, like the home page); a feature asked under another domain is not found. The page of a use case (`view::use_case_page`, `use_case.html`)
-  follows its Markdown page too: the narrative first (flagged unbacked when `narrative_check` is 0, the rule of the
-  debt report), the steps and the diagram folded under "Technical details", or in the open without a narrative; the
+  follows its Markdown page too: the narrative first, rendered from Markdown by the rules of a collected doc (`collected::markdown_html`, WEB-118; flagged unbacked when `narrative_check` is 0, the rule of the
+  debt report)), the steps and the diagram folded under "Technical details", or in the open without a narrative; the
   stale files are those its steps cite; it ends on links to the previous and the next use case of its feature, in
   the order of the run. Only a page with a diagram loads `mermaid` and `diagrams.js` (the
   `scripts` block of `base.html`), which draw the `<pre class="mermaid">`; the source stays readable under it. The `DocLinks` come

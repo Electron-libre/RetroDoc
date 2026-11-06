@@ -1,4 +1,4 @@
-//! The page of a collected Markdown doc: the doc rendered to HTML with its raw
+//! The page of a collected Markdown doc (and the narrative of a use case, WEB-118): the doc rendered to HTML with its raw
 //! HTML shown as text and its links of an unsafe scheme dropped (a doc of the
 //! repository is not trusted more than the LLM output), each heading carrying
 //! the anchor the links of the item pages point to.
