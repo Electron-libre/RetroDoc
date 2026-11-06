@@ -6,7 +6,7 @@
 use retrodoc_mcp::edits::{self, Field};
 use retrodoc_mcp::GeneratedDocs;
 
-use crate::collected::narrative_html;
+use crate::collected::{narrative_html, NarrativeLinks};
 use crate::review::{OutdatedView, Place};
 use retrodoc_render::EditedField;
 
@@ -35,9 +35,15 @@ pub struct GeneratedField {
 }
 
 impl EditView {
-    /// The edit of the section at `place` of `docs`, `None` when it has none.
+    /// The edit of the section at `place` of `docs`, `None` when it has none; the links of its
+    /// generated narrative resolved by `links`.
     #[must_use]
-    pub fn of(docs: &GeneratedDocs, place: &Place, t: &WebTexts) -> Option<Self> {
+    pub(crate) fn of(
+        docs: &GeneratedDocs,
+        place: &Place,
+        t: &WebTexts,
+        links: &NarrativeLinks,
+    ) -> Option<Self> {
         let edit = docs.edits().get(&place.section())?;
         let changed = edit.changed();
         if changed.is_empty() {
@@ -64,7 +70,7 @@ impl EditView {
                 .map(|(field, text)| GeneratedField {
                     label: field_label(t, field),
                     html: (field == Field::Narrative)
-                        .then(|| narrative_html(&text))
+                        .then(|| narrative_html(&text, links))
                         .flatten(),
                     text,
                 })

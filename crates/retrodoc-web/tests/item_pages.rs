@@ -942,8 +942,6 @@ async fn the_narrative_of_a_use_case_is_rendered_as_markdown_its_raw_html_as_tex
         "{narrative}"
     );
     assert!(!narrative.contains("javascript:"), "{narrative}");
-    assert!(
-        narrative.contains("<a href=\"docs/guide.md\">the guide</a>"),
-        "{narrative}"
-    );
+    // No collected doc at the path it resolves to (WEB-123).
+    assert!(narrative.contains(" the guide</p>"), "{narrative}");
 }

@@ -5,7 +5,7 @@
 use std::collections::BTreeSet;
 
 use crate::actors::{actors_page, ActorsPage};
-use crate::collected::narrative_html;
+use crate::collected::{narrative_html, NarrativeLinks};
 use crate::edit::is_edited;
 use crate::files::{files_page, FilesPage};
 use crate::glossary::{glossary_page, GlossaryPage};
@@ -904,12 +904,13 @@ pub struct UseCasePage {
 /// `domain`, `None` when the run has no such use case there. Reads the files
 /// its steps cite to tell whether they changed since the run.
 #[must_use]
-pub fn use_case_page(
+pub(crate) fn use_case_page(
     docs: &GeneratedDocs,
     links: &DocLinks,
     domain: &str,
     feature: &str,
     slug: &str,
+    narrative_links: &NarrativeLinks,
 ) -> Option<UseCasePage> {
     let owner = find_feature(docs, domain, feature)?;
     let siblings: Vec<&UseCase> = docs.use_cases_of(feature).collect();
@@ -942,7 +943,10 @@ pub fn use_case_page(
             .map(str::to_string)
             .collect(),
         stale: stale_files(docs.freshness(), cited),
-        narrative_html: use_case.narrative.as_deref().and_then(narrative_html),
+        narrative_html: use_case
+            .narrative
+            .as_deref()
+            .and_then(|text| narrative_html(text, narrative_links)),
         unbacked: unbacked.is_some(),
         unbacked_rationale: unbacked.and_then(|check| Confidence::of(Some(check)).rationale),
         rules: docs

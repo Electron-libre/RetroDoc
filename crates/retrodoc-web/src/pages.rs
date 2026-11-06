@@ -15,7 +15,7 @@ use crate::actors::ActorsPage;
 use crate::assets::MERMAID;
 use crate::audit::{audit_page, AuditPage};
 use crate::code::{code_page, Asked, CodePage};
-use crate::collected::{collected_page, CollectedPage};
+use crate::collected::{collected_page, CollectedPage, NarrativeLinks};
 use crate::debt::{debt_page, DebtFilter, DebtPage};
 use crate::edit::EditView;
 use crate::edit_form::EditFormView;
@@ -299,8 +299,9 @@ pub async fn domain(
         site.docs().and_then(|docs| {
             let place = Place::Domain(slug.clone());
             let (reviews, review) = reviews_of(docs, &place);
-            let edit = EditView::of(docs, &place, site.texts());
-            let (review, edit_form) = after.shown(review, EditFormView::of(docs, &place));
+            let links = NarrativeLinks::of(site, &place);
+            let edit = EditView::of(docs, &place, site.texts(), &links);
+            let (review, edit_form) = after.shown(review, EditFormView::of(docs, &place, &links));
             domain_page(docs, site.links(), &reviews, &slug)
                 .map(|page| (page, edit, review, edit_form))
         })
@@ -378,8 +379,9 @@ pub async fn feature(
                 slug: slug.clone(),
             };
             let (reviews, review) = reviews_of(docs, &place);
-            let edit = EditView::of(docs, &place, site.texts());
-            let (review, edit_form) = after.shown(review, EditFormView::of(docs, &place));
+            let links = NarrativeLinks::of(site, &place);
+            let edit = EditView::of(docs, &place, site.texts(), &links);
+            let (review, edit_form) = after.shown(review, EditFormView::of(docs, &place, &links));
             feature_page(docs, site.links(), &reviews, &domain, &slug)
                 .map(|page| (page, edit, review, edit_form))
         })
@@ -416,9 +418,10 @@ pub async fn use_case(
                 slug: slug.clone(),
             };
             let review = ReviewView::of(docs, &review::load(docs), &place);
-            let edit = EditView::of(docs, &place, site.texts());
-            let (review, edit_form) = after.shown(review, EditFormView::of(docs, &place));
-            use_case_page(docs, site.links(), &domain, &feature, &slug)
+            let links = NarrativeLinks::of(site, &place);
+            let edit = EditView::of(docs, &place, site.texts(), &links);
+            let (review, edit_form) = after.shown(review, EditFormView::of(docs, &place, &links));
+            use_case_page(docs, site.links(), &domain, &feature, &slug, &links)
                 .map(|page| (page, edit, review, edit_form))
         })
     })

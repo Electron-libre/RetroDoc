@@ -240,7 +240,9 @@ pub(crate) fn feature_path(feature: &Feature) -> PathBuf {
     domain_dir(&feature.domain_slug).join(format!("{}.md", segment(&feature.slug)))
 }
 
-pub(crate) fn use_case_path(feature: &Feature, use_case: &UseCase) -> PathBuf {
+/// The Markdown page of `use_case` of `feature`, relative to the docs dir.
+#[must_use]
+pub fn use_case_path(feature: &Feature, use_case: &UseCase) -> PathBuf {
     domain_dir(&feature.domain_slug)
         .join("use-cases")
         .join(segment(&feature.slug))

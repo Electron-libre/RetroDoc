@@ -50,9 +50,9 @@ ask page (keeps the rules of a collected doc), links to other generated pages. T
 ## Plan
 1. [x] Headings: a narrative renders with its own options (no heading id, level + 2, capped at `h6`); verified by
    page and preview tests; makes true WEB-122. (autonomous)
-2. [ ] Links: resolve a relative link of a narrative against the Markdown page of its use case to a collected doc,
+2. [x] Links: resolve a relative link of a narrative against the Markdown page of its use case to a collected doc,
    else text; the preview route takes the use case path (404 when unknown); verified by page, edit and preview
-   tests; makes true WEB-123, WEB-119, WEB-120 (amended).
+   tests; makes true WEB-123, WEB-119, WEB-120 (amended). (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -77,3 +77,25 @@ red: WEB-122: `<h3>Paying</h3>` missing, the page held `<h1 id="paying">Paying</
 Code review: no findings
 
 not verified: none. decisions needed: none.
+
+## Deliverable 2 summary
+done: a relative link or image of a narrative resolves from the Markdown page of its use case to `/docs/<path>`
+when a collected doc is there, else shows as its text; the preview is asked at `/preview/domains/<d>/<f>/<u>`
+(404 for a use case the run lacks).
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass, `specs/web-ui.md` back to `accepted` |
+| docs | `docs/crates/render-mcp-cli.md`, `edit_form.rs` module doc |
+| code review | see below |
+
+red: WEB-123: the narrative kept `<a href="../../../../../guide.md#setup">guide</a>` as written
+
+Code review: 1 findings
+- the link path was compared without its `%XX` escapes decoded (`my%20guide.md`): fixed, each segment decoded,
+  covered by the WEB-123 test.
+
+not verified: the preview in a real browser (the `hx-post` URL is checked by the WEB-119 test only). decisions
+needed: none.

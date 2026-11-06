@@ -3,8 +3,9 @@
 //! `retrodoc-mcp`, the fields it leaves as generated left out, or removes it, and answers `htmx`
 //! with a reload of the page, else a redirect to it; a refusal answers `htmx` with the form alone,
 //! the error in it. The path sits under `/edit`, not after the
-//! page's: a feature or a use case may be named `edit`. A `POST` to `/preview` answers the
-//! narrative it sends rendered as the page renders it (WEB-119, WEB-120), and writes nothing.
+//! page's: a feature or a use case may be named `edit`. A `POST` to `/preview` followed by the URL
+//! of the page of a use case answers the narrative it sends rendered as that page renders it
+//! (WEB-119, WEB-120), and writes nothing.
 
 use std::sync::Arc;
 
@@ -17,7 +18,7 @@ use retrodoc_mcp::edits::{self, EditsError, Fields};
 use retrodoc_mcp::GeneratedDocs;
 use serde::Deserialize;
 
-use crate::collected::narrative_html;
+use crate::collected::{narrative_html, NarrativeLinks};
 use crate::edit::is_edited;
 use crate::pages::{blocking, form_answer, not_found, read_failed};
 use crate::review::{Place, SavedForm};
@@ -43,6 +44,8 @@ pub struct EditForm {
 pub struct EditFormView {
     /// Where it posts.
     pub action: String,
+    /// Where the preview of its narrative is asked (WEB-119).
+    pub preview: String,
     pub name: String,
     pub description: String,
     /// A use case only.
@@ -61,17 +64,19 @@ pub struct EditFormView {
 }
 
 impl EditFormView {
-    /// The form of the section at `place` of `docs`, filled with the text shown (SED-23).
+    /// The form of the section at `place` of `docs`, filled with the text shown (SED-23), its
+    /// preview's links resolved by `links`.
     #[must_use]
-    pub fn of(docs: &GeneratedDocs, place: &Place) -> Self {
+    pub(crate) fn of(docs: &GeneratedDocs, place: &Place, links: &NarrativeLinks) -> Self {
         let section = place.section();
         let shown = edits::fields_in(docs.sections(), &section).unwrap_or_default();
         let narrative = is_use_case(place).then(|| shown.narrative.unwrap_or_default());
         Self {
             action: action(place),
+            preview: format!("/preview{}", place.href()),
             name: shown.name.unwrap_or_default(),
             description: shown.description.unwrap_or_default(),
-            narrative_preview: preview_html(narrative.as_deref()),
+            narrative_preview: preview_html(narrative.as_deref(), links),
             narrative,
             edited: is_edited(docs, place),
             error: None,
@@ -80,13 +85,20 @@ impl EditFormView {
         }
     }
 
-    fn failed(place: &Place, form: &EditForm, edited: bool, error: String) -> Self {
+    fn failed(
+        place: &Place,
+        form: &EditForm,
+        edited: bool,
+        error: String,
+        links: &NarrativeLinks,
+    ) -> Self {
         let narrative = is_use_case(place).then(|| form.narrative.clone().unwrap_or_default());
         Self {
             action: action(place),
+            preview: format!("/preview{}", place.href()),
             name: form.name.clone(),
             description: form.description.clone(),
-            narrative_preview: preview_html(narrative.as_deref()),
+            narrative_preview: preview_html(narrative.as_deref(), links),
             narrative,
             edited,
             error: Some(error),
@@ -97,8 +109,10 @@ impl EditFormView {
 }
 
 /// `narrative` rendered as the page of a use case renders it (WEB-118); empty when there is none.
-fn preview_html(narrative: Option<&str>) -> String {
-    narrative.and_then(narrative_html).unwrap_or_default()
+fn preview_html(narrative: Option<&str>, links: &NarrativeLinks) -> String {
+    narrative
+        .and_then(|text| narrative_html(text, links))
+        .unwrap_or_default()
 }
 
 /// What the preview sends: the narrative, the other fields of the form ignored.
@@ -107,10 +121,23 @@ pub struct PreviewForm {
     narrative: Option<String>,
 }
 
-/// The narrative sent rendered, without the layout of a page (WEB-120): nothing is read nor
-/// written.
-pub async fn preview(Form(form): Form<PreviewForm>) -> Html<String> {
-    Html(preview_html(form.narrative.as_deref()))
+/// The narrative sent rendered as the narrative of the use case at the path, without the layout
+/// of a page (WEB-120): nothing is read nor written; 404 when the run lacks that use case.
+pub async fn preview(
+    State(site): State<Arc<Site>>,
+    Path((domain, feature, slug)): Path<(String, String, String)>,
+    Form(form): Form<PreviewForm>,
+) -> Response {
+    let place = Place::UseCase {
+        domain,
+        feature,
+        slug,
+    };
+    if !site.docs().is_some_and(|docs| place.in_docs(docs)) {
+        return not_found(State(site)).await;
+    }
+    let links = NarrativeLinks::of(&site, &place);
+    Html(preview_html(form.narrative.as_deref(), &links)).into_response()
 }
 
 fn action(place: &Place) -> String {
@@ -239,7 +266,8 @@ async fn save(site: Arc<Site>, place: Place, headers: &HeaderMap, form: EditForm
     .await;
     let failed = |code, error: String, edited, form: &EditForm| {
         if htmx {
-            let edit_form = EditFormView::failed(&place, form, edited, error);
+            let links = NarrativeLinks::of(&site, &place);
+            let edit_form = EditFormView::failed(&place, form, edited, error, &links);
             form_answer(
                 code,
                 &EditFormFragment {

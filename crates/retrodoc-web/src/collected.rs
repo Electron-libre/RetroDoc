@@ -2,11 +2,15 @@
 //! HTML shown as text and its links of an unsafe scheme dropped (a doc of the
 //! repository is not trusted more than the LLM output), each heading carrying
 //! the anchor the links of the item pages point to. A narrative shown inside its page keeps
-//! the first two rules, its headings set under the section that holds it, with no anchor.
+//! the first two rules, its headings set under the section that holds it, with no anchor, and
+//! its relative links led where they lead from its Markdown page (`NarrativeLinks`).
 
 use pulldown_cmark::{html, CowStr, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 use retrodoc_mcp::ExistingDoc;
-use retrodoc_render::anchor;
+use retrodoc_render::{anchor, use_case_path};
+
+use crate::review::Place;
+use crate::view::{find_feature, url_path, Site};
 
 pub struct CollectedPage {
     /// From the repository root.
@@ -37,22 +41,96 @@ pub(crate) fn markdown_html(markdown: &str) -> String {
     render(markdown, Flavour::Doc).0
 }
 
+/// Where the relative links of a narrative lead (WEB-123): from the Markdown page of its use
+/// case to the collected docs.
+pub(crate) struct NarrativeLinks<'a> {
+    /// The dirs of the Markdown page, from the repository root; `None` for a section with no
+    /// narrative or one the run lacks.
+    page_dir: Option<Vec<String>>,
+    collected: &'a [ExistingDoc],
+}
+
+impl<'a> NarrativeLinks<'a> {
+    /// The links of the narrative of the section at `place` of the run `site` serves.
+    pub(crate) fn of(site: &'a Site, place: &Place) -> Self {
+        let page_dir = match place {
+            Place::UseCase {
+                domain,
+                feature,
+                slug,
+            } => site.docs().and_then(|docs| {
+                let owner = find_feature(docs, domain, feature)?;
+                let use_case = docs.use_cases_of(feature).find(|u| &u.slug == slug)?;
+                let page = site.links().docs_dir.join(use_case_path(owner, use_case));
+                let mut dirs: Vec<String> = Vec::new();
+                for part in page.parent()?.components() {
+                    match part {
+                        std::path::Component::Normal(name) => {
+                            dirs.push(name.to_string_lossy().into_owned());
+                        }
+                        std::path::Component::CurDir => {}
+                        _ => return None,
+                    }
+                }
+                Some(dirs)
+            }),
+            _ => None,
+        };
+        Self {
+            page_dir,
+            collected: site.collected(),
+        }
+    }
+
+    /// Where the relative `url` leads in the interface: the page of the collected doc it resolves
+    /// to, its fragment kept; `None` when no collected doc is there.
+    fn resolve(&self, url: &str) -> Option<String> {
+        let (path, fragment) = url
+            .split_once('#')
+            .map_or((url, None), |(path, fragment)| (path, Some(fragment)));
+        let path = path.split_once('?').map_or(path, |(path, _)| path);
+        if path.starts_with('/') {
+            return None;
+        }
+        let mut target = self.page_dir.clone()?;
+        for part in path.split('/') {
+            match part {
+                "" | "." => {}
+                ".." => {
+                    target.pop()?;
+                }
+                name => target.push(percent_decoded(name)),
+            }
+        }
+        let target = target.join("/");
+        self.collected
+            .iter()
+            .any(|d| d.path.to_string_lossy().replace('\\', "/") == target)
+            .then(|| match fragment {
+                Some(fragment) => format!("/docs/{}#{fragment}", url_path(&target)),
+                None => format!("/docs/{}", url_path(&target)),
+            })
+    }
+}
+
 /// The narrative of a use case rendered as its page and the preview of its edit show it (WEB-118),
 /// its line ends and surrounding whitespace cleaned as a save cleans them (WEB-94), its headings
-/// under the `h2` of its section with no anchor (WEB-122); `None` when it is blank.
-pub(crate) fn narrative_html(narrative: &str) -> Option<String> {
+/// under the `h2` of its section with no anchor (WEB-122), its relative links resolved by `links`
+/// (WEB-123); `None` when it is blank.
+pub(crate) fn narrative_html(narrative: &str, links: &NarrativeLinks) -> Option<String> {
     let narrative = narrative.replace("\r\n", "\n");
     let narrative = narrative.trim();
-    (!narrative.is_empty()).then(|| render(narrative, Flavour::Narrative).0)
+    (!narrative.is_empty()).then(|| render(narrative, Flavour::Narrative(links)).0)
 }
 
 /// What the Markdown is rendered as.
 #[derive(Clone, Copy)]
-enum Flavour {
-    /// A page of its own: each heading at its level, with its anchor.
+enum Flavour<'a> {
+    /// A page of its own: each heading at its level, with its anchor, its relative links kept.
     Doc,
-    /// A section inside a page: each heading two levels down, with no anchor (WEB-122).
-    Narrative,
+    /// A section inside a page: each heading two levels down, with no anchor (WEB-122), its
+    /// relative links resolved (WEB-123).
+    Narrative(&'a NarrativeLinks<'a>),
 }
 
 /// The HTML of `markdown` and the text of its first heading.
@@ -76,7 +154,7 @@ fn render(markdown: &str, flavour: Flavour) -> (String, Option<String>) {
                 }
                 let (level, id) = match flavour {
                     Flavour::Doc => (level, Some(CowStr::from(anchor(&text)))),
-                    Flavour::Narrative => (two_levels_down(level), None),
+                    Flavour::Narrative(_) => (two_levels_down(level), None),
                 };
                 Event::Start(Tag::Heading {
                     level,
@@ -85,16 +163,42 @@ fn render(markdown: &str, flavour: Flavour) -> (String, Option<String>) {
                     attrs,
                 })
             }
-            Event::End(TagEnd::Heading(level)) if matches!(flavour, Flavour::Narrative) => {
+            Event::End(TagEnd::Heading(level)) if matches!(flavour, Flavour::Narrative(_)) => {
                 Event::End(TagEnd::Heading(two_levels_down(level)))
             }
-            Event::Start(Tag::Link { ref dest_url, .. }) if !safe_url(dest_url) => {
-                dropped.push(TagEnd::Link);
-                continue;
+            Event::Start(Tag::Link {
+                link_type,
+                dest_url,
+                title,
+                id,
+            }) => {
+                let Some(dest_url) = led(&dest_url, flavour) else {
+                    dropped.push(TagEnd::Link);
+                    continue;
+                };
+                Event::Start(Tag::Link {
+                    link_type,
+                    dest_url,
+                    title,
+                    id,
+                })
             }
-            Event::Start(Tag::Image { ref dest_url, .. }) if !safe_url(dest_url) => {
-                dropped.push(TagEnd::Image);
-                continue;
+            Event::Start(Tag::Image {
+                link_type,
+                dest_url,
+                title,
+                id,
+            }) => {
+                let Some(dest_url) = led(&dest_url, flavour) else {
+                    dropped.push(TagEnd::Image);
+                    continue;
+                };
+                Event::Start(Tag::Image {
+                    link_type,
+                    dest_url,
+                    title,
+                    id,
+                })
             }
             Event::End(end) if dropped.last() == Some(&end) => {
                 dropped.pop();
@@ -108,6 +212,41 @@ fn render(markdown: &str, flavour: Flavour) -> (String, Option<String>) {
     let mut out = String::new();
     html::push_html(&mut out, events.into_iter());
     (out, title)
+}
+
+/// `segment` with its `%XX` escapes decoded, as a browser asks for the file; an escape that is
+/// not one is kept as written.
+fn percent_decoded(segment: &str) -> String {
+    let bytes = segment.as_bytes();
+    let mut decoded = Vec::with_capacity(bytes.len());
+    let mut at = 0;
+    while at < bytes.len() {
+        let escaped = (bytes[at] == b'%')
+            .then(|| segment.get(at + 1..at + 3))
+            .flatten()
+            .filter(|hex| hex.bytes().all(|b| b.is_ascii_hexdigit()))
+            .and_then(|hex| u8::from_str_radix(hex, 16).ok());
+        if let Some(byte) = escaped {
+            decoded.push(byte);
+            at += 3;
+        } else {
+            decoded.push(bytes[at]);
+            at += 1;
+        }
+    }
+    String::from_utf8_lossy(&decoded).into_owned()
+}
+
+/// Where a link or an image of `url` leads, `None` when it is shown as its text alone: an unsafe
+/// scheme (WEB-50), or a relative URL of a narrative that leads to no collected doc (WEB-123).
+fn led<'a>(url: &CowStr<'a>, flavour: Flavour) -> Option<CowStr<'a>> {
+    match (scheme(url), flavour) {
+        (Some(scheme), _) => safe_scheme(&scheme).then(|| url.clone()),
+        (None, Flavour::Narrative(links)) if !url.starts_with('#') => {
+            links.resolve(url).map(CowStr::from)
+        }
+        (None, _) => Some(url.clone()),
+    }
 }
 
 /// `level` two levels down, `h6` at most: under the `h2` of the section of a narrative.
@@ -140,23 +279,29 @@ fn heading_text(source: &str) -> String {
 /// A relative URL, or one of the schemes `http`, `https` and `mailto`. The
 /// blanks and control characters a browser ignores are ignored too, so
 /// `java\tscript:` counts as `javascript:`.
+#[cfg(test)]
 fn safe_url(url: &str) -> bool {
+    scheme(url).is_none_or(|scheme| safe_scheme(&scheme))
+}
+
+fn safe_scheme(scheme: &str) -> bool {
+    ["http", "https", "mailto"]
+        .iter()
+        .any(|s| scheme.eq_ignore_ascii_case(s))
+}
+
+/// The scheme of `url` as a browser reads it, `None` for a relative URL.
+fn scheme(url: &str) -> Option<String> {
     let url: String = url
         .chars()
         .filter(|c| !c.is_ascii_whitespace() && !c.is_control())
         .collect();
-    let Some(colon) = url.find(':') else {
-        return true;
-    };
-    let scheme = &url[..colon];
+    let scheme = &url[..url.find(':')?];
     let is_scheme = scheme.starts_with(|c: char| c.is_ascii_alphabetic())
         && scheme
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '-' | '.'));
-    !is_scheme
-        || ["http", "https", "mailto"]
-            .iter()
-            .any(|s| scheme.eq_ignore_ascii_case(s))
+    is_scheme.then(|| scheme.to_string())
 }
 
 #[cfg(test)]

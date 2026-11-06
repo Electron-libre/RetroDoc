@@ -8,7 +8,7 @@ use axum::http::{Request, StatusCode};
 use retrodoc_core::model::{Feature, UseCase};
 use retrodoc_mcp::edits::{self, Edit, Fields};
 use retrodoc_mcp::reviews::{Section, SectionKind};
-use retrodoc_mcp::GeneratedDocs;
+use retrodoc_mcp::{ExistingDoc, GeneratedDocs};
 use retrodoc_pipeline::{DomainCluster, DomainMap};
 use retrodoc_render::DocLinks;
 use retrodoc_web::Project;
@@ -77,13 +77,28 @@ fn edit(root: &Path, section: &Section, fields: Fields) -> Edit {
     edits::record(root, &docs, section, fields).unwrap()
 }
 
+/// The router over the run of `root`, its docs written under `docs/`, the collected docs
+/// `guide.md`, `docs/manual.md` and `docs/my guide.md`.
+fn app(root: &Path, project: Project) -> axum::Router {
+    let links = DocLinks {
+        docs_dir: "docs".into(),
+        ..DocLinks::default()
+    };
+    let collected = ["guide.md", "docs/manual.md", "docs/my guide.md"]
+        .map(|path| ExistingDoc {
+            path: path.into(),
+            content: "# Guide\n".into(),
+        })
+        .to_vec();
+    retrodoc_web::router(project, GeneratedDocs::load(root, &[]), links, collected)
+}
+
 async fn get(root: &Path, path: &str) -> String {
     let project = Project {
         lang: Some("en"),
         ..Project::default()
     };
-    let docs = GeneratedDocs::load(root, &[]);
-    let response = retrodoc_web::router(project, docs, DocLinks::default(), Vec::new())
+    let response = app(root, project)
         .oneshot(Request::get(path).body(Body::empty()).unwrap())
         .await
         .unwrap();
@@ -197,8 +212,7 @@ async fn post(root: &Path, path: &str, form: &str, htmx: bool) -> Answer {
     if htmx {
         request = request.header("hx-request", "true");
     }
-    let docs = GeneratedDocs::load(root, &[]);
-    let response = retrodoc_web::router(Project::default(), docs, DocLinks::default(), Vec::new())
+    let response = app(root, Project::default())
         .oneshot(request.body(Body::from(form.to_string())).unwrap())
         .await
         .unwrap();
@@ -242,6 +256,7 @@ fn form_block(page: &str) -> &str {
 
 const USE_CASE: &str = "/domains/billing/pay-invoice/pay-by-card";
 const FEATURE: &str = "/domains/billing/pay-invoice";
+const PREVIEW: &str = "/preview/domains/billing/pay-invoice/pay-by-card";
 
 // spec: WEB-93
 #[tokio::test]
@@ -669,7 +684,7 @@ async fn the_edit_form_of_a_use_case_previews_its_narrative_as_it_is_typed() {
         .find(|tag| tag.contains("name=\"narrative\""))
         .unwrap_or_else(|| panic!("no narrative field in {form}"));
     for attribute in [
-        "hx-post=\"/preview\"",
+        "hx-post=\"/preview/domains/billing/pay-invoice/pay-by-card\"",
         "hx-trigger=\"input changed delay:500ms\"",
         "hx-target=\"#narrative-preview\"",
         "hx-swap=\"innerHTML\"",
@@ -694,7 +709,7 @@ async fn the_preview_renders_the_narrative_sent_and_writes_nothing() {
 
     let answer = post(
         root,
-        "/preview",
+        PREVIEW,
         "name=Pay&narrative=Pays+**by+card**.+Then+%3Cscript%3Ealert(1)%3C%2Fscript%3E+%5Bx%5D(javascript%3Aalert(1))",
         true,
     )
@@ -706,12 +721,20 @@ async fn the_preview_renders_the_narrative_sent_and_writes_nothing() {
         "<p>Pays <strong>by card</strong>. Then &lt;script&gt;alert(1)&lt;/script&gt; x</p>\n"
     );
     for empty in ["narrative=", "narrative=+%0D%0A", "name=Pay"] {
-        let answer = post(root, "/preview", empty, true).await;
+        let answer = post(root, PREVIEW, empty, true).await;
         assert_eq!(
             (answer.status, answer.body.as_str()),
             (StatusCode::OK, ""),
             "{empty}"
         );
+    }
+    for unknown in [
+        "/preview/domains/billing/pay-invoice/pay-by-cash",
+        "/preview/domains/billing/refund/pay-by-card",
+        "/preview/domains/shipping/pay-invoice/pay-by-card",
+    ] {
+        let answer = post(root, unknown, "narrative=x", true).await;
+        assert_eq!(answer.status, StatusCode::NOT_FOUND, "{unknown}");
     }
     assert_eq!(files_under(root), before);
 }
@@ -772,7 +795,7 @@ async fn the_headings_of_a_narrative_sit_under_its_section_with_no_id() {
 
     let answer = post(
         root,
-        "/preview",
+        PREVIEW,
         &format!(
             "narrative={}",
             narrative
@@ -791,4 +814,57 @@ async fn the_headings_of_a_narrative_sit_under_its_section_with_no_id() {
         );
     }
     assert!(!answer.body.contains(" id="), "{}", answer.body);
+}
+
+// spec: WEB-123
+#[tokio::test]
+async fn a_relative_link_of_a_narrative_leads_to_the_collected_doc_it_resolves_to() {
+    // The page of the use case: docs/functional/billing/use-cases/pay-invoice/pay-by-card.md.
+    let narrative = "See [guide](../../../../../guide.md#setup), [manual](../../../../manual.md), \
+        [spaced](../../../../my%20guide.md), [gone](missing.md), [root](/guide.md), [above](../../../../../../guide.md), \
+        [here](#steps) and ![shot](shot.png).";
+    let repo = generated_repo();
+    let root = repo.path();
+    let mut generated = use_case(narrative);
+    generated.narrative = Some(format!("Generated. {narrative}"));
+    retrodoc_pipeline::save_use_cases(root, &[generated]).unwrap();
+    edit(
+        root,
+        &Section::use_case("pay-invoice", "pay-by-card"),
+        Fields {
+            narrative: Some(narrative.into()),
+            ..Fields::default()
+        },
+    );
+    let expected = "<p>See <a href=\"/docs/guide.md#setup\">guide</a>, \
+        <a href=\"/docs/docs/manual.md\">manual</a>, <a href=\"/docs/docs/my%20guide.md\">spaced</a>, gone, root, above, <a href=\"#steps\">here</a> and shot.</p>";
+
+    let page = get(root, USE_CASE).await;
+    let generated_start = page.find("<div class=\"narrative\">").expect(&page);
+    let body_start = page.rfind("<div class=\"narrative\">").expect(&page);
+    assert!(
+        generated_start < body_start,
+        "the generated text and the body: {page}"
+    );
+    let block = |start: usize| &page[start..start + page[start..].find("</div>").unwrap()];
+    assert!(
+        block(generated_start).contains(&expected.replace("<p>See", "<p>Generated. See")),
+        "{}",
+        block(generated_start)
+    );
+    assert!(
+        block(body_start).contains(expected),
+        "{}",
+        block(body_start)
+    );
+    let preview = preview_block(form_block(&page)).expect(&page);
+    assert!(preview.contains(expected), "{preview}");
+
+    let sent = narrative
+        .replace('%', "%25")
+        .replace('#', "%23")
+        .replace('&', "%26")
+        .replace(' ', "+");
+    let answer = post(root, PREVIEW, &format!("narrative={sent}"), true).await;
+    assert_eq!(answer.body, format!("{expected}\n"));
 }

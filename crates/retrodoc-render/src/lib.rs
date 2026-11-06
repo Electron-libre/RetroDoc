@@ -15,7 +15,7 @@ mod texts;
 
 pub use doc_links::{anchor, DocLink, DocLinks, ItemRef};
 pub use edit_marks::{EditMark, EditMarks, EditedField};
-pub use markdown::{render, render_with_docs, render_with_rules, source_ref_label};
+pub use markdown::{render, render_with_docs, render_with_rules, source_ref_label, use_case_path};
 pub use plan::{plan, FileStatus, PlannedFile, WritePlan};
 pub use texts::Texts;
 
