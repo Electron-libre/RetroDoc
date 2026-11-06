@@ -822,7 +822,8 @@ async fn a_relative_link_of_a_narrative_leads_to_the_collected_doc_it_resolves_t
     // The page of the use case: docs/functional/billing/use-cases/pay-invoice/pay-by-card.md.
     let narrative = "See [guide](../../../../../guide.md#setup), [manual](../../../../manual.md), \
         [spaced](../../../../my%20guide.md), [gone](missing.md), [root](/guide.md), [above](../../../../../../guide.md), \
-        [here](#steps) and ![shot](shot.png).";
+        [encoded](%2E%2E/%2e%2E/../../manual.md), [slashed](..%2F..%2F../../manual.md), \
+        [here](#steps), <ada@example.org> and ![shot](shot.png).";
     let repo = generated_repo();
     let root = repo.path();
     let mut generated = use_case(narrative);
@@ -837,7 +838,8 @@ async fn a_relative_link_of_a_narrative_leads_to_the_collected_doc_it_resolves_t
         },
     );
     let expected = "<p>See <a href=\"/docs/guide.md#setup\">guide</a>, \
-        <a href=\"/docs/docs/manual.md\">manual</a>, <a href=\"/docs/docs/my%20guide.md\">spaced</a>, gone, root, above, <a href=\"#steps\">here</a> and shot.</p>";
+        <a href=\"/docs/docs/manual.md\">manual</a>, <a href=\"/docs/docs/my%20guide.md\">spaced</a>, gone, root, above, <a href=\"/docs/docs/manual.md\">encoded</a>, slashed, \
+        <a href=\"#steps\">here</a>, <a href=\"mailto:ada@example.org\">ada@example.org</a> and shot.</p>";
 
     let page = get(root, USE_CASE).await;
     let generated_start = page.find("<div class=\"narrative\">").expect(&page);
@@ -864,6 +866,8 @@ async fn a_relative_link_of_a_narrative_leads_to_the_collected_doc_it_resolves_t
         .replace('%', "%25")
         .replace('#', "%23")
         .replace('&', "%26")
+        .replace('<', "%3C")
+        .replace('>', "%3E")
         .replace(' ', "+");
     let answer = post(root, PREVIEW, &format!("narrative={sent}"), true).await;
     assert_eq!(answer.body, format!("{expected}\n"));

@@ -455,6 +455,10 @@ over browses its domains, features and use cases rather than reading the Markdow
   `guide.md`, then the link leads to `/docs/guide.md#setup`.
 - (WEB-123) Given a relative link that climbs above the repository root, or a root path (`/guide.md`), then it is
   shown as its text alone.
+- (WEB-123) Given `%2E%2E/` in a relative link, then it climbs as `../` does; given an email autolink
+  (`<ada@example.org>`), then it stays a `mailto:` link.
+- (WEB-123) Given a run with no reconciliation of the collected docs, then the links still resolve from the docs dir
+  of the config.
 
 ## Non-goals
 

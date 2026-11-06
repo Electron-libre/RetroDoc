@@ -5,7 +5,7 @@
 //! the first two rules, its headings set under the section that holds it, with no anchor, and
 //! its relative links led where they lead from its Markdown page (`NarrativeLinks`).
 
-use pulldown_cmark::{html, CowStr, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
+use pulldown_cmark::{html, CowStr, Event, HeadingLevel, LinkType, Options, Parser, Tag, TagEnd};
 use retrodoc_mcp::ExistingDoc;
 use retrodoc_render::{anchor, use_case_path};
 
@@ -94,12 +94,14 @@ impl<'a> NarrativeLinks<'a> {
         }
         let mut target = self.page_dir.clone()?;
         for part in path.split('/') {
-            match part {
+            // `%2E%2E` is `..` to a browser; a decoded `/` names no file of one segment.
+            match percent_decoded(part).as_str() {
                 "" | "." => {}
                 ".." => {
                     target.pop()?;
                 }
-                name => target.push(percent_decoded(name)),
+                name if name.contains('/') => return None,
+                name => target.push(name.to_string()),
             }
         }
         let target = target.join("/");
@@ -172,7 +174,7 @@ fn render(markdown: &str, flavour: Flavour) -> (String, Option<String>) {
                 title,
                 id,
             }) => {
-                let Some(dest_url) = led(&dest_url, flavour) else {
+                let Some(dest_url) = led(&dest_url, link_type, flavour) else {
                     dropped.push(TagEnd::Link);
                     continue;
                 };
@@ -189,7 +191,7 @@ fn render(markdown: &str, flavour: Flavour) -> (String, Option<String>) {
                 title,
                 id,
             }) => {
-                let Some(dest_url) = led(&dest_url, flavour) else {
+                let Some(dest_url) = led(&dest_url, link_type, flavour) else {
                     dropped.push(TagEnd::Image);
                     continue;
                 };
@@ -238,14 +240,20 @@ fn percent_decoded(segment: &str) -> String {
 }
 
 /// Where a link or an image of `url` leads, `None` when it is shown as its text alone: an unsafe
-/// scheme (WEB-50), or a relative URL of a narrative that leads to no collected doc (WEB-123).
-fn led<'a>(url: &CowStr<'a>, flavour: Flavour) -> Option<CowStr<'a>> {
-    match (scheme(url), flavour) {
-        (Some(scheme), _) => safe_scheme(&scheme).then(|| url.clone()),
-        (None, Flavour::Narrative(links)) if !url.starts_with('#') => {
+/// scheme (WEB-50), or a relative URL of a narrative that leads to no collected doc (WEB-123). An
+/// email autolink is kept: its `mailto:` is added when it is written.
+fn led<'a>(url: &CowStr<'a>, link_type: LinkType, flavour: Flavour) -> Option<CowStr<'a>> {
+    if link_type == LinkType::Email {
+        return Some(url.clone());
+    }
+    if !safe_url(url) {
+        return None;
+    }
+    match flavour {
+        Flavour::Narrative(links) if scheme(url).is_none() && !url.starts_with('#') => {
             links.resolve(url).map(CowStr::from)
         }
-        (None, _) => Some(url.clone()),
+        _ => Some(url.clone()),
     }
 }
 
@@ -279,7 +287,6 @@ fn heading_text(source: &str) -> String {
 /// A relative URL, or one of the schemes `http`, `https` and `mailto`. The
 /// blanks and control characters a browser ignores are ignored too, so
 /// `java\tscript:` counts as `javascript:`.
-#[cfg(test)]
 fn safe_url(url: &str) -> bool {
     scheme(url).is_none_or(|scheme| safe_scheme(&scheme))
 }

@@ -156,7 +156,8 @@ pub fn without_generated(
 }
 
 /// The doc sections behind the items of the last run, from the reconciliation `generated` made
-/// when it was loaded (no LLM call); none before a first `generate` or with no collected doc.
+/// when it was loaded (no LLM call); none before a first `generate` or with no collected doc, the
+/// docs dir set all the same (the web resolves the links of a narrative from it, WEB-123).
 pub fn item_doc_links(
     generated: Option<&retrodoc_mcp::GeneratedDocs>,
     config: &Config,
@@ -170,7 +171,10 @@ pub fn item_doc_links(
                 &config.output.docs_dir,
             ))
         })
-        .unwrap_or_default()
+        .unwrap_or_else(|| retrodoc_render::DocLinks {
+            docs_dir: config.output.docs_dir.clone().into(),
+            ..retrodoc_render::DocLinks::default()
+        })
 }
 
 /// The doc sections each item page links: those that document or contradict the item. A rule that
@@ -452,5 +456,15 @@ mod tests {
                 contradicts: Some("A week.".into()),
             }]
         );
+    }
+
+    // spec: WEB-123 (internal: a run with no reconciliation needs an LLM run through the binary)
+    #[test]
+    fn the_docs_dir_is_set_with_no_reconciliation() {
+        let mut config = Config::default();
+        config.output.docs_dir = "handbook".into();
+        let links = item_doc_links(None, &config);
+        assert_eq!(links.docs_dir, std::path::PathBuf::from("handbook"));
+        assert!(links.links.is_empty());
     }
 }

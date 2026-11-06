@@ -53,6 +53,8 @@ ask page (keeps the rules of a collected doc), links to other generated pages. T
 2. [x] Links: resolve a relative link of a narrative against the Markdown page of its use case to a collected doc,
    else text; the preview route takes the use case path (404 when unknown); verified by page, edit and preview
    tests; makes true WEB-123, WEB-119, WEB-120 (amended). (autonomous)
+3. [x] Fixes of the `high` review: an email autolink kept, `%2E%2E` climbs, the docs dir set with no
+   reconciliation; verified by the WEB-123 tests. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -99,3 +101,34 @@ Code review: 1 findings
 
 not verified: the preview in a real browser (the `hx-post` URL is checked by the WEB-119 test only). decisions
 needed: none.
+
+## Deliverable 3 summary
+done: fixes of the `high` review of the issue.
+
+| check | result |
+|---|---|
+| tests | pass |
+| lint | pass |
+| specs | pass, two WEB-123 scenarios added |
+| docs | doc comments of `item_doc_links` and `led` |
+| code review | see below |
+
+red: WEB-123: `ada@example.org` and `encoded` shown as text; `docs_dir` empty with no reconciliation
+
+`high` review: 10 findings
+- email autolink dropped (regression): fixed.
+- `docs_dir` empty when the run has no reconciliation: fixed in `item_doc_links`.
+- `%2E%2E` read as a name, `%2F` inside a segment: fixed (climbs; a decoded `/` shows as text).
+- `safe_url` test-only: fixed, `led` calls it again.
+- docs dir absolute or above the repo: not fixed, its pages are outside the repository, whose collected docs are the
+  only targets; the links show as text.
+- slugs not percent-encoded in the preview URL: not fixed, the same as the existing `/edit` and review actions
+  (`Place::href`), slugs are kebab-case.
+- a fragment link to a narrative heading goes nowhere since WEB-122: not fixed, the spec keeps fragment links as
+  written (the page's own ids).
+- double lookup in `preview`, linear scan of the collected docs, `preview` URL filled for a domain or a feature form:
+  not fixed, simplifications with no wrong output.
+
+Code review: no findings
+
+not verified: none. decisions needed: none.
