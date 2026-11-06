@@ -1,0 +1,53 @@
+# The look of the web interface
+
+How to check a change of the look of `retrodoc ui` (`crates/retrodoc-web`), and the states each form must show.
+The behaviour of the pages is in `specs/web-ui.md` and `specs/web-ask.md`; this file is about what they look like.
+
+## Screenshots before and after
+
+`just screenshots <base-url> <label>` (`scripts/screenshots.rs`) shoots every page of a running `retrodoc ui` with
+headless Chrome, at 1440 px and 390 px wide, into `<runs directory>/screenshots/<label>/<kind>-<width>.png` (the
+runs directory is `$RETRODOC_RUNS_DIR`, else `~/retrodoc-runs`, outside git). It finds one domain, feature, use
+case, domain map, code page and collected doc from the links of the home page and of the pages they lead to, and
+searches the first word of the first domain; it warns about a kind of page it found no link to.
+
+Shoot the same docs before and after the change, with the ask page served (`--ask`; no question is asked, so no LLM
+call is made, a placeholder key is enough):
+
+```sh
+DEEPSEEK_API_KEY=unused cargo run -p retrodoc-cli -- ui --ask --path <docs repo> --bind 127.0.0.1:8730
+just screenshots http://127.0.0.1:8730 before-<commit>
+```
+
+The stylesheet is embedded in the binary: rebuild before the "after" shots, and hard-reload a browser that keeps
+an older one cached.
+
+## Design variables
+
+`:root` of `crates/retrodoc-web/assets/style.css` holds the colours of the charter (dark surfaces, gold as the one
+accent, kept rare; `--gold-dark` never for text; `diagrams.js` copies the colours, keep them in sync), the
+spacing steps `--space-1` to `--space-6`, the radius `--radius-sm`, `--radius`, `--radius-pill`, the type scale
+`--text-xs` to `--text-2xl` and `--control-height`. A component uses them rather than a literal value.
+
+## States of the forms
+
+Each form shows each state that applies to it; a cross marks the states it must show. Pending, saved and error are
+the work of `web_ui_form_feedback`.
+
+| form | page | rest | hover | focus | disabled | pending | saved | error |
+|---|---|---|---|---|---|---|---|---|
+| search (top bar) | every page | x | | x | | x | | |
+| ask (question, send, start over) | ask | x | x | x | x (a question runs) | x | | x |
+| review (status, comment, save) | domain, feature, use case | x | x | x | | x | x | x |
+| edit (name, description, narrative, save, revert) | domain, feature, use case | x | x | x | | x | x | x |
+| debt filters | debt | x | x | x | | x | | |
+| rules filters | rules | x | x | x | | x | | |
+| run comparison (from, to, show) | history | x | x | x | | | | |
+
+- **rest**: the control at rest, its label above it, its hint below.
+- **hover**: a button or a select changes its border or background under the pointer.
+- **focus**: a 2 px gold outline on the control the keyboard reached (`:focus-visible`).
+- **disabled**: dimmed, the pointer not allowed, no hover.
+- **pending**: the request is running: the submit button disabled, an indicator shown.
+- **saved**: a short notice that the change was written.
+- **error**: the message beside the field, the input kept.

@@ -12,7 +12,8 @@ just check                              # `cardinal run project-check`: the `che
 just check-cardinal                     # fail when a file synced from Cardinal (the shared harness) was edited locally (needs the `cardinal` binary: `cargo install --git <source in .claude/cardinal.toml> cardinal --locked`)
 just check-specs                        # validate specs/*.md and trace their requirements to the tests (`// spec: ID`; needs `cardinal`)
 just spec-coverage                      # test files that cite no requirement of an accepted spec, largest first
-just test-skill-scripts                 # test the scripts of the smoke-test and quality-benchmark skills (needs rust-script)
+just test-skill-scripts                 # test the scripts of the smoke-test and quality-benchmark skills and of scripts/ (needs rust-script)
+just screenshots <base-url> <label>     # screenshots of every page of a running `retrodoc ui` (docs/dev/web-ui.md)
 just probe-schema <ollama|hybrid|deepseek|gemini|openrouter>   # one HTTP call: does the server reject, ignore or obey a strict JSON schema; also prints finish_reason and usage (`--max-tokens 8` forces a cut)
 cargo run -q -p retrodoc-bench --example entry_points_replay -- benchmark/<repo>/entry-points.yaml <checkout> <runs dir>   # saved runs vs a hand-made entry points/actors reference (no LLM)
 cargo run -q -p retrodoc-bench --example reference_evidence -- benchmark/<repo>/reference.yaml <checkout> [<run.json>...]   # evidence of the reference checked in the checkout; figures of saved reports without the disputed features (no LLM)

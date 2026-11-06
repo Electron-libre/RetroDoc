@@ -24,11 +24,11 @@ set-version version:
     sed -i 's/^version = "[0-9.]*"$/version = "{{version}}"/' Cargo.toml
     cargo update --workspace --offline
 
-# Test the scripts of the project's own skills (smoke-test, quality-benchmark). Requires `rust-script`. Prints
+# Test the scripts of the project's own skills (smoke-test, quality-benchmark) and of `scripts/`. Requires `rust-script`. Prints
 # nothing on success, and only the lines of the failing script that are not `ok` otherwise.
 test-skill-scripts:
     #!/usr/bin/env sh
-    for t in .claude/skills/*/test_*.rs; do
+    for t in .claude/skills/*/test_*.rs scripts/test_*.rs; do
         [ -e "$t" ] || continue
         out=$(rust-script "$t" 2>&1) || { printf '%s\n' "$out" | grep -v '^ok '; echo "FAILED: $t"; exit 1; }
     done
@@ -36,6 +36,10 @@ test-skill-scripts:
 # One HTTP call: does a server reject, ignore or obey a strict JSON schema? (ollama|deepseek|gemini|openrouter)
 probe-schema *args:
     cargo run -q -p retrodoc-llm --example schema_probe -- {{args}}
+
+# Screenshots of every page of a running `retrodoc ui` at `<base-url>`, into `<runs>/screenshots/<label>` (`docs/dev/web-ui.md`).
+screenshots base-url label:
+    rust-script scripts/screenshots.rs shoot {{base-url}} {{label}}
 
 # Smoke test on a real repo with the local LLM (see .claude/skills/smoke-test/SKILL.md). Slow.
 smoke *args:

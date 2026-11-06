@@ -51,3 +51,44 @@ A web interface that invites to act
 * The stylesheet is embedded in the binary: a browser may keep an older one cached, check with a hard reload.
 * Over ~1,000 lines, split: the baseline screenshots and the variables in one deliverable, the components applied to
   the templates in another.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-06
+
+## Understanding
+One set of components (buttons primary/secondary/quiet, fields, selects, text areas, tables, badges, cards, empty
+state) on design variables, used by every template, with before/after screenshots. Out of scope: the pending, saved
+and error states of the forms (`web_ui_form_feedback`), only listed in the checklist here. No spec changes.
+
+## Plan
+1. [x] Baseline and variables: `scripts/screenshots.rs` (rust-script: from a running `retrodoc ui`, finds one page
+   of each kind from the links of the home page, shoots each at 1440 px and 390 px with headless Chrome into a
+   directory of the runs directory, outside git), its test of the page discovery, the recipe `just screenshots`, the
+   checklist of the states of each form in `docs/dev/web-ui.md`, the design variables in `:root` (spacing,
+   radius, type scale; no visible change); "before" screenshots of `delivery_router` taken; verified by
+   `scripts/test_screenshots.rs` and the screenshots; ~400 lines. (autonomous)
+2. [ ] Components: buttons, fields, selects, text areas, tables, badges, cards, empty state in `style.css`, the
+   macros `button`/`field` in `macros.html` where they remove repetition, applied to every template; "after"
+   screenshots compared with "before"; verified by the web tests (`cargo test -p retrodoc-web`) and the screenshots
+   at both widths; ~700 lines.
+
+## Decisions
+- Mode: autonomous
+- Base commit: bc18817a20fa2eb2d2937d4ec3532d9e5f8e1bbf
+- Screenshots are taken on the English `delivery_router` run `docs_language-6248f5d-en` of the runs directory
+  (no LLM call; the ask page is shot empty, without `--ask` questions asked).
+- The script lives in `scripts/`; `just test-skill-scripts` also runs `scripts/test_*.rs`.
+
+## Deliverable 1: baseline and variables
+- done: `scripts/screenshots.rs` and its test, `just screenshots`, `scripts/test_*.rs` run by `just test-skill-scripts`,
+  `docs/dev/web-ui.md` (screenshots, variables, states of the forms), the design variables in `:root`; "before"
+  screenshots in `screenshots/before-bc18817` of the runs directory (17 pages at 1440 and 390 px; no collected doc
+  linked in that run).
+- checks: project-check green, `just test-skill-scripts` green, size 315 lines.
+- red: none (no spec; `test_screenshots.rs` failed with "No such file" before `screenshots.rs` existed).
+- Follow-up seen on the screenshots: at 390 px the tree beside the content leaves the main column ~25 px wide; the
+  layout of a narrow width goes in deliverable 2 (a media query stacking the tree above the content).
+- Code review: 1 finding. Fixed: a PNG left by an earlier run under the same label could pass for a new shot; the
+  file is now removed before Chrome runs.
+- not verified: none. decisions needed: none.
