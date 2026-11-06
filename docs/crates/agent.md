@@ -31,7 +31,8 @@ tool calls nor results (CHT-2, CHT-3); the last request without tools folds them
 The turns kept fit in `MAX_MEMORY_CHARS` (10000 characters), the oldest dropped first (CHT-4), and their size is taken
 off the budget of the tool results of the question (CHT-5). The sources of the turns kept count as shown, so a follow-up
 naming what an earlier answer rested on keeps it as a source (CHT-6); a failed question is not kept (CHT-8). `ask` is
-the same loop with no earlier turn. `Conversation::ask_observed` tells an `Observer` each tool call of the loop as a
+the same loop with no earlier turn. `Conversation::ask_observed` tells an `Observer` each tool call the loop runs (not one refused past
+`MAX_CALLS_PER_ROUND` nor to a tool not offered) as a
 `Step` (the tool, and the `id`, `query` or `path` of its arguments), before its result goes back to the model, so the
 ask page can show it as it runs (ASK-25); `Conversation::ask` is it with an observer that does nothing.
 

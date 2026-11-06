@@ -55,6 +55,9 @@ stopping a question. Means: the question runs in a server task (no longer tied t
 3. [x] Cost: a `UsageTracker` per question around the provider (`impl LlmProvider for Arc<P>`, `CallTotals` summable
    publicly), the session sum kept and reset with it, shown under each ended exchange in English and French; verified
    by `ask_page.rs` tests with a fake provider reporting usage; makes true WAK-36, WAK-37. (autonomous)
+4. [x] Fixes of the `high` review of the issue: one-shot fallback, keep-alive, a running session kept, a stopped task
+   ending with an exchange, only the calls that run told; verified by `ask_page.rs` and agent tests; makes true
+   ASK-25, WAK-20, WAK-33, WAK-35 (amended), WAK-38, WAK-39. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -94,5 +97,22 @@ stopping a question. Means: the question runs in a server task (no longer tied t
   with it), in English and French; `specs/web-ask.md` back to `accepted`.
 - checks: tests ok, clippy ok, specs ok, docs (`render-mcp-cli.md`, `llm.md`, README), code review low.
 - red: WAK-37: `Arc<Billed>: LlmProvider` is not satisfied (WAK-36 tests then failed on the missing cost line).
+- Code review: no findings
+- not verified: a real model (DeepSeek hand check, needs a go). decisions needed: none.
+
+### 4. Fixes of the high review
+- `high` review of `16016b9..HEAD`: 7 findings.
+  1. A session dropped while its question runs lost the exchange: fixed, a session running a question is dropped
+     only when all run (WAK-20), and started again under its id when dropped (WAK-35).
+  2. A task that stops without an exchange left the page waiting forever: fixed, `Free` keeps an exchange saying it
+     stopped (WAK-38).
+  3. A reconnect replayed the steps into the list again: fixed, the stream is closed at its first error (WAK-33).
+  4. Several fallback requests on a flaky stream: fixed by the same one-shot close.
+  5. Calls refused past the round told as steps: fixed, only the calls that run (ASK-25).
+  6. No keep-alive on the stream: fixed, a comment every 15 s (WAK-39).
+  7. A comment and a doc read as if a question stopped with its tab: fixed.
+- checks: tests ok (3 runs of `ask_page.rs`), clippy ok, specs ok (both `accepted`), docs, code review low; headless
+  Chrome streaming and blocked-stream fallback re-run ok.
+- red: none (each fix was written with its test, not before it).
 - Code review: no findings
 - not verified: a real model (DeepSeek hand check, needs a go). decisions needed: none.

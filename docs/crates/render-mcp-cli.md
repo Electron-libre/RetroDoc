@@ -159,11 +159,13 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   actors and concepts, under the same `data-node` rule. The ask page (`ask.rs`, `specs/web-ask.md`, ADR 0048) is routed
   only when `router_with` gets an `Asking` (the provider and the rounds of the agent): `/ask` and its `POST` answer a
   question with the `retrodoc_agent::Conversation` of the browser session (the cookie `retrodoc_ask`, 128 random bits
-  of `getrandom`, the sessions in memory, `MAX_SESSIONS` of them, the least recently used dropped, each keeping its
+  of `getrandom`, the sessions in memory, `MAX_SESSIONS` of them, the least recently used dropped (one running a question only when all do), each keeping its
   last `MAX_EXCHANGES` for the page, only a question starting one; a question numbered in its session runs in a
-  task of its own (`run`, ADR 0049), out of the lock of the sessions, so the page is served while the model answers
-  and the question ends when no tab follows it, a second question of the session refused with 409 until the first
-  ends (`Free` frees it, even when the task stops), `serve` waiting at its end for the questions still running
+  task of its own (`run`, ADR 0049), out of the lock of the sessions, so the page is served while the model answers,
+  and runs to its end whether a tab follows it or not, a second question of the session refused with 409 until the
+  first ends (`Free::keep` keeps its exchange and frees the session, which it starts again under its id when it was
+  pushed out meanwhile; dropped before, a panic or the shutdown, `Free` keeps an exchange saying the question
+  stopped), `serve` waiting at its end for the questions still running
   (`InFlight`), so their calls are in the recap; `POST /ask/reset` starts the session over, a question still running
   then kept nowhere; the header links to `/ask`, `Shell::ask`), over a `Docs` made once per `Site` (rebuilt with the human edits), the answer rendered by the Markdown renderer of the collected docs (`collected::markdown_html`) and
   its sources linked by `source_link`; `htmx` gets at once the running exchange alone (`running.html`), added after
@@ -171,8 +173,9 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   `tokio::sync::watch`) each step the agent's observer gets (`Conversation::ask_observed`), then its exchange; the
   running exchange follows it with the SSE extension of `htmx` (`assets/htmx-ext-sse.min.js`):
   `/ask/questions/{n}/events` replays the steps from the first (`step.html`), then the exchange (`exchange.html`, its
-  steps under a `<details>`), then ends, and `/ask/questions/{n}` waits for the end and gives the exchange, the
-  fallback of a stream that fails (`hx-on::sse-error`); both answer 404 for a question not of the session of the
+  steps under a `<details>`), then ends, a comment every 15 s keeping it alive, and `/ask/questions/{n}` waits for
+  the end and gives the exchange, the fallback of a stream that fails (`hx-on::sse-error` closes the stream at its
+  first error, so the extension does not connect it again, and asks once); both answer 404 for a question not of the session of the
   cookie. The button of the form stays disabled while a running exchange is on the page (`hx-on::after-settle` of
   `#exchanges`). A failed call is an exchange showing the error, the turn not kept. Each question is asked through a
   `UsageProvider` of its own around the provider of the pass `ask` (which still counts for the recap of `ui`), and

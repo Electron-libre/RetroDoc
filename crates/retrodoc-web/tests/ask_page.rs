@@ -243,7 +243,8 @@ async fn a_question_is_answered_at_once_with_its_running_exchange() {
         "hx-ext=\"sse\"",
         "sse-connect=\"/ask/questions/1/events\"",
         "sse-close=\"answer\"",
-        "hx-on::sse-error=\"htmx.ajax('GET', '/ask/questions/1', {target: this, swap: 'outerHTML'})\"",
+        "hx-on::sse-error=\"event.detail.source.close(); this.removeAttribute('sse-connect'); \
+         htmx.ajax('GET', '/ask/questions/1', {target: this, swap: 'outerHTML'})\"",
         "<ol class=\"steps\" sse-swap=\"step\" hx-swap=\"beforeend\"></ol>",
         "sse-swap=\"answer\" hx-target=\"closest article\" hx-swap=\"outerHTML\"",
     ] {
@@ -799,4 +800,169 @@ async fn the_cost_shown_is_what_the_recap_counts() {
             .contains("This conversation: 3 calls, 300 tokens in (120 from the cache), 30 out"),
         "{second}"
     );
+}
+
+// spec: WAK-20, WAK-35
+#[tokio::test]
+async fn a_session_whose_question_runs_is_not_dropped_and_keeps_it() {
+    let dir = generated_repo();
+    let gate = Arc::new(tokio::sync::Semaphore::new(0));
+    let llm = Arc::new(Gated {
+        gate: Arc::clone(&gate),
+        question: Some("How are the orders listed?"),
+        inner: FakeLlm::answering("Listed by date."),
+    });
+    let router = router(dir.path(), Some(llm));
+    let (running, _) = send_question(&router, "How are the orders listed?", None).await;
+    let (first_idle, _) = ask(&router, "By whom?", None).await;
+    for _ in 1..retrodoc_web::MAX_SESSIONS {
+        ask(&router, "By whom?", None).await;
+    }
+
+    gate.add_permits(1);
+    let page = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        loop {
+            let page = body(send(&router, get_request("/ask", Some(&running))).await).await;
+            if page.contains("Listed by date.") {
+                return page;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .expect("the question is kept in its session");
+
+    assert!(page.contains("How are the orders listed?"), "{page}");
+    let dropped = body(send(&router, get_request("/ask", Some(&first_idle))).await).await;
+    assert!(!dropped.contains("By whom?"), "{dropped}");
+}
+
+// spec: WAK-35
+#[tokio::test]
+async fn a_question_whose_session_was_dropped_starts_it_again_once_it_ends() {
+    let dir = generated_repo();
+    let gate = Arc::new(tokio::sync::Semaphore::new(0));
+    let llm = Arc::new(Gated {
+        gate: Arc::clone(&gate),
+        question: None,
+        inner: FakeLlm::answering("Listed by date."),
+    });
+    let router = router(dir.path(), Some(llm));
+    let (dropped, _) = send_question(&router, "How are the orders listed?", None).await;
+    // Its call waits first for the gate.
+    tokio::task::yield_now().await;
+    // All the sessions run a question: the one used least recently is dropped all the same.
+    for _ in 0..retrodoc_web::MAX_SESSIONS {
+        send_question(&router, "By whom?", None).await;
+    }
+    let gone = body(send(&router, get_request("/ask", Some(&dropped))).await).await;
+
+    gate.add_permits(1);
+    let page = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        loop {
+            let page = body(send(&router, get_request("/ask", Some(&dropped))).await).await;
+            if page.contains("Listed by date.") {
+                return page;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .expect("the session starts again with its question");
+
+    assert!(!gone.contains("How are the orders listed?"), "{gone}");
+    assert!(page.contains("How are the orders listed?"), "{page}");
+}
+
+/// `inner`, a call of `question` (of any question when `None`) waiting for a permit of
+/// `gate`, the first come first served.
+struct Gated {
+    gate: Arc<tokio::sync::Semaphore>,
+    question: Option<&'static str>,
+    inner: FakeLlm,
+}
+
+#[async_trait::async_trait]
+impl LlmProvider for Gated {
+    async fn complete(&self, request: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+        let gated = self
+            .question
+            .is_none_or(|gated| request.messages.iter().any(|m| m.content == gated));
+        if gated {
+            // Each permit lets one call through.
+            self.gate.acquire().await.unwrap().forget();
+        }
+        self.inner.complete(request).await
+    }
+}
+
+/// A provider that panics, as a bug of the agent would.
+struct Panicking;
+
+#[async_trait::async_trait]
+impl LlmProvider for Panicking {
+    async fn complete(&self, _: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+        panic!("a bug");
+    }
+}
+
+// spec: WAK-38
+#[tokio::test]
+async fn a_question_whose_task_stops_ends_with_an_exchange_that_says_so() {
+    let dir = generated_repo();
+    let router = router(dir.path(), Some(Arc::new(Panicking)));
+
+    let (cookie, stopped) = ask(&router, "How are the orders listed?", None).await;
+    let stream = body(
+        send(
+            &router,
+            get_request("/ask/questions/1/events", Some(&cookie)),
+        )
+        .await,
+    )
+    .await;
+    let next = send(
+        &router,
+        post_request("/ask", "question=By+whom%3F", Some(&cookie), true),
+    )
+    .await;
+
+    assert!(
+        stopped.contains("the question stopped before its answer"),
+        "{stopped}"
+    );
+    let events = events(&stream);
+    assert_eq!(events.len(), 1, "{stream}");
+    assert_eq!(events[0].0, "answer");
+    assert!(
+        events[0].1.contains("stopped before its answer"),
+        "{stream}"
+    );
+    assert_eq!(next.status(), StatusCode::OK);
+}
+
+// spec: WAK-39
+#[tokio::test(start_paused = true)]
+async fn the_stream_of_a_running_question_sends_a_comment_while_the_model_answers() {
+    use futures_util::StreamExt as _;
+    let dir = generated_repo();
+    let router = router(
+        dir.path(),
+        Some(Arc::new(FakeLlm::hanging_after(0, |_| String::new()))),
+    );
+    let (cookie, _) = send_question(&router, "How are the orders listed?", None).await;
+    let response = send(
+        &router,
+        get_request("/ask/questions/1/events", Some(&cookie)),
+    )
+    .await;
+    let mut stream = response.into_body().into_data_stream();
+
+    let first = tokio::time::timeout(std::time::Duration::from_secs(16), stream.next())
+        .await
+        .expect("a comment within 15 seconds")
+        .unwrap()
+        .unwrap();
+
+    assert!(first.starts_with(b":"), "{first:?}");
 }

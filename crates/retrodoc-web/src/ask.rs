@@ -12,7 +12,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 use askama::Template;
 use axum::extract::{Path, State};
 use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
-use axum::response::sse::{Event, Sse};
+use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Form, Router};
@@ -106,12 +106,30 @@ impl Sessions {
         if let Some(id) = id.filter(|_| self.get(id).is_some()) {
             return (id.to_string(), false);
         }
-        if self.0.len() >= MAX_SESSIONS {
-            self.0.remove(0);
-        }
         let id = new_id();
-        self.0.push((id.clone(), Session::default()));
+        self.push(id.clone(), Session::default());
         (id, true)
+    }
+
+    /// The session `id`, dropped while it ran `running`, started again as running it.
+    fn reopen(&mut self, id: &str, running: &Arc<Running>) -> &mut Session {
+        let session = Session {
+            asked: running.number,
+            running: Some(Arc::clone(running)),
+            ..Session::default()
+        };
+        self.push(id.to_string(), session)
+    }
+
+    /// Keeps `session` under `id` as the one used last, past [`MAX_SESSIONS`] the session used
+    /// least recently dropped, one whose question runs only when all of them run (WAK-20).
+    fn push(&mut self, id: String, session: Session) -> &mut Session {
+        if self.0.len() >= MAX_SESSIONS {
+            let idle = self.0.iter().position(|(_, kept)| kept.running.is_none());
+            self.0.remove(idle.unwrap_or(0));
+        }
+        self.0.push((id, session));
+        &mut self.0.last_mut().expect("a session was just pushed").1
     }
 }
 
@@ -423,7 +441,7 @@ async fn question(
             .into_response();
     };
     // The question runs in a task of its own, so the page and the other sessions are served while
-    // the model answers, and the question ends when no page follows it (WAK-35).
+    // the model answers; it runs to its end whether a page follows it or not (WAK-35).
     let (id, new, running, conversation) = {
         let mut sessions = state.sessions();
         let (id, new) = sessions.open(cookie(&headers).as_deref());
@@ -474,8 +492,7 @@ async fn question(
 }
 
 /// Asks the question `running` of the session `id` after its `conversation`, telling its progress
-/// each step, then keeps the exchange and the conversation in the session, unless the session was
-/// dropped or reset meanwhile.
+/// each step, then keeps the exchange and the conversation ([`Free::keep`]).
 async fn run(
     _started: Started,
     state: AskState,
@@ -484,16 +501,16 @@ async fn run(
     mut conversation: Conversation,
     docs: Arc<Docs>,
 ) {
-    let _free = Free {
+    let mut free = Free {
         sessions: Arc::clone(&state.sessions),
-        id: id.clone(),
+        id,
         running: Arc::clone(&running),
+        counted: UsageTracker::new(),
     };
     let progress = &running.progress;
     let tell = |step: Step| progress.send_modify(|p| p.steps.push(step));
     // The calls of the question alone, counted as the recap counts them (WAK-37).
-    let counted = UsageTracker::new();
-    let llm = UsageProvider::new(Arc::clone(&state.asking.llm), counted.clone());
+    let llm = UsageProvider::new(Arc::clone(&state.asking.llm), free.counted.clone());
     let outcome = conversation
         .ask_observed(
             &llm,
@@ -504,61 +521,73 @@ async fn run(
         )
         .await
         .map_err(|error| error.to_string());
-    let cost = counted.report().total();
-    let mut exchange = Exchange {
-        number: running.number,
-        question: running.question.clone(),
-        steps: progress.borrow().steps.clone(),
-        outcome,
-        cost,
-        session_cost: cost,
-    };
-    let exchange = {
-        let mut sessions = state.sessions();
-        match sessions.get(Some(&id)).filter(|session| {
-            session
+    free.keep(outcome, Some(conversation));
+}
+
+/// The question of a session running until its task ends: dropped before [`Free::keep`] (a panic,
+/// the shutdown of the server), it keeps an exchange that says the question stopped (WAK-38).
+struct Free {
+    sessions: Arc<Mutex<Sessions>>,
+    id: String,
+    running: Arc<Running>,
+    /// The calls of the question.
+    counted: UsageTracker,
+}
+
+/// The error of a question whose task stopped without an answer.
+const STOPPED: &str = "the question stopped before its answer";
+
+impl Free {
+    /// Ends the question with `outcome`: its exchange goes to its session, with `conversation`
+    /// when given, the session started again under its id when it was dropped meanwhile (WAK-35);
+    /// a session reset meanwhile runs it no longer and keeps neither. Then the followers get the
+    /// exchange.
+    fn keep(&mut self, outcome: Result<Answer, String>, conversation: Option<Conversation>) {
+        let running = &self.running;
+        let cost = self.counted.report().total();
+        let mut exchange = Exchange {
+            number: running.number,
+            question: running.question.clone(),
+            steps: running.progress.borrow().steps.clone(),
+            outcome,
+            cost,
+            session_cost: cost,
+        };
+        let exchange = {
+            let mut sessions = self.sessions.lock().unwrap_or_else(PoisonError::into_inner);
+            let session = match sessions.get(Some(&self.id)) {
+                Some(session) => session,
+                None => sessions.reopen(&self.id, running),
+            };
+            let runs = session
                 .running
                 .as_ref()
-                .is_some_and(|kept| Arc::ptr_eq(kept, &running))
-        }) {
-            Some(session) => {
+                .is_some_and(|kept| Arc::ptr_eq(kept, running));
+            if runs {
                 session.spent.add(&cost);
                 exchange.session_cost = session.spent;
-                let exchange = Arc::new(exchange);
                 session.running = None;
-                session.conversation = conversation;
+                if let Some(conversation) = conversation {
+                    session.conversation = conversation;
+                }
+                let exchange = Arc::new(exchange);
                 session.exchanges.push_back(Arc::clone(&exchange));
                 while session.exchanges.len() > MAX_EXCHANGES {
                     session.exchanges.pop_front();
                 }
                 exchange
+            } else {
+                Arc::new(exchange)
             }
-            // Dropped or reset meanwhile: the question is the whole of its session.
-            None => Arc::new(exchange),
-        }
-    };
-    progress.send_modify(|p| p.ended = Some(exchange));
-}
-
-/// The question of a session running: the session can take another when its task ends, answered
-/// or stopped (a panic, the shutdown of the server).
-struct Free {
-    sessions: Arc<Mutex<Sessions>>,
-    id: String,
-    running: Arc<Running>,
+        };
+        running.progress.send_modify(|p| p.ended = Some(exchange));
+    }
 }
 
 impl Drop for Free {
     fn drop(&mut self) {
-        let mut sessions = self.sessions.lock().unwrap_or_else(PoisonError::into_inner);
-        if let Some(session) = sessions.get(Some(&self.id)) {
-            if session
-                .running
-                .as_ref()
-                .is_some_and(|kept| Arc::ptr_eq(kept, &self.running))
-            {
-                session.running = None;
-            }
+        if self.running.progress.borrow().ended.is_none() {
+            self.keep(Err(STOPPED.to_string()), None);
         }
     }
 }
@@ -633,7 +662,10 @@ async fn events(
             }
         },
     );
-    Sse::new(stream).into_response()
+    // A comment every 15 seconds keeps the connection alive while the model answers (WAK-39).
+    Sse::new(stream)
+        .keep_alive(KeepAlive::default())
+        .into_response()
 }
 
 /// The event `name` whose data is `template` rendered, without the carriage returns an event

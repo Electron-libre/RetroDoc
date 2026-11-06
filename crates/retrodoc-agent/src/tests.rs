@@ -653,3 +653,21 @@ async fn the_observer_is_told_each_call_with_its_target_and_the_answer_is_unchan
     assert_eq!(observed.tool_results, plain.tool_results);
     assert_eq!(observed.sources, plain.sources);
 }
+
+// spec: ASK-25 (internal: the rounds are scripted with the fake provider, which the binary cannot take)
+#[tokio::test]
+async fn the_observer_is_not_told_the_calls_refused_past_the_round() {
+    let round = (0..=MAX_CALLS_PER_ROUND)
+        .map(|n| call(&format!("c{n}"), "list_domains", "{}"))
+        .collect();
+    let llm = FakeLlm::scripted(vec![calls(round), FakeTurn::Text("Done.".into())]);
+    let told = std::sync::Mutex::new(0);
+    let count = |_: Step| *told.lock().unwrap() += 1;
+
+    Conversation::default()
+        .ask_observed(&llm, docs(), "?", 8, &count)
+        .await
+        .unwrap();
+
+    assert_eq!(*told.lock().unwrap(), MAX_CALLS_PER_ROUND);
+}

@@ -1,4 +1,4 @@
-<article class="exchange running" hx-ext="sse" sse-connect="/ask/questions/{{ running.number }}/events" sse-close="answer" hx-on::sse-error="htmx.ajax('GET', '/ask/questions/{{ running.number }}', {target: this, swap: 'outerHTML'})">
+<article class="exchange running" hx-ext="sse" sse-connect="/ask/questions/{{ running.number }}/events" sse-close="answer" hx-on::sse-error="event.detail.source.close(); this.removeAttribute('sse-connect'); htmx.ajax('GET', '/ask/questions/{{ running.number }}', {target: this, swap: 'outerHTML'})">
   <p class="question"><strong>{{ running.question }}</strong></p>
   <ol class="steps" sse-swap="step" hx-swap="beforeend"></ol>
   <p class="muted" sse-swap="answer" hx-target="closest article" hx-swap="outerHTML">{{ t.ask.waiting }}</p>

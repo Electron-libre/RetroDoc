@@ -53,7 +53,7 @@ leaving the browser; without `--ask` the interface calls no LLM (ADR 0048).
   random bits written in hexadecimal.
 - **WAK-19** (deterministic) Two sessions must not share their exchanges nor their conversation.
 - **WAK-20** (deterministic) At most 32 sessions must be kept in memory: a new one past them drops the session used
-  least recently.
+  least recently, one whose question is running only when the questions of all of them are.
 - **WAK-21** (deterministic) A session must keep its last 50 exchanges for the page; the conversation keeps its own
   memory (CHT-4).
 - **WAK-22** (deterministic) The page `/ask` must hold a button that sends a `POST` to `/ask/reset`, which empties the
@@ -81,18 +81,24 @@ leaving the browser; without `--ask` the interface calls no LLM (ADR 0048).
   show it, or its error (WAK-16); then the stream must end.
 - **WAK-32** (deterministic) The running exchange must add each `step` to its list and be replaced by the data of the
   event `answer`; an exchange that ended must list its steps under a closed disclosure.
-- **WAK-33** (deterministic) When its stream fails, the running exchange must be replaced by the answer of
-  `/ask/questions/<n>`, the exchange alone, served once the question has ended.
+- **WAK-33** (deterministic) At the first failure of its stream, the running exchange must close it, not connect it
+  again, and be replaced by the answer of `/ask/questions/<n>`, the exchange alone, served once the question has
+  ended.
 - **WAK-34** (deterministic) `/ask/questions/<n>` and its events must be answered with the status 404 when the cookie
   names no session kept in memory or one that holds no question `<n>`, running or among its exchanges.
 - **WAK-35** (deterministic) A question sent must run to its end when no page follows it (a tab closed), its exchange
-  kept in its session; the page `/ask` must show a question still running as its running exchange (WAK-30).
+  kept in its session, started again under the same id when it was dropped meanwhile (WAK-20); the page `/ask` must
+  show a question still running as its running exchange (WAK-30).
 - **WAK-36** (deterministic) Each exchange that ended must show, under its answer or its error, the LLM calls of the
   question with their tokens in (and among them those served from the cache) and out, then the same sums for the
   session since it started or was reset (WAK-22); the calls whose server reported no usage must be counted apart,
   their tokens not estimated.
 - **WAK-37** (deterministic) The calls and tokens of WAK-36 must be those the recap of WAK-23 counts for the same
   calls.
+- **WAK-38** (deterministic) A question whose task stops without an answer (a panic) must end with an exchange that
+  says it stopped, served by WAK-31 and WAK-33 with the status 200, and leave its session free for the next question.
+- **WAK-39** (deterministic) The stream of WAK-31 must send a comment at least every 15 seconds while the question
+  runs, so that a connection idle while the model answers is not cut.
 
 ## Scenarios
 
@@ -113,6 +119,8 @@ leaving the browser; without `--ask` the interface calls no LLM (ADR 0048).
   then it is answered with 404.
 - (WAK-36) Given a first question of 2 calls of 100 tokens in and 10 out each, then a second of 1 call, then the
   second exchange shows 1 call, 100 tokens in and 10 out for the question, and 3 calls, 300 and 30 for the session.
+- (WAK-20, WAK-35) Given a question running in the session used least recently, when 32 newer sessions start, then
+  the session used least recently after it is dropped, and once the question ends the page of its session shows it.
 - (WAK-36) Given a question failing after one answered call, then its exchange shows the error and that call.
 
 ## Non-goals

@@ -189,8 +189,8 @@ impl Conversation {
             .await
     }
 
-    /// [`Conversation::ask`], telling `observer` each tool call before its result goes back to the
-    /// model (ASK-25).
+    /// [`Conversation::ask`], telling `observer` each tool call it runs before its result goes back
+    /// to the model (ASK-25).
     ///
     /// # Errors
     ///
@@ -426,14 +426,18 @@ async fn answer_after(
                 .with_reasoning(response.reasoning),
         );
         for (index, call) in response.tool_calls.into_iter().enumerate() {
-            observer(Step::of(&call));
+            let runs = index < MAX_CALLS_PER_ROUND
+                && (offered == Tools::All || tools.iter().any(|t| t.name == call.name));
+            if runs {
+                observer(Step::of(&call));
+            }
             // All the tools: the tool's own error names an unknown one. Some: say which are offered.
             let result = if index >= MAX_CALLS_PER_ROUND {
                 format!(
                     "Error: at most {MAX_CALLS_PER_ROUND} calls per round are run; make fewer \
                      calls per round, or answer from what the tools showed."
                 )
-            } else if offered == Tools::All || tools.iter().any(|t| t.name == call.name) {
+            } else if runs {
                 within_budget(run_tool(&docs, &call).await, &mut used)
             } else {
                 let names: Vec<&str> = tools.iter().map(|t| t.name.as_str()).collect();
