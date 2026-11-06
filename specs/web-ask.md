@@ -48,8 +48,8 @@ leaving the browser; without `--ask` the interface calls no LLM (ADR 0048).
 - **WAK-16** (deterministic) A question whose LLM call fails must be answered with the status 200 and an exchange that
   shows the error, the question not kept in the conversation (CHT-8).
 - **WAK-17** (deterministic) A blank question must be answered with the status 400, and no LLM call.
-- **WAK-18** (deterministic) A request to `/ask` without the cookie of a session kept in memory must start a new
-  session and set the cookie `retrodoc_ask` to its id, `HttpOnly`, `SameSite=Strict`, `Path=/`; the id must be 128
+- **WAK-18** (deterministic) A question sent to `/ask` without the cookie of a session kept in memory must start a
+  new session and set the cookie `retrodoc_ask` to its id, `HttpOnly`, `SameSite=Strict`, `Path=/`; the id must be 128
   random bits written in hexadecimal.
 - **WAK-19** (deterministic) Two sessions must not share their exchanges nor their conversation.
 - **WAK-20** (deterministic) At most 32 sessions must be kept in memory: a new one past them drops the session used
@@ -62,6 +62,16 @@ leaving the browser; without `--ask` the interface calls no LLM (ADR 0048).
   print and save the recap of the calls under the command `ui` when an interrupt (Ctrl-C) stops it.
 - **WAK-24** (deterministic) With `--ask`, `retrodoc ui` must not write any file of the target repository other than
   those of WEB-12 and its usage history in `.retrodoc/`.
+- **WAK-25** (deterministic) The page `/ask` and `/ask/reset` asked without the cookie of a session kept in memory
+  must start no session: the page shows no exchange and sets no cookie.
+- **WAK-26** (deterministic) While a question of a session runs, the page `/ask` of that session must be answered
+  without waiting for the model.
+- **WAK-27** (deterministic) A file source must link to `/code/<path>` with its path percent-encoded as WEB-23 encodes
+  the path of a doc.
+- **WAK-28** (deterministic) A second interrupt must stop `retrodoc ui` at once, a question in flight dropped, with
+  the recap of WAK-23.
+- **WAK-29** (deterministic) A question sent while another question of the same session runs must be answered with
+  the status 409, and no LLM call.
 
 ## Scenarios
 
@@ -72,13 +82,16 @@ leaving the browser; without `--ask` the interface calls no LLM (ADR 0048).
 - (WAK-9) Given an answer whose text holds `<script>alert(1)</script>`, then the page shows it as text.
 - (WAK-16) Given a provider that fails, when a question is sent, then the exchange shows the error and the next
   question is sent without it in its messages.
-- (WAK-18) Given a cookie naming a session no longer kept (a restart, dropped by WAK-20), then a new session starts.
+- (WAK-18) Given a cookie naming a session no longer kept (a restart, dropped by WAK-20), when a question is sent,
+  then a new session starts.
 - (WAK-20) Given 33 sessions started one after the other, then the first is no longer kept and the last 32 are.
 - (WAK-14) Given a browser without scripts, then its question is redirected to `/ask`, which shows the exchange.
 
 ## Non-goals
 
 - No step of the agent nor cost shown as it runs: the streaming is another issue (`issues/web_ask_streamed_steps_and_cost.md`).
+- The wall time of the pass `ask` in the recap of `ui --ask` is the time the server ran, not the time spent
+  answering: the calls of concurrent sessions would close the pass of one another.
 - No conversation saved on disk nor resumed after a restart of `ui`: the sessions live in memory.
 - No authentication: the server binds to `127.0.0.1` by default (WEB-1); the session cookie only keeps two tabs or
   browsers apart.

@@ -24,7 +24,8 @@ file among them or cited by one of them that changed since the docs were generat
 shows the text (`NO_ANSWER` when it is blank), then the sources (or `NO_SOURCE` when there are none), then the
 warnings.
 
-`Conversation` asks questions one after the other (`specs/chat.md`, for `retrodoc chat`): the request of a question
+`Conversation` asks questions one after the other (`specs/chat.md`, for `retrodoc chat` and, one per browser session,
+the ask page of `retrodoc ui --ask`, `specs/web-ask.md`): the request of a question
 sends, before it, each earlier question as a user message and its answer text as an assistant message, never their
 tool calls nor results (CHT-2, CHT-3); the last request without tools folds them as text before the question (CHT-7).
 The turns kept fit in `MAX_MEMORY_CHARS` (10000 characters), the oldest dropped first (CHT-4), and their size is taken

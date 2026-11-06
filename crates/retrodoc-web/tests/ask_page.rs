@@ -291,7 +291,7 @@ async fn each_browser_session_keeps_its_own_conversation() {
     let llm = navigating();
     let router = router(dir.path(), Some(llm.clone()));
 
-    let response = send(&router, get_request("/ask", None)).await;
+    let response = send(&router, post_request("/ask", "question=Hi", None, true)).await;
     let set = response.headers()[header::SET_COOKIE]
         .to_str()
         .unwrap()
@@ -441,4 +441,70 @@ async fn a_session_keeps_its_last_exchanges_for_its_page() {
     );
     assert!(!page.contains("Question 0?"), "{page}");
     assert!(page.contains("Question 1?"), "{page}");
+}
+
+// spec: WAK-25
+#[tokio::test]
+async fn the_page_and_the_reset_start_no_session() {
+    let dir = generated_repo();
+    let router = router(dir.path(), Some(navigating()));
+
+    let page = send(&router, get_request("/ask", Some("retrodoc_ask=gone"))).await;
+    let reset = send(&router, post_request("/ask/reset", "", None, false)).await;
+
+    assert_eq!(page.status(), StatusCode::OK);
+    assert_eq!(session_cookie(&page), None);
+    assert_eq!(reset.status(), StatusCode::SEE_OTHER);
+    assert_eq!(session_cookie(&reset), None);
+    assert!(!body(page).await.contains("class=\"exchange\""));
+}
+
+// spec: WAK-26, WAK-29
+#[tokio::test]
+async fn the_page_of_a_session_is_served_while_its_question_runs() {
+    let dir = generated_repo();
+    let llm = Arc::new(FakeLlm::hanging_after(1, |_| "Listed by date.".to_string()));
+    let router = router(dir.path(), Some(llm.clone()));
+    let (cookie, _) = ask(&router, "How are the orders listed?", None).await;
+    let running = tokio::spawn({
+        let (router, cookie) = (router.clone(), cookie.clone());
+        async move {
+            send(
+                &router,
+                post_request("/ask", "question=By+whom%3F", Some(&cookie), true),
+            )
+            .await
+        }
+    });
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+    let page = tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        send(&router, get_request("/ask", Some(&cookie))),
+    )
+    .await
+    .expect("the page waits for the model");
+
+    let again = send(
+        &router,
+        post_request("/ask", "question=When%3F", Some(&cookie), true),
+    )
+    .await;
+
+    assert!(body(page).await.contains("Listed by date."));
+    assert_eq!(again.status(), StatusCode::CONFLICT);
+    assert_eq!(llm.calls(), 2);
+    running.abort();
+    let _ = running.await;
+    // The question dropped with its request leaves the session free: the next one runs (and
+    // hangs, as the model does from its second call) rather than being refused.
+    let next = tokio::time::timeout(
+        std::time::Duration::from_millis(200),
+        send(
+            &router,
+            post_request("/ask", "question=When%3F", Some(&cookie), true),
+        ),
+    )
+    .await;
+    assert!(next.is_err(), "refused: {:?}", next.map(|r| r.status()));
 }

@@ -63,8 +63,8 @@ the pass `ask` and saved when Ctrl-C stops `ui`. Out of scope: the steps and cos
    docs or no key, the pass `ask` counted, graceful stop on Ctrl-C with the recap saved under `ui`; verified by binary
    tests with the fake LLM server (`tests/support`); makes true WAK-1, WAK-3 to WAK-5,
    WAK-20 to WAK-24. (autonomous)
-3. [ ] Docs of the whole issue and fixes of the `high` review (`docs/crates/render-mcp-cli.md`, `docs/ARCHITECTURE.md`,
-   README, CLAUDE.md diagram); verified by `project-check` and the review.
+3. [x] Docs of the whole issue and fixes of the `high` review (`docs/crates/render-mcp-cli.md`, `docs/ARCHITECTURE.md`,
+   README, CLAUDE.md diagram); verified by `project-check` and the review. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -102,3 +102,21 @@ the pass `ask` and saved when Ctrl-C stops `ui`. Out of scope: the steps and cos
   - `NO_DOCS` split the doc comment of `load_docs`: fixed.
 - not verified: the page in a real browser (htmx indicator, swap, reset): asked at the end of the issue.
 - decisions needed: none.
+
+## Deliverable 3
+- done: docs of the whole issue (`PRODUCT.md`, `docs/crates/agent.md`, `docs/crates/render-mcp-cli.md`); fixes of
+  the `high` review: the conversation asked out of the lock, the docs of the agent made once per site, file sources
+  percent-encoded, no session started by a page or a reset, a second Ctrl-C stops at once, a Ctrl-C that cannot be
+  listened to warned of; spec amended (WAK-18 reworded, WAK-25 to WAK-28 added, a non-goal on the wall time).
+- red: WAK-25 to WAK-28: not run red, the tests were written with the fixes of the review.
+- `high` review: 8 findings; 6 fixed (above); not fixed: the wall time of the pass `ask` is the uptime of the server
+  (wrapping each question in `in_pass` would let concurrent sessions close the pass of one another: a non-goal of the
+  spec now), and `AskTexts::kinds` is an array by position as `ReviewTexts::statuses` is (the convention of
+  `texts.rs`).
+- checks: project-check passed; deliverable-size 358; check-specs clean.
+- Code review: 1 findings
+  - two questions of a session at once dropped one from the history: fixed, the second refused with 409 (WAK-29),
+    the session freed when the first ends or its request is dropped.
+- not verified: the page in a real browser (htmx indicator, swap, reset).
+- decisions needed: none.
+

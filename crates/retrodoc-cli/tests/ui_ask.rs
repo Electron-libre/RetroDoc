@@ -115,13 +115,18 @@ impl Server {
         (head.lines().next().unwrap().to_string(), body.to_string())
     }
 
-    /// Stops the server as Ctrl-C does, and gives what it printed after its URL.
-    fn interrupt(mut self) -> String {
+    /// Sends the server the signal of Ctrl-C.
+    fn signal(&self) {
         let killed = Command::new("kill")
             .args(["-INT", &self.child.id().to_string()])
             .status()
             .unwrap();
         assert!(killed.success());
+    }
+
+    /// Stops the server as Ctrl-C does, and gives what it printed after its URL.
+    fn interrupt(mut self) -> String {
+        self.signal();
         let status = self.child.wait().unwrap();
         assert!(status.success(), "{status}");
         self.lines.iter().collect::<Vec<_>>().join("\n")
@@ -205,4 +210,47 @@ fn a_question_uses_the_ask_pass_and_its_recap_is_saved_when_the_server_stops() {
         .output()
         .unwrap();
     assert_eq!(String::from_utf8_lossy(&changed.stdout), "");
+}
+
+// spec: WAK-28
+#[test]
+fn a_second_interrupt_drops_the_question_in_flight() {
+    let llm = FakeLlm::start(|_| {
+        std::thread::sleep(Duration::from_secs(60));
+        "too late".to_string()
+    });
+    let dir = generated_repo(&llm_section(&llm));
+    let server = Server::start(ui(dir.path(), true));
+    let host = server.url.clone();
+    std::thread::spawn(move || {
+        let host = host
+            .strip_prefix("http://")
+            .unwrap()
+            .trim_end_matches('/')
+            .to_string();
+        let mut stream = TcpStream::connect(&host).unwrap();
+        let body = "question=Hi";
+        let _ = write!(
+            stream,
+            "POST /ask HTTP/1.1\r\nHost: {host}\r\nOrigin: http://{host}\r\n\
+             Content-Type: application/x-www-form-urlencoded\r\nContent-Length: {}\r\n\r\n{body}",
+            body.len()
+        );
+        let _ = stream.read_to_end(&mut Vec::new());
+    });
+    let start = std::time::Instant::now();
+    while llm.calls().is_empty() {
+        assert!(start.elapsed().as_secs() < 30, "no call");
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    server.signal();
+    std::thread::sleep(Duration::from_millis(300));
+
+    let out = server.interrupt();
+
+    assert!(
+        start.elapsed().as_secs() < 30,
+        "the question was waited for"
+    );
+    assert!(out.contains("Ctrl+C again"), "{out}");
 }

@@ -55,11 +55,27 @@ pub async fn run(
     let address = listener.local_addr()?;
     println!("Serving the docs at http://{address}/ (Ctrl+C to stop)");
     let interrupt = async {
-        let _ = tokio::signal::ctrl_c().await;
+        interrupted().await;
+        println!("\nStopping once the questions in flight are answered (Ctrl+C again stops now)");
     };
-    retrodoc_web::serve(listener, project, generated, links, docs, asking, interrupt)
-        .await
-        .context("the web server stopped")
+    let serving = retrodoc_web::serve(listener, project, generated, links, docs, asking, interrupt);
+    // A second Ctrl+C drops the questions in flight, as an interrupt does in `chat` (WAK-28).
+    let twice = async {
+        interrupted().await;
+        interrupted().await;
+    };
+    tokio::select! {
+        served = serving => served.context("the web server stopped"),
+        () = twice => Ok(()),
+    }
+}
+
+/// The next Ctrl+C; never, when it cannot be listened to (warned of), so the server still serves.
+async fn interrupted() {
+    if let Err(error) = tokio::signal::ctrl_c().await {
+        tracing::warn!("Ctrl+C cannot be listened to: {error}");
+        std::future::pending::<()>().await;
+    }
 }
 
 /// The application the pages name, with the purpose and the users of the

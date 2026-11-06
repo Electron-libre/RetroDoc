@@ -52,7 +52,7 @@ debt nobody has time to pay.
 | Large applications documented one bounded context at a time | yes | |
 | Read-only MCP server and lexical search over the generated docs, for agents | yes | |
 | Generated docs written in a chosen language (`[output] language`), headings and web interface in English or French | yes | fixed text in other languages, coverage report, CLI and MCP text |
-| Ask the documentation from RetroDoc itself (`ask` / `chat`) | | yes |
+| Ask the documentation from RetroDoc itself (`ask` / `chat`, the ask page of `ui --ask`) | | yes |
 | Technical documentation: components, C4 diagrams, deployment, APIs, linked to the domains and use cases | | yes |
 | Inputs from GitHub, GitLab and Jira (issues, tickets, pull requests) | | yes |
 | Automatic pull request with the generated docs | | yes |
