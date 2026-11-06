@@ -22,7 +22,7 @@ in `docs/findings.md` and the closed issues in `issues/done/`.
   charter (dark surfaces, gold as the one accent) is kept. The interactions are done on the server in Rust with
   `htmx` (live search, Markdown preview with `pulldown-cmark`, validation, notices, loading indicators, keyboard
   shortcuts); a small vendored script only where `htmx` cannot, no WebAssembly.
-- State: in issues
+- State: done
 - Issues:
   - [web_ui_components](issues/done/web_ui_components.md)
   - [web_ui_form_feedback](issues/done/web_ui_form_feedback.md)
@@ -31,7 +31,7 @@ in `docs/findings.md` and the closed issues in `issues/done/`.
   - [web_ui_next_action](issues/done/web_ui_next_action.md)
   - [web_ui_ask_composer](issues/done/web_ui_ask_composer.md)
   - [web_ui_edit_live_preview](issues/done/web_ui_edit_live_preview.md)
-  - [web_ui_narrative_links_and_headings](issues/web_ui_narrative_links_and_headings.md)
+  - [web_ui_narrative_links_and_headings](issues/done/web_ui_narrative_links_and_headings.md)
 
 ## A local model, measured
 

@@ -152,7 +152,7 @@ High review: 10 findings.
 - unbalanced parenthesis in `docs/crates/render-mcp-cli.md`: fixed.
 - the move to `forms.js` (finding 9): done, as above.
 - relative links of a narrative, heading ids duplicated and levels kept: outside WEB-118 to WEB-121, filed as
-  `issues/web_ui_narrative_links_and_headings.md`.
+  `issues/done/web_ui_narrative_links_and_headings.md`.
 - the narrative rendered twice per GET: not fixed, a pulldown-cmark pass over a paragraph costs microseconds.
 
 Checked in headless Chrome: the dialog shows, dismiss keeps the edit, accept removes it; the preview updates and
