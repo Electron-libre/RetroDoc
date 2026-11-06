@@ -87,5 +87,5 @@ any fix before the probe says one is needed; the fixes are planned after it, at 
 - Deliverable 1 done: risk 2 refuted, risk 3 small on open-weight models, risk 1 unverifiable without a paid model
   sending encrypted reasoning.
 - Deliverable 2 dropped (user, 2026-11-06): no fix; risk 1 moves to
-  [encrypted_reasoning_given_back_on_a_paid_openrouter_model](../encrypted_reasoning_given_back_on_a_paid_openrouter_model.md).
+  [encrypted_reasoning_given_back_on_a_paid_openrouter_model](encrypted_reasoning_given_back_on_a_paid_openrouter_model.md).
 - Issue done.

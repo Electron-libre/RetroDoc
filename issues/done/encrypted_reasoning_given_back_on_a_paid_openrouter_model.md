@@ -13,7 +13,7 @@ model that sends encrypted reasoning runs to its answer, or the 400 is seen and 
 
 # Findings
 * 2026-11-06, free OpenRouter probe of
-  [reasoning_given_back_on_a_real_openrouter_call](done/reasoning_given_back_on_a_real_openrouter_call.md): four free
+  [reasoning_given_back_on_a_real_openrouter_call](reasoning_given_back_on_a_real_openrouter_call.md): four free
   thinking models with tools send `reasoning.text` only; none sends an encrypted entry, so this risk is unmeasured.
   The two other risks of that issue were settled there (reasoning billed once when both fields come back; small
   against the agent's budget).

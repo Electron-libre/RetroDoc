@@ -339,7 +339,7 @@ The milestones up to "A large application, one bounded context at a time" are th
 - Goal: an internal `retrodoc ask` / `chat` agent answering from the generated docs, the collected docs, the git
   history and the code, with citations, confidence and freshness warnings (`docs/findings.md` §4, steps 2 to 4).
 - Why: the MCP server serves an external agent; a user without one has no way to question the docs.
-- State: in issues
+- State: done
 - Issues:
   - [search_relevance_threshold](issues/done/search_relevance_threshold.md) (the MCP server and the search, its
     first form, are done)
@@ -351,4 +351,4 @@ The milestones up to "A large application, one bounded context at a time" are th
   - [ask_question_set](issues/done/ask_question_set.md)
   - [chat_command](issues/done/chat_command.md)
   - [reasoning_given_back_on_a_real_openrouter_call](issues/done/reasoning_given_back_on_a_real_openrouter_call.md)
-  - [encrypted_reasoning_given_back_on_a_paid_openrouter_model](issues/encrypted_reasoning_given_back_on_a_paid_openrouter_model.md)
+  - [encrypted_reasoning_given_back_on_a_paid_openrouter_model](issues/done/encrypted_reasoning_given_back_on_a_paid_openrouter_model.md)
