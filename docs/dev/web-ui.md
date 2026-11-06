@@ -38,7 +38,7 @@ spacing steps `--space-1` to `--space-6`, the radius `--radius-sm`, `--radius`, 
 | button | `<button>` (or `.button` on a link) | primary: gold, the one action of a form |
 | | `class="secondary"` | on the surface: filter, show |
 | | `class="quiet"` | text only: revert, start over |
-| section actions | `{% call m::section_actions(href) %}` under the heading of a section page | a primary "Review" (`#review`) and a secondary "Edit" (`?edit=1#edit-form`, the form unfolded) |
+| section actions | `{% call m::section_actions(href) %}` under the heading of a section page, on the rows of the debt list | a primary "Review" (`#review`) and a secondary "Edit" (`?edit=1#edit-form`, the form unfolded) |
 | field | `<label class="field"><span class="field-label">…</span> <control></label>`, `.hint` below | label above the control; `.field.wide` grows in a line of fields |
 | form layouts | `.filters` | fields on one line, the button at their foot |
 | | `form.compare` | the runs as `table.runs` with a `from` and a `to` radio per row, the compared rows lit, the swap link below |

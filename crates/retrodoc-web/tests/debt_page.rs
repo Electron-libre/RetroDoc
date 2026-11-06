@@ -793,3 +793,68 @@ fn between<'a>(text: &'a str, start: &str, end: &str) -> &'a str {
     let to = rest.find(end).unwrap_or(rest.len());
     &rest[..to]
 }
+
+/// The actions of an item (WEB-113), `None` when it has none.
+fn actions(item: &str) -> Option<&str> {
+    let start = item.find("<nav class=\"section-actions\"")?;
+    Some(&item[start..start + item[start..].find("</nav>").unwrap()])
+}
+
+// spec: WEB-115
+#[tokio::test]
+async fn each_item_of_a_section_offers_to_review_or_edit_it() {
+    let repo = generated_repo();
+    let page = debt(repo.path(), "/debt").await;
+    let rows = items(&page);
+    assert_eq!(rows.len(), 5, "{page}");
+    for item in &rows {
+        let actions = actions(item).unwrap_or_else(|| panic!("no actions in {item}"));
+        let link = &item[item.find("<a href=\"").unwrap() + "<a href=\"".len()..];
+        let href = &link[..link.find('"').unwrap()];
+        assert!(
+            actions.contains(&format!(
+                "<a class=\"button\" href=\"{href}#review\">Review</a>"
+            )),
+            "{actions}"
+        );
+        assert!(
+            actions.contains(&format!(
+                "<a class=\"button secondary\" href=\"{href}?edit=1#edit-form\">Edit</a>"
+            )),
+            "{actions}"
+        );
+    }
+
+    let page = uncovered_page(repo.path(), "/debt?kind=contradicted").await;
+    let refund = items(&page)[0];
+    assert!(
+        actions(refund)
+            .is_some_and(|a| a.contains("href=\"/domains/billing/pay-invoice/refund#review\"")),
+        "{refund}"
+    );
+    let page = uncovered_page(repo.path(), "/debt?kind=undocumented").await;
+    let undocumented = items(&page);
+    assert!(
+        undocumented
+            .iter()
+            .any(|i| i.contains("Paid within 30 days")),
+        "{page}"
+    );
+    assert!(undocumented.iter().any(|i| i.contains("Gone")), "{page}");
+    for item in undocumented {
+        assert_eq!(
+            actions(item),
+            None,
+            "a rule or a section the run lacks: {item}"
+        );
+    }
+    let page = uncovered_page(repo.path(), "/debt").await;
+    let folders: Vec<&str> = items(&page)
+        .into_iter()
+        .filter(|i| i.contains("class=\"folder\""))
+        .collect();
+    assert!(!folders.is_empty(), "{page}");
+    for folder in folders {
+        assert_eq!(actions(folder), None, "a folder: {folder}");
+    }
+}

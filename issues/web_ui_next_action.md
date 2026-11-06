@@ -58,7 +58,7 @@ links to the existing forms, `?edit=1` unfolds the edit form on the server (no s
 ## Plan
 1. [x] Section actions: buttons under the heading of the domain, feature and use case pages, `?edit=1` unfolds the
    edit form; verified by page tests; makes true WEB-113, WEB-114. (autonomous)
-2. [ ] Debt row actions: "Review" and "Edit" on the items of sections; verified by debt page tests; makes true WEB-115.
+2. [x] Debt row actions: "Review" and "Edit" on the items of sections; verified by debt page tests; makes true WEB-115. (autonomous)
 3. [ ] Home main action and empty states of home and map; verified by home and map tests; sets the spec `accepted`;
    makes true WEB-116, WEB-117.
 
@@ -73,3 +73,10 @@ links to the existing forms, `?edit=1` unfolds the edit form on the server (no s
 - red: WEB-113, WEB-114: no `<nav class="section-actions"` after `</h1>`; `?edit=1` left `<details>` folded.
 - Code review: no findings
 - not verified: the look in a browser (screenshots) is checked at the end of the issue.
+
+## Deliverable 2: debt row actions
+- done: the items of a domain, a feature or a use case of the run offer "Review" and "Edit"; rules, folders and
+  sections the run lacks offer none.
+- red: WEB-115: `no actions in` the first item of `/debt`.
+- Code review: no findings
+- not verified: the look in a browser, checked at the end of the issue.

@@ -49,6 +49,9 @@ pub struct DebtRow {
     pub feature: Option<String>,
     /// The page of its section; `None` when its feature is not in the run.
     pub href: Option<String>,
+    /// The page of the domain, feature or use case of the run the item is about, whose review and
+    /// edit it offers (WEB-115); `None` for a rule, a folder or a section the run lacks.
+    pub section: Option<String>,
     pub score: Option<Confidence>,
     pub rationale: Option<String>,
     pub reasons: Vec<&'static str>,
@@ -181,12 +184,18 @@ fn row(docs: &GeneratedDocs, item: &DebtItem, texts: &WebTexts) -> DebtRow {
         }),
         _ => None,
     };
+    let section = match &item.subject {
+        Subject::Section(_) | Subject::Domain(_) => named.href.clone(),
+        Subject::DocItem(doc_item) if doc_item.kind != ItemKind::Rule => named.href.clone(),
+        Subject::DocItem(_) | Subject::Folder(_) => None,
+    };
     DebtRow {
         kind: texts.debt_kind(item.kind),
         domain: named.domain,
         name: named.name,
         feature: named.feature,
         href: named.href,
+        section,
         score: item
             .score
             .map(|value| Confidence::of(Some(&ConfidenceScore::new(value, None)))),

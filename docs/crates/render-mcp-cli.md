@@ -132,7 +132,7 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   weakness, commits, entry points; the page says when the git history could not be read), its kind, the names of its section, feature and domain, its score
   or its reasons and a link to its page, an item marked wrong or to review with why its review is outdated, an outdated edit with why (the
   `outdated` macro of `macros.html`, `review::OutdatedView`, `OutdatedView::of_edit` saying "since the edit"), a doc item with its kind or the sections that contradict it
-  (linked to `/docs/`), a folder with its files or entry points folded under it (linked to `/code/`), kept by
+  (linked to `/docs/`), a folder with its files or entry points folded under it (linked to `/code/`), an item of a domain, a feature or a use case of the run with the review and edit actions of its page (`DebtRow::section`, `m::section_actions`, WEB-115), kept by
   `?kind=` and `?domain=` (`debt::DebtFilter`; a folder has no domain); its form swaps
   `debt_list.html` into `#debt-list` like the rules page. The audit page, `/audit` (`audit::audit_page`, `audit.html`,
   under the "Audit" group of the header, not in "Start here"; `specs/audit-dashboard.md`), shows the figures of
