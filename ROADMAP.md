@@ -28,7 +28,7 @@ in `docs/findings.md` and the closed issues in `issues/done/`.
   - [web_ui_form_feedback](issues/done/web_ui_form_feedback.md)
   - [web_ui_filters_and_compare](issues/done/web_ui_filters_and_compare.md)
   - [web_ui_live_search](issues/done/web_ui_live_search.md)
-  - [web_ui_next_action](issues/web_ui_next_action.md)
+  - [web_ui_next_action](issues/done/web_ui_next_action.md)
   - [web_ui_ask_composer](issues/done/web_ui_ask_composer.md)
   - [web_ui_edit_live_preview](issues/web_ui_edit_live_preview.md)
 
