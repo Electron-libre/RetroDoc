@@ -25,9 +25,10 @@ them, so whoever audits the docs sees which domains, features and use cases a `g
 - **HPG-5** (deterministic) With two saved snapshots or more, the list of HPG-1 must be a form that gives each run a
   radio choice `from` and a radio choice `to`, the compared runs checked, that sends them to `/history` as `?from=`
   and `?to=`: on any change (`hx-trigger="change"`, its URL pushed, the form and the difference swapped), its submit
-  button inside `<noscript>`.
+  button inside `<noscript>`. A history request with the header `HX-Request` and without `HX-History-Restore-Request`
+  must be answered with the form and the difference alone, without the layout of the page.
 - **HPG-16** (deterministic) With two saved snapshots or more, the history page must show a link that swaps the
-  compared runs, to `/history?from=<to>&to=<from>` of the runs compared.
+  compared runs, to `/history?from=<to>&to=<from>` of the runs compared, each name percent-encoded.
 - **HPG-6** (deterministic) The history page must list as added the sections (domain, feature, use case, by their kind
   and id of RHI-7) of the "to" run that the "from" run lacks, grouped by kind, in the order of the "to" run.
 - **HPG-7** (deterministic) The history page must list as removed the sections of the "from" run that the "to" run

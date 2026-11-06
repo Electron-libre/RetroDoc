@@ -1,6 +1,6 @@
 {% import "macros.html" as m %}
 <section id="rule-list">
-  {% call m::active_filters(page.active, "/rules") %}{% endcall %}
+  {% call m::active_filters(page.active(), "/rules") %}{% endcall %}
   {% if page.none_in_run %}
   <p class="empty">{{ t.no_rule_in_run }}</p>
   {% else if page.rules.is_empty() %}

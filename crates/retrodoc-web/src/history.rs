@@ -10,6 +10,7 @@ use retrodoc_mcp::history::{
 };
 use retrodoc_mcp::GeneratedDocs;
 
+use crate::audit::query_encoded;
 use crate::texts::WebTexts;
 use crate::view::{domain_href, feature_href, use_case_href};
 
@@ -38,6 +39,8 @@ pub struct Compared {
     /// The names of the compared runs, the values of `?from=` and `?to=`.
     pub from: String,
     pub to: String,
+    /// The page that compares them the other way round.
+    pub swap: String,
     pub groups: Vec<ChangeGroup>,
 }
 
@@ -82,6 +85,11 @@ pub fn history_page(
     let compared = picked.map(|(from, to)| Compared {
         from: runs[from].name.clone(),
         to: runs[to].name.clone(),
+        swap: format!(
+            "/history?from={}&to={}",
+            query_encoded(&runs[to].name),
+            query_encoded(&runs[from].name)
+        ),
         groups: groups(&runs[from], &runs[to], docs, texts),
     });
     HistoryPage {

@@ -10,8 +10,8 @@ use retrodoc_mcp::reviews::Reviews;
 use retrodoc_mcp::GeneratedDocs;
 
 use crate::review::OutdatedView;
-use crate::rules::{active_filters, Filter};
 use crate::texts::WebTexts;
+use crate::view::{active_filters, Filter};
 use crate::view::{code_href, doc_section_href, Confidence, Link, StaleFile};
 
 /// What the query asks: an empty value asks nothing.
@@ -24,8 +24,6 @@ pub struct DebtFilter {
 pub struct DebtPage {
     /// The kind and the domain, in that order.
     pub filters: Vec<Filter>,
-    /// The filters the query gives a value.
-    pub active: usize,
     /// The run has no item at all, whatever the filters.
     pub none_in_run: bool,
     /// The run has no confidence score: no use case is listed as not scored.
@@ -101,10 +99,8 @@ pub fn debt_page(docs: &GeneratedDocs, filter: &DebtFilter, texts: &WebTexts) ->
         .filter(|item| filter.keeps(item))
         .map(|item| row(docs, item, texts))
         .collect();
-    let filters = filters(docs, filter, texts);
     DebtPage {
-        active: active_filters(&filters),
-        filters,
+        filters: filters(docs, filter, texts),
         none_in_run: list.items.is_empty(),
         no_score: list.no_score,
         no_docs: list.no_docs,
@@ -112,6 +108,14 @@ pub fn debt_page(docs: &GeneratedDocs, filter: &DebtFilter, texts: &WebTexts) ->
         history_note: (docs.churn().is_none() && !list.items.is_empty())
             .then_some(texts.debt.no_history),
         items,
+    }
+}
+
+impl DebtPage {
+    /// The filters the query gives a value.
+    #[must_use]
+    pub fn active(&self) -> usize {
+        active_filters(&self.filters)
     }
 }
 

@@ -244,7 +244,7 @@ fn pass_row<'a>(
 }
 
 /// `value` as a query value: the unreserved characters kept, every other byte percent-encoded.
-fn query_encoded(value: &str) -> String {
+pub(crate) fn query_encoded(value: &str) -> String {
     let mut out = String::new();
     for byte in value.bytes() {
         if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b'~') {

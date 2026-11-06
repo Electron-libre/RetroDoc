@@ -69,12 +69,12 @@ WEB-106 and WAK-40; `assets/forms.js` swaps the error answers that name their sw
 | ask (question, send, start over) | ask | x | x | x | x (a question runs) | x | | x |
 | review (status, comment, save) | domain, feature, use case | x | x | x | | x | x | x |
 | edit (name, description, narrative, save, revert) | domain, feature, use case | x | x | x | | x | x | x |
-| debt filters | debt | x | x | x | | x | | |
-| rules filters | rules | x | x | x | | x | | |
-| run comparison (from, to, show) | history | x | x | x | | | | |
+| debt filters (kind chips, domain) | debt | x | x | x | | x | | |
+| rules filters (kind chips, domain, feature) | rules | x | x | x | | x | | |
+| run comparison (from, to, swap) | history | x | x | x | | x | | |
 
 - **rest**: the control at rest, its label above it, its hint below.
-- **hover**: a button or a select changes its border or background under the pointer.
+- **hover**: a button, a chip or a select changes its border or background under the pointer.
 - **focus**: a 2 px gold outline on the control the keyboard reached (`:focus-visible`).
 - **disabled**: dimmed, the pointer not allowed, no hover.
 - **pending**: the request is running: the submit button disabled, an indicator shown.

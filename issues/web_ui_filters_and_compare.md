@@ -51,7 +51,7 @@ free-text filter.
    WEB-107, WEB-108, WEB-55, DBT-10. (autonomous)
 2. [x] Run comparison of the history page: runs table with `from`/`to` radios, `htmx` swap on change, swap link;
    verified by tests in `history_page.rs` and screenshots; makes true HPG-5, HPG-16. (autonomous)
-3. [ ] Docs of the whole issue (`docs/dev/web-ui.md` components) and the fixes of the `high` review.
+3. [x] Docs of the whole issue (`docs/dev/web-ui.md` components) and the fixes of the `high` review. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -83,4 +83,22 @@ free-text filter.
 - red: HPG-5, HPG-16: the form had no `hx-get`, the runs no radio, no swap link.
 - not verified: a click on a radio or the swap link in a real browser (the `htmx` attributes checked in the markup).
 - Code review: no findings.
+- decisions needed: none.
+
+## Deliverable 3: docs of the whole issue and the fixes of the `high` review
+- done: an `htmx` history request answered with `history_body.html` alone (HPG-5 amended); an id on each radio so
+  `htmx` gives the focus back after a swap; the indicator named by id, so the swap link shows it too; the names of
+  the swap link percent-encoded (`audit::query_encoded`, HPG-16 amended); the radio style scoped to `table.runs`
+  (it shrank the hidden radio of a chip); the heads of the runs table sticky; `Filter`, `Choice` and
+  `active_filters` moved to `view.rs`, the count of the active filters a method of the page rather than a field;
+  the states table of `docs/dev/web-ui.md` and a map row for the look of the web interface in
+  `.claude/update-docs-map.md`.
+- checks: tests, lint, specs (`cardinal run project-check`), docs; shots retaken in `screenshots/after-filters`.
+- red: HPG-5, HPG-16: the `htmx` history request got the full page, the radios had no id, the swap link no
+  indicator and its names raw.
+- Code review (`high`): 9 findings; 8 fixed as above; not fixed: a value that names no choice still counts as an
+  active filter, as WEB-108 says (the list shows no item and the reset link clears it).
+- not verified: the focus kept after a swap and a real click on a radio, in a browser (ids and attributes checked
+  in the markup).
+- Code review (`low`): no findings.
 - decisions needed: none.

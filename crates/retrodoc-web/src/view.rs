@@ -976,3 +976,53 @@ pub fn use_case_page(
         next: siblings.get(at + 1).map(|u| link(u)),
     })
 }
+
+/// A filter of the form: a group of chips (radio choices) or a select, "All" first.
+pub struct Filter {
+    /// The name of its query parameter.
+    pub name: &'static str,
+    pub label: &'static str,
+    /// Radio choices rather than a select: for the few kinds, not the domains nor features.
+    pub chips: bool,
+    /// The query gives it no value: "All" is the choice.
+    pub all: bool,
+    pub choices: Vec<Choice>,
+}
+
+impl Filter {
+    /// A filter of `name` whose choices are `(value, label)`, the one `asked` selected.
+    pub fn new<'a>(
+        name: &'static str,
+        label: &'static str,
+        chips: bool,
+        asked: Option<&str>,
+        choices: impl IntoIterator<Item = (&'a str, &'a str)>,
+    ) -> Self {
+        Self {
+            name,
+            label,
+            chips,
+            all: asked.is_none(),
+            choices: choices
+                .into_iter()
+                .map(|(value, label)| Choice {
+                    value: value.to_string(),
+                    label: label.to_string(),
+                    selected: asked == Some(value),
+                })
+                .collect(),
+        }
+    }
+}
+
+/// How many of `filters` the query gives a value.
+#[must_use]
+pub fn active_filters(filters: &[Filter]) -> usize {
+    filters.iter().filter(|filter| !filter.all).count()
+}
+
+pub struct Choice {
+    pub value: String,
+    pub label: String,
+    pub selected: bool,
+}

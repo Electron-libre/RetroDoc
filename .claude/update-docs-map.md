@@ -13,6 +13,7 @@ Read by `skill:update-docs`. Owned by the project: one row per kind of change, w
 | LLM provider / boundary change | `docs/ARCHITECTURE.md` §8, `docs/crates/llm.md`, `PRODUCT.md` "Scope of v1" and "Risks" if v1 limits move |
 | Milestone started, finished, or re-scoped | `ROADMAP.md` (its state and issues; `skill:create-issue` and `skill:issue-workflow` keep them), the matching `docs/findings.md`.x section when findings are logged there, `CLAUDE.md` if it lists what is implemented |
 | New or changed convention (lint, tests, language) | `docs/dev/conventions.md` |
+| Look of the web interface (component, form, state of a form) | `docs/dev/web-ui.md` (components, states of the forms), `docs/crates/render-mcp-cli.md` (the page that holds it) |
 | Product-level scope change (new connector, doc type) | `PRODUCT.md` ("Capabilities", "Scope of v1") |
 | Public Rust API added or changed | doc comments: `# Errors` section on `pub fn` returning `Result`, `#[must_use]` on pure getters (clippy pedantic) |
 | Release process (version, `CHANGELOG.md`, tag) | `docs/dev/commands.md` (release note) |

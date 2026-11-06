@@ -573,6 +573,13 @@ pub async fn audit(State(site): State<Arc<Site>>) -> Response {
 }
 
 #[derive(Template)]
+#[template(path = "history_body.html")]
+struct HistoryBody {
+    t: &'static WebTexts,
+    page: HistoryPage,
+}
+
+#[derive(Template)]
 #[template(path = "history.html")]
 struct HistoryTemplate<'a> {
     t: &'static WebTexts,
@@ -580,21 +587,33 @@ struct HistoryTemplate<'a> {
     page: HistoryPage,
 }
 
-pub async fn history(State(site): State<Arc<Site>>, RawQuery(query): RawQuery) -> Response {
+pub async fn history(
+    State(site): State<Arc<Site>>,
+    headers: HeaderMap,
+    RawQuery(query): RawQuery,
+) -> Response {
     let from = query_value(query.as_deref(), "from");
     let to = query_value(query.as_deref(), "to");
-    render(
-        StatusCode::OK,
-        &HistoryTemplate {
+    let page = history_page(
+        site.history(),
+        site.docs(),
+        from.as_deref(),
+        to.as_deref(),
+        site.texts(),
+    );
+    fragment_or_page(
+        &site,
+        &headers,
+        site.texts().history_page.fewer,
+        Some(page),
+        |page| HistoryBody {
             t: site.texts(),
-            shell: site.shell(),
-            page: history_page(
-                site.history(),
-                site.docs(),
-                from.as_deref(),
-                to.as_deref(),
-                site.texts(),
-            ),
+            page,
+        },
+        |shell, page| HistoryTemplate {
+            t: site.texts(),
+            shell,
+            page,
         },
     )
 }

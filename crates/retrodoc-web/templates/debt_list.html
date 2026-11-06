@@ -1,6 +1,6 @@
 {% import "macros.html" as m %}
 <section id="debt-list">
-  {% call m::active_filters(page.active, "/debt") %}{% endcall %}
+  {% call m::active_filters(page.active(), "/debt") %}{% endcall %}
   {% if page.no_score %}
   <p class="muted">{{ t.debt.no_score|safe }}</p>
   {% endif %}

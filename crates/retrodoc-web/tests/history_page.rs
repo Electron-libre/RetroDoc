@@ -189,6 +189,26 @@ async fn get(root: &Path, path: &str) -> String {
     get_in(None, root, path).await
 }
 
+async fn get_with(root: &Path, path: &str, headers: &[&str]) -> String {
+    let mut request = Request::get(path);
+    for name in headers {
+        request = request.header(*name, "true");
+    }
+    let response = retrodoc_web::router(
+        Project::default(),
+        GeneratedDocs::load(root, &[]),
+        DocLinks::default(),
+        Vec::new(),
+    )
+    .oneshot(request.body(Body::empty()).unwrap())
+    .await
+    .unwrap();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    String::from_utf8(body.to_vec()).unwrap()
+}
+
 fn between<'a>(text: &'a str, start: &str, end: &str) -> &'a str {
     let from = text
         .find(start)
@@ -430,13 +450,80 @@ async fn a_link_swaps_the_compared_runs() {
     .await;
 
     assert!(
-        page.contains("href=\"/history?from=20261103T100000Z&amp;to=20261101T100000Z\""),
+        page.contains("href=\"/history?from=20261103T100000Z&#38;to=20261101T100000Z\""),
         "{page}"
     );
     let one = tempfile::tempdir().unwrap();
     save(one.path(), &run(1, None, Vec::new())).unwrap();
     let page = get(one.path(), "/history").await;
     assert!(!page.contains("href=\"/history?from="), "{page}");
+}
+
+// spec: HPG-5
+#[tokio::test]
+async fn an_htmx_history_request_gets_the_form_and_the_difference_alone() {
+    let repo = served_repo();
+    with_history(repo.path());
+
+    let fragment = get_with(repo.path(), "/history", &["HX-Request"]).await;
+    let restored = get_with(
+        repo.path(),
+        "/history",
+        &["HX-Request", "HX-History-Restore-Request"],
+    )
+    .await;
+
+    assert!(
+        fragment
+            .trim_start()
+            .starts_with("<div id=\"history-body\">"),
+        "{fragment}"
+    );
+    assert!(!fragment.contains("<header"), "{fragment}");
+    assert!(fragment.contains("id=\"history-added\""), "{fragment}");
+    assert!(restored.contains("<header"), "{restored}");
+}
+
+// spec: HPG-5
+#[tokio::test]
+async fn a_radio_keeps_its_focus_and_the_swap_shows_the_indicator() {
+    let repo = served_repo();
+    with_history(repo.path());
+
+    let page = get(repo.path(), "/history").await;
+
+    // htmx gives the focus back to the element of the same id after a swap.
+    assert!(
+        page.contains("name=\"from\" value=\"20261101T100000Z\" id=\"from-20261101T100000Z\""),
+        "{page}"
+    );
+    assert!(
+        page.contains("name=\"to\" value=\"20261101T100000Z\" id=\"to-20261101T100000Z\""),
+        "{page}"
+    );
+    let swap = between(&page, "<a href=\"/history?from=", "</a>");
+    assert!(
+        swap.contains("hx-indicator=\"#history-indicator\""),
+        "{swap}"
+    );
+    assert!(page.contains("id=\"history-indicator\""), "{page}");
+}
+
+// spec: HPG-16
+#[tokio::test]
+async fn the_swap_link_encodes_the_names_of_the_runs() {
+    let repo = served_repo();
+    with_history(repo.path());
+    let dir = history_dir(repo.path());
+    std::fs::rename(
+        dir.join("20261101T100000Z.json"),
+        dir.join("pre release&x.json"),
+    )
+    .unwrap();
+
+    let page = get(repo.path(), "/history?from=pre%20release%26x").await;
+
+    assert!(page.contains("&#38;to=pre%20release%26x\""), "{page}");
 }
 
 // spec: HPG-15
