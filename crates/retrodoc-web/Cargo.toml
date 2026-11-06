@@ -17,8 +17,9 @@ askama.workspace = true
 pulldown-cmark.workspace = true
 serde.workspace = true
 axum.workspace = true
+futures-util.workspace = true
 getrandom.workspace = true
-tokio = { workspace = true, features = ["net", "rt"] }
+tokio = { workspace = true, features = ["net", "rt", "sync"] }
 
 [dev-dependencies]
 retrodoc-pipeline = { workspace = true, features = ["testing"] }

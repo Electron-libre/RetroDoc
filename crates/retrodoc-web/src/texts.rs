@@ -165,6 +165,8 @@ pub struct AskTexts {
     pub no_answer: &'static str,
     /// Before the error of a question that failed.
     pub failed: &'static str,
+    /// The summary of the steps of an exchange: how many tool calls it made.
+    pub steps: fn(usize) -> String,
     /// The label of a domain, a feature, a use case and a file.
     pub kinds: [&'static str; 4],
     /// A warning of an answer.
@@ -701,6 +703,7 @@ impl WebTexts {
             no_source: retrodoc_agent::NO_SOURCE,
             no_answer: retrodoc_agent::NO_ANSWER,
             failed: "The question could not be answered:",
+            steps: |n| format!("{n} step{}", if n == 1 { "" } else { "s" }),
             kinds: ["domain", "feature", "use case", "file"],
             warning: english_warning,
         },
@@ -1057,6 +1060,7 @@ impl WebTexts {
             no_source: "Aucune source de la doc n’appuie cette réponse.",
             no_answer: "Le modèle n’a donné aucune réponse.",
             failed: "La question n’a pas pu recevoir de réponse :",
+            steps: |n| format!("{n} étape{}", if n > 1 { "s" } else { "" }),
             kinds: ["domaine", "fonctionnalité", "cas d’usage", "fichier"],
             warning: french_warning,
         },

@@ -160,14 +160,25 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   only when `router_with` gets an `Asking` (the provider and the rounds of the agent): `/ask` and its `POST` answer a
   question with the `retrodoc_agent::Conversation` of the browser session (the cookie `retrodoc_ask`, 128 random bits
   of `getrandom`, the sessions in memory, `MAX_SESSIONS` of them, the least recently used dropped, each keeping its
-  last `MAX_EXCHANGES` for the page, only a question starting one; the conversation asked out of the lock of the
-  sessions, so the page is served while the model answers, a second question of the session refused with 409 until
-  the first ends (`Running` frees it, answered or dropped with its request); `POST /ask/reset` starts the session over; the header links to `/ask`, `Shell::ask`), over a `Docs` made once per `Site` (rebuilt with the human edits), the answer rendered by the Markdown renderer of the collected docs (`collected::markdown_html`) and
-  its sources linked by `source_link`; `htmx` gets the exchange alone (`exchange.html`), added after the former
-  ones, else a `303` to `/ask`; a failed call is an exchange showing the error, the turn not kept. Tests:
+  last `MAX_EXCHANGES` for the page, only a question starting one; a question numbered in its session runs in a
+  task of its own (`run`, ADR 0049), out of the lock of the sessions, so the page is served while the model answers
+  and the question ends when no tab follows it, a second question of the session refused with 409 until the first
+  ends (`Free` frees it, even when the task stops), `serve` waiting at its end for the questions still running
+  (`InFlight`), so their calls are in the recap; `POST /ask/reset` starts the session over, a question still running
+  then kept nowhere; the header links to `/ask`, `Shell::ask`), over a `Docs` made once per `Site` (rebuilt with the human edits), the answer rendered by the Markdown renderer of the collected docs (`collected::markdown_html`) and
+  its sources linked by `source_link`; `htmx` gets at once the running exchange alone (`running.html`), added after
+  the former ones, else a `303` to `/ask` once the question ends. The task tells the `Progress` of the question (a
+  `tokio::sync::watch`) each step the agent's observer gets (`Conversation::ask_observed`), then its exchange; the
+  running exchange follows it with the SSE extension of `htmx` (`assets/htmx-ext-sse.min.js`):
+  `/ask/questions/{n}/events` replays the steps from the first (`step.html`), then the exchange (`exchange.html`, its
+  steps under a `<details>`), then ends, and `/ask/questions/{n}` waits for the end and gives the exchange, the
+  fallback of a stream that fails (`hx-on::sse-error`); both answer 404 for a question not of the session of the
+  cookie. The button of the form stays disabled while a running exchange is on the page (`hx-on::after-settle` of
+  `#exchanges`). A failed call is an exchange showing the error, the turn not kept. Tests:
   `tests/pages.rs` (home, tree, assets, `Host`), `tests/item_pages.rs` (the item pages), `tests/code_page.rs` (the
   page of a cited file, over a git repo), `tests/files_page.rs`, `tests/doc_pages.rs`, `tests/glossary_page.rs`, `tests/rules_page.rs`, `tests/actors_page.rs`, `tests/map_page.rs`, `tests/search_page.rs` and `tests/ask_page.rs` (the fake provider of the tests) ask the router without a socket (`tower::ServiceExt::oneshot`) over artifacts
-  saved in a temp dir. To update `htmx`, replace `assets/htmx.min.js` and the version in `assets.rs`; to update `mermaid`, gzip
+  saved in a temp dir. To update `htmx`, replace `assets/htmx.min.js` and the version in `assets.rs` (the same for
+  its SSE extension, `assets/htmx-ext-sse.min.js`); to update `mermaid`, gzip
   (`gzip -9 -n`) the `dist/mermaid.min.js` of its npm package (checked against the package integrity) into
   `assets/mermaid-<version>.min.js.gz` and change `MERMAID` and the file name in `assets.rs`. The logo is `static/assets/img/logo-mark.svg` of the
   meta-lambda.com site, copied as is.

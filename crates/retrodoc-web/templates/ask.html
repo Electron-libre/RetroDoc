@@ -1,17 +1,18 @@
 {% extends "base.html" %}
 {% block title %}{{ t.ask.link }}{% endblock %}
+{% block scripts %}<script src="/assets/htmx-ext-sse.min.js" defer></script>{% endblock %}
 {% block content %}
 <h1>{{ t.ask.link }}</h1>
 <p class="muted">{{ t.ask.intro }}</p>
-<div id="exchanges">
+<div id="exchanges" hx-on::after-settle="document.querySelector('form.ask button').disabled = this.querySelector('.running') !== null">
 {% for exchange in exchanges %}{% include "exchange.html" %}
 {% endfor %}
+{% if let Some(running) = running %}{% include "running.html" %}{% endif %}
 </div>
-<form class="ask" method="post" action="/ask" hx-post="/ask" hx-target="#exchanges" hx-swap="beforeend" hx-indicator="#ask-waiting" hx-disabled-elt="find button" hx-on::after-request="if (event.detail.successful) this.reset()">
+<form class="ask" method="post" action="/ask" hx-post="/ask" hx-target="#exchanges" hx-swap="beforeend" hx-disabled-elt="find button" hx-on::after-request="if (event.detail.successful) this.reset()">
   <label>{{ t.ask.question }} <textarea name="question" rows="3" required></textarea></label>
-  <button type="submit">{{ t.ask.send }}</button>
+  <button type="submit"{% if running.is_some() %} disabled{% endif %}>{{ t.ask.send }}</button>
 </form>
-<p id="ask-waiting" class="htmx-indicator">{{ t.ask.waiting }}</p>
 <form method="post" action="/ask/reset">
   <button type="submit">{{ t.ask.start_over }}</button>
 </form>

@@ -1,6 +1,6 @@
 # 0049. A question of the ask page runs in a task and streams its steps
 
-Status: Proposed
+Status: Accepted
 
 ## Context
 

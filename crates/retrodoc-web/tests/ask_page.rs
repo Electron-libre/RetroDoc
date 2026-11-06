@@ -116,8 +116,23 @@ fn session_cookie(response: &Response<Body>) -> Option<String> {
 }
 
 /// Asks `question` with htmx in the session of `cookie` (a new one without), and gives the
-/// session cookie and the exchange answered.
+/// session cookie and the exchange answered, asked by the fallback of the running exchange.
+// spec: WAK-33
 async fn ask(router: &Router, question: &str, cookie: Option<&str>) -> (String, String) {
+    let (cookie, running) = send_question(router, question, cookie).await;
+    let number = question_number(&running);
+    let ended = send(
+        router,
+        get_request(&format!("/ask/questions/{number}"), Some(&cookie)),
+    )
+    .await;
+    assert_eq!(ended.status(), StatusCode::OK);
+    (cookie, body(ended).await)
+}
+
+/// Sends `question` with htmx in the session of `cookie`, and gives the session cookie and the
+/// running exchange answered at once.
+async fn send_question(router: &Router, question: &str, cookie: Option<&str>) -> (String, String) {
     let form = format!("question={}", question.replace(' ', "+"));
     let response = send(router, post_request("/ask", &form, cookie, true)).await;
     assert_eq!(response.status(), StatusCode::OK);
@@ -125,6 +140,13 @@ async fn ask(router: &Router, question: &str, cookie: Option<&str>) -> (String, 
         .or_else(|| cookie.map(str::to_string))
         .expect("a session cookie");
     (cookie, body(response).await)
+}
+
+/// The number of the question a running exchange follows.
+fn question_number(running: &str) -> u64 {
+    let at = "sse-connect=\"/ask/questions/";
+    let from = &running[running.find(at).expect(running) + at.len()..];
+    from[..from.find('/').unwrap()].parse().unwrap()
 }
 
 /// The roles of the messages of the last request `llm` received.
@@ -176,9 +198,9 @@ async fn without_ask_there_is_no_ask_page() {
     assert!(body(page).await.contains("<h1>Not found</h1>"));
 }
 
-// spec: WAK-6, WAK-15
+// spec: WAK-6
 #[tokio::test]
-async fn the_ask_page_holds_the_form_and_its_indicator() {
+async fn the_ask_page_holds_the_form() {
     let dir = generated_repo();
     let router = router(dir.path(), Some(navigating()));
 
@@ -190,13 +212,170 @@ async fn the_ask_page_holds_the_form_and_its_indicator() {
     let form = &form[..form.find("</form>").unwrap()];
     assert!(form.contains("hx-post=\"/ask\""), "{form}");
     assert!(form.contains("name=\"question\""), "{form}");
-    assert!(form.contains("hx-indicator=\"#ask-waiting\""), "{form}");
-    assert!(form.contains("hx-disabled-elt=\"find button\""), "{form}");
     assert!(
-        page.contains("id=\"ask-waiting\" class=\"htmx-indicator\""),
+        page.contains("<script src=\"/assets/htmx-ext-sse.min.js\" defer></script>"),
         "{page}"
     );
-    assert!(page.contains("Reading the docs to answer"), "{page}");
+}
+
+// spec: WAK-14, WAK-15, WAK-30, WAK-32, WAK-33, WAK-35
+#[tokio::test]
+async fn a_question_is_answered_at_once_with_its_running_exchange() {
+    let dir = generated_repo();
+    let llm = Arc::new(FakeLlm::hanging_after(0, |_| String::new()));
+    let router = router(dir.path(), Some(llm));
+
+    let (cookie, running) = tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        send_question(&router, "How are the orders listed?", None),
+    )
+    .await
+    .expect("the question waits for the model");
+    let page = body(send(&router, get_request("/ask", Some(&cookie))).await).await;
+
+    assert!(!running.contains("<html"), "{running}");
+    assert!(running.contains("How are the orders listed?"), "{running}");
+    assert!(running.contains("Reading the docs to answer"), "{running}");
+    for attribute in [
+        "hx-ext=\"sse\"",
+        "sse-connect=\"/ask/questions/1/events\"",
+        "sse-close=\"answer\"",
+        "hx-on::sse-error=\"htmx.ajax('GET', '/ask/questions/1', {target: this, swap: 'outerHTML'})\"",
+        "<ol class=\"steps\" sse-swap=\"step\" hx-swap=\"beforeend\"></ol>",
+        "sse-swap=\"answer\" hx-target=\"closest article\" hx-swap=\"outerHTML\"",
+    ] {
+        assert!(running.contains(attribute), "{attribute}: {running}");
+    }
+    // The page of the session shows the question still running, its button disabled until the
+    // running exchange is replaced.
+    assert!(
+        page.contains("sse-connect=\"/ask/questions/1/events\""),
+        "{page}"
+    );
+    let form = &page[page.find("<form class=\"ask\"").expect(&page)..];
+    assert!(form.contains("<button type=\"submit\" disabled>"), "{form}");
+    assert!(
+        page.contains(
+            "hx-on::after-settle=\"document.querySelector('form.ask button').disabled = \
+             this.querySelector('.running') !== null\""
+        ),
+        "{page}"
+    );
+}
+
+/// The events of a stream: their name and data, in order.
+fn events(stream: &str) -> Vec<(String, String)> {
+    stream
+        .split("\n\n")
+        .filter(|block| !block.trim().is_empty())
+        .map(|block| {
+            let mut name = String::new();
+            let mut data = Vec::new();
+            for line in block.lines() {
+                if let Some(value) = line.strip_prefix("event: ") {
+                    name = value.to_string();
+                } else if let Some(value) = line.strip_prefix("data: ") {
+                    data.push(value);
+                }
+            }
+            (name, data.join("\n"))
+        })
+        .collect()
+}
+
+// spec: WAK-31, WAK-32
+#[tokio::test]
+async fn the_stream_of_a_question_gives_its_steps_then_its_exchange_then_ends() {
+    let dir = generated_repo();
+    let router = router(dir.path(), Some(navigating()));
+    let (cookie, _) = ask(&router, "How are the orders listed?", None).await;
+
+    let response = send(
+        &router,
+        get_request("/ask/questions/1/events", Some(&cookie)),
+    )
+    .await;
+    let again = send(
+        &router,
+        get_request("/ask/questions/1/events", Some(&cookie)),
+    )
+    .await;
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response.headers()[header::CONTENT_TYPE],
+        "text/event-stream"
+    );
+    let stream = body(response).await;
+    let events = events(&stream);
+    let names: Vec<&str> = events.iter().map(|(name, _)| name.as_str()).collect();
+    assert_eq!(names, ["step", "answer"], "{stream}");
+    assert_eq!(
+        events[0].1,
+        "<li>get_feature <code>orders/list-orders</code></li>"
+    );
+    let answer = &events[1].1;
+    assert!(
+        answer.starts_with("<article class=\"exchange\""),
+        "{answer}"
+    );
+    assert!(answer.contains("/domains/orders/list-orders"), "{answer}");
+    assert!(
+        answer.contains("<details class=\"steps\"><summary>1 step</summary>"),
+        "{answer}"
+    );
+    assert!(answer.contains("<li>get_feature <code>orders/list-orders</code></li>"));
+    assert_eq!(body(again).await, stream);
+}
+
+// spec: WAK-34
+#[tokio::test]
+async fn a_question_is_followed_only_from_its_own_session() {
+    let dir = generated_repo();
+    let router = router(dir.path(), Some(navigating()));
+    let (cookie, _) = ask(&router, "How are the orders listed?", None).await;
+    ask(&router, "By whom?", Some(&cookie)).await;
+    let (other, _) = ask(&router, "When?", None).await;
+
+    for (path, cookie) in [
+        ("/ask/questions/2", Some(other.as_str())),
+        ("/ask/questions/2/events", Some(other.as_str())),
+        ("/ask/questions/1", None),
+        ("/ask/questions/1/events", Some("retrodoc_ask=gone")),
+        ("/ask/questions/3", Some(cookie.as_str())),
+        ("/ask/questions/3/events", Some(cookie.as_str())),
+    ] {
+        let response = send(&router, get_request(path, cookie)).await;
+        assert_eq!(
+            response.status(),
+            StatusCode::NOT_FOUND,
+            "{path} {cookie:?}"
+        );
+    }
+}
+
+// spec: WAK-35
+#[tokio::test]
+async fn a_question_no_page_follows_runs_to_its_end_and_is_kept() {
+    let dir = generated_repo();
+    let llm = navigating();
+    let router = router(dir.path(), Some(llm.clone()));
+
+    let (cookie, _) = send_question(&router, "How are the orders listed?", None).await;
+    let page = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        loop {
+            let page = body(send(&router, get_request("/ask", Some(&cookie))).await).await;
+            if !page.contains("class=\"exchange running\"") {
+                return page;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("the question ends");
+
+    assert_eq!(llm.calls(), 2);
+    assert!(page.contains("/domains/orders/list-orders"), "{page}");
 }
 
 // spec: WAK-9, WAK-10, WAK-13, WAK-14
@@ -376,7 +555,11 @@ async fn the_ask_page_is_in_french_with_a_french_language() {
     let (_, exchange) = ask(&router, "Comment sont listées les commandes ?", None).await;
     let page = body(send(&router, get_request("/ask", None)).await).await;
 
-    assert!(page.contains("Lecture de la doc"), "{page}");
+    assert!(page.contains("Demander"), "{page}");
+    assert!(
+        exchange.contains("<summary>1 étape</summary>"),
+        "{exchange}"
+    );
     assert!(
         exchange.contains("fonctionnalité <code>orders/list-orders</code>"),
         "{exchange}"
@@ -495,16 +678,4 @@ async fn the_page_of_a_session_is_served_while_its_question_runs() {
     assert_eq!(again.status(), StatusCode::CONFLICT);
     assert_eq!(llm.calls(), 2);
     running.abort();
-    let _ = running.await;
-    // The question dropped with its request leaves the session free: the next one runs (and
-    // hangs, as the model does from its second call) rather than being refused.
-    let next = tokio::time::timeout(
-        std::time::Duration::from_millis(200),
-        send(
-            &router,
-            post_request("/ask", "question=When%3F", Some(&cookie), true),
-        ),
-    )
-    .await;
-    assert!(next.is_err(), "refused: {:?}", next.map(|r| r.status()));
 }

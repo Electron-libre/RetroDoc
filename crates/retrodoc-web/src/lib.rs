@@ -141,6 +141,25 @@ pub fn router_with(
     collected: Vec<ExistingDoc>,
     asking: Option<Asking>,
 ) -> Router {
+    routes(
+        project,
+        docs,
+        links,
+        collected,
+        asking,
+        ask::InFlight::default(),
+    )
+}
+
+/// [`router_with`], the questions of the ask page counted in `in_flight`.
+fn routes(
+    project: Project,
+    docs: Option<GeneratedDocs>,
+    links: DocLinks,
+    collected: Vec<ExistingDoc>,
+    asking: Option<Asking>,
+    in_flight: ask::InFlight,
+) -> Router {
     let live = LiveSite::new(project, docs, links, collected, asking.is_some());
     let pages = Router::new()
         .route("/", get(pages::home))
@@ -178,7 +197,7 @@ pub fn router_with(
         .fallback(pages::not_found)
         .with_state(live.clone());
     let pages = match asking {
-        Some(asking) => pages.merge(ask::routes(live, asking)),
+        Some(asking) => pages.merge(ask::routes(live, asking, in_flight)),
         None => pages,
     };
     pages
@@ -241,7 +260,8 @@ fn same_origin(headers: &HeaderMap) -> bool {
 }
 
 /// Serves the interface on `listener`, with the ask page when `asking` is given, until
-/// `shutdown` completes; the requests in flight are answered first.
+/// `shutdown` completes; the requests and the questions of the ask page in flight are answered
+/// first.
 ///
 /// # Errors
 ///
@@ -255,10 +275,11 @@ pub async fn serve(
     asking: Option<Asking>,
     shutdown: impl Future<Output = ()> + Send + 'static,
 ) -> std::io::Result<()> {
-    axum::serve(
-        listener,
-        router_with(project, docs, links, collected, asking),
-    )
-    .with_graceful_shutdown(shutdown)
-    .await
+    let in_flight = ask::InFlight::default();
+    let router = routes(project, docs, links, collected, asking, in_flight.clone());
+    axum::serve(listener, router)
+        .with_graceful_shutdown(shutdown)
+        .await?;
+    in_flight.idle().await;
+    Ok(())
 }

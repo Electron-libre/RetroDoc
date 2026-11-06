@@ -1,21 +1,26 @@
 //! The ask page of `retrodoc ui --ask` (`specs/web-ask.md`, ADR 0048): a question posted to `/ask`
 //! is answered by the agent of `retrodoc-agent` in the conversation of the browser session, whose id
-//! a cookie carries; the sessions live in memory, at most [`MAX_SESSIONS`].
+//! a cookie carries; the sessions live in memory, at most [`MAX_SESSIONS`]. A question runs in a
+//! task of its own (ADR 0049): its running exchange follows its steps with server-sent events, or
+//! asks for the exchange once the question has ended when the stream fails.
 
 use std::collections::VecDeque;
+use std::convert::Infallible;
 use std::fmt::Write as _;
 use std::sync::{Arc, Mutex, PoisonError};
 
 use askama::Template;
-use axum::extract::State;
+use axum::extract::{Path, State};
 use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
+use axum::response::sse::{Event, Sse};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Form, Router};
-use retrodoc_agent::{Answer, Conversation};
+use retrodoc_agent::{Answer, Conversation, Step};
 use retrodoc_llm::LlmProvider;
 use retrodoc_mcp::{Docs, Source, SourceKind};
 use serde::Deserialize;
+use tokio::sync::watch;
 
 use crate::collected::markdown_html;
 use crate::pages::render;
@@ -40,17 +45,38 @@ pub struct Asking {
 
 /// A question and what came of it.
 struct Exchange {
+    /// Its number in its session.
+    number: u64,
     question: String,
+    steps: Vec<Step>,
     outcome: Result<Answer, String>,
+}
+
+/// What a question has done so far.
+#[derive(Default)]
+struct Progress {
+    steps: Vec<Step>,
+    /// Its exchange, once it has ended.
+    ended: Option<Arc<Exchange>>,
+}
+
+/// A question running in a task of the server.
+struct Running {
+    number: u64,
+    question: String,
+    progress: watch::Sender<Progress>,
 }
 
 /// The conversation of a browser session and the exchanges its page shows.
 #[derive(Default)]
 struct Session {
     conversation: Conversation,
-    exchanges: VecDeque<Exchange>,
-    /// A question of the session is running (WAK-29).
-    asking: bool,
+    exchanges: VecDeque<Arc<Exchange>>,
+    /// The question of the session running, if any (WAK-29).
+    running: Option<Arc<Running>>,
+    /// The questions sent in the session, which number them; not reset, so a number names one
+    /// question only.
+    asked: u64,
 }
 
 /// The sessions, the one used last at the end.
@@ -94,6 +120,32 @@ fn new_id() -> String {
     })
 }
 
+/// The questions running in their tasks, which the end of [`crate::serve`] waits for (WAK-23).
+#[derive(Clone, Default)]
+pub(crate) struct InFlight(Arc<watch::Sender<usize>>);
+
+impl InFlight {
+    /// Counts one more question running until the guard it gives is dropped.
+    fn start(&self) -> Started {
+        self.0.send_modify(|n| *n += 1);
+        Started(self.clone())
+    }
+
+    /// Once no question runs.
+    pub(crate) async fn idle(&self) {
+        let _ = self.0.subscribe().wait_for(|n| *n == 0).await;
+    }
+}
+
+/// A question counted in [`InFlight`] while it lives.
+struct Started(InFlight);
+
+impl Drop for Started {
+    fn drop(&mut self) {
+        self.0 .0.send_modify(|n| *n -= 1);
+    }
+}
+
 /// The docs of the agent and the site they were made from.
 type SiteDocs = (Arc<Site>, Arc<Docs>);
 
@@ -105,6 +157,7 @@ struct AskState {
     sessions: Arc<Mutex<Sessions>>,
     /// The docs the agent reads, made once per site (rebuilt with the edits).
     docs: Arc<Mutex<Option<SiteDocs>>>,
+    in_flight: InFlight,
 }
 
 impl AskState {
@@ -124,6 +177,22 @@ impl AskState {
         let docs = Arc::new(Docs::from(site.docs()?.clone()));
         *cached = Some((Arc::clone(site), Arc::clone(&docs)));
         Some(docs)
+    }
+
+    /// The progress of the question `number` of the session of `headers`, running or among its
+    /// exchanges (WAK-34).
+    fn follow(&self, headers: &HeaderMap, number: u64) -> Option<watch::Receiver<Progress>> {
+        let mut sessions = self.sessions();
+        let session = sessions.get(cookie(headers).as_deref())?;
+        if let Some(running) = session.running.as_ref().filter(|r| r.number == number) {
+            return Some(running.progress.subscribe());
+        }
+        let exchange = session.exchanges.iter().find(|e| e.number == number)?;
+        let (_, ended) = watch::channel(Progress {
+            steps: exchange.steps.clone(),
+            ended: Some(Arc::clone(exchange)),
+        });
+        Some(ended)
     }
 }
 
@@ -152,16 +221,19 @@ fn with_cookie(mut response: Response, id: &str, new: bool) -> Response {
 }
 
 /// The routes of the ask page over `site`.
-pub(crate) fn routes(site: LiveSite, asking: Asking) -> Router {
+pub(crate) fn routes(site: LiveSite, asking: Asking, in_flight: InFlight) -> Router {
     let state = AskState {
         site,
         asking: Arc::new(asking),
         sessions: Arc::default(),
         docs: Arc::default(),
+        in_flight,
     };
     Router::new()
         .route("/ask", get(page).post(question))
         .route("/ask/reset", post(reset))
+        .route("/ask/questions/{number}", get(ended))
+        .route("/ask/questions/{number}/events", get(events))
         .with_state(state)
 }
 
@@ -173,10 +245,18 @@ pub struct SourceLink {
     pub href: Option<String>,
 }
 
+/// A step of a question as the page shows it.
+#[derive(Template)]
+#[template(path = "step.html")]
+pub struct StepView<'a> {
+    pub step: &'a Step,
+}
+
 /// An exchange as the page shows it.
 #[derive(Default)]
 pub struct ExchangeView {
     pub question: String,
+    pub steps: Vec<Step>,
     /// The text of the answer rendered, safe to insert as is; `None` for a question that failed.
     pub html: Option<String>,
     pub error: Option<String>,
@@ -187,9 +267,11 @@ pub struct ExchangeView {
 impl ExchangeView {
     fn of(exchange: &Exchange, texts: &AskTexts) -> Self {
         let question = exchange.question.clone();
+        let steps = exchange.steps.clone();
         match &exchange.outcome {
             Err(error) => Self {
                 question,
+                steps,
                 error: Some(error.clone()),
                 ..Self::default()
             },
@@ -198,6 +280,7 @@ impl ExchangeView {
                 let text = text.unwrap_or(texts.no_answer);
                 Self {
                     question,
+                    steps,
                     html: Some(markdown_html(text)),
                     error: None,
                     sources: answer
@@ -238,6 +321,30 @@ struct AskPage<'a> {
     t: &'static WebTexts,
     shell: &'a Shell,
     exchanges: Vec<ExchangeView>,
+    running: Option<RunningView>,
+}
+
+/// A question running, as the page shows it.
+pub struct RunningView {
+    pub number: u64,
+    pub question: String,
+}
+
+impl RunningView {
+    fn of(running: &Running) -> Self {
+        Self {
+            number: running.number,
+            question: running.question.clone(),
+        }
+    }
+}
+
+/// The exchange of a question running alone, added after the former ones by `htmx`.
+#[derive(Template)]
+#[template(path = "running.html")]
+struct RunningFragment {
+    t: &'static WebTexts,
+    running: RunningView,
 }
 
 /// One exchange alone, added after the former ones by `htmx`.
@@ -252,21 +359,23 @@ async fn page(State(state): State<AskState>, headers: HeaderMap) -> Response {
     let site: Arc<Site> = state.site.0.current();
     let texts = site.texts();
     // A page with no session shows none and keeps none: only a question starts one.
-    let exchanges = state
+    let (exchanges, running) = state
         .sessions()
         .get(cookie(&headers).as_deref())
         .map(|session| {
-            session
+            let exchanges = session
                 .exchanges
                 .iter()
                 .map(|exchange| ExchangeView::of(exchange, &texts.ask))
-                .collect()
+                .collect();
+            (exchanges, session.running.as_deref().map(RunningView::of))
         })
         .unwrap_or_default();
     let page = AskPage {
         t: texts,
         shell: site.shell(),
         exchanges,
+        running,
     };
     render(StatusCode::OK, &page)
 }
@@ -295,87 +404,219 @@ async fn question(
         )
             .into_response();
     };
-    // The conversation is asked out of the lock, so the page and the other sessions are served
-    // while the model answers.
-    let (id, new, mut conversation) = {
+    // The question runs in a task of its own, so the page and the other sessions are served while
+    // the model answers, and the question ends when no page follows it (WAK-35).
+    let (id, new, running, conversation) = {
         let mut sessions = state.sessions();
         let (id, new) = sessions.open(cookie(&headers).as_deref());
         let Some(session) = sessions.get(Some(&id)) else {
             return StatusCode::INTERNAL_SERVER_ERROR.into_response();
         };
         // Two questions asked from the same history would each drop the other from it.
-        if session.asking {
+        if session.running.is_some() {
             return (
                 StatusCode::CONFLICT,
                 "a question of this conversation is running",
             )
                 .into_response();
         }
-        session.asking = true;
-        (id, new, session.conversation.clone())
+        session.asked += 1;
+        let running = Arc::new(Running {
+            number: session.asked,
+            question,
+            progress: watch::Sender::new(Progress::default()),
+        });
+        session.running = Some(Arc::clone(&running));
+        (id, new, running, session.conversation.clone())
     };
-    let _running = Running {
-        sessions: Arc::clone(&state.sessions),
-        id: id.clone(),
-    };
-    let outcome = conversation
-        .ask(
-            state.asking.llm.as_ref(),
-            docs,
-            &question,
-            state.asking.max_rounds,
-        )
-        .await
-        .map_err(|error| error.to_string());
-    let exchange = Exchange { question, outcome };
-    let view = ExchangeView::of(&exchange, &site.texts().ask);
-    // A session dropped while the model answered gets its answer in a session of its own.
-    let (id, new) = {
-        let mut sessions = state.sessions();
-        let (kept, created) = sessions.open(Some(&id));
-        if let Some(session) = sessions.get(Some(&kept)) {
-            session.conversation = conversation;
-            session.exchanges.push_back(exchange);
-            while session.exchanges.len() > MAX_EXCHANGES {
-                session.exchanges.pop_front();
-            }
-        }
-        (kept, new || created)
-    };
+    let mut progress = running.progress.subscribe();
+    let started = state.in_flight.start();
+    tokio::spawn(run(
+        started,
+        state,
+        id.clone(),
+        Arc::clone(&running),
+        conversation,
+        docs,
+    ));
     let response = if headers.contains_key("HX-Request") {
         render(
             StatusCode::OK,
-            &ExchangeFragment {
+            &RunningFragment {
                 t: site.texts(),
-                exchange: view,
+                running: RunningView::of(&running),
             },
         )
     } else {
+        drop(running);
+        let _ = ended_exchange(&mut progress).await;
         (StatusCode::SEE_OTHER, [(header::LOCATION, "/ask")]).into_response()
     };
     with_cookie(response, &id, new)
 }
 
-/// The question of a session running: the session can take another when it ends, answered or
-/// dropped with its request (a tab closed while the model answers).
-struct Running {
-    sessions: Arc<Mutex<Sessions>>,
+/// Asks the question `running` of the session `id` after its `conversation`, telling its progress
+/// each step, then keeps the exchange and the conversation in the session, unless the session was
+/// dropped or reset meanwhile.
+async fn run(
+    _started: Started,
+    state: AskState,
     id: String,
+    running: Arc<Running>,
+    mut conversation: Conversation,
+    docs: Arc<Docs>,
+) {
+    let _free = Free {
+        sessions: Arc::clone(&state.sessions),
+        id: id.clone(),
+        running: Arc::clone(&running),
+    };
+    let progress = &running.progress;
+    let tell = |step: Step| progress.send_modify(|p| p.steps.push(step));
+    let outcome = conversation
+        .ask_observed(
+            state.asking.llm.as_ref(),
+            docs,
+            &running.question,
+            state.asking.max_rounds,
+            &tell,
+        )
+        .await
+        .map_err(|error| error.to_string());
+    let exchange = Arc::new(Exchange {
+        number: running.number,
+        question: running.question.clone(),
+        steps: progress.borrow().steps.clone(),
+        outcome,
+    });
+    if let Some(session) = state.sessions().get(Some(&id)) {
+        if session
+            .running
+            .as_ref()
+            .is_some_and(|kept| Arc::ptr_eq(kept, &running))
+        {
+            session.running = None;
+            session.conversation = conversation;
+            session.exchanges.push_back(Arc::clone(&exchange));
+            while session.exchanges.len() > MAX_EXCHANGES {
+                session.exchanges.pop_front();
+            }
+        }
+    }
+    progress.send_modify(|p| p.ended = Some(exchange));
 }
 
-impl Drop for Running {
+/// The question of a session running: the session can take another when its task ends, answered
+/// or stopped (a panic, the shutdown of the server).
+struct Free {
+    sessions: Arc<Mutex<Sessions>>,
+    id: String,
+    running: Arc<Running>,
+}
+
+impl Drop for Free {
     fn drop(&mut self) {
         let mut sessions = self.sessions.lock().unwrap_or_else(PoisonError::into_inner);
         if let Some(session) = sessions.get(Some(&self.id)) {
-            session.asking = false;
+            if session
+                .running
+                .as_ref()
+                .is_some_and(|kept| Arc::ptr_eq(kept, &self.running))
+            {
+                session.running = None;
+            }
         }
     }
+}
+
+/// The exchange of the question `progress` follows, once it has ended; `None` when its task
+/// stopped without one.
+async fn ended_exchange(progress: &mut watch::Receiver<Progress>) -> Option<Arc<Exchange>> {
+    let ended = progress.wait_for(|p| p.ended.is_some()).await.ok()?;
+    ended.ended.clone()
+}
+
+/// The exchange of the question `number` alone, once it has ended: the fallback of a running
+/// exchange whose stream failed (WAK-33).
+async fn ended(
+    State(state): State<AskState>,
+    Path(number): Path<u64>,
+    headers: HeaderMap,
+) -> Response {
+    let Some(mut progress) = state.follow(&headers, number) else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    let Some(exchange) = ended_exchange(&mut progress).await else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    let texts = state.site.0.current().texts();
+    render(
+        StatusCode::OK,
+        &ExchangeFragment {
+            t: texts,
+            exchange: ExchangeView::of(&exchange, &texts.ask),
+        },
+    )
+}
+
+/// The steps of the question `number`, from the first, then its exchange, as server-sent events
+/// (WAK-31).
+async fn events(
+    State(state): State<AskState>,
+    Path(number): Path<u64>,
+    headers: HeaderMap,
+) -> Response {
+    let Some(progress) = state.follow(&headers, number) else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    let texts = state.site.0.current().texts();
+    let stream = futures_util::stream::unfold(
+        (progress, 0, false),
+        move |(mut progress, sent, done)| async move {
+            if done {
+                return None;
+            }
+            loop {
+                {
+                    let now = progress.borrow_and_update();
+                    if let Some(step) = now.steps.get(sent) {
+                        let event = Ok::<_, Infallible>(event("step", &StepView { step }));
+                        drop(now);
+                        return Some((event, (progress, sent + 1, false)));
+                    }
+                    if let Some(exchange) = now.ended.clone() {
+                        drop(now);
+                        let exchange = ExchangeFragment {
+                            t: texts,
+                            exchange: ExchangeView::of(&exchange, &texts.ask),
+                        };
+                        let event = Ok(event("answer", &exchange));
+                        return Some((event, (progress, sent, true)));
+                    }
+                }
+                // The task stopped without an exchange: the stream ends, the page falls back.
+                progress.changed().await.ok()?;
+            }
+        },
+    );
+    Sse::new(stream).into_response()
+}
+
+/// The event `name` whose data is `template` rendered, without the carriage returns an event
+/// cannot carry.
+fn event(name: &str, template: &impl Template) -> Event {
+    let html = template.render().unwrap_or_default().replace('\r', "");
+    Event::default().event(name).data(html.trim())
 }
 
 /// Empties the exchanges and the conversation of the session (WAK-22).
 async fn reset(State(state): State<AskState>, headers: HeaderMap) -> Response {
     if let Some(session) = state.sessions().get(cookie(&headers).as_deref()) {
-        *session = Session::default();
+        // A question still running ends outside of the session (`run`); the count goes on.
+        *session = Session {
+            asked: session.asked,
+            ..Session::default()
+        };
     }
     (StatusCode::SEE_OTHER, [(header::LOCATION, "/ask")]).into_response()
 }

@@ -194,7 +194,11 @@ fn a_question_uses_the_ask_pass_and_its_recap_is_saved_when_the_server_stops() {
     let out = server.interrupt();
 
     assert_eq!(status, "HTTP/1.1 200 OK");
-    assert!(exchange.contains("They are listed in"), "{exchange}");
+    // The question runs on after its running exchange is sent; the server waits for it.
+    assert!(
+        exchange.contains("sse-connect=\"/ask/questions/1/events\""),
+        "{exchange}"
+    );
     assert_eq!(ask.calls().len(), 1);
     assert!(default.calls().is_empty());
     assert!(

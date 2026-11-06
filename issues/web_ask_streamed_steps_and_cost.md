@@ -48,10 +48,10 @@ stopping a question. Means: the question runs in a server task (no longer tied t
 ## Plan
 1. [x] Agent observer: `Conversation::ask` and `ask_with` gain a variant that tells an observer each tool call (tool,
    target from `id`/`query`/`path`); verified by agent tests; makes true ASK-25. (autonomous)
-2. [ ] Streamed steps: the `POST` of `htmx` starts the question in a task and returns the running exchange; routes
+2. [x] Streamed steps: the `POST` of `htmx` starts the question in a task and returns the running exchange; routes
    `/ask/questions/<n>/events` (SSE: steps, then the exchange) and `/ask/questions/<n>` (fallback); vendored
    `htmx-ext-sse` 2.2.4; button disabled until the answer; verified by `ask_page.rs` tests through the router (and a
-   headless Chrome check of the page); makes true WAK-14, WAK-15, WAK-16 (amended), WAK-30 to WAK-35.
+   headless Chrome check of the page); makes true WAK-14, WAK-15, WAK-16 (amended), WAK-30 to WAK-35. (autonomous)
 3. [ ] Cost: a `UsageTracker` per question around the provider (`impl LlmProvider for Arc<P>`, `CallTotals` summable
    publicly), the session sum kept and reset with it, shown under each ended exchange in English and French; verified
    by `ask_page.rs` tests with a fake provider reporting usage; makes true WAK-36, WAK-37.
@@ -69,3 +69,21 @@ stopping a question. Means: the question runs in a server task (no longer tied t
 - red: ASK-25: cannot find type `Step`, no method `ask_observed` on `Conversation`.
 - Code review: no findings
 - not verified: none. decisions needed: none.
+
+### 2. Streamed steps
+- done: a question runs in a task (`run`); the htmx `POST` returns the running exchange, which follows
+  `/ask/questions/{n}/events` (SSE ext 2.2.4 vendored) and falls back to `/ask/questions/{n}`; the ended exchange lists
+  its steps under a `<details>`; `serve` waits for the questions in flight at shutdown (`InFlight`), so the recap of
+  WAK-23 still holds them; ADR 0049 accepted.
+- checks: tests ok (`ask_page.rs`, `ui_ask.rs`), clippy ok, specs ok, docs (`render-mcp-cli.md`, `ARCHITECTURE.md`,
+  README, CLAUDE.md), code review low.
+- red: WAK-14, WAK-30, WAK-31, WAK-32, WAK-33, WAK-34: the htmx `POST` answered the whole exchange, no `sse-connect`
+  (ParseIntError on the question number), no `/ask/questions/{n}` routes.
+- Code review: 1 finding: `hx-disabled-elt` may re-enable the button after the `after-settle` handler disabled it;
+  not changed: the headless Chrome check samples the button disabled throughout the question (htmx re-enables it
+  before the settle).
+- headless Chrome on a copy of the saved linkding run with a fake OpenAI server (1.5 s per call, 3 rounds): steps
+  appear one by one, button disabled until the answer, `3 steps` summary; with `*/events` blocked, the fallback shows
+  the answer.
+- not verified: a real model (the DeepSeek hand check of the ledger, cents, needs a go). decisions needed: none.
+- follow-up: `retrodoc-cli/tests/ui_ask.rs` WAK-23 now waits for the question in flight at the interrupt.

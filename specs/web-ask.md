@@ -80,7 +80,7 @@ leaving the browser; without `--ask` the interface calls no LLM (ADR 0048).
   of steps naming the tool and its target; then one event `answer` whose data is the exchange as WAK-8 to WAK-13
   show it, or its error (WAK-16); then the stream must end.
 - **WAK-32** (deterministic) The running exchange must add each `step` to its list and be replaced by the data of the
-  event `answer`.
+  event `answer`; an exchange that ended must list its steps under a closed disclosure.
 - **WAK-33** (deterministic) When its stream fails, the running exchange must be replaced by the answer of
   `/ask/questions/<n>`, the exchange alone, served once the question has ended.
 - **WAK-34** (deterministic) `/ask/questions/<n>` and its events must be answered with the status 404 when the cookie

@@ -7,6 +7,9 @@ use axum::response::{IntoResponse, Response};
 
 /// `htmx` 2.0.11, from `https://unpkg.com/htmx.org@2.0.11/dist/htmx.min.js`.
 const HTMX: &str = include_str!("../assets/htmx.min.js");
+/// The SSE extension of `htmx`, 2.2.4, `dist/sse.min.js` of the npm package `htmx-ext-sse`: the
+/// running exchange of the ask page follows its question with it (ADR 0049).
+const HTMX_SSE: &str = include_str!("../assets/htmx-ext-sse.min.js");
 /// `mermaid` 12.2.0, `dist/mermaid.min.js` of the npm package, gzipped
 /// (`gzip -9 -n`): 5.5 MB plain. Its name carries the version, so a browser
 /// keeps it until the version changes.
@@ -45,6 +48,7 @@ pub async fn serve(Path(name): Path<String>, headers: HeaderMap) -> Response {
     }
     let (content_type, body) = match name.as_str() {
         "htmx.min.js" => (JAVASCRIPT, HTMX),
+        "htmx-ext-sse.min.js" => (JAVASCRIPT, HTMX_SSE),
         "diagrams.js" => (JAVASCRIPT, DIAGRAMS),
         "style.css" => ("text/css; charset=utf-8", STYLE),
         "logo-mark.svg" => ("image/svg+xml", LOGO),

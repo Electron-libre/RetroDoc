@@ -1,5 +1,8 @@
 <article class="exchange">
   <p class="question"><strong>{{ exchange.question }}</strong></p>
+  {% if !exchange.steps.is_empty() %}
+  <details class="steps"><summary>{{ (t.ask.steps)(exchange.steps.len()) }}</summary><ol>{% for step in exchange.steps %}{% include "step.html" %}{% endfor %}</ol></details>
+  {% endif %}
   {% if let Some(error) = exchange.error %}
   <p class="badge low">{{ t.ask.failed }} {{ error }}</p>
   {% else if let Some(html) = exchange.html %}
