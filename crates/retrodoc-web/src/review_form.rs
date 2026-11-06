@@ -12,8 +12,8 @@ use axum::Form;
 use retrodoc_mcp::reviews::{self, ReviewsError};
 use serde::Deserialize;
 
-use crate::pages::{blocking, not_found, read_failed, render};
-use crate::review::{self as review_view, Place, ReviewView};
+use crate::pages::{blocking, form_answer, not_found, read_failed, render};
+use crate::review::{self as review_view, Place, ReviewView, SavedForm};
 use crate::texts::WebTexts;
 use crate::view::Site;
 
@@ -71,40 +71,32 @@ pub async fn use_case(
 enum Saved {
     Done(ReviewView),
     NotFound,
-    Failed(StatusCode, String),
+    /// The status, and the review as it is saved, the error in its form.
+    Refused(StatusCode, ReviewView),
 }
 
 async fn save(site: Arc<Site>, place: Place, headers: &HeaderMap, form: ReviewForm) -> Response {
+    let htmx = headers.contains_key("HX-Request");
     let comment = form.comment.trim().to_string();
     let sent = review_view::parse(form.status.trim());
-    let failed = |code, error: &str| {
-        if headers.contains_key("HX-Request") {
-            let status = sent.flatten();
-            let review = ReviewView::failed(&place, error.to_string(), status, comment.clone());
-            render(
-                code,
-                &ReviewFragment {
-                    t: site.texts(),
-                    review,
-                },
-            )
-        } else {
-            (code, error.to_string()).into_response()
-        }
-    };
-    let Some(status) = sent else {
-        return failed(StatusCode::BAD_REQUEST, site.texts().errors.unknown_status);
-    };
     let at = place.clone();
     let text = comment.clone();
     let saved = blocking(&site, move |site| {
         let Some(docs) = site.docs().filter(|docs| at.in_docs(docs)) else {
             return Saved::NotFound;
         };
+        let errors = &site.texts().errors;
+        let refused = |code, error: String| {
+            let current = ReviewView::of(docs, &review_view::load(docs), &at);
+            Saved::Refused(code, current.refused(error, sent.flatten(), text.clone()))
+        };
+        let Some(status) = sent else {
+            return refused(StatusCode::BAD_REQUEST, errors.unknown_status.into());
+        };
         let Some(root) = docs.repo_root() else {
-            return Saved::Failed(
+            return refused(
                 StatusCode::INTERNAL_SERVER_ERROR,
-                site.texts().errors.no_repository.into(),
+                errors.no_repository.into(),
             );
         };
         let section = at.section();
@@ -117,32 +109,43 @@ async fn save(site: Arc<Site>, place: Place, headers: &HeaderMap, form: ReviewFo
         match done {
             Ok(review) => Saved::Done(ReviewView::shown(docs, &at, review.as_ref())),
             Err(ReviewsError::UnknownSection(_)) => Saved::NotFound,
-            Err(err) => Saved::Failed(StatusCode::INTERNAL_SERVER_ERROR, err.to_string()),
+            Err(err) => refused(StatusCode::INTERNAL_SERVER_ERROR, err.to_string()),
         }
     })
     .await;
-    let htmx = headers.contains_key("HX-Request");
+    let fragment = |review| ReviewFragment {
+        t: site.texts(),
+        review,
+    };
+    let refused = |code, review: ReviewView| {
+        if htmx {
+            form_answer(code, &fragment(review))
+        } else {
+            (code, review.form_error.unwrap_or_default()).into_response()
+        }
+    };
     match saved {
         Ok(Saved::Done(review)) if htmx => render(
             StatusCode::OK,
-            &ReviewFragment {
-                t: site.texts(),
-                review: ReviewView {
-                    saved: true,
-                    ..review
-                },
-            },
+            &fragment(ReviewView {
+                saved: true,
+                ..review
+            }),
         ),
-        Ok(Saved::Done(_)) => {
-            let saved = format!("{}?saved=review", place.href());
-            (StatusCode::SEE_OTHER, [(header::LOCATION, saved)]).into_response()
-        }
-        // The fragment to `htmx`, which swaps an error too; the not-found page otherwise.
+        Ok(Saved::Done(_)) => (
+            StatusCode::SEE_OTHER,
+            [(header::LOCATION, place.saved_href(SavedForm::Review))],
+        )
+            .into_response(),
+        // The form to `htmx`, which swaps an error it names the swap of; the not-found page
+        // otherwise.
         Ok(Saved::NotFound) if htmx => {
-            failed(StatusCode::NOT_FOUND, site.texts().errors.no_section)
+            let error = site.texts().errors.no_section.to_string();
+            let review = ReviewView::absent(&place, error, sent.flatten(), comment);
+            refused(StatusCode::NOT_FOUND, review)
         }
         Ok(Saved::NotFound) => not_found(State(Arc::clone(&site))).await,
-        Ok(Saved::Failed(code, error)) => failed(code, &error),
+        Ok(Saved::Refused(code, review)) => refused(code, review),
         Err(err) => read_failed(&err),
     }
 }

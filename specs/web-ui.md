@@ -253,13 +253,17 @@ over browses its domains, features and use cases rather than reading the Markdow
   review is saved (`role="status"`); the review form of a page asked without `?saved=review` holds none.
 - **WEB-104** (deterministic) The page of a domain, a feature or a use case asked with `?saved=review` must show the
   notice of WEB-103 in its review form, and asked with `?saved=edit`, a notice in its edit form that says the edit is
-  saved; another value of `saved`, or none, shows no notice.
+  saved; another value of `saved`, or none, shows no notice, nor does a review form that shows instead the error of
+  WEB-87.
 - **WEB-105** (deterministic) A review or an edit `POST` with the header `HX-Request` that is refused (WEB-85,
   WEB-86, WEB-98) or fails (WEB-88, WEB-99) must be answered, with its status, as the form of the section alone, the
-  fields as sent, the error inside the form above its buttons (`role="alert"`), swapped in place of the former form.
-- **WEB-106** (deterministic) Every page must swap an error answer (4xx, 5xx) to an `htmx` request when it is HTML
-  (WEB-105, WAK-40), and show any other error answer in a notice of the page that names its status and its text,
-  leaving the form as it was.
+  fields as sent, the error inside the form above its buttons (`role="alert"`), and the header `HX-Reswap`, swapped
+  in place of the former form; the review form shows above it the review of the section as it is saved, when the run
+  has the section.
+- **WEB-106** (deterministic) Every page must swap an error answer (4xx, 5xx) to an `htmx` request when it names
+  its swap with the header `HX-Reswap` (WEB-105, WAK-40), and show any other error answer in a notice of the page
+  that names its status, and its text when it is not HTML, leaving the form as it was; a request sent clears the
+  errors of the form that sends it.
 
 ## Scenarios
 

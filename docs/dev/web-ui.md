@@ -57,7 +57,7 @@ add a variant class after the existing attributes.
 ## States of the forms
 
 Each form shows each state that applies to it; a cross marks the states it must show. Their behaviour is WEB-102 to
-WEB-106 and WAK-40; `assets/forms.js` swaps the HTML error answers and drops `?saved` from the address bar.
+WEB-106 and WAK-40; `assets/forms.js` swaps the error answers that name their swap (`HX-Reswap`), clears the errors of a form at each send and drops `?saved` from the address bar.
 
 | form | page | rest | hover | focus | disabled | pending | saved | error |
 |---|---|---|---|---|---|---|---|---|

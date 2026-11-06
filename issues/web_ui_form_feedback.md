@@ -71,6 +71,11 @@ the page) and the review fragment.
    (fades by CSS, the parameter dropped from the address bar once shown), texts EN/FR, `docs/dev/web-ui.md` states and
    screenshots; verified by tests of the redirects and of the pages with and without `?saved`; makes true WEB-83,
    WEB-97 (amended), WEB-103, WEB-104. (autonomous)
+4. [x] Findings of the `high` review: an error swapped only when the server names its swap (`HX-Reswap`), the
+   review kept above a refused save, no saved notice over an unreadable review, the errors of a form cleared at each
+   send, French wording as the interface's (`relecture`, `cas d'usage`), the search indicator off the typed text,
+   `?saved` built and read in one place; verified by tests of the answers and pages; makes true WEB-104 to WEB-106
+   (amended). (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -113,3 +118,18 @@ the page) and the review fragment.
   review refused with its comment kept, edit saved with `?saved` dropped, plain 404 in the page notice, blank question
   refused with the question kept (shots in `~/retrodoc-runs/screenshots/form-feedback`).
 - not verified: a real slow request (the indicator was forced by its class).
+
+## Deliverable 4: findings of the `high` review
+- done: the 8 findings of the `high` review of `891eb28..9c04578`, all fixed: an error swapped only when the server
+  names its swap (`HX-Reswap`, `pages::form_answer`), a not-found page no longer nested in a target; the review as
+  saved kept above a refused save (`ReviewView::refused`, `draft`, `absent`); no saved notice over unreadable reviews;
+  the errors of a form cleared at each send; French wording `relecture`, `cas d'usage`, ASCII apostrophes; the search
+  indicator a spinner in the room kept right of the typed text; `?saved` built by `Place::saved_href` and read as
+  `SavedForm`.
+- checks: tests ok, clippy ok, specs ok (WEB-104 to WEB-106 amended, `accepted`), docs (`docs/dev/web-ui.md`,
+  `docs/crates/render-mcp-cli.md`).
+- red: WEB-104, WEB-105, WEB-106: `hx-reswap` header missing on the refusals; no badge above a refused review; a
+  notice over unreadable reviews; `HX-Reswap` and `.form-error` absent from `forms.js`; French texts as before.
+- Code review: no findings
+- verified in headless Chrome: the review kept above a refused save, an HTML 404 shown as its status in the notice and
+  not swapped, the search spinner beside a long query.

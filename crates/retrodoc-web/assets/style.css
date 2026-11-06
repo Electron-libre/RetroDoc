@@ -249,9 +249,11 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 /* The indicator of a form whose request runs: hidden until htmx marks it `htmx-request`. */
 .indicator { display: none; align-items: center; gap: var(--space-2); color: var(--text-muted); font-size: var(--text-sm); }
 .indicator.htmx-request { display: inline-flex; }
-.indicator::before { content: ""; width: 0.9em; height: 0.9em; border: 2px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; }
+.indicator::before { content: ""; width: 0.875rem; height: 0.875rem; border: 2px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; }
 .top form.search { position: relative; }
-.top form.search .indicator { position: absolute; right: var(--space-2); top: 50%; transform: translateY(-50%); }
+.top form.search input { padding-right: var(--space-6); }
+/* In the search box, the spinner alone, in the room kept at the right of the typed text; its word stays for screen readers. */
+.top form.search .indicator { position: absolute; right: var(--space-2); top: 50%; transform: translateY(-50%); font-size: 0; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* Why a form was refused, above its buttons; why a request failed, at the top of the page. */

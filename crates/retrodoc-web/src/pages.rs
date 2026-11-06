@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use askama::Template;
 use axum::extract::{Path, RawQuery, State};
-use axum::http::{header, HeaderMap, StatusCode};
+use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use axum::response::{Html, IntoResponse, Response};
 use retrodoc_mcp::reviews::Reviews;
 use retrodoc_mcp::GeneratedDocs;
@@ -23,7 +23,7 @@ use crate::files::FilesPage;
 use crate::glossary::GlossaryPage;
 use crate::history::{history_page, HistoryPage};
 use crate::map::{DomainMapPage, MapPage};
-use crate::review::{self, Place, ReviewView};
+use crate::review::{self, Place, ReviewView, SavedForm};
 use crate::rules::{rules_page, RuleFilter, RulesPage};
 use crate::search::{query_value, search_page, Results, SearchPage};
 use crate::texts::WebTexts;
@@ -298,26 +298,26 @@ pub async fn domain(
 
 /// What the forms of a section saved, as the redirect after a save names it (`?saved=review`,
 /// `?saved=edit`), so that its page says so (WEB-104).
-#[derive(Debug)]
-struct AfterSave {
-    saved: Option<String>,
-}
+struct AfterSave(Option<SavedForm>);
 
 impl AfterSave {
     fn of(query: Option<&str>) -> Self {
-        Self {
-            saved: query_value(query, "saved"),
-        }
+        Self(
+            query_value(query, "saved")
+                .as_deref()
+                .and_then(SavedForm::named),
+        )
     }
 
-    /// `review` and `edit_form`, the one that was saved saying so.
+    /// `review` and `edit_form`, the one that was saved saying so; not a review whose reviews
+    /// can't be read.
     fn shown(&self, review: ReviewView, edit_form: EditFormView) -> (ReviewView, EditFormView) {
         let review = ReviewView {
-            saved: self.saved.as_deref() == Some("review"),
+            saved: self.0 == Some(SavedForm::Review) && review.error.is_none(),
             ..review
         };
         let edit_form = EditFormView {
-            saved: self.saved.as_deref() == Some("edit"),
+            saved: self.0 == Some(SavedForm::Edit),
             ..edit_form
         };
         (review, edit_form)
@@ -679,6 +679,16 @@ pub async fn not_found(State(site): State<Arc<Site>>) -> Response {
             shell: site.shell(),
         },
     )
+}
+
+/// A form answered to `htmx` after a refusal, the error in it: `HX-Reswap` asks `forms.js` to swap
+/// it though its status is an error (WEB-105, WEB-106).
+pub(crate) fn form_answer(status: StatusCode, form: &impl Template) -> Response {
+    let mut response = render(status, form);
+    response
+        .headers_mut()
+        .insert("HX-Reswap", HeaderValue::from_static("outerHTML"));
+    response
 }
 
 pub(crate) fn render(status: StatusCode, page: &impl Template) -> Response {

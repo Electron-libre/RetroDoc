@@ -20,6 +20,30 @@ pub fn load(docs: &GeneratedDocs) -> Result<Reviews, ReviewsError> {
         .map_or_else(|| Ok(Reviews::default()), reviews::load)
 }
 
+/// The form of a section page that saved, as the redirect after a save names it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SavedForm {
+    Review,
+    Edit,
+}
+
+impl SavedForm {
+    fn key(self) -> &'static str {
+        match self {
+            Self::Review => "review",
+            Self::Edit => "edit",
+        }
+    }
+
+    /// The form the value of `saved` names, none for another value.
+    #[must_use]
+    pub fn named(value: &str) -> Option<Self> {
+        [Self::Review, Self::Edit]
+            .into_iter()
+            .find(|form| form.key() == value)
+    }
+}
+
 /// A section as its page names it: by its domain, and its feature for a use case.
 #[derive(Debug, Clone)]
 pub enum Place {
@@ -58,6 +82,12 @@ impl Place {
                 slug,
             } => format!("/domains/{domain}/{feature}/{slug}"),
         }
+    }
+
+    /// The page of the section, asked to say that `form` saved it (WEB-83, WEB-97, WEB-104).
+    #[must_use]
+    pub fn saved_href(&self, form: SavedForm) -> String {
+        format!("{}?saved={}", self.href(), form.key())
     }
 
     /// Whether `docs` hold it at that place: a feature in its domain, a use case in its feature.
@@ -203,6 +233,10 @@ pub struct ReviewView {
     pub form_error: Option<String>,
     /// Whether the form says that the review was saved (WEB-103, WEB-104).
     pub saved: bool,
+    /// The comment the form holds when it is not that of the review: one sent by a save refused.
+    pub draft: Option<String>,
+    /// Whether the run has no such section, so that no review shows above the form.
+    pub absent: bool,
     /// The status the form selects: that of the review, or the one sent by a save that failed.
     pub selected: Option<Status>,
     /// Why the review no longer vouches for the section as it is now.
@@ -247,22 +281,34 @@ impl ReviewView {
             error: None,
             form_error: None,
             saved: false,
+            draft: None,
+            absent: false,
             selected: Some(review.status),
             outdated: outdated.as_ref().map(OutdatedView::of),
         }
     }
 
-    /// `error` in the form of the review of the section at `place`, the form holding again what
-    /// was sent, `status` and `comment`, so that saving again sends the same.
+    /// The review as it is saved, `error` in its form, the form holding again what was sent,
+    /// `status` and `comment`, so that saving again sends the same.
     #[must_use]
-    pub fn failed(place: &Place, error: String, status: Option<Status>, comment: String) -> Self {
+    pub fn refused(self, error: String, status: Option<Status>, comment: String) -> Self {
         Self {
-            action: place.href(),
-            comment,
             form_error: Some(error),
             selected: status,
+            draft: Some(comment),
+            ..self
+        }
+    }
+
+    /// The form of a section the run does not have at `place`, `error` in it and what was sent.
+    #[must_use]
+    pub fn absent(place: &Place, error: String, status: Option<Status>, comment: String) -> Self {
+        Self {
+            action: place.href(),
+            absent: true,
             ..Self::default()
         }
+        .refused(error, status, comment)
     }
 
     /// The choices of the form, labelled from `texts`: no review, then [`STATUSES`].

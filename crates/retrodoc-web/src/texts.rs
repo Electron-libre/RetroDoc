@@ -1077,7 +1077,7 @@ impl WebTexts {
             no_status: "Pas de relecture",
             comment: "Commentaire",
             save: "Enregistrer",
-            saved: "Revue enregistrée.",
+            saved: "Relecture enregistrée.",
             outdated: OutdatedTexts {
                 heading: "Relecture périmée",
                 rewritten: "section réécrite depuis la relecture",
@@ -1087,10 +1087,10 @@ impl WebTexts {
             outdated_count: "Périmées",
         },
         errors: ErrorTexts {
-            unknown_status: "Statut de revue inconnu.",
-            no_section: "Le dernier run n’a pas cette section.",
+            unknown_status: "Statut de relecture inconnu.",
+            no_section: "Le dernier run n'a pas cette section.",
             no_repository: "La doc ne porte aucun dépôt où enregistrer.",
-            narrative_of_use_case_only: "Seul un cas d’utilisation a un récit.",
+            narrative_of_use_case_only: "Seul un cas d'usage a un récit.",
             blank_question: "La question est vide.",
             question_running: "Une question de cette conversation est en cours.",
             no_docs: "Aucune doc à interroger : lancez `retrodoc generate`.",

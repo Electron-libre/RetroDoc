@@ -5,7 +5,7 @@
 use std::path::Path;
 
 use axum::body::Body;
-use axum::http::{Request, StatusCode};
+use axum::http::{HeaderMap, Request, StatusCode};
 use retrodoc_core::model::{ConfidenceScore, Feature, UseCase};
 use retrodoc_mcp::GeneratedDocs;
 use retrodoc_pipeline::{DomainCluster, DomainMap};
@@ -188,6 +188,17 @@ async fn post_htmx(
     form: &str,
     lang: Option<&'static str>,
 ) -> (StatusCode, String) {
+    let (status, _, body) = post_htmx_with_headers(root, path, form, lang).await;
+    (status, body)
+}
+
+/// What a `POST` sent by `htmx` from the served page got: its status, its headers and its body.
+async fn post_htmx_with_headers(
+    root: &Path,
+    path: &str,
+    form: &str,
+    lang: Option<&'static str>,
+) -> (StatusCode, HeaderMap, String) {
     let project = Project {
         name: "Shop".into(),
         lang,
@@ -205,11 +216,11 @@ async fn post_htmx(
         .oneshot(request)
         .await
         .unwrap();
-    let status = response.status();
+    let (status, headers) = (response.status(), response.headers().clone());
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
-    (status, String::from_utf8(body.to_vec()).unwrap())
+    (status, headers, String::from_utf8(body.to_vec()).unwrap())
 }
 
 /// Asserts that `form` holds the error `text` above its first button.
@@ -240,8 +251,10 @@ async fn a_refused_review_shows_its_error_in_the_form_with_the_fields_as_sent() 
             "The last run has no such section.",
         ),
     ] {
-        let (status, body) = post_htmx(root, path, form_sent, Some("en")).await;
+        let (status, headers, body) =
+            post_htmx_with_headers(root, path, form_sent, Some("en")).await;
         assert_eq!(status, code, "{body}");
+        assert_eq!(headers["hx-reswap"], "outerHTML");
         assert!(body.starts_with("<section class=\"review\""), "{body}");
         let form = form(&body, "<form");
         assert_error_above_buttons(form, error);
@@ -255,7 +268,7 @@ async fn the_errors_of_the_forms_are_worded_in_french() {
     let dir = generated_repo();
     let root = dir.path();
     let (_, body) = post_htmx(root, "/domains/billing", "status=approved", Some("fr")).await;
-    assert_error_above_buttons(form(&body, "<form"), "Statut de revue inconnu.");
+    assert_error_above_buttons(form(&body, "<form"), "Statut de relecture inconnu.");
     let (_, body) = post_htmx(
         root,
         "/edit/domains/billing",
@@ -263,10 +276,7 @@ async fn the_errors_of_the_forms_are_worded_in_french() {
         Some("fr"),
     )
     .await;
-    assert_error_above_buttons(
-        form(&body, "<form"),
-        "Seul un cas d’utilisation a un récit.",
-    );
+    assert_error_above_buttons(form(&body, "<form"), "Seul un cas d&#39;usage a un récit.");
 }
 
 // spec: WEB-105
@@ -288,8 +298,10 @@ async fn a_refused_edit_shows_its_error_in_the_form_with_the_fields_as_sent() {
             "The last run has no such section.",
         ),
     ] {
-        let (status, body) = post_htmx(root, path, form_sent, Some("en")).await;
+        let (status, headers, body) =
+            post_htmx_with_headers(root, path, form_sent, Some("en")).await;
         assert_eq!(status, code, "{body}");
+        assert_eq!(headers["hx-reswap"], "outerHTML");
         assert!(body.starts_with("<section class=\"edit-form\""), "{body}");
         let form = form(&body, "<form");
         assert_error_above_buttons(form, error);
@@ -318,9 +330,12 @@ async fn every_page_swaps_an_html_error_and_shows_any_other_in_a_notice() {
     let script = get(root, "/assets/forms.js").await;
     for part in [
         "htmx:beforeSwap",
+        "HX-Reswap",
         "htmx:responseError",
         "text/html",
         "page-error",
+        "htmx:beforeRequest",
+        ".form-error",
     ] {
         assert!(script.contains(part), "{part} in {script}");
     }
@@ -400,7 +415,48 @@ async fn the_saved_notices_are_worded_in_french() {
     let dir = generated_repo();
     let root = dir.path();
     let (_, page) = get_in(root, "/domains/billing?saved=review", Some("fr")).await;
-    assert!(page.contains(&notice("Revue enregistrée.")), "{page}");
+    assert!(page.contains(&notice("Relecture enregistrée.")), "{page}");
     let (_, page) = get_in(root, "/domains/billing?saved=edit", Some("fr")).await;
     assert!(page.contains(&notice("Correction enregistrée.")), "{page}");
+}
+
+// spec: WEB-105
+#[tokio::test]
+async fn a_refused_review_keeps_the_review_saved_above_its_form() {
+    let dir = generated_repo();
+    let root = dir.path();
+    post_htmx(
+        root,
+        "/domains/billing",
+        "status=wrong&comment=Misses+refunds",
+        Some("en"),
+    )
+    .await;
+
+    let (status, body) = post_htmx(
+        root,
+        "/domains/billing",
+        "status=approved&comment=Other",
+        Some("en"),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    let above = &body[..body.find("<form").unwrap()];
+    assert!(above.contains(">Wrong</span>"), "{body}");
+    assert!(above.contains("Misses refunds"), "{body}");
+    assert!(form(&body, "<form").contains(">Other</textarea>"), "{body}");
+}
+
+// spec: WEB-104
+#[tokio::test]
+async fn no_saved_notice_shows_over_reviews_that_cannot_be_read() {
+    let dir = generated_repo();
+    let root = dir.path();
+    std::fs::write(retrodoc_mcp::reviews::reviews_path(root), "{ not json").unwrap();
+
+    let page = get(root, "/domains/billing?saved=review").await;
+
+    assert!(section(&page, REVIEW).contains("cannot be read"), "{page}");
+    assert!(!page.contains("class=\"notice\""), "{page}");
 }

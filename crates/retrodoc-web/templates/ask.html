@@ -9,7 +9,7 @@
 {% endfor %}
 {% if let Some(running) = running %}{% include "running.html" %}{% endif %}
 </div>
-<form class="ask" method="post" action="/ask" hx-post="/ask" hx-target="#exchanges" hx-swap="beforeend" hx-indicator="find .indicator" hx-disabled-elt="find button" hx-on::after-request="if (event.detail.successful) { this.reset(); document.getElementById('ask-error').textContent = ''; }">
+<form class="ask" method="post" action="/ask" hx-post="/ask" hx-target="#exchanges" hx-swap="beforeend" hx-indicator="find .indicator" hx-disabled-elt="find button" hx-on::after-request="if (event.detail.successful) this.reset()">
   <label class="field"><span class="field-label">{{ t.ask.question }}</span> <textarea name="question" rows="3" required></textarea></label>
   <p class="form-error" id="ask-error" role="alert"></p>
   <div class="actions"><button type="submit"{% if running.is_some() %} disabled{% endif %}>{{ t.ask.send }}</button> <span class="indicator" role="status">{{ t.sending }}</span></div>

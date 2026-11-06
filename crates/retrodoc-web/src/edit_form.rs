@@ -17,8 +17,8 @@ use retrodoc_mcp::GeneratedDocs;
 use serde::Deserialize;
 
 use crate::edit::is_edited;
-use crate::pages::{blocking, not_found, read_failed, render};
-use crate::review::Place;
+use crate::pages::{blocking, form_answer, not_found, read_failed};
+use crate::review::{Place, SavedForm};
 use crate::texts::{ErrorTexts, WebTexts};
 use crate::view::Site;
 
@@ -85,11 +85,6 @@ impl EditFormView {
 
 fn action(place: &Place) -> String {
     format!("/edit{}", place.href())
-}
-
-/// The page of the section at `place`, asked to say that its edit was saved (WEB-97, WEB-104).
-fn saved_href(place: &Place) -> String {
-    format!("{}?saved=edit", place.href())
 }
 
 fn is_use_case(place: &Place) -> bool {
@@ -215,7 +210,7 @@ async fn save(site: Arc<Site>, place: Place, headers: &HeaderMap, form: EditForm
     let failed = |code, error: String, edited, form: &EditForm| {
         if htmx {
             let edit_form = EditFormView::failed(&place, form, edited, error);
-            render(
+            form_answer(
                 code,
                 &EditFormFragment {
                     t: site.texts(),
@@ -227,12 +222,14 @@ async fn save(site: Arc<Site>, place: Place, headers: &HeaderMap, form: EditForm
         }
     };
     match saved {
-        Ok((Saved::Done, _)) if htmx => {
-            (StatusCode::OK, [("HX-Redirect", saved_href(&place))]).into_response()
-        }
+        Ok((Saved::Done, _)) if htmx => (
+            StatusCode::OK,
+            [("HX-Redirect", place.saved_href(SavedForm::Edit))],
+        )
+            .into_response(),
         Ok((Saved::Done, _)) => (
             StatusCode::SEE_OTHER,
-            [(header::LOCATION, saved_href(&place))],
+            [(header::LOCATION, place.saved_href(SavedForm::Edit))],
         )
             .into_response(),
         Ok((Saved::NotFound, form)) if htmx => failed(
