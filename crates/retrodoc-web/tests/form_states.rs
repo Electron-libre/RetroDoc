@@ -467,3 +467,70 @@ async fn no_saved_notice_shows_over_reviews_that_cannot_be_read() {
     assert!(section(&page, REVIEW).contains("cannot be read"), "{page}");
     assert!(!page.contains("class=\"notice\""), "{page}");
 }
+
+/// What follows the heading of `page`, up to the end of the page.
+fn after_heading(page: &str) -> &str {
+    let end = page
+        .find("</h1>")
+        .unwrap_or_else(|| panic!("no heading in {page}"));
+    page[end + "</h1>".len()..].trim_start()
+}
+
+// spec: WEB-113
+#[tokio::test]
+async fn a_section_page_shows_its_actions_under_its_heading() {
+    let dir = generated_repo();
+    let root = dir.path();
+    for path in [
+        "/domains/billing",
+        "/domains/billing/pay-invoice",
+        "/domains/billing/pay-invoice/pay-by-card",
+    ] {
+        let page = get(root, path).await;
+        let actions = after_heading(&page);
+        assert!(
+            actions.starts_with("<nav class=\"section-actions\""),
+            "{actions}"
+        );
+        let actions = &actions[..actions.find("</nav>").unwrap()];
+        let review = "<a class=\"button\" href=\"#review\">Review</a>";
+        let edit = "<a class=\"button secondary\" href=\"?edit=1#edit-form\">Edit</a>";
+        assert!(actions.contains(review), "{actions}");
+        assert!(actions.contains(edit), "{actions}");
+        assert!(actions.find(review) < actions.find(edit), "{actions}");
+        assert!(page.contains("id=\"review\""), "{page}");
+        assert!(page.contains("id=\"edit-form\""), "{page}");
+    }
+}
+
+// spec: WEB-77, WEB-113
+#[tokio::test]
+async fn the_actions_of_a_section_are_worded_in_french() {
+    let dir = generated_repo();
+    let (_, page) = get_in(dir.path(), "/domains/billing", Some("fr")).await;
+    let actions = after_heading(&page);
+    assert!(actions.contains(">Relire</a>"), "{actions}");
+    assert!(actions.contains(">Corriger</a>"), "{actions}");
+}
+
+// spec: WEB-114
+#[tokio::test]
+async fn a_section_page_asked_to_edit_unfolds_its_edit_form() {
+    let dir = generated_repo();
+    let root = dir.path();
+    for path in [
+        "/domains/billing",
+        "/domains/billing/pay-invoice",
+        "/domains/billing/pay-invoice/pay-by-card",
+    ] {
+        let page = get(root, &format!("{path}?edit=1")).await;
+        assert!(section(&page, EDIT).contains("<details open>"), "{page}");
+        for folded in [String::new(), "?edit=0".to_owned(), "?edit=".to_owned()] {
+            let page = get(root, &format!("{path}{folded}")).await;
+            assert!(
+                section(&page, EDIT).contains("<details>"),
+                "{folded}: {page}"
+            );
+        }
+    }
+}

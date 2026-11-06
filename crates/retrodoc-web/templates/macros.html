@@ -113,3 +113,5 @@
 {% endmacro %}
 
 {% macro trend_cell(cell) %}<td>{% if let Some(text) = cell.text %}{{ text }}{% else %}<span class="muted">–</span>{% endif %}{% if cell.worse %} <span class="worse">▼ {{ t.audit_page.worse }}</span>{% endif %}</td>{% endmacro %}
+
+{% macro section_actions(href) %}<nav class="section-actions" aria-label="{{ t.section_actions }}"><a class="button" href="{{ href }}#review">{{ t.review.act }}</a> <a class="button secondary" href="{{ href }}?edit=1#edit-form">{{ t.edit.act }}</a></nav>{% endmacro %}

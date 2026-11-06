@@ -51,6 +51,8 @@ pub struct EditFormView {
     pub error: Option<String>,
     /// Whether the form says that the edit was saved (WEB-104).
     pub saved: bool,
+    /// Whether the page was asked to edit, `?edit=1`, which unfolds the form (WEB-114).
+    pub open: bool,
 }
 
 impl EditFormView {
@@ -67,6 +69,7 @@ impl EditFormView {
             edited: is_edited(docs, place),
             error: None,
             saved: false,
+            open: false,
         }
     }
 
@@ -79,6 +82,7 @@ impl EditFormView {
             edited,
             error: Some(error),
             saved: false,
+            open: false,
         }
     }
 }

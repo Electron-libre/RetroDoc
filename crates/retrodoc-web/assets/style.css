@@ -201,6 +201,7 @@ ul.hits { list-style: none; padding-left: 0; }
 /* The previous / next use cases of a feature, at the foot of a use case page. */
 .sequence { display: flex; justify-content: space-between; gap: 1rem; margin-top: 2rem; padding-top: 0.8rem; border-top: 1px solid var(--border); }
 .sequence .next { margin-left: auto; text-align: right; }
+.section-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-2) 0 var(--space-4); }
 
 /* The credit at the foot of every page. */
 .credit { padding: 0.8rem 1rem; border-top: 1px solid var(--border); font-size: 0.85rem; }

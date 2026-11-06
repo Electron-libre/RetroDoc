@@ -1,6 +1,6 @@
 ---
 id: WEB
-status: accepted
+status: draft
 adrs: [0039, 0044, 0048]
 ---
 
@@ -289,6 +289,20 @@ over browses its domains, features and use cases rather than reading the Markdow
   active option (`aria-activedescendant`, `aria-selected`), from the last to the first and back; Enter follows the
   link of the active option, and with none submits the box; Escape, and a click outside the box and the panel, close
   the panel.
+
+- **WEB-113** (deterministic) The page of a domain, a feature or a use case must show, right under its heading, its
+  actions: a primary button "Review" that links to the review form of the page (`#review`) and a secondary button
+  "Edit" that links to the page with `?edit=1` at its edit form (`?edit=1#edit-form`).
+- **WEB-114** (deterministic) The page of a domain, a feature or a use case asked with `?edit=1` must show its edit
+  form unfolded; with another value of `edit`, or none, folded unless WEB-104 or an error unfolds it.
+- **WEB-115** (deterministic) Each item of the debt page whose section is a domain, a feature or a use case of the
+  run must offer the actions "Review" and "Edit", links to that section as WEB-113 gives them; an item of a rule, a
+  folder or a section the run does not have offers none.
+- **WEB-116** (deterministic) The home page must show, under its heading and purpose, a primary button to the debt
+  page labelled with the number of its items when the run has some, and to the map page when it has none.
+- **WEB-117** (deterministic) The home page and the map page of a run with no domain must say why (no source file
+  was grouped into a domain) and what to run: `retrodoc scan` to see the source files the run reads, then
+  `retrodoc generate`.
 
 ## Scenarios
 

@@ -1,6 +1,6 @@
 {%- import "macros.html" as m -%}
 <section class="edit-form" id="edit-form">
-<details{% if edit_form.error.is_some() || edit_form.saved %} open{% endif %}>
+<details{% if edit_form.error.is_some() || edit_form.saved || edit_form.open %} open{% endif %}>
 <summary>{{ t.edit.form_heading }}</summary>
 <form class="edit-fields" method="post" action="{{ edit_form.action }}" hx-post="{{ edit_form.action }}" hx-target="closest section" hx-swap="outerHTML" hx-indicator="find .indicator" hx-disabled-elt="find button">
   <label class="field"><span class="field-label">{{ t.edit.labels[0] }}</span> <input name="name" value="{{ edit_form.name }}"></label>

@@ -4,6 +4,7 @@
 {% block content %}
 {% call m::crumbs(page.crumbs, page.name) %}{% endcall %}
 <h1>{{ page.name }}</h1>
+{% call m::section_actions("") %}{% endcall %}
 {% if page.back_office %}<p><span class="badge set-apart">{{ t.back_office }}</span> <span class="muted">{{ t.doc.technical_note }}</span></p>{% endif %}
 {% call m::stale(page.stale) %}{% endcall %}
 <p>{{ page.description }}</p>

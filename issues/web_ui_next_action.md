@@ -32,3 +32,44 @@ A web interface that invites to act
 # Resources
 * `templates/` (all pages), `macros.html`; `crates/retrodoc-web/src/pages.rs`, `debt.rs`
 * `specs/web-ui.md` (WEB-9 no run, WEB-79 to WEB-93 review and edit)
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-06
+
+## Understanding
+Each page puts its main action in sight and each empty state says why and what to run or open. Out of scope: new
+actions (the review and edit forms stay as they are), the empty states that already say why and what to do. Means:
+links to the existing forms, `?edit=1` unfolds the edit form on the server (no script).
+
+### Main action and empty states per page (method: one primary action per page, an empty state = why + command or link)
+
+| page | main action | empty states | change |
+|---|---|---|---|
+| home | debt page, with its count; map when no debt (WEB-116) | no domain: why + `retrodoc scan`, `retrodoc generate` (WEB-117) | new |
+| domain, feature, use case | "Review" (primary) → `#review`, "Edit" → `?edit=1#edit-form` (WEB-113, WEB-114) | feature with no use case: says why (WEB-16) | new actions |
+| debt | "Review", "Edit" on the rows of sections (WEB-115) | none in run, no score, no docs, none matches: already why + command or reset link | rows |
+| map | its domains | no domain: as home (WEB-117) | empty state |
+| no run (WEB-9), debt before a run (DBT-14), ask (no docs), audit, history (fewer than two runs) | — | already name `retrodoc generate` | none |
+| rules, glossary, actors | filters / lists | "none found in the code of the last run": why given, nothing to run | none |
+| search | — | not documented + other words (WEB-42) | none |
+| code, files, collected doc, domain map | links | already say why | none |
+
+## Plan
+1. [x] Section actions: buttons under the heading of the domain, feature and use case pages, `?edit=1` unfolds the
+   edit form; verified by page tests; makes true WEB-113, WEB-114. (autonomous)
+2. [ ] Debt row actions: "Review" and "Edit" on the items of sections; verified by debt page tests; makes true WEB-115.
+3. [ ] Home main action and empty states of home and map; verified by home and map tests; sets the spec `accepted`;
+   makes true WEB-116, WEB-117.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 1e6cf2ce9404bfe348097d7d884a89ca9caa7be5
+- Answers: 1 a (home button to the debt page with its count, map when none), 2 a (`?edit=1` unfolds on the server), 3 a (row actions on sections only).
+
+## Deliverable 1: section actions
+- done: "Review" and "Edit" buttons under the heading of the domain, feature and use case pages; `?edit=1` unfolds
+  the edit form.
+- red: WEB-113, WEB-114: no `<nav class="section-actions"` after `</h1>`; `?edit=1` left `<details>` folded.
+- Code review: no findings
+- not verified: the look in a browser (screenshots) is checked at the end of the issue.

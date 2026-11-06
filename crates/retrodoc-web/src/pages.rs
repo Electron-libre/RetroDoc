@@ -297,27 +297,33 @@ pub async fn domain(
 }
 
 /// What the forms of a section saved, as the redirect after a save names it (`?saved=review`,
-/// `?saved=edit`), so that its page says so (WEB-104).
-struct AfterSave(Option<SavedForm>);
+/// `?saved=edit`), so that its page says so (WEB-104), and whether the page was asked to edit,
+/// `?edit=1` (WEB-114).
+struct AfterSave {
+    saved: Option<SavedForm>,
+    edit: bool,
+}
 
 impl AfterSave {
     fn of(query: Option<&str>) -> Self {
-        Self(
-            query_value(query, "saved")
+        Self {
+            saved: query_value(query, "saved")
                 .as_deref()
                 .and_then(SavedForm::named),
-        )
+            edit: query_value(query, "edit").as_deref() == Some("1"),
+        }
     }
 
     /// `review` and `edit_form`, the one that was saved saying so; not a review whose reviews
     /// can't be read.
     fn shown(&self, review: ReviewView, edit_form: EditFormView) -> (ReviewView, EditFormView) {
         let review = ReviewView {
-            saved: self.0 == Some(SavedForm::Review) && review.error.is_none(),
+            saved: self.saved == Some(SavedForm::Review) && review.error.is_none(),
             ..review
         };
         let edit_form = EditFormView {
-            saved: self.0 == Some(SavedForm::Edit),
+            saved: self.saved == Some(SavedForm::Edit),
+            open: self.edit,
             ..edit_form
         };
         (review, edit_form)

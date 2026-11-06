@@ -96,6 +96,8 @@ pub struct WebTexts {
     pub unbacked_hint: &'static str,
     pub diagram_source: &'static str,
     pub sequence_label: &'static str,
+    /// The label of the actions of a section (WEB-113).
+    pub section_actions: &'static str,
     pub previous: &'static str,
     pub next: &'static str,
     pub breadcrumb: &'static str,
@@ -373,6 +375,8 @@ pub struct EditTexts {
     pub saved: &'static str,
     /// The button that removes the edit.
     pub revert: &'static str,
+    /// The action of a section that leads to its edit form, unfolded (WEB-113).
+    pub act: &'static str,
 }
 
 /// Why a review or an edit is outdated, in words.
@@ -401,6 +405,8 @@ pub struct ReviewTexts {
     pub save: &'static str,
     /// The notice of a save.
     pub saved: &'static str,
+    /// The action of a section that leads to its review form (WEB-113).
+    pub act: &'static str,
     pub outdated: OutdatedTexts,
     /// Beside the badge of an outdated review in a list.
     pub outdated_badge: &'static str,
@@ -546,6 +552,7 @@ impl WebTexts {
         unbacked_hint: "The confidence pass judged it unsupported by the cited code",
         diagram_source: "Source of the diagram",
         sequence_label: "Use cases of this feature",
+        section_actions: "Actions on this section",
         previous: "Previous:",
         next: "Next:",
         breadcrumb: "Breadcrumb",
@@ -746,6 +753,7 @@ impl WebTexts {
             comment: "Comment",
             save: "Save",
             saved: "Review saved.",
+            act: "Review",
             outdated: OutdatedTexts {
                 heading: "Outdated review",
                 rewritten: "section rewritten since the review",
@@ -777,6 +785,7 @@ impl WebTexts {
             save: "Save the edit",
             saved: "Edit saved.",
             revert: "Back to the generated text",
+            act: "Edit",
         },
         ask: AskTexts {
             link: "Ask",
@@ -936,6 +945,7 @@ impl WebTexts {
         unbacked_hint: "La passe de confiance l'a jugé non étayé par le code cité",
         diagram_source: "Source du diagramme",
         sequence_label: "Cas d'usage de cette fonctionnalité",
+        section_actions: "Actions sur cette section",
         previous: "Précédent :",
         next: "Suivant :",
         breadcrumb: "Fil d'Ariane",
@@ -1137,6 +1147,7 @@ impl WebTexts {
             comment: "Commentaire",
             save: "Enregistrer",
             saved: "Relecture enregistrée.",
+            act: "Relire",
             outdated: OutdatedTexts {
                 heading: "Relecture périmée",
                 rewritten: "section réécrite depuis la relecture",
@@ -1168,6 +1179,7 @@ impl WebTexts {
             save: "Enregistrer la correction",
             saved: "Correction enregistrée.",
             revert: "Revenir au texte généré",
+            act: "Corriger",
         },
         ask: AskTexts {
             link: "Demander",
