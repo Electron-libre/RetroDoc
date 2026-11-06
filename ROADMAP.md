@@ -362,5 +362,5 @@ The milestones up to "A large application, one bounded context at a time" are th
   pages of the sources of an answer live.
 - State: in issues
 - Issues:
-  - [web_ask_page](issues/web_ask_page.md)
+  - [web_ask_page](issues/done/web_ask_page.md)
   - [web_ask_streamed_steps_and_cost](issues/web_ask_streamed_steps_and_cost.md)
