@@ -15,6 +15,17 @@ use retrodoc_render::Texts;
 use crate::code::CiterKind;
 use crate::view::{EvidenceKind, Group, ReferencePage};
 
+/// The kind of a hit of the search panel, one per kind of entry of the index.
+#[derive(Debug)]
+pub struct HitKinds {
+    pub domain: &'static str,
+    pub feature: &'static str,
+    pub use_case: &'static str,
+    pub rule: &'static str,
+    pub concept: &'static str,
+    pub doc: &'static str,
+}
+
 /// The fixed text of the pages in one language.
 #[derive(Debug)]
 pub struct WebTexts {
@@ -53,8 +64,8 @@ pub struct WebTexts {
     /// Whether a count of 0 takes the singular, as in French.
     pub zero_is_singular: bool,
     pub search_docs_heading: &'static str,
-    /// The kind of a hit of the search panel: domain, feature, use case, rule, concept, collected doc.
-    pub hit_kinds: [&'static str; 6],
+    /// The kind of each hit of the search panel.
+    pub hit_kinds: HitKinds,
     /// The link of the search panel to the search page, before the query.
     pub all_results: &'static str,
     pub not_documented: &'static str,
@@ -503,14 +514,14 @@ impl WebTexts {
         colon: ":",
         zero_is_singular: false,
         search_docs_heading: "Existing docs",
-        hit_kinds: [
-            "Domain",
-            "Feature",
-            "Use case",
-            "Business rule",
-            "Concept",
-            "Existing doc",
-        ],
+        hit_kinds: HitKinds {
+            domain: "Domain",
+            feature: "Feature",
+            use_case: "Use case",
+            rule: "Business rule",
+            concept: "Concept",
+            doc: "Existing doc",
+        },
         all_results: "All results for",
         not_documented: "Not documented:",
         nothing_among: "nothing among",
@@ -519,7 +530,7 @@ impl WebTexts {
         one_left_out: "1 entry shares only part of the query.",
         many_left_out: "entries share only part of the query.",
         try_other_words: "Try other words.",
-        no_run_results: "<p class=\"empty\">Nothing to search yet: run \
+        no_run_results: "<p class=\"empty\" role=\"option\" aria-disabled=\"true\" id=\"search-hit-none\">Nothing to search yet: run \
             <code>retrodoc generate</code>, then restart <code>retrodoc ui</code>.</p>",
         no_run_title: "No run yet",
         no_run_heading: "No docs generated yet",
@@ -889,14 +900,14 @@ impl WebTexts {
         colon: " :",
         zero_is_singular: true,
         search_docs_heading: "Docs existantes",
-        hit_kinds: [
-            "Domaine",
-            "Fonctionnalité",
-            "Cas d'usage",
-            "Règle métier",
-            "Concept",
-            "Doc existante",
-        ],
+        hit_kinds: HitKinds {
+            domain: "Domaine",
+            feature: "Fonctionnalité",
+            use_case: "Cas d'usage",
+            rule: "Règle métier",
+            concept: "Concept",
+            doc: "Doc existante",
+        },
         all_results: "Tous les résultats pour",
         not_documented: "Non documenté :",
         nothing_among: "rien parmi",
@@ -905,7 +916,7 @@ impl WebTexts {
         one_left_out: "1 entrée ne partage qu'une partie de la requête.",
         many_left_out: "entrées ne partagent qu'une partie de la requête.",
         try_other_words: "Essayez d'autres mots.",
-        no_run_results: "<p class=\"empty\">Rien à chercher pour l'instant : lancez \
+        no_run_results: "<p class=\"empty\" role=\"option\" aria-disabled=\"true\" id=\"search-hit-none\">Rien à chercher pour l'instant : lancez \
             <code>retrodoc generate</code>, puis relancez <code>retrodoc ui</code>.</p>",
         no_run_title: "Pas encore de run",
         no_run_heading: "Aucune doc générée pour l'instant",
@@ -1198,15 +1209,15 @@ impl WebTexts {
     /// The kind of a hit of the search panel.
     #[must_use]
     pub fn hit_kind(&self, kind: EntryKind) -> &'static str {
-        let index = match kind {
-            EntryKind::Domain => 0,
-            EntryKind::Feature => 1,
-            EntryKind::UseCase => 2,
-            EntryKind::Rule => 3,
-            EntryKind::Glossary => 4,
-            EntryKind::Doc => 5,
-        };
-        self.hit_kinds[index]
+        let kinds = &self.hit_kinds;
+        match kind {
+            EntryKind::Domain => kinds.domain,
+            EntryKind::Feature => kinds.feature,
+            EntryKind::UseCase => kinds.use_case,
+            EntryKind::Rule => kinds.rule,
+            EntryKind::Glossary => kinds.concept,
+            EntryKind::Doc => kinds.doc,
+        }
     }
 
     /// The heading of the hits of `kind` on the search page.

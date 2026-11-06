@@ -57,6 +57,10 @@ stays that of `retrodoc search`). The minimum length is enforced by the server, 
    arrows, Enter, Escape, click outside; verified by `tests/search_page.rs` reading the served markup and script
    (internal: the keys run in the browser) and a check by hand in headless Chrome; makes true WEB-110 to WEB-112;
    ~300 lines. (autonomous)
+3. [x] Fixes of the `high` review of the issue: the panel of an answer with no hit (or no run) closes and says it is
+   open; an answer that lands after Escape or a click outside stays closed; a new answer drops the active hit; Enter
+   on a hit with no page submits; the not-documented message an option the arrows skip; the kinds of a hit named
+   fields; verified by `tests/search_page.rs` and headless Chrome; ~80 lines. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -86,3 +90,17 @@ stays that of `retrodoc search`). The minimum length is enforced by the server, 
 - red: WEB-110, WEB-111, WEB-112: no `role="combobox"` on the box, no `/assets/search.js` in the pages.
 - Code review: no findings
 - not verified: a screen reader (the ARIA markup is tested, not read aloud). decisions needed: none.
+
+## Deliverable 3: fixes of the high review
+- `high` review of `a4fa886..b30a6bc`: 9 findings. Fixed: 7 (the panel with no option neither closed nor said open;
+  an answer after Escape or a click outside reopened it; a new answer kept `aria-activedescendant`; Enter on a hit
+  with no page did nothing; a `<p>` in the listbox; the kinds of a hit by index; `options()` read at each key).
+  Not fixed: the search not moved to `blocking` (measured under 1 ms per search on the largest saved run, about 4 MB
+  of artifacts: no thread held long enough to matter); the early return of `pages::search` kept beside
+  `fragment_or_page` (the empty answer under 2 characters also applies before a first run, which the template
+  path never reaches).
+- checks: project-check green; headless Chrome: Escape before the answer leaves the panel closed, a letter typed
+  after three Down drops the active hit, Escape closes the panel of an answer with no hit.
+- red: WEB-110: the not-documented message had no `role="option"`.
+- Code review: no findings
+- not verified: a screen reader. decisions needed: none.

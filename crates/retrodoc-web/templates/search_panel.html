@@ -4,7 +4,7 @@
 {% if let Some(href) = hit.href %}<a class="hit" role="option" id="search-hit-{{ loop.index }}" href="{{ href }}">{% else %}<span class="hit" role="option" id="search-hit-{{ loop.index }}">{% endif %}<span class="title">{{ hit.title }}</span> <span class="kind">{{ t.hit_kind(*kind) }}</span>{% if let Some(confidence) = hit.confidence %} {% call m::badge(confidence) %}{% endcall %}{% endif %}{% if hit.href.is_some() %}</a>{% else %}</span>{% endif %}
 {% endfor %}
 {% if let Results::NotDocumented with { entries, left_out: _, unknown_words: _ } = results %}
-<p class="empty"><strong>{{ t.not_documented }}</strong> {{ t.nothing_among }} {{ entries }} {{ t.entries_match }} “{{ page.query }}”.</p>
+<p class="empty" role="option" aria-disabled="true" id="search-hit-none"><strong>{{ t.not_documented }}</strong> {{ t.nothing_among }} {{ entries }} {{ t.entries_match }} “{{ page.query }}”.</p>
 {% endif %}
 <a class="hit all" role="option" id="search-hit-all" href="{{ page.page_href() }}">{{ t.all_results }} “{{ page.query }}”</a>
 {% endif %}

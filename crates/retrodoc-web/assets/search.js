@@ -11,13 +11,16 @@
     return;
   }
   let active = -1;
+  // Closed by Escape or a click outside: an answer still on its way stays closed until the query changes.
+  let dismissed = false;
 
+  // The options the arrows reach: not the message of an answer with no hit.
   function options() {
-    return Array.from(panel.querySelectorAll("[role=option]"));
+    return Array.from(panel.querySelectorAll("[role=option]:not([aria-disabled=true])"));
   }
 
   function open() {
-    return !panel.hidden && options().length > 0;
+    return !panel.hidden && panel.children.length > 0;
   }
 
   function setActive(index) {
@@ -40,17 +43,18 @@
 
   function show(shown) {
     panel.hidden = !shown;
-    box.setAttribute("aria-expanded", String(shown && options().length > 0));
-    if (!shown) {
-      setActive(-1);
-    }
+    box.setAttribute("aria-expanded", String(open()));
+    setActive(-1);
   }
 
-  // A new answer: shown, no hit active yet; an empty one closes the panel.
+  box.addEventListener("input", function () {
+    dismissed = false;
+  });
+
+  // A new answer: shown, no hit active yet, unless the panel was closed since; an empty one closes it.
   document.addEventListener("htmx:afterSwap", function (event) {
     if (event.detail.target === panel) {
-      active = -1;
-      show(panel.children.length > 0);
+      show(!dismissed && panel.children.length > 0);
     }
   });
 
@@ -74,30 +78,31 @@
     if (event.isComposing) {
       return;
     }
-    const count = options().length;
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      const count = options().length;
       if (count === 0) {
         return;
       }
       event.preventDefault();
       if (!open()) {
+        dismissed = false;
         show(true);
       }
       const step = event.key === "ArrowDown" ? 1 : -1;
       const from = active < 0 ? (step > 0 ? -1 : count) : active;
       setActive((from + step + count) % count);
     } else if (event.key === "Enter") {
+      // A hit with no page (a rule whose feature is not in the run) leaves the box to be submitted.
       const option = open() && active >= 0 ? options()[active] : null;
-      if (option) {
+      if (option && option.href) {
         event.preventDefault();
-        if (option.href) {
-          window.location.assign(option.href);
-        }
+        window.location.assign(option.href);
       }
     } else if (event.key === "Escape") {
       if (open()) {
         // Kept from the box's own Escape, which would empty it.
         event.preventDefault();
+        dismissed = true;
         show(false);
       }
     }
@@ -105,6 +110,7 @@
 
   document.addEventListener("click", function (event) {
     if (open() && !box.form.contains(event.target)) {
+      dismissed = true;
       show(false);
     }
   });

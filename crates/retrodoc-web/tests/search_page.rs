@@ -503,6 +503,24 @@ async fn an_htmx_search_with_no_run_gets_a_fragment() {
 
 // spec: WEB-110
 #[tokio::test]
+async fn the_answer_with_no_hit_is_an_option_the_arrows_skip() {
+    let repo = generated_repo();
+    let (_, panel) = get_with(repo.path(), "/search?q=zzqx", true).await;
+    assert!(
+        panel.contains(
+            "<p class=\"empty\" role=\"option\" aria-disabled=\"true\" id=\"search-hit-none\">"
+        ),
+        "{panel}"
+    );
+    let (_, script) = get_with(repo.path(), "/assets/search.js", false).await;
+    assert!(
+        script.contains("[role=option]:not([aria-disabled=true])"),
+        "{script}"
+    );
+}
+
+// spec: WEB-110
+#[tokio::test]
 async fn the_search_box_is_a_combobox_over_the_panel() {
     let repo = generated_repo();
     let (_, page) = get_with(repo.path(), "/", false).await;
