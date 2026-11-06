@@ -375,6 +375,8 @@ pub struct EditTexts {
     pub labels: [&'static str; 3],
     /// Under the fields: what an empty one or one left as generated does.
     pub form_hint: &'static str,
+    /// The label of the narrative rendered as it is typed.
+    pub preview: &'static str,
     pub save: &'static str,
     /// The notice of a save.
     pub saved: &'static str,
@@ -797,6 +799,7 @@ impl WebTexts {
             form_heading: "Edit this section",
             labels: ["Name", "Description", "Narrative"],
             form_hint: "An empty field, or one left as generated, keeps the generated text.",
+            preview: "Preview of the narrative",
             save: "Save the edit",
             saved: "Edit saved.",
             revert: "Back to the generated text",
@@ -1201,6 +1204,7 @@ impl WebTexts {
             form_heading: "Corriger cette section",
             labels: ["Nom", "Description", "Récit"],
             form_hint: "Un champ vide, ou laissé tel que généré, garde le texte généré.",
+            preview: "Aperçu du récit",
             save: "Enregistrer la correction",
             saved: "Correction enregistrée.",
             revert: "Revenir au texte généré",

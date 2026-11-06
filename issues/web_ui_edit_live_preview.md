@@ -48,9 +48,9 @@ revert with `hx-confirm` (WEB-121). Out of scope: a preview of the name or the d
 ## Plan
 1. [x] Narrative as Markdown: the use case page renders its narrative with `collected::markdown_html`; verified by a
    test of `item_pages.rs` (escaped `<script>`, dropped `javascript:` link); makes true WEB-118. (autonomous)
-2. [ ] Preview: `POST /preview` answering the rendered fragment, the preview block in the edit form of a use case
+2. [x] Preview: `POST /preview` answering the rendered fragment, the preview block in the edit form of a use case
    filled at render and wired with `hx-post`/`hx-trigger`; verified by tests of `edit_pages.rs` (fragment, escaping,
-   empty narrative, no file written, no preview on a domain or feature form); makes true WEB-119, WEB-120.
+   empty narrative, no file written, no preview on a domain or feature form); makes true WEB-119, WEB-120. (autonomous)
 3. [ ] Confirm the revert: `hx-confirm` on the revert button with a text of `texts.rs`; verified by a test of
    `edit_pages.rs`; makes true WEB-121, spec back to `accepted`.
 
@@ -76,5 +76,28 @@ red: WEB-118: no `<div class="narrative">` in the page (the narrative was a `<p>
 Code review: no findings
 
 not verified: the look of a narrative with lists or headings in a browser.
+
+decisions needed: none
+
+## Deliverable 2
+done: `POST /preview` renders the narrative sent (`edit_form::preview`); the edit form of a use case holds the preview
+under its narrative, asked again on `input changed delay:500ms`.
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass |
+| docs | `docs/crates/render-mcp-cli.md`, `docs/dev/web-ui.md` |
+| code review | see below |
+
+red: WEB-119, WEB-120: no preview in the edit form; `POST /preview` answered the not-found page.
+
+Checked in headless Chrome on a copy of a saved run (`~/retrodoc-runs/live-preview-check`): typing updates the preview
+(bold, list, raw HTML as text), the buttons of the form stay enabled.
+
+Code review: no findings
+
+not verified: the preview on a 500 px wide window.
 
 decisions needed: none

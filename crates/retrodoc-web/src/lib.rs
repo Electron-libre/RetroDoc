@@ -175,6 +175,7 @@ fn routes(
             "/domains/{domain}/{feature}/{use_case}",
             get(pages::use_case).post(review_form::use_case),
         )
+        .route("/preview", post(edit_form::preview))
         .route("/edit/domains/{slug}", post(edit_form::domain))
         .route("/edit/domains/{domain}/{slug}", post(edit_form::feature))
         .route(

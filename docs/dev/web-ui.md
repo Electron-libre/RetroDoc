@@ -71,7 +71,7 @@ WEB-106 and WAK-40; `assets/forms.js` swaps the error answers that name their sw
 | search (top bar) | every page | x | | x | | x | | |
 | ask (question, send, start over) | ask | x | x | x | x (a question runs) | x | | x |
 | review (status, comment, save) | domain, feature, use case | x | x | x | | x | x | x |
-| edit (name, description, narrative, save, revert) | domain, feature, use case | x | x | x | | x | x | x |
+| edit (name, description, narrative and its preview, save, revert) | domain, feature, use case | x | x | x | | x | x | x |
 | debt filters (kind chips, domain) | debt | x | x | x | | x | | |
 | rules filters (kind chips, domain, feature) | rules | x | x | x | | x | | |
 | run comparison (from, to, swap) | history | x | x | x | | x | | |

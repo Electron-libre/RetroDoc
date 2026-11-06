@@ -612,3 +612,102 @@ async fn the_lists_mark_an_edited_section() {
     let card = &card[..card.find("</article>").unwrap()];
     assert!(card.contains(mark), "{card}");
 }
+
+/// Every file under `dir` with its content, sorted by path.
+fn files_under(dir: &Path) -> Vec<(std::path::PathBuf, Vec<u8>)> {
+    let mut files = Vec::new();
+    let mut dirs = vec![dir.to_path_buf()];
+    while let Some(dir) = dirs.pop() {
+        for entry in std::fs::read_dir(dir).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                dirs.push(path);
+            } else {
+                let content = std::fs::read(&path).unwrap();
+                files.push((path, content));
+            }
+        }
+    }
+    files.sort();
+    files
+}
+
+/// The preview of the edit form of a section page, `None` when it has none.
+fn preview_block(page: &str) -> Option<&str> {
+    let start = page.find("<div class=\"preview narrative\"")?;
+    Some(&page[start..start + page[start..].find("</div>").unwrap()])
+}
+
+// spec: WEB-119
+#[tokio::test]
+async fn the_edit_form_of_a_use_case_previews_its_narrative_as_it_is_typed() {
+    let repo = generated_repo();
+    let root = repo.path();
+    edit(
+        root,
+        &Section::use_case("pay-invoice", "pay-by-card"),
+        Fields {
+            narrative: Some("The clerk takes **the card**.".into()),
+            ..Fields::default()
+        },
+    );
+
+    let page = get(root, USE_CASE).await;
+    let form = form_block(&page);
+    let preview = preview_block(form).unwrap_or_else(|| panic!("no preview in {form}"));
+    assert!(
+        preview.contains("<p>The clerk takes <strong>the card</strong>.</p>"),
+        "{preview}"
+    );
+    let field = form
+        .split("<textarea")
+        .map(|tag| &tag[..tag.find('>').unwrap_or(tag.len())])
+        .find(|tag| tag.contains("name=\"narrative\""))
+        .unwrap_or_else(|| panic!("no narrative field in {form}"));
+    for attribute in [
+        "hx-post=\"/preview\"",
+        "hx-trigger=\"input changed delay:500ms\"",
+        "hx-target=\"#narrative-preview\"",
+        "hx-swap=\"innerHTML\"",
+    ] {
+        assert!(field.contains(attribute), "{attribute} in {field}");
+    }
+    assert!(form.contains("id=\"narrative-preview\""), "{form}");
+
+    for other in [FEATURE, "/domains/billing"] {
+        let page = get(root, other).await;
+        assert!(preview_block(form_block(&page)).is_none(), "{page}");
+        assert!(!form_block(&page).contains("/preview"), "{page}");
+    }
+}
+
+// spec: WEB-120
+#[tokio::test]
+async fn the_preview_renders_the_narrative_sent_and_writes_nothing() {
+    let repo = generated_repo();
+    let root = repo.path();
+    let before = files_under(root);
+
+    let answer = post(
+        root,
+        "/preview",
+        "name=Pay&narrative=Pays+**by+card**.+Then+%3Cscript%3Ealert(1)%3C%2Fscript%3E+%5Bx%5D(javascript%3Aalert(1))",
+        true,
+    )
+    .await;
+
+    assert_eq!(answer.status, StatusCode::OK, "{}", answer.body);
+    assert_eq!(
+        answer.body,
+        "<p>Pays <strong>by card</strong>. Then &lt;script&gt;alert(1)&lt;/script&gt; x</p>\n"
+    );
+    for empty in ["narrative=", "narrative=+%0D%0A", "name=Pay"] {
+        let answer = post(root, "/preview", empty, true).await;
+        assert_eq!(
+            (answer.status, answer.body.as_str()),
+            (StatusCode::OK, ""),
+            "{empty}"
+        );
+    }
+    assert_eq!(files_under(root), before);
+}

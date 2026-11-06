@@ -5,7 +5,8 @@
 <form class="edit-fields" method="post" action="{{ edit_form.action }}" hx-post="{{ edit_form.action }}" hx-target="closest section" hx-swap="outerHTML" hx-indicator="find .indicator" hx-disabled-elt="find button">
   <label class="field"><span class="field-label">{{ t.edit.labels[0] }}</span> <input name="name" value="{{ edit_form.name }}"></label>
   <label class="field"><span class="field-label">{{ t.edit.labels[1] }}</span> <textarea name="description" rows="3">{{ edit_form.description }}</textarea></label>
-  {% if let Some(narrative) = edit_form.narrative %}<label class="field"><span class="field-label">{{ t.edit.labels[2] }}</span> <textarea name="narrative" rows="8">{{ narrative }}</textarea></label>{% endif %}
+  {% if let Some(narrative) = edit_form.narrative %}<label class="field"><span class="field-label">{{ t.edit.labels[2] }}</span> <textarea hx-post="/preview" hx-trigger="input changed delay:500ms" hx-target="#narrative-preview" hx-swap="innerHTML" name="narrative" rows="8">{{ narrative }}</textarea></label>
+  <div class="field"><span class="field-label">{{ t.edit.preview }}</span> <div class="preview narrative" id="narrative-preview" aria-live="polite">{{ edit_form.narrative_preview|safe }}</div></div>{% endif %}
   <p class="hint">{{ t.edit.form_hint }}</p>
   {% call m::form_error(edit_form.error) %}{% endcall %}
   {% call m::notice(edit_form.saved, t.edit.saved) %}{% endcall %}

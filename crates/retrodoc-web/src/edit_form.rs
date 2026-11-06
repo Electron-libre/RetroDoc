@@ -3,19 +3,21 @@
 //! `retrodoc-mcp`, the fields it leaves as generated left out, or removes it, and answers `htmx`
 //! with a reload of the page, else a redirect to it; a refusal answers `htmx` with the form alone,
 //! the error in it. The path sits under `/edit`, not after the
-//! page's: a feature or a use case may be named `edit`.
+//! page's: a feature or a use case may be named `edit`. A `POST` to `/preview` answers the
+//! narrative it sends rendered as the page renders it (WEB-119, WEB-120), and writes nothing.
 
 use std::sync::Arc;
 
 use askama::Template;
 use axum::extract::{Path, State};
 use axum::http::{header, HeaderMap, StatusCode};
-use axum::response::{IntoResponse, Response};
+use axum::response::{Html, IntoResponse, Response};
 use axum::Form;
 use retrodoc_mcp::edits::{self, EditsError, Fields};
 use retrodoc_mcp::GeneratedDocs;
 use serde::Deserialize;
 
+use crate::collected::markdown_html;
 use crate::edit::is_edited;
 use crate::pages::{blocking, form_answer, not_found, read_failed};
 use crate::review::{Place, SavedForm};
@@ -45,6 +47,9 @@ pub struct EditFormView {
     pub description: String,
     /// A use case only.
     pub narrative: Option<String>,
+    /// The narrative rendered as its page renders it, safe to insert as is (WEB-119); empty but
+    /// for a use case.
+    pub narrative_preview: String,
     /// Whether the section holds an edit, which the button "back to the generated text" removes.
     pub edited: bool,
     /// Why the last save failed, the fields kept as sent.
@@ -61,11 +66,13 @@ impl EditFormView {
     pub fn of(docs: &GeneratedDocs, place: &Place) -> Self {
         let section = place.section();
         let shown = edits::fields_in(docs.sections(), &section).unwrap_or_default();
+        let narrative = is_use_case(place).then(|| shown.narrative.unwrap_or_default());
         Self {
             action: action(place),
             name: shown.name.unwrap_or_default(),
             description: shown.description.unwrap_or_default(),
-            narrative: is_use_case(place).then(|| shown.narrative.unwrap_or_default()),
+            narrative_preview: preview_html(narrative.as_deref()),
+            narrative,
             edited: is_edited(docs, place),
             error: None,
             saved: false,
@@ -74,17 +81,37 @@ impl EditFormView {
     }
 
     fn failed(place: &Place, form: &EditForm, edited: bool, error: String) -> Self {
+        let narrative = is_use_case(place).then(|| form.narrative.clone().unwrap_or_default());
         Self {
             action: action(place),
             name: form.name.clone(),
             description: form.description.clone(),
-            narrative: is_use_case(place).then(|| form.narrative.clone().unwrap_or_default()),
+            narrative_preview: preview_html(narrative.as_deref()),
+            narrative,
             edited,
             error: Some(error),
             saved: false,
             open: false,
         }
     }
+}
+
+/// `narrative` rendered as the page of a use case renders it (WEB-118), cleaned as a save cleans
+/// it (WEB-94); empty when there is none.
+fn preview_html(narrative: Option<&str>) -> String {
+    markdown_html(&clean(narrative.unwrap_or_default()))
+}
+
+/// What the preview sends: the narrative, the other fields of the form ignored.
+#[derive(Debug, Deserialize)]
+pub struct PreviewForm {
+    narrative: Option<String>,
+}
+
+/// The narrative sent rendered, without the layout of a page (WEB-120): nothing is read nor
+/// written.
+pub async fn preview(Form(form): Form<PreviewForm>) -> Html<String> {
+    Html(preview_html(form.narrative.as_deref()))
 }
 
 fn action(place: &Place) -> String {
