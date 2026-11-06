@@ -9,7 +9,10 @@ use axum::http::request::Builder as RequestBuilder;
 use axum::http::{header, Request, Response, StatusCode};
 use axum::Router;
 use retrodoc_core::model::{ConfidenceScore, Feature};
-use retrodoc_llm::{LlmError, LlmProvider, Role, ToolCall};
+use retrodoc_llm::{
+    CompletionRequest, CompletionResponse, LlmError, LlmProvider, Role, ToolCall, Usage,
+    UsageProvider, UsageTracker,
+};
 use retrodoc_mcp::GeneratedDocs;
 use retrodoc_pipeline::testing::{FakeLlm, FakeTurn};
 use retrodoc_pipeline::{DomainCluster, DomainMap};
@@ -678,4 +681,122 @@ async fn the_page_of_a_session_is_served_while_its_question_runs() {
     assert_eq!(again.status(), StatusCode::CONFLICT);
     assert_eq!(llm.calls(), 2);
     running.abort();
+}
+
+/// `inner`, each of its answers billed `usage`, as a server that reports it does.
+struct Billed {
+    inner: Arc<FakeLlm>,
+    usage: Option<Usage>,
+}
+
+#[async_trait::async_trait]
+impl LlmProvider for Billed {
+    async fn complete(&self, request: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+        let mut response = self.inner.complete(request).await?;
+        response.usage = self.usage;
+        Ok(response)
+    }
+}
+
+/// `inner` billed 100 tokens in, 40 of them from the cache, and 10 out per answer.
+fn billed(inner: Arc<FakeLlm>) -> Arc<Billed> {
+    Arc::new(Billed {
+        inner,
+        usage: Some(Usage {
+            prompt_tokens: 100,
+            completion_tokens: 10,
+            cached_tokens: 40,
+        }),
+    })
+}
+
+/// The lines of the cost of an exchange.
+fn cost(exchange: &str) -> &str {
+    let from = &exchange[exchange.find("<p class=\"cost muted\">").expect(exchange)..];
+    &from[..from.find("</p>").unwrap()]
+}
+
+// spec: WAK-36
+#[tokio::test]
+async fn each_exchange_shows_the_cost_of_its_question_and_of_its_session() {
+    let dir = generated_repo();
+    let router = router(dir.path(), Some(billed(navigating())));
+
+    let (cookie, first) = ask(&router, "How are the orders listed?", None).await;
+    let (_, second) = ask(&router, "By whom?", Some(&cookie)).await;
+
+    assert_eq!(
+        cost(&first),
+        "<p class=\"cost muted\">This question: 2 calls, 200 tokens in (80 from the cache), 20 out<br>\
+         This conversation: 2 calls, 200 tokens in (80 from the cache), 20 out"
+    );
+    assert_eq!(
+        cost(&second),
+        "<p class=\"cost muted\">This question: 1 call, 100 tokens in (40 from the cache), 10 out<br>\
+         This conversation: 3 calls, 300 tokens in (120 from the cache), 30 out"
+    );
+}
+
+// spec: WAK-36
+#[tokio::test]
+async fn a_failed_question_shows_the_calls_answered_before_it_failed() {
+    let dir = generated_repo();
+    let llm = Arc::new(FakeLlm::scripted(vec![get_feature_call(), FakeTurn::Fail]));
+    let router = router(dir.path(), Some(billed(llm)));
+
+    let (_, failed) = ask(&router, "How are the orders listed?", None).await;
+
+    assert!(failed.contains("could not be answered"), "{failed}");
+    assert!(
+        cost(&failed).contains("This question: 1 call, 100 tokens in (40 from the cache), 10 out"),
+        "{failed}"
+    );
+}
+
+// spec: WAK-36
+#[tokio::test]
+async fn the_calls_with_no_usage_are_counted_apart_and_the_reset_zeroes_the_session() {
+    let dir = generated_repo();
+    let unbilled = Arc::new(Billed {
+        inner: Arc::new(FakeLlm::answering("Yes.")),
+        usage: None,
+    });
+    let router = router(dir.path(), Some(unbilled));
+    let (cookie, _) = ask(&router, "Question 1?", None).await;
+    send(
+        &router,
+        post_request("/ask/reset", "", Some(&cookie), false),
+    )
+    .await;
+
+    let (_, after) = ask(&router, "Question 2?", Some(&cookie)).await;
+
+    assert_eq!(
+        cost(&after),
+        "<p class=\"cost muted\">This question: 1 call, 0 tokens in, 0 out, 1 call with no usage reported<br>\
+         This conversation: 1 call, 0 tokens in, 0 out, 1 call with no usage reported"
+    );
+}
+
+// spec: WAK-37 (internal: the recap of the binary sums all the sessions, the router test compares them)
+#[tokio::test]
+async fn the_cost_shown_is_what_the_recap_counts() {
+    let dir = generated_repo();
+    let recap = UsageTracker::new();
+    let llm = Arc::new(UsageProvider::new(billed(navigating()), recap.clone()));
+    let router = router(dir.path(), Some(llm));
+
+    let (cookie, _) = ask(&router, "How are the orders listed?", None).await;
+    let (_, second) = ask(&router, "By whom?", Some(&cookie)).await;
+
+    let total = recap.report().total();
+    assert_eq!(
+        (total.calls, total.prompt_tokens, total.completion_tokens),
+        (3, 300, 30)
+    );
+    assert!(
+        cost(&second)
+            .contains("This conversation: 3 calls, 300 tokens in (120 from the cache), 30 out"),
+        "{second}"
+    );
 }

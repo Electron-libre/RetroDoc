@@ -17,7 +17,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Form, Router};
 use retrodoc_agent::{Answer, Conversation, Step};
-use retrodoc_llm::LlmProvider;
+use retrodoc_llm::{CallTotals, LlmProvider, UsageProvider, UsageTracker};
 use retrodoc_mcp::{Docs, Source, SourceKind};
 use serde::Deserialize;
 use tokio::sync::watch;
@@ -50,6 +50,9 @@ struct Exchange {
     question: String,
     steps: Vec<Step>,
     outcome: Result<Answer, String>,
+    /// The calls of the question and of its session up to it (WAK-36).
+    cost: CallTotals,
+    session_cost: CallTotals,
 }
 
 /// What a question has done so far.
@@ -77,6 +80,8 @@ struct Session {
     /// The questions sent in the session, which number them; not reset, so a number names one
     /// question only.
     asked: u64,
+    /// The calls of the questions of the session since it started or was reset.
+    spent: CallTotals,
 }
 
 /// The sessions, the one used last at the end.
@@ -262,17 +267,28 @@ pub struct ExchangeView {
     pub error: Option<String>,
     pub sources: Vec<SourceLink>,
     pub warnings: Vec<String>,
+    /// The cost of the question, then of the session up to it.
+    pub cost: String,
+    pub session_cost: String,
 }
 
 impl ExchangeView {
     fn of(exchange: &Exchange, texts: &AskTexts) -> Self {
         let question = exchange.question.clone();
         let steps = exchange.steps.clone();
+        let cost = format!("{} {}", texts.question_cost, (texts.cost)(&exchange.cost));
+        let session_cost = format!(
+            "{} {}",
+            texts.session_cost,
+            (texts.cost)(&exchange.session_cost)
+        );
         match &exchange.outcome {
             Err(error) => Self {
                 question,
                 steps,
                 error: Some(error.clone()),
+                cost,
+                session_cost,
                 ..Self::default()
             },
             Ok(answer) => {
@@ -293,6 +309,8 @@ impl ExchangeView {
                         .iter()
                         .map(|warning| (texts.warning)(warning, texts))
                         .collect(),
+                    cost,
+                    session_cost,
                 }
             }
         }
@@ -473,9 +491,12 @@ async fn run(
     };
     let progress = &running.progress;
     let tell = |step: Step| progress.send_modify(|p| p.steps.push(step));
+    // The calls of the question alone, counted as the recap counts them (WAK-37).
+    let counted = UsageTracker::new();
+    let llm = UsageProvider::new(Arc::clone(&state.asking.llm), counted.clone());
     let outcome = conversation
         .ask_observed(
-            state.asking.llm.as_ref(),
+            &llm,
             docs,
             &running.question,
             state.asking.max_rounds,
@@ -483,26 +504,39 @@ async fn run(
         )
         .await
         .map_err(|error| error.to_string());
-    let exchange = Arc::new(Exchange {
+    let cost = counted.report().total();
+    let mut exchange = Exchange {
         number: running.number,
         question: running.question.clone(),
         steps: progress.borrow().steps.clone(),
         outcome,
-    });
-    if let Some(session) = state.sessions().get(Some(&id)) {
-        if session
-            .running
-            .as_ref()
-            .is_some_and(|kept| Arc::ptr_eq(kept, &running))
-        {
-            session.running = None;
-            session.conversation = conversation;
-            session.exchanges.push_back(Arc::clone(&exchange));
-            while session.exchanges.len() > MAX_EXCHANGES {
-                session.exchanges.pop_front();
+        cost,
+        session_cost: cost,
+    };
+    let exchange = {
+        let mut sessions = state.sessions();
+        match sessions.get(Some(&id)).filter(|session| {
+            session
+                .running
+                .as_ref()
+                .is_some_and(|kept| Arc::ptr_eq(kept, &running))
+        }) {
+            Some(session) => {
+                session.spent.add(&cost);
+                exchange.session_cost = session.spent;
+                let exchange = Arc::new(exchange);
+                session.running = None;
+                session.conversation = conversation;
+                session.exchanges.push_back(Arc::clone(&exchange));
+                while session.exchanges.len() > MAX_EXCHANGES {
+                    session.exchanges.pop_front();
+                }
+                exchange
             }
+            // Dropped or reset meanwhile: the question is the whole of its session.
+            None => Arc::new(exchange),
         }
-    }
+    };
     progress.send_modify(|p| p.ended = Some(exchange));
 }
 

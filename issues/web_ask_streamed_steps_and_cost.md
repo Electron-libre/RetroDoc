@@ -52,9 +52,9 @@ stopping a question. Means: the question runs in a server task (no longer tied t
    `/ask/questions/<n>/events` (SSE: steps, then the exchange) and `/ask/questions/<n>` (fallback); vendored
    `htmx-ext-sse` 2.2.4; button disabled until the answer; verified by `ask_page.rs` tests through the router (and a
    headless Chrome check of the page); makes true WAK-14, WAK-15, WAK-16 (amended), WAK-30 to WAK-35. (autonomous)
-3. [ ] Cost: a `UsageTracker` per question around the provider (`impl LlmProvider for Arc<P>`, `CallTotals` summable
+3. [x] Cost: a `UsageTracker` per question around the provider (`impl LlmProvider for Arc<P>`, `CallTotals` summable
    publicly), the session sum kept and reset with it, shown under each ended exchange in English and French; verified
-   by `ask_page.rs` tests with a fake provider reporting usage; makes true WAK-36, WAK-37.
+   by `ask_page.rs` tests with a fake provider reporting usage; makes true WAK-36, WAK-37. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -87,3 +87,12 @@ stopping a question. Means: the question runs in a server task (no longer tied t
   the answer.
 - not verified: a real model (the DeepSeek hand check of the ledger, cents, needs a go). decisions needed: none.
 - follow-up: `retrodoc-cli/tests/ui_ask.rs` WAK-23 now waits for the question in flight at the interrupt.
+
+### 3. Cost
+- done: each question asked through a `UsageProvider` of its own (`impl LlmProvider for Arc<P>`, `CallTotals::add`
+  public); each ended exchange shows the calls and tokens of the question and of the session (`Session::spent`, reset
+  with it), in English and French; `specs/web-ask.md` back to `accepted`.
+- checks: tests ok, clippy ok, specs ok, docs (`render-mcp-cli.md`, `llm.md`, README), code review low.
+- red: WAK-37: `Arc<Billed>: LlmProvider` is not satisfied (WAK-36 tests then failed on the missing cost line).
+- Code review: no findings
+- not verified: a real model (DeepSeek hand check, needs a go). decisions needed: none.

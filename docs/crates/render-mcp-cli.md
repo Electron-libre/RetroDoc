@@ -174,7 +174,10 @@ Detail moved out of `CLAUDE.md`. Overview: `docs/ARCHITECTURE.md` §3, §6 and �
   steps under a `<details>`), then ends, and `/ask/questions/{n}` waits for the end and gives the exchange, the
   fallback of a stream that fails (`hx-on::sse-error`); both answer 404 for a question not of the session of the
   cookie. The button of the form stays disabled while a running exchange is on the page (`hx-on::after-settle` of
-  `#exchanges`). A failed call is an exchange showing the error, the turn not kept. Tests:
+  `#exchanges`). A failed call is an exchange showing the error, the turn not kept. Each question is asked through a
+  `UsageProvider` of its own around the provider of the pass `ask` (which still counts for the recap of `ui`), and
+  its exchange shows the `CallTotals` of the question and of the session since it started or was reset
+  (`Session::spent`), with the calls whose server sent no usage counted apart (`AskTexts::cost`). Tests:
   `tests/pages.rs` (home, tree, assets, `Host`), `tests/item_pages.rs` (the item pages), `tests/code_page.rs` (the
   page of a cited file, over a git repo), `tests/files_page.rs`, `tests/doc_pages.rs`, `tests/glossary_page.rs`, `tests/rules_page.rs`, `tests/actors_page.rs`, `tests/map_page.rs`, `tests/search_page.rs` and `tests/ask_page.rs` (the fake provider of the tests) ask the router without a socket (`tower::ServiceExt::oneshot`) over artifacts
   saved in a temp dir. To update `htmx`, replace `assets/htmx.min.js` and the version in `assets.rs` (the same for

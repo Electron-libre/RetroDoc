@@ -110,7 +110,8 @@ impl CallTotals {
         }
     }
 
-    fn add(&mut self, other: &CallTotals) {
+    /// Adds the calls and tokens of `other`.
+    pub fn add(&mut self, other: &CallTotals) {
         self.calls += other.calls;
         self.calls_without_usage += other.calls_without_usage;
         self.prompt_tokens += other.prompt_tokens;

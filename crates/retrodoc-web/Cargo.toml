@@ -22,6 +22,7 @@ getrandom.workspace = true
 tokio = { workspace = true, features = ["net", "rt", "sync"] }
 
 [dev-dependencies]
+async-trait.workspace = true
 retrodoc-pipeline = { workspace = true, features = ["testing"] }
 tempfile = "3"
 tower = { version = "0.5", features = ["util"] }

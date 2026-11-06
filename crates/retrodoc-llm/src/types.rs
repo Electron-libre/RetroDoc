@@ -205,3 +205,23 @@ pub trait LlmProvider: Send + Sync {
         None
     }
 }
+
+/// A shared provider is a provider: a wrapper such as [`crate::UsageProvider`] can take one.
+#[async_trait]
+impl<P: LlmProvider + ?Sized> LlmProvider for std::sync::Arc<P> {
+    async fn complete(&self, request: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+        (**self).complete(request).await
+    }
+
+    fn note_unparseable_answer(&self, skipped: bool) {
+        (**self).note_unparseable_answer(skipped);
+    }
+
+    fn model(&self) -> &str {
+        (**self).model()
+    }
+
+    fn language(&self) -> Option<&str> {
+        (**self).language()
+    }
+}

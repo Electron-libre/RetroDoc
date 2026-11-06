@@ -2,7 +2,10 @@
 //! headings and messages around the docs. The words the pages share with the Markdown docs come
 //! from the table of `retrodoc-render` ([`WebTexts::doc`]). A language with no table keeps English.
 
+use std::fmt::Write as _;
+
 use retrodoc_core::model::SetApartReason;
+use retrodoc_llm::CallTotals;
 use retrodoc_mcp::debt::{DebtKind, ItemKind, Priority};
 use retrodoc_mcp::reviews::Status;
 use retrodoc_mcp::source::{SourceError, MAX_FILE_BYTES};
@@ -167,6 +170,11 @@ pub struct AskTexts {
     pub failed: &'static str,
     /// The summary of the steps of an exchange: how many tool calls it made.
     pub steps: fn(usize) -> String,
+    /// Before the cost of the question, then of the session.
+    pub question_cost: &'static str,
+    pub session_cost: &'static str,
+    /// The LLM calls of a question or a session and their tokens.
+    pub cost: fn(&CallTotals) -> String,
     /// The label of a domain, a feature, a use case and a file.
     pub kinds: [&'static str; 4],
     /// A warning of an answer.
@@ -704,6 +712,9 @@ impl WebTexts {
             no_answer: retrodoc_agent::NO_ANSWER,
             failed: "The question could not be answered:",
             steps: |n| format!("{n} step{}", if n == 1 { "" } else { "s" }),
+            question_cost: "This question:",
+            session_cost: "This conversation:",
+            cost: english_cost,
             kinds: ["domain", "feature", "use case", "file"],
             warning: english_warning,
         },
@@ -1061,6 +1072,9 @@ impl WebTexts {
             no_answer: "Le modèle n’a donné aucune réponse.",
             failed: "La question n’a pas pu recevoir de réponse :",
             steps: |n| format!("{n} étape{}", if n > 1 { "s" } else { "" }),
+            question_cost: "Cette question :",
+            session_cost: "Cette conversation :",
+            cost: french_cost,
             kinds: ["domaine", "fonctionnalité", "cas d’usage", "fichier"],
             warning: french_warning,
         },
@@ -1252,6 +1266,46 @@ fn french_refusal(error: &SourceError) -> String {
             "Indisponible : ce dépôt n'a pas d'historique git lisible.".to_string()
         }
     }
+}
+
+/// `2 calls, 200 tokens in (80 from the cache), 20 out`, then the calls with no usage.
+fn english_cost(cost: &CallTotals) -> String {
+    let calls = |n: u64| format!("{n} call{}", if n == 1 { "" } else { "s" });
+    let mut text = format!("{}, {} tokens in", calls(cost.calls), cost.prompt_tokens);
+    if cost.cached_tokens > 0 {
+        let _ = write!(text, " ({} from the cache)", cost.cached_tokens);
+    }
+    let _ = write!(text, ", {} out", cost.completion_tokens);
+    if cost.calls_without_usage > 0 {
+        let _ = write!(
+            text,
+            ", {} with no usage reported",
+            calls(cost.calls_without_usage)
+        );
+    }
+    text
+}
+
+/// `2 appels, 200 tokens en entrée (dont 80 du cache), 20 en sortie`, puis les appels sans usage.
+fn french_cost(cost: &CallTotals) -> String {
+    let calls = |n: u64| format!("{n} appel{}", if n > 1 { "s" } else { "" });
+    let mut text = format!(
+        "{}, {} tokens en entrée",
+        calls(cost.calls),
+        cost.prompt_tokens
+    );
+    if cost.cached_tokens > 0 {
+        let _ = write!(text, " (dont {} du cache)", cost.cached_tokens);
+    }
+    let _ = write!(text, ", {} en sortie", cost.completion_tokens);
+    if cost.calls_without_usage > 0 {
+        let _ = write!(
+            text,
+            ", {} sans usage indiqué",
+            calls(cost.calls_without_usage)
+        );
+    }
+    text
 }
 
 #[cfg(test)]
