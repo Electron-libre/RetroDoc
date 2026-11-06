@@ -6,7 +6,7 @@ use retrodoc_core::model::SetApartReason;
 use retrodoc_mcp::debt::{DebtKind, ItemKind, Priority};
 use retrodoc_mcp::reviews::Status;
 use retrodoc_mcp::source::{SourceError, MAX_FILE_BYTES};
-use retrodoc_mcp::EntryKind;
+use retrodoc_mcp::{EntryKind, SourceKind, Warning};
 use retrodoc_render::Texts;
 
 use crate::code::CiterKind;
@@ -138,12 +138,50 @@ pub struct WebTexts {
     pub history_page: HistoryTexts,
     pub review: ReviewTexts,
     pub edit: EditTexts,
+    pub ask: AskTexts,
     /// The lines a page of a file shows: from, to, of how many.
     pub shown: fn(usize, usize, usize) -> String,
     /// Why the lines asked are not shown: the number of lines of the file, the first line asked.
     pub past_end: fn(usize, usize) -> String,
     /// Why a cited file can't be shown.
     pub refusal: fn(&SourceError) -> String,
+}
+
+/// The fixed text of the ask page (`specs/web-ask.md`).
+#[derive(Debug)]
+pub struct AskTexts {
+    /// The link of the header and the title of the page.
+    pub link: &'static str,
+    pub hint: &'static str,
+    pub intro: &'static str,
+    pub question: &'static str,
+    pub send: &'static str,
+    /// Shown while a question runs.
+    pub waiting: &'static str,
+    pub start_over: &'static str,
+    pub sources: &'static str,
+    pub warnings: &'static str,
+    pub no_source: &'static str,
+    pub no_answer: &'static str,
+    /// Before the error of a question that failed.
+    pub failed: &'static str,
+    /// The label of a domain, a feature, a use case and a file.
+    pub kinds: [&'static str; 4],
+    /// A warning of an answer.
+    pub warning: fn(&Warning, &AskTexts) -> String,
+}
+
+impl AskTexts {
+    /// The label of `kind`.
+    #[must_use]
+    pub fn kind(&self, kind: SourceKind) -> &'static str {
+        match kind {
+            SourceKind::Domain => self.kinds[0],
+            SourceKind::Feature => self.kinds[1],
+            SourceKind::UseCase => self.kinds[2],
+            SourceKind::File => self.kinds[3],
+        }
+    }
 }
 
 /// The fixed text of the debt page.
@@ -650,6 +688,22 @@ impl WebTexts {
             save: "Save the edit",
             revert: "Back to the generated text",
         },
+        ask: AskTexts {
+            link: "Ask",
+            hint: "Ask a question about the application; the answer reads the docs with an LLM",
+            intro: "Ask a question about the application: an LLM answers from the docs, naming the pages it rests on. Each question is sent with the earlier ones of this conversation.",
+            question: "Your question",
+            send: "Ask",
+            waiting: "Reading the docs to answer…",
+            start_over: "Start over",
+            sources: "Sources",
+            warnings: "Warnings",
+            no_source: retrodoc_agent::NO_SOURCE,
+            no_answer: retrodoc_agent::NO_ANSWER,
+            failed: "The question could not be answered:",
+            kinds: ["domain", "feature", "use case", "file"],
+            warning: english_warning,
+        },
         refusal: SourceError::to_string,
     };
 
@@ -990,6 +1044,22 @@ impl WebTexts {
             save: "Enregistrer la correction",
             revert: "Revenir au texte généré",
         },
+        ask: AskTexts {
+            link: "Demander",
+            hint: "Poser une question sur l’application ; la réponse lit la doc avec un LLM",
+            intro: "Posez une question sur l’application : un LLM répond depuis la doc, en nommant les pages sur lesquelles il s’appuie. Chaque question est envoyée avec les précédentes de cette conversation.",
+            question: "Votre question",
+            send: "Demander",
+            waiting: "Lecture de la doc pour répondre…",
+            start_over: "Recommencer",
+            sources: "Sources",
+            warnings: "Avertissements",
+            no_source: "Aucune source de la doc n’appuie cette réponse.",
+            no_answer: "Le modèle n’a donné aucune réponse.",
+            failed: "La question n’a pas pu recevoir de réponse :",
+            kinds: ["domaine", "fonctionnalité", "cas d’usage", "fichier"],
+            warning: french_warning,
+        },
         refusal: french_refusal,
     };
 
@@ -1124,6 +1194,27 @@ impl WebTexts {
     #[must_use]
     pub fn confidence(&self, percent: Option<&String>) -> String {
         percent.map_or_else(|| self.doc.not_scored.to_string(), String::clone)
+    }
+}
+
+/// A warning of an answer, as the agent words it.
+fn english_warning(warning: &Warning, _: &AskTexts) -> String {
+    warning.to_string()
+}
+
+/// A warning of an answer, in French; the ids and paths stay as written.
+fn french_warning(warning: &Warning, texts: &AskTexts) -> String {
+    match warning {
+        Warning::LowConfidence { source, confidence } => format!(
+            "confiance faible ({:.0} %) dans {} `{}` : le code ne l’appuie peut-être pas",
+            confidence * 100.0,
+            texts.kind(source.kind),
+            source.id
+        ),
+        Warning::Stale { path, deleted } => format!(
+            "`{path}` a été {} depuis la génération de la doc",
+            if *deleted { "supprimé" } else { "modifié" }
+        ),
     }
 }
 

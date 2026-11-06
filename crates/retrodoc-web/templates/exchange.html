@@ -1,0 +1,29 @@
+<article class="exchange">
+  <p class="question"><strong>{{ exchange.question }}</strong></p>
+  {% if let Some(error) = exchange.error %}
+  <p class="badge low">{{ t.ask.failed }} {{ error }}</p>
+  {% else if let Some(html) = exchange.html %}
+  <div class="answer">{{ html|safe }}</div>
+  {% if exchange.sources.is_empty() %}
+  <p class="sources muted">{{ t.ask.no_source }}</p>
+  {% else %}
+  <section class="sources">
+    <h3>{{ t.ask.sources }}</h3>
+    <ul>
+      {% for source in exchange.sources %}
+      <li>{% if let Some(href) = source.href %}<a href="{{ href }}">{{ source.kind }} <code>{{ source.id }}</code></a>{% else %}{{ source.kind }} <code>{{ source.id }}</code>{% endif %}</li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+  {% if !exchange.warnings.is_empty() %}
+  <section class="warnings">
+    <h3>{{ t.ask.warnings }}</h3>
+    <ul>
+      {% for warning in exchange.warnings %}<li>{{ warning }}</li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+  {% endif %}
+</article>

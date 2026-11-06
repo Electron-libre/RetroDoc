@@ -8,16 +8,19 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+retrodoc-agent.workspace = true
 retrodoc-core.workspace = true
+retrodoc-llm.workspace = true
 retrodoc-mcp.workspace = true
 retrodoc-render.workspace = true
 askama.workspace = true
 pulldown-cmark.workspace = true
 serde.workspace = true
 axum.workspace = true
-tokio = { workspace = true, features = ["net", "rt"] }
+getrandom.workspace = true
+tokio = { workspace = true, features = ["net", "rt", "sync"] }
 
 [dev-dependencies]
-retrodoc-pipeline.workspace = true
+retrodoc-pipeline = { workspace = true, features = ["testing"] }
 tempfile = "3"
 tower = { version = "0.5", features = ["util"] }

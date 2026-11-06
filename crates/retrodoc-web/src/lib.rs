@@ -1,7 +1,8 @@
 //! The local web interface over the generated docs (ADR 0039): an `axum`
 //! router that renders HTML pages on the server from `askama` templates, with
-//! its scripts and stylesheet embedded in the binary. It calls no LLM and
-//! writes nothing but the human reviews a form sends ([`review_form`]).
+//! its scripts and stylesheet embedded in the binary. It calls no LLM, but
+//! for the ask page of `retrodoc ui --ask` ([`Asking`], ADR 0048), and writes
+//! nothing but the human reviews and edits its forms send ([`review_form`]).
 //!
 //! The pages are built from [`GeneratedDocs`], the read model `retrodoc-mcp`
 //! loads, turned into the plain view structs of [`view`]; only [`router`] and
@@ -10,6 +11,7 @@
 //! and the edits are read at each request.
 
 pub mod actors;
+mod ask;
 mod assets;
 pub mod audit;
 pub mod code;
@@ -46,6 +48,7 @@ use retrodoc_mcp::{ExistingDoc, GeneratedDocs};
 use retrodoc_render::DocLinks;
 use tokio::net::TcpListener;
 
+pub use ask::Asking;
 use view::Site;
 
 /// The documented application, as every page names it.
@@ -78,7 +81,7 @@ impl Project {
 /// (`specs/section-edit.md` SED-27): a handler that asks for the `Arc<Site>` state gets the site
 /// with the edits saved at its request.
 #[derive(Clone)]
-struct LiveSite(Arc<Live<Site>>);
+pub(crate) struct LiveSite(Arc<Live<Site>>);
 
 impl FromRef<LiveSite> for Arc<Site> {
     fn from_ref(live: &LiveSite) -> Self {
@@ -117,14 +120,26 @@ impl LiveSite {
 
 /// The routes of the interface over the docs of `project`, `docs`, `None`
 /// before a first `generate`, with the sections of the project's own docs
-/// behind each item and those docs, `collected`, served as pages.
+/// behind each item and those docs, `collected`, served as pages; no ask page.
 pub fn router(
     project: Project,
     docs: Option<GeneratedDocs>,
     links: DocLinks,
     collected: Vec<ExistingDoc>,
 ) -> Router {
-    Router::new()
+    router_with(project, docs, links, collected, None)
+}
+
+/// [`router`], with the ask page when `asking` is given (`specs/web-ask.md`).
+pub fn router_with(
+    project: Project,
+    docs: Option<GeneratedDocs>,
+    links: DocLinks,
+    collected: Vec<ExistingDoc>,
+    asking: Option<Asking>,
+) -> Router {
+    let live = LiveSite::new(project, docs, links, collected);
+    let pages = Router::new()
         .route("/", get(pages::home))
         .route(
             "/domains/{domain}",
@@ -158,9 +173,14 @@ pub fn router(
         .route("/docs/{*path}", get(pages::collected_doc))
         .route("/assets/{name}", get(assets::serve))
         .fallback(pages::not_found)
+        .with_state(live.clone());
+    let pages = match asking {
+        Some(asking) => pages.merge(ask::routes(live, asking)),
+        None => pages,
+    };
+    pages
         .layer(middleware::from_fn(refuse_cross_site))
         .layer(middleware::from_fn(refuse_foreign_host))
-        .with_state(LiveSite::new(project, docs, links, collected))
 }
 
 /// Refuses a request whose `Host` is a name other than `localhost`: a page of

@@ -31,6 +31,11 @@ pub fn collected_page(collected: &[ExistingDoc], path: &str) -> Option<Collected
     })
 }
 
+/// The HTML of `markdown`, rendered as a collected doc is: raw HTML as text, unsafe links dropped.
+pub(crate) fn markdown_html(markdown: &str) -> String {
+    render(markdown).0
+}
+
 /// The HTML of `markdown` and the text of its first heading.
 fn render(markdown: &str) -> (String, Option<String>) {
     let options = Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH;

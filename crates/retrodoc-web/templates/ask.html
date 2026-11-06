@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}{{ t.ask.link }}{% endblock %}
+{% block content %}
+<h1>{{ t.ask.link }}</h1>
+<p class="muted">{{ t.ask.intro }}</p>
+<div id="exchanges">
+{% for exchange in exchanges %}{% include "exchange.html" %}
+{% endfor %}
+</div>
+<form class="ask" method="post" action="/ask" hx-post="/ask" hx-target="#exchanges" hx-swap="beforeend" hx-indicator="#ask-waiting" hx-disabled-elt="find button" hx-on::after-request="if (event.detail.successful) this.reset()">
+  <label>{{ t.ask.question }} <textarea name="question" rows="3" required></textarea></label>
+  <button type="submit">{{ t.ask.send }}</button>
+</form>
+<p id="ask-waiting" class="htmx-indicator">{{ t.ask.waiting }}</p>
+{% endblock %}
