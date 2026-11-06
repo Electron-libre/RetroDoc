@@ -16,7 +16,7 @@ Markdown docs would lead, and a heading of a narrative neither breaks the outlin
   renders its answers with the same function and has the same trait.
 * It gives each heading an `id` (`anchor`) and keeps its level: `# Title` becomes an `<h1>` inside "What happens".
   The page renders the narrative twice (body and preview of the edit form), so a heading's `id` appears twice.
-* Found by the `high` review of `issues/web_ui_edit_live_preview.md`; no narrative of a saved run was checked for
+* Found by the `high` review of `issues/done/web_ui_edit_live_preview.md`; no narrative of a saved run was checked for
   links or headings.
 
 # Approach
