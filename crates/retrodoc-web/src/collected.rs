@@ -36,6 +36,15 @@ pub(crate) fn markdown_html(markdown: &str) -> String {
     render(markdown).0
 }
 
+/// The narrative of a use case rendered as its page and the preview of its edit show it (WEB-118),
+/// its line ends and surrounding whitespace cleaned as a save cleans them (WEB-94); `None` when it
+/// is blank.
+pub(crate) fn narrative_html(narrative: &str) -> Option<String> {
+    let narrative = narrative.replace("\r\n", "\n");
+    let narrative = narrative.trim();
+    (!narrative.is_empty()).then(|| markdown_html(narrative))
+}
+
 /// The HTML of `markdown` and the text of its first heading.
 fn render(markdown: &str) -> (String, Option<String>) {
     let options = Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH;

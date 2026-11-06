@@ -53,6 +53,10 @@ revert with `hx-confirm` (WEB-121). Out of scope: a preview of the name or the d
    empty narrative, no file written, no preview on a domain or feature form); makes true WEB-119, WEB-120. (autonomous)
 3. [x] Confirm the revert: `hx-confirm` on the revert button with a text of `texts.rs`; verified by a test of
    `edit_pages.rs`; makes true WEB-121, spec back to `accepted`. (autonomous)
+4. [x] Docs and fixes of the `high` review: README; the revert confirmed by `forms.js` (`data-confirm`), so the form
+   sends it with its indicator and disabled buttons; the preview leaves the errors of the page; the generated
+   narrative of an edit rendered as WEB-118; one `narrative_html` for the page, the edit and the preview; verified by
+   `edit_pages.rs` and headless Chrome; amends WEB-118, WEB-121. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -118,6 +122,41 @@ red: WEB-121: no `hx-confirm` on the revert button.
 
 Checked in headless Chrome: with `hx-confirm` alone on the button, no dialog and the edit removed at once; with its own
 `hx-post`, the dialog shows, dismissing keeps the edit, accepting removes it.
+
+Code review: no findings
+
+not verified: none
+
+decisions needed: none
+
+## Deliverable 4
+done: fixes of the `high` review (10 findings) and the README.
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`); `ask_page::each_browser_session_keeps_its_own_conversation` failed once, then passed 5 runs in a row: flaky, untouched here |
+| lint | pass |
+| specs | pass, WEB-118 and WEB-121 amended |
+| docs | `README.md`, `docs/crates/render-mcp-cli.md` |
+| code review | see below |
+
+red: WEB-118, WEB-121: the generated narrative of an edit shown as raw text; the revert button carried `hx-post`.
+
+High review: 10 findings.
+- revert lost the indicator and the disabled buttons of the form (own `hx-post`): fixed, `data-confirm` read by
+  `forms.js` on `htmx:confirm`, the form sends it.
+- revert left the error of the form: fixed by the same change.
+- the preview hid the error notice of the page: fixed, `forms.js` skips `/preview`.
+- generated narrative shown raw beside the rendered one: fixed (WEB-118 amended).
+- two normalizations of the narrative: fixed, `collected::narrative_html`.
+- unbalanced parenthesis in `docs/crates/render-mcp-cli.md`: fixed.
+- the move to `forms.js` (finding 9): done, as above.
+- relative links of a narrative, heading ids duplicated and levels kept: outside WEB-118 to WEB-121, filed as
+  `issues/web_ui_narrative_links_and_headings.md`.
+- the narrative rendered twice per GET: not fixed, a pulldown-cmark pass over a paragraph costs microseconds.
+
+Checked in headless Chrome: the dialog shows, dismiss keeps the edit, accept removes it; the preview updates and
+leaves a shown error notice visible.
 
 Code review: no findings
 

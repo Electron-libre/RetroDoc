@@ -30,8 +30,26 @@
     }
   });
 
-  // A request sent clears the errors of the one before: those of the page, those of its form.
+  // A button that names a question in `data-confirm` sends its form only once the question is
+  // accepted (WEB-121): htmx reads no `hx-confirm` of the button that submits a form.
+  document.addEventListener("htmx:confirm", function (event) {
+    const trigger = event.detail.triggeringEvent;
+    const question = trigger && trigger.submitter && trigger.submitter.dataset.confirm;
+    if (!question) {
+      return;
+    }
+    event.preventDefault();
+    if (window.confirm(question)) {
+      event.detail.issueRequest(true);
+    }
+  });
+
+  // A request sent clears the errors of the one before: those of the page, those of its form. The
+  // preview of a narrative being typed sends nothing to save: it leaves them (WEB-119).
   document.addEventListener("htmx:beforeRequest", function (event) {
+    if (event.detail.elt.getAttribute("hx-post") === "/preview") {
+      return;
+    }
     const notice = document.getElementById("page-error");
     if (notice) {
       notice.hidden = true;

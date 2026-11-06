@@ -5,7 +5,7 @@
 use std::collections::BTreeSet;
 
 use crate::actors::{actors_page, ActorsPage};
-use crate::collected::markdown_html;
+use crate::collected::narrative_html;
 use crate::edit::is_edited;
 use crate::files::{files_page, FilesPage};
 use crate::glossary::{glossary_page, GlossaryPage};
@@ -942,12 +942,7 @@ pub fn use_case_page(
             .map(str::to_string)
             .collect(),
         stale: stale_files(docs.freshness(), cited),
-        narrative_html: use_case
-            .narrative
-            .as_deref()
-            .map(str::trim)
-            .filter(|n| !n.is_empty())
-            .map(markdown_html),
+        narrative_html: use_case.narrative.as_deref().and_then(narrative_html),
         unbacked: unbacked.is_some(),
         unbacked_rationale: unbacked.and_then(|check| Confidence::of(Some(check)).rationale),
         rules: docs

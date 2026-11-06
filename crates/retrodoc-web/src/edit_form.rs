@@ -17,7 +17,7 @@ use retrodoc_mcp::edits::{self, EditsError, Fields};
 use retrodoc_mcp::GeneratedDocs;
 use serde::Deserialize;
 
-use crate::collected::markdown_html;
+use crate::collected::narrative_html;
 use crate::edit::is_edited;
 use crate::pages::{blocking, form_answer, not_found, read_failed};
 use crate::review::{Place, SavedForm};
@@ -96,10 +96,9 @@ impl EditFormView {
     }
 }
 
-/// `narrative` rendered as the page of a use case renders it (WEB-118), cleaned as a save cleans
-/// it (WEB-94); empty when there is none.
+/// `narrative` rendered as the page of a use case renders it (WEB-118); empty when there is none.
 fn preview_html(narrative: Option<&str>) -> String {
-    markdown_html(&clean(narrative.unwrap_or_default()))
+    narrative.and_then(narrative_html).unwrap_or_default()
 }
 
 /// What the preview sends: the narrative, the other fields of the form ignored.

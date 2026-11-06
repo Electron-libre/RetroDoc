@@ -6,6 +6,7 @@
 use retrodoc_mcp::edits::{self, Field};
 use retrodoc_mcp::GeneratedDocs;
 
+use crate::collected::narrative_html;
 use crate::review::{OutdatedView, Place};
 use retrodoc_render::EditedField;
 
@@ -29,6 +30,8 @@ pub struct EditView {
 pub struct GeneratedField {
     pub label: &'static str,
     pub text: String,
+    /// The narrative rendered as its page renders it (WEB-118); `None` for the other fields.
+    pub html: Option<String>,
 }
 
 impl EditView {
@@ -60,6 +63,9 @@ impl EditView {
                 .into_iter()
                 .map(|(field, text)| GeneratedField {
                     label: field_label(t, field),
+                    html: (field == Field::Narrative)
+                        .then(|| narrative_html(&text))
+                        .flatten(),
                     text,
                 })
                 .collect(),

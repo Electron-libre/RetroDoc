@@ -31,6 +31,7 @@ in `docs/findings.md` and the closed issues in `issues/done/`.
   - [web_ui_next_action](issues/done/web_ui_next_action.md)
   - [web_ui_ask_composer](issues/done/web_ui_ask_composer.md)
   - [web_ui_edit_live_preview](issues/web_ui_edit_live_preview.md)
+  - [web_ui_narrative_links_and_headings](issues/web_ui_narrative_links_and_headings.md)
 
 ## A local model, measured
 

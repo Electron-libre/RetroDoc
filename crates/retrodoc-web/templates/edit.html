@@ -7,7 +7,7 @@
 <details class="generated"{% if edit.outdated.is_some() %} open{% endif %}>
 <summary>{{ t.edit.generated }}</summary>
 <dl>
-{% for field in edit.generated %}<dt>{{ field.label }}</dt><dd>{{ field.text }}</dd>
+{% for field in edit.generated %}<dt>{{ field.label }}</dt><dd>{% if let Some(html) = field.html %}<div class="narrative">{{ html|safe }}</div>{% else %}{{ field.text }}{% endif %}</dd>
 {% endfor %}
 </dl>
 </details>
