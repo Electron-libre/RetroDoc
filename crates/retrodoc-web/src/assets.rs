@@ -19,6 +19,8 @@ pub const MERMAID: &str = "mermaid-12.2.0.min.js";
 const DIAGRAMS: &str = include_str!("../assets/diagrams.js");
 /// The answers of the forms sent with `htmx`: an HTML error swapped, any other in a notice.
 const FORMS: &str = include_str!("../assets/forms.js");
+/// The composer of the ask page: the keys, the growth of the field, the focus after an answer.
+const ASK: &str = include_str!("../assets/ask.js");
 const STYLE: &str = include_str!("../assets/style.css");
 /// The logo mark of Meta Lambda, from `static/assets/img/logo-mark.svg` of the
 /// meta-lambda.com site, shown by the credit at the foot of every page.
@@ -53,6 +55,7 @@ pub async fn serve(Path(name): Path<String>, headers: HeaderMap) -> Response {
         "htmx-ext-sse.min.js" => (JAVASCRIPT, HTMX_SSE),
         "diagrams.js" => (JAVASCRIPT, DIAGRAMS),
         "forms.js" => (JAVASCRIPT, FORMS),
+        "ask.js" => (JAVASCRIPT, ASK),
         "style.css" => ("text/css; charset=utf-8", STYLE),
         "logo-mark.svg" => ("image/svg+xml", LOGO),
         _ => return StatusCode::NOT_FOUND.into_response(),

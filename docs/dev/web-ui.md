@@ -49,6 +49,7 @@ spacing steps `--space-1` to `--space-6`, the radius `--radius-sm`, `--radius`, 
 | form error | `{% call m::form_error(error) %}` above the buttons; `#ask-error` on the ask form | framed, the gold edge at its left; hidden when empty |
 | page error | `#page-error` at the top of `<main>`, filled by `assets/forms.js` | same frame, for an error answer that is not HTML |
 | notice | `{% call m::notice(saved, text) %}` above the buttons | gold-light word that fades out in 4 s (stays with reduced motion) |
+| composer | `form.ask textarea`, `.keys` beside the button, `assets/ask.js` | one line growing to 12 (`field-sizing: content`, a script fallback); Enter sends, Shift+Enter breaks the line |
 | indicator | `<span class="indicator" role="status">` in the form, `hx-indicator="find .indicator"` on it | hidden; a spinner and a muted word while the request runs |
 
 Tests find some forms and buttons by their exact markup (`<form class="filters"`, `<button type="submit" disabled>`):

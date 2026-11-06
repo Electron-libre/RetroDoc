@@ -227,6 +227,74 @@ async fn the_ask_page_holds_the_form() {
     );
 }
 
+/// The form of `page` whose opening tag starts with `opening`, up to its end.
+fn form_of<'a>(page: &'a str, opening: &str) -> &'a str {
+    let form = &page[page
+        .find(opening)
+        .unwrap_or_else(|| panic!("no {opening} in {page}"))..];
+    &form[..form.find("</form>").unwrap()]
+}
+
+// spec: WAK-41, WAK-42, WAK-45 (internal: the keys, the growth and the focus run in the browser, the test reads what it is served)
+#[tokio::test]
+async fn the_question_field_is_a_composer() {
+    let dir = generated_repo();
+    let router = router(dir.path(), Some(navigating()));
+
+    let page = body(send(&router, get_request("/ask", None)).await).await;
+
+    let form = form_of(&page, "<form class=\"ask\"");
+    assert!(
+        form.contains("<textarea name=\"question\" rows=\"1\" enterkeyhint=\"send\" required>"),
+        "{form}"
+    );
+    assert!(
+        form.contains("Enter sends, Shift+Enter breaks the line."),
+        "{form}"
+    );
+    assert!(
+        page.contains("<script src=\"/assets/ask.js\" defer></script>"),
+        "{page}"
+    );
+    let script = body(send(&router, get_request("/assets/ask.js", None)).await).await;
+    for part in [
+        "\"Enter\"",
+        "shiftKey",
+        "isComposing",
+        "requestSubmit",
+        "field-sizing",
+        "scrollHeight",
+        "htmx:afterSettle",
+        "scrollIntoView",
+        "focus",
+    ] {
+        assert!(script.contains(part), "{part} in {script}");
+    }
+    let style = body(send(&router, get_request("/assets/style.css", None)).await).await;
+    assert!(style.contains("field-sizing: content"), "{style}");
+    assert!(style.contains("12lh"), "{style}");
+}
+
+// spec: WAK-46
+#[tokio::test]
+async fn starting_over_is_a_quiet_action_shown_only_with_a_conversation() {
+    let dir = generated_repo();
+    let router = router(dir.path(), Some(navigating()));
+
+    let empty = body(send(&router, get_request("/ask", None)).await).await;
+    let (cookie, _) = ask(&router, "How are the orders listed?", None).await;
+    let held = body(send(&router, get_request("/ask", Some(&cookie))).await).await;
+
+    let reset = form_of(&empty, "<form class=\"ask-reset\"");
+    assert!(reset.contains(" hidden>"), "{reset}");
+    let reset = form_of(&held, "<form class=\"ask-reset\"");
+    assert!(!reset.contains("hidden"), "{reset}");
+    assert!(reset.contains("class=\"quiet\""), "{reset}");
+    assert!(!form_of(&held, "<form class=\"ask\"").contains("/ask/reset"));
+    let script = body(send(&router, get_request("/assets/ask.js", None)).await).await;
+    assert!(script.contains("form.ask-reset"), "{script}");
+}
+
 // spec: WAK-14, WAK-15, WAK-30, WAK-32, WAK-33, WAK-35
 #[tokio::test]
 async fn a_question_is_answered_at_once_with_its_running_exchange() {

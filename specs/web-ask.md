@@ -1,6 +1,6 @@
 ---
 id: WAK
-status: accepted
+status: draft
 adrs: [0039, 0047, 0048, 0049]
 ---
 
@@ -103,6 +103,19 @@ leaving the browser; without `--ask` the interface calls no LLM (ADR 0048).
   a question running (WAK-29) or no docs must be answered, with its status, as the error alone with the headers
   `HX-Retarget` and `HX-Reswap` that put it in place of the error slot of the form, beside the question field
   (`role="alert"`); the form keeps the question it sent.
+- **WAK-41** (deterministic) In the question field, the key Enter must send the form, unless Shift is held or a
+  composition of an input method runs, and Shift+Enter break the line.
+- **WAK-42** (deterministic) The question field must start at one line and grow with its text up to 12 lines, then
+  scroll.
+- **WAK-43** (deterministic) The page `/ask` of a session with no exchange and no question running must show the
+  suggested questions: a fixed one on the purpose of the application, then one per domain of the last run, the
+  first 3 in the order of the docs, and none once the session holds an exchange or a question running.
+- **WAK-44** (deterministic) A suggested question must be a button that puts its text in the question field and
+  gives it the focus, without sending it.
+- **WAK-45** (deterministic) Once the answer or the error of a question replaces its running exchange, the question
+  field must get the focus back and the exchange be scrolled into view.
+- **WAK-46** (deterministic) The button of WAK-22 must be a quiet action, set apart from the send button, and be
+  shown only while the session holds an exchange or a question running.
 
 ## Scenarios
 
@@ -126,6 +139,10 @@ leaving the browser; without `--ask` the interface calls no LLM (ADR 0048).
 - (WAK-20, WAK-35) Given a question running in the session used least recently, when 32 newer sessions start, then
   the session used least recently after it is dropped, and once the question ends the page of its session shows it.
 - (WAK-36) Given a question failing after one answered call, then its exchange shows the error and that call.
+- (WAK-43) Given a run with the domains `orders`, `billing`, `delivery` and `stock`, when the page `/ask` is asked
+  with no session, then it suggests the purpose question and a question on each of `orders`, `billing`, `delivery`.
+- (WAK-43, WAK-46) Given a session that holds one exchange, then the page shows no suggested question and the quiet
+  button to start over.
 
 ## Non-goals
 
@@ -135,6 +152,7 @@ leaving the browser; without `--ask` the interface calls no LLM (ADR 0048).
 - The wall time of the pass `ask` in the recap of `ui --ask` is the time the server ran, not the time spent
   answering: the calls of concurrent sessions would close the pass of one another.
 - No conversation saved on disk nor resumed after a restart of `ui`: the sessions live in memory.
+- No suggested question written by an LLM: they are built from the docs, with no call.
 - No authentication: the server binds to `127.0.0.1` by default (WEB-1); the session cookie only keeps two tabs or
   browsers apart.
 - No link from the code spans of the text of an answer: its sources are listed and linked under it.

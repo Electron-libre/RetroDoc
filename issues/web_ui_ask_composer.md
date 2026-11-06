@@ -36,3 +36,43 @@ A web interface that invites to act
 # Hints
 * A question costs a paid LLM call: the browser check of this issue uses a fake provider or a local model, ask the
   user before a paid one.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-06
+
+## Understanding
+Turn the ask form into a chat composer: Enter sends, Shift+Enter breaks the line, the field grows, suggested
+questions on an empty conversation, a quiet "start over", focus and scroll back after an answer. Out of scope: any
+LLM call to build the suggestions, a change of the routes or of the streaming. Means: a small `ask.js` beside
+`forms.js`, CSS `field-sizing: content` with a script fallback, suggestions built from the docs of the last run.
+
+## Plan
+1. [x] Composer keyboard, growth, focus and quiet reset: `ask.js` (Enter/Shift+Enter, IME, growth fallback, focus and
+   scroll after the `answer` swap), `rows="1"` + CSS, reset button quiet and shown only with an exchange or a running
+   question; verified by `ask_page.rs` tests on the page markup and the served script; makes true WAK-41, WAK-42,
+   WAK-45, WAK-46. (autonomous)
+2. [ ] Suggested questions: built in `ask.rs` from the purpose question and the first 3 domains of the last run,
+   texts in English and French, buttons filling the field; verified by `ask_page.rs` tests (empty session shows
+   them, a session with an exchange does not); makes true WAK-43, WAK-44; spec back to `accepted`.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 3e41799209242bec60906b9fa2e85ad212bd2d9b
+- Suggestions: a fixed purpose question, then one per domain, the first 3 of the last run (no LLM call).
+- Start over: shown only while the session holds an exchange or a question running.
+- Growth: up to 12 lines, then the field scrolls.
+
+## Deliverable 1
+- done: `assets/ask.js` (Enter sends, Shift+Enter and IME keep the line, growth fallback, focus and scroll after an
+  answer, reset shown once an exchange is there), one-line field growing to 12 lines in CSS, keys hint, reset form
+  `hidden` on an empty conversation.
+- checks: tests ok, clippy ok, specs ok, docs ok (`render-mcp-cli.md`, `web-ui.md`).
+- Code review: no findings.
+- red: WAK-41, WAK-42, WAK-45: the field was `rows="3"` and no `/assets/ask.js`; WAK-46: the reset form not `hidden`
+  on an empty conversation.
+- browser check (headless Chrome, `ui --ask` on a copy of `web_ask_streamed_check/repo`, a local fake LLM): Shift+Enter
+  breaks the line, the field grows 39 → 60 → 270 px (capped), Enter sends and clears it, the focus is back in the field
+  after the answer, the reset shows.
+- not verified: an input method composition (IME) with a real keyboard; a browser without `field-sizing` (Firefox).
+

@@ -167,6 +167,8 @@ pub struct AskTexts {
     pub intro: &'static str,
     pub question: &'static str,
     pub send: &'static str,
+    /// Which keys send the question and which break its line (WAK-41).
+    pub keys: &'static str,
     /// Shown while a question runs.
     pub waiting: &'static str,
     pub start_over: &'static str,
@@ -742,6 +744,7 @@ impl WebTexts {
             intro: "Ask a question about the application: an LLM answers from the docs, naming the pages it rests on. Each question is sent with the earlier ones of this conversation.",
             question: "Your question",
             send: "Ask",
+            keys: "Enter sends, Shift+Enter breaks the line.",
             waiting: "Reading the docs to answer…",
             start_over: "Start over",
             sources: "Sources",
@@ -1116,6 +1119,7 @@ impl WebTexts {
             intro: "Posez une question sur l’application : un LLM répond depuis la doc, en nommant les pages sur lesquelles il s’appuie. Chaque question est envoyée avec les précédentes de cette conversation.",
             question: "Votre question",
             send: "Demander",
+            keys: "Entrée envoie, Maj+Entrée va à la ligne.",
             waiting: "Lecture de la doc pour répondre…",
             start_over: "Recommencer",
             sources: "Sources",
