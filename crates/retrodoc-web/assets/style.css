@@ -7,6 +7,7 @@
   --surface-2: #1f1f25;
   --border: #2a2a31;
   --text: #e8e6e1;
+  /* Also written in the arrow of `select` (a data URI cannot read a variable): keep them in sync. */
   --text-muted: #9b978e;
   --gold: #d4af37;
   --gold-light: #e8c872;
@@ -85,7 +86,7 @@ table { border-collapse: collapse; width: 100%; }
 th, td { text-align: left; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); vertical-align: top; }
 thead th { color: var(--text-muted); font-size: var(--text-sm); font-weight: 600; border-bottom-color: var(--text-muted); }
 /* A row lights up under the pointer, except in the heatmap and the code, whose cells carry their own colour. */
-table:not(.heatmap, .code) tbody tr:hover, table.files tr:hover { background: var(--surface); }
+table:not(.heatmap, .code) tbody tr:hover { background: var(--surface); }
 td.count { text-align: right; }
 .badge {
   display: inline-block;
@@ -177,15 +178,15 @@ ul.hits { list-style: none; padding-left: 0; }
 
 /* The home page: the brief, where to start, the domains as cards. */
 .users ul { margin: 0.3rem 0; padding-left: 1.2rem; max-width: 48rem; }
-.start-links { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: 0.6rem; }
+.start-links { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: var(--space-2); }
 .start-links li { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-2) var(--space-3); }
-.start-links .hint { display: block; color: var(--text-muted); font-size: 0.9rem; }
+.start-links .hint { display: block; color: var(--text-muted); font-size: var(--text-sm); }
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr)); gap: var(--space-3); }
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-3) var(--space-4); }
 .card:hover, .start-links li:hover { border-color: var(--text-muted); }
-.card h3 { margin: 0 0 0.3rem; font-size: 1.05rem; }
-.card .description { margin: 0 0 0.4rem; }
-.card .facts { margin: 0; display: flex; gap: 0.8rem; align-items: center; color: var(--text-muted); font-size: 0.9rem; }
+.card h3 { margin: 0 0 var(--space-1); font-size: var(--text-base); }
+.card .description { margin: 0 0 var(--space-2); }
+.card .facts { margin: 0; display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; color: var(--text-muted); font-size: var(--text-sm); }
 
 /* The previous / next use cases of a feature, at the foot of a use case page. */
 .sequence { display: flex; justify-content: space-between; gap: 1rem; margin-top: 2rem; padding-top: 0.8rem; border-top: 1px solid var(--border); }
@@ -281,7 +282,6 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); }
    in a column. The review and the edit forms sit in a panel. */
 .filters, form.compare { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3) var(--space-4); margin: var(--space-3) 0 var(--space-5); }
 .filters .field.wide { flex: 1 1 20rem; max-width: 36rem; }
-.filters .field.wide textarea { min-height: var(--control-height); }
 section.review, section.edit-form {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -308,6 +308,7 @@ form.ask-reset { margin: 0 0 var(--space-4); }
 @media (max-width: 48rem) {
   .top { flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
   .brand { margin-right: 0; }
+  .top .links { flex-wrap: wrap; }
   .top .links + .links { padding-left: 0; border-left: none; }
   .top form.search { margin-left: 0; width: 100%; }
   .top form.search input { width: 100%; min-width: 0; }

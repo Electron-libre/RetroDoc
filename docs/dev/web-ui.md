@@ -6,10 +6,12 @@ The behaviour of the pages is in `specs/web-ui.md` and `specs/web-ask.md`; this 
 ## Screenshots before and after
 
 `just screenshots <base-url> <label>` (`scripts/screenshots.rs`) shoots every page of a running `retrodoc ui` with
-headless Chrome, at 1440 px and 390 px wide, into `<runs directory>/screenshots/<label>/<kind>-<width>.png` (the
-runs directory is `$RETRODOC_RUNS_DIR`, else `~/retrodoc-runs`, outside git). It finds one domain, feature, use
-case, domain map, code page and collected doc from the links of the home page and of the pages they lead to, and
-searches the first word of the first domain; it warns about a kind of page it found no link to.
+headless Chrome, at 1440 px and 500 px wide (the narrowest window headless Chrome draws), into
+`<runs directory>/screenshots/<label>/<kind>-<width>.png` (the runs directory is `$RETRODOC_RUNS_DIR`, else
+`~/retrodoc-runs`, outside git), after removing the shots an earlier run left under that label. It finds one domain,
+feature, use case, domain map, code page and collected doc from the links of the home page, the fixed pages and the
+pages they lead to, and searches the first word of the first domain; it warns about a kind of page it found no link
+to, and stops on a page that does not answer 200.
 
 Shoot the same docs before and after the change, with the ask page served (`--ask`; no question is asked, so no LLM
 call is made, a placeholder key is enough):

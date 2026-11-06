@@ -3,7 +3,7 @@
 //! a change (`docs/dev/web-ui.md`).
 //!
 //! - `screenshots.rs shoot <base-url> <label>`: finds one page of each kind from the links of the home page and of
-//!   the pages it leads to, then shoots each at a desktop and a narrow width with headless Chrome into
+//!   the pages it leads to, then shoots each at a desktop and a narrow width (1440 and 500 px) with headless Chrome into
 //!   `<runs directory>/screenshots/<label>/<kind>-<width>.png` (`$RETRODOC_RUNS_DIR`, else `~/retrodoc-runs`).
 //! - `screenshots.rs pages <file.html>...`: only the pages it would shoot, found in the given HTML, one
 //!   `<kind> <path>` line each.
@@ -16,8 +16,10 @@ use std::net::TcpStream;
 use std::path::PathBuf;
 use std::process::Command;
 
-/// The widths shot, with the height of the window: tall enough for the forms at the foot of most pages.
-const WIDTHS: [(u32, u32); 2] = [(1440, 4000), (390, 6000)];
+/// The widths shot, with the height of the window: tall enough for the forms at the foot of most pages. The narrow
+/// one is the smallest window headless Chrome draws (it widens a narrower one to 500 px), under the 48rem of the
+/// narrow layout of `style.css`.
+const WIDTHS: [(u32, u32); 2] = [(1440, 4000), (500, 6000)];
 /// The pages every site has, at a fixed path.
 const FIXED: [(&str, &str); 11] = [
     ("home", "/"),
@@ -34,7 +36,8 @@ const FIXED: [(&str, &str); 11] = [
 ];
 /// The pages found from the links, in the order they are looked for.
 const FOUND: [&str; 6] = ["domain", "feature", "use-case", "domain-map", "code", "collected-doc"];
-/// At most this many pages are read to find the pages of `FOUND`.
+/// At most this many pages are read to find the pages of `FOUND`: the home page, the fixed pages, then the pages
+/// found.
 const MAX_READS: usize = 20;
 
 /// The `href` values of `html`, entities `&amp;` decoded and anchors cut.
@@ -95,23 +98,32 @@ fn pages(found: &[(&'static str, String)]) -> Vec<(String, String)> {
     pages
 }
 
-/// The body of `GET <path>` on `host` (HTTP/1.0: the server answers without chunks and closes).
+/// The body of `GET <path>` on `host` (HTTP/1.0: the server answers without chunks and closes); an answer other
+/// than 200 is an error, so a wrong `--path` does not pass for a site.
 fn get(host: &str, path: &str) -> Result<String, String> {
     let mut stream = TcpStream::connect(host).map_err(|e| format!("connect to {host}: {e}"))?;
     write!(stream, "GET {path} HTTP/1.0\r\nHost: {host}\r\n\r\n").map_err(|e| e.to_string())?;
     let mut answer = String::new();
     stream.read_to_string(&mut answer).map_err(|e| e.to_string())?;
-    Ok(answer.split_once("\r\n\r\n").map_or(String::new(), |(_, body)| body.to_string()))
+    let (head, body) = answer.split_once("\r\n\r\n").ok_or_else(|| format!("GET {path}: no HTTP answer"))?;
+    let status = head.lines().next().unwrap_or_default();
+    if status.split_whitespace().nth(1) != Some("200") {
+        return Err(format!("GET {path}: {status}"));
+    }
+    Ok(body.to_string())
 }
 
-/// Reads the home page, then the pages found so far, until every kind of `FOUND` is found.
+/// Reads the home page, the fixed pages, then the pages found so far, until every kind of `FOUND` is found or
+/// `MAX_READS` pages were read.
 fn discover(host: &str) -> Result<Vec<(&'static str, String)>, String> {
-    let mut found = Vec::new();
-    collect(&get(host, "/")?, &mut found);
+    let mut found: Vec<(&'static str, String)> = Vec::new();
+    let fixed = FIXED.iter().filter(|(k, _)| *k != "not-found").map(|(_, p)| (*p).to_string());
+    let mut queue: Vec<String> = fixed.collect();
     let mut read = 0;
-    while read < found.len() && read < MAX_READS && found.len() < FOUND.len() {
-        let path = found[read].1.clone();
-        collect(&get(host, &path)?, &mut found);
+    while read < queue.len() && read < MAX_READS && found.len() < FOUND.len() {
+        let before = found.len();
+        collect(&get(host, &queue[read])?, &mut found);
+        queue.extend(found[before..].iter().map(|(_, path)| path.clone()));
         read += 1;
     }
     Ok(found)
@@ -139,13 +151,17 @@ fn shoot(base: &str, label: &str) {
     }
     let dir = runs_dir().join("screenshots").join(label);
     fs::create_dir_all(&dir).unwrap_or_else(|e| die(&format!("create {}: {e}", dir.display())));
+    // The shots of an earlier run under the same label go first: none of them may pass for one of this run, also
+    // of a kind this run did not find.
+    for entry in fs::read_dir(&dir).unwrap_or_else(|e| die(&format!("read {}: {e}", dir.display()))) {
+        let path = entry.unwrap_or_else(|e| die(&e.to_string())).path();
+        if path.extension().is_some_and(|e| e == "png") {
+            fs::remove_file(&path).unwrap_or_else(|e| die(&format!("remove {}: {e}", path.display())));
+        }
+    }
     for (kind, path) in pages(&found) {
         for (width, height) in WIDTHS {
             let file = dir.join(format!("{kind}-{width}.png"));
-            // A shot left by an earlier run under the same label must not pass for this one.
-            if file.exists() {
-                fs::remove_file(&file).unwrap_or_else(|e| die(&format!("remove {}: {e}", file.display())));
-            }
             let status = Command::new("google-chrome-stable")
                 .args(["--headless=new", "--disable-gpu", "--hide-scrollbars", "--virtual-time-budget=3000"])
                 .arg(format!("--window-size={width},{height}"))

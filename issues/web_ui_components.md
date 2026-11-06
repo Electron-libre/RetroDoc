@@ -106,3 +106,18 @@ and error states of the forms (`web_ui_form_feedback`), only listed in the check
   hover and focus states seen only in the CSS, not on a screenshot.
 - Code review: no findings.
 - decisions needed: none.
+
+## Deliverable 3: fixes of the `high` review
+- done: the narrow shot is 500 px, the narrowest window headless Chrome draws (390 px rendered a 500 px page
+  cropped); a label's earlier PNGs are removed before shooting; a page answering other than 200 stops the script;
+  discovery also reads the fixed pages; the header links wrap on a narrow screen; the empty state on the map, the
+  domain map and the no-run fragments of the rules, debt and search; the card and start-link literals moved to the
+  variables; two redundant selectors dropped; the select arrow's copy of `--text-muted` noted beside it. "Before"
+  retaken at 500 px from a build of `bc18817` (`screenshots/before-bc18817`), "after" in
+  `screenshots/after-components` of the runs directory.
+- Not fixed: one Chrome process per shot (36 cold starts, about two minutes a set): a tool run by hand before and
+  after a change, the time is acceptable; `.button` kept with no user yet, for the links that act
+  (`web_ui_next_action`).
+- checks: project-check green, `just test-skill-scripts` green.
+- red: none.
+- Code review: no findings. (autonomous)

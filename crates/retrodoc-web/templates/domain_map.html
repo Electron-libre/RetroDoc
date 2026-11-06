@@ -9,7 +9,7 @@
 {% call m::crumbs(page.crumbs, page.name) %}{% endcall %}
 <h1>{{ t.map_of }} {{ page.name }}</h1>
 {% if page.features.is_empty() %}
-<p class="muted">{{ t.no_feature_in_domain }}</p>
+<p class="empty">{{ t.no_feature_in_domain }}</p>
 {% else %}
 <p class="muted">{{ t.domain_map_intro.0 }} <a href="{{ page.href }}">{{ page.name }}</a>{{ t.domain_map_intro.1 }}</p>
 <section class="map">

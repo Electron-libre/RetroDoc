@@ -465,7 +465,7 @@ impl WebTexts {
         one_left_out: "1 entry shares only part of the query.",
         many_left_out: "entries share only part of the query.",
         try_other_words: "Try other words.",
-        no_run_results: "<section class=\"results\"><p>Nothing to search yet: run \
+        no_run_results: "<section class=\"results\"><p class=\"empty\">Nothing to search yet: run \
             <code>retrodoc generate</code>, then restart <code>retrodoc ui</code>.</p></section>",
         no_run_title: "No run yet",
         no_run_heading: "No docs generated yet",
@@ -499,7 +499,7 @@ impl WebTexts {
         not_in_the_run: "not in the run",
         no_rule_in_run: "No business rule was found in the code of the last run.",
         no_rule_matches: "No rule matches.",
-        no_run_rules: "<section id=\"rule-list\"><p>No rule yet: run <code>retrodoc generate</code>, then restart <code>retrodoc ui</code>.</p></section>",
+        no_run_rules: "<section id=\"rule-list\"><p class=\"empty\">No rule yet: run <code>retrodoc generate</code>, then restart <code>retrodoc ui</code>.</p></section>",
         no_concept: "No concept was found in the code of the last run.",
         glossary_intro: "The business concepts read from the code, with the use cases that use them.",
         no_use_case_uses_it: "No use case uses it.",
@@ -578,7 +578,7 @@ impl WebTexts {
             no_history: "The git history could not be read: every item counts 0 commits.",
             doc_states: "states",
             docs_state: "the generated docs state",
-            no_run: "<section id=\"debt-list\"><p>No debt yet: run <code>retrodoc generate</code>, then restart <code>retrodoc ui</code>.</p></section>",
+            no_run: "<section id=\"debt-list\"><p class=\"empty\">No debt yet: run <code>retrodoc generate</code>, then restart <code>retrodoc ui</code>.</p></section>",
             reviews_unreadable: "The reviews could not be read: the debt is listed as if no section \
                 was reviewed.",
         },
@@ -820,7 +820,7 @@ impl WebTexts {
         one_left_out: "1 entrée ne partage qu'une partie de la requête.",
         many_left_out: "entrées ne partagent qu'une partie de la requête.",
         try_other_words: "Essayez d'autres mots.",
-        no_run_results: "<section class=\"results\"><p>Rien à chercher pour l'instant : lancez \
+        no_run_results: "<section class=\"results\"><p class=\"empty\">Rien à chercher pour l'instant : lancez \
             <code>retrodoc generate</code>, puis relancez <code>retrodoc ui</code>.</p></section>",
         no_run_title: "Pas encore de run",
         no_run_heading: "Aucune doc générée pour l'instant",
@@ -858,7 +858,7 @@ impl WebTexts {
         not_in_the_run: "absente du run",
         no_rule_in_run: "Aucune règle métier n'a été trouvée dans le code du dernier run.",
         no_rule_matches: "Aucune règle ne correspond.",
-        no_run_rules: "<section id=\"rule-list\"><p>Pas encore de règle : lancez <code>retrodoc generate</code>, puis relancez <code>retrodoc ui</code>.</p></section>",
+        no_run_rules: "<section id=\"rule-list\"><p class=\"empty\">Pas encore de règle : lancez <code>retrodoc generate</code>, puis relancez <code>retrodoc ui</code>.</p></section>",
         no_concept: "Aucun concept n'a été trouvé dans le code du dernier run.",
         glossary_intro: "Les concepts métier lus dans le code, avec les cas d'usage qui les utilisent.",
         no_use_case_uses_it: "Aucun cas d'usage ne l'utilise.",
@@ -937,7 +937,7 @@ impl WebTexts {
             no_history: "L'historique git n'a pas pu être lu : chaque élément compte 0 commit.",
             doc_states: "dit",
             docs_state: "la doc générée dit",
-            no_run: "<section id=\"debt-list\"><p>Pas encore de dette : lancez <code>retrodoc generate</code>, puis relancez <code>retrodoc ui</code>.</p></section>",
+            no_run: "<section id=\"debt-list\"><p class=\"empty\">Pas encore de dette : lancez <code>retrodoc generate</code>, puis relancez <code>retrodoc ui</code>.</p></section>",
             reviews_unreadable: "Les revues n'ont pas pu être lues : la dette est listée comme si \
                 aucune section n'avait été revue.",
         },
