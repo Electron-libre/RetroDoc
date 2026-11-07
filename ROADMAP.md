@@ -25,5 +25,6 @@ in `docs/findings.md` and the closed issues in `issues/done/`.
   what they found right, wrong, missing and useless, written as dated findings.
 - Why: the users of `PRODUCT.md` are assumed: only the author has read generated docs so far, and the benchmark
   measures likeness to a reference, not use.
-- State: idea
-- On hold: deferred by the user (2026-11-04).
+- State: in issues
+- Issues:
+  - [read_by_someone_who_knows_the_application](issues/read_by_someone_who_knows_the_application.md)
