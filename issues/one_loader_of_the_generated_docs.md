@@ -33,6 +33,9 @@ coverage), used by the three, so a reader can no longer see other docs than anot
 # Specs
 * `specs/section-edit.md` (the report and the edits, if step 1 says so), `specs/markdown-render.md`.
 
+# Milestone
+The readers of the docs out of the pipeline
+
 # Resources
 * `docs/crates/render-mcp-cli.md`, ADR 0045, ADR 0016.
 * `issues/done/edits_in_read_model.md` (why `publish` does not go through the read model today).

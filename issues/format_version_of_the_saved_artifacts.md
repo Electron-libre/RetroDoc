@@ -26,6 +26,9 @@ message, and a change of format is a deliberate, tested step.
       place.
 3. The version must not enter the fingerprints, so a rerun stays a no-op.
 
+# Milestone
+The readers of the docs out of the pipeline
+
 # Resources
 * ADR 0003, ADR 0005, ADR 0037, ADR 0043.
 * `specs/section-edit.md` (SED-13), `specs/rerun.md`.

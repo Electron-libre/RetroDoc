@@ -26,6 +26,9 @@ it.
 2. Move the docs modules to `retrodoc-docs` in a deliverable of its own, then point each reader at it.
 3. An ADR for the split; `docs/ARCHITECTURE.md`, the crate docs and the dependency graph of `CLAUDE.md` updated.
 
+# Milestone
+The readers of the docs out of the pipeline
+
 # Resources
 * ADR 0001, 0016, 0039, 0043, 0044, 0045, 0047.
 * `docs/ARCHITECTURE.md`, `docs/crates/render-mcp-cli.md`.

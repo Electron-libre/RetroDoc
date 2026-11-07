@@ -25,6 +25,9 @@ not own, with the pipeline writing them and the readers reading them.
 2. Move the types in a deliverable of its own (a move edited later counts twice), then the loaders.
 3. Check the prints of the fingerprints are unchanged on a saved run (no LLM call on rerun).
 
+# Milestone
+The readers of the docs out of the pipeline
+
 # Resources
 * ADR 0001 (one-way crates), ADR 0033 (reconciliation), ADR 0037.
 * `docs/crates/core-ingest.md`, `docs/crates/pipeline.md`, `docs/crates/render-mcp-cli.md`.
