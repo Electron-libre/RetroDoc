@@ -340,3 +340,28 @@ The released milestones, moved out of the roadmap by `release`, oldest first.
 - Issues:
   - [web_ask_page](issues/done/web_ask_page.md)
   - [web_ask_streamed_steps_and_cost](issues/done/web_ask_streamed_steps_and_cost.md)
+
+## A web interface that invites to act
+
+- Goal: the forms of the web interface (ask, review, edit, filters of the debt and the rules, run comparison,
+  search) and its common elements (buttons, fields, tables, badges, navigation) follow the current conventions of
+  a documentation tool: visible states (hover, focus, disabled, pending, saved, error), immediate feedback, the next
+  action shown on each page, the same components everywhere; checked by screenshots of each page in headless
+  Chrome before and after, and a checklist of the states of each form.
+- Why: the forms are bare browser controls laid out in columns (`style.css` styles them in a few lines), the actions
+  a page offers are not shown, and the look does not match what a user expects of a tool of 2026.
+- Constraints: ADR 0039 stays (server-rendered `askama` + `htmx`, assets vendored, no Node toolchain); the colour
+  charter (dark surfaces, gold as the one accent) is kept. The interactions are done on the server in Rust with
+  `htmx` (live search, Markdown preview with `pulldown-cmark`, validation, notices, loading indicators, keyboard
+  shortcuts); a small vendored script only where `htmx` cannot, no WebAssembly.
+- State: done
+- Released: v0.13.0
+- Issues:
+  - [web_ui_components](issues/done/web_ui_components.md)
+  - [web_ui_form_feedback](issues/done/web_ui_form_feedback.md)
+  - [web_ui_filters_and_compare](issues/done/web_ui_filters_and_compare.md)
+  - [web_ui_live_search](issues/done/web_ui_live_search.md)
+  - [web_ui_next_action](issues/done/web_ui_next_action.md)
+  - [web_ui_ask_composer](issues/done/web_ui_ask_composer.md)
+  - [web_ui_edit_live_preview](issues/done/web_ui_edit_live_preview.md)
+  - [web_ui_narrative_links_and_headings](issues/done/web_ui_narrative_links_and_headings.md)

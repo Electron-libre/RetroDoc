@@ -4,6 +4,46 @@ The notable changes of each version, newest first ([Keep a Changelog](https://ke
 [Semantic Versioning](https://semver.org/)). Each section is written by `cardinal run release <version>` from the commits,
 then reread before the release is committed.
 
+## [0.13.0] - 2026-11-07
+
+### Milestones
+
+- A web interface that invites to act
+
+### Added
+
+- screenshot every page of the web interface, design variables
+- one set of components for every page of the web interface
+- show that a form is being sent
+- show why a form was refused beside its fields
+- say that a review or an edit was saved
+- make the question field of the ask page a composer
+- suggest questions on an empty ask conversation
+- make the debt and rules filters chips that apply on change
+- compare two runs of the history from the runs table
+- search the docs as the query is typed, in a panel under it
+- drive the search panel from the keyboard
+- put the review and edit actions under a section heading
+- offer to review or edit a section from its debt item
+- lead the home page to the debt and explain an empty run
+- render the narrative of a use case as Markdown
+- preview the narrative of a use case as it is typed
+- confirm before an edit is reverted
+- set the headings of a narrative under its section
+- lead the relative links of a narrative to the collected docs
+
+### Fixed
+
+- take the narrow screenshots at their real width, with the empty state of every page
+- swap only the error answers that name their swap
+- keep the reader's place and touch keyboards in the composer
+- answer the history swap with its fragment and keep the focus
+- keep the search panel closed once dismissed and its state true
+- name the debt actions and drop the dead ends of the review
+- quiet the review and edit actions of the debt rows
+- confirm the revert from the form and keep errors on preview
+- keep the email autolinks and encoded dots of a narrative
+
 ## [0.12.0] - 2026-11-06
 
 ### Milestones
