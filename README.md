@@ -58,6 +58,9 @@ retrodoc report   --path <target-repo>   # documentation debt report, no LLM
 
 During development, replace `retrodoc` with `cargo run -p retrodoc-cli --`.
 
+New to RetroDoc? The [tutorial](./docs/tutorial.md) walks through a first run, reading the docs and the debt
+report, reviewing them in the web interface, questioning them and keeping them up to date.
+
 ### Commands
 
 | Command | Purpose |
