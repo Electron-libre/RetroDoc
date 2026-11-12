@@ -34,10 +34,10 @@ the console only shows the link and the questions.
 
 - Read the issue, plus the resources it names (docs, `git log`, the `roadmap` documents of `.claude/cardinal.toml`, memory).
 - **Spec**, when the issue changes what a capability does, in a project that has `specs/README.md` (skip it for docs,
-  harness, pure refactor, a measure): run
-  `skill:write-spec` up to its format check (requirements with stable ids, `deterministic`, left `draft`, a
-  `[NEEDS CLARIFICATION: ...]` marker where you would guess); don't do its validation stop: step 2 replaces it. The
-  tests of step 3 come from these requirements, not the other way round.
+  harness, pure refactor, a measure): **invoke `skill:write-spec` with the Skill tool** before the first `Write` or
+  `Edit` under `specs/`, even when the format seems known: the skill finds the spec to amend and checks it. Follow it up to
+  its step 4 (`check-specs`), the spec left `draft`; skip its step 5, the validation stop: step 2 replaces it. The tests of step 3 come
+  from these requirements, not the other way round.
 - **Write `# Tracking`** at the end of the issue:
 
   ```markdown

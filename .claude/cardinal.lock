@@ -1,19 +1,19 @@
 # Written by `cardinal sync`: hashes of the managed files, then the managed settings entries. Do not edit.
-format 9
+format 10
 b4fe84fed80dc97880785faf08940de44160155dced518cc48d169786a2c8491  .claude/.gitignore
 2e9ec9b1abf20e48f491ced1b6fbccd741232b87a38d7455e22cd43a5ad499fe  .claude/rules/no-ai-attribution.md
 ae32a54ad3e59066328e1a2f7f5afff0ca4b13bf194272c376e23280e4a7ce4e  .claude/rules/reports-to-the-user.md
-1bf2227fff5e6ce7dc6d95c3cf6dd75b41b9610390e79fb54d677dcde6503a7a  .claude/rules/user-language.md
+ef6a69d39e2eb88055a355ee79925f3f80e42e1c75532f7ddcce91616909f136  .claude/rules/user-language.md
 c99d044e7f4a777bb6cdb1ca8f84e559cfec3b669cac5d7c6eb9f4062f8e8bb3  .claude/skills/audit-instructions/SKILL.md
 fdb77fd8baac0adda0d3b6a13d158abafa43211569b45e82b4f1882096ae2aa4  .claude/skills/commit-message/SKILL.md
 7e5a9d5d2e3e6358230170d04068c50868901a9ff36571fe0c8883c428d3459f  .claude/skills/commit-message/conventional-commits.md
 9c5833edd902e7617287c31e0936e1029e23528e2f7cbcddafb43dcee8358669  .claude/skills/create-issue/SKILL.md
-c712c355a02015cecd2b62ec0f0b79de0c70d5f8d447a226c6d435c3186751cd  .claude/skills/evaluate-harness/SKILL.md
-c6be26183e468a49847e45dc51a00ba9425dfeeba6e1d56afa7e324b2d2d1fba  .claude/skills/issue-workflow/SKILL.md
+7a3087685cd42fcfca633d36ccfaff1ba2efb91542a5c129e31624309839b110  .claude/skills/evaluate-harness/SKILL.md
+cb98daadd3b84140f9835e2b90a45f39b4d7bd2f67883d2e01ca49df2c44d64c  .claude/skills/issue-workflow/SKILL.md
 ff6b31883e9a4a710e4d053fd6df24c13c8264bef4903949aea32617a713fd82  .claude/skills/issue-workflow/details.md
 80b23bc8bf0d9b162341aa0de211e68f4d288f5bce61ca6d2aeaa5405588f566  .claude/skills/prioritize-issues/SKILL.md
 16d6037f8b5f9c91261361d8fff6c7f88301a2e0c1adfa2f2c823e55edfa0349  .claude/skills/update-docs/SKILL.md
-dd56cb23cc054829f70a72ce94aa6eb29c505d69a84214a01ea7992728bbbec6  .claude/skills/write-spec/SKILL.md
+a0ddfcd5c0bd400c71900008ab6aac8cd56b351a966270f02548ad1ced8f088e  .claude/skills/write-spec/SKILL.md
 61bdad10b1c0449722ce4b9d3a409580d991222fafb87e2c78a68e4048d4e1dc+x  .github/install_cardinal.sh
 1426fae905534a38a0dda30bff7d0a4823ef109bb351e40e87772751c2052e28  .github/workflows/cardinal.yml
 97e321441160f45fbdb5cc4025cd9b9c074bc185444d606ab0464ba1211b737d  AGENTS.md
@@ -22,8 +22,8 @@ c860f7456cbbff798d3bab5bea6ef834c8c48809d401b97729de1b59b82aa26f  cardinal-issue
 a16a2f85443e06a0864c97c233cd070b715c9e0e7a20417d50c263d820da149d  cardinal-review.just
 3f7aaa0719a25aad500ecca27ca321811e3b342272bb7da7d6bbdaa9fbc169ee  cardinal-specs.just
 e2b7850ed69b1de0461dbd1f9deb55df6acd67961b275e747919c3f7766c52ed  cardinal.just
-5f18af15d3a647d6f7777ed80f60868c6286de045b89f09a4389b6161f215249  specs/README.md
-66c02d6a40b353ab64053572558e258ee2a65c4272abf394d2375356958e21f5  specs/TEMPLATE.md
+ce20edbdf93ee2e850d9adbfc785cfa439106f1d12c5ec22b1c9748f5e8ffc56  specs/README.md
+e2d7c5b508e646ec8ef7c2875a62a24f5aca3884c08e6b8af7d30075c528152b  specs/TEMPLATE.md
 entry  {"allow":"Bash(cardinal run *)"}
 entry  {"allow":"Bash(cardinal check)"}
 entry  {"ask":"Bash(cardinal run release *.*)"}

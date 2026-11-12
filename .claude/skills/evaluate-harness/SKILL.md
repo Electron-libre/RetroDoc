@@ -26,6 +26,10 @@ rules brought.
    - `cardinal run cardinal-report --sessions <dir>/sessions.tsv --breaches <dir>/breaches.tsv --quality <dir>/quality-1.tsv … --context <dir>/context.tsv --changes <dir>/changes.tsv --last 6`
      (the last six groups, the trend it reads), with `--min-sessions <n>` when the user asks for another sample
      size than 10, `--min-issues <n>` than 5 issues;
+   - for each project of the sessions holding at least `--min-sessions` sessions, the same command with
+     `--project <name>`, its `--breaches` from `cardinal run rule-breaches --summary --project <name>` and its
+     `--quality` from its own repository only: a new project swamps the group it lands in, so a verdict holds when
+     it compares two groups of one project;
    - the same command without `--last` (refused with it: the setups have no order in time) and with `--by setup`,
      for the setups (the main model alone, or advised by another) side by side.
 2. **Read** each table of the report, oldest group first: the tables are the numbers, never recompute them.
@@ -35,7 +39,8 @@ rules brought.
    - A `too few` group supports no conclusion; say how many sessions it lacks. The same holds for a
      `main_context_peak` whose `peak_sessions` is under the threshold, and for the advisor calls and tokens whose
      `advisor_sessions` is, and for a ratio of the quality table whose `issues` (`token_issues` for the tokens; and
-     `reviews` too for `findings_per_review`) is under `--min-issues`.
+     `counted_reviews`, the reviews whose findings are known, too for `findings_per_review`; `specs` for the ratios
+     per spec) is under `--min-issues`.
    - Read `input_tokens` with `cache_read_share`: a cache read costs about a tenth of an uncached input, so input
      that grows while the share rises may cost less, and a share that falls points to a prompt prefix that changes.
    - A skill `unused` over the last groups may be dropped or described better; a hook whose refusals grow, or a
@@ -49,7 +54,9 @@ rules brought.
      `revisions`, `projects` and `versions` before reading a gap between them as the effect of the setup. An issue
      made under several setups is in no setup's quality (`issues` of the efficiency table counts it in each).
    - `## Verdicts` ties a recorded change to its expected effect over one pair of groups: `confounded` and
-     `no data` are no conclusion, and a `helped` or `hurt` is a trend only when the next groups keep it.
+     `no data` are no conclusion, and a `helped` or `hurt` is a trend only when the next groups keep it. Read the
+     verdicts of the reports per project first; one that agrees across projects outweighs the verdict of the
+     report over every project, which the project mix confounds.
 3. **Report**: one table per axis (efficiency, quality, rules, skills, fixed context), a row per metric that moved or
    matters, the columns `metric | <the last groups> | trend` (↑, ↓ or →) and a line `confounders` when the mix
    changed; then the verdicts as `change | metric | expected | verdict`; then the setups as `metric | <each setup>`,
