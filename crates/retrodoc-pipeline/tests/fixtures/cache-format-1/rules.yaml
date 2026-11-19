@@ -1,0 +1,34 @@
+- slug: affectation-des-commandes-1
+  statement: Une commande ne peut être ajoutée que si le client qui la passe existe, sinon l'ajout est refusé avec l'indication que le client est introuvable.
+  kind: validation
+  entities: []
+  use_cases:
+  - affecter-commande-au-livreur-le-plus-rapide
+  - initialisation-du-routeur
+  - creation-restaurant
+  evidence:
+  - type: code
+    path: lib/delivery_router/router.rb
+    start_line: 15
+    end_line: 15
+  confidence:
+    value: 0.4
+    rationale: backed by code alone
+- slug: affectation-des-commandes-7
+  statement: La distance entre un livreur et un lieu est la distance euclidienne calculée à partir de l'écart horizontal et de l'écart vertical entre leurs positions.
+  kind: computation
+  entities: []
+  use_cases:
+  - calculer-distance-et-temps-de-trajet
+  - estimer-delai-livraison-livreur
+  evidence:
+  - type: code
+    path: lib/delivery_router/locatable.rb
+    start_line: 19
+    end_line: 23
+  - type: test
+    phrase: compute the distance with another location
+    path: spec/delivery_router/rider_spec.rb
+  confidence:
+    value: 0.7
+    rationale: stated by code and a test

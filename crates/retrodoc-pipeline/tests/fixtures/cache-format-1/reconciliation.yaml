@@ -1,0 +1,14 @@
+items:
+- kind: feature
+  label: affectation-des-livreurs/affectation-des-commandes
+  fingerprint: e6f0070661aca8b66fb49698200edfaf84611651b61c8bd06fcea203ced5bcd2
+  model: model deepseek-chat
+  sections:
+  - section: README.md#Usage
+    answer: covers
+  - section: README.md#Delivery time
+    answer: contradicts
+    doc_states: A rider takes at most one order at a time.
+    item_states: A rider takes every order whose delivery time stays acceptable.
+  - section: README.md#Installation
+    answer: unrelated

@@ -54,8 +54,8 @@ upgrade in place, the single-pass commands, the benchmark replays. Means: candid
    CFV-6, CFV-7, CFV-8, CFV-9. (autonomous)
 2. [x] `generate` refuses an older cache without `--force` and a later one always, before any LLM call and any write;
    verified by CLI tests with the fake LLM; makes true CFV-4, CFV-5. (autonomous)
-3. [ ] Frozen sample of the format-1 artifacts the readers load (`crates/retrodoc-mcp/tests/fixtures/`), read and
-   saved again to the same text; verified by the round-trip test; makes true CFV-10, sets the spec `accepted`.
+3. [x] Frozen sample of the format-1 artifacts the readers load (`crates/retrodoc-mcp/tests/fixtures/`), read and
+   saved again to the same text; verified by the round-trip test; makes true CFV-10, sets the spec `accepted`. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -83,4 +83,13 @@ upgrade in place, the single-pass commands, the benchmark replays. Means: candid
   - two doc summaries over `open_workspace`: merged.
   - `generate --estimate` is refused on an older cache: kept on purpose, the estimate of a run that would be
     refused counts reused units it would not reuse; said in the doc comment.
+- not verified: none.
+
+## Deliverable 3
+- done: frozen sample `crates/retrodoc-pipeline/tests/fixtures/cache-format-1/` (trimmed from a `delivery_router`
+  run, `scope.yaml` and `reconciliation.yaml` written by hand) read by the real loaders and saved again to the same
+  text; `RETRODOC_BLESS=1` refreshes it; spec `accepted`, ADR 0050 `Accepted`.
+- red: CFV-10: `the shape of use-cases.yaml changed` (the sample as PyYAML wrote it); once blessed, every file parses
+  to the same values as before, so the loaders drop no field of the sample.
+- Code review: no findings
 - not verified: none.

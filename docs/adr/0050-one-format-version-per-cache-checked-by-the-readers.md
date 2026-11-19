@@ -1,6 +1,6 @@
 # 0050. One format version per cache, checked by the readers
 
-Status: Proposed
+Status: Accepted
 
 ## Context
 

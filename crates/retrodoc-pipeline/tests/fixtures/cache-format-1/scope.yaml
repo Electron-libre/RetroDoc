@@ -1,0 +1,4 @@
+max_files: 2
+analysed: 2
+skipped:
+- lib/delivery_router/version.rb

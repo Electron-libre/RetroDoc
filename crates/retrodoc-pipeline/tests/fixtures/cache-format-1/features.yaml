@@ -1,0 +1,28 @@
+- slug: affectation-des-commandes
+  domain_slug: affectation-des-livreurs
+  name: Affectation des commandes aux livreurs
+  description: Permet de créer une commande pour un client auprès d'un restaurant, de choisir le livreur le plus rapide et de l'enregistrer si le délai de livraison reste acceptable.
+  source_paths:
+  - lib/delivery_router/riders.rb
+  - lib/delivery_router/router.rb
+  entry_points:
+  - lib/delivery_router/router.rb#Router#add_order
+  - lib/delivery_router/riders.rb#Riders#min_delivery_time
+  confidence:
+    value: 1.0
+    rationale: null
+- slug: consultation-des-delais
+  domain_slug: affectation-des-livreurs
+  name: Consultation des délais de livraison
+  description: Permet de connaître le délai de livraison estimé d'une commande, en tenant compte du temps de cuisson du restaurant et du trajet jusqu'au client.
+  source_paths:
+  - lib/delivery_router/order.rb
+  - lib/delivery_router/rider.rb
+  - lib/delivery_router/router.rb
+  entry_points:
+  - lib/delivery_router/router.rb#Router#delivery_time
+  - lib/delivery_router/order.rb#Order#delivery_time
+  - lib/delivery_router/rider.rb#Rider#delivery_time
+  confidence:
+    value: 1.0
+    rationale: null

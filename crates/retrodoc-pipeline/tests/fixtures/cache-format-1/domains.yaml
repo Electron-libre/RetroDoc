@@ -1,0 +1,22 @@
+domains:
+- slug: affectation-des-livreurs
+  name: Affectation des livreurs
+  description: Sélection du livreur le plus rapide et affectation des commandes en cours aux livreurs disponibles, avec composition de l'itinéraire passant par le restaurant.
+  paths:
+  - lib/delivery_router/order.rb
+  - lib/delivery_router/orders.rb
+  resources:
+  - commande
+  - livreur
+  entities:
+  - Router
+  - Order
+- slug: livraison-et-delais
+  name: Livraison et délais
+  description: Estimation du délai de livraison et calcul des temps de trajet du livreur vers le client en passant par le restaurant.
+  paths:
+  - lib/delivery_router/customer.rb
+  - lib/delivery_router/restaurant.rb
+  entities:
+  - Restaurant
+  - Customer

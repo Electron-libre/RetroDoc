@@ -1,0 +1,95 @@
+- slug: affecter-commande-au-livreur-le-plus-rapide
+  feature_slug: affectation-des-commandes
+  name: Affecter une commande au livreur le plus rapide
+  description: Le développeur enregistre une commande d'un client auprès d'un restaurant ; le système choisit le livreur au délai le plus court et conserve la commande si la livraison tient en moins de 60 minutes.
+  steps:
+  - order: 1
+    description: Demande l'enregistrement d'une commande en fournissant le client et le restaurant via add_order.
+    actor:
+      name: Calling program
+      kind: system
+    action: ''
+    source_refs:
+    - path: lib/delivery_router/router.rb
+      start_line: 14
+      end_line: 14
+  - order: 2
+    description: Vérifie que le client et le restaurant existent, sinon renvoie :customer_not_found ou :restaurant_not_found.
+    actor:
+      name: System
+      kind: system
+    action: ''
+    source_refs:
+    - path: lib/delivery_router/router.rb
+      start_line: 15
+      end_line: 16
+  entry_points:
+  - lib/delivery_router/riders.rb#Riders#min_delivery_time
+  - lib/delivery_router/router.rb#Router#add_order
+  primary_actor: null
+  narrative: Le développeur d'une application de livraison enregistre une commande passée par un client auprès d'un restaurant. Le système estime, pour chaque livreur, le temps nécessaire pour rejoindre le restaurant, attendre la fin de la cuisson puis livrer le client, et retient le livreur le plus rapide. Si ce délai reste inférieur à 60 minutes, la commande est conservée avec son livreur et le délai est renvoyé ; sinon rien n'est enregistré et une erreur de délai trop long est signalée.
+  business_language:
+    value: 1.0
+    rationale: null
+  diagram_mermaid: |
+    sequenceDiagram
+        participant P1 as Calling program
+        participant P2 as System
+        P1->>P1: 1. Demande l'enregistrement d'une commande en fournissant le…
+        P1->>P2: 2. Vérifie que le client et le restaurant existent, sinon…
+        P2->>P2: 3. Crée la commande Order reliant le client et le restaurant…
+        P2->>P2: 4. Compare le délai de la commande à 60 minutes et, s'il est…
+        P2->>P2: 5. Renvoie au développeur [:ok, délai] si la commande est…
+  confidence:
+    value: 1.0
+    rationale: all steps supported by the cited code
+  narrative_check:
+    value: 1.0
+    rationale: null
+- slug: calculer-delai-de-livraison-dun-livreur
+  feature_slug: affectation-des-commandes
+  name: Calculer le délai de livraison d'un livreur pour une commande
+  description: Le système estime le temps qu'un livreur mettrait pour une commande en passant par le restaurant, en tenant compte de la cuisson.
+  steps:
+  - order: 1
+    description: Calcule le temps de trajet du livreur jusqu'au restaurant avec time_to et le compare au cooking_time du restaurant.
+    actor:
+      name: System
+      kind: system
+    action: ''
+    source_refs:
+    - path: lib/delivery_router/rider.rb
+      start_line: 19
+      end_line: 21
+    - path: lib/delivery_router/rider.rb
+      start_line: 15
+      end_line: 17
+  - order: 2
+    description: Ajoute le temps de trajet du restaurant jusqu'au client pour obtenir le délai de livraison de la commande.
+    actor:
+      name: System
+      kind: system
+    action: ''
+    source_refs:
+    - path: lib/delivery_router/rider.rb
+      start_line: 20
+      end_line: 22
+    - path: lib/delivery_router/order.rb
+      start_line: 14
+      end_line: 16
+  entry_points:
+  - lib/delivery_router/riders.rb#Riders#min_delivery_time
+  primary_actor: null
+  narrative: Pour comparer les livreurs, le système calcule pour chacun le temps de trajet jusqu'au restaurant, attend la durée de cuisson du restaurant si elle est plus longue, puis ajoute le trajet du restaurant jusqu'au client. Ce délai, exprimé en minutes, sert à désigner le livreur le plus rapide pour la commande.
+  business_language:
+    value: 1.0
+    rationale: null
+  diagram_mermaid: |
+    sequenceDiagram
+        participant P1 as System
+        P1->>P1: 1. Calcule le temps de trajet du livreur jusqu'au restaurant…
+        P1->>P1: 2. Ajoute le temps de trajet du restaurant jusqu'au client pour…
+        P1->>P1: 3. Retient parmi tous les livreurs celui dont le délai de…
+  confidence:
+    value: 1.0
+    rationale: all steps supported by the cited code

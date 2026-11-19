@@ -1,0 +1,12 @@
+unplaced_entry_points:
+- lib/delivery_router/router.rb#Router#reset
+technical_support:
+- lib/delivery_router/version.rb
+by_feature:
+  affectation-des-commandes:
+    entry_points: 2
+    uncovered:
+    - lib/delivery_router/router.rb#Router#cancel_order
+  calcul-distance-lieux:
+    entry_points: 1
+    uncovered: []

@@ -1,0 +1,46 @@
+models:
+  lib/delivery_router/customer.rb:
+    content_hash: 03a5e315f6f2ee5f37eb59a90e94795ed4ed7842d6e2ff2032ac38ef2374bf43
+    entities:
+    - name: Customer
+      description: Le client qui passe une commande et attend d'être livré à son adresse.
+      attributes:
+      - id
+      - x
+      - y
+      associations:
+      - kind: has_many
+        target: Order
+  lib/delivery_router/locatable.rb:
+    content_hash: a9d087bec6791bc803567ac3af498a442f37dc4f8e2311ed5d6de6314e375792
+    entities:
+    - name: Locatable
+      description: Module métier donnant à une entité une position géographique et le calcul de distance vers un autre lieu.
+      attributes:
+      - id
+      - x
+      - y
+      associations: []
+tests:
+- file: spec/delivery_router/rider_spec.rb
+  phrases:
+  - '#distance_to'
+  - compute the distance with another location
+  - '#time_to'
+  - compute the time to travel to location in minutes
+- file: spec/delivery_router_spec.rb
+  phrases:
+  - '#route'
+  - given customer 1 orders from restaurant 3
+  - given customer 2 does not order anything
+  - does not assign a route to rider 1
+  - sends rider 2 to customer 1 through restaurant 3
+  - delights customer 1
+  - given customer 2 orders from restaurant 4
+  - sends rider 1 to customer 2 through restaurant 4
+  - delights customer 2
+  - '#add_order'
+  - when can't ship in less than 60 minutes
+  - returns [:error, delivery_time]
+  - when restaurant does not exists
+  - returns [:error, nil]
