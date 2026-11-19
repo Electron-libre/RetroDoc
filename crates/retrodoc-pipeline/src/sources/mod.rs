@@ -27,10 +27,10 @@ use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
 use crate::artifact::{load_yaml, save_yaml, Artifact};
-use crate::cache::hash_content;
 use crate::error::PipelineError;
 use crate::response::complete_json;
 use crate::roles::{manifest_excerpts, render_tree};
+use retrodoc_core::cache::hash_content;
 
 /// Sniffed rules shown to the LLM as a starting point.
 const MAX_HINT_RULES: usize = 60;

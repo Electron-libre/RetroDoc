@@ -189,7 +189,7 @@ async fn the_glossary_lists_every_concept_by_name_with_its_definition() {
 #[tokio::test]
 async fn a_repository_with_no_glossary_says_no_concept_was_found() {
     let repo = generated_repo();
-    std::fs::remove_file(retrodoc_pipeline::Artifact::Glossary.path(repo.path())).unwrap();
+    std::fs::remove_file(retrodoc_core::cache::Artifact::Glossary.path(repo.path())).unwrap();
     let page = glossary(repo.path()).await;
     assert!(page.contains("No concept"), "{page}");
 }

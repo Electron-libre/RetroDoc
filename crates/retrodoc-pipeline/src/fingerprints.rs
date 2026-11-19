@@ -17,9 +17,9 @@ use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
 use crate::artifact::{load_json, save_json, Artifact};
-use crate::cache::hash_content;
 use crate::error::PipelineError;
 use crate::walked::WalkedFiles;
+use retrodoc_core::cache::hash_content;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub(crate) struct Fingerprints {

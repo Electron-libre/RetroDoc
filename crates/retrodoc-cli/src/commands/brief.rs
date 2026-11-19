@@ -3,10 +3,11 @@ use std::fmt::Write as _;
 use std::path::Path;
 
 use anyhow::Context;
+use retrodoc_core::cache::Artifact;
 use retrodoc_ingest::signals::{self, Signal};
 use retrodoc_ingest::IngestResult;
 use retrodoc_llm::UsageTracker;
-use retrodoc_pipeline::{Artifact, Claim, Evidence, ProductBrief};
+use retrodoc_pipeline::{Claim, Evidence, ProductBrief};
 
 use super::passes;
 use super::usage::PassProviders;

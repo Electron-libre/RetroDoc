@@ -19,7 +19,6 @@ pub mod bm25;
 pub mod brief;
 pub mod business_files;
 pub mod business_read;
-pub mod cache;
 pub mod cache_format;
 mod chunk_check;
 pub mod chunks;
@@ -62,7 +61,7 @@ pub mod vocabulary;
 mod walked;
 
 pub use actors::{authorization_files, build_actors, Actors, BusinessActor};
-pub use artifact::{Artifact, Retention};
+pub use artifact::Retention;
 pub use behaviour_coverage::{
     save_technical_support, save_use_case_coverage, BehaviourCoverage, EntryCount, FeatureCoverage,
 };

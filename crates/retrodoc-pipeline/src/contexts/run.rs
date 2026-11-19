@@ -16,12 +16,12 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
-use crate::cache::hash_content;
 use crate::error::PipelineError;
 use crate::fingerprints::{fingerprint, Fingerprints};
 use crate::roles::{FileRole, RoleMap};
 use crate::slices::CodeIndex;
 use crate::text::read_file_lossy;
+use retrodoc_core::cache::hash_content;
 
 use super::{ContextMap, Resolved, ResolvedContext};
 

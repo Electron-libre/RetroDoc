@@ -1,8 +1,8 @@
+use retrodoc_core::cache::hash_content;
 use retrodoc_core::model::{
     Actor, ActorKind, BusinessRule, ConfidenceScore, Domain, Feature, RuleEvidence, SetApartReason,
     SourceRef, Step, UseCase,
 };
-use retrodoc_pipeline::cache::hash_content;
 use retrodoc_pipeline::reconcile::{
     Contradiction, ItemKind, ItemVerdict, Reconciliation, SectionRef, Status,
 };

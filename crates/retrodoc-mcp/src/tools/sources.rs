@@ -281,7 +281,7 @@ mod tests {
             let path = dir.path().join(name);
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();
             std::fs::write(&path, name).unwrap();
-            cache.put(name, &retrodoc_pipeline::cache::hash_content(name));
+            cache.put(name, &retrodoc_core::cache::hash_content(name));
         }
         cache.save(dir.path()).unwrap();
         std::fs::write(dir.path().join("app/mailer.rb"), "changed").unwrap();

@@ -6,7 +6,11 @@ Detail moved out of `CLAUDE.md`. Overview of all crates: `docs/ARCHITECTURE.md` 
   in `model.rs`), `retrodoc.toml`
   config (`config.rs`) and the text helpers every other crate shares (`text.rs`: `one_line`,
   which keeps a name or a description from forging a line of a prompt or a list; `fold_latin`, which lowercases and
-  folds accented Latin letters to their base letters, for the slugs (DLG-5) and the tag of `[output] language` (DLG-9)).
+  folds accented Latin letters to their base letters, for the slugs (DLG-5) and the tag of `[output] language` (DLG-9)),
+  and the layout of `.retrodoc/cache/` the pipeline writes and the readers of the docs read (`cache/`, ADR 0051):
+  `Artifact`, the names of everything under `.retrodoc/cache/` and which `generate --force` clears; `load_yaml`,
+  `load_json` (a missing or unreadable file is a first run, `None`, not an error), `save_yaml`, `save_json` (written
+  beside, synced, then renamed, `CacheError`); `hash_content`, the SHA-256 of the fingerprints and source hashes.
 - **retrodoc-ingest**: reads the target repo — file walker respecting `.gitignore` (`walker.rs`; classifies files as `Source`/`Test`/`Markdown`/`Other` —
   the built-in extensions and test conventions cover the reference set of `specs/language-agnostic.md`, the
   build scripts `*.gradle.kts`, `Package.swift`, the view templates `*.blade.php`, `*.html.php`, `*.tpl.php` and the root `project/` of an sbt build excepted, even when the roles call names their extension; tests are detected by directory (.NET `*Tests` projects, and for .NET files `*.Test`, `*UnitTest`, `*IntegrationTest`, `*.Specs`; Gradle test source sets `src/<set>Test/<jvm language>/` and the Android variants `src/testDebug/`, `src/androidTestRelease/` included) or file-name convention and kept out

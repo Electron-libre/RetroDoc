@@ -184,7 +184,7 @@ async fn the_second_run_documents_the_next_context_and_leaves_the_first_as_it_wa
     assert_eq!(features_1.len(), 1);
     assert_eq!(use_cases_1.len(), 1);
     let saved_use_cases =
-        std::fs::read_to_string(crate::Artifact::UseCases.path(f.dir.path())).unwrap();
+        std::fs::read_to_string(crate::artifact::Artifact::UseCases.path(f.dir.path())).unwrap();
 
     let (second, features_2, use_cases_2) = run(&f, &features_llm, &use_cases_llm).await;
 
@@ -210,7 +210,7 @@ async fn the_second_run_documents_the_next_context_and_leaves_the_first_as_it_wa
     );
     assert_eq!(yaml(&use_cases_2[0]), yaml(&use_cases_1[0]));
     let saved_after =
-        std::fs::read_to_string(crate::Artifact::UseCases.path(f.dir.path())).unwrap();
+        std::fs::read_to_string(crate::artifact::Artifact::UseCases.path(f.dir.path())).unwrap();
     assert!(
         saved_after.starts_with(saved_use_cases.trim_end()),
         "the first use cases come first and are written as before"

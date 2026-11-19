@@ -13,9 +13,9 @@ use retrodoc_ingest::{FileKind, IngestResult};
 use serde::{Deserialize, Serialize};
 
 use crate::artifact::{load_json, save_json, Artifact};
-use crate::cache::hash_content;
 use crate::error::PipelineError;
 use crate::text::read_file_lossy;
+use retrodoc_core::cache::hash_content;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SourceHashes {

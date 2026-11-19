@@ -2,8 +2,9 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use anyhow::Context;
+use retrodoc_core::cache::Artifact;
 use retrodoc_llm::UsageTracker;
-use retrodoc_pipeline::{Artifact, ContextMap, FileRole, RoleRules};
+use retrodoc_pipeline::{ContextMap, FileRole, RoleRules};
 
 use super::passes;
 use super::workspace::{source_paths, Workspace};

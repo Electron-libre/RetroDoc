@@ -1,9 +1,10 @@
 use std::path::Path;
 
 use anyhow::Context;
+use retrodoc_core::cache::Artifact;
 use retrodoc_ingest::IngestResult;
 use retrodoc_llm::{LlmProvider, UsageTracker};
-use retrodoc_pipeline::{Artifact, BusinessMap, ProductBrief, RoleRules};
+use retrodoc_pipeline::{BusinessMap, ProductBrief, RoleRules};
 
 use super::passes;
 use super::workspace::Workspace;

@@ -23,11 +23,11 @@ use retrodoc_llm::LlmProvider;
 use serde::{Deserialize, Serialize};
 
 use crate::artifact::{load_yaml, save_yaml, Artifact};
-use crate::cache::hash_content;
 use crate::error::PipelineError;
 use crate::response::complete_json;
 use crate::text::{char_prefix, one_line, without_last_chars};
 pub use evidence::{Evidence, Extract, ExtractKind};
+use retrodoc_core::cache::hash_content;
 use sample::{Sample, SAMPLE_BUDGET};
 
 /// Entries kept per list of the brief.

@@ -4,10 +4,11 @@
 
 use std::path::{Path, PathBuf};
 
+use retrodoc_core::cache::Artifact;
 use retrodoc_core::config::{Config, DomainsFrom};
 use retrodoc_ingest::{FileKind, IngestResult};
 use retrodoc_pipeline::estimate::{estimate, EstimateInputs, RatioTable, RunEstimate};
-use retrodoc_pipeline::{Artifact, RoleRules, SourceHashes};
+use retrodoc_pipeline::{RoleRules, SourceHashes};
 
 use super::super::passes;
 use super::{passes_of, passes_off, Confidence, GenerateOptions};

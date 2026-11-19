@@ -31,9 +31,9 @@ use retrodoc_bench::benchmark::{
     tree_evidence, use_case_table, Frame, FrozenInputs, Judgement, Matches, Reference, RunFigures,
     Scoring,
 };
+use retrodoc_core::cache::Artifact;
 use retrodoc_core::config::{LlmConfig, ZERO_TEMPERATURE_PASSES};
 use retrodoc_llm::{OpenRouterProvider, UsageProvider, UsageTracker};
-use retrodoc_pipeline::Artifact;
 use serde_json::json;
 
 type Failure = Box<dyn std::error::Error>;

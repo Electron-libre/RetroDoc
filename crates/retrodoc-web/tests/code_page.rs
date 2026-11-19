@@ -10,11 +10,11 @@ use std::process::Command;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
+use retrodoc_core::cache::hash_content;
 use retrodoc_core::model::{
     Actor, ActorKind, BusinessRule, Feature, RuleEvidence, RuleKind, SourceRef, Step, UseCase,
 };
 use retrodoc_mcp::GeneratedDocs;
-use retrodoc_pipeline::cache::hash_content;
 use retrodoc_pipeline::{DomainCluster, DomainMap, SourceHashes};
 use retrodoc_render::DocLinks;
 use tower::ServiceExt;

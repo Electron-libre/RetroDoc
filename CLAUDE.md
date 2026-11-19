@@ -60,7 +60,7 @@ retrodoc-cli ──> retrodoc-agent ──> retrodoc-mcp, retrodoc-llm
 Per-crate detail (modules, passes, behaviours that span passes) lives in `docs/crates/`; read the file
 of the crate you are about to touch. High-level view: `docs/ARCHITECTURE.md`. Decisions: `docs/adr/`.
 
-- **retrodoc-core**: domain model (`model.rs`) and `retrodoc.toml` config (`config.rs`). → `docs/crates/core-ingest.md`
+- **retrodoc-core**: domain model (`model.rs`), `retrodoc.toml` config (`config.rs`) and the layout of the cache (`cache/`). → `docs/crates/core-ingest.md`
 - **retrodoc-ingest**: file walker, git history (one revwalk), existing Markdown docs, signals of the product
   brief, tree-sitter `structure.rs`. → `docs/crates/core-ingest.md`
 - **retrodoc-llm**: `LlmProvider` trait, `OpenRouterProvider` (also serves DeepSeek), retry, structured output,

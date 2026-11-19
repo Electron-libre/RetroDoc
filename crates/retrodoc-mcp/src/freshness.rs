@@ -6,7 +6,7 @@
 
 use std::path::{Path, PathBuf};
 
-use retrodoc_pipeline::cache::hash_content;
+use retrodoc_core::cache::hash_content;
 use retrodoc_pipeline::SourceHashes;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

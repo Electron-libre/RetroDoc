@@ -1,8 +1,9 @@
 use std::path::Path;
 
 use anyhow::Context;
+use retrodoc_core::cache::Artifact;
 use retrodoc_llm::UsageTracker;
-use retrodoc_pipeline::{Artifact, BusinessMap, RoleRules};
+use retrodoc_pipeline::{BusinessMap, RoleRules};
 
 use super::passes;
 use super::usage::PassProviders;

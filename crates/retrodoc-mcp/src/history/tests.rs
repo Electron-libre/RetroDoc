@@ -1,6 +1,7 @@
+use retrodoc_core::cache::Artifact;
 use retrodoc_core::model::{ConfidenceScore, Domain, Feature, UseCase};
 use retrodoc_pipeline::usage_log::{ModelRecord, PassRecord, RunUsage};
-use retrodoc_pipeline::{Artifact, Glossary};
+use retrodoc_pipeline::Glossary;
 
 use super::*;
 use crate::audit::Share;

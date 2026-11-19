@@ -34,3 +34,68 @@ The readers of the docs out of the pipeline
 
 # Hints
 * Likely over the size limit of `skill:issue-workflow`: cut at step 1 (types, then loaders, then the reconciliation).
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-19
+
+## Understanding
+The readers take their types from the pipeline. This issue moves into `retrodoc-core` the cache layout (`Artifact`,
+YAML/JSON load and save, `hash_content`, `cache_format`) then the plain data artifacts the readers load, each with its
+`load`/`save` (the loaders move with their type, so nothing is moved twice). Out of scope, split into two new issues:
+the computations made at read time (`reconcile`, `build_report`, `domain_models`, `Bm25`) and the run history
+(`usage_log`, `RunEstimate`, `recorded_progress`, `format_duration`). Test-only uses (`FakeLlm`, `ContextMap`) stay
+dev-dependencies.
+
+Sort of the uses of `retrodoc-mcp` and `retrodoc-web`:
+
+| Use | Kind | Where |
+|-----|------|-------|
+| `Artifact`, `load_yaml`/`save_yaml`, `hash_content`, `cache_format` | layout | deliverable 1 |
+| `Glossary` (+ `Entity`, `ModelFile`, `MergedEntity`…), `DomainMap`/`DomainCluster`, `Scope` | type + loader | deliverable 2 |
+| `BehaviourCoverage`, `SetAside`, `SourceHashes` (its `capture` stays), `load/save_features`, `_use_cases`, `_rules`, `load_technical_features`, `load_set_aside` | type + loader | deliverable 3 |
+| `reconcile` and its types, `build_report`, `DebtReport` and the report types, `domain_models`, `Bm25` | computation | new issue |
+| `usage_log` (`RunUsage` embeds `RunEstimate`), `recorded_progress`, `format_duration`, `thousands` | run history | new issue |
+
+## Plan
+1. [x] Cache layout in core: `artifact.rs` and `cache.rs` moved to `retrodoc_core::cache` (`Artifact`, YAML/JSON
+   load and save, `hash_content`) with a core `CacheError` the `PipelineError` wraps; `Retention` and the
+   `PipelineError` save wrappers stay in the pipeline's `artifact.rs`; the users outside the pipeline import from
+   core; ADR 0051; verified by the moved tests and `just check`; ~800 lines. (autonomous)
+1b. [ ] Format version in core: `cache_format.rs` moved to `retrodoc_core::cache::format` (cut from deliverable 1,
+   over the size limit at 1,062 lines); verified by its moved tests and `just check`; ~280 lines.
+2. [ ] Glossary, domain map and scope in core (`retrodoc_core::artifacts`), with their `load`/`save`; core gains
+   `schemars` for `Entity`; verified by the moved tests, `just check`; ~900 lines.
+3. [ ] Behaviour coverage, set-aside, source hashes and the loaders of features, use cases and rules in core;
+   `retrodoc-mcp` and `retrodoc-web` sources no longer import those from the pipeline; verified by `just check` and a
+   rerun of `generate` on a saved run that calls no LLM (fingerprints unchanged); ~900 lines.
+4. [ ] Create the two issues of the computations and the run history, update `ROADMAP.md` and the `depends_on` of
+   `docs_crate_out_of_the_mcp_crate`; docs (`docs/crates/*`, `ARCHITECTURE.md`).
+
+## Decisions
+- Mode: autonomous
+- Base commit: a1a27870e170ae2be81d1c2559a9f2e04033ece7
+- Place: modules of `retrodoc-core`, no new crate.
+- Split: this issue covers the cache layout and the data artifacts; the computations and the run history get issues of their own.
+- Tests of the readers keep `retrodoc-pipeline` as a dev-dependency.
+
+## Deliverable 1
+done: `Artifact`, `load_yaml`/`load_json`/`save_yaml`/`save_json` and `hash_content` live in `retrodoc_core::cache`;
+the pipeline keeps a thin `artifact.rs` (`Retention`, save wrappers into `PipelineError`, `warn_on_error`);
+`retrodoc-mcp`, `retrodoc-web`, `retrodoc-cli` and `retrodoc-bench` import `Artifact` and `hash_content` from core.
+
+| check | result |
+|-------|--------|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass (clippy pedantic) |
+| specs | pass (no change of behaviour) |
+| docs | `CLAUDE.md`, `docs/ARCHITECTURE.md`, `docs/crates/core-ingest.md`, `docs/crates/pipeline.md`, ADR 0051 |
+| size | 773 lines (the format move cut to 1b) |
+
+red: none (a move: the moved tests in `retrodoc-core` did not compile before it)
+
+Code review: no findings
+
+not verified: nothing
+
+decisions needed: none

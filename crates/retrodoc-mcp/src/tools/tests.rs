@@ -358,7 +358,7 @@ fn docs_over_a_generated_repo() -> (tempfile::TempDir, Docs) {
         std::fs::write(&path, format!("content of {name}")).unwrap();
         cache.put(
             name,
-            &retrodoc_pipeline::cache::hash_content(&format!("content of {name}")),
+            &retrodoc_core::cache::hash_content(&format!("content of {name}")),
         );
     }
     cache.save(dir.path()).unwrap();

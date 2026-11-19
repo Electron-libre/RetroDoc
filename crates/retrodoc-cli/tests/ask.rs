@@ -220,7 +220,7 @@ fn the_warnings_of_the_sources_are_printed_after_them() {
     let mut hashes = retrodoc_pipeline::SourceHashes::default();
     hashes.put(
         "app/order.rb",
-        &retrodoc_pipeline::cache::hash_content("class Order; end\n"),
+        &retrodoc_core::cache::hash_content("class Order; end\n"),
     );
     hashes.save(dir.path()).unwrap();
     std::fs::write(

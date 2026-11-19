@@ -30,11 +30,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::artifact::{load_yaml, save_yaml, Artifact};
 use crate::brief::ProductBrief;
-use crate::cache::hash_content;
 use crate::error::PipelineError;
 use crate::response::complete_json;
 use crate::roles::{manifest_excerpts, render_tree};
 use crate::text::{first_chars, read_file_lossy};
+use retrodoc_core::cache::hash_content;
 
 /// Entries kept from the LLM's answer.
 const MAX_ENTRIES: usize = 40;

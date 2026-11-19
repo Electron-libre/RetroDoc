@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use retrodoc_core::cache::CacheError;
 use retrodoc_llm::LlmError;
 
 #[derive(Debug, thiserror::Error)]
@@ -26,6 +27,8 @@ pub enum PipelineError {
     InvalidReference { path: PathBuf, reason: String },
     #[error("unknown context `{name}`; the contexts are: {known}")]
     UnknownContext { name: String, known: String },
+    #[error(transparent)]
+    Cache(#[from] CacheError),
     #[error("artifact unreadable/unwritable at {path}: {source}")]
     ArtifactIo {
         path: PathBuf,

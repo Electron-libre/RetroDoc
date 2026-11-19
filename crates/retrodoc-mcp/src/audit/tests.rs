@@ -1,6 +1,7 @@
+use retrodoc_core::cache::Artifact;
 use retrodoc_core::model::{ConfidenceScore, Domain, Feature, UseCase};
 use retrodoc_pipeline::usage_log::{record_run, PassRecord, RunUsage};
-use retrodoc_pipeline::{Artifact, BoundedContext, ContextMap, Glossary};
+use retrodoc_pipeline::{BoundedContext, ContextMap, Glossary};
 
 use super::*;
 use crate::reviews::Reviews;

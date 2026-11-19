@@ -22,10 +22,14 @@ pub fn publish(repo_root: &Path, config: &Config, dry_run: bool) -> anyhow::Resu
         retrodoc_mcp::GeneratedDocs::load_with_edits(repo_root, &[], edits)?.context(NO_DOCS)?;
     let report = debt_report(&docs, repo_root, config);
     let rules = docs.rules();
-    if rules.is_empty() && retrodoc_pipeline::Artifact::Rules.path(repo_root).exists() {
+    if rules.is_empty()
+        && retrodoc_core::cache::Artifact::Rules
+            .path(repo_root)
+            .exists()
+    {
         tracing::warn!(
             "{} could not be read or holds no rule: the docs are written without rules",
-            retrodoc_pipeline::Artifact::Rules.relative_path()
+            retrodoc_core::cache::Artifact::Rules.relative_path()
         );
     }
     let metadata = RunMetadata {

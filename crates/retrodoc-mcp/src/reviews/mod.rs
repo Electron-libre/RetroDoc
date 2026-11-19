@@ -7,9 +7,9 @@ use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use chrono::{SecondsFormat, Utc};
+use retrodoc_core::cache::hash_content;
 use retrodoc_core::model::{Domain, Feature, UseCase};
 use retrodoc_ingest::git_history::user_name;
-use retrodoc_pipeline::cache::hash_content;
 use retrodoc_pipeline::{ChangedFile, OutdatedReview};
 use serde::{Deserialize, Serialize};
 

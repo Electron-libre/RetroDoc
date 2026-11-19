@@ -1,9 +1,10 @@
 use std::path::Path;
 
 use anyhow::Context;
+use retrodoc_core::cache::Artifact;
 use retrodoc_ingest::{FileEntry, FileKind, Promotion};
 use retrodoc_llm::UsageTracker;
-use retrodoc_pipeline::{Artifact, FileRole, RoleRules};
+use retrodoc_pipeline::{FileRole, RoleRules};
 
 use super::passes;
 use super::workspace::Workspace;
