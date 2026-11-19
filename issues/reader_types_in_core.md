@@ -72,8 +72,8 @@ Sort of the uses of `retrodoc-mcp` and `retrodoc-web`:
    `SourceHashes` (type, `load`/`save`, `get`/`put`/`merge`) in `retrodoc_core::artifacts`; the capture of the hashes
    stays in the pipeline as free functions; verified by the moved tests, `just check` and a rerun of `generate` on a
    saved run that calls no LLM; ~450 lines. (autonomous)
-4. [ ] Create the issues of the loaders (features, use cases, rules, set-aside), of the computations and of the run
-   history, update `ROADMAP.md` and the `depends_on` of `docs_crate_out_of_the_mcp_crate`; docs.
+4. [x] Create the issues of the loaders (features, use cases, rules, set-aside), of the computations and of the run
+   history, update `ROADMAP.md` and the `depends_on` of `docs_crate_out_of_the_mcp_crate`; docs. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -182,6 +182,26 @@ done: `BehaviourCoverage` (with `FeatureCoverage`, `EntryCount`) and `SourceHash
 | size | ~430 lines |
 
 red: none (a move)
+
+Code review: no findings
+
+not verified: nothing
+
+decisions needed: none
+
+## Deliverable 4
+done: issues `loaders_of_the_items_in_core`, `read_time_computations_out_of_the_pipeline`,
+`run_history_out_of_the_pipeline` created and listed in `ROADMAP.md`; `docs_crate_out_of_the_mcp_crate` depends on
+them; ADR 0051 accepted; `skill:update-docs` over `a1a2787..HEAD`: the crate docs were updated with each deliverable,
+no stale path left.
+
+| check | result |
+|-------|--------|
+| tests | n/a (no code) |
+| issues | `cardinal run check-issue` clean, `next-issue` lists the three as blocked by this issue |
+| docs | ADR 0051, `ROADMAP.md` |
+
+red: none (no code)
 
 Code review: no findings
 

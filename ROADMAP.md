@@ -23,6 +23,9 @@ in `docs/findings.md` and the closed issues in `issues/done/`.
   - [format_version_of_the_saved_artifacts](issues/done/format_version_of_the_saved_artifacts.md)
   - [cache_format_in_the_single_pass_commands](issues/cache_format_in_the_single_pass_commands.md)
   - [reader_types_in_core](issues/reader_types_in_core.md)
+  - [loaders_of_the_items_in_core](issues/loaders_of_the_items_in_core.md)
+  - [read_time_computations_out_of_the_pipeline](issues/read_time_computations_out_of_the_pipeline.md)
+  - [run_history_out_of_the_pipeline](issues/run_history_out_of_the_pipeline.md)
   - [docs_crate_out_of_the_mcp_crate](issues/docs_crate_out_of_the_mcp_crate.md)
 
 ## A local model, measured

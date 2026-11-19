@@ -1,6 +1,6 @@
 ---
 priority: low
-depends_on: [one_loader_of_the_generated_docs, format_version_of_the_saved_artifacts, reader_types_in_core]
+depends_on: [one_loader_of_the_generated_docs, format_version_of_the_saved_artifacts, reader_types_in_core, loaders_of_the_items_in_core, read_time_computations_out_of_the_pipeline, run_history_out_of_the_pipeline]
 why: 'no milestone needs it yet; it is the ground of any export, hosted or third-party reader, so before those'
 ---
 # Read the generated docs through a crate of their own, the MCP crate left as a server

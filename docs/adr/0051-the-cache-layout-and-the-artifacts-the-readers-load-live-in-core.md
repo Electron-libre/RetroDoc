@@ -1,6 +1,6 @@
 # 0051. The cache layout and the artifacts the readers load live in core
 
-Status: Proposed
+Status: Accepted
 
 ## Context
 
@@ -22,5 +22,7 @@ can hold); moving the types without their loaders (the loaders would be moved a 
 
 ## Consequences
 
-Core gains `serde_yaml`, `sha2` and `schemars`. The computations made at read time (the reconciliation, the debt
-report, the domain models, BM25) and the run history are still in the pipeline: they are moved by issues of their own.
+Core gains `serde_yaml`, `sha2` and `schemars`. Inside the pipeline the moved types are reached through `pub(crate)`
+imports and its `artifact.rs` wraps the saves in `PipelineError`, so the passes did not change. The loaders of the
+features, use cases and rules, the computations made at read time (the reconciliation, the debt report, the domain
+models, BM25) and the run history are still in the pipeline: issues of their own move them.
