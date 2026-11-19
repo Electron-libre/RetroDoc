@@ -7,7 +7,7 @@ why: 'the only benchmark whose reference a human can check item by item; the mil
 # Goal
 The benchmark references (linkding, Lobsters) were drafted by agents, on applications the user does not know: a
 human can check their method, not their items. Vingilot, a virtual tabletop for role-playing games written with
-Cardinal, is public (soon pushed), known in detail by the user, and its intent is written down: specs with numbered
+Cardinal, to be public (pushed, private for now), known in detail by the user, and its intent is written down: specs with numbered
 requirements, ADRs, closed issues, a product document, a roadmap. Expected: a Vingilot reference built from that
 intent and validated item by item by the user, then a `hidden` series (every source of intent left out) and a
 `shown` series scored against it, the substance compared and not the form, with the findings dated in
@@ -50,8 +50,9 @@ Read by someone taking an application over
 * The measures ledger, `docs/findings.md`.
 
 # Hints
-* The benchmark clones `repository` of the reference: Vingilot must be pushed first (no local path in a committed
-  file).
+* The benchmark clones `repository` of the reference: Vingilot is pushed (2026-11-19), private until the user
+  publishes it; the user's account can clone it, and its reference goes in `benchmark/vingilot/` as for a public
+  repository (no local path in a committed file).
 * Cardinal, RpgAssistant and RetroDoc itself are candidates for later, with two biases to state: four Rust
   tools by the same author and harness, and RetroDoc measured on itself tunes the pipeline to its own docs.
 * The user's time is the cost: give them a short reference to correct, not the generated docs to read in full.
