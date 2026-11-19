@@ -20,7 +20,7 @@ in `docs/findings.md` and the closed issues in `issues/done/`.
 - State: in issues
 - Issues:
   - [one_loader_of_the_generated_docs](issues/done/one_loader_of_the_generated_docs.md)
-  - [format_version_of_the_saved_artifacts](issues/format_version_of_the_saved_artifacts.md)
+  - [format_version_of_the_saved_artifacts](issues/done/format_version_of_the_saved_artifacts.md)
   - [cache_format_in_the_single_pass_commands](issues/cache_format_in_the_single_pass_commands.md)
   - [reader_types_in_core](issues/reader_types_in_core.md)
   - [docs_crate_out_of_the_mcp_crate](issues/docs_crate_out_of_the_mcp_crate.md)
