@@ -56,3 +56,59 @@ Read by someone taking an application over
 * Cardinal, RpgAssistant and RetroDoc itself are candidates for later, with two biases to state: four Rust
   tools by the same author and harness, and RetroDoc measured on itself tunes the pipeline to its own docs.
 * The user's time is the cost: give them a short reference to correct, not the generated docs to read in full.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-19
+
+## Understanding
+Measure how close the generated docs of Vingilot come to its written intent, with a reference the user checks item
+by item. Out of scope: fixing the leak of the existing `hidden` baselines (linkding, Lobsters), a spec (a measure).
+Means: step 1 of the Approach is done below; option (a) of step 2, (c) for the comments.
+
+Leak measured 2026-11-19 on Vingilot `b73679e0`, `existing_docs_paths = []`:
+* `scan`: 998 files, of which 368 Markdown (`specs/`, `issues/`, `docs/adr/`...) walked with the role `docs`.
+* `signals::collect` reads every Markdown file of the root whatever `existing_docs_paths` says (`root_markdown`):
+  `README.md`, `PRODUCT.md`, `ROADMAP.md`, `ROADMAP-done.md`, `CHANGELOG.md`, `CLAUDE.md`, `AGENTS.md` all feed the
+  brief. The same holds for the `hidden` baselines: linkding reads its `README.md` and `CHANGELOG.md`, Lobsters its
+  `README.md`, `CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md`.
+* History: 284 `docs:` subjects of 1,351 commits, 280 subjects naming an issue.
+* Code: 1,507 `// spec:` traces and 1,055 `//!` lines.
+
+## Plan
+1. [x] Intent hidden in the `hidden` series: `benchmark/<repo>/hidden.txt` lists the paths (files, folders) removed
+   from each `hidden` clone before `generate`; no list, no change (the linkding and Lobsters baselines stay
+   comparable); verified by a test of `test_benchmark.rs`; ~120 lines. (autonomous)
+2. [ ] Vingilot reference: `benchmark/vingilot/reference.yaml` (pinned commit, purpose, actors, domains, features
+   with their `evidence` in the specs, a sample of use cases and rules, functional level only) and its `hidden.txt`;
+   verified by the `reference_evidence` check; **stop: the user corrects the reference item by item**; ~500 lines.
+3. [ ] Measure: estimate, **stop for the user's go**, `just benchmark` on the `hidden` and `shown` series; pairs in
+   `matches.yaml`; ledger line; ~100 lines.
+4. [ ] Findings dated in `docs/findings.md` (hidden against shown, against linkding and Lobsters, the misses and
+   extras the user reads, the root Markdown leak of the baselines) and the issues they call for; ~60 lines.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 75462129196ef7b5810a8fdff712a596ce1670dc
+- History kept in `hidden`, its bias stated (no squashed series).
+- Vingilot's `README.md` hidden with the rest.
+- The root Markdown leak of the linkding and Lobsters baselines: a finding and an issue of its own.
+- One run per series.
+
+## Deliverable 1
+done: `benchmark.rs hide-intent` and the `hidden` series remove the paths of `benchmark/<repo>/hidden.txt` from
+the clone; the skill and `docs/dev/agent-harness.md` say so and name the root Markdown leak.
+
+| check | result |
+|---|---|
+| tests (`just test-skill-scripts`) | pass |
+| `project-check` | pass |
+| docs | skill, agent-harness |
+| code review | low, see below |
+
+red: none (no spec: a skill script); the new check failed with `FAIL - removes the listed files and folders from the
+clone, and keeps the rest` before the code.
+Code review: 1 finding: a path under a listed folder, or listed twice, failed the removal and left the clone half
+emptied; fixed (skipped once gone) with its check.
+not verified: a real `hidden` run with a `hidden.txt` (deliverable 3).
+decisions needed: none.

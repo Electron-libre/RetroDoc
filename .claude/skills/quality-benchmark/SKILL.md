@@ -75,10 +75,16 @@ The benchmark turns the rules pass off (`[pipeline] rules = false`): it does not
 
 What `benchmark.rs run` does: clones the repository of the reference at its pinned commit (cached in
 `~/retrodoc-runs/retrodoc-benchmark-<repo>/source`); for each series, `hidden` (the repo's own docs left out of
-`ingest.existing_docs_paths`) then `shown`, and each run, clones afresh, runs `retrodoc init`,
-`generate` and `retrodoc benchmark --judge --out run-<n>.json`; then `retrodoc benchmark-table` writes
+`ingest.existing_docs_paths`) then `shown`, and each run, clones afresh, runs `retrodoc init`, in a `hidden` clone
+removes the paths of `benchmark/<repo>/hidden.txt` when the file exists, then runs `generate` and `retrodoc benchmark --judge --out run-<n>.json`; then `retrodoc benchmark-table` writes
 `table.md` with the mean, range and number of runs of each figure and its change against the previous
 benchmark of the same repository.
+
+`existing_docs_paths` does not hide everything: the brief reads every Markdown file of the repo's root whatever it
+says (README, CHANGELOG, AGENTS.md...), and the walker sees the other Markdown files. A `hidden.txt` (one path per
+line, files or folders, `#` comments) lists the repo's intent to take out of the `hidden` clones (root Markdown
+files, specs, ADRs, issues); a path the clone lacks fails the run (a stale list). linkding and Lobsters have none:
+their `hidden` baselines read their root Markdown files.
 
 ## Reading the table
 

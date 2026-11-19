@@ -16,6 +16,10 @@
 //!   empties `existing_docs_paths`; writes `timeout_secs` only when given; turns the rules pass off (not judged).
 //! - `benchmark.rs writing-temperature <retrodoc.toml> <t>`: the config with `temperature = t` on the writing passes
 //!   (brief, domains, features, use-cases, rules), to try another value than the default 0 (ADR 0031).
+//! - `benchmark.rs hide-intent <hidden.txt> <clone>`: removes from the clone the paths the list names (one per line,
+//!   relative to the repo, `#` comments and blank lines skipped): the `hidden` series does it when the reference has
+//!   a `hidden.txt` beside it, to take out the repo's intent (specs, ADRs, issues, root Markdown files) that
+//!   `existing_docs_paths` does not cover (the root Markdown files feed the brief whatever it says).
 //! - `benchmark.rs previous <root> <current>`: the latest benchmark directory of `root` before
 //!   `current` that has a table.
 //!
@@ -127,6 +131,32 @@ fn set_writing_temperature(toml: &str, temperature: &str) -> String {
     out
 }
 
+/// Removes from `clone` each path of `list` (one per line, relative, `#` comments and blank lines skipped), and
+/// returns them. A path that leaves the clone, or that the clone lacks (a stale list), is an error, before any removal.
+fn hide_intent(list: &str, clone: &Path) -> Result<Vec<String>, String> {
+    let paths: Vec<&str> = list.lines().map(str::trim).filter(|l| !l.is_empty() && !l.starts_with('#')).collect();
+    for path in &paths {
+        let relative = Path::new(path);
+        let inside = relative.components().all(|c| matches!(c, std::path::Component::Normal(_)));
+        if !inside {
+            return Err(format!("`{path}` is not a path inside the repo"));
+        }
+        if !clone.join(relative).exists() {
+            return Err(format!("`{path}` is not in the repo: the list is stale"));
+        }
+    }
+    for path in &paths {
+        let full = clone.join(path);
+        // Already gone with a folder listed before it, or listed twice.
+        if !full.exists() {
+            continue;
+        }
+        let removed = if full.is_dir() { fs::remove_dir_all(&full) } else { fs::remove_file(&full) };
+        removed.map_err(|e| format!("could not remove `{path}`: {e}"))?;
+    }
+    Ok(paths.iter().map(|p| (*p).to_string()).collect())
+}
+
 /// The benchmark directory of `root` that comes just before `current` (names are seconds since the
 /// epoch) and has a `table.md`.
 fn previous(root: &Path, current: &Path) -> Option<PathBuf> {
@@ -226,6 +256,9 @@ fn run(args: &[String]) -> i32 {
         .and_then(|p| p.parent().and_then(|d| d.file_name().map(|n| n.to_string_lossy().into_owned())))
         .unwrap_or_else(|| die("the reference must live in benchmark/<repo>/"));
 
+    // The repo's intent the `hidden` series removes from its clones, beside the reference.
+    let hidden_list = fs::read_to_string(reference.with_file_name("hidden.txt")).ok();
+
     // The local LLM must answer before we spend minutes building.
     let host = base_url.split("://").nth(1).and_then(|r| r.split('/').next()).unwrap_or("");
     let reachable = || {
@@ -287,6 +320,15 @@ fn run(args: &[String]) -> i32 {
                 println!("FAIL - {series} {n}: could not prepare the clone (see {})", log.display());
                 failures += 1;
                 continue;
+            }
+            if hide_docs {
+                if let Some(list) = &hidden_list {
+                    if let Err(e) = hide_intent(list, &clone) {
+                        println!("FAIL - {series} {n}: hidden.txt: {e}");
+                        failures += 1;
+                        continue;
+                    }
+                }
             }
             let toml_path = clone.join("retrodoc.toml");
             let toml = fs::read_to_string(&toml_path).unwrap();
@@ -376,6 +418,16 @@ fn main() {
             print!("{}", set_writing_temperature(&toml, &args[2]));
             0
         }
+        Some("hide-intent") if args.len() == 3 => {
+            let list = fs::read_to_string(&args[1]).unwrap_or_else(|e| die(&format!("{}: {e}", args[1])));
+            match hide_intent(&list, Path::new(&args[2])) {
+                Ok(removed) => {
+                    removed.iter().for_each(|p| println!("{p}"));
+                    0
+                }
+                Err(e) => die(&e),
+            }
+        }
         Some("previous") if args.len() == 3 => match previous(Path::new(&args[1]), Path::new(&args[2])) {
             Some(path) => {
                 println!("{}", path.display());
@@ -383,7 +435,7 @@ fn main() {
             }
             None => 1,
         },
-        _ => die("usage: benchmark.rs run <reference.yaml> [--runs N] | reference-field <file> <key> | patch-config <toml> <provider> <model> <url> <hide> | previous <root> <current>"),
+        _ => die("usage: benchmark.rs run <reference.yaml> [--runs N] | reference-field <file> <key> | patch-config <toml> <provider> <model> <url> <hide> | hide-intent <list> <clone> | previous <root> <current>"),
     };
     std::process::exit(code);
 }

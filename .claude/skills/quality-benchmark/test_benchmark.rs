@@ -152,6 +152,34 @@ fn main() {
     let (ok, _) = previous("100");
     check("the first benchmark has no previous one", !ok);
 
+    // `hidden.txt` lists the paths of the repo's intent that the `hidden` series removes from its clone.
+    let clone = tmp.join("clone");
+    for path in ["README.md", "specs/a.md", "specs/b.md", "src/main.rs", "docs/adr/0001.md"] {
+        write(&format!("clone/{path}"), "x");
+    }
+    let list = write("hidden.txt", "# the intent of the repo\nREADME.md\n\nspecs/\ndocs\n");
+    let (ok, out) = call(&["hide-intent", &list, clone.to_str().unwrap()]);
+    check(
+        "removes the listed files and folders from the clone, and keeps the rest",
+        ok && !clone.join("README.md").exists()
+            && !clone.join("specs").exists()
+            && !clone.join("docs").exists()
+            && clone.join("src/main.rs").exists()
+            && out.lines().count() == 3,
+    );
+    let (ok, _) = call(&["hide-intent", &list, clone.to_str().unwrap()]);
+    check("a listed path missing from the clone is an error (the list is stale)", !ok);
+    write("clone/docs/adr/0001.md", "x");
+    let nested = write("nested.txt", "docs\ndocs/adr/0001.md\ndocs\n");
+    let (ok, _) = call(&["hide-intent", &nested, clone.to_str().unwrap()]);
+    check("a path under a listed folder, or listed twice, is no error", ok && !clone.join("docs").exists());
+    for bad in ["../outside\n", "/etc\n", "src/../../x\n"] {
+        write("clone/src/main.rs", "x");
+        let list = write("bad.txt", bad);
+        let (ok, _) = call(&["hide-intent", &list, clone.to_str().unwrap()]);
+        check("a path out of the clone is refused", !ok && clone.join("src/main.rs").exists());
+    }
+
     let skill = fs::read_to_string(dir.join("SKILL.md")).unwrap();
     check(
         "the skill reads and appends the ledger of measures",
