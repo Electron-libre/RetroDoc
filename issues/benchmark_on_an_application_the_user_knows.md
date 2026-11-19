@@ -79,9 +79,11 @@ Leak measured 2026-11-19 on Vingilot `b73679e0`, `existing_docs_paths = []`:
 1. [x] Intent hidden in the `hidden` series: `benchmark/<repo>/hidden.txt` lists the paths (files, folders) removed
    from each `hidden` clone before `generate`; no list, no change (the linkding and Lobsters baselines stay
    comparable); verified by a test of `test_benchmark.rs`; ~120 lines. (autonomous)
-2. [ ] Vingilot reference: `benchmark/vingilot/reference.yaml` (pinned commit, purpose, actors, domains, features
+2. [x] Vingilot reference: `benchmark/vingilot/reference.yaml` (pinned commit, purpose, actors, domains, features
    with their `evidence` in the specs, a sample of use cases and rules, functional level only) and its `hidden.txt`;
    verified by the `reference_evidence` check; **stop: the user corrects the reference item by item**; ~500 lines.
+   (validated by the user on 2026-11-19: accepted as drafted, the Interface domain and the two persistence
+   features kept)
 3. [ ] Measure: estimate, **stop for the user's go**, `just benchmark` on the `hidden` and `shown` series; pairs in
    `matches.yaml`; ledger line; ~100 lines.
 4. [ ] Findings dated in `docs/findings.md` (hidden against shown, against linkding and Lobsters, the misses and
@@ -111,4 +113,24 @@ clone, and keeps the rest` before the code.
 Code review: 1 finding: a path under a listed folder, or listed twice, failed the removal and left the clone half
 emptied; fixed (skipped once gone) with its check.
 not verified: a real `hidden` run with a `hidden.txt` (deliverable 3).
+decisions needed: none.
+
+## Deliverable 2
+done: `benchmark/vingilot/reference.yaml` (9 domains, 33 features, 22 rules, pinned at `b73679e0`) and
+`benchmark/vingilot/hidden.txt` (no Markdown file left in a clone it is applied to).
+
+| check | result |
+|---|---|
+| `reference_evidence` | pass: 33 features backed by docs, no missing path or heading |
+| `project-check` | pass |
+| human check | the user accepted every item |
+| code review | low, see below |
+
+red: none (data); `benchmark_files` failed on the new folder (no `https://github.com/` URL, no `matches.yaml`, no
+`entry-points.yaml`) before the fixes: the reference names the public URL Vingilot will have, `matches.yaml` starts
+empty, and `entry-points.yaml` is now optional (only the repositories `entry_points_replay` measures have one).
+Until Vingilot is public, the benchmark's cached source (`retrodoc-benchmark-vingilot/source`) is cloned over SSH
+beforehand: `benchmark.rs` then only fetches it.
+Code review: no findings
+not verified: the clone from the https URL (Vingilot still private).
 decisions needed: none.

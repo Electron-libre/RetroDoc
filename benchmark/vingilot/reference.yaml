@@ -1,0 +1,418 @@
+repository: https://github.com/Electron-libre/Vingilot
+commit: b73679e0eeb6a9f9f828f6e56f3c683648a7c094
+purpose: >-
+  Vingilot is a minimalist, self-hosted virtual tabletop for role-playing games that need little preparation: the
+  digital equivalent of a table with books, dice, paper and a little music, played from the keyboard through a
+  command palette. Participants join a campaign by a personal link, without an account, draw and lay maps and tokens
+  on a shared table, cover parts of it with fog, roll dice on the server, keep Markdown notes and read PDF books,
+  with or without a game master, solo included. It rolls the dice but codes no game system.
+actors:
+  - Administrator
+  - Organizer
+  - Game master
+  - Player
+  - Invited person
+domains:
+  - name: Campaigns and access
+    description: The instance, its campaigns, who joins them and what each role may do.
+    features:
+      - name: Create and archive campaigns
+        description: >-
+          The administrator, reached by a link the binary prints on first start, creates a campaign from a name
+          alone, archives or unarchives it, and names its organizers; an archived campaign refuses every link.
+        use_cases:
+          - Get the administrator's link from the binary
+          - Create a campaign
+          - Archive a campaign
+          - Name an organizer of a campaign
+        evidence:
+          - doc: PRODUCT.md#Instances, campaigns and roles
+          - doc: specs/access.md#Intent
+          - code: crates/server/src/access.rs
+      - name: Join a campaign by invitation
+        description: >-
+          The organizer shares one invitation link; whoever opens it picks a nickname and a color and receives a
+          personal link that is their identity in the campaign, kept by the browser, no account nor password; the
+          organizer closes, reopens or regenerates the invitation.
+        use_cases:
+          - Join a campaign from the invitation link
+          - Copy my personal link for safekeeping
+          - Close or regenerate the invitation
+        evidence:
+          - doc: PRODUCT.md#Access
+          - doc: specs/access.md#Intent
+          - code: crates/server/src/access.rs
+      - name: Manage the participants' links and roles
+        description: >-
+          The organizer revokes and regenerates a participant's link and gives or removes the roles of organizer,
+          GM and player; the open sessions follow each change at once.
+        use_cases:
+          - Revoke a participant's link
+          - Regenerate a participant's link
+          - Make a participant a GM
+        evidence:
+          - doc: PRODUCT.md#Roles
+          - doc: specs/access.md#Intent
+          - code: crates/server/src/access.rs
+      - name: Powers by role, with or without a GM
+        description: >-
+          A fixed table of powers by role: with a GM, the GMs hold the table powers (fog, background lock, hidden
+          layer, scenes, audio, notes shared with the GM); without a GM every player holds them; the campaign powers
+          stay with the organizer and the instance powers with the administrator; the client offers only what the
+          participant may do, and the server checks every action.
+        use_cases:
+          - Play a campaign without a GM
+          - Play solo
+        evidence:
+          - doc: PRODUCT.md#Powers
+          - doc: specs/access.md#Intent
+          - code: crates/protocol/src/access.rs
+  - name: Game table
+    description: The shared infinite table the participants draw and lay things on.
+    features:
+      - name: Draw and write on the table
+        description: >-
+          Freehand strokes (pressure-sensitive with a pen), shapes and text laid with one-letter tools, in the ink
+          and fill picked; objects selected, moved, resized, rotated and restacked from the keyboard as with the
+          mouse, shared live with every participant.
+        use_cases:
+          - Draw a map freehand
+          - Write a text on the table
+          - Move the selected object with the arrows
+        evidence:
+          - doc: PRODUCT.md#Game table
+          - doc: specs/drawing.md#Intent
+          - doc: specs/board.md#Intent
+          - code: crates/client/src/board.rs
+      - name: Lay images on the table
+        description: >-
+          Paste or drop an image (a map, a portrait) to lay it on the table, uploaded to the campaign; an image of
+          the document folders is laid by its path and reaches only who may read it.
+        use_cases:
+          - Paste a map on the table
+          - Lay an image of my folder on the table
+        evidence:
+          - doc: specs/table_images.md#Intent
+          - code: crates/server/src/images.rs
+      - name: Layers of the table
+        description: >-
+          Every object lies on one of three layers: Background (maps, lockable), Table, and Hidden, seen by the GMs
+          alone and existing only with a GM.
+        use_cases:
+          - Lock the background layer
+          - Prepare an object on the hidden layer
+        evidence:
+          - doc: PRODUCT.md#Game table
+          - doc: specs/table.md#Intent
+          - code: crates/server/src/table.rs
+      - name: Lay notes and book pages on the table
+        description: >-
+          A note or a page of a book lies on the table as a card that opens it, sent only to who may read the note
+          or see the book.
+        use_cases:
+          - Lay a note on the table
+          - Lay a page of a book on the table
+        evidence:
+          - doc: specs/table_references.md#Intent
+          - code: crates/server/src/table.rs
+      - name: Tokens
+        description: >-
+          A token stands for a character: a character sheet (a note) laid on the table as a disc, its image named in
+          the sheet's front matter or initials in the participant's color; it is moved by the sheet's owner and by
+          the holders of the table powers; opening it opens the sheet.
+        use_cases:
+          - Lay my token from my character sheet
+          - Move my token
+        evidence:
+          - doc: PRODUCT.md#Game table
+          - doc: specs/tokens.md#Intent
+      - name: Point at the table
+        description: A participant's pointer is shown live to the others ("look here"), never kept.
+        use_cases:
+          - Point at a place of the map for the others
+        evidence:
+          - doc: specs/pointers.md#Intent
+      - name: Several tables per campaign
+        description: >-
+          A campaign holds several tables (scenes); a holder of the scenes power creates one, prepares another than
+          the displayed one behind the GM screen, and shows a table, which moves every participant to it.
+        use_cases:
+          - Create a new table
+          - Prepare a table before showing it
+          - Show a table to every participant
+        evidence:
+          - doc: specs/scenes.md#Intent
+          - doc: docs/adr/0019-several-tables-per-campaign.md
+          - code: crates/server/src/table.rs
+      - name: The table kept on disk
+        description: >-
+          Each table is a readable file of the campaign written shortly after each change; a failed write is told
+          to the participants and tried again; a file changed outside is kept aside.
+        use_cases:
+          - Find the table as it was after a restart
+        evidence:
+          - doc: specs/table_file.md#Intent
+          - doc: PRODUCT.md#Data and persistence
+  - name: Fog of war
+    description: Hiding parts of the table and revealing them as the game goes.
+    features:
+      - name: Cover and reveal fog
+        description: >-
+          A holder of the fog power covers a rectangle, a polygon or a selected object with fog, from the mouse or
+          the keyboard, and reveals a zone whole or in part; those who hold the power see through it, the others
+          receive nothing of what it covers, an image partly under it masked by the server.
+        use_cases:
+          - Cover a map with fog
+          - Reveal a room
+          - Reveal part of a zone
+        evidence:
+          - doc: PRODUCT.md#Fog of war
+          - doc: specs/fog.md#Intent
+          - doc: specs/fog_board.md#Intent
+          - code: crates/server/src/table.rs
+      - name: Reveal a zone to some participants only
+        description: A zone is revealed to chosen participants (the scout sees what the others do not).
+        use_cases:
+          - Reveal a zone to one player
+        evidence:
+          - doc: PRODUCT.md#Fog of war
+          - doc: specs/fog.md#Intent
+  - name: Dice
+    description: Rolling dice that nobody can cheat, and their shared log.
+    features:
+      - name: Roll dice from a formula
+        description: >-
+          A formula typed in the palette or the roll log (`2d6+1`, `d20`, `4d6kh3`, `d%`, `d66`, `d20 + d6`) is
+          rolled by the server, so nobody chooses their draw; the last roll is rolled again in one key.
+        use_cases:
+          - Roll a formula from the palette
+          - Reroll the last roll
+        evidence:
+          - doc: PRODUCT.md#Dice
+          - doc: specs/dice_formula.md#Intent
+          - doc: specs/dice.md#Intent
+          - code: crates/dice/src/parse.rs
+          - code: crates/server/src/roll.rs
+      - name: Hidden rolls
+        description: >-
+          A hidden roll (`?d20`) is seen whole by its roller and the GMs (behind the screen), by its roller alone
+          without a GM, the others seeing that a roll was made; its roller, or a GM for a roll behind the screen,
+          reveals it later.
+        use_cases:
+          - Roll behind the GM screen
+          - Reveal a hidden roll
+        evidence:
+          - doc: PRODUCT.md#Dice
+          - doc: specs/dice.md#Intent
+          - code: crates/server/src/roll.rs
+      - name: Roll log
+        description: >-
+          The shared log of the campaign: who rolled, what, each die and the result, read as a chat, kept across
+          restarts.
+        use_cases:
+          - Read the last rolls
+        evidence:
+          - doc: specs/roll_log.md#Intent
+          - doc: specs/dice.md#Intent
+  - name: Notes
+    description: The Markdown documents of a campaign, the paper of the table.
+    features:
+      - name: Folders and visibility of the notes
+        description: >-
+          A shared folder, a GM folder and one folder per participant; each note of a participant is private, shared
+          with the GM or shared with all (front matter); each participant receives only the notes they may read.
+        use_cases:
+          - Share a note with everyone
+          - Keep a note private
+        evidence:
+          - doc: PRODUCT.md#Documents
+          - doc: specs/documents.md#Intent
+          - code: crates/server/src/documents.rs
+      - name: Organize the notes
+        description: >-
+          A panel lists the notes by folder and finds one by name or tag; the palette creates, renames, moves and
+          deletes the notes of the folders the participant writes.
+        use_cases:
+          - Create a note from the palette
+          - Find a note by its tag
+          - Move a note to another folder
+        evidence:
+          - doc: specs/document_panel.md#Intent
+      - name: Read and edit a note
+        description: >-
+          A note is read rendered and updated live; whoever may write it edits its Markdown source, the others
+          seeing who edits and where their caret is.
+        use_cases:
+          - Read a note
+          - Edit my journal
+        evidence:
+          - doc: specs/document_reader.md#Intent
+          - doc: specs/editing.md#Intent
+          - doc: specs/note_editor.md#Intent
+      - name: Links between notes and to book pages
+        description: >-
+          `[[name]]` links a note, `[[book:page]]` a page of a book; following a link to a missing note creates it;
+          a link previews its target on hover, and a note lists the notes that link to it.
+        use_cases:
+          - Link a note to a page of a rulebook
+          - Create a note by following its link
+          - See the notes that link to this one
+        evidence:
+          - doc: specs/document_links.md#Intent
+          - doc: docs/adr/0013-internal-link-syntax.md
+      - name: Notes saved as files, edits outside followed
+        description: >-
+          A note is written back to its Markdown file without a save gesture; a file changed outside Vingilot (an
+          editor, `git pull`) is merged into the open note, a file removed outside closes it.
+        use_cases:
+          - Edit a note in another editor while it is open
+        evidence:
+          - doc: specs/document_save.md#Intent
+          - doc: PRODUCT.md#Data and persistence
+  - name: Images of the notes
+    description: The image library kept in the note folders, and the writing on it.
+    features:
+      - name: Image library in the folders
+        description: >-
+          Images are files of the note folders under the same read rules, uploaded, moved, deleted and copied to
+          one's folder, shown in an image view; a sheet names its token image and its printed sheet image.
+        use_cases:
+          - Add an image to my folder
+          - Copy a shared image to my folder
+        evidence:
+          - doc: specs/document_images.md#Intent
+          - doc: docs/adr/0016-image-library-in-document-folders.md
+      - name: Turn book pages into images
+        description: >-
+          From the book viewer, a page, a range of pages or an area of a page becomes an image of a folder the
+          participant writes (a character sheet, a handout, a map).
+        use_cases:
+          - Turn a character sheet of a book into an image
+          - Cut a map out of a page
+        evidence:
+          - doc: specs/page_images.md#Intent
+      - name: Write on an image
+        description: >-
+          Who writes an image's folder writes texts, strokes and links to notes on it, kept beside the image and
+          carried with it; the writing shows over it on the table, a link only to who reads its note.
+        use_cases:
+          - Fill in a printed character sheet
+          - Annotate a map with links to notes
+        evidence:
+          - doc: specs/image_annotations.md#Intent
+          - doc: specs/image_writing.md#Intent
+          - doc: specs/table_marks.md#Intent
+  - name: Library of books
+    description: The PDF books of the instance and their reading.
+    features:
+      - name: Manage the library
+        description: >-
+          The administrator adds (uploads), renames and removes the PDF books of the instance library, shared by
+          every campaign; the library follows the files changed on disk.
+        use_cases:
+          - Upload a rulebook
+        evidence:
+          - doc: PRODUCT.md#Library
+          - doc: specs/library.md#Intent
+          - code: crates/server/src/books.rs
+      - name: Pick the books a campaign sees
+        description: The organizer shows or hides each book for the campaign; a new campaign sees none.
+        use_cases:
+          - Show a book to the campaign
+        evidence:
+          - doc: PRODUCT.md#Library
+          - doc: specs/library.md#Intent
+      - name: Read a book
+        description: >-
+          A built-in PDF viewer opens a visible book at a page without downloading it whole, from the palette
+          (`bestiary 87`), turns its pages, zooms, and searches and copies its text, from the keyboard.
+        use_cases:
+          - Open a book at a page from the palette
+          - Search a word in a book
+        evidence:
+          - doc: specs/pdf_viewer.md#Intent
+          - doc: specs/book_navigation.md#Intent
+          - doc: specs/book_search.md#Intent
+  - name: Audio
+    description: Ambiance music played to every participant.
+    features:
+      - name: Play an ambiance to everyone
+        description: >-
+          A holder of the audio power starts a track from the palette (`rain`), loops, pauses, resumes and stops
+          it, heard in sync by every participant, each setting their own volume.
+        use_cases:
+          - Start an ambiance from the palette
+          - Pause the music
+          - Lower my volume
+        evidence:
+          - doc: PRODUCT.md#Audio
+          - doc: specs/audio.md#Intent
+          - code: crates/server/src/media.rs
+      - name: Manage the tracks
+        description: A holder of the audio power uploads, renames and removes the tracks of the campaign.
+        use_cases:
+          - Upload a track
+          - Rename a track
+        evidence:
+          - doc: specs/audio.md#Intent
+  - name: Interface
+    description: Reaching everything from the keyboard, in the participant's language.
+    features:
+      - name: Command palette
+        description: >-
+          One entry point opened with `Ctrl+K` or `/`: fuzzy search of the commands, notes, books down to the page,
+          tracks and participants, dice formulas typed directly; each command shows its shortcut and only what the
+          participant may do is offered.
+        use_cases:
+          - Run a command from the palette
+          - Learn a shortcut from the palette
+        evidence:
+          - doc: PRODUCT.md#Command palette
+          - doc: specs/palette.md#Intent
+      - name: Keyboard and widgets
+        description: >-
+          The table fills the screen, every other function is a widget over it, shrunk to an icon of a dock when
+          not in use; every panel is reached from the keyboard (`F6`), with a visible focus and screen reader
+          landmarks.
+        use_cases:
+          - Move from panel to panel with the keyboard
+        evidence:
+          - doc: PRODUCT.md#Layout
+          - doc: specs/shell.md#Intent
+      - name: Interface in English and French
+        description: The interface opens in the browser's language, English or French, and each participant can change it.
+        use_cases:
+          - Switch the interface to French
+        evidence:
+          - doc: PRODUCT.md#Languages
+          - doc: specs/i18n.md#Intent
+rules:
+  - With a GM, only the GMs hold the table powers (fog, background lock, hidden layer, scenes, audio); without a GM every player holds them.
+  - The campaign powers (invite, revoke links, give roles, pick the books) stay with the organizer, with or without a GM.
+  - Only the administrator creates and archives campaigns and adds books to the library.
+  - An archived campaign refuses the links of its participants.
+  - A campaign name is 1 to 80 characters, without control characters.
+  - 'A nickname is 1 to 32 characters, without control characters nor `/ \ < > : " | ? *`, and does not start or end with `.`.'
+  - A new campaign sees no book of the library until its organizer picks them.
+  - A participant never receives what they may not see (zones under fog, the hidden layer, private notes, hidden rolls).
+  - A hidden roll is seen whole by its roller and, behind the screen, by the GMs; it can be revealed by its roller, or by a GM for a roll behind the screen.
+  - The roll log keeps the last 500 rolls.
+  - A dice formula is at most 200 characters.
+  - A table holds at most 20,000 objects; a stroke at most 10,000 points and a text at most 10,000 characters.
+  - An uploaded image is a PNG, a JPEG, a GIF or a WebP of at most 50 MiB.
+  - An uploaded book must be a PDF.
+  - A note larger than 512 KiB cannot be opened.
+  - A participant always reads the notes of their own folder and of the shared folder; the GM folder only with the power to see the GM's notes.
+  - Without a GM, a note shared with the GM is read by its owner alone.
+  - 'A tag is at most 64 bytes, without spaces nor `# , [ ] " ''`.'
+  - A token is moved by the owner of its sheet and by the holders of the table powers.
+  - Turning book pages into images takes at most 20 pages at once.
+  - A table name is 1 to 48 characters.
+  - A personal link is a secret token of 32 random bytes, stored hashed.
+checked:
+  date: 2026-11-19
+  method: >-
+    Drafted from the specs, PRODUCT.md and the ADRs at the pinned commit, each feature citing the spec or the product
+    section it comes from, functional level only (the roadmap's MVP items not built are left out); read item by item
+    and accepted by the author of the application, who knows its intent
+    (issues/benchmark_on_an_application_the_user_knows.md).

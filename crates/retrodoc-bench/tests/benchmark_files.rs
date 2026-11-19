@@ -107,7 +107,10 @@ fn every_hand_written_pair_names_an_item_of_its_reference() {
 #[test]
 fn every_entry_points_reference_parses_and_names_its_repository() {
     for dir in benchmark_dirs() {
-        let raw = std::fs::read_to_string(dir.join("entry-points.yaml")).unwrap();
+        // Only the repositories `entry_points_replay` measures have one.
+        let Ok(raw) = std::fs::read_to_string(dir.join("entry-points.yaml")) else {
+            continue;
+        };
         let entry_points: EntryPointReference = serde_yaml::from_str(&raw).unwrap();
         assert_eq!(entry_points.repo, name(&dir));
         assert!(!entry_points.files.is_empty(), "{}", name(&dir));

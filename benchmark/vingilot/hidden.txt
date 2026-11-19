@@ -1,0 +1,14 @@
+# The written intent of Vingilot, removed from the clones of the `hidden` series: the docs, the specs, the issues,
+# the root Markdown files (read by the brief whatever `existing_docs_paths` says) and the agent harness. The commit
+# history, the `// spec:` traces and the `//!` docs of the code stay (a bias of this repository).
+README.md
+PRODUCT.md
+ROADMAP.md
+ROADMAP-done.md
+CHANGELOG.md
+CLAUDE.md
+AGENTS.md
+.claude
+docs
+specs
+issues
