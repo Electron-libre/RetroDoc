@@ -66,8 +66,8 @@ Sort of the uses of `retrodoc-mcp` and `retrodoc-web`:
    over the size limit at 1,062 lines); verified by its moved tests and `just check`; ~280 lines. (autonomous)
 2. [x] Glossary and domain map in core (`retrodoc_core::artifacts`), with their `load`/`save`; `normalize` to
    `retrodoc_core::text`; core gains `schemars` for `Entity`; verified by the moved tests, `just check`; ~1,000 lines. (autonomous)
-2b. [ ] Scope in core (cut from deliverable 2, over the size limit at 1,064 lines); verified by `just check`; ~110
-   lines.
+2b. [x] Scope in core (cut from deliverable 2, over the size limit at 1,064 lines); verified by `just check`; ~110
+   lines. (autonomous)
 3. [ ] Behaviour coverage, set-aside, source hashes and the loaders of features, use cases and rules in core;
    `retrodoc-mcp` and `retrodoc-web` sources no longer import those from the pipeline; verified by `just check` and a
    rerun of `generate` on a saved run that calls no LLM (fingerprints unchanged); ~900 lines.
@@ -135,6 +135,26 @@ pipeline uses them through `pub(crate)` imports, the other crates import them fr
 | specs | pass (no change of behaviour) |
 | docs | `docs/crates/core-ingest.md`, `docs/crates/pipeline.md` |
 | size | 996 lines (`Scope` cut to 2b) |
+
+red: none (a move)
+
+Code review: no findings
+
+not verified: nothing
+
+decisions needed: none
+
+## Deliverable 2b
+done: `Scope` (with `load`, `save`, `clear`) lives in `retrodoc_core::artifacts`; the budget (`rank_files`,
+`apply_budget`) stays in the pipeline.
+
+| check | result |
+|-------|--------|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass (no change of behaviour) |
+| docs | `docs/crates/core-ingest.md` |
+| size | 89 lines |
 
 red: none (a move)
 

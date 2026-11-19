@@ -6,12 +6,12 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+use retrodoc_core::artifacts::Scope;
 use retrodoc_core::artifacts::{DomainMap, Glossary};
 use retrodoc_core::cache::format::{self as cache_format, FormatError};
 use retrodoc_core::model::{BusinessRule, Domain, Feature, RuleEvidence, UseCase};
 use retrodoc_ingest::existing_docs::ExistingDoc;
 use retrodoc_pipeline::reconcile::{reconcile, ItemKind, Judgements, Reconciliation};
-use retrodoc_pipeline::Scope;
 use retrodoc_pipeline::{domain_models, BehaviourCoverage};
 
 use crate::corpus::{build_entries, rule_entries, section_entries, EntryKind};
@@ -497,12 +497,12 @@ pub(crate) fn saved_edits(repo_root: &Path) -> Edits {
 mod tests {
     use std::path::PathBuf;
 
+    use retrodoc_core::artifacts::Scope;
     use retrodoc_core::artifacts::{DomainCluster, DomainMap};
     use retrodoc_core::model::Feature;
     use retrodoc_ingest::existing_docs::ExistingDoc;
     use retrodoc_pipeline::reconcile::Status;
     use retrodoc_pipeline::BehaviourCoverage;
-    use retrodoc_pipeline::Scope;
 
     use super::GeneratedDocs;
 

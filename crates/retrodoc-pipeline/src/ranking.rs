@@ -14,10 +14,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use retrodoc_ingest::{FileKind, IngestResult};
-use serde::{Deserialize, Serialize};
 
-use crate::artifact::{load_yaml, save_yaml, Artifact};
-use crate::error::PipelineError;
+pub(crate) use retrodoc_core::artifacts::Scope;
+
 use crate::naming::normalize;
 use crate::roles::{FileRole, RoleMap};
 use crate::text::{first_chars, read_file_lossy};
@@ -28,37 +27,6 @@ const MAX_SHARED_NAME: usize = 3;
 const MIN_TOKEN_LEN: usize = 4;
 /// Only the start of a file is scanned for references.
 const MAX_SCAN_CHARS: usize = 100_000;
-
-/// What the budget kept and left out, as saved in `scope.yaml`.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Scope {
-    /// The budget of this run.
-    pub max_files: usize,
-    /// Source files analysed.
-    pub analysed: usize,
-    /// Source files left out, in path order.
-    pub skipped: Vec<PathBuf>,
-}
-
-impl Scope {
-    /// Missing or unreadable: `None`.
-    #[must_use]
-    pub fn load(repo_root: &Path) -> Option<Self> {
-        load_yaml(&Artifact::Scope.path(repo_root))
-    }
-
-    /// # Errors
-    ///
-    /// Returns an error if the file can't be written.
-    pub fn save(&self, repo_root: &Path) -> Result<(), PipelineError> {
-        save_yaml(&Artifact::Scope.path(repo_root), self)
-    }
-
-    /// Removes the saved scope (no budget in this run).
-    pub fn clear(repo_root: &Path) {
-        let _ = std::fs::remove_file(Artifact::Scope.path(repo_root));
-    }
-}
 
 fn role_weight(role: Option<FileRole>) -> f32 {
     match role {

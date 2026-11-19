@@ -3,6 +3,8 @@
 
 pub mod domains;
 pub mod glossary;
+pub mod scope;
 
 pub use domains::{DomainCluster, DomainMap};
 pub use glossary::{Entity, Glossary, MergedEntity};
+pub use scope::Scope;
