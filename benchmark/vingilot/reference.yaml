@@ -415,4 +415,4 @@ checked:
     Drafted from the specs, PRODUCT.md and the ADRs at the pinned commit, each feature citing the spec or the product
     section it comes from, functional level only (the roadmap's MVP items not built are left out); read item by item
     and accepted by the author of the application, who knows its intent
-    (issues/benchmark_on_an_application_the_user_knows.md).
+    (issues/done/benchmark_on_an_application_the_user_knows.md).

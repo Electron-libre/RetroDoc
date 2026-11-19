@@ -774,7 +774,7 @@ round 1 to A and sends round 2 to A and to B, with and without the reasoning.
 Vingilot, a virtual tabletop written with Cardinal, has its intent written down (specs, ADRs, product document,
 issues); its author drafted nothing but checked `benchmark/vingilot/reference.yaml` item by item (9 domains, 33
 features, from the specs at `b73679e0`). One run per series, deepseek-chat, `--no-confidence`, at `c959836`
-(`issues/benchmark_on_an_application_the_user_knows.md`); the judge's pairs audited in `matches.yaml` (5
+(`issues/done/benchmark_on_an_application_the_user_knows.md`); the judge's pairs audited in `matches.yaml` (5
 rejected, 2 added):
 
 | Figure | hidden | shown |

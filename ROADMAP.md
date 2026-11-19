@@ -43,6 +43,6 @@ in `docs/findings.md` and the closed issues in `issues/done/`.
 - State: in issues
 - Issues:
   - [read_by_someone_who_knows_the_application](issues/read_by_someone_who_knows_the_application.md)
-  - [benchmark_on_an_application_the_user_knows](issues/benchmark_on_an_application_the_user_knows.md)
+  - [benchmark_on_an_application_the_user_knows](issues/done/benchmark_on_an_application_the_user_knows.md)
   - [hide_the_root_markdown_of_the_benchmark_baselines](issues/hide_the_root_markdown_of_the_benchmark_baselines.md)
   - [repeat_the_narratives_rating_of_the_judge](issues/repeat_the_narratives_rating_of_the_judge.md)
