@@ -31,7 +31,7 @@ the rules pass set aside through `retrodoc-pipeline` (`load_features`, `load_use
 The readers of the docs out of the pipeline
 
 # Resources
-* ADR 0051, `issues/reader_types_in_core.md` (`# Tracking`: the sort of the uses).
+* ADR 0051, `issues/done/reader_types_in_core.md` (`# Tracking`: the sort of the uses).
 * `crates/retrodoc-core/src/artifacts/`, `docs/crates/core-ingest.md`.
 
 # Hints
