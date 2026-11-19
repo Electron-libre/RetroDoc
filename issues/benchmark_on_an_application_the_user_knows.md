@@ -84,10 +84,11 @@ Leak measured 2026-11-19 on Vingilot `b73679e0`, `existing_docs_paths = []`:
    verified by the `reference_evidence` check; **stop: the user corrects the reference item by item**; ~500 lines.
    (validated by the user on 2026-11-19: accepted as drafted, the Interface domain and the two persistence
    features kept)
-3. [ ] Measure: estimate, **stop for the user's go**, `just benchmark` on the `hidden` and `shown` series; pairs in
-   `matches.yaml`; ledger line; ~100 lines.
-4. [ ] Findings dated in `docs/findings.md` (hidden against shown, against linkding and Lobsters, the misses and
+3. [x] Measure: estimate, **stop for the user's go**, `just benchmark` on the `hidden` and `shown` series; pairs in
+   `matches.yaml`; ledger line; ~100 lines. (the user's go on 2026-11-19; committed with deliverable 4)
+4. [x] Findings dated in `docs/findings.md` (hidden against shown, against linkding and Lobsters, the misses and
    extras the user reads, the root Markdown leak of the baselines) and the issues they call for; ~60 lines.
+   (autonomous, after the user's reading)
 
 ## Decisions
 - Mode: autonomous
@@ -133,4 +134,23 @@ Until Vingilot is public, the benchmark's cached source (`retrodoc-benchmark-vin
 beforehand: `benchmark.rs` then only fetches it.
 Code review: no findings
 not verified: the clone from the https URL (Vingilot still private).
+decisions needed: none.
+
+## Deliverables 3 and 4
+done: one run per series (ledger line of 2026-11-19), `matches.yaml` audited (5 judge pairs rejected, 2 added),
+three more ratings of the narratives of both runs, `docs/findings.md` §12, and two issues:
+`hide_the_root_markdown_of_the_benchmark_baselines`, `repeat_the_narratives_rating_of_the_judge`.
+
+| check | result |
+|---|---|
+| `benchmark_files` tests | pass |
+| `project-check` | pass |
+| human reading | every reference feature exists; the docs "very satisfying"; doubt on docs as the cause of technical narratives, confirmed by the re-ratings |
+| code review | low, see below |
+
+red: none (a measure).
+Decision: the narratives gap (30% hidden, 84% shown) is a judge outlier, not an effect of the docs (user's doubt,
+three re-ratings at 86% to 93%).
+Code review: no findings
+not verified: nothing.
 decisions needed: none.

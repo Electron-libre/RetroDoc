@@ -768,3 +768,36 @@ dropped, the project spends no OpenRouter credits
 one upstream (OpenRouter provider routing) or turn the reasoning off; the probe script that measures it,
 `reasoning_openrouter_probe/scripts/probe_encrypted.py <model> <upstream A> <upstream B>` in the runs directory, pins
 round 1 to A and sends round 2 to A and to B, with and without the reasoning.
+
+## 12. An application whose author checked the reference (2026-11-19)
+
+Vingilot, a virtual tabletop written with Cardinal, has its intent written down (specs, ADRs, product document,
+issues); its author drafted nothing but checked `benchmark/vingilot/reference.yaml` item by item (9 domains, 33
+features, from the specs at `b73679e0`). One run per series, deepseek-chat, `--no-confidence`, at `c959836`
+(`issues/benchmark_on_an_application_the_user_knows.md`); the judge's pairs audited in `matches.yaml` (5
+rejected, 2 added):
+
+| Figure | hidden | shown |
+|---|---|---|
+| Domains recall / precision | 89% / 90% | 89% / 100% |
+| Features recall / precision | 76% / 91% | 73% / 84% |
+| Narratives in business language (judge, 4 ratings) | 30%, then 93%, 92%, 86% | 84%, then 80%, 84%, 84% |
+| Generated | 10 domains, 33 features, 73 use cases | 9 domains, 43 features, 108 use cases |
+
+- **Showing the docs did not raise the coverage.** Features recall 76% hidden against 73% shown; the shown run adds
+  7 features, technical (server, session, socket, client shell, track streaming) or between two references. The
+  author read the docs: "very satisfying", every reference feature exists in the application.
+- **The `hidden` series hides less than its name says.** `existing_docs_paths = []` leaves the brief reading every
+  Markdown file of the root (`signals::root_markdown`) and the walker seeing the others: on Vingilot, 368 Markdown
+  files, and the README, product document, roadmap, changelog, `CLAUDE.md` and `AGENTS.md` feed the brief. The
+  linkding and Lobsters `hidden` baselines read their README (and CHANGELOG, `CLAUDE.md`, `AGENTS.md`,
+  `CONTRIBUTING.md` for Lobsters). Vingilot's `hidden.txt` removes them; its history (284 `docs:` subjects, 280
+  naming an issue), its 1,507 `// spec:` traces and 1,055 `//!` lines stay, so its figures are optimistic for an
+  inherited project.
+- **One judge rating of the narratives was 60 points off.** The first rating of the hidden run gave 30% (22 of 73);
+  three ratings of the same narratives gave 86% to 93%, the self-rated business score is 98%, and the density of
+  technical words is close in both series (3.4 and 2.7 per 100 words). The run's log shows the server refusing the
+  JSON schema of a call and the judge proposing no domain pair twice: a degraded moment of the API is likely. A
+  narratives figure from one rating is not a finding until repeated.
+- **Missed in both series**: the powers by role (rules spread over every feature, not a feature of their own in the
+  docs), laying notes and book pages on the table, the table kept on disk, and the links between notes.
