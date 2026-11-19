@@ -49,6 +49,8 @@ another version of RetroDoc is refused with the command to run rather than read 
   stops with an error naming both versions and `retrodoc generate --force`; after that run, `ui` opens.
 - (CFV-7) Given a cache written before this change (no `format.json`), when `render` runs, then it reads the docs
   as format 1, with no error.
+- (CFV-7) Given a repository with no artifact, when a later RetroDoc runs `generate`, then it runs and records its
+  version.
 - (CFV-3) Given a `format.json` of version 99, when `report` runs, then it fails naming 99 and the version it
   reads.
 - (CFV-8) Given a `format.json` holding `{`, when `render` runs, then it fails naming the file.

@@ -158,6 +158,8 @@ frame everything else, and a cheap or local one in `[llm]` for the many extracti
 
 Intermediate artifacts (file roles, glossary, entry points, domains, features, use cases…) are plain
 YAML under `.retrodoc/cache/`. `roles.yaml`, `roles-unmatched.yaml`, `signal-sources.yaml` and `product.yaml` are meant to be edited by hand when the LLM gets them wrong.
+`.retrodoc/cache/format.json` records their format: a cache written by an older RetroDoc is refused until
+`retrodoc generate --force` writes it again, one written by a later RetroDoc until you update.
 
 ## How it works
 

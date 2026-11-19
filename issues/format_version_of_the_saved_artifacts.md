@@ -56,6 +56,7 @@ upgrade in place, the single-pass commands, the benchmark replays. Means: candid
    verified by CLI tests with the fake LLM; makes true CFV-4, CFV-5. (autonomous)
 3. [x] Frozen sample of the format-1 artifacts the readers load (`crates/retrodoc-mcp/tests/fixtures/`), read and
    saved again to the same text; verified by the round-trip test; makes true CFV-10, sets the spec `accepted`. (autonomous)
+4. [x] Docs of the whole issue and fixes of its `high` review. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -93,3 +94,23 @@ upgrade in place, the single-pass commands, the benchmark replays. Means: candid
   to the same values as before, so the loaders drop no field of the sample.
 - Code review: no findings
 - not verified: none.
+
+## Deliverable 4 (docs of the whole issue, `high` review)
+- done: README names `format.json`; a cache with no `format.json` and no artifact is read by any version (no refusal
+  of a first `generate` after a bump); `render` checks the format, then says "no docs" before reading the edits again;
+  the bless of the sample starts from the latest earlier sample after a bump; the CLI tests read `FORMAT_VERSION`;
+  `record` reads the file once.
+- red: CFV-7: `a_cache_with_no_artifact_is_read_by_any_version` written with the fix (the bump it guards cannot be
+  run through the binary).
+- `high` review: 9 findings
+  - a missing `format.json` counts as format 1 with no cache at all: fixed (`holds_artifacts`), CFV-7 scenario added.
+  - single-pass commands write the cache unchecked: `issues/cache_format_in_the_single_pass_commands.md`.
+  - bless cannot write the sample of a bumped version: fixed.
+  - `--force` on an older cache keeps the hand-editable files under the new stamp: same follow-up issue.
+  - `--force` clears the caches before the edits check: not fixed, the order predates this issue.
+  - `render` reads the edits before saying "no docs": fixed.
+  - `use-cases.yaml` parsed twice by `render` and `report`: not fixed, it predates this issue.
+  - CLI tests hard-code the version: fixed.
+  - `record` reads the file twice: fixed.
+- Code review: no findings
+- not verified: the bless path of a bump (no bump to run it on).

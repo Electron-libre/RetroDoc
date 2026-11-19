@@ -5,7 +5,8 @@
 //! On a failure: if a reader of an older version would read the new shape wrong, bump
 //! `FORMAT_VERSION` in `cache_format.rs` and write the sample under its new number; else refresh the
 //! sample in place. `RETRODOC_BLESS=1 cargo test -p retrodoc-pipeline --test cache_format_sample`
-//! writes the sample from what the loaders save.
+//! writes the sample from what the loaders save, read from the latest earlier sample after a bump
+//! (a field the bump adds then holds its default: fill it by hand).
 
 use std::path::{Path, PathBuf};
 
@@ -19,14 +20,32 @@ fn sample_dir() -> PathBuf {
         .join(format!("cache-format-{FORMAT_VERSION}"))
 }
 
+/// The sample to read: that of the current format, else, to bless the sample of a bumped version, the
+/// sample of the latest format before it.
+fn source_dir() -> PathBuf {
+    let sample = sample_dir();
+    if sample.is_dir() || !blessing() {
+        assert!(
+            sample.is_dir(),
+            "no sample of format {FORMAT_VERSION} at {}: write it with RETRODOC_BLESS=1",
+            sample.display()
+        );
+        return sample;
+    }
+    (1..FORMAT_VERSION)
+        .rev()
+        .map(|v| sample.with_file_name(format!("cache-format-{v}")))
+        .find(|dir| dir.is_dir())
+        .expect("no sample of an earlier format to start from")
+}
+
+fn blessing() -> bool {
+    std::env::var_os("RETRODOC_BLESS").is_some()
+}
+
 /// A repository whose cache is the sample.
 fn repo_of_the_sample() -> tempfile::TempDir {
-    let sample = sample_dir();
-    assert!(
-        sample.is_dir(),
-        "no sample of format {FORMAT_VERSION} at {}: write it with RETRODOC_BLESS=1",
-        sample.display()
-    );
+    let sample = source_dir();
     let repo = tempfile::tempdir().unwrap();
     let cache = repo.path().join(".retrodoc/cache");
     std::fs::create_dir_all(&cache).unwrap();
@@ -81,7 +100,8 @@ fn the_artifacts_of_the_current_format_read_back_and_save_to_the_same_text() {
 
     let saved = saved_again(repo.path());
 
-    if std::env::var_os("RETRODOC_BLESS").is_some() {
+    if blessing() {
+        std::fs::create_dir_all(sample_dir()).unwrap();
         for (name, text) in &saved {
             std::fs::write(sample_dir().join(name), text).unwrap();
         }

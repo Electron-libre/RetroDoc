@@ -9,7 +9,7 @@ use std::process::Output;
 use support::{generate, retrodoc, App, FakeLlm};
 
 /// The format the binary under test writes and reads.
-const CURRENT: u32 = 1;
+const CURRENT: u32 = retrodoc_pipeline::cache_format::FORMAT_VERSION;
 
 /// A shop documented by `generate`.
 fn shop() -> (tempfile::TempDir, FakeLlm) {

@@ -11,12 +11,15 @@ use retrodoc_render::RunMetadata;
 /// content already matches are left untouched, so a rerun on unchanged artifacts, edits and reviews
 /// is a no-op.
 pub fn publish(repo_root: &Path, config: &Config, dry_run: bool) -> anyhow::Result<()> {
+    retrodoc_pipeline::cache_format::check(repo_root)?;
+    if retrodoc_pipeline::load_use_cases(repo_root).is_none() {
+        anyhow::bail!(NO_DOCS);
+    }
     // Before anything is written: docs without the team's corrections would overwrite theirs.
     let edits = retrodoc_mcp::edits::load(repo_root)
         .context("the docs are not written: the human edits cannot be read")?;
-    let docs = retrodoc_mcp::GeneratedDocs::load_with_edits(repo_root, &[], edits)?
-        .filter(|_| retrodoc_pipeline::load_use_cases(repo_root).is_some())
-        .context(NO_DOCS)?;
+    let docs =
+        retrodoc_mcp::GeneratedDocs::load_with_edits(repo_root, &[], edits)?.context(NO_DOCS)?;
     let report = debt_report(&docs, repo_root, config);
     let rules = docs.rules();
     if rules.is_empty() && retrodoc_pipeline::Artifact::Rules.path(repo_root).exists() {
