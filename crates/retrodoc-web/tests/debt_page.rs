@@ -5,6 +5,7 @@ use std::path::Path;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
+use retrodoc_core::artifacts::{BehaviourCoverage, SourceHashes};
 use retrodoc_core::artifacts::{DomainCluster, DomainMap};
 use retrodoc_core::cache::hash_content;
 use retrodoc_core::model::{Actor, ActorKind, ConfidenceScore, Feature, SourceRef, Step, UseCase};
@@ -12,7 +13,6 @@ use retrodoc_mcp::{GeneratedDocs, Uncovered};
 use retrodoc_pipeline::reconcile::{
     Contradiction, ItemKind, ItemVerdict, Reconciliation, SectionRef, Status,
 };
-use retrodoc_pipeline::{BehaviourCoverage, SourceHashes};
 use retrodoc_render::DocLinks;
 use retrodoc_web::Project;
 use tower::ServiceExt;

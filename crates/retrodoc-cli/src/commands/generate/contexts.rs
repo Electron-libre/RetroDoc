@@ -11,11 +11,10 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::Context;
+use retrodoc_core::artifacts::SourceHashes;
 use retrodoc_core::artifacts::{DomainMap, Glossary};
 use retrodoc_ingest::IngestResult;
-use retrodoc_pipeline::{
-    ContextMap, EntryPoints, FileRole, Retention, RoleMap, RunSlice, SourceHashes, Surface,
-};
+use retrodoc_pipeline::{ContextMap, EntryPoints, FileRole, Retention, RoleMap, RunSlice, Surface};
 
 use super::super::passes;
 use super::super::workspace::source_paths;
@@ -144,7 +143,7 @@ async fn document(
         )
         .await?;
     // Read before the passes: a file edited during the run then reads as modified later.
-    let source_hashes = SourceHashes::capture_paths(repo_root, &documented_files(repo));
+    let source_hashes = retrodoc_pipeline::hash_paths(repo_root, &documented_files(repo));
     let (in_run, everywhere) = domains(repo, &glossary, &entry_points);
     everywhere
         .save(repo_root)
@@ -247,7 +246,7 @@ fn report_entries_by_context(
     repo: &Repo<'_>,
     in_run: &DomainMap,
 ) -> anyhow::Result<()> {
-    let Some(mut coverage) = retrodoc_pipeline::BehaviourCoverage::load(repo_root) else {
+    let Some(mut coverage) = retrodoc_core::artifacts::BehaviourCoverage::load(repo_root) else {
         return Ok(());
     };
     let before = coverage.by_domain.len();

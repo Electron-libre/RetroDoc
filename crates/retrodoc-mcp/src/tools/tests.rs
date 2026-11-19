@@ -351,7 +351,7 @@ fn the_saved_artifacts_are_loaded_and_navigable() {
 /// of the two files they cite.
 fn docs_over_a_generated_repo() -> (tempfile::TempDir, Docs) {
     let dir = tempfile::tempdir().unwrap();
-    let mut cache = retrodoc_pipeline::SourceHashes::default();
+    let mut cache = retrodoc_core::artifacts::SourceHashes::default();
     for name in ["app/invoice.rb", "app/mailer.rb"] {
         let path = dir.path().join(name);
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();

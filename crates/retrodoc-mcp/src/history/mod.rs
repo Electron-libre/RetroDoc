@@ -7,10 +7,10 @@ use std::collections::{BTreeMap, HashSet};
 use std::io::{ErrorKind, Write as _};
 use std::path::{Path, PathBuf};
 
+use retrodoc_core::artifacts::BehaviourCoverage;
 use retrodoc_core::cache::Artifact;
 use retrodoc_core::model::SetApartReason;
 use retrodoc_pipeline::usage_log::RunUsage;
-use retrodoc_pipeline::BehaviourCoverage;
 use serde::{Deserialize, Serialize};
 
 use crate::audit::{entry_coverage, EntryCoverage};

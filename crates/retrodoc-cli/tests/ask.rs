@@ -217,7 +217,7 @@ fn the_warnings_of_the_sources_are_printed_after_them() {
     let mut features = retrodoc_pipeline::load_features(dir.path()).unwrap();
     features[0].confidence = Some(retrodoc_core::model::ConfidenceScore::new(0.3, None));
     retrodoc_pipeline::save_features(dir.path(), &features).unwrap();
-    let mut hashes = retrodoc_pipeline::SourceHashes::default();
+    let mut hashes = retrodoc_core::artifacts::SourceHashes::default();
     hashes.put(
         "app/order.rb",
         &retrodoc_core::cache::hash_content("class Order; end\n"),

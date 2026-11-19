@@ -5,8 +5,9 @@
 
 use std::collections::{BTreeMap, HashSet};
 
+use retrodoc_core::artifacts::BehaviourCoverage;
+use retrodoc_pipeline::recorded_progress;
 use retrodoc_pipeline::usage_log::load_history;
-use retrodoc_pipeline::{recorded_progress, BehaviourCoverage};
 use serde::{Deserialize, Serialize};
 // What the figures are made of and how the recap of a run writes them, for whoever shows them.
 pub use retrodoc_pipeline::usage_log::{thousands, ModelRecord, PassRecord, RunUsage};

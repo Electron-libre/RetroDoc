@@ -10,11 +10,11 @@
 
 use std::path::{Path, PathBuf};
 
+use retrodoc_core::artifacts::BehaviourCoverage;
 use retrodoc_core::artifacts::Scope;
 use retrodoc_core::artifacts::{DomainMap, Glossary};
 use retrodoc_core::cache::format::FORMAT_VERSION;
 use retrodoc_pipeline::reconcile::Judgements;
-use retrodoc_pipeline::BehaviourCoverage;
 
 fn sample_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))

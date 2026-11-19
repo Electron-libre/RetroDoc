@@ -12,8 +12,8 @@ use retrodoc_ingest::IngestResult;
 use retrodoc_llm::UsageTracker;
 use retrodoc_pipeline::estimate::RunEstimate;
 use retrodoc_pipeline::{
-    Actors, CodeIndex, EntryPoints, Evidence, ProductBrief, RoleMap, SourceHashes, Surface,
-    UseCaseContext, WalkedFiles,
+    Actors, CodeIndex, EntryPoints, Evidence, ProductBrief, RoleMap, Surface, UseCaseContext,
+    WalkedFiles,
 };
 
 mod contexts;
@@ -183,7 +183,7 @@ pub async fn run(
 
     // Read before the features: a file edited during the run then reads as
     // modified later, never as fresh.
-    let source_hashes = SourceHashes::capture(repo_root, &ingest);
+    let source_hashes = retrodoc_pipeline::hash_sources(repo_root, &ingest);
 
     if let Some(warning) = surface.empty_surface_warning(source_paths(&ingest).count()) {
         tracing::warn!("{warning}");

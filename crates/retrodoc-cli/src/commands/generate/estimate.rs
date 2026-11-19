@@ -4,11 +4,12 @@
 
 use std::path::{Path, PathBuf};
 
+use retrodoc_core::artifacts::SourceHashes;
 use retrodoc_core::cache::Artifact;
 use retrodoc_core::config::{Config, DomainsFrom};
 use retrodoc_ingest::{FileKind, IngestResult};
 use retrodoc_pipeline::estimate::{estimate, EstimateInputs, RatioTable, RunEstimate};
-use retrodoc_pipeline::{RoleRules, SourceHashes};
+use retrodoc_pipeline::RoleRules;
 
 use super::super::passes;
 use super::{passes_of, passes_off, Confidence, GenerateOptions};
@@ -137,7 +138,7 @@ fn changed_since_last_run(
     let saved_paths: Vec<PathBuf> = saved.paths().map(PathBuf::from).collect();
     // The saved files hashed again (a missing one is left out): whether a file is a source may have changed
     // since, through the extensions the roles promote.
-    let now = SourceHashes::capture_paths(repo_root, &saved_paths);
+    let now = retrodoc_pipeline::hash_paths(repo_root, &saved_paths);
     let changed = saved
         .paths()
         .filter(|path| now.get(path) != saved.get(path))

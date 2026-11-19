@@ -68,17 +68,20 @@ Sort of the uses of `retrodoc-mcp` and `retrodoc-web`:
    `retrodoc_core::text`; core gains `schemars` for `Entity`; verified by the moved tests, `just check`; ~1,000 lines. (autonomous)
 2b. [x] Scope in core (cut from deliverable 2, over the size limit at 1,064 lines); verified by `just check`; ~110
    lines. (autonomous)
-3. [ ] Behaviour coverage, set-aside, source hashes and the loaders of features, use cases and rules in core;
-   `retrodoc-mcp` and `retrodoc-web` sources no longer import those from the pipeline; verified by `just check` and a
-   rerun of `generate` on a saved run that calls no LLM (fingerprints unchanged); ~900 lines.
-4. [ ] Create the two issues of the computations and the run history, update `ROADMAP.md` and the `depends_on` of
-   `docs_crate_out_of_the_mcp_crate`; docs (`docs/crates/*`, `ARCHITECTURE.md`).
+3. [x] Behaviour coverage and source hashes in core: `BehaviourCoverage` (with `FeatureCoverage`, `EntryCount`) and
+   `SourceHashes` (type, `load`/`save`, `get`/`put`/`merge`) in `retrodoc_core::artifacts`; the capture of the hashes
+   stays in the pipeline as free functions; verified by the moved tests, `just check` and a rerun of `generate` on a
+   saved run that calls no LLM; ~450 lines. (autonomous)
+4. [ ] Create the issues of the loaders (features, use cases, rules, set-aside), of the computations and of the run
+   history, update `ROADMAP.md` and the `depends_on` of `docs_crate_out_of_the_mcp_crate`; docs.
 
 ## Decisions
 - Mode: autonomous
 - Base commit: a1a27870e170ae2be81d1c2559a9f2e04033ece7
 - Place: modules of `retrodoc-core`, no new crate.
 - Split: this issue covers the cache layout and the data artifacts; the computations and the run history get issues of their own.
+- 2026-11-19, at deliverable 3: the issue reached 2,123 lines; `SetAside` and the loaders of features, use cases
+  and rules (127 call sites) go to an issue of their own (answer `1 a`).
 - Tests of the readers keep `retrodoc-pipeline` as a dev-dependency.
 
 ## Deliverable 1
@@ -155,6 +158,28 @@ done: `Scope` (with `load`, `save`, `clear`) lives in `retrodoc_core::artifacts`
 | specs | pass (no change of behaviour) |
 | docs | `docs/crates/core-ingest.md` |
 | size | 89 lines |
+
+red: none (a move)
+
+Code review: no findings
+
+not verified: nothing
+
+decisions needed: none
+
+## Deliverable 3
+done: `BehaviourCoverage` (with `FeatureCoverage`, `EntryCount`) and `SourceHashes` live in
+`retrodoc_core::artifacts`; `SourceHashes::capture` and `capture_paths` became the pipeline's `hash_sources` and
+`hash_paths` (they read the files with the pipeline's lossy reader), `SourceHashes` gained `FromIterator`.
+
+| check | result |
+|-------|--------|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass (no change of behaviour) |
+| docs | `docs/crates/core-ingest.md`, `docs/crates/pipeline.md` |
+| rerun | `generate --no-confidence` on a copy of the saved vingilot run with a bogus key: no LLM call, every saved file of identical content (`format.json` added); ledger line |
+| size | ~430 lines |
 
 red: none (a move)
 

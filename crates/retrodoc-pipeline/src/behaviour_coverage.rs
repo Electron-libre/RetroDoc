@@ -4,12 +4,13 @@
 //! by no behaviour (technical support), and per feature the entry points no use case cites (the
 //! use cases pass). The debt report reads it; it needs no LLM call.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
-use serde::{Deserialize, Serialize};
+pub(crate) use retrodoc_core::artifacts::coverage::{
+    BehaviourCoverage, EntryCount, FeatureCoverage,
+};
 
-use crate::artifact::{load_yaml, save_yaml, Artifact};
 use crate::entry_points::EntryPoints;
 use crate::error::PipelineError;
 use crate::features::entry_point_id;
@@ -20,55 +21,6 @@ use retrodoc_core::model::{Feature, UseCase};
 /// As in the use cases pass: how far from an entry point's file the code it runs is followed.
 const SLICE_DEPTH: usize = 2;
 const MAX_SLICE_FILES: usize = 8;
-
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct BehaviourCoverage {
-    /// Ids (`<file>#<name>`) of the entry points that belong to no feature.
-    #[serde(default)]
-    pub unplaced_entry_points: Vec<String>,
-    /// Source files that hold no entry point of a feature, are not run by one and mention no entity.
-    #[serde(default)]
-    pub technical_support: Vec<PathBuf>,
-    /// Per domain (bounded context) of a `domains_from = "contexts"` run: how many entry points it
-    /// holds and how many of them no feature holds. The count of a domain is renewed when it runs.
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub by_domain: BTreeMap<String, EntryCount>,
-    /// Per feature slug (features from the surface only): the entry points it holds and those no
-    /// use case of it cites. Renewed for the features whose use cases were just derived.
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub by_feature: BTreeMap<String, FeatureCoverage>,
-}
-
-/// The entry points of one feature and those its use cases leave out.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct FeatureCoverage {
-    pub entry_points: usize,
-    /// Ids (`<file>#<name>`) cited by no use case of the feature.
-    pub uncovered: Vec<String>,
-}
-
-/// The entry points of one domain.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct EntryCount {
-    pub entry_points: usize,
-    /// Held by no feature.
-    pub unplaced: usize,
-}
-
-impl BehaviourCoverage {
-    /// Missing or unreadable: `None` (first run, or a `files` run).
-    #[must_use]
-    pub fn load(repo_root: &Path) -> Option<Self> {
-        load_yaml(&Artifact::BehaviourCoverage.path(repo_root))
-    }
-
-    /// # Errors
-    ///
-    /// Returns an error if the file can't be written or serialization fails.
-    pub fn save(&self, repo_root: &Path) -> Result<(), PipelineError> {
-        save_yaml(&Artifact::BehaviourCoverage.path(repo_root), self)
-    }
-}
 
 /// The source files no behaviour reaches: those of the entry points the `features` hold, the code
 /// they run (a [`CodeIndex::slice`]) and the files that mention an entity of the surface are

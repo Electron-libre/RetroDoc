@@ -6,8 +6,8 @@
 
 use std::path::{Path, PathBuf};
 
+use retrodoc_core::artifacts::SourceHashes;
 use retrodoc_core::cache::hash_content;
-use retrodoc_pipeline::SourceHashes;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FileState {
@@ -61,7 +61,7 @@ impl Freshness {
     }
 }
 
-/// The hash of the content of `path` under `repo_root`, as `SourceHashes::capture` hashes it:
+/// The hash of the content of `path` under `repo_root`, as `retrodoc_pipeline::hash_sources` hashes it:
 /// lossy UTF-8.
 ///
 /// # Errors

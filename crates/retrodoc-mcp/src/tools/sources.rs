@@ -276,7 +276,7 @@ mod tests {
     /// recorded the hashes of the two files they cite, then `app/mailer.rb` was modified.
     fn docs_with_changed_code() -> (tempfile::TempDir, Docs) {
         let dir = tempfile::tempdir().unwrap();
-        let mut cache = retrodoc_pipeline::SourceHashes::default();
+        let mut cache = retrodoc_core::artifacts::SourceHashes::default();
         for name in ["app/invoice.rb", "app/mailer.rb"] {
             let path = dir.path().join(name);
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();

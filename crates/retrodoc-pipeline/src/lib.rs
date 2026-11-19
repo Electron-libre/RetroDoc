@@ -61,9 +61,7 @@ mod walked;
 
 pub use actors::{authorization_files, build_actors, Actors, BusinessActor};
 pub use artifact::Retention;
-pub use behaviour_coverage::{
-    save_technical_support, save_use_case_coverage, BehaviourCoverage, EntryCount, FeatureCoverage,
-};
+pub use behaviour_coverage::{save_technical_support, save_use_case_coverage};
 pub use bm25::{Bm25, Relevant};
 pub use brief::{build_brief, sample_chars, Claim, Evidence, ProductBrief};
 pub use business_files::{infer_business_files, BusinessEntry, BusinessMap};
@@ -98,7 +96,7 @@ pub use rules::{
     SetAside,
 };
 pub use slices::{CodeIndex, Follow};
-pub use source_hashes::SourceHashes;
+pub use source_hashes::{hash_paths, hash_sources};
 pub use sources::{infer_sources, saved_or_sniffed, SourceMapFile};
 pub use surface::{Resource, Surface};
 pub use use_cases::{build_use_cases, load_use_cases, save_use_cases, UseCaseContext};
