@@ -2,7 +2,7 @@ use super::*;
 use crate::freshness::FileState;
 use crate::reviews::tests::{docs, docs_citing, feature_pay, file_hash_of, refund, repo};
 use crate::reviews::{self, Status};
-use retrodoc_pipeline::Glossary;
+use retrodoc_core::artifacts::Glossary;
 
 fn name(name: &str) -> Fields {
     Fields {

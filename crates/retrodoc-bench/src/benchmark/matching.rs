@@ -18,10 +18,10 @@ use super::reference::Reference;
 use retrodoc_core::model::Feature;
 
 use crate::artifact::Artifact;
-use crate::domains::{DomainCluster, DomainMap};
 use crate::error::PipelineError;
 use crate::features::load_features;
 use crate::naming::normalize;
+use retrodoc_core::artifacts::{DomainCluster, DomainMap};
 
 /// The version of the scoring rules, saved in each [`super::RunReport`]: bump it when [`score`] or the
 /// judge changes what counts, so `benchmark-table` doesn't read a change of rules as a change of quality.
@@ -450,8 +450,8 @@ mod tests {
     #[test]
     fn compares_the_saved_domains_and_features_with_the_reference() {
         use crate::artifact::{save_yaml, Artifact};
-        use crate::domains::DomainCluster;
         use crate::features::save_features;
+        use retrodoc_core::artifacts::DomainCluster;
         use retrodoc_core::model::Feature;
 
         let reference: Reference = serde_yaml::from_str(

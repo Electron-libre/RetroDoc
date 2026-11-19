@@ -15,12 +15,13 @@ use super::matching::{compare, Comparison, Matches, Score};
 use super::reference::Reference;
 use crate::artifact::Retention;
 use crate::brief::ProductBrief;
-use crate::domains::{build_domains_from_surface, DomainMap};
+use crate::domains::build_domains_from_surface;
 use crate::entry_points::EntryPoints;
 use crate::error::PipelineError;
 use crate::features::build_features_from_surface;
-use crate::glossary::Glossary;
 use crate::surface::Surface;
+use retrodoc_core::artifacts::DomainMap;
+use retrodoc_core::artifacts::Glossary;
 
 /// What a replay is scored against: the reference of the repository and the pairs written by hand.
 #[derive(Debug, Clone, Copy)]

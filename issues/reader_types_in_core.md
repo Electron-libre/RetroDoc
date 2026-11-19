@@ -64,8 +64,10 @@ Sort of the uses of `retrodoc-mcp` and `retrodoc-web`:
    core; ADR 0051; verified by the moved tests and `just check`; ~800 lines. (autonomous)
 1b. [x] Format version in core: `cache_format.rs` moved to `retrodoc_core::cache::format` (cut from deliverable 1,
    over the size limit at 1,062 lines); verified by its moved tests and `just check`; ~280 lines. (autonomous)
-2. [ ] Glossary, domain map and scope in core (`retrodoc_core::artifacts`), with their `load`/`save`; core gains
-   `schemars` for `Entity`; verified by the moved tests, `just check`; ~900 lines.
+2. [x] Glossary and domain map in core (`retrodoc_core::artifacts`), with their `load`/`save`; `normalize` to
+   `retrodoc_core::text`; core gains `schemars` for `Entity`; verified by the moved tests, `just check`; ~1,000 lines. (autonomous)
+2b. [ ] Scope in core (cut from deliverable 2, over the size limit at 1,064 lines); verified by `just check`; ~110
+   lines.
 3. [ ] Behaviour coverage, set-aside, source hashes and the loaders of features, use cases and rules in core;
    `retrodoc-mcp` and `retrodoc-web` sources no longer import those from the pipeline; verified by `just check` and a
    rerun of `generate` on a saved run that calls no LLM (fingerprints unchanged); ~900 lines.
@@ -111,6 +113,28 @@ it from core; the round-trip sample test stays in the pipeline (it saves through
 | specs | pass (no change of behaviour) |
 | docs | `docs/crates/core-ingest.md`, `docs/crates/pipeline.md`, `docs/crates/render-mcp-cli.md` |
 | size | 295 lines |
+
+red: none (a move)
+
+Code review: no findings
+
+not verified: nothing
+
+decisions needed: none
+
+## Deliverable 2
+done: `Glossary` (with `Entity`, `Association`, `ModelFile`, `TestVocabulary`, `MergedEntity`) and `DomainMap`
+(`DomainCluster`, `UNCATEGORIZED_SLUG`) live in `retrodoc_core::artifacts`, `normalize` in `retrodoc_core::text`;
+`ModelFile::read` became the pipeline's `glossary::read_model_file` (it merges with `merge_chunk_entities`); the
+pipeline uses them through `pub(crate)` imports, the other crates import them from core.
+
+| check | result |
+|-------|--------|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass (no change of behaviour) |
+| docs | `docs/crates/core-ingest.md`, `docs/crates/pipeline.md` |
+| size | 996 lines (`Scope` cut to 2b) |
 
 red: none (a move)
 

@@ -1,7 +1,8 @@
 use std::path::Path;
 
 use anyhow::Context;
-use retrodoc_pipeline::{EntryPoints, Glossary, Surface};
+use retrodoc_core::artifacts::Glossary;
+use retrodoc_pipeline::{EntryPoints, Surface};
 
 use super::workspace::repo_root;
 

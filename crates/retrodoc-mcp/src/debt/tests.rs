@@ -1,3 +1,4 @@
+use retrodoc_core::artifacts::Glossary;
 use retrodoc_core::cache::hash_content;
 use retrodoc_core::model::{
     Actor, ActorKind, BusinessRule, ConfidenceScore, Domain, Feature, RuleEvidence, SetApartReason,
@@ -6,7 +7,7 @@ use retrodoc_core::model::{
 use retrodoc_pipeline::reconcile::{
     Contradiction, ItemKind, ItemVerdict, Reconciliation, SectionRef, Status,
 };
-use retrodoc_pipeline::{BehaviourCoverage, Glossary, SourceHashes};
+use retrodoc_pipeline::{BehaviourCoverage, SourceHashes};
 
 use std::collections::HashMap;
 use std::path::PathBuf;

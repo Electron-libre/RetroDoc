@@ -5,9 +5,9 @@ use std::process::{Command, Stdio};
 use std::sync::mpsc;
 use std::time::Duration;
 
+use retrodoc_core::artifacts::{DomainCluster, DomainMap};
 use retrodoc_core::config::Config;
 use retrodoc_core::model::Feature;
-use retrodoc_pipeline::{DomainCluster, DomainMap};
 
 fn generated_repo() -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();

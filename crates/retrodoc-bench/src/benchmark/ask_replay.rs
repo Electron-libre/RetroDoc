@@ -459,7 +459,7 @@ mod tests {
             vec![domain],
             features(),
             Vec::new(),
-            &retrodoc_pipeline::Glossary::default(),
+            &retrodoc_core::artifacts::Glossary::default(),
             &[],
         ))
     }

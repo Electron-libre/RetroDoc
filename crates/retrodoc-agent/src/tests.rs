@@ -1,7 +1,7 @@
+use retrodoc_core::artifacts::Glossary;
 use retrodoc_core::model::{ConfidenceScore, Domain, Feature};
 use retrodoc_llm::{Reasoning, ToolCall};
 use retrodoc_pipeline::testing::{FakeLlm, FakeTurn};
-use retrodoc_pipeline::Glossary;
 
 use retrodoc_mcp::SourceKind;
 

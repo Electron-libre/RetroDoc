@@ -1,9 +1,9 @@
 //! The read model of the MCP server and the web interface leaves out the domains no feature
 //! belongs to (`specs/featureless-domains.md`).
 
+use retrodoc_core::artifacts::{DomainCluster, DomainMap};
 use retrodoc_core::model::Feature;
 use retrodoc_mcp::GeneratedDocs;
-use retrodoc_pipeline::{DomainCluster, DomainMap};
 
 fn domain(slug: &str, name: &str) -> DomainCluster {
     DomainCluster {

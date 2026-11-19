@@ -5,12 +5,12 @@ use std::path::Path;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
+use retrodoc_core::artifacts::{DomainCluster, DomainMap};
 use retrodoc_core::model::{Actor, ActorKind, ConfidenceScore, Feature, Step, UseCase};
 use retrodoc_mcp::history::{
     history_dir, save, Figures, SectionKind, SectionScores, Snapshot, VERSION,
 };
 use retrodoc_mcp::GeneratedDocs;
-use retrodoc_pipeline::{DomainCluster, DomainMap};
 use retrodoc_render::DocLinks;
 use retrodoc_web::Project;
 use tower::ServiceExt;

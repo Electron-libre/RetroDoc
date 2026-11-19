@@ -15,6 +15,6 @@ use retrodoc_pipeline::bench_support::{
 #[cfg(test)]
 use retrodoc_pipeline::testing;
 use retrodoc_pipeline::{
-    actors, bm25, brief, confidence, entry_points, error, features, glossary, slices, sources,
-    surface, usage_log, use_cases, vocabulary,
+    actors, bm25, brief, confidence, entry_points, error, features, slices, sources, surface,
+    usage_log, use_cases, vocabulary,
 };

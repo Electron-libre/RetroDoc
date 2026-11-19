@@ -8,6 +8,7 @@ use axum::body::Body;
 use axum::http::request::Builder as RequestBuilder;
 use axum::http::{header, Request, Response, StatusCode};
 use axum::Router;
+use retrodoc_core::artifacts::{DomainCluster, DomainMap};
 use retrodoc_core::model::{ConfidenceScore, Feature};
 use retrodoc_llm::{
     CompletionRequest, CompletionResponse, LlmError, LlmProvider, Role, ToolCall, Usage,
@@ -15,7 +16,6 @@ use retrodoc_llm::{
 };
 use retrodoc_mcp::GeneratedDocs;
 use retrodoc_pipeline::testing::{FakeLlm, FakeTurn};
-use retrodoc_pipeline::{DomainCluster, DomainMap};
 use retrodoc_render::DocLinks;
 use retrodoc_web::{Asking, Project};
 use tower::ServiceExt;

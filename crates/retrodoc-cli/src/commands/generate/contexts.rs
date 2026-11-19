@@ -11,10 +11,10 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::Context;
+use retrodoc_core::artifacts::{DomainMap, Glossary};
 use retrodoc_ingest::IngestResult;
 use retrodoc_pipeline::{
-    ContextMap, DomainMap, EntryPoints, FileRole, Glossary, Retention, RoleMap, RunSlice,
-    SourceHashes, Surface,
+    ContextMap, EntryPoints, FileRole, Retention, RoleMap, RunSlice, SourceHashes, Surface,
 };
 
 use super::super::passes;

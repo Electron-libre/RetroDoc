@@ -10,8 +10,8 @@ use std::process::{Child, Command, Output, Stdio};
 use std::sync::mpsc;
 use std::time::Duration;
 
+use retrodoc_core::artifacts::{DomainCluster, DomainMap};
 use retrodoc_core::model::Feature;
-use retrodoc_pipeline::{DomainCluster, DomainMap};
 use support::{llm_section, repo_with_config, FakeLlm};
 
 /// A repository whose last `generate` documented one feature grounded on `app/order.rb`.

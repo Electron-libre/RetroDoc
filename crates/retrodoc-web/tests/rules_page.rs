@@ -5,9 +5,9 @@ use std::path::Path;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
+use retrodoc_core::artifacts::{DomainCluster, DomainMap};
 use retrodoc_core::model::{BusinessRule, Feature, RuleEvidence, RuleKind, SourceRef};
 use retrodoc_mcp::GeneratedDocs;
-use retrodoc_pipeline::{DomainCluster, DomainMap};
 use retrodoc_render::DocLinks;
 use tower::ServiceExt;
 

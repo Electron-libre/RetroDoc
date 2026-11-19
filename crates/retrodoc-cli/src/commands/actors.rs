@@ -1,10 +1,11 @@
 use std::path::Path;
 
 use anyhow::Context;
+use retrodoc_core::artifacts::Glossary;
 use retrodoc_core::cache::Artifact;
 use retrodoc_core::model::ActorKind;
 use retrodoc_llm::UsageTracker;
-use retrodoc_pipeline::{EntryPoints, Glossary, RoleRules, Surface};
+use retrodoc_pipeline::{EntryPoints, RoleRules, Surface};
 
 use super::passes;
 use super::workspace::{source_paths, Workspace};

@@ -2,9 +2,9 @@
 //! glossary concept and collected Markdown doc, flattened to text
 //! with the identity, confidence and cited files the answers will carry.
 
+use retrodoc_core::artifacts::Glossary;
 use retrodoc_core::model::{BusinessRule, Domain, Feature, RuleEvidence, UseCase};
 use retrodoc_ingest::existing_docs::ExistingDoc;
-use retrodoc_pipeline::Glossary;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EntryKind {

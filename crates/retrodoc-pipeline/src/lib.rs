@@ -75,7 +75,7 @@ pub use contexts::{
     ResolvedContext, RunSlice,
 };
 pub use diagrams::{attach_diagrams, sequence_diagram};
-pub use domains::{build_domains_from_surface, DomainCluster, DomainMap};
+pub use domains::build_domains_from_surface;
 pub use entry_points::{
     build_entry_points, EntryFile, EntryKind, EntryPoint, EntryPoints, Output, OutputKind,
 };
@@ -84,7 +84,7 @@ pub use features::{
     build_features_from_surface, entry_point_id, load_features, load_technical_features,
     save_features,
 };
-pub use glossary::{build_glossary, Entity, Glossary, MergedEntity};
+pub use glossary::build_glossary;
 pub use language::{InLanguage, READING_PASSES, WRITING_PASSES};
 pub use progress::format_duration;
 pub use ranking::{apply_budget, rank_files, Scope};

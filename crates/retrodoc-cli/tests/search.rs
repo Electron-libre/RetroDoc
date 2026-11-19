@@ -2,9 +2,9 @@
 
 use std::process::Command;
 
+use retrodoc_core::artifacts::{DomainCluster, DomainMap};
 use retrodoc_core::config::Config;
 use retrodoc_core::model::Feature;
-use retrodoc_pipeline::{DomainCluster, DomainMap};
 
 fn feature(slug: &str, name: &str, description: &str) -> Feature {
     Feature {

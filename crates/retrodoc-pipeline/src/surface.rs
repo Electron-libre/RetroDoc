@@ -235,7 +235,8 @@ mod tests {
     use super::*;
 
     use crate::entry_points::{EntryFile, EntryKind, EntryPoint};
-    use crate::glossary::{Association, Entity, ModelFile};
+    use crate::glossary::{Entity, ModelFile};
+    use retrodoc_core::artifacts::glossary::Association;
 
     fn entity(name: &str, target: Option<&str>) -> Entity {
         Entity {

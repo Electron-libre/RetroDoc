@@ -5,13 +5,14 @@ use std::path::Path;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
+use retrodoc_core::artifacts::{DomainCluster, DomainMap};
 use retrodoc_core::cache::hash_content;
 use retrodoc_core::model::{
     Actor, ActorKind, BusinessRule, ConfidenceScore, Feature, RuleEvidence, RuleKind, SourceRef,
     Step, UseCase,
 };
 use retrodoc_mcp::GeneratedDocs;
-use retrodoc_pipeline::{DomainCluster, DomainMap, SourceHashes};
+use retrodoc_pipeline::SourceHashes;
 use retrodoc_render::{DocLink, DocLinks, ItemRef};
 use tower::ServiceExt;
 

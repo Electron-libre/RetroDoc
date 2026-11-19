@@ -1,5 +1,5 @@
+use retrodoc_core::artifacts::{DomainMap, Glossary};
 use retrodoc_core::model::{BusinessRule, ConfidenceScore, RuleEvidence, RuleKind, SourceRef};
-use retrodoc_pipeline::{DomainMap, Glossary};
 
 use super::Docs;
 use crate::corpus::fixtures::*;
@@ -330,12 +330,12 @@ fn the_saved_artifacts_are_loaded_and_navigable() {
     )
     .unwrap();
     DomainMap {
-        domains: vec![retrodoc_pipeline::DomainCluster {
+        domains: vec![retrodoc_core::artifacts::DomainCluster {
             slug: "billing".into(),
             name: "Billing".into(),
             description: "Invoices".into(),
             paths: vec![],
-            ..retrodoc_pipeline::DomainCluster::default()
+            ..retrodoc_core::artifacts::DomainCluster::default()
         }],
     }
     .save(dir.path())

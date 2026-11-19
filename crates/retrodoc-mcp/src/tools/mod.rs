@@ -5,9 +5,9 @@
 
 use std::path::Path;
 
+use retrodoc_core::artifacts::Glossary;
 use retrodoc_core::model::{BusinessRule, Domain, Feature, UseCase};
 use retrodoc_ingest::existing_docs::ExistingDoc;
-use retrodoc_pipeline::Glossary;
 
 use crate::edits::Edits;
 use crate::freshness::Freshness;

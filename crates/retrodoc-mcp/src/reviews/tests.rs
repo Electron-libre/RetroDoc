@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
+use retrodoc_core::artifacts::Glossary;
 use retrodoc_core::model::{ConfidenceScore, Domain, Feature, UseCase};
-use retrodoc_pipeline::Glossary;
 
 use super::*;
 use crate::freshness::FileState;

@@ -27,16 +27,19 @@ use std::path::{Path, PathBuf};
 
 use retrodoc_ingest::signals::test_phrases;
 use retrodoc_llm::LlmProvider;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
-use crate::artifact::{load_yaml, save_yaml, Artifact, Retention};
+use crate::artifact::Retention;
+pub(crate) use retrodoc_core::artifacts::glossary::{
+    Entity, Glossary, MergedEntity, ModelFile, TestVocabulary,
+};
+
 use crate::batched_read::{
     attribute, pending_chunks, reading_part, unread_kept, BatchedRead, PendingChunk,
 };
 use crate::brief::ProductBrief;
 use crate::chunks::Splitter;
 use crate::error::PipelineError;
-use crate::naming::normalize;
 use crate::request::Request;
 use crate::roles::{FileRole, RoleMap};
 use crate::text::read_file_lossy;
@@ -85,117 +88,15 @@ pub(crate) static GLOSSARY_REQUEST: Request<GlossaryResponse> =
 pub(crate) static BUSINESS_REQUEST: Request<GlossaryResponse> =
     Request::new(BUSINESS_SYSTEM_PROMPT, &[BUSINESS_HEADER]);
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
-pub struct Association {
-    pub kind: String,
-    pub target: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
-pub struct Entity {
-    pub name: String,
-    #[serde(default)]
-    pub description: String,
-    #[serde(default)]
-    pub attributes: Vec<String>,
-    #[serde(default)]
-    pub associations: Vec<Association>,
-}
-
-/// What was read from one model file.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ModelFile {
-    pub content_hash: String,
-    pub entities: Vec<Entity>,
-}
-
-impl ModelFile {
-    /// The reading of a file whose content hashes to `content_hash`: the entities of its chunks,
-    /// merged.
-    pub(crate) fn read(content_hash: &str, entities: Vec<Entity>) -> Self {
-        Self {
-            content_hash: content_hash.to_string(),
-            entities: merge_chunk_entities(entities),
-        }
-    }
-}
-
-/// Descriptions found in the tests of one file.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TestVocabulary {
-    pub file: PathBuf,
-    pub phrases: Vec<String>,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct Glossary {
-    #[serde(default)]
-    pub models: BTreeMap<PathBuf, ModelFile>,
-    #[serde(default)]
-    pub tests: Vec<TestVocabulary>,
-}
-
-impl Glossary {
-    /// Missing or unreadable: `None` (first run).
-    #[must_use]
-    pub fn load(repo_root: &Path) -> Option<Self> {
-        load_yaml(&Artifact::Glossary.path(repo_root))
-    }
-
-    /// # Errors
-    ///
-    /// Returns an error if the cache folder or file can't be written, or
-    /// serialization fails.
-    pub fn save(&self, repo_root: &Path) -> Result<(), PipelineError> {
-        save_yaml(&Artifact::Glossary.path(repo_root), self)
-    }
-
-    /// Every entity with the file it was read from, in path order.
-    pub fn entities(&self) -> impl Iterator<Item = (&Path, &Entity)> {
-        self.models
-            .iter()
-            .flat_map(|(path, file)| file.entities.iter().map(move |e| (path.as_path(), e)))
-    }
-
-    /// The entities merged by name (case-insensitive): the LLM also lists the
-    /// classes a file merely references, so one concept shows up under
-    /// several files. Name and description come from its *home* entry (the
-    /// one in a file named after it, `company.rb` for `Company`, else the
-    /// richest one); attributes and associations are the union; `files` lists
-    /// the home file first, then the others. Sorted by name.
-    #[must_use]
-    pub fn merged_entities(&self) -> Vec<MergedEntity> {
-        let mut groups: BTreeMap<String, Vec<(&Path, &Entity)>> = BTreeMap::new();
-        for (path, entity) in self.entities() {
-            groups
-                .entry(entity.name.trim().to_lowercase())
-                .or_default()
-                .push((path, entity));
-        }
-        groups
-            .into_values()
-            .map(|group| merge_group(&group))
-            .collect()
-    }
-
-    #[must_use]
-    pub fn phrase_count(&self) -> usize {
-        self.tests.iter().map(|t| t.phrases.len()).sum()
-    }
-}
-
-/// One business concept after merging the per-file entries.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct MergedEntity {
-    pub name: String,
-    pub description: String,
-    pub attributes: Vec<String>,
-    pub associations: Vec<Association>,
-    /// Files that mention the entity, the home file first.
-    pub files: Vec<PathBuf>,
-}
-
 /// The entities of an answer by file (see [`attribute`]).
+/// The reading of a file whose content hashes to `content_hash`: the entities of its chunks, merged.
+pub(crate) fn read_model_file(content_hash: &str, entities: Vec<Entity>) -> ModelFile {
+    ModelFile {
+        content_hash: content_hash.to_string(),
+        entities: merge_chunk_entities(entities),
+    }
+}
+
 pub(crate) fn attribute_entities(
     response: GlossaryResponse,
     batch: &[PendingChunk],
@@ -207,55 +108,6 @@ pub(crate) fn attribute_entities(
         |item| (item.file, item.entity),
         |entity| &entity.name,
     )
-}
-
-fn merge_group(group: &[(&Path, &Entity)]) -> MergedEntity {
-    let richness = |entity: &Entity| {
-        (
-            entity.attributes.len() + entity.associations.len(),
-            entity.description.len(),
-        )
-    };
-    // `max_by_key` keeps the last maximum: iterate in reverse so that, on a
-    // full tie, the first file in path order wins.
-    let home = group
-        .iter()
-        .rev()
-        .max_by_key(|(path, entity)| {
-            let named_after = path
-                .file_stem()
-                .is_some_and(|stem| normalize(&stem.to_string_lossy()) == normalize(&entity.name));
-            (named_after, richness(entity))
-        })
-        .expect("a group has at least one entry");
-
-    let mut attributes: Vec<String> = Vec::new();
-    let mut associations: Vec<Association> = Vec::new();
-    let mut files: Vec<PathBuf> = vec![home.0.to_path_buf()];
-    for (path, entity) in
-        std::iter::once(home).chain(group.iter().filter(|e| !std::ptr::eq(*e, home)))
-    {
-        for attribute in &entity.attributes {
-            if !attributes.iter().any(|a| a.eq_ignore_ascii_case(attribute)) {
-                attributes.push(attribute.clone());
-            }
-        }
-        for association in &entity.associations {
-            if !associations.contains(association) {
-                associations.push(association.clone());
-            }
-        }
-        if !files.iter().any(|f| f == path) {
-            files.push(path.to_path_buf());
-        }
-    }
-    MergedEntity {
-        name: home.1.name.trim().to_string(),
-        description: home.1.description.clone(),
-        attributes,
-        associations,
-        files,
-    }
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -389,10 +241,10 @@ impl EntityReader<'_> {
             finish: |glossary: &mut Glossary, path, hash, entities| {
                 glossary
                     .models
-                    .insert(path.to_path_buf(), ModelFile::read(hash, entities));
+                    .insert(path.to_path_buf(), read_model_file(hash, entities));
             },
             loud: &|_| false,
-            checkpoint: &|glossary: &Glossary| glossary.save(self.repo_root),
+            checkpoint: &|glossary: &Glossary| Ok(glossary.save(self.repo_root)?),
         }
         .run(self.llm, &pending, glossary)
         .await

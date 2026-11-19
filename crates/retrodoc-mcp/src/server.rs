@@ -146,7 +146,7 @@ pub async fn serve_stdio(docs: Docs) -> Result<(), McpError> {
 mod tests {
     use std::collections::BTreeSet;
 
-    use retrodoc_pipeline::Glossary;
+    use retrodoc_core::artifacts::Glossary;
     use rmcp::model::CallToolRequestParams;
     use serde_json::json;
 

@@ -10,11 +10,12 @@
 use std::collections::{BTreeMap, HashSet};
 use std::path::Path;
 
+use retrodoc_core::artifacts::DomainMap;
 use retrodoc_core::model::{RuleEvidence, SetApartReason, UseCase};
 pub use retrodoc_pipeline::reconcile::{Contradiction, ItemKind};
 use retrodoc_pipeline::reconcile::{ItemVerdict, Reconciliation};
 pub use retrodoc_pipeline::Section;
-use retrodoc_pipeline::{build_report, DebtReport, DomainMap, WeakSection};
+use retrodoc_pipeline::{build_report, DebtReport, WeakSection};
 
 use crate::edits;
 use crate::freshness::{FileState, Freshness};

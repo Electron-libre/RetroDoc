@@ -25,9 +25,7 @@ use crate::entry_points::{
     MAX_ENTRY_FILE_CHARS,
 };
 use crate::error::PipelineError;
-use crate::glossary::{
-    attribute_entities, Entity, Glossary, GlossaryResponse, ModelFile, ResponseEntity,
-};
+use crate::glossary::{attribute_entities, Entity, Glossary, GlossaryResponse, ResponseEntity};
 use crate::request::Request;
 use crate::roles::RoleMap;
 
@@ -181,10 +179,10 @@ pub async fn read_business_files(
                     Found::Entry(entry) => entry_points.push(entry),
                 }
             }
-            state
-                .glossary
-                .models
-                .insert(path.to_path_buf(), ModelFile::read(hash, entities));
+            state.glossary.models.insert(
+                path.to_path_buf(),
+                crate::glossary::read_model_file(hash, entities),
+            );
             state
                 .entry_points
                 .files

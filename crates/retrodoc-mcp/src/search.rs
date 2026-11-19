@@ -119,8 +119,8 @@ impl SearchIndex {
 mod tests {
     use std::path::PathBuf;
 
+    use retrodoc_core::artifacts::Glossary;
     use retrodoc_ingest::existing_docs::ExistingDoc;
-    use retrodoc_pipeline::Glossary;
 
     use super::*;
     use crate::corpus::build_entries;

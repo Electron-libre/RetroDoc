@@ -1,5 +1,6 @@
 use super::*;
 use crate::artifact::Retention;
+use retrodoc_core::artifacts::glossary::Association;
 
 use crate::testing::FakeLlm;
 
@@ -11,70 +12,6 @@ fn roles(entries: &[(&str, FileRole)]) -> RoleMap {
             .collect(),
         ..RoleMap::default()
     }
-}
-
-#[test]
-fn merges_entities_listed_under_several_files() {
-    let entity =
-        |name: &str, description: &str, attributes: &[&str], target: Option<&str>| Entity {
-            name: name.to_string(),
-            description: description.to_string(),
-            attributes: attributes.iter().map(|a| (*a).to_string()).collect(),
-            associations: target
-                .map(|t| Association {
-                    kind: "has_many".to_string(),
-                    target: t.to_string(),
-                })
-                .into_iter()
-                .collect(),
-        };
-    let file = |entities| ModelFile {
-        content_hash: String::new(),
-        entities,
-    };
-    let glossary = Glossary {
-        models: BTreeMap::from([
-            (
-                PathBuf::from("app/models/actions/company_user_actions.rb"),
-                file(vec![entity(
-                    "Company",
-                    "short",
-                    &["name"],
-                    Some("CompanyUser"),
-                )]),
-            ),
-            (
-                PathBuf::from("app/models/company.rb"),
-                file(vec![entity(
-                    "company",
-                    "A business organization",
-                    &["Name", "siret"],
-                    Some("Worksite"),
-                )]),
-            ),
-            (
-                PathBuf::from("app/models/user.rb"),
-                file(vec![entity("User", "A person", &[], None)]),
-            ),
-        ]),
-        tests: Vec::new(),
-    };
-
-    let merged = glossary.merged_entities();
-    assert_eq!(merged.len(), 2);
-    let company = &merged[0];
-    assert_eq!(company.name, "company");
-    assert_eq!(company.description, "A business organization");
-    assert_eq!(company.attributes, vec!["Name", "siret"]);
-    assert_eq!(company.associations.len(), 2);
-    assert_eq!(
-        company.files,
-        vec![
-            PathBuf::from("app/models/company.rb"),
-            PathBuf::from("app/models/actions/company_user_actions.rb"),
-        ]
-    );
-    assert_eq!(merged[1].name, "User");
 }
 
 #[tokio::test]

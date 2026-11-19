@@ -19,12 +19,12 @@ use serde::{Deserialize, Serialize};
 
 use super::matching::{compare, saved_features, scored_domains, Comparison, Matches, Pair};
 use super::reference::Reference;
-use crate::domains::DomainMap;
 use crate::error::PipelineError;
 use crate::naming::normalize;
 use crate::response::complete_json;
 use crate::text::truncate_chars;
 use crate::use_cases::load_use_cases;
+use retrodoc_core::artifacts::DomainMap;
 
 /// A name with what it means, as shown to the judge.
 #[derive(Debug, Clone, PartialEq)]
@@ -856,8 +856,8 @@ mod tests {
     #[tokio::test]
     async fn a_domain_with_no_feature_is_not_offered_to_the_judge() {
         use crate::artifact::{save_yaml, Artifact};
-        use crate::domains::{DomainCluster, DomainMap};
         use crate::features::save_features;
+        use retrodoc_core::artifacts::{DomainCluster, DomainMap};
         use retrodoc_core::model::Feature;
 
         let reference: Reference = serde_yaml::from_str(
@@ -1052,9 +1052,9 @@ mod tests {
     #[tokio::test]
     async fn judges_a_run_end_to_end() {
         use crate::artifact::{save_yaml, Artifact};
-        use crate::domains::{DomainCluster, DomainMap};
         use crate::features::save_features;
         use crate::use_cases::save_use_cases;
+        use retrodoc_core::artifacts::{DomainCluster, DomainMap};
         use retrodoc_core::model::{Feature, UseCase};
 
         let reference: Reference = serde_yaml::from_str(
@@ -1152,8 +1152,8 @@ mod tests {
     #[tokio::test]
     async fn a_kind_with_no_pair_twice_is_marked_unjudged_in_the_saved_judgement() {
         use crate::artifact::{save_yaml, Artifact};
-        use crate::domains::{DomainCluster, DomainMap};
         use crate::features::save_features;
+        use retrodoc_core::artifacts::{DomainCluster, DomainMap};
         use retrodoc_core::model::Feature;
 
         let reference: Reference = serde_yaml::from_str(
@@ -1240,8 +1240,8 @@ mod tests {
     #[tokio::test]
     async fn offers_every_generated_feature_against_the_uncovered_reference_ones() {
         use crate::artifact::{save_yaml, Artifact};
-        use crate::domains::{DomainCluster, DomainMap};
         use crate::features::save_features;
+        use retrodoc_core::artifacts::{DomainCluster, DomainMap};
         use retrodoc_core::model::Feature;
 
         let reference = |features: &str| -> Reference {
@@ -1338,8 +1338,8 @@ mod tests {
     /// unpaired: the `matches.yaml` and the reference to judge it with.
     fn run_with_second_items(root: &Path) -> (Reference, Matches) {
         use crate::artifact::{save_yaml, Artifact};
-        use crate::domains::{DomainCluster, DomainMap};
         use crate::features::save_features;
+        use retrodoc_core::artifacts::{DomainCluster, DomainMap};
         use retrodoc_core::model::Feature;
 
         let reference: Reference = serde_yaml::from_str(

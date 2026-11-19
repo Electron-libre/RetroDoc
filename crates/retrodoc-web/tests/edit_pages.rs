@@ -5,11 +5,11 @@ use std::path::Path;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
+use retrodoc_core::artifacts::{DomainCluster, DomainMap};
 use retrodoc_core::model::{Feature, UseCase};
 use retrodoc_mcp::edits::{self, Edit, Fields};
 use retrodoc_mcp::reviews::{Section, SectionKind};
 use retrodoc_mcp::{ExistingDoc, GeneratedDocs};
-use retrodoc_pipeline::{DomainCluster, DomainMap};
 use retrodoc_render::DocLinks;
 use retrodoc_web::Project;
 use tower::ServiceExt;

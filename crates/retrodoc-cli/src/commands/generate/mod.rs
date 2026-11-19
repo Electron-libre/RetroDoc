@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use anyhow::Context;
+use retrodoc_core::artifacts::DomainMap;
 use retrodoc_core::cache::format::{self as cache_format, FormatError};
 use retrodoc_core::cache::Artifact;
 use retrodoc_core::config::{Config, DomainsFrom};
@@ -9,9 +10,10 @@ use retrodoc_core::model::{Feature, UseCase};
 use retrodoc_ingest::IngestResult;
 use retrodoc_llm::UsageTracker;
 use retrodoc_pipeline::estimate::RunEstimate;
+use retrodoc_pipeline::Scope;
 use retrodoc_pipeline::{
-    Actors, CodeIndex, DomainMap, EntryPoints, Evidence, ProductBrief, RoleMap, Scope,
-    SourceHashes, Surface, UseCaseContext, WalkedFiles,
+    Actors, CodeIndex, EntryPoints, Evidence, ProductBrief, RoleMap, SourceHashes, Surface,
+    UseCaseContext, WalkedFiles,
 };
 
 mod contexts;

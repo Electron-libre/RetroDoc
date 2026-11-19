@@ -185,7 +185,7 @@ fn without_lines(name: &str) -> Option<&str> {
 
 #[cfg(test)]
 mod tests {
-    use retrodoc_pipeline::Glossary;
+    use retrodoc_core::artifacts::Glossary;
 
     use retrodoc_core::model::ConfidenceScore;
 

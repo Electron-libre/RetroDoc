@@ -6,8 +6,8 @@ mod support;
 use std::collections::BTreeMap;
 use std::path::Path;
 
+use retrodoc_core::artifacts::{DomainCluster, DomainMap};
 use retrodoc_core::model::Feature;
-use retrodoc_pipeline::{DomainCluster, DomainMap};
 use support::{llm_section, repo_with_config, run, FakeLlm, Turn};
 
 const QUESTION: &str = "How are the orders listed?";

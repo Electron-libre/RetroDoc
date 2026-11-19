@@ -213,7 +213,7 @@ fn parse<P: DeserializeOwned>(tool: &str, arguments: &str) -> Result<P, CallErro
 
 #[cfg(test)]
 mod tests {
-    use retrodoc_pipeline::Glossary;
+    use retrodoc_core::artifacts::Glossary;
 
     use super::*;
     use crate::corpus::fixtures::*;
