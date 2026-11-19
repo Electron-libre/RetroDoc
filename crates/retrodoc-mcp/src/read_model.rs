@@ -34,6 +34,8 @@ pub struct GeneratedDocs {
     /// The sections as the run generated them.
     generated: Sections,
     edits: Edits,
+    /// The domains of the run as clustered, the code no domain holds included.
+    map: DomainMap,
     rules: Vec<BusinessRule>,
     glossary: Glossary,
     index: SearchIndex,
@@ -105,6 +107,7 @@ impl GeneratedDocs {
             shown: generated.clone(),
             generated,
             edits: Edits::default(),
+            map: DomainMap::default(),
             rules: Vec::new(),
             glossary,
             index,
@@ -207,6 +210,14 @@ impl GeneratedDocs {
     /// the docs: [`Self::reconciled`] does it.
     #[must_use]
     pub fn load(repo_root: &Path, docs: &[ExistingDoc]) -> Option<Self> {
+        Self::load_with_edits(repo_root, docs, saved_edits(repo_root))
+    }
+
+    /// Reads what the last `generate` saved, as [`Self::load`] does, with `edits` shown over it in
+    /// place of the saved ones: a reader that must fail on a file of edits it can't read loads it
+    /// itself.
+    #[must_use]
+    pub fn load_with_edits(repo_root: &Path, docs: &[ExistingDoc], edits: Edits) -> Option<Self> {
         let features = retrodoc_pipeline::load_features(repo_root)?;
         let use_cases = retrodoc_pipeline::load_use_cases(repo_root).unwrap_or_default();
         let map = DomainMap::load(repo_root).unwrap_or_default();
@@ -225,7 +236,6 @@ impl GeneratedDocs {
             features,
             use_cases,
         };
-        let edits = saved_edits(repo_root);
         // The index built once, over the sections as shown.
         let shown = edits::apply(generated.clone(), &edits);
         let mut loaded = Self::new(
@@ -241,6 +251,7 @@ impl GeneratedDocs {
         .with_repo_root(repo_root);
         loaded.generated = generated;
         loaded.edits = edits;
+        loaded.map = map;
         Some(loaded)
     }
 
@@ -252,16 +263,21 @@ impl GeneratedDocs {
         let Some(root) = self.repo_root.as_deref().filter(|_| !docs.is_empty()) else {
             return self;
         };
-        self.uncovered.reconciliation = Some(reconcile(
-            &DomainMap::load(root).unwrap_or_default(),
+        self.uncovered.reconciliation = Some(self.reconcile(root, docs));
+        self
+    }
+
+    /// The items reconciled with the collected `docs` from the verdicts saved under `root`.
+    pub(crate) fn reconcile(&self, root: &Path, docs: &[ExistingDoc]) -> Reconciliation {
+        reconcile(
+            &self.map,
             // The verdicts were given on the generated text.
             &self.generated.features,
             &self.generated.use_cases,
             &self.rules,
             docs,
             &Judgements::load(root),
-        ));
-        self
+        )
     }
 
     /// Lets [`Self::source_access`] read the code under `repo_root`.
@@ -356,6 +372,12 @@ impl GeneratedDocs {
     #[must_use]
     pub fn generated(&self) -> &Sections {
         &self.generated
+    }
+
+    /// The domains of the run as clustered; none when the docs were not loaded from a run.
+    #[must_use]
+    pub fn domain_map(&self) -> &DomainMap {
+        &self.map
     }
 
     /// The edits shown over the sections, those of sections the docs don't hold included.

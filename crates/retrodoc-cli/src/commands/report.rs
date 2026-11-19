@@ -1,14 +1,10 @@
 use std::path::Path;
 
-use retrodoc_mcp::debt::{self, DebtKind, Subject};
-use retrodoc_mcp::reviews::{self, Outdated};
-use retrodoc_pipeline::reconcile::ItemKind;
-use retrodoc_pipeline::{DomainMap, MarkedWrong};
-
+use super::docs::NO_DOCS;
 use super::workspace::repo_root;
 
 /// Prints the documentation debt report from the artifacts saved by the last
-/// `generate` run (`.retrodoc/cache/`); makes no LLM call.
+/// `generate` run (`.retrodoc/cache/`), the one `render` writes (SED-39); makes no LLM call.
 pub fn run(path: &Path) -> anyhow::Result<()> {
     let repo_root = repo_root(path)?;
     // The report needs no `retrodoc.toml`: without one, the default document paths. A broken one
@@ -22,64 +18,16 @@ pub fn run(path: &Path) -> anyhow::Result<()> {
         retrodoc_core::config::Config::default()
     };
 
-    let (Some(features), Some(use_cases)) = (
-        retrodoc_pipeline::load_features(&repo_root),
-        retrodoc_pipeline::load_use_cases(&repo_root),
-    ) else {
-        anyhow::bail!("no features/use cases found — run `retrodoc generate` first");
+    let Some(use_cases) = retrodoc_pipeline::load_use_cases(&repo_root) else {
+        anyhow::bail!(NO_DOCS);
     };
     if use_cases.iter().all(|u| u.confidence.is_none()) {
         anyhow::bail!("no confidence scores found — run `retrodoc generate` again");
     }
-    let domains = DomainMap::load(&repo_root).unwrap_or_default();
-
-    let mut report = retrodoc_pipeline::build_report(&domains, &features, &use_cases);
-    report.skipped_files = retrodoc_pipeline::Scope::load(&repo_root)
-        .map(|s| s.skipped)
-        .unwrap_or_default();
-    report.with_behaviour_coverage(retrodoc_pipeline::BehaviourCoverage::load(&repo_root));
-    report.with_technical_features(retrodoc_pipeline::load_technical_features(&repo_root));
-    super::docs::add_doc_debt(
-        &mut report,
-        &repo_root,
-        &config,
-        &domains,
-        &features,
-        &use_cases,
-    );
-    match reviews::load(&repo_root) {
-        Ok(reviews) => {
-            // `None` only without features or use cases, which the report refused above.
-            report.marked_wrong = retrodoc_mcp::GeneratedDocs::load(&repo_root, &[])
-                .map(|docs| marked_wrong(&docs, &reviews))
-                .unwrap_or_default();
-        }
-        Err(err) => tracing::warn!("the report lists no section marked wrong: {err}"),
-    }
+    let Some(docs) = retrodoc_mcp::GeneratedDocs::load(&repo_root, &[]) else {
+        anyhow::bail!(NO_DOCS);
+    };
+    let report = super::docs::debt_report(&docs, &repo_root, &config);
     print!("{}", report.to_markdown());
     Ok(())
-}
-
-/// The sections of the run marked wrong, as the debt view lists them (DBT-30).
-fn marked_wrong(
-    docs: &retrodoc_mcp::GeneratedDocs,
-    reviews: &reviews::Reviews,
-) -> Vec<MarkedWrong> {
-    debt::reviewed(docs, reviews)
-        .filter(|item| item.kind == DebtKind::MarkedWrong)
-        .filter_map(|item| {
-            let kind = match &item.subject {
-                Subject::Domain(_) => ItemKind::Domain,
-                Subject::Section(section) if section.use_case.is_some() => ItemKind::UseCase,
-                Subject::Section(_) => ItemKind::Feature,
-                _ => return None,
-            };
-            Some(MarkedWrong {
-                kind,
-                label: item.label(),
-                comment: item.rationale.unwrap_or_default(),
-                outdated: item.outdated.as_ref().map(Outdated::report),
-            })
-        })
-        .collect()
 }

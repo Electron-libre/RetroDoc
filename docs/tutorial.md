@@ -159,7 +159,7 @@ How to read the two scores:
 retrodoc report --path ~/src/linkding
 ```
 
-No LLM call. The report (also written to `docs/_retrodoc/coverage-report.md`) lists, among others:
+No LLM call. The report (the same text as `docs/_retrodoc/coverage-report.md`, the human edits and reviews included) lists, among others:
 
 - the confidence of each domain, weakest first;
 - the sections below 50%, with the step that the code does not support;

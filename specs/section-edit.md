@@ -15,6 +15,30 @@ it and no `generate` loses it.
 
 ## Requirements
 
+### Behaviour
+
+- **SED-23** (deterministic) The read model must hold the name, the description and the narrative of an edited
+  section as its edit gives them, and a field the edit leaves out as generated.
+- **SED-30** (deterministic) The Markdown that `render` and `generate` write must show the fields of an edited
+  section as its edit gives them, in place of the generated ones.
+- **SED-37** (deterministic) An outdated edit must be kept in `.retrodoc/edits.json` and still shown over its
+  section (SED-23): the team decides whether to update or drop it.
+- **SED-38** (deterministic) The Markdown page of an edited domain, feature or use case must hold, on the line under
+  its heading, the mark of its human edit: the fields it changes, its author when it has one and its date (SED-7), in
+  the docs language and in the words of its web page (WEB-91); a section with no edit, or whose edit changes no field
+  the readers show (SED-33), holds none.
+- **SED-27** (deterministic) `retrodoc ui` must serve, from the first request after `.retrodoc/edits.json` changed,
+  the pages and the search with the edits the file holds then, without a restart.
+- **SED-28** (deterministic) `retrodoc mcp` must answer each tool call with the edits `.retrodoc/edits.json` holds
+  at that call.
+- **SED-39** (deterministic) The debt report that `retrodoc report` prints and the one `render` and `generate` write
+  in `_retrodoc/coverage-report.md` of the docs dir must be the same text for the same saved run, edits and reviews,
+  the sections marked wrong included (DBT-35).
+- **SED-40** (deterministic) The debt report must name an edited domain, feature or use case as its edit gives it,
+  the verdicts against the project's docs (`specs/docs-reconciliation.md`) kept as given on the generated text.
+
+### Contract
+
 - **SED-1** (deterministic) An edit must name its section by its kind (domain, feature or use case) and its id, the
   id of the run history (RHI-7: the slug, `<feature>/<use case>` for a use case).
 - **SED-2** (deterministic) An edit must hold only the fields it changes among the name, the description and the
@@ -53,29 +77,19 @@ it and no `generate` loses it.
   kept.
 - **SED-22** (deterministic) Saving an edit or a review must leave the file of the other record
   (`.retrodoc/reviews.json`, `.retrodoc/edits.json`) as it was.
-
-- **SED-23** (deterministic) The read model must hold the name, the description and the narrative of an edited
-  section as its edit gives them, and a field the edit leaves out as generated.
 - **SED-24** (deterministic) An edit of a section the docs no longer hold must be left out by the readers and kept in
   `.retrodoc/edits.json`.
 - **SED-25** (deterministic) An edit recorded from a read model that already holds edits must hold the fingerprint
   and the hashes of its section as generated (SED-8, SED-9), the edits left out.
 - **SED-26** (deterministic) A review must hold the fingerprint of its section as the read model shows it, the edit
   applied (REV-6), so that an edit made after the review makes it outdated (REV-20).
-- **SED-27** (deterministic) `retrodoc ui` must serve, from the first request after `.retrodoc/edits.json` changed,
-  the pages and the search with the edits the file holds then, without a restart.
-- **SED-28** (deterministic) `retrodoc mcp` must answer each tool call with the edits `.retrodoc/edits.json` holds
-  at that call.
 - **SED-29** (deterministic) `retrodoc ui` and `retrodoc mcp` must warn of a file of edits that cannot be read or is
   of a later format, and show the docs as generated.
-- **SED-30** (deterministic) The Markdown that `render` and `generate` write must show the fields of an edited
-  section as its edit gives them, in place of the generated ones.
 - **SED-31** (deterministic) The same artifacts and the same edits must render the same files, byte for byte.
 - **SED-32** (deterministic) `render` and `generate` must fail with an error naming `.retrodoc/edits.json` when the
   file cannot be read or is of a later format, and write no doc.
 - **SED-33** (deterministic) A blank field of an edit written by hand in `.retrodoc/edits.json` must be left out by
   the readers, the generated text shown in its place.
-
 - **SED-34** (deterministic) An edit must be outdated, with the reason "rewritten", when the fingerprint of its
   section as generated, the edits left out, differs from the one it holds (SED-8): a later `generate` rewrote the text
   it corrects.
@@ -85,16 +99,11 @@ it and no `generate` loses it.
 - **SED-36** (deterministic) Whether an edit is outdated must be judged when the edit is read, never saved, by the
   rule of the reviews (REV-20 to REV-22): an edit saved again over the same generated section and files is no longer
   outdated.
-- **SED-37** (deterministic) An outdated edit must be kept in `.retrodoc/edits.json` and still shown over its
-  section (SED-23): the team decides whether to update or drop it.
-
-- **SED-38** (deterministic) The Markdown page of an edited domain, feature or use case must hold, on the line under
-  its heading, the mark of its human edit: the fields it changes, its author when it has one and its date (SED-7), in
-  the docs language and in the words of its web page (WEB-91); a section with no edit, or whose edit changes no field
-  the readers show (SED-33), holds none.
 
 ## Scenarios
 
+- **SED-H1** (happy; SED-23, SED-30, SED-39) Given a feature whose name a teammate corrected in the web form, when
+  `render` runs, then its page, the web interface, the MCP answers and the debt report all show the corrected name.
 - (SED-2) Given a feature whose name only is edited, then its edit holds the name and no description nor narrative.
 - (SED-3) Given a domain, when its narrative is edited, then the edit is refused and no file is written.
 - (SED-15) Given a use case whose name and narrative were edited by A, when B edits its description only, then the
@@ -124,6 +133,9 @@ it and no `generate` loses it.
   the generated feature is the same.
 - (SED-35) Given a use case edited, when a file one of its steps cites is deleted, then the edit is outdated with the
   file deleted.
+- (SED-39, SED-40) Given a run whose feature `list-orders`, undocumented, is renamed "Browse the orders" by an edit
+  and whose use case is marked wrong, when `render` runs, then `coverage-report.md` lists the feature as undocumented
+  under "Browse the orders" and the use case as marked wrong, and `retrodoc report` prints the same text.
 - (SED-38) Given a feature whose name is edited by A on 2026-11-05T10:00:00Z, when `render` runs, then the line
   under the heading of its page reads `**Human edit** name *by A, 2026-11-05T10:00:00Z*`, and its domain's page has
   no mark.
@@ -139,3 +151,5 @@ it and no `generate` loses it.
 - No mark of an edit in the lists of sections of the Markdown (a domain's features, `llms.txt`), and no word of an
   outdated edit there: the web page shows both (WEB-92, WEB-100).
 - No merge of an outdated edit with the new generated text: the team rewrites or drops it.
+- No new verdict of the reconciliation on the edited text: an edit renames an item of the debt report, it does not
+  judge it again against the project's docs.

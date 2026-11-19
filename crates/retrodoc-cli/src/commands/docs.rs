@@ -2,7 +2,6 @@ use std::path::Path;
 
 use anyhow::Context;
 use retrodoc_core::config::Config;
-use retrodoc_pipeline::DomainMap;
 use retrodoc_render::RunMetadata;
 
 /// Renders the docs from the artifacts in `.retrodoc/cache/`, the human edits of
@@ -10,46 +9,22 @@ use retrodoc_render::RunMetadata;
 /// change (files and diffs) and writes nothing. Files whose content already
 /// matches are left untouched, so a rerun on unchanged artifacts is a no-op.
 pub fn publish(repo_root: &Path, config: &Config, dry_run: bool) -> anyhow::Result<()> {
-    let (Some(features), Some(use_cases)) = (
-        retrodoc_pipeline::load_features(repo_root),
-        retrodoc_pipeline::load_use_cases(repo_root),
-    ) else {
-        anyhow::bail!("no features/use cases found — run `retrodoc generate` first");
-    };
-    let domains = DomainMap::load(repo_root).unwrap_or_default();
+    if retrodoc_pipeline::load_use_cases(repo_root).is_none() {
+        anyhow::bail!(NO_DOCS);
+    }
     // Before anything is written: docs without the team's corrections would overwrite theirs.
     let edits = retrodoc_mcp::edits::load(repo_root)
         .context("the docs are not written: the human edits cannot be read")?;
-    let shown = retrodoc_mcp::edits::apply(
-        retrodoc_mcp::Sections {
-            domains: retrodoc_pipeline::domain_models(&domains, &features),
-            features: features.clone(),
-            use_cases: use_cases.clone(),
-        },
-        &edits,
-    );
-
-    let mut report = retrodoc_pipeline::build_report(&domains, &shown.features, &shown.use_cases);
-    report.skipped_files = retrodoc_pipeline::Scope::load(repo_root)
-        .map(|s| s.skipped)
-        .unwrap_or_default();
-    report.with_behaviour_coverage(retrodoc_pipeline::BehaviourCoverage::load(repo_root));
-    report.with_technical_features(retrodoc_pipeline::load_technical_features(repo_root));
-    let rules = retrodoc_pipeline::load_rules(repo_root).unwrap_or_default();
+    let docs =
+        retrodoc_mcp::GeneratedDocs::load_with_edits(repo_root, &[], edits).context(NO_DOCS)?;
+    let report = debt_report(&docs, repo_root, config);
+    let rules = docs.rules();
     if rules.is_empty() && retrodoc_pipeline::Artifact::Rules.path(repo_root).exists() {
         tracing::warn!(
             "{} could not be read or holds no rule: the docs are written without rules",
             retrodoc_pipeline::Artifact::Rules.relative_path()
         );
     }
-    add_doc_debt(
-        &mut report,
-        repo_root,
-        config,
-        &domains,
-        &features,
-        &use_cases,
-    );
     let metadata = RunMetadata {
         model: config.llm.model.clone(),
         commit: retrodoc_ingest::git_history::head_commit(repo_root),
@@ -58,15 +33,15 @@ pub fn publish(repo_root: &Path, config: &Config, dry_run: bool) -> anyhow::Resu
     let links = report
         .reconciliation
         .as_ref()
-        .map(|r| doc_links(r, &rules, &config.output.docs_dir))
+        .map(|r| doc_links(r, rules, &config.output.docs_dir))
         .unwrap_or_default();
     let files = retrodoc_render::render_with_docs(
-        &shown.domains,
-        &shown.features,
-        &shown.use_cases,
-        &rules,
+        docs.domains(),
+        docs.features(),
+        docs.use_cases(),
+        rules,
         &links,
-        &edit_marks(&edits),
+        &edit_marks(docs.edits()),
         retrodoc_render::Texts::for_tag(config.output.language_tag()),
         &report.to_markdown(),
         &metadata,
@@ -234,37 +209,26 @@ fn doc_links(
     links
 }
 
-/// Adds to `report` where the generated items stand against the project's own docs, and what the
-/// rules pass set aside. An unreadable doc leaves the reconciliation out (with a warning) rather than
-/// listing every item as undocumented.
-pub fn add_doc_debt(
-    report: &mut retrodoc_pipeline::DebtReport,
+/// The debt report of `docs`, loaded from `repo_root`, as `report` prints it and `render` writes it
+/// (SED-39). Project docs that can't be read leave the comparison with them out, and reviews that
+/// can't be read the sections marked wrong, each with a warning, rather than listing every item as
+/// undocumented or none as reviewed.
+pub fn debt_report(
+    docs: &retrodoc_mcp::GeneratedDocs,
     repo_root: &Path,
     config: &Config,
-    domains: &DomainMap,
-    features: &[retrodoc_core::model::Feature],
-    use_cases: &[retrodoc_core::model::UseCase],
-) {
-    let rules = retrodoc_pipeline::load_rules(repo_root).unwrap_or_default();
-    // Only while the rules are on: a file left by an earlier run is not what the last one judged.
-    if config.pipeline.rules {
-        report.with_set_aside(
-            retrodoc_pipeline::load_set_aside(repo_root).unwrap_or_default(),
-            &config.rules,
-            &rules,
-        );
-    }
-    match project_docs(repo_root, config) {
-        Ok(docs) => report.with_reconciliation(retrodoc_pipeline::reconcile::reconcile(
-            domains,
-            features,
-            use_cases,
-            &rules,
-            &docs,
-            &retrodoc_pipeline::reconcile::Judgements::load(repo_root),
-        )),
-        Err(err) => tracing::warn!("items not compared with the project docs: {err:#}"),
-    }
+) -> retrodoc_pipeline::DebtReport {
+    let collected = project_docs(repo_root, config)
+        .inspect_err(|err| tracing::warn!("items not compared with the project docs: {err:#}"))
+        .ok();
+    let reviews = retrodoc_mcp::reviews::load(repo_root)
+        .inspect_err(|err| tracing::warn!("the report lists no section marked wrong: {err}"))
+        .ok();
+    docs.debt_report(&retrodoc_mcp::ReportInputs {
+        collected: collected.as_deref(),
+        put_back: config.pipeline.rules.then_some(&config.rules),
+        reviews: reviews.as_ref(),
+    })
 }
 
 /// The project's own Markdown docs (what `generate` ingests, without what it wrote itself).
@@ -309,48 +273,11 @@ mod tests {
             "# Payment\nPayment of the invoices.\n",
         );
         write("docs/_retrodoc/coverage-report.md", "# Payment\nPayment.\n");
-        let feature = |slug: &str, name: &str| retrodoc_core::model::Feature {
-            back_office: false,
-            technical: false,
-            slug: slug.into(),
-            domain_slug: "billing".into(),
-            name: name.into(),
-            description: String::new(),
-            source_paths: vec![],
-            entry_points: Vec::new(),
-            confidence: None,
-        };
-        let mut report = retrodoc_pipeline::DebtReport::default();
 
-        add_doc_debt(
-            &mut report,
-            dir.path(),
-            &Config::default(),
-            &DomainMap::default(),
-            &[feature("pay", "Payment"), feature("ride", "Riders")],
-            &[],
-        );
+        let collected = project_docs(dir.path(), &Config::default()).unwrap();
 
-        let items = report.reconciliation.unwrap().items;
-        let sections: Vec<(&str, Vec<String>)> = items
-            .iter()
-            .map(|i| {
-                (
-                    i.label.as_str(),
-                    i.sections
-                        .iter()
-                        .map(retrodoc_pipeline::reconcile::SectionRef::origin)
-                        .collect(),
-                )
-            })
-            .collect();
-        assert_eq!(
-            sections,
-            [
-                ("billing/pay", vec![]),
-                ("billing/ride", vec!["docs/guide.md#Riders".to_string()]),
-            ]
-        );
+        let paths: Vec<&Path> = collected.iter().map(|d| d.path.as_path()).collect();
+        assert_eq!(paths, [Path::new("docs/guide.md")]);
     }
 
     // spec: REC-12 (internal: the input is a generated run, which only an LLM run produces through the binary)
