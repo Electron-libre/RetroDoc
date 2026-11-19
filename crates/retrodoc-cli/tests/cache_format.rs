@@ -138,3 +138,73 @@ fn recording_the_format_on_an_older_cache_calls_no_llm() {
     assert_eq!(llm.calls().len(), before, "{}", all_of(&output));
     assert!(format_file(dir.path()).is_file());
 }
+
+/// The content of every file under the cache, by path.
+fn cache_of(dir: &Path) -> Vec<(PathBuf, Vec<u8>)> {
+    let mut files: Vec<_> = walk(&dir.join(".retrodoc/cache"))
+        .into_iter()
+        .map(|p| {
+            let content = std::fs::read(&p).unwrap();
+            (p, content)
+        })
+        .collect();
+    files.sort();
+    files
+}
+
+fn walk(dir: &Path) -> Vec<PathBuf> {
+    std::fs::read_dir(dir)
+        .unwrap()
+        .flat_map(|e| {
+            let path = e.unwrap().path();
+            if path.is_dir() {
+                walk(&path)
+            } else {
+                vec![path]
+            }
+        })
+        .collect()
+}
+
+// spec: CFV-4
+#[test]
+fn generate_refuses_an_older_cache_without_force() {
+    let (dir, llm) = shop();
+    std::fs::write(format_file(dir.path()), r#"{"version": 0}"#).unwrap();
+    let (before, calls) = (cache_of(dir.path()), llm.calls().len());
+
+    let error = refused(dir.path(), "generate");
+
+    assert!(error.contains("format 0"), "{error}");
+    assert!(error.contains("--force"), "{error}");
+    assert_eq!(llm.calls().len(), calls);
+    assert_eq!(cache_of(dir.path()), before);
+
+    let output = support::run(dir.path(), &["generate", "--force"]);
+    assert!(output.status.success(), "{}", all_of(&output));
+    let saved: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(format_file(dir.path())).unwrap()).unwrap();
+    assert_eq!(saved, serde_json::json!({ "version": CURRENT }));
+}
+
+// spec: CFV-5
+#[test]
+fn generate_refuses_a_later_cache_even_with_force() {
+    let (dir, llm) = shop();
+    for content in [r#"{"version": 99}"#, "{"] {
+        std::fs::write(format_file(dir.path()), content).unwrap();
+        let (before, calls) = (cache_of(dir.path()), llm.calls().len());
+
+        for args in [&["generate"][..], &["generate", "--force"]] {
+            let output = support::run(dir.path(), args);
+            let all = all_of(&output);
+            assert!(!output.status.success(), "{args:?} on {content}: {all}");
+            assert!(
+                all.contains("update RetroDoc"),
+                "{args:?} on {content}: {all}"
+            );
+            assert_eq!(llm.calls().len(), calls, "{args:?} on {content}");
+            assert_eq!(cache_of(dir.path()), before, "{args:?} on {content}");
+        }
+    }
+}

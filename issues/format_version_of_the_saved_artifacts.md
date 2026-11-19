@@ -52,8 +52,8 @@ upgrade in place, the single-pass commands, the benchmark replays. Means: candid
    unreadable version, no file = format 1; the CLI readers print the error; verified by CLI tests (`generate` then
    `render`, `ui`/`report` on version 0 and 99, `{`, no file, rerun with no LLM call); makes true CFV-1, CFV-2, CFV-3,
    CFV-6, CFV-7, CFV-8, CFV-9. (autonomous)
-2. [ ] `generate` refuses an older cache without `--force` and a later one always, before any LLM call and any write;
-   verified by CLI tests with the fake LLM; makes true CFV-4, CFV-5.
+2. [x] `generate` refuses an older cache without `--force` and a later one always, before any LLM call and any write;
+   verified by CLI tests with the fake LLM; makes true CFV-4, CFV-5. (autonomous)
 3. [ ] Frozen sample of the format-1 artifacts the readers load (`crates/retrodoc-mcp/tests/fixtures/`), read and
    saved again to the same text; verified by the round-trip test; makes true CFV-10, sets the spec `accepted`.
 
@@ -74,3 +74,13 @@ upgrade in place, the single-pass commands, the benchmark replays. Means: candid
   - `record` overwrites a later or unreadable `format.json`: deliverable 2 (CFV-5), next.
 - not verified: `ask_page::each_browser_session_keeps_its_own_conversation` failed once in `project-check`, passed
   3/3 with and without the change (flaky, unrelated).
+
+## Deliverable 2
+- done: `open_workspace` of `generate` checks the format before `--force` clears anything: an older cache needs
+  `--force`, a later or unreadable one is refused always; fixes both findings of deliverable 1.
+- red: CFV-4, CFV-5: `generate did not fail` on a cache of format 0, 99 and `{`.
+- Code review: 2 findings
+  - two doc summaries over `open_workspace`: merged.
+  - `generate --estimate` is refused on an older cache: kept on purpose, the estimate of a run that would be
+    refused counts reused units it would not reuse; said in the doc comment.
+- not verified: none.
