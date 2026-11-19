@@ -14,7 +14,7 @@ use retrodoc_core::model::{RuleEvidence, SetApartReason, UseCase};
 pub use retrodoc_pipeline::reconcile::{Contradiction, ItemKind};
 use retrodoc_pipeline::reconcile::{ItemVerdict, Reconciliation};
 pub use retrodoc_pipeline::Section;
-use retrodoc_pipeline::{build_report, DebtReport, WeakSection};
+use retrodoc_pipeline::{build_report, DebtReport, DomainMap, WeakSection};
 
 use crate::edits;
 use crate::freshness::{FileState, Freshness};
@@ -319,7 +319,8 @@ pub fn debt(docs: &GeneratedDocs, reviews: &Reviews) -> DebtList {
 /// The debt report of `docs`, as [`debt`] reads it.
 #[must_use]
 pub fn docs_report(docs: &GeneratedDocs) -> DebtReport {
-    build_report(docs.domain_map(), docs.features(), docs.use_cases())
+    // The domain map only adds the code no domain holds, not listed here.
+    build_report(&DomainMap::default(), docs.features(), docs.use_cases())
 }
 
 /// The debt of `docs` from its `report` ([`docs_report`]) and its `reviews`, the stale sections

@@ -5,9 +5,11 @@ use retrodoc_core::config::Config;
 use retrodoc_render::RunMetadata;
 
 /// Renders the docs from the artifacts in `.retrodoc/cache/`, the human edits of
-/// `.retrodoc/edits.json` shown over them, and writes them under the configured docs dir. With `dry_run`, only previews what would
-/// change (files and diffs) and writes nothing. Files whose content already
-/// matches are left untouched, so a rerun on unchanged artifacts is a no-op.
+/// `.retrodoc/edits.json` shown over them, and writes them under the configured docs dir, with the
+/// debt report `report` prints, which lists the sections `.retrodoc/reviews.json` marks wrong. With
+/// `dry_run`, only previews what would change (files and diffs) and writes nothing. Files whose
+/// content already matches are left untouched, so a rerun on unchanged artifacts, edits and reviews
+/// is a no-op.
 pub fn publish(repo_root: &Path, config: &Config, dry_run: bool) -> anyhow::Result<()> {
     if retrodoc_pipeline::load_use_cases(repo_root).is_none() {
         anyhow::bail!(NO_DOCS);

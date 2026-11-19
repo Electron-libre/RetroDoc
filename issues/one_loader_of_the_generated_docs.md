@@ -65,8 +65,8 @@ only), and the web debt has a fourth assembly (`debt::docs_report`, with no doma
    `publish`, `report` and `debt::docs_report` take it; verified by a CLI test of the scenario of SED-39/SED-40
    (render then report on a run with an edit and a review) and the existing report, render and debt tests; makes
    true SED-39, SED-40, SED-H1. (~500 lines) (autonomous)
-3. [ ] Docs of the whole issue (`docs/crates/render-mcp-cli.md`, ADR 0045 consequences) and the fixes of its `high`
-   review.
+3. [x] Docs of the whole issue (`docs/crates/render-mcp-cli.md`; ADR 0045 left as is: its decision is unchanged)
+   and the fixes of its `high` review. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -98,5 +98,43 @@ Code review: no findings
 
 not verified: a `generate` on a real repository (the rendered `coverage-report.md` changes once on a repo with
 reviews marked wrong or edited names, then stays byte-identical).
+
+decisions needed: none.
+
+## Deliverable 3: high review fixes
+
+done: the reconciliation of the read model names its items as shown too (`GeneratedDocs::reconcile`, named again by
+`with_edits`), so the web debt page and the report agree (SED-H1); `debt::docs_report` keeps no domain map, the
+report building with it itself; SED-31 and the doc of `publish` name the reviews among what a rerun compares; tests
+of the edited domain and use case names with the verdict of the generated text, and of the project docs reaching
+both reports.
+
+| check | result |
+|---|---|
+| tests | `cargo test --workspace` green (64 suites) |
+| lint | `cardinal run project-check` green |
+| specs | SED-31 reworded; SED-40 traced by an internal test of the read model |
+| docs | `docs/crates/render-mcp-cli.md` |
+| code review | high on the issue: 9 findings; low on this deliverable: see below |
+
+red: none (the new tests cover the fixes of a review).
+
+High review, 9 findings:
+1. Web debt kept the generated names: fixed (read model reconciliation named as shown).
+2. SED-31 silent on the reviews: fixed (spec and doc of `publish`).
+3. Use case matched without its domain: not fixed, the slugs of the features are unique in a run (`unique_slug`).
+4. SED-40 verdicts, domain and use case names untested: fixed (read model test).
+5. An unreadable `reviews.json` only warned of by `render`: not fixed, the file is left as it is and the next render
+   lists its sections again, as `report` does (DBT-36).
+6. Search index built for nothing by `render` and `report`: not fixed, negligible beside a run; a loader without the
+   index would be a second loader, what this issue removes.
+7. `use-cases.yaml` read twice: not fixed, the first read tells a missing or corrupt file apart, which the load
+   counts as no use case.
+8. `docs_report` built with the domain map for nothing: fixed.
+9. REC-1 test no longer reached the reconciliation: fixed (CLI test with a project doc, both reports).
+
+Code review: no findings
+
+not verified: a `generate` on a real repository.
 
 decisions needed: none.

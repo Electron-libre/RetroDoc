@@ -85,7 +85,8 @@ it and no `generate` loses it.
   applied (REV-6), so that an edit made after the review makes it outdated (REV-20).
 - **SED-29** (deterministic) `retrodoc ui` and `retrodoc mcp` must warn of a file of edits that cannot be read or is
   of a later format, and show the docs as generated.
-- **SED-31** (deterministic) The same artifacts and the same edits must render the same files, byte for byte.
+- **SED-31** (deterministic) The same artifacts, the same edits and the same reviews, the files the reviews cite
+  unchanged, must render the same files, byte for byte.
 - **SED-32** (deterministic) `render` and `generate` must fail with an error naming `.retrodoc/edits.json` when the
   file cannot be read or is of a later format, and write no doc.
 - **SED-33** (deterministic) A blank field of an edit written by hand in `.retrodoc/edits.json` must be left out by

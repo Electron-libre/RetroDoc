@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use retrodoc_core::model::{BusinessRule, Domain, Feature, RuleEvidence, UseCase};
 use retrodoc_ingest::existing_docs::ExistingDoc;
-use retrodoc_pipeline::reconcile::{reconcile, Judgements, Reconciliation};
+use retrodoc_pipeline::reconcile::{reconcile, ItemKind, Judgements, Reconciliation};
 use retrodoc_pipeline::{domain_models, BehaviourCoverage, DomainMap, Glossary, Scope};
 
 use crate::corpus::{build_entries, rule_entries, section_entries, EntryKind};
@@ -135,6 +135,9 @@ impl GeneratedDocs {
     pub fn with_edits(mut self, edits: Edits) -> Self {
         self.shown = edits::apply(self.generated.clone(), &edits);
         self.edits = edits;
+        if let Some(reconciliation) = self.uncovered.reconciliation.take() {
+            self.uncovered.reconciliation = Some(self.named_as_shown(reconciliation));
+        }
         let mut entries = section_entries(
             &self.shown.domains,
             &self.shown.features,
@@ -267,9 +270,10 @@ impl GeneratedDocs {
         self
     }
 
-    /// The items reconciled with the collected `docs` from the verdicts saved under `root`.
+    /// The items reconciled with the collected `docs` from the verdicts saved under `root`, named
+    /// as shown (SED-40).
     pub(crate) fn reconcile(&self, root: &Path, docs: &[ExistingDoc]) -> Reconciliation {
-        reconcile(
+        self.named_as_shown(reconcile(
             &self.map,
             // The verdicts were given on the generated text.
             &self.generated.features,
@@ -277,7 +281,37 @@ impl GeneratedDocs {
             &self.rules,
             docs,
             &Judgements::load(root),
-        )
+        ))
+    }
+
+    /// `reconciliation` with the name of each domain, feature and use case as shown, edited.
+    fn named_as_shown(&self, mut reconciliation: Reconciliation) -> Reconciliation {
+        for item in &mut reconciliation.items {
+            let mut parts = item.label.rsplit('/');
+            let (last, before) = (parts.next().unwrap_or_default(), parts.next());
+            let shown = match item.kind {
+                ItemKind::Domain => self
+                    .domains()
+                    .iter()
+                    .find(|d| d.slug == item.label)
+                    .map(|d| &d.name),
+                ItemKind::Feature => self
+                    .features()
+                    .iter()
+                    .find(|f| f.slug == last && Some(f.domain_slug.as_str()) == before)
+                    .map(|f| &f.name),
+                ItemKind::UseCase => self
+                    .use_cases()
+                    .iter()
+                    .find(|u| u.slug == last && Some(u.feature_slug.as_str()) == before)
+                    .map(|u| &u.name),
+                ItemKind::Rule => None,
+            };
+            if let Some(name) = shown {
+                item.name.clone_from(name);
+            }
+        }
+        reconciliation
     }
 
     /// Lets [`Self::source_access`] read the code under `repo_root`.
@@ -533,6 +567,68 @@ mod tests {
             .find(|i| i.label == "billing/pay-invoice")
             .unwrap();
         assert_eq!(feature.status, Status::Undocumented);
+    }
+
+    // spec: SED-40 (internal: the web debt reads this reconciliation; a judged verdict needs an LLM run through the binary)
+    #[test]
+    fn the_reconciled_items_take_the_edited_names_and_keep_their_verdicts() {
+        let dir = saved_run();
+        let root = dir.path();
+        retrodoc_pipeline::save_use_cases(
+            root,
+            &[retrodoc_core::model::UseCase {
+                entry_points: Vec::new(),
+                primary_actor: None,
+                narrative: None,
+                business_language: None,
+                slug: "by-card".into(),
+                feature_slug: "pay-invoice".into(),
+                name: "Pay by card".into(),
+                description: String::new(),
+                steps: Vec::new(),
+                diagram_mermaid: None,
+                confidence: None,
+                narrative_check: None,
+            }],
+        )
+        .unwrap();
+        std::fs::write(
+            root.join(".retrodoc/edits.json"),
+            r#"{"version":1,"edits":[
+                {"kind":"domain","id":"billing","name":"Accounts","author":null,
+                 "edited_at":"2026-11-19T10:00:00Z","fingerprint":"f"},
+                {"kind":"feature","id":"pay-invoice","name":"Settle a bill","author":null,
+                 "edited_at":"2026-11-19T10:00:00Z","fingerprint":"f"},
+                {"kind":"use_case","id":"pay-invoice/by-card","name":"Settle with a card","author":null,
+                 "edited_at":"2026-11-19T10:00:00Z","fingerprint":"f"}]}"#,
+        )
+        .unwrap();
+        let collected = [ExistingDoc {
+            path: "README.md".into(),
+            content: "# Pay an invoice\n\nCustomers pay an invoice.\n".into(),
+        }];
+
+        let docs = GeneratedDocs::load(root, &collected)
+            .unwrap()
+            .reconciled(&collected);
+
+        let item = |docs: &GeneratedDocs, label: &str| {
+            let items = &docs.uncovered().reconciliation.as_ref().unwrap().items;
+            let item = items.iter().find(|i| i.label == label).unwrap();
+            (item.name.clone(), item.status)
+        };
+        assert_eq!(item(&docs, "billing").0, "Accounts");
+        assert_eq!(
+            item(&docs, "billing/pay-invoice"),
+            ("Settle a bill".to_string(), Status::Matched),
+            "the verdict of the generated name"
+        );
+        assert_eq!(
+            item(&docs, "billing/pay-invoice/by-card").0,
+            "Settle with a card"
+        );
+        let unedited = docs.with_edits(crate::edits::Edits::default());
+        assert_eq!(item(&unedited, "billing/pay-invoice").0, "Pay an invoice");
     }
 
     // spec: SED-29 (internal: the load both servers share; their warning goes to the log)

@@ -4,8 +4,8 @@
 
 use retrodoc_core::config::RulesConfig;
 use retrodoc_ingest::existing_docs::ExistingDoc;
-use retrodoc_pipeline::reconcile::{ItemKind, Reconciliation};
-use retrodoc_pipeline::{DebtReport, MarkedWrong};
+use retrodoc_pipeline::reconcile::ItemKind;
+use retrodoc_pipeline::{build_report, DebtReport, MarkedWrong};
 
 use crate::debt::{self, DebtKind, Subject};
 use crate::read_model::GeneratedDocs;
@@ -30,7 +30,7 @@ impl GeneratedDocs {
     /// marked wrong (DBT-35). Docs not loaded from a repository report their sections only.
     #[must_use]
     pub fn debt_report(&self, inputs: &ReportInputs) -> DebtReport {
-        let mut report = debt::docs_report(self);
+        let mut report = build_report(self.domain_map(), self.features(), self.use_cases());
         report.skipped_files.clone_from(&self.uncovered().skipped);
         report.with_behaviour_coverage(self.uncovered().coverage.clone());
         if let Some(reviews) = inputs.reviews {
@@ -48,39 +48,9 @@ impl GeneratedDocs {
             );
         }
         if let Some(collected) = inputs.collected {
-            report.with_reconciliation(self.named_as_shown(self.reconcile(root, collected)));
+            report.with_reconciliation(self.reconcile(root, collected));
         }
         report
-    }
-
-    /// `reconciliation` with the name of each domain, feature and use case as shown, edited.
-    fn named_as_shown(&self, mut reconciliation: Reconciliation) -> Reconciliation {
-        for item in &mut reconciliation.items {
-            let mut parts = item.label.rsplit('/');
-            let (last, before) = (parts.next().unwrap_or_default(), parts.next());
-            let shown = match item.kind {
-                ItemKind::Domain => self
-                    .domains()
-                    .iter()
-                    .find(|d| d.slug == item.label)
-                    .map(|d| &d.name),
-                ItemKind::Feature => self
-                    .features()
-                    .iter()
-                    .find(|f| f.slug == last && Some(f.domain_slug.as_str()) == before)
-                    .map(|f| &f.name),
-                ItemKind::UseCase => self
-                    .use_cases()
-                    .iter()
-                    .find(|u| u.slug == last && Some(u.feature_slug.as_str()) == before)
-                    .map(|u| &u.name),
-                ItemKind::Rule => None,
-            };
-            if let Some(name) = shown {
-                item.name.clone_from(name);
-            }
-        }
-        reconciliation
     }
 }
 
