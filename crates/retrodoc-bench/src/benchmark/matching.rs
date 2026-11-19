@@ -476,7 +476,10 @@ mod tests {
         let map = DomainMap {
             domains: vec![
                 cluster("ordering", "Ordering"),
-                cluster(crate::domains::UNCATEGORIZED_SLUG, "Uncategorized"),
+                cluster(
+                    retrodoc_core::artifacts::domains::UNCATEGORIZED_SLUG,
+                    "Uncategorized",
+                ),
             ],
         };
         save_yaml(&Artifact::Domains.path(root), &map).unwrap();

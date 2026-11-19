@@ -20,8 +20,7 @@ use crate::entry_points::EntryPoints;
 use crate::error::PipelineError;
 use crate::features::build_features_from_surface;
 use crate::surface::Surface;
-use retrodoc_core::artifacts::DomainMap;
-use retrodoc_core::artifacts::Glossary;
+use retrodoc_core::artifacts::{DomainMap, Glossary};
 
 /// What a replay is scored against: the reference of the repository and the pairs written by hand.
 #[derive(Debug, Clone, Copy)]

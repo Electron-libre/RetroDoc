@@ -75,6 +75,8 @@ Sort of the uses of `retrodoc-mcp` and `retrodoc-web`:
 4. [x] Create the issues of the loaders (features, use cases, rules, set-aside), of the computations and of the run
    history, update `ROADMAP.md` and the `depends_on` of `docs_crate_out_of_the_mcp_crate`; docs. (autonomous)
 
+5. [x] Fixes of the `high` review of the whole issue; verified by `just check`. (autonomous)
+
 ## Decisions
 - Mode: autonomous
 - Base commit: a1a27870e170ae2be81d1c2559a9f2e04033ece7
@@ -202,6 +204,36 @@ no stale path left.
 | docs | ADR 0051, `ROADMAP.md` |
 
 red: none (no code)
+
+Code review: no findings
+
+not verified: nothing
+
+decisions needed: none
+
+## Deliverable 5
+done: fixes of the `high` review of `a1a2787..HEAD` (8 findings).
+
+| check | result |
+|-------|--------|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| docs | ADR 0051 |
+| size | 58 lines |
+
+red: none (no behaviour)
+
+High review: 8 findings
+1. Doc comment of `attribute_entities` left over `read_model_file`: fixed.
+2. `freshness::file_hash` hashes a file apart from the pipeline's capture: not fixed, it predates this issue (only
+   the import moved); worth a look with `docs_crate_out_of_the_mcp_crate`, which moves the freshness.
+3. `bench_support::domains::UNCATEGORIZED_SLUG` shim: fixed, the bench imports the core constant.
+4. `naming.rs` only re-exports `normalize`: kept, like `artifact.rs`, so the passes did not change (ADR 0051).
+5. `PipelineError` keeps `JsonSerialize`, `YamlSerialize`, `ArtifactIo` next to `Cache`: not fixed, the first two
+   still serve the other serializations of the pipeline and `ArtifactIo` the reads of the bench; out of the move.
+6. ADR 0051 did not say the set-aside items stay: fixed.
+7. `retrodoc_core::artifacts` re-exports only the main types: kept, the others are reached by their module.
+8. Split `use retrodoc_core::artifacts::…` lines: merged.
 
 Code review: no findings
 

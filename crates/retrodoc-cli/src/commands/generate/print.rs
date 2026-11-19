@@ -1,7 +1,6 @@
 //! What `generate` prints about each pass once it is done.
 
-use retrodoc_core::artifacts::BehaviourCoverage;
-use retrodoc_core::artifacts::DomainMap;
+use retrodoc_core::artifacts::{BehaviourCoverage, DomainMap};
 use retrodoc_core::cache::Artifact;
 use retrodoc_core::model::{ConfidenceScore, Feature, UseCase};
 

@@ -88,7 +88,6 @@ pub(crate) static GLOSSARY_REQUEST: Request<GlossaryResponse> =
 pub(crate) static BUSINESS_REQUEST: Request<GlossaryResponse> =
     Request::new(BUSINESS_SYSTEM_PROMPT, &[BUSINESS_HEADER]);
 
-/// The entities of an answer by file (see [`attribute`]).
 /// The reading of a file whose content hashes to `content_hash`: the entities of its chunks, merged.
 pub(crate) fn read_model_file(content_hash: &str, entities: Vec<Entity>) -> ModelFile {
     ModelFile {
@@ -97,6 +96,7 @@ pub(crate) fn read_model_file(content_hash: &str, entities: Vec<Entity>) -> Mode
     }
 }
 
+/// The entities of an answer by file (see [`attribute`]).
 pub(crate) fn attribute_entities(
     response: GlossaryResponse,
     batch: &[PendingChunk],

@@ -2,8 +2,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use anyhow::Context;
-use retrodoc_core::artifacts::DomainMap;
-use retrodoc_core::artifacts::Scope;
+use retrodoc_core::artifacts::{DomainMap, Scope};
 use retrodoc_core::cache::format::{self as cache_format, FormatError};
 use retrodoc_core::cache::Artifact;
 use retrodoc_core::config::{Config, DomainsFrom};

@@ -10,8 +10,7 @@ use std::process::Command;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use retrodoc_core::artifacts::SourceHashes;
-use retrodoc_core::artifacts::{DomainCluster, DomainMap};
+use retrodoc_core::artifacts::{DomainCluster, DomainMap, SourceHashes};
 use retrodoc_core::cache::hash_content;
 use retrodoc_core::model::{
     Actor, ActorKind, BusinessRule, Feature, RuleEvidence, RuleKind, SourceRef, Step, UseCase,

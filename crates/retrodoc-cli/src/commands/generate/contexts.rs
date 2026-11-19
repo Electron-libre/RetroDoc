@@ -11,8 +11,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::Context;
-use retrodoc_core::artifacts::SourceHashes;
-use retrodoc_core::artifacts::{DomainMap, Glossary};
+use retrodoc_core::artifacts::{DomainMap, Glossary, SourceHashes};
 use retrodoc_ingest::IngestResult;
 use retrodoc_pipeline::{ContextMap, EntryPoints, FileRole, Retention, RoleMap, RunSlice, Surface};
 

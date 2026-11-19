@@ -6,9 +6,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use retrodoc_core::artifacts::BehaviourCoverage;
-use retrodoc_core::artifacts::Scope;
-use retrodoc_core::artifacts::{DomainMap, Glossary};
+use retrodoc_core::artifacts::{BehaviourCoverage, DomainMap, Glossary, Scope};
 use retrodoc_core::cache::format::{self as cache_format, FormatError};
 use retrodoc_core::model::{BusinessRule, Domain, Feature, RuleEvidence, UseCase};
 use retrodoc_ingest::existing_docs::ExistingDoc;
@@ -498,9 +496,7 @@ pub(crate) fn saved_edits(repo_root: &Path) -> Edits {
 mod tests {
     use std::path::PathBuf;
 
-    use retrodoc_core::artifacts::BehaviourCoverage;
-    use retrodoc_core::artifacts::Scope;
-    use retrodoc_core::artifacts::{DomainCluster, DomainMap};
+    use retrodoc_core::artifacts::{BehaviourCoverage, DomainCluster, DomainMap, Scope};
     use retrodoc_core::model::Feature;
     use retrodoc_ingest::existing_docs::ExistingDoc;
     use retrodoc_pipeline::reconcile::Status;

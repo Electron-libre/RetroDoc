@@ -10,9 +10,7 @@
 
 use std::path::{Path, PathBuf};
 
-use retrodoc_core::artifacts::BehaviourCoverage;
-use retrodoc_core::artifacts::Scope;
-use retrodoc_core::artifacts::{DomainMap, Glossary};
+use retrodoc_core::artifacts::{BehaviourCoverage, DomainMap, Glossary, Scope};
 use retrodoc_core::cache::format::FORMAT_VERSION;
 use retrodoc_pipeline::reconcile::Judgements;
 

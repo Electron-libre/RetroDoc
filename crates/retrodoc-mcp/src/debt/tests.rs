@@ -1,5 +1,4 @@
-use retrodoc_core::artifacts::Glossary;
-use retrodoc_core::artifacts::{BehaviourCoverage, SourceHashes};
+use retrodoc_core::artifacts::{BehaviourCoverage, Glossary, SourceHashes};
 use retrodoc_core::cache::hash_content;
 use retrodoc_core::model::{
     Actor, ActorKind, BusinessRule, ConfidenceScore, Domain, Feature, RuleEvidence, SetApartReason,
