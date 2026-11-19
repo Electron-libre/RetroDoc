@@ -19,7 +19,7 @@ in `docs/findings.md` and the closed issues in `issues/done/`.
   hosted or third-party reader would start from there.
 - State: in issues
 - Issues:
-  - [one_loader_of_the_generated_docs](issues/one_loader_of_the_generated_docs.md)
+  - [one_loader_of_the_generated_docs](issues/done/one_loader_of_the_generated_docs.md)
   - [format_version_of_the_saved_artifacts](issues/format_version_of_the_saved_artifacts.md)
   - [reader_types_in_core](issues/reader_types_in_core.md)
   - [docs_crate_out_of_the_mcp_crate](issues/docs_crate_out_of_the_mcp_crate.md)
