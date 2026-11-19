@@ -62,8 +62,8 @@ Sort of the uses of `retrodoc-mcp` and `retrodoc-web`:
    load and save, `hash_content`) with a core `CacheError` the `PipelineError` wraps; `Retention` and the
    `PipelineError` save wrappers stay in the pipeline's `artifact.rs`; the users outside the pipeline import from
    core; ADR 0051; verified by the moved tests and `just check`; ~800 lines. (autonomous)
-1b. [ ] Format version in core: `cache_format.rs` moved to `retrodoc_core::cache::format` (cut from deliverable 1,
-   over the size limit at 1,062 lines); verified by its moved tests and `just check`; ~280 lines.
+1b. [x] Format version in core: `cache_format.rs` moved to `retrodoc_core::cache::format` (cut from deliverable 1,
+   over the size limit at 1,062 lines); verified by its moved tests and `just check`; ~280 lines. (autonomous)
 2. [ ] Glossary, domain map and scope in core (`retrodoc_core::artifacts`), with their `load`/`save`; core gains
    `schemars` for `Entity`; verified by the moved tests, `just check`; ~900 lines.
 3. [ ] Behaviour coverage, set-aside, source hashes and the loaders of features, use cases and rules in core;
@@ -93,6 +93,26 @@ the pipeline keeps a thin `artifact.rs` (`Retention`, save wrappers into `Pipeli
 | size | 773 lines (the format move cut to 1b) |
 
 red: none (a move: the moved tests in `retrodoc-core` did not compile before it)
+
+Code review: no findings
+
+not verified: nothing
+
+decisions needed: none
+
+## Deliverable 1b
+done: `cache_format` lives in `retrodoc_core::cache::format`; `generate`, the docs readers and `retrodoc-mcp` import
+it from core; the round-trip sample test stays in the pipeline (it saves through the pipeline's loaders).
+
+| check | result |
+|-------|--------|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass (no change of behaviour) |
+| docs | `docs/crates/core-ingest.md`, `docs/crates/pipeline.md`, `docs/crates/render-mcp-cli.md` |
+| size | 295 lines |
+
+red: none (a move)
 
 Code review: no findings
 

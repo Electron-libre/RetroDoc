@@ -1,7 +1,9 @@
 //! The layout of `.retrodoc/cache/`, written by the pipeline and read by the readers of the generated
 //! docs (ADR 0051): the names of its files, one place for the "create the folder, serialize, write"
 //! sequence and for the "missing or unreadable is a first run, not an error" rule, the content hash
-//! of the fingerprints and source hashes.
+//! of the fingerprints and source hashes, and the format version of the cache ([`format`]).
+
+pub mod format;
 
 use std::path::{Path, PathBuf};
 

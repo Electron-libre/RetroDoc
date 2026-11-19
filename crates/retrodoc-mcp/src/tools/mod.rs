@@ -95,7 +95,7 @@ impl Docs {
     pub fn load(
         repo_root: &Path,
         docs: &[ExistingDoc],
-    ) -> Result<Option<Self>, retrodoc_pipeline::cache_format::FormatError> {
+    ) -> Result<Option<Self>, retrodoc_core::cache::format::FormatError> {
         Ok(GeneratedDocs::load(repo_root, docs)?.map(Self::from))
     }
 

@@ -3,14 +3,14 @@
 //! renamed, removed or added field fails here until the change of format is decided.
 //!
 //! On a failure: if a reader of an older version would read the new shape wrong, bump
-//! `FORMAT_VERSION` in `cache_format.rs` and write the sample under its new number; else refresh the
+//! `FORMAT_VERSION` in `retrodoc-core/src/cache/format.rs` and write the sample under its new number; else refresh the
 //! sample in place. `RETRODOC_BLESS=1 cargo test -p retrodoc-pipeline --test cache_format_sample`
 //! writes the sample from what the loaders save, read from the latest earlier sample after a bump
 //! (a field the bump adds then holds its default: fill it by hand).
 
 use std::path::{Path, PathBuf};
 
-use retrodoc_pipeline::cache_format::FORMAT_VERSION;
+use retrodoc_core::cache::format::FORMAT_VERSION;
 use retrodoc_pipeline::reconcile::Judgements;
 use retrodoc_pipeline::{BehaviourCoverage, DomainMap, Glossary, Scope};
 

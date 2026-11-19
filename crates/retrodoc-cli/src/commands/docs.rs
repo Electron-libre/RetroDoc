@@ -11,7 +11,7 @@ use retrodoc_render::RunMetadata;
 /// content already matches are left untouched, so a rerun on unchanged artifacts, edits and reviews
 /// is a no-op.
 pub fn publish(repo_root: &Path, config: &Config, dry_run: bool) -> anyhow::Result<()> {
-    retrodoc_pipeline::cache_format::check(repo_root)?;
+    retrodoc_core::cache::format::check(repo_root)?;
     if retrodoc_pipeline::load_use_cases(repo_root).is_none() {
         anyhow::bail!(NO_DOCS);
     }

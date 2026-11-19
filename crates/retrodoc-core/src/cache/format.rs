@@ -7,8 +7,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::artifact::{save_json, Artifact};
-use crate::error::PipelineError;
+use super::{save_json, Artifact, CacheError};
 
 /// The format of the artifacts this binary writes and reads. Bump it on a change of their shape
 /// that an older reader would read wrong, and refresh the frozen sample of the round-trip test.
@@ -88,7 +87,7 @@ fn holds_artifacts(repo_root: &Path) -> bool {
 /// # Errors
 ///
 /// The file can't be written.
-pub fn record(repo_root: &Path) -> Result<(), PipelineError> {
+pub fn record(repo_root: &Path) -> Result<(), CacheError> {
     if matches!(recorded(repo_root), Ok(Some(FORMAT_VERSION))) {
         return Ok(());
     }
@@ -105,7 +104,7 @@ mod tests {
     use super::*;
 
     fn with_artifact(dir: &Path) {
-        crate::artifact::save_yaml(&Artifact::Features.path(dir), &Vec::<String>::new()).unwrap();
+        super::super::save_yaml(&Artifact::Features.path(dir), &Vec::<String>::new()).unwrap();
     }
 
     // spec: CFV-7 (internal: the binary reads one format, a later one is needed to see an older cache)
@@ -125,7 +124,7 @@ mod tests {
     fn a_cache_with_no_artifact_is_read_by_any_version() {
         let dir = tempfile::tempdir().unwrap();
         assert_eq!(check_against(dir.path(), 2), Ok(()));
-        crate::artifact::save_json(&Artifact::Usage.path(dir.path()), &Vec::<u8>::new()).unwrap();
+        super::super::save_json(&Artifact::Usage.path(dir.path()), &Vec::<u8>::new()).unwrap();
         assert_eq!(
             check_against(dir.path(), 2),
             Err(FormatError::Older { found: 1, reads: 2 })

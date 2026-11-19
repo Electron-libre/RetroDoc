@@ -6,9 +6,9 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+use retrodoc_core::cache::format::{self as cache_format, FormatError};
 use retrodoc_core::model::{BusinessRule, Domain, Feature, RuleEvidence, UseCase};
 use retrodoc_ingest::existing_docs::ExistingDoc;
-use retrodoc_pipeline::cache_format::{self, FormatError};
 use retrodoc_pipeline::reconcile::{reconcile, ItemKind, Judgements, Reconciliation};
 use retrodoc_pipeline::{domain_models, BehaviourCoverage, DomainMap, Glossary, Scope};
 
