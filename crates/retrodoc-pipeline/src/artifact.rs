@@ -56,10 +56,12 @@ pub enum Artifact {
     /// The verdicts of the reconciliation with the project's own docs.
     Reconciliation,
     Usage,
+    /// The format version of the cache (ADR 0050).
+    Format,
 }
 
 impl Artifact {
-    pub const ALL: [Artifact; 22] = [
+    pub const ALL: [Artifact; 23] = [
         Artifact::SourceHashes,
         Artifact::Fingerprints,
         Artifact::Roles,
@@ -82,6 +84,7 @@ impl Artifact {
         Artifact::BehaviourCoverage,
         Artifact::Reconciliation,
         Artifact::Usage,
+        Artifact::Format,
     ];
 
     #[must_use]
@@ -109,6 +112,7 @@ impl Artifact {
             Artifact::BehaviourCoverage => "behaviour-coverage.yaml",
             Artifact::Reconciliation => "reconciliation.yaml",
             Artifact::Usage => "usage.json",
+            Artifact::Format => "format.json",
         }
     }
 
@@ -125,7 +129,8 @@ impl Artifact {
 
     /// Whether `generate --force` removes it. The others are not results to
     /// redo: `roles.yaml`, `roles-unmatched.yaml`, `signal-sources.yaml`, `product.yaml`, `business-files.yaml` and `contexts.yaml` are hand-editable (`retrodoc roles --force`
-    /// identifies it again), `usage.json` is the history of the runs, and
+    /// identifies it again), `usage.json` is the history of the runs, `format.json` says the format of
+    /// the cache the kept files are in, and
     /// `domains.yaml` and `scope.yaml` are recomputed on every run anyway.
     #[must_use]
     pub fn cleared_by_force(self) -> bool {
@@ -151,7 +156,8 @@ impl Artifact {
             | Artifact::Contexts
             | Artifact::Scope
             | Artifact::Domains
-            | Artifact::Usage => false,
+            | Artifact::Usage
+            | Artifact::Format => false,
         }
     }
 }
@@ -272,7 +278,8 @@ mod tests {
                 "contexts.yaml",
                 "scope.yaml",
                 "domains.yaml",
-                "usage.json"
+                "usage.json",
+                "format.json"
             ]
         );
     }

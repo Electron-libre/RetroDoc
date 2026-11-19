@@ -32,3 +32,45 @@ The readers of the docs out of the pipeline
 # Resources
 * ADR 0003, ADR 0005, ADR 0037, ADR 0043.
 * `specs/section-edit.md` (SED-13), `specs/rerun.md`.
+
+# Specs
+* `specs/cache-format.md` (CFV), new.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-19
+
+## Understanding
+The cache carries one format version (`.retrodoc/cache/format.json`, written by `generate`); the one loader of the
+generated docs refuses another version with the command to run, `generate` refuses an older cache without `--force`,
+and a round-trip test over a frozen sample makes any change of the artifacts' shape a deliberate step. Out of scope:
+upgrade in place, the single-pass commands, the benchmark replays. Means: candidates 1 and 3 of the issue (ADR 0050).
+
+## Plan
+1. [x] Record and check the version: `Artifact::Format` and `FORMAT_VERSION = 1` in the pipeline, written by
+   `generate` before its first artifact; `GeneratedDocs::load` returns a `Result` that refuses an older, later or
+   unreadable version, no file = format 1; the CLI readers print the error; verified by CLI tests (`generate` then
+   `render`, `ui`/`report` on version 0 and 99, `{`, no file, rerun with no LLM call); makes true CFV-1, CFV-2, CFV-3,
+   CFV-6, CFV-7, CFV-8, CFV-9. (autonomous)
+2. [ ] `generate` refuses an older cache without `--force` and a later one always, before any LLM call and any write;
+   verified by CLI tests with the fake LLM; makes true CFV-4, CFV-5.
+3. [ ] Frozen sample of the format-1 artifacts the readers load (`crates/retrodoc-mcp/tests/fixtures/`), read and
+   saved again to the same text; verified by the round-trip test; makes true CFV-10, sets the spec `accepted`.
+
+## Decisions
+- Mode: autonomous
+- Base commit: ddaa5ffbc52237f38a9aeecfde6b15a0f259b6c0
+- A cache with no `format.json` is format 1 (question 1 a).
+- `generate --force` still refuses a cache of a later format (question 2 a).
+
+## Deliverable 1
+- done: `cache_format` (pipeline) records `format.json` in `generate` before any artifact; `GeneratedDocs::load`,
+  `load_with_edits` and `Docs::load` return `Result<Option<_>, FormatError>`; `render`, `report`, `ui`, `history`,
+  `mcp`, `search`, `ask`, `chat` refuse a cache of another format.
+- red: CFV-H1, CFV-1, CFV-6, CFV-3, CFV-7, CFV-8: `format.json` not written (`No such file`), `report`/`render` did not
+  fail on version 99 or `{`; CFV-2, CFV-H2, CFV-9 not run red (`ui` would have served forever on a cache it accepts).
+- Code review: 2 findings
+  - `record` relabels an older cache as current on a plain `generate`: deliverable 2 (CFV-4), next.
+  - `record` overwrites a later or unreadable `format.json`: deliverable 2 (CFV-5), next.
+- not verified: `ask_page::each_browser_session_keeps_its_own_conversation` failed once in `project-check`, passed
+  3/3 with and without the change (flaky, unrelated).

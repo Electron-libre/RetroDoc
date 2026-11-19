@@ -96,14 +96,14 @@ fn generated_repo() -> tempfile::TempDir {
 }
 
 fn review(root: &Path, kind: SectionKind, id: &str, status: Status, comment: &str) {
-    let docs = GeneratedDocs::load(root, &[]).unwrap();
+    let docs = GeneratedDocs::load(root, &[]).unwrap().unwrap();
     reviews::record(root, &docs, &Section::new(kind, id), status, comment).unwrap();
 }
 
 async fn get(root: &Path, path: &str) -> String {
     let response = retrodoc_web::router(
         Project::default(),
-        GeneratedDocs::load(root, &[]),
+        GeneratedDocs::load(root, &[]).unwrap(),
         DocLinks::default(),
         Vec::new(),
     )
@@ -384,7 +384,7 @@ async fn a_review_saved_while_the_server_runs_shows_on_the_next_debt_page() {
     let repo = generated_repo();
     let app = retrodoc_web::router(
         Project::default(),
-        GeneratedDocs::load(repo.path(), &[]),
+        GeneratedDocs::load(repo.path(), &[]).unwrap(),
         DocLinks::default(),
         Vec::new(),
     );
@@ -550,7 +550,7 @@ async fn an_unreadable_file_of_reviews_is_said_on_the_audit_page() {
 }
 
 fn edit_name(root: &Path, kind: SectionKind, id: &str, name: &str) {
-    let docs = GeneratedDocs::load(root, &[]).unwrap();
+    let docs = GeneratedDocs::load(root, &[]).unwrap().unwrap();
     let fields = Fields {
         name: Some(name.into()),
         ..Fields::default()

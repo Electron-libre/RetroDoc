@@ -169,7 +169,7 @@ async fn get_in(lang: Option<&'static str>, root: &Path, path: &str) -> String {
     };
     let response = retrodoc_web::router(
         project,
-        GeneratedDocs::load(root, &[]),
+        GeneratedDocs::load(root, &[]).unwrap(),
         DocLinks::default(),
         Vec::new(),
     )
@@ -196,7 +196,7 @@ async fn get_with(root: &Path, path: &str, headers: &[&str]) -> String {
     }
     let response = retrodoc_web::router(
         Project::default(),
-        GeneratedDocs::load(root, &[]),
+        GeneratedDocs::load(root, &[]).unwrap(),
         DocLinks::default(),
         Vec::new(),
     )

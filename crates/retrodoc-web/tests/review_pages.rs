@@ -67,7 +67,7 @@ fn generated_repo() -> tempfile::TempDir {
 }
 
 fn load(root: &Path) -> GeneratedDocs {
-    GeneratedDocs::load(root, &[]).unwrap()
+    GeneratedDocs::load(root, &[]).unwrap().unwrap()
 }
 
 fn record(root: &Path, kind: SectionKind, id: &str, status: Status, comment: &str) {

@@ -108,7 +108,7 @@ fn generated_repo() -> tempfile::TempDir {
 }
 
 fn load(root: &Path) -> Option<GeneratedDocs> {
-    GeneratedDocs::load(root, &collected())
+    GeneratedDocs::load(root, &collected()).unwrap()
 }
 
 async fn get_with(root: &Path, path: &str, htmx: bool) -> (StatusCode, String) {

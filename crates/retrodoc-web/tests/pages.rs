@@ -105,7 +105,7 @@ fn generated_repo() -> tempfile::TempDir {
 }
 
 fn load(root: &Path) -> Option<GeneratedDocs> {
-    GeneratedDocs::load(root, &[])
+    GeneratedDocs::load(root, &[]).unwrap()
 }
 
 /// The application the pages of these tests document.

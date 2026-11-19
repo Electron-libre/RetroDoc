@@ -60,7 +60,7 @@ fn project(lang: Option<&'static str>) -> Project {
 }
 
 fn router_in(root: &Path, llm: Option<Arc<dyn LlmProvider>>, lang: Option<&'static str>) -> Router {
-    let docs = GeneratedDocs::load(root, &[]).unwrap();
+    let docs = GeneratedDocs::load(root, &[]).unwrap().unwrap();
     let asking = llm.map(|llm| Asking { llm, max_rounds: 8 });
     retrodoc_web::router_with(
         project(lang),

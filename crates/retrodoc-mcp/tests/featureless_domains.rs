@@ -36,7 +36,7 @@ fn the_read_model_lists_no_domain_without_a_feature() {
     .save(dir.path())
     .unwrap();
 
-    let docs = GeneratedDocs::load(dir.path(), &[]).unwrap();
+    let docs = GeneratedDocs::load(dir.path(), &[]).unwrap().unwrap();
 
     let slugs: Vec<&str> = docs.domains().iter().map(|d| d.slug.as_str()).collect();
     assert_eq!(slugs, ["billing"]);

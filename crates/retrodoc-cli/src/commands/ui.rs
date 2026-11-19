@@ -30,7 +30,7 @@ pub async fn run(
 ) -> anyhow::Result<()> {
     let workspace = Workspace::open(path)?;
     let docs = project_docs(&workspace.repo_root, &workspace.config)?;
-    let generated = GeneratedDocs::load(&workspace.repo_root, &docs)
+    let generated = GeneratedDocs::load(&workspace.repo_root, &docs)?
         .map(|generated| generated.reconciled(&docs).with_history());
     let asking = match ask {
         Some(max_rounds) => {

@@ -73,7 +73,7 @@ fn generated_repo() -> tempfile::TempDir {
 }
 
 fn edit(root: &Path, section: &Section, fields: Fields) -> Edit {
-    let docs = GeneratedDocs::load(root, &[]).unwrap();
+    let docs = GeneratedDocs::load(root, &[]).unwrap().unwrap();
     edits::record(root, &docs, section, fields).unwrap()
 }
 
@@ -90,7 +90,12 @@ fn app(root: &Path, project: Project) -> axum::Router {
             content: "# Guide\n".into(),
         })
         .to_vec();
-    retrodoc_web::router(project, GeneratedDocs::load(root, &[]), links, collected)
+    retrodoc_web::router(
+        project,
+        GeneratedDocs::load(root, &[]).unwrap(),
+        links,
+        collected,
+    )
 }
 
 async fn get(root: &Path, path: &str) -> String {
@@ -531,7 +536,7 @@ async fn an_edit_from_another_site_is_refused() {
         .header("content-type", "application/x-www-form-urlencoded")
         .body(Body::from("name=X"))
         .unwrap();
-    let docs = GeneratedDocs::load(root, &[]);
+    let docs = GeneratedDocs::load(root, &[]).unwrap();
     let response = retrodoc_web::router(Project::default(), docs, DocLinks::default(), Vec::new())
         .oneshot(request)
         .await

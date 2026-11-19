@@ -33,7 +33,7 @@ fn save(path: &Path, Head(commit): Head, usage: Option<&RunUsage>) -> anyhow::Re
     let workspace = Workspace::open(path)?;
     let root = &workspace.repo_root;
     let docs = project_docs(root, &workspace.config)?;
-    let Some(generated) = GeneratedDocs::load(root, &docs) else {
+    let Some(generated) = GeneratedDocs::load(root, &docs)? else {
         return Ok(());
     };
     let finished_at = usage.map_or_else(

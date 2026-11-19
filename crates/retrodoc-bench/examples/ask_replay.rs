@@ -201,7 +201,7 @@ fn load_docs(run: &Path) -> Result<Docs, Failure> {
     .into_iter()
     .filter(|d| !generated.iter().any(|g| d.path.starts_with(g)))
     .collect();
-    Docs::load(run, &existing)
+    Docs::load(run, &existing)?
         .ok_or_else(|| format!("no generated docs in {}", run.display()).into())
 }
 

@@ -128,7 +128,7 @@ async fn audit_in(lang: Option<&'static str>, root: &Path) -> String {
     };
     let response = retrodoc_web::router(
         project,
-        GeneratedDocs::load(root, &[]),
+        GeneratedDocs::load(root, &[]).unwrap(),
         DocLinks::default(),
         Vec::new(),
     )

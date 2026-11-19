@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 
 use retrodoc_core::model::{BusinessRule, Domain, Feature, RuleEvidence, UseCase};
 use retrodoc_ingest::existing_docs::ExistingDoc;
+use retrodoc_pipeline::cache_format::{self, FormatError};
 use retrodoc_pipeline::reconcile::{reconcile, ItemKind, Judgements, Reconciliation};
 use retrodoc_pipeline::{domain_models, BehaviourCoverage, DomainMap, Glossary, Scope};
 
@@ -211,17 +212,30 @@ impl GeneratedDocs {
     /// warning, when the file can't be read). `None` before a first `generate` (no features saved);
     /// use cases not saved yet count as none. The items are not reconciled with
     /// the docs: [`Self::reconciled`] does it.
-    #[must_use]
-    pub fn load(repo_root: &Path, docs: &[ExistingDoc]) -> Option<Self> {
+    ///
+    /// # Errors
+    ///
+    /// The cache is of another format than this binary reads (`specs/cache-format.md`).
+    pub fn load(repo_root: &Path, docs: &[ExistingDoc]) -> Result<Option<Self>, FormatError> {
         Self::load_with_edits(repo_root, docs, saved_edits(repo_root))
     }
 
     /// Reads what the last `generate` saved, as [`Self::load`] does, with `edits` shown over it in
     /// place of the saved ones: a reader that must fail on a file of edits it can't read loads it
     /// itself.
-    #[must_use]
-    pub fn load_with_edits(repo_root: &Path, docs: &[ExistingDoc], edits: Edits) -> Option<Self> {
-        let features = retrodoc_pipeline::load_features(repo_root)?;
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::load`].
+    pub fn load_with_edits(
+        repo_root: &Path,
+        docs: &[ExistingDoc],
+        edits: Edits,
+    ) -> Result<Option<Self>, FormatError> {
+        cache_format::check(repo_root)?;
+        let Some(features) = retrodoc_pipeline::load_features(repo_root) else {
+            return Ok(None);
+        };
         let use_cases = retrodoc_pipeline::load_use_cases(repo_root).unwrap_or_default();
         let map = DomainMap::load(repo_root).unwrap_or_default();
         let glossary = Glossary::load(repo_root).unwrap_or_default();
@@ -255,7 +269,7 @@ impl GeneratedDocs {
         loaded.generated = generated;
         loaded.edits = edits;
         loaded.map = map;
-        Some(loaded)
+        Ok(Some(loaded))
     }
 
     /// Reconciles the items with the collected `docs` from the verdicts saved under the repository
@@ -540,7 +554,7 @@ mod tests {
     #[test]
     fn the_load_keeps_what_the_docs_leave_out() {
         let dir = saved_run();
-        let docs = GeneratedDocs::load(dir.path(), &[]).unwrap();
+        let docs = GeneratedDocs::load(dir.path(), &[]).unwrap().unwrap();
         let uncovered = docs.uncovered();
         assert_eq!(uncovered.no_domain, [PathBuf::from("lib/odd.rb")]);
         assert_eq!(uncovered.skipped, [PathBuf::from("vendor/big.rb")]);
@@ -558,6 +572,7 @@ mod tests {
             content: "# Shipping\n\nParcels leave on Monday.\n".into(),
         }];
         let docs = GeneratedDocs::load(dir.path(), &collected)
+            .unwrap()
             .unwrap()
             .reconciled(&collected);
         let reconciliation = docs.uncovered().reconciliation.as_ref().unwrap();
@@ -610,6 +625,7 @@ mod tests {
 
         let docs = GeneratedDocs::load(root, &collected)
             .unwrap()
+            .unwrap()
             .reconciled(&collected);
 
         let item = |docs: &GeneratedDocs, label: &str| {
@@ -637,7 +653,7 @@ mod tests {
         let dir = saved_run();
         std::fs::write(dir.path().join(".retrodoc/edits.json"), "{ not json").unwrap();
 
-        let docs = GeneratedDocs::load(dir.path(), &[]).unwrap();
+        let docs = GeneratedDocs::load(dir.path(), &[]).unwrap().unwrap();
 
         assert_eq!(docs.features()[0].name, "Pay an invoice");
         assert_eq!(docs.edits().edits(), []);

@@ -69,7 +69,7 @@ async fn get_in(root: &Path, path: &str, lang: Option<&'static str>) -> (StatusC
         lang,
         ..Project::default()
     };
-    let docs = GeneratedDocs::load(root, &[]).unwrap();
+    let docs = GeneratedDocs::load(root, &[]).unwrap().unwrap();
     let response = retrodoc_web::router(project, Some(docs), DocLinks::default(), Vec::new())
         .oneshot(Request::get(path).body(Body::empty()).unwrap())
         .await
@@ -211,7 +211,7 @@ async fn post_htmx_with_headers(
         lang,
         ..Project::default()
     };
-    let docs = GeneratedDocs::load(root, &[]).unwrap();
+    let docs = GeneratedDocs::load(root, &[]).unwrap().unwrap();
     let request = Request::post(path)
         .header("host", "127.0.0.1:8730")
         .header("origin", "http://127.0.0.1:8730")

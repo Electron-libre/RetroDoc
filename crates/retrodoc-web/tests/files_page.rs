@@ -138,7 +138,7 @@ async fn get(docs: Option<GeneratedDocs>, path: &str) -> (StatusCode, String) {
 }
 
 async fn files_page(root: &Path) -> String {
-    let (status, body) = get(GeneratedDocs::load(root, &[]), "/files").await;
+    let (status, body) = get(GeneratedDocs::load(root, &[]).unwrap(), "/files").await;
     assert_eq!(status, StatusCode::OK, "{body}");
     body
 }
@@ -220,7 +220,7 @@ async fn every_page_links_to_the_files_page() {
         "/domains/billing/pay-invoice/pay-by-card",
         "/nope",
     ] {
-        let (_, page) = get(GeneratedDocs::load(repo.path(), &[]), path).await;
+        let (_, page) = get(GeneratedDocs::load(repo.path(), &[]).unwrap(), path).await;
         assert!(page.contains("<a href=\"/files\""), "{path}: {page}");
     }
     let (status, page) = get(None, "/files").await;

@@ -173,7 +173,7 @@ fn generated_repo() -> (tempfile::TempDir, std::path::PathBuf) {
 }
 
 async fn get(root: &Path, path: &str) -> (StatusCode, String) {
-    let docs = GeneratedDocs::load(root, &[]);
+    let docs = GeneratedDocs::load(root, &[]).unwrap();
     let response = retrodoc_web::router(
         retrodoc_web::Project::default(),
         docs,

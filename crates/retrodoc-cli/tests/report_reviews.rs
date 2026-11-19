@@ -93,7 +93,9 @@ fn the_report_lists_the_sections_of_the_run_marked_wrong_with_their_comment() {
 fn a_section_marked_wrong_whose_cited_file_changed_is_said_outdated() {
     let (dir, _llm) = shop();
     let root = dir.path();
-    let docs = retrodoc_mcp::GeneratedDocs::load(root, &[]).unwrap();
+    let docs = retrodoc_mcp::GeneratedDocs::load(root, &[])
+        .unwrap()
+        .unwrap();
     let section = reviews::Section::new(reviews::SectionKind::Feature, "list-orders");
     reviews::record(
         root,

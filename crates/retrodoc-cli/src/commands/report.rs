@@ -18,15 +18,13 @@ pub fn run(path: &Path) -> anyhow::Result<()> {
         retrodoc_core::config::Config::default()
     };
 
-    let Some(use_cases) = retrodoc_pipeline::load_use_cases(&repo_root) else {
+    let docs = retrodoc_mcp::GeneratedDocs::load(&repo_root, &[])?;
+    let Some((docs, use_cases)) = docs.zip(retrodoc_pipeline::load_use_cases(&repo_root)) else {
         anyhow::bail!(NO_DOCS);
     };
     if use_cases.iter().all(|u| u.confidence.is_none()) {
         anyhow::bail!("no confidence scores found — run `retrodoc generate` again");
     }
-    let Some(docs) = retrodoc_mcp::GeneratedDocs::load(&repo_root, &[]) else {
-        anyhow::bail!(NO_DOCS);
-    };
     let report = super::docs::debt_report(&docs, &repo_root, &config);
     print!("{}", report.to_markdown());
     Ok(())

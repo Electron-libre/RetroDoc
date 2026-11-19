@@ -248,7 +248,7 @@ async fn get(root: &Path, path: &str) -> (StatusCode, String) {
 
 /// [`get`] with the pages in the language of the tag `lang`.
 async fn get_in(root: &Path, path: &str, lang: Option<&'static str>) -> (StatusCode, String) {
-    let docs = GeneratedDocs::load(root, &[]);
+    let docs = GeneratedDocs::load(root, &[]).unwrap();
     let response = retrodoc_web::router(
         retrodoc_web::Project {
             lang,
@@ -692,7 +692,7 @@ async fn the_mermaid_script_is_served_compressed_with_a_long_cache() {
     let repo = generated_repo();
     let response = retrodoc_web::router(
         retrodoc_web::Project::default(),
-        GeneratedDocs::load(repo.path(), &[]),
+        GeneratedDocs::load(repo.path(), &[]).unwrap(),
         doc_links(),
         Vec::new(),
     )
@@ -778,7 +778,7 @@ async fn the_path_of_a_doc_link_is_encoded() {
     );
     let response = retrodoc_web::router(
         retrodoc_web::Project::default(),
-        GeneratedDocs::load(repo.path(), &[]),
+        GeneratedDocs::load(repo.path(), &[]).unwrap(),
         links,
         Vec::new(),
     )
@@ -807,7 +807,7 @@ async fn mermaid_with(accept_encoding: Option<&str>) -> axum::response::Response
     }
     retrodoc_web::router(
         retrodoc_web::Project::default(),
-        GeneratedDocs::load(repo.path(), &[]),
+        GeneratedDocs::load(repo.path(), &[]).unwrap(),
         doc_links(),
         Vec::new(),
     )

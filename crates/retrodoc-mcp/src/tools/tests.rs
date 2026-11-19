@@ -309,7 +309,7 @@ fn a_search_on_common_words_only_says_not_documented_and_how_many_were_left_out(
 #[test]
 fn nothing_is_loaded_before_a_first_generate() {
     let dir = tempfile::tempdir().unwrap();
-    assert!(Docs::load(dir.path(), &[]).is_none());
+    assert!(Docs::load(dir.path(), &[]).unwrap().is_none());
 }
 
 #[test]
@@ -341,7 +341,7 @@ fn the_saved_artifacts_are_loaded_and_navigable() {
     .save(dir.path())
     .unwrap();
 
-    let docs = Docs::load(dir.path(), &[]).unwrap();
+    let docs = Docs::load(dir.path(), &[]).unwrap().unwrap();
     assert!(docs.get_domain("billing").contains("`billing/pay-invoice`"));
     assert!(docs.get_use_case("pay-by-card").contains("Pay by card"));
     assert_eq!(docs.index().len(), 3);
@@ -672,7 +672,7 @@ fn the_saved_rules_are_loaded_with_the_docs() {
     )
     .unwrap();
     retrodoc_pipeline::save_rules(dir.path(), &rules()[..1]).unwrap();
-    let docs = Docs::load(dir.path(), &[]).unwrap();
+    let docs = Docs::load(dir.path(), &[]).unwrap().unwrap();
     assert!(docs.get_feature("pay-invoice").contains("`pay-invoice-1`"));
     assert_eq!(docs.index().len(), 2);
 }

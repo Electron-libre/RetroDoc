@@ -198,7 +198,7 @@ fn save_domains(root: &Path, domains: Vec<DomainCluster>) {
 async fn get(root: &Path, path: &str) -> (StatusCode, String) {
     let response = retrodoc_web::router(
         retrodoc_web::Project::default(),
-        GeneratedDocs::load(root, &[]),
+        GeneratedDocs::load(root, &[]).unwrap(),
         DocLinks::default(),
         Vec::new(),
     )

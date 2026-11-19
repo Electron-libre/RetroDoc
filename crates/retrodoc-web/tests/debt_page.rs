@@ -114,7 +114,7 @@ async fn get_in(
     path: &str,
     headers: &[&str],
 ) -> (StatusCode, String) {
-    get_docs(lang, GeneratedDocs::load(root, &[]), path, headers).await
+    get_docs(lang, GeneratedDocs::load(root, &[]).unwrap(), path, headers).await
 }
 
 async fn get_docs(
@@ -440,7 +440,7 @@ async fn the_count_of_the_home_page_follows_a_file_changed_after_the_start() {
     let repo = generated_repo();
     let router = retrodoc_web::router(
         Project::default(),
-        GeneratedDocs::load(repo.path(), &[]),
+        GeneratedDocs::load(repo.path(), &[]).unwrap(),
         DocLinks::default(),
         Vec::new(),
     );
@@ -528,7 +528,9 @@ fn committed_repo() -> tempfile::TempDir {
 }
 
 async fn debt_with_history(root: &Path) -> String {
-    let docs = GeneratedDocs::load(root, &[]).map(GeneratedDocs::with_history);
+    let docs = GeneratedDocs::load(root, &[])
+        .unwrap()
+        .map(GeneratedDocs::with_history);
     let (status, page) = get_docs(None, docs, "/debt", &[]).await;
     assert_eq!(status, StatusCode::OK, "{page}");
     page
@@ -618,6 +620,7 @@ fn uncovered_docs(root: &Path) -> GeneratedDocs {
         std::fs::write(root.join(file), "puts 1\n").unwrap();
     }
     GeneratedDocs::load(root, &[])
+        .unwrap()
         .unwrap()
         .with_uncovered(Uncovered {
             reconciliation: Some(Reconciliation {
