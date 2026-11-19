@@ -132,29 +132,40 @@ fn set_writing_temperature(toml: &str, temperature: &str) -> String {
 }
 
 /// Removes from `clone` each path of `list` (one per line, relative, `#` comments and blank lines skipped), and
-/// returns them. A path that leaves the clone, or that the clone lacks (a stale list), is an error, before any removal.
+/// returns the ones it removed. A path that leaves the clone (`..`, absolute, or through a symbolic link to a folder),
+/// or that the clone lacks (a stale list), is an error, before any removal. A symbolic link listed is removed itself,
+/// never its target.
 fn hide_intent(list: &str, clone: &Path) -> Result<Vec<String>, String> {
     let paths: Vec<&str> = list.lines().map(str::trim).filter(|l| !l.is_empty() && !l.starts_with('#')).collect();
+    let present = |full: &Path| fs::symlink_metadata(full).is_ok();
     for path in &paths {
         let relative = Path::new(path);
         let inside = relative.components().all(|c| matches!(c, std::path::Component::Normal(_)));
-        if !inside {
+        // Each folder above the path must be a real folder of the clone, not a link that leads out of it.
+        let through_link = relative
+            .ancestors()
+            .skip(1)
+            .filter(|a| !a.as_os_str().is_empty())
+            .any(|a| fs::symlink_metadata(clone.join(a)).is_ok_and(|m| m.file_type().is_symlink()));
+        if !inside || through_link {
             return Err(format!("`{path}` is not a path inside the repo"));
         }
-        if !clone.join(relative).exists() {
+        if !present(&clone.join(relative)) {
             return Err(format!("`{path}` is not in the repo: the list is stale"));
         }
     }
+    let mut removed = Vec::new();
     for path in &paths {
         let full = clone.join(path);
         // Already gone with a folder listed before it, or listed twice.
-        if !full.exists() {
+        let Ok(meta) = fs::symlink_metadata(&full) else {
             continue;
-        }
-        let removed = if full.is_dir() { fs::remove_dir_all(&full) } else { fs::remove_file(&full) };
-        removed.map_err(|e| format!("could not remove `{path}`: {e}"))?;
+        };
+        let done = if meta.is_dir() { fs::remove_dir_all(&full) } else { fs::remove_file(&full) };
+        done.map_err(|e| format!("could not remove `{path}`: {e}"))?;
+        removed.push((*path).to_string());
     }
-    Ok(paths.iter().map(|p| (*p).to_string()).collect())
+    Ok(removed)
 }
 
 /// The benchmark directory of `root` that comes just before `current` (names are seconds since the
@@ -257,7 +268,11 @@ fn run(args: &[String]) -> i32 {
         .unwrap_or_else(|| die("the reference must live in benchmark/<repo>/"));
 
     // The repo's intent the `hidden` series removes from its clones, beside the reference.
-    let hidden_list = fs::read_to_string(reference.with_file_name("hidden.txt")).ok();
+    let hidden_list = match fs::read_to_string(reference.with_file_name("hidden.txt")) {
+        Ok(list) => Some(list),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+        Err(e) => die(&format!("hidden.txt: {e}")),
+    };
 
     // The local LLM must answer before we spend minutes building.
     let host = base_url.split("://").nth(1).and_then(|r| r.split('/').next()).unwrap_or("");

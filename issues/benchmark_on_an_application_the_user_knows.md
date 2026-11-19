@@ -154,3 +154,22 @@ three re-ratings at 86% to 93%).
 Code review: no findings
 not verified: nothing.
 decisions needed: none.
+
+## Deliverable 5: docs of the whole issue and fixes of the `high` review
+done: the skill and `docs/dev/commands.md` name Vingilot; the 8 findings of the `high` review:
+
+| finding | what was done |
+|---|---|
+| entry-points test skips every folder without the file | fixed: required for the three measured repositories |
+| `hidden.txt` read error taken for no list | fixed: only a missing file means no list, another error stops the run |
+| symbolic links (out through a linked folder, dangling link left) | fixed: ancestors checked with `symlink_metadata`, a listed link removed itself; tested |
+| the out-of-clone test passed through the stale-list error | fixed: an existing sibling folder, which must survive |
+| `hide-intent` printed paths it skipped | fixed: prints only the removed ones; tested |
+| altitude: a list per repository instead of a general rule | moved to `hide_the_root_markdown_of_the_benchmark_baselines` as a candidate |
+| https URL of a still private repository | kept: the user chose to publish it (option 1); the skill says to clone the cached source over SSH until then |
+| a private repository's reference committed | kept: the user's decision of 2026-11-19 (option 1) |
+
+red: none observed: the checks were written together with the fixes, not run against the code before them.
+Code review: no findings
+not verified: a `hidden` run after these fixes (the list of Vingilot holds no link; behaviour unchanged for it).
+decisions needed: none.

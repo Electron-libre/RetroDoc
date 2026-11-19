@@ -25,6 +25,11 @@ and Lobsters `hidden` baselines therefore read their README and more. Expected: 
    ledger (domains, features, narratives), audit the new judge's pairs.
 3. Write the finding; say which earlier conclusions change.
 
+Instead of a list per repository (the `high` review of the Vingilot issue): a general rule of the `hidden` series
+(drop every root Markdown file and the docs paths `init` detects), or a pipeline switch that turns `root_markdown`
+off; it fixes every repository at once and cannot go stale. Weigh it at step 1 against what a list keeps (a README
+an inherited project would have).
+
 # Milestone
 Read by someone taking an application over
 

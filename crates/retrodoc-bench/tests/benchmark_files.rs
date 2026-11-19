@@ -104,13 +104,18 @@ fn every_hand_written_pair_names_an_item_of_its_reference() {
     }
 }
 
+/// The repositories `entry_points_replay` measures: their `entry-points.yaml` must be there.
+const MEASURED_ENTRY_POINTS: [&str; 3] = ["delivery_router", "linkding", "lobsters"];
+
 #[test]
 fn every_entry_points_reference_parses_and_names_its_repository() {
     for dir in benchmark_dirs() {
         // Only the repositories `entry_points_replay` measures have one.
-        let Ok(raw) = std::fs::read_to_string(dir.join("entry-points.yaml")) else {
+        let path = dir.join("entry-points.yaml");
+        if !path.exists() && !MEASURED_ENTRY_POINTS.contains(&name(&dir).as_str()) {
             continue;
-        };
+        }
+        let raw = std::fs::read_to_string(&path).unwrap();
         let entry_points: EntryPointReference = serde_yaml::from_str(&raw).unwrap();
         assert_eq!(entry_points.repo, name(&dir));
         assert!(!entry_points.files.is_empty(), "{}", name(&dir));

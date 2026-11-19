@@ -32,7 +32,8 @@ artifacts to keep and the planned measures.
 `skill:smoke-test` checks that `generate` is robust; this checks that what it writes is right. The
 reference is written by hand per repository in `benchmark/<repo>/reference.yaml` (purpose, actors,
 domains, features, a sample of use cases and rules, the pinned commit) and the hand-written pairs in
-`benchmark/<repo>/matches.yaml`. Only **public** repositories go in the benchmark.
+`benchmark/<repo>/matches.yaml`. Only **public** repositories go in the benchmark (Vingilot: public once its author
+publishes it; until then its cached source `retrodoc-benchmark-vingilot/source` is cloned over SSH beforehand).
 
 Each feature of the linkding and Lobsters references cites its `evidence` (`doc`: a heading of the repo's
 human-written docs, `url`: a maintainers' page, `code`: a file), and `disputed` marks the features an independent
@@ -52,7 +53,9 @@ that hold it in `matches.yaml` before comparing; a feature renamed, merged or sp
 in `matches.yaml` and in the saved `judge.yaml` (keep a `.orig`), that fail the scoring until rewritten.
 
 Two applications decide whether a setting wins: `linkding` (Python/Django) and `lobsters` (Rails). Compare a
-setting on both: a gain on one only is not yet a gain. `delivery_router` (9 files) is a **smoke repository
+setting on both: a gain on one only is not yet a gain. `vingilot` (Rust) has the one reference its author
+checked item by item, and a `hidden.txt` that hides all its written intent: read it as a check of the absolute
+level (`docs/findings.md` §12), not yet as a third vote between settings. `delivery_router` (9 files) is a **smoke repository
 only**: its figures saturate (100% recall), it separates no two settings.
 
 ## Run

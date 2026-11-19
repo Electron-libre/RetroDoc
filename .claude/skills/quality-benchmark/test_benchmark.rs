@@ -173,12 +173,38 @@ fn main() {
     let nested = write("nested.txt", "docs\ndocs/adr/0001.md\ndocs\n");
     let (ok, _) = call(&["hide-intent", &nested, clone.to_str().unwrap()]);
     check("a path under a listed folder, or listed twice, is no error", ok && !clone.join("docs").exists());
-    for bad in ["../outside\n", "/etc\n", "src/../../x\n"] {
+    // An existing folder beside the clone: only the guard keeps it.
+    write("sibling/keep.md", "x");
+    for bad in ["../sibling\n", "src/../../sibling\n"] {
         write("clone/src/main.rs", "x");
         let list = write("bad.txt", bad);
         let (ok, _) = call(&["hide-intent", &list, clone.to_str().unwrap()]);
-        check("a path out of the clone is refused", !ok && clone.join("src/main.rs").exists());
+        check("a path out of the clone is refused", !ok && tmp.join("sibling/keep.md").exists() && clone.join("src/main.rs").exists());
     }
+    #[cfg(unix)]
+    {
+        // A folder of the clone that links out of it: what lies below it is out of the clone.
+        std::os::unix::fs::symlink(tmp.join("sibling"), clone.join("linked")).unwrap();
+        let list = write("bad.txt", "linked/keep.md\n");
+        let (ok, _) = call(&["hide-intent", &list, clone.to_str().unwrap()]);
+        check("a path through a link to a folder out of the clone is refused", !ok && tmp.join("sibling/keep.md").exists());
+        // A listed link is removed itself, even once its target is gone, and the target outside is kept.
+        write("clone/CLAUDE.md", "x");
+        std::os::unix::fs::symlink("CLAUDE.md", clone.join("AGENTS.md")).unwrap();
+        let list = write("links.txt", "CLAUDE.md\nAGENTS.md\nlinked\n");
+        let (ok, out) = call(&["hide-intent", &list, clone.to_str().unwrap()]);
+        check(
+            "removes a listed link, dangling or to a folder outside, never its target",
+            ok && fs::symlink_metadata(clone.join("AGENTS.md")).is_err()
+                && fs::symlink_metadata(clone.join("linked")).is_err()
+                && tmp.join("sibling/keep.md").exists()
+                && out.lines().count() == 3,
+        );
+    }
+    write("clone/notes/a.md", "x");
+    let twice = write("twice.txt", "notes\nnotes/a.md\nnotes\n");
+    let (ok, out) = call(&["hide-intent", &twice, clone.to_str().unwrap()]);
+    check("prints only the paths it removed", ok && out == "notes\n");
 
     let skill = fs::read_to_string(dir.join("SKILL.md")).unwrap();
     check(
