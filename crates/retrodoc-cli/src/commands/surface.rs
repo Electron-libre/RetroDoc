@@ -4,7 +4,7 @@ use anyhow::Context;
 use retrodoc_core::artifacts::Glossary;
 use retrodoc_pipeline::{EntryPoints, Surface};
 
-use super::workspace::repo_root;
+use super::workspace::{check_format, repo_root};
 
 /// Prints the application surface (entities and entry points by resource)
 /// from the artifacts of `retrodoc glossary` and `retrodoc entry-points`, as
@@ -12,6 +12,7 @@ use super::workspace::repo_root;
 /// route reaches, the routes a routing file declares twice); makes no LLM call.
 pub fn run(path: &Path) -> anyhow::Result<()> {
     let repo_root = repo_root(path)?;
+    check_format(&repo_root)?;
     let glossary =
         Glossary::load(&repo_root).context("no glossary found — run `retrodoc glossary` first")?;
     let entry_points = EntryPoints::load(&repo_root)

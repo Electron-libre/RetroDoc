@@ -14,7 +14,7 @@ use super::workspace::Workspace;
 /// reasons. The stack comes from the saved role rules when there are some,
 /// the brief from the saved one. `force` asks again, edits included.
 pub async fn run(path: &Path, force: bool, tracker: &UsageTracker) -> anyhow::Result<()> {
-    let workspace = Workspace::open(path)?;
+    let workspace = Workspace::open_to_write(path)?;
     let repo_root = &workspace.repo_root;
     let config = &workspace.config;
     let mut ingest = workspace.ingest()?;

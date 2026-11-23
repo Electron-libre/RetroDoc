@@ -208,3 +208,58 @@ fn generate_refuses_a_later_cache_even_with_force() {
         }
     }
 }
+
+/// The commands of a single pass, `--force` added to those that take it.
+const SINGLE_PASS: [&[&str]; 9] = [
+    &["roles", "--force"],
+    &["glossary"],
+    &["entry-points"],
+    &["actors", "--force"],
+    &["business-read"],
+    &["business-files", "--force"],
+    &["contexts", "--force"],
+    &["brief", "--force"],
+    &["surface"],
+];
+
+// spec: CFV-11
+#[test]
+fn the_commands_of_a_single_pass_refuse_a_cache_of_another_format() {
+    let (dir, llm) = shop();
+    for (version, says) in [(0, "retrodoc generate --force"), (99, "update RetroDoc")] {
+        std::fs::write(
+            format_file(dir.path()),
+            format!(r#"{{"version": {version}}}"#),
+        )
+        .unwrap();
+        let (before, calls) = (cache_of(dir.path()), llm.calls().len());
+
+        for args in SINGLE_PASS {
+            let output = support::run(dir.path(), args);
+            let all = all_of(&output);
+            assert!(!output.status.success(), "{args:?} did not fail:\n{all}");
+            assert!(
+                all.contains(&format!("format {version}")),
+                "{args:?}: {all}"
+            );
+            assert!(all.contains(says), "{args:?}: {all}");
+            assert_eq!(llm.calls().len(), calls, "{args:?}");
+            assert_eq!(cache_of(dir.path()), before, "{args:?}");
+        }
+    }
+}
+
+// spec: CFV-12
+#[test]
+fn a_command_of_a_single_pass_records_the_format_of_what_it_writes() {
+    let (dir, _llm) = shop();
+    std::fs::remove_dir_all(dir.path().join(".retrodoc/cache")).unwrap();
+
+    let output = retrodoc(dir.path(), "roles");
+
+    assert!(output.status.success(), "{}", all_of(&output));
+    assert!(dir.path().join(".retrodoc/cache/roles.yaml").is_file());
+    let saved: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(format_file(dir.path())).unwrap()).unwrap();
+    assert_eq!(saved, serde_json::json!({ "version": CURRENT }));
+}

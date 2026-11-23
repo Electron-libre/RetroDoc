@@ -37,3 +37,35 @@ The readers of the docs out of the pipeline
 # Resources
 * ADR 0050, `specs/cache-format.md`, `crates/retrodoc-pipeline/src/cache_format.rs`.
 * `Artifact::cleared_by_force` in `crates/retrodoc-pipeline/src/artifact.rs`.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-23
+
+## Understanding
+No command leaves a file of one format under the stamp of another: the single-pass commands check the format (an
+older cache refused even with `--force`, which only redoes one artifact) and those that write record it;
+`generate --force` on an older cache moves the whole cache aside to `.retrodoc/cache-format-<found>/`. Out of scope:
+the benchmark replays, an upgrade in place. `surface` writes nothing: it only checks.
+
+## Plan
+1. [x] Single-pass commands: one helper of `workspace.rs` checks the format (CFV-11) and records it before the first
+   write (CFV-12), called by the nine commands; verified by tests through the binary in `tests/cache_format.rs`
+   (format 0 and 99 caches, a fresh repo); makes true CFV-11, CFV-12. (autonomous)
+2. [ ] `generate --force` on an older cache moves it to `.retrodoc/cache-format-<found>/` (a function of
+   `retrodoc_core::cache::format`, one call in `generate`, none under `--estimate`) and prints the directory and the
+   hand-editable files moved; verified by a test through the binary (format 0 cache with an edited `roles.yaml`) and
+   one with `--estimate`; makes true CFV-13; ADR 0052 accepted.
+
+## Decisions
+- Mode: autonomous
+- Base commit: fa5fefcb036c2112720a286fa13981b3be828d0a
+- `--force` on an older cache: the whole cache moved to `.retrodoc/cache-format-<found>/` (question 1, option a).
+
+## Summary of deliverable 1
+- done: the nine single-pass commands refuse a cache of another format (older included, `--force` or not); the eight
+  that write record the format at their start (`Workspace::open_to_write`), `surface` only checks.
+- red: CFV-11, CFV-12: `["roles", "--force"] did not fail` on a format 0 cache; `format.json` missing after `roles`
+  on a fresh repo.
+- Code review: no findings
+- not verified: none. decisions needed: none.

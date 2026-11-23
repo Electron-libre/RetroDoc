@@ -27,7 +27,7 @@ pub async fn run(
     signals_only: bool,
     tracker: &UsageTracker,
 ) -> anyhow::Result<()> {
-    let workspace = Workspace::open(path)?;
+    let workspace = Workspace::open_to_write(path)?;
     let repo_root = &workspace.repo_root;
     let config = &workspace.config;
     let mut ingest = workspace.ingest()?;

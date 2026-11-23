@@ -5,6 +5,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::Context;
+use retrodoc_core::cache::format as cache_format;
 use retrodoc_core::config::{Config, ConfigError};
 use retrodoc_ingest::{FileKind, IngestResult};
 
@@ -12,6 +13,12 @@ use retrodoc_ingest::{FileKind, IngestResult};
 pub fn repo_root(path: &Path) -> anyhow::Result<PathBuf> {
     path.canonicalize()
         .with_context(|| format!("path not found: {}", path.display()))
+}
+
+/// Refuses a cache of another format than this binary's, an older one included: a command of a
+/// single pass redoes one artifact and would leave the others in that format (CFV-11).
+pub fn check_format(repo_root: &Path) -> anyhow::Result<()> {
+    cache_format::check(repo_root).context("nothing was run")
 }
 
 /// A repo that `retrodoc init` has been run on.
@@ -33,6 +40,17 @@ impl Workspace {
             other => other.into(),
         })?;
         Ok(Self { repo_root, config })
+    }
+
+    /// Opens the repo at `path` for a command of a single pass that writes into the cache: refuses
+    /// a cache of another format, then records the format before the command's first artifact
+    /// (CFV-11, CFV-12).
+    pub fn open_to_write(path: &Path) -> anyhow::Result<Self> {
+        let workspace = Self::open(path)?;
+        check_format(&workspace.repo_root)?;
+        cache_format::record(&workspace.repo_root)
+            .context("could not record the format of the cache")?;
+        Ok(workspace)
     }
 
     /// Walks the repo: files, git history and existing Markdown docs.

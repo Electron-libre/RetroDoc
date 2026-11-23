@@ -14,7 +14,7 @@ use super::workspace::Workspace;
 /// passes) and saves `glossary.yaml` and `entry-points.yaml`. Unchanged files
 /// are not sent to the LLM again.
 pub async fn run(path: &Path, tracker: &UsageTracker) -> anyhow::Result<()> {
-    let workspace = Workspace::open(path)?;
+    let workspace = Workspace::open_to_write(path)?;
     let repo_root = &workspace.repo_root;
     let config = &workspace.config;
     let rules = RoleRules::load(repo_root)
