@@ -58,6 +58,7 @@ caller at core. Pure move, no change of behaviour (no spec). Out of scope: the p
    `SetAside` from core, the pipeline's public re-exports dropped; docs (`docs/crates/core-ingest.md`,
    `docs/crates/pipeline.md`, ADR 0051); verified by `just check` and a rerun of `generate` on a copy of a saved run
    (bogus key) that calls no LLM and rewrites no file; ~350 lines. (autonomous)
+3. [x] Fixes of the `high` review of the whole issue; verified by `just check`. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -104,6 +105,28 @@ public re-exports and `load_set_aside` are gone (its modules import them `pub(cr
 red: none (a move)
 
 Code review: no findings (two notes, both settled by `project-check`: no unused `pub(crate)` import, `retrodoc-bench` depends on core)
+
+not verified: nothing
+
+decisions needed: none
+
+## Deliverable 3
+done: fixes of the `high` review of `8978669..HEAD` (3 findings).
+
+| check | result |
+|-------|--------|
+| tests | pass (`cardinal run project-check`) |
+| docs | ADR 0051 |
+
+red: none (no behaviour)
+
+High review: 3 findings
+1. ADR 0051 said every save is wrapped in `PipelineError`: fixed, the item savers return `CacheError`.
+2. ADR 0051 links the issue at `issues/`: not changed, `close-issue` rewrites it to `issues/done/`; the line rewrapped.
+3. `SetAside::of_feature`, `forget_features`, `extend` public in core: kept, the validated plan made them public
+   (the issue offered public methods or free functions); they only filter or merge a value the caller owns.
+
+Code review: no findings
 
 not verified: nothing
 
