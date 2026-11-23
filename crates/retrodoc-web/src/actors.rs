@@ -42,7 +42,9 @@ pub struct ActorSection {
 }
 
 pub struct ActorDomain {
-    pub link: Link,
+    pub name: String,
+    /// Its page; none for a domain the run does not list.
+    pub href: Option<String>,
     pub features: Vec<ActorFeature>,
 }
 
@@ -76,7 +78,14 @@ impl ActorsPage {
 #[must_use]
 pub fn actors_page(docs: &GeneratedDocs, texts: &WebTexts) -> ActorsPage {
     let domains = domains_in_order(docs);
-    let all = || docs.use_cases().iter();
+    // The use cases of the features of the run, those of a feature it
+    // lacks left out.
+    let all = || {
+        domains
+            .iter()
+            .flat_map(|d| &d.features)
+            .flat_map(|(_, use_cases)| use_cases.iter().copied())
+    };
     let mut actors: BTreeSet<(String, bool)> = all()
         .flat_map(|u| &u.steps)
         .filter(|s| !s.actor.name.trim().is_empty())
@@ -127,14 +136,14 @@ pub fn actors_page(docs: &GeneratedDocs, texts: &WebTexts) -> ActorsPage {
     ActorsPage { groups }
 }
 
-/// `name` in lower case, each run of characters other than ASCII letters
-/// and digits read as one `-`, none at either end; `actor` when none is
-/// left.
+/// `name` in lower case, each run of characters other than letters and
+/// digits (of any script) read as one `-`, none at either end; `actor` when
+/// none is left.
 fn slug(name: &str) -> String {
     let words: Vec<String> = name
-        .split(|c: char| !c.is_ascii_alphanumeric())
+        .split(|c: char| !c.is_alphanumeric())
         .filter(|w| !w.is_empty())
-        .map(str::to_ascii_lowercase)
+        .map(str::to_lowercase)
         .collect();
     if words.is_empty() {
         "actor".to_string()
@@ -155,37 +164,52 @@ fn unique(id: &str, taken: &mut HashSet<String>) -> String {
     free
 }
 
-/// The domains of the run in its order, with their features in order; a
-/// feature whose domain the run lists not comes after them, under its slug.
-fn domains_in_order(docs: &GeneratedDocs) -> Vec<(Link, Vec<&Feature>)> {
-    let mut domains: Vec<(Link, Vec<&Feature>)> = docs
+/// A domain of the actors page with the use cases of each of its features.
+struct DomainUseCases<'a> {
+    name: String,
+    href: Option<String>,
+    features: Vec<(&'a Feature, Vec<&'a UseCase>)>,
+}
+
+/// The domains of the run in its order, with their features and use cases
+/// in order; a feature whose domain the run does not list comes after them,
+/// under the slug of its domain.
+fn domains_in_order(docs: &GeneratedDocs) -> Vec<DomainUseCases<'_>> {
+    let with_use_cases = |f| with_use_cases(docs, f);
+    let mut domains: Vec<DomainUseCases> = docs
         .domains()
         .iter()
-        .map(|d| {
-            let link = Link {
-                href: domain_href(&d.slug),
-                name: d.name.clone(),
-            };
-            (link, docs.features_of(&d.slug).collect())
+        .map(|d| DomainUseCases {
+            name: d.name.clone(),
+            href: Some(domain_href(&d.slug)),
+            features: docs.features_of(&d.slug).map(with_use_cases).collect(),
         })
         .collect();
+    let listed = domains.len();
     for feature in docs.features() {
         if docs.domains().iter().any(|d| d.slug == feature.domain_slug) {
             continue;
         }
-        let href = domain_href(&feature.domain_slug);
-        match domains.iter_mut().find(|(link, _)| link.href == href) {
-            Some((_, features)) => features.push(feature),
-            None => domains.push((
-                Link {
-                    href,
-                    name: feature.domain_slug.clone(),
-                },
-                vec![feature],
-            )),
+        let unlisted = domains[listed..]
+            .iter_mut()
+            .find(|d| d.name == feature.domain_slug);
+        match unlisted {
+            Some(domain) => domain.features.push(with_use_cases(feature)),
+            None => domains.push(DomainUseCases {
+                name: feature.domain_slug.clone(),
+                href: None,
+                features: vec![with_use_cases(feature)],
+            }),
         }
     }
     domains
+}
+
+fn with_use_cases<'a>(
+    docs: &'a GeneratedDocs,
+    feature: &'a Feature,
+) -> (&'a Feature, Vec<&'a UseCase>) {
+    (feature, docs.use_cases_of(&feature.slug).collect())
 }
 
 fn primary(use_case: &UseCase) -> Option<&str> {
@@ -197,7 +221,7 @@ fn primary(use_case: &UseCase) -> Option<&str> {
 
 fn actor_section(
     docs: &GeneratedDocs,
-    domains: &[(Link, Vec<&Feature>)],
+    domains: &[DomainUseCases],
     name: &str,
     human: bool,
     starts_here: bool,
@@ -205,12 +229,12 @@ fn actor_section(
     let mut permissions = Vec::new();
     let (mut starts, mut takes_part) = (0, 0);
     let mut sections = Vec::new();
-    for (domain, features) in domains {
+    for domain in domains {
         let mut shown = Vec::new();
-        for feature in features {
-            let mut use_cases: Vec<(&UseCase, bool)> = docs
-                .use_cases_of(&feature.slug)
-                .filter_map(|u| {
+        for (feature, use_cases) in &domain.features {
+            let mut use_cases: Vec<(&UseCase, bool)> = use_cases
+                .iter()
+                .filter_map(|&u| {
                     let starts = starts_here && primary(u) == Some(name);
                     let takes_part = u.steps.iter().any(|s| {
                         s.actor.name == name && (s.actor.kind == ActorKind::Human) == human
@@ -257,10 +281,8 @@ fn actor_section(
         }
         if !shown.is_empty() {
             sections.push(ActorDomain {
-                link: Link {
-                    href: domain.href.clone(),
-                    name: domain.name.clone(),
-                },
+                name: domain.name.clone(),
+                href: domain.href.clone(),
                 features: shown,
             });
         }

@@ -215,7 +215,7 @@ impl Site {
 }
 
 /// The pages of reference with their counts as the pages they link to show
-/// them: the domains, a row per actor and kind, the concepts, the rules, the
+/// them: the domains, a section per actor and kind, the concepts, the rules, the
 /// cited files; the debt items are counted at each call ([`Site::start_links`]). A page with no
 /// unit, the dashboard, counts nothing and is no line of it.
 fn start_links(

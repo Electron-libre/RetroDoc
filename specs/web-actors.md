@@ -34,8 +34,8 @@ actor, what it starts and takes part in, read top to bottom on an application of
   and the actors of their steps; a primary actor no step names is a human one, and a name the steps give both kinds is
   an actor of each kind whose primary use cases are started by the human one only.
 - **WAC-7** (deterministic) The section of an actor must carry the id `actor-<slug>` for a human one and
-  `system-<slug>` for a system one, the slug its name in lower case with each run of characters other than ASCII
-  letters and digits read as one `-`, none at either end (`actor` for a name with none left), and `-2`, `-3`… after
+  `system-<slug>` for a system one, the slug its name in lower case with each run of characters other than letters
+  and digits (of any script) read as one `-`, none at either end (`actor` for a name with none left), and `-2`, `-3`… after
   an id an earlier actor of the index or a list of the index already took; the index lists the human actors under the id `human-actors` and
   the system ones under `system-actors`.
 - **WAC-8** (deterministic) The actors page must not hold a table: no column per feature, nor per domain.
@@ -55,9 +55,13 @@ actor, what it starts and takes part in, read top to bottom on an application of
   listed once, marked, and counted among those it starts only.
 - (WAC-3) Given a feature none of whose use cases names the actor, then the section of the actor does not show it,
   nor a domain none of whose features it shows.
+- (WAC-3) Given a feature whose domain the run does not list, then it is listed under the slug of that domain, with no
+  link.
+- (WAC-6) Given a use case whose feature is not in the run, then its actors are not listed for it, nor at all when it
+  is the only use case that names them.
 - (WAC-4) Given an actor none of whose use cases a permission rule applies to, then its section lists no rule.
 - (WAC-7) Given the name `Payment gateway (Stripe)`, then its id is `system-payment-gateway-stripe`; given `???`,
-  then it is `actor-actor`.
+  then it is `actor-actor`; given `Équipe support`, then it is `actor-équipe-support`.
 - (WAC-7) Given a system actor named `Actors`, then its id is `system-actors-2`, the list of the systems holding
   `system-actors`.
 - (WAC-1) Given a run with no use case that names an actor, then the page says no actor was found.

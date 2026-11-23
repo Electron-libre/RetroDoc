@@ -24,7 +24,7 @@
   <h2>{{ actor.name }} <span class="kind">{{ group.heading }}</span></h2>
   <p class="counts">{{ t.starts }} {{ actor.starts }} · {{ t.takes_part_in }} {{ actor.takes_part }}</p>
   {% for domain in actor.domains %}
-  <h3><a href="{{ domain.link.href }}">{{ domain.link.name }}</a></h3>
+  <h3>{% if let Some(href) = domain.href %}<a href="{{ href }}">{{ domain.name }}</a>{% else %}{{ domain.name }}{% endif %}</h3>
   <ul class="actor-features">
     {% for feature in domain.features %}
     <li><a href="{{ feature.link.href }}">{{ feature.link.name }}</a>

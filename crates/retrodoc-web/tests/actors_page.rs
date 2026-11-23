@@ -444,6 +444,61 @@ async fn the_id_of_a_section_is_the_slug_of_the_name_after_its_kind() {
 
 // spec: WAC-7
 #[tokio::test]
+async fn the_slug_keeps_the_letters_of_any_script() {
+    let repo = generated_repo();
+    retrodoc_core::artifacts::save_use_cases(
+        repo.path(),
+        &[use_case(
+            "pay-by-card",
+            "pay-invoice",
+            Some("Équipe support"),
+            Vec::new(),
+        )],
+    )
+    .unwrap();
+    let page = actors(repo.path()).await;
+    actor(&page, "actor-équipe-support");
+}
+
+// spec: WAC-6
+#[tokio::test]
+async fn an_actor_of_a_use_case_whose_feature_is_not_in_the_run_is_left_out() {
+    let repo = generated_repo();
+    retrodoc_core::artifacts::save_use_cases(
+        repo.path(),
+        &[
+            use_case("ship", "ship-order", Some("Clerk"), Vec::new()),
+            use_case("audit-all", "gone", Some("Auditor"), Vec::new()),
+        ],
+    )
+    .unwrap();
+    let page = actors(repo.path()).await;
+    actor(&page, "actor-clerk");
+    assert!(!page.contains("Auditor"), "{page}");
+}
+
+// spec: WAC-3
+#[tokio::test]
+async fn a_domain_the_run_does_not_list_is_named_without_a_link() {
+    let repo = generated_repo();
+    DomainMap {
+        domains: vec![DomainCluster {
+            slug: "billing".into(),
+            name: "Billing".into(),
+            ..DomainCluster::default()
+        }],
+    }
+    .save(repo.path())
+    .unwrap();
+    let page = actors(repo.path()).await;
+    let clerk = actor(&page, "actor-clerk");
+    assert!(clerk.contains("<h3>shipping</h3>"), "{clerk}");
+    assert!(!clerk.contains("href=\"/domains/shipping\""), "{clerk}");
+    assert!(clerk.contains(SHIP), "{clerk}");
+}
+
+// spec: WAC-7
+#[tokio::test]
 async fn an_actor_takes_no_id_of_a_list_of_the_index() {
     let repo = generated_repo();
     retrodoc_core::artifacts::save_use_cases(
@@ -481,6 +536,8 @@ async fn a_run_with_no_actor_says_none_was_found() {
     let page = actors(repo.path()).await;
     assert!(page.contains("No actor was found"), "{page}");
     assert!(!page.contains("class=\"actor\""), "{page}");
+    assert!(!page.contains("actor-index"), "{page}");
+    assert!(!page.contains("id=\"human-actors\""), "{page}");
 }
 
 // spec: WAC-1

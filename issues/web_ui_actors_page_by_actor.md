@@ -65,6 +65,9 @@ domain, a special treatment of the generic system actors (non-goals of `specs/we
 2. [x] Map links to the section: each actor of `/map/<domain>` links to `/actors#<id of WAC-7>`, the slug shared with
    the actors page; verified by a test of `tests/map_page.rs`; makes true WAC-5, sets `specs/web-actors.md` and
    `specs/web-ui.md` accepted. (autonomous)
+3. [x] Fixes of the high review and docs of the whole issue: actors of use cases out of the run left out, use cases
+   read once per feature, slug of any script, a domain the run lacks named without a link, a stronger empty state,
+   a stale doc comment; verified by `tests/actors_page.rs`; amends WAC-7, adds scenarios to WAC-3 and WAC-6. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -98,4 +101,15 @@ domain, a special treatment of the generic system actors (non-goals of `specs/we
   `specs/web-actors.md` and `specs/web-ui.md` accepted; `docs/crates/render-mcp-cli.md` updated.
 - red: WAC-5: `href="/actors#actor-clerk"` not found in the list of the map (it linked `/actors`).
 - Code review: no findings
+- not verified: none.
+
+## Deliverable 3: fixes of the high review
+- done: the actors come from the use cases of the features of the run only (no 0/0 actor of a feature the run
+  lacks); each feature's use cases are read once (`domains_in_order`), not once per actor; the slug keeps letters of
+  any script (WAC-7 amended); a domain the run does not list is named without a link; the empty-state test also
+  refuses the index; the doc comment of `start_links` says "a section per actor".
+- red: WAC-3, WAC-6, WAC-7: `<h3>shipping</h3>` not found (it was a link to a missing page), `Auditor` listed,
+  `no section actor-équipe-support` (it was `actor-quipe-support`).
+- high review findings: 5 (1 important, 4 nits), all fixed as above.
+- Code review: no findings (low review of this deliverable)
 - not verified: none.
