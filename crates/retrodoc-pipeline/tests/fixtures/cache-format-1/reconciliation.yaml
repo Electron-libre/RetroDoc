@@ -1,3 +1,5 @@
+shown_rule: paragraphs-of-the-items-v3
+request: prompt 0000000000000000000000000000000000000000000000000000000000000000
 items:
 - kind: feature
   label: affectation-des-livreurs/affectation-des-commandes

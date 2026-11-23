@@ -288,6 +288,16 @@ impl GeneratedDocs {
     /// The items reconciled with the collected `docs` from the verdicts saved under `root`, named
     /// as shown (SED-40).
     pub(crate) fn reconcile(&self, root: &Path, docs: &[ExistingDoc]) -> Reconciliation {
+        let judgements = Judgements::load(root);
+        if judgements.of_an_older_version() {
+            static WARNED: std::sync::Once = std::sync::Once::new();
+            WARNED.call_once(|| {
+                tracing::warn!(
+                    "the verdicts on the project docs were saved by an older version of retrodoc: they \
+                     are not shown until the next `retrodoc generate` (REC-17)"
+                );
+            });
+        }
         self.named_as_shown(reconcile(
             &self.map,
             // The verdicts were given on the generated text.
@@ -295,7 +305,7 @@ impl GeneratedDocs {
             &self.generated.use_cases,
             &self.rules,
             &retrodoc_ingest::doc_corpus::corpus(docs),
-            &Judgements::load(root),
+            &judgements,
         ))
     }
 

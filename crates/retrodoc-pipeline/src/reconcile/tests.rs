@@ -761,6 +761,30 @@ async fn a_file_without_the_recorded_values_is_rewritten_with_them_and_no_call()
     assert_eq!(after.items[0].status, Status::Documented);
 }
 
+// spec: REC-17 (internal: the verdicts of a run saved before the recorded values are written by hand)
+#[test]
+fn an_older_file_gets_the_recorded_values_with_the_pass_off_and_its_verdicts_show() {
+    let dir = tempfile::tempdir().unwrap();
+    let current = recorded();
+    let items = judged_with(
+        current.shown_rule.as_deref().unwrap(),
+        current.request.as_deref().unwrap(),
+    );
+    Judgements {
+        items: items.clone(),
+        ..Judgements::default()
+    }
+    .save(dir.path())
+    .unwrap();
+
+    record_the_values_of_an_older_file(dir.path()).unwrap();
+
+    let saved = Judgements::load(dir.path());
+    assert_eq!(saved, Judgements { items, ..current });
+    let result = Reconciliation::new(three_candidates(), &saved);
+    assert_eq!(result.items[0].status, Status::Documented);
+}
+
 // spec: REC-17 (internal: a verdict given under another prompt of the judge is written by hand)
 #[test]
 fn a_verdict_applies_with_the_recorded_values_not_the_judges_own_prompt() {

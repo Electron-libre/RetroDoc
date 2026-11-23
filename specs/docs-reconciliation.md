@@ -77,9 +77,9 @@ backed by the doc sections it rests on.
 - **REC-17** (deterministic) The readers of the docs (`report`, `render`, `ui`, the MCP server) must apply a saved
   verdict without the judge's own prompt, while the fingerprint of the item computed with the values
   `reconciliation.yaml` records (`shown_rule`, the rule of what the judge is shown of a section; `request`, the hash
-  of the judge's prompt and schema) matches it; the pass writes them with the verdicts. A file that records neither
-  is rewritten with them by the next `generate`, with no LLM call for an item whose verdict is still valid; until
-  then its matched items are `matched`.
+  of the judge's prompt and schema) matches it; the pass writes them with the verdicts. A file that records neither,
+  written by an older version, gets the values of the running version from the next `generate`, the pass on or off,
+  with no LLM call; until then the readers warn that its verdicts are not shown and its matched items are `matched`.
 
 ## Scenarios
 
@@ -105,6 +105,10 @@ backed by the doc sections it rests on.
 
 - (REC-17) Given a `reconciliation.yaml` written before the recorded values, when `generate` runs again with the
   same model and unchanged docs, then no LLM call is made and the file is rewritten with `shown_rule` and `request`.
+- (REC-17) Given the same file and `[pipeline] reconcile = false`, when `generate` runs, then the file gets the values
+  and the report still shows its verdicts.
+- (REC-17) Given the same file, when `report` runs before any `generate`, then it warns that the verdicts of an older
+  version are not shown until the next `generate`.
 - (REC-17) Given a verdict saved under a judge's prompt that has changed since, when the report is built before the
   next `generate`, then the verdict still applies: it was given on the same texts.
 

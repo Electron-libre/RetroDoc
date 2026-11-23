@@ -444,3 +444,28 @@ fn a_domain_with_no_feature_is_not_an_item() {
     let labels: Vec<&str> = found.iter().map(|i| i.label.as_str()).collect();
     assert_eq!(labels, ["orders", "orders/list"]);
 }
+
+// spec: REC-17 (internal: the readers warn on what this tells, a file of an older version is written by hand)
+#[test]
+fn a_file_with_verdicts_and_no_recorded_values_is_of_an_older_version() {
+    let judged = Judged {
+        kind: ItemKind::Feature,
+        label: "billing/pay".into(),
+        fingerprint: "f".into(),
+        model: "m".into(),
+        sections: Vec::new(),
+    };
+    let older = Judgements {
+        items: vec![judged],
+        ..Judgements::default()
+    };
+    let recorded = Judgements {
+        shown_rule: Some("rule".into()),
+        request: Some("request".into()),
+        ..older.clone()
+    };
+
+    assert!(older.of_an_older_version());
+    assert!(!recorded.of_an_older_version());
+    assert!(!Judgements::default().of_an_older_version());
+}

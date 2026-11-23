@@ -275,6 +275,7 @@ async fn reconcile_with_docs(
         tracker,
         ..
     } = *run;
+    reconcile::record_the_values_of_an_older_file(repo_root)?;
     // Off, or no project docs when the run started: its provider was not opened.
     if run.off.contains(&passes::RECONCILE) {
         return Ok(());

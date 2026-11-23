@@ -33,7 +33,7 @@ needs the matching too, which a reader crate should not offer the pipeline); mov
 The readers no longer import the reconciliation, the report, the domain models or BM25 from the pipeline; their other
 uses of it (the run history, the usage log) are the issue `run_history_out_of_the_pipeline`. The pipeline reaches the
 moved code through core, so the passes keep their behaviour. `reconciliation.yaml` gains two optional fields, read by
-an older reader as before: an older file is rewritten once by the next `generate`, with no LLM call, and its verdicts
-show as `matched` until then. Core names itself `retrodoc_core` (`extern crate self`) so the modules moved from the
+an older reader as before: an older file gets the values of the running version from the next `generate`, the pass
+on or off, with no LLM call, and until then the readers warn and its verdicts show as `matched`. Core names itself `retrodoc_core` (`extern crate self`) so the modules moved from the
 pipeline kept their imports and moved unchanged; each move was prepared in place first, `deliverable-size` counting
 only an exact rename once.

@@ -68,6 +68,9 @@ behaviour change, no spec (pure refactor).
    `retrodoc_core::report`; no `retrodoc_pipeline::{reconcile, report, domain_models, Bm25}` left in the readers
    (grep); ADR 0053 accepted; `docs/crates/`, `docs/ARCHITECTURE.md`, `CLAUDE.md` updated; a rerun of `generate` on a
    saved run copy calls no LLM and rewrites no file; verified by that rerun and `project-check`. (autonomous)
+7. [x] Docs of the whole issue and fixes of its `high` review: an older `reconciliation.yaml` gets the recorded
+   values from every `generate`, the pass on or off, and the read model warns until then (REC-17 amended); the cache
+   format sample holds the two values; doc fixes; verified by the REC-17 tests and `project-check`. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -152,3 +155,17 @@ behaviour change, no spec (pure refactor).
 - Code review: no findings
 - not verified: the one-time rewrite of an older `reconciliation.yaml` on a real run: the saved run has no project
   docs, so `reconcile` is off there; the tests of REC-17 cover it.
+
+### Deliverable 7 (docs of the issue and fixes of the `high` review)
+- done: `record_the_values_of_an_older_file`, run by every `generate` before the pass decides, stamps an older file
+  with the values of the running version (what an older reader fingerprinted with); `Judgements::of_an_older_version`;
+  the MCP read model warns once on such a file; REC-17 amended (pass on or off, the readers warn), spec back to
+  `accepted`; the cache format sample holds `shown_rule` and `request`; `pipeline.md` (`with_set_aside` in core, the
+  stale `report/` row dropped), `core-ingest.md` (the report sentence), ADR 0053.
+- checks: tests, lint, specs, docs green in `project-check`; 111 changed lines.
+- red: REC-17: `no method named of_an_older_version found for struct Judgements` (compile).
+- Code review (`high`, whole issue): 5 findings: 2 important (an older file lost its verdicts while the pass is off;
+  the readers lost them silently): fixed by the stamp on every `generate` and the warning, no format bump (it would
+  have refused every saved cache); 3 nits (sample, two doc lines): fixed.
+- Code review: no findings
+- not verified: the warning text itself (no test reads the log; its condition is tested).

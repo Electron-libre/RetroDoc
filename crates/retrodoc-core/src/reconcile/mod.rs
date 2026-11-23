@@ -562,6 +562,13 @@ impl Judgements {
         save_yaml(&Artifact::Reconciliation.path(repo_root), self)
     }
 
+    /// Whether it holds verdicts but not the values they were fingerprinted with: written by an older
+    /// version, whose verdicts the readers can't apply until `generate` records them (REC-17).
+    #[must_use]
+    pub fn of_an_older_version(&self) -> bool {
+        !self.items.is_empty() && (self.shown_rule.is_none() || self.request.is_none())
+    }
+
     /// The verdict on `candidate` while its texts are the ones it was given on, fingerprinted with the
     /// recorded values (REC-17): none when the file records neither.
     #[must_use]

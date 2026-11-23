@@ -67,6 +67,25 @@ pub fn recorded() -> Judgements {
     }
 }
 
+/// Records the values of this version in a `reconciliation.yaml` of an older one, which did not record them
+/// and fingerprinted with the values of the version that read it (REC-17): its verdicts show again, no call.
+/// Run by every `generate`, the pass on or off.
+///
+/// # Errors
+///
+/// Returns an error if the file can't be written.
+pub fn record_the_values_of_an_older_file(repo_root: &Path) -> Result<(), PipelineError> {
+    let saved = Judgements::load(repo_root);
+    if saved.of_an_older_version() {
+        Judgements {
+            items: saved.items,
+            ..recorded()
+        }
+        .save(repo_root)?;
+    }
+    Ok(())
+}
+
 /// Hash of the item's text, of the origin and text of its sections, of [`SHOWN_RULE`] and of the
 /// request (ADR 0037, ADR 0040).
 #[must_use]
