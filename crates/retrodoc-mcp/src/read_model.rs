@@ -10,8 +10,8 @@ use retrodoc_core::artifacts::{BehaviourCoverage, DomainMap, Glossary, Scope};
 use retrodoc_core::cache::format::{self as cache_format, FormatError};
 use retrodoc_core::model::{BusinessRule, Domain, Feature, RuleEvidence, UseCase};
 use retrodoc_core::reconcile::{reconcile, ItemKind, Judgements, Reconciliation};
+use retrodoc_core::report::domain_models;
 use retrodoc_ingest::existing_docs::ExistingDoc;
-use retrodoc_pipeline::domain_models;
 
 use crate::corpus::{build_entries, rule_entries, section_entries, EntryKind};
 use crate::edits::{self, Edits};

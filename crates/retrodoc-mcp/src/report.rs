@@ -4,8 +4,8 @@
 
 use retrodoc_core::config::RulesConfig;
 use retrodoc_core::reconcile::ItemKind;
+use retrodoc_core::report::{build_report, DebtReport, MarkedWrong};
 use retrodoc_ingest::existing_docs::ExistingDoc;
-use retrodoc_pipeline::{build_report, DebtReport, MarkedWrong};
 
 use crate::debt::{self, DebtKind, Subject};
 use crate::read_model::GeneratedDocs;

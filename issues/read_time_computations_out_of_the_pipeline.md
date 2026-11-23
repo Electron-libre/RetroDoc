@@ -64,10 +64,10 @@ behaviour change, no spec (pure refactor).
 5. [x] Exact move of `reconcile/` to `retrodoc_core::reconcile` (`deliverable-size` counts only an exact rename once),
    `generate`, the MCP crate, the web tests and the CLI repointed; verified by the moved tests,
    `cache_format_sample` and `project-check`. (autonomous)
-6. [ ] Debt report in core and readers checked: `report/` prepared in place then moved exactly to
+6. [x] Debt report in core and readers checked: `report/` prepared in place then moved exactly to
    `retrodoc_core::report`; no `retrodoc_pipeline::{reconcile, report, domain_models, Bm25}` left in the readers
    (grep); ADR 0053 accepted; `docs/crates/`, `docs/ARCHITECTURE.md`, `CLAUDE.md` updated; a rerun of `generate` on a
-   saved run copy calls no LLM and rewrites no file; verified by that rerun and `project-check`.
+   saved run copy calls no LLM and rewrites no file; verified by that rerun and `project-check`. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -138,3 +138,17 @@ behaviour change, no spec (pure refactor).
 - red: none (no change of behaviour).
 - Code review: no findings
 - not verified: none.
+
+### Deliverable 6, second commit (the report moved)
+- done: `report/` moved exactly to `retrodoc_core::report`; the pipeline no longer exports it; the CLI and the MCP
+  crate import the report and `domain_models` from core. Grep of `retrodoc-mcp`, `retrodoc-web`, `retrodoc-agent`,
+  `retrodoc-cli`, `retrodoc-bench`: no `retrodoc_pipeline::{reconcile, report, domain_models, Bm25}` left but the
+  judge, which `generate` calls (`retrodoc_pipeline::reconcile`). ADR 0053 accepted; `core-ingest.md` holds the
+  report's detail, `pipeline.md`, `ARCHITECTURE.md` §2 and §4, `CLAUDE.md` updated.
+- checks: tests, lint, specs, docs green in `project-check`; 52 changed lines.
+- rerun: a session copy of the saved run `reader_types_in_core-rerun/`, `generate --no-confidence` with a bogus key:
+  no LLM call, the 141 files of `.retrodoc/` and `docs/` of identical content (ledger line added).
+- red: none (move with no change of behaviour).
+- Code review: no findings
+- not verified: the one-time rewrite of an older `reconciliation.yaml` on a real run: the saved run has no project
+  docs, so `reconcile` is off there; the tests of REC-17 cover it.

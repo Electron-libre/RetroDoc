@@ -224,7 +224,7 @@ pub fn debt_report(
     docs: &retrodoc_mcp::GeneratedDocs,
     repo_root: &Path,
     config: &Config,
-) -> retrodoc_pipeline::DebtReport {
+) -> retrodoc_core::report::DebtReport {
     let collected = project_docs(repo_root, config)
         .inspect_err(|err| tracing::warn!("items not compared with the project docs: {err:#}"))
         .ok();

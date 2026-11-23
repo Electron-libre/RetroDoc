@@ -14,8 +14,8 @@ use retrodoc_core::artifacts::DomainMap;
 use retrodoc_core::model::{RuleEvidence, SetApartReason, UseCase};
 pub use retrodoc_core::reconcile::{Contradiction, ItemKind};
 use retrodoc_core::reconcile::{ItemVerdict, Reconciliation};
-pub use retrodoc_pipeline::Section;
-use retrodoc_pipeline::{build_report, DebtReport, WeakSection};
+pub use retrodoc_core::report::Section;
+use retrodoc_core::report::{build_report, DebtReport, WeakSection};
 
 use crate::edits;
 use crate::freshness::{FileState, Freshness};

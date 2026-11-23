@@ -68,10 +68,10 @@ flowchart TD
 
 | Crate | Role in one sentence |
 |---|---|
-| `retrodoc-core` | Shared vocabulary: `Domain`, `Feature`, `UseCase`, `Step`, `ConfidenceScore`, the `retrodoc.toml` config, and the layout of `.retrodoc/cache/` with its format version (ADR 0051). |
+| `retrodoc-core` | Shared vocabulary: `Domain`, `Feature`, `UseCase`, `Step`, `ConfidenceScore`, the `retrodoc.toml` config, and the layout of `.retrodoc/cache/` with its format version (ADR 0051); also what the readers compute at read time, BM25, the matching of the reconciliation and the debt report ([ADR 0053](adr/0053-the-read-time-computations-live-in-core.md)). |
 | `retrodoc-ingest` | Reads the repo: files (honouring `.gitignore`, classified `Source`/`Test`/`Markdown`/`Other`), git history in one pass, existing docs, and the code structure (tree-sitter definitions and references, [ADR 0022](adr/0022-tree-sitter-for-code-structure.md), [ADR 0027](adr/0027-parse-to-cut-long-files-and-opt-in-short-bodies.md)). What it knows of given stacks only accelerates: every pass works without it ([ADR 0036](adr/0036-language-and-framework-agnostic-by-design.md), `specs/language-agnostic.md`). |
 | `retrodoc-llm` | Talks to the model. `LlmProvider` is a trait; the implementation is `OpenRouterProvider`, for `openrouter` and `deepseek` (HTTP, retry with backoff on 429/5xx). `UsageProvider` wraps it to count calls and tokens per pass. |
-| `retrodoc-pipeline` | The brain: one module per pass, plus caches, fingerprints and the debt report. |
+| `retrodoc-pipeline` | The brain: one module per pass, plus caches and fingerprints. |
 | `retrodoc-bench` | The measuring tools, out of the product code: the quality benchmark behind `retrodoc benchmark` and `benchmark-table`, the replays of one pass on frozen inputs and the measuring examples ([ADR 0042](adr/0042-the-measuring-tools-live-in-a-crate-of-their-own.md)). |
 | `retrodoc-render` | Turns the result into Markdown files, compares with disk, writes only what changed. |
 | `retrodoc-mcp` | Read-only access to the generated docs, without any LLM call: the typed read model `GeneratedDocs`, the BM25 search behind `retrodoc search` and the MCP server for LLM agents (`retrodoc mcp`, `rmcp`, stdio) with its seven read-only tools; also the snapshots of the run history that `generate` saves and the difference between two of them ([ADR 0043](adr/0043-the-run-history-is-one-snapshot-file-per-run.md)), and the stores of the human reviews and edits of the sections ([ADR 0044](adr/0044-the-human-reviews-live-in-one-file-outside-the-cache.md), [ADR 0045](adr/0045-the-human-edits-are-an-overlay-outside-the-cache.md)). |
@@ -159,7 +159,7 @@ What each pass hands to the next, and where it is saved:
 | 6b | `vocabulary.rs` | use case narrative + entity/actor names | business-language score on each use case (no LLM) | `use-cases.yaml` |
 | 7 | `confidence/` | use case + the code its steps cite | scores on use cases and features | `features.yaml`, `use-cases.yaml` |
 | 7b | `reconcile/` (`[pipeline] reconcile`, on by default, [ADR 0033](adr/0033-reconcile-with-existing-docs-lexical-match-then-llm-judge.md)) | each domain, feature, use case and rule + the doc sections BM25 matches to it by its text, else by its code names (entry points, entities), which docs in another language share (generated docs left out) | per section `covers`, `contradicts` (with what each side states) or `unrelated`; no call for an item no section matches, nor for an unchanged one | `reconciliation.yaml` |
-| 8 | `report/` + `retrodoc-render` | all of the above | Markdown files + debt report | — (written to `docs/`) |
+| 8 | `retrodoc_core::report` + `retrodoc-render` | all of the above | Markdown files + debt report | — (written to `docs/`) |
 
 ### Safety nets built into the passes
 

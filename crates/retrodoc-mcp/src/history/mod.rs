@@ -140,7 +140,7 @@ fn cost(usage: &RunUsage) -> Cost {
 
 fn debt_counts(
     docs: &GeneratedDocs,
-    report: retrodoc_pipeline::DebtReport,
+    report: retrodoc_core::report::DebtReport,
     reviews: &Reviews,
 ) -> Vec<DebtCount> {
     let mut counts: BTreeMap<(DebtKind, Option<&str>), usize> = BTreeMap::new();

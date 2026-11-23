@@ -7,6 +7,7 @@ pub mod cache;
 pub mod config;
 pub mod model;
 pub mod reconcile;
+pub mod report;
 pub mod text;
 
 // The moved modules name core by its crate name, as every other crate does.

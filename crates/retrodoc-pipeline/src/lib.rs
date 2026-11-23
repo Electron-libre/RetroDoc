@@ -39,7 +39,6 @@ pub mod ranking;
 /// The `reconcile` pass, the LLM judge of the reconciliation.
 #[path = "reconcile/judge.rs"]
 pub mod reconcile;
-pub mod report;
 mod request;
 mod response;
 pub mod roles;
@@ -85,10 +84,6 @@ pub use glossary::build_glossary;
 pub use language::{InLanguage, READING_PASSES, WRITING_PASSES};
 pub use progress::format_duration;
 pub use ranking::{apply_budget, rank_files};
-pub use report::{
-    build_report, domain_models, ChangedFile, DebtReport, FeaturelessDomain, MarkedWrong,
-    OutdatedReview, Section, SetApartUseCase, TechnicalFeature, WeakSection,
-};
 pub use roles::{identify_roles, FileRole, RoleMap, RoleRule, RoleRules};
 pub use rules::{build_rules, RuleInput};
 pub use slices::{CodeIndex, Follow};
