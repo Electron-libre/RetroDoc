@@ -8,8 +8,8 @@ adrs: [0003, 0005, 0037, 0043, 0050, 0052]
 
 ## Intent
 
-The commands that read the generated docs back (`render`, `report`, `history`, `ui`, `mcp`, `ask`, `chat`, `search`,
-`scan`, `benchmark`)
+The commands that read the generated docs back (`render`, `report`, `ui`, `mcp`, `ask`, `chat`, `search`, `scan`,
+`benchmark`)
 must know that the artifacts of `.retrodoc/cache/` were written in the format they read, so a cache written by
 another version of RetroDoc is refused with the command to run rather than read as empty fields.
 
@@ -96,6 +96,8 @@ another version of RetroDoc is refused with the command to run rather than read 
 - A version per artifact: one version covers the cache of a run.
 - The files kept outside the cache (`.retrodoc/edits.json`, `.retrodoc/reviews.json`, the run history): each
   carries its own version (`specs/section-edit.md`, `specs/section-review.md`, `specs/run-history.md`).
+- Scoring a kept run of an older format: `benchmark` refuses it as the other readers do, the run is generated again
+  with `generate --force` first.
 - `benchmark-table`: it reads the JSON figures `benchmark --out` wrote, not the cache.
 - The frozen inputs of the benchmark replays: they read the artifacts as the pipeline does, with no check.
 - Carrying the hand edits of an older cache over to the new format: the user copies them back from the directory

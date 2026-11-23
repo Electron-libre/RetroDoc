@@ -10,6 +10,20 @@ const ROLES: &str =
     "stack: Elixir\nrules:\n- pattern: lib/**\n  role: logic\n- pattern: '*.toml'\n  \
                      role: config\nsource_extensions:\n- ex\n";
 
+/// Records the current format next to the saved `roles.yaml`, so the fixture stays a cache this
+/// binary reads (CFV-14) when the format is bumped.
+fn with_current_format(dir: tempfile::TempDir) -> tempfile::TempDir {
+    std::fs::write(
+        dir.path().join(".retrodoc/cache/format.json"),
+        format!(
+            r#"{{"version": {}}}"#,
+            retrodoc_core::cache::format::FORMAT_VERSION
+        ),
+    )
+    .unwrap();
+    dir
+}
+
 /// An Elixir shop the walker does not know, with the roles saved or not.
 fn shop(llm: &FakeLlm, roles_saved: bool) -> tempfile::TempDir {
     let mut files = vec![
@@ -18,6 +32,7 @@ fn shop(llm: &FakeLlm, roles_saved: bool) -> tempfile::TempDir {
     ];
     if roles_saved {
         files.push((".retrodoc/cache/roles.yaml", ROLES));
+        return with_current_format(repo(&files, llm));
     }
     repo(&files, llm)
 }
@@ -69,7 +84,7 @@ fn roles_counts_the_promoted_sources() {
 fn rails(llm: &FakeLlm) -> tempfile::TempDir {
     let roles = "stack: Rails\nrules:\n- pattern: app/**\n  role: logic\nsource_extensions:\n\
                  - rb\n- erb\n- jbuilder\n- scss\n- vue\n- json\n";
-    repo(
+    with_current_format(repo(
         &[
             ("app/models/order.rb", "class Order\nend\n"),
             (
@@ -82,7 +97,7 @@ fn rails(llm: &FakeLlm) -> tempfile::TempDir {
             (".retrodoc/cache/roles.yaml", roles),
         ],
         llm,
-    )
+    ))
 }
 
 // spec: LNG-20
@@ -121,7 +136,7 @@ fn templates_of_a_built_in_extension_are_never_promoted() {
     let llm = FakeLlm::start(|call| panic!("no call expected, got {}", call.pass));
     let roles =
         "stack: Laravel\nrules:\n- pattern: '**'\n  role: logic\nsource_extensions:\n- php\n";
-    let dir = repo(
+    let dir = with_current_format(repo(
         &[
             (
                 "app/Models/Order.php",
@@ -136,7 +151,7 @@ fn templates_of_a_built_in_extension_are_never_promoted() {
             (".retrodoc/cache/roles.yaml", roles),
         ],
         &llm,
-    );
+    ));
 
     let out = stdout_of(dir.path(), "scan");
 

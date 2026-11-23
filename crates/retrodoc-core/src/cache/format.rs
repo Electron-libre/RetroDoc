@@ -1,6 +1,6 @@
 //! The format version of the artifacts of `.retrodoc/cache/` (ADR 0050, `specs/cache-format.md`):
 //! one integer in `format.json`, written by `generate` and the commands of a single pass before their first
-//! artifact and checked by the readers of the generated docs and those commands, so a cache another version wrote is refused with the
+//! artifact and checked by the readers of the generated docs, those commands, `scan` and `benchmark`, so a cache another version wrote is refused with the
 //! command to run rather than read as empty fields. It is not part of the fingerprints.
 
 use std::path::{Path, PathBuf};

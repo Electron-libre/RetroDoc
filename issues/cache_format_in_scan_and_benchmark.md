@@ -67,3 +67,22 @@ cache: both call `check_format` first and refuse a cache of another format (CFV-
 - Code review: no findings
 - not verified: none
 - decisions needed: none
+
+## Summary of deliverable 2
+- done: the 5 findings of the `high` review (all nits or pre-existing) fixed.
+
+| check | result |
+|---|---|
+| tests | pass (`cache_format`: 15, `promoted_sources`: 6) |
+| lint | pass |
+| specs | pass |
+| docs | `docs/ARCHITECTURE.md`, `cache/format.rs`, `specs/cache-format.md` |
+| code review | see below |
+
+- red: CFV-14: `unknown field \`a_later_key\`, expected \`name\`` (scan read the config before the format)
+- Code review: no findings
+- High review of the issue: 5 findings, all fixed: the format checked before the config in `scan`; the fixtures of
+  `promoted_sources.rs` record the format; `ARCHITECTURE.md` and `format.rs` name the two commands; the non-goal of
+  scoring a kept run of an older format (decision 1 a); `history` dropped from the Intent (pre-existing).
+- not verified: none
+- decisions needed: none

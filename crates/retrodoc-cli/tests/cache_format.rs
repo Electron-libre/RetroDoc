@@ -375,3 +375,18 @@ fn scan_reads_a_repository_with_no_cache() {
     assert!(output.status.success(), "{}", all_of(&output));
     assert!(all_of(&output).contains("Files:"), "{}", all_of(&output));
 }
+
+// spec: CFV-14
+#[test]
+fn scan_names_a_later_format_before_a_config_it_does_not_know() {
+    let (dir, _llm) = shop();
+    std::fs::write(format_file(dir.path()), r#"{"version": 99}"#).unwrap();
+    let config = dir.path().join("retrodoc.toml");
+    let mut text = std::fs::read_to_string(&config).unwrap();
+    text.push_str("\n[project]\na_later_key = 1\n");
+    std::fs::write(&config, text).unwrap();
+
+    let error = refused(dir.path(), "scan");
+
+    assert!(error.contains("update RetroDoc"), "{error}");
+}
