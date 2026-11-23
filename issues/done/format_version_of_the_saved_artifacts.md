@@ -104,7 +104,7 @@ upgrade in place, the single-pass commands, the benchmark replays. Means: candid
   run through the binary).
 - `high` review: 9 findings
   - a missing `format.json` counts as format 1 with no cache at all: fixed (`holds_artifacts`), CFV-7 scenario added.
-  - single-pass commands write the cache unchecked: `issues/cache_format_in_the_single_pass_commands.md`.
+  - single-pass commands write the cache unchecked: `issues/done/cache_format_in_the_single_pass_commands.md`.
   - bless cannot write the sample of a bumped version: fixed.
   - `--force` on an older cache keeps the hand-editable files under the new stamp: same follow-up issue.
   - `--force` clears the caches before the edits check: not fixed, the order predates this issue.
