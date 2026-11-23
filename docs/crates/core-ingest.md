@@ -8,6 +8,8 @@ Detail moved out of `CLAUDE.md`. Overview of all crates: `docs/ARCHITECTURE.md` 
   which keeps a name or a description from forging a line of a prompt or a list; `fold_latin`, which lowercases and
   folds accented Latin letters to their base letters, for the slugs (DLG-5) and the tag of `[output] language` (DLG-9);
   `normalize`, the one comparison of names across passes),
+  the BM25 ranking the search, the reconciliation and the brief evidence share (`bm25.rs`, ADR 0053: `Bm25`,
+  `tokenize`, `has_content_words`; lexical, rebuilt at each start, no persistence),
   the artifacts the readers of the docs load (`artifacts/`, ADR 0051: `Glossary` with `merged_entities`, `DomainMap`
   with the domains it publishes, `Scope`, what the budget left out, `BehaviourCoverage`, `SourceHashes`, `SetAside`, what the rules pass set aside,
   each with its `load` and `save`; `items.rs`: `load_features`, `load_technical_features`, `load_use_cases`,

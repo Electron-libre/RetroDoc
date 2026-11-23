@@ -3,7 +3,7 @@
 //! only the common words of the question left out ([`Bm25::search_relevant`]).
 
 use crate::corpus::Entry;
-use retrodoc_pipeline::Bm25;
+use retrodoc_core::bm25::Bm25;
 
 const TITLE_WEIGHT: usize = 3;
 

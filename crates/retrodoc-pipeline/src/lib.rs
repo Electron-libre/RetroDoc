@@ -15,7 +15,6 @@ pub mod actors;
 mod artifact;
 mod batched_read;
 pub mod behaviour_coverage;
-pub mod bm25;
 pub mod brief;
 pub mod business_files;
 pub mod business_read;
@@ -59,10 +58,11 @@ pub mod use_cases;
 pub mod vocabulary;
 mod walked;
 
+use retrodoc_core::bm25;
+
 pub use actors::{authorization_files, build_actors, Actors, BusinessActor};
 pub use artifact::Retention;
 pub use behaviour_coverage::{save_technical_support, save_use_case_coverage};
-pub use bm25::{Bm25, Relevant};
 pub use brief::{build_brief, sample_chars, Claim, Evidence, ProductBrief};
 pub use business_files::{infer_business_files, BusinessEntry, BusinessMap};
 pub use business_read::read_business_files;

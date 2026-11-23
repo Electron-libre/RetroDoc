@@ -62,7 +62,8 @@ const STOP_WORDS: &str = "a an the of to in on for and or is are was were be by 
     comment quand ou ce cet cette ces se sa son ses ne pas peut peuvent quel quelle quels quelles";
 
 /// Whether `text` has a word that is not a stop word: a text with none can't be searched for.
-pub(crate) fn has_content_words(text: &str) -> bool {
+#[must_use]
+pub fn has_content_words(text: &str) -> bool {
     tokenize(text).iter().any(|t| !stop_words().contains(t))
 }
 

@@ -2,6 +2,7 @@
 //! the pipeline writes and the readers of the docs read.
 
 pub mod artifacts;
+pub mod bm25;
 pub mod cache;
 pub mod config;
 pub mod model;

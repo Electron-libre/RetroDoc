@@ -27,12 +27,13 @@ use std::fmt::Write as _;
 use std::time::Instant;
 
 use retrodoc_core::artifacts::load_features;
+use retrodoc_core::bm25::Bm25;
 use retrodoc_core::config::LlmConfig;
 use retrodoc_core::model::Feature;
 use retrodoc_llm::{
     ChatMessage, CompletionRequest, LlmProvider, OpenRouterProvider, ResponseSchema, Role,
 };
-use retrodoc_pipeline::{entry_point_id, Bm25, EntryPoint, EntryPoints};
+use retrodoc_pipeline::{entry_point_id, EntryPoint, EntryPoints};
 use serde::Deserialize;
 use serde_json::{json, Value};
 
