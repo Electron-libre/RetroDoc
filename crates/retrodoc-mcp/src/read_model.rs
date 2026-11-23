@@ -9,9 +9,9 @@ use std::path::{Path, PathBuf};
 use retrodoc_core::artifacts::{BehaviourCoverage, DomainMap, Glossary, Scope};
 use retrodoc_core::cache::format::{self as cache_format, FormatError};
 use retrodoc_core::model::{BusinessRule, Domain, Feature, RuleEvidence, UseCase};
+use retrodoc_core::reconcile::{reconcile, ItemKind, Judgements, Reconciliation};
 use retrodoc_ingest::existing_docs::ExistingDoc;
 use retrodoc_pipeline::domain_models;
-use retrodoc_pipeline::reconcile::{reconcile, ItemKind, Judgements, Reconciliation};
 
 use crate::corpus::{build_entries, rule_entries, section_entries, EntryKind};
 use crate::edits::{self, Edits};
@@ -294,7 +294,7 @@ impl GeneratedDocs {
             &self.generated.features,
             &self.generated.use_cases,
             &self.rules,
-            &retrodoc_pipeline::doc_corpus::corpus(docs),
+            &retrodoc_ingest::doc_corpus::corpus(docs),
             &Judgements::load(root),
         ))
     }
@@ -498,8 +498,8 @@ mod tests {
 
     use retrodoc_core::artifacts::{BehaviourCoverage, DomainCluster, DomainMap, Scope};
     use retrodoc_core::model::Feature;
+    use retrodoc_core::reconcile::Status;
     use retrodoc_ingest::existing_docs::ExistingDoc;
-    use retrodoc_pipeline::reconcile::Status;
 
     use super::GeneratedDocs;
 

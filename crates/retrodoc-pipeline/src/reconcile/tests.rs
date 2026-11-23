@@ -1,5 +1,5 @@
 use super::*;
-use crate::reconcile::{Contradiction, Item, ItemKind, Reconciliation, SectionRef, Status};
+use retrodoc_core::reconcile::{Contradiction, Item, ItemKind, Reconciliation, SectionRef, Status};
 
 fn section(origin: &str, text: &str) -> Section {
     Section {

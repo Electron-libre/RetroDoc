@@ -3,8 +3,8 @@
 //! the loaded [`GeneratedDocs`] so that no reader assembles its own.
 
 use retrodoc_core::config::RulesConfig;
+use retrodoc_core::reconcile::ItemKind;
 use retrodoc_ingest::existing_docs::ExistingDoc;
-use retrodoc_pipeline::reconcile::ItemKind;
 use retrodoc_pipeline::{build_report, DebtReport, MarkedWrong};
 
 use crate::debt::{self, DebtKind, Subject};

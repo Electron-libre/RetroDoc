@@ -287,9 +287,9 @@ async fn reconcile_with_docs(
         }
     };
     let rules = retrodoc_core::artifacts::load_rules(repo_root).unwrap_or_default();
-    let corpus = retrodoc_pipeline::doc_corpus::corpus(&docs);
-    let candidates = reconcile::candidates(
-        reconcile::items(
+    let corpus = retrodoc_ingest::doc_corpus::corpus(&docs);
+    let candidates = retrodoc_core::reconcile::candidates(
+        retrodoc_core::reconcile::items(
             &DomainMap::load(repo_root).unwrap_or_default(),
             features,
             use_cases,
@@ -310,7 +310,7 @@ async fn reconcile_with_docs(
     tracker
         .in_pass(
             passes::RECONCILE,
-            retrodoc_pipeline::reconcile_judge::judge(
+            reconcile::judge(
                 repo_root,
                 llm.get(passes::RECONCILE)?.as_ref(),
                 &config.pipeline,

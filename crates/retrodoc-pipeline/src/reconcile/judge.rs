@@ -17,9 +17,9 @@ use serde::Deserialize;
 use crate::bm25::Bm25;
 use crate::error::PipelineError;
 use crate::fingerprints::model_part;
-use crate::reconcile::{Answer, Candidate, Judged, JudgedSection, Judgements, Section};
 use crate::request::Request;
 use crate::text::{char_prefix, one_line, without_last_chars};
+use retrodoc_core::reconcile::{Answer, Candidate, Judged, JudgedSection, Judgements, Section};
 
 /// Items judged in one request.
 pub const MAX_ITEMS_PER_REQUEST: usize = 8;

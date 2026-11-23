@@ -162,11 +162,11 @@ pub fn item_doc_links(
 /// The doc sections each item page links: those that document or contradict the item. A rule that
 /// cites a section already shows it with its evidence.
 fn doc_links(
-    reconciliation: &retrodoc_pipeline::reconcile::Reconciliation,
+    reconciliation: &retrodoc_core::reconcile::Reconciliation,
     rules: &[retrodoc_core::model::BusinessRule],
     docs_dir: &str,
 ) -> retrodoc_render::DocLinks {
-    use retrodoc_pipeline::reconcile::{ItemKind, Status};
+    use retrodoc_core::reconcile::{ItemKind, Status};
     use retrodoc_render::{DocLink, ItemRef};
     let mut links = retrodoc_render::DocLinks {
         docs_dir: docs_dir.into(),
@@ -290,7 +290,7 @@ mod tests {
     // spec: REC-12 (internal: the input is a generated run, which only an LLM run produces through the binary)
     #[test]
     fn the_pages_link_what_documents_or_contradicts_the_item_only() {
-        use retrodoc_pipeline::reconcile::{
+        use retrodoc_core::reconcile::{
             Contradiction, ItemKind, ItemVerdict, Reconciliation, SectionRef, Status,
         };
         use retrodoc_render::{DocLink, ItemRef};

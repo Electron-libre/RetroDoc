@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 
 use retrodoc_core::artifacts::{BehaviourCoverage, DomainMap, Glossary, Scope};
 use retrodoc_core::cache::format::FORMAT_VERSION;
-use retrodoc_pipeline::reconcile::Judgements;
+use retrodoc_core::reconcile::Judgements;
 
 fn sample_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))

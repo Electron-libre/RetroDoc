@@ -3,7 +3,7 @@
 use std::fmt::Write as _;
 
 use super::{one_line, DebtReport};
-use crate::reconcile::{ItemVerdict, Reconciliation};
+use retrodoc_core::reconcile::{ItemVerdict, Reconciliation};
 
 /// Undocumented items listed in the Markdown report (the rest is only counted).
 const MAX_LISTED_UNDOCUMENTED: usize = 50;

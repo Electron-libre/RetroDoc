@@ -61,9 +61,9 @@ behaviour change, no spec (pure refactor).
 4. [x] Reconciliation prepared in place: the judge out of `reconcile/` into a pipeline module of its own, `corpus` to
    `retrodoc-ingest` (returning the `Section` of the reconciliation), `reconcile/` reaching only paths that resolve
    in core too; verified by the tests and `project-check`. (autonomous)
-5. [ ] Exact move of `reconcile/` to `retrodoc_core::reconcile` (`deliverable-size` counts only an exact rename once),
+5. [x] Exact move of `reconcile/` to `retrodoc_core::reconcile` (`deliverable-size` counts only an exact rename once),
    `generate`, the MCP crate, the web tests and the CLI repointed; verified by the moved tests,
-   `cache_format_sample` and `project-check`.
+   `cache_format_sample` and `project-check`. (autonomous)
 6. [ ] Debt report in core and readers checked: `report/` prepared in place then moved exactly to
    `retrodoc_core::report`; no `retrodoc_pipeline::{reconcile, report, domain_models, Bm25}` left in the readers
    (grep); ADR 0053 accepted; `docs/crates/`, `docs/ARCHITECTURE.md`, `CLAUDE.md` updated; a rerun of `generate` on a
@@ -117,5 +117,16 @@ behaviour change, no spec (pure refactor).
   `generate` and the MCP read model repointed; the matching tests build their sections by hand.
 - checks: tests, lint, specs, docs (`pipeline.md`) green in `project-check`.
 - red: none (no change of behaviour; the fingerprint is computed the same, the reuse tests pass).
+- Code review: no findings
+- not verified: none.
+
+### Deliverable 5
+- done: `reconcile/mod.rs` and `matching_tests.rs` moved exactly to `retrodoc_core::reconcile` (core names itself
+  `retrodoc_core`, `extern crate self`); `doc_corpus` moved to `retrodoc-ingest`; the pipeline's `reconcile` module is
+  the judge (`reconcile/judge.rs`); the report, `generate`, the CLI docs, the MCP crate, the web and cache format
+  tests import the reconciliation from core.
+- checks: tests (`cache_format_sample` included), lint, specs, docs (`core-ingest.md`, `pipeline.md`) green in
+  `project-check`; 181 changed lines (exact renames).
+- red: none (move with no change of behaviour).
 - Code review: no findings
 - not verified: none.

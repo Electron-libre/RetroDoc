@@ -15,9 +15,9 @@ use retrodoc_core::model::{
 
 use crate::behaviour_coverage::{EntryCount, FeatureCoverage};
 use crate::domains::DomainMap;
-use crate::reconcile::{ItemKind, Reconciliation};
 use crate::rules::SetAside;
 use crate::text::one_line;
+use retrodoc_core::reconcile::{ItemKind, Reconciliation};
 
 mod behaviour;
 mod reconciliation;

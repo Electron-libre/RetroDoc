@@ -115,8 +115,8 @@ fn rule(slug: &str, statement: &str, evidence: Vec<RuleEvidence>) -> BusinessRul
 }
 
 fn reconciliation() -> Reconciliation {
-    let docs = [crate::reconcile::Section {
-        at: crate::reconcile::SectionRef::parse("README.md#Orders"),
+    let docs = [retrodoc_core::reconcile::Section {
+        at: retrodoc_core::reconcile::SectionRef::parse("README.md#Orders"),
         text: "# Orders\nAn order is refused when delivery takes an hour.".into(),
     }];
     let mut orders = feature("orders", "billing", None);
@@ -134,13 +134,13 @@ fn reconciliation() -> Reconciliation {
         ),
         rule("gone-1", "Credits expire after a year.", vec![]),
     ];
-    crate::reconcile::reconcile(
+    retrodoc_core::reconcile::reconcile(
         &DomainMap::default(),
         &[orders],
         &[],
         &rules,
         &docs,
-        &crate::reconcile::Judgements::default(),
+        &retrodoc_core::reconcile::Judgements::default(),
     )
 }
 
@@ -187,7 +187,7 @@ fn the_undocumented_items_are_listed_by_importance_rules_among_them() {
 // spec: REC-11 (internal: the input is a generated run, which only an LLM run produces through the binary)
 #[test]
 fn each_contradiction_cites_both_sources_as_a_finding_to_check() {
-    use crate::reconcile::{Contradiction, ItemKind, ItemVerdict, SectionRef, Status};
+    use retrodoc_core::reconcile::{Contradiction, ItemKind, ItemVerdict, SectionRef, Status};
     let mut report = build_report(&DomainMap::default(), &[], &[]);
     report.with_reconciliation(Reconciliation {
         items: vec![ItemVerdict {
@@ -234,13 +234,13 @@ fn at_most_fifty_undocumented_items_are_listed() {
         })
         .collect();
     let mut report = build_report(&DomainMap::default(), &[], &[]);
-    report.with_reconciliation(crate::reconcile::reconcile(
+    report.with_reconciliation(retrodoc_core::reconcile::reconcile(
         &DomainMap::default(),
         &[],
         &[],
         &rules,
         &[],
-        &crate::reconcile::Judgements::default(),
+        &retrodoc_core::reconcile::Judgements::default(),
     ));
     let md = report.to_markdown();
     assert!(md.contains("- … and 5 more\n"), "{md}");

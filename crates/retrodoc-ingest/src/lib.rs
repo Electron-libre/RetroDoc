@@ -4,6 +4,7 @@
 //! history, and the loading of existing Markdown docs. The result is what
 //! the pipeline passes start from.
 
+pub mod doc_corpus;
 pub mod error;
 pub mod existing_docs;
 pub mod git_history;

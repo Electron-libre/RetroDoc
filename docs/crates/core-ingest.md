@@ -10,6 +10,9 @@ Detail moved out of `CLAUDE.md`. Overview of all crates: `docs/ARCHITECTURE.md` 
   `normalize`, the one comparison of names across passes),
   the BM25 ranking the search, the reconciliation and the brief evidence share (`bm25.rs`, ADR 0053: `Bm25`,
   `tokenize`, `has_content_words`; lexical, rebuilt at each start, no persistence),
+  the deterministic part of the reconciliation with the project's own docs (`reconcile/`, ADR 0053,
+  `specs/docs-reconciliation.md`: the items, their matching with the doc sections, the saved verdicts `Judgements`
+  applied with the values the file records (REC-17), `Reconciliation`), which `generate` and the readers share,
   the artifacts the readers of the docs load (`artifacts/`, ADR 0051: `Glossary` with `merged_entities`, `DomainMap`
   with the domains it publishes, `Scope`, what the budget left out, `BehaviourCoverage`, `SourceHashes`, `SetAside`, what the rules pass set aside,
   each with its `load` and `save`; `items.rs`: `load_features`, `load_technical_features`, `load_use_cases`,
@@ -21,7 +24,8 @@ Detail moved out of `CLAUDE.md`. Overview of all crates: `docs/ARCHITECTURE.md` 
   `format` (`FORMAT_VERSION`, the format of the cache in `format.json`: `record` writes it when it says otherwise,
   `check` refuses an older, later or unreadable one, no file reading as format 1; `check` sees no cache in a `format.json` alone; `set_aside_older` moves every file of an older one but `history/` to `.retrodoc/cache-format-<found>/` for `generate --force`, the run history left in place; not part of the fingerprints, ADR
   0050, `specs/cache-format.md`).
-- **retrodoc-ingest**: reads the target repo — file walker respecting `.gitignore` (`walker.rs`; classifies files as `Source`/`Test`/`Markdown`/`Other` —
+- **retrodoc-ingest**: reads the target repo — the sections of the project's own docs the reconciliation matches
+  (`doc_corpus::corpus`, REC-1, returning the `Section` of core); file walker respecting `.gitignore` (`walker.rs`; classifies files as `Source`/`Test`/`Markdown`/`Other` —
   the built-in extensions and test conventions cover the reference set of `specs/language-agnostic.md`, the
   build scripts `*.gradle.kts`, `Package.swift`, the view templates `*.blade.php`, `*.html.php`, `*.tpl.php` and the root `project/` of an sbt build excepted, even when the roles call names their extension; tests are detected by directory (.NET `*Tests` projects, and for .NET files `*.Test`, `*UnitTest`, `*IntegrationTest`, `*.Specs`; Gradle test source sets `src/<set>Test/<jvm language>/` and the Android variants `src/testDebug/`, `src/androidTestRelease/` included) or file-name convention and kept out
   of the pipeline, which only consumes `Source`), one-pass

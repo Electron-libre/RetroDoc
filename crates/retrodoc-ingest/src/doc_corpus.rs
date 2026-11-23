@@ -1,9 +1,9 @@
 //! The corpus of the reconciliation: the sections of the project's own docs (REC-1).
 
-use retrodoc_ingest::existing_docs::ExistingDoc;
-use retrodoc_ingest::signals::doc_sections;
+use retrodoc_core::reconcile::{Section, SectionRef};
 
-use crate::reconcile::{Section, SectionRef};
+use crate::existing_docs::ExistingDoc;
+use crate::signals::doc_sections;
 
 /// The sections of `docs`, which must not hold the generated docs (the caller drops them). Sections
 /// of one file under the same heading are one section: an origin names one text.

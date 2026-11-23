@@ -4,7 +4,7 @@ use retrodoc_core::model::{
     Actor, ActorKind, BusinessRule, ConfidenceScore, Domain, Feature, RuleEvidence, SetApartReason,
     SourceRef, Step, UseCase,
 };
-use retrodoc_pipeline::reconcile::{
+use retrodoc_core::reconcile::{
     Contradiction, ItemKind, ItemVerdict, Reconciliation, SectionRef, Status,
 };
 
