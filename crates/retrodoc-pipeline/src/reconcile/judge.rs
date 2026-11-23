@@ -12,13 +12,12 @@ use std::path::Path;
 
 use retrodoc_core::config::PipelineConfig;
 use retrodoc_llm::LlmProvider;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
-use super::{Candidate, ItemKind, Section};
-use crate::artifact::{load_yaml, save_yaml, Artifact};
 use crate::bm25::Bm25;
 use crate::error::PipelineError;
-use crate::fingerprints::{fingerprint, model_part};
+use crate::fingerprints::model_part;
+use crate::reconcile::{Answer, Candidate, Judged, JudgedSection, Judgements, Section};
 use crate::request::Request;
 use crate::text::{char_prefix, one_line, without_last_chars};
 
@@ -58,127 +57,26 @@ const ITEMS_HEADER: &str = "\nItems of the generated documentation:\n";
 
 static REQUEST: Request<RawAnswer> = Request::new(SYSTEM_PROMPT, &[SECTIONS_HEADER, ITEMS_HEADER]);
 
-/// What a section is to an item.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Answer {
-    Covers,
-    Contradicts,
-    Unrelated,
-}
-
-/// The answer on one section of an item.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct JudgedSection {
-    /// `path#heading`.
-    pub section: String,
-    pub answer: Answer,
-    /// With `contradicts`: what the section states.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub doc_states: Option<String>,
-    /// With `contradicts`: what the generated item states instead.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub item_states: Option<String>,
-}
-
-/// The verdict on one item, every section answered.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Judged {
-    pub kind: ItemKind,
-    pub label: String,
-    /// Of the item's text and of its sections' text ([`Candidate::fingerprint`]).
-    pub fingerprint: String,
-    /// The model that answered.
-    pub model: String,
-    pub sections: Vec<JudgedSection>,
-}
-
-/// `.retrodoc/cache/reconciliation.yaml`.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Judgements {
-    /// The [`SHOWN_RULE`] the fingerprints of `items` were computed with (REC-17).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub shown_rule: Option<String>,
-    /// The hash of the judge's prompt and schema the fingerprints of `items` were computed with, so a reader
-    /// applies a verdict without the judge (REC-17).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub request: Option<String>,
-    #[serde(default)]
-    pub items: Vec<Judged>,
-}
-
-impl Judgements {
-    /// Missing or unreadable: none.
-    #[must_use]
-    pub fn load(repo_root: &Path) -> Self {
-        load_yaml(&Artifact::Reconciliation.path(repo_root)).unwrap_or_default()
-    }
-
-    /// # Errors
-    ///
-    /// Returns an error if the file can't be written.
-    pub fn save(&self, repo_root: &Path) -> Result<(), PipelineError> {
-        save_yaml(&Artifact::Reconciliation.path(repo_root), self)
-    }
-
-    /// No verdict yet, recording the values the pass fingerprints with now.
-    #[must_use]
-    pub fn recorded() -> Self {
-        Self {
-            shown_rule: Some(SHOWN_RULE.to_string()),
-            request: Some(REQUEST.part().to_string()),
-            items: Vec::new(),
-        }
-    }
-
-    /// The verdict on `candidate` while its texts are the ones it was given on, fingerprinted with the
-    /// recorded values (REC-17): none when the file records neither.
-    #[must_use]
-    pub fn of(&self, candidate: &Candidate) -> Option<&Judged> {
-        let (Some(shown_rule), Some(request)) = (&self.shown_rule, &self.request) else {
-            return None;
-        };
-        self.with_fingerprint(candidate, &candidate.fingerprint_with(shown_rule, request))
-    }
-
-    fn with_fingerprint(&self, candidate: &Candidate, print: &str) -> Option<&Judged> {
-        self.items.iter().find(|j| {
-            j.kind == candidate.item.kind
-                && j.label == candidate.item.label
-                && j.fingerprint == print
-        })
+/// No verdict yet, recording the values the pass fingerprints with now (REC-17).
+#[must_use]
+pub fn recorded() -> Judgements {
+    Judgements {
+        shown_rule: Some(SHOWN_RULE.to_string()),
+        request: Some(REQUEST.part().to_string()),
+        items: Vec::new(),
     }
 }
 
-impl Candidate {
-    /// Hash of the item's text, of the origin and text of its sections, of [`SHOWN_RULE`] and of the
-    /// request (ADR 0037, ADR 0040).
-    #[must_use]
-    pub fn fingerprint(&self) -> String {
-        self.fingerprint_with(SHOWN_RULE, REQUEST.part())
-    }
+/// Hash of the item's text, of the origin and text of its sections, of [`SHOWN_RULE`] and of the
+/// request (ADR 0037, ADR 0040).
+#[must_use]
+pub fn fingerprint(candidate: &Candidate) -> String {
+    candidate.fingerprint_with(SHOWN_RULE, REQUEST.part())
+}
 
-    /// [`Candidate::fingerprint`] with the rule of what is shown and the request part given, the ones a
-    /// saved file recorded.
-    #[must_use]
-    pub fn fingerprint_with(&self, shown_rule: &str, request: &str) -> String {
-        let mut parts = vec![
-            shown_rule.to_string(),
-            request.to_string(),
-            self.item.kind.label().to_string(),
-            self.item.query.clone(),
-        ];
-        for section in &self.sections {
-            parts.push(section.at.origin());
-            parts.push(section.text.clone());
-        }
-        fingerprint(parts)
-    }
-
-    /// Whether the LLM is asked about it: it has sections and cites none itself.
-    fn to_judge(&self) -> bool {
-        !self.sections.is_empty() && !self.cites_its_docs()
-    }
+/// Whether the LLM is asked about it: it has sections and cites none itself.
+fn to_judge(candidate: &Candidate) -> bool {
+    !candidate.sections.is_empty() && !candidate.cites_its_docs()
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -445,7 +343,7 @@ fn read_answer(
             judged.push(Judged {
                 kind: candidate.item.kind,
                 label: candidate.item.label.clone(),
-                fingerprint: candidate.fingerprint(),
+                fingerprint: fingerprint(candidate),
                 model: model.to_string(),
                 sections,
             });
@@ -473,11 +371,11 @@ pub async fn judge(
     }
     let model = model_part(llm);
     let saved = Judgements::load(repo_root);
-    let mut kept = Judgements::recorded();
+    let mut kept = recorded();
     let mut to_ask: Vec<&Candidate> = Vec::new();
-    for candidate in candidates.iter().filter(|c| c.to_judge()) {
+    for candidate in candidates.iter().filter(|c| to_judge(c)) {
         // The pass's own values: a file saved before they were recorded is still reused.
-        let reused = saved.with_fingerprint(candidate, &candidate.fingerprint());
+        let reused = saved.with_fingerprint(candidate, &fingerprint(candidate));
         match reused.filter(|j| j.model == model) {
             Some(judged) => kept.items.push(judged.clone()),
             None => to_ask.push(candidate),
@@ -530,3 +428,6 @@ pub async fn judge(
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests;

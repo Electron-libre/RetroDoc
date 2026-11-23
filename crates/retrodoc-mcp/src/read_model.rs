@@ -294,7 +294,7 @@ impl GeneratedDocs {
             &self.generated.features,
             &self.generated.use_cases,
             &self.rules,
-            docs,
+            &retrodoc_pipeline::doc_corpus::corpus(docs),
             &Judgements::load(root),
         ))
     }

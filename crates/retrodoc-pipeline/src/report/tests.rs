@@ -5,7 +5,6 @@ use crate::domains::{DomainCluster, UNCATEGORIZED_SLUG};
 use crate::rules::{AsideFeature, AsideRule};
 use retrodoc_core::config::RulesConfig;
 use retrodoc_core::model::{BusinessRule, RuleEvidence};
-use retrodoc_ingest::existing_docs::ExistingDoc;
 
 fn feature(slug: &str, domain: &str, score: Option<f32>) -> Feature {
     Feature {
@@ -116,9 +115,9 @@ fn rule(slug: &str, statement: &str, evidence: Vec<RuleEvidence>) -> BusinessRul
 }
 
 fn reconciliation() -> Reconciliation {
-    let docs = [ExistingDoc {
-        path: PathBuf::from("README.md"),
-        content: "# Orders\nAn order is refused when delivery takes an hour.\n".into(),
+    let docs = [crate::reconcile::Section {
+        at: crate::reconcile::SectionRef::parse("README.md#Orders"),
+        text: "# Orders\nAn order is refused when delivery takes an hour.".into(),
     }];
     let mut orders = feature("orders", "billing", None);
     orders.entry_points = vec!["a.rb#GET /orders".into()];

@@ -1,4 +1,5 @@
 use super::*;
+use crate::reconcile::{Contradiction, Item, ItemKind, Reconciliation, SectionRef, Status};
 
 fn section(origin: &str, text: &str) -> Section {
     Section {
@@ -479,7 +480,7 @@ async fn a_verdict_given_before_the_prompt_was_compared_is_asked_again_once() {
     let candidates = three_candidates();
     let before_the_prompt = |c: &Candidate| {
         let mut parts = vec![
-            super::judge::SHOWN_RULE.to_string(),
+            SHOWN_RULE.to_string(),
             c.item.kind.label().to_string(),
             c.item.query.clone(),
         ];
@@ -734,7 +735,7 @@ fn judged_with(shown_rule: &str, request: &str) -> Vec<Judged> {
 #[tokio::test]
 async fn a_file_without_the_recorded_values_is_rewritten_with_them_and_no_call() {
     let dir = tempfile::tempdir().unwrap();
-    let current = Judgements::recorded();
+    let current = recorded();
     Judgements {
         items: judged_with(
             current.shown_rule.as_deref().unwrap(),

@@ -5,18 +5,14 @@
 //! The debt report and the rendered pages read the result; neither calls an LLM.
 
 use std::collections::BTreeMap;
+use std::path::Path;
 
 use retrodoc_core::model::{entry_point_name, BusinessRule, Feature, RuleEvidence, UseCase};
-use retrodoc_ingest::existing_docs::ExistingDoc;
-use retrodoc_ingest::signals::doc_sections;
 use serde::{Deserialize, Serialize};
 
-use crate::bm25::{has_content_words, Bm25};
-use crate::domains::DomainMap;
-
-mod judge;
-
-pub use judge::{judge, Answer, Judged, JudgedSection, Judgements, MAX_ITEMS_PER_REQUEST};
+use retrodoc_core::artifacts::DomainMap;
+use retrodoc_core::bm25::{has_content_words, Bm25};
+use retrodoc_core::cache::{hash_content, load_yaml, save_yaml, Artifact, CacheError};
 
 /// Sections kept per item, best first.
 pub const MAX_SECTIONS_PER_ITEM: usize = 3;
@@ -104,27 +100,6 @@ pub struct Section {
     pub at: SectionRef,
     /// The heading line followed by the body.
     pub text: String,
-}
-
-/// The sections of `docs`, which must not hold the generated docs (the caller drops them). Sections
-/// of one file under the same heading are one section: an origin names one text.
-#[must_use]
-pub fn corpus(docs: &[ExistingDoc]) -> Vec<Section> {
-    let mut sections: Vec<Section> = Vec::new();
-    for signal in doc_sections(docs) {
-        let at = SectionRef::parse(&signal.origin);
-        match sections.iter_mut().find(|s| s.at == at) {
-            Some(same) => {
-                same.text.push_str("\n\n");
-                same.text.push_str(&signal.text);
-            }
-            None => sections.push(Section {
-                at,
-                text: signal.text,
-            }),
-        }
-    }
-    sections
 }
 
 /// The names of `entry_points` (without their file, a route without its verbs and parameters), then
@@ -507,23 +482,130 @@ fn verdict_of(judged: &Judged) -> (Status, Vec<SectionRef>, Vec<Contradiction>) 
     (status, sections, contradictions)
 }
 
-/// The verdicts on the saved artifacts and the project's own docs, with the saved `judgements`.
+/// The verdicts on the saved artifacts and the `corpus` of the project's own docs, with the saved
+/// `judgements`.
 #[must_use]
 pub fn reconcile(
     domains: &DomainMap,
     features: &[Feature],
     use_cases: &[UseCase],
     rules: &[BusinessRule],
-    docs: &[ExistingDoc],
+    corpus: &[Section],
     judgements: &Judgements,
 ) -> Reconciliation {
     Reconciliation::new(
-        candidates(items(domains, features, use_cases, rules), &corpus(docs)),
+        candidates(items(domains, features, use_cases, rules), corpus),
         judgements,
     )
 }
 
+/// What a section is to an item.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Answer {
+    Covers,
+    Contradicts,
+    Unrelated,
+}
+
+/// The answer on one section of an item.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct JudgedSection {
+    /// `path#heading`.
+    pub section: String,
+    pub answer: Answer,
+    /// With `contradicts`: what the section states.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub doc_states: Option<String>,
+    /// With `contradicts`: what the generated item states instead.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub item_states: Option<String>,
+}
+
+/// The verdict on one item, every section answered.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Judged {
+    pub kind: ItemKind,
+    pub label: String,
+    /// Of the item's text and of its sections' text ([`Candidate::fingerprint_with`]).
+    pub fingerprint: String,
+    /// The model that answered.
+    pub model: String,
+    pub sections: Vec<JudgedSection>,
+}
+
+/// `.retrodoc/cache/reconciliation.yaml`.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Judgements {
+    /// The rule of what the judge is shown of a section the fingerprints of `items` were computed with (REC-17).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shown_rule: Option<String>,
+    /// The hash of the judge's prompt and schema the fingerprints of `items` were computed with, so a reader
+    /// applies a verdict without the judge (REC-17).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub request: Option<String>,
+    #[serde(default)]
+    pub items: Vec<Judged>,
+}
+
+impl Judgements {
+    /// Missing or unreadable: none.
+    #[must_use]
+    pub fn load(repo_root: &Path) -> Self {
+        load_yaml(&Artifact::Reconciliation.path(repo_root)).unwrap_or_default()
+    }
+
+    /// # Errors
+    ///
+    /// Returns an error if the file can't be written.
+    pub fn save(&self, repo_root: &Path) -> Result<(), CacheError> {
+        save_yaml(&Artifact::Reconciliation.path(repo_root), self)
+    }
+
+    /// The verdict on `candidate` while its texts are the ones it was given on, fingerprinted with the
+    /// recorded values (REC-17): none when the file records neither.
+    #[must_use]
+    pub fn of(&self, candidate: &Candidate) -> Option<&Judged> {
+        let (Some(shown_rule), Some(request)) = (&self.shown_rule, &self.request) else {
+            return None;
+        };
+        self.with_fingerprint(candidate, &candidate.fingerprint_with(shown_rule, request))
+    }
+
+    /// The verdict on `candidate` saved with the fingerprint `print`.
+    #[must_use]
+    pub fn with_fingerprint(&self, candidate: &Candidate, print: &str) -> Option<&Judged> {
+        self.items.iter().find(|j| {
+            j.kind == candidate.item.kind
+                && j.label == candidate.item.label
+                && j.fingerprint == print
+        })
+    }
+}
+
+impl Candidate {
+    /// Hash of the item's text, of the origin and text of its sections, of the rule of what the judge is
+    /// shown of a section and of its request (ADR 0037, ADR 0040), those two given.
+    #[must_use]
+    pub fn fingerprint_with(&self, shown_rule: &str, request: &str) -> String {
+        let mut parts = vec![
+            shown_rule.to_string(),
+            request.to_string(),
+            self.item.kind.label().to_string(),
+            self.item.query.clone(),
+        ];
+        for section in &self.sections {
+            parts.push(section.at.origin());
+            parts.push(section.text.clone());
+        }
+        let mut joined = String::new();
+        for part in parts {
+            joined.push_str(&part);
+            joined.push('\0');
+        }
+        hash_content(&joined)
+    }
+}
+
 #[cfg(test)]
 mod matching_tests;
-#[cfg(test)]
-mod tests;

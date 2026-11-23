@@ -24,6 +24,7 @@ mod citations;
 pub mod confidence;
 pub mod contexts;
 pub mod diagrams;
+pub mod doc_corpus;
 pub mod domains;
 pub mod entry_points;
 pub mod error;
@@ -37,6 +38,9 @@ mod per_feature;
 mod progress;
 pub mod ranking;
 pub mod reconcile;
+/// The `reconcile` pass, the LLM judge of the reconciliation.
+#[path = "reconcile/judge.rs"]
+pub mod reconcile_judge;
 pub mod report;
 mod request;
 mod response;

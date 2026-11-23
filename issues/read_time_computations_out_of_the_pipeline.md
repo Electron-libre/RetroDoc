@@ -58,9 +58,9 @@ behaviour change, no spec (pure refactor).
    `docs-reconciliation` amended; verified by a test of the recorded parts and of the rewrite. (autonomous)
 3. [x] Split the tests of the reconciliation: the judge's tests to a file of their own (`reconcile/tests.rs` is 1,166
    lines, over the file size limit), no change of behaviour; verified by the same tests passing. (autonomous)
-4. [ ] Reconciliation prepared in place: the judge out of `reconcile/` into a pipeline module of its own, `corpus` to
+4. [x] Reconciliation prepared in place: the judge out of `reconcile/` into a pipeline module of its own, `corpus` to
    `retrodoc-ingest` (returning the `Section` of the reconciliation), `reconcile/` reaching only paths that resolve
-   in core too; verified by the tests and `project-check`.
+   in core too; verified by the tests and `project-check`. (autonomous)
 5. [ ] Exact move of `reconcile/` to `retrodoc_core::reconcile` (`deliverable-size` counts only an exact rename once),
    `generate`, the MCP crate, the web tests and the CLI repointed; verified by the moved tests,
    `cache_format_sample` and `project-check`.
@@ -106,5 +106,16 @@ behaviour change, no spec (pure refactor).
 - checks: tests (32 reconcile tests, as before), lint, specs green in `project-check`; docs n/a (no doc names the
   test files).
 - red: none (no change of behaviour).
+- Code review: no findings
+- not verified: none.
+
+### Deliverable 4
+- done: `reconcile/mod.rs` holds the verdicts (`Judgements`, `Judged`, `JudgedSection`, `Answer`, their load and
+  save in `CacheError`, `Candidate::fingerprint_with` over `hash_content`) and reaches only `retrodoc_core` paths;
+  the judge is the module `reconcile_judge` (`reconcile/judge.rs`, its tests `reconcile/tests.rs`), with `recorded`,
+  `fingerprint` and `to_judge` as functions; `corpus` in `doc_corpus` with its test; `reconcile` takes the sections;
+  `generate` and the MCP read model repointed; the matching tests build their sections by hand.
+- checks: tests, lint, specs, docs (`pipeline.md`) green in `project-check`.
+- red: none (no change of behaviour; the fingerprint is computed the same, the reuse tests pass).
 - Code review: no findings
 - not verified: none.

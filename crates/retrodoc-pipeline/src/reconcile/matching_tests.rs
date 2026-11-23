@@ -1,15 +1,21 @@
-use std::path::PathBuf;
-
+use retrodoc_core::artifacts::domains::{DomainCluster, UNCATEGORIZED_SLUG};
 use retrodoc_core::model::{ConfidenceScore, RuleKind};
 
 use super::*;
-use crate::domains::{DomainCluster, UNCATEGORIZED_SLUG};
 
-fn doc(path: &str, content: &str) -> ExistingDoc {
-    ExistingDoc {
-        path: PathBuf::from(path),
-        content: content.to_string(),
-    }
+/// The sections of a Markdown file whose headings are all `# ` lines, as the corpus holds them.
+fn doc(path: &str, content: &str) -> Vec<Section> {
+    content
+        .split("# ")
+        .filter(|part| !part.trim().is_empty())
+        .map(|part| {
+            let (heading, body) = part.split_once('\n').unwrap_or((part, ""));
+            Section {
+                at: SectionRef::parse(&format!("{path}#{}", heading.trim())),
+                text: format!("# {}\n{}", heading.trim(), body.trim()),
+            }
+        })
+        .collect()
 }
 
 fn domain(slug: &str, name: &str) -> DomainCluster {
@@ -80,12 +86,12 @@ fn verdict(label: &str, entry_points: usize, confidence: Option<f32>) -> ItemVer
 // spec: REC-2 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[test]
 fn an_item_keeps_at_most_three_sections_sharing_half_of_its_words_best_first() {
-    let docs = [doc(
+    let docs = doc(
         "docs/guide.md",
         "# Invoices\nPay an invoice by card.\n\n# Paying\nPay the invoice.\n\n# Cards\nInvoice card.\n\n\
          # Again\nPay an invoice, pay it, the invoice.\n\n# Riders\nRiders deliver orders.\n",
-    )];
-    let corpus = corpus(&docs);
+    );
+    let corpus = docs;
     let found = candidates(
         vec![
             Item {
@@ -122,10 +128,10 @@ fn an_item_keeps_at_most_three_sections_sharing_half_of_its_words_best_first() {
 // spec: REC-2 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[test]
 fn an_item_its_description_matches_nowhere_is_searched_with_its_name_alone() {
-    let docs = [doc(
+    let docs = doc(
         "docs/api.md",
         "# Tags\nList, create and delete tags.\n\n# Bookmarks\nSave a bookmark with a title and notes.\n",
-    )];
+    );
     let elsewhere = "Users rename, merge and categorize labels used across the library.";
     let map = DomainMap {
         domains: vec![DomainCluster {
@@ -140,7 +146,7 @@ fn an_item_its_description_matches_nowhere_is_searched_with_its_name_alone() {
     let mut save = feature("save", "tagging", "Tags of a bookmark", 0);
     save.description = "Save a bookmark with a title and notes.".into();
 
-    let found = candidates(items(&map, &[tags, save], &[delete], &[]), &corpus(&docs));
+    let found = candidates(items(&map, &[tags, save], &[delete], &[]), &docs);
 
     let origins = |label: &str| -> Vec<String> {
         let c = found.iter().find(|c| c.item.label == label).unwrap();
@@ -163,11 +169,11 @@ fn an_item_its_description_matches_nowhere_is_searched_with_its_name_alone() {
 // spec: REC-2 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[test]
 fn an_item_its_text_matches_nowhere_is_searched_with_its_identifiers() {
-    let docs = [doc(
+    let docs = doc(
         "README.md",
         "# Bookmarks\nArchive a bookmark to hide it from the list.\n\n# Tags\nA Tag groups bookmarks.\n\n\
          # Install\nGet the image, then post your settings.\n",
-    )];
+    );
     let map = DomainMap {
         domains: vec![DomainCluster {
             description: "Classement des favoris par étiquettes.".into(),
@@ -187,7 +193,7 @@ fn an_item_its_text_matches_nowhere_is_searched_with_its_identifiers() {
 
     let found = candidates(
         items(&map, &[archive, unmatched], &[hide], &[unique]),
-        &corpus(&docs),
+        &docs,
     );
 
     let origins = |label: &str| -> Vec<String> {
@@ -275,7 +281,7 @@ fn every_kind_of_item_is_searched_with_its_name_and_description() {
 // spec: REC-3 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[test]
 fn no_matching_section_is_undocumented_and_a_cited_doc_section_documents_a_rule() {
-    let docs = [doc("README.md", "# Limits\nA cart holds ten items.\n")];
+    let docs = doc("README.md", "# Limits\nA cart holds ten items.\n");
     let rules = [
         rule("cart-1", "Riders above the weekly cap are paused.", vec![]),
         rule(
@@ -389,35 +395,10 @@ fn a_domain_is_as_trusted_as_its_features() {
     assert!((found[0].confidence.unwrap() - 0.6).abs() < 1e-6);
 }
 
-// spec: REC-2 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
-#[test]
-fn two_sections_of_one_file_under_the_same_heading_are_one_section() {
-    let docs = [doc(
-        "docs/guide.md",
-        "# Example\nPay by card.\n\n# Other\nNothing.\n\n# Example\nRefund by wire.\n",
-    )];
-    let sections = corpus(&docs);
-    let examples: Vec<&Section> = sections
-        .iter()
-        .filter(|s| s.at.origin() == "docs/guide.md#Example")
-        .collect();
-    assert_eq!(examples.len(), 1);
-    assert!(
-        examples[0].text.contains("Pay by card."),
-        "{}",
-        examples[0].text
-    );
-    assert!(
-        examples[0].text.contains("Refund by wire."),
-        "{}",
-        examples[0].text
-    );
-}
-
 // spec: REC-3 (internal: the pass needs an LLM through the binary; a fake provider drives it here)
 #[test]
 fn a_rule_citing_a_section_that_is_gone_is_matched_like_the_others() {
-    let docs = [doc("README.md", "# Limits\nA cart holds ten items.\n")];
+    let docs = doc("README.md", "# Limits\nA cart holds ten items.\n");
     let rules = [
         rule(
             "cart-1",
