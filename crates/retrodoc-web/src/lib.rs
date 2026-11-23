@@ -4,7 +4,7 @@
 //! for the ask page of `retrodoc ui --ask` ([`Asking`], ADR 0048), and writes
 //! nothing but the human reviews and edits its forms send ([`review_form`]).
 //!
-//! The pages are built from [`GeneratedDocs`], the read model `retrodoc-mcp`
+//! The pages are built from [`GeneratedDocs`], the read model `retrodoc-docs`
 //! loads, turned into the plain view structs of [`view`]; only [`router`] and
 //! [`serve`] know HTTP. The docs are read once, at start, and rebuilt when the
 //! edits saved beside them change ([`retrodoc_docs::edits::Live`]); the reviews

@@ -43,7 +43,7 @@ re-ranked (the `priority` and `depends_on` of each issue file), update its plann
 
 ## Architecture
 
-Cargo workspace, ten crates under `crates/`, dependency direction flows one way (no cycles):
+Cargo workspace, eleven crates under `crates/`, dependency direction flows one way (no cycles):
 
 ```
 retrodoc-cli ──> retrodoc-pipeline ──> retrodoc-ingest ──> retrodoc-core
@@ -51,10 +51,11 @@ retrodoc-cli ──> retrodoc-pipeline ──> retrodoc-ingest ──> retrodoc-
              ──> retrodoc-llm      ──────────────────────> retrodoc-core
              ──> retrodoc-ingest
 retrodoc-cli ──> retrodoc-render ──> retrodoc-core
-retrodoc-cli ──> retrodoc-mcp ──> retrodoc-ingest, retrodoc-core
-retrodoc-cli ──> retrodoc-web ──> retrodoc-agent, retrodoc-llm, retrodoc-mcp, retrodoc-render, retrodoc-core
-retrodoc-cli ──> retrodoc-bench ──> retrodoc-agent, retrodoc-mcp, retrodoc-pipeline, retrodoc-ingest, retrodoc-llm, retrodoc-core
-retrodoc-cli ──> retrodoc-agent ──> retrodoc-mcp, retrodoc-llm
+retrodoc-cli ──> retrodoc-docs ──> retrodoc-ingest, retrodoc-core
+retrodoc-cli ──> retrodoc-mcp ──> retrodoc-docs
+retrodoc-cli ──> retrodoc-web ──> retrodoc-agent, retrodoc-llm, retrodoc-docs, retrodoc-render, retrodoc-core
+retrodoc-cli ──> retrodoc-bench ──> retrodoc-agent, retrodoc-docs, retrodoc-pipeline, retrodoc-ingest, retrodoc-llm, retrodoc-core
+retrodoc-cli ──> retrodoc-agent ──> retrodoc-docs, retrodoc-llm
 ```
 
 Per-crate detail (modules, passes, behaviours that span passes) lives in `docs/crates/`; read the file
@@ -73,10 +74,12 @@ of the crate you are about to touch. High-level view: `docs/ARCHITECTURE.md`. De
   frozen inputs) and the measuring examples; reaches pass internals through the `bench` feature of the pipeline.
   → `docs/crates/bench.md`
 - **retrodoc-render**: writes the Markdown/Mermaid docs, deterministic and idempotent. → `docs/crates/render-mcp-cli.md`
-- **retrodoc-mcp**: the typed read model of the generated docs, the run history (a snapshot per `generate`), and
-  the read-only, LLM-free MCP server over it.
+- **retrodoc-docs**: the reading of the generated docs (ADR 0054): the typed read model, the search, the run history
+  (a snapshot per `generate`), the stores of the reviews and edits, the debt and the audit, and the read-only tools.
+  → `docs/crates/docs.md`
+- **retrodoc-mcp**: the read-only, LLM-free MCP server over the read-only tools of `retrodoc-docs`.
   → `docs/crates/render-mcp-cli.md`
-- **retrodoc-agent**: the agent of `ask` and `chat`, a bounded tool loop over the read-only tools of `retrodoc-mcp` (ADR 0047).
+- **retrodoc-agent**: the agent of `ask` and `chat`, a bounded tool loop over the read-only tools of `retrodoc-docs` (ADR 0047).
   → `docs/crates/agent.md`
 - **retrodoc-web**: local web interface, HTML rendered on the server from the read model (ADR 0039), the ask page of `ui --ask` (ADR 0048, its steps streamed: ADR 0049).
   → `docs/crates/render-mcp-cli.md`

@@ -1,5 +1,5 @@
 //! The form of the review of a section (`specs/web-ui.md`, WEB-81 to WEB-88): a `POST` to the
-//! page of the section records its review through the store of `retrodoc-mcp`, or removes it, and
+//! page of the section records its review through the store of `retrodoc-docs`, or removes it, and
 //! answers the review alone to `htmx`, else a redirect to the page.
 
 use std::sync::Arc;

@@ -22,7 +22,7 @@ flowchart LR
 
 ## 2. The crates
 
-Ten crates; dependencies only point downwards (no cycles).
+Eleven crates; dependencies only point downwards (no cycles).
 
 ```mermaid
 flowchart TD
@@ -30,7 +30,8 @@ flowchart TD
     pipe["<b>retrodoc-pipeline</b><br/>LLM passes, caches, report"]
     render["<b>retrodoc-render</b><br/>Markdown/Mermaid files,<br/>diff, idempotent write"]
     agent["<b>retrodoc-agent</b><br/>the ask agent: a tool loop<br/>over the read-only tools"]
-    mcp["<b>retrodoc-mcp</b><br/>read model, MCP server +<br/>lexical search over the generated docs"]
+    docs["<b>retrodoc-docs</b><br/>read model, read-only tools +<br/>lexical search over the generated docs"]
+    mcp["<b>retrodoc-mcp</b><br/>MCP server over<br/>the read-only tools"]
     bench["<b>retrodoc-bench</b><br/>quality benchmark,<br/>replays, measures"]
     web["<b>retrodoc-web</b><br/>local web interface<br/>over the generated docs"]
     ingest["<b>retrodoc-ingest</b><br/>walker, git history,<br/>existing docs"]
@@ -41,22 +42,24 @@ flowchart TD
     cli --> render
     cli --> ingest
     cli --> llm
+    cli --> docs
     cli --> mcp
     cli --> web
     cli --> bench
     cli --> agent
-    agent --> mcp
+    agent --> docs
     agent --> llm
     bench --> pipe
     bench --> agent
-    bench --> mcp
+    bench --> docs
     web --> agent
     web --> llm
-    web --> mcp
+    web --> docs
     web --> render
     web --> core
-    mcp --> ingest
-    mcp --> core
+    mcp --> docs
+    docs --> ingest
+    docs --> core
     pipe --> ingest
     pipe --> llm
     pipe --> core
@@ -73,9 +76,10 @@ flowchart TD
 | `retrodoc-pipeline` | The brain: one module per pass, plus caches and fingerprints. |
 | `retrodoc-bench` | The measuring tools, out of the product code: the quality benchmark behind `retrodoc benchmark` and `benchmark-table`, the replays of one pass on frozen inputs and the measuring examples ([ADR 0042](adr/0042-the-measuring-tools-live-in-a-crate-of-their-own.md)). |
 | `retrodoc-render` | Turns the result into Markdown files, compares with disk, writes only what changed. |
-| `retrodoc-mcp` | Read-only access to the generated docs, without any LLM call: the typed read model `GeneratedDocs`, the BM25 search behind `retrodoc search` and the MCP server for LLM agents (`retrodoc mcp`, `rmcp`, stdio) with its seven read-only tools; also the snapshots of the run history that `generate` saves and the difference between two of them ([ADR 0043](adr/0043-the-run-history-is-one-snapshot-file-per-run.md)), and the stores of the human reviews and edits of the sections ([ADR 0044](adr/0044-the-human-reviews-live-in-one-file-outside-the-cache.md), [ADR 0045](adr/0045-the-human-edits-are-an-overlay-outside-the-cache.md)). |
-| `retrodoc-agent` | The agent of `retrodoc ask` and `retrodoc chat` (a `Conversation` of questions): a model answers a question by calling the seven read-only tools of `retrodoc-mcp` in a bounded number of rounds, then once more without tools; it writes nothing ([ADR 0047](adr/0047-the-ask-agent-is-a-crate-over-the-read-only-tools.md), `specs/ask.md`). |
-| `retrodoc-web` | The local web interface over the generated docs: HTML pages rendered on the server (`axum`, `askama`, vendored `htmx` and `mermaid`) from the read model of `retrodoc-mcp` and the rules of `retrodoc-render` (the doc links, the set-apart section), no LLM call but the ask page of `ui --ask`, through the agent of `retrodoc-agent` ([ADR 0048](adr/0048-the-web-interface-asks-the-docs-only-with-ask.md)), each question run in a task whose steps the page follows by server-sent events ([ADR 0049](adr/0049-a-question-of-the-ask-page-runs-in-a-task-and-streams-its-steps.md)); it writes only the human reviews and edits its forms send, through the store of `retrodoc-mcp` ([ADR 0039](adr/0039-a-server-rendered-web-interface-over-the-generated-docs.md)). |
+| `retrodoc-docs` | Read-only access to the generated docs, without any LLM call, for every reader ([ADR 0054](adr/0054-the-generated-docs-are-read-through-a-crate-of-their-own.md)): the typed read model `GeneratedDocs`, the BM25 search behind `retrodoc search` and the seven read-only tools with their catalog, which the MCP server and the `ask` agent offer alike; also the snapshots of the run history that `generate` saves and the difference between two of them ([ADR 0043](adr/0043-the-run-history-is-one-snapshot-file-per-run.md)), and the stores of the human reviews and edits of the sections ([ADR 0044](adr/0044-the-human-reviews-live-in-one-file-outside-the-cache.md), [ADR 0045](adr/0045-the-human-edits-are-an-overlay-outside-the-cache.md)). |
+| `retrodoc-mcp` | The MCP server for LLM agents (`retrodoc mcp`, `rmcp`, stdio): the seven read-only tools of `retrodoc-docs` behind the protocol ([ADR 0016](adr/0016-read-only-llm-free-mcp-server-for-agents.md)). |
+| `retrodoc-agent` | The agent of `retrodoc ask` and `retrodoc chat` (a `Conversation` of questions): a model answers a question by calling the seven read-only tools of `retrodoc-docs` in a bounded number of rounds, then once more without tools; it writes nothing ([ADR 0047](adr/0047-the-ask-agent-is-a-crate-over-the-read-only-tools.md), `specs/ask.md`). |
+| `retrodoc-web` | The local web interface over the generated docs: HTML pages rendered on the server (`axum`, `askama`, vendored `htmx` and `mermaid`) from the read model of `retrodoc-docs` and the rules of `retrodoc-render` (the doc links, the set-apart section), no LLM call but the ask page of `ui --ask`, through the agent of `retrodoc-agent` ([ADR 0048](adr/0048-the-web-interface-asks-the-docs-only-with-ask.md)), each question run in a task whose steps the page follows by server-sent events ([ADR 0049](adr/0049-a-question-of-the-ask-page-runs-in-a-task-and-streams-its-steps.md)); it writes only the human reviews and edits its forms send, through the store of `retrodoc-docs` ([ADR 0039](adr/0039-a-server-rendered-web-interface-over-the-generated-docs.md)). |
 | `retrodoc-cli` | The `retrodoc` binary: parses arguments and wires the crates together. |
 
 ## 3. The commands
@@ -372,8 +376,8 @@ flowchart LR
 | Add or change a pipeline pass | `crates/retrodoc-pipeline/src/` (follow the existing pass + its fake-provider test) |
 | Change the benchmark, a replay or a measure | `crates/retrodoc-bench/` (`src/benchmark/`, `examples/`), `docs/crates/bench.md` |
 | Change the generated Markdown | `crates/retrodoc-render/src/markdown/` (one file per page) |
-| Change what an agent can ask (MCP tools, search, code access) | `crates/retrodoc-mcp/src/` (`tools/` the answers, `server.rs` the wiring, `source.rs` the code access scope) |
-| Change what the web interface shows | `crates/retrodoc-web/` (`view.rs` what a page shows, `code.rs`, `files.rs`, `collected.rs`, `glossary.rs`, `rules.rs`, `debt.rs`, `audit.rs` (with `trends.rs`), `history.rs`, `actors.rs`, `map.rs` and `search.rs` the other pages, `review.rs` and `review_form.rs` the review of a section and its form, `edit.rs` and `edit_form.rs` its human edit and its form, `templates/` the layout, `pages.rs` the routes), `specs/web-ui.md`; the data comes from `GeneratedDocs` in `crates/retrodoc-mcp/src/read_model.rs` |
+| Change what an agent can ask (MCP tools, search, code access) | `crates/retrodoc-docs/src/` (`tools/` the answers, `catalog.rs` the tools as data, `source.rs` the code access scope), `crates/retrodoc-mcp/src/server.rs` the wiring to MCP |
+| Change what the web interface shows | `crates/retrodoc-web/` (`view.rs` what a page shows, `code.rs`, `files.rs`, `collected.rs`, `glossary.rs`, `rules.rs`, `debt.rs`, `audit.rs` (with `trends.rs`), `history.rs`, `actors.rs`, `map.rs` and `search.rs` the other pages, `review.rs` and `review_form.rs` the review of a section and its form, `edit.rs` and `edit_form.rs` its human edit and its form, `templates/` the layout, `pages.rs` the routes), `specs/web-ui.md`; the data comes from `GeneratedDocs` in `crates/retrodoc-docs/src/read_model.rs` |
 | Add a CLI command | `crates/retrodoc-cli/src/commands/` + `main.rs` |
 | Change config options | `crates/retrodoc-core/src/config.rs` |
 | Understand why a design choice was made | `docs/adr/` (ADRs 0001–0014 were written retroactively from the history; 0015 to 0018 were written with the change; 0019 to 0023 decide the redesign of `docs/findings.md` §6 ahead of its implementation; 0024 adds DeepSeek as a provider; 0025 locates the business files with a pass of its own; 0026 to 0028 record measured steps of the redesign: mechanical confidence checks, chunking by parse, single read of the business files) |

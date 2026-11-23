@@ -1,6 +1,6 @@
 # 0054. The generated docs are read through a crate of their own
 
-Status: Proposed
+Status: Accepted
 
 ## Context
 

@@ -57,10 +57,10 @@ refactor: no change of behaviour, no spec amended, the rerun stays a no-op.
    0054; verified by `cardinal run project-check` (the moved tests pass unchanged, the spec traceability holds) and
    `cargo tree` (no reader but the CLI depends on `retrodoc-mcp`, `retrodoc-docs` has no normal dependency on the
    pipeline). (autonomous)
-3. [ ] Docs: ADR 0054 accepted, `docs/ARCHITECTURE.md` (graph and table), the dependency graph of `CLAUDE.md`,
+3. [x] Docs: ADR 0054 accepted, `docs/ARCHITECTURE.md` (graph and table), the dependency graph of `CLAUDE.md`,
    `docs/crates/` (a `docs.md` of the new crate, `render-mcp-cli.md` left with the server), the doc comments that
    name `retrodoc-mcp` for the read model; verified by `skill:update-docs` and a grep of `retrodoc-mcp` and
-   `retrodoc_mcp` left only where the server is meant.
+   `retrodoc_mcp` left only where the server is meant. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -105,4 +105,21 @@ refactor: no change of behaviour, no spec amended, the rerun stays a no-op.
 - red: none (refactor, no new test)
 - Code review: no findings
 - not verified: none
+- decisions needed: none
+
+### Deliverable 3
+- done: ADR 0054 accepted; `docs/crates/docs.md` holds the detail of the read model moved from
+  `render-mcp-cli.md`, which keeps the server; the graphs and tables of `CLAUDE.md`, `docs/ARCHITECTURE.md` and
+  `README.md` name eleven crates; the doc comments and crate docs that meant the read model name `retrodoc-docs`.
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | clippy pedantic clean |
+| specs | traceability unchanged |
+| docs | `skill:update-docs` over `d66bfd8..HEAD`; `retrodoc-mcp` left only where the server is meant |
+
+- red: none (docs only)
+- Code review: no findings
+- not verified: the Mermaid graph of `docs/ARCHITECTURE.md` not rendered
 - decisions needed: none

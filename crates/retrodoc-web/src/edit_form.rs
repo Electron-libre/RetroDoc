@@ -1,6 +1,6 @@
 //! The form of the human edit of a section (`specs/web-ui.md`, WEB-93 to WEB-99): a `POST` to
 //! `/edit` followed by the URL of the page of the section records its edit through the store of
-//! `retrodoc-mcp`, the fields it leaves as generated left out, or removes it, and answers `htmx`
+//! `retrodoc-docs`, the fields it leaves as generated left out, or removes it, and answers `htmx`
 //! with a reload of the page, else a redirect to it; a refusal answers `htmx` with the form alone,
 //! the error in it. The path sits under `/edit`, not after the
 //! page's: a feature or a use case may be named `edit`. A `POST` to `/preview` followed by the URL
