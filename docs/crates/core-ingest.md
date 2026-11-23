@@ -9,8 +9,9 @@ Detail moved out of `CLAUDE.md`. Overview of all crates: `docs/ARCHITECTURE.md` 
   folds accented Latin letters to their base letters, for the slugs (DLG-5) and the tag of `[output] language` (DLG-9);
   `normalize`, the one comparison of names across passes),
   the artifacts the readers of the docs load (`artifacts/`, ADR 0051: `Glossary` with `merged_entities`, `DomainMap`
-  with the domains it publishes, `Scope`, what the budget left out, `BehaviourCoverage`, `SourceHashes`, each with its `load` and
-  `save`),
+  with the domains it publishes, `Scope`, what the budget left out, `BehaviourCoverage`, `SourceHashes`, `SetAside`, what the rules pass set aside,
+  each with its `load` and `save`; `items.rs`: `load_features`, `load_technical_features`, `load_use_cases`,
+  `load_rules` and the savers of the features, use cases and rules),
   and the layout of `.retrodoc/cache/` the pipeline writes and the readers of the docs read (`cache/`, ADR 0051):
   `Artifact`, the names of everything under `.retrodoc/cache/` and which `generate --force` clears; `load_yaml`,
   `load_json` (a missing or unreadable file is a first run, `None`, not an error), `save_yaml`, `save_json` (written

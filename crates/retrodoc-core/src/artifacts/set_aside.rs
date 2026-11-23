@@ -6,8 +6,12 @@
 //! A rule dropped as noise is kept whole, so that `keep_rules` of `retrodoc.toml` puts it back
 //! without asking the LLM again.
 
-use retrodoc_core::model::BusinessRule;
+use std::path::Path;
+
 use serde::{Deserialize, Serialize};
+
+use crate::cache::{load_yaml, save_yaml, Artifact, CacheError};
+use crate::model::BusinessRule;
 
 /// A feature that got no rule because it describes how the application is tested.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -44,13 +48,27 @@ pub struct SetAside {
 }
 
 impl SetAside {
+    /// What the last run of the rules pass set aside. Missing or unreadable: `None`.
+    #[must_use]
+    pub fn load(repo_root: &Path) -> Option<Self> {
+        load_yaml(&Artifact::RulesSetAside.path(repo_root))
+    }
+
+    /// # Errors
+    ///
+    /// Returns an error if the file can't be written.
+    pub fn save(&self, repo_root: &Path) -> Result<(), CacheError> {
+        save_yaml(&Artifact::RulesSetAside.path(repo_root), self)
+    }
+
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.features.is_empty() && self.rules.is_empty()
     }
 
     /// What was set aside for the feature `slug`.
-    pub(super) fn of_feature(&self, slug: &str) -> Self {
+    #[must_use]
+    pub fn of_feature(&self, slug: &str) -> Self {
         Self {
             features: self
                 .features
@@ -69,12 +87,34 @@ impl SetAside {
 
     /// Drops the features the user put back (`keep_features`): they are not set aside, even while
     /// their rules are not stated yet.
-    pub(super) fn forget_features(&mut self, keep_features: &[String]) {
+    pub fn forget_features(&mut self, keep_features: &[String]) {
         self.features.retain(|f| !keep_features.contains(&f.slug));
     }
 
-    pub(super) fn extend(&mut self, other: Self) {
+    pub fn extend(&mut self, other: Self) {
         self.features.extend(other.features);
         self.rules.extend(other.rules);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_saved_set_aside_loads_back() {
+        let dir = tempfile::tempdir().unwrap();
+        assert_eq!(SetAside::load(dir.path()), None);
+        let aside = SetAside {
+            features: vec![AsideFeature {
+                slug: "run-tests".into(),
+                name: "Run tests".into(),
+                description: "Runs the test suite.".into(),
+                reason: "describes the tests".into(),
+            }],
+            rules: Vec::new(),
+        };
+        aside.save(dir.path()).unwrap();
+        assert_eq!(SetAside::load(dir.path()), Some(aside));
     }
 }

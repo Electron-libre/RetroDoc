@@ -1,4 +1,5 @@
 use super::*;
+use crate::artifact::Artifact;
 use crate::citations::resolve_cited_path;
 
 use crate::brief::Evidence;

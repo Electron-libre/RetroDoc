@@ -6,39 +6,16 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
+pub use retrodoc_core::artifacts::{load_features, load_technical_features, save_features};
 use retrodoc_core::model::Feature;
 use retrodoc_core::text::fold_latin;
 
-use crate::artifact::{load_yaml, save_yaml, Artifact};
+use crate::artifact::{save_yaml, Artifact};
 use crate::error::PipelineError;
 
 mod from_surface;
 pub use self::from_surface::{build_features_from_surface, entry_point_id};
 pub(crate) use self::from_surface::{file_ranges, tag, tag_position};
-
-/// Loads a previously saved `features.yaml`. Missing or unreadable: `None`
-/// (first run), not an error.
-#[must_use]
-pub fn load_features(repo_root: &Path) -> Option<Vec<Feature>> {
-    load_yaml(&Artifact::Features.path(repo_root))
-}
-
-/// Persists `features` as `.retrodoc/cache/features.yaml`; also used to
-/// re-save once confidence scores are attached.
-///
-/// # Errors
-///
-/// Returns an error if the file can't be written or serialization fails.
-pub fn save_features(repo_root: &Path, features: &[Feature]) -> Result<(), PipelineError> {
-    save_yaml(&Artifact::Features.path(repo_root), features)
-}
-
-/// Loads the features the features pass set aside as technical (`features-set-aside.yaml`).
-/// Missing or unreadable: `None`.
-#[must_use]
-pub fn load_technical_features(repo_root: &Path) -> Option<Vec<Feature>> {
-    load_yaml(&Artifact::FeaturesSetAside.path(repo_root))
-}
 
 /// The features of the last run of the features pass, those set aside as technical included.
 fn load_surface_features(repo_root: &Path) -> Option<Vec<Feature>> {

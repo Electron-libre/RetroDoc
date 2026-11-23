@@ -17,13 +17,14 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
+pub use retrodoc_core::artifacts::{load_use_cases, save_use_cases};
 use retrodoc_core::config::RulesConfig;
 use retrodoc_core::model::{Actor, ActorKind, Feature, SourceRef, Step, UseCase};
 use retrodoc_llm::LlmProvider;
 use serde::Deserialize;
 
 use crate::actors::Actors;
-use crate::artifact::{load_yaml, save_yaml, warn_on_error, Artifact};
+use crate::artifact::warn_on_error;
 use crate::brief::{Evidence, ProductBrief};
 use crate::chunks::{Focus, Splitter};
 use crate::entry_points::{EntryPoint, EntryPoints};
@@ -55,23 +56,6 @@ const MAX_SLICE_FILES: usize = 8;
 /// Entry points of a feature asked in one call: a feature with more is asked in slices of whole
 /// files (a file over the limit is cut), so that no answer is cut at the output limit.
 const MAX_ENTRIES_PER_CALL: usize = 12;
-
-/// Loads a previously saved `use-cases.yaml`. Missing or unreadable: `None`
-/// (first run), not an error.
-#[must_use]
-pub fn load_use_cases(repo_root: &Path) -> Option<Vec<UseCase>> {
-    load_yaml(&Artifact::UseCases.path(repo_root))
-}
-
-/// Persists `use_cases` as `.retrodoc/cache/use-cases.yaml`; also used to
-/// re-save once diagrams are attached.
-///
-/// # Errors
-///
-/// Returns an error if the file can't be written or serialization fails.
-pub fn save_use_cases(repo_root: &Path, use_cases: &[UseCase]) -> Result<(), PipelineError> {
-    save_yaml(&Artifact::UseCases.path(repo_root), use_cases)
-}
 
 /// What the LLM said about a feature's use cases.
 enum Answer {

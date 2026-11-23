@@ -22,6 +22,7 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
+pub use retrodoc_core::artifacts::{load_rules, save_rules, AsideFeature, AsideRule, SetAside};
 use retrodoc_core::config::RulesConfig;
 use retrodoc_core::model::{BusinessRule, Feature, UseCase};
 use retrodoc_llm::LlmProvider;
@@ -35,7 +36,6 @@ use crate::roles::load_splitter;
 use crate::text::feature_line;
 use crate::use_cases::UseCaseContext;
 
-mod aside;
 mod dedup;
 mod grounding;
 mod input;
@@ -60,7 +60,6 @@ pub(crate) mod bench {
     }
 }
 
-pub use self::aside::{AsideFeature, AsideRule, SetAside};
 use self::dedup::{merge_duplicates, Reach};
 pub use self::input::RuleInput;
 pub(crate) use self::judge::judge_prompt;
@@ -69,26 +68,11 @@ pub use self::judge::{JUDGE_SYSTEM_PROMPT, NOISE};
 use self::prompt::{rules_prompt, STATEMENT};
 use self::split::stated_rules;
 
-/// Loads a previously saved `rules.yaml`. Missing or unreadable: `None` (first run), not an error.
-#[must_use]
-pub fn load_rules(repo_root: &Path) -> Option<Vec<BusinessRule>> {
-    load_yaml(&Artifact::Rules.path(repo_root))
-}
-
-/// Persists `rules` as `.retrodoc/cache/rules.yaml`.
-///
-/// # Errors
-///
-/// Returns an error if the file can't be written or serialization fails.
-pub fn save_rules(repo_root: &Path, rules: &[BusinessRule]) -> Result<(), PipelineError> {
-    save_yaml(&Artifact::Rules.path(repo_root), rules)
-}
-
 /// What the rules pass set aside on a judgement of the LLM, to check the doubtful cases. Missing or
 /// unreadable: `None`.
 #[must_use]
 pub fn load_set_aside(repo_root: &Path) -> Option<SetAside> {
-    load_yaml(&Artifact::RulesSetAside.path(repo_root))
+    SetAside::load(repo_root)
 }
 
 /// The rules as each feature stated them, else (a run from before this artifact) the saved rules.
@@ -202,7 +186,7 @@ pub async fn build_rules(
     aside.forget_features(&context.put_back.keep_features);
     // Rules first: a fingerprint without its rules would freeze a feature as "none".
     let published = save_published(repo_root, &rules, &aside, &context.put_back, &reach)?;
-    save_yaml(&Artifact::RulesSetAside.path(repo_root), &aside)?;
+    aside.save(repo_root)?;
     prints.save(repo_root)?;
     Ok(published)
 }

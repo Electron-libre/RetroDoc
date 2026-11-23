@@ -39,7 +39,7 @@ pub(crate) fn save_json<T: Serialize + ?Sized>(
 /// For saves made while another error is already being propagated (partial
 /// results of an interrupted pass): a failed write must not mask that error,
 /// but it must not vanish either.
-pub(crate) fn warn_on_error(result: Result<(), PipelineError>) {
+pub(crate) fn warn_on_error<E: std::fmt::Display>(result: Result<(), E>) {
     if let Err(error) = result {
         tracing::warn!("could not save an intermediate artifact: {error}");
     }
