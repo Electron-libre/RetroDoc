@@ -26,7 +26,7 @@ Core gains `serde_yaml`, `sha2` and `schemars`. Inside the pipeline the moved ty
 imports and its `artifact.rs` wraps the saves in `PipelineError`, so the passes did not change. The loaders and
 savers of the features, use cases and rules and the items set aside followed (`issues/done/loaders_of_the_items_in_core.md`):
 their savers return `CacheError`, which the passes convert with `?`. The computations made at read time followed
-(ADR 0053), then the run history (`issues/run_history_out_of_the_pipeline.md`): the records of `usage.json` with
+(ADR 0053), then the run history (`issues/done/run_history_out_of_the_pipeline.md`): the records of `usage.json` with
 the saved shape of the estimate, while the pipeline keeps what builds them (`run_usage`, `estimate`); and the
 progress of the contexts, which core reads through views of `contexts.yaml` and `fingerprints.json` of its own
 rather than take the whole map and the fingerprints, a pipeline test keeping the views true to what it saves.
