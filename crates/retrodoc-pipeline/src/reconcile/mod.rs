@@ -524,4 +524,6 @@ pub fn reconcile(
 }
 
 #[cfg(test)]
+mod matching_tests;
+#[cfg(test)]
 mod tests;

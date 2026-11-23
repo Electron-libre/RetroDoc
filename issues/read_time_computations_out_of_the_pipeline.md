@@ -56,8 +56,8 @@ behaviour change, no spec (pure refactor).
    fingerprints start with (`shown_rule`, `request`), `Judgements::of` fingerprints from them, the same fingerprint as
    before; an older file is rewritten once by the next `generate`, with no LLM call; spec
    `docs-reconciliation` amended; verified by a test of the recorded parts and of the rewrite. (autonomous)
-3. [ ] Split the tests of the reconciliation: the judge's tests to a file of their own (`reconcile/tests.rs` is 1,166
-   lines, over the file size limit), no change of behaviour; verified by the same tests passing.
+3. [x] Split the tests of the reconciliation: the judge's tests to a file of their own (`reconcile/tests.rs` is 1,166
+   lines, over the file size limit), no change of behaviour; verified by the same tests passing. (autonomous)
 4. [ ] Reconciliation prepared in place: the judge out of `reconcile/` into a pipeline module of its own, `corpus` to
    `retrodoc-ingest` (returning the `Section` of the reconciliation), `reconcile/` reaching only paths that resolve
    in core too; verified by the tests and `project-check`.
@@ -97,4 +97,14 @@ behaviour change, no spec (pure refactor).
 - red: REC-17: `struct Judgements has no field named shown_rule` / `no method named fingerprint_with` (compile).
 - Code review: no findings
 - file size: `reconcile/tests.rs` 1,240 lines (was 1,166), split by deliverable 3.
+- not verified: none.
+
+### Deliverable 3
+- done: the matching tests of the reconciliation moved to `reconcile/matching_tests.rs` (465 lines, they move to core
+  with `mod.rs`); `reconcile/tests.rs` keeps the judge's tests (779 lines), which stay in the pipeline. The smaller
+  part was moved: `deliverable-size` counted 1,555 lines the other way round.
+- checks: tests (32 reconcile tests, as before), lint, specs green in `project-check`; docs n/a (no doc names the
+  test files).
+- red: none (no change of behaviour).
+- Code review: no findings
 - not verified: none.
