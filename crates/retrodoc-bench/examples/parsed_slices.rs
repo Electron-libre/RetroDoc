@@ -26,6 +26,9 @@
 //!   WHERE n.kind = 'route';
 //! ```
 //!
+//! A fifth slice, the mix (`issues/resolved_references_in_structure.md`), follows codegraph's edges from a file
+//! they link to other source files and the lexical follow from any other file.
+//!
 //! The schema of that index is codegraph's own: this example reads only these exports. Their paths are relative
 //! to the repository root, as the walker's (a leading `./` is dropped).
 
@@ -80,6 +83,10 @@ struct Totals {
     codegraph: usize,
     /// Lexical vs codegraph.
     codegraph_diff: (usize, usize, usize),
+    /// Sum of the slices of the mix (codegraph, else lexical, per file), with `--codegraph`.
+    mix: usize,
+    /// Lexical vs the mix.
+    mix_diff: (usize, usize, usize),
 }
 
 fn sum_diff(acc: &mut (usize, usize, usize), d: &Diff) {
@@ -89,17 +96,22 @@ fn sum_diff(acc: &mut (usize, usize, usize), d: &Diff) {
 }
 
 impl Totals {
-    fn add_codegraph(&mut self, lexical: &[PathBuf], codegraph: &[PathBuf]) {
+    fn add_codegraph(&mut self, lexical: &[PathBuf], codegraph: &[PathBuf], mix: &[PathBuf]) {
         self.codegraph += codegraph.len();
         sum_diff(&mut self.codegraph_diff, &diff(lexical, codegraph));
+        self.mix += mix.len();
+        sum_diff(&mut self.mix_diff, &diff(lexical, mix));
     }
 
-    /// The two cells of the codegraph slices, appended to [`Totals::row`].
+    /// The four cells of the codegraph slices and of the mix, appended to [`Totals::row`].
     fn codegraph_cells(&self) -> String {
+        let mean = |n: usize| n as f64 / self.files.max(1) as f64;
         let (c, l, g) = self.codegraph_diff;
+        let (mc, ml, mm) = self.mix_diff;
         format!(
-            " {:.1} | {c} / {l} / {g} |",
-            self.codegraph as f64 / self.files.max(1) as f64
+            " {:.1} | {c} / {l} / {g} | {:.1} | {mc} / {ml} / {mm} |",
+            mean(self.codegraph),
+            mean(self.mix)
         )
     }
 
@@ -176,8 +188,7 @@ impl Graph {
         next.into_iter().map(|(t, _)| t.clone()).collect()
     }
 
-    /// As `CodeIndex::slice_with`: hop by hop, a file ranked by its best rank across the frontier, among the
-    /// source files only, at most `max_files`.
+    /// The slice along codegraph's edges alone.
     fn slice(
         &self,
         starts: &[PathBuf],
@@ -185,35 +196,65 @@ impl Graph {
         depth: usize,
         max_files: usize,
     ) -> Vec<PathBuf> {
-        let mut seen: BTreeSet<PathBuf> = starts.iter().cloned().collect();
-        let mut frontier: Vec<PathBuf> = starts.to_vec();
-        let mut slice: Vec<PathBuf> = Vec::new();
-        for _ in 0..depth {
-            let mut hop: BTreeMap<PathBuf, usize> = BTreeMap::new();
-            for file in &frontier {
-                let found = self
-                    .next(file)
-                    .into_iter()
-                    .filter(|t| sources.contains(t) && !seen.contains(t));
-                for (rank, target) in found.enumerate() {
-                    let entry = hop.entry(target).or_insert(usize::MAX);
-                    *entry = (*entry).min(rank);
-                }
-            }
-            let mut next: Vec<(PathBuf, usize)> = hop.into_iter().collect();
-            next.sort_by(|a, b| a.1.cmp(&b.1).then_with(|| a.0.cmp(&b.0)));
-            frontier = Vec::new();
-            for (file, _) in next {
-                if slice.len() >= max_files {
-                    return slice;
-                }
-                seen.insert(file.clone());
-                slice.push(file.clone());
-                frontier.push(file);
+        slice_by(starts, sources, depth, max_files, |file| self.next(file))
+    }
+
+    /// The mix: codegraph's edges from a file they link to other source files, `lexical` from any other.
+    fn mixed_next(
+        &self,
+        file: &Path,
+        sources: &BTreeSet<PathBuf>,
+        lexical: impl Fn(&Path) -> Vec<PathBuf>,
+    ) -> Vec<PathBuf> {
+        let linked: Vec<PathBuf> = self
+            .next(file)
+            .into_iter()
+            .filter(|t| sources.contains(t))
+            .collect();
+        if linked.is_empty() {
+            lexical(file)
+        } else {
+            linked
+        }
+    }
+}
+
+/// As `CodeIndex::slice_with`, going from a file to the files `next` gives (best first): hop by hop, a file ranked
+/// by its best rank across the frontier, among the source files only, at most `max_files`.
+fn slice_by(
+    starts: &[PathBuf],
+    sources: &BTreeSet<PathBuf>,
+    depth: usize,
+    max_files: usize,
+    next: impl Fn(&Path) -> Vec<PathBuf>,
+) -> Vec<PathBuf> {
+    let mut seen: BTreeSet<PathBuf> = starts.iter().cloned().collect();
+    let mut frontier: Vec<PathBuf> = starts.to_vec();
+    let mut slice: Vec<PathBuf> = Vec::new();
+    for _ in 0..depth {
+        let mut hop: BTreeMap<PathBuf, usize> = BTreeMap::new();
+        for file in &frontier {
+            let found = next(file)
+                .into_iter()
+                .filter(|t| sources.contains(t) && !seen.contains(t));
+            for (rank, target) in found.enumerate() {
+                let entry = hop.entry(target).or_insert(usize::MAX);
+                *entry = (*entry).min(rank);
             }
         }
-        slice
+        let mut ranked: Vec<(PathBuf, usize)> = hop.into_iter().collect();
+        ranked.sort_by(|a, b| a.1.cmp(&b.1).then_with(|| a.0.cmp(&b.0)));
+        frontier = Vec::new();
+        for (file, _) in ranked {
+            if slice.len() >= max_files {
+                return slice;
+            }
+            seen.insert(file.clone());
+            slice.push(file.clone());
+            frontier.push(file);
+        }
     }
+    slice
 }
 
 /// A path of an export as the walker writes it.
@@ -302,6 +343,32 @@ struct RunReport {
     details: String,
 }
 
+/// The slices of `starts` along codegraph's edges alone, and along the mix.
+fn codegraph_slices(
+    graph: &Graph,
+    index: &CodeIndex,
+    repo_root: &Path,
+    starts: &[PathBuf],
+    sources: &BTreeSet<PathBuf>,
+) -> (Vec<PathBuf>, Vec<PathBuf>) {
+    let lexical = |from: &Path| {
+        index.slice_with(
+            repo_root,
+            &[from.to_path_buf()],
+            1,
+            usize::MAX,
+            Follow::Lexical,
+        )
+    };
+    let mix = slice_by(starts, sources, SLICE_DEPTH, MAX_SLICE_FILES, |from| {
+        graph.mixed_next(from, sources, lexical)
+    });
+    (
+        graph.slice(starts, sources, SLICE_DEPTH, MAX_SLICE_FILES),
+        mix,
+    )
+}
+
 fn row(repo_root: &Path, detail: bool, codegraph: bool) -> Option<RunReport> {
     let entry_points = EntryPoints::load(repo_root)?;
     let sources = sources_of(repo_root);
@@ -330,17 +397,17 @@ fn row(repo_root: &Path, detail: bool, codegraph: bool) -> Option<RunReport> {
             slice(Follow::Parsed),
         );
         totals.add(structure::is_supported(file), &lexical, &mixed, &parsed);
-        let codegraph_slice = graph
+        let codegraph_slices = graph
             .as_ref()
-            .map(|g| g.slice(starts, &source_set, SLICE_DEPTH, MAX_SLICE_FILES));
-        if let Some(slice) = &codegraph_slice {
-            totals.add_codegraph(&lexical, slice);
+            .map(|g| codegraph_slices(g, &index, repo_root, starts, &source_set));
+        if let Some((slice, mix)) = &codegraph_slices {
+            totals.add_codegraph(&lexical, slice, mix);
         }
         let d = diff(&lexical, &mixed);
         let differs = |d: &Diff| !(d.only_before.is_empty() && d.only_after.is_empty());
-        let codegraph_differs = codegraph_slice
-            .as_ref()
-            .is_some_and(|slice| differs(&diff(&lexical, slice)));
+        let codegraph_differs = codegraph_slices.as_ref().is_some_and(|(slice, mix)| {
+            differs(&diff(&lexical, slice)) || differs(&diff(&lexical, mix))
+        });
         if detail && (differs(&d) || codegraph_differs) {
             let _ = write!(
                 details,
@@ -351,15 +418,17 @@ fn row(repo_root: &Path, detail: bool, codegraph: bool) -> Option<RunReport> {
                 list(&d.only_after),
                 list(&parsed),
             );
-            if let Some(slice) = &codegraph_slice {
-                let g = diff(&lexical, slice);
-                let _ = write!(
-                    details,
-                    "- codegraph: {}\n  - not in lexical: {}\n  - lexical not in it: {}\n",
-                    list(slice),
-                    list(&g.only_after),
-                    list(&g.only_before),
-                );
+            if let Some((slice, mix)) = &codegraph_slices {
+                for (name, other) in [("codegraph", slice), ("mix", mix)] {
+                    let g = diff(&lexical, other);
+                    let _ = write!(
+                        details,
+                        "- {name}: {}\n  - not in lexical: {}\n  - lexical not in it: {}\n",
+                        list(other),
+                        list(&g.only_after),
+                        list(&g.only_before),
+                    );
+                }
             }
         }
     }
@@ -370,7 +439,7 @@ fn row(repo_root: &Path, detail: bool, codegraph: bool) -> Option<RunReport> {
         line += &if graph.is_some() {
             totals.codegraph_cells()
         } else {
-            " - | - |".to_string()
+            " - | - | - | - |".to_string()
         };
         let ours: BTreeSet<PathBuf> = entry_points
             .files
@@ -409,7 +478,10 @@ fn main() {
     }
     println!("Mean slice size per entry-point file; common / lexical only / other only, summed over the files.\n");
     let (extra, extra_rule) = if codegraph {
-        (" Codegraph | Lexical vs codegraph |", "---|---|")
+        (
+            " Codegraph | Lexical vs codegraph | Mix | Lexical vs mix |",
+            "---|---|---|---|",
+        )
     } else {
         ("", "")
     };
@@ -502,6 +574,28 @@ mod tests {
             paths(&["c", "b", "d", "e"])
         );
         assert_eq!(graph.slice(&starts, &sources, 2, 1), paths(&["c"]));
+    }
+
+    #[test]
+    fn the_mix_follows_codegraph_from_a_linked_file_and_the_lexical_follow_from_the_others() {
+        // `a` links to `b` (and to a test, out of the sources); `b` links nowhere: the lexical follow goes on.
+        let graph = Graph::parse("a\tb\tcalls\t1\na\ttest\tcalls\t4\n");
+        let sources: BTreeSet<PathBuf> = paths(&["a", "b", "c", "d", "e"]).into_iter().collect();
+        let lexical = |file: &Path| match file.to_str() {
+            Some("a") => paths(&["e", "c"]),
+            Some("b") => paths(&["a", "d", "test"]),
+            _ => Vec::new(),
+        };
+        let next = |file: &Path| graph.mixed_next(file, &sources, lexical);
+        assert_eq!(
+            slice_by(&paths(&["a"]), &sources, 2, 8, next),
+            paths(&["b", "d"])
+        );
+        // Started from a file codegraph does not link, the lexical follow.
+        assert_eq!(
+            slice_by(&paths(&["b"]), &sources, 1, 8, next),
+            paths(&["a", "d"])
+        );
     }
 
     #[test]
