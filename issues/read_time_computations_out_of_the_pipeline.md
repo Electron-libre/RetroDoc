@@ -130,3 +130,11 @@ behaviour change, no spec (pure refactor).
 - red: none (move with no change of behaviour).
 - Code review: no findings
 - not verified: none.
+
+### Deliverable 6, first commit (the report prepared in place)
+- done: `report/` reaches only `retrodoc_core` paths (coverage, domain map, set-aside items, `one_line`), so it
+  moves exactly next.
+- checks: tests, lint, specs green in `project-check`; docs n/a (no path changed yet).
+- red: none (no change of behaviour).
+- Code review: no findings
+- not verified: none.

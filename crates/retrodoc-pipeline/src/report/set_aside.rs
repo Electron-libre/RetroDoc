@@ -6,7 +6,7 @@ use retrodoc_core::config::RulesConfig;
 use retrodoc_core::model::BusinessRule;
 
 use super::{one_line, DebtReport};
-use crate::rules::{AsideFeature, AsideRule, SetAside};
+use retrodoc_core::artifacts::{AsideFeature, AsideRule, SetAside};
 
 /// Rules set aside listed in the Markdown report (the rest is only counted).
 const MAX_LISTED_RULES: usize = 50;

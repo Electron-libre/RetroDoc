@@ -3,7 +3,7 @@
 use std::fmt::Write as _;
 
 use super::{DebtReport, TechnicalFeature};
-use crate::behaviour_coverage::BehaviourCoverage;
+use retrodoc_core::artifacts::BehaviourCoverage;
 use retrodoc_core::model::Feature;
 
 /// Technical support files listed in the Markdown report (the rest is only counted).

@@ -13,11 +13,11 @@ use retrodoc_core::model::{
     ConfidenceScore, Domain, Feature, SetApartReason, UseCase, LOW_CONFIDENCE_THRESHOLD,
 };
 
-use crate::behaviour_coverage::{EntryCount, FeatureCoverage};
-use crate::domains::DomainMap;
-use crate::rules::SetAside;
-use crate::text::one_line;
+use retrodoc_core::artifacts::coverage::{EntryCount, FeatureCoverage};
+use retrodoc_core::artifacts::DomainMap;
+use retrodoc_core::artifacts::SetAside;
 use retrodoc_core::reconcile::{ItemKind, Reconciliation};
+use retrodoc_core::text::one_line;
 
 mod behaviour;
 mod reconciliation;
