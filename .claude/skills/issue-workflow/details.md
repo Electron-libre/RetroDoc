@@ -30,10 +30,12 @@ Several issues may share a worktree, one after the other; the worktree outlives 
 
 - **Claim**: `issue-claim` writes the ref `refs/cardinal/claims/<stem>` for the session (`CLAUDE_CODE_SESSION_ID`);
   `cardinal run next-issue` then skips the issue in every worktree. It takes back a claim of the same session, or of the same
-  worktree whose session ended. A new claim needs the worktree clean outside `issues/`.
+  worktree whose session ended; `next-issue` prints the command that resumes it there. A new claim needs the worktree clean outside `issues/`. `cardinal run issue-claim
+  --release <stem>` deletes a `working` claim whose process is gone, only when the user gives the issue up.
 - **Lock**: the `workspace-lock` hooks keep one live session per worktree; a second one has its edits and commands
   refused. A crashed session's lock is freed when its process is gone, and the lock of a session with no work in
-  progress (a clean worktree, no issue claimed) goes to the next session that acts. A project that never runs two
+  progress (a clean worktree, no issue claimed) goes to the next session that acts; one Claude Code continued in a
+  fork goes to that fork, and back to the first session when the user returns to it. A project that never runs two
   sessions in one worktree turns the feature `workspace-lock` off; the claim stays.
 - **Hooks** act on the work tree of their `cwd` (`lint-gate`, `review-gate`; `format-code` formats the project of the
   edited file); `cardinal run` finds the `cardinal.toml` of the worktree and runs the tools of the revision it pins
@@ -50,7 +52,14 @@ On a branch other than the trunk, once the user agreed to close the issue:
 2. Run `cardinal check`: when it names a hook the installed `cardinal` refuses (the branch adds a subcommand the
    hooks call), run the install it prints before going on. After the merge the hooks of the main worktree
    call it too, and one the installed `cardinal` refuses blocks every command, the install included.
-3. Push the branch to the remote the trunk tracks (`git push -u <remote> <branch>`), then, with the host's CLI (`gh`
+3. Read the `merge_back` of `[project]` in `.claude/cardinal.toml`; a value other than `"local"` or
+   `"pull-request"` is a stop: report it to the user, push nothing.
+   `"local"`: push nothing and open no pull request. When the trunk is not an ancestor of the branch (`git merge-base
+   --is-ancestor <trunk> HEAD` fails: another issue was merged since), the fast-forward would fail: propose to rebase
+   the branch onto the trunk and, on the user's go, rebase it, run the project check and `cardinal check` again. Then
+   stop and print the merge for the user to run in the main worktree, `git merge --ff-only <branch>` (or the key `f`
+   of `cardinal-ui` on the issue); never run it yourself from the linked worktree.
+   `"pull-request"` or no key: push the branch to the remote the trunk tracks (`git push -u <remote> <branch>`), then, with the host's CLI (`gh`
    on GitHub: `gh pr list --head <branch>`), open the pull request to the trunk when the branch has none, titled after
    the issue, its body the summary of the deliverables; with one, the push updated it. Report its URL. No remote or no
    CLI of the host: stop and print what is left to the user (the push, the pull request, or `git merge --ff-only

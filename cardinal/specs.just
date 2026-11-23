@@ -1,4 +1,4 @@
-# The recipes of the specs, imported by `cardinal.just`. Managed by `cardinal sync`: change them in the Cardinal repository.
+# The recipes of the specs, imported by `cardinal/cardinal.just`. Managed by `cardinal sync`: change them in the Cardinal repository.
 
 # Validate specs/*.md and trace their requirements to the `// spec: ID` comments of the tests.
 check-specs *args:

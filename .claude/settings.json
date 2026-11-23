@@ -65,6 +65,14 @@
             "command": "cardinal run review-gate record"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cardinal run session-wait work"
+          }
+        ]
       }
     ],
     "Stop": [
@@ -79,6 +87,10 @@
             "type": "command",
             "command": "cardinal run language-hint",
             "timeout": 600
+          },
+          {
+            "type": "command",
+            "command": "cardinal run session-wait wait"
           }
         ]
       }
@@ -118,6 +130,14 @@
           {
             "type": "command",
             "command": "cardinal run workspace-lock start"
+          },
+          {
+            "type": "command",
+            "command": "cardinal run update-notice"
+          },
+          {
+            "type": "command",
+            "command": "cardinal run session-scratch start"
           }
         ]
       }
@@ -128,6 +148,44 @@
           {
             "type": "command",
             "command": "cardinal run workspace-lock release"
+          },
+          {
+            "type": "command",
+            "command": "cardinal run session-scratch end"
+          },
+          {
+            "type": "command",
+            "command": "cardinal run session-wait work"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cardinal run session-wait wait"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cardinal run session-wait work"
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cardinal run session-wait work"
           }
         ]
       }

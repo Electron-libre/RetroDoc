@@ -1,5 +1,5 @@
 # Development commands. `just` lists them; the agent harness uses the same entry points.
-import 'cardinal.just'
+import 'cardinal/cardinal.just'
 
 default:
     @just --list

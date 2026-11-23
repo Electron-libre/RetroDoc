@@ -1,27 +1,29 @@
 # Written by `cardinal sync`: hashes of the managed files, then the managed settings entries. Do not edit.
-format 10
+format 11
 b4fe84fed80dc97880785faf08940de44160155dced518cc48d169786a2c8491  .claude/.gitignore
 2e9ec9b1abf20e48f491ced1b6fbccd741232b87a38d7455e22cd43a5ad499fe  .claude/rules/no-ai-attribution.md
 ae32a54ad3e59066328e1a2f7f5afff0ca4b13bf194272c376e23280e4a7ce4e  .claude/rules/reports-to-the-user.md
+7f156506815c03b021f96422fb6eab1131b341ae136a58438c9c2edc13596581  .claude/rules/scratch-files.md
 ef6a69d39e2eb88055a355ee79925f3f80e42e1c75532f7ddcce91616909f136  .claude/rules/user-language.md
 c99d044e7f4a777bb6cdb1ca8f84e559cfec3b669cac5d7c6eb9f4062f8e8bb3  .claude/skills/audit-instructions/SKILL.md
 fdb77fd8baac0adda0d3b6a13d158abafa43211569b45e82b4f1882096ae2aa4  .claude/skills/commit-message/SKILL.md
 7e5a9d5d2e3e6358230170d04068c50868901a9ff36571fe0c8883c428d3459f  .claude/skills/commit-message/conventional-commits.md
 9c5833edd902e7617287c31e0936e1029e23528e2f7cbcddafb43dcee8358669  .claude/skills/create-issue/SKILL.md
 7a3087685cd42fcfca633d36ccfaff1ba2efb91542a5c129e31624309839b110  .claude/skills/evaluate-harness/SKILL.md
-cb98daadd3b84140f9835e2b90a45f39b4d7bd2f67883d2e01ca49df2c44d64c  .claude/skills/issue-workflow/SKILL.md
-ff6b31883e9a4a710e4d053fd6df24c13c8264bef4903949aea32617a713fd82  .claude/skills/issue-workflow/details.md
-80b23bc8bf0d9b162341aa0de211e68f4d288f5bce61ca6d2aeaa5405588f566  .claude/skills/prioritize-issues/SKILL.md
-16d6037f8b5f9c91261361d8fff6c7f88301a2e0c1adfa2f2c823e55edfa0349  .claude/skills/update-docs/SKILL.md
+bf0fd825568cfd44dc311dae94d99968bc87ce0f8b5a54805f9b12e033d4d99a  .claude/skills/issue-workflow/SKILL.md
+d11b85c618b31ba15088819b857c21da4626117af5b28463586af6b03efd6eee  .claude/skills/issue-workflow/details.md
+21f50caaa5a2bd2946be779c929a2fc24de852c1e99fe7a0ef47f267663664de  .claude/skills/prioritize-issues/SKILL.md
+7218277e81e57d1f5505074bac27b5beef60084c73594abcfc64cb13c2b53627  .claude/skills/release/SKILL.md
+6e6d4ca5491a027aba62fa4da1a35f57bedb878f5952922edd5fc8f32b51405d  .claude/skills/update-docs/SKILL.md
 a0ddfcd5c0bd400c71900008ab6aac8cd56b351a966270f02548ad1ced8f088e  .claude/skills/write-spec/SKILL.md
-61bdad10b1c0449722ce4b9d3a409580d991222fafb87e2c78a68e4048d4e1dc+x  .github/install_cardinal.sh
-1426fae905534a38a0dda30bff7d0a4823ef109bb351e40e87772751c2052e28  .github/workflows/cardinal.yml
+b032d2e28f8674e0f643ae690ddc3f1a9c9c3c6b3d3b621f9b51adb6ac42a393+x  .github/install_cardinal.sh
+196664830449fb9f6b59fb07320e672e362320f22a0d4cad2231752eda4927ad  .github/workflows/cardinal.yml
 97e321441160f45fbdb5cc4025cd9b9c074bc185444d606ab0464ba1211b737d  AGENTS.md
-d2da4a82db85ab4f32236f27af4ff17ca198ee9de14b0e45720c265b2288b28b  cardinal-commits.just
-c860f7456cbbff798d3bab5bea6ef834c8c48809d401b97729de1b59b82aa26f  cardinal-issues.just
-a16a2f85443e06a0864c97c233cd070b715c9e0e7a20417d50c263d820da149d  cardinal-review.just
-3f7aaa0719a25aad500ecca27ca321811e3b342272bb7da7d6bbdaa9fbc169ee  cardinal-specs.just
-e2b7850ed69b1de0461dbd1f9deb55df6acd67961b275e747919c3f7766c52ed  cardinal.just
+e05c3277e270ec5dc78118857d0558dc0c683040a6841da0f95d657b2443cf4f  cardinal/cardinal.just
+dfe828f3ce4405710caa4d80f79eab169943e5a5cda6743537a7b8a29efd788a  cardinal/commits.just
+76fa3d7f4bee959349e50d30d04fec3e3ecadd1b18b933e5ed632148ae732ab3  cardinal/issues.just
+ee4eade02d96d9cf9f467d5483742161df890b6fcf3c878e503afe2fb8317a78  cardinal/review.just
+6d0fd2b3fd9466e69ae94cb58c4b8a73be7bf879f736994315f7781715a1dab1  cardinal/specs.just
 ce20edbdf93ee2e850d9adbfc785cfa439106f1d12c5ec22b1c9748f5e8ffc56  specs/README.md
 e2d7c5b508e646ec8ef7c2875a62a24f5aca3884c08e6b8af7d30075c528152b  specs/TEMPLATE.md
 entry  {"allow":"Bash(cardinal run *)"}
@@ -38,7 +40,16 @@ entry  {"event":"PreToolUse","matcher":"Bash|Edit|Write|NotebookEdit","hook":{"t
 entry  {"event":"PreToolUse","matcher":"Read","hook":{"type":"command","command":"cardinal run read-hint"}}
 entry  {"event":"PostToolUse","matcher":"Skill","hook":{"type":"command","command":"cardinal run review-gate record"}}
 entry  {"event":"PostToolUse","matcher":"Edit|Write","hook":{"type":"command","command":"cardinal run format-code"}}
+entry  {"event":"PostToolUse","matcher":null,"hook":{"type":"command","command":"cardinal run session-wait work"}}
 entry  {"event":"Stop","matcher":null,"hook":{"type":"command","command":"cardinal run lint-gate","timeout":600}}
 entry  {"event":"Stop","matcher":null,"hook":{"type":"command","command":"cardinal run language-hint","timeout":600}}
+entry  {"event":"Stop","matcher":null,"hook":{"type":"command","command":"cardinal run session-wait wait"}}
 entry  {"event":"SessionStart","matcher":null,"hook":{"type":"command","command":"cardinal run workspace-lock start"}}
+entry  {"event":"SessionStart","matcher":null,"hook":{"type":"command","command":"cardinal run update-notice"}}
+entry  {"event":"SessionStart","matcher":null,"hook":{"type":"command","command":"cardinal run session-scratch start"}}
 entry  {"event":"SessionEnd","matcher":null,"hook":{"type":"command","command":"cardinal run workspace-lock release"}}
+entry  {"event":"SessionEnd","matcher":null,"hook":{"type":"command","command":"cardinal run session-scratch end"}}
+entry  {"event":"SessionEnd","matcher":null,"hook":{"type":"command","command":"cardinal run session-wait work"}}
+entry  {"event":"Notification","matcher":null,"hook":{"type":"command","command":"cardinal run session-wait wait"}}
+entry  {"event":"UserPromptSubmit","matcher":null,"hook":{"type":"command","command":"cardinal run session-wait work"}}
+entry  {"event":"PostToolUseFailure","matcher":null,"hook":{"type":"command","command":"cardinal run session-wait work"}}

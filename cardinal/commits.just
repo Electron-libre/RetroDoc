@@ -1,4 +1,4 @@
-# The recipes of the commit message convention, imported by `cardinal.just`. Managed by `cardinal sync`: change them in the Cardinal repository.
+# The recipes of the commit message convention, imported by `cardinal/cardinal.just`. Managed by `cardinal sync`: change them in the Cardinal repository.
 
 # Validate a commit message against the commit convention (default: HEAD).
 check-commit rev="HEAD":

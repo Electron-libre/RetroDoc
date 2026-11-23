@@ -1,7 +1,7 @@
 # Agent harness
 
 Most of it is shared with the other projects and copied here by `cardinal sync` from the central repository, Cardinal
-(skills other than `smoke-test` and `quality-benchmark`, which stay RetroDoc's own and whose scripts are tested by `just test-skill-scripts`, `cardinal*.just`, `AGENTS.md`,
+(skills other than `smoke-test` and `quality-benchmark`, which stay RetroDoc's own and whose scripts are tested by `just test-skill-scripts`, `cardinal/*.just`, `AGENTS.md`,
 `specs/README.md`, `.github/workflows/cardinal.yml`, `.github/install_cardinal.sh`). The hooks and checkers are no longer
 scripts copied into the project: they are tools of the `cardinal` binary, run as `cardinal run <tool>` (`cardinal run` lists
 them) with the binary of the revision `.claude/cardinal.toml` pins. Never edit those copies: `just check-cardinal`
@@ -26,10 +26,15 @@ Hooks in `.claude/settings.json` (`cardinal run <tool>`):
 - `review-gate` (review gate): refuses a `git commit` until the `code-review` skill has run on the current diff
   (`record` on PostToolUse `Skill`, `check` on PreToolUse `Bash`, `native` from the git `pre-commit` hook installed by `cardinal sync`).
   The user waives the review of the next commit by creating `claude-review-waived` in the git directory.
+- `session-scratch` (SessionStart/SessionEnd): gives each session its own `$TMPDIR` and removes it when the session ends.
+- `session-wait` (Stop/Notification mark the wait; UserPromptSubmit, PostToolUse, PostToolUseFailure, SessionEnd the work):
+  marks the worktree of a session while it waits for the user.
+- `update-notice` (SessionStart): tells the user a newer release of Cardinal is out.
 
 Rules in `.claude/rules/` (loaded by Claude Code in every session): `reports-to-the-user.md`, how the agent
 writes what it shows the user (stops, summaries, final report); `user-language.md`, the language of the conversation;
-`no-ai-attribution.md`, no AI attribution in commits, pull requests or issues.
+`no-ai-attribution.md`, no AI attribution in commits, pull requests or issues; `scratch-files.md`, scratch files go
+under the session's `$TMPDIR`, never a literal `/tmp/<name>`.
 
 Skills in `.claude/skills/`:
 - `issue-workflow`: how to work an `issues/*.md` file (reformulate, plan, then per deliverable test, code,
@@ -45,6 +50,8 @@ Skills in `.claude/skills/`:
 - `quality-benchmark`: quality of the generated docs against a hand-written reference on a public repo, user docs hidden (plus the paths of `benchmark/<repo>/hidden.txt`) then shown, several runs, table with the change since the previous benchmark (`just benchmark benchmark/<repo>/reference.yaml`); reads and appends the same ledger.
 - `write-spec`: write or amend a `specs/*.md` (requirements with stable ids, scenarios, non-goals) with the template,
   validated by `just check-specs`; the user validates the spec before the tests are written.
+- `release`: prepare a numbered release on the trunk (`cardinal run release`: version, `CHANGELOG.md` section, release
+  commit, local tag), the push left to the user.
 - `update-docs`: checklist to keep the documentation in sync after a change.
 - `audit-instructions`: read the instructions given to the agent over time and propose skills and hooks worth adding, for validation.
 - `evaluate-harness`: report whether recent Cardinal revisions made the agent more efficient, the work better and the rules

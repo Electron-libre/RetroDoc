@@ -119,13 +119,13 @@ if [ -n "$full" ] && [ -n "$on_github" ] && mkdir -p "$dir" && { fetched cardina
 elif [ -n "$full" ]; then
   rm -f "$dir/.partial" "$dir/.sha256"
   echo "cardinal $rev: no release asset, building it"
-  # no crate named: the single package of the commit
-  cargo install --quiet --git "$cargo_url" --rev "$full" --locked --root "$dir/.root"
-  # `harness` for a commit from before the rename
+  # the package `cardinal` is named, the repository holding others; `harness` for a commit from before the rename
+  cargo install --quiet --git "$cargo_url" --rev "$full" --locked --root "$dir/.root" cardinal \
+    || cargo install --quiet --git "$cargo_url" --rev "$full" --locked --root "$dir/.root" harness
   mv "$dir/.root/bin/cardinal" "$dir/cardinal" 2>/dev/null || mv "$dir/.root/bin/harness" "$dir/cardinal"
   rm -rf "$dir/.root"
   echo "$dir" >> "$GITHUB_PATH"
 else
   # --force: over the installed `cardinal`, even of the same version
-  cargo install --quiet --force --git "$cargo_url" ${rev:+--rev "$rev"} --locked
+  cargo install --quiet --force --git "$cargo_url" ${rev:+--rev "$rev"} --locked cardinal
 fi

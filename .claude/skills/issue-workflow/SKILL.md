@@ -65,6 +65,9 @@ the console only shows the link and the questions.
   deliverable); the tool reads the limits of the project. It counts a move that also edits twice, so move in a
   deliverable of its own (in the issue total, a moved file edited later still counts twice). A deliverable over the limit is cut until each part is under it; an issue over it gets a
   split proposed at step 2 ([details.md](details.md), "Split an issue").
+- **File size**: for each file the plan touches that `cardinal run file-size --all` lists, or that the estimate pushes
+  over the `file_size_limit` it reads, the plan says where the new code goes: a module of its own, or a first
+  deliverable that splits the file by responsibility with no change of behaviour.
 
 ## 2. Validate (STOP)
 
@@ -101,7 +104,8 @@ nothing: the agent reads that identity too. The spec file is the record of the r
    `docs/adr/` (template and numbering in `docs/adr/README.md`) and update the
    diagrams in the `architecture` document of `.claude/cardinal.toml` when the flow changed.
 5. **Review (mandatory)**: run `cardinal run project-check` (the project's format, lint and tests, and the specs); when `cardinal run deliverable-size`
-   exits 1 (over the limit of a deliverable), cut the deliverable before the review; then **invoke `/code-review low <target>` with the Skill tool**, `<target>` the line
+   exits 1 (over the limit of a deliverable), cut the deliverable before the review; when `cardinal run file-size`
+   lists a file, split it in this deliverable or say why not in the summary of step 6; then **invoke `/code-review low <target>` with the Skill tool**, `<target>` the line
    `cardinal run review-target` prints (the diff without `issues/` nor the managed copies; always name the level; it
    refuses an untracked file, which `git diff` leaves out: mark it intent-to-add with the `git add -N` it prints),
    and wait for its findings; reread the docs you changed. Fix the findings on the deliverable's own change, or say
@@ -162,8 +166,9 @@ then consult once more to reconcile. The advisor never replaces a review or a st
 ## Merge back
 
 On the trunk (the branch of the main worktree), the issue is closed as the Rules below say (`cardinal run close-issue`). On
-another branch the merge is the host's: on the user's agreement to close, follow [details.md](details.md), "Merge
-back" (close on the branch, push it, open or update its pull request).
+another branch the merge is the host's or the user's: on the user's agreement to close, follow [details.md](details.md), "Merge
+back" (close on the branch, then push it and open or update its pull request, or, with `merge_back = "local"`, stop
+on the local merge command).
 
 ## Rules
 
@@ -178,10 +183,10 @@ back" (close on the branch, push it, open or update its pull request).
   one named `not staged:` held changes of yours and stays out). Never move it unasked. When it was the last open issue of its milestone,
   `close-issue` sets that milestone `done` itself and prints `milestone <name> done in <document>` (never edit the
   `State:` line yourself: the commit gate lets only the tool's edit through); on that line, propose a release to
-  the user (`cardinal run release` with no argument prints the version it would number, without a prompt in auto
-  mode) and stop: theirs to validate. On their go, run
-  `cardinal run release <version>` (a permission prompt, also in auto mode), let them reread the section, commit it
-  after its `low` review (the gate asks for it), then run `cardinal run release <version> --tag`; they push.
+  the user: on the trunk, once they agree and the close is committed, `skill:release` (its stops included), or, in a
+  project that turned that skill off, the steps `cardinal run release <version>` prints; on another branch, the
+  release waits for the merge, prepared on the trunk by a session in the main worktree (the steering UI marks the
+  milestone awaiting its release).
   The report of the close ends on a Markdown link to the next issue `close-issue` printed
   (`[<title>](issues/<stem>.md)`), or on its line saying there is none.
 - To know which issue comes next, run `cardinal run next-issue` (the first ready issue, its `depends_on` all done, that

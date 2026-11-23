@@ -18,7 +18,8 @@ anything here.
    unknown milestone). An issue still carrying a `rank: <n>` (a project updated from the format 5) has no priority
    yet: this pass converts it, its `rank` removed.
 2. **Context**: the `roadmap` and `architecture` documents of `.claude/cardinal.toml`, the ADRs in `docs/adr/` that the issues cite, `git log --oneline -30` (what just
-   landed and what it unblocks), and `issues/done/` titles when an issue refers to a closed one.
+   landed and what it unblocks), `issues/done/` titles when an issue refers to a closed one, and `cardinal run file-size
+   --all` (the files over the size limit of the project).
 3. **Each open issue**: read its Goal, Findings, Approach and Hints (not only the title). Note for each its
    value (what it unlocks for the product or the pipeline quality), its size, the open issues it needs (a "after X"
    or "once X" in its text names a dependency), and any "priority" statement in it. Its size is the changed lines and deliverables its Approach implies,
@@ -32,9 +33,10 @@ anything here.
    reshuffle for the sake of it.
 5. **Propose, then STOP**: show the user, in that language, a table `issue | priority | depends_on | why` with only
    the issues that change and the reason for each, then the order `cardinal run next-issue` will print, then the issues
-   over the size limit with their proposed cuts. You never reorder the milestones (the user's call): when the
+   over the size limit with their proposed cuts, then the largest files `file-size` listed that no open issue splits,
+   each with a restructuring issue proposed (its cut by responsibility). You never reorder the milestones (the user's call): when the
    priorities argue for it, say so as a question. Ask for validation or corrections.
-6. **Apply** on their agreement: split the issues as validated (`skill:issue-workflow` `details.md`, "Split an
+6. **Apply** on their agreement: write the restructuring issues validated (`skill:create-issue`), split the issues as validated (`skill:issue-workflow` `details.md`, "Split an
    issue"), rewrite the front matter of each changed issue (`priority`, `depends_on`, `why`; a `rank` removed;
    nothing else of the file), run `cardinal run next-issue` and check it prints the proposed order with no problem
    reported. When something changed, commit the re-prioritized issue files alone,
