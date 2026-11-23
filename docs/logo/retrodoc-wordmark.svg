@@ -1,30 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 220" role="img" aria-labelledby="t" font-family="system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif">
   <title id="t">RetroDoc</title>
-
-  <rect x="0.5" y="0.5" width="719" height="219" rx="24" fill="#17171b" stroke="#2a2a31"/>
-
-  <g transform="translate(30 20) scale(0.703125)">
-    <!-- the page, its corner folded -->
-    <path d="M64 36 H156 L192 72 V220 H64 Z" fill="#1f1f25" stroke="#e8e6e1" stroke-width="8" stroke-linejoin="round"/>
-    <path d="M156 36 V72 H192" fill="none" stroke="#e8e6e1" stroke-width="8" stroke-linejoin="round"/>
-
-    <!-- the git history, in gold, read backwards: each commit turned into a line of doc -->
-    <path d="M96 70 V184" stroke="#d4af37" stroke-width="6" stroke-linecap="round"/>
-    <path d="M84 82 L96 70 L108 82" fill="none" stroke="#d4af37" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-    <g fill="#d4af37" stroke="#1f1f25" stroke-width="4">
-      <circle cx="96" cy="104" r="11"/>
-      <circle cx="96" cy="144" r="11"/>
-      <circle cx="96" cy="184" r="11"/>
-    </g>
-
-    <!-- the lines of doc written from it -->
-    <g stroke="#9b978e" stroke-width="8" stroke-linecap="round">
-      <path d="M122 104 H166"/>
-      <path d="M122 144 H158"/>
-      <path d="M122 184 H166"/>
-    </g>
+  <rect width="720" height="220" rx="32" fill="#17171b"/>
+  <g transform="translate(24 20) scale(0.703125) translate(-8 0)">
+    <!-- the history, in silver, wound back: the arrow turns counterclockwise -->
+    <path d="M128 44 A84 84 0 1 0 212 124" fill="none" stroke="#c0c4c8" stroke-width="18" stroke-linecap="round"/>
+    <path d="M212 94 L234 128 H190 Z" fill="#c0c4c8" stroke="#c0c4c8" stroke-width="6" stroke-linejoin="round"/>
+    <!-- the doc rewritten from it, in gold, around its core -->
+    <path d="M80 128 A48 48 0 1 0 128 80" fill="none" stroke="#d4af37" stroke-width="18" stroke-linecap="round"/>
+    <circle cx="128" cy="128" r="15" fill="#e8c872"/>
   </g>
-
-  <text x="232" y="128" font-size="84" font-weight="600" letter-spacing="2" fill="#e8e6e1">retrodoc</text>
-  <text x="236" y="168" font-size="22" letter-spacing="1" fill="#9b978e">catch up on your documentation debt</text>
+  <text x="232" y="126" font-size="84" font-weight="700" letter-spacing="1"><tspan fill="#c0c4c8">Retro</tspan><tspan fill="#d4af37">Doc</tspan></text>
+  <text x="236" y="166" font-size="22" letter-spacing="1" fill="#9b978e">catch up on your documentation debt</text>
 </svg>
