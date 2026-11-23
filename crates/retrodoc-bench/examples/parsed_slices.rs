@@ -26,6 +26,9 @@
 //!   WHERE n.kind = 'route';
 //! ```
 //!
+//! The resolved slice (`Follow::ResolvedThenLexical`, `specs/resolved-references.md`) is compared with the lexical
+//! one; with `--codegraph`, also with the mix, and its references with codegraph's edges, pair of files by pair.
+//!
 //! A fifth slice, the mix (`issues/resolved_references_in_structure.md`), follows codegraph's edges from a file
 //! they link to other source files and the lexical follow from any other file.
 //!
@@ -38,6 +41,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
+use retrodoc_ingest::resolve::{resolve, Resolved};
 use retrodoc_ingest::walker::walk_repo;
 use retrodoc_ingest::{structure, FileEntry, FileKind};
 use retrodoc_pipeline::{CodeIndex, EntryPoints, Follow, RoleRules};
@@ -87,6 +91,12 @@ struct Totals {
     mix: usize,
     /// Lexical vs the mix.
     mix_diff: (usize, usize, usize),
+    /// Sum of the resolved slices (`Follow::ResolvedThenLexical`).
+    resolved: usize,
+    /// Lexical vs resolved.
+    resolved_diff: (usize, usize, usize),
+    /// The mix vs resolved, with `--codegraph`.
+    mix_resolved_diff: (usize, usize, usize),
 }
 
 fn sum_diff(acc: &mut (usize, usize, usize), d: &Diff) {
@@ -96,11 +106,26 @@ fn sum_diff(acc: &mut (usize, usize, usize), d: &Diff) {
 }
 
 impl Totals {
-    fn add_codegraph(&mut self, lexical: &[PathBuf], codegraph: &[PathBuf], mix: &[PathBuf]) {
+    fn add_codegraph(&mut self, slices: &Slices, codegraph: &[PathBuf], mix: &[PathBuf]) {
         self.codegraph += codegraph.len();
-        sum_diff(&mut self.codegraph_diff, &diff(lexical, codegraph));
+        sum_diff(&mut self.codegraph_diff, &diff(&slices.lexical, codegraph));
         self.mix += mix.len();
-        sum_diff(&mut self.mix_diff, &diff(lexical, mix));
+        sum_diff(&mut self.mix_diff, &diff(&slices.lexical, mix));
+        sum_diff(&mut self.mix_resolved_diff, &diff(mix, &slices.resolved));
+    }
+
+    fn add_resolved(&mut self, lexical: &[PathBuf], resolved: &[PathBuf]) {
+        self.resolved += resolved.len();
+        sum_diff(&mut self.resolved_diff, &diff(lexical, resolved));
+    }
+
+    /// The two cells of the resolved slices, appended to [`Totals::row`].
+    fn resolved_cells(&self) -> String {
+        let (c, l, r) = self.resolved_diff;
+        format!(
+            " {:.1} | {c} / {l} / {r} |",
+            self.resolved as f64 / self.files.max(1) as f64
+        )
     }
 
     /// The four cells of the codegraph slices and of the mix, appended to [`Totals::row`].
@@ -108,8 +133,9 @@ impl Totals {
         let mean = |n: usize| n as f64 / self.files.max(1) as f64;
         let (c, l, g) = self.codegraph_diff;
         let (mc, ml, mm) = self.mix_diff;
+        let (rc, rm, rr) = self.mix_resolved_diff;
         format!(
-            " {:.1} | {c} / {l} / {g} | {:.1} | {mc} / {ml} / {mm} |",
+            " {:.1} | {c} / {l} / {g} | {:.1} | {mc} / {ml} / {mm} | {rc} / {rm} / {rr} |",
             mean(self.codegraph),
             mean(self.mix)
         )
@@ -340,7 +366,82 @@ fn list(files: &[PathBuf]) -> String {
 struct RunReport {
     line: String,
     route: Option<String>,
+    pairs: Option<String>,
     details: String,
+}
+
+/// The slices of one entry-point file.
+struct Slices {
+    lexical: Vec<PathBuf>,
+    mixed: Vec<PathBuf>,
+    parsed: Vec<PathBuf>,
+    resolved: Vec<PathBuf>,
+    /// Along codegraph's edges, and along the mix, with `--codegraph`.
+    codegraph: Option<(Vec<PathBuf>, Vec<PathBuf>)>,
+}
+
+impl Slices {
+    /// The `--detail` section of `file`, empty when every slice is the lexical one.
+    fn detail(&self, file: &Path) -> String {
+        let differs = |other: &[PathBuf]| {
+            let d = diff(&self.lexical, other);
+            !(d.only_before.is_empty() && d.only_after.is_empty())
+        };
+        let mut others: Vec<(&str, &[PathBuf])> = vec![("resolved", &self.resolved)];
+        if let Some((codegraph, mix)) = &self.codegraph {
+            others.push(("codegraph", codegraph));
+            others.push(("mix", mix));
+        }
+        if !differs(&self.mixed) && others.iter().all(|(_, other)| !differs(other)) {
+            return String::new();
+        }
+        let d = diff(&self.lexical, &self.mixed);
+        let mut text = format!(
+            "\n### {}\n- common: {}\n- lexical only: {}\n- mixed only: {}\n- parsed alone: {}\n",
+            file.display(),
+            list(&d.common),
+            list(&d.only_before),
+            list(&d.only_after),
+            list(&self.parsed),
+        );
+        for (name, other) in others {
+            let g = diff(&self.lexical, other);
+            let _ = write!(
+                text,
+                "- {name}: {}\n  - not in lexical: {}\n  - lexical not in it: {}\n",
+                list(other),
+                list(&g.only_after),
+                list(&g.only_before),
+            );
+        }
+        text
+    }
+}
+
+/// The pairs of source files codegraph links and the resolution links, from the files of a language with a
+/// resolver: in both, codegraph's only, the resolution's only.
+fn pairs(graph: &Graph, resolved: &Resolved, sources: &BTreeSet<PathBuf>) -> (usize, usize, usize) {
+    let mut counts = (0, 0, 0);
+    for file in sources
+        .iter()
+        .filter(|f| f.extension().is_some_and(|e| e == "py" || e == "rb"))
+    {
+        let theirs: BTreeSet<PathBuf> = graph
+            .next(file)
+            .into_iter()
+            .filter(|t| t != file && sources.contains(t))
+            .collect();
+        let ours: BTreeSet<PathBuf> = resolved.targets(file).into_iter().collect();
+        counts.0 += theirs.intersection(&ours).count();
+        counts.1 += theirs.difference(&ours).count();
+        counts.2 += ours.difference(&theirs).count();
+    }
+    counts
+}
+
+fn pair_row(run: &str, graph: &Graph, resolved: &Resolved, sources: &BTreeSet<PathBuf>) -> String {
+    let (both, theirs, ours) = pairs(graph, resolved, sources);
+    format!("| {run} | {both} | {theirs} | {ours} |")
 }
 
 /// The slices of `starts` along codegraph's edges alone, and along the mix.
@@ -381,7 +482,9 @@ fn row(repo_root: &Path, detail: bool, codegraph: bool) -> Option<RunReport> {
         None
     };
     let source_set: BTreeSet<PathBuf> = sources.iter().cloned().collect();
-    let index = CodeIndex::new(sources.iter().map(PathBuf::as_path)).with_definitions(repo_root);
+    let index = CodeIndex::new(sources.iter().map(PathBuf::as_path))
+        .with_definitions(repo_root)
+        .with_resolution(repo_root);
     let mut totals = Totals::default();
     let mut details = String::new();
     for (file, entries) in &entry_points.files {
@@ -391,55 +494,40 @@ fn row(repo_root: &Path, detail: bool, codegraph: bool) -> Option<RunReport> {
         let starts = std::slice::from_ref(file);
         let slice =
             |follow| index.slice_with(repo_root, starts, SLICE_DEPTH, MAX_SLICE_FILES, follow);
-        let (lexical, mixed, parsed) = (
-            slice(Follow::Lexical),
-            slice(Follow::ParsedThenLexical),
-            slice(Follow::Parsed),
+        let slices = Slices {
+            lexical: slice(Follow::Lexical),
+            mixed: slice(Follow::ParsedThenLexical),
+            parsed: slice(Follow::Parsed),
+            resolved: slice(Follow::ResolvedThenLexical),
+            codegraph: graph
+                .as_ref()
+                .map(|g| codegraph_slices(g, &index, repo_root, starts, &source_set)),
+        };
+        totals.add(
+            structure::is_supported(file),
+            &slices.lexical,
+            &slices.mixed,
+            &slices.parsed,
         );
-        totals.add(structure::is_supported(file), &lexical, &mixed, &parsed);
-        let codegraph_slices = graph
-            .as_ref()
-            .map(|g| codegraph_slices(g, &index, repo_root, starts, &source_set));
-        if let Some((slice, mix)) = &codegraph_slices {
-            totals.add_codegraph(&lexical, slice, mix);
+        totals.add_resolved(&slices.lexical, &slices.resolved);
+        if let Some((codegraph, mix)) = &slices.codegraph {
+            totals.add_codegraph(&slices, codegraph, mix);
         }
-        let d = diff(&lexical, &mixed);
-        let differs = |d: &Diff| !(d.only_before.is_empty() && d.only_after.is_empty());
-        let codegraph_differs = codegraph_slices.as_ref().is_some_and(|(slice, mix)| {
-            differs(&diff(&lexical, slice)) || differs(&diff(&lexical, mix))
-        });
-        if detail && (differs(&d) || codegraph_differs) {
-            let _ = write!(
-                details,
-                "\n### {}\n- common: {}\n- lexical only: {}\n- mixed only: {}\n- parsed alone: {}\n",
-                file.display(),
-                list(&d.common),
-                list(&d.only_before),
-                list(&d.only_after),
-                list(&parsed),
-            );
-            if let Some((slice, mix)) = &codegraph_slices {
-                for (name, other) in [("codegraph", slice), ("mix", mix)] {
-                    let g = diff(&lexical, other);
-                    let _ = write!(
-                        details,
-                        "- {name}: {}\n  - not in lexical: {}\n  - lexical not in it: {}\n",
-                        list(other),
-                        list(&g.only_after),
-                        list(&g.only_before),
-                    );
-                }
-            }
+        if detail {
+            details.push_str(&slices.detail(file));
         }
     }
     let run = repo_root.file_name()?.to_string_lossy().into_owned();
-    let mut line = totals.row(&run);
+    let mut line = totals.row(&run) + &totals.resolved_cells();
     let mut route = None;
+    let pairs = graph
+        .as_ref()
+        .map(|g| pair_row(&run, g, &resolve(repo_root, &sources), &source_set));
     if codegraph {
         line += &if graph.is_some() {
             totals.codegraph_cells()
         } else {
-            " - | - | - | - |".to_string()
+            " - | - | - | - | - |".to_string()
         };
         let ours: BTreeSet<PathBuf> = entry_points
             .files
@@ -455,6 +543,7 @@ fn row(repo_root: &Path, detail: bool, codegraph: bool) -> Option<RunReport> {
     Some(RunReport {
         line,
         route,
+        pairs,
         details,
     })
 }
@@ -479,21 +568,23 @@ fn main() {
     println!("Mean slice size per entry-point file; common / lexical only / other only, summed over the files.\n");
     let (extra, extra_rule) = if codegraph {
         (
-            " Codegraph | Lexical vs codegraph | Mix | Lexical vs mix |",
-            "---|---|---|---|",
+            " Codegraph | Lexical vs codegraph | Mix | Lexical vs mix | Mix vs resolved |",
+            "---|---|---|---|---|",
         )
     } else {
         ("", "")
     };
-    println!("| Run | Entry-point files | Parsable | Lexical | Mixed | Parsed | Lexical vs mixed | Mixed = lexical | Lexical vs parsed |{extra}");
-    println!("|---|---|---|---|---|---|---|---|---|{extra_rule}");
+    println!("| Run | Entry-point files | Parsable | Lexical | Mixed | Parsed | Lexical vs mixed | Mixed = lexical | Lexical vs parsed | Resolved | Lexical vs resolved |{extra}");
+    println!("|---|---|---|---|---|---|---|---|---|---|---|{extra_rule}");
     let mut routes = Vec::new();
+    let mut pairs = Vec::new();
     let mut details = Vec::new();
     for dir in dirs {
         match row(&dir, detail, codegraph) {
             Some(report) => {
                 println!("{}", report.line);
                 routes.extend(report.route);
+                pairs.extend(report.pairs);
                 details.push(report.details);
             }
             None => eprintln!("{}: no entry-points.yaml, skipped", dir.display()),
@@ -504,6 +595,14 @@ fn main() {
         println!("| Run | Entry-point files | Codegraph routes | Their files | Both / ours only / codegraph only | Ours only | Codegraph only |");
         println!("|---|---|---|---|---|---|---|");
         for line in routes {
+            println!("{line}");
+        }
+    }
+    if !pairs.is_empty() {
+        println!("\nPairs of source files linked from the Python and Ruby files: codegraph's edges against the resolved references.\n");
+        println!("| Run | Both | Codegraph only | Resolved only |");
+        println!("|---|---|---|---|");
+        for line in pairs {
             println!("{line}");
         }
     }

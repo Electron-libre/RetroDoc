@@ -14,12 +14,15 @@
 //!
 //! [`CodeIndex::slice_with`] can follow the parse instead ([`Follow`]): the names a file calls (ADR 0027;
 //! Ruby's query also gives the constants it reads) go to the files of the same language that define them,
-//! under the same limits on shared names. Only the `parsed_slices` example uses it so far: the passes
-//! cut their slices with the lexical follow.
+//! under the same limits on shared names. [`Follow::ResolvedThenLexical`] follows the references
+//! `retrodoc_ingest::resolve` resolves through imports, parent classes and known receivers
+//! (`specs/resolved-references.md`) from a file that has some, and the lexical follow from any other file. Only the
+//! `parsed_slices` example uses them so far: the passes cut their slices with the lexical follow.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
+use retrodoc_ingest::resolve::{resolve, Resolved};
 use retrodoc_ingest::structure;
 
 use crate::naming::normalize;
@@ -38,6 +41,9 @@ pub enum Follow {
     /// The names the parse sees called (ADR 0027), resolved to the files that define them; a file this
     /// build cannot parse leads nowhere.
     Parsed,
+    /// The references resolved through imports, parent classes and known receivers
+    /// (`specs/resolved-references.md`) from a file that has some, the lexical follow from any other file.
+    ResolvedThenLexical,
     /// The parsed calls, plus the lexical follow for the identifiers no call resolves (constants,
     /// files the build cannot parse).
     ParsedThenLexical,
@@ -50,6 +56,8 @@ pub struct CodeIndex {
     by_name: BTreeMap<String, Vec<PathBuf>>,
     /// Exact name of a definition -> the files that define it.
     definitions: BTreeMap<String, Vec<PathBuf>>,
+    /// The resolved references of the indexed files, once [`CodeIndex::with_resolution`] has read them.
+    resolved: Resolved,
 }
 
 /// Number of leading directories two paths have in common.
@@ -120,7 +128,16 @@ impl CodeIndex {
         Self {
             by_name,
             definitions: BTreeMap::new(),
+            resolved: Resolved::default(),
         }
+    }
+
+    /// Resolves the references of the indexed files among themselves, for [`Follow::ResolvedThenLexical`].
+    #[must_use]
+    pub fn with_resolution(mut self, repo_root: &Path) -> Self {
+        let files: Vec<PathBuf> = self.by_name.values().flatten().cloned().collect();
+        self.resolved = resolve(repo_root, &files);
+        self
     }
 
     /// Parses the indexed files this build can parse and records the names they define, for
@@ -161,11 +178,20 @@ impl CodeIndex {
         exclude: &BTreeSet<PathBuf>,
         follow: Follow,
     ) -> Vec<PathBuf> {
+        if follow == Follow::ResolvedThenLexical {
+            let targets = self.resolved.targets(from);
+            if !targets.is_empty() {
+                return targets
+                    .into_iter()
+                    .filter(|t| !exclude.contains(t))
+                    .collect();
+            }
+        }
         let mut scores: BTreeMap<&PathBuf, usize> = BTreeMap::new();
         // Exact names of the calls that resolved to a file: the lexical follow leaves them alone.
         let mut resolved: BTreeSet<String> = BTreeSet::new();
         let parsed = match follow {
-            Follow::Lexical => None,
+            Follow::Lexical | Follow::ResolvedThenLexical => None,
             Follow::Parsed | Follow::ParsedThenLexical => structure::parse(from, content),
         };
         if let Some(parsed) = parsed {
@@ -348,6 +374,98 @@ mod tests {
     /// Whether this build parses Ruby (the grammars are features of `retrodoc-ingest`).
     fn parses_ruby() -> bool {
         structure::is_supported(Path::new("a.rb"))
+    }
+
+    /// Whether this build resolves Python (the grammars are features of `retrodoc-ingest`).
+    fn parses_python() -> bool {
+        structure::is_supported(Path::new("a.py"))
+    }
+
+    // spec: RES-2 (internal: the passes show a slice only inside an LLM prompt; RES-H1 to RES-H3 drive it end to end)
+    #[test]
+    fn the_resolved_follow_goes_by_resolved_references_and_falls_back_on_the_lexical_follow_per_file(
+    ) {
+        if !parses_python() {
+            return;
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let paths = [
+            "shop/views.py",
+            "shop/models.py",
+            "shop/filter.py",
+            "shop/commands/sync.py",
+            "shop/payment.py",
+        ];
+        write(
+            root,
+            paths[0],
+            "from shop.models import Order\n\ndef index():\n    return Order.objects.filter()\n",
+        );
+        write(root, paths[1], "class Order:\n    pass\n");
+        write(root, paths[2], "def filter():\n    pass\n");
+        // Imports nothing of the repository: its slice is the lexical one.
+        write(
+            root,
+            paths[3],
+            "def run(call_command):\n    call_command('payment')\n",
+        );
+        write(root, paths[4], "def pay():\n    pass\n");
+        let index = index(&paths).with_resolution(root);
+        let slice =
+            |start: &str, follow| index.slice_with(root, &[PathBuf::from(start)], 1, 10, follow);
+
+        assert!(
+            slice(paths[0], Follow::Lexical).contains(&PathBuf::from(paths[2])),
+            "the lexical follow takes `filter` for the file named so"
+        );
+        assert_eq!(
+            slice(paths[0], Follow::ResolvedThenLexical),
+            [PathBuf::from(paths[1])]
+        );
+        assert_eq!(
+            slice(paths[3], Follow::ResolvedThenLexical),
+            slice(paths[3], Follow::Lexical)
+        );
+        assert_eq!(slice(paths[3], Follow::Lexical), [PathBuf::from(paths[4])]);
+    }
+
+    // spec: RES-11 (internal: the passes show a slice only inside an LLM prompt)
+    #[test]
+    fn the_resolved_follow_keeps_the_depth_the_budget_and_the_most_referenced_first() {
+        if !parses_python() {
+            return;
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let paths = ["views.py", "models.py", "queries.py", "db.py"];
+        write(
+            root,
+            paths[0],
+            "import models\nimport queries\n\nqueries.one()\nmodels.a()\nmodels.b()\nmodels.c()\n",
+        );
+        write(root, paths[1], "import db\n\ndef a():\n    db.run()\n");
+        write(root, paths[2], "def one():\n    pass\n");
+        write(root, paths[3], "def run():\n    pass\n");
+        let index = index(&paths).with_resolution(root);
+        let starts = [PathBuf::from(paths[0])];
+        let slice = |depth, budget| {
+            index.slice_with(root, &starts, depth, budget, Follow::ResolvedThenLexical)
+        };
+
+        assert_eq!(
+            slice(1, 10),
+            [PathBuf::from(paths[1]), PathBuf::from(paths[2])]
+        );
+        assert_eq!(
+            slice(2, 10),
+            [
+                PathBuf::from(paths[1]),
+                PathBuf::from(paths[2]),
+                PathBuf::from(paths[3])
+            ]
+        );
+        assert_eq!(slice(2, 1), [PathBuf::from(paths[1])]);
     }
 
     #[test]

@@ -72,10 +72,10 @@ fallback. Out of scope: other languages, `ranking.rs`, contexts and routes place
 3. [x] Ruby resolver: `resolve/ruby.rs` behind the `ruby` feature (`require`/`require_relative`, constants by
    nesting, superclass, `include`/`extend`, implicit and `self` calls); verified by tests of the scenarios of RES-5
    to RES-7; makes true RES-1 (Ruby), RES-5, RES-6, RES-7 (Ruby). (autonomous)
-4. [ ] Resolved follow and its measure: `Follow::ResolvedThenLexical` in `slices.rs` (per file: resolved references,
+4. [x] Resolved follow and its measure: `Follow::ResolvedThenLexical` in `slices.rs` (per file: resolved references,
    else lexical), a `--resolved` slice in `parsed_slices` compared with the lexical, the mix of deliverable 1 and the
    kept `edges.tsv` file pair by file pair; measured on the three runs, no LLM; verified by the slice tests of RES-2,
-   RES-11; makes true RES-2. **Stop after it**: the passes switch only if it holds the mix's gain.
+   RES-11; makes true RES-2. **Stop after it**: the passes switch only if it holds the mix's gain. (autonomous)
 5. [ ] Passes switched: `CodeIndex` built with the resolution and `slice` following it for use cases, contexts,
    the reach of the entry points and the behaviour coverage; verified by RES-H1 to RES-H3 through `generate` with
    a fake LLM (the slice in the prompt) and the existing pass tests; makes true RES-11, the spec `accepted`.
@@ -193,3 +193,57 @@ Code review: 2 findings
   red before the fix (`left: {base.rb, concerns/naming.rb} right: {base.rb, concerns/paging.rb}`).
 
 not verified: the resolution on a real repository (the measure of deliverable 4); decisions needed: none.
+
+## Results of deliverable 4
+
+`parsed_slices --codegraph --detail` at b6d77f7 plus this deliverable, same copies and exports, depth 2, 8 files,
+no LLM; under a second per run.
+
+| run | lexical | resolved | mix | lexical vs resolved | mix vs resolved |
+|---|---|---|---|---|---|
+| linkding | 7.6 | 7.5 | 7.4 | 106 / 62 / 58 | 142 / 21 / 22 |
+| lobsters | 7.7 | 6.9 | 7.1 | 325 / 404 / 326 | 563 / 110 / 88 |
+| delivery_router | 8.0 | 7.5 | 7.0 | 15 / 1 / 0 | 14 / 0 / 1 |
+
+Pairs of source files linked from the Python and Ruby files, codegraph's edges against the resolved references
+(both / codegraph only / resolved only): linkding 164 / 57 / 1, lobsters 523 / 82 / 115, delivery_router 10 / 1 / 0.
+
+Sample read, the six files of deliverable 1 (resolved against lexical):
+
+| entry-point file | resolved only: used / noise | lexical only: used / noise | against the mix |
+|---|---|---|---|
+| `bookmarks/views/bookmarks.py` | 3 / 0 (`models.py`, `type_defs.py`, `utils.py`, imported) | 0 / 3 | `type_defs.py` (imported for annotations) takes the place of `queries.py` in the budget |
+| `bookmarks/api/routes.py` | 3 / 0 (`models.py`, `auto_tagging.py`, `type_defs.py`, imported) | 0 / 3 | `auto_tagging.py`, `type_defs.py` instead of `feeds.py`, `website_loader.py` |
+| `management/commands/backup.py` | 0 / 2 | 0 / 2 | same |
+| `stories_controller.rb` | 4 / 0 (`application_controller.rb`, `story_finder.rb` included, `create_story_card_job.rb` called, `hidden_story.rb`) | 0 / 4 | `story_finder.rb`, `create_story_card_job.rb` instead of `keystore.rb`, `saved_story.rb`: all used |
+| `notify_comment_job.rb` | 4 / 1 (noise: `console_methods.rb`, which reopens `module Rails`) | 0 / 3 and the 2 models reached by a parameter's name | same |
+| `lib/tasks/privacy_wipe.rake` | 0 / 0 | 0 / 0 | same (no resolver, lexical) |
+
+* Verdict: the resolved slice holds the mix's gain (noise on one side only 12 lexical against 1, 16 files used by
+  the code added, the same loss of the models reached by a parameter's name); where it differs from the mix, the
+  budget of 8 files picks other files the code uses.
+* Noise left: a library module reopened in the repository (`module Rails` in an initializer) is defined by that
+  file, so `Rails.application` leads there (RES-6).
+* Artifacts: `resolved_references_in_structure-492c9ff-1/detail-resolved.md` of the measure folder.
+
+## Summary of deliverable 4
+
+done: `Follow::ResolvedThenLexical` and `CodeIndex::with_resolution` in `slices.rs`; `parsed_slices` adds the
+resolved slice, against the lexical one and the mix, and its pairs against codegraph's edges; measured.
+
+| check | result |
+|---|---|
+| tests | `slices` 16 pass (2 new), `parsed_slices` 6 pass |
+| lint | clippy pedantic clean |
+| specs | RES-2, RES-11 traced (internal) |
+| docs | doc of `slices.rs` and of the example, `docs/dev/commands.md`, `docs/crates/pipeline.md` |
+| code review | 1 finding, not fixed (not a defect) |
+
+red: RES-2, RES-11: the 2 tests failed to compile before the code (`with_resolution`, `ResolvedThenLexical`
+missing).
+
+Code review: 1 findings
+* important: `with_resolution` would pass a file several times to `resolve`; not fixed: `CodeIndex::new` files each
+  path under its one normalized stem, so `by_name` holds it once, and `resolve` keys its files by path anyway.
+
+not verified: the slices beyond the six files read; decisions needed: the stop of the plan (switch the passes).
