@@ -16,7 +16,7 @@ pub(super) fn set_aside_older(repo_root: &Path) -> anyhow::Result<()> {
         return Ok(());
     };
     println!(
-        "The cache was of an older format: moved to {}, written again from scratch.",
+        "The cache was of an older format: its files moved to {}.",
         moved.dir
     );
     if !moved.hand_editable.is_empty() {

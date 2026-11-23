@@ -255,6 +255,12 @@ fn a_command_of_a_single_pass_records_the_format_of_what_it_writes() {
     let (dir, _llm) = shop();
     std::fs::remove_dir_all(dir.path().join(".retrodoc/cache")).unwrap();
 
+    let signals = support::run(dir.path(), &["brief", "--signals"]);
+    assert!(signals.status.success(), "{}", all_of(&signals));
+    assert!(
+        !format_file(dir.path()).exists(),
+        "brief --signals writes nothing"
+    );
     let output = retrodoc(dir.path(), "roles");
 
     assert!(output.status.success(), "{}", all_of(&output));
@@ -298,4 +304,20 @@ fn generate_force_moves_an_older_cache_aside_with_its_hand_edits() {
     let saved: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(format_file(dir.path())).unwrap()).unwrap();
     assert_eq!(saved, serde_json::json!({ "version": CURRENT }));
+}
+
+// spec: CFV-13
+#[test]
+fn generate_force_refused_by_the_edits_moves_nothing() {
+    let (dir, llm) = shop();
+    std::fs::write(format_file(dir.path()), r#"{"version": 0}"#).unwrap();
+    std::fs::write(dir.path().join(".retrodoc/edits.json"), "{").unwrap();
+    let (before, calls) = (cache_of(dir.path()), llm.calls().len());
+
+    let error = support::run(dir.path(), &["generate", "--force"]);
+
+    assert!(!error.status.success(), "{}", all_of(&error));
+    assert_eq!(cache_of(dir.path()), before);
+    assert_eq!(llm.calls().len(), calls);
+    assert!(!dir.path().join(".retrodoc/cache-format-0").exists());
 }

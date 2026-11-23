@@ -14,7 +14,7 @@ later one stamped. `generate --force` on an older cache keeps the files it does 
 
 The commands of a single pass check the format as the readers do, and refuse an older cache even with `--force`:
 their `--force` redoes one artifact and would leave the others in the older format. Those that write record the
-format before their first artifact. `generate --force` on an older cache moves every artifact of the cache to
+format before their first artifact. `generate --force` on an older cache moves every file of the cache to
 `.retrodoc/cache-format-<found>/` before its first write (the run history, versioned on its own, stays) and names the hand-editable files it holds, so the user can
 copy their edits back.
 

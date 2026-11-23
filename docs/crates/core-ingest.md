@@ -16,7 +16,7 @@ Detail moved out of `CLAUDE.md`. Overview of all crates: `docs/ARCHITECTURE.md` 
   `load_json` (a missing or unreadable file is a first run, `None`, not an error), `save_yaml`, `save_json` (written
   beside, synced, then renamed, `CacheError`); `hash_content`, the SHA-256 of the fingerprints and source hashes;
   `format` (`FORMAT_VERSION`, the format of the cache in `format.json`: `record` writes it when it says otherwise,
-  `check` refuses an older, later or unreadable one, no file reading as format 1; `set_aside_older` moves the artifacts of an older one to `.retrodoc/cache-format-<found>/` for `generate --force`, the run history left in place; not part of the fingerprints, ADR
+  `check` refuses an older, later or unreadable one, no file reading as format 1; `check` sees no cache in a `format.json` alone; `set_aside_older` moves every file of an older one but `history/` to `.retrodoc/cache-format-<found>/` for `generate --force`, the run history left in place; not part of the fingerprints, ADR
   0050, `specs/cache-format.md`).
 - **retrodoc-ingest**: reads the target repo — file walker respecting `.gitignore` (`walker.rs`; classifies files as `Source`/`Test`/`Markdown`/`Other` —
   the built-in extensions and test conventions cover the reference set of `specs/language-agnostic.md`, the

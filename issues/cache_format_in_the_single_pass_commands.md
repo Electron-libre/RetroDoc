@@ -56,6 +56,8 @@ the benchmark replays, an upgrade in place. `surface` writes nothing: it only ch
    `retrodoc_core::cache::format`, one call in `generate`, none under `--estimate`) and prints the directory and the
    hand-editable files moved; verified by a test through the binary (format 0 cache with an edited `roles.yaml`) and
    one with `--estimate`; makes true CFV-13; ADR 0052 accepted. (autonomous)
+3. [x] Docs and fixes of the `high` review of the whole issue; verified by `tests/cache_format.rs` and the unit tests
+   of `cache/format.rs`; makes true CFV-12, CFV-13. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -81,3 +83,17 @@ the benchmark replays, an upgrade in place. `surface` writes nothing: it only ch
   flat and distinct, `artifacts_have_distinct_names_under_the_cache_dir`).
 - `clear_caches` and the new `set_aside_older` moved to `generate/force.rs`: `generate/mod.rs` was over 800 lines.
 - not verified: none. decisions needed: none.
+
+## Summary of deliverable 3 (fixes of the `high` review)
+- done: a `format.json` alone makes no cache (`check` reads it as no cache); `generate` checks the edits before
+  `--force` moves or removes anything; every file of an older cache moves aside but `history/` (one this binary no
+  longer names included); `Artifact::hand_editable` the one list of the hand-editable files, `HISTORY_DIR` shared
+  with the run history; `brief --signals` checks the format and records none.
+- red: CFV-12, CFV-13: `brief --signals writes nothing` (format.json created); `generate --force` with unreadable
+  edits left the cache moved (`cache_of` differs).
+- Code review (`high`): 6 findings; 5 fixed above; 1 pre-existing (`scan` and `benchmark` read the cache unchecked)
+  filed as `issues/cache_format_in_scan_and_benchmark.md`.
+- Code review (`low` of the fixes): no findings
+- not verified: a `generate --force` that fails after the move for a missing API key leaves the cache moved (the
+  message names where); the state stays of one format, the next `generate` runs from scratch.
+- `open_workspace` moved to `generate/open.rs`: `generate/mod.rs` was over 800 lines.

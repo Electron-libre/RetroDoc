@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Context;
 use retrodoc_core::artifacts::{DomainMap, Scope};
-use retrodoc_core::cache::format::{self as cache_format, FormatError};
+use retrodoc_core::cache::format as cache_format;
 use retrodoc_core::cache::Artifact;
 use retrodoc_core::config::{Config, DomainsFrom};
 use retrodoc_core::model::{Feature, UseCase};
@@ -18,11 +18,12 @@ use retrodoc_pipeline::{
 mod contexts;
 mod estimate;
 mod force;
+mod open;
 mod print;
 
 use super::passes;
 use super::usage::PassProviders;
-use super::workspace::{source_paths, Workspace};
+use super::workspace::source_paths;
 
 /// Number of main entity names given to the use cases as business vocabulary.
 const VOCABULARY_SIZE: usize = 40;
@@ -122,15 +123,12 @@ pub async fn run(
         max_files,
         ..
     } = *options;
-    let (workspace, mut ingest) = open_workspace(path, force, options.estimate)?;
+    let (workspace, mut ingest) = open::open_workspace(path, force, options.estimate)?;
     let (repo_root, config) = (&workspace.repo_root, &workspace.config);
     *printed = Some(estimate::print(repo_root, config, options, &ingest));
     if options.estimate {
         return Ok(());
     }
-    // The render refuses a file of edits it can't read: refused before any LLM call is paid for.
-    retrodoc_mcp::edits::load(repo_root)
-        .context("nothing was run: the human edits cannot be read")?;
     // Before the first artifact, so a run stopped midway leaves it too (CFV-6).
     cache_format::record(repo_root).context("could not record the format of the cache")?;
     // The whole walk, before the budget: the only files a path of a saved artifact may read.
@@ -321,29 +319,6 @@ async fn reconcile_with_docs(
         )
         .await
         .context("failed to reconcile the items with the project docs")
-}
-
-/// Opens the repo, wipes the caches when asked (`force`, unless the run only `estimate`s), and walks
-/// it without the docs `generate` writes. Refuses a cache of another format first, the estimate
-/// included (it would count the units of a run that is refused): an older one unless `force`
-/// rewrites it (a rerun would keep its saved units), a later or unreadable one always (CFV-4, CFV-5).
-fn open_workspace(
-    path: &Path,
-    force: bool,
-    estimate: bool,
-) -> anyhow::Result<(Workspace, IngestResult)> {
-    let workspace = Workspace::open(path)?;
-    match cache_format::check(&workspace.repo_root) {
-        Err(FormatError::Older { .. }) if force => {}
-        checked => checked.context("nothing was run")?,
-    }
-    if force && !estimate {
-        force::set_aside_older(&workspace.repo_root)?;
-        force::clear_caches(&workspace.repo_root)?;
-    }
-    let mut ingest = workspace.ingest()?;
-    ingest.existing_docs = super::docs::without_generated(ingest.existing_docs, &workspace.config);
-    Ok((workspace, ingest))
 }
 
 /// The brief and the signals the closest extracts of a feature are taken from.

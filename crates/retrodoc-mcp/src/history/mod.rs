@@ -234,7 +234,9 @@ pub fn set_apart_reason(key: &str) -> Option<SetApartReason> {
 /// Where the snapshots of `repo_root` are saved.
 #[must_use]
 pub fn history_dir(repo_root: &Path) -> PathBuf {
-    Artifact::Usage.path(repo_root).with_file_name("history")
+    Artifact::Usage
+        .path(repo_root)
+        .with_file_name(retrodoc_core::cache::HISTORY_DIR)
 }
 
 /// Saves `snapshot` as a new file named by its end date, unless it equals the last one saved but

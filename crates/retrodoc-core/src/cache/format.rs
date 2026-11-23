@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use super::{save_json, Artifact, CacheError, CACHE_DIR};
+use super::{save_json, Artifact, CacheError, CACHE_DIR, HISTORY_DIR};
 
 /// The format of the artifacts this binary writes and reads. Bump it on a change of their shape
 /// that an older reader would read wrong, and refresh the frozen sample of the round-trip test.
@@ -63,11 +63,11 @@ pub fn check(repo_root: &Path) -> Result<(), FormatError> {
 }
 
 fn check_against(repo_root: &Path, reads: u32) -> Result<(), FormatError> {
-    let found = match recorded(repo_root)? {
-        Some(found) => found,
-        None if holds_artifacts(repo_root) => UNRECORDED,
-        None => return Ok(()),
-    };
+    // A `format.json` alone (a command stopped before its first artifact) makes no cache.
+    if !holds_artifacts(repo_root) {
+        return Ok(());
+    }
+    let found = recorded(repo_root)?.unwrap_or(UNRECORDED);
     match found.cmp(&reads) {
         std::cmp::Ordering::Less => Err(FormatError::Older { found, reads }),
         std::cmp::Ordering::Equal => Ok(()),
@@ -99,17 +99,6 @@ pub fn record(repo_root: &Path) -> Result<(), CacheError> {
     )
 }
 
-/// The files of the cache meant to be edited by hand, which `generate --force` keeps on a cache of
-/// its own format.
-const HAND_EDITABLE: [Artifact; 6] = [
-    Artifact::Roles,
-    Artifact::RolesUnmatched,
-    Artifact::SignalSources,
-    Artifact::Product,
-    Artifact::BusinessFiles,
-    Artifact::Contexts,
-];
-
 /// An older cache moved out of `.retrodoc/cache/` (CFV-13).
 #[derive(Debug, PartialEq, Eq)]
 pub struct SetAside {
@@ -119,10 +108,10 @@ pub struct SetAside {
     pub hand_editable: Vec<&'static str>,
 }
 
-/// Moves the artifacts of the cache under `repo_root` to `.retrodoc/cache-format-<found>/` when it is
+/// Moves every file of the cache under `repo_root` to `.retrodoc/cache-format-<found>/` when it is
 /// of an older format, replacing a directory of that name, so `generate --force` keeps no file of
-/// that format (CFV-13); the run history, which carries its own version, stays. `None` when the
-/// cache is not older.
+/// that format (CFV-13), one this binary no longer names included; the run history (`history/`),
+/// which carries its own version, stays. `None` when the cache is not older.
 ///
 /// # Errors
 ///
@@ -146,16 +135,18 @@ fn set_aside_older_than(repo_root: &Path, reads: u32) -> Result<Option<SetAside>
         _ => {}
     }
     std::fs::create_dir_all(&target).map_err(io_error(&target))?;
-    for artifact in Artifact::ALL {
-        let file = artifact.path(repo_root);
-        match std::fs::rename(&file, target.join(artifact.file_name())) {
-            Err(e) if e.kind() != std::io::ErrorKind::NotFound => return Err(io_error(&file)(e)),
-            _ => {}
+    let cache = repo_root.join(CACHE_DIR);
+    for entry in std::fs::read_dir(&cache).map_err(io_error(&cache))? {
+        let file = entry.map_err(io_error(&cache))?.path();
+        if file.file_name().is_some_and(|name| name == HISTORY_DIR) {
+            continue;
         }
+        let name = file.file_name().unwrap_or_default();
+        std::fs::rename(&file, target.join(name)).map_err(io_error(&file))?;
     }
-    let hand_editable = HAND_EDITABLE
+    let hand_editable = Artifact::ALL
         .iter()
-        .filter(|a| target.join(a.file_name()).exists())
+        .filter(|a| a.hand_editable() && target.join(a.file_name()).exists())
         .map(|a| a.file_name())
         .collect();
     Ok(Some(SetAside { dir, hand_editable }))
@@ -183,6 +174,14 @@ mod tests {
 
     // spec: CFV-7 (internal: the binary reads one format, a later one is needed to see an older cache)
     #[test]
+    fn a_format_file_alone_is_read_by_any_version() {
+        let dir = tempfile::tempdir().unwrap();
+        record(dir.path()).unwrap();
+        assert_eq!(check_against(dir.path(), FORMAT_VERSION + 1), Ok(()));
+    }
+
+    // spec: CFV-7 (internal: the binary reads one format, a later one is needed to see an older cache)
+    #[test]
     fn a_cache_with_no_artifact_is_read_by_any_version() {
         let dir = tempfile::tempdir().unwrap();
         assert_eq!(check_against(dir.path(), 2), Ok(()));
@@ -202,6 +201,9 @@ mod tests {
         let previous = dir.path().join(".retrodoc/cache-format-1");
         std::fs::create_dir_all(&previous).unwrap();
         std::fs::write(previous.join("stale.yaml"), "").unwrap();
+        let cache = dir.path().join(".retrodoc/cache");
+        std::fs::write(cache.join("renamed-since.yaml"), "").unwrap();
+        std::fs::create_dir_all(cache.join("history")).unwrap();
 
         assert_eq!(set_aside_older_than(dir.path(), 1).unwrap(), None);
         let moved = set_aside_older_than(dir.path(), 2).unwrap().unwrap();
@@ -212,5 +214,7 @@ mod tests {
         assert!(!Artifact::Roles.path(dir.path()).exists());
         assert!(previous.join("features.yaml").is_file());
         assert!(!previous.join("stale.yaml").exists());
+        assert!(previous.join("renamed-since.yaml").is_file());
+        assert!(cache.join("history").is_dir());
     }
 }

@@ -27,7 +27,14 @@ pub async fn run(
     signals_only: bool,
     tracker: &UsageTracker,
 ) -> anyhow::Result<()> {
-    let workspace = Workspace::open_to_write(path)?;
+    // `signals_only` writes nothing: it checks the format and records none (CFV-12).
+    let workspace = if signals_only {
+        let workspace = Workspace::open(path)?;
+        super::workspace::check_format(&workspace.repo_root)?;
+        workspace
+    } else {
+        Workspace::open_to_write(path)?
+    };
     let repo_root = &workspace.repo_root;
     let config = &workspace.config;
     let mut ingest = workspace.ingest()?;

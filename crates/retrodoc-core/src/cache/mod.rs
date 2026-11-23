@@ -37,6 +37,10 @@ pub fn hash_content(content: &str) -> String {
 /// Where the artifacts live, relative to the repo root.
 const CACHE_DIR: &str = ".retrodoc/cache";
 
+/// The directory of the run history under the cache: versioned on its own, kept by every
+/// `generate --force` (ADR 0043).
+pub const HISTORY_DIR: &str = "history";
+
 /// Every file the passes save under `.retrodoc/cache/`: the one place that
 /// knows their names.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -139,6 +143,20 @@ impl Artifact {
     #[must_use]
     pub fn path(self, repo_root: &Path) -> PathBuf {
         repo_root.join(CACHE_DIR).join(self.file_name())
+    }
+
+    /// Whether it is meant to be edited by hand when the LLM gets it wrong.
+    #[must_use]
+    pub fn hand_editable(self) -> bool {
+        matches!(
+            self,
+            Artifact::Roles
+                | Artifact::RolesUnmatched
+                | Artifact::SignalSources
+                | Artifact::Product
+                | Artifact::BusinessFiles
+                | Artifact::Contexts
+        )
     }
 
     /// Whether `generate --force` removes it. The others are not results to
@@ -271,6 +289,16 @@ mod tests {
             Artifact::UseCases.relative_path(),
             ".retrodoc/cache/use-cases.yaml"
         );
+    }
+
+    #[test]
+    fn force_keeps_every_hand_editable_artifact() {
+        for artifact in Artifact::ALL {
+            assert!(
+                !(artifact.hand_editable() && artifact.cleared_by_force()),
+                "{artifact:?}"
+            );
+        }
     }
 
     // spec: RER-7 (internal: the artifacts are written by LLM passes the binary cannot run without an LLM)
