@@ -59,3 +59,87 @@ smoke repository; telemetry off; the confidential repositories only if the user 
 * The ledger of measures lists the saved runs and frozen inputs to reuse; append the measure there.
 * Never let codegraph's telemetry run on a confidential repository.
 * Its schema is internal: a measure may read it, RetroDoc code must not depend on it.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-23
+
+## Understanding
+Measure, with no LLM, whether codegraph's resolved edges give slices and entry points a reader judges better than
+today's lexical ones; then record the decision (drop, accelerator, port, agent tool). Out of scope: any code of
+RetroDoc's pipeline depending on codegraph; the choice among the follow-ups, left to the stop after deliverable 1.
+
+## Plan
+1. [x] Measure: codegraph (release archive, its own Node; telemetry off) indexes a copy of each checkout of the
+   saved runs (linkding `rules-ld-judged`, lobsters `second_application_in_benchmark-d8d8c92-1`, delivery_router
+   `rules-dr-judged`); its edges and route nodes are exported from its SQLite file to a file-level TSV by a
+   documented `sqlite3` query (no RetroDoc dependency); `parsed_slices --codegraph <tsv>` adds a fourth slice
+   (codegraph edges, same depth 2 and 8 files, rank by edge kind then path) and a count of the entry-point files
+   of `entry-points.yaml` its routes reach (both, ours only, codegraph only); verified by unit tests of the TSV
+   reading, the follow and the route comparison; results here and in the ledger.
+   **Stop after it**: the user judges, on a sample of differing slices, whether codegraph's are better (decides 2).
+   (autonomous)
+2. [ ] Decision: the outcome written in `docs/findings.md` (dated) and, with a gain, the follow-up issue of the
+   option the user picks (accelerator, port into `structure.rs`, agent tool); verified by `check-issue` on it.
+
+## Decisions
+- Mode: autonomous
+- Base commit: 7ad832a1eab80d398681b0cbacf1bb9438c46f39
+- Install: the v1.6.4 release archive (its own Node; the machine's Node 26 is outside its `engines`), in the
+  session's scratch directory, telemetry off (user, 2026-11-23).
+- Repositories: linkding, lobsters, delivery_router only; not the confidential Rails one (user, 2026-11-23).
+
+## Results of deliverable 1
+
+codegraph 1.6.4 (release archive, telemetry off) on copies of the checkouts of the saved runs, indexed in under 2 s
+each (linkding 4,334 nodes and 12,230 edges; lobsters 3,303 and 4,947; delivery_router 68 and 85); edges between two
+files, all kinds but `contains` (calls, imports, instantiates, references, extends, decorates). `parsed_slices
+--codegraph --detail`, depth 2 and 8 files, from each entry-point file alone; columns as in
+`parsed_references_for_ranking_and_slices`, then the codegraph slice.
+
+| run | entry-point files | lexical | mixed | codegraph | lexical vs mixed | lexical vs codegraph |
+|---|---|---|---|---|---|---|
+| linkding | 22 | 7.6 | 7.6 | 3.8 | 140 / 28 / 28 | 35 / 133 / 49 |
+| lobsters | 95 | 7.7 | 7.7 | 5.7 | 499 / 230 / 237 | 241 / 488 / 302 |
+| delivery_router | 2 | 8.0 | 8.0 | 6.0 | 16 / 0 / 0 | 12 / 4 / 0 |
+
+* Where it links, codegraph's slice holds no method-name noise in the sample read (`views/bookmarks.py`,
+  `api/routes.py` of linkding; `stories_controller.rb`, `comments_controller.rb`, `notify_comment_job.rb` of
+  lobsters): no `lib/time_series.rb`, old migration, `app/javascript/user.js` nor `config/routes.rb`; it brings the
+  models, queries and collaborators the code uses (`models.py`, `queries.py`, `hidden_story.rb`, `saved_story.rb`,
+  `comment_vote_hydrator.rb`, `notify_comment_job.rb`) and the parent classes (`application_controller.rb`). Noise
+  left: a console initializer (`config/initializers/console_methods.rb`), `extras/routes.rb` as a callee.
+* It links nothing for 24 of the 119 entry-point files: the Django management commands (7 of linkding; they call
+  each other by `call_command` strings), two small views, every `.rake` task and extensionless script of lobsters
+  (not parsed as Ruby), `application_job.rb` and `application_mailbox.rb`. The lexical follow finds 7 or 8 files for
+  them. Slices are half the size on linkding for that reason.
+* Routes: codegraph knows HTTP routes only (linkding 53, lobsters 199, delivery_router none). On lobsters its 42 route
+  files are all entry-point files already; the 53 others are jobs, mailers, mailboxes, models, rake tasks and
+  scripts, which it does not see as entry points. On linkding, 11 files in common; it adds `views/assets.py` and
+  `views/auth.py` (real routes the saved run missed) and four files that declare or test routes (`urls.py`,
+  `admin.py`, `api/serializers.py`, a test); it misses `views/reload.py` and links one route to the wrong file
+  (`bookmarks/archived` to the `archived` method of `api/routes.py`, not the view).
+* Artifacts: `references_resolved_by_codegraph-7ad832a-1/` of the measure folder (`detail.md`, the TSV exports per
+  run).
+
+## Summary of deliverable 1
+
+done: `parsed_slices --codegraph` adds the slice along codegraph's edges and the comparison of its routes with the
+entry-point files; measured on the three saved runs.
+
+| check | result |
+|---|---|
+| tests | `parsed_slices` 5 pass (3 new) |
+| lint | clippy pedantic clean |
+| specs | none (a measure) |
+| docs | `docs/dev/commands.md`, doc of the example |
+| code review | 1 finding, fixed |
+
+red: none (an example of `retrodoc-bench`, no requirement); the 3 new tests failed to compile before the code
+(`Graph`, `route_files`, `route_row` missing).
+
+Code review: 1 findings
+* nit: with `--codegraph`, a run dir with no `edges.tsv` printed a row two cells short; fixed (`- | -`).
+
+not verified: the quality of the codegraph slices beyond the five entry-point files read; decisions needed: the
+stop below.
