@@ -16,16 +16,18 @@
 //! (`codegraph init -y --local-only`, telemetry off) by `sqlite3 .codegraph/codegraph.db`:
 //!
 //! ```text
+//! .separator "\t"
 //! .output .codegraph/edges.tsv
 //! SELECT s.file_path, t.file_path, e.kind, count(*) FROM edges e JOIN nodes s ON s.id = e.source
 //!   JOIN nodes t ON t.id = e.target WHERE s.file_path <> t.file_path AND e.kind <> 'contains' GROUP BY 1, 2, 3;
 //! .output .codegraph/routes.tsv
-//! SELECT n.name, n.file_path, coalesce(t.file_path, '') FROM nodes n
+//! SELECT n.id, n.name, n.file_path, coalesce(t.file_path, '') FROM nodes n
 //!   LEFT JOIN edges e ON e.source = n.id AND e.kind = 'references' LEFT JOIN nodes t ON t.id = e.target
 //!   WHERE n.kind = 'route';
 //! ```
 //!
-//! (with `.separator "\t"`). The schema of that index is codegraph's own: this example reads only these exports.
+//! The schema of that index is codegraph's own: this example reads only these exports. Their paths are relative
+//! to the repository root, as the walker's (a leading `./` is dropped).
 
 #![allow(clippy::cast_precision_loss)] // counts of files: far below 2^52
 
@@ -150,9 +152,9 @@ impl Graph {
             };
             *graph
                 .edges
-                .entry(PathBuf::from(source))
+                .entry(relative(source))
                 .or_default()
-                .entry(PathBuf::from(target))
+                .entry(relative(target))
                 .or_default() += count;
         }
         graph
@@ -214,19 +216,40 @@ impl Graph {
     }
 }
 
-/// The number of routes of `routes.tsv` (lines `name \t route file \t target file`) and the files they lead
-/// to: the target, else the file declaring the route.
-fn route_files(text: &str) -> (usize, BTreeSet<PathBuf>) {
-    let mut count = 0;
-    let mut files = BTreeSet::new();
+/// A path of an export as the walker writes it.
+fn relative(path: &str) -> PathBuf {
+    PathBuf::from(path.strip_prefix("./").unwrap_or(path))
+}
+
+/// The number of routes of `routes.tsv` (lines `id \t name \t route file \t target file`, one per reference of
+/// a route) and the files they lead to: a target among the source files, else the file declaring the route.
+fn route_files(text: &str, sources: &BTreeSet<PathBuf>) -> (usize, BTreeSet<PathBuf>) {
+    // Per route id: the file declaring it, and its targets among the sources.
+    let mut routes: BTreeMap<&str, (PathBuf, BTreeSet<PathBuf>)> = BTreeMap::new();
     for line in text.lines() {
         let cols: Vec<&str> = line.split('\t').collect();
-        let [_name, file, target] = cols[..] else {
+        let [id, _name, file, target] = cols[..] else {
             continue;
         };
-        count += 1;
-        files.insert(PathBuf::from(if target.is_empty() { file } else { target }));
+        let route = routes
+            .entry(id)
+            .or_insert_with(|| (relative(file), BTreeSet::new()));
+        let target = relative(target);
+        if sources.contains(&target) {
+            route.1.insert(target);
+        }
     }
+    let count = routes.len();
+    let files = routes
+        .into_values()
+        .flat_map(|(file, targets)| {
+            if targets.is_empty() {
+                BTreeSet::from([file])
+            } else {
+                targets
+            }
+        })
+        .collect();
     (count, files)
 }
 
@@ -272,7 +295,14 @@ fn list(files: &[PathBuf]) -> String {
     }
 }
 
-fn row(repo_root: &Path, detail: bool, codegraph: bool) -> Option<(String, Option<String>)> {
+/// What one run adds to the output: its row of the slices table, its row of the routes table, its details.
+struct RunReport {
+    line: String,
+    route: Option<String>,
+    details: String,
+}
+
+fn row(repo_root: &Path, detail: bool, codegraph: bool) -> Option<RunReport> {
     let entry_points = EntryPoints::load(repo_root)?;
     let sources = sources_of(repo_root);
     let graph = if codegraph {
@@ -335,23 +365,29 @@ fn row(repo_root: &Path, detail: bool, codegraph: bool) -> Option<(String, Optio
     }
     let run = repo_root.file_name()?.to_string_lossy().into_owned();
     let mut line = totals.row(&run);
-    let mut routes = None;
-    if codegraph && graph.is_none() {
-        line += " - | - |";
-    }
-    if graph.is_some() {
-        line += &totals.codegraph_cells();
+    let mut route = None;
+    if codegraph {
+        line += &if graph.is_some() {
+            totals.codegraph_cells()
+        } else {
+            " - | - |".to_string()
+        };
         let ours: BTreeSet<PathBuf> = entry_points
             .files
             .iter()
             .filter(|(_, e)| !e.entry_points.is_empty())
             .map(|(f, _)| f.clone())
             .collect();
-        routes = std::fs::read_to_string(repo_root.join(".codegraph/routes.tsv"))
-            .ok()
-            .map(|text| route_row(&run, &ours, &route_files(&text)));
+        match std::fs::read_to_string(repo_root.join(".codegraph/routes.tsv")) {
+            Ok(text) => route = Some(route_row(&run, &ours, &route_files(&text, &source_set))),
+            Err(_) => eprintln!("{}: no .codegraph/routes.tsv", repo_root.display()),
+        }
     }
-    Some((line + &details, routes))
+    Some(RunReport {
+        line,
+        route,
+        details,
+    })
 }
 
 fn main() {
@@ -380,11 +416,13 @@ fn main() {
     println!("| Run | Entry-point files | Parsable | Lexical | Mixed | Parsed | Lexical vs mixed | Mixed = lexical | Lexical vs parsed |{extra}");
     println!("|---|---|---|---|---|---|---|---|---|{extra_rule}");
     let mut routes = Vec::new();
+    let mut details = Vec::new();
     for dir in dirs {
         match row(&dir, detail, codegraph) {
-            Some((line, route)) => {
-                println!("{line}");
-                routes.extend(route);
+            Some(report) => {
+                println!("{}", report.line);
+                routes.extend(report.route);
+                details.push(report.details);
             }
             None => eprintln!("{}: no entry-points.yaml, skipped", dir.display()),
         }
@@ -396,6 +434,9 @@ fn main() {
         for line in routes {
             println!("{line}");
         }
+    }
+    for text in details {
+        print!("{text}");
     }
 }
 
@@ -439,7 +480,7 @@ mod tests {
     #[test]
     fn the_edges_of_codegraph_sum_their_kinds_per_pair_of_files() {
         let graph = Graph::parse(
-            "a.py\tb.py\tcalls\t3\na.py\tb.py\timports\t1\na.py\tc.py\tcalls\t2\nbroken line\n",
+            "a.py\tb.py\tcalls\t3\na.py\t./b.py\timports\t1\na.py\tc.py\tcalls\t2\nbroken line\n",
         );
         assert_eq!(graph.next(Path::new("a.py")), paths(&["b.py", "c.py"]));
         assert_eq!(graph.next(Path::new("b.py")), Vec::<PathBuf>::new());
@@ -465,10 +506,30 @@ mod tests {
 
     #[test]
     fn the_routes_of_codegraph_are_compared_to_the_entry_point_files_by_target() {
-        let routes = route_files(
-            "users/\turls.py\tviews/users.py\nhealth\turls.py\t\nadmin/\turls.py\tviews/admin.py\n",
+        let sources: BTreeSet<PathBuf> = paths(&[
+            "urls.py",
+            "views/users.py",
+            "views/admin.py",
+            "api/routes.py",
+        ])
+        .into_iter()
+        .collect();
+        // A route with a target among the sources leads there only, whatever its other references.
+        let reached = route_files(
+            "1\tusers/\turls.py\tviews/users.py\n1\tusers/\turls.py\tserializers.py\n",
+            &sources,
         );
-        assert_eq!(routes.0, 3);
+        assert_eq!(
+            reached,
+            (1, paths(&["views/users.py"]).into_iter().collect())
+        );
+        // One route per id; a route with no target among the sources leads to the file declaring it.
+        let routes = route_files(
+            "1\tusers/\turls.py\tviews/users.py\n1\tusers/\turls.py\tserializers.py\n2\thealth\turls.py\t\n\
+             3\tadmin/\t./urls.py\tviews/admin.py\n4\tadmin/\turls.py\ttemplates/admin.html\n",
+            &sources,
+        );
+        assert_eq!(routes.0, 4);
         assert_eq!(
             routes.1,
             paths(&["urls.py", "views/admin.py", "views/users.py"])
@@ -480,7 +541,7 @@ mod tests {
             .collect();
         assert_eq!(
             route_row("r", &ours, &routes),
-            "| r | 2 | 3 | 3 | 1 / 1 / 2 | api/routes.py | urls.py, views/admin.py |"
+            "| r | 2 | 4 | 3 | 1 / 1 / 2 | api/routes.py | urls.py, views/admin.py |"
         );
     }
 }

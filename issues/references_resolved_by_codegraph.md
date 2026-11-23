@@ -82,6 +82,10 @@ RetroDoc's pipeline depending on codegraph; the choice among the follow-ups, lef
 2. [x] Decision: the outcome written in `docs/findings.md` (dated) and, with a gain, the follow-up issue of the
    option the user picks (accelerator, port into `structure.rs`, agent tool); verified by `check-issue` on it.
    (autonomous)
+3. [x] Fixes of the `high` review: routes counted by node id (the export gains it), route targets out of the sources
+   counted as the declaring file (per route, only when none of its targets is a source), `routes.tsv` read and warned of apart from `edges.tsv`, `./` dropped from the
+   exported paths, `.separator` first in the documented export, details printed after the tables; verified by the
+   unit tests of the routes and edges and by the measure rerun (same figures). (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -164,3 +168,32 @@ red: none (docs only)
 Code review: 1 findings
 * nit: the links to this issue pointed at `issues/done/` before its close; now its current path, which `close-issue`
   rewrites.
+
+## Summary of deliverable 3
+
+done: the fixes of the `high` review of the issue; the measure rerun with the new routes export gives the same
+figures (no route of the three runs has two references).
+
+| check | result |
+|---|---|
+| tests | `parsed_slices` 5 pass (2 amended) |
+| lint | clippy pedantic clean |
+| docs | doc of the example |
+| code review | see below |
+
+red: none (an example, no requirement); the amended route test failed to compile before the code (`route_files`
+took one argument).
+
+Code review: 9 findings (8 of the `high` review of the issue, 1 of the `low` review of this deliverable)
+* important: routes counted per export line, not per route; fixed (count of distinct node ids).
+* nit: route targets not limited to the sources; fixed (else the declaring file).
+* nit: no warning for a missing `routes.tsv`; fixed.
+* nit: routes skipped when `edges.tsv` is missing; fixed (read apart).
+* nit: paths of the export not normalised; fixed (`./` dropped; codegraph writes relative paths, checked on the
+  three indexes).
+* nit: `.separator` documented after the block; fixed.
+* pre-existing: `--detail` sections broke the table of several runs; fixed (printed after the tables).
+* important (`low` review of this deliverable): a route with a source target still added its declaring file when
+  another of its references was out of the sources; fixed (routes grouped by id before the fallback).
+* pre-existing: a run dir with no file name (`.`) is reported as having no `entry-points.yaml`; not fixed, outside
+  this issue (pass the run dir by its name).
