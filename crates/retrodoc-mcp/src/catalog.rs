@@ -35,16 +35,16 @@ pub const SEARCH_DOCS: &str = "Search the generated documentation (including bus
      matches: say so rather than guess.";
 
 #[derive(Deserialize, JsonSchema)]
-pub(crate) struct NoParams {}
+pub struct NoParams {}
 
 #[derive(Deserialize, JsonSchema)]
-pub(crate) struct IdParams {
+pub struct IdParams {
     /// The id as shown by the other tools (e.g. `billing/pay-invoice`).
     pub id: String,
 }
 
 #[derive(Deserialize, JsonSchema)]
-pub(crate) struct SourceParams {
+pub struct SourceParams {
     /// A file cited by the docs, relative to the repository root (e.g. `app/invoice.rb`).
     pub path: String,
     /// First line to show, 1-based (default 1).
@@ -54,7 +54,7 @@ pub(crate) struct SourceParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
-pub(crate) struct LogParams {
+pub struct LogParams {
     /// A file cited by the docs, relative to the repository root.
     pub path: String,
     /// Maximum number of commits (default 10, at most 50).
@@ -62,7 +62,7 @@ pub(crate) struct LogParams {
 }
 
 #[derive(Deserialize, JsonSchema)]
-pub(crate) struct SearchParams {
+pub struct SearchParams {
     /// What to look for, in the application's own words.
     pub query: String,
     /// Maximum number of results (default 5, at most 20).
@@ -189,7 +189,8 @@ impl Docs {
 }
 
 /// The number of hits of `search_docs`: [`DEFAULT_LIMIT`] when not given, within 1 and [`MAX_LIMIT`].
-pub(crate) fn search_limit(limit: Option<usize>) -> usize {
+#[must_use]
+pub fn search_limit(limit: Option<usize>) -> usize {
     limit.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT)
 }
 

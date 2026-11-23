@@ -7,6 +7,10 @@ license.workspace = true
 [lints]
 workspace = true
 
+[features]
+# The fixtures of the unit tests, for the tests of the MCP server (`retrodoc-mcp`).
+testing = []
+
 [dependencies]
 chrono.workspace = true
 retrodoc-core.workspace = true

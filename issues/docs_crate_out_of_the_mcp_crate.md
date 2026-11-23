@@ -36,3 +36,55 @@ The readers of the docs out of the pipeline
 # Hints
 * The `catalog` of read-only tools serves both the MCP server and the `ask` agent: decide where it lives at the plan.
 * The rerun must stay a no-op.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-23
+
+## Understanding
+Split `retrodoc-mcp` in two: a new `retrodoc-docs` crate holds every module about the generated docs (read model,
+corpus, search, freshness, source access, stores of reviews and edits, debt, audit, history, report, and the
+read-only tools with their catalog); `retrodoc-mcp` keeps only `server.rs` (the `rmcp` wiring) over it. Pure
+refactor: no change of behaviour, no spec amended, the rerun stays a no-op.
+
+## Plan
+1. [x] Prepare the move in place: the argument types of the catalog and `search_limit` public, the fixtures of
+   `corpus` public behind a `testing` feature, so the server can reach them from another crate; verified by
+   `cardinal run project-check`. (autonomous)
+2. [ ] Move the docs modules to `retrodoc-docs`: `git mv` of every module of `retrodoc-mcp` but `server.rs` (and of its
+   two integration tests) into `crates/retrodoc-docs/`, a new `lib.rs` and manifest, `retrodoc-mcp` reduced to
+   `server.rs` over `retrodoc-docs`; the readers (agent, web, bench, cli) pointed at `retrodoc_docs`; ADR draft
+   0054; verified by `cardinal run project-check` (the moved tests pass unchanged, the spec traceability holds) and
+   `cargo tree` (no reader but the CLI depends on `retrodoc-mcp`, `retrodoc-docs` has no normal dependency on the
+   pipeline).
+3. [ ] Docs: ADR 0054 accepted, `docs/ARCHITECTURE.md` (graph and table), the dependency graph of `CLAUDE.md`,
+   `docs/crates/` (a `docs.md` of the new crate, `render-mcp-cli.md` left with the server), the doc comments that
+   name `retrodoc-mcp` for the read model; verified by `skill:update-docs` and a grep of `retrodoc-mcp` and
+   `retrodoc_mcp` left only where the server is meant.
+
+## Decisions
+- Mode: autonomous
+- Base commit: d66bfd81099cf58144c9ea6a161ce2a6594c7f2f
+- Catalog and tools go to `retrodoc-docs` (answer 1 a).
+- `retrodoc-pipeline` stays a dev-dependency of `retrodoc-docs` for the audit tests (answer 2 a).
+- The move was cut in two for its size (2,270 lines in one: a moved file that is also edited counts twice): the
+  edits of `catalog.rs` and `corpus.rs` first, in place (deliverable 1), then the move alone (deliverable 2).
+
+## Summaries
+
+### Deliverable 1
+- done: the catalog's argument types and `search_limit` public, the fixtures of `corpus` public behind the
+  `testing` feature of `retrodoc-mcp`; no change of behaviour.
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | clippy pedantic clean |
+| specs | traceability unchanged |
+| docs | none touched (the crate docs follow at deliverable 3) |
+
+- red: none (refactor, no new test)
+- Code review: no findings
+- not verified: none
+- decisions needed: none
+

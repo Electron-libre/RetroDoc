@@ -247,12 +247,15 @@ pub fn build_entries(
     entries
 }
 
-#[cfg(test)]
-pub(crate) mod fixtures {
+/// The domains, features and use cases the tests build their docs from, also for the tests of
+/// the MCP server (`retrodoc-mcp`).
+#[cfg(any(test, feature = "testing"))]
+pub mod fixtures {
     use retrodoc_core::model::{
         Actor, ActorKind, ConfidenceScore, Domain, Feature, SourceRef, Step, UseCase,
     };
 
+    #[must_use]
     pub fn domain(slug: &str, name: &str, description: &str) -> Domain {
         Domain {
             slug: slug.into(),
@@ -262,6 +265,7 @@ pub(crate) mod fixtures {
         }
     }
 
+    #[must_use]
     pub fn feature(slug: &str, name: &str, description: &str) -> Feature {
         Feature {
             back_office: false,
@@ -276,6 +280,7 @@ pub(crate) mod fixtures {
         }
     }
 
+    #[must_use]
     pub fn use_case(slug: &str, feature: &str, name: &str, narrative: &str) -> UseCase {
         let step = |order, description: &str, path: &str| Step {
             order,
