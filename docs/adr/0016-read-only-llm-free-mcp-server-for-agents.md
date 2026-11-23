@@ -1,6 +1,6 @@
 # 0016. Serve the docs to agents through a read-only, LLM-free MCP server
 
-Status: Accepted
+Status: Accepted (refined by 0054: the reading of the docs in `retrodoc-docs`, the server alone in `retrodoc-mcp`)
 
 ## Context
 

@@ -1,6 +1,6 @@
 # 0047. The `ask` agent is a crate of its own over the read-only tools of the MCP server
 
-Status: Accepted
+Status: Accepted (its tools in `retrodoc-mcp`: refined by 0054, which moves them to `retrodoc-docs`)
 
 ## Context
 

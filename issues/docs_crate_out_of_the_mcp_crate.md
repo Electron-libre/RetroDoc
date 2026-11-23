@@ -61,6 +61,9 @@ refactor: no change of behaviour, no spec amended, the rerun stays a no-op.
    `docs/crates/` (a `docs.md` of the new crate, `render-mcp-cli.md` left with the server), the doc comments that
    name `retrodoc-mcp` for the read model; verified by `skill:update-docs` and a grep of `retrodoc-mcp` and
    `retrodoc_mcp` left only where the server is meant. (autonomous)
+4. [x] Fixes of the `high` review: the status lines of ADRs 0016, 0039 and 0047 refined by 0054, `report.rs` in
+   `docs/crates/docs.md`, the public docs of `source.rs` without links to private constants; verified by
+   `RUSTDOCFLAGS=-D warnings cargo doc -p retrodoc-docs` and `cardinal run project-check`. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -123,3 +126,22 @@ refactor: no change of behaviour, no spec amended, the rerun stays a no-op.
 - Code review: no findings
 - not verified: the Mermaid graph of `docs/ARCHITECTURE.md` not rendered
 - decisions needed: none
+
+### Deliverable 4
+- done: the fixes of the `high` review of `d66bfd8..HEAD` (4 findings, no correctness bug): ADRs 0016, 0039 and
+  0047 say what 0054 refines in them; `report.rs` listed in `docs/crates/docs.md` (pre-existing gap);
+  `source.rs` documents its private bounds as code spans, so `cargo doc` of the crate is warning-free
+  (pre-existing). Not fixed: no commit scope added for `retrodoc-docs` (the `docs` scope, already allowed, would
+  read as the documentation one): left to the user.
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`) |
+| lint | clippy pedantic clean; `RUSTDOCFLAGS=-D warnings cargo doc -p retrodoc-docs -p retrodoc-mcp` clean |
+| specs | traceability unchanged |
+| docs | the ADR status lines, `docs/crates/docs.md` |
+
+- red: none (docs and doc comments)
+- Code review: no findings
+- not verified: none
+- decisions needed: a commit scope for `retrodoc-docs`

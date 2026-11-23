@@ -1,6 +1,6 @@
 # 0039. A server-rendered web interface over the generated docs
 
-Status: Accepted
+Status: Accepted (its read model in `retrodoc-mcp`: refined by 0054, which moves it to `retrodoc-docs`)
 
 ## Context
 

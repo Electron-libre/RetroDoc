@@ -1,6 +1,6 @@
 # 0054. The generated docs are read through a crate of their own
 
-Status: Accepted
+Status: Accepted (refines 0016, 0039 and 0047, which stay in force)
 
 ## Context
 

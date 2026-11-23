@@ -41,7 +41,7 @@ pub struct Window {
 pub struct Line {
     pub number: usize,
     pub text: String,
-    /// The length in characters of a line cut to [`MAX_LINE_CHARS`].
+    /// The length in characters of a line cut to `MAX_LINE_CHARS`.
     pub cut_from: Option<usize>,
 }
 
@@ -213,8 +213,8 @@ impl SourceAccess {
     }
 
     /// The lines `start_line` to `end_line` (1-based, inclusive) of the cited
-    /// file `path`: [`DEFAULT_LINES`] from `start_line` with no end, at most
-    /// [`MAX_LINES`], each cut to [`MAX_LINE_CHARS`].
+    /// file `path`: `DEFAULT_LINES` from `start_line` with no end, at most
+    /// `MAX_LINES`, each cut to `MAX_LINE_CHARS`.
     ///
     /// # Errors
     ///
