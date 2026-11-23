@@ -27,7 +27,7 @@ in `docs/findings.md` and the closed issues in `issues/done/`.
   - [loaders_of_the_items_in_core](issues/done/loaders_of_the_items_in_core.md)
   - [read_time_computations_out_of_the_pipeline](issues/done/read_time_computations_out_of_the_pipeline.md)
   - [run_history_out_of_the_pipeline](issues/done/run_history_out_of_the_pipeline.md)
-  - [docs_crate_out_of_the_mcp_crate](issues/docs_crate_out_of_the_mcp_crate.md)
+  - [docs_crate_out_of_the_mcp_crate](issues/done/docs_crate_out_of_the_mcp_crate.md)
 
 ## A local model, measured
 
