@@ -8,7 +8,8 @@ adrs: [0003, 0005, 0037, 0043, 0050, 0052]
 
 ## Intent
 
-The commands that read the generated docs back (`render`, `report`, `history`, `ui`, `mcp`, `ask`, `chat`, `search`)
+The commands that read the generated docs back (`render`, `report`, `history`, `ui`, `mcp`, `ask`, `chat`, `search`,
+`scan`, `benchmark`)
 must know that the artifacts of `.retrodoc/cache/` were written in the format they read, so a cache written by
 another version of RetroDoc is refused with the command to run rather than read as empty fields.
 
@@ -49,6 +50,9 @@ another version of RetroDoc is refused with the command to run rather than read 
   `.retrodoc/cache/`: before its first artifact it moves every file of the cache to
   `.retrodoc/cache-format-<found>/`, replacing a directory of that name, and prints that directory and the
   hand-editable files it holds; the run history stays where it is.
+- **CFV-14** (deterministic) `scan` and `benchmark` (`--judge` and `--saved-judge` included) must refuse a cache of
+  another format, older or later, with the error of CFV-2 or CFV-3, before any LLM call and before reading an
+  artifact.
 
 ## Scenarios
 
@@ -77,6 +81,11 @@ another version of RetroDoc is refused with the command to run rather than read 
   `.retrodoc/cache-format-<found>/roles.yaml` holds the edited file, `.retrodoc/cache/` holds only files of the
   current format, and the output names the directory.
 - (CFV-13) Given a cache of an older format, when `generate --force --estimate` runs, then nothing is moved.
+- (CFV-14) Given a cache of an older format, when the user runs `retrodoc scan`, then it fails naming
+  `retrodoc generate --force`.
+- (CFV-14) Given a cache of a later format, when the user runs `retrodoc benchmark --judge`, then it fails telling to
+  update RetroDoc and calls no LLM.
+- (CFV-14) Given a repository with no cache, when the user runs `retrodoc scan`, then it prints the files as before.
 - (CFV-10) Given the frozen sample of the current format, when a field of `Feature` is renamed, then the round-trip
   test fails.
 
@@ -87,6 +96,7 @@ another version of RetroDoc is refused with the command to run rather than read 
 - A version per artifact: one version covers the cache of a run.
 - The files kept outside the cache (`.retrodoc/edits.json`, `.retrodoc/reviews.json`, the run history): each
   carries its own version (`specs/section-edit.md`, `specs/section-review.md`, `specs/run-history.md`).
+- `benchmark-table`: it reads the JSON figures `benchmark --out` wrote, not the cache.
 - The frozen inputs of the benchmark replays: they read the artifacts as the pipeline does, with no check.
 - Carrying the hand edits of an older cache over to the new format: the user copies them back from the directory
   CFV-13 moved the cache to.

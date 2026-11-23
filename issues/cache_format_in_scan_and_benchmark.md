@@ -31,3 +31,39 @@ The readers of the docs out of the pipeline
 # Resources
 * ADR 0050, ADR 0052, `specs/cache-format.md`.
 * `crates/retrodoc-cli/src/commands/scan.rs`, `crates/retrodoc-cli/src/commands/benchmark.rs`.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-23
+
+## Understanding
+`scan` (reads `roles.yaml`) and `benchmark` (reads the domains and features of the last run) are readers of the
+cache: both call `check_format` first and refuse a cache of another format (CFV-14). Out of scope: `benchmark-table`
+(reads JSON figures) and the frozen inputs of the replays (already a non-goal).
+
+## Plan
+1. [x] Check the format in `scan` and `benchmark`: `check_format` at the start of both, before any LLM call or
+   artifact read; verified by a CLI test in `crates/retrodoc-cli/tests/cache_format.rs` (older and later format,
+   `scan`, `benchmark`, `benchmark --judge` with no LLM call, `scan` on a repo with no cache); makes true CFV-14. (autonomous)
+
+## Decisions
+- Mode: autonomous
+- Base commit: 31750ac8a5a7b0eee261ff3ec1adb17327f5158e
+- 1 a: `benchmark` refuses too (a later bump asks `generate --force` before scoring an older run).
+- 2 a: `scan` refuses, no warn-and-skip variant.
+
+## Summary of deliverable 1
+- done: `scan` and `benchmark` call `check_format` first; CFV-14 added and traced, spec back to `accepted`.
+
+| check | result |
+|---|---|
+| tests | pass (`cache_format`: 14) |
+| lint | pass |
+| specs | pass |
+| docs | `docs/crates/render-mcp-cli.md` |
+| code review | see below |
+
+- red: CFV-14: `["scan"] did not fail`
+- Code review: no findings
+- not verified: none
+- decisions needed: none

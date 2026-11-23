@@ -321,3 +321,57 @@ fn generate_force_refused_by_the_edits_moves_nothing() {
     assert_eq!(llm.calls().len(), calls);
     assert!(!dir.path().join(".retrodoc/cache-format-0").exists());
 }
+
+/// `benchmark` against the reference of the default smoke repository, `extra` added.
+fn benchmark_args(extra: &[&'static str]) -> Vec<&'static str> {
+    let reference = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../benchmark/delivery_router/reference.yaml"
+    );
+    let mut args = vec!["benchmark", "--reference", reference];
+    args.extend_from_slice(extra);
+    args
+}
+
+// spec: CFV-14
+#[test]
+fn scan_and_benchmark_refuse_a_cache_of_another_format() {
+    let (dir, llm) = shop();
+    for (version, says) in [(0, "retrodoc generate --force"), (99, "update RetroDoc")] {
+        std::fs::write(
+            format_file(dir.path()),
+            format!(r#"{{"version": {version}}}"#),
+        )
+        .unwrap();
+        let calls = llm.calls().len();
+
+        for args in [
+            vec!["scan"],
+            benchmark_args(&[]),
+            benchmark_args(&["--judge"]),
+            benchmark_args(&["--saved-judge"]),
+        ] {
+            let output = support::run(dir.path(), &args);
+            let all = all_of(&output);
+            assert!(!output.status.success(), "{args:?} did not fail:\n{all}");
+            assert!(
+                all.contains(&format!("format {version}")),
+                "{args:?}: {all}"
+            );
+            assert!(all.contains(says), "{args:?}: {all}");
+            assert_eq!(llm.calls().len(), calls, "{args:?}");
+        }
+    }
+}
+
+// spec: CFV-14
+#[test]
+fn scan_reads_a_repository_with_no_cache() {
+    let (dir, _llm) = shop();
+    std::fs::remove_dir_all(dir.path().join(".retrodoc/cache")).unwrap();
+
+    let output = retrodoc(dir.path(), "scan");
+
+    assert!(output.status.success(), "{}", all_of(&output));
+    assert!(all_of(&output).contains("Files:"), "{}", all_of(&output));
+}

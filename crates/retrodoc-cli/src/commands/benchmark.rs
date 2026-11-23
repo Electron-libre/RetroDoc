@@ -4,7 +4,7 @@ use anyhow::Context;
 use retrodoc_bench::benchmark::{self, Matches, Reference, RunMetrics};
 use retrodoc_llm::UsageTracker;
 
-use super::workspace::{repo_root, Workspace};
+use super::workspace::{check_format, repo_root, Workspace};
 
 /// What to measure and against what.
 pub struct BenchmarkOptions {
@@ -25,13 +25,15 @@ pub struct BenchmarkOptions {
 /// Prints the figures of the last `generate` run in `path` and its scores against the reference.
 /// Without `--judge` it makes no LLM call; with it, the judge's proposals are saved in
 /// `.retrodoc/benchmark/judge.yaml` and scored apart from the hand-written pairs; with `saved_judge`,
-/// the saved ones are scored again.
+/// the saved ones are scored again. A cache of another format is refused before anything is read
+/// (CFV-14).
 pub async fn run(
     path: &Path,
     options: &BenchmarkOptions,
     tracker: &UsageTracker,
 ) -> anyhow::Result<()> {
     let repo_root = repo_root(path)?;
+    check_format(&repo_root)?;
     let reference = Reference::load(&options.reference)?;
     let matches_path = options.matches.clone().unwrap_or_else(|| {
         options

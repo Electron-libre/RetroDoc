@@ -16,7 +16,8 @@ pub fn repo_root(path: &Path) -> anyhow::Result<PathBuf> {
 }
 
 /// Refuses a cache of another format than this binary's, an older one included: a command of a
-/// single pass redoes one artifact and would leave the others in that format (CFV-11).
+/// single pass redoes one artifact and would leave the others in that format (CFV-11); `scan` and
+/// `benchmark` would read its artifacts as empty fields (CFV-14).
 pub fn check_format(repo_root: &Path) -> anyhow::Result<()> {
     cache_format::check(repo_root).context("nothing was run")
 }

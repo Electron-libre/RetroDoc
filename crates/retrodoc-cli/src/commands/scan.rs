@@ -3,11 +3,14 @@ use std::path::Path;
 use retrodoc_ingest::FileKind;
 use retrodoc_pipeline::RoleRules;
 
-use super::workspace::Workspace;
+use super::workspace::{check_format, Workspace};
 
+/// Prints what the ingestion sees, the sources `roles.yaml` promotes included: refuses a cache of
+/// another format first, as the other readers of the cache do (CFV-14).
 pub fn run(path: &Path) -> anyhow::Result<()> {
     let workspace = Workspace::open(path)?;
     let repo_root = &workspace.repo_root;
+    check_format(repo_root)?;
 
     let mut result = workspace.ingest()?;
     if let Some(rules) = RoleRules::load(repo_root) {
