@@ -72,7 +72,7 @@ impl Reading {
                 Some(FileRole::EntryPoint | FileRole::Model | FileRole::Logic)
             )
         };
-        let code = CodeIndex::new(sources.iter().map(PathBuf::as_path));
+        let code = CodeIndex::new(sources.iter().map(PathBuf::as_path)).with_resolution(repo_root);
         let mut owner: BTreeMap<&Path, usize> = BTreeMap::new();
         for (i, context) in resolved.contexts.iter().enumerate() {
             owner.extend(context.files.iter().map(|f| (f.as_path(), i)));

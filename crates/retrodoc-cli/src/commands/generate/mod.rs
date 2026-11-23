@@ -348,7 +348,7 @@ fn use_case_context(
     } = signals;
     UseCaseContext {
         entry_points,
-        index: CodeIndex::new(source_paths(ingest)),
+        index: CodeIndex::new(source_paths(ingest)).with_resolution(run.repo_root),
         actors,
         vocabulary: surface.vocabulary(VOCABULARY_SIZE),
         domain_vocabulary: BTreeMap::new(),

@@ -231,7 +231,7 @@ impl EntryPoints {
             .filter(|(_, f)| f.entry_points.iter().any(|e| started_from_outside(e.kind)))
             .map(|(p, _)| p.clone())
             .collect();
-        let index = CodeIndex::new(sources);
+        let index = CodeIndex::new(sources).with_resolution(repo_root);
         let mut reached: BTreeSet<PathBuf> = starts.iter().cloned().collect();
         reached.extend(index.slice(repo_root, &starts, REACH_DEPTH, usize::MAX));
         let mut left_out = Vec::new();

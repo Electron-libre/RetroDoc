@@ -1,6 +1,6 @@
 ---
 id: RES
-status: draft
+status: accepted
 adrs: [0022, 0027, 0036]
 ---
 

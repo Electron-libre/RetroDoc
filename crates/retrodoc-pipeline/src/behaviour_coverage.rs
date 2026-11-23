@@ -41,7 +41,7 @@ pub fn save_technical_support(
         .iter()
         .flat_map(|f| f.entry_points.iter().map(String::as_str))
         .collect();
-    let index = CodeIndex::new(sources.iter().map(PathBuf::as_path));
+    let index = CodeIndex::new(sources.iter().map(PathBuf::as_path)).with_resolution(repo_root);
     let mut reached: BTreeSet<PathBuf> = BTreeSet::new();
     let mut starts: BTreeSet<PathBuf> = BTreeSet::new();
     for (file, entry) in entry_points.iter() {

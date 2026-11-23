@@ -76,9 +76,10 @@ fallback. Out of scope: other languages, `ranking.rs`, contexts and routes place
    else lexical), a `--resolved` slice in `parsed_slices` compared with the lexical, the mix of deliverable 1 and the
    kept `edges.tsv` file pair by file pair; measured on the three runs, no LLM; verified by the slice tests of RES-2,
    RES-11; makes true RES-2. **Stop after it**: the passes switch only if it holds the mix's gain. (autonomous)
-5. [ ] Passes switched: `CodeIndex` built with the resolution and `slice` following it for use cases, contexts,
+5. [x] Passes switched: `CodeIndex` built with the resolution and `slice` following it for use cases, contexts,
    the reach of the entry points and the behaviour coverage; verified by RES-H1 to RES-H3 through `generate` with
    a fake LLM (the slice in the prompt) and the existing pass tests; makes true RES-11, the spec `accepted`.
+   (autonomous)
 6. [ ] Docs and fixes of the `high` review of the issue (ADR 0027 amended or a new ADR for resolution over the
    bare-name parse, `docs/crates/core-ingest.md`, `pipeline.md`, `docs/findings.md`).
 
@@ -247,3 +248,26 @@ Code review: 1 findings
   path under its one normalized stem, so `by_name` holds it once, and `resolve` keys its files by path anyway.
 
 not verified: the slices beyond the six files read; decisions needed: the stop of the plan (switch the passes).
+
+## Summary of deliverable 5
+
+done: `CodeIndex::slice` follows the resolved references, the lexical follow from a file with none; every index
+the passes build (use cases, contexts, reach of the entry points, behaviour coverage, the use-cases replay) is
+built `with_resolution`; the spec `accepted`.
+
+| check | result |
+|---|---|
+| tests | `tests/resolved_slices.rs` 3 pass (new, through `generate`), the workspace's pass |
+| lint | clippy pedantic clean |
+| specs | RES-H1, RES-H2, RES-H3 traced; every requirement traced, spec `accepted` |
+| docs | doc of `slices.rs`, `docs/crates/pipeline.md` |
+| code review | no findings |
+
+red: RES-H1, RES-H2: the use-cases prompt held the file named like a method before the switch
+(`["shop/views.py", "shop/queries.py", "shop/filter.py", "shop/models.py"]`,
+`[…, "app/services/save.rb"]`); RES-H3 passed before (the lexical slice it requires is today's).
+
+Code review: no findings
+
+not verified: a paid run (decision: none before the switch); the saved use cases are derived again once on the next
+`generate` of an application whose slices change; decisions needed: none.

@@ -126,7 +126,8 @@ pub(super) fn prepare_with_tree(
                 .iter()
                 .filter(|file| file.kind == FileKind::Source)
                 .map(|file| file.path.as_path()),
-        ),
+        )
+        .with_resolution(work_root),
         actors,
         vocabulary: surface.vocabulary(VOCABULARY_SIZE),
         brief: frame.brief(work_root),

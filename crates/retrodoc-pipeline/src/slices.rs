@@ -3,7 +3,7 @@
 //! it references, so that a use case is derived from the code it actually
 //! runs rather than from every file of its feature.
 //!
-//! This is a heuristic, not call tracing (hard in dynamic languages): an
+//! The lexical follow is a heuristic, not call tracing (hard in dynamic languages): an
 //! identifier designates a file when it matches the file's name, ignoring
 //! case, underscores and a plural `s` (`ContractSigner`, `contract_signer`
 //! and `contract_signers` all designate `contract_signer.rb`). A name shared
@@ -16,8 +16,9 @@
 //! Ruby's query also gives the constants it reads) go to the files of the same language that define them,
 //! under the same limits on shared names. [`Follow::ResolvedThenLexical`] follows the references
 //! `retrodoc_ingest::resolve` resolves through imports, parent classes and known receivers
-//! (`specs/resolved-references.md`) from a file that has some, and the lexical follow from any other file. Only the
-//! `parsed_slices` example uses them so far: the passes cut their slices with the lexical follow.
+//! (`specs/resolved-references.md`) from a file that has some, and the lexical follow from any other file: the
+//! passes cut their slices with it ([`CodeIndex::slice`]); [`Follow::Parsed`] and [`Follow::ParsedThenLexical`]
+//! are used by the `parsed_slices` example only.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -236,10 +237,10 @@ impl CodeIndex {
         ranked.into_iter().map(|(file, _)| file.clone()).collect()
     }
 
-    /// The files reachable from `starts` by following referenced
-    /// identifiers up to `depth` hops, at most `max_files` of them (the
-    /// starts are not included). Nearer files come first, and within a hop
-    /// the most referenced ones.
+    /// The files reachable from `starts` by following their resolved references, else the referenced
+    /// identifiers ([`Follow::ResolvedThenLexical`]; with no [`CodeIndex::with_resolution`], the lexical follow
+    /// alone), up to `depth` hops, at most `max_files` of them (the starts are not included). Nearer files come
+    /// first, and within a hop the most referenced ones.
     #[must_use]
     pub fn slice(
         &self,
@@ -248,7 +249,13 @@ impl CodeIndex {
         depth: usize,
         max_files: usize,
     ) -> Vec<PathBuf> {
-        self.slice_with(repo_root, starts, depth, max_files, Follow::Lexical)
+        self.slice_with(
+            repo_root,
+            starts,
+            depth,
+            max_files,
+            Follow::ResolvedThenLexical,
+        )
     }
 
     /// [`CodeIndex::slice`], going from a file to the next as `follow` says.
