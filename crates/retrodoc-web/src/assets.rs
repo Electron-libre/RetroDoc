@@ -1,4 +1,4 @@
-//! The scripts, stylesheet and logo, vendored under `assets/` and embedded in the
+//! The scripts, stylesheet and logos, vendored under `assets/` and embedded in the
 //! binary: no CDN, so the interface works offline and leaks nothing.
 
 use axum::extract::Path;
@@ -27,6 +27,9 @@ const STYLE: &str = include_str!("../assets/style.css");
 /// The logo mark of Meta Lambda, from `static/assets/img/logo-mark.svg` of the
 /// meta-lambda.com site, shown by the credit at the foot of every page.
 const LOGO: &str = include_str!("../assets/logo-mark.svg");
+/// The `RetroDoc` logo on its tile, from `docs/logo/retrodoc.svg`: shown before the name in the
+/// header and the icon of every page.
+const RETRODOC_ICON: &str = include_str!("../assets/retrodoc.svg");
 
 const JAVASCRIPT: &str = "text/javascript; charset=utf-8";
 
@@ -61,6 +64,7 @@ pub async fn serve(Path(name): Path<String>, headers: HeaderMap) -> Response {
         "search.js" => (JAVASCRIPT, SEARCH),
         "style.css" => ("text/css; charset=utf-8", STYLE),
         "logo-mark.svg" => ("image/svg+xml", LOGO),
+        "retrodoc.svg" => ("image/svg+xml", RETRODOC_ICON),
         _ => return StatusCode::NOT_FOUND.into_response(),
     };
     // Embedded in the binary: they change only with it.

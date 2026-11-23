@@ -310,6 +310,48 @@ async fn every_page_names_the_application_in_its_header_and_title() {
     }
 }
 
+// spec: WEB-124
+#[tokio::test]
+async fn every_page_shows_the_retrodoc_logo_in_its_header_and_as_its_icon() {
+    let repo = generated_repo();
+    let empty = tempfile::tempdir().unwrap();
+    for (docs, path) in [
+        (load(repo.path()), "/"),
+        (load(repo.path()), "/domains/billing"),
+        (load(repo.path()), "/no-such-page"),
+        (load(empty.path()), "/"),
+    ] {
+        let (_, page, _) = get(docs, path).await;
+        let head = &page[..page.find("</head>").unwrap()];
+        let icon = head
+            .split("<link rel=\"icon\" href=\"")
+            .nth(1)
+            .unwrap_or_else(|| panic!("{path}: no icon in {head}"))
+            .split('"')
+            .next()
+            .unwrap();
+        let header = &page[page.find("<header").unwrap()..page.find("</header>").unwrap()];
+        let brand = &header[header.find("class=\"brand\"").unwrap()..];
+        let logo = brand
+            .split("<img src=\"")
+            .nth(1)
+            .unwrap()
+            .split('"')
+            .next()
+            .unwrap();
+        assert!(
+            brand.find("alt=\"RetroDoc\"").unwrap() < brand.find("Shop and Co").unwrap(),
+            "{path}: {brand}"
+        );
+        for asset in [icon, logo] {
+            assert!(asset.starts_with("/assets/"), "{path}: {asset}");
+            let (status, _, content_type) = get(load(repo.path()), asset).await;
+            assert_eq!(status, StatusCode::OK, "{asset}");
+            assert_eq!(content_type.as_deref(), Some("image/svg+xml"), "{asset}");
+        }
+    }
+}
+
 // spec: WEB-64
 #[tokio::test]
 async fn the_home_page_is_headed_by_the_application_and_its_purpose() {
@@ -480,7 +522,7 @@ async fn the_scripts_stylesheet_and_images_come_from_the_interface_itself() {
                 .filter_map(move |attribute| attribute_value(tag, attribute))
         })
         .collect();
-    assert_eq!(loaded.len(), 5, "{loaded:?}");
+    assert_eq!(loaded.len(), 7, "{loaded:?}");
     for link in &loaded {
         assert!(link.starts_with("/assets/"), "{link} in {page}");
         let (status, body, content_type) = get(load(repo.path()), link).await;

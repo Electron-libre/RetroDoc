@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="t">
+  <title id="t">RetroDoc</title>
+
+  <rect x="0.5" y="0.5" width="255" height="255" rx="40" fill="#17171b" stroke="#2a2a31"/>
+
+  <!-- the page, its corner folded -->
+  <path d="M64 36 H156 L192 72 V220 H64 Z" fill="#1f1f25" stroke="#e8e6e1" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M156 36 V72 H192" fill="none" stroke="#e8e6e1" stroke-width="8" stroke-linejoin="round"/>
+
+  <!-- the git history, in gold, read backwards: each commit turned into a line of doc -->
+  <path d="M96 70 V184" stroke="#d4af37" stroke-width="6" stroke-linecap="round"/>
+    <path d="M84 82 L96 70 L108 82" fill="none" stroke="#d4af37" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="#d4af37" stroke="#1f1f25" stroke-width="4">
+    <circle cx="96" cy="104" r="11"/>
+    <circle cx="96" cy="144" r="11"/>
+    <circle cx="96" cy="184" r="11"/>
+  </g>
+
+  <!-- the lines of doc written from it -->
+  <g stroke="#9b978e" stroke-width="8" stroke-linecap="round">
+    <path d="M122 104 H166"/>
+    <path d="M122 144 H158"/>
+    <path d="M122 184 H166"/>
+  </g>
+</svg>

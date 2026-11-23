@@ -324,6 +324,8 @@ over browses its domains, features and use cases rather than reading the Markdow
   the path of the Markdown page of its use case (`<docs dir>/functional/<domain>/use-cases/<feature>/<use case>.md`
   from the repository root): to `/docs/<path>`, its fragment kept, when a collected doc is at the resolved path;
   else shown as its text alone. A link of a fragment alone is kept as written.
+- **WEB-124** (deterministic) Every page must show the RetroDoc logo before the name of the application in its
+  header and declare the RetroDoc logo as its icon, both served from `/assets/` as `image/svg+xml`.
 
 ## Scenarios
 

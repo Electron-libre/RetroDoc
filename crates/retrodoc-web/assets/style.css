@@ -63,7 +63,7 @@ a:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
   padding: 0.6rem 1rem;
   border-bottom: 1px solid var(--border);
 }
-.brand { font-weight: 600; color: var(--gold); margin-right: 1.5rem; }
+.brand { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 600; color: var(--gold); margin-right: 1.5rem; }
 .top .links { display: flex; align-items: baseline; gap: 0.8rem; }
 .top .group { color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
 .top .links + .links { padding-left: 1rem; border-left: 1px solid var(--border); }
