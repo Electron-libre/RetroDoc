@@ -52,23 +52,31 @@ behaviour change, no spec (pure refactor).
 ## Plan
 1. [x] Bm25 in core: move `bm25.rs` to `retrodoc-core`, the pipeline, the bench and the MCP crate import it from
    there; ADR 0053 draft committed; verified by the moved tests and `project-check`; makes true the Goal for `Bm25`. (autonomous)
-2. [ ] Split the tests of the reconciliation: the judge's tests to a file of their own (`reconcile/tests.rs` is 1,166
+2. [x] Verdicts readable without the judge's prompt: `reconciliation.yaml` records the two parts the pass's
+   fingerprints start with (`shown_rule`, `request`), `Judgements::of` fingerprints from them, the same fingerprint as
+   before; an older file is rewritten once by the next `generate`, with no LLM call; spec
+   `docs-reconciliation` amended; verified by a test of the recorded parts and of the rewrite. (autonomous)
+3. [ ] Split the tests of the reconciliation: the judge's tests to a file of their own (`reconcile/tests.rs` is 1,166
    lines, over the file size limit), no change of behaviour; verified by the same tests passing.
-3. [ ] Reconciliation in core: its types, `items`, `candidates`, `Reconciliation`, `reconcile` and the `Judgements`
-   type with its load move to `retrodoc_core::reconcile`, the section split (`corpus`) to `retrodoc-ingest`; `judge`
-   stays in the pipeline; `generate`, the MCP crate, the web tests and the CLI repointed; verified by the moved
-   tests, `cache_format_sample` (format unchanged) and `project-check`.
-4. [ ] Debt report in core: `report/` (`build_report`, `DebtReport`, `domain_models` and their types) moves to
-   `retrodoc_core::report`, the readers repointed; verified by the moved tests and `project-check`.
-5. [ ] Readers checked and docs: no `retrodoc_pipeline::{reconcile, report, domain_models, Bm25}` left in the readers
-   (grep), ADR 0053 accepted, `docs/crates/` and `docs/ARCHITECTURE.md` updated; a rerun of `generate` on a saved
-   run copy calls no LLM and rewrites no file; verified by that rerun and `project-check`.
+4. [ ] Reconciliation prepared in place: the judge out of `reconcile/` into a pipeline module of its own, `corpus` to
+   `retrodoc-ingest` (returning the `Section` of the reconciliation), `reconcile/` reaching only paths that resolve
+   in core too; verified by the tests and `project-check`.
+5. [ ] Exact move of `reconcile/` to `retrodoc_core::reconcile` (`deliverable-size` counts only an exact rename once),
+   `generate`, the MCP crate, the web tests and the CLI repointed; verified by the moved tests,
+   `cache_format_sample` and `project-check`.
+6. [ ] Debt report in core and readers checked: `report/` prepared in place then moved exactly to
+   `retrodoc_core::report`; no `retrodoc_pipeline::{reconcile, report, domain_models, Bm25}` left in the readers
+   (grep); ADR 0053 accepted; `docs/crates/`, `docs/ARCHITECTURE.md`, `CLAUDE.md` updated; a rerun of `generate` on a
+   saved run copy calls no LLM and rewrites no file; verified by that rerun and `project-check`.
 
 ## Decisions
 - Mode: autonomous
 - Base commit: bfd82126f0c48389605edbaba3299f170192978b
 - Q1 (where the section split goes): `retrodoc-ingest`, returning the core `Section`; `reconcile` takes the sections.
 - Q2 (where the report and the reconciliation types go): `retrodoc-core` now.
+- Q3 (how core applies the verdicts without the judge's prompt): `reconciliation.yaml` records `shown_rule` and
+  `request`; core fingerprints from them. Plan re-cut to 6 deliverables (validated by Cedric Brancourt on 2026-11-23):
+  `deliverable-size` detects only exact renames, so each move is prepared in place first.
 
 ## Summaries
 
@@ -80,3 +88,13 @@ behaviour change, no spec (pure refactor).
 - not verified: `retrodoc-web --test ask_page` failed once in a first `project-check`, then passed alone and in the
   rerun (flaky, unrelated to the move).
 - Code review: no findings
+
+### Deliverable 2
+- done: `Judgements` records `shown_rule` and `request`; `of` fingerprints with them (none when absent);
+  `Candidate::fingerprint_with`; the pass reuses with its own values and rewrites an older file once, no call;
+  spec `docs-reconciliation` sorted under Behaviour and Contract, REC-17 added, back to `accepted`.
+- checks: tests, lint, specs, docs (`pipeline.md`, `ARCHITECTURE.md` §7) green in `project-check`.
+- red: REC-17: `struct Judgements has no field named shown_rule` / `no method named fingerprint_with` (compile).
+- Code review: no findings
+- file size: `reconcile/tests.rs` 1,240 lines (was 1,166), split by deliverable 3.
+- not verified: none.

@@ -14,6 +14,31 @@ backed by the doc sections it rests on.
 
 ## Requirements
 
+### Behaviour
+
+- **REC-3** (deterministic) An item with no matched section must be `undocumented` without an LLM call; a business
+  rule that cites a doc section of the corpus in its evidence must be `documented` by that section without an LLM
+  call; a cited section no longer in the corpus is ignored.
+- **REC-4** (deterministic) The items with matched sections must be judged by the LLM in batches, each section
+  answered `covers`, `contradicts` or `unrelated`; the item is `contradicted` when one section contradicts it,
+  else `documented` when one covers it, else `undocumented`.
+- **REC-9** (deterministic) The report must give, per domain, how many of its items are documented, matched,
+  undocumented and contradicted.
+- **REC-10** (deterministic) The report must list the undocumented items ranked by the number of entry points they
+  hold (a domain: those of its features; a rule: those of its feature), then by confidence (highest first, unscored
+  last), then by label; at most 50 are listed, the rest counted.
+- **REC-11** (deterministic) The report must list each contradiction with the item, the doc section (`path#heading`),
+  what the section states and what the generated item states; it presents them as findings to check, not as
+  errors of the doc.
+- **REC-12** (deterministic) The page of a domain, feature or use case, and the line of a rule, must link each section
+  that documents or contradicts it, with a relative link to the doc file that resolves from the page; an
+  undocumented item gets no such section. The render stays deterministic.
+- **REC-16** (deterministic) `generate` must warn when `[output] language` is set, the corpus is not empty and no
+  item has a matched section: the warning says that no section of the project docs matched a generated item and
+  names the docs language as a possible cause.
+
+### Contract
+
 - **REC-1** (deterministic) The matched corpus must be the sections of the existing docs (one section per heading,
   the sections of one file under the same heading joined)
   and must not hold any file of the generated docs dirs (`functional/`, `_retrodoc/` under the docs dir).
@@ -25,12 +50,6 @@ backed by the doc sections it rests on.
   point id after the file path, a route without its verbs and parameters; a domain: those of its features) and the
   entity names of a domain or a rule, which docs written in another language than the generated ones share with
   them; an item whose query has no content word is left out of the reconciliation (it can't be judged).
-- **REC-3** (deterministic) An item with no matched section must be `undocumented` without an LLM call; a business
-  rule that cites a doc section of the corpus in its evidence must be `documented` by that section without an LLM
-  call; a cited section no longer in the corpus is ignored.
-- **REC-4** (deterministic) The items with matched sections must be judged by the LLM in batches, each section
-  answered `covers`, `contradicts` or `unrelated`; the item is `contradicted` when one section contradicts it,
-  else `documented` when one covers it, else `undocumented`.
 - **REC-5** (deterministic) A `contradicts` answer must carry what the section states and what the generated item
   states; an answer without both, a missing answer or one that can't be parsed counts as no answer for that section,
   and an item that no answer decides stays `matched` (documented, not judged) rather than get an invented verdict;
@@ -43,17 +62,6 @@ backed by the doc sections it rests on.
   since its verdict, a matched item is `matched`.
 - **REC-8** (deterministic) The pass must make no LLM call when the corpus is empty or no item has a matched
   section, and must not run when `[pipeline] reconcile` is `false`.
-- **REC-9** (deterministic) The report must give, per domain, how many of its items are documented, matched,
-  undocumented and contradicted.
-- **REC-10** (deterministic) The report must list the undocumented items ranked by the number of entry points they
-  hold (a domain: those of its features; a rule: those of its feature), then by confidence (highest first, unscored
-  last), then by label; at most 50 are listed, the rest counted.
-- **REC-11** (deterministic) The report must list each contradiction with the item, the doc section (`path#heading`),
-  what the section states and what the generated item states; it presents them as findings to check, not as
-  errors of the doc.
-- **REC-12** (deterministic) The page of a domain, feature or use case, and the line of a rule, must link each section
-  that documents or contradicts it, with a relative link to the doc file that resolves from the page; an
-  undocumented item gets no such section. The render stays deterministic.
 - **REC-13** (deterministic) The former "Business rules without documentation" section of the report must be
   replaced by the lists of REC-10 and REC-11, the rules being items like the others.
 - **REC-14** (deterministic) An LLM call of the pass that fails must not fail `generate`: the pass stops with a
@@ -66,9 +74,12 @@ backed by the doc sections it rests on.
   in the order of the section with `[...]` where paragraphs are left out. A paragraph longer than the share divided
   by the number of those items is cut to it, a code fence it opens closed; a section where no paragraph holds a
   query word is shown from its start, cut to its share.
-- **REC-16** (deterministic) `generate` must warn when `[output] language` is set, the corpus is not empty and no
-  item has a matched section: the warning says that no section of the project docs matched a generated item and
-  names the docs language as a possible cause.
+- **REC-17** (deterministic) The readers of the docs (`report`, `render`, `ui`, the MCP server) must apply a saved
+  verdict without the judge's own prompt, while the fingerprint of the item computed with the values
+  `reconciliation.yaml` records (`shown_rule`, the rule of what the judge is shown of a section; `request`, the hash
+  of the judge's prompt and schema) matches it; the pass writes them with the verdicts. A file that records neither
+  is rewritten with them by the next `generate`, with no LLM call for an item whose verdict is still valid; until
+  then its matched items are `matched`.
 
 ## Scenarios
 
@@ -91,6 +102,11 @@ backed by the doc sections it rests on.
 
 - (REC-15) Given a 4,700-char section whose `Delete` paragraph is past its first 1,500 chars, matched to the use
   case "remove a bookmark" in a batch of 8 sections, then the `Delete` paragraph is shown to the judge.
+
+- (REC-17) Given a `reconciliation.yaml` written before the recorded values, when `generate` runs again with the
+  same model and unchanged docs, then no LLM call is made and the file is rewritten with `shown_rule` and `request`.
+- (REC-17) Given a verdict saved under a judge's prompt that has changed since, when the report is built before the
+  next `generate`, then the verdict still applies: it was given on the same texts.
 
 ## Non-goals
 

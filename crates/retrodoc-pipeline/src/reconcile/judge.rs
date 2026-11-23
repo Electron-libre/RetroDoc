@@ -96,6 +96,13 @@ pub struct Judged {
 /// `.retrodoc/cache/reconciliation.yaml`.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Judgements {
+    /// The [`SHOWN_RULE`] the fingerprints of `items` were computed with (REC-17).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shown_rule: Option<String>,
+    /// The hash of the judge's prompt and schema the fingerprints of `items` were computed with, so a reader
+    /// applies a verdict without the judge (REC-17).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub request: Option<String>,
     #[serde(default)]
     pub items: Vec<Judged>,
 }
@@ -114,10 +121,27 @@ impl Judgements {
         save_yaml(&Artifact::Reconciliation.path(repo_root), self)
     }
 
-    /// The verdict on `candidate` while its texts are the ones it was given on.
+    /// No verdict yet, recording the values the pass fingerprints with now.
+    #[must_use]
+    pub fn recorded() -> Self {
+        Self {
+            shown_rule: Some(SHOWN_RULE.to_string()),
+            request: Some(REQUEST.part().to_string()),
+            items: Vec::new(),
+        }
+    }
+
+    /// The verdict on `candidate` while its texts are the ones it was given on, fingerprinted with the
+    /// recorded values (REC-17): none when the file records neither.
     #[must_use]
     pub fn of(&self, candidate: &Candidate) -> Option<&Judged> {
-        let print = candidate.fingerprint();
+        let (Some(shown_rule), Some(request)) = (&self.shown_rule, &self.request) else {
+            return None;
+        };
+        self.with_fingerprint(candidate, &candidate.fingerprint_with(shown_rule, request))
+    }
+
+    fn with_fingerprint(&self, candidate: &Candidate, print: &str) -> Option<&Judged> {
         self.items.iter().find(|j| {
             j.kind == candidate.item.kind
                 && j.label == candidate.item.label
@@ -131,9 +155,16 @@ impl Candidate {
     /// request (ADR 0037, ADR 0040).
     #[must_use]
     pub fn fingerprint(&self) -> String {
+        self.fingerprint_with(SHOWN_RULE, REQUEST.part())
+    }
+
+    /// [`Candidate::fingerprint`] with the rule of what is shown and the request part given, the ones a
+    /// saved file recorded.
+    #[must_use]
+    pub fn fingerprint_with(&self, shown_rule: &str, request: &str) -> String {
         let mut parts = vec![
-            SHOWN_RULE.to_string(),
-            REQUEST.part().to_string(),
+            shown_rule.to_string(),
+            request.to_string(),
             self.item.kind.label().to_string(),
             self.item.query.clone(),
         ];
@@ -442,16 +473,20 @@ pub async fn judge(
     }
     let model = model_part(llm);
     let saved = Judgements::load(repo_root);
-    let mut kept = Judgements::default();
+    let mut kept = Judgements::recorded();
     let mut to_ask: Vec<&Candidate> = Vec::new();
     for candidate in candidates.iter().filter(|c| c.to_judge()) {
-        match saved.of(candidate).filter(|j| j.model == model) {
+        // The pass's own values: a file saved before they were recorded is still reused.
+        let reused = saved.with_fingerprint(candidate, &candidate.fingerprint());
+        match reused.filter(|j| j.model == model) {
             Some(judged) => kept.items.push(judged.clone()),
             None => to_ask.push(candidate),
         }
     }
     if to_ask.is_empty() {
-        if kept != saved {
+        // Nothing judged nor saved: no file to write.
+        let nothing = kept.items.is_empty() && saved.items.is_empty();
+        if kept != saved && !nothing {
             kept.save(repo_root)?;
         }
         return Ok(());

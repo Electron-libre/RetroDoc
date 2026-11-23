@@ -911,6 +911,7 @@ async fn a_verdict_given_before_the_rule_of_what_is_shown_changed_is_asked_again
                 sections: Vec::new(),
             })
             .collect(),
+        ..Judgements::default()
     }
     .save(dir.path())
     .unwrap();
@@ -950,6 +951,7 @@ async fn a_verdict_given_before_the_prompt_was_compared_is_asked_again_once() {
                 sections: Vec::new(),
             })
             .collect(),
+        ..Judgements::default()
     }
     .save(dir.path())
     .unwrap();
@@ -1149,6 +1151,78 @@ async fn a_short_section_gives_its_unused_share_to_the_long_ones() {
         (35_000..=36_000).contains(&n),
         "{n} chars: the share the short sections left"
     );
+}
+
+/// The verdicts of [`THREE_ANSWERS`] on [`three_candidates`], fingerprinted with `shown_rule` and `request`.
+fn judged_with(shown_rule: &str, request: &str) -> Vec<Judged> {
+    let model = crate::fingerprints::model_part(&FakeLlm::answering(""));
+    let answer = |section: &str, answer: Answer| JudgedSection {
+        section: section.to_string(),
+        answer,
+        doc_states: None,
+        item_states: None,
+    };
+    let sections = [
+        vec![answer("docs/guide.md#Paying", Answer::Covers)],
+        vec![answer("docs/guide.md#Paying", Answer::Unrelated)],
+        vec![answer("docs/guide.md#Team", Answer::Unrelated)],
+    ];
+    three_candidates()
+        .iter()
+        .zip(sections)
+        .map(|(c, sections)| Judged {
+            kind: c.item.kind,
+            label: c.item.label.clone(),
+            fingerprint: c.fingerprint_with(shown_rule, request),
+            model: model.clone(),
+            sections,
+        })
+        .collect()
+}
+
+// spec: REC-17 (internal: the verdicts of a run saved before the recorded values are written by hand)
+#[tokio::test]
+async fn a_file_without_the_recorded_values_is_rewritten_with_them_and_no_call() {
+    let dir = tempfile::tempdir().unwrap();
+    let current = Judgements::recorded();
+    Judgements {
+        items: judged_with(
+            current.shown_rule.as_deref().unwrap(),
+            current.request.as_deref().unwrap(),
+        ),
+        ..Judgements::default()
+    }
+    .save(dir.path())
+    .unwrap();
+    let before = Reconciliation::new(three_candidates(), &Judgements::load(dir.path()));
+    assert!(before.items.iter().all(|i| i.status == Status::Matched));
+
+    let llm = FakeLlm::answering(THREE_ANSWERS);
+    judge(dir.path(), &llm, &on(), &three_candidates())
+        .await
+        .unwrap();
+
+    assert_eq!(llm.calls(), 0);
+    let saved = Judgements::load(dir.path());
+    assert_eq!(saved.shown_rule, current.shown_rule);
+    assert_eq!(saved.request, current.request);
+    let after = Reconciliation::new(three_candidates(), &saved);
+    assert_eq!(after.items[0].status, Status::Documented);
+}
+
+// spec: REC-17 (internal: a verdict given under another prompt of the judge is written by hand)
+#[test]
+fn a_verdict_applies_with_the_recorded_values_not_the_judges_own_prompt() {
+    let saved = Judgements {
+        shown_rule: Some("an-older-rule".to_string()),
+        request: Some("an-older-prompt".to_string()),
+        items: judged_with("an-older-rule", "an-older-prompt"),
+    };
+
+    let result = Reconciliation::new(three_candidates(), &saved);
+
+    assert_eq!(result.items[0].status, Status::Documented);
+    assert_eq!(result.items[1].status, Status::Undocumented);
 }
 
 // spec: EDM-4 (internal: the items are the input of the reconciliation, which a run only shows through the LLM judgement of the matched sections)

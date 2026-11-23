@@ -286,7 +286,7 @@ Guarantees:
 │   ├── glossary.yaml              #   (phase 7) business entities, also its own cache
 │   ├── entry-points.yaml          #   (phase 7) routes/commands/jobs + outputs, also its own cache
 │   ├── actors.yaml                #   (phase 7) business actors, reused while its input hash is unchanged
-│   ├── reconciliation.yaml        #   verdicts of the existing doc sections on the items (ADR 0033), with the fingerprints they hold for
+│   ├── reconciliation.yaml        #   verdicts of the existing doc sections on the items (ADR 0033), with the fingerprints they hold for, and the rule of what is shown and the hash of the judge's prompt those were computed with (REC-17)
 │   ├── format.json                #   the format version of the cache, written by `generate` and the commands of a single pass before any artifact; the readers of the docs and the commands of a single pass refuse another; `generate --force` moves the files of an older one (not `history/`) to `.retrodoc/cache-format-<n>/` ([ADR 0052](adr/0052-every-command-that-writes-the-cache-keeps-its-format-true.md), [ADR 0050](adr/0050-one-format-version-per-cache-checked-by-the-readers.md), `specs/cache-format.md`)
 │   ├── usage.json                 #   calls, tokens (and cached prompt tokens) and time per pass of the last 20 runs, with the estimate of each generate (see ADR 0015)
 │   └── history/                   #   one snapshot per `generate` that changed the docs: figures, debt, scores per section; all kept, `--force` included (ADR 0043); the history page compares two (`specs/history-page.md`)
