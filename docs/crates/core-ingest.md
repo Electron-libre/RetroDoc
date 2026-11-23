@@ -7,7 +7,8 @@ Detail moved out of `CLAUDE.md`. Overview of all crates: `docs/ARCHITECTURE.md` 
   config (`config.rs`) and the text helpers every other crate shares (`text.rs`: `one_line`,
   which keeps a name or a description from forging a line of a prompt or a list; `fold_latin`, which lowercases and
   folds accented Latin letters to their base letters, for the slugs (DLG-5) and the tag of `[output] language` (DLG-9);
-  `normalize`, the one comparison of names across passes),
+  `normalize`, the one comparison of names across passes; `thousands` and `format_duration`, the figures of the
+  recap, the estimate and the audit page),
   the BM25 ranking the search, the reconciliation and the brief evidence share (`bm25.rs`, ADR 0053: `Bm25`,
   `tokenize`, `has_content_words`; lexical, rebuilt at each start, no persistence),
   the deterministic part of the reconciliation with the project's own docs (`reconcile/`, ADR 0053,
@@ -18,7 +19,8 @@ Detail moved out of `CLAUDE.md`. Overview of all crates: `docs/ARCHITECTURE.md` 
   the artifacts the readers of the docs load (`artifacts/`, ADR 0051: `Glossary` with `merged_entities`, `DomainMap`
   with the domains it publishes, `Scope`, what the budget left out, `BehaviourCoverage`, `SourceHashes`, `SetAside`, what the rules pass set aside,
   each with its `load` and `save`; `items.rs`: `load_features`, `load_technical_features`, `load_use_cases`,
-  `load_rules` and the savers of the features, use cases and rules),
+  `load_rules` and the savers of the features, use cases and rules; `estimate.rs`: `RunEstimate`, the estimate of a
+  `generate` as saved with its run, and how a measured figure stands against its range, `PassEstimate::against`),
   and the layout of `.retrodoc/cache/` the pipeline writes and the readers of the docs read (`cache/`, ADR 0051):
   `Artifact`, the names of everything under `.retrodoc/cache/` and which `generate --force` clears; `load_yaml`,
   `load_json` (a missing or unreadable file is a first run, `None`, not an error), `save_yaml`, `save_json` (written

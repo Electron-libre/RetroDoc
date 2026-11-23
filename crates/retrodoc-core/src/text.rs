@@ -1,5 +1,32 @@
 //! Text helpers shared by the crates that write a prompt, a page or an answer.
 
+use std::time::Duration;
+
+/// `12400` → `12,400`.
+#[must_use]
+pub fn thousands(n: u64) -> String {
+    let digits = n.to_string();
+    let mut out = String::new();
+    for (i, c) in digits.chars().enumerate() {
+        if i > 0 && (digits.len() - i).is_multiple_of(3) {
+            out.push(',');
+        }
+        out.push(c);
+    }
+    out
+}
+
+/// `7s`, `3m12s`, `1h05m`.
+#[must_use]
+pub fn format_duration(duration: Duration) -> String {
+    let secs = duration.as_secs();
+    match secs {
+        0..=59 => format!("{secs}s"),
+        60..=3599 => format!("{}m{:02}s", secs / 60, secs % 60),
+        _ => format!("{}h{:02}m", secs / 3600, secs % 3600 / 60),
+    }
+}
+
 /// `text` on one line, so that it can't forge a line of the prompt or of the list it is written in.
 #[must_use]
 pub fn one_line(text: &str) -> String {
@@ -67,6 +94,21 @@ pub fn normalize(name: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn thousands_are_grouped() {
+        assert_eq!(thousands(0), "0");
+        assert_eq!(thousands(999), "999");
+        assert_eq!(thousands(1_000), "1,000");
+        assert_eq!(thousands(1_203_400), "1,203,400");
+    }
+
+    #[test]
+    fn formats_durations() {
+        assert_eq!(format_duration(Duration::from_secs(7)), "7s");
+        assert_eq!(format_duration(Duration::from_secs(192)), "3m12s");
+        assert_eq!(format_duration(Duration::from_mins(65)), "1h05m");
+    }
 
     #[test]
     fn a_text_over_several_lines_is_put_on_one_line() {

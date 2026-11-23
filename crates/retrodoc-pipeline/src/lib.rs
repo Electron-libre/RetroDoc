@@ -82,7 +82,6 @@ pub use error::PipelineError;
 pub use features::{build_features_from_surface, entry_point_id};
 pub use glossary::build_glossary;
 pub use language::{InLanguage, READING_PASSES, WRITING_PASSES};
-pub use progress::format_duration;
 pub use ranking::{apply_budget, rank_files};
 pub use roles::{identify_roles, FileRole, RoleMap, RoleRule, RoleRules};
 pub use rules::{build_rules, RuleInput};
@@ -106,9 +105,6 @@ pub mod bench_support {
     }
     pub mod naming {
         pub use crate::naming::normalize;
-    }
-    pub mod progress {
-        pub use crate::progress::format_duration;
     }
     pub mod reading {
         /// The characters of one file the business and entry point readings send at most (chunks of

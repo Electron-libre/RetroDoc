@@ -19,8 +19,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::artifact::{self, Artifact};
 use crate::error::PipelineError;
-use crate::estimate::{Against, Measured, RunEstimate};
-use crate::progress::format_duration;
+use retrodoc_core::artifacts::estimate::{Against, Measured, RunEstimate};
+use retrodoc_core::text::{format_duration, thousands};
 
 /// Runs kept in the history, the oldest dropped first.
 pub const KEPT_RUNS: usize = 20;
@@ -140,20 +140,6 @@ pub fn record_run(repo_root: &Path, run: RunUsage) -> Result<(), PipelineError> 
         runs.drain(..runs.len() - KEPT_RUNS);
     }
     artifact::save_json(&Artifact::Usage.path(repo_root), &History { runs })
-}
-
-/// `12400` → `12,400`.
-#[must_use]
-pub fn thousands(n: u64) -> String {
-    let digits = n.to_string();
-    let mut out = String::new();
-    for (i, c) in digits.chars().enumerate() {
-        if i > 0 && (digits.len() - i).is_multiple_of(3) {
-            out.push(',');
-        }
-        out.push(c);
-    }
-    out
 }
 
 /// The text printed at the end of a command: the total, one row per pass
@@ -332,7 +318,7 @@ fn miss(what: &str, figure: u64, against: Against) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::estimate::{Basis, PassEstimate, Range};
+    use retrodoc_core::artifacts::estimate::{Basis, PassEstimate, Range};
 
     fn pass(name: &str, secs: u64, models: &[(&str, u64, u64, u64, u64)]) -> PassUsage {
         PassUsage {
@@ -366,14 +352,6 @@ mod tests {
                 pass("domains", 2, &[]),
             ],
         }
-    }
-
-    #[test]
-    fn thousands_are_grouped() {
-        assert_eq!(thousands(0), "0");
-        assert_eq!(thousands(999), "999");
-        assert_eq!(thousands(1_000), "1,000");
-        assert_eq!(thousands(1_203_400), "1,203,400");
     }
 
     #[test]

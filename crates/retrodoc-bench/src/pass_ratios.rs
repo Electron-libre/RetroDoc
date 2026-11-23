@@ -19,8 +19,8 @@ use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
 
 use crate::usage_log::{load_history, RunUsage};
+use retrodoc_core::artifacts::estimate::{Against, Measured, RunEstimate};
 use retrodoc_pipeline::bench_support::reading::MAX_READ_CHARS_PER_FILE;
-use retrodoc_pipeline::estimate::{Against, Measured, RunEstimate};
 
 /// The runs to measure (a file kept next to them, outside git: it names their paths).
 #[derive(Debug, Clone, Deserialize)]

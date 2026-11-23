@@ -14,7 +14,7 @@ use super::judge::{Judgement, NarrativeRating, Unaudited, Unjudged};
 use super::matching::{Comparison, SCORING_BEFORE_SECOND_CALL, SCORING_VERSION};
 use super::metrics::RunMetrics;
 use crate::error::PipelineError;
-use crate::progress::format_duration;
+use retrodoc_core::text::format_duration;
 
 /// Everything `retrodoc benchmark` measured for one run.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -4,8 +4,8 @@ use std::io::IsTerminal;
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
+use retrodoc_core::artifacts::estimate::RunEstimate;
 use retrodoc_llm::UsageTracker;
-use retrodoc_pipeline::estimate::RunEstimate;
 use tracing_subscriber::fmt::writer::BoxMakeWriter;
 
 /// `RetroDoc` — catch up on a project's documentation debt with AI agents.

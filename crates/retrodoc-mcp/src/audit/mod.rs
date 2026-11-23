@@ -10,8 +10,9 @@ use retrodoc_pipeline::recorded_progress;
 use retrodoc_pipeline::usage_log::load_history;
 use serde::{Deserialize, Serialize};
 // What the figures are made of and how the recap of a run writes them, for whoever shows them.
-pub use retrodoc_pipeline::usage_log::{thousands, ModelRecord, PassRecord, RunUsage};
-pub use retrodoc_pipeline::{format_duration, RecordedProgress};
+pub use retrodoc_core::text::{format_duration, thousands};
+pub use retrodoc_pipeline::usage_log::{ModelRecord, PassRecord, RunUsage};
+pub use retrodoc_pipeline::RecordedProgress;
 
 use crate::debt::{debt_of, docs_report, DebtKind, DebtList};
 use crate::read_model::GeneratedDocs;

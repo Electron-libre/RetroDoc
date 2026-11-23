@@ -10,9 +10,7 @@ pub mod benchmark;
 pub mod pass_ratios;
 
 use retrodoc_core::bm25;
-use retrodoc_pipeline::bench_support::{
-    artifact, domains, naming, progress, response, rules, text, walked,
-};
+use retrodoc_pipeline::bench_support::{artifact, domains, naming, response, rules, text, walked};
 #[cfg(test)]
 use retrodoc_pipeline::testing;
 use retrodoc_pipeline::{

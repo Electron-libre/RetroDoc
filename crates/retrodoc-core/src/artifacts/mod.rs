@@ -3,6 +3,7 @@
 
 pub mod coverage;
 pub mod domains;
+pub mod estimate;
 pub mod glossary;
 pub mod items;
 pub mod scope;

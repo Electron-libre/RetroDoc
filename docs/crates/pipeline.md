@@ -76,5 +76,5 @@ Behaviors that span passes:
   otherwise than measured, `--confidence-sample`) and the table above, embedded (`RatioTable::embedded`): a scaling
   pass at its cost per source file, a fixed one at its cost per run (from zero when its artifact is saved, all zero
   when no file changed), between the lowest and the highest application; a pass the table doesn't know is
-  `Basis::Unmeasured`, at zero. `RunEstimate::render` shows the models that answered the measured runs next to
+  `Basis::Unmeasured`, at zero. The estimate's types are core's (`retrodoc_core::artifacts::estimate`); `render` shows the models that answered the measured runs next to
   those the run asks, without comparing them (a server may answer under another name).

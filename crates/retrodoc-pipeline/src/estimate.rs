@@ -10,9 +10,10 @@
 
 use std::sync::LazyLock;
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
-use crate::usage_log;
+use retrodoc_core::artifacts::estimate::{Basis, PassEstimate, Range, RunEstimate};
+use retrodoc_core::text::thousands;
 
 /// The table of measured ratios, as `retrodoc-bench` writes it (the fields the estimate reads).
 #[derive(Debug, Clone, Deserialize)]
@@ -125,255 +126,93 @@ pub struct EstimateInputs<'a> {
     pub confidence_sample: Option<usize>,
 }
 
-/// A low and a high bound.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Range {
-    pub low: u64,
-    pub high: u64,
-}
+/// The estimate in the form of the recap printed at the end of a run (`usage_log::recap`): the total, then
+/// one line per pass, then what the figures rest on and the model each pass asks (`models`, by pass).
+#[must_use]
+pub fn render(estimate: &RunEstimate, models: &[(&str, String)], table: &RatioTable) -> String {
+    use std::fmt::Write as _;
 
-impl Range {
-    fn add(&mut self, other: Self) {
-        self.low += other.low;
-        self.high += other.high;
-    }
-
-    /// Whether the bounds allow anything above zero.
-    #[must_use]
-    pub fn above_zero(self) -> bool {
-        self.high > 0
-    }
-
-    /// How a measured `figure` missed the range: `None` within it.
-    #[must_use]
-    pub fn miss(self, figure: u64) -> Option<Miss> {
-        let (above, bound) = if figure > self.high {
-            (true, self.high)
-        } else if figure < self.low {
-            (false, self.low)
+    let measured = table.measured_models();
+    let span = |r: Range| {
+        if r.low == r.high {
+            thousands(r.low)
         } else {
-            return None;
+            format!("{}-{}", thousands(r.low), thousands(r.high))
+        }
+    };
+    let read = match estimate.changed_files {
+        Some(changed) => format!(
+            "{changed} of {} source file(s) changed since the last complete run",
+            estimate.source_files
+        ),
+        None => format!("{} source file(s) to read", estimate.source_files),
+    };
+    let mut out = format!(
+        "LLM estimate: {} call(s), {} tokens in, {} tokens out ({read}).\n",
+        span(estimate.calls),
+        span(estimate.prompt_tokens),
+        span(estimate.completion_tokens),
+    );
+    let width = estimate
+        .passes
+        .iter()
+        .map(|p| p.pass.len())
+        .max()
+        .unwrap_or(0);
+    for pass in &estimate.passes {
+        let figures = match pass.basis {
+            Basis::Off => "off in this run".to_string(),
+            Basis::Cached => "reused from the cache".to_string(),
+            Basis::NoCall => "no call measured".to_string(),
+            Basis::Unmeasured => "not measured, counted as zero".to_string(),
+            Basis::PerRun | Basis::PerSourceFile => format!(
+                "{:>13} call(s)  {:>19} in  {:>17} out",
+                span(pass.calls),
+                span(pass.prompt_tokens),
+                span(pass.completion_tokens)
+            ),
         };
-        #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
-        let percent = (bound > 0)
-            .then(|| ((figure as f64 - bound as f64) / bound as f64 * 100.0).round() as i64);
-        Some(Miss {
-            above,
-            bound,
-            percent,
-        })
+        let _ = writeln!(out, "  {:<width$}  {figures}", pass.pass);
     }
-}
-
-/// What a pass measured, to set against its estimate.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub struct Measured {
-    pub calls: u64,
-    /// Among `calls`, those that reported no token usage: the token counts are then a lower bound.
-    pub calls_without_usage: u64,
-    pub prompt_tokens: u64,
-    pub completion_tokens: u64,
-}
-
-/// How a measured figure stands against its range.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Against {
-    Within,
-    Missed(Miss),
-    /// Below the range, but a token count some calls of the pass left out: a lower bound, no miss.
-    LowerBound(Miss),
-}
-
-/// One figure of a pass set against its range: its label (`calls`, `tokens in`, `tokens out`), the measured
-/// figure and how it stands.
-pub type Figure = (&'static str, u64, Against);
-
-impl PassEstimate {
-    /// Whether the estimate allows a call or a token to this pass.
-    #[must_use]
-    pub fn is_estimated(&self) -> bool {
-        self.calls.above_zero()
-            || self.prompt_tokens.above_zero()
-            || self.completion_tokens.above_zero()
+    // The servers name the model they answered with, not always the one asked (DeepSeek answers
+    // `deepseek-chat` as `deepseek-flash`): the two are shown side by side, not compared.
+    let mut asked: Vec<(&str, Vec<&str>)> = Vec::new();
+    let estimated: Vec<&str> = estimate
+        .passes
+        .iter()
+        .filter(|p| matches!(p.basis, Basis::PerRun | Basis::PerSourceFile))
+        .map(|p| p.pass.as_str())
+        .collect();
+    for (pass, model) in models {
+        if !estimated.contains(pass) {
+            continue;
+        }
+        match asked.iter_mut().find(|(known, _)| known == model) {
+            Some((_, passes)) => passes.push(pass),
+            None => asked.push((model, vec![pass])),
+        }
     }
-
-    /// Whether this pass is set against its estimate: estimated, or it made a call.
-    #[must_use]
-    pub fn is_compared(&self, measured: Measured) -> bool {
-        self.is_estimated() || measured.calls > 0
-    }
-
-    /// The calls, prompt tokens and completion tokens `measured` against their ranges.
-    #[must_use]
-    pub fn against(&self, measured: Measured) -> [Figure; 3] {
-        let token = |figure: u64, range: Range| match range.miss(figure) {
-            None => Against::Within,
-            Some(miss) if !miss.above && measured.calls_without_usage > 0 => {
-                Against::LowerBound(miss)
-            }
-            Some(miss) => Against::Missed(miss),
-        };
-        [
-            (
-                "calls",
-                measured.calls,
-                self.calls
-                    .miss(measured.calls)
-                    .map_or(Against::Within, Against::Missed),
-            ),
-            (
-                "tokens in",
-                measured.prompt_tokens,
-                token(measured.prompt_tokens, self.prompt_tokens),
-            ),
-            (
-                "tokens out",
-                measured.completion_tokens,
-                token(measured.completion_tokens, self.completion_tokens),
-            ),
-        ]
-    }
-}
-
-/// A measured figure out of its estimated range.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Miss {
-    /// Above the high bound, else below the low one.
-    pub above: bool,
-    /// The bound missed.
-    pub bound: u64,
-    /// The miss in percent of the bound, signed; `None` against a bound of zero.
-    pub percent: Option<i64>,
-}
-
-/// Why a pass is estimated as it is.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum Basis {
-    /// Its measured cost per source file, times the files to read.
-    PerSourceFile,
-    /// Its measured cost per run.
-    PerRun,
-    /// The run turns it off.
-    Off,
-    /// The cache saves it: no file changed, or its artifact is saved.
-    Cached,
-    /// Measured with no call on every run.
-    NoCall,
-    /// The table has no ratio for it: estimated at zero.
-    Unmeasured,
-}
-
-/// The estimate of one pass, as printed and as saved with its run in the usage history.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PassEstimate {
-    pub pass: String,
-    pub basis: Basis,
-    pub calls: Range,
-    pub prompt_tokens: Range,
-    pub completion_tokens: Range,
-}
-
-/// The estimate of a run, as printed and as saved with it in the usage history (`usage_log::RunUsage`).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RunEstimate {
-    /// The source files of the run and, on a rerun, those changed (from [`EstimateInputs`]).
-    pub source_files: usize,
-    pub changed_files: Option<usize>,
-    pub passes: Vec<PassEstimate>,
-    pub calls: Range,
-    pub prompt_tokens: Range,
-    pub completion_tokens: Range,
-}
-
-impl RunEstimate {
-    /// The estimate in the form of the recap printed at the end of a run (`usage_log::recap`): the total, then
-    /// one line per pass, then what the figures rest on and the model each pass asks (`models`, by pass).
-    #[must_use]
-    pub fn render(&self, models: &[(&str, String)], table: &RatioTable) -> String {
-        use std::fmt::Write as _;
-
-        let measured = table.measured_models();
-        let span = |r: Range| {
-            if r.low == r.high {
-                usage_log::thousands(r.low)
+    let asked: Vec<String> = asked
+        .into_iter()
+        .map(|(model, passes)| {
+            if passes.len() == estimated.len() {
+                model.to_string()
             } else {
-                format!(
-                    "{}-{}",
-                    usage_log::thousands(r.low),
-                    usage_log::thousands(r.high)
-                )
+                format!("{model} ({})", passes.join(", "))
             }
-        };
-        let read = match self.changed_files {
-            Some(changed) => format!(
-                "{changed} of {} source file(s) changed since the last complete run",
-                self.source_files
-            ),
-            None => format!("{} source file(s) to read", self.source_files),
-        };
-        let mut out = format!(
-            "LLM estimate: {} call(s), {} tokens in, {} tokens out ({read}).\n",
-            span(self.calls),
-            span(self.prompt_tokens),
-            span(self.completion_tokens),
-        );
-        let width = self.passes.iter().map(|p| p.pass.len()).max().unwrap_or(0);
-        for pass in &self.passes {
-            let figures = match pass.basis {
-                Basis::Off => "off in this run".to_string(),
-                Basis::Cached => "reused from the cache".to_string(),
-                Basis::NoCall => "no call measured".to_string(),
-                Basis::Unmeasured => "not measured, counted as zero".to_string(),
-                Basis::PerRun | Basis::PerSourceFile => format!(
-                    "{:>13} call(s)  {:>19} in  {:>17} out",
-                    span(pass.calls),
-                    span(pass.prompt_tokens),
-                    span(pass.completion_tokens)
-                ),
-            };
-            let _ = writeln!(out, "  {:<width$}  {figures}", pass.pass);
-        }
-        // The servers name the model they answered with, not always the one asked (DeepSeek answers
-        // `deepseek-chat` as `deepseek-flash`): the two are shown side by side, not compared.
-        let mut asked: Vec<(&str, Vec<&str>)> = Vec::new();
-        let estimated: Vec<&str> = self
-            .passes
-            .iter()
-            .filter(|p| matches!(p.basis, Basis::PerRun | Basis::PerSourceFile))
-            .map(|p| p.pass.as_str())
-            .collect();
-        for (pass, model) in models {
-            if !estimated.contains(pass) {
-                continue;
-            }
-            match asked.iter_mut().find(|(known, _)| known == model) {
-                Some((_, passes)) => passes.push(pass),
-                None => asked.push((model, vec![pass])),
-            }
-        }
-        let asked: Vec<String> = asked
-            .into_iter()
-            .map(|(model, passes)| {
-                if passes.len() == estimated.len() {
-                    model.to_string()
-                } else {
-                    format!("{model} ({})", passes.join(", "))
-                }
-            })
-            .collect();
-        let _ = writeln!(
-            out,
-            "  Extrapolated from the calls and tokens of saved runs answered by {} (lowest to highest \
-             application); this run asks {}. A rerun redoes more when the prompts of the binary or the \
-             model of a pass changed.",
-            measured.join(", "),
-            if asked.is_empty() { "no model".to_string() } else { asked.join(", ") }
-        );
-        out
-    }
+        })
+        .collect();
+    let _ =
+        writeln!(
+        out,
+        "  Extrapolated from the calls and tokens of saved runs answered by {} (lowest to highest \
+         application); this run asks {}. A rerun redoes more when the prompts of the binary or the \
+         model of a pass changed.",
+        measured.join(", "),
+        if asked.is_empty() { "no model".to_string() } else { asked.join(", ") }
+    );
+    out
 }
-
 /// Estimates a run from what it knows before its first call and the measured `table`.
 #[must_use]
 pub fn estimate(inputs: &EstimateInputs, table: &RatioTable) -> RunEstimate {
@@ -757,7 +596,7 @@ yields: []
             ("brief", "m1".to_string()),
             ("use-cases", "local".to_string()),
         ];
-        let text = estimate.render(&models, &table);
+        let text = render(&estimate, &models, &table);
         assert!(
             text.starts_with("LLM estimate: 101-302 call(s), 101,000-302,000 tokens in"),
             "{text}"
@@ -776,9 +615,7 @@ yields: []
             ("brief", "local".to_string()),
             ("use-cases", "local".to_string()),
         ];
-        assert!(estimate
-            .render(&one, &table)
-            .contains("this run asks local."));
+        assert!(render(&estimate, &one, &table).contains("this run asks local."));
     }
 
     fn estimate_of(inputs: &EstimateInputs) -> RunEstimate {

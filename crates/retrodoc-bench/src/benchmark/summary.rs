@@ -6,7 +6,7 @@ use std::time::Duration;
 use super::judge::{Judgement, Unaudited, Unjudged};
 use super::matching::{Comparison, Score};
 use super::metrics::RunMetrics;
-use crate::progress::format_duration;
+use retrodoc_core::text::format_duration;
 
 /// `Some(0.5)` → `50%`, `None` → `n/a`.
 fn percent(value: Option<f32>) -> String {

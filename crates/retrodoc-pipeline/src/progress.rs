@@ -10,6 +10,8 @@
 use std::fmt::Write as _;
 use std::time::{Duration, Instant};
 
+use retrodoc_core::text::format_duration;
+
 pub(crate) struct Progress {
     label: &'static str,
     total: usize,
@@ -90,26 +92,9 @@ impl Progress {
     }
 }
 
-#[must_use]
-pub fn format_duration(duration: Duration) -> String {
-    let secs = duration.as_secs();
-    match secs {
-        0..=59 => format!("{secs}s"),
-        60..=3599 => format!("{}m{:02}s", secs / 60, secs % 60),
-        _ => format!("{}h{:02}m", secs / 3600, secs % 3600 / 60),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn formats_durations() {
-        assert_eq!(format_duration(Duration::from_secs(7)), "7s");
-        assert_eq!(format_duration(Duration::from_secs(192)), "3m12s");
-        assert_eq!(format_duration(Duration::from_mins(65)), "1h05m");
-    }
 
     #[test]
     fn line_shows_rank_percentage_and_eta_from_processed_units_only() {

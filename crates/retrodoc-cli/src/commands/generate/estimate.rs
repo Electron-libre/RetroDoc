@@ -4,11 +4,12 @@
 
 use std::path::{Path, PathBuf};
 
+use retrodoc_core::artifacts::estimate::RunEstimate;
 use retrodoc_core::artifacts::SourceHashes;
 use retrodoc_core::cache::Artifact;
 use retrodoc_core::config::{Config, DomainsFrom};
 use retrodoc_ingest::{FileKind, IngestResult};
-use retrodoc_pipeline::estimate::{estimate, EstimateInputs, RatioTable, RunEstimate};
+use retrodoc_pipeline::estimate::{estimate, render, EstimateInputs, RatioTable};
 use retrodoc_pipeline::RoleRules;
 
 use super::super::passes;
@@ -83,7 +84,7 @@ pub(super) fn print(
     let table = RatioTable::embedded();
     let models = pass_models(config, &passes);
     let estimate = estimate(&inputs, table);
-    print!("{}", estimate.render(&models, table));
+    print!("{}", render(&estimate, &models, table));
     estimate
 }
 

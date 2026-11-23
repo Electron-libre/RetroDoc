@@ -6,11 +6,11 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::Context;
+use retrodoc_core::artifacts::estimate::RunEstimate;
 use retrodoc_core::config::{Config, LlmConfig};
 use retrodoc_llm::{
     HeartbeatProvider, LlmProvider, OpenRouterProvider, UsageProvider, UsageTracker,
 };
-use retrodoc_pipeline::estimate::RunEstimate;
 use retrodoc_pipeline::usage_log::{self, RunUsage};
 use retrodoc_pipeline::{InLanguage, WRITING_PASSES};
 
@@ -148,8 +148,8 @@ pub fn finish(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use retrodoc_core::artifacts::estimate::Range;
     use retrodoc_core::config::Config;
-    use retrodoc_pipeline::estimate::Range;
 
     fn config(raw: &str) -> Config {
         toml::from_str::<Config>(raw).unwrap()
