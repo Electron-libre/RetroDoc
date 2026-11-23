@@ -9,6 +9,7 @@ use retrodoc_core::model::{ActorKind, Domain, Feature};
 use retrodoc_docs::GeneratedDocs;
 use retrodoc_render::anchor;
 
+use crate::actors::ActorsPage;
 use crate::glossary::uses;
 use crate::texts::WebTexts;
 use crate::view::{domain_href, feature_href, Link};
@@ -34,7 +35,7 @@ impl Maps {
 
 /// The maps of `docs`.
 #[must_use]
-pub fn maps(docs: &GeneratedDocs, texts: &'static WebTexts) -> Maps {
+pub fn maps(docs: &GeneratedDocs, actors: &ActorsPage, texts: &'static WebTexts) -> Maps {
     let usage = concept_uses(docs);
     let humans = humans(docs);
     Maps {
@@ -43,7 +44,7 @@ pub fn maps(docs: &GeneratedDocs, texts: &'static WebTexts) -> Maps {
             .domains()
             .iter()
             .map(|domain| {
-                let page = domain_map_page(docs, domain, &usage, &humans, texts);
+                let page = domain_map_page(docs, domain, &usage, &humans, actors, texts);
                 (domain.slug.clone(), page)
             })
             .collect(),
@@ -272,14 +273,15 @@ fn domain_map_page(
     domain: &Domain,
     usage: &ConceptUses,
     humans: &BTreeMap<&str, bool>,
+    actors_page: &ActorsPage,
     texts: &WebTexts,
 ) -> DomainMapPage {
     let slug = domain.slug.as_str();
     let features: Vec<&Feature> = docs.features_of(slug).collect();
     let parts = actor_parts(docs, &features, humans);
     let used = concepts_by_feature(usage, slug);
-    let actors = items(parts.iter().map(|(name, _)| name.clone()), "a", |_| {
-        "/actors".to_string()
+    let actors = items(parts.iter().map(|(name, _)| name.clone()), "a", |name| {
+        actors_page.human_href(name)
     });
     let concepts = items(used.keys().map(|c| c.name.clone()), "c", |name| {
         format!("/glossary#{}", anchor(name))

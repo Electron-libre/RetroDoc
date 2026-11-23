@@ -68,7 +68,10 @@ impl Site {
         let files = docs.as_ref().map(files_page);
         let glossary = docs.as_ref().map(glossary_page);
         let actors = docs.as_ref().map(|docs| actors_page(docs, texts));
-        let maps = docs.as_ref().map(|docs| maps(docs, texts));
+        let maps = docs
+            .as_ref()
+            .zip(actors.as_ref())
+            .map(|(docs, actors)| maps(docs, actors, texts));
         // A snapshot is saved by a `generate`, which leaves docs: none without them.
         let history = docs
             .as_ref()

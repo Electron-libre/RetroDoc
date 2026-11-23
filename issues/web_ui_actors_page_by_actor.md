@@ -62,9 +62,9 @@ domain, a special treatment of the generic system actors (non-goals of `specs/we
    `actors.html` rewritten as index + sections, the slug of WAC-7, texts in English and French, the `.actor` styles;
    verified by `tests/actors_page.rs` rewritten on the WAC ids and shots before/after on the linkding baseline
    (`just screenshots`); makes true WAC-1, WAC-2, WAC-3, WAC-4, WAC-6, WAC-7, WAC-8. (autonomous)
-2. [ ] Map links to the section: each actor of `/map/<domain>` links to `/actors#<id of WAC-7>`, the slug shared with
+2. [x] Map links to the section: each actor of `/map/<domain>` links to `/actors#<id of WAC-7>`, the slug shared with
    the actors page; verified by a test of `tests/map_page.rs`; makes true WAC-5, sets `specs/web-actors.md` and
-   `specs/web-ui.md` accepted.
+   `specs/web-ui.md` accepted. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -91,3 +91,11 @@ domain, a special treatment of the generic system actors (non-goals of `specs/we
     link jumping to the list); the ids of the lists now count as taken, WAC-7 amended with its scenario and a test
     (written with the fix, not run red first).
 - not verified: none beyond the eye check of the shots.
+
+## Deliverable 2: map links to the section
+- done: each actor of `/map/<domain>` links to `/actors#<its section>` (`ActorsPage::human_href`, the actors page now
+  built before the maps in `Site::new`), the top of the page as a fallback; happy paths WAC-H1 and WAC-H2 traced;
+  `specs/web-actors.md` and `specs/web-ui.md` accepted; `docs/crates/render-mcp-cli.md` updated.
+- red: WAC-5: `href="/actors#actor-clerk"` not found in the list of the map (it linked `/actors`).
+- Code review: no findings
+- not verified: none.

@@ -1,6 +1,6 @@
 ---
 id: WAC
-status: draft
+status: accepted
 adrs: [0039]
 ---
 
@@ -43,9 +43,9 @@ actor, what it starts and takes part in, read top to bottom on an application of
 ## Scenarios
 
 - **WAC-H1** (happy; WAC-1, WAC-2, WAC-3, WAC-4) Given a run whose `Clerk` starts `pay-by-card` and takes a step of
-  `ship`, when the reader opens `/actors`, then the index lists `Clerk` under the people with "starts 1" and "takes
-  part in 1", and its section lists `pay-by-card` marked under `Billing` › `Pay an invoice`, then `ship` under its own
-  domain and feature, then the permission rules of the two.
+  `refund` and of `ship`, when the reader opens `/actors`, then the index lists `Clerk` under the people with
+  "starts 1" and "takes part in 2", and its section lists `pay-by-card` marked then `refund` under `Billing` › `Pay an
+  invoice`, then `ship` under its own domain and feature, then the permission rules of the three.
 - **WAC-H2** (happy; WAC-5, WAC-7) Given the map of a domain whose feature `Clerk` starts a use case of, when the
   reader follows `Clerk` on it, then they land on the section `#actor-clerk` of the actors page.
 - (WAC-6, WAC-7) Given `Clerk` and `clerk`, then they are two actors, `#actor-clerk` then `#actor-clerk-2`.

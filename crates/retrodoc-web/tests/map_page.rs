@@ -347,6 +347,25 @@ async fn the_map_lists_each_domain_with_the_concepts_it_shares_with_each_other()
     assert!(!billing.contains("/glossary#plan"), "{billing}");
 }
 
+// spec: WAC-5, WAC-H2
+#[tokio::test]
+async fn each_actor_of_the_map_of_a_domain_links_to_its_section_of_the_actors_page() {
+    let repo = generated_repo();
+    let map = page(repo.path(), "/map/billing").await;
+    let list = list(&map);
+    for (id, name) in [("actor-clerk", "Clerk"), ("actor-buyer", "buyer")] {
+        let href = format!("href=\"/actors#{id}\"");
+        let start = list.find(&href).unwrap_or_else(|| panic!("{href}: {list}"));
+        let link = &list[start..start + list[start..].find("</a>").unwrap()];
+        assert!(link.ends_with(&format!(">{name}")), "{link}");
+    }
+    let actors = page(repo.path(), "/actors").await;
+    assert!(
+        actors.contains("<section class=\"actor\" id=\"actor-clerk\""),
+        "{actors}"
+    );
+}
+
 // spec: WEB-74
 #[tokio::test]
 async fn each_node_of_the_map_is_the_link_of_its_item_in_the_list() {
@@ -483,12 +502,7 @@ async fn the_map_of_a_domain_lists_its_features_with_their_actors_and_concepts()
     let pay = &pay[..pay
         .find("href=\"/domains/billing/cancel-plan\"")
         .expect("cancel-plan")];
-    for part in [
-        ">Clerk<",
-        ">buyer<",
-        "href=\"/actors\"",
-        "href=\"/glossary#invoice\"",
-    ] {
+    for part in [">Clerk<", ">buyer<", "href=\"/glossary#invoice\""] {
         assert!(pay.contains(part), "{part}: {pay}");
     }
     assert!(!pay.contains("/glossary#plan"), "{pay}");

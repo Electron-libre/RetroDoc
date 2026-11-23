@@ -356,6 +356,29 @@ async fn a_section_lists_the_permission_rules_of_its_use_cases_after_them() {
     assert!(!page.contains("A card pays up to a ceiling"), "{page}");
 }
 
+// spec: WAC-H1
+#[tokio::test]
+async fn the_reader_sees_what_one_actor_starts_and_takes_part_in() {
+    let repo = generated_repo();
+    let page = actors(repo.path()).await;
+    let entry = entry(index(&page, "human-actors"), "actor-clerk");
+    assert!(
+        text(entry).contains("starts 1 · takes part in 2"),
+        "{entry}"
+    );
+    let clerk = actor(&page, "actor-clerk");
+    let order = [
+        position(clerk, "Billing"),
+        position(clerk, "Pay an invoice"),
+        position(clerk, PAY_BY_CARD),
+        position(clerk, REFUND),
+        position(clerk, "Shipping"),
+        position(clerk, SHIP),
+        position(clerk, PERMISSION),
+    ];
+    assert!(order.is_sorted(), "{order:?} in {clerk}");
+}
+
 // spec: WAC-6
 #[tokio::test]
 async fn a_name_the_steps_give_both_kinds_is_an_actor_of_each_kind() {

@@ -58,6 +58,20 @@ pub struct ActorUseCase {
     pub starts: bool,
 }
 
+impl ActorsPage {
+    /// The section of the human actor `name` (WAC-5), else the top of the
+    /// page.
+    #[must_use]
+    pub fn human_href(&self, name: &str) -> String {
+        self.groups
+            .iter()
+            .filter(|g| g.id == "human-actors")
+            .flat_map(|g| &g.actors)
+            .find(|a| a.name == name)
+            .map_or_else(|| "/actors".to_string(), |a| format!("/actors#{}", a.id))
+    }
+}
+
 /// The actors page of `docs`.
 #[must_use]
 pub fn actors_page(docs: &GeneratedDocs, texts: &WebTexts) -> ActorsPage {

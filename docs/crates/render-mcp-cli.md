@@ -156,7 +156,8 @@ web interface, the MCP server and the CLI read is in `retrodoc-docs`: `docs/crat
   linked from the page of the domain), draws its features with their use case counts, the humans of their use cases
   (a primary actor counts as one unless the steps of the run name it a system only, as on the actors page) with an edge to each feature, solid when the actor starts one of its use cases and
   dotted when it only takes part in one, and the concepts each feature uses; its list gives each feature with its
-  actors and concepts, under the same `data-node` rule. The ask page (`ask.rs`, `specs/web-ask.md`, ADR 0048) is routed
+  actors, each linked to its section of the actors page (`ActorsPage::human_href`, WAC-5), and its concepts, under the
+  same `data-node` rule. The ask page (`ask.rs`, `specs/web-ask.md`, ADR 0048) is routed
   only when `router_with` gets an `Asking` (the provider and the rounds of the agent): `/ask` and its `POST` answer a
   question with the `retrodoc_agent::Conversation` of the browser session (the cookie `retrodoc_ask`, 128 random bits
   of `getrandom`, the sessions in memory, `MAX_SESSIONS` of them, the least recently used dropped (one running a question only when all do), each keeping its
