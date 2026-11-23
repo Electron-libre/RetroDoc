@@ -4,7 +4,7 @@
 use std::path::PathBuf;
 
 use retrodoc_core::model::{Feature, UseCase};
-use retrodoc_mcp::GeneratedDocs;
+use retrodoc_docs::GeneratedDocs;
 use retrodoc_render::anchor;
 
 use crate::view::{use_case_href, Link};

@@ -17,11 +17,11 @@ use retrodoc_core::model::{
     ActorKind, BusinessRule, ConfidenceScore, Feature, RuleEvidence, RuleKind, SourceRef, Step,
     UseCase, LOW_CONFIDENCE_THRESHOLD,
 };
-use retrodoc_mcp::freshness::{FileState, Freshness};
-use retrodoc_mcp::history::{self, SavedRun};
-use retrodoc_mcp::reviews::Reviews;
-use retrodoc_mcp::source::SourceAccess;
-use retrodoc_mcp::{ExistingDoc, GeneratedDocs};
+use retrodoc_docs::freshness::{FileState, Freshness};
+use retrodoc_docs::history::{self, SavedRun};
+use retrodoc_docs::reviews::Reviews;
+use retrodoc_docs::source::SourceAccess;
+use retrodoc_docs::{ExistingDoc, GeneratedDocs};
 use retrodoc_render::{anchor, source_ref_label, DocLinks, ItemRef};
 
 /// The docs the interface serves, `None` before a first `generate`, and the
@@ -194,7 +194,7 @@ impl Site {
     pub fn start_links(&self) -> Vec<StartLink> {
         let debt = self.docs.as_ref().map_or(0, |docs| {
             let reviews = crate::review::load(docs).unwrap_or_default();
-            retrodoc_mcp::debt::debt(docs, &reviews).items.len()
+            retrodoc_docs::debt::debt(docs, &reviews).items.len()
         });
         self.start
             .iter()
@@ -920,7 +920,7 @@ pub(crate) fn use_case_page(
         href: use_case_href(owner, sibling),
         name: sibling.name.clone(),
     };
-    let cited = retrodoc_mcp::debt::use_case_cited_paths(use_case);
+    let cited = retrodoc_docs::debt::use_case_cited_paths(use_case);
     // As the debt report counts them: a narrative partly backed states what
     // the cited lines do not show, mostly true of the code around them.
     let unbacked = use_case

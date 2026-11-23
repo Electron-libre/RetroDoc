@@ -7,8 +7,8 @@ use askama::Template;
 use axum::extract::{Path, RawQuery, State};
 use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use axum::response::{Html, IntoResponse, Response};
-use retrodoc_mcp::reviews::Reviews;
-use retrodoc_mcp::GeneratedDocs;
+use retrodoc_docs::reviews::Reviews;
+use retrodoc_docs::GeneratedDocs;
 use tokio::task::JoinError;
 
 use crate::actors::ActorsPage;

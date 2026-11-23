@@ -10,7 +10,7 @@ use retrodoc_core::cache::hash_content;
 use retrodoc_core::model::{
     Actor, ActorKind, BusinessRule, Feature, RuleEvidence, RuleKind, SourceRef, Step, UseCase,
 };
-use retrodoc_mcp::GeneratedDocs;
+use retrodoc_docs::GeneratedDocs;
 use retrodoc_render::DocLinks;
 use tower::ServiceExt;
 

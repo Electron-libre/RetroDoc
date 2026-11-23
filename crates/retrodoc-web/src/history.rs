@@ -1,14 +1,14 @@
 //! What the history page shows (`specs/history-page.md`): the runs the history saved, newest
-//! first, and the difference of two of them from `retrodoc_mcp::history::diff`, each section linked
+//! first, and the difference of two of them from `retrodoc_docs::history::diff`, each section linked
 //! to its page when the docs served hold it.
 
 use std::collections::{HashMap, HashSet};
 
 use retrodoc_core::model::{Feature, UseCase};
-use retrodoc_mcp::history::{
+use retrodoc_docs::history::{
     diff, set_apart_reason, Fall, SavedRun, Score, SectionKind, SectionScores, Snapshot,
 };
-use retrodoc_mcp::GeneratedDocs;
+use retrodoc_docs::GeneratedDocs;
 
 use crate::audit::query_encoded;
 use crate::texts::WebTexts;

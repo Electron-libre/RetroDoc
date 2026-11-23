@@ -5,11 +5,11 @@
 use std::fmt::Write as _;
 
 use retrodoc_core::model::SetApartReason;
+use retrodoc_docs::debt::{DebtKind, ItemKind, Priority};
+use retrodoc_docs::reviews::Status;
+use retrodoc_docs::source::{SourceError, MAX_FILE_BYTES};
+use retrodoc_docs::{EntryKind, SourceKind, Warning};
 use retrodoc_llm::CallTotals;
-use retrodoc_mcp::debt::{DebtKind, ItemKind, Priority};
-use retrodoc_mcp::reviews::Status;
-use retrodoc_mcp::source::{SourceError, MAX_FILE_BYTES};
-use retrodoc_mcp::{EntryKind, SourceKind, Warning};
 use retrodoc_render::Texts;
 
 use crate::code::CiterKind;

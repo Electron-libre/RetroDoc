@@ -8,8 +8,8 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+retrodoc-docs.workspace = true
 retrodoc-llm.workspace = true
-retrodoc-mcp.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
 

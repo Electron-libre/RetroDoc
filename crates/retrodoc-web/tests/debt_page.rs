@@ -11,7 +11,7 @@ use retrodoc_core::model::{Actor, ActorKind, ConfidenceScore, Feature, SourceRef
 use retrodoc_core::reconcile::{
     Contradiction, ItemKind, ItemVerdict, Reconciliation, SectionRef, Status,
 };
-use retrodoc_mcp::{GeneratedDocs, Uncovered};
+use retrodoc_docs::{GeneratedDocs, Uncovered};
 use retrodoc_render::DocLinks;
 use retrodoc_web::Project;
 use tower::ServiceExt;

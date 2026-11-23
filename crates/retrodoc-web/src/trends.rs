@@ -2,9 +2,9 @@
 //! each run the history saved, newest first, each marked when it is worse than in the run just
 //! before it as shown, and a line chart per score drawn on the server as SVG (AUD-14).
 
-use retrodoc_mcp::audit::Share;
-use retrodoc_mcp::debt::DebtKind;
-use retrodoc_mcp::history::{SavedRun, Snapshot};
+use retrodoc_docs::audit::Share;
+use retrodoc_docs::debt::DebtKind;
+use retrodoc_docs::history::{SavedRun, Snapshot};
 
 use crate::history::{label, short_commit};
 use crate::texts::WebTexts;

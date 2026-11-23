@@ -5,7 +5,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use retrodoc_mcp::GeneratedDocs;
+use retrodoc_docs::GeneratedDocs;
 
 use crate::code::citations;
 use crate::view::code_href;

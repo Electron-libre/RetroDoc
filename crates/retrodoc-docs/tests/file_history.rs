@@ -5,7 +5,7 @@ use std::fmt::Write as _;
 use std::path::Path;
 use std::process::Command;
 
-use retrodoc_mcp::source::SourceAccess;
+use retrodoc_docs::source::SourceAccess;
 
 fn git(root: &Path, args: &[&str]) {
     let status = Command::new("git")

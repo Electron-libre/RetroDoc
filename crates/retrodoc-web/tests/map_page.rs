@@ -8,7 +8,7 @@ use axum::http::{Request, StatusCode};
 use retrodoc_core::artifacts::glossary::ModelFile;
 use retrodoc_core::artifacts::{DomainCluster, DomainMap, Entity, Glossary};
 use retrodoc_core::model::{Actor, ActorKind, Feature, SourceRef, Step, UseCase};
-use retrodoc_mcp::GeneratedDocs;
+use retrodoc_docs::GeneratedDocs;
 use retrodoc_render::DocLinks;
 use tower::ServiceExt;
 

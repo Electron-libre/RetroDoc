@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use retrodoc_mcp::ExistingDoc;
+use retrodoc_docs::ExistingDoc;
 use retrodoc_render::{anchor, DocLinks};
 use tower::ServiceExt;
 

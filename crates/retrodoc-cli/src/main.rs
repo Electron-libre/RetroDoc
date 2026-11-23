@@ -175,7 +175,7 @@ enum Command {
         #[arg(long, default_value = ".")]
         path: PathBuf,
         /// Maximum number of results (at least 1).
-        #[arg(long, default_value_t = retrodoc_mcp::search::SEARCH_LIMIT, value_parser = clap::builder::RangedU64ValueParser::<usize>::new().range(1..))]
+        #[arg(long, default_value_t = retrodoc_docs::search::SEARCH_LIMIT, value_parser = clap::builder::RangedU64ValueParser::<usize>::new().range(1..))]
         limit: usize,
     },
     /// Serves the generated documentation to LLM agents (Claude Code, Cursor…)

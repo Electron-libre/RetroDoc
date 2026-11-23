@@ -8,8 +8,8 @@ use axum::http::{Request, StatusCode};
 use retrodoc_core::artifacts::glossary::ModelFile;
 use retrodoc_core::artifacts::{DomainCluster, DomainMap, Entity, Glossary};
 use retrodoc_core::model::{BusinessRule, ConfidenceScore, Feature, RuleKind, UseCase};
-use retrodoc_mcp::search::SEARCH_LIMIT;
-use retrodoc_mcp::{ExistingDoc, GeneratedDocs};
+use retrodoc_docs::search::SEARCH_LIMIT;
+use retrodoc_docs::{ExistingDoc, GeneratedDocs};
 use retrodoc_render::DocLinks;
 use tower::ServiceExt;
 

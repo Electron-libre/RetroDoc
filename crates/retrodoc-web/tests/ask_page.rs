@@ -10,11 +10,11 @@ use axum::http::{header, Request, Response, StatusCode};
 use axum::Router;
 use retrodoc_core::artifacts::{DomainCluster, DomainMap};
 use retrodoc_core::model::{ConfidenceScore, Feature};
+use retrodoc_docs::GeneratedDocs;
 use retrodoc_llm::{
     CompletionRequest, CompletionResponse, LlmError, LlmProvider, Role, ToolCall, Usage,
     UsageProvider, UsageTracker,
 };
-use retrodoc_mcp::GeneratedDocs;
 use retrodoc_pipeline::testing::{FakeLlm, FakeTurn};
 use retrodoc_render::DocLinks;
 use retrodoc_web::{Asking, Project};

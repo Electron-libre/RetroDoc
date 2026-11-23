@@ -8,7 +8,7 @@ use axum::body::Body;
 use axum::http::{HeaderMap, Request, StatusCode};
 use retrodoc_core::artifacts::{DomainCluster, DomainMap};
 use retrodoc_core::model::{ConfidenceScore, Feature, UseCase};
-use retrodoc_mcp::GeneratedDocs;
+use retrodoc_docs::GeneratedDocs;
 use retrodoc_render::DocLinks;
 use retrodoc_web::Project;
 use tower::ServiceExt;
@@ -460,7 +460,7 @@ async fn a_refused_review_keeps_the_review_saved_above_its_form() {
 async fn no_saved_notice_shows_over_reviews_that_cannot_be_read() {
     let dir = generated_repo();
     let root = dir.path();
-    std::fs::write(retrodoc_mcp::reviews::reviews_path(root), "{ not json").unwrap();
+    std::fs::write(retrodoc_docs::reviews::reviews_path(root), "{ not json").unwrap();
 
     let page = get(root, "/domains/billing?saved=review").await;
 

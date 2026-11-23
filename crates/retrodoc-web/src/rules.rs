@@ -2,7 +2,7 @@
 //! kept by the kind, the domain and the feature asked in the query.
 
 use retrodoc_core::model::{BusinessRule, Feature, RuleKind};
-use retrodoc_mcp::GeneratedDocs;
+use retrodoc_docs::GeneratedDocs;
 
 use crate::texts::WebTexts;
 

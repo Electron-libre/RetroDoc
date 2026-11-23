@@ -1,18 +1,18 @@
 //! What the audit page shows (`specs/audit-dashboard.md`): the figures of
-//! `retrodoc_mcp::audit` as text, the trends of the saved runs (`crate::trends`), and the heatmap
+//! `retrodoc_docs::audit` as text, the trends of the saved runs (`crate::trends`), and the heatmap
 //! of the debt, each cell linked to the debt page filtered on its domain and kind.
 
 use std::fmt::Write as _;
 
 use retrodoc_core::model::ConfidenceScore;
-use retrodoc_mcp::audit::{
+use retrodoc_docs::audit::{
     audit, format_duration, thousands, ModelRecord, PassRecord, RecordedProgress, Reviewed, Share,
     MAX_LEVEL,
 };
-use retrodoc_mcp::debt::DebtKind;
-use retrodoc_mcp::history::SavedRun;
-use retrodoc_mcp::reviews::{Reviews, SectionKind, Status};
-use retrodoc_mcp::GeneratedDocs;
+use retrodoc_docs::debt::DebtKind;
+use retrodoc_docs::history::SavedRun;
+use retrodoc_docs::reviews::{Reviews, SectionKind, Status};
+use retrodoc_docs::GeneratedDocs;
 
 use crate::texts::WebTexts;
 use crate::trends::{trends, TrendsView};

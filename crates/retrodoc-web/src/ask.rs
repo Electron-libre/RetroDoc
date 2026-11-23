@@ -17,8 +17,8 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Form, Router};
 use retrodoc_agent::{Answer, Conversation, Step};
+use retrodoc_docs::{Docs, Source, SourceKind};
 use retrodoc_llm::{CallTotals, LlmProvider, UsageProvider, UsageTracker};
-use retrodoc_mcp::{Docs, Source, SourceKind};
 use serde::Deserialize;
 use tokio::sync::watch;
 

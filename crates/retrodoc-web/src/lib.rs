@@ -7,7 +7,7 @@
 //! The pages are built from [`GeneratedDocs`], the read model `retrodoc-mcp`
 //! loads, turned into the plain view structs of [`view`]; only [`router`] and
 //! [`serve`] know HTTP. The docs are read once, at start, and rebuilt when the
-//! edits saved beside them change ([`retrodoc_mcp::edits::Live`]); the reviews
+//! edits saved beside them change ([`retrodoc_docs::edits::Live`]); the reviews
 //! and the edits are read at each request.
 
 pub mod actors;
@@ -44,8 +44,8 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::Router;
 use retrodoc_core::config::OutputConfig;
-use retrodoc_mcp::edits::Live;
-use retrodoc_mcp::{ExistingDoc, GeneratedDocs};
+use retrodoc_docs::edits::Live;
+use retrodoc_docs::{ExistingDoc, GeneratedDocs};
 use retrodoc_render::DocLinks;
 use tokio::net::TcpListener;
 

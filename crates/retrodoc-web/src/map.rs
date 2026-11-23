@@ -6,7 +6,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use retrodoc_core::model::{ActorKind, Domain, Feature};
-use retrodoc_mcp::GeneratedDocs;
+use retrodoc_docs::GeneratedDocs;
 use retrodoc_render::anchor;
 
 use crate::glossary::uses;

@@ -3,7 +3,7 @@ use retrodoc_core::model::{ConfidenceScore, Domain, Feature};
 use retrodoc_llm::{Reasoning, ToolCall};
 use retrodoc_pipeline::testing::{FakeLlm, FakeTurn};
 
-use retrodoc_mcp::SourceKind;
+use retrodoc_docs::SourceKind;
 
 use super::*;
 

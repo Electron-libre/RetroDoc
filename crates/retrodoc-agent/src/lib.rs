@@ -6,10 +6,10 @@ use std::collections::VecDeque;
 use std::fmt::Write as _;
 use std::sync::Arc;
 
+use retrodoc_docs::{read_tools, Docs, Source, Warning};
 use retrodoc_llm::{
     ChatMessage, CompletionRequest, LlmError, LlmProvider, Role, ToolCall, ToolSpec,
 };
-use retrodoc_mcp::{read_tools, Docs, Source, Warning};
 
 /// Rounds of tool calls before the agent asks for the answer without tools, unless set otherwise:
 /// enough to go from a search to a use case and its code, few enough for a local model's context.

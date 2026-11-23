@@ -5,6 +5,7 @@ members = [
     "crates/retrodoc-bench",
     "crates/retrodoc-cli",
     "crates/retrodoc-core",
+    "crates/retrodoc-docs",
     "crates/retrodoc-ingest",
     "crates/retrodoc-llm",
     "crates/retrodoc-mcp",
@@ -68,6 +69,7 @@ retrodoc-bench = { path = "crates/retrodoc-bench" }
 retrodoc-core = { path = "crates/retrodoc-core" }
 retrodoc-ingest = { path = "crates/retrodoc-ingest" }
 retrodoc-llm = { path = "crates/retrodoc-llm" }
+retrodoc-docs = { path = "crates/retrodoc-docs" }
 retrodoc-mcp = { path = "crates/retrodoc-mcp" }
 retrodoc-pipeline = { path = "crates/retrodoc-pipeline" }
 retrodoc-render = { path = "crates/retrodoc-render" }

@@ -14,8 +14,8 @@ use axum::extract::{Path, State};
 use axum::http::{header, HeaderMap, StatusCode};
 use axum::response::{Html, IntoResponse, Response};
 use axum::Form;
-use retrodoc_mcp::edits::{self, EditsError, Fields};
-use retrodoc_mcp::GeneratedDocs;
+use retrodoc_docs::edits::{self, EditsError, Fields};
+use retrodoc_docs::GeneratedDocs;
 use serde::Deserialize;
 
 use crate::collected::{narrative_html, NarrativeLinks};

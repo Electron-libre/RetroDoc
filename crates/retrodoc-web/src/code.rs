@@ -5,8 +5,8 @@
 use std::collections::BTreeSet;
 
 use retrodoc_core::model::RuleEvidence;
-use retrodoc_mcp::source::{FileCommit, SourceAccess, SourceError, DEFAULT_LOG};
-use retrodoc_mcp::GeneratedDocs;
+use retrodoc_docs::source::{FileCommit, SourceAccess, SourceError, DEFAULT_LOG};
+use retrodoc_docs::GeneratedDocs;
 
 use crate::texts::WebTexts;
 use crate::view::{feature_href, rule_href, stale_files, url_path, use_case_href, Link, StaleFile};

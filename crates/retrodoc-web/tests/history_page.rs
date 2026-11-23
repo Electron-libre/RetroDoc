@@ -7,10 +7,10 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use retrodoc_core::artifacts::{DomainCluster, DomainMap};
 use retrodoc_core::model::{Actor, ActorKind, ConfidenceScore, Feature, Step, UseCase};
-use retrodoc_mcp::history::{
+use retrodoc_docs::history::{
     history_dir, save, Figures, SectionKind, SectionScores, Snapshot, VERSION,
 };
-use retrodoc_mcp::GeneratedDocs;
+use retrodoc_docs::GeneratedDocs;
 use retrodoc_render::DocLinks;
 use retrodoc_web::Project;
 use tower::ServiceExt;

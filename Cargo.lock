@@ -1407,8 +1407,8 @@ name = "retrodoc-agent"
 version = "0.13.0"
 dependencies = [
  "retrodoc-core",
+ "retrodoc-docs",
  "retrodoc-llm",
- "retrodoc-mcp",
  "retrodoc-pipeline",
  "serde_json",
  "tokio",
@@ -1425,9 +1425,9 @@ dependencies = [
  "reqwest",
  "retrodoc-agent",
  "retrodoc-core",
+ "retrodoc-docs",
  "retrodoc-ingest",
  "retrodoc-llm",
- "retrodoc-mcp",
  "retrodoc-pipeline",
  "schemars",
  "serde",
@@ -1451,6 +1451,7 @@ dependencies = [
  "retrodoc-agent",
  "retrodoc-bench",
  "retrodoc-core",
+ "retrodoc-docs",
  "retrodoc-ingest",
  "retrodoc-llm",
  "retrodoc-mcp",
@@ -1478,6 +1479,22 @@ dependencies = [
  "tempfile",
  "thiserror 1.0.69",
  "toml",
+]
+
+[[package]]
+name = "retrodoc-docs"
+version = "0.13.0"
+dependencies = [
+ "chrono",
+ "retrodoc-core",
+ "retrodoc-ingest",
+ "retrodoc-pipeline",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tracing",
 ]
 
 [[package]]
@@ -1532,18 +1549,12 @@ dependencies = [
 name = "retrodoc-mcp"
 version = "0.13.0"
 dependencies = [
- "chrono",
  "retrodoc-core",
- "retrodoc-ingest",
- "retrodoc-pipeline",
+ "retrodoc-docs",
  "rmcp",
- "schemars",
- "serde",
  "serde_json",
- "tempfile",
  "thiserror 1.0.69",
  "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -1594,8 +1605,8 @@ dependencies = [
  "pulldown-cmark",
  "retrodoc-agent",
  "retrodoc-core",
+ "retrodoc-docs",
  "retrodoc-llm",
- "retrodoc-mcp",
  "retrodoc-pipeline",
  "retrodoc-render",
  "serde",

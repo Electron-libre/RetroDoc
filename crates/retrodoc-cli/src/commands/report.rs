@@ -18,7 +18,7 @@ pub fn run(path: &Path) -> anyhow::Result<()> {
         retrodoc_core::config::Config::default()
     };
 
-    let docs = retrodoc_mcp::GeneratedDocs::load(&repo_root, &[])?;
+    let docs = retrodoc_docs::GeneratedDocs::load(&repo_root, &[])?;
     let Some((docs, use_cases)) = docs.zip(retrodoc_core::artifacts::load_use_cases(&repo_root))
     else {
         anyhow::bail!(NO_DOCS);

@@ -1,37 +1,7 @@
-//! Read-only access to the generated documentation for LLM agents (see
-//! `issues/done/mcp_server.md`). The consuming agent is the LLM, so nothing here
-//! calls one: the crate reads the artifacts saved by `generate` and the
-//! collected Markdown docs, and answers from them deterministically.
-//!
-//! [`GeneratedDocs`] holds the loaded artifacts as typed data; [`Docs`] answers
-//! the seven tools from it in
-//! Markdown; [`serve_stdio`] puts them behind an MCP server (`retrodoc mcp`).
-//! The lexical search ([`SearchIndex`]) is also exposed alone by `retrodoc
-//! search`, to judge retrieval quality. [`catalog`] gives the read-only tools as data and a call by
-//! name, and [`Docs::source_named`] and [`Docs::warnings_of`] check the sources of an answer: both
-//! serve the `ask` agent of `retrodoc-agent` (ADR 0047), which holds the LLM.
+//! The read-only, LLM-free MCP server over the generated documentation (ADR 0016): the read-only
+//! tools of `retrodoc-docs` behind the `rmcp` SDK, over stdio (`retrodoc mcp`). What the tools
+//! answer lives in `retrodoc-docs` (ADR 0054), shared with the `ask` agent.
 
-pub mod audit;
-pub mod catalog;
-pub mod corpus;
-pub mod debt;
-pub mod edits;
-pub mod freshness;
-pub mod history;
-pub mod read_model;
-pub mod report;
-pub mod reviews;
-pub mod search;
 pub mod server;
-pub mod source;
-pub mod store;
-pub mod tools;
 
-pub use catalog::{read_tools, CallError, ReadTool};
-pub use corpus::{build_entries, Entry, EntryKind};
-pub use read_model::{GeneratedDocs, Sections, Uncovered};
-pub use report::ReportInputs;
-pub use retrodoc_ingest::ExistingDoc;
-pub use search::{Found, Hit, SearchIndex};
 pub use server::{serve_stdio, DocsServer, McpError};
-pub use tools::{Docs, Source, SourceKind, Warning};

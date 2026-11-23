@@ -2,8 +2,8 @@ use std::net::SocketAddr;
 use std::path::Path;
 
 use anyhow::Context;
+use retrodoc_docs::GeneratedDocs;
 use retrodoc_llm::UsageTracker;
-use retrodoc_mcp::GeneratedDocs;
 use retrodoc_web::{Asking, Project};
 
 use super::brief;

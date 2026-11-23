@@ -4,9 +4,9 @@
 //! hits as one list, each with its kind.
 
 use retrodoc_core::model::ConfidenceScore;
-use retrodoc_mcp::corpus::feature_id;
-use retrodoc_mcp::search::SEARCH_LIMIT;
-use retrodoc_mcp::{Entry, EntryKind, GeneratedDocs};
+use retrodoc_docs::corpus::feature_id;
+use retrodoc_docs::search::SEARCH_LIMIT;
+use retrodoc_docs::{Entry, EntryKind, GeneratedDocs};
 use retrodoc_render::anchor;
 
 use crate::audit::query_encoded;

@@ -11,7 +11,7 @@ use retrodoc_core::model::{
     Actor, ActorKind, BusinessRule, ConfidenceScore, Feature, RuleEvidence, RuleKind, SourceRef,
     Step, UseCase,
 };
-use retrodoc_mcp::GeneratedDocs;
+use retrodoc_docs::GeneratedDocs;
 use retrodoc_render::{DocLink, DocLinks, ItemRef};
 use tower::ServiceExt;
 

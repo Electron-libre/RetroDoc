@@ -3,11 +3,11 @@
 //! the names of its domain and section and a link to its page.
 
 use retrodoc_core::model::ConfidenceScore;
-use retrodoc_mcp::debt::{
+use retrodoc_docs::debt::{
     debt, entry_file, DebtItem, DebtKind, DocItem, ItemKind, Section, Subject,
 };
-use retrodoc_mcp::reviews::Reviews;
-use retrodoc_mcp::GeneratedDocs;
+use retrodoc_docs::reviews::Reviews;
+use retrodoc_docs::GeneratedDocs;
 
 use crate::review::OutdatedView;
 use crate::texts::WebTexts;

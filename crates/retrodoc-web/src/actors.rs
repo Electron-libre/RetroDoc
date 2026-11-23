@@ -6,7 +6,7 @@
 use std::collections::BTreeSet;
 
 use retrodoc_core::model::{ActorKind, Feature, RuleKind, UseCase};
-use retrodoc_mcp::GeneratedDocs;
+use retrodoc_docs::GeneratedDocs;
 
 use crate::texts::WebTexts;
 use crate::view::{feature_href, rule_href, use_case_href, Link};

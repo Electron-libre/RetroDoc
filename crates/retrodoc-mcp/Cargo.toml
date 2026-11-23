@@ -7,25 +7,14 @@ license.workspace = true
 [lints]
 workspace = true
 
-[features]
-# The fixtures of the unit tests, for the tests of the MCP server (`retrodoc-mcp`).
-testing = []
-
 [dependencies]
-chrono.workspace = true
-retrodoc-core.workspace = true
-retrodoc-ingest.workspace = true
+retrodoc-docs.workspace = true
 rmcp.workspace = true
-schemars.workspace = true
-serde.workspace = true
-serde_json.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
-tracing.workspace = true
 
 [dev-dependencies]
-# The tests write the map of the contexts as the pipeline saves it.
-retrodoc-pipeline.workspace = true
+retrodoc-core.workspace = true
+retrodoc-docs = { workspace = true, features = ["testing"] }
 rmcp = { workspace = true, features = ["client"] }
 serde_json.workspace = true
-tempfile = "3"

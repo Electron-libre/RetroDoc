@@ -1,10 +1,10 @@
 //! The human edit of a section on its page (`specs/web-ui.md` WEB-91, WEB-92): the fields it
 //! changes, its author and its date, why it is outdated when it is, and the text the last run
 //! generated for each of those fields, folded unless it is outdated. The edits are those the docs
-//! show, kept current by `retrodoc ui` (`retrodoc_mcp::edits::Live`).
+//! show, kept current by `retrodoc ui` (`retrodoc_docs::edits::Live`).
 
-use retrodoc_mcp::edits::{self, Field};
-use retrodoc_mcp::GeneratedDocs;
+use retrodoc_docs::edits::{self, Field};
+use retrodoc_docs::GeneratedDocs;
 
 use crate::collected::{narrative_html, NarrativeLinks};
 use crate::review::{OutdatedView, Place};
@@ -80,7 +80,7 @@ impl EditView {
 }
 
 /// Whether the section at `place` of `docs` shows a human edit: one that changes a field as the
-/// readers show it ([`retrodoc_mcp::edits::Edit::changed`]), the mark of its row (WEB-100).
+/// readers show it ([`retrodoc_docs::edits::Edit::changed`]), the mark of its row (WEB-100).
 #[must_use]
 pub fn is_edited(docs: &GeneratedDocs, place: &Place) -> bool {
     docs.edits()

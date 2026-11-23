@@ -1,4 +1,4 @@
-//! The MCP server: [`Docs`] behind the `rmcp` SDK, one tool per
+//! The MCP server: [`Docs`] of `retrodoc-docs` behind the `rmcp` SDK, one tool per
 //! [`Docs`] function. Read-only and LLM-free, it answers over stdio for the
 //! agent that launched it (`retrodoc mcp`).
 
@@ -8,13 +8,13 @@ use std::sync::Arc;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_handler, tool_router, ServerHandler, ServiceExt};
 
-use crate::catalog::{
+use retrodoc_docs::catalog::{
     self, IdParams, LogParams, SearchParams, SourceParams, GET_DOMAIN, GET_FEATURE, GET_USE_CASE,
     GIT_LOG, LIST_DOMAINS, READ_SOURCE, SEARCH_DOCS,
 };
-use crate::edits::Live;
-use crate::source::DEFAULT_LOG;
-use crate::tools::Docs;
+use retrodoc_docs::edits::Live;
+use retrodoc_docs::source::DEFAULT_LOG;
+use retrodoc_docs::tools::Docs;
 
 #[derive(Debug, thiserror::Error)]
 pub enum McpError {
@@ -151,7 +151,7 @@ mod tests {
     use serde_json::json;
 
     use super::*;
-    use crate::corpus::fixtures::*;
+    use retrodoc_docs::corpus::fixtures::*;
 
     /// A client connected to the server through an in-memory pipe.
     async fn connect() -> rmcp::service::RunningService<rmcp::RoleClient, ()> {

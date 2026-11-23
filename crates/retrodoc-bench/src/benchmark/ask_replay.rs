@@ -8,8 +8,8 @@ use std::sync::Arc;
 
 use retrodoc_agent::{ask_with, Tools};
 use retrodoc_core::model::Feature;
+use retrodoc_docs::{Docs, Source, SourceKind};
 use retrodoc_llm::{CallTotals, LlmProvider};
-use retrodoc_mcp::{Docs, Source, SourceKind};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -117,7 +117,7 @@ impl RunPairs {
         let mut pairs = Vec::new();
         for feature in features {
             let name = normalize(&feature.name);
-            let id = retrodoc_mcp::corpus::feature_id(feature);
+            let id = retrodoc_docs::corpus::feature_id(feature);
             let paired = matches
                 .features
                 .iter()

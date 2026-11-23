@@ -16,10 +16,10 @@ pub fn publish(repo_root: &Path, config: &Config, dry_run: bool) -> anyhow::Resu
         anyhow::bail!(NO_DOCS);
     }
     // Before anything is written: docs without the team's corrections would overwrite theirs.
-    let edits = retrodoc_mcp::edits::load(repo_root)
+    let edits = retrodoc_docs::edits::load(repo_root)
         .context("the docs are not written: the human edits cannot be read")?;
     let docs =
-        retrodoc_mcp::GeneratedDocs::load_with_edits(repo_root, &[], edits)?.context(NO_DOCS)?;
+        retrodoc_docs::GeneratedDocs::load_with_edits(repo_root, &[], edits)?.context(NO_DOCS)?;
     let report = debt_report(&docs, repo_root, config);
     let rules = docs.rules();
     if rules.is_empty()
@@ -82,9 +82,9 @@ pub fn publish(repo_root: &Path, config: &Config, dry_run: bool) -> anyhow::Resu
 
 /// The mark of each edit that changes a field the readers show (SED-33, SED-38), by the item of
 /// its page; an edit of a section the docs no longer hold marks no page.
-fn edit_marks(edits: &retrodoc_mcp::edits::Edits) -> retrodoc_render::EditMarks {
-    use retrodoc_mcp::edits::Field;
-    use retrodoc_mcp::store::SectionKind;
+fn edit_marks(edits: &retrodoc_docs::edits::Edits) -> retrodoc_render::EditMarks {
+    use retrodoc_docs::edits::Field;
+    use retrodoc_docs::store::SectionKind;
     use retrodoc_render::{EditMark, EditedField, ItemRef};
 
     edits
@@ -141,7 +141,7 @@ pub fn without_generated(
 /// when it was loaded (no LLM call); none before a first `generate` or with no collected doc, the
 /// docs dir set all the same (the web resolves the links of a narrative from it, WEB-123).
 pub fn item_doc_links(
-    generated: Option<&retrodoc_mcp::GeneratedDocs>,
+    generated: Option<&retrodoc_docs::GeneratedDocs>,
     config: &Config,
 ) -> retrodoc_render::DocLinks {
     generated
@@ -221,17 +221,17 @@ fn doc_links(
 /// can't be read the sections marked wrong, each with a warning, rather than listing every item as
 /// undocumented or none as reviewed.
 pub fn debt_report(
-    docs: &retrodoc_mcp::GeneratedDocs,
+    docs: &retrodoc_docs::GeneratedDocs,
     repo_root: &Path,
     config: &Config,
 ) -> retrodoc_core::report::DebtReport {
     let collected = project_docs(repo_root, config)
         .inspect_err(|err| tracing::warn!("items not compared with the project docs: {err:#}"))
         .ok();
-    let reviews = retrodoc_mcp::reviews::load(repo_root)
+    let reviews = retrodoc_docs::reviews::load(repo_root)
         .inspect_err(|err| tracing::warn!("the report lists no section marked wrong: {err}"))
         .ok();
-    docs.debt_report(&retrodoc_mcp::ReportInputs {
+    docs.debt_report(&retrodoc_docs::ReportInputs {
         collected: collected.as_deref(),
         put_back: config.pipeline.rules.then_some(&config.rules),
         reviews: reviews.as_ref(),
@@ -256,9 +256,9 @@ pub const NO_DOCS: &str = "no features/use cases found — run `retrodoc generat
 
 /// The generated docs the `search` and `mcp` commands answer from: the
 /// artifacts of the last `generate` run and the project's own Markdown docs.
-pub fn load_docs(workspace: &super::workspace::Workspace) -> anyhow::Result<retrodoc_mcp::Docs> {
+pub fn load_docs(workspace: &super::workspace::Workspace) -> anyhow::Result<retrodoc_docs::Docs> {
     let docs = project_docs(&workspace.repo_root, &workspace.config)?;
-    retrodoc_mcp::Docs::load(&workspace.repo_root, &docs)?.context(NO_DOCS)
+    retrodoc_docs::Docs::load(&workspace.repo_root, &docs)?.context(NO_DOCS)
 }
 
 #[cfg(test)]

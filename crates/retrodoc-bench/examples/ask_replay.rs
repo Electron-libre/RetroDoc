@@ -24,8 +24,8 @@ use retrodoc_bench::benchmark::ask_replay::{
 };
 use retrodoc_bench::benchmark::{Judgement, Matches, QuestionSet, Reference};
 use retrodoc_core::config::{Config, LlmConfig};
+use retrodoc_docs::Docs;
 use retrodoc_llm::{CallTotals, OpenRouterProvider, UsageProvider, UsageTracker};
-use retrodoc_mcp::Docs;
 use serde_json::json;
 
 type Failure = Box<dyn std::error::Error>;

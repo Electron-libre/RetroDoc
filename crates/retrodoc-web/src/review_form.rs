@@ -9,7 +9,7 @@ use axum::extract::{Path, State};
 use axum::http::{header, HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::Form;
-use retrodoc_mcp::reviews::{self, ReviewsError};
+use retrodoc_docs::reviews::{self, ReviewsError};
 use serde::Deserialize;
 
 use crate::pages::{blocking, form_answer, not_found, read_failed, render};

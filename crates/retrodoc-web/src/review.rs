@@ -2,10 +2,10 @@
 //! `.retrodoc/reviews.json` at each request, so a review saved while the server runs shows on the
 //! next page without a restart.
 
-use retrodoc_mcp::reviews::{
+use retrodoc_docs::reviews::{
     self, Outdated, Review, Reviews, ReviewsError, Section, SectionKind, Status,
 };
-use retrodoc_mcp::GeneratedDocs;
+use retrodoc_docs::GeneratedDocs;
 
 use crate::texts::{OutdatedTexts, ReviewTexts, WebTexts};
 use crate::view::{find_feature, StaleFile};

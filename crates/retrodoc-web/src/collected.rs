@@ -6,7 +6,7 @@
 //! its relative links led where they lead from its Markdown page (`NarrativeLinks`).
 
 use pulldown_cmark::{html, CowStr, Event, HeadingLevel, LinkType, Options, Parser, Tag, TagEnd};
-use retrodoc_mcp::ExistingDoc;
+use retrodoc_docs::ExistingDoc;
 use retrodoc_render::{anchor, use_case_path};
 
 use crate::review::Place;

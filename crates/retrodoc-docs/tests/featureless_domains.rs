@@ -3,7 +3,7 @@
 
 use retrodoc_core::artifacts::{DomainCluster, DomainMap};
 use retrodoc_core::model::Feature;
-use retrodoc_mcp::GeneratedDocs;
+use retrodoc_docs::GeneratedDocs;
 
 fn domain(slug: &str, name: &str) -> DomainCluster {
     DomainCluster {

@@ -10,8 +10,8 @@ workspace = true
 [dependencies]
 retrodoc-agent.workspace = true
 retrodoc-core.workspace = true
+retrodoc-docs.workspace = true
 retrodoc-llm.workspace = true
-retrodoc-mcp.workspace = true
 retrodoc-render.workspace = true
 askama.workspace = true
 pulldown-cmark.workspace = true

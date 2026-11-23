@@ -10,9 +10,9 @@ workspace = true
 [dependencies]
 retrodoc-agent.workspace = true
 retrodoc-core.workspace = true
+retrodoc-docs.workspace = true
 retrodoc-ingest.workspace = true
 retrodoc-llm.workspace = true
-retrodoc-mcp.workspace = true
 retrodoc-pipeline = { workspace = true, features = ["bench"] }
 ignore.workspace = true
 serde.workspace = true

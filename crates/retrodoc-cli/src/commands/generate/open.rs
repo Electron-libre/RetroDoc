@@ -27,7 +27,7 @@ pub(super) fn open_workspace(
     if !estimate {
         // The render refuses a file of edits it can't read: refused before any LLM call is paid
         // for, and before `force` moves or removes anything.
-        retrodoc_mcp::edits::load(&workspace.repo_root)
+        retrodoc_docs::edits::load(&workspace.repo_root)
             .context("nothing was run: the human edits cannot be read")?;
     }
     if force && !estimate {

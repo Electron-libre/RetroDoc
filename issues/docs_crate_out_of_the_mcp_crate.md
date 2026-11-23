@@ -51,12 +51,12 @@ refactor: no change of behaviour, no spec amended, the rerun stays a no-op.
 1. [x] Prepare the move in place: the argument types of the catalog and `search_limit` public, the fixtures of
    `corpus` public behind a `testing` feature, so the server can reach them from another crate; verified by
    `cardinal run project-check`. (autonomous)
-2. [ ] Move the docs modules to `retrodoc-docs`: `git mv` of every module of `retrodoc-mcp` but `server.rs` (and of its
+2. [x] Move the docs modules to `retrodoc-docs`: `git mv` of every module of `retrodoc-mcp` but `server.rs` (and of its
    two integration tests) into `crates/retrodoc-docs/`, a new `lib.rs` and manifest, `retrodoc-mcp` reduced to
    `server.rs` over `retrodoc-docs`; the readers (agent, web, bench, cli) pointed at `retrodoc_docs`; ADR draft
    0054; verified by `cardinal run project-check` (the moved tests pass unchanged, the spec traceability holds) and
    `cargo tree` (no reader but the CLI depends on `retrodoc-mcp`, `retrodoc-docs` has no normal dependency on the
-   pipeline).
+   pipeline). (autonomous)
 3. [ ] Docs: ADR 0054 accepted, `docs/ARCHITECTURE.md` (graph and table), the dependency graph of `CLAUDE.md`,
    `docs/crates/` (a `docs.md` of the new crate, `render-mcp-cli.md` left with the server), the doc comments that
    name `retrodoc-mcp` for the read model; verified by `skill:update-docs` and a grep of `retrodoc-mcp` and
@@ -88,3 +88,21 @@ refactor: no change of behaviour, no spec amended, the rerun stays a no-op.
 - not verified: none
 - decisions needed: none
 
+
+### Deliverable 2
+- done: `retrodoc-docs` created by moving every module of `retrodoc-mcp` but `server.rs`, and its two integration
+  tests, unchanged; `retrodoc-mcp` reduced to the server over it; the agent, web, bench and CLI read the docs through
+  `retrodoc_docs`, only the CLI depends on `retrodoc-mcp` (`cargo tree -i`).
+
+| check | result |
+|---|---|
+| tests | pass (`cardinal run project-check`), the moved tests unchanged |
+| lint | clippy pedantic clean |
+| specs | traceability unchanged |
+| docs | the crate docs, the architecture and the graph of `CLAUDE.md` at deliverable 3 |
+| size | 848 changed lines (the moves are pure renames) |
+
+- red: none (refactor, no new test)
+- Code review: no findings
+- not verified: none
+- decisions needed: none

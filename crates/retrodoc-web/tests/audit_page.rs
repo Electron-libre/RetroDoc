@@ -10,7 +10,7 @@ use retrodoc_core::artifacts::{DomainCluster, DomainMap, SourceHashes};
 use retrodoc_core::cache::hash_content;
 use retrodoc_core::cache::Artifact;
 use retrodoc_core::model::{Actor, ActorKind, ConfidenceScore, Feature, SourceRef, Step, UseCase};
-use retrodoc_mcp::GeneratedDocs;
+use retrodoc_docs::GeneratedDocs;
 use retrodoc_pipeline::{BoundedContext, ContextMap};
 use retrodoc_render::DocLinks;
 use retrodoc_web::Project;
