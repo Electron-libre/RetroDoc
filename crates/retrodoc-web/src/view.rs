@@ -222,7 +222,7 @@ fn start_links(
     glossary: &GlossaryPage,
     actors: &ActorsPage,
 ) -> Vec<StartLink> {
-    let actors = actors.groups.iter().map(|group| group.rows.len()).sum();
+    let actors = actors.groups.iter().map(|group| group.actors.len()).sum();
     texts
         .reference_pages
         .iter()

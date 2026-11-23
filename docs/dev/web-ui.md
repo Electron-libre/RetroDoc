@@ -46,8 +46,10 @@ spacing steps `--space-1` to `--space-6`, the radius `--radius-sm`, `--radius`, 
 | | `.edit-fields`, `form.ask` | fields in a column, `.actions` for the buttons |
 | | `section.review`, `section.edit-form` | a panel on the surface |
 | table | `<table>`, `<thead>` | muted header, row lit on hover (not the heatmap nor the code) |
-| wide table | `<div class="wide">` around a table with more columns than a screen holds (actors, heatmap, trends) | scrolls in its own frame (at most 80 % of the viewport high), never the page; its header and its row headers (`th[scope="row"]`) stay in sight |
+| wide table | `<div class="wide">` around a table with more columns than a screen holds (heatmap, trends) | scrolls in its own frame (at most 80 % of the viewport high), never the page; its header and its row headers (`th[scope="row"]`) stay in sight |
 | brand | `a.brand` in the header | the logo (`assets/retrodoc.svg`, a copy of `docs/logo/retrodoc.svg`), "Retro" in silver and "Doc" in gold, then the name of the application after a rule |
+| actor index | `nav.actor-index` atop the actors page, a `ul` per kind | the kinds side by side when the window holds them, a name per line with its counts (`.counts`, muted) at its right |
+| actor section | `section.actor` | a panel on the surface, the name then its kind muted, the use cases by domain (`h3`) and feature (nested lists), the `starts` badge |
 | badge | `.badge` (`low`, `stale`, `review …`, `edited`) | pill, the label carries the meaning |
 | card | `.card`, `.start-links li` | surface, border lit on hover |
 | empty state | `<p class="empty">` | a dashed frame, muted text; says why it is empty and what to run or open |

@@ -140,9 +140,12 @@ web interface, the MCP server and the CLI read is in `retrodoc-docs`: `docs/crat
   docs served hold it; with two runs or more the table of the runs is the comparison form (a `from` and a `to` radio
   per run, a link that swaps them, `Compared::swap`), sent by `htmx` on change and answered with
   `history_body.html` alone, swapped into `#history-body`; each radio has an id, so `htmx` gives the focus back to it. The actors page, `/actors` (`actors::actors_page`, `actors.html`, linked from the header of
-  every page, built once in `Site::new`), is a table per kind, human then system: a row per actor, grouped by its exact name (a primary actor no
-  step names counts as human and starts its use cases in the human row of its name), a column per feature with a use case that names an actor, a cell linking the use cases
-  it starts (`starts`) or takes part in, and the permission rules that apply to them. The map page, `/map`
+  every page, built once in `Site::new`; `specs/web-actors.md`), is an index of the actors, human then system, each with the
+  number of use cases it starts and of the others it takes part in, then a section per actor (`#actor-<slug>`, `#system-<slug>`):
+  the actors are grouped by their exact name (a primary actor no step names counts as human and starts its use cases in the
+  human section of its name), each section lists its use cases by domain then feature, those it starts first and marked
+  (`starts`), then the permission rules that apply to them. No table: a matrix of the features was mostly empty on an
+  application of real size. The map page, `/map`
   (`map.html`, linked from the header of every page; `map::maps` builds it and the map of each domain once in
   `Site::new`, the concepts of each use case read once), keeps the source of
   a `mermaid` flowchart, a node per domain with its counts and an edge per pair of domains whose use cases use the

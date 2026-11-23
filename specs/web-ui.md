@@ -1,6 +1,6 @@
 ---
 id: WEB
-status: accepted
+status: draft
 adrs: [0039, 0044, 0048]
 ---
 
@@ -136,16 +136,10 @@ over browses its domains, features and use cases rather than reading the Markdow
   WEB-107, that asks the page again with them.
 - **WEB-56** (deterministic) A rules request with the header `HX-Request` and without `HX-History-Restore-Request` must
   be answered with the list of the rules alone, without the layout of the page; any other with the full page.
-- **WEB-57** (deterministic) The actors page, `/actors`, must show a row per actor, the actors grouped by their exact
-  name, the human ones then the system ones under their own heading, each group sorted by name ignoring case; the
-  actors are the primary actors of the use cases and the actors of their steps.
-- **WEB-58** (deterministic) The actors page must show a column per feature with at least one use case that names an
-  actor, in the order of the run, headed by a link to its page.
-- **WEB-59** (deterministic) The cell of an actor and a feature must link to each use case of the feature the actor
-  starts (its primary actor) or takes part in (the actor of one of its steps), marking those it starts; a cell with
-  none is empty.
-- **WEB-60** (deterministic) Each row of the actors page must list beside the actor the permission rules that apply
-  to a use case of its row, each a link to its item on the page of its feature.
+- **WEB-57** (deterministic) withdrawn: moved to WAC-1 and WAC-6 (`specs/web-actors.md`).
+- **WEB-58** (deterministic) withdrawn: moved to WAC-3, the matrix dropped (WAC-8).
+- **WEB-59** (deterministic) withdrawn: moved to WAC-3.
+- **WEB-60** (deterministic) withdrawn: moved to WAC-4.
 - **WEB-61** (deterministic) On the page of a cited file, a rule that cites it must link to its item on the page of
   its feature (`#rule-<slug>`).
 - **WEB-62** (deterministic) The name of the application must be the `name` of the `[project]` section of
@@ -398,13 +392,7 @@ over browses its domains, features and use cases rather than reading the Markdow
 - (WEB-53) Given a run with no business rule, then the page says none was found rather than that none matches.
 - (WEB-54) Given a filter whose value names no kind, domain or feature of the run, then no rule matches.
 - (WEB-54) Given an empty filter value (`?kind=`), then it filters nothing, as when it is absent.
-- (WEB-57) Given `Clerk` and `clerk`, then they are two rows (no merging of the names).
-- (WEB-57) Given a primary actor no step names, then it is a human actor; given a name the steps give both kinds,
-  then it is a row under each, and as a primary actor it starts its use cases in the human row only.
-- (WEB-57) Given a run with no use case that names an actor, then the page says no actor was found.
-- (WEB-59) Given an actor that both starts a use case and takes part in one of its steps, then the use case is linked
-  once, marked as started.
-- (WEB-53, WEB-57) Given a repository with no run yet, then both pages say to run `retrodoc generate`.
+- (WEB-53) Given a repository with no run yet, then the rules page says to run `retrodoc generate`.
 - (WEB-62) Given `name = "  "` under `[project]`, then the name is that of the repository's directory.
 - (WEB-63) Given a repository with no run yet, then the page that says to run `retrodoc generate` names the
   application too.
@@ -479,7 +467,6 @@ over browses its domains, features and use cases rather than reading the Markdow
 - No syntax highlighting: the code is plain text with line numbers.
 - The diagram is drawn by the browser: whether `mermaid` succeeds on an LLM-written diagram is not required, only that
   its source stays in the page.
-- The actors page does not merge the spellings of an actor nor maps them to the actors list (`actors.yaml`).
 - The rules page has no free-text filter: the search covers the rules (WEB-40).
 - No authentication nor several repositories: the server is for the local user (a hosted mode needs its own ADR).
 - No LLM call without `--ask` (ADR 0048, `specs/web-ask.md`): a review records a judgement and leaves the docs as they are; an edit (WEB-93) is an overlay over the

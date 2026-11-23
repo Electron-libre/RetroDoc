@@ -46,3 +46,48 @@ Propose, then decide at `issue-workflow` step 1; the options can be combined.
 # Hints
 * Shoot the page before and after with `just screenshots` on a run of real size (the linkding baseline in the runs
   directory has 43 features); the test repos of the crate are too small to show the problem.
+
+# Tracking
+
+Plan: validated by Cedric Brancourt <cedric.brancourt@gmail.com> on 2026-11-23
+
+## Understanding
+Replace the actors × features matrix by an index of the actors (people then systems, each with what it starts and
+takes part in) and a section per actor (its use cases by domain and feature, those it starts first, then its
+permission rules); the map of a domain links an actor to its section. Out of scope: a page per actor, an overview by
+domain, a special treatment of the generic system actors (non-goals of `specs/web-actors.md`).
+
+## Plan
+1. [x] Actors page by actor: `specs/web-actors.md` (WAC, WEB-57 to WEB-60 moved there), `actors.rs` and
+   `actors.html` rewritten as index + sections, the slug of WAC-7, texts in English and French, the `.actor` styles;
+   verified by `tests/actors_page.rs` rewritten on the WAC ids and shots before/after on the linkding baseline
+   (`just screenshots`); makes true WAC-1, WAC-2, WAC-3, WAC-4, WAC-6, WAC-7, WAC-8. (autonomous)
+2. [ ] Map links to the section: each actor of `/map/<domain>` links to `/actors#<id of WAC-7>`, the slug shared with
+   the actors page; verified by a test of `tests/map_page.rs`; makes true WAC-5, sets `specs/web-actors.md` and
+   `specs/web-ui.md` accepted.
+
+## Decisions
+- Mode: autonomous
+- Base commit: c57b897d0d6a33ee03ea378fa1839eb087deb286
+- Answers of step 2 (2026-11-23): 1a a spec of its own; 2a no page per actor; 3a "System" stays with the system actors, not folded.
+- Approach: options 1 and 3 of the issue (the system actors already have their own heading, after the people);
+  options 2 and 4 left out (non-goals).
+- The actors page gets a spec of its own (`specs/web-actors.md`, WAC) rather than growing `specs/web-ui.md`, which
+  `check-specs` already flags as over its bounds; the move of the rest of `web-ui.md` under `### Behaviour` /
+  `### Contract` is not done here (120 requirements untouched).
+- `crates/retrodoc-web/src/texts.rs` (1,509 lines, over the limit) gets the few strings of the page beside the others;
+  its split is not part of this issue.
+
+## Deliverable 1: actors page by actor
+- done: `/actors` is an index of the actors (people then systems, each with "starts n · takes part in m") then a
+  section per actor (`#actor-<slug>` / `#system-<slug>`) listing its use cases by domain and feature, those it starts
+  first and marked, then its permission rules; no table; `specs/web-actors.md` (WAC) written, WEB-57 to WEB-60 moved
+  there; `docs/crates/render-mcp-cli.md` and `docs/dev/web-ui.md` updated. Shots on the linkding baseline:
+  `~/retrodoc-runs/screenshots/before-actors-c57b897` and `after-actors-by-actor` (no horizontal scroll at 1440 nor 500 px).
+- red: WAC-1, WAC-2, WAC-3, WAC-4, WAC-6, WAC-7, WAC-8: `no entry #actor-clerk`, `no section actor-clerk` in the
+  matrix page, and `<table` found on the page.
+- Code review: 1 finding
+  - fixed: a system actor named `Actors` took the id `system-actors` of the list of the index (duplicate id, its
+    link jumping to the list); the ids of the lists now count as taken, WAC-7 amended with its scenario and a test
+    (written with the fix, not run red first).
+- not verified: none beyond the eye check of the shots.

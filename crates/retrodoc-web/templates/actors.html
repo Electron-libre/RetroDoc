@@ -6,30 +6,45 @@
 <p class="empty">{{ t.no_actor }}</p>
 {% else %}
 <p class="muted">{{ t.actors_intro }}</p>
+<nav class="actor-index" aria-label="{{ t.page_name("/actors") }}">
 {% for group in page.groups %}
+<div>
 <h2>{{ group.heading }}</h2>
-<div class="wide">
-<table id="{{ group.id }}" class="actors">
-  <thead>
-    <tr>
-      <th scope="col">{{ t.actor }}</th>
-      {% for feature in page.features %}<th scope="col"><a href="{{ feature.href }}">{{ feature.name }}</a></th>{% endfor %}
-      <th scope="col">{{ t.permission_rules }}</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for row in group.rows %}
-    <tr>
-      <th scope="row">{{ row.name }}</th>
-      {% for cell in row.cells %}
-      <td>{% for item in cell %}<a href="{{ item.use_case.href }}">{{ item.use_case.name }}</a>{% if item.starts %} <span class="badge">{{ t.starts }}</span>{% endif %}{% if !loop.last %}<br>{% endif %}{% endfor %}</td>
-      {% endfor %}
-      <td>{% for rule in row.permissions %}<a href="{{ rule.href }}">{{ rule.name }}</a>{% if !loop.last %}<br>{% endif %}{% endfor %}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+<ul id="{{ group.id }}">
+  {% for actor in group.actors %}
+  <li><a href="#{{ actor.id }}">{{ actor.name }}</a> <span class="counts">{{ t.starts }} {{ actor.starts }} · {{ t.takes_part_in }} {{ actor.takes_part }}</span></li>
+  {% endfor %}
+</ul>
 </div>
+{% endfor %}
+</nav>
+{% for group in page.groups %}
+{% for actor in group.actors %}
+<section class="actor" id="{{ actor.id }}">
+  <h2>{{ actor.name }} <span class="kind">{{ group.heading }}</span></h2>
+  <p class="counts">{{ t.starts }} {{ actor.starts }} · {{ t.takes_part_in }} {{ actor.takes_part }}</p>
+  {% for domain in actor.domains %}
+  <h3><a href="{{ domain.link.href }}">{{ domain.link.name }}</a></h3>
+  <ul class="actor-features">
+    {% for feature in domain.features %}
+    <li><a href="{{ feature.link.href }}">{{ feature.link.name }}</a>
+      <ul>
+        {% for use_case in feature.use_cases %}
+        <li><a href="{{ use_case.link.href }}">{{ use_case.link.name }}</a>{% if use_case.starts %} <span class="badge">{{ t.starts }}</span>{% endif %}</li>
+        {% endfor %}
+      </ul>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endfor %}
+  {% if !actor.permissions.is_empty() %}
+  <h3>{{ t.permission_rules }}</h3>
+  <ul class="actor-rules">
+    {% for rule in actor.permissions %}<li><a href="{{ rule.href }}">{{ rule.name }}</a></li>{% endfor %}
+  </ul>
+  {% endif %}
+</section>
+{% endfor %}
 {% endfor %}
 {% endif %}
 {% endblock %}
