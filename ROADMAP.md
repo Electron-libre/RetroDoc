@@ -9,26 +9,6 @@ The released milestones are in [ROADMAP-done.md](ROADMAP-done.md); the ones up t
 context at a time" are the phases 1 to 11 of the former `PLAN.md`, in their order. The dated findings behind them are
 in `docs/findings.md` and the closed issues in `issues/done/`.
 
-## The readers of the docs out of the pipeline
-
-- Goal: every reader of the generated docs (`render`, `report`, the MCP server, the web interface, `ask`, the
-  benchmark) loads them in one place, through a versioned format and types that do not belong to the pipeline, in a
-  crate of their own; `retrodoc-mcp` is left as the MCP server.
-- Why: the project review of 2026-11-07 found three loaders of the same docs that diverge on the edits, readers
-  depending on the whole pipeline for a few YAML files, and no format version on the saved artifacts; any export,
-  hosted or third-party reader would start from there.
-- State: done
-- Issues:
-  - [one_loader_of_the_generated_docs](issues/done/one_loader_of_the_generated_docs.md)
-  - [format_version_of_the_saved_artifacts](issues/done/format_version_of_the_saved_artifacts.md)
-  - [cache_format_in_the_single_pass_commands](issues/done/cache_format_in_the_single_pass_commands.md)
-  - [cache_format_in_scan_and_benchmark](issues/done/cache_format_in_scan_and_benchmark.md)
-  - [reader_types_in_core](issues/done/reader_types_in_core.md)
-  - [loaders_of_the_items_in_core](issues/done/loaders_of_the_items_in_core.md)
-  - [read_time_computations_out_of_the_pipeline](issues/done/read_time_computations_out_of_the_pipeline.md)
-  - [run_history_out_of_the_pipeline](issues/done/run_history_out_of_the_pipeline.md)
-  - [docs_crate_out_of_the_mcp_crate](issues/done/docs_crate_out_of_the_mcp_crate.md)
-
 ## A local model, measured
 
 - Goal: one complete benchmark run of an application on the local model, with its figures and duration next to the

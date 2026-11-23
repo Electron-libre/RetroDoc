@@ -4,6 +4,36 @@ The notable changes of each version, newest first ([Keep a Changelog](https://ke
 [Semantic Versioning](https://semver.org/)). Each section is written by `cardinal run release <version>` from the commits,
 then reread before the release is committed.
 
+## [0.14.0] - 2026-11-23
+
+### Milestones
+
+- The readers of the docs out of the pipeline
+
+### Added
+
+- hide the intent files of hidden.txt in the hidden series
+- add the Vingilot reference, checked by its author
+- write and print one debt report, built from the docs as shown
+- record the format of the cache and refuse another in the readers
+- refuse a cache of another format in generate before any write
+- compare the slices and routes of codegraph in parsed_slices
+- check and record the cache format in the single-pass commands
+- move an older cache aside on generate --force
+- record the fingerprint parts of the doc verdicts
+
+### Fixed
+
+- keep hide-intent inside the clone, fail on a bad list
+- name the reconciled items as shown in the read model too
+- read a cache with no artifact in any format
+- count the codegraph routes once each in parsed_slices
+- keep a cache format stamp true through stops and --force
+- show the verdicts of an older reconciliation file again
+- read the progress files as strictly as the pipeline
+- refuse a cache of another format in scan and benchmark
+- check the format before the config in scan
+
 ## [0.13.0] - 2026-11-07
 
 ### Milestones

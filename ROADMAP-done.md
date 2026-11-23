@@ -365,3 +365,24 @@ The released milestones, moved out of the roadmap by `release`, oldest first.
   - [web_ui_ask_composer](issues/done/web_ui_ask_composer.md)
   - [web_ui_edit_live_preview](issues/done/web_ui_edit_live_preview.md)
   - [web_ui_narrative_links_and_headings](issues/done/web_ui_narrative_links_and_headings.md)
+
+## The readers of the docs out of the pipeline
+
+- Goal: every reader of the generated docs (`render`, `report`, the MCP server, the web interface, `ask`, the
+  benchmark) loads them in one place, through a versioned format and types that do not belong to the pipeline, in a
+  crate of their own; `retrodoc-mcp` is left as the MCP server.
+- Why: the project review of 2026-11-07 found three loaders of the same docs that diverge on the edits, readers
+  depending on the whole pipeline for a few YAML files, and no format version on the saved artifacts; any export,
+  hosted or third-party reader would start from there.
+- State: done
+- Released: v0.14.0
+- Issues:
+  - [one_loader_of_the_generated_docs](issues/done/one_loader_of_the_generated_docs.md)
+  - [format_version_of_the_saved_artifacts](issues/done/format_version_of_the_saved_artifacts.md)
+  - [cache_format_in_the_single_pass_commands](issues/done/cache_format_in_the_single_pass_commands.md)
+  - [cache_format_in_scan_and_benchmark](issues/done/cache_format_in_scan_and_benchmark.md)
+  - [reader_types_in_core](issues/done/reader_types_in_core.md)
+  - [loaders_of_the_items_in_core](issues/done/loaders_of_the_items_in_core.md)
+  - [read_time_computations_out_of_the_pipeline](issues/done/read_time_computations_out_of_the_pipeline.md)
+  - [run_history_out_of_the_pipeline](issues/done/run_history_out_of_the_pipeline.md)
+  - [docs_crate_out_of_the_mcp_crate](issues/done/docs_crate_out_of_the_mcp_crate.md)
