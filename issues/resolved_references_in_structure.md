@@ -9,7 +9,7 @@ why: 'a measured gain in slice precision that no milestone needs yet; the port i
 A call resolved by its bare name brings method-name noise into the slices
 (`issues/done/parsed_references_for_ranking_and_slices.md`); codegraph's resolution, which knows imports, parent
 classes and receivers, removes it where it links but sees nothing for a fifth of the entry-point files
-(`issues/references_resolved_by_codegraph.md`, `docs/findings.md` §13). Expected: the same precision from
+(`issues/done/references_resolved_by_codegraph.md`, `docs/findings.md` §13). Expected: the same precision from
 RetroDoc's own `structure.rs`, with the lexical follow for what it does not resolve, and slices a reader judges
 better than today's, with no external tool.
 
@@ -35,7 +35,7 @@ Measure first, with no LLM, before touching the pipeline.
    `ranking.rs`.
 
 # Resources
-* `issues/references_resolved_by_codegraph.md`, `issues/done/parsed_references_for_ranking_and_slices.md`
+* `issues/done/references_resolved_by_codegraph.md`, `issues/done/parsed_references_for_ranking_and_slices.md`
 * `docs/findings.md` §13, ADR `0022`, ADR `0027`, ADR `0036`
 * `crates/retrodoc-ingest/src/structure.rs`, `crates/retrodoc-pipeline/src/slices.rs`, `ranking.rs`
 * the `parsed_slices` example of `retrodoc-bench` (`--codegraph`)

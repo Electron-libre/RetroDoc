@@ -807,7 +807,7 @@ rejected, 2 added):
 codegraph 1.6.4 (MIT, a code graph for coding agents: tree-sitter, cross-file resolution in TypeScript, SQLite
 store, its own Node runtime, telemetry on by default) indexed the checkouts of three saved runs; `parsed_slices
 --codegraph` compared the slices along its edges with today's lexical ones, depth 2 and 8 files, with no LLM
-(`issues/references_resolved_by_codegraph.md`):
+(`issues/done/references_resolved_by_codegraph.md`):
 
 | Run | Entry-point files | Mean slice, lexical / codegraph | Common / lexical only / codegraph only |
 |---|---|---|---|

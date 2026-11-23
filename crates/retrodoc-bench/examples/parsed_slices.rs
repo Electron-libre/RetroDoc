@@ -10,7 +10,7 @@
 //! alone (the pass starts from all the files of a feature). One row per run, Markdown; with
 //! `--detail`, the files each way adds or loses, per entry-point file whose slices differ.
 //!
-//! With `--codegraph` (`issues/references_resolved_by_codegraph.md`), a fourth slice follows the edges
+//! With `--codegraph` (`issues/done/references_resolved_by_codegraph.md`), a fourth slice follows the edges
 //! codegraph resolved between files, and a second table compares the files its routes lead to with the
 //! entry-point files. Both read two TSV files in `<run dir>/.codegraph/`, exported from its index
 //! (`codegraph init -y --local-only`, telemetry off) by `sqlite3 .codegraph/codegraph.db`:
