@@ -17,12 +17,12 @@ in `docs/findings.md` and the closed issues in `issues/done/`.
 - Why: the project review of 2026-11-07 found three loaders of the same docs that diverge on the edits, readers
   depending on the whole pipeline for a few YAML files, and no format version on the saved artifacts; any export,
   hosted or third-party reader would start from there.
-- State: in issues
+- State: done
 - Issues:
   - [one_loader_of_the_generated_docs](issues/done/one_loader_of_the_generated_docs.md)
   - [format_version_of_the_saved_artifacts](issues/done/format_version_of_the_saved_artifacts.md)
   - [cache_format_in_the_single_pass_commands](issues/done/cache_format_in_the_single_pass_commands.md)
-  - [cache_format_in_scan_and_benchmark](issues/cache_format_in_scan_and_benchmark.md)
+  - [cache_format_in_scan_and_benchmark](issues/done/cache_format_in_scan_and_benchmark.md)
   - [reader_types_in_core](issues/done/reader_types_in_core.md)
   - [loaders_of_the_items_in_core](issues/done/loaders_of_the_items_in_core.md)
   - [read_time_computations_out_of_the_pipeline](issues/done/read_time_computations_out_of_the_pipeline.md)

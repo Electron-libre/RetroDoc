@@ -92,7 +92,7 @@ the benchmark replays, an upgrade in place. `surface` writes nothing: it only ch
 - red: CFV-12, CFV-13: `brief --signals writes nothing` (format.json created); `generate --force` with unreadable
   edits left the cache moved (`cache_of` differs).
 - Code review (`high`): 6 findings; 5 fixed above; 1 pre-existing (`scan` and `benchmark` read the cache unchecked)
-  filed as `issues/cache_format_in_scan_and_benchmark.md`.
+  filed as `issues/done/cache_format_in_scan_and_benchmark.md`.
 - Code review (`low` of the fixes): no findings
 - not verified: a `generate --force` that fails after the move for a missing API key leaves the cache moved (the
   message names where); the state stays of one format, the next `generate` runs from scratch.
