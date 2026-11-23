@@ -65,10 +65,10 @@ fallback. Out of scope: other languages, `ranking.rs`, contexts and routes place
    sample of differing slices read with the method of the 2026-11-23 measure; verified by a unit test of the mixed
    follow; results here and in the ledger. **Stop after it**: go on only if the mix beats the lexical slice.
    (autonomous)
-2. [ ] Python resolver: new module `retrodoc-ingest/src/resolve/` (`mod.rs`, `python.rs`; `structure.rs` is over
+2. [x] Python resolver: new module `retrodoc-ingest/src/resolve/` (`mod.rs`, `python.rs`; `structure.rs` is over
    the file-size limit), its own tree-sitter queries behind the `python` feature, giving per file the source files
    it references with a count; verified by tests of the scenarios of RES-3, RES-4, RES-7 to RES-10 on temp
-   repositories; makes true RES-1 (Python), RES-3, RES-4, RES-7 (Python), RES-8, RES-9, RES-10.
+   repositories; makes true RES-1 (Python), RES-3, RES-4, RES-7 (Python), RES-8, RES-9, RES-10. (autonomous)
 3. [ ] Ruby resolver: `resolve/ruby.rs` behind the `ruby` feature (`require`/`require_relative`, constants by
    nesting, superclass, `include`/`extend`, implicit and `self` calls); verified by tests of the scenarios of RES-5
    to RES-7; makes true RES-1 (Ruby), RES-5, RES-6, RES-7 (Ruby).
@@ -144,3 +144,27 @@ Code review: no findings
 
 not verified: the slices of the mix beyond the six files read; decisions needed: the stop of the plan (go on with
 the port).
+
+## Summary of deliverable 2
+
+done: `retrodoc_ingest::resolve` (`resolve(repo_root, files)`, `Resolved::targets`) and its Python resolver
+(`resolve/python.rs`, behind the `python` feature): imports, bound names followed where used, `self`/`cls` and
+class-constant calls looked up in the class then its ancestors, nothing for an unknown receiver.
+
+| check | result |
+|---|---|
+| tests | `tests/resolve_python.rs` 10 pass (new) |
+| lint | clippy pedantic clean, default features, none, `ruby` alone |
+| specs | RES-1, RES-3, RES-4, RES-7 to RES-11 traced (Python); `check-specs` clean |
+| docs | `docs/crates/core-ingest.md` |
+| code review | 1 finding, fixed |
+
+red: RES-H1, RES-1, RES-3, RES-4, RES-7, RES-8, RES-9, RES-10, RES-11: the tests failed to compile before the
+code (`unresolved import retrodoc_ingest::resolve`).
+
+Code review: 1 findings
+* important: an `__init__.py` at the repository root made the search of the package root loop forever; fixed
+  (stop at the root), test `a_repository_with_an_init_at_its_root_still_resolves` (written with the fix, not run
+  red).
+
+not verified: the resolution on a real repository (the measure of deliverable 4); decisions needed: none.
