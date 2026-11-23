@@ -20,6 +20,8 @@ roadmap_archive = "ROADMAP-done.md"
 # Run by `release` with the version as last argument: sets the version of the workspace.
 release_version_command = "just set-version"
 architecture = "docs/ARCHITECTURE.md"
+# How an issue branch reaches the trunk: "local" (a fast-forward merge in the main worktree, nothing pushed).
+merge_back = "local"
 # Where the rules for writing tests are (issue-workflow, step "test first").
 test_conventions = "docs/dev/conventions.md"
 # What must never be named in an issue or a committed file (create-issue); generic wording only.
