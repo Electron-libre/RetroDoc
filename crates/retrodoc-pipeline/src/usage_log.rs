@@ -1,6 +1,7 @@
 //! What a run cost, for the user: the recap printed at the end of every
-//! command that calls the LLM ([`recap`]) and its history in
-//! `.retrodoc/cache/usage.json` ([`run_usage`], saved by `retrodoc_core::artifacts::usage::record_run`), so pass timings and token
+//! command that calls the LLM ([`recap`]) and the run as its history in
+//! `.retrodoc/cache/usage.json` keeps it ([`run_usage`], saved by
+//! `retrodoc_core::artifacts::usage::record_run`), so pass timings and token
 //! counts survive the terminal log. It lives apart from the generated docs
 //! on purpose: figures that change on every run would make the rendered
 //! `run-metadata.json` differ each time and break the no-op rerun.

@@ -45,6 +45,17 @@ impl Range {
     }
 }
 
+/// A measured figure out of its estimated range.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Miss {
+    /// Above the high bound, else below the low one.
+    pub above: bool,
+    /// The bound missed.
+    pub bound: u64,
+    /// The miss in percent of the bound, signed; `None` against a bound of zero.
+    pub percent: Option<i64>,
+}
+
 /// What a pass measured, to set against its estimate.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Measured {
@@ -67,6 +78,34 @@ pub enum Against {
 /// One figure of a pass set against its range: its label (`calls`, `tokens in`, `tokens out`), the measured
 /// figure and how it stands.
 pub type Figure = (&'static str, u64, Against);
+
+/// Why a pass is estimated as it is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Basis {
+    /// Its measured cost per source file, times the files to read.
+    PerSourceFile,
+    /// Its measured cost per run.
+    PerRun,
+    /// The run turns it off.
+    Off,
+    /// The cache saves it: no file changed, or its artifact is saved.
+    Cached,
+    /// Measured with no call on every run.
+    NoCall,
+    /// The table has no ratio for it: estimated at zero.
+    Unmeasured,
+}
+
+/// The estimate of one pass, as printed and as saved with its run in the usage history.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PassEstimate {
+    pub pass: String,
+    pub basis: Basis,
+    pub calls: Range,
+    pub prompt_tokens: Range,
+    pub completion_tokens: Range,
+}
 
 impl PassEstimate {
     /// Whether the estimate allows a call or a token to this pass.
@@ -113,45 +152,6 @@ impl PassEstimate {
             ),
         ]
     }
-}
-
-/// A measured figure out of its estimated range.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Miss {
-    /// Above the high bound, else below the low one.
-    pub above: bool,
-    /// The bound missed.
-    pub bound: u64,
-    /// The miss in percent of the bound, signed; `None` against a bound of zero.
-    pub percent: Option<i64>,
-}
-
-/// Why a pass is estimated as it is.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum Basis {
-    /// Its measured cost per source file, times the files to read.
-    PerSourceFile,
-    /// Its measured cost per run.
-    PerRun,
-    /// The run turns it off.
-    Off,
-    /// The cache saves it: no file changed, or its artifact is saved.
-    Cached,
-    /// Measured with no call on every run.
-    NoCall,
-    /// The table has no ratio for it: estimated at zero.
-    Unmeasured,
-}
-
-/// The estimate of one pass, as printed and as saved with its run in the usage history.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PassEstimate {
-    pub pass: String,
-    pub basis: Basis,
-    pub calls: Range,
-    pub prompt_tokens: Range,
-    pub completion_tokens: Range,
 }
 
 /// The estimate of a run, as printed and as saved with it in the usage history (`RunUsage`).

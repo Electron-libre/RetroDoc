@@ -57,6 +57,7 @@ dev-dependency. No change of behaviour, no spec.
    pipeline test of the progress kept as the guard that the views read what the pipeline writes; `retrodoc-mcp` drops
    `retrodoc-pipeline` from its dependencies; ADR 0051 consequences updated; verified by `just check` and a rerun of
    `generate` on a saved run that calls no LLM and rewrites no file; ~250 lines. (autonomous)
+4. [x] Fixes of the `high` review of the whole issue; verified by a new AUD-5 test and `just check`. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -127,7 +128,35 @@ Code review: 1 finding
 1. The view of `fingerprints.json` typed the hashes as strings, a change of their type would hide every finished
    context: they are strings today (`Fingerprints::contexts`), the view now takes any value and reads only the keys.
 
-not verified: a `contexts.yaml` the pipeline can't read (a context without `name`) now shows in the audit page, where
-`ContextMap::load` gave none; no binary of today writes one.
+not verified: nothing (the looser views of a malformed file: fixed in deliverable 4)
+
+decisions needed: none
+
+## Deliverable 4
+done: fixes of the `high` review of `dc3978a..HEAD` (5 findings); `skill:update-docs` over the whole issue found no
+stale name left.
+
+| check | result |
+|-------|--------|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass (AUD-5 gains a test) |
+| docs | module docs of `usage_log.rs` and `artifacts/usage.rs` |
+
+red: AUD-5: `a_malformed_map_or_fingerprints_file_reads_the_same_in_core` failed on the loose views (the map without
+`name` gave a progress where `ContextMap::load` gives none).
+
+High review: 5 findings
+1. The views of `contexts.yaml` and `fingerprints.json` were looser than the pipeline's types, so a hand-edited map
+   the pipeline drops still showed in the audit page: fixed, the views type every field as the pipeline does, a
+   test checks a malformed map and fingerprints read the same on both sides.
+2. `render`'s last `writeln!` misformatted and a blank line lost: fixed.
+3. The doc of `artifacts/usage.rs` said the pipeline records the runs: fixed (the CLI saves them).
+4. A long line in the module doc of `usage_log.rs`: rewrapped.
+5. `impl PassEstimate` before its type in `artifacts/estimate.rs`: reordered.
+
+Code review: no findings
+
+not verified: nothing
 
 decisions needed: none

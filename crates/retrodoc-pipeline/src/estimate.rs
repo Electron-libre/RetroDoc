@@ -213,6 +213,7 @@ pub fn render(estimate: &RunEstimate, models: &[(&str, String)], table: &RatioTa
     );
     out
 }
+
 /// Estimates a run from what it knows before its first call and the measured `table`.
 #[must_use]
 pub fn estimate(inputs: &EstimateInputs, table: &RatioTable) -> RunEstimate {

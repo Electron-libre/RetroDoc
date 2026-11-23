@@ -279,6 +279,31 @@ fn the_recorded_progress_splits_the_contexts_of_the_map_in_its_order() {
     assert_eq!(progress.pending, ["contracts", "users"]);
 }
 
+// spec: AUD-5 (internal: a malformed cache file is one no binary of today writes)
+#[test]
+fn a_malformed_map_or_fingerprints_file_reads_the_same_in_core() {
+    use retrodoc_core::artifacts::progress::recorded_progress;
+    use retrodoc_core::cache::Artifact;
+
+    let repo = repo();
+    let contexts = Artifact::Contexts.path(repo.dir.path());
+    std::fs::create_dir_all(contexts.parent().unwrap()).unwrap();
+    std::fs::write(&contexts, "contexts:\n- slug: invoices\n").unwrap();
+    assert_eq!(ContextMap::load(repo.dir.path()), None);
+    assert_eq!(recorded_progress(repo.dir.path()), None);
+
+    repo.map.save(repo.dir.path()).unwrap();
+    std::fs::write(
+        Artifact::Fingerprints.path(repo.dir.path()),
+        r#"{"contexts":{"invoices":"h"},"domains":3}"#,
+    )
+    .unwrap();
+    assert!(Fingerprints::load(repo.dir.path()).contexts.is_empty());
+    let progress = recorded_progress(repo.dir.path()).unwrap();
+    assert_eq!(progress.done, Vec::<String>::new());
+    assert_eq!(progress.pending, ["contracts", "invoices", "users"]);
+}
+
 #[test]
 fn the_files_read_are_the_business_ones_and_what_the_entry_points_reference() {
     let repo = repo();

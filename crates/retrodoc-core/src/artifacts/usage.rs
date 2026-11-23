@@ -1,6 +1,7 @@
 //! The history of the runs in `.retrodoc/cache/usage.json` (ADR 0043): what each command that called the LLM
-//! cost, pass by pass and model by model, with the estimate a `generate` printed before it. The pipeline records
-//! the runs (`retrodoc_pipeline::usage_log`); the audit and history pages read them.
+//! cost, pass by pass and model by model, with the estimate a `generate` printed before it. The pipeline builds
+//! a run from the usage report of the LLM (`retrodoc_pipeline::usage_log::run_usage`), the CLI saves it with
+//! [`record_run`]; the audit and history pages read them.
 
 use std::path::Path;
 
