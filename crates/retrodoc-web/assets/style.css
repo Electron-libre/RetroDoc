@@ -10,6 +10,8 @@
   /* Also written in the arrow of `select` (a data URI cannot read a variable): keep them in sync. */
   --text-muted: #9b978e;
   --gold: #d4af37;
+  /* The silver of the logo, the second colour of the charter beside the gold. */
+  --silver: #c0c4c8;
   --gold-light: #e8c872;
   /* Never for text: its contrast is too low. */
   --gold-dark: #8f7328;
@@ -63,7 +65,12 @@ a:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
   padding: 0.6rem 1rem;
   border-bottom: 1px solid var(--border);
 }
-.brand { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 600; color: var(--gold); margin-right: 1.5rem; }
+/* The brand: the logo, the name of the product (silver then gold, as in the logo), the name of the documented application. */
+.brand { display: inline-flex; align-items: center; gap: var(--space-2); margin-right: var(--space-5); }
+.brand .product { font-weight: 700; font-size: var(--text-lg); letter-spacing: 0.01em; color: var(--silver); }
+.brand .product .doc { color: var(--gold); }
+.brand .project { font-weight: 600; color: var(--text); padding-left: var(--space-2); border-left: 1px solid var(--border); }
+.brand:hover .project { color: var(--gold-light); }
 .top .links { display: flex; align-items: baseline; gap: 0.8rem; }
 .top .group { color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
 .top .links + .links { padding-left: 1rem; border-left: 1px solid var(--border); }
@@ -184,8 +191,16 @@ table.files tr.dir td:first-child { font-weight: 600; }
 .search-panel .hit.all { color: var(--gold-light); font-size: var(--text-sm); border-top: 1px solid var(--border); border-radius: 0; margin-top: var(--space-1); }
 .search-panel .empty { margin: var(--space-2) var(--space-3); padding: 0; border: none; text-align: left; font-size: var(--text-sm); }
 ul.hits { list-style: none; padding-left: 0; }
-.matrix { overflow-x: auto; }
-.matrix th, .matrix td { white-space: nowrap; }
+/* A wide table (`<div class="wide">`): it scrolls in its own frame, never the page, its header and its first column
+   kept in sight so that every cell keeps the names of its row and column. */
+.wide { overflow: auto; max-height: 80vh; margin: var(--space-3) 0; border: 1px solid var(--border); border-radius: var(--radius); }
+.wide thead th { position: sticky; top: 0; z-index: 1; background: var(--bg); }
+.wide th[scope="row"] { position: sticky; left: 0; z-index: 1; background: var(--bg); box-shadow: inset -1px 0 0 var(--border); }
+.wide thead th:first-child { left: 0; z-index: 2; box-shadow: inset -1px 0 0 var(--border); }
+.wide tbody tr:hover th[scope="row"] { background: var(--surface); }
+/* The cells of the actors wrap their links rather than stretch their column to the longest name. */
+table.actors td { min-width: 12rem; max-width: 20rem; }
+.wide table.heatmap th[scope="row"] { min-width: 10rem; max-width: 14rem; }
 
 /* The home page: the brief, where to start, the domains as cards. */
 .users ul { margin: 0.3rem 0; padding-left: 1.2rem; max-width: 48rem; }

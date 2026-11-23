@@ -312,7 +312,7 @@ async fn every_page_names_the_application_in_its_header_and_title() {
 
 // spec: WEB-124
 #[tokio::test]
-async fn every_page_shows_the_retrodoc_logo_in_its_header_and_as_its_icon() {
+async fn every_page_shows_the_retrodoc_logo_and_name_in_its_header_and_the_logo_as_its_icon() {
     let repo = generated_repo();
     let empty = tempfile::tempdir().unwrap();
     for (docs, path) in [
@@ -339,8 +339,10 @@ async fn every_page_shows_the_retrodoc_logo_in_its_header_and_as_its_icon() {
             .split('"')
             .next()
             .unwrap();
+        let logo_at = brand.find("alt=\"\"").unwrap();
+        let product = brand.find(">Retro<").unwrap();
         assert!(
-            brand.find("alt=\"RetroDoc\"").unwrap() < brand.find("Shop and Co").unwrap(),
+            logo_at < product && product < brand.find("Shop and Co").unwrap(),
             "{path}: {brand}"
         );
         for asset in [icon, logo] {

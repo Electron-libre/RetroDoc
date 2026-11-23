@@ -27,7 +27,7 @@ an older one cached.
 ## Design variables
 
 `:root` of `crates/retrodoc-web/assets/style.css` holds the colours of the charter (dark surfaces, gold as the one
-accent, kept rare; `--gold-dark` never for text; `diagrams.js` copies the colours, keep them in sync), the
+accent, kept rare, silver beside it only for the brand; `--gold-dark` never for text; `diagrams.js` copies the colours, keep them in sync), the
 spacing steps `--space-1` to `--space-6`, the radius `--radius-sm`, `--radius`, `--radius-pill`, the type scale
 `--text-xs` to `--text-2xl` and `--control-height`. A component uses them rather than a literal value.
 
@@ -46,6 +46,8 @@ spacing steps `--space-1` to `--space-6`, the radius `--radius-sm`, `--radius`, 
 | | `.edit-fields`, `form.ask` | fields in a column, `.actions` for the buttons |
 | | `section.review`, `section.edit-form` | a panel on the surface |
 | table | `<table>`, `<thead>` | muted header, row lit on hover (not the heatmap nor the code) |
+| wide table | `<div class="wide">` around a table with more columns than a screen holds (actors, heatmap, trends) | scrolls in its own frame (at most 80 % of the viewport high), never the page; its header and its row headers (`th[scope="row"]`) stay in sight |
+| brand | `a.brand` in the header | the logo (`assets/retrodoc.svg`, a copy of `docs/logo/retrodoc.svg`), "Retro" in silver and "Doc" in gold, then the name of the application after a rule |
 | badge | `.badge` (`low`, `stale`, `review …`, `edited`) | pill, the label carries the meaning |
 | card | `.card`, `.start-links li` | surface, border lit on hover |
 | empty state | `<p class="empty">` | a dashed frame, muted text; says why it is empty and what to run or open |

@@ -8,8 +8,8 @@
 <p class="muted">{{ t.actors_intro }}</p>
 {% for group in page.groups %}
 <h2>{{ group.heading }}</h2>
-<div class="matrix">
-<table id="{{ group.id }}">
+<div class="wide">
+<table id="{{ group.id }}" class="actors">
   <thead>
     <tr>
       <th scope="col">{{ t.actor }}</th>

@@ -52,7 +52,7 @@ web interface, the MCP server and the CLI read is in `retrodoc-docs`: `docs/crat
   says to run it), and the tree built once, the whole `Site` rebuilt at the first request after the edits of
   `.retrodoc/edits.json` changed (`LiveSite`, a `FromRef` state over `edits::Live`, so the handlers keep their
   `State<Arc<Site>>`; SED-27); every page shares the layout of `base.html` (`view::Shell`: the name of the
-  application in the header, after the RetroDoc logo, and the title, the RetroDoc logo as the icon of the page, the tree of domains, features and use cases, linked to
+  application in the header, after the RetroDoc logo and the name "RetroDoc", and the title, the RetroDoc logo as the icon of the page, the tree of domains, features and use cases, linked to
   `/domains/{domain}[/{feature}[/{use_case}]]`, and the footer crediting Meta Lambda with its logo); the stylesheet follows the colour
   charter of the meta-lambda.com site (its `CHARTE.md`: dark surfaces, gold as the one accent, kept rare; red and green
   only for failure and success, so the low-confidence and stale badges are gold) and builds one set of components (buttons primary, `secondary`, `quiet`; `.field` with its `.field-label` and `.hint`; tables, badges, cards, `.empty`; the macro `filter_fields` of the debt and rules filters: a `view::Filter` with `chips` as a group of radio chips, else a select, "All" first) on the design variables of `:root`, stacking the tree above the content on a narrow screen (`docs/dev/web-ui.md`), and `diagrams.js` writes the same

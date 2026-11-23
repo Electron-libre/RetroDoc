@@ -71,6 +71,7 @@
     </figure>
     {% endfor %}
   </div>
+  <div class="wide">
   <table class="trends">
     <thead>
       <tr>{% for column in t.audit_page.trend_columns %}<th scope="col">{{ column }}</th>{% endfor %}</tr>
@@ -81,8 +82,10 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
   {% if !trends.kinds.is_empty() %}
   <h3>{{ t.audit_page.trends_debt }}</h3>
+  <div class="wide">
   <table class="trends-debt">
     <thead>
       <tr><th scope="col">{{ t.audit_page.trend_columns[0] }}</th>{% for kind in trends.kinds %}<th scope="col">{{ kind }}</th>{% endfor %}</tr>
@@ -93,6 +96,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
   {% endif %}
   {% else %}
   <p class="muted">{{ t.audit_page.no_trends|safe }}</p>
@@ -102,6 +106,7 @@
   <h2>{{ t.audit_page.heatmap }}</h2>
   <p class="muted">{{ t.audit_page.heatmap_intro }}
     <span class="legend" aria-hidden="true">{{ t.audit_page.fewer }} {% for level in page.levels %}<span class="swatch level-{{ level }}"></span>{% endfor %} {{ t.audit_page.more }}</span></p>
+  <div class="wide">
   <table class="heatmap">
     <thead>
       <tr><th scope="col">{{ t.domain }}</th>{% for kind in page.kinds %}<th scope="col">{{ kind }}</th>{% endfor %}</tr>
@@ -112,6 +117,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
 </section>
 <section id="audit-cost">
   <h2>{{ t.audit_page.cost }}</h2>
