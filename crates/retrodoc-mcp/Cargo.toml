@@ -11,7 +11,6 @@ workspace = true
 chrono.workspace = true
 retrodoc-core.workspace = true
 retrodoc-ingest.workspace = true
-retrodoc-pipeline.workspace = true
 rmcp.workspace = true
 schemars.workspace = true
 serde.workspace = true
@@ -21,6 +20,8 @@ tokio.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
+# The tests write the map of the contexts as the pipeline saves it.
+retrodoc-pipeline.workspace = true
 rmcp = { workspace = true, features = ["client"] }
 serde_json.workspace = true
 tempfile = "3"

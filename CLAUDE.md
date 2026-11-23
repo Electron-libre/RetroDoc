@@ -51,7 +51,7 @@ retrodoc-cli ──> retrodoc-pipeline ──> retrodoc-ingest ──> retrodoc-
              ──> retrodoc-llm      ──────────────────────> retrodoc-core
              ──> retrodoc-ingest
 retrodoc-cli ──> retrodoc-render ──> retrodoc-core
-retrodoc-cli ──> retrodoc-mcp ──> retrodoc-pipeline, retrodoc-ingest, retrodoc-core
+retrodoc-cli ──> retrodoc-mcp ──> retrodoc-ingest, retrodoc-core
 retrodoc-cli ──> retrodoc-web ──> retrodoc-agent, retrodoc-llm, retrodoc-mcp, retrodoc-render, retrodoc-core
 retrodoc-cli ──> retrodoc-bench ──> retrodoc-agent, retrodoc-mcp, retrodoc-pipeline, retrodoc-ingest, retrodoc-llm, retrodoc-core
 retrodoc-cli ──> retrodoc-agent ──> retrodoc-mcp, retrodoc-llm
@@ -60,8 +60,8 @@ retrodoc-cli ──> retrodoc-agent ──> retrodoc-mcp, retrodoc-llm
 Per-crate detail (modules, passes, behaviours that span passes) lives in `docs/crates/`; read the file
 of the crate you are about to touch. High-level view: `docs/ARCHITECTURE.md`. Decisions: `docs/adr/`.
 
-- **retrodoc-core**: domain model (`model.rs`), `retrodoc.toml` config (`config.rs`), the layout of the cache (`cache/`)
-  and the computations the readers make at read time (BM25, the reconciliation's matching, the debt report). → `docs/crates/core-ingest.md`
+- **retrodoc-core**: domain model (`model.rs`), `retrodoc.toml` config (`config.rs`), the layout of the cache (`cache/`),
+  the artifacts the readers load, the run history included (`artifacts/`), and the computations the readers make at read time (BM25, the reconciliation's matching, the debt report). → `docs/crates/core-ingest.md`
 - **retrodoc-ingest**: file walker, git history (one revwalk), existing Markdown docs, signals of the product
   brief, tree-sitter `structure.rs`. → `docs/crates/core-ingest.md`
 - **retrodoc-llm**: `LlmProvider` trait, `OpenRouterProvider` (also serves DeepSeek), retry, structured output,

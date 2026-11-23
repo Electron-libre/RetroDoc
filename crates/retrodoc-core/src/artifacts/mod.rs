@@ -6,6 +6,7 @@ pub mod domains;
 pub mod estimate;
 pub mod glossary;
 pub mod items;
+pub mod progress;
 pub mod scope;
 pub mod set_aside;
 pub mod source_hashes;

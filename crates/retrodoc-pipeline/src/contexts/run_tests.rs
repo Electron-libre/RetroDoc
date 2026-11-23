@@ -258,17 +258,22 @@ fn a_context_the_map_no_longer_has_is_forgotten() {
 }
 
 // spec: AUD-5 (internal: the done contexts are recorded by a `generate`, which needs an LLM through the binary)
+// Core reads the progress through views of its own: this test, with the map and the fingerprints the pipeline
+// saves, keeps them reading what the pipeline writes.
 #[test]
 fn the_recorded_progress_splits_the_contexts_of_the_map_in_its_order() {
     let repo = repo();
-    assert_eq!(recorded_progress(repo.dir.path()), None);
+    assert_eq!(
+        retrodoc_core::artifacts::progress::recorded_progress(repo.dir.path()),
+        None
+    );
     repo.map.save(repo.dir.path()).unwrap();
     let mut prints = Fingerprints::load(repo.dir.path());
     prints.contexts.insert("invoices".into(), "h".into());
     prints.contexts.insert("gone".into(), "h".into());
     prints.save(repo.dir.path()).unwrap();
 
-    let progress = recorded_progress(repo.dir.path()).unwrap();
+    let progress = retrodoc_core::artifacts::progress::recorded_progress(repo.dir.path()).unwrap();
 
     assert_eq!(progress.done, ["invoices"]);
     assert_eq!(progress.pending, ["contracts", "users"]);

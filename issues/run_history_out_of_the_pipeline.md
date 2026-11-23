@@ -52,11 +52,11 @@ dev-dependency. No change of behaviour, no spec.
 2. [x] Usage history in core: `RunUsage`, `PassRecord`, `ModelRecord`, `KEPT_RUNS`, `load_history`, `record_run` to
    `retrodoc_core::artifacts::usage` with their load/save tests (TOK-5, TOK-6); `RunUsage::new` becomes the pipeline's
    `usage_log::run_usage`; verified by the moved tests and `just check`; ~700 lines. (autonomous)
-3. [ ] Recorded progress in core: `recorded_progress` and `RecordedProgress` to `retrodoc_core::artifacts::progress`,
+3. [x] Recorded progress in core: `recorded_progress` and `RecordedProgress` to `retrodoc_core::artifacts::progress`,
    reading private views of `contexts.yaml` (the slugs in order) and `fingerprints.json` (the keys of `contexts`); the
    pipeline test of the progress kept as the guard that the views read what the pipeline writes; `retrodoc-mcp` drops
    `retrodoc-pipeline` from its dependencies; ADR 0051 consequences updated; verified by `just check` and a rerun of
-   `generate` on a saved run that calls no LLM and rewrites no file; ~250 lines.
+   `generate` on a saved run that calls no LLM and rewrites no file; ~250 lines. (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -104,5 +104,30 @@ red: none (a move: the moved tests did not compile in core before it)
 Code review: no findings
 
 not verified: nothing
+
+decisions needed: none
+
+## Deliverable 3
+done: `recorded_progress` and `RecordedProgress` live in `retrodoc_core::artifacts::progress`, reading private
+views of `contexts.yaml` (the slugs in order) and `fingerprints.json` (the keys of `contexts`); the pipeline test of
+the progress (AUD-5) calls core's function on the map and fingerprints the pipeline saves; `retrodoc-mcp` depends on
+`retrodoc-pipeline` only for its tests; ADR 0051, `CLAUDE.md` and `docs/ARCHITECTURE.md` say so.
+
+| check | result |
+|-------|--------|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass (no change of behaviour; AUD-5 still traced) |
+| docs | `CLAUDE.md`, `docs/ARCHITECTURE.md`, ADR 0051, `docs/crates/core-ingest.md`, `docs/crates/pipeline.md`, `docs/crates/render-mcp-cli.md` |
+| rerun | `generate --no-confidence` on a copy of the saved vingilot run with a bogus key: no LLM call, docs up to date, the 141 files of `.retrodoc/` and `docs/` of identical content; ledger line |
+
+red: none (a move)
+
+Code review: 1 finding
+1. The view of `fingerprints.json` typed the hashes as strings, a change of their type would hide every finished
+   context: they are strings today (`Fingerprints::contexts`), the view now takes any value and reads only the keys.
+
+not verified: a `contexts.yaml` the pipeline can't read (a context without `name`) now shows in the audit page, where
+`ContextMap::load` gave none; no binary of today writes one.
 
 decisions needed: none

@@ -6,13 +6,13 @@
 use std::collections::{BTreeMap, HashSet};
 
 use retrodoc_core::artifacts::BehaviourCoverage;
-use retrodoc_pipeline::recorded_progress;
 use serde::{Deserialize, Serialize};
 // What the figures are made of and how the recap of a run writes them, for whoever shows them.
+use retrodoc_core::artifacts::progress::recorded_progress;
+pub use retrodoc_core::artifacts::progress::RecordedProgress;
 use retrodoc_core::artifacts::usage::load_history;
 pub use retrodoc_core::artifacts::usage::{ModelRecord, PassRecord, RunUsage};
 pub use retrodoc_core::text::{format_duration, thousands};
-pub use retrodoc_pipeline::RecordedProgress;
 
 use crate::debt::{debt_of, docs_report, DebtKind, DebtList};
 use crate::read_model::GeneratedDocs;
