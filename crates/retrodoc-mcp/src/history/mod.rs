@@ -7,10 +7,10 @@ use std::collections::{BTreeMap, HashSet};
 use std::io::{ErrorKind, Write as _};
 use std::path::{Path, PathBuf};
 
+use retrodoc_core::artifacts::usage::{ModelRecord, RunUsage};
 use retrodoc_core::artifacts::BehaviourCoverage;
 use retrodoc_core::cache::Artifact;
 use retrodoc_core::model::SetApartReason;
-use retrodoc_pipeline::usage_log::RunUsage;
 use serde::{Deserialize, Serialize};
 
 use crate::audit::{entry_coverage, EntryCoverage};
@@ -126,9 +126,7 @@ pub fn snapshot(
 
 fn cost(usage: &RunUsage) -> Cost {
     let models = usage.passes.iter().flat_map(|p| &p.models);
-    let sum = |field: fn(&retrodoc_pipeline::usage_log::ModelRecord) -> u64| {
-        models.clone().map(field).sum()
-    };
+    let sum = |field: fn(&ModelRecord) -> u64| models.clone().map(field).sum();
     Cost {
         wall_ms: usage.wall_ms,
         calls: sum(|m| m.calls),

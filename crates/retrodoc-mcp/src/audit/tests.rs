@@ -1,7 +1,7 @@
+use retrodoc_core::artifacts::usage::{record_run, PassRecord, RunUsage};
 use retrodoc_core::artifacts::Glossary;
 use retrodoc_core::cache::Artifact;
 use retrodoc_core::model::{ConfidenceScore, Domain, Feature, UseCase};
-use retrodoc_pipeline::usage_log::{record_run, PassRecord, RunUsage};
 use retrodoc_pipeline::{BoundedContext, ContextMap};
 
 use super::*;

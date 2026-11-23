@@ -1,6 +1,6 @@
 //! What a run cost, for the user: the recap printed at the end of every
 //! command that calls the LLM ([`recap`]) and its history in
-//! `.retrodoc/cache/usage.json` ([`record_run`]), so pass timings and token
+//! `.retrodoc/cache/usage.json` ([`run_usage`], saved by `retrodoc_core::artifacts::usage::record_run`), so pass timings and token
 //! counts survive the terminal log. It lives apart from the generated docs
 //! on purpose: figures that change on every run would make the rendered
 //! `run-metadata.json` differ each time and break the no-op rerun.
@@ -11,135 +11,48 @@
 
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
-use std::path::Path;
 use std::time::Duration;
 
-use retrodoc_llm::{CallTotals, PassUsage, UsageReport};
-use serde::{Deserialize, Serialize};
-
-use crate::artifact::{self, Artifact};
-use crate::error::PipelineError;
 use retrodoc_core::artifacts::estimate::{Against, Measured, RunEstimate};
+use retrodoc_core::artifacts::usage::{ModelRecord, PassRecord, RunUsage};
 use retrodoc_core::text::{format_duration, thousands};
-
-/// Runs kept in the history, the oldest dropped first.
-pub const KEPT_RUNS: usize = 20;
-
-/// One run of one command, as saved in the history.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct RunUsage {
-    /// The subcommand (`generate`, `roles`…).
-    pub command: String,
-    /// RFC 3339.
-    pub finished_at: String,
-    pub wall_ms: u64,
-    pub passes: Vec<PassRecord>,
-    /// The estimate printed before the run (`generate` only); absent from an older history, and dropped when
-    /// it can't be read (written by a binary whose estimate differs), so that the run still loads.
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "lenient_estimate"
-    )]
-    pub estimate: Option<RunEstimate>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct PassRecord {
-    pub name: String,
-    pub wall_ms: u64,
-    pub models: Vec<ModelRecord>,
-    /// Answers the pass could not parse, and among them those it gave up on.
-    #[serde(default)]
-    pub unparseable: u64,
-    #[serde(default)]
-    pub skipped: u64,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ModelRecord {
-    pub model: String,
-    pub calls: u64,
-    pub calls_without_usage: u64,
-    pub prompt_tokens: u64,
-    pub completion_tokens: u64,
-    /// Among `prompt_tokens`, those served from the server's prompt cache.
-    #[serde(default)]
-    pub cached_tokens: u64,
-}
-
-fn lenient_estimate<'de, D>(deserializer: D) -> Result<Option<RunEstimate>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let value = serde_json::Value::deserialize(deserializer)?;
-    Ok(serde_json::from_value(value).ok())
-}
+use retrodoc_llm::{CallTotals, PassUsage, UsageReport};
 
 fn millis(duration: Duration) -> u64 {
     u64::try_from(duration.as_millis()).unwrap_or(u64::MAX)
 }
 
-impl RunUsage {
-    /// The run as `report` measured it, with no estimate.
-    #[must_use]
-    pub fn new(command: &str, finished_at: &str, report: &UsageReport) -> Self {
-        Self {
-            command: command.to_string(),
-            finished_at: finished_at.to_string(),
-            wall_ms: millis(report.wall()),
-            passes: report
-                .passes
-                .iter()
-                .map(|pass| PassRecord {
-                    name: pass.name.clone(),
-                    wall_ms: millis(pass.wall),
-                    unparseable: pass.unparseable,
-                    skipped: pass.skipped,
-                    models: pass
-                        .models
-                        .iter()
-                        .map(|(model, totals)| ModelRecord {
-                            model: model.clone(),
-                            calls: totals.calls,
-                            calls_without_usage: totals.calls_without_usage,
-                            prompt_tokens: totals.prompt_tokens,
-                            completion_tokens: totals.completion_tokens,
-                            cached_tokens: totals.cached_tokens,
-                        })
-                        .collect(),
-                })
-                .collect(),
-            estimate: None,
-        }
-    }
-}
-
-#[derive(Debug, Default, Serialize, Deserialize)]
-struct History {
-    runs: Vec<RunUsage>,
-}
-
-/// The saved runs, oldest first. Missing or unreadable: none.
+/// The run as `report` measured it, with no estimate.
 #[must_use]
-pub fn load_history(repo_root: &Path) -> Vec<RunUsage> {
-    artifact::load_json::<History>(&Artifact::Usage.path(repo_root))
-        .unwrap_or_default()
-        .runs
-}
-
-/// Appends `run` to the history, keeping the last [`KEPT_RUNS`].
-///
-/// # Errors
-///
-/// Returns an error if the history file can't be written.
-pub fn record_run(repo_root: &Path, run: RunUsage) -> Result<(), PipelineError> {
-    let mut runs = load_history(repo_root);
-    runs.push(run);
-    if runs.len() > KEPT_RUNS {
-        runs.drain(..runs.len() - KEPT_RUNS);
+pub fn run_usage(command: &str, finished_at: &str, report: &UsageReport) -> RunUsage {
+    RunUsage {
+        command: command.to_string(),
+        finished_at: finished_at.to_string(),
+        wall_ms: millis(report.wall()),
+        passes: report
+            .passes
+            .iter()
+            .map(|pass| PassRecord {
+                name: pass.name.clone(),
+                wall_ms: millis(pass.wall),
+                unparseable: pass.unparseable,
+                skipped: pass.skipped,
+                models: pass
+                    .models
+                    .iter()
+                    .map(|(model, totals)| ModelRecord {
+                        model: model.clone(),
+                        calls: totals.calls,
+                        calls_without_usage: totals.calls_without_usage,
+                        prompt_tokens: totals.prompt_tokens,
+                        completion_tokens: totals.completion_tokens,
+                        cached_tokens: totals.cached_tokens,
+                    })
+                    .collect(),
+            })
+            .collect(),
+        estimate: None,
     }
-    artifact::save_json(&Artifact::Usage.path(repo_root), &History { runs })
 }
 
 /// The text printed at the end of a command: the total, one row per pass
@@ -421,59 +334,6 @@ mod tests {
         );
     }
 
-    // spec: TOK-5 (internal: the token counts come from an LLM answer the binary cannot fake)
-    #[test]
-    fn the_cached_tokens_are_saved_and_an_old_history_without_them_loads_with_zero() {
-        let dir = tempfile::tempdir().unwrap();
-        let run = RunUsage::new("generate", "2026-10-09T00:00:00Z", &with_cache());
-        record_run(dir.path(), run).unwrap();
-        assert_eq!(
-            load_history(dir.path())[0].passes[1].models[0].cached_tokens,
-            500_000
-        );
-
-        let old = r#"{"runs":[{"command":"generate","finished_at":"x","wall_ms":1,"passes":[{"name":"p","wall_ms":1,"models":[{"model":"m","calls":1,"calls_without_usage":0,"prompt_tokens":5,"completion_tokens":2}]}]}]}"#;
-        let path = dir.path().join(".retrodoc/cache/usage.json");
-        std::fs::write(&path, old).unwrap();
-        let back = load_history(dir.path());
-        assert_eq!(back[0].passes[0].models[0].prompt_tokens, 5);
-        assert_eq!(back[0].passes[0].models[0].cached_tokens, 0);
-    }
-
-    fn an_estimate() -> RunEstimate {
-        let range = |low, high| Range { low, high };
-        RunEstimate {
-            source_files: 12,
-            changed_files: Some(3),
-            passes: vec![PassEstimate {
-                pass: "use-cases".to_string(),
-                basis: Basis::PerSourceFile,
-                calls: range(2, 9),
-                prompt_tokens: range(1_000, 9_000),
-                completion_tokens: range(100, 900),
-            }],
-            calls: range(2, 9),
-            prompt_tokens: range(1_000, 9_000),
-            completion_tokens: range(100, 900),
-        }
-    }
-
-    // spec: TOK-6 (internal: an older history is a file no binary of today writes)
-    #[test]
-    fn the_estimate_is_saved_with_its_run_and_an_old_history_loads_without_one() {
-        let dir = tempfile::tempdir().unwrap();
-        let mut run = RunUsage::new("generate", "2026-11-05T00:00:00Z", &report());
-        run.estimate = Some(an_estimate());
-        record_run(dir.path(), run.clone()).unwrap();
-        assert_eq!(load_history(dir.path()), vec![run]);
-
-        let old = r#"{"runs":[{"command":"generate","finished_at":"x","wall_ms":1,"passes":[]}]}"#;
-        std::fs::write(Artifact::Usage.path(dir.path()), old).unwrap();
-        let back = load_history(dir.path());
-        assert_eq!(back.len(), 1);
-        assert_eq!(back[0].estimate, None);
-    }
-
     fn estimated(pass: &str, basis: Basis, calls: (u64, u64), prompt: (u64, u64)) -> PassEstimate {
         PassEstimate {
             pass: pass.to_string(),
@@ -595,19 +455,6 @@ mod tests {
         assert!(!recap(&report()).contains("estimate"));
     }
 
-    // spec: TOK-6 (internal: a history written by another binary)
-    #[test]
-    fn a_history_whose_estimate_can_not_be_read_still_loads_its_runs() {
-        let dir = tempfile::tempdir().unwrap();
-        record_run(dir.path(), RunUsage::new("roles", "x", &report())).unwrap();
-        let other = r#"{"runs":[{"command":"generate","finished_at":"x","wall_ms":1,"passes":[],
-            "estimate":{"source_files":1,"passes":[{"pass":"p","basis":"guessed"}]}}]}"#;
-        std::fs::write(Artifact::Usage.path(dir.path()), other).unwrap();
-        let back = load_history(dir.path());
-        assert_eq!(back.len(), 1);
-        assert_eq!(back[0].estimate, None);
-    }
-
     #[test]
     fn recap_shows_the_unparseable_answers_of_a_pass() {
         let mut flaky = pass("features", 5, &[("m", 4, 0, 10, 10)]);
@@ -621,32 +468,6 @@ mod tests {
             "{text}"
         );
         assert_eq!(text.matches("unparseable").count(), 1, "{text}");
-    }
-
-    #[test]
-    fn the_counts_are_saved_and_an_old_history_without_them_still_loads() {
-        let dir = tempfile::tempdir().unwrap();
-        let mut flaky = pass("features", 1, &[("m", 1, 0, 1, 1)]);
-        flaky.unparseable = 2;
-        flaky.skipped = 1;
-        let run = RunUsage::new(
-            "generate",
-            "2026-10-09T00:00:00Z",
-            &UsageReport {
-                passes: vec![flaky],
-            },
-        );
-        record_run(dir.path(), run).unwrap();
-        let back = load_history(dir.path());
-        assert_eq!(
-            (back[0].passes[0].unparseable, back[0].passes[0].skipped),
-            (2, 1)
-        );
-
-        let old = r#"{"runs":[{"command":"generate","finished_at":"x","wall_ms":1,"passes":[{"name":"p","wall_ms":1,"models":[]}]}]}"#;
-        let path = dir.path().join(".retrodoc/cache/usage.json");
-        std::fs::write(&path, old).unwrap();
-        assert_eq!(load_history(dir.path())[0].passes[0].unparseable, 0);
     }
 
     #[test]
@@ -686,36 +507,29 @@ mod tests {
         );
     }
 
+    // spec: TOK-5 (internal: the token counts come from an LLM answer the binary cannot fake)
     #[test]
-    fn a_run_is_saved_and_read_back_with_its_passes_and_models() {
-        let dir = tempfile::tempdir().unwrap();
-        let run = RunUsage::new("generate", "2026-10-06T10:00:00+00:00", &report());
-        record_run(dir.path(), run.clone()).unwrap();
-
-        assert_eq!(load_history(dir.path()), vec![run.clone()]);
+    fn a_run_keeps_its_passes_models_and_cached_tokens() {
+        let run = run_usage("generate", "2026-10-06T10:00:00+00:00", &with_cache());
         assert_eq!(run.wall_ms, 647_000);
         assert_eq!(run.passes[1].name, "repo-map");
         assert_eq!(run.passes[1].models[0].prompt_tokens, 1_000_000);
+        assert_eq!(run.passes[1].models[0].cached_tokens, 500_000);
+        assert_eq!(run.estimate, None);
     }
 
     #[test]
-    fn the_history_keeps_the_last_runs_and_survives_an_unreadable_file() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = Artifact::Usage.path(dir.path());
-        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-        std::fs::write(&path, "not json").unwrap();
-        assert_eq!(load_history(dir.path()), Vec::<RunUsage>::new());
-
-        for i in 0..KEPT_RUNS + 3 {
-            let run = RunUsage::new("roles", &format!("run-{i}"), &report());
-            record_run(dir.path(), run).unwrap();
-        }
-        let runs = load_history(dir.path());
-        assert_eq!(runs.len(), KEPT_RUNS);
-        assert_eq!(runs[0].finished_at, "run-3");
-        assert_eq!(
-            runs[KEPT_RUNS - 1].finished_at,
-            format!("run-{}", KEPT_RUNS + 2)
+    fn a_run_keeps_the_unparseable_answers_and_the_skipped_units() {
+        let mut flaky = pass("features", 1, &[("m", 1, 0, 1, 1)]);
+        flaky.unparseable = 2;
+        flaky.skipped = 1;
+        let run = run_usage(
+            "generate",
+            "2026-10-09T00:00:00Z",
+            &UsageReport {
+                passes: vec![flaky],
+            },
         );
+        assert_eq!((run.passes[0].unparseable, run.passes[0].skipped), (2, 1));
     }
 }

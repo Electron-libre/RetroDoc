@@ -4,10 +4,10 @@
 
 use std::path::Path;
 
+use retrodoc_core::artifacts::usage::RunUsage;
 use retrodoc_ingest::git_history::head_commit;
 use retrodoc_mcp::GeneratedDocs;
 use retrodoc_mcp::{history, reviews};
-use retrodoc_pipeline::usage_log::RunUsage;
 
 use super::docs::project_docs;
 use super::workspace::{repo_root, Workspace};

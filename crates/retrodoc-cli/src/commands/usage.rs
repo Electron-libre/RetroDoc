@@ -7,11 +7,12 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use retrodoc_core::artifacts::estimate::RunEstimate;
+use retrodoc_core::artifacts::usage::{self, RunUsage};
 use retrodoc_core::config::{Config, LlmConfig};
 use retrodoc_llm::{
     HeartbeatProvider, LlmProvider, OpenRouterProvider, UsageProvider, UsageTracker,
 };
-use retrodoc_pipeline::usage_log::{self, RunUsage};
+use retrodoc_pipeline::usage_log;
 use retrodoc_pipeline::{InLanguage, WRITING_PASSES};
 
 /// The LLM provider of a command, counting its calls in `tracker`.
@@ -135,10 +136,10 @@ pub fn finish(
     if calls == 0 {
         return None;
     }
-    let mut run = RunUsage::new(command, &chrono::Utc::now().to_rfc3339(), &report);
+    let mut run = usage_log::run_usage(command, &chrono::Utc::now().to_rfc3339(), &report);
     run.estimate = estimate.cloned();
     if let Ok(repo_root) = path.canonicalize() {
-        if let Err(error) = usage_log::record_run(&repo_root, run.clone()) {
+        if let Err(error) = usage::record_run(&repo_root, run.clone()) {
             tracing::warn!("could not save the usage history: {error}");
         }
     }
@@ -174,7 +175,7 @@ mod tests {
         let run = finish(dir.path(), "generate", &tracker, false, Some(&estimate)).unwrap();
 
         assert_eq!(run.estimate, None);
-        assert_eq!(usage_log::load_history(dir.path())[0].estimate, None);
+        assert_eq!(usage::load_history(dir.path())[0].estimate, None);
     }
 
     #[test]

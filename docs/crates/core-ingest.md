@@ -20,7 +20,8 @@ Detail moved out of `CLAUDE.md`. Overview of all crates: `docs/ARCHITECTURE.md` 
   with the domains it publishes, `Scope`, what the budget left out, `BehaviourCoverage`, `SourceHashes`, `SetAside`, what the rules pass set aside,
   each with its `load` and `save`; `items.rs`: `load_features`, `load_technical_features`, `load_use_cases`,
   `load_rules` and the savers of the features, use cases and rules; `estimate.rs`: `RunEstimate`, the estimate of a
-  `generate` as saved with its run, and how a measured figure stands against its range, `PassEstimate::against`),
+  `generate` as saved with its run, and how a measured figure stands against its range, `PassEstimate::against`; `usage.rs`: `RunUsage`, the history of the last 20 runs in `usage.json`,
+  `load_history` and `record_run`),
   and the layout of `.retrodoc/cache/` the pipeline writes and the readers of the docs read (`cache/`, ADR 0051):
   `Artifact`, the names of everything under `.retrodoc/cache/` and which `generate --force` clears; `load_yaml`,
   `load_json` (a missing or unreadable file is a first run, `None`, not an error), `save_yaml`, `save_json` (written

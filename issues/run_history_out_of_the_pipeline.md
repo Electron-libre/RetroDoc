@@ -49,9 +49,9 @@ dev-dependency. No change of behaviour, no spec.
    comparison (`Miss`, `Against`, `Measured`, `Figure`) to `retrodoc_core::artifacts::estimate`; `thousands` and
    `format_duration` to `retrodoc_core::text`; `render` a pipeline free function; users import from core; verified by
    the moved tests and `just check`; ~450 lines. (autonomous)
-2. [ ] Usage history in core: `RunUsage`, `PassRecord`, `ModelRecord`, `KEPT_RUNS`, `load_history`, `record_run` to
+2. [x] Usage history in core: `RunUsage`, `PassRecord`, `ModelRecord`, `KEPT_RUNS`, `load_history`, `record_run` to
    `retrodoc_core::artifacts::usage` with their load/save tests (TOK-5, TOK-6); `RunUsage::new` becomes the pipeline's
-   `usage_log::run_usage`; verified by the moved tests and `just check`; ~700 lines.
+   `usage_log::run_usage`; verified by the moved tests and `just check`; ~700 lines. (autonomous)
 3. [ ] Recorded progress in core: `recorded_progress` and `RecordedProgress` to `retrodoc_core::artifacts::progress`,
    reading private views of `contexts.yaml` (the slugs in order) and `fingerprints.json` (the keys of `contexts`); the
    pipeline test of the progress kept as the guard that the views read what the pipeline writes; `retrodoc-mcp` drops
@@ -76,6 +76,28 @@ from core, the pipeline's re-exports of `format_duration` removed.
 | specs | pass (no change of behaviour) |
 | docs | `docs/crates/core-ingest.md`, `docs/crates/pipeline.md` |
 | size | 620 lines |
+
+red: none (a move: the moved tests did not compile in core before it)
+
+Code review: no findings
+
+not verified: nothing
+
+decisions needed: none
+
+## Deliverable 2
+done: `RunUsage`, `PassRecord`, `ModelRecord`, `KEPT_RUNS`, `load_history` and `record_run` (now returning
+`CacheError`) live in `retrodoc_core::artifacts::usage` with the tests of the saved file (TOK-5, TOK-6);
+`RunUsage::new` became the pipeline's `usage_log::run_usage`, its tests checking what the run keeps of the report;
+the CLI, the bench, `retrodoc-mcp` and the web tests import the records from core.
+
+| check | result |
+|-------|--------|
+| tests | pass (`cardinal run project-check`) |
+| lint | pass |
+| specs | pass (TOK-5, TOK-6 traced by the moved tests) |
+| docs | `docs/crates/core-ingest.md`, `docs/crates/pipeline.md` |
+| size | ~560 lines |
 
 red: none (a move: the moved tests did not compile in core before it)
 

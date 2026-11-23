@@ -14,6 +14,6 @@ use retrodoc_pipeline::bench_support::{artifact, domains, naming, response, rule
 #[cfg(test)]
 use retrodoc_pipeline::testing;
 use retrodoc_pipeline::{
-    actors, brief, confidence, entry_points, error, features, slices, sources, surface, usage_log,
-    use_cases, vocabulary,
+    actors, brief, confidence, entry_points, error, features, slices, sources, surface, use_cases,
+    vocabulary,
 };

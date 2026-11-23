@@ -18,8 +18,8 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
 
-use crate::usage_log::{load_history, RunUsage};
 use retrodoc_core::artifacts::estimate::{Against, Measured, RunEstimate};
+use retrodoc_core::artifacts::usage::{load_history, RunUsage};
 use retrodoc_pipeline::bench_support::reading::MAX_READ_CHARS_PER_FILE;
 
 /// The runs to measure (a file kept next to them, outside git: it names their paths).

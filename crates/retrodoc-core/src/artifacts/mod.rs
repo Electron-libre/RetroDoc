@@ -9,6 +9,7 @@ pub mod items;
 pub mod scope;
 pub mod set_aside;
 pub mod source_hashes;
+pub mod usage;
 
 pub use coverage::BehaviourCoverage;
 pub use domains::{DomainCluster, DomainMap};
