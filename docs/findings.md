@@ -801,3 +801,27 @@ rejected, 2 added):
   narratives figure from one rating is not a finding until repeated.
 - **Missed in both series**: the powers by role (rules spread over every feature, not a feature of their own in the
   docs), laying notes and book pages on the table, the table kept on disk, and the links between notes.
+
+## 13. Resolved references: codegraph against the lexical follow (2026-11-23)
+
+codegraph 1.6.4 (MIT, a code graph for coding agents: tree-sitter, cross-file resolution in TypeScript, SQLite
+store, its own Node runtime, telemetry on by default) indexed the checkouts of three saved runs; `parsed_slices
+--codegraph` compared the slices along its edges with today's lexical ones, depth 2 and 8 files, with no LLM
+(`issues/references_resolved_by_codegraph.md`):
+
+| Run | Entry-point files | Mean slice, lexical / codegraph | Common / lexical only / codegraph only |
+|---|---|---|---|
+| linkding | 22 | 7.6 / 3.8 | 35 / 133 / 49 |
+| Lobsters | 95 | 7.7 / 5.7 | 241 / 488 / 302 |
+| delivery_router | 2 | 8.0 / 6.0 | 12 / 4 / 0 |
+
+- **A resolution that knows imports and receivers removes the method-name noise.** Where codegraph links, the
+  slices read hold the models, queries, collaborators and parent classes the code uses, none of the files a bare
+  method name dragged in (`issues/done/parsed_references_for_ranking_and_slices.md`).
+- **It sees nothing where the link is a string or the file is not parsed**: 24 of 119 entry-point files (Django
+  commands calling each other through `call_command`, `.rake` tasks, extensionless scripts); the lexical follow
+  still finds their neighbours. Resolved first, lexical as fallback, is the shape to measure.
+- **Its framework routes add little to the entry points**: HTTP only, every Lobsters route file already found by
+  the LLM, two real route files more on linkding, one route bound to the wrong file.
+- Decision (user, 2026-11-23): port the resolution into `structure.rs` rather than depend on codegraph (one binary,
+  no Node, no telemetry); `issues/resolved_references_in_structure.md`.

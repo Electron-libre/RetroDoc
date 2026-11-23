@@ -79,8 +79,9 @@ RetroDoc's pipeline depending on codegraph; the choice among the follow-ups, lef
    reading, the follow and the route comparison; results here and in the ledger.
    **Stop after it**: the user judges, on a sample of differing slices, whether codegraph's are better (decides 2).
    (autonomous)
-2. [ ] Decision: the outcome written in `docs/findings.md` (dated) and, with a gain, the follow-up issue of the
+2. [x] Decision: the outcome written in `docs/findings.md` (dated) and, with a gain, the follow-up issue of the
    option the user picks (accelerator, port into `structure.rs`, agent tool); verified by `check-issue` on it.
+   (autonomous)
 
 ## Decisions
 - Mode: autonomous
@@ -88,6 +89,8 @@ RetroDoc's pipeline depending on codegraph; the choice among the follow-ups, lef
 - Install: the v1.6.4 release archive (its own Node; the machine's Node 26 is outside its `engines`), in the
   session's scratch directory, telemetry off (user, 2026-11-23).
 - Repositories: linkding, lobsters, delivery_router only; not the confidential Rails one (user, 2026-11-23).
+- After the measure: port the resolution into `structure.rs`, mixed with the lexical fallback and measured first
+  (option a, user, 2026-11-23): `issues/resolved_references_in_structure.md`; no dependency on codegraph.
 
 ## Results of deliverable 1
 
@@ -143,3 +146,21 @@ Code review: 1 findings
 
 not verified: the quality of the codegraph slices beyond the five entry-point files read; decisions needed: the
 stop below.
+
+## Summary of deliverable 2
+
+done: `docs/findings.md` §13 (the measure and the decision) and the follow-up issue
+`issues/resolved_references_in_structure.md` (low, after this one).
+
+| check | result |
+|---|---|
+| tests | none (docs) |
+| check-issue | clean |
+| docs | `docs/findings.md` |
+| code review | 1 finding, fixed |
+
+red: none (docs only)
+
+Code review: 1 findings
+* nit: the links to this issue pointed at `issues/done/` before its close; now its current path, which `close-issue`
+  rewrites.
