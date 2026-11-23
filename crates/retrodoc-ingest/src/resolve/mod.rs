@@ -8,6 +8,8 @@ use std::path::{Path, PathBuf};
 
 #[cfg(feature = "python")]
 mod python;
+#[cfg(feature = "ruby")]
+mod ruby;
 
 /// Per file, the other files of the repository it references and how many times.
 pub(crate) type Counts = BTreeMap<PathBuf, BTreeMap<PathBuf, usize>>;
@@ -35,12 +37,17 @@ impl Resolved {
 /// Resolves the references of `files` (paths relative to `repo_root`) among themselves: a target is always one of
 /// `files` and never the referencing file. An unreadable file references nothing and defines nothing.
 #[must_use]
-#[cfg_attr(not(feature = "python"), allow(unused_variables))]
+#[cfg_attr(
+    not(any(feature = "python", feature = "ruby")),
+    allow(unused_variables)
+)]
 pub fn resolve(repo_root: &Path, files: &[PathBuf]) -> Resolved {
-    #[cfg_attr(not(feature = "python"), allow(unused_mut))]
+    #[cfg_attr(not(any(feature = "python", feature = "ruby")), allow(unused_mut))]
     let mut references = Counts::new();
     #[cfg(feature = "python")]
     python::resolve(repo_root, files, &mut references);
+    #[cfg(feature = "ruby")]
+    ruby::resolve(repo_root, files, &mut references);
     for (file, targets) in &mut references {
         targets.remove(file);
     }
@@ -49,7 +56,7 @@ pub fn resolve(repo_root: &Path, files: &[PathBuf]) -> Resolved {
 }
 
 /// The text of `path` under `repo_root`, invalid UTF-8 replaced; `None` when unreadable.
-#[cfg_attr(not(feature = "python"), allow(dead_code))]
+#[cfg_attr(not(any(feature = "python", feature = "ruby")), allow(dead_code))]
 fn read(repo_root: &Path, path: &Path) -> Option<String> {
     std::fs::read(repo_root.join(path))
         .ok()

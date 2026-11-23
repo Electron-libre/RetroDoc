@@ -69,9 +69,9 @@ fallback. Out of scope: other languages, `ranking.rs`, contexts and routes place
    the file-size limit), its own tree-sitter queries behind the `python` feature, giving per file the source files
    it references with a count; verified by tests of the scenarios of RES-3, RES-4, RES-7 to RES-10 on temp
    repositories; makes true RES-1 (Python), RES-3, RES-4, RES-7 (Python), RES-8, RES-9, RES-10. (autonomous)
-3. [ ] Ruby resolver: `resolve/ruby.rs` behind the `ruby` feature (`require`/`require_relative`, constants by
+3. [x] Ruby resolver: `resolve/ruby.rs` behind the `ruby` feature (`require`/`require_relative`, constants by
    nesting, superclass, `include`/`extend`, implicit and `self` calls); verified by tests of the scenarios of RES-5
-   to RES-7; makes true RES-1 (Ruby), RES-5, RES-6, RES-7 (Ruby).
+   to RES-7; makes true RES-1 (Ruby), RES-5, RES-6, RES-7 (Ruby). (autonomous)
 4. [ ] Resolved follow and its measure: `Follow::ResolvedThenLexical` in `slices.rs` (per file: resolved references,
    else lexical), a `--resolved` slice in `parsed_slices` compared with the lexical, the mix of deliverable 1 and the
    kept `edges.tsv` file pair by file pair; measured on the three runs, no LLM; verified by the slice tests of RES-2,
@@ -166,5 +166,30 @@ Code review: 1 findings
 * important: an `__init__.py` at the repository root made the search of the package root loop forever; fixed
   (stop at the root), test `a_repository_with_an_init_at_its_root_still_resolves` (written with the fix, not run
   red).
+
+not verified: the resolution on a real repository (the measure of deliverable 4); decisions needed: none.
+
+## Summary of deliverable 3
+
+done: the Ruby resolver (`resolve/ruby.rs`, behind the `ruby` feature): requires, constants by nesting, reopened
+classes, implicit, `self` and constant calls looked up in the class, its parents, then its modules; locals and
+parameters are not calls.
+
+| check | result |
+|---|---|
+| tests | `tests/resolve_ruby.rs` 7 pass (new), `tests/resolve_python.rs` 10 pass |
+| lint | clippy pedantic clean, default features, none, `ruby` alone, `python` alone |
+| specs | RES-H2, RES-1, RES-5 to RES-8, RES-10 traced (Ruby); `check-specs` clean |
+| docs | `docs/crates/core-ingest.md` |
+| code review | 2 findings, fixed |
+
+red: RES-H2, RES-1, RES-5, RES-6, RES-7, RES-8, RES-10: 6 tests failed on empty targets before the code
+(`left: {} right: {"app/controllers/application_controller.rb", "app/models/story.rb"}`).
+
+Code review: 2 findings
+* nit: the names of a multiple assignment (`a, b = pair`) were read as calls on `self`; fixed (declared locals).
+* nit: block parameters stayed locals after their block, hiding a later call of that name; fixed (locals restored
+  after a block). Test `locals_of_a_multiple_assignment_are_not_calls_and_block_parameters_end_with_their_block`,
+  red before the fix (`left: {base.rb, concerns/naming.rb} right: {base.rb, concerns/paging.rb}`).
 
 not verified: the resolution on a real repository (the measure of deliverable 4); decisions needed: none.
